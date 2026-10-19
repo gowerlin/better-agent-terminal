@@ -1,13 +1,47 @@
 # Tower State — better-agent-terminal
 
-> 最後更新:2026-10-19 13:07 (UTC+8) — **第八十五 session 收工**：BUG-136 根因確認（縮圖預覽無上限累積，T0666 / T0667）、BUG-164 macOS GPU CHECK 崩潰（T0668 / T0669）→ 發 `v0.7.1-pre.3`；PLAN-053 IDEA；D173。
+> 最後更新:2026-10-19 18:09 (UTC+8) — **第八十六 session 收工**：BUG-136 CLOSED（Gary 確認）；BUG-165 Codex 捲動研究（T0670，OPEN 有空再排）；BUG-166 滑鼠回報殘留研究 + 修正（T0671 / T0672）→ 發 `v0.7.1-pre.4`；D174。
 >
-> **第八十六 session（15:33 起）**：Gary 15:19 回報打字卡頓已解決 → BUG-136 CLOSED；15:40 BUG-164 graphite disabled 已生效（另兩項待回報）；15:40 Gary 希望 Codex CLI 捲動更順 → BUG-165 OPEN、T0670 研究（15:44 追加平台範圍）；15:50 Gary 截圖：完成的 Worker 分頁滑鼠回報變成 shell 文字 → BUG-166 OPEN、T0671 研究。T0670 DONE 16:04、T0671 DONE 16:34：BUG-165 = xterm 追蹤模式每事件只送 1 個滾輪回報（跨平台；待 Gary 試 `mouse_scroll_speed = 3`）；BUG-166 = codex 被訊號結束不還原追蹤（Unix PTY 跨平台；F1 + F2 待 Gary 回覆再決定，不回報上游）。
->
-> **下次起手**:等 Gary 回報 BUG-164（`skia_graphite=`、有無 GPU 崩潰）→ CLOSED 或退回；BUG-156 / 159 仍待特定環境；PLAN-053 等排程。
+> **下次起手**:等 Gary 以 `v0.7.1-pre.4` 回報（A 滑鼠亂碼 → BUG-166；B `skia_graphite=` / GPU 崩潰 → BUG-164；C 選做 `mouse_scroll_speed = 3` → BUG-165）；BUG-156 / 159 仍待特定環境；PLAN-053 等排程。
 ---
 
-## 🛏 本 Session 收工快照 (第八十五 session, 2026-10-19 11:42 - 13:07, ~1h25m)
+## 🛏 本 Session 收工快照 (第八十六 session, 2026-10-19 15:33 - 18:09, ~2h36m)
+
+### 主軸：Gary 以 pre.3 回報 → BUG-136 CLOSED；新問題 BUG-165（Codex 捲動）/ BUG-166（滑鼠回報殘留）研究 → BUG-166 修正 → 發 `v0.7.1-pre.4`
+
+#### 時間線（時間取自系統 / git / gh）
+
+1. **15:33** 啟動（CT v5.9.0；BAT 安裝版 `0.7.1-pre.3`；`--set-role tower --mode on` exit 0；session 名稱 `better-agent-terminal · Tower`，不顯示提示）；Gary 15:19「卡頓解決」→ BUG-136 CLOSED（`62b7da60`）
+2. **15:40** Gary 日誌 `[gpu] skia graphite: disabled` → BUG-164 第 1 項 PASS（`90d05b59`）；Gary「捲動再絲滑一點」（Codex CLI 內）→ BUG-165 + T0670 研究（15:43 `started:`；使用者追加「是否只在 macOS」）
+3. **15:50** Gary 截圖：完成的 Worker 分頁滑鼠一動冒 `35;52;69M…` → BUG-166 + T0671 研究（15:53 `started:`；使用者追加 Claude CLI / Ctrl+C / Ctrl+Z 對照）
+4. **16:04** T0670 DONE：xterm 5.5 追蹤模式每 wheel 事件最多 1 個回報（跨平台，macOS 觸控板最明顯）；**16:34** T0671 DONE：codex 0.163 只有被訊號結束才不還原追蹤；BAT 不開也不保留；claude 只有 SIGKILL 殘留；Unix PTY 跨平台、Windows 原生 ConPTY 無殘骸
+5. **17:28** Gary：「不急」、Claude CLI 捲動較順、codex 自己跳回命令列；**17:35** 使用者：不需知道成因可修 → T0672（F1 + F2）派工；17:40 Q-1 BAT `--answer` [A]（D174）；**17:50** DONE `64209d44` → BUG-166 FIXED（塔台複驗 5661 / 322、typecheck 0 / 0）
+6. **17:53** 使用者「發 0.7.1-pre.4」→ vite build、bump `8883cebd`、push → run `39233550117` 全綠 → **18:03 `v0.7.1-pre.4`** → 更版重點 → 文件 `4ae0e89d` → Pages `39234927266` 綠、link-check 1152 / 0 errors、首頁 pre.4
+7. **18:09** 收工（使用者「收工, push」）；pre.4 驗收訊息已給使用者轉貼
+
+### 本輪戰績
+
+| 類別 | 數量 | 備註 |
+|---|---|---|
+| 派發工單 | **3**（T0670–T0672） | 全部 `started:`；T0670 / T0671 並行；結構化提問 1 次（T0672 Q-1）；`worker_auto_close` 回收 3 次 |
+| BUG | BUG-136 CLOSED；BUG-165 新開 OPEN；BUG-166 新開 → FIXED | 熱區 Open 1 / Fixing 0 / Fixed 23 / Closed 27 |
+| 決策 | D174（T0672 Q-1：t0571 e2e 選單斷言納入範圍） | 不回報 codex 上游（使用者決定） |
+| 發版 | 1（`v0.7.1-pre.4`） | exe 298 / zip 412 / AppImage 297 / dmg 309 MiB |
+| unit test | 5635 → **5661 passed / 322 files** | 塔台複驗 @ `72d77cf1` |
+
+### 重點觀察
+
+- 研究單派出後使用者追加範圍：直接加進工單「調查範圍」，兩次 Worker 都自己重讀並納入（T0670 [15:56]、T0671 [16:03]）
+- 「看症狀修」可以不等成因：BUG-166 的 F1 / F2 不依賴 codex 為何結束，使用者據此直接派工
+- Windows ConPTY 會吃掉 SGR 滑鼠回報，Unix PTY 專屬的現象改用 WSL 原生 PTY / BAT 的 WSL 分頁重現（延續 T0666 經驗）
+
+### 編號起始（下 session）
+
+- **T0673** / **BUG-167** / **PLAN-054** / **D175** / **L171** / **CT-T022**
+
+---
+
+## 🛏 前 Session 收工快照 (第八十五 session, 2026-10-19 11:42 - 13:07, ~1h25m)
 
 ### 主軸：Gary macOS 日誌 → BUG-136 根因確認（縮圖預覽無上限累積）、GPU 崩潰拆成 BUG-164 → 兩者修正 → 發 `v0.7.1-pre.3`
 
@@ -44,61 +78,22 @@
 
 ---
 
-## 🛏 前 Session 收工快照 (第八十四 session, 2026-10-18 21:27 - 22:45, ~1h18m)
-
-### 主軸：`v0.7.1-pre.2` 安裝版自動化驗收 → BUG-157 / 158 / 160 / 161 / 162 / 163 CLOSED；PLAN-047、PLAN-049 結案；網站 metadata 補齊上線
-
-#### 時間線（時間取自系統 / git / gh）
-
-1. **21:27** 啟動（CT v5.9.0；BAT 安裝版 FileVersion `0.7.1-pre.2` 確認；`--set-role tower --mode on` exit 0；本分頁 `better-agent-terminal · Tower`，不顯示提示）
-2. **21:30** 使用者「從清單開始，只做能自動化的」→ T0663（BUG-157 / 158 / 160 / 161 / 163）＋ T0664（BUG-162）建單（`7a2387fa`），21:32 並行派工皆 `started:`；BUG-156（Docker Desktop）/ BUG-159（一般權限）不納入
-3. **21:44** T0664 DONE（V0–V2 PASS；真實 claude haiku 1 回合，危險 rm 120 s 自動拒絕後 `post-tool-batch` 先於 `Stop` 清除）；**21:47** T0663 DONE（40 項：39 PASS / 1 NEEDS-HUMAN，24 個錯誤 code 本機觸發不了）
-4. **22:24** 使用者同意 → 六張 BUG CLOSED、T0650 / 0652 / 0655 / 0657 / 0658 / 0660 DONE（`3ecf9049`）；T0663 觀察（`Expand` / `Collapse`、無自訂 focus 樣式）記入 BUG-161 殘留；順修 bug-tracker frontmatter 計數
-5. **22:26** 使用者「看缺甚麼或可 done」→ PLAN-047 DONE（D171：M2 / M3 不續做；已知缺口 T0620 elicitation 未經安裝版實機；`a77c3dc1`，順修 backlog 計數）
-6. **22:28** T0665 網站 description / 404 中文 → DONE 22:32（`c31c2db0`）→ 塔台補 `site/releases.md` `title: 更版紀錄` → push `bd061968..a300975b` → Pages run `39137082682` 全綠、link-check 1141 / 0 errors、線上 meta 確認
-7. **22:44** PLAN-049 DONE（D172：手動素材改為使用者拍好後另開工單；`5fc14b8f`）
-8. **22:45** 收工（使用者「收工, push」）
-
-### 本輪戰績
-
-| 類別 | 數量 | 備註 |
-|---|---|---|
-| 派發工單 | **3**（T0663–T0665） | 全部 `started:`；`worker_auto_close` 回收 3 次；最多 2 張並行；無提問 |
-| BUG | 6 CLOSED（157 / 158 / 160 / 161 / 162 / 163） | 剩 BUG-156 / 159 FIXED 待特定環境；熱區 Open 1 / Fixed 21 / Closed 26 |
-| PLAN / 決策 | PLAN-047 DONE（D171）、PLAN-049 DONE（D172） | 熱區已無 IN_PROGRESS PLAN |
-| 網站 | 1 次上線 | link-check 0 errors |
-| 新增 opt-in e2e | `e2e/v071-pre2-acceptance.spec.ts`、`e2e/v071-pre2-blocked-acceptance.spec.ts`、`e2e/real-remote/t0663-*` | `BAT_E2E_V071PRE2=1`（V2 另需 `BAT_E2E_REAL_CLAUDE=1`） |
-
-### 重點觀察
-
-- 安裝版自動化驗收（T0520 模式）可延伸到真實 claude：temp `CLAUDE_CONFIG_DIR` + 只讀 access token、1 回合即驗 hook 時序；`pty:write { auto: true }` 不算使用者輸入，可當驗收手段
-- 塔台手改索引時 frontmatter 計數會落後於統計行（bug-tracker 40 / 20 / 19、backlog 22 / IDEA 5）→ 改索引要兩處一起改
-- Worker 截圖可能拍進隔離實例權杖（T0663 `v1a-after-pin.png`，已失效、只在 temp）
-
-### 編號起始（下 session）
-
-- **T0666** / **BUG-164** / **PLAN-053** / **D173** / **L171** / **CT-T022**
-
----
-
 ## 🌅 起手式（Quick Recovery）
 
-> 最後更新：2026-10-19 13:07 UTC+8（第八十五 session 收工）
+> 最後更新：2026-10-19 18:09 UTC+8（第八十六 session 收工）
 
 ### 近期完成
+- `v0.7.1-pre.4` 發佈（第八十六 session，run `39233550117`）：BUG-166 滑鼠追蹤殘留自動 / 手動重設（T0672）；BUG-136 CLOSED（Gary 確認）；BUG-165 研究（T0670）
 - `v0.7.1-pre.3` 發佈（第八十五 session，run `39201696170`）：BUG-136 縮圖預覽上限（T0667）、BUG-164 macOS 停用 Graphite + GPU 崩潰後重建（T0669）
 - BUG-136 根因確認（T0666 研究 + Gary 量測）、BUG-164 符號化（T0668）；PLAN-053（Electron 42+）IDEA；D173
 - `v0.7.1-pre.2` 安裝版自動化驗收：BUG-157 / 158 / 160 / 161 / 162 / 163 CLOSED（第八十四 session）
-- PLAN-047 DONE（D171）、PLAN-049 DONE（D172）
 
 ### 待辦（依優先序）
 
-1. 🔴 **Gary 回覆待收**（第八十六 session）：BUG-165 試 `mouse_scroll_speed = 3` + 觸控板 / 滑鼠 + iTerm2 比較 → 確認後派 S 修正；BUG-166 codex 如何結束 / 往上捲是否有對話 → 決定 F1 + F2。兩者修好後**一起發版**。17:28 Gary：「有空再排，不急」；Claude CLI 捲動較順、Codex 較頓（符合 T0670）；codex 是自己跳回命令列（非正常退出，符合 T0671）→ 兩張降為「有空再排」。17:35 使用者：BUG-166 不需知道成因可修 → 派 T0672（F1 + F2）→ 17:50 DONE `64209d44`，BUG-166 FIXED（塔台複驗 5661 passed / 322 files、typecheck 0 / 0）。17:53 使用者「發 0.7.1-pre.4」→ 18:03 `v0.7.1-pre.4` 發佈（run `39233550117`），更版重點 + 文件 `4ae0e89d`，Pages 綠、link-check 0 errors。
-2. 🔴 **Gary 以 `v0.7.1-pre.3` 驗收**：
-   - ~~BUG-136：打字延遲~~ → ✅ 2026-10-19 15:19 Gary 確認解決，CLOSED（第八十六 session）
-   - BUG-164：日誌有 `[gpu] skia graphite: disabled`、`skia_graphite=` 不再是 `enabled_on`、期間有無 `child-process-gone type=GPU`
-   - 另請 Gary 補 10-15 的 `.ips`（看 `x21` 是否都 = 5）
-   - 驗收訊息已給使用者轉貼
+1. 🔴 **Gary 以 `v0.7.1-pre.4` 驗收**（訊息已給使用者轉貼）：
+   - A：BUG-166 `printf '\e[?1003h\e[?1006h'` 後移動滑鼠，殘骸幾筆即停；codex 分頁 Shift + 右鍵出現兩個新選項 → CLOSED
+   - B：BUG-164 `skia_graphite=` 不是 `enabled_on`、無 `child-process-gone type=GPU` → CLOSED（另可補 10-15 `.ips`）
+   - C（選做）：BUG-165 `mouse_scroll_speed = 3` 是否變順、觸控板 / 滑鼠 → 確認後派 S 修正（`attachCustomWheelEventHandler`，依比例送回報；Gary「不急」）
 2. 🔴 `v0.7.1-pre.2` 剩餘實機驗收：BUG-156 需 Docker Desktop、BUG-159 需一般權限 + codex
 3. 🟡 PLAN-053 Electron 42+ 升級（IDEA，Electron 41 已停更）；PLAN-052 Docker 可用性（IDEA）
 4. 🟢 T0656 列的「需使用者手動拍」網站素材，拍好後另開小工單
@@ -130,9 +125,9 @@
 | **目前版號** | **0.7.1-pre.4**（package.json + lock，2026-10-19 `8883cebd`；`0.7.1` 線，D168，最多到 pre.9） |
 | **最新 release** | `v0.7.1-pre.4`（2026-10-19 18:03，run `39233550117`，target `8883cebd`：BUG-166 滑鼠追蹤殘留自動 / 手動重設；更版重點已寫；repo 文件 `4ae0e89d`；Pages `39234927266` 綠、link-check 1152 / 0 errors、首頁 pre.4；exe 298 / zip 412 / AppImage 297 / dmg 309 MiB）+ `server-bundle-v0.7.1-pre.4`（7 assets）。前一版 `v0.7.1-pre.3`（2026-10-19 13:00，run `39201696170`，target `bf4bfe4f`：BUG-136 縮圖預覽上限、BUG-164 macOS 停用 Graphite + GPU 崩潰後重建；更版重點已寫；repo 文件 `892df2ec`；exe 298 / zip 412 / AppImage 297 / dmg 310 MiB）+ `server-bundle-v0.7.1-pre.3`（7 assets）。更早見 `release-note.md` / `CHANGELOG.md` |
 | **前一 tag** | `v0.7.1-pre.3`（2026-10-19 13:00，`bf4bfe4f`） |
-| **目前主軸** | `v0.7.1-pre.3` 已發佈（第八十五 session），等 Gary 驗收 BUG-136 / BUG-164；熱區無進行中 PLAN / 工單 |
-| **工單最大編號** | **T0669** DONE（第八十五 session：T0666 / T0668 研究、T0667 / T0669 修正）；第八十四 session：T0663–T0665；更早見 `_archive/state-snapshots/` |
-| **BUG 最大編號** | **BUG-164**（第八十五 session 開立並 FIXED，待 Gary）；BUG-136 第八十六 session CLOSED（Gary 確認）；熱區 Open 1 / Fixing 0 / Fixed 23 / Closed 27；BUG-165 OPEN、BUG-166 FIXED（T0672 `64209d44`，未發版，第八十六 session） |
+| **目前主軸** | `v0.7.1-pre.4` 已發佈（第八十六 session），等 Gary 驗收 BUG-166 / BUG-164；BUG-165 有空再排；熱區無進行中 PLAN / 工單 |
+| **工單最大編號** | **T0672** FIXED（第八十六 session：T0670 / T0671 研究、T0672 修正）；第八十五 session：T0666–T0669；更早見 `_archive/state-snapshots/` |
+| **BUG 最大編號** | **BUG-166**（第八十六 session 開立並 FIXED，待 Gary）；BUG-165 OPEN（有空再排）；BUG-164 FIXED 待 Gary；BUG-136 第八十六 session CLOSED（Gary 確認）；熱區 Open 1 / Fixing 0 / Fixed 23 / Closed 27；BUG-165 OPEN、BUG-166 FIXED（T0672 `64209d44`，未發版，第八十六 session） |
 | **PLAN 最大編號** | **PLAN-053**（IDEA：Electron 42+ 升級，第八十五 session）；PLAN-052 / 051 IDEA；PLAN-049 / 047 DONE；PLAN-015 / 029 / 038 / 043 IDEA |
 | **決策最大編號** | **D174**（T0672 Q-1，2026-10-19 第八十六 session）；D173（網站示意可用 `_ct-workorders/`，放寬 D159 / D165 grep 規則一項，2026-10-19 第八十五 session）；D171 / D172 第八十四 session |
 | **EXP 最大編號** | EXP-GPUWHIS-001（CONCLUDED，已歸檔） |
@@ -257,13 +252,9 @@
 - 斷點觸發：A×0, B×0, **C×17**（scope 內，05:55 起依使用者授權由塔台直接裁決）、使用者中斷×0
 - 使用者修正：1（Worker 啟動檢查 30 秒 → ≥ 3 分鐘）
 
-### 計數器（第八十六 session，進行中）
-
-- 派發：T0670 / T0671 / T0672（皆 `started:`，per-dispatch `--mode yolo --no-interactive`）；T0670 / T0671 並行；`worker_auto_close` 回收 3 次
-- [提問] 2026-10-19 17:40 T0672 Q-1（BAT `--answer` exit 0，選 [A]，D174）
-
 ### 歷史 Session（摘要）
 
+- 2026-10-19 第八十六 session：auto-session on，per-dispatch `--mode yolo --no-interactive`；T0670–T0672 全部 `started:`，T0670 / T0671 並行；結構化提問 1 次（T0672 Q-1 `--answer`，D174）；`worker_auto_close` 回收 3 次；`v0.7.1-pre.4` 發佈
 - 2026-10-19 第八十五 session：auto-session on，per-dispatch `--mode yolo --no-interactive`；T0666–T0669 全部 `started:`，無並行、無提問；`worker_auto_close` 回收 4 次；`v0.7.1-pre.3` 發佈
 - 2026-10-18 第八十四 session：auto-session on，per-dispatch `--mode yolo --no-interactive`；T0663–T0665 全部 `started:`，T0663 / T0664 並行；無提問；`worker_auto_close` 回收 3 次；無發版
 - 2026-10-18 第八十三 session：auto-session on，per-dispatch `--mode yolo --no-interactive`；T0646–T0662 共 17 張全部 `started:`，最多 3 張並行；結構化提問 1 次（T0657 Q-1 `--answer`）；`worker_auto_close` 回收 17 次；`v0.7.1-pre.2` 發佈
