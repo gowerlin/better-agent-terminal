@@ -1,11 +1,11 @@
 # Tower State — better-agent-terminal
 
-> 最後更新:2026-10-19 18:09 (UTC+8) — **第八十六 session 收工**：BUG-136 CLOSED（Gary 確認）；BUG-165 Codex 捲動研究（T0670，OPEN 有空再排）；BUG-166 滑鼠回報殘留研究 + 修正（T0671 / T0672）→ 發 `v0.7.1-pre.4`；D174。
+> 最後更新:2026-10-19 18:30 (UTC+8) — **第八十六 session 收工**：BUG-136 / BUG-164 CLOSED（Gary 確認）；BUG-165 Codex 捲動研究（T0670，OPEN 有空再排）；BUG-166 滑鼠回報殘留研究 + 修正（T0671 / T0672）→ 發 `v0.7.1-pre.4`；D174。
 >
-> **下次起手**:等 Gary 以 `v0.7.1-pre.4` 回報（A 滑鼠亂碼 → BUG-166；~~B → BUG-164~~ 18:12 已 CLOSED；C 選做 `mouse_scroll_speed = 3` → BUG-165）；BUG-156 / 159 仍待特定環境；PLAN-053 等排程。
+> **下次起手**:等 Gary **安裝** `v0.7.1-pre.4` 後回報（A 滑鼠亂碼 → BUG-166；~~B → BUG-164~~ 18:12 已 CLOSED；C 選做 `mouse_scroll_speed = 3` → BUG-165）；BUG-156 / 159 仍待特定環境；PLAN-053 等排程。
 ---
 
-## 🛏 本 Session 收工快照 (第八十六 session, 2026-10-19 15:33 - 18:09, ~2h36m)
+## 🛏 本 Session 收工快照 (第八十六 session, 2026-10-19 15:33 - 18:30, ~2h57m)
 
 ### 主軸：Gary 以 pre.3 回報 → BUG-136 CLOSED；新問題 BUG-165（Codex 捲動）/ BUG-166（滑鼠回報殘留）研究 → BUG-166 修正 → 發 `v0.7.1-pre.4`
 
@@ -18,6 +18,8 @@
 5. **17:28** Gary：「不急」、Claude CLI 捲動較順、codex 自己跳回命令列；**17:35** 使用者：不需知道成因可修 → T0672（F1 + F2）派工；17:40 Q-1 BAT `--answer` [A]（D174）；**17:50** DONE `64209d44` → BUG-166 FIXED（塔台複驗 5661 / 322、typecheck 0 / 0）
 6. **17:53** 使用者「發 0.7.1-pre.4」→ vite build、bump `8883cebd`、push → run `39233550117` 全綠 → **18:03 `v0.7.1-pre.4`** → 更版重點 → 文件 `4ae0e89d` → Pages `39234927266` 綠、link-check 1152 / 0 errors、首頁 pre.4
 7. **18:09** 收工（使用者「收工, push」）；pre.4 驗收訊息已給使用者轉貼
+8. **18:11** 收工後 Gary 回報 pre.3 log：`skia_graphite=disabled_off`、13:28–18:10 0 次 GPU 崩潰（Graphite 開著的兩次執行崩 5 次）→ 使用者同意 → **BUG-164 CLOSED**（`eb189ce9`）；Gary 尚未安裝 pre.4
+9. **18:30** 收工
 
 ### 本輪戰績
 
@@ -80,7 +82,7 @@
 
 ## 🌅 起手式（Quick Recovery）
 
-> 最後更新：2026-10-19 18:09 UTC+8（第八十六 session 收工）
+> 最後更新：2026-10-19 18:30 UTC+8（第八十六 session 收工）
 
 ### 近期完成
 - `v0.7.1-pre.4` 發佈（第八十六 session，run `39233550117`）：BUG-166 滑鼠追蹤殘留自動 / 手動重設（T0672）；BUG-136 CLOSED（Gary 確認）；BUG-165 研究（T0670）
