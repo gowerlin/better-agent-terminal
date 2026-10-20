@@ -4,12 +4,15 @@ schema_kind: workorder
 id: T0673
 title: "研究：EXP-WFMINE-001 — 全讀本專案工單，依提案 §5.1 挖掘 Workflow 候選（唯讀，以 Workflow 執行）"
 type: research
-status: TODO
+status: IN_PROGRESS
 repo: better-agent-terminal
 project: EXP-WFMINE-001
 priority: P2
 sizing: L
 created_at: "2026-10-20T16:40:50+0800"
+started_at: "2026-10-20T16:42:30+0800"
+updated_at: "2026-10-20T16:50:57+0800"
+tower_question: open
 depends_on: []
 related:
   - "EXP-WFMINE-001（本單的實驗紀錄）"
@@ -100,6 +103,17 @@ BMad-Guide 塔台正在審議「讓 CT 具備 Workflow 智能」提案（CT 主�
 ## 回報區
 
 > 以下由 sub-session 填寫，請勿在指揮塔 session 中編輯
+
+### 待塔台決策
+
+#### Q-1：試跑實測後，全讀預估總用量約 6.5M tokens，超過核准硬上限 5.5M，要放寬上限還是停止？
+- 提問時間：2026-10-20T16:50:57+0800
+- 試跑證據：第 1 批（T0001..T0016，16 張、287 KB）以 1 個 reader agent 全讀，`subagent_tokens` = 185,031（其中 agent 固定開銷約 31k，內容約 154k），16/16 張以 `last_line` 比對證實讀到檔尾。`runId` = `wf_738991d2-209`（試跑，可快取重用）。
+- 原因：語料以中文為主，實測約 1.9 bytes/token；依試跑校正，718 檔內容約 **4.6M tokens**（工單原估 3.1M）。全讀 P1 光內容就約 4.6M，加上 agent 固定開銷、P1b（約 0.25M）、P3 複核重讀（約 0.7M）、P3b、P2 / P4，合計約 **6.0–6.5M**。只減 agent 數（P1 改 23 批）仍約 6.0M；要壓在 5.5M 內就必須放棄全讀或拿掉 P1b / P3 重讀。
+- 選項：[A] 放寬硬上限到 7.0M（需使用者核准），照原設計全讀：P1 第 1 批沿用試跑快取，其餘 33 批重切為約 22 批（每批約 450 KB），總 agent 數約 36，預估 6.0–6.5M / [B] 維持 5.5M，仍全讀 718 檔，但拿掉 P1b（決策日誌 / 學習紀錄的 S3 只靠工單本身）、P3 複核不重讀工單只依 P1 紀錄，預估約 5.4M、品質明顯下降 / [C] 維持 5.5M，依工單規則現在停止並標 PARTIAL，保留 `runId` / [D] 其他：________
+- Worker 建議：[A]。全讀是本實驗的前提，超支來自 token 密度估錯而不是設計放大；[B] 拿掉的正好是 S3 證據與對抗式複核，會讓排行失去作為規則證據的價值。
+- 影響範圍：P1–P4 全部階段、`workflow_budget`、報告「方法與實際規模」一節的偏差說明
+- 阻塞：是（全量 Workflow 要等答覆才啟動）
 
 ### 完成狀態
 
