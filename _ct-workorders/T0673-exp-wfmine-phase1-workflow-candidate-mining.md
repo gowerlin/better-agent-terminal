@@ -11,8 +11,7 @@ priority: P2
 sizing: L
 created_at: "2026-10-20T16:40:50+0800"
 started_at: "2026-10-20T16:42:30+0800"
-updated_at: "2026-10-20T16:50:57+0800"
-tower_question: open
+updated_at: "2026-10-20T16:57:45+0800"
 depends_on: []
 related:
   - "EXP-WFMINE-001（本單的實驗紀錄）"
@@ -20,10 +19,11 @@ related:
 affects_files:
   - _ct-workorders/T0673-exp-wfmine-phase1-workflow-candidate-mining.md
   - _ct-workorders/_report-wfmine-phase1-20261020.md
+  - _ct-workorders/_report-wfmine-phase1-20261020-per-ticket.jsonl
 renew_count: 0
 workdir: main repo
 execution: workflow
-workflow_budget: 5.5M
+workflow_budget: 7.0M
 workflow_run_id:
 workflow_stats:
   agents: 0
@@ -36,7 +36,7 @@ interaction:
   interactive: false
   intervention_type: fire-and-forget
 memory_overrides:
-  - "🔴 唯讀研究：不改產品檔、規則檔（`_learnings.md` / `_local-rules.md` / CT skill）、其他工單、EXP-WFMINE-001、塔台狀態檔。只用 `git commit --only` commit `affects_files` 的 2 個檔案。不 push。"
+  - "🔴 唯讀研究：不改產品檔、規則檔（`_learnings.md` / `_local-rules.md` / CT skill）、其他工單、EXP-WFMINE-001、塔台狀態檔。只用 `git commit --only` commit `affects_files` 的 3 個檔案（2026-10-20 16:52 塔台追加第 3 個：逐張判定）。不 push。"
   - "🔴 使用者核准紀錄：使用者 2026-10-20 16:40（UTC+8）在 BAT 塔台 session 中明確選定以「全讀 Workflow」執行本單，並核准規模：約 45 個 agent、預估 4.5–5M tokens、硬上限 5.5M。本工單即使用者指示 Worker 呼叫 Workflow 的依據。"
   - "🔴 先載入 `workflow-authoring` skill 再寫腳本。腳本不得使用 `Date.now()` / `Math.random()`；被略過或讀不到的檔案一律 `log()`，並寫進報告「遺漏清單」（提案 R2：不得靜默截斷）。不使用 Workflow 的 `isolation: 'worktree'`。子 agent 只讀檔，不寫檔、不派工、不呼叫 bat helper。"
   - "🔴 Worker 的 runtime 若不允許呼叫 Workflow（例如不認可同意來源），**不得**改成一般執行硬跑，要以 `T0673 提問` 問塔台。執行中預估總用量會超過 5.5M 時，停止並標 PARTIAL，保留 `workflow_run_id`。"
@@ -86,6 +86,19 @@ BMad-Guide 塔台正在審議「讓 CT 具備 Workflow 智能」提案（CT 主�
    6. **遺漏清單**：沒讀、略讀、解析失敗的檔案（沒有就寫「無」）
    7. 事實與推論分開標示：【原文】= 工單內容、【統計】= 腳本計算、【推論】
 2. **本工單回報區**：摘要、回填 frontmatter 的 `workflow_run_id` / `workflow_stats`（agents、tokens、dropped）。
+3. **逐張判定**（塔台 2026-10-20 16:52 追加，使用者指示，CT D077）：`_ct-workorders/_report-wfmine-phase1-20261020-per-ticket.jsonl`
+   - 一行一張，涵蓋 P1 讀過的每一張。欄位：
+     - `id`、`path`
+     - 命中的 S／X 與各自的證據位置（檔名 + 小節名或行號）、證據摘錄（≤ 200 字）
+     - 子項數（`subtasks.count`、`homogeneous`）
+   - 目的：讓 CT 的 T0177 事後套用規則 v0 的差異，不必重跑。v0 的差異是：
+     - S6：子項互相獨立、可結構化驗收
+     - X5：序列重複但單張不扇出
+     - X2：改看工單內的 `### 待塔台決策` / `塔台答覆 Q-`
+   - 🔴 **本單的規則與範圍不變**：仍用原版 S1–S5／X1–X4，全量 718 檔，上限 5.5M。不要中途切換規則或範圍。
+   - P1 的 schema 已定、無法加欄位時，直接把 P1 每張的紀錄（含 `where` 與 `evidence`）輸出成這個檔，至少保留每張的證據摘錄。
+   - 如果 P1 剛好看到工單內有 `### 待塔台決策` / `塔台答覆 Q-`，或「單張是否扇出」很明顯，可以在 `notes` 順手記下。這不是新的判定條件。
+   - 報告「方法與實際規模」一節要寫實際用量（agent 數、tokens），CT 會拿來當成本基準。
 
 ## 研究指引
 
@@ -118,6 +131,9 @@ BMad-Guide 塔台正在審議「讓 CT 具備 Workflow 智能」提案（CT 主�
 ### 完成狀態
 
 ### 互動紀錄
+
+- [16:57] Q-1: 全讀預估約 6.0–6.5M tokens，超過硬上限 5.5M，要放寬還是停止？ → A（使用者直接在 Worker 分頁答覆）: 「A，放寬到 7.0M 繼續」 → Action: `workflow_budget` 改為 7.0M；取消 BAT 通道上的題目 `q-4a40a82a-4d9ded824a9bb414`（`status: cancelled worker`）；P1 第 1 批沿用試跑快取，其餘重切後啟動全量 Workflow。
+  - 經過：16:51 以 `bat-notify.mjs --ask` 送出（exit 0、`notified: yes`）。塔台分頁當時是 `working`，使用者回報塔台似乎沒看到，中斷了 Worker 的等待並直接答覆。預算核准本來就屬使用者，所以以使用者答覆為準，沒有塔台答覆行。
 
 ### 調查結論
 
