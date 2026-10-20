@@ -4,14 +4,15 @@ schema_kind: workorder
 id: T0673
 title: "研究：EXP-WFMINE-001 — 全讀本專案工單，依提案 §5.1 挖掘 Workflow 候選（唯讀，以 Workflow 執行）"
 type: research
-status: IN_PROGRESS
+status: DONE
 repo: better-agent-terminal
 project: EXP-WFMINE-001
 priority: P2
 sizing: L
 created_at: "2026-10-20T16:40:50+0800"
 started_at: "2026-10-20T16:42:30+0800"
-updated_at: "2026-10-20T16:57:45+0800"
+updated_at: "2026-10-20T17:25:26+0800"
+completed_at: "2026-10-20T17:25:26+0800"
 depends_on: []
 related:
   - "EXP-WFMINE-001（本單的實驗紀錄）"
@@ -24,10 +25,10 @@ renew_count: 0
 workdir: main repo
 execution: workflow
 workflow_budget: 7.0M
-workflow_run_id:
+workflow_run_id: wf_738991d2-209
 workflow_stats:
-  agents: 0
-  tokens: 0
+  agents: 39
+  tokens: 7354020
   dropped: 0
 worker_question_timeout: 30
 research_max_questions: 3
@@ -130,6 +131,18 @@ BMad-Guide 塔台正在審議「讓 CT 具備 Workflow 智能」提案（CT 主�
 
 ### 完成狀態
 
+**DONE**，有 1 項預算偏差：實際用量 **7.35M tokens**，超出使用者核准的 7.0M 上限約 5%（見下方「遭遇問題」第 1 點）。
+
+- 交付物：
+  - 報告 `_ct-workorders/_report-wfmine-phase1-20261020.md`：§0 摘要、§1 方法與規模、§2 候選排行、§3 §5.1.4 表、§4 假候選、§5 規則修正建議、§6 遺漏清單、§7 標示、附錄 A、B。
+  - 逐張判定 `_ct-workorders/_report-wfmine-phase1-20261020-per-ticket.jsonl`：718 行。
+- Workflow：`runId` `wf_738991d2-209`。共 39 個 agent：全量 run 38 個，另有 1 個試跑。
+  - 工具回報 `subagent_tokens`：試跑 185,031、全量 run 7,168,989。
+  - 耗時：試跑約 2.4 分、全量 run 約 20.5 分。
+  - `dropped` 0：718/718 檔都有紀錄；以 `last_line` 驗證讀完全文，714 張完全相符，4 張落在檔尾 3 行內。
+- 各階段 agent 數：P1 25（每批 ≤ 450 KB、≤ 35 檔）、P1b 2、P3b 1、P2 1（family_key 正規化）、P3 8、P4 1。偏差與原因寫在報告 §1.3。
+- commit：本單只有研究輸出、沒有產品變更。以 `git commit --only` commit `affects_files` 的 3 個檔案；沒有 push。
+
 ### 互動紀錄
 
 - [16:57] Q-1: 全讀預估約 6.0–6.5M tokens，超過硬上限 5.5M，要放寬還是停止？ → A（使用者直接在 Worker 分頁答覆）: 「A，放寬到 7.0M 繼續」 → Action: `workflow_budget` 改為 7.0M；取消 BAT 通道上的題目 `q-4a40a82a-4d9ded824a9bb414`（`status: cancelled worker`）；P1 第 1 批沿用試跑快取，其餘重切後啟動全量 Workflow。
@@ -137,10 +150,51 @@ BMad-Guide 塔台正在審議「讓 CT 具備 Workflow 智能」提案（CT 主�
 
 ### 調查結論
 
+- 【統計】33 個操作族中，25 個達到腳本的候選門檻。依腳本分數複核前 8 個，結果 **0 個維持原判、6 個 weakened、2 個 refuted**（fix-typecheck-errors、write-design-spec）。適配分數從腳本平均 50.9 降到複核平均 30.0。
+- 【推論】BAT 的工單多半是單一 agent 在 3–40 分鐘內完成的小單。扇出發生在工單之間，也就是塔台依序派工（PLAN-019 的 T0186–T0191、T0262–T0266、probe 系列 T0625–T0629），不在單張工單之內。
+  - 跨工單的重複比較適合做成派工範本或 Playbook。
+  - 單張工單內的 Workflow 候選少，而且形狀以對抗式驗證為主，不是確定性扇出。正向例子：T0034（19 個套件同形評估）、T0653（子代理推翻前一張工單的結論）、T0559（塔台改判 spec 誤判）。
+- 【統計】§5.1.4 的 11 張：確認 3、部分 7、推翻 1。提案推測「扇出」的 5 張，扇出全部不成立。這和 BMad-Guide 塔台在 T0176 § 2 的核對一致（報告附錄 A）。
+- 規則修正建議 19 條（報告 §5），重點：
+  - S1 不計報告表格列數、腳本或單一指令的輸出、寫同一檔的修改。
+  - S2 改用複核確認的同形成員數。
+  - S3 權重提高。
+  - X4 補上「約 15 分鐘內單一 agent 可完成」等判定。
+  - 新增「共用狀態或串行依賴」排除條件。
+  - X1、X2 的判定釐清。
+  - family_key 改用形狀三元組。
+  - 候選門檻從「或」改成「且」。
+- 【推論】最清楚的 Workflow 用例就是本單自己：大量語料分批全讀、結構化分類、確定性分群、對抗式複核、彙整。可以列為 Phase 2 回測的第一個具名 workflow。
+
 ### 建議下一步
+
+1. 複核未複核候選中的單張高 S1 工單：T0034（WFC009）、T0292／T0293（WFC011）、T0252（WFC014）。這 17 個候選都只有腳本分數。
+2. Phase 2 回測候選：「語料挖掘」（本單腳本）、「多文件對程式碼核對」（T0653 的形狀）。
+3. T0177 的規則 v0 可以直接套用 `_report-wfmine-phase1-20261020-per-ticket.jsonl`，不必重跑。用本報告複核過的 35 張工單做標註校準。
+4. CT 成本基準（報告 §1.2）：
+   - 中文為主的工單語料約 1.9 bytes/token。
+   - 每個 Explore 型 reader agent 的固定開銷約 31k tokens。
+   - 全讀 718 檔（10 MB）實際約 7.35M tokens。
+   - Workflow 沒有執行中可讀的 token 計量，預算只能靠控制規模，事後才能確認。
 
 ### Renew 歷程
 
+無
+
 ### 遭遇問題
 
+1. **超出預算上限**：使用者核准 7.0M，實際 7.35M，超出約 5%。
+   - 【統計】主因 1，token 密度估錯：原估 3.1M，試跑校正後約 4.6M，因此提出 Q-1、獲准放寬到 7.0M。
+   - 【統計】主因 2，試跑結果沒有被重用：全量 run 以 `resumeFromRunId` 接續試跑，但 transcript 顯示第 1 批 reader 跑了兩次（184,878 與 185,027），多花約 185k。【推論】原因沒有查證；可能是 25 批同時啟動，第一個發出的 agent 呼叫不是第 1 批，最長未變更前綴因此為空。
+   - Workflow 執行中無法取得 token 用量（`budget.spent()` 只算輸出），所以超支在 run 結束後才能確認，執行中無法依「預估超過上限就停止」的規則中止。
+2. **Q-1 的 BAT 通道**：塔台當時正在忙，使用者回報塔台沒看到通知，改由使用者在 Worker 分頁直接答覆（見互動紀錄）。BAT 上的題目已取消（`cancelled worker`）。這題由使用者答覆，所以沒有加 `通道` 標記，也沒有再送一般 `提問`。
+3. **塔台中途改了工單**：
+   - 16:52 追加輸出 3（逐張 JSONL）。這段內容在 Worker 16:57 的 commit `72715226` 時一起被 commit。
+   - 之後又在「輸出」節補了「方法與實際規模要寫實際用量」一行，會在本次收尾 commit 中一起提交。
+   - 兩項都已照做。追加段落中寫的「上限 5.5M」已被使用者 16:57 的 7.0M 答覆取代。
+4. **P4 草稿的一處推論錯誤已更正**：4.3 節原本推測「腳本關鍵字清單比較寬」。實際原因是腳本比對「標題＋路徑」，Worker 依腳本原始碼更正。
+5. **reader agent 用 Explore 型加 opus**：為了省下專案 CLAUDE.md 的注入（約 58 KB／agent），而且這個型別沒有寫檔工具，符合「子 agent 只讀檔」。工單沒有指定 agent 型別，這是 Worker 的判斷。
+
 ### 回報時間
+
+2026-10-20T17:25:26+0800
