@@ -38,7 +38,7 @@ breakdown:
 | PLAN-051 | BAT 跨塔台傳訊通道：不同專案的塔台（含 codex 塔台）經 BAT 互相送訊息，不依賴 SendMessage | 🟢 low | 💡 IDEA | [PLAN-051](PLAN-051-cross-tower-messaging-channel.md) |
 | PLAN-052 | Docker 遠端路線可用性：發佈 `bat-server` 映像或裝進任意容器、「Use existing」可選容器、重跑精靈更新既有設定 | 🟢 low | 💡 IDEA | [PLAN-052](PLAN-052-docker-remote-usability.md) |
 | PLAN-053 | 升級 Electron 42+（Chromium 148+）：Electron 41 已停止更新；Graphite out-of-order CHECK 改為 GPU 程序重啟（BUG-164） | 🟢 low | 💡 IDEA | [PLAN-053](PLAN-053-electron-42-upgrade.md) |
-| PLAN-054 | CT Workflow 智能的 BAT 側事項：B4 MCP 政策文件、B6 CT 面板讀 workflow 欄位（等 CT v5.11.0）；B1 不做 | 🟢 low | 📋 PLANNED | [PLAN-054](PLAN-054-ct-workflow-intelligence-bat-side.md) |
+| PLAN-054 | CT Workflow 智能的 BAT 側事項：B4 MCP 政策文件（併下次發版）、B6 CT 面板讀 workflow 欄位（延後：CT D090）；B1 不做 | 🟢 low | 📋 PLANNED | [PLAN-054](PLAN-054-ct-workflow-intelligence-bat-side.md) |
 
 ## Completed
 

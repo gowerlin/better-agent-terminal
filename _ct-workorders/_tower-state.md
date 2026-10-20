@@ -98,7 +98,7 @@
    - C（選做）：BUG-165 `mouse_scroll_speed = 3` 是否變順、觸控板 / 滑鼠 → 確認後派 S 修正（`attachCustomWheelEventHandler`，依比例送回報；Gary「不急」）
 2. 🔴 `v0.7.1-pre.2` 剩餘實機驗收：BUG-156 需 Docker Desktop、BUG-159 需一般權限 + codex
 3. 🟡 PLAN-053 Electron 42+ 升級（IDEA，Electron 41 已停更）；PLAN-052 Docker 可用性（IDEA）
-   - 🟡 **PLAN-054 B4**（BAT MCP 文件加「寫入型 tool 不開放給 workflow 子 agent」政策，只改文件）：**併入下一次發版批次**一起開單（使用者 2026-10-20）；B6 等 CT v5.11.0 契約
+   - 🟡 **PLAN-054 B4**（BAT MCP 文件加「寫入型 tool 不開放給 workflow 子 agent」政策，只改文件）：**併入下一次發版批次**一起開單（使用者 2026-10-20）；B6 **延後無排程**（CT T0182 回測 G2 未通過、CT D090，v5.11.0 不定義 workflow 欄位；等 CT 重新定義後通知）
 4. 🟢 T0656 列的「需使用者手動拍」網站素材，拍好後另開小工單
 5. 🟢 `RECOVERY_PENDING` 未經實機驗證；WSL bat-server 仍是 `0.6.1-pre.5`；前期驗收（Gary BUG-127-135 / 116 / 118、BUG-130 / 105 / 107 / 108 / 097 / 111、T0550、dmg / AppImage、NSIS 重裝、T0360）
 
