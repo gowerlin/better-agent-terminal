@@ -3684,3 +3684,17 @@ Codex 那張是外部測試者回報才發現；Claude 那張是使用者隨口�
 - 斷點 D 看到 `blockedReason: permission` 但 Worker 仍在輸出時，先查 BAT 日誌 `[blocked] … tool=<name>` 再判斷，不急著告訴使用者「Worker 在等你」
 
 **候選晉升**：🌐 Global 候選（claude bypass 下仍會跳的安全檢查）
+
+## L171
+
+**來源**：第八十七 session（2026-10-20），EXP-WFMINE-001 / T0673（全讀 Workflow 試點）
+
+**現象**：
+1. 塔台依「bytes ÷ 3.5 + CJK 字 × 1.1」估 718 張工單約 3.1M tokens。Worker 試跑 1 批實測約 1.9 bytes/token，內容約 4.6M，總用量 7.35M，超過使用者放寬後的 7.0M。Workflow 執行中無法讀取 token 用量（`budget.spent()` 只算輸出），所以超支要等 run 結束才知道。
+2. Worker 16:51 以 `bat-notify --ask` 送出 Q-1（預算超支，阻塞）。當時塔台正在處理 BMad-Guide 塔台的跨 session HANDOVER 與規模衝突，沒有處理 Q-1。使用者改到 Worker 分頁直接答覆。
+
+**How to apply**：
+- 估中文為主的工單語料時，用 **約 1.9 bytes/token**，每個 reader agent 再加約 31k 固定開銷；全讀前先讓 Worker 試跑 1 批再定上限（本單的試跑就是 Q-1 的證據來源）
+- 有 Worker 在跑時，塔台處理跨 session 訊息後要立刻查一次 `bat_list_questions`（`status: all`）或該 Worker 的 `bat_get_state`（`blockedReason: tower`），不能只靠通知
+
+**候選晉升**：🌐 Global 候選（Workflow 成本估算、塔台多工時漏看提問）

@@ -6,7 +6,7 @@
 |------|------|
 | **編號** | EXP-WFMINE-001 |
 | **TOPIC** | WFMINE（Workflow 候選挖掘系列） |
-| **狀態** | 🧪 RUNNING |
+| **狀態** | 📊 CONCLUDED（2026-10-20 17:26，T0673 DONE `84e21f2d`） |
 | **建立時間** | 2026-10-20 16:40 (UTC+8) |
 | **驅動** | BMad-Guide 提案 `D:\ForgejoGit\@Gower_Labs\BMad-Guide\_ct-workorders\_proposal-2026-10-20-ct-workflow-intelligence.md` §6.2「先行試點」（提案狀態 PROPOSED，CT 主責、BAT 協作試點） |
 | **規則所有權** | **CT**（BMad-Guide 塔台）。本 EXP 只產證據，不定規則；定案後由 CT 以 CT-T### 回歸 CT repo |
@@ -42,4 +42,19 @@
 
 ## 結論
 
-（T0673 完成後由塔台填寫）
+> 塔台 2026-10-20 17:26 收單。產出：報告 `_report-wfmine-phase1-20261020.md`、逐張判定 `_report-wfmine-phase1-20261020-per-ticket.jsonl`（718 行），commit `84e21f2d`。
+
+**假設：部分成立。** 候選排行列了 6 個附證據的候選（WFC001–006），但對抗式複核把 8 個複核對象判成 6 個 weakened、2 個 refuted，沒有一個維持原判；分數 22–38，腳本平均 50.9。
+
+【推論】BAT 的扇出多半發生在工單之間（塔台依序派工），不在單張工單之內。單張內成立的正向例子很少，以對抗式驗證為主：T0034、T0653、T0559。最清楚的 Workflow 用例是本實驗自己的「語料挖掘」形狀。
+
+| 成功條件 | 結果 |
+|---|---|
+| ≥ 3 個附證據候選 | PASS（6 個；品質偏弱，全為 weakened） |
+| §5.1.4 11 張逐張判定 | PASS（確認 3、部分 7、推翻 1；提案推測「扇出」的 5 張全部不成立） |
+| 遺漏清單 | PASS（718/718，dropped 0） |
+| token 用量 | **未達**：原上限 5.5M；Q-1 由使用者放寬到 7.0M；實際 **7.35M**（超出約 5%）。原因：中文語料約 1.9 bytes/token（原估 3.1M，實為約 4.6M）；試跑快取沒被重用，多花約 185k；Workflow 執行中無法讀取 token 用量 |
+
+塔台抽驗：引文 4 段（T0208、T0653、T0559、T0034）都能在原檔中找到；JSONL 718 行全部可解析；commit 只含 `affects_files` 的 3 個檔。
+
+後續由 CT 的 T0177 接手（規則 v0 直接套用逐張判定 JSONL）。BAT 側的 B 項目要不要開 PLAN，等使用者決定。
