@@ -2,8 +2,9 @@ import assert from 'node:assert/strict'
 import { afterEach, test } from 'node:test'
 import { buildDockerWizardSteps } from '../src/components/setup-wizard/docker-flow'
 import { resetFetchFingerprintImplForTests, setFetchFingerprintImplForTests } from '../src/components/setup-wizard/steps/wsl/fetch-fingerprint'
-import { WizardRunner, WizardStepStatus } from '../src/components/setup-wizard/wizard-runner'
+import { WizardStepStatus } from '../src/components/setup-wizard/wizard-runner'
 import { createMockElectronApi, installMockWindow } from './__mocks__/electron-api'
+import { createTestWizardRunner } from './__helpers__/wizard-harness'
 
 afterEach(() => {
   delete (globalThis as typeof globalThis & { window?: unknown }).window
@@ -24,7 +25,7 @@ test('mode A happy path completes all 9 Docker steps against an existing contain
   ctx.state.dockerContainer = 'bat-dev'
   ctx.state.dockerMounts = [{ host: 'C:\\projects\\bat', container: '/opt/bat-server' }]
 
-  const runner = new WizardRunner(buildDockerWizardSteps(), ctx)
+  const runner = createTestWizardRunner(buildDockerWizardSteps(), ctx)
   await runner.run()
 
   const snapshots = runner.getSnapshots()
@@ -56,7 +57,7 @@ test('mode B happy path creates a managed container with unless-stopped and two 
   ctx.state.dockerMounts = mounts
   ctx.state.dockerContainer = 'bat-server-docker-fresh'
 
-  await new WizardRunner(buildDockerWizardSteps(), ctx).run()
+  await createTestWizardRunner(buildDockerWizardSteps(), ctx).run()
 
   assert.equal(ctx.createdProfileId, 'docker-fresh')
   assert.deepEqual(ctx.profileDraft.dockerMounts, mounts)
@@ -80,7 +81,7 @@ test('mode B start-server failure rolls back container creation and skips profil
   ctx.state.dockerMounts = [{ host: 'C:\\projects\\bat', container: '/workspace/bat' }]
 
   const steps = buildDockerWizardSteps().map((step) => step.id === 'start-server' ? { ...step, retryable: false } : step)
-  await assert.rejects(() => new WizardRunner(steps, ctx).run(), /Docker image not found/)
+  await assert.rejects(() => createTestWizardRunner(steps, ctx).run(), /Docker image not found/)
   assert.ok(harness.operationLog.dockerRemoveCalls.includes('bat-server-rollback-docker'))
   assert.equal(harness.operationLog.createdProfileIds.length, 0)
   assert.equal(ctx.createdProfileId, undefined)
@@ -99,7 +100,7 @@ test('mount validation failure stops at configure-mounts and rolls back without 
   ctx.state.dockerMounts = [{ host: 'C:\\projects\\bat', container: '/workspace/bat' }]
 
   const steps = buildDockerWizardSteps().map((step) => step.id === 'configure-mounts' ? { ...step, retryable: false } : step)
-  const runner = new WizardRunner(steps, ctx)
+  const runner = createTestWizardRunner(steps, ctx)
   await assert.rejects(() => runner.run(), /duplicate host path/)
 
   const snapshots = runner.getSnapshots()
@@ -118,7 +119,7 @@ test('detect-env stops the Docker wizard when the daemon is unavailable', async 
 
   const ctx = harness.createDockerContext('No Docker')
   const steps = buildDockerWizardSteps().map((step) => step.id === 'detect-env' ? { ...step, retryable: false } : step)
-  const runner = new WizardRunner(steps, ctx)
+  const runner = createTestWizardRunner(steps, ctx)
 
   await assert.rejects(() => runner.run(), /Docker daemon unavailable/)
   const snapshots = runner.getSnapshots()

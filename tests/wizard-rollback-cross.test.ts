@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import { createMockElectronApi, installMockWindow } from './__mocks__/electron-api'
+import { createTestWizardRunner } from './__helpers__/wizard-harness'
 import {
   WizardRunner,
   WizardStepStatus,
@@ -75,12 +76,14 @@ const fixtures: CrossFixture[] = [
         wslWriteSystemdUnitStep,
         makeFailingProfileWriteStep('wsl'),
       ]
-      const runner = new WizardRunner(steps, ctx)
+      const runner = createTestWizardRunner(steps, ctx)
       return { runner, ctx, operationLog: harness.operationLog, profiles: harness.profiles }
     },
     assertInstallPathCleanedUp: (operationLog) => {
+      // T0378 (BUG-087 B): the install root is under the distro user's
+      // absolute $HOME (wsl.resolveHome), never `~/...`.
       const cleaned = operationLog.uninstallCalls.some(
-        (c) => c.distro === 'Ubuntu' && c.installPath === '~/.local/bat-server',
+        (c) => c.distro === 'Ubuntu' && c.installPath === '/home/test/.local/bat-server',
       )
       assert.equal(cleaned, true, 'wsl.uninstallBundle should be invoked with the install path')
       const unitRemoved = operationLog.removeUnitCalls.includes('bat-server.service')
@@ -111,7 +114,7 @@ const fixtures: CrossFixture[] = [
         dockerInstallServerBundleStep,
         makeFailingProfileWriteStep('docker'),
       ]
-      const runner = new WizardRunner(steps, ctx)
+      const runner = createTestWizardRunner(steps, ctx)
       return { runner, ctx, operationLog: harness.operationLog, profiles: harness.profiles }
     },
     assertInstallPathCleanedUp: (operationLog) => {
@@ -149,7 +152,7 @@ const fixtures: CrossFixture[] = [
         sshStartServerStep,
         makeFailingProfileWriteStep('ssh-linux'),
       ]
-      const runner = new WizardRunner(steps, ctx)
+      const runner = createTestWizardRunner(steps, ctx)
       return { runner, ctx, operationLog: harness.operationLog, profiles: harness.profiles }
     },
     assertInstallPathCleanedUp: (operationLog) => {

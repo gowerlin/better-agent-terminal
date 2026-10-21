@@ -1,3 +1,4 @@
+import { fetchTlsFingerprint } from '../../electron/tls-fingerprint'
 import type { WizardContext } from '../../src/components/setup-wizard/wizard-runner'
 import { createDockerWizardContext } from '../../src/components/setup-wizard/docker-flow'
 import { createSshWizardContext } from '../../src/components/setup-wizard/ssh-flow'
@@ -49,6 +50,19 @@ interface MockOptions {
   remoteServerArch?: 'x64' | 'arm64'
   remoteServerHome?: string
   bundleEntries?: Array<{ name: string; path: string }>
+  // T0682 (BUG-168 G4) WSL options (T0378 / T0382 / T0384 / T0554)
+  wslHome?: string
+  wslInstallPrevious?: 'kept' | 'none' | 'unmanaged'
+  wslUnitSnapshot?: { content: string | null; active: boolean; enabled: boolean }
+  // T0682: update.getVersion (T0322) and server-bundle:distribute (T0321)
+  appVersion?: string
+  bundleDistributeSource?: 'cache' | 'baseline' | 'download'
+  // T0682 SSH verify tunnel (T0387 / T0517). The local end defaults to the
+  // harness serverPort, which SSH tests point at their own HTTPS server.
+  sshVerifyTunnelLocalPort?: number
+  sshForwardingDenied?: boolean
+  /** Default: the fingerprint the harness last read in a handshake + remoteToken. */
+  sshServerIdentity?: { ok: true; fingerprint: string | null; token: string | null } | { ok: false; error: string }
 }
 
 function slugifyProfileId(name: string): string {
@@ -58,9 +72,21 @@ function slugifyProfileId(name: string): string {
 export function createMockElectronApi(options: MockOptions = {}) {
   const profiles = new Map<string, Record<string, unknown>>()
   const operationLog = {
-    installCalls: [] as Array<{ distro: string; tarballPath: string; installPath: string }>,
+    installCalls: [] as Array<{ distro: string; tarballPath: string; installPath: string; keepPrevious?: boolean }>,
     uninstallCalls: [] as Array<{ distro: string; installPath: string }>,
     removeUnitCalls: [] as string[],
+    // T0682 (BUG-168 G4): WSL IPC added after T0383.
+    resolveHomeCalls: [] as string[],
+    restoreBundleCalls: [] as Array<{ distro: string; installPath: string }>,
+    discardPreviousBundleCalls: [] as Array<{ distro: string; installPath: string }>,
+    wslPickPortCalls: [] as Array<{ preferredPort?: number; existing?: { distro: string; unitPath: string; serviceName: string } }>,
+    keepAliveCalls: [] as string[],
+    releaseKeepAliveCalls: [] as string[],
+    writeUnitCalls: [] as Array<{ distro: string; unit: { path?: string; content?: string; execStart?: string; description?: string; environment?: Record<string, string> } }>,
+    snapshotUnitCalls: [] as Array<{ distro: string; serviceName: string; path: string }>,
+    restoreUnitCalls: [] as Array<{ distro: string; serviceName: string; path: string; content: string; enabled: boolean; start: boolean }>,
+    restartServiceCalls: [] as Array<{ distro: string; serviceName: string }>,
+    bundleDistributeCalls: [] as Array<{ draftProfile?: Record<string, unknown>; version?: string }>,
     createdProfileIds: [] as string[],
     deletedProfileIds: [] as string[],
     remoteTestHosts: [] as Array<{ host: string; port: number }>,
@@ -79,6 +105,8 @@ export function createMockElectronApi(options: MockOptions = {}) {
     dockerRestartCalls: [] as string[],
     dockerLogsCalls: [] as Array<{ name: string; tail?: number; follow?: boolean }>,
     dockerHealthCalls: [] as string[],
+    // T0682 (BUG-168 G4): docker:pick-server-port requests (T0649).
+    dockerPickPortCalls: [] as Array<{ preferredPort?: number; previousPort?: number; container?: string }>,
     // T0287 SSH operation log
     sshProbeCalls: [] as Array<{ sshHost: string; sshUser: string; sshPort?: number; sshKeyPath?: string }>,
     sshUploadCalls: [] as Array<{ uploadId: string; sshHost: string; installPath: string; tarballPath: string }>,
@@ -87,6 +115,13 @@ export function createMockElectronApi(options: MockOptions = {}) {
     sshUninstallCalls: [] as Array<{ sshHost: string; sshUser: string; installPath: string }>,
     sshStopServerCalls: [] as Array<{ sshHost: string; sshUser: string; targetOS: 'ssh-linux' | 'ssh-darwin'; serverHome: string }>,
     dockerExecCalls: [] as Array<{ name: string; command: string[] }>,
+    // T0682 (BUG-168 G4): SSH verification (T0387 / T0517) and the fingerprint
+    // handshake (T0381).
+    sshOpenTunnelCalls: [] as Array<{ sessionId: string; sshHost: string; sshUser: string; remotePort: number }>,
+    sshCloseTunnelCalls: [] as string[],
+    sshTunnelStatusCalls: [] as string[],
+    sshReadIdentityCalls: [] as Array<{ sshHost: string; targetOS: 'ssh-linux' | 'ssh-darwin'; serverHome: string }>,
+    fetchFingerprintCalls: [] as Array<{ port: number; host?: string }>,
   }
 
   const distros = options.distros ?? [{ name: 'Ubuntu', version: 2 as const, state: 'Running' as const }]
@@ -113,6 +148,13 @@ export function createMockElectronApi(options: MockOptions = {}) {
   ]
   // Listeners installed by step run() bodies. Tests can inspect the harness
   // to assert the right ssh:upload-progress / ssh:start-progress flows fired.
+  const wslHome = options.wslHome ?? '/home/test'
+  const appVersion = options.appVersion ?? '0.3.1'
+  // T0682: ports this harness handed out as a verify tunnel's local end. Only
+  // those get a real TLS handshake (the test's own server); anything else,
+  // e.g. 9876 where this machine's BAT may listen, is reported unreachable.
+  const verifyTunnelPorts = new Set<number>()
+  let lastHandshakeFingerprint: string | null = null
   const sshUploadProgressListeners = new Set<(payload: { uploadId: string; bytesSent: number; totalBytes: number }) => void>()
   const sshStartProgressListeners = new Set<(payload: { startId: string; phase: 'writing-unit' | 'enabling' | 'starting' | 'verifying' }) => void>()
 
@@ -129,23 +171,87 @@ export function createMockElectronApi(options: MockOptions = {}) {
       systemdEnabled: async () => options.systemdEnabled ?? true,
       // T0383 (BUG-089): { actual, declared, mirroredSupported } shape.
       detectNetworkMode: async () => ({ actual: options.networkMode ?? 'mirrored', declared: null, mirroredSupported: true }),
-      installBundle: async (distro: string, tarballPath: string, installPath: string) => {
-        operationLog.installCalls.push({ distro, tarballPath, installPath })
-        return { ok: true as const }
+      // T0682 (BUG-168 G4): T0378 resolves the distro user's absolute $HOME.
+      resolveHome: async (distro: string) => {
+        operationLog.resolveHomeCalls.push(distro)
+        return wslHome
+      },
+      installBundle: async (distro: string, tarballPath: string, installPath: string, installOptions?: { keepPrevious?: boolean }) => {
+        operationLog.installCalls.push({ distro, tarballPath, installPath, keepPrevious: installOptions?.keepPrevious })
+        return { ok: true as const, previous: options.wslInstallPrevious ?? ('none' as const) }
       },
       uninstallBundle: async (distro: string, installPath: string) => {
         operationLog.uninstallCalls.push({ distro, installPath })
         return { ok: true as const }
       },
+      restoreBundle: async (distro: string, installPath: string) => {
+        operationLog.restoreBundleCalls.push({ distro, installPath })
+        return { ok: true as const, outcome: 'restored' as const }
+      },
+      discardPreviousBundle: async (distro: string, installPath: string) => {
+        operationLog.discardPreviousBundleCalls.push({ distro, installPath })
+        return { ok: true as const }
+      },
+      // T0382 (BUG-091): a user override is validated as-is; otherwise the
+      // harness port stands in for the free port main would pick.
+      pickServerPort: async (preferredPort?: number, existing?: { distro: string; unitPath: string; serviceName: string }) => {
+        operationLog.wslPickPortCalls.push({ preferredPort, existing })
+        return { ok: true as const, port: preferredPort ?? serverPort }
+      },
+      keepAlive: async (distro: string) => {
+        operationLog.keepAliveCalls.push(distro)
+        return { ok: true as const }
+      },
+      releaseKeepAlive: async (distro: string) => {
+        operationLog.releaseKeepAliveCalls.push(distro)
+        return { ok: true as const }
+      },
+      // T0682 (BUG-168 G4): main's handler is fetchTlsFingerprint (T0381);
+      // tests that do not stub fetch-fingerprint reach it through the SSH
+      // verify tunnel, whose local end is the test's own HTTPS server.
+      fetchFingerprint: async (port: number, host?: string) => {
+        operationLog.fetchFingerprintCalls.push({ port, host })
+        if (!verifyTunnelPorts.has(port)) {
+          return {
+            ok: false as const,
+            errorCode: 'fingerprint-unreachable' as const,
+            error: `Cannot reach ${host ?? '127.0.0.1'}:${port}: no test TLS server on this port (stub fetch-fingerprint or open a verify tunnel)`,
+          }
+        }
+        const result = await fetchTlsFingerprint(port, host === undefined ? {} : { host })
+        if (result.ok) lastHandshakeFingerprint = result.fingerprint
+        return result
+      },
     },
     wslSystemd: {
-      writeUnit: async () => ({ ok: true as const }),
+      writeUnit: async (distro: string, unit: { path?: string; content?: string; execStart?: string; description?: string; environment?: Record<string, string> }) => {
+        operationLog.writeUnitCalls.push({ distro, unit })
+        return { ok: true as const }
+      },
       enableLinger: async () => ({ ok: true }),
       startService: async () => ({ ok: true as const, token: remoteToken }),
       removeUnit: async (_distro: string, serviceName: string) => {
         operationLog.removeUnitCalls.push(serviceName)
         return { ok: true as const }
       },
+      // T0682 (BUG-168 G4): T0554 snapshot / restore of the previous unit.
+      // Default: no unit before setup (first install).
+      snapshotUnit: async (distro: string, serviceName: string, snapshotOptions: { path: string }) => {
+        operationLog.snapshotUnitCalls.push({ distro, serviceName, path: snapshotOptions.path })
+        return { ok: true as const, ...(options.wslUnitSnapshot ?? { content: null, active: false, enabled: false }) }
+      },
+      restoreUnit: async (distro: string, serviceName: string, restoreOptions: { path: string; content: string; enabled: boolean; start: boolean }) => {
+        operationLog.restoreUnitCalls.push({ distro, serviceName, ...restoreOptions })
+        return { ok: true as const }
+      },
+      restartService: async (distro: string, serviceName: string) => {
+        operationLog.restartServiceCalls.push({ distro, serviceName })
+        return { ok: true as const }
+      },
+    },
+    // T0682 (BUG-168 G4): install-server-bundle asks for the app version (T0322).
+    update: {
+      getVersion: async () => appVersion,
     },
     app: {
       getUserDataPath: async () => 'C:\\Users\\test\\AppData\\Roaming\\BAT',
@@ -312,6 +418,36 @@ export function createMockElectronApi(options: MockOptions = {}) {
         })
         return { ok: true as const }
       },
+      // T0682 (BUG-168 G4): T0387 verifies the remote server through an
+      // `ssh -L` tunnel. Main hands out an OS-assigned local port; here it is
+      // the harness serverPort (the test's HTTPS server) unless overridden.
+      openVerifyTunnel: async (request: { sessionId: string; sshHost: string; sshUser: string; sshPort?: number; sshKeyPath?: string; remotePort: number }) => {
+        operationLog.sshOpenTunnelCalls.push({
+          sessionId: request.sessionId,
+          sshHost: request.sshHost,
+          sshUser: request.sshUser,
+          remotePort: request.remotePort,
+        })
+        const localPort = options.sshVerifyTunnelLocalPort ?? serverPort
+        verifyTunnelPorts.add(localPort)
+        return { ok: true as const, localPort }
+      },
+      closeVerifyTunnel: async (sessionId: string) => {
+        operationLog.sshCloseTunnelCalls.push(sessionId)
+        return { ok: true as const }
+      },
+      verifyTunnelStatus: async (sessionId: string) => {
+        operationLog.sshTunnelStatusCalls.push(sessionId)
+        return options.sshForwardingDenied
+          ? { forwardingDenied: true, detail: 'channel 2: open failed: administratively prohibited: open failed' }
+          : { forwardingDenied: false, detail: null }
+      },
+      // The remote server-cert.json belongs to the server the handshake
+      // reached, so by default it carries the same fingerprint.
+      readServerIdentity: async (request: { sshHost: string; sshUser: string; sshPort?: number; sshKeyPath?: string; targetOS: 'ssh-linux' | 'ssh-darwin'; serverHome: string }) => {
+        operationLog.sshReadIdentityCalls.push({ sshHost: request.sshHost, targetOS: request.targetOS, serverHome: request.serverHome })
+        return options.sshServerIdentity ?? { ok: true as const, fingerprint: lastHandshakeFingerprint, token: remoteToken }
+      },
     },
     remote: {
       testConnection: async (host: string, port: number) => {
@@ -339,6 +475,30 @@ export function createMockElectronApi(options: MockOptions = {}) {
             bundleVersion: '0.3.1',
           },
         }
+      },
+      // T0682 (BUG-168 G4): install-server-bundle gets its tarball from the
+      // distributor (T0321); the harness serves the first bundle entry as a
+      // cache hit, so nothing is downloaded and no progress is emitted.
+      serverBundle: {
+        distribute: async (distributeOptions: {
+          profileId?: string
+          draftProfile?: { targetOS: string; sshServerArch?: string } & Record<string, unknown>
+          version?: string
+        }) => {
+          operationLog.bundleDistributeCalls.push({ draftProfile: distributeOptions.draftProfile, version: distributeOptions.version })
+          const arch = distributeOptions.draftProfile?.targetOS === 'ssh-darwin'
+            ? 'darwin-arm64' as const
+            : (remoteServerArch === 'arm64' ? 'linux-arm64' as const : 'linux-x64' as const)
+          return {
+            ok: true as const,
+            tarballPath: bundleEntries[0]?.path ?? '',
+            sha256: '0'.repeat(64),
+            sizeBytes: 1_500_000,
+            source: options.bundleDistributeSource ?? ('cache' as const),
+            arch,
+          }
+        },
+        onDistributeProgress: (_callback: (event: { phase: 'manifest' | 'tarball'; bytesDownloaded: number; bytesTotal: number; percent: number }) => void) => () => {},
       },
     },
     docker: {
@@ -399,6 +559,16 @@ export function createMockElectronApi(options: MockOptions = {}) {
           })
         }
         return { ok: true as const, token: remoteToken }
+      },
+      // T0682 (BUG-168 G4): T0649 resolves the host port before start. A new
+      // container gets the override / earlier pick / harness port; an existing
+      // one keeps the port it publishes (inspectContainer reports 9876/tcp).
+      pickServerPort: async (pickOptions?: { preferredPort?: number; previousPort?: number; container?: string }) => {
+        operationLog.dockerPickPortCalls.push({ ...pickOptions })
+        if (pickOptions?.container) {
+          return { ok: true as const, port: serverPort, reusedExistingPort: true }
+        }
+        return { ok: true as const, port: pickOptions?.preferredPort ?? pickOptions?.previousPort ?? serverPort }
       },
       stopContainer: async (name: string, stopOptions?: { remove?: boolean }) => {
         operationLog.dockerStopCalls.push({ name, remove: stopOptions?.remove })

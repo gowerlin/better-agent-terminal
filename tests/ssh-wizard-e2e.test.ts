@@ -1,16 +1,21 @@
 import assert from 'node:assert/strict'
 import { afterEach, before, after, test } from 'node:test'
 import * as https from 'node:https'
+import { X509Certificate } from 'node:crypto'
 import { AddressInfo } from 'node:net'
 import selfsigned from 'selfsigned'
 import { buildSshWizardSteps } from '../src/components/setup-wizard/ssh-flow'
 import { resetFetchFingerprintImplForTests } from '../src/components/setup-wizard/steps/wsl/fetch-fingerprint'
-import { WizardRunner, WizardStepStatus } from '../src/components/setup-wizard/wizard-runner'
+import { WizardStepStatus } from '../src/components/setup-wizard/wizard-runner'
 import { createMockElectronApi, installMockWindow } from './__mocks__/electron-api'
+import { createTestWizardRunner } from './__helpers__/wizard-harness'
 
 // T0287 AC2 — mock-based SSH wizard e2e. Uses a real `node:https` server with
 // a `selfsigned` cert to validate the actual fetchFingerprintStep code path,
 // and mocks the rest of the IPC surface via tests/__mocks__/electron-api.ts.
+// T0682 (BUG-168 G4): the mocked verify tunnel (T0387) hands out this
+// server's port as its local end, and the mocked wsl.fetchFingerprint runs
+// main's fetchTlsFingerprint (T0381) against it.
 
 const SSH_BASE_STATE = {
   sshHost: 'devbox',
@@ -25,20 +30,17 @@ const SSH_BASE_STATE = {
 
 let mockServer: https.Server | null = null
 let mockServerPort = 0
+let mockServerFingerprint = ''
 
 before(async () => {
-  // self-sign a cert for localhost so https.get with rejectUnauthorized:false
-  // can fetch the fingerprint endpoint.
+  // self-sign a cert for localhost; the fingerprint is read from the TLS
+  // handshake (T0381: bat-server has no HTTP handler).
   const pems = await selfsigned.generate(
     [{ name: 'commonName', value: 'localhost' }],
     { days: 1, keySize: 2048 },
   )
-  mockServer = https.createServer({ key: pems.private, cert: pems.cert }, (req, res) => {
-    if (req.url === '/fingerprint') {
-      res.writeHead(200, { 'Content-Type': 'text/plain' })
-      res.end('FP:11:22:33:44')
-      return
-    }
+  mockServerFingerprint = new X509Certificate(pems.cert).fingerprint256
+  mockServer = https.createServer({ key: pems.private, cert: pems.cert }, (_req, res) => {
     res.writeHead(404)
     res.end()
   })
@@ -70,7 +72,7 @@ test('AC2.1: SSH e2e happy path completes all 8 steps with mocked IPC + real HTT
 
   const ctx = harness.createSshContext('Devbox', SSH_BASE_STATE)
 
-  const runner = new WizardRunner(buildSshWizardSteps(), ctx)
+  const runner = createTestWizardRunner(buildSshWizardSteps(), ctx)
   await runner.run()
 
   const snapshots = runner.getSnapshots()
@@ -80,7 +82,14 @@ test('AC2.1: SSH e2e happy path completes all 8 steps with mocked IPC + real HTT
     `unexpected statuses: ${JSON.stringify(snapshots.map((s) => [s.id, s.status]))}`,
   )
   assert.equal(ctx.createdProfileId, 'devbox')
-  assert.equal(ctx.fingerprint, 'FP:11:22:33:44')
+  assert.equal(ctx.fingerprint, mockServerFingerprint)
+  // T0387 (BUG-093): verified through the tunnel to the remote server port,
+  // closed after connect-test; the fingerprint matched server-cert.json.
+  assert.equal(harness.operationLog.sshOpenTunnelCalls[0]?.remotePort, mockServerPort)
+  assert.deepEqual(harness.operationLog.fetchFingerprintCalls, [{ port: mockServerPort, host: '127.0.0.1' }])
+  assert.equal(harness.operationLog.remoteTestHosts[0]?.host, '127.0.0.1')
+  assert.ok(harness.operationLog.sshCloseTunnelCalls.length > 0)
+  assert.equal(harness.operationLog.sshReadIdentityCalls.length, 1)
   assert.equal(ctx.serverMetadata?.serverEnv, 'ssh')
   assert.equal(ctx.targetOS, 'ssh-linux')
 })
@@ -95,7 +104,7 @@ test('AC2.2: ssh:upload-progress events fire and accumulate bytesSent on ctx.sta
 
   const ctx = harness.createSshContext('Upload Probe', SSH_BASE_STATE)
 
-  await new WizardRunner(buildSshWizardSteps(), ctx).run()
+  await createTestWizardRunner(buildSshWizardSteps(), ctx).run()
 
   const state = ctx.state as { uploadBytesSent?: number; uploadTotalBytes?: number }
   assert.ok(typeof state.uploadBytesSent === 'number', 'uploadBytesSent should be set')
@@ -115,7 +124,7 @@ test('AC2.3: SSH e2e records ssh.* call sequence and write-profile metadata', as
 
   const ctx = harness.createSshContext('Sequencer', SSH_BASE_STATE)
 
-  await new WizardRunner(buildSshWizardSteps(), ctx).run()
+  await createTestWizardRunner(buildSshWizardSteps(), ctx).run()
 
   // Expected single-shot sequence on happy path.
   assert.equal(harness.operationLog.sshProbeCalls.length, 1)
@@ -151,14 +160,9 @@ test('AC2.4: start-server failure rolls back and prevents profile write', async 
 
   const ctx = harness.createSshContext('Rollback', SSH_BASE_STATE)
 
-  // Cancel out of the runner's wait-for-retry-or-skip loop so the failure
-  // propagates out (mirrors the user clicking "Cancel" in the shell).
-  const runner = new WizardRunner(buildSshWizardSteps(), ctx, (snapshots) => {
-    const failed = snapshots.find((s) => s.status === WizardStepStatus.Failed)
-    if (failed) {
-      void runner.cancel()
-    }
-  })
+  // The test runner cancels out of the wait-for-retry-or-skip loop on the
+  // failure, so it propagates out (mirrors the user clicking "Cancel").
+  const runner = createTestWizardRunner(buildSshWizardSteps(), ctx)
   await assert.rejects(() => runner.run(), /enable-failed/)
 
   assert.equal(ctx.createdProfileId, undefined, 'profile must not be created when start-server fails')
@@ -177,7 +181,7 @@ test('AC2.5: SSH wizard preserves custom profile names through write-profile', a
 
   const ctx = harness.createSshContext('Production Bastion', SSH_BASE_STATE)
 
-  await new WizardRunner(buildSshWizardSteps(), ctx).run()
+  await createTestWizardRunner(buildSshWizardSteps(), ctx).run()
 
   assert.equal(ctx.createdProfileId, 'production-bastion')
   assert.ok(harness.profiles.has('production-bastion'))

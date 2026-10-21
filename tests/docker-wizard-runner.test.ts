@@ -4,8 +4,9 @@ import { buildDockerWizardSteps } from '../src/components/setup-wizard/docker-fl
 import { configureMountsStep } from '../src/components/setup-wizard/steps/docker/configure-mounts'
 import { detectEnvStep } from '../src/components/setup-wizard/steps/wsl/detect-env'
 import { resetFetchFingerprintImplForTests, setFetchFingerprintImplForTests } from '../src/components/setup-wizard/steps/wsl/fetch-fingerprint'
-import { WizardRunner, WizardStepStatus } from '../src/components/setup-wizard/wizard-runner'
+import { WizardStepStatus } from '../src/components/setup-wizard/wizard-runner'
 import { createMockElectronApi, installMockWindow } from './__mocks__/electron-api'
+import { createTestWizardRunner } from './__helpers__/wizard-harness'
 
 afterEach(() => {
   delete (globalThis as typeof globalThis & { window?: unknown }).window
@@ -24,7 +25,7 @@ test('Docker wizard mode B happy path creates a new managed container', async ()
   ctx.state.dockerMounts = [{ host: 'C:\\Users\\test\\project', container: '/workspace/project' }]
   ctx.state.containerMode = 'new'
 
-  const runner = new WizardRunner(buildDockerWizardSteps(), ctx)
+  const runner = createTestWizardRunner(buildDockerWizardSteps(), ctx)
   await runner.run()
 
   const snapshots = runner.getSnapshots()
@@ -49,7 +50,7 @@ test('Docker wizard mode A happy path reuses an existing container', async () =>
   ctx.state.dockerContainer = 'bat-dev'
   ctx.state.dockerMounts = [{ host: 'C:\\Users\\test\\project', container: '/workspace/project' }]
 
-  await new WizardRunner(buildDockerWizardSteps(), ctx).run()
+  await createTestWizardRunner(buildDockerWizardSteps(), ctx).run()
 
   assert.equal(ctx.createdProfileId, 'existing-docker')
   assert.equal(harness.operationLog.dockerStartCalls[0]?.name, 'bat-dev')
@@ -83,7 +84,7 @@ test('Docker wizard rolls back managed container when profile persistence fails'
   ctx.state.containerMode = 'new'
   ctx.state.dockerMounts = [{ host: 'C:\\Users\\test\\project', container: '/workspace/project' }]
 
-  await assert.rejects(() => new WizardRunner(buildDockerWizardSteps(), ctx).run(), /Failed to persist Docker profile metadata/)
+  await assert.rejects(() => createTestWizardRunner(buildDockerWizardSteps(), ctx).run(), /Failed to persist Docker profile metadata/)
   assert.ok(harness.operationLog.dockerRemoveCalls.includes('bat-server-rollback-docker'))
   assert.deepEqual(harness.operationLog.deletedProfileIds, ['rollback-docker'])
 })

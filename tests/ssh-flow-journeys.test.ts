@@ -5,9 +5,10 @@ import { AddressInfo } from 'node:net'
 import selfsigned from 'selfsigned'
 import { buildSshWizardSteps } from '../src/components/setup-wizard/ssh-flow'
 import { resetFetchFingerprintImplForTests } from '../src/components/setup-wizard/steps/wsl/fetch-fingerprint'
-import { WizardRunner, WizardStepStatus } from '../src/components/setup-wizard/wizard-runner'
+import { WizardStepStatus } from '../src/components/setup-wizard/wizard-runner'
 import { SshPathTranslator } from '../electron/remote/path-translator'
 import { createMockElectronApi, installMockWindow } from './__mocks__/electron-api'
+import { createTestWizardRunner } from './__helpers__/wizard-harness'
 
 // T0287 AC3 — three SSH user journeys (T0266 §7 Journey A/B + cross-OS macOS).
 // Each journey runs the full wizard with mocked IPC; the journeys exercise
@@ -21,12 +22,10 @@ before(async () => {
     [{ name: 'commonName', value: 'localhost' }],
     { days: 1, keySize: 2048 },
   )
-  mockServer = https.createServer({ key: pems.private, cert: pems.cert }, (req, res) => {
-    if (req.url === '/fingerprint') {
-      res.writeHead(200, { 'Content-Type': 'text/plain' })
-      res.end('FP:JOURNEY:01:02:03')
-      return
-    }
+  // T0682 (BUG-168 G4): the mocked verify tunnel (T0387) points at this
+  // server and the fingerprint comes from its TLS handshake (T0381: bat-server
+  // has no HTTP handler).
+  mockServer = https.createServer({ key: pems.private, cert: pems.cert }, (_req, res) => {
     res.writeHead(404)
     res.end()
   })
@@ -73,7 +72,7 @@ test('Journey A: ssh-config alias devbox completes happy path with key-based aut
     bundleTarballPath: 'C:\\fake\\bundles\\bat-server-linux-x64-v0.3.1.tar.gz',
   })
 
-  await new WizardRunner(buildSshWizardSteps(), ctx).run()
+  await createTestWizardRunner(buildSshWizardSteps(), ctx).run()
 
   // Step 1: alias resolved
   assert.equal(ctx.state.sshAlias, 'devbox')
@@ -124,14 +123,18 @@ test('Journey B: permission-denied followed by retry with new key succeeds', asy
   let retryFired = false
   // The runner pauses on Failed and waits for retry/skip — simulate the user
   // selecting "use existing key" and clicking Retry.
-  const runner = new WizardRunner(buildSshWizardSteps(), ctx, (snapshots) => {
-    const failed = snapshots.find((s) => s.status === WizardStepStatus.Failed && s.id === 'verify-ssh-auth')
-    if (failed && !retryFired) {
-      retryFired = true
-      // User picks option [B]: provides existing key.
-      ;(ctx.state as Record<string, unknown>).sshKeyPath = '~/.ssh/id_ed25519_existing'
-      setTimeout(() => void runner.retryCurrentStep(), 0)
-    }
+  const runner = createTestWizardRunner(buildSshWizardSteps(), ctx, {
+    onProgress: (snapshots, wizard) => {
+      const failed = snapshots.find((s) => s.status === WizardStepStatus.Failed && s.id === 'verify-ssh-auth')
+      if (failed && !retryFired) {
+        retryFired = true
+        // User picks option [B]: provides existing key.
+        ;(ctx.state as Record<string, unknown>).sshKeyPath = '~/.ssh/id_ed25519_existing'
+        setTimeout(() => void wizard.retryCurrentStep(), 0)
+      }
+    },
+    // Only the scripted first probe failure is answered (with Retry).
+    expectFailure: (s) => s.id === 'verify-ssh-auth' && harness.operationLog.sshProbeCalls.length === 1,
   })
   await runner.run()
 
@@ -180,7 +183,7 @@ test('Journey C: Windows client connects to macOS arm64 server end-to-end', asyn
     bundleTarballPath: 'C:\\Users\\Alice\\AppData\\Roaming\\BAT\\bat-server-bundles\\bat-server-darwin-arm64-v0.3.1.tar.gz',
   })
 
-  await new WizardRunner(buildSshWizardSteps(), ctx).run()
+  await createTestWizardRunner(buildSshWizardSteps(), ctx).run()
 
   // Probe auto-set targetOS to ssh-darwin
   assert.equal(ctx.targetOS, 'ssh-darwin')
