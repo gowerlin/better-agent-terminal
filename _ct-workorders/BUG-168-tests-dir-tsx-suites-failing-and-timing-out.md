@@ -3,7 +3,7 @@ schema_version: 1
 schema_kind: bug
 id: BUG-168
 title: "tests/ 底下不在 test:unit 的 tsx／node:test 測試：8 檔失敗（29 項）、9 檔逾時；package.json 2 組 script 指向不存在的檔案"
-status: FIXING
+status: FIXED
 severity: low
 reproducibility: always
 created_at: "2026-10-21T20:15:54+0800"
@@ -25,7 +25,7 @@ links:
 |------|------|
 | 嚴重度 | 🟢 low（T0679：29 項失敗與 9 個逾時全部是測試過時，沒有產品回歸；原暫定 medium） |
 | 可重現 | 一定 |
-| **狀態** | ⏳ FIXING（D177）：G2 T0680 `21ce7b79`、G3 T0681 `eaf8c168`、G4 T0682 `5bd04ef4`、CI 第一步 T0683 `a35c4ce3` 皆 DONE（原 29 項失敗與 9 個逾時已全部處理）。剩：ubuntu 試跑與 21 項 Windows 限定測試改跨平台、`test:legacy` 與失效 script 清理（含 G1）、`test:unit` 擋版 |
+| **狀態** | ✅ FIXED（2026-10-21）：G2 T0680 `21ce7b79`、G3 T0681 `eaf8c168`、G4 T0682 `5bd04ef4`、CI 第一步 T0683 `a35c4ce3`、跨平台與時區 T0684 `4d4bce72`、`test:legacy` 與清理 T0685 `063c4efb`；GitHub 試跑 run `39609350106`（ubuntu）test:unit 5760 / 0、test:legacy 33 檔 472 / 0。擋版關卡 T0686 進行中 |
 | 回報者 | T0678 Worker（盤點） |
 
 ## 現象

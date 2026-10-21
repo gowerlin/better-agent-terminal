@@ -3,7 +3,7 @@ schema_version: 1
 schema_kind: index
 id: _bug-tracker
 index_kind: bugs
-generated_at: "2026-10-21T20:15:54+0800"
+generated_at: "2026-10-21T21:40:10+0800"
 generator: control-tower-sync
 source_globs:
   - _ct-workorders/BUG-*.md
@@ -13,8 +13,8 @@ exclude_globs:
 total: 53
 breakdown:
   OPEN: 1
-  FIXING: 1
-  FIXED: 23
+  FIXING: 0
+  FIXED: 24
   VERIFY: 0
   CLOSED: 28
   WONTFIX: 0
@@ -23,10 +23,10 @@ breakdown:
 # Bug Tracker
 
 > ⚠️ 此文件由 `*sync` 自動生成，請勿手動編輯。
-> 最後同步：2026-10-21 20:15 (UTC+8) — 新增 BUG-168 OPEN（T0679 研究分類）；BUG-167 FIXED（T0678 `d90b3b50`）；BUG-166 FIXED 待 外部測試者A（pre.4）；BUG-165 OPEN（有空再排）
+> 最後同步：2026-10-21 21:40 (UTC+8) — BUG-168 → FIXED（T0680–T0685；ubuntu 試跑全過，擋版 T0686）；BUG-167 FIXED（T0678 `d90b3b50`）；BUG-166 FIXED 待 外部測試者A（pre.4）；BUG-165 OPEN（有空再排）
 
 ## 統計
-- 🔴 Open: 1 | ⏳ Fixing: 1 | ✅ Fixed: 23 | 🧪 Verify: 0 | 🚫 Closed: 28 | ⛔ Won't Fix: 0 | **Total: 53**
+- 🔴 Open: 1 | ⏳ Fixing: 0 | ✅ Fixed: 24 | 🧪 Verify: 0 | 🚫 Closed: 28 | ⛔ Won't Fix: 0 | **Total: 53**
 
 ## 🔴 Open / 處理中
 
@@ -38,12 +38,12 @@ breakdown:
 
 | ID | 標題 | 嚴重度 | 修復時間 | 連結 |
 |----|------|--------|---------|------|
-| BUG-168 | `tests/` 底下不在 test:unit 的測試失敗與逾時（T0679：全部測試過時）；D177 修正中：T0680 G2、T0681 G3、T0683 CI 第一步、T0682 G4 | 🟢 low | 2026-10-21（進行中） | [BUG-168](BUG-168-tests-dir-tsx-suites-failing-and-timing-out.md) |
 
 ## ✅ 已修復
 
 | ID | 標題 | 嚴重度 | 修復時間 | 連結 |
 |----|------|--------|---------|------|
+| BUG-168 | `tests/` 底下沒被跑到的測試失敗與逾時（全部測試過時）；T0680–T0685 修正並收進 vitest／`test:legacy`，ubuntu 試跑 5760 / 0 + 472 / 0；擋版 T0686 | 🟢 low | 2026-10-21 | [BUG-168](BUG-168-tests-dir-tsx-suites-failing-and-timing-out.md) |
 | BUG-167 | `tests/profile-manager-migration.test.ts` 2 項斷言過時（T0277 / T0282 加的 `dockerMounts`、`serverHome` 沒跟上；T0678 `d90b3b50`，13 / 0） | 🟢 low | 2026-10-21 | [BUG-167](BUG-167-profile-manager-migration-test-stale-assertions.md) |
 | BUG-166 | Agent 被訊號結束後的分頁，滑鼠回報被當成文字輸入 shell（T0671 研究；T0672 `64209d44` 自動 / 手動重設滑鼠追蹤；待 外部測試者A 確認、未發版） | 🟡 medium | 2026-10-19 | [BUG-166](BUG-166-mouse-reports-leak-as-text-after-agent-exit.md) |
 | BUG-159 | codex 分頁在 BAT MCP 未注入、非系統管理員時接上 codex 共用 daemon，helper 讀到其他分頁的 `BAT_*`（T0651 `5b1be0f5`） | 🟢 low | 2026-10-18 | [BUG-159](BUG-159-codex-shared-daemon-inherits-other-tab-env.md) |
