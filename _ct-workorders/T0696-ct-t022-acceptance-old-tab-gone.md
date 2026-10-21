@@ -4,14 +4,14 @@ schema_kind: workorder
 id: T0696
 title: "CT-T022 驗收情境 2：舊 Worker 分頁已手動關閉時重派，`--close-worker` 回 NOT_FOUND 且照常派工（BUG-170）"
 type: verification
-status: IN_PROGRESS
+status: BLOCKED
 repo: better-agent-terminal
 project: BUG-170
 priority: P3
 sizing: XS
 created_at: "2026-10-22T01:31:47+0800"
 started_at: "2026-10-22T01:32:52+0800"
-updated_at: "2026-10-22T01:33:00+0800"
+updated_at: "2026-10-22T01:33:20+0800"
 depends_on: []
 related:
   - CT-T022
@@ -77,12 +77,33 @@ memory_overrides:
 
 ### 完成狀態
 
+`BLOCKED`（第一次執行；yolo 提問備援）。依步驟 1 送出 Q-1 與 `T0696 提問`；`worker_question_timeout: 0` → 不走 BAT 問答通道、不等待，直接備援：保留 `### 待塔台決策` 與 `tower_question: open`，送 `T0696 需要協助`。待塔台於 `## 塔台補充（Renew #1）` 答覆 Q-1 後重派。
+
+落點檢查：`PASS`
+- C-0：frontmatter `repo` = `better-agent-terminal`；`basename(REPO_ROOT)` = `better-agent-terminal`（REPO_ROOT = `D:/ForgejoGit/@Gower_Labs/BMad-Guide/better-agent-terminal/better-agent-terminal`）→ PASS
+- C-1：工單位於 REPO_ROOT 下 → PASS
+- C-3：`affects_files` 只有 `_ct-workorders/` 下的本工單 → not applicable
+- C-2：工單無 `branch` 欄位（目前 `main`）→ 略過
+- `CT_HOME` 未設（非 worktree 隔離）；`BAT_WORKSPACE_ID` = `cc0afc4a-57e9-4f41-b2ed-a2d8bac9e36b`（僅記錄）；`BAT_TERMINAL_ID` = `61ee470801c0c5b32a1eeac301f33551`
+
 ### 選定代號
+
+（尚未答覆；待 Renew #1 依塔台答覆 Q-1 填寫）
 
 ### 互動紀錄
 
+- [01:33] Q-1: 回報區「選定代號」寫 A 還是 B → 送 `T0696 提問`（`--submit`，exit 0）；`worker_question_timeout: 0` → 不等待，走備援 → Action: `BLOCKED`、送 `T0696 需要協助`
+
 ### 遭遇問題
+
+- 無。工作目錄另有 `_ct-workorders/T0695-ct-t022-acceptance-fallback-redispatch.md` 未提交變更，非本單範圍，未動（本單只以 `git commit --only` 提交本工單檔）。
 
 ### Commit
 
+- `aea731f6ace740ca6184edeff6fe63f41cee2a17`：T0696 IN_PROGRESS + Q-1（送 `提問` 前）
+- 本次收尾 commit：狀態 `BLOCKED` + 回報（hash 見 git log）
+- 無產品變更（驗收用工單）；未 push
+
 ### 回報時間
+
+2026-10-22T01:33:20+0800
