@@ -4,12 +4,14 @@ schema_kind: workorder
 id: T0698
 title: "BUG-165 修正：Codex 分頁在 alt screen + 滑鼠追蹤時，依滾輪像素累積行數送多個滑鼠回報（上限約 8），讓捲動接近 iTerm2"
 type: implementation
-status: PENDING
+status: IN_PROGRESS
 repo: better-agent-terminal
 project: BUG-165
 priority: P3
 sizing: S
 created_at: "2026-10-22T01:48:04+0800"
+started_at: "2026-10-22T01:49:26+0800"
+updated_at: "2026-10-22T01:49:26+0800"
 target_version: "0.7.1-pre.6"
 depends_on: []
 related:
@@ -27,6 +29,7 @@ affects_files:
 renew_count: 0
 workdir: main repo
 worker_question_timeout: 30
+tower_question: open
 interaction:
   mode_hint: yolo
   interactive: false
@@ -68,6 +71,13 @@ memory_overrides:
 ## 回報區
 
 ### 待塔台決策（僅 yolo Worker 有問題時）
+
+#### Q-1：「是 codex 分頁」只用 `TerminalInstance.agentPreset === 'codex-cli'` 判斷，helper 派工的 codex Worker 分頁本單不涵蓋，可以嗎？
+- 提問時間：2026-10-22T01:50:32+0800
+- 選項：[A] 只認 `agentPreset === 'codex-cli'`（使用者自己從「+」開的 Codex CLI 分頁、還原後也保留）；helper 派工的 codex Worker 分頁（`addExternalTerminal` 不存 `agentPreset`，`terminal:created-externally` 帶的 `agent` 沒存進 store，BAT 重開後也沒有）維持 xterm 預設，記為後續候選 / [B] 本單一併涵蓋 Worker：在 `TerminalInstance` 新增一個只供顯示 / 判斷用的欄位（例如 `externalAgent`），`addExternalTerminal` 從 `info.agent` 存入並持久化；會改 `src/types/index.ts`、`src/stores/workspace-store.ts`（超出 `affects_files`）。不能直接寫進 `agentPreset`，因為還原 / ⏻ 重啟會依 `agentPreset` 重打啟動命令 / [C] 其他
+- Worker 建議：[A]，因為 BUG-165 回報的是使用者自己開的 Codex 分頁；[B] 動到共用 store 與持久化格式，且同批 T0697 並行，風險大於收益，可另開小單
+- 影響範圍：`src/lib/terminal-wheel-reports.ts` 的判斷函式、TerminalPanel 讀取 agent 資訊的方式；[B] 另加 `src/types/index.ts`、`src/stores/workspace-store.ts` 與其測試
+- 阻塞：否（先做換算 / 編碼 / 接線；判斷函式最後依答覆定案）
 
 ### 完成狀態
 
