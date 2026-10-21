@@ -25,7 +25,7 @@ links:
 |------|------|
 | 嚴重度 | 🟢 low（T0679：29 項失敗與 9 個逾時全部是測試過時，沒有產品回歸；原暫定 medium） |
 | 可重現 | 一定 |
-| **狀態** | ⏳ FIXING（D177：第 1 波 T0680 G2、T0681 G3、T0683 CI 第一步並行；第 2 波 T0682 G4；之後 CI 擋版與 `test:legacy`） |
+| **狀態** | ⏳ FIXING（D177）：G2 T0680 `21ce7b79`、G3 T0681 `eaf8c168`、G4 T0682 `5bd04ef4`、CI 第一步 T0683 `a35c4ce3` 皆 DONE（原 29 項失敗與 9 個逾時已全部處理）。剩：ubuntu 試跑與 21 項 Windows 限定測試改跨平台、`test:legacy` 與失效 script 清理（含 G1）、`test:unit` 擋版 |
 | 回報者 | T0678 Worker（盤點） |
 
 ## 現象
