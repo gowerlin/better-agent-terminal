@@ -25,7 +25,7 @@ const {
   whisperAddonDirCandidates,
 } = require(SCRIPT)
 
-// Shape of @anthropic-ai/claude-code 2.1.289 / 2.1.296 / 2.1.300's bin/claude.exe placeholder (500 bytes upstream).
+// Shape of @anthropic-ai/claude-code 2.1.289 / 2.1.296 / 2.1.300 / 2.1.306's bin/claude.exe placeholder (500 bytes upstream).
 const STUB = [
   `echo "Error: ${CLAUDE_STUB_MARKER}." >&2`,
   'echo "" >&2',

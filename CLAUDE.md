@@ -182,7 +182,7 @@
 
 ## Claude Agent SDK / CLI
 
-- 版本：`@anthropic-ai/claude-agent-sdk` `^0.2.111`（實裝 `0.2.113`，刻意留在 0.2 線：0.3 移除 V2 session API，D123）、`@anthropic-ai/claude-code` `^2.1.300`（含 8 個 `@anthropic-ai/claude-code-*` 平台子套件）。
+- 版本：`@anthropic-ai/claude-agent-sdk` `^0.2.111`（實裝 `0.2.113`，刻意留在 0.2 線：0.3 移除 V2 session API，D123）、`@anthropic-ai/claude-code` `^2.1.306`（T0690；含 8 個 `@anthropic-ai/claude-code-*` 平台子套件）。
 - 🔴 **服務端以 CLI 版本擋新模型**：CLI 太舊時 API 回 `400` + `error_code: "claude_code_version_too_old"`（原文例：`Claude Code 2.1.113 does not support this model; version 2.1.280 or newer is required`）。目前門檻：Opus 5.5 需 `>= 2.1.280`、Fable 5.1 需 `>= 2.1.251`（T0368 實測；門檻由服務端逐模型設定，隨時可能擴及其他模型）。⇒ **內嵌 CLI 落後即功能故障**，每次預覽版發布前應 `npm view @anthropic-ai/claude-code version` 追版。Claude 面板以 `src/lib/claude-error-classify.ts`（`classifyClaudeError`）辨識此錯誤，在原訊息後附 i18n 提示（`claude.claudeErrorHintCliTooOld*`：升級 BAT，或切 system runtime 並升級系統 claude），`claude:error` IPC 簽章不變（T0372）。
 - 模型清單 `BAT_BUILTIN_MODELS`（`electron/claude-agent-manager.ts`）；5 系列原生 1M context，不加 `[1m]` 變體；新增 5 系列模型時同步補 `MODEL_LIMITS`（`estimateModelLimits()`）與 `electron/__tests__/claude-model-limits-and-call-usage.test.ts`。
 - 計價唯一 `src/lib/model-pricing.ts`（`getModelPricing()` 以 `includes` 比對，**point release 必須排在 base model 之前**；新增模型時同步補 `src/lib/__tests__/model-pricing.test.ts`）；Cache History 邏輯 `src/lib/cache-history.ts`。

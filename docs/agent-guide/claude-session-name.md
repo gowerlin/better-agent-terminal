@@ -54,7 +54,7 @@
 | system runtime 讀不到版本 / runtime 解析失敗 / host 沒接版本檢查 | `version-unknown` | 🔴 同上，絕不注入 |
 
 - 版本檢查唯一實作 `electron/claude-version-check.ts` `createClaudeNameSupportCheck`（比照 `createCodexOscVersionCheck`，不 import electron）：
-  - runtime 由 `resolveClaudeRuntime(getRuntimeSettingsSnapshot())` 在啟動決策時再解析一次（與 `claude:get-cli-path` / `resolveClaudeBaseCommand` 同一個 router）。`embedded` 與 `system-fallback-to-embedded` → 直接注入、**不檢查**（內嵌固定 2.1.300 線）。
+  - runtime 由 `resolveClaudeRuntime(getRuntimeSettingsSnapshot())` 在啟動決策時再解析一次（與 `claude:get-cli-path` / `resolveClaudeBaseCommand` 同一個 router）。`embedded` 與 `system-fallback-to-embedded` → 直接注入、**不檢查**（內嵌固定 2.1.306 線，T0690）。
   - `system` → `execFile(<path>, ['--version'])`（array args、無 shell、timeout `CLAUDE_VERSION_TIMEOUT_MS` = 5 s、`windowsHide`），解析 `VERSION_REGEX`（`electron/claude-resolver.ts`），與 `CLAUDE_NAME_MIN_VERSION` = `2.1.76` 比較（`compareSemver`，忽略 prerelease）。依路徑 + mtime 快取，只快取解析成功的版本；讀不到 mtime 不快取。
   - 只在「可能注入」時才問（`needsClaudeNameSupport`：claude、有名稱、自訂參數沒命名）；codex 分頁、使用者自己命名時不跑。
   - 成本：system 模式下 router 本身每次都會 probe 一次（`detectSystemClaude`，既有行為），本檢查第一次多一次 `execFile`，之後命中快取。embedded 模式（預設）不多 spawn。
