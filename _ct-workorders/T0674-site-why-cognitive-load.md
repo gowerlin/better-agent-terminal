@@ -4,12 +4,15 @@ schema_kind: workorder
 id: T0674
 title: "網站新頁「把腦力留給判斷」（/why）：以認知負荷說明 BAT + CT 的設計初衷；首頁接一段、故事 7 章加「你不用再記住」、常見問題兩題、演進史收尾、導覽列（D175）"
 type: feature
-status: TODO
+status: DONE
 repo: better-agent-terminal
 project: "網站（PLAN-049 後續，D175）"
 priority: P3
 sizing: M
 created_at: "2026-10-21T16:30:06+0800"
+started_at: "2026-10-21T16:33:52+08:00"
+updated_at: "2026-10-21T16:44:30+08:00"
+completed_at: "2026-10-21T16:44:30+08:00"
 depends_on: []
 related:
   - "D175（使用者四題決定：完整版範圍、外殼一節不提試驗細節、起點用作者第一人稱、頁名「把腦力留給判斷」/why）"
@@ -164,18 +167,116 @@ memory_overrides:
 
 ### 結果摘要
 
+**DONE**。新頁 `/why`「把腦力留給判斷」11 節齊全（導言、起點、負擔去哪、三種負擔、對照表、外殼、這不是什麼、用工具不用規定、放手的三個習慣、還沒解決的事、接著看），主旨句同時出現在新頁開頭與首頁新段落導言。首頁故事 7 章各加一行「你不用再記住：…」，故事結尾後新增「把腦力留給判斷」段落（三格 + 開發方法一句 + 連到 `/why`）；導覽列與側欄「與 Control Tower 協作」第一項是「把腦力留給判斷」；`/control-tower` 常見問題加兩題（與 `/why#let-go` 互連）；演進史結尾加一段共同線索並連到 `/why`。
+
+- **著陸檢查**：PASS。C-0 `repo: better-agent-terminal` = `basename(REPO_ROOT)` `better-agent-terminal`；C-1 工單位於 REPO_ROOT 下；C-3 `site/why.md` 祖先 `site/` 存在（present）；C-2 無 `branch` 欄位。`CT_HOME` 未設定（非隔離）。`BAT_WORKSPACE_ID=cc0afc4a-57e9-4f41-b2ed-a2d8bac9e36b`（只記錄）。
+- **frontend-design skill**：開工時已載入。沿用既有設計語言，不另起視覺方向；唯一新視覺元素是外殼示意 `ShellLoop`（沿用雷達線條語彙）。色彩只用既有語意 token：「你 = 藍」`--bat-you` 用在「你不用再記住」、「判斷：留給你」那格與對照表最後一列；本單沒有任何非塔台元素用紫色（錨點 A1）。
+
 ### 修改檔案
+
+- `site/why.md`（新）
+- `site/.vitepress/theme/components/ShellLoop.vue`（新：外圈五步 / 內圈每次不同，靜態 SVG + 可見圖說 + sr-only 文字等價）
+- `site/.vitepress/theme/components/StoryChapter.vue`：選填 prop `relief`，顯示在「BAT + CT」卡片底部（虛線分隔，「你不用再記住：」用 `--bat-you`）
+- `site/.vitepress/theme/components/FeatureGrid.vue`：新 set `loads`（首頁三格），`Feature.tone: 'you'`
+- `site/.vitepress/theme/components/CardTable.vue`：選填 prop `highlightTone`（`tower` 預設 / `you`），既有用法不變
+- `site/.vitepress/theme/custom.css`：檔尾新增「把腦力留給判斷」一節樣式（只新增，未改既有規則）
+- `site/.vitepress/theme/index.ts`：註冊 `ShellLoop`
+- `site/.vitepress/config.mts`：nav 下拉與 sidebar 群組第一項加 `/why`
+- `site/index.md`：7 章 `relief`、新段落
+- `site/control-tower.md`：兩題常見問題（`#faq-clear-chat`、`#faq-edit-while-running`）
+- `site/control-tower-tour.md`：演進史結尾一段
+- `docs/design/site-design-language.md`：§ 4.1「用在」補一句新增的 `--bat-you` 用處，以及 ShellLoop 不用紫也不用藍
 
 ### 新文案 → 依據頁面 / 章節對照（只供內部核對，不上站）
 
+| 新文案 | 依據 |
+|---|---|
+| 起點（三到七個專案、貼錯 prompt） | 工單第 1 項第 2 點（D175 使用者提供）；「所以有了 Control Tower 和現在這個 BAT」見偏差 1 |
+| 負擔四個去處：檔案「換人、換 Agent、隔天再開都讀得回來」 | 首頁故事「一個月後」；`/control-tower-tour#what`「因為一切都在檔案裡…」 |
+| 塔台脈絡「只放全局…程式碼細節交給 Worker 去讀」 | `/control-tower#tower-principles`「塔台刻意不讀程式碼」 |
+| 雜事：開分頁送指令 / 分頁標題 / 縮圖三狀態 / 啟動確認（Claude CLI 與新版 Codex CLI）/ 通知回塔台、等輸出安靜才回收 | 首頁故事 09:20、10:05；`/control-tower#visibility`、`#integration` 表、`#agents`「偵測能力」 |
+| 難度切小三點 | 首頁故事 09:00；`/control-tower#lifecycle` |
+| 判斷留給你：yolo 下塔台代決並記理由；五個斷點 | 首頁故事 10:40、首頁「自動，但不失控」斷點清單；`/control-tower#autonomy` |
+| 對照表 8 列 | 進度檔：`/control-tower-tour#faq`「塔台的對話斷了」；派工：首頁 09:20；縮圖：10:05；啟動確認：09:20；回報與回收：10:05；決策紀錄：首頁「一個月後」、`/control-tower#what`；經驗分兩處：`/control-tower-tour#evolution` 第 3 代 |
+| 外殼五步交給塔台和 BAT；Worker 範圍內判斷、超出問塔台、該你決定的回到你 | `/control-tower-tour#states`「守住範圍」；`/control-tower#questions` |
+| 經驗長成規則與教戰手冊，但不是不准例外的劇本 | 首頁「越用越懂你的專案」、`/control-tower#learning`（教戰手冊「照著判斷」）；相容：只說它們是判斷的依據 |
+| 不規定開發方法；專案規則帶進每張工單的驗收條件 | `/control-tower-tour#faq`「一定要用 BMad-Method 嗎？」；`/control-tower#learning`「說一次，之後每張工單都記得」 |
+| 不是 Vibe Coding：先寫目標範圍驗收、回報附證據、逐項核對、決定寫進檔案 | 首頁故事 12:00、「一個月後」；`/control-tower-tour#states`「證據式驗收」 |
+| 工單、決策紀錄、經驗都由 AI 寫 | `/control-tower#what`（塔台開工單、記決策）、`/control-tower-tour#learning`（塔台記觀察）、`#states`（Worker 寫回報） |
+| 放手習慣 1、常見問題「自己改檔案」：派工前比對會動到的檔案 | 首頁故事 11:15；`/control-tower#parallel`「先比對會動到的檔案」 |
+| 放手習慣 2、常見問題「清掉對話」：塔台重開先讀回、回報先寫完才改狀態 | `/control-tower-tour#faq`「塔台的對話斷了」、`#states`「回報先寫完，才改狀態」 |
+| 放手習慣 3：只在斷點回答 | `/control-tower#autonomy` yolo 列 |
+| 小事不開工單，哪些算小事由第一次問答決定 | `/control-tower#learning`「十分鐘問答」（「哪些小事不必開工單」） |
+| 規則只寫一處、按需載入、結案單據歸檔 | `/control-tower-tour#evolution` 第 5 代；`#states`「不只工單」（歸檔區） |
+| 演進史共同線索 | `/control-tower-tour#evolution` 七代的「卡在」：第 2、4、6、7 代是「要你貼 / 開 / 看」；用「大多是」措辭，不涵蓋第 3、5 代 |
+
 ### 驗證
+
+| 項目 | 結果 | 證據 |
+|---|---|---|
+| `cd site && npm run build` | PASS | `build complete`，0 錯誤；VitePress 預設死連結檢查開啟（未設 `ignoreDeadLinks`），0 死連結；最後一次 build 在校稿與樣式修正之後 |
+| 錨點 | PASS | build 產物中 `index.html#story`、`control-tower.html#visibility/#lifecycle/#autonomy/#learning/#faq-clear-chat/#faq-edit-while-running`、`control-tower-tour.html#faq/#states/#evolution`、`why.html#let-go/#three-loads` 各有 1 個 id |
+| 字樣 / 隱私 grep（本單 `site/` 新增行 + `why.md` + `ShellLoop.vue`，大小寫敏感） | PASS | 工單列的 27 個樣式全部 = 0。另以不分大小寫補查 `Workflow` / `facebook` / `youtube` / `gower` = 0；不分大小寫時 `\*[a-z]+` 命中 1 處 markdown 粗體 `**Worker`、`CTI` 命中 `section` / `function`，皆為誤判 |
+| 新頁 `title` / `description`；分享卡片 | PASS | `why.html`：`<title>把腦力留給判斷 \| Better Agent Terminal`、`og:description` = 頁面 description；`sitemap.xml` 含 `why` |
+| 手機無水平捲動（390） | PASS | `/why`、首頁、`/control-tower`、`/control-tower-tour` 淺 / 深色 `scrollWidth` = `clientWidth` = 390；`/why` 沒有超出視窗的元素 |
+| reduced-motion | PASS | 以 `prefers-reduced-motion: reduce` 截圖；`/why` `document.getAnimations().length` = 0；本單沒有新增動畫或 transition |
+| 鍵盤焦點 | PASS（原始碼檢查） | 本單新增的可聚焦元素只有連結：首頁連結套 `.home :focus-visible` 外框，文件頁連結用 VitePress 預設焦點樣式；SVG `aria-hidden`、不可聚焦 |
+| 截圖 | PASS | 見下方清單 |
+| e2e | 未執行 | 依工單指示不跑 Playwright |
+
+截圖（scratchpad，不入版控）：`C:\Users\Gower\AppData\Local\Temp\claude\D--ForgejoGit--Gower-Labs-BMad-Guide-better-agent-terminal-better-agent-terminal\9d26db3a-5c98-446c-b849-78262f361afd\scratchpad\t0674\`
+
+- `/why` 全頁：`why-1440-light.png`、`why-1440-dark.png`、`why-390-light.png`、`why-390-dark.png`；另有 `why-390-dark-shell.png`（外殼示意）、`why-390-light-table.png`（對照表手機卡片）
+- 首頁新段落：`home-why-{1440,390}-{light,dark}.png`
+- 首頁故事「你不用再記住」（09:20 章）：`home-relief-{1440,390}-{light,dark}.png`
+- `/control-tower` 兩個新問題：`ct-faq-{1440,390}-{light,dark}.png`
+- 演進史收尾：`tour-evolution-{1440,390}-{light,dark}.png`
+
+預覽伺服器已結束（L164）：`netstat` 沒有 4319 LISTENING；截圖用的瀏覽器分頁已關閉。
 
 ### 文案校稿（bmad-editorial-review-prose）採納清單
 
+| # | 原文 | 改為 | 採納 |
+|---|---|---|---|
+| 1 | `/why#where` 導言「每個功能都先問同一個問題：這份負擔最後放在哪裡？」（與 h2 重複） | 「能放的地方有四個，好壞差很多。」 | 採納 |
+| 2 | 三種負擔「叫外在 / 內在 / 有益負擔」 | 「認知負荷理論稱為…」（補上術語來源） | 採納 |
+| 3 | 「塔台可以…代你決定，並記下理由。」 | 補「（yolo 模式）」（只有 yolo 由塔台代答，與首頁 10:40 一致） | 採納 |
+| 4 | 「記下學到的事」 | 「記下經驗」（與示意圖標籤一致） | 採納 |
+| 5 | `#not` 導言「三件 BAT 與 Control Tower 不做的事」 | 「三件常被誤會的事」（「不是 Vibe Coding」不算一件「不做的事」） | 採納 |
+| 6 | 「所以我做了 Control Tower 和 BAT」 | 「所以有了 Control Tower 和現在這個 BAT」 | 採納（查詢項，見偏差 1） |
+| 7 | 演進史「這條共同的線索，見[…]」 | 「…，在[把腦力留給判斷](./why)有完整說明。」 | 採納 |
+
+截圖自審另改三處（不是校稿項目）：主旨句原本和 h1 黏成四行標題，改成較小字級加左側粗線；外殼示意的圖說原本和下一段第一句重複，改成「外圈：每張工單都走的五步。內圈：每張工單不同的內容。」；對照表「還是你」那列原本沿用淡紫底，容易被讀成塔台的東西，改成藍色淡底。
+
 ### 給使用者的預覽指令
+
+```bash
+cd site
+npm run build
+npx vitepress preview --port 4173
+# 瀏覽 http://localhost:4173/better-agent-terminal/why
+#      http://localhost:4173/better-agent-terminal/#story（故事每章底部的「你不用再記住」與故事後的新段落）
+#      http://localhost:4173/better-agent-terminal/control-tower#faq-clear-chat
+#      http://localhost:4173/better-agent-terminal/control-tower-tour#evolution
+```
+
+注意：`vitepress preview` 只認啟動當下的檔案。預覽中重新 build 之後要重啟預覽伺服器，否則新的 CSS 會回 404（本單實測）。
 
 ### Commit
 
+- 產品：`0f50a83d7e5c69b931df1683cdb90c9072a4d4e6`（`git commit --only` 12 個檔案；`Claude outputs/` 未碰）
+- 工單：本回報另外 commit（`git commit --only` 本檔）
+- 未 push。
+
 ### 偏差與遭遇問題
 
+1. **起點措辭**：工單大綱寫「所以做了 CT 與 BAT」。BAT 是從上游專案 fork 而來（頁尾有致謝），寫「我做了 BAT」可能被讀成從零開發，與「不得誇大」衝突，所以改成「所以有了 Control Tower 和現在這個 BAT」。若使用者要原句，只需改 `site/why.md`「起點」第三段一處。
+2. **「小事不值得開工單」**：工單寫「改一個錯字塔台直接處理」。全站另有「塔台不寫程式」與「塔台被慣壞」的說法，所以補了半句「哪些算小事，第一次用時的問答裡由你決定」，並連到 `/control-tower#learning`（十分鐘問答原本就有「哪些小事不必開工單」），避免互相矛盾。
+3. **放手習慣用項目符號、不用 ①②③**：三個習慣沒有先後順序；作者的學習順序才是真正的順序，那裡用編號清單。
+4. **自訂錨點**：兩個新常見問題用自訂錨點 `#faq-clear-chat`、`#faq-edit-while-running`（中文標題自動產生的錨點不穩定），`/why#let-go` 直接連到它們。
+5. **預覽伺服器**：第一次 `TaskStop` 只停掉 npx 外殼，node 程序（PID 41032，確認是 `vitepress.js preview --port 4319`）仍佔著埠，改用 `Stop-Process` 結束；之後直接以 node 啟動，結束時確認沒有 LISTENING。
+6. 第一次字樣 grep 的暫存檔誤寫到系統 `%TEMP%`（不是 scratchpad），已立即刪除；之後的暫存都放在 scratchpad。
+
 ### 互動紀錄
+
+無（yolo，沒有向塔台提問）。
