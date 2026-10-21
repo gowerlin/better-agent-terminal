@@ -4,14 +4,14 @@ schema_kind: workorder
 id: T0696
 title: "CT-T022 驗收情境 2：舊 Worker 分頁已手動關閉時重派，`--close-worker` 回 NOT_FOUND 且照常派工（BUG-170）"
 type: verification
-status: BLOCKED
+status: PENDING
 repo: better-agent-terminal
 project: BUG-170
 priority: P3
 sizing: XS
 created_at: "2026-10-22T01:31:47+0800"
 started_at: "2026-10-22T01:32:52+0800"
-updated_at: "2026-10-22T01:33:20+0800"
+updated_at: "2026-10-22T01:33:33+0800"
 depends_on: []
 related:
   - CT-T022
@@ -19,7 +19,7 @@ related:
   - D180
 affects_files:
   - _ct-workorders/T0696-ct-t022-acceptance-old-tab-gone.md
-renew_count: 0
+renew_count: 1
 tower_question: open
 workdir: main repo
 worker_question_timeout: 0
@@ -63,6 +63,17 @@ memory_overrides:
 
 - 使用者手動關閉第一次的 Worker 分頁後，Renew 重派前的 `--close-worker T0696 … --delay-ms 0` exit `3`（NOT_FOUND），塔台照常派工。
 - 新 Worker `DONE` 後，收單回收 exit `0`。
+
+## 塔台補充（Renew #1）
+
+**時間**：2026-10-22T01:33:33+0800（取自系統）
+**補充內容**：
+> 備援 `需要協助` 已收到；依 yolo-mode.md「收到備援」在本區段答覆 Q-1。
+
+- **塔台答覆 Q-1**：[B] 寫 `BRAVO`——驗收用，無技術差異（2026-10-22T01:33:33+0800；塔台代決）
+
+**新指示**：
+> 依上方答覆完成執行步驟 2，狀態 `DONE`。
 
 ## 回報區
 

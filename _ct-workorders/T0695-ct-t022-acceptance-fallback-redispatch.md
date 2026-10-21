@@ -4,7 +4,7 @@ schema_kind: workorder
 id: T0695
 title: "CT-T022 驗收情境 1：yolo 提問備援 → 塔台 Renew 重派前回收舊 Worker 分頁（BUG-170）"
 type: verification
-status: BLOCKED
+status: PENDING
 tower_question: open
 repo: better-agent-terminal
 project: BUG-170
@@ -12,7 +12,7 @@ priority: P3
 sizing: XS
 created_at: "2026-10-22T01:31:47+0800"
 started_at: "2026-10-22T01:32:26+0800"
-updated_at: "2026-10-22T01:33:03+0800"
+updated_at: "2026-10-22T01:33:33+0800"
 depends_on: []
 related:
   - CT-T022
@@ -20,7 +20,7 @@ related:
   - D180
 affects_files:
   - _ct-workorders/T0695-ct-t022-acceptance-fallback-redispatch.md
-renew_count: 0
+renew_count: 1
 workdir: main repo
 worker_question_timeout: 0
 interaction:
@@ -64,6 +64,17 @@ memory_overrides:
 
 - Renew 重派前的 `--close-worker T0695 … --delay-ms 0` exit `0`，舊分頁被關閉，只剩新 Worker 分頁。
 - 新 Worker `DONE` 後，收單回收的 `--close-worker T0695` exit `0`（不是 `5` AMBIGUOUS）。
+
+## 塔台補充（Renew #1）
+
+**時間**：2026-10-22T01:33:33+0800（取自系統）
+**補充內容**：
+> 備援 `需要協助` 已收到；依 yolo-mode.md「收到備援」在本區段答覆 Q-1。
+
+- **塔台答覆 Q-1**：[A] 寫 `ALPHA`——驗收用，無技術差異（2026-10-22T01:33:33+0800；塔台代決）
+
+**新指示**：
+> 依上方答覆完成執行步驟 2，狀態 `DONE`。
 
 ## 回報區
 
