@@ -103,3 +103,4 @@ CT 在下列情況會對**同一張工單**再派一個新 Worker，而舊 Worke
 - 規則與 D094 一致；exit 1 記為「不支援 `--close-worker`」，與收單回收共用同一個 session 旗標。`ct-done` 補救派工、研究單在原分頁重讀、`--wait-started` 去參數重派、首派都不回收。
 - 與 BAT 權威的差異：無（只有寫法：helper 路徑寫法沿用 CT 的 Node 解析；exit 6 BUSY 歸在「其他」）。需要 BAT 補：無。
 - BAT 待辦：塔台 session 重開（載入 CT v5.12.0）後代跑「驗收建議」兩個情境；通過 → BUG-170 FIXED。
+- 補充（2026-10-22T01:25:16+0800）：CT 另出 **v5.12.1** PATCH（BMad-Guide T0185，commit `47bab75`，兩端已裝）：只改文件，`worker_close_delay` 的取消條件改照 BAT T0545 / D145（延遲期間的輸出不取消，只有使用者輸入取消，終端自動回應不算；到期後等連續安靜 5 s、最多再 60 s）。行為、指令、exit code 與 v5.12.0 相同；與 BAT 權威差異無、需 BAT 補無。驗收以 v5.12.1 為準。
