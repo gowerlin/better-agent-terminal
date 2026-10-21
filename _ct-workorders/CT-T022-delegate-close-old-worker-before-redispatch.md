@@ -4,7 +4,7 @@ schema_kind: workorder
 id: CT-T022
 title: "【受派】CT 重派同一張工單前先回收舊 Worker 分頁（`--close-worker`），避免新 Worker 完成時回收 AMBIGUOUS 與兩個分頁都標 ✓（BAT BUG-170）"
 type: implementation
-status: TODO
+status: DONE
 repo: BMad-Guide
 project: BUG-170
 priority: P3
@@ -104,3 +104,4 @@ CT 在下列情況會對**同一張工單**再派一個新 Worker，而舊 Worke
 - 與 BAT 權威的差異：無（只有寫法：helper 路徑寫法沿用 CT 的 Node 解析；exit 6 BUSY 歸在「其他」）。需要 BAT 補：無。
 - BAT 待辦：塔台 session 重開（載入 CT v5.12.0）後代跑「驗收建議」兩個情境；通過 → BUG-170 FIXED。
 - 補充（2026-10-22T01:25:16+0800）：CT 另出 **v5.12.1** PATCH（BMad-Guide T0185，commit `47bab75`，兩端已裝）：只改文件，`worker_close_delay` 的取消條件改照 BAT T0545 / D145（延遲期間的輸出不取消，只有使用者輸入取消，終端自動回應不算；到期後等連續安靜 5 s、最多再 60 s）。行為、指令、exit code 與 v5.12.0 相同；與 BAT 權威差異無、需 BAT 補無。驗收以 v5.12.1 為準。
+- **BAT 驗收（2026-10-22T01:35:57+0800）：PASS**。塔台載入 CT v5.12.1，以 yolo、`worker_question_timeout: 0` 的測試工單代跑「驗收建議」兩情境。T0695（`76306429`）：備援重派前 `--close-worker T0695 --delay-ms 0` exit 0，舊分頁 `exited`、只剩新分頁；收單回收 exit 0（不再 AMBIGUOUS）。T0696（`4b25af6e`）：使用者手動關舊分頁後，重派前 `--close-worker T0696` exit 3 NOT_FOUND、照常派工；收單回收 exit 0。 → BUG-170 FIXED。

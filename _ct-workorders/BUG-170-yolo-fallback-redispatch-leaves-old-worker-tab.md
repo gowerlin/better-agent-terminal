@@ -3,11 +3,11 @@ schema_version: 1
 schema_kind: bug
 id: BUG-170
 title: "yolo 提問備援重派新 Worker 後，舊的 BLOCKED Worker 分頁留著；新 Worker DONE 時 `--close-worker` 因同塔台同工單有兩個分頁回 AMBIGUOUS（exit 5），且新回報時兩個分頁都標 ✓"
-status: OPEN
+status: FIXED
 severity: low
 reproducibility: always
 created_at: "2026-10-22T00:26:01+0800"
-updated_at: "2026-10-22T00:26:01+0800"
+updated_at: "2026-10-22T01:35:57+0800"
 impact:
   - worker-tab-recycle
   - control-tower
@@ -22,7 +22,7 @@ links:
 |------|------|
 | 嚴重度 | 🟢 low（只多一個要手動關的分頁；CT 一行提示使用者，不重試） |
 | 可重現 | 一定（依程式碼推演；未實機重現） |
-| **狀態** | 🔴 OPEN：修法定為 CT 端（重派前 `--close-worker` 舊分頁），BAT 不改程式；已開 CT-T022 交 BMad-Guide 塔台 |
+| **狀態** | ✅ FIXED：CT v5.12.0 / v5.12.1 重派前回收舊 Worker 分頁（CT-T022，BMad-Guide T0184 / T0185），BAT 不改程式；BAT 塔台實機驗收 T0695 / T0696 通過 |
 | 回報者 | T0693 Worker（研究推演） |
 
 ## 現象
@@ -37,3 +37,10 @@ yolo Worker 向塔台提問、等不到答覆而改走備援（工單 `BLOCKED` 
 - ① CT 端：yolo 備援流程在派新 Worker 前先 `--close-worker` 舊分頁（改 CT skill，跨專案工單）。
 - ② BAT 端：派工時偵測同塔台同工單仍有存活分頁並回報（新回應欄位，需介面契約）。
 - 決定前先實機確認一次（BAT 日誌 `[T0538] Worker reported` 與該工單分頁數）。
+
+## 修正與驗收（2026-10-22T01:35:57+0800，BAT 第八十九 session 塔台）
+
+- 修正：CT 端（方向 ①）。CT v5.12.0（BMad-Guide T0184，D094）在 `work-order-system.md` § 回報處理流程 › 重派前回收舊 Worker 分頁 新增規則：對同一張工單再派 Worker 前先 `--close-worker T#### --notify-id … --delay-ms 0`（隔離工單加 `--worktree keep`），不論 exit code 都照常派工；v5.12.1（T0185）只修文件。BAT 不改程式。
+- 實機驗收（BAT `v0.7.1-pre.5` 安裝版，塔台 CT v5.12.1）：
+  - T0695（`76306429`）：備援重派前 `--close-worker T0695 --delay-ms 0` exit 0，舊分頁 `exited`、只剩新分頁；收單回收 exit 0（不再 AMBIGUOUS）。T0696（`4b25af6e`）：使用者手動關舊分頁後，重派前 `--close-worker T0696` exit 3 NOT_FOUND、照常派工；收單回收 exit 0。
+- 兩個 Worker 分頁都只標一次 ✓ 由回收順序保證（舊分頁在新 Worker 回報前已關）；`findReportingWorkers` 行為未改。

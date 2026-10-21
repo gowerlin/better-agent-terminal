@@ -4,14 +4,14 @@ schema_kind: workorder
 id: T0675
 title: "NotebookLM 製作第二季 Podcast／影片／簡報：先評估 Google API 與瀏覽器自動化（Chrome live），可行就先導 S2-01 再批次，不可行就寫逐步指引"
 type: feature
-status: PARTIAL
+status: DONE
 repo: better-agent-terminal
 project: "第二季 Podcast 素材（第八十八 session；素材屬 BMad-Guide repo）"
 priority: P3
 sizing: M
 created_at: "2026-10-21T17:08:06+0800"
 started_at: "2026-10-21T17:09:35+08:00"
-updated_at: "2026-10-21T17:44:43+08:00"
+updated_at: "2026-10-22T01:35:57+0800"
 completed_at: "2026-10-21T17:44:43+08:00"
 depends_on: []
 related:
@@ -191,3 +191,7 @@ memory_overrides:
 ### 回報時間
 
 2026-10-21T17:44:03+08:00
+
+### Post-resolution note（塔台，2026-10-22T01:35:57+0800）
+
+- PARTIAL → **DONE**：使用者回報 NotebookLM 輸出（含排程生成的 S2-04／05）已自行下載（第八十九 session）。原回報區保留不改；成品未搬到 `產出/` 依使用者先前決定。Worker 分頁 `--close-worker` exit 3（已不存在）。
