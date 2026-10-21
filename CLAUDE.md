@@ -32,6 +32,7 @@
 - `registerHandler`（`electron/remote/handler-registry.ts`）是泛型：handler 可宣告具體參數型別，但 IPC / remote frame 參數**不在執行期驗證**，需要防禦的 handler 自己收窄。
 - vite build（esbuild）與 vitest 只轉譯、不做型別檢查；兩個 typecheck 都要另外跑。
 - CI：`pre-release.yml` / `release.yml` 的 `typecheck` job 依序跑 `npm run typecheck`、`npm run typecheck:electron`（`npm ci --ignore-scripts` 即可，T0496 實測），任一失敗 → build / release skipped（見「Packaging / Release 前置檢查」的 **Typecheck gate**）。
+- 測試關卡（T0686）：同兩個 workflow 的 `tests` job 呼叫可重用的 `tests.yml`（`test:unit` → `test:legacy`），也列在 `build.needs`，失敗 → build / release skipped；手動試跑仍可 `workflow_dispatch` `tests.yml`（見「Packaging / Release 前置檢查」的 **Test gate**）。
 
 ## Logging
 
@@ -329,7 +330,8 @@
 - 🔴 **不得使用 `build.<platform>.files`**：平台層 `files` 的字串會變成另一個只有排除 pattern 的 matcher，electron-builder 自動補 `**/*`，整個 repo（src/、.claude/、dist-baseline/…）被打進 asar（T0546 實測 508 MiB）。平台差異一律用頂層 `files` 的 `${os}`（目標平台 `win` / `mac` / `linux`）與 `${arch}` 巨集；`${platform}` 是**建置主機**的 `process.platform`，不要用
 - 不內建 server bundle baseline（D146 / T0547）；Windows 壓縮 `normal`、其他 `maximum`；`build` / `build:dir` 先清 `dist-electron`。
 - **Helper bundle fail-fast**：`scripts/verify-helper-bundle.js`；新增 `scripts/_bat-*.mjs` helper 或改 `extraResources.filter` 時先跑 `npm run verify:helpers`。
-- CI 順序、**Typecheck gate**、**Release 驗收必跑 NSIS 完整重裝**：見 docs 檔。
+- **Test gate**（T0686）：`pre-release.yml` / `release.yml` 的 `tests` job（`uses: ./.github/workflows/tests.yml`，唯讀權杖、不傳 secret）列在 `build.needs`，`test:unit` 或 `test:legacy` 失敗即不 build、不發版。🔴 測試步驟只改 `tests.yml`，不要在兩個發版 workflow 內另寫一份。
+- CI 順序、**Typecheck gate**、**Test gate**、**Release 驗收必跑 NSIS 完整重裝**：見 docs 檔。
 - 完整說明（打包產物檢查項目、瘦身規則、CI pipeline、產物大小）：[docs/agent-guide/packaging-release-checks.md](docs/agent-guide/packaging-release-checks.md)
 
 ### Server bundle baseline（PLAN-031；D146 起安裝檔不內建）

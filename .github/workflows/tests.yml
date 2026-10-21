@@ -2,10 +2,12 @@ name: Tests
 
 # T0683 (BUG-168 / D177 step 1): trial run of the frontend / electron unit tests on ubuntu.
 # T0685 (step 2): plus the tests under tests/ that vitest does not collect (`test:legacy`).
-# Manual only, and not a release gate yet: once a trial run passes, a follow-up work order
-# makes the tests a gate of pre-release.yml / release.yml.
+# T0686: also a reusable workflow. pre-release.yml / release.yml call it as their `tests` job
+# and list that job in `build.needs` (Test gate, like the Typecheck gate): a failed test skips
+# build and so release. Manual runs (workflow_dispatch) run the same definition.
 on:
   workflow_dispatch:
+  workflow_call:
 
 jobs:
   unit-tests:

@@ -47,6 +47,14 @@ jobs:
       - name: Typecheck (electron/)
         run: npm run typecheck:electron
 
+  # T0686 (BUG-168 / D177): test:unit + test:legacy from the reusable tests.yml. Like typecheck:
+  # no `needs`, runs in parallel with server-bundle and gates build (and so release / choco).
+  # Read-only token, no secrets passed.
+  tests:
+    permissions:
+      contents: read
+    uses: ./.github/workflows/tests.yml
+
   server-bundle:
     needs: prepare
     strategy:
@@ -138,7 +146,7 @@ jobs:
   # D146 / T0547: installers no longer ship the server bundle baseline, so build does not
   # wait for server-bundle-manifest; release does (it publishes server-bundle-v<version>).
   build:
-    needs: [prepare, typecheck]
+    needs: [prepare, typecheck, tests]
     strategy:
       matrix:
         include:
