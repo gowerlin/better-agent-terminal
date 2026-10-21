@@ -4,12 +4,15 @@ schema_kind: workorder
 id: T0687
 title: "BAT MCP 權限政策（PLAN-054 B4）：日後若新增寫入型 tool，不得開放給 workflow 子 agent（只寫文件）"
 type: docs
-status: TODO
+status: DONE
 repo: better-agent-terminal
 project: PLAN-054
 priority: P3
 sizing: XS
 created_at: "2026-10-21T22:00:10+0800"
+started_at: "2026-10-21T22:03:56+0800"
+updated_at: "2026-10-21T22:04:24+0800"
+completed_at: "2026-10-21T22:04:24+0800"
 depends_on: []
 related:
   - "PLAN-054 B4（使用者 2026-10-20 決定併入下一次發版批次）；D179（v0.7.1-pre.5 發版前的小批：T0687／T0688／T0689）"
@@ -58,14 +61,37 @@ PLAN-054 B4：在 BAT MCP 文件寫一條政策「日後若新增寫入型 tool�
 
 ### 完成狀態
 
+DONE
+
+落點檢查：PASS。C-0 `repo` = `better-agent-terminal`、`basename(REPO_ROOT)` = `better-agent-terminal`（REPO_ROOT = repo 根目錄，主 checkout，`CT_HOME` 未設、非 worktree）；C-1 工單在 REPO_ROOT 下；C-3 兩個 docs 項目都存在；C-2 工單無 `branch` 欄位（在 `main`）。`BAT_WORKSPACE_ID` = `cc0afc4a-57e9-4f41-b2ed-a2d8bac9e36b`（僅記錄）。
+
 ### 修改內容
+
+- `docs/agent-guide/bat-mcp-shim.md`：在 Tools 說明內「問答的寫入沒有 MCP tool」段落之後加一段「寫入型 tool 的權限政策（PLAN-054 B4）」：① 目前 8 個 tool 全部唯讀（`readOnlyHint: true`），問答寫入只走 helper（D155 / D156，不變）；② 🔴 政策原文「日後若新增寫入型 tool，不得開放給 workflow 子 agent」；③ 理由（子 agent 平行執行、使用者沒有逐一確認，寫入副作用被放大）；④ 新增須另開工單、經塔台決策，設計須說明 workflow 子 agent 如何拿不到這個 tool。
+- `CLAUDE.md`「BAT MCP shim」節：第一條之後加一條 🔴 規則（一行，含 PLAN-054 B4，連到 docs 的同名段落）。`##` 標題未改；CLAUDE.md 現為 59,986 bytes。
+- 未寫「子 agent 是否繼承主 session 的 MCP tool」的機制說明：手上沒有 Claude Code 官方文件出處，依工單只寫規則。
 
 ### 驗證結果
 
+- docs 檢查 PASS：`git diff` 確認兩檔都有政策，原文意思不變；docs 含理由與「另開工單、塔台決策」。
+- `git diff -- CLAUDE.md` commit 前只有 1 個 hunk（本單），沒有 T0689 的修改。
+- 兩檔仍為 LF（CR 計數 0）。
+- 沒有改程式或測試；未跑 build / test（純文件，工單未要求）。未 push。
+
 ### Commit
+
+- `873e6efbfd648c80ea57751feed807aa768386bd`（`CLAUDE.md`、`docs/agent-guide/bat-mcp-shim.md`，`git commit --only`）
+- 工單本身另一個 commit（本回報）。
 
 ### 遭遇問題
 
+- 工單 frontmatter 原為 `status: TODO`（非 `PENDING`），直接改為 `IN_PROGRESS` 再到 `DONE`。
+- 工作目錄另有塔台未 commit 的修改（`_decision-log.md`、`_tower-state.md`、`T0688` 工單），未動、未納入 commit。
+
 ### 互動紀錄
 
+無（未向塔台提問）。
+
 ### 回報時間
+
+2026-10-21T22:04:24+0800
