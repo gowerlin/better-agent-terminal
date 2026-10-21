@@ -1470,7 +1470,8 @@
 - **背景**：使用者問「可以發布 v0.7.1-pre.5 了嗎」。`v0.7.1-pre.4` 之後幾乎都是測試、CI（Test gate，T0686）、去識別化與網站，使用者看得到的產品改動近乎沒有；PLAN-054 B4 已決定併入下一次發版批次；另有三個已知小項：SSH `start-failed` 的錯誤訊息仍以 `enable-failed:` 開頭（T0685 回報）、`buildSshConnectArgs` 拒絕 `@` 沒有測試、安裝檔經 `extraResources` 的 `*.mjs` 把開發腳本一起打包（含 T0685 新增的 `run-legacy-tests.mjs`）。
 - **決定**（使用者 2026-10-21，兩題皆選推薦）：① 先開一批小單，全過後再發 `v0.7.1-pre.5`（也是 Test gate 第一次在 pre-release 生效）；② 安裝檔只收執行期 helper 併入這批。
 - **塔台排程**：T0687（B4 文件）、T0688（SSH 字首與 `@` 測試）先派（22:03 兩張 `started:`）；T0689（安裝檔白名單 + verify 守門 + `build:dir` 實測）與 T0687 都改 CLAUDE.md（不同節），overlap check 為 BLOCK，依規則選「等 T0687 完成再派」，不請使用者接受衝突。兩單 commit 前仍各自確認 `git diff -- CLAUDE.md` 只有自己的 hunk。T0689 會重建 `dist-electron`，所以 T0688 不跑 build 與整包 `test:unit`；塔台收齊後聯合驗證（`test:unit`、兩個 typecheck、`vite build`），再進發版流程。
-- **相關**：PLAN-054 / T0685 / T0686 / BUG-058 / T0433 / D177
+- **追加**（22:17，塔台決定，事後回報）：① 聯合驗證時查到內嵌 claude CLI 落後（實裝 2.1.300、npm latest 2.1.306）。CLAUDE.md 規定每次預覽版發布前追版，屬既定流程，開 T0690 併入本批（比照 T0541）；T0690 完成後重跑聯合驗證再發。② T0689 發現安裝版 helper 回報版號 `v0.0.0`（BUG-169，既有行為、只影響顯示、修法需設計），不併入本版，排進下一批。
+- **相關**：PLAN-054 / T0685 / T0686 / BUG-058 / T0433 / D177 / T0541 / BUG-169
 
 ### D178 2026-10-21 — T0684 Q-1／Q-2：檢查 Windows 路徑的地方明確用 `path.win32`（塔台代決）
 

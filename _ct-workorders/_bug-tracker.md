@@ -3,16 +3,16 @@ schema_version: 1
 schema_kind: index
 id: _bug-tracker
 index_kind: bugs
-generated_at: "2026-10-21T21:40:10+0800"
+generated_at: "2026-10-21T22:17:40+0800"
 generator: control-tower-sync
 source_globs:
   - _ct-workorders/BUG-*.md
 exclude_globs:
   - _ct-workorders/_archive/**
   - _ct-workorders/examples/**
-total: 53
+total: 54
 breakdown:
-  OPEN: 1
+  OPEN: 2
   FIXING: 0
   FIXED: 24
   VERIFY: 0
@@ -23,15 +23,16 @@ breakdown:
 # Bug Tracker
 
 > ⚠️ 此文件由 `*sync` 自動生成，請勿手動編輯。
-> 最後同步：2026-10-21 21:40 (UTC+8) — BUG-168 → FIXED（T0680–T0685；ubuntu 試跑全過，擋版 T0686）；BUG-167 FIXED（T0678 `d90b3b50`）；BUG-166 FIXED 待 外部測試者A（pre.4）；BUG-165 OPEN（有空再排）
+> 最後同步：2026-10-21 22:17 (UTC+8) — BUG-169 OPEN（安裝版 helper 版號 v0.0.0，T0689 發現，排下一批）；BUG-168 → FIXED（T0680–T0685；ubuntu 試跑全過，擋版 T0686）；BUG-167 FIXED（T0678 `d90b3b50`）；BUG-166 FIXED 待 外部測試者A（pre.4）；BUG-165 OPEN（有空再排）
 
 ## 統計
-- 🔴 Open: 1 | ⏳ Fixing: 0 | ✅ Fixed: 24 | 🧪 Verify: 0 | 🚫 Closed: 28 | ⛔ Won't Fix: 0 | **Total: 53**
+- 🔴 Open: 2 | ⏳ Fixing: 0 | ✅ Fixed: 24 | 🧪 Verify: 0 | 🚫 Closed: 28 | ⛔ Won't Fix: 0 | **Total: 54**
 
 ## 🔴 Open / 處理中
 
 | ID | 標題 | 嚴重度 | 建立時間 | 連結 |
 |----|------|--------|---------|------|
+| BUG-169 | 安裝版的 helper 回報版號 v0.0.0（`--version`、BAT MCP `serverInfo.version`；T0689 發現，既有行為，排下一批） | 🟢 low | 2026-10-21 | [BUG-169](BUG-169-installed-helpers-report-version-0.0.0.md) |
 | BUG-165 | macOS：Codex CLI 分頁內捲動可用但不夠順（外部測試者A，v0.7.1-pre.3；T0670 研究） | 🟢 low | 2026-10-19 | [BUG-165](BUG-165-macos-codex-cli-scroll-not-smooth.md) |
 
 ## ⏳ 修復中 (FIXING)
