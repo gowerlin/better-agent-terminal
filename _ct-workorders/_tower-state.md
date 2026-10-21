@@ -95,7 +95,7 @@
 ### 待辦（依優先序）
 1. 🔴 **外部測試者A 驗收**（可直接用 `v0.7.1-pre.5`）：A BUG-166（`printf '\e[?1003h\e[?1006h'` 後移動滑鼠，殘骸幾筆即停；codex 分頁 Shift + 右鍵有兩個新選項）→ CLOSED；C（選做）BUG-165 `mouse_scroll_speed = 3` → 確認後派 S 修正（`attachCustomWheelEventHandler`）
 2. 🟡 **T0675 PARTIAL**（NotebookLM，`c09fe063`）：使用者確認 S2-04／05 生成並下載後補 DONE、回收 Worker 分頁（PARTIAL 不自動回收）
-3. 🟡 **下一批**：BUG-169 已 FIXED（第八十九 session T0691 `b0ff5673`，afterPack 寫 `resources/package.json`；下一個預覽版看 CI 三平台 `helper-version` 並驗安裝版 `--version`）；T0690 觀察的 `Usage limit reset · continuing automatically` 已由 T0692（`560409a3`）歸為 resumed，修正 Settings 開啟時徽章殘留「CLI 將於 … 自動繼續」；T0693 研究 DONE（`6f3f623c`）：Renew 後 ✓ 只在下次 notify 才變、批次關閉會誤關，建議方案 a + d1 + d2（主行程回合信號 → 「已回報、又在執行」不列入批次關閉；確認框加註近期輸出），使用者選 a + d1 + d2（D180）→ T0694 DONE（`cefb9db3`：回報後又在執行顯示 `↻`、不列入批次關閉，回合結束回 `✓`；逾時備援 60 s；確認框加註「仍在輸出」；Q-1 塔台代決加 pty-manager / main 接線）；旁支 e 記為 BUG-170（OPEN，之後再排）；規劃發版小批時先查內嵌 claude CLI 版本（L173）
+3. 🟡 **下一批**：BUG-169 已 FIXED（第八十九 session T0691 `b0ff5673`，afterPack 寫 `resources/package.json`；下一個預覽版看 CI 三平台 `helper-version` 並驗安裝版 `--version`）；T0690 觀察的 `Usage limit reset · continuing automatically` 已由 T0692（`560409a3`）歸為 resumed，修正 Settings 開啟時徽章殘留「CLI 將於 … 自動繼續」；T0693 研究 DONE（`6f3f623c`）：Renew 後 ✓ 只在下次 notify 才變、批次關閉會誤關，建議方案 a + d1 + d2（主行程回合信號 → 「已回報、又在執行」不列入批次關閉；確認框加註近期輸出），使用者選 a + d1 + d2（D180）→ T0694 DONE（`cefb9db3`：回報後又在執行顯示 `↻`、不列入批次關閉，回合結束回 `✓`；逾時備援 60 s；確認框加註「仍在輸出」；Q-1 塔台代決加 pty-manager / main 接線）；旁支 e 記為 BUG-170（OPEN）：修法定為 CT 端（重派前 `--close-worker` 舊分頁，BAT 不改程式），CT-T022 已送 BMad-Guide 塔台（2026-10-22 00:58，跨 session），等回覆後代跑驗收；規劃發版小批時先查內嵌 claude CLI 版本（L173）
 4. 🔴 `v0.7.1-pre.2` 剩餘實機驗收：BUG-156 需 Docker Desktop、BUG-159 需一般權限 + codex
 5. 🟢 PLAN-053 Electron 42+、PLAN-052 Docker 可用性（IDEA）；PLAN-054 B6 延後（CT D090）；T0656 網站素材手動拍；`RECOVERY_PENDING` 未實機驗證；前期驗收（外部測試者A BUG-127-135 / 116 / 118、BUG-130 / 105 / 107 / 108 / 097 / 111、T0550、dmg / AppImage、NSIS 重裝、T0360）；dev PC／NAS 主機名稱（使用者未列入去識別化決定）
 
@@ -111,7 +111,7 @@
 - 歷史 sessions → [_archive/state-snapshots/INDEX.md](_archive/state-snapshots/INDEX.md)（102 entries）
 
 ### 編號起始
-- **T0695** / **BUG-171** / **PLAN-055** / **D181** / **EXP-WFMINE-002**（其他 TOPIC 從 001） / **L174** / **CT-T022**
+- **T0695** / **BUG-171** / **PLAN-055** / **D181** / **EXP-WFMINE-002**（其他 TOPIC 從 001） / **L174** / **CT-T023**
 
 ---
 
