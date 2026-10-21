@@ -110,7 +110,9 @@ test('targetOS=wsl-linux without wslDistro → empty string fallback', () => {
   assert.deepStrictEqual(meta, { targetOS: 'wsl-linux', wslDistro: '' })
 })
 
-test('targetOS=docker-linux → { targetOS, dockerContainer, dockerHost? }', () => {
+// T0277 added dockerMounts to the docker-linux projection (DockerPathTranslator
+// needs it); absent on the entry → empty array fallback.
+test('targetOS=docker-linux → { targetOS, dockerContainer, dockerHost?, dockerMounts }', () => {
   const meta = extractTargetOSMeta(makeEntry({
     targetOS: 'docker-linux',
     dockerContainer: 'bat-dev',
@@ -120,9 +122,25 @@ test('targetOS=docker-linux → { targetOS, dockerContainer, dockerHost? }', () 
     targetOS: 'docker-linux',
     dockerContainer: 'bat-dev',
     dockerHost: 'unix:///var/run/docker.sock',
+    dockerMounts: [],
   })
 })
 
+test('targetOS=docker-linux with dockerMounts → mounts passed through', () => {
+  const meta = extractTargetOSMeta(makeEntry({
+    targetOS: 'docker-linux',
+    dockerContainer: 'bat-dev',
+    dockerMounts: [{ host: 'C:/Users/demo/project', container: '/workspace' }],
+  }))
+  assert.deepStrictEqual(meta, {
+    targetOS: 'docker-linux',
+    dockerContainer: 'bat-dev',
+    dockerHost: undefined,
+    dockerMounts: [{ host: 'C:/Users/demo/project', container: '/workspace' }],
+  })
+})
+
+// T0282 added serverHome to the ssh-* projection (SshPathTranslator needs it).
 test('targetOS=ssh-linux → ssh metadata fields', () => {
   const meta = extractTargetOSMeta(makeEntry({
     targetOS: 'ssh-linux',
@@ -132,6 +150,7 @@ test('targetOS=ssh-linux → ssh metadata fields', () => {
     sshKeyPath: '~/.ssh/id_ed25519',
     useSshTunnel: true,
     tunnelLocalPort: 19876,
+    serverHome: '/home/demo',
   }))
   assert.deepStrictEqual(meta, {
     targetOS: 'ssh-linux',
@@ -141,6 +160,7 @@ test('targetOS=ssh-linux → ssh metadata fields', () => {
     sshKeyPath: '~/.ssh/id_ed25519',
     useSshTunnel: true,
     tunnelLocalPort: 19876,
+    serverHome: '/home/demo',
   })
 })
 
@@ -158,6 +178,7 @@ test('targetOS=ssh-darwin → ssh metadata fields with darwin discriminator', ()
   assert.strictEqual(meta.sshUser, 'demo')
   assert.strictEqual(meta.sshPort, undefined)
   assert.strictEqual(meta.useSshTunnel, undefined)
+  assert.strictEqual(meta.serverHome, undefined)
 })
 
 test('targetOS=undefined (legacy) → { targetOS: undefined }', () => {
