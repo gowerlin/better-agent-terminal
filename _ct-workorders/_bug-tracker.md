@@ -12,8 +12,8 @@ exclude_globs:
   - _ct-workorders/examples/**
 total: 53
 breakdown:
-  OPEN: 2
-  FIXING: 0
+  OPEN: 1
+  FIXING: 1
   FIXED: 23
   VERIFY: 0
   CLOSED: 28
@@ -26,19 +26,19 @@ breakdown:
 > 最後同步：2026-10-21 20:15 (UTC+8) — 新增 BUG-168 OPEN（T0679 研究分類）；BUG-167 FIXED（T0678 `d90b3b50`）；BUG-166 FIXED 待 外部測試者A（pre.4）；BUG-165 OPEN（有空再排）
 
 ## 統計
-- 🔴 Open: 2 | ⏳ Fixing: 0 | ✅ Fixed: 23 | 🧪 Verify: 0 | 🚫 Closed: 28 | ⛔ Won't Fix: 0 | **Total: 53**
+- 🔴 Open: 1 | ⏳ Fixing: 1 | ✅ Fixed: 23 | 🧪 Verify: 0 | 🚫 Closed: 28 | ⛔ Won't Fix: 0 | **Total: 53**
 
 ## 🔴 Open / 處理中
 
 | ID | 標題 | 嚴重度 | 建立時間 | 連結 |
 |----|------|--------|---------|------|
-| BUG-168 | `tests/` 底下不在 test:unit 的測試：8 檔失敗（29 項）、9 檔逾時、3 組失效 script；T0679：全部是測試過時、無產品回歸，修正分組待決定 | 🟢 low | 2026-10-21 | [BUG-168](BUG-168-tests-dir-tsx-suites-failing-and-timing-out.md) |
 | BUG-165 | macOS：Codex CLI 分頁內捲動可用但不夠順（外部測試者A，v0.7.1-pre.3；T0670 研究） | 🟢 low | 2026-10-19 | [BUG-165](BUG-165-macos-codex-cli-scroll-not-smooth.md) |
 
 ## ⏳ 修復中 (FIXING)
 
 | ID | 標題 | 嚴重度 | 修復時間 | 連結 |
 |----|------|--------|---------|------|
+| BUG-168 | `tests/` 底下不在 test:unit 的測試失敗與逾時（T0679：全部測試過時）；D177 修正中：T0680 G2、T0681 G3、T0683 CI 第一步、T0682 G4 | 🟢 low | 2026-10-21（進行中） | [BUG-168](BUG-168-tests-dir-tsx-suites-failing-and-timing-out.md) |
 
 ## ✅ 已修復
 

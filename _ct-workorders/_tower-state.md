@@ -94,7 +94,7 @@
 - 🟡 **T0675 PARTIAL**（`c09fe063`，NotebookLM 瀏覽器自動化，chrome-live）：S2-01～S2-03 九項已生成（S2-01 使用者已下載）；S2-04、S2-05 用量上限改「稍後生成」排程（2026-10-22 00:00／01:00 後）。剩下的下載由使用者自己做；使用者確認 S2-04／05 生成並下載後，塔台把 T0675 補正為 DONE 並回收 Worker 分頁（PARTIAL 不自動回收）。L172
 - ✅ **D176 去識別化完成**：T0676 DONE（`b8ea0f8b`，153 檔）＋ T0677 DONE（`e95b445e`，66 檔：專案D、Linux 帳號名）＋塔台直接改 BUG-129 一處公司資料夾名稱；塔台複掃 `.private/` 全部檢查樣式 = 0、金鑰樣式 = 0；兩次 Worker 單元測試 5661 / 322、typecheck 0 / 0、build 成功；兩個 Worker 已回收。使用者授權後一起 push。不改寫 git 歷史（舊 commit 仍有原文）
 - ✅ **BUG-167 FIXED**（T0678 `d90b3b50`，只改測試；塔台重跑 13 / 0）：T0277 / T0282 依工單加進 `extractTargetOSMeta` 的 `dockerMounts`、`serverHome`，測試沒跟上
-- 🟡 **BUG-168 OPEN（low）— T0679 研究 DONE `6fb40e70`，修正分組待使用者決定**：29 項失敗 + 9 個逾時全部是測試過時（A），無產品回歸；3 組 5 個失效 script；**CI 完全沒跑 `test:unit`**（塔台已確認，只有 typecheck）；旁支：`pty-manager-helper-env.test.ts` 環境變數隔離、`wsl-systemd.ts` 錯誤訊息小缺口。建議 G1 刪 script／G2 單元測試跟上／G3 SSH·WSL 舊測試與 vitest 去重／G4 精靈 mock + 防卡死／G5 CI（`test:legacy` + `test:unit`）
+- 🟡 **BUG-168 FIXING（D177）**：第 1 波 T0680（G2 四個舊測試收進 vitest）、T0681（G3 SSH／WSL 去重）、T0683（CI 第一步：隔離修正 + `tests.yml` 手動觸發）並行；第 2 波 T0682（G4 精靈 mock + 防卡死）；之後：塔台 push 並在 ubuntu 試跑 `tests.yml` → 另開單把 `test:unit` 設成擋版 → G2～G4 完成後開單加 `test:legacy` 並清失效 script（含 G1）。研究結論：29 項失敗 + 9 個逾時全部是測試過時（A），無產品回歸；3 組 5 個失效 script；**CI 完全沒跑 `test:unit`**（塔台已確認，只有 typecheck）；旁支：`pty-manager-helper-env.test.ts` 環境變數隔離、`wsl-systemd.ts` 錯誤訊息小缺口。建議 G1 刪 script／G2 單元測試跟上／G3 SSH·WSL 舊測試與 vitest 去重／G4 精靈 mock + 防卡死／G5 CI（`test:legacy` + `test:unit`）
 - 🟢 未處理的低風險項目：dev PC／NAS 主機名稱（使用者未列入決定）
 1. 🔴 **外部測試者A 以 `v0.7.1-pre.4` 驗收**：A BUG-166（`printf '\e[?1003h\e[?1006h'` 後移動滑鼠，殘骸幾筆即停；codex 分頁 Shift + 右鍵有兩個新選項）→ CLOSED；C（選做）BUG-165 `mouse_scroll_speed = 3` → 確認後派 S 修正（`attachCustomWheelEventHandler`，外部測試者A「不急」）
 2. 🔴 `v0.7.1-pre.2` 剩餘實機驗收：BUG-156 需 Docker Desktop、BUG-159 需一般權限 + codex
@@ -106,13 +106,13 @@
 - 版本驗證用 diff / 雜湊，不用 grep（L127）；每次發版：`gh release edit --notes-file` 更版重點 → 更新 `CHANGELOG.md` / `release-note.md` / `README.md` 並 push → Pages 綠燈、首頁版號、`link-check`，才回報已發佈（L150）
 
 ### 快速連結
-- Bug Tracker → [_bug-tracker.md](_bug-tracker.md)（熱區：Open 2 / Fixing 0 / Fixed 23 / Closed 28）｜ Backlog → [_backlog.md](_backlog.md)
+- Bug Tracker → [_bug-tracker.md](_bug-tracker.md)（熱區：Open 1 / Fixing 1 / Fixed 23 / Closed 28）｜ Backlog → [_backlog.md](_backlog.md)
 - Decision Log → [_decision-log.md](_decision-log.md)（最大 D174）｜ Learnings → [_learnings.md](_learnings.md)（最大 L172）
 - 網站 → https://gowerlin.github.io/better-agent-terminal/｜ 素材 spec → `e2e/site-media.spec.ts`（`BAT_SITE_MEDIA=1`，輸出 `e2e-media/`）
 - 歷史 sessions → [_archive/state-snapshots/INDEX.md](_archive/state-snapshots/INDEX.md)（101 entries）
 
 ### 編號起始
-- **T0680** / **BUG-169** / **PLAN-055** / **D177** / **EXP-WFMINE-002**（其他 TOPIC 從 001） / **L173** / **CT-T022**
+- **T0684** / **BUG-169** / **PLAN-055** / **D178** / **EXP-WFMINE-002**（其他 TOPIC 從 001） / **L173** / **CT-T022**
 
 ---
 
@@ -126,10 +126,10 @@
 | **最新 release** | `v0.7.1-pre.4`（2026-10-19 18:03，run `39233550117`，target `8883cebd`：BUG-166 滑鼠追蹤殘留自動 / 手動重設；更版重點已寫；repo 文件 `4ae0e89d`；Pages `39234927266` 綠、link-check 1152 / 0 errors、首頁 pre.4；exe 298 / zip 412 / AppImage 297 / dmg 309 MiB）+ `server-bundle-v0.7.1-pre.4`（7 assets）。前一版 `v0.7.1-pre.3`（2026-10-19 13:00，run `39201696170`，target `bf4bfe4f`：BUG-136 縮圖預覽上限、BUG-164 macOS 停用 Graphite + GPU 崩潰後重建；更版重點已寫；repo 文件 `892df2ec`；exe 298 / zip 412 / AppImage 297 / dmg 310 MiB）+ `server-bundle-v0.7.1-pre.3`（7 assets）。更早見 `release-note.md` / `CHANGELOG.md` |
 | **前一 tag** | `v0.7.1-pre.3`（2026-10-19 13:00，`bf4bfe4f`） |
 | **目前主軸** | `v0.7.1-pre.4` 已發佈（第八十六 session），等 外部測試者A 驗收 BUG-166；BUG-165 有空再排；第八十七 session 完成 EXP-WFMINE-001 / T0673、開 PLAN-054（PLANNED）；熱區無進行中工單 |
-| **工單最大編號** | **T0679** DONE `6fb40e70`（第八十八 session：BUG-168 研究分類，全部 A、無回歸）；T0678 DONE `d90b3b50`（第八十八 session：BUG-167 遷移測試斷言 + tests/ 盤點）；T0677 DONE `e95b445e`（第八十八 session：去識別化第二批，D176 追加）；T0676 DONE `b8ea0f8b`（第八十八 session：公開 repo 去識別化，D176）；T0675 PARTIAL `c09fe063`（第八十八 session：NotebookLM 製作第二季 Podcast；S2-04／05 排程生成，使用者自行下載）；T0674 DONE `0f50a83d`（第八十八 session：網站新頁「把腦力留給判斷」`/why`，D175；已 push、Pages `39576224181` 綠）；T0673 DONE（第八十七 session：EXP-WFMINE-001 執行單，`84e21f2d`）；第八十六 session：T0670 / T0671 研究、T0672 修正；第八十五 session：T0666–T0669；更早見 `_archive/state-snapshots/` |
+| **工單最大編號** | **T0683** TODO（第八十八 session：CI 第一步）；T0682 TODO（G4，第 2 波）；T0681 TODO（G3）；T0680 TODO（G2）；T0679 DONE `6fb40e70`（第八十八 session：BUG-168 研究分類，全部 A、無回歸）；T0678 DONE `d90b3b50`（第八十八 session：BUG-167 遷移測試斷言 + tests/ 盤點）；T0677 DONE `e95b445e`（第八十八 session：去識別化第二批，D176 追加）；T0676 DONE `b8ea0f8b`（第八十八 session：公開 repo 去識別化，D176）；T0675 PARTIAL `c09fe063`（第八十八 session：NotebookLM 製作第二季 Podcast；S2-04／05 排程生成，使用者自行下載）；T0674 DONE `0f50a83d`（第八十八 session：網站新頁「把腦力留給判斷」`/why`，D175；已 push、Pages `39576224181` 綠）；T0673 DONE（第八十七 session：EXP-WFMINE-001 執行單，`84e21f2d`）；第八十六 session：T0670 / T0671 研究、T0672 修正；第八十五 session：T0666–T0669；更早見 `_archive/state-snapshots/` |
 | **BUG 最大編號** | **BUG-168** OPEN low（第八十八 session：tests/ 未納入 test:unit 的測試失敗與逾時；T0679 研究 DONE，全部測試過時）；BUG-167 FIXED（第八十八 session：遷移測試斷言過時，T0678 `d90b3b50`）；BUG-166（第八十六 session 開立並 FIXED，待 外部測試者A）；BUG-165 OPEN（有空再排）；BUG-164 CLOSED（收工後 外部測試者A 確認）；BUG-136 第八十六 session CLOSED（外部測試者A 確認）；熱區 Open 1 / Fixing 0 / Fixed 22 / Closed 28；BUG-165 OPEN、BUG-166 FIXED（T0672 `64209d44`，未發版，第八十六 session） |
 | **PLAN 最大編號** | **PLAN-054**（PLANNED：CT Workflow 智能的 BAT 側事項，B4 / B6，第八十七 session 2026-10-20）；PLAN-053 IDEA（Electron 42+ 升級，第八十五 session）；PLAN-052 / 051 IDEA；PLAN-049 / 047 DONE；PLAN-015 / 029 / 038 / 043 IDEA |
-| **決策最大編號** | **D176**（公開 repo 去識別化，2026-10-21 第八十八 session）；D175（網站 `/why` 設計初衷，2026-10-21 第八十八 session）；D174（T0672 Q-1，2026-10-19 第八十六 session）；D173（網站示意可用 `_ct-workorders/`，放寬 D159 / D165 grep 規則一項，2026-10-19 第八十五 session）；D171 / D172 第八十四 session |
+| **決策最大編號** | **D177**（BUG-168 修正分組與 CI 兩步，2026-10-21 第八十八 session）；D176（公開 repo 去識別化，2026-10-21 第八十八 session）；D175（網站 `/why` 設計初衷，2026-10-21 第八十八 session）；D174（T0672 Q-1，2026-10-19 第八十六 session）；D173（網站示意可用 `_ct-workorders/`，放寬 D159 / D165 grep 規則一項，2026-10-19 第八十五 session）；D171 / D172 第八十四 session |
 | **EXP 最大編號** | **EXP-WFMINE-001**（📊 CONCLUDED 2026-10-20 17:26；執行單 T0673 DONE `84e21f2d`，7.35M tokens／39 agents；BMad-Guide Workflow 智能提案 Phase 1 試點）；EXP-GPUWHIS-001（CONCLUDED，已歸檔） |
 | **塔台版本** | Control Tower **v5.11.0**（第八十八 session 啟動時載入；本檔未記錄 v5.10 / v5.11 升級過程）；前次記錄 v5.9.0（第八十二 session 載入；CT-T021，BMad-Guide T0174，兩端；實機驗收結案 D071） |
 | **unit test 基線** | **5661 passed / 322 files / 3 skipped**（塔台複驗 @ `72d77cf1`，發 `v0.7.1-pre.4` 前，2026-10-19 第八十六 session；typecheck 0 / 0、vite build 成功）。前次 5635 passed / 321 files（@ `ee7d1047`，發 `v0.7.1-pre.3` 前，2026-10-19 第八十五 session；typecheck 0 / 0、vite build 成功） |

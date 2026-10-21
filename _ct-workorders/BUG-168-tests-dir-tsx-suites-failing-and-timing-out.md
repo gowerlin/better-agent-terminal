@@ -3,7 +3,7 @@ schema_version: 1
 schema_kind: bug
 id: BUG-168
 title: "tests/ 底下不在 test:unit 的 tsx／node:test 測試：8 檔失敗（29 項）、9 檔逾時；package.json 2 組 script 指向不存在的檔案"
-status: OPEN
+status: FIXING
 severity: low
 reproducibility: always
 created_at: "2026-10-21T20:15:54+0800"
@@ -25,7 +25,7 @@ links:
 |------|------|
 | 嚴重度 | 🟢 low（T0679：29 項失敗與 9 個逾時全部是測試過時，沒有產品回歸；原暫定 medium） |
 | 可重現 | 一定 |
-| **狀態** | 📂 OPEN（T0679 研究 DONE `6fb40e70`；修正分組待使用者決定） |
+| **狀態** | ⏳ FIXING（D177：第 1 波 T0680 G2、T0681 G3、T0683 CI 第一步並行；第 2 波 T0682 G4；之後 CI 擋版與 `test:legacy`） |
 | 回報者 | T0678 Worker（盤點） |
 
 ## 現象

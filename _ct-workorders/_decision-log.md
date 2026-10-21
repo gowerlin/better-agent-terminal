@@ -1465,6 +1465,15 @@
 - **切分**：W2a 設計語言 + 元件 + 首頁（T0630）→ 預覽通過後 W2b（`/control-tower`、功能、FAQ、回報頁）→ W2c 遠端開發；W3 / W4 不變。
 - **相關**：PLAN-049 / D159 / D160 / T0624 / T0630
 
+### D177 2026-10-21 — BUG-168 修正：G1～G4 全做、舊測試往 vitest 收斂；CI 分兩步（先 test:unit 試跑再擋版，修完再加 test:legacy）
+
+- **背景**：T0679 研究（`6fb40e70`）：`tests/` 底下不在 `test:unit` 的 29 項失敗與 9 個逾時全部是測試過時，沒有產品回歸；3 組 5 個失效 script；**CI 完全沒跑 `npm run test:unit`**（四個 workflow 只有 typecheck，塔台已確認）；`pty-manager-helper-env.test.ts` 有環境變數隔離問題。
+- **決定**（使用者 2026-10-21，三題皆選推薦）：
+  1. **修正範圍 G1～G4 全做**。塔台排程：第 1 波 G2（T0680）、G3（T0681）與 CI 第一步（T0683）並行（檔案不重疊）；第 2 波 G4（T0682，Docker → WSL → SSH）；G1 刪失效 script 併入最後的 CI 第二步，連同 G2／G3 刪檔後新失效的 script 一起清。
+  2. **CI 分兩步**：① 先修 `pty-manager-helper-env` 隔離、新增只能手動觸發的 `tests.yml` 在 ubuntu 跑 `test:unit`，塔台 push 並試跑確認全過後，再把 `test:unit` 設成 pre-release／release 的擋版關卡（比照 Typecheck gate）；② G2～G4 修完後新增 `test:legacy`（tsx／node:test，帶 `--test-timeout`）並加進 CI。
+  3. **舊測試往 vitest 收斂**：profile-card 搬到 vitest + RTL 實際渲染並補 ProfileCard／DockerDetails 覆蓋；G2／G3 與 `electron/__tests__` 等 vitest 版重複的刪掉、獨有且仍有效的搬過去（不得保留舊的錯誤期望），最後刪掉 `tests/` 的舊檔。G4 的精靈 journey／e2e 測試先留在 `tests/`，由 `test:legacy` 執行。
+- **相關**：BUG-168 / T0679 / T0680 / T0681 / T0682 / T0683 / BUG-167
+
 ### D176 2026-10-21 — 公開 repo 去識別化：移除 claude-mem 記憶檔、客戶與測試者名稱改代稱、家目錄路徑改寫；不改寫 git 歷史（T0676）
 
 - **背景**：使用者要求 push 前檢查金鑰與個資。塔台掃描（2026-10-21）：沒有真的金鑰（只有測試用假值）、GitHub release 說明沒有命中、未 push 的 3 個 commit 乾淨；但已公開的追蹤檔有：① `_ct-workorders/AGENTS.md`（claude-mem 自動寫入，含其他專案的內部紀錄，2026-05-15 起）；② 客戶與外部專案名稱、路徑（約 39 檔，含 `CHANGELOG.md` 一行、`src/types/bmad-workflow.ts` 一行註解）；③ 外部測試者的名字與家目錄路徑（約 39 檔，含 5 個測試檔與 1 個檔名）；④ 使用者家目錄路徑（約 85 檔，含 4 個測試檔）；⑤ 根目錄 `AGENTS.md`（claude-mem，只有 BAT 自己的歷史）；⑥ T0674 的字詞檢查清單直接列出名稱（塔台寫工單時造成）。
