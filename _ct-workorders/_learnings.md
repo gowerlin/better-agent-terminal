@@ -3698,3 +3698,21 @@ Codex 那張是外部測試者回報才發現；Claude 那張是使用者隨口�
 - 有 Worker 在跑時，塔台處理跨 session 訊息後要立刻查一次 `bat_list_questions`（`status: all`）或該 Worker 的 `bat_get_state`（`blockedReason: tower`），不能只靠通知
 
 **候選晉升**：🌐 Global 候選（Workflow 成本估算、塔台多工時漏看提問）
+
+## L172
+
+**來源**：第八十八 session（2026-10-21），T0675（NotebookLM 製作第二季 Podcast，瀏覽器自動化，`--mode on`）
+
+**現象**：
+1. 個人方案的 NotebookLM（Worker 回報 2026-07-16 已改名 Gemini Notebook）沒有可用 API；企業版 API 要授權與 Cloud 專案，且只有語音摘要，沒有影片與簡報 API。瀏覽器路線用 `chrome-live` 可行：連到使用者自己的 Chrome，已登入，不必處理帳號。
+2. `chrome-live` 的 `upload_file` 只接受 MCP 設定的 workspace roots 內的路徑，repo 外的素材被拒；Worker 改把來源檔複製到自己的暫存資料夾再上傳。
+3. 使用者的 Chrome 設定「下載前詢問儲存位置」，按下載會跳系統另存對話框，自動下載與改名做不到；使用者改成自己下載。
+4. PRO 方案一集三項（語音、影片、簡報）約用掉短週期用量 30%，第三集後到上限；上限時對話框只剩「稍後生成」，排程正常。各欄位上限 5,000 字，語音長度只有短／預設。
+
+**How to apply**：
+- 下次要 Worker 用瀏覽器操作網頁服務並上傳檔案時，工單直接寫「先把要上傳的檔案複製到 Worker 暫存資料夾」，或把素材放在 workspace roots 內
+- 需要下載成品時，先問使用者 Chrome 是否開了「下載前詢問儲存位置」；有開就把下載留給使用者，工單不要把「下載並改名」列成驗收條件
+- 估 NotebookLM 產量：PRO 方案一天約 3 集 × 3 項；超過就用「稍後生成」排程，工單預期 PARTIAL 並列出剩下的項目
+- 帳號、筆記本網址只寫本機紀錄，不寫進公開 repo 的工單（T0675 照做，回報乾淨）
+
+**候選晉升**：🌐 Global 候選（瀏覽器自動化上傳路徑限制、下載對話框、NotebookLM 用量規劃）
