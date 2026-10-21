@@ -24,7 +24,7 @@ B8 試點已由 EXP-WFMINE-001 / T0673 完成（`84e21f2d`）。結論之一（�
 
 | # | 項目 | 狀態 | 內容 |
 |---|---|---|---|
-| B4 | MCP 權限政策 | 📋 併入下一次發版批次（使用者 2026-10-20 決定） | 在 BAT MCP 文件（`docs/agent-guide/bat-mcp-shim.md`）寫一條政策：「日後若新增寫入型 tool，不得開放給 workflow 子 agent」。目前 8 個 tool 全部唯讀，只寫文件，不改程式 |
+| B4 | MCP 權限政策 | 🔄 T0687 開單（`v0.7.1-pre.5` 發版批次，D179，2026-10-21）；原：併入下一次發版批次（使用者 2026-10-20 決定） | 在 BAT MCP 文件（`docs/agent-guide/bat-mcp-shim.md`）寫一條政策：「日後若新增寫入型 tool，不得開放給 workflow 子 agent」。目前 8 個 tool 全部唯讀，只寫文件，不改程式 |
 | B6 | CT 面板欄位 | ⏸ 延後，無排程（2026-10-20 19:15 BMad-Guide 塔台通知：CT T0182 回測 G2 未通過、CT D090，v5.11.0 改為精簡版且**不定義**這些欄位；等知識卡達 🟡、CT 重新定義欄位後以 HANDOVER 或 CT-T### 通知） | CT 面板讀取 `execution`、`workflow`、`workflow_run_id`、`workflow_stats` 並顯示。🔴 **契約方向是 CT 定義、BAT 依約讀取**（與 CT-T011～T021 相反）。欄位定案前**不實作**，等 BMad-Guide 塔台發出介面契約 |
 
 ## 不做 / 暫緩
