@@ -10,7 +10,9 @@
 //     there — `--version` resolves every static import, so a missing helper fails with
 //     ERR_MODULE_NOT_FOUND (shown by the negative case)
 //   - verify-helper-bundle.js: green on the repo; red, with the reason, on fixture trees
-//     whose list misses an import / bat-notify / a file, or whose build no longer copies
+//     whose list misses an import / bat-notify / a file, or whose build no longer copies;
+//     T0689: red when the installer whitelist (extraResources scripts filter) has a wildcard,
+//     misses an import, or differs from serverBundleHelperScripts
 //   - _bat-logger.mjs: BAT_HELPER_LOG_DIR (absolute) moves the log; unset or relative keeps
 //     the userData path (local BAT unchanged)
 //   - T0481 (BUG-119): _bat-cert.mjs / _bat-logger.mjs resolve userData from BAT_USER_DATA
@@ -103,21 +105,25 @@ describe('verify-helper-bundle.js server bundle check (T0433)', () => {
     const r = fixture(readFileSync(buildScript, 'utf8'))
     expect(r.stderr).toBe('')
     expect(r.status).toBe(0)
-    expect(r.stdout).toMatch(/server bundle ships 6 helper\(s\) with a closed import set/)
+    expect(r.stdout).toMatch(/the installer ships 6 runtime helper\(s\) listed by name, the same set as the server bundle, with a closed import set/)
   })
 
   const GOOD_LIST = "['bat-terminal.mjs', 'bat-notify.mjs', 'bat-mcp.mjs', 'bat-hook.mjs', '_bat-cert.mjs', '_bat-logger.mjs']"
   const buildSource = (list, { copies = true } = {}) =>
     `const serverBundleHelperScripts = ${list}\nasync function main() {\n  await copyServerSources()\n}\nasync function copyServerSources() {\n${copies ? '  await copyHelperScripts()\n' : ''}}\n`
 
-  /** Fixture project: package.json (extraResources scripts/*.mjs), the real helpers, a fake build script. */
-  function fixture(buildScriptSource, { drop = [], build = {} } = {}) {
+  /** T0689: the installer whitelist (package.json build.extraResources scripts filter). */
+  const HELPERS = ['bat-terminal.mjs', 'bat-notify.mjs', 'bat-mcp.mjs', 'bat-hook.mjs', '_bat-cert.mjs', '_bat-logger.mjs']
+  const scriptsEntry = (filter) => ({ from: 'scripts', to: 'scripts', filter })
+
+  /** Fixture project: package.json (extraResources = the helper whitelist), the real helpers, a fake build script. */
+  function fixture(buildScriptSource, { drop = [], build = {}, filter = HELPERS } = {}) {
     const root = makeTmp('verify')
     mkdirSync(join(root, 'scripts'))
-    writeFileSync(join(root, 'package.json'), JSON.stringify({ build: { extraResources: [{ from: 'scripts', to: 'scripts', filter: ['*.mjs'] }], ...build } }))
+    writeFileSync(join(root, 'package.json'), JSON.stringify({ build: { extraResources: [scriptsEntry(filter)], ...build } }))
     copyFileSync(verifyScript, join(root, 'scripts', 'verify-helper-bundle.js'))
-    // _bat-server-helpers.mjs: imported by the real build script (extraResources import check)
-    for (const name of ['bat-terminal.mjs', 'bat-notify.mjs', 'bat-mcp.mjs', 'bat-hook.mjs', '_bat-cert.mjs', '_bat-logger.mjs', '_bat-server-helpers.mjs']) {
+    // _bat-server-helpers.mjs: a build-time script on disk (imported by the real build script), never shipped
+    for (const name of [...HELPERS, '_bat-server-helpers.mjs']) {
       if (!drop.includes(name)) copyFileSync(join(scriptsDir, name), join(root, 'scripts', name))
     }
     writeFileSync(join(root, 'scripts', 'build-server-bundle.mjs'), buildScriptSource)
@@ -229,7 +235,7 @@ describe('verify-helper-bundle.js server bundle check (T0433)', () => {
 
     for (const [label, build] of [
       ['a per-platform entry (the T0546 shape)', { win: { extraResources: [T0546_WIN_BASELINE] } }],
-      ['a top-level entry', { extraResources: [{ from: 'scripts', to: 'scripts', filter: ['*.mjs'] }, T0546_WIN_BASELINE] }],
+      ['a top-level entry', { extraResources: [scriptsEntry(HELPERS), T0546_WIN_BASELINE] }],
       ['an entry that only names the target dir', { linux: { extraResources: [{ from: 'somewhere', to: 'bat-server-baseline' }] } }],
       ['an entry that only filters bundle tarballs', { mac: { extraResources: [{ from: 'dist-server', to: 'x', filter: ['bat-server-darwin-arm64-v*.tar.gz'] }] } }],
       ['an extraFiles string', { linux: { extraFiles: ['dist-baseline/'] } }],
@@ -245,6 +251,59 @@ describe('verify-helper-bundle.js server bundle check (T0433)', () => {
       const r = fixture(buildSource(GOOD_LIST))
       expect(r.status).toBe(0)
       expect(r.stdout).toMatch(/no server bundle baseline in the installer config \(D146\)/)
+    })
+  })
+
+  // T0689: resources/scripts holds the runtime helpers only, listed by name.
+  describe('installer helper whitelist (T0689)', () => {
+    const failsWith = (r, pattern) => {
+      expect(r.status).toBe(1)
+      expect(r.stderr).toMatch(/T0689 installer helper whitelist check failed/)
+      expect(r.stderr).toMatch(pattern)
+      // the fix points at both lists, never back at the wildcard
+      expect(r.stderr).toMatch(/in BOTH package\.json/)
+      expect(r.stderr).not.toMatch(/Restore the inclusive glob/)
+    }
+
+    it('the repo package.json lists the same literal names as serverBundleHelperScripts', () => {
+      const pkg = JSON.parse(readFileSync(join(repoRoot, 'package.json'), 'utf8'))
+      const entries = pkg.build.extraResources.filter((e) => e.from === 'scripts')
+      expect(entries).toEqual([scriptsEntry(parseHelperList(readFileSync(buildScript, 'utf8')))])
+      for (const name of entries[0].filter) expect(name).toMatch(/^[\w.-]+\.mjs$/)
+    })
+
+    it('fails on the old "*.mjs" filter (it ships every dev script)', () => {
+      failsWith(fixture(buildSource(GOOD_LIST), { filter: ['*.mjs'] }), /filter entry "\*\.mjs" is not a literal file name/)
+    })
+
+    it('fails on a wildcard next to the literal names', () => {
+      failsWith(fixture(buildSource(GOOD_LIST), { filter: [...HELPERS, 'bat-*.mjs'] }), /filter entry "bat-\*\.mjs" is not a literal file name/)
+    })
+
+    it('fails when the filter misses a helper the server bundle ships', () => {
+      const r = fixture(buildSource(GOOD_LIST), { filter: HELPERS.filter((n) => n !== 'bat-mcp.mjs') })
+      failsWith(r, /serverBundleHelperScripts lists bat-mcp\.mjs, which the filter does not/)
+    })
+
+    it('fails when the filter misses a relative import of a listed helper (BUG-058)', () => {
+      const r = fixture(buildSource(GOOD_LIST), { filter: HELPERS.filter((n) => n !== '_bat-cert.mjs') })
+      failsWith(r, /scripts\/bat-terminal\.mjs imports '\.\/_bat-cert\.mjs', but the filter does not list it/)
+    })
+
+    it('fails when the filter and serverBundleHelperScripts disagree (an extra installer script)', () => {
+      const r = fixture(buildSource(GOOD_LIST), { filter: [...HELPERS, '_bat-server-helpers.mjs'] })
+      failsWith(r, /filter lists _bat-server-helpers\.mjs, which serverBundleHelperScripts does not/)
+    })
+
+    it('fails when a listed file does not exist', () => {
+      const r = fixture(buildSource(GOOD_LIST), { filter: [...HELPERS, 'bat-gone.mjs'] })
+      failsWith(r, /filter lists bat-gone\.mjs, but scripts\/bat-gone\.mjs does not exist/)
+    })
+
+    it('fails without a scripts entry, or with an empty filter', () => {
+      const none = fixture(buildSource(GOOD_LIST), { build: { extraResources: [] } })
+      failsWith(none, /needs exactly one \{ from: 'scripts'/)
+      failsWith(fixture(buildSource(GOOD_LIST), { filter: [] }), /has no filter list/)
     })
   })
 })

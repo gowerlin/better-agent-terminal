@@ -187,7 +187,12 @@
         "from": "scripts",
         "to": "scripts",
         "filter": [
-          "*.mjs"
+          "bat-terminal.mjs",
+          "bat-notify.mjs",
+          "bat-mcp.mjs",
+          "bat-hook.mjs",
+          "_bat-cert.mjs",
+          "_bat-logger.mjs"
         ]
       }
     ]

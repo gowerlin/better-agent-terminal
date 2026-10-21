@@ -4,6 +4,7 @@
 // T0546 — Windows (PE claude.exe), and the installer slimming checks on every platform
 // (C1 duplicate claude, C2a SDK binary, C3 baseline, C4 runtime packages, C5 whisper dirs).
 // T0547 (D146) — no resources/bat-server-baseline at all on any platform.
+// T0689 — resources/scripts holds exactly the runtime helpers (serverBundleHelperScripts) on every platform.
 //
 // Fake electron-builder output trees (release/mac-arm64/*.app, release/linux-unpacked,
 // release/win-unpacked) are built in a temp dir with hand-written Mach-O / ELF / PE headers
@@ -43,6 +44,8 @@ const {
   peMachine,
   readAsar,
   readAsarFile,
+  runtimeHelperScripts,
+  verifyPackagedLayout,
   verifyPackagedLinux,
   verifyPackagedMac,
   verifyPackagedWin,
@@ -168,6 +171,11 @@ function writeRuntimePackages(resourcesPath, platform, arch) {
   }
 }
 
+/** T0689: resources/scripts with the runtime helpers (the packaged BAT_HELPER_DIR). */
+function writeHelperScripts(resourcesPath, names = runtimeHelperScripts()) {
+  for (const name of names) writeFile(path.join(resourcesPath, 'scripts', name), '')
+}
+
 function unpacked(appPath, ...segments) {
   return path.join(appPath, 'Contents', 'Resources', 'app.asar.unpacked', ...segments)
 }
@@ -194,6 +202,7 @@ function makeApp(outDir, arch, { omit = [] } = {}) {
   writeFile(unpacked(appPath, 'node_modules', '@lydell', `node-pty-darwin-${arch}`, 'pty.node'), thinMachO(arch))
   writeFile(whisperPath(appPath, 'js', 'index.js'), '')
   writeRuntimePackages(resources, 'darwin', arch)
+  if (!omit.includes('helpers')) writeHelperScripts(resources)
   writeAsar(resources, HEALTHY_PACKED)
   return appPath
 }
@@ -263,6 +272,16 @@ describe('shared rules', () => {
     expect(machOCpuTypes(javaClass)).toBeNull()
   })
 
+  it('runtime helpers = serverBundleHelperScripts = the package.json extraResources whitelist (T0689)', () => {
+    const helpers = ['_bat-cert.mjs', '_bat-logger.mjs', 'bat-hook.mjs', 'bat-mcp.mjs', 'bat-notify.mjs', 'bat-terminal.mjs']
+    expect(runtimeHelperScripts()).toEqual(helpers)
+    const pkg = require('../../package.json')
+    const entry = pkg.build.extraResources.find((e) => e.from === 'scripts')
+    expect([...entry.filter].sort()).toEqual(helpers)
+    expect(runtimeHelperScripts("const serverBundleHelperScripts = [\n  'b.mjs',\n  'a.mjs',\n]")).toEqual(['a.mjs', 'b.mjs'])
+    expect(() => runtimeHelperScripts('const helpers = []')).toThrow(/serverBundleHelperScripts/)
+  })
+
   it('only the whisper addon other-arch mac dirs are allowed to differ', () => {
     const w = 'node_modules/@kutalia/whisper-node-addon/dist'
     expect(isCrossArchAllowed(`${w}/mac-x64/whisper.node`, 'arm64')).toBe(true)
@@ -284,6 +303,7 @@ describe('verifyPackagedMac', () => {
     expect(checked.embeddedClaude.found).toBe(claudePath(app, 'arm64'))
     expect(checked.machOCount).toBe(3)
     expect(checked.layout.baselines).toEqual([])
+    expect(checked.layout.helperScripts).toEqual(runtimeHelperScripts())
     expect(checked.layout.runtime.packages).toEqual(['@anthropic-ai/claude-code', '@kutalia/whisper-node-addon', '@lydell/node-pty', '@openai/codex-darwin-arm64', 'ws'])
     expect(runCli(['--out', out]).code).toBe(0)
   })
@@ -411,6 +431,26 @@ describe('verifyPackagedMac', () => {
     expect(path.basename(path.dirname(result.archs[0].apps[0].found))).toBe('darwin-arm64')
   })
 
+  it('Contents/Resources/scripts with a dev script, or without the helpers → fail (exit 1, T0689)', () => {
+    const out = makeOutDir()
+    const app = makeApp(out, 'arm64')
+    writeFile(path.join(app, 'Contents', 'Resources', 'scripts', 'run-legacy-tests.mjs'), '')
+
+    const result = verifyPackagedMac(out)
+    expect(problemIds(result, 'arm64')).toEqual(['helper-scripts'])
+    expect(result.archs[0].apps[0].problems[0].details).toEqual(['extra: run-legacy-tests.mjs'])
+    const cli = runCli(['--out', out])
+    expect(cli.code).toBe(1)
+    expect(cli.stderr).toContain('extra: run-legacy-tests.mjs')
+    expect(cli.stderr).toContain('T0689 helper-scripts')
+
+    const out2 = makeOutDir()
+    makeApp(out2, 'arm64', { omit: ['helpers'] })
+    const missing = verifyPackagedMac(out2)
+    expect(problemIds(missing, 'arm64')).toEqual(['helper-scripts'])
+    expect(missing.archs[0].apps[0].problems[0].details).toEqual(runtimeHelperScripts().map((n) => `missing: ${n}`))
+  })
+
   it('no .app for a requested arch → fail (exit 1), not a silent skip', () => {
     const out = makeOutDir()
     makeApp(out, 'arm64')
@@ -439,6 +479,7 @@ describe('verifyPackagedLinux', () => {
   function makeLinux(outDir, arch, claude) {
     const resources = path.join(outDir, linuxAppOutDirName(arch), 'resources')
     writeRuntimePackages(resources, 'linux', arch)
+    writeHelperScripts(resources)
     if (claude) writeFile(path.join(resources, 'app.asar.unpacked', 'node_modules', '@anthropic-ai', `claude-code-linux-${arch}`, 'claude'), claude)
     writeAsar(resources, HEALTHY_PACKED)
     return resources
@@ -470,7 +511,25 @@ describe('verifyPackagedLinux', () => {
 
     const result = verifyPackagedLinux(out)
     expect(result.ok).toBe(true)
-    expect(runCli(['--platform', 'linux', '--out', out]).code).toBe(0)
+    expect(result.archs[0].layout.helperScripts).toEqual(runtimeHelperScripts())
+    const cli = runCli(['--platform', 'linux', '--out', out])
+    expect(cli.code).toBe(0)
+    expect(cli.stdout).toContain('6 runtime helper(s) in resources/scripts')
+  })
+
+  it('resources/scripts missing a helper or carrying a build script → fail (exit 1, T0689)', () => {
+    const out = makeOutDir()
+    const resources = makeLinux(out, 'x64', elf(ELF_MACHINES.x64))
+    rmSync(path.join(resources, 'scripts', '_bat-logger.mjs'))
+    writeFile(path.join(resources, 'scripts', 'build-server-bundle.mjs'), '')
+
+    const result = verifyPackagedLinux(out)
+    expect(result.archs[0].problems.map((p) => p.id)).toEqual(['helper-scripts'])
+    expect(result.archs[0].problems[0].details).toEqual(['missing: _bat-logger.mjs', 'extra: build-server-bundle.mjs'])
+    const cli = runCli(['--platform', 'linux', '--out', out])
+    expect(cli.code).toBe(1)
+    expect(cli.stderr).toContain('missing: _bat-logger.mjs')
+    expect(cli.stderr).toContain('extra: build-server-bundle.mjs')
   })
 
   it('no embedded claude → fail (exit 1, BUG-118)', () => {
@@ -555,6 +614,7 @@ describe('verifyPackagedWin (T0546)', () => {
     const resources = path.join(outDir, winAppOutDirName('x64'), 'resources')
     const anthropic = path.join(resources, 'app.asar.unpacked', 'node_modules', '@anthropic-ai')
     writeRuntimePackages(resources, 'win32', 'x64')
+    writeHelperScripts(resources)
     if (claude) writeFile(path.join(anthropic, 'claude-code', 'bin', 'claude.exe'), claude)
     writeFile(path.join(anthropic, 'claude-code-win32-x64', 'package.json'), '{}')
     writeFile(path.join(resources, 'app.asar.unpacked', 'node_modules', '@kutalia', 'whisper-node-addon', 'dist', 'win32-x64', 'whisper.node'), pe(PE_MACHINES.x64))
@@ -572,6 +632,7 @@ describe('verifyPackagedWin (T0546)', () => {
     expect(result.ok).toBe(true)
     expect(result.archs[0].peMachine).toBe(PE_MACHINES.x64)
     expect(result.archs[0].layout.baselines).toEqual([])
+    expect(result.archs[0].layout.helperScripts).toEqual(runtimeHelperScripts())
     expect(winAppOutDirName('arm64')).toBe('win-arm64-unpacked')
     const cli = runCli(['--platform', 'win', '--out', out])
     expect(cli.code).toBe(0)
@@ -672,6 +733,34 @@ describe('verifyPackagedWin (T0546)', () => {
     const { 'dist-electron/preload.js': _dropped, ...packed } = HEALTHY_PACKED
     makeWin(out, { packed })
     expect(verifyPackagedWin(out).archs[0].problems[0].details).toEqual(['dist-electron/preload.js'])
+  })
+
+  it('resources/scripts with the dev scripts (the old "*.mjs" filter) → fail naming each (T0689)', () => {
+    const out = makeOutDir()
+    makeWin(out, { extra: (r) => {
+      for (const name of ['bat-server.mjs', 'run-legacy-tests.mjs']) writeFile(path.join(r, 'scripts', name), '')
+      writeFile(path.join(r, 'scripts', 'hooks', 'pre-commit'), '')
+    } })
+    expect(ids(out)).toEqual(['helper-scripts'])
+    expect(verifyPackagedWin(out).archs[0].problems[0].details).toEqual(['extra: bat-server.mjs', 'extra: hooks/pre-commit', 'extra: run-legacy-tests.mjs'])
+    const cli = runCli(['--platform', 'win', '--out', out])
+    expect(cli.code).toBe(1)
+    expect(cli.stderr).toContain('extra: run-legacy-tests.mjs')
+  })
+
+  it('no resources/scripts at all → fail listing every helper (T0689)', () => {
+    const out = makeOutDir()
+    makeWin(out, { extra: (r) => rmSync(path.join(r, 'scripts'), { recursive: true, force: true }) })
+    expect(ids(out)).toEqual(['helper-scripts'])
+    expect(verifyPackagedWin(out).archs[0].problems[0].details).toEqual(runtimeHelperScripts().map((n) => `missing: ${n}`))
+  })
+
+  it('verifyPackagedLayout takes the expected helper list as an option (T0689)', () => {
+    const out = makeOutDir()
+    const resources = makeWin(out)
+    const layout = verifyPackagedLayout(resources, 'win32', 'x64', { helperScripts: ['bat-terminal.mjs'] })
+    expect(layout.problems.map((p) => p.id)).toEqual(['helper-scripts'])
+    expect(layout.problems[0].details).toEqual(runtimeHelperScripts().filter((n) => n !== 'bat-terminal.mjs').map((n) => `extra: ${n}`))
   })
 
   it('reads an app.asar written by @electron/asar (packed and unpacked files)', async () => {

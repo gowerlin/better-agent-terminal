@@ -28,9 +28,12 @@ manual checks are attempted.
       passes on every server bundle artifact. Both run as fail-fast steps in
       their respective workflows.
 - [ ] **Helper bundle verification green** — `scripts/verify-helper-bundle.js`
-      passes (`npm run verify:helpers`). Confirms every `scripts/*.mjs`
-      helper referenced by relative `.mjs` import is whitelisted in
-      `package.json` `build.extraResources[].filter`.
+      passes (`npm run verify:helpers`). Confirms the `scripts` filter in
+      `package.json` `build.extraResources` lists the runtime helpers by name
+      (no wildcard), is closed under their relative `.mjs` imports, and equals
+      `serverBundleHelperScripts` in `scripts/build-server-bundle.mjs` (T0689);
+      after packaging, `verify-packaged-native.js` (`helper-scripts`) checks
+      that `resources/scripts` holds exactly those files.
 - [ ] **All test suites green**:
   - [ ] Unit tests (`npm test`)
   - [ ] Contract tests (`tests/path-translator-*.test.ts`,

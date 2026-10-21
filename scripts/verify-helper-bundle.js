@@ -1,8 +1,6 @@
 #!/usr/bin/env node
 /**
- * Pre-build guard: verify that every static `import './*.mjs'` inside
- * scripts/ helpers resolves to a filename that will be bundled by
- * electron-builder's `build.extraResources[].filter`.
+ * Pre-build guard for the helper scripts the installer and the server bundle ship.
  *
  * Why this exists: BUG-058 shipped a packaged installer where
  * bat-terminal.mjs / bat-notify.mjs imported _bat-logger.mjs and
@@ -10,10 +8,16 @@
  * `["bat-terminal.mjs", "bat-notify.mjs"]` that omitted the helpers.
  * At runtime the packaged app failed with ERR_MODULE_NOT_FOUND.
  *
- * T0247 switched the filter to `["*.mjs"]`. This script prevents future
- * drift: if the filter regresses to an explicit list that misses an
- * import target — or a new helper is added that isn't covered — build
- * aborts before vite / electron-builder run.
+ * T0247 switched the filter to `["*.mjs"]`, which also shipped every build / dev
+ * script in scripts/. T0689 went back to an explicit whitelist, guarded here:
+ *   - the `scripts` entry of build.extraResources lists literal file names only
+ *     (a wildcard would pull the dev scripts back in)
+ *   - every listed file exists, and the list is closed under static relative
+ *     .mjs imports (the BUG-058 failure)
+ *   - the list equals `serverBundleHelperScripts` (scripts/build-server-bundle.mjs):
+ *     local PTYs (BAT_HELPER_DIR = <resources>/scripts) and headless PTYs
+ *     (<installRoot>/scripts) run the same runtime helpers
+ * scripts/verify-packaged-native.js checks the packaged resources/scripts again (T0689).
  *
  * Scope (intentionally narrow; see T0248 "Not in scope"):
  *   - top-level .mjs files only (no recursion into scripts/hooks/ etc.)
@@ -28,24 +32,6 @@ const path = require('path');
 
 const projectRoot = path.join(__dirname, '..');
 const pkg = JSON.parse(fs.readFileSync(path.join(projectRoot, 'package.json'), 'utf8'));
-
-const extraResources = (pkg.build && pkg.build.extraResources) || [];
-if (!Array.isArray(extraResources) || extraResources.length === 0) {
-  console.log('[verify-helper-bundle] No build.extraResources configured, skipping.');
-  process.exit(0);
-}
-
-// Convert a simple glob pattern (only `*` wildcard, no `**` / `?` / brace)
-// into a regex that matches a single top-level filename. This is deliberately
-// minimal — extraResources filters here are either literal filenames or `*.ext`.
-function globToRegex(glob) {
-  const escaped = glob.replace(/[.+^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '[^/]*');
-  return new RegExp('^' + escaped + '$');
-}
-
-function isCovered(basename, filterGlobs) {
-  return filterGlobs.some((g) => globToRegex(g).test(basename));
-}
 
 // Match static relative imports of `.mjs` files, e.g.
 //   import { foo } from './_bat-logger.mjs'
@@ -65,53 +51,6 @@ function extractRelativeMjsImports(fileContent) {
     targets.add(base);
   }
   return targets;
-}
-
-const problems = [];
-
-for (const entry of extraResources) {
-  if (!entry || typeof entry !== 'object') continue;
-  const fromDir = entry.from;
-  const filterGlobs = Array.isArray(entry.filter) ? entry.filter : [];
-  if (!fromDir || filterGlobs.length === 0) continue;
-
-  const absFromDir = path.join(projectRoot, fromDir);
-  if (!fs.existsSync(absFromDir) || !fs.statSync(absFromDir).isDirectory()) continue;
-
-  const topLevelMjs = fs.readdirSync(absFromDir).filter((name) => {
-    const full = path.join(absFromDir, name);
-    return name.endsWith('.mjs') && fs.statSync(full).isFile();
-  });
-
-  if (topLevelMjs.length === 0) continue;
-
-  for (const mjs of topLevelMjs) {
-    if (!isCovered(mjs, filterGlobs)) {
-      problems.push({ kind: 'source-not-covered', from: fromDir, file: mjs, filterGlobs });
-    }
-
-    const content = fs.readFileSync(path.join(absFromDir, mjs), 'utf8');
-    const targets = extractRelativeMjsImports(content);
-    for (const target of targets) {
-      if (!isCovered(target, filterGlobs)) {
-        problems.push({
-          kind: 'import-not-covered',
-          from: fromDir,
-          importer: mjs,
-          target,
-          filterGlobs,
-        });
-      }
-      if (!fs.existsSync(path.join(absFromDir, target))) {
-        problems.push({
-          kind: 'import-target-missing',
-          from: fromDir,
-          importer: mjs,
-          target,
-        });
-      }
-    }
-  }
 }
 
 // ---------- D146 / T0547: no server bundle baseline in the installer ----------
@@ -234,46 +173,84 @@ function checkServerBundleHelpers() {
     console.error('');
     process.exit(1);
   }
-  return listed.length;
+  return listed;
 }
 
-const serverBundleHelperCount = checkServerBundleHelpers();
+const serverBundleHelpers = checkServerBundleHelpers();
 
-if (problems.length > 0) {
-  console.error('');
-  console.error('[verify-helper-bundle] extraResources.filter does not cover every helper import');
-  console.error('');
-  const suggestedAdds = new Set();
-  for (const p of problems) {
-    if (p.kind === 'source-not-covered') {
-      console.error(`  - scripts/${p.file} is on disk but NOT matched by filter ${JSON.stringify(p.filterGlobs)}`);
-      suggestedAdds.add(p.file);
-    } else if (p.kind === 'import-not-covered') {
-      console.error(`  - ${p.from}/${p.importer} imports './${p.target}', but that filename is NOT matched by filter ${JSON.stringify(p.filterGlobs)}`);
-      console.error(`      -> at runtime the packaged app will fail with ERR_MODULE_NOT_FOUND`);
-      suggestedAdds.add(p.target);
-    } else if (p.kind === 'import-target-missing') {
-      console.error(`  - ${p.from}/${p.importer} imports './${p.target}', but that file does not exist in ${p.from}/`);
+// ---------- T0689: the installer ships the runtime helpers only ----------
+//
+// build.extraResources `{ from: 'scripts', to: 'scripts', filter: [...] }` is what lands in
+// <resources>/scripts, the BAT_HELPER_DIR of every local PTY (electron/main.ts
+// localHelperDir; bat-mcp.mjs / bat-hook.mjs are found there too, electron/bat-mcp-launch.ts).
+// The filter is a whitelist of literal names equal to serverBundleHelperScripts.
+
+const WILDCARD_RE = /[*?[\]{}!]/;
+
+function checkInstallerHelpers(serverBundleHelpers) {
+  const scriptsDir = path.join(projectRoot, 'scripts');
+  const buildSection = pkg.build || {};
+  const extraResources = Array.isArray(buildSection.extraResources) ? buildSection.extraResources : [];
+  const issues = [];
+  const entries = extraResources.filter((entry) => entry && typeof entry === 'object' && entry.from === 'scripts');
+  let filter = [];
+  if (entries.length !== 1) {
+    issues.push(`build.extraResources needs exactly one { from: 'scripts', to: 'scripts', filter: [...] } entry (found ${entries.length})`);
+  } else {
+    const entry = entries[0];
+    if (entry.to !== 'scripts') {
+      issues.push(`build.extraResources scripts entry has to: ${JSON.stringify(entry.to)}; BAT_HELPER_DIR is <resources>/scripts (to: 'scripts')`);
+    }
+    filter = Array.isArray(entry.filter) ? entry.filter.map(String) : [];
+    if (filter.length === 0) issues.push('build.extraResources scripts entry has no filter list (every file in scripts/ would ship)');
+  }
+
+  for (const name of filter) {
+    if (WILDCARD_RE.test(name) || name.includes('/') || name.includes('\\')) {
+      issues.push(`filter entry ${JSON.stringify(name)} is not a literal file name in scripts/ (a pattern ships the build / dev scripts too)`);
+      continue;
+    }
+    const full = path.join(scriptsDir, name);
+    if (!fs.existsSync(full) || !fs.statSync(full).isFile()) {
+      issues.push(`filter lists ${name}, but scripts/${name} does not exist`);
+      continue;
+    }
+    if (!name.endsWith('.mjs')) continue;
+    for (const target of extractRelativeMjsImports(fs.readFileSync(full, 'utf8'))) {
+      if (!filter.includes(target)) {
+        issues.push(`scripts/${name} imports './${target}', but the filter does not list it -> ERR_MODULE_NOT_FOUND in the installed app`);
+      }
     }
   }
-  console.error('');
-  console.error('[verify-helper-bundle] Fix options:');
-  console.error('  (A) Restore the inclusive glob: set build.extraResources[].filter = ["*.mjs"]');
-  if (suggestedAdds.size > 0) {
-    const list = Array.from(suggestedAdds).map((f) => `"${f}"`).join(', ');
-    console.error(`  (B) Or keep the explicit list but add: ${list}`);
+
+  const literal = filter.filter((name) => !WILDCARD_RE.test(name));
+  const onlyInstaller = literal.filter((name) => !serverBundleHelpers.includes(name));
+  const onlyServerBundle = serverBundleHelpers.filter((name) => !literal.includes(name));
+  if (onlyInstaller.length > 0) {
+    issues.push(`filter lists ${onlyInstaller.join(', ')}, which serverBundleHelperScripts does not`);
   }
-  console.error('');
-  console.error('[verify-helper-bundle] Background: BUG-058 / T0247 — helpers missing from packaged installer.');
-  console.error('');
-  process.exit(1);
+  if (onlyServerBundle.length > 0) {
+    issues.push(`serverBundleHelperScripts lists ${onlyServerBundle.join(', ')}, which the filter does not`);
+  }
+
+  if (issues.length > 0) {
+    console.error('');
+    console.error('[verify-helper-bundle] T0689 installer helper whitelist check failed');
+    console.error('');
+    for (const issue of issues) console.error(`  - ${issue}`);
+    console.error('');
+    console.error('[verify-helper-bundle] Fix: list each runtime helper by file name in BOTH package.json');
+    console.error('      build.extraResources (from: scripts) filter AND serverBundleHelperScripts in');
+    console.error('      scripts/build-server-bundle.mjs, then run `npm run verify:helpers`. Do not go back to "*.mjs":');
+    console.error('      it ships every build / dev script in scripts/.');
+    console.error('');
+    console.error('[verify-helper-bundle] Background: BUG-058 / T0247 (helpers missing from the installer), T0689 (dev scripts in the installer).');
+    console.error('');
+    process.exit(1);
+  }
+  return filter.length;
 }
 
-const total = extraResources.reduce((acc, entry) => {
-  if (!entry || !entry.from) return acc;
-  const abs = path.join(projectRoot, entry.from);
-  if (!fs.existsSync(abs) || !fs.statSync(abs).isDirectory()) return acc;
-  return acc + fs.readdirSync(abs).filter((n) => n.endsWith('.mjs')).length;
-}, 0);
+const installerHelperCount = checkInstallerHelpers(serverBundleHelpers);
 
-console.log(`[verify-helper-bundle] OK — all ${total} helper .mjs files in extraResources are reachable via filter; server bundle ships ${serverBundleHelperCount} helper(s) with a closed import set`);
+console.log(`[verify-helper-bundle] OK — the installer ships ${installerHelperCount} runtime helper(s) listed by name, the same set as the server bundle, with a closed import set`);

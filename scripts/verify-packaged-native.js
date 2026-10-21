@@ -35,6 +35,8 @@
  *         computed-path packages of dynamicRuntimePackages() is packaged, with the
  *         `dependencies` closure of each
  *   - C5  the whisper addon's `dist/` only holds `js/` and this platform's directories
+ *   - T0689 `resources/scripts` (the packaged BAT_HELPER_DIR) holds exactly the runtime helpers
+ *         (`serverBundleHelperScripts` in scripts/build-server-bundle.mjs): none missing, nothing extra
  *
  * Usage (run after electron-builder, before uploading artifacts):
  *   node scripts/verify-packaged-native.js [--platform mac|linux|win] [--out <dir>] [--arch <list>]
@@ -435,11 +437,46 @@ function relativeFiles(dir) {
   return walkFiles(dir).map((f) => path.relative(dir, f).split(path.sep).join('/'));
 }
 
+const SERVER_BUNDLE_SCRIPT = path.join(__dirname, 'build-server-bundle.mjs');
+
+/**
+ * T0689: the runtime helpers `resources/scripts` must hold, read from `serverBundleHelperScripts`
+ * in scripts/build-server-bundle.mjs (the build script runs main() at load and cannot be
+ * required). scripts/verify-helper-bundle.js keeps package.json build.extraResources equal to it.
+ */
+function runtimeHelperScripts(source = fs.readFileSync(SERVER_BUNDLE_SCRIPT, 'utf8')) {
+  const listMatch = source.match(/const\s+serverBundleHelperScripts\s*=\s*\[([\s\S]*?)\]/);
+  if (!listMatch) throw new Error('`const serverBundleHelperScripts = [...]` not found in scripts/build-server-bundle.mjs');
+  return [...listMatch[1].matchAll(/'([^']+)'/g)].map((m) => m[1]).sort();
+}
+
+/**
+ * T0689: `resources/scripts` (the packaged BAT_HELPER_DIR) holds exactly the runtime helpers:
+ * one missing breaks the helpers in the installed app (BUG-058), an extra file is a build / dev
+ * script the installer should not ship.
+ */
+function verifyHelperScripts(resourcesPath, expected) {
+  const scriptsDir = path.join(resourcesPath, 'scripts');
+  const present = relativeFiles(scriptsDir).sort();
+  const missing = expected.filter((name) => !present.includes(name));
+  const extra = present.filter((name) => !expected.includes(name));
+  const problems = [];
+  if (missing.length > 0 || extra.length > 0) {
+    problems.push({
+      id: 'helper-scripts',
+      message: `${scriptsDir} is not exactly the runtime helpers (T0689; expected: ${expected.join(', ')})`,
+      details: [...missing.map((name) => `missing: ${name}`), ...extra.map((name) => `extra: ${name}`)],
+    });
+  }
+  return { present, problems };
+}
+
 /**
  * T0546 layout checks shared by every platform. `platform` is the Node name
- * (win32 / darwin / linux). Returns { problems, runtime, baselines }.
+ * (win32 / darwin / linux). `helperScripts` defaults to runtimeHelperScripts() (T0689).
+ * Returns { problems, runtime, baselines, helperScripts }.
  */
-function verifyPackagedLayout(resourcesPath, platform, arch) {
+function verifyPackagedLayout(resourcesPath, platform, arch, { helperScripts } = {}) {
   const problems = [];
   const asarPath = path.join(resourcesPath, 'app.asar');
   const unpackedDir = path.join(resourcesPath, 'app.asar.unpacked');
@@ -499,7 +536,16 @@ function verifyPackagedLayout(resourcesPath, platform, arch) {
     problems.push(...runtime.problems);
   }
 
-  return { problems, runtime, baselines: baselines ?? [] };
+  // T0689: resources/scripts = the runtime helpers, nothing else
+  let helpers = { present: [], problems: [] };
+  try {
+    helpers = verifyHelperScripts(resourcesPath, helperScripts ?? runtimeHelperScripts());
+  } catch (err) {
+    helpers.problems.push({ id: 'helper-scripts', message: 'cannot read the runtime helper list (T0689)', details: [err.message] });
+  }
+  problems.push(...helpers.problems);
+
+  return { problems, runtime, baselines: baselines ?? [], helperScripts: helpers.present };
 }
 
 function listApps(appOutDir) {
@@ -763,12 +809,13 @@ function printProblems(label, problems) {
 function describeLayout(layout) {
   if (!layout) return '';
   const runtime = layout.runtime ? `, ${layout.runtime.packages.length} runtime package(s) / ${layout.runtime.checked} with dependencies` : '';
-  return `, no server bundle baseline${runtime}`;
+  return `, no server bundle baseline${runtime}, ${layout.helperScripts.length} runtime helper(s) in resources/scripts`;
 }
 
 function printLayoutHints() {
   console.error('[verify-packaged-native] T0546 runtime-require: add the package (and its dependencies) to the node_modules whitelist in package.json build.files.');
   console.error('[verify-packaged-native] T0546 sdk-binary / duplicate-claude / whisper-platforms: an exclusion in package.json build.files was lost. T0547 server-bundle-baseline: remove the bat-server-baseline extraResources entry (D146).');
+  console.error('[verify-packaged-native] T0689 helper-scripts: package.json build.extraResources (from: scripts) filter must list exactly serverBundleHelperScripts; run `npm run verify:helpers`.');
   console.error('');
 }
 
@@ -883,6 +930,8 @@ module.exports = {
   readAsarFile,
   packageNameOf,
   scanExternalRequires,
+  runtimeHelperScripts,
+  verifyHelperScripts,
   verifyPackagedLayout,
   verifyPackagedMac,
   verifyPackagedLinux,
