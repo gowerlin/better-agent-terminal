@@ -4,10 +4,10 @@ schema_kind: bug
 id: BUG-168
 title: "tests/ 底下不在 test:unit 的 tsx／node:test 測試：8 檔失敗（29 項）、9 檔逾時；package.json 2 組 script 指向不存在的檔案"
 status: OPEN
-severity: medium
+severity: low
 reproducibility: always
 created_at: "2026-10-21T20:15:54+0800"
-updated_at: "2026-10-21T20:15:54+0800"
+updated_at: "2026-10-21T20:29:46+0800"
 impact:
   - tests
   - remote-ssh
@@ -23,9 +23,9 @@ links:
 
 | 欄位 | 內容 |
 |------|------|
-| 嚴重度 | 🟡 medium（暫定：多數可能只是測試過時，但 SSH／WSL 的 systemd 相關失敗可能藏著遠端設定的真回歸，分類前先當 medium） |
+| 嚴重度 | 🟢 low（T0679：29 項失敗與 9 個逾時全部是測試過時，沒有產品回歸；原暫定 medium） |
 | 可重現 | 一定 |
-| **狀態** | 📂 OPEN（T0679 研究分類中） |
+| **狀態** | 📂 OPEN（T0679 研究 DONE `6fb40e70`；修正分組待使用者決定） |
 | 回報者 | T0678 Worker（盤點） |
 
 ## 現象
@@ -59,3 +59,12 @@ links:
 
 - T0679（研究）：逐項分類「測試過時／產品回歸／測試本身壞／無法判定」，逾時找出卡在哪一步，失效 script 查出檔案何時被刪；提出分組的修正工單與納入 CI 的建議。
 - 結論出來後再開修正單；產品回歸各自開單，不和測試過時混在一起。
+
+## 研究結論（T0679，2026-10-21）
+
+- **29 項失敗全部是 (A) 測試過時，沒有產品回歸 (B)**。產品照工單改了，測試沒跟上：WSL translator 已實作（T0273）、內嵌 claude 存在檢查（T0475）、Docker 不預設 port（T0649）、Profile 元件加 i18n hook（T0506／T0652）、安裝根目錄必須絕對路徑（T0552）、systemd unit 改用 `--port` 參數與 `enable` + `restart`（T0511）、linger 先 `id -un`、啟動判定改「穩定 3 秒」（T0378／T0382）。其中 SSH systemd 的舊期望（`BAT_REMOTE_PORT` 環境變數）**本身就是當年的 bug**（T0511 修掉），WSL 的舊測試資料（`~` 路徑的 unit）就是 BUG-087 的錯誤 unit。
+- **9 個逾時同一個原因**：共用 mock 少了後來新增的 IPC（`resolveHome`、`pickServerPort`、`update.getVersion`、SSH 驗證 tunnel），步驟失敗後精靈停在「等使用者選重試／略過／取消」，測試沒有人按，所以卡住。沒有真的計時器、子程序或外部服務。補完 mock 後 Docker 三檔全過；WSL／SSH 還要補 i18n 初始化與 tunnel mock；`wizard-rollback-cross` 的 wsl 那項有 1 個斷言要用正確 mock 重跑才能判定（D）。
+- **失效 script 有 3 組 5 個**（多一組 `test:file-drag`，檔案從沒 commit 過），建議全刪。
+- **CI 完全沒跑 `npm run test:unit`**：四個 workflow 只有 typecheck，vitest 的 322 檔、5,664 項也不在 CI（塔台已確認）。
+- 旁支：`electron/__tests__/pty-manager-helper-env.test.ts` 兩項斷言沒先清 `BAT_HELPER_LOG_DIR`，shell 有設這個變數時會失敗（測試隔離問題）；`wsl-systemd.ts` 解析使用者失敗時用 `error.message` 而不是 `describeError`（診斷資訊小缺口，不是回歸）。
+- 建議分組（T0679 回報區有完整表）：G1 刪失效 script（XS）、G2 單元測試跟上產品（S；profile-card 搬到 vitest + RTL 則 M）、G3 SSH／WSL 舊測試與 vitest 版去重（S–M）、G4 精靈 mock 補齊並加防卡死（M，可拆 Docker／WSL／SSH）、G5 納入 CI（短期新增 `test:legacy` + 在 CI 跑 `test:unit`，長期收斂到 vitest）。

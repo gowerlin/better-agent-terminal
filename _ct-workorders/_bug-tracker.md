@@ -32,7 +32,7 @@ breakdown:
 
 | ID | 標題 | 嚴重度 | 建立時間 | 連結 |
 |----|------|--------|---------|------|
-| BUG-168 | `tests/` 底下不在 test:unit 的測試：8 檔失敗（29 項）、9 檔逾時、2 組 script 指向不存在的檔案（T0679 研究分類中） | 🟡 medium | 2026-10-21 | [BUG-168](BUG-168-tests-dir-tsx-suites-failing-and-timing-out.md) |
+| BUG-168 | `tests/` 底下不在 test:unit 的測試：8 檔失敗（29 項）、9 檔逾時、3 組失效 script；T0679：全部是測試過時、無產品回歸，修正分組待決定 | 🟢 low | 2026-10-21 | [BUG-168](BUG-168-tests-dir-tsx-suites-failing-and-timing-out.md) |
 | BUG-165 | macOS：Codex CLI 分頁內捲動可用但不夠順（外部測試者A，v0.7.1-pre.3；T0670 研究） | 🟢 low | 2026-10-19 | [BUG-165](BUG-165-macos-codex-cli-scroll-not-smooth.md) |
 
 ## ⏳ 修復中 (FIXING)
