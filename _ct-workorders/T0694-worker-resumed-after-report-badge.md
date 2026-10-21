@@ -4,13 +4,14 @@ schema_kind: workorder
 id: T0694
 title: "Worker 回報後又開始執行（Renew）時不顯示 ✓、不列入批次關閉：主行程回合信號 → 「已回報、又在執行」，回合結束回到 ✓；批次關閉確認框加註近期輸出（T0693 方案 a + d1 + d2，D180）"
 type: feature
-status: TODO
+status: IN_PROGRESS
 repo: better-agent-terminal
 project: D180
 priority: P2
 sizing: M
 created_at: "2026-10-22T00:26:01+0800"
-updated_at: "2026-10-22T00:26:01+0800"
+updated_at: "2026-10-22T00:27:51+08:00"
+started_at: "2026-10-22T00:27:51+08:00"
 depends_on: []
 related:
   - "T0693 研究（`6f3f623c`）回報區：`✓` 生命週期事實表、Renew 路徑 R1–R4、推演表、方案比較與殘留風險 —— 本單的設計依據，先讀"
@@ -42,6 +43,7 @@ affects_files:
   - CLAUDE.md
   - _ct-workorders/T0694-worker-resumed-after-report-badge.md
 renew_count: 0
+tower_question: open
 workdir: main repo
 worker_question_timeout: 30
 interaction:
@@ -100,6 +102,13 @@ Worker 回報後，分頁標籤顯示 `✓`。塔台 Renew、使用者在原分�
 ## 回報區
 
 ### 待塔台決策（僅 yolo Worker 有問題時）
+
+#### Q-1：affects_files 缺 `electron/pty-manager.ts` 與 `electron/main.ts`，可以加進本單範圍嗎？
+- 提問時間：2026-10-22T00:32:40+0800
+- 選項：[A] 可以，兩檔都加（只做接線） / [B] 不可以，改別的做法 / [C] 其他：________
+- Worker 建議：[A]。回合狀態記在 `TerminalBlockedTracker`，但 tracker 是 `PtyManager` 的私有欄位（`electron/pty-manager.ts:329`），要多一個 `PtyManager.isAgentTurnActive(id)`，逾時備援也要讀 `PtyManager` 的 `lastOutputAt`；Electron 主行程的 `TerminalAttentionNotifier` 在 `electron/main.ts:2428` 建立，要加一行 `isTurnActive` 接線（headless 那份在 `electron/remote/headless-entry.ts`，已在範圍內）。不改這兩檔，本機的 attention 推送拿不到回合狀態。兩檔只加接線，不改其他行為；對外契約不變。
+- 影響範圍：`electron/pty-manager.ts`（約 10 行）、`electron/main.ts`（1 行）；驗收「只改 `affects_files`」那條。
+- 阻塞：否（先做 renderer、tracker、測試；主行程接線等答覆）
 
 ### 完成狀態
 
