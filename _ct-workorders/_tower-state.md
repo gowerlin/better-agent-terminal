@@ -111,7 +111,7 @@
 - 歷史 sessions → [_archive/state-snapshots/INDEX.md](_archive/state-snapshots/INDEX.md)（102 entries）
 
 ### 編號起始
-- **T0697** / **BUG-171** / **PLAN-055** / **D181** / **EXP-WFMINE-002**（其他 TOPIC 從 001） / **L174** / **CT-T023**
+- **T0698** / **BUG-171** / **PLAN-055** / **D182** / **EXP-WFMINE-002**（其他 TOPIC 從 001） / **L174** / **CT-T023**
 
 ---
 

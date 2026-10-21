@@ -1465,6 +1465,12 @@
 - **切分**：W2a 設計語言 + 元件 + 首頁（T0630）→ 預覽通過後 W2b（`/control-tower`、功能、FAQ、回報頁）→ W2c 遠端開發；W3 / W4 不變。
 - **相關**：PLAN-049 / D159 / D160 / T0624 / T0630
 
+### D181 2026-10-22 — `v0.7.1-pre.6` 發版批次：T0691 / T0692 / T0694 加內嵌 codex 追版（T0697），聯合驗證後發
+
+- **背景**：使用者「下一批發版」。`v0.7.1-pre.5` 之後已修未發：BUG-169（T0691 `b0ff5673`）、T0692（`560409a3`）、T0694（`cefb9db3`）；BUG-170 為 CT 端修正（CT v5.12.x，T0695 / T0696 驗收），不需發版。依 L173 查內嵌版本：claude CLI 2.1.306 = npm latest；`@openai/codex-sdk` / `@openai/codex` 實裝 0.160.0、npm latest 0.163.0。BUG-165 / 166 等外部測試者A、BUG-156 / 159 等特定環境，不在本批。
+- **決定**（使用者 2026-10-22，選推薦）：開 T0697 內嵌 codex 追版 0.160 → 0.163，完成後塔台聯合驗證（`test:unit` / `test:legacy` / 兩個 typecheck / `vite build`）→ push → `pre-release.yml -f version=0.7.1-pre.6`；更版重點含「歡迎協助測試」（D153，內嵌 codex 升版）。
+- **相關**：T0697 / T0690 / T0691 / T0692 / T0694 / BUG-169 / L173 / D153 / D179
+
 ### D180 2026-10-22 — Renew 後 Worker 分頁的 ✓：採 T0693 方案 a + d1 + d2（BAT 內部，不改 CT）；旁支 e 開 BUG-170 之後再排
 
 - **背景**：使用者問「塔台 Renew 工單後，通知 Worker 重讀繼續執行，BAT 終端 title 狀態已打勾，是否要設回執行中？」。T0693 研究（`6f3f623c`）：`✓`（`workerReport`）只在 renderer、只由下一次 notify 或關分頁改變，使用者輸入 / hook / OSC / 輸出都不碰；塔台無權寫入 Worker 分頁，所以 Renew 實際是使用者在原分頁輸入；手動批次關閉以 `reportedWorkersOfTower` 選分頁、無輸出檢查，會關掉 Renew 中的 Worker。`--close-worker` 與 MCP 查詢不受 `✓` 影響。
