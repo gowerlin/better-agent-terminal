@@ -5,6 +5,7 @@
 // (C1 duplicate claude, C2a SDK binary, C3 baseline, C4 runtime packages, C5 whisper dirs).
 // T0547 (D146) — no resources/bat-server-baseline at all on any platform.
 // T0689 — resources/scripts holds exactly the runtime helpers (serverBundleHelperScripts) on every platform.
+// T0691 / BUG-169 — resources/package.json = { name, version } of the packaged app (the helpers' version) on every platform.
 //
 // Fake electron-builder output trees (release/mac-arm64/*.app, release/linux-unpacked,
 // release/win-unpacked) are built in a temp dir with hand-written Mach-O / ELF / PE headers
@@ -52,6 +53,7 @@ const {
   winAppOutDirName,
 } = require(SCRIPT)
 const nativeModules = require('../verify-native-modules.js')
+const { afterPack, versionManifestContent, versionManifestProblems } = require('../version-manifest.cjs')
 
 const APP = 'BetterAgentTerminal.app'
 const dirs = []
@@ -153,9 +155,12 @@ function writeAsar(resourcesPath, packed) {
   writeFile(path.join(resourcesPath, 'app.asar'), Buffer.concat([sizeBuf, headerBuf, ...chunks]))
 }
 
+/** T0691: the version every healthy fixture packages (app.asar package.json = resources/package.json). */
+const APP_VERSION = '1.2.3-pre.4'
+
 /** dist-electron entries requiring ws / node-pty, plus ws itself, packed in the asar. */
 const HEALTHY_PACKED = {
-  'package.json': '{"main":"dist-electron/main.js"}',
+  'package.json': JSON.stringify({ name: 'better-agent-terminal', version: APP_VERSION, main: 'dist-electron/main.js' }),
   'dist-electron/main.js': 'require("./main-abc.js")',
   'dist-electron/main-abc.js': 'const ws=require("ws"),fs=require("node:fs"),p=require("path");require("electron")',
   'dist-electron/preload.js': 'require("electron")',
@@ -176,6 +181,11 @@ function writeHelperScripts(resourcesPath, names = runtimeHelperScripts()) {
   for (const name of names) writeFile(path.join(resourcesPath, 'scripts', name), '')
 }
 
+/** T0691: resources/package.json as the afterPack hook writes it (the helpers' version source). */
+function writeHelperVersion(resourcesPath, content = versionManifestContent('better-agent-terminal', APP_VERSION)) {
+  writeFile(path.join(resourcesPath, 'package.json'), content)
+}
+
 function unpacked(appPath, ...segments) {
   return path.join(appPath, 'Contents', 'Resources', 'app.asar.unpacked', ...segments)
 }
@@ -193,7 +203,7 @@ function claudePath(appPath, arch) {
  * node-pty — all `arch` — plus the whisper linux / win32 builds (ELF / PE, never checked).
  * `omit` drops parts so a test can break exactly one thing.
  */
-function makeApp(outDir, arch, { omit = [] } = {}) {
+function makeApp(outDir, arch, { omit = [], packed = HEALTHY_PACKED } = {}) {
   const appPath = path.join(outDir, macAppOutDirName(arch), APP)
   const resources = path.join(appPath, 'Contents', 'Resources')
   if (!omit.includes('main')) writeFile(path.join(appPath, 'Contents', 'MacOS', 'BetterAgentTerminal'), thinMachO(arch))
@@ -203,8 +213,33 @@ function makeApp(outDir, arch, { omit = [] } = {}) {
   writeFile(whisperPath(appPath, 'js', 'index.js'), '')
   writeRuntimePackages(resources, 'darwin', arch)
   if (!omit.includes('helpers')) writeHelperScripts(resources)
-  writeAsar(resources, HEALTHY_PACKED)
+  if (!omit.includes('version')) writeHelperVersion(resources)
+  writeAsar(resources, packed)
   return appPath
+}
+
+function makeLinux(outDir, arch, claude, { packed = HEALTHY_PACKED } = {}) {
+  const resources = path.join(outDir, linuxAppOutDirName(arch), 'resources')
+  writeRuntimePackages(resources, 'linux', arch)
+  writeHelperScripts(resources)
+  writeHelperVersion(resources)
+  if (claude) writeFile(path.join(resources, 'app.asar.unpacked', 'node_modules', '@anthropic-ai', `claude-code-linux-${arch}`, 'claude'), claude)
+  writeAsar(resources, packed)
+  return resources
+}
+
+function makeWin(outDir, { claude = pe(PE_MACHINES.x64), packed = HEALTHY_PACKED, extra = () => {} } = {}) {
+  const resources = path.join(outDir, winAppOutDirName('x64'), 'resources')
+  const anthropic = path.join(resources, 'app.asar.unpacked', 'node_modules', '@anthropic-ai')
+  writeRuntimePackages(resources, 'win32', 'x64')
+  writeHelperScripts(resources)
+  writeHelperVersion(resources)
+  if (claude) writeFile(path.join(anthropic, 'claude-code', 'bin', 'claude.exe'), claude)
+  writeFile(path.join(anthropic, 'claude-code-win32-x64', 'package.json'), '{}')
+  writeFile(path.join(resources, 'app.asar.unpacked', 'node_modules', '@kutalia', 'whisper-node-addon', 'dist', 'win32-x64', 'whisper.node'), pe(PE_MACHINES.x64))
+  extra(resources)
+  writeAsar(resources, packed)
+  return resources
 }
 
 function runCli(args) {
@@ -476,15 +511,6 @@ describe('verifyPackagedMac', () => {
 })
 
 describe('verifyPackagedLinux', () => {
-  function makeLinux(outDir, arch, claude) {
-    const resources = path.join(outDir, linuxAppOutDirName(arch), 'resources')
-    writeRuntimePackages(resources, 'linux', arch)
-    writeHelperScripts(resources)
-    if (claude) writeFile(path.join(resources, 'app.asar.unpacked', 'node_modules', '@anthropic-ai', `claude-code-linux-${arch}`, 'claude'), claude)
-    writeAsar(resources, HEALTHY_PACKED)
-    return resources
-  }
-
   it('any server bundle baseline in the AppImage → fail (D146 / T0547)', () => {
     const out = makeOutDir()
     const resources = makeLinux(out, 'x64', elf(ELF_MACHINES.x64))
@@ -610,18 +636,6 @@ describe.each(['pre-release.yml', 'release.yml'])('.github/workflows/%s', (workf
 })
 
 describe('verifyPackagedWin (T0546)', () => {
-  function makeWin(outDir, { claude = pe(PE_MACHINES.x64), packed = HEALTHY_PACKED, extra = () => {} } = {}) {
-    const resources = path.join(outDir, winAppOutDirName('x64'), 'resources')
-    const anthropic = path.join(resources, 'app.asar.unpacked', 'node_modules', '@anthropic-ai')
-    writeRuntimePackages(resources, 'win32', 'x64')
-    writeHelperScripts(resources)
-    if (claude) writeFile(path.join(anthropic, 'claude-code', 'bin', 'claude.exe'), claude)
-    writeFile(path.join(anthropic, 'claude-code-win32-x64', 'package.json'), '{}')
-    writeFile(path.join(resources, 'app.asar.unpacked', 'node_modules', '@kutalia', 'whisper-node-addon', 'dist', 'win32-x64', 'whisper.node'), pe(PE_MACHINES.x64))
-    extra(resources)
-    writeAsar(resources, packed)
-    return resources
-  }
   const ids = (out) => verifyPackagedWin(out).archs[0].problems.map((p) => p.id)
 
   it('bin/claude.exe is an x64 PE and nothing extra is packaged → ok (exit 0)', () => {
@@ -778,6 +792,130 @@ describe('verifyPackagedWin (T0546)', () => {
     expect(String(readAsarFile(archive, 'dist-electron/main.js'))).toBe('require("ws")')
     expect(String(readAsarFile(archive, 'native/addon.node'))).toBe('binary')
     expect(readAsarFile(archive, 'missing.js')).toBeNull()
+  })
+})
+
+// T0691 / BUG-169: the helpers' version file, on each platform's real resources directory.
+describe.each([
+  {
+    platform: 'mac',
+    build: (out, opts) => path.join(makeApp(out, 'arm64', opts), 'Contents', 'Resources'),
+    checked: (out) => verifyPackagedMac(out).archs[0].apps[0],
+    cli: ['--platform', 'mac'],
+  },
+  {
+    platform: 'linux',
+    build: (out, opts) => makeLinux(out, 'x64', elf(ELF_MACHINES.x64), opts),
+    checked: (out) => verifyPackagedLinux(out).archs[0],
+    cli: ['--platform', 'linux'],
+  },
+  {
+    platform: 'win',
+    build: (out, opts) => makeWin(out, opts),
+    checked: (out) => verifyPackagedWin(out).archs[0],
+    cli: ['--platform', 'win'],
+  },
+])('helper-version on $platform (T0691)', ({ build, checked, cli }) => {
+  const manifestPath = (resources) => path.join(resources, 'package.json')
+  const versionProblems = (out) => checked(out).problems.filter((p) => p.id === 'helper-version')
+
+  it('resources/package.json = { name, version } of the packaged app → ok (exit 0)', () => {
+    const out = makeOutDir()
+    const resources = build(out, {})
+    const result = checked(out)
+    expect(result.problems).toEqual([])
+    expect(result.layout.helperVersion).toEqual({ path: manifestPath(resources), version: APP_VERSION, expectedVersion: APP_VERSION, problems: [] })
+    const run = runCli([...cli, '--out', out])
+    expect(run.code).toBe(0)
+    expect(run.stdout).toContain(`helper version ${APP_VERSION}`)
+  })
+
+  it('missing → fail (exit 1)', () => {
+    const out = makeOutDir()
+    rmSync(manifestPath(build(out, {})))
+    expect(versionProblems(out).map((p) => p.details)).toEqual([['missing (the afterPack hook did not run)']])
+    expect(checked(out).problems.map((p) => p.id)).toEqual(['helper-version'])
+    const run = runCli([...cli, '--out', out])
+    expect(run.code).toBe(1)
+    expect(run.stderr).toContain('T0691 helper-version')
+  })
+
+  it('version 0.0.0 → fail', () => {
+    const out = makeOutDir()
+    writeHelperVersion(build(out, {}), versionManifestContent('better-agent-terminal', '0.0.0'))
+    expect(versionProblems(out).map((p) => p.details)).toEqual([["version is 0.0.0 (the helpers' fallback)"]])
+  })
+
+  it('an extra field (e.g. the whole app package.json) → fail', () => {
+    const out = makeOutDir()
+    writeHelperVersion(build(out, {}), JSON.stringify({ name: 'better-agent-terminal', version: APP_VERSION, main: 'dist-electron/main.js' }))
+    expect(versionProblems(out).map((p) => p.details)).toEqual([['extra field(s): main (only name / version allowed)']])
+  })
+
+  it('a version other than the app.asar package.json → fail (exit 1)', () => {
+    const out = makeOutDir()
+    build(out, { packed: { ...HEALTHY_PACKED, 'package.json': JSON.stringify({ name: 'better-agent-terminal', version: '9.9.9', main: 'dist-electron/main.js' }) } })
+    expect(versionProblems(out).map((p) => p.details)).toEqual([[`version is ${APP_VERSION}, expected 9.9.9 (app.asar package.json)`]])
+    const run = runCli([...cli, '--out', out])
+    expect(run.code).toBe(1)
+    expect(run.stderr).toContain(`version is ${APP_VERSION}, expected 9.9.9`)
+  })
+
+  it('app.asar package.json without a version → only the file itself is checked', () => {
+    const out = makeOutDir()
+    build(out, { packed: { ...HEALTHY_PACKED, 'package.json': '{"main":"dist-electron/main.js"}' } })
+    expect(checked(out).problems).toEqual([])
+    expect(checked(out).layout.helperVersion.expectedVersion).toBeNull()
+  })
+})
+
+describe('version-manifest.cjs (T0691)', () => {
+  it('writes only name / version, in the server bundle format', () => {
+    expect(versionManifestContent('better-agent-terminal', '0.7.1')).toBe('{\n  "name": "better-agent-terminal",\n  "version": "0.7.1"\n}\n')
+    expect(versionManifestProblems(versionManifestContent('better-agent-terminal', '0.7.1'), '0.7.1')).toEqual([])
+  })
+
+  it('reports every problem of a version file', () => {
+    expect(versionManifestProblems('not json')[0]).toMatch(/^not valid JSON/)
+    expect(versionManifestProblems('[]')).toEqual(['not a JSON object'])
+    expect(versionManifestProblems('{"version":""}')).toEqual(['name is missing or empty', 'version is missing or empty'])
+    expect(versionManifestProblems('{"name":"x","version":"1.0.0"}', '1.0.1')).toEqual(['version is 1.0.0, expected 1.0.1 (app.asar package.json)'])
+    expect(versionManifestProblems('{"name":"x","version":"1.0.0"}')).toEqual([])
+  })
+
+  it('the server bundle uses the same function (no second copy of the format)', () => {
+    const source = readFileSync(path.join(path.dirname(SCRIPT), 'build-server-bundle.mjs'), 'utf8')
+    expect(source).toContain("import versionManifest from './version-manifest.cjs'")
+    expect(source).toContain("writeFileSync(path.join(stagingRoot, 'package.json'), versionManifest.versionManifestContent(pkg.name, version), 'utf8')")
+    expect(source).not.toMatch(/JSON\.stringify\(\{\s*name:\s*pkg\.name/)
+  })
+
+  it('package.json build.afterPack is the hook; no platform-level files / extraResources (T0546)', () => {
+    const pkg = require('../../package.json')
+    expect(pkg.build.afterPack).toBe('./scripts/version-manifest.cjs')
+    for (const platform of ['win', 'mac', 'linux']) {
+      expect(pkg.build[platform].files).toBeUndefined()
+      expect(pkg.build[platform].extraResources).toBeUndefined()
+    }
+  })
+
+  // electron-builder calls afterPack with the packager after extraResources are copied, before signing.
+  it.each([
+    ['win', (appOutDir) => path.join(appOutDir, 'resources')],
+    ['linux', (appOutDir) => path.join(appOutDir, 'resources')],
+    ['mac', (appOutDir) => path.join(appOutDir, 'BetterAgentTerminal.app', 'Contents', 'Resources')],
+  ])('afterPack writes the packaged version into the %s resources directory', async (_platform, resourcesDir) => {
+    const appOutDir = makeOutDir()
+    mkdirSync(resourcesDir(appOutDir), { recursive: true })
+    const packager = { appInfo: { name: 'better-agent-terminal', version: '0.7.2-pre.1' }, getResourcesDir: resourcesDir }
+    await afterPack({ appOutDir, packager })
+    expect(readFileSync(path.join(resourcesDir(appOutDir), 'package.json'), 'utf8')).toBe(versionManifestContent('better-agent-terminal', '0.7.2-pre.1'))
+  })
+
+  it('afterPack fails the build when the packager has no version', async () => {
+    const appOutDir = makeOutDir()
+    const packager = { appInfo: { name: 'better-agent-terminal', version: '' }, getResourcesDir: () => appOutDir }
+    await expect(afterPack({ appOutDir, packager })).rejects.toThrow(/name \/ version unavailable/)
   })
 })
 

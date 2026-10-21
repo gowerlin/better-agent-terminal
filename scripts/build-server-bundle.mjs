@@ -20,6 +20,7 @@ import {
   writeExecutableScript,
   sha256File,
 } from './_bat-server-helpers.mjs'
+import versionManifest from './version-manifest.cjs'
 
 const projectRoot = path.join(path.dirname(fileURLToPath(import.meta.url)), '..')
 const pkg = JSON.parse(readFileSync(path.join(projectRoot, 'package.json'), 'utf8'))
@@ -408,11 +409,9 @@ async function writeLauncherAndReadme(nodeVersion) {
     `#!/bin/sh\nexec "$(dirname "$0")/${targetConfig.runtimeBinaryName}" "$(dirname "$0")/bat-server.mjs" "$@"\n`
   )
 
-  writeFileSync(
-    path.join(stagingRoot, 'package.json'),
-    JSON.stringify({ name: pkg.name, version }, null, 2) + '\n',
-    'utf8'
-  )
+  // The helpers read their version from <scripts>/../package.json (BUG-169 / T0691; same format
+  // the desktop afterPack hook writes at <resources>/package.json).
+  writeFileSync(path.join(stagingRoot, 'package.json'), versionManifest.versionManifestContent(pkg.name, version), 'utf8')
 
   const readmePath = path.join(stagingRoot, 'README.md')
   const initial = [

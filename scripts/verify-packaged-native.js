@@ -37,6 +37,9 @@
  *   - C5  the whisper addon's `dist/` only holds `js/` and this platform's directories
  *   - T0689 `resources/scripts` (the packaged BAT_HELPER_DIR) holds exactly the runtime helpers
  *         (`serverBundleHelperScripts` in scripts/build-server-bundle.mjs): none missing, nothing extra
+ *   - T0691 `resources/package.json` (where the helpers read `--version` / BAT MCP `serverInfo.version`,
+ *         BUG-169) holds only `name` / `version`, the version is not empty / 0.0.0 and equals the
+ *         app.asar package.json version (written by the afterPack hook in scripts/version-manifest.cjs)
  *
  * Usage (run after electron-builder, before uploading artifacts):
  *   node scripts/verify-packaged-native.js [--platform mac|linux|win] [--out <dir>] [--arch <list>]
@@ -55,6 +58,7 @@
 const fs = require('fs');
 const { builtinModules } = require('module');
 const path = require('path');
+const { VERSION_MANIFEST_FILE, versionManifestProblems } = require('./version-manifest.cjs');
 
 const WHISPER_ADDON_PACKAGE = '@kutalia/whisper-node-addon';
 const WHISPER_ADDON_BINARY = 'whisper.node';
@@ -471,12 +475,47 @@ function verifyHelperScripts(resourcesPath, expected) {
   return { present, problems };
 }
 
+/** `version` of the packaged app (app.asar package.json), or null when it cannot be read. */
+function asarAppVersion(asar) {
+  const manifest = asar ? readAsarFile(asar, 'package.json') : null;
+  if (manifest === null) return null;
+  try {
+    const { version } = JSON.parse(String(manifest));
+    return typeof version === 'string' && version !== '' ? version : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * T0691 / BUG-169: `<resources>/package.json`, the version source of the packaged helpers
+ * (`join(<scripts>, '..', 'package.json')`), exists and holds only a real `name` / `version`;
+ * the version equals `expectedVersion` when one is known.
+ */
+function verifyHelperVersion(resourcesPath, expectedVersion = null) {
+  const manifestPath = path.join(resourcesPath, VERSION_MANIFEST_FILE);
+  let content = null;
+  try {
+    content = fs.readFileSync(manifestPath, 'utf8');
+  } catch {
+    // reported below
+  }
+  const details = content === null ? ['missing (the afterPack hook did not run)'] : versionManifestProblems(content, expectedVersion);
+  const problems = details.length > 0
+    ? [{ id: 'helper-version', message: `${manifestPath} is not the helpers' version file (T0691 / BUG-169; the helpers would report 0.0.0)`, details }]
+    : [];
+  let version = null;
+  if (problems.length === 0) version = JSON.parse(content).version;
+  return { path: manifestPath, version, expectedVersion, problems };
+}
+
 /**
  * T0546 layout checks shared by every platform. `platform` is the Node name
- * (win32 / darwin / linux). `helperScripts` defaults to runtimeHelperScripts() (T0689).
- * Returns { problems, runtime, baselines, helperScripts }.
+ * (win32 / darwin / linux). `helperScripts` defaults to runtimeHelperScripts() (T0689);
+ * `expectedVersion` (T0691) defaults to the app.asar package.json version.
+ * Returns { problems, runtime, baselines, helperScripts, helperVersion }.
  */
-function verifyPackagedLayout(resourcesPath, platform, arch, { helperScripts } = {}) {
+function verifyPackagedLayout(resourcesPath, platform, arch, { helperScripts, expectedVersion } = {}) {
   const problems = [];
   const asarPath = path.join(resourcesPath, 'app.asar');
   const unpackedDir = path.join(resourcesPath, 'app.asar.unpacked');
@@ -545,7 +584,11 @@ function verifyPackagedLayout(resourcesPath, platform, arch, { helperScripts } =
   }
   problems.push(...helpers.problems);
 
-  return { problems, runtime, baselines: baselines ?? [], helperScripts: helpers.present };
+  // T0691: resources/package.json = the helpers' version, equal to the packaged app's
+  const helperVersion = verifyHelperVersion(resourcesPath, expectedVersion ?? asarAppVersion(asar));
+  problems.push(...helperVersion.problems);
+
+  return { problems, runtime, baselines: baselines ?? [], helperScripts: helpers.present, helperVersion };
 }
 
 function listApps(appOutDir) {
@@ -809,13 +852,15 @@ function printProblems(label, problems) {
 function describeLayout(layout) {
   if (!layout) return '';
   const runtime = layout.runtime ? `, ${layout.runtime.packages.length} runtime package(s) / ${layout.runtime.checked} with dependencies` : '';
-  return `, no server bundle baseline${runtime}, ${layout.helperScripts.length} runtime helper(s) in resources/scripts`;
+  const version = layout.helperVersion?.version ? `, helper version ${layout.helperVersion.version}` : '';
+  return `, no server bundle baseline${runtime}, ${layout.helperScripts.length} runtime helper(s) in resources/scripts${version}`;
 }
 
 function printLayoutHints() {
   console.error('[verify-packaged-native] T0546 runtime-require: add the package (and its dependencies) to the node_modules whitelist in package.json build.files.');
   console.error('[verify-packaged-native] T0546 sdk-binary / duplicate-claude / whisper-platforms: an exclusion in package.json build.files was lost. T0547 server-bundle-baseline: remove the bat-server-baseline extraResources entry (D146).');
   console.error('[verify-packaged-native] T0689 helper-scripts: package.json build.extraResources (from: scripts) filter must list exactly serverBundleHelperScripts; run `npm run verify:helpers`.');
+  console.error('[verify-packaged-native] T0691 helper-version: package.json build.afterPack must stay ./scripts/version-manifest.cjs (it writes resources/package.json = { name, version } of the packaged app).');
   console.error('');
 }
 
@@ -932,6 +977,7 @@ module.exports = {
   scanExternalRequires,
   runtimeHelperScripts,
   verifyHelperScripts,
+  verifyHelperVersion,
   verifyPackagedLayout,
   verifyPackagedMac,
   verifyPackagedLinux,
