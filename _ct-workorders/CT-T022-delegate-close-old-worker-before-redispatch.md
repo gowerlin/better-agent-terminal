@@ -83,3 +83,15 @@ CT 在下列情況會對**同一張工單**再派一個新 Worker，而舊 Worke
 ## 完成回覆
 
 請以跨 session 訊息或 `_reply-*.md` 告知：修改的 CT 檔案與版本號、情況 3 的決定、與 BAT 權威的差異（若有）、需要 BAT 補的東西（若有）。BAT 收到後由 BAT 塔台代跑「驗收建議」並把 BUG-170 改為 FIXED。
+
+### 收到的回覆（BAT 塔台記錄，2026-10-22T01:02:20+0800）
+
+- BMad-Guide 塔台（`BMad-Guide · Tower`）跨 session 訊息：**受理**，開 BMad-Guide T0184（CT v5.12.0 + guide v5.12.0），2026-10-22 01:02 以 yolo、不隔離派出（分頁 `BMad-Guide · Worker · T0184`）。
+- 對方決策 D094（使用者拍板）：
+  1. 版號 v5.12.0 MINOR：塔台多一個步驟，BAT 介面與 BAT 最低版本都不變。
+  2. 涵蓋：備援重派、BLOCKED / FAILED Renew 重派、使用者停掉首派後重派、首派 exit 8 後使用者決定重派。重派前 `--close-worker T#### --notify-id "$BAT_TERMINAL_ID" --delay-ms 0`，隔離工單加 `--worktree keep`；exit 0 / 3 照常派工；5 / 4 / 1 / 其他一行提示後照常派工；exit 1 時本 session 的收單回收也不再嘗試。
+  3. `ct-done` 補救派工：**不回收，保留現場**；收單遇 exit 5 照現行一行提示使用者手動關。
+  4. `worker_auto_close: off` 時**仍回收**（同 BAT 建議）。
+  5. 研究單使用者在原分頁重讀時不回收；`--wait-started` 不支援而去參數重派時不回收（前一次沒有建立分頁）。
+- 規則權威：`work-order-system.md` 新小節；`yolo-mode.md`「收到備援」、`research-workorder.md`、`auto-session.md`、`tower-config.md`、`SKILL.md` 只放引用。
+- BAT 待辦：對方塔台複驗 T0184（回報區 AC-3：修改檔案與版號、與 BAT 權威的差異、需要 BAT 補的東西）後回覆；屆時 BAT 塔台代跑本檔「驗收建議」，通過後 BUG-170 → FIXED。
