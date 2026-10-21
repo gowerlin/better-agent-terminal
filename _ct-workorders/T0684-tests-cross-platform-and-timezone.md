@@ -4,14 +4,15 @@ schema_kind: workorder
 id: T0684
 title: "CI 擋版前置：ubuntu 試跑失敗的 29 項（9 檔）改成跨平台／不依賴時區——寫死 Windows 行為 19 項、時區 10 項"
 type: fix
-status: IN_PROGRESS
+status: DONE
 repo: better-agent-terminal
 project: BUG-168
 priority: P2
 sizing: M
 created_at: "2026-10-21T21:15:12+0800"
 started_at: "2026-10-21T21:16:32+0800"
-updated_at: "2026-10-21T21:21:59+0800"
+updated_at: "2026-10-21T21:26:08+0800"
+completed_at: "2026-10-21T21:26:08+0800"
 depends_on:
   - "T0683（DONE `a35c4ce3`：`tests.yml`）；GitHub 試跑 run `39605811732`（2026-10-21，ubuntu-24.04，`2dd1dbdc`）：5719 passed、29 failed、6 skipped / 5754，9 檔失敗"
 related:
@@ -32,7 +33,6 @@ affects_files:
   - "產品檔：只在下方 memory_overrides 允許的條件下修改，修改前先問塔台"
   - _ct-workorders/T0684-tests-cross-platform-and-timezone.md
 renew_count: 0
-tower_question: open
 workdir: main repo
 worker_question_timeout: 30
 interaction:
@@ -90,14 +90,63 @@ memory_overrides:
 
 ### 完成狀態
 
+DONE。29 項在 WSL Ubuntu 24.04（`TZ=UTC`）全數重現後修好：9 檔在 Linux（`TZ=UTC`）與 Windows 都是 202/202 通過；沒有用 `skipIf`，Windows 上的測試數不變。依 D178（Q-1／Q-2 答 [A]）改了兩個非測試檔：`electron/wsl-detect.ts` 1 行、`e2e/real-remote/baseline-source.mjs` 約 3 行，兩處在 Windows 上 `path === path.win32`，行為不變。
+
 ### 逐項處理（檔案、項目、原因、處理方式）
+
+| 檔案 | 項數 | 原因 | 處理方式 |
+|---|---|---|---|
+| `electron/__tests__/bat-mcp-launch.test.ts` | 4 | 暫存 dataDir 在 Windows 有 `\`、`:`，引號規則一定加引號；Linux `/tmp/…` 全是安全字元，走不加引號的快速路徑，期望字串 `'--mcp-config=…'` 不符 | 改測試資料：`dataDir = <tmp>/App Data/userData`（加一個空格），兩平台都得加引號。期望字串仍逐一寫出（pwsh／posix 單引號、cmd 雙引號），不由被測函式算出 |
+| `electron/__tests__/blocked-hooks-launch.test.ts` | 4 | 同上（`--mcp-config=`／`--settings=`） | 同上 |
+| `electron/__tests__/claude-session-name-launch.test.ts` | 3 | 同上（含 `--name=` 那串的前段） | 同上 |
+| `electron/__tests__/gh-resolver.test.ts` | 4 | 測試把 `process.platform` 設成 `win32`，但產品的 `path.join`／`path.delimiter` 用主機的 posix 規則：`PATH='C:\\Tools'` 在 `:` 被切開，路徑用 `/` 連接 | 注入：`vi.mock('path')` 讓 `join`／`normalize`／`isAbsolute`／`delimiter`／`sep` 照當下 `process.platform` 選 `path.win32` 或 `path.posix`（真實主機上兩者本來一致），Windows 案例的期望值改成字面字串（`'C:\\Tools\\GitHub CLI\\gh.exe'` 等）。另修 `prefers git on PATH` 原本沒跳脫的 `'C:\Git\cmd'`（實際是 `'C:Gitcmd'`）。linux 案例照舊（mock 後兩平台都用 posix） |
+| `electron/__tests__/upgrade-rollback-main.test.ts` | 1 | `validateWindowsAbsolutePath` 用主機的 `path.isAbsolute` 檢查 Windows tarball 路徑 → Linux 回 `Expected absolute Windows path` | 產品改 `path.win32.isAbsolute`（D178／Q-1），測試檔不動 |
+| `electron/__tests__/wsl-install-bundle.test.ts` | 2 | 同上 | 同上 |
+| `scripts/__tests__/e2e-baseline-source.test.mjs` | 1 | `defaultInstalledBaselineDirs` 接受注入的 `platform`，但用主機的 `path` 組路徑；Linux 上 `dirname('D:\\BAT\\…exe')` = `.` | helper 依注入的 `platform` 選 `path.win32`／`path`（D178／Q-2）；測試期望值改成字面 Windows 路徑 |
+| `src/lib/__tests__/usage-limit.test.ts` | 9 | 測試假設主機時區：`NOW` 是本機 15:00，句子 `4pm (Asia/Taipei)` 被期望成 NOW 後 1 小時（只在主機為 Asia/Taipei 時成立） | 檔案層級固定 `process.env.TZ = 'Asia/Taipei'`，`afterAll` 還原；未改全域 vitest 設定 |
+| `electron/__tests__/usage-limit-continue.test.ts` | 1 | 同上（`START` 本機 15:00） | 同上 |
+
+Windows 斷言數沒有減少的證據：本單 diff 沒有新增、刪除或改成 skip 任何 `it`／`it.each`／`describe`（`git diff -U0` 過濾這幾個關鍵字是空的）；9 檔 Windows 改前改後都是 202 項（改前的數字是 Linux 重現時的 173 passed + 29 failed = 202）；全套 5751 passed | 3 skipped（5754），skip 數與 T0683 的基線（5751 | 3 skipped）相同。
 
 ### 時區判斷
 
+是**測試假設時區**，產品沒有問題，所以沒有提問：`parseClaudeResetTime` 用句子裡的 IANA 時區（`tzOffsetMs` / `epochOf`，`Intl.DateTimeFormat` 的 `timeZone`）計算；本來就有的 `reset times` 測試以 UTC epoch 斷言 `3pm (Asia/Taipei)`、`(America/New_York)`、`(UTC)`，改前在 `TZ=UTC` 下也是通過的。codex 的句子不帶時區，產品照設計用本機時區（`parseCodexResetTime`），測試用 `local()` 期望，固定 TZ 後兩邊一致。另在 Windows 以 `TZ=UTC` 跑這 2 檔：69/69 通過。
+
 ### 驗證結果（Windows／Linux）
+
+| 項目 | 結果 | 證據 |
+|---|---|---|
+| Linux 重現（WSL Ubuntu 24.04、Node 24.22.0、npm 11.19.1；從 HEAD `602207fd` clone 到 `~/t0684`、`npm ci --ignore-scripts` + electron `install.js`、清掉 `BAT_*`／`CT_*`、`CI=true`、`TZ=UTC`） | 改前 FAILED（預期中） | 9 檔：29 failed、173 passed（202），失敗清單與 run `39605811732` 相同 |
+| Linux 9 檔（同上環境，覆蓋本單 9 檔） | PASS | Test Files 9 passed (9)，Tests 202 passed (202)；`TZ=UTC date` → `Wed Oct 21 13:23:24 UTC 2026` |
+| Windows 9 檔 | PASS | Test Files 9 passed (9)，Tests 202 passed (202) |
+| Windows `TZ=UTC` 時區 2 檔 | PASS | 69 passed (69) |
+| `npm run test:unit`（Windows） | PASS | Test Files 326 passed (326)，Tests 5751 passed \| 3 skipped (5754)，58.70 s |
+| `npm run typecheck` | PASS | exit 0 |
+| `npm run typecheck:electron` | PASS | exit 0 |
+| `npx vite build` | PASS | exit 0 |
+| Playwright e2e | 未實跑 | 工單不跑 e2e；`baseline-source.mjs` 也被 e2e 使用，Windows 上行為不變（塔台 Q-2 答覆要求註明） |
 
 ### Commit
 
+- `4d4bce72`（`4d4bce720a3c70faccb273164c30a6852c3da6fe`）test: T0684 …（9 檔：7 個測試檔 + `electron/wsl-detect.ts` + `e2e/real-remote/baseline-source.mjs`），用 `git commit --only`。
+- `925ed822` 工單提問；本次收尾另有一個工單 commit。
+- 未 push。
+
 ### 遭遇問題
 
+1. 有兩處要改非測試檔（`electron/wsl-detect.ts`、`e2e/real-remote/baseline-source.mjs`），照工單規定先以 BAT 通道問塔台（Q-1／Q-2），塔台答 [A]（D178）後才改。
+2. 與 T0685 共用工作目錄：它改了 `package.json`／`package-lock.json`、加了 `scripts/run-legacy-tests.mjs` 與 `tests/zz-t0685-*`，也改了自己的工單；本單都沒碰，commit 只含本單 9 檔。全套測試是在這些未 commit 的變更存在時跑的（`tests/zz-t0685-*` 不在 `test:unit` 的 include 內）。
+3. WSL 的 clone `~/t0684` 留在 WSL 家目錄（repo 外），之後可以刪。
+
+### 互動紀錄
+
+- [21:22] Q-1: `validateWindowsAbsolutePath` 可否改 `path.win32.isAbsolute`？ → A（塔台，BAT 通道，choice 1）: [A] 同意，加註解，兩個測試檔不 skip，收尾跑 test:unit／typecheck 0/0／build，記 D178 → Action: 改 `electron/wsl-detect.ts:146-150`（含註解），3 項在 Linux 通過
+- [21:22] Q-2: `defaultInstalledBaselineDirs` 可否依 `platform` 用 `path.win32`？ → A（塔台，BAT 通道，choice 1）: [A] 同意，期望值寫字面字串，視同本單 affects_files，回報註明未實跑 e2e，記 D178 → Action: 改 helper 與測試期望值，1 項在 Linux 通過
+
+### Landing check
+
+PASS。C-0：frontmatter `repo` = `better-agent-terminal`，`basename(REPO_ROOT)` = `better-agent-terminal`。C-1：工單在 REPO_ROOT 下。C-3：`affects_files` 都存在（informational）。C-2：沒有 `branch` 欄位。`CT_HOME` 未設（不是 worktree）。`BAT_WORKSPACE_ID` = `cc0afc4a-57e9-4f41-b2ed-a2d8bac9e36b`（只記錄）。
+
 ### 回報時間
+
+2026-10-21T21:25:24+0800
