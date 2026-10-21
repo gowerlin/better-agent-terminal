@@ -1465,6 +1465,12 @@
 - **切分**：W2a 設計語言 + 元件 + 首頁（T0630）→ 預覽通過後 W2b（`/control-tower`、功能、FAQ、回報頁）→ W2c 遠端開發；W3 / W4 不變。
 - **相關**：PLAN-049 / D159 / D160 / T0624 / T0630
 
+### D178 2026-10-21 — T0684 Q-1／Q-2：檢查 Windows 路徑的地方明確用 `path.win32`（塔台代決）
+
+- **背景**：T0684 讓 ubuntu 試跑失敗的測試改成跨平台時，有 4 項的根源在程式碼：① `electron/wsl-detect.ts` 的 `validateWindowsAbsolutePath` 用主機的 `path.isAbsolute` 檢查 WSL 安裝用的 Windows tarball 路徑（只在 Windows 主機呼叫，唯一呼叫點在同檔）；② `e2e/real-remote/baseline-source.mjs` 的 `defaultInstalledBaselineDirs` 已接受注入的 `platform`，組路徑卻用主機的 `path`。工單規定改產品檔前先問塔台。
+- **決定**（21:2x，塔台代決，BAT `--answer` 兩題皆選 [A]）：兩處改成明確的 `path.win32`（後者依注入的 `platform` 選 `path.win32` 或 `path`）。Windows 上 `path === path.win32`，行為不變；Linux 也能跑同一組斷言，不必 `skip`，覆蓋不降。不採 [B]（`it.skipIf` 跳過），因為會讓 CI 少測這幾項。因改到產品檔，T0684 收尾必跑 `test:unit`、typecheck、build；e2e helper 不實跑 Playwright。
+- **相關**：T0684 / D177 / BUG-168 / T0683
+
 ### D177 2026-10-21 — BUG-168 修正：G1～G4 全做、舊測試往 vitest 收斂；CI 分兩步（先 test:unit 試跑再擋版，修完再加 test:legacy）
 
 - **背景**：T0679 研究（`6fb40e70`）：`tests/` 底下不在 `test:unit` 的 29 項失敗與 9 個逾時全部是測試過時，沒有產品回歸；3 組 5 個失效 script；**CI 完全沒跑 `npm run test:unit`**（四個 workflow 只有 typecheck，塔台已確認）；`pty-manager-helper-env.test.ts` 有環境變數隔離問題。
