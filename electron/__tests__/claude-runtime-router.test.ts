@@ -8,14 +8,17 @@ import type { ClaudeRuntimeInfo } from '../claude-resolver'
 import { claudeUpdateGuardEnv, isSafeClaudeCustomPath } from '../claude-resolver'
 import {
   __test__,
+  clearRuntimeEventHistory,
   configureRuntimeRouter,
   EmbeddedClaudeMissingError,
   embeddedClaudeCandidates,
   getRuntimeSettingsSnapshot,
   resolveClaudeRuntime,
   resolveEmbeddedClaudePath,
+  shouldEmitRuntimeEvent,
   SystemClaudeUnavailableError,
   SystemClaudeUnsafePathError,
+  type ResolveClaudeRuntimeDeps,
 } from '../claude-runtime-router'
 import { logger } from '../logger'
 
@@ -528,5 +531,99 @@ describe('no fallback to the SDK-bundled claude (T0546)', () => {
       .catch((e: unknown) => e)
     expect(fallbackErr).toBeInstanceOf(SystemClaudeUnavailableError)
     expect((fallbackErr as SystemClaudeUnavailableError).detail).not.toMatch(/claude-agent-sdk/)
+  })
+})
+
+// PLAN-027 T0233 (T-R1..T-R11), moved from tests/claude-runtime-router.test.ts by T0680 (BUG-168).
+describe('resolveClaudeRuntime fallback branches (T0233)', () => {
+  function systemInfo(partial: Partial<ClaudeRuntimeInfo>): ClaudeRuntimeInfo {
+    return {
+      path: '/usr/local/bin/claude',
+      version: '2.1.113',
+      versionRaw: '2.1.113 (Claude Code)',
+      healthStatus: 'healthy',
+      source: 'path',
+      ...partial,
+    }
+  }
+
+  type Detect = NonNullable<ResolveClaudeRuntimeDeps['detectSystemClaude']>
+
+  function deps(detectSystemClaude: Detect): ResolveClaudeRuntimeDeps {
+    return { detectSystemClaude, resolveEmbeddedClaudePath: () => embeddedPath, embeddedClaudeExists: () => true }
+  }
+
+  it('T-R1: embedded mode returns the embedded path without calling the detector', async () => {
+    const detectSystemClaude = vi.fn(async () => null)
+    const result = await resolveClaudeRuntime({ mode: 'embedded', fallbackToEmbedded: true }, deps(detectSystemClaude))
+    expect(result).toEqual({ path: embeddedPath, source: 'embedded', healthStatus: 'healthy' })
+    expect(detectSystemClaude).not.toHaveBeenCalled()
+  })
+
+  it('T-R2: a healthy system claude is used as is', async () => {
+    const result = await resolveClaudeRuntime(
+      { mode: 'system', fallbackToEmbedded: true },
+      deps(async () => systemInfo({ path: '/opt/claude/claude.exe' })),
+    )
+    expect(result).toMatchObject({ path: '/opt/claude/claude.exe', source: 'system', healthStatus: 'healthy', systemVersion: '2.1.113' })
+    expect(result.degraded).toBeUndefined()
+  })
+
+  const fallbackCases: Array<[string, string, Detect, string | undefined]> = [
+    ['T-R3', 'system-not-found', async () => null, undefined],
+    ['T-R4', 'system-too-old', async () => systemInfo({ version: '1.9.99', healthStatus: 'version-too-old' }), '1.9.99'],
+    ['T-R5', 'system-unhealthy', async () => systemInfo({ version: '', healthStatus: 'spawn-failed' }), undefined],
+    ['T-R6', 'detect-threw', async () => { throw new Error('boom: EACCES or similar') }, 'boom'],
+  ]
+  it.each(fallbackCases)('%s: fallback on → embedded, degraded %s', async (_id, reason, detect, detailContains) => {
+    const result = await resolveClaudeRuntime({ mode: 'system', fallbackToEmbedded: true }, deps(detect))
+    expect(result).toMatchObject({ path: embeddedPath, source: 'system-fallback-to-embedded', healthStatus: 'healthy', degraded: { reason } })
+    if (detailContains) expect(result.degraded?.detail).toContain(detailContains)
+  })
+
+  const noFallbackCases: Array<[string, Detect]> = [
+    ['system-not-found', async () => null],
+    ['detect-threw', async () => { throw new Error('detect boom') }],
+    ['system-too-old', async () => systemInfo({ version: '1.0.0', healthStatus: 'version-too-old' })],
+  ]
+  it.each(noFallbackCases)('T-R7: fallback off → SystemClaudeUnavailableError (%s)', async (reason, detect) => {
+    const err = await resolveClaudeRuntime({ mode: 'system', fallbackToEmbedded: false }, deps(detect)).catch((e: unknown) => e)
+    expect(err).toBeInstanceOf(SystemClaudeUnavailableError)
+    expect((err as SystemClaudeUnavailableError).reason).toBe(reason)
+  })
+
+  it('T-R8: version-warning stays on the system claude, no fallback', async () => {
+    const result = await resolveClaudeRuntime(
+      { mode: 'system', fallbackToEmbedded: true },
+      deps(async () => systemInfo({ path: '/opt/old-claude/claude', version: '2.0.5', healthStatus: 'version-warning' })),
+    )
+    expect(result).toMatchObject({ path: '/opt/old-claude/claude', source: 'system', healthStatus: 'version-warning', systemVersion: '2.0.5' })
+    expect(result.degraded).toBeUndefined()
+  })
+})
+
+describe('shouldEmitRuntimeEvent / clearRuntimeEventHistory (T0233)', () => {
+  const sessions = ['t-r9', 't-r10', 't-r11', 't-r11-other']
+  afterEach(() => sessions.forEach(clearRuntimeEventHistory))
+
+  it('T-R9: first call per (session, type) emits, repeats do not', () => {
+    expect(shouldEmitRuntimeEvent('t-r9', 'degraded')).toBe(true)
+    expect(shouldEmitRuntimeEvent('t-r9', 'degraded')).toBe(false)
+    expect(shouldEmitRuntimeEvent('t-r9', 'degraded')).toBe(false)
+  })
+
+  it('T-R10: degraded and warning are tracked independently', () => {
+    expect(shouldEmitRuntimeEvent('t-r10', 'degraded')).toBe(true)
+    expect(shouldEmitRuntimeEvent('t-r10', 'warning')).toBe(true)
+    expect(shouldEmitRuntimeEvent('t-r10', 'degraded')).toBe(false)
+    expect(shouldEmitRuntimeEvent('t-r10', 'warning')).toBe(false)
+  })
+
+  it('T-R11: clearing a session lets it emit again, other sessions are separate', () => {
+    expect(shouldEmitRuntimeEvent('t-r11', 'degraded')).toBe(true)
+    expect(shouldEmitRuntimeEvent('t-r11', 'degraded')).toBe(false)
+    clearRuntimeEventHistory('t-r11')
+    expect(shouldEmitRuntimeEvent('t-r11', 'degraded')).toBe(true)
+    expect(shouldEmitRuntimeEvent('t-r11-other', 'degraded')).toBe(true)
   })
 })
