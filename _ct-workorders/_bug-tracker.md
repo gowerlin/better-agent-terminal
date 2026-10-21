@@ -3,17 +3,17 @@ schema_version: 1
 schema_kind: index
 id: _bug-tracker
 index_kind: bugs
-generated_at: "2026-10-19T18:12:30+0800"
+generated_at: "2026-10-21T19:17:17+0800"
 generator: control-tower-sync
 source_globs:
   - _ct-workorders/BUG-*.md
 exclude_globs:
   - _ct-workorders/_archive/**
   - _ct-workorders/examples/**
-total: 51
+total: 52
 breakdown:
   OPEN: 1
-  FIXING: 0
+  FIXING: 1
   FIXED: 22
   VERIFY: 0
   CLOSED: 28
@@ -23,10 +23,10 @@ breakdown:
 # Bug Tracker
 
 > ⚠️ 此文件由 `*sync` 自動生成，請勿手動編輯。
-> 最後同步：2026-10-19 18:12 (UTC+8) — BUG-164 FIXED → CLOSED（外部測試者A 以 v0.7.1-pre.3 確認）；BUG-166 FIXED 待 外部測試者A（pre.4）；BUG-165 OPEN（有空再排）
+> 最後同步：2026-10-21 19:17 (UTC+8) — 新增 BUG-167（遷移測試斷言過時）→ FIXING（T0678）；BUG-166 FIXED 待 外部測試者A（pre.4）；BUG-165 OPEN（有空再排）
 
 ## 統計
-- 🔴 Open: 1 | ⏳ Fixing: 0 | ✅ Fixed: 22 | 🧪 Verify: 0 | 🚫 Closed: 28 | ⛔ Won't Fix: 0 | **Total: 51**
+- 🔴 Open: 1 | ⏳ Fixing: 1 | ✅ Fixed: 22 | 🧪 Verify: 0 | 🚫 Closed: 28 | ⛔ Won't Fix: 0 | **Total: 52**
 
 ## 🔴 Open / 處理中
 
@@ -38,6 +38,7 @@ breakdown:
 
 | ID | 標題 | 嚴重度 | 修復時間 | 連結 |
 |----|------|--------|---------|------|
+| BUG-167 | `tests/profile-manager-migration.test.ts` 2 項斷言過時（docker-linux、ssh-linux 的 metadata 多了新欄位；不在 test:unit） | 🟢 low | 2026-10-21（T0678） | [BUG-167](BUG-167-profile-manager-migration-test-stale-assertions.md) |
 
 ## ✅ 已修復
 
