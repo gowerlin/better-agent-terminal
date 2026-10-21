@@ -13,6 +13,7 @@ import GrowthLadder from './components/GrowthLadder.vue'
 import MediaFigure from './components/MediaFigure.vue'
 import QuestionFlow from './components/QuestionFlow.vue'
 import RemoteBridge from './components/RemoteBridge.vue'
+import ShellLoop from './components/ShellLoop.vue'
 import StatsCounter from './components/StatsCounter.vue'
 import StoryChapter from './components/StoryChapter.vue'
 import StoryIllo from './components/StoryIllo.vue'
@@ -39,6 +40,7 @@ export default {
     app.component('MediaFigure', MediaFigure)
     app.component('QuestionFlow', QuestionFlow)
     app.component('RemoteBridge', RemoteBridge)
+    app.component('ShellLoop', ShellLoop)
     app.component('StatsCounter', StatsCounter)
     app.component('StoryChapter', StoryChapter)
     app.component('StoryIllo', StoryIllo)

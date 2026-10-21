@@ -6,9 +6,11 @@ withDefaults(
     rows: string[][]
     // 要強調的列（0 起算），例：機場比喻的「塔台不上飛機」
     highlight?: number[]
+    // 強調列的語意色：tower = 塔台紫（預設）、you = 你要做的事的藍
+    highlightTone?: 'tower' | 'you'
     caption?: string
   }>(),
-  { highlight: () => [] }
+  { highlight: () => [], highlightTone: 'tower' }
 )
 </script>
 
@@ -24,7 +26,7 @@ withDefaults(
         </tr>
       </thead>
       <tbody>
-        <tr v-for="(row, r) in rows" :key="r" :class="{ 'is-highlight': highlight.includes(r) }">
+        <tr v-for="(row, r) in rows" :key="r" :class="{ 'is-highlight': highlight.includes(r), 'is-you': highlightTone === 'you' }">
           <th scope="row">{{ row[0] }}</th>
           <td v-for="(cell, c) in row.slice(1)" :key="c">{{ cell }}</td>
         </tr>
@@ -32,7 +34,7 @@ withDefaults(
     </table>
 
     <ul class="ct-cards" :aria-label="caption">
-      <li v-for="(row, r) in rows" :key="r" class="ct-card" :class="{ 'is-highlight': highlight.includes(r) }">
+      <li v-for="(row, r) in rows" :key="r" class="ct-card" :class="{ 'is-highlight': highlight.includes(r), 'is-you': highlightTone === 'you' }">
         <p class="ct-card-title">{{ row[0] }}</p>
         <dl>
           <template v-for="(cell, c) in row.slice(1)" :key="c">

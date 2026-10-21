@@ -3685,3 +3685,162 @@
     transition: none;
   }
 }
+
+/* ---------- 把腦力留給判斷（/why 與首頁新段落） ---------- */
+
+/* 故事每章「你不用再記住」：放在 BAT + CT 卡片底部，用「你 = 藍」標出這是從你腦袋拿走的事 */
+.story-card .story-relief {
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px dashed var(--bat-line);
+  font-size: 15px;
+  line-height: 1.75;
+}
+
+.story-card .story-relief b {
+  font-weight: 700;
+  color: var(--bat-you);
+}
+
+/* 首頁三種負擔：「留給你」那一格的上框用你 = 藍 */
+.feature.is-you {
+  padding-top: 19px;
+  border-top: 2px solid var(--bat-you);
+}
+
+.feature.is-you .feature-title {
+  color: var(--bat-you);
+}
+
+.home-why-note {
+  margin: 40px 0 0;
+  max-width: 36em;
+  font-size: 17px;
+  font-weight: 500;
+  line-height: 1.8;
+}
+
+/* /why 開頭的主旨句：三個子句各占一行；左側粗線把它和頁面標題分開 */
+.vp-doc .why-motto {
+  margin: 28px 0 28px;
+  padding-left: 18px;
+  border-left: 4px solid var(--vp-c-text-1);
+  font-family: var(--bat-font-display);
+  font-size: clamp(20px, 2.4vw, 26px);
+  font-weight: 900;
+  line-height: 1.6;
+  letter-spacing: 0.02em;
+}
+
+.vp-doc .why-motto span {
+  display: block;
+}
+
+/* 負擔的四個去處：「你的腦袋」是最不該去的地方，上框改成虛線 */
+.vp-doc .ct-concepts.why-places > div:first-child {
+  border-top: 2px dashed var(--vp-c-text-3);
+}
+
+.vp-doc .ct-concepts.why-places > div:first-child dt {
+  color: var(--vp-c-text-1);
+}
+
+.vp-doc .why-places .why-verdict {
+  display: block;
+  margin-bottom: 4px;
+  font-weight: 700;
+  color: var(--vp-c-text-1);
+}
+
+/* 對照表最後一列「還是你」：強調色用你 = 藍，不用塔台紫 */
+.vp-doc .ct-grid tr.is-highlight.is-you th,
+.vp-doc .ct-grid tr.is-highlight.is-you td,
+.vp-doc .ct-card.is-highlight.is-you {
+  background: color-mix(in srgb, var(--bat-you) 8%, transparent);
+}
+
+.vp-doc .ct-grid tr.is-highlight.is-you th {
+  box-shadow: inset 2px 0 0 var(--bat-you);
+  color: var(--bat-you);
+}
+
+.vp-doc .ct-grid tr.is-highlight.is-you td {
+  font-weight: 700;
+}
+
+.vp-doc .ct-card.is-highlight.is-you {
+  box-shadow: inset 2px 0 0 var(--bat-you);
+}
+
+.vp-doc .ct-card.is-highlight.is-you .ct-card-title {
+  color: var(--bat-you);
+}
+
+/* 外殼與內容（ShellLoop） */
+.shell-loop {
+  margin: 28px 0;
+}
+
+.sl-svg {
+  display: block;
+  width: 100%;
+  max-width: 400px;
+  height: auto;
+  margin: 0 auto;
+  font-family: var(--bat-font-sans);
+}
+
+.sl-ring {
+  fill: var(--bat-raised);
+  stroke: var(--bat-line);
+  stroke-width: 2;
+}
+
+.sl-arrow {
+  fill: var(--vp-c-text-2);
+}
+
+.sl-node {
+  fill: var(--vp-c-text-1);
+}
+
+.sl-step {
+  font-size: 15px;
+  font-weight: 700;
+  fill: var(--vp-c-text-1);
+}
+
+.sl-core {
+  fill: var(--vp-c-bg);
+  stroke: var(--vp-c-text-2);
+  stroke-width: 1.5;
+  stroke-dasharray: 5 5;
+}
+
+.sl-core-title,
+.sl-core-line {
+  text-anchor: middle;
+}
+
+.sl-core-title {
+  font-size: 15px;
+  font-weight: 700;
+  fill: var(--vp-c-text-1);
+}
+
+.sl-core-line {
+  font-size: 13px;
+  fill: var(--vp-c-text-2);
+}
+
+.vp-doc .sl-caption {
+  margin-top: 12px;
+  text-align: center;
+  font-size: 14px;
+  line-height: 1.75;
+  color: var(--vp-c-text-2);
+}
+
+.sl-caption span {
+  display: inline-block;
+}

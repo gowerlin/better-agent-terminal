@@ -9,9 +9,11 @@ interface Feature {
   note?: string
   // 標題連到的頁面段落（站內路徑，不含 base）
   link?: string
+  // 'you'：這一格講的是「你要做的事」，框線用「你 = 藍」
+  tone?: 'you'
 }
 
-type FeatureSet = 'standalone' | 'learning' | 'messy'
+type FeatureSet = 'standalone' | 'learning' | 'messy' | 'loads'
 
 const props = withDefaults(defineProps<{ set?: FeatureSet }>(), { set: 'standalone' })
 
@@ -89,14 +91,31 @@ const MESSY: Feature[] = [
   }
 ]
 
-const SETS: Record<FeatureSet, Feature[]> = { standalone: STANDALONE, learning: LEARNING, messy: MESSY }
+// 首頁「把腦力留給判斷」：三種負擔，三種處理（細節在 /why#three-loads）
+const LOADS: Feature[] = [
+  {
+    title: '雜事：BAT 拿掉',
+    body: '開分頁、送指令、確認 Agent 真的啟動、標出誰在等誰、把回報送回塔台、收單後回收分頁，都不用你動手。'
+  },
+  {
+    title: '難度：工單切小',
+    body: '每張工單寫清楚範圍。Worker 一次做一張，你一次審一張。'
+  },
+  {
+    title: '判斷：留給你',
+    body: '範圍要擴大、不可逆的操作、對外發布、需要你的偏好、連續失敗，一定停下來問你。',
+    tone: 'you'
+  }
+]
+
+const SETS: Record<FeatureSet, Feature[]> = { standalone: STANDALONE, learning: LEARNING, messy: MESSY, loads: LOADS }
 
 const features = computed(() => SETS[props.set])
 </script>
 
 <template>
   <ul class="features" :class="`is-${set}`">
-    <li v-for="f in features" :key="f.title" class="feature">
+    <li v-for="f in features" :key="f.title" class="feature" :class="{ 'is-you': f.tone === 'you' }">
       <h3 class="feature-title">
         <a v-if="f.link" :href="withBase(f.link)">{{ f.title }}</a>
         <template v-else>{{ f.title }}</template>

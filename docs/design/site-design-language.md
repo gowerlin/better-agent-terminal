@@ -145,7 +145,7 @@ T0634 為 `/control-tower` 與首頁「越用越懂你的專案」新增的語�
 
 - 角色三色：**紫 = 塔台**（`--bat-signal`，A1）、**藍 = 你**（`--bat-you`）、**中性 = Worker**（文字色 / 分隔線，不另給顏色）。
 - 藍取自 Stepper `awaiting-input`（`#38bdf8`，上表）：「輪到你」和「等你輸入」是同一個語意，都是中性等待，不是錯誤。淺色模式同色相降明度到 AA。
-- 用在：TicketLife 每步的「你要做的事」框（`.tl-you`）、QuestionFlow 轉給你的那一路（`.qf-branch.is-you`）、GrowthLadder 由你拍板的幾級（`.gl-rung.is-you`）。
+- 用在：TicketLife 每步的「你要做的事」框（`.tl-you`）、QuestionFlow 轉給你的那一路（`.qf-branch.is-you`）、GrowthLadder 由你拍板的幾級（`.gl-rung.is-you`）；T0674 起另有首頁故事每章的「你不用再記住」（`.story-relief`）、首頁「把腦力留給判斷」的「留給你」那格（`.feature.is-you`）、`/why` 對照表刻意保留的最後一列（CardTable `highlight-tone="you"`）。`/why` 的外殼示意（ShellLoop）不用紫也不用藍：外圈五步不是單一塔台動作。
 - 🔴 不得用在 Worker 或 `?` 在等塔台答覆：縮圖 `?` 的藍（`#61afef` / `#1d64a8`，§ 3.1）是另一個值、另一個語意。
 - `#38bdf8` 在白底只有 2.14，淺色模式一律用 `#0369a1`。
 

@@ -31,37 +31,37 @@ markdownStyles: false
 
 <StoryTimeline>
 
-<StoryChapter time="09:00" title="一個對話，越聊越長" illo="long-chat" :roles="[['CT', '拆工單、管脈絡'], ['BAT', '每張工單一個獨立分頁']]">
+<StoryChapter time="09:00" title="一個對話，越聊越長" illo="long-chat" relief="一開始說好的規則" :roles="[['CT', '拆工單、管脈絡'], ['BAT', '每張工單一個獨立分頁']]">
 <template #before>從需求聊到實作，再聊到除錯。兩小時後，Agent 開始忘記一開始說好的規則，改 A 壞 B，你只好從頭再解釋一次。</template>
 <template #after>你只跟<strong>塔台</strong>談需求。塔台把工作拆成三張<strong>工單</strong>，每張寫清楚目標、範圍、驗收條件與不准碰的東西，再為每張開一個<strong>全新的 Worker</strong>。每個 Worker 只帶一張工單的脈絡上工，塔台只保留進度與決定。</template>
 </StoryChapter>
 
-<StoryChapter time="09:20" title="你成了人肉剪貼簿" illo="dispatch" :roles="[['BAT', '派工、啟動確認、完成通知'], ['CT', '何時派、派給誰']]">
+<StoryChapter time="09:20" title="你成了人肉剪貼簿" illo="dispatch" relief="哪段 prompt 要貼到哪個分頁" :roles="[['BAT', '派工、啟動確認、完成通知'], ['CT', '何時派、派給誰']]">
 <template #before>開新終端、切到專案目錄、貼 prompt、等它做完、把結果複製回來，再開下一個。</template>
 <template #after>塔台一個指令，BAT 就在<strong>同一個工作區</strong>開好 Worker 分頁，帶上這個工作區設定的 Agent 與啟動參數，並確認 Agent 真的啟動了。Worker 做完，通知<strong>直接送回塔台</strong>，塔台接手驗收。</template>
 </StoryChapter>
 
-<StoryChapter time="10:05" title="五個終端，三個在等你——是哪三個？" illo="thumbnails" :roles="[['BAT', '狀態偵測、縮圖標示、自動回收']]">
+<StoryChapter time="10:05" title="五個終端，三個在等你——是哪三個？" illo="thumbnails" relief="哪個分頁在等你" :roles="[['BAT', '狀態偵測、縮圖標示、自動回收']]">
 <template #before>有的停在權限確認，有的在問問題，有的早就做完了。你只能一個一個點進去看。</template>
 <template #after>Worker 分頁的標題帶著它的工單編號，縮圖直接標出 <strong>⚠️ 在等你</strong>、<strong>? 在等塔台答覆</strong>、<strong>✓ 已回報</strong>。塔台收單後，分頁等輸出安靜才自動關閉；你也能一次關掉所有已回報的分頁。</template>
 </StoryChapter>
 
-<StoryChapter time="10:40" title="Agent 停下來問你，而你正在開會" illo="questions" :roles="[['BAT', '提問通道'], ['CT', '代決邊界']]">
+<StoryChapter time="10:40" title="Agent 停下來問你，而你正在開會" illo="questions" relief="每個 Agent 卡在哪個問題" :roles="[['BAT', '提問通道'], ['CT', '代決邊界']]">
 <template #before>它問完就停著。等你回來，一小時已經過去了。</template>
 <template #after>Worker 用結構化通道<strong>問塔台</strong>。「金額四捨五入還是無條件捨去？」這種範圍內的技術選擇，塔台依工單與專案慣例直接回答，並記下理由；「折扣碼能不能和會員折扣疊加？」是要你決定的商業規則，塔台才停下來問你（yolo 模式）。</template>
 </StoryChapter>
 
-<StoryChapter time="11:15" title="兩個 Agent 改了同一個檔案" illo="branches" :roles="[['CT', '重疊檢查、合併判斷'], ['BAT', 'worktree 隔離、合併前狀態']]">
+<StoryChapter time="11:15" title="兩個 Agent 改了同一個檔案" illo="branches" relief="每個 Agent 會動到哪些檔案" :roles="[['CT', '重疊檢查、合併判斷'], ['BAT', 'worktree 隔離、合併前狀態']]">
 <template #before>為了快，你讓它們同時開工，合併時才發現兩個都改了 <code>cart.ts</code>。</template>
 <template #after>派工前，塔台先比對每張工單會動到的檔案，有重疊就提醒你。需要平行時，Worker 在<strong>獨立的 git worktree</strong>（自己的分支）裡做；收單前，塔台查清楚每條分支比主線領先多少、落後多少、有沒有未提交的變更，再決定合併順序。</template>
 </StoryChapter>
 
-<StoryChapter time="12:00" title="「做完了！」——真的嗎？" illo="checklist" :roles="[['CT', '驗收與狀態']]">
+<StoryChapter time="12:00" title="「做完了！」——真的嗎？" illo="checklist" relief="哪些測試跑過、哪些還沒" :roles="[['CT', '驗收與狀態']]">
 <template #before>測試跑了嗎？有沒有順手改了不該改的東西？你得自己再查一遍。</template>
 <template #after>工單事先寫好驗收條件與禁止事項。Worker 回報時附上證據：跑了哪些指令、結果如何、commit 是哪一個；塔台逐項核對才收單。狀態只有 <strong>DONE</strong>、<strong>PARTIAL</strong>、<strong>BLOCKED</strong>、<strong>FAILED</strong> 四種，不含糊。</template>
 </StoryChapter>
 
-<StoryChapter time="一個月後" title="當初為什麼這樣決定？" illo="files" :roles="[['CT', '檔案驅動的紀錄']]">
+<StoryChapter time="一個月後" title="當初為什麼這樣決定？" illo="files" relief="當初為什麼這樣決定" :roles="[['CT', '檔案驅動的紀錄']]">
 <template #before>理由散在聊天視窗裡，視窗一關就找不回來。</template>
 <template #after>每張工單、每個決定都是 repo 裡的 Markdown 檔，和程式碼一起進版控、一起 review。換人接手、換一個 Agent，脈絡都還在。</template>
 </StoryChapter>
@@ -69,6 +69,20 @@ markdownStyles: false
 </StoryTimeline>
 
 <p class="story-ending">12:30，三張工單都收單，Worker 分頁已經關閉，決定都寫在 repo 裡。這個早上你只做了三個決定：要做什麼、折扣能不能疊加、要不要合併。</p>
+</div>
+</section>
+
+<section class="home-section">
+<div class="home-wrap">
+<h2 class="home-title">把腦力留給判斷</h2>
+<p class="home-lead">記憶交給檔案，跑腿交給 BAT，判斷留給你。</p>
+<FeatureGrid set="loads" />
+<p class="home-why-note">不規定你用哪種開發方法，也不替你判斷：該你決定的事，要靠你的專業。</p>
+<div class="home-more">
+
+[為什麼這樣設計](./why)
+
+</div>
 </div>
 </section>
 

@@ -7,6 +7,8 @@ defineProps<{
   illo: StoryIlloKind
   // 分工標籤：['BAT', '派工、啟動確認'] 之類
   roles: Array<[string, string]>
+  // 這一章之後你不必再記住的事（顯示在「BAT + CT」卡片底部，前面固定加「你不用再記住：」）
+  relief?: string
 }>()
 </script>
 
@@ -25,6 +27,7 @@ defineProps<{
         <section class="story-card is-after">
           <h4>BAT + CT</h4>
           <p><slot name="after" /></p>
+          <p v-if="relief" class="story-relief"><b>你不用再記住：</b>{{ relief }}</p>
         </section>
       </div>
       <StoryIllo :kind="illo" />
