@@ -4,13 +4,14 @@ schema_kind: workorder
 id: T0694
 title: "Worker 回報後又開始執行（Renew）時不顯示 ✓、不列入批次關閉：主行程回合信號 → 「已回報、又在執行」，回合結束回到 ✓；批次關閉確認框加註近期輸出（T0693 方案 a + d1 + d2，D180）"
 type: feature
-status: IN_PROGRESS
+status: DONE
 repo: better-agent-terminal
 project: D180
 priority: P2
 sizing: M
 created_at: "2026-10-22T00:26:01+0800"
-updated_at: "2026-10-22T00:27:51+08:00"
+updated_at: "2026-10-22T00:50:51+08:00"
+completed_at: "2026-10-22T00:50:51+08:00"
 started_at: "2026-10-22T00:27:51+08:00"
 depends_on: []
 related:
@@ -24,6 +25,8 @@ affects_files:
   - electron/terminal-blocked-state.ts
   - electron/terminal-attention.ts
   - electron/remote/headless-entry.ts
+  - electron/pty-manager.ts
+  - electron/main.ts
   - electron/__tests__/**
   - electron/remote/__tests__/**
   - src/lib/terminal-attention.ts
@@ -43,7 +46,6 @@ affects_files:
   - CLAUDE.md
   - _ct-workorders/T0694-worker-resumed-after-report-badge.md
 renew_count: 0
-tower_question: open
 workdir: main repo
 worker_question_timeout: 30
 interaction:
@@ -110,12 +112,89 @@ Worker 回報後，分頁標籤顯示 `✓`。塔台 Renew、使用者在原分�
 - 影響範圍：`electron/pty-manager.ts`（約 10 行）、`electron/main.ts`（1 行）；驗收「只改 `affects_files`」那條。
 - 阻塞：否（先做 renderer、tracker、測試；主行程接線等答覆）
 
+- Q-1 已由塔台經 BAT 通道答覆（見 `### 互動紀錄`），`tower_question` 已移除。
+
 ### 完成狀態
+
+**DONE**：驗收項目全部通過。
+
+- 落點檢查：**PASS**。C-0：frontmatter `repo` = `better-agent-terminal`，`basename(REPO_ROOT)` = `better-agent-terminal`；C-1：工單在 `REPO_ROOT/_ct-workorders/` 底下；C-3：前 5 個可測路徑都存在 → PASS；C-2：工單沒有 `branch` 欄位，當前分支 `main`。非 worktree（沒有設定 `CT_HOME`）。`BAT_WORKSPACE_ID` = `cc0afc4a-57e9-4f41-b2ed-a2d8bac9e36b`（只記錄）。
+- 驗收（HEAD `cefb9db3adb2acee47da1b59fe4e89ea7e739e41`，`BAT_HELPER_LOG_DIR` / `BAT_USER_DATA` 都指到 scratchpad temp）：
+  - `npm run typecheck` = 0、`npm run typecheck:electron` = 0
+  - `npx vite build`：exit 0
+  - `npm run test:unit`：**329 files / 5857 passed / 3 skipped / 0 failed**（基線 326 / 5812 / 3）
+  - e2e（隔離實例，build 之後才跑）：新增的 `e2e/t0694-worker-resumed-badge.spec.ts` 通過；回歸跑了 `e2e/t0538-worker-tab-batch-close.spec.ts`、`e2e/t0609-worker-attention-badge.spec.ts`、`e2e/t0621-codex-osc-state.spec.ts`（本機 `codex-cli 0.163.0`，真 codex TUI），4 個都通過。e2e 跑在 commit 前的工作樹上；commit 前最後兩處只是改註解、刪一行空行，之後在 HEAD 上重跑了 typecheck、build 與整包 unit。
+  - `npm run test:legacy`：**未跑**。沒有改到 `tests/` 底下 legacy 收的檔案（依工單規則可以不跑）。
 
 ### 產出摘要
 
+#### 步驟 0：claude `Stop` 是否觸發 → 需要逾時備援
+
+- **證據**：claude 官方 hooks 文件（`https://code.claude.com/docs/en/hooks`，§ Stop）原文：「Runs when the main Claude Code agent has finished responding. Does not run if the stoppage occurred due to a user interrupt. API errors fire StopFailure instead.」；§ StopFailure：「Runs instead of Stop when the turn ends due to an API error.」。內嵌 CLI `@anthropic-ai/claude-code` 2.1.306 的二進位，hook 事件表也有 `"Stop","StopFailure"`，另外有 `executeStopFailureHooks` 和 `hook_event_name:"StopFailure"` 的 payload（`error` / `error_details` / `last_assistant_message`）。
+- **結論**：使用者按 Esc 中斷，或回合因 API 錯誤結束時，BAT 都收不到 `stop`，所以要逾時備援。**加了**：`AGENT_TURN_QUIET_END_MS` = 60 s，回合中 PTY 連續 60 s 沒有輸出就視為結束。安靜時間從「回合開始」和「最後一次輸出」中較晚的那個算起，`blocked` 期間不判斷。**沒有**加 `StopFailure` hook：Esc 的情況本來就要靠備援，備援也同時涵蓋 API 錯誤，符合工單「不新增 hook 事件就做得到就不要加」。
+- 選 60 s 的理由：claude / codex 回合進行中，工作指示器和經過秒數至少每秒重繪一次，PTY 會持續有輸出。這個數字是推論，沒有逐秒實測。
+- `/clear` 等情況：`UserPromptSubmit` 也會在排程任務、背景 subagent 回報等「claude 自己開始的回合」觸發（文件 § UserPromptSubmit），那些都是真的在工作；回合結束時沒有 `Stop` 的情況一律由備援收尾。
+- codex：codex 的 TUI 每次轉換都會送 OSC 7501（T0619 實測過）。Esc 中斷後是否一定會送 `idle` **沒有逐一實測**，逾時備援同樣涵蓋 codex。
+
+#### 實作（D180：a + d1 + d2）
+
+- **主行程**（唯一實作，本機與 headless 共用）：`TerminalBlockedTracker`（`electron/terminal-blocked-state.ts`）新增回合狀態 `isTurnActive`。
+  - 開始：claude `user-prompt-submit`、codex OSC `working`。
+  - 結束：claude `stop`、codex OSC `idle` / `clear`（`blocked` 不改變回合狀態）、PTY 結束（`clearStarted`）、Terminal Server recovery（`clearAll`）、`dispose`、逾時備援。
+  - 每次轉換都呼叫既有的 `onChange`，記一行日誌 `[turn] terminal=<id> → started|ended (<原因>)`。
+  - `report()` 的回傳（`terminal:report-hook` 契約）不變。
+- **接線**：`PtyManager.isAgentTurnActive(id)` 給 tracker `{ lastOutputAt }`（`electron/pty-manager.ts`）。`TerminalAttentionNotifier` 新增 `isTurnActive` dep，`computeTerminalAttention` 第 4 參數，payload 多 `busy: true`（只有回合進行中才帶）。Electron `electron/main.ts` 與 headless `createHeadlessTerminalQueryModule` 各加一行，兩邊對稱。payload 只有狀態欄位（D155）。
+- **renderer**：
+  - `src/stores/terminal-attention-store.ts` 依「本視窗收到事件的順序」判斷：`busy` 從沒有變成有 → 記一個序號；`markWorkerReported` → `noteWorkerNotified` 記序號；`isWorkerResumedAfterReport` = 回合開始的序號大於最近一次通知的序號。不拿主行程或遠端的時間跟 `reportedAt` 比。這個狀態只存在記憶體。
+  - `workerAttention(tab, attention, resumed)` 新增 kind `resumed`，優先序為 ⚠️ / `?` > `resumed` > `✓`。
+  - 徽章顯示 `↻`，class `resumed`，`data-attention="resumed"`，tooltip 是 `workerTabs.resumedTooltip`。用形狀和 `✓` 區分，不靠顏色；`resumed` 沒有加 CSS，沿用 `.worker-badge` 的中性樣式。
+  - `reportedWorkersOfTower` 排除 `resumed`（新增第 4 參數 `resumedOf`，預設讀 store）。
+- **d2**：把批次關閉確認框抽成同檔的 `WorkerBatchCloseDialog`（`src/components/WorkspaceView.tsx`，class、`ModalOverlay`、Esc、按鈕都不變）。最後輸出在 `BATCH_CLOSE_RECENT_OUTPUT_MS` = 5 s 以內的分頁會加註「仍在輸出」（`.worker-batch-close-printing`，`li[data-still-printing]`），每秒重算一次，只加註、不排除。這個值與 `CLOSE_WORKER_IDLE_MS` 相同，renderer 端放一份複本，有測試斷言兩者相等。三語 i18n 各加 3 個 key。
+- **detached 視窗**：每個視窗各自依收到順序判斷，同一個分頁在主視窗和 detached 視窗的結果一致。交回時：父視窗原本就有的分頁沿用自己的序號；父視窗沒看過通知的新分頁，回合已結束顯示 `✓`，回合還在跑顯示 `↻`（保守做法，回合結束就回到 `✓`，不會殘留）。單元測試涵蓋這三種情況。
+- **對外契約不變**：helper、BAT MCP、`terminal:get-state` / `list` / `wait`、`--close-worker` 都沒改，hook 腳本與 hook 事件表也沒改，沒有注入 codex hooks、`-c notify` 或 `-c tui.*`。
+
+#### 異動檔案（commit `cefb9db3`）
+
+- 主行程：`electron/terminal-blocked-state.ts`、`electron/terminal-attention.ts`、`electron/pty-manager.ts`（只加 `isAgentTurnActive`、tracker 的 `lastOutputAt` 選項與 deps 註解；`buildPtyEnv()`、`enqueuePtyOutput`、create / restart / recovery 都沒改）、`electron/main.ts`（只加 1 行 `isTurnActive` 接線；`app-paths-bootstrap` 仍是第一個 import，有 source guard 斷言）、`electron/remote/headless-entry.ts`
+- renderer：`src/lib/terminal-attention.ts`、`src/stores/terminal-attention-store.ts`、`src/stores/workspace-store.ts`、`src/components/TerminalThumbnail.tsx`、`src/components/WorkspaceView.tsx`、`src/locales/{en,zh-TW,zh-CN}.json`
+- 測試（新增）：`electron/__tests__/agent-turn-attention.test.ts`（24）、`src/stores/__tests__/workspace-store.workerResumed.test.ts`（15）、`src/components/__tests__/worker-tab-resumed.test.tsx`（5）、`e2e/t0694-worker-resumed-badge.spec.ts`。另在 `electron/remote/__tests__/headless-attention-e2e.test.ts` 加了 1 個 headless 推送案例。
+- 改到的既有斷言（沒有改弱）：`electron/__tests__/terminal-blocked-state.test.ts` 與 `electron/__tests__/codex-osc-state.test.ts` 的日誌是**完整比對**，現在多了 `[turn]` 行，所以在期望陣列中**插入**新行，codex 那筆的 `changes` 從 6 筆變 8 筆（多了回合開始與結束）。原有的行與順序都保留。T0538 / T0609 / T0613 的測試完全沒動，全部通過。
+- 文件：`docs/agent-guide/worker-tab-recycle.md`（五態表、T0694 條：生命週期、回合信號、步驟 0 理由、收到順序、d2、detached、已知限制、驗證）、`docs/agent-guide/blocked-state.md`（回合信號一條、codex 轉換表加註）、`CLAUDE.md`「Worker 分頁回收」節多一行（`##` 標題沒改）。
+
+#### 測試覆蓋對照工單要求
+
+- tracker 的回合轉換（claude hook、codex OSC、PTY 結束 / recovery、逾時備援）：`agent-turn-attention.test.ts`
+- `workerAttention` 優先序表、`reportedWorkersOfTower` 排除、事件兩種先後順序、`resumed` → `✓`、→ 新回報：`workspace-store.workerResumed.test.ts`
+- 批次確認框加註：`worker-tab-resumed.test.tsx`
+- headless 推送欄位：`headless-attention-e2e.test.ts`
+- e2e：claude Worker 回報 → 開始回合 → 標籤 `↻`、N = 0 → 回合結束回到 `✓`；確認框只列已回報的那個，並標示仍在輸出、5 s 後標示消失；回合中再回報 → `✓`。逾時備援（60 s）只有單元測試，e2e 沒有測。
+
+### 子代理與 Workflow 使用
+
+都沒有使用。
+
 ### 互動紀錄
+
+- [00:33] Q-1: affects_files 缺 `electron/pty-manager.ts` 與 `electron/main.ts`，可以加進本單範圍嗎？ → A（塔台，BAT 通道 `q-5b9a42a2-bcecfa487321bf29`，choice 1）: [A] 可以，只做接線；條件：Worker 自己把兩檔加進 `affects_files` 並寫明理由；pty-manager.ts 只加讀取回合狀態的公開方法與逾時備援要讀的活動時間，不改 `buildPtyEnv()`、`enqueuePtyOutput` 的輸出處理、create / restart / recovery 既有行為；main.ts 只加 `TerminalAttentionNotifier` 接線，`app-paths-bootstrap` 仍是第一個 import、不新增 import 期 `app.getPath('userData')`；本機與 headless 接線對稱、各有測試 → Action: 兩檔已加進 frontmatter `affects_files`，依條件實作。
 
 ### 遭遇問題
 
+- **範圍**：`affects_files` 原本沒有 `electron/pty-manager.ts`、`electron/main.ts`，但回合狀態一定要透過這兩處接線，所以先問塔台（Q-1）。塔台答覆 [A] 後，兩檔已加進 frontmatter `affects_files`，只做接線，並照塔台的條件實作：pty-manager.ts 只加讀取方法與輸出時間；main.ts 只加 1 行 notifier 接線，`app-paths-bootstrap` 仍是第一個 import，有 source guard。`src/types/index.ts` 在 `affects_files` 內，但不需要修改，所以沒改。
+- **e2e 回歸（已修正）**：「仍在輸出」標示一開始用了 `.worker-badge` class，導致 `e2e/t0538-worker-tab-batch-close.spec.ts` 的選擇器 `li .worker-badge` 對到兩個元素而失敗。改成只用 `.worker-batch-close-printing`，加上少量 inline style（`src/styles/panels.css` 不在範圍內），既有 e2e 不用改。重跑 4 個 e2e 都通過。
+- **已知限制**（也寫進 docs）：
+  - `blockedDetection: none` 的分頁沒有回合信號，只靠 d2 的「仍在輸出」標示提醒。
+  - BAT 重開或視窗重新載入後，要等到下一個回合事件才會更新，在那之前顯示 `✓`。
+  - 回合中安靜超過 60 s 時會提早回到 `✓`，等同 T0694 之前的行為。
+  - 閒置時仍持續輸出的分頁（例如會定時重繪的自訂 claude status line）在 Esc 之後會停在 `↻`，直到下一個 `stop`。這屬於安全方向：分頁不會被批次關閉。
+  - 回報後只是跟 Worker 閒聊，那個回合也會顯示 `↻`。
+- 工單初始 `status` 是 `TODO`（ct-exec 預期是 `PENDING`），當成 PENDING 處理，改為 `IN_PROGRESS`。
+- 沒有 push，也沒有觸發任何 workflow。Git 只用 `git commit --only`，沒有用 stash / reset / checkout / restore。
+
+### Commit
+
+- 產品：`cefb9db3adb2acee47da1b59fe4e89ea7e739e41`（`feat: T0694 resumed Worker badge, not batch-closed while working after its report (D180)`，23 檔）
+- 工單：`76a252a1`（開工與 Q-1），以及本次結案 commit（只含本工單檔，`git commit --only`）
+
 ### 回報時間
+
+2026-10-22T00:50:51+0800
