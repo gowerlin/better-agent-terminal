@@ -393,9 +393,10 @@ function buildSshConnectArgs(opts: StartServerOptions): string[] {
   // buildBaseSshArgs.validateSshIdentifier (T0296). `@` in sshUser remains
   // forbidden here for legacy reasons — it would still parse but is almost
   // certainly garbage. Errors mirror the historic message format so log-greps
-  // keep working. The `@` check has no test of its own; the validateSshIdentifier
-  // rules are covered by electron/__tests__/ssh-start-server.test.ts
-  // ("an sshHost starting with - is rejected before any ssh exec (T0296 F-004)").
+  // keep working. electron/__tests__/ssh-start-server.test.ts covers the `@`
+  // check ("an sshUser containing @ …", T0688; teardown rejects it earlier, in
+  // validateTeardownConnect) and the validateSshIdentifier rules ("an sshHost
+  // starting with - is rejected before any ssh exec (T0296 F-004)").
   if (typeof opts.sshUser === 'string' && opts.sshUser.includes('@')) {
     throw new Error(`Invalid sshUser: ${opts.sshUser}`)
   }
@@ -551,19 +552,21 @@ export async function startServerOnRemote(
     : `launchctl unload '${escapedFile}' >/dev/null 2>&1; launchctl load -w '${escapedFile}'`
   const enableExec = await runSsh(spawn, connectArgs, enableCmd, timeoutMs)
   if (!enableExec.ok) {
-    const err = summariseFailure('enable-failed', enableExec)
-    logger.warn(`[ssh-start-server] ${err}`)
     // distinguish enable-failed (could not register/load) vs start-failed
     // (loaded but won't run). systemd `enable --now` covers both. We look
     // for systemd's distinctive "Job for X failed" / "exited with status" /
     // "ExecStart" markers — generic "Failed to ..." goes to enable-failed.
     const isStartIssue = /\bJob for\b|exited with|crashed|Active:\s*failed|ExecStart|Process exited/i.test(enableExec.stderr)
+    // T0688: the error / log prefix follows errorCode.
+    const errorCode = isStartIssue ? 'start-failed' : 'enable-failed'
+    const err = summariseFailure(errorCode, enableExec)
+    logger.warn(`[ssh-start-server] ${err}`)
     return withPrevious({
       ok: false,
       method: 'failed',
       servicePath: paths.file,
       error: err,
-      errorCode: isStartIssue ? 'start-failed' : 'enable-failed',
+      errorCode,
     })
   }
 

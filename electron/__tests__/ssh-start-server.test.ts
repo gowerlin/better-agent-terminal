@@ -13,9 +13,12 @@ vi.mock('../logger', () => ({
   logger: { error: vi.fn(), warn: vi.fn(), info: vi.fn(), log: vi.fn(), debug: vi.fn() },
 }))
 
+import { logger } from '../logger'
 import {
   __internals,
   startServerOnRemote,
+  stopServerOnRemote,
+  uninstallBundleOnRemote,
   type StarterDeps,
   type StartServerOptions,
 } from '../remote/ssh-start-server'
@@ -255,12 +258,13 @@ describe('startServerOnRemote — carried over from tests/ssh-start-server.test.
     const { calls, spawn } = scriptedSpawn([{}, { exitCode: 1, stderr: 'Failed to enable-linger: not authorized\n' }])
     const result = await startServerOnRemote(absLinux, undefined, { spawn })
     expect(result).toMatchObject({ ok: false, method: 'failed', errorCode: 'enable-failed' })
-    expect(result.error).toMatch(/not authorized/)
+    expect(result.error).toMatch(/^enable-failed: .*not authorized/)
     expect(calls).toHaveLength(2)
   })
 
   // T0685: stage 2 runs enable and start in one ssh exec; its stderr decides between start-failed
   // (loaded but would not run) and enable-failed (generic "Failed to ..." / anything else).
+  // T0688: `error` and the logger.warn line start with the same label as errorCode.
   describe('stage 2 classification: start-failed vs enable-failed (T0685)', () => {
     it.each([
       ['systemd "Job for … failed"', absLinux, 'Job for bat-server.service failed because the control process exited with error code.\nSee "systemctl --user status bat-server.service" for details.\n'],
@@ -270,9 +274,12 @@ describe('startServerOnRemote — carried over from tests/ssh-start-server.test.
       ['a service that crashed', absDarwin, 'com.bat-server crashed on start\n'],
     ])('classifies %s as start-failed (two ssh execs, no verify)', async (_label, opts, stderr) => {
       const { calls, spawn } = scriptedSpawn([{}, { exitCode: 1, stderr }])
+      vi.mocked(logger.warn).mockClear()
       const result = await startServerOnRemote(opts, undefined, { spawn })
       expect(result).toMatchObject({ ok: false, method: 'failed', errorCode: 'start-failed' })
+      expect(result.error).toMatch(/^start-failed: /)
       expect(result.error).toContain(stderr.split('\n')[0])
+      expect(vi.mocked(logger.warn)).toHaveBeenCalledWith(`[ssh-start-server] ${result.error}`)
       expect(calls).toHaveLength(2)
     })
 
@@ -285,8 +292,11 @@ describe('startServerOnRemote — carried over from tests/ssh-start-server.test.
       ['start markers on stdout only (only stderr is classified)', absLinux, { stdout: 'Job for bat-server.service failed\n' }],
     ])('classifies %s as enable-failed', async (_label, opts, output) => {
       const { calls, spawn } = scriptedSpawn([{}, { exitCode: 1, ...output }])
+      vi.mocked(logger.warn).mockClear()
       const result = await startServerOnRemote(opts, undefined, { spawn })
       expect(result).toMatchObject({ ok: false, method: 'failed', errorCode: 'enable-failed' })
+      expect(result.error).toMatch(/^enable-failed: /)
+      expect(vi.mocked(logger.warn)).toHaveBeenCalledWith(`[ssh-start-server] ${result.error}`)
       expect(calls).toHaveLength(2)
     })
   })
@@ -313,6 +323,33 @@ describe('startServerOnRemote — carried over from tests/ssh-start-server.test.
     const { calls, spawn } = scriptedSpawn([])
     await expect(startServerOnRemote({ ...absLinux, sshHost: '-oProxyCommand=evil.sh' }, undefined, { spawn }))
       .rejects.toThrow(/sshHost.*cannot start with '-'/)
+    expect(calls).toHaveLength(0)
+  })
+
+  // T0688: buildSshConnectArgs rejects `@` in sshUser with the historic message. startServerOnRemote
+  // throws it (the ssh:start-server handler turns that into { ok: false, errorCode: 'unknown' });
+  // teardown never reaches that check: validateTeardownConnect's charset rejects `@` first and
+  // runTeardown returns { ok: false }.
+  it('an sshUser containing @ is rejected before any ssh exec (T0688)', async () => {
+    expect(() => __internals.buildSshConnectArgs({ ...absLinux, sshUser: 'demo@evil.example' }))
+      .toThrow(/^Invalid sshUser: demo@evil\.example$/)
+    const { calls, spawn } = scriptedSpawn([])
+    await expect(startServerOnRemote({ ...absLinux, sshUser: 'demo@evil.example' }, undefined, { spawn }))
+      .rejects.toThrow(/^Invalid sshUser: demo@evil\.example$/)
+    expect(calls).toHaveLength(0)
+  })
+
+  it('teardown rejects an sshUser containing @ before any ssh exec (T0688)', async () => {
+    const { calls, spawn } = scriptedSpawn([])
+    const connection = { sshHost: 'devbox.example', sshUser: 'demo@evil.example' }
+    expect(await stopServerOnRemote({ ...connection, targetOS: 'ssh-linux', serverHome: '/home/demo' }, { spawn })).toEqual({
+      ok: false,
+      error: 'stop-server-failed: Invalid sshUser for teardown: "demo@evil.example"',
+    })
+    expect(await uninstallBundleOnRemote({ ...connection, installPath: '/home/demo/.local/bat-server' }, { spawn })).toEqual({
+      ok: false,
+      error: 'uninstall-bundle-failed: Invalid sshUser for teardown: "demo@evil.example"',
+    })
     expect(calls).toHaveLength(0)
   })
 
