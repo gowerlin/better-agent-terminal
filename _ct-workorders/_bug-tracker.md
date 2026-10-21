@@ -3,7 +3,7 @@ schema_version: 1
 schema_kind: index
 id: _bug-tracker
 index_kind: bugs
-generated_at: "2026-10-22T01:48:58+0800"
+generated_at: "2026-10-22T02:01:08+0800"
 generator: control-tower-sync
 source_globs:
   - _ct-workorders/BUG-*.md
@@ -13,8 +13,8 @@ exclude_globs:
 total: 55
 breakdown:
   OPEN: 0
-  FIXING: 1
-  FIXED: 26
+  FIXING: 0
+  FIXED: 27
   VERIFY: 0
   CLOSED: 28
   WONTFIX: 0
@@ -23,10 +23,10 @@ breakdown:
 # Bug Tracker
 
 > ⚠️ 此文件由 `*sync` 自動生成，請勿手動編輯。
-> 最後同步：2026-10-22 01:48 (UTC+8) — BUG-165 → FIXING（T0698，pre.6）；BUG-170 → FIXED（CT v5.12.x 重派前回收舊分頁，T0695 / T0696 實機驗收）；BUG-169 FIXED（T0691，等下一個預覽版安裝版驗收）；BUG-168 / 167 FIXED；BUG-166 FIXED 待 外部測試者A；BUG-165 OPEN
+> 最後同步：2026-10-22 01:48 (UTC+8) — BUG-165 → FIXED（T0698 `ec4b3c13`，隨 pre.6 待實機驗收）；BUG-170 → FIXED（CT v5.12.x 重派前回收舊分頁，T0695 / T0696 實機驗收）；BUG-169 FIXED（T0691，等下一個預覽版安裝版驗收）；BUG-168 / 167 FIXED；BUG-166 FIXED 待 外部測試者A；BUG-165 OPEN
 
 ## 統計
-- 🔴 Open: 0 | ⏳ Fixing: 1 | ✅ Fixed: 26 | 🧪 Verify: 0 | 🚫 Closed: 28 | ⛔ Won't Fix: 0 | **Total: 55**
+- 🔴 Open: 0 | ⏳ Fixing: 0 | ✅ Fixed: 27 | 🧪 Verify: 0 | 🚫 Closed: 28 | ⛔ Won't Fix: 0 | **Total: 55**
 
 ## 🔴 Open / 處理中
 
@@ -37,12 +37,12 @@ breakdown:
 
 | ID | 標題 | 嚴重度 | 修復時間 | 連結 |
 |----|------|--------|---------|------|
-| BUG-165 | macOS：Codex CLI 分頁內捲動不夠順；T0698 修正中（滾輪依累積行數送多個回報，併入 pre.6，D181） | 🟢 low | 2026-10-22 | [BUG-165](BUG-165-macos-codex-cli-scroll-not-smooth.md) |
 
 ## ✅ 已修復
 
 | ID | 標題 | 嚴重度 | 修復時間 | 連結 |
 |----|------|--------|---------|------|
+| BUG-165 | macOS：Codex CLI 分頁內捲動不夠順；T0698 `ec4b3c13` 依累積行數送多個滾輪回報（上限 8），隨 pre.6 發佈，待外部測試者A 實機驗收 | 🟢 low | 2026-10-22 | [BUG-165](BUG-165-macos-codex-cli-scroll-not-smooth.md) |
 | BUG-170 | yolo 提問備援重派後舊 Worker 分頁讓回收 AMBIGUOUS；CT v5.12.0 / v5.12.1 重派前先 `--close-worker`（CT-T022），T0695 / T0696 實機驗收通過 | 🟢 low | 2026-10-22 | [BUG-170](BUG-170-yolo-fallback-redispatch-leaves-old-worker-tab.md) |
 | BUG-169 | 安裝版的 helper 回報版號 v0.0.0；T0691 以 electron-builder `afterPack` 寫只含 name / version 的 `resources/package.json`，打包後 `helper-version` 檢查（`b0ff5673`），等下一個預覽版安裝版驗收 | 🟢 low | 2026-10-21 | [BUG-169](BUG-169-installed-helpers-report-version-0.0.0.md) |
 | BUG-168 | `tests/` 底下沒被跑到的測試失敗與逾時（全部測試過時）；T0680–T0685 修正並收進 vitest／`test:legacy`，ubuntu 試跑 5760 / 0 + 472 / 0；擋版 T0686 | 🟢 low | 2026-10-21 | [BUG-168](BUG-168-tests-dir-tsx-suites-failing-and-timing-out.md) |
