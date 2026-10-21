@@ -4,12 +4,14 @@ schema_kind: workorder
 id: T0696
 title: "CT-T022 驗收情境 2：舊 Worker 分頁已手動關閉時重派，`--close-worker` 回 NOT_FOUND 且照常派工（BUG-170）"
 type: verification
-status: PENDING
+status: IN_PROGRESS
 repo: better-agent-terminal
 project: BUG-170
 priority: P3
 sizing: XS
 created_at: "2026-10-22T01:31:47+0800"
+started_at: "2026-10-22T01:32:52+0800"
+updated_at: "2026-10-22T01:33:00+0800"
 depends_on: []
 related:
   - CT-T022
@@ -18,6 +20,7 @@ related:
 affects_files:
   - _ct-workorders/T0696-ct-t022-acceptance-old-tab-gone.md
 renew_count: 0
+tower_question: open
 workdir: main repo
 worker_question_timeout: 0
 interaction:
@@ -62,6 +65,15 @@ memory_overrides:
 - 新 Worker `DONE` 後，收單回收 exit `0`。
 
 ## 回報區
+
+### 待塔台決策
+
+#### Q-1：驗收用問題——回報區的「選定代號」要寫 A 還是 B？
+- 提問時間：2026-10-22T01:33:00+0800
+- 選項：[A] 寫 `ALPHA` / [B] 寫 `BRAVO` / [C] 其他：________
+- Worker 建議：無偏好（驗收用）
+- 影響範圍：本工單回報區
+- 阻塞：是
 
 ### 完成狀態
 
