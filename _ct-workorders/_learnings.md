@@ -3716,3 +3716,16 @@ Codex 那張是外部測試者回報才發現；Claude 那張是使用者隨口�
 - 帳號、筆記本網址只寫本機紀錄，不寫進公開 repo 的工單（T0675 照做，回報乾淨）
 
 **候選晉升**：🌐 Global 候選（瀏覽器自動化上傳路徑限制、下載對話框、NotebookLM 用量規劃）
+
+## L173
+
+**來源**：第八十八 session（2026-10-21），`v0.7.1-pre.5` 發版前小批（D179）
+
+**現象**：使用者問能不能發 pre.5，塔台開了三張小單（T0687–T0689）並行。三張都完成、跑聯合驗證時，才依 CLAUDE.md「每次預覽版發布前追版」查 `npm view @anthropic-ai/claude-code version`，發現內嵌 2.1.300 落後 latest 2.1.306。只好再開 T0690 排在後面，完成後又跑一輪聯合驗證，發版多花約 15 分鐘。
+
+**How to apply**：
+- 規劃發版小批時，第一步先跑 CLAUDE.md 規定的發版前檢查（內嵌 claude CLI 版本等），需要追版就和其他小單一起並行派工
+- 追版工單照 T0541 / T0690 的範本：lock 只動 claude-code 系列；核對模型清單、effort、計價、服務端門檻、update guard、BAT 整合點（`--mcp-config=` / `--settings=` hooks / `--name`）與 `usage-limit.ts` 句型
+- 發版小批的安裝檔相關改動（例如 T0689 的 `build:dir`）會清掉並重建 `dist-electron`，同批其他工單不要同時 build，整包測試留給塔台聯合驗證
+
+**候選晉升**：專案內（可寫進 `_local-rules.md`「Release 流程實況」的發版前檢查）

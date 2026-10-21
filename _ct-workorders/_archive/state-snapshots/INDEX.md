@@ -1,9 +1,9 @@
 # State Snapshot INDEX
 
-> Last archived: 2026-10-20 (Session 87 收工 — Session 85 快照 archived per PLAN-033)
-> Hot path retains: session 87 (本) + session 86 (前) + Quick Recovery / 基本資訊 / 進度快照 / 管理筆記 / 環境快照 / YOLO 歷程 in `_tower-state.md`
+> Last archived: 2026-10-21 (Session 88 收工 — Session 86 快照 archived per PLAN-033)
+> Hot path retains: session 88 (本) + session 87 (前) + Quick Recovery / 基本資訊 / 進度快照 / 管理筆記 / 環境快照 / YOLO 歷程 in `_tower-state.md`
 > Archive root: `_ct-workorders/_archive/state-snapshots/`
-> Total archived entries: 101 (0 in Q1 / 58 in Q2-a/b / 5 in Q2-c / 2 in Q3 / 36 in Q4)
+> Total archived entries: 102 (0 in Q1 / 58 in Q2-a/b / 5 in Q2-c / 2 in Q3 / 37 in Q4)
 
 | # | Session | Date | File | Summary |
 |---|---------|------|------|---------|
@@ -119,3 +119,4 @@
 | 101 | 第八十三 session | 2026-10-18 | 2026-Q4.md | 第八十三 session, 2026-10-18 18:10-21:25, ~3h15m, T0646-T0662, BUG-156–163, 0.7.1-pre.2 |
 | 102 | 第八十四 session | 2026-10-18 | 2026-Q4.md | 第八十四 session, 2026-10-18 21:27-22:45, ~1h18m, T0663-T0665, BUG-157–163 CLOSED, PLAN-047 / 049 DONE |
 | 103 | 第八十五 session | 2026-10-19 | 2026-Q4.md | 第八十五 session, 2026-10-19 11:42-13:07, ~1h25m, T0666-T0669, BUG-136 / BUG-164, PLAN-053, 0.7.1-pre.3 |
+| 104 | 第八十六 session | 2026-10-19 | 2026-Q4.md | 第八十六 session, 2026-10-19 15:33-18:30, ~2h57m, T0670-T0672, BUG-165 / BUG-166, 0.7.1-pre.4 |

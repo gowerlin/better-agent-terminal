@@ -1,11 +1,51 @@
 # Tower State — better-agent-terminal
 
-> 最後更新:2026-10-21 22:46 (UTC+8) — **第八十八 session 進行中**（CT v5.11.0）：`v0.7.1-pre.5` 已發佈（run `39617678592`，D179 小批 T0687–T0690，Test gate 首次生效）；稍早 T0674 `/why`、D176 去識別化、BUG-167／168 與 Test gate（T0678–T0686）已完成並 push。前次：第八十七 session 收工（2026-10-20 19:59）EXP-WFMINE-001 / T0673 CONCLUDED；PLAN-054 PLANNED（B4 併下次發版、B6 延後、B1 不做）；L171。
+> 最後更新:2026-10-21 23:24 (UTC+8) — **第八十八 session 收工**（CT v5.11.0）：`v0.7.1-pre.5` 已發佈（D179 小批 T0687–T0690，Test gate 首次生效）；本 session 另有 T0674 `/why`、T0675 PARTIAL、D176 去識別化、BUG-167／168 與 Test gate（T0678–T0686）。前次：第八十七 session 收工（2026-10-20 19:59）EXP-WFMINE-001 / T0673 CONCLUDED、PLAN-054。
 >
-> **下次起手**:等 外部測試者A 以 `v0.7.1-pre.4` 回報（A 滑鼠亂碼 → BUG-166；C 選做 → BUG-165）；BUG-156 / 159 仍待特定環境；下次發版時一併開 PLAN-054 B4。
+> **下次起手**:等 外部測試者A 以 `v0.7.1-pre.5` 驗收 BUG-166（C 選做 → BUG-165）；T0675 等使用者下載 S2-04／05；下一批候選 BUG-169；BUG-156 / 159 仍待特定環境。
 ---
 
-## 🛏 本 Session 收工快照 (第八十七 session, 2026-10-20 16:24 - 19:59, ~3h35m)
+## 🛏 本 Session 收工快照 (第八十八 session, 2026-10-21 11:26 - 23:24, ~11h58m)
+
+### 主軸：認知負荷討論 → 網站 `/why`（T0674）→ 第二季 Podcast 與 NotebookLM（T0675 PARTIAL）→ 公開 repo 去識別化（D176）→ BUG-167 / BUG-168 與 CI Test gate（T0678–T0686）→ pre.5 前小批（D179，T0687–T0690）→ 發 `v0.7.1-pre.5`
+
+#### 時間線（時間取自系統 / git / gh）
+
+1. **11:26** 啟動（CT v5.11.0；`--set-role tower --mode on`）；使用者給兩篇文章 + 群組對話，討論 CT + BAT 如何降低認知負荷 → 去識別化的虛構故事網頁 artifact
+2. **16:33** 網站呈現設計初衷（D175）→ T0674 `/why`（`0f50a83d`；使用者補「不規範 SDD/TDD/BDD、仍需專業知識、不是 Vibe Coding」→「這不是什麼」節）；**17:22** push 後 Pages `39576224181` 綠、link-check 1260 / 0
+3. **17:04** 第二季 Podcast 素材 5 集（內部教育訓練版，11 檔，存 BMad-Guide repo，未 commit）；**17:09** T0675 NotebookLM 製作（chrome-live）→ **17:44** PARTIAL（S2-01～03 生成，S2-04／05 排程，使用者自行下載）；L172
+4. **18:11** 使用者要求檢查金鑰與個資 → D176：T0676（`b8ea0f8b`，153 檔）、T0677（`e95b445e`，66 檔）、塔台改 BUG-129 一處；對照表只在 `.private/`；`_local-rules.md` 新增去識別化一節；不改寫 git 歷史
+5. **19:20** BUG-167 + T0678（`d90b3b50`）；盤點發現 `tests/` 41 檔不在 `test:unit` → **20:17** BUG-168 + T0679 研究（29 項失敗 + 9 個逾時全部測試過時；CI 原本沒跑 `test:unit`）
+6. **20:40** D177（G1～G4 全做、往 vitest 收斂、CI 分兩步）→ T0680 / T0681 / T0683 並行 → T0682 → T0684（ubuntu 試跑 29 項寫死 Windows / 時區；Q-1／Q-2 → D178 `path.win32`）→ T0685 `test:legacy`；第二次 ubuntu 試跑 run `39609350106` 全過 → **21:41** BUG-168 FIXED → T0686 Test gate（`bb926fdc`），手動 `tests.yml` run `39611026294` 綠
+7. **22:00** 使用者問「可以發布 v0.7.1-pre.5 了嗎」→ 先開小批（D179）：T0687 MCP 寫入型 tool 政策（`873e6efb`）、T0688 SSH `start-failed` 字首 + `@` 測試（`79412e61`）、T0689 安裝檔只收 6 個執行期 helper（`b9afa02e`；與 T0687 同改 CLAUDE.md，等 T0687 完成再派）；聯合驗證時才查到內嵌 claude CLI 落後 → T0690 追版 2.1.306（`09509698`，L173）；T0689 發現 BUG-169（helper 版號 `v0.0.0`，排下一批）
+8. **22:31** bump `d0ebd708` → push → run `39617678592` 全綠（**Test gate 首次生效**：tests 14:36:27Z 結束、build 14:36:30Z 才開始）→ **22:43 `v0.7.1-pre.5`** → 更版重點 → 文件 `10f16cc9` → Pages `39619776202` 綠、link-check 1265 / 0、首頁 pre.5
+9. **23:24** 收工（未 push 的塔台 commit 等使用者指示）
+
+### 本輪戰績
+
+| 類別 | 數量 | 備註 |
+|---|---|---|
+| 派發工單 | **17**（T0674–T0690） | 全部 `started:`；T0675 PARTIAL（等使用者下載），其餘 DONE 並回收 Worker 分頁；結構化提問 1 次（T0684 Q-1／Q-2） |
+| BUG | BUG-167 / BUG-168 新開 → FIXED；BUG-169 新開 OPEN（low） | 熱區 Open 2 / Fixing 0 / Fixed 24 / Closed 28 |
+| 決策 | D175–D179 | 網站 `/why`、去識別化、測試修正與 CI 兩步、`path.win32`、pre.5 前小批 |
+| 發版 | 1（`v0.7.1-pre.5`） | exe 306 / zip 423 / AppImage 306 / dmg 319 MiB |
+| unit test | 5661 → **5779 passed / 326 files**（3 skipped）；`test:legacy` 33 檔 472 / 0 | CI 首次在發版前跑 unit + legacy |
+| 學習 | L172、L173 | |
+
+### 重點觀察
+
+- 「CI 有跑測試」不能假設：四個 workflow 原本只跑 typecheck，5,600 多項單元測試從沒在 CI 跑過；Test gate 接上後，第一次 pre-release 就看到 build 等 tests 結束才開始
+- WSL 模擬 ubuntu 抓不到時區相依的測試（10 項），第一次 GitHub 試跑才現形；跨平台測試要在 CI 的實際 runner 跑一次
+- GitHub API 的 job 狀態可能停在 `in_progress`（pre.5 的 darwin server-bundle job），但 run 已 completed / success、每個 step 都 success、tarball 已發佈：以 jobs API 的 steps 與 release assets 判斷，不要誤判發版失敗
+- 公開 repo：工單的字詞檢查清單不得直接列出真名（T0674 的教訓，已寫進 `_local-rules.md`）
+
+### 編號起始（下 session）
+
+- **T0691** / **BUG-170** / **PLAN-055** / **D180** / **EXP-WFMINE-002** / **L174** / **CT-T022**
+
+---
+
+## 🛏 前 Session 收工快照 (第八十七 session, 2026-10-20 16:24 - 19:59, ~3h35m)
 
 ### 主軸：BMad-Guide「CT Workflow 智能」提案 → BAT 試點 EXP-WFMINE-001 / T0673（全讀 Workflow，718 檔）→ PLAN-054（B4 併下次發版、B6 延後）
 
@@ -41,81 +81,37 @@
 
 ---
 
-## 🛏 前 Session 收工快照 (第八十六 session, 2026-10-19 15:33 - 18:30, ~2h57m)
-
-### 主軸：外部測試者A 以 pre.3 回報 → BUG-136 CLOSED；新問題 BUG-165（Codex 捲動）/ BUG-166（滑鼠回報殘留）研究 → BUG-166 修正 → 發 `v0.7.1-pre.4`
-
-#### 時間線（時間取自系統 / git / gh）
-
-1. **15:33** 啟動（CT v5.9.0；BAT 安裝版 `0.7.1-pre.3`；`--set-role tower --mode on` exit 0；session 名稱 `better-agent-terminal · Tower`，不顯示提示）；外部測試者A 15:19「卡頓解決」→ BUG-136 CLOSED（`62b7da60`）
-2. **15:40** 外部測試者A 日誌 `[gpu] skia graphite: disabled` → BUG-164 第 1 項 PASS（`90d05b59`）；外部測試者A「捲動再絲滑一點」（Codex CLI 內）→ BUG-165 + T0670 研究（15:43 `started:`；使用者追加「是否只在 macOS」）
-3. **15:50** 外部測試者A 截圖：完成的 Worker 分頁滑鼠一動冒 `35;52;69M…` → BUG-166 + T0671 研究（15:53 `started:`；使用者追加 Claude CLI / Ctrl+C / Ctrl+Z 對照）
-4. **16:04** T0670 DONE：xterm 5.5 追蹤模式每 wheel 事件最多 1 個回報（跨平台，macOS 觸控板最明顯）；**16:34** T0671 DONE：codex 0.163 只有被訊號結束才不還原追蹤；BAT 不開也不保留；claude 只有 SIGKILL 殘留；Unix PTY 跨平台、Windows 原生 ConPTY 無殘骸
-5. **17:28** 外部測試者A：「不急」、Claude CLI 捲動較順、codex 自己跳回命令列；**17:35** 使用者：不需知道成因可修 → T0672（F1 + F2）派工；17:40 Q-1 BAT `--answer` [A]（D174）；**17:50** DONE `64209d44` → BUG-166 FIXED（塔台複驗 5661 / 322、typecheck 0 / 0）
-6. **17:53** 使用者「發 0.7.1-pre.4」→ vite build、bump `8883cebd`、push → run `39233550117` 全綠 → **18:03 `v0.7.1-pre.4`** → 更版重點 → 文件 `4ae0e89d` → Pages `39234927266` 綠、link-check 1152 / 0 errors、首頁 pre.4
-7. **18:09** 收工（使用者「收工, push」）；pre.4 驗收訊息已給使用者轉貼
-8. **18:11** 收工後 外部測試者A 回報 pre.3 log：`skia_graphite=disabled_off`、13:28–18:10 0 次 GPU 崩潰（Graphite 開著的兩次執行崩 5 次）→ 使用者同意 → **BUG-164 CLOSED**（`eb189ce9`）；外部測試者A 尚未安裝 pre.4
-9. **18:30** 收工
-
-### 本輪戰績
-
-| 類別 | 數量 | 備註 |
-|---|---|---|
-| 派發工單 | **3**（T0670–T0672） | 全部 `started:`；T0670 / T0671 並行；結構化提問 1 次（T0672 Q-1）；`worker_auto_close` 回收 3 次 |
-| BUG | BUG-136 CLOSED；BUG-165 新開 OPEN；BUG-166 新開 → FIXED | 熱區 Open 1 / Fixing 0 / Fixed 22 / Closed 28 |
-| 決策 | D174（T0672 Q-1：t0571 e2e 選單斷言納入範圍） | 不回報 codex 上游（使用者決定） |
-| 發版 | 1（`v0.7.1-pre.4`） | exe 298 / zip 412 / AppImage 297 / dmg 309 MiB |
-| unit test | 5635 → **5661 passed / 322 files** | 塔台複驗 @ `72d77cf1` |
-
-### 重點觀察
-
-- 研究單派出後使用者追加範圍：直接加進工單「調查範圍」，兩次 Worker 都自己重讀並納入（T0670 [15:56]、T0671 [16:03]）
-- 「看症狀修」可以不等成因：BUG-166 的 F1 / F2 不依賴 codex 為何結束，使用者據此直接派工
-- Windows ConPTY 會吃掉 SGR 滑鼠回報，Unix PTY 專屬的現象改用 WSL 原生 PTY / BAT 的 WSL 分頁重現（延續 T0666 經驗）
-
-### 編號起始（下 session）
-
-- **T0673** / **BUG-167** / **PLAN-054** / **D175** / **L171** / **CT-T022**
-
----
-
 ## 🌅 起手式（Quick Recovery）
 
-> 最後更新：2026-10-20 19:59 UTC+8（第八十七 session 收工）
+> 最後更新：2026-10-21 23:24 UTC+8（第八十八 session 收工）
 
 ### 近期完成
-- EXP-WFMINE-001 / T0673 CONCLUDED（第八十七 session）：報告 `_report-wfmine-phase1-20261020.md` + 逐張 JSONL；PLAN-054 PLANNED
-- `v0.7.1-pre.4` 發佈（第八十六 session，run `39233550117`）：BUG-166（T0672）；BUG-136 / BUG-164 CLOSED（外部測試者A 確認）
-- `v0.7.1-pre.3` 發佈（第八十五 session）：BUG-136 縮圖預覽上限（T0667）、BUG-164 macOS 停用 Graphite（T0669）
+- `v0.7.1-pre.5` 發佈（第八十八 session，run `39617678592`，Test gate 首次生效）：T0687–T0690（MCP 寫入型 tool 政策、SSH 啟動失敗字首、安裝檔只收 6 個執行期 helper、內嵌 claude CLI 2.1.306）；Pages `39619776202` 綠、link-check 1265 / 0
+- BUG-167 / BUG-168 FIXED、CI 加 Test gate（T0678–T0686，D177 / D178）：`test:unit` 5779 / 0、`test:legacy` 472 / 0
+- 公開 repo 去識別化（D176，T0676 / T0677）：對照表只在 `.private/`，push 前跑 `.private/T0676-deid-mapping.md` 的檢查樣式
+- 網站 `/why`「把腦力留給判斷」（T0674，D175）；第二季 Podcast 素材 5 集（BMad-Guide repo，未 commit）
+- `v0.7.1-pre.4` 發佈（第八十六 session）：BUG-166（T0672）
 
 ### 待辦（依優先序）
-- ✅ T0674 網站 `/why`「把腦力留給判斷」（D175）已上線：使用者授權 push（`8fd45899..ebdb4b77`，2026-10-21），Pages run `39576224181` 全綠（build / deploy / link-check 1260 / 0 errors），`/why` 200
-- ✅ 第二季 Podcast / NotebookLM 素材 5 集完成（CT v5.11 / BAT / BMad-Method 6.12，內部教育訓練版；11 檔：總覽 + 每集來源與提示），存 BMad-Guide repo `BMad-Control-Tower/docs/BMad_Control_Tower-S2 (…)/`，未 commit（屬 BMad-Guide 專案，由使用者或 BMad-Guide 塔台決定）
-- 🟡 **T0675 PARTIAL**（`c09fe063`，NotebookLM 瀏覽器自動化，chrome-live）：S2-01～S2-03 九項已生成（S2-01 使用者已下載）；S2-04、S2-05 用量上限改「稍後生成」排程（2026-10-22 00:00／01:00 後）。剩下的下載由使用者自己做；使用者確認 S2-04／05 生成並下載後，塔台把 T0675 補正為 DONE 並回收 Worker 分頁（PARTIAL 不自動回收）。L172
-- ✅ **D176 去識別化完成**：T0676 DONE（`b8ea0f8b`，153 檔）＋ T0677 DONE（`e95b445e`，66 檔：專案D、Linux 帳號名）＋塔台直接改 BUG-129 一處公司資料夾名稱；塔台複掃 `.private/` 全部檢查樣式 = 0、金鑰樣式 = 0；兩次 Worker 單元測試 5661 / 322、typecheck 0 / 0、build 成功；兩個 Worker 已回收。使用者授權後一起 push。不改寫 git 歷史（舊 commit 仍有原文）
-- ✅ **BUG-167 FIXED**（T0678 `d90b3b50`，只改測試；塔台重跑 13 / 0）：T0277 / T0282 依工單加進 `extractTargetOSMeta` 的 `dockerMounts`、`serverHome`，測試沒跟上
-- ✅ BUG-168 後續清理已由 T0685 完成（5 處註解、describeError、start-failed 測試、失效 script）。剩下的小項已排進 `v0.7.1-pre.5` 批次（D179）：`@` 測試與 `start-failed` 字首 → T0688；`extraResources` 的 `*.mjs` 把開發腳本打進安裝檔 → T0689
-- ✅ **`v0.7.1-pre.5` 已發佈**（2026-10-21 22:43，run `39617678592` 全綠，Test gate 首次生效；更版重點已寫；`CHANGELOG.md` / `release-note.md` 已更新（`10f16cc9`，push `d0ebd708..10f16cc9`），README 無需更新；Pages run `39619776202` 全綠（build / link-check / deploy），link-check 1265 / 0 errors，首頁版號 pre.5）
-- ✅ **`v0.7.1-pre.5` 發版前小批（D179，2026-10-21 22:00 開單）**：T0687 PLAN-054 B4 MCP 寫入型 tool 政策（只寫文件）、T0688 SSH `start-failed` 字首 + `@` 測試、T0689 安裝檔只收執行期 helper（白名單與 `serverBundleHelperScripts` 同一組、verify 打包前後守門、`build:dir` 實測）。T0687、T0688 22:03 派工（皆 `started:`）；**T0687 DONE**（`873e6efb`，22:04，塔台核對 diff：CLAUDE.md 一行 + docs 一段，Worker 已回收）→ T0689 22:04 派工（`started:`，CLAUDE.md 已不重疊）；**T0688 DONE**（`79412e61`，22:06：stage 2 失敗的 `error` / 日誌字首跟 `errorCode` 一致，11 個分類案例鎖字首；`@` 在 `startServerOnRemote` 與 teardown 都在 ssh exec 前被拒；沒有消費者依賴舊字首；塔台重跑 58 / 58，Worker 已回收。teardown 的訊息是 `Invalid sshUser for teardown: …`（`validateTeardownConnect` 先擋），不是歷史格式，塔台判定維持現狀、不另開單）；**T0689 DONE**（`b9afa02e`，22:10：`extraResources` 改 6 個檔名 = `serverBundleHelperScripts`；`verify-helper-bundle.js` 擋萬用字元 / 不一致 / import 未封閉；`verify-packaged-native.js` 新增 `helper-scripts`（三平台 fixture）；`build:dir` 實測 `resources/scripts` 正好 6 個、打包目錄 helper 可執行；塔台重跑 `verify:helpers` 綠、列檔確認，Worker 已回收）。**聯合驗證第 1 輪（22:13–22:16）**：vite build ✅、`test:unit` 326 檔 5779 passed / 3 skipped / 0 failed、typecheck 0 / 0。查到內嵌 claude CLI 2.1.300 落後 latest 2.1.306 → 開 **T0690** 追版（D179 追加）；T0689 發現安裝版 helper 版號 `v0.0.0` → **BUG-169** OPEN low，排下一批。**T0690 DONE**（`09509698`，22:29：內嵌 claude CLI 2.1.300 → 2.1.306，lock 只動 claude-code 系列 36 / 36；模型清單 / effort / 計價 / `HEALTHY_MIN` / update guard / BAT 整合點（`--mcp-config=` / `--settings=` hooks / `--name` / `disableAllHooks`）/ `usage-limit.ts` 句型全部無變動，附 binary 字串與實測證據；Worker 跑 test:unit 5779 / 0、test:legacy 472 / 0；另改 2 份 docs 的實裝版本號（範圍外但屬「實裝版本」，塔台接受）；塔台核對 `claude.exe --version` = 2.1.306、`verify-native-modules` 綠，Worker 已回收）。**聯合驗證第 2 輪（22:30–22:33）**：vite build ✅、typecheck 0 / 0、`test:unit` 326 檔 5779 passed / 3 skipped / 0 failed。→ 版號 `0.7.1-pre.5`（`npm version --no-git-tag-version`，只動 3 行）。下一批候選：BUG-169；T0690 觀察：`Usage limit reset · continuing automatically` 不在 `CLAUDE_AUTO_RE`（2.1.300 已存在、reset 後提示，影響待評估）（`test:unit`、兩個 typecheck、`vite build`）→ 版號 `0.7.1-pre.5` → push → `pre-release.yml`（Test gate 首次生效）→ 更版重點 → 文件同步 → Pages
-- ✅ **BUG-168 FIXED、Test gate 已接上（T0686 `bb926fdc`，push `853e5537..bfa5ab08`；改成可重用後手動 run `39611026294` 全過：5760 / 0、legacy 472 / 0；下次 pre-release 首次生效，屆時確認 Actions 圖上 `tests / unit-tests` → `build` 的相依）**（D177／D178）：T0679 研究（29 項失敗 + 9 個逾時全部測試過時、CI 原本沒跑 `test:unit`）→ T0680 G2、T0681 G3、T0682 G4、T0683 `tests.yml`、T0684 跨平台與時區、T0685 `test:legacy` + 清理。GitHub 試跑：第一次 run `39605811732` 29 failed（寫死 Windows 19、時區 10）；第二次 run `39609350106`（`853e5537`）**test:unit 5760 / 0（6 skipped）、test:legacy 33 檔 472 / 0**，約 4 分鐘。擔心不穩的 ct-worktree-status、bat-mcp-codex-env 兩次都通過。T0686：`tests.yml` 改可重用、pre-release／release 加 `tests` job 並列進 `build.needs`
-- 🟢 未處理的低風險項目：dev PC／NAS 主機名稱（使用者未列入決定）
-1. 🔴 **外部測試者A 以 `v0.7.1-pre.4` 驗收**：A BUG-166（`printf '\e[?1003h\e[?1006h'` 後移動滑鼠，殘骸幾筆即停；codex 分頁 Shift + 右鍵有兩個新選項）→ CLOSED；C（選做）BUG-165 `mouse_scroll_speed = 3` → 確認後派 S 修正（`attachCustomWheelEventHandler`，外部測試者A「不急」）
-2. 🔴 `v0.7.1-pre.2` 剩餘實機驗收：BUG-156 需 Docker Desktop、BUG-159 需一般權限 + codex
-3. 🟡 PLAN-053 Electron 42+（IDEA）、PLAN-052 Docker 可用性（IDEA）；PLAN-054 B4（MCP 文件政策）**併下次發版批次**一起開單，B6 延後（CT D090）
-4. 🟢 T0656 網站素材手動拍；`RECOVERY_PENDING` 未實機驗證；WSL bat-server `0.6.1-pre.5`；前期驗收（外部測試者A BUG-127-135 / 116 / 118、BUG-130 / 105 / 107 / 108 / 097 / 111、T0550、dmg / AppImage、NSIS 重裝、T0360）
+1. 🔴 **外部測試者A 驗收**（可直接用 `v0.7.1-pre.5`）：A BUG-166（`printf '\e[?1003h\e[?1006h'` 後移動滑鼠，殘骸幾筆即停；codex 分頁 Shift + 右鍵有兩個新選項）→ CLOSED；C（選做）BUG-165 `mouse_scroll_speed = 3` → 確認後派 S 修正（`attachCustomWheelEventHandler`）
+2. 🟡 **T0675 PARTIAL**（NotebookLM，`c09fe063`）：使用者確認 S2-04／05 生成並下載後補 DONE、回收 Worker 分頁（PARTIAL 不自動回收）
+3. 🟡 **下一批**：BUG-169（安裝版 helper 版號 `v0.0.0`，修法待設計）；T0690 觀察 `Usage limit reset · continuing automatically` 不在 `CLAUDE_AUTO_RE`（2.1.300 已存在，影響待評估）；規劃發版小批時先查內嵌 claude CLI 版本（L173）
+4. 🔴 `v0.7.1-pre.2` 剩餘實機驗收：BUG-156 需 Docker Desktop、BUG-159 需一般權限 + codex
+5. 🟢 PLAN-053 Electron 42+、PLAN-052 Docker 可用性（IDEA）；PLAN-054 B6 延後（CT D090）；T0656 網站素材手動拍；`RECOVERY_PENDING` 未實機驗證；前期驗收（外部測試者A BUG-127-135 / 116 / 118、BUG-130 / 105 / 107 / 108 / 097 / 111、T0550、dmg / AppImage、NSIS 重裝、T0360）；dev PC／NAS 主機名稱（使用者未列入去識別化決定）
 
 ### ⚠️ 鐵則
 - **所有 `gh` 指令必須帶 `-R gowerlin/better-agent-terminal`**（L122）
 - 版本驗證用 diff / 雜湊，不用 grep（L127）；每次發版：`gh release edit --notes-file` 更版重點 → 更新 `CHANGELOG.md` / `release-note.md` / `README.md` 並 push → Pages 綠燈、首頁版號、`link-check`，才回報已發佈（L150）
+- 公開 repo（D176）：工單 / commit / BUG 不寫真名、客戶名、家目錄路徑；push 前跑 `.private/` 的檢查樣式
 
 ### 快速連結
-- Bug Tracker → [_bug-tracker.md](_bug-tracker.md)（熱區：Open 1 / Fixing 0 / Fixed 24 / Closed 28）｜ Backlog → [_backlog.md](_backlog.md)
-- Decision Log → [_decision-log.md](_decision-log.md)（最大 D174）｜ Learnings → [_learnings.md](_learnings.md)（最大 L172）
+- Bug Tracker → [_bug-tracker.md](_bug-tracker.md)（熱區：Open 2 / Fixing 0 / Fixed 24 / Closed 28）｜ Backlog → [_backlog.md](_backlog.md)
+- Decision Log → [_decision-log.md](_decision-log.md)（最大 D179）｜ Learnings → [_learnings.md](_learnings.md)（最大 L173）
 - 網站 → https://gowerlin.github.io/better-agent-terminal/｜ 素材 spec → `e2e/site-media.spec.ts`（`BAT_SITE_MEDIA=1`，輸出 `e2e-media/`）
-- 歷史 sessions → [_archive/state-snapshots/INDEX.md](_archive/state-snapshots/INDEX.md)（101 entries）
+- 歷史 sessions → [_archive/state-snapshots/INDEX.md](_archive/state-snapshots/INDEX.md)（102 entries）
 
 ### 編號起始
-- **T0691** / **BUG-170** / **PLAN-055** / **D180** / **EXP-WFMINE-002**（其他 TOPIC 從 001） / **L173** / **CT-T022**
+- **T0691** / **BUG-170** / **PLAN-055** / **D180** / **EXP-WFMINE-002**（其他 TOPIC 從 001） / **L174** / **CT-T022**
 
 ---
 
