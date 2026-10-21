@@ -3,7 +3,8 @@ import * as pathModule from 'path'
 // Pure helpers for locating the Codex native binary inside a per-platform
 // package (@openai/codex-<platform>-<arch>) and for building the spawn env.
 // Mirrors @openai/codex-sdk 0.160 `resolveNativePackage()` / `prependPathDirs()`
-// (dist/index.js) so BAT's codexPathOverride path behaves like the SDK default.
+// (dist/index.js; unchanged in 0.163, T0697) so BAT's codexPathOverride path behaves
+// like the SDK default.
 
 export interface BundledCodexLayout {
   binary: string
