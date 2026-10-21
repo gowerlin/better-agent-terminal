@@ -10,7 +10,8 @@
  *     (`· progress saved` may follow), non-timed `monthly spend limit` / `team's shared budget` /
  *     `out of usage credits` / `org is out of usage` / `seat type …`; the CLI's own auto-continue
  *     (2.1.234+) prints `… continuing automatically at 3pm …`, `Automatic continue stopped|cancelled …`,
- *     and after a sleep past the reset `Your usage limit has reset` + `Press enter to continue`.
+ *     `Usage limit available again · continuing now` / `Usage limit reset · continuing automatically`
+ *     when it resumes, and after a sleep past the reset `Your usage limit has reset` + `Press enter to continue`.
  *   - codex-cli 0.160.0 / 0.162.1: `You've hit your usage limit[ for <model>]. … Try again at 3:05 PM.`
  *     (`try again later.` without a time), non-timed `Your workspace is out of credits` /
  *     `You hit your spend cap` / `Usage limit reached. You've reached your usage limit` /
@@ -126,7 +127,8 @@ const CLAUDE_BLOCKED_RE = new RegExp(
   'u',
 )
 const CLAUDE_AUTO_RE = new RegExp(`${PREFIX}(?:Usage limit reached(?: again)?\\s*${DOT}\\s*)?continuing automatically(?: at (.+?))?(?:\\s*${DOT}.*)?$`, 'iu')
-const CLAUDE_RESUMED_RE = new RegExp(`${PREFIX}(?:Usage limit available again\\b|Continuing shortly\\b)`, 'u')
+// `Usage limit reset · continuing automatically` (T0692): the notice when the armed auto continue fires at the reset.
+const CLAUDE_RESUMED_RE = new RegExp(`${PREFIX}(?:Usage limit available again\\b|Continuing shortly\\b|Usage limit reset\\s*${DOT}\\s*continuing automatically\\b)`, 'u')
 const CLAUDE_STOPPED_RE = new RegExp(`${PREFIX}Automatic continue (?:stopped|cancell?ed|canceled)\\b`, 'u')
 const CLAUDE_STALE_HEAD_RE = new RegExp(`${PREFIX}Your usage limit has reset\\b`, 'u')
 const CLAUDE_STALE_PRESS_RE = new RegExp(`${PREFIX}Press enter to continue\\b`, 'iu')

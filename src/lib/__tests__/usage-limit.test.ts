@@ -108,6 +108,35 @@ describe('claude CLI auto continue (2.1.234+) and the stale phase', () => {
     expect(decide([limit, 'Usage limit available again · continuing now'])).toMatchObject({ action: 'none' })
   })
 
+  // T0692: CLI 2.1.306 (already in 2.1.300) appends this notice when the armed auto continue fires
+  // at the reset (its desktop notification: "Usage limit reset — Claude is continuing your task"),
+  // the same moment as `Usage limit available again · continuing now`. Unrecognised, the scan went
+  // up to the earlier `Usage limit reached · continuing automatically at …` notice and kept cli-auto.
+  it('Usage limit reset · continuing automatically (the CLI resumed at the reset) → nothing to show', () => {
+    const resumed = 'Usage limit reset · continuing automatically'
+    expect(classify([resumed])).toEqual({ kind: 'claude-cli-resumed', line: 0 })
+    expect(classify([`  ⎿  ${resumed}`])).toMatchObject({ kind: 'claude-cli-resumed' })
+    const screen = [limit, 'Usage limit reached · continuing automatically at 4pm · esc to cancel', resumed, '⏺ Picking up where I left off', ...CLAUDE_PROMPT]
+    expect(classify(screen)).toEqual({ kind: 'claude-cli-resumed', line: 2 })
+    expect(decide(screen)).toEqual({ action: 'none', line: 2 })
+    // a newer limit below it still wins
+    expect(decide([resumed, 'Usage limit reached again · continuing automatically at 4pm · esc to cancel'])).toMatchObject({ hint: 'cli-auto' })
+    // quoted in a reply
+    expect(classify([`The CLI prints ${resumed} when it resumes.`])).toEqual({ kind: 'none' })
+    expect(classify([`"${resumed}"`])).toEqual({ kind: 'none' })
+  })
+
+  it.each([
+    // other 2.1.306 strings near it (T0690): reset grants, the workflow wait, the warning
+    'Session limit reset',
+    'Limits reset',
+    'Weekly limits reset',
+    'Usage limit reset. Re-running 2 waiting agents.',
+    'Approaching your 5-hour usage limit · resets 4pm (Asia/Taipei)',
+  ])('not a resume or a limit: %s', (line) => {
+    expect(classify([line])).toEqual({ kind: 'none' })
+  })
+
   it('the limit without the CLI line (API key, old CLI, setting off) → hint cli-unavailable; weekly / model → weekly', () => {
     expect(decide([limit, ...CLAUDE_PROMPT])).toMatchObject({ action: 'hint', hint: 'cli-unavailable', resetText: '4pm (Asia/Taipei)' })
     expect(decide(["You've hit your weekly limit · resets Oct 20, 3pm (Asia/Taipei)"])).toMatchObject({ action: 'hint', hint: 'weekly' })

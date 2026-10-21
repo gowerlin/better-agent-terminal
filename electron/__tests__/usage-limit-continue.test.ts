@@ -335,6 +335,18 @@ describe('claude', () => {
     expect(s.sends()).toEqual([{ id: 'a', action: 'enter', agent: 'claude', traceId: expect.any(String) }])
     expect(s.sends()[0]).not.toHaveProperty('text')
   })
+
+  it('T0692: "Usage limit reset · continuing automatically" (the CLI resumed at the reset) clears the cli-auto hint, yolo or not', () => {
+    const s = setup({ tabs: { a: {}, b: { yolo: false } }, config: { delayMinutes: 0 } })
+    for (const id of ['a', 'b']) {
+      s.print(limit + '\r\nUsage limit reached · continuing automatically at 4pm · esc to cancel\r\n', id)
+      expect(s.lastStatus(id)).toMatchObject({ state: 'hint', hint: 'cli-auto' })
+      s.print('\r\nUsage limit reset · continuing automatically\r\n⏺ Picking up where I left off\r\n', id)
+      expect(s.lastStatus(id)).toBeNull()
+    }
+    vi.advanceTimersByTime(24 * 60 * 60_000)
+    expect(s.sends()).toEqual([])
+  })
 })
 
 describe('non-yolo tab, headless without a client', () => {
