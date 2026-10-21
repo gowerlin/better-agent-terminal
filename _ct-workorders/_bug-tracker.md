@@ -23,16 +23,15 @@ breakdown:
 # Bug Tracker
 
 > ⚠️ 此文件由 `*sync` 自動生成，請勿手動編輯。
-> 最後同步：2026-10-21 22:17 (UTC+8) — BUG-169 OPEN（安裝版 helper 版號 v0.0.0，T0689 發現，排下一批）；BUG-168 → FIXED（T0680–T0685；ubuntu 試跑全過，擋版 T0686）；BUG-167 FIXED（T0678 `d90b3b50`）；BUG-166 FIXED 待 外部測試者A（pre.4）；BUG-165 OPEN（有空再排）
+> 最後同步：2026-10-21 23:42 (UTC+8) — BUG-169 → FIXED（T0691 `b0ff5673`，等下一個預覽版安裝版驗收）；BUG-168 → FIXED（T0680–T0685；ubuntu 試跑全過，擋版 T0686）；BUG-167 FIXED（T0678 `d90b3b50`）；BUG-166 FIXED 待 外部測試者A（pre.4）；BUG-165 OPEN（有空再排）
 
 ## 統計
-- 🔴 Open: 2 | ⏳ Fixing: 0 | ✅ Fixed: 24 | 🧪 Verify: 0 | 🚫 Closed: 28 | ⛔ Won't Fix: 0 | **Total: 54**
+- 🔴 Open: 1 | ⏳ Fixing: 0 | ✅ Fixed: 25 | 🧪 Verify: 0 | 🚫 Closed: 28 | ⛔ Won't Fix: 0 | **Total: 54**
 
 ## 🔴 Open / 處理中
 
 | ID | 標題 | 嚴重度 | 建立時間 | 連結 |
 |----|------|--------|---------|------|
-| BUG-169 | 安裝版的 helper 回報版號 v0.0.0（`--version`、BAT MCP `serverInfo.version`；T0689 發現，既有行為，排下一批） | 🟢 low | 2026-10-21 | [BUG-169](BUG-169-installed-helpers-report-version-0.0.0.md) |
 | BUG-165 | macOS：Codex CLI 分頁內捲動可用但不夠順（外部測試者A，v0.7.1-pre.3；T0670 研究） | 🟢 low | 2026-10-19 | [BUG-165](BUG-165-macos-codex-cli-scroll-not-smooth.md) |
 
 ## ⏳ 修復中 (FIXING)
@@ -44,6 +43,7 @@ breakdown:
 
 | ID | 標題 | 嚴重度 | 修復時間 | 連結 |
 |----|------|--------|---------|------|
+| BUG-169 | 安裝版的 helper 回報版號 v0.0.0；T0691 以 electron-builder `afterPack` 寫只含 name / version 的 `resources/package.json`，打包後 `helper-version` 檢查（`b0ff5673`），等下一個預覽版安裝版驗收 | 🟢 low | 2026-10-21 | [BUG-169](BUG-169-installed-helpers-report-version-0.0.0.md) |
 | BUG-168 | `tests/` 底下沒被跑到的測試失敗與逾時（全部測試過時）；T0680–T0685 修正並收進 vitest／`test:legacy`，ubuntu 試跑 5760 / 0 + 472 / 0；擋版 T0686 | 🟢 low | 2026-10-21 | [BUG-168](BUG-168-tests-dir-tsx-suites-failing-and-timing-out.md) |
 | BUG-167 | `tests/profile-manager-migration.test.ts` 2 項斷言過時（T0277 / T0282 加的 `dockerMounts`、`serverHome` 沒跟上；T0678 `d90b3b50`，13 / 0） | 🟢 low | 2026-10-21 | [BUG-167](BUG-167-profile-manager-migration-test-stale-assertions.md) |
 | BUG-166 | Agent 被訊號結束後的分頁，滑鼠回報被當成文字輸入 shell（T0671 研究；T0672 `64209d44` 自動 / 手動重設滑鼠追蹤；待 外部測試者A 確認、未發版） | 🟡 medium | 2026-10-19 | [BUG-166](BUG-166-mouse-reports-leak-as-text-after-agent-exit.md) |
