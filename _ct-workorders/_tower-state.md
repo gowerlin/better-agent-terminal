@@ -1,11 +1,47 @@
 # Tower State — better-agent-terminal
 
-> 最後更新:2026-10-22 02:18 (UTC+8) — **第八十九 session 進行中**（CT v5.12.1）：**`v0.7.1-pre.6` 已發佈**（D181：T0691 / T0692 / T0694 / T0697 codex 0.163 / T0698 BUG-165）；CT-T022 驗收 PASS → BUG-170 FIXED；T0675 補正 DONE。前次：第八十八 session 收工（2026-10-21 23:24）`v0.7.1-pre.5`。
+> 最後更新:2026-10-22 02:20 (UTC+8) — **第八十九 session 收工**（CT v5.12.1；v5.12.2 已裝）：`v0.7.1-pre.6` 已發佈（D181）；CT-T022 驗收 PASS → BUG-170 FIXED。前次：第八十八 session 收工（2026-10-21 23:24）`v0.7.1-pre.5`。
 >
 > **下次起手**:請外部測試者A 以 `v0.7.1-pre.6` 驗收 BUG-165 / 166 / 169（更版重點「待驗收」清單）；BUG-156 / 159 仍待特定環境；後續候選：codex Worker 分頁也接管滾輪（T0698 Q-1 [B]）。
 ---
 
-## 🛏 本 Session 收工快照 (第八十八 session, 2026-10-21 11:26 - 23:24, ~11h58m)
+## 🛏 本 Session 收工快照 (第八十九 session, 2026-10-21 23:30 - 2026-10-22 02:20, ~2h50m)
+
+### 主軸：pre.5 後續小單（T0691–T0694）→ BUG-170 / CT-T022 跨專案（CT v5.12.x）→ 塔台重啟載入新 CT、CT-T022 驗收（T0695 / T0696）→ `v0.7.1-pre.6` 批次（D181：T0697 codex 0.163、T0698 BUG-165）→ 發佈
+
+#### 時間線（時間取自 git / 系統 / gh）
+
+1. **23:30** T0691（BUG-169 helper 版號，`b0ff5673`）→ **23:48** T0692（用量限制 reset 字串，`560409a3`）、T0693 研究（Renew 後 ✓）→ **00:27** D180：T0694（`↻`，`cefb9db3`）+ BUG-170
+2. **00:58** CT-T022 交 BMad-Guide 塔台 → **01:14** CT v5.12.0 兩端已裝（T0184）→ 01:25 v5.12.1
+3. **01:29** 塔台重啟（CT v5.12.1，`--set-role tower --mode on`）→ **01:32** T0695 / T0696 驗收：備援重派前 `--close-worker` exit 0、舊分頁 exit 3、收單 exit 0 → **01:36** BUG-170 FIXED、CT-T022 DONE；T0675 補正 DONE（使用者已下載）；01:37 CT v5.12.2 通知（只改文字，結果沿用）並回覆 BMad-Guide 塔台
+4. **01:44** 使用者「下一批發版」→ D181：T0697 內嵌 codex 0.163；使用者指出待驗收項目要包進預覽版 → BUG-165 本批修（T0698）；T0698 Q-1 塔台代決（只認 `agentPreset === 'codex-cli'`）
+5. **02:01** 聯合驗證（`767985e9`：typecheck 0 / 0、`test:unit` 5891、`test:legacy` 472、vite build）→ bump `8fb92004` → push → run `39649193569` 全綠 → **02:14 `v0.7.1-pre.6`** → 更版重點（含「待驗收」）→ 文件 `8bd1f47a` → Pages `39651190345` 綠、link-check 1274 / 0、首頁 pre.6
+6. **02:20** 收工、push
+
+### 本輪戰績
+
+| 類別 | 數量 | 備註 |
+|---|---|---|
+| 派發工單 | **8**（T0691–T0698） | 全部 `started:`；T0695 / T0696 各重派 1 次（驗收設計）；結構化提問：T0694 Q-1、T0698 Q-1（`--answer`）；T0695 / T0696 走備援 |
+| BUG | BUG-169 / 165 FIXED（待實機）；BUG-170 開立 → FIXED（CT 端） | 熱區 Open 0 / Fixing 0 / Fixed 27 / Closed 28 |
+| 決策 | D180、D181 | |
+| 跨專案 | CT-T022 DONE（CT v5.12.0–v5.12.2） | |
+| 發版 | 1（`v0.7.1-pre.6`） | exe 309 / zip 428 / AppImage 305 / dmg 322 MiB |
+| unit test | 5779 → **5891 passed / 331 files**；`test:legacy` 472 / 0 | |
+| 學習 | L174 | |
+
+### 重點觀察
+
+- 已 FIXED 待實機驗收的 BUG 修正本來就隨每版發出；規劃發版時要把它們寫進更版重點「待驗收」清單，不能說成「不放進這批」（使用者更正，L174）
+- 驗收 CT 規則的未驗路徑時，用 `worker_question_timeout: 0` 的小測試工單即可穩定重現 yolo 備援，兩情境 3 分鐘內跑完
+
+### 編號起始（下 session）
+
+- **T0699** / **BUG-171** / **PLAN-055** / **D182** / **EXP-WFMINE-002** / **L175** / **CT-T023**
+
+---
+
+## 🛏 前 Session 收工快照 (第八十八 session, 2026-10-21 11:26 - 23:24, ~11h58m)
 
 ### 主軸：認知負荷討論 → 網站 `/why`（T0674）→ 第二季 Podcast 與 NotebookLM（T0675 PARTIAL）→ 公開 repo 去識別化（D176）→ BUG-167 / BUG-168 與 CI Test gate（T0678–T0686）→ pre.5 前小批（D179，T0687–T0690）→ 發 `v0.7.1-pre.5`
 
@@ -45,45 +81,9 @@
 
 ---
 
-## 🛏 前 Session 收工快照 (第八十七 session, 2026-10-20 16:24 - 19:59, ~3h35m)
-
-### 主軸：BMad-Guide「CT Workflow 智能」提案 → BAT 試點 EXP-WFMINE-001 / T0673（全讀 Workflow，718 檔）→ PLAN-054（B4 併下次發版、B6 延後）
-
-#### 時間線（時間取自系統 / git）
-
-1. **16:24** 啟動（CT v5.9.0；`--set-role tower --mode on`）；使用者 `/plan`：依提案 §5.1 對本專案 `_ct-workorders/`（含 `_archive`）做 Phase 1 挖掘
-2. **16:41** 開 EXP-WFMINE-001 + T0673（`e92f0010`）：使用者選全讀 Workflow（約 45 agent、上限 5.5M）；BMad-Guide HANDOVER 寫 small 版，使用者依 D077 改選全量 + 逐張判定 JSONL；16:42 `started:`
-3. **16:51** Worker Q-1（預估超過 5.5M）：塔台處理跨 session 訊息時漏看，使用者在 Worker 分頁直接答「A，放寬到 7.0M」（`72715226`，L171）
-4. **17:25** T0673 DONE（`84e21f2d`）：候選 WFC001–006（對抗式複核全部 weakened）、§5.1.4 確認 3 / 部分 7 / 推翻 1、JSONL 718 行、39 agents / 7.35M tokens（超過 7.0M 約 5%）→ 17:26 EXP CONCLUDED + L171（`d7b7979f`）；Worker 回收
-5. **17:29** 使用者「開 PLAN-054 照建議，B1 先不做，push」→ `37adb490`；以跨 session 訊息回覆 BMad-Guide 塔台 HANDOVER §6
-6. **17:44** 使用者「併到下次發版」→ PLAN-054 B4 併入下一次發版批次（`02cc26f4`）
-7. **19:15** BMad-Guide 塔台通知：CT T0182 回測 G2 未通過、CT D090，v5.11.0 不定義 workflow 欄位 → B6 延後（`8fd45899`）
-8. **19:59** 收工
-
-### 本輪戰績
-
-| 類別 | 數量 | 備註 |
-|---|---|---|
-| 派發工單 | **1**（T0673） | `started:`；Workflow `wf_738991d2-209`，39 agents / 7.35M tokens / dropped 0；提問 1 次（Q-1，使用者直接答）；`worker_auto_close` 回收 1 次 |
-| EXP / PLAN | EXP-WFMINE-001 CONCLUDED（假設部分成立）；PLAN-054 PLANNED | B1 不做、B4 併下次發版、B6 延後 |
-| 學習 | L171 | 中文工單 token 估算；跨 session 訊息後查 Worker 提問 |
-| 發版 / 程式 | 0 | 只改 `_ct-workorders/`，未重跑 unit test |
-
-### 重點觀察
-
-- token 估算：中文工單約 1.9 bytes/token，每個讀取 agent 另有約 31k 固定開銷；先試跑一小批再估全量（原估 3.1M，實際內容約 4.6M）。Workflow 執行中讀不到 token 用量
-- 處理完跨 session 訊息後要查 `bat_list_questions` / `bat_get_state`，不然會漏接 Worker 提問
-- 【推論】BAT 的扇出多在工單之間（塔台依序派工），單張工單內很少需要 Workflow；CT 回測（T0182）也未達標
-
-### 編號起始（下 session）
-
-- **T0674** / **BUG-167** / **PLAN-055** / **D175** / **EXP-WFMINE-002** / **L172** / **CT-T022**
-
----
-
 ## 🌅 起手式（Quick Recovery）
 
-> 最後更新：2026-10-22 01:36 UTC+8（第八十九 session 進行中）
+> 最後更新：2026-10-22 02:20 UTC+8（第八十九 session 收工）
 
 ### 近期完成
 - **`v0.7.1-pre.6` 發佈**（第八十九 session，run `39649193569`，target `8fb92004`）：BUG-165（T0698 codex 分頁滾輪）、BUG-169（T0691）、T0692、T0694 `↻`、內嵌 codex 0.163（T0697）；更版重點含「待驗收」與「歡迎協助測試」；文件 `8bd1f47a`；Pages `39651190345` 綠、link-check 1274 / 0、首頁 pre.6
@@ -112,7 +112,7 @@
 - 歷史 sessions → [_archive/state-snapshots/INDEX.md](_archive/state-snapshots/INDEX.md)（102 entries）
 
 ### 編號起始
-- **T0699** / **BUG-171** / **PLAN-055** / **D182** / **EXP-WFMINE-002**（其他 TOPIC 從 001） / **L174** / **CT-T023**
+- **T0699** / **BUG-171** / **PLAN-055** / **D182** / **EXP-WFMINE-002**（其他 TOPIC 從 001） / **L175** / **CT-T023**
 
 ---
 
