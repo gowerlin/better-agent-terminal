@@ -3,16 +3,16 @@ schema_version: 1
 schema_kind: index
 id: _bug-tracker
 index_kind: bugs
-generated_at: "2026-10-21T19:52:51+0800"
+generated_at: "2026-10-21T20:15:54+0800"
 generator: control-tower-sync
 source_globs:
   - _ct-workorders/BUG-*.md
 exclude_globs:
   - _ct-workorders/_archive/**
   - _ct-workorders/examples/**
-total: 52
+total: 53
 breakdown:
-  OPEN: 1
+  OPEN: 2
   FIXING: 0
   FIXED: 23
   VERIFY: 0
@@ -23,15 +23,16 @@ breakdown:
 # Bug Tracker
 
 > ⚠️ 此文件由 `*sync` 自動生成，請勿手動編輯。
-> 最後同步：2026-10-21 19:52 (UTC+8) — BUG-167 FIXING → FIXED（T0678 `d90b3b50`，只改測試）；BUG-166 FIXED 待 外部測試者A（pre.4）；BUG-165 OPEN（有空再排）
+> 最後同步：2026-10-21 20:15 (UTC+8) — 新增 BUG-168 OPEN（T0679 研究分類）；BUG-167 FIXED（T0678 `d90b3b50`）；BUG-166 FIXED 待 外部測試者A（pre.4）；BUG-165 OPEN（有空再排）
 
 ## 統計
-- 🔴 Open: 1 | ⏳ Fixing: 0 | ✅ Fixed: 23 | 🧪 Verify: 0 | 🚫 Closed: 28 | ⛔ Won't Fix: 0 | **Total: 52**
+- 🔴 Open: 2 | ⏳ Fixing: 0 | ✅ Fixed: 23 | 🧪 Verify: 0 | 🚫 Closed: 28 | ⛔ Won't Fix: 0 | **Total: 53**
 
 ## 🔴 Open / 處理中
 
 | ID | 標題 | 嚴重度 | 建立時間 | 連結 |
 |----|------|--------|---------|------|
+| BUG-168 | `tests/` 底下不在 test:unit 的測試：8 檔失敗（29 項）、9 檔逾時、2 組 script 指向不存在的檔案（T0679 研究分類中） | 🟡 medium | 2026-10-21 | [BUG-168](BUG-168-tests-dir-tsx-suites-failing-and-timing-out.md) |
 | BUG-165 | macOS：Codex CLI 分頁內捲動可用但不夠順（外部測試者A，v0.7.1-pre.3；T0670 研究） | 🟢 low | 2026-10-19 | [BUG-165](BUG-165-macos-codex-cli-scroll-not-smooth.md) |
 
 ## ⏳ 修復中 (FIXING)
