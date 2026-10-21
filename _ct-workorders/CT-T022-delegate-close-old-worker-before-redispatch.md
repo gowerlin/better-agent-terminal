@@ -95,3 +95,11 @@ CT 在下列情況會對**同一張工單**再派一個新 Worker，而舊 Worke
   5. 研究單使用者在原分頁重讀時不回收；`--wait-started` 不支援而去參數重派時不回收（前一次沒有建立分頁）。
 - 規則權威：`work-order-system.md` 新小節；`yolo-mode.md`「收到備援」、`research-workorder.md`、`auto-session.md`、`tower-config.md`、`SKILL.md` 只放引用。
 - BAT 待辦：對方塔台複驗 T0184（回報區 AC-3：修改檔案與版號、與 BAT 權威的差異、需要 BAT 補的東西）後回覆；屆時 BAT 塔台代跑本檔「驗收建議」，通過後 BUG-170 → FIXED。
+
+### CT 端完成（BAT 塔台記錄，2026-10-22T01:14:00+0800）
+
+- 來源：BMad-Guide 塔台跨 session 訊息。BMad-Guide T0184 DONE（對方塔台已複驗）；CT **v5.12.0**（MINOR）兩端已裝 16/16（下一個 session 生效），guide v5.12.0 只打包。commit：產品 `53dd232`、工單 `53c0062`、塔台 `7b0b99f`（BMad-Guide dev-main，未 push）。BAT 介面與 CT 要求的 BAT 最低版本都不變。
+- 規則唯一權威：`control-tower/references/work-order-system.md` § 回報處理流程 › 重派前回收舊 Worker 分頁（v5.12.0+）；`yolo-mode.md`「收到備援」、`research-workorder.md`、`auto-session.md`、`tower-config.md`、`merge-workorder.md`、`SKILL.md` 只放引用。BAT 塔台已確認本機安裝的 `work-order-system.md` 含新小節。
+- 規則與 D094 一致；exit 1 記為「不支援 `--close-worker`」，與收單回收共用同一個 session 旗標。`ct-done` 補救派工、研究單在原分頁重讀、`--wait-started` 去參數重派、首派都不回收。
+- 與 BAT 權威的差異：無（只有寫法：helper 路徑寫法沿用 CT 的 Node 解析；exit 6 BUSY 歸在「其他」）。需要 BAT 補：無。
+- BAT 待辦：塔台 session 重開（載入 CT v5.12.0）後代跑「驗收建議」兩個情境；通過 → BUG-170 FIXED。
