@@ -4,12 +4,15 @@ schema_kind: workorder
 id: T0695
 title: "CT-T022 驗收情境 1：yolo 提問備援 → 塔台 Renew 重派前回收舊 Worker 分頁（BUG-170）"
 type: verification
-status: PENDING
+status: IN_PROGRESS
+tower_question: open
 repo: better-agent-terminal
 project: BUG-170
 priority: P3
 sizing: XS
 created_at: "2026-10-22T01:31:47+0800"
+started_at: "2026-10-22T01:32:26+0800"
+updated_at: "2026-10-22T01:32:45+0800"
 depends_on: []
 related:
   - CT-T022
@@ -63,6 +66,15 @@ memory_overrides:
 - 新 Worker `DONE` 後，收單回收的 `--close-worker T0695` exit `0`（不是 `5` AMBIGUOUS）。
 
 ## 回報區
+
+### 待塔台決策
+
+#### Q-1：驗收用問題——回報區的「選定代號」要寫 A 還是 B？
+- 提問時間：2026-10-22T01:32:51+0800
+- 選項：[A] 寫 `ALPHA` / [B] 寫 `BRAVO` / [C] 其他：________
+- Worker 建議：無偏好（驗收用）
+- 影響範圍：本工單回報區
+- 阻塞：是
 
 ### 完成狀態
 
