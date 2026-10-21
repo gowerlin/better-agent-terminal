@@ -90,7 +90,7 @@
 
 ### 待辦（依優先序）
 - 🟡 **等使用者預覽**：T0674 網站 `/why`「把腦力留給判斷」（D175）DONE `0f50a83d`（塔台複驗 build 通過、字樣 grep 0；Worker 已回收）→ 使用者本機預覽後授權才 push（D161 預覽關卡；本機另有未 push 的塔台 commit）
-- 🟡 **進行中**：第二季 Podcast / NotebookLM 素材 5 集（CT v5.11 / BAT / BMad-Method 6.12，內部教育訓練版），塔台直接撰寫，存 BMad-Guide repo `BMad-Control-Tower/docs/` 新資料夾、不 commit（屬 BMad-Guide 專案）
+- ✅ 第二季 Podcast / NotebookLM 素材 5 集完成（CT v5.11 / BAT / BMad-Method 6.12，內部教育訓練版；11 檔：總覽 + 每集來源與提示），存 BMad-Guide repo `BMad-Control-Tower/docs/BMad_Control_Tower-S2 (…)/`，未 commit（屬 BMad-Guide 專案，由使用者或 BMad-Guide 塔台決定）
 1. 🔴 **Gary 以 `v0.7.1-pre.4` 驗收**：A BUG-166（`printf '\e[?1003h\e[?1006h'` 後移動滑鼠，殘骸幾筆即停；codex 分頁 Shift + 右鍵有兩個新選項）→ CLOSED；C（選做）BUG-165 `mouse_scroll_speed = 3` → 確認後派 S 修正（`attachCustomWheelEventHandler`，Gary「不急」）
 2. 🔴 `v0.7.1-pre.2` 剩餘實機驗收：BUG-156 需 Docker Desktop、BUG-159 需一般權限 + codex
 3. 🟡 PLAN-053 Electron 42+（IDEA）、PLAN-052 Docker 可用性（IDEA）；PLAN-054 B4（MCP 文件政策）**併下次發版批次**一起開單，B6 延後（CT D090）
