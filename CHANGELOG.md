@@ -4,6 +4,19 @@ All notable changes to Better Agent Terminal are documented in this file.
 
 ## [Unreleased]
 
+## [0.7.1-pre.6] — 2026-10-22
+
+### Added
+- Worker 回報後又開始新回合時，分頁標籤顯示 `↻`（`resumed`），不列入「批次關閉已回報的 Worker」，回合結束回到 `✓`。主行程以 `TerminalBlockedTracker` 記回合（claude `UserPromptSubmit` / `Stop` hook、codex OSC 7501 `working` / `idle` / `clear`，60 s 無輸出備援），經 `terminal:attention-changed` 的 `busy` 推送；批次關閉確認框標出 5 秒內仍在輸出的分頁。helper、MCP、查詢 channel 與 `--close-worker` 不變（D180，T0694）
+
+### Fixed
+- **Codex 分頁在 alt screen 捲動不夠順**：xterm.js 5.5 在滑鼠追蹤模式下每個 wheel 事件最多送 1 個回報。`agentPreset === 'codex-cli'` + alt buffer + `vt200` / `drag` / `any` 追蹤 + SGR 時，`attachCustomWheelEventHandler` 依累積行數送多個 SGR 滾輪回報（每事件上限 8，反向丟餘量），回報與 xterm 逐位元相同、經 `terminal.input(report, true)` 送出；其他情況交回 xterm。helper 派工的 codex Worker 分頁不涵蓋（BUG-165，T0698）
+- 安裝版 helper 的 `--version` 與 BAT MCP `serverInfo.version` 顯示 `0.0.0`：electron-builder `afterPack`（`scripts/version-manifest.cjs`）寫只含 `name` / `version` 的 `<resources>/package.json`，server bundle 共用同一函式；`verify-packaged-native.js` 新增 `helper-version` 檢查（BUG-169，T0691）
+- `Usage limit reset · continuing automatically`（claude CLI 2.1.300+ 自動繼續觸發時的提示）歸為 `claude-cli-resumed`，分頁不再殘留「CLI 將於 … 自動繼續」徽章；claude 路徑不新增 PTY 寫入（T0692）
+
+### Changed
+- 內嵌 Codex 0.160.0 → 0.163.0（`@openai/codex-sdk` `^0.163.0`、`@openai/codex` 與 6 個平台子套件；lock 只動 codex 系列）。原生 binary 目錄結構、SDK API、BAT 整合點（`-c mcp_servers.bat.*` / `env_vars`、`--no-daemon`、`config_exclusion`、`check_for_update_on_startup`、OSC 7501）與 `usage-limit.ts` 句型皆無變動；mac / Linux 平台包不再附帶 zsh（BAT 未使用）（T0697）
+
 ## [0.7.1-pre.5] — 2026-10-21
 
 ### Fixed

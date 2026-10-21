@@ -150,7 +150,7 @@ BAT 與 CT 分工明確：**BAT 提供終端機、分頁與權限這些基礎設
 | 等人回答偵測 | Claude CLI 分頁停在權限確認 / 提問 / MCP 表單時（hook），或 Codex CLI 0.163.0 以上停在核准 / 提問時（Codex 自己回報的 OSC 7501，`blockedDetection: osc`、`blockedReason: input`），`bat_get_state` 等回 `blocked`（`blockedReason`、`blockedDetection`） | 斷點 D：告知使用者 Worker 在等人 |
 | Worker 問塔台 | Worker `bat-notify.mjs --ask`（內容走 stdin）+ 唯讀 MCP `bat_wait_question`；塔台唯讀 MCP `bat_list_questions` + `bat-terminal.mjs --answer`；等答覆時 `blocked` / `tower`、`pendingQuestions`；問答只存在 BAT 記憶體 | yolo Worker 向塔台提問、塔台代決（取代工單檔往返） |
 | 跨 session 辨識塔台 / Worker | BAT 開的 Claude CLI 分頁啟動即帶 session 名稱（Worker「工作區 · Worker · T####」、其他「工作區 · 短 ID」；縮圖列「+」選單「以塔台開啟 Claude」→「工作區 · Tower」），顯示在 Claude Code 的跨 session 清單（ListAgents）；`bat_whoami` / `bat_list_terminals` / `bat_get_state` 回 `claudeSessionName` / `claudeSessionId`；已宣告的塔台以 `bat_list_terminals scope=towers` 列出同一台 BAT 所有工作區的塔台 | 跨專案傳訊時找到對方塔台、不把 Worker 當成塔台 |
-| Worker 縮圖狀態 | 縮圖 ⚠️ 等使用者（Claude CLI 的 hook 與 Codex 的 `input`）/ `?` 等塔台答覆 / `✓` 已回報；只有 `✓` 計入「關閉已回報的 Worker 分頁」 | 不需改（舊 CT 的「T#### 提問」也顯示 `?`） |
+| Worker 縮圖狀態 | 縮圖 ⚠️ 等使用者（Claude CLI 的 hook 與 Codex 的 `input`）/ `?` 等塔台答覆 / `✓` 已回報 / `↻` 回報後又在執行（例如塔台 Renew 後）；只有 `✓` 計入「關閉已回報的 Worker 分頁」 | 不需改（舊 CT 的「T#### 提問」也顯示 `?`） |
 | 用量限制自動繼續 | yolo 分頁撞到 5 小時限制後自動續行（設定預設關閉） | 塔台以 `--mode yolo` 宣告後適用 |
 | 工單看板 | 側欄塔台面板：看板、Sprint 進度、一鍵 `ct-exec` / `ct-done` | 讀取 `_ct-workorders/` |
 | 遠端 | WSL / SSH / Docker 視窗裡的塔台與 Worker 用同一套 helper（`"${BAT_HELPER_NODE:-node}"`） | 遠端需另裝 CT skill |
@@ -176,7 +176,8 @@ BAT 與 CT 分工明確：**BAT 提供終端機、分頁與權限這些基礎設
 | Codex CLI 分頁的等人回答偵測與啟動確認（`blockedDetection: osc`、`blockedReason: input`；需 codex `>= 0.163.0`） | `>= 0.7.0-pre.9` | `>= v5.8.0`（舊 CT 對 Codex 照舊視為無法判斷） |
 | Worker 問塔台（`--ask` / `--answer`、`bat_list_questions` / `bat_wait_question`、`blocked` / `tower`） | `>= 0.7.0-pre.7` | `>= v5.7.0`（舊 CT 照舊在工單裡往返） |
 | Claude 分頁的 session 名稱、`claudeSessionName` / `claudeSessionId`、`scope: towers`、以塔台開啟 Claude | `>= 0.7.1-pre.1` | 名稱不需要 CT 配合；依這些欄位找塔台：`>= v5.9.0`（舊 CT 照舊） |
-| Worker 縮圖 ⚠️ / `?` / `✓` | `>= 0.7.0-pre.7`（提問答覆後恢復「執行中」：`>= 0.7.0-pre.8`；Codex 分頁 ⚠️：`>= 0.7.0-pre.9`） | 不需要 |
+| Worker 縮圖 ⚠️ / `?` / `✓` / `↻` | `>= 0.7.0-pre.7`（提問答覆後恢復「執行中」：`>= 0.7.0-pre.8`；Codex 分頁 ⚠️：`>= 0.7.0-pre.9`；回報後又在執行 `↻`：`>= 0.7.1-pre.6`） | 不需要 |
+| 重派同一張工單前回收舊 Worker 分頁（避免回收時 `AMBIGUOUS`） | `>= 0.6.1-pre.4`（沿用 `--close-worker`） | `>= v5.12.0`（舊 CT 重派後舊分頁要手動關） |
 
 <!-- #endregion compatibility -->
 

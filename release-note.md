@@ -2,6 +2,56 @@
 
 本 fork 各版的更版重點（內容取自 GitHub Releases，最新在上）。上游 tony1223/better-agent-terminal 的 v2.1.x 紀錄保留在檔案最下方。
 
+## v0.7.1-pre.6（2026-10-22）
+
+版號 0.7.1-pre.6，接續 `v0.7.1-pre.5`。
+
+### 修正
+
+- **Codex 分頁內用觸控板捲動不夠順**：Codex 在全螢幕畫面會自己處理滑鼠，以前快速滑動時每個滾輪事件只會傳給 Codex 一次，多捲的距離被丟掉，所以捲動跟不上手指。現在 BAT 會依實際滑動的距離換算行數，一次傳多個（每個事件最多 8 個），捲動手感接近 Claude CLI 分頁與 iTerm2。只影響你自己開的 Codex CLI 分頁在 Codex 畫面內的捲動；一般 shell、Claude CLI 分頁不變（BUG-165）
+- **安裝版的 helper 版號顯示 `v0.0.0`**：`bat-terminal`、`bat-notify` 用 `--version` 查詢，以及 BAT MCP 回報的版本，現在會顯示安裝的版號（BUG-169）
+- **用量限制重置、CLI 已自動繼續後，分頁上的「將於 … 自動繼續」提示沒有消失**：Claude CLI 重置後顯示 `Usage limit reset · continuing automatically` 時，BAT 現在會認得這行，把分頁狀態改成已繼續
+
+### 新增
+
+- **Worker 回報後又開始工作時，分頁標籤顯示 `↻`**：塔台 Renew 工單、Worker 繼續執行時，分頁不再停在 `✓` 看起來像已完成；這段期間不會被「批次關閉已回報的 Worker」關掉，回合結束後回到 `✓`。批次關閉的確認框也會標出最近 5 秒還在輸出的分頁
+
+### 更新
+
+- **內嵌 Codex 升級到 0.163.0**（原 0.160.0）：給 Codex 面板使用。BAT MCP、Worker 啟動確認與狀態偵測、用量限制提示的辨識都已對新版確認；Codex CLI 分頁使用你自己安裝的 codex，不受影響
+
+### 待驗收（請更新到本版後協助確認）
+
+以下修正已包含在本版，仍在等實機確認：
+
+- **BUG-165**（macOS 觸控板，Codex 分頁捲動）：開 Codex CLI 分頁，在 Codex 畫面內快速、慢速捲動，看是否跟手、會不會捲過頭。如果之前照建議在 `~/.codex/config.toml` 的 `[tui]` 段加了 `mouse_scroll_speed = 3`，本版後可能捲得太快，建議先移除那一行再試
+- **BUG-166**（`v0.7.1-pre.4` 起）：在 macOS 的分頁執行 `printf '\e[?1003h\e[?1006h'` 後移動滑鼠，命令列最多冒出幾筆亂碼就停；Shift + 右鍵選單有「重設滑鼠模式」
+- **BUG-169**：執行 `node "<安裝目錄>/resources/scripts/bat-terminal.mjs" --version`，應顯示本版版號而不是 `v0.0.0`
+- **BUG-156**（需 Docker Desktop）：Docker 設定精靈建立容器時，不再與 BAT 本機伺服器搶用 9876 埠
+- **BUG-159**（需一般權限執行 BAT + codex）：Codex CLI 分頁內執行的 helper 讀到的是自己分頁的 `BAT_*`，不是其他分頁的
+
+### 歡迎協助測試
+
+本版更新了內嵌 Codex，也改了 Codex 分頁的捲動。如果你用 Codex，歡迎幫忙跑一次塔台 / Worker 流程：
+
+1. 開一個 Codex CLI 分頁，呼叫 MCP tool `bat_whoami`，確認 `role` 與 `agent`
+2. 由塔台派一張小工單給 Codex Worker（`--agent codex`）
+3. 確認 Worker 完成後通知回到塔台，分頁被回收
+
+結果請到 https://github.com/gowerlin/better-agent-terminal/issues 回報，附上 BAT 版本（`v0.7.1-pre.6`）與 `codex --version`。
+
+### 已知事項
+
+- Codex 分頁的捲動修正只涵蓋你自己開的 Codex CLI 分頁；塔台派工建立的 Codex Worker 分頁維持原本的捲動方式
+- Windows / Linux 用滑鼠滾輪在 Codex 畫面內捲動，一格捲的行數會比以前多（大約與 Claude CLI 分頁相同），尚未實機確認是否太快
+- 新版內嵌 Codex 已用自動測試與不呼叫模型的方式確認，Codex 面板實際對話尚未在本版實機確認
+- 遠端視窗需把遠端的 BAT 伺服器升級到本版（重跑設定精靈）
+- Linux 版本未實機驗證
+
+macOS 仍只提供 Apple Silicon（arm64）版。
+
+**Full Changelog**: https://github.com/gowerlin/better-agent-terminal/compare/v0.7.1-pre.5...v0.7.1-pre.6
+
 ## v0.7.1-pre.5（2026-10-21）
 
 版號 0.7.1-pre.5，接續 `v0.7.1-pre.4`。
