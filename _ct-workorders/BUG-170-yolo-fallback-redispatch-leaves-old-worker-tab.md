@@ -13,7 +13,7 @@ impact:
   - control-tower
 links:
   discovered_in: "T0693 回報區「調查結論」2（R2）與 4-b（2026-10-21，研究推演，未實機重現）"
-  related: [T0693, D180, T0538, T0545, PLAN-041]
+  related: [T0693, D180, T0538, T0545, PLAN-041, CT-T022]
 ---
 
 # BUG-170 — yolo 備援重派後舊 Worker 分頁讓回收 AMBIGUOUS
@@ -22,7 +22,7 @@ links:
 |------|------|
 | 嚴重度 | 🟢 low（只多一個要手動關的分頁；CT 一行提示使用者，不重試） |
 | 可重現 | 一定（依程式碼推演；未實機重現） |
-| **狀態** | 🔴 OPEN：D180 決定先記錄，修法之後再排 |
+| **狀態** | 🔴 OPEN：修法定為 CT 端（重派前 `--close-worker` 舊分頁），BAT 不改程式；已開 CT-T022 交 BMad-Guide 塔台 |
 | 回報者 | T0693 Worker（研究推演） |
 
 ## 現象
