@@ -4,6 +4,10 @@
  * T0607), or no longer does. The Worker badge (src/components/TerminalThumbnail.tsx) and the
  * Tower's "Close reported Worker tabs (N)" read it (src/lib/terminal-attention.ts).
  *
+ * T0694 (D180): + `busy` — the tab's agent is in a turn (claude hook `UserPromptSubmit` → `Stop`, codex
+ * OSC 7501 `working` → `idle` / `clear`, or a quiet fallback; `TerminalBlockedTracker`); the renderer
+ * shows a reported Worker that works again as `resumed`, not ✓.
+ *
  * Event driven, no polling: the blocked tracker (`PtyManagerDeps.onBlockedChange`) and the
  * tower-question store (`TowerQuestionDeps.onChange`, its expiry included) call `refresh(id)`;
  * refreshes are coalesced to one microtask, the state is recomputed and sent only when it changed.
@@ -26,6 +30,8 @@ export const ATTENTION_CHANGED_CHANNEL = 'terminal:attention-changed'
 export interface TerminalAttentionDeps {
   /** What running PTY `id` is blocked on (`PtyManager.getBlockedState`); null = not blocked / gone. */
   getBlockedState(id: string): BlockedState | null
+  /** T0694: whether running PTY `id`'s agent is in a turn (`PtyManager.isAgentTurnActive`). Absent ⇒ never. */
+  isTurnActive?(id: string): boolean
   /** The tower-question store's `summaryFor`. Absent ⇒ no questions. */
   getQuestionSummary?(id: string): QuestionSummary
   emit(channel: string, payload: unknown): unknown
@@ -35,9 +41,10 @@ export interface TerminalAttentionDeps {
 }
 
 /** Tab `id`'s attention now (an empty one = nothing to show). */
-export function computeTerminalAttention(id: string, blocked: BlockedState | null, questions: QuestionSummary | null): TerminalAttentionEvent {
+export function computeTerminalAttention(id: string, blocked: BlockedState | null, questions: QuestionSummary | null, busy = false): TerminalAttentionEvent {
   const pendingQuestions = questions?.pending ?? 0
   const event: TerminalAttentionEvent = { id, pendingQuestions }
+  if (busy) event.busy = true // T0694: only when true (an idle tab's event is unchanged)
   if (blocked) {
     event.blockedReason = blocked.reason
     event.blockedSince = blocked.since
@@ -54,6 +61,7 @@ function describe(event: TerminalAttentionEvent): string {
   const parts: string[] = []
   if (event.blockedReason) parts.push(`blocked reason=${event.blockedReason}`)
   parts.push(`pendingQuestions=${event.pendingQuestions}`)
+  if (event.busy) parts.push('busy') // T0694
   return parts.join(' ')
 }
 
@@ -66,7 +74,7 @@ export class TerminalAttentionNotifier {
 
   constructor(private readonly deps: TerminalAttentionDeps) {}
 
-  /** Tab `id`'s blocked state or questions may have changed. */
+  /** Tab `id`'s blocked state, turn (T0694) or questions may have changed. */
   refresh(id: string): void {
     if (this.disposed || typeof id !== 'string' || !id) return
     this.dirty.add(id)
@@ -91,7 +99,7 @@ export class TerminalAttentionNotifier {
   private send(id: string): void {
     let event: TerminalAttentionEvent
     try {
-      event = computeTerminalAttention(id, this.deps.getBlockedState(id), this.deps.getQuestionSummary?.(id) ?? null)
+      event = computeTerminalAttention(id, this.deps.getBlockedState(id), this.deps.getQuestionSummary?.(id) ?? null, this.deps.isTurnActive?.(id) ?? false)
     } catch (e) {
       this.deps.logger?.log(`[attention] terminal=${id} → not computed (${e instanceof Error ? e.message : String(e)})`)
       return

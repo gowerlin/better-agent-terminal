@@ -10,7 +10,7 @@ import { externalTerminalTitle, legacyExternalCommand } from '../lib/external-te
 import { isDefaultTerminalTitle, towerTerminalTitle, type TerminalRoleChangeInfo } from '../lib/tower-terminal-title'
 import { workerAttention, workerNotifyKind, type TerminalAttentionEvent } from '../lib/terminal-attention'
 import { settingsStore } from './settings-store'
-import { getTerminalAttention } from './terminal-attention-store'
+import { getTerminalAttention, isWorkerResumedAfterReport, noteWorkerNotified } from './terminal-attention-store'
 
 /**
  * T0535 (PLAN-041): whether this window closes `terminal` on `terminal:close-requested`. Every
@@ -62,13 +62,16 @@ export function workersOfTower<T extends Pick<TerminalInstance, 'id' | 'towerTer
  * T0609 (BUG-153): not a Worker that waits for the user (claude hook `blocked`) or for this
  * Tower's answer (a pending tower question, or its latest report ends with `提問`) —
  * `workerAttention` (src/lib/terminal-attention.ts) must say `reported`.
+ * T0694 (D180): nor a Worker that reported and then started working again (`resumed`,
+ * `isWorkerResumedAfterReport`) — until that turn ends or it reports again.
  */
 export function reportedWorkersOfTower<T extends Pick<TerminalInstance, 'id' | 'towerTerminalId' | 'workerReport' | 'workerQuestion'>>(
   terminals: readonly T[],
   towerId: string,
   attentionOf: (id: string) => TerminalAttentionEvent | null = getTerminalAttention,
+  resumedOf: (id: string) => boolean = isWorkerResumedAfterReport,
 ): T[] {
-  return workersOfTower(terminals, towerId).filter(t => workerAttention(t, attentionOf(t.id))?.kind === 'reported')
+  return workersOfTower(terminals, towerId).filter(t => workerAttention(t, attentionOf(t.id), resumedOf(t.id))?.kind === 'reported')
 }
 
 // ── Layout snapshot: collect/restore UI layout from localStorage ──
@@ -673,6 +676,8 @@ class WorkspaceStore {
    * Tower) marks the tab `workerQuestion` instead — not reported; the next notify replaces it.
    * T0613 (BUG-154): the notify of `bat-notify --ask` (`questionId`) clears both — the question is
    * main's attention; once it ends the tab is running again, not reported (`workerNotifyKind`).
+   * T0694: every notify is also noted in the attention store's receive order (`noteWorkerNotified`):
+   * a turn that started before it is not a "resumed after the report" turn.
    */
   markWorkerReported(info: { targetId: string; source?: string; message: string; questionId?: string }): string[] {
     const ids = findReportingWorkers(this.state.terminals, info.targetId, info.source)
@@ -691,6 +696,7 @@ class WorkspaceStore {
       ...this.state,
       terminals: this.state.terminals.map(t => ids.includes(t.id) ? mark(t) : t),
     }
+    noteWorkerNotified(ids) // T0694
     this.notify()
     this.save()
     return ids

@@ -1388,6 +1388,7 @@
   "workerTabs": {
     "badgeTooltip": "{{workorder}} 的 Worker，由 {{tower}} 派出",
     "reportedTooltip": "已回報：{{message}}",
+    "resumedTooltip": "已回報（{{message}}），之後又開始執行",
     "notReportedTooltip": "尚未回報",
     "blockedTooltip": {
       "permission": "等待使用者：權限確認（{{time}} 起）",
@@ -1402,6 +1403,8 @@
     "batchCloseTitle": "關閉已回報的 Worker 分頁？",
     "batchCloseDesc": "以下 Worker 分頁已回報給 {{tower}}，將被關閉。其中執行中的程序會被終止，worktree 保留。",
     "batchCloseConfirm": "關閉 {{count}} 個分頁",
+    "batchCloseStillPrinting": "仍在輸出",
+    "batchCloseStillPrintingTooltip": "最近 {{seconds}} 秒內有輸出，可能還在執行",
     "remoteOriginTooltip": "這個終端由遠端伺服器建立"
   },
   "usageLimit": {

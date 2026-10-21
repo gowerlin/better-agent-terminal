@@ -192,6 +192,7 @@ export interface PtyManagerDeps {
   /**
    * T0609 (BUG-153): PTY `id`'s `blocked` changed (a hook report, the user's input, the PTY
    * ending, the Terminal Server recovery) — the renderer push (electron/terminal-attention.ts).
+   * T0694: also when its agent's turn started / ended (`isAgentTurnActive`).
    * Called synchronously; a throwing listener is logged and ignored. Undefined = no hook.
    */
   onBlockedChange?: (id: string) => void
@@ -326,11 +327,13 @@ export class PtyManager implements CloseWorkerPtyManager {
   // PLAN-047 M1b-1 / T0590: `blocked` (claude hooks) and each terminal's `blockedDetection`
   // T0609: `deps` is assigned by the constructor before any report can arrive
   // T0642: + the claude session id of a `session-start` (`onClaudeSessionChange`)
+  // T0694: + the agent's turn; its quiet fallback reads the PTY's last output time
   private blockedTracker = new TerminalBlockedTracker(
     logger,
     undefined,
     id => this.deps.onBlockedChange?.(id),
     id => this.deps.onClaudeSessionChange?.(id),
+    { lastOutputAt: id => this.lastOutputAt.get(id) ?? null },
   )
   // T0600 option B: `[agent-command] launch-suspect` (log only)
   private launchSuspect = new LaunchSuspectWatcher(logger)
@@ -1041,6 +1044,15 @@ export class PtyManager implements CloseWorkerPtyManager {
   /** What running PTY `id` is blocked on, or null (not blocked / not running). */
   getBlockedState(id: string): BlockedState | null {
     return this.instances.has(id) ? this.blockedTracker.get(id) : null
+  }
+
+  /**
+   * T0694 (D180): whether the agent of running PTY `id` is in a turn (claude `UserPromptSubmit` →
+   * `Stop`, codex OSC 7501 `working` → `idle` / `clear`, or no output for `AGENT_TURN_QUIET_END_MS`);
+   * false when not running. The attention push (`busy`, electron/terminal-attention.ts) reads it.
+   */
+  isAgentTurnActive(id: string): boolean {
+    return this.instances.has(id) && this.blockedTracker.isTurnActive(id)
   }
 
   /**

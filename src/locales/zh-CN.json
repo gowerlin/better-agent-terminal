@@ -1388,6 +1388,7 @@
   "workerTabs": {
     "badgeTooltip": "{{workorder}} 的 Worker，由 {{tower}} 派出",
     "reportedTooltip": "已回报：{{message}}",
+    "resumedTooltip": "已回报（{{message}}），之后又开始执行",
     "notReportedTooltip": "尚未回报",
     "blockedTooltip": {
       "permission": "等待用户：权限确认（{{time}} 起）",
@@ -1402,6 +1403,8 @@
     "batchCloseTitle": "关闭已回报的 Worker 标签页？",
     "batchCloseDesc": "以下 Worker 标签页已回报给 {{tower}}，将被关闭。其中正在执行的程序会被终止，worktree 保留。",
     "batchCloseConfirm": "关闭 {{count}} 个标签页",
+    "batchCloseStillPrinting": "仍在输出",
+    "batchCloseStillPrintingTooltip": "最近 {{seconds}} 秒内有输出，可能仍在执行",
     "remoteOriginTooltip": "这个终端由远程服务器创建"
   },
   "usageLimit": {

@@ -329,7 +329,8 @@ export function buildHeadlessHelperEnv(opts: {
  * connected clients; `usageLimitCanDeliver` false (no client) → nothing is sent. User input =
  * the same `isUserInput` rule.
  * PLAN-048 / T0607: `onPtyExit` — also told of every PTY that is gone (the tower-question store).
- * T0609: `onBlockedChange` — a PTY's hook `blocked` changed (the attention push).
+ * T0609: `onBlockedChange` — a PTY's hook `blocked` changed (the attention push); T0694: or its
+ * agent's turn started / ended.
  */
 export const USAGE_LIMIT_CONFIG_TTL_MS = 5000
 
@@ -613,6 +614,7 @@ export function createHeadlessBatMcpModule(opts: { installRoot?: string; getPtyM
  * module's exit hook); a server restart ends every PTY, and old ids answer `lost`.
  * T0609 (BUG-153): + `terminal:attention-changed` to the connected clients (electron/terminal-attention.ts)
  * from the tower-question store and the pty module's `blocked` changes (`onBlockedChange`).
+ * T0694: + `busy` (the agent's turn, `PtyManager.isAgentTurnActive`), same as Electron main.
  */
 export function createHeadlessTerminalQueryModule(opts: {
   getPtyManager: () => PtyManager | null
@@ -639,6 +641,7 @@ export function createHeadlessTerminalQueryModule(opts: {
     })
     attention = new TerminalAttentionNotifier({
       getBlockedState: id => opts.getPtyManager()?.getBlockedState(id) ?? null,
+      isTurnActive: id => opts.getPtyManager()?.isAgentTurnActive(id) ?? false, // T0694
       getQuestionSummary: id => towerQuestions.summaryFor(id),
       emit: (channel, payload) => host.emit(channel, payload),
       logger: defaultLogger,

@@ -9,9 +9,15 @@
  *   blocked / input                                   main: codex OSC 7501 (T0621)    ⚠️  (T0623)
  *   blocked / tower, or pending questions > 0         main: tower questions (T0607)   ?
  *   the Worker's latest report ends with `提問`       renderer: `workerQuestion`      ?   (old CT fallback)
+ *   reported, then a turn started (T0694)             main: `busy` + renderer order    ↻   (not counted by batch close)
  *   any other report (完成 / BLOCKED / 需要協助 …)    renderer: `workerReport`        ✓   (counted by batch close)
  *
- * Precedence: waits for the user > waits for the Tower > reported (`workerAttention`).
+ * Precedence: waits for the user > waits for the Tower > reported, working again > reported (`workerAttention`).
+ * T0694 (D180): `resumed` — a Worker that reported and then started a new turn (a Renew in the same
+ * tab): main says the turn runs (`busy`), the renderer says it started after the report by the order
+ * it received the two events (src/stores/terminal-attention-store.ts `isWorkerResumedAfterReport`;
+ * never by comparing main's / a remote host's times with `reportedAt`). The turn ends without a new
+ * report → ✓ again; a new report → ✓. In memory only.
  * T0613 (BUG-154): the notify of `bat-notify --ask` (it carries `questionId`) is no report: it
  * clears the tab's `workerReport` / `workerQuestion`, so once the question ends the tab shows
  * nothing (still working) until the Worker notifies again (`workerNotifyKind`).
@@ -42,10 +48,28 @@ export interface TerminalAttentionEvent {
   pendingQuestions: number
   /** ms epoch of its oldest pending question (`pendingQuestions > 0` only). */
   questionsSince?: number
+  /**
+   * T0694: the tab's agent is in a turn (claude `UserPromptSubmit` → `Stop`, codex OSC 7501 `working`
+   * → `idle` / `clear`, or main's quiet fallback). Present only when true; a `none` tab never has it.
+   */
+  busy?: true
 }
 
 export function isEmptyAttention(event: TerminalAttentionEvent | null | undefined): boolean {
-  return !event || (!event.blockedReason && !(event.pendingQuestions > 0))
+  return !event || (!event.blockedReason && !(event.pendingQuestions > 0) && event.busy !== true)
+}
+
+/**
+ * T0694 (d2): the batch-close confirm marks a listed tab "still printing" when its last output is this
+ * recent. Same value as main's `CLOSE_WORKER_IDLE_MS` (electron/close-worker.ts, the quiet a
+ * `--close-worker` waits for); a renderer copy because that module is main-only
+ * (electron/__tests__/agent-turn-attention.test.ts checks they are equal).
+ */
+export const BATCH_CLOSE_RECENT_OUTPUT_MS = 5000
+
+/** T0694: whether a tab whose last output was at `lastActivityTime` (renderer clock) still prints at `now`. */
+export function isRecentlyPrinting(lastActivityTime: number | null | undefined, now: number): boolean {
+  return typeof lastActivityTime === 'number' && Number.isFinite(lastActivityTime) && now - lastActivityTime < BATCH_CLOSE_RECENT_OUTPUT_MS
 }
 
 export function isHookReason(reason: unknown): reason is AttentionHookReason {
@@ -76,6 +100,7 @@ export function workerNotifyKind(info: { message?: unknown; questionId?: unknown
 export type WorkerAttention =
   | { kind: 'blocked'; reason: AttentionHookReason; since: number | null }
   | { kind: 'question'; since: number | null; pending: number; source: 'question' | 'notify' }
+  | { kind: 'resumed'; message: string; reportedAt: number }
   | { kind: 'reported'; message: string; reportedAt: number }
 
 export interface WorkerAttentionTab {
@@ -83,8 +108,12 @@ export interface WorkerAttentionTab {
   workerQuestion?: { message: string; askedAt: number }
 }
 
-/** The badge of a Worker tab: main's state first, then its latest report. null = running. */
-export function workerAttention(tab: WorkerAttentionTab, attention: TerminalAttentionEvent | null | undefined): WorkerAttention | null {
+/**
+ * The badge of a Worker tab: main's state first, then its latest report. null = running.
+ * T0694: `resumed` = this window saw a turn start after the tab's latest report
+ * (`isWorkerResumedAfterReport`, src/stores/terminal-attention-store.ts); only a reported tab can be.
+ */
+export function workerAttention(tab: WorkerAttentionTab, attention: TerminalAttentionEvent | null | undefined, resumed = false): WorkerAttention | null {
   if (attention && isHookReason(attention.blockedReason)) {
     return { kind: 'blocked', reason: attention.blockedReason, since: attention.blockedSince ?? null }
   }
@@ -93,6 +122,6 @@ export function workerAttention(tab: WorkerAttentionTab, attention: TerminalAtte
     return { kind: 'question', since: since ?? null, pending: attention.pendingQuestions, source: 'question' }
   }
   if (tab.workerQuestion) return { kind: 'question', since: tab.workerQuestion.askedAt, pending: 0, source: 'notify' }
-  if (tab.workerReport) return { kind: 'reported', message: tab.workerReport.message, reportedAt: tab.workerReport.reportedAt }
+  if (tab.workerReport) return { kind: resumed ? 'resumed' : 'reported', message: tab.workerReport.message, reportedAt: tab.workerReport.reportedAt }
   return null
 }

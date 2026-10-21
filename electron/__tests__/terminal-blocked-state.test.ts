@@ -165,6 +165,7 @@ describe('TerminalBlockedTracker', () => {
       '[blocked] terminal=a → blocked reason=elicitation (hook elicitation)',
       '[blocked] terminal=a → cleared (hook stop)',
       '[blocked] terminal=a → blocked reason=question (hook ask-user-question)',
+      '[turn] terminal=a → started (hook user-prompt-submit)', // T0694
       '[blocked] terminal=a → cleared (hook user-prompt-submit)',
     ])
     expect(HOOK_REPORT_EVENTS).toEqual(['permission-request', 'ask-user-question', 'ask-user-question-done', 'elicitation', 'elicitation-done', 'post-tool-batch', 'user-prompt-submit', 'stop', 'session-start'])

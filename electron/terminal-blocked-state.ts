@@ -59,6 +59,24 @@
  * over `hook` (a hook tab ignores the sequence). `input` is not cleared by user input (codex sends
  * its own transitions); the PTY ending and the Terminal Server recovery clear it like a hook reason.
  *
+ * T0694 (D180): the agent's turn (`isTurnActive`) — whether the agent of running PTY `id` works on a
+ * prompt. Pushed to the windows with `terminal:attention-changed` (`busy`, electron/terminal-attention.ts)
+ * so a Worker that reported and then works again (a Renew in the same tab) loses its ✓ for that turn.
+ *
+ *   signal                                       → turn
+ *   claude hook UserPromptSubmit                 → started
+ *   claude hook Stop                             → ended
+ *   codex OSC 7501 state=working                 → started
+ *   codex OSC 7501 state=idle / clear            → ended (blocked: unchanged)
+ *   no output for `AGENT_TURN_QUIET_END_MS`      → ended (fallback; never while `blocked`)
+ *   the PTY ending, the Terminal Server recovery → ended
+ *
+ * The fallback exists because claude runs no `Stop` when the user interrupts the turn (Esc) and runs
+ * `StopFailure` instead of `Stop` on an API error (claude hooks documentation; both events are in the
+ * 2.1.306 binary). BAT injects no `StopFailure` hook: the quiet fallback covers both. A `none` tab
+ * (no hooks, no OSC) never has a turn. User input neither starts nor ends one. Logs:
+ * `[turn] terminal=<id> → started|ended (<cause>)`.
+ *
  * 🔴 No `electron` import here (PtyManager and headless use it).
  */
 import type { CodexTerminalState } from '../src/lib/codex-terminal-state'
@@ -182,6 +200,25 @@ export interface BlockedState {
   source?: 'osc'
 }
 
+/**
+ * T0694: a turn with no PTY output for this long ends (the fallback for a turn claude ends without
+ * `Stop`). claude and codex redraw their working spinner / elapsed time at least every second while a
+ * turn runs, so a minute of silence means the turn is over; a turn that really stays silent that long
+ * shows ✓ again, as before T0694.
+ */
+export const AGENT_TURN_QUIET_END_MS = 60_000
+
+/** T0694: the turn fallback's clock and the PTY's output time (PtyManager's `lastOutputAt`). */
+export interface AgentTurnOptions {
+  /** Default `AGENT_TURN_QUIET_END_MS`; 0 = no fallback. */
+  quietEndMs?: number
+  /** ms epoch of PTY `id`'s last output, or null. Absent = the turn's start counts as its last output. */
+  lastOutputAt?(id: string): number | null
+  /** Tests. Default `setTimeout` (unref'd) / `clearTimeout`. */
+  setTimer?(fn: () => void, ms: number): unknown
+  clearTimer?(handle: unknown): void
+}
+
 /** T0621: what `observeCodexState` did. `ignored` = a `hook` tab (its sequences are not read). */
 export type CodexStateResult = 'blocked' | 'cleared' | 'unchanged' | 'ignored'
 
@@ -201,6 +238,7 @@ export interface BlockedTrackerLogger {
  * T0609 (BUG-153): `onChange(id)` after every `blocked` transition (entered / reason changed /
  * cleared) — the renderer push (electron/terminal-attention.ts). A throwing listener is ignored.
  * T0642: `onSessionChange(id)` when a report changes PTY `id`'s session id (Electron persists it).
+ * T0694: `onChange(id)` also after every turn transition (started / ended).
  */
 export class TerminalBlockedTracker {
   private readonly states = new Map<string, BlockedState>()
@@ -216,12 +254,15 @@ export class TerminalBlockedTracker {
    * thread); `any` = more than `PERMISSION_AGENTS_MAX`, any `post-tool-batch` clears.
    */
   private readonly permissionAgents = new Map<string, Set<string> | 'any'>()
+  /** T0694: running PTY id → its agent's turn (start time, the quiet fallback's timer). */
+  private readonly turns = new Map<string, { since: number; timer: unknown }>()
 
   constructor(
     private readonly logger?: BlockedTrackerLogger,
     private readonly now: () => number = () => Date.now(),
     private readonly onChange?: (id: string) => void,
     private readonly onSessionChange?: (id: string) => void,
+    private readonly turnOptions: AgentTurnOptions = {},
   ) {}
 
   private sessionChanged(id: string): void {
@@ -265,6 +306,9 @@ export class TerminalBlockedTracker {
       if (sessionChanged) this.sessionChanged(id)
       return { result, state }
     }
+    // T0694: the turn (independent of `blocked`; the result below stays about `blocked`)
+    if (event === 'user-prompt-submit') this.startTurn(id, `hook ${event}`)
+    else if (event === 'stop') this.endTurn(id, `hook ${event}`)
     const reason = hookEventReason(event, toolName)
     const agent = agentId ?? MAIN_AGENT
     const agentLog = agentId ? ` agent=${agentId}` : ''
@@ -322,6 +366,9 @@ export class TerminalBlockedTracker {
       this.started.set(id, this.now())
       this.logger?.log(`[agent-start] terminal=${id} → started (osc ${state})`)
     }
+    // T0694: the turn; `blocked` happens inside one and leaves it as it is
+    if (state === 'working') this.startTurn(id, `osc ${state}`)
+    else if (state !== 'blocked') this.endTurn(id, `osc ${state}`)
     if (state !== 'blocked') return this.clear(id, `osc ${state}`) ? 'cleared' : 'unchanged'
     if (this.states.get(id)?.reason === 'input') return 'unchanged'
     this.states.set(id, { reason: 'input', since: this.now(), source: 'osc' })
@@ -351,6 +398,7 @@ export class TerminalBlockedTracker {
 
   clearAll(cause: string): void {
     for (const id of [...this.states.keys()]) this.clear(id, cause)
+    for (const id of [...this.turns.keys()]) this.endTurn(id, cause) // T0694
     this.started.clear() // T0600
     this.codexStates.clear() // T0621
     this.sessionIds.clear() // T0642
@@ -385,6 +433,75 @@ export class TerminalBlockedTracker {
     this.started.delete(id)
     this.codexStates.delete(id)
     this.sessionIds.delete(id)
+    this.endTurn(id, 'the PTY ended') // T0694
+  }
+
+  /** T0694: whether the agent of PTY `id` is in a turn (hook / OSC signals, see the file header). */
+  isTurnActive(id: string): boolean {
+    return this.turns.has(id)
+  }
+
+  /** T0694: a turn started; a running one keeps its start. True when none was running. */
+  private startTurn(id: string, cause: string): boolean {
+    if (this.turns.has(id)) return false
+    this.turns.set(id, { since: this.now(), timer: this.armTurnTimer(id, this.turnQuietEndMs()) })
+    this.logger?.log(`[turn] terminal=${id} → started (${cause})`)
+    this.changed(id)
+    return true
+  }
+
+  /** T0694: the turn of PTY `id` ended; true when one was running. */
+  endTurn(id: string, cause: string): boolean {
+    const turn = this.turns.get(id)
+    if (!turn) return false
+    this.clearTurnTimer(turn.timer)
+    this.turns.delete(id)
+    this.logger?.log(`[turn] terminal=${id} → ended (${cause})`)
+    this.changed(id)
+    return true
+  }
+
+  private turnQuietEndMs(): number {
+    const ms = this.turnOptions.quietEndMs ?? AGENT_TURN_QUIET_END_MS
+    return Number.isFinite(ms) && ms > 0 ? ms : 0
+  }
+
+  private armTurnTimer(id: string, ms: number): unknown {
+    if (ms <= 0) return null
+    const fn = () => this.checkTurnQuiet(id)
+    if (this.turnOptions.setTimer) return this.turnOptions.setTimer(fn, ms)
+    const handle = setTimeout(fn, ms)
+    ;(handle as { unref?: () => void }).unref?.()
+    return handle
+  }
+
+  private clearTurnTimer(handle: unknown): void {
+    if (handle === null || handle === undefined) return
+    if (this.turnOptions.clearTimer) this.turnOptions.clearTimer(handle)
+    else clearTimeout(handle as ReturnType<typeof setTimeout>)
+  }
+
+  /** T0694: the quiet fallback — ends the turn after `quietEndMs` without output, never while `blocked`. */
+  private checkTurnQuiet(id: string): void {
+    const turn = this.turns.get(id)
+    if (!turn) return
+    const quietMs = this.turnQuietEndMs()
+    if (quietMs <= 0) return
+    // waiting for the user is part of the turn: it goes on once the prompt is answered
+    if (this.states.has(id)) {
+      turn.timer = this.armTurnTimer(id, quietMs)
+      return
+    }
+    let last = turn.since
+    try {
+      last = Math.max(last, this.turnOptions.lastOutputAt?.(id) ?? 0)
+    } catch { /* the start time only */ }
+    const quietFor = this.now() - last
+    if (quietFor >= quietMs) {
+      this.endTurn(id, `no output for ${quietMs}ms`)
+      return
+    }
+    turn.timer = this.armTurnTimer(id, quietMs - quietFor)
   }
 
   get(id: string): BlockedState | null {
@@ -407,6 +524,8 @@ export class TerminalBlockedTracker {
   }
 
   dispose(): void {
+    for (const turn of this.turns.values()) this.clearTurnTimer(turn.timer) // T0694
+    this.turns.clear()
     this.states.clear()
     this.permissionAgents.clear()
     this.started.clear()

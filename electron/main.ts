@@ -2427,6 +2427,7 @@ function registerProxiedHandlers() {
   // + broadcastHub (remote clients of this BAT) mark the Worker badge. State fields only (D155).
   terminalAttention = new TerminalAttentionNotifier({
     getBlockedState: id => ptyManager?.getBlockedState(id) ?? null,
+    isTurnActive: id => ptyManager?.isAgentTurnActive(id) ?? false, // T0694
     getQuestionSummary: id => towerQuestions.summaryFor(id),
     emit: terminalEmit,
     logger,

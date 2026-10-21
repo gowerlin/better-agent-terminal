@@ -11,7 +11,7 @@ import type { AgentDefinition } from '../types/agent-runtime'
 import { hasNotification, subscribeNotification, clearNotification } from '../stores/terminal-notifications'
 import { useUsageLimitStatus } from '../stores/usage-limit-store'
 import { USAGE_LIMIT_MAX_CONSECUTIVE_SENDS, type UsageLimitStatus } from '../lib/usage-limit'
-import { useTerminalAttention } from '../stores/terminal-attention-store'
+import { useTerminalAttention, useWorkerResumed } from '../stores/terminal-attention-store'
 import { workerAttention, type WorkerAttention } from '../lib/terminal-attention'
 import { appendPreviewInput, outputPreview, textPreview } from '../lib/thumbnail-preview'
 
@@ -45,14 +45,18 @@ function usageLimitTooltip(t: (key: string, options?: Record<string, unknown>) =
 function workerAttentionTooltip(t: (key: string, options?: Record<string, unknown>) => string, attention: WorkerAttention | null): string {
   if (!attention) return t('workerTabs.notReportedTooltip')
   if (attention.kind === 'reported') return t('workerTabs.reportedTooltip', { message: attention.message })
+  if (attention.kind === 'resumed') return t('workerTabs.resumedTooltip', { message: attention.message }) // T0694
   const time = clockTime(attention.since) || t('usageLimit.unknownTime')
   if (attention.kind === 'blocked') return t(`workerTabs.blockedTooltip.${attention.reason}`, { time })
   const asked = t('workerTabs.questionTooltip', { time })
   return attention.pending > 1 ? `${asked}\n${t('workerTabs.questionPendingTooltip', { count: attention.pending })}` : asked
 }
 
-/** T0609: the badge text — ⚠️ waits for the user, ? waits for the Tower, ✓ reported. */
-const WORKER_ATTENTION_MARK: Record<WorkerAttention['kind'], string> = { blocked: '⚠️', question: '?', reported: '✓' }
+/**
+ * T0609: the badge text — ⚠️ waits for the user, ? waits for the Tower, ✓ reported.
+ * T0694: ↻ reported, then working again (a shape, not only a color: tells apart from ✓ without color).
+ */
+const WORKER_ATTENTION_MARK: Record<WorkerAttention['kind'], string> = { blocked: '⚠️', question: '?', resumed: '↻', reported: '✓' }
 
 // Global preview cache - persists across component unmounts
 const MAX_PREVIEW_CACHE = 100
@@ -222,7 +226,9 @@ export const TerminalThumbnail = memo(function TerminalThumbnail({ terminal, isA
   // T0609 (BUG-153): waits for the user (⚠️) / for its Tower (?) / reported (✓) — main's
   // `terminal:attention-changed` first, then the Worker's latest report
   const attentionEvent = useTerminalAttention(terminal.id)
-  const attention = isWorker ? workerAttention(terminal, attentionEvent) : null
+  // T0694: reported, then a turn started (main's `busy` after this window saw the report) → ↻, not ✓
+  const resumed = useWorkerResumed(terminal.id)
+  const attention = isWorker ? workerAttention(terminal, attentionEvent, resumed) : null
   const showWorkerBadge = isWorker && (!workorderInTitle || !!attention)
   // PLAN-044 / T0566: the tab's usage-limit state (main's `terminal:usage-limit-status`, memory only)
   const usageLimit = useUsageLimitStatus(terminal.id)

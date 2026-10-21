@@ -163,6 +163,7 @@ describe('TerminalBlockedTracker.observeCodexState (T0621)', () => {
       '[codex-state] terminal=a → idle',
       '[agent-start] terminal=a → started (osc idle)',
       '[codex-state] terminal=a → working',
+      '[turn] terminal=a → started (osc working)', // T0694
       '[codex-state] terminal=a → blocked',
       '[blocked] terminal=a → blocked reason=input (osc)',
       '[codex-state] terminal=a → working',
@@ -170,13 +171,15 @@ describe('TerminalBlockedTracker.observeCodexState (T0621)', () => {
       '[codex-state] terminal=a → blocked',
       '[blocked] terminal=a → blocked reason=input (osc)',
       '[codex-state] terminal=a → idle',
+      '[turn] terminal=a → ended (osc idle)', // T0694
       '[blocked] terminal=a → cleared (osc idle)',
       '[codex-state] terminal=a → blocked',
       '[blocked] terminal=a → blocked reason=input (osc)',
       '[codex-state] terminal=a → clear',
       '[blocked] terminal=a → cleared (osc clear)',
     ])
-    expect(changes).toEqual(['a', 'a', 'a', 'a', 'a', 'a'])
+    // T0694: + the turn's start (working) and end (idle)
+    expect(changes).toEqual(['a', 'a', 'a', 'a', 'a', 'a', 'a', 'a'])
   })
 
   it('a hook tab ignores the sequence (C-1): detection, blocked and agentStarted untouched', () => {

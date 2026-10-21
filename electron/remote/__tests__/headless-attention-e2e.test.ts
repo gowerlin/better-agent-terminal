@@ -9,6 +9,7 @@
  *   Worker hook ask-user-question → client: blocked / question (hook first), hook stop → tower again
  *   Tower question:answer → client: empty state
  *   D155: no attention event carries the question or the answer
+ *   T0694: hook user-prompt-submit → client: busy; hook stop → client: empty state
  */
 import * as fs from 'fs'
 import * as os from 'os'
@@ -168,6 +169,21 @@ describe('terminal:attention-changed from a headless server (T0609)', () => {
     const all = JSON.stringify(harness.events.filter(e => e.channel === 'terminal:attention-changed'))
     expect(all).not.toContain(QUESTION)
     expect(all).not.toContain(ANSWER)
+  }, 180_000)
+
+  // T0694 (D180): the agent's turn reaches a remote window too (`busy`, `isAgentTurnActive` on the
+  // headless notifier, same wiring as Electron main)
+  it('T0694: hook user-prompt-submit → busy; hook stop → empty', async () => {
+    const before = attentionOf(worker).length
+    await runIn(worker, [{ channel: 'terminal:report-hook', args: [{ event: 'user-prompt-submit' }] }])
+    expect(await nextAttention(worker, e => e.busy === true)).toEqual({ id: worker, pendingQuestions: 0, busy: true })
+    await runIn(worker, [{ channel: 'terminal:report-hook', args: [{ event: 'stop' }] }])
+    await nextAttention(worker, e => e.busy === undefined && attentionOf(worker).slice(before).some(x => x.busy === true))
+    expect(attentionOf(worker).slice(before)).toEqual([
+      { id: worker, pendingQuestions: 0, busy: true },
+      { id: worker, pendingQuestions: 0 },
+    ])
+    expect(attentionOf(tower)).toEqual([])
   }, 180_000)
 
   it('teardown', async () => {

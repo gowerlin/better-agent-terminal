@@ -1388,6 +1388,7 @@
   "workerTabs": {
     "badgeTooltip": "Worker for {{workorder}}, dispatched by {{tower}}",
     "reportedTooltip": "Reported: {{message}}",
+    "resumedTooltip": "Reported ({{message}}), then started working again",
     "notReportedTooltip": "Not reported yet",
     "blockedTooltip": {
       "permission": "Waiting for you: a permission prompt (since {{time}})",
@@ -1402,6 +1403,8 @@
     "batchCloseTitle": "Close reported Worker tabs?",
     "batchCloseDesc": "These Worker tabs have reported to {{tower}} and will be closed. Their processes are terminated; worktrees are kept.",
     "batchCloseConfirm": "Close {{count}} tabs",
+    "batchCloseStillPrinting": "still printing",
+    "batchCloseStillPrintingTooltip": "Printed within the last {{seconds}} s: it may still be working",
     "remoteOriginTooltip": "A remote server created this terminal"
   },
   "usageLimit": {

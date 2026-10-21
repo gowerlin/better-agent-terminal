@@ -26,6 +26,7 @@ import { retryOnceWhenRemoteConnected } from '../lib/remote-not-connected'
 import { usePtyLimitNotice } from '../hooks/usePtyLimitNotice'
 import { CLAUDE_OPEN_LOGIN_TERMINAL_EVENT, openClaudeLoginTerminal, type ClaudeOpenLoginTerminalDetail } from '../lib/claude-login-guide'
 import { REMOTE_UNSUPPORTED_AGENT_PRESETS } from '../lib/remote-unsupported'
+import { BATCH_CLOSE_RECENT_OUTPUT_MS, isRecentlyPrinting } from '../lib/terminal-attention'
 // BUG-048: eager-load pending reveal bus so the listener registers before FileTree lazy-mounts
 import '../state/fileTreeRevealBus'
 import { ModalOverlay } from './common/ModalOverlay'
@@ -1471,29 +1472,74 @@ export function WorkspaceView({ workspace, terminals, focusedTerminalId, isActiv
       )}
 
       {batchCloseWorkers && batchCloseList.length > 0 && (
-        <ModalOverlay className="dialog-overlay" onEscape={() => setBatchCloseWorkers(null)}>
-          <div className="dialog worker-batch-close-dialog" role="dialog" onClick={e => e.stopPropagation()}>
-            <h3>{t('workerTabs.batchCloseTitle')}</h3>
-            <p>{t('workerTabs.batchCloseDesc', { tower: terminals.find(tm => tm.id === batchCloseWorkers.towerId)?.title ?? batchCloseWorkers.towerId.slice(0, 8) })}</p>
-            <ul className="worker-batch-close-list">
-              {batchCloseList.map(tm => (
-                <li key={tm.id} data-terminal-id={tm.id} title={tm.workerReport?.message}>
-                  <span className="worker-badge reported">{tm.workorder}</span>
-                  <span className="worker-batch-close-title">{tm.title}</span>
-                </li>
-              ))}
-            </ul>
-            <div className="dialog-actions">
-              <button className="dialog-btn cancel" onClick={() => setBatchCloseWorkers(null)}>
-                {t('common.cancel')}
-              </button>
-              <button className="dialog-btn confirm" data-action="confirm-batch-close" onClick={handleConfirmBatchClose}>
-                {t('workerTabs.batchCloseConfirm', { count: batchCloseList.length })}
-              </button>
-            </div>
-          </div>
-        </ModalOverlay>
+        <WorkerBatchCloseDialog
+          towerTitle={terminals.find(tm => tm.id === batchCloseWorkers.towerId)?.title ?? batchCloseWorkers.towerId.slice(0, 8)}
+          workers={batchCloseList}
+          onCancel={() => setBatchCloseWorkers(null)}
+          onConfirm={handleConfirmBatchClose}
+        />
       )}
     </div>
+  )
+}
+
+/** T0694: a tab's last output time in this window (`lastActivityTime`, updated on every `pty:output`). */
+function storeLastActivity(id: string): number | null | undefined {
+  return workspaceStore.getState().terminals.find(tm => tm.id === id)?.lastActivityTime
+}
+
+/**
+ * PLAN-041 / T0538: the in-page confirm of a Tower's "Close reported Worker tabs (N)" — 🔴 never
+ * `window.confirm`. T0694 (D180 d2): a listed tab that printed within `BATCH_CLOSE_RECENT_OUTPUT_MS`
+ * is marked "still printing" — a mark only, it stays listed (a Worker that just reported still prints
+ * a while). Covers tabs without a turn signal (`blockedDetection: none`). Reads the renderer's own
+ * output time from the store (the view's terminal list is refreshed at most every 2 s), every second.
+ */
+export function WorkerBatchCloseDialog({ towerTitle, workers, onCancel, onConfirm, lastActivityOf = storeLastActivity }: {
+  towerTitle: string
+  workers: TerminalInstance[]
+  onCancel: () => void
+  onConfirm: () => void
+  /** Tests. Default: the workspace store. */
+  lastActivityOf?: (id: string) => number | null | undefined
+}) {
+  const { t } = useTranslation()
+  const [now, setNow] = useState(() => Date.now())
+  useEffect(() => {
+    const timer = setInterval(() => setNow(Date.now()), 1000)
+    return () => clearInterval(timer)
+  }, [])
+  return (
+    <ModalOverlay className="dialog-overlay" onEscape={onCancel}>
+      <div className="dialog worker-batch-close-dialog" role="dialog" onClick={e => e.stopPropagation()}>
+        <h3>{t('workerTabs.batchCloseTitle')}</h3>
+        <p>{t('workerTabs.batchCloseDesc', { tower: towerTitle })}</p>
+        <ul className="worker-batch-close-list">
+          {workers.map(tm => {
+            const printing = isRecentlyPrinting(lastActivityOf(tm.id), now)
+            return (
+              <li key={tm.id} data-terminal-id={tm.id} data-still-printing={printing ? 'true' : undefined} title={tm.workerReport?.message}>
+                <span className="worker-badge reported">{tm.workorder}</span>
+                <span className="worker-batch-close-title">{tm.title}</span>
+                {printing && (
+                  // not `.worker-badge`: the list's badge is the work order (e2e t0538 / t0609 select it)
+                  <span className="worker-batch-close-printing" style={{ flexShrink: 0, whiteSpace: 'nowrap', color: 'var(--text-secondary)' }} title={t('workerTabs.batchCloseStillPrintingTooltip', { seconds: BATCH_CLOSE_RECENT_OUTPUT_MS / 1000 })}>
+                    {t('workerTabs.batchCloseStillPrinting')}
+                  </span>
+                )}
+              </li>
+            )
+          })}
+        </ul>
+        <div className="dialog-actions">
+          <button className="dialog-btn cancel" onClick={onCancel}>
+            {t('common.cancel')}
+          </button>
+          <button className="dialog-btn confirm" data-action="confirm-batch-close" onClick={onConfirm}>
+            {t('workerTabs.batchCloseConfirm', { count: workers.length })}
+          </button>
+        </div>
+      </div>
+    </ModalOverlay>
   )
 }
