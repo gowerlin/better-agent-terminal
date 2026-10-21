@@ -17,7 +17,7 @@
 import { createRequire } from 'module'
 import * as os from 'os'
 import * as path from 'path'
-import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
 vi.mock('electron', () => {
   throw new Error('usage-limit-continue / pty-manager must not import electron')
@@ -59,6 +59,15 @@ beforeAll(async () => {
   req.cache[resolved] = { id: resolved, filename: resolved, loaded: true, exports: { spawn: ptySpawn } } as unknown as NodeJS.Module
   ;({ PtyManager } = await import('../pty-manager'))
   ;({ registerPtyHandlers } = await import('../handlers/pty'))
+})
+
+// T0684: START and at() are local wall clocks, and the claude cases read `4pm (Asia/Taipei)` as
+// one hour after START; so this file runs in Asia/Taipei whatever the host zone (CI runs in UTC).
+const ORIGINAL_TZ = process.env.TZ
+process.env.TZ = 'Asia/Taipei'
+afterAll(() => {
+  if (ORIGINAL_TZ === undefined) delete process.env.TZ
+  else process.env.TZ = ORIGINAL_TZ
 })
 
 const START = new Date(2026, 9, 16, 15, 0, 0).getTime()

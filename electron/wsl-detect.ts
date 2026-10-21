@@ -144,7 +144,9 @@ export function validateInstallPath(installPath: string): string {
 }
 
 export function validateWindowsAbsolutePath(filePath: string): string {
-  if (!path.isAbsolute(filePath)) {
+  // T0684 (D178): the WSL install tarball is always a Windows path; win32 rules explicitly so the
+  // tests also run on Linux. On Windows `path === path.win32`, so the behaviour is unchanged.
+  if (!path.win32.isAbsolute(filePath)) {
     throw new Error(`Expected absolute Windows path: ${filePath}`)
   }
   return filePath

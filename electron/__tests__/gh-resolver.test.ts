@@ -22,6 +22,22 @@ vi.mock('fs', () => ({
   constants: { X_OK: 1 },
 }))
 
+// T0684: the tests set process.platform, and path follows it as it does on a real host
+// (win32 rules for 'win32': `;` delimiter, `\` joins). Without this a Linux runner splits
+// PATH='C:\Tools' at the `:` and joins with `/`, so the Windows cases ran only on Windows.
+vi.mock('path', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('path')>()
+  const host = () => (process.platform === 'win32' ? actual.win32 : actual.posix)
+  const mocked = {
+    join: (...parts: string[]) => host().join(...parts),
+    normalize: (p: string) => host().normalize(p),
+    isAbsolute: (p: string) => host().isAbsolute(p),
+    get delimiter() { return host().delimiter },
+    get sep() { return host().sep },
+  }
+  return Object.defineProperties({ default: mocked }, Object.getOwnPropertyDescriptors(mocked))
+})
+
 vi.mock('child_process', () => ({
   default: { execFileSync: childProcessMocks.execFileSync },
   execFileSync: childProcessMocks.execFileSync,
@@ -69,7 +85,7 @@ afterEach(() => {
 describe('resolveGhBinary', () => {
   it('resolves gh.exe from PATH', async () => {
     const dir = 'C:\\Tools\\GitHub CLI'
-    const gh = path.join(dir, 'gh.exe')
+    const gh = 'C:\\Tools\\GitHub CLI\\gh.exe'
     process.env.PATH = dir
     mockExecutableFiles([gh])
 
@@ -81,7 +97,7 @@ describe('resolveGhBinary', () => {
 
   it('uses a valid customPath before PATH', async () => {
     const custom = 'C:\\Pinned\\gh.exe'
-    const pathHit = path.join('C:\\Tools', 'gh.exe')
+    const pathHit = 'C:\\Tools\\gh.exe'
     process.env.PATH = 'C:\\Tools'
     mockExecutableFiles([custom, pathHit])
 
@@ -101,7 +117,7 @@ describe('resolveGhBinary', () => {
   })
 
   it('falls back when customPath does not exist', async () => {
-    const pathHit = path.join('C:\\Tools', 'gh.exe')
+    const pathHit = 'C:\\Tools\\gh.exe'
     process.env.PATH = 'C:\\Tools'
     mockExecutableFiles([pathHit])
 
@@ -114,7 +130,7 @@ describe('resolveGhBinary', () => {
   it('resolves common Windows install locations', async () => {
     process.env.PATH = ''
     process.env.ProgramFiles = 'C:\\Program Files'
-    const common = path.join('C:\\Program Files', 'GitHub CLI', 'gh.exe')
+    const common = 'C:\\Program Files\\GitHub CLI\\gh.exe'
     mockExecutableFiles([common])
 
     const result = await resolveGhBinary()
@@ -142,15 +158,16 @@ describe('resolveGhBinary', () => {
     const result = await resolveGhBinary()
 
     expect(result.found).toBe(false)
-    expect(result.attemptedPaths).toContain(path.join('C:\\Missing', 'gh.exe'))
+    expect(result.attemptedPaths).toContain('C:\\Missing\\gh.exe')
     expect(result.error).toContain('not found')
   })
 })
 
 describe('resolveGitBinary (T0405, headless git lookup)', () => {
   it('prefers git on PATH', () => {
-    process.env.PATH = 'C:\Git\cmd'
-    const hit = path.join('C:\Git\cmd', 'git.exe')
+    // T0684: was 'C:\Git\cmd' (unescaped, i.e. 'C:Gitcmd')
+    process.env.PATH = 'C:\\Git\\cmd'
+    const hit = 'C:\\Git\\cmd\\git.exe'
     mockExecutableFiles([hit])
 
     expect(resolveGitBinary()).toMatchObject({ found: true, path: hit, source: 'path' })

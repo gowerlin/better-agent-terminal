@@ -187,10 +187,11 @@ describe('defaults', () => {
       platform: 'win32',
       executable: 'D:\\BAT\\BetterAgentTerminal.exe',
     })
+    // T0684: literal Windows paths, so a Linux host checks the same thing
     expect(dirs).toEqual([
-      join('D:\\BAT', 'resources', 'bat-server-baseline'),
-      join('C:\\Program Files', 'BetterAgentTerminal', 'resources', 'bat-server-baseline'),
-      join('C:\\Users\\u\\AppData\\Local', 'Programs', 'BetterAgentTerminal', 'resources', 'bat-server-baseline'),
+      'D:\\BAT\\resources\\bat-server-baseline',
+      'C:\\Program Files\\BetterAgentTerminal\\resources\\bat-server-baseline',
+      'C:\\Users\\u\\AppData\\Local\\Programs\\BetterAgentTerminal\\resources\\bat-server-baseline',
     ])
     expect(defaultInstalledBaselineDirs({ env: {}, platform: 'linux' })).toEqual([])
   })

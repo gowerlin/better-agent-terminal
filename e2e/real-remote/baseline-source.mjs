@@ -47,11 +47,13 @@ export function defaultUserDataBundleDirs({ env = process.env, platform = proces
  * given, then the per-machine and per-user (NSIS perMachine: false) default locations.
  */
 export function defaultInstalledBaselineDirs({ env = process.env, platform = process.platform, executable = env.BAT_E2E_EXECUTABLE } = {}) {
+  // T0684 (D178): path rules follow the injected platform (on Windows `path === path.win32`)
+  const p = platform === 'win32' ? path.win32 : path
   const dirs = []
-  if (executable) dirs.push(path.join(path.dirname(executable), 'resources', 'bat-server-baseline'))
+  if (executable) dirs.push(p.join(p.dirname(executable), 'resources', 'bat-server-baseline'))
   if (platform === 'win32') {
-    dirs.push(path.join(env.ProgramFiles || 'C:\\Program Files', 'BetterAgentTerminal', 'resources', 'bat-server-baseline'))
-    if (env.LOCALAPPDATA) dirs.push(path.join(env.LOCALAPPDATA, 'Programs', 'BetterAgentTerminal', 'resources', 'bat-server-baseline'))
+    dirs.push(p.join(env.ProgramFiles || 'C:\\Program Files', 'BetterAgentTerminal', 'resources', 'bat-server-baseline'))
+    if (env.LOCALAPPDATA) dirs.push(p.join(env.LOCALAPPDATA, 'Programs', 'BetterAgentTerminal', 'resources', 'bat-server-baseline'))
   }
   return [...new Set(dirs)]
 }

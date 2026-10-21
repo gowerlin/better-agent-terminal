@@ -47,7 +47,9 @@ let dataDir: string
 beforeEach(() => {
   dir = fs.mkdtempSync(path.join(os.tmpdir(), 't0584-launch-'))
   helperDir = path.join(dir, 'Program Files', 'BAT', 'scripts')
-  dataDir = path.join(dir, 'userData')
+  // T0684: the space makes `--mcp-config=<file>` need quotes on every host, as the Windows temp
+  // path (`\`, `:`) always does; a Linux /tmp path is all safe characters and would go unquoted
+  dataDir = path.join(dir, 'App Data', 'userData')
   fs.mkdirSync(helperDir, { recursive: true })
   fs.writeFileSync(path.join(helperDir, 'bat-mcp.mjs'), '// shim\n')
   process.env.BAT_REMOTE_TOKEN_T0584_PROBE = TOKEN

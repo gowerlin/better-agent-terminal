@@ -51,7 +51,9 @@ let dataDir: string
 beforeEach(() => {
   dir = fs.mkdtempSync(path.join(os.tmpdir(), 't0641-launch-'))
   helperDir = path.join(dir, 'scripts')
-  dataDir = path.join(dir, 'userData')
+  // T0684: the space makes `--mcp-config=` / `--settings=<file>` need quotes on every host, as the
+  // Windows temp path (`\`, `:`) always does; a Linux /tmp path would go unquoted
+  dataDir = path.join(dir, 'App Data', 'userData')
   fs.mkdirSync(helperDir, { recursive: true })
   fs.writeFileSync(path.join(helperDir, 'bat-mcp.mjs'), '')
   fs.writeFileSync(path.join(helperDir, 'bat-hook.mjs'), '')

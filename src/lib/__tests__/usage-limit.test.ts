@@ -7,7 +7,7 @@
  * local zone, expired, more than 7 days out); the decision table; settings normalisation; ANSI
  * stripping.
  */
-import { describe, expect, it } from 'vitest'
+import { afterAll, describe, expect, it } from 'vitest'
 import {
   classifyUsageLimitScreen,
   clampUsageLimitDelayMinutes,
@@ -20,6 +20,16 @@ import {
   usageLimitRecheckFailure,
   USAGE_LIMIT_DEFAULT_TEXT,
 } from '../usage-limit'
+
+// T0684: NOW and local() are local wall clocks, and the claude cases read `4pm (Asia/Taipei)` as
+// one hour after NOW; so this file runs in Asia/Taipei whatever the host zone (CI runs in UTC).
+// The product reads the zone in the sentence (`3pm (UTC)` / `(America/New_York)` cases below).
+const ORIGINAL_TZ = process.env.TZ
+process.env.TZ = 'Asia/Taipei'
+afterAll(() => {
+  if (ORIGINAL_TZ === undefined) delete process.env.TZ
+  else process.env.TZ = ORIGINAL_TZ
+})
 
 /** 2026-10-16 15:00 local time. */
 const NOW = new Date(2026, 9, 16, 15, 0, 0).getTime()
