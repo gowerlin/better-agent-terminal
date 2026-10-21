@@ -2,6 +2,36 @@
 
 本 fork 各版的更版重點（內容取自 GitHub Releases，最新在上）。上游 tony1223/better-agent-terminal 的 v2.1.x 紀錄保留在檔案最下方。
 
+## v0.7.1-pre.5（2026-10-21）
+
+版號 0.7.1-pre.5，接續 `v0.7.1-pre.4`。
+
+### 修正
+
+- **SSH 設定精靈：啟動遠端伺服器失敗時，錯誤訊息開頭與錯誤類型不一致**：服務已註冊、但啟動後無法執行時，錯誤類型是「啟動失敗」，詳細訊息開頭卻寫 `enable-failed:`，容易誤以為是註冊服務出錯。現在開頭會跟錯誤類型一致（`start-failed:` / `enable-failed:`）
+
+### 更新
+
+- **內嵌 Claude CLI 升級到 2.1.306**（原 2.1.300）：模型清單、價格、effort 等級皆無變動；BAT MCP、hooks、分頁名稱與用量限制提示的辨識都已對新版確認
+- **安裝檔不再附帶開發用腳本**：安裝目錄的 `resources/scripts` 現在只放 BAT 執行時用到的 6 個 helper（`bat-terminal`、`bat-notify`、`bat-mcp`、`bat-hook` 與它們共用的兩個模組），建置與測試用的腳本不再打包。打包前與打包後都會檢查這份清單，避免漏放 helper
+- **發版前先跑完整自動測試**：預覽版與正式版在打包前會先跑全部單元測試與舊版測試，任何一項失敗就不打包、不發佈（BUG-168）
+- **BAT MCP 權限政策**：BAT MCP 目前 8 個 tool 全部唯讀；文件明訂日後若新增會寫入的 tool，不會開放給 workflow 子 agent 使用（PLAN-054）
+- **官網新增「把腦力留給判斷」頁**：說明 BAT 與 Control Tower 的設計初衷，怎麼把需要記在腦中的狀態交給工具
+
+### 已知事項
+
+- 安裝版的 helper 用 `--version` 查詢時會顯示 `v0.0.0`，BAT MCP 回報的版本也是 `0.0.0`。只影響顯示，功能不受影響，修正排在後續版本（BUG-169）
+- 新版內嵌 Claude CLI 已用自動測試與不呼叫模型的方式確認，Agent 面板實際對話尚未在本版實機確認。Claude Code 2.1.302 起，Agent SDK 預設以 fork 方式執行 subagent，若 Agent 面板的進行中任務列顯示異常請回報
+- 程式異常結束後的滑鼠追蹤自動重設（`v0.7.1-pre.4`，BUG-166）以自動測試驗證，尚未在 macOS 實機確認
+- `v0.7.1-pre.3` 在 macOS 停用 Graphite 後，已有使用者實機確認長時間使用不再出現 GPU 崩潰（BUG-164）；根本修正仍需升級 Electron 42 以上，已列入後續計畫
+- Codex 分頁內用觸控板快速捲動時跟不上手指，修正排在後續版本。想先改善，可以在 `~/.codex/config.toml` 的 `[tui]` 段加 `mouse_scroll_speed = 3`（BUG-165）
+- 遠端視窗需把遠端的 BAT 伺服器升級到本版（重跑設定精靈）
+- Linux 版本未實機驗證
+
+macOS 仍只提供 Apple Silicon（arm64）版。
+
+**Full Changelog**: https://github.com/gowerlin/better-agent-terminal/compare/v0.7.1-pre.4...v0.7.1-pre.5
+
 ## v0.7.1-pre.4（2026-10-19）
 
 版號 0.7.1-pre.4，接續 `v0.7.1-pre.3`。

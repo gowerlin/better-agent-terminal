@@ -4,6 +4,28 @@ All notable changes to Better Agent Terminal are documented in this file.
 
 ## [Unreleased]
 
+## [0.7.1-pre.5] — 2026-10-21
+
+### Fixed
+- **SSH 精靈啟動遠端 bat-server 失敗時，錯誤字首與 `errorCode` 不一致**：stage 2（`systemctl --user enable` + `restart` / `launchctl load -w`）被判為 `start-failed` 時，`error` 仍以 `enable-failed:` 開頭。改為先判斷 `isStartIssue` 再組字串，`error` 與 `[ssh-start-server]` 日誌的字首都跟 `errorCode` 一致；分類 regex 不變。另補 `sshUser` 含 `@` 的拒絕測試（`startServerOnRemote` 與 teardown 都在任何 ssh exec 之前被拒）（T0688）
+
+### Changed
+- 內嵌 Claude CLI 2.1.300 → 2.1.306（`@anthropic-ai/claude-code` `^2.1.306` 與 8 個平台子套件；lock 只動 claude-code 系列）。模型清單、計價、effort、`HEALTHY_MIN`、update guard、BAT 整合點（`--mcp-config=` / `--settings=` hooks / `--name` / `disableAllHooks`）與 `usage-limit.ts` 句型皆無變動（T0690）
+- 安裝檔的 `resources/scripts` 只收 6 個執行期 helper：`build.extraResources` 的 filter 由 `*.mjs` 改為逐一列出檔名，與 `scripts/build-server-bundle.mjs` 的 `serverBundleHelperScripts` 同一組。`verify-helper-bundle.js` 擋萬用字元、兩組不一致與 import 未封閉；`verify-packaged-native.js` 新增 `helper-scripts` 檢查打包產物（缺少或多出都失敗）（T0689）
+- CI：`pre-release.yml` / `release.yml` 新增 Test gate，`tests` job 呼叫可重用的 `tests.yml`（`test:unit` → `test:legacy`）並列在 `build.needs`，失敗即不 build、不發版（BUG-168，T0686）。`tests/` 底下未被執行的舊測試修正後收進 vitest，或由新的 `npm run test:legacy` 執行；刪除 5 個指向不存在檔案的 npm script（BUG-167 / BUG-168，T0678–T0685）
+- `electron/wsl-detect.ts` 檢查 WSL 安裝用的 Windows tarball 路徑改用 `path.win32.isAbsolute`（Windows 上行為不變，D178）；`electron/wsl-systemd.ts` 解析使用者失敗時的錯誤訊息改用 `describeError`（T0684 / T0685）
+- 文件：BAT MCP 權限政策——日後若新增寫入型 tool，不得開放給 workflow 子 agent（PLAN-054 B4，T0687）
+- 專案網站：新增「把腦力留給判斷」頁 `/why`，首頁故事章節加上交給工具的說明（T0674）
+- repo 內工單與文件去識別化（D176，T0676 / T0677）
+
+### Known issues
+- 安裝版的 helper `--version` 與 BAT MCP `serverInfo.version` 顯示 `0.0.0`：helper 讀 `<scripts>/../package.json`，安裝目錄的 `resources/` 沒有這個檔；既有行為，只影響顯示（BUG-169）
+- Agent 面板未以新版內嵌 CLI 實機對話；Claude Code 2.1.302 起 SDK 預設以 fork 方式執行 subagent
+- 滑鼠追蹤自動重設未經 macOS 實機驗證（BUG-166）
+- Codex 分頁觸控板快速捲動（BUG-165；暫解 `~/.codex/config.toml` `[tui] mouse_scroll_speed = 3`）
+- 遠端視窗需重跑設定精靈把遠端 server 升級到本版
+- Linux 版本未實機驗證
+
 ## [0.7.1-pre.4] — 2026-10-19
 
 ### Fixed
