@@ -91,6 +91,7 @@
 ### 待辦（依優先序）
 - 🟡 **等使用者預覽**：T0674 網站 `/why`「把腦力留給判斷」（D175）DONE `0f50a83d`（塔台複驗 build 通過、字樣 grep 0；Worker 已回收）→ 使用者本機預覽後授權才 push（D161 預覽關卡；本機另有未 push 的塔台 commit）
 - ✅ 第二季 Podcast / NotebookLM 素材 5 集完成（CT v5.11 / BAT / BMad-Method 6.12，內部教育訓練版；11 檔：總覽 + 每集來源與提示），存 BMad-Guide repo `BMad-Control-Tower/docs/BMad_Control_Tower-S2 (…)/`，未 commit（屬 BMad-Guide 專案，由使用者或 BMad-Guide 塔台決定）
+- 🟡 **進行中**：T0675 NotebookLM 製作（API → chrome-live → claude-in-chrome → 逐步指引降級；決策點 D1～D4 由 Worker 在自己分頁直接問使用者，`--mode on`、非 yolo）
 1. 🔴 **Gary 以 `v0.7.1-pre.4` 驗收**：A BUG-166（`printf '\e[?1003h\e[?1006h'` 後移動滑鼠，殘骸幾筆即停；codex 分頁 Shift + 右鍵有兩個新選項）→ CLOSED；C（選做）BUG-165 `mouse_scroll_speed = 3` → 確認後派 S 修正（`attachCustomWheelEventHandler`，Gary「不急」）
 2. 🔴 `v0.7.1-pre.2` 剩餘實機驗收：BUG-156 需 Docker Desktop、BUG-159 需一般權限 + codex
 3. 🟡 PLAN-053 Electron 42+（IDEA）、PLAN-052 Docker 可用性（IDEA）；PLAN-054 B4（MCP 文件政策）**併下次發版批次**一起開單，B6 延後（CT D090）
@@ -107,7 +108,7 @@
 - 歷史 sessions → [_archive/state-snapshots/INDEX.md](_archive/state-snapshots/INDEX.md)（101 entries）
 
 ### 編號起始
-- **T0675** / **BUG-167** / **PLAN-055** / **D176** / **EXP-WFMINE-002**（其他 TOPIC 從 001） / **L172** / **CT-T022**
+- **T0676** / **BUG-167** / **PLAN-055** / **D176** / **EXP-WFMINE-002**（其他 TOPIC 從 001） / **L172** / **CT-T022**
 
 ---
 
@@ -121,7 +122,7 @@
 | **最新 release** | `v0.7.1-pre.4`（2026-10-19 18:03，run `39233550117`，target `8883cebd`：BUG-166 滑鼠追蹤殘留自動 / 手動重設；更版重點已寫；repo 文件 `4ae0e89d`；Pages `39234927266` 綠、link-check 1152 / 0 errors、首頁 pre.4；exe 298 / zip 412 / AppImage 297 / dmg 309 MiB）+ `server-bundle-v0.7.1-pre.4`（7 assets）。前一版 `v0.7.1-pre.3`（2026-10-19 13:00，run `39201696170`，target `bf4bfe4f`：BUG-136 縮圖預覽上限、BUG-164 macOS 停用 Graphite + GPU 崩潰後重建；更版重點已寫；repo 文件 `892df2ec`；exe 298 / zip 412 / AppImage 297 / dmg 310 MiB）+ `server-bundle-v0.7.1-pre.3`（7 assets）。更早見 `release-note.md` / `CHANGELOG.md` |
 | **前一 tag** | `v0.7.1-pre.3`（2026-10-19 13:00，`bf4bfe4f`） |
 | **目前主軸** | `v0.7.1-pre.4` 已發佈（第八十六 session），等 Gary 驗收 BUG-166；BUG-165 有空再排；第八十七 session 完成 EXP-WFMINE-001 / T0673、開 PLAN-054（PLANNED）；熱區無進行中工單 |
-| **工單最大編號** | **T0674** DONE `0f50a83d`（第八十八 session：網站新頁「把腦力留給判斷」`/why`，D175；未 push，等使用者預覽）；T0673 DONE（第八十七 session：EXP-WFMINE-001 執行單，`84e21f2d`）；第八十六 session：T0670 / T0671 研究、T0672 修正；第八十五 session：T0666–T0669；更早見 `_archive/state-snapshots/` |
+| **工單最大編號** | **T0675** TODO（第八十八 session：NotebookLM 製作第二季 Podcast，`--mode on` 互動派工）；T0674 DONE `0f50a83d`（第八十八 session：網站新頁「把腦力留給判斷」`/why`，D175；未 push，等使用者預覽）；T0673 DONE（第八十七 session：EXP-WFMINE-001 執行單，`84e21f2d`）；第八十六 session：T0670 / T0671 研究、T0672 修正；第八十五 session：T0666–T0669；更早見 `_archive/state-snapshots/` |
 | **BUG 最大編號** | **BUG-166**（第八十六 session 開立並 FIXED，待 Gary）；BUG-165 OPEN（有空再排）；BUG-164 CLOSED（收工後 Gary 確認）；BUG-136 第八十六 session CLOSED（Gary 確認）；熱區 Open 1 / Fixing 0 / Fixed 22 / Closed 28；BUG-165 OPEN、BUG-166 FIXED（T0672 `64209d44`，未發版，第八十六 session） |
 | **PLAN 最大編號** | **PLAN-054**（PLANNED：CT Workflow 智能的 BAT 側事項，B4 / B6，第八十七 session 2026-10-20）；PLAN-053 IDEA（Electron 42+ 升級，第八十五 session）；PLAN-052 / 051 IDEA；PLAN-049 / 047 DONE；PLAN-015 / 029 / 038 / 043 IDEA |
 | **決策最大編號** | **D175**（網站 `/why` 設計初衷，2026-10-21 第八十八 session）；D174（T0672 Q-1，2026-10-19 第八十六 session）；D173（網站示意可用 `_ct-workorders/`，放寬 D159 / D165 grep 規則一項，2026-10-19 第八十五 session）；D171 / D172 第八十四 session |
