@@ -1,0 +1,53 @@
+name: Tests
+
+# T0683 (BUG-168 / D177 step 1): trial run of the frontend / electron unit tests on ubuntu.
+# Manual only, and not a release gate yet: once a trial run passes, a follow-up work order
+# makes `test:unit` a gate of pre-release.yml / release.yml.
+on:
+  workflow_dispatch:
+
+jobs:
+  unit-tests:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+          cache: 'npm'
+
+      # Same install as the typecheck job (esbuild / rollup ship their binaries as optional platform
+      # packages, node-pty uses its prebuilt), plus the one install script vitest needs: some test
+      # files load modules that `require('electron')` unmocked, and without electron's postinstall
+      # (path.txt + dist/) that require throws "Electron failed to install correctly".
+      - name: Install dependencies (no install scripts)
+        run: npm ci --ignore-scripts
+
+      - name: Install the electron binary (electron's postinstall only)
+        run: node node_modules/electron/install.js
+
+      - name: Unit tests (vitest)
+        env:
+          # CLAUDE.md "遠端 Tower 通知": helper tests write their logs / data under these, never
+          # the runner's real userData. Step level: a job-level `env` cannot use `runner`.
+          BAT_HELPER_LOG_DIR: ${{ runner.temp }}/bat-helper-logs
+          BAT_USER_DATA: ${{ runner.temp }}/bat-user-data
+        run: npm run test:unit -- --reporter=default --reporter=json --outputFile.json="$RUNNER_TEMP/vitest-results.json"
+
+      - name: Summary (passed / failed)
+        if: always()
+        run: |
+          node -e '
+            const fs = require("fs")
+            const file = process.argv[1]
+            if (!fs.existsSync(file)) { console.log("no vitest results (the test step did not finish)"); process.exit(0) }
+            const r = JSON.parse(fs.readFileSync(file, "utf8"))
+            // numTotalTestSuites counts describe blocks too: count files from testResults
+            const failedFiles = r.testResults.filter(f => f.status === "failed").length
+            const line = `tests: ${r.numPassedTests} passed, ${r.numFailedTests} failed, ${r.numPendingTests + r.numTodoTests} skipped / ${r.numTotalTests} total; files: ${failedFiles} failed / ${r.testResults.length} total`
+            console.log(line)
+            if (process.env.GITHUB_STEP_SUMMARY) fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, `### Unit tests\n\n${line}\n`)
+          ' "$RUNNER_TEMP/vitest-results.json"

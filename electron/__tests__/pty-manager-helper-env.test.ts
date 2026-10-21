@@ -101,7 +101,12 @@ class FakeServer extends EventEmitter {
 const USER_DATA = path.join(CWD, 'BetterAgentTerminal-runtime-7')
 const HELPER_DIR = path.join(CWD, 'bat-scripts')
 
-const SAVED_KEYS = ['BAT_REMOTE_PORT', 'BAT_REMOTE_TOKEN', 'BAT_HELPER_DIR', 'BAT_USER_DATA'] as const
+// T0683 (BUG-168): the PTY env inherits process.env, so every key a test asserts absent is cleared
+// first — the result must not depend on the runner's shell (a BAT tab, a helper test, CI).
+const SAVED_KEYS = [
+  'BAT_REMOTE_PORT', 'BAT_REMOTE_TOKEN', 'BAT_HELPER_DIR', 'BAT_USER_DATA',
+  'BAT_HELPER_LOG_DIR', 'BAT_SERVER_CERT_PATH', 'DISABLE_UPDATES',
+] as const
 const saved: Record<string, string | undefined> = {}
 
 beforeEach(() => {
@@ -109,7 +114,10 @@ beforeEach(() => {
   vi.spyOn(logger, 'warn').mockImplementation(() => {})
   vi.spyOn(logger, 'error').mockImplementation(() => {})
   ptySpawn.mockClear()
-  for (const key of SAVED_KEYS) saved[key] = process.env[key]
+  for (const key of SAVED_KEYS) {
+    saved[key] = process.env[key]
+    delete process.env[key]
+  }
 })
 
 afterEach(() => {
