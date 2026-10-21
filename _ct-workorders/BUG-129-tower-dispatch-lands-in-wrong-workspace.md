@@ -34,7 +34,7 @@ links:
 > Session 誤開的部份他自己修正了 XDD
 
 截圖（皆在 `D:\Downloads\`）：
-- `messageImage_1791955327079_0.jpg`：專案D 工作區（只有 1 個「Codex CLI」分頁）。Codex 塔台執行 `node /Applications/BetterAgentTerminal.app/Contents/Resources/scripts/bat-terminal.mjs --notify-id "$BAT_TERMINAL_ID" --workspace "$BAT_WORKSP…` → `✓ Terminal created: bbe2011f0a4c657884595b351f2a38ab`。塔台自述「剛才派工用了 `--agent default`，BAT 將它解析成 Claude Code」。Codex 狀態列：cwd `~/Library/Mobile Documents/com~apple~CloudDocs/Documents/3Probe Project/<專案D>`，另有一段「**套用專案B 規則**」（Codex 端的顯示，來源待查）
+- `messageImage_1791955327079_0.jpg`：專案D 工作區（只有 1 個「Codex CLI」分頁）。Codex 塔台執行 `node /Applications/BetterAgentTerminal.app/Contents/Resources/scripts/bat-terminal.mjs --notify-id "$BAT_TERMINAL_ID" --workspace "$BAT_WORKSP…` → `✓ Terminal created: bbe2011f0a4c657884595b351f2a38ab`。塔台自述「剛才派工用了 `--agent default`，BAT 將它解析成 Claude Code」。Codex 狀態列：cwd `~/Library/Mobile Documents/com~apple~CloudDocs/Documents/<公司資料夾>/<專案D>`，另有一段「**套用專案B 規則**」（Codex 端的顯示，來源待查）
 - `messageImage_1791955358535_0.jpg`：**專案B**工作區。底部縮圖有 4 個分頁（Codex CLI、Remote: codex ×2、新的一個），新分頁是 `Remote: '/Applications/BetterAgentTerminal.app/Contents/Resources/app.asar.unpacked/node_modules/@anthropic-ai/claude-code-darwin-arm64/claude'`，跑的是 Claude Code v2.1.296 `/ct-exec T0001`，**cwd 卻是 專案D 資料**
 - `messageImage_1791955533975.jpg`：外部測試者A 的 Codex 塔台事後在**它專案的** `_ct-workorders/_local-rules.md` 自行加規則：「Worker 預設使用 Codex CLI…派工明確傳 `--agent codex`」、「派工前核對 BAT 工作區名稱、專案路徑及 Tower 終端。若繼承的 `BAT_WORKSPACE_ID` / `BAT_TERMINAL_ID` 指向其他專案，先以 BAT 當前工作區資料核對」⇒ 塔台推定**它所在 PTY 的 `BAT_WORKSPACE_ID` 指向專案B 工作區**
 
