@@ -4,14 +4,15 @@ schema_kind: workorder
 id: T0698
 title: "BUG-165 修正：Codex 分頁在 alt screen + 滑鼠追蹤時，依滾輪像素累積行數送多個滑鼠回報（上限約 8），讓捲動接近 iTerm2"
 type: implementation
-status: IN_PROGRESS
+status: DONE
 repo: better-agent-terminal
 project: BUG-165
 priority: P3
 sizing: S
 created_at: "2026-10-22T01:48:04+0800"
 started_at: "2026-10-22T01:49:26+0800"
-updated_at: "2026-10-22T01:49:26+0800"
+updated_at: "2026-10-22T02:00:28+0800"
+completed_at: "2026-10-22T02:00:28+0800"
 target_version: "0.7.1-pre.6"
 depends_on: []
 related:
@@ -29,7 +30,6 @@ affects_files:
 renew_count: 0
 workdir: main repo
 worker_question_timeout: 30
-tower_question: open
 interaction:
   mode_hint: yolo
   interactive: false
@@ -60,11 +60,11 @@ memory_overrides:
 
 ## 驗收
 
-- [ ] 條件全部成立時，每事件依累積行數送 1–8 個回報，與 xterm 產生的 SGR wheel 回報逐位元相同
-- [ ] 任何條件不成立時行為與現在相同（測試證明）
-- [ ] `npm run test:unit` 全綠；兩個 typecheck = 0；`npx vite build` exit 0
-- [ ] `docs/agent-guide/terminal-wheel-reports.md` 與回報區的 CLAUDE.md 建議段落
-- [ ] 需實機驗證清單（macOS 觸控板手感、Windows / Linux 滑鼠滾輪）
+- [x] 條件全部成立時，每事件依累積行數送 1–8 個回報，與 xterm 產生的 SGR wheel 回報逐位元相同
+- [x] 任何條件不成立時行為與現在相同（測試證明）
+- [x] `npm run test:unit` 全綠；兩個 typecheck = 0；`npx vite build` exit 0
+- [x] `docs/agent-guide/terminal-wheel-reports.md` 與回報區的 CLAUDE.md 建議段落
+- [x] 需實機驗證清單（macOS 觸控板手感、Windows / Linux 滑鼠滾輪）
 
 ---
 
@@ -79,18 +79,93 @@ memory_overrides:
 - 影響範圍：`src/lib/terminal-wheel-reports.ts` 的判斷函式、TerminalPanel 讀取 agent 資訊的方式；[B] 另加 `src/types/index.ts`、`src/stores/workspace-store.ts` 與其測試
 - 阻塞：否（先做換算 / 編碼 / 接線；判斷函式最後依答覆定案）
 
+### 互動紀錄
+
+- [01:51] Q-1: 「是 codex 分頁」只認 `agentPreset === 'codex-cli'`、helper 派工的 codex Worker 不涵蓋？ → A（塔台，BAT 通道，choice 1）: [A] 只認 `agentPreset === 'codex-cli'`，Worker 分頁維持 xterm 預設，回報區記為後續候選（塔台代決，決策日誌 `951259fa`） → Action: `isCodexTerminal` 只認 `codex-cli`；後續候選見下方。
+
 ### 完成狀態
+
+**DONE**。工單驗收的五項 Worker 步驟都完成（e2e 為選做，未做）。
 
 ### 實作摘要
 
+- `src/lib/terminal-wheel-reports.ts`（新檔，純函式，不 import DOM / xterm / electron）：
+  - 條件：`isCodexTerminal`（`agentPreset === 'codex-cli'`，Q-1）、`shouldSendWheelReports`（codex + `buffer.active.type === 'alternate'` + `mouseTrackingMode` 為 `vt200` / `drag` / `any` + 編碼 `SGR`）。`x10` 不回報滾輪，不算；`SGR_PIXELS` / `DEFAULT` 不算。
+  - `mouseReportEncoding`：xterm 公開 API 沒有編碼欄位（`terminal.modes` 只有 protocol），讀 xterm 5.5.0 的 `_core.coreMouseService.activeEncoding`；結構不同時回 `undefined` → 條件不成立 → 交回 xterm（功能關閉，不會亂送）。
+  - 換算 `wheelLines`：與 xterm `Viewport._applyScrollModifier` / `getLinesScrolled` 相同（`scrollSensitivity`、Alt 的 `fastScrollSensitivity`；pixel ÷ 列高、line 照用、page × rows；Shift 或 `deltaY === 0` → 0）。
+  - `WheelLineAccumulator`：累積小數餘量，每事件送 `trunc(累積)` 個；超過 8 → 送 8 並清餘量；方向改變時丟掉餘量。
+  - `wheelReportCell`：與 xterm `MouseService.getMouseReportCoords` + `triggerMouseEvent` 相同（`.xterm-screen` 內偏移扣 padding、夾邊、÷ cell、+1）。
+  - `sgrWheelReport`：`ESC [ < Pb ; col ; row M`，Pb = 64 | 下 1 | Ctrl 16 | Alt 8（xterm `eventCode` + `DEFAULT_ENCODINGS.SGR`）。
+  - `planWheelReports`：串起上面；`null` = 交回 xterm（Shift / 無垂直 delta / 還沒有尺寸）。
+- `src/components/TerminalPanel.tsx`（+42 行）：`terminal.attachCustomWheelEventHandler`。條件不成立回 `true`；成立時每個回報各呼叫一次 `terminal.input(report, true)`（就是 xterm 自己送回報用的 `CoreService.triggerDataEvent(report, true)` → `onData` → `pty.write`，T0672 的 `MouseReportEchoDetector` / `MouseReportSelectionKeeper` 照樣看得到），然後回 `false`。xterm 在追蹤模式下 `sendEvent` 收到 `false` 就不送，但 wheel listener 仍會 `cancel`（preventDefault），與原本相同。接管狀態改變時記一次 `[wheel-reports] on|off terminal=… buffer=… mode=… encoding=…`，並清掉餘量。`agentPreset` 每個事件從 `workspaceStore.getState()` 讀。
+- `docs/agent-guide/terminal-wheel-reports.md`（新檔）：原因、規則、唯一實作、與 xterm 原始碼的對照表、累積與上限、日誌、使用者看得到的行為變化、已知限制、驗證。
+- 沒有改：xterm 版本、`smoothScrollDuration` / `scrollSensitivity`、PTY 寫入的其他路徑、codex `-c tui.*`、CLAUDE.md、`package.json` / `package-lock.json`。
+
 ### CLAUDE.md 建議段落
+
+建議加在「終端分頁右鍵選單與滑鼠追蹤（T0568 / BUG-142）」節之後（由塔台套用）：
+
+```markdown
+## Codex 分頁的滾輪回報（T0698 / BUG-165）
+
+- 用途：codex 在 alt screen 接管滑鼠，每個滾輪回報捲固定行數；xterm.js 5.5 在追蹤模式下每個 wheel 事件最多送 1 個回報，觸控板多出的行數被丟掉。BAT 依累積行數送多個回報（每事件上限 8）。
+- 🔴 只在「`agentPreset === 'codex-cli'` + alt buffer + `vt200` / `drag` / `any` 追蹤 + SGR 編碼」全部成立時接管；其他情況（一般 shell、claude、normal buffer、未追蹤、x10、非 SGR、Shift）handler 回 `true`，行為與 T0698 前完全相同。helper 派工的 codex Worker 分頁沒有 `agentPreset`，不涵蓋（T0698 Q-1）。
+- 🔴 回報與 xterm 產生的 SGR 滾輪回報逐位元相同，一律經 `terminal.input(report, true)` 送出（= xterm 自己的 `onData` 路徑，T0672 的偵測照樣看得到）；不改 xterm 版本、`scrollSensitivity` / `smoothScrollDuration`，不注入 codex `-c tui.*`。
+- 唯一實作：純函式 `src/lib/terminal-wheel-reports.ts`（`shouldSendWheelReports` / `planWheelReports`），接線在 `TerminalPanel.tsx` 的 `attachCustomWheelEventHandler`。編碼讀 xterm 內部 `_core.coreMouseService.activeEncoding`（`mouseReportEncoding`），讀不到即關閉；升級 xterm 時必跑 `src/lib/__tests__/terminal-wheel-reports.test.ts`（以真 xterm 實例比對）。
+- 完整換算對照、累積規則、日誌、行為變化、已知限制、驗證清單：[docs/agent-guide/terminal-wheel-reports.md](docs/agent-guide/terminal-wheel-reports.md)
+```
+
+另外 `docs/agent-guide/README.md` 的索引建議加一列（本單 `affects_files` 不含該檔，未改）：
+
+```markdown
+| [terminal-wheel-reports.md](terminal-wheel-reports.md) | Codex 分頁在 alt screen + 滑鼠追蹤時依累積行數送多個滾輪回報 | Codex 分頁的滾輪回報（T0698 / BUG-165） |
+```
 
 ### 驗證證據
 
+| 關卡 | 結果 | 證據 |
+|---|---|---|
+| 單元測試（本單新增） | PASS | `src/lib/__tests__/terminal-wheel-reports.test.ts` 25 項：條件（四個條件各自不成立、x10、`SGR_PIXELS` / `DEFAULT` / 讀不到）、`mouseReportEncoding` 對真 xterm（`DEFAULT` / `SGR` / `SGR_PIXELS` / 1006l 後回 `DEFAULT`）、pixel / line / page、靈敏度與 fast-scroll、餘量累積（上 / 下）、反向丟餘量、上限 8、NaN / Infinity、T0670 例 60 × 50 px → 173 個、座標（左上 / 中 / 右下 / 夾邊 / padding / 無尺寸）、修飾鍵與方向；**真的 xterm 5.5.0 實例**寫入 codex 的 `?1049h ?1000h ?1002h ?1003h ?1006h` 後以 `coreMouseService.triggerMouseEvent` 產生回報，2 方向 × Ctrl × Alt × 4 個位置共 32 組逐位元相同。`src/__tests__/terminal-wheel-reports.test.tsx` 9 項：TerminalPanel handler 回 `false` 且回報經 `terminal.input(…, true)` → `onData` → `pty.write`；未滿一行不送；Ctrl 位元；上限 8；`drag` / `vt200`；claude / 一般 shell / normal buffer / 未追蹤 / x10 / `DEFAULT` / `SGR_PIXELS` / 讀不到編碼 / Shift / 水平捲動 / 沒有 `.xterm-screen` 都回 `true` 且不送；離開 alt screen 清餘量、on / off 日誌 |
+| `npm run test:unit` | PASS | `Test Files 331 passed (331)`、`Tests 5891 passed \| 3 skipped (5894)`，exit 0 |
+| `npm run typecheck` | PASS | exit 0（0 錯誤） |
+| `npm run typecheck:electron` | PASS | exit 0（0 錯誤） |
+| `npx vite build` | PASS | exit 0（`✓ built in 4.50s` 等） |
+| e2e | 未做 | 工單選做；未啟動任何 BAT 實例、未開 codex turn |
+| 實機 | 未做 | 見「需實機驗證」 |
+
+驗證在 docs 撰寫前執行；之後只新增 docs，程式碼與 commit `ec4b3c13` 相同。
+
 ### 需實機驗證
+
+- macOS 觸控板（外部測試者A）：Codex CLI 分頁在 codex 畫面捲動的手感是否接近 Claude CLI 分頁 / iTerm2；慣性尾段是否過捲；快速甩動時每事件上限 8 是否會覺得少捲。
+- Windows / Linux 滑鼠滾輪：一格捲幾行（推估 Windows Chromium 一格約 100 px ≈ 5 行，T0698 前是 1 行），是否過快。
+- 使用者端暫解 `mouse_scroll_speed = 3`：T0698 後變成每行 3 行，可能過快；更版重點建議提醒改回預設。
+- 一般 shell、Claude CLI 分頁、normal buffer 的捲動不變（日誌不應出現 `[wheel-reports] on`）。
+- codex 離開 alt screen（`/quit`）後回到 shell，捲動回到 xterm 預設（日誌 `[wheel-reports] off`）。
 
 ### 遭遇問題
 
+- xterm 公開 API 不提供滑鼠編碼（SGR / DEFAULT），改讀內部欄位 `_core.coreMouseService.activeEncoding`；讀不到即關閉功能，並以真 xterm 實例的測試守住（升級 xterm 時會失敗提醒）。
+- 列高：xterm 換算 pixel 用 `device.cell.height / dpr`，BAT 用 `.xterm-screen` 高 ÷ rows（= `css.cell.height`），差在小數以下，只影響何時累積滿一行；座標的 cell 寬高與 xterm 相同。
+- 行為差異（刻意）：方向改變時丟掉餘量（xterm 自己的 `_wheelPartialScroll` 直接相加），讓反向立即反應。
+
+### 後續候選
+
+- helper 派工的 codex Worker 分頁也接管滾輪（Q-1 [B]）：`TerminalInstance` 加只供判斷用的欄位（例如 `externalAgent`），`addExternalTerminal` 從 `terminal:created-externally` 的 `agent` 存入並持久化；不能寫進 `agentPreset`（還原 / ⏻ 重啟會重打啟動命令）。
+- e2e（隔離實例：分頁內 node 腳本開 alt screen + `?1000h?1006h`，派送 wheel 事件，記錄收到的回報數），本單未做。
+- 是否也套用到 claude fullscreen（同樣開追蹤）：本單不涵蓋，需使用者回饋再決定。
+
 ### Commit
 
+- `ec4b3c13` fix: codex tabs send one SGR wheel report per line scrolled (T0698, BUG-165)（產品 5 檔：`src/components/TerminalPanel.tsx`、`src/lib/terminal-wheel-reports.ts`、`src/lib/__tests__/terminal-wheel-reports.test.ts`、`src/__tests__/terminal-wheel-reports.test.tsx`、`docs/agent-guide/terminal-wheel-reports.md`）
+- `4619f944` chore: T0698 IN_PROGRESS, Q-1（工單）
+- 本回報的工單 commit（收尾）
+- 未 push、未觸發 workflow、未建 tag；未碰 `package.json` / `package-lock.json` / CLAUDE.md。
+
+### Landing check
+
+- PASS。C-0：`repo` = `better-agent-terminal`，`basename(REPO_ROOT)` = `better-agent-terminal`；C-1：工單在 REPO_ROOT 下；C-3：`affects_files` 的既有路徑存在（informational）；C-2：無 `branch` 欄位。`CT_HOME` 未設定（非隔離）。`BAT_WORKSPACE_ID` = `cc0afc4a-57e9-4f41-b2ed-a2d8bac9e36b`（僅記錄）。
+
 ### 回報時間
+
+2026-10-22T02:00:28+0800
