@@ -17,6 +17,7 @@ import { imagePasteKey, isMacCommandPaste, readTerminalClipboard } from '../lib/
 import { attachmentDisplayNames } from '../lib/client-paths'
 import { forcesTerminalSelection, isMouseTrackingDecset, isMouseTrackingOn, MouseReportSelectionKeeper, shouldCloseTerminalContextMenuOnKey, shouldShowTerminalContextMenu } from '../lib/terminal-context-menu'
 import { ALT_SCREEN_EXIT, MOUSE_TRACKING_RESET, MouseReportEchoDetector } from '../lib/mouse-tracking-reset'
+import { mouseReportEncoding, planWheelReports, shouldSendWheelReports, WheelLineAccumulator } from '../lib/terminal-wheel-reports'
 import { CtToast, useCtToast } from './CtToast'
 import { registerUsageLimitSender } from '../stores/usage-limit-store'
 import { USAGE_LIMIT_ENTER_DELAY_MS, USAGE_LIMIT_SCREEN_LINES, usageLimitRecheckFailure } from '../lib/usage-limit'
@@ -671,6 +672,47 @@ export const TerminalPanel = memo(function TerminalPanel({ terminalId, isActive 
       dlog(`[terminal-paste] swallowed native paste after Command+V terminal=${terminalId}`)
     }
     containerRef.current?.addEventListener('paste', handleNativePaste, { capture: true })
+
+    // BUG-165 / T0698: codex on the alternate screen gets one SGR wheel report per line scrolled
+    // (xterm sends at most one per event); every other case stays xterm's.
+    const wheelLineAccumulator = new WheelLineAccumulator()
+    let wheelReportsOn = false
+    terminal.attachCustomWheelEventHandler((event) => {
+      const on = shouldSendWheelReports({
+        agentPreset: workspaceStore.getState().terminals.find(t => t.id === terminalId)?.agentPreset,
+        bufferType: terminal.buffer.active.type,
+        mouseTrackingMode: terminal.modes.mouseTrackingMode,
+        mouseEncoding: mouseReportEncoding(terminal),
+      })
+      if (on !== wheelReportsOn) {
+        wheelReportsOn = on
+        wheelLineAccumulator.reset()
+        dlog(`[wheel-reports] ${on ? 'on' : 'off'} terminal=${terminalId} buffer=${terminal.buffer.active.type} mode=${terminal.modes.mouseTrackingMode} encoding=${mouseReportEncoding(terminal) ?? 'unknown'}`)
+      }
+      if (!on) return true
+      const screen = terminal.element?.querySelector('.xterm-screen') as HTMLElement | null
+      if (!screen) return true
+      const rect = screen.getBoundingClientRect()
+      const style = window.getComputedStyle(screen)
+      const plan = planWheelReports(event, {
+        left: rect.left,
+        top: rect.top,
+        width: rect.width,
+        height: rect.height,
+        paddingLeft: parseInt(style.getPropertyValue('padding-left')),
+        paddingTop: parseInt(style.getPropertyValue('padding-top')),
+        cols: terminal.cols,
+        rows: terminal.rows,
+      }, {
+        scrollSensitivity: terminal.options.scrollSensitivity,
+        fastScrollSensitivity: terminal.options.fastScrollSensitivity,
+        fastScrollModifier: terminal.options.fastScrollModifier,
+      }, wheelLineAccumulator)
+      if (!plan) return true
+      // Same path as xterm's own report (`triggerDataEvent(report, true)` → onData → PTY).
+      for (const report of plan.reports) terminal.input(report, true)
+      return false
+    })
 
     // Handle copy and paste shortcuts
     terminal.attachCustomKeyEventHandler((event) => {
