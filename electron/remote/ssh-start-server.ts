@@ -106,7 +106,8 @@ const UNIT_BACKUP_SUFFIX = '.bat-prev'
  *   - rejects `\n` (heredoc framing) — pre-existing contract
  *   - rejects `\r` / NUL / other control chars (EC-002, T0293)
  * Error message preserves the legacy `/forbidden newline/` substring for
- * the `\n` case to keep test7 in ssh-start-server.test.ts green.
+ * the `\n` case; electron/__tests__/ssh-start-server.test.ts asserts it
+ * ("escapeSingleQuotes escapes apostrophes and rejects newline / control chars").
  */
 function escapeSingleQuotes(value: string): string {
   if (value.includes('\n')) {
@@ -391,8 +392,10 @@ function buildSshConnectArgs(opts: StartServerOptions): string[] {
   // F-004 (leading `-`) + control-char + whitespace rejection now lives in
   // buildBaseSshArgs.validateSshIdentifier (T0296). `@` in sshUser remains
   // forbidden here for legacy reasons — it would still parse but is almost
-  // certainly garbage. Errors mirror the historic message format so existing
-  // test7's guard regex (and any future log-grep) keeps working.
+  // certainly garbage. Errors mirror the historic message format so log-greps
+  // keep working. The `@` check has no test of its own; the validateSshIdentifier
+  // rules are covered by electron/__tests__/ssh-start-server.test.ts
+  // ("an sshHost starting with - is rejected before any ssh exec (T0296 F-004)").
   if (typeof opts.sshUser === 'string' && opts.sshUser.includes('@')) {
     throw new Error(`Invalid sshUser: ${opts.sshUser}`)
   }

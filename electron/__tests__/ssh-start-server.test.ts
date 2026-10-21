@@ -259,6 +259,38 @@ describe('startServerOnRemote — carried over from tests/ssh-start-server.test.
     expect(calls).toHaveLength(2)
   })
 
+  // T0685: stage 2 runs enable and start in one ssh exec; its stderr decides between start-failed
+  // (loaded but would not run) and enable-failed (generic "Failed to ..." / anything else).
+  describe('stage 2 classification: start-failed vs enable-failed (T0685)', () => {
+    it.each([
+      ['systemd "Job for … failed"', absLinux, 'Job for bat-server.service failed because the control process exited with error code.\nSee "systemctl --user status bat-server.service" for details.\n'],
+      ['a main process that exited', absLinux, 'bat-server.service: Main process exited, code=exited, status=1/FAILURE\n'],
+      ['Active: failed in the status output', absLinux, 'Active: failed (Result: exit-code)\n'],
+      ['an ExecStart problem', absLinux, 'bat-server.service: ExecStart= binary is not executable\n'],
+      ['a service that crashed', absDarwin, 'com.bat-server crashed on start\n'],
+    ])('classifies %s as start-failed (two ssh execs, no verify)', async (_label, opts, stderr) => {
+      const { calls, spawn } = scriptedSpawn([{}, { exitCode: 1, stderr }])
+      const result = await startServerOnRemote(opts, undefined, { spawn })
+      expect(result).toMatchObject({ ok: false, method: 'failed', errorCode: 'start-failed' })
+      expect(result.error).toContain(stderr.split('\n')[0])
+      expect(calls).toHaveLength(2)
+    })
+
+    it.each([
+      ['a missing unit file', absLinux, { stderr: 'Failed to enable unit: Unit file bat-server.service does not exist.\n' }],
+      ['a linger permission error', absLinux, { stderr: 'Could not enable linger: Access denied\n' }],
+      ['no user bus', absLinux, { stderr: 'Failed to connect to bus: No medium found\n' }],
+      ['a launchctl load error', absDarwin, { stderr: 'Load failed: 5: Input/output error\n' }],
+      ['an empty stderr', absLinux, {}],
+      ['start markers on stdout only (only stderr is classified)', absLinux, { stdout: 'Job for bat-server.service failed\n' }],
+    ])('classifies %s as enable-failed', async (_label, opts, output) => {
+      const { calls, spawn } = scriptedSpawn([{}, { exitCode: 1, ...output }])
+      const result = await startServerOnRemote(opts, undefined, { spawn })
+      expect(result).toMatchObject({ ok: false, method: 'failed', errorCode: 'enable-failed' })
+      expect(calls).toHaveLength(2)
+    })
+  })
+
   it('a verify failure keeps the probe output in checkOutput', async () => {
     const { spawn } = scriptedSpawn([{}, {}, { exitCode: 1, stdout: 'inactive\n', stderr: 'Unit bat-server is not active\n' }])
     const result = await startServerOnRemote(absLinux, undefined, { spawn })

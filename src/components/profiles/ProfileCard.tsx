@@ -55,7 +55,9 @@ const STATUS_DOT: Record<ConnectionStatus, string> = {
 }
 
 // T0513 (BUG-123): own component so the translation hook stays out of ProfileCard's body
-// (tests/profile-card.test.ts calls ProfileCard as a plain function).
+// (written for the old tests/profile-card.test.ts, which called ProfileCard as a plain function;
+// T0680 replaced it with src/components/profiles/__tests__/ProfileCard.test.tsx, which renders it:
+// "status light: idle / connected from isRunning, an explicit status and title win (T0513)").
 function StatusDot({ status, title: titleOverride }: { status: ConnectionStatus; title?: string }) {
   const { t } = useTranslation()
   const dot = STATUS_DOT[status]

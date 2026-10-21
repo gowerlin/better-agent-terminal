@@ -69,8 +69,10 @@ function buildExtractCommand(safePath: string, keepPrevious = false): string {
 }
 
 function buildSshArgs(opts: UploadOptions): string[] {
-  // Single-quote rejection is preserved (test5 contract: installPath with `'`
-  // must throw a /forbidden character/i message). escapeSingleQuotesStrict
+  // Single-quote rejection is preserved (installPath with `'` must throw an
+  // /installPath contains forbidden character/ message; electron/remote/__tests__/
+  // ssh-bundle-uploader.test.ts "rejects a single quote in installPath before
+  // spawning ssh"). escapeSingleQuotesStrict
   // additionally rejects `\r` / `\n` / NUL / other control chars (EC-002).
   if (opts.installPath.includes("'")) {
     throw new Error(`installPath contains forbidden character: ${opts.installPath}`)

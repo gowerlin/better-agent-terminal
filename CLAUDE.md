@@ -18,7 +18,9 @@
 
 - 框架：vitest + jsdom + React Testing Library + jest-dom（T0307b 引入）
 - 執行：`npm run test:unit`（一次跑完）/ `npm run test:unit:watch`（watch mode）/ `npm run test:unit:ui`（UI mode）
-- 測試檔位置：`src/**/*.test.{ts,tsx}` 或 `src/**/__tests__/**/*.{ts,tsx}`
+- 測試檔位置（以 `vite.config.ts` 的 `test.include` 為準）：`src/**/*.test.{ts,tsx}`、`src/**/__tests__/**/*.{ts,tsx}`、`electron/__tests__/**/*.test.ts`、`electron/remote/__tests__/**/*.test.ts`、`electron/remote-tools/__tests__/**/*.test.ts`、`scripts/__tests__/**/*.test.mjs`，以及 `tests/` 底下逐檔列出的 5 個 `bat-*.test.mjs`。
+- 🔴 新測試一律放 vitest 收得到的位置，不要再放進 `tests/`（D177）。
+- `npm run test:legacy`（`scripts/run-legacy-tests.mjs`，T0685）：跑 `tests/` 底下 vitest 不收的舊測試；node:test 檔一次 `tsx --test --test-timeout=60000`，自寫 harness 逐檔 `tsx`（每檔 180 s 上限）。自動找檔，不跑的檔案（probe、互動式、Playwright、mock）列在腳本的 `EXCLUDED` 並註明原因。`tests.yml` 在 unit tests 之後跑它。
 - 設定：`vite.config.ts` 內的 `test` 區塊；setup 檔 `vitest.setup.ts`（auto-import jest-dom matchers）
 - e2e（playwright）獨立：`npm run test:e2e`，不與 unit test 混跑
 - 測試若用 fake timers，不要用 `vi.waitFor` 等待 socket / IPC 事件：vitest 在 fake timers 下每次輪詢都會 `advanceTimersByTime(interval)`，會偷跑被假造的 interval（T0508，`helper-connection-hygiene.test.ts` 改用事件驅動的 `until()`）。真實 socket 的 heartbeat 測試只假造 `setInterval` / `clearInterval`，再以 `vi.advanceTimersByTime` 逐拍推進。

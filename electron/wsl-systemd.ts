@@ -243,7 +243,7 @@ export async function enableLinger(distro: string): Promise<{ ok: boolean; error
   try {
     user = await resolveDistroUser(distro)
   } catch (error) {
-    return { ok: false, error: error instanceof Error ? error.message : String(error) }
+    return { ok: false, error: describeError(error) }
   }
 
   if (await isLingerEnabled(distro, user)) {

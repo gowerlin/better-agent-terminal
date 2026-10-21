@@ -124,6 +124,15 @@ describe('enableLinger (T0378 / BUG-087 A)', () => {
     expect(commands.map((c) => c[0])).toEqual(['id'])
   })
 
+  it('puts the stderr of a failed user lookup into the error, like the other failure paths (T0685)', async () => {
+    const commands = installExec(() => ({ code: 1, stderr: 'id: cannot find name for user ID 1000\n' }))
+
+    const result = await enableLinger('Ubuntu-24.04')
+    expect(result.ok).toBe(false)
+    expect(result.error).toBe('Command failed: id -un: id: cannot find name for user ID 1000')
+    expect(commands.map((c) => c[0])).toEqual(['id'])
+  })
+
   it('resolveDistroUser rejects an empty user name', async () => {
     installExec(() => ({ stdout: '' }))
     await expect(resolveDistroUser('Ubuntu')).rejects.toThrow(/Invalid WSL user name/)

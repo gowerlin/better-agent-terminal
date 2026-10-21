@@ -42,7 +42,7 @@ export type ProfileDetailsVariant =
 
 /**
  * Pure dispatcher — picks the per-env details variant for a profile.
- * Tested in tests/profile-card.test.ts.
+ * Tested in src/components/profiles/__tests__/ProfileCard.test.tsx (describe 'selectDetailsVariant').
  */
 export function selectDetailsVariant(profile: ProfileEntry): ProfileDetailsVariant {
   if (profile.type === 'local') return 'local'

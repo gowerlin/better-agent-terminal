@@ -1,8 +1,9 @@
 name: Tests
 
 # T0683 (BUG-168 / D177 step 1): trial run of the frontend / electron unit tests on ubuntu.
+# T0685 (step 2): plus the tests under tests/ that vitest does not collect (`test:legacy`).
 # Manual only, and not a release gate yet: once a trial run passes, a follow-up work order
-# makes `test:unit` a gate of pre-release.yml / release.yml.
+# makes the tests a gate of pre-release.yml / release.yml.
 on:
   workflow_dispatch:
 
@@ -30,6 +31,7 @@ jobs:
         run: node node_modules/electron/install.js
 
       - name: Unit tests (vitest)
+        id: unit
         env:
           # CLAUDE.md "遠端 Tower 通知": helper tests write their logs / data under these, never
           # the runner's real userData. Step level: a job-level `env` cannot use `runner`.
@@ -37,17 +39,49 @@ jobs:
           BAT_USER_DATA: ${{ runner.temp }}/bat-user-data
         run: npm run test:unit -- --reporter=default --reporter=json --outputFile.json="$RUNNER_TEMP/vitest-results.json"
 
+      # Runs even when the unit tests failed, so one trial run reports both; the job still fails
+      # when either step failed. scripts/run-legacy-tests.mjs has the per-test / per-file timeouts.
+      - name: Legacy tests (tests/, outside vitest)
+        id: legacy
+        if: ${{ !cancelled() }}
+        env:
+          BAT_HELPER_LOG_DIR: ${{ runner.temp }}/bat-helper-logs
+          BAT_USER_DATA: ${{ runner.temp }}/bat-user-data
+        run: npm run test:legacy -- --json "$RUNNER_TEMP/legacy-results.json"
+
       - name: Summary (passed / failed)
         if: always()
+        env:
+          UNIT_OUTCOME: ${{ steps.unit.outcome }}
+          LEGACY_OUTCOME: ${{ steps.legacy.outcome }}
         run: |
           node -e '
             const fs = require("fs")
-            const file = process.argv[1]
-            if (!fs.existsSync(file)) { console.log("no vitest results (the test step did not finish)"); process.exit(0) }
-            const r = JSON.parse(fs.readFileSync(file, "utf8"))
-            // numTotalTestSuites counts describe blocks too: count files from testResults
-            const failedFiles = r.testResults.filter(f => f.status === "failed").length
-            const line = `tests: ${r.numPassedTests} passed, ${r.numFailedTests} failed, ${r.numPendingTests + r.numTodoTests} skipped / ${r.numTotalTests} total; files: ${failedFiles} failed / ${r.testResults.length} total`
-            console.log(line)
-            if (process.env.GITHUB_STEP_SUMMARY) fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, `### Unit tests\n\n${line}\n`)
-          ' "$RUNNER_TEMP/vitest-results.json"
+            const [unitFile, legacyFile] = process.argv.slice(1)
+            const out = []
+            const section = (title, outcome, lines) => {
+              const heading = `${title} (${outcome || "not run"})`
+              console.log([heading, ...lines].join("\n  "))
+              out.push(`### ${heading}`, "", ...lines, "")
+            }
+            if (fs.existsSync(unitFile)) {
+              const r = JSON.parse(fs.readFileSync(unitFile, "utf8"))
+              // numTotalTestSuites counts describe blocks too: count files from testResults
+              const failedFiles = r.testResults.filter(f => f.status === "failed").length
+              section("Unit tests", process.env.UNIT_OUTCOME, [`tests: ${r.numPassedTests} passed, ${r.numFailedTests} failed, ${r.numPendingTests + r.numTodoTests} skipped / ${r.numTotalTests} total; files: ${failedFiles} failed / ${r.testResults.length} total`])
+            } else {
+              section("Unit tests", process.env.UNIT_OUTCOME, ["no vitest results (the test step did not finish)"])
+            }
+            if (fs.existsSync(legacyFile)) {
+              const r = JSON.parse(fs.readFileSync(legacyFile, "utf8"))
+              const lines = [`tests: ${r.tests.passed} passed, ${r.tests.failed} failed, ${r.tests.cancelled} cancelled; files: ${r.failedFiles} failed / ${r.totalFiles} total`, ""]
+              for (const f of r.results.filter(x => !x.ok)) {
+                const detail = [f.note, ...f.failures].filter(Boolean).join("; ")
+                lines.push(`- ❌ ${f.file} (${f.kind})${detail ? ": " + detail : ""}`)
+              }
+              section("Legacy tests", process.env.LEGACY_OUTCOME, lines)
+            } else {
+              section("Legacy tests", process.env.LEGACY_OUTCOME, ["no legacy results (the test step did not finish)"])
+            }
+            if (process.env.GITHUB_STEP_SUMMARY) fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, out.join("\n"))
+          ' "$RUNNER_TEMP/vitest-results.json" "$RUNNER_TEMP/legacy-results.json"
