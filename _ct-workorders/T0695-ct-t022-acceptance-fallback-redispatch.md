@@ -4,7 +4,7 @@ schema_kind: workorder
 id: T0695
 title: "CT-T022 驗收情境 1：yolo 提問備援 → 塔台 Renew 重派前回收舊 Worker 分頁（BUG-170）"
 type: verification
-status: IN_PROGRESS
+status: BLOCKED
 tower_question: open
 repo: better-agent-terminal
 project: BUG-170
@@ -12,7 +12,7 @@ priority: P3
 sizing: XS
 created_at: "2026-10-22T01:31:47+0800"
 started_at: "2026-10-22T01:32:26+0800"
-updated_at: "2026-10-22T01:32:45+0800"
+updated_at: "2026-10-22T01:33:03+0800"
 depends_on: []
 related:
   - CT-T022
@@ -78,12 +78,34 @@ memory_overrides:
 
 ### 完成狀態
 
+BLOCKED — 第一次執行：依步驟 1 提問 Q-1，`worker_question_timeout: 0` → 不用 BAT 通道、不等待，直接走 yolo 提問備援（`### 待塔台決策` 與 `tower_question: open` 保留），等塔台在 `## 塔台補充（Renew #1）` 答覆後重派。
+
+落點檢查：PASS
+- C-0：frontmatter `repo` = `better-agent-terminal`；`basename(REPO_ROOT)` = `better-agent-terminal` → PASS（REPO_ROOT = `D:/ForgejoGit/@Gower_Labs/BMad-Guide/better-agent-terminal/better-agent-terminal`）
+- C-1：工單位於 REPO_ROOT 下 → PASS
+- C-3：`affects_files` 只有 `_ct-workorders/` 下的本工單 → not applicable
+- C-2：工單無 `branch` 欄位（目前 `main`）
+- 非 worktree（`CT_HOME` 未設）；`BAT_WORKSPACE_ID` = `cc0afc4a-57e9-4f41-b2ed-a2d8bac9e36b`；`BAT_TERMINAL_ID`（本分頁）= `a56fe7ff577ab5f7fbfa03265dc8e35e`
+
 ### 選定代號
+
+（未定：等 Q-1 答覆）
 
 ### 互動紀錄
 
+- [01:32] Q-1 寫入工單、`tower_question: open`，commit `0fe25acc` → 送 `T0695 提問`（`--submit`，exit 0）
+- [01:33] `worker_question_timeout: 0` → 備援：BLOCKED，送 `T0695 需要協助`
+
 ### 遭遇問題
+
+無（備援是本單刻意設計的路徑）。未改任何產品檔案；未使用 BAT 問答通道（`worker_question_timeout: 0`），沒有待取消的 BAT 題目。
 
 ### Commit
 
+- `0fe25acc` — 工單：Q-1 提問與 `tower_question: open`
+- 本次收尾 commit（BLOCKED 與回報）：見 `git log -- _ct-workorders/T0695-ct-t022-acceptance-fallback-redispatch.md`
+- 無產品變更；未 push
+
 ### 回報時間
+
+2026-10-22T01:33:03+0800
