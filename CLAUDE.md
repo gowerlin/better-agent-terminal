@@ -130,6 +130,14 @@
 - 追蹤中的 Shift + 拖曳選取（T0571 / T0573）：`MouseReportSelectionKeeper`（同檔）、TerminalPanel 的 `registerCsiHandler` 偵測重送的追蹤 DECSET、`SelectionDrag.resume()`。實機再失敗時先看 `[terminal-context-menu] … shown:` 診斷日誌。
 - 完整原因分析、實測、驗證清單：[docs/agent-guide/terminal-context-menu.md](docs/agent-guide/terminal-context-menu.md)
 
+## Codex 分頁的滾輪回報（T0698 / BUG-165）
+
+- 用途：codex 在 alt screen 接管滑鼠，每個滾輪回報捲固定行數；xterm.js 5.5 在追蹤模式下每個 wheel 事件最多送 1 個回報，觸控板多出的行數被丟掉。BAT 依累積行數送多個回報（每事件上限 8）。
+- 🔴 只在「`agentPreset === 'codex-cli'` + alt buffer + `vt200` / `drag` / `any` 追蹤 + SGR 編碼」全部成立時接管；其他情況（一般 shell、claude、normal buffer、未追蹤、x10、非 SGR、Shift）handler 回 `true`，行為與 T0698 前完全相同。helper 派工的 codex Worker 分頁沒有 `agentPreset`，不涵蓋（T0698 Q-1）。
+- 🔴 回報與 xterm 產生的 SGR 滾輪回報逐位元相同，一律經 `terminal.input(report, true)` 送出（= xterm 自己的 `onData` 路徑，T0672 的偵測照樣看得到）；不改 xterm 版本、`scrollSensitivity` / `smoothScrollDuration`，不注入 codex `-c tui.*`。
+- 唯一實作：純函式 `src/lib/terminal-wheel-reports.ts`（`shouldSendWheelReports` / `planWheelReports`），接線在 `TerminalPanel.tsx` 的 `attachCustomWheelEventHandler`。編碼讀 xterm 內部 `_core.coreMouseService.activeEncoding`（`mouseReportEncoding`），讀不到即關閉；升級 xterm 時必跑 `src/lib/__tests__/terminal-wheel-reports.test.ts`（以真 xterm 實例比對）。
+- 完整換算對照、累積規則、日誌、行為變化、已知限制、驗證清單：[docs/agent-guide/terminal-wheel-reports.md](docs/agent-guide/terminal-wheel-reports.md)
+
 ## 新 PTY 的初始尺寸（T0572 / BUG-145）
 
 - host 一律以 120x30 spawn（`PtyManager.create`、Terminal Server）；`pty:resize` 對 host 還不認得的 id 直接丟棄。分頁先進 store（TerminalPanel 掛載即送第一次 resize），`pty:create` 要等 shell 查詢等非同步步驟後才到 host，所以那次 resize 可能被丟；TerminalPanel 的 resize 去重（`lastSentCols` / `lastSentRows`）之後不再送同一尺寸。⏻ 重啟（`pty:restart`）的新 PTY 同樣是 120x30，去重也擋住重送（修正前 100% 停在 120x30）。
