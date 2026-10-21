@@ -23,15 +23,16 @@ breakdown:
 # Bug Tracker
 
 > ⚠️ 此文件由 `*sync` 自動生成，請勿手動編輯。
-> 最後同步：2026-10-21 23:42 (UTC+8) — BUG-169 → FIXED（T0691 `b0ff5673`，等下一個預覽版安裝版驗收）；BUG-168 → FIXED（T0680–T0685；ubuntu 試跑全過，擋版 T0686）；BUG-167 FIXED（T0678 `d90b3b50`）；BUG-166 FIXED 待 外部測試者A（pre.4）；BUG-165 OPEN（有空再排）
+> 最後同步：2026-10-22 00:26 (UTC+8) — BUG-170 OPEN（yolo 備援重派後舊分頁，D180 先記錄）；BUG-169 → FIXED（T0691 `b0ff5673`，等下一個預覽版安裝版驗收）；BUG-168 → FIXED（T0680–T0685；ubuntu 試跑全過，擋版 T0686）；BUG-167 FIXED（T0678 `d90b3b50`）；BUG-166 FIXED 待 外部測試者A（pre.4）；BUG-165 OPEN（有空再排）
 
 ## 統計
-- 🔴 Open: 1 | ⏳ Fixing: 0 | ✅ Fixed: 25 | 🧪 Verify: 0 | 🚫 Closed: 28 | ⛔ Won't Fix: 0 | **Total: 54**
+- 🔴 Open: 2 | ⏳ Fixing: 0 | ✅ Fixed: 25 | 🧪 Verify: 0 | 🚫 Closed: 28 | ⛔ Won't Fix: 0 | **Total: 55**
 
 ## 🔴 Open / 處理中
 
 | ID | 標題 | 嚴重度 | 建立時間 | 連結 |
 |----|------|--------|---------|------|
+| BUG-170 | yolo 提問備援重派新 Worker 後舊分頁留著，`--close-worker` 回 AMBIGUOUS、兩分頁都標 ✓（T0693 推演；D180 先記錄） | 🟢 low | 2026-10-22 | [BUG-170](BUG-170-yolo-fallback-redispatch-leaves-old-worker-tab.md) |
 | BUG-165 | macOS：Codex CLI 分頁內捲動可用但不夠順（外部測試者A，v0.7.1-pre.3；T0670 研究） | 🟢 low | 2026-10-19 | [BUG-165](BUG-165-macos-codex-cli-scroll-not-smooth.md) |
 
 ## ⏳ 修復中 (FIXING)

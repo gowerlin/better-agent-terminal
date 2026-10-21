@@ -1465,6 +1465,14 @@
 - **切分**：W2a 設計語言 + 元件 + 首頁（T0630）→ 預覽通過後 W2b（`/control-tower`、功能、FAQ、回報頁）→ W2c 遠端開發；W3 / W4 不變。
 - **相關**：PLAN-049 / D159 / D160 / T0624 / T0630
 
+### D180 2026-10-22 — Renew 後 Worker 分頁的 ✓：採 T0693 方案 a + d1 + d2（BAT 內部，不改 CT）；旁支 e 開 BUG-170 之後再排
+
+- **背景**：使用者問「塔台 Renew 工單後，通知 Worker 重讀繼續執行，BAT 終端 title 狀態已打勾，是否要設回執行中？」。T0693 研究（`6f3f623c`）：`✓`（`workerReport`）只在 renderer、只由下一次 notify 或關分頁改變，使用者輸入 / hook / OSC / 輸出都不碰；塔台無權寫入 Worker 分頁，所以 Renew 實際是使用者在原分頁輸入；手動批次關閉以 `reportedWorkersOfTower` 選分頁、無輸出檢查，會關掉 Renew 中的 Worker。`--close-worker` 與 MCP 查詢不受 `✓` 影響。
+- **決定**（使用者 2026-10-22 00:2x，兩題皆選推薦）：
+  1. **a + d1 + d2**：主行程以既有信號記「回合進行中」（claude `user-prompt-submit` / `stop` hook、codex OSC `working` / `idle` / `clear`），經 `terminal:attention-changed` 推送狀態欄位；renderer 在回報後收到回合開始 → 「已回報、又在執行」：不顯示 `✓`、不列入批次關閉；回合結束而無新回報 → 回到 `✓`。批次關閉確認框對近期有輸出的分頁加註「仍在輸出」（不排除）。不改 helper / MCP / CT 契約。實作前先查 claude 在 Esc 中斷、API 錯誤時是否送 `Stop`，決定是否需要逾時備援 → T0694。
+  2. **旁支 e**（yolo 提問備援重派後舊 `BLOCKED` 分頁留著，新 Worker `DONE` 時 `--close-worker` 回 `AMBIGUOUS`）：開 BUG-170 記錄，修法（CT 端重派前回收 / BAT 端派工偵測）之後再決定。
+- **相關**：T0693 / T0694 / BUG-170 / T0538 / T0609 / T0613 / T0590 / T0621 / PLAN-041
+
 ### D179 2026-10-21 — `v0.7.1-pre.5` 發版前先開一批小單（B4 文件、SSH 錯誤字首與 `@` 測試、安裝檔只收執行期 helper），收齊並聯合驗證後再發
 
 - **背景**：使用者問「可以發布 v0.7.1-pre.5 了嗎」。`v0.7.1-pre.4` 之後幾乎都是測試、CI（Test gate，T0686）、去識別化與網站，使用者看得到的產品改動近乎沒有；PLAN-054 B4 已決定併入下一次發版批次；另有三個已知小項：SSH `start-failed` 的錯誤訊息仍以 `enable-failed:` 開頭（T0685 回報）、`buildSshConnectArgs` 拒絕 `@` 沒有測試、安裝檔經 `extraResources` 的 `*.mjs` 把開發腳本一起打包（含 T0685 新增的 `run-legacy-tests.mjs`）。
