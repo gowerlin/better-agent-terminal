@@ -107,7 +107,7 @@ Windows host
 
 **授權的系統變更（只限這些）**
 1. `sudo apt-get update && sudo apt-get install -y docker.io`（不加裝 docker-compose / buildx 以外非必要套件；若 build 需要 buildx 才裝 `docker-buildx`）
-2. `sudo usermod -aG docker gower`
+2. `sudo usermod -aG docker <使用者>`
 3. `sudo systemctl enable --now docker`
 4. 回報區列出實際安裝的套件與版本（`dpkg -l | grep -E 'docker|containerd|runc'`）
 
@@ -174,7 +174,7 @@ Windows host
 - W server 是 `0.5.9-pre.4` dev deploy（tag `t0456`），容器 server 是 `0.6.0-pre.1` baseline 疊上目前 source 的 headless JS。兩者版本不同，但沒有造成任何失敗。
 
 **環境變更紀錄**
-- WSL 系統（Renew #1 授權範圍內）：`apt-get install -y docker.io`、`usermod -aG docker gower`、`systemctl enable --now docker`。沒有 `wsl --shutdown`；新開的 `wsl -d` 行程已帶 docker 群組（`groups=…,108(docker)`），不需要 sudo。`dpkg -l`：`docker.io 29.1.3-0ubuntu3~24.04.2`、`containerd 2.2.1-0ubuntu1~24.04.3`、`runc 1.3.4-0ubuntu1~24.04.1`（相依：`iptables` 改用 nft alternatives、`dnsmasq-base`、`ubuntu-fan`，皆由 apt 自動帶入）。Docker engine 保留安裝。
+- WSL 系統（Renew #1 授權範圍內）：`apt-get install -y docker.io`、`usermod -aG docker <使用者>`、`systemctl enable --now docker`。沒有 `wsl --shutdown`；新開的 `wsl -d` 行程已帶 docker 群組（`groups=…,108(docker)`），不需要 sudo。`dpkg -l`：`docker.io 29.1.3-0ubuntu3~24.04.2`、`containerd 2.2.1-0ubuntu1~24.04.3`、`runc 1.3.4-0ubuntu1~24.04.1`（相依：`iptables` 改用 nft alternatives、`dnsmasq-base`、`ubuntu-fan`，皆由 apt 自動帶入）。Docker engine 保留安裝。
 - 保留的 image：`bat-t0467-sshd:local`（2.44 GB）、`debian:bookworm-slim`（116 MB，本單 pull）。`sonarsource/sonarqube-mcp:latest` 不是本單建立的，未動。刪除：`node e2e/real-remote/plan039-real-remote-env.mjs down --rmi` 及 `docker rmi debian:bookworm-slim`。
 - `~/.local/bat-server`：只讀取 token、cert、unit env 並連線使用。pid 318 從 14:43:22 起持續運行，`electron/remote/*.js` 的 mtime 仍是 2026-10-05，沒有重部署、重啟或改設定。W 上本單建立的 PTY 在關 W 視窗前全部 kill（R5：6 個），收尾後 pid 318 下沒有任何 `BAT_TERMINAL_ID=e2e-t0467*` 子行程。
 - 🟡 **repo `node_modules` 修復**：開工時 `node_modules` 只剩 52 個套件（mtime 2026-10-09，沒有 vite / ws / esbuild / playwright），`npx vite build` 跑不起來。處理方式：`npm ci`（依 lock，`package-lock.json` 未改）。npm 12.2.0 預設擋 install scripts（electron、esbuild、sharp、better-sqlite3、claude-code、electron-winstaller），所以手動補跑 `node_modules/electron/install.js`、`node_modules/esbuild/install.js`、`node_modules/sharp/install/check.js`、`npx electron-rebuild -f -w better-sqlite3`。沒有執行 `npm install-scripts approve`（會改 `package.json`）。`@anthropic-ai/claude-code` 的 `install.cjs` 沒有補跑，若本機 dev 需要 embedded claude 要另外處理。這是給塔台的獨立發現：本機 dev 環境在 npm 12 下 `npm ci` 不會自動完成 native 準備，`postinstall` 的 `npm rebuild better-sqlite3` 也可能被擋（未驗證）。
@@ -220,7 +220,7 @@ Windows host
 | Windows docker | ❌ 只有 client | `C:\ProgramData\chocolatey\bin\docker.exe`（Client 29.9.0）；`docker version` → `failed to connect to the docker API at npipe:////./pipe/docker_engine ... The system cannot find the file specified.`；context `desktop-linux` 也指向不存在的 Docker Desktop pipe |
 | apt 可裝 docker | 可（未裝）| `apt-cache policy docker.io` → Candidate `29.1.3-0ubuntu3~24.04.2`；`sudo -n true` 成功（passwordless sudo）|
 | WSL 內 sshd | ❌ 未安裝 | 沒有 `/usr/sbin/sshd`；`systemctl is-active ssh` → `inactive` |
-| WSL 既有 server | ✅ 可連（只讀探測，未動）| pid 318 `/home/gower/.local/bat-server/bin/node .../bat-server.mjs` 監聽 `127.0.0.1:9877`；`package.json` version `0.5.9-pre.4`；Windows `Test-NetConnection localhost -Port 9877` → True（IPv4，`::1` 失敗）；使用者已安裝的 BAT profile `wsl-ubuntu-24-04` 為 `remoteHost: localhost` / `remotePort: 9877` / `targetOS: wsl-linux` |
+| WSL 既有 server | ✅ 可連（只讀探測，未動）| pid 318 `/home/<使用者>/.local/bat-server/bin/node .../bat-server.mjs` 監聽 `127.0.0.1:9877`；`package.json` version `0.5.9-pre.4`；Windows `Test-NetConnection localhost -Port 9877` → True（IPv4，`::1` 失敗）；使用者已安裝的 BAT profile `wsl-ubuntu-24-04` 為 `remoteHost: localhost` / `remotePort: 9877` / `targetOS: wsl-linux` |
 | 免安裝隔離 | ✅ 可用 | `unshare -Ur --uts sh -c "hostname bat-probe && hostname"` → `bat-probe`（user + UTS namespace 可給第二個 server 獨立 hostname）|
 
 **對下一輪實作有用的發現（Docker 就緒後仍適用）**
@@ -251,7 +251,7 @@ Windows host
 
 | 選項 | 做法 | 代價 / 風險 |
 |---|---|---|
-| **A（推薦）** | 使用者在 WSL 自行裝 Docker Engine，例如 `sudo apt install -y docker.io && sudo usermod -aG docker gower`，然後 `wsl --shutdown` 重開（或 `sudo systemctl enable --now docker`，`/etc/wsl.conf` 已有 `systemd=true`）。裝好後**原工單不改**重派 | 使用者動手一次；拓撲與裁決完全照原樣 |
+| **A（推薦）** | 使用者在 WSL 自行裝 Docker Engine，例如 `sudo apt install -y docker.io && sudo usermod -aG docker <使用者>`，然後 `wsl --shutdown` 重開（或 `sudo systemctl enable --now docker`，`/etc/wsl.conf` 已有 `systemd=true`）。裝好後**原工單不改**重派 | 使用者動手一次；拓撲與裁決完全照原樣 |
 | B | 塔台明確授權 Worker 執行選項 A 的安裝（sudo 是 passwordless，技術上可以無人值守完成）| 會改使用者的 WSL 系統：新增 daemon、iptables 規則、docker group。不容易完整還原，所以需要使用者明確同意 |
 | C | 不用 Docker：在 WSL 內以 `unshare -Ur --uts` 起「獨立 hostname + 本單專用 install root / data dir / port」的第二個 bat-server，加上非 root 的 user-level `sshd`（高埠、本單專用 host key 與 `AuthorizedKeysFile`）| 一樣要裝 `openssh-server`（WSL 內沒有 `sshd`）；而且違反工單拓撲「不得在 WSL 主機多起一個 server」，要先改裁決 |
 

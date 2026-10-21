@@ -20,17 +20,17 @@ import {
 
 type Reply = { code?: number; stdout?: string; stderr?: string }
 
-const UNIT_PATH = '/home/gower/.config/systemd/user/bat-server.service'
+const UNIT_PATH = '/home/demo/.config/systemd/user/bat-server.service'
 const SERVICE = 'bat-server.service'
 
 function unitText(port: number): string {
   return renderSystemdUnit({
-    execStart: '/home/gower/.local/bat-server/bin/bat-server',
+    execStart: '/home/demo/.local/bat-server/bin/bat-server',
     environment: {
       BAT_PORT: String(port),
       BAT_SERVER_PORT: String(port),
-      BAT_DATA_DIR: '/home/gower/.local/share/bat-server',
-      BAT_SERVER_DATA_DIR: '/home/gower/.local/share/bat-server',
+      BAT_DATA_DIR: '/home/demo/.local/share/bat-server',
+      BAT_SERVER_DATA_DIR: '/home/demo/.local/share/bat-server',
     },
   })
 }
@@ -99,7 +99,7 @@ describe('parseExistingServerUnit (T0552)', () => {
   it('reads the port and ExecStart of a unit renderSystemdUnit wrote', () => {
     expect(parseExistingServerUnit(unitText(9877))).toEqual({
       port: 9877,
-      execStart: '/home/gower/.local/bat-server/bin/bat-server',
+      execStart: '/home/demo/.local/bat-server/bin/bat-server',
     })
   })
 

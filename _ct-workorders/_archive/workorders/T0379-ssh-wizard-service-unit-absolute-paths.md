@@ -145,7 +145,7 @@ BUG-088 與本單決策 5 假設 `mkdir` / `tar` / `cat >` 經遠端 shell 會�
 | `npm run test:unit` | ✅ PASS | **57 files / 794 tests** 全綠（基線 749 + 45） |
 | `npx vite build` | ✅ PASS | exit 0 |
 | `npx tsc --noEmit` | ✅ PASS | **40** errors（= baseline）；SSH / `remote-home` 相關零命中 |
-| 本機 runtime（`Ubuntu-24.04`） | ✅ PASS | 以 `tsx` 呼叫修改後 `renderSystemdUnit()`（`serverHome=/home/gower`）產出 unit，放 `/tmp/t0379/` 跑 `systemd-analyze --user verify`：**新** → 僅 `Command /home/gower/.local/bat-server/bin/bat-server is not executable: No such file or directory`（執行檔不存在，屬預期）；**舊**（字面 `~`）→ `:9: Neither a valid executable name nor an absolute path: ~/.local/bat-server/bin/bat-server` + `Unit bat-server.service has a bad unit file setting.`（重現 BUG） |
+| 本機 runtime（`Ubuntu-24.04`） | ✅ PASS | 以 `tsx` 呼叫修改後 `renderSystemdUnit()`（`serverHome=/home/<使用者>`）產出 unit，放 `/tmp/t0379/` 跑 `systemd-analyze --user verify`：**新** → 僅 `Command /home/<使用者>/.local/bat-server/bin/bat-server is not executable: No such file or directory`（執行檔不存在，屬預期）；**舊**（字面 `~`）→ `:9: Neither a valid executable name nor an absolute path: ~/.local/bat-server/bin/bat-server` + `Unit bat-server.service has a bad unit file setting.`（重現 BUG） |
 | runtime 清理 | ✅ | 已刪 `/tmp/t0379` / `/tmp/t0379old` 與 scratchpad 產物；未寫入 `~/.config/systemd/user/`（`systemctl --user status bat-server` → `could not be found`），故無需 `daemon-reload`；未動發行版本身 |
 | 實際 SSH 主機 / macOS | ⏳ 交使用者 | Windows 端無 SSH 目標與 macOS |
 

@@ -107,7 +107,7 @@ memory_overrides:
 
 ⇒ 與 PLAN-036「P1 候選」一致：遠端 `BAT_SESSION=1`，但沒有 `BAT_HELPER_DIR`、`BAT_REMOTE_*`。ct-exec 的 notify 需要 `BAT_TOWER_TERMINAL_ID` + `BAT_REMOTE_PORT` + `BAT_REMOTE_TOKEN` 三者 ⇒ 正確降級為手動訊息。塔台 auto-session 依 `_local-rules.md`「路由決策樹」看到 `BAT_SESSION=1` 會先嘗試 `node "$BAT_HELPER_DIR/bat-terminal.mjs"`（路徑展開成 `/bat-terminal.mjs`）→ 失敗後才降級，這是一次多餘的失敗。
 
-**WSL 唯讀實測（2026-10-05 約 05:42）**：`bat-server.service` active，`127.0.0.1:9877` LISTEN（pid 306）；`~/.local/share/bat-server/` 內有 `server-cert.json`、`server-token.json`（`600 gower`，91 bytes，開頭為 `{ "v": 1,` 的 secret record）、`lockfile.pid`；`~/.config/BetterAgentTerminal/` 不存在；`~/.local/bat-server/` 內無 `scripts/`（helper 確實不在 bundle）。token 內容未讀出、未記錄。
+**WSL 唯讀實測（2026-10-05 約 05:42）**：`bat-server.service` active，`127.0.0.1:9877` LISTEN（pid 306）；`~/.local/share/bat-server/` 內有 `server-cert.json`、`server-token.json`（`600 <使用者>`，91 bytes，開頭為 `{ "v": 1,` 的 secret record）、`lockfile.pid`；`~/.config/BetterAgentTerminal/` 不存在；`~/.local/bat-server/` 內無 `scripts/`（helper 確實不在 bundle）。token 內容未讀出、未記錄。
 
 **1.2 `terminal:*` 在 headless 的分類**（T0416 / T0388 已分類）
 

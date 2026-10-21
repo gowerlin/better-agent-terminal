@@ -32,7 +32,7 @@ links:
 ## 現象
 
 - 截圖 1：`<使用者資料夾>\AppData\Local\Temp\claude\D--ForgejoGit--Gower-Labs-BMad-Guide-better-agent-terminal-better-agent-terminal\7e9ce546-3b6c-43fd-984c-5238744307fb\images\1.png`（紅框圈出 WSL 卡片的紅燈）
-- 截圖 2：同目錄 `2.png`（左：主視窗開著配置對話框，WSL 卡片紅燈；右：WSL profile 視窗開著、終端 `gower@GXDEVPC02` 正常、Claude 面板正常回應「遠端主機上的 Claude Code 尚未登入」）
+- 截圖 2：同目錄 `2.png`（左：主視窗開著配置對話框，WSL 卡片紅燈；右：WSL profile 視窗開著、終端 `<使用者>@GXDEVPC02` 正常、Claude 面板正常回應「遠端主機上的 Claude Code 尚未登入」）
 - 本機 Default 卡片綠燈正常
 
 ## 預期

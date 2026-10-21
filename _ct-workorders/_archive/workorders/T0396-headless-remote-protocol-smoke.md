@@ -143,10 +143,10 @@ channel 名稱與參數形狀以 `electron/remote/headless-handlers.ts` / `proto
 第一次（人讀輸出，`node scripts/smoke-remote-headless.mjs --target wsl:Ubuntu-24.04`，EXIT=0）：
 
 ```
-[smoke] target wsl:Ubuntu-24.04 → wss://127.0.0.1:9877 (fingerprint 22:3A:E4:C7…79:97; unit environment read; data dir /home/gower/.local/share/bat-server; port 9877 (BAT_SERVER_PORT))
+[smoke] target wsl:Ubuntu-24.04 → wss://127.0.0.1:9877 (fingerprint 22:3A:E4:C7…79:97; unit environment read; data dir /home/<使用者>/.local/share/bat-server; port 9877 (BAT_SERVER_PORT))
 PASS S1 TLS + fingerprint pin + token auth; wrong fingerprint rejected — pinned 22:3A:E4:C7…79:97, auth ok (serverPlatform=linux arch=x64 env=native node=24.21.0 bundle=0.5.9-pre.4); wrong fingerprint rejected at TLS upgrade, auth frame not sent
 PASS S2 settings:get-shell-path returns a Linux shell path — settings:get-shell-path('auto') → /bin/bash
-PASS S3 pty:create emits output; pty:write echo marker round-trips — pty:create(smoke-20261005012004-3c71a9, cwd=/home/gower, shell=/bin/bash) → true; first output "…ning: setlocale: LC_ALL: cannot change locale (en_US.UTF-8)⏎"; marker 2f9dc5b0-s3-42 seen
+PASS S3 pty:create emits output; pty:write echo marker round-trips — pty:create(smoke-20261005012004-3c71a9, cwd=/home/<使用者>, shell=/bin/bash) → true; first output "…ning: setlocale: LC_ALL: cannot change locale (en_US.UTF-8)⏎"; marker 2f9dc5b0-s3-42 seen
 PASS S4 pty:resize 120x40 is visible to stty size — pty:resize → null; stty size → "40 120"
 PASS S5 pty:create with the same id is idempotent (same $$) — second pty:create → true; $$ 654 → 654 (same shell)
 PASS S6 PTY survives WS disconnect; write after reconnect + auth — closed WS, reconnected + auth; pty:write → output 2f9dc5b0-s6:42 (same $$ 654: true)
@@ -167,7 +167,7 @@ PASS S8 unsupported channel returns an explicit error — claude:get-supported-m
   "checks": [
     { "id": "S1", "status": "PASS", "evidence": "pinned 22:3A:E4:C7…79:97, auth ok (serverPlatform=linux arch=x64 env=native node=24.21.0 bundle=0.5.9-pre.4); wrong fingerprint rejected at TLS upgrade, auth frame not sent" },
     { "id": "S2", "status": "PASS", "evidence": "settings:get-shell-path('auto') → /bin/bash" },
-    { "id": "S3", "status": "PASS", "evidence": "pty:create(smoke-20261005012223-d26442, cwd=/home/gower, shell=/bin/bash) → true; first output \"…C_ALL: cannot change locale (en_US.UTF-8)⏎gower@GXDEVPC02:~$\"; marker f26e6a7f-s3-42 seen" },
+    { "id": "S3", "status": "PASS", "evidence": "pty:create(smoke-20261005012223-d26442, cwd=/home/<使用者>, shell=/bin/bash) → true; first output \"…C_ALL: cannot change locale (en_US.UTF-8)⏎<使用者>@GXDEVPC02:~$\"; marker f26e6a7f-s3-42 seen" },
     { "id": "S4", "status": "PASS", "evidence": "pty:resize → null; stty size → \"40 120\"" },
     { "id": "S5", "status": "PASS", "evidence": "second pty:create → true; $$ 712 → 712 (same shell)" },
     { "id": "S6", "status": "PASS", "evidence": "closed WS, reconnected + auth; pty:write → output f26e6a7f-s6:42 (same $$ 712: true)" },

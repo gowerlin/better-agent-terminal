@@ -38,9 +38,9 @@ describe('wslDistroForFolderDialog', () => {
 
 describe('wslHomeUncCandidates', () => {
   it('builds \\\\wsl.localhost first, \\\\wsl$ as legacy fallback', () => {
-    expect(wslHomeUncCandidates('Ubuntu-24.04', '/home/gower')).toEqual([
-      '\\\\wsl.localhost\\Ubuntu-24.04\\home\\gower',
-      '\\\\wsl$\\Ubuntu-24.04\\home\\gower',
+    expect(wslHomeUncCandidates('Ubuntu-24.04', '/home/demo')).toEqual([
+      '\\\\wsl.localhost\\Ubuntu-24.04\\home\\demo',
+      '\\\\wsl$\\Ubuntu-24.04\\home\\demo',
     ])
   })
 
@@ -60,12 +60,12 @@ describe('wslHomeUncCandidates', () => {
 
 describe('createWslFolderDefaultResolver', () => {
   it('resolves the \\\\wsl.localhost home and caches it per distro', async () => {
-    const resolveHome = vi.fn(async () => '/home/gower')
+    const resolveHome = vi.fn(async () => '/home/demo')
     const isDirectory = vi.fn(async () => true)
     const resolve = createWslFolderDefaultResolver({ resolveHome, isDirectory })
 
-    expect(await resolve('Ubuntu-24.04')).toBe('\\\\wsl.localhost\\Ubuntu-24.04\\home\\gower')
-    expect(await resolve('Ubuntu-24.04')).toBe('\\\\wsl.localhost\\Ubuntu-24.04\\home\\gower')
+    expect(await resolve('Ubuntu-24.04')).toBe('\\\\wsl.localhost\\Ubuntu-24.04\\home\\demo')
+    expect(await resolve('Ubuntu-24.04')).toBe('\\\\wsl.localhost\\Ubuntu-24.04\\home\\demo')
     expect(resolveHome).toHaveBeenCalledTimes(1)
     expect(resolveHome).toHaveBeenCalledWith('Ubuntu-24.04')
   })
@@ -134,8 +134,8 @@ describe('isWslWindowsDrivePath (/mnt/<drive> hint)', () => {
   })
 
   it('does not flag folders inside the distro', () => {
-    expect(isWslWindowsDrivePath('\\\\wsl.localhost\\Ubuntu-24.04\\home\\gower\\repo', DISTRO)).toBe(false)
-    expect(isWslWindowsDrivePath('\\\\wsl$\\Ubuntu-24.04\\home\\gower', DISTRO)).toBe(false)
+    expect(isWslWindowsDrivePath('\\\\wsl.localhost\\Ubuntu-24.04\\home\\demo\\repo', DISTRO)).toBe(false)
+    expect(isWslWindowsDrivePath('\\\\wsl$\\Ubuntu-24.04\\home\\demo', DISTRO)).toBe(false)
     expect(isWslWindowsDrivePath('\\\\wsl.localhost\\Ubuntu-24.04\\mnt\\wslg', DISTRO)).toBe(false)
     expect(isWslWindowsDrivePath('\\\\wsl.localhost\\Ubuntu-24.04\\mnt', DISTRO)).toBe(false)
   })

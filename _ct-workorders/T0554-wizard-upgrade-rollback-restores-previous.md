@@ -127,7 +127,7 @@ T0552 讓「重跑精靈」成為正式的升級路徑：沿用 port / profile�
 | WSL 實機：正常升級 | `A1-A3`（`BAT_E2E_T0550_UPGRADE_RUNNING=1`）：A2.server / A2.identity-kept / A2.upgrade-running / A2.profile-opens / A3 PASS；`.bat-new` / `.bat-old` 殘留：**none**（finalize 已清）。**A3.clean-install 記為 FAIL**，唯一不成立的是 T0552 的「安裝目錄要變小」（390 → 390 MiB）：本次是 0.6.1-pre.4 → 0.6.1-pre.4 重裝，本來就沒有舊套件可刪；stale 套件 none、data dir 完整。**B4 smoke 13/13 PASS** |
 | WSL 結束狀態 | 0.6.1-pre.4、active / enabled、MainPID 8441 在 127.0.0.1:9877 LISTEN、指紋 `22:3A:E4:C7:4F:4F:7C:D1:23:09:11:A1:DB:62:CD:82:A9:31:66:95:48:D0:34:CD:6C:42:9C:B7:0A:D1:79:97`（與開始時相同）、unit 與備份 `diff` 相同、無 `.bat-old` / marker |
 
-- 備份（保留未刪）：`/home/gower/.local/bat-server.bak-0.6.1-pre.4-t0554`、`/home/gower/.config/systemd/user/bat-server.service.bak-0.6.1-pre.4-t0554`（建立時與現役 `diff -r` 相同）。開始時 distro 裡沒有 T0550 / T0552 備份（`f6187ed5` 記錄已移除），沒有刪任何既有備份。
+- 備份（保留未刪）：`/home/<使用者>/.local/bat-server.bak-0.6.1-pre.4-t0554`、`/home/<使用者>/.config/systemd/user/bat-server.service.bak-0.6.1-pre.4-t0554`（建立時與現役 `diff -r` 相同）。開始時 distro 裡沒有 T0550 / T0552 備份（`f6187ed5` 記錄已移除），沒有刪任何既有備份。
 - e2e 證據：`%TEMP%\bat-t0554\evidence-cancel\`（results.json、t0554-server-state-before/mid/after.txt、t0554-debug-log.txt、截圖）、`%TEMP%\bat-t0554\evidence-upgrade\`；log `%TEMP%\bat-t0554-cancel.log`、`%TEMP%\bat-t0554-upgrade.log`。
 - 使用者 BAT（9876）未操作；e2e 皆隔離實例。
 

@@ -45,7 +45,7 @@ workdir: main repo
 memory_overrides:
   - "🔴 child_process 一律 `execFile` / `spawn` + array args，timeout 必設；distro / username 等外部輸入過 `/^[a-zA-Z0-9._-]+$/` 白名單（CLAUDE.md Child Process Spawning）。禁用 shell-spawning exec API。"
   - "🔴 判斷 WSL 狀態以 **exit code** 為主，不依賴 `wsl.exe` 的本地化輸出字串（輸出為 UTF-16LE，且隨 Windows 語系變動）。"
-  - "🔴 不得刪除 / 重建 / unregister 本機 WSL 發行版 `Ubuntu-24.04`（使用者測試環境，塔台已設定好 `gower` 使用者）。可在其中讀取狀態、`loginctl disable-linger gower` 重現、刪除精靈寫出的 `~/.config/systemd/user/bat-server.service`。"
+  - "🔴 不得刪除 / 重建 / unregister 本機 WSL 發行版 `Ubuntu-24.04`（使用者測試環境，塔台已設定好 `<使用者>` 使用者）。可在其中讀取狀態、`loginctl disable-linger <使用者>` 重現、刪除精靈寫出的 `~/.config/systemd/user/bat-server.service`。"
   - "🔴 SSH / Docker 精靈不在範圍；共用模組（`error-mapper.ts`、`wizard-runner.ts`）若改動，SSH / Docker 既有測試必須全綠。"
   - "⚠️ 不 push。"
 ---
@@ -67,7 +67,7 @@ BUG-071 修好後（第 4 步能下載並安裝 server bundle），使用者在�
 - `error-mapper.ts` 的手動指令文案（`sudo loginctl enable-linger $USER`）保留，它本身正確
 
 ### 2. 缺陷 B — systemd unit 不得出現 `~`
-- 改成**解析發行版使用者的絕對 `$HOME`**（例如 `/home/gower`），install path 與 data dir 都用絕對路徑，`ctx.serverInstallPath` 存絕對路徑；`ExecStart` / `Environment` 寫出絕對路徑
+- 改成**解析發行版使用者的絕對 `$HOME`**（例如 `/home/<使用者>`），install path 與 data dir 都用絕對路徑，`ctx.serverInstallPath` 存絕對路徑；`ExecStart` / `Environment` 寫出絕對路徑
 - **不用 `%h` specifier**：`escapeSystemdValue` 可能會跳脫 `%`，行為不透明。若 Worker 讀碼後確認 `%h` 更乾淨且不被跳脫，可以改用，但須在回報區說明理由
 - `validateInstallPath()` 須接受絕對路徑（請確認現有 `assertValidUnixPath` 行為）
 - 取得 `$HOME` 的方式：`execFile` array args，例如 `['-d', distro, '--', 'sh', '-c', 'printf %s "$HOME"']`（固定字串，無外部輸入插值），結果須為 `/` 開頭且通過路徑驗證
@@ -95,7 +95,7 @@ BUG-071 修好後（第 4 步能下載並安裝 server bundle），使用者在�
 - `npm run test:unit` 全綠（基線 **709**；回報新數字）
 - `npx vite build` exit 0
 - `npx tsc --noEmit` error 數不得高於 baseline **40**
-- **本機 runtime（Worker 可做）**：在 `Ubuntu-24.04` 內以 node 直接呼叫（或 esbuild 打包到 scratchpad 呼叫）修改後的 `enableLinger` / `$HOME` 解析 / unit 內容產生函式；先 `loginctl disable-linger gower` 再驗證能自動啟用。若能以修好的 unit 內容在發行版內 `systemctl --user daemon-reload` 後看到 `Loaded: loaded`（不是 `bad-setting`）更好（bundle 不在時 `start` 失敗屬預期）。scratchpad 產物用完刪除
+- **本機 runtime（Worker 可做）**：在 `Ubuntu-24.04` 內以 node 直接呼叫（或 esbuild 打包到 scratchpad 呼叫）修改後的 `enableLinger` / `$HOME` 解析 / unit 內容產生函式；先 `loginctl disable-linger <使用者>` 再驗證能自動啟用。若能以修好的 unit 內容在發行版內 `systemctl --user daemon-reload` 後看到 `Loaded: loaded`（不是 `bad-setting`）更好（bundle 不在時 `start` 失敗屬預期）。scratchpad 產物用完刪除
 - **runtime 驗收（交使用者）**：新 build 從頭跑 WSL 精靈 9/9
 
 ## 範圍外
@@ -175,8 +175,8 @@ BUG-071 修好後（第 4 步能下載並安裝 server bundle），使用者在�
 | `npm run test:unit` | ✅ PASS | **55 files / 749 tests** 全綠（基線 709 + 40）；SSH / Docker 精靈測試全綠 |
 | `npx vite build` | ✅ PASS | exit 0 |
 | `npx tsc --noEmit` | ✅ PASS | **40** errors（= baseline 40）；本次改動檔案零新增（唯一相關命中為未改動的 `integration.transitions.test.ts` TS6133，既有） |
-| 本機 runtime（`Ubuntu-24.04`） | ✅ PASS | esbuild 打包修改後 `electron/wsl-detect.ts` / `wsl-systemd.ts` 到 scratchpad，以 node 直接呼叫：① `loginctl disable-linger gower` → `show-user` 回 `not logged in or lingering`；② 舊行為重現：裸 `loginctl enable-linger` → `Could not enable linger: No such device or address`（本次 exit 1），`Linger=no`；③ `list()` → `Ubuntu-24.04 / Running / 2`；`isWslInstalled()` → `true`；`resolveHome()` → `/home/gower`；`resolveDistroUser()` → `gower`；`enableLinger()` → `{"ok":true}`，再呼叫（已啟用）→ `{"ok":true}`；`show-user` → `Linger=yes`；④ `writeUnit()` 寫出 `ExecStart="/home/gower/.local/bat-server/bin/bat-server"`、`Environment="BAT_DATA_DIR=/home/gower/.local/share/bat-server"`，`systemctl --user daemon-reload` 後 `status` → **`Loaded: loaded (/home/gower/.config/systemd/user/bat-server.service; disabled; preset: enabled)`**（修正前為 `bad-setting`）。bundle 不在，未 `start`（屬預期） |
-| runtime 清理 | ✅ | 已刪 `/home/gower/.config/systemd/user/bat-server.service` + `daemon-reload`（`Unit bat-server.service could not be found.`）；linger 維持 `Linger=yes`（塔台原設定）；scratchpad 產物已刪；未動發行版本身 |
+| 本機 runtime（`Ubuntu-24.04`） | ✅ PASS | esbuild 打包修改後 `electron/wsl-detect.ts` / `wsl-systemd.ts` 到 scratchpad，以 node 直接呼叫：① `loginctl disable-linger <使用者>` → `show-user` 回 `not logged in or lingering`；② 舊行為重現：裸 `loginctl enable-linger` → `Could not enable linger: No such device or address`（本次 exit 1），`Linger=no`；③ `list()` → `Ubuntu-24.04 / Running / 2`；`isWslInstalled()` → `true`；`resolveHome()` → `/home/<使用者>`；`resolveDistroUser()` → `<使用者>`；`enableLinger()` → `{"ok":true}`，再呼叫（已啟用）→ `{"ok":true}`；`show-user` → `Linger=yes`；④ `writeUnit()` 寫出 `ExecStart="/home/<使用者>/.local/bat-server/bin/bat-server"`、`Environment="BAT_DATA_DIR=/home/<使用者>/.local/share/bat-server"`，`systemctl --user daemon-reload` 後 `status` → **`Loaded: loaded (/home/<使用者>/.config/systemd/user/bat-server.service; disabled; preset: enabled)`**（修正前為 `bad-setting`）。bundle 不在，未 `start`（屬預期） |
+| runtime 清理 | ✅ | 已刪 `/home/<使用者>/.config/systemd/user/bat-server.service` + `daemon-reload`（`Unit bat-server.service could not be found.`）；linger 維持 `Linger=yes`（塔台原設定）；scratchpad 產物已刪；未動發行版本身 |
 | BUG-086「無發行版 / 沒裝 WSL」實機 | ⚠️ 未實機驗證 | 本機已有 `Ubuntu-24.04` 且不得 unregister；兩種狀態以 mock unit test 覆蓋 |
 | 精靈完整 9/9 | ⏳ 交使用者 | 需新 build 從頭跑 WSL 精靈 |
 

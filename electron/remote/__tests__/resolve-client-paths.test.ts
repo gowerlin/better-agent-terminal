@@ -38,7 +38,7 @@ interface Fixture {
 
 const wsl = () => new WslPathTranslator('Ubuntu-24.04')
 const docker = () => new DockerPathTranslator([{ host: 'C:\\Users\\demo\\repo', container: '/workspace' }])
-const ssh = () => new SshPathTranslator('C:\\Users\\demo', '/home/gower', true)
+const ssh = () => new SshPathTranslator('C:\\Users\\demo', '/home/demo', true)
 
 const LOCAL_FILE: Array<[string, () => PathTranslator, Fixture[]]> = [
   ['Identity', () => new IdentityTranslator(), [
@@ -48,8 +48,8 @@ const LOCAL_FILE: Array<[string, () => PathTranslator, Fixture[]]> = [
   ['WSL', wsl, [
     { name: 'drive → /mnt', input: 'C:\\Users\\demo\\Pictures\\a.png', serverPath: '/mnt/c/Users/demo/Pictures/a.png' },
     { name: 'other drive → /mnt', input: 'D:\\data\\x.csv', serverPath: '/mnt/d/data/x.csv' },
-    { name: 'own distro UNC → linux path', input: '\\\\wsl.localhost\\Ubuntu-24.04\\home\\gower\\repo\\f.ts', serverPath: '/home/gower/repo/f.ts' },
-    { name: 'other distro UNC', input: '\\\\wsl.localhost\\Debian\\home\\gower\\f.ts', serverPath: null, reason: 'outside-wsl-distro' },
+    { name: 'own distro UNC → linux path', input: '\\\\wsl.localhost\\Ubuntu-24.04\\home\\demo\\repo\\f.ts', serverPath: '/home/demo/repo/f.ts' },
+    { name: 'other distro UNC', input: '\\\\wsl.localhost\\Debian\\home\\demo\\f.ts', serverPath: null, reason: 'outside-wsl-distro' },
     { name: 'network share', input: '\\\\fileserver\\share\\doc.pdf', serverPath: null, reason: 'outside-wsl-distro' },
   ]],
   ['Docker', docker, [
@@ -68,14 +68,14 @@ const WORKSPACE_ENTRY: Array<[string, () => PathTranslator, Fixture[]]> = [
     { name: 'unchanged', input: 'C:\\repo\\a.ts', serverPath: 'C:\\repo\\a.ts' },
   ]],
   ['WSL', wsl, [
-    { name: 'UNC of a server file → linux path', input: '\\\\wsl.localhost\\Ubuntu-24.04\\home\\gower\\repo\\f.ts', serverPath: '/home/gower/repo/f.ts' },
+    { name: 'UNC of a server file → linux path', input: '\\\\wsl.localhost\\Ubuntu-24.04\\home\\demo\\repo\\f.ts', serverPath: '/home/demo/repo/f.ts' },
   ]],
   ['Docker', docker, [
     { name: 'host form of a mounted file → container path', input: 'C:\\Users\\demo\\repo\\src\\a.ts', serverPath: '/workspace/src/a.ts' },
     { name: 'container path outside the mounts stays', input: '/etc/hosts', serverPath: '/etc/hosts' },
   ]],
   ['SSH', ssh, [
-    { name: 'home-mapped server file → server home', input: 'C:\\Users\\demo\\repo\\a.ts', serverPath: '/home/gower/repo/a.ts' },
+    { name: 'home-mapped server file → server home', input: 'C:\\Users\\demo\\repo\\a.ts', serverPath: '/home/demo/repo/a.ts' },
     { name: 'server file outside home stays', input: '/etc/hosts', serverPath: '/etc/hosts' },
   ]],
 ]

@@ -42,13 +42,13 @@ Could not enable linger: Could not enable linger: No such device or address
 
 ### 缺陷 A：`loginctl enable-linger` 沒帶使用者名稱
 
-| 指令（以 `gower` 在 `wsl -d Ubuntu-24.04 --` 內執行） | 結果 |
+| 指令（以 `<使用者>` 在 `wsl -d Ubuntu-24.04 --` 內執行） | 結果 |
 |------|------|
 | `loginctl enable-linger` | `Could not enable linger: No such device or address`（ENXIO：`wsl --` 非登入 session，logind 找不到呼叫者 session） |
-| `loginctl enable-linger gower` | 成功，**不需 sudo**（polkit 允許自己）；之後 `Linger=yes` |
+| `loginctl enable-linger <使用者>` | 成功，**不需 sudo**（polkit 允許自己）；之後 `Linger=yes` |
 
 - 位置：`electron/wsl-systemd.ts:193` `runWsl(distro, ['loginctl', 'enable-linger'], …)`
-- ⚠️ 塔台驗證時已對 `gower` **啟用 linger**（`/var/lib/systemd/linger/gower`），重現缺陷 A 前需先 `loginctl disable-linger gower`
+- ⚠️ 塔台驗證時已對 `<使用者>` **啟用 linger**（`/var/lib/systemd/linger/<使用者>`），重現缺陷 A 前需先 `loginctl disable-linger <使用者>`
 
 ### 缺陷 B：unit 檔的 `~` 不會被 systemd 展開
 
@@ -66,7 +66,7 @@ Environment="BAT_SERVER_DATA_DIR=~/.local/share/bat-server"
 ⇒ 就算 linger 成功，服務也**永遠起不來**（可能就是 BUG-072「bat-server.service timeout」的真正根因）。
 
 - 位置：`src/components/setup-wizard/steps/wsl/install-server-bundle.ts:3`（`INSTALL_PATH = '~/.local/bat-server'`）、`src/components/setup-wizard/steps/wsl/write-systemd-unit.ts:4`（`DATA_DIR = '~/.local/share/bat-server'`）、`:38`（`execStart`）
-- 註：`wsl -d X -- <cmd>` 會經過 shell，`~` 在 `mkdir` / `tar` 有展開（塔台以 node `execFile` 實測 `echo ~/.local/bat-server` → `/home/gower/.local/bat-server`），所以問題只在 systemd unit
+- 註：`wsl -d X -- <cmd>` 會經過 shell，`~` 在 `mkdir` / `tar` 有展開（塔台以 node `execFile` 實測 `echo ~/.local/bat-server` → `/home/<使用者>/.local/bat-server`），所以問題只在 systemd unit
 
 ### 缺陷 C：第 5 步失敗後 bundle 已被刪除，但第 4 步仍顯示 ✓
 

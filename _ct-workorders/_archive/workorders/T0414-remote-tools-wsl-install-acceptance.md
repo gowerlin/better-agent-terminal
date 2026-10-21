@@ -113,7 +113,7 @@ DONE —— 5 個工具全部經 headless PTY 實際安裝成功（exit 0，安�
 |---|------|------|------|
 | 1 | 5 個工具的安裝結果表（含 ①②③④）與原始證據 | ✅ PASS | 見「安裝結果」「驗收重點」。原始 JSON 在 session scratchpad（`dryrun.json`、`shell-before.json`、`install-{claude,uv,codex,rg,gh}.json`、`update-claude.json`、`shell-after.json`），關鍵欄位已摘錄到本回報 |
 | 2 | ⑤ ⑥ 的結論；⑦ ⑧ 標 NOT COVERED | ✅ PASS | 見「驗收重點」 |
-| 3 | 安裝後 smoke 10/10 | ✅ PASS | `npm run smoke:remote:headless -- --target wsl:Ubuntu-24.04`（04:03:03 開始）：**10/10 PASS**，沒有殘留 smoke PTY。<br>S10：`claude=ok@2.1.285 git=ok@2.43.0 gh=ok@2.102.0 codex=ok@0.160.0 curl=ok@8.5.0 bash=ok@5.2.21 rg=ok@14.1.0 uv=ok@0.12.23 python3=ok@3.12.3 node=missing`。<br>S9：`system /home/gower/.local/bin/claude 2.1.285 (healthy)`，embedded 為 2.1.289 |
+| 3 | 安裝後 smoke 10/10 | ✅ PASS | `npm run smoke:remote:headless -- --target wsl:Ubuntu-24.04`（04:03:03 開始）：**10/10 PASS**，沒有殘留 smoke PTY。<br>S10：`claude=ok@2.1.285 git=ok@2.43.0 gh=ok@2.102.0 codex=ok@0.160.0 curl=ok@8.5.0 bash=ok@5.2.21 rg=ok@14.1.0 uv=ok@0.12.23 python3=ok@3.12.3 node=missing`。<br>S9：`system /home/<使用者>/.local/bin/claude 2.1.285 (healthy)`，embedded 為 2.1.289 |
 | 4 | commit 的腳本：`npm run test:unit` 全綠；`npx tsc --noEmit` ≤ 40 | ✅ PASS | `npm run test:unit`：106 files，**1640 passed**、1 skipped（基線 1614，本單新增 26）。`npx tsc --noEmit`：**40**（= 基線，本單檔案 0 筆） |
 | 5 | WSL 被修改的檔案 / 目錄清單 | ✅ PASS | 見「WSL 上被修改的項目」 |
 
@@ -171,17 +171,17 @@ DONE —— 5 個工具全部經 headless PTY 實際安裝成功（exit 0，安�
 
 | # | 工具 | 開始 | exit code（①） | 耗時 | 安裝後偵測（②） | 安裝 PTY env（⑤） | profile 變更 |
 |---|------|------|---------------|------|----------------|------------------|-------------|
-| 1 | claude | 03:50:16 | **0** | 11.98 s | `ok` `/home/gower/.local/bin/claude` **2.1.285**，`serverVisible:false`，`login:loggedOut` | `DISABLE_AUTOUPDATER=1`（無 `DISABLE_UPDATES`） | 無 |
-| 2 | uv | 03:50:36 | **0** | 1.65 s | `ok` `/home/gower/.local/bin/uv` **0.12.23**，`serverVisible:false` | 同上 | 無 |
-| 3 | codex | 03:50:45 | **0**（⚠️ 見下方說明） | 641.75 s（實際安裝約數秒，其餘時間卡在互動提示） | `ok` `/home/gower/.local/bin/codex` **0.160.0**，`serverVisible:false`，`login:loggedOut` | 同上 | 無 |
+| 1 | claude | 03:50:16 | **0** | 11.98 s | `ok` `/home/<使用者>/.local/bin/claude` **2.1.285**，`serverVisible:false`，`login:loggedOut` | `DISABLE_AUTOUPDATER=1`（無 `DISABLE_UPDATES`） | 無 |
+| 2 | uv | 03:50:36 | **0** | 1.65 s | `ok` `/home/<使用者>/.local/bin/uv` **0.12.23**，`serverVisible:false` | 同上 | 無 |
+| 3 | codex | 03:50:45 | **0**（⚠️ 見下方說明） | 641.75 s（實際安裝約數秒，其餘時間卡在互動提示） | `ok` `/home/<使用者>/.local/bin/codex` **0.160.0**，`serverVisible:false`，`login:loggedOut` | 同上 | 無 |
 | 4 | rg | 04:02:16 | **0** | 11.85 s | `ok` `/usr/bin/rg` **14.1.0**，`serverVisible:true` | 同上 | 無 |
 | 5 | gh | 04:02:35 | **0** | 3.60 s | `ok` `/usr/bin/gh` **2.102.0**，`serverVisible:true`，`login:loggedOut` | 同上 | 無 |
 | — | claude `update` | 04:02:45 | **0** | 0.57 s | 前後皆為 `ok` 2.1.285 | 同上 | 無 |
 
 輸出摘錄（ANSI 已去除）：
 - claude：`Installing Claude Code native build stable...` → `⚠ Setup notes: Native installation exists but ~/.local/bin is not in your PATH.`（這個 PTY 是在 `~/.local/bin` 建立之前開的）→ `✔ Claude Code successfully installed! Version: 2.1.285 Location: ~/.local/bin/claude` → `✅ Installation complete!` → `__BAT_TOOL_DONE_<nonce>_0__`
-- uv：`downloading uv 0.12.23 x86_64-unknown-linux-gnu` / `installing to /home/gower/.local/bin` / `everything's installed!`
-- codex：`Resolved version: 0.160.0` → `Installing standalone package to ~/.codex/packages/standalone/releases/0.160.0-x86_64-unknown-linux-musl` → `/home/gower/.local/bin is already on PATH` → `Codex CLI 0.160.0 installed successfully.` → **`Start Codex now? [y/N]`** → （送出 Enter 後）`__BAT_TOOL_DONE_<nonce>_0__`
+- uv：`downloading uv 0.12.23 x86_64-unknown-linux-gnu` / `installing to /home/<使用者>/.local/bin` / `everything's installed!`
+- codex：`Resolved version: 0.160.0` → `Installing standalone package to ~/.codex/packages/standalone/releases/0.160.0-x86_64-unknown-linux-musl` → `/home/<使用者>/.local/bin is already on PATH` → `Codex CLI 0.160.0 installed successfully.` → **`Start Codex now? [y/N]`** → （送出 Enter 後）`__BAT_TOOL_DONE_<nonce>_0__`
 - rg / gh：apt 正常安裝（`Setting up ripgrep (14.1.0-1)`、`Setting up gh (2.102.0)`）。sudo 為 NOPASSWD，沒有出現提示。
 - claude update：`Current version: 2.1.285` / `Checking for updates to stable version...` / `Claude Code is up to date (2.1.285)`
 
@@ -208,11 +208,11 @@ DONE —— 5 個工具全部經 headless PTY 實際安裝成功（exit 0，安�
 |---|------|------|------|
 | ① | 完成標記 | ✅ PASS | 6 次執行（5 install + 1 update）都由 `createSentinelMatcher` 從原始 `pty:output` 解出 exit 0。sudo 的 apt 長輸出、ANSI、`\x1b7\x1b8` 都不影響判定。⚠️ codex 必須先回答互動提示，標記才會出現（遭遇問題 1） |
 | ② | 重新偵測 | ✅ PASS | 安裝後 5 個工具都從 `missing` 變成 **`ok`**，path 與 version 正確。detect 的 login probe 每次都是新的 login shell，所以第一次建立 `~/.local/bin` 之後立刻看得到，沒有出現 `not-on-path`。`serverVisible`：`~/.local/bin` 下的三個工具為 `false`，`/usr/bin` 下的 rg / gh 為 `true`，與 T0407 剩餘風險 5 相符 |
-| ③ | 新 login shell 看得到 `~/.local/bin` | ✅ PASS | `--shell-check --yes`（新開的 PTY `t0414-20261005040256-bf2a83-shell`）：`command -v` 的結果為 claude=`/home/gower/.local/bin/claude`、codex=`/home/gower/.local/bin/codex`、uv=`/home/gower/.local/bin/uv`、gh=`/usr/bin/gh`、rg=`/usr/bin/rg`；`~/.local/bin` 位於 PATH 第 1 項（共 11 項）。安裝前的基線 PTY 中五者皆為空，PATH 共 10 項，沒有 `~/.local/bin`。**舊分頁看不到**也有證據：claude 的安裝 PTY 在目錄建立前開啟，installer 自己警告 `~/.local/bin is not in your PATH` |
-| ④ | interop 遮蔽 | ✅ PASS（結論修正 T0407 的前提） | **BAT 視角（headless PTY 與 detect probe）根本沒有 interop 遮蔽**：bat-server 由 systemd user 啟動，WSL 不會把 Windows PATH 附加到這類程序上，所以 PTY 的 login PATH 中 `/mnt/*` 為 0 項（安裝前 10 項 / 安裝後 11 項）。也因此 codex 安裝前的偵測是 `missing`，不是 `interop-only`。<br>**wsl.exe 的 login 視角**（使用者從 Windows 開 WSL 終端）：安裝後 `type -ap codex` = `/home/gower/.local/bin/codex`、`/mnt/<使用者資料夾>/AppData/Roaming/npm/codex`；PATH 中 `~/.local/bin` 是**第 1 項**，第一個 `/mnt/` 是第 11 項（共 68 項）⇒ `~/.local/bin/codex` 蓋過 interop 版本 |
+| ③ | 新 login shell 看得到 `~/.local/bin` | ✅ PASS | `--shell-check --yes`（新開的 PTY `t0414-20261005040256-bf2a83-shell`）：`command -v` 的結果為 claude=`/home/<使用者>/.local/bin/claude`、codex=`/home/<使用者>/.local/bin/codex`、uv=`/home/<使用者>/.local/bin/uv`、gh=`/usr/bin/gh`、rg=`/usr/bin/rg`；`~/.local/bin` 位於 PATH 第 1 項（共 11 項）。安裝前的基線 PTY 中五者皆為空，PATH 共 10 項，沒有 `~/.local/bin`。**舊分頁看不到**也有證據：claude 的安裝 PTY 在目錄建立前開啟，installer 自己警告 `~/.local/bin is not in your PATH` |
+| ④ | interop 遮蔽 | ✅ PASS（結論修正 T0407 的前提） | **BAT 視角（headless PTY 與 detect probe）根本沒有 interop 遮蔽**：bat-server 由 systemd user 啟動，WSL 不會把 Windows PATH 附加到這類程序上，所以 PTY 的 login PATH 中 `/mnt/*` 為 0 項（安裝前 10 項 / 安裝後 11 項）。也因此 codex 安裝前的偵測是 `missing`，不是 `interop-only`。<br>**wsl.exe 的 login 視角**（使用者從 Windows 開 WSL 終端）：安裝後 `type -ap codex` = `/home/<使用者>/.local/bin/codex`、`/mnt/<使用者資料夾>/AppData/Roaming/npm/codex`；PATH 中 `~/.local/bin` 是**第 1 項**，第一個 `/mnt/` 是第 11 項（共 68 項）⇒ `~/.local/bin/codex` 蓋過 interop 版本 |
 | ⑤ | `DISABLE_AUTOUPDATER=1` 下 installer / `claude install` 是否成功；PTY 沒有 `DISABLE_UPDATES` | ✅ PASS | 每個安裝 PTY 用 `env \| grep -E '^DISABLE_(UPDATES\|AUTOUPDATER)='` 檢查，結果都只有 `DISABLE_AUTOUPDATER=1`，沒有 `DISABLE_UPDATES`。claude install.sh（內部會跑 `claude install`）exit 0，輸出 `✔ Claude Code successfully installed!`。`claude update` 也在同樣的 env 下 exit 0。⇒ `DISABLE_AUTOUPDATER` 不會擋手動安裝或更新。T0407 剩餘風險 1 解除 |
-| ⑥ | `codex login status` 未登入時的 exit code | ✅ **exit=1** | 新 login PTY 執行 `timeout 30 codex login status >/dev/null 2>&1`（stdout 與 stderr 都丟棄），結果為 `codex=/home/gower/.local/bin/codex exit=1`。與 T0407 讀原始碼的結論（1 = 未登入或錯誤）一致。T0407 剩餘風險 2 解除 |
-| ⑦ | sudo 需要密碼 | ⏭️ **NOT COVERED** | 這個帳號是 NOPASSWD（`/etc/sudoers.d/90-gower-nopasswd`），且工單禁止在其他 distro 或機器安裝 |
+| ⑥ | `codex login status` 未登入時的 exit code | ✅ **exit=1** | 新 login PTY 執行 `timeout 30 codex login status >/dev/null 2>&1`（stdout 與 stderr 都丟棄），結果為 `codex=/home/<使用者>/.local/bin/codex exit=1`。與 T0407 讀原始碼的結論（1 = 未登入或錯誤）一致。T0407 剩餘風險 2 解除 |
+| ⑦ | sudo 需要密碼 | ⏭️ **NOT COVERED** | 這個帳號是 NOPASSWD（`/etc/sudoers.d/90-<使用者>-nopasswd`），且工單禁止在其他 distro 或機器安裝 |
 | ⑧ | Docker root 無 sudo | ⏭️ **NOT COVERED** | 工單只允許在 WSL Ubuntu-24.04 執行 |
 
 另外：

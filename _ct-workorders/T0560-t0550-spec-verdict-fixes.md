@@ -119,7 +119,7 @@ T0559（安裝版 pre.5、WSL pre.4 → pre.5）產品行為全部達成，但 s
 | A2.server | PASS | `0.6.1-pre.5` active MainPID 20790，9877 由 MainPID LISTEN，profile `remotePort` 9877 |
 | A2.identity-kept | PASS | port 9877 → 9877；指紋不變，精靈 pin 同一指紋 |
 | A2.upgrade-running | PASS | seed profile `t0552-seed-ubuntu-24-04` 被更新（token 已換）、未新建 |
-| A2.profile-opens | PASS | remote shell → `T0550-gower@GXDEVPC02-25` |
+| A2.profile-opens | PASS | remote shell → `T0550-<使用者>@GXDEVPC02-25` |
 | A3 | PASS | helpers / `bin/node` v24.22.0 / `bin/bat-server` 皆在 |
 | A3.leftovers | INFO | 新說明文字；`node_modules: @anthropic-ai @lydell` |
 | **A3.clean-install** | **PASS** | canaries planted（`.t0560-canary`、`node_modules/t0560-stale-canary`）→ 升級後 left: none；stale none；`.bat-*` none；data dir 有 cert / token；`390 MiB → 390 MiB (info only)` |

@@ -55,9 +55,9 @@ memory_overrides:
 
 ## 背景
 
-外部測試者A（mac，BAT ≥ pre.5）的 Codex 塔台在 **SCB** 工作區派工（`bat-terminal.mjs --notify-id "$BAT_TERMINAL_ID" --workspace "$BAT_WORKSPACE_ID" --agent default …`），Worker 分頁卻出現在 **專案B** 工作區，而且用 Claude Code 開（他預期 Codex）。cwd 是對的（SCB）。現象、三張截圖、初步分析見 **BUG-129**（請先讀並看截圖）。
+外部測試者A（mac，BAT ≥ pre.5）的 Codex 塔台在 **專案D** 工作區派工（`bat-terminal.mjs --notify-id "$BAT_TERMINAL_ID" --workspace "$BAT_WORKSPACE_ID" --agent default …`），Worker 分頁卻出現在 **專案B** 工作區，而且用 Claude Code 開（他預期 Codex）。cwd 是對的（專案D）。現象、三張截圖、初步分析見 **BUG-129**（請先讀並看截圖）。
 
-塔台推定兩個症狀是同一根因：塔台 PTY 帶的 `BAT_WORKSPACE_ID` 不是 SCB（PTY 建立時注入、之後不變），導致落點與 `resolveWorkspaceDefaultAgent(workspaceId)` 都用了別的工作區。**外部測試者A 的日誌尚未取得**（Gower 索取中）。
+塔台推定兩個症狀是同一根因：塔台 PTY 帶的 `BAT_WORKSPACE_ID` 不是 專案D（PTY 建立時注入、之後不變），導致落點與 `resolveWorkspaceDefaultAgent(workspaceId)` 都用了別的工作區。**外部測試者A 的日誌尚未取得**（Gower 索取中）。
 
 ## 任務
 
@@ -68,7 +68,7 @@ memory_overrides:
    - notify-id 找不到（外部 shell、舊 helper）→ 維持現行（`--workspace` → active）
    - 主行程是否知道「terminal → workspace」的即時對應、需不需要向 renderer 查詢，由 Worker 依架構決定；遠端 headless 的對應方式一併考慮（headless 沒有 renderer workspace）
 3. **讓 `BAT_WORKSPACE_ID` 不再過期**（若成本可接受）：例如分頁換工作區時更新 main 端的 terminal→workspace 對應，讓 helper 有可靠來源；PTY 的 env 本身改不了，在回報區說明
-4. **`--agent default` 的語意**：確認修正後 `default` = 落點工作區的 `defaultAgent` → `settings.defaultAgent` → `claude-code`。外部測試者A 預期 Codex：判斷這是「工作區解析錯」造成，還是他的 SCB 工作區 / 全域本來就沒設 Codex。若有「塔台本身跑在 Codex，`default` 卻開 Claude」這種 UX 落差，在回報區提出建議即可，不要自行改預設語意
+4. **`--agent default` 的語意**：確認修正後 `default` = 落點工作區的 `defaultAgent` → `settings.defaultAgent` → `claude-code`。外部測試者A 預期 Codex：判斷這是「工作區解析錯」造成，還是他的 專案D 工作區 / 全域本來就沒設 Codex。若有「塔台本身跑在 Codex，`default` 卻開 Claude」這種 UX 落差，在回報區提出建議即可，不要自行改預設語意
 5. **可觀測性**：`bat-terminal.mjs` 成功時的 stdout 與 `bat-scripts.log` 加印實際落點工作區（名稱或 id）與解析出的 agent，讓塔台能自行核對（不得破壞「成功判定只看 exit code」與 `waitForMessage` 以 frame id 比對的既有規則）
 6. **外部測試者A 情境的判定方式**：在回報區寫明拿到 外部測試者A 日誌後要看哪幾行（例如 `[T0130] External terminal added … workspaceId(landed)=… workspaceId(requested)=…`、`[agent-command] resolved agent=…`）以及如何對應到第 1 點的哪條路徑
 
@@ -132,7 +132,7 @@ memory_overrides:
 - helper exit 0，代表 `--workspace "$BAT_WORKSPACE_ID"` **不是空字串**（空字串會 usage error exit 1）。所以 #4 不是 外部測試者A 的情境，#5 在 Finder 啟動的 BAT 上也多半是空值
 - 外部測試者A 只有一個視窗（「Default:1」），兩個工作區都在 sidebar，所以 #10 也不是
 - 剩下兩種可能：(a) 值就是 **專案B 的 id**，直接落在專案B；(b) 值是未知 id，退回 active，而派工當下 外部測試者A 正在看專案B（Codex 已經跑了 15 分鐘，有可能）
-- BAT 自己的路徑不會把**非空但屬於別的工作區**的 id 注入 SCB 分頁。最吻合 (a) 的是 #11：外部測試者A 的 Codex 狀態列顯示 thread 名稱「**套用專案B 規則**」，表示 SCB 分頁裡跑的是一個與專案B 有關的 thread（可能是 resume 來的）。Codex 二進位裡有 `shell_snapshot` 機制（以 `thread_id` 為鍵，擷取並匯出 shell 環境；本機 codex-cli 0.162.1 的字串可見 `shell_snapshots` / `features.shell_snapshot` / `shell snapshot contains a brokered credential outside exported environment`）。如果 resume 時沿用了在專案B 分頁擷取的快照，Codex 執行的每個指令都會看到專案B 的 `BAT_WORKSPACE_ID` **和** `BAT_TERMINAL_ID`。這也和 外部測試者A 的 Codex 塔台自己寫下的規則一致（「若繼承的 `BAT_WORKSPACE_ID` / `BAT_TERMINAL_ID` 指向其他專案」）
+- BAT 自己的路徑不會把**非空但屬於別的工作區**的 id 注入 專案D 分頁。最吻合 (a) 的是 #11：外部測試者A 的 Codex 狀態列顯示 thread 名稱「**套用專案B 規則**」，表示 專案D 分頁裡跑的是一個與專案B 有關的 thread（可能是 resume 來的）。Codex 二進位裡有 `shell_snapshot` 機制（以 `thread_id` 為鍵，擷取並匯出 shell 環境；本機 codex-cli 0.162.1 的字串可見 `shell_snapshots` / `features.shell_snapshot` / `shell snapshot contains a brokered credential outside exported environment`）。如果 resume 時沿用了在專案B 分頁擷取的快照，Codex 執行的每個指令都會看到專案B 的 `BAT_WORKSPACE_ID` **和** `BAT_TERMINAL_ID`。這也和 外部測試者A 的 Codex 塔台自己寫下的規則一致（「若繼承的 `BAT_WORKSPACE_ID` / `BAT_TERMINAL_ID` 指向其他專案」）
 - agent 會開成 Claude，是因為解析到的工作區（專案B，或 (b) 的情況根本沒有工作區）沒有設 codex 為 defaultAgent，於是退到 `settings.defaultAgent` → `claude-code`
 - ⚠️ 如果真的是 #11：`--notify-id` 也指向專案B 的 Codex 分頁，本單的「塔台終端優先」會**一樣落在專案B**，Worker 的 notify 也會送到專案B 分頁。本單在這個情境的價值只有可觀測性（helper 會印 `workspace: <專案B>… — the Tower terminal's workspace`，塔台可以自己核對）
 
@@ -147,19 +147,19 @@ memory_overrides:
 4. `"script":"bat-terminal","event":"invoke"` 的 `env`（`snapshotBatEnv`：`BAT_TERMINAL_ID` / `BAT_WORKSPACE_ID`）與 `"event":"parsed"` 的 `notifyId` / `workspaceId` → 塔台指令實際看到的值
 
 `windows.json` 或 profile snapshot：
-5. 從 `terminals[]` 找出 SCB 那個 Codex CLI 分頁的 `id`
+5. 從 `terminals[]` 找出 專案D 那個 Codex CLI 分頁的 `id`
 
 對應方式：
-- R = 專案B id，且 4 的 `BAT_TERMINAL_ID` ≠ 5 的 SCB 分頁 id（而是專案B Codex 分頁的 id）→ **#11**（env 來自另一個分頁）。本單無法修正，走第 7 節的後續工單
-- R = 專案B id，但 `BAT_TERMINAL_ID` = SCB 分頁 id → SCB 分頁本身 env 的 `BAT_WORKSPACE_ID` 過期（#5 或尚未發現的路徑）→ **本單的修正會讓它落在 SCB**
+- R = 專案B id，且 4 的 `BAT_TERMINAL_ID` ≠ 5 的 專案D 分頁 id（而是專案B Codex 分頁的 id）→ **#11**（env 來自另一個分頁）。本單無法修正，走第 7 節的後續工單
+- R = 專案B id，但 `BAT_TERMINAL_ID` = 專案D 分頁 id → 專案D 分頁本身 env 的 `BAT_WORKSPACE_ID` 過期（#5 或尚未發現的路徑）→ **本單的修正會讓它落在 專案D**
 - R 未知且 L = 專案B → #9（id 來自已刪除 / 重建的工作區或其他 profile，當下 active 是專案B）
-- 快速自查（不用日誌）：在 SCB 的 Codex 裡執行 `echo $BAT_TERMINAL_ID $BAT_WORKSPACE_ID`，再在 SCB 開一個普通終端分頁執行同一行，比對兩邊的 `BAT_WORKSPACE_ID`；另外可以 `grep -l BAT_WORKSPACE_ID ~/.codex/shell_snapshots/*` 看快照內容
+- 快速自查（不用日誌）：在 專案D 的 Codex 裡執行 `echo $BAT_TERMINAL_ID $BAT_WORKSPACE_ID`，再在 專案D 開一個普通終端分頁執行同一行，比對兩邊的 `BAT_WORKSPACE_ID`；另外可以 `grep -l BAT_WORKSPACE_ID ~/.codex/shell_snapshots/*` 看快照內容
 
 ### 4. `--agent default` 的語意
 
 修正後 `default` = **落點工作區**的 `defaultAgent` → `settings.defaultAgent` → `claude-code`（`createAgentPromptCommandBuilder` 的順序沒變，只是傳進去的 workspace 改成解析後的落點）。helper 會印出 agent 來源（`--agent` / the workspace's default agent / Settings default agent / built-in default）。
 
-外部測試者A 預期 Codex：就算落點正確（SCB），只要 SCB 工作區和全域都沒把 codex 設為預設，`default` 還是會開 Claude。他的 Codex 塔台事後是在**它自己專案的** `_local-rules.md` 記下「Worker 預設 Codex」，而不是改 BAT 設定，所以很可能 SCB 本來就沒設。**UX 建議（未實作，不改預設語意）**：在 workspace / settings 都沒設的情況下，`default` 可以考慮沿用「塔台終端自己的 agent preset」（塔台跑 codex-cli 就派 codex）；或在 Settings 的派工區塊加說明。這需要塔台決策。
+外部測試者A 預期 Codex：就算落點正確（專案D），只要 專案D 工作區和全域都沒把 codex 設為預設，`default` 還是會開 Claude。他的 Codex 塔台事後是在**它自己專案的** `_local-rules.md` 記下「Worker 預設 Codex」，而不是改 BAT 設定，所以很可能 專案D 本來就沒設。**UX 建議（未實作，不改預設語意）**：在 workspace / settings 都沒設的情況下，`default` 可以考慮沿用「塔台終端自己的 agent preset」（塔台跑 codex-cli 就派 codex）；或在 Settings 的派工區塊加說明。這需要塔台決策。
 
 ### 5. 修改檔案
 

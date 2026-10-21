@@ -129,17 +129,17 @@ Electron 32 起移除了 DOM `File` 的非標準 `path` 屬性，改用 `webUtil
 
 反方向（server → client 的自由文字，例：agent 輸出的 `/home/x/f.ts` 經 `LinkedText` 點擊預覽，`PathLinker.tsx:387-397` → `fs:readFile` 的 `toServer` 對 server 形式是 no-op）目前可運作，不在本單範圍。
 
-#### 2. 轉換可行性（`npx tsx` 實測 `WslPathTranslator('Ubuntu-24.04')` / `SshPathTranslator('<使用者資料夾>','/home/gower',true)`）
+#### 2. 轉換可行性（`npx tsx` 實測 `WslPathTranslator('Ubuntu-24.04')` / `SshPathTranslator('<使用者資料夾>','/home/<使用者>',true)`）
 
 | 輸入 | WSL `toServer` / `owns` | SSH `toServer` / `owns` |
 |---|---|---|
-| `<使用者資料夾>\Pictures\a.png` | `/mnt/<使用者資料夾>/Pictures/a.png` / true | —（home 內）→ `/home/gower/Pictures/a.png` / true ⚠️ 遠端未必有此檔 |
+| `<使用者資料夾>\Pictures\a.png` | `/mnt/<使用者資料夾>/Pictures/a.png` / true | —（home 內）→ `/home/<使用者>/Pictures/a.png` / true ⚠️ 遠端未必有此檔 |
 | `D:\data\x.csv` | `/mnt/d/data/x.csv` / true | 原樣 / **false** |
-| `\\wsl.localhost\Ubuntu-24.04\home\gower\repo\f.ts` | `/home/gower/repo/f.ts` / true | — |
-| `\\wsl.localhost\Debian\home\gower\f.ts` | 原樣 / **false** | — |
+| `\\wsl.localhost\Ubuntu-24.04\home\<使用者>\repo\f.ts` | `/home/<使用者>/repo/f.ts` / true | — |
+| `\\wsl.localhost\Debian\home\<使用者>\f.ts` | 原樣 / **false** | — |
 | `\\fileserver\share\doc.pdf` | 原樣 / **false** | — |
-| `<使用者資料夾>\AppData\Local\Temp\bat-clipboard-1.png` | `/mnt/c/…/bat-clipboard-1.png` / true | `/home/gower/AppData/Local/Temp/…` / true ⚠️ 不存在 |
-| `/home/gower/repo` | 原樣 / true（idempotent） | — |
+| `<使用者資料夾>\AppData\Local\Temp\bat-clipboard-1.png` | `/mnt/c/…/bat-clipboard-1.png` / true | `/home/<使用者>/AppData/Local/Temp/…` / true ⚠️ 不存在 |
+| `/home/<使用者>/repo` | 原樣 / true（idempotent） | — |
 | `C:\Program Files\x y\z.txt` | `/mnt/c/Program Files/x y/z.txt` / true（含空白，插入終端時需加引號） | — |
 | `@<使用者資料夾>\a.txt`、`see <使用者資料夾>\a.txt please` | 原樣 / false（translator 只吃整串路徑） | — |
 

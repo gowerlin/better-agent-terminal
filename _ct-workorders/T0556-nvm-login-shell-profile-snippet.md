@@ -75,7 +75,7 @@ T0555 讓遠端工具的 Node.js 可以透過 nvm 一鍵安裝。BAT 偵測與 B
 
 ### 完成狀態
 
-**DONE**：驗收條件全部通過。WSL 實機按兩次「更新」：第一次寫入片段，第二次不重複。之後 `bash -lc` 與 `sh -lc` 都找得到 `/home/gower/.nvm/versions/node/v24.22.0/bin/node`；`bash -lic` 只載入一次 nvm.sh。smoke 13/13。
+**DONE**：驗收條件全部通過。WSL 實機按兩次「更新」：第一次寫入片段，第二次不重複。之後 `bash -lc` 與 `sh -lc` 都找得到 `/home/<使用者>/.nvm/versions/node/v24.22.0/bin/node`；`bash -lic` 只載入一次 nvm.sh。smoke 13/13。
 
 Commit：`e16e75b8` feat(remote-tools): T0556 nvm loader block for bash login shells（11 檔，未 push）；本收尾 metadata 另一個 commit。
 
@@ -169,16 +169,16 @@ Commit：`e16e75b8` feat(remote-tools): T0556 nvm loader block for bash login sh
 | `npm run typecheck` | exit 0 |
 | `npm run typecheck:electron` | exit 0 |
 | `npx vite build` | 成功（exit 0） |
-| WSL 實機：隔離實例（本機 build）→ Profiles 卡片工具面板 → Node.js「更新」→ 確認 | PASS：exit 0，輸出 `nvm loader for login shells added to /home/gower/.profile`、`Node.js v24.22.0 is already the latest LTS` |
-| 第二次「更新」 | PASS：exit 0，`nvm loader for login shells already in /home/gower/.profile`；`.profile` sha256 與第一次之後相同，marker 計數 1 |
-| `wsl -d Ubuntu-24.04 --exec bash -lc 'command -v node'` | PASS：`/home/gower/.nvm/versions/node/v24.22.0/bin/node`（更新前為 `node-not-found`） |
+| WSL 實機：隔離實例（本機 build）→ Profiles 卡片工具面板 → Node.js「更新」→ 確認 | PASS：exit 0，輸出 `nvm loader for login shells added to /home/<使用者>/.profile`、`Node.js v24.22.0 is already the latest LTS` |
+| 第二次「更新」 | PASS：exit 0，`nvm loader for login shells already in /home/<使用者>/.profile`；`.profile` sha256 與第一次之後相同，marker 計數 1 |
+| `wsl -d Ubuntu-24.04 --exec bash -lc 'command -v node'` | PASS：`/home/<使用者>/.nvm/versions/node/v24.22.0/bin/node`（更新前為 `node-not-found`） |
 | `--exec sh -lc 'command -v node'` | PASS：同上路徑 |
-| `--exec bash -lic` | PASS：同上路徑，`v24.22.0`；`bash -x -lic` 的 nvm.sh 載入 1 次（`++ . /home/gower/.nvm/nvm.sh`） |
+| `--exec bash -lic` | PASS：同上路徑，`v24.22.0`；`bash -x -lic` 的 nvm.sh 載入 1 次（`++ . /home/<使用者>/.nvm/nvm.sh`） |
 | `remoteTools.detect` | `node` `status: ok`、`nvmManaged: true` |
 | `npm run smoke:remote:headless -- --target wsl:Ubuntu-24.04` | 13/13，共三次：基線、部署 T0555 probe 後（S10 `node=ok@24.22.0(nvm 0.40.8, managed)`）、回滾後 |
 
 **WSL `~/.profile`**（三個 profile 檔中只有 `~/.profile` 存在，`.bash_profile` / `.bash_login` 都不存在 → 目標為 `~/.profile`）
-- 備份：`/home/gower/.profile.t0556-20261016-050607.bak`（`cp -p`，sha256 與原檔相同）
+- 備份：`/home/<使用者>/.profile.t0556-20261016-050607.bak`（`cp -p`，sha256 與原檔相同）
 - 前：sha256 `28b4a453b68dde64f814e94bab14ee651f4f162e15dd9920490aa1d49f05d2a4`，27 行
 - 後：sha256 `22780e8ba8ab09b89b64b84f3f8e7cf9e5d360dffd249b088c5fdea649d8816a`，32 行
 - diff（`diff ~/.profile.t0556-20261016-050607.bak ~/.profile`）：
@@ -254,5 +254,5 @@ Commit：`e16e75b8` feat(remote-tools): T0556 nvm loader block for bash login sh
 
 ## 塔台追記：pre.5 實機目視（第六十七 session，2026-10-16T14:44:08+0800）
 
-- 使用者 BAT `0.6.1-pre.5`，WSL `Ubuntu-24.04` profile（`localhost:9877`，server pre.5）→ 配置 → 工具面板截圖：Node.js「已安裝」`24.22.0`、chip `nvm 0.40.8`、按鈕「更新」、路徑 `/home/gower/.nvm/versions/node/v24.22.0/bin…` → **PASS**（T0555 / T0556 實機）。
+- 使用者 BAT `0.6.1-pre.5`，WSL `Ubuntu-24.04` profile（`localhost:9877`，server pre.5）→ 配置 → 工具面板截圖：Node.js「已安裝」`24.22.0`、chip `nvm 0.40.8`、按鈕「更新」、路徑 `/home/<使用者>/.nvm/versions/node/v24.22.0/bin…` → **PASS**（T0555 / T0556 實機）。
 - Node.js / Claude Code / Codex / uv 顯示「伺服器：不可見」：systemd user service 的 PATH 不含 `~/.nvm`、`~/.local/bin`，屬設計（tooltip：只影響 Git / GitHub 面板；git / gh 皆「可見」；`remote-tools-panel.test.tsx` 亦預期 claude 為 hidden）。

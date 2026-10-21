@@ -219,7 +219,7 @@ window.electronAPI.remoteTools.onInstallPending(cb)   // → unsubscribe（main 
 | 5 | 新蓋舊 | 視窗未開時，快速對 uv、gh 各按一次安裝 | 只執行最後一個（gh），uv 不執行 |
 | 6 | sudo 密碼 | 用沒有 NOPASSWD 的帳號或容器裝 gh（apt） | 分頁停在 sudo 密碼提示，可以輸入。按 Ctrl+C ⇒ toast「指令失敗（結束代碼 130）」，分頁保留 |
 | 7 | curl \| sh 失敗卻回 0 | 斷網（或在 `/etc/hosts` 擋 `claude.ai`）後裝 claude | 標記回報 exit 0，但重新偵測後 toast「未偵測到 Claude Code」（T0409 剩餘風險） |
-| 8 | 無工作區 ⇒ BAT Tools | 新建一個沒有工作區的 remote profile（或移除該視窗所有工作區）→ 從本機面板安裝 | 出現「BAT Tools」工作區，路徑為遠端 `$HOME`（例如 `/home/gower`），分頁 cwd 正確；遠端 `ps` 沒有殘留 `bat-home-probe-*` 的 shell |
+| 8 | 無工作區 ⇒ BAT Tools | 新建一個沒有工作區的 remote profile（或移除該視窗所有工作區）→ 從本機面板安裝 | 出現「BAT Tools」工作區，路徑為遠端 `$HOME`（例如 `/home/<使用者>`），分頁 cwd 正確；遠端 `ps` 沒有殘留 `bat-home-probe-*` 的 shell |
 | 9 | fish shell | 遠端 `chsh -s /usr/bin/fish`（或在 Settings 把自訂 shell 指向 fish）→ 安裝 | toast「fish 不是 POSIX shell，改用 /bin/sh」；分頁以 `/bin/sh` 執行，標記正常 |
 | 10 | 更新 | claude 已安裝時按「更新」 | 分頁執行 `claude update; printf …`，toast「已更新」 |
 | 11 | 開窗失敗 | 停掉 WSL 的 `bat-server.service` 後，從本機面板安裝 | 出現既有的「遠端無法連線」對話框，面板顯示安裝錯誤 `remote-unreachable`。之後恢復 server 再開視窗，**不會**自動安裝（請求已移除） |

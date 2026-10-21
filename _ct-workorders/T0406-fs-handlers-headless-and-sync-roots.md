@@ -168,7 +168,7 @@ memory_overrides:
 
 > 前提：塔台已部署本單 JS 到 WSL 並重啟 `bat-server`；BAT 用本 working tree（`npm run dev` 或打包）
 
-1. 開 WSL profile（Ubuntu-24.04）視窗，工作區選 `\\wsl.localhost\Ubuntu-24.04\home\gower\<某 repo>`
+1. 開 WSL profile（Ubuntu-24.04）視窗，工作區選 `\\wsl.localhost\Ubuntu-24.04\home\<使用者>\<某 repo>`
 2. **檔案樹**：側欄檔案樹應列出 repo 內容（修正前遠端視窗為 `No handler for channel: fs:readdir`／空樹）；展開子目錄正常
 3. **預覽**：點一個文字檔（< 512 KB）→ 預覽顯示內容；點一張 png/jpg → 圖片預覽顯示
 4. **搜尋**：檔案搜尋輸入檔名片段 → 有結果，點結果可開啟

@@ -21,7 +21,7 @@ links:
 | 欄位 | 內容 |
 |------|------|
 | 嚴重度 | 🔴 high（遠端視窗的工作區若存 client 形式路徑，Claude 面板、GitHub 面板、Git Graph、worktree 會在錯誤 / 不存在的目錄執行） |
-| 可重現 | likely（程式碼推論，未實機；T0397 E4 顯示 WSL 視窗資料夾對話框預設 `\\wsl.localhost\Ubuntu-24.04\home\gower`） |
+| 可重現 | likely（程式碼推論，未實機；T0397 E4 顯示 WSL 視窗資料夾對話框預設 `\\wsl.localhost\Ubuntu-24.04\home\<使用者>`） |
 | **狀態** | ✅ FIXED（T0416 `e2daec1`；轉換在 main 端，需新 BAT build 實機驗證） |
 | 回報者 | T0405 Worker（回報區「遭遇問題」2）；塔台 04:35 擴大判斷到 `claude:*` |
 

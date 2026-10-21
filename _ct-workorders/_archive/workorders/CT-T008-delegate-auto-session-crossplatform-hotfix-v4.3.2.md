@@ -121,7 +121,7 @@ description: "BMad Control Tower v4.3.2 — ..."
 完成後跑:
 
 ```bash
-grep -iE "selene|gower|plan-025|bug-050|bug-047|t0224|t0225|t0226|t0227|t0228|commit [0-9a-f]{7}|better-agent-terminal" skills/control-tower/references/auto-session.md
+grep -iE "selene|<使用者>|plan-025|bug-050|bug-047|t0224|t0225|t0226|t0227|t0228|commit [0-9a-f]{7}|better-agent-terminal" skills/control-tower/references/auto-session.md
 ```
 
 預期**無任何命中**。若有命中 → 未清乾淨,必須再處理。
@@ -300,7 +300,7 @@ HTML marker 同 8 個檔皆 `<!-- version: 4.3.2 -->`。
 
 ```bash
 cd "D:/ForgejoGit/BMad-Guide/BMad-Control-Tower/BMad-Control-Tower-v4.3.2/"
-grep -inE "selene|gower|plan-025|bug-050|bug-047|t0224|t0225|t0226|t0227|t0228|commit [0-9a-f]{7}" control-tower/references/auto-session.md
+grep -inE "selene|<使用者>|plan-025|bug-050|bug-047|t0224|t0225|t0226|t0227|t0228|commit [0-9a-f]{7}" control-tower/references/auto-session.md
 ```
 
 **結果**:`✅ 無命中`

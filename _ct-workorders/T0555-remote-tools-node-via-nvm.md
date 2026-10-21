@@ -145,9 +145,9 @@ Commit：`e9cae8d8` feat(remote-tools): T0555 one-click Node.js through nvm（22
 | `npm run typecheck:electron` | 0 |
 | `npx vite build` | 成功 |
 | WSL 實機：隔離實例（本機 build）→ Profiles 卡片工具面板 → Node.js「安裝」→ 確認對話框（v0.40.8、SHASUMS256.txt）→ 遠端視窗分頁執行 | PASS：exit 0，輸出含 `Checksums matched!`、`Now using node v24.22.0 (npm v11.19.1)`、`default -> lts/*` |
-| 「重新檢查」 | PASS：`Node.js 已安裝 24.22.0 nvm 0.40.8 … 更新 /home/gower/.nvm/versions/node/v24.22.0/bin/node`；`remoteTools.detect` 回 `nvm.version=0.40.8`、`nvmManaged=true` |
+| 「重新檢查」 | PASS：`Node.js 已安裝 24.22.0 nvm 0.40.8 … 更新 /home/<使用者>/.nvm/versions/node/v24.22.0/bin/node`；`remoteTools.detect` 回 `nvm.version=0.40.8`、`nvmManaged=true` |
 | 非互動 `bash -lc 'command -v node'` | ❌ `node-not-found`（見「完成狀態」） |
-| `bash -lic` | PASS：`/home/gower/.nvm/versions/node/v24.22.0/bin/node v24.22.0` |
+| `bash -lic` | PASS：`/home/<使用者>/.nvm/versions/node/v24.22.0/bin/node v24.22.0` |
 | BAT 偵測（非互動 `/bin/sh` probe） | PASS |
 | 更新路徑：已是最新 LTS（`remote-tools-install-check.mjs --tool node --kind update --yes`） | PASS：exit 0，偵測前後皆 24.22.0 |
 | 更新路徑：舊版 → 新版（`/tmp` 暫存 NVM_DIR、`PROFILE=/dev/null`，不碰 `~/.nvm` 與任何 rc 檔，結束後刪除） | PASS：v22.23.3 + `semver` → v24.22.0，全域套件重裝，default → `lts/*`；第二次執行印出「already the latest LTS」並 exit 0 |
@@ -188,7 +188,7 @@ Commit：`e9cae8d8` feat(remote-tools): T0555 one-click Node.js through nvm（22
 
 ## 塔台收單（第六十六 session，2026-10-16T04:53:33+0800）
 
-- 📋 **T0555 PARTIAL 確認**：`e9cae8d8`（22 檔）。塔台複驗 @ `e9cae8d8`：`npm run test:unit` 4345 passed / 252 files（3 skipped）、`npm run typecheck` = 0、`npm run typecheck:electron` = 0；WSL：server 0.6.1-pre.4 active，`bash -lc 'command -v node'` → not found、`bash -lic` → `/home/gower/.nvm/versions/node/v24.22.0/bin/node`（與回報一致）。
+- 📋 **T0555 PARTIAL 確認**：`e9cae8d8`（22 檔）。塔台複驗 @ `e9cae8d8`：`npm run test:unit` 4345 passed / 252 files（3 skipped）、`npm run typecheck` = 0、`npm run typecheck:electron` = 0；WSL：server 0.6.1-pre.4 active，`bash -lc 'command -v node'` → not found、`bash -lic` → `/home/<使用者>/.nvm/versions/node/v24.22.0/bin/node`（與回報一致）。
 - 未過的 gate：非互動 login shell 看不到 nvm 的 node。使用者選擇選項 b（加有防重複的 profile 片段）→ **T0556**。T0556 DONE 後依「Resolved PARTIAL 補正規則」把本單補正為 DONE。
 - 任務 3 / 4 的自行決定（apt node 旁裝按鈕、更新常駐 + 先比對）、`METHOD=script`、`NVM_DIR` 先設定皆採納。
 - 依 `worker_auto_close` 規則，PARTIAL 不自動回收 Worker 分頁（`b95c21e2…`）。
@@ -196,6 +196,6 @@ Commit：`e9cae8d8` feat(remote-tools): T0555 one-click Node.js through nvm（22
 
 ## Post-resolution note（塔台，2026-10-16T05:10:26+0800）
 
-- 狀態 PARTIAL → **DONE**（work-order-system § Resolved `PARTIAL` 補正規則）：唯一未過的 gate（非互動 login shell 看不到 nvm 的 node）由 **T0556**（`e16e75b8`）解決。塔台複驗：WSL `bash -lc 'command -v node'` → `/home/gower/.nvm/versions/node/v24.22.0/bin/node`，`~/.profile` 的 nvm loader 標記只有 1 個。
+- 狀態 PARTIAL → **DONE**（work-order-system § Resolved `PARTIAL` 補正規則）：唯一未過的 gate（非互動 login shell 看不到 nvm 的 node）由 **T0556**（`e16e75b8`）解決。塔台複驗：WSL `bash -lc 'command -v node'` → `/home/<使用者>/.nvm/versions/node/v24.22.0/bin/node`，`~/.profile` 的 nvm loader 標記只有 1 個。
 - 原回報區與證據保留不改。Worker 分頁於本次補正後回收。
 

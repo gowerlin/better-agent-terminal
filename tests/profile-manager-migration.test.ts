@@ -127,7 +127,7 @@ test('targetOS=ssh-linux → ssh metadata fields', () => {
   const meta = extractTargetOSMeta(makeEntry({
     targetOS: 'ssh-linux',
     sshHost: 'devbox.example.com',
-    sshUser: 'gower',
+    sshUser: 'demo',
     sshPort: 2222,
     sshKeyPath: '~/.ssh/id_ed25519',
     useSshTunnel: true,
@@ -136,7 +136,7 @@ test('targetOS=ssh-linux → ssh metadata fields', () => {
   assert.deepStrictEqual(meta, {
     targetOS: 'ssh-linux',
     sshHost: 'devbox.example.com',
-    sshUser: 'gower',
+    sshUser: 'demo',
     sshPort: 2222,
     sshKeyPath: '~/.ssh/id_ed25519',
     useSshTunnel: true,
@@ -148,14 +148,14 @@ test('targetOS=ssh-darwin → ssh metadata fields with darwin discriminator', ()
   const meta = extractTargetOSMeta(makeEntry({
     targetOS: 'ssh-darwin',
     sshHost: 'mac-mini.local',
-    sshUser: 'gower',
+    sshUser: 'demo',
   }))
   // Narrow to discriminated branch — sshPort etc. omitted on entry, so undefined here
   if (meta.targetOS !== 'ssh-darwin') {
     throw new Error(`expected ssh-darwin, got ${meta.targetOS}`)
   }
   assert.strictEqual(meta.sshHost, 'mac-mini.local')
-  assert.strictEqual(meta.sshUser, 'gower')
+  assert.strictEqual(meta.sshUser, 'demo')
   assert.strictEqual(meta.sshPort, undefined)
   assert.strictEqual(meta.useSshTunnel, undefined)
 })

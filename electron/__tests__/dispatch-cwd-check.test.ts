@@ -53,8 +53,8 @@ describe('checkDispatchCwd', () => {
   const ENTRIES: DispatchRegistryEntry[] = [{
     workspaces: [
       { id: 'ws-bank', name: '專案B', folderPath: 'D:\\Work\\Bank' },
-      { id: 'ws-scb', name: 'SCB', alias: 'SCB專案', folderPath: 'D:\\Work\\SCB' },
-      { id: 'ws-scb-sub', name: 'SCB sub', folderPath: 'D:\\Work\\SCB\\packages\\api' },
+      { id: 'ws-projd', name: '專案D', alias: '專案D 資料', folderPath: 'D:\\Work\\ProjD' },
+      { id: 'ws-projd-sub', name: '專案D sub', folderPath: 'D:\\Work\\ProjD\\packages\\api' },
       { id: 'ws-nofolder', name: 'No folder' },
     ],
     terminals: [],
@@ -71,14 +71,14 @@ describe('checkDispatchCwd', () => {
   })
 
   it('cwd under another workspace → other-workspace, the deepest one (nested workspaces)', async () => {
-    expect(await checkDispatchCwd(ENTRIES, landing('ws-bank'), 'D:\\Work\\SCB\\docs', win)).toEqual({
+    expect(await checkDispatchCwd(ENTRIES, landing('ws-bank'), 'D:\\Work\\ProjD\\docs', win)).toEqual({
       status: 'other-workspace',
-      cwd: 'D:\\Work\\SCB\\docs',
+      cwd: 'D:\\Work\\ProjD\\docs',
       folderPath: 'D:\\Work\\Bank',
-      cwdWorkspace: { id: 'ws-scb', name: 'SCB專案', folderPath: 'D:\\Work\\SCB' },
+      cwdWorkspace: { id: 'ws-projd', name: '專案D 資料', folderPath: 'D:\\Work\\ProjD' },
     })
-    const nested = await checkDispatchCwd(ENTRIES, landing('ws-bank'), 'D:\\Work\\SCB\\packages\\api\\src', win)
-    expect(nested.cwdWorkspace?.id).toBe('ws-scb-sub')
+    const nested = await checkDispatchCwd(ENTRIES, landing('ws-bank'), 'D:\\Work\\ProjD\\packages\\api\\src', win)
+    expect(nested.cwdWorkspace?.id).toBe('ws-projd-sub')
   })
 
   it('a workspace of another window counts too', async () => {
@@ -91,17 +91,17 @@ describe('checkDispatchCwd', () => {
   })
 
   it('nested landing workspace: cwd inside the landing one wins over its parent', async () => {
-    expect((await checkDispatchCwd(ENTRIES, landing('ws-scb-sub'), 'D:\\Work\\SCB\\packages\\api', win)).status).toBe('inside')
+    expect((await checkDispatchCwd(ENTRIES, landing('ws-projd-sub'), 'D:\\Work\\ProjD\\packages\\api', win)).status).toBe('inside')
     // landing = the parent, cwd in the nested child: still inside the landing folder
-    expect((await checkDispatchCwd(ENTRIES, landing('ws-scb'), 'D:\\Work\\SCB\\packages\\api', win)).status).toBe('inside')
+    expect((await checkDispatchCwd(ENTRIES, landing('ws-projd'), 'D:\\Work\\ProjD\\packages\\api', win)).status).toBe('inside')
   })
 
   it('skipped: no folderPath, landing unknown / active, no cwd, relative cwd', async () => {
-    expect(await checkDispatchCwd(ENTRIES, landing('ws-nofolder'), 'D:\\Work\\SCB', win)).toEqual({ status: 'skipped', reason: 'no-folder-path', cwd: 'D:\\Work\\SCB' })
-    expect((await checkDispatchCwd(ENTRIES, landing('ws-gone'), 'D:\\Work\\SCB', win)).reason).toBe('landing-unknown')
-    expect((await checkDispatchCwd(ENTRIES, resolveDispatchWorkspaceFromEntries(ENTRIES, {}), 'D:\\Work\\SCB', win)).reason).toBe('landing-unknown')
+    expect(await checkDispatchCwd(ENTRIES, landing('ws-nofolder'), 'D:\\Work\\ProjD', win)).toEqual({ status: 'skipped', reason: 'no-folder-path', cwd: 'D:\\Work\\ProjD' })
+    expect((await checkDispatchCwd(ENTRIES, landing('ws-gone'), 'D:\\Work\\ProjD', win)).reason).toBe('landing-unknown')
+    expect((await checkDispatchCwd(ENTRIES, resolveDispatchWorkspaceFromEntries(ENTRIES, {}), 'D:\\Work\\ProjD', win)).reason).toBe('landing-unknown')
     expect((await checkDispatchCwd(ENTRIES, landing('ws-bank'), undefined, win)).reason).toBe('no-cwd')
-    expect((await checkDispatchCwd(ENTRIES, landing('ws-bank'), 'Work\\SCB', win)).reason).toBe('cwd-not-absolute')
+    expect((await checkDispatchCwd(ENTRIES, landing('ws-bank'), 'Work\\ProjD', win)).reason).toBe('cwd-not-absolute')
   })
 
   it('linux is case-sensitive', async () => {
@@ -111,11 +111,11 @@ describe('checkDispatchCwd', () => {
   })
 
   it('realpath: a folderPath through a symlink matches the physical cwd', async () => {
-    const entries: DispatchRegistryEntry[] = [{ workspaces: [{ id: 'a', folderPath: '/tmp/bank' }, { id: 'b', folderPath: '/tmp/scb' }] }]
+    const entries: DispatchRegistryEntry[] = [{ workspaces: [{ id: 'a', folderPath: '/tmp/bank' }, { id: 'b', folderPath: '/tmp/projd' }] }]
     const realpath = async (p: string) => p.replace(/^\/tmp\//, '/private/tmp/')
     const resolution = resolveDispatchWorkspaceFromEntries(entries, { requestedWorkspaceId: 'a' })
     expect((await checkDispatchCwd(entries, resolution, '/private/tmp/bank/src', { platform: 'darwin', realpath })).status).toBe('inside')
-    expect(await checkDispatchCwd(entries, resolution, '/private/tmp/scb', { platform: 'darwin', realpath })).toMatchObject({ status: 'other-workspace', cwdWorkspace: { id: 'b' } })
+    expect(await checkDispatchCwd(entries, resolution, '/private/tmp/projd', { platform: 'darwin', realpath })).toMatchObject({ status: 'other-workspace', cwdWorkspace: { id: 'b' } })
     // a failing realpath falls back to the path as given
     const failing = async () => { throw new Error('ENOENT') }
     expect((await checkDispatchCwd(entries, resolution, '/private/tmp/bank', { platform: 'darwin', realpath: failing })).status).toBe('outside')

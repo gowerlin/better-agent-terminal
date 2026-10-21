@@ -161,7 +161,7 @@ describe('registerTerminalHandlers (T0431)', () => {
   describe('dispatch workspace follows the --notify-id Tower terminal (T0523 / BUG-129)', () => {
     // Registry: tower-b is a tab of workspace B; workspace A exists too.
     const ENTRIES = [{
-      workspaces: [{ id: 'ws-a', name: '專案B' }, { id: 'ws-b', name: 'SCB', alias: 'SCB專案資料' }],
+      workspaces: [{ id: 'ws-a', name: '專案B' }, { id: 'ws-b', name: '專案D', alias: '專案D 資料' }],
       terminals: [{ id: 'tower-a', workspaceId: 'ws-a' }, { id: 'tower-b', workspaceId: 'ws-b' }],
     }]
     const WORKSPACE_AGENTS: Record<string, string> = { 'ws-a': 'claude-code', 'ws-b': 'codex-cli' }
@@ -179,7 +179,7 @@ describe('registerTerminalHandlers (T0431)', () => {
       return { ...t, agentWorkspaces }
     }
     const dispatch = (customEnv: Record<string, string>, extra: Record<string, unknown> = {}) => ({
-      id: 'worker-1', cwd: '/scb', skill: 'ct-exec', workorder: 'T0001', agent: 'default', customEnv, ...extra,
+      id: 'worker-1', cwd: '/projd', skill: 'ct-exec', workorder: 'T0001', agent: 'default', customEnv, ...extra,
     })
 
     it('tower in B, --workspace A → lands in B and --agent default uses B\'s default agent', async () => {
@@ -189,7 +189,7 @@ describe('registerTerminalHandlers (T0431)', () => {
       expect(t.created).toEqual([expect.objectContaining({ id: 'worker-1', workspaceId: 'ws-b' })])
       expect(t.emitted).toEqual([{
         channel: 'terminal:created-externally',
-        payload: { id: 'worker-1', cwd: '/scb', command: 'codex-cli go', agent: 'codex-cli', agentName: 'Codex CLI', workspaceId: 'ws-b', towerTerminalId: 'tower-b', workorder: 'T0001', workspaceResolved: true },
+        payload: { id: 'worker-1', cwd: '/projd', command: 'codex-cli go', agent: 'codex-cli', agentName: 'Codex CLI', workspaceId: 'ws-b', towerTerminalId: 'tower-b', workorder: 'T0001', workspaceResolved: true },
       }])
     })
 
@@ -205,13 +205,13 @@ describe('registerTerminalHandlers (T0431)', () => {
       await t.invoke('terminal:create-agent-command', REMOTE, dispatch({ BAT_TOWER_TERMINAL_ID: 'not-a-bat-tab' }, { workspaceId: 'ws-a' }))
       expect(t.agentWorkspaces).toEqual(['ws-a'])
       // ws-a is in the registry: a window without it skips the event (multi-window, T0523)
-      expect(t.emitted[0].payload).toEqual({ id: 'worker-1', cwd: '/scb', command: 'claude-code go', agent: 'claude-code', agentName: 'Claude Agent V1', workspaceId: 'ws-a', towerTerminalId: 'not-a-bat-tab', workorder: 'T0001', workspaceResolved: true })
+      expect(t.emitted[0].payload).toEqual({ id: 'worker-1', cwd: '/projd', command: 'claude-code go', agent: 'claude-code', agentName: 'Claude Agent V1', workspaceId: 'ws-a', towerTerminalId: 'not-a-bat-tab', workorder: 'T0001', workspaceResolved: true })
     })
 
     it('--workspace unknown to the registry → passed on unmarked (renderer falls back to active, T0361)', async () => {
       const t = dispatchSetup()
       await t.invoke('terminal:create-agent-command', REMOTE, dispatch({}, { workspaceId: 'ws-gone' }))
-      expect(t.emitted[0].payload).toEqual({ id: 'worker-1', cwd: '/scb', command: 'claude-code go', agent: 'claude-code', agentName: 'Claude Agent V1', workspaceId: 'ws-gone', workorder: 'T0001' })
+      expect(t.emitted[0].payload).toEqual({ id: 'worker-1', cwd: '/projd', command: 'claude-code go', agent: 'claude-code', agentName: 'Claude Agent V1', workspaceId: 'ws-gone', workorder: 'T0001' })
     })
 
     it('no --notify-id and no --workspace → active workspace (T0137, unchanged)', async () => {
@@ -219,7 +219,7 @@ describe('registerTerminalHandlers (T0431)', () => {
       await t.invoke('terminal:create-agent-command', REMOTE, dispatch({}))
       expect(t.agentWorkspaces).toEqual([undefined])
       expect(t.created[0].workspaceId).toBeUndefined()
-      expect(t.emitted[0].payload).toEqual({ id: 'worker-1', cwd: '/scb', command: 'claude-code go', agent: 'claude-code', agentName: 'Claude Agent V1', workspaceId: undefined, workorder: 'T0001' })
+      expect(t.emitted[0].payload).toEqual({ id: 'worker-1', cwd: '/projd', command: 'claude-code go', agent: 'claude-code', agentName: 'Claude Agent V1', workspaceId: undefined, workorder: 'T0001' })
     })
 
     it('reportLanding → { ok, workspace, agent } (bat-terminal.mjs prints it)', async () => {
@@ -228,7 +228,7 @@ describe('registerTerminalHandlers (T0431)', () => {
       expect(result).toEqual({
         ok: true,
         terminalId: 'worker-1',
-        workspace: { id: 'ws-b', name: 'SCB專案資料', source: 'tower-terminal', requestedId: 'ws-a', mismatch: true },
+        workspace: { id: 'ws-b', name: '專案D 資料', source: 'tower-terminal', requestedId: 'ws-a', mismatch: true },
         agent: { requested: 'default', id: 'codex-cli', source: 'workspace' },
       })
     })
@@ -236,10 +236,10 @@ describe('registerTerminalHandlers (T0431)', () => {
     it('create-with-command (raw command mode) follows the tower too', async () => {
       const t = dispatchSetup()
       const result = await t.invoke('terminal:create-with-command', REMOTE, {
-        id: 'raw-1', cwd: '/scb', command: 'ls', customEnv: { BAT_TOWER_TERMINAL_ID: 'tower-b' }, workspaceId: 'ws-a', reportLanding: true,
+        id: 'raw-1', cwd: '/projd', command: 'ls', customEnv: { BAT_TOWER_TERMINAL_ID: 'tower-b' }, workspaceId: 'ws-a', reportLanding: true,
       })
       expect(t.created[0].workspaceId).toBe('ws-b')
-      expect(result).toEqual({ ok: true, terminalId: 'raw-1', workspace: { id: 'ws-b', name: 'SCB專案資料', source: 'tower-terminal', requestedId: 'ws-a', mismatch: true } })
+      expect(result).toEqual({ ok: true, terminalId: 'raw-1', workspace: { id: 'ws-b', name: '專案D 資料', source: 'tower-terminal', requestedId: 'ws-a', mismatch: true } })
     })
 
     it('a terminal a local window creates keeps the window\'s workspace (resolver not consulted)', async () => {
@@ -258,11 +258,11 @@ describe('registerTerminalHandlers (T0431)', () => {
   })
 
   describe('dispatch cwd vs. the landing workspace folderPath (T0527 / BUG-132)', () => {
-    // 專案B tower tab in ws-bank; SCB has its own folder; 外部測試者的情境: cwd = SCB, env = 專案B tower.
+    // 專案B tower tab in ws-bank; 專案D has its own folder; 外部測試者的情境: cwd = 專案D, env = 專案B tower.
     const ENTRIES: DispatchRegistryEntry[] = [{
       workspaces: [
         { id: 'ws-bank', name: '專案B', folderPath: '/work/bank' },
-        { id: 'ws-scb', name: 'SCB', folderPath: '/work/scb' },
+        { id: 'ws-projd', name: '專案D', folderPath: '/work/projd' },
         { id: 'ws-bare', name: 'Bare' },
       ],
       terminals: [{ id: 'tower-bank', workspaceId: 'ws-bank' }, { id: 'tower-bare', workspaceId: 'ws-bare' }],
@@ -309,14 +309,14 @@ describe('registerTerminalHandlers (T0431)', () => {
     it('cwd in another workspace, not yolo → created in the landing workspace with a warning', async () => {
       const t = cwdSetup()
       try {
-        const result = await t.invoke('terminal:create-agent-command', REMOTE, dispatch('/work/scb', { BAT_TOWER_TERMINAL_ID: 'tower-bank', CT_MODE: 'ask' }))
+        const result = await t.invoke('terminal:create-agent-command', REMOTE, dispatch('/work/projd', { BAT_TOWER_TERMINAL_ID: 'tower-bank', CT_MODE: 'ask' }))
         expect(result).toMatchObject({
           ok: true,
-          workspace: { id: 'ws-bank', source: 'tower-terminal', cwdCheck: { status: 'other-workspace', cwd: '/work/scb', folderPath: '/work/bank', cwdWorkspace: { id: 'ws-scb', name: 'SCB' } } },
+          workspace: { id: 'ws-bank', source: 'tower-terminal', cwdCheck: { status: 'other-workspace', cwd: '/work/projd', folderPath: '/work/bank', cwdWorkspace: { id: 'ws-projd', name: '專案D' } } },
         })
         expect(t.created).toEqual([expect.objectContaining({ id: 'worker-1', workspaceId: 'ws-bank' })])
-        expect(t.warn).toHaveBeenCalledWith(expect.stringContaining('[BUG-132] dispatch cwd outside the landing workspace: cwd=/work/scb landing=ws-bank (專案B) folderPath=/work/bank workspaceSource=tower-terminal cwdWorkspace=ws-scb (SCB) mode=ask → created with a warning'))
-        expect(cwdEvents()).toEqual([expect.objectContaining({ status: 'other-workspace', action: 'warn', cwdWorkspaceId: 'ws-scb', mode: 'ask' })])
+        expect(t.warn).toHaveBeenCalledWith(expect.stringContaining('[BUG-132] dispatch cwd outside the landing workspace: cwd=/work/projd landing=ws-bank (專案B) folderPath=/work/bank workspaceSource=tower-terminal cwdWorkspace=ws-projd (專案D) mode=ask → created with a warning'))
+        expect(cwdEvents()).toEqual([expect.objectContaining({ status: 'other-workspace', action: 'warn', cwdWorkspaceId: 'ws-projd', mode: 'ask' })])
       } finally {
         t.warn.mockRestore()
       }
@@ -325,16 +325,16 @@ describe('registerTerminalHandlers (T0431)', () => {
     it('cwd in another workspace, yolo → refused, nothing created, agent never built', async () => {
       const t = cwdSetup()
       try {
-        const result = await t.invoke('terminal:create-agent-command', REMOTE, dispatch('/work/scb', { BAT_TOWER_TERMINAL_ID: 'tower-bank', CT_MODE: 'yolo' }))
+        const result = await t.invoke('terminal:create-agent-command', REMOTE, dispatch('/work/projd', { BAT_TOWER_TERMINAL_ID: 'tower-bank', CT_MODE: 'yolo' }))
         expect(result).toMatchObject({
           ok: false,
           code: 'DISPATCH_CWD_OTHER_WORKSPACE',
-          cwd: '/work/scb',
+          cwd: '/work/projd',
           landingWorkspace: { id: 'ws-bank', name: '專案B' },
-          cwdWorkspace: { id: 'ws-scb', name: 'SCB' },
+          cwdWorkspace: { id: 'ws-projd', name: '專案D' },
         })
         const error = (result as { error: string }).error
-        expect(error).toContain('belongs to workspace "SCB" (ws-scb)')
+        expect(error).toContain('belongs to workspace "專案D" (ws-projd)')
         expect(error).toContain('the --notify-id terminal tower-bank')
         expect(error).toContain('may come from another tab')
         expect(t.created).toEqual([])
@@ -363,7 +363,7 @@ describe('registerTerminalHandlers (T0431)', () => {
     it('landing workspace without folderPath → check skipped, created', async () => {
       const t = cwdSetup()
       try {
-        const result = await t.invoke('terminal:create-agent-command', REMOTE, dispatch('/work/scb', { BAT_TOWER_TERMINAL_ID: 'tower-bare', CT_MODE: 'yolo' }))
+        const result = await t.invoke('terminal:create-agent-command', REMOTE, dispatch('/work/projd', { BAT_TOWER_TERMINAL_ID: 'tower-bare', CT_MODE: 'yolo' }))
         expect(result).toMatchObject({ ok: true, workspace: { id: 'ws-bare' } })
         expect(cwdEvents()).toEqual([expect.objectContaining({ status: 'skipped', reason: 'no-folder-path', action: 'proceed' })])
       } finally {
@@ -374,7 +374,7 @@ describe('registerTerminalHandlers (T0431)', () => {
     it('create-with-command (raw command mode): yolo refused, not yolo warned', async () => {
       const t = cwdSetup()
       try {
-        const raw = (id: string, mode: string) => ({ id, cwd: '/work/scb', command: 'ls', customEnv: { BAT_TOWER_TERMINAL_ID: 'tower-bank', CT_MODE: mode }, workspaceId: 'ws-bank', reportLanding: true })
+        const raw = (id: string, mode: string) => ({ id, cwd: '/work/projd', command: 'ls', customEnv: { BAT_TOWER_TERMINAL_ID: 'tower-bank', CT_MODE: mode }, workspaceId: 'ws-bank', reportLanding: true })
         expect(await t.invoke('terminal:create-with-command', REMOTE, raw('raw-1', 'yolo'))).toMatchObject({ ok: false, code: 'DISPATCH_CWD_OTHER_WORKSPACE' })
         expect(t.created).toEqual([])
         expect(await t.invoke('terminal:create-with-command', REMOTE, raw('raw-2', 'on'))).toMatchObject({ ok: true, workspace: { cwdCheck: { status: 'other-workspace' } } })
@@ -387,7 +387,7 @@ describe('registerTerminalHandlers (T0431)', () => {
     it('a terminal a local window creates is not checked (resolver not consulted)', async () => {
       const t = cwdSetup()
       try {
-        expect(await t.invoke('terminal:create-with-command', LOCAL_WINDOW, { id: 'w9', cwd: '/work/scb', command: 'ls', customEnv: { CT_MODE: 'yolo' }, workspaceId: 'ws-bank' })).toBe(true)
+        expect(await t.invoke('terminal:create-with-command', LOCAL_WINDOW, { id: 'w9', cwd: '/work/projd', command: 'ls', customEnv: { CT_MODE: 'yolo' }, workspaceId: 'ws-bank' })).toBe(true)
         expect(cwdEvents()).toEqual([])
       } finally {
         t.warn.mockRestore()
@@ -397,7 +397,7 @@ describe('registerTerminalHandlers (T0431)', () => {
     it('headless (no resolver): no cwd check, created as before', async () => {
       mirrored.length = 0
       const t = setup()
-      expect(await t.invoke('terminal:create-agent-command', REMOTE, dispatch('/work/scb', { BAT_TOWER_TERMINAL_ID: 'tower-bank', CT_MODE: 'yolo' }, { reportLanding: false }))).toBe(true)
+      expect(await t.invoke('terminal:create-agent-command', REMOTE, dispatch('/work/projd', { BAT_TOWER_TERMINAL_ID: 'tower-bank', CT_MODE: 'yolo' }, { reportLanding: false }))).toBe(true)
       expect(mirrored.filter(m => m.event === 'dispatch-cwd-check')).toEqual([])
     })
 

@@ -115,9 +115,9 @@ BUG-138 / 139 / 141 的修正（T0552 / T0554）已隨 pre.5 發佈，但當時�
 | 既有備份 / `.bat-*` | 無 |
 
 **備份（保留不刪，由使用者決定何時刪）**：
-- `/home/gower/.local/bat-server.bak-0.6.1-pre.4-t0559`（`diff -rq` 與原樹相同）
-- `/home/gower/.config/systemd/user/bat-server.service.bak-0.6.1-pre.4-t0559`（`cmp` 相同）
-- `/home/gower/.local/share/bat-server.bak-t0559`（cert / token sha256 同上）
+- `/home/<使用者>/.local/bat-server.bak-0.6.1-pre.4-t0559`（`diff -rq` 與原樹相同）
+- `/home/<使用者>/.config/systemd/user/bat-server.service.bak-0.6.1-pre.4-t0559`（`cmp` 相同）
+- `/home/<使用者>/.local/share/bat-server.bak-t0559`（cert / token sha256 同上）
 
 #### 2. BUG-141（T0554 cancel，安裝版）— 1 passed（38.5 s），證據 `%TEMP%\bat-t0559\evidence-t0554\`、log `%TEMP%\bat-t0559\run-t0554.log`
 
@@ -127,7 +127,7 @@ BUG-138 / 139 / 141 的修正（T0552 / T0554）已隨 pre.5 發佈，但當時�
 | T0554.restored | PASS | marker present、inode 48075 → 48075、unit sha256 `937940b4…` 不變、`.bat-new` / `.bat-old` 無殘留；`0.6.1-pre.4` → `0.6.1-pre.4`、9877 → 9877、指紋 `22:3A:E4:C7…` 不變 |
 | T0554.service-running | PASS | MainPID 391 → 7662（新 bundle）→ 8354（舊 bundle 重新啟動），`127.0.0.1:9877` pid=8354 |
 | T0554.profiles-untouched | **FAIL（spec 誤判）** | profiles 1 → 1（只有隔離實例的 local `Default`），見「遭遇問題 1」 |
-| T0554.rollback-log | INFO | `Keeping port 9877 of the existing BAT server` / `Restored the previous bat-server.service unit` / `Restored the previous BAT server bundle at /home/gower/.local/bat-server` / `Started the previous bat-server.service again` |
+| T0554.rollback-log | INFO | `Keeping port 9877 of the existing BAT server` / `Restored the previous bat-server.service unit` / `Restored the previous BAT server bundle at /home/<使用者>/.local/bat-server` / `Started the previous bat-server.service again` |
 
 還原後實測：`0.6.1-pre.4`、active、9877、同指紋（之後進入步驟 3）。
 
@@ -142,7 +142,7 @@ BUG-138 / 139 / 141 的修正（T0552 / T0554）已隨 pre.5 發佈，但當時�
 | A2.server | PASS | `0.6.1-pre.5` active MainPID 10123；unit port 9877；`127.0.0.1:9877` pid=10123；profile `remotePort` 9877 |
 | A2.identity-kept | PASS | port 9877 → 9877；指紋 `22:3A:E4:C7…` 不變，精靈 pin 同一指紋 |
 | **A2.upgrade-running** | **PASS** | 舊 server 執行中；unit port 9877 → 9877；`Ubuntu-24.04` profile 只有 1 個 = 預先放的 `t0552-seed-ubuntu-24-04`（被更新、token 已換、未新建） |
-| A2.profile-opens | PASS | 遠端視窗開啟，remote shell → `T0550-gower@GXDEVPC02-25` |
+| A2.profile-opens | PASS | 遠端視窗開啟，remote shell → `T0550-<使用者>@GXDEVPC02-25` |
 | A3 | PASS | helper（`bat-terminal.mjs` / `bat-notify.mjs` / `_bat-cert.mjs` / `_bat-logger.mjs`）、`bin/node`（v24.22.0）、`bin/bat-server` 都在 |
 | A3.leftovers | INFO | （說明文字是 T0552 前的舊敘述）`node_modules` 只剩 `@anthropic-ai @lydell` |
 | **A3.clean-install** | **FAIL（spec 誤判）** | 三個條件中，stale 套件 none ✅、`.bat-new` / `.bat-old` none ✅、data dir 有 cert / token ✅；唯一不成立的是 `du` 390 → 390 MiB（要求變小）。**canary 兩個都已消失** → 乾淨覆蓋實際成立，見「遭遇問題 2」 |

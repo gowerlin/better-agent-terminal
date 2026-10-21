@@ -149,7 +149,7 @@
 
 - **AC-1 spot-check**:塔台讀主 PLAN 檔,確認 6 大必含段落齊全
 - **AC-2 工單計數**:Glob 目標 repo 工單目錄,確認 Phase 1-4 共 8 張新檔(3+3+1+1)
-- **AC-3 sanitize**:`grep -rn -iE "selene|gower|better-agent-terminal|<專案A>" <新建檔案>` 應為 0 筆
+- **AC-3 sanitize**:`grep -rn -iE "selene|<使用者>|better-agent-terminal|<專案A>" <新建檔案>` 應為 0 筆
 - **AC-4**:Worker 回報說明該 repo 是否有跨專案機制
 - **AC-5 commit hash**:塔台 `git log --oneline -1` 於 BMad-Guide 驗證
 
@@ -194,7 +194,7 @@ git push origin dev-main
   - Phase 4(CT 設計依據 doctrine):T0106(1 張)
   - 全部 8 張狀態 📋 TODO,未實作內容
 - **`_cross-references.md` 處理**:目標 repo **無**此機制(僅 BAT 側有),依 AC-4 合理跳過,未建立新檔
-- **Sanitize 驗證**:對 9 張新檔執行 `grep -iE "selene|gower|better-agent-terminal|<專案A>|\bBAT\b|PLAN-028|CT-T010"` 結果為 0 筆命中(原本 T0106 有一筆「sanitize 規則範例」含關鍵字作為 grep 模式 → 已改寫為通用描述)
+- **Sanitize 驗證**:對 9 張新檔執行 `grep -iE "selene|<使用者>|better-agent-terminal|<專案A>|\bBAT\b|PLAN-028|CT-T010"` 結果為 0 筆命中(原本 T0106 有一筆「sanitize 規則範例」含關鍵字作為 grep 模式 → 已改寫為通用描述)
 - **commit 內容**:僅包含 9 張新 T#### 檔案,未動其他 untracked / modified 檔(T0097 / _learnings.md / _tower-state.md / 無關 zip 與 spec 檔留在工作樹)
 
 ### 剩餘手動動作(交使用者)

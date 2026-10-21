@@ -38,9 +38,9 @@ memory_overrides:
 
 ## 研究目標
 
-BUG-129：外部測試者A（mac）在 **SCB** 工作區的 Codex 塔台以
+BUG-129：外部測試者A（mac）在 **專案D** 工作區的 Codex 塔台以
 `bat-terminal.mjs --notify-id "$BAT_TERMINAL_ID" --workspace "$BAT_WORKSPACE_ID" --agent default …` 派 T0001，
-Worker 分頁卻出現在 **專案B** 工作區，而且開成 Claude Code（cwd 正確，是 SCB）。
+Worker 分頁卻出現在 **專案B** 工作區，而且開成 Claude Code（cwd 正確，是 專案D）。
 
 T0523 已修可修的 BAT 端路徑，但 外部測試者A 的情境當時只有**推論**（最可能是 #11：Codex 沿用舊 thread 的 shell snapshot，`BAT_TERMINAL_ID` / `BAT_WORKSPACE_ID` 都指向專案B）。現在 外部測試者A 補上日誌，請**依證據判定**屬於哪條路徑，並給出可決策的後續方案。
 
@@ -52,20 +52,20 @@ T0523 已修可修的 BAT 端路徑，但 外部測試者A 的情境當時只有
 - 事件時間：外部測試者A 於 LINE 回報 13:21-13:25（UTC+8），新分頁 id 為 `bbe2011f0a4c657884595b351f2a38ab`（截圖）。派工應在 13:21 前不久，即 `~05:0xZ ～ 05:2xZ`。
 - 截圖與完整背景：`BUG-129`（含三張截圖路徑，在 `D:\Downloads\`）。
 - **判定方式已寫好**：`T0523` 回報區第 3 節（要看哪幾行、怎麼對應到第 1 節路徑表的 #4 / #5 / #9 / #11）。路徑表與推論見 T0523 第 1、2 節，根治方向見第 7 節。
-- 外部測試者A **沒有**提供 `windows.json`。SCB 那個 Codex CLI 分頁的 terminal id 需從 debug log 推得（例如 PTY 建立 / 還原時記錄的 id 與 workspaceId）；推不出來就寫明缺口。
+- 外部測試者A **沒有**提供 `windows.json`。專案D 那個 Codex CLI 分頁的 terminal id 需從 debug log 推得（例如 PTY 建立 / 還原時記錄的 id 與 workspaceId）；推不出來就寫明缺口。
 
 ## 調查範圍
 
 1. **版本**：兩份日誌各自是哪個 BAT 版本寫的（依 startup 行或其他可辨識的特徵；不要只用字串存在性判版，L127）。
 2. **事件定位**：在 `bat-scripts.log` 找出產生 `bbe2011f…` 的那次派工（`invoke` / `parsed` / `exit`），列出 `env.BAT_TERMINAL_ID` / `env.BAT_WORKSPACE_ID`、`notifyId` / `workspaceId`、`agent`、exit code。
 3. **在 debug log 對應同一事件**：`[remote][terminal] terminal-created … workspaceId=<R>`、`[agent-command] resolved agent=…`、`[T0130] External terminal added: … workspaceId(landed)=<L> workspaceId(requested)=<R>`、是否有 `[T0361] Workspace miss`。
-4. **身分對照**：從 debug log 找出 SCB 工作區 id、專案B 工作區 id、SCB 的 Codex CLI 分頁 terminal id、專案B 各分頁 terminal id（PTY 建立 / 還原行、Terminal Server 重接行等）。把派工時的 `BAT_TERMINAL_ID` / `BAT_WORKSPACE_ID` 對到這些 id。
+4. **身分對照**：從 debug log 找出 專案D 工作區 id、專案B 工作區 id、專案D 的 Codex CLI 分頁 terminal id、專案B 各分頁 terminal id（PTY 建立 / 還原行、Terminal Server 重接行等）。把派工時的 `BAT_TERMINAL_ID` / `BAT_WORKSPACE_ID` 對到這些 id。
 5. **判定**（依 T0523 §3 對應表）：
    - R = 專案B id 且 `BAT_TERMINAL_ID` = 專案B 分頁 → **#11**（env 來自另一個分頁，agent CLI 還原了舊環境）
-   - R = 專案B id 但 `BAT_TERMINAL_ID` = SCB 分頁 → SCB 分頁自身 env 過期（#5 或新路徑）→ T0523 已可修正
+   - R = 專案B id 但 `BAT_TERMINAL_ID` = 專案D 分頁 → 專案D 分頁自身 env 過期（#5 或新路徑）→ T0523 已可修正
    - R 未知且 L = 專案B → **#9**
    - 以上都不符 → 寫出新路徑與證據
-6. **agent**：確認 `--agent default` 解析成 Claude 的來源（SCB / 專案B 工作區的 `defaultAgent`、`settings.defaultAgent`），與 PLAN-040（工作區層級預設 Agent 沒有 UI）的關係。
+6. **agent**：確認 `--agent default` 解析成 Claude 的來源（專案D / 專案B 工作區的 `defaultAgent`、`settings.defaultAgent`），與 PLAN-040（工作區層級預設 Agent 沒有 UI）的關係。
 7. **同一事件的其他派工**：`bat-scripts.log` 裡其他派工（例如 04:35Z 那筆 `codex … $ct-exec T0008` 的 raw command 派工）是否也有 env 與所在分頁不一致的情形；有 pre.8 helper 紀錄的話，看 T0523 的落點輸出是否正確。
 8. **順帶（次要，只記錄不展開）**：debug log 裡若有與 BUG-127（切換工作區 toast 洪水）、BUG-128（mac Finder 拷貝貼上）相關的錯誤或異常，列出行號與一句說明即可。
 
@@ -74,7 +74,7 @@ T0523 已修可修的 BAT 端路徑，但 外部測試者A 的情境當時只有
 - 對照日誌行時，到程式碼找該行的出處（`electron/terminal-command-handlers.ts`、`electron/dispatch-workspace.ts`、`electron/pty-manager.ts`、`src/App.tsx`、`scripts/bat-terminal.mjs`），確認語意，避免看錯欄位。
 - 若判定為 #11：評估 T0523 §7-1 的根治方案（helper 送祖先 PID 鏈、main 比對 PTY pid；mac / Linux / Windows 各自取得 ppid 的方式與成本；遠端 headless 是否適用），以及較便宜的替代（例如 `cwd` 與工作區 `folderPath` 不一致時只警告），給 [A]/[B]/[C] 與推薦。
 - 若判定為其他路徑：說明 pre.8 是否已修好；未修則給修正方向。
-- 證據不足以判定時，寫明還缺什麼（例如 外部測試者A 的 `windows.json`、在 SCB Codex 內與一般分頁執行 `echo $BAT_TERMINAL_ID $BAT_WORKSPACE_ID` 的比對、`grep -l BAT_WORKSPACE_ID ~/.codex/shell_snapshots/*`），並寫成**可以直接轉給 外部測試者A 的要求清單**。
+- 證據不足以判定時，寫明還缺什麼（例如 外部測試者A 的 `windows.json`、在 專案D Codex 內與一般分頁執行 `echo $BAT_TERMINAL_ID $BAT_WORKSPACE_ID` 的比對、`grep -l BAT_WORKSPACE_ID ~/.codex/shell_snapshots/*`），並寫成**可以直接轉給 外部測試者A 的要求清單**。
 
 ## 互動規則
 
@@ -98,7 +98,7 @@ T0523 已修可修的 BAT 端路徑，但 外部測試者A 的情境當時只有
 
 **DONE**。判定為 **T0523 §1 的 #11**（agent CLI 用了不是自己 PTY 的環境），信心高。另外發現 **agent 開成 Claude 是另一個獨立原因**（全域 Settings 當時沒設預設 Agent），和落點無關；這點修正了 BUG-129 初步分析中「兩個症狀可能同一根因」的推測。
 
-還沒確認的只有 Codex 內部用的是哪一種機制（shell snapshot，或 resume 舊 thread），這不影響 BAT 端的判定。另外 SCB Codex 分頁 `1ba6042a` 屬於 `faff6af2` 是推得的，沒有直接日誌，可以靠 外部測試者A 的 `windows.json` 補實（見最後一節）。
+還沒確認的只有 Codex 內部用的是哪一種機制（shell snapshot，或 resume 舊 thread），這不影響 BAT 端的判定。另外 專案D Codex 分頁 `1ba6042a` 屬於 `faff6af2` 是推得的，沒有直接日誌，可以靠 外部測試者A 的 `windows.json` 補實（見最後一節）。
 
 日誌只在 `D:\Downloads\` 原地讀取，沒有複製進 repo。以下引用已把 email 遮成 `<redacted>`，沒有引用任何 token：`bat-scripts.log` 的 `env` 快照本來就不含 token（`snapshotBatEnv`）。
 
@@ -123,14 +123,14 @@ T0523 已修可修的 BAT 端路徑，但 外部測試者A 的情境當時只有
 | 03:35:25 | 11:35:25 | BAT 啟動，PID 48287（debug:1），第一次啟動新 userData（debug:4-23） |
 | 03:35:50 | 11:35:50 | 第一個工作區的 `initTerminals … terminals=0`（debug:47-51，新建工作區） |
 | 03:44:09 | 11:44:09 | `pty:create 77f17a65-…`（debug:228），2 秒內進入 alt buffer（TUI 啟動）⇒ **專案B**的 Codex CLI 分頁 |
-| 03:53:36 | 11:53:36 | 第二次 `initTerminals … terminals=0`（debug:~287-291）⇒ 新建第二個工作區（**SCB**） |
-| 03:53:50 | 11:53:50 | `pty:create 1ba6042a-…`（debug:342），2 秒內進入 alt buffer ⇒ **SCB** 的 Codex CLI 分頁 |
+| 03:53:36 | 11:53:36 | 第二次 `initTerminals … terminals=0`（debug:~287-291）⇒ 新建第二個工作區（**專案D**） |
+| 03:53:50 | 11:53:50 | `pty:create 1ba6042a-…`（debug:342），2 秒內進入 alt buffer ⇒ **專案D** 的 Codex CLI 分頁 |
 | 04:35:33 | 12:35:33 | 專案B 塔台以 raw command 派 T0008 → `85699c9b…`，落在 `ff79114e`（debug:599-601） |
 | 04:54:12 | 12:54:12 | 專案B 塔台派 T0009 → `f046a185…`，落在 `ff79114e`（debug:730-734） |
 | 05:18:05 | 13:18:05 | T0009 Worker `bat-notify` → target `77f17a65`（scripts log） |
-| **05:18:17** | **13:18:17** | **事件**：`--agent default --skill ct-exec --workorder T0001`，cwd = SCB，`--notify-id 77f17a65… --workspace ff79114e…` → `resolved agent=default to claude-cli`（debug:929）→ `terminal-created id=bbe2011f… workspaceId=ff79114e…`（debug:933）→ `[T0130] … workspaceId(landed)=ff79114e… workspaceId(requested)=ff79114e…`（debug:934，沒有 `[T0361] Workspace miss`）；helper exit 0 |
+| **05:18:17** | **13:18:17** | **事件**：`--agent default --skill ct-exec --workorder T0001`，cwd = 專案D，`--notify-id 77f17a65… --workspace ff79114e…` → `resolved agent=default to claude-cli`（debug:929）→ `terminal-created id=bbe2011f… workspaceId=ff79114e…`（debug:933）→ `[T0130] … workspaceId(landed)=ff79114e… workspaceId(requested)=ff79114e…`（debug:934，沒有 `[T0361] Workspace miss`）；helper exit 0 |
 | 05:24:02 | 13:24:02 | `[logging] config updated`（debug:1048）＝**這次啟動後第一次 `settings:save`** |
-| 05:25:17 | 13:25:17 | SCB 塔台改帶 `--notify-id 1ba6042a… --workspace faff6af2… --agent codex` → `[WARN] cannot build launch command for agent=codex resolved=codex`（debug:1057），helper exit 1 `terminal-not-created` |
+| 05:25:17 | 13:25:17 | 專案D 塔台改帶 `--notify-id 1ba6042a… --workspace faff6af2… --agent codex` → `[WARN] cannot build launch command for agent=codex resolved=codex`（debug:1057），helper exit 1 `terminal-not-created` |
 | 05:26:00 | 13:26:00 | 同上但 `--agent default` → `resolved agent=default to codex-cli`（debug:1062）→ `0883ded8…` 落在 `faff6af2`（debug:1066-1067）。這就是 外部測試者A 說的「他自己修正了」 |
 | 06:37:18 | 14:37:18 | 專案B 塔台再派 T0008 → `15dca04b…`，落在 `ff79114e` |
 | 07:56:27 | 15:56:27 | `heartbeat timeout (1008781ms since last pong)` → `Killed 4 orphan PTY(s)` → re-fork → 重建 `77f17a65` / `1ba6042a` / `0883ded8` / `15dca04b`（debug:1704-1714）；07:56:55 `System resumed from sleep`。這是 mac 睡眠觸發的 **#5**（pre.7 重建時不帶 env） |
@@ -149,10 +149,10 @@ T0523 已修可修的 BAT 端路徑，但 外部測試者A 的情境當時只有
 |---|---|---|
 | 專案B 工作區 | `ff79114e-c69a-4d76-be35-a0b0e18446a1` | 專案B 塔台 4 次派工（cwd = 專案B）都用它，也都落在它；外部測試者A 的截圖中，專案B 工作區有 4 個分頁（Codex CLI、Remote: codex ×2、新的 Claude），對應 `77f17a65`、`85699c9b`/`f046a185`、`bbe2011f` |
 | 專案B Codex CLI 分頁（專案B 塔台） | `77f17a65-8ab2-4463-922c-fb4a25334652` | 專案B 派工的 `--notify-id`；T0008 / T0009 Worker 的 `BAT_TOWER_TERMINAL_ID`；`[T0133] Notified target=77f17a65`（debug:1404） |
-| SCB 工作區 | `faff6af2-a569-4927-a879-5e89af3af825` | SCB 塔台自我修正後的派工帶它，並以 `landed = requested` 落地（debug:1067，renderer 認得這個 id） |
-| SCB Codex CLI 分頁（SCB 塔台） | `1ba6042a-8ab4-4d89-890e-3cfe97ac8ed1` | 第二個工作區建立後 14 秒建立的 TUI 分頁；SCB 塔台自我修正時拿它當 `--notify-id`。⚠️ pre.7 的 `pty:create` 日誌不記 workspaceId，所以「`1ba6042a` ∈ `faff6af2`」是推得的，`windows.json` 可以補實 |
+| 專案D 工作區 | `faff6af2-a569-4927-a879-5e89af3af825` | 專案D 塔台自我修正後的派工帶它，並以 `landed = requested` 落地（debug:1067，renderer 認得這個 id） |
+| 專案D Codex CLI 分頁（專案D 塔台） | `1ba6042a-8ab4-4d89-890e-3cfe97ac8ed1` | 第二個工作區建立後 14 秒建立的 TUI 分頁；專案D 塔台自我修正時拿它當 `--notify-id`。⚠️ pre.7 的 `pty:create` 日誌不記 workspaceId，所以「`1ba6042a` ∈ `faff6af2`」是推得的，`windows.json` 可以補實 |
 
-對應 T0523 §3：`R = ff79114e`（專案B），而且派工時的 `BAT_TERMINAL_ID = 77f17a65`（**專案B**塔台分頁，不是 SCB 的 `1ba6042a`）⇒ **#11**。
+對應 T0523 §3：`R = ff79114e`（專案B），而且派工時的 `BAT_TERMINAL_ID = 77f17a65`（**專案B**塔台分頁，不是 專案D 的 `1ba6042a`）⇒ **#11**。
 
 其他路徑都排除：
 - **#2 / #3**（還原、重接）：這次是新 userData 的第一次啟動，`1ba6042a` 是 03:53:50 當場新建的，事件之前沒有任何還原或重接
@@ -163,7 +163,7 @@ T0523 已修可修的 BAT 端路徑，但 外部測試者A 的情境當時只有
 
 因此依 renderer 注入規則（T0523 §1 前提），`1ba6042a` 的 PTY env 應是 `BAT_TERMINAL_ID=1ba6042a…` / `BAT_WORKSPACE_ID=faff6af2…`。
 
-但 SCB Codex 執行的指令看到的卻是專案B 的值，而且是**持續性的**：05:18、05:25、05:26 三次 SCB 派工的 `env` **都是** `77f17a65` / `ff79114e`。05:25 起塔台已經改在 argv 自行帶入正確的 `1ba6042a` / `faff6af2`，但 env 沒有變（scripts log `invoke` 的 `env` 欄位）。
+但 專案D Codex 執行的指令看到的卻是專案B 的值，而且是**持續性的**：05:18、05:25、05:26 三次 專案D 派工的 `env` **都是** `77f17a65` / `ff79114e`。05:25 起塔台已經改在 argv 自行帶入正確的 `1ba6042a` / `faff6af2`，但 env 沒有變（scripts log `invoke` 的 `env` 欄位）。
 
 **另一條獨立的強佐證**：07:56 的復原（pre.7）重建 PTY 時**不帶 env**。新 shell 只有 terminal-server 行程的 env：main 的 `process.env`，加上 `BAT_USER_DATA` / `BAT_SCROLL_BUFFER_LINES` / `BAT_IDLE_TIMEOUT_MS` / `BAT_SESSION`。這裡面沒有 `BAT_TERMINAL_ID`、`BAT_WORKSPACE_ID`、`BAT_REMOTE_PORT` 或 token：`v0.6.0-pre.7:electron/pty-manager.ts` 復原段的 `pty:create` 沒有 `env`，`v0.6.0-pre.7:electron/main.ts` 的 fork env 也沒有，main 也從不把這些變數寫進自己的 `process.env`。
 
@@ -171,19 +171,19 @@ T0523 已修可修的 BAT 端路徑，但 外部測試者A 的情境當時只有
 
 ⇒ Codex 執行指令時用的 `BAT_*` 來自 Codex 自己保存的舊環境，而不是當下的 PTY env。只有一種情況會推翻這個推論：睡眠前的 codex 行程撐過了 PTY 被殺（`Killed 4 orphan PTY(s)`），而且還繼續跟使用者互動。這種可能性很低。
 
-兩個 Codex（專案B、SCB）整天看到的都是同一組 `77f17a65` 環境。這和以下兩種機制都吻合：(a) shell snapshot 跨 session 共用，或以 thread 為鍵、SCB 分頁 resume / 切到了在專案B 分頁建立的 thread（Codex 狀態列的 thread 名稱「套用專案B 規則」）；(b) 其他 Codex 端的環境保存機制。日誌無法區分；對 BAT 而言結論相同：**helper 送來的 `--notify-id` / `--workspace` 都不可信**。
+兩個 Codex（專案B、專案D）整天看到的都是同一組 `77f17a65` 環境。這和以下兩種機制都吻合：(a) shell snapshot 跨 session 共用，或以 thread 為鍵、專案D 分頁 resume / 切到了在專案B 分頁建立的 thread（Codex 狀態列的 thread 名稱「套用專案B 規則」）；(b) 其他 Codex 端的環境保存機制。日誌無法區分；對 BAT 而言結論相同：**helper 送來的 `--notify-id` / `--workspace` 都不可信**。
 
 **pre.8（T0523）能不能修好**：不能。`--notify-id 77f17a65` 在 registry 中屬於專案B，所以「塔台終端優先」同樣會落在專案B。pre.8 的效果只有讓錯誤看得見：helper 會印 `workspace: <專案B>… — the Tower terminal's workspace (--notify-id)`。
 
-另外有一個 T0523 沒強調的**副作用風險**：Worker 的 `BAT_TOWER_TERMINAL_ID` 也會是 `77f17a65`，完成通知會預填到**專案B 塔台**。這次是 `CT_MODE=ask`，所以只是預填；如果是 `yolo` 加 `--submit`，就會把 SCB 的「T0001 完成」**送進**專案B 塔台並觸發它的流程。
+另外有一個 T0523 沒強調的**副作用風險**：Worker 的 `BAT_TOWER_TERMINAL_ID` 也會是 `77f17a65`，完成通知會預填到**專案B 塔台**。這次是 `CT_MODE=ask`，所以只是預填；如果是 `yolo` 加 `--submit`，就會把 專案D 的「T0001 完成」**送進**專案B 塔台並觸發它的流程。
 
 ### agent 解析
 
 - 05:18:17 `default` → `claude-cli`（debug:929）。pre.7 的解析順序是工作區 `defaultAgent` → `settings.defaultAgent` → `claude-code`，每次派工都用 `readPersistedSettingsSync` 從磁碟讀（`v0.6.0-pre.7:electron/main.ts:514/570`）
-  - 工作區層級：`Workspace.defaultAgent` **沒有 UI 可以設定**（PLAN-040），專案B 和 SCB 都不可能有值
+  - 工作區層級：`Workspace.defaultAgent` **沒有 UI 可以設定**（PLAN-040），專案B 和 專案D 都不可能有值
   - 全域：這次啟動是新 userData 的第一次啟動，第一次 `settings:save` 發生在 05:24:02（debug:1048；`settings:save` 每次都會印 `[logging] config updated`，`electron/main.ts` settings:save handler）。佐證：05:18 的 `shell-resolution … persistedShell=unset`（debug），到 05:26 變成 `persistedShell=auto source=persisted` ⇒ 05:18 時 `settings.json` 沒有 `defaultAgent` ⇒ 退到內建 `claude-code`
 - 05:26:00 `default` → `codex-cli`（debug:1062）。中間唯一的變化就是 05:24:02 那次 Settings 存檔 ⇒ 外部測試者A 在 Settings 把全域預設 Agent 改成 Codex（推論，但只有這個解釋說得通：工作區層級沒有入口，而且 05:18 時全域是空的）
-- ⇒ **就算當時落在 SCB，也一樣會開 Claude**。agent 錯誤的原因是「全域與工作區都沒設預設 Agent」，**和落點錯誤是兩個獨立原因**，跟 `--workspace` 帶哪個 id 無關。PLAN-040（工作區層級預設 Agent 的 UI）正好補這個缺口；D140 不改 `default` 查找順序的決定不受影響
+- ⇒ **就算當時落在 專案D，也一樣會開 Claude**。agent 錯誤的原因是「全域與工作區都沒設預設 Agent」，**和落點錯誤是兩個獨立原因**，跟 `--workspace` 帶哪個 id 無關。PLAN-040（工作區層級預設 Agent 的 UI）正好補這個缺口；D140 不改 `default` 查找順序的決定不受影響
 - 順帶：05:25:17 的 `--agent codex` 失敗（debug:1057，helper exit 1）是因為 agent id 應該是 `codex-cli`，`toTerminalDrivenAgentId('codex')` 不會轉換。現行程式（pre.8）一樣會失敗，而 helper 只回 `terminal-not-created`，沒有說是 agent id 不認得。這是小的 UX 缺口，見建議下一步
 
 ### 其他派工 / pre.8 落點輸出
@@ -192,9 +192,9 @@ T0523 已修可修的 BAT 端路徑，但 外部測試者A 的情境當時只有
 |---|---|---|---|---|---|
 | 04:35:33 / 12:35:33 | 專案B 塔台（T0008，raw `codex …`） | `77f17a65` / `ff79114e` | 同 | `ff79114e` | ✅ |
 | 04:54:12 / 12:54:12 | 專案B 塔台（T0009） | 同 | 同 | `ff79114e` | ✅ |
-| **05:18:17 / 13:18:17** | **SCB 塔台（T0001）** | `77f17a65` / `ff79114e` | 同（取自 env） | `ff79114e` | ❌ 落到專案B |
-| 05:25:17 / 13:25:17 | SCB 塔台（自我修正，`--agent codex`） | `77f17a65` / `ff79114e` | `1ba6042a` / `faff6af2` | 未建立（agent id 錯） | env ❌ / argv ✅ |
-| 05:26:00 / 13:26:00 | SCB 塔台（自我修正，`--agent default`） | `77f17a65` / `ff79114e` | `1ba6042a` / `faff6af2` | `faff6af2` | env ❌ / argv ✅ |
+| **05:18:17 / 13:18:17** | **專案D 塔台（T0001）** | `77f17a65` / `ff79114e` | 同（取自 env） | `ff79114e` | ❌ 落到專案B |
+| 05:25:17 / 13:25:17 | 專案D 塔台（自我修正，`--agent codex`） | `77f17a65` / `ff79114e` | `1ba6042a` / `faff6af2` | 未建立（agent id 錯） | env ❌ / argv ✅ |
+| 05:26:00 / 13:26:00 | 專案D 塔台（自我修正，`--agent default`） | `77f17a65` / `ff79114e` | `1ba6042a` / `faff6af2` | `faff6af2` | env ❌ / argv ✅ |
 | 06:37:18 / 14:37:18 | 專案B 塔台（T0008） | `77f17a65` / `ff79114e` | 同 | `ff79114e` | ✅ |
 | 08:02:57 / 16:02:57 | 不明（`--help`） | `77f17a65` / `ff79114e` | — | — | 此時沒有任何活著的 PTY 帶這組 env（見判定） |
 | 08:13:13 / 16:13:13 | 專案B 塔台（T0010） | `77f17a65` / `ff79114e` | 同 | `ff79114e` | 值正確，但同樣不是來自 PTY 的 env |
@@ -224,7 +224,7 @@ Worker 端（BAT 自己用 `create-with-command` 建立的 `f046a185` / `85699c9
   - 不一致時：helper 在 stderr 印出警告，列出 cwd 實際所屬的工作區（如果剛好只有一個工作區包含它），main 記 `[BUG-129] cwd outside landing workspace`
   - `CT_MODE=yolo` 或 `--submit` 時可以**拒絕派工**（exit 1），避免完成通知送進別的專案塔台
   - 不改 T0137「不以 cwd 為主規則」的決定，只做檢核與提示
-  - 外部測試者A 這次：cwd = SCB，落點 = 專案B（`folderPath` = 專案B 資料夾）⇒ 會被抓到
+  - 外部測試者A 這次：cwd = 專案D，落點 = 專案B（`folderPath` = 專案B 資料夾）⇒ 會被抓到
   - 規模約 S
 - [C] **在 BAT 的 codex-cli preset 關閉 Codex shell snapshot**（啟動參數加 `-c features.shell_snapshot=false`，比照 T0377 的 daemon 旗標）：如果確認機制是 snapshot，可以從源頭讓 Codex 用 live PTY env
   - 缺點：還沒證實機制；可能拖慢 Codex 執行指令；只涵蓋 BAT preset 啟動的 Codex，使用者自己在一般分頁打 `codex` 時不適用；旗標名稱和行為會隨 Codex 版本改變
@@ -242,11 +242,11 @@ Worker 端（BAT 自己用 `create-with-command` 建立的 `f046a185` / `85699c9
 
 判定本身證據足夠。以下用來確認 Codex 內部機制與 `1ba6042a` 的歸屬，可以直接轉給 外部測試者A：
 
-1. **在 SCB 的 Codex CLI 分頁內**，請 Codex 執行：`echo "$BAT_TERMINAL_ID $BAT_WORKSPACE_ID"`。再**在 SCB 工作區開一個一般終端分頁**（不要開 Codex），執行同一行，把兩邊的輸出貼回來（這兩個值不是機密）
+1. **在 專案D 的 Codex CLI 分頁內**，請 Codex 執行：`echo "$BAT_TERMINAL_ID $BAT_WORKSPACE_ID"`。再**在 專案D 工作區開一個一般終端分頁**（不要開 Codex），執行同一行，把兩邊的輸出貼回來（這兩個值不是機密）
 2. 在一般終端執行：`ls -lt ~/.codex/shell_snapshots/ | head -20`，以及 `grep -l 77f17a65 ~/.codex/shell_snapshots/* 2>/dev/null`。⚠️ **只回傳檔名清單，不要傳檔案內容**：快照內含 `BAT_REMOTE_TOKEN`
-3. `codex --version`；另外說明 SCB 那個 Codex 是怎麼開始的：直接開新對話，還是用過 `codex resume` / `/resume`，或者選過「套用專案B 規則」這個 thread
+3. `codex --version`；另外說明 專案D 那個 Codex 是怎麼開始的：直接開新對話，還是用過 `codex resume` / `/resume`，或者選過「套用專案B 規則」這個 thread
 4. 工作區與分頁對照（只取 id / 名稱 / 路徑，不含其他內容）：`jq '.[] | {ws: [.workspaces[] | {id, name, folderPath, defaultAgent}], terms: [.terminals[] | {id, workspaceId, agentPreset, title}]}' ~/Library/Application\ Support/BetterAgentTerminal/windows.json`（macOS 15 內建 `jq`；沒有的話直接傳 `windows.json` 也可以）
-5. 升級 pre.8 之後，在 SCB 塔台再派一次工，把 helper 輸出的 `workspace:` / `agent:` 兩行貼回來
+5. 升級 pre.8 之後，在 專案D 塔台再派一次工，把 helper 輸出的 `workspace:` / `agent:` 兩行貼回來
 
 ### 遭遇問題
 

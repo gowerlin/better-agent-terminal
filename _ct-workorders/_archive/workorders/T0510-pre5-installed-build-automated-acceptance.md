@@ -133,7 +133,7 @@ memory_overrides:
 | 隔離（single-instance lock / port） | `--runtime=e2e-…` → userData `BetterAgentTerminal-runtime-e2e-…`，RemoteServer 用 `BAT_REMOTE_PORT`=空閒埠；從未連 9876。Terminal Server 的命令列與使用者實例相同（`…\resources\app.asar\dist-electron\terminal-server.js`），teardown 只殺隔離 userData pid 檔裡的 pid |
 | `APPDATA` 重導 appData | **不可行**：`app.getPath('appData')` 不讀 `APPDATA` 環境變數（實測仍為真實 Roaming）。因此 BUG-119 **預設實例**路徑（複製 Local State、合併 snippets、移動 message-archives、保留舊目錄）無法在隔離下以安裝版重現——需不帶 runtime 啟動，違反 memory_overrides。改以 A4 真環境唯讀證據 + runtime 路徑（A3x）涵蓋 |
 | WSL Docker | `Ubuntu-24.04` Docker 29.1.3；systemd 容器（`--privileged --cgroupns=private --tmpfs /run`）可跑 logind / linger / `systemctl --user` |
-| SSH 隔離 | **不成立**：Windows OpenSSH 9.5p2 的 `ssh -G` 在 `USERPROFILE` / `HOME` 指向 temp 時仍輸出 `user gower`、未套用 temp config（以帳號 profile 解析 `~`）。依裁決改走「暫改真實 `~/.ssh/config`」（見下） |
+| SSH 隔離 | **不成立**：Windows OpenSSH 9.5p2 的 `ssh -G` 在 `USERPROFILE` / `HOME` 指向 temp 時仍輸出 `user <使用者>`、未套用 temp config（以帳號 profile 解析 `~`）。依裁決改走「暫改真實 `~/.ssh/config`」（見下） |
 
 探測期間曾有一次 15 s timeout 直接殺掉探測用 exe，留下孤兒 Terminal Server pid 46000（父 pid 32832 已死、pid 出自探測 runtime 的 pid 檔，非使用者實例 12424 的子程序），已 `taskkill /T /F` 並刪除探測 userData。
 
@@ -243,7 +243,7 @@ ok 7 detached-workspace.spec.ts:41     › detached workspace window loads the p
 - 由 spec 的 `beforeAll` / `afterAll` 呼叫 `apply-ssh-config` / `restore-ssh-config`；`down` 也會先還原（安全網）；若期間檔案被他人修改，只剪掉標記區塊
 - 手動還原：`Copy-Item "$env:TEMP\bat-t0510\ssh-config-backup\config" "$env:USERPROFILE\.ssh\config" -Force`（或刪除兩個標記之間的行）
 - 真實 `known_hosts`（sha256 `e043aac8…059063`，mtime 2026-09-03 03:54:59）、金鑰皆未動
-- `ssh -G`（無 `-F`，真實 config）：`bat-t0510-direct: user bat, hostname 127.0.0.1, port 22`；`-port: … port 22510`；`-viajump: user bat, hostname bat-t0510-target, port 22, proxyjump bat-t0510-jumphost`；`-nouser: user gower, hostname 127.0.0.1, port 22510`
+- `ssh -G`（無 `-F`，真實 config）：`bat-t0510-direct: user bat, hostname 127.0.0.1, port 22`；`-port: … port 22510`；`-viajump: user bat, hostname bat-t0510-target, port 22, proxyjump bat-t0510-jumphost`；`-nouser: user <使用者>, hostname 127.0.0.1, port 22510`
 
 | 子項 | 判定 | 證據 |
 |---|---|---|

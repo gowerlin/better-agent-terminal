@@ -200,7 +200,7 @@ memory_overrides:
 ### 遭遇問題
 
 1. **既有缺陷（未修，建議另案）**：`worktree:merge` 呼叫已不存在的 `WorktreeManager.mergeWorktree`（`3a470eb` 移除），兩端都會 reject TypeError；preload / `electron.d.ts` 仍暴露 `worktree.merge`。建議另開 BUG：移除 channel 與 preload API，或補實作。
-2. **路徑轉換缺口（未改，超出 affects_files）**：`electron/remote/path-aware-channels.ts` 的 `PATH_AWARE_CHANNELS` 只含 `git:*` 7 個；`github:*`、`git-scaffold:*`、`worktree:create`（cwd 在第 2 參數）的路徑參數**不做 client→server 轉換**。若遠端視窗的 workspace 路徑是 client 端形式（例如 `\\wsl.localhost\…`），這些 channel 會拿到 server 不認得的路徑；若 workspace 本身就是 server 路徑（`/home/...`）則無影響。e2e E4 顯示 WSL 視窗資料夾對話框預設 `\\wsl.localhost\Ubuntu-24.04\home\gower` → **有實際風險**，建議塔台在使用者實機步驟 3/4 特別觀察，必要時開單補 path-aware 設定（`git-scaffold:*` first-string、`github:*` first-string、`worktree:create` 需新 schema）。
+2. **路徑轉換缺口（未改，超出 affects_files）**：`electron/remote/path-aware-channels.ts` 的 `PATH_AWARE_CHANNELS` 只含 `git:*` 7 個；`github:*`、`git-scaffold:*`、`worktree:create`（cwd 在第 2 參數）的路徑參數**不做 client→server 轉換**。若遠端視窗的 workspace 路徑是 client 端形式（例如 `\\wsl.localhost\…`），這些 channel 會拿到 server 不認得的路徑；若 workspace 本身就是 server 路徑（`/home/...`）則無影響。e2e E4 顯示 WSL 視窗資料夾對話框預設 `\\wsl.localhost\Ubuntu-24.04\home\<使用者>` → **有實際風險**，建議塔台在使用者實機步驟 3/4 特別觀察，必要時開單補 path-aware 設定（`git-scaffold:*` first-string、`github:*` first-string、`worktree:create` 需新 schema）。
 3. headless 的 git / gh 子行程繼承 server 的 `process.env`（與 Electron 相同、未過濾 `BAT_*`）。git / gh 不讀 `BAT_*`，暫不處理；若要與 remote-tools 一致可另案套 `isHeadlessScrubbedEnvKey`。
 4. `--active` 最低版本 2.40.0 為記憶值，未以舊版 gh 實測（見範圍 3 說明）。
 5. 執行中 bash heredoc 解析含 `case … in …)` 的 Python patch 失敗一次，改寫成 scratchpad 檔再執行；無產品影響。

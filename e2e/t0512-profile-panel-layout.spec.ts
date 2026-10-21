@@ -37,7 +37,7 @@ const DETECT_RESULT = {
       authEnv: { ANTHROPIC_API_KEY: false, CLAUDE_CODE_OAUTH_TOKEN: false, OPENAI_API_KEY: false },
     },
     tools: TOOL_IDS.map((id) => {
-      if (id === 'claude') return { id, status: 'ok', version: '2.1.286', login: 'loggedOut', path: '/home/gower/.local/bin/claude', serverVisible: false }
+      if (id === 'claude') return { id, status: 'ok', version: '2.1.286', login: 'loggedOut', path: '/home/demo/.local/bin/claude', serverVisible: false }
       if (id === 'codex' || id === 'uv') return { id, status: 'missing', login: 'n/a', serverVisible: false }
       return { id, status: 'ok', version: id === 'git' ? '2.43.0' : '1.0.0', login: id === 'gh' ? 'loggedIn' : 'n/a', path: `/usr/bin/${id}`, serverVisible: true }
     }),

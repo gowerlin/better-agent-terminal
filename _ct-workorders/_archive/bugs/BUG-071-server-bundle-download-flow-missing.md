@@ -102,7 +102,7 @@ installer 未內建的 arch（如 Windows host → DGX Spark arm64 SSH）必走�
 ## 實機驗收（2026-10-04 21:15 UTC+8）— CLOSED
 
 - **受測版本**：已安裝 BAT 本機 build `0.5.9-pre.4`（`app.asar` SHA-256 與 `release\win-unpacked` 一致，`518EE6CB…`，L127）
-- **環境**：Windows 11、WSL 2.7.13、塔台新建 `Ubuntu-24.04`（systemd 啟用，使用者 `gower`）
+- **環境**：Windows 11、WSL 2.7.13、塔台新建 `Ubuntu-24.04`（systemd 啟用，使用者 `<使用者>`）
 - **結果**：WSL 精靈第 1-4 步 ✓，**第 4 步「安裝 BAT 伺服器套件」通過**（server bundle 自動取得並解壓），即本 BUG 的驗收標準
 - **後續**：第 5 步「寫入 systemd 使用者服務」失敗為另案 → **BUG-087**（linger / unit 檔 `~` / 回滾）；第 1 步無發行版誤報 → **BUG-086**。兩者由 T0378 修復（D126）
 - **結論**：下載流程 runtime lane 通過 → CLOSED（使用者裁決）

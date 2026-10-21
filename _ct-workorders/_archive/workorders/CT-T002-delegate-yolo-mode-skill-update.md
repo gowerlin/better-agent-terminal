@@ -242,7 +242,7 @@ T#### 需要協助
 
 **未建立**。原因：
 
-- 目標專案路徑 `D:\ForgejoGit\BMad-Guide\BMad-Control-Tower\BMad-Control-Tower-v4.1.0\` 的 git remote 為 `sxnas:gower/BMad-Guide.git`（內部 Forgejo），非工單預期的 `https://github.com/gowerlin/BMad-Control-Tower`（GitHub）。
+- 目標專案路徑 `D:\ForgejoGit\BMad-Guide\BMad-Control-Tower\BMad-Control-Tower-v4.1.0\` 的 git remote 為 `sxnas:<使用者>/BMad-Guide.git`（內部 Forgejo），非工單預期的 `https://github.com/gowerlin/BMad-Control-Tower`（GitHub）。
 - `gh repo view` 報錯：`none of the git remotes configured for this repository point to a known GitHub host`。
 - **CT-T001 先例**：對方塔台（BMad-Guide）當時的處理模式是 **直接 commit → push 到 Forgejo origin → snapshot + CHANGELOG + ZIP 發布**，未走 github PR 流程（見 CT-T001 產出摘要：CP-T0091/92/93 三張工單，所有 commit 在 Forgejo 上）。
 - **建議**：本工單是否走同一 pattern（push 到 Forgejo origin 直接 merge 或由對方塔台排 CP-T00XX 吸收本分支），請塔台決策。
@@ -325,7 +325,7 @@ T#### 需要協助
 
 | # | 問題 | 處理 |
 |---|------|------|
-| 1 | remote 是 Forgejo（`sxnas:gower/BMad-Guide.git`）而非 GitHub，無法 `gh pr create` | 紀錄到本回報區由塔台決策（見「上游 PR」段） |
+| 1 | remote 是 Forgejo（`sxnas:<使用者>/BMad-Guide.git`）而非 GitHub，無法 `gh pr create` | 紀錄到本回報區由塔台決策（見「上游 PR」段） |
 | 2 | 工單規格「上游 repo：https://github.com/gowerlin/BMad-Control-Tower」與實際 remote 不符 | 可能是工單舊資訊或對方 repo 已遷移；待塔台釐清 |
 
 #### 對 T0171（PLAN-018 dogfood 驗證）的提醒

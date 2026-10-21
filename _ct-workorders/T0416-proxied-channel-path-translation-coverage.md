@@ -163,11 +163,11 @@ memory_overrides:
 
 > 前提：用本 working tree 的 BAT（`npm run dev` 或打包）；WSL headless 不需重新部署。
 
-1. 開 WSL profile（Ubuntu-24.04）視窗 → 新增工作區，選 `\\wsl.localhost\Ubuntu-24.04\home\gower\<某 git repo>`
-2. 在該工作區開 **Claude 面板** → 送「`pwd` 並列出目前目錄」：應回 `/home/gower/<repo>`（修正前會是 server 上不存在的 `\\wsl.localhost\…` 而失敗或跑到別的目錄）；`/` 指令清單的 project skills 應出現該 repo `.claude/commands` 的項目；Resume 清單應列出該目錄的歷史 session
-3. 同工作區開 **Git Graph**：應載入 commits，debug log `[git-graph] loaded N commits from \\wsl.localhost\Ubuntu-24.04\home\gower\<repo>`（gitRoot 已轉回 client 形式）
+1. 開 WSL profile（Ubuntu-24.04）視窗 → 新增工作區，選 `\\wsl.localhost\Ubuntu-24.04\home\<使用者>\<某 git repo>`
+2. 在該工作區開 **Claude 面板** → 送「`pwd` 並列出目前目錄」：應回 `/home/<使用者>/<repo>`（修正前會是 server 上不存在的 `\\wsl.localhost\…` 而失敗或跑到別的目錄）；`/` 指令清單的 project skills 應出現該 repo `.claude/commands` 的項目；Resume 清單應列出該目錄的歷史 session
+3. 同工作區開 **Git Graph**：應載入 commits，debug log `[git-graph] loaded N commits from \\wsl.localhost\Ubuntu-24.04\home\<使用者>\<repo>`（gitRoot 已轉回 client 形式）
 4. （若有 GitHub remote）開 GitHub 面板：PR / Issue 清單可載入
-5. 開 **claude-cli worktree** 分頁：worktree 建立成功，終端 `pwd` 在 `/home/gower/<repo>/.worktrees/…`（或專案設定的 worktree 位置）
+5. 開 **claude-cli worktree** 分頁：worktree 建立成功，終端 `pwd` 在 `/home/<使用者>/<repo>/.worktrees/…`（或專案設定的 worktree 位置）
 6. 再新增一個 `C:\…` 的 git repo 工作區（會出現 T0393 的 `/mnt/c` 提示，按確定）→ 重複步驟 2、3：`pwd` 應為 `/mnt/c/…`，Git Graph 載入且 log 中 gitRoot 為 `C:\…`
 7. 本機 profile 視窗：Claude 面板 / Git Graph 行為不變
 

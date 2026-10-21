@@ -48,7 +48,7 @@ beforeEach(async () => {
         testConnection: testConnectionMock,
       },
       wsl: {
-        resolveHome: vi.fn(async () => '/home/gower'),
+        resolveHome: vi.fn(async () => '/home/demo'),
         installBundle: vi.fn(async () => ({ ok: true })),
         uninstallBundle: vi.fn(async () => ({ ok: true })),
         detectNetworkMode: detectNetworkModeMock,

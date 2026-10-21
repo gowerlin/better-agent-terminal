@@ -162,7 +162,7 @@ PLAN-049 網站 v2 的最後一張（W4）。讓網站連結貼到社群 / 聊�
 | `pages.yml` 語法 | PASS：actionlint 1.7.12 exit 0 |
 | 短片 | PASS：Chromium 播 WebM；MP4 H.264 + faststart（ffprobe）且可在 Chromium 播放 |
 | 手機寬度 | PASS：375 px 下 `/` 與 `/control-tower` 的 `scrollWidth` = `clientWidth` = 375 |
-| 網站 grep | PASS：`site/`（排除 node_modules / dist / cache）`T0\d{3}` / `D1\d{2}` / `BUG-\d+` / `PLAN-\d+` / `_ct-workorders` / `CLAUDE.md` = 0；本單 site / workflow diff 的 CT 字樣（`ct-exec` / `bat-terminal` / `CT_` / `.claude` / `skills/`）= 0；隱私 grep（`gower` 但排除 `gowerlin`、`C:\Users`、`/Users/`、`tonyqwang`、`batcap.`、`server-token`、email）= 0。`docs/design/og-card.html` 的註解提到本工單編號（在 docs/，不發佈到網站）。 |
+| 網站 grep | PASS：`site/`（排除 node_modules / dist / cache）`T0\d{3}` / `D1\d{2}` / `BUG-\d+` / `PLAN-\d+` / `_ct-workorders` / `CLAUDE.md` = 0；本單 site / workflow diff 的 CT 字樣（`ct-exec` / `bat-terminal` / `CT_` / `.claude` / `skills/`）= 0；隱私 grep（`<使用者>` 但排除 `gowerlin`、`C:\Users`、`/Users/`、`tonyqwang`、`batcap.`、`server-token`、email）= 0。`docs/design/og-card.html` 的註解提到本工單編號（在 docs/，不發佈到網站）。 |
 | 換行 | PASS：本單文字檔 `git ls-files --eol` 皆 `i/lf w/lf` |
 
 ### 給使用者的預覽指令

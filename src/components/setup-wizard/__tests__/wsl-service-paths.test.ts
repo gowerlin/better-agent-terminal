@@ -29,7 +29,7 @@ function makeCtx(overrides: Partial<WizardContext> = {}): WizardContext {
 }
 
 beforeEach(() => {
-  resolveHomeMock = vi.fn(async () => '/home/gower')
+  resolveHomeMock = vi.fn(async () => '/home/demo')
   installBundleMock = vi.fn(async () => ({ ok: true }))
   distributeMock = vi.fn(async () => ({ ok: true, tarballPath: 'C:\\cache\\bat-server.tar.gz', source: 'cache' }))
   writeUnitMock = vi.fn(async () => ({ ok: true }))
@@ -71,10 +71,10 @@ afterEach(() => {
 describe('$HOME resolution (T0378 / BUG-087 B)', () => {
   it('resolves once and caches on ctx', async () => {
     const ctx = makeCtx()
-    await expect(resolveWslHome(ctx, 'Ubuntu-24.04')).resolves.toBe('/home/gower')
-    await expect(resolveWslHome(ctx, 'Ubuntu-24.04')).resolves.toBe('/home/gower')
+    await expect(resolveWslHome(ctx, 'Ubuntu-24.04')).resolves.toBe('/home/demo')
+    await expect(resolveWslHome(ctx, 'Ubuntu-24.04')).resolves.toBe('/home/demo')
     expect(resolveHomeMock).toHaveBeenCalledTimes(1)
-    expect(ctx.wslHome).toBe('/home/gower')
+    expect(ctx.wslHome).toBe('/home/demo')
   })
 
   it('fails when the IPC rejects', async () => {
@@ -90,9 +90,9 @@ describe('$HOME resolution (T0378 / BUG-087 B)', () => {
   })
 
   it('buildWslServicePaths derives absolute data dir + unit path', () => {
-    expect(buildWslServicePaths('/home/gower')).toEqual({
-      dataDir: '/home/gower/.local/share/bat-server',
-      unitPath: '/home/gower/.config/systemd/user/bat-server.service',
+    expect(buildWslServicePaths('/home/demo')).toEqual({
+      dataDir: '/home/demo/.local/share/bat-server',
+      unitPath: '/home/demo/.config/systemd/user/bat-server.service',
     })
     expect(() => buildWslServicePaths('~')).toThrow(/absolute home/)
   })
@@ -102,8 +102,8 @@ describe('install-server-bundle (T0378 / BUG-087 B)', () => {
   it('installs into <home>/.local/bat-server and stores the absolute path', async () => {
     const ctx = makeCtx({ serverInstallPath: '~/.local/bat-server' })
     await installServerBundleStep.run(ctx)
-    expect(installBundleMock).toHaveBeenCalledWith('Ubuntu-24.04', 'C:\\cache\\bat-server.tar.gz', '/home/gower/.local/bat-server', { keepPrevious: true })
-    expect(ctx.serverInstallPath).toBe('/home/gower/.local/bat-server')
+    expect(installBundleMock).toHaveBeenCalledWith('Ubuntu-24.04', 'C:\\cache\\bat-server.tar.gz', '/home/demo/.local/bat-server', { keepPrevious: true })
+    expect(ctx.serverInstallPath).toBe('/home/demo/.local/bat-server')
   })
 
   it('fails fast (before downloading) when $HOME cannot be resolved', async () => {
@@ -116,18 +116,18 @@ describe('install-server-bundle (T0378 / BUG-087 B)', () => {
 
 describe('write-systemd-unit (T0378 / BUG-087 B)', () => {
   it('writes ExecStart / Environment / unit path as absolute paths, never `~`', async () => {
-    const ctx = makeCtx({ serverInstallPath: '/home/gower/.local/bat-server' })
+    const ctx = makeCtx({ serverInstallPath: '/home/demo/.local/bat-server' })
     await writeSystemdUnitStep.run(ctx)
 
     const [distro, unit] = writeUnitMock.mock.calls[0]
     expect(distro).toBe('Ubuntu-24.04')
-    expect(unit.path).toBe('/home/gower/.config/systemd/user/bat-server.service')
-    expect(unit.execStart).toBe('/home/gower/.local/bat-server/bin/bat-server')
-    expect(unit.environment.BAT_DATA_DIR).toBe('/home/gower/.local/share/bat-server')
-    expect(unit.environment.BAT_SERVER_DATA_DIR).toBe('/home/gower/.local/share/bat-server')
+    expect(unit.path).toBe('/home/demo/.config/systemd/user/bat-server.service')
+    expect(unit.execStart).toBe('/home/demo/.local/bat-server/bin/bat-server')
+    expect(unit.environment.BAT_DATA_DIR).toBe('/home/demo/.local/share/bat-server')
+    expect(unit.environment.BAT_SERVER_DATA_DIR).toBe('/home/demo/.local/share/bat-server')
     expect(JSON.stringify(unit)).not.toContain('~')
     expect(startServiceMock).toHaveBeenCalledWith('Ubuntu-24.04', 'bat-server.service', {
-      dataDir: '/home/gower/.local/share/bat-server',
+      dataDir: '/home/demo/.local/share/bat-server',
     })
   })
 

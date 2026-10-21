@@ -63,7 +63,7 @@ function installApi(detects: RemoteToolsDetectResult[], over: Partial<Pick<Api, 
     kills: [],
     detectHere: vi.fn(async () => (queue.length > 1 ? queue.shift()! : queue[0])),
     shellPath: '/bin/bash',
-    home: '/home/gower',
+    home: '/home/demo',
     ...over,
   }
   ;(window as unknown as { electronAPI: unknown }).electronAPI = {
@@ -111,7 +111,7 @@ const installLine = () => api.writes.find(([id]) => !id.startsWith('bat-home-pro
 describe('useRemoteToolInstall — panel in this window (range 3)', () => {
   it('opens a plain tab in the active workspace and types the sentinel-wrapped plan + \\r', async () => {
     installApi([MISSING, CLAUDE_OK])
-    const ws = workspaceStore.addWorkspace('proj', '/home/gower/proj')
+    const ws = workspaceStore.addWorkspace('proj', '/home/demo/proj')
     const addToast = vi.fn()
     renderHook(() => useRemoteToolInstall({ addToast }))
 
@@ -131,7 +131,7 @@ describe('useRemoteToolInstall — panel in this window (range 3)', () => {
     expect(terminal.title).toBe('Install Claude Code')
     expect(api.creates).toHaveLength(1)
     expect(api.creates[0]).not.toHaveProperty('agentPreset')
-    expect(api.creates[0]).toMatchObject({ id: termId, cwd: '/home/gower/proj', shell: '/bin/bash', workspaceId: ws.id })
+    expect(api.creates[0]).toMatchObject({ id: termId, cwd: '/home/demo/proj', shell: '/bin/bash', workspaceId: ws.id })
     expect(workspaceStore.getState().focusedTerminalId).toBe(termId)
 
     emit(api, termId, `\r\n__BAT_TOOL_DONE_${nonce}_0__\r\n`)
@@ -143,7 +143,7 @@ describe('useRemoteToolInstall — panel in this window (range 3)', () => {
 
   it('exit 0 but still missing ⇒ "not detected" toast', async () => {
     installApi([MISSING, MISSING])
-    workspaceStore.addWorkspace('proj', '/home/gower/proj')
+    workspaceStore.addWorkspace('proj', '/home/demo/proj')
     const addToast = vi.fn()
     renderHook(() => useRemoteToolInstall({ addToast }))
     window.dispatchEvent(new CustomEvent('remote-tool-install-here', { detail: { toolId: 'claude', kind: 'install' } }))
@@ -157,7 +157,7 @@ describe('useRemoteToolInstall — panel in this window (range 3)', () => {
 
   it('an event detail with unknown enums is ignored', async () => {
     installApi([MISSING])
-    workspaceStore.addWorkspace('proj', '/home/gower/proj')
+    workspaceStore.addWorkspace('proj', '/home/demo/proj')
     renderHook(() => useRemoteToolInstall({ addToast: vi.fn() }))
     window.dispatchEvent(new CustomEvent('remote-tool-install-here', { detail: { toolId: 'claude; reboot', kind: 'install' } }))
     await new Promise(r => setTimeout(r, 50))
@@ -178,15 +178,15 @@ describe('useRemoteToolInstall — panel in this window (range 3)', () => {
 
     const workspaces = workspaceStore.getState().workspaces
     expect(workspaces).toHaveLength(1)
-    expect(workspaces[0]).toMatchObject({ name: BAT_TOOLS_WORKSPACE_NAME, folderPath: '/home/gower' })
+    expect(workspaces[0]).toMatchObject({ name: BAT_TOOLS_WORKSPACE_NAME, folderPath: '/home/demo' })
     expect(workspaceStore.getState().activeWorkspaceId).toBe(workspaces[0].id)
-    expect(api.creates[1]).toMatchObject({ cwd: '/home/gower', workspaceId: workspaces[0].id })
+    expect(api.creates[1]).toMatchObject({ cwd: '/home/demo', workspaceId: workspaces[0].id })
     expect(api.creates[1]).not.toHaveProperty('agentPreset')
   })
 
   it('fish login shell ⇒ install tab runs /bin/sh', async () => {
     installApi([MISSING], { shellPath: '/usr/bin/fish' })
-    workspaceStore.addWorkspace('proj', '/home/gower/proj')
+    workspaceStore.addWorkspace('proj', '/home/demo/proj')
     const addToast = vi.fn()
     renderHook(() => useRemoteToolInstall({ addToast }))
     window.dispatchEvent(new CustomEvent('remote-tool-install-here', { detail: { toolId: 'claude', kind: 'install' } }))
@@ -208,7 +208,7 @@ describe('useRemoteToolInstall — cross-window queue (range 1)', () => {
 
   it('takes once connected + loaded and runs the parked tool / kind', async () => {
     installApi([MISSING])
-    workspaceStore.addWorkspace('proj', '/home/gower/proj')
+    workspaceStore.addWorkspace('proj', '/home/demo/proj')
     const q = withQueue({ toolId: 'uv', kind: 'install' })
     const { rerender } = renderHook((props: { takePending: boolean }) => useRemoteToolInstall({ addToast: vi.fn(), ...props }), {
       initialProps: { takePending: false },
@@ -224,7 +224,7 @@ describe('useRemoteToolInstall — cross-window queue (range 1)', () => {
 
   it('a ping from main (window already open) takes again; ignored while not ready', async () => {
     installApi([MISSING])
-    workspaceStore.addWorkspace('proj', '/home/gower/proj')
+    workspaceStore.addWorkspace('proj', '/home/demo/proj')
     const q = withQueue(null)
     const { rerender } = renderHook((props: { takePending: boolean }) => useRemoteToolInstall({ addToast: vi.fn(), ...props }), {
       initialProps: { takePending: false },
@@ -242,7 +242,7 @@ describe('useRemoteToolInstall — cross-window queue (range 1)', () => {
 
   it('a malformed queue answer runs nothing', async () => {
     installApi([MISSING])
-    workspaceStore.addWorkspace('proj', '/home/gower/proj')
+    workspaceStore.addWorkspace('proj', '/home/demo/proj')
     const q = withQueue({ toolId: 'claude', kind: 'install', command: 'x' })
     q.take.mockReset().mockResolvedValue({ toolId: 'rm', kind: 'install' })
     renderHook(() => useRemoteToolInstall({ addToast: vi.fn(), takePending: true }))

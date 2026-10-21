@@ -2,7 +2,7 @@
 schema_version: 1
 schema_kind: bug
 id: BUG-129
-title: "塔台派工落到錯的工作區：外部測試者A 在 SCB 工作區的 Codex 塔台用 bat-terminal.mjs --workspace \"$BAT_WORKSPACE_ID\" --agent default 派 T0001，Worker 分頁出現在另一個工作區（專案B），而且用 Claude Code 開（預期 Codex）"
+title: "塔台派工落到錯的工作區：外部測試者A 在 專案D 工作區的 Codex 塔台用 bat-terminal.mjs --workspace \"$BAT_WORKSPACE_ID\" --agent default 派 T0001，Worker 分頁出現在另一個工作區（專案B），而且用 Claude Code 開（預期 Codex）"
 status: FIXED
 severity: medium
 reproducibility: conditional
@@ -30,18 +30,18 @@ links:
 
 ## 現象（外部測試者A 原話與截圖）
 
-> 我在 SCB 工作區裡新增一張工單，CT 把 worker session 新增到專案B 工作區去，而且用 claude code 開 XDDDD
+> 我在 專案D 工作區裡新增一張工單，CT 把 worker session 新增到專案B 工作區去，而且用 claude code 開 XDDDD
 > Session 誤開的部份他自己修正了 XDD
 
 截圖（皆在 `D:\Downloads\`）：
-- `messageImage_1791955327079_0.jpg`：SCB 工作區（只有 1 個「Codex CLI」分頁）。Codex 塔台執行 `node /Applications/BetterAgentTerminal.app/Contents/Resources/scripts/bat-terminal.mjs --notify-id "$BAT_TERMINAL_ID" --workspace "$BAT_WORKSP…` → `✓ Terminal created: bbe2011f0a4c657884595b351f2a38ab`。塔台自述「剛才派工用了 `--agent default`，BAT 將它解析成 Claude Code」。Codex 狀態列：cwd `~/Library/Mobile Documents/com~apple~CloudDocs/Documents/3Probe Project/SCB專案資料`，另有一段「**套用專案B 規則**」（Codex 端的顯示，來源待查）
-- `messageImage_1791955358535_0.jpg`：**專案B**工作區。底部縮圖有 4 個分頁（Codex CLI、Remote: codex ×2、新的一個），新分頁是 `Remote: '/Applications/BetterAgentTerminal.app/Contents/Resources/app.asar.unpacked/node_modules/@anthropic-ai/claude-code-darwin-arm64/claude'`，跑的是 Claude Code v2.1.296 `/ct-exec T0001`，**cwd 卻是 SCB專案資料**
+- `messageImage_1791955327079_0.jpg`：專案D 工作區（只有 1 個「Codex CLI」分頁）。Codex 塔台執行 `node /Applications/BetterAgentTerminal.app/Contents/Resources/scripts/bat-terminal.mjs --notify-id "$BAT_TERMINAL_ID" --workspace "$BAT_WORKSP…` → `✓ Terminal created: bbe2011f0a4c657884595b351f2a38ab`。塔台自述「剛才派工用了 `--agent default`，BAT 將它解析成 Claude Code」。Codex 狀態列：cwd `~/Library/Mobile Documents/com~apple~CloudDocs/Documents/3Probe Project/<專案D>`，另有一段「**套用專案B 規則**」（Codex 端的顯示，來源待查）
+- `messageImage_1791955358535_0.jpg`：**專案B**工作區。底部縮圖有 4 個分頁（Codex CLI、Remote: codex ×2、新的一個），新分頁是 `Remote: '/Applications/BetterAgentTerminal.app/Contents/Resources/app.asar.unpacked/node_modules/@anthropic-ai/claude-code-darwin-arm64/claude'`，跑的是 Claude Code v2.1.296 `/ct-exec T0001`，**cwd 卻是 專案D 資料**
 - `messageImage_1791955533975.jpg`：外部測試者A 的 Codex 塔台事後在**它專案的** `_ct-workorders/_local-rules.md` 自行加規則：「Worker 預設使用 Codex CLI…派工明確傳 `--agent codex`」、「派工前核對 BAT 工作區名稱、專案路徑及 Tower 終端。若繼承的 `BAT_WORKSPACE_ID` / `BAT_TERMINAL_ID` 指向其他專案，先以 BAT 當前工作區資料核對」⇒ 塔台推定**它所在 PTY 的 `BAT_WORKSPACE_ID` 指向專案B 工作區**
 
 ## 預期
 
-- 塔台在 SCB 工作區的終端派工，Worker 分頁應出現在 SCB 工作區
-- `--agent default` 應解析成「塔台所在工作區」的預設 agent（SCB 的 workspace default → settings.defaultAgent）
+- 塔台在 專案D 工作區的終端派工，Worker 分頁應出現在 專案D 工作區
+- `--agent default` 應解析成「塔台所在工作區」的預設 agent（專案D 的 workspace default → settings.defaultAgent）
 
 ## 塔台初步分析（Worker 須複核）
 
@@ -68,9 +68,9 @@ links:
 - 多視窗：registry 認得該工作區時，payload 標 `workspaceResolved`，沒有它的視窗略過
 - `bat-terminal.mjs` 成功時印出實際落點工作區與 agent（含來源），並寫進 `bat-scripts.log`
 
-**外部測試者A 情境（推論，日誌未到）**：helper exit 0 代表 `--workspace` 不是空值；BAT 自己的路徑不會把「非空但屬於別的工作區」的 id 注入 SCB 分頁。最吻合的是 agent CLI 還原了舊 env：Codex 狀態列的 thread 名稱是「套用專案B 規則」，若此 thread 是從專案B 分頁 resume 來的，`BAT_TERMINAL_ID` / `BAT_WORKSPACE_ID` 會**都**指向專案B。🔴 若屬實，T0523 的「塔台終端優先」也會落在專案B（因為 `--notify-id` 同樣錯），只能讓塔台從 helper 輸出看到錯誤。判定方式見 T0523 回報區第 3 節，根治方案（不依賴 env 辨識呼叫者 PTY）見第 7 節。
+**外部測試者A 情境（推論，日誌未到）**：helper exit 0 代表 `--workspace` 不是空值；BAT 自己的路徑不會把「非空但屬於別的工作區」的 id 注入 專案D 分頁。最吻合的是 agent CLI 還原了舊 env：Codex 狀態列的 thread 名稱是「套用專案B 規則」，若此 thread 是從專案B 分頁 resume 來的，`BAT_TERMINAL_ID` / `BAT_WORKSPACE_ID` 會**都**指向專案B。🔴 若屬實，T0523 的「塔台終端優先」也會落在專案B（因為 `--notify-id` 同樣錯），只能讓塔台從 helper 輸出看到錯誤。判定方式見 T0523 回報區第 3 節，根治方案（不依賴 env 辨識呼叫者 PTY）見第 7 節。
 
-**agent**：`default` = 落點工作區的 `defaultAgent` → `settings.defaultAgent` → `claude-code`（語意未改）。如果 SCB 工作區與全域都沒設 codex，修正後依然會開 Claude。「沿用塔台自己的 agent」這個 UX 建議留給塔台決策。
+**agent**：`default` = 落點工作區的 `defaultAgent` → `settings.defaultAgent` → `claude-code`（語意未改）。如果 專案D 工作區與全域都沒設 codex，修正後依然會開 Claude。「沿用塔台自己的 agent」這個 UX 建議留給塔台決策。
 
 ## 外部測試者A 日誌判定（T0526）
 
@@ -78,9 +78,9 @@ links:
 
 **判定：T0523 §1 的 #11**（agent CLI 用的環境不是自己 PTY 的），信心高。
 
-- 事件派工發生在 05:18:17Z（13:18:17 UTC+8）：`--notify-id 77f17a65… --workspace ff79114e…`，env 的 `BAT_TERMINAL_ID` = `77f17a65`。`77f17a65` 是**專案B**的 Codex 塔台分頁，`ff79114e` 是**專案B**工作區。SCB 塔台分頁應該是 `1ba6042a`，SCB 工作區應該是 `faff6af2`
-- 落點：`landed = requested = ff79114e`，沒有 `Workspace miss`；只有一個視窗。#2 / #3 / #4 / #5 / #9 / #10 都排除：這是新 userData 的第一次啟動，SCB 分頁是當場新建的，事件前沒有 restart 或復原
-- SCB Codex 後續 05:25、05:26 的呼叫，env 依舊是 `77f17a65` / `ff79114e`；塔台在 argv 自行帶入 `1ba6042a` / `faff6af2` 後，就正確落在 SCB
+- 事件派工發生在 05:18:17Z（13:18:17 UTC+8）：`--notify-id 77f17a65… --workspace ff79114e…`，env 的 `BAT_TERMINAL_ID` = `77f17a65`。`77f17a65` 是**專案B**的 Codex 塔台分頁，`ff79114e` 是**專案B**工作區。專案D 塔台分頁應該是 `1ba6042a`，專案D 工作區應該是 `faff6af2`
+- 落點：`landed = requested = ff79114e`，沒有 `Workspace miss`；只有一個視窗。#2 / #3 / #4 / #5 / #9 / #10 都排除：這是新 userData 的第一次啟動，專案D 分頁是當場新建的，事件前沒有 restart 或復原
+- 專案D Codex 後續 05:25、05:26 的呼叫，env 依舊是 `77f17a65` / `ff79114e`；塔台在 argv 自行帶入 `1ba6042a` / `faff6af2` 後，就正確落在 專案D
 - 強佐證：07:56Z 因 mac 睡眠觸發 Terminal Server 復原。pre.7 重建 PTY 時不帶 env，此後**沒有任何活著的 PTY** 帶這組 env，但 08:02Z、08:13Z 的 helper 呼叫看到的仍然是 `77f17a65` / `ff79114e`（含 port）⇒ Codex 執行指令時用的是它自己保存的舊環境
 - **pre.8（T0523）修不好這個情況**：`--notify-id` 也是錯的，落點一樣會在專案B，只是 helper 會印出實際落點。另一個風險：Worker 的完成通知會送到**專案B 塔台**，在 yolo 加 `--submit` 時會被直接送出
 

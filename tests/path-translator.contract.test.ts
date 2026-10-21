@@ -63,20 +63,20 @@ const identityFixtures: ContractFixture[] = [
   },
   {
     name: 'POSIX absolute',
-    clientPath: '/home/gower/repo',
-    serverPath: '/home/gower/repo',
+    clientPath: '/home/demo/repo',
+    serverPath: '/home/demo/repo',
     shouldOwn: true,
   },
   {
     name: 'POSIX with spaces',
-    clientPath: '/home/gower/my project/file.txt',
-    serverPath: '/home/gower/my project/file.txt',
+    clientPath: '/home/demo/my project/file.txt',
+    serverPath: '/home/demo/my project/file.txt',
     shouldOwn: true,
   },
   {
     name: 'Trailing slash',
-    clientPath: '/home/gower/',
-    serverPath: '/home/gower/',
+    clientPath: '/home/demo/',
+    serverPath: '/home/demo/',
     shouldOwn: true,
   },
   {

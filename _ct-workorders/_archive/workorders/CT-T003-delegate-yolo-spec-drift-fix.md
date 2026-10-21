@@ -186,7 +186,7 @@ DONE（規格修改 + CHANGELOG + push + v4.2.1 tag + 生產塔台 sync 全綠�
 ### 使用者收尾動作（2026-04-18 16:25）
 - **Step A-1**：`better-agent-terminal` push `origin main` 成功（`6ccf369..c73a23b`，125 objects，本 session 共 27 commits 落地遠端）
 - **Step A-2**：`BMad-Guide` monorepo push `origin dev-main` 成功（`d65f451..1d02727`，8 objects）
-- **Step D**：v4.2.1 tag 打於 `1d02727` 並 push（Forgejo `sxnas:gower/BMad-Guide.git`）
+- **Step D**：v4.2.1 tag 打於 `1d02727` 並 push（Forgejo `sxnas:<使用者>/BMad-Guide.git`）
 - **Step C**：`cp -rT` 同步 `BMad-Control-Tower-v4.2.0/control-tower/` → `~/.claude/skills/control-tower/` 完成 + grep 驗證通過
 
 ### Renew 歷程

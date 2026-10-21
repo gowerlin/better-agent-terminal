@@ -116,7 +116,7 @@ DONE —— 7 項調查範圍全部有結論；使用者已裁決 3 個設計分
 |------|------|
 | OS / 架構 | `ubuntu 24.04 (ID_LIKE=debian)`、`x86_64`；`/etc/wsl.conf` 設 `systemd=true`，interop 為 enabled |
 | 套件管理器 | 只有 `apt-get`（沒有 dnf / yum / apk / brew） |
-| sudo | `sudo -n true` → **免密碼通過**。來源是 `/etc/sudoers.d/90-gower-nopasswd`，是使用者自己設的，不是 BAT 寫入（T0266 決策：不要求 NOPASSWD）⇒ 設計**不得假設免密碼** |
+| sudo | `sudo -n true` → **免密碼通過**。來源是 `/etc/sudoers.d/90-<使用者>-nopasswd`，是使用者自己設的，不是 BAT 寫入（T0266 決策：不要求 NOPASSWD）⇒ 設計**不得假設免密碼** |
 | 已安裝 | `git 2.43.0`、`python3 3.12.3`、`curl 8.5.0`、`wget`、`tar` |
 | 未安裝（Linux 版） | `claude`、`gh`、`node`、`rg`、`uv`、`unzip`；`~/.local/bin` 目錄不存在 |
 | 🔴 Windows interop 遮蔽 | login shell 的 PATH 有 **57 個 `/mnt/*` 項目**。`command -v codex` 會解析到 `/mnt/<使用者資料夾>/AppData/Roaming/npm/codex`，`npm` 會解析到 `/mnt/c/nvm4w/nodejs/npm`；`gh.exe`、`claude.exe`、`git.exe` 也都找得到 Windows 版。⇒ 偵測**必須把 `/mnt/<drive>/...` 歸類為 `interop-only`**，否則會誤判成「已安裝」 |

@@ -1733,7 +1733,7 @@
 
 ### D141 2026-10-14 — BUG-129 外部測試者A 情境判定 #11 → 開 BUG-132；先做 cwd 一致性檢查（T0527，T0526 建議 [B]），PID 鏈根治入 backlog
 
-- **背景**：T0526 以 外部測試者A 日誌判定 BUG-129 為 T0523 §1 #11：外部測試者A 的 Codex 在 SCB 分頁看到的 `BAT_TERMINAL_ID` / `BAT_WORKSPACE_ID` 整天都是專案B 塔台分頁的值（agent CLI 自行保存的環境），`--notify-id` 與 `--workspace` 都錯，pre.8 的「塔台終端優先」救不回；yolo 時 Worker 完成訊息會送進專案B 塔台。開成 Claude 是另一個原因（當時全域 Settings 未存、工作區層級無 UI → PLAN-040）
+- **背景**：T0526 以 外部測試者A 日誌判定 BUG-129 為 T0523 §1 #11：外部測試者A 的 Codex 在 專案D 分頁看到的 `BAT_TERMINAL_ID` / `BAT_WORKSPACE_ID` 整天都是專案B 塔台分頁的值（agent CLI 自行保存的環境），`--notify-id` 與 `--workspace` 都錯，pre.8 的「塔台終端優先」救不回；yolo 時 Worker 完成訊息會送進專案B 塔台。開成 Claude 是另一個原因（當時全域 Settings 未存、工作區層級無 UI → PLAN-040）
 - **決定**（yolo 授權，塔台依 breakpoint C 裁決）：
   - 開 **BUG-132**（#11）；BUG-129 維持 FIXED（BAT 端 #4 / #5 / #10 已在 pre.8 修），待 外部測試者A pre.8 回饋後結案
   - **T0527**：派工 cwd 與落點工作區 `folderPath` 一致性檢查。不一致 → 警告；**只有** yolo 且 cwd 明確屬於另一個工作區時拒派（cwd 不屬於任何工作區時不擋，保留跨專案派工）；併做 `--agent codex` 簡寫與未知 agent id 提示
@@ -1748,7 +1748,7 @@
 
 ### D140 2026-10-14 — `--agent default` 維持現有語意（落點工作區 defaultAgent → Settings defaultAgent → claude-code）；T0521-T0525 批次發 v0.6.0-pre.8
 
-- **背景**：BUG-129（外部測試者A 的 Codex 塔台派工開成 Claude）。T0523 修正落點後，`default` 以落點工作區解析；外部測試者A 的 SCB 工作區與全域推定未設 Codex，所以仍會開 Claude。T0523 §4 提出選項 B：工作區 / 全域都未設時改用塔台終端自己的 agent preset
+- **背景**：BUG-129（外部測試者A 的 Codex 塔台派工開成 Claude）。T0523 修正落點後，`default` 以落點工作區解析；外部測試者A 的 專案D 工作區與全域推定未設 Codex，所以仍會開 Claude。T0523 §4 提出選項 B：工作區 / 全域都未設時改用塔台終端自己的 agent preset
 - **決定**：使用者選 **A**（2026-10-14 14:07，14:17 確認）。不改 `default` 語意；選項 B 不做
 - **更正（14:21，使用者指出）**：工作區層級的預設 agent **沒有 UI 可設**。`Workspace.defaultAgent` 欄位存在且被讀取（`src/types/index.ts:18`、`App.tsx:855`、`WorkspaceView.tsx:519/641`、`electron/main.ts:543`），但 store 與 UI 都沒有寫入點，實務上恆為空 ⇒ 查找順序第 ① 層目前形同不存在。外部測試者A 現在可用的做法：全域 Settings → 預設 Agent 設 Codex（他兩個工作區都用 Codex），或塔台派工帶 `--agent codex`（他的 Codex 塔台已自行改用）。工作區層級設定 UI 另案評估
 - **發版**：BUG-127-131（T0521-T0525）聯合複驗全綠（13:58 @ `b00c4f9`）後，使用者同意發 `v0.6.0-pre.8`
@@ -1980,7 +1980,7 @@
 
 ### D126 2026-10-04 — WSL 精靈 systemd 步驟與無發行版偵測合併修復
 
-- **背景**：BUG-071 實機驗收第 4 步通過後，第 5 步必失敗。塔台環境檢查：`loginctl enable-linger` 未帶使用者在 `wsl --` 非登入 session 回 ENXIO（帶 `gower` 即成功、不需 sudo）；unit 檔 `ExecStart="~/..."` 被 systemd 判 `bad-setting`；第 5 步失敗後 `~/.local/bat-server` 已被 `rm -rf`，但第 4 步仍顯示 ✓。另第 1 步在「有 WSL 無發行版」時誤報找不到 WSL2（BUG-086）
+- **背景**：BUG-071 實機驗收第 4 步通過後，第 5 步必失敗。塔台環境檢查：`loginctl enable-linger` 未帶使用者在 `wsl --` 非登入 session 回 ENXIO（帶 `<使用者>` 即成功、不需 sudo）；unit 檔 `ExecStart="~/..."` 被 systemd 判 `bad-setting`；第 5 步失敗後 `~/.local/bat-server` 已被 `rm -rf`，但第 4 步仍顯示 ✓。另第 1 步在「有 WSL 無發行版」時誤報找不到 WSL2（BUG-086）
 - **決定**：一張實作單 T0378 修四項（同屬 WSL 精靈 / `wsl-detect` / `wsl-systemd`，affects_files 重疊，拆單會互相衝突）。linger 帶 `id -un` 使用者名稱、以 `loginctl show-user -p Linger` 判定；unit 用絕對 `$HOME`；可重試失敗不回滾前步（回滾只在取消）；WSL 狀態以 exit code 判斷
 - **不採用**：`%h` specifier 為預設（`escapeSystemdValue` 可能跳脫 `%`，Worker 確認後可改）；以 sudo 開 linger（不需要，polkit 允許自己）
 - **相關**：T0378 / BUG-086 / BUG-087 / BUG-071 / BUG-072

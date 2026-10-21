@@ -216,7 +216,7 @@ memory_overrides:
 |---|---|---|
 | `cd site && npm run build` | PASS | `build complete`，0 錯誤；VitePress 預設死連結檢查開啟（未設 `ignoreDeadLinks`），0 死連結；最後一次 build 在校稿與樣式修正之後 |
 | 錨點 | PASS | build 產物中 `index.html#story`、`control-tower.html#visibility/#lifecycle/#autonomy/#learning/#faq-clear-chat/#faq-edit-while-running`、`control-tower-tour.html#faq/#states/#evolution`、`why.html#let-go/#three-loads` 各有 1 個 id |
-| 字樣 / 隱私 grep（本單 `site/` 新增行 + `why.md` + `ShellLoop.vue`，大小寫敏感） | PASS | 工單列的 27 個樣式全部 = 0。另以不分大小寫補查 `Workflow` / `facebook` / `youtube` / `gower` = 0；不分大小寫時 `\*[a-z]+` 命中 1 處 markdown 粗體 `**Worker`、`CTI` 命中 `section` / `function`，皆為誤判 |
+| 字樣 / 隱私 grep（本單 `site/` 新增行 + `why.md` + `ShellLoop.vue`，大小寫敏感） | PASS | 工單列的 27 個樣式全部 = 0。另以不分大小寫補查 `Workflow` / `facebook` / `youtube` / `<使用者>` = 0；不分大小寫時 `\*[a-z]+` 命中 1 處 markdown 粗體 `**Worker`、`CTI` 命中 `section` / `function`，皆為誤判 |
 | 新頁 `title` / `description`；分享卡片 | PASS | `why.html`：`<title>把腦力留給判斷 \| Better Agent Terminal`、`og:description` = 頁面 description；`sitemap.xml` 含 `why` |
 | 手機無水平捲動（390） | PASS | `/why`、首頁、`/control-tower`、`/control-tower-tour` 淺 / 深色 `scrollWidth` = `clientWidth` = 390；`/why` 沒有超出視窗的元素 |
 | reduced-motion | PASS | 以 `prefers-reduced-motion: reduce` 截圖；`/why` `document.getAnimations().length` = 0；本單沒有新增動畫或 transition |

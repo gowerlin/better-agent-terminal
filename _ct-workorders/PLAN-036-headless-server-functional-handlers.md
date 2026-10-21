@@ -112,7 +112,7 @@ P1-P3（T0386 建議清單 E-K）：P0 實機驗收後開單。
 - WSL server 01:52 重新部署 HEAD `09f1e46`（含 T0398 locale 修正；備份 tag `t0398`），smoke 8/8；T0395 的 LISTEN 檢查實機正確列出 `127.0.0.1:9877`
 - WSL server 02:12 重新部署 HEAD `b24d89a`（T0403；備份 tag `t0403`），smoke 8/8，S3 `{"ok":true,"created":true}`、S5 `{"ok":true,"created":false}`。UI 回放 / 不重打 agent 指令待新 BAT build 實機（T0403 回報區步驟 4-7）
 - T0401 附帶：`claude auth status` 未登入時 exit 1，既有 handler 回 `null`，無法區分「未登入」與「runtime 壞掉」→ T0402 決定是否 exit≠0 仍 parse stdout（會改本機行為，需塔台裁決）
-- WSL server 02:34 重新部署 HEAD `ed1e2ac`（T0401；備份 tag `t0401`），smoke **9/9 PASS**：S9 `get-cli-path` = `/home/gower/.local/bat-server/node_modules/@anthropic-ai/claude-code/bin/claude`、embedded healthy、未登入
+- WSL server 02:34 重新部署 HEAD `ed1e2ac`（T0401；備份 tag `t0401`），smoke **9/9 PASS**：S9 `get-cli-path` = `/home/<使用者>/.local/bat-server/node_modules/@anthropic-ai/claude-code/bin/claude`、embedded healthy、未登入
 - T0405 注意（T0407 §2）：既有 `github:check-cli`（`main.ts` 約 2325-2368）以 `gh auth token` 判斷登入，會把 token 印到 stdout；搬進共用模組時改用 `gh auth status` exit code
 - T0404 後續建議：遠端 PTY 達上限時 renderer `pty.create` 為 fire-and-forget，使用者只看到空白終端 → 另案 toast
 - WSL server 02:51 重新部署 HEAD `140ca87`（T0402 + T0404；備份 tag `t0404`），smoke **9/9 PASS**：S1 `env=wsl`、S9 `auth-status → loggedIn=false`；journal `orphan PTY reclaim: after 24h without a client; PTY limit: 64`

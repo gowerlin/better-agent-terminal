@@ -55,7 +55,7 @@ memory_overrides:
 
 ## 背景
 
-T0526 以 外部測試者A 的日誌判定 BUG-129 屬於 T0523 §1 的 **#11**：外部測試者A 的 Codex 在 SCB 分頁執行指令時，看到的 `BAT_TERMINAL_ID` / `BAT_WORKSPACE_ID` 是**專案B 塔台分頁**的值（agent CLI 自己保存的環境），所以 `--notify-id` 與 `--workspace` 都錯，T0523 的「塔台終端優先」也救不回來。yolo 模式下，Worker 的完成訊息還會被**送進**專案B 塔台並觸發它的流程。
+T0526 以 外部測試者A 的日誌判定 BUG-129 屬於 T0523 §1 的 **#11**：外部測試者A 的 Codex 在 專案D 分頁執行指令時，看到的 `BAT_TERMINAL_ID` / `BAT_WORKSPACE_ID` 是**專案B 塔台分頁**的值（agent CLI 自己保存的環境），所以 `--notify-id` 與 `--workspace` 都錯，T0523 的「塔台終端優先」也救不回來。yolo 模式下，Worker 的完成訊息還會被**送進**專案B 塔台並觸發它的流程。
 
 根治（以 PID 祖先鏈辨識呼叫者 PTY）成本較高，先做便宜、能直接抓到這個情境的檢核（D141，T0526 建議 [B]）。請先讀 **BUG-132**、**T0526 回報區**（「判定結果」「建議方向」「建議下一步」）、**T0523 回報區第 1-4 節**。
 
@@ -126,7 +126,7 @@ T0526 以 外部測試者A 的日誌判定 BUG-129 屬於 T0523 §1 的 **#11**�
 - **cwd 只做檢核，不是落點規則**：落點仍由 T0523（塔台終端優先 → `--workspace` → active）決定，T0137 / D140 語意不變；`--agent default` 查找順序不變
 - **yolo 判定**：helper `--mode yolo` 注入的 `customEnv.CT_MODE === 'yolo'`
 - **路徑比對**（`normalizeDispatchPath`）：`\` → `/`、去重複 / 結尾分隔符、解析 `.` / `..`；win32 與 darwin 轉小寫（Linux 分大小寫）；win32 另接受 Git Bash `/d/repo` 與 UNC。前綴比對以 `parent + '/'` 為界（`/a/bank2` 不算在 `/a/bank` 底下）
-- **realpath 取捨**：原路徑與 realpath **兩者都比**，任一組合命中即算在底下。理由：`process.cwd()` 在 POSIX 回傳實體路徑（symlink 已解開），而使用者選的 `folderPath` 可能經過 symlink（macOS `/tmp` → `/private/tmp`、雲端硬碟資料夾，外部測試者A 的 SCB 在 iCloud `~/Library/Mobile Documents/...`），只比原字串會把「其實在裡面」誤判成「不在」。realpath 走 `fs.promises.realpath`（非同步，不擋 main），每個路徑 300 ms 逾時即只比原路徑（`DISPATCH_REALPATH_TIMEOUT_MS`，`electron/main.ts`），避免雲端 / 網路磁碟卡住派工（helper 等 invoke 3 s）。誤判方向：realpath 失敗時最壞是把「在裡面」看成 `outside` → 只警告、不拒派；拒派需要 cwd **明確命中另一個工作區**的 `folderPath`
+- **realpath 取捨**：原路徑與 realpath **兩者都比**，任一組合命中即算在底下。理由：`process.cwd()` 在 POSIX 回傳實體路徑（symlink 已解開），而使用者選的 `folderPath` 可能經過 symlink（macOS `/tmp` → `/private/tmp`、雲端硬碟資料夾，外部測試者A 的 專案D 在 iCloud `~/Library/Mobile Documents/...`），只比原字串會把「其實在裡面」誤判成「不在」。realpath 走 `fs.promises.realpath`（非同步，不擋 main），每個路徑 300 ms 逾時即只比原路徑（`DISPATCH_REALPATH_TIMEOUT_MS`，`electron/main.ts`），避免雲端 / 網路磁碟卡住派工（helper 等 invoke 3 s）。誤判方向：realpath 失敗時最壞是把「在裡面」看成 `outside` → 只警告、不拒派；拒派需要 cwd **明確命中另一個工作區**的 `folderPath`
 - **只有 helper 派工會檢核**：本機視窗自己建的終端（`ctx.windowId` 有值）不經 resolver，也不檢核；renderer 的 `createWithCommand` 回傳型別（boolean）不變
 
 ### 修改檔案

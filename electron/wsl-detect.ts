@@ -212,7 +212,7 @@ export async function list(): Promise<{ distros: WslDistro[]; default: string | 
 
 /**
  * T0378 (BUG-087 B): absolute $HOME of the distro's default user, e.g.
- * `/home/gower`. Fixed command, no interpolated input.
+ * `/home/demo`. Fixed command, no interpolated input.
  */
 export async function resolveHome(distro: string): Promise<string> {
   const validatedDistro = validateDistroName(distro)

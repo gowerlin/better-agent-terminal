@@ -106,8 +106,8 @@ describe('wsl-detect list() three states (T0378 / BUG-086)', () => {
 
 describe('wsl-detect resolveHome() (T0378 / BUG-087 B)', () => {
   it('returns the absolute $HOME via a fixed command with no interpolated input', async () => {
-    const calls = installExec(() => ({ ok: true, stdout: '/home/gower\n' }))
-    await expect(resolveHome('Ubuntu-24.04')).resolves.toBe('/home/gower')
+    const calls = installExec(() => ({ ok: true, stdout: '/home/demo\n' }))
+    await expect(resolveHome('Ubuntu-24.04')).resolves.toBe('/home/demo')
     expect(calls[0].file).toBe('wsl')
     expect(calls[0].args).toEqual(['-d', 'Ubuntu-24.04', '--', 'printenv', 'HOME'])
     expect(calls[0].options.timeout).toBeGreaterThan(0)

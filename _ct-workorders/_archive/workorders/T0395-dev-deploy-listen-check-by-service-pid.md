@@ -132,7 +132,7 @@ CG=/user.slice/user-1000.slice/user@1000.service/app.slice/bat-server.service
 procs:
 293
 ExecStart:
-{ path=/home/gower/.local/bat-server/bin/bat-server ; argv[]=/home/gower/.local/bat-server/bin/bat-server ; ... pid=293 ; ... }
+{ path=/home/<使用者>/.local/bat-server/bin/bat-server ; argv[]=/home/<使用者>/.local/bat-server/bin/bat-server ; ... pid=293 ; ... }
 ss:
 LISTEN 0      511         127.0.0.1:9877      0.0.0.0:*    users:(("MainThread",pid=293,fd=21))
 （其餘為 systemd-resolved :53，無 users 欄）

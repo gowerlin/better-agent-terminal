@@ -74,8 +74,8 @@ describe('WizardRunner.finalize (T0554)', () => {
 
 // ── WSL ─────────────────────────────────────────────────────────────────────
 
-const ROOT = '/home/gower/.local/bat-server'
-const UNIT = '/home/gower/.config/systemd/user/bat-server.service'
+const ROOT = '/home/demo/.local/bat-server'
+const UNIT = '/home/demo/.config/systemd/user/bat-server.service'
 
 interface WslOptions {
   previous?: 'kept' | 'none' | 'unmanaged'
@@ -96,7 +96,7 @@ function installWslApi(options: WslOptions = {}): void {
     return value
   })
   wsl = {
-    resolveHome: vi.fn(async () => '/home/gower'),
+    resolveHome: vi.fn(async () => '/home/demo'),
     installBundle: record('installBundle', { ok: true, previous: options.previous ?? 'kept' }),
     uninstallBundle: record('uninstallBundle', { ok: true }),
     restoreBundle: record('restoreBundle', { ok: true, outcome: 'restored' }),
@@ -109,7 +109,7 @@ function installWslApi(options: WslOptions = {}): void {
   wslSystemd = {
     snapshotUnit: record('snapshotUnit', {
       ok: true,
-      content: options.unit === undefined ? '[Service]\nExecStart="/home/gower/.local/bat-server/bin/bat-server"\n' : options.unit,
+      content: options.unit === undefined ? '[Service]\nExecStart="/home/demo/.local/bat-server/bin/bat-server"\n' : options.unit,
       active: options.active ?? true,
       enabled: options.enabled ?? true,
     }),
@@ -155,7 +155,7 @@ describe('WSL upgrade cancelled after the install (T0554 / BUG-141)', () => {
     expect(wsl.installBundle).toHaveBeenCalledWith('Ubuntu-24.04', 'C:\\cache\\bat-server.tar.gz', ROOT, { keepPrevious: true })
     expect(wslSystemd.restoreUnit).toHaveBeenCalledWith('Ubuntu-24.04', 'bat-server.service', {
       path: UNIT,
-      content: '[Service]\nExecStart="/home/gower/.local/bat-server/bin/bat-server"\n',
+      content: '[Service]\nExecStart="/home/demo/.local/bat-server/bin/bat-server"\n',
       enabled: true,
       start: false,
     })
@@ -280,7 +280,7 @@ describe('WSL upgrade cancelled after the install (T0554 / BUG-141)', () => {
     installWslApi()
     wslSystemd.snapshotUnit.mockResolvedValue({ ok: false, error: 'wsl.exe exited' })
     const ctx = wslCtx()
-    ctx.wslHome = '/home/gower'
+    ctx.wslHome = '/home/demo'
     ctx.serverInstallPath = ROOT
     await expect(writeSystemdUnitStep.run(ctx)).rejects.toThrow(/Could not read the current BAT service/)
     expect(wsl.pickServerPort).not.toHaveBeenCalled()

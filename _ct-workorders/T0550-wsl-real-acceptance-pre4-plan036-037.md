@@ -123,7 +123,7 @@ memory_overrides:
 | A1 線上下載 | PASS | 日誌 `[server-bundle] fetching manifest from https://github.com/gowerlin/better-agent-terminal/releases/download/server-bundle-v0.6.1-pre.4/manifest.json`、`downloading tarball from …/server-bundle-v0.6.1-pre.4/bat-server-linux-x64-v0.6.1-pre.4.tar.gz`（166,355,145 bytes）；distributor `no verified cache, baseline missing-manifest → downloading`；精靈 `Downloaded server bundle from release`；隔離 userData `bat-server-bundles/` 有 tarball + `.sha256`；sha256 `86adb2f71fd9aee41ddf3e2442bde0f3e867ee728ba3b3b74724b38772fb27fe` = sidecar = release `.sha256` |
 | A2 精靈完成 / server | PASS | 9/9 步驟 completed、無 prompt；version `0.6.1-pre.4`、is-active `active`、`127.0.0.1:9877` LISTEN 由 MainPID 3126 持有；profile port 9877、釘選指紋 = server 憑證 |
 | A2 身分沿用 | PASS | port 9877→9877、憑證指紋不變 |
-| A2 profile 可開啟 | PASS | `openNewInstance` → 遠端視窗 connected，遠端 shell 回 `T0550-gower@GXDEVPC02-25` |
+| A2 profile 可開啟 | PASS | `openNewInstance` → 遠端視窗 connected，遠端 shell 回 `T0550-<使用者>@GXDEVPC02-25` |
 | A3 helper 前提 | PASS | `scripts/bat-terminal.mjs`、`bat-notify.mjs`、`_bat-cert.mjs`、`_bat-logger.mjs`、`bin/node`（v24.22.0）、`bin/bat-server` 皆存在 |
 | A4 離線：錯誤顯示匯入動作 | PASS | `BAT_SERVER_BUNDLE_BASE_URL=http://127.0.0.1:9/` → `install-server-bundle` failed；動作 `import-server-bundle:匯入本機 tarball…` / `retry` / `edit-config` / `cancel`；三語說明 + `[download-failed] … fetch failed (bad port)` + 匯入提示 |
 | A4 匯入 | PASS | `remote.serverBundle.importLocal`（對話框 stub 指向 A1 下載檔，sidecar 同目錄自動帶入）→ `ok:true`、sha 相同；cache 有 tarball + `.sha256`；之後 `distribute`（base URL 不可達）→ `source: cache` |

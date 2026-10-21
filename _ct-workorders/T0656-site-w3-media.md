@@ -137,7 +137,7 @@ PLAN-049 網站 v2 的 W3。目前網站的插圖都是 HTML / SVG 示意，`/fe
 | assets/screenshot-question.png | PASS | PASS | PASS | PASS | PASS | — |
 | （未上站）remote-edit.png | PASS | PASS | PASS | PASS | PASS | 權杖欄位顯示假值 `demo`；若日後要用仍可 |
 
-- 網站 grep（`site/`，排除 node_modules / dist / cache）：`T0\d{3}`、`D1\d{2}`、`BUG-\d+`、`PLAN-\d+`、`_ct-workorders`、`CLAUDE.md` = **0**。本單 diff 內 CT 字樣（`ct-exec` / `bat-terminal` / `CT_` / `.claude` / `skills/`）= **0**；圖說只寫「Demo Agent 是自訂 CLI、照指令稿輸出」。隱私 grep（`gower`、`C:\Users`、`/Users/`、`tonyqwang`、`batcap.`、`server-token`、email）只命中既有的 `site/install.md:62`（列出 userData 檔名 `server-token.json`，不是權杖內容，非本單變更）。
+- 網站 grep（`site/`，排除 node_modules / dist / cache）：`T0\d{3}`、`D1\d{2}`、`BUG-\d+`、`PLAN-\d+`、`_ct-workorders`、`CLAUDE.md` = **0**。本單 diff 內 CT 字樣（`ct-exec` / `bat-terminal` / `CT_` / `.claude` / `skills/`）= **0**；圖說只寫「Demo Agent 是自訂 CLI、照指令稿輸出」。隱私 grep（`<使用者>`、`C:\Users`、`/Users/`、`tonyqwang`、`batcap.`、`server-token`、email）只命中既有的 `site/install.md:62`（列出 userData 檔名 `server-token.json`，不是權杖內容，非本單變更）。
 - `site/.vitepress/dist/releases.html` 含 `BUG-020` 等編號：來自既有的發行說明頁（抓 GitHub Release），不是本單的變更。
 
 ### 驗證

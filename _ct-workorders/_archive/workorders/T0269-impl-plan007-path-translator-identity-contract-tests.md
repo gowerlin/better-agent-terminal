@@ -161,9 +161,9 @@ export function runContract(
 |---|------|-----------|---------|
 | 1 | Windows drive letter | `<使用者資料夾>\repo` | round-trip identical |
 | 2 | Windows UNC | `\\server\share\file.txt` | round-trip identical |
-| 3 | POSIX absolute | `/home/gower/repo` | round-trip identical |
-| 4 | POSIX with spaces | `/home/gower/my project/file.txt` | round-trip identical |
-| 5 | Trailing slash | `/home/gower/` | round-trip identical（保留尾斜線） |
+| 3 | POSIX absolute | `/home/<使用者>/repo` | round-trip identical |
+| 4 | POSIX with spaces | `/home/<使用者>/my project/file.txt` | round-trip identical |
+| 5 | Trailing slash | `/home/<使用者>/` | round-trip identical（保留尾斜線） |
 | 6 | Mixed slashes（Win） | `<使用者資料夾>\repo` | round-trip identical（不規範化） |
 | 7 | 中文路徑 | `D:\專案\資料夾\檔案.txt` | round-trip identical |
 | 8 | Long path（>260） | `C:\` + `a/`.repeat(150) | round-trip identical |

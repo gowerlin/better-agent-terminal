@@ -400,14 +400,14 @@ describe('probeRemoteHome', () => {
     expect(h.creates).toEqual([{ id, cwd: '/', type: 'terminal', shell: '/bin/sh' }])
     expect(h.writes[0]).toEqual([id, buildHomeProbeCommand(NONCE) + '\r'])
     h.output(id, h.writes[0][1].replace('\r', '\r\n'))  // echo: format only
-    h.output(id, `\r\n__BAT_HOME_${NONCE}__/home/gower__END__\r\n`)
-    await expect(pending).resolves.toBe('/home/gower')
+    h.output(id, `\r\n__BAT_HOME_${NONCE}__/home/demo__END__\r\n`)
+    await expect(pending).resolves.toBe('/home/demo')
     expect(h.kills).toEqual([id])
     expect(h.listeners()).toBe(0)
   })
 
   test.each([
-    ['relative', 'home/gower'],
+    ['relative', 'home/demo'],
     ['dot-dot', '/home/../etc'],
     ['shell metachar', '/home/$(id)'],
   ])('rejects a %s path', async (_label, home) => {

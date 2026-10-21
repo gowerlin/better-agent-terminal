@@ -102,7 +102,7 @@ memory_overrides:
 | `npm run test:unit` | PASS | **76 files / 1074 tests 全綠**（T0390 回報 74 / 1051） |
 | `npx vite build` | PASS | exit 0 |
 | `npx tsc --noEmit` | PASS | **40**（派發時 HEAD `55b0340` baseline 40，分布相同：CodexAgentPanel 33 / terminal-keyboard-event.test 5 / agent-profiles 1 / integration.transitions.test 1）。註：根 tsconfig 只含 `src`；另跑 `tsc -p tsconfig.node.json`（electron）有 198 個既有設定類錯誤（main.ts 97 等，`downlevelIteration` 等），**本單觸及行與新檔 0 錯** |
-| 實環境 smoke（resolver） | PASS | esbuild 打包 `electron/wsl-workspace-folder.ts` 以 plain node 對本機真 WSL 執行：`Ubuntu-24.04` → `\\wsl.localhost\Ubuntu-24.04\home\gower`（94ms），第二次 cache 0ms；`NoSuchDistro` → null（log `home probe failed`）；`a b` → null（不 spawn）。PowerShell `Test-Path` 確認該 UNC 目錄存在 |
+| 實環境 smoke（resolver） | PASS | esbuild 打包 `electron/wsl-workspace-folder.ts` 以 plain node 對本機真 WSL 執行：`Ubuntu-24.04` → `\\wsl.localhost\Ubuntu-24.04\home\<使用者>`（94ms），第二次 cache 0ms；`NoSuchDistro` → null（log `home probe failed`）；`a b` → null（不 spawn）。PowerShell `Test-Path` 確認該 UNC 目錄存在 |
 | Electron UI smoke | 未執行 | 本機視窗兩條路徑的變更為「targetOS 未設定 → 原平台」與「非 WSL 遠端 → null → `app.getPath('home')`」，由 unit 鎖定；UI 層實測併入下方 P0 實機驗收 |
 | P0 實機驗收（WSL） | 交使用者 | 見下節 |
 
@@ -112,8 +112,8 @@ memory_overrides:
 
 1. 開 BAT → 開 WSL profile（Ubuntu-24.04）視窗 → 設定 → 一般 → Shell：下拉應為 **Auto Detect / Zsh / Bash / sh / Custom**，沒有 pwsh / cmd；選 Bash（遠端 settings 會存到 headless）
 2. 本機 profile 視窗開設定：下拉仍為 Auto / PowerShell 7 / Windows PowerShell / cmd / Git Bash / Custom（不變）
-3. WSL 視窗 → 新增工作區：資料夾對話框應開在 `\\wsl.localhost\Ubuntu-24.04\home\gower`（debug log 會有 `[wsl-folder] select-folder default for Ubuntu-24.04: \\wsl.localhost\...`）
-4. 選 `/home/gower/<dir>`（或在對話框內建一個）→ 開終端 → `pwd` 應為 `/home/gower/<dir>`，**不應**出現提示
+3. WSL 視窗 → 新增工作區：資料夾對話框應開在 `\\wsl.localhost\Ubuntu-24.04\home\<使用者>`（debug log 會有 `[wsl-folder] select-folder default for Ubuntu-24.04: \\wsl.localhost\...`）
+4. 選 `/home/<使用者>/<dir>`（或在對話框內建一個）→ 開終端 → `pwd` 應為 `/home/<使用者>/<dir>`，**不應**出現提示
 5. 再新增一個工作區，選 `C:\…` 目錄 → 出現提示（含 `/mnt/c/…`），按確定後工作區仍在 → 開終端 `pwd` 為 `/mnt/c/…`
 6. 本機視窗新增工作區：對話框仍開在 Windows 使用者目錄，選 `C:\…` 不出現提示
 

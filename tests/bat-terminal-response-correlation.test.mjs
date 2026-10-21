@@ -406,7 +406,7 @@ describe('bat-terminal prints the landing workspace and agent (T0523 / BUG-129)'
   }, 20000)
 
   it('{ ok, workspace, agent } → workspace / agent lines, mismatch warning on stderr, logged', async () => {
-    const workspace = { id: 'ws-scb', name: 'SCB專案資料', source: 'tower-terminal', requestedId: 'ws-uuid-t0497', mismatch: true }
+    const workspace = { id: 'ws-projd', name: '專案D 資料', source: 'tower-terminal', requestedId: 'ws-uuid-t0497', mismatch: true }
     const agent = { requested: 'default', id: 'codex-cli', source: 'workspace' }
     const remote = await startMockBatRemote({
       broadcastEveryMs: 2,
@@ -419,7 +419,7 @@ describe('bat-terminal prints the landing workspace and agent (T0523 / BUG-129)'
       const lines = run.stdout.trim().split('\n')
       expect(lines[0]).toMatch(/^✓ Terminal created: [0-9a-f]{32}$/)
       expect(lines.slice(1)).toEqual([
-        "  workspace: SCB專案資料 (ws-scb) — the Tower terminal's workspace (--notify-id)",
+        "  workspace: 專案D 資料 (ws-projd) — the Tower terminal's workspace (--notify-id)",
         "  agent: codex-cli (--agent default: the workspace's default agent)",
       ])
       expect(run.stderr).toContain("--workspace ws-uuid-t0497 is not the Tower terminal's workspace")
@@ -442,26 +442,26 @@ describe('bat-terminal dispatch cwd check and --agent refusals (T0527 / BUG-132)
         result: {
           ok: false,
           code: 'DISPATCH_CWD_OTHER_WORKSPACE',
-          error: 'cwd /scb belongs to workspace "SCB" (ws-b), but this dispatch would land in workspace "Bank" (ws-a)',
-          cwd: '/scb',
+          error: 'cwd /projd belongs to workspace "專案D" (ws-b), but this dispatch would land in workspace "Bank" (ws-a)',
+          cwd: '/projd',
           landingWorkspace: { id: 'ws-a', name: 'Bank' },
-          cwdWorkspace: { id: 'ws-b', name: 'SCB' },
+          cwdWorkspace: { id: 'ws-b', name: '專案D' },
         },
       },
     })
     try {
       const run = await runBatTerminal(remote, YOLO_ARGS)
       expect(run.code, run.stderr || run.stdout).toBe(1)
-      expect(run.stderr).toContain('Failed to create terminal (DISPATCH_CWD_OTHER_WORKSPACE): cwd /scb belongs to workspace "SCB" (ws-b)')
-      expect(run.stderr).toContain('cwd workspace:     "SCB" (ws-b)')
+      expect(run.stderr).toContain('Failed to create terminal (DISPATCH_CWD_OTHER_WORKSPACE): cwd /projd belongs to workspace "專案D" (ws-b)')
+      expect(run.stderr).toContain('cwd workspace:     "專案D" (ws-b)')
       expect(run.stderr).toContain('landing workspace: "Bank" (ws-a)')
       expect(run.stdout).not.toContain('Terminal created')
       expect(remote.state.invoke.args[0].customEnv).toMatchObject({ CT_MODE: 'yolo', BAT_TOWER_TERMINAL_ID: 'tower-a' })
       expect(lastEvent(remote, 'terminal-created')).toMatchObject({
         result: 'refused',
         code: 'DISPATCH_CWD_OTHER_WORKSPACE',
-        cwd: '/scb',
-        cwdWorkspace: { id: 'ws-b', name: 'SCB' },
+        cwd: '/projd',
+        cwdWorkspace: { id: 'ws-b', name: '專案D' },
         landingWorkspace: { id: 'ws-a', name: 'Bank' },
       })
       expect(lastEvent(remote, 'exit')).toMatchObject({ code: 1, reason: 'terminal-create-refused', refusal: 'DISPATCH_CWD_OTHER_WORKSPACE' })
@@ -478,7 +478,7 @@ describe('bat-terminal dispatch cwd check and --agent refusals (T0527 / BUG-132)
           terminalId: 'x',
           workspace: {
             id: 'ws-a', name: 'Bank', source: 'tower-terminal', mismatch: false,
-            cwdCheck: { status: 'other-workspace', cwd: '/scb', folderPath: '/bank', cwdWorkspace: { id: 'ws-b', name: 'SCB' } },
+            cwdCheck: { status: 'other-workspace', cwd: '/projd', folderPath: '/bank', cwdWorkspace: { id: 'ws-b', name: '專案D' } },
           },
           agent: { requested: 'default', id: 'codex-cli', source: 'settings' },
         },
@@ -488,8 +488,8 @@ describe('bat-terminal dispatch cwd check and --agent refusals (T0527 / BUG-132)
       const run = await runBatTerminal(remote)
       expect(run.code, run.stderr || run.stdout).toBe(0)
       expect(run.stdout).toContain("workspace: Bank (ws-a) — the Tower terminal's workspace (--notify-id)")
-      expect(run.stderr).toContain("cwd /scb is not under the landing workspace's folder /bank.")
-      expect(run.stderr).toContain('It belongs to workspace "SCB" (ws-b).')
+      expect(run.stderr).toContain("cwd /projd is not under the landing workspace's folder /bank.")
+      expect(run.stderr).toContain('It belongs to workspace "專案D" (ws-b).')
       expect(lastEvent(remote, 'terminal-created')).toMatchObject({ result: 'ok', landing: { cwdCheck: { status: 'other-workspace' } } })
     } finally {
       await remote.close()

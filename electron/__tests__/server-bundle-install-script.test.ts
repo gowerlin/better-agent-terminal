@@ -26,8 +26,8 @@ import {
 
 describe('assertBundleInstallRoot (T0552)', () => {
   it.each([
-    ['/home/gower/.local/bat-server', '/home/gower/.local/bat-server'],
-    ['/home/gower/.local/bat-server/', '/home/gower/.local/bat-server'],
+    ['/home/demo/.local/bat-server', '/home/demo/.local/bat-server'],
+    ['/home/demo/.local/bat-server/', '/home/demo/.local/bat-server'],
     ['/opt/bat', '/opt/bat'],
     ['/home/a b/bat-server', '/home/a b/bat-server'],
   ])('accepts %p', (input, expected) => {
@@ -36,7 +36,7 @@ describe('assertBundleInstallRoot (T0552)', () => {
 
   it.each([
     '', '/', '//', '~', '~/.local/bat-server', 'relative/bat-server', '/opt', '/opt/',
-    '/home//bat', '/home/./bat', '/home/gower/../root', "/home/it's/bat", '/home/x/"bat"',
+    '/home//bat', '/home/./bat', '/home/demo/../root', "/home/it's/bat", '/home/x/"bat"',
     '/home/x/$HOME', '/home/x/`id`', '/home/x\\bat', '/home/x/bat\nrm', null, 42,
   ])('rejects %p', (input) => {
     expect(() => assertBundleInstallRoot(input)).toThrow(/install path/)
