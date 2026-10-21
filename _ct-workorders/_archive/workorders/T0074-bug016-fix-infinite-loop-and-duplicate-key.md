@@ -33,11 +33,11 @@
 
 ### Log 檔案（必讀）
 ```
-C:\Users\Gower\AppData\Roaming\better-agent-terminal-runtime-1\Logs\debug-20260413-093319.log
+<使用者資料夾>\AppData\Roaming\better-agent-terminal-runtime-1\Logs\debug-20260413-093319.log
 ```
 讀取方式（貼到終端執行，只讀 ERROR/WARN）：
 ```powershell
-Select-String -Path "C:\Users\Gower\AppData\Roaming\better-agent-terminal-runtime-1\Logs\debug-20260413-093319.log" -Pattern "ERROR|WARN|error|warn|duplicate|key|infinite|loop|workflow|epics" | Select-Object -Last 50
+Select-String -Path "<使用者資料夾>\AppData\Roaming\better-agent-terminal-runtime-1\Logs\debug-20260413-093319.log" -Pattern "ERROR|WARN|error|warn|duplicate|key|infinite|loop|workflow|epics" | Select-Object -Last 50
 ```
 
 ### 問題描述

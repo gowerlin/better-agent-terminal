@@ -147,7 +147,7 @@ memory_overrides:
 - 字樣 / 隱私 grep（對本單新增或修改的內容；網站路由除外），全部 = 0：
   - 內部編號：`T0[0-9]{3}`、`D1[0-9]{2}`、`BUG-`、`PLAN-`、`EXP-`
   - CT 字樣：`CLAUDE\.md`、`SKILL`、`CHANGELOG`、`frontmatter`、`doctrine`、`_tower-state`、`_learnings`、`v[0-9]+\.`、`ct-(exec|done|status|evolve|insights|fieldguide|help)`、星號指令（例 `\*[a-z]+`）
-  - 隱私：`Workflow`、`Gower`、`Gary`、`Kuan`、`Hsieh`、`facebook`、`youtube`、`claude\.ai/artifact`、`CoopID`、`CTI`、`SIP`、`GB10`
+  - 隱私：依 `.private/` 的檢查樣式（真名不寫在公開檔）
 - 新頁 `title` / `description` 存在；分享卡片 `og:description` 取到新頁說明（看 build 產物的 `why.html`）。
 - 截圖（scratchpad，不入版控）：`/why` 全頁、首頁新段落、首頁任一故事章節的「你不用再記住」、`/control-tower` 兩個新問題、演進史收尾；各取桌面 1440 與手機 390 × 淺色 / 深色。
 - 手機無水平捲動；reduced-motion 下無動畫；新增元素鍵盤可聚焦處有可見焦點。
@@ -224,7 +224,7 @@ memory_overrides:
 | 截圖 | PASS | 見下方清單 |
 | e2e | 未執行 | 依工單指示不跑 Playwright |
 
-截圖（scratchpad，不入版控）：`C:\Users\Gower\AppData\Local\Temp\claude\D--ForgejoGit--Gower-Labs-BMad-Guide-better-agent-terminal-better-agent-terminal\9d26db3a-5c98-446c-b849-78262f361afd\scratchpad\t0674\`
+截圖（scratchpad，不入版控）：`<使用者資料夾>\AppData\Local\Temp\claude\D--ForgejoGit--Gower-Labs-BMad-Guide-better-agent-terminal-better-agent-terminal\9d26db3a-5c98-446c-b849-78262f361afd\scratchpad\t0674\`
 
 - `/why` 全頁：`why-1440-light.png`、`why-1440-dark.png`、`why-390-light.png`、`why-390-dark.png`；另有 `why-390-dark-shell.png`（外殼示意）、`why-390-light-table.png`（對照表手機卡片）
 - 首頁新段落：`home-why-{1440,390}-{light,dark}.png`

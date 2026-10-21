@@ -26,7 +26,7 @@ links:
 
 ## 背景與動機
 
-- Gary 在兩個專案都用 Codex 當塔台，`--agent default` 卻開出 Claude（BUG-129）。D140 決定不改 `default` 的查找順序（工作區預設 → 全域 Settings → `claude-code`）
+- 外部測試者A 在兩個專案都用 Codex 當塔台，`--agent default` 卻開出 Claude（BUG-129）。D140 決定不改 `default` 的查找順序（工作區預設 → 全域 Settings → `claude-code`）
 - 但查找順序的第一層**沒有設定入口**：`Workspace.defaultAgent` 欄位存在（`src/types/index.ts:18`），而且有 4 處在讀（`src/App.tsx:855/875` 派工按鈕、`src/components/WorkspaceView.tsx:519/641/662` 新建 Agent 終端與派工、`electron/main.ts:543` 外部派工 `resolveWorkspaceDefaultAgent`），可是 store 與 UI 都沒有寫入點 ⇒ 永遠是空的
 - 補上後，使用者可以「這個專案用 Codex、那個專案用 Claude」，不必改全域設定
 

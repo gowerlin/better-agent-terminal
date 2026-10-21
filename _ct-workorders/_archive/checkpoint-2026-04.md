@@ -140,8 +140,8 @@
 **Exit code**:`-1073741819` = `0xC0000005` = **STATUS_ACCESS_VIOLATION**(Windows 記憶體存取違規)
 
 **證據位置**:
-- Log:`C:\Users\Gower\AppData\Roaming\better-agent-terminal-runtime-1\Logs\debug-20260411-114634.log`
-- Dump:`C:\Users\Gower\AppData\Roaming\better-agent-terminal-runtime-1\Crashes\reports\6528598d-2995-43cf-96e3-393cb74394ca.dmp`
+- Log:`<使用者資料夾>\AppData\Roaming\better-agent-terminal-runtime-1\Logs\debug-20260411-114634.log`
+- Dump:`<使用者資料夾>\AppData\Roaming\better-agent-terminal-runtime-1\Crashes\reports\6528598d-2995-43cf-96e3-393cb74394ca.dmp`
 - Legacy:`debug-legacy-20260411-114634.log`
 
 ### 5 個假設(主推 H1)

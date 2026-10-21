@@ -50,7 +50,7 @@ T0144 實作了 PLAN-012，包含 Electron 原生 Dialog + CheckBox + SIGTERM fa
 - **殘留進程截圖**：`D:\Downloads\2026-04-17_153330.png`
   - `BetterAgentTerminal.exe "...resources\app.asar\dist-electron\terminal-server.js"`
   - `BetterAgentTerminal.exe --type=crashpad-handler --user-data-dir=...`
-- **Log 目錄**：`C:\Users\Gower\AppData\Roaming\better-agent-terminal\Logs`
+- **Log 目錄**：`<使用者資料夾>\AppData\Roaming\better-agent-terminal\Logs`
 
 ### T0144 實作範圍（參考）
 基於 T0143 研究結論（D035/D037）採方案 B：

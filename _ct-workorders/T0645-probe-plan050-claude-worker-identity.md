@@ -124,7 +124,7 @@ BAT `0.7.1-pre.1`（PLAN-050）起，helper 派工的 claude Worker 啟動時帶
    - `BAT_WORKSPACE_ID` = `cc0afc4a-57e9-4f41-b2ed-a2d8bac9e36b`
    - `CT_MODE` = `yolo`（另有 `CT_INTERACTIVE` = `0`）
    - `BAT_REMOTE_TOKEN`：已設定，以 `batcap.` 開頭（值不記錄）
-3. ct-exec skill 版本：`5.9.0`（`C:\Users\Gower\.claude\skills\ct-exec\SKILL.md` 第 5 行 `<!-- ct-exec-version: 5.9.0 -->`；檔內無 `control-tower-version` 註解，以 `ct-exec-version` 為準）
+3. ct-exec skill 版本：`5.9.0`（`<使用者資料夾>\.claude\skills\ct-exec\SKILL.md` 第 5 行 `<!-- ct-exec-version: 5.9.0 -->`；檔內無 `control-tower-version` 註解，以 `ct-exec-version` 為準）
 4. `bat_whoami`（不帶參數）回傳，全部鍵值照抄：
 
    ```json

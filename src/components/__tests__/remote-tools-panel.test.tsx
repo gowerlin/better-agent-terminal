@@ -54,7 +54,7 @@ const WSL_REPORT = makeReport(
     claude: { credentialFilePresent: false },
     git: { status: 'ok', path: '/usr/bin/git', version: '2.43.0', serverVisible: true },
     gh: { credentialFilePresent: false },
-    codex: { status: 'interop-only', path: '/mnt/c/Users/Gower/AppData/Roaming/npm/codex', credentialFilePresent: false },
+    codex: { status: 'interop-only', path: '/mnt/c/Users/demo/AppData/Roaming/npm/codex', credentialFilePresent: false },
     curl: { status: 'ok', path: '/usr/bin/curl', version: '8.5.0', serverVisible: true },
     bash: { status: 'ok', path: '/usr/bin/bash', version: '5.2.21', serverVisible: true },
     python3: { status: 'ok', path: '/usr/bin/python3', version: '3.12.3', serverVisible: true },

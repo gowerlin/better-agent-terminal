@@ -165,7 +165,7 @@ memory_overrides:
 3. 工作樹 `electron/voice-handler.ts` 為 CRLF（`core.autocrlf=true`，index 為 LF）；編輯時保留工作樹原行尾，commit 由 git 正規化為 LF；新檔皆為 LF
 
 **剩餘步驟（非本單範圍）**
-1. 🔴 **mac 實機驗收**（需 mac 使用者，如回報者 Gary）：新版 dmg 安裝後（不需 symlink workaround）app 可啟動；Voice 錄音轉寫可用（應載入 `mac-arm64/whisper.node`，log 出現 `[voice] whisper addon loaded: …app.asar.unpacked…/dist/mac-arm64/whisper.node`）；若先前手動建立過 `darwin-arm64` symlink 也不影響（mac-* 優先）
+1. 🔴 **mac 實機驗收**（需 mac 使用者，如回報者 外部測試者A）：新版 dmg 安裝後（不需 symlink workaround）app 可啟動；Voice 錄音轉寫可用（應載入 `mac-arm64/whisper.node`，log 出現 `[voice] whisper addon loaded: …app.asar.unpacked…/dist/mac-arm64/whisper.node`）；若先前手動建立過 `darwin-arm64` symlink 也不影響（mac-* 優先）
 2. 本機 node_modules 還原：工單原列為塔台剩餘步驟；目前觀察到已還原，請塔台確認後勾銷
 3. 建議另開小單：`electron/voice-opencc.ts` 頂層 `require('opencc-js')` 改延遲載入（任務 3 掃描發現的唯一同型風險）
 4. 建議（BUG-116 修復方向 4 的 CI 部分，非本單範圍）：mac CI job 在打包後對**兩個 arch** 產物檢查 `app.asar.unpacked/.../dist/mac-<arch>/whisper.node`；本單的 verify 只檢查 host arch（`macos-latest` = arm64）

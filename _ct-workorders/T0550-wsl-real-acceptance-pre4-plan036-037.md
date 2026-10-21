@@ -138,7 +138,7 @@ memory_overrides:
 | C6 登入狀態 | PASS | claude / codex / gh 皆 `loggedOut`、credentialFilePresent=false，與 `gh auth status`（未登入）、`~/.claude/.credentials.json` / `~/.codex/auth.json`（不存在）一致 |
 | C6 兩條偵測路徑 | PASS | `remoteTools.detect(profileId)`（本機短連線）與 `remoteTools.detectHere()`（遠端視窗）皆 ok；UI：精靈完成頁「遠端 AI 工具」區顯示相同版本 / 未登入 / 伺服器可見性（截圖 `C6-profile-card.png`） |
 
-**證據位置**（本機 temp，未進 repo）：`C:\Users\Gower\AppData\Local\Temp\bat-t0550\evidence\`（`results.json`、`server-state-before.txt` / `server-state-after.txt`、`smoke-after.txt`、`debug-log-a.txt`、`wizard-console.txt`、`c6-detect.json`、`c6-wsl-actual.txt`、截圖 `A-wizard-complete.png` / `A2-remote-window.png` / `B5-dispatch.png` / `C6-profile-card.png` / `A4-download-failed.png`）；run 1 證據在同層 `evidence-run1\`；完整輸出 `run1.log` / `run2.log`；升級前 smoke `evidence-run1\smoke-before-0.5.9-pre.4.txt`。
+**證據位置**（本機 temp，未進 repo）：`<使用者資料夾>\AppData\Local\Temp\bat-t0550\evidence\`（`results.json`、`server-state-before.txt` / `server-state-after.txt`、`smoke-after.txt`、`debug-log-a.txt`、`wizard-console.txt`、`c6-detect.json`、`c6-wsl-actual.txt`、截圖 `A-wizard-complete.png` / `A2-remote-window.png` / `B5-dispatch.png` / `C6-profile-card.png` / `A4-download-failed.png`）；run 1 證據在同層 `evidence-run1\`；完整輸出 `run1.log` / `run2.log`；升級前 smoke `evidence-run1\smoke-before-0.5.9-pre.4.txt`。
 
 **收尾**：兩個隔離實例皆已關閉（Terminal Server pid alive=false、runtime userData removed=true）；匯入用的 tarball 副本已刪；WSL `/tmp/bat-t0550-git.*` 已清（run 1 中斷留下的一個已手動刪除）。使用者 BAT（9876，PID 33948）未連、未關、未重啟；未動其他發行版 / Docker / `~/.ssh` / `.wslconfig`；未改產品程式碼。
 

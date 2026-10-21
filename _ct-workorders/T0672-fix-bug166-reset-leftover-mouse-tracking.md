@@ -93,7 +93,7 @@ codex 等 TUI 被訊號結束或崩潰時不還原滑鼠追蹤，xterm 停在追
 ## 收尾
 
 - commit（產品 + 測試 + 文件 + 本工單），訊息含 `T0672` / `BUG-166`；不 push。
-- 回報區寫：改動摘要、驗收結果數字、e2e 結果、限制、建議 BUG-166 狀態（FIXED 待 Gary 實機）。
+- 回報區寫：改動摘要、驗收結果數字、e2e 結果、限制、建議 BUG-166 狀態（FIXED 待 外部測試者A 實機）。
 
 ---
 
@@ -112,14 +112,14 @@ codex 等 TUI 被訊號結束或崩潰時不還原滑鼠追蹤，xterm 停在追
 
 ### 完成狀態
 
-`FIXED`（F1 + F2 實作完成，驗收 1–5 全過；等 Gary 在 macOS 實機確認）。建議 BUG-166 → ✅ FIXED（待 Gary 實機）。
+`FIXED`（F1 + F2 實作完成，驗收 1–5 全過；等 外部測試者A 在 macOS 實機確認）。建議 BUG-166 → ✅ FIXED（待 外部測試者A 實機）。
 
 ### 改動摘要
 
 - **F1**（`src/lib/mouse-tracking-reset.ts`，新檔，純函式）：`MouseReportEchoDetector` — `noteInput` 記下送出的 SGR 回報本體（`35;52;69M`，最多 64 筆），`noteOutput` 在 `MOUSE_REPORT_ECHO_WINDOW_MS` = 500 ms 內於輸出尾巴（最多 2 048 字元，跨 chunk）找到本體即回 `true`；比對前 `echoMatchText` 去掉 CSI / OSC / 其他 ESC 序列與控制字元（`\x07` / `\x08` …）。去掉 CSI 也避免 TUI 的 SGR 顏色（`ESC[38;2;35;52;69m`）誤判。另有常數 `MOUSE_TRACKING_RESET`（工單指定的 6 個 DECRST）、`ALT_SCREEN_EXIT`。
 - **TerminalPanel**（`src/components/TerminalPanel.tsx`）：`onData` → `noteInput`；`writeOutput` 在 `terminal.write` 後 → `noteOutput`，命中即 `resetMouseTracking('reports echoed as text')`：`terminal.write(MOUSE_TRACKING_RESET)`（只寫本機 xterm）、`echoDetector.clear()`、清掉 Shift 拖曳紀錄、`selectionKeeper.forget('mouse tracking reset')`，日誌 `[mouse-tracking] reset: reports echoed as text terminal=<id> mode=<原模式>`（不記輸出內容）。alt screen 不自動離開。
 - **F2**：右鍵選單在「貼上」後加分隔線與選項 —— 追蹤中（Shift + 右鍵）「重設滑鼠模式」（同 F1 動作，日誌 `reset: manual`）；alt screen 時「離開替代畫面（alt screen）」（本機 `?1049l`，日誌 `[mouse-tracking] alt screen left: manual`）。按鈕帶 `data-menu-action`。
-  - **離開 alt screen 的判斷**：做成獨立選項，只在 alt buffer 時出現。理由：codex 被訊號結束時 1049 也殘留，shell 畫在 alt buffer 上、沒有 scrollback，離開才看得到 codex 之前的畫面（T0671 給 Gary 的測試 3 也要他手打 `printf '\e[?1049l'`）；但它會讓目前的提示列消失（按 Enter 重畫），對仍在執行的 TUI 會打亂畫面，所以不併入「重設滑鼠模式」、也不自動執行。
+  - **離開 alt screen 的判斷**：做成獨立選項，只在 alt buffer 時出現。理由：codex 被訊號結束時 1049 也殘留，shell 畫在 alt buffer 上、沒有 scrollback，離開才看得到 codex 之前的畫面（T0671 給 外部測試者A 的測試 3 也要他手打 `printf '\e[?1049l'`）；但它會讓目前的提示列消失（按 Enter 重畫），對仍在執行的 TUI 會打亂畫面，所以不併入「重設滑鼠模式」、也不自動執行。
 - **i18n**：`terminal.resetMouseMode`（en `Reset mouse mode` / zh-TW `重設滑鼠模式` / zh-CN `重置鼠标模式`）、`terminal.exitAltScreen`（`Leave alternate screen` / `離開替代畫面（alt screen）` / `离开替代屏幕（alt screen）`）。「複製 / 貼上」原本就是寫死的中文，未改。
 - **文件**：`CLAUDE.md`「終端分頁右鍵選單與滑鼠追蹤（T0568 / BUG-142）」節在 🔴 那句後補例外與唯一實作位置（標題未改，該節仍 5 條）；`docs/agent-guide/terminal-context-menu.md` 新增「滑鼠追蹤殘留的重設（T0672 / BUG-166）」節（原因、觸發條件、時間窗、日誌、誤判邊界、alt screen 選項理由、已知限制、驗證）。
 - **測試**：新 `src/lib/__tests__/mouse-tracking-reset.test.ts`（17 個：命中 bash / zsh / 滾輪、跨 chunk、跨 chunk 的 ESC 序列、未命中、超過時間窗、時間窗邊界、回報前的輸出不算、非追蹤、agent 執行中 200 次移動 + 重繪不觸發、命中後重來、`clear`、64 筆上限）；`src/__tests__/terminal-context-menu.test.tsx` 新增 describe「mouse tracking left on (BUG-166 / T0672)」9 個（F1 命中且不寫 PTY、日誌不含內容、跨 chunk、agent 不觸發、非追蹤、超過時間窗、keeper forget、F2 重設、一般 shell 無新選項、alt screen 選項）。
@@ -148,7 +148,7 @@ codex 等 TUI 被訊號結束或崩潰時不還原滑鼠追蹤，xterm 停在追
 - alt screen 不自動離開（工單規格）；可用「離開替代畫面」。
 - DECSET 1004（focus 回報）與 2004 也會殘留（T0671），工單指定的 DECRST 不含它們，本單未處理；focus 回報在 shell 裡是否造成可見殘骸未驗證，可另開單。
 - 誤判邊界：只有「追蹤中且程式把輸入原樣回顯」才觸發（手動 `printf` 測試、`cat`、滑鼠除錯工具）；或 TUI 在 500 ms 內剛好畫出與某筆回報完全相同（含座標）的文字，機率極低。
-- Windows 原生 ConPTY 分頁本來就不會發生；macOS 未實機驗證（沒有 Mac），需 Gary 確認。
+- Windows 原生 ConPTY 分頁本來就不會發生；macOS 未實機驗證（沒有 Mac），需 外部測試者A 確認。
 
 ### 互動紀錄
 

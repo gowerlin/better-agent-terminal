@@ -13,7 +13,7 @@ impact:
   - xterm-canvas
   - macos
 links:
-  discovered_in: "BUG-136 調查（Gary 回報，2026-10-15 / 2026-10-19）；T0666 判讀"
+  discovered_in: "BUG-136 調查（外部測試者A 回報，2026-10-15 / 2026-10-19）；T0666 判讀"
   related: [BUG-136, T0533, T0666, T0668, T0669, PLAN-053]
 ---
 
@@ -23,8 +23,8 @@ links:
 |------|------|
 | 嚴重度 | 🟢 low（Chromium 會自動重啟 GPU 程序；目前沒有證據顯示會造成打字延遲，延遲另見 BUG-136） |
 | 可重現 | 未確認 |
-| **狀態** | 🚫 CLOSED（2026-10-19 18:12 使用者同意結案：Gary 以 `v0.7.1-pre.3` 驗收三項皆 PASS，Graphite 關閉後約 4h40m 0 次 GPU 崩潰；若再崩潰另開 BUG，並作為提前做 PLAN-053 的依據）。原 FIXED（T0669 `32d62a45`：macOS 預設 `--disable-skia-graphite`（`BAT_SKIA_GRAPHITE=1` 可恢復）+ GPU 崩潰後重建可見終端；待 Gary 以 `v0.7.1-pre.3` 確認 `skia_graphite=` 不再是 `enabled_on`、期間無 GPU 崩潰。Electron 42+ 升級另見 PLAN-053） |
-| 回報者 | Gary（日誌與崩潰報告）；判讀 T0666 |
+| **狀態** | 🚫 CLOSED（2026-10-19 18:12 使用者同意結案：外部測試者A 以 `v0.7.1-pre.3` 驗收三項皆 PASS，Graphite 關閉後約 4h40m 0 次 GPU 崩潰；若再崩潰另開 BUG，並作為提前做 PLAN-053 的依據）。原 FIXED（T0669 `32d62a45`：macOS 預設 `--disable-skia-graphite`（`BAT_SKIA_GRAPHITE=1` 可恢復）+ GPU 崩潰後重建可見終端；待 外部測試者A 以 `v0.7.1-pre.3` 確認 `skia_graphite=` 不再是 `enabled_on`、期間無 GPU 崩潰。Electron 42+ 升級另見 PLAN-053） |
+| 回報者 | 外部測試者A（日誌與崩潰報告）；判讀 T0666 |
 
 ## 環境
 
@@ -66,10 +66,10 @@ links:
 ## 下一步（未派工）
 
 1. 符號化：下載 Electron `41.2.1` darwin-arm64 dSYM，用 `atos` / `llvm-symbolizer` 還原上面三個偏移，找出是哪一個 CHECK。
-2. 依 CHECK 名稱評估與 `clearTextureAtlas` / CanvasAddon / 視窗 resize 的關聯；必要時請 Gary 跑 BUG-136 的「快速新增終端」重現步驟，並附 `[gpu]` 日誌（`0.6.1-pre.2` 起才有）。
+2. 依 CHECK 名稱評估與 `clearTextureAtlas` / CanvasAddon / 視窗 resize 的關聯；必要時請 外部測試者A 跑 BUG-136 的「快速新增終端」重現步驟，並附 `[gpu]` 日誌（`0.6.1-pre.2` 起才有）。
 3. 修正方向（待第 1、2 點）：例如 GPU 崩潰後對所有 xterm 重建 texture atlas，或改用 WebGL addon 並處理 `onContextLoss`。不得讓 Win11 `clearTextureAtlas` 修正退化。
 
-## 實機驗收（Gary，`v0.7.1-pre.3`）
+## 實機驗收（外部測試者A，`v0.7.1-pre.3`）
 
 | 檢查點 | 結果 |
 |---|---|
@@ -77,7 +77,7 @@ links:
 | `[gpu] feature status` 的 `skia_graphite=` 不再是 `enabled_on` | ✅ PASS（`debug-20261019-132836.log`：`skia_graphite=disabled_off`） |
 | 使用期間無 `child-process-gone type=GPU` / `[gpu] crash #N` | ✅ PASS（同一次執行 13:28–18:10，約 4h40m，0 次） |
 
-Gary 對照（使用者轉達截圖，時間為台灣時間）：
+外部測試者A 對照（使用者轉達截圖，時間為台灣時間）：
 
 | log 啟動 | `skia_graphite` | GPU 崩潰次數 |
 |---|---|---|
@@ -88,12 +88,12 @@ Gary 對照（使用者轉達截圖，時間為台灣時間）：
 | 10/19 12:16 | `enabled_on` | 4（12:00–13:24） |
 | **10/19 13:28（pre.3）** | **`disabled_off`** | **0** |
 
-崩潰原因皆 `reason=crashed exitCode=5`。另 10/14 17:04、17:04、10/15 09:48 三次無 feature status 行、0 次崩潰。Gary 的保留：關閉 Graphite 後只有一次約 5 小時的紀錄，尚不能斷定；10/14–10/15 的 log 無 feature status 行，無法比較。
+崩潰原因皆 `reason=crashed exitCode=5`。另 10/14 17:04、17:04、10/15 09:48 三次無 feature status 行、0 次崩潰。外部測試者A 的保留：關閉 Graphite 後只有一次約 5 小時的紀錄，尚不能斷定；10/14–10/15 的 log 無 feature status 行，無法比較。
 
 ## 附件
 
-Gary 的檔案放在使用者本機 `D:\Downloads\封存`，未入庫。日誌含客戶專案路徑，引用時請去識別化。
+外部測試者A 的檔案放在使用者本機 `D:\Downloads\封存`，未入庫。日誌含客戶專案路徑，引用時請去識別化。
 
 ## 結案（2026-10-19 18:12）
 
-- 使用者同意結案（Gary 保留意見：只有一次約 5 小時紀錄）。之後若再出現 `child-process-gone type=GPU`，另開新 BUG，並評估提前做 PLAN-053（Electron 42+）。
+- 使用者同意結案（外部測試者A 保留意見：只有一次約 5 小時紀錄）。之後若再出現 `child-process-gone type=GPU`，另開新 BUG，並評估提前做 PLAN-053（Electron 42+）。

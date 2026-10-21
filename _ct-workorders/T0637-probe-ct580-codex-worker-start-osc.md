@@ -104,10 +104,10 @@ BAT `0.7.0-pre.9`（T0621）起，codex `>= 0.163.0` 的 Worker 會送 OSC 7501 
 
 - `codex --version`：`codex-cli 0.163.0`
 - `Get-Command codex -All` 路徑（依序）：
-  1. `C:\Users\Gower\AppData\Local\Programs\OpenAI\Codex\bin\codex.exe`
-  2. `C:\Users\Gower\AppData\Roaming\npm\codex.ps1`
-  3. `C:\Users\Gower\AppData\Roaming\npm\codex.cmd`
-  4. `C:\Users\Gower\AppData\Roaming\npm\codex`
+  1. `<使用者資料夾>\AppData\Local\Programs\OpenAI\Codex\bin\codex.exe`
+  2. `<使用者資料夾>\AppData\Roaming\npm\codex.ps1`
+  3. `<使用者資料夾>\AppData\Roaming\npm\codex.cmd`
+  4. `<使用者資料夾>\AppData\Roaming\npm\codex`
 - 環境變數：`BAT_SESSION=1`；`BAT_TERMINAL_ID` 已設定；`BAT_TOWER_TERMINAL_ID` 已設定；`BAT_WORKSPACE_ID` 已設定；`CT_MODE=yolo`；`BAT_REMOTE_TOKEN` 已設定、以 `batcap.` 開頭（未記錄權杖值）。
 - `bat_whoami`：`role=worker`；`agent` 欄位未提供（回傳只有 terminalId、workspaceId、role、towerTerminalId、workorder、yolo、cwd；派工工單指定 codex preset）；`yolo=true`；`towerMode` 欄位未提供；`workorder=T0637`；`towerTerminalId=d64be77a-fa33-4391-b92c-70069ddfd207`。
 

@@ -25,7 +25,7 @@ links:
 |------|------|
 | 嚴重度 | 🟡 medium（終端裡跑 claude CLI 時不能貼截圖；文字貼上正常） |
 | 可重現 | 必現（使用者回報） |
-| **狀態** | ✅ FIXED（T0524；Windows 隔離實例自動化驗證，mac 實機交 Gary） |
+| **狀態** | ✅ FIXED（T0524；Windows 隔離實例自動化驗證，mac 實機交 外部測試者A） |
 | 回報者 | 使用者（Windows）；mac 部分來自 T0522 回報區 |
 
 ## 現象
@@ -63,7 +63,7 @@ links:
 - 圖片判斷改由 main 處理（沿用 T0436 的 `clipboard.readImageDataUrl()`，main 端 `readImage().isEmpty()`）。失敗時退回 renderer 的 `navigator.clipboard.read()`；每個失敗與每次的決策都寫進 `window.electronAPI.debug.log`（`[terminal-paste] Ctrl+V → image|paths|text`）
 - 不再用 `navigator.platform`，改用 `window.electronAPI.platform`。沒有改到 electron 檔案（main / preload / types）
 
-**驗證**：單元測試（3 平台 × {圖片, 檔案, 檔案+圖示, 文字, 讀取失敗} × {Ctrl+V, Command+V}，加上 Ctrl+C / Ctrl+Shift+C / V / 右鍵選單），共 54 tests；Windows 隔離實例 e2e `e2e/t0524-terminal-image-paste.spec.ts` PASS（PTY 收到 `1b76`、文字原樣）；typecheck 0 / typecheck:electron 0 / vite build 0；`test:unit` 216 files 全過。mac 實機驗收交 Gary
+**驗證**：單元測試（3 平台 × {圖片, 檔案, 檔案+圖示, 文字, 讀取失敗} × {Ctrl+V, Command+V}，加上 Ctrl+C / Ctrl+Shift+C / V / 右鍵選單），共 54 tests；Windows 隔離實例 e2e `e2e/t0524-terminal-image-paste.spec.ts` PASS（PTY 收到 `1b76`、文字原樣）；typecheck 0 / typecheck:electron 0 / vite build 0；`test:unit` 216 files 全過。mac 實機驗收交 外部測試者A
 
 ## 使用者後續（2026-10-14 14:07）
 

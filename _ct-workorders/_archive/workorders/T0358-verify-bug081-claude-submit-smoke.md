@@ -103,8 +103,8 @@ DONE
 ### 驗證命令
 
 - `node "C:\Program Files\BetterAgentTerminal\resources\scripts\bat-notify.mjs" --source T0358 --target $env:BAT_TOWER_TERMINAL_ID --submit "T0358 測試完成"`：PASS
-- `Select-String` against `C:\Users\Gower\AppData\Roaming\BetterAgentTerminal\Logs\bat-scripts.log` for `T0358 測試完成` / `2a068ad59f727726`：PASS
-- `Select-String` against `C:\Users\Gower\AppData\Roaming\better-agent-terminal\Logs\debug-20260518-003326.log` for `terminal-submit` / `2a068ad59f727726`：PASS
+- `Select-String` against `<使用者資料夾>\AppData\Roaming\BetterAgentTerminal\Logs\bat-scripts.log` for `T0358 測試完成` / `2a068ad59f727726`：PASS
+- `Select-String` against `<使用者資料夾>\AppData\Roaming\better-agent-terminal\Logs\debug-20260518-003326.log` for `terminal-submit` / `2a068ad59f727726`：PASS
 
 ### 遭遇問題
 

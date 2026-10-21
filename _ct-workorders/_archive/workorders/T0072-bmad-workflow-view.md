@@ -29,7 +29,7 @@
 - `src/locales/en.json`、`zh-TW.json`、`zh-CN.json`（i18n）
 
 ### 參考資料（另一專案的真實 BMad 產出物）
-- **路徑**：`D:\ForgejoGit\2026_Cooperative\_bmad-output\`
+- **路徑**：`D:\ForgejoGit\<專案A>\_bmad-output\`
 - **用途**：了解 BMad 產出物的實際檔案結構和格式
 - **注意**：此路徑僅供參考格式用，不要修改該專案的任何檔案
 - 掃描該目錄結構（ls -R），記錄實際有哪些檔案、放在哪個子目錄
@@ -113,7 +113,7 @@
 ### 執行步驟
 1. 讀取本工單全部內容
 2. 更新「開始時間」欄位
-3. **先掃描參考專案**：`ls -R "D:/ForgejoGit/2026_Cooperative/_bmad-output/"` 了解實際檔案結構
+3. **先掃描參考專案**：`ls -R "D:/ForgejoGit/<專案A>/_bmad-output/"` 了解實際檔案結構
 4. 讀取 T0070 分析報告 D-2（Phase 定義和資料模型）
 5. 用參考專案的實際結構校準 `PHASE_DEFINITIONS` 對應表
 6. 新建 `src/types/bmad-workflow.ts`
@@ -124,7 +124,7 @@
 11. 填寫回報區
 
 ### 執行注意事項
-- 參考專案路徑 `D:\ForgejoGit\2026_Cooperative\_bmad-output\` 僅供**讀取參考**，不修改
+- 參考專案路徑 `D:\ForgejoGit\<專案A>\_bmad-output\` 僅供**讀取參考**，不修改
 - 檔案存在性檢測：用 `fs:readFile` try/catch（若回傳錯誤 = 不存在），或用 `fs:readdir` 列目錄
 - 不要用 Node.js `fs.existsSync`（renderer 進程無法直接用）
 - Phase 定義表內的 artifact displayName 使用英文（i18n 可後續擴充）
@@ -152,7 +152,7 @@ DONE
 - `src/locales/zh-TW.json` — 同上（繁中）
 - `src/locales/zh-CN.json` — 同上（簡中）
 
-**Phase 定義表校準結果**（與 `D:\ForgejoGit\2026_Cooperative\_bmad-output\` 比對）：
+**Phase 定義表校準結果**（與 `D:\ForgejoGit\<專案A>\_bmad-output\` 比對）：
 - Phase 2: `ux-spec.md` → `ux-design.md`（實際檔名）
 - Phase 3: 新增 `epics.md`（單檔）和 `implementation-readiness.md`
 - Phase 4: `sprint-status.yaml` 在 `implementation-artifacts/`（確認正確）

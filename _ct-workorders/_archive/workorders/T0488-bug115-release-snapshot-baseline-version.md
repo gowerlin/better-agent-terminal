@@ -104,7 +104,7 @@ memory_overrides:
   - fetch #2（prebuild）：同樣解析為 `v0.6.0-pre.4` → `cache hit` + `manifest.json already present for v0.6.0-pre.4` ✅
   - vite build ✅、zip ✅、`win-unpacked/resources/bat-server-baseline/` = `bat-server-linux-x64-v0.6.0-pre.4.tar.gz` + sha256 + manifest（`version: 0.6.0-pre.4`）✅
   - NSIS 失敗：`File: "…\t0488-wt\release\BetterAgentTerminal Setup 0.6.0-pre.4.local.261013232840.__uninstaller.exe" -> no files found`。該路徑長 **261 字元**（> MAX_PATH 260，makensis 3.0.4.1），為 scratchpad 路徑過長的環境問題，與本單無關
-- **第 2 次**（`git worktree move` 到 `C:\Users\Gower\AppData\Local\Temp\t0488`，2026-10-13T23:32:11+08:00 → 23:33:31，**exit 0**）：
+- **第 2 次**（`git worktree move` 到 `<使用者資料夾>\AppData\Local\Temp\t0488`，2026-10-13T23:32:11+08:00 → 23:33:31，**exit 0**）：
   - fetch #1 / #2 皆 `→ baseline v0.6.0-pre.4`、`cache hit`、manifest 版號相符 ✅
   - 產出：`BetterAgentTerminal Setup 0.6.0-pre.4.local.261013233212.exe`（455.7 MB，sha256 `3d78400fb5bb8090668adc6fca541e09519ec57938caec5d1fcafdda83ddc87c`）、`.blockmap`、`-win.zip`（540.7 MB）、choco `better-agent-terminal.0.6.0-pre.4.local.261013233212.nupkg`、`checksums.sha256`
   - `package.json version restored`；worktree `git status` 只剩本單 4 檔，package.json 版號 `0.6.0-pre.4`

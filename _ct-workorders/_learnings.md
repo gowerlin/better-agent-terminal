@@ -3038,7 +3038,7 @@ spec § C-1 拍板:v1 本機 only,registry push 標 v2
 **反面教訓**：以為是 plugin 本身爛掉（如 `unknown` 子資料夾名 → 假設 metadata 損毀），實際是路徑轉換 bug
 
 **Root cause（三層疊加）**：
-1. `${CLAUDE_PLUGIN_ROOT}` 展開為 POSIX 路徑（`/c/Users/Gower/.claude/plugins/cache/...`）
+1. `${CLAUDE_PLUGIN_ROOT}` 展開為 POSIX 路徑（`<使用者資料夾>/.claude/plugins/cache/...`）
 2. Git Bash (MSYS) 把該變數值傳給 Windows 原生 python3.exe 時，**不**做完整 cygpath 轉換
 3. Windows python3 拿到 `/c/Users/...` 開頭的路徑 → 解釋為「相對於當前磁碟根」→ 因 cwd 在 D:\ 變成 `D:\c\Users\...`
 
@@ -3053,7 +3053,7 @@ spec § C-1 拍板:v1 本機 only,registry push 標 v2
 - 維持 `enabled: false` 是合理短期對策，不必硬修
 - macOS / Linux / 純 PowerShell 終端不會踩這雷
 
-**證據**：本專案 session 41 派發 T0338 時 Worker 撞 `python3.exe: can't open file 'D:\c\Users\Gower\.claude\plugins\cache\claude-plugins-official\security-guidance\unknown\hooks\security_reminder_hook.py'`。實際檔案存在於 `C:\Users\Gower\.claude\plugins\cache\...`，`unknown` 子資料夾名是 plugin 正常結構（無版號 fallback）
+**證據**：本專案 session 41 派發 T0338 時 Worker 撞 `python3.exe: can't open file 'D:\<使用者資料夾>\.claude\plugins\cache\claude-plugins-official\security-guidance\unknown\hooks\security_reminder_hook.py'`。實際檔案存在於 `<使用者資料夾>\.claude\plugins\cache\...`，`unknown` 子資料夾名是 plugin 正常結構（無版號 fallback）
 
 **搭配規則**：
 - 全局 CLAUDE.md「Windows Git Bash 禁止 `TZ='Asia/Taipei'`」同類問題（MSYS 路徑 / 環境變數展開歧異）
@@ -3188,7 +3188,7 @@ Codex 那張是外部測試者回報才發現；Claude 那張是使用者隨口�
 
 **現象**：塔台在 YOLO 連續派工期間，YOLO 歷程與 state 記錄的時間戳大多是「依前一筆遞推」手打的。收工時以 `date` 取得系統時間 16:57，卻發現記錄裡已經有 **16:58、16:58、17:00** —— 比系統時間還晚。其餘十多筆在 ±2 分鐘內，同樣是估的。
 
-**根因**：全域 R-G001 已明文禁止，但在「每張工單收尾 → 寫紀錄 → 派下一張」的高頻循環裡，塔台把「上一筆 + 幾分鐘」當成取時間。正是 R-G001 原始案例（2026_Cooperative，誤差累積到 +3h57m）的同一機制，只是這次在 5 分鐘內就被抓到。
+**根因**：全域 R-G001 已明文禁止，但在「每張工單收尾 → 寫紀錄 → 派下一張」的高頻循環裡，塔台把「上一筆 + 幾分鐘」當成取時間。正是 R-G001 原始案例（專案A，誤差累積到 +3h57m）的同一機制，只是這次在 5 分鐘內就被抓到。
 
 **How to apply**：
 - 寫 YOLO 歷程 / state 的時間前，在同一個 tool call 內先 `date "+%Y-%m-%d %H:%M"`，或在 python 內用 `datetime.now()` 產生

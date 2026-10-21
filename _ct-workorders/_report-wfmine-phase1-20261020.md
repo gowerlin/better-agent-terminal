@@ -57,7 +57,7 @@ workflow_run_id: wf_738991d2-209
 - 【統計】Workflow 工具回報的 `subagent_tokens`：試跑 185,031、全量 run 7,168,989，**合計 7,354,020**。transcript 合計 6,912,086 不含輸出 tokens，兩者差額約 44 萬。以工具回報值為準。
 - 耗時：試跑 143,628 ms（約 2.4 分），全量 run 1,230,603 ms（約 20.5 分）。工具呼叫 17 + 836 次。
 - `runId`：`wf_738991d2-209`（試跑與全量 run 共用；全量以 `resumeFromRunId` 接續試跑）。
-- `scriptPath`：`C:\Users\Gower\AppData\Local\Temp\claude\D--ForgejoGit--Gower-Labs-BMad-Guide-better-agent-terminal-better-agent-terminal\952fc55a-72fe-45bc-a13e-89942d529112\scratchpad\wfmine\wfmine.js`（session scratchpad，非 repo 檔案）。
+- `scriptPath`：`<使用者資料夾>\AppData\Local\Temp\claude\D--ForgejoGit--Gower-Labs-BMad-Guide-better-agent-terminal-better-agent-terminal\952fc55a-72fe-45bc-a13e-89942d529112\scratchpad\wfmine\wfmine.js`（session scratchpad，非 repo 檔案）。
 - 讀完全文的證據：每筆紀錄回傳檔案最後一行非空白內容，Worker 以腳本逐檔比對。714 張完全相符；4 張（T0074、T0170、T0173、T0268）回報的是倒數第 2–3 行（agent 跳過檔尾的「無」、「---」，或全形／半形冒號不同），判定為讀到檔尾。
 
 ### 1.3 與核准規模的偏差

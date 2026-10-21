@@ -47,8 +47,8 @@ memory_overrides:
 |---|---|---|
 | B1 | BUG-115 | `.vscode/scripts/release.ps1 -Snapshot`（本機 snapshot 打包）可跑完：`fetch:baseline` 取基底版號 `0.6.0-pre.6`（不 404），產出安裝檔；附 log 關鍵行（解析出的 baseline 版號、產物路徑與大小） |
 | B2 | BUG-118（Linux） | 從 `v0.6.0-pre.6` release 唯讀下載 Linux AppImage，在 WSL `/tmp/bat-t0516-*` 以 `--appimage-extract` 解開，確認 `resources/app.asar.unpacked/node_modules/@anthropic-ai/claude-code-linux-x64/claude`（或 fallback `claude-code/bin/claude.exe`）存在、為 ELF x86-64，執行 `--version` = `2.1.296 (Claude Code)` |
-| B3 | BUG-118 / 117（mac 產物層） | 下載 pre.6 arm64 dmg，以可用工具（如 7-Zip）唯讀解開，檢查：內嵌 claude 依 `embeddedClaudeCandidates` 規則存在、Mach-O cputype = arm64；確認 release 不含 x64 dmg（D136）。無法在 Windows 解開 dmg 時，改以 `pre-release.yml` 該 run（`38450958394`）的 `verify-packaged-native` job log 為證據，並標「mac 實機啟動需 Gary」 |
-| B4 | BUG-116（產物層） | 同上 dmg：`@kutalia/whisper-node-addon/dist/{mac,darwin}-arm64/whisper.node` 存在。實際啟動不崩潰 → NEEDS-HUMAN（Gary） |
+| B3 | BUG-118 / 117（mac 產物層） | 下載 pre.6 arm64 dmg，以可用工具（如 7-Zip）唯讀解開，檢查：內嵌 claude 依 `embeddedClaudeCandidates` 規則存在、Mach-O cputype = arm64；確認 release 不含 x64 dmg（D136）。無法在 Windows 解開 dmg 時，改以 `pre-release.yml` 該 run（`38450958394`）的 `verify-packaged-native` job log 為證據，並標「mac 實機啟動需 外部測試者A」 |
+| B4 | BUG-116（產物層） | 同上 dmg：`@kutalia/whisper-node-addon/dist/{mac,darwin}-arm64/whisper.node` 存在。實際啟動不崩潰 → NEEDS-HUMAN（外部測試者A） |
 
 每項標 PASS / FAIL / NEEDS-HUMAN，附證據。
 
@@ -68,14 +68,14 @@ memory_overrides:
 
 ## 回報區
 
-### 結果摘要：DONE（B1 / B2 PASS；B3 / B4 產物層 PASS，mac 實機啟動 NEEDS-HUMAN：Gary）
+### 結果摘要：DONE（B1 / B2 PASS；B3 / B4 產物層 PASS，mac 實機啟動 NEEDS-HUMAN：外部測試者A）
 
 | # | BUG | 結論 | 一句話 |
 |---|---|---|---|
 | B1 | BUG-115 | ✅ PASS | 隔離 worktree `release.ps1 -Snapshot` exit 0；兩次 `fetch:baseline` 皆解析為 `v0.6.0-pre.6`（首次下載、第二次 cache hit），無 404；產出 Setup exe / zip / nupkg |
 | B2 | BUG-118（Linux） | ✅ PASS | pre.6 AppImage 在 WSL `/tmp/bat-t0516-*` 解開：`claude-code-linux-x64/claude` 存在、ELF x86-64，`--version` = `2.1.296 (Claude Code)` |
-| B3 | BUG-118 / 117（mac 產物層） | ✅ PASS（產物層）／🧑 NEEDS-HUMAN（mac 實機啟動，Gary） | arm64 dmg 以 7-Zip 解開：`claude-code-darwin-arm64/claude` Mach-O cputype `0x100000c`（arm64）；主程式 arm64；release 無 x64 dmg（D136） |
-| B4 | BUG-116（產物層） | ✅ PASS（產物層）／🧑 NEEDS-HUMAN（實際啟動不崩潰，Gary） | `whisper-node-addon/dist/mac-arm64/whisper.node` 存在，Mach-O arm64（filetype 6 = bundle） |
+| B3 | BUG-118 / 117（mac 產物層） | ✅ PASS（產物層）／🧑 NEEDS-HUMAN（mac 實機啟動，外部測試者A） | arm64 dmg 以 7-Zip 解開：`claude-code-darwin-arm64/claude` Mach-O cputype `0x100000c`（arm64）；主程式 arm64；release 無 x64 dmg（D136） |
+| B4 | BUG-116（產物層） | ✅ PASS（產物層）／🧑 NEEDS-HUMAN（實際啟動不崩潰，外部測試者A） | `whisper-node-addon/dist/mac-arm64/whisper.node` 存在，Mach-O arm64（filetype 6 = bundle） |
 
 ### Landing Zone Check：PASS
 
@@ -91,11 +91,11 @@ memory_overrides:
 - 隔離：`git worktree add --detach <scratchpad>/t0516-wt HEAD`（HEAD = `913e1d3`）→ `npm ci`（exit 0；只有預期的 `electron-winstaller` allowScripts 警告）→ `release.ps1 -Snapshot`
 - **第 1 次執行 exit 1，原因是環境，不是 BUG-115**：fetch 段已正確（`snapshot version 0.6.0-pre.6.local.261014034450 … → baseline v0.6.0-pre.6`，下載 + 驗證 OK，第二次 cache hit），之後在 NSIS 階段失敗：
   ```
-  !include: could not open file: "C:\Users\Gower\AppData\Local\Temp\claude\D--…\scratchpad\t0516-wt\node_modules\app-builder-lib\templates\nsis\include\allowOnlyOneInstallerInstance.nsh"
+  !include: could not open file: "<使用者資料夾>\AppData\Local\Temp\claude\D--…\scratchpad\t0516-wt\node_modules\app-builder-lib\templates\nsis\include\allowOnlyOneInstallerInstance.nsh"
   Error in script "<stdin>" on line 88 -- aborting creation process
   ```
   該檔確實存在，但完整路徑 **264 字元，超過 MAX_PATH 260**，`makensis.exe` 無法開啟。scratchpad 路徑過長導致，與產品無關。
-- **處置（偏離建議路徑，已記錄）**：`git worktree move` 到較短路徑 `C:\Users\Gower\AppData\Local\Temp\t0516-wt`（同磁碟只是 rename，保留 `node_modules`），刪掉自己產生的 `release/` 與 `dist-baseline/`（讓 fetch 重新從網路下載，確保「不 404」的證據完整），然後重跑
+- **處置（偏離建議路徑，已記錄）**：`git worktree move` 到較短路徑 `<使用者資料夾>\AppData\Local\Temp\t0516-wt`（同磁碟只是 rename，保留 `node_modules`），刪掉自己產生的 `release/` 與 `dist-baseline/`（讓 fetch 重新從網路下載，確保「不 404」的證據完整），然後重跑
 - **第 2 次執行（`2026-10-14T03:47:34+0800` → `03:49:25+0800`，`RELEASE_EXIT=0`）關鍵行**：
   ```
   [fetch-baseline] snapshot version 0.6.0-pre.6.local.261014034735 (from BAT_BASELINE_VERSION) → baseline v0.6.0-pre.6
@@ -139,13 +139,13 @@ memory_overrides:
 - fallback `claude-code/bin/claude.exe`：dmg 內沒有（`claude-code/` 只有 `cli-wrapper.cjs` / `install.cjs` / `LICENSE.md` / `package.json`），符合預期；router 取候選 1
 - dmg 清單中沒有任何 `darwin-x64` 子套件
 - 對照 CI：run `38450958394` 的 job `build (macos-latest, mac)` 步驟 `Verify packaged native binaries (macOS arm64)`：`✅ arm64: BetterAgentTerminal.app — main arm64, 52 Mach-O under app.asar.unpacked, embedded claude …/claude-code-darwin-arm64/claude, whisper …/dist/mac-arm64/whisper.node` / `✅ every mac .app passed (arm64)`
-- 🧑 **NEEDS-HUMAN（Gary）**：在 Apple Silicon 實機安裝後，以預設 embedded runtime 開 Agent session 或 claude-cli 分頁能正常啟動
+- 🧑 **NEEDS-HUMAN（外部測試者A）**：在 Apple Silicon 實機安裝後，以預設 embedded runtime 開 Agent session 或 claude-cli 分頁能正常啟動
 
 ### B4 — BUG-116 產物層（✅ PASS 產物層；🧑 NEEDS-HUMAN 實機）
 
 - 同一個 dmg：`@kutalia/whisper-node-addon/dist/mac-arm64/` 包含 `whisper.node`、`libwhisper*.dylib`、`libggml*.dylib`；`dist/mac-x64/` 也在（套件本身附帶，`isCrossArchAllowed` 允許清單內）；沒有 `darwin-arm64/`（loader 以 `mac-<arch>` 優先，`darwin-<arch>` 只是 fallback，`electron/whisper-addon-loader.ts:56`）
 - `dist/mac-arm64/whisper.node`：673,104 bytes，Mach-O 64，cputype `0x100000c`（arm64），filetype 6（MH_BUNDLE）
-- 🧑 **NEEDS-HUMAN（Gary）**：mac 實機啟動不跳 `A JavaScript error occurred in the main process`，語音輸入可用（或至少停用而不崩潰）
+- 🧑 **NEEDS-HUMAN（外部測試者A）**：mac 實機啟動不跳 `A JavaScript error occurred in the main process`，語音輸入可用（或至少停用而不崩潰）
 
 ### 變更檔案
 
@@ -154,7 +154,7 @@ memory_overrides:
 
 ### 隔離與清理證據
 
-- worktree：`git worktree remove --force C:/Users/Gower/AppData/Local/Temp/t0516-wt` exit 0；`git worktree list` 只剩主 repo
+- worktree：`git worktree remove --force <使用者資料夾>/AppData/Local/Temp/t0516-wt` exit 0；`git worktree list` 只剩主 repo
 - WSL：`/tmp/bat-t0516-6gQqNS` 已刪（`ls -d /tmp/bat-t0516-*` 找不到）；沒有動 `~/.local/bat-server`，沒有執行 `wsl --shutdown` / `--terminate`
 - 下載的 AppImage / dmg 與解出的檔案已從 scratchpad 刪除；只保留 log（`t0516-b1*.log`、`t0516-b2.log`、`t0516-ci-{mac,linux}.log`、`t0516-dmg-list.txt`）
 - 主 repo `git status`：沒有 `dist*/` / `release/` 或其他由本單產生的追蹤變更。其餘 dirty 項目（`src/styles/settings.css`、T0514 / T0515 工單、`e2e/real-remote/t0514-*` / `t0515-*`）屬使用者或並行工單，未碰觸

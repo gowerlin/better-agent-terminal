@@ -50,7 +50,7 @@
 ### 調查步驟
 
 #### Step 1：Debug Log 分析
-1. 讀取 debug log 目錄：`C:\Users\Gower\AppData\Roaming\better-agent-terminal\Logs`
+1. 讀取 debug log 目錄：`<使用者資料夾>\AppData\Roaming\better-agent-terminal\Logs`
 2. 先列出檔案清單（`ls -la`），確認 log 檔案大小和數量
 3. **不要 cat 整個 log 檔案**。先 grep 以下關鍵字：
    - `error`、`Error`、`ERROR`

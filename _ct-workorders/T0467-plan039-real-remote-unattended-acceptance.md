@@ -225,7 +225,7 @@ Windows host
 
 **對下一輪實作有用的發現（Docker 就緒後仍適用）**
 
-1. **known_hosts 隔離**：BAT 的 ssh 呼叫一律帶 `-o StrictHostKeyChecking=accept-new`（`electron/remote/ssh-args.ts` `buildBaseSshArgs`），首次連線會寫 known_hosts。Windows 內建 `C:\Windows\System32\OpenSSH\ssh.exe`（`OpenSSH_for_Windows_9.5p2`）**不吃 `HOME` / `USERPROFILE`**：兩者都改成暫存目錄後 `ssh -G localhost` 仍是 `userknownhostsfile C:\Users\Gower/.ssh/known_hosts`。Git for Windows 的 `C:\Program Files\Git\usr\bin\ssh.exe` 會吃 `HOME`（`nsswitch.conf` `db_home: env windows ...`），`HOME` 指到暫存目錄後是 `/tmp/.../.ssh/known_hosts`。⇒ spec 要給 S 實例的 env 在 `PATH` 前面插入 Git `usr\bin`，並把 `HOME` 設成 isolated 目錄，才不會寫到使用者的 `~/.ssh/known_hosts`。這和實際 BAT（從 Explorer 啟動時用 System32 ssh）不一樣，回報時要註明。
+1. **known_hosts 隔離**：BAT 的 ssh 呼叫一律帶 `-o StrictHostKeyChecking=accept-new`（`electron/remote/ssh-args.ts` `buildBaseSshArgs`），首次連線會寫 known_hosts。Windows 內建 `C:\Windows\System32\OpenSSH\ssh.exe`（`OpenSSH_for_Windows_9.5p2`）**不吃 `HOME` / `USERPROFILE`**：兩者都改成暫存目錄後 `ssh -G localhost` 仍是 `userknownhostsfile <使用者資料夾>/.ssh/known_hosts`。Git for Windows 的 `C:\Program Files\Git\usr\bin\ssh.exe` 會吃 `HOME`（`nsswitch.conf` `db_home: env windows ...`），`HOME` 指到暫存目錄後是 `/tmp/.../.ssh/known_hosts`。⇒ spec 要給 S 實例的 env 在 `PATH` 前面插入 Git `usr\bin`，並把 `HOME` 設成 isolated 目錄，才不會寫到使用者的 `~/.ssh/known_hosts`。這和實際 BAT（從 Explorer 啟動時用 System32 ssh）不一樣，回報時要註明。
 2. **金鑰路徑不可含空白**：`validateSshIdentifier` 拒絕空白與控制字元，所以 `sshKeyPath` 要放在沒有空白的 isolated 目錄（scratchpad / `%TEMP%` 路徑可以）。
 3. **S profile 形狀**：`targetOS: 'ssh-linux'` 一律走 tunnel（T0425），`ssh -N -L <動態埠>:localhost:<remotePort>`，wss 改連 `127.0.0.1:<動態埠>`；`remoteToken` / `remoteFingerprint` 要用容器內 server 的值。
 4. **W profile**：連 `localhost:9877`；token / fingerprint 可從 WSL server 的 data dir 讀取（`~/.local/share/bat-server`，本次未讀取內容）。

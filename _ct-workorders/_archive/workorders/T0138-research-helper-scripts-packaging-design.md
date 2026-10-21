@@ -161,7 +161,7 @@ BUG-032 揭露：BAT helper scripts（`bat-terminal.mjs` + `bat-notify.mjs`）�
 - `SKILL.md` L40-42（白名單 3 行，含 `bat-notify.mjs`）
 - `references/auto-session.md` L87-137（多處範例與說明）
 
-**結論**：開發機巧合能跑是因為塔台 Claude session cwd = BAT 原始碼目錄，相對路徑湊巧解析成功。使用者環境 cwd = workspace（如 `2026_Taipower`），相對路徑必失敗。
+**結論**：開發機巧合能跑是因為塔台 Claude session cwd = BAT 原始碼目錄，相對路徑湊巧解析成功。使用者環境 cwd = workspace（如 `<專案C>`），相對路徑必失敗。
 
 ---
 
@@ -261,7 +261,7 @@ BUG-032 揭露：BAT helper scripts（`bat-terminal.mjs` + `bat-notify.mjs`）�
 
 - **範圍**：
   1. `npm run build` 產生安裝包
-  2. 在 `D:\ForgejoGit\2026_Taipower` 實戰重裝 BAT
+  2. 在 `D:\ForgejoGit\<專案C>` 實戰重裝 BAT
   3. 派發測試工單，驗證 auto-session 路由成功（非降級剪貼簿）
   4. 驗證 Worker 完成後自動通知塔台（T0133 鏈路）
   5. 並帶跑 T0135 9 項 MANUAL + BUG-031 副作用檢查（workspace 一致性）

@@ -124,8 +124,8 @@ crashDumps=...\Roaming\bat-probe-lower\Crashes
 對照組：import 時不呼叫 getPath（打包模式，exe 不叫 `electron.exe`，`isPackaged=true`）的話，全程都是 `BatProbeUpper`，不會出現小寫目錄。
 
 **本機 Windows 實證（只讀）**：
-- `%APPDATA%\BetterAgentTerminal\`：`settings.json`、`windows.json`（22:10 更新）、`profiles/`、`server-cert.json`、`server-token.json`、`whisper-models/`、`bat-pty-*`，以及 Chromium 的 `Preferences` / `Local Storage` 等。環境變數 `BAT_USER_DATA=C:\Users\Gower\AppData\Roaming\BetterAgentTerminal` 由 terminal server 繼承，該值在 `main.ts:303` 取得，時間點在 setPath 之後
-- `%APPDATA%\better-agent-terminal\`：`Logs\debug-20261013-144906.log`（目前執行中的實例，argv=`C:\Program Files\BetterAgentTerminal\BetterAgentTerminal.exe`）、`Crashes/`、`lockfile`（單一實例鎖）、`Local State`。該 log 內有一行 `[startup] crashDumps path: C:\Users\Gower\AppData\Roaming\better-agent-terminal\Crashes`
+- `%APPDATA%\BetterAgentTerminal\`：`settings.json`、`windows.json`（22:10 更新）、`profiles/`、`server-cert.json`、`server-token.json`、`whisper-models/`、`bat-pty-*`，以及 Chromium 的 `Preferences` / `Local Storage` 等。環境變數 `BAT_USER_DATA=<使用者資料夾>\AppData\Roaming\BetterAgentTerminal` 由 terminal server 繼承，該值在 `main.ts:303` 取得，時間點在 setPath 之後
+- `%APPDATA%\better-agent-terminal\`：`Logs\debug-20261013-144906.log`（目前執行中的實例，argv=`C:\Program Files\BetterAgentTerminal\BetterAgentTerminal.exe`）、`Crashes/`、`lockfile`（單一實例鎖）、`Local State`。該 log 內有一行 `[startup] crashDumps path: <使用者資料夾>\AppData\Roaming\better-agent-terminal\Crashes`
 - 本機沒有 `*-runtime-*` 目錄。runtime 實例的路徑 `better-agent-terminal-runtime-<N>` 是由程式碼與 PathService 語意推導出來的，**未經實機觀察**
 - macOS / Linux 走同一條 Electron PathService 路徑，依程式碼推導，**未實機驗證**。README 與 CLAUDE.md 都以規則形式描述三平台
 

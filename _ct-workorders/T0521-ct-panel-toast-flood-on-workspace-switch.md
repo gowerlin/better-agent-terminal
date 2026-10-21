@@ -40,7 +40,7 @@ memory_overrides:
 
 ## 背景
 
-Gary（mac）回報，在兩個工作區之間切換時，右側指揮塔面板疊出一整排 `📋 新工單: T000x` 和 `✅ T0001 已完成` toast，半透明地蓋住面板分頁和標題，他稱為「殘影」。截圖、現象和塔台初步定位見 **BUG-127**（請先讀並看截圖 `D:\Downloads\messageImage_1791954959950.jpg`）。
+外部測試者A（mac）回報，在兩個工作區之間切換時，右側指揮塔面板疊出一整排 `📋 新工單: T000x` 和 `✅ T0001 已完成` toast，半透明地蓋住面板分頁和標題，他稱為「殘影」。截圖、現象和塔台初步定位見 **BUG-127**（請先讀並看截圖 `D:\Downloads\messageImage_1791954959950.jpg`）。
 
 一句話推定根因：`ControlTowerPanel.tsx` 的 `prevOrdersRef`（:72）只在第一次載入（`size === 0`）時當基準線，切換工作區後沒有重設，新工作區的工單全部被判成新工單或狀態變更。
 
@@ -97,7 +97,7 @@ Gary（mac）回報，在兩個工作區之間切換時，右側指揮塔面板�
 
 ### 1. 根因複核
 
-- **右側邊欄（Gary 的情境）是同一個 instance 換 `workspaceFolderPath`**：`src/App.tsx:1167-1169` 以 `key={panel}`（`'control-tower'`）渲染 `renderDockablePanel(panel)`，`:848-850` 傳 `workspaceFolderPath={activeWorkspace.folderPath}`。切換工作區不 remount，`prevOrdersRef` 沿用舊工作區的 map。舊邏輯只在 `prevMap.size === 0` 時靜默建基準線，所以新工作區每張 id 不在舊 map 的工單都判成「新工單」、同 id 不同狀態（截圖的 T0001）判成「狀態變更」→ toast 洪水。塔台初步定位正確。
+- **右側邊欄（外部測試者A 的情境）是同一個 instance 換 `workspaceFolderPath`**：`src/App.tsx:1167-1169` 以 `key={panel}`（`'control-tower'`）渲染 `renderDockablePanel(panel)`，`:848-850` 傳 `workspaceFolderPath={activeWorkspace.folderPath}`。切換工作區不 remount，`prevOrdersRef` 沿用舊工作區的 map。舊邏輯只在 `prevMap.size === 0` 時靜默建基準線，所以新工作區每張 id 不在舊 map 的工單都判成「新工單」、同 id 不同狀態（截圖的 T0001）判成「狀態變更」→ toast 洪水。塔台初步定位正確。
 - **主窗格 docked（`WorkspaceView.tsx:1140`）是每個工作區各一個 instance**：`App.tsx:1098-1101` 以 `key={workspace.id}` 保持 mounted（隱藏的加 `hidden` class）。每個 instance 的 `workspaceFolderPath` 固定、各有自己的 ref，**不會互相影響**，也沒有這個 bug；隱藏中的 instance 仍會偵測並發 toast，但 ToastItem 的計時器照跑、到時自動消失，切過去最多看到幾秒內的真實更新。
 - 另一個舊邏輯缺陷：工作區一開始 0 張工單時 `size === 0` 永遠成立，第一張新工單不會通知。新邏輯以「基準線是否屬於這個目錄」判斷，已一併修正（單元測試涵蓋）。
 - **非同步競態**：`loadWorkOrders` 對每個檔案逐一 `await readFile`，切換時舊工作區的讀取可能晚到，舊碼會把舊工作區的清單 `setWorkOrders` 到新工作區、並以它覆寫基準線。

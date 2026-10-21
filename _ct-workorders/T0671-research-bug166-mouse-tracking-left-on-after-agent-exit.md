@@ -15,7 +15,7 @@ updated_at: "2026-10-19T16:34:26+0800"
 completed_at: "2026-10-19T16:34:26+0800"
 depends_on: []
 related:
-  - "BUG-166（OPEN；Gary 截圖、塔台初判）"
+  - "BUG-166（OPEN；外部測試者A 截圖、塔台初判）"
   - "BUG-165 / T0670（同時進行：Codex CLI 捲動順暢度研究，也會碰滑鼠追蹤；兩邊只讀、不互改檔案）"
   - "BUG-142 / T0568 / T0569 / T0571 / T0573（右鍵選單與滑鼠追蹤、Shift 拖曳選取；`src/lib/terminal-context-menu.ts`、TerminalPanel `registerCsiHandler`）"
 affects_files:
@@ -30,8 +30,8 @@ interaction:
   intervention_type: fire-and-forget
 memory_overrides:
   - "🔴 研究單、**唯讀**：不改任何產品檔、不改 BUG-166 / T0670 / 其他工單 / 塔台狀態檔；只 commit 本工單檔（`git commit --only`）。不 push。"
-  - "🔴 Gary 截圖含客戶專案路徑：不得複製進 repo；引用時去識別化。"
-  - "🔴 yolo Worker：不得問使用者。要不要修、怎麼修是**使用者決定**，你只提推薦；判讀問題依 ct-exec § Questions For Tower 問塔台（每輪最多 3 題）。需要 Gary 做的事寫成「給 Gary 的問題 / 測試」清單。"
+  - "🔴 外部測試者A 截圖含客戶專案路徑：不得複製進 repo；引用時去識別化。"
+  - "🔴 yolo Worker：不得問使用者。要不要修、怎麼修是**使用者決定**，你只提推薦；判讀問題依 ct-exec § Questions For Tower 問塔台（每輪最多 3 題）。需要 外部測試者A 做的事寫成「給 外部測試者A 的問題 / 測試」清單。"
   - "🔴 不得在任何地方寫出權杖值。"
 ---
 
@@ -39,7 +39,7 @@ memory_overrides:
 
 ## 研究目標
 
-Gary（macOS，`v0.7.1-pre.3`）回報：點到「已完成工單」的 Worker 分頁時，有時 shell 命令列不斷冒出 `35;52;69M35;55;66M…64M39;3;64M` 這類字串。塔台初判是 SGR 滑鼠回報殘留（見 BUG-166「塔台初判」）。請**證實或推翻**初判，找出是誰讓追蹤模式留著，並給出可決策的修正方向。
+外部測試者A（macOS，`v0.7.1-pre.3`）回報：點到「已完成工單」的 Worker 分頁時，有時 shell 命令列不斷冒出 `35;52;69M35;55;66M…64M39;3;64M` 這類字串。塔台初判是 SGR 滑鼠回報殘留（見 BUG-166「塔台初判」）。請**證實或推翻**初判，找出是誰讓追蹤模式留著，並給出可決策的修正方向。
 
 ## 已知資訊
 
@@ -69,12 +69,12 @@ Gary（macOS，`v0.7.1-pre.3`）回報：點到「已完成工單」的 Worker �
 ## 研究指引
 
 - 結論每條標「原始碼 / 實測 / 推論」，不轉述未證實的根因。
-- 給 Gary 的確認測試 ≤ 3 項（BUG-166「待確認」可沿用或修改）。
+- 給 外部測試者A 的確認測試 ≤ 3 項（BUG-166「待確認」可沿用或修改）。
 
 ## 互動規則
 
 - yolo、`--no-interactive`：不問使用者；判讀問題問塔台（每輪 ≤ 3 題）。
-- 需要 Gary 回答的事寫進回報區「給 Gary 的問題 / 測試」。
+- 需要 外部測試者A 回答的事寫進回報區「給 外部測試者A 的問題 / 測試」。
 
 ---
 
@@ -84,7 +84,7 @@ Gary（macOS，`v0.7.1-pre.3`）回報：點到「已完成工單」的 Worker �
 
 ### 結論摘要
 
-一句話：**初判成立，但要補一個條件：codex 只有在「被訊號結束」時才會把滑鼠追蹤留著。** codex-cli 0.163.0 用 `/quit`、Ctrl+C、Ctrl+D、Ctrl+Z 離開時都會送出 `?1006l ?1015l ?1003l ?1002l ?1000l` 和 `?1049l`，終端狀態是乾淨的。它收到 SIGINT / SIGTERM / SIGHUP（不管送給原生 binary 還是 npm 的 node 包裝程序），或被 SIGKILL 時，什麼都不送就結束。xterm 因此停在 `mouseTrackingMode=any`，也還在 alt screen。之後每次滑鼠移動，xterm 都把 `ESC[<35;x;yM` 寫進 shell。zsh 5.9 和 bash 吃掉 `ESC [ <`，其餘當文字插入，字串跟 Gary 截圖的 `35;52;69M35;55;66M…64;39;3M` 一模一樣（實測）。
+一句話：**初判成立，但要補一個條件：codex 只有在「被訊號結束」時才會把滑鼠追蹤留著。** codex-cli 0.163.0 用 `/quit`、Ctrl+C、Ctrl+D、Ctrl+Z 離開時都會送出 `?1006l ?1015l ?1003l ?1002l ?1000l` 和 `?1049l`，終端狀態是乾淨的。它收到 SIGINT / SIGTERM / SIGHUP（不管送給原生 binary 還是 npm 的 node 包裝程序），或被 SIGKILL 時，什麼都不送就結束。xterm 因此停在 `mouseTrackingMode=any`，也還在 alt screen。之後每次滑鼠移動，xterm 都把 `ESC[<35;x;yM` 寫進 shell。zsh 5.9 和 bash 吃掉 `ESC [ <`，其餘當文字插入，字串跟 外部測試者A 截圖的 `35;52;69M35;55;66M…64;39;3M` 一模一樣（實測）。
 
 - **BAT 本身不會開啟或保留追蹤**（原始碼）：產品程式只「讀」`terminal.modes.mouseTrackingMode`，從來不寫任何滑鼠 DECSET / DECRST。`registerCsiHandler` 回 `false`，不攔截也不重送。`SelectionDrag.resume()` 補的 `mousedown` 帶的是強制選取的修飾鍵，xterm 不會送回報。BAT 在 agent 結束時也不會重設滑鼠模式：shell 還活著，BAT 收不到任何事件；`pty.onExit` 只寫一行 `[Process exited …]`。
 - **Claude CLI**（2.1.303）：預設（inline）renderer **不開滑鼠追蹤**，任何退出方式都不會殘留。fullscreen renderer（`CLAUDE_CODE_NO_FLICKER=1` / `/tui fullscreen`）會開 `?1000h ?1002h ?1003h ?1006h`，但 `/exit`、Ctrl+C ×2、Ctrl+Z、SIGTERM、SIGHUP 都會還原。**只有 SIGKILL 會殘留**，這是任何程式都無法處理的情況。差別在於 claude 有處理訊號、codex 沒有。
@@ -130,18 +130,18 @@ Gary（macOS，`v0.7.1-pre.3`）回報：點到「已完成工單」的 Worker �
 | claude fullscreen | Ctrl+Z → `fg` → `/exit` | ✅ 暫停時全部還原，`fg` 後重開，最後乾淨 | Ctrl+Z 無作用，`/exit` 乾淨 |
 | claude fullscreen | SIGTERM / SIGHUP | ✅ 乾淨（exit 143 / 129，有處理訊號並還原） | — |
 | claude fullscreen | SIGKILL / `taskkill /F` | 🔴 殘留（無法避免） | ⚪ 同 codex：ConPTY 吃掉回報，沒有殘骸 |
-| 對照：手動 `printf '\e[?1003h\e[?1006h'` | 之後移動 / 滾輪 | 🔴 bash：`^G35;52;69M^G35;55;66M…64;39;3M` 插進命令列；**zsh 5.9：同樣插入 `35;52;69M35;55;66M35;57;64M64;39;3M64;39;3M`**（和 Gary 截圖相同） | pwsh 原生：沒有殘骸；**ConPTY + wsl.exe 的 bash：🔴 會重現**（`35;52;20M35;55;21M64;39;3M`） |
+| 對照：手動 `printf '\e[?1003h\e[?1006h'` | 之後移動 / 滾輪 | 🔴 bash：`^G35;52;69M^G35;55;66M…64;39;3M` 插進命令列；**zsh 5.9：同樣插入 `35;52;69M35;55;66M35;57;64M64;39;3M64;39;3M`**（和 外部測試者A 截圖相同） | pwsh 原生：沒有殘骸；**ConPTY + wsl.exe 的 bash：🔴 會重現**（`35;52;20M35;55;21M64;39;3M`） |
 
 補充（實測）：
 - claude 第一次測 Ctrl+C 兩下間隔 1 s 時沒有退出（第二下太慢），改成 0.4 s 才退出。這和殘留無關。
 - claude 2.1.303 在 Windows 用全新 config、沒有任何 env 時，預設就是 fullscreen（alt screen + 滑鼠追蹤）；WSL 預設是 inline。原因沒有追查（binary 內有 `CLAUDE_CODE_TUI_TRIAL` 等字串，推論是預設值有分流）。這台機器使用者的 `~/.claude/settings.json` 也有 `"tui": "fullscreen"`，本 Worker 的 PTY env 裡也有 `CLAUDE_CODE_NO_FLICKER=1` ⇒ 使用者的 claude 分頁本來就開著滑鼠追蹤，只是 claude 會正確還原。
-- codex 被訊號結束後，除了 1000/1002/1003/1006，**alt screen（1049）和 focus 回報（1004）也一起殘留**。所以那個分頁回到的 shell 是畫在 alt buffer 上，沒有 scrollback（往上捲看不到 codex 對話）。這可以當成「是被訊號 / 崩潰結束」的辨識特徵（見給 Gary 的測試 3）。
+- codex 被訊號結束後，除了 1000/1002/1003/1006，**alt screen（1049）和 focus 回報（1004）也一起殘留**。所以那個分頁回到的 shell 是畫在 alt buffer 上，沒有 scrollback（往上捲看不到 codex 對話）。這可以當成「是被訊號 / 崩潰結束」的辨識特徵（見給 外部測試者A 的測試 3）。
 - codex 的 kitty keyboard（`ESC[>…u` / `ESC[<1u`）和 modifyOtherKeys（`ESC[>4;…m`）也只在正常退出時才還原，但 xterm.js 5.5 不支援這兩者，對 BAT 沒有影響（推論）。
 
-#### 4. 為什麼 Gary 的分頁會是「被訊號結束」（推論，待確認）
+#### 4. 為什麼 外部測試者A 的分頁會是「被訊號結束」（推論，待確認）
 
-- 正常的 Worker 收尾（`/quit` 或 Ctrl+C）不會殘留，所以 Gary 那個分頁的 codex 應該不是正常退出。在 BAT 裡會讓 codex 被訊號結束、但 shell 還活著的情況，可能有：其他程序 `kill` codex、macOS 記憶體壓力把程序殺掉、codex 崩潰（panic 時的終端還原沒有驗證）、codex 還沒進 raw mode 時按到 Ctrl+C（變成 SIGINT）。BAT 自己沒有任何會對 codex 單獨送訊號的路徑：✕ / `--close-worker` 是整個分頁一起關（原始碼：`closeTerminalNow` → `PtyManager.kill`）。
-- 「點到已完成工單的分頁」才看到：滑鼠只有移到那個分頁上，xterm 才會送回報；Gary 的描述和「移動就產生」一致（推論）。
+- 正常的 Worker 收尾（`/quit` 或 Ctrl+C）不會殘留，所以 外部測試者A 那個分頁的 codex 應該不是正常退出。在 BAT 裡會讓 codex 被訊號結束、但 shell 還活著的情況，可能有：其他程序 `kill` codex、macOS 記憶體壓力把程序殺掉、codex 崩潰（panic 時的終端還原沒有驗證）、codex 還沒進 raw mode 時按到 Ctrl+C（變成 SIGINT）。BAT 自己沒有任何會對 codex 單獨送訊號的路徑：✕ / `--close-worker` 是整個分頁一起關（原始碼：`closeTerminalNow` → `PtyManager.kill`）。
+- 「點到已完成工單的分頁」才看到：滑鼠只有移到那個分頁上，xterm 才會送回報；外部測試者A 的描述和「移動就產生」一致（推論）。
 
 #### 5. 與 BUG-165 的關聯（只記觀察）
 
@@ -161,7 +161,7 @@ Gary（macOS，`v0.7.1-pre.3`）回報：點到「已完成工單」的 Worker �
 
 推薦：**F1 + F2 開一張實作單（S）**；F4 要不要回報上游由使用者決定。
 
-### 給 Gary 的問題 / 測試（≤ 3）
+### 給 外部測試者A 的問題 / 測試（≤ 3）
 
 1. 出現亂碼的那個分頁，codex 是怎麼結束的？是你自己按了什麼（Ctrl+C / `/quit` / 關掉什麼），還是你回來時就已經是 shell 了？當時 Mac 記憶體吃緊嗎？
 2. 出現亂碼時，在那個分頁執行 `printf '\e[?1000l\e[?1002l\e[?1003l\e[?1006l'`，再移動滑鼠，是否就停止了？（確認是追蹤模式殘留；命令列裡已經有的殘骸先按 Ctrl+U 清掉）
@@ -182,7 +182,7 @@ Gary（macOS，`v0.7.1-pre.3`）回報：點到「已完成工單」的 Worker �
 ### 範圍與限制遵守
 
 - 唯讀：沒有修改任何產品檔、BUG-166、T0670 或塔台狀態檔，只 commit 本工單檔（`git commit --only`），沒有 push。
-- 沒有使用 Gary 的截圖或檔案；回報中只引用 BUG-166 已去識別化的字串。
+- 沒有使用 外部測試者A 的截圖或檔案；回報中只引用 BUG-166 已去識別化的字串。
 - 權杖：沒有在任何地方寫出權杖值。測試用的假金鑰只存在暫存 home 裡，已刪除。
 - 清理：WSL `/tmp/t0671`（含暫存 codex / claude 安裝、zsh 解壓、2 個 codex app-server daemon 程序）已停止並刪除；Windows scratchpad 的暫存 `CODEX_HOME` / `CLAUDE_CONFIG_DIR` / 擷取檔已刪除，2 個孤兒 `pwsh -NoProfile -NoLogo` 測試程序已結束。擷取 / 分析腳本留在 scratchpad（`cap.py`、`modes.py`、`at.py`、`xt.cjs`、`wincap.cjs` 等），沒有放進 repo。
 - 未做：macOS 實機（沒有 Mac）；codex panic 時的終端還原（無法觸發）；codex Windows 版 Ctrl+D。

@@ -104,11 +104,11 @@ memory_overrides:
 
 截圖（scratchpad）：
 
-- `C:\Users\Gower\AppData\Local\Temp\claude\D--ForgejoGit--Gower-Labs-BMad-Guide-better-agent-terminal-better-agent-terminal\9656a92b-e152-4684-a663-3663705a133a\scratchpad\t0662-1440-light-1.png`（桌面淺色，第 1–5 代）
-- `C:\Users\Gower\AppData\Local\Temp\claude\D--ForgejoGit--Gower-Labs-BMad-Guide-better-agent-terminal-better-agent-terminal\9656a92b-e152-4684-a663-3663705a133a\scratchpad\t0662-1440-light-2.png`（桌面淺色，第 4–7 代與收束）
-- `C:\Users\Gower\AppData\Local\Temp\claude\D--ForgejoGit--Gower-Labs-BMad-Guide-better-agent-terminal-better-agent-terminal\9656a92b-e152-4684-a663-3663705a133a\scratchpad\t0662-1440-dark.png`（桌面深色）
-- `C:\Users\Gower\AppData\Local\Temp\claude\D--ForgejoGit--Gower-Labs-BMad-Guide-better-agent-terminal-better-agent-terminal\9656a92b-e152-4684-a663-3663705a133a\scratchpad\t0662-390-light.png`（手機淺色，第 6–7 代與收束）
-- `C:\Users\Gower\AppData\Local\Temp\claude\D--ForgejoGit--Gower-Labs-BMad-Guide-better-agent-terminal-better-agent-terminal\9656a92b-e152-4684-a663-3663705a133a\scratchpad\t0662-390-dark.png`（手機深色，開頭與第 1–3 代）
+- `<使用者資料夾>\AppData\Local\Temp\claude\D--ForgejoGit--Gower-Labs-BMad-Guide-better-agent-terminal-better-agent-terminal\9656a92b-e152-4684-a663-3663705a133a\scratchpad\t0662-1440-light-1.png`（桌面淺色，第 1–5 代）
+- `<使用者資料夾>\AppData\Local\Temp\claude\D--ForgejoGit--Gower-Labs-BMad-Guide-better-agent-terminal-better-agent-terminal\9656a92b-e152-4684-a663-3663705a133a\scratchpad\t0662-1440-light-2.png`（桌面淺色，第 4–7 代與收束）
+- `<使用者資料夾>\AppData\Local\Temp\claude\D--ForgejoGit--Gower-Labs-BMad-Guide-better-agent-terminal-better-agent-terminal\9656a92b-e152-4684-a663-3663705a133a\scratchpad\t0662-1440-dark.png`（桌面深色）
+- `<使用者資料夾>\AppData\Local\Temp\claude\D--ForgejoGit--Gower-Labs-BMad-Guide-better-agent-terminal-better-agent-terminal\9656a92b-e152-4684-a663-3663705a133a\scratchpad\t0662-390-light.png`（手機淺色，第 6–7 代與收束）
+- `<使用者資料夾>\AppData\Local\Temp\claude\D--ForgejoGit--Gower-Labs-BMad-Guide-better-agent-terminal-better-agent-terminal\9656a92b-e152-4684-a663-3663705a133a\scratchpad\t0662-390-dark.png`（手機深色，開頭與第 1–3 代）
 
 ### 文案校稿（bmad-editorial-review-prose）採納清單
 

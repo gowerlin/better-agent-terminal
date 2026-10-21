@@ -116,7 +116,7 @@ auth 驗證：實驗前後 `~/.claude/.credentials.json` sha256 前 16 碼皆為
 |------|----|
 | repo `node_modules` | `claude-agent-sdk` 0.2.113（自帶 `claude-agent-sdk-win32-x64/claude.exe` = 2.1.113）、`claude-code` 2.1.113 |
 | 已安裝 BAT（`C:\Program Files\BetterAgentTerminal\resources\app.asar.unpacked\node_modules\@anthropic-ai\`） | 同上；`claude-code/bin/claude.exe`、`claude-code-win32-x64/claude.exe`、`claude-agent-sdk-win32-x64/claude.exe` **三份各 245,966,496 bytes** |
-| PATH 上的 claude | `C:\Users\Gower\.local\bin\claude` → `2.1.288`（官方 installer） |
+| PATH 上的 claude | `<使用者資料夾>\.local\bin\claude` → `2.1.288`（官方 installer） |
 | npm 最新 | `claude-agent-sdk` `latest`=0.3.289（0.2 線最後一版 0.2.141）；`claude-code` `latest`=2.1.289、`stable`=2.1.285 |
 | 新版實驗位置 | scratchpad `t0368/new/`（`npm install @anthropic-ai/claude-agent-sdk@0.3.289 @anthropic-ai/claude-code@2.1.289`，npm 11.19.0） |
 

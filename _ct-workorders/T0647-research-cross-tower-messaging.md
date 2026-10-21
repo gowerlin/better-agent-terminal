@@ -99,7 +99,7 @@ headless bat-server 的塔台與本機塔台之間是否要通、怎麼通（同
 |---|---|---|---|
 | BAT → BMad-Guide 委派單 `CT-T###` | 21 張（CT-T001–CT-T021；CT-T002–T010 已歸檔） | 都是 BAT 塔台 → BMad-Guide 塔台。CT-T001–T012 的檔內沒有跨 session 紀錄（推論：當時由使用者轉交）；CT-T013 起有 SendMessage / 跨 session 紀錄，其中 CT-T015 / T016 / T017 / T020 / T021 另有「使用者轉交」 | `_ct-workorders/CT-T0*.md`、`_archive/workorders/CT-T00*.md`；例：`CT-T019-…md:107`「BAT 塔台以跨 session 訊息轉交 BMad-Guide 塔台（`bmad-guide-09`…）」 |
 | `_reply-*.md`（本 repo） | 2 份 | BAT 塔台 → BMad-Guide 塔台 | `_reply-2026-09-02-bat-workspace-default-opinion.md`、`_reply-2026-10-18-bmad-guide-log-dir-handled.md` |
-| `_reply-*` / `_request-*` / `_handover-*`（BMad-Guide） | 11 + 1 + 1 份 | 9 份 BMad-Guide ↔ BAT；另 2 份給其他專案（2026_LandBank、2026_Taipower_Cloud），標「待使用者轉交」 | `BMad-Guide/_ct-workorders/_reply-2026-09-01-bat-workspace-allocation.md`、`_reply-2026-10-16-longform-report-skill.md`（`_tower-state.md:256` 標「待使用者轉交」） |
+| `_reply-*` / `_request-*` / `_handover-*`（BMad-Guide） | 11 + 1 + 1 份 | 9 份 BMad-Guide ↔ BAT；另 2 份給其他專案（專案B、專案C），標「待使用者轉交」 | `BMad-Guide/_ct-workorders/_reply-2026-09-01-bat-workspace-allocation.md`、`_reply-2026-10-16-longform-report-skill.md`（`_tower-state.md:256` 標「待使用者轉交」） |
 | BMad-Guide 狀態檔 / 決策日誌提到 SendMessage | `_tower-state.md` 10 處、`_decision-log.md` 7 處；提到「轉交」15 / 11 處 | 收件人都是 `better-agent-terminal-xx`（Claude session） | 例：`_tower-state.md:16`、`:119`、`:167`；`_decision-log.md:1128`、`:1406` |
 | BAT 狀態檔 / 決策日誌 | `_tower-state.md` 0 處；`_decision-log.md` 提到「轉交」3 處、「遠端塔台」2 處（都是 PLAN-036 K 的 Worker 回報，不是塔台 ↔ 塔台） | — | `_decision-log.md:1577`、`:1766` |
 

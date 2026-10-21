@@ -75,7 +75,7 @@ const WSL_LOGIN = [
     'tool.git.version=git version 2.43.0',
     'tool.gh.state=missing',
     'tool.codex.state=interop',
-    'tool.codex.path=/mnt/c/Users/Gower/AppData/Roaming/npm/codex',
+    'tool.codex.path=/mnt/c/Users/demo/AppData/Roaming/npm/codex',
     'tool.curl.state=found',
     'tool.curl.path=/usr/bin/curl',
     'tool.curl.version=curl 8.5.0 (x86_64-pc-linux-gnu) libcurl/8.5.0 OpenSSL/3.0.13 zlib/1.3',
@@ -137,7 +137,7 @@ describe('WSL Ubuntu with Windows interop on PATH', () => {
     expect(tool(r, 'codex')).toEqual({
       id: 'codex',
       status: 'interop-only',
-      path: '/mnt/c/Users/Gower/AppData/Roaming/npm/codex',
+      path: '/mnt/c/Users/demo/AppData/Roaming/npm/codex',
       login: 'n/a',
       credentialFilePresent: false,
       serverVisible: false,

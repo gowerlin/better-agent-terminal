@@ -85,7 +85,7 @@ DONE（Worker 部分；塔台驗收待塔台收單後執行）
 
 **Agent / 版本**（指令取值）
 - agent：Claude Code（`CLAUDE_CODE_ENTRYPOINT=cli`），模型 `claude-opus-5-5`
-- `claude --version` → `2.1.300 (Claude Code)`；PATH 上解析到的是 `/c/Users/Gower/.local/bin/claude`（system 安裝）。註：這是 Bash 內 PATH 上的 claude，本分頁實際執行的 claude binary 是否為同一個未另行查證（BAT 的 terminal claude-cli 可能用內嵌版；版本號同為 2.1.300 時無差異）
+- `claude --version` → `2.1.300 (Claude Code)`；PATH 上解析到的是 `<使用者資料夾>/.local/bin/claude`（system 安裝）。註：這是 Bash 內 PATH 上的 claude，本分頁實際執行的 claude binary 是否為同一個未另行查證（BAT 的 terminal claude-cli 可能用內嵌版；版本號同為 2.1.300 時無差異）
 
 **環境變數**（Bash 內 `${!v}` 取值）
 

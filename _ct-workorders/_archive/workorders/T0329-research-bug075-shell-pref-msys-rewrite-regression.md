@@ -356,7 +356,7 @@ Regression test：
 - BAT UI 內建 Control Tower panel 不是此問題來源。`src/utils/control-tower-launch.ts` 對 `codex-cli` / `codex-agent` 會回傳 `command='codex'`、`prefix='$'`，並產生 `codex "$ct-exec T####"`。
 - `src/App.tsx` 與 `src/components/WorkspaceView.tsx` 的 `onExecWorkOrder` / `handleExecWorkOrder` 都走 `resolveControlTowerAgentRuntime(activeWorkspace.defaultAgent || settings.defaultAgent)`，因此 BAT UI path 對 Codex 是正確的。
 - 實際 T0328 log 為 `node scripts/bat-terminal.mjs ... --agent default --prompt "/ct-exec T0328"`。這條路徑不是 BAT UI ControlTowerPanel，而是 Tower skill 的 BAT auto-session 規格。
-- `C:\Users\Gower\.codex\skills\control-tower\SKILL.md` 與 `references/auto-session.md` 明確硬編碼 BAT 內部終端為 `--agent default --prompt "/ct-exec T####"`，並寫「由 BAT Default Agent 設定決定要開 Claude Agent、Codex Agent、Codex CLI 或其他 agent」。這與 prompt 本身仍固定 slash prefix 互相矛盾。
+- `<使用者資料夾>\.codex\skills\control-tower\SKILL.md` 與 `references/auto-session.md` 明確硬編碼 BAT 內部終端為 `--agent default --prompt "/ct-exec T####"`，並寫「由 BAT Default Agent 設定決定要開 Claude Agent、Codex Agent、Codex CLI 或其他 agent」。這與 prompt 本身仍固定 slash prefix 互相矛盾。
 
 責任切分：
 - **Tower skill / 派發協定問題**：錯誤地把 BAT `--agent default` 視為 agent-agnostic，但 prompt 卻硬編碼 Claude-style `/ct-exec`。這是 Codex 收到錯前綴的直接來源。

@@ -165,7 +165,7 @@ memory_overrides:
 
 - [x] **AC-1 PASS** — `npm run test:unit`：`Test Files 44 passed (44)`、`Tests 593 passed (593)`（基線 573 → 593，+20）。`codex-models.test.ts` 涵蓋：合法 cache（完整比對 4 筆輸出）、`hide` 過濾、缺 visibility / 缺 priority / 同 priority 順序、壞項目與重複 slug、字串型 effort、格式錯誤 → `undefined`（6 種）、無可見模型 → `undefined`、檔案不存在 → `undefined`、壞 JSON → `undefined`、錯誤 shape → `undefined`、`CODEX_HOME` 解析
 - [x] **AC-2 PASS** — `npx vite build` exit 0；`npx tsc --noEmit 2>&1 | grep -c "error TS"`：改動前 **42** → 改動後 **42**；去除行號後前後錯誤訊息集合 `diff` 完全相同，新檔與改動檔無新增 error
-- [x] **AC-3 PASS** — scratchpad `t0370-ac3.mts`（Node 24 type-stripping 直接 import `electron/codex-models.ts`）以 `loadCodexModels()` 讀本機真實 `C:\Users\Gower\.codex\models_cache.json`（只讀；`client_version` 0.159.2；該檔於本單執行期間被其他 Codex 行程刷新，`fetched_at` 變為 `2026-10-04T08:10:18Z`，6 筆內容不變）：
+- [x] **AC-3 PASS** — scratchpad `t0370-ac3.mts`（Node 24 type-stripping 直接 import `electron/codex-models.ts`）以 `loadCodexModels()` 讀本機真實 `<使用者資料夾>\.codex\models_cache.json`（只讀；`client_version` 0.159.2；該檔於本單執行期間被其他 Codex 行程刷新，`fetched_at` 變為 `2026-10-04T08:10:18Z`，6 筆內容不變）：
 
   | slug | displayName | efforts | default |
   |------|-------------|---------|---------|

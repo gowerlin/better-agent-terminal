@@ -8,7 +8,7 @@ sizing: M
 created_at: "2026-04-27T14:08:00+08:00"
 started_at: "2026-04-27T14:27:10+08:00"
 completed_at: "2026-04-27T14:36:12+08:00"
-workdir: "main repo + Tower skill 路徑（`C:/Users/Gower/.codex/skills/control-tower/` + `C:/Users/Gower/.claude/skills/control-tower/`）"
+workdir: "main repo + Tower skill 路徑（`<使用者資料夾>/.codex/skills/control-tower/` + `<使用者資料夾>/.claude/skills/control-tower/`）"
 ---
 # T0343 — Fix BUG-075 prefix mismatch：Tower skill + BAT app 雙修
 
@@ -25,7 +25,7 @@ workdir: "main repo + Tower skill 路徑（`C:/Users/Gower/.codex/skills/control
 | 依賴 | T0341（MSYS path 修好才能驗 prefix）/ T0329 補充鑑別段落 |
 | 後續 | T0345（e2e 一起驗） |
 | 互動旗標 | `--mode ask --interactive`（跨 skill / app 兩處設計選擇可能需澄清） |
-| 工作目錄 | main repo + Tower skill 路徑（`C:/Users/Gower/.codex/skills/control-tower/` + `C:/Users/Gower/.claude/skills/control-tower/`） |
+| 工作目錄 | main repo + Tower skill 路徑（`<使用者資料夾>/.codex/skills/control-tower/` + `<使用者資料夾>/.claude/skills/control-tower/`） |
 | `affects_files` | Tower skill `SKILL.md` + `references/auto-session.md`（兩個 home 都要同步）+ `electron/main.ts` `terminal:create-agent-command` handler |
 | Release target | v0.4.2.1 hotfix（BAT app 端）+ Tower skill 跨專案 sync（v4.4.1 candidate） |
 | 開始時間 | 2026-04-27 14:27:10 +08:00 |
@@ -44,10 +44,10 @@ T0329 補充鑑別揭：Tower skill 把 `--agent default` 視為 agent-agnostic�
 ### Part 1：Tower skill 端（根因修法）
 
 **修改範圍**：
-- `C:/Users/Gower/.codex/skills/control-tower/SKILL.md`（Bash 白名單 + Agent CLI 解析規則段落）
-- `C:/Users/Gower/.codex/skills/control-tower/references/auto-session.md`
-- `C:/Users/Gower/.claude/skills/control-tower/SKILL.md`（同步）
-- `C:/Users/Gower/.claude/skills/control-tower/references/auto-session.md`（同步）
+- `<使用者資料夾>/.codex/skills/control-tower/SKILL.md`（Bash 白名單 + Agent CLI 解析規則段落）
+- `<使用者資料夾>/.codex/skills/control-tower/references/auto-session.md`
+- `<使用者資料夾>/.claude/skills/control-tower/SKILL.md`（同步）
+- `<使用者資料夾>/.claude/skills/control-tower/references/auto-session.md`（同步）
 
 **契約調整**：
 - BAT 內部終端 prompt 字串不再硬編碼 `/ct-exec`
@@ -101,10 +101,10 @@ FIXED — 修復已完成，等待驗收。
 
 ### Tower skill 修改
 - 已同步修改兩個 home：
-  - `C:/Users/Gower/.codex/skills/control-tower/SKILL.md`
-  - `C:/Users/Gower/.codex/skills/control-tower/references/auto-session.md`
-  - `C:/Users/Gower/.claude/skills/control-tower/SKILL.md`
-  - `C:/Users/Gower/.claude/skills/control-tower/references/auto-session.md`
+  - `<使用者資料夾>/.codex/skills/control-tower/SKILL.md`
+  - `<使用者資料夾>/.codex/skills/control-tower/references/auto-session.md`
+  - `<使用者資料夾>/.claude/skills/control-tower/SKILL.md`
+  - `<使用者資料夾>/.claude/skills/control-tower/references/auto-session.md`
 - 規格更新為 BAT 內部終端白名單使用：
   - `node scripts/bat-terminal.mjs --notify-id $BAT_TERMINAL_ID --workspace "$BAT_WORKSPACE_ID" --mode <yolo|ask|off|on> [--interactive|--no-interactive] --agent default --skill ct-exec --workorder T####`
   - `node scripts/bat-terminal.mjs --notify-id $BAT_TERMINAL_ID --workspace "$BAT_WORKSPACE_ID" --mode <yolo|ask|off|on> [--interactive|--no-interactive] --agent default --skill ct-done --workorder T####`
@@ -130,7 +130,7 @@ FIXED — 修復已完成，等待驗收。
 - `npm run compile`：通過。
 - `npm run test:unit`：通過，10 test files / 187 tests。
 - `git diff --check -- scripts/bat-terminal.mjs electron/main.ts _ct-workorders/T0343-fix-bug075-prefix-mismatch-dual.md`：通過。
-- `git diff --no-index` 驗證 `C:/Users/Gower/.codex/skills/control-tower/` 與 `C:/Users/Gower/.claude/skills/control-tower/` 的 `SKILL.md`、`references/auto-session.md` 一致。
+- `git diff --no-index` 驗證 `<使用者資料夾>/.codex/skills/control-tower/` 與 `<使用者資料夾>/.claude/skills/control-tower/` 的 `SKILL.md`、`references/auto-session.md` 一致。
 
 ### 互動紀錄
 - [14:27] Q: Tower skill 規格採 A/B/C 哪種契約？ → A: C，新增 `--skill/--workorder` agent-neutral API，BAT app 作唯一 prefix decider 並保留 legacy normalize fallback → Action: 依 C 實作並更新回報規格供 T0345 引用。

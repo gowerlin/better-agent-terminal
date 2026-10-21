@@ -172,7 +172,7 @@ DONE。README 的 badge、技術堆疊表、「發行」段已改為本 fork 現
 
 ### 偏離 / 範圍外發現（後續建議，未處理）
 
-1. **「設定」段資料路徑過期**（`README.md` 設定段）：寫 `%APPDATA%/better-agent-terminal/` 等，但 `electron/main.ts:158` `app.setName('BetterAgentTerminal')`（本機 `BAT_USER_DATA=C:\Users\Gower\AppData\Roaming\BetterAgentTerminal`），且 `electron/main.ts:168` 另有 `app.setPath('userData', runtimePath)`。非版號 / 平台衝突，依「不改功能描述段落」未動；CLAUDE.md「Logging」節的 log 路徑可能同樣過期。建議另開小單核對。
+1. **「設定」段資料路徑過期**（`README.md` 設定段）：寫 `%APPDATA%/better-agent-terminal/` 等，但 `electron/main.ts:158` `app.setName('BetterAgentTerminal')`（本機 `BAT_USER_DATA=<使用者資料夾>\AppData\Roaming\BetterAgentTerminal`），且 `electron/main.ts:168` 另有 `app.setPath('userData', runtimePath)`。非版號 / 平台衝突，依「不改功能描述段落」未動；CLAUDE.md「Logging」節的 log 路徑可能同樣過期。建議另開小單核對。
 2. **`better-sqlite3` 是死相依**：app 無任何 import，卻仍在 `dependencies`、`asarUnpack` 路徑、`postinstall` electron-rebuild、`verify-native-modules.js` 檢查中。移除可省 native rebuild 與打包體積，但牽涉 CI / 打包腳本，需塔台決策。
 3. **`.vscode/tasks.json` / `trigger-prerelease.ps1`**：預設 task 留空版號會走自動遞增（脫節版號），input 描述仍是 `2.1.4-pre.1`。建議讓腳本在 `$Version` 為空時拒絕執行。
 

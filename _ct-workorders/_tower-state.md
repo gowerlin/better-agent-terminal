@@ -2,7 +2,7 @@
 
 > 最後更新:2026-10-21 16:32 (UTC+8) — **第八十八 session 進行中**（CT v5.11.0）：T0674 網站新頁「把腦力留給判斷」`/why`（D175）派工。前次：第八十七 session 收工（2026-10-20 19:59）EXP-WFMINE-001 / T0673 CONCLUDED；PLAN-054 PLANNED（B4 併下次發版、B6 延後、B1 不做）；L171。
 >
-> **下次起手**:等 Gary 以 `v0.7.1-pre.4` 回報（A 滑鼠亂碼 → BUG-166；C 選做 → BUG-165）；BUG-156 / 159 仍待特定環境；下次發版時一併開 PLAN-054 B4。
+> **下次起手**:等 外部測試者A 以 `v0.7.1-pre.4` 回報（A 滑鼠亂碼 → BUG-166；C 選做 → BUG-165）；BUG-156 / 159 仍待特定環境；下次發版時一併開 PLAN-054 B4。
 ---
 
 ## 🛏 本 Session 收工快照 (第八十七 session, 2026-10-20 16:24 - 19:59, ~3h35m)
@@ -43,18 +43,18 @@
 
 ## 🛏 前 Session 收工快照 (第八十六 session, 2026-10-19 15:33 - 18:30, ~2h57m)
 
-### 主軸：Gary 以 pre.3 回報 → BUG-136 CLOSED；新問題 BUG-165（Codex 捲動）/ BUG-166（滑鼠回報殘留）研究 → BUG-166 修正 → 發 `v0.7.1-pre.4`
+### 主軸：外部測試者A 以 pre.3 回報 → BUG-136 CLOSED；新問題 BUG-165（Codex 捲動）/ BUG-166（滑鼠回報殘留）研究 → BUG-166 修正 → 發 `v0.7.1-pre.4`
 
 #### 時間線（時間取自系統 / git / gh）
 
-1. **15:33** 啟動（CT v5.9.0；BAT 安裝版 `0.7.1-pre.3`；`--set-role tower --mode on` exit 0；session 名稱 `better-agent-terminal · Tower`，不顯示提示）；Gary 15:19「卡頓解決」→ BUG-136 CLOSED（`62b7da60`）
-2. **15:40** Gary 日誌 `[gpu] skia graphite: disabled` → BUG-164 第 1 項 PASS（`90d05b59`）；Gary「捲動再絲滑一點」（Codex CLI 內）→ BUG-165 + T0670 研究（15:43 `started:`；使用者追加「是否只在 macOS」）
-3. **15:50** Gary 截圖：完成的 Worker 分頁滑鼠一動冒 `35;52;69M…` → BUG-166 + T0671 研究（15:53 `started:`；使用者追加 Claude CLI / Ctrl+C / Ctrl+Z 對照）
+1. **15:33** 啟動（CT v5.9.0；BAT 安裝版 `0.7.1-pre.3`；`--set-role tower --mode on` exit 0；session 名稱 `better-agent-terminal · Tower`，不顯示提示）；外部測試者A 15:19「卡頓解決」→ BUG-136 CLOSED（`62b7da60`）
+2. **15:40** 外部測試者A 日誌 `[gpu] skia graphite: disabled` → BUG-164 第 1 項 PASS（`90d05b59`）；外部測試者A「捲動再絲滑一點」（Codex CLI 內）→ BUG-165 + T0670 研究（15:43 `started:`；使用者追加「是否只在 macOS」）
+3. **15:50** 外部測試者A 截圖：完成的 Worker 分頁滑鼠一動冒 `35;52;69M…` → BUG-166 + T0671 研究（15:53 `started:`；使用者追加 Claude CLI / Ctrl+C / Ctrl+Z 對照）
 4. **16:04** T0670 DONE：xterm 5.5 追蹤模式每 wheel 事件最多 1 個回報（跨平台，macOS 觸控板最明顯）；**16:34** T0671 DONE：codex 0.163 只有被訊號結束才不還原追蹤；BAT 不開也不保留；claude 只有 SIGKILL 殘留；Unix PTY 跨平台、Windows 原生 ConPTY 無殘骸
-5. **17:28** Gary：「不急」、Claude CLI 捲動較順、codex 自己跳回命令列；**17:35** 使用者：不需知道成因可修 → T0672（F1 + F2）派工；17:40 Q-1 BAT `--answer` [A]（D174）；**17:50** DONE `64209d44` → BUG-166 FIXED（塔台複驗 5661 / 322、typecheck 0 / 0）
+5. **17:28** 外部測試者A：「不急」、Claude CLI 捲動較順、codex 自己跳回命令列；**17:35** 使用者：不需知道成因可修 → T0672（F1 + F2）派工；17:40 Q-1 BAT `--answer` [A]（D174）；**17:50** DONE `64209d44` → BUG-166 FIXED（塔台複驗 5661 / 322、typecheck 0 / 0）
 6. **17:53** 使用者「發 0.7.1-pre.4」→ vite build、bump `8883cebd`、push → run `39233550117` 全綠 → **18:03 `v0.7.1-pre.4`** → 更版重點 → 文件 `4ae0e89d` → Pages `39234927266` 綠、link-check 1152 / 0 errors、首頁 pre.4
 7. **18:09** 收工（使用者「收工, push」）；pre.4 驗收訊息已給使用者轉貼
-8. **18:11** 收工後 Gary 回報 pre.3 log：`skia_graphite=disabled_off`、13:28–18:10 0 次 GPU 崩潰（Graphite 開著的兩次執行崩 5 次）→ 使用者同意 → **BUG-164 CLOSED**（`eb189ce9`）；Gary 尚未安裝 pre.4
+8. **18:11** 收工後 外部測試者A 回報 pre.3 log：`skia_graphite=disabled_off`、13:28–18:10 0 次 GPU 崩潰（Graphite 開著的兩次執行崩 5 次）→ 使用者同意 → **BUG-164 CLOSED**（`eb189ce9`）；外部測試者A 尚未安裝 pre.4
 9. **18:30** 收工
 
 ### 本輪戰績
@@ -85,17 +85,17 @@
 
 ### 近期完成
 - EXP-WFMINE-001 / T0673 CONCLUDED（第八十七 session）：報告 `_report-wfmine-phase1-20261020.md` + 逐張 JSONL；PLAN-054 PLANNED
-- `v0.7.1-pre.4` 發佈（第八十六 session，run `39233550117`）：BUG-166（T0672）；BUG-136 / BUG-164 CLOSED（Gary 確認）
+- `v0.7.1-pre.4` 發佈（第八十六 session，run `39233550117`）：BUG-166（T0672）；BUG-136 / BUG-164 CLOSED（外部測試者A 確認）
 - `v0.7.1-pre.3` 發佈（第八十五 session）：BUG-136 縮圖預覽上限（T0667）、BUG-164 macOS 停用 Graphite（T0669）
 
 ### 待辦（依優先序）
 - ✅ T0674 網站 `/why`「把腦力留給判斷」（D175）已上線：使用者授權 push（`8fd45899..ebdb4b77`，2026-10-21），Pages run `39576224181` 全綠（build / deploy / link-check 1260 / 0 errors），`/why` 200
 - ✅ 第二季 Podcast / NotebookLM 素材 5 集完成（CT v5.11 / BAT / BMad-Method 6.12，內部教育訓練版；11 檔：總覽 + 每集來源與提示），存 BMad-Guide repo `BMad-Control-Tower/docs/BMad_Control_Tower-S2 (…)/`，未 commit（屬 BMad-Guide 專案，由使用者或 BMad-Guide 塔台決定）
 - 🟡 **T0675 PARTIAL**（`c09fe063`，NotebookLM 瀏覽器自動化，chrome-live）：S2-01～S2-03 九項已生成（S2-01 使用者已下載）；S2-04、S2-05 用量上限改「稍後生成」排程（2026-10-22 00:00／01:00 後）。剩下的下載由使用者自己做；使用者確認 S2-04／05 生成並下載後，塔台把 T0675 補正為 DONE 並回收 Worker 分頁（PARTIAL 不自動回收）。L172
-1. 🔴 **Gary 以 `v0.7.1-pre.4` 驗收**：A BUG-166（`printf '\e[?1003h\e[?1006h'` 後移動滑鼠，殘骸幾筆即停；codex 分頁 Shift + 右鍵有兩個新選項）→ CLOSED；C（選做）BUG-165 `mouse_scroll_speed = 3` → 確認後派 S 修正（`attachCustomWheelEventHandler`，Gary「不急」）
+1. 🔴 **外部測試者A 以 `v0.7.1-pre.4` 驗收**：A BUG-166（`printf '\e[?1003h\e[?1006h'` 後移動滑鼠，殘骸幾筆即停；codex 分頁 Shift + 右鍵有兩個新選項）→ CLOSED；C（選做）BUG-165 `mouse_scroll_speed = 3` → 確認後派 S 修正（`attachCustomWheelEventHandler`，外部測試者A「不急」）
 2. 🔴 `v0.7.1-pre.2` 剩餘實機驗收：BUG-156 需 Docker Desktop、BUG-159 需一般權限 + codex
 3. 🟡 PLAN-053 Electron 42+（IDEA）、PLAN-052 Docker 可用性（IDEA）；PLAN-054 B4（MCP 文件政策）**併下次發版批次**一起開單，B6 延後（CT D090）
-4. 🟢 T0656 網站素材手動拍；`RECOVERY_PENDING` 未實機驗證；WSL bat-server `0.6.1-pre.5`；前期驗收（Gary BUG-127-135 / 116 / 118、BUG-130 / 105 / 107 / 108 / 097 / 111、T0550、dmg / AppImage、NSIS 重裝、T0360）
+4. 🟢 T0656 網站素材手動拍；`RECOVERY_PENDING` 未實機驗證；WSL bat-server `0.6.1-pre.5`；前期驗收（外部測試者A BUG-127-135 / 116 / 118、BUG-130 / 105 / 107 / 108 / 097 / 111、T0550、dmg / AppImage、NSIS 重裝、T0360）
 
 ### ⚠️ 鐵則
 - **所有 `gh` 指令必須帶 `-R gowerlin/better-agent-terminal`**（L122）
@@ -121,9 +121,9 @@
 | **目前版號** | **0.7.1-pre.4**（package.json + lock，2026-10-19 `8883cebd`；`0.7.1` 線，D168，最多到 pre.9） |
 | **最新 release** | `v0.7.1-pre.4`（2026-10-19 18:03，run `39233550117`，target `8883cebd`：BUG-166 滑鼠追蹤殘留自動 / 手動重設；更版重點已寫；repo 文件 `4ae0e89d`；Pages `39234927266` 綠、link-check 1152 / 0 errors、首頁 pre.4；exe 298 / zip 412 / AppImage 297 / dmg 309 MiB）+ `server-bundle-v0.7.1-pre.4`（7 assets）。前一版 `v0.7.1-pre.3`（2026-10-19 13:00，run `39201696170`，target `bf4bfe4f`：BUG-136 縮圖預覽上限、BUG-164 macOS 停用 Graphite + GPU 崩潰後重建；更版重點已寫；repo 文件 `892df2ec`；exe 298 / zip 412 / AppImage 297 / dmg 310 MiB）+ `server-bundle-v0.7.1-pre.3`（7 assets）。更早見 `release-note.md` / `CHANGELOG.md` |
 | **前一 tag** | `v0.7.1-pre.3`（2026-10-19 13:00，`bf4bfe4f`） |
-| **目前主軸** | `v0.7.1-pre.4` 已發佈（第八十六 session），等 Gary 驗收 BUG-166；BUG-165 有空再排；第八十七 session 完成 EXP-WFMINE-001 / T0673、開 PLAN-054（PLANNED）；熱區無進行中工單 |
+| **目前主軸** | `v0.7.1-pre.4` 已發佈（第八十六 session），等 外部測試者A 驗收 BUG-166；BUG-165 有空再排；第八十七 session 完成 EXP-WFMINE-001 / T0673、開 PLAN-054（PLANNED）；熱區無進行中工單 |
 | **工單最大編號** | **T0676** TODO（第八十八 session：公開 repo 去識別化，D176，yolo）；T0675 PARTIAL `c09fe063`（第八十八 session：NotebookLM 製作第二季 Podcast；S2-04／05 排程生成，使用者自行下載）；T0674 DONE `0f50a83d`（第八十八 session：網站新頁「把腦力留給判斷」`/why`，D175；已 push、Pages `39576224181` 綠）；T0673 DONE（第八十七 session：EXP-WFMINE-001 執行單，`84e21f2d`）；第八十六 session：T0670 / T0671 研究、T0672 修正；第八十五 session：T0666–T0669；更早見 `_archive/state-snapshots/` |
-| **BUG 最大編號** | **BUG-166**（第八十六 session 開立並 FIXED，待 Gary）；BUG-165 OPEN（有空再排）；BUG-164 CLOSED（收工後 Gary 確認）；BUG-136 第八十六 session CLOSED（Gary 確認）；熱區 Open 1 / Fixing 0 / Fixed 22 / Closed 28；BUG-165 OPEN、BUG-166 FIXED（T0672 `64209d44`，未發版，第八十六 session） |
+| **BUG 最大編號** | **BUG-166**（第八十六 session 開立並 FIXED，待 外部測試者A）；BUG-165 OPEN（有空再排）；BUG-164 CLOSED（收工後 外部測試者A 確認）；BUG-136 第八十六 session CLOSED（外部測試者A 確認）；熱區 Open 1 / Fixing 0 / Fixed 22 / Closed 28；BUG-165 OPEN、BUG-166 FIXED（T0672 `64209d44`，未發版，第八十六 session） |
 | **PLAN 最大編號** | **PLAN-054**（PLANNED：CT Workflow 智能的 BAT 側事項，B4 / B6，第八十七 session 2026-10-20）；PLAN-053 IDEA（Electron 42+ 升級，第八十五 session）；PLAN-052 / 051 IDEA；PLAN-049 / 047 DONE；PLAN-015 / 029 / 038 / 043 IDEA |
 | **決策最大編號** | **D176**（公開 repo 去識別化，2026-10-21 第八十八 session）；D175（網站 `/why` 設計初衷，2026-10-21 第八十八 session）；D174（T0672 Q-1，2026-10-19 第八十六 session）；D173（網站示意可用 `_ct-workorders/`，放寬 D159 / D165 grep 規則一項，2026-10-19 第八十五 session）；D171 / D172 第八十四 session |
 | **EXP 最大編號** | **EXP-WFMINE-001**（📊 CONCLUDED 2026-10-20 17:26；執行單 T0673 DONE `84e21f2d`，7.35M tokens／39 agents；BMad-Guide Workflow 智能提案 Phase 1 試點）；EXP-GPUWHIS-001（CONCLUDED，已歸檔） |

@@ -66,7 +66,7 @@ memory_overrides:
 
 - `Workspace.defaultAgent`（`src/types/index.ts:18`）有 consumer 在讀（`src/App.tsx` 派工按鈕、`src/components/WorkspaceView.tsx` 新建 Agent 終端 / 派工、`electron/main.ts` `resolveWorkspaceDefaultAgent` 外部派工），但 **store 與 UI 都沒有寫入點**，永遠是空的（D140 更正、PLAN-040）
 - Agent 啟動參數目前只有全域：`settings.agentCustomArgs?: Record<presetId, string>`（`src/types/index.ts:316`，T0128）
-- 使用者（2026-10-14 17:4x）決定 PLAN-040 擴大為「各工作區獨立設定 Agent **與啟動參數**」，現在開工。情境：Gary 一個專案用 Codex、一個用 Claude，而且不同專案的 Codex 想帶不同 `--model` / `-c` 參數
+- 使用者（2026-10-14 17:4x）決定 PLAN-040 擴大為「各工作區獨立設定 Agent **與啟動參數**」，現在開工。情境：外部測試者A 一個專案用 Codex、一個用 Claude，而且不同專案的 Codex 想帶不同 `--model` / `-c` 參數
 
 請先讀 **PLAN-040**（範圍初稿、持久化邊界）、**D142**（本單設計裁決）。
 

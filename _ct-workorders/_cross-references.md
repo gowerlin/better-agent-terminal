@@ -16,7 +16,7 @@
 | CT-T008 | BMad-Guide | `61dec10` | DELEGATE(v4.3.2 release)| ✅ DONE |
 | CT-T009 | BMad-Guide | `2b1dd1c` | DELEGATE(v4.3.3 JB Gateway patch)| ✅ DONE |
 | CT-T010 | BMad-Guide | `e362ed1` | DELEGATE(CT v4.4.x meta-PLAN + Phase 1-4 骨架)| ✅ DONE |
-| T0359 | 2026_Cooperative | `CP-T1148` | COORDINATED(BAT commit `d3f6580`; closeout `17d43c1`; supports ABANDONED workorder status parsing)| ✅ FIXED |
+| T0359 | 專案A | `CP-T1148` | COORDINATED(BAT commit `d3f6580`; closeout `17d43c1`; supports ABANDONED workorder status parsing)| ✅ FIXED |
 | CT-T014 | BMad-Guide | `bfc30d7` / `6d23e30`（T0149）| DELEGATE（CT v5.2.4：文件 / 提示對齊 BAT 0.7.0-pre.1 範圍權杖，PLAN-047 / D149；對方決策 D028）| ✅ DONE（runtime 待 BAT 0.7.0-pre.1）|
 
 ## 對方 Repo 骨架(BMad-Guide T0098 主 PLAN 下)
@@ -37,9 +37,9 @@
 |---------|------|----------|
 | `D:/ForgejoGit/BMad-Guide/spec/Cognitive Load × Agent Orchestration:深度拆解與 Control Tower 對照.md` | CLT 理論 × CT 對照分析(400 行)| PLAN-028 理論依據 |
 
-## 2026_Cooperative 關聯(未來)
+## 專案A 關聯(未來)
 
-2026_Cooperative 作為 CT skill 激進 consumer(驗證場 #2),預期將建立對應 PLAN 追蹤同批改良。關聯表待對端 PLAN 建立後補完。
+<專案A> 作為 CT skill 激進 consumer(驗證場 #2),預期將建立對應 PLAN 追蹤同批改良。關聯表待對端 PLAN 建立後補完。
 
 ---
 

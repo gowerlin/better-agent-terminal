@@ -32,7 +32,7 @@ BUG-004 已由 T0014 的 crash-safe logger 成功捕捉現場。塔台分析鎖�
 
 ### BUG-004 崩潰證據(T0014 logger 捕捉)
 
-**時間軸**(來自 `C:\Users\Gower\AppData\Roaming\better-agent-terminal-runtime-1\Logs\debug-20260411-114634.log`):
+**時間軸**(來自 `<使用者資料夾>\AppData\Roaming\better-agent-terminal-runtime-1\Logs\debug-20260411-114634.log`):
 
 ```
 11:47:52.329  [LOG] [voice] getPreferences → {"modelSize":"small","language":"zh","convertToTraditional":true}
@@ -50,9 +50,9 @@ BUG-004 已由 T0014 的 crash-safe logger 成功捕捉現場。塔台分析鎖�
 
 **dmp 檔案位置**:
 ```
-C:\Users\Gower\AppData\Roaming\better-agent-terminal-runtime-1\Crashes\reports\6528598d-2995-43cf-96e3-393cb74394ca.dmp
+<使用者資料夾>\AppData\Roaming\better-agent-terminal-runtime-1\Crashes\reports\6528598d-2995-43cf-96e3-393cb74394ca.dmp
 ```
-(Git Bash 路徑:`/c/Users/Gower/AppData/Roaming/better-agent-terminal-runtime-1/Crashes/reports/6528598d-2995-43cf-96e3-393cb74394ca.dmp`)
+(Git Bash 路徑:`<使用者資料夾>/AppData/Roaming/better-agent-terminal-runtime-1/Crashes/reports/6528598d-2995-43cf-96e3-393cb74394ca.dmp`)
 
 ### 負證據(非常重要)
 
@@ -300,7 +300,7 @@ grep -rn "AudioContext\|MediaStreamSource\|AudioWorklet\|MediaRecorder\|getUserM
    ```
 2. 若有:
    ```bash
-   cdb.exe -z "C:\Users\Gower\AppData\Roaming\better-agent-terminal-runtime-1\Crashes\reports\6528598d-2995-43cf-96e3-393cb74394ca.dmp" -c "!analyze -v; k; q"
+   cdb.exe -z "<使用者資料夾>\AppData\Roaming\better-agent-terminal-runtime-1\Crashes\reports\6528598d-2995-43cf-96e3-393cb74394ca.dmp" -c "!analyze -v; k; q"
    ```
    擷取關鍵輸出:
    - `ExceptionAddress`
@@ -369,7 +369,7 @@ grep -rn "AudioContext\|MediaStreamSource\|AudioWorklet\|MediaRecorder\|getUserM
 
 - ✅ 讀任何檔案
 - ✅ Grep / Glob 任何內容
-- ✅ 讀 log 檔案(`/c/Users/Gower/AppData/Roaming/better-agent-terminal-runtime-1/Logs/*.log`)
+- ✅ 讀 log 檔案(`<使用者資料夾>/AppData/Roaming/better-agent-terminal-runtime-1/Logs/*.log`)
 - ✅ 讀 dmp 檔案(若有 WinDbg)
 - ✅ 執行 `git status` / `git log` / `git show` 做 history 分析
 - ✅ 執行 `cdb -z ... -c "..."` 做 dmp 靜態分析(不啟動 Electron)

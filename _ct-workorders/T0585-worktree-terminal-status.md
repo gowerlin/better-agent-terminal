@@ -127,7 +127,7 @@ memory_overrides:
 ### 實際 JSON 範例（e2e，塔台 `--worktree-status T0583 --notify-id <tower>`）
 
 ```json
-{"terminalId":"4b7462e6178657ee65fe575ef3a9e399","isolated":true,"workorder":"T0583","path":"C:\\Users\\Gower\\AppData\\Local\\Temp\\bat-t0583-aqMhuV\\.bat-worktrees\\repo\\T0583","branch":"ct/T0583","base":"27509e4071ab31d93f6537a602d1f7b0043df137","mainCheckout":"C:\\Users\\Gower\\AppData\\Local\\Temp\\bat-t0583-aqMhuV\\repo","head":"e8a3d244f9aafb23178e1525548856c766bedc71","mainHead":"b1610a211126109fcd56ded9ff5e66ac8ceaaa47","ahead":1,"behind":1,"dirty":["scratch.txt"],"dirtyCount":1,"changedFiles":["out.txt","pkg/in.txt","pkg/x.txt"],"changedCount":3,"outOfScopeFiles":["out.txt"],"outOfScopeCount":1,"workorderFile":"_ct-workorders/T0583-e2e.md","touchesCtWorkorders":false,"conflicts":["pkg/x.txt"],"computedAt":1792247935086,"cached":false}
+{"terminalId":"4b7462e6178657ee65fe575ef3a9e399","isolated":true,"workorder":"T0583","path":"<使用者資料夾>\\AppData\\Local\\Temp\\bat-t0583-aqMhuV\\.bat-worktrees\\repo\\T0583","branch":"ct/T0583","base":"27509e4071ab31d93f6537a602d1f7b0043df137","mainCheckout":"<使用者資料夾>\\AppData\\Local\\Temp\\bat-t0583-aqMhuV\\repo","head":"e8a3d244f9aafb23178e1525548856c766bedc71","mainHead":"b1610a211126109fcd56ded9ff5e66ac8ceaaa47","ahead":1,"behind":1,"dirty":["scratch.txt"],"dirtyCount":1,"changedFiles":["out.txt","pkg/in.txt","pkg/x.txt"],"changedCount":3,"outOfScopeFiles":["out.txt"],"outOfScopeCount":1,"workorderFile":"_ct-workorders/T0583-e2e.md","touchesCtWorkorders":false,"conflicts":["pkg/x.txt"],"computedAt":1792247935086,"cached":false}
 ```
 
 重開 BAT 後由已存分頁找到（T0584，沒有工單檔 → `outOfScopeFiles: null`）：

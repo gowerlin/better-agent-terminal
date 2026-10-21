@@ -27,14 +27,14 @@ function fakeClipboard(formats: Record<string, string>) {
 describe('parseFilenamesPlist', () => {
   test('every item, in order, with XML entities decoded', () => {
     expect(parseFilenamesPlist(plist([
-      '/Users/gary/Desktop/My Report.pdf',
-      "/Users/gary/it&apos;s here/a &amp; b.txt",
-      '/Users/gary/文件/截圖 1.png',
+      '/Users/tester/Desktop/My Report.pdf',
+      "/Users/tester/it&apos;s here/a &amp; b.txt",
+      '/Users/tester/文件/截圖 1.png',
       '/Volumes/Data/folder',
     ]))).toEqual([
-      '/Users/gary/Desktop/My Report.pdf',
-      "/Users/gary/it's here/a & b.txt",
-      '/Users/gary/文件/截圖 1.png',
+      '/Users/tester/Desktop/My Report.pdf',
+      "/Users/tester/it's here/a & b.txt",
+      '/Users/tester/文件/截圖 1.png',
       '/Volumes/Data/folder',
     ])
   })
@@ -53,8 +53,8 @@ describe('parseFilenamesPlist', () => {
 
 describe('filePathFromFileUrl', () => {
   test('percent-decoded POSIX path', () => {
-    expect(filePathFromFileUrl('file:///Users/gary/My%20Report.pdf')).toBe('/Users/gary/My Report.pdf')
-    expect(filePathFromFileUrl('file:///Users/gary/%E6%96%87%E4%BB%B6/')).toBe('/Users/gary/文件/')
+    expect(filePathFromFileUrl('file:///Users/tester/My%20Report.pdf')).toBe('/Users/tester/My Report.pdf')
+    expect(filePathFromFileUrl('file:///Users/tester/%E6%96%87%E4%BB%B6/')).toBe('/Users/tester/文件/')
     expect(filePathFromFileUrl('file://localhost/tmp/a.txt\0')).toBe('/tmp/a.txt')
   })
 
@@ -69,15 +69,15 @@ describe('filePathFromFileUrl', () => {
 describe('readClipboardFilePaths', () => {
   test('macOS: NSFilenamesPboardType list wins (multi-select)', () => {
     const clipboard = fakeClipboard({
-      NSFilenamesPboardType: plist(['/Users/gary/a.txt', '/Users/gary/b c.txt']),
-      'public.file-url': 'file:///Users/gary/a.txt',
+      NSFilenamesPboardType: plist(['/Users/tester/a.txt', '/Users/tester/b c.txt']),
+      'public.file-url': 'file:///Users/tester/a.txt',
     })
-    expect(readClipboardFilePaths(clipboard, 'darwin')).toEqual(['/Users/gary/a.txt', '/Users/gary/b c.txt'])
+    expect(readClipboardFilePaths(clipboard, 'darwin')).toEqual(['/Users/tester/a.txt', '/Users/tester/b c.txt'])
   })
 
   test('macOS: falls back to public.file-url when the list is absent', () => {
-    const clipboard = fakeClipboard({ 'public.file-url': 'file:///Users/gary/My%20Folder' })
-    expect(readClipboardFilePaths(clipboard, 'darwin')).toEqual(['/Users/gary/My Folder'])
+    const clipboard = fakeClipboard({ 'public.file-url': 'file:///Users/tester/My%20Folder' })
+    expect(readClipboardFilePaths(clipboard, 'darwin')).toEqual(['/Users/tester/My Folder'])
     expect(clipboard.read).toHaveBeenCalledWith('NSFilenamesPboardType')
   })
 

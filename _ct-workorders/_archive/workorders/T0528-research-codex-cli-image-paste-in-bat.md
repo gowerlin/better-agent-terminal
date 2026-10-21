@@ -39,7 +39,7 @@ memory_overrides:
 
 使用者想知道 Codex CLI 是否也支援貼上圖片或檔案連結，並特別要確認**在 BAT 終端分頁裡**是否可用。
 
-塔台初查（本機 `codex-cli 0.162.1`，`C:\Users\Gower\AppData\Local\Programs\OpenAI\Codex\bin\codex.exe` 字串）：
+塔台初查（本機 `codex-cli 0.162.1`，`<使用者資料夾>\AppData\Local\Programs\OpenAI\Codex\bin\codex.exe` 字串）：
 - Codex TUI 內建貼圖：`Paste an image with \`Ctrl+V\` to attach it to your next message.`、keymap `fixed.paste_image`、`tui\src\clipboard_paste.rs`、`clipboard image opened from file` / `from image`（剪貼簿是圖片檔也可）、`paste_image_as_png`
 - 檔案引用：keymap `fixed.file_paths`、說明「Mention files」（composer 以 `@` 搜尋檔案路徑）
 - 啟動參數：`codex -i, --image <FILE>...`（附在第一個 prompt）
@@ -88,7 +88,7 @@ memory_overrides:
 
 - Landing Zone Check：**PASS**。C-0 frontmatter `repo` = `better-agent-terminal`，`basename(REPO_ROOT)` = `better-agent-terminal`（REPO_ROOT `D:/ForgejoGit/@Gower_Labs/BMad-Guide/better-agent-terminal/better-agent-terminal`）。C-1 PASS。C-3 不適用（`affects_files` 只有本工單）。C-2 沒有 `branch` 欄位（HEAD = `main`）
 - 環境：`CT_MODE=yolo`、`CT_INTERACTIVE=0`、`BAT_WORKSPACE_ID=cc0afc4a-57e9-4f41-b2ed-a2d8bac9e36b`（只記錄）
-- 受測 Codex：`C:\Users\Gower\AppData\Local\Programs\OpenAI\Codex\bin\codex.exe`，`codex-cli 0.162.1`
+- 受測 Codex：`<使用者資料夾>\AppData\Local\Programs\OpenAI\Codex\bin\codex.exe`，`codex-cli 0.162.1`
 
 **給使用者的一句話**：可以。在 Windows 的 BAT 終端分頁跑 `codex`，截圖後按 Ctrl+V 就會貼成附件（`[Image #1]`）。BAT 實際送的是 Alt+V，Codex 0.162.1 的 Ctrl+V 和 Alt+V 都能貼圖。也可以用 `@` 搜尋檔案，或貼上圖片檔的路徑。檔案總管「複製」檔案後按 Ctrl+V，Windows 版目前不會貼任何東西（T0524 已知未做，見建議 [1]）。
 

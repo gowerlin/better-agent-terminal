@@ -47,7 +47,7 @@ Control-Tower (BMad-Guide monorepo)     ←── 主導 (doctrine)
      ├─→ BAT (穩定 dogfood)             ←── 驗證場 #1
      │   本 PLAN-028 追蹤
      │
-     └─→ 2026_Cooperative (激進 dogfood) ←── 驗證場 #2 + 回饋源
+     └─→ 專案A (激進 dogfood) ←── 驗證場 #2 + 回饋源
            對端 PLAN 追蹤(需建立)
 ```
 
@@ -59,8 +59,8 @@ Control-Tower (BMad-Guide monorepo)     ←── 主導 (doctrine)
 |---|------|
 | 主導 repo | BMad-Guide monorepo(CT skill 主 repo)|
 | 本地 PLAN 角色 | 跨專案追蹤 + dogfood 觀察記錄 |
-| 驗證分工 | BAT(穩定)+ 2026_Cooperative(激進)平行驗證,任一 regression 就暫停 |
-| 回饋機制 | 2026_Cooperative 的實驗觀察 → 回饋到 CT doctrine(double-loop 第二 loop)|
+| 驗證分工 | BAT(穩定)+ 專案A(激進)平行驗證,任一 regression 就暫停 |
+| 回饋機制 | 專案A 的實驗觀察 → 回饋到 CT doctrine(double-loop 第二 loop)|
 
 ---
 
@@ -117,7 +117,7 @@ Control-Tower (BMad-Guide monorepo)     ←── 主導 (doctrine)
 - CT repo `_cross-references.md`:無此機制,跳過(AC-4 合理)
 
 **本輪決議(D074)**:本 CT 塔台(BAT 端)**接手 Phase 1-4 派發**,不交還 BMad-Guide 自行推進。
-- 原因:BAT 已是 CT skill 的成熟 consumer,對 6 項改良的落地細節感最強;雙 loop(BAT dogfood + 2026_Cooperative 激進驗證)的第一 loop 就地承擔。
+- 原因:BAT 已是 CT skill 的成熟 consumer,對 6 項改良的落地細節感最強;雙 loop(BAT dogfood + 專案A 激進驗證)的第一 loop 就地承擔。
 - 模式:以 CT-T### DELEGATE 工單逐張推進 T0099-T0106(BMad-Guide repo 的 worker 執行,BAT 塔台協調)。
 - 派發順序:建議 Phase 1(audit,低風險熱身)→ Phase 2(template 改動,最高衝擊面)→ Phase 3 → Phase 4。
 

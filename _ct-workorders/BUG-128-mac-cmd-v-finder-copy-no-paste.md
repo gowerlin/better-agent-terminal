@@ -14,7 +14,7 @@ impact:
   - clipboard
   - macos
 links:
-  discovered_in: "Gary 回報（mac，LINE 2026-10-14 13:16-13:17，版本未確認）"
+  discovered_in: "外部測試者A 回報（mac，LINE 2026-10-14 13:16-13:17，版本未確認）"
   fix_workorder: T0522
   related: [BUG-107]
 ---
@@ -24,11 +24,11 @@ links:
 | 欄位 | 內容 |
 |------|------|
 | 嚴重度 | 🟡 medium（mac 標準快捷鍵失效；有 Ctrl+V 繞道） |
-| 可重現 | 必現（Gary 回報） |
-| **狀態** | ✅ FIXED（T0522，待 Gary mac 實機驗收） |
-| 回報者 | Gary（mac） |
+| 可重現 | 必現（外部測試者A 回報） |
+| **狀態** | ✅ FIXED（T0522，待 外部測試者A mac 實機驗收） |
+| 回報者 | 外部測試者A（mac） |
 
-## 現象（Gary 原話）
+## 現象（外部測試者A 原話）
 
 > 我在 Finder 裡按拷貝，command+c，到 bat 裡命令列要用 ctrl+v 才能貼上，不能用 command+v
 > 只有 finder 會這樣喔，我從 line 裡貼進 bat，或 bat 裡互相貼都可以正常用 command+c, v

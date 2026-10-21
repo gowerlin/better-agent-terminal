@@ -161,7 +161,7 @@ describe('registerTerminalHandlers (T0431)', () => {
   describe('dispatch workspace follows the --notify-id Tower terminal (T0523 / BUG-129)', () => {
     // Registry: tower-b is a tab of workspace B; workspace A exists too.
     const ENTRIES = [{
-      workspaces: [{ id: 'ws-a', name: '土銀' }, { id: 'ws-b', name: 'SCB', alias: 'SCB專案資料' }],
+      workspaces: [{ id: 'ws-a', name: '專案B' }, { id: 'ws-b', name: 'SCB', alias: 'SCB專案資料' }],
       terminals: [{ id: 'tower-a', workspaceId: 'ws-a' }, { id: 'tower-b', workspaceId: 'ws-b' }],
     }]
     const WORKSPACE_AGENTS: Record<string, string> = { 'ws-a': 'claude-code', 'ws-b': 'codex-cli' }
@@ -258,10 +258,10 @@ describe('registerTerminalHandlers (T0431)', () => {
   })
 
   describe('dispatch cwd vs. the landing workspace folderPath (T0527 / BUG-132)', () => {
-    // 土銀 tower tab in ws-bank; SCB has its own folder; Gary's case: cwd = SCB, env = 土銀 tower.
+    // 專案B tower tab in ws-bank; SCB has its own folder; 外部測試者的情境: cwd = SCB, env = 專案B tower.
     const ENTRIES: DispatchRegistryEntry[] = [{
       workspaces: [
-        { id: 'ws-bank', name: '土銀', folderPath: '/work/bank' },
+        { id: 'ws-bank', name: '專案B', folderPath: '/work/bank' },
         { id: 'ws-scb', name: 'SCB', folderPath: '/work/scb' },
         { id: 'ws-bare', name: 'Bare' },
       ],
@@ -315,7 +315,7 @@ describe('registerTerminalHandlers (T0431)', () => {
           workspace: { id: 'ws-bank', source: 'tower-terminal', cwdCheck: { status: 'other-workspace', cwd: '/work/scb', folderPath: '/work/bank', cwdWorkspace: { id: 'ws-scb', name: 'SCB' } } },
         })
         expect(t.created).toEqual([expect.objectContaining({ id: 'worker-1', workspaceId: 'ws-bank' })])
-        expect(t.warn).toHaveBeenCalledWith(expect.stringContaining('[BUG-132] dispatch cwd outside the landing workspace: cwd=/work/scb landing=ws-bank (土銀) folderPath=/work/bank workspaceSource=tower-terminal cwdWorkspace=ws-scb (SCB) mode=ask → created with a warning'))
+        expect(t.warn).toHaveBeenCalledWith(expect.stringContaining('[BUG-132] dispatch cwd outside the landing workspace: cwd=/work/scb landing=ws-bank (專案B) folderPath=/work/bank workspaceSource=tower-terminal cwdWorkspace=ws-scb (SCB) mode=ask → created with a warning'))
         expect(cwdEvents()).toEqual([expect.objectContaining({ status: 'other-workspace', action: 'warn', cwdWorkspaceId: 'ws-scb', mode: 'ask' })])
       } finally {
         t.warn.mockRestore()
@@ -330,7 +330,7 @@ describe('registerTerminalHandlers (T0431)', () => {
           ok: false,
           code: 'DISPATCH_CWD_OTHER_WORKSPACE',
           cwd: '/work/scb',
-          landingWorkspace: { id: 'ws-bank', name: '土銀' },
+          landingWorkspace: { id: 'ws-bank', name: '專案B' },
           cwdWorkspace: { id: 'ws-scb', name: 'SCB' },
         })
         const error = (result as { error: string }).error

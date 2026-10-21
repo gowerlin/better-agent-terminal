@@ -96,13 +96,13 @@ memory_overrides:
     Status: ✔ enabled
 ```
 
-`--json`：`version` `ea10b213686c-65ba16f3`、`scope` `user`、`enabled: true`、`projectEnabled: false`、`installedAt` `2026-10-18T05:11:55.882Z`、`installPath` `C:\Users\Gower\.claude\plugins\cache\anthropic-plugin-directory\frontend-design\ea10b213686c-65ba16f3`。
+`--json`：`version` `ea10b213686c-65ba16f3`、`scope` `user`、`enabled: true`、`projectEnabled: false`、`installedAt` `2026-10-18T05:11:55.882Z`、`installPath` `<使用者資料夾>\.claude\plugins\cache\anthropic-plugin-directory\frontend-design\ea10b213686c-65ba16f3`。
 
 安裝內容：`.claude-plugin/plugin.json`、`LICENSE`、`README.md`、`skills/frontend-design/LICENSE.txt`、`skills/frontend-design/SKILL.md`。
 
 `SKILL.md`：
 
-- 路徑：`C:\Users\Gower\.claude\plugins\cache\anthropic-plugin-directory\frontend-design\ea10b213686c-65ba16f3\skills\frontend-design\SKILL.md`
+- 路徑：`<使用者資料夾>\.claude\plugins\cache\anthropic-plugin-directory\frontend-design\ea10b213686c-65ba16f3\skills\frontend-design\SKILL.md`
 - `name`: `frontend-design`
 - description 第一句：「Guidance for distinctive, intentional visual design when building new UI or reshaping an existing one.」
 - SHA-256（磁碟原樣，CRLF，9461 bytes）：`b8009ae690dfa69edc7f08bb8715f32db8817112cfa4388741dbaf876c237df8`

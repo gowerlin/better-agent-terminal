@@ -57,7 +57,7 @@
 ## 使用者測試資訊
 - **BAT 版本**：已 rebuild + 重裝確認（使用者 Q1.A 確認）
 - **Quit 方式**：系統托盤（Q2.D）
-- **Log 目錄**：`C:\Users\Gower\AppData\Roaming\better-agent-terminal\Logs`
+- **Log 目錄**：`<使用者資料夾>\AppData\Roaming\better-agent-terminal\Logs`
 - **使用者主動提議**：若資訊不足可加 trace log，可配合重測
 
 ---

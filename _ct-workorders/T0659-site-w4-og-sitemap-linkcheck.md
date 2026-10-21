@@ -100,7 +100,7 @@ PLAN-049 網站 v2 的最後一張（W4）。讓網站連結貼到社群 / 聊�
   - 不放中點分隔的 meta 字串、不做單字強調色、不用暖色大面積。
 - 不含 CT 字樣、內部編號、權杖、使用者路徑；只出現公開網址 `gowerlin.github.io/better-agent-terminal`。
 - 輸出方式：Playwright（`channel: 'chrome'`）開原稿，viewport 1200×630、`deviceScaleFactor: 1`，等 `document.fonts.ready`（確認 Chiron Hei HK 900、Martian Mono 400/500、Noto Sans TC 400/700 都已載入）後擷取。重新輸出時照同樣方式即可。
-- 截圖（不入版控）：`C:/Users/Gower/AppData/Local/Temp/claude/D--ForgejoGit--Gower-Labs-BMad-Guide-better-agent-terminal-better-agent-terminal/610ec208-25fb-41a9-b2b8-611a75abfe1d/scratchpad/og-card.png`
+- 截圖（不入版控）：`<使用者資料夾>/AppData/Local/Temp/claude/D--ForgejoGit--Gower-Labs-BMad-Guide-better-agent-terminal-better-agent-terminal/610ec208-25fb-41a9-b2b8-611a75abfe1d/scratchpad/og-card.png`
 
 ### 2. `config.mts`
 

@@ -46,7 +46,7 @@ memory_overrides:
 
 ## 背景
 
-使用者回報（第六十六 session，附截圖）：塔台經 helper 派出的 Worker 分頁，縮圖標題一律是 `Remote: 'C:\Users\Gower\.local\bin\claude.exe'`，每個都一樣，看不出是哪張單；而且這些是**本機**分頁，「Remote」反而誤導。T0538 的工單小標籤（`.worker-badge`）雖然存在，但被冗長的標題擠到看不見。
+使用者回報（第六十六 session，附截圖）：塔台經 helper 派出的 Worker 分頁，縮圖標題一律是 `Remote: '<使用者資料夾>\.local\bin\claude.exe'`，每個都一樣，看不出是哪張單；而且這些是**本機**分頁，「Remote」反而誤導。T0538 的工單小標籤（`.worker-badge`）雖然存在，但被冗長的標題擠到看不見。
 
 來源：`src/stores/workspace-store.ts` `addExternalTerminal`，`title: info.command ? \`Remote: ${info.command.split(' ')[0]}\` : 'Remote Terminal'`。
 

@@ -38,8 +38,8 @@ for (const [name, input, expected] of wslToWinCases) {
 }
 
 for (const [name, input] of [
-  ['drive round-trip uppercase', 'C:\\Users\\Gower\\repo'],
-  ['drive round-trip lowercase input normalizes', 'c:\\Users\\Gower\\repo'],
+  ['drive round-trip uppercase', 'C:\\Users\\demo\\repo'],
+  ['drive round-trip lowercase input normalizes', 'c:\\Users\\demo\\repo'],
   ['spaces round-trip', 'C:\\Program Files\\BAT\\repo'],
   ['chinese round-trip', 'D:\\使用者\\專案\\檔案.txt'],
   ['unc legacy round-trip becomes localhost', '\\\\wsl$\\Ubuntu\\home\\user\\repo'],

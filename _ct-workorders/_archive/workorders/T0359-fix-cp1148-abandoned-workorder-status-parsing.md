@@ -13,14 +13,14 @@ completed_at: "2026-05-23T20:31:16+08:00"
 updated_at: "2026-05-23T20:31:16+08:00"
 commit: d3f6580
 source_workorder: CP-T1148
-source_project: 2026_Cooperative
+source_project: <專案A>
 target_project: BMad-Guide
 target_subproject: better-agent-terminal/better-agent-terminal
 depends_on:
   - CP-T1148
 related:
   - D:/ForgejoGit/@Gower_Labs/BMad-Guide/_ct-workorders/CP-T1148-bat-support-abandoned-workorder-status.md
-  - D:/ForgejoGit/@合庫/2026_Cooperative/_ct-workorders/CP-T1148-bat-support-abandoned-workorder-status.md
+  - D:/ForgejoGit/<專案A>/_ct-workorders/CP-T1148-bat-support-abandoned-workorder-status.md
 affects_files:
   - "workorder status parser / enum / normalizer"
   - "workorder status badge / color / tooltip mapping"
@@ -47,7 +47,7 @@ memory_overrides:
 
 ## 背景
 
-`2026_Cooperative` 已正式使用 `status: ABANDONED` 表示被新設計、新工單或 runtime 結論取代的舊工單。這類工單保留歷史脈絡，但應視為 final / inactive：
+`<專案A>` 已正式使用 `status: ABANDONED` 表示被新設計、新工單或 runtime 結論取代的舊工單。這類工單保留歷史脈絡，但應視為 final / inactive：
 
 - 不應再派發
 - 不應算 pending
@@ -85,7 +85,7 @@ BAT 目前尚未明確支援 `ABANDONED` workorder status。CP-T1148 要求 BAT 
 
 - 僅要求 workorder `T####` / `CP-T####` 支援 `ABANDONED`。
 - 不要把 `ABANDONED` 擴散成 BUG / PLAN 專用狀態，除非現有實作本來就共用同一個 final-state enum，而且測試能證明不會改變 BUG / PLAN 語意。
-- 不修改 `2026_Cooperative` 專案程式碼。
+- 不修改 `<專案A>` 專案程式碼。
 - 不把 `ABANDONED` 顯示成 unknown、pending、blocked、partial 或 error。
 
 ## 驗收條件
@@ -147,9 +147,9 @@ d3f6580
 - `npm run compile` → PASS（Vite build 成功；僅既有 chunk size / static+dynamic import warnings）
 - `git diff --check` → PASS（exit 0；僅 Git 的 LF→CRLF 工作區提示）
 
-### 需要塔台或 2026_Cooperative 端配合事項
+### 需要塔台或 專案A 端配合事項
 
-需要 BMad-Guide / 2026_Cooperative 塔台將 CP-T1148 回填 BAT implementation commit `d3f6580`。若 2026_Cooperative 端要驗證實機 BAT，需安裝或更新到包含 `d3f6580` 的 BAT build；本工單未修改 2026_Cooperative 專案程式碼。
+需要 BMad-Guide / 專案A 塔台將 CP-T1148 回填 BAT implementation commit `d3f6580`。若 專案A 端要驗證實機 BAT，需安裝或更新到包含 `d3f6580` 的 BAT build；本工單未修改 專案A 專案程式碼。
 
 ### 回報時間
 

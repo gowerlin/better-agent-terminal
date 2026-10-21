@@ -37,28 +37,28 @@ interface Fixture {
 }
 
 const wsl = () => new WslPathTranslator('Ubuntu-24.04')
-const docker = () => new DockerPathTranslator([{ host: 'C:\\Users\\gower\\repo', container: '/workspace' }])
-const ssh = () => new SshPathTranslator('C:\\Users\\gower', '/home/gower', true)
+const docker = () => new DockerPathTranslator([{ host: 'C:\\Users\\demo\\repo', container: '/workspace' }])
+const ssh = () => new SshPathTranslator('C:\\Users\\demo', '/home/gower', true)
 
 const LOCAL_FILE: Array<[string, () => PathTranslator, Fixture[]]> = [
   ['Identity', () => new IdentityTranslator(), [
-    { name: 'drive path unchanged', input: 'C:\\Users\\gower\\a.txt', serverPath: 'C:\\Users\\gower\\a.txt' },
+    { name: 'drive path unchanged', input: 'C:\\Users\\demo\\a.txt', serverPath: 'C:\\Users\\demo\\a.txt' },
     { name: 'UNC unchanged', input: '\\\\fileserver\\share\\doc.pdf', serverPath: '\\\\fileserver\\share\\doc.pdf' },
   ]],
   ['WSL', wsl, [
-    { name: 'drive → /mnt', input: 'C:\\Users\\gower\\Pictures\\a.png', serverPath: '/mnt/c/Users/gower/Pictures/a.png' },
+    { name: 'drive → /mnt', input: 'C:\\Users\\demo\\Pictures\\a.png', serverPath: '/mnt/c/Users/demo/Pictures/a.png' },
     { name: 'other drive → /mnt', input: 'D:\\data\\x.csv', serverPath: '/mnt/d/data/x.csv' },
     { name: 'own distro UNC → linux path', input: '\\\\wsl.localhost\\Ubuntu-24.04\\home\\gower\\repo\\f.ts', serverPath: '/home/gower/repo/f.ts' },
     { name: 'other distro UNC', input: '\\\\wsl.localhost\\Debian\\home\\gower\\f.ts', serverPath: null, reason: 'outside-wsl-distro' },
     { name: 'network share', input: '\\\\fileserver\\share\\doc.pdf', serverPath: null, reason: 'outside-wsl-distro' },
   ]],
   ['Docker', docker, [
-    { name: 'inside the mount', input: 'C:\\Users\\gower\\repo\\src\\a.ts', serverPath: '/workspace/src/a.ts' },
-    { name: 'outside every mount', input: 'C:\\Users\\gower\\Downloads\\a.ts', serverPath: null, reason: 'outside-docker-mounts' },
+    { name: 'inside the mount', input: 'C:\\Users\\demo\\repo\\src\\a.ts', serverPath: '/workspace/src/a.ts' },
+    { name: 'outside every mount', input: 'C:\\Users\\demo\\Downloads\\a.ts', serverPath: null, reason: 'outside-docker-mounts' },
   ]],
   ['SSH', ssh, [
     // The home mapping is a workspace convention, not proof the remote has this file (Q1).
-    { name: 'local file under home', input: 'C:\\Users\\gower\\Pictures\\a.png', serverPath: null, reason: 'ssh-local-file' },
+    { name: 'local file under home', input: 'C:\\Users\\demo\\Pictures\\a.png', serverPath: null, reason: 'ssh-local-file' },
     { name: 'local file outside home', input: 'D:\\data\\x.csv', serverPath: null, reason: 'ssh-local-file' },
   ]],
 ]
@@ -71,11 +71,11 @@ const WORKSPACE_ENTRY: Array<[string, () => PathTranslator, Fixture[]]> = [
     { name: 'UNC of a server file → linux path', input: '\\\\wsl.localhost\\Ubuntu-24.04\\home\\gower\\repo\\f.ts', serverPath: '/home/gower/repo/f.ts' },
   ]],
   ['Docker', docker, [
-    { name: 'host form of a mounted file → container path', input: 'C:\\Users\\gower\\repo\\src\\a.ts', serverPath: '/workspace/src/a.ts' },
+    { name: 'host form of a mounted file → container path', input: 'C:\\Users\\demo\\repo\\src\\a.ts', serverPath: '/workspace/src/a.ts' },
     { name: 'container path outside the mounts stays', input: '/etc/hosts', serverPath: '/etc/hosts' },
   ]],
   ['SSH', ssh, [
-    { name: 'home-mapped server file → server home', input: 'C:\\Users\\gower\\repo\\a.ts', serverPath: '/home/gower/repo/a.ts' },
+    { name: 'home-mapped server file → server home', input: 'C:\\Users\\demo\\repo\\a.ts', serverPath: '/home/gower/repo/a.ts' },
     { name: 'server file outside home stays', input: '/etc/hosts', serverPath: '/etc/hosts' },
   ]],
 ]

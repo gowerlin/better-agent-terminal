@@ -157,7 +157,7 @@ Claude `onStream` 那條路徑（`combined.split('\n').slice(-8)`）也是同樣
   1. 超過 256 字元的行只保留行首 256 字元。縮圖只看得到約 30 字，所以看不出差別。
   2. 沒有 `\n` 的長行（codex），預覽會停在那一行的行首，直到某次 flush 收到超過 16 Ki 的新輸出，輸入切點越過舊內容時才更新。修正前則是永遠停在這個分頁最早的輸出，所以這點沒有變差。
   3. Claude `onMessage` 也套用了上限（理由見「實作細節」第 3 點）。
-- 修正前後的 Node 量測腳本放在 Worker 的 scratchpad，沒有進 repo（`C:\Users\Gower\AppData\Local\Temp\claude\D--ForgejoGit--Gower-Labs-BMad-Guide-better-agent-terminal-better-agent-terminal\dded06f5-f396-459f-bd92-0403e5e1c752\scratchpad\bench.mjs`）。
+- 修正前後的 Node 量測腳本放在 Worker 的 scratchpad，沒有進 repo（`<使用者資料夾>\AppData\Local\Temp\claude\D--ForgejoGit--Gower-Labs-BMad-Guide-better-agent-terminal-better-agent-terminal\dded06f5-f396-459f-bd92-0403e5e1c752\scratchpad\bench.mjs`）。
 - 後續建議：BUG-136 第三輪若要確認 Linux / macOS 實機效果，可以在 WSL / SSH 遠端分頁開 codex，比較修正前後 Renderer 的 CPU 用量（本單沒做）。
 
 ### 互動紀錄

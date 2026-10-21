@@ -471,7 +471,7 @@
 - **決定**:B(BAT 接手派發)
 - **理由**:
   1. **consumer 感最強**:BAT 已是 CT skill 成熟 consumer,對 6 項改良(intervention_type / affects_files / spec_level_check / *evolve distillation 等)在真實工作流的痛點最清楚
-  2. **double-loop 第一 loop 就地承擔**:BAT dogfood + 2026_Cooperative 激進驗證的雙 loop 架構下,第一 loop 直接主導派發能壓縮回饋路徑
+  2. **double-loop 第一 loop 就地承擔**:BAT dogfood + 專案A 激進驗證的雙 loop 架構下,第一 loop 直接主導派發能壓縮回饋路徑
   3. **DELEGATE 模式已熟**:CT-T008/T009/T010 連續三張 DELEGATE 都順利交付(含 yolo 模式),pattern 已驗證
   4. **skill 改動風險可控**:T0098 骨架 sanitize 零命中,BMad-Guide worker 執行時 BAT 塔台僅做協調與驗收,不寫 CT skill 檔
 - **執行模式**:
@@ -1725,20 +1725,20 @@
   - detached 視窗設定入口只讀（不動 `saveDetachedWorkspaceTerminals` 語意）
   - 外部 helper `--agent` 模式（含 `default`）套用落點工作區的生效參數，與 UI 按鈕一致；raw command 模式不加
   - 遠端 headless 不做
-  - 不等 Gary pre.9 回饋；回饋若帶出新 BUG 併入同批，整批完成後發 pre.10（D139）
+  - 不等 外部測試者A pre.9 回饋；回饋若帶出新 BUG 併入同批，整批完成後發 pre.10（D139）
 - **不採用**：工作區參數與全域串接（無法表達「這個工作區不要某個全域旗標」）；detached 視窗經 main `updateEntry` 寫入（成本高，先只讀）
 - **相關**：PLAN-040 / T0529 / D140 / T0128 / T0523 / T0527
 
 ---
 
-### D141 2026-10-14 — BUG-129 Gary 情境判定 #11 → 開 BUG-132；先做 cwd 一致性檢查（T0527，T0526 建議 [B]），PID 鏈根治入 backlog
+### D141 2026-10-14 — BUG-129 外部測試者A 情境判定 #11 → 開 BUG-132；先做 cwd 一致性檢查（T0527，T0526 建議 [B]），PID 鏈根治入 backlog
 
-- **背景**：T0526 以 Gary 日誌判定 BUG-129 為 T0523 §1 #11：Gary 的 Codex 在 SCB 分頁看到的 `BAT_TERMINAL_ID` / `BAT_WORKSPACE_ID` 整天都是土銀塔台分頁的值（agent CLI 自行保存的環境），`--notify-id` 與 `--workspace` 都錯，pre.8 的「塔台終端優先」救不回；yolo 時 Worker 完成訊息會送進土銀塔台。開成 Claude 是另一個原因（當時全域 Settings 未存、工作區層級無 UI → PLAN-040）
+- **背景**：T0526 以 外部測試者A 日誌判定 BUG-129 為 T0523 §1 #11：外部測試者A 的 Codex 在 SCB 分頁看到的 `BAT_TERMINAL_ID` / `BAT_WORKSPACE_ID` 整天都是專案B 塔台分頁的值（agent CLI 自行保存的環境），`--notify-id` 與 `--workspace` 都錯，pre.8 的「塔台終端優先」救不回；yolo 時 Worker 完成訊息會送進專案B 塔台。開成 Claude 是另一個原因（當時全域 Settings 未存、工作區層級無 UI → PLAN-040）
 - **決定**（yolo 授權，塔台依 breakpoint C 裁決）：
-  - 開 **BUG-132**（#11）；BUG-129 維持 FIXED（BAT 端 #4 / #5 / #10 已在 pre.8 修），待 Gary pre.8 回饋後結案
+  - 開 **BUG-132**（#11）；BUG-129 維持 FIXED（BAT 端 #4 / #5 / #10 已在 pre.8 修），待 外部測試者A pre.8 回饋後結案
   - **T0527**：派工 cwd 與落點工作區 `folderPath` 一致性檢查。不一致 → 警告；**只有** yolo 且 cwd 明確屬於另一個工作區時拒派（cwd 不屬於任何工作區時不擋，保留跨專案派工）；併做 `--agent codex` 簡寫與未知 agent id 提示
   - [A] PID 祖先鏈辨識呼叫者 PTY：backlog，#11 反覆發生或其他 agent CLI 出現同類情況時提高優先
-  - [C] codex-cli preset 關 shell snapshot：等 Gary 確認機制再評估
+  - [C] codex-cli preset 關 shell snapshot：等 外部測試者A 確認機制再評估
   - T0527 併入下一批（與 PLAN-040 一起），不單獨發版（D139 / 整批再發）
 - **不採用**：yolo 下 cwd 不一致一律拒派（會誤擋跨專案派工）；直接做 [A]（Windows 取祖先鏈成本高、daemon 執行時鏈會斷，先用便宜檢核擋住實害）
 - **待辦**：control-tower skill `references/auto-session.md` 補「派工前核對 `$BAT_WORKSPACE_ID` 工作區是否涵蓋 cwd」屬 skill 上游修改，塔台不寫安裝版 skill，記入 backlog
@@ -1748,9 +1748,9 @@
 
 ### D140 2026-10-14 — `--agent default` 維持現有語意（落點工作區 defaultAgent → Settings defaultAgent → claude-code）；T0521-T0525 批次發 v0.6.0-pre.8
 
-- **背景**：BUG-129（Gary 的 Codex 塔台派工開成 Claude）。T0523 修正落點後，`default` 以落點工作區解析；Gary 的 SCB 工作區與全域推定未設 Codex，所以仍會開 Claude。T0523 §4 提出選項 B：工作區 / 全域都未設時改用塔台終端自己的 agent preset
+- **背景**：BUG-129（外部測試者A 的 Codex 塔台派工開成 Claude）。T0523 修正落點後，`default` 以落點工作區解析；外部測試者A 的 SCB 工作區與全域推定未設 Codex，所以仍會開 Claude。T0523 §4 提出選項 B：工作區 / 全域都未設時改用塔台終端自己的 agent preset
 - **決定**：使用者選 **A**（2026-10-14 14:07，14:17 確認）。不改 `default` 語意；選項 B 不做
-- **更正（14:21，使用者指出）**：工作區層級的預設 agent **沒有 UI 可設**。`Workspace.defaultAgent` 欄位存在且被讀取（`src/types/index.ts:18`、`App.tsx:855`、`WorkspaceView.tsx:519/641`、`electron/main.ts:543`），但 store 與 UI 都沒有寫入點，實務上恆為空 ⇒ 查找順序第 ① 層目前形同不存在。Gary 現在可用的做法：全域 Settings → 預設 Agent 設 Codex（他兩個工作區都用 Codex），或塔台派工帶 `--agent codex`（他的 Codex 塔台已自行改用）。工作區層級設定 UI 另案評估
+- **更正（14:21，使用者指出）**：工作區層級的預設 agent **沒有 UI 可設**。`Workspace.defaultAgent` 欄位存在且被讀取（`src/types/index.ts:18`、`App.tsx:855`、`WorkspaceView.tsx:519/641`、`electron/main.ts:543`），但 store 與 UI 都沒有寫入點，實務上恆為空 ⇒ 查找順序第 ① 層目前形同不存在。外部測試者A 現在可用的做法：全域 Settings → 預設 Agent 設 Codex（他兩個工作區都用 Codex），或塔台派工帶 `--agent codex`（他的 Codex 塔台已自行改用）。工作區層級設定 UI 另案評估
 - **發版**：BUG-127-131（T0521-T0525）聯合複驗全綠（13:58 @ `b00c4f9`）後，使用者同意發 `v0.6.0-pre.8`
 - **相關**：BUG-129 / T0523 / D139（整批修完再發版）
 

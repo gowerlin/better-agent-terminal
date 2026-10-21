@@ -177,7 +177,7 @@ T0619 實測：codex `>= 0.163.0` 在 PTY 送 `ESC ] 7501 ; state=<idle|working|
 7. C-7：replay 恢復 `input` 時 `blockedSince` = 掃描時間（與 `agentStartedAt` 同）。
 8. 對 `hook` 分頁：7501 整段忽略（detection、blocked、agentStarted 都不動），落實「`input` 與 hook reason 不會同時存在」。
 
-### 實測輸出（e2e `t0621-codex-osc-state.spec.ts`，codex-cli 0.163.0 `C:\Users\Gower\AppData\Local\Programs\OpenAI\Codex\bin\codex.exe`）
+### 實測輸出（e2e `t0621-codex-osc-state.spec.ts`，codex-cli 0.163.0 `<使用者資料夾>\AppData\Local\Programs\OpenAI\Codex\bin\codex.exe`）
 
 **`--wait-started` 三種結果**
 
@@ -227,8 +227,8 @@ T0619 實測：codex `>= 0.163.0` 在 PTY 送 `ESC ] 7501 ; state=<idle|working|
 **版本判定日誌**（debug log）
 
 ```
-[codex-version] path=C:\Users\Gower\AppData\Local\Programs\OpenAI\Codex\bin\codex.exe version=0.163.0 (probed)
-[codex-version] path=C:\Users\Gower\AppData\Local\Programs\OpenAI\Codex\bin\codex.exe version=0.163.0 (cached)
+[codex-version] path=<使用者資料夾>\AppData\Local\Programs\OpenAI\Codex\bin\codex.exe version=0.163.0 (probed)
+[codex-version] path=<使用者資料夾>\AppData\Local\Programs\OpenAI\Codex\bin\codex.exe version=0.163.0 (cached)
 ```
 
 其他 e2e 斷言：`[codex-state] terminal=<worker> → idle`、`[agent-start] … → started (osc …)`、`[blocked] … → blocked reason=input (osc)` / `→ cleared (osc working|idle)`；分頁 raw buffer 仍含 `ESC ]7501;state=`（只讀）；分頁輸入行含 `check_for_update_on_startup=false`（C-6）；debug log / `bat-scripts.log` 不含工具命令印在畫面上的標記字串、不含 `batcap.` 權杖；假 Responses API 只收到 2 個 `POST /v1/responses`（不呼叫真模型）。e2e 用隔離 `CODEX_HOME`（temp，`config.toml` 指向假 API、信任 `trusted` 資料夾），未讀寫使用者的 `~/.codex/`、`%APPDATA%\BetterAgentTerminal\settings.json`。找不到 codex `>= 0.163.0`（`BAT_E2E_CODEX`、官方安裝位置、PATH、內嵌）或非 Windows → `test.skip` 並寫明原因（內嵌 codex 目前是 0.160.0，沒有 7501）。

@@ -48,7 +48,7 @@ memory_overrides:
 
 ## 背景
 
-Gary（mac）回報：在 Finder 裡 Command+C 拷貝後，到 BAT 終端按 Command+V 貼不上，Ctrl+V 可以。從 LINE 或 BAT 內部複製的文字，Command+V 都正常。詳見 **BUG-128**。
+外部測試者A（mac）回報：在 Finder 裡 Command+C 拷貝後，到 BAT 終端按 Command+V 貼不上，Ctrl+V 可以。從 LINE 或 BAT 內部複製的文字，Command+V 都正常。詳見 **BUG-128**。
 
 推定根因：`src/components/TerminalPanel.tsx:517-551` 的自訂鍵盤處理只攔 `ctrlKey + v`，mac 分支用 `navigator.clipboard.readText()` 貼上。Command+V（`metaKey`）沒有被攔，交給 xterm / 瀏覽器原生的 `paste` 事件或 Electron 選單的 paste role，而 Finder 拷貝的剪貼簿裡 `text/plain` 可能是空的，只有檔案項目。
 
@@ -59,7 +59,7 @@ Gary（mac）回報：在 Finder 裡 Command+C 拷貝後，到 BAT 終端按 Com
    - 剪貼簿有檔案項目（file URL）時，貼上**完整 POSIX 路徑**，有空白或特殊字元時用 shell 安全的引號或跳脫，與拖放檔案進終端的結果一致（參考 BUG-107 / T0435 的拖放路徑處理）。多個檔案用空白分隔
    - 純文字（LINE、BAT 內部）維持現狀，不得重複貼兩次（攔截 Command+V 後要 `preventDefault`，或確保原生 paste 事件不會再貼一次）
    - 檔案路徑要從 main 讀（Electron `clipboard`），就經 preload 暴露最小 API，不開放任意剪貼簿格式讀取
-3. **Ctrl+V 在 mac 上的結果**：確認 Gary 說「Ctrl+V 可以」時實際貼了什麼（檔名？路徑？），修正後兩個快捷鍵要一致
+3. **Ctrl+V 在 mac 上的結果**：確認 外部測試者A 說「Ctrl+V 可以」時實際貼了什麼（檔名？路徑？），修正後兩個快捷鍵要一致
 4. **Claude / Codex 面板輸入框**：確認 Finder 拷貝後 Command+V 是否也有同樣問題（面板既有的圖片貼上邏輯不得改壞）。有問題就一起修；成本高就在回報區記錄、另開 BUG 由塔台決定
 5. 遠端視窗（WSL / SSH / Docker）的終端：貼上的是 client 端（mac）的路徑。這是否合理（例如遠端無法存取）只要在回報區說明，不在本單處理
 
@@ -67,11 +67,11 @@ Gary（mac）回報：在 Finder 裡 Command+C 拷貝後，到 BAT 終端按 Com
 
 - 單元測試：路徑跳脫 / 引號（空白、單引號、中文、多檔案）；mac 平台 metaKey+V 走新路徑、剪貼簿只有文字時行為不變；非 mac 平台 Ctrl+V 行為不變（含 Windows 圖片 → `\x1bv`）
 - `npm run typecheck` = 0、`npm run typecheck:electron` = 0（若動 electron）、`npx vite build` exit 0；`npm run test:unit` 全套無回歸
-- Windows 上無法重現 Finder 剪貼簿：在回報區寫給 Gary 的 mac 實機驗收步驟（≤ 5 步）
+- Windows 上無法重現 Finder 剪貼簿：在回報區寫給 外部測試者A 的 mac 實機驗收步驟（≤ 5 步）
 
 ## 驗收條件
 
-- [ ] mac 上 Finder 拷貝後 Command+V 能貼出路徑（AI 端以單元測試 + 推論驗證；真人驗收交 Gary）
+- [ ] mac 上 Finder 拷貝後 Command+V 能貼出路徑（AI 端以單元測試 + 推論驗證；真人驗收交 外部測試者A）
 - [ ] 純文字 Command+V 不重複貼、不退化
 - [ ] Windows / Linux 貼上行為不變
 - [ ] BUG-128：`status: FIXED`、`fixed_at`、body 狀態列與「根因與修正」段同步
@@ -87,7 +87,7 @@ Gary（mac）回報：在 Finder 裡 Command+C 拷貝後，到 BAT 終端按 Com
 
 ## 回報區
 
-### 結果：DONE（AI 端驗證全過；mac 實機驗收交 Gary）
+### 結果：DONE（AI 端驗證全過；mac 實機驗收交 外部測試者A）
 
 ### Landing Zone Check：PASS
 
@@ -99,11 +99,11 @@ Gary（mac）回報：在 Finder 裡 Command+C 拷貝後，到 BAT 終端按 Com
 
 | 快捷鍵 | 修正前實際路徑 | Finder 拷貝時的結果 |
 |---|---|---|
-| Command+V | `attachCustomKeyEventHandler` 只攔 `ctrlKey`；xterm 對 metaKey 組合不處理、不 `preventDefault` → Chromium（`RenderWidgetHostViewCocoa` 先把 key equivalent 給 renderer，未處理才 redispatch 給選單）→ `electron/main.ts` Edit 選單 `role: 'paste'` → `webContents.paste()` → DOM `paste` 事件 → xterm `handlePasteEvent` 只讀 `clipboardData.getData('text/plain')` | Finder 放的是 file URL；Blink 的 `DataObject::CreateFromClipboard` 把 `text/uri-list` 以 `ReadFiles()` 轉成 Files 放進 DataTransfer，`text/plain` 取不到內容 ⇒ xterm 收到空字串，什麼都不貼（與 Gary 回報一致） |
+| Command+V | `attachCustomKeyEventHandler` 只攔 `ctrlKey`；xterm 對 metaKey 組合不處理、不 `preventDefault` → Chromium（`RenderWidgetHostViewCocoa` 先把 key equivalent 給 renderer，未處理才 redispatch 給選單）→ `electron/main.ts` Edit 選單 `role: 'paste'` → `webContents.paste()` → DOM `paste` 事件 → xterm `handlePasteEvent` 只讀 `clipboardData.getData('text/plain')` | Finder 放的是 file URL；Blink 的 `DataObject::CreateFromClipboard` 把 `text/uri-list` 以 `ReadFiles()` 轉成 Files 放進 DataTransfer，`text/plain` 取不到內容 ⇒ xterm 收到空字串，什麼都不貼（與 外部測試者A 回報一致） |
 | Ctrl+V（mac） | BAT 自己攔，`navigator.clipboard.readText()`（Async Clipboard API 直接讀 `NSPasteboardTypeString`） | Finder 在純文字欄位放的是**檔名**（非完整路徑）⇒「Ctrl+V 可以」推定貼出的只是 `report.pdf` 這類檔名 |
 
 - Electron `clipboard`：`availableFormats()` 回 MIME 風格名稱，看不到原生 UTI，故不用；`clipboard.read(format)` 對 mac 自訂格式走 `ReadData` → `[NSPasteboard dataForType:]`。`read('NSFilenamesPboardType')` 回 XML plist（每個項目一個 `<string>` POSIX 路徑，多選皆在；AppKit 已標 deprecated，但 Finder 拷貝仍經 pasteboard type translation 提供），`read('public.file-url')` 只回第一個項目的 `file://` URL。兩者都是 Electron 社群讀 Finder 拷貝路徑的慣用法
-- 依據：Electron `shell/common/api/electron_api_clipboard.cc`（`Clipboard::Read` → `ui::Clipboard::ReadData`）、Chromium `ui/base/clipboard/clipboard_mac.mm`（`ReadAvailableTypes` 有 Filenames 時回報 `text/uri-list`）、Blink `third_party/blink/renderer/core/clipboard/data_object.cc`、xterm.js `src/browser/Clipboard.ts` `handlePasteEvent`。以上為原始碼記憶推論，未在 mac 實測；BUG-128 的 Gary 現象（Cmd+V 無反應、Ctrl+V 有東西）與此推論一致
+- 依據：Electron `shell/common/api/electron_api_clipboard.cc`（`Clipboard::Read` → `ui::Clipboard::ReadData`）、Chromium `ui/base/clipboard/clipboard_mac.mm`（`ReadAvailableTypes` 有 Filenames 時回報 `text/uri-list`）、Blink `third_party/blink/renderer/core/clipboard/data_object.cc`、xterm.js `src/browser/Clipboard.ts` `handlePasteEvent`。以上為原始碼記憶推論，未在 mac 實測；BUG-128 的 外部測試者A 現象（Cmd+V 無反應、Ctrl+V 有東西）與此推論一致
 - 修正**不依賴**上述 Chromium 細節是否完全正確：Command+V 改在 keydown 自行處理並 `preventDefault`，檔案路徑由 main 直接讀 pasteboard
 
 ### 2. 修正
@@ -125,7 +125,7 @@ Gary（mac）回報：在 Finder 裡 Command+C 拷貝後，到 BAT 終端按 Com
 ### 3. Ctrl+V 與 Command+V 一致性（任務 3）
 
 - 修正前 mac Ctrl+V：`readText()` → Finder 放的純文字 = 檔名（推論，見第 1 節）
-- 修正後：Command+V、Ctrl+V、右鍵 Paste 全部走 `pasteClipboardMac()`；Finder 項目 → 完整 POSIX 路徑（zsh / bash = posix 引號：`'/Users/gary/My Report.pdf'`、`'it'\''s'`、中文路徑也加引號；無特殊字元不加引號），多檔以空白分隔，不送 Enter；純文字 → 原樣（含 >10 KB 確認對話框、>64000 分段）
+- 修正後：Command+V、Ctrl+V、右鍵 Paste 全部走 `pasteClipboardMac()`；Finder 項目 → 完整 POSIX 路徑（zsh / bash = posix 引號：`'/Users/tester/My Report.pdf'`、`'it'\''s'`、中文路徑也加引號；無特殊字元不加引號），多檔以空白分隔，不送 Enter；純文字 → 原樣（含 >10 KB 確認對話框、>64000 分段）
 
 ### 4. Claude / Codex 面板（任務 4）
 
@@ -147,9 +147,9 @@ Gary（mac）回報：在 Finder 裡 Command+C 拷貝後，到 BAT 終端按 Com
 | `npm run typecheck:electron` | PASS（0） | exit 0 |
 | `npx vite build` | PASS | exit 0 |
 | `npm run test:unit` 全套 | PASS | 216 files、3574 passed / 1 skipped，exit 0 |
-| mac 實機 | 未執行（AI 無 mac） | 交 Gary，步驟見下 |
+| mac 實機 | 未執行（AI 無 mac） | 交 外部測試者A，步驟見下 |
 
-#### 給 Gary 的 mac 實機驗收步驟
+#### 給 外部測試者A 的 mac 實機驗收步驟
 
 1. 在 Finder 選一個檔名有空白的檔案（例如 `My Report.pdf`），Command+C；到 BAT 一般終端分頁按 Command+V → 應出現 `'/Users/…/My Report.pdf'`（完整路徑、有引號、沒有自動 Enter）
 2. 同一個剪貼簿改按 Ctrl+V、以及右鍵 → Paste → 結果應與步驟 1 相同；Finder 一次選兩個檔案拷貝再 Command+V → 兩個路徑以空白分隔

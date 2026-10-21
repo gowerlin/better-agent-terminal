@@ -18,9 +18,9 @@
 
 ```
 $ npx tsx tests/_windows-probe.ts
-[AC-4.2++ customPath → .cmd shim] C:\Users\Gower\AppData\Roaming\npm\claude.cmd:
+[AC-4.2++ customPath → .cmd shim] <使用者資料夾>\AppData\Roaming\npm\claude.cmd:
 {
-  "path": "C:\\Users\\Gower\\AppData\\Roaming\\npm\\claude.cmd",
+  "path": "<使用者資料夾>\\AppData\\Roaming\\npm\\claude.cmd",
   "version": "",
   "versionRaw": "",
   "healthStatus": "spawn-failed",

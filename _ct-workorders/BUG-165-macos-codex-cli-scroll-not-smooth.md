@@ -13,7 +13,7 @@ impact:
   - codex
   - macos
 links:
-  discovered_in: "Gary 回報（2026-10-19 15:40，v0.7.1-pre.3）"
+  discovered_in: "外部測試者A 回報（2026-10-19 15:40，v0.7.1-pre.3）"
   related: [BUG-136, BUG-164, T0667, T0669, T0670]
 ---
 
@@ -23,21 +23,21 @@ links:
 |------|------|
 | 嚴重度 | 🟢 low（捲動可用；體驗改善） |
 | 可重現 | 未確認 |
-| **狀態** | 📂 OPEN（T0670 研究 DONE `8c581f5b`：主因候選 = xterm 滑鼠追蹤模式每個 wheel 事件最多送 1 個回報；**跨平台**，macOS 觸控板最明顯；待 Gary 測試 1 確認後決定是否派 S 修正） |
-| 回報者 | Gary（使用者轉達） |
+| **狀態** | 📂 OPEN（T0670 研究 DONE `8c581f5b`：主因候選 = xterm 滑鼠追蹤模式每個 wheel 事件最多送 1 個回報；**跨平台**，macOS 觸控板最明顯；待 外部測試者A 測試 1 確認後決定是否派 S 修正） |
+| 回報者 | 外部測試者A（使用者轉達） |
 
 ## 現象
 
-- 15:40 Gary：「終端機畫面可以滾，可以的話看能不能再絲滑一點」；15:41「但至少打字卡頓的問題解決了」（BUG-136 已 CLOSED）。
+- 15:40 外部測試者A：「終端機畫面可以滾，可以的話看能不能再絲滑一點」；15:41「但至少打字卡頓的問題解決了」（BUG-136 已 CLOSED）。
 - 使用者補充：指的是**在 Codex CLI 內**捲動。
 - 預期：與一般終端（Terminal.app / iTerm2）中的 Codex 一樣順。實際：不夠順（程度未量化）。
 
 ## 已知背景
 
 - 版本 `v0.7.1-pre.3`：macOS 預設 `--disable-skia-graphite`（T0669 / BUG-164），縮圖預覽上限（T0667 / BUG-136）。
-- Gary 的 Codex 分頁使用 alt screen（BUG-136 T0666 日誌：`buffer changed: alt`）。
+- 外部測試者A 的 Codex 分頁使用 alt screen（BUG-136 T0666 日誌：`buffer changed: alt`）。
 
-## 待確認（給 Gary）
+## 待確認（給 外部測試者A）
 
 1. 用觸控板還是滑鼠滾輪？
 2. 同一個 Codex 版本在 Terminal.app / iTerm2 裡捲動是否一樣不順？（區分 BAT 端與 codex 端）
@@ -49,11 +49,11 @@ links:
 - 【原始碼 + 實測】xterm.js 5.5（6.0 亦同）在滑鼠追蹤模式下**每個 wheel 事件最多送 1 個回報**，多的行數丟掉：60 個 × 50 px 快速滑動應捲 173 行，只送 60 個回報；慣性尾段 35.7 → 25。iTerm2 預設依累積行數送多個回報（每事件 ≤ 32）。
 - 平台：**跨平台**（BAT / xterm / codex 該路徑皆無平台分支）；macOS 觸控板高頻 pixel-delta + 慣性事件下最明顯（推論）。`--disable-skia-graphite` 對捲動幀率的影響本機無法驗證。
 - 次要因素（權重低）：xterm 5.5 不支援同步輸出 DEC 2026（可能偶見半幀）；main 輸出 16 ms 批次不對齊 vsync。
-- 建議修正（S，待 Gary 確認）：`TerminalPanel.tsx` `attachCustomWheelEventHandler`，僅 alt buffer + 滑鼠追蹤 + SGR 時依像素累積行數送多個回報（上限約 8），先只套 codex 分頁。不建議：調 `smoothScrollDuration` / `scrollSensitivity`、為此升 xterm 6.0。
+- 建議修正（S，待 外部測試者A 確認）：`TerminalPanel.tsx` `attachCustomWheelEventHandler`，僅 alt buffer + 滑鼠追蹤 + SGR 時依像素累積行數送多個回報（上限約 8），先只套 codex 分頁。不建議：調 `smoothScrollDuration` / `scrollSensitivity`、為此升 xterm 6.0。
 - 使用者端暫解：`~/.codex/config.toml` `[tui]` `mouse_scroll_speed = 3`（BAT 不得注入 `-c tui.*`）。
 - 副作用紀錄：T0670 在使用者 `~/.codex/sessions/2026/10/19/` 留下兩個測試 session 檔（15:48、15:54），未刪除。
 
-## Gary 回覆（2026-10-19 17:28，使用者轉達）
+## 外部測試者A 回覆（2026-10-19 17:28，使用者轉達）
 
 - 「用 Claude CLI，滑鼠捲動比較滑順，但用 Codex 就會比較頓」→ 與 T0670 結論相符（問題只在 codex 自己接管滑鼠、每回報 1 行的路徑；Claude CLI 走不同路徑）。
 - 「有空再排吧，不急著修」→ 不急，排程時再派 S 修正。`mouse_scroll_speed = 3` 測試尚未回覆。

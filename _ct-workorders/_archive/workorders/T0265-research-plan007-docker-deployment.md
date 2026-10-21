@@ -332,18 +332,18 @@ Working tree byte-identical（除本工單）。
 {
   serverEnv: 'docker',
   dockerMounts: [
-    { host: 'C:\\Users\\Gower\\projects\\bat',     container: '/workspace/bat' },
-    { host: 'C:\\Users\\Gower\\projects\\bmad',    container: '/workspace/bmad' },
+    { host: '<使用者資料夾>\\projects\\bat',     container: '/workspace/bat' },
+    { host: '<使用者資料夾>\\projects\\bmad',    container: '/workspace/bmad' },
     { host: 'D:\\ForgejoGit\\experimental',        container: '/workspace/experimental' }
   ]
 }
 ```
 
 **翻譯範例**：
-- Client 側請求 `fs:readdir('C:\\Users\\Gower\\projects\\bat\\src')`
+- Client 側請求 `fs:readdir('<使用者資料夾>\\projects\\bat\\src')`
   → translator.toServer → `/workspace/bat/src`
 - Server 回 `fs:changed { path: '/workspace/bmad/CLAUDE.md' }`
-  → translator.toClient → `C:\\Users\\Gower\\projects\\bmad\\CLAUDE.md`
+  → translator.toClient → `<使用者資料夾>\\projects\\bmad\\CLAUDE.md`
 - Path 不在任何 mount 內（如 `/etc/passwd`）→ translator 原樣傳 → client 嘗試開檔失敗（預期，不在工作區）
 
 **DockerPathTranslator 實作補強**（T0264 已凍結介面，本節補實作細節）：
@@ -644,7 +644,7 @@ UI 狀態機（文字 mock）：
 │  Workspace 對應（Host → Container）              │
 │                                                  │
 │  Host folder              Container path         │
-│  C:\Users\Gower\projects  /workspace/projects    │
+│  <使用者資料夾>\projects  /workspace/projects    │
 │  D:\ForgejoGit            /workspace/forgejo     │
 │  [+ 新增 mount]                                  │
 │                                                  │

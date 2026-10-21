@@ -25,7 +25,7 @@ links:
 | 嚴重度 | 🔴 high（使用者端 app 完全無法開啟） |
 | 可重現 | 必現（macOS 任一 arch；根因見下） |
 | **狀態** | ✅ FIXED（T0468，待 mac 實機驗收） |
-| 回報者 | 外部使用者 Gary（2026-10-13 15:38 轉述，附截圖） |
+| 回報者 | 外部使用者 外部測試者A（2026-10-13 15:38 轉述，附截圖） |
 | 版本 | `0.6.0-pre.2`（macOS；回報者稱「前兩天還能開」） |
 
 ## 現象
@@ -64,7 +64,7 @@ at Object.<anonymous> (.../whisper-node-addon/dist/js/index.js:36:22)
 
 ## 根因（2026-10-13 16:05，回報者資料 + 上游套件確認）
 
-回報者（Gary）資料：`uname -m` = `arm64`（Apple M2 Pro）；app 執行檔 `Mach-O 64-bit executable arm64`（確為 arm64 dmg）；`codesign --verify --deep --strict` 無輸出（通過）；`CFBundleShortVersionString` = `0.6.0-pre.2`；`app.asar` mtime `Oct 5 13:01:35 2026`（10-05 安裝後未被改動）；`~/Library/Application Support/better-agent-terminal/Logs/` 不存在。
+回報者（外部測試者A）資料：`uname -m` = `arm64`（Apple M2 Pro）；app 執行檔 `Mach-O 64-bit executable arm64`（確為 arm64 dmg）；`codesign --verify --deep --strict` 無輸出（通過）；`CFBundleShortVersionString` = `0.6.0-pre.2`；`app.asar` mtime `Oct 5 13:01:35 2026`（10-05 安裝後未被改動）；`~/Library/Application Support/better-agent-terminal/Logs/` 不存在。
 
 `app.asar.unpacked/node_modules/@kutalia/whisper-node-addon/dist/` 內容：`js/`、`linux-x64/`、**`mac-arm64/`**、**`mac-x64/`**、`win32-x64/` —— **沒有 `darwin-arm64/`**。
 
@@ -102,9 +102,9 @@ cd "/Applications/BetterAgentTerminal.app/Contents/Resources/app.asar.unpacked/n
 
 ## 處置
 
-塔台決策（2026-10-13 15:43，使用者指示）：**先開單，等 Gary 回報環境資料後再派修復工單**。
+塔台決策（2026-10-13 15:43，使用者指示）：**先開單，等 外部測試者A 回報環境資料後再派修復工單**。
 
-2026-10-13 16:05：Gary 回報到齊、根因確認 → 派 **T0468**（自有 loader 繞過上游 index.js + 延遲載入 fail-soft + verify-native-modules 加深）；狀態 → FIXING。本機 node_modules 還原待 T0467 / T0468 結束後由塔台執行。
+2026-10-13 16:05：外部測試者A 回報到齊、根因確認 → 派 **T0468**（自有 loader 繞過上游 index.js + 延遲載入 fail-soft + verify-native-modules 加深）；狀態 → FIXING。本機 node_modules 還原待 T0467 / T0468 結束後由塔台執行。
 
 ## 修復（T0468，2026-10-13）
 

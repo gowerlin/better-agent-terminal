@@ -181,7 +181,7 @@ DONE —— 4 項驗收全部通過。WSL 實測有 1 處偏差：`wsl.exe --` �
 | claude | missing | — | — | n/a | false | false |
 | git | ok | `/usr/bin/git` | 2.43.0 | n/a | — | true |
 | gh | missing | — | — | n/a | false | false |
-| codex | **interop-only** | `/mnt/c/Users/Gower/AppData/Roaming/npm/codex` | — | n/a | false | false |
+| codex | **interop-only** | `/mnt/<使用者資料夾>/AppData/Roaming/npm/codex` | — | n/a | false | false |
 | curl | ok | `/usr/bin/curl` | 8.5.0 | n/a | — | true |
 | bash | ok | `/usr/bin/bash` | 5.2.21 | n/a | — | true |
 | rg / uv / node | missing | — | — | n/a | — | false |

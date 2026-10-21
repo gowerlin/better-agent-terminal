@@ -199,15 +199,15 @@ ok 7 detached-workspace.spec.ts:41     › detached workspace window loads the p
 
 ### A4 BUG-119 真環境（唯讀）（PASS；token 判定方式偏離）
 
-- marker：`{"v":1,"from":"C:\\Users\\Gower\\AppData\\Roaming\\better-agent-terminal","at":"2026-10-13T17:54:44.547Z","items":{"Local State":"copied","snippets.json":"no-legacy","message-archives":"no-legacy","Logs":"not-moved","Crashes":"not-moved"}}`
+- marker：`{"v":1,"from":"<使用者資料夾>\\AppData\\Roaming\\better-agent-terminal","at":"2026-10-13T17:54:44.547Z","items":{"Local State":"copied","snippets.json":"no-legacy","message-archives":"no-legacy","Logs":"not-moved","Crashes":"not-moved"}}`
 - `Logs\debug-20261014-015444.log`（pre.5 首次啟動）原文：
   ```
-  [2026-10-13T17:54:45.078Z] [LOG] [userdata-migration] userData=C:\Users\Gower\AppData\Roaming\BetterAgentTerminal (legacy C:\Users\Gower\AppData\Roaming\better-agent-terminal)
+  [2026-10-13T17:54:45.078Z] [LOG] [userdata-migration] userData=<使用者資料夾>\AppData\Roaming\BetterAgentTerminal (legacy <使用者資料夾>\AppData\Roaming\better-agent-terminal)
   [2026-10-13T17:54:45.078Z] [LOG] [userdata-migration] Local State: copied
   [2026-10-13T17:54:45.078Z] [LOG] [userdata-migration] snippets.json: no-legacy
   [2026-10-13T17:54:45.078Z] [LOG] [userdata-migration] message-archives: no-legacy
-  [2026-10-13T17:54:45.078Z] [LOG] [userdata-migration] Logs: not-moved — legacy logs remain at C:\Users\Gower\AppData\Roaming\better-agent-terminal\Logs
-  [2026-10-13T17:54:45.078Z] [LOG] [userdata-migration] Crashes: not-moved — legacy crashes remain at C:\Users\Gower\AppData\Roaming\better-agent-terminal\Crashes
+  [2026-10-13T17:54:45.078Z] [LOG] [userdata-migration] Logs: not-moved — legacy logs remain at <使用者資料夾>\AppData\Roaming\better-agent-terminal\Logs
+  [2026-10-13T17:54:45.078Z] [LOG] [userdata-migration] Crashes: not-moved — legacy crashes remain at <使用者資料夾>\AppData\Roaming\better-agent-terminal\Crashes
   [2026-10-13T17:54:45.079Z] [LOG] [userdata-migration] marker: written
   ```
 - 雜湊 / mtime：

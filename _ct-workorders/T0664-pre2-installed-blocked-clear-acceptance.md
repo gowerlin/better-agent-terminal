@@ -125,7 +125,7 @@ memory_overrides:
 - 同上加 `BAT_E2E_REAL_CLAUDE=1`，`-g "V2"` → **1 passed**，2.3 min（21:40:32–21:42:51 +0800）
 - 不帶 env：**2 skipped**
 
-**證據目錄**：`C:\Users\Gower\AppData\Local\Temp\claude\D--ForgejoGit--Gower-Labs-BMad-Guide-better-agent-terminal-better-agent-terminal\0e4f8b39-d65e-44ba-8dfe-62e4ca82b7af\scratchpad\t0664-evidence\`（`results.json`、`v0-claude-settings.json`、`v1-debug-blocked.log`、`v1-bat-scripts.jsonl`、`v2-debug.log`、`v2-bat-scripts.jsonl`、`v2-state-samples.jsonl`、`v2-worker-output.txt`）；所有檔案 `batcap.` / `accessToken` / `sk-ant` 計數 0。
+**證據目錄**：`<使用者資料夾>\AppData\Local\Temp\claude\D--ForgejoGit--Gower-Labs-BMad-Guide-better-agent-terminal-better-agent-terminal\0e4f8b39-d65e-44ba-8dfe-62e4ca82b7af\scratchpad\t0664-evidence\`（`results.json`、`v0-claude-settings.json`、`v1-debug-blocked.log`、`v1-bat-scripts.jsonl`、`v2-debug.log`、`v2-bat-scripts.jsonl`、`v2-state-samples.jsonl`、`v2-worker-output.txt`）；所有檔案 `batcap.` / `accessToken` / `sk-ant` 計數 0。
 
 **環境清理**：兩次 teardown 都是「Terminal Server pid … alive after teardown: false」、「runtime userData removed: true」、「temp dir removed: true」；V2 另查 `claude.exe` 中命令列含該 runtime 的程序：none。事後 `ls` 確認 `%TEMP%\bat-t0664-*`、`%APPDATA%\BetterAgentTerminal-runtime-e2e-t0664-*` 都不存在。
 

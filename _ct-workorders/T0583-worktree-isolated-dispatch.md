@@ -151,7 +151,7 @@ PLAN-047 軌道 W（D150 / D152）：工單可選擇在獨立 worktree 執行，
 ✓ Terminal created: 376371b33d1872644dcb45f838d43336
   workspace: T0583 (e2e-t0583-ws) — the Tower terminal's workspace (--notify-id)
   agent: e2e-t0583-worker (--agent default: the workspace's default agent)
-  worktree: C:\Users\Gower\AppData\Local\Temp\bat-t0583-r1LR5i\.bat-worktrees\repo\T0583
+  worktree: <使用者資料夾>\AppData\Local\Temp\bat-t0583-r1LR5i\.bat-worktrees\repo\T0583
   branch: ct/T0583
   base: 521d99e870c8c2d603b5624a59376e2fd7cd91bb
 ```
@@ -159,7 +159,7 @@ PLAN-047 軌道 W（D150 / D152）：工單可選擇在獨立 worktree 執行，
 Worker 端（自訂 CLI 的 node 腳本記錄）：`cwd` = `…\.bat-worktrees\repo\T0583\pkg`（派工 cwd 為 `<repo>\pkg`）、`CT_HOME` = `…\bat-t0583-r1LR5i\repo`、`CT_WORKTREE` = `…\.bat-worktrees\repo\T0583`、`CT_WORKTREE_BRANCH` = `ct/T0583`、`CT_WORKTREE_BASE` = `521d99e8…`（40 字元）。
 
 ```
-Error: Failed to create terminal (WORKTREE_FAILED): cwd C:\Users\Gower\AppData\Local\Temp\bat-t0583-r1LR5i\plain is not a git repository (fatal: not a git repository (or any of the parent directories): .git)
+Error: Failed to create terminal (WORKTREE_FAILED): cwd <使用者資料夾>\AppData\Local\Temp\bat-t0583-r1LR5i\plain is not a git repository (fatal: not a git repository (or any of the parent directories): .git)
 create: WORKTREE_FAILED
 ```
 （exit 7，沒有建立分頁）

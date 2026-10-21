@@ -37,7 +37,7 @@ completed_at: "2026-10-16T02:18:03+0800"
 
 1. **`result=true` 漂移**：`control-tower/SKILL.md`（`Trust BAT dispatch success from process exit code 0 or bat-scripts.log terminal-created result=true`）與 `references/auto-session.md` §「成功判定」（約 :881–896，T0534 指出 :894 把 `null` stdout 描述為舊行為）寫的成功日誌是 `result=true`，BAT 實際寫的是 `"result":"ok"`（`scripts/bat-terminal.mjs` `terminal-created` 事件）。改為 `result: "ok"`，並保留「以 exit code 為準」的主規則；同步檢查 `:894` 的舊行為描述是否仍正確。
 2. **notify 失敗時的工單狀態**：`references/yolo-mode.md` 約 :444–447 寫「notify 失敗時工單停在 `IN_PROGRESS`」，但 `ct-exec/SKILL.md` 的收尾流程是**先寫最終狀態、再 notify**。以 ct-exec 的實際順序為準修正 yolo-mode 的描述（notify 失敗時工單已是最終狀態，只是塔台沒收到通知；塔台的補救方式照現有手動 fallback）。
-3. **Codex 派工範例**：`docs/BMad Control Tower 安裝(升級)與使用指南 v5.md` 中提供給 `~/.codex/AGENTS.md` 的派工範例（使用者本機 `C:/Users/Gower/.codex/AGENTS.md:23-32` 為其複本）：
+3. **Codex 派工範例**：`docs/BMad Control Tower 安裝(升級)與使用指南 v5.md` 中提供給 `~/.codex/AGENTS.md` 的派工範例（使用者本機 `<使用者資料夾>/.codex/AGENTS.md:23-32` 為其複本）：
    - 補 `--cwd "<專案根目錄>"` 與 `--interactive` / `--no-interactive`（與 `auto-session.md` 派工指令一致）
    - 優先用 `"$BAT_HELPER_DIR/bat-terminal.mjs"`，安裝路徑為 fallback
    - 「需 BAT 環境變數完備」清單移除 `BAT_TOWER_TERMINAL_ID`（塔台不需要、也不得被要求具備，見 `auto-session.md` :746；它是 Worker notify 專用）

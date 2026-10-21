@@ -159,18 +159,18 @@ export function runContract(
 
 | # | name | clientPath | 期望行為 |
 |---|------|-----------|---------|
-| 1 | Windows drive letter | `C:\Users\Gower\repo` | round-trip identical |
+| 1 | Windows drive letter | `<使用者資料夾>\repo` | round-trip identical |
 | 2 | Windows UNC | `\\server\share\file.txt` | round-trip identical |
 | 3 | POSIX absolute | `/home/gower/repo` | round-trip identical |
 | 4 | POSIX with spaces | `/home/gower/my project/file.txt` | round-trip identical |
 | 5 | Trailing slash | `/home/gower/` | round-trip identical（保留尾斜線） |
-| 6 | Mixed slashes（Win） | `C:/Users/Gower\repo` | round-trip identical（不規範化） |
+| 6 | Mixed slashes（Win） | `<使用者資料夾>\repo` | round-trip identical（不規範化） |
 | 7 | 中文路徑 | `D:\專案\資料夾\檔案.txt` | round-trip identical |
 | 8 | Long path（>260） | `C:\` + `a/`.repeat(150) | round-trip identical |
 | 9 | Empty string | `''` | round-trip identical（防呆） |
 | 10 | Root | `/` 或 `C:\` | round-trip identical |
 | 11 | Relative path（非預期但需 graceful） | `./relative` | round-trip identical（不報錯） |
-| 12 | Node-style POSIX on Windows | `/c/Users/Gower` | round-trip identical（不轉 drive letter） |
+| 12 | Node-style POSIX on Windows | `<使用者資料夾>` | round-trip identical（不轉 drive letter） |
 
 **Identity-specific 額外斷言**：
 - `owns(anyPath) === true`（IdentityTranslator 對所有路徑都 own）

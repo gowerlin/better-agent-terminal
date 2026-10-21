@@ -155,7 +155,7 @@ memory_overrides:
 - 能掛的時點：「決定下一步」之後、輸出 `✅ 已確認完成` 確認區塊時，條件為 `status == DONE` 且不 Renew。塔台的 Bash 受白名單限制（`auto-session.md:925-947`），關閉指令必須加進白名單。
 - Worker 收尾後不會退出：ct-exec 在 notify 或手動 fallback 後就結束（`ct-exec/SKILL.md:306-325`），沒有 `/exit`，Worker session 保持閒置。
 - 所有 skill 目錄都沒有提到 `pty:kill`、關閉或清理終端。
-- Codex 版塔台：`C:/Users/Gower/.codex/skills/{control-tower,ct-exec,ct-done}` 是**獨立複本**，`diff -rq` 與 `.claude` 版內容相同（只差 `.sonar/`），流程一致；差別只在 BAT 把 `--skill` 轉成 `/ct-exec`（Claude）或 `$ct-exec`（Codex）（`auto-session.md:786-787`）。`_local-rules.md` 在專案裡，兩種塔台都會讀 → local_rule 方案對兩者都有效。⚠️ `C:/Users/Gower/.codex/AGENTS.md:23-32` 的派工範例少了 `--cwd` / `--no-interactive`，而且把 `BAT_TOWER_TERMINAL_ID` 列為塔台必要變數，與 skill 不一致（不在本單範圍，列入後續）。
+- Codex 版塔台：`<使用者資料夾>/.codex/skills/{control-tower,ct-exec,ct-done}` 是**獨立複本**，`diff -rq` 與 `.claude` 版內容相同（只差 `.sonar/`），流程一致；差別只在 BAT 把 `--skill` 轉成 `/ct-exec`（Claude）或 `$ct-exec`（Codex）（`auto-session.md:786-787`）。`_local-rules.md` 在專案裡，兩種塔台都會讀 → local_rule 方案對兩者都有效。⚠️ `<使用者資料夾>/.codex/AGENTS.md:23-32` 的派工範例少了 `--cwd` / `--no-interactive`，而且把 `BAT_TOWER_TERMINAL_ID` 列為塔台必要變數，與 skill 不一致（不在本單範圍，列入後續）。
 
 ### 3. 塔台初步判讀逐點驗證
 
@@ -222,7 +222,7 @@ memory_overrides:
 - 後續（給塔台，不在本單範圍）：
   1. CT `references/auto-session.md` 寫的成功日誌是 `result=true`，但 `bat-terminal.mjs` 實際寫 `result: 'ok'`（`scripts/bat-terminal.mjs:851-852`）；`auto-session.md:894` 把 `null` stdout 描述為舊行為。
   2. `yolo-mode.md:444-447` 說 notify 失敗時工單停在 `IN_PROGRESS`，與 `ct-exec/SKILL.md` 先寫最終狀態再 notify 的流程不一致。
-  3. `C:/Users/Gower/.codex/AGENTS.md:23-32` 的派工範例與 skill 不一致（少 `--cwd` / `--no-interactive`；`BAT_TOWER_TERMINAL_ID` 被列為塔台必要變數）。
+  3. `<使用者資料夾>/.codex/AGENTS.md:23-32` 的派工範例與 skill 不一致（少 `--cwd` / `--no-interactive`；`BAT_TOWER_TERMINAL_ID` 被列為塔台必要變數）。
   4. `remote-logger` 的 `sourceTerminalId` 讀 `customEnv.BAT_TERMINAL_ID`（`terminal-command-handlers.ts:407`），但 `bat-terminal` 從不送這個值，所以永遠是空的（診斷缺口）。
   5. 對死分頁按 ⏻ 重啟沒有反應（`PtyManager.restart` 回 `false` 但 UI 沒檢查，`WorkspaceView.tsx:940-955`）——是小 bug，可以另開 BUG。
 

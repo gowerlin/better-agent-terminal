@@ -31,8 +31,8 @@ describe('normalizeDispatchPath', () => {
   })
 
   it('darwin is case-insensitive, linux is not', () => {
-    expect(normalizeDispatchPath('/Users/Gary/Bank/', 'darwin')).toBe('/users/gary/bank')
-    expect(normalizeDispatchPath('/home/Gary/Bank/', 'linux')).toBe('/home/Gary/Bank')
+    expect(normalizeDispatchPath('/Users/tester/Bank/', 'darwin')).toBe('/users/tester/bank')
+    expect(normalizeDispatchPath('/home/tester/Bank/', 'linux')).toBe('/home/tester/Bank')
   })
 
   it('relative or empty → null', () => {
@@ -52,7 +52,7 @@ describe('normalizeDispatchPath', () => {
 describe('checkDispatchCwd', () => {
   const ENTRIES: DispatchRegistryEntry[] = [{
     workspaces: [
-      { id: 'ws-bank', name: '土銀', folderPath: 'D:\\Work\\Bank' },
+      { id: 'ws-bank', name: '專案B', folderPath: 'D:\\Work\\Bank' },
       { id: 'ws-scb', name: 'SCB', alias: 'SCB專案', folderPath: 'D:\\Work\\SCB' },
       { id: 'ws-scb-sub', name: 'SCB sub', folderPath: 'D:\\Work\\SCB\\packages\\api' },
       { id: 'ws-nofolder', name: 'No folder' },

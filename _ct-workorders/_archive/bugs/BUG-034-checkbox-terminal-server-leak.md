@@ -63,7 +63,7 @@
 - **Quit 方式**：托盤 + File 選單皆中（Q2.A + Q2.B）
 - **Dialog 行為**：✅ 正常跳出、✅ checkbox 可勾、✅ 點 OK 後視窗關閉
 - **殘留證據**：工作管理員截圖（D:\Downloads\2026-04-17_153330.png）
-- **Log 目錄**：`C:\Users\Gower\AppData\Roaming\better-agent-terminal\Logs`
+- **Log 目錄**：`<使用者資料夾>\AppData\Roaming\better-agent-terminal\Logs`
 - **研究授權**：Q3.C — Worker 自行決定 static 分析 vs trace log（可在研究工單內提議方案並請使用者重測）
 
 ---

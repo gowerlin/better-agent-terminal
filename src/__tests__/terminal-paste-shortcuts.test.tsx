@@ -205,12 +205,12 @@ describe('imagePasteKey', () => {
 describe('Finder paths → shell-quoted text (posix shells on macOS)', () => {
   test('spaces, single quotes, CJK, multiple files', () => {
     expect(buildTerminalDropText([
-      '/Users/gary/Desktop/My Report.pdf',
-      "/Users/gary/it's here",
-      '/Users/gary/文件/截圖 1.png',
-      '/Users/gary/plain.txt',
+      '/Users/tester/Desktop/My Report.pdf',
+      "/Users/tester/it's here",
+      '/Users/tester/文件/截圖 1.png',
+      '/Users/tester/plain.txt',
     ], 'posix')).toBe(
-      "'/Users/gary/Desktop/My Report.pdf' '/Users/gary/it'\\''s here' '/Users/gary/文件/截圖 1.png' /Users/gary/plain.txt",
+      "'/Users/tester/Desktop/My Report.pdf' '/Users/tester/it'\\''s here' '/Users/tester/文件/截圖 1.png' /Users/tester/plain.txt",
     )
   })
 })
@@ -218,7 +218,7 @@ describe('Finder paths → shell-quoted text (posix shells on macOS)', () => {
 describe('TerminalPanel paste shortcuts', () => {
   test('macOS Command+V with Finder items types quoted paths (bracketed paste), no Enter', async () => {
     setup('darwin')
-    readFilePaths.mockResolvedValue(['/Users/gary/My Report.pdf', '/Users/gary/b.txt'])
+    readFilePaths.mockResolvedValue(['/Users/tester/My Report.pdf', '/Users/tester/b.txt'])
     const { handler } = await renderTerminal('t0522-mac-files')
 
     const ev = keydown({ key: 'v', metaKey: true })
@@ -227,8 +227,8 @@ describe('TerminalPanel paste shortcuts', () => {
 
     expect(handled).toBe(false)
     expect(ev.defaultPrevented).toBe(true)
-    await waitFor(() => expect(xtermPaste).toHaveBeenCalledWith("'/Users/gary/My Report.pdf' /Users/gary/b.txt"))
-    expect(resolveClientPaths).toHaveBeenCalledWith(['/Users/gary/My Report.pdf', '/Users/gary/b.txt'], 'local-file')
+    await waitFor(() => expect(xtermPaste).toHaveBeenCalledWith("'/Users/tester/My Report.pdf' /Users/tester/b.txt"))
+    expect(resolveClientPaths).toHaveBeenCalledWith(['/Users/tester/My Report.pdf', '/Users/tester/b.txt'], 'local-file')
     expect(readText).not.toHaveBeenCalled()
     expect(ptyWrite).not.toHaveBeenCalledWith(expect.anything(), expect.stringContaining('\r'))
   })
@@ -273,14 +273,14 @@ describe('TerminalPanel paste shortcuts', () => {
 
   test('macOS Ctrl+V gives the same result as Command+V', async () => {
     setup('darwin')
-    readFilePaths.mockResolvedValue(['/Users/gary/文件/a b.txt'])
+    readFilePaths.mockResolvedValue(['/Users/tester/文件/a b.txt'])
     const { handler } = await renderTerminal('t0522-mac-ctrl')
 
     const ev = keydown({ key: 'v', ctrlKey: true })
     act(() => { handler(ev) })
 
     expect(ev.defaultPrevented).toBe(true)
-    await waitFor(() => expect(xtermPaste).toHaveBeenCalledWith("'/Users/gary/文件/a b.txt'"))
+    await waitFor(() => expect(xtermPaste).toHaveBeenCalledWith("'/Users/tester/文件/a b.txt'"))
     expect(readText).not.toHaveBeenCalled()
   })
 

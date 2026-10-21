@@ -80,7 +80,7 @@ const fixtures: SmokeFixture[] = [
     },
     expectTranslator: IdentityTranslator,
     expectMetaTargetOS: 'local',
-    pathFixture: { client: 'C:\\Users\\Gower\\repo', server: 'C:\\Users\\Gower\\repo' },
+    pathFixture: { client: 'C:\\Users\\demo\\repo', server: 'C:\\Users\\demo\\repo' },
   },
   {
     name: 'wsl-linux',
@@ -95,7 +95,7 @@ const fixtures: SmokeFixture[] = [
     },
     expectTranslator: WslPathTranslator,
     expectMetaTargetOS: 'wsl-linux',
-    pathFixture: { client: 'C:\\Users\\Gower\\repo', server: '/mnt/c/Users/Gower/repo' },
+    pathFixture: { client: 'C:\\Users\\demo\\repo', server: '/mnt/c/Users/demo/repo' },
   },
   {
     name: 'docker-linux',

@@ -87,7 +87,7 @@ memory_overrides:
 | 測試 | 斷言 | 實測 |
 |------|------|------|
 | M1 | P / Q 視窗 `remote.clientStatus()` 皆 `connected: true`，`info.port` / `fingerprint` 分別等於 A / B；A、B server 各恰 1 個 client（renderer reuse，無第二次握手）；A 本機視窗不綁 remote | ✅ |
-| M2 | P 視窗 `pty.create` → A 的本機視窗 `getCwd` 非 null、B 為 null；Q 視窗反之；P 的 PTY `set /a 1200+34` → P 視窗見 `1234`，Q 的 `4321` 只到 Q 視窗、**不進 P 視窗** | ✅ `{"pOnA":"C:\\Users\\Gower","pOnB":null,"qOnA":null,"qOnB":"C:\\Users\\Gower"}` |
+| M2 | P 視窗 `pty.create` → A 的本機視窗 `getCwd` 非 null、B 為 null；Q 視窗反之；P 的 PTY `set /a 1200+34` → P 視窗見 `1234`，Q 的 `4321` 只到 Q 視窗、**不進 P 視窗** | ✅ `{"pOnA":"<使用者資料夾>","pOnB":null,"qOnA":null,"qOnB":"<使用者資料夾>"}` |
 | M3 | 再開 6 個 filler（A / B 交替）→ server clients A=4 / B=4；第 9 個 `openNewInstance` 回 `{ alreadyOpen:false, windowIds:[], error:'remote-limit' }`；stub 對話框恰 1 次且內含 `8`；2 s 後視窗數不變、兩 server client 數不變、8 個視窗全部仍 connected；log 有 `remote connect refused for profile <id>` | ✅ 對話框：`Remote profile limit reached` / `8 remote profiles are already connected, which is the maximum…` |
 | M4 | 以 main 端 `BrowserWindow.close()` 關 P 唯一視窗（走真實 `close` handler → `deactivateProfile` → `closed` → `noteRemoteWindowClosed`）；log 出現 `releasing its connection in 15s`；**10 s 時** A / B client 數不變（寬限期內）；之後 A 減 1、經過 ≥ 14 s；log 有 `released the connection of profile <P> (idle: no window left)`；B client 數不變、Q 仍 connected 且新 PTY `7007` 往返成功；M3 被拒的 profile 此時可連上（名額回收），A 回到 4 | ✅ 兩輪分別 15 224 ms / 15 242 ms 才離開 server A |
 

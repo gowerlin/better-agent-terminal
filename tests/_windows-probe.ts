@@ -44,7 +44,7 @@ async function probe() {
   }
 
   // Extra: probe the known-good system exe via customPath override
-  const systemExe = 'C:\\Users\\Gower\\.local\\bin\\claude.exe'
+  const systemExe = 'C:\\Users\\demo\\.local\\bin\\claude.exe'
   console.log(`[AC-4.2+ customPath → real .exe] ${systemExe}:`)
   const customInfo = await detectSystemClaude(systemExe)
   console.log(JSON.stringify(customInfo, null, 2))
@@ -56,7 +56,7 @@ async function probe() {
   // outcome: Node 20+ spawn() refuses EINVAL → healthStatus: 'spawn-failed'.
   // Kept as a manual regression probe — the router will fall back to embedded
   // (fallbackToEmbedded=true default) or surface a degraded event.
-  const cmdShim = 'C:\\Users\\Gower\\AppData\\Roaming\\npm\\claude.cmd'
+  const cmdShim = 'C:\\Users\\demo\\AppData\\Roaming\\npm\\claude.cmd'
   console.log(`[AC-4.2++ customPath → .cmd shim] ${cmdShim}:`)
   const cmdInfo = await detectSystemClaude(cmdShim)
   console.log(JSON.stringify(cmdInfo, null, 2))

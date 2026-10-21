@@ -87,7 +87,7 @@ T0668 把 BUG-164 的崩潰點符號化出來了：Chromium 146 `graphite_shared
   - `disable-features` 仍然只有一個。
   - isActive effect 沒有被改。
   - B 的時機選擇與理由。
-  - 給 Gary 的驗證步驟：`[gpu] feature status` 的 `skia_graphite=` 應該不再是 `enabled_on`；逃生口怎麼用。
+  - 給 外部測試者A 的驗證步驟：`[gpu] feature status` 的 `skia_graphite=` 應該不再是 `enabled_on`；逃生口怎麼用。
 
 ## 不做
 
@@ -139,7 +139,7 @@ DONE
 - `docs/agent-guide/logging.md`「GPU 狀態日誌 `[gpu]`」下加兩個子項：macOS Graphite 預設停用（原因、🔴 不得用第二個 `disable-features`、逃生口、三種啟動日誌行、判讀）與崩潰後重建（事件、時機、去重 / 節流、日誌行、trigger 判讀、測試檔）。
 - `CLAUDE.md`「Logging」節 `[gpu]` 那一行只補一句並連到 docs。
 
-**給 Gary 的驗證步驟（macOS，`v0.7.1-pre.3` 安裝後）**
+**給 外部測試者A 的驗證步驟（macOS，`v0.7.1-pre.3` 安裝後）**
 1. 照常開啟 BAT，打開最新的 `~/Library/Application Support/BetterAgentTerminal/Logs/debug-<時間>.log`：
    - 應有 `[gpu] skia graphite: disabled (darwin default, --disable-skia-graphite; BAT_SKIA_GRAPHITE=1 keeps it on)`；
    - `[gpu] feature status:` 那行的 `skia_graphite=` **不再是 `enabled_on`**（實際字串請回報）。
@@ -156,7 +156,7 @@ DONE
 | `npm run typecheck:electron` | PASS = 0 | `tsc --noEmit -p tsconfig.node.json --composite false --target ES2022` exit 0，無輸出 |
 | `npx vite build` | PASS | exit 0；`disable-skia-graphite` 與 `system:gpu-process-gone` 在 `dist-electron/main-*.js`，`system:gpu-process-gone` 在 `dist-electron/preload.js`，renderer 日誌字串在 `dist/assets/MainPanel-*.js` |
 | `git diff --stat`（`32d62a45`） | PASS | 只有 `affects_files` 內檔案：`CLAUDE.md`、`docs/agent-guide/logging.md`、`electron/gpu-status-log.ts`、`electron/main.ts`、`electron/preload.ts`、`electron/__tests__/skia-graphite-switch.test.ts`（符合 `*graphite*`）、`src/components/TerminalPanel.tsx`、`src/types/electron.d.ts`、`src/__tests__/terminal-gpu-crash-redraw.test.tsx`（符合 `src/**/__tests__/*gpu*`）；另有本工單檔 |
-| macOS runtime（Graphite 停用、崩潰後重建） | 未驗證 | 本機為 Windows，無法實測；交給 Gary（上方步驟） |
+| macOS runtime（Graphite 停用、崩潰後重建） | 未驗證 | 本機為 Windows，無法實測；交給 外部測試者A（上方步驟） |
 
 驗證的程式碼即 `32d62a45` 的內容：單元測試開跑後只改了 `docs/agent-guide/logging.md` 與 `CLAUDE.md` 的文字（沒有測試讀取這兩個檔），typecheck 與 build 在最終內容上執行。
 

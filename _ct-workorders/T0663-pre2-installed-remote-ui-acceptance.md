@@ -133,14 +133,14 @@ node e2e/real-remote/t0663-env.mjs down --rmi
 
 **最終執行結果**（HEAD `b49c8b1c`，spec 內容與 commit `049dd993` 相同）：**13 passed (24.8s)**，results.json 共 40 項：39 PASS、1 NEEDS-HUMAN、0 FAIL。執行前已確認沒有其他 Playwright 程序（T0664 當時已完成）。
 
-**證據目錄**（不在 Playwright outputDir 底下）：`C:\Users\Gower\AppData\Local\Temp\bat-t0663\evidence\`
+**證據目錄**（不在 Playwright outputDir 底下）：`<使用者資料夾>\AppData\Local\Temp\bat-t0663\evidence\`
 
 - `results.json`（逐項判定 + 證據）、`subject-guard-calls.json`、`wizard-guard-calls.json`
 - V5 給使用者目視的三張截圖：`v5-wizard-ssh.png`、`v5-wizard-wsl.png`、`v5-wizard-docker.png`；另有 `v5-wizard-ssh-manual-host.png`
 - V1：`v1a-after-pin.png`、`v1b-after-save-reload.png`、`v1c-card-reachable.png`、`v1d-closed-port-error.png`；V2：`v2-ssh-linux-pin-disabled.png`、`v2-ssh-darwin-pin-disabled.png`、`v2-docker-linux-pin-enabled.png`
 - V3：`v3-edit-connection-zh-TW.png`、`v3-legacy-banner.png`、`v3-wsl1-warning.png`、`v3-wsl-systemd-warning.png`、`v3-ssh-auth-failed.png`
 - V4：`v4a-docker-daemon-down.png`、`v4a-docker-no-containers.png`、`v4b-add-menu-suggested.png`、`v4c-thumbnail-context-menu.png`
-- 執行 log：`C:\Users\Gower\AppData\Local\Temp\bat-t0663\run3.log`（最終一輪）；`run1.log` / `run2.log` 是修正測試側問題前的執行紀錄
+- 執行 log：`<使用者資料夾>\AppData\Local\Temp\bat-t0663\run3.log`（最終一輪）；`run1.log` / `run2.log` 是修正測試側問題前的執行紀錄
 
 **觀察（不在 BUG 範圍內，僅供塔台參考，未判 FAIL）**：
 

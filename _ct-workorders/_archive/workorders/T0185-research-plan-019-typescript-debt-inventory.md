@@ -11,7 +11,7 @@
 - **完成時間**:2026-04-18 22:11 (UTC+8)
 - **預估工時**:30-60 min(純盤點,不改 code)
 - **Renew 次數**:0
-- **互動規則**:允許(`research_interaction: true`,每次最多 3 問;詳見 [research-workorder.md](../../../../C:/Users/Gower/.claude/skills/control-tower/references/research-workorder.md))
+- **互動規則**:允許(`research_interaction: true`,每次最多 3 問;詳見 [research-workorder.md](../../../../<使用者資料夾>/.claude/skills/control-tower/references/research-workorder.md))
 
 ## 塔台決策背景(對齊結論)
 - Q1.A:走研究型工單,不直接實作

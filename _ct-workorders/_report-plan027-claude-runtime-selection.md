@@ -130,7 +130,7 @@ function resolveSystemClaudePath(customPath?: string): string | null {
 
 ### 限制
 
-- **不偵測 PATH 上多條 claude**:`where claude` 可能列多條(實測:本機有 `C:\Users\Gower\.local\bin\claude.exe`、`C:\Users\Gower\AppData\Roaming\npm\claude.cmd`、`...\npm\claude`)。原 PLAN 已決議「PATH 第一條優先」(D 隱含於 Q3),不開「使用者選哪條」UI
+- **不偵測 PATH 上多條 claude**:`where claude` 可能列多條(實測:本機有 `<使用者資料夾>\.local\bin\claude.exe`、`<使用者資料夾>\AppData\Roaming\npm\claude.cmd`、`...\npm\claude`)。原 PLAN 已決議「PATH 第一條優先」(D 隱含於 Q3),不開「使用者選哪條」UI
 - **不處理使用者中途安裝 / 移除**:偵測快取在 settings 啟動時刷新,session 建立時也重新偵測一次。**不做 file watcher**
 
 ### 推薦做法
@@ -158,8 +158,8 @@ export function getCommonClaudePaths(): string[]  // 平台分支
 | 路徑 | 輸出 |
 |------|------|
 | `node_modules/@anthropic-ai/claude-code/bin/claude.exe`(內嵌 2.1.113) | `2.1.113 (Claude Code)` |
-| `C:\Users\Gower\.local\bin\claude.exe`(curl installer) | `2.1.111 (Claude Code)` |
-| `C:\Users\Gower\AppData\Roaming\npm\claude.cmd`(npm global) | `2.1.111 (Claude Code)` |
+| `<使用者資料夾>\.local\bin\claude.exe`(curl installer) | `2.1.111 (Claude Code)` |
+| `<使用者資料夾>\AppData\Roaming\npm\claude.cmd`(npm global) | `2.1.111 (Claude Code)` |
 
 **格式高度穩定**:單行、`<semver> (Claude Code)`、無顏色 escape、無 stderr 雜訊。
 

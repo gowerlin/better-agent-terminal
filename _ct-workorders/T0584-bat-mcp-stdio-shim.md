@@ -130,7 +130,7 @@ T0582 給 shim 的重點（原文摘要）：
 
 ### 實際注入的命令片段（權杖不出現；來自 e2e 隔離實例）
 - claude（pwsh；`agent:bat-mcp-launch-args('claude-cli','pwsh','--model opus')`）：
-  `'--mcp-config=C:\Users\Gower\AppData\Roaming\BetterAgentTerminal-runtime-e2e-t0584-1792248378007\bat-mcp\claude.json'`
+  `'--mcp-config=<使用者資料夾>\AppData\Roaming\BetterAgentTerminal-runtime-e2e-t0584-1792248378007\bat-mcp\claude.json'`
   → 完整命令 = `& '<claude.exe>' '--mcp-config=…\bat-mcp\claude.json' --model opus`
   設定檔內容：`{"mcpServers":{"bat":{"type":"stdio","command":"node","args":["D:\\ForgejoGit\\@Gower_Labs\\BMad-Guide\\better-agent-terminal\\better-agent-terminal\\scripts\\bat-mcp.mjs"]}}}`（無 token、無 env）
 - codex（pwsh）：`-c 'mcp_servers.bat.command=''node''' -c 'mcp_servers.bat.args=[''D:\ForgejoGit\@Gower_Labs\BMad-Guide\better-agent-terminal\better-agent-terminal\scripts\bat-mcp.mjs'']' -c mcp_servers.bat.tool_timeout_sec=60`

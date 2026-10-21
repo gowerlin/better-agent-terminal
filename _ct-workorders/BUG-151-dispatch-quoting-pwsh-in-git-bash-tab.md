@@ -31,13 +31,13 @@ links:
 
 - BAT `0.7.0-pre.4`。`settings.json`：`shell = "git-bash"`、`customShellPath = ""`（塔台 02:43 讀檔確認）。
 - 02:29 BMad-Guide 塔台：`bat-terminal.mjs --notify-id <tower> --workspace bc439ad7-… --cwd "D:\ForgejoGit\@Gower_Labs\BMad-Guide" --mode yolo --no-interactive --agent default --skill ct-exec --workorder T0161` → exit 0，分頁 `7b14ff899afa15d3e920fc0999726362`（`Claude CLI · Worker · T0161`）。
-- 分頁 shell 是 Git Bash（UCRT64 提示字元），收到的指令開頭是 `, 'C:\Users\Gower\.local\bin\claude.exe' '--mcp-config=…\bat-mcp\claude.json' '--settings=…\bat-mcp\claude-settings.json' --dangerously-skip-permissions --effort high '/ct-exec T0161'` → `bash: ,: command not found`，claude 沒有啟動。
+- 分頁 shell 是 Git Bash（UCRT64 提示字元），收到的指令開頭是 `, '<使用者資料夾>\.local\bin\claude.exe' '--mcp-config=…\bat-mcp\claude.json' '--settings=…\bat-mcp\claude-settings.json' --dangerously-skip-permissions --effort high '/ct-exec T0161'` → `bash: ,: command not found`，claude 沒有啟動。
 - 預期：引號依分頁實際的 shell（Git Bash → posix）組出。
 
 ## 初步線索（塔台，未做程式分析）
 
 - 派工引號的 shell 由 `quotingShell`（`electron/terminal-command-handlers.ts`，BUG-149 / T0593）決定：有持久化 shell 用它，否則 `PtyManager.getDefaultShell()`。使用者有持久化 `git-bash`，理論上應走 posix；開頭的 `, ` 推測是 PowerShell call operator `&` 之類前綴被組錯或被 shell 吃掉。
-- 同一份 settings 下，本工作區（better-agent-terminal）02:26 派 T0596 正常 → 差異可能在工作區（BMad-Guide 工作區的工作區層級設定 / 環境變數）、落點視窗，或 claude 執行檔路徑（系統 claude `C:\Users\Gower\.local\bin\claude.exe` 的路徑解析分支）。
+- 同一份 settings 下，本工作區（better-agent-terminal）02:26 派 T0596 正常 → 差異可能在工作區（BMad-Guide 工作區的工作區層級設定 / 環境變數）、落點視窗，或 claude 執行檔路徑（系統 claude `<使用者資料夾>\.local\bin\claude.exe` 的路徑解析分支）。
 - 研究與修正：T0598。
 
 ## 根因更正（T0598，2026-10-18）

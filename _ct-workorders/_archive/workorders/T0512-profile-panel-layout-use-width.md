@@ -120,7 +120,7 @@ T0288（PLAN-007 C-7）新增的 `ProfileCard` 使用 `profile-card` / `profile-
 
 **wizard 完成頁不變**：修改前後 `wide-wizard-complete.png` / `narrow-wizard-complete.png` **sha256 完全相同**（`4c099a8c…` / `ed019acd…`），工具清單 `display: flex`、單欄。
 
-**截圖**（`C:\Users\Gower\AppData\Local\Temp\bat-t0512\evidence\`，`before-*` / `after-*` 各 8 張）：
+**截圖**（`<使用者資料夾>\AppData\Local\Temp\bat-t0512\evidence\`，`before-*` / `after-*` 各 8 張）：
 
 - `{before,after}-wide-wsl-expanded.png`、`{before,after}-wide-two-remote-expanded.png`、`{before,after}-wide-local-card.png`
 - `{before,after}-narrow-wsl-expanded.png`、`{before,after}-narrow-two-remote-expanded.png`、`{before,after}-narrow-local-card.png`

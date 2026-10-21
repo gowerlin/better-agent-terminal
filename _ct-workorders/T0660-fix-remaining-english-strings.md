@@ -162,7 +162,7 @@ T0652 把遠端設定畫面的英文字樣改走 i18n，範圍外還留著：精
 
 ### 截圖清單（不入版控，scratchpad）
 
-目錄：`C:\Users\Gower\AppData\Local\Temp\claude\D--ForgejoGit--Gower-Labs-BMad-Guide-better-agent-terminal-better-agent-terminal\fe6bd4ed-c06d-42cb-9589-96976a3fb05a\scratchpad\shots\out\`
+目錄：`<使用者資料夾>\AppData\Local\Temp\claude\D--ForgejoGit--Gower-Labs-BMad-Guide-better-agent-terminal-better-agent-terminal\fe6bd4ed-c06d-42cb-9589-96976a3fb05a\scratchpad\shots\out\`
 
 1. `1-add-menu-zh-TW.png`：縮圖列「+」選單，`建議` 標籤
 2. `2-thumbnail-context-menu-zh-TW.png`：縮圖右鍵選單「👁 設為監督者」

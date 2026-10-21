@@ -2,7 +2,7 @@
 schema_version: 1
 schema_kind: bug
 id: BUG-127
-title: "指揮塔面板：在兩個工作區之間切換時，右上角疊出一整排「新工單: T000x」toast（Gary 稱「殘影」），蓋住面板分頁與標題"
+title: "指揮塔面板：在兩個工作區之間切換時，右上角疊出一整排「新工單: T000x」toast（外部測試者A 稱「殘影」），蓋住面板分頁與標題"
 status: FIXED
 severity: low
 reproducibility: always
@@ -13,7 +13,7 @@ impact:
   - control-tower-panel
   - ui-notification
 links:
-  discovered_in: "Gary 回報（mac，LINE 2026-10-14 13:16，版本未確認）"
+  discovered_in: "外部測試者A 回報（mac，LINE 2026-10-14 13:16，版本未確認）"
   fix_workorder: T0521
   related: []
 ---
@@ -25,12 +25,12 @@ links:
 | 嚴重度 | 🟢 low（誤導 + 遮擋面板；功能未壞） |
 | 可重現 | 推定必現（兩個工作區都有 `_ct-workorders/` 時） |
 | **狀態** | ✅ FIXED（T0521，待 mac 實機驗收） |
-| 回報者 | Gary（mac） |
+| 回報者 | 外部測試者A（mac） |
 
 ## 現象
 
 - 截圖：`D:\Downloads\messageImage_1791954959950.jpg`
-- Gary 原話：「我在這裡兩個專案做切換，右邊會出現殘影」。左側 Sidebar 有兩個工作區（`2025_土銀客服中心建置案` / `SCB專案資料`）
+- 外部測試者A 原話：「我在這裡兩個專案做切換，右邊會出現殘影」。左側 Sidebar 有兩個工作區（`<專案B>` / `SCB專案資料`）
 - 右側指揮塔面板上方（紅框）疊了一整列 toast：`📋 新工單: T0008`、`T0009`、`T0007`、`T0006`、`T0005`、`T0004`、`T0003`、`T0002`，還有 `✅ T0001 已完成`。這些 toast 半透明疊在面板分頁（總覽 / 工單 / 史詩 / 工作流程 / 待審 / 決策）和標題「指揮塔」上，看起來像殘影
 - 工單清單本身正常（T0001-T0009，1 active / 8 done）
 

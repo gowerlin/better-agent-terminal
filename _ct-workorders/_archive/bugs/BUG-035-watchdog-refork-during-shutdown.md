@@ -107,7 +107,7 @@ class PtyManager:
 - **Log 時間**：2026-04-17 08:42:48（UTC，= 台北 16:42:48 UTC+8）
 - **殘留進程**：Q1.A (`terminal-server.js`) + Q1.C (`crashpad-handler`) — 注意 terminal-server 是**新 PID 26412**，原 server 已死
 - **觀察**：Q2.A 幾秒內即時看到消失 → 立刻又冒出來（即 re-fork 行為）
-- **Log 目錄**：`C:\Users\Gower\AppData\Roaming\better-agent-terminal\Logs`
+- **Log 目錄**：`<使用者資料夾>\AppData\Roaming\better-agent-terminal\Logs`
 
 ---
 

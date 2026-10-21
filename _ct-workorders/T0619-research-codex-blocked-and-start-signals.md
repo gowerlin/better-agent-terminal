@@ -99,7 +99,7 @@ T0574 建議 codex 走 OSC 9 `approval-requested`，但沒有實際觸發過，c
 
 ### 環境 / 版本 / 方法
 
-- codex：`codex-cli 0.163.0`（`C:\Users\Gower\AppData\Local\Programs\OpenAI\Codex\bin\codex.exe`，即 BAT 分頁 shell 解析到的 `codex`）。BAT：repo `0.7.0-pre.8`（main，本單不改產品檔）。Windows 11，node v24.22.0，`@lydell/node-pty` 1.1.0（repo 的 node_modules）。
+- codex：`codex-cli 0.163.0`（`<使用者資料夾>\AppData\Local\Programs\OpenAI\Codex\bin\codex.exe`，即 BAT 分頁 shell 解析到的 `codex`）。BAT：repo `0.7.0-pre.8`（main，本單不改產品檔）。Windows 11，node v24.22.0，`@lydell/node-pty` 1.1.0（repo 的 node_modules）。
 - 實驗架構（全部在 scratchpad，未寫進 repo）：`run.cjs` 起一個本機假 OpenAI Responses API（SSE），以 `-c model_provider="mock"` + `-c model_providers.mock={…base_url="http://127.0.0.1:<port>/v1",wire_api="responses"}` 指向它；node-pty（`xterm-256color`、120x30）跑**真的 codex TUI**，每次一個全新的隔離 `CODEX_HOME`（無登入）。假伺服器第一次回 `exec_command`（帶 `sandbox_permissions: "require_escalated"`，`-a on-request -s read-only` 下必觸發核准），工具結果回來後回一則 `ok` 訊息；`REPLY_TOOL=rui` 時改回 `request_user_input`。PTY 原始輸出逐 chunk 記錄（相對時間戳），另有 hook 探針 `hook.cjs`（只寫檔、不輸出、exit 0）、MCP 探針 `mcp.cjs`。
 - **模型呼叫次數：0**（沒有任何請求送到 OpenAI；codex 登入狀態沒有複製到任何地方，隔離 `CODEX_HOME` 為空目錄）。未修改 `%APPDATA%\BetterAgentTerminal\settings.json`、`~/.codex/`、`~/.claude/`（只讀）。
 - 為了判定 OSC 7501 的引入版本，從 npm registry 下載 `@openai/codex@0.162.1-win32-x64`、`@openai/codex@0.159.2-win32-x64` tarball 到 scratchpad 的獨立目錄，**只 grep 二進位字串、未執行**，查完已刪除。
@@ -249,7 +249,7 @@ t=5.492  ESC]7501;state=idle:app=codex ESC\
 - Landing check：**PASS**。C-0 `repo` = `better-agent-terminal`，`basename(REPO_ROOT)` = `better-agent-terminal`（REPO_ROOT = `D:/ForgejoGit/@Gower_Labs/BMad-Guide/better-agent-terminal/better-agent-terminal`）；C-1 工單在 REPO_ROOT 下；C-3 不適用（`affects_files` 只有本工單）；C-2 無 `branch` 欄位。`CT_HOME` 未設定（非 worktree）。`BAT_WORKSPACE_ID` = `cc0afc4a-57e9-4f41-b2ed-a2d8bac9e36b`（僅記錄）。
 - `CT_MODE=yolo`、`CT_INTERACTIVE=0`；沒有需要問塔台的問題（研究結論以建議 + 草案呈現，決策留給塔台）。
 - 產品檔：未修改。`src/styles/settings.css` 的 M 不是本單變更，未動。
-- Commit：只 commit 本工單檔（`git commit --only`）；不 push。實驗檔留在 scratchpad `C:\Users\Gower\AppData\Local\Temp\claude\D--ForgejoGit--Gower-Labs-BMad-Guide-better-agent-terminal-better-agent-terminal\62d24047-b982-49bb-815a-39730b996ee5\scratchpad\exp\`（`run.cjs` / `an.cjs` / `hook.cjs` / `mcp.cjs` / `hash.cjs`、各次擷取在 `out\`）。
+- Commit：只 commit 本工單檔（`git commit --only`）；不 push。實驗檔留在 scratchpad `<使用者資料夾>\AppData\Local\Temp\claude\D--ForgejoGit--Gower-Labs-BMad-Guide-better-agent-terminal-better-agent-terminal\62d24047-b982-49bb-815a-39730b996ee5\scratchpad\exp\`（`run.cjs` / `an.cjs` / `hook.cjs` / `mcp.cjs` / `hash.cjs`、各次擷取在 `out\`）。
 
 ### 互動紀錄
 

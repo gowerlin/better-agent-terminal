@@ -15,7 +15,7 @@ updated_at: "2026-10-19T16:04:14+0800"
 completed_at: "2026-10-19T16:04:14+0800"
 depends_on: []
 related:
-  - "BUG-165（OPEN；Gary 回報）"
+  - "BUG-165（OPEN；外部測試者A 回報）"
   - "BUG-136（CLOSED；T0666 研究：Codex alt screen 輸出特性、WSL 原生 PTY 擷取方法）"
   - "BUG-164 / T0669（macOS 預設 `--disable-skia-graphite`）"
 affects_files:
@@ -30,7 +30,7 @@ interaction:
   intervention_type: fire-and-forget
 memory_overrides:
   - "🔴 研究單、**唯讀**：不改任何產品檔、不改 BUG-165 / 其他工單 / 塔台狀態檔；只 commit 本工單檔（`git commit --only`）。不 push。"
-  - "🔴 yolo Worker：不得問使用者。要不要修、怎麼修是**使用者決定**，你只提推薦；判讀問題依 ct-exec § Questions For Tower 問塔台（每輪最多 3 題）。需要 Gary 做的事寫成「給 Gary 的問題 / 測試」清單。"
+  - "🔴 yolo Worker：不得問使用者。要不要修、怎麼修是**使用者決定**，你只提推薦；判讀問題依 ct-exec § Questions For Tower 問塔台（每輪最多 3 題）。需要 外部測試者A 做的事寫成「給 外部測試者A 的問題 / 測試」清單。"
   - "🔴 不得在任何地方寫出權杖值。"
 ---
 
@@ -38,13 +38,13 @@ memory_overrides:
 
 ## 研究目標
 
-Gary（macOS，`v0.7.1-pre.3`）回報：在 Codex CLI 分頁內捲動「可以滾，但希望更絲滑」。找出從「滾輪 / 觸控板事件」到「畫面更新」整條路徑上，**BAT 端**影響順暢度的因素，區分哪些 BAT 能改、哪些取決於 codex 本身，給出可決策的建議。
+外部測試者A（macOS，`v0.7.1-pre.3`）回報：在 Codex CLI 分頁內捲動「可以滾，但希望更絲滑」。找出從「滾輪 / 觸控板事件」到「畫面更新」整條路徑上，**BAT 端**影響順暢度的因素，區分哪些 BAT 能改、哪些取決於 codex 本身，給出可決策的建議。
 
 ## 已知資訊
 
 - 先讀 `BUG-165-macos-codex-cli-scroll-not-smooth.md`、`BUG-136-…`（`## 第三輪` 與結案段）、`BUG-164-…`（Graphite 停用）。
-- Gary 的 Codex 分頁在 alt screen（T0666 日誌 `buffer changed: alt`）。alt screen 沒有 xterm scrollback：捲動要嘛是 xterm 把滾輪轉成按鍵 / 滑鼠回報送給 codex、由 codex 重繪整個畫面，要嘛 codex 開了滑鼠追蹤自己處理。
-- 尚未知道：觸控板或滑鼠、在 Terminal.app / iTerm2 是否一樣（已另請 Gary 回答）。
+- 外部測試者A 的 Codex 分頁在 alt screen（T0666 日誌 `buffer changed: alt`）。alt screen 沒有 xterm scrollback：捲動要嘛是 xterm 把滾輪轉成按鍵 / 滑鼠回報送給 codex、由 codex 重繪整個畫面，要嘛 codex 開了滑鼠追蹤自己處理。
+- 尚未知道：觸控板或滑鼠、在 Terminal.app / iTerm2 是否一樣（已另請 外部測試者A 回答）。
 
 ## 調查範圍
 
@@ -52,9 +52,9 @@ Gary（macOS，`v0.7.1-pre.3`）回報：在 Codex CLI 分頁內捲動「可以�
 2. **codex 行為**：目前 codex 版本在 alt screen 下如何接收捲動（滑鼠追蹤模式？`?1007` alternate scroll？方向鍵？）、每次捲動送出多少輸出（可沿用 T0666 的 WSL 原生 PTY 擷取方法量測位元組數 / 每次捲動的重繪量）。
 3. **觸控板高頻 wheel 事件**：macOS 觸控板的 pixel-delta 事件在 xterm 如何被轉成行數 / 回報次數；是否會一次送出大量回報導致 codex 連續重繪、跳動。
 4. **與其他終端比較**（文件 / 原始碼層級即可）：iTerm2 / Terminal.app 對 alt screen 捲動的處理差異（例如是否合併事件）。
-5. **建議**：BAT 端可做的改善（S / M、風險、不得退化的既有行為：BUG-142 右鍵選單與滑鼠追蹤、T0571 Shift 拖曳選取、Win11 `clearTextureAtlas`），以及給 Gary 的最小確認測試（≤ 3 項）。
+5. **建議**：BAT 端可做的改善（S / M、風險、不得退化的既有行為：BUG-142 右鍵選單與滑鼠追蹤、T0571 Shift 拖曳選取、Win11 `clearTextureAtlas`），以及給 外部測試者A 的最小確認測試（≤ 3 項）。
 
-6. **平台範圍**（塔台 2026-10-19 15:44 追加，使用者指示）：判斷「Codex CLI 捲動不順」**是否只在 macOS 發生**。在本機 Windows（ConPTY）與 WSL（原生 PTY）實際開 Codex CLI 分頁捲動比較，並從原始碼找出有平台分支的捲動 / 滾輪 / 繪圖路徑（例如 macOS 觸控板 pixel-delta、`--disable-skia-graphite` 只在 darwin）。結論寫成「macOS 專屬 / 跨平台 / 無法判定」並附依據；macOS 本機無法驗證的部分列進「給 Gary 的問題 / 測試」。
+6. **平台範圍**（塔台 2026-10-19 15:44 追加，使用者指示）：判斷「Codex CLI 捲動不順」**是否只在 macOS 發生**。在本機 Windows（ConPTY）與 WSL（原生 PTY）實際開 Codex CLI 分頁捲動比較，並從原始碼找出有平台分支的捲動 / 滾輪 / 繪圖路徑（例如 macOS 觸控板 pixel-delta、`--disable-skia-graphite` 只在 darwin）。結論寫成「macOS 專屬 / 跨平台 / 無法判定」並附依據；macOS 本機無法驗證的部分列進「給 外部測試者A 的問題 / 測試」。
 
 ## 研究指引
 
@@ -64,7 +64,7 @@ Gary（macOS，`v0.7.1-pre.3`）回報：在 Codex CLI 分頁內捲動「可以�
 ## 互動規則
 
 - yolo、`--no-interactive`：不問使用者；判讀問題問塔台（每輪 ≤ 3 題）。
-- 需要 Gary 回答的事寫進回報區「給 Gary 的問題 / 測試」。
+- 需要 外部測試者A 回答的事寫進回報區「給 外部測試者A 的問題 / 測試」。
 
 ---
 
@@ -78,7 +78,7 @@ Gary（macOS，`v0.7.1-pre.3`）回報：在 Codex CLI 分頁內捲動「可以�
 
 落點檢查：**PASS**。C-0 `repo: better-agent-terminal` = `basename(REPO_ROOT)` `better-agent-terminal`；C-1 工單在 REPO_ROOT 下；C-3 不適用（`affects_files` 只有本工單）；C-2 無 `branch` 欄位。`CT_HOME` 未設（非 worktree）。`BAT_WORKSPACE_ID` = `cc0afc4a-57e9-4f41-b2ed-a2d8bac9e36b`（只記錄）。
 
-一句話結論：codex 0.163 在 alt screen 下**自己接管滑鼠**（`?1000h ?1002h ?1003h ?1006h`、`?1007l`），每收到一個滾輪回報就固定捲 `tui.mouse_scroll_speed` 行（預設 1.0），並重繪整個畫面。BAT 用的 xterm.js 5.5 在滑鼠追蹤模式下**每個 wheel 事件最多只送 1 個回報**，不管這個事件代表幾行。所以觸控板快速滑動時，手指移動 173 行的距離只送出 60 個回報（實測）：捲動速度被事件頻率卡住、和手指速度不成比例，慣性尾段也被截短。iTerm2 預設依累積行數送多個回報（每事件最多 32 個，原始碼）。這是 BAT 端能改、證據最完整的一項。平台判定：**跨平台**（機制在 xterm.js 與 codex，兩者都沒有平台分支）；預期在 macOS 觸控板上最明顯（推論，待 Gary 確認）。
+一句話結論：codex 0.163 在 alt screen 下**自己接管滑鼠**（`?1000h ?1002h ?1003h ?1006h`、`?1007l`），每收到一個滾輪回報就固定捲 `tui.mouse_scroll_speed` 行（預設 1.0），並重繪整個畫面。BAT 用的 xterm.js 5.5 在滑鼠追蹤模式下**每個 wheel 事件最多只送 1 個回報**，不管這個事件代表幾行。所以觸控板快速滑動時，手指移動 173 行的距離只送出 60 個回報（實測）：捲動速度被事件頻率卡住、和手指速度不成比例，慣性尾段也被截短。iTerm2 預設依累積行數送多個回報（每事件最多 32 個，原始碼）。這是 BAT 端能改、證據最完整的一項。平台判定：**跨平台**（機制在 xterm.js 與 codex，兩者都沒有平台分支）；預期在 macOS 觸控板上最明顯（推論，待 外部測試者A 確認）。
 
 ### 互動紀錄
 
@@ -116,7 +116,7 @@ Gary（macOS，`v0.7.1-pre.3`）回報：在 Codex CLI 分頁內捲動「可以�
   | 6 個回報放在同一次寫入 | 8.7 KB（= 6 次重繪，**codex 不合併**） | — | 6 行 |
   | 20 個滑鼠移動（any-motion）回報 | 0 B | — | 不重繪 |
 
-  249×69（接近 Gary 的分頁大小）：每個回報約 **6.2 KB**。每一幀分成 3–5.5 次 read，中位數 1.4–2.5 ms 內送完（最長 21 ms），而且每一幀都包在 `?2026h … ?2026l` 裡。
+  249×69（接近 外部測試者A 的分頁大小）：每個回報約 **6.2 KB**。每一幀分成 3–5.5 次 read，中位數 1.4–2.5 ms 內送完（最長 21 ms），而且每一幀都包在 `?2026h … ?2026l` 裡。
 - 【實測】Windows ConPTY（codex 0.163.0，同樣步驟）：每回報 1 行、1.5–2 KB。ConPTY 會把同一次寫入的 6 個回報合併成約 4.4 KB；每一幀約 30 ms 才送完（ConPTY 自己的繪製節奏）。
 
 #### 3. 觸控板高頻 wheel 事件在 xterm 5.5 的轉換（原始碼 + 實測）
@@ -143,12 +143,12 @@ Gary（macOS，`v0.7.1-pre.3`）回報：在 Codex CLI 分頁內捲動「可以�
 - 【原始碼】iTerm2 `sources/PTYSession/PTYSession.m`（`case NSEventTypeScrollWheel`，滑鼠回報模式）：預設 `proportionalScrollWheelReporting = YES`（`iTermAdvancedSettingsModel.m`，`SECTION_EXPERIMENTAL`），每個事件送 `MIN(32, |累積行數|)` 個回報。累積由 `iTermScrollAccumulator` 處理（觸控板的 precise delta ÷ 行高，保留小數）。⇒ 在 iTerm2 裡，快速滑動時 codex 收到的回報數和手指移動的距離成比例。
 - 【原始碼】iTerm2 另外處理了慣性：如果捲動開始時沒有在回報，就一直不回報到慣性結束（`_disableScrollReportingUntilMomentumEnds`，`PTYMouseHandler.m`）。xterm 沒有對應的處理。
 - 【原始碼】xterm.js 6.0.0 才支援同步輸出（DEC 2026，release notes #5453）；5.5.0 的 `InputHandler` 沒有 2026 的分支（grep 確認）。iTerm2 支援 2026。
-- Terminal.app：閉源，沒有查證。它是否合併事件、每事件送幾個回報，**無法判定**；請 Gary 實際比較（給 Gary 的測試 2）。
+- Terminal.app：閉源，沒有查證。它是否合併事件、每事件送幾個回報，**無法判定**；請 外部測試者A 實際比較（給 外部測試者A 的測試 2）。
 
 #### 5. 其他可能影響順暢度的 BAT 因素（權重較低）
 
 - 【原始碼 + 推論】**沒有同步輸出（DEC 2026）**：codex 每一幀分 3–5 次 read 送出（實測）。main 的 16 ms 批次邊界如果落在一幀中間，renderer 會先拿到半幀；xterm 5.5 不認 `?2026h`，下一個 rAF 就可能畫出半幀，看起來像撕裂或閃爍。以幀長 1.4–2.5 ms ÷ 16 ms 粗估，約一成多的捲動步可能受影響（推論，沒有在畫面上觀察到）。要修需要升級 xterm 6.0，但 6.0 移除了 canvas renderer（#5105），必須改用 WebGL 或 DOM renderer，會碰到 Win11 `clearTextureAtlas` 修正與 BUG-164 的 GPU 路徑。風險高、工作量 L，不建議為這個 bug 做。
-- 【原始碼 + 推論】**16 ms 批次不對齊 vsync**：輸出到畫面多了 0–16 ms 延遲，捲動步之間的間隔也會不均勻（某一幀兩步、下一幀零步）。Native 終端沒有這一層。改法（例如閒置後的第一筆立即送出）會影響所有分頁的輸出路徑，屬於 M 而且要量測，建議等 Gary 的測試結果再決定。
+- 【原始碼 + 推論】**16 ms 批次不對齊 vsync**：輸出到畫面多了 0–16 ms 延遲，捲動步之間的間隔也會不均勻（某一幀兩步、下一幀零步）。Native 終端沒有這一層。改法（例如閒置後的第一筆立即送出）會影響所有分頁的輸出路徑，屬於 M 而且要量測，建議等 外部測試者A 的測試結果再決定。
 - 【原始碼】Codex 在 alt buffer 捲動：xterm 的繪製成本受畫面大小限制，不隨對話長度成長（BUG-136 / T0666 已確認，T0667 已修正縮圖預覽）。
 
 #### 6. 平台範圍（塔台追加）：**跨平台**
@@ -162,14 +162,14 @@ Gary（macOS，`v0.7.1-pre.3`）回報：在 Codex CLI 分頁內捲動「可以�
 - 【實測】xterm「每事件最多 1 個回報」在 Electron 41（Windows）上重現；這段程式碼在 macOS 上相同。
 - 有平台差異、但只能推論的部分：
   - 輸入裝置的事件流：Chromium 在 macOS 觸控板上送高頻的 pixel delta 與慣性事件；Windows 滑鼠一格通常是一個約 100 px 的事件（Windows 精確式觸控板也會送高頻小 delta）。所以同一個機制，在 macOS 觸控板上表現成「不順」，在 Windows 滑鼠上表現成「一格只捲 1 行、慢」（推論）。
-  - `--disable-skia-graphite` 只在 darwin 加（`electron/main.ts` `decideSkiaGraphite`），改用 Ganesh 繪製。它是否影響捲動時的幀率**無法在本機驗證**，列給 Gary（測試 3）。
+  - `--disable-skia-graphite` 只在 darwin 加（`electron/main.ts` `decideSkiaGraphite`），改用 Ganesh 繪製。它是否影響捲動時的幀率**無法在本機驗證**，列給 外部測試者A（測試 3）。
 - 本機限制：這台 Windows 沒有觸控板手勢可以測，也沒有在 BAT 分頁裡用實體滑鼠或觸控板操作。BAT 端的行為用相同版本的 Electron + xterm + CanvasAddon 重現（§3），codex 端用 PTY 擷取（§2）。
 
 ### 建議方向
 
 **要不要修、怎麼修由使用者決定；以下只是建議。**
 
-- **S（推薦，等 Gary 測試 1 確認後再做）**：Codex 分頁「依比例送滾輪回報」。
+- **S（推薦，等 外部測試者A 測試 1 確認後再做）**：Codex 分頁「依比例送滾輪回報」。
   1. 在 `TerminalPanel.tsx` 用 `terminal.attachCustomWheelEventHandler`（xterm 5.5 公開 API）。只有同時滿足「alt buffer、`terminal.modes.mouseTrackingMode` 不是 `none`、編碼是 SGR（用既有的 `registerCsiHandler` 記錄 `?1006h/l`）」時才接手；其他情況回 `true`，交給 xterm。
   2. 自己用「像素 ÷ 列高」累積行數（保留小數，方向反轉時清掉），每個事件送 `min(上限, 整數行數)` 個 SGR 回報（建議上限 8；iTerm2 用 32）。用 `terminal.input(reports, true)` 送出，讓它照常經過 `onData`（`SelectionKeeper.handleData`、`pty.write`）。座標用 `.xterm-screen` 的位置與 `cols` / `rows` 換算（codex 依座標分辨對話紀錄和輸入框）。
   3. 計算與編碼放進 `src/lib/` 的純函式並寫單元測試；另外做一個 Electron + xterm 的整合測試（用本單 §3 的方法）。
@@ -189,7 +189,7 @@ Gary（macOS，`v0.7.1-pre.3`）回報：在 Codex CLI 分頁內捲動「可以�
   - 為這個 bug 升級 xterm 6.0：會移除 canvas renderer，工作量 L、風險高。
 - **M（之後可選，需要量測）**：main 的輸出批次改成「閒置後的第一筆立即送出、連續輸出才批次」，縮短延遲並減少半幀。這會影響所有分頁，要另外量測 CPU 與 IPC 次數。
 
-### 給 Gary 的問題 / 測試
+### 給 外部測試者A 的問題 / 測試
 
 最多 3 項，都不耗 token：
 
@@ -207,7 +207,7 @@ Gary（macOS，`v0.7.1-pre.3`）回報：在 Codex CLI 分頁內捲動「可以�
 
 ### 建議下一步
 
-1. 塔台把「給 Gary 的測試 1」轉給 Gary（最便宜、結果最明確），可以同時附上測試 2。
+1. 塔台把「給 外部測試者A 的測試 1」轉給 外部測試者A（最便宜、結果最明確），可以同時附上測試 2。
 2. 測試 1 確認 → 派 S 修正工單（`TerminalPanel.tsx` 自訂 wheel handler、`src/lib/` 純函式與單元測試、Electron/xterm 整合測試；驗收 `npm run test:unit`、`npm run typecheck`、`npx vite build`）。是否先做由使用者決定。
 3. 測試 1 沒差別、測試 3 顯示掉幀 → 另開研究單查 renderer / GPU（Ganesh、CanvasAddon、16 ms 批次）。
 4. 本單沒有修改 BUG-165，狀態由塔台更新。

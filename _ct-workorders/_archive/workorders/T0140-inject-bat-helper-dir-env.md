@@ -109,7 +109,7 @@ const ptyManager = new PtyManager({ helperDir, ...其他參數 })
 
 - ❌ 修改 `_local-rules.md` → 是 **T0141**
 - ❌ 修改塔台用法（白名單 `node "$BAT_HELPER_DIR/..."`）→ 也是 T0141
-- ❌ 在 `2026_Taipower` 真實環境驗收 → 是 **T0142** 整合驗收
+- ❌ 在 `<專案C>` 真實環境驗收 → 是 **T0142** 整合驗收
 - ❌ CT 上游 skill PR → 是 **T0143**
 - ❌ 動 helper scripts 內容、實作 `--help` 旗標
 

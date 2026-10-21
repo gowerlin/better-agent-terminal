@@ -71,12 +71,12 @@ T0522（`43c9073`）剛改過同一段：mac 的 Command+V / Ctrl+V / 右鍵 Pas
 - 單元測試：三平台 × {圖片, 檔案, 檔案+圖示圖片, 文字, 讀取失敗} × {Ctrl+V, mac Command+V} 的送出內容；Ctrl+C / Ctrl+Shift+C / V 不變；T0522 既有測試全綠
 - **Windows 實機自動化（AI 可做）**：在隔離實例（source build，`npx vite build`）用 Electron `clipboard.writeImage()` 放一張圖，在終端分頁 Ctrl+V，確認 PTY 收到預期的貼圖鍵（可用 `cat -v` 或 node 腳本回顯收到的位元組）；換成文字再測一次。測完還原剪貼簿。截圖或 log 路徑寫進回報區
 - `npm run typecheck` = 0、`npm run typecheck:electron` = 0（若動 electron）、`npx vite build` exit 0、`npm run test:unit` 全套無回歸
-- mac 驗收步驟（≤ 5 步）寫進回報區，交 Gary（跟 T0522 的步驟合併成一份最好）
+- mac 驗收步驟（≤ 5 步）寫進回報區，交 外部測試者A（跟 T0522 的步驟合併成一份最好）
 
 ## 驗收條件
 
 - [ ] Windows 終端有圖片時 Ctrl+V 能讓 claude CLI 貼圖（隔離實例自動化證據）
-- [ ] mac 終端有圖片時可以貼圖（單元測試 + 推論；實機交 Gary）
+- [ ] mac 終端有圖片時可以貼圖（單元測試 + 推論；實機交 外部測試者A）
 - [ ] 文字 / 檔案貼上與複製行為不退化
 - [ ] BUG-130：`status: FIXED`、`fixed_at`、body 狀態列與「根因與修正」段同步
 
@@ -91,7 +91,7 @@ T0522（`43c9073`）剛改過同一段：mac 的 Command+V / Ctrl+V / 右鍵 Pas
 
 ## 回報區
 
-### 結果：DONE（Windows：隔離實例自動化驗證通過；mac：單元測試 + 推論，實機交 Gary）
+### 結果：DONE（Windows：隔離實例自動化驗證通過；mac：單元測試 + 推論，實機交 外部測試者A）
 
 ### Landing Zone Check：PASS
 
@@ -142,11 +142,11 @@ T0522（`43c9073`）剛改過同一段：mac 的 Command+V / Ctrl+V / 右鍵 Pas
 | `npm run test:unit` 全套 | PASS | 216 files、3636 passed / 1 skipped，exit 0（log 裡的 `AttachConsole failed` 是既有 real-PTY 測試的 node-pty 雜訊，不是失敗） |
 | **Windows 隔離實例自動化** | PASS | `npx playwright test e2e/t0524-terminal-image-paste.spec.ts`：Electron `writeImage` 的圖 → PTY `1b76`；.NET `Clipboard.SetImage` 2560×1440 → PTY `1b76`；文字 `T0524 text paste` → PTY 原樣（`54303532342074657874207061737465`）；debug log 依序是 `[terminal-paste] Ctrl+V → image` ×2、`→ text`；剪貼簿已還原；Terminal Server 已結束，runtime userData 已刪除。截圖 / log：`e2e-results/t0524-evidence/ctrl-v-image.png`、`ctrl-v-text.png`、`debug-20261014-135447.log`（gitignored） |
 | 修正前對照（根因用） | 記錄 | 同一支 e2e 對修正前的 source build 與安裝版 pre.7 執行檔都 PASS（見第 1 節） |
-| mac 實機 | 未執行（AI 沒有 mac） | 交 Gary，步驟見下 |
+| mac 實機 | 未執行（AI 沒有 mac） | 交 外部測試者A，步驟見下 |
 
 **建置環境備註**：驗證中途，T0525 的 `electron/pty-manager.ts` 半成品（未 commit）被一起 build 進去，隔離實例的 PTY 因此沒有輸出。所以最後一輪 build / typecheck / test:unit / e2e 是在暫時的 `git worktree`（`--detach HEAD` = `076e3ef`，只複製本單 4 個檔案，`node_modules` 用 junction）裡跑的，跑完先拆掉 junction 再 `git worktree remove`。之後 T0525 已 commit（`d4ee455`）。
 
-#### 給 Gary 的 mac 實機驗收步驟（含 T0522）
+#### 給 外部測試者A 的 mac 實機驗收步驟（含 T0522）
 
 1. 用 Command+Shift+Control+4 截圖（進剪貼簿），在 BAT 終端分頁啟動 `claude`，按 **Ctrl+V** → 輸入框出現 `[Image #1]`；再截一張改按 **Command+V** → 出現 `[Image #2]`
 2. Finder 拷貝一張 `.png` 檔，在 claude 輸入框按 Command+V → 應該出現**檔案路徑**（`'/Users/…/pic.png'`），不是 `[Image]`、也不是檔案圖示；Finder 拷貝 `My Report.pdf` 到一般終端分頁按 Command+V / Ctrl+V / 右鍵 → Paste → 都是有引號的完整路徑，不會自動 Enter

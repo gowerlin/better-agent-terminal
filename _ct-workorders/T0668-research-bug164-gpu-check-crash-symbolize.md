@@ -30,10 +30,10 @@ interaction:
   intervention_type: fire-and-forget
 memory_overrides:
   - "🔴 研究單、**唯讀**：不改任何產品檔、不改 BUG-164 / BUG-136 / 其他工單 / 塔台狀態檔；只 commit 本工單檔（`git commit --only`）。不 push。"
-  - "🔴 Gary 的檔案在 `D:\\Downloads\\封存`（`BetterAgentTerminal Helper-2026-10-19-103931.ips` 與兩份日誌）。不得複製進 repo、不得 commit；引用時去識別化（路徑改 `<project>` / `<user>`）。前一份 `114303.ips` 不在本機，以 BUG-136 / BUG-164 的記載為準。"
+  - "🔴 外部測試者A 的檔案在 `D:\\Downloads\\封存`（`BetterAgentTerminal Helper-2026-10-19-103931.ips` 與兩份日誌）。不得複製進 repo、不得 commit；引用時去識別化（路徑改 `<project>` / `<user>`）。前一份 `114303.ips` 不在本機，以 BUG-136 / BUG-164 的記載為準。"
   - "🔴 下載：Electron `41.2.1` darwin-arm64 dSYM（GitHub `electron/electron` release 的 `*-dsym*.zip`，先以 `.ips` 的 Framework UUID `4c4c44be-5555-3144-a121-891fbdf26df9` 確認版本相符，不符就停下回報）與符號化工具（例如 LLVM 官方 release 的 `llvm-symbolizer` / `llvm-atos` / `llvm-dwarfdump`，或 WSL 內現成的工具）。一律放系統暫存目錄或 scratchpad，**不得安裝到系統**、不得 `sudo apt install`、不得改 PATH 設定檔；用完刪除並在回報寫明。單一下載 > 3 GiB 或總耗時 > 60 分鐘就停下回報目前進度。"
   - "🔴 Chromium 原始碼查證以線上原始碼（chromium.googlesource.com / source.chromium.org，對應 Electron 41.2.1 的 Chromium 版本）為準，標明 tag / 行號與查證日期；不 clone 整個 Chromium。"
-  - "🔴 不在本機嘗試重現 macOS GPU 崩潰；需要 Gary 做的事寫進「給 Gary 的問題 / 測試」（≤ 3 項，不耗 token 者優先）。"
+  - "🔴 不在本機嘗試重現 macOS GPU 崩潰；需要 外部測試者A 做的事寫進「給 外部測試者A 的問題 / 測試」（≤ 3 項，不耗 token 者優先）。"
   - "🔴 yolo Worker：不得問使用者。修不修、怎麼修由使用者決定，你只提推薦；範圍內猜錯會返工的判讀問題依 ct-exec § Questions For Tower 問塔台（每輪 ≤ 3 題）。"
 ---
 
@@ -56,7 +56,7 @@ macOS GPU 程序以同一個 CHECK 崩潰了 6 次（`EXC_BREAKPOINT` @ `CrGpuMa
    - `clearTextureAtlas`
    - 縮圖、多個 xterm 同時存在
    - 視窗 resize、雙螢幕移動
-   - 對照 Gary 日誌裡崩潰前幾秒的事件（`debug-20261015-130846.log` 10-19 10:39:29 附近，以及 BUG-164 列的 10-15 時間表）
+   - 對照 外部測試者A 日誌裡崩潰前幾秒的事件（`debug-20261015-130846.log` 10-19 10:39:29 附近，以及 BUG-164 列的 10-15 時間表）
    - 每一點標「日誌證據 / 原始碼 / 推論」
 4. **建議**：
    - 可在 BAT 端避開或緩解的做法（例如減少不必要的 `clearTextureAtlas`、GPU 崩潰後重建所有 xterm 的 texture atlas、改用 WebGL addon 並處理 `onContextLoss`、Chromium 旗標 / 停用 Graphite 的取捨），每個方案寫切分（S / M）、風險，以及不得退化的既有行為（Win11 `clearTextureAtlas` 修正）。
@@ -64,7 +64,7 @@ macOS GPU 程序以同一個 CHECK 崩潰了 6 次（`EXC_BREAKPOINT` @ `CrGpuMa
 
 ## 研究指引
 
-- `[gpu]` 日誌的判讀見 `docs/agent-guide/logging.md`。Gary 那兩份崩潰報告是 `0.6.1-pre.1`，當時沒有 `[gpu]` 日誌。
+- `[gpu]` 日誌的判讀見 `docs/agent-guide/logging.md`。外部測試者A 那兩份崩潰報告是 `0.6.1-pre.1`，當時沒有 `[gpu]` 日誌。
 - 不轉述未證實的根因，每條結論標來源。
 
 ## 互動規則
@@ -79,7 +79,7 @@ macOS GPU 程序以同一個 CHECK 崩潰了 6 次（`EXC_BREAKPOINT` @ `CrGpuMa
 
 ### 完成狀態
 
-✅ DONE（研究單，唯讀）。符號化完成，崩潰點與失敗狀態已確認；建議與給 Gary 的測試見下。
+✅ DONE（研究單，唯讀）。符號化完成，崩潰點與失敗狀態已確認；建議與給 外部測試者A 的測試見下。
 
 Landing check：**PASS**。C-0 `repo` = `better-agent-terminal`、`basename(REPO_ROOT)` = `better-agent-terminal`；C-1 工單在 `REPO_ROOT` 下；C-3 只有工單檔本身（不適用）；C-2 無 `branch` 欄位。`CT_HOME` 未設定（非 worktree）。`BAT_WORKSPACE_ID` = `cc0afc4a-57e9-4f41-b2ed-a2d8bac9e36b`（只記錄）。
 
@@ -89,7 +89,7 @@ Landing check：**PASS**。C-0 `repo` = `better-agent-terminal`、`basename(REPO
 
 ### 調查結論
 
-標記：【報告】= Gary 的 `.ips`；【日誌】= Gary 的 BAT 日誌；【二進位】= 對 Electron 41.2.1 官方檔案的符號化 / 反組譯；【原始碼】= Chromium / Skia / 本 repo 原始碼（查證日 2026-10-19）；【推論】= 尚未證實。
+標記：【報告】= 外部測試者A 的 `.ips`；【日誌】= 外部測試者A 的 BAT 日誌；【二進位】= 對 Electron 41.2.1 官方檔案的符號化 / 反組譯；【原始碼】= Chromium / Skia / 本 repo 原始碼（查證日 2026-10-19）；【推論】= 尚未證實。
 
 **一句話結論**：GPU 程序崩潰在 Chromium `gpu/command_buffer/service/graphite_shared_context.cc:291` 的 `CHECK(simulating_insert_failure || !is_unrecoverable_failure)`。Skia Graphite 的 `insertRecording` 回傳了 **`kOutOfOrderRecording`**（狀態值 5），意思是同一個 Recorder 前面有一份 recording 沒有送進 GPU（被丟掉），之後的 recording 順序對不上。Chromium 146（Electron 41 全系列）把這個狀態當成不可恢復，直接 CHECK 崩潰；Chromium 147 起改成 context lost 後重啟 GPU 程序，不再崩潰，Electron **42** 起才帶進來。真正的觸發點是「前面那份 recording 為什麼失敗」，這一點從崩潰報告看不出來。
 
@@ -146,7 +146,7 @@ f0e714: brk  #0                      ; ← 崩潰點：CHECK(simulating_insert_f
 【報告】崩潰當下暫存器：`x21 = 5`、`x22 = 0`、`x23 = 4`、`lr = 0x10f6c4000 + 0xf0e6fc`。
 - `x21 = 5` = `skgpu::graphite::InsertStatus::kOutOfOrderRecording`（【原始碼】Skia `30d129c8` `include/gpu/graphite/GraphiteTypes.h`：0 kSuccess、1 kInvalidRecording、2 kPromiseImageInstantiationFailed、3 kAddCommandsFailed、4 kAsyncShaderCompilesFailed、5 kOutOfOrderRecording）。
 - `lr = …0xf0e6fc`：最後一次呼叫是第 272 行 `LOG(ERROR) << "Graphite insertRecording failed with status …"` 的結尾；若走狀態 4 那條路，`lr` 會是 `0xf0e77c`。兩個證據一致 ⇒ **10-19 這次是 `kOutOfOrderRecording`**。
-- 注意：狀態 4 和 5 都會在同一個 `0xf0e714` 崩潰，所以 10-15 的 `114303.ips` 雖然 offset 完全相同，**無法從 offset 判斷是 4 還是 5**，要看它的 `x21`（本機沒有那份檔，見給 Gary 的第 1 項）。BAT 已設 `disable-gpu-shader-disk-cache`（`electron/main.ts:146`），「磁碟 shader 快取損壞」造成狀態 4 的可能性低。
+- 注意：狀態 4 和 5 都會在同一個 `0xf0e714` 崩潰，所以 10-15 的 `114303.ips` 雖然 offset 完全相同，**無法從 offset 判斷是 4 還是 5**，要看它的 `x21`（本機沒有那份檔，見給 外部測試者A 的第 1 項）。BAT 已設 `disable-gpu-shader-disk-cache`（`electron/main.ts:146`），「磁碟 shader 快取損壞」造成狀態 4 的可能性低。
 
 【原始碼】Chromium `146.0.7680.188`（Electron 41.2.1 的 `chromium_version`，`electron/electron` `DEPS@v41.2.1`）`gpu/command_buffer/service/graphite_shared_context.cc`：
 - 第 258 行 `graphite_context_->insertRecording(*info_ptr)`；第 280–283 行 `is_unrecoverable_failure = (status == kAsyncShaderCompilesFailed || status == kOutOfOrderRecording)`；**第 291 行 `CHECK(simulating_insert_failure || !is_unrecoverable_failure)`**。
@@ -191,16 +191,16 @@ f0e714: brk  #0                      ; ← 崩潰點：CHECK(simulating_insert_f
 | 方案 | 切分 | 效果 | 風險 / 代價 |
 |---|---|---|---|
 | **A（推薦先做）macOS 停用 Skia Graphite**：`electron/main.ts` 現有 `appendSwitch` 區塊加 `if (process.platform === 'darwin') app.commandLine.appendSwitch('disable-skia-graphite')` | S | 這個 CHECK 在 `GraphiteSharedContext`，Graphite 關閉後整條路徑不存在（Ganesh 沒有 recording 順序檢查）。issue 458722690 回報者關掉 Graphite 後問題消失或更難重現。 | 【原始碼】`gpu/config/gpu_switches.cc:153` `kDisableSkiaGraphite = "disable-skia-graphite"`；`gpu_finch_features.cc:645–662` 有這個 switch 就回 false。不支援 Graphite 的 Mac 在 146 本來就走 Ganesh（ANGLE Metal），是有維護的路徑。代價：失去 Graphite 的效能改善（BAT 是終端畫面，影響應不大，未量測）；未來 Chromium 可能移除 Mac 的 Ganesh（時程未查證）。🔴 **不要**改成第二個 `appendSwitch('disable-features', 'SkiaGraphite')`：Chromium 的 switch 同名後者覆蓋前者，會讓現有的 `disable-features=ServiceWorker`（`main.ts:150`）失效。建議保留一個逃生口（例如 env `BAT_SKIA_GRAPHITE=1` 不加 switch）。驗收：`[gpu] feature status` 的 `skia_graphite` 不再是 `enabled_on`；Windows / Linux 不受影響（Graphite 只在 Apple 預設開，且 switch 只在 darwin 加）。 |
-| **B GPU 崩潰後讓可見的終端自己重建**：main 的 `child-process-gone`（type=GPU）通知 renderer，或 TerminalPanel 監聽圖層 canvas 的 `contextrestored`，對 active 終端 `clearTextureAtlas()` + `refresh()` | S | 不論崩潰原因（也包含 Electron 42 之後的 graceful restart），崩潰當下可見的終端不必等切換分頁或手動重繪就恢復。隱藏的終端在下次 active 時本來就會做。 | 不能減少崩潰次數。要確認 Chromium 重建 canvas 的時機（太早做會在 GPU 程序回來前又失效），`contextrestored` 比固定延遲可靠。單元測試可以 mock；實際效果只能 Gary 驗。 |
+| **B GPU 崩潰後讓可見的終端自己重建**：main 的 `child-process-gone`（type=GPU）通知 renderer，或 TerminalPanel 監聽圖層 canvas 的 `contextrestored`，對 active 終端 `clearTextureAtlas()` + `refresh()` | S | 不論崩潰原因（也包含 Electron 42 之後的 graceful restart），崩潰當下可見的終端不必等切換分頁或手動重繪就恢復。隱藏的終端在下次 active 時本來就會做。 | 不能減少崩潰次數。要確認 Chromium 重建 canvas 的時機（太早做會在 GPU 程序回來前又失效），`contextrestored` 比固定延遲可靠。單元測試可以 mock；實際效果只能 外部測試者A 驗。 |
 | **C 升級 Electron 42+** | M–L（另開 PLAN） | Chromium 148 把這個 CHECK 改成 context lost → GPU 程序重啟（不產生崩潰報告）。另一個理由：Electron 41 已停止更新（41.10.7 之後無新版）。 | 觸發原因不變，使用者仍會看到 GPU 重啟（畫面閃一下 / canvas 重建）；graceful restart 是否計入上述「3 次退回軟體繪圖」**未查證**。升級範圍大（CLAUDE.md「Electron Runtime」、CLI / SDK、打包、native module 等全面回歸），不適合併進這次發版。 |
 | D 只在 Windows 做 isActive 的 `clearTextureAtlas()` | S | 減少 Mac 上切換分頁時的 GPU 資源重配。 | **效果未證實**（觸發機制沒有證據），而且 Mac 上切換後是否會出現 Win11 那種黑屏 / 字疊在一起沒驗過。做了 A 就不需要；只有 A 不可行、又要保留 Graphite 時才考慮。 |
 | E 改用 WebGL addon + `onContextLoss` | M | 終端繪製不走 2D canvas 的 raster decoder。 | Chromium 每頁 WebGL context 上限約 16 個，BAT 常開很多終端，超過會讓舊的失去 context；Windows 行為也要重驗。不推薦。 |
 
 **先不處理的影響**：GPU 程序自動重啟（重啟耗時未量測），整個視窗可能閃一下；崩潰當下可見的終端可能字消失 / 殘影，切換分頁或手動重繪後恢復；5 分鐘內崩 3 次會退回軟體繪圖直到重開 BAT（CPU 與 WindowServer 負擔上升）。目前沒有證據顯示會造成資料遺失或 PTY 中斷（PTY 在主行程 / Terminal Server，不在 GPU 程序）。BUG-164 的 `low` 嚴重度合理。
 
-**推薦組合**：A + B（都 S，可以和 T0667 一起發版），C 另開 PLAN 排程。若希望先確認再改程式，Gary 測試 2 不需要新版本。
+**推薦組合**：A + B（都 S，可以和 T0667 一起發版），C 另開 PLAN 排程。若希望先確認再改程式，外部測試者A 測試 2 不需要新版本。
 
-### 給 Gary 的問題 / 測試
+### 給 外部測試者A 的問題 / 測試
 
 （≤ 3 項，前兩項不耗 token）
 
@@ -210,7 +210,7 @@ f0e714: brk  #0                      ; ← 崩潰點：CHECK(simulating_insert_f
 
 ### 建議下一步
 
-1. 塔台把「給 Gary」第 1、2 項轉給 Gary（第 1 項確認 6 次是不是都同一個狀態；第 2 項確認停用 Graphite 是否有效）。
+1. 塔台把「給 外部測試者A」第 1、2 項轉給 外部測試者A（第 1 項確認 6 次是不是都同一個狀態；第 2 項確認停用 Graphite 是否有效）。
 2. 使用者決定是否在 T0667 這次發版一併做 **A（macOS `disable-skia-graphite`，含逃生口）+ B（GPU 崩潰後重建可見終端）**；要做的話派一張實作單（`electron/main.ts`、`src/components/TerminalPanel.tsx`、對應單元測試與 `docs/agent-guide/logging.md` 的 `[gpu]` 判讀補充；驗收 `npm run test:unit`、`npm run typecheck`、`npm run typecheck:electron`、`npx vite build`；Win11 的 `clearTextureAtlas` 行為不變）。
 3. Electron 42+ 升級另開 PLAN（也解決 Electron 41 停止更新的問題）。
 4. BUG-164 狀態由塔台更新（本單未修改 BUG-164 / BUG-136）。
@@ -225,7 +225,7 @@ f0e714: brk  #0                      ; ← 崩潰點：CHECK(simulating_insert_f
 - breakpad 符號檔沒有 INLINE 記錄，frame #0 的行號只到 `immediate_crash.h:180`；以行號表相鄰記錄 + capstone 反組譯補足，沒有下載 dSYM（`electron-v41.2.1-darwin-arm64-dsym.tar.xz` 1.3 GB，不需要）。
 - chromium.googlesource.com 的 `+log` 頁面要登入（403），改用 GitHub `chromium/chromium` 鏡像查 commit 紀錄；檔案內容仍以 googlesource 的 tag 版本為準。crbug.com/478211694 非公開，讀不到內容。
 - 未查證：Chromium 148 的 graceful restart 是否計入 GPU crash limit；Graphite 關閉後的效能差異；Mac Ganesh 路徑的移除時程。
-- 下載與暫存：`electron-v41.2.1-darwin-arm64-symbols.zip`（123 MB）、`electron-v41.2.1-darwin-arm64.zip`（116 MB）、Chromium / Skia 原始碼片段、capstone（在 scratchpad 內建 venv，`UV_CACHE_DIR` 指向 scratchpad，沒有安裝到系統、沒有改 PATH），總計約 1.1 GB，全部放在 session scratchpad，結束時已刪除。總耗時約 11 分鐘。沒有複製 Gary 的檔案進 repo；本回報引用的日誌只有檔名、時間與終端 id，沒有使用者路徑。
+- 下載與暫存：`electron-v41.2.1-darwin-arm64-symbols.zip`（123 MB）、`electron-v41.2.1-darwin-arm64.zip`（116 MB）、Chromium / Skia 原始碼片段、capstone（在 scratchpad 內建 venv，`UV_CACHE_DIR` 指向 scratchpad，沒有安裝到系統、沒有改 PATH），總計約 1.1 GB，全部放在 session scratchpad，結束時已刪除。總耗時約 11 分鐘。沒有複製 外部測試者A 的檔案進 repo；本回報引用的日誌只有檔名、時間與終端 id，沒有使用者路徑。
 
 ### 回報時間
 

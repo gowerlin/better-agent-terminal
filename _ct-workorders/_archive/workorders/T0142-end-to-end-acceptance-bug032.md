@@ -19,7 +19,7 @@
 
 ## 目的
 
-在使用者真實環境（`D:\ForgejoGit\2026_Taipower` workspace）驗證 BUG-032 修復鏈完全生效：
+在使用者真實環境（`D:\ForgejoGit\<專案C>` workspace）驗證 BUG-032 修復鏈完全生效：
 
 1. ✅ Helper scripts 在打包安裝目錄存在
 2. ✅ `BAT_HELPER_DIR` env var 在打包版正確注入並指向 `<install-root>/resources/scripts/`
@@ -47,11 +47,11 @@ npm run build:dir   # 或 npm run build:win 產出完整 installer
 - 用 `release/win-unpacked/` 內的 exe 覆蓋 / 或執行 installer 安裝新版
 - 重啟 BAT
 
-### 3. 開啟 2026_Taipower workspace
-- BAT → 開啟資料夾 → `D:\ForgejoGit\2026_Taipower`
+### 3. 開啟 專案C workspace
+- BAT → 開啟資料夾 → `D:\ForgejoGit\<專案C>`
 - **不要開 better-agent-terminal source workspace**（這是測試重點 — 確認在無 source 的純使用者環境也能跑）
 
-### 4. 在 2026_Taipower workspace 內開塔台 session
+### 4. 在 專案C workspace 內開塔台 session
 - 開新 Claude session（不要復用既有的 BAT 原始碼塔台 session）
 - 載入 control-tower skill：`/control-tower`
 
@@ -75,7 +75,7 @@ npm run build:dir   # 或 npm run build:win 產出完整 installer
 | # | 檢查項 | 動作 | 預期結果 | 結果 |
 |---|--------|------|---------|------|
 | 2.1 | 塔台派發測試工單 | 塔台 session 派一張小工單（ex: `*sync` 之類無副作用 / 或派 T0142 自己） | BAT 自動開新 PTY tab | ⏳ |
-| 2.2 | PTY 落在 active workspace | 觀察新 tab 是否歸屬當前 2026_Taipower workspace | 是（不是其他 workspace） | ⏳ |
+| 2.2 | PTY 落在 active workspace | 觀察新 tab 是否歸屬當前 專案C workspace | 是（不是其他 workspace） | ⏳ |
 | 2.3 | 走的是 `BAT_HELPER_DIR` 路徑 | 看塔台執行的 Bash 指令是 `node "$BAT_HELPER_DIR/bat-terminal.mjs" ...`（不是 `node scripts/...`） | 是 | ⏳ |
 | 2.4 | 非剪貼簿降級 | 派發後不應出現「請手動貼到新 BAT 終端」之類提示 | 確認 | ⏳ |
 
@@ -108,8 +108,8 @@ npm run build:dir   # 或 npm run build:win 產出完整 installer
 
 | # | 檢查項 | 動作 | 預期結果 | 結果 |
 |---|--------|------|---------|------|
-| 5.1 | 多 workspace 同時開 | 同時開 2026_Taipower + better-agent-terminal source 兩個 workspace（若有 parent folder 同時開更佳） | 兩個 workspace 都能正常運作 | ⏳ |
-| 5.2 | 在 2026_Taipower 派工單，PTY 不會跑去 source workspace | 派發測試 | PTY 落在 active 而非 cwd-match 較早的 | ⏳ |
+| 5.1 | 多 workspace 同時開 | 同時開 專案C + better-agent-terminal source 兩個 workspace（若有 parent folder 同時開更佳） | 兩個 workspace 都能正常運作 | ⏳ |
+| 5.2 | 在 專案C 派工單，PTY 不會跑去 source workspace | 派發測試 | PTY 落在 active 而非 cwd-match 較早的 | ⏳ |
 | 5.3 | 通知 Toast / Badge 顯示在正確 workspace | 等通知 | 是 | ⏳ |
 
 ---

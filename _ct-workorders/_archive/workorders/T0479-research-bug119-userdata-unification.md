@@ -154,8 +154,8 @@ macOS / Linux 走同一條 Electron PathService 路徑，以上是推導，**未
 **(A) 實際 BAT source build**：`npx vite build` 後執行 `electron.exe <repo> --runtime=97`，等待 25 秒。
 
 ```
-[runtime] BAT_RUNTIME=97, userData=C:\Users\Gower\AppData\Roaming\better-agent-terminal-runtime-97
-[startup] crashDumps path: C:\Users\Gower\AppData\Roaming\better-agent-terminal-runtime-97\Crashes
+[runtime] BAT_RUNTIME=97, userData=<使用者資料夾>\AppData\Roaming\better-agent-terminal-runtime-97
+[startup] crashDumps path: <使用者資料夾>\AppData\Roaming\better-agent-terminal-runtime-97\Crashes
 == better-agent-terminal-runtime-97
 bat-pty-registry.json, bat-pty-server.pid, bat-pty-server.port, blob_storage, Cache, Code Cache, Crashes, DIPS, DIPS-wal,
 Local State, Local Storage, lockfile, Logs, Network, Preferences, profiles, server-cert.json, Shared Dictionary, windows.json

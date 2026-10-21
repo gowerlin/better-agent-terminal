@@ -119,7 +119,7 @@ DONE —— 7 項調查範圍全部有結論；使用者已裁決 3 個設計分
 | sudo | `sudo -n true` → **免密碼通過**。來源是 `/etc/sudoers.d/90-gower-nopasswd`，是使用者自己設的，不是 BAT 寫入（T0266 決策：不要求 NOPASSWD）⇒ 設計**不得假設免密碼** |
 | 已安裝 | `git 2.43.0`、`python3 3.12.3`、`curl 8.5.0`、`wget`、`tar` |
 | 未安裝（Linux 版） | `claude`、`gh`、`node`、`rg`、`uv`、`unzip`；`~/.local/bin` 目錄不存在 |
-| 🔴 Windows interop 遮蔽 | login shell 的 PATH 有 **57 個 `/mnt/*` 項目**。`command -v codex` 會解析到 `/mnt/c/Users/Gower/AppData/Roaming/npm/codex`，`npm` 會解析到 `/mnt/c/nvm4w/nodejs/npm`；`gh.exe`、`claude.exe`、`git.exe` 也都找得到 Windows 版。⇒ 偵測**必須把 `/mnt/<drive>/...` 歸類為 `interop-only`**，否則會誤判成「已安裝」 |
+| 🔴 Windows interop 遮蔽 | login shell 的 PATH 有 **57 個 `/mnt/*` 項目**。`command -v codex` 會解析到 `/mnt/<使用者資料夾>/AppData/Roaming/npm/codex`，`npm` 會解析到 `/mnt/c/nvm4w/nodejs/npm`；`gh.exe`、`claude.exe`、`git.exe` 也都找得到 Windows 版。⇒ 偵測**必須把 `/mnt/<drive>/...` 歸類為 `interop-only`**，否則會誤判成「已安裝」 |
 | 登入 shell PATH | 沒有 `~/.local/bin`。原因：`~/.profile:25-26` 只在**登入當下**目錄已存在時才 prepend ⇒ 第一次安裝到 `~/.local/bin` 之後，**舊分頁看不到**，要開新的 login shell |
 | server（systemd user）PATH | `bat-server.service` 的 MainPID 環境：`PATH=/usr/local/sbin:...:/snap/bin`，不含 `~/.local/bin`，也不含 `/mnt/*`（不受 interop 污染）。unit 只設 `BAT_PORT` / `BAT_SERVER_PORT` / `BAT_DATA_DIR` / `BAT_SERVER_DATA_DIR` |
 | 認證狀態（只看是否存在） | `~/.claude/.credentials.json`、`~/.claude.json`、`~/.codex/auth.json`、`~/.config/gh/hosts.yml` 全部 absent；`ANTHROPIC_API_KEY` / `CLAUDE_CODE_OAUTH_TOKEN` / `OPENAI_API_KEY` / `GH_TOKEN` / `GITHUB_TOKEN` 全部 unset |

@@ -31,7 +31,7 @@ at ControlTowerPanel (http://localhost:5173/src/components/ControlTowerPanel.tsx
 
 ### Log 檔案
 ```
-C:\Users\Gower\AppData\Roaming\better-agent-terminal-runtime-1\Logs\debug-20260413-093319.log
+<使用者資料夾>\AppData\Roaming\better-agent-terminal-runtime-1\Logs\debug-20260413-093319.log
 ```
 
 ---

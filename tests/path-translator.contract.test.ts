@@ -51,8 +51,8 @@ function makeProfile(partial: Partial<ProfileEntry>): ProfileEntry {
 const identityFixtures: ContractFixture[] = [
   {
     name: 'Windows drive letter',
-    clientPath: 'C:\\Users\\Gower\\repo',
-    serverPath: 'C:\\Users\\Gower\\repo',
+    clientPath: 'C:\\Users\\demo\\repo',
+    serverPath: 'C:\\Users\\demo\\repo',
     shouldOwn: true,
   },
   {
@@ -81,8 +81,8 @@ const identityFixtures: ContractFixture[] = [
   },
   {
     name: 'Mixed slashes (Win)',
-    clientPath: 'C:/Users/Gower\\repo',
-    serverPath: 'C:/Users/Gower\\repo',
+    clientPath: 'C:/Users/demo\\repo',
+    serverPath: 'C:/Users/demo\\repo',
     shouldOwn: true,
   },
   {
@@ -123,8 +123,8 @@ const identityFixtures: ContractFixture[] = [
   },
   {
     name: 'Node-style POSIX on Windows',
-    clientPath: '/c/Users/Gower',
-    serverPath: '/c/Users/Gower',
+    clientPath: '/c/Users/demo',
+    serverPath: '/c/Users/demo',
     shouldOwn: true,
   },
 ]
@@ -137,8 +137,8 @@ runContract('IdentityTranslator', () => new IdentityTranslator(), identityFixtur
 const wslFixtures: ContractFixture[] = [
   {
     name: 'Windows drive letter',
-    clientPath: 'C:\\Users\\Gower\\repo',
-    serverPath: '/mnt/c/Users/Gower/repo',
+    clientPath: 'C:\\Users\\demo\\repo',
+    serverPath: '/mnt/c/Users/demo/repo',
     shouldOwn: true,
   },
   {
@@ -336,7 +336,7 @@ runContract(
 describe('IdentityTranslator specifics', () => {
   test('toServer and toClient are the same identity mapping', () => {
     const translator = new IdentityTranslator()
-    const sample = 'C:\\Users\\Gower\\same.txt'
+    const sample = 'C:\\Users\\demo\\same.txt'
     assert.strictEqual(translator.toServer(sample), sample)
     assert.strictEqual(translator.toClient(sample), sample)
     assert.strictEqual(translator.toServer(sample), translator.toClient(sample))
@@ -434,7 +434,7 @@ describe('createTranslator factory', () => {
       wslDistro: 'Ubuntu',
     }))
     assert.ok(translator instanceof WslPathTranslator)
-    assert.strictEqual(translator.toServer('C:\\Users\\Gower\\repo'), '/mnt/c/Users/Gower/repo')
+    assert.strictEqual(translator.toServer('C:\\Users\\demo\\repo'), '/mnt/c/Users/demo/repo')
   })
 
   test('targetOS=wsl-linux without wslDistro throws explicit error', () => {

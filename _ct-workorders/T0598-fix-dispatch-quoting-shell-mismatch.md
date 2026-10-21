@@ -51,9 +51,9 @@ memory_overrides:
 見 BUG-151。要點：
 
 - BAT `0.7.0-pre.4`；`settings.json` `shell = "git-bash"`、`customShellPath = ""`。
-- BMad-Guide 塔台 02:29 派 T0161（`--workspace bc439ad7-…`、`--cwd "D:\ForgejoGit\@Gower_Labs\BMad-Guide"`、`--agent default`）→ exit 0，分頁 `7b14ff899afa15d3e920fc0999726362` 為 Git Bash，卻收到 `, 'C:\Users\Gower\.local\bin\claude.exe' '--mcp-config=…' '--settings=…' --dangerously-skip-permissions --effort high '/ct-exec T0161'` → `bash: ,: command not found`。
+- BMad-Guide 塔台 02:29 派 T0161（`--workspace bc439ad7-…`、`--cwd "D:\ForgejoGit\@Gower_Labs\BMad-Guide"`、`--agent default`）→ exit 0，分頁 `7b14ff899afa15d3e920fc0999726362` 為 Git Bash，卻收到 `, '<使用者資料夾>\.local\bin\claude.exe' '--mcp-config=…' '--settings=…' --dangerously-skip-permissions --effort high '/ct-exec T0161'` → `bash: ,: command not found`。
 - 本工作區（better-agent-terminal，`cc0afc4a-…`）02:26 派 T0596 正常，設定檔相同。
-- `settings.json` 的 `claudeRuntime` = `{"mode":"system","fallbackToEmbedded":true}`（T0596 查證），系統 claude 為 `C:\Users\Gower\.local\bin\claude.exe`。
+- `settings.json` 的 `claudeRuntime` = `{"mode":"system","fallbackToEmbedded":true}`（T0596 查證），系統 claude 為 `<使用者資料夾>\.local\bin\claude.exe`。
 
 ## 要做的事
 

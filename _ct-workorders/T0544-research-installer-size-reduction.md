@@ -114,11 +114,11 @@ Landing check：**PASS**
 #### 0. 方法與單位
 
 - **單位一律 MiB**（1 MiB = 1,048,576 bytes）。工單表內的「871 MB / 693 MB」實際上就是 MiB：dmg 914,218,948 B = 871.9 MiB；exe 727,635,522 B = 693.9 MiB；zip 911,017,345 B = 868.8 MiB；AppImage 1,080,734,297 B = 1030.7 MiB。下載大小與 `gh release view` 的 `size` 逐位元一致。
-- **證據目錄**（保留，約 11 GB，不在 repo 內）：`C:\Users\Gower\AppData\Local\Temp\t0544\`
+- **證據目錄**（保留，約 11 GB，不在 repo 內）：`<使用者資料夾>\AppData\Local\Temp\t0544\`
   - 下載：`dl-zip\`、`dl-exe\`、`dl-appimage\`、`dl-dmg\`、`dl-sb-linux-x64\`、`dl-sb-darwin-arm64\`（每個檔案各自一個目錄）
   - 解壓：`x-zip\`、`x-exe\`、`x-dmg\`、`x-asar-win\`、`x-sb-linux-x64\`
   - 清單：`exe-files.tsv`、`zip-files.tsv`、`appimage-files.tsv`、`dmg-zest.tsv`，格式為「解壓大小 \t 壓縮後大小 \t 路徑」
-- **分析腳本**（session scratchpad）：`C:\Users\Gower\AppData\Local\Temp\claude\D--ForgejoGit--Gower-Labs-BMad-Guide-better-agent-terminal-better-agent-terminal\c77c1c99-fb08-45d0-b92a-970f6bb248fe\scratchpad\`。`analyze.js` 讀 asar header，`group.js` 依元件加總，`zest.js` 估算 dmg，`misc.js` 統計 locales 等雜項。
+- **分析腳本**（session scratchpad）：`<使用者資料夾>\AppData\Local\Temp\claude\D--ForgejoGit--Gower-Labs-BMad-Guide-better-agent-terminal-better-agent-terminal\c77c1c99-fb08-45d0-b92a-970f6bb248fe\scratchpad\`。`analyze.js` 讀 asar header，`group.js` 依元件加總，`zest.js` 估算 dmg，`misc.js` 統計 locales 等雜項。
 
 **各平台的壓縮後貢獻怎麼算**
 | 產物 | 算法 | 性質 |

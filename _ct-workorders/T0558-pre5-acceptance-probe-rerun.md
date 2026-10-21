@@ -97,7 +97,7 @@ Landing check：**PASS**
 |---|---|---|
 | agent | Claude Code（`CLAUDECODE=1`、`CLAUDE_CODE_ENTRYPOINT=cli`） | env |
 | agent 版本 | `2.1.300 (Claude Code)` | `claude --version` |
-| 執行中的 claude 執行檔 | `C:\Users\Gower\.local\bin\claude.exe`（system claude，非 BAT 內嵌；PATH 上的 `claude` 同一檔） | `Get-CimInstance Win32_Process` 父行程鏈：pwsh ← cmd ← claude.exe |
+| 執行中的 claude 執行檔 | `<使用者資料夾>\.local\bin\claude.exe`（system claude，非 BAT 內嵌；PATH 上的 `claude` 同一檔） | `Get-CimInstance Win32_Process` 父行程鏈：pwsh ← cmd ← claude.exe |
 | BAT FileVersion | `0.6.1-pre.5`（ProductVersion `0.6.1.0`，LastWriteTime `2026-10-16T05:20:52+08:00`） | `(Get-Item "C:\Program Files\BetterAgentTerminal\BetterAgentTerminal.exe").VersionInfo` |
 | `BAT_SESSION` | `1` | env |
 | `BAT_TERMINAL_ID` | `120046e8c82ff921e430493f2aa5af8a` | env |

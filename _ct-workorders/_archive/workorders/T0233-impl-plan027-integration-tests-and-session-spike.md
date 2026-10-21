@@ -191,7 +191,7 @@ Phase 1 程式碼完成(T0230/T0231/T0232)。本工單驗證**行為正確性**,
 - [x] **AC-4.1 — `detectSystemClaude` 能找到 `claude.exe`(PATH)**:**通過(有 caveat)**
   - 實際 auto-detect 先命中 `node_modules/.bin/claude.cmd`(dev 模式專案本身帶 shim),**非**系統 PATH 上的 `~/.local/bin/claude.exe`
   - caveat:production packaged 下 `node_modules/.bin` 不在子進程 PATH,不會重現。dev 自用可容忍或以 customPath 繞開
-  - 以 `customPath='C:\Users\Gower\.local\bin\claude.exe'` 實測 → `healthStatus: 'healthy'`、`version: '2.1.111'`、`source: 'custom'` ✅
+  - 以 `customPath='<使用者資料夾>\.local\bin\claude.exe'` 實測 → `healthStatus: 'healthy'`、`version: '2.1.111'`、`source: 'custom'` ✅
 - [x] **AC-4.2 — Windows `.exe` 優先於 `.cmd` / `.bat`**:**通過**
   - `WINDOWS_BIN_NAMES = ['claude.exe', 'claude.cmd', 'claude.bat']` 順序正確,偵測器按順序掃目錄(T0230 實作)
   - 實測:在只有 `.cmd` 的目錄(`node_modules/.bin`)detector 會落到 `.cmd`;在有 `.exe` 的目錄(`%USERPROFILE%\.local\bin\`)optSpray 正確命中 `.exe`

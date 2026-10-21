@@ -13,7 +13,7 @@ impact:
   - xterm-canvas
   - macos
 links:
-  discovered_in: "Gary 回報（2026-10-15，v0.6.1-pre.1）"
+  discovered_in: "外部測試者A 回報（2026-10-15，v0.6.1-pre.1）"
   related: [T0533, T0666, T0667, BUG-164]
 ---
 
@@ -23,8 +23,8 @@ links:
 |------|------|
 | 嚴重度 | 🟡 medium（舊塔台分頁幾乎無法打字；繞行：新開分頁 + 新 Codex 工作階段） |
 | 可重現 | 未確認（無最小重現；根因未定，見「判讀」） |
-| **狀態** | 🚫 CLOSED（2026-10-19 15:19 Gary 以 `v0.7.1-pre.3` 回報打字卡頓已解決，使用者轉達後結案）。原 FIXED：2026-10-19 T0667 `a9f0ad5a`：縮圖預覽上限，針對假設 C；待 Gary 以含此修正的版本確認打字延遲消失。確認失敗 → 退回 OPEN。GPU 崩潰（同一 CHECK 6 次）不在本修正範圍） |
-| 回報者 | Gary（附量測與日誌） |
+| **狀態** | 🚫 CLOSED（2026-10-19 15:19 外部測試者A 以 `v0.7.1-pre.3` 回報打字卡頓已解決，使用者轉達後結案）。原 FIXED：2026-10-19 T0667 `a9f0ad5a`：縮圖預覽上限，針對假設 C；待 外部測試者A 以含此修正的版本確認打字延遲消失。確認失敗 → 退回 OPEN。GPU 崩潰（同一 CHECK 6 次）不在本修正範圍） |
+| 回報者 | 外部測試者A（附量測與日誌） |
 
 ## 環境
 
@@ -38,7 +38,7 @@ links:
 - **預期**：長時間使用的分頁在工作停止後仍能順暢輸入。
 - 同一 BAT 程序內，新開的空白終端（12:54）與新 Codex 塔台工作階段（12:57）打字正常。
 
-## 量測（Gary，12:50:13–12:51:56 +0800，`ps` / `vm_stat`）
+## 量測（外部測試者A，12:50:13–12:51:56 +0800，`ps` / `vm_stat`）
 
 - BAT Helper (Renderer) pid 64282：100.6% / 100.7% / 100.8%（單程序，約 1 顆核心），RSS 443 → 461 MiB
 - WindowServer：43.4% / 38.9% / 40.3%
@@ -52,7 +52,7 @@ links:
 
 以下時間皆為 +0800。
 
-1. **GPU 行程崩潰 5 次**：`[CRASH] child-process-gone type=GPU reason=crashed exitCode=5`，時間為 11:43:01、11:43:09、12:02:28、12:12:34、12:23:23。Gary 的報告未提及此事。前一份日誌 `debug-20261015-094818.log`（09:48–11:21）沒有 GPU crash。
+1. **GPU 行程崩潰 5 次**：`[CRASH] child-process-gone type=GPU reason=crashed exitCode=5`，時間為 11:43:01、11:43:09、12:02:28、12:12:34、12:23:23。外部測試者A 的報告未提及此事。前一份日誌 `debug-20261015-094818.log`（09:48–11:21）沒有 GPU crash。
 2. **崩潰後出現手動重繪**：
    - 12:12:34 崩潰後 49 秒，`c7852c1c` 按了 `[redraw] manual redraw`
    - 13:00:52 舊分頁 `be5530dd` 連按兩次重繪
@@ -65,9 +65,9 @@ links:
 
 `bat-scripts.log` 只有派工 / 通知事件，與本案無關。
 
-## Gary 第二輪回覆與新證據（2026-10-15 13:20）
+## 外部測試者A 第二輪回覆與新證據（2026-10-15 13:20）
 
-**Gary 回覆（13:16–13:19）**
+**外部測試者A 回覆（13:16–13:19）**
 
 - 「是我派了好幾個工單後才開始卡頓」；每次開啟都是新的塔台分頁。
 - 「沒有重開 BAT，只有新增一個 codex cli 分頁，然後關掉舊分頁」。但日誌在 11:21:04 有 `[quit] user confirmed quit`，11:22:06 新程序啟動。可能是關掉最後一個視窗或 Cmd+Q 觸發；不影響判讀。
@@ -83,7 +83,7 @@ links:
 | 12:12:34 | 12:12:32 派工建立 `c7852c1c`；12:13:23 該分頁手動重繪 | 2 s |
 | 12:23:23 | 12:21:37 對 `c7852c1c` 送 `$ct-exec`（notify `--submit`） | 106 s |
 
-5 次中有 3 次在新終端建立後 2–12 秒內發生。卡頓開始時間與 Gary 說的「派了好幾個工單後」一致。
+5 次中有 3 次在新終端建立後 2–12 秒內發生。卡頓開始時間與 外部測試者A 說的「派了好幾個工單後」一致。
 
 **崩潰報告**：`BetterAgentTerminal Helper-2026-10-15-114303.ips`，對應 11:43:01 那次。
 
@@ -111,15 +111,15 @@ links:
 
 ## 第三輪（2026-10-19，T0666 研究）
 
-新資料：`debug-20261015-130846.log`、`debug-20261019-104323.log`、`BetterAgentTerminal Helper-2026-10-19-103931.ips`、Gary 的 `ps`（Renderer pid 60100：100.8 / 98.7 / 18.0 / 40.0 / 25.8%），以及 Gary 11:43 的觀察「Context used 大概在 20–30% 就會開始卡頓」。完整證據見 `T0666-research-bug136-macos-renderer-cpu-round3.md` 回報區。
+新資料：`debug-20261015-130846.log`、`debug-20261019-104323.log`、`BetterAgentTerminal Helper-2026-10-19-103931.ips`、外部測試者A 的 `ps`（Renderer pid 60100：100.8 / 98.7 / 18.0 / 40.0 / 25.8%），以及 外部測試者A 11:43 的觀察「Context used 大概在 20–30% 就會開始卡頓」。完整證據見 `T0666-research-bug136-macos-renderer-cpu-round3.md` 回報區。
 
-- 【日誌】`104323`（Gary 現在裝的是 `v0.7.0-pre.9` 以後的版本，agent 全是 Codex）：**沒有 GPU 崩潰**，全程硬體繪圖，但 Renderer 仍約 1 顆核心 ⇒ **假設 A 不是打字延遲的必要條件**。
+- 【日誌】`104323`（外部測試者A 現在裝的是 `v0.7.0-pre.9` 以後的版本，agent 全是 Codex）：**沒有 GPU 崩潰**，全程硬體繪圖，但 Renderer 仍約 1 顆核心 ⇒ **假設 A 不是打字延遲的必要條件**。
 - 【日誌】`103931.ips` 的頂層偏移和 `114303.ips` 完全相同 ⇒ 同一個 GPU CHECK（累計 6 次）。觸發時機是建立或切換分頁時，候選是 isActive effect 的 `clearTextureAtlas`（推論）。**和打字延遲是兩件事**，另案追蹤。
 - 【原始碼 + 實測】**假設 C（新，權重最高）**：縮圖預覽 `scheduleBatchedPreviewUpdate`（`src/components/TerminalThumbnail.tsx`）只在遇到 `\n` 時才截短。Codex 用 alt screen，輸出時 Linux / macOS 的 PTY 幾乎不含 `\n`（WSL 實測 145 KB 輸出中 `\n` = 0），Windows ConPTY 則會插入 `\n`。所以 macOS 上預覽字串會無上限累積，每 150 ms 跑 11 次 regex，再對一個單行文字節點重新 layout。用 Electron 41.2.1 實測 layout：1 M 字元要 126 ms、4 M 字元要 512 ms。C 可以同時解釋四件事：卡頓隨對話長度出現、吃 CPU 的是 BAT Renderer 而不是 codex、新分頁正常、只發生在 macOS。
-- 待 Gary 確認（約 1 分鐘）：開始卡的時候，在 DevTools Console 執行 `[...document.querySelectorAll('.thumbnail-preview')].map(e => e.textContent.length)`。卡的那個分頁如果是幾十萬以上 → C 確認。
+- 待 外部測試者A 確認（約 1 分鐘）：開始卡的時候，在 DevTools Console 執行 `[...document.querySelectorAll('.thumbnail-preview')].map(e => e.textContent.length)`。卡的那個分頁如果是幾十萬以上 → C 確認。
 - 修正草案（S）：預覽在合併前只保留尾端，每行限長，整體上限約 2 KiB；Claude `onStream` 那條也套同一個上限；加單元測試。不碰 `TerminalPanel.tsx`。
 
-### Gary 確認（2026-10-19 12:4x，經使用者轉述）
+### 外部測試者A 確認（2026-10-19 12:4x，經使用者轉述）
 
 在卡頓時於 DevTools Console 執行 `[...document.querySelectorAll('.thumbnail-preview')].map(e => e.textContent.length)`，得到 `[714855, 1055128, 977397, 3358]`。三個分頁的預覽字串有 71 萬、105 萬、98 萬字元。依 T0666 實測，1 M 字元時每次 layout 約 126 ms ⇒ **假設 C 確認**。T0667（`a9f0ad5a`）把上限設在 2055 字元。剩下的是：用含 T0667 的版本（`v0.7.1-pre.3`）確認打字不再延遲。
 
@@ -133,7 +133,7 @@ links:
 
 **Worker 未取得區分測試結果前，不轉述任何根因。**
 
-## 待 Gary 做的區分測試
+## 待 外部測試者A 做的區分測試
 
 1. 在**崩潰前就開著的非 Codex 分頁**（例如第二個工作區 11:23 的空白終端）打字。
    - 也卡 → 偏 A
@@ -156,12 +156,12 @@ links:
 
 ## 結案（2026-10-19）
 
-- 15:19 Gary 回報（使用者轉達）：以 `v0.7.1-pre.3` 使用，「卡頓的問題解掉了，目前很讚」。確認假設 C（縮圖預覽無上限累積）為根因，T0667 修正有效。
-- GPU 崩潰另案 BUG-164，仍待 Gary 回報 `skia_graphite=` 與有無 `child-process-gone type=GPU`。
+- 15:19 外部測試者A 回報（使用者轉達）：以 `v0.7.1-pre.3` 使用，「卡頓的問題解掉了，目前很讚」。確認假設 C（縮圖預覽無上限累積）為根因，T0667 修正有效。
+- GPU 崩潰另案 BUG-164，仍待 外部測試者A 回報 `skia_graphite=` 與有無 `child-process-gone type=GPU`。
 
 ## 附件
 
-Gary 提供的檔案放在使用者本機，未入庫：
+外部測試者A 提供的檔案放在使用者本機，未入庫：
 
 - `debug-20261015-094818.log`、`debug-20261015-112206.log`、`bat-scripts.log`
 - `關閉Word後量測.json`、`新舊工作階段比較.json`、`BAT問題回報草稿.txt`

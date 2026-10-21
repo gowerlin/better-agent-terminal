@@ -17,7 +17,7 @@ commit: "dc64388d"
 target_version: "0.6.1-pre.4"
 depends_on: []
 related:
-  - "T0544 研究報告（本單依據：「調查結論」§1 / §3 C 表 / §4 S2、「建議下一步」1 / 4）；證據目錄 `C:\\Users\\Gower\\AppData\\Local\\Temp\\t0544\\`（pre.3 解壓產物與 tsv 清單，可直接讀）"
+  - "T0544 研究報告（本單依據：「調查結論」§1 / §3 C 表 / §4 S2、「建議下一步」1 / 4）；證據目錄 `<使用者資料夾>\\AppData\\Local\\Temp\\t0544\\`（pre.3 解壓產物與 tsv 清單，可直接讀）"
   - "D092（per-host baseline matrix；C3 使實作回到 D092）；D094（不在本單復議）；BUG-052 / BUG-118（內嵌 claude 路徑）"
   - "CLAUDE.md「Packaging / Release 前置檢查」「Server bundle baseline（PLAN-031）」「Claude Runtime Selection」"
 affects_files:
@@ -133,7 +133,7 @@ Landing check：**PASS**
 | 本機 `npm run build:dir`（Windows，先清掉累積 379 個舊 chunk 的 `dist-electron`） | 成功 |
 | `verify-packaged-native.js --platform win --out release --arch x64` | ✅ `PE machine 0x8664`、baseline `[linux-x64]`、8 個 runtime 套件 / 含依賴 15 個 |
 | `win-unpacked` 解壓大小 | **1354.1 MiB**（pre.3 Windows 解壓 2036 MiB，-682 MiB）；`app.asar` 159.2 → **13.5 MiB** |
-| `--runtime=9546` 啟動 `release/win-unpacked/BetterAgentTerminal.exe`（隔離 env，`BAT_*` 全清、RemoteServer 用隨機埠，未碰 9876） | Agent session（SDK，`model: haiku`）回 `T0546-OK`，日誌 `claudeCodePath=…\app.asar.unpacked\node_modules\@anthropic-ai\claude-code\bin\claude.exe (source=embedded)`；claude-cli 分頁執行同一 `claude.exe` 並顯示信任資料夾提示；Files 分頁 README.md：mermaid 產出 SVG、highlight.js 關鍵字 `const, export, function, return`；日誌無 `Cannot find module` / `MODULE_NOT_FOUND` / `EmbeddedClaudeMissingError`。截圖（scratchpad，未入庫）：`C:\Users\Gower\AppData\Local\Temp\claude\D--ForgejoGit--Gower-Labs-BMad-Guide-better-agent-terminal-better-agent-terminal\306b9a3f-6b65-466a-9f5a-426b94c9f184\scratchpad\t0546-claude-cli.png`、`…\scratchpad\t0546-markdown-preview.png`。結束後 Terminal Server 已停、runtime userData 已刪 |
+| `--runtime=9546` 啟動 `release/win-unpacked/BetterAgentTerminal.exe`（隔離 env，`BAT_*` 全清、RemoteServer 用隨機埠，未碰 9876） | Agent session（SDK，`model: haiku`）回 `T0546-OK`，日誌 `claudeCodePath=…\app.asar.unpacked\node_modules\@anthropic-ai\claude-code\bin\claude.exe (source=embedded)`；claude-cli 分頁執行同一 `claude.exe` 並顯示信任資料夾提示；Files 分頁 README.md：mermaid 產出 SVG、highlight.js 關鍵字 `const, export, function, return`；日誌無 `Cannot find module` / `MODULE_NOT_FOUND` / `EmbeddedClaudeMissingError`。截圖（scratchpad，未入庫）：`<使用者資料夾>\AppData\Local\Temp\claude\D--ForgejoGit--Gower-Labs-BMad-Guide-better-agent-terminal-better-agent-terminal\306b9a3f-6b65-466a-9f5a-426b94c9f184\scratchpad\t0546-claude-cli.png`、`…\scratchpad\t0546-markdown-preview.png`。結束後 Terminal Server 已停、runtime userData 已刪 |
 | server bundle linux-x64（`node scripts/build-server-bundle.mjs --target=linux-x64`） | **158.6 MiB**（pre.3 baseline 229.0 MiB，-70.4）；tar 清單 `claude-agent-sdk-` 0 筆；`verify-server-bundle.js` ✅；pre.3 舊 tarball 改被新規則擋下。Windows host 沒有 linux 平台套件，以 lock 的 `resolved` URL 下載 `claude-code-linux-x64@2.1.300`、`node-pty-linux-x64@1.1.0`（integrity 皆符合 lock）暫放 `node_modules`，建完已刪除 |
 
 **三平台預估（壓縮後 MiB，依實際改動重算）**

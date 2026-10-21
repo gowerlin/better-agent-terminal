@@ -107,7 +107,7 @@ BAT 只在自己以系統管理員權限執行時才注入 `-c features.daemon_a
 
 ### 2. 實機確認：沒做成（原因與步驟）
 
-- 開工前狀態（唯讀）：`codex app-server daemon version` → `failed to connect to C:\Users\Gower\.codex\app-server-control\app-server-control.sock … (os error 10050)`，也就是**使用者的 CLI 共用 daemon 沒在跑**。程序清單只有 Codex 桌面版（PID 30640，`app-server` stdio）、VS Code 擴充（PID 36424，`app-server` stdio）、`codex-windows-sandbox-service.exe`（14320）、`codex-computer-use-swift.exe`（30972）。全程沒碰它們。
+- 開工前狀態（唯讀）：`codex app-server daemon version` → `failed to connect to <使用者資料夾>\.codex\app-server-control\app-server-control.sock … (os error 10050)`，也就是**使用者的 CLI 共用 daemon 沒在跑**。程序清單只有 Codex 桌面版（PID 30640，`app-server` stdio）、VS Code 擴充（PID 36424，`app-server` stdio）、`codex-windows-sandbox-service.exe`（14320）、`codex-computer-use-swift.exe`（30972）。全程沒碰它們。
 - 設計：隔離 `CODEX_HOME`（temp），config 裡放一個假 MCP server（node 腳本只把 `PROBE_TAB` / `BAT_TERMINAL_ID` 寫進檔案），`env_vars = ["PROBE_TAB","BAT_TERMINAL_ID"]`。session A（`PROBE_TAB=A`、`BAT_TERMINAL_ID=probe-a`，真實 `BAT_*` / `CT_*` 全部移除）`codex app-server daemon start`；session B（`PROBE_TAB=B`）以 `codex app-server proxy` 送 `initialize` → `command/exec`（`cmd /c set PROBE_TAB`）→ `thread/start`（會觸發 MCP 啟動），完全不呼叫模型。
 - 結果：三次都在 daemon 啟動前被 codex 擋下：
   1. BAT 程序內直接執行：`Error: start the Windows daemon from a non-elevated terminal; shared clients must not inherit administrator privileges`。

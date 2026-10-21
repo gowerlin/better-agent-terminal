@@ -33,7 +33,7 @@ Phase 1 Voice Input 功能已於 2026-04-11 14:06（obs #9484）被塔台標記�
 
 ### 完整錯誤 log 位置
 ```
-C:\Users\Gower\AppData\Roaming\better-agent-terminal\Logs\debug-20260411-145133.log
+<使用者資料夾>\AppData\Roaming\better-agent-terminal\Logs\debug-20260411-145133.log
 ```
 這是 T0014 crash-safe logging 成果的產物。Worker 請自行讀取並擷取相關錯誤段落（塔台 session 不讀原始 log 避免汙染 context）。
 
@@ -49,7 +49,7 @@ C:\Users\Gower\AppData\Roaming\better-agent-terminal\Logs\debug-20260411-145133.
 2. **T0018 工單**：`_ct-workorders/T0018-fix-whisper-addon-load.md` — packaged build 相關修復的前例（native addon 的 `require` 問題）
 3. **BUG-004 相關紀錄**：`_ct-workorders/T0015-bug004-voice-crash-audit.md`、`T0016-bug004-voice-crash-hotfix.md` — worklet migration 的起源
 4. **塔台學習檔**：`_ct-workorders/_learnings.md` — 特別是 L013（GOLDEN：直接採用業界最佳實踐）
-5. **Renderer log**：`C:\Users\Gower\AppData\Roaming\better-agent-terminal\Logs\debug-20260411-145133.log`
+5. **Renderer log**：`<使用者資料夾>\AppData\Roaming\better-agent-terminal\Logs\debug-20260411-145133.log`
 6. **RecordingService 原始碼**：負責呼叫 `audioContext.audioWorklet.addModule()` 的檔案（自行 Grep 定位）
 7. **Worklet 原始碼**：`recorder-worklet.js` 或 `audio-processor.js` 類檔案（T0017-β 新增）
 8. **打包設定**：

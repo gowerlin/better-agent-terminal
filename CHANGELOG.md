@@ -887,7 +887,7 @@ macOS 仍只提供 Apple Silicon（arm64）版。
 
 ### Fixed
 - fix(ct): support `ABANDONED` as a final/inactive workorder status for `T####` and `CP-T####` Control Tower workorders (refs: T0359, CP-T1148).
-- fix(bat-terminal): clarify "Terminal created" stdout message; no longer prints "null" in --skill --workorder mode (refs: BMad-Guide T0110, 2026_Cooperative BUG-020)
+- fix(bat-terminal): clarify "Terminal created" stdout message; no longer prints "null" in --skill --workorder mode (refs: BMad-Guide T0110, 專案A BUG-020)
 
 ### Added
 - **PLAN-032 — Setup Wizard 錯誤 UX 全面整修**

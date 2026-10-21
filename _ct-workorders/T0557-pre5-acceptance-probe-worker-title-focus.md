@@ -96,7 +96,7 @@ Landing check：**PASS**
 | 項目 | 值 | 取得方式 |
 |---|---|---|
 | 目前 agent | Claude Code（模型 `claude-opus-5-5`），以 `/ct-exec T0557` 執行 | session 自身 |
-| claude 版本 | `2.1.300 (Claude Code)`；PATH 上的 `claude` = `C:\Users\Gower\.local\bin\claude.exe`（本分頁實際執行的是內嵌或 system 無法由 PATH 判定） | `claude --version`、`Get-Command claude` |
+| claude 版本 | `2.1.300 (Claude Code)`；PATH 上的 `claude` = `<使用者資料夾>\.local\bin\claude.exe`（本分頁實際執行的是內嵌或 system 無法由 PATH 判定） | `claude --version`、`Get-Command claude` |
 | BAT FileVersion | `0.6.1-pre.5`（ProductVersion `0.6.1.0`） | `(Get-Item 'C:\Program Files\BetterAgentTerminal\BetterAgentTerminal.exe').VersionInfo` |
 | `BAT_SESSION` | `1` | PowerShell `Env:` |
 | `BAT_TERMINAL_ID` | `9e199a092c15b1cc130fdf37ed53a1ac` | 同上 |
@@ -107,7 +107,7 @@ Landing check：**PASS**
 | `BAT_REMOTE_TOKEN` | 已設定（值不記錄） | 同上 |
 | `BAT_REMOTE_PORT` | `9876` | 同上 |
 | `BAT_HELPER_DIR` | `C:\Program Files\BetterAgentTerminal\resources\scripts` | 同上 |
-| `BAT_USER_DATA` | `C:\Users\Gower\AppData\Roaming\BetterAgentTerminal` | 同上 |
+| `BAT_USER_DATA` | `<使用者資料夾>\AppData\Roaming\BetterAgentTerminal` | 同上 |
 | 系統時間 | `2026-10-16T13:52:27+0800` | `date "+%Y-%m-%dT%H:%M:%S%z"` |
 
 變更檔案：僅本工單檔。未改產品程式碼、未跑 build / test。

@@ -125,7 +125,7 @@ describe('isWslWindowsDrivePath (/mnt/<drive> hint)', () => {
   const DISTRO = 'Ubuntu-24.04'
 
   it('flags Windows drive folders (→ /mnt/<drive>/…)', () => {
-    expect(isWslWindowsDrivePath('C:\\Users\\gower\\repo', DISTRO)).toBe(true)
+    expect(isWslWindowsDrivePath('C:\\Users\\demo\\repo', DISTRO)).toBe(true)
     expect(isWslWindowsDrivePath('d:\\work', DISTRO)).toBe(true)
     expect(isWslWindowsDrivePath('C:\\', DISTRO)).toBe(true)
     expect(isWslWindowsDrivePath('\\\\?\\C:\\very\\long\\path', DISTRO)).toBe(true)

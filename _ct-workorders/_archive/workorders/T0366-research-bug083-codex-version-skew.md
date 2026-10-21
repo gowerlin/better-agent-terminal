@@ -124,7 +124,7 @@ auth 驗證：實驗前後 `~/.codex/auth.json` sha256 前 16 碼皆為 `3ca79dd
 |------|----|
 | repo 內嵌 | `@openai/codex-sdk` / `@openai/codex` / `codex-win32-x64` 皆 `0.124.0`；`codex.exe --version` → `codex-cli 0.124.0` |
 | 已安裝 BAT（`C:\Program Files\BetterAgentTerminal\resources\app.asar.unpacked\node_modules\@openai\`） | `codex-sdk` 0.124.0 + `codex-win32-x64` 0.124.0（`codex-cli 0.124.0`） |
-| PATH 上的 codex | `C:\Users\Gower\AppData\Local\Programs\OpenAI\Codex\bin\codex.exe` → `codex-cli 0.160.0`（Codex 官方安裝器）；另有 npm 的 `codex` / `codex.cmd` shim（BAT 會略過） |
+| PATH 上的 codex | `<使用者資料夾>\AppData\Local\Programs\OpenAI\Codex\bin\codex.exe` → `codex-cli 0.160.0`（Codex 官方安裝器）；另有 npm 的 `codex` / `codex.cmd` shim（BAT 會略過） |
 | ⇒ 本機 BAT 實際走的路徑 | `findCodexBinary()` 選 PATH 的 0.160.0 → **SDK JS 0.124 驅動 CLI 0.160**（H2 組合） |
 | `npm view @openai/codex-sdk version` | `0.160.0`（`time.modified` 2026-10-04T06:01Z） |
 | 本機 BAT debug log | `%APPDATA%\better-agent-terminal\Logs\debug-*.log`（09-19 ~ 10-04 共 11 檔）**沒有任何 codex 字樣** → 本機無 Codex 面板使用紀錄，只能用實驗重現 |

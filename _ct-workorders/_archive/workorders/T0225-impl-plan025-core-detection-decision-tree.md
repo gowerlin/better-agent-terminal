@@ -109,7 +109,7 @@ B 面(開新分頁指令)和 C 面(剪貼簿)**不在本工單範圍**,分給 T0
 
 - **完成狀態**:DONE
 - **派發模式**:實際 `CT_MODE=yolo / CT_INTERACTIVE=0`(與工單建議的 `on --interactive` 不一致,Worker 依 D062 尊重 env,0 次使用者互動)
-- **檔案異動**:單一檔案 `C:\Users\Gower\.claude\skills\control-tower\references\auto-session.md`(466 行,從原 253 行擴展)
+- **檔案異動**:單一檔案 `<使用者資料夾>\.claude\skills\control-tower\references\auto-session.md`(466 行,從原 253 行擴展)
 - **程式碼異動**:無(工單為 reference 文件重構)
 
 ### auto-session.md diff 摘要

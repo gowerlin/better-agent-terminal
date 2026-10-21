@@ -89,7 +89,7 @@ Landing check：PASS。C-0 `repo` = `better-agent-terminal`，`basename(REPO_ROO
 |---|---|---|
 | agent | Claude Code，模型 `claude-opus-5-5`（Opus 5.5） | 模型由 session 系統資訊得知 |
 | agent 版本 | `2.1.300 (Claude Code)` | `claude --version` |
-| 實際執行的 agent binary | `C:\Users\Gower\.local\bin\claude.exe`（system installer 版，不是 BAT 內嵌版） | 本 shell 的父行程鏈：pwsh ← cmd ← `claude.exe`（PID 23936）；PATH 上的 `claude` 也是同一路徑 |
+| 實際執行的 agent binary | `<使用者資料夾>\.local\bin\claude.exe`（system installer 版，不是 BAT 內嵌版） | 本 shell 的父行程鏈：pwsh ← cmd ← `claude.exe`（PID 23936）；PATH 上的 `claude` 也是同一路徑 |
 | BAT FileVersion | `0.6.1-pre.4`（ProductVersion `0.6.1.0`） | `(Get-Item 'C:\Program Files\BetterAgentTerminal\BetterAgentTerminal.exe').VersionInfo.FileVersion` |
 | `BAT_SESSION` | `1` | env |
 | `BAT_TERMINAL_ID` | `2f3d863cdffa40733e11283e39a0ae39` | env |

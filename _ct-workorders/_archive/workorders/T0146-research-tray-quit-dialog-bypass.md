@@ -39,7 +39,7 @@ T0144 實作了 PLAN-012（Electron 原生 `dialog.showMessageBox` + CheckBox + 
 ### 使用者測試環境
 - **BAT 版本**：rebuild + 重裝後的新版（使用者已確認 Q1.A）
 - **Quit 進入點**：系統托盤 Quit 選單項（使用者明確回報 Q2.D）
-- **Log 目錄**：`C:\Users\Gower\AppData\Roaming\better-agent-terminal\Logs`
+- **Log 目錄**：`<使用者資料夾>\AppData\Roaming\better-agent-terminal\Logs`
 
 ### T0144 實作範圍（參考）
 基於 T0143 研究結論（D035/D037）採方案 B：

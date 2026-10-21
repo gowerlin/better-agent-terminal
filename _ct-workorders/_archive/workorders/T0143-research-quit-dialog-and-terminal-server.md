@@ -31,11 +31,11 @@
 
 ## 執行環境建議
 
-- **建議 cwd**：`D:\ForgejoGit\2026_Taipower`（使用者真實驗收環境，非 source repo）
+- **建議 cwd**：`D:\ForgejoGit\<專案C>`（使用者真實驗收環境，非 source repo）
 - **讀取 source 用絕對路徑**：`D:\ForgejoGit\BMad-Guide\better-agent-terminal\better-agent-terminal\...`
 - 此安排的理由：驗證打包版 BAT（`BAT_HELPER_DIR` 指向 installed location）在無 source 的使用者環境也能正常派發
 
-若 Worker 判斷在 2026_Taipower 跑研究有困難，可改在 source repo 執行，但**請明確回報選擇原因**。
+若 Worker 判斷在 專案C 跑研究有困難，可改在 source repo 執行，但**請明確回報選擇原因**。
 
 ---
 
@@ -113,14 +113,14 @@ Worker 請**邊執行任務 A、邊如實記錄**以下觀察項：
 |---|------|---------|
 | B3.1 | 完成後呼叫 notify 的實際指令 | （貼上 Worker 用的完整命令） |
 | B3.2 | notify 是否成功（exit code） | ⏳ |
-| B3.3 | Worker 當前 workspace | （確認是 2026_Taipower 還是其他） |
+| B3.3 | Worker 當前 workspace | （確認是 專案C 還是其他） |
 
 ### B4. Phase 5 workspace 一致性（若有多 workspace 同時開）
 
 | # | 項目 | 觀察結果 |
 |---|------|---------|
 | B4.1 | 同時開啟的 workspace 列表 | （若使用者告知或 env 可判斷） |
-| B4.2 | Worker PTY 所在 workspace | （應為 2026_Taipower） |
+| B4.2 | Worker PTY 所在 workspace | （應為 專案C） |
 | B4.3 | 是否有 cwd first-match 誤判跡象 | ⏳ |
 
 ### B5. 任務 B 結論
@@ -336,10 +336,10 @@ CheckBox 傳遞的最簡路徑（若採 Electron 原生 Dialog）：**完全不�
 |---|------|---------|
 | B1.1 | `$BAT_HELPER_DIR` 值 | `C:\Program Files\BetterAgentTerminal\resources\scripts`（installed location，正確指向打包版） |
 | B1.2 | helper scripts 存在 | ✅ `bat-notify.mjs*`、`bat-terminal.mjs*` 均存在（兩者皆 executable 旗標） |
-| B1.3 | 實際 cwd | `D:\ForgejoGit\BMad-Guide\better-agent-terminal\better-agent-terminal\_ct-workorders`（**非**工單建議的 `2026_Taipower`） |
+| B1.3 | 實際 cwd | `D:\ForgejoGit\BMad-Guide\better-agent-terminal\better-agent-terminal\_ct-workorders`（**非**工單建議的 `<專案C>`） |
 | B1.4 | 其他相關 env vars | `BAT_SESSION=1`、`BAT_TOWER_TERMINAL_ID=83fd9ec5-befb-4328-9128-6280177a6e9f` 均正確注入 |
 
-**B1 結論**：🟢 `BAT_HELPER_DIR` + helper scripts 驗收通過（T0140/T0141 修復已生效於打包版）。cwd 落在 source repo 而非 2026_Taipower 是派發者決定，與 BAT_HELPER_DIR 獨立——後者指向 installed location 與 cwd 無關，此驗收仍成立（甚至更強，證明「任意 cwd + installed helper」組合都正確）。
+**B1 結論**：🟢 `BAT_HELPER_DIR` + helper scripts 驗收通過（T0140/T0141 修復已生效於打包版）。cwd 落在 source repo 而非 專案C 是派發者決定，與 BAT_HELPER_DIR 獨立——後者指向 installed location 與 cwd 無關，此驗收仍成立（甚至更強，證明「任意 cwd + installed helper」組合都正確）。
 
 #### B3 Phase 3 通知
 
@@ -347,14 +347,14 @@ CheckBox 傳遞的最簡路徑（若採 Electron 原生 Dialog）：**完全不�
 |---|------|---------|
 | B3.1 | 完成後呼叫 notify 的實際指令 | `node "$BAT_HELPER_DIR/bat-notify.mjs" "T0143 完成"` |
 | B3.2 | notify 是否成功（exit code） | ✅ exit 0，Tower 端輸出：`✓ Notified 83fd9ec5…: T0143 完成` |
-| B3.3 | Worker 當前 workspace | cwd = source repo `_ct-workorders`，不是 2026_Taipower，但 `BAT_TOWER_TERMINAL_ID` 正確指向 Tower，notify 仍可送達 |
+| B3.3 | Worker 當前 workspace | cwd = source repo `_ct-workorders`，不是 專案C，但 `BAT_TOWER_TERMINAL_ID` 正確指向 Tower，notify 仍可送達 |
 
 #### B4 Phase 5 workspace
 
 | # | 項目 | 觀察結果 |
 |---|------|---------|
 | B4.1 | 同時開啟的 workspace 列表 | 無法從 env 直接列舉；僅知 `BAT_TOWER_TERMINAL_ID=83fd9ec5-...` 指向 Tower 所在 terminal |
-| B4.2 | Worker PTY 所在 workspace | cwd 顯示為 source repo（非 2026_Taipower），但此為 Tower 派發時選的 cwd（非路由誤判） |
+| B4.2 | Worker PTY 所在 workspace | cwd 顯示為 source repo（非 專案C），但此為 Tower 派發時選的 cwd（非路由誤判） |
 | B4.3 | 是否有 cwd first-match 誤判跡象 | ❌ 無。BAT_TOWER_TERMINAL_ID 使用 UUID 精確指向 Tower terminal，不依賴 cwd first-match |
 
 #### B5 結論
@@ -366,7 +366,7 @@ CheckBox 傳遞的最簡路徑（若採 Electron 原生 Dialog）：**完全不�
 2. **helper scripts 完整**：`bat-notify.mjs` + `bat-terminal.mjs` 均存在且可執行
 3. **Tower Terminal ID 精確傳遞**：`BAT_TOWER_TERMINAL_ID` 以 UUID 注入，避開了 cwd first-match 潛在誤判
 4. **Auto-session 路由可用**：`BAT_SESSION=1` 環境變數正確，代表 Worker 在 BAT 內部終端執行
-5. **跨 cwd 穩定性**：Worker cwd 非建議的 2026_Taipower 但鏈路仍通，反證「installed helper 路徑與 cwd 解耦」設計正確
+5. **跨 cwd 穩定性**：Worker cwd 非建議的 專案C 但鏈路仍通，反證「installed helper 路徑與 cwd 解耦」設計正確
 
 **宣告**：本工單執行過程本身即為 BUG-032 修復鏈 END-TO-END 驗收。BUG-032 可由 OPEN/FIXING 進入 VERIFY → CLOSED 路徑。最後一項 `B3.2 notify exit code` 於收尾 Step 8.5 執行後由 Tower 端二次確認。
 

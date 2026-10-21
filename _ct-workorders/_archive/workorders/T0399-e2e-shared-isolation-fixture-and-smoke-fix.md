@@ -104,7 +104,7 @@ memory_overrides:
 | `npx playwright test e2e/smoke.spec.ts`（單跑） | ✅ PASS | **806ms，1 passed (1.4s)**（< 10s）；Terminal Server pid 1716 teardown 後 alive=false；userData removed=true。修前是 60s 逾時 + worker teardown 逾時 |
 | `npm run test:e2e`（14 tests） | ✅ **6 passed / 8 skipped / 0 failed (10.5s)** | passed = E1 (776ms) / E2 (5.4s) / E3 (1.3s) / E4 (1.4s) / smoke (759ms) / `bug075-bat-auto-session` (185ms)；skipped = `server-bundle-distribution.spec.ts` 既有的 8 個 skeleton |
 | E1 | ✅ | `abortSession(<unknown id>)` → `{"ok":true,"value":false}`；`PROXIED_CHANNELS` 43 個 `claude:*`，未綁定 none |
-| E2 | ✅ | Terminal Server pid 25388，命令列 = 本 repo `node_modules\electron\dist\electron.exe …\dist-electron\terminal-server.js`；restart + 4s：`pty:exit` 0 個、`getCwd="C:\\Users\\Gower"`；之後回應 5678；kill 後收到 1 個 exit |
+| E2 | ✅ | Terminal Server pid 25388，命令列 = 本 repo `node_modules\electron\dist\electron.exe …\dist-electron\terminal-server.js`；restart + 4s：`pty:exit` 0 個、`getCwd="<使用者資料夾>"`；之後回應 5678；kill 後收到 1 個 exit |
 | E3 | ✅ | 本機 `auto,pwsh,powershell,cmd,git-bash,custom`；loopback wsl-linux 遠端視窗 `auto,zsh,bash,sh,custom` |
 | E4 | ✅ | `defaultPath = \\wsl.localhost\Ubuntu-24.04\home\gower`；`/mnt/c/...` 提示有顯示 |
 | 每個 instance 的 teardown | ✅ | 5 個 instance 全部 `Terminal Server … alive after teardown: false`、`runtime userData removed: true`；沒有任何一次走到「20s 逾時 kill」或「命令列比對 kill」分支（stub 對話框後都正常退出） |

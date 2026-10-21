@@ -68,13 +68,13 @@ const fileChips = (c: HTMLElement) => Array.from(c.querySelectorAll('.claude-att
 function finderClipboard() {
   const doc = new File(['doc'], 'My Report.pdf', { type: 'application/pdf' })
   const pic = new File(['x'], 'pic.png', { type: 'image/png' })
-  getPathForFile.mockImplementation((f: File) => (f === doc ? '/Users/gary/My Report.pdf' : f === pic ? '/Users/gary/pic.png' : ''))
+  getPathForFile.mockImplementation((f: File) => (f === doc ? '/Users/tester/My Report.pdf' : f === pic ? '/Users/tester/pic.png' : ''))
   return { files: [doc, pic], items: [{ type: 'application/pdf', kind: 'file' }, { type: 'image/png', kind: 'file' }], types: ['Files'] }
 }
 
 describe.each([
-  ['ClaudeAgentPanel', (sid: string) => <ClaudeAgentPanel sessionId={sid} cwd="/Users/gary/repo" isActive={true} />],
-  ['CodexAgentPanel', (sid: string) => <CodexAgentPanel sessionId={sid} cwd="/Users/gary/repo" isActive={true} />],
+  ['ClaudeAgentPanel', (sid: string) => <ClaudeAgentPanel sessionId={sid} cwd="/Users/tester/repo" isActive={true} />],
+  ['CodexAgentPanel', (sid: string) => <CodexAgentPanel sessionId={sid} cwd="/Users/tester/repo" isActive={true} />],
 ] as const)('%s Finder paste', (name, renderPanel) => {
   test('macOS: Finder items attach like a drop (file by path, image from the File)', async () => {
     setup('darwin')
@@ -86,7 +86,7 @@ describe.each([
 
     // 'x' → eA==
     await waitFor(() => expect(thumbs(container)).toEqual(['data:image/png;base64,eA==']))
-    expect(fileChips(container)).toEqual(['/Users/gary/My Report.pdf'])
+    expect(fileChips(container)).toEqual(['/Users/tester/My Report.pdf'])
     expect(readImageDataUrl).not.toHaveBeenCalled()
   })
 

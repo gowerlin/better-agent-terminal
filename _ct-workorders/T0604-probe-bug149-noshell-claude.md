@@ -64,7 +64,7 @@ memory_overrides:
 
 ```
 575:[2026-10-17T20:26:54.950Z] [LOG] [agent-command] id=c2f4ebfe24e55742a094d9039dcf7d72 shell family=pwsh from=pty-default:pwsh.exe
-576:[2026-10-17T20:26:54.982Z] [LOG] [bat-mcp] dispatch agent=claude-cli terminal=c2f4ebfe24e55742a094d9039dcf7d72 → injected: '--mcp-config=C:\Users\Gower\AppData\Roaming\BetterAgentTerminal\bat-mcp\claude.json' '--settings=C:\Users\Gower\AppData\Roaming\BetterAgentTerminal\bat-mcp\claude-settings.json'; hooks=yes
+576:[2026-10-17T20:26:54.982Z] [LOG] [bat-mcp] dispatch agent=claude-cli terminal=c2f4ebfe24e55742a094d9039dcf7d72 → injected: '--mcp-config=<使用者資料夾>\AppData\Roaming\BetterAgentTerminal\bat-mcp\claude.json' '--settings=<使用者資料夾>\AppData\Roaming\BetterAgentTerminal\bat-mcp\claude-settings.json'; hooks=yes
 579:[2026-10-17T20:26:54.983Z] [LOG] [remote][terminal] shell-resolution channel=terminal:create-with-command id=c2f4ebfe24e55742a094d9039dcf7d72 basename=pty-default persistedShell=unset source=pty-default fallback=yes reason=missing-persisted-shell spawn=pwsh.exe
 ```
 

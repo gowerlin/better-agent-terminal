@@ -29,18 +29,18 @@ links:
 
 ## 現象
 
-1. 工作區「臺灣土地銀行」的終端全部關閉（回報者不小心連塔台終端也關掉）
+1. 工作區「專案B」的終端全部關閉（回報者不小心連塔台終端也關掉）
 2. 主畫面（「終端」分頁上半部）**仍顯示一個 `Claude CLI` 終端的完整畫面**（Claude Code 對話內容 + 輸入列 `auto mode on`）
 3. 回報者認為那是 **better-agent-terminal 工作區**的終端畫面（截圖箭頭指向側欄的 better-agent-terminal）；畫面內容提到 LocalTuning 塔台，也有可能是本工作區剛關掉的終端殘影 —— 兩種都要查
 4. 這個畫面**無法操作**（看起來像當機）
 5. 下方「終端」縮圖列是空的（只有 `+` 按鈕）
 6. 按 `+` 新增終端後，新終端蓋過去，顯示恢復正常
 
-截圖：`C:\Users\Gower\AppData\Local\Temp\claude\D--ForgejoGit--Gower-Labs-BMad-Guide-better-agent-terminal-better-agent-terminal\3f162c76-5cbd-4d39-b2bf-bc54787fedd6\images\2.png`（視窗標題 `Better Agent Terminal - Default:1`，側欄 active = 臺灣土地銀行；工作區另有 BMAD、better-agent-terminal）
+截圖：`<使用者資料夾>\AppData\Local\Temp\claude\D--ForgejoGit--Gower-Labs-BMad-Guide-better-agent-terminal-better-agent-terminal\3f162c76-5cbd-4d39-b2bf-bc54787fedd6\images\2.png`（視窗標題 `Better Agent Terminal - Default:1`，側欄 active = 專案B；工作區另有 BMAD、better-agent-terminal）
 
 ### 使用者本機重現（2026-10-15 01:22，pre.10）
 
-使用者在自己的 BAT（安裝版 pre.10）重現成功，**情境 (a) 確認**：active 工作區 = `2026_LandBank`，主畫面顯示的是 **better-agent-terminal 工作區的塔台 Claude CLI 分頁**（本塔台 session），下方縮圖列為空。截圖：`C:\Users\Gower\AppData\Local\Temp\claude\D--ForgejoGit--Gower-Labs-BMad-Guide-better-agent-terminal-better-agent-terminal\3f162c76-5cbd-4d39-b2bf-bc54787fedd6\images\3.png`
+使用者在自己的 BAT（安裝版 pre.10）重現成功，**情境 (a) 確認**：active 工作區 = `<專案B>`，主畫面顯示的是 **better-agent-terminal 工作區的塔台 Claude CLI 分頁**（本塔台 session），下方縮圖列為空。截圖：`<使用者資料夾>\AppData\Local\Temp\claude\D--ForgejoGit--Gower-Labs-BMad-Guide-better-agent-terminal-better-agent-terminal\3f162c76-5cbd-4d39-b2bf-bc54787fedd6\images\3.png`
 
 ## 根因（T0531）
 

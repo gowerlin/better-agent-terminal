@@ -177,14 +177,14 @@ T0366 已知的 Windows 候選位置：
 
   ```
   candidate  embedded    0.160.0  D:\...\node_modules\@openai\codex-win32-x64\vendor\x86_64-pc-windows-msvc\bin\codex.exe  pathDirs=D:\...\vendor\x86_64-pc-windows-msvc\codex-path
-  candidate  installer   0.160.0  C:\Users\Gower\AppData\Local\Programs\OpenAI\Codex\bin\codex.exe
-  candidate  desktop-app 0.142.5  C:\Users\Gower\AppData\Local\OpenAI\Codex\bin\ea1c60319a1dcb19\codex.exe
+  candidate  installer   0.160.0  <使用者資料夾>\AppData\Local\Programs\OpenAI\Codex\bin\codex.exe
+  candidate  desktop-app 0.142.5  <使用者資料夾>\AppData\Local\OpenAI\Codex\bin\ea1c60319a1dcb19\codex.exe
   selected   embedded 0.160.0 D:\...\node_modules\@openai\codex-win32-x64\vendor\x86_64-pc-windows-msvc\bin\codex.exe
   first resolve 36 ms
   cached resolve 1 ms
   ```
 
-  與預期一致：installer 0.160.0 與內嵌 0.160.0 同版 → 選 embedded。PATH 上（`where.exe codex`）的三筆：`...\Programs\OpenAI\Codex\bin\codex.exe`（= installer，去重後保留 `installer` 標籤）、`C:\Users\Gower\AppData\Roaming\npm\codex` 與 `codex.cmd`（npm shim，排除）。Desktop App 4 個 `<hash>` 目錄中只有 `ea1c60319a1dcb19` 含 `codex.exe`（0.142.5，較舊，未選）
+  與預期一致：installer 0.160.0 與內嵌 0.160.0 同版 → 選 embedded。PATH 上（`where.exe codex`）的三筆：`...\Programs\OpenAI\Codex\bin\codex.exe`（= installer，去重後保留 `installer` 標籤）、`<使用者資料夾>\AppData\Roaming\npm\codex` 與 `codex.cmd`（npm shim，排除）。Desktop App 4 個 `<hash>` 目錄中只有 `ea1c60319a1dcb19` 含 `codex.exe`（0.142.5，較舊，未選）
 - [x] **AC-4 PASS** — 呼叫點見「產出摘要 Part A-3」表格：唯一呼叫點 `doStartSession()`，已 `await`
 - [x] **AC-5 PASS** — `git diff --stat`（新檔以 `git add -N` 納入）：`CHANGELOG.md`、`electron/__tests__/codex-runtime-resolver.test.ts`、`electron/codex-agent-manager.ts`、`electron/codex-runtime-resolver.ts`、`src/components/CodexAgentPanel.tsx`、本工單；另 `AGENTS.md` 為開工前既有髒檔（claude-mem 自動產生），未觸碰、不納入 commit。child_process：resolver 只 import `execFile`，array args、timeout 5s，無 shell；manager 移除 `execSync`：
 

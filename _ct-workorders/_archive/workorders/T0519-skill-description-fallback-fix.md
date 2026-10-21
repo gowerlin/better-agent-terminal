@@ -92,7 +92,7 @@ skills（`claude:scan-skills` 第 2 段）與 `claude:scan-star-commands` 刪除
 | `npx vite build` | PASS | 隔離 worktree exit 0 |
 | `npm run test:unit` | PASS | 隔離 worktree 210 檔、3511 passed / 1 skipped，exit 0 |
 
-隔離驗證：主 repo 有並行 T0517 的未提交變更，比照 T0518 在 `C:/Users/Gower/AppData/Local/Temp/t0519`（短路徑）以 `git worktree add --detach` 開 HEAD（`fde10db`），只複製本單 2 個程式 / 測試檔，`node_modules` 以 junction 指回主 repo；跑完四個 gate 後先刪 junction，再 `git worktree remove --force`（worktree 內有複製檔與 build 產物），確認主 repo `node_modules` 仍在、`git worktree list` 只剩主 repo。全程未使用 stash / reset / checkout / restore。
+隔離驗證：主 repo 有並行 T0517 的未提交變更，比照 T0518 在 `<使用者資料夾>/AppData/Local/Temp/t0519`（短路徑）以 `git worktree add --detach` 開 HEAD（`fde10db`），只複製本單 2 個程式 / 測試檔，`node_modules` 以 junction 指回主 repo；跑完四個 gate 後先刪 junction，再 `git worktree remove --force`（worktree 內有複製檔與 build 產物），確認主 repo `node_modules` 仍在、`git worktree list` 只剩主 repo。全程未使用 stash / reset / checkout / restore。
 
 未做：runtime smoke（Claude 面板實際 skills 清單）——工單未要求，且不碰使用者正在用的 BAT。
 

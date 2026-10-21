@@ -143,7 +143,7 @@ CLAUDE.md 提到 profile 有 `remoteFingerprint` 欄位,dispatcher 若要對齊�
   - `scripts/bat-terminal.mjs:282`:`createConnection({ host, port }, ...)` 開純 TCP socket
   - `scripts/bat-terminal.mjs:284-287`:open callback 立刻寫 `GET / HTTP/1.1\r\nHost: ...\r\nUpgrade: websocket\r\n...` — plain text,無 TLS 包裝
   - 無 `fingerprint` / `rejectUnauthorized` 字樣(全檔 grep 無匹配)
-- **`server-cert.json` 存在性**:✅ 存在(`C:\Users\Gower\AppData\Roaming\BetterAgentTerminal\server-cert.json`, 3071 bytes, mtime 2026-04-19 00:09)
+- **`server-cert.json` 存在性**:✅ 存在(`<使用者資料夾>\AppData\Roaming\BetterAgentTerminal\server-cert.json`, 3071 bytes, mtime 2026-04-19 00:09)
   - app name `BetterAgentTerminal`(大駝峰),非 Unix 習慣的 `better-agent-terminal`
 - **BAT 實機現況**:CLAUDE.md Remote 資安段(line 186-198)與實作完全一致,T0182 以降所有 remote 流量走 wss://,client 走 fingerprint TOFU pinning
 

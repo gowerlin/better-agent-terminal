@@ -137,7 +137,7 @@ T0550 用安裝版 pre.4 的 WSL 精靈把使用者的 `Ubuntu-24.04` server 從
 | WSL 實機（Ubuntu-24.04，舊 server **執行中**，本機 build 隔離實例） | ✅ PASS | `BAT_E2E_T0550=1 BAT_E2E_T0550_UPGRADE_RUNNING=1 npx playwright test e2e/t0550-wsl-acceptance.spec.ts -g "A1-A3\|B4"` → 2 passed（03:27:28–03:27:49）。A0 對照：不帶 `existing` 的 picker 仍回 9878（bug 原樣重現）；精靈 log：`existing bat-server.service … uses port 9877` → `stopped the running bat-server.service … to reuse port 9877` → `pick-server-port -> 9877 (reused the existing unit port)`。`A2.upgrade-running` PASS：該 distro 只有預建的 profile（token / 指紋已更新），未新建。`A3.clean-install` PASS：`~/.local/bat-server` 708 → 390 MiB，`claude-agent-sdk-linux-x64` / `@img` / `better-sqlite3` / `sharp` 皆不在，無 `.bat-new` / `.bat-old` 殘留。`A2.profile-opens` PASS（遠端 shell 回應）。`B4` smoke **13/13 PASS** |
 | 結束狀態 | ✅ | service `active`、unit `BAT_SERVER_PORT=9877`、`127.0.0.1:9877` 由 MainPID 6070 LISTEN、憑證指紋 `22:3A:E4:C7:…:79:97` 不變；`server-cert.json` sha256 `dd0bc13f…`、`server-token.json` sha256 `bfc48f5c…` 前後相同；unit 與備份 `diff` 相同 |
 
-證據目錄：`C:\Users\Gower\AppData\Local\Temp\bat-t0552\evidence\`（`results.json`、`server-state-before.txt` / `-after.txt`、`debug-log-a.txt`、`smoke-after.txt`、截圖）。
+證據目錄：`<使用者資料夾>\AppData\Local\Temp\bat-t0552\evidence\`（`results.json`、`server-state-before.txt` / `-after.txt`、`debug-log-a.txt`、`smoke-after.txt`、截圖）。
 
 **備份**（實機動之前建立，未刪除）：`~/.local/bat-server.bak-0.6.1-pre.4-t0552`（708M，升級前內容）、`~/.config/systemd/user/bat-server.service.bak-0.6.1-pre.4-t0552`、`~/.local/share/bat-server.bak-t0552`（資料目錄複本，含 token / 憑證，權限沿用 `cp -a`；確認無誤後可刪）。T0550 的 `~/.local/bat-server.bak-0.5.9-pre.4-t0550` 未動。未碰其他發行版、Docker、`~/.ssh`、`.wslconfig`、使用者的 BAT（9876）與 T0551 的檔案。
 

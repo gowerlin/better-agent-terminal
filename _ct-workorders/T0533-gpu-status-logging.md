@@ -40,7 +40,7 @@ memory_overrides:
 
 ## 背景
 
-BUG-136：Gary 在 macOS 27.0.1 + `0.6.1-pre.1` 上遇到舊分頁打字嚴重延遲，BAT Renderer 持續約 100% CPU，WindowServer 約 40%。同一段時間 GPU 行程崩潰 5 次：
+BUG-136：外部測試者A 在 macOS 27.0.1 + `0.6.1-pre.1` 上遇到舊分頁打字嚴重延遲，BAT Renderer 持續約 100% CPU，WindowServer 約 40%。同一段時間 GPU 行程崩潰 5 次：
 
 ```
 [CRASH] child-process-gone type=GPU reason=crashed exitCode=5
@@ -149,7 +149,7 @@ whenReady 當下 Chromium 還沒拿到 GPU 資訊，`getGPUFeatureStatus()` 回�
 
 ### 對 BUG-136 有用的觀察（未下根因結論）
 
-- **Chromium 在第 3 次 GPU 崩潰時整體退回軟體繪圖**（本機 Windows 實測），且之後不會自己回到硬體。Gary 的 session 崩潰 5 次，若 macOS 行為相同，第 3 次（12:02:28）之後整個 Renderer 很可能已是軟體繪圖。這與假設 A 的「WindowServer ~40%」相容，但還不能解釋「新分頁順、舊分頁卡」——軟體繪圖會影響所有分頁。`0.6.1-pre.2` 的日誌可以直接確認。
+- **Chromium 在第 3 次 GPU 崩潰時整體退回軟體繪圖**（本機 Windows 實測），且之後不會自己回到硬體。外部測試者A 的 session 崩潰 5 次，若 macOS 行為相同，第 3 次（12:02:28）之後整個 Renderer 很可能已是軟體繪圖。這與假設 A 的「WindowServer ~40%」相容，但還不能解釋「新分頁順、舊分頁卡」——軟體繪圖會影響所有分頁。`0.6.1-pre.2` 的日誌可以直接確認。
 - 判讀注意：崩潰後的真實 fallback 與啟動前的佔位值長得很像（都是 `disabled_software`），差別在 `multiple_raster_threads`（佔位值 `enabled_on`、真實 fallback `disabled_off`）。現行時機下佔位值不會進日誌，除非 15 s 內都沒有 `gpu-info-update`（那行會標 `no gpu-info-update yet`）。
 - 崩潰後的 fallback 已在 `feature status at crash` 反映，之後的 `gpu-info-update` 狀態相同，所以沒有多一行 `changed`（符合「不洗版」）。
 

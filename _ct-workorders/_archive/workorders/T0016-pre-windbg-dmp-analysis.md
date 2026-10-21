@@ -46,8 +46,8 @@ T0015 §7 因 sub-session 環境無 WinDbg/cdb **跳過 dmp 分析**。本工單
 
 **dmp 檔案位置**:
 ```
-Windows 原始路徑: C:\Users\Gower\AppData\Roaming\better-agent-terminal-runtime-1\Crashes\reports\6528598d-2995-43cf-96e3-393cb74394ca.dmp
-Git Bash 路徑:    /c/Users/Gower/AppData/Roaming/better-agent-terminal-runtime-1/Crashes/reports/6528598d-2995-43cf-96e3-393cb74394ca.dmp
+Windows 原始路徑: <使用者資料夾>\AppData\Roaming\better-agent-terminal-runtime-1\Crashes\reports\6528598d-2995-43cf-96e3-393cb74394ca.dmp
+Git Bash 路徑:    <使用者資料夾>/AppData/Roaming/better-agent-terminal-runtime-1/Crashes/reports/6528598d-2995-43cf-96e3-393cb74394ca.dmp
 ```
 
 ### T0015 的 H1 假設(要驗證的)
@@ -144,7 +144,7 @@ export _NT_SYMBOL_PATH="srv*C:\symbols*https://msdl.microsoft.com/download/symbo
 
 **執行分析**:
 ```bash
-DMP="/c/Users/Gower/AppData/Roaming/better-agent-terminal-runtime-1/Crashes/reports/6528598d-2995-43cf-96e3-393cb74394ca.dmp"
+DMP="<使用者資料夾>/AppData/Roaming/better-agent-terminal-runtime-1/Crashes/reports/6528598d-2995-43cf-96e3-393cb74394ca.dmp"
 "$CDB" -z "$DMP" -c "!analyze -v; .ecxr; k 20; lmf; lm m audio*; lm m webrtc*; lm m mmdev*; q" > _ct-workorders/reports/T0016-pre-dmp-analysis.txt 2>&1
 ```
 
@@ -300,7 +300,7 @@ DONE
 ```powershell
 $env:_NT_SYMBOL_PATH='srv*C:\symbols*https://msdl.microsoft.com/download/symbols'
 & 'C:\Program Files (x86)\Windows Kits\10\Debuggers\x64\cdb.exe' `
-  -z 'C:\Users\Gower\AppData\Roaming\better-agent-terminal-runtime-1\Crashes\reports\6528598d-2995-43cf-96e3-393cb74394ca.dmp' `
+  -z '<使用者資料夾>\AppData\Roaming\better-agent-terminal-runtime-1\Crashes\reports\6528598d-2995-43cf-96e3-393cb74394ca.dmp' `
   -c "!analyze -v; .ecxr; k 20; lmf; lm m audio*; lm m webrtc*; lm m mmdev*; q" `
   *> _ct-workorders\reports\T0016-pre-dmp-analysis.txt
 ```

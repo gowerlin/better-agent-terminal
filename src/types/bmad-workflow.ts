@@ -24,7 +24,7 @@ export interface BmadWorkflow {
 }
 
 // Phase → artifact mapping calibrated with actual BMad output
-// Reference: D:\ForgejoGit\2026_Cooperative\_bmad-output\
+// Reference: D:\ForgejoGit\<專案A>\_bmad-output\
 interface PhaseDefinition {
   id: number
   name: string

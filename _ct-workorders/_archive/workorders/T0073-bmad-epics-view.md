@@ -29,7 +29,7 @@
 - `src/styles/control-tower.css`（樣式擴充）
 
 ### 參考資料（真實 BMad 產出物）
-- **Epic 格式參考**：`D:\ForgejoGit\2026_Cooperative\_bmad-output\` 下的 epic 相關檔案
+- **Epic 格式參考**：`D:\ForgejoGit\<專案A>\_bmad-output\` 下的 epic 相關檔案
 - 先掃描目錄找到 epic 檔案，讀取 1-2 個了解實際格式
 - Story 格式參考：同目錄下的 story 相關檔案
 - **注意**：僅供讀取參考，不要修改該專案的任何檔案
@@ -117,7 +117,7 @@
 ### 執行步驟
 1. 讀取本工單全部內容
 2. 更新「開始時間」欄位
-3. **先掃描參考專案**：找到 epic 相關檔案，讀取 1-2 個了解格式（`D:\ForgejoGit\2026_Cooperative\_bmad-output\`）
+3. **先掃描參考專案**：找到 epic 相關檔案，讀取 1-2 個了解格式（`D:\ForgejoGit\<專案A>\_bmad-output\`）
 4. 讀取 T0070 D-1 資料模型設計
 5. 新建 `src/types/bmad-epic.ts`（格式從真實檔案校準）
 6. 新建 `src/components/BmadEpicsView.tsx`
@@ -155,7 +155,7 @@ DONE
 - `src/locales/zh-CN.json` — 同上（簡體中文）
 
 **關鍵設計決策：**
-- Epic 資料來源：解析 `_bmad-output/planning-artifacts/epics.md` 單檔（與參考專案 2026_Cooperative 格式校準）
+- Epic 資料來源：解析 `_bmad-output/planning-artifacts/epics.md` 單檔（與參考專案 專案A 格式校準）
 - Story 狀態：預設 TODO，若有 sprint-status.yaml 則交叉比對取得實際狀態和 T#### 關聯
 - Kanban tab 改名 Epics（internal key 保留 'kanban'），KanbanView component 完整保留（向後相容）
 

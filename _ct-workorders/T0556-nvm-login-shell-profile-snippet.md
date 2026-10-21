@@ -199,7 +199,7 @@ Commit：`e16e75b8` feat(remote-tools): T0556 nvm loader block for bash login sh
 
 **未碰**：使用者 BAT（9876）、`.bashrc`、nvm 的安裝方式（`v0.40.8`、`METHOD=script`、`NVM_DIR` 先設定都沒改）、nvm4w、`/mnt/c` 的寫入（例外見「遭遇問題」第 3 點）。
 
-**e2e 證據**：`C:\Users\Gower\AppData\Local\Temp\bat-t0556\evidence\`，內容：
+**e2e 證據**：`<使用者資料夾>\AppData\Local\Temp\bat-t0556\evidence\`，內容：
 - 兩次確認對話框的文字與截圖
 - 兩次更新的分頁輸出
 - `.profile` 的前、後版本與追加的段落
@@ -227,7 +227,7 @@ Commit：`e16e75b8` feat(remote-tools): T0556 nvm loader block for bash login sh
    - **`.bash_profile` 存在時**：片段寫進 `.bash_profile`。`sh -lc`（dash）只讀 `~/.profile`，所以找不到 node；`bash -lc` 找得到。Ubuntu 預設沒有 `.bash_profile`，不受影響。
    - **非 login 的非互動 shell**：例如 `bash -c`，仍然不會載入 nvm。這是 shell 的規則，文件已註明。
 2. **第一版片段在 Git Bash 下失效**：`command -v nvm` 找到 nvm-windows 的 `/c/ProgramData/nvm/nvm`，所以跳過了載入。WSL 若 PATH 上有名為 `nvm` 的檔案也會一樣。已改為比對 function 名稱，並補上測試（PATH 上有 `nvm` 程式的情境）。
-3. **`/mnt/c` 唯讀存取一次**：在 WSL 驗證「plain `.` 與 `command .` 遇到語法錯誤的差異」時，WSL 讀了一個由我在 `C:\Users\Gower\AppData\Local\Temp` 建立的暫存檔（`/mnt/c/.../t0556bad.sh`），讀完即從 Windows 端刪除。沒有經 `/mnt/c` 寫入或修改任何東西；之後的 WSL 驗證都改用 stdin 傳入腳本，暫存檔放在 WSL 的 `/tmp`。
+3. **`/mnt/c` 唯讀存取一次**：在 WSL 驗證「plain `.` 與 `command .` 遇到語法錯誤的差異」時，WSL 讀了一個由我在 `<使用者資料夾>\AppData\Local\Temp` 建立的暫存檔（`/mnt/c/.../t0556bad.sh`），讀完即從 Windows 端刪除。沒有經 `/mnt/c` 寫入或修改任何東西；之後的 WSL 驗證都改用 stdin 傳入腳本，暫存檔放在 WSL 的 `/tmp`。
 4. **e2e「before」紀錄第一次為 `ERR`**：`ls` 列出不存在的 `.bash_profile` / `.bash_login` 時 exit 非 0，`run()` 因此 reject，那一次 evidence 的檔案清單變成 `ERR`。判定沒有受影響：目標檔案判斷與 `.profile` 前內容是分開取得的，前後比對仍有效。已在該指令尾端加 `; true` 修正，修正後**未重跑**，因為片段已經存在，要重跑必須先拿掉。前狀態以手動紀錄為準（見上方 sha256 / 行數）。
 5. **WSL 留下的檔案**，待使用者決定是否刪除：
    - `~/.profile.t0556-20261016-050607.bak`

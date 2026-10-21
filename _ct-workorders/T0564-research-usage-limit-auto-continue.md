@@ -31,7 +31,7 @@ interaction:
   intervention_type: fire-and-forget
 memory_overrides:
   - "🔴 研究單：不改任何產品程式碼、設定或測試；只寫本工單檔。可以讀原始碼、跑唯讀指令、寫一次性探針到你的 scratchpad（不放進 repo）。"
-  - "🔴 不為了觸發限制而消耗額度：不得刻意大量呼叫 claude / codex。訊息樣本來源：CLI 安裝包內的字串 / 錯誤型別（本機 `node_modules/@anthropic-ai/claude-code*`、系統 claude `C:\\Users\\Gower\\.local\\bin\\claude.exe`、codex 安裝位置）、官方文件 / changelog、BAT 日誌（`%APPDATA%\\BetterAgentTerminal\\Logs`）、CLI 自己的 session 紀錄（`~/.claude/projects/**/*.jsonl`、`~/.codex/sessions/**`）。"
+  - "🔴 不為了觸發限制而消耗額度：不得刻意大量呼叫 claude / codex。訊息樣本來源：CLI 安裝包內的字串 / 錯誤型別（本機 `node_modules/@anthropic-ai/claude-code*`、系統 claude `<使用者資料夾>\\.local\\bin\\claude.exe`、codex 安裝位置）、官方文件 / changelog、BAT 日誌（`%APPDATA%\\BetterAgentTerminal\\Logs`）、CLI 自己的 session 紀錄（`~/.claude/projects/**/*.jsonl`、`~/.codex/sessions/**`）。"
   - "🔴 隱私：讀 session 紀錄時只擷取限制訊息 / rate limit 欄位本身，不得把對話內容（prompt、程式碼、回覆）抄進工單；路徑可寫，內容只寫與限制相關的欄位。"
   - "🔴 commit：`git add` 後 `git commit --only _ct-workorders/T0564-research-usage-limit-auto-continue.md`（其他 M / ?? 檔案是別張單進行中的變更，不是你的）。不 push、不觸發 workflow、不建 tag；禁止 `git stash` / `git reset` / `git checkout -- <path>` / `git restore`（L138）；寫檔 LF。"
   - "🔴 不要呼叫 `bat-terminal.mjs --close-worker`；通知塔台之後不要再執行任何指令。"
@@ -90,7 +90,7 @@ Landing Zone Check：**PASS**。C-0 `repo: better-agent-terminal` = `basename(RE
 
 證據分級：**[碼]** = 從 CLI 安裝包內嵌原始碼 / 字串讀出（實際檔案、版本見下）；**[文]** = CLI 內建 changelog（`~/.claude/cache/changelog.md`）；**[推]** = 依程式碼推斷、未實測。未實際觸發任何限制（工單禁止耗額度）；本機 `~/.claude/projects/**/*.jsonl` 與 `~/.codex/sessions/**`（只有 1 個 rollout 檔）**都沒有**任何限制訊息紀錄，BAT 日誌（`%APPDATA%\BetterAgentTerminal\Logs\debug-*.log`）也沒有 `rate_limit_event`，故**無實測樣本**，所有訊息原文皆為 [碼]。
 
-#### 1. Claude CLI（`2.1.300`；內嵌 `node_modules/@anthropic-ai/claude-code/bin/claude.exe` 與系統 `C:\Users\Gower\.local\bin\claude.exe` 大小相同 270,863,520 bytes，`--version` 皆 `2.1.300 (Claude Code)`）
+#### 1. Claude CLI（`2.1.300`；內嵌 `node_modules/@anthropic-ai/claude-code/bin/claude.exe` 與系統 `<使用者資料夾>\.local\bin\claude.exe` 大小相同 270,863,520 bytes，`--version` 皆 `2.1.300 (Claude Code)`）
 
 **1a. TUI 訊息原文** [碼]（bun 單檔，原始碼明文內嵌；以下 byte offset 皆指內嵌版 `claude.exe`）
 
@@ -138,7 +138,7 @@ Landing Zone Check：**PASS**。C-0 `repo: better-agent-terminal` = `basename(RE
   - **睡過頭**（電腦休眠跨過重置）：`Your usage limit has reset` / `Press enter to continue` —— 這種情況 **CLI 不自動送**（phase `stale`）。
   - 設定關閉時：限制對話框（`/rate-limit-options`）提供「Stop and wait for limit to reset」等選項 —— **對話框開著時往 PTY 打字會被當成選單操作**。
 
-#### 2. Codex CLI（本機 `C:\Users\Gower\AppData\Local\Programs\OpenAI\Codex\bin\codex.exe` = `codex-cli 0.162.1`；BAT 內嵌 `node_modules/@openai/codex` = `0.160.0`；WSL 依工單為 `0.160.0`）
+#### 2. Codex CLI（本機 `<使用者資料夾>\AppData\Local\Programs\OpenAI\Codex\bin\codex.exe` = `codex-cli 0.162.1`；BAT 內嵌 `node_modules/@openai/codex` = `0.160.0`；WSL 依工單為 `0.160.0`）
 
 **2a. 訊息原文** [碼]（Rust 字串，`codex.exe` offset 265216664 一帶；`UsageLimitReachedError`，欄位 `plan_type` / `resets_at` / `rate_limits` / `promo_message` / `rate_limit_reached_type`）
 

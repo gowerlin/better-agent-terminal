@@ -93,7 +93,7 @@
 - **完成狀態**:DONE
 - **派發模式**:實際 `CT_MODE=yolo / CT_INTERACTIVE=0`(Worker 依 D062 尊重 env,0 次使用者互動)
 - **檔案異動**:
-  - `C:/Users/Gower/.claude/skills/control-tower/references/auto-session.md`(466 行 → 623 行,+157 行淨增,新增 B 面章節)
+  - `<使用者資料夾>/.claude/skills/control-tower/references/auto-session.md`(466 行 → 623 行,+157 行淨增,新增 B 面章節)
   - `_ct-workorders/T0226-impl-plan025-new-tab-commands.md`(元資料狀態更新 + 回報區填寫)
 - **程式碼異動**:無(工單為 reference 文件擴充)
 
@@ -153,7 +153,7 @@
 | tmux | `command -v tmux` | ❌ Worker 機器未裝 tmux → 文件推測,移交 T0228 Selene devcontainer 驗證 |
 
 **環境預檢**(B.1 預檢欄位對照):
-- `wt` / `wt.exe`:存在於 `/c/Users/Gower/AppData/Local/Microsoft/WindowsApps/`
+- `wt` / `wt.exe`:存在於 `<使用者資料夾>/AppData/Local/Microsoft/WindowsApps/`
 - `mintty`:存在於 `/usr/bin/mintty`
 - `pwsh`:存在於 `/c/Program Files/PowerShell/7/pwsh`
 - `BAT_SESSION=1`、`MSYSTEM=MINGW64`、`WT_SESSION` 為空(Worker 在 BAT 內部,非 WT 直接)
@@ -189,7 +189,7 @@
 
 **Skill 層 auto-session.md 不在專案 repo(非阻斷)**:
 
-- `auto-session.md` 位於 `C:/Users/Gower/.claude/skills/control-tower/references/`(全域 skill),該目錄非 git repo
+- `auto-session.md` 位於 `<使用者資料夾>/.claude/skills/control-tower/references/`(全域 skill),該目錄非 git repo
 - 本工單的 `git commit` 只涵蓋專案 repo 的工單檔案變更;auto-session.md 的異動需依賴 `claude-brain-sync` 同步機制後續推到遠端 skill repo
 - 此行為與 T0225 一致(T0225 同樣改動 auto-session.md,commit `c6e1f3c` 也只涵蓋工單檔案),無新增風險
 - 使用者若需手動同步 skill 層,可跑 `/brain-patch` 或等 session 結束的 auto-sync hook

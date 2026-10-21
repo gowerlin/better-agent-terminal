@@ -282,7 +282,7 @@ legacy（2025-11-25）實際 JSON [實測]：
 -> {"jsonrpc":"2.0","id":2,"method":"tools/list","params":{}}
 <- {"jsonrpc":"2.0","id":2,"result":{"tools":[{"name":"bat_whoami",…,"annotations":{"readOnlyHint":true,…}},{"name":"bat_read_output",…}]}}   (1 ms)
 -> {"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"bat_whoami","arguments":{}}}
-<- {"jsonrpc":"2.0","id":3,"result":{"content":[{"type":"text","text":"…"}],"structuredContent":{"terminalId":"t0574tab","workspaceId":"ws-t0574","towerTerminalId":null,"ctMode":null,"role":"unknown","cwd":"C:\\Users\\Gower\\AppData\\Local\\Temp\\…\\scratchpad\\r4-ws","tokenKind":"server-token(full)","wire":{"frames":2,"ignoredFrames":0}}}}   (10 ms，含 TLS+auth+invoke)
+<- {"jsonrpc":"2.0","id":3,"result":{"content":[{"type":"text","text":"…"}],"structuredContent":{"terminalId":"t0574tab","workspaceId":"ws-t0574","towerTerminalId":null,"ctMode":null,"role":"unknown","cwd":"<使用者資料夾>\\AppData\\Local\\Temp\\…\\scratchpad\\r4-ws","tokenKind":"server-token(full)","wire":{"frames":2,"ignoredFrames":0}}}}   (10 ms，含 TLS+auth+invoke)
 -> {"jsonrpc":"2.0","id":5,"method":"tools/call","params":{"name":"bat_nope","arguments":{}}}
 <- {"jsonrpc":"2.0","id":5,"error":{"code":-32602,"message":"Unknown tool: bat_nope"}}
 ```
