@@ -4,13 +4,15 @@ schema_kind: workorder
 id: T0691
 title: "BUG-169 修正：安裝版 helper 的 `--version` 與 BAT MCP `serverInfo.version` 回報實際版號（打包時在 resources 放只含 name / version 的 package.json）"
 type: bugfix
-status: TODO
+status: FIXED
 repo: better-agent-terminal
 project: BUG-169
 priority: P3
 sizing: S
 created_at: "2026-10-21T23:29:38+0800"
-updated_at: "2026-10-21T23:29:38+0800"
+started_at: "2026-10-21T23:31:22+08:00"
+updated_at: "2026-10-21T23:42:16+0800"
+completed_at: "2026-10-21T23:42:16+0800"
 depends_on: []
 related:
   - "BUG-169（OPEN low）：helper 以 `join(<helper 目錄>, '..', 'package.json')` 讀版號，安裝版 `resources/` 沒有這個檔 → fallback `0.0.0`（`scripts/bat-terminal.mjs:72`、`scripts/bat-notify.mjs:85`、`scripts/bat-mcp.mjs:83`）"
@@ -88,12 +90,73 @@ memory_overrides:
 
 ### 待塔台決策（僅 yolo Worker 有問題時）
 
+無（未向塔台提問；方向 ① 沒有遇到需停下的障礙）。
+
 ### 完成狀態
+
+**FIXED**：Worker 步驟全部完成；BUG-169 改 `FIXED`，等下一個預覽版的安裝版驗收。
+
+- 落點檢查：**PASS**。C-0 `repo` = `better-agent-terminal`，`basename(REPO_ROOT)` = `better-agent-terminal`；C-1 工單在 REPO_ROOT 下；C-3 抽查 `package.json`、`scripts/build-version.js`、`scripts/verify-packaged-native.js`、`scripts/__tests__/verify-packaged-native.test.mjs`、`scripts/build-server-bundle.mjs` 皆存在；C-2 工單無 `branch` 欄位（目前 `main`）。`CT_HOME` 未設定（非 worktree）。`BAT_WORKSPACE_ID` = `cc0afc4a-57e9-4f41-b2ed-a2d8bac9e36b`（僅記錄）。`CT_MODE=yolo`、`CT_INTERACTIVE=0`。
+- 開工時 `status` 為 `TODO`（非 `PENDING`），照常改為 `IN_PROGRESS`。
 
 ### 產出摘要
 
+**Commit**：`b0ff5673` `fix: installed helpers report the packaged version (T0691, BUG-169)`（產品 + 文件，7 檔）；工單 / BUG 單另一個 commit。未 push、未觸發 workflow。
+
+**1. 查證：Electron 41 不會把 `resources/package.json` 當 app 載入**
+
+- Electron 41.2.1（`node_modules/electron/dist/electron.exe` 內嵌的 browser init，即上游 `lib/browser/init.ts`）的載入迴圈原文：`for(c of p)try{if(c=s.join(process.resourcesPath,c),u&&!h?.(c))continue;d=i._load(s.join(c,"package.json"));break}catch{continue}`，`p` = hidden value `appSearchPaths`；同一執行檔 `shell/common/node_bindings.cc` 段落的字串為 `app` / `app.asar` / `default_app.asar` / `appSearchPaths` / `appSearchPathsOnlyLoadASAR`，失敗訊息 `Failed to locate a valid package to load (app, app.asar or default_app.asar)`。⇒ 只讀 `<resources>/<app|app.asar|default_app.asar>/package.json`，不讀 `<resources>/package.json`。官方文件對應：Electron「Application Packaging / Application Distribution」說明 app 放在 `resources/app` 或 `resources/app.asar`。
+- 未啟動打包版 app。
+- 附帶確認：`app.asar.unpacked/` 根目錄沒有 `package.json`，所以 unpacked 的 `dist-electron/terminal-server.js` 往上找 package scope 會找到這個新檔；它沒有 `type` / `exports` / `imports`，Node 的判定與找不到 package.json 相同（CommonJS），行為不變。server bundle 根目錄的同格式檔案早已如此。已寫進 docs，並以 `helper-version` 擋多出欄位。
+
+**2. 產生方式：electron-builder `afterPack` hook（不採建置前產生 + extraResources）**
+
+- `package.json` `build.afterPack` = `./scripts/version-manifest.cjs`（新檔），寫 `packager.getResourcesDir(appOutDir)/package.json`：win / linux `resources/`、mac `<productFilename>.app/Contents/Resources/`（app-builder-lib 26.8.1 `getResourcesDir` / `getMacOsResourcesDir`）。版號 = `packager.appInfo.version`，即 electron-builder 寫進 `app.asar` 的 app `package.json`（含 `extraMetadata`）。
+- 理由：① 版號直接取 electron-builder 正在打包的值，CI（`build-version.js` 以 `VERSION` 改寫 `package.json` 且不還原，之後才 `npx electron-builder`）與本機 `build` / `build:dir` 都不用改；② CI 直接呼叫 `npx electron-builder --win|--mac|--linux`，「建置前產生」需要改 workflow 多一步（不在 `affects_files`），漏跑就打出舊檔；③ 不產生 repo 內中間檔，所以 `.gitignore` 不必改；④ 不需要 `build.<platform>.*`。
+- 時機：app-builder-lib `doPack` 在 extraResources 複製之後、`sanityCheckPackage` / fuses / 簽章之前呼叫 afterPack，mac 的 `.app` 簽章會涵蓋此檔。拿不到 name / version 時 throw，打包失敗。
+- hook 由 electron-builder 先 `require` 載入（`helpers/dynamic-import.js` `dynamicImportMaybe`），具名 export `afterPack`。
+
+**3. 與 server bundle 共用格式**：`scripts/version-manifest.cjs` `versionManifestContent(name, version)`；`scripts/build-server-bundle.mjs` 改用 `import versionManifest from './version-manifest.cjs'` 寫 bundle 根目錄的 `package.json`（輸出與原本 `JSON.stringify({ name, version }, null, 2) + '\n'` 位元組相同）。以 `--target=bogus-target` 確認 import 可解析（到 parseTargetArg 才報錯，未進入建置）。helper（`bat-terminal.mjs` / `bat-notify.mjs` / `bat-mcp.mjs`）的版號讀法**未改**。
+
+**4. 守門 `helper-version`**（`scripts/verify-packaged-native.js`）：`verifyHelperVersion(resourcesPath, expectedVersion)` 由 `verifyPackagedLayout` 三平台共用呼叫；`<resources>/package.json` 必須存在、可解析、只有 `name` / `version`、`name` 非空、`version` 非空且不是 `0.0.0`、等於 `app.asar` 內 `package.json` 的 `version`（`asarAppVersion`；讀不到時只查檔案本身；也可由 option `expectedVersion` 指定）。成功時輸出加 `, helper version <v>`；失敗提示 `T0691 helper-version: package.json build.afterPack must stay ./scripts/version-manifest.cjs …`。CLI 參數不變（workflow 不必改）。
+
+**5. 測試**（`scripts/__tests__/verify-packaged-native.test.mjs`，58 → 84 個 test case（+26）；`makeLinux` / `makeWin` 搬到模組層，三平台 fixture 都寫 `resources/package.json`，`HEALTHY_PACKED` 的 app package.json 帶版號）：
+
+- `describe.each` mac / linux / win × 綠燈（含 CLI exit 0、輸出版號）、缺檔（exit 1、提示）、`0.0.0`、多出欄位、版號不符（exit 1）、app.asar 無版號時只查檔案。
+- `version-manifest.cjs`：格式、各種問題、server bundle 使用同一函式的 source guard、`build.afterPack` 設定與三平台無 `build.<platform>.files` / `extraResources`、afterPack 寫入 win / linux / mac resources、無版號時 reject。
+
+**6. 文件**：`docs/agent-guide/packaging-release-checks.md`（打包產物檢查的 `helper-version`；Helper bundle 段後新增「helper 的版號來源」：來源、afterPack、時機、Electron 查證、package scope 說明、🔴 規則）；CLAUDE.md「Packaging / Release 前置檢查」的 Helper bundle 那一點加一句必守規則（不放 `resources/scripts`、不加其他欄位），`##` 標題未改。
+
+**驗證證據**
+
+| 項目 | 結果 |
+|---|---|
+| `npm run verify:helpers` | ✅ `OK — the installer ships 6 runtime helper(s) …` |
+| `npm run build:dir`（HEAD `9c305164` + 本單未提交變更；產品程式與 `b0ff5673` 相同，文件之後才改） | ✅ exit 0；log `afterPack (T0691): wrote …\release\win-unpacked\resources\package.json (better-agent-terminal 0.7.1-pre.5)` |
+| `release/win-unpacked/resources/package.json` | `{ "name": "better-agent-terminal", "version": "0.7.1-pre.5" }`（LF、結尾換行）；`resources/scripts` 正好 6 個 helper |
+| `node scripts/verify-packaged-native.js --platform win --out release --arch x64` | ✅ exit 0，`… 6 runtime helper(s) in resources/scripts, helper version 0.7.1-pre.5` |
+| 三個 helper `--version`（cwd = `release/win-unpacked/resources/scripts`，`env -u` 清掉 `BAT_REMOTE_PORT` / `BAT_REMOTE_TOKEN` / `BAT_TERMINAL_ID` / `BAT_TOWER_TERMINAL_ID` / `BAT_HELPER_DIR` / `BAT_SESSION` / `BAT_WORKSPACE_ID`，`BAT_USER_DATA` / `BAT_HELPER_LOG_DIR` 指到 scratch） | ✅ `bat-terminal.mjs v0.7.1-pre.5` / `bat-notify.mjs v0.7.1-pre.5` / `bat-mcp.mjs v0.7.1-pre.5`，exit 0 |
+| BAT MCP `initialize`（同上 env，stdin 送 initialize，不連 BAT） | ✅ 實測 `"serverInfo":{"name":"bat","title":"Better Agent Terminal","version":"0.7.1-pre.5"}` |
+| 對照：暫時移走 `resources/package.json` | `bat-terminal.mjs v0.0.0`、`serverInfo.version: "0.0.0"`（重現 BUG-169），之後放回原檔 |
+| CI `VERSION` 路徑演練：`CI=true VERSION=v0.7.1-t0691.1 node scripts/build-version.js` → `CI=true npx electron-builder --win --dir --publish never -c.directories.output=release/t0691-ci-rehearsal` | ✅ `Using version from env: 0.7.1-t0691.1`；afterPack 寫 `0.7.1-t0691.1`；`app.asar` 版號 `0.7.1-t0691.1`；verifier 綠；`bat-terminal.mjs v0.7.1-t0691.1`。演練前備份、演練後以備份覆寫 `package.json` / `package-lock.json`，`git diff -- package.json package-lock.json` = 0 行；演練輸出目錄 `release/t0691-ci-rehearsal` 已刪除 |
+| 相關 vitest：`verify-packaged-native.test.mjs` | ✅ 84 passed |
+| 相關 vitest：`server-bundle-helpers` / `asar-runtime-deps` / `dev-deploy-headless` / `bat-mcp` / `fetch-baseline-version` | ✅ 5 檔 146 passed |
+| 整包 `npm run test:unit`（`BAT_HELPER_LOG_DIR` / `BAT_USER_DATA` 指到 scratch） | ✅ 326 files passed，**5805 passed / 3 skipped / 0 failed**（基線 5779 → +26） |
+| typecheck | 未跑：本單未改 `src/` / `electron/` |
+
+**改動檔案**：`package.json`（`build.afterPack`）、`scripts/version-manifest.cjs`（新）、`scripts/build-server-bundle.mjs`、`scripts/verify-packaged-native.js`、`scripts/__tests__/verify-packaged-native.test.mjs`、`docs/agent-guide/packaging-release-checks.md`、`CLAUDE.md`、`_ct-workorders/BUG-169-installed-helpers-report-version-0.0.0.md`、本工單。未改 `scripts/build-version.js`、`.gitignore`（沒有 repo 內中間檔）、helper 三支。
+
 ### 互動紀錄
+
+無（yolo，未向使用者或塔台提問）。
 
 ### 遭遇問題
 
+1. 未實測 mac / Linux 的實際產物：本機只能打 Windows。三平台位置由 `getResourcesDir` 決定（單元測試以 mac `BetterAgentTerminal.app/Contents/Resources` 斷言 hook 寫入點），實際產物由 CI 的 `verify-packaged-native.js`（三平台都會跑 `helper-version`）把關；mac 簽章後的檔案位置建議在下一個預覽版的 CI log 看 `afterPack (T0691)` 與 verifier 輸出確認。
+2. 未做 NSIS 安裝後的實機驗收（安裝目錄的 `--version`）：`--dir` 與 NSIS 用同一個 `win-unpacked` 內容，留給下一個預覽版。
+3. CI 演練用 `--dir`，未打 NSIS / zip（hook 對 dir 與安裝檔 target 是同一次 pack）。
+4. 演練中的 `npm run compile` 重建了 `dist-electron`（gitignored，內容與 `b0ff5673` 相同）；`release/` 根目錄既有的舊 0.6.0-pre.1 產物未動。
+
 ### 回報時間
+
+2026-10-21T23:42:16+0800
