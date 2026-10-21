@@ -15,6 +15,9 @@ import {
   resetExecFileImplForTests,
   resolveHome,
   setExecFileImplForTests,
+  systemdEnabled,
+  validateDistroName,
+  validateInstallPath,
   windowsSupportsMirrored,
 } from '../wsl-detect'
 
@@ -284,5 +287,55 @@ describe('wsl-detect networking mode (T0383 / BUG-089)', () => {
       await expect(detectNetworkMode('bad distro;')).rejects.toThrow(/Invalid WSL distro name/)
       expect(calls).toHaveLength(0)
     })
+  })
+})
+
+/** T0681 (BUG-168, D177): scenarios that only tests/wsl-detect.test.ts covered. */
+describe('wsl-detect — carried over from tests/wsl-detect.test.ts (T0681)', () => {
+  it('list() parses several distros, the default marker and both WSL versions', async () => {
+    installExec(() => ({
+      ok: true,
+      stdout: utf16('  NAME                   STATE           VERSION\r\n* Ubuntu                 Running         2\r\n  Debian                 Stopped         1\r\n'),
+    }))
+    await expect(list()).resolves.toEqual({
+      default: 'Ubuntu',
+      distros: [
+        { name: 'Ubuntu', state: 'Running', version: 2 },
+        { name: 'Debian', state: 'Stopped', version: 1 },
+      ],
+    })
+  })
+
+  it('list() returns an empty list when `wsl -l -v` exits 0 with the no-distro message', async () => {
+    installExec(() => ({ ok: true, stdout: utf16('Windows Subsystem for Linux has no installed distributions.\r\n') }))
+    await expect(list()).resolves.toEqual({ distros: [], default: null })
+  })
+
+  it('systemdEnabled() is true when systemctl reports running', async () => {
+    const calls = installExec((args) => (key(args) === '-d Ubuntu -- systemctl --user is-system-running'
+      ? { ok: true, stdout: 'running\n' }
+      : { ok: false, code: 1 }))
+    await expect(systemdEnabled('Ubuntu')).resolves.toBe(true)
+    expect(calls).toHaveLength(1)
+  })
+
+  it('systemdEnabled() falls back to systemd=true in /etc/wsl.conf when systemctl fails', async () => {
+    installExec((args) => {
+      if (key(args) === '-d Ubuntu -- systemctl --user is-system-running') return { ok: false, code: 1, stdout: 'offline\n' }
+      if (key(args) === '-d Ubuntu -- cat /etc/wsl.conf') return { ok: true, stdout: '[boot]\nsystemd=true\n' }
+      return { ok: false, code: 1 }
+    })
+    await expect(systemdEnabled('Ubuntu')).resolves.toBe(true)
+  })
+
+  it('validateDistroName() rejects shell metacharacters', () => {
+    expect(validateDistroName('Ubuntu-24.04')).toBe('Ubuntu-24.04')
+    expect(() => validateDistroName('Ubuntu; rm -rf /')).toThrow(/Invalid WSL distro name/)
+  })
+
+  it('validateInstallPath() rejects traversal and shell metacharacters', () => {
+    expect(validateInstallPath('/home/demo/.local/bat-server')).toBe('/home/demo/.local/bat-server')
+    expect(() => validateInstallPath('/tmp/../bat-server')).toThrow(/Invalid Unix path/)
+    expect(() => validateInstallPath('/tmp/bat-server && whoami')).toThrow(/Invalid Unix path/)
   })
 })

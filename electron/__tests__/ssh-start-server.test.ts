@@ -160,3 +160,183 @@ describe('startServerOnRemote — written file locations are absolute (T0379)', 
     expect(commands[1]).toBe("launchctl unload '/Users/alice/Library/LaunchAgents/com.bat-server.plist' >/dev/null 2>&1; launchctl load -w '/Users/alice/Library/LaunchAgents/com.bat-server.plist'")
   })
 })
+
+/**
+ * T0681 (BUG-168, D177): scenarios that only tests/ssh-start-server.test.ts
+ * covered, carried over with the current expectations (T0511: `--port` /
+ * `--bind-interface` flags, `enable` + `restart`, no BAT_REMOTE_* env). Paths
+ * are absolute.
+ */
+describe('startServerOnRemote — carried over from tests/ssh-start-server.test.ts (T0681)', () => {
+  const absLinux: StartServerOptions = { ...linux, installPath: '/home/alice/.local/bat-server' }
+  const absDarwin: StartServerOptions = { ...darwin, installPath: '/Users/alice/.local/bat-server' }
+
+  type Script = { stdout?: string; stderr?: string; exitCode?: number }
+
+  /** ssh mock: one script per call, in order; extra calls throw. Records the full argv. */
+  function scriptedSpawn(scripts: Script[]): { calls: string[][]; spawn: NonNullable<StarterDeps['spawn']> } {
+    const calls: string[][] = []
+    const spawn: NonNullable<StarterDeps['spawn']> = (_command, args) => {
+      if (calls.length >= scripts.length) throw new Error(`spawn called more times than scripted (idx=${calls.length})`)
+      const script = scripts[calls.length]
+      calls.push([...args])
+      const proc = new EventEmitter() as EventEmitter & { stdout: EventEmitter; stderr: EventEmitter; kill: () => boolean }
+      proc.stdout = new EventEmitter()
+      proc.stderr = new EventEmitter()
+      proc.kill = () => true
+      setImmediate(() => {
+        if (script.stdout) proc.stdout.emit('data', Buffer.from(script.stdout))
+        if (script.stderr) proc.stderr.emit('data', Buffer.from(script.stderr))
+        proc.emit('exit', script.exitCode ?? 0)
+      })
+      return proc as unknown as ChildProcess
+    }
+    return { calls, spawn }
+  }
+
+  const remoteCommand = (argv: string[]): string => argv[argv.length - 1]
+
+  it('systemd unit carries the fixed sections and restart policy, and no Environment= lines', () => {
+    const lines = renderSystemdUnit(absLinux).split('\n')
+    for (const line of [
+      '[Unit]',
+      'Description=BAT remote server (PLAN-007)',
+      'After=network.target',
+      '[Service]',
+      'Type=simple',
+      'ExecStart=/home/alice/.local/bat-server/bin/bat-server --port 51820 --bind-interface localhost',
+      'Restart=on-failure',
+      'RestartSec=5s',
+      '[Install]',
+      'WantedBy=default.target',
+    ]) {
+      expect(lines).toContain(line)
+    }
+    expect(lines.some((line) => line.startsWith('Environment='))).toBe(false)
+  })
+
+  it('launchd plist carries Label, RunAtLoad and KeepAlive (Crashed / SuccessfulExit) in one plist root', () => {
+    const plist = renderLaunchdPlist(absDarwin)
+    expect(plist).toMatch(/<key>Label<\/key>\s*<string>com\.bat-server<\/string>/)
+    expect(plist).toMatch(/<key>RunAtLoad<\/key>\s*<true\/>/)
+    expect(plist).toMatch(/<key>KeepAlive<\/key>\s*<dict>\s*<key>Crashed<\/key>\s*<true\/>\s*<key>SuccessfulExit<\/key>\s*<false\/>\s*<\/dict>/)
+    expect(plist.match(/<plist version="1\.0">/g)).toHaveLength(1)
+    expect(plist.match(/<\/plist>/g)).toHaveLength(1)
+    // a benign path needs no entity refs
+    expect(plist).not.toMatch(/&amp;|&lt;|&gt;|&quot;|&apos;/)
+  })
+
+  it('systemd happy path: write → enable → verify, phases in order', async () => {
+    const { calls, spawn } = scriptedSpawn([{}, {}, { stdout: 'bat-server active (pid 42), listening on port 51820\n' }])
+    const phases: string[] = []
+    const result = await startServerOnRemote(absLinux, (phase) => phases.push(phase), { spawn })
+    expect(result).toMatchObject({ ok: true, method: 'systemd', checkOutput: 'bat-server active (pid 42), listening on port 51820' })
+    expect(calls).toHaveLength(3)
+    expect(phases).toEqual(['writing-unit', 'enabling', 'starting', 'verifying'])
+  })
+
+  it('launchd happy path: write → load → verify', async () => {
+    const { calls, spawn } = scriptedSpawn([{}, {}, { stdout: 'com.bat-server running (pid 42), listening on port 51820\n' }])
+    const result = await startServerOnRemote(absDarwin, undefined, { spawn })
+    expect(result).toMatchObject({ ok: true, method: 'launchd' })
+    expect(calls).toHaveLength(3)
+    expect(remoteCommand(calls[2])).toBe(__internals.buildVerifyCommand('ssh-darwin', 51820))
+  })
+
+  it('a unit-write failure stops before enabling (one ssh exec, unit-write-failed)', async () => {
+    const { calls, spawn } = scriptedSpawn([{ exitCode: 1, stderr: 'mkdir: cannot create directory: Read-only file system\n' }])
+    const result = await startServerOnRemote(absLinux, undefined, { spawn })
+    expect(result).toMatchObject({ ok: false, method: 'failed', errorCode: 'unit-write-failed' })
+    expect(result.error).toMatch(/Read-only file system/)
+    expect(calls).toHaveLength(1)
+  })
+
+  it('an enable failure stops before verifying (two ssh execs, enable-failed)', async () => {
+    const { calls, spawn } = scriptedSpawn([{}, { exitCode: 1, stderr: 'Failed to enable-linger: not authorized\n' }])
+    const result = await startServerOnRemote(absLinux, undefined, { spawn })
+    expect(result).toMatchObject({ ok: false, method: 'failed', errorCode: 'enable-failed' })
+    expect(result.error).toMatch(/not authorized/)
+    expect(calls).toHaveLength(2)
+  })
+
+  it('a verify failure keeps the probe output in checkOutput', async () => {
+    const { spawn } = scriptedSpawn([{}, {}, { exitCode: 1, stdout: 'inactive\n', stderr: 'Unit bat-server is not active\n' }])
+    const result = await startServerOnRemote(absLinux, undefined, { spawn })
+    expect(result).toMatchObject({ ok: false, errorCode: 'verify-failed' })
+    expect(result.checkOutput).toMatch(/inactive/)
+  })
+
+  it('every ssh exec carries -o BatchMode=yes (T0296 EC-003)', async () => {
+    const { calls, spawn } = scriptedSpawn([{}, {}, { stdout: 'ok\n' }])
+    await startServerOnRemote(absLinux, undefined, { spawn })
+    expect(calls).toHaveLength(3)
+    for (const argv of calls) {
+      const index = argv.indexOf('BatchMode=yes')
+      expect(index).toBeGreaterThan(0)
+      expect(argv[index - 1]).toBe('-o')
+    }
+  })
+
+  it('an sshHost starting with - is rejected before any ssh exec (T0296 F-004)', async () => {
+    const { calls, spawn } = scriptedSpawn([])
+    await expect(startServerOnRemote({ ...absLinux, sshHost: '-oProxyCommand=evil.sh' }, undefined, { spawn }))
+      .rejects.toThrow(/sshHost.*cannot start with '-'/)
+    expect(calls).toHaveLength(0)
+  })
+
+  it('escapeSingleQuotes escapes apostrophes and rejects newline / control chars (T0296 EC-002)', () => {
+    const { escapeSingleQuotes } = __internals
+    expect(escapeSingleQuotes("O'Brien")).toBe("O'\\''Brien")
+    expect(escapeSingleQuotes("a'b'c")).toBe("a'\\''b'\\''c")
+    expect(escapeSingleQuotes('plain')).toBe('plain')
+    expect(() => escapeSingleQuotes('evil\nuser')).toThrow(/forbidden newline/)
+    expect(() => escapeSingleQuotes('/home/alice/.local/bat\rserver')).toThrow(/forbidden control char/)
+  })
+
+  it('an install path with an apostrophe still yields balanced remote commands', async () => {
+    const { calls, spawn } = scriptedSpawn([{}, {}, { stdout: 'ok\n' }])
+    await startServerOnRemote({ ...absLinux, installPath: "/opt/O'Brien/bat-server" }, undefined, { spawn })
+    // the unit body sits between heredoc EOF markers: no shell interpretation
+    expect(remoteCommand(calls[0])).toContain("ExecStart=/opt/O'Brien/bat-server/bin/bat-server --port 51820")
+    const quotes = (remoteCommand(calls[1]).match(/'/g) ?? []).length
+    expect(quotes % 2).toBe(0)
+  })
+
+  it('buildWriteUnitCommand: mkdir, then a single-quoted heredoc closed by EOF (D-T0286-#10)', () => {
+    const cmd = __internals.buildWriteUnitCommand('/home/alice/.config/systemd/user', '/home/alice/.config/systemd/user/bat-server.service', 'unit body')
+    expect(cmd).toBe([
+      "mkdir -p '/home/alice/.config/systemd/user'",
+      "cat > '/home/alice/.config/systemd/user/bat-server.service' << 'EOF'",
+      'unit body',
+      'EOF',
+    ].join('\n'))
+  })
+
+  it('escapeXml maps the 5 XML special chars, & first (T0297 F-005)', () => {
+    const { escapeXml } = __internals
+    expect(escapeXml('&')).toBe('&amp;')
+    expect(escapeXml('<')).toBe('&lt;')
+    expect(escapeXml('>')).toBe('&gt;')
+    expect(escapeXml('"')).toBe('&quot;')
+    expect(escapeXml("'")).toBe('&apos;')
+    expect(escapeXml('a&b<c')).toBe('a&amp;b&lt;c')
+    expect(escapeXml('</string><key>Foo</key><string>x')).toBe('&lt;/string&gt;&lt;key&gt;Foo&lt;/key&gt;&lt;string&gt;x')
+    expect(escapeXml('/home/alice/.local/bat-server')).toBe('/home/alice/.local/bat-server')
+  })
+
+  it('renderLaunchdPlist escapes a double quote in the install path (T0297 F-005)', () => {
+    const plist = renderLaunchdPlist({ ...absDarwin, installPath: '/tmp/he said "hi"' })
+    expect(plist).toContain('<string>/tmp/he said &quot;hi&quot;/bin/bat-server</string>')
+  })
+
+  it('renderSystemdUnit also rejects ] in the install path (T0297 F-005)', () => {
+    expect(() => renderSystemdUnit({ ...absLinux, installPath: '/tmp/foo]bar' })).toThrow(/installPath contains forbidden char/)
+  })
+
+  it('validateSystemdValue passes benign values and rejects a newline (T0297 F-005)', () => {
+    const { validateSystemdValue } = __internals
+    expect(validateSystemdValue('/home/alice/.local/bat-server', 'installPath')).toBe('/home/alice/.local/bat-server')
+    expect(validateSystemdValue('/opt/bat', 'installPath')).toBe('/opt/bat')
+    expect(() => validateSystemdValue('/tmp\n[Service]\nExecStart=evil', 'installPath')).toThrow(/forbidden char/)
+  })
+})

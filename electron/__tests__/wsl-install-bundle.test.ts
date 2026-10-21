@@ -54,6 +54,14 @@ describe('installBundle (T0552 / BUG-139)', () => {
     expect(result.ok).toBe(false)
     expect(!result.ok && result.error).toMatch(/bin\/bat-server missing after extract/)
   })
+
+  // T0681 (BUG-168): carried over from tests/wsl-detect.test.ts with a valid root.
+  it('refuses a relative tarball path without running anything', async () => {
+    const calls = installExec()
+    await expect(installBundle('Ubuntu-24.04', 'relative.tar.gz', '/home/me/.local/bat-server'))
+      .resolves.toEqual({ ok: false, error: 'Expected absolute Windows path: relative.tar.gz' })
+    expect(calls).toEqual([])
+  })
 })
 
 describe('uninstallBundle (T0552)', () => {

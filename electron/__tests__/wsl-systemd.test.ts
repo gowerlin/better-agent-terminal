@@ -3,15 +3,20 @@
  * and judged by `Linger=yes`; the rendered systemd unit carries absolute
  * paths only (systemd never expands `~`). execFile is injected.
  */
+import { PassThrough } from 'stream'
 import { afterEach, describe, expect, it } from 'vitest'
 import {
   enableLinger,
   parseServiceState,
+  removeUnit,
   renderSystemdUnit,
   resetExecFileImplForTests,
+  resetSpawnImplForTests,
   resolveDistroUser,
   setExecFileImplForTests,
+  setSpawnImplForTests,
   startService,
+  writeUnit,
 } from '../wsl-systemd'
 
 type Reply = { code?: number; stdout?: string; stderr?: string }
@@ -37,6 +42,7 @@ function installExec(route: (command: string[]) => Reply): string[][] {
 
 afterEach(() => {
   resetExecFileImplForTests()
+  resetSpawnImplForTests()
 })
 
 describe('enableLinger (T0378 / BUG-087 A)', () => {
@@ -281,5 +287,68 @@ describe('startService stability check (T0382 / BUG-091)', () => {
     })
     const result = await startService('Ubuntu-24.04', SERVICE, FAST)
     expect(result).toMatchObject({ ok: false, errorCode: 'wsl-service-start-failed' })
+  })
+})
+
+/**
+ * T0681 (BUG-168, D177): scenarios that only tests/wsl-systemd.test.ts
+ * covered, carried over with absolute paths (T0378: systemd never expands `~`).
+ */
+describe('unit rendering / writeUnit / removeUnit — carried over from tests/wsl-systemd.test.ts (T0681)', () => {
+  const EXEC_START = '/home/demo/.local/bat-server/bin/bat-server'
+  const UNIT_PATH = '/home/demo/.config/systemd/user/bat-server.service'
+
+  it('renderSystemdUnit has the [Unit] / [Service] / [Install] sections and the restart policy', () => {
+    const lines = renderSystemdUnit({ execStart: EXEC_START, environment: { BAT_SERVER_PORT: '9876' } }).split('\n')
+    for (const line of ['[Unit]', '[Service]', 'Type=simple', 'Restart=on-failure', 'RestartSec=2s', '[Install]', 'WantedBy=default.target']) {
+      expect(lines).toContain(line)
+    }
+  })
+
+  it('renderSystemdUnit escapes quotes and newlines in environment values', () => {
+    const unit = renderSystemdUnit({ execStart: EXEC_START, environment: { BAT_LABEL: 'hello "quoted"\nline' } })
+    expect(unit).toContain('Environment="BAT_LABEL=hello \\"quoted\\"\\nline"')
+  })
+
+  it('writeUnit creates the unit directory, then pipes the unit into wsl tee', async () => {
+    const commands = installExec(() => ({}))
+    let written = ''
+    let spawnArgs: string[] = []
+    setSpawnImplForTests((_file, args) => {
+      spawnArgs = [...(args ?? [])]
+      const child = new PassThrough() as PassThrough & { stdin: PassThrough; stdout: PassThrough; stderr: PassThrough }
+      child.stdin = new PassThrough()
+      child.stdout = new PassThrough()
+      child.stderr = new PassThrough()
+      child.stdin.on('data', (chunk: Buffer) => {
+        written += chunk.toString('utf8')
+      })
+      child.stdin.on('finish', () => process.nextTick(() => child.emit('close', 0)))
+      return child as never
+    })
+
+    await expect(writeUnit('Ubuntu', { path: UNIT_PATH, execStart: EXEC_START, environment: { BAT_SERVER_PORT: '9876' } }))
+      .resolves.toEqual({ ok: true })
+    expect(commands).toEqual([['mkdir', '-p', '/home/demo/.config/systemd/user']])
+    expect(spawnArgs).toEqual(['-d', 'Ubuntu', '--', 'tee', UNIT_PATH])
+    expect(written).toContain(`ExecStart="${EXEC_START}"`)
+    expect(written).toContain('Environment="BAT_SERVER_PORT=9876"')
+  })
+
+  it('removeUnit disables the service, removes the unit file and reloads, ignoring failures', async () => {
+    const commands = installExec(() => ({ code: 1 }))
+    await expect(removeUnit('Ubuntu', 'bat-server.service', { path: UNIT_PATH })).resolves.toEqual({ ok: true })
+    expect(commands.map((c) => c.join(' '))).toEqual([
+      'systemctl --user disable --now bat-server.service',
+      `rm -f ${UNIT_PATH}`,
+      'systemctl --user daemon-reload',
+    ])
+  })
+
+  it('startService rejects an invalid distro or service name before running anything', async () => {
+    const commands = installExec(() => ({}))
+    await expect(startService('Ubuntu; rm -rf /', 'bat-server.service')).rejects.toThrow(/Invalid WSL distro name/)
+    await expect(startService('Ubuntu', 'bat-server')).rejects.toThrow(/Invalid service name/)
+    expect(commands).toEqual([])
   })
 })
