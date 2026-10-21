@@ -4,12 +4,14 @@ schema_kind: workorder
 id: T0684
 title: "CI 擋版前置：ubuntu 試跑失敗的 29 項（9 檔）改成跨平台／不依賴時區——寫死 Windows 行為 19 項、時區 10 項"
 type: fix
-status: TODO
+status: IN_PROGRESS
 repo: better-agent-terminal
 project: BUG-168
 priority: P2
 sizing: M
 created_at: "2026-10-21T21:15:12+0800"
+started_at: "2026-10-21T21:16:32+0800"
+updated_at: "2026-10-21T21:21:59+0800"
 depends_on:
   - "T0683（DONE `a35c4ce3`：`tests.yml`）；GitHub 試跑 run `39605811732`（2026-10-21，ubuntu-24.04，`2dd1dbdc`）：5719 passed、29 failed、6 skipped / 5754，9 檔失敗"
 related:
@@ -30,6 +32,7 @@ affects_files:
   - "產品檔：只在下方 memory_overrides 允許的條件下修改，修改前先問塔台"
   - _ct-workorders/T0684-tests-cross-platform-and-timezone.md
 renew_count: 0
+tower_question: open
 workdir: main repo
 worker_question_timeout: 30
 interaction:
@@ -68,6 +71,22 @@ memory_overrides:
 ---
 
 ## 回報區
+
+### 待塔台決策
+
+#### Q-1：`electron/wsl-detect.ts` 的 `validateWindowsAbsolutePath` 可否把 `path.isAbsolute` 改成 `path.win32.isAbsolute`？
+- 提問時間：2026-10-21T21:21:36+0800
+- 選項：[A] 改產品一行（`path.isAbsolute(filePath)` → `path.win32.isAbsolute(filePath)`），兩個測試檔不動 / [B] 不改產品，`wsl-install-bundle.test.ts` 2 項與 `upgrade-rollback-main.test.ts` 1 項改 `it.skipIf(process.platform !== 'win32')` 並註明 / [C] 其他：________
+- Worker 建議：[A]。證據：這 3 項在 Linux 失敗的錯誤都是 `Expected absolute Windows path: C:\b\x.tar.gz`（`wsl-detect.ts:147-148`），檢查的是 WSL 安裝用的 Windows tarball 路徑，`installBundle` 只在 Windows 主機呼叫，`validateWindowsAbsolutePath` 只有 `wsl-detect.ts:352` 一個呼叫點。在 Windows 上 `require('path') === require('path').win32`（本機實測 `true`），所以改成 `path.win32` 在 Windows 行為完全不變，符合工單 memory_overrides 第 4 條的條件；改後 Linux 也跑同樣的 3 項斷言，不必 skip。
+- 影響範圍：`electron/wsl-detect.ts`（1 行，在 `affects_files` 的「產品檔」條件內）；`electron/__tests__/wsl-install-bundle.test.ts`、`electron/__tests__/upgrade-rollback-main.test.ts`（選 A 不必改）
+- 阻塞：是（這 3 項要等答覆；其他 25 項已在 Linux TZ=UTC 修好）
+
+#### Q-2：`e2e/real-remote/baseline-source.mjs` 的 `defaultInstalledBaselineDirs` 可否在 `platform === 'win32'` 時用 `path.win32` 組路徑？
+- 提問時間：2026-10-21T21:21:36+0800
+- 選項：[A] 改 e2e helper（函式內 `const p = platform === 'win32' ? path.win32 : path`，`dirname` / `join` 改用 `p`），測試只把期望值改成字面字串 / [B] 不改 helper，`e2e-baseline-source.test.mjs` 該項拆成兩項：Windows 安裝位置那項 `it.skipIf(process.platform !== 'win32')` 並註明，`platform: 'linux'` → `[]` 那句在所有平台照跑 / [C] 其他：________
+- Worker 建議：[A]。證據：函式已接受注入的 `platform`，但組路徑用主機的 `path`；Linux 上 `path.dirname('D:\\BAT\\BetterAgentTerminal.exe')` = `.`，得到 `resources/bat-server-baseline`（失敗訊息即此）。在 Windows 主機 `path === path.win32`，行為不變；改後 Linux 也跑同樣斷言。此檔不在 `affects_files` 的測試清單內，屬「產品檔」，所以先問。若塔台不希望動 e2e helper，[B] 是工單允許的 skip（「Windows 安裝位置」）。
+- 影響範圍：`e2e/real-remote/baseline-source.mjs`（約 3 行）、`scripts/__tests__/e2e-baseline-source.test.mjs`
+- 阻塞：是（這 1 項要等答覆）
 
 ### 完成狀態
 
