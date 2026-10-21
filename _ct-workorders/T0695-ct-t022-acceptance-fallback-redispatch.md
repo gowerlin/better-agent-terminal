@@ -4,15 +4,15 @@ schema_kind: workorder
 id: T0695
 title: "CT-T022 驗收情境 1：yolo 提問備援 → 塔台 Renew 重派前回收舊 Worker 分頁（BUG-170）"
 type: verification
-status: PENDING
-tower_question: open
+status: DONE
 repo: better-agent-terminal
 project: BUG-170
 priority: P3
 sizing: XS
 created_at: "2026-10-22T01:31:47+0800"
 started_at: "2026-10-22T01:32:26+0800"
-updated_at: "2026-10-22T01:33:33+0800"
+updated_at: "2026-10-22T01:34:20+0800"
+completed_at: "2026-10-22T01:34:20+0800"
 depends_on: []
 related:
   - CT-T022
@@ -89,9 +89,15 @@ memory_overrides:
 
 ### 完成狀態
 
-BLOCKED — 第一次執行：依步驟 1 提問 Q-1，`worker_question_timeout: 0` → 不用 BAT 通道、不等待，直接走 yolo 提問備援（`### 待塔台決策` 與 `tower_question: open` 保留），等塔台在 `## 塔台補充（Renew #1）` 答覆後重派。
+DONE — 重派後（Renew #1）：依 `塔台答覆 Q-1` = [A] 在 `### 選定代號` 寫入 `ALPHA`，刪除 `tower_question`。
 
-落點檢查：PASS
+（第一次執行：BLOCKED — 依步驟 1 提問 Q-1，`worker_question_timeout: 0` → 直接走 yolo 提問備援。）
+
+新分頁 `bat_whoami` 回傳 `terminalId` = `5ed11fc79d076e69d445cc65cc46c8ef`（第一次執行的分頁為 `a56fe7ff577ab5f7fbfa03265dc8e35e` → 不同，是新分頁）
+
+落點檢查（重派後重跑）：PASS — C-0 `better-agent-terminal` = `better-agent-terminal`；C-1 PASS；C-3 not applicable；C-2 無 `branch` 欄位（`main`）；非 worktree；`BAT_WORKSPACE_ID` = `cc0afc4a-57e9-4f41-b2ed-a2d8bac9e36b`
+
+第一次執行的落點檢查：PASS
 - C-0：frontmatter `repo` = `better-agent-terminal`；`basename(REPO_ROOT)` = `better-agent-terminal` → PASS（REPO_ROOT = `D:/ForgejoGit/@Gower_Labs/BMad-Guide/better-agent-terminal/better-agent-terminal`）
 - C-1：工單位於 REPO_ROOT 下 → PASS
 - C-3：`affects_files` 只有 `_ct-workorders/` 下的本工單 → not applicable
@@ -100,12 +106,13 @@ BLOCKED — 第一次執行：依步驟 1 提問 Q-1，`worker_question_timeout:
 
 ### 選定代號
 
-（未定：等 Q-1 答覆）
+`ALPHA`
 
 ### 互動紀錄
 
 - [01:32] Q-1 寫入工單、`tower_question: open`，commit `0fe25acc` → 送 `T0695 提問`（`--submit`，exit 0）
 - [01:33] `worker_question_timeout: 0` → 備援：BLOCKED，送 `T0695 需要協助`
+- [01:34] Q-1: 回報區的「選定代號」要寫 A 還是 B？ → A（塔台，Renew #1）: [A] 寫 `ALPHA` → Action: `### 選定代號` 寫入 `ALPHA`，刪除 `tower_question`，狀態 DONE
 
 ### 遭遇問題
 
@@ -114,9 +121,10 @@ BLOCKED — 第一次執行：依步驟 1 提問 Q-1，`worker_question_timeout:
 ### Commit
 
 - `0fe25acc` — 工單：Q-1 提問與 `tower_question: open`
-- 本次收尾 commit（BLOCKED 與回報）：見 `git log -- _ct-workorders/T0695-ct-t022-acceptance-fallback-redispatch.md`
+- 第一次收尾 commit（BLOCKED 與回報）：`270a282d`
+- 重派後收尾 commit（DONE 與回報）：見 `git log -- _ct-workorders/T0695-ct-t022-acceptance-fallback-redispatch.md`
 - 無產品變更；未 push
 
 ### 回報時間
 
-2026-10-22T01:33:03+0800
+2026-10-22T01:34:20+0800（重派後；第一次 2026-10-22T01:33:03+0800）
