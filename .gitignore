@@ -46,3 +46,11 @@ dist-benchmark/
 site/node_modules/
 site/.vitepress/dist/
 site/.vitepress/cache/
+
+# 公開 repo 去識別化（D176）
+# claude-mem 自動寫入的記憶檔，會混入其他專案的紀錄，不得 commit
+AGENTS.md
+# Claude Desktop / Cowork 的輸出資料夾
+Claude outputs/
+# 本機私密資料（去識別化對照表、檢查清單），不得 commit
+/.private/

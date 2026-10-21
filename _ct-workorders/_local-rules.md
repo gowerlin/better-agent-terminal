@@ -534,3 +534,15 @@ CI 會用 `VERSION` env 覆寫（`scripts/build-version.js` 優先序：env > gi
 ### 下游發佈（D137 / T0476）
 
 `release.yml` 的 Homebrew tap dispatch 與 Chocolatey push 皆為 **opt-in、預設跳過**：分別需 repo variable `HOMEBREW_TAP_REPO`（tap `owner/name`，+ secret `TAP_GITHUB_TOKEN`）與 `CHOCOLATEY_PUBLISH == 'true'`（+ secret `CHOCO_API_KEY`），且 tag 不含 `-pre`。本 fork 目前未設定，正式版不會動上游 `tonyq-org/homebrew-tap` 或 chocolatey.org 上的 `better-agent-terminal`（該 package id 與 `choco/better-agent-terminal.nuspec` 的 authors / owners 屬上游，自發 choco 前需另案處理）。`pre-release.yml` 無此兩 step。
+
+---
+
+## 公開 repo 去識別化（D176，2026-10-21）
+
+> 本 repo 在 GitHub 公開，`_ct-workorders/` 也公開（網站有連結）。工單、決策、學習、狀態快照、CHANGELOG、更版重點與網站都適用。
+
+- **客戶與外部專案一律用代稱**：專案A、專案B、專案C（新的依序往下編）；外部測試者用「外部測試者A」（新的依序往下編）。真名與代稱的對照只存本機 `.private/`（`.gitignore` 擋住），不寫進任何追蹤檔、commit 訊息、工單或 BUG 單。
+- **路徑**：使用者家目錄寫成 `<使用者資料夾>`；測試檔的範例路徑用 `C:\Users\demo`、`/Users/tester`。
+- **不 commit 工具自動產生的記憶檔**：claude-mem 會把其他專案的紀錄寫進 `AGENTS.md`，`.gitignore` 已擋 `AGENTS.md`；`Claude outputs/` 也不 commit。
+- **寫工單時**：字詞檢查清單不要直接列出真名，寫「依 `.private/` 的檢查樣式」。
+- **push 前**（塔台收工或使用者要求 push 時）：跑 `.private/` 對照表裡的檢查樣式，對象是要推的 commit 與追蹤檔；有命中先處理再 push。另掃一次常見金鑰樣式（`sk-ant-`、`ghp_`、`github_pat_`、`AKIA`、`AIza`、`PRIVATE KEY`、真的 `batcap.` 權杖）。
