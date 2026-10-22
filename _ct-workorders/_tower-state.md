@@ -198,32 +198,28 @@
 ---
 
 ## 🔍 環境快照
-> 最後掃描:2026-10-15 19:57 (UTC+8) 第六十五 session **Full Scan**（`*rescan`；前次 Full Scan 2026-10-13 15:40）
+> 最後掃描:2026-10-23 06:50 (UTC+8) 第九十 session **Full Scan**（啟動時快照已 8 天，依 Startup Protocol 第 7 點；前次 Full Scan 2026-10-15 19:57）
 
 | 偵測項 | 狀態 | 備註 |
 |--------|------|------|
-| 終端環境 | BAT | `BAT_SESSION=1`, port `9876`, workspace `cc0afc4a-57e9-4f41-b2ed-a2d8bac9e36b`, terminal `66447ea9…`；`WT_SESSION` 無 |
-| BAT 派發 | ✅ | 五項 dispatch env 齊備（PowerShell 複核 2026-10-15 19:54）；另有 `BAT_USER_DATA` |
-| BAT 安裝版 | ⚠️ `0.7.1-pre.1`（2026-10-18 18:10 FileVersion）；`v0.7.1-pre.2` 已於 20:55 發佈、使用者收工後換版（新塔台以 FileVersion / 雜湊確認，L127） | 分頁權杖 `batcap.`；Tower `--set-role tower --mode on` exit 0（標題 `Claude CLI · Tower`；session 名稱 `better-agent-terminal · Tower`） |
+| 終端環境 | BAT | `BAT_SESSION=1`, port `9876`, workspace `cc0afc4a-57e9-4f41-b2ed-a2d8bac9e36b`, terminal `8131f1a6…`；無 `BAT_TOWER_TERMINAL_ID` |
+| BAT 派發 | ✅ | 五項 dispatch env 齊備（PowerShell 確認）；另有 `BAT_USER_DATA` / `BAT_IDLE_TIMEOUT_MS` / `BAT_SCROLL_BUFFER_LINES` |
+| BAT 安裝版 | ✅ `0.7.1-pre.6` | exe FileVersion `0.7.1-pre.6`（2026-10-22 02:13）；安裝版 `bat-terminal.mjs --version` → `v0.7.1-pre.6` exit 0（BUG-169 驗收項目的實機證據）；Tower `--set-role tower --mode on` exit 0；`bat_whoami` session 名稱 `better-agent-terminal · Tower` |
 | BAT_HELPER_DIR | ✅ | `C:\Program Files\BetterAgentTerminal\resources\scripts` |
-| BAT debug log | ✅ 單一目錄 | `%APPDATA%\BetterAgentTerminal\Logs\debug-20261015-195413.log`（本次啟動）；`.userdata-migration.json` marker 存在 |
-| 平台 | Windows 11 | PowerShell 主，Bash tool 並存；node `v24.22.0` / npm `12.2.0`；`.gitattributes` `* text=auto eol=lf` |
-| UAC | ⚠️ `EnableLUA=0` | BAT 與子 shell 皆提權（BUG-085 背景） |
-| gh CLI | ✅ | 已登入 `gowerlin`（keyring）；**必須帶 `-R gowerlin/better-agent-terminal`**（L122） |
+| BAT debug log | ✅ | `%APPDATA%\BetterAgentTerminal\Logs\debug-20261023-041137.log`（本次啟動） |
+| 平台 | Windows 11 | PowerShell 主，Bash tool 並存；node `v24.22.1` / npm `12.2.1` |
+| gh CLI | ✅ | **必須帶 `-R gowerlin/better-agent-terminal`**（L122） |
 | git remote | 3 個 | `origin`=gowerlin / `upstream`=tony1223 / `scandnavik` |
-| git 同步 | ✅ | `main` = `origin/main` @ `2b983a79`（fetch 後）；無其他 worktree / stash；`src/styles/settings.css` 顯示 M 但 `git diff` 無內容（stat-only，未處理） |
-| 最新 CI / release | ✅ | Pre-Release run `38871114752` success → `v0.6.1-pre.6` + `server-bundle-v0.6.1-pre.6`（2026-10-16 16:11） |
-| WSL | Ubuntu-24.04 | `~/.local/bat-server` = `0.6.1-pre.5`（T0559 2026-10-16 14:17；T0559 / T0560 備份已依使用者指示於 14:27 刪除；port 9877，systemd user service active）；nvm 0.40.8 + Node 24.22.0（T0555 / T0556）；`docker.io` 29.1.3 |
-| Control Tower skills | ✅ v5.1.0 | control-tower / ct-exec / ct-done / ct-status / ct-evolve / ct-insights / ct-fieldguide / ct-help 全為 5.1.0 |
-| 熱區單據 | **T:80 檔 / BUG:30 / PLAN:17 / EXP:0** | 2026-10-17 第七十一 session `*archive` 搬出 176 張（T 135 / BUG 40 / PLAN-039）；43 張因被未結案單據引用保留 |
-| 最大編號 | **T0567 / BUG-141 / PLAN-046 / D148 / L153 / CT-T013** | 下張：T0568 / BUG-142 / PLAN-047 / D149 / L154 / CT-T014（第六十七 session 收工時） |
-| 非終態工單 | T0360 FIXED（舊單） | 2026-10-16 17:29：T0551 / T0552 / T0554 FIXED → DONE（BUG 已 CLOSED）；第六十六 session 已補正 T0510 / T0153 / CT-T001 / 011 / 012；報告檔 T0292 / 293 / 298 / 302 已歸檔 |
-| unit test | ✅ **3939 passed / 1 skipped / 237 files** | 塔台 rescan 複驗 @ `2b983a79`（31 s） |
-| typecheck | ✅ src 0 / electron 0 | 塔台 rescan 複驗 @ `2b983a79` |
-| e2e | 未重跑 | 最近：T0535-T0541 各自 e2e（需先 `npx vite build`） |
-| state 檔 | ✅ 19.9 KB | < 30 KB 軟警告；季檔 `2026-Q4.md` 86,352 bytes、INDEX 80 entries |
-| 設定來源 | project | `_tower-config.yaml`（auto-session **on**，`yolo_max_retries: 1`，`auto_commit: on`） |
-| 塔台版本 | v5.1.0（本 session 起生效） | control-tower skill |
+| git 同步 | ✅ | `main` = `origin/main` @ `98e84050`（fetch 後 0 / 0）；工作區乾淨；另有 worktree `../.ct-integration/better-agent-terminal`（detached `4e5f5e7f`）；無 stash |
+| 最新 CI / release | ✅ | Pre-Release 2026-10-21 18:02Z success → `v0.7.1-pre.6`；Pages 18:16Z success |
+| Control Tower skills | ✅ v5.12.2 | control-tower / ct-exec / ct-done / ct-status 皆 5.12.2（本 session 起生效） |
+| 熱區單據 | **T:205 / BUG:55 / PLAN:25 / EXP:1** | BUG：FIXED 27 / CLOSED 28（與 `_bug-tracker.md` 一致）；PLAN：IDEA 7 / PLANNED 1（PLAN-054） |
+| 非終態工單 | 無 | T0153 / T0543 ABANDONED（終態）；EXP-WFMINE-001 frontmatter 無 `status`（內文 CONCLUDED） |
+| 最大編號 | **T0698 / BUG-170 / PLAN-054 / D181 / L174 / CT-T022** | 下張：T0699 / BUG-171 / PLAN-055 / D182 / L175 / CT-T023 |
+| unit test / typecheck | 未重跑 | 最近：5891 passed / 331 files、typecheck 0 / 0（@ `767985e9`，第八十九 session 發 pre.6 前） |
+| state 檔 | ⚠️ 31.9 KB | 超 30 KB 軟警告；季檔 `2026-Q4.md` 166,702 bytes（接近 200 KB 切割點）、INDEX 102 entries |
+| 設定來源 | project | `_tower-config.yaml`（auto-session **on**，`yolo_max_retries: 1`，`auto_commit: on`，`worker_auto_close: done`，`worker_close_delay: 10`） |
+| 塔台版本 | v5.12.2 | control-tower skill |
 
 > **Drift / 注意事項**:
 > 1. ✅ ~~D094 mac installer 280 MB cap 長期超標（L130）~~ → D146 取代（每平台 ≤ 320 MiB、zip ≤ 450；pre.4 全數符合）
