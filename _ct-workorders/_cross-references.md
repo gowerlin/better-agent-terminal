@@ -18,6 +18,7 @@
 | CT-T010 | BMad-Guide | `e362ed1` | DELEGATE(CT v4.4.x meta-PLAN + Phase 1-4 骨架)| ✅ DONE |
 | T0359 | 專案A | `CP-T1148` | COORDINATED(BAT commit `d3f6580`; closeout `17d43c1`; supports ABANDONED workorder status parsing)| ✅ FIXED |
 | CT-T014 | BMad-Guide | `bfc30d7` / `6d23e30`（T0149）| DELEGATE（CT v5.2.4：文件 / 提示對齊 BAT 0.7.0-pre.1 範圍權杖，PLAN-047 / D149；對方決策 D028）| ✅ DONE（runtime 待 BAT 0.7.0-pre.1）|
+| T0699 | BMad-Guide | `_handover-2026-10-23-ct-portal-link` | DELEGATE（受理 HANDOVER：BAT 站加 CT Portal 連結、CaseCard 375px、`--close-worker` 最低版本；D182）| 🔄 受理，派工中 |
 
 ## 對方 Repo 骨架(BMad-Guide T0098 主 PLAN 下)
 

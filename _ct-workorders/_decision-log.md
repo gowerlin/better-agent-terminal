@@ -1465,6 +1465,13 @@
 - **切分**：W2a 設計語言 + 元件 + 首頁（T0630）→ 預覽通過後 W2b（`/control-tower`、功能、FAQ、回報頁）→ W2c 遠端開發；W3 / W4 不變。
 - **相關**：PLAN-049 / D159 / D160 / T0624 / T0630
 
+### D182 2026-10-23 — 受理 CT 塔台 HANDOVER「CT Portal 互連」（P1–P3 → T0699）；D159 改寫：BAT 站可連 CT Portal，CT skill 仍不開源
+
+- **背景**：BMad-Guide 塔台交辦 `_handover-2026-10-23-ct-portal-link`（BMad-Guide `_ct-workorders/`，2026-10-23T08:35:22+0800）：CT Portal（https://gowerlin.github.io/Control-Tower/，repo `gowerlin/Control-Tower` public）已上線，請 BAT 站 ① 加 Portal 連結、② 檢查 CaseCard 375px 是否橫捲、③ 確認 `--close-worker` 最低 BAT 版本（CT 寫 `>= 0.6.1-pre.3`，BAT README 寫 `>= 0.6.1-pre.4`）。塔台查證 Portal `install.md` 有 skill 名稱、安裝路徑、版號、下載元件，與 D159「不提供取得管道」、D166 字樣規則衝突，問使用者。
+- **決定**（使用者 2026-10-23 09:1x）：P1 連結，D159 改寫——**CT 的設計理念與使用說明已公開（CT Portal），BAT 站可以連過去；CT skill 仍不開源，目前只給少數測試者私下申請取得**。BAT 站自己不寫取得方式，D165 / D166 的字樣規則（不寫 CT 版本號、指令、skill 名稱、CT 文件名、安裝步驟）不變；連結文字不得寫「下載」「開源」。P2 / P3 塔台受理。
+- **派工**：T0699（DELEGATE，`coordination.source.workorder: _handover-2026-10-23-ct-portal-link`）；網站改動依 D161 預覽關卡，Worker 不 push。回覆稿 `_ct-workorders/_reply-2026-10-23-ct-portal-link.md`（T0699 完成後由塔台寫 P3 結論）。
+- **相關**：D159 / D161 / D165 / D166 / D173 / T0699 / PLAN-049
+
 ### D181 2026-10-22 — `v0.7.1-pre.6` 發版批次：T0691 / T0692 / T0694 加內嵌 codex 追版（T0697），聯合驗證後發
 
 - **背景**：使用者「下一批發版」。`v0.7.1-pre.5` 之後已修未發：BUG-169（T0691 `b0ff5673`）、T0692（`560409a3`）、T0694（`cefb9db3`）；BUG-170 為 CT 端修正（CT v5.12.x，T0695 / T0696 驗收），不需發版。依 L173 查內嵌版本：claude CLI 2.1.306 = npm latest；`@openai/codex-sdk` / `@openai/codex` 實裝 0.160.0、npm latest 0.163.0。BUG-165 / 166 等外部測試者A、BUG-156 / 159 等特定環境，不在本批。
@@ -1647,6 +1654,7 @@
 - **追加**（使用者 2026-10-18 12:20）：③ 技術選型、截圖 / 示範 GIF、部署方式授權塔台依 T0622 建議決定並設計；④ 使用者向內容可公開、可同步，發版時一起更新網站。
 - **處置**：T0622 工單加「塔台補充」，Q1 改研究專案站的具體做法、Q4 改列可公開的概念與整合點；Q2 / Q3-3 / Q5-1 要求單一推薦、Q5-2 設計成併入發佈後同步。
 - **相關**：PLAN-049 / T0622 / `_local-rules.md`「發佈後同步 repo 文件」
+- **改寫**（2026-10-23，D182）：② 改為「CT 設計理念與使用說明已公開（CT Portal），BAT 站可連過去；CT skill 仍不開源，只給少數測試者私下申請」。
 
 ### D158 2026-10-18 — PLAN-047 M1b-2：codex 以 OSC 7501 回報 `blocked` 與啟動；新增 `blockedDetection: osc`、`blockedReason: input`
 
