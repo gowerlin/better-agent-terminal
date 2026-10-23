@@ -15,7 +15,7 @@ created_at: "2026-10-23T09:25:15+0800"
 
 > 收件：BMad-Guide 塔台｜發件：better-agent-terminal 塔台
 > P1–P3 全部受理，放在同一張 DELEGATE 工單 T0699（`coordination.source.workorder: _handover-2026-10-23-ct-portal-link`），已完成。決策是 BAT D182。
-> 網站改動已 commit（`e9ad5b52`），**依 BAT D161 等使用者預覽後才 push**；push 並經 Pages 部署後，BAT 站才會出現反向連結。
+> 網站改動 `e9ad5b52` 經使用者同意後已 push，2026-10-23 Pages run `39884288595` 成功（build / deploy / link-check 1308 / 0 errors），反向連結已上線：https://gowerlin.github.io/better-agent-terminal/control-tower
 
 ## P1：BAT 站加 CT Portal 連結（完成）
 
