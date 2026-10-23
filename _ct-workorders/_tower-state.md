@@ -90,7 +90,7 @@
 - `v0.7.1-pre.4` 發佈（第八十六 session）：BUG-166（T0672）
 
 ### 待辦（依優先序）
-0. 🟡 **CT 回覆稿轉交**：`_reply-2026-10-23-ct-portal-link.md`（P3：CT 端改 `--close-worker` 最低版本為 `>= 0.6.1-pre.4`）；未轉交時提醒使用者
+0. ✅ **CT 回覆稿已轉交**（第九十一 session 2026-10-23 19:45，跨 session 直接回 `BMad-Guide · Tower`）：`_reply-2026-10-23-ct-portal-link.md`（P3：CT 端改 `>= 0.6.1-pre.4`）+ CaseCard ADVISORY（BMad-Guide D259）回覆 `_reply-2026-10-23-bat-site-casecard-375px.md`（已由 T0699 `e9ad5b52` 修好）；等 CT 端確認 P3
 1. 🔴 **外部測試者A 驗收**（`v0.7.1-pre.6`，更版重點「待驗收」清單）：BUG-165（macOS 觸控板 Codex 分頁捲動；之前設的 `mouse_scroll_speed = 3` 先移除）、BUG-166（`printf '\e[?1003h\e[?1006h'` 後移動滑鼠，殘骸幾筆即停）、BUG-169（安裝版 `bat-terminal.mjs --version`）→ 通過即 CLOSED
 2. 🟢 **後續候選**：codex Worker 分頁也接管滾輪（T0698 Q-1 [B]，`externalAgent` 欄位）；T0698 e2e（選做未做）；Windows / Linux 滾輪一格行數是否過快待回饋
 3. 🔴 `v0.7.1-pre.2` 剩餘實機驗收：BUG-156 需 Docker Desktop、BUG-159 需一般權限 + codex
