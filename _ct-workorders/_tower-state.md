@@ -1,11 +1,42 @@
 # Tower State — better-agent-terminal
 
-> 最後更新:2026-10-23 10:55 (UTC+8) — **第九十 session 收工**（CT v5.12.2）：受理 CT 塔台 HANDOVER「CT Portal 互連」（D182，T0699 DONE），BAT 站已連 CT Portal 並上線。前次：第八十九 session 收工（2026-10-22 02:20）`v0.7.1-pre.6`。
+> 最後更新:2026-10-23 19:50 (UTC+8) — **第九十一 session 收工**（CT v5.12.5）：BMad-Guide 塔台 CaseCard 375px ADVISORY 回覆（已由 T0699 修好），並轉交 CT Portal 回覆稿；兩件 BMad-Guide 端皆結案（D272；P3 已於 CT v5.12.3 更正）。前次：第九十 session 收工（2026-10-23 10:55）。
 >
-> **下次起手**:確認使用者已把回覆稿 `_reply-2026-10-23-ct-portal-link.md` 轉交 CT 塔台（P3 請 CT 改 `>= 0.6.1-pre.4`）；請外部測試者A 以 `v0.7.1-pre.6` 驗收 BUG-165 / 166 / 169（BUG-169 安裝版 `--version` 已有塔台實機證據）；BUG-156 / 159 仍待特定環境。
+> **下次起手**:請外部測試者A 以 `v0.7.1-pre.6` 驗收 BUG-165 / 166 / 169（BUG-169 安裝版 `--version` 已有塔台實機證據）；BUG-156 / 159 仍待特定環境；熱區無進行中工單。
 ---
 
-## 🛏 本 Session 收工快照 (第九十 session, 2026-10-23 07:35 - 10:55, ~3h20m)
+## 🛏 本 Session 收工快照 (第九十一 session, 2026-10-23 19:44 - 19:50, ~6m)
+
+### 主軸：Fast Path 啟動（CT v5.12.5）→ BMad-Guide 塔台 CaseCard 375px ADVISORY（BMad-Guide D259）→ 回覆並轉交前一份回覆稿 → 雙方結案 → push
+
+#### 時間線（時間取自系統 / git）
+
+1. **19:44** 啟動（CT v5.12.5；`--set-role tower --mode on` exit 0；`bat_whoami` 名稱 `better-agent-terminal · Tower`）
+2. **19:45** 收到 `BMad-Guide · Tower` 跨 session ADVISORY（CaseCard 375px）→ 查證 T0699 `e9ad5b52` 已用相同修法並上線 → 寫 `_reply-2026-10-23-bat-site-casecard-375px.md`（ACKNOWLEDGED）→ 直接回訊息，順帶轉交 `_reply-2026-10-23-ct-portal-link.md`（`d48e5aee`）
+3. BMad-Guide 回覆：CaseCard 結案（BMad-Guide D272）；P3 早已於 CT v5.12.3 更正（BMad-Guide T0256 / D221、Portal compat T0257）（`61beade3`）
+4. 去識別化掃描 0 筆 → push `80e31694..61beade3`
+5. **19:50** 收工
+
+### 本輪戰績
+
+| 類別 | 數量 | 備註 |
+|---|---|---|
+| 派發工單 | 0 | |
+| 跨專案 | ADVISORY 回覆 1、轉交回覆稿 1；兩件 BMad-Guide 端皆結案 | 跨 session 直接通道（訊息自帶 `from`，不必經 ListAgents 對名稱） |
+| 決策 / 學習 | 無 | |
+
+### 重點觀察
+
+- 對方塔台主動來訊時，回覆可直接用訊息的 `from` 位址，順便把等使用者轉交的舊回覆稿一起送出，就不必再等使用者轉交
+- CT 端早在 v5.12.3 就更正了 P3：BAT 回覆稿雖「待轉交」，CT 塔台已從 BAT repo 讀到
+
+### 編號起始（下 session）
+
+- **T0700** / **BUG-171** / **PLAN-055** / **D183** / **EXP-WFMINE-002** / **L176** / **CT-T023**
+
+---
+
+## 🛏 前 Session 收工快照 (第九十 session, 2026-10-23 07:35 - 10:55, ~3h20m)
 
 ### 主軸：Full Scan（06:50）→ CT 塔台 HANDOVER「CT Portal 互連」受理（D182，D159 改寫）→ T0699 → push、Pages 上線 → 回覆稿
 
@@ -39,58 +70,17 @@
 
 ---
 
-## 🛏 前 Session 收工快照 (第八十九 session, 2026-10-21 23:30 - 2026-10-22 02:20, ~2h50m)
-
-### 主軸：pre.5 後續小單（T0691–T0694）→ BUG-170 / CT-T022 跨專案（CT v5.12.x）→ 塔台重啟載入新 CT、CT-T022 驗收（T0695 / T0696）→ `v0.7.1-pre.6` 批次（D181：T0697 codex 0.163、T0698 BUG-165）→ 發佈
-
-#### 時間線（時間取自 git / 系統 / gh）
-
-1. **23:30** T0691（BUG-169 helper 版號，`b0ff5673`）→ **23:48** T0692（用量限制 reset 字串，`560409a3`）、T0693 研究（Renew 後 ✓）→ **00:27** D180：T0694（`↻`，`cefb9db3`）+ BUG-170
-2. **00:58** CT-T022 交 BMad-Guide 塔台 → **01:14** CT v5.12.0 兩端已裝（T0184）→ 01:25 v5.12.1
-3. **01:29** 塔台重啟（CT v5.12.1，`--set-role tower --mode on`）→ **01:32** T0695 / T0696 驗收：備援重派前 `--close-worker` exit 0、舊分頁 exit 3、收單 exit 0 → **01:36** BUG-170 FIXED、CT-T022 DONE；T0675 補正 DONE（使用者已下載）；01:37 CT v5.12.2 通知（只改文字，結果沿用）並回覆 BMad-Guide 塔台
-4. **01:44** 使用者「下一批發版」→ D181：T0697 內嵌 codex 0.163；使用者指出待驗收項目要包進預覽版 → BUG-165 本批修（T0698）；T0698 Q-1 塔台代決（只認 `agentPreset === 'codex-cli'`）
-5. **02:01** 聯合驗證（`767985e9`：typecheck 0 / 0、`test:unit` 5891、`test:legacy` 472、vite build）→ bump `8fb92004` → push → run `39649193569` 全綠 → **02:14 `v0.7.1-pre.6`** → 更版重點（含「待驗收」）→ 文件 `8bd1f47a` → Pages `39651190345` 綠、link-check 1274 / 0、首頁 pre.6
-6. **02:20** 收工、push
-
-### 本輪戰績
-
-| 類別 | 數量 | 備註 |
-|---|---|---|
-| 派發工單 | **8**（T0691–T0698） | 全部 `started:`；T0695 / T0696 各重派 1 次（驗收設計）；結構化提問：T0694 Q-1、T0698 Q-1（`--answer`）；T0695 / T0696 走備援 |
-| BUG | BUG-169 / 165 FIXED（待實機）；BUG-170 開立 → FIXED（CT 端） | 熱區 Open 0 / Fixing 0 / Fixed 27 / Closed 28 |
-| 決策 | D180、D181 | |
-| 跨專案 | CT-T022 DONE（CT v5.12.0–v5.12.2） | |
-| 發版 | 1（`v0.7.1-pre.6`） | exe 309 / zip 428 / AppImage 305 / dmg 322 MiB |
-| unit test | 5779 → **5891 passed / 331 files**；`test:legacy` 472 / 0 | |
-| 學習 | L174 | |
-
-### 重點觀察
-
-- 已 FIXED 待實機驗收的 BUG 修正本來就隨每版發出；規劃發版時要把它們寫進更版重點「待驗收」清單，不能說成「不放進這批」（使用者更正，L174）
-- 驗收 CT 規則的未驗路徑時，用 `worker_question_timeout: 0` 的小測試工單即可穩定重現 yolo 備援，兩情境 3 分鐘內跑完
-
-### 編號起始（下 session）
-
-- **T0699** / **BUG-171** / **PLAN-055** / **D182** / **EXP-WFMINE-002** / **L175** / **CT-T023**
-
----
-
 ## 🌅 起手式（Quick Recovery）
 
-> 最後更新：2026-10-23 10:55 UTC+8（第九十 session 收工）
+> 最後更新：2026-10-23 19:50 UTC+8（第九十一 session 收工）
 
 ### 近期完成
-- **CT Portal 互連**（第九十 session，D182 / T0699）：BAT 站 6 處連到 https://gowerlin.github.io/Control-Tower/（網址常數 `CT_PORTAL_URL` 在 `site/.vitepress/config.mts`）、CaseCard 結果欄可換行；Pages `39884288595` 綠、link-check 1308 / 0；回覆稿 `_reply-2026-10-23-ct-portal-link.md` 待使用者轉交 CT 塔台
+- **CT Portal 互連**（第九十 / 九十一 session，D182 / T0699）：BAT 站 6 處連到 CT Portal（`CT_PORTAL_URL` 在 `site/.vitepress/config.mts`）、CaseCard 結果欄可換行（`e9ad5b52`）；回覆稿與 CaseCard ADVISORY 回覆已直接交 BMad-Guide 塔台，兩件結案（BMad-Guide D272），P3 已於 CT v5.12.3 更正
 - **`v0.7.1-pre.6` 發佈**（第八十九 session，run `39649193569`，target `8fb92004`）：BUG-165（T0698 codex 分頁滾輪）、BUG-169（T0691）、T0692、T0694 `↻`、內嵌 codex 0.163（T0697）；更版重點含「待驗收」與「歡迎協助測試」；文件 `8bd1f47a`；Pages `39651190345` 綠、link-check 1274 / 0、首頁 pre.6
-- CT-T022 驗收 PASS（第八十九 session，CT v5.12.1）：T0695 備援重派前回收 exit 0、收單回收 exit 0；T0696 舊分頁已關 → exit 3、照常派工、收單 exit 0 → **BUG-170 FIXED**
 - `v0.7.1-pre.5` 發佈（第八十八 session，run `39617678592`，Test gate 首次生效）：T0687–T0690（MCP 寫入型 tool 政策、SSH 啟動失敗字首、安裝檔只收 6 個執行期 helper、內嵌 claude CLI 2.1.306）；Pages `39619776202` 綠、link-check 1265 / 0
-- BUG-167 / BUG-168 FIXED、CI 加 Test gate（T0678–T0686，D177 / D178）：`test:unit` 5779 / 0、`test:legacy` 472 / 0
 - 公開 repo 去識別化（D176，T0676 / T0677）：對照表只在 `.private/`，push 前跑 `.private/T0676-deid-mapping.md` 的檢查樣式
-- 網站 `/why`「把腦力留給判斷」（T0674，D175）；第二季 Podcast 素材 5 集（BMad-Guide repo，未 commit）
-- `v0.7.1-pre.4` 發佈（第八十六 session）：BUG-166（T0672）
 
 ### 待辦（依優先序）
-0. ✅ **CT 回覆稿已轉交**（第九十一 session 2026-10-23 19:45，跨 session 直接回 `BMad-Guide · Tower`）：`_reply-2026-10-23-ct-portal-link.md`（P3：CT 端改 `>= 0.6.1-pre.4`）+ CaseCard ADVISORY（BMad-Guide D259）回覆 `_reply-2026-10-23-bat-site-casecard-375px.md`（已由 T0699 `e9ad5b52` 修好）；**結案**：BMad-Guide D272 收下 CaseCard；P3 已於 CT v5.12.3 更正（BMad-Guide T0256 / D221，CT Portal compat 兩列 T0257），BAT 不用再追
 1. 🔴 **外部測試者A 驗收**（`v0.7.1-pre.6`，更版重點「待驗收」清單）：BUG-165（macOS 觸控板 Codex 分頁捲動；之前設的 `mouse_scroll_speed = 3` 先移除）、BUG-166（`printf '\e[?1003h\e[?1006h'` 後移動滑鼠，殘骸幾筆即停）、BUG-169（安裝版 `bat-terminal.mjs --version`）→ 通過即 CLOSED
 2. 🟢 **後續候選**：codex Worker 分頁也接管滾輪（T0698 Q-1 [B]，`externalAgent` 欄位）；T0698 e2e（選做未做）；Windows / Linux 滾輪一格行數是否過快待回饋
 3. 🔴 `v0.7.1-pre.2` 剩餘實機驗收：BUG-156 需 Docker Desktop、BUG-159 需一般權限 + codex
@@ -127,7 +117,7 @@
 | **PLAN 最大編號** | **PLAN-054**（PLANNED：CT Workflow 智能的 BAT 側事項，B4 / B6，第八十七 session 2026-10-20）；PLAN-053 IDEA（Electron 42+ 升級，第八十五 session）；PLAN-052 / 051 IDEA；PLAN-049 / 047 DONE；PLAN-015 / 029 / 038 / 043 IDEA |
 | **決策最大編號** | **D180**（Renew 後 Worker 分頁 ✓：T0693 方案 a + d1 + d2，旁支開 BUG-170，使用者決定，2026-10-22 第八十九 session）；D179（`v0.7.1-pre.5` 發版前先開小批 T0687–T0689，使用者決定，2026-10-21 第八十八 session）；D178（T0684 Q-1／Q-2 檢查 Windows 路徑用 path.win32，塔台代決，2026-10-21 第八十八 session）；D177（BUG-168 修正分組與 CI 兩步，2026-10-21 第八十八 session）；D176（公開 repo 去識別化，2026-10-21 第八十八 session）；D175（網站 `/why` 設計初衷，2026-10-21 第八十八 session）；D174（T0672 Q-1，2026-10-19 第八十六 session）；D173（網站示意可用 `_ct-workorders/`，放寬 D159 / D165 grep 規則一項，2026-10-19 第八十五 session）；D171 / D172 第八十四 session |
 | **EXP 最大編號** | **EXP-WFMINE-001**（📊 CONCLUDED 2026-10-20 17:26；執行單 T0673 DONE `84e21f2d`，7.35M tokens／39 agents；BMad-Guide Workflow 智能提案 Phase 1 試點）；EXP-GPUWHIS-001（CONCLUDED，已歸檔） |
-| **塔台版本** | Control Tower **v5.12.1**（第八十九 session 重啟後載入；v5.12.2 已安裝、只改收單回收提示文字，下次啟動生效；CT-T022 重派前回收舊 Worker 分頁）；前次 v5.11.0（第八十八 session 啟動時載入；本檔未記錄 v5.10 / v5.11 升級過程）；前次記錄 v5.9.0（第八十二 session 載入；CT-T021，BMad-Guide T0174，兩端；實機驗收結案 D071） |
+| **塔台版本** | Control Tower **v5.12.5**（第九十一 session 載入；第九十 session v5.12.2；CT v5.12.3 起 `--close-worker` 最低 BAT 改為 `>= 0.6.1-pre.4`）；前次 v5.12.1（第八十九 session 重啟後載入；CT-T022 重派前回收舊 Worker 分頁）；前次 v5.11.0（第八十八 session 啟動時載入；本檔未記錄 v5.10 / v5.11 升級過程）；前次記錄 v5.9.0（第八十二 session 載入；CT-T021，BMad-Guide T0174，兩端；實機驗收結案 D071） |
 | **unit test 基線** | **5661 passed / 322 files / 3 skipped**（塔台複驗 @ `72d77cf1`，發 `v0.7.1-pre.4` 前，2026-10-19 第八十六 session；typecheck 0 / 0、vite build 成功）。前次 5635 passed / 321 files（@ `ee7d1047`，發 `v0.7.1-pre.3` 前，2026-10-19 第八十五 session；typecheck 0 / 0、vite build 成功） |
 
 ---
@@ -208,14 +198,14 @@
 | git remote | 3 個 | `origin`=gowerlin / `upstream`=tony1223 / `scandnavik` |
 | git 同步 | ✅ | `main` = `origin/main` @ `98e84050`（fetch 後 0 / 0）；工作區乾淨；另有 worktree `../.ct-integration/better-agent-terminal`（detached `4e5f5e7f`）；無 stash |
 | 最新 CI / release | ✅ | Pre-Release 2026-10-21 18:02Z success → `v0.7.1-pre.6`；Pages 18:16Z success |
-| Control Tower skills | ✅ v5.12.2 | control-tower / ct-exec / ct-done / ct-status 皆 5.12.2（本 session 起生效） |
+| Control Tower skills | ✅ v5.12.5 | control-tower 5.12.5（第九十一 session 啟動時；06:50 掃描時為 5.12.2） |
 | 熱區單據 | **T:205 / BUG:55 / PLAN:25 / EXP:1** | BUG：FIXED 27 / CLOSED 28（與 `_bug-tracker.md` 一致）；PLAN：IDEA 7 / PLANNED 1（PLAN-054） |
 | 非終態工單 | 無 | T0153 / T0543 ABANDONED（終態）；EXP-WFMINE-001 frontmatter 無 `status`（內文 CONCLUDED） |
 | 最大編號 | **T0698 / BUG-170 / PLAN-054 / D181 / L174 / CT-T022** | 下張：T0699 / BUG-171 / PLAN-055 / D182 / L175 / CT-T023 |
 | unit test / typecheck | 未重跑 | 最近：5891 passed / 331 files、typecheck 0 / 0（@ `767985e9`，第八十九 session 發 pre.6 前） |
 | state 檔 | ⚠️ 31.9 KB | 超 30 KB 軟警告；季檔 `2026-Q4.md` 166,702 bytes（接近 200 KB 切割點）、INDEX 102 entries |
 | 設定來源 | project | `_tower-config.yaml`（auto-session **on**，`yolo_max_retries: 1`，`auto_commit: on`，`worker_auto_close: done`，`worker_close_delay: 10`） |
-| 塔台版本 | v5.12.2 | control-tower skill |
+| 塔台版本 | v5.12.5 | control-tower skill（第九十一 session） |
 
 > **Drift / 注意事項**:
 > 1. ✅ ~~D094 mac installer 280 MB cap 長期超標（L130）~~ → D146 取代（每平台 ≤ 320 MiB、zip ≤ 450；pre.4 全數符合）
@@ -246,6 +236,7 @@
 
 ### 歷史 Session（摘要）
 
+- 2026-10-23 第九十一 session：無派工；跨 session 回覆 BMad-Guide 塔台 2 件；無發版
 - 2026-10-23 第九十 session：auto-session on，per-dispatch `--mode yolo --no-interactive`；T0699 `started:`、無提問；`worker_auto_close` 回收 1 次；無發版
 - 2026-10-22 第八十九 session：auto-session on，per-dispatch `--mode yolo --no-interactive`；T0695–T0698 全部 `started:`（T0695 / T0696 各重派 1 次，CT-T022 驗收）；結構化提問：T0695 / T0696 走備援（`worker_question_timeout: 0`）、T0698 Q-1 `--answer`；`--close-worker` 重派前 2 次（exit 0 / 3）、收單 4 次；`v0.7.1-pre.6` 發佈
 - 2026-10-20 第八十七 session：auto-session on，per-dispatch `--mode yolo --no-interactive`；T0673 `started:`（Worker 內跑 Workflow，39 agents）；結構化提問 1 次（Q-1，塔台漏接、使用者在 Worker 分頁直接答）；`worker_auto_close` 回收 1 次；無發版
