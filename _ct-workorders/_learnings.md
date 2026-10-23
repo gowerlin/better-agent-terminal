@@ -3743,3 +3743,17 @@ Codex 那張是外部測試者回報才發現；Claude 那張是使用者隨口�
 - 對使用者描述時區分「已在版本內、等驗收」與「還沒有修正」，不要用「不能放進這批」混稱
 
 **候選晉升**：專案內（可寫進 `_local-rules.md`「Release 流程實況」的更版重點格式）
+
+
+## L175
+
+**來源**：第九十 session（2026-10-23），T0699 收單後 push 前的去識別化掃描
+
+**現象**：T0699 Worker 回報區列了 10 個截圖完整路徑（scratchpad 位於使用者家目錄底下），push 前跑 `.private/` 檢查樣式命中家目錄 10 行。commit 尚未 push，塔台把路徑改成 `<scratchpad>\…`、以 fixup 併回原 commit（hash 改變，回覆稿引用的 SHA 跟著改），家目錄沒有進到公開歷史。
+
+**How to apply**：
+- 會產生截圖或暫存檔的工單（網站、e2e、UI 驗證），在 memory_overrides 寫明「回報區的 scratchpad 路徑寫成 `<scratchpad>\<相對路徑>`，不寫完整路徑」
+- 掃描要對「每個要推的 commit」（`git log -p origin/main..HEAD`），不能只看最終 diff：中間 commit 加了又刪的內容仍在歷史裡
+- 未 push 的 commit 可用 fixup + `--autosquash` 併回；已 push 的依 D176 不改寫歷史，只在新 commit 修正
+
+**候選晉升**：專案內（可寫進 `_local-rules.md` 去識別化一節的「寫工單時」）
