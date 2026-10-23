@@ -18,6 +18,8 @@ const confidenceRows = [
 
 ::: info Control Tower 目前未公開提供
 這一頁只介紹 Control Tower 的概念與流程。BAT 對外公開的整合介面，見[BAT 提供的整合點](./control-tower#integration)。
+
+Control Tower 的設計理念與使用說明，見 <CtPortalLink />。
 :::
 
 ## Control Tower 是什麼 {#what}

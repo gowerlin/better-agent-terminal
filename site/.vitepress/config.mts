@@ -3,10 +3,15 @@ import { getLatestRelease, REPO, type LatestRelease } from './latest-release.mjs
 
 export interface ThemeConfig extends DefaultTheme.Config {
   latestRelease: LatestRelease
+  // Control Tower 站的網址；頁面內文經 CtPortalLink 元件取用
+  ctPortalUrl: string
 }
 
 // 分享卡片與 sitemap 都要絕對網址
 const SITE_URL = 'https://gowerlin.github.io/better-agent-terminal/'
+
+// Control Tower 站（設計理念與使用說明）：網址只在這裡寫一次
+const CT_PORTAL_URL = 'https://gowerlin.github.io/Control-Tower/'
 
 // 404 頁的說明：VitePress 內建的是英文 Not Found
 const NOT_FOUND_DESCRIPTION = '找不到這個頁面，網址可能已經移除或改名。請回 Better Agent Terminal 首頁，或從上方選單找你要的內容。'
@@ -74,6 +79,7 @@ export default async () => {
 
     themeConfig: {
       latestRelease,
+      ctPortalUrl: CT_PORTAL_URL,
 
       logo: '/logo.svg',
 
@@ -86,7 +92,8 @@ export default async () => {
           items: [
             { text: '把腦力留給判斷', link: '/why' },
             { text: '分工與流程', link: '/control-tower' },
-            { text: 'Control Tower 功能導覽', link: '/control-tower-tour' }
+            { text: 'Control Tower 功能導覽', link: '/control-tower-tour' },
+            { text: 'Control Tower 站', link: CT_PORTAL_URL }
           ]
         },
         { text: '實戰案例', link: '/cases' },
@@ -124,7 +131,8 @@ export default async () => {
             { text: '把腦力留給判斷', link: '/why' },
             { text: '分工與流程', link: '/control-tower' },
             { text: 'Control Tower 功能導覽', link: '/control-tower-tour' },
-            { text: '實戰案例', link: '/cases' }
+            { text: '實戰案例', link: '/cases' },
+            { text: 'Control Tower 站', link: CT_PORTAL_URL }
           ]
         },
         {

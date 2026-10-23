@@ -1922,6 +1922,10 @@
   text-decoration-thickness: 2px;
 }
 
+.home-more p + p {
+  margin-top: 12px;
+}
+
 /* ---------- 成長管線（GrowthLadder） ---------- */
 
 .growth-ladder {
@@ -3358,6 +3362,12 @@
 .vp-doc .case-result b {
   flex: none;
   font-weight: 700;
+}
+
+/* 結果文字包成一個 flex 項目：行內的 <code> / 連結才不會各自變成一欄，長字串在窄螢幕換行 */
+.vp-doc .case-result-text {
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .vp-doc .case-card .story-roles {

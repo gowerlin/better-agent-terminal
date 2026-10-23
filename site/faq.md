@@ -75,3 +75,7 @@ WSL、SSH、Docker 的設定步驟與各自的常見狀況，見[遠端開發](.
 Control Tower 目前未公開提供。BAT 的派工、回報、提問與查詢介面是公開的，你可以用它們接上自己的流程，見 [BAT 提供的整合點](./control-tower#integration)。
 
 不用 Control Tower，BAT 本身也能用，見[功能](./features)。
+
+### Control Tower 的設計理念與使用說明在哪裡？ {#ct-portal}
+
+在 <CtPortalLink />。這個網站只介紹 BAT，以及 BAT 和 Control Tower 怎麼一起用。

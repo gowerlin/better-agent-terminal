@@ -74,6 +74,8 @@ const integrationRows = [
 
 ::: info Control Tower 目前未公開提供
 BAT 的派工、回報、提問與查詢介面都是公開的，你可以拿來接上自己的流程，見[BAT 提供的整合點](#integration)。
+
+Control Tower 的設計理念與使用說明，見 <CtPortalLink />。
 :::
 
 ## Control Tower 是什麼 {#what}

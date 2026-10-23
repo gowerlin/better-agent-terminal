@@ -95,6 +95,8 @@ markdownStyles: false
 
 [看塔台、Worker 與 BAT 怎麼分工](./control-tower#division)
 
+<p><CtPortalLink>Control Tower 的設計理念與使用說明</CtPortalLink></p>
+
 </div>
 </div>
 </section>

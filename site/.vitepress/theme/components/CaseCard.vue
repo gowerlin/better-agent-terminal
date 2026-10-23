@@ -54,7 +54,7 @@ const facetLabel = computed(() => FACETS[props.facet])
       <div v-if="slots.figure" class="case-figure"><slot name="figure" /></div>
     </div>
 
-    <p v-if="slots.result" class="case-result"><b>結果</b><slot name="result" /></p>
+    <p v-if="slots.result" class="case-result"><b>結果</b><span class="case-result-text"><slot name="result" /></span></p>
 
     <ul class="story-roles" aria-label="分工">
       <li v-for="[who, what] in roles" :key="who" class="story-role" :class="who === 'CT' ? 'is-ct' : 'is-bat'">
