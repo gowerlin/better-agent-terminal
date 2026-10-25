@@ -2,6 +2,44 @@
 
 本 fork 各版的更版重點（內容取自 GitHub Releases，最新在上）。上游 tony1223/better-agent-terminal 的 v2.1.x 紀錄保留在檔案最下方。
 
+## v0.7.1-pre.8（2026-10-25）
+
+版號 0.7.1-pre.8，接續 `v0.7.1-pre.7`。
+
+## 修正
+
+- **系統校時後，執行中的分頁被結束、只剩 `[Process exited with code 1]`**（BUG-171）：Windows 自動校時讓系統時鐘往前跳幾秒時，BAT 會誤以為背景的終端伺服器已經停止，跳出「終端已恢復（歷史輸出已重置）」並重建所有分頁。分頁裡的 Claude CLI、Codex CLI 等程式因此被結束，畫面只剩新的 shell 提示字元，接著顯示 `[Process exited with code 1]`。現在：
+  - 系統時鐘跳動不再影響判斷；伺服器要連續多次沒回應，而且程序或連線確實已經不在，才會重建
+  - 伺服器只是一時沒回應、程序與連線都還在時，不重建
+  - 真的需要重建時，先結束舊的伺服器，舊伺服器晚到的訊息不再影響重建後的分頁，也不會留下沒人管的背景程序
+  - 這個問題從很早的版本就存在，不是近期改版造成的
+- **背景終端伺服器的設定出現在每個分頁的環境變數**：分頁裡不再看得到 `BAT_IDLE_TIMEOUT_MS`、`BAT_SCROLL_BUFFER_LINES`（這兩個只給伺服器自己用）
+
+## 更新
+
+- **終端伺服器的恢復提示與 BAT 重開時的「恢復終端」對話框支援多語系**：英文與簡體中文介面下改顯示對應語言（以前一律是繁體中文），繁體中文的文字不變
+
+## 待驗收（請更新到本版後協助確認）
+
+以下修正已包含在本版，仍在等實機確認：
+
+- **BUG-171**（本版）：日常使用時，遇到系統自動校時、睡眠喚醒後，不再出現「終端已恢復」提示，閒置的 Claude CLI 分頁也不會變成 `[Process exited with code 1]`
+- **BUG-165**（macOS 觸控板，Codex 分頁捲動，`v0.7.1-pre.6` 起）：開 Codex CLI 分頁，在 Codex 畫面內快速、慢速捲動，看是否跟手、會不會捲過頭。如果之前照建議在 `~/.codex/config.toml` 的 `[tui]` 段加了 `mouse_scroll_speed = 3`，建議先移除那一行再試
+- **BUG-166**（`v0.7.1-pre.4` 起）：在 macOS 的分頁執行 `printf '\e[?1003h\e[?1006h'` 後移動滑鼠，命令列最多冒出幾筆亂碼就停；Shift + 右鍵選單有「重設滑鼠模式」
+- **BUG-169**（`v0.7.1-pre.6` 起）：執行 `node "<安裝目錄>/resources/scripts/bat-terminal.mjs" --version`，應顯示本版版號而不是 `v0.0.0`
+- **BUG-156**（需 Docker Desktop）：Docker 設定精靈建立容器時，不再與 BAT 本機伺服器搶用 9876 埠
+- **BUG-159**（需一般權限執行 BAT + codex）：Codex CLI 分頁內執行的 helper 讀到的是自己分頁的 `BAT_*`，不是其他分頁的
+
+## 已知事項
+
+- 終端伺服器真的停止時，BAT 仍只重建 shell，分頁裡原本執行的 Claude CLI / Codex CLI 不會自動接回；Claude CLI 可在原專案目錄執行 `claude --resume` 接回對話（之後的版本規劃改善，PLAN-055）
+- 本版修正在 Windows 上以隔離實例實測（時鐘前跳、伺服器暫停、伺服器結束）；macOS / Linux 只有自動測試涵蓋
+- Linux 版本未實機驗證
+
+macOS 仍只提供 Apple Silicon（arm64）版。
+
+**Full Changelog**: https://github.com/gowerlin/better-agent-terminal/compare/v0.7.1-pre.7...v0.7.1-pre.8
+
 ## v0.7.1-pre.7（2026-10-25）
 
 版號 0.7.1-pre.7，接續 `v0.7.1-pre.6`。

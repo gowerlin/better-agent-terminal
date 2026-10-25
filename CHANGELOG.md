@@ -4,6 +4,19 @@ All notable changes to Better Agent Terminal are documented in this file.
 
 ## [Unreleased]
 
+## [0.7.1-pre.8] — 2026-10-25
+
+### Fixed
+- 系統時鐘往前跳（Windows NTP 校時、睡眠喚醒）時，Terminal Server 被誤判死亡、所有分頁的 agent 被結束並顯示 `[Process exited with code 1]`（BUG-171）。heartbeat 改用單調時鐘、連續 3 次遲到且 server 程序或 IPC 已不在才 recovery；recovery 以 server generation 丟棄舊 server 的訊息、先結束舊 server 程序樹再 re-fork、孤兒 PTY 先殺程序樹（T0703 研究、T0704）
+- Terminal Server 不再把自己的 `BAT_IDLE_TIMEOUT_MS` / `BAT_SCROLL_BUFFER_LINES` 帶進每個 PTY 的 env（`buildServerPtyEnv`，T0705）
+- ubuntu CI 上 2 項測試失敗（shell 回顯被當成輸出、真 shell 測試逾時），只改測試（T0707）
+
+### Changed
+- Terminal Server recovery toast 與 BAT 重開時的 Recovery 提示改走 i18n（en / zh-TW / zh-CN；zh-TW 文字不變）（T0705 / T0706）
+
+### Known issues
+- Terminal Server 真的停止時仍只重建 shell，分頁內的 agent 不會自動接回（PLAN-055）；macOS / Linux 只有自動測試涵蓋
+
 ## [0.7.1-pre.7] — 2026-10-25
 
 ### Added
