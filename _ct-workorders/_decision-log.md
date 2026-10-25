@@ -1465,12 +1465,20 @@
 - **切分**：W2a 設計語言 + 元件 + 首頁（T0630）→ 預覽通過後 W2b（`/control-tower`、功能、FAQ、回報頁）→ W2c 遠端開發；W3 / W4 不變。
 - **相關**：PLAN-049 / D159 / D160 / T0624 / T0630
 
+### D183 2026-10-25 — 受理 CT 塔台 HANDOVER「CT 正式公開」（→ T0700）；D182 / D159 改寫：BAT 站可寫 CT 已公開與取得方式（連 CT Portal 安裝頁），細節只留在 Portal
+
+- **背景**：BMad-Guide 塔台交辦 `_handover-2026-10-25-ct-public-release`（BMad-Guide `_ct-workorders/`，2026-10-25T08:56:38+0800）：Control Tower 2026-10-25 起正式公開下載（GitHub Release、CT Portal 安裝頁、MIT 授權；CT 塔台 D307 / D315 / D317）。BAT 站 5 處仍寫「Control Tower 目前未公開提供」（`site/control-tower.md` 75 / 307、`site/control-tower-tour.md` 19 / 290、`site/faq.md` 75）。D182 規定「CT skill 仍不開源、BAT 站不寫取得方式、連結文字不得寫『下載』『開源』」，與現況衝突，問使用者。
+- **決定**（使用者 2026-10-25 08:5x，選推薦）：D182 / D159 ② 改寫為「**CT 已公開（MIT 授權），BAT 站可以說明這件事，『去哪取得』連到 CT Portal 安裝頁**；取得、下載、公開、開源、MIT 授權等字樣可用」。BAT 站**仍不寫** CT 版本號、skill 名稱、指令名稱、CT 文件名、安裝 / 升級步驟、CT 資料存放路徑：這些只放在 CT Portal 一處，CT 改版時 BAT 站不必跟著改。D165 / D166 / D173 其餘字樣規則（內部編號、`CLAUDE.md`、真實人名等）不變。
+- **派工**：T0700（DELEGATE，`coordination.source.workorder: _handover-2026-10-25-ct-public-release`）；網站改動依 D161 預覽關卡，Worker 不 push。回覆稿 `_ct-workorders/_reply-2026-10-25-ct-public-release.md`。
+- **相關**：D182 / D159 / D161 / D165 / D166 / D173 / T0699 / T0700 / PLAN-049
+
 ### D182 2026-10-23 — 受理 CT 塔台 HANDOVER「CT Portal 互連」（P1–P3 → T0699）；D159 改寫：BAT 站可連 CT Portal，CT skill 仍不開源
 
 - **背景**：BMad-Guide 塔台交辦 `_handover-2026-10-23-ct-portal-link`（BMad-Guide `_ct-workorders/`，2026-10-23T08:35:22+0800）：CT Portal（https://gowerlin.github.io/Control-Tower/，repo `gowerlin/Control-Tower` public）已上線，請 BAT 站 ① 加 Portal 連結、② 檢查 CaseCard 375px 是否橫捲、③ 確認 `--close-worker` 最低 BAT 版本（CT 寫 `>= 0.6.1-pre.3`，BAT README 寫 `>= 0.6.1-pre.4`）。塔台查證 Portal `install.md` 有 skill 名稱、安裝路徑、版號、下載元件，與 D159「不提供取得管道」、D166 字樣規則衝突，問使用者。
 - **決定**（使用者 2026-10-23 09:1x）：P1 連結，D159 改寫——**CT 的設計理念與使用說明已公開（CT Portal），BAT 站可以連過去；CT skill 仍不開源，目前只給少數測試者私下申請取得**。BAT 站自己不寫取得方式，D165 / D166 的字樣規則（不寫 CT 版本號、指令、skill 名稱、CT 文件名、安裝步驟）不變；連結文字不得寫「下載」「開源」。P2 / P3 塔台受理。
 - **派工**：T0699（DELEGATE，`coordination.source.workorder: _handover-2026-10-23-ct-portal-link`）；網站改動依 D161 預覽關卡，Worker 不 push。回覆稿 `_ct-workorders/_reply-2026-10-23-ct-portal-link.md`（T0699 完成後由塔台寫 P3 結論）。
 - **相關**：D159 / D161 / D165 / D166 / D173 / T0699 / PLAN-049
+- **改寫**（2026-10-25，D183）：CT 已正式公開（MIT），「CT skill 仍不開源」「BAT 站不寫取得方式」「連結文字不得寫『下載』『開源』」三項取消；細節字樣規則照舊。
 
 ### D181 2026-10-22 — `v0.7.1-pre.6` 發版批次：T0691 / T0692 / T0694 加內嵌 codex 追版（T0697），聯合驗證後發
 
@@ -1655,6 +1663,7 @@
 - **處置**：T0622 工單加「塔台補充」，Q1 改研究專案站的具體做法、Q4 改列可公開的概念與整合點；Q2 / Q3-3 / Q5-1 要求單一推薦、Q5-2 設計成併入發佈後同步。
 - **相關**：PLAN-049 / T0622 / `_local-rules.md`「發佈後同步 repo 文件」
 - **改寫**（2026-10-23，D182）：② 改為「CT 設計理念與使用說明已公開（CT Portal），BAT 站可連過去；CT skill 仍不開源，只給少數測試者私下申請」。
+- **改寫**（2026-10-25，D183）：② 再改為「CT 已公開（MIT 授權），BAT 站可寫取得方式並連到 CT Portal 安裝頁；版本號、skill 名稱、安裝步驟等細節只留在 Portal」。
 
 ### D158 2026-10-18 — PLAN-047 M1b-2：codex 以 OSC 7501 回報 `blocked` 與啟動；新增 `blockedDetection: osc`、`blockedReason: input`
 
