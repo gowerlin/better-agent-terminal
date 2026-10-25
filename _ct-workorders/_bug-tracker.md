@@ -12,8 +12,8 @@ exclude_globs:
   - _ct-workorders/examples/**
 total: 56
 breakdown:
-  OPEN: 1
-  FIXING: 0
+  OPEN: 0
+  FIXING: 1
   FIXED: 27
   VERIFY: 0
   CLOSED: 28
@@ -26,18 +26,18 @@ breakdown:
 > 最後同步：2026-10-22 01:48 (UTC+8) — BUG-165 → FIXED（T0698 `ec4b3c13`，隨 pre.6 待實機驗收）；BUG-170 → FIXED（CT v5.12.x 重派前回收舊分頁，T0695 / T0696 實機驗收）；BUG-169 FIXED（T0691，等下一個預覽版安裝版驗收）；BUG-168 / 167 FIXED；BUG-166 FIXED 待 外部測試者A；BUG-165 OPEN
 
 ## 統計
-- 🔴 Open: 1 | ⏳ Fixing: 0 | ✅ Fixed: 27 | 🧪 Verify: 0 | 🚫 Closed: 28 | ⛔ Won't Fix: 0 | **Total: 56**
+- 🔴 Open: 0 | ⏳ Fixing: 1 | ✅ Fixed: 27 | 🧪 Verify: 0 | 🚫 Closed: 28 | ⛔ Won't Fix: 0 | **Total: 56**
 
 ## 🔴 Open / 處理中
 
 | ID | 標題 | 嚴重度 | 建立時間 | 連結 |
 |----|------|--------|---------|------|
-| BUG-171 | 「終端重置」toast 後多個閒置分頁 `[Process exited with code 1]`（含其他專案的 Claude CLI 塔台）；研究工單 T0703 調查中 | 🔴 high | 2026-10-25 | [BUG-171](BUG-171-idle-terminals-exit-1-after-terminal-reset.md) |
 
 ## ⏳ 修復中 (FIXING)
 
 | ID | 標題 | 嚴重度 | 修復時間 | 連結 |
 |----|------|--------|---------|------|
+| BUG-171 | 「終端重置」後多個分頁 `[Process exited with code 1]`：NTP 時鐘跳變讓 heartbeat 誤判、recovery 沒關舊 server（T0703 `29957a0e`）；修正 T0704 / T0705 進行中 | 🔴 high | 2026-10-25 | [BUG-171](BUG-171-idle-terminals-exit-1-after-terminal-reset.md) |
 
 ## ✅ 已修復
 

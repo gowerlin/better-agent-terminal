@@ -10,10 +10,10 @@ source_globs:
 exclude_globs:
   - _ct-workorders/_archive/**
   - _ct-workorders/examples/**
-total: 24
+total: 26
 breakdown:
-  IDEA: 7
-  PLANNED: 0
+  IDEA: 8
+  PLANNED: 1
   IN_PROGRESS: 0
   DONE: 16
   DROPPED: 1
@@ -25,7 +25,7 @@ breakdown:
 > 最後同步：2026-10-20 17:29 (UTC+8) — PLAN-054 PLANNED（CT Workflow 智能的 BAT 側事項，EXP-WFMINE-001）
 
 ## 統計
-- 💡 Ideas: 7 | 📋 Planned: 1 | 🔄 In Progress: 0 | ✅ Done: 16 | 🚫 Dropped: 1
+- 💡 Ideas: 8 | 📋 Planned: 1 | 🔄 In Progress: 0 | ✅ Done: 16 | 🚫 Dropped: 1
 
 ## Active
 
@@ -39,6 +39,7 @@ breakdown:
 | PLAN-052 | Docker 遠端路線可用性：發佈 `bat-server` 映像或裝進任意容器、「Use existing」可選容器、重跑精靈更新既有設定 | 🟢 low | 💡 IDEA | [PLAN-052](PLAN-052-docker-remote-usability.md) |
 | PLAN-053 | 升級 Electron 42+（Chromium 148+）：Electron 41 已停止更新；Graphite out-of-order CHECK 改為 GPU 程序重啟（BUG-164） | 🟢 low | 💡 IDEA | [PLAN-053](PLAN-053-electron-42-upgrade.md) |
 | PLAN-054 | CT Workflow 智能的 BAT 側事項：B4 MCP 政策文件（併下次發版）、B6 CT 面板讀 workflow 欄位（延後：CT D090）；B1 不做 | 🟢 low | 📋 PLANNED | [PLAN-054](PLAN-054-ct-workflow-intelligence-bat-side.md) |
+| PLAN-055 | Terminal Server recovery 後 agent 分頁不再無聲變成 shell：列出被中斷的分頁、claude 保留 session id 並提供 `--resume`（BUG-171 / T0703 C） | 🟡 medium | 💡 IDEA | [PLAN-055](PLAN-055-agent-tabs-after-terminal-server-recovery.md) |
 
 ## Completed
 

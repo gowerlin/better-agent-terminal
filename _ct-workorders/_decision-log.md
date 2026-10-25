@@ -1465,6 +1465,12 @@
 - **切分**：W2a 設計語言 + 元件 + 首頁（T0630）→ 預覽通過後 W2b（`/control-tower`、功能、FAQ、回報頁）→ W2c 遠端開發；W3 / W4 不變。
 - **相關**：PLAN-049 / D159 / D160 / T0624 / T0630
 
+### D186 2026-10-25 — BUG-171 修正：A + B 合成 T0704（P1）現在派；toast i18n 與 server env 洩漏另開 T0705 平行；C 另開 PLAN-055
+
+- **背景**：使用者回報 BAT「終端重置」toast 後多個分頁 `[Process exited with code 1]`（BUG-171 high）。研究 T0703 DONE（`29957a0e`）：2026-10-25 20:59 Windows NTP 校時讓系統時鐘往前跳 3.03 s，`PtyManager.startHeartbeat` 用 `Date.now()`、單次 > 13 s 即判死 → 把活著的 Terminal Server 當死亡 → `handleServerDeath` 殺掉 6 個分頁（5 塔台 + 1 Worker，含本工作區原塔台）的 claude、re-fork 第二個 server；舊 server 沒關、監聽沒拆，送回 `pty:exit(id, 1)` 套到同 id 新 shell；另洩漏舊 server、12 個孤兒 bash、6 個無分頁 shell。T0112 起既有缺陷，不是新回歸。
+- **決定**（使用者 2026-10-25 21:1x，選推薦）：A（單調時鐘、連續 N 次、判死前確認程序與 IPC）+ B（recovery 切斷並結束舊 server、丟棄舊 server 訊息、孤兒清理先殺樹）合成 T0704，現在派；兩件順手項目（recovery toast 走 i18n、Terminal Server 不把自己的 env 帶進 PTY）都做，改的檔案與 T0704 不重疊，另開 T0705 平行；C（recovery 後 agent 分頁可 `--resume`）開 PLAN-055 IDEA。
+- **相關**：BUG-171 / T0703 / T0704 / T0705 / PLAN-055 / T0112 / T0540
+
 ### D185 2026-10-25 — T0701 收單；後續兩項開 T0702，完成後與 T0701 一起發 `v0.7.1-pre.7`
 
 - **背景**：T0701 DONE（`e7b20593`）：總覽 R1–R5 完成；塔台複驗 `typecheck` 0 / `typecheck:electron` 0、相關 4 檔 224 測試過；BMad-Guide 真實摘要顯示正常、`9 pending` → 0。Worker 後續建議：① legacy parser 讀不到引用區塊形式的狀態（`> 狀態:✅ DONE`，BMad-Guide `T0098`）；② BAT 工單狀態列舉沒有 CT 的 `PAUSED`（CT `interrupt-protocol.md`），塔台開單用的 `status: TODO` 被判為 `INVALID`（CT 範本是 `PENDING`，屬塔台寫錯）。
