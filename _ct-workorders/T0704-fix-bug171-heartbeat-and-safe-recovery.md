@@ -4,15 +4,15 @@ schema_kind: workorder
 id: T0704
 title: "BUG-171 修正（A + B）：heartbeat 不因系統時鐘跳變誤判 Terminal Server 死亡；recovery 時切斷並關掉舊 server、丟棄舊 server 的訊息、孤兒清理先殺程序樹"
 type: implementation
-status: PENDING
+status: FIXED
 repo: better-agent-terminal
 project: BUG-171
 priority: P1
 sizing: M
 created_at: "2026-10-25T21:16:40+0800"
-started_at: ""
-updated_at: "2026-10-25T21:16:40+0800"
-completed_at: ""
+started_at: "2026-10-25T21:18:49+0800"
+updated_at: "2026-10-25T21:34:49+0800"
+completed_at: "2026-10-25T21:34:49+0800"
 depends_on: [T0703]
 related:
   - "BUG-171（FIXING）與 T0703 研究（`29957a0e`，回報區「調查結論」1–8、「建議方向」A / B、「建議下一步」1）：NTP 校時讓系統時鐘往前跳 3.03 s → `PtyManager.startHeartbeat` 以 `Date.now()` 算 13032 ms > 13000 判死 → `handleServerDeath` 殺掉 6 個分頁的 shell、re-fork 第二個 server；舊 server 沒關、`'message'` 監聽沒拆，送回 `pty:exit(id, 1)` 套到同 id 的新 instance（重建時沒設 `awaitingCreated`，BUG-101 防護擋不到）"
@@ -62,12 +62,12 @@ T0703 確認：2026-10-25 20:59 Windows NTP 校時讓系統時鐘往前跳 3.03 
 
 ## 驗收
 
-- [ ] 時鐘前跳不 recovery；單次遲到不 recovery；程序 + IPC 還在不 recovery；IPC exit 立即 recovery
-- [ ] recovery 後同 id 新 instance 不被舊 server 的 exit / data 影響
-- [ ] 孤兒清理順序先樹後 shell；recovery 後舊 server 不再存活（測試以 mock 驗證呼叫）
-- [ ] `npm run test:unit` 全綠；`npm run test:legacy` 不新增失敗；`npm run typecheck` = 0；`npm run typecheck:electron` = 0；`npx vite build` 成功
-- [ ] CLAUDE.md 一節 + docs/agent-guide 細節
-- [ ] headless 不受影響（寫明依據）
+- [x] 時鐘前跳不 recovery；單次遲到不 recovery；程序 + IPC 還在不 recovery；IPC exit 立即 recovery
+- [x] recovery 後同 id 新 instance 不被舊 server 的 exit / data 影響
+- [x] 孤兒清理順序先樹後 shell；recovery 後舊 server 不再存活（測試以 mock 驗證呼叫）
+- [x] `npm run test:unit` 全綠；`npm run test:legacy` 不新增失敗；`npm run typecheck` = 0；`npm run typecheck:electron` = 0；`npx vite build` 成功
+- [x] CLAUDE.md 一節 + docs/agent-guide 細節
+- [x] headless 不受影響（寫明依據）
 
 ---
 
@@ -77,18 +77,151 @@ T0703 確認：2026-10-25 20:59 Windows NTP 校時讓系統時鐘往前跳 3.03 
 
 ### 待塔台決策（僅 yolo Worker 有問題時）
 
+無。沒有提問。
+
 ### 完成狀態
+
+**FIXED**：A、B 兩部分都已實作。驗收清單 6 項都有證據，另外在隔離實例做了實測（選做項目）。結果等使用者在日常使用中驗收。
+
+落點檢查 **PASS**
+- C-0：`repo: better-agent-terminal` 與 `basename(REPO_ROOT)` `better-agent-terminal` 相同
+- C-1：工單在 REPO_ROOT 底下
+- C-3：抽查的路徑都存在，或上層目錄存在（新檔）
+- C-2：工單沒有 `branch` 欄位
+- 沒有設定 `CT_HOME`（不是 worktree）
+- `BAT_WORKSPACE_ID=cc0afc4a-57e9-4f41-b2ed-a2d8bac9e36b`（只記錄，不比對）
+
+### 互動紀錄
+
+沒有提問。沒有對使用者正在用的 BAT、已安裝的 BAT、使用者的 userData 或其他分頁做任何操作。e2e 只對自己啟動的隔離實例動手：暫停、恢復、結束它的 Terminal Server，以及在它的分頁裡輸入。
 
 ### 實作摘要
 
+**A：heartbeat**（`PtyManager.startHeartbeat` / `handlePong` / `serverLiveness`，`electron/pty-manager.ts`）
+- 經過時間改用單調時鐘 `ServerWatchdogDeps.now`，預設 `performance.now()`。
+- 一個 tick 距離上次 pong 超過 13 s，算一次遲到；收到 pong 就歸零。
+- 連續 `HEARTBEAT_MAX_MISSES` = 3 次遲到（常數放在原位置）後檢查 server 程序與 IPC：
+  - 程序看 `exitCode` / `signalCode` 與 `process.kill(pid, 0)`，IPC 看 `connected`。
+  - 任一不在 → `handleServerDeath('heartbeat')`。
+  - 兩者都在 → 只記 `[heartbeat] late pong: …`（每 3 次記一次），不 recovery。
+- pong 恢復時記 `[heartbeat] late pong arrived after N late tick(s)`。
+- IPC `exit`（`ipc-exit`）與 TCP `close`（`tcp-close`）照舊立即 recovery。
+
+**B：recovery**（`handleServerDeath(reason)` / `detachServer` / `endReplacedServer`）
+1. `serverGeneration++`：之後舊 server 的任何訊息都被 `handleServerMessage(msg, generation)` 丟棄，並記錄丟棄次數。
+2. 只拆 PtyManager 自己掛的 `'message'` / `'exit'` 監聽（main.ts 掛的保留），然後 `disconnect()`。
+3. 舊 server 還在執行時，結束它的程序樹：
+   - Windows：T0540 的 `killProcessTree`，失敗才用 SIGKILL（= TerminateProcess）。
+   - 其他平台：SIGKILL。
+   - 不用 `server:shutdown` / SIGTERM，因為那兩條路徑會刪掉屬於新 server 的 pid / port / registry 檔。
+   - TCP 模式沒有 ChildProcess，改用 registry 的 `serverPid`。
+4. 孤兒清理：新的 `killOrphanPtyProcesses` 先殺程序樹；樹殺成功就不再送 SIGTERM，否則才 SIGTERM。
+5. `clearRegistry`，然後 re-fork。
+
+①–④ 的對應：①（切斷並結束舊 server）是步驟 2–3；②（丟棄舊 server 訊息）是步驟 1；③（孤兒先殺樹）是步驟 4；④（舊 server 不再改 registry）靠「舊 server 先結束並等它完成，才清 registry、re-fork」。
+
+**② 選 generation 的理由**（docs 裡有完整說明）：
+- `awaitingCreated` 只擋 `pty:exit`，而且新 server 回 `pty:created` 之後就失效。BUG-171 有一個 exit 晚了 4.5 分鐘才到，照樣會刪掉新 instance。
+- `awaitingCreated` 也擋不到舊的 `pty:data` / `server:pong` 等訊息。
+- generation 一次比較，就涵蓋所有訊息類型與任意晚到的時間。
+
+**recovery 期間的分頁操作（跟著 B 一起補的防護）**
+
+舊 server 要等 taskkill 跑完，所以「沒有任何 server 連著」的時間變長（e2e 實測約 120 ms，之前約 40 ms）。這段時間內：
+- `write` / `resize` 遇到沒有程序的 instance 不再丟 TypeError。
+- `kill`（關分頁）直接移除 entry，重建時不會變成沒有分頁的 shell。
+- recovery 期間 direct spawn 的分頁保留原本的程序，不重建到新 server。
+- 刻意不用 T0578 的 create hold：hold 會讓 helper 派工回 `RECOVERY_PENDING`，等於改變 helper 行為。
+
+**main.ts**
+- `startTerminalServer` 啟動時的 T0113 孤兒清理改用 `killOrphanPtyProcesses`，順序變成先殺樹，取代原本的 SIGTERM 再 `taskkill`。
+- `reforkTerminalServer` 只改註解與日誌文字。
+
+**不變**
+- BAT ↔ CT 契約、helper 參數 / exit code、`terminal:*` 回傳欄位都沒動。
+- recovery 仍然只重建 shell。
+- toast、`App.tsx`、`electron/terminal-server/server.ts` 都沒動。
+- 日誌字串 `Terminal Server died — attempting recovery` 保留（兩個 source guard 用它定位），後面加上 `(reason=…)`。
+
+**headless 不受影響**，依據：
+- `electron/remote/headless-entry.ts:362` 以 `new PtyManager({...})` 建立 manager，從來不呼叫 `setServerProcess` / `connectToServer`，也沒有設 `onRequestNewServer`（`grep` 全 repo，只有 `main.ts` 呼叫）。
+- 所以 heartbeat 不會啟動、`handleServerDeath` 走不到、`useServer` 永遠是 false。新增的 `kill` / `write` / `resize` 防護只在 instance 沒有程序時生效，headless 的 direct 模式一定有程序；`killAll` 也走 direct 分支，行為不變。
+
+**文件**
+- CLAUDE.md 新增「Terminal Server 存活判定與 recovery（T0704 / BUG-171）」一節。
+- 新增 `docs/agent-guide/terminal-server-recovery.md`（判死條件、步驟順序、generation 理由、日誌表、headless、殘留風險、T0703 時間線、驗證清單），並加進 `docs/agent-guide/README.md` 索引。
+- 「新 PTY 的初始尺寸」的已知限制（recovery 以 120x30 重建）不受影響，沒有改。
+
 ### 驗證證據
+
+| 關卡 | 結果 |
+|---|---|
+| 新單元測試 `electron/__tests__/pty-manager-heartbeat-recovery.test.ts` | **PASS** 20/20（含突變檢查：拿掉 generation 檢查後「survives the detach」那項 FAIL，已還原） |
+| 既有 recovery 相關 11 檔（server-exit / helper-env / create-hold / close-worker / capability / role / tower-questions / codex-osc / blocked-state / claude-session） | **PASS** 342/342 |
+| `npm run test:unit` | **PASS** 337 檔，6007 passed、3 skipped |
+| `npm run test:legacy` | **PASS** 33 檔、472 passed、0 failed（沒有新增失敗） |
+| `npm run typecheck` | **0** |
+| `npm run typecheck:electron` | **0** |
+| `npx vite build` | **成功** |
+| e2e `e2e/t0704-heartbeat-recovery.spec.ts`（隔離實例、Windows，不用任何產品掛勾） | **PASS** 1/1（1.6 分鐘） |
+
+單元測試涵蓋（對照 memory_overrides 的驗證要求）：
+- 牆鐘前跳 5 / 15 / 25 s 都不 recovery；預設時鐘不受 `Date` 影響。
+- 遲到 2 次後 pong 恢復會歸零；連續 3 次而且程序不在 → recovery（第 2 次時不會）。
+- IPC 關閉、程序還在 → recovery，並結束該程序。
+- 程序與 IPC 都在 → 兩分鐘也不 recovery。
+- IPC exit 會同步進入 `recovering`。
+- recovery 後舊 server 送來的 `pty:exit` / `pty:data` / `exit` 都不影響同 id 的新 instance。
+- Windows 的呼叫順序：舊 server 樹 → 各 PTY 樹 → 只有失敗的才 SIGTERM → registry 已清 → re-fork。
+- 非 Windows 用 SIGKILL，不用 SIGTERM。
+- TCP 模式改用 `serverPid`。
+- recovery 期間關分頁不會被重建。
+- main.ts 有 source guard。
+- fake timers 只假造 timer 與 Date；recovery 以 `recovered` 廣播等待，沒有在 fake timers 下用 `vi.waitFor`。
+
+**隔離實例實測**（e2e 日誌原文摘錄，runtime userData 結束後已刪除）：
+
+1. **時鐘前跳**：主行程的 `Date.now` 先前跳 5 s，再前跳 20 s，各等 25 s。結果 0 次 recovery，沒有 `late pong`，server pid 不變，shell 活著。
+2. **server 不回 pong**：以 `NtSuspendProcess` 暫停 Terminal Server（NTSTATUS 0）。
+   - `[heartbeat] late pong: none for 40032ms (3 late ticks), server process and IPC alive — no recovery`
+   - 恢復後：`[heartbeat] late pong arrived after 3 late tick(s)`
+   - 0 次 recovery，pid 不變，分頁沒有收到 exit。
+3. **真的結束 server**：分頁內先跑 `ping -t`（ping 在 shell 底下），再對 server 單獨 `taskkill /F`（不帶 /T）。
+   - `attempting recovery... (reason=ipc-exit)`
+   - `old Terminal Server process already gone`
+   - `Killed 1 orphan PTY(s) from registry`
+   - re-fork 出新 pid，之後 `recovery complete`，從判死到完成 130 ms。
+   - 舊 shell 與 ping 都結束；以舊 server / 舊 shell 為父程序的殘留程序：`[]`。
+   - 分頁沒有收到 `pty:exit`。
+   - 分頁內指令回報的 PPID 等於新 shell 的 pid，新 shell 在新 server 底下。
+   - teardown 後新 server 也已結束。
 
 ### 需實機驗證
 
+- 使用者日常的 BAT（安裝版）在下一個預覽版之後：
+  - 遇到 NTP 校時或睡眠喚醒時，不再出現「終端已恢復」toast，也不再出現 `[Process exited with code 1]`。
+  - 若 log 裡出現 `[heartbeat] late pong`，代表當時 server 有卡住，但沒有誤判死亡。
+- macOS / Linux：只有程式碼與單元測試涵蓋（SIGKILL 路徑），沒有實機跑過。
+
 ### 遭遇問題
+
+- 無阻塞。
+- 同批 T0705 / T0706 在同一個 repo 平行工作（`server.ts`、`App.tsx`、i18n、`RecoveryPrompt.tsx`、T0706 工單）。本單沒碰那些檔案，`git commit --only` 也只包含本單 `affects_files`。
+- `validated_sha` 說明：驗收是在 HEAD `7d06df49`（含 T0705 已 commit 的變更）加上本單的工作樹變更上跑的，本單產品 commit `68ab2a42` 的內容與驗收時的工作樹相同，commit 之後沒有再改產品檔。
 
 ### 後續候選
 
+1. **TCP 模式的 `serverPid` 重用風險**：BAT 重開後是 TCP 重連，沒有 ChildProcess，舊 server 的 pid 只能從 registry 拿。從 TCP close 到結束舊 server 只有幾毫秒，但理論上這段時間內 pid 可能已被別的程序重用，那個程序會被結束。這個風險是為了避免正在 graceful shutdown 的舊 server 事後刪掉新 server 的檔案而接受的。若要再收斂，可以比對 pid 檔或程序的 command line（建議等真的出事再處理）。
+2. **舊 server 結束失敗時沒有補救**：`killTree` 與 SIGKILL 都失敗時（日誌 `signal=failed`），舊 server 仍活著但已被切斷。IPC 斷線 30 分鐘後它會自己 idle shutdown，那時會刪掉屬於新 server 的 pid / port / registry 檔。目前只記日誌。
+3. **server 卡住但程序與 IPC 都在時永遠不 recovery**：這是照規格。若日後要處理，需要另外定一個上限（例如 N 分鐘）並決定使用者看到什麼。
+4. CLAUDE.md 目前 66 KB，在 100k 目標內。
+
 ### Commit
 
+- `68ab2a42` fix(pty): T0704 BUG-171 heartbeat ignores wall-clock jumps; recovery ends the old Terminal Server（7 檔：`electron/pty-manager.ts`、`electron/main.ts`、新測試、新 e2e、CLAUDE.md、docs 新檔與索引）
+- 工單本身另外 commit（本回報寫在那個 commit 之前，hash 見 `git log`）。
+- 沒有 push、沒有觸發 workflow、沒有建 tag。
+
 ### 回報時間
+
+2026-10-25T21:33:50+0800
