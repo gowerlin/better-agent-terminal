@@ -4,7 +4,7 @@ schema_kind: workorder
 id: T0705
 title: "BUG-171 順手項目：Terminal Server recovery 的三句 toast 改走 i18n；Terminal Server 自己的 `BAT_IDLE_TIMEOUT_MS` / `BAT_SCROLL_BUFFER_LINES` 不再帶進每個 PTY 的 env"
 type: implementation
-status: FIXED
+status: DONE
 repo: better-agent-terminal
 project: BUG-171
 priority: P3
@@ -148,3 +148,7 @@ T0703 調查 BUG-171 時順手發現兩件與根因無關的小事：Terminal Se
 ### 回報時間
 
 2026-10-25T21:24:02+0800
+
+### 塔台收單（2026-10-25T21:25 UTC+8）
+
+- 工單狀態 FIXED → DONE（FIXED 是 BUG 單狀態；BUG-171 維持 FIXING，等 T0704）。`d7ffa080` 8 檔已核對；`ServerStatusToast.tsx` 超出 `affects_files` 的理由接受。CLAUDE.md 建議段落待 T0704 完成後由塔台合併；`RecoveryPrompt.tsx` 未走 i18n 列入後續候選。
