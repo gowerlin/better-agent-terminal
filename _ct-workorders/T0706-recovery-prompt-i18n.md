@@ -90,7 +90,7 @@ BAT 重開、Terminal Server 還活著且有分頁時，會跳出 Recovery 提�
 - `npm run typecheck` → exit 0（0 錯誤）。
 - `npx vite build` → exit 0。
 - 驗證時的 HEAD：`68ab2a42`（加上本單未提交變更）；之後 commit 為 `5006d129`，內容即驗證時的工作樹變更，未再修改。
-- 所有變更檔為 LF（`` 計數 0）。
+- 所有變更檔為 LF（CR 計數 0）。
 
 ### 遭遇問題
 
