@@ -20,6 +20,7 @@ import { WorkspaceEnvDialog } from './components/WorkspaceEnvDialog'
 import { ResizeHandle } from './components/ResizeHandle'
 import { ProfilePanel } from './components/ProfilePanel'
 import { RecoveryPrompt } from './components/RecoveryPrompt'
+import { SERVER_STATUS_TOAST_KEYS, ServerStatusToast, type ServerStatusToastKey } from './components/ServerStatusToast'
 import { CtToast, useCtToast } from './components/CtToast'
 import { useRuntimeToasts } from './hooks/useRuntimeToasts'
 import { useRemoteToolInstall } from './hooks/useRemoteToolInstall'
@@ -133,7 +134,7 @@ export default function App() {
   const [windowRemoteTarget, setWindowRemoteTarget] = useState<{ targetOS?: string; wslDistro?: string } | null>(null)
   const [appNotification, setAppNotification] = useState<string | null>(null)
   const [recoveryInfo, setRecoveryInfo] = useState<{ ptyCount: number } | null>(null)
-  const [serverStatusToast, setServerStatusToast] = useState<string | null>(null)
+  const [serverStatusToast, setServerStatusToast] = useState<ServerStatusToastKey | null>(null)
   const [envDialogWorkspaceId, setEnvDialogWorkspaceId] = useState<string | null>(null)
   // T0133: Worker→Tower notification toasts (queue of transient toasts)
   const [notifyToasts, setNotifyToasts] = useState<{ id: string; text: string }[]>([])
@@ -711,12 +712,12 @@ export default function App() {
     // T0112: heartbeat watchdog status toast notifications
     const unsubServerStatus = window.electronAPI.terminalServer.onStatusChange((status) => {
       if (status === 'recovering') {
-        setServerStatusToast('Terminal Server 異常，正在自動恢復...')
+        setServerStatusToast(SERVER_STATUS_TOAST_KEYS.recovering)
       } else if (status === 'recovered') {
-        setServerStatusToast('終端已恢復（歷史輸出已重置）')
+        setServerStatusToast(SERVER_STATUS_TOAST_KEYS.recovered)
         setTimeout(() => setServerStatusToast(null), 3000)
       } else if (status === 'failed') {
-        setServerStatusToast('Terminal Server 恢復失敗，請重新啟動應用程式')
+        setServerStatusToast(SERVER_STATUS_TOAST_KEYS.failed)
       }
     })
 
@@ -1382,9 +1383,7 @@ export default function App() {
         />
       )}
       {serverStatusToast && (
-        <div className="server-status-toast" onClick={() => setServerStatusToast(null)}>
-          {serverStatusToast}
-        </div>
+        <ServerStatusToast messageKey={serverStatusToast} onDismiss={() => setServerStatusToast(null)} />
       )}
       {notifyToasts.length > 0 && (
         <div className="bat-notify-toast-stack">

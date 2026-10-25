@@ -29,6 +29,39 @@ interface PtyEntry {
 const DEFAULT_IDLE_TIMEOUT_MS = 30 * 60 * 1000 // 30 minutes (D031 default)
 const DEFAULT_BUFFER_LINES = 1000               // D031 default
 
+/**
+ * T0705: the server's own settings, set by main.ts when it forks the server and read by
+ * terminal-server.ts. They are not for the shells, so they are left out of every PTY's env.
+ * `BAT_USER_DATA` (also set by the fork) stays: helper scripts in the tab read it.
+ */
+export const TERMINAL_SERVER_OWN_ENV_KEYS = ['BAT_IDLE_TIMEOUT_MS', 'BAT_SCROLL_BUFFER_LINES'] as const
+
+/**
+ * The env a PTY starts with: the server's env without its own settings, then the env the
+ * host sent (`PtyManager.buildPtyEnv`, wins over the server's), then the terminal defaults.
+ */
+export function buildServerPtyEnv(
+  serverEnv: NodeJS.ProcessEnv,
+  hostEnv: Record<string, string> | undefined,
+): Record<string, string> {
+  const inherited: Record<string, string | undefined> = { ...serverEnv }
+  for (const key of TERMINAL_SERVER_OWN_ENV_KEYS) delete inherited[key]
+  const ptyEnv: Record<string, string | undefined> = {
+    ...inherited,
+    ...(hostEnv ?? {}),
+    TERM: 'xterm-256color',
+    COLORTERM: 'truecolor',
+    TERM_PROGRAM: 'better-agent-terminal',
+    BAT_SESSION: '1',
+    FORCE_COLOR: '3',
+    CI: '',
+  }
+  // BUG-038: strip ELECTRON_RUN_AS_NODE so PTY children (npm run dev, npx electron .) don't
+  // inherit Node-only mode from the Claude SDK fallback (claude-agent-manager.ts:511,1233).
+  delete ptyEnv.ELECTRON_RUN_AS_NODE
+  return ptyEnv as Record<string, string>
+}
+
 /** T0540: injectable for tests (taskkill, platform, process exit). */
 export interface TerminalServerDeps extends KillTreeDeps {
   exit: (code: number) => void
@@ -205,26 +238,14 @@ export class TerminalServer {
     }
 
     try {
-      // BUG-038: strip ELECTRON_RUN_AS_NODE so PTY children (npm run dev, npx electron .) don't
-      // inherit Node-only mode from the Claude SDK fallback (claude-agent-manager.ts:511,1233).
-      const ptyEnv: Record<string, string | undefined> = {
-        ...process.env,
-        ...(req.env ?? {}),
-        TERM: 'xterm-256color',
-        COLORTERM: 'truecolor',
-        TERM_PROGRAM: 'better-agent-terminal',
-        BAT_SESSION: '1',
-        FORCE_COLOR: '3',
-        CI: '',
-      }
-      delete ptyEnv.ELECTRON_RUN_AS_NODE
+      const ptyEnv = buildServerPtyEnv(process.env, req.env)
 
       const ptyProcess = pty.spawn(req.shell, req.args, {
         name: 'xterm-256color',
         cols: req.cols,
         rows: req.rows,
         cwd: req.cwd,
-        env: ptyEnv as Record<string, string>,
+        env: ptyEnv,
       })
 
       const buffer = new RingBuffer(this.bufferLines)

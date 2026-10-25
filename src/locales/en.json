@@ -63,7 +63,10 @@
     "remoteConnectionFailedFallback": "Remote connection failed: {{error}}\nSwitching back to local profile.",
     "remoteNotConnected": "This remote window is not connected, so the action was not run (nothing runs on this computer instead). It resumes once the remote host reconnects.",
     "remoteMissingInfo": "Remote profile is missing connection info.",
-    "wslWindowsDriveWorkspaceHint": "The workspace \"{{path}}\" is on a Windows drive ({{wslPath}} inside WSL).\nFiles under /mnt are slow to access from WSL, and git / npm may run into permission and line-ending issues. Consider keeping projects inside the WSL filesystem (e.g. ~/projects).\nThe workspace has been added; you can keep using it."
+    "wslWindowsDriveWorkspaceHint": "The workspace \"{{path}}\" is on a Windows drive ({{wslPath}} inside WSL).\nFiles under /mnt are slow to access from WSL, and git / npm may run into permission and line-ending issues. Consider keeping projects inside the WSL filesystem (e.g. ~/projects).\nThe workspace has been added; you can keep using it.",
+    "terminalServerRecovering": "Terminal Server stopped responding, recovering automatically...",
+    "terminalServerRecovered": "Terminals recovered (output history was reset)",
+    "terminalServerRecoveryFailed": "Terminal Server recovery failed. Please restart the app."
   },
   "settings": {
     "title": "Settings",
