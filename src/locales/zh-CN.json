@@ -756,6 +756,34 @@
       "allMatch": "一致",
       "mismatch": "项不一致"
     },
+    "overview": {
+      "towerState": "塔台状态",
+      "noTowerState": "没有塔台状态文件",
+      "towerStateError": "无法读取塔台状态文件（{{error}}）",
+      "lastUpdated": "最后更新",
+      "session": "Session",
+      "nextIds": "下一个编号",
+      "todo": "待办",
+      "todoMore": "还有 {{count}} 条，请打开文件查看",
+      "fileMtime": "（文件修改时间）",
+      "noSummary": "塔台状态文件没有机器可读摘要，待办与编号请打开文件查看。",
+      "openOrders": "进行中工单（{{count}}）",
+      "noOpenOrders": "没有进行中的工单",
+      "config": "*config 参数",
+      "noSessionLayer": "磁盘上的生效值，不含塔台本次对话里的临时设置（session 层）。",
+      "showOverridden": "显示被覆盖的值",
+      "noConfig": "没有读到任何设置",
+      "layerMissing": "没有文件",
+      "layerReadError": "无法读取：{{error}}",
+      "layerParseError": "YAML 错误，已忽略：{{error}}",
+      "noInstalledCt": "找不到已安装的 Control Tower，默认值未知",
+      "remoteUnsupported": "远程工作区无法读取 global／默认（远程主机的 BAT 版本较旧）",
+      "layer": {
+        "project": "project",
+        "global": "global",
+        "default": "默认"
+      }
+    },
     "includeArchived": "包含归档"
   },
   "toast": {

@@ -161,6 +161,7 @@ export const PATH_FREE_CHANNELS: ReadonlyMap<string, string> = new Map([
   ['terminal:keypress', '{ targetId, key, code, ... }'],
   ['remote-tools:detect', 'no args (result lists server install paths)'],
   ['agent:bat-mcp-launch-args', 'T0584: agent id + shell family + custom args (no client path)'],
+  ['ct:read-config-sources', 'T0701: no args (reads fixed files in the server home)'],
   ['remote:resolve-client-paths', 'ALWAYS_LOCAL (never proxied); client paths are the input, the handler applies the window translator itself'],
 ])
 
@@ -185,6 +186,7 @@ export const SERVER_PATH_RESULT_CHANNELS: ReadonlyMap<string, string> = new Map(
   ['github:check-cli', 'server gh location, shown in settings'],
   ['settings:get-shell-path', 'shell spawned on the remote host'],
   ['remote-tools:detect', 'server install locations, display only'],
+  ['ct:read-config-sources', 'T0701: server CT config file locations, display only'],
   ['agent:bat-mcp-launch-args', 'T0584: typed into a terminal running on the remote host (shim / MCP config paths)'],
   ['claude:get-session-meta', 'cwd unused by the renderer'],
   ['claude:get-worktree-status', 'only diff is read; worktreePath matches the claude:worktree-info event, which stays server form because the panel embeds it in prompts sent to the remote agent'],

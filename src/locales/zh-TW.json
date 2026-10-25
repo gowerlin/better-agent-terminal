@@ -756,6 +756,34 @@
       "allMatch": "一致",
       "mismatch": "項不一致"
     },
+    "overview": {
+      "towerState": "塔台狀態",
+      "noTowerState": "沒有塔台狀態檔",
+      "towerStateError": "無法讀取塔台狀態檔（{{error}}）",
+      "lastUpdated": "最後更新",
+      "session": "Session",
+      "nextIds": "下一個編號",
+      "todo": "待辦",
+      "todoMore": "還有 {{count}} 則，請開檔查看",
+      "fileMtime": "（檔案修改時間）",
+      "noSummary": "塔台狀態檔沒有機器可讀摘要，待辦與編號請開檔查看。",
+      "openOrders": "進行中工單（{{count}}）",
+      "noOpenOrders": "沒有進行中的工單",
+      "config": "*config 參數",
+      "noSessionLayer": "磁碟上的生效值，不含塔台本次對話裡的臨時設定（session 層）。",
+      "showOverridden": "顯示被覆蓋的值",
+      "noConfig": "沒有讀到任何設定",
+      "layerMissing": "沒有檔案",
+      "layerReadError": "無法讀取：{{error}}",
+      "layerParseError": "YAML 錯誤，已略過：{{error}}",
+      "noInstalledCt": "找不到已安裝的 Control Tower，預設值未知",
+      "remoteUnsupported": "遠端工作區無法讀取 global／預設（遠端主機的 BAT 版本較舊）",
+      "layer": {
+        "project": "project",
+        "global": "global",
+        "default": "預設"
+      }
+    },
     "includeArchived": "包含封存"
   },
   "toast": {

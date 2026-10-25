@@ -6,6 +6,7 @@
  *   - YAML frontmatter (schema_version: 1, schema_kind: workorder) is the SoT.
  *   - Falls back to legacy markdown table grep when frontmatter is missing.
  *   - Invalid / unknown status from frontmatter → 'INVALID' (never PENDING).
+ *   - T0701: a legacy file with no status at all (reports, notes) → 'UNKNOWN' (never PENDING).
  */
 
 import {
@@ -29,6 +30,8 @@ export type WorkOrderStatus =
   | 'URGENT'
   | 'ABANDONED'
   | 'INVALID'
+  /** T0701: legacy file without any status field (e.g. `T0022-research-report.md`); never counted as pending. */
+  | 'UNKNOWN'
 
 export interface WorkOrder {
   id: string           // e.g. 'T0001'
@@ -141,7 +144,7 @@ function parseWorkOrderLegacy(filename: string, content: string): WorkOrder {
   const status: WorkOrderStatus =
     extractStatusKeyword(rawMarkdownStatus) ??
     extractStatusKeyword(yamlMatch?.[1]) ??
-    'PENDING'
+    'UNKNOWN'
 
   return {
     id,
@@ -232,6 +235,7 @@ export function statusColor(status: WorkOrderStatus): string {
     case 'URGENT': return 'ct-status-urgent'
     case 'ABANDONED': return 'ct-status-abandoned'
     case 'INVALID': return 'ct-status-invalid'
+    case 'UNKNOWN': return 'ct-status-unknown'
     default: return 'ct-status-pending'
   }
 }
@@ -250,6 +254,7 @@ export function statusLabel(status: WorkOrderStatus): string {
     case 'URGENT': return '🔥 Urgent'
     case 'ABANDONED': return '🚫 Abandoned'
     case 'INVALID': return '⚠️ Invalid'
+    case 'UNKNOWN': return '❔ No status'
     default: return status
   }
 }

@@ -698,7 +698,7 @@
     "risk": "Risk",
     "subproject": "Subproject",
     "tab": {
-      "sprint": "Sprint",
+      "sprint": "Overview",
       "orders": "Orders",
       "kanban": "Kanban",
       "epics": "Epics",
@@ -755,6 +755,34 @@
       "title": "Cross Validation",
       "allMatch": "match",
       "mismatch": "mismatch(es)"
+    },
+    "overview": {
+      "towerState": "Tower state",
+      "noTowerState": "No tower state file",
+      "towerStateError": "Cannot read the tower state file ({{error}})",
+      "lastUpdated": "Last updated",
+      "session": "Session",
+      "nextIds": "Next IDs",
+      "todo": "To-do",
+      "todoMore": "{{count}} more in the file",
+      "fileMtime": "(file modified time)",
+      "noSummary": "The tower state file has no machine-readable summary; open the file for to-dos and next IDs.",
+      "openOrders": "Open work orders ({{count}})",
+      "noOpenOrders": "No open work orders",
+      "config": "*config",
+      "noSessionLayer": "Effective values on disk. Temporary settings from the tower's current conversation (session layer) are not included.",
+      "showOverridden": "Show overridden values",
+      "noConfig": "No config values found",
+      "layerMissing": "No file",
+      "layerReadError": "Cannot read: {{error}}",
+      "layerParseError": "YAML error, ignored: {{error}}",
+      "noInstalledCt": "No installed Control Tower found; defaults unknown",
+      "remoteUnsupported": "Remote workspace: global / default layers cannot be read (this host's BAT is older than this feature)",
+      "layer": {
+        "project": "project",
+        "global": "global",
+        "default": "default"
+      }
     },
     "includeArchived": "Include Archived"
   },

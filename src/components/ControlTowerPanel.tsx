@@ -25,7 +25,9 @@ import { type DecisionEntry, parseDecisionLog } from '../types/decision-log'
 import { type BmadWorkflow, buildBmadWorkflow, PHASE_DEFINITIONS } from '../types/bmad-workflow'
 import { type BmadEpic, parseEpicsFile, buildSprintStoryMap } from '../types/bmad-epic'
 import { BmadEpicsView } from './BmadEpicsView'
-import { SprintDashboard } from './SprintDashboard'
+import { TowerOverview, type TowerStateLoad, type ProjectConfigLoad, type ConfigSourcesLoad } from './TowerOverview'
+import { parseTowerState } from '../lib/ct-tower-overview'
+import { unsupportedRemoteChannel } from '../lib/remote-unsupported'
 
 type CtTab = 'sprint' | 'orders' | 'kanban' | 'workflow' | 'bugs' | 'backlog' | 'decisions'
 
@@ -119,6 +121,10 @@ export function ControlTowerPanel({ isVisible, workspaceFolderPath, onExecWorkOr
   const [archivedBugs, setArchivedBugs] = useState<BugEntry[]>([])
   const [showArchivedBacklog, setShowArchivedBacklog] = useState(false)
   const [archivedBacklog, setArchivedBacklog] = useState<BacklogEntry[]>([])
+  // T0701: overview inputs (null = not loaded yet for this workspace)
+  const [towerState, setTowerState] = useState<TowerStateLoad | null>(null)
+  const [projectConfig, setProjectConfig] = useState<ProjectConfigLoad | null>(null)
+  const [configSources, setConfigSources] = useState<ConfigSourcesLoad | null>(null)
   const ctDirRef = useRef<string | null>(null)
   const bmadOutputRef = useRef<string | null>(null)
   const orderBaselineRef = useRef<WorkOrderBaseline | null>(null)
@@ -383,6 +389,67 @@ export function ControlTowerPanel({ isVisible, workspaceFolderPath, onExecWorkOr
     }
   }, [workspaceFolderPath, isStale])
 
+  // T0701: `_tower-state.md` + `_tower-config.yaml` (project layer). Both live in `_ct-workorders/`,
+  // so the directory watcher's reloadAll keeps them current (R5).
+  const loadTowerOverview = useCallback(async () => {
+    if (!ctDirPath) return
+    const folder = workspaceFolderPath
+    const statePath = `${ctDirPath}/_tower-state.md`
+    const configPath = `${ctDirPath}/_tower-config.yaml`
+    const [stateResult, configResult] = await Promise.all([
+      window.electronAPI.fs.readFile(statePath).catch(() => ({ error: 'Failed to read file' } as { content?: string; error?: string })),
+      window.electronAPI.fs.readFile(configPath).catch(() => ({ error: 'Failed to read file' } as { content?: string; error?: string })),
+    ])
+
+    let nextState: TowerStateLoad
+    if (stateResult.content != null) {
+      const parsed = parseTowerState(stateResult.content)
+      if (parsed.kind === 'no-summary' && parsed.summaryError) {
+        window.electronAPI.debug.log(`[ct-overview] _tower-state.md summary ignored: ${parsed.summaryError}`)
+      }
+      let mtime: string | null = null
+      if (parsed.kind === 'no-summary' && !parsed.lastUpdated) {
+        const stat = await window.electronAPI.fs.stat(statePath).catch(() => null)
+        mtime = stat?.mtimeMs ? formatMtime(stat.mtimeMs) : null
+      }
+      nextState = { status: 'loaded', parsed, mtime }
+    } else {
+      // fs:readFile reports a missing file as a read failure; tell them apart with stat
+      const stat = await window.electronAPI.fs.stat(statePath).catch(() => null)
+      nextState = stat ? { status: 'error', error: stateResult.error ?? 'Failed to read file' } : { status: 'missing' }
+    }
+
+    let nextConfig: ProjectConfigLoad
+    if (configResult.content != null) {
+      nextConfig = { status: 'loaded', content: configResult.content }
+    } else {
+      const stat = await window.electronAPI.fs.stat(configPath).catch(() => null)
+      nextConfig = stat ? { status: 'error', error: configResult.error ?? 'Failed to read file' } : { status: 'missing' }
+    }
+
+    if (isStale(folder)) return
+    setTowerState(nextState)
+    setProjectConfig(nextConfig)
+  }, [ctDirPath, workspaceFolderPath, isStale])
+
+  // T0701: global + default config layers, read by the host this window is bound to. Outside the
+  // watched directory, so reloaded when the overview becomes visible and on refresh (R5).
+  const loadConfigSources = useCallback(async () => {
+    if (!workspaceFolderPath) return
+    const folder = workspaceFolderPath
+    let next: ConfigSourcesLoad
+    try {
+      next = { status: 'ok', sources: await window.electronAPI.ctConfig.readSources() }
+    } catch (err) {
+      next = unsupportedRemoteChannel(err)
+        ? { status: 'unsupported' }
+        : { status: 'error', error: err instanceof Error ? err.message : String(err) }
+      window.electronAPI.debug.log(`[ct-overview] config sources unavailable: ${next.status === 'error' ? next.error : 'no handler on this host'}`)
+    }
+    if (isStale(folder)) return
+    setConfigSources(next)
+  }, [workspaceFolderPath, isStale])
+
   // Detect work order status changes → toast notification
   const detectStatusChanges = useCallback((ctDir: string, newOrders: WorkOrder[]) => {
     const { baseline, notices } = diffWorkOrders(orderBaselineRef.current, ctDir, newOrders)
@@ -433,13 +500,18 @@ export function ControlTowerPanel({ isVisible, workspaceFolderPath, onExecWorkOr
         }
       }
 
-      // Deduplicate by order ID (defensive — prevents React key collisions)
-      const seen = new Set<string>()
+      // Deduplicate by order ID (defensive — prevents React key collisions).
+      // T0701 (R4): a status-less report sharing the ID (`T0177-report-….md` next to
+      // `T0177-….md`) must not hide the work order itself, whichever sorts first.
+      const seen = new Map<string, number>()
       const uniqueOrders: WorkOrder[] = []
       for (const o of orders) {
-        if (!seen.has(o.id)) {
-          seen.add(o.id)
+        const at = seen.get(o.id)
+        if (at === undefined) {
+          seen.set(o.id, uniqueOrders.length)
           uniqueOrders.push(o)
+        } else if (uniqueOrders[at].status === 'UNKNOWN' && o.status !== 'UNKNOWN') {
+          uniqueOrders[at] = o
         }
       }
 
@@ -480,7 +552,8 @@ export function ControlTowerPanel({ isVisible, workspaceFolderPath, onExecWorkOr
     loadDecisions()
     loadBmadWorkflow()
     loadEpics()
-  }, [loadWorkOrders, loadSprintStatus, loadBugs, loadBacklog, loadDecisions, loadBmadWorkflow, loadEpics])
+    loadTowerOverview()
+  }, [loadWorkOrders, loadSprintStatus, loadBugs, loadBacklog, loadDecisions, loadBmadWorkflow, loadEpics, loadTowerOverview])
 
   // Force-refresh: destroy + recreate watcher, then re-read all data from disk.
   // This recovers from broken watcher state (e.g. after git mv buffer overflow on Windows).
@@ -493,16 +566,30 @@ export function ControlTowerPanel({ isVisible, workspaceFolderPath, onExecWorkOr
     }
     // Re-read all data fresh from disk
     reloadAll()
+    loadConfigSources()
     if (showArchivedOrders) loadArchivedOrders()
     if (showArchivedBugs) loadArchivedBugs()
     if (showArchivedBacklog) loadArchivedBacklog()
-  }, [ctDirPath, bmadOutputPath, reloadAll, showArchivedOrders, loadArchivedOrders, showArchivedBugs, loadArchivedBugs, showArchivedBacklog, loadArchivedBacklog])
+  }, [ctDirPath, bmadOutputPath, reloadAll, loadConfigSources, showArchivedOrders, loadArchivedOrders, showArchivedBugs, loadArchivedBugs, showArchivedBacklog, loadArchivedBacklog])
 
   // Initial load
   useEffect(() => {
     if (!isVisible || !ctDirPath) return
     reloadAll()
   }, [isVisible, ctDirPath, reloadAll])
+
+  // T0701: a workspace switch drops the previous workspace's overview inputs
+  useEffect(() => {
+    setTowerState(null)
+    setProjectConfig(null)
+    setConfigSources(null)
+  }, [workspaceFolderPath])
+
+  // T0701: re-read the out-of-workspace config layers each time the overview becomes visible
+  const overviewVisible = isVisible && activeTab === 'sprint' && !!ctDirPath
+  useEffect(() => {
+    if (overviewVisible) loadConfigSources()
+  }, [overviewVisible, loadConfigSources])
 
   // Watch _ct-workorders/, _bmad-output/, and .git/index for changes
   useEffect(() => {
@@ -588,6 +675,8 @@ export function ControlTowerPanel({ isVisible, workspaceFolderPath, onExecWorkOr
   const pendingCount = workOrders.filter(o => o.status === 'PENDING').length
   const doneCount = workOrders.filter(o => o.status === 'DONE').length
   const abandonedCount = workOrders.filter(o => o.status === 'ABANDONED').length
+  // T0701 (R4): legacy files with no status (reports) — shown apart, never as pending
+  const noStatusCount = workOrders.filter(o => o.status === 'UNKNOWN').length
 
   if (!isVisible) return null
 
@@ -684,6 +773,7 @@ export function ControlTowerPanel({ isVisible, workspaceFolderPath, onExecWorkOr
         {pendingCount > 0 && <span className="ct-badge ct-status-pending">{pendingCount} pending</span>}
         {doneCount > 0 && <span className="ct-badge ct-status-done">{doneCount} done</span>}
         {abandonedCount > 0 && <span className="ct-badge ct-status-abandoned">{abandonedCount} inactive</span>}
+        {noStatusCount > 0 && <span className="ct-badge ct-status-unknown">{noStatusCount} no status</span>}
         <span className="ct-badge ct-total">{workOrders.length} total</span>
         {activeTab === 'orders' && (
           <label className="ct-archive-toggle">
@@ -699,7 +789,18 @@ export function ControlTowerPanel({ isVisible, workspaceFolderPath, onExecWorkOr
 
       {/* Tab content */}
       <div className="ct-tab-content" style={{ display: activeTab === 'sprint' ? undefined : 'none' }}>
-        <SprintDashboard sprintStatus={sprintStatus} />
+        {/* T0701: mounted only while shown — it repeats work order titles from the Orders tab */}
+        {activeTab === 'sprint' && (
+          <TowerOverview
+            towerState={towerState}
+            workOrders={workOrders}
+            projectConfig={projectConfig}
+            configSources={configSources}
+            sprintStatus={sprintStatus}
+            ctDirPath={ctDirPath}
+            onOpenFile={openFileInFilesTab}
+          />
+        )}
       </div>
 
       <div className="ct-orders-tab" style={{ display: activeTab === 'orders' ? undefined : 'none' }}>

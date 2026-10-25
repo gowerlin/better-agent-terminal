@@ -782,6 +782,11 @@ interface ElectronAPI {
     resetWatch: (dirPath: string) => Promise<boolean>
     onChanged: (callback: (dirPath: string) => void) => () => void
   }
+  // T0701 — Control Tower config layers in the home of the host this window is bound to
+  // (proxied `ct:read-config-sources`; rejects with `No handler for channel` on an older bat-server).
+  ctConfig: {
+    readSources: () => Promise<import('./ct-config-sources').CtConfigSources>
+  }
   // T0348 / BUG-078 — Control Tower drift telemetry. Renderer parses
   // workorder frontmatter and forwards ParseWarning[] to main via IPC.
   // Main owns the log file (D090 / BUG-069: no node:fs in renderer).

@@ -32,6 +32,7 @@ import { registerPtyHandlers } from './handlers/pty'
 import { registerClaudeHandlers } from './handlers/claude'
 import { registerGitHandlers } from './handlers/git'
 import { registerFsHandlers } from './handlers/fs'
+import { registerCtConfigHandlers } from './handlers/ct-config'
 import { detectRemoteToolsForProfile, registerRemoteToolsHandlers, runRemoteToolsDetect } from './handlers/remote-tools'
 import { createRemoteToolInstallIpc, PendingRemoteToolInstalls } from '../src/lib/remote-tools/install-request'
 import type { WorkspaceAgentLaunchFields } from '../src/lib/agent-launch-settings'
@@ -2571,6 +2572,10 @@ function registerProxiedHandlers() {
   // remote-tools:* — shared with headless bat-server (PLAN-037 T0411, electron/handlers/remote-tools.ts).
   // Local window on macOS / Linux: this machine's toolchain; Windows: host-platform.
   registerRemoteToolsHandlers(registerHandler, { isScrubbedEnvKey: isHeadlessScrubbedEnvKey })
+
+  // ct:read-config-sources — shared with headless bat-server (T0701, electron/handlers/ct-config.ts).
+  // Local window: this user's ~/.claude CT config layers; remote window: the bat-server's.
+  registerCtConfigHandlers(registerHandler, { homeDir: app.getPath('home') })
 
   // worktree:* / git:* / git-scaffold:* / github:* — shared with headless bat-server
   // (PLAN-036 T0405, electron/handlers/git.ts). Local: plain `git` on PATH, githubCliPath from userData.

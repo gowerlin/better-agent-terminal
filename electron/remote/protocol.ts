@@ -82,6 +82,9 @@ export const PROXIED_CHANNELS = new Set([
   // PLAN-047 M1 / T0584: the `bat` MCP args of a claude / codex tab (electron/bat-mcp-launch.ts);
   // the host running the tab answers (shim / config paths are its own)
   'agent:bat-mcp-launch-args',
+  // T0701: Control Tower config layers in the host's home (electron/handlers/ct-config.ts);
+  // the host the window is bound to answers, so a remote window never reads this machine's files
+  'ct:read-config-sources',
   // T0437 (BUG-105): client paths → the window's host form; ALWAYS_LOCAL (answered by this
   // machine's main with the window's PathTranslator), listed here only for the IPC binding.
   'remote:resolve-client-paths',

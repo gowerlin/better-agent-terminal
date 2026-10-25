@@ -3,6 +3,7 @@ import type { CreatePtyOptions, CtWorktreeInfo } from '../src/types'
 import type { FileEntry, RawFileEntry } from '../src/types/file'
 import { withPathKeys } from '../src/utils/filePathKey'
 import type { ParseWarning } from '../src/utils/ct-frontmatter'
+import type { CtConfigSources } from '../src/types/ct-config-sources'
 import type {
   VoiceGpuStatus,
   VoiceModelInfo,
@@ -1031,6 +1032,12 @@ const electronAPI = {
       ipcRenderer.on('terminal-server:status', handler)
       return () => ipcRenderer.removeListener('terminal-server:status', handler)
     },
+  },
+  // T0701 — Control Tower config layers outside the workspace (global config, installed
+  // skill's tower-config.md). Proxied: the host the window is bound to reads its own home;
+  // a bat-server before T0701 rejects with `No handler for channel: ct:read-config-sources`.
+  ctConfig: {
+    readSources: () => ipcRenderer.invoke('ct:read-config-sources') as Promise<CtConfigSources>,
   },
   // T0348 / BUG-078 — Control Tower drift telemetry bridge. Renderer fires
   // and forgets; IO + log path live in main process (D090 / BUG-069).

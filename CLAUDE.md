@@ -317,6 +317,15 @@
 - profile index 序列化（T0509）：`profiles/index.json` 讀改寫一律經 `withIndexLock()`（`electron/profile-manager.ts`）。🔴 鎖內程式碼不得呼叫 `ProfileManager` 公開方法（佇列不可重入，會等自己）；新增方法時建立邏輯用 `addProfileEntry()`。
 - 完整生命週期、失敗對話框、e2e 與實機驗收：[docs/agent-guide/multi-remote-profiles.md](docs/agent-guide/multi-remote-profiles.md)
 
+## 指揮塔總覽（T0701，D184）
+
+- 用途：「塔台 › 指揮塔 › 總覽」依序顯示塔台狀態（`_tower-state.md`）、`*config` 生效值與來源（預設 → global → project）、sprint 區塊（只在有 `sprint-status.yaml` 時）。
+- 🔴 唯讀：不寫 `_tower-state.md`、`_tower-config.yaml`、global config 或任何 CT 檔案。🔴 不切 Markdown 章節：待辦與下一個編號只讀 frontmatter 摘要（契約 v1：`schema_kind: tower-state`、`summary_version` 整數 ≥ 1，CT 依此寫入，不得單方更改），唯一的文字比對是「最後更新」那一行。
+- 唯一實作：解析 `src/lib/ct-tower-overview.ts`（純函式）、畫面 `src/components/TowerOverview.tsx`、讀檔與監看 `ControlTowerPanel.tsx`（`loadTowerOverview` / `loadConfigSources`）；global / 預設兩層經 proxied `ct:read-config-sources`（`electron/handlers/ct-config.ts`，本機與 headless 共用，路徑固定在回答主機的家目錄）。🔴 遠端工作區不得讀本機檔案冒充；舊 bat-server 沒有 handler → 顯示無法讀取。
+- 沒有狀態欄位的工單檔（報告）= `UNKNOWN`（`no status`），不算 pending；同編號時有狀態的檔優先（`loadWorkOrders` 去重）。
+- 自動更新：`_ct-workorders/` 內的來源跟既有 `fs.watch` 的 `reloadAll`；`_ct-workorders/` 外的兩層在總覽變成可見與按 ↻ 時重讀，不另外監看、不輪詢。
+- 完整契約、合併規則、分類表、遠端行為、已知限制、驗證清單：[docs/agent-guide/ct-tower-overview.md](docs/agent-guide/ct-tower-overview.md)
+
 ## Control Tower 本專案規則
 
 - 塔台啟動時**必須讀取** `_ct-workorders/_local-rules.md` 並遵循其中所有規範

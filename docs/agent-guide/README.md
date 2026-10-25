@@ -9,6 +9,7 @@
 | [build-toolchain.md](build-toolchain.md) | Vite 7 toolchain、electron-builder 26 migration notes | Build Toolchain |
 | [claude-session-name.md](claude-session-name.md) | claude-cli 分頁的 `--name`（命名格式、注入點、降級、版本門檻、編碼實測） | Claude 分頁的 session 名稱（PLAN-050 / T0641，D167） |
 | [claude-agent-sdk-cli.md](claude-agent-sdk-cli.md) | Claude SDK / CLI 版本、模型、計價、effort、Runtime Selection、auto-update 停用 | Claude Agent SDK / CLI |
+| [ct-tower-overview.md](ct-tower-overview.md) | 指揮塔「總覽」：`_tower-state.md` 摘要契約 v1、`*config` 三層生效值與來源、`ct:read-config-sources`、無狀態工單計數、自動更新 | 指揮塔總覽（T0701，D184） |
 | [detached-workspace.md](detached-workspace.md) | detached 視窗的 registry 合併、所有權、關窗 flush、quit 互動、Settings 入口 | Detached workspace 視窗的持久化（T0453 / T0491） |
 | [dialog-close-and-escape.md](dialog-close-and-escape.md) | Dialog 不因點擊外部關閉、`ModalOverlay`、Esc 統一 | Dialog 不因點擊外部關閉（T0563）、Esc 統一（T0567） |
 | [helper-query-channels.md](helper-query-channels.md) | helper 唯讀查詢 channel（whoami / list / get-state / read-output / wait） | helper 唯讀查詢 channel（PLAN-047 M1 / T0582） |

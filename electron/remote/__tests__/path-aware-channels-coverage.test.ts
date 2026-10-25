@@ -220,6 +220,8 @@ describe('T0416 result translation (WSL translator)', () => {
       'worktree:status': { diff: '', worktreePath: '/home/x/repo/.worktrees/a', branchName: 'a', sourceBranch: 'main' },
       // T0584: typed into the remote tab after the CLI path
       'agent:bat-mcp-launch-args': "'--mcp-config=/home/x/.local/share/bat-server/bat-mcp/claude.json'",
+      // T0701: shown in the overview as the server's file locations
+      'ct:read-config-sources': { homeDir: '/home/x', global: { status: 'missing', tried: ['/home/x/.claude/control-tower-data/config.yaml'] }, defaults: { status: 'found', path: '/home/x/.claude/skills/control-tower/references/tower-config.md', content: '' } },
     }
     expect(Object.keys(results).sort()).toEqual(Array.from(SERVER_PATH_RESULT_CHANNELS.keys()).sort())
     for (const [channel, result] of Object.entries(results)) {

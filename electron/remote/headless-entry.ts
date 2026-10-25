@@ -5,6 +5,7 @@ import * as path from 'path'
 import type { HandlerModule, HandlerModuleDisposer, HandlerRegistrar, HostDeps } from '../handlers/types'
 import { registerClaudeHandlers } from '../handlers/claude'
 import { registerFsHandlers } from '../handlers/fs'
+import { registerCtConfigHandlers } from '../handlers/ct-config'
 import { registerGitHandlers, type GitHandlerDeps } from '../handlers/git'
 import { registerPtyHandlers } from '../handlers/pty'
 import {
@@ -906,6 +907,14 @@ export function createHeadlessFsModule(opts: { onRoots?: (roots: SyncedWorkspace
 }
 
 /**
+ * T0701: `ct:read-config-sources` on headless — the Control Tower config layers in the
+ * server user's home (`host.homeDir` = `os.homedir()`), never the client's.
+ */
+export function createHeadlessCtConfigModule(): HandlerModule {
+  return (register, host) => registerCtConfigHandlers(register, { homeDir: host.homeDir })
+}
+
+/**
  * Shared domain modules for one headless server; `installRoot` overrides the bundle
  * location (tests). T0404: `pty` carries the PTY cap and the manager hand-off.
  * T0411: `remoteTools` overrides the probe's execFile / platform / env (tests).
@@ -979,6 +988,7 @@ export function createHeadlessHandlerModules(opts: {
     createHeadlessRemoteToolsModule(opts.remoteTools, toolsCache), // T0411
     createHeadlessGitModule(opts.git), // T0405
     createHeadlessFsModule(opts.fs), // T0406
+    createHeadlessCtConfigModule(), // T0701
   ]
 }
 
