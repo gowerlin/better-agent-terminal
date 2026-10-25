@@ -1,9 +1,9 @@
 # State Snapshot INDEX
 
-> Last archived: 2026-10-25 (Session 93 收工 — Session 91 快照 archived per PLAN-033)
-> Hot path retains: session 93 (本) + session 92 (前) + Quick Recovery / 基本資訊 / 進度快照 / 管理筆記 / 環境快照 / YOLO 歷程 in `_tower-state.md`
+> Last archived: 2026-10-25 (Session 94 收工 — Session 92 快照 archived per PLAN-033)
+> Hot path retains: session 94 (本) + session 93 (前) + Quick Recovery / 基本資訊 / 進度快照 / 管理筆記 / 環境快照 / YOLO 歷程 in `_tower-state.md`
 > Archive root: `_ct-workorders/_archive/state-snapshots/`
-> Total archived entries: 105 (0 in Q1 / 58 in Q2-a/b / 5 in Q2-c / 2 in Q3 / 40 in Q4)
+> Total archived entries: 106 (0 in Q1 / 58 in Q2-a/b / 5 in Q2-c / 2 in Q3 / 41 in Q4)
 
 | # | Session | Date | File | Summary |
 |---|---------|------|------|---------|
@@ -125,3 +125,4 @@
 | 107 | 第八十九 session | 2026-10-21 | 2026-Q4.md | 第八十九 session, 2026-10-21 23:30-2026-10-22 02:20, ~2h50m, T0691-T0698, BUG-169 / 165 / 170, D180 / D181, 0.7.1-pre.6 |
 | 108 | 第九十 session | 2026-10-23 | 2026-Q4.md | 第九十 session, 2026-10-23 07:35-10:55, ~3h20m, T0699, D182, CT Portal 互連 |
 | 109 | 第九十一 session | 2026-10-23 | 2026-Q4.md | 第九十一 session, 2026-10-23 19:44-19:50, ~6m, CaseCard ADVISORY 回覆, BMad-Guide D272 |
+| 110 | 第九十二 session | 2026-10-25 | 2026-Q4.md | 第九十二 session, 2026-10-25 08:56-09:17, ~21m, T0700, D183, CT 正式公開 |
