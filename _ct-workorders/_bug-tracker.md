@@ -13,8 +13,8 @@ exclude_globs:
 total: 56
 breakdown:
   OPEN: 0
-  FIXING: 1
-  FIXED: 27
+  FIXING: 0
+  FIXED: 28
   VERIFY: 0
   CLOSED: 28
   WONTFIX: 0
@@ -26,7 +26,7 @@ breakdown:
 > 最後同步：2026-10-22 01:48 (UTC+8) — BUG-165 → FIXED（T0698 `ec4b3c13`，隨 pre.6 待實機驗收）；BUG-170 → FIXED（CT v5.12.x 重派前回收舊分頁，T0695 / T0696 實機驗收）；BUG-169 FIXED（T0691，等下一個預覽版安裝版驗收）；BUG-168 / 167 FIXED；BUG-166 FIXED 待 外部測試者A；BUG-165 OPEN
 
 ## 統計
-- 🔴 Open: 0 | ⏳ Fixing: 1 | ✅ Fixed: 27 | 🧪 Verify: 0 | 🚫 Closed: 28 | ⛔ Won't Fix: 0 | **Total: 56**
+- 🔴 Open: 0 | ⏳ Fixing: 0 | ✅ Fixed: 28 | 🧪 Verify: 0 | 🚫 Closed: 28 | ⛔ Won't Fix: 0 | **Total: 56**
 
 ## 🔴 Open / 處理中
 
@@ -37,12 +37,12 @@ breakdown:
 
 | ID | 標題 | 嚴重度 | 修復時間 | 連結 |
 |----|------|--------|---------|------|
-| BUG-171 | 「終端重置」後多個分頁 `[Process exited with code 1]`：NTP 時鐘跳變讓 heartbeat 誤判、recovery 沒關舊 server（T0703 `29957a0e`）；修正 T0704 / T0705 進行中 | 🔴 high | 2026-10-25 | [BUG-171](BUG-171-idle-terminals-exit-1-after-terminal-reset.md) |
 
 ## ✅ 已修復
 
 | ID | 標題 | 嚴重度 | 修復時間 | 連結 |
 |----|------|--------|---------|------|
+| BUG-171 | 「終端重置」後多個分頁 `[Process exited with code 1]`：NTP 時鐘跳變讓 heartbeat 誤判、recovery 沒關舊 server；T0704 `68ab2a42` + T0705 `d7ffa080`，待下一個預覽版實機驗收 | 🔴 high | 2026-10-25 | [BUG-171](BUG-171-idle-terminals-exit-1-after-terminal-reset.md) |
 | BUG-165 | macOS：Codex CLI 分頁內捲動不夠順；T0698 `ec4b3c13` 依累積行數送多個滾輪回報（上限 8），隨 pre.6 發佈，待外部測試者A 實機驗收 | 🟢 low | 2026-10-22 | [BUG-165](BUG-165-macos-codex-cli-scroll-not-smooth.md) |
 | BUG-170 | yolo 提問備援重派後舊 Worker 分頁讓回收 AMBIGUOUS；CT v5.12.0 / v5.12.1 重派前先 `--close-worker`（CT-T022），T0695 / T0696 實機驗收通過 | 🟢 low | 2026-10-22 | [BUG-170](BUG-170-yolo-fallback-redispatch-leaves-old-worker-tab.md) |
 | BUG-169 | 安裝版的 helper 回報版號 v0.0.0；T0691 以 electron-builder `afterPack` 寫只含 name / version 的 `resources/package.json`，打包後 `helper-version` 檢查（`b0ff5673`），等下一個預覽版安裝版驗收 | 🟢 low | 2026-10-21 | [BUG-169](BUG-169-installed-helpers-report-version-0.0.0.md) |

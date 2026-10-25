@@ -4,7 +4,7 @@ schema_kind: workorder
 id: T0704
 title: "BUG-171 修正（A + B）：heartbeat 不因系統時鐘跳變誤判 Terminal Server 死亡；recovery 時切斷並關掉舊 server、丟棄舊 server 的訊息、孤兒清理先殺程序樹"
 type: implementation
-status: FIXED
+status: DONE
 repo: better-agent-terminal
 project: BUG-171
 priority: P1
@@ -225,3 +225,7 @@ T0703 確認：2026-10-25 20:59 Windows NTP 校時讓系統時鐘往前跳 3.03 
 ### 回報時間
 
 2026-10-25T21:33:50+0800
+
+### 塔台收單（2026-10-25T21:36 UTC+8）
+
+- 工單狀態 FIXED → DONE（FIXED 是 BUG 單狀態）；BUG-171 → FIXED（待下一個預覽版實機驗收）。`68ab2a42` 7 檔已核對；後續候選 1–3 記入塔台待辦，暫不開單。T0705 的 CLAUDE.md 建議段落由塔台合併進「Logging」節。

@@ -3,11 +3,11 @@ schema_version: 1
 schema_kind: bug
 id: BUG-171
 title: "BAT 執行中忽然「終端重置」並出現 toast，之後好幾個閒置（未忙碌）的分頁顯示 `[Process exited with code 1]`，連執行中的 Claude CLI 塔台分頁也結束"
-status: FIXING
+status: FIXED
 severity: high
 reproducibility: conditional（系統時鐘往前跳 ≥ 3 秒時觸發；T0703 由日誌、程序列表、系統事件記錄確認，未在隔離實例重現）
 created_at: "2026-10-25T21:05:27+0800"
-updated_at: "2026-10-25T21:16:40+0800"
+updated_at: "2026-10-25T21:36:00+0800"
 impact:
   - terminal-server-recovery
   - pty-lifecycle
@@ -22,7 +22,7 @@ links:
 |------|------|
 | 嚴重度 | 🔴 high（執行中的 agent 分頁被結束，含其他專案的塔台；原因與範圍未明） |
 | 可重現 | 未知 |
-| **狀態** | 🔧 FIXING：T0703 研究 DONE（`29957a0e`）→ 修正 T0704（A + B）、順手項目 T0705；C 另開 PLAN-055（D186） |
+| **狀態** | ✅ FIXED：T0704 `68ab2a42`（heartbeat 單調時鐘 + 連續 3 次 + 程序 / IPC 確認；recovery 以 server generation 丟棄舊訊息、先結束舊 server 程序樹、孤兒先殺樹）＋ T0705 `d7ffa080`（toast i18n、server env 不進 PTY）；待下一個預覽版實機驗收。C 另開 PLAN-055（D186） |
 | 回報者 | 使用者 |
 
 ## 現象

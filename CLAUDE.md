@@ -45,6 +45,7 @@
 - **GPU 狀態日誌 `[gpu]`（T0533 / BUG-136）**：`electron/gpu-status-log.ts`，只記錄、不改任何繪圖行為；判讀方式見 docs。T0669（BUG-164）：macOS 預設 `--disable-skia-graphite`（`decideSkiaGraphite`，逃生口 `BAT_SKIA_GRAPHITE=1`；🔴 不得改成第二個 `disable-features`）、GPU 崩潰後可見終端重建，見 [docs](docs/agent-guide/logging.md)。
 - **Helper scripts 的 userData**（T0481）：本機 PTY 注入 `BAT_USER_DATA`（`electron/pty-manager.ts` `localHelperEnv()`）；`scripts/_bat-cert.mjs` / `scripts/_bat-logger.mjs` 解析順序：明確 override → `BAT_USER_DATA` → 舊推測。
 - **PTY env 唯一組裝點**（T0525 / BUG-131）：`PtyManager.buildPtyEnv()`（`electron/pty-manager.ts`）供首次建立、`pty:restart`、Terminal Server recovery 共用。新增 env 一律改這個函式，不要在分支內聯。`BAT_REMOTE_PORT` / `BAT_REMOTE_TOKEN` 只來自 host 的 `helperEnv`（T0575）。
+- **Terminal Server 端的 PTY env**（T0705）：server 以 `buildServerPtyEnv`（`electron/terminal-server/server.ts`）疊 env：server 自己的 `process.env` 先去掉 `TERMINAL_SERVER_OWN_ENV_KEYS`（`BAT_IDLE_TIMEOUT_MS` / `BAT_SCROLL_BUFFER_LINES`），再疊 host 傳來的 env（優先）。main fork server 時新增 server 專用 env，若 PTY 內程式不讀，一併加進該清單。
 - **塔台派工落點**（T0523 / BUG-129）：落點以 `--notify-id` 塔台所屬工作區為準（`electron/dispatch-workspace.ts`），`--workspace` 為 fallback；cwd 檢核 `checkDispatchCwd`（T0527，cwd 只做檢核，不是落點規則）；`--agent` 簡寫 `normalizeAgentAlias`（`electron/terminal-command-handlers.ts`）。
 - 完整說明（日誌位置細節、early crash capture、`[gpu]` 判讀、userData migration、helper env 解析順序、派工 cwd 檢核規則）：[docs/agent-guide/logging.md](docs/agent-guide/logging.md)
 
