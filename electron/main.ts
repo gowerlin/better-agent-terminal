@@ -56,7 +56,7 @@ if (process.platform === 'win32') {
   } catch { /* ignore — console stays visible */ }
 }
 
-import { PtyManager, createWindowBroadcastEmit, type PtyManagerDeps } from './pty-manager'
+import { PtyManager, createWindowBroadcastEmit, killOrphanPtyProcesses, type PtyManagerDeps } from './pty-manager'
 import { configureRuntimeRouter, getRuntimeSettingsSnapshot, resolveClaudeRuntime } from './claude-runtime-router'
 import { ClaudeAgentManager, createElectronClaudeEmit, createElectronNotifier, type ClaudeAgentManagerDeps } from './claude-agent-manager'
 import { CodexAgentManager } from './codex-agent-manager'
@@ -329,16 +329,10 @@ async function startTerminalServer(): Promise<void> {
     try { process.kill(orphanPid, 'SIGTERM') } catch { /* process already gone */ }
 
     // T0113: Kill orphan PTY processes tracked in registry
+    // T0704 (BUG-171): tree before shell (T0540 order) — SIGTERM first left the shell's children behind
     const registry = readRegistry(userDataPath)
     if (registry?.ptys.length) {
-      for (const entry of registry.ptys) {
-        try { process.kill(entry.pid, 'SIGTERM') } catch { /* already dead */ }
-        if (process.platform === 'win32') {
-          try {
-            require('child_process').execFileSync('taskkill', ['/F', '/T', '/PID', String(entry.pid)], { stdio: 'ignore' })
-          } catch { /* ignore */ }
-        }
-      }
+      await killOrphanPtyProcesses(registry.ptys.map(entry => entry.pid))
       logger.log(`[terminal-server] Cleaned ${registry.ptys.length} orphan PTY process(es) from registry`)
     }
     clearRegistry(userDataPath)
@@ -434,9 +428,12 @@ async function startTerminalServer(): Promise<void> {
  * Re-fork a Terminal Server after a crash (T0112 heartbeat recovery).
  * Resets the startup guard so startTerminalServer() can run again, then
  * forks a fresh server and returns its ChildProcess.
+ * T0704 (BUG-171): PtyManager has already cut off and ended the old server (and its PTY trees)
+ * when it calls this, so the pid / port files removed here and the registry the new server
+ * writes are no longer touched by it.
  */
 async function reforkTerminalServer(): Promise<import('child_process').ChildProcess | null> {
-  logger.log('[terminal-server] re-forking after heartbeat-detected crash...')
+  logger.log('[terminal-server] re-forking after the Terminal Server was found dead...')
   _terminalServerStarted = false
   _terminalServerProcess = null
 

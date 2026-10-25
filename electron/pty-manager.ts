@@ -6,6 +6,7 @@ import { broadcastHub } from './remote/broadcast-hub'
 import { logger } from './logger'
 import type { ServerRequest, ServerResponse } from './terminal-server/protocol'
 import { readRegistry, clearRegistry } from './terminal-server/pty-registry'
+import { isValidPid, killProcessTree, type KillTreeResult } from './terminal-server/process-tree'
 import { getRuntimeSettingsSnapshot } from './claude-runtime-router'
 import { claudeUpdateGuardEnv } from './claude-resolver'
 import { resolvePtyLocaleEnv } from './pty-locale-env'
@@ -143,6 +144,59 @@ interface PtyEnvSpec {
 }
 
 /**
+ * T0704 (BUG-171): what the Terminal Server watchdog (heartbeat + recovery) reads and does to
+ * processes. Tests replace parts of it; the defaults are the product behaviour.
+ */
+export interface ServerWatchdogDeps {
+  /** Monotonic ms — never the wall clock, which an NTP correction moves (BUG-171). */
+  now: () => number
+  /** `process.kill(pid, 0)`: the process exists (EPERM counts as alive). */
+  isProcessAlive: (pid: number) => boolean
+  /** T0540 `killProcessTree` (Windows `taskkill /F /T`; elsewhere `not-windows`). */
+  killTree: (pid: number) => Promise<KillTreeResult>
+  /** `process.kill(pid, signal)`; throws when the process is gone. */
+  kill: (pid: number, signal: NodeJS.Signals) => void
+  platform: NodeJS.Platform
+}
+
+export const defaultServerWatchdogDeps: ServerWatchdogDeps = {
+  now: () => performance.now(),
+  isProcessAlive: (pid) => {
+    try {
+      process.kill(pid, 0)
+      return true
+    } catch (e) {
+      return (e as NodeJS.ErrnoException)?.code === 'EPERM'
+    }
+  },
+  killTree: (pid) => killProcessTree(pid),
+  kill: (pid, signal) => { process.kill(pid, signal) },
+  platform: process.platform,
+}
+
+/**
+ * T0704 (BUG-171): end the PTY processes a dead / replaced Terminal Server left (T0113 registry
+ * cleanup; Electron startup and the recovery). T0540 order: the tree first, while the shell still
+ * links it (a shell killed first leaves its children as orphans, BUG-171 had 12 such bash). A
+ * tree taskkill ended → no further signal (the pid may already be reused); otherwise SIGTERM.
+ * Never rejects.
+ */
+export async function killOrphanPtyProcesses(
+  pids: number[],
+  deps: Pick<ServerWatchdogDeps, 'killTree' | 'kill'> = defaultServerWatchdogDeps,
+): Promise<void> {
+  await Promise.all(pids.filter(isValidPid).map(async (pid) => {
+    let tree: KillTreeResult = 'failed'
+    try { tree = await deps.killTree(pid) } catch { /* treated as failed */ }
+    if (tree === 'killed') return
+    try { deps.kill(pid, 'SIGTERM') } catch { /* already dead */ }
+  }))
+}
+
+/** T0704: why `handleServerDeath` ran (logged). */
+export type ServerDeathReason = 'heartbeat' | 'ipc-exit' | 'tcp-close' | 'unspecified'
+
+/**
  * Host dependencies (PLAN-036 T0389). PtyManager does not import `electron`:
  * Electron main builds these with `createElectronPtyDeps()` (main.ts), the
  * headless bat-server with its own emit / dataDir.
@@ -228,6 +282,8 @@ export interface PtyManagerDeps {
    * throwing listener is logged and ignored. Undefined = no hook.
    */
   onClaudeSessionChange?: (id: string) => void
+  /** T0704: replaces parts of `defaultServerWatchdogDeps` (tests). Undefined = the defaults. */
+  serverWatchdog?: Partial<ServerWatchdogDeps>
 }
 
 /** T0404: `pty:create` refused because the manager already runs `maxInstances` PTYs. */
@@ -348,14 +404,25 @@ export class PtyManager implements CloseWorkerPtyManager {
 
   // Heartbeat watchdog (T0112)
   private heartbeatTimer: ReturnType<typeof setInterval> | null = null
-  private lastPong: number = Date.now()
+  // T0704 (BUG-171): `watchdog.now()` (monotonic) of the last pong, and how many ticks in a row found it late
+  private lastPongAt = 0
+  private missedPongs = 0
   private isRecovering = false
   // T0150 (BUG-035): set by main.ts before graceful shutdown so the watchdog
   // does not mistake the intentional TCP close / IPC exit for a crash and
   // re-fork an orphan Terminal Server.
   private isShuttingDown = false
   private static readonly HEARTBEAT_INTERVAL_MS = 10_000  // 10 seconds
-  private static readonly HEARTBEAT_TIMEOUT_MS = 3_000    // 3 seconds no pong → dead
+  private static readonly HEARTBEAT_TIMEOUT_MS = 3_000    // a tick more than interval + 3 s after the last pong is late
+  // T0704: late ticks in a row (~30 s) before the liveness check; with the server process and its IPC
+  // both alive it is still only logged (`[heartbeat] late pong`), never a recovery
+  private static readonly HEARTBEAT_MAX_MISSES = 3
+  private readonly watchdog: ServerWatchdogDeps
+  // T0704: bumped when a recovery starts; a listener attached to an earlier server drops its messages
+  private serverGeneration = 0
+  private droppedStaleMessages = 0
+  // T0704: the listeners on the fork IPC server, so a recovery can detach them
+  private serverListeners: { server: ChildProcess; onMessage: (msg: ServerResponse) => void; onExit: () => void } | null = null
 
   /** Callback provided by main.ts to re-fork a new Terminal Server process. */
   onRequestNewServer: (() => Promise<ChildProcess | null>) | null = null
@@ -368,6 +435,7 @@ export class PtyManager implements CloseWorkerPtyManager {
 
   constructor(deps: PtyManagerDeps) {
     this.deps = deps
+    this.watchdog = { ...defaultServerWatchdogDeps, ...deps.serverWatchdog }
   }
 
   /** `process.env` minus the keys the host asked to drop (T0390). */
@@ -475,9 +543,12 @@ export class PtyManager implements CloseWorkerPtyManager {
   /** Inject Terminal Server IPC reference; enables proxy mode for all future PTY operations. */
   setServerProcess(server: ChildProcess): void {
     this.serverProcess = server
-    this.setupServerListener()
+    const generation = this.serverGeneration
+    const onMessage = (msg: ServerResponse) => this.handleServerMessage(msg, generation)
     // T0112: Fast-path death detection via IPC exit event
-    server.once('exit', () => {
+    const onExit = () => {
+      // T0704: the exit of a server a recovery replaced (it ends that server itself)
+      if (generation !== this.serverGeneration) return
       if (this.isShuttingDown) {
         // T0150 (BUG-035): intentional shutdown, skip re-fork
         logger.log('[PtyManager] Terminal Server IPC exit during shutdown — skip re-fork')
@@ -485,10 +556,12 @@ export class PtyManager implements CloseWorkerPtyManager {
       }
       if (!this.isRecovering) {
         logger.log('[PtyManager] Terminal Server IPC process exited — triggering recovery')
-        this.handleServerDeath()
+        this.handleServerDeath('ipc-exit')
       }
-    })
-    this.lastPong = Date.now()
+    }
+    server.on('message', onMessage)
+    server.once('exit', onExit)
+    this.serverListeners = { server, onMessage, onExit }
     this.startHeartbeat()
     logger.log('[PtyManager] Terminal Server connected via IPC — proxy mode active')
   }
@@ -545,7 +618,7 @@ export class PtyManager implements CloseWorkerPtyManager {
           }
           // T0112: Fast-path death detection via TCP close (more immediate than heartbeat)
           if (!this.isRecovering) {
-            this.handleServerDeath()
+            this.handleServerDeath('tcp-close')
           }
         }
       })
@@ -555,6 +628,7 @@ export class PtyManager implements CloseWorkerPtyManager {
   /** Set up JSON-line framing on the TCP socket and route messages through handleServerMessage. */
   private setupTcpListener(): void {
     if (!this.tcpSocket) return
+    const generation = this.serverGeneration
     let lineBuffer = ''
     this.tcpSocket.on('data', (chunk: Buffer) => {
       lineBuffer += chunk.toString()
@@ -563,7 +637,7 @@ export class PtyManager implements CloseWorkerPtyManager {
       for (const line of lines) {
         if (line.trim()) {
           try {
-            this.handleServerMessage(JSON.parse(line) as ServerResponse)
+            this.handleServerMessage(JSON.parse(line) as ServerResponse, generation)
           } catch {
             logger.error('[PtyManager] TCP: failed to parse server message')
           }
@@ -592,8 +666,23 @@ export class PtyManager implements CloseWorkerPtyManager {
     }
   }
 
-  /** Route responses from the Terminal Server into the broadcast pipeline. */
-  private handleServerMessage(msg: ServerResponse): void {
+  /**
+   * Route responses from the Terminal Server into the broadcast pipeline.
+   * T0704 (BUG-171): `generation` = `serverGeneration` when the listener was attached. A message
+   * from a server a recovery replaced is dropped: its `pty:exit` (the old PTY it was told to end)
+   * would otherwise end the rebuilt PTY with the same id, and its `pty:data` reach that tab.
+   */
+  private handleServerMessage(msg: ServerResponse, generation: number): void {
+    if (generation !== this.serverGeneration) {
+      this.droppedStaleMessages++
+      const n = this.droppedStaleMessages
+      // every one of the first 10, then every 100th (a listener that survived the detach would be noisy)
+      if (n <= 10 || n % 100 === 0) {
+        const id = 'id' in msg ? ` id=${msg.id}` : ''
+        logger.warn(`[PtyManager] dropped message from a replaced Terminal Server: type=${msg.type}${id} generation=${generation} current=${this.serverGeneration} (dropped so far: ${n})`)
+      }
+      return
+    }
     switch (msg.type) {
       case 'pty:data':
         this.handlePtyData(msg.id, msg.data); break
@@ -606,18 +695,10 @@ export class PtyManager implements CloseWorkerPtyManager {
       case 'pty:buffer':
         this.handleReplayBuffer(msg.id, msg.lines); break
       case 'server:pong':
-        this.lastPong = Date.now(); break  // T0112: heartbeat ACK
+        this.handlePong(); break  // T0112: heartbeat ACK
       case 'error':
         logger.error('[PtyManager] server error:', msg); break
     }
-  }
-
-  /** Route IPC messages from the Terminal Server through handleServerMessage. */
-  private setupServerListener(): void {
-    if (!this.serverProcess) return
-    this.serverProcess.on('message', (msg: ServerResponse) => {
-      this.handleServerMessage(msg)
-    })
   }
 
   /**
@@ -1403,7 +1484,8 @@ export class PtyManager implements CloseWorkerPtyManager {
       return
     }
     const instance = this.instances.get(id)
-    if (instance) {
+    // T0704: a Terminal Server PTY while no server is connected (during a recovery) has no process
+    if (instance?.process) {
       if (instance.usePty) {
         instance.process.write(data)
       } else {
@@ -1491,7 +1573,7 @@ export class PtyManager implements CloseWorkerPtyManager {
       return
     }
     const instance = this.instances.get(id)
-    if (instance && instance.usePty) {
+    if (instance?.process && instance.usePty) {
       instance.process.resize(cols, rows)
     }
   }
@@ -1507,6 +1589,17 @@ export class PtyManager implements CloseWorkerPtyManager {
       return true
     }
     const instance = this.instances.get(id)
+    if (instance && !instance.process) {
+      // T0704: a Terminal Server PTY closed while no server is connected (during a recovery): the
+      // recovery ends the old process; dropping the entry keeps the rebuild from respawning it
+      logger.log(`[PtyManager] kill id=${id} while no Terminal Server is connected — removed, not rebuilt`)
+      this.recordExit(id)
+      this.instances.delete(id)
+      this.replayBuffers.delete(id)
+      this.clearActivity(id)
+      this.notifyPtyExit(id)
+      return true
+    }
     if (instance) {
       const pid: number | undefined = instance.process.pid
       if (instance.usePty) {
@@ -1581,24 +1674,65 @@ export class PtyManager implements CloseWorkerPtyManager {
     return null
   }
 
-  /** Start sending periodic ping messages to the Terminal Server (T0112). */
+  /**
+   * Start sending periodic ping messages to the Terminal Server (T0112).
+   * T0704 (BUG-171): the time since the last pong is monotonic (`watchdog.now`) — with the wall
+   * clock an NTP correction of +3 s made one 10 s gap 13032 ms and recovered a live server. A tick
+   * that finds the pong late counts a miss; `HEARTBEAT_MAX_MISSES` in a row → liveness check, and
+   * only a server whose process or IPC is gone is recovered. A server process that exits recovers
+   * at once through its IPC `exit` (`setServerProcess`), not through here.
+   */
   private startHeartbeat(): void {
     this.stopHeartbeat()
-    this.lastPong = Date.now()
+    this.lastPongAt = this.watchdog.now()
+    this.missedPongs = 0
     this.heartbeatTimer = setInterval(() => {
       // T0150 (BUG-035): defense-in-depth — beginShutdown() already clears the
       // timer, but if a tick races with shutdown, swallow it here too.
       if (this.isShuttingDown) return
-      const elapsed = Date.now() - this.lastPong
+      const elapsed = Math.round(this.watchdog.now() - this.lastPongAt)
       if (elapsed > PtyManager.HEARTBEAT_INTERVAL_MS + PtyManager.HEARTBEAT_TIMEOUT_MS) {
-        logger.error(`[PtyManager] heartbeat timeout (${elapsed}ms since last pong) — server dead`)
-        if (!this.isRecovering) {
-          this.handleServerDeath()
+        this.missedPongs++
+        if (this.missedPongs >= PtyManager.HEARTBEAT_MAX_MISSES) {
+          const { processAlive, ipcConnected } = this.serverLiveness()
+          if (!processAlive || !ipcConnected) {
+            logger.error(`[heartbeat] no pong for ${elapsed}ms (${this.missedPongs} late ticks), server process=${processAlive ? 'alive' : 'gone'} ipc=${ipcConnected ? 'connected' : 'closed'} — server dead`)
+            if (!this.isRecovering) {
+              this.handleServerDeath('heartbeat')
+            }
+            return
+          }
+          // logged at the threshold, then every HEARTBEAT_MAX_MISSES ticks
+          if (this.missedPongs % PtyManager.HEARTBEAT_MAX_MISSES === 0) {
+            logger.warn(`[heartbeat] late pong: none for ${elapsed}ms (${this.missedPongs} late ticks), server process and IPC alive — no recovery`)
+          }
         }
-        return
       }
       this.sendToServer({ type: 'server:ping' })
     }, PtyManager.HEARTBEAT_INTERVAL_MS)
+  }
+
+  /** T0704: a pong; one that ends a run of late ticks is logged. */
+  private handlePong(): void {
+    const missed = this.missedPongs
+    this.lastPongAt = this.watchdog.now()
+    this.missedPongs = 0
+    if (missed > 0) logger.log(`[heartbeat] late pong arrived after ${missed} late tick(s)`)
+  }
+
+  /**
+   * T0704: is the fork IPC Terminal Server still there — its process (`exitCode` / `signalCode`
+   * unset and `process.kill(pid, 0)` succeeds) and its IPC channel (`connected`).
+   */
+  private serverLiveness(): { processAlive: boolean; ipcConnected: boolean } {
+    const server = this.serverProcess
+    if (!server) return { processAlive: false, ipcConnected: false }
+    return { processAlive: this.isServerProcessRunning(server), ipcConnected: server.connected === true }
+  }
+
+  private isServerProcessRunning(server: ChildProcess): boolean {
+    if (server.exitCode != null || server.signalCode != null) return false
+    return isValidPid(server.pid) && this.watchdog.isProcessAlive(server.pid)
   }
 
   private stopHeartbeat(): void {
@@ -1623,8 +1757,14 @@ export class PtyManager implements CloseWorkerPtyManager {
     logger.log('[PtyManager] beginShutdown() — watchdog disarmed')
   }
 
-  /** Attempt to recover from Terminal Server death: re-fork + rebuild all PTYs (T0112). */
-  private async handleServerDeath(): Promise<void> {
+  /**
+   * Attempt to recover from Terminal Server death: re-fork + rebuild all PTYs (T0112).
+   * T0704 (BUG-171): the old server is cut off and ended before the re-fork — its listeners
+   * detached, IPC disconnected, messages of its generation dropped, its process tree killed if it
+   * still runs. Left alive it reported the exits of the PTYs killed below under the rebuilt ids
+   * (`$` + `[Process exited with code 1]`) and removed their rows from the shared registry.
+   */
+  private async handleServerDeath(reason: ServerDeathReason = 'unspecified'): Promise<void> {
     // T0150 (BUG-035): defense-in-depth guard at the recovery entry. All four
     // call sites already check isShuttingDown, but if a future caller forgets,
     // this prevents the orphan re-fork regression from coming back.
@@ -1635,13 +1775,17 @@ export class PtyManager implements CloseWorkerPtyManager {
     if (this.isRecovering) return
     this.isRecovering = true
     try {
-      logger.error('[PtyManager] Terminal Server died — attempting recovery...')
+      logger.error(`[PtyManager] Terminal Server died — attempting recovery... (reason=${reason})`)
       this.stopHeartbeat()
+      // T0704: from here on nothing the old server sends is handled
+      this.serverGeneration++
 
       // Notify renderer: server is recovering
       this.broadcast('terminal-server:status', 'recovering')
 
       // Clean up dead connection state
+      const oldServer = this.serverProcess
+      this.detachServer()
       this.serverProcess = null
       if (this.tcpSocket && !this.tcpSocket.destroyed) {
         this.tcpSocket.destroy()
@@ -1660,20 +1804,15 @@ export class PtyManager implements CloseWorkerPtyManager {
       }
 
       // T0113: Kill orphan PTY processes from registry before re-forking
+      // T0704: the old server first (it would report their exits / rewrite the registry), then
+      // every PTY tree the registry lists, tree before shell (T0540 order); all done before the
+      // re-fork, whose server writes a new registry into the same file
       try {
         const userDataPath = this.deps.dataDir
         const registry = readRegistry(userDataPath)
+        await this.endReplacedServer(oldServer, registry?.serverPid)
         if (registry?.ptys.length) {
-          for (const entry of registry.ptys) {
-            try { process.kill(entry.pid, 'SIGTERM') } catch { /* already dead */ }
-          }
-          // Windows: force-kill process trees to ensure child shells die
-          if (process.platform === 'win32') {
-            const { execFile } = require('child_process')
-            for (const entry of registry.ptys) {
-              try { execFile('taskkill', ['/F', '/T', '/PID', String(entry.pid)]) } catch { /* ignore */ }
-            }
-          }
+          await killOrphanPtyProcesses(registry.ptys.map(entry => entry.pid), this.watchdog)
           logger.log(`[PtyManager] Killed ${registry.ptys.length} orphan PTY(s) from registry`)
         }
         clearRegistry(userDataPath)
@@ -1699,6 +1838,13 @@ export class PtyManager implements CloseWorkerPtyManager {
       const oldInstances = new Map(this.instances)
       this.instances.clear()
       for (const [id, inst] of oldInstances) {
+        // T0704: a PTY spawned directly while no server was connected (a create during the
+        // recovery) keeps its own process; rebuilding it on the server would orphan that shell
+        if (inst.process) {
+          logger.log(`[PtyManager] recovery: PTY ${id} runs directly (created during the recovery) — not rebuilt`)
+          this.instances.set(id, inst)
+          continue
+        }
         const shell = inst.shell || this.getDefaultShell()
         const args = inst.shellArgs || []
         const customEnv = inst.customEnv ?? {}
@@ -1726,6 +1872,59 @@ export class PtyManager implements CloseWorkerPtyManager {
     } finally {
       this.isRecovering = false
     }
+  }
+
+  /**
+   * T0704: cut the fork IPC server off — our `message` / `exit` listeners removed, the IPC
+   * channel closed (the server then cannot send to us at all). Other listeners (main.ts) stay.
+   */
+  private detachServer(): void {
+    const attached = this.serverListeners
+    this.serverListeners = null
+    if (!attached) return
+    const { server, onMessage, onExit } = attached
+    server.removeListener('message', onMessage)
+    server.removeListener('exit', onExit)
+    try {
+      if (server.connected && typeof server.disconnect === 'function') server.disconnect()
+    } catch (e) {
+      logger.warn('[PtyManager] recovery: disconnecting the old Terminal Server failed:', e)
+    }
+  }
+
+  /**
+   * T0704: end the Terminal Server a recovery replaces, when it still runs, with its process tree
+   * (Windows: T0540 `killProcessTree`; its PTYs' conhosts and shells go with it). Never a graceful
+   * stop: its SIGTERM handler / `server:shutdown` remove the pid / port / registry files, which by
+   * then belong to the re-forked server. Fork IPC: the ChildProcess says whether it still runs (its
+   * pid cannot be reused before that). TCP (BAT reopened, no ChildProcess): the registry's
+   * `serverPid`, if that process exists.
+   */
+  private async endReplacedServer(server: ChildProcess | null, registryServerPid: number | undefined): Promise<void> {
+    let pid: number | null = null
+    if (server) {
+      if (this.isServerProcessRunning(server)) pid = server.pid!
+    } else if (isValidPid(registryServerPid) && registryServerPid !== process.pid && this.watchdog.isProcessAlive(registryServerPid)) {
+      pid = registryServerPid
+    }
+    if (pid === null) {
+      logger.log('[PtyManager] recovery: old Terminal Server process already gone')
+      return
+    }
+    let tree: KillTreeResult = 'not-windows'
+    if (this.watchdog.platform === 'win32') {
+      try { tree = await this.watchdog.killTree(pid) } catch { tree = 'failed' }
+    }
+    let signal = 'none'
+    if (tree !== 'killed') {
+      try {
+        this.watchdog.kill(pid, 'SIGKILL')
+        signal = 'SIGKILL'
+      } catch {
+        signal = 'failed (already gone?)'
+      }
+    }
+    logger.log(`[PtyManager] recovery: ended the old Terminal Server pid=${pid} (tree=${tree}, signal=${signal})`)
   }
 
   dispose(): void {

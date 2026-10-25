@@ -161,6 +161,20 @@
 - 沒有 hold 時（無存活 server / 0 個 PTY / direct / headless）行為不變。
 - 完整流程、T0576 對照、日誌、驗證清單：[docs/agent-guide/recovery-create-hold.md](docs/agent-guide/recovery-create-hold.md)
 
+## Terminal Server 存活判定與 recovery（T0704 / BUG-171）
+
+- 用途：主行程判定 Terminal Server 死亡時 re-fork 並以同 id 重建 shell（T0112）。BUG-171：NTP 校時讓牆鐘前跳 3 s，heartbeat 判死活著的 server；舊 server 沒關，把舊 PTY 的 `exit 1` 套到新 shell。
+- 🔴 heartbeat 只用單調時鐘（`ServerWatchdogDeps.now`，預設 `performance.now()`），不得改回 `Date.now()`。連續 `HEARTBEAT_MAX_MISSES` = 3 個遲到 tick，而且 server 程序或 IPC 至少一個不在，才 recovery；兩者都在只記 `[heartbeat] late pong:`。IPC `exit` / TCP `close` 照舊立即 recovery。
+- 🔴 recovery 依序執行：
+  1. `serverGeneration++`，拆掉舊 server 的監聽並 `disconnect()`。
+  2. 結束舊 server（含程序樹）。
+  3. 結束 registry 列出的 PTY 樹。
+  4. `clearRegistry`。
+  5. re-fork。
+  - 結束舊 server 不得用 `server:shutdown` / SIGTERM（會刪掉屬於新 server 的 pid / port / registry 檔）。孤兒清理先殺程序樹、再殺 shell（T0540 順序）。
+- 唯一實作：`PtyManager.startHeartbeat` / `handleServerDeath` / `endReplacedServer` / `handleServerMessage(msg, generation)`、`killOrphanPtyProcesses`（`electron/pty-manager.ts`，main.ts 啟動清理也用它）。程序操作經 `PtyManagerDeps.serverWatchdog`，只有測試替換。headless 不走 Terminal Server，不受影響。
+- 完整判死條件、generation 選擇理由、日誌、殘留風險、T0703 時間線、驗證清單：[docs/agent-guide/terminal-server-recovery.md](docs/agent-guide/terminal-server-recovery.md)
+
 ## Child Process Spawning
 
 新增涉及 child_process 的程式碼（特別是 IPC handler / wizard step / shell 互動）：
