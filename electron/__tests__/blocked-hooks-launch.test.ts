@@ -212,7 +212,9 @@ describe('claude hooks injection', () => {
       expect(r.stdout, shell).toBe('')
     }
     expect(ran).toBeGreaterThan(0)
-  })
+    // two real shells, up to 20 s each: the 5 s default is too short for a cold pwsh on CI
+    // (ubuntu runner 2992 ms in pre.7, 5308 ms in pre.8 with every assertion passing, T0707)
+  }, 45_000)
 })
 
 describe('blockedDetection recording', () => {

@@ -126,10 +126,11 @@ describe('real node-pty through handleMessage', () => {
     }, 'ipc')
 
     // Output reads `T0705:[<idle>]:[<scroll>]:[<host>]`; the echo of the typed command does
-    // not (cmd `^:` / printf `%s`). cmd leaves an unset `%VAR%` as typed; sh prints ''.
+    // not (cmd `^:` / printf `T07%s:` with `05` as an argument — the echo of a literal
+    // `T0705:[%s]...` format would match first, T0707). cmd leaves an unset `%VAR%` as typed; sh prints ''.
     const cmd = IS_WIN
       ? 'echo T0705^:[%BAT_IDLE_TIMEOUT_MS%]^:[%BAT_SCROLL_BUFFER_LINES%]^:[%T0705_HOST%]'
-      : `printf 'T0705:[%s]:[%s]:[%s]\\n' "$BAT_IDLE_TIMEOUT_MS" "$BAT_SCROLL_BUFFER_LINES" "$T0705_HOST"`
+      : `printf 'T07%s:[%s]:[%s]:[%s]\\n' 05 "$BAT_IDLE_TIMEOUT_MS" "$BAT_SCROLL_BUFFER_LINES" "$T0705_HOST"`
     server.handleMessage({ type: 'pty:write', id: ID, data: cmd + NL }, 'ipc')
 
     let match: RegExpMatchArray | null = null
