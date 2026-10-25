@@ -4,15 +4,15 @@ schema_kind: workorder
 id: T0706
 title: "BAT 重開時的 Recovery 提示（`RecoveryPrompt.tsx`）文字改走 i18n"
 type: implementation
-status: PENDING
+status: DONE
 repo: better-agent-terminal
 project: ""
 priority: P3
 sizing: S
 created_at: "2026-10-25T21:32:11+0800"
-started_at: ""
-updated_at: "2026-10-25T21:32:11+0800"
-completed_at: ""
+started_at: "2026-10-25T21:33:21+0800"
+updated_at: "2026-10-25T21:36:03+0800"
+completed_at: "2026-10-25T21:36:03+0800"
 depends_on: [T0705]
 related:
   - "T0705 回報區「遭遇問題」：`src/components/RecoveryPrompt.tsx`（BAT 重開、Terminal Server 存活時的 Recovery 提示）文字寫死中文；T0705 已把 Terminal Server recovery toast 改走 i18n（`app.terminalServer*`，`src/locales/en.json` / `zh-TW.json` / `zh-CN.json`，`d7ffa080`）"
@@ -52,9 +52,9 @@ BAT 重開、Terminal Server 還活著且有分頁時，會跳出 Recovery 提�
 
 ## 驗收
 
-- [ ] 所有文字走 i18n，zh-TW 字面不變，en / zh-CN 有譯文
-- [ ] 行為、按鈕回呼、Esc 設定不變（`dialog-escape.test.tsx` 通過）
-- [ ] `npm run test:unit` 全綠；`npm run typecheck` = 0；`npx vite build` 成功
+- [x] 所有文字走 i18n，zh-TW 字面不變，en / zh-CN 有譯文
+- [x] 行為、按鈕回呼、Esc 設定不變（`dialog-escape.test.tsx` 通過）
+- [x] `npm run test:unit` 全綠；`npm run typecheck` = 0；`npx vite build` 成功
 
 ---
 
@@ -64,14 +64,45 @@ BAT 重開、Terminal Server 還活著且有分頁時，會跳出 Recovery 提�
 
 ### 待塔台決策（僅 yolo Worker 有問題時）
 
+（無）
+
+### 互動紀錄
+
+（無；yolo、未向塔台提問）
+
 ### 完成狀態
+
+**DONE**
 
 ### 實作摘要
 
+- `src/components/RecoveryPrompt.tsx`：標題、終端數量那一行、提問、兩顆按鈕全部改 `t()`；數量那一行用 `Trans`（`components={{ strong: <strong /> }}`、`count={ptyCount}`），數字仍在 `<strong>` 內，DOM 結構與 T0706 前相同。`🔄` 圖示留在 JSX（不分語言）。
+- 新 key 放在 `app` 區塊，緊接 T0705 的 `terminalServer*`：`app.recoveryPromptTitle` / `recoveryPromptAlive` / `recoveryPromptQuestion` / `recoveryPromptRecover` / `recoveryPromptFreshStart`。插值用 i18next `{{count}}`，不做字串拼接。
+- zh-TW 與 T0706 前逐字相同；zh-CN 為簡體對應；en 的數量行用 i18next 複數 `recoveryPromptAlive_one` / `_other`（中文兩個 locale 只有基底 key，i18next 對 zh 的 `_other` 找不到會回基底 key，測試已涵蓋）。
+- 未改：提示的行為與時機、`onRecover` / `onFreshStart` 回呼與 T0578 放行流程、`ModalOverlay` 用法（仍無 `onEscape`，`NO_ESCAPE_DIALOGS` 計數不變）、CSS class、`src/App.tsx`、`electron/**`、CLAUDE.md。
+- 新測試 `src/components/__tests__/recovery-prompt-i18n.test.tsx`（10 項）：zh-TW 每段字面與 T0706 前相同（含 `<strong>3</strong>`）；en / zh-CN 每個 key 有譯文、不是 key、不含 zh-TW 原文、不漏出 `<strong>` 字面；en 單數 / 複數；顯示中切換語言會更新；三語系下兩顆按鈕各自呼叫原回呼；source guard（元件不再含寫死的中文）。
+
 ### 驗證證據
+
+- 落點檢查：PASS。C-0 `repo` = `better-agent-terminal`，`basename(REPO_ROOT)` = `better-agent-terminal`；C-1 工單在 REPO_ROOT 下；C-3 `src/components/RecoveryPrompt.tsx` 存在；C-2 無 `branch` 欄位（main）。`CT_HOME` 未設定（非 worktree）。`BAT_WORKSPACE_ID` = `cc0afc4a-57e9-4f41-b2ed-a2d8bac9e36b`（僅記錄）。
+- 聚焦測試：`npx vitest run src/components/__tests__/recovery-prompt-i18n.test.tsx src/components/__tests__/dialog-escape.test.tsx` → 2 files / 31 tests passed（`dialog-escape.test.tsx` 照舊通過，含 `NO_ESCAPE_DIALOGS` source guard 與 RecoveryPrompt 擋 Esc 兩項）。
+- `npm run test:unit` → Test Files 338 passed (338)；Tests 6017 passed / 3 skipped (6020)。輸出中的 stack trace 與 `HTMLCanvasElement's getContext()` 是既有測試的 stderr 雜訊，非失敗。
+- `npm run typecheck` → exit 0（0 錯誤）。
+- `npx vite build` → exit 0。
+- 驗證時的 HEAD：`68ab2a42`（加上本單未提交變更）；之後 commit 為 `5006d129`，內容即驗證時的工作樹變更，未再修改。
+- 所有變更檔為 LF（`` 計數 0）。
 
 ### 遭遇問題
 
+- 執行期間塔台 / T0704 在 main 上陸續 commit（HEAD 由 `40d798a9` → `68ab2a42` → `277e7a2e`），本單只以 `git commit --only` 提交自己的檔案，未碰其他變更。
+- 無 runtime smoke（實際 BAT 重開觸發 Recovery 提示）：本單驗收未要求，未做；如需實機目視三語系，可另排。
+
 ### Commit
 
+- 產品：`5006d129` fix(recovery-prompt): T0706 Recovery prompt text via i18n（`src/components/RecoveryPrompt.tsx`、`src/locales/en.json`、`zh-CN.json`、`zh-TW.json`、`src/components/__tests__/recovery-prompt-i18n.test.tsx`）
+- 工單：本檔另一個 commit（`chore: T0706 report, DONE (ct)`）
+- 未 push、未觸發 workflow、未建 tag。
+
 ### 回報時間
+
+2026-10-25T21:36:03+0800
