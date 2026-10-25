@@ -82,7 +82,7 @@ todo:                                     # 選填，字串陣列，顯示前 5 
 - **`PAUSED`**：CT `*pause` 把進行中的工單改成 `⏸ PAUSED`（`interrupt-protocol.md`），`*resume` 改回 `IN_PROGRESS`。BAT 列舉有這個狀態：徽章 `⏸ Paused`（`ct-status-paused`，與 `INTERRUPTED` 同色）、open、總覽列出；工單卡片有「🔧 補救結案」、沒有「▶ 執行」（同 `INTERRUPTED`）；看板歸 `BLOCKED` 欄；排序同 `INTERRUPTED`。上方計數**不算** `active` / `pending`（`active` 只算 `IN_PROGRESS` / `URGENT`，`pending` 只算 `PENDING`）：暫停的工單在等緊急工單做完，不是待派、也不是正在跑，與 `INTERRUPTED` / `BLOCKED` 一樣只出現在總覽與 `N total`。
 - **`TODO` = `PENDING`**：frontmatter `status: TODO`（不分大小寫）讀成 `PENDING`，顯示、計數、「▶ 執行」都與 `PENDING` 相同，沒有 `unknown_status` 警告；body 寫 `PENDING` 不算 drift。別名表 `FRONTMATTER_STATUS_ALIASES`，只為相容已經寫成 `TODO` 的舊單，CT 範本與塔台開單一律寫 `PENDING`。legacy（無 frontmatter）檔不套用別名。
 - **引用區塊形式的狀態**（legacy parser）：`> 狀態:✅ DONE`、`> 狀態：DONE`（行首一個或多個 `>`、半形 / 全形冒號、值前的 emoji 照舊由 `extractStatusKeyword` 略過）。實作 `extractQuotedField`，**只用於狀態**（工單編號、標題、時間欄位不讀引用區塊）。順序：列表 / 表格 / 粗體三種讀到的值有狀態關鍵字就用它；沒有（含被 `| AC | 狀態 | 落地位置 |` 這類表頭搶先匹配）才試引用區塊，再來才是 `status:` 行。`> 本報告的狀態:…`（`狀態` 不在引號後第一個字）、`> 狀態:草稿`（沒有關鍵字）、沒有 `>` 的 `狀態:DONE` 都不採用，所以報告檔維持 `UNKNOWN`。
-- 盤點（2026-10-25，唯讀）：BAT `_ct-workorders/` 223 檔全部有 frontmatter；BMad-Guide `_ct-workorders/` 188 檔中 12 檔沒有 frontmatter，狀態寫法只有 `- **狀態**：✅ DONE`（既有支援）與 `> 狀態:✅ DONE`（`T0098`）；兩邊 frontmatter 都沒有 `TODO` / `PAUSED`。封存區另有 11 檔 `> 狀態:✅ DONE`、1 檔 `> 狀態：DONE`。
+- 盤點（2026-10-25，唯讀）：BAT `_ct-workorders/` 223 檔全部有 frontmatter；BMad-Guide `_ct-workorders/` 188 檔中 12 檔沒有 frontmatter，狀態寫法只有 `- **狀態**：✅ DONE`（既有支援）與 `> 狀態:✅ DONE`（`T0098`）；兩邊 frontmatter 都沒有 `TODO` / `PAUSED`。BMad-Guide 封存區另有 11 檔：10 檔 `> 狀態:✅ DONE`、1 檔 `> 狀態：DONE`（全形冒號）。
 
 ## R2 `*config` 三層
 
