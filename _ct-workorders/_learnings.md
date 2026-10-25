@@ -3757,3 +3757,13 @@ Codex 那張是外部測試者回報才發現；Claude 那張是使用者隨口�
 - 未 push 的 commit 可用 fixup + `--autosquash` 併回；已 push 的依 D176 不改寫歷史，只在新 commit 修正
 
 **候選晉升**：專案內（可寫進 `_local-rules.md` 去識別化一節的「寫工單時」）
+
+## L176
+
+**來源**：第九十二 session（2026-10-25），T0701 收單
+
+**現象**：塔台開 T0700 / T0701 時 frontmatter 寫 `status: TODO`（沿用 T0699 的寫法），CT 範本與狀態列舉是 `PENDING`。T0701 實作的總覽把不認得的狀態標成 ⚠️ Invalid，塔台自己開的單就在面板上顯示成無效（D185 / T0702 改成 `TODO` 當 `PENDING` 的別名，只為相容舊單）。
+
+**How to apply**：
+- 新工單 frontmatter 一律 `status: PENDING`（CT `work-order-template.md`），不要抄前一張工單的值
+- 前一張工單是範本時，只抄結構與 memory_overrides，狀態、時間、編號都依規格重填

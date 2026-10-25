@@ -1465,6 +1465,12 @@
 - **切分**：W2a 設計語言 + 元件 + 首頁（T0630）→ 預覽通過後 W2b（`/control-tower`、功能、FAQ、回報頁）→ W2c 遠端開發；W3 / W4 不變。
 - **相關**：PLAN-049 / D159 / D160 / T0624 / T0630
 
+### D185 2026-10-25 — T0701 收單；後續兩項開 T0702，完成後與 T0701 一起發 `v0.7.1-pre.7`
+
+- **背景**：T0701 DONE（`e7b20593`）：總覽 R1–R5 完成；塔台複驗 `typecheck` 0 / `typecheck:electron` 0、相關 4 檔 224 測試過；BMad-Guide 真實摘要顯示正常、`9 pending` → 0。Worker 後續建議：① legacy parser 讀不到引用區塊形式的狀態（`> 狀態:✅ DONE`，BMad-Guide `T0098`）；② BAT 工單狀態列舉沒有 CT 的 `PAUSED`（CT `interrupt-protocol.md`），塔台開單用的 `status: TODO` 被判為 `INVALID`（CT 範本是 `PENDING`，屬塔台寫錯）。
+- **決定**（使用者 2026-10-25 19:4x，選推薦）：T0701 先 push 到 main（不發版，`babab5d2..04937c8f`）；開 T0702 修 ①②（`PAUSED` 列為進行中；`TODO` 當 `PENDING` 的別名，塔台之後開單一律用 `PENDING`）；完成後聯合驗證，與 T0701 一起發 `v0.7.1-pre.7`，更版重點含「待驗收」清單（L174）。
+- **相關**：T0701 / T0702 / D184 / L174
+
 ### D184 2026-10-25 — 受理 CT 塔台請求「指揮塔總覽顯示塔台狀態與 `*config`」（→ T0701）：混合做法，config 由 BAT 讀檔、狀態摘要由 BAT 訂格式請 CT 寫入
 
 - **背景**：BMad-Guide 塔台協作請求 `_request-2026-10-25-bat-overview-tower-state-config`（CT D338，2026-10-25T19:15:05+0800）：「塔台 › 指揮塔 › 總覽」只認 `_ct-workorders/sprint-status.yaml`，沒有就只顯示「未找到 sprint-status.yaml」（`src/components/SprintDashboard.tsx`）；CT v6 起該檔只在主方法論是 bmad 時才有。需求 R1 塔台最新狀態、R2 `*config` 生效值與來源層、R3 沒有 sprint-status 不擋；附帶觀察：BAT 計數 `9 pending`，CT 熱區沒有 `status: PENDING`，疑似把無 frontmatter `status` 的報告檔算進 pending。塔台查證各專案 `_tower-state.md` 章節標題不一致（CT 範本「立即待辦」「編號追蹤」，BAT 自己的是「待辦（依優先序）」「編號起始」），直接切 Markdown 易壞，問使用者。
