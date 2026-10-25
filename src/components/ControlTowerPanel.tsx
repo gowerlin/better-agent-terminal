@@ -39,7 +39,7 @@ interface ControlTowerPanelProps {
 }
 
 /** Statuses eligible for ct-done remedial close */
-const DONE_ELIGIBLE: ReadonlySet<WorkOrderStatus> = new Set(['IN_PROGRESS', 'INTERRUPTED', 'PARTIAL', 'BLOCKED', 'FAILED'])
+const DONE_ELIGIBLE: ReadonlySet<WorkOrderStatus> = new Set(['IN_PROGRESS', 'INTERRUPTED', 'PAUSED', 'PARTIAL', 'BLOCKED', 'FAILED'])
 
 /**
  * Last seen work order statuses, tagged with the `_ct-workorders/` dir they came from (BUG-127).
@@ -518,7 +518,7 @@ export function ControlTowerPanel({ isVisible, workspaceFolderPath, onExecWorkOr
       // Sort: URGENT first, then IN_PROGRESS, PENDING, others, DONE last
       const priority: Record<string, number> = {
         URGENT: 0, IN_PROGRESS: 1, PENDING: 2, BLOCKED: 3,
-        PARTIAL: 4, INTERRUPTED: 5, FAILED: 6, FIXED: 7, DONE: 7, ABANDONED: 8,
+        PARTIAL: 4, INTERRUPTED: 5, PAUSED: 5, FAILED: 6, FIXED: 7, DONE: 7, ABANDONED: 8,
       }
       uniqueOrders.sort((a, b) => {
         const statusOrder = (priority[a.status] ?? 99) - (priority[b.status] ?? 99)

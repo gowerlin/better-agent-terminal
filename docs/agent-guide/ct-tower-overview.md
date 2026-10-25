@@ -26,7 +26,7 @@
 | 讀檔、監看、重新整理 | `src/components/ControlTowerPanel.tsx`（`loadTowerOverview`、`loadConfigSources`） |
 | global / 預設兩層的讀檔 | `electron/handlers/ct-config.ts`（`ct:read-config-sources`，本機 main 與 headless 共用） |
 | IPC 回傳型別 | `src/types/ct-config-sources.ts` |
-| 無狀態工單 | `src/types/control-tower.ts`（`WorkOrderStatus` 的 `UNKNOWN`） |
+| 無狀態工單、`PAUSED`、`TODO` 別名、引用區塊狀態 | `src/types/control-tower.ts`（`WorkOrderStatus` 的 `UNKNOWN` / `PAUSED`、`FRONTMATTER_STATUS_ALIASES`、`extractQuotedField`） |
 
 ## R1 塔台狀態
 
@@ -68,12 +68,21 @@ todo:                                     # 選填，字串陣列，顯示前 5 
 
 | 狀態 | 分類 | 總覽列出 |
 |---|---|---|
-| `PENDING` `URGENT` `IN_PROGRESS` `BLOCKED` `PARTIAL` `INTERRUPTED` `FAILED` | open | ✅ |
+| `PENDING` `URGENT` `IN_PROGRESS` `BLOCKED` `PARTIAL` `INTERRUPTED` `PAUSED` `FAILED` | open | ✅ |
 | `DONE` `FIXED` `ABANDONED` | closed（= 面板既有「完成」toast 的三種） | — |
-| `INVALID`（frontmatter 狀態不認得，例 `TODO` / `PAUSED`） | unknown | ✅（不默默藏起來） |
+| `INVALID`（frontmatter 狀態不認得，例 `CLOSED`） | unknown | ✅（不默默藏起來） |
 | `UNKNOWN`（完全沒有狀態，報告檔） | unknown | —（只在上方計數顯示 `N no status`） |
 
 `FAILED` / `PARTIAL` / `BLOCKED` 列為 open：CT 的封存最終態雖含 `FAILED` / `PARTIAL`，但它們仍需塔台覆核（重派或補正為 `DONE`），總覽的用途是提醒，所以列出。
+
+### 狀態的讀法（T0702，D185）
+
+唯一實作 `parseWorkOrder`（`src/types/control-tower.ts`）。
+
+- **`PAUSED`**：CT `*pause` 把進行中的工單改成 `⏸ PAUSED`（`interrupt-protocol.md`），`*resume` 改回 `IN_PROGRESS`。BAT 列舉有這個狀態：徽章 `⏸ Paused`（`ct-status-paused`，與 `INTERRUPTED` 同色）、open、總覽列出；工單卡片有「🔧 補救結案」、沒有「▶ 執行」（同 `INTERRUPTED`）；看板歸 `BLOCKED` 欄；排序同 `INTERRUPTED`。上方計數**不算** `active` / `pending`（`active` 只算 `IN_PROGRESS` / `URGENT`，`pending` 只算 `PENDING`）：暫停的工單在等緊急工單做完，不是待派、也不是正在跑，與 `INTERRUPTED` / `BLOCKED` 一樣只出現在總覽與 `N total`。
+- **`TODO` = `PENDING`**：frontmatter `status: TODO`（不分大小寫）讀成 `PENDING`，顯示、計數、「▶ 執行」都與 `PENDING` 相同，沒有 `unknown_status` 警告；body 寫 `PENDING` 不算 drift。別名表 `FRONTMATTER_STATUS_ALIASES`，只為相容已經寫成 `TODO` 的舊單，CT 範本與塔台開單一律寫 `PENDING`。legacy（無 frontmatter）檔不套用別名。
+- **引用區塊形式的狀態**（legacy parser）：`> 狀態:✅ DONE`、`> 狀態：DONE`（行首一個或多個 `>`、半形 / 全形冒號、值前的 emoji 照舊由 `extractStatusKeyword` 略過）。實作 `extractQuotedField`，**只用於狀態**（工單編號、標題、時間欄位不讀引用區塊）。順序：列表 / 表格 / 粗體三種讀到的值有狀態關鍵字就用它；沒有（含被 `| AC | 狀態 | 落地位置 |` 這類表頭搶先匹配）才試引用區塊，再來才是 `status:` 行。`> 本報告的狀態:…`（`狀態` 不在引號後第一個字）、`> 狀態:草稿`（沒有關鍵字）、沒有 `>` 的 `狀態:DONE` 都不採用，所以報告檔維持 `UNKNOWN`。
+- 盤點（2026-10-25，唯讀）：BAT `_ct-workorders/` 223 檔全部有 frontmatter；BMad-Guide `_ct-workorders/` 188 檔中 12 檔沒有 frontmatter，狀態寫法只有 `- **狀態**：✅ DONE`（既有支援）與 `> 狀態:✅ DONE`（`T0098`）；兩邊 frontmatter 都沒有 `TODO` / `PAUSED`。封存區另有 11 檔 `> 狀態:✅ DONE`、1 檔 `> 狀態：DONE`。
 
 ## R2 `*config` 三層
 
@@ -100,6 +109,7 @@ todo:                                     # 選填，字串陣列，顯示前 5 
 - 修正：找不到狀態 → `UNKNOWN`（`❔ No status`），上方計數另列 `N no status`，`pending` 只算 `PENDING`。工單卡片沒有「▶ 執行」按鈕（只給 `PENDING` / `URGENT`）。
 - 同編號去重：`T0177-report-….md` 與 `T0177-….md` 同時存在時，既有去重保留檔名排序在前的檔，報告可能把真正的工單藏起來。修正：同 ID 時有狀態的檔優先於 `UNKNOWN`。
 - BMad-Guide 實測（2026-10-25，唯讀）：修正前 `9 pending`（報告檔；另有 5 張工單被同編號報告藏起來）；修正後 `0 pending`、`9 no status` → 去重修正後 `4 no status`，`done` 多 5。
+- T0702 實測（2026-10-25，唯讀，以面板同一套 parser + 去重計數）：BMad-Guide `_ct-workorders/` `done 171 / no status 4` → `done 172 / no status 3`（`T0098` `UNKNOWN` → `DONE`，其餘 `active 3`、`pending 0` 不變）；BAT `_ct-workorders/` 前後相同（`active 1`、`done 215`、`inactive 2`）。封存區（勾「含封存」時）BMad-Guide `done 129 / no status 11` → `done 140 / no status 0`；BAT 封存區不變。改變的只有寫成引用區塊狀態的 12 檔，報告檔全部維持 `UNKNOWN`。
 
 ## R5 自動更新
 
@@ -120,11 +130,11 @@ todo:                                     # 選填，字串陣列，顯示前 5 
 ## 已知限制
 
 - global / 預設兩層不監看：在 BAT 外改 global config 或升級 CT 後，要切回總覽或按 ↻ 才會更新。
-- legacy 檔的狀態寫在 blockquote（`> 狀態:✅ DONE`，例 BMad-Guide `T0098`）時 legacy parser 讀不到，歸為 `UNKNOWN`。
-- CT 的 `PAUSED`、`TODO` 等不在 BAT frontmatter 列舉內的狀態顯示為 `⚠️ Invalid`（列在進行中工單）。
+- 引用區塊狀態（T0702）只支援盤點到的格式：引號後直接是 `狀態`（不含粗體，粗體 `> **狀態**：` 原本就由粗體規則讀到）；legacy 檔的其他欄位（工單編號、時間）寫在引用區塊時仍讀不到。
+- 不在 BAT frontmatter 列舉內、也不是別名的狀態（例 BAT 封存區 3 檔的 `CLOSED`）仍顯示為 `⚠️ Invalid`（列在進行中工單，勾「含封存」才會看到封存的）。
 - BAT 介面目前只有深色主題（`settings.theme` 沒有 UI 效果），沒有淺色畫面可驗。
 
 ## 驗證清單
 
-- 單元測試：`src/lib/__tests__/ct-tower-overview.test.ts`（摘要有 / 無 / 壞掉、`summary_version` 2、各種不合格的版本與 kind、最後更新 fallback、預設表、config 平 / 巢狀 / 壞掉、三層缺任一層、只在上層出現的鍵、工單分類、無 `status` 的工單檔）；`src/components/__tests__/tower-overview.test.tsx`（畫面各狀態、R4 計數與同編號去重、R2 來源與被覆蓋值、遠端不支援、R3 sprint 區塊、R5 監看觸發更新與可見 / 重新整理重讀）；`electron/__tests__/ct-config-sources.test.ts`（候選順序、新路徑優先、過大檔案、註冊）；`electron/remote/__tests__/path-aware-channels-coverage.test.ts`、`headless-parity.test.ts`（channel 分類與 headless 註冊）。
+- 單元測試：`src/lib/__tests__/ct-tower-overview.test.ts`（摘要有 / 無 / 壞掉、`summary_version` 2、各種不合格的版本與 kind、最後更新 fallback、預設表、config 平 / 巢狀 / 壞掉、三層缺任一層、只在上層出現的鍵、工單分類、無 `status` 的工單檔；T0702：BMad-Guide `T0098` / `T0099-audit-report` 檔頭原文、引用區塊各寫法、報告檔仍 `UNKNOWN`、表頭搶先匹配、`PAUSED`、`TODO` 別名與 drift）；`src/components/__tests__/tower-overview.test.tsx`（畫面各狀態、R4 計數與同編號去重、T0702 計數 / 徽章 / 按鈕 / 總覽列出、R2 來源與被覆蓋值、遠端不支援、R3 sprint 區塊、R5 監看觸發更新與可見 / 重新整理重讀）；`electron/__tests__/ct-config-sources.test.ts`（候選順序、新路徑優先、過大檔案、註冊）；`electron/remote/__tests__/path-aware-channels-coverage.test.ts`、`headless-parity.test.ts`（channel 分類與 headless 註冊）。
 - 實機（T0701 以隔離實例執行，見工單回報區）：BAT 工作區（沒有摘要）、BMad-Guide（有摘要、沒有 sprint-status.yaml）、scratchpad 工作區（摘要 + 巢狀 config）；外部改 `_tower-config.yaml` / 摘要 `todo` → 不按按鈕約 0.6 s 內更新 → 改回原值，`git diff` 乾淨。

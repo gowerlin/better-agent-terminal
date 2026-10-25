@@ -64,7 +64,9 @@ export interface CtWorkorderFrontmatterV1 extends CtFrontmatterV1Base {
   project?: string
   status:
     | 'PENDING' | 'IN_PROGRESS' | 'DONE' | 'FIXED' | 'FAILED'
-    | 'BLOCKED' | 'PARTIAL' | 'INTERRUPTED' | 'URGENT' | 'ABANDONED'
+    | 'BLOCKED' | 'PARTIAL' | 'INTERRUPTED' | 'PAUSED' | 'URGENT' | 'ABANDONED'
+    /** T0702: old work orders only; the parser reads it as PENDING. */
+    | 'TODO'
   started_at?: string
   completed_at?: string
   renew_count?: number

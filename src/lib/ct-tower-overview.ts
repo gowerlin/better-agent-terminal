@@ -252,7 +252,8 @@ export function mergeTowerConfig(input: {
 
 /**
  * - `open`: still needs someone (Worker or Tower) — listed as「進行中」in the overview.
- *   FAILED / PARTIAL / BLOCKED / INTERRUPTED stay open until the Tower re-dispatches or closes them.
+ *   FAILED / PARTIAL / BLOCKED / INTERRUPTED stay open until the Tower re-dispatches or closes them;
+ *   PAUSED (CT `*pause`) until `*resume`.
  * - `closed`: DONE / FIXED / ABANDONED — the statuses the panel already treats as completed
  *   (`diffWorkOrders` "completed" toast).
  * - `unknown`: INVALID (unrecognised frontmatter status) and UNKNOWN (no status at all). INVALID is
@@ -268,6 +269,7 @@ export function workOrderPhase(status: WorkOrderStatus): WorkOrderPhase {
     case 'BLOCKED':
     case 'PARTIAL':
     case 'INTERRUPTED':
+    case 'PAUSED':
     case 'FAILED':
       return 'open'
     case 'DONE':

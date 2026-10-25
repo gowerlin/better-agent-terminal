@@ -7,6 +7,8 @@
  *   - Falls back to legacy markdown table grep when frontmatter is missing.
  *   - Invalid / unknown status from frontmatter → 'INVALID' (never PENDING).
  *   - T0701: a legacy file with no status at all (reports, notes) → 'UNKNOWN' (never PENDING).
+ *   - T0702: CT `PAUSED` is a status; frontmatter `TODO` is an alias of `PENDING`; a legacy
+ *     status line may sit in a blockquote (`> 狀態:✅ DONE`).
  */
 
 import {
@@ -27,6 +29,8 @@ export type WorkOrderStatus =
   | 'BLOCKED'
   | 'PARTIAL'
   | 'INTERRUPTED'
+  /** T0702: CT `*pause` (`interrupt-protocol.md`); open, `*resume` sets it back to IN_PROGRESS. */
+  | 'PAUSED'
   | 'URGENT'
   | 'ABANDONED'
   | 'INVALID'
@@ -52,12 +56,26 @@ export interface WorkOrder {
 }
 
 const STATUS_VALUES = new Set<WorkOrderStatus>([
-  'PENDING', 'IN_PROGRESS', 'DONE', 'FIXED', 'FAILED', 'BLOCKED', 'PARTIAL', 'INTERRUPTED', 'URGENT', 'ABANDONED', 'INVALID',
+  'PENDING', 'IN_PROGRESS', 'DONE', 'FIXED', 'FAILED', 'BLOCKED', 'PARTIAL', 'INTERRUPTED', 'PAUSED', 'URGENT', 'ABANDONED', 'INVALID',
 ])
 
 const VALID_FRONTMATTER_STATUSES = new Set<WorkOrderStatus>([
-  'PENDING', 'IN_PROGRESS', 'DONE', 'FIXED', 'FAILED', 'BLOCKED', 'PARTIAL', 'INTERRUPTED', 'URGENT', 'ABANDONED',
+  'PENDING', 'IN_PROGRESS', 'DONE', 'FIXED', 'FAILED', 'BLOCKED', 'PARTIAL', 'INTERRUPTED', 'PAUSED', 'URGENT', 'ABANDONED',
 ])
+
+/**
+ * T0702: frontmatter values read as another status. Only for old work orders already written
+ * that way — the CT template writes `PENDING`.
+ */
+const FRONTMATTER_STATUS_ALIASES: Readonly<Record<string, WorkOrderStatus>> = {
+  TODO: 'PENDING',
+}
+
+/** Upper-cased frontmatter status with aliases resolved (`todo` → `PENDING`). */
+function resolveFrontmatterStatus(value: unknown): string {
+  const raw = (value ?? '').toString().trim().toUpperCase()
+  return FRONTMATTER_STATUS_ALIASES[raw] ?? raw
+}
 
 /**
  * 從工單 .md 內容解析 metadata
@@ -81,7 +99,7 @@ export function parseWorkOrder(filename: string, content: string): WorkOrder {
 
     if (fm) {
       // Validate status enum — INVALID rather than PENDING when unknown.
-      const rawStatus = (fm.status ?? '').toString().trim().toUpperCase()
+      const rawStatus = resolveFrontmatterStatus(fm.status)
       const status: WorkOrderStatus = VALID_FRONTMATTER_STATUSES.has(rawStatus as WorkOrderStatus)
         ? (rawStatus as WorkOrderStatus)
         : 'INVALID'
@@ -96,8 +114,11 @@ export function parseWorkOrder(filename: string, content: string): WorkOrder {
       }
 
       // Drift detection: compare frontmatter vs body table value (warning only).
+      // An alias is not drift: `status: TODO` with a body `PENDING` agree.
       const bodyStatus = extractFieldFromBody(body, '狀態')
-      const drift = detectStatusDrift(fm.status, bodyStatus)
+      const aliasOnly = rawStatus !== (fm.status ?? '').toString().trim().toUpperCase() &&
+        extractStatusKeyword(bodyStatus) === status
+      const drift = aliasOnly ? null : detectStatusDrift(fm.status, bodyStatus)
       if (drift) warnings.push(drift)
 
       return {
@@ -138,11 +159,14 @@ function parseWorkOrderLegacy(filename: string, content: string): WorkOrder {
   const id = extractFieldFromBody(content, '工單編號') ?? filenameToId(filename)
   const title = extractFieldFromBody(content, '任務名稱') ?? extractFieldFromBody(content, '標題') ?? filenameToTitle(filename)
 
-  // Prefer markdown form, fall back to bare YAML-ish line.
+  // Prefer markdown form, then a blockquote line (T0702), fall back to bare YAML-ish line.
+  // The blockquote is tried whenever the markdown form gave no status keyword: a table header
+  // such as `| AC | 狀態 | 落地位置 |` matches the table form first (BMad-Guide archived T0104).
   const rawMarkdownStatus = extractFieldFromBody(content, '狀態')
   const yamlMatch = !rawMarkdownStatus ? content.match(/^status:\s*(\S+)/im) : null
   const status: WorkOrderStatus =
     extractStatusKeyword(rawMarkdownStatus) ??
+    extractStatusKeyword(extractQuotedField(content, '狀態')) ??
     extractStatusKeyword(yamlMatch?.[1]) ??
     'UNKNOWN'
 
@@ -181,10 +205,21 @@ function extractFieldFromBody(content: string, label: string): string | undefine
   return boldMatch?.[1]?.trim()
 }
 
+/**
+ * T0702: a field written as a plain blockquote line, `> 欄位:值` / `> 欄位：值` (BMad-Guide `T0098`
+ * and its archived siblings: `> 狀態:✅ DONE`). Used for the legacy status only, when
+ * `extractFieldFromBody` gave no status keyword, so the id / title / time fields keep their old reading.
+ */
+function extractQuotedField(content: string, label: string): string | undefined {
+  const escaped = label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  const quoteRegex = new RegExp(`^(?:>[ \\t]*)+${escaped}[ \\t]*[：:][ \\t]*(.+)`, 'm')
+  return content.match(quoteRegex)?.[1]?.trim()
+}
+
 /** 從 raw 字串中提取第一個有效狀態關鍵字，忽略括號附加文字 */
 function extractStatusKeyword(raw: string | undefined): WorkOrderStatus | undefined {
   if (!raw) return undefined
-  const keyword = raw.toUpperCase().match(/^[^A-Z]*(DONE|FIXED|IN_PROGRESS|PENDING|BLOCKED|PARTIAL|INTERRUPTED|FAILED|URGENT|ABANDONED)/)?.[1]
+  const keyword = raw.toUpperCase().match(/^[^A-Z]*(DONE|FIXED|IN_PROGRESS|PENDING|BLOCKED|PARTIAL|INTERRUPTED|PAUSED|FAILED|URGENT|ABANDONED)/)?.[1]
   return keyword && STATUS_VALUES.has(keyword as WorkOrderStatus) ? keyword as WorkOrderStatus : undefined
 }
 
@@ -232,6 +267,7 @@ export function statusColor(status: WorkOrderStatus): string {
     case 'BLOCKED': return 'ct-status-blocked'
     case 'PARTIAL': return 'ct-status-partial'
     case 'INTERRUPTED': return 'ct-status-interrupted'
+    case 'PAUSED': return 'ct-status-paused'
     case 'URGENT': return 'ct-status-urgent'
     case 'ABANDONED': return 'ct-status-abandoned'
     case 'INVALID': return 'ct-status-invalid'
@@ -251,6 +287,7 @@ export function statusLabel(status: WorkOrderStatus): string {
     case 'BLOCKED': return '🚫 Blocked'
     case 'PARTIAL': return '⚠️ Partial'
     case 'INTERRUPTED': return '⏸️ Interrupted'
+    case 'PAUSED': return '⏸ Paused'
     case 'URGENT': return '🔥 Urgent'
     case 'ABANDONED': return '🚫 Abandoned'
     case 'INVALID': return '⚠️ Invalid'

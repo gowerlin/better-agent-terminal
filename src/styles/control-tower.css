@@ -138,6 +138,7 @@
 .ct-order-card.ct-status-blocked { border-left-color: #6b7280; }
 .ct-order-card.ct-status-partial { border-left-color: #f97316; }
 .ct-order-card.ct-status-interrupted { border-left-color: #8b5cf6; }
+.ct-order-card.ct-status-paused { border-left-color: #8b5cf6; }
 .ct-order-card.ct-status-urgent { border-left-color: #ef4444; background: rgba(239, 68, 68, 0.05); }
 .ct-order-card.ct-status-abandoned { border-left-color: #6b7280; opacity: 0.78; }
 .ct-order-card.ct-status-unknown { border-left-color: #6b7280; opacity: 0.78; }
@@ -182,6 +183,7 @@
 .ct-status-badge.ct-status-blocked { background: rgba(107, 114, 128, 0.15); color: #6b7280; }
 .ct-status-badge.ct-status-partial { background: rgba(249, 115, 22, 0.15); color: #f97316; }
 .ct-status-badge.ct-status-interrupted { background: rgba(139, 92, 246, 0.15); color: #8b5cf6; }
+.ct-status-badge.ct-status-paused { background: rgba(139, 92, 246, 0.15); color: #8b5cf6; }
 .ct-status-badge.ct-status-urgent { background: rgba(239, 68, 68, 0.2); color: #ef4444; }
 .ct-status-badge.ct-status-abandoned { background: rgba(107, 114, 128, 0.16); color: #9ca3af; }
 .ct-status-badge.ct-status-unknown { background: rgba(107, 114, 128, 0.16); color: #9ca3af; }

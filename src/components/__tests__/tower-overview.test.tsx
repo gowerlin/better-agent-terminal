@@ -45,7 +45,11 @@ const DEFAULTS_MD = `### 可用選項
 | \`archive_days\` | \`0\` - \`365\` | \`7\` | archive |
 `
 
-function setup(files: Record<string, string>, sources: () => Promise<CtConfigSources>) {
+function setup(
+  files: Record<string, string>,
+  sources: () => Promise<CtConfigSources>,
+  actions: { onExecWorkOrder?: (id: string) => void; onDoneWorkOrder?: (id: string) => void } = {},
+) {
   const disk = new Map(Object.entries(files))
   let changed: ((path: string) => void) | null = null
   const fs = {
@@ -68,7 +72,7 @@ function setup(files: Record<string, string>, sources: () => Promise<CtConfigSou
   const readSources = vi.fn(sources)
   const log = vi.fn()
   ;(window as unknown as { electronAPI: unknown }).electronAPI = { fs, ctConfig: { readSources }, debug: { log } }
-  render(<ControlTowerPanel isVisible={true} workspaceFolderPath={WS} />)
+  render(<ControlTowerPanel isVisible={true} workspaceFolderPath={WS} {...actions} />)
   return {
     disk,
     readSources,
@@ -199,6 +203,56 @@ describe('summary badges (R4)', () => {
     await flush()
     const badges = [...document.querySelector('.ct-summary')!.querySelectorAll('.ct-badge')].map(b => b.textContent)
     expect(badges).toEqual(['2 done', '2 total'])
+  })
+})
+
+describe('T0702: TODO alias, PAUSED, blockquote status', () => {
+  /** Expand a work order card in the 工單 tab and return it. */
+  function expandCard(id: string): HTMLElement {
+    const card = [...document.querySelectorAll<HTMLElement>('.ct-order-card')]
+      .find(c => c.querySelector('.ct-order-id')?.textContent === id)
+    if (!card) throw new Error(`no card ${id}`)
+    fireEvent.click(card)
+    return card
+  }
+
+  it('counts: TODO is pending, PAUSED is not, a blockquote DONE is done; badges and actions', async () => {
+    const onExecWorkOrder = vi.fn()
+    const onDoneWorkOrder = vi.fn()
+    setup({
+      [`${CT}/T0001-x.md`]: workOrder('T0001', 'TODO'),
+      [`${CT}/T0002-x.md`]: workOrder('T0002', 'PAUSED'),
+      [`${CT}/T0098-meta-plan.md`]: '# T0098 — meta-PLAN\n\n> 類型:planning\n> 狀態:✅ DONE（原 💡 IDEA 未隨結案更新）\n',
+      [`${CT}/T0099-audit-report.md`]: '# T0099 Audit Report\n\n> 量測時間:2026-04-22 13:18 (UTC+8)\n',
+    }, async () => sourcesWith(null, null), { onExecWorkOrder, onDoneWorkOrder })
+    await flush()
+
+    const badges = [...document.querySelector('.ct-summary')!.querySelectorAll('.ct-badge')].map(b => b.textContent)
+    expect(badges).toEqual(['1 pending', '1 done', '1 no status', '4 total'])
+
+    const todo = expandCard('T0001')
+    expect(todo.querySelector('.ct-status-badge')!.textContent).toBe('⏳ Pending')
+    expect(within(todo).getByText(`▶ ${en.controlTower.execute}`)).toBeTruthy()
+
+    const paused = expandCard('T0002')
+    expect(paused.querySelector('.ct-status-badge')!.textContent).toBe('⏸ Paused')
+    expect(paused.querySelector('.ct-status-badge')!.classList.contains('ct-status-paused')).toBe(true)
+    expect(within(paused).queryByText(`▶ ${en.controlTower.execute}`)).toBeNull()
+    expect(within(paused).getByText(`🔧 ${en.controlTower.done}`)).toBeTruthy()
+  })
+
+  it('overview lists TODO (as Pending) and PAUSED, not the blockquote DONE', async () => {
+    setup({
+      [`${CT}/T0001-x.md`]: workOrder('T0001', 'TODO'),
+      [`${CT}/T0002-x.md`]: workOrder('T0002', 'PAUSED'),
+      [`${CT}/T0098-meta-plan.md`]: '# T0098\n\n> 狀態：DONE\n',
+    }, async () => sourcesWith(null, null))
+    await openOverview()
+    const listed = [...document.querySelectorAll('.ct-overview-order')].map(el => [
+      el.querySelector('.ct-order-id')!.textContent,
+      el.querySelector('.ct-status-badge')!.textContent,
+    ])
+    expect(listed.sort()).toEqual([['T0001', '⏳ Pending'], ['T0002', '⏸ Paused']])
   })
 })
 

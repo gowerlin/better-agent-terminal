@@ -23,6 +23,7 @@ function workOrderToLane(status: string): KanbanLane {
     case 'BLOCKED': return 'BLOCKED'
     case 'PARTIAL': return 'IN_PROGRESS'
     case 'INTERRUPTED': return 'BLOCKED'
+    case 'PAUSED': return 'BLOCKED'
     default: return 'TODO'
   }
 }
@@ -38,7 +39,7 @@ const LANE_ICONS: Record<KanbanLane, string> = {
 }
 
 /** Statuses eligible for ct-done remedial close */
-const DONE_ELIGIBLE = new Set(['IN_PROGRESS', 'INTERRUPTED', 'PARTIAL', 'BLOCKED', 'FAILED'])
+const DONE_ELIGIBLE = new Set(['IN_PROGRESS', 'INTERRUPTED', 'PAUSED', 'PARTIAL', 'BLOCKED', 'FAILED'])
 
 export function KanbanView({ workOrders, onExecWorkOrder, onDoneWorkOrder }: KanbanViewProps) {
   const { t } = useTranslation()
