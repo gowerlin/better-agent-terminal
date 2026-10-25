@@ -3,30 +3,30 @@ schema_version: 1
 schema_kind: index
 id: _bug-tracker
 index_kind: bugs
-generated_at: "2026-10-22T02:01:08+0800"
+generated_at: "2026-10-26T03:20:15+0800"
 generator: control-tower-sync
 source_globs:
   - _ct-workorders/BUG-*.md
 exclude_globs:
   - _ct-workorders/_archive/**
   - _ct-workorders/examples/**
-total: 56
+total: 35
 breakdown:
   OPEN: 0
   FIXING: 0
   FIXED: 28
   VERIFY: 0
-  CLOSED: 28
+  CLOSED: 7
   WONTFIX: 0
 ---
 
 # Bug Tracker
 
 > ⚠️ 此文件由 `*sync` 自動生成，請勿手動編輯。
-> 最後同步：2026-10-22 01:48 (UTC+8) — BUG-165 → FIXED（T0698 `ec4b3c13`，隨 pre.6 待實機驗收）；BUG-170 → FIXED（CT v5.12.x 重派前回收舊分頁，T0695 / T0696 實機驗收）；BUG-169 FIXED（T0691，等下一個預覽版安裝版驗收）；BUG-168 / 167 FIXED；BUG-166 FIXED 待 外部測試者A；BUG-165 OPEN
+> 最後同步：2026-10-26 03:20 (UTC+8) — 第九十五 session `*archive`：歸檔 21 張已 CLOSED、未被引用的 BUG（BUG-082、138–141、143–145、148–155、157、160–163）；熱區 Fixed 28 / Closed 7
 
 ## 統計
-- 🔴 Open: 0 | ⏳ Fixing: 0 | ✅ Fixed: 28 | 🧪 Verify: 0 | 🚫 Closed: 28 | ⛔ Won't Fix: 0 | **Total: 56**
+- 🔴 Open: 0 | ⏳ Fixing: 0 | ✅ Fixed: 28 | 🧪 Verify: 0 | 🚫 Closed: 7 | ⛔ Won't Fix: 0 | **Total: 35**
 
 ## 🔴 Open / 處理中
 
@@ -83,34 +83,13 @@ breakdown:
 |----|------|--------|---------|------|
 | BUG-164 | macOS GPU 程序在建立 / 切換終端分頁時以同一個 CHECK 崩潰（T0668 符號化；T0669 `32d62a45` macOS 停用 Graphite + 崩潰後重建；外部測試者A 以 v0.7.1-pre.3 確認約 4h40m 0 次崩潰） | 🟢 low | 2026-10-19 | [BUG-164](BUG-164-macos-gpu-process-check-crash-on-tab-create-switch.md) |
 | BUG-136 | macOS 舊 Codex 分頁打字嚴重延遲、Renderer 約 100% CPU：縮圖預覽字串無上限累積（T0666 根因、T0667 `a9f0ad5a` 加上限；外部測試者A 以 v0.7.1-pre.3 確認） | 🟡 medium | 2026-10-19 | [BUG-136](BUG-136-macos-old-terminal-typing-lag-renderer-cpu.md) |
-| BUG-163 | 設定精靈選項按鈕用 Tailwind class 但 App 沒載入 Tailwind，顯示成白底原生按鈕；步驟說明過時（T0658 `9d8e1985`；0.7.1-pre.2 T0663 實機） | 🟡 medium | 2026-10-18 | [BUG-163](BUG-163-wizard-choice-buttons-unstyled-and-stale-step-text.md) |
-| BUG-162 | claude Worker 的權限請求被放行 / 逾時拒絕後（未經鍵盤），仍維持 `blocked` / `permission` 直到 `Stop`（T0657 `ff14fa5d`；0.7.1-pre.2 T0664 實機） | 🟡 medium | 2026-10-18 | [BUG-162](BUG-162-permission-blocked-not-cleared-after-auto-approve.md) |
-| BUG-161 | 設定精靈 step 原始錯誤訊息、復原警告、縮圖列 `suggested` / 「Set as Supervisor」仍是英文（T0660 `a5caf04a`；0.7.1-pre.2 T0663 實機） | 🟢 low | 2026-10-18 | [BUG-161](BUG-161-wizard-raw-error-messages-english.md) |
-| BUG-160 | SSH 設定的「重新釘選指紋」不經通道連本機埠，可能釘到本機其他 BAT 伺服器並送出權杖（T0655 `02f1c6f8`；0.7.1-pre.2 T0663 實機） | 🟡 medium | 2026-10-18 | [BUG-160](BUG-160-ssh-profile-pin-fingerprint-probes-local-port.md) |
 | BUG-158 | 遠端設定畫面殘留英文字樣、缺 zh-TW key；SSH 認證失敗訊息提到「帳號密碼」（T0652 `15a792d4`；0.7.1-pre.2 T0663 實機） | 🟢 low | 2026-10-18 | [BUG-158](BUG-158-remote-ui-english-strings-and-password-wording.md) |
-| BUG-157 | 「編輯連線」釘選新指紋後按「儲存」寫回舊指紋；釘選失敗不提示（T0650 `5594ec57`；0.7.1-pre.2 T0663 實機） | 🟡 medium | 2026-10-18 | [BUG-157](BUG-157-pin-fingerprint-overwritten-on-save.md) |
-| BUG-155 | helper 派工建立的 Worker PTY 沒有記錄 `agentPreset`：`bat_whoami` 缺 `agent`，claude Worker 少了 `DISABLE_UPDATES` 防護（T0639 `149f6f8d`；0.7.1-pre.1 T0645 實機） | 🟢 low | 2026-10-18 | [BUG-155](BUG-155-helper-dispatch-pty-missing-agent-preset.md) |
-| BUG-154 | 結構化提問（`bat-notify --ask`）答覆後，仍在執行的 Worker 縮圖顯示 `✓` 並計入批次關閉（T0613 `7bfe225c`；pre.8 T0614 目視） | 🟡 medium | 2026-10-18 | [BUG-154](BUG-154-thumbnail-checkmark-after-structured-answer.md) |
-| BUG-153 | Worker 分頁縮圖在 `T#### 提問`（等塔台答覆）時也顯示 `✓` 並計入批次關閉；hook `blocked` 時沒有專屬標示（T0609 `fbf641dc`；pre.7 T0612 目視） | 🟡 medium | 2026-10-18 | [BUG-153](BUG-153-worker-thumbnail-checkmark-on-question-and-blocked.md) |
-| BUG-149 | `settings.json` 沒有 `shell` 鍵時，helper `--agent` 派出的 claude / codex Worker 起不來（引號以 posix 組、Windows 分頁是 pwsh；T0593 `e283abdc`：以 PtyManager 實際預設 shell 判斷） | 🔴 high | 2026-10-18 | [BUG-149](BUG-149-codex-dispatch-posix-quoting-without-shell-setting.md) |
-| BUG-152 | 塔台以 helper 派出的 Worker 分頁會搶走鍵盤焦點，使用者正在打的字跑進 Worker 分頁 | 🟡 medium | 2026-10-18 | [BUG-152](BUG-152-dispatched-worker-tab-steals-focus.md) |
-| BUG-151 | helper 派工指令寫入前打進新分頁的輸入被接在指令前面，Worker 起不來但 helper 仍 exit 0 | 🔴 high | 2026-10-18 | [BUG-151](BUG-151-dispatch-quoting-pwsh-in-git-bash-tab.md) |
-| BUG-150 | claude-cli 分頁的 AskUserQuestion 一律回報 `blocked` / `permission`（應為 `question`），T0594 的回答後清除永遠不生效 | 🟡 medium | 2026-10-18 | [BUG-150](BUG-150-askuserquestion-blocked-reason-permission.md) |
-| BUG-148 | Codex CLI 分頁的 BAT MCP 一律 `CONNECT_FAILED`（T0586 `8c7bd4c4`：codex 注入改帶 `mcp_servers.bat.env_vars` 轉送 `BAT_*` 名稱；pre.3 實機 `bat_whoami` PASS） | 🟡 medium | 2026-10-18 | [BUG-148](BUG-148-codex-mcp-shim-missing-bat-env.md) |
-| BUG-144 | claude CLI 分頁選取文字後 Shift + 右鍵，選單只有「貼上」沒有「複製」（T0573 `6e4f3764`：claude 聚焦時重送追蹤 DECSET 清選取 → 放回 / 接回拖曳；同範圍重選經放開同步；pre.9 實機三項 PASS） | 🟢 low | 2026-10-17 | [BUG-144](BUG-144-shift-right-click-menu-missing-copy-in-claude-tab.md) |
-| BUG-145 | 新分頁 / 還原 / ⏻ 重啟的 PTY 停在 120x30（T0572 `ecc00c60`：PTY 建立後重送 fit 尺寸；pre.8 實機 PASS） | 🟢 low | 2026-10-17 | [BUG-145](BUG-145-new-pty-stays-at-spawn-size.md) |
-| BUG-143 | 終端右鍵選單按 Esc 關不掉（T0569 `fb66c0bc`：選單開著時 Esc 只關選單、不送進 PTY；pre.7 實機 PASS） | 🟢 low | 2026-10-16 | [BUG-143](BUG-143-terminal-context-menu-esc-not-closing.md) |
 | BUG-142 | claude CLI 分頁右鍵已貼上又跳 BAT 選單（T0568 `9988a117`：程式開滑鼠追蹤時不開選單，Shift + 右鍵照開；pre.7 實機 PASS，Shift 選單缺「複製」另開 BUG-144） | 🟢 low | 2026-10-16 | [BUG-142](BUG-142-right-click-pastes-and-shows-menu-in-claude-tab.md) |
-| BUG-141 | 精靈升級後段失敗取消，rollback 刪掉整個安裝（T0554 `38fe7421`：保留 `.bat-old` 至完成、取消換回舊樹 / 舊 unit 並重啟舊 service；WSL + SSH） | 🟡 medium | 2026-10-16 | [BUG-141](BUG-141-wizard-rollback-removes-upgraded-install.md) |
-| BUG-139 | WSL 精靈覆蓋安裝不清舊檔，舊 bundle 殘留約 256 MiB（T0552 `f599f915`：解到暫存目錄後換名，WSL / SSH 共用） | 🟢 low | 2026-10-16 | [BUG-139](BUG-139-wsl-bundle-overlay-install-leaves-stale-files.md) |
-| BUG-138 | WSL 精靈升級執行中的 bat-server 會換 port，既有 profile 失效（T0552 `f599f915`：沿用既有 unit port、更新既有 profile） | 🟡 medium | 2026-10-16 | [BUG-138](BUG-138-wsl-wizard-upgrade-changes-port.md) |
-| BUG-140 | `--close-worker` 延遲期間切換工作區 / 終端焦點被算成使用者輸入，回收被取消（T0551 `92655e00`，pre.5 實機驗收 T0558：終端自動回應（focus / CPR / DA…）不算使用者輸入） | 🟡 medium | 2026-10-16 | [BUG-140](BUG-140-close-worker-cancelled-by-focus-not-typing.md) |
 | BUG-099 | 設定精靈取消時不 rollback 失敗中的步驟（T0426） | 🟢 low | 2026-10-14 | [BUG-099](BUG-099-wizard-cancel-skips-failed-step-rollback.md) |
 | BUG-117 | mac x64 dmg 內嵌 arm64 原生 binary（已證實：claude / codex / node-pty / whisper 等）→ Intel Mac 內嵌 claude、codex、語音不可用、PTY 降級 | 🔴 high | 2026-10-14 | [BUG-117](BUG-117-mac-x64-dmg-ships-arm64-native-binaries.md) |
 | BUG-061 | `CodexAgentPanel.tsx` baseline tsc errors（dev-only；T0486 清零 36 → 0） | 🟢 low | 2026-10-14 | [BUG-061](BUG-061-codex-agent-panel-tsc-baseline-errors.md) |
-| BUG-082 | 跨專案工單前綴（CP-/CT-）被結構化派工路徑拒收，且四處 ID 規則彼此不一致 | 🔴 high | 2026-09-02 | [BUG-082](BUG-082-workorder-id-prefix-rejected-by-structured-dispatch.md) |
 
-> 💡 BUG-079/080 已於 2026-05-19 歸檔；BUG-081 於 2026-09-02 歸檔；2026-10-17 第七十一 session 歸檔 40 張（BUG-071–126 中已 CLOSED、未被引用者）→ [_archive/bugs/](_archive/bugs/)
+> 💡 BUG-079/080 已於 2026-05-19 歸檔；BUG-081 於 2026-09-02 歸檔；2026-10-17 第七十一 session 歸檔 40 張（BUG-071–126 中已 CLOSED、未被引用者）；2026-10-26 第九十五 session 歸檔 21 張（BUG-082、138–163 中已 CLOSED、未被引用者）→ [_archive/bugs/](_archive/bugs/)
 >
 > ⚠️ BUG-072/073/074 以 **field evidence** 就地結案（上線 101 天零回饋），**非人工 smoke**；
 > BUG-078 則有 CI 正面證據。結案依據差異見各 BUG 文末結案紀錄。
