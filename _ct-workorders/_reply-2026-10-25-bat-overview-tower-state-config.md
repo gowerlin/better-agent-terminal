@@ -59,10 +59,21 @@ BAT 的讀取規則：
 
 建議 CT 寫進 `memory-protocol.md`（§ 標準區段結構），並在 `*rescan` / 收工時自動維護。BAT 的 `_tower-state.md` 也會在 CT 新版上線後由塔台寫入摘要。
 
+## 結果：已在 BAT `v0.7.1-pre.7` 發佈（2026-10-25）
+
+- Release：https://github.com/gowerlin/better-agent-terminal/releases/tag/v0.7.1-pre.7 （預覽版；CI run `40192111428` 全綠，target `0905e0c0`）
+- **R1**：最後更新、進行中工單、下一個編號、待辦（前 5 則）。BMad-Guide 的真實摘要（CT D340 寫入）實機顯示正常；沒有摘要的專案顯示最後更新、進行中工單與「開檔查看」提示
+- **R2**：預設 → global → project 三層鍵的聯集，每列生效值與來源，可展開被覆蓋的值；CT 的 `control-tower:` 巢狀格式與平鋪格式都讀；註明不含 session 層。遠端視窗由遠端 bat-server 讀遠端主機的家目錄，舊 bat-server 顯示無法讀取（不拿本機檔案冒充）
+- **R3**：沒有 `sprint-status.yaml` 不再顯示空狀態；有的話 Sprint 區塊照舊
+- **R5（使用者追加）**：`_ct-workorders/` 內的檔案改了總覽自動更新（實測約 0.6 秒）；global 與預設值在切到總覽或按 ↻ 時重讀
+- **§ 5 pending 計數（屬實，已修）**：legacy parser 找不到狀態時預設回 `PENDING`，所以報告檔被算成 pending。現在另列 `no status`；同編號的工單與報告並存時，有狀態的檔優先（BMad-Guide 有 5 張工單原本被同編號報告蓋掉）。BMad-Guide 熱區實測：`pending` 9 → 0，報告檔另列 `no status`（2026-10-25 T0702 實測時為 3 檔）
+- **順帶**：引用區塊形式的狀態（`> 狀態:✅ DONE`，例 BMad-Guide `T0098`）讀得到了；新增 `PAUSED`（列為進行中）；`status: TODO` 視同 `PENDING`
+- README 版本對照新增一列：總覽 BAT `>= 0.7.1-pre.7`；下一個編號與待辦需 CT `>= v6.0.0-pre.1`（預覽版）寫入摘要
+
 ## 更正來源前提
 
-- 無。總覽確實只讀 `sprint-status.yaml`（`src/components/SprintDashboard.tsx` 的空狀態）。pending 計數的成因由 T0701 查證，結果補在本稿。
+- 無。總覽確實只讀 `sprint-status.yaml`（`src/components/SprintDashboard.tsx` 的空狀態）。pending 計數的成因見上方結果。
 
 ## 證據
 
-- BAT 決策 D184（`_ct-workorders/_decision-log.md`）、工單 T0701（`_ct-workorders/T0701-delegate-ct-overview-tower-state-config.md`，`17f96021`）
+- BAT 決策 D184 / D185（`_ct-workorders/_decision-log.md`）、工單 T0701（`e7b20593`）、T0702（`33d77c4f`）回報區
