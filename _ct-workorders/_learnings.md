@@ -3767,3 +3767,15 @@ Codex 那張是外部測試者回報才發現；Claude 那張是使用者隨口�
 **How to apply**：
 - 新工單 frontmatter 一律 `status: PENDING`（CT `work-order-template.md`），不要抄前一張工單的值
 - 前一張工單是範本時，只抄結構與 memory_overrides，狀態、時間、編號都依規格重填
+
+## L177
+
+**來源**：第九十四 session（2026-10-25），T0704 / T0705 收單
+
+**現象**：工單 `project: BUG-171` 的兩張修正單，Worker 都把工單 `status` 寫成 `FIXED`（BUG 單的狀態）。CT `worker_auto_close` 只在工單 `status == DONE` 時回收分頁，照規則會跳過回收；塔台收單時手動改成 `DONE` 才回收。前例 T0691 / T0692 也寫 `FIXED`。
+
+**How to apply**：
+- 修 BUG 的工單在 memory_overrides 寫明「工單完成狀態寫 `DONE`，`FIXED` 只用在 BUG 單」（T0706 起已加）
+- 收單時先看工單 `status`；是 `FIXED` 就改成 `DONE` 並在回報區記一筆，再執行 `worker_auto_close`
+
+**候選晉升**：CT（ct-exec 收尾時，`project` 是 BUG 的實作單也應寫 `DONE`）
