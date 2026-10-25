@@ -1,11 +1,40 @@
 # Tower State — better-agent-terminal
 
-> 最後更新:2026-10-23 19:50 (UTC+8) — **第九十一 session 收工**（CT v5.12.5）：BMad-Guide 塔台 CaseCard 375px ADVISORY 回覆（已由 T0699 修好），並轉交 CT Portal 回覆稿；兩件 BMad-Guide 端皆結案（D272；P3 已於 CT v5.12.3 更正）。前次：第九十 session 收工（2026-10-23 10:55）。
+> 最後更新:2026-10-25 09:17 (UTC+8) — **第九十二 session 收工**（CT v5.12.6）：BMad-Guide 塔台 HANDOVER「CT 正式公開」受理（D183 改寫 D182）→ T0700 BAT 站 5 處改成取得方式、連 CT Portal 安裝頁 → Pages 上線 → 回覆稿。前次：第九十一 session 收工（2026-10-23 19:50）。
 >
 > **下次起手**:請外部測試者A 以 `v0.7.1-pre.6` 驗收 BUG-165 / 166 / 169（BUG-169 安裝版 `--version` 已有塔台實機證據）；BUG-156 / 159 仍待特定環境；熱區無進行中工單。
 ---
 
-## 🛏 本 Session 收工快照 (第九十一 session, 2026-10-23 19:44 - 19:50, ~6m)
+## 🛏 本 Session 收工快照 (第九十二 session, 2026-10-25 08:56 - 09:17, ~21m)
+
+### 主軸：BMad-Guide 塔台 HANDOVER「CT 正式公開」→ 問使用者 → D183（改寫 D182）→ T0700 → 預覽 → push、Pages 上線 → 回覆稿
+
+#### 時間線（時間取自系統 / git / gh）
+
+1. **08:56** 收到 `BMad-Guide · Tower` 跨 session HANDOVER `_handover-2026-10-25-ct-public-release`（CT 2026-10-25 起公開、MIT；BAT 站 5 處「Control Tower 目前未公開提供」）。與 D182「skill 不開源、不寫取得方式」衝突 → 問使用者 → 選推薦 → **D183**：可寫已公開（MIT）與取得方式，連 CT Portal 安裝頁；版本號、skill 名稱、安裝步驟仍只留 Portal
+2. 載入 CT v5.12.6，`--set-role tower --mode on` exit 0；D183 / T0700 `154e786a`
+3. **08:59** T0700 派工（`started:`）→ **09:02** DONE：`CT_INSTALL_URL = CT_PORTAL_URL + 'install'`、`CtPortalLink to="install"`、5 處改寫（`86832607`）；收單回收 exit 0
+4. 去識別化掃描 0 → 使用者預覽同意 → push `b2a46612..93ed8135` → Pages `40149342854` 綠、link-check 1313 / 1313，線上已是安裝頁連結
+5. 回覆稿 `_reply-2026-10-25-ct-public-release.md`（ACKNOWLEDGED，`0a9324f9`）並直接回訊息給 CT 塔台
+6. **09:17** 收工（使用者「push, 收工」）
+
+### 本輪戰績
+
+| 類別 | 數量 | 備註 |
+|---|---|---|
+| 派發工單 | **1**（T0700 DELEGATE） | `started:`；無提問；收單回收 exit 0 |
+| 決策 | D183 | 改寫 D182 / D159 |
+| 跨專案 | HANDOVER 受理 → 上線 → 回覆稿（直接回訊息） | 前提無更正 |
+| 網站 | 上線 1 次（Pages `40149342854`） | 無發版 |
+| 學習 | 無 | |
+
+### 編號起始（下 session）
+
+- **T0701** / **BUG-171** / **PLAN-055** / **D184** / **EXP-WFMINE-002** / **L176** / **CT-T023**
+
+---
+
+## 🛏 前 Session 收工快照 (第九十一 session, 2026-10-23 19:44 - 19:50, ~6m)
 
 ### 主軸：Fast Path 啟動（CT v5.12.5）→ BMad-Guide 塔台 CaseCard 375px ADVISORY（BMad-Guide D259）→ 回覆並轉交前一份回覆稿 → 雙方結案 → push
 
@@ -36,45 +65,12 @@
 
 ---
 
-## 🛏 前 Session 收工快照 (第九十 session, 2026-10-23 07:35 - 10:55, ~3h20m)
-
-### 主軸：Full Scan（06:50）→ CT 塔台 HANDOVER「CT Portal 互連」受理（D182，D159 改寫）→ T0699 → push、Pages 上線 → 回覆稿
-
-#### 時間線（時間取自系統 / git / gh）
-
-1. **07:35** 啟動（CT v5.12.2；`--set-role tower --mode on` exit 0；`bat_whoami` 名稱 `better-agent-terminal · Tower`）
-2. **09:0x** 收到 BMad-Guide 塔台 HANDOVER `_handover-2026-10-23-ct-portal-link`（P1 BAT 站連 CT Portal、P2 CaseCard 375px、P3 `--close-worker` 最低版本）。塔台查證 Portal 有下載元件與安裝步驟，與 D159 衝突 → 問使用者 → **D182**：BAT 站可連 Portal；CT 設計理念公開，skill 不開源（少數測試者私下申請）；BAT 站字樣規則不變
-3. **09:15** T0699 派工（`started:`）→ **09:24** DONE：6 處連結（網址只在 `config.mts`）、CaseCard 預防性修正（375px 原本無橫捲）、P3 = `>= 0.6.1-pre.4` 正確（`2321c719` 等安靜），CT 端要改
-4. **09:2x** 回覆稿 `_reply-2026-10-23-ct-portal-link.md`（ACKNOWLEDGED）；push 前去識別化掃描命中 T0699 回報的截圖路徑（家目錄 10 行）→ 改 `<scratchpad>`、fixup 併回未 push 的 commit（L175）→ push → Pages `39884288595` 綠、link-check 1308 / 0、線上已有連結
-5. 通知 CT 塔台：ListAgents 有兩個 `BMad-Guide · Tower`、`scope: towers` 只有一列，對不出 → 依規則第 3 步由使用者轉交（已給貼上文字）
-6. **10:55** 收工
-
-### 本輪戰績
-
-| 類別 | 數量 | 備註 |
-|---|---|---|
-| 派發工單 | **1**（T0699 DELEGATE） | `started:`；無提問；收單回收 exit 0 |
-| 決策 | D182 | D159 改寫 |
-| 跨專案 | HANDOVER 受理 → 回覆稿（待使用者轉交 CT 塔台） | P3 請 CT 改成 `>= 0.6.1-pre.4` |
-| 網站 | 上線 1 次（Pages `39884288595`） | 無發版 |
-| 學習 | L175 | |
-
-### 重點觀察
-
-- Worker 回報常附 scratchpad 截圖路徑（含家目錄）；公開 repo 的工單要求 Worker 寫成 `<scratchpad>\…`，push 前掃描才不會命中（L175）
-- 同一個 CT 塔台工作區在 ListAgents 可能有兩個同名 `· Tower` session（舊 session 未結束），`scope: towers` 只能確認 BAT 端一列，對不出時就交使用者轉交
-
-### 編號起始（下 session）
-
-- **T0700** / **BUG-171** / **PLAN-055** / **D183** / **EXP-WFMINE-002** / **L176** / **CT-T023**
-
----
-
 ## 🌅 起手式（Quick Recovery）
 
-> 最後更新：2026-10-23 19:50 UTC+8（第九十一 session 收工）
+> 最後更新：2026-10-25 09:17 UTC+8（第九十二 session 收工）
 
 ### 近期完成
+- **CT 正式公開**（第九十二 session，D183 / T0700）：BAT 站 5 處「Control Tower 目前未公開提供」改成「已公開、MIT，取得與安裝方式見安裝頁」（`CT_INSTALL_URL` 由 `CT_PORTAL_URL` 組出）；Pages `40149342854` 上線；回覆稿已直接交 CT 塔台
 - **CT Portal 互連**（第九十 / 九十一 session，D182 / T0699）：BAT 站 6 處連到 CT Portal（`CT_PORTAL_URL` 在 `site/.vitepress/config.mts`）、CaseCard 結果欄可換行（`e9ad5b52`）；回覆稿與 CaseCard ADVISORY 回覆已直接交 BMad-Guide 塔台，兩件結案（BMad-Guide D272），P3 已於 CT v5.12.3 更正
 - **`v0.7.1-pre.6` 發佈**（第八十九 session，run `39649193569`，target `8fb92004`）：BUG-165（T0698 codex 分頁滾輪）、BUG-169（T0691）、T0692、T0694 `↻`、內嵌 codex 0.163（T0697）；更版重點含「待驗收」與「歡迎協助測試」；文件 `8bd1f47a`；Pages `39651190345` 綠、link-check 1274 / 0、首頁 pre.6
 - `v0.7.1-pre.5` 發佈（第八十八 session，run `39617678592`，Test gate 首次生效）：T0687–T0690（MCP 寫入型 tool 政策、SSH 啟動失敗字首、安裝檔只收 6 個執行期 helper、內嵌 claude CLI 2.1.306）；Pages `39619776202` 綠、link-check 1265 / 0
@@ -93,12 +89,12 @@
 
 ### 快速連結
 - Bug Tracker → [_bug-tracker.md](_bug-tracker.md)（熱區：Open 0 / Fixing 0 / Fixed 27 / Closed 28）｜ Backlog → [_backlog.md](_backlog.md)
-- Decision Log → [_decision-log.md](_decision-log.md)（最大 D182）｜ Learnings → [_learnings.md](_learnings.md)（最大 L175）
+- Decision Log → [_decision-log.md](_decision-log.md)（最大 D183）｜ Learnings → [_learnings.md](_learnings.md)（最大 L175）
 - 網站 → https://gowerlin.github.io/better-agent-terminal/｜ 素材 spec → `e2e/site-media.spec.ts`（`BAT_SITE_MEDIA=1`，輸出 `e2e-media/`）
-- 歷史 sessions → [_archive/state-snapshots/INDEX.md](_archive/state-snapshots/INDEX.md)（106 entries）
+- 歷史 sessions → [_archive/state-snapshots/INDEX.md](_archive/state-snapshots/INDEX.md)（108 entries）
 
 ### 編號起始
-- **T0700** / **BUG-171** / **PLAN-055** / **D183** / **EXP-WFMINE-002**（其他 TOPIC 從 001） / **L176** / **CT-T023**
+- **T0701** / **BUG-171** / **PLAN-055** / **D184** / **EXP-WFMINE-002**（其他 TOPIC 從 001） / **L176** / **CT-T023**
 
 ---
 
@@ -117,7 +113,7 @@
 | **PLAN 最大編號** | **PLAN-054**（PLANNED：CT Workflow 智能的 BAT 側事項，B4 / B6，第八十七 session 2026-10-20）；PLAN-053 IDEA（Electron 42+ 升級，第八十五 session）；PLAN-052 / 051 IDEA；PLAN-049 / 047 DONE；PLAN-015 / 029 / 038 / 043 IDEA |
 | **決策最大編號** | **D180**（Renew 後 Worker 分頁 ✓：T0693 方案 a + d1 + d2，旁支開 BUG-170，使用者決定，2026-10-22 第八十九 session）；D179（`v0.7.1-pre.5` 發版前先開小批 T0687–T0689，使用者決定，2026-10-21 第八十八 session）；D178（T0684 Q-1／Q-2 檢查 Windows 路徑用 path.win32，塔台代決，2026-10-21 第八十八 session）；D177（BUG-168 修正分組與 CI 兩步，2026-10-21 第八十八 session）；D176（公開 repo 去識別化，2026-10-21 第八十八 session）；D175（網站 `/why` 設計初衷，2026-10-21 第八十八 session）；D174（T0672 Q-1，2026-10-19 第八十六 session）；D173（網站示意可用 `_ct-workorders/`，放寬 D159 / D165 grep 規則一項，2026-10-19 第八十五 session）；D171 / D172 第八十四 session |
 | **EXP 最大編號** | **EXP-WFMINE-001**（📊 CONCLUDED 2026-10-20 17:26；執行單 T0673 DONE `84e21f2d`，7.35M tokens／39 agents；BMad-Guide Workflow 智能提案 Phase 1 試點）；EXP-GPUWHIS-001（CONCLUDED，已歸檔） |
-| **塔台版本** | Control Tower **v5.12.5**（第九十一 session 載入；第九十 session v5.12.2；CT v5.12.3 起 `--close-worker` 最低 BAT 改為 `>= 0.6.1-pre.4`）；前次 v5.12.1（第八十九 session 重啟後載入；CT-T022 重派前回收舊 Worker 分頁）；前次 v5.11.0（第八十八 session 啟動時載入；本檔未記錄 v5.10 / v5.11 升級過程）；前次記錄 v5.9.0（第八十二 session 載入；CT-T021，BMad-Guide T0174，兩端；實機驗收結案 D071） |
+| **塔台版本** | Control Tower **v5.12.6**（第九十二 session 載入；第九十一 session v5.12.5；第九十 session v5.12.2；CT v5.12.3 起 `--close-worker` 最低 BAT 改為 `>= 0.6.1-pre.4`）；前次 v5.12.1（第八十九 session 重啟後載入；CT-T022 重派前回收舊 Worker 分頁）；前次 v5.11.0（第八十八 session 啟動時載入；本檔未記錄 v5.10 / v5.11 升級過程）；前次記錄 v5.9.0（第八十二 session 載入；CT-T021，BMad-Guide T0174，兩端；實機驗收結案 D071） |
 | **unit test 基線** | **5661 passed / 322 files / 3 skipped**（塔台複驗 @ `72d77cf1`，發 `v0.7.1-pre.4` 前，2026-10-19 第八十六 session；typecheck 0 / 0、vite build 成功）。前次 5635 passed / 321 files（@ `ee7d1047`，發 `v0.7.1-pre.3` 前，2026-10-19 第八十五 session；typecheck 0 / 0、vite build 成功） |
 
 ---
