@@ -75,6 +75,7 @@
 > 最後更新：2026-10-25 20:30 UTC+8（第九十三 session 收工）
 
 ### 近期完成
+- **`v0.7.1-pre.8` 發佈**（第九十四 session，run `40199964626`，target `b2696b15`）：BUG-171（NTP 時鐘跳變 → heartbeat 誤判 → recovery 殺掉所有 agent 分頁；T0703 研究、T0704 修正、T0705 toast i18n + server env、T0706 Recovery 提示 i18n、T0707 ubuntu 測試修正；首次 run `40198701601` 被 Test gate 擋下、未建 tag）；文件 `2365e2f8`；Pages `40200991489` 綠、link-check 1326 / 0、首頁 pre.8；D186、L177、PLAN-055 IDEA
 - **`v0.7.1-pre.7` 發佈**（第九十三 session，run `40192111428`，target `0905e0c0`）：指揮塔總覽改版（T0701：塔台狀態＋`*config` 三層＋自動更新、`_tower-state.md` 摘要契約 v1、`no status` 不算 pending）、T0702（引用區塊狀態、`PAUSED`、`TODO` 別名）；文件 `aca99bf8`；Pages `40193056396` 綠、link-check 1320 / 0；CT 結案（CT D347）
 - **CT 正式公開**（第九十二 session，D183 / T0700）：BAT 站 5 處「Control Tower 目前未公開提供」改成「已公開、MIT，取得與安裝方式見安裝頁」（`CT_INSTALL_URL` 由 `CT_PORTAL_URL` 組出）；Pages `40149342854` 上線；回覆稿已直接交 CT 塔台
 - **CT Portal 互連**（第九十 / 九十一 session，D182 / T0699）：BAT 站 6 處連到 CT Portal（`CT_PORTAL_URL` 在 `site/.vitepress/config.mts`）、CaseCard 結果欄可換行（`e9ad5b52`）；回覆稿與 CaseCard ADVISORY 回覆已直接交 BMad-Guide 塔台，兩件結案（BMad-Guide D272），P3 已於 CT v5.12.3 更正
@@ -82,7 +83,8 @@
 - 公開 repo 去識別化（D176，T0676 / T0677）：對照表只在 `.private/`，push 前跑 `.private/T0676-deid-mapping.md` 的檢查樣式
 
 ### 待辦（依優先序）
-1. 🔴 **外部測試者A 驗收**（`v0.7.1-pre.7`，更版重點「待驗收」清單）：BUG-165（macOS 觸控板 Codex 分頁捲動；之前設的 `mouse_scroll_speed = 3` 先移除）、BUG-166（`printf '\e[?1003h\e[?1006h'` 後移動滑鼠，殘骸幾筆即停）、BUG-169（安裝版 `bat-terminal.mjs --version`）→ 通過即 CLOSED
+1. 🔴 **BUG-171 實機驗收**（`v0.7.1-pre.8`）：日常使用遇 NTP 校時 / 睡眠喚醒不再「終端已恢復」、分頁不再 exit 1；可看 debug log `[heartbeat] late pong`。T0704 後續候選（TCP 模式 pid 重用、舊 server 結束失敗無補救、卡住但存活永不 recovery）暫不開單
+1. 🔴 **外部測試者A 驗收**（`v0.7.1-pre.8`，更版重點「待驗收」清單）：BUG-165（macOS 觸控板 Codex 分頁捲動；之前設的 `mouse_scroll_speed = 3` 先移除）、BUG-166（`printf '\e[?1003h\e[?1006h'` 後移動滑鼠，殘骸幾筆即停）、BUG-169（安裝版 `bat-terminal.mjs --version`）→ 通過即 CLOSED
 2. 🟢 **後續候選**：總覽計數加「需要處理」徽章（PAUSED / BLOCKED / PARTIAL…，T0702 建議 2）；BAT 封存區 3 檔 `status: CLOSED` 顯示 Invalid（T0702 建議 1）；BAT 自己的 `_tower-state.md` 在 CT v6 上線後寫入摘要；codex Worker 分頁也接管滾輪（T0698 Q-1 [B]，`externalAgent` 欄位）；T0698 e2e（選做未做）；Windows / Linux 滾輪一格行數是否過快待回饋
 3. 🔴 `v0.7.1-pre.2` 剩餘實機驗收：BUG-156 需 Docker Desktop、BUG-159 需一般權限 + codex
 4. 🟢 PLAN-053 Electron 42+、PLAN-052 Docker 可用性（IDEA）；PLAN-054 B6 延後（CT D090）；T0656 網站素材手動拍；`RECOVERY_PENDING` 未實機驗證；前期驗收（外部測試者A BUG-127-135 / 116 / 118、BUG-130 / 105 / 107 / 108 / 097 / 111、T0550、dmg / AppImage、NSIS 重裝、T0360）；dev PC／NAS 主機名稱（使用者未列入去識別化決定）
@@ -109,7 +111,7 @@
 |------|------|
 | **專案** | better-agent-terminal |
 | **Fork 上游** | tony1223/better-agent-terminal（另有 `scandnavik` remote；⚠️ gh 預設解析到 upstream，見 L122） |
-| **目前版號** | **0.7.1-pre.6**（package.json + lock，2026-10-22 `8fb92004`；`0.7.1` 線，D168，最多到 pre.9） |
+| **目前版號** | **0.7.1-pre.8**（2026-10-25 `0f2...` 見 git log；原記錄：**0.7.1-pre.6**（package.json + lock，2026-10-22 `8fb92004`；`0.7.1` 線，D168，最多到 pre.9） |
 | **最新 release** | `v0.7.1-pre.6`（2026-10-22 02:14，run `39649193569`，target `8fb92004`：BUG-165 codex 分頁滾輪、BUG-169 helper 版號、T0692 用量限制 resumed、T0694 `↻`、內嵌 codex 0.163；Test gate tests 18:06:48Z → build 18:06:50Z；更版重點已寫；文件 `8bd1f47a`；Pages `39651190345` 綠、link-check 1274 / 0；exe 309 / zip 428 / AppImage 305 / dmg 322 MiB）+ `server-bundle-v0.7.1-pre.6`（7 assets）。前一版 `v0.7.1-pre.5`（2026-10-21 22:43，run `39617678592`，target `d0ebd708`：SSH 啟動失敗字首、內嵌 claude CLI 2.1.306、安裝檔只收 6 個執行期 helper、Test gate、MCP 寫入型 tool 政策、網站 `/why`；**Test gate 首次生效**：`tests / unit-tests` 14:32:29–14:36:27Z，build 14:36:30Z 才開始；更版重點已寫；exe 306 / zip 423 / AppImage 306 / dmg 319 MiB）+ `server-bundle-v0.7.1-pre.5`（7 assets；darwin-arm64 job 在 API 停在 `in_progress`，但每個 step 含 Complete job 都 success、tarball 已發佈，屬 GitHub 顯示問題）。前一版 `v0.7.1-pre.4`（2026-10-19 18:03，run `39233550117`，target `8883cebd`：BUG-166 滑鼠追蹤殘留自動 / 手動重設；更版重點已寫；repo 文件 `4ae0e89d`；Pages `39234927266` 綠、link-check 1152 / 0 errors、首頁 pre.4；exe 298 / zip 412 / AppImage 297 / dmg 309 MiB）+ `server-bundle-v0.7.1-pre.4`（7 assets）。前一版 `v0.7.1-pre.3`（2026-10-19 13:00，run `39201696170`，target `bf4bfe4f`：BUG-136 縮圖預覽上限、BUG-164 macOS 停用 Graphite + GPU 崩潰後重建；更版重點已寫；repo 文件 `892df2ec`；exe 298 / zip 412 / AppImage 297 / dmg 310 MiB）+ `server-bundle-v0.7.1-pre.3`（7 assets）。更早見 `release-note.md` / `CHANGELOG.md` |
 | **前一 tag** | `v0.7.1-pre.5`（2026-10-21 22:43，`d0ebd708`） |
 | **目前主軸** | `v0.7.1-pre.5` 已發佈（第八十八 session，D179 小批 T0687–T0690）；等 外部測試者A 驗收 BUG-166（pre.4 起）；BUG-165 有空再排；下一批候選 BUG-169；T0675 PARTIAL 等使用者下載 S2-04／05；熱區無進行中工單 |
