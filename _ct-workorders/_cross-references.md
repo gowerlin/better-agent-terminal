@@ -20,7 +20,7 @@
 | CT-T014 | BMad-Guide | `bfc30d7` / `6d23e30`（T0149）| DELEGATE（CT v5.2.4：文件 / 提示對齊 BAT 0.7.0-pre.1 範圍權杖，PLAN-047 / D149；對方決策 D028）| ✅ DONE（runtime 待 BAT 0.7.0-pre.1）|
 | T0699 | BMad-Guide | `_handover-2026-10-23-ct-portal-link` | DELEGATE（受理 HANDOVER：BAT 站加 CT Portal 連結、CaseCard 375px、`--close-worker` 最低版本；D182）| ✅ DONE（`e9ad5b52`，已上線，Pages `39884288595`；回覆稿 `_reply-2026-10-23-ct-portal-link.md`）|
 | T0700 | BMad-Guide | `_handover-2026-10-25-ct-public-release` | DELEGATE（受理 HANDOVER：CT 正式公開，BAT 站 5 處「目前未公開提供」改成取得方式、連 CT Portal 安裝頁；D183）| ✅ DONE（`86832607`，已上線，Pages `40149342854`；回覆稿 `_reply-2026-10-25-ct-public-release.md`）|
-| T0701 | BMad-Guide | `_request-2026-10-25-bat-overview-tower-state-config` | DELEGATE（受理請求：指揮塔總覽顯示塔台狀態與 `*config`、R3、pending 計數；D184；`_tower-state.md` 摘要契約 v1 由 CT 接受，CT D340 / CT T0305）| 🔄 IN_PROGRESS（回覆稿 `_reply-2026-10-25-bat-overview-tower-state-config.md` 已交契約；收單時以 BMad-Guide `_tower-state.md` 的真實摘要驗 R1）|
+| T0701 | BMad-Guide | `_request-2026-10-25-bat-overview-tower-state-config` | DELEGATE（受理請求：指揮塔總覽顯示塔台狀態與 `*config`、R3、pending 計數；D184；`_tower-state.md` 摘要契約 v1 由 CT 接受，CT D340 / CT T0305）| ✅ DONE（`e7b20593`，已 push 到 main；BMad-Guide 真實摘要顯示正常、`9 pending` → 0；後續 T0702 修完後一起發 `v0.7.1-pre.7`，發版後補回覆稿結果，D185）|
 
 ## 對方 Repo 骨架(BMad-Guide T0098 主 PLAN 下)
 
