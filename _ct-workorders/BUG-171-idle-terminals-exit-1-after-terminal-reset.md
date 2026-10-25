@@ -5,9 +5,9 @@ id: BUG-171
 title: "BAT 執行中忽然「終端重置」並出現 toast，之後好幾個閒置（未忙碌）的分頁顯示 `[Process exited with code 1]`，連執行中的 Claude CLI 塔台分頁也結束"
 status: OPEN
 severity: high
-reproducibility: unknown
+reproducibility: conditional（系統時鐘往前跳 ≥ 3 秒時觸發；T0703 由日誌、程序列表、系統事件記錄確認，未在隔離實例重現）
 created_at: "2026-10-25T21:05:27+0800"
-updated_at: "2026-10-25T21:05:27+0800"
+updated_at: "2026-10-25T21:14:36+0800"
 impact:
   - terminal-server-recovery
   - pty-lifecycle
@@ -43,8 +43,28 @@ links:
 
 ## 根因
 
-（T0703 填寫）
+（T0703 調查，證據細節見 T0703 回報區）
+
+1. **觸發**：2026-10-25 12:59:04Z（20:59:04），Windows 時間服務做 NTP 校正，系統時鐘往前跳 **+3.03 秒**（系統事件記錄 Kernel-General 事件 1：`12:59:01.8726Z → 12:59:04.9031Z`）。
+2. **heartbeat 誤判**：`PtyManager.startHeartbeat`（`electron/pty-manager.ts:1592`）用牆鐘 `Date.now()` 算距離上次 pong 的時間，門檻只有 10 s + 3 s，一次取樣超過就判死，不確認 server 是否還在。12:59:50.403Z 日誌 `heartbeat timeout (13032ms since last pong) — server dead`：13032 ≈ 10001 + 3031。當時 **Terminal Server 其實活著**：舊 server pid 33404 到現在仍在執行。
+3. **recovery 誤殺**：`handleServerDeath` 依 registry 殺掉 6 個分頁的 shell，claude 一起被殺；re-fork 第二個 server（pid 38124），以同 id 重建 6 個 bash。重建只開 shell、不重跑 agent，所以分頁剩新的 `$` 提示字元。toast 是 `App.tsx:716`「終端已恢復（歷史輸出已重置）」。
+4. **錯誤的 exit 1**：舊 server 沒被關掉，它的 IPC `'message'` 監聽也沒拆（`pty-manager.ts:616-620`、`:1645` 只把 `serverProcess` 設為 null）。舊 PTY 被 SIGTERM 殺掉（Windows：TerminateProcess，exit code 1），舊 server 送出 `pty:exit(id, 1)`。主行程把它套到同 id 的新 instance 上：重建時沒設 `awaitingCreated`，BUG-101 的防護擋不到。結果新 instance 被刪，renderer 印出 `[Process exited with code 1]`。舊 server 還用同 id 刪掉了新 shell 的 registry 項目。
+5. **「只影響閒置分頁」是錯覺**：6 個分頁（5 個閒置塔台、1 個忙碌 Worker）的 claude 全部被殺。忙碌 Worker 的 exit 晚 4.5 分鐘才到，看起來像沒事。better-agent-terminal 原本的塔台（0d357566）也結束了；目前的塔台是 13:03:03 另開的新分頁。
+6. **副作用**：
+   - 新 server 下 6 個沒有分頁的 shell 還活著
+   - 舊 server 與它的 6 個 conhost 還活著
+   - 舊分頁的內層 bash 有 12 個成了孤兒：SIGTERM 先殺外層 bash，之後 `taskkill /T` 找不到程序樹
+7. **不是新回歸**：T0112（2026-04-13）以來就有的缺陷；安裝版 `0.7.1-pre.6`，目前 main 的相關程式沒有差異。`BAT_IDLE_TIMEOUT_MS` 是 Terminal Server 自己的閒置關閉設定，因為 env 帶入 PTY 才出現在分頁裡，和本事件無關。
 
 ## 修正方向
 
 （T0703 建議，塔台決定）
+
+- **A（推薦，P1）heartbeat 不再誤判**：改用單調時鐘；連續多次沒收到 pong 才判死；判死前確認 server 程序與 IPC 是否還在。位置：`PtyManager.startHeartbeat`。
+- **B（推薦，和 A 合成一張單）recovery 本身要安全**：
+  - 進入 recovery 先拆掉舊 server 的監聽並關掉舊 server（含程序樹）
+  - 從舊 server 來的訊息一律丟棄（server generation，或重建的 instance 帶 `awaitingCreated`）
+  - 孤兒清理改成先 `taskkill /T` 再殺 shell（同 T0540 順序）
+  - 位置：`handleServerDeath` / `setServerProcess` / `reforkTerminalServer`
+- **C（另開 PLAN）agent 分頁不再無聲變成 shell**：recovery 後列出被中斷的 agent 分頁，保留 `claudeSessionId` 並提供 `--resume`。
+- A + B 都不改 BAT ↔ CT 契約，也不影響遠端 headless。
