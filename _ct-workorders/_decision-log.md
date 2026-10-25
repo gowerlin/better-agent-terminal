@@ -1465,6 +1465,15 @@
 - **切分**：W2a 設計語言 + 元件 + 首頁（T0630）→ 預覽通過後 W2b（`/control-tower`、功能、FAQ、回報頁）→ W2c 遠端開發；W3 / W4 不變。
 - **相關**：PLAN-049 / D159 / D160 / T0624 / T0630
 
+### D184 2026-10-25 — 受理 CT 塔台請求「指揮塔總覽顯示塔台狀態與 `*config`」（→ T0701）：混合做法，config 由 BAT 讀檔、狀態摘要由 BAT 訂格式請 CT 寫入
+
+- **背景**：BMad-Guide 塔台協作請求 `_request-2026-10-25-bat-overview-tower-state-config`（CT D338，2026-10-25T19:15:05+0800）：「塔台 › 指揮塔 › 總覽」只認 `_ct-workorders/sprint-status.yaml`，沒有就只顯示「未找到 sprint-status.yaml」（`src/components/SprintDashboard.tsx`）；CT v6 起該檔只在主方法論是 bmad 時才有。需求 R1 塔台最新狀態、R2 `*config` 生效值與來源層、R3 沒有 sprint-status 不擋；附帶觀察：BAT 計數 `9 pending`，CT 熱區沒有 `status: PENDING`，疑似把無 frontmatter `status` 的報告檔算進 pending。塔台查證各專案 `_tower-state.md` 章節標題不一致（CT 範本「立即待辦」「編號追蹤」，BAT 自己的是「待辦（依優先序）」「編號起始」），直接切 Markdown 易壞，問使用者。
+- **決定**（使用者 2026-10-25 19:1x，選推薦）：受理，混合做法——
+  1. **R2 / R3 / pending 計數**：BAT 直接讀檔（project `_tower-config.yaml`、global `~/.claude/control-tower-data/config.yaml` 與舊路徑、已安裝 CT 的 `tower-config.md` § 可用選項 表當預設值）。
+  2. **R1**：BAT 現在顯示「最後更新」與進行中工單（frontmatter）；待辦與下一個編號改讀 **`_tower-state.md` 的 YAML frontmatter 機器可讀摘要**（`schema_kind: tower-state`、`summary_version: 1`，欄位見 T0701），格式由 BAT 訂、請 CT 塔台開單寫入；沒有摘要時不切 Markdown，只顯示提示。
+- **派工**：T0701（DELEGATE，`coordination.source.workorder: _request-2026-10-25-bat-overview-tower-state-config`）。回覆稿 `_ct-workorders/_reply-2026-10-25-bat-overview-tower-state-config.md`（含摘要格式需求）。
+- **相關**：T0701 / D183 / CT D338
+
 ### D183 2026-10-25 — 受理 CT 塔台 HANDOVER「CT 正式公開」（→ T0700）；D182 / D159 改寫：BAT 站可寫 CT 已公開與取得方式（連 CT Portal 安裝頁），細節只留在 Portal
 
 - **背景**：BMad-Guide 塔台交辦 `_handover-2026-10-25-ct-public-release`（BMad-Guide `_ct-workorders/`，2026-10-25T08:56:38+0800）：Control Tower 2026-10-25 起正式公開下載（GitHub Release、CT Portal 安裝頁、MIT 授權；CT 塔台 D307 / D315 / D317）。BAT 站 5 處仍寫「Control Tower 目前未公開提供」（`site/control-tower.md` 75 / 307、`site/control-tower-tour.md` 19 / 290、`site/faq.md` 75）。D182 規定「CT skill 仍不開源、BAT 站不寫取得方式、連結文字不得寫『下載』『開源』」，與現況衝突，問使用者。
