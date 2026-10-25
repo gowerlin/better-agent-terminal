@@ -66,7 +66,12 @@
     "wslWindowsDriveWorkspaceHint": "工作區「{{path}}」位於 Windows 磁碟（在 WSL 內為 {{wslPath}}）。\n從 WSL 存取 /mnt 下的檔案 I/O 較慢，git / npm 也可能遇到權限與換行問題，建議將專案放在 WSL 內部目錄（例如 ~/projects）。\n工作區已加入，可繼續使用。",
     "terminalServerRecovering": "Terminal Server 異常，正在自動恢復...",
     "terminalServerRecovered": "終端已恢復（歷史輸出已重置）",
-    "terminalServerRecoveryFailed": "Terminal Server 恢復失敗，請重新啟動應用程式"
+    "terminalServerRecoveryFailed": "Terminal Server 恢復失敗，請重新啟動應用程式",
+    "recoveryPromptTitle": "偵測到上次的終端 session",
+    "recoveryPromptAlive": "Terminal Server 仍在運行，有 <strong>{{count}}</strong> 個終端存活。",
+    "recoveryPromptQuestion": "是否要恢復上次的工作狀態？",
+    "recoveryPromptRecover": "恢復 session",
+    "recoveryPromptFreshStart": "重新開始"
   },
   "settings": {
     "title": "設定",

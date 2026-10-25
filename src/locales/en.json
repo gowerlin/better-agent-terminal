@@ -66,7 +66,13 @@
     "wslWindowsDriveWorkspaceHint": "The workspace \"{{path}}\" is on a Windows drive ({{wslPath}} inside WSL).\nFiles under /mnt are slow to access from WSL, and git / npm may run into permission and line-ending issues. Consider keeping projects inside the WSL filesystem (e.g. ~/projects).\nThe workspace has been added; you can keep using it.",
     "terminalServerRecovering": "Terminal Server stopped responding, recovering automatically...",
     "terminalServerRecovered": "Terminals recovered (output history was reset)",
-    "terminalServerRecoveryFailed": "Terminal Server recovery failed. Please restart the app."
+    "terminalServerRecoveryFailed": "Terminal Server recovery failed. Please restart the app.",
+    "recoveryPromptTitle": "Previous terminal session detected",
+    "recoveryPromptAlive_one": "Terminal Server is still running, with <strong>{{count}}</strong> terminal still alive.",
+    "recoveryPromptAlive_other": "Terminal Server is still running, with <strong>{{count}}</strong> terminals still alive.",
+    "recoveryPromptQuestion": "Restore your previous working state?",
+    "recoveryPromptRecover": "Restore session",
+    "recoveryPromptFreshStart": "Start fresh"
   },
   "settings": {
     "title": "Settings",

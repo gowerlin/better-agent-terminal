@@ -1,3 +1,4 @@
+import { Trans, useTranslation } from 'react-i18next'
 import { ModalOverlay } from './common/ModalOverlay'
 
 interface RecoveryPromptProps {
@@ -7,22 +8,25 @@ interface RecoveryPromptProps {
 }
 
 export function RecoveryPrompt({ ptyCount, onRecover, onFreshStart }: RecoveryPromptProps) {
+  const { t } = useTranslation()
   return (
     <ModalOverlay className="recovery-prompt-overlay">
       <div className="recovery-prompt-dialog">
         <div className="recovery-prompt-header">
-          <h3>🔄 偵測到上次的終端 session</h3>
+          <h3>🔄 {t('app.recoveryPromptTitle')}</h3>
         </div>
         <div className="recovery-prompt-content">
-          <p>Terminal Server 仍在運行，有 <strong>{ptyCount}</strong> 個終端存活。</p>
-          <p className="recovery-prompt-hint">是否要恢復上次的工作狀態？</p>
+          <p>
+            <Trans t={t} i18nKey="app.recoveryPromptAlive" count={ptyCount} components={{ strong: <strong /> }} />
+          </p>
+          <p className="recovery-prompt-hint">{t('app.recoveryPromptQuestion')}</p>
         </div>
         <div className="recovery-prompt-actions">
           <button className="btn-primary" onClick={onRecover}>
-            恢復 session
+            {t('app.recoveryPromptRecover')}
           </button>
           <button className="btn-secondary" onClick={onFreshStart}>
-            重新開始
+            {t('app.recoveryPromptFreshStart')}
           </button>
         </div>
       </div>
