@@ -99,7 +99,7 @@
 - 歷史 sessions → [_archive/state-snapshots/INDEX.md](_archive/state-snapshots/INDEX.md)（109 entries）
 
 ### 編號起始
-- **T0703** / **BUG-171** / **PLAN-055** / **D186** / **EXP-WFMINE-002**（其他 TOPIC 從 001） / **L177** / **CT-T023**
+- **T0704** / **BUG-172** / **PLAN-055** / **D186** / **EXP-WFMINE-002**（其他 TOPIC 從 001） / **L177** / **CT-T023**（第九十四 session 2026-10-25 21:05 開 BUG-171 high + T0703 研究）
 
 ---
 

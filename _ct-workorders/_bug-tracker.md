@@ -10,9 +10,9 @@ source_globs:
 exclude_globs:
   - _ct-workorders/_archive/**
   - _ct-workorders/examples/**
-total: 55
+total: 56
 breakdown:
-  OPEN: 0
+  OPEN: 1
   FIXING: 0
   FIXED: 27
   VERIFY: 0
@@ -26,12 +26,13 @@ breakdown:
 > 最後同步：2026-10-22 01:48 (UTC+8) — BUG-165 → FIXED（T0698 `ec4b3c13`，隨 pre.6 待實機驗收）；BUG-170 → FIXED（CT v5.12.x 重派前回收舊分頁，T0695 / T0696 實機驗收）；BUG-169 FIXED（T0691，等下一個預覽版安裝版驗收）；BUG-168 / 167 FIXED；BUG-166 FIXED 待 外部測試者A；BUG-165 OPEN
 
 ## 統計
-- 🔴 Open: 0 | ⏳ Fixing: 0 | ✅ Fixed: 27 | 🧪 Verify: 0 | 🚫 Closed: 28 | ⛔ Won't Fix: 0 | **Total: 55**
+- 🔴 Open: 1 | ⏳ Fixing: 0 | ✅ Fixed: 27 | 🧪 Verify: 0 | 🚫 Closed: 28 | ⛔ Won't Fix: 0 | **Total: 56**
 
 ## 🔴 Open / 處理中
 
 | ID | 標題 | 嚴重度 | 建立時間 | 連結 |
 |----|------|--------|---------|------|
+| BUG-171 | 「終端重置」toast 後多個閒置分頁 `[Process exited with code 1]`（含其他專案的 Claude CLI 塔台）；研究工單 T0703 調查中 | 🔴 high | 2026-10-25 | [BUG-171](BUG-171-idle-terminals-exit-1-after-terminal-reset.md) |
 
 ## ⏳ 修復中 (FIXING)
 
