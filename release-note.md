@@ -2,6 +2,49 @@
 
 本 fork 各版的更版重點（內容取自 GitHub Releases，最新在上）。上游 tony1223/better-agent-terminal 的 v2.1.x 紀錄保留在檔案最下方。
 
+## v0.7.1-pre.7（2026-10-25）
+
+版號 0.7.1-pre.7，接續 `v0.7.1-pre.6`。
+
+### 新增
+
+- **指揮塔「總覽」改成顯示塔台狀態與設定**：「塔台 › 指揮塔 › 總覽」以前只看 `sprint-status.yaml`，沒有這個檔的專案只會看到「未找到 sprint-status.yaml」。現在依序顯示：
+  - **塔台狀態**：最後更新時間、進行中的工單；Control Tower 在塔台狀態檔寫了摘要時，另外顯示下一個工單 / 決策編號與最近的待辦（最多 5 則）
+  - **Control Tower 設定**：每個設定的生效值與來源（專案 / 使用者 / 預設），可展開被覆蓋的值；不含塔台本次對話裡的臨時設定
+  - **Sprint**：只在專案有 `sprint-status.yaml` 時顯示，內容和以前一樣
+- **總覽自動更新**：塔台狀態檔、專案設定檔、工單檔改了，總覽會自己更新，不用重新進入專案；使用者層設定與 Control Tower 預設值在切到總覽或按 ↻ 時重新讀取
+
+### 修正
+
+- **工單計數把報告檔算成「pending」**：沒有狀態欄位的報告或筆記檔，以前被當成待派工單。現在另列為「no status」，不算 pending；同編號的工單與報告並存時，也不會再讓報告蓋掉工單
+- **舊格式工單讀不到寫在引用區塊裡的狀態**（例如 `> 狀態:✅ DONE`）：現在讀得到
+- **Control Tower 的 `PAUSED` 狀態**：工單被緊急任務中斷暫停時顯示 `⏸ Paused`，列在總覽的進行中工單；工單狀態寫成 `TODO` 時視同 `PENDING`，不再標成無效
+
+### 更新
+
+- **專案網站與 README**：Control Tower 已公開（MIT 授權），「Control Tower 去哪取得」改為連到 Control Tower 安裝頁；網站導覽列與 Control Tower 相關頁面連到 Control Tower 站
+
+### 待驗收（請更新到本版後協助確認）
+
+以下修正已包含在本版，仍在等實機確認：
+
+- **BUG-165**（macOS 觸控板，Codex 分頁捲動，`v0.7.1-pre.6` 起）：開 Codex CLI 分頁，在 Codex 畫面內快速、慢速捲動，看是否跟手、會不會捲過頭。如果之前照建議在 `~/.codex/config.toml` 的 `[tui]` 段加了 `mouse_scroll_speed = 3`，建議先移除那一行再試
+- **BUG-166**（`v0.7.1-pre.4` 起）：在 macOS 的分頁執行 `printf '\e[?1003h\e[?1006h'` 後移動滑鼠，命令列最多冒出幾筆亂碼就停；Shift + 右鍵選單有「重設滑鼠模式」
+- **BUG-169**（`v0.7.1-pre.6` 起）：執行 `node "<安裝目錄>/resources/scripts/bat-terminal.mjs" --version`，應顯示本版版號而不是 `v0.0.0`
+- **BUG-156**（需 Docker Desktop）：Docker 設定精靈建立容器時，不再與 BAT 本機伺服器搶用 9876 埠
+- **BUG-159**（需一般權限執行 BAT + codex）：Codex CLI 分頁內執行的 helper 讀到的是自己分頁的 `BAT_*`，不是其他分頁的
+
+### 已知事項
+
+- 總覽的「下一個編號」與「待辦」需要 Control Tower 在塔台狀態檔寫入摘要（Control Tower v6.0.0-pre.1 預覽版起）；較舊的 Control Tower 只顯示最後更新時間、進行中工單，並提示開檔查看
+- 遠端視窗（WSL / SSH / Docker）要讀遠端主機上的 Control Tower 使用者設定與預設值，需把遠端的 BAT 伺服器升級到本版（重跑設定精靈）；未升級時總覽會標示無法讀取，專案設定照常顯示
+- 遠端視窗的總覽、有 `sprint-status.yaml` 的 BMAD 專案的 Sprint 區塊，以自動測試確認，尚未實機確認
+- Linux 版本未實機驗證
+
+macOS 仍只提供 Apple Silicon（arm64）版。
+
+**Full Changelog**: https://github.com/gowerlin/better-agent-terminal/compare/v0.7.1-pre.6...v0.7.1-pre.7
+
 ## v0.7.1-pre.6（2026-10-22）
 
 版號 0.7.1-pre.6，接續 `v0.7.1-pre.5`。

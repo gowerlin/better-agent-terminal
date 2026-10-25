@@ -4,6 +4,23 @@ All notable changes to Better Agent Terminal are documented in this file.
 
 ## [Unreleased]
 
+## [0.7.1-pre.7] — 2026-10-25
+
+### Added
+- 指揮塔「總覽」改為依序顯示塔台狀態、Control Tower 設定、Sprint（只在有 `sprint-status.yaml` 時）。塔台狀態：最後更新（`_tower-state.md` frontmatter 摘要，沒有時取「最後更新」行）、進行中工單（`workOrderPhase`）、下一個編號與待辦（只讀摘要契約 v1：`schema_kind: tower-state`、`summary_version` 整數 ≥ 1，不切 Markdown 章節）。設定：預設（已安裝 CT `tower-config.md` § 可用選項）→ global（`~/.claude/control-tower-data/config.yaml`，舊路徑備援）→ project（`_tower-config.yaml`）三層鍵的聯集、生效值與來源；global / 預設兩層經新的唯讀 proxied channel `ct:read-config-sources`（`electron/handlers/ct-config.ts`，main 與 headless 共用，路徑固定在回答主機的家目錄）。`_ct-workorders/` 內的來源跟既有 `fs.watch` 自動重讀，外部兩層在總覽變成可見與按 ↻ 時重讀（D184，T0701）
+
+### Fixed
+- 沒有狀態欄位的工單檔（報告、筆記）不再被 legacy parser 預設為 `PENDING`：新狀態 `UNKNOWN`（`no status`），另列計數；同編號時有狀態的檔優先，報告不再蓋掉工單（T0701）
+- legacy parser 讀得到引用區塊形式的狀態（`> 狀態:✅ DONE`，半形 / 全形冒號、可選 emoji）；新增 `PAUSED`（open，`⏸ Paused`，可補救結案）；frontmatter `status: TODO` 視同 `PENDING`（D185，T0702）
+
+### Changed
+- 專案網站與 README：Control Tower 已公開（MIT），「去哪取得」連到 CT Portal 安裝頁（安裝頁網址由 `CT_PORTAL_URL` 組出，只寫一處）；網站導覽列、側欄與 Control Tower 相關頁面連到 CT Portal；CaseCard 結果欄可換行（D182 / D183，T0699 / T0700）
+
+### Known issues
+- 總覽的下一個編號與待辦需 CT `>= v6.0.0-pre.1`（預覽版）寫入 `_tower-state.md` 摘要；較舊的 CT 只顯示最後更新與進行中工單
+- 遠端視窗讀遠端主機的 CT global / 預設設定需把遠端 bat-server 升級到本版；未升級時標示無法讀取。遠端總覽與 bmad 專案 Sprint 區塊未實機確認
+- Linux 版本未實機驗證
+
 ## [0.7.1-pre.6] — 2026-10-22
 
 ### Added
