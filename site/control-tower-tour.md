@@ -16,10 +16,10 @@ const confidenceRows = [
 
 [與 Control Tower 協作](./control-tower)講 BAT 和 Control Tower 怎麼一起用；這一頁講 Control Tower 本身：它能做什麼、怎麼運作，以及你每天會怎麼用它。 {.ct-intro}
 
-::: info Control Tower 目前未公開提供
-這一頁只介紹 Control Tower 的概念與流程。BAT 對外公開的整合介面，見[BAT 提供的整合點](./control-tower#integration)。
+::: info 怎麼取得 Control Tower
+Control Tower 已經公開，採 MIT 授權。取得與安裝方式見 <CtPortalLink to="install" />，設計理念與使用說明見 <CtPortalLink />。
 
-Control Tower 的設計理念與使用說明，見 <CtPortalLink />。
+這一頁只介紹 Control Tower 的概念與流程。BAT 對外公開的整合介面，見[BAT 提供的整合點](./control-tower#integration)。
 :::
 
 ## Control Tower 是什麼 {#what}
@@ -287,7 +287,7 @@ Control Tower 不是一次設計好的。它經過七代，每一代都在解決
 
 ### Control Tower 去哪取得？
 
-Control Tower 目前未公開提供。BAT 的派工、回報、提問與查詢介面是公開的，你可以用它們接上自己的流程，見[BAT 提供的整合點](./control-tower#integration)。
+Control Tower 已經公開，採 MIT 授權。取得與安裝方式見 <CtPortalLink to="install" />。想接上自己的流程，BAT 的派工、回報、提問與查詢介面也是公開的，見[BAT 提供的整合點](./control-tower#integration)。
 
 ### 一定要用 Claude Code 嗎？
 

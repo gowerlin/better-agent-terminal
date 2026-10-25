@@ -72,10 +72,10 @@ const integrationRows = [
 
 這一頁說明 Better Agent Terminal（BAT）與 BMad Control Tower 一起用時，每一步發生什麼、BAT 提供什麼、你要做什麼。 {.ct-intro}
 
-::: info Control Tower 目前未公開提供
-BAT 的派工、回報、提問與查詢介面都是公開的，你可以拿來接上自己的流程，見[BAT 提供的整合點](#integration)。
+::: info 怎麼取得 Control Tower
+Control Tower 已經公開，採 MIT 授權。取得與安裝方式見 <CtPortalLink to="install" />，設計理念與使用說明見 <CtPortalLink />。
 
-Control Tower 的設計理念與使用說明，見 <CtPortalLink />。
+BAT 的派工、回報、提問與查詢介面也是公開的，你可以拿來接上自己的流程，見[BAT 提供的整合點](#integration)。
 :::
 
 ## Control Tower 是什麼 {#what}
@@ -304,7 +304,7 @@ Claude Code 與 Codex 都能當塔台，也都能當 Worker；本機與遠端用
 
 ### Control Tower 去哪取得？
 
-Control Tower 目前未公開提供。BAT 的派工、回報、提問與查詢介面是公開的，你可以用它們接上自己的流程，見[BAT 提供的整合點](#integration)。
+Control Tower 已經公開，採 MIT 授權。取得與安裝方式見 <CtPortalLink to="install" />。想接上自己的流程，BAT 的派工、回報、提問與查詢介面也是公開的，見[BAT 提供的整合點](#integration)。
 
 ### 沒有 Control Tower，能用 BAT 嗎？
 

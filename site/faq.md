@@ -72,7 +72,7 @@ WSL、SSH、Docker 的設定步驟與各自的常見狀況，見[遠端開發](.
 
 ### Control Tower 去哪取得？ {#get-control-tower}
 
-Control Tower 目前未公開提供。BAT 的派工、回報、提問與查詢介面是公開的，你可以用它們接上自己的流程，見 [BAT 提供的整合點](./control-tower#integration)。
+Control Tower 已經公開，採 MIT 授權。取得與安裝方式見 <CtPortalLink to="install" />。想接上自己的流程，BAT 的派工、回報、提問與查詢介面也是公開的，見 [BAT 提供的整合點](./control-tower#integration)。
 
 不用 Control Tower，BAT 本身也能用，見[功能](./features)。
 
