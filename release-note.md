@@ -2,6 +2,42 @@
 
 本 fork 各版的更版重點（內容取自 GitHub Releases，最新在上）。上游 tony1223/better-agent-terminal 的 v2.1.x 紀錄保留在檔案最下方。
 
+## v0.7.1-pre.9（2026-10-29）
+
+版號 0.7.1-pre.9，接續 `v0.7.1-pre.8`。
+
+## 修正
+
+- **指揮塔的檔案太大時，頁面變成空白、工單從清單消失**（BUG-172）：Control Tower 的檔案超過 512 KB 時，以前只有「總覽」會說檔案太大，「臭蟲」、「待辦」、「決策」三頁卻顯示成空清單，超過大小的工單也直接從清單消失，看起來像是沒有資料。現在：
+  - 「臭蟲」、「待辦」、「決策」、Epics、Sprint 讀不到檔案時，顯示「無法讀取 <檔名>」與原因（檔案太大時附大小與 512 KB 上限）
+  - 讀不到的工單仍列在清單中，歸在沒有狀態（no status）的一類，標題位置顯示讀取錯誤
+  - 勾選「包含封存」時，讀不到的封存 BUG／PLAN 列在該頁的錯誤訊息中
+  - 專案本來就沒有該檔案（例如沒有 `_backlog.md`）時，照舊顯示空清單，不顯示錯誤
+- **優先級／嚴重度寫成 critical 時顯示為未知**（BUG-173）：指揮塔的待辦與臭蟲頁，索引或 PLAN 檔把優先級寫成 `critical`（例如 `🔴 Critical`、`priority: critical`）時，以前顯示為未知；現在與 High 相同。
+
+## 待驗收（請更新到本版後協助確認）
+
+以下修正已包含在本版，仍在等實機確認：
+
+- **BUG-172**（本版）：在專案的 `_ct-workorders/` 放一份超過 512 KB 的 `_decision-log.md`（或 `_bug-tracker.md`），開指揮塔的對應頁，應顯示「無法讀取」與檔案大小，而不是空白
+- **BUG-173**（本版）：待辦或臭蟲索引中優先級／嚴重度寫 `critical` 的項目，指揮塔顯示為 High
+- **BUG-171**（`v0.7.1-pre.8` 起）：日常使用時，遇到系統自動校時、睡眠喚醒後，不再出現「終端已恢復」提示，閒置的 Claude CLI 分頁也不會變成 `[Process exited with code 1]`
+- **BUG-165**（macOS 觸控板，Codex 分頁捲動，`v0.7.1-pre.6` 起）：開 Codex CLI 分頁，在 Codex 畫面內快速、慢速捲動，看是否跟手、會不會捲過頭。如果之前照建議在 `~/.codex/config.toml` 的 `[tui]` 段加了 `mouse_scroll_speed = 3`，建議先移除那一行再試
+- **BUG-166**（`v0.7.1-pre.4` 起）：在 macOS 的分頁執行 `printf '\e[?1003h\e[?1006h'` 後移動滑鼠，命令列最多冒出幾筆亂碼就停；Shift + 右鍵選單有「重設滑鼠模式」
+- **BUG-169**（`v0.7.1-pre.6` 起）：執行 `node "<安裝目錄>/resources/scripts/bat-terminal.mjs" --version`，應顯示本版版號而不是 `v0.0.0`
+- **BUG-156**（需 Docker Desktop）：Docker 設定精靈建立容器時，不再與 BAT 本機伺服器搶用 9876 埠
+- **BUG-159**（需一般權限執行 BAT + codex）：Codex CLI 分頁內執行的 helper 讀到的是自己分頁的 `BAT_*`，不是其他分頁的
+
+## 已知事項
+
+- 本版兩項修正只有自動測試涵蓋，尚未在實際的大檔案專案中確認
+- 終端伺服器真的停止時，BAT 仍只重建 shell，分頁裡原本執行的 Claude CLI / Codex CLI 不會自動接回；Claude CLI 可在原專案目錄執行 `claude --resume` 接回對話（之後的版本規劃改善，PLAN-055）
+- Linux 版本未實機驗證
+
+macOS 仍只提供 Apple Silicon（arm64）版。
+
+**Full Changelog**: https://github.com/gowerlin/better-agent-terminal/compare/v0.7.1-pre.8...v0.7.1-pre.9
+
 ## v0.7.1-pre.8（2026-10-25）
 
 版號 0.7.1-pre.8，接續 `v0.7.1-pre.7`。

@@ -4,6 +4,15 @@ All notable changes to Better Agent Terminal are documented in this file.
 
 ## [Unreleased]
 
+## [0.7.1-pre.9] — 2026-10-29
+
+### Fixed
+- 指揮塔讀不到 CT 檔案（含超過 512 KiB 的 `File too large`）時，臭蟲／待辦／決策三頁不再靜默顯示空清單、工單不再從清單消失：讀取失敗與檔案不存在分開判斷（`readCtFile`），臭蟲、待辦、決策、Epics、Sprint 顯示「無法讀取 <檔名>」（i18n，檔案太大時附 KB 數與上限），讀取失敗的工單以 `UNKNOWN`（no status）列出，封存 BUG／PLAN 讀取失敗列在錯誤訊息；檔案不存在時維持空清單。`fs:readFile` 上限不變（BUG-172，T0708）
+- 索引文字與 PLAN 檔補優先級時，`critical` 一律算 High（`extractPriority` / `extractSeverity`），與 frontmatter 路徑一致（BUG-173，T0709）
+
+### Known issues
+- 兩項修正只有自動測試涵蓋；Linux 版本未實機驗證
+
 ## [0.7.1-pre.8] — 2026-10-25
 
 ### Fixed

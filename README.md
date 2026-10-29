@@ -154,7 +154,7 @@ BAT 與 CT 分工明確：**BAT 提供終端機、分頁與權限這些基礎設
 | 跨 session 辨識塔台 / Worker | BAT 開的 Claude CLI 分頁啟動即帶 session 名稱（Worker「工作區 · Worker · T####」、其他「工作區 · 短 ID」；縮圖列「+」選單「以塔台開啟 Claude」→「工作區 · Tower」），顯示在 Claude Code 的跨 session 清單（ListAgents）；`bat_whoami` / `bat_list_terminals` / `bat_get_state` 回 `claudeSessionName` / `claudeSessionId`；已宣告的塔台以 `bat_list_terminals scope=towers` 列出同一台 BAT 所有工作區的塔台 | 跨專案傳訊時找到對方塔台、不把 Worker 當成塔台 |
 | Worker 縮圖狀態 | 縮圖 ⚠️ 等使用者（Claude CLI 的 hook 與 Codex 的 `input`）/ `?` 等塔台答覆 / `✓` 已回報 / `↻` 回報後又在執行（例如塔台 Renew 後）；只有 `✓` 計入「關閉已回報的 Worker 分頁」 | 不需改（舊 CT 的「T#### 提問」也顯示 `?`） |
 | 用量限制自動繼續 | yolo 分頁撞到 5 小時限制後自動續行（設定預設關閉） | 塔台以 `--mode yolo` 宣告後適用 |
-| 工單看板與總覽 | 側欄塔台面板：總覽（塔台狀態、設定的生效值與來源）、看板、Sprint 進度、一鍵 `ct-exec` / `ct-done` | 讀取 `_ct-workorders/`；總覽的下一個編號與待辦讀 `_tower-state.md` 開頭的摘要（`schema_kind: tower-state`、`summary_version: 1`） |
+| 工單看板與總覽 | 側欄塔台面板：總覽（塔台狀態、設定的生效值與來源）、看板、Sprint 進度、一鍵 `ct-exec` / `ct-done` | 讀取 `_ct-workorders/`；總覽的下一個編號與待辦讀 `_tower-state.md` 開頭的摘要（`schema_kind: tower-state`、`summary_version: 1`）；單檔上限 512 KB，超過時該頁顯示「無法讀取」（`>= 0.7.1-pre.9`） |
 | 遠端 | WSL / SSH / Docker 視窗裡的塔台與 Worker 用同一套 helper（`"${BAT_HELPER_NODE:-node}"`） | 遠端需另裝 CT skill |
 
 完整契約（參數、exit code、環境變數、日誌）見 [docs/agent-guide/](docs/agent-guide/README.md) 的「Worker 分頁回收」「塔台分頁標題」「遠端 Tower 通知」「worktree 隔離派工」「worktree 狀態查詢」「helper 唯讀查詢 channel」「BAT MCP shim」「blocked 狀態偵測」「Worker 啟動確認」「Worker 問塔台」「Claude 分頁的 session 名稱」各篇（[CLAUDE.md](CLAUDE.md) 只留摘要）。
