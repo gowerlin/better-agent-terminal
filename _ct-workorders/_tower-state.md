@@ -1,8 +1,8 @@
 ---
 schema_kind: tower-state
 summary_version: 1
-updated_at: "2026-10-29T10:08:58+0800"
-session: "2026-10-29 第九十六 session（CT v5.13.0）：BUG-172 / 173 修正與預覽版"
+updated_at: "2026-10-29T10:23:13+0800"
+session: "2026-10-29 第九十六 session 已收工（CT v5.13.0）：BUG-172 / 173、v0.7.1-pre.9"
 next_ids:
   workorder: "T0710"
   decision: "D187"
@@ -17,12 +17,43 @@ todo:
 ---
 # Tower State — better-agent-terminal
 
-> 最後更新:2026-10-29 09:47 (UTC+8) — **第九十六 session 進行中**（CT v5.13.0）：BMad-Guide 塔台 ADVISORY（CT D408 面板讀取契約）→ 開 BUG-172 / 173（`1180cc7c`）→ T0708 / T0709 派工（`5a90ee35`，09:47 `started:`）→ T0709 DONE（`809eab0d`，BUG-173 FIXED）→ T0708 DONE（`50fe08d3`，BUG-172 FIXED；typecheck / typecheck:electron = 0）→ **`v0.7.1-pre.9` 發佈**（run `40803320599` 全綠，target `810651a2`；更版重點已寫；文件 `094b3afe`；Pages `40804521352` 綠、link-check 1331 / 0、首頁 pre.9）→ 已回覆 BMad-Guide 塔台。⚠️ 0.7.1 線已到 `pre.9`，下一版須換版號線（先與使用者確認）。前次：**第九十五 session 收工**（CT v5.12.6）：`*sync` 一致、`*archive` 歸檔 138 張（`d7218647`）；無派工、無發版。前次：第九十四 session 收工（2026-10-25 22:43，`v0.7.1-pre.8`）。
+> 最後更新:2026-10-29 10:22 (UTC+8) — **第九十六 session 收工**（CT v5.13.0）：CT D408 ADVISORY → BUG-172 / 173 → T0708 / T0709 → **`v0.7.1-pre.9` 發佈**（文件 `094b3afe`）→ 已回覆 / 通知 BMad-Guide 塔台。前次：第九十五 session 收工（2026-10-26 03:22，`*archive` 138 張）。
 >
-> **下次起手**:使用者以 `v0.7.1-pre.9` 日常使用驗收 BUG-171 / 172 / 173；外部測試者A 驗收 BUG-165 / 166 / 169；BUG-156 / 159 仍待特定環境；熱區無進行中工單。
+> **下次起手**:使用者以 `v0.7.1-pre.9` 日常使用驗收 BUG-171 / 172 / 173；外部測試者A 驗收 BUG-165 / 166 / 169；BUG-156 / 159 仍待特定環境；熱區無進行中工單；⚠️ 0.7.1 線已到 `pre.9`，下一版須換版號線（先與使用者確認）。
 ---
 
-## 🛏 本 Session 收工快照 (第九十五 session, 2026-10-26 02:29 - 03:22, ~55m)
+## 🛏 本 Session 收工快照 (第九十六 session, 2026-10-29 09:38 - 10:22, ~45m)
+
+### 主軸：BMad-Guide 塔台 ADVISORY（CT D408 面板讀取契約）→ BUG-172 / 173 → T0708 / T0709 平行 → **`v0.7.1-pre.9` 發佈** → 回覆 CT 塔台
+
+#### 時間線（時間取自系統 / git / gh）
+
+1. **09:38** 收到 BMad-Guide 塔台 ADVISORY（CT v6.0.0-beta.3 `memory-protocol.md` § BAT 塔台面板讀取契約，CT D408）：建議 3 點；對照原始碼確認 1、2 屬實（`fs:readFile` > 512 KiB 回 `File too large`，臭蟲／待辦／決策三頁靜默空、工單消失；`critical` 文字路徑 Unknown，PLAN 檔補優先級也中）；第 3 點（報修時間欄名）BAT 不用改
+2. **09:39** 使用者「開」→ BUG-172（medium）/ BUG-173（low）（`1180cc7c`）
+3. 使用者「現在派, 一起出版」→ CT v5.13.0 啟動：`--set-role tower --mode on` exit 0；熱檔皆 < 400 KB；`_tower-state.md` 補 frontmatter 摘要 v1
+4. **09:47** T0708 / T0709 派工（`5a90ee35`，檔案不重疊平行，`--mode yolo`；`started:` 01:47:18Z / 01:47:20Z）
+5. **09:51** T0709 DONE（`809eab0d`，`extractPriority` / `extractSeverity` 認 `critical`）→ BUG-173 FIXED（`c2a4a8ef`）、`--close-worker` exit 0
+6. **09:54** T0708 DONE（`50fe08d3`，`readCtFile` 分開 loaded / missing / error，10 檔）→ BUG-172 FIXED（`810651a2`）；main 上 typecheck / typecheck:electron = 0；`--close-worker` exit 0
+7. **09:55** 去識別化 + 金鑰掃描 0 → push → `pre-release.yml` `0.7.1-pre.9`（run `40803320599`，12 job 全綠，release 02:05:43Z）
+8. 回覆 BMad-Guide 塔台已修正（使用者指示）→ 更版重點 `gh release edit` → 文件 `094b3afe`（CHANGELOG / release-note / README CT 整合點表補 512 KB 一句 / package.json）→ Pages `40804521352` 綠、link-check 1331 / 0、首頁 pre.9 → 通知 BMad-Guide 塔台已發佈
+9. **10:22** 收工（使用者「收工」）；本次收工歸檔第九十四 session 快照
+
+### 本輪戰績
+
+| 類別 | 數量 | 備註 |
+|---|---|---|
+| 派發工單 | 2 | T0708 / T0709，皆 DONE、首派即過 |
+| BUG | 2 開 / 2 FIXED | BUG-172 / 173，待 pre.9 實機驗收 |
+| 發版 | `v0.7.1-pre.9` | 0.7.1 線最後一個預覽版（`-pre.N` 上限 9） |
+| 決策 / 學習 | 無 | |
+
+### 編號起始（下 session）
+
+- **T0710** / **BUG-174** / **PLAN-056** / **D187** / **EXP-WFMINE-002** / **L178** / **CT-T023**
+
+---
+
+## 🛏 前 Session 收工快照 (第九十五 session, 2026-10-26 02:29 - 03:22, ~55m)
 
 ### 主軸：啟動 → `*sync` → `*archive` 138 張 → 收工（無派工、無發版）
 
@@ -48,55 +79,20 @@ todo:
 
 ---
 
-## 🛏 前 Session 收工快照 (第九十四 session, 2026-10-25 21:03 - 22:43, ~1h40m)
-
-### 主軸：使用者回報「終端重置」後多個分頁 exit 1 → BUG-171（high）→ 研究 T0703 → D186 修正 T0704 / T0705 / T0706 → 首次發版被 Test gate 擋下 → T0707 → **`v0.7.1-pre.8` 發佈**
-
-#### 時間線（時間取自系統 / git / gh）
-
-1. **21:03** 啟動（CT v5.12.6，Fast Path，`--set-role tower --mode on` exit 0）；本塔台分頁是 21:03 新開的（原塔台 0d357566 已在事件中結束，T0703 更正）
-2. **21:05** 使用者回報 + 截圖 → BUG-171 / T0703 研究（`0243f731`）→ 21:06 派工 `started:` → **21:14** DONE（`29957a0e`）：20:59 Windows NTP 校時讓時鐘前跳 3.03 s → wall-clock heartbeat 判死活著的 Terminal Server → recovery 殺掉 6 個分頁（5 塔台 + 1 Worker）的 claude；舊 server 沒關、送回 `pty:exit(id, 1)` 套到新 shell；T0112 起既有
-3. 使用者選推薦 → **D186**：A + B → T0704（P1）、toast i18n + server env → T0705 平行、C → PLAN-055 IDEA（`b3cbe59a`）；21:18 兩張 `started:`
-4. **21:24** T0705 DONE（`d7ffa080`）；21:32 使用者「也排單」→ T0706（RecoveryPrompt i18n）派工；**21:33** T0704 DONE（`68ab2a42`，含隔離實例 e2e）；**21:36** T0706 DONE（`5006d129`）。T0704 / T0705 工單寫 FIXED → 塔台改 DONE 才回收（**L177**）；T0705 的 CLAUDE.md 建議由塔台合併（`3b732d55`）
-5. 塔台聯合驗證 @ `dbcefba3`：typecheck 0 / 0、build、`test:unit` 6017 / 338 files、`test:legacy` 472 / 0 → 使用者選「push 並發 pre.8」→ 去識別化 0 → push → run `40198701601` **Test gate 失敗**（ubuntu 2 項，未建 tag）
-6. **21:46** T0707 派工 → **21:53** DONE（`3b3f034c`：shell 回顯被當輸出、真 shell 測試 5 s 逾時；只改測試）→ push → `tests.yml` 試跑 `40199694837` 綠 → 重跑 `pre-release.yml` run `40199964626` 綠（22:08 發佈）
-7. 更版重點 → 版號 `c55de49e` / 文件 `2365e2f8` → Pages `40200991489` 綠、link-check 1326 / 0、首頁 pre.8
-8. **22:43** 收工
-
-### 本輪戰績
-
-| 類別 | 數量 | 備註 |
-|---|---|---|
-| 派發工單 | **5**（T0703 研究、T0704–T0707） | 全部 `started:`；無提問；收單回收 5 次皆 exit 0；T0704 / T0705 並行 |
-| 發版 | `v0.7.1-pre.8` | 首次 run 被 Test gate 擋下（第一次實際擋下）；重跑 `40199964626`；Pages `40200991489` |
-| 單據 | BUG-171（high，FIXED 待實機）、PLAN-055 IDEA | |
-| 決策 / 學習 | D186、L177 | |
-| unit test | **6017 passed / 338 files / 3 skipped**；`test:legacy` 472 / 0 | 塔台聯合驗證 @ `dbcefba3`；T0707 後 Windows 同數字，CI ubuntu 綠 |
-
-### 重點觀察
-
-- Test gate 第一次真的擋下發版：Windows 本機全綠不代表 ubuntu 綠；真 shell / 真 node-pty 測試要跑過 Linux 分支（T0705 只在 `cmd.exe` 實測）
-- 研究工單更正了塔台寫進工單的前提（「本塔台沒結束」不成立）；塔台寫前提時要標【推論】
-- Worker 實作 BUG 的工單會寫 `FIXED`，`worker_auto_close` 只認 `DONE`（L177，T0706 起工單寫明）
-
-### 編號起始（下 session）
-
-- **T0708** / **BUG-172** / **PLAN-056** / **D187** / **EXP-WFMINE-002** / **L178** / **CT-T023**
-
----
-
 ## 🌅 起手式（Quick Recovery）
 
-> 最後更新：2026-10-26 03:22 UTC+8（第九十五 session 收工）
+> 最後更新：2026-10-29 10:22 UTC+8（第九十六 session 收工）
 
 ### 近期完成
+- **`v0.7.1-pre.9` 發佈**（第九十六 session，run `40803320599`，target `810651a2`）：BUG-172（CT 檔讀取失敗顯示錯誤，T0708 `50fe08d3`）、BUG-173（`critical` 算 High，T0709 `809eab0d`）；源自 BMad-Guide 塔台 ADVISORY（CT D408）；文件 `094b3afe`；Pages `40804521352` 綠、link-check 1331 / 0、首頁 pre.9
 - **`*archive` 138 張**（第九十五 session，`d7218647`）：T 111 / BUG 21 / PLAN 6；熱區剩 T 103 / BUG 35 / PLAN 20 / EXP 1
 - **`v0.7.1-pre.8` 發佈**（第九十四 session，run `40199964626`，target `b2696b15`）：BUG-171（NTP 時鐘跳變 → heartbeat 誤判 → recovery 殺掉所有 agent 分頁；T0703 研究、T0704 修正、T0705 toast i18n + server env、T0706 Recovery 提示 i18n、T0707 ubuntu 測試修正；首次 run `40198701601` 被 Test gate 擋下、未建 tag）；文件 `2365e2f8`；Pages `40200991489` 綠、link-check 1326 / 0、首頁 pre.8；D186、L177、PLAN-055 IDEA
 - **`v0.7.1-pre.7` 發佈**（第九十三 session，run `40192111428`，target `0905e0c0`）：指揮塔總覽改版（T0701：塔台狀態＋`*config` 三層＋自動更新、`_tower-state.md` 摘要契約 v1、`no status` 不算 pending）、T0702（引用區塊狀態、`PAUSED`、`TODO` 別名）；文件 `aca99bf8`；Pages `40193056396` 綠、link-check 1320 / 0；CT 結案（CT D347）
 - **CT 正式公開**（第九十二 session，D183 / T0700）：BAT 站 5 處「Control Tower 目前未公開提供」改成「已公開、MIT，取得與安裝方式見安裝頁」（`CT_INSTALL_URL` 由 `CT_PORTAL_URL` 組出）；Pages `40149342854` 上線；回覆稿已直接交 CT 塔台
 
 ### 待辦（依優先序）
-1. 🔴 **BUG-171 實機驗收**（`v0.7.1-pre.8`）：日常使用遇 NTP 校時 / 睡眠喚醒不再「終端已恢復」、分頁不再 exit 1；可看 debug log `[heartbeat] late pong`。T0704 後續候選（TCP 模式 pid 重用、舊 server 結束失敗無補救、卡住但存活永不 recovery）暫不開單
+0. 🔴 **BUG-172 / 173 實機驗收**（`v0.7.1-pre.9`）：放一份 > 512 KB 的 `_decision-log.md`，決策頁應顯示「無法讀取」與大小；`critical` 項目顯示 High。⚠️ 下一版換版號線（0.7.1 已到 pre.9），先與使用者確認
+1. 🔴 **BUG-171 實機驗收**（`v0.7.1-pre.8` 起）：日常使用遇 NTP 校時 / 睡眠喚醒不再「終端已恢復」、分頁不再 exit 1；可看 debug log `[heartbeat] late pong`。T0704 後續候選（TCP 模式 pid 重用、舊 server 結束失敗無補救、卡住但存活永不 recovery）暫不開單
 2. 🔴 **外部測試者A 驗收**（`v0.7.1-pre.8`，更版重點「待驗收」清單）：BUG-165（macOS 觸控板 Codex 分頁捲動；之前設的 `mouse_scroll_speed = 3` 先移除）、BUG-166（`printf '\e[?1003h\e[?1006h'` 後移動滑鼠，殘骸幾筆即停）、BUG-169（安裝版 `bat-terminal.mjs --version`）→ 通過即 CLOSED
 3. 🟢 **後續候選**：PLAN-055（recovery 後 agent 分頁可 `--resume`）；總覽計數加「需要處理」徽章（PAUSED / BLOCKED / PARTIAL…，T0702 建議 2）；BAT 封存區 3 檔 `status: CLOSED` 顯示 Invalid（T0702 建議 1）；BAT 自己的 `_tower-state.md` 在 CT v6 上線後寫入摘要；codex Worker 分頁也接管滾輪（T0698 Q-1 [B]，`externalAgent` 欄位）；T0698 e2e（選做未做）；Windows / Linux 滾輪一格行數是否過快待回饋
 4. 🔴 `v0.7.1-pre.2` 剩餘實機驗收：BUG-156 需 Docker Desktop、BUG-159 需一般權限 + codex
@@ -111,10 +107,10 @@ todo:
 - Bug Tracker → [_bug-tracker.md](_bug-tracker.md)（熱區：Open 0 / Fixing 0 / Fixed 30 / Closed 7，2026-10-29 新增 BUG-172 / 173；2026-10-26 第九十五 session `*archive` 歸檔 138 張：T 111 / BUG 21 / PLAN 6，熱區剩 T:103 / BUG:35 / PLAN:20 / EXP:1）｜ Backlog → [_backlog.md](_backlog.md)
 - Decision Log → [_decision-log.md](_decision-log.md)（最大 D186）｜ Learnings → [_learnings.md](_learnings.md)（最大 L177）
 - 網站 → https://gowerlin.github.io/better-agent-terminal/｜ 素材 spec → `e2e/site-media.spec.ts`（`BAT_SITE_MEDIA=1`，輸出 `e2e-media/`）
-- 歷史 sessions → [_archive/state-snapshots/INDEX.md](_archive/state-snapshots/INDEX.md)（110 entries）
+- 歷史 sessions → [_archive/state-snapshots/INDEX.md](_archive/state-snapshots/INDEX.md)（112 entries）
 
 ### 編號起始
-- **T0710** / **BUG-174** / **PLAN-056** / **D187** / **EXP-WFMINE-002**（其他 TOPIC 從 001） / **L178** / **CT-T023**（2026-10-29 開 BUG-172 / 173、T0708 / T0709；下一個 T0710）
+- **T0710** / **BUG-174** / **PLAN-056** / **D187** / **EXP-WFMINE-002**（其他 TOPIC 從 001） / **L178** / **CT-T023**
 
 ---
 
