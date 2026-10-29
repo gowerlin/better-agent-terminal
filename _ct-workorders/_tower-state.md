@@ -1,7 +1,7 @@
 ---
 schema_kind: tower-state
 summary_version: 1
-updated_at: "2026-10-29T09:55:22+0800"
+updated_at: "2026-10-29T10:08:58+0800"
 session: "2026-10-29 第九十六 session（CT v5.13.0）：BUG-172 / 173 修正與預覽版"
 next_ids:
   workorder: "T0710"
@@ -9,16 +9,17 @@ next_ids:
   bug: "BUG-174"
   plan: "PLAN-056"
 todo:
-  - "發預覽版 v0.7.1-pre.9（BUG-172 / 173），之後實機驗收"
-  - "使用者以 v0.7.1-pre.8 日常使用驗收 BUG-171"
+  - "實機驗收 v0.7.1-pre.9：BUG-172（> 512 KB CT 檔顯示無法讀取）、BUG-173（critical 顯示 High）"
+  - "下一版換版號線（0.7.1 已到 pre.9），先與使用者確認"
+  - "使用者以 v0.7.1-pre.9 日常使用驗收 BUG-171"
   - "外部測試者A 驗收 BUG-165 / 166 / 169"
   - "BUG-156 / 159 待特定環境驗收"
 ---
 # Tower State — better-agent-terminal
 
-> 最後更新:2026-10-29 09:47 (UTC+8) — **第九十六 session 進行中**（CT v5.13.0）：BMad-Guide 塔台 ADVISORY（CT D408 面板讀取契約）→ 開 BUG-172 / 173（`1180cc7c`）→ T0708 / T0709 派工（`5a90ee35`，09:47 `started:`）→ T0709 DONE（`809eab0d`，BUG-173 FIXED）→ T0708 DONE（`50fe08d3`，BUG-172 FIXED；typecheck / typecheck:electron = 0）→ 發 `v0.7.1-pre.9`。前次：**第九十五 session 收工**（CT v5.12.6）：`*sync` 一致、`*archive` 歸檔 138 張（`d7218647`）；無派工、無發版。前次：第九十四 session 收工（2026-10-25 22:43，`v0.7.1-pre.8`）。
+> 最後更新:2026-10-29 09:47 (UTC+8) — **第九十六 session 進行中**（CT v5.13.0）：BMad-Guide 塔台 ADVISORY（CT D408 面板讀取契約）→ 開 BUG-172 / 173（`1180cc7c`）→ T0708 / T0709 派工（`5a90ee35`，09:47 `started:`）→ T0709 DONE（`809eab0d`，BUG-173 FIXED）→ T0708 DONE（`50fe08d3`，BUG-172 FIXED；typecheck / typecheck:electron = 0）→ **`v0.7.1-pre.9` 發佈**（run `40803320599` 全綠，target `810651a2`；更版重點已寫；文件 `094b3afe`；Pages `40804521352` 綠、link-check 1331 / 0、首頁 pre.9）→ 已回覆 BMad-Guide 塔台。⚠️ 0.7.1 線已到 `pre.9`，下一版須換版號線（先與使用者確認）。前次：**第九十五 session 收工**（CT v5.12.6）：`*sync` 一致、`*archive` 歸檔 138 張（`d7218647`）；無派工、無發版。前次：第九十四 session 收工（2026-10-25 22:43，`v0.7.1-pre.8`）。
 >
-> **下次起手**:使用者以 `v0.7.1-pre.8` 日常使用驗收 BUG-171；外部測試者A 驗收 BUG-165 / 166 / 169；BUG-156 / 159 仍待特定環境；熱區無進行中工單。
+> **下次起手**:使用者以 `v0.7.1-pre.9` 日常使用驗收 BUG-171 / 172 / 173；外部測試者A 驗收 BUG-165 / 166 / 169；BUG-156 / 159 仍待特定環境；熱區無進行中工單。
 ---
 
 ## 🛏 本 Session 收工快照 (第九十五 session, 2026-10-26 02:29 - 03:22, ~55m)
