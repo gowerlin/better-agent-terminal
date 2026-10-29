@@ -3,7 +3,7 @@ schema_version: 1
 schema_kind: index
 id: _bug-tracker
 index_kind: bugs
-generated_at: "2026-10-29T09:38:19+0800"
+generated_at: "2026-10-29T09:47:39+0800"
 generator: control-tower-sync
 source_globs:
   - _ct-workorders/BUG-*.md
@@ -12,8 +12,8 @@ exclude_globs:
   - _ct-workorders/examples/**
 total: 37
 breakdown:
-  OPEN: 2
-  FIXING: 0
+  OPEN: 0
+  FIXING: 2
   FIXED: 28
   VERIFY: 0
   CLOSED: 7
@@ -23,22 +23,22 @@ breakdown:
 # Bug Tracker
 
 > ⚠️ 此文件由 `*sync` 自動生成，請勿手動編輯。
-> 最後同步：2026-10-29 09:38 (UTC+8) — 新增 BUG-172 / BUG-173（BMad-Guide 塔台 ADVISORY，CT D408）；熱區 Open 2 / Fixed 28 / Closed 7
+> 最後同步：2026-10-29 09:38 (UTC+8) — 新增 BUG-172 / BUG-173（BMad-Guide 塔台 ADVISORY，CT D408）；熱區 Fixing 2（T0708 / T0709）/ Fixed 28 / Closed 7
 
 ## 統計
-- 🔴 Open: 2 | ⏳ Fixing: 0 | ✅ Fixed: 28 | 🧪 Verify: 0 | 🚫 Closed: 7 | ⛔ Won't Fix: 0 | **Total: 37**
+- 🔴 Open: 0 | ⏳ Fixing: 2 | ✅ Fixed: 28 | 🧪 Verify: 0 | 🚫 Closed: 7 | ⛔ Won't Fix: 0 | **Total: 37**
 
 ## 🔴 Open / 處理中
 
 | ID | 標題 | 嚴重度 | 建立時間 | 連結 |
 |----|------|--------|---------|------|
-| BUG-173 | 指揮塔面板：索引文字與 PLAN 檔補優先級時 `critical` 判成 Unknown（frontmatter 路徑算 High） | 🟢 low | 2026-10-29 | [BUG-173](BUG-173-ct-priority-critical-text-path-unknown.md) |
-| BUG-172 | 指揮塔面板：檔案超過 512 KiB 時臭蟲／待辦／決策三頁靜默變空、工單從清單消失（只有總覽報 File too large） | 🟡 medium | 2026-10-29 | [BUG-172](BUG-172-ct-panel-file-too-large-silent-empty.md) |
 
 ## ⏳ 修復中 (FIXING)
 
 | ID | 標題 | 嚴重度 | 修復時間 | 連結 |
 |----|------|--------|---------|------|
+| BUG-173 | 指揮塔面板：索引文字與 PLAN 檔補優先級時 `critical` 判成 Unknown（frontmatter 路徑算 High） | 🟢 low | T0708 派工 2026-10-29 | [BUG-173](BUG-173-ct-priority-critical-text-path-unknown.md) |
+| BUG-172 | 指揮塔面板：檔案超過 512 KiB 時臭蟲／待辦／決策三頁靜默變空、工單從清單消失（只有總覽報 File too large） | 🟡 medium | 2026-10-29 | [BUG-172](BUG-172-ct-panel-file-too-large-silent-empty.md) |
 
 ## ✅ 已修復
 
