@@ -792,7 +792,11 @@
         "default": "默认"
       }
     },
-    "includeArchived": "包含归档"
+    "includeArchived": "包含归档",
+    "readError": {
+      "tooLarge": "无法读取 {{file}}：文件太大，无法显示（{{kb}} KB，上限 512 KB）",
+      "failed": "无法读取 {{file}}：{{error}}"
+    }
   },
   "toast": {
     "runtime": {

@@ -19,9 +19,11 @@ interface BugTrackerViewProps {
   showArchived: boolean
   /** Toggle callback — parent lazy-loads archived bugs on flip */
   onShowArchivedChange: (v: boolean) => void
+  /** T0708 (BUG-172): files that exist but could not be read (shown instead of an empty list) */
+  readErrors?: string[]
 }
 
-export function BugTrackerView({ bugs, loading, ctDirPath, showArchived, onShowArchivedChange }: BugTrackerViewProps) {
+export function BugTrackerView({ bugs, loading, ctDirPath, showArchived, onShowArchivedChange, readErrors = [] }: BugTrackerViewProps) {
   const { t } = useTranslation()
   const [filterStatus, setFilterStatus] = useState<BugStatus | 'all'>('all')
   const [filterSeverity, setFilterSeverity] = useState<BugSeverity | 'all'>('all')
@@ -123,7 +125,11 @@ export function BugTrackerView({ bugs, loading, ctDirPath, showArchived, onShowA
       <div className="ct-bug-list">
         {loading && <div className="ct-loading">{t('controlTower.loading')}</div>}
 
-        {!loading && filteredBugs.length === 0 && (
+        {!loading && readErrors.map(msg => (
+          <div key={msg} className="ct-empty-list ct-read-error">⚠️ {msg}</div>
+        ))}
+
+        {!loading && filteredBugs.length === 0 && readErrors.length === 0 && (
           <div className="ct-empty-list">{t('controlTower.bugs.noBugs')}</div>
         )}
 

@@ -792,7 +792,11 @@
         "default": "預設"
       }
     },
-    "includeArchived": "包含封存"
+    "includeArchived": "包含封存",
+    "readError": {
+      "tooLarge": "無法讀取 {{file}}：檔案太大，無法顯示（{{kb}} KB，上限 512 KB）",
+      "failed": "無法讀取 {{file}}：{{error}}"
+    }
   },
   "toast": {
     "runtime": {

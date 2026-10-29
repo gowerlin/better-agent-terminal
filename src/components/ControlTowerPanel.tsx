@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
+import type { TFunction } from 'i18next'
 import {
   type WorkOrder,
   type WorkOrderStatus,
@@ -93,6 +94,56 @@ export function diffWorkOrders(
   return { baseline: next, notices }
 }
 
+/**
+ * T0708 (BUG-172): a CT file that exists but could not be read — `fs:readFile` refuses files over
+ * 512 KiB (`File too large`, with `size`). Shown as an error, never as an empty list.
+ */
+export interface CtReadError {
+  /** Path shown to the user, relative to the workspace folder */
+  file: string
+  error: string
+  size?: number
+}
+
+export type CtFileRead =
+  | { kind: 'loaded'; content: string }
+  | { kind: 'missing' }
+  | { kind: 'error'; error: CtReadError }
+
+/**
+ * Read a CT file and tell "missing" apart from "unreadable". `fs:readFile` reports a missing file
+ * as `Failed to read file`, so any error other than `File too large` is checked with `fs:stat`
+ * (as loadTowerOverview does): no stat → missing, keeping the empty-list behaviour.
+ */
+export async function readCtFile(path: string, file: string): Promise<CtFileRead> {
+  let result: { content?: string | null; error?: string; size?: number }
+  try {
+    result = await window.electronAPI.fs.readFile(path)
+  } catch (err) {
+    result = { error: err instanceof Error ? err.message : 'Failed to read file' }
+  }
+  if (result.content != null) return { kind: 'loaded', content: result.content }
+  if (result.error === 'File too large') return { kind: 'error', error: { file, error: result.error, size: result.size } }
+  let exists = false
+  try {
+    exists = !!(await window.electronAPI.fs.stat(path))
+  } catch {
+    exists = false
+  }
+  return exists ? { kind: 'error', error: { file, error: result.error ?? 'Failed to read file' } } : { kind: 'missing' }
+}
+
+export function formatCtReadError(t: TFunction, e: CtReadError): string {
+  return e.error === 'File too large'
+    ? t('controlTower.readError.tooLarge', { file: e.file, kb: Math.round((e.size ?? 0) / 1024) })
+    : t('controlTower.readError.failed', { file: e.file, error: e.error })
+}
+
+/** T0708: list entry for a work order file that exists but could not be read */
+function unreadableWorkOrder(filename: string): WorkOrder {
+  return { ...parseWorkOrder(filename, ''), status: 'UNKNOWN', parseWarnings: undefined }
+}
+
 /** Format file mtime to YYYY-MM-DD HH:mm */
 function formatMtime(mtimeMs: number): string {
   const d = new Date(mtimeMs)
@@ -121,6 +172,17 @@ export function ControlTowerPanel({ isVisible, workspaceFolderPath, onExecWorkOr
   const [archivedBugs, setArchivedBugs] = useState<BugEntry[]>([])
   const [showArchivedBacklog, setShowArchivedBacklog] = useState(false)
   const [archivedBacklog, setArchivedBacklog] = useState<BacklogEntry[]>([])
+  // T0708 (BUG-172): files that exist but could not be read, per view (null / empty = none)
+  const [bugReadError, setBugReadError] = useState<CtReadError | null>(null)
+  const [backlogReadError, setBacklogReadError] = useState<CtReadError | null>(null)
+  const [decisionReadError, setDecisionReadError] = useState<CtReadError | null>(null)
+  const [epicsReadError, setEpicsReadError] = useState<CtReadError | null>(null)
+  const [sprintReadError, setSprintReadError] = useState<CtReadError | null>(null)
+  const [archivedBugReadErrors, setArchivedBugReadErrors] = useState<CtReadError[]>([])
+  const [archivedBacklogReadErrors, setArchivedBacklogReadErrors] = useState<CtReadError[]>([])
+  /** Unreadable work orders stay in the list as `UNKNOWN`; keyed by filename */
+  const [orderReadErrors, setOrderReadErrors] = useState<Record<string, CtReadError>>({})
+  const [archivedOrderReadErrors, setArchivedOrderReadErrors] = useState<Record<string, CtReadError>>({})
   // T0701: overview inputs (null = not loaded yet for this workspace)
   const [towerState, setTowerState] = useState<TowerStateLoad | null>(null)
   const [projectConfig, setProjectConfig] = useState<ProjectConfigLoad | null>(null)
@@ -196,9 +258,10 @@ export function ControlTowerPanel({ isVisible, workspaceFolderPath, onExecWorkOr
     const folder = workspaceFolderPath
 
     try {
-      const result = await window.electronAPI.fs.readFile(epicsPath)
+      const read = await readCtFile(epicsPath, '_bmad-output/planning-artifacts/epics.md')
       if (isStale(folder)) return
-      if (!result.content) { setBmadEpics([]); return }
+      setEpicsReadError(read.kind === 'error' ? read.error : null)
+      if (read.kind !== 'loaded' || !read.content) { setBmadEpics([]); return }
 
       // Build sprint story map for status cross-reference (read from ref)
       let storyMap: Map<string, { status: import('../types/bmad-epic').StoryStatus; workOrderId?: string }> | undefined
@@ -209,10 +272,12 @@ export function ControlTowerPanel({ isVisible, workspaceFolderPath, onExecWorkOr
         )
       }
 
-      const parsed = parseEpicsFile(result.content, storyMap)
+      const parsed = parseEpicsFile(read.content, storyMap)
       setBmadEpics(parsed)
     } catch {
-      if (!isStale(folder)) setBmadEpics([])
+      if (isStale(folder)) return
+      setBmadEpics([])
+      setEpicsReadError(null)
     }
   }, [bmadOutputPath, workspaceFolderPath, isStale])
 
@@ -222,11 +287,14 @@ export function ControlTowerPanel({ isVisible, workspaceFolderPath, onExecWorkOr
     const folder = workspaceFolderPath
     const paths = getSprintYamlPaths(workspaceFolderPath)
 
+    // T0708: the first unreadable candidate is reported only when no later candidate parses
+    let firstError: CtReadError | null = null
     for (const yamlPath of paths) {
       try {
-        const result = await window.electronAPI.fs.readFile(yamlPath)
-        if (result.content) {
-          const parsed = parseSprintStatus(result.content)
+        const read = await readCtFile(yamlPath, yamlPath.slice(workspaceFolderPath.length + 1))
+        if (read.kind === 'error') firstError ??= read.error
+        if (read.kind === 'loaded' && read.content) {
+          const parsed = parseSprintStatus(read.content)
           if (parsed) {
             const stat = await window.electronAPI.fs.stat(yamlPath)
             if (isStale(folder)) return
@@ -234,6 +302,7 @@ export function ControlTowerPanel({ isVisible, workspaceFolderPath, onExecWorkOr
               ? { ...parsed, lastUpdated: formatMtime(stat.mtimeMs) }
               : parsed
             setSprintStatus(withMtime)
+            setSprintReadError(null)
             return
           }
         }
@@ -241,7 +310,9 @@ export function ControlTowerPanel({ isVisible, workspaceFolderPath, onExecWorkOr
         // Try next path
       }
     }
-    if (!isStale(folder)) setSprintStatus(null)
+    if (isStale(folder)) return
+    setSprintStatus(null)
+    setSprintReadError(firstError)
   }, [workspaceFolderPath, isStale])
 
   // Keep sprintStatus ref in sync and reload epics when sprint data changes
@@ -258,12 +329,15 @@ export function ControlTowerPanel({ isVisible, workspaceFolderPath, onExecWorkOr
     const folder = workspaceFolderPath
     try {
       const bugTrackerPath = `${ctDirPath}/_bug-tracker.md`
-      const result = await window.electronAPI.fs.readFile(bugTrackerPath)
+      const read = await readCtFile(bugTrackerPath, '_ct-workorders/_bug-tracker.md')
       if (isStale(folder)) return
-      // Always update state: parse content if available, clear if error/empty
-      setBugEntries(result.content != null ? parseBugTracker(result.content) : [])
+      // Always update state: parse content if available, clear if missing / unreadable
+      setBugEntries(read.kind === 'loaded' ? parseBugTracker(read.content) : [])
+      setBugReadError(read.kind === 'error' ? read.error : null)
     } catch {
-      if (!isStale(folder)) setBugEntries([])
+      if (isStale(folder)) return
+      setBugEntries([])
+      setBugReadError(null)
     }
   }, [ctDirPath, workspaceFolderPath, isStale])
 
@@ -273,8 +347,8 @@ export function ControlTowerPanel({ isVisible, workspaceFolderPath, onExecWorkOr
     const folder = workspaceFolderPath
     try {
       const backlogPath = `${ctDirPath}/_backlog.md`
-      const result = await window.electronAPI.fs.readFile(backlogPath)
-      const entries = result.content != null ? parseBacklog(result.content) : []
+      const read = await readCtFile(backlogPath, '_ct-workorders/_backlog.md')
+      const entries = read.kind === 'loaded' ? parseBacklog(read.content) : []
 
       // Enrich entries whose 優先級 is missing in _backlog.md (e.g. Completed table)
       // by reading the PLAN file and parsing its metadata block.
@@ -295,8 +369,11 @@ export function ControlTowerPanel({ isVisible, workspaceFolderPath, onExecWorkOr
 
       if (isStale(folder)) return
       setBacklogEntries(enriched)
+      setBacklogReadError(read.kind === 'error' ? read.error : null)
     } catch {
-      if (!isStale(folder)) setBacklogEntries([])
+      if (isStale(folder)) return
+      setBacklogEntries([])
+      setBacklogReadError(null)
     }
   }, [ctDirPath, workspaceFolderPath, isStale])
 
@@ -306,15 +383,17 @@ export function ControlTowerPanel({ isVisible, workspaceFolderPath, onExecWorkOr
     const folder = workspaceFolderPath
     try {
       const decisionPath = `${ctDirPath}/_decision-log.md`
-      const result = await window.electronAPI.fs.readFile(decisionPath)
+      const read = await readCtFile(decisionPath, '_ct-workorders/_decision-log.md')
       if (isStale(folder)) return
-      const content = result.content ?? ''
-      setDecisions(result.content != null ? parseDecisionLog(content) : [])
+      const content = read.kind === 'loaded' ? read.content : ''
+      setDecisions(read.kind === 'loaded' ? parseDecisionLog(content) : [])
       setDecisionRawContent(content)
+      setDecisionReadError(read.kind === 'error' ? read.error : null)
     } catch {
       if (isStale(folder)) return
       setDecisions([])
       setDecisionRawContent('')
+      setDecisionReadError(null)
     }
   }, [ctDirPath, workspaceFolderPath, isStale])
 
@@ -327,17 +406,24 @@ export function ControlTowerPanel({ isVisible, workspaceFolderPath, onExecWorkOr
       const entries = await window.electronAPI.fs.readdir(archivePath)
       const orderFiles = entries.filter(e => !e.isDirectory && isWorkOrderFile(e.name))
       const orders: WorkOrder[] = []
+      const readErrors: Record<string, CtReadError> = {}
       for (const file of orderFiles) {
-        const result = await window.electronAPI.fs.readFile(file.path)
-        if (result.content != null) {
-          orders.push({ ...parseWorkOrder(file.name, result.content), isArchived: true })
+        const read = await readCtFile(file.path, `_ct-workorders/_archive/workorders/${file.name}`)
+        if (read.kind === 'loaded') {
+          orders.push({ ...parseWorkOrder(file.name, read.content), isArchived: true })
+        } else if (read.kind === 'error') {
+          orders.push({ ...unreadableWorkOrder(file.name), isArchived: true })
+          readErrors[file.name] = read.error
         }
       }
       orders.sort((a, b) => b.id.localeCompare(a.id)) // newest first
       if (isStale(folder)) return
       setArchivedOrders(orders)
+      setArchivedOrderReadErrors(readErrors)
     } catch {
-      if (!isStale(folder)) setArchivedOrders([])
+      if (isStale(folder)) return
+      setArchivedOrders([])
+      setArchivedOrderReadErrors({})
     }
   }, [workspaceFolderPath, isStale])
 
@@ -350,18 +436,24 @@ export function ControlTowerPanel({ isVisible, workspaceFolderPath, onExecWorkOr
       const entries = await window.electronAPI.fs.readdir(archivePath)
       const bugFiles = entries.filter(e => !e.isDirectory && e.name.startsWith('BUG-') && e.name.endsWith('.md'))
       const bugs: BugEntry[] = []
+      const readErrors: CtReadError[] = []
       for (const file of bugFiles) {
-        const result = await window.electronAPI.fs.readFile(file.path)
-        if (result.content != null) {
-          const entry = parseBugFile(result.content, `_archive/bugs/${file.name}`)
+        const read = await readCtFile(file.path, `_ct-workorders/_archive/bugs/${file.name}`)
+        if (read.kind === 'loaded') {
+          const entry = parseBugFile(read.content, `_archive/bugs/${file.name}`)
           if (entry) bugs.push(entry)
+        } else if (read.kind === 'error') {
+          readErrors.push(read.error)
         }
       }
       bugs.sort((a, b) => b.id.localeCompare(a.id, undefined, { numeric: true }))
       if (isStale(folder)) return
       setArchivedBugs(bugs)
+      setArchivedBugReadErrors(readErrors)
     } catch {
-      if (!isStale(folder)) setArchivedBugs([])
+      if (isStale(folder)) return
+      setArchivedBugs([])
+      setArchivedBugReadErrors([])
     }
   }, [workspaceFolderPath, isStale])
 
@@ -374,18 +466,24 @@ export function ControlTowerPanel({ isVisible, workspaceFolderPath, onExecWorkOr
       const entries = await window.electronAPI.fs.readdir(archivePath)
       const planFiles = entries.filter(e => !e.isDirectory && e.name.startsWith('PLAN-') && e.name.endsWith('.md'))
       const plans: BacklogEntry[] = []
+      const readErrors: CtReadError[] = []
       for (const file of planFiles) {
-        const result = await window.electronAPI.fs.readFile(file.path)
-        if (result.content != null) {
-          const entry = parsePlanFile(result.content, `_archive/plans/${file.name}`)
+        const read = await readCtFile(file.path, `_ct-workorders/_archive/plans/${file.name}`)
+        if (read.kind === 'loaded') {
+          const entry = parsePlanFile(read.content, `_archive/plans/${file.name}`)
           if (entry) plans.push(entry)
+        } else if (read.kind === 'error') {
+          readErrors.push(read.error)
         }
       }
       plans.sort((a, b) => b.id.localeCompare(a.id, undefined, { numeric: true }))
       if (isStale(folder)) return
       setArchivedBacklog(plans)
+      setArchivedBacklogReadErrors(readErrors)
     } catch {
-      if (!isStale(folder)) setArchivedBacklog([])
+      if (isStale(folder)) return
+      setArchivedBacklog([])
+      setArchivedBacklogReadErrors([])
     }
   }, [workspaceFolderPath, isStale])
 
@@ -486,10 +584,15 @@ export function ControlTowerPanel({ isVisible, workspaceFolderPath, onExecWorkOr
       const orderFiles = entries.filter(e => !e.isDirectory && isWorkOrderFile(e.name))
 
       const orders: WorkOrder[] = []
+      const readErrors: Record<string, CtReadError> = {}
       for (const file of orderFiles) {
-        const result = await window.electronAPI.fs.readFile(file.path)
-        if (result.content != null) {
-          const wo = parseWorkOrder(file.name, result.content)
+        const read = await readCtFile(file.path, `_ct-workorders/${file.name}`)
+        if (read.kind === 'error') {
+          // T0708 (BUG-172): an unreadable order stays listed as UNKNOWN instead of disappearing
+          orders.push(unreadableWorkOrder(file.name))
+          readErrors[file.name] = read.error
+        } else if (read.kind === 'loaded') {
+          const wo = parseWorkOrder(file.name, read.content)
           orders.push(wo)
           // T0348 / BUG-078 — silent fire-and-forget drift telemetry.
           // IO + log path live in main process (D090). One caller is enough
@@ -528,8 +631,16 @@ export function ControlTowerPanel({ isVisible, workspaceFolderPath, onExecWorkOr
 
       if (superseded()) return
       appliedOrderLoadSeqRef.current = seq
-      detectStatusChanges(ctDirPath, uniqueOrders)
+      // An unreadable order keeps its last known status for toasts, so becoming readable
+      // again is not reported as a status change
+      const prev = orderBaselineRef.current
+      const forDiff = uniqueOrders.map(o => {
+        const known = readErrors[o.filename] && prev?.ctDir === ctDirPath ? prev.statuses.get(o.id) : undefined
+        return known ? { ...o, status: known } : o
+      })
+      detectStatusChanges(ctDirPath, forDiff)
       setWorkOrders(uniqueOrders)
+      setOrderReadErrors(readErrors)
       setHasCtDir(true)
     } catch {
       if (superseded()) return
@@ -537,6 +648,7 @@ export function ControlTowerPanel({ isVisible, workspaceFolderPath, onExecWorkOr
       // No readable dir: the next successful load starts a fresh, silent baseline
       orderBaselineRef.current = null
       setWorkOrders([])
+      setOrderReadErrors({})
       setHasCtDir(false)
     } finally {
       if (!isStale(folder) && seq === orderLoadSeqRef.current) setLoading(false)
@@ -646,6 +758,7 @@ export function ControlTowerPanel({ isVisible, workspaceFolderPath, onExecWorkOr
       loadArchivedOrders()
     } else {
       setArchivedOrders([])
+      setArchivedOrderReadErrors({})
     }
   }, [showArchivedOrders, loadArchivedOrders])
 
@@ -654,6 +767,7 @@ export function ControlTowerPanel({ isVisible, workspaceFolderPath, onExecWorkOr
       loadArchivedBugs()
     } else {
       setArchivedBugs([])
+      setArchivedBugReadErrors([])
     }
   }, [showArchivedBugs, loadArchivedBugs])
 
@@ -662,6 +776,7 @@ export function ControlTowerPanel({ isVisible, workspaceFolderPath, onExecWorkOr
       loadArchivedBacklog()
     } else {
       setArchivedBacklog([])
+      setArchivedBacklogReadErrors([])
     }
   }, [showArchivedBacklog, loadArchivedBacklog])
 
@@ -677,6 +792,11 @@ export function ControlTowerPanel({ isVisible, workspaceFolderPath, onExecWorkOr
   const abandonedCount = workOrders.filter(o => o.status === 'ABANDONED').length
   // T0701 (R4): legacy files with no status (reports) — shown apart, never as pending
   const noStatusCount = workOrders.filter(o => o.status === 'UNKNOWN').length
+
+  // T0708 (BUG-172): read failures, formatted for the views
+  const orderReadError = (o: WorkOrder) => (o.isArchived ? archivedOrderReadErrors : orderReadErrors)[o.filename]
+  const readErrorTexts = (...errors: Array<CtReadError | null | undefined>) =>
+    errors.filter((e): e is CtReadError => !!e).map(e => formatCtReadError(t, e))
 
   if (!isVisible) return null
 
@@ -797,6 +917,7 @@ export function ControlTowerPanel({ isVisible, workspaceFolderPath, onExecWorkOr
             projectConfig={projectConfig}
             configSources={configSources}
             sprintStatus={sprintStatus}
+            sprintReadError={sprintReadError ? formatCtReadError(t, sprintReadError) : null}
             ctDirPath={ctDirPath}
             onOpenFile={openFileInFilesTab}
           />
@@ -831,7 +952,11 @@ export function ControlTowerPanel({ isVisible, workspaceFolderPath, onExecWorkOr
             >
               <div className="ct-order-header">
                 <span className="ct-order-id">{order.id}</span>
-                <span className="ct-order-title">{order.title}</span>
+                {orderReadError(order) ? (
+                  <span className="ct-order-title ct-read-error">⚠️ {formatCtReadError(t, orderReadError(order))}</span>
+                ) : (
+                  <span className="ct-order-title">{order.title}</span>
+                )}
                 <span className={`ct-status-badge ${statusColor(order.status)}`}>
                   {statusLabel(order.status)}
                 </span>
@@ -908,7 +1033,7 @@ export function ControlTowerPanel({ isVisible, workspaceFolderPath, onExecWorkOr
       </div>
 
       <div className="ct-tab-content" style={{ display: activeTab === 'kanban' ? undefined : 'none' }}>
-        <BmadEpicsView epics={bmadEpics} loading={loading} ctDirPath={ctDirPath} />
+        <BmadEpicsView epics={bmadEpics} loading={loading} ctDirPath={ctDirPath} readErrors={readErrorTexts(epicsReadError)} />
       </div>
 
       <div className="ct-tab-content" style={{ display: activeTab === 'workflow' ? undefined : 'none' }}>
@@ -926,6 +1051,7 @@ export function ControlTowerPanel({ isVisible, workspaceFolderPath, onExecWorkOr
           ctDirPath={ctDirPath}
           showArchived={showArchivedBugs}
           onShowArchivedChange={setShowArchivedBugs}
+          readErrors={readErrorTexts(bugReadError, ...(showArchivedBugs ? archivedBugReadErrors : []))}
         />
       </div>
 
@@ -936,11 +1062,18 @@ export function ControlTowerPanel({ isVisible, workspaceFolderPath, onExecWorkOr
           ctDirPath={ctDirPath}
           showArchived={showArchivedBacklog}
           onShowArchivedChange={setShowArchivedBacklog}
+          readErrors={readErrorTexts(backlogReadError, ...(showArchivedBacklog ? archivedBacklogReadErrors : []))}
         />
       </div>
 
       <div className="ct-tab-content" style={{ display: activeTab === 'decisions' ? undefined : 'none' }}>
-        <DecisionsView decisions={decisions} loading={loading} rawContent={decisionRawContent} ctDirPath={ctDirPath} />
+        <DecisionsView
+          decisions={decisions}
+          loading={loading}
+          rawContent={decisionRawContent}
+          ctDirPath={ctDirPath}
+          readErrors={readErrorTexts(decisionReadError)}
+        />
       </div>
     </div>
   )

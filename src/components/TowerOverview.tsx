@@ -46,6 +46,8 @@ interface TowerOverviewProps {
   projectConfig: ProjectConfigLoad | null
   configSources: ConfigSourcesLoad | null
   sprintStatus: SprintStatus | null
+  /** T0708 (BUG-172): a sprint-status.yaml exists but could not be read (formatted message) */
+  sprintReadError?: string | null
   ctDirPath: string | null
   onOpenFile: (filePath: string) => void
 }
@@ -62,6 +64,12 @@ export function TowerOverview(props: TowerOverviewProps) {
         <div className="ct-overview-section">
           <div className="sprint-section-title">📊 Sprint</div>
           <SprintDashboard sprintStatus={props.sprintStatus} />
+        </div>
+      )}
+      {!props.sprintStatus && props.sprintReadError && (
+        <div className="ct-overview-section">
+          <div className="sprint-section-title">📊 Sprint</div>
+          <div className="ct-overview-muted ct-read-error">⚠️ {props.sprintReadError}</div>
         </div>
       )}
     </div>

@@ -793,7 +793,11 @@
         "default": "default"
       }
     },
-    "includeArchived": "Include Archived"
+    "includeArchived": "Include Archived",
+    "readError": {
+      "tooLarge": "Cannot read {{file}}: file too large to display ({{kb}} KB, limit 512 KB)",
+      "failed": "Cannot read {{file}}: {{error}}"
+    }
   },
   "toast": {
     "runtime": {

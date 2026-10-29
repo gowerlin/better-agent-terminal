@@ -17,9 +17,11 @@ interface BacklogViewProps {
   showArchived: boolean
   /** Toggle callback — parent lazy-loads archived plans on flip */
   onShowArchivedChange: (v: boolean) => void
+  /** T0708 (BUG-172): files that exist but could not be read (shown instead of an empty list) */
+  readErrors?: string[]
 }
 
-export function BacklogView({ entries, loading, ctDirPath, showArchived, onShowArchivedChange }: BacklogViewProps) {
+export function BacklogView({ entries, loading, ctDirPath, showArchived, onShowArchivedChange, readErrors = [] }: BacklogViewProps) {
   const { t } = useTranslation()
   const [filterStatus, setFilterStatus] = useState<PlanStatus | 'all'>('all')
   const [filterPriority, setFilterPriority] = useState<PlanPriority | 'all'>('all')
@@ -126,7 +128,11 @@ export function BacklogView({ entries, loading, ctDirPath, showArchived, onShowA
       <div className="ct-backlog-list">
         {loading && <div className="ct-loading">{t('controlTower.loading')}</div>}
 
-        {!loading && filteredEntries.length === 0 && (
+        {!loading && readErrors.map(msg => (
+          <div key={msg} className="ct-empty-list ct-read-error">⚠️ {msg}</div>
+        ))}
+
+        {!loading && filteredEntries.length === 0 && readErrors.length === 0 && (
           <div className="ct-empty-list">{t('controlTower.backlog.noEntries')}</div>
         )}
 

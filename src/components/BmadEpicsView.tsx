@@ -7,14 +7,26 @@ interface BmadEpicsViewProps {
   epics: BmadEpic[]
   loading: boolean
   ctDirPath: string | null
+  /** T0708 (BUG-172): `epics.md` exists but could not be read (shown instead of the empty state) */
+  readErrors?: string[]
 }
 
-export function BmadEpicsView({ epics, loading, ctDirPath }: BmadEpicsViewProps) {
+export function BmadEpicsView({ epics, loading, ctDirPath, readErrors = [] }: BmadEpicsViewProps) {
   const { t } = useTranslation()
   const [expandedEpicId, setExpandedEpicId] = useState<number | null>(null)
 
   if (loading) {
     return <div className="ct-loading">{t('controlTower.loading')}</div>
+  }
+
+  if (epics.length === 0 && readErrors.length > 0) {
+    return (
+      <div className="ct-epics-empty">
+        {readErrors.map(msg => (
+          <div key={msg} className="ct-empty-list ct-read-error">⚠️ {msg}</div>
+        ))}
+      </div>
+    )
   }
 
   if (epics.length === 0) {

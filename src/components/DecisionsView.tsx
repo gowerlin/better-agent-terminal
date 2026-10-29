@@ -8,6 +8,8 @@ interface DecisionsViewProps {
   loading: boolean
   rawContent?: string
   ctDirPath?: string | null
+  /** T0708 (BUG-172): `_decision-log.md` exists but could not be read (shown instead of an empty list) */
+  readErrors?: string[]
 }
 
 /**
@@ -41,7 +43,7 @@ function extractDecisionDetail(rawContent: string, decisionId: string): string {
   return block.trim()
 }
 
-export function DecisionsView({ decisions, loading, rawContent = '', ctDirPath }: DecisionsViewProps) {
+export function DecisionsView({ decisions, loading, rawContent = '', ctDirPath, readErrors = [] }: DecisionsViewProps) {
   const { t } = useTranslation()
   const [expandedId, setExpandedId] = useState<string | null>(null)
   const [search, setSearch] = useState('')
@@ -92,7 +94,11 @@ export function DecisionsView({ decisions, loading, rawContent = '', ctDirPath }
       <div className="ct-decision-list">
         {loading && <div className="ct-loading">{t('controlTower.loading')}</div>}
 
-        {!loading && filteredDecisions.length === 0 && (
+        {!loading && readErrors.map(msg => (
+          <div key={msg} className="ct-empty-list ct-read-error">⚠️ {msg}</div>
+        ))}
+
+        {!loading && filteredDecisions.length === 0 && readErrors.length === 0 && (
           <div className="ct-empty-list">{t('controlTower.decisions.noDecisions')}</div>
         )}
 
