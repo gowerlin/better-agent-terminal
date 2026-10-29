@@ -1,7 +1,7 @@
 ---
 schema_kind: tower-state
 summary_version: 1
-updated_at: "2026-10-29T09:51:57+0800"
+updated_at: "2026-10-29T09:55:22+0800"
 session: "2026-10-29 第九十六 session（CT v5.13.0）：BUG-172 / 173 修正與預覽版"
 next_ids:
   workorder: "T0710"
@@ -9,14 +9,14 @@ next_ids:
   bug: "BUG-174"
   plan: "PLAN-056"
 todo:
-  - "T0708（BUG-172）/ T0709（BUG-173）收單後一起發預覽版 v0.7.1-pre.9"
+  - "發預覽版 v0.7.1-pre.9（BUG-172 / 173），之後實機驗收"
   - "使用者以 v0.7.1-pre.8 日常使用驗收 BUG-171"
   - "外部測試者A 驗收 BUG-165 / 166 / 169"
   - "BUG-156 / 159 待特定環境驗收"
 ---
 # Tower State — better-agent-terminal
 
-> 最後更新:2026-10-29 09:47 (UTC+8) — **第九十六 session 進行中**（CT v5.13.0）：BMad-Guide 塔台 ADVISORY（CT D408 面板讀取契約）→ 開 BUG-172 / 173（`1180cc7c`）→ T0708 / T0709 派工（`5a90ee35`，09:47 `started:`）→ T0709 DONE（`809eab0d`，BUG-173 FIXED）→ 等 T0708 → 一起發預覽版。前次：**第九十五 session 收工**（CT v5.12.6）：`*sync` 一致、`*archive` 歸檔 138 張（`d7218647`）；無派工、無發版。前次：第九十四 session 收工（2026-10-25 22:43，`v0.7.1-pre.8`）。
+> 最後更新:2026-10-29 09:47 (UTC+8) — **第九十六 session 進行中**（CT v5.13.0）：BMad-Guide 塔台 ADVISORY（CT D408 面板讀取契約）→ 開 BUG-172 / 173（`1180cc7c`）→ T0708 / T0709 派工（`5a90ee35`，09:47 `started:`）→ T0709 DONE（`809eab0d`，BUG-173 FIXED）→ T0708 DONE（`50fe08d3`，BUG-172 FIXED；typecheck / typecheck:electron = 0）→ 發 `v0.7.1-pre.9`。前次：**第九十五 session 收工**（CT v5.12.6）：`*sync` 一致、`*archive` 歸檔 138 張（`d7218647`）；無派工、無發版。前次：第九十四 session 收工（2026-10-25 22:43，`v0.7.1-pre.8`）。
 >
 > **下次起手**:使用者以 `v0.7.1-pre.8` 日常使用驗收 BUG-171；外部測試者A 驗收 BUG-165 / 166 / 169；BUG-156 / 159 仍待特定環境；熱區無進行中工單。
 ---
@@ -107,7 +107,7 @@ todo:
 - 公開 repo（D176）：工單 / commit / BUG 不寫真名、客戶名、家目錄路徑；push 前跑 `.private/` 的檢查樣式
 
 ### 快速連結
-- Bug Tracker → [_bug-tracker.md](_bug-tracker.md)（熱區：Open 0 / Fixing 1 / Fixed 29 / Closed 7，2026-10-29 新增 BUG-172 / 173；2026-10-26 第九十五 session `*archive` 歸檔 138 張：T 111 / BUG 21 / PLAN 6，熱區剩 T:103 / BUG:35 / PLAN:20 / EXP:1）｜ Backlog → [_backlog.md](_backlog.md)
+- Bug Tracker → [_bug-tracker.md](_bug-tracker.md)（熱區：Open 0 / Fixing 0 / Fixed 30 / Closed 7，2026-10-29 新增 BUG-172 / 173；2026-10-26 第九十五 session `*archive` 歸檔 138 張：T 111 / BUG 21 / PLAN 6，熱區剩 T:103 / BUG:35 / PLAN:20 / EXP:1）｜ Backlog → [_backlog.md](_backlog.md)
 - Decision Log → [_decision-log.md](_decision-log.md)（最大 D186）｜ Learnings → [_learnings.md](_learnings.md)（最大 L177）
 - 網站 → https://gowerlin.github.io/better-agent-terminal/｜ 素材 spec → `e2e/site-media.spec.ts`（`BAT_SITE_MEDIA=1`，輸出 `e2e-media/`）
 - 歷史 sessions → [_archive/state-snapshots/INDEX.md](_archive/state-snapshots/INDEX.md)（110 entries）

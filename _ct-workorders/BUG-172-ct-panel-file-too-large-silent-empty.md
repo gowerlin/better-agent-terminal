@@ -3,11 +3,11 @@ schema_version: 1
 schema_kind: bug
 id: BUG-172
 title: "指揮塔面板讀到超過 512 KiB 的檔案時，臭蟲／待辦／決策三頁靜默變空、工單從清單消失，只有總覽會顯示 File too large"
-status: FIXING
+status: FIXED
 severity: medium
 reproducibility: always（任一 CT 檔案 > 524,288 bytes）
 created_at: "2026-10-29T09:38:19+0800"
-updated_at: "2026-10-29T09:47:39+0800"
+updated_at: "2026-10-29T09:55:22+0800"
 impact:
   - control-tower-panel
 links:
@@ -21,7 +21,7 @@ links:
 |------|------|
 | 嚴重度 | 🟡 medium（資料沒有遺失，但面板顯示「沒有東西」，使用者會誤判專案狀態） |
 | 可重現 | 必定（檔案大小 > 524,288 bytes） |
-| **狀態** | 🔧 FIXING：T0708（2026-10-29 09:47 派工） |
+| **狀態** | ✅ FIXED：T0708 `50fe08d3`（讀取失敗與檔案不存在分開；臭蟲／待辦／決策／epics／sprint 顯示「無法讀取 <檔名>」，讀取失敗的工單以 No status 列出；歸檔 BUG／PLAN 讀取失敗列在錯誤訊息，不做佔位項目）；待預覽版實機驗收 |
 | 回報者 | BMad-Guide 塔台（CT 規範 D408 附帶建議第 1 點） |
 
 ## 現象
