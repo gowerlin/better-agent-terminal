@@ -70,7 +70,8 @@ function extractLinkPath(cell: string): string {
 
 function extractPriority(cell: string): PlanPriority {
   const upper = cell.toUpperCase()
-  if (upper.includes('HIGH')) return 'High'
+  // BUG-173: critical has no level of its own; same as the frontmatter path.
+  if (upper.includes('CRITICAL') || upper.includes('HIGH')) return 'High'
   if (upper.includes('MEDIUM')) return 'Medium'
   if (upper.includes('LOW')) return 'Low'
   return 'Unknown'

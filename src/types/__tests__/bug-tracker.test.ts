@@ -219,3 +219,35 @@ breakdown:
     expect(s.total).toBe(2)
   })
 })
+
+// ─── BUG-173: critical on the text paths ────────────────────────────────────
+
+describe('parseBugTracker — 嚴重度 cell', () => {
+  const tracker = (cells: string[]) => [
+    '# Bug Tracker',
+    '',
+    '## Open',
+    '',
+    '| ID | 標題 | 嚴重度 | 建立時間 | 連結 |',
+    '|----|------|--------|---------|------|',
+    ...cells.map((c, i) => `| BUG-${300 + i} | t | ${c} | 2026-10-29 | [link](BUG-${300 + i}.md) |`),
+    '',
+  ].join('\n')
+
+  it('counts critical (any spelling) as High', () => {
+    const entries = parseBugTracker(tracker(['critical', '🔴 Critical', 'CRITICAL', '🔴 High（critical）']))
+    expect(entries.map(e => e.severity)).toEqual(['High', 'High', 'High', 'High'])
+  })
+
+  it('keeps high / medium / low / unknown unchanged', () => {
+    const entries = parseBugTracker(tracker(['🔴 High', '🟡 Medium', '🟢 Low', 'high', '—']))
+    expect(entries.map(e => e.severity)).toEqual(['High', 'Medium', 'Low', 'High', 'Unknown'])
+  })
+})
+
+describe('parseBugFile — critical', () => {
+  it('legacy bullet `- **嚴重度**：🔴 Critical` → High', () => {
+    const e = parseBugFile('# BUG-300：t\n\n- **狀態**：🔴 OPEN\n- **嚴重度**：🔴 Critical\n', 'BUG-300-t.md')
+    expect(e?.severity).toBe('High')
+  })
+})

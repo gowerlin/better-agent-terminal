@@ -79,7 +79,8 @@ function extractLinkPath(cell: string): string {
 /** Extract severity from cell content which may contain emoji */
 function extractSeverity(cell: string): BugSeverity {
   const upper = cell.toUpperCase()
-  if (upper.includes('HIGH')) return 'High'
+  // BUG-173: critical has no level of its own; same as the frontmatter path.
+  if (upper.includes('CRITICAL') || upper.includes('HIGH')) return 'High'
   if (upper.includes('MEDIUM')) return 'Medium'
   if (upper.includes('LOW')) return 'Low'
   return 'Unknown'

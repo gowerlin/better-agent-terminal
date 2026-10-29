@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { parsePlanFile, parseBacklogStats } from '../backlog'
+import { parsePlanFile, parseBacklog, parseBacklogStats, extractPriorityFromPlanContent } from '../backlog'
 
 const PLAN_FRONTMATTER = `---
 schema_version: 1
@@ -140,5 +140,65 @@ breakdown:
     expect(s.total).toBe(2)
     expect(s.breakdown.DONE).toBe(1)
     expect(s.breakdown.IDEA).toBe(1)
+  })
+})
+
+// ─── BUG-173: critical on the text paths ────────────────────────────────────
+
+describe('parseBacklog — 優先級 cell', () => {
+  const index = (cells: string[]) => [
+    '# Backlog',
+    '',
+    '## 💡 想法',
+    '',
+    '| ID | 標題 | 優先級 | 建立時間 | 連結 |',
+    '|----|------|--------|---------|------|',
+    ...cells.map((c, i) => `| PLAN-${300 + i} | t | ${c} | 2026-10-29 | [link](PLAN-${300 + i}.md) |`),
+    '',
+  ].join('\n')
+
+  it('counts critical (any spelling) as High', () => {
+    const entries = parseBacklog(index(['critical', '🔴 Critical', 'CRITICAL', '🔴 High（critical）']))
+    expect(entries.map(e => e.priority)).toEqual(['High', 'High', 'High', 'High'])
+  })
+
+  it('keeps high / medium / low / unknown unchanged', () => {
+    const entries = parseBacklog(index(['🔴 High', '🟡 Medium', '🟢 Low', 'high', '—']))
+    expect(entries.map(e => e.priority)).toEqual(['High', 'Medium', 'Low', 'High', 'Unknown'])
+  })
+})
+
+describe('extractPriorityFromPlanContent', () => {
+  it('frontmatter `priority: critical` → High', () => {
+    const content = PLAN_FRONTMATTER.replace('priority: high', 'priority: critical')
+    expect(extractPriorityFromPlanContent(content)).toBe('High')
+  })
+
+  it('bullet `- **優先級**：critical` → High', () => {
+    expect(extractPriorityFromPlanContent('# PLAN-300\n\n- **優先級**：critical\n')).toBe('High')
+  })
+
+  it('table `| **優先級** | critical |` → High', () => {
+    const content = '# PLAN-300\n\n| 欄位 | 值 |\n|------|----|\n| **優先級** | critical |\n'
+    expect(extractPriorityFromPlanContent(content)).toBe('High')
+  })
+
+  it('keeps high / medium / low unchanged', () => {
+    expect(extractPriorityFromPlanContent(PLAN_FRONTMATTER)).toBe('High')
+    expect(extractPriorityFromPlanContent(PLAN_DRIFT)).toBe('Medium')
+    expect(extractPriorityFromPlanContent(PLAN_LEGACY)).toBe('Low')
+    expect(extractPriorityFromPlanContent('| **優先級** | 🟡 Medium |\n')).toBe('Medium')
+  })
+})
+
+describe('parsePlanFile — critical', () => {
+  it('frontmatter `priority: critical` → High (frontmatter path unchanged)', () => {
+    const e = parsePlanFile(PLAN_FRONTMATTER.replace('priority: high', 'priority: critical'), 'PLAN-099-frontmatter.md')
+    expect(e?.priority).toBe('High')
+  })
+
+  it('legacy bullet `- **優先級**：🔴 Critical` → High', () => {
+    const e = parsePlanFile(PLAN_LEGACY.replace('🟢 Low', '🔴 Critical'), 'PLAN-100-legacy.md')
+    expect(e?.priority).toBe('High')
   })
 })
