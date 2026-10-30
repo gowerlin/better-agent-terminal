@@ -27,6 +27,7 @@ import type { EffortLevel } from '../../src/types'
 import type { ClaudeAgentManager } from '../claude-agent-manager'
 import type { CodexAgentManager } from '../codex-agent-manager'
 import { logger } from '../logger'
+import { claudeCtPluginSkillDirs, type EnvLike } from '../ct-install-detect'
 import type { HandlerRegistrar, HostDeps } from './types'
 
 /** Thrown when a codex preset reaches a host without codex (headless bat-server). */
@@ -107,6 +108,8 @@ export interface ClaudeHandlerDeps extends Pick<HostDeps, 'emit' | 'homeDir'> {
   sessionKinds?: ClaudeSessionKinds
   /** `<userData>/message-archives`. Absent ⇒ archive channels are not registered (always-local). */
   messageArchiveDir?: string
+  /** T0710: env for the `ct@*` plugin lookup (`CLAUDE_CONFIG_DIR` / `CLAUDE_CODE_PLUGIN_CACHE_DIR`). Default `process.env`. */
+  env?: EnvLike
 }
 
 export function registerClaudeHandlers(register: HandlerRegistrar, deps: ClaudeHandlerDeps): void {
@@ -346,6 +349,9 @@ export function registerClaudeHandlers(register: HandlerRegistrar, deps: ClaudeH
       { dir: pathMod.join(homePath, '.claude', 'skills'), scope: 'global' },
       { dir: pathMod.join(homePath, '.copilot', 'skills'), scope: 'global' },
       { dir: pathMod.join(homePath, '.agents', 'skills'), scope: 'global' },
+      // T0710 (3-3): the Claude `ct@*` plugin's skills (no other plugin), last: a manual install
+      // of the same name is the one listed, as Claude itself uses that one
+      ...await claudeCtPluginSkillDirs({ homeDir: homePath, env: deps.env ?? process.env }, cwd),
     ]
     for (const { dir, scope } of skillDirs) {
       try {
@@ -383,6 +389,8 @@ export function registerClaudeHandlers(register: HandlerRegistrar, deps: ClaudeH
       pathMod.join(homePath, '.claude', 'skills'),
       pathMod.join(homePath, '.copilot', 'skills'),
       pathMod.join(homePath, '.agents', 'skills'),
+      // T0710 (3-3): the Claude `ct@*` plugin's skills, after the manual ones (same rule as scan-skills)
+      ...(await claudeCtPluginSkillDirs({ homeDir: homePath, env: deps.env ?? process.env })).map(entry => entry.dir),
     ]
 
     for (const dir of skillDirs) {

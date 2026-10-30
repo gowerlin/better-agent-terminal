@@ -68,6 +68,9 @@ describe('quoteArgForShell', () => {
     it.each([
       ['posix', '/ct-exec T0362'],
       ['pwsh', '$ct-exec'],
+      // T0710: the plugin skill name of a Codex CT dispatch (`$ct` is a variable in pwsh / bash)
+      ['pwsh', '$ct:ct-exec'],
+      ['posix', '$ct:ct-exec'],
       ['cmd', 'a%b'],
     ] satisfies Array<[ShellFamily, string]>)('does not fast-path %s arg %s', (shell, arg) => {
       expect(quoteArgForShell(arg, shell)).not.toBe(arg)
@@ -78,6 +81,7 @@ describe('quoteArgForShell', () => {
     it.each([
       ['/ct-exec T0362', "'/ct-exec T0362'"],
       ['$ct-exec T0362', "'$ct-exec T0362'"],
+      ['$ct:ct-exec T0710', "'$ct:ct-exec T0710'"], // T0710
       // POSIX single quotes cannot contain a quote; close, escape, reopen.
       ["it's me", "'it'\\''s me'"],
       ['say "hi"', '\'say "hi"\''],
@@ -93,6 +97,7 @@ describe('quoteArgForShell', () => {
     it.each([
       ['/ct-exec T0362', "'/ct-exec T0362'"],
       ['$ct-exec T0362', "'$ct-exec T0362'"],
+      ['$ct:ct-exec T0710', "'$ct:ct-exec T0710'"], // T0710
       // PowerShell escapes a single quote by doubling it, not with a backslash.
       ["it's me", "'it''s me'"],
       ["it's O'Brien's", "'it''s O''Brien''s'"],
@@ -110,6 +115,7 @@ describe('quoteArgForShell', () => {
     it.each([
       ['/ct-exec T0362', '"/ct-exec T0362"'],
       ['$ct-exec T0362', '"$ct-exec T0362"'],
+      ['$ct:ct-exec T0710', '"$ct:ct-exec T0710"'], // T0710: cmd does not expand `$`
       ["it's me", '"it\'s me"'],
       ['a b', '"a b"'],
       // T0362 B-2: a quote is escaped as \" (CommandLineToArgvW), never as "".

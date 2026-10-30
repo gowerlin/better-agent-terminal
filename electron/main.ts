@@ -13,6 +13,7 @@ import { openSettingsInWindow, pickSettingsWindow, type OpenSettingsInParentResu
 import { createAgentPromptCommandBuilder, normalizeAgentAlias } from './terminal-command-handlers'
 import { createBatMcpLaunchArgs, registerBatMcpHandlers, type BatMcpHost } from './bat-mcp-launch'
 import { createCodexNoDaemonSupportCheck, createCodexOscVersionCheck } from './codex-osc-version'
+import { createCodexSkillNameResolver } from './ct-install-detect'
 import { createClaudeNameSupportCheck } from './claude-version-check'
 import { CLAUDE_SESSION_STORE_FILE, ClaudeSessionPersistence, claudeSessionNameRecords } from './claude-session-name-record'
 import { checkDispatchCwd, findWorkspaceAgentSettings, resolveDispatchWorkspaceFromEntries, type DispatchWorkspaceRequest, type DispatchWorkspaceResolution } from './dispatch-workspace'
@@ -734,6 +735,11 @@ const claudeNameSupport = createClaudeNameSupportCheck({
   logger,
 })
 
+// T0710: `$ct-exec` / `$ct:ct-exec` for a Codex CT skill, from how CT is installed on this machine
+// (electron/ct-install-detect.ts); helper dispatch and the panel's `terminal:control-tower-prompt`
+// (lazy home: nothing reads app paths at import time)
+const codexSkillName = createCodexSkillNameResolver({ get homeDir() { return app.getPath('home') }, env: process.env })
+
 const buildAgentPromptCommand = createAgentPromptCommandBuilder({
   readSettings: readPersistedSettingsSync,
   resolveWorkspaceAgentSettings,
@@ -743,6 +749,7 @@ const buildAgentPromptCommand = createAgentPromptCommandBuilder({
   // T0621 (C-5): a dispatched codex >= 0.163.0 is `blockedDetection: osc` from its launch
   codexWritesOsc: createCodexOscVersionCheck({ logger }),
   recordBlockedDetection: (terminalId, detection) => ptyManager?.setBlockedDetection(terminalId, detection),
+  codexSkillName, // T0710
   logger,
 })
 
@@ -2407,6 +2414,7 @@ function registerProxiedHandlers() {
     existsSync: fsSync.existsSync,
     workerCloser: workerCloseScheduler,
     ctWorktree: ctWorktreeService,
+    codexSkillName, // T0710: terminal:control-tower-prompt
   })
 
   // PLAN-048 / T0607 (D155 / D156): a Worker asks its Tower (same module as headless). Questions

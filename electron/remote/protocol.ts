@@ -85,6 +85,9 @@ export const PROXIED_CHANNELS = new Set([
   // T0701: Control Tower config layers in the host's home (electron/handlers/ct-config.ts);
   // the host the window is bound to answers, so a remote window never reads this machine's files
   'ct:read-config-sources',
+  // T0710: the CT prompt of the panel's one-click dispatch, decided and quoted by the host that
+  // runs the tab (electron/terminal-command-handlers.ts); an older bat-server has no handler
+  'terminal:control-tower-prompt',
   // T0437 (BUG-105): client paths → the window's host form; ALWAYS_LOCAL (answered by this
   // machine's main with the window's PathTranslator), listed here only for the IPC binding.
   'remote:resolve-client-paths',

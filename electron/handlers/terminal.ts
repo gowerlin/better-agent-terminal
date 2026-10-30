@@ -29,6 +29,7 @@ import {
   type AgentUnavailableResult,
   type BuiltAgentCommand,
   type AgentPromptCommandOptions,
+  type CodexSkillNameResolver,
   type TerminalCommandHandlerDeps,
 } from '../terminal-command-handlers'
 import type { WorkerCloseScheduler } from '../close-worker'
@@ -82,6 +83,11 @@ export interface TerminalHandlerDeps {
    * headless passes one with its resolved git and scrubbed env.
    */
   ctWorktree?: TerminalCommandHandlerDeps['ctWorktree']
+  /**
+   * T0710: the Codex CT skill name on this host for `terminal:control-tower-prompt` (the same
+   * resolver the host gives `createAgentPromptCommandBuilder`). Absent: `$<skill>`.
+   */
+  codexSkillName?: CodexSkillNameResolver
 }
 
 /**
@@ -121,6 +127,7 @@ export function registerTerminalHandlers(register: HandlerRegistrar, deps: Termi
     logger,
     existsSync: deps.existsSync ?? fs.existsSync,
     ...(deps.ctWorktree ? { ctWorktree: deps.ctWorktree } : {}),
+    ...(deps.codexSkillName ? { codexSkillName: deps.codexSkillName } : {}),
   })
 
   // T0133: Worker→Tower auto-notify — broadcast a notification toast + tab badge.

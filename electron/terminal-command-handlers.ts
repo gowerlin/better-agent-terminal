@@ -18,6 +18,8 @@ import {
 } from './dispatch-workspace'
 import { normalizeWorkorderId } from './close-worker'
 import type { HandlerHelperIdentity } from './remote/handler-registry'
+import type { CodexSkillNameDecision } from './ct-install-detect'
+import type { ControlTowerPromptRequest, ControlTowerPromptResult } from '../src/types/ct-dispatch-prompt'
 import {
   CT_WORKTREE_ENV_KEYS,
   CtWorktreeService,
@@ -231,7 +233,15 @@ export interface BuiltAgentCommand {
    * agentCustomArgs override), `settings` (settings.agentCustomArgs) or `builtin` (none).
    */
   argsSource?: AgentLaunchSource
+  /** T0710: the Codex CT skill name and why (`$ct-exec` / `$ct:ct-exec`); codex CT prompts only. */
+  codexSkillName?: CodexSkillNameDecision
 }
+
+/** T0710: resolves the Codex CT skill name on this host (`createCodexSkillNameResolver`, electron/ct-install-detect.ts). */
+export type CodexSkillNameResolver = (skill: string, customEnv?: Record<string, string>) => Promise<CodexSkillNameDecision>
+
+/** T0710: the panel's one-click dispatch asks the host for its CT prompt (src/utils/control-tower-launch.ts). */
+export const CONTROL_TOWER_PROMPT_CHANNEL = 'terminal:control-tower-prompt'
 
 export interface TerminalCommandHandlerDeps {
   registerHandler(channel: string, handler: Handler): void
@@ -280,6 +290,8 @@ export interface TerminalCommandHandlerDeps {
   setTimeout?: (callback: () => void, ms: number) => unknown
   /** T0583: prepares the worktree of a `--isolation worktree` dispatch. Default: `CtWorktreeService` with plain `git`. */
   ctWorktree?: Pick<CtWorktreeService, 'prepare'>
+  /** T0710: the Codex CT skill name of `terminal:control-tower-prompt`. Absent ⇒ `$<skill>` (fallback-unsupported). */
+  codexSkillName?: CodexSkillNameResolver
 }
 
 function shellBasename(shellPath: string | undefined): string {
@@ -802,6 +814,7 @@ export function registerTerminalCommandHandlers(deps: TerminalCommandHandlerDeps
       ...(landing.workspaceName ? { workspaceName: landing.workspaceName } : {}), // T0641
       shellFamily,
       terminalId: opts.id, // T0590
+      ...(opts.customEnv ? { customEnv: opts.customEnv } : {}), // T0710: the tab's CODEX_HOME
     })
     if (!resolved) return false
 
@@ -818,6 +831,17 @@ export function registerTerminalCommandHandlers(deps: TerminalCommandHandlerDeps
         status: unavailable.status,
       })
       return unavailable
+    }
+
+    if (resolved.codexSkillName) {
+      // T0710: which Codex skill name the prompt uses and why (never the config.toml content)
+      deps.logger.log(`[agent-command] codex skill id=${opts.id} name=$${resolved.codexSkillName.name} reason=${resolved.codexSkillName.reason}`)
+      deps.mirrorToBatScripts('codex-skill-name', {
+        channel: 'terminal:create-agent-command',
+        terminalId: opts.id,
+        name: resolved.codexSkillName.name,
+        reason: resolved.codexSkillName.reason,
+      })
     }
 
     if (resolved.prefixNormalized) {
@@ -867,6 +891,58 @@ export function registerTerminalCommandHandlers(deps: TerminalCommandHandlerDeps
     }
     return result
   })
+
+  // T0710: the panel's one-click dispatch (src/utils/control-tower-launch.ts) — the CT prompt for
+  // this host, quoted for the shell `terminal:create-with-command` starts without a `shell`
+  // (`$ct:ct-exec` is a variable in PowerShell and inside bash double quotes). Proxied: a remote
+  // window's bat-server decides from its own files; an older one has no handler (panel → `$<skill>`).
+  deps.registerHandler(CONTROL_TOWER_PROMPT_CHANNEL, async (_ctx, rawRequest): Promise<ControlTowerPromptResult> => {
+    const request = (rawRequest && typeof rawRequest === 'object' ? rawRequest : {}) as Partial<ControlTowerPromptRequest>
+    const agentId = toTerminalDrivenAgentId(typeof request.agent === 'string' ? request.agent : '')
+    const skill = typeof request.skill === 'string' ? request.skill : ''
+    const workorder = typeof request.workorder === 'string' ? request.workorder.trim() : ''
+    if (!CT_SKILL_PATTERN.test(skill) || !WORKORDER_ID_PATTERN.test(workorder)) {
+      return { ok: false, error: `invalid skill '${skill}' or work order '${workorder}'` }
+    }
+    const customEnv = isStringRecord(request.customEnv) ? request.customEnv : undefined
+    const codexSkillName = isCodexAgentId(agentId)
+      ? await decideCodexSkillName(deps.codexSkillName, skill, customEnv, deps.logger)
+      : undefined
+    const prompt = buildControlTowerSkillPrompt(agentId, skill, workorder, codexSkillName?.name)!
+    const dispatchShell = resolveDispatchShell(undefined, deps.readPersistedSettingsSync(), deps, deps.getPtyManager())
+    const shellFamily = detectShellFamily(dispatchShell.quoting)
+    if (codexSkillName) {
+      deps.logger.log(`[agent-command] panel codex skill name=$${codexSkillName.name} reason=${codexSkillName.reason} shell family=${shellFamily} from=${dispatchShell.from}`)
+    }
+    return {
+      ok: true,
+      prompt,
+      quotedPrompt: quoteArgForShell(prompt, shellFamily),
+      shellFamily,
+      ...(codexSkillName ? { skillName: codexSkillName } : {}),
+    }
+  })
+}
+
+function isStringRecord(value: unknown): value is Record<string, string> {
+  return Boolean(value) && typeof value === 'object' && !Array.isArray(value)
+    && Object.values(value as Record<string, unknown>).every(v => typeof v === 'string')
+}
+
+/** T0710: never throws; no resolver on this host / a failing one → `$<skill>` (rule ③). */
+async function decideCodexSkillName(
+  resolver: CodexSkillNameResolver | undefined,
+  skill: string,
+  customEnv: Record<string, string> | undefined,
+  logger: { warn(...args: unknown[]): void },
+): Promise<CodexSkillNameDecision> {
+  if (!resolver) return { name: skill, reason: 'fallback-unsupported' }
+  try {
+    return await resolver(skill, customEnv)
+  } catch (error) {
+    logger.warn(`[agent-command] codex skill name of ${skill} failed: ${error instanceof Error ? error.message : String(error)}`)
+    return { name: skill, reason: 'fallback-error' }
+  }
 }
 
 // ── Agent launch command (moved from electron/main.ts in T0431, logic unchanged) ──
@@ -885,6 +961,8 @@ export interface AgentPromptCommandOptions {
    * name; absent (headless, active workspace) → `BAT`.
    */
   workspaceName?: string
+  /** T0710: the env the tab is created with (helper `customEnv`); its `CODEX_HOME` wins over the host's. */
+  customEnv?: Record<string, string>
 }
 
 /** Settings fields `buildAgentPromptCommand` reads. */
@@ -931,6 +1009,11 @@ export interface AgentPromptCommandDeps {
   claudeNameSupport?(): Promise<ClaudeNameSupport>
   /** T0621: records `osc` as the dispatched terminal's `blockedDetection` (`PtyManager.setBlockedDetection`). */
   recordBlockedDetection?(terminalId: string, detection: 'osc'): void
+  /**
+   * T0710: the Codex CT skill name on this host (`$ct-exec` / `$ct:ct-exec`,
+   * `createCodexSkillNameResolver`). Absent ⇒ `$<skill>` as before T0710.
+   */
+  codexSkillName?: CodexSkillNameResolver
   logger: {
     warn(...args: unknown[]): void
   }
@@ -964,19 +1047,30 @@ function isCodexAgentId(agentId: string): boolean {
 //   - src/utils/control-tower-launch.ts  buildControlTowerWorkOrderCommand()
 const WORKORDER_ID_PATTERN = /^(?:[A-Z]{2,4}-)?T\d+$/
 
-function buildControlTowerSkillPrompt(agentId: string, skill: string, workorder: string): string | null {
-  if (!/^(ct-exec|ct-done)$/.test(skill) || !WORKORDER_ID_PATTERN.test(workorder)) return null
-  const prefix = isCodexAgentId(agentId) ? '$' : '/'
-  return `${prefix}${skill} ${workorder}`
+/** The CT skills `--skill` takes (scripts/bat-terminal.mjs keeps the same list). */
+const CT_SKILL_PATTERN = /^(ct-exec|ct-done)$/
+
+/** T0710: a raw `/ct-<skill> …` or `/ct:ct-<skill> …` prompt; group 1 = the skill. */
+const CT_SLASH_PROMPT_PATTERN = /^\/(?:ct:)?(ct-[a-z0-9-]+)(?=\s|$)/
+
+/** T0710: `codexSkillName` = the name `$<name>` a Codex agent on this host needs (default `<skill>`). */
+export function buildControlTowerSkillPrompt(agentId: string, skill: string, workorder: string, codexSkillName?: string): string | null {
+  if (!CT_SKILL_PATTERN.test(skill) || !WORKORDER_ID_PATTERN.test(workorder)) return null
+  return isCodexAgentId(agentId) ? `$${codexSkillName ?? skill} ${workorder}` : `/${skill} ${workorder}`
 }
 
-function normalizeControlTowerPromptForAgent(agentId: string, prompt: string): { prompt: string; normalized: boolean } {
-  if (!isCodexAgentId(agentId) || !prompt.startsWith('/ct-')) {
+/**
+ * Codex: a `/ct-…` (T0710: or `/ct:ct-…`) prompt becomes `$…`; with `codexSkillName` the skill
+ * token is that name (`$ct-exec` / `$ct:ct-exec`), the rest of the prompt unchanged.
+ */
+export function normalizeControlTowerPromptForAgent(agentId: string, prompt: string, codexSkillName?: string): { prompt: string; normalized: boolean } {
+  if (!isCodexAgentId(agentId) || !(prompt.startsWith('/ct-') || prompt.startsWith('/ct:ct-'))) {
     return { prompt, normalized: false }
   }
 
+  const match = codexSkillName ? prompt.match(CT_SLASH_PROMPT_PATTERN) : null
   return {
-    prompt: `$${prompt.slice(1)}`,
+    prompt: match ? `$${codexSkillName}${prompt.slice(match[0].length)}` : `$${prompt.slice(1)}`,
     normalized: true,
   }
 }
@@ -1022,15 +1116,25 @@ export function createAgentPromptCommandBuilder(deps: AgentPromptCommandDeps): (
       return null
     }
 
-    const prompt = opts.skill && opts.workorder
-      ? buildControlTowerSkillPrompt(agentId, opts.skill, opts.workorder)
+    // T0710: a Codex CT skill is `$<skill>` or `$ct:<skill>` depending on how CT is installed here
+    let codexSkillName: CodexSkillNameDecision | undefined
+    const codexName = async (skill: string): Promise<string> => {
+      codexSkillName = await decideCodexSkillName(deps.codexSkillName, skill, opts.customEnv, deps.logger)
+      return codexSkillName.name
+    }
+    const isCodex = isCodexAgentId(agentId)
+    const skillMode = Boolean(opts.skill && opts.workorder)
+    const prompt = skillMode
+      ? buildControlTowerSkillPrompt(agentId, opts.skill!, opts.workorder!,
+        isCodex && CT_SKILL_PATTERN.test(opts.skill!) && WORKORDER_ID_PATTERN.test(opts.workorder!) ? await codexName(opts.skill!) : undefined)
       : opts.prompt
     if (!prompt) {
       deps.logger.warn(`[agent-command] invalid prompt payload for agent=${requestedAgent} resolved=${agentId} skill=${opts.skill ?? 'n/a'} workorder=${opts.workorder ?? 'n/a'}`)
       return null
     }
 
-    const normalized = normalizeControlTowerPromptForAgent(agentId, prompt)
+    const slashSkill = isCodex && !skillMode ? prompt.match(CT_SLASH_PROMPT_PATTERN)?.[1] : undefined
+    const normalized = normalizeControlTowerPromptForAgent(agentId, prompt, slashSkill ? await codexName(slashSkill) : undefined)
     // T0641 (R1): a claude Worker is `<ws> · Worker · <T####>` (a prompt dispatch: `<ws> · <short id>`)
     const sessionName = opts.skill && opts.workorder
       ? claudeSessionName({ role: 'worker', workspaceName: opts.workspaceName, workorder: opts.workorder })
@@ -1079,6 +1183,7 @@ export function createAgentPromptCommandBuilder(deps: AgentPromptCommandDeps): (
       prefixNormalized: normalized.normalized,
       agentSource,
       argsSource: effectiveArgs.source,
+      ...(codexSkillName ? { codexSkillName } : {}),
     }
   }
 }

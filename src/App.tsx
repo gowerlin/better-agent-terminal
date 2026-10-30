@@ -24,7 +24,7 @@ import { SERVER_STATUS_TOAST_KEYS, ServerStatusToast, type ServerStatusToastKey 
 import { CtToast, useCtToast } from './components/CtToast'
 import { useRuntimeToasts } from './hooks/useRuntimeToasts'
 import { useRemoteToolInstall } from './hooks/useRemoteToolInstall'
-import { buildControlTowerWorkOrderCommand, resolveControlTowerAgentRuntime } from './utils/control-tower-launch'
+import { resolveControlTowerAgentRuntime, resolveControlTowerWorkOrderCommand } from './utils/control-tower-launch'
 import { isWslWindowsDrivePath, winToWsl } from './utils/wsl-path'
 import { isRemoteNotConnectedError, loadNowOrWhenRemoteConnected, REMOTE_LIMIT_ERROR_CODE, remoteConnectFailureNotice, subscribeRemoteWindowStatus } from './lib/remote-not-connected'
 import type { AppState, EnvVariable, TerminalInstance, DockablePanel, DockZone, DockingConfig } from './types'
@@ -947,11 +947,12 @@ export default function App() {
             const settings = settingsStore.getSettings()
             const runtime = resolveControlTowerAgentRuntime(workspaceStore.getEffectiveDefaultAgent(activeWorkspace.id).agent)
             const ctArgs = workspaceStore.getEffectiveAgentArgs(activeWorkspace.id, runtime.argsPresetId)
-            const command = buildControlTowerWorkOrderCommand(runtime, 'exec', workOrderId, ctArgs)
             const mergedEnv: Record<string, string> = {}
             for (const v of [...(settings.globalEnvVars || []), ...(activeWorkspace.envVars || [])]) {
               if (v.enabled) mergedEnv[v.key] = v.value
             }
+            // T0710: Codex `$ct-exec` / `$ct:ct-exec` decided and quoted by the host that runs the tab
+            const command = await resolveControlTowerWorkOrderCommand(runtime, 'exec', workOrderId, ctArgs, mergedEnv)
             await window.electronAPI.pty.createWithCommand({
               id: terminal.id,
               cwd: activeWorkspace.folderPath,
@@ -967,11 +968,12 @@ export default function App() {
             const settings = settingsStore.getSettings()
             const runtime = resolveControlTowerAgentRuntime(workspaceStore.getEffectiveDefaultAgent(activeWorkspace.id).agent)
             const ctArgs = workspaceStore.getEffectiveAgentArgs(activeWorkspace.id, runtime.argsPresetId)
-            const command = buildControlTowerWorkOrderCommand(runtime, 'done', workOrderId, ctArgs)
             const mergedEnv: Record<string, string> = {}
             for (const v of [...(settings.globalEnvVars || []), ...(activeWorkspace.envVars || [])]) {
               if (v.enabled) mergedEnv[v.key] = v.value
             }
+            // T0710: Codex `$ct-done` / `$ct:ct-done` decided and quoted by the host that runs the tab
+            const command = await resolveControlTowerWorkOrderCommand(runtime, 'done', workOrderId, ctArgs, mergedEnv)
             await window.electronAPI.pty.createWithCommand({
               id: terminal.id,
               cwd: activeWorkspace.folderPath,

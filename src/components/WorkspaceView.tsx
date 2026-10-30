@@ -15,7 +15,7 @@ import { CtToast, useCtToast } from './CtToast'
 import { AgentPresetId, getAgentPreset } from '../types/agent-presets'
 import { isClaudeSdk, isClaudeCli, isIntegrated, isWorktreeAgent } from '../types/agent-runtime'
 import type { AgentDefinition } from '../types/agent-runtime'
-import { buildControlTowerWorkOrderCommand, resolveControlTowerAgentRuntime } from '../utils/control-tower-launch'
+import { resolveControlTowerAgentRuntime, resolveControlTowerWorkOrderCommand } from '../utils/control-tower-launch'
 import { detectShellFamily, quoteCommandPath } from '../utils/shell-quote'
 import { createPtyThenLaunch, createPtyWithReplay, restartOrCreatePty, showPtyNotice } from '../lib/pty-replay'
 import { withBatMcpLaunchArgs } from '../lib/bat-mcp-launch'
@@ -673,8 +673,9 @@ export function WorkspaceView({ workspace, terminals, focusedTerminalId, isActiv
     const settings = settingsStore.getSettings()
     const runtime = resolveControlTowerAgentRuntime(workspaceStore.getEffectiveDefaultAgent(workspace.id).agent)
     const ctArgs = workspaceStore.getEffectiveAgentArgs(workspace.id, runtime.argsPresetId)
-    const command = buildControlTowerWorkOrderCommand(runtime, 'exec', workOrderId, ctArgs)
     const customEnv = mergeEnvVars(settings.globalEnvVars, workspace.envVars)
+    // T0710: Codex `$ct-exec` / `$ct:ct-exec` decided and quoted by the host that runs the tab
+    const command = await resolveControlTowerWorkOrderCommand(runtime, 'exec', workOrderId, ctArgs, customEnv)
     await window.electronAPI.pty.createWithCommand({
       id: terminal.id,
       cwd: workspace.folderPath,
@@ -694,8 +695,9 @@ export function WorkspaceView({ workspace, terminals, focusedTerminalId, isActiv
     const settings = settingsStore.getSettings()
     const runtime = resolveControlTowerAgentRuntime(workspaceStore.getEffectiveDefaultAgent(workspace.id).agent)
     const ctArgs = workspaceStore.getEffectiveAgentArgs(workspace.id, runtime.argsPresetId)
-    const command = buildControlTowerWorkOrderCommand(runtime, 'done', workOrderId, ctArgs)
     const customEnv = mergeEnvVars(settings.globalEnvVars, workspace.envVars)
+    // T0710: Codex `$ct-done` / `$ct:ct-done` decided and quoted by the host that runs the tab
+    const command = await resolveControlTowerWorkOrderCommand(runtime, 'done', workOrderId, ctArgs, customEnv)
     await window.electronAPI.pty.createWithCommand({
       id: terminal.id,
       cwd: workspace.folderPath,

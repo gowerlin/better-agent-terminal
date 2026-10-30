@@ -10,11 +10,18 @@
  * Read-only, fixed paths under `homeDir` only: the call takes no argument, so it cannot be
  * pointed anywhere else. Nothing is written, nothing is logged beyond read failures.
  *
+ * T0710 (3-2): when no manual install has `tower-config.md`, the default layer reads the CT
+ * plugin's copy (Claude `ct@*` plugin, then Codex, newest version first; the path shows
+ * `plugins/cache/<marketplace>/ct/<version>`). The locations are `ctPluginTowerConfigCandidates`
+ * (electron/ct-install-detect.ts), from this host's `CLAUDE_CONFIG_DIR` / `CLAUDE_CODE_PLUGIN_CACHE_DIR`
+ * / `CODEX_HOME`.
+ *
  * 🔴 No `electron` import here (headless-electron-free guard).
  */
 import * as fs from 'fs/promises'
 import * as path from 'path'
 import { logger } from '../logger'
+import { codexHomeDir, ctPluginTowerConfigCandidates, type CtInstallHost, type EnvLike } from '../ct-install-detect'
 import type { CtConfigSourceFile, CtConfigSources } from '../../src/types/ct-config-sources'
 import type { HandlerRegistrar } from './types'
 
@@ -23,8 +30,14 @@ export const CT_CONFIG_SOURCES_CHANNEL = 'ct:read-config-sources'
 /** Same cap as `fs:readFile`. */
 const MAX_CT_CONFIG_FILE_BYTES = 512 * 1024
 
-/** Lookup order per layer (CT `tower-config.md` § 三層設定架構: the new global path wins). */
-export function ctConfigCandidates(homeDir: string): { global: string[]; defaults: string[] } {
+/**
+ * Lookup order per layer (CT `tower-config.md` § 三層設定架構: the new global path wins).
+ * Defaults: the manual installs only; T0710 adds `<CODEX_HOME>/skills/…` when `CODEX_HOME` is set
+ * elsewhere, and `readCtConfigSources` appends the plugin copies after these.
+ */
+export function ctConfigCandidates(homeDir: string, env: EnvLike = {}): { global: string[]; defaults: string[] } {
+  const manualCodex = path.join(homeDir, '.codex', 'skills', 'control-tower', 'references', 'tower-config.md')
+  const envCodex = path.join(codexHomeDir({ homeDir, env }), 'skills', 'control-tower', 'references', 'tower-config.md')
   return {
     global: [
       path.join(homeDir, '.claude', 'control-tower-data', 'config.yaml'),
@@ -32,7 +45,8 @@ export function ctConfigCandidates(homeDir: string): { global: string[]; default
     ],
     defaults: [
       path.join(homeDir, '.claude', 'skills', 'control-tower', 'references', 'tower-config.md'),
-      path.join(homeDir, '.codex', 'skills', 'control-tower', 'references', 'tower-config.md'),
+      manualCodex,
+      ...(envCodex !== manualCodex ? [envCodex] : []),
     ],
   }
 }
@@ -63,15 +77,30 @@ function readError(candidate: string, err: unknown): CtConfigSourceFile {
   return { status: 'error', path: candidate, error }
 }
 
-export async function readCtConfigSources(homeDir: string): Promise<CtConfigSources> {
-  const candidates = ctConfigCandidates(homeDir)
+/**
+ * `env` = the answering host's env (`CODEX_HOME`, `CLAUDE_CONFIG_DIR`, `CLAUDE_CODE_PLUGIN_CACHE_DIR`);
+ * empty (tests) = the defaults under `homeDir`.
+ */
+export async function readCtConfigSources(homeDir: string, env: EnvLike = {}): Promise<CtConfigSources> {
+  const candidates = ctConfigCandidates(homeDir, env)
+  const host: CtInstallHost = { homeDir, env }
   const [global, defaults] = await Promise.all([
     readFirstExisting(candidates.global),
-    readFirstExisting(candidates.defaults),
+    readDefaults(candidates.defaults, host),
   ])
   return { homeDir, global, defaults }
 }
 
-export function registerCtConfigHandlers(register: HandlerRegistrar, deps: { homeDir: string }): void {
-  register(CT_CONFIG_SOURCES_CHANNEL, () => readCtConfigSources(deps.homeDir))
+/** T0710 (3-2): a manual install wins (it is what runs); only when none exists, the plugin copies. */
+async function readDefaults(manual: string[], host: CtInstallHost): Promise<CtConfigSourceFile> {
+  const fromManual = await readFirstExisting(manual)
+  if (fromManual.status !== 'missing') return fromManual
+  const plugin = await ctPluginTowerConfigCandidates(host)
+  if (plugin.length === 0) return fromManual
+  const fromPlugin = await readFirstExisting(plugin)
+  return fromPlugin.status === 'missing' ? fromManual : fromPlugin
+}
+
+export function registerCtConfigHandlers(register: HandlerRegistrar, deps: { homeDir: string; env?: EnvLike }): void {
+  register(CT_CONFIG_SOURCES_CHANNEL, () => readCtConfigSources(deps.homeDir, deps.env ?? process.env))
 }

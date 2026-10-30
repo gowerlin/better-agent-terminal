@@ -9,6 +9,8 @@
  *   - headless deps: `<dataDir>/settings.json` only, no workspace default agent
  * T0621 (C-6, D158): the one intended change since — a dispatched codex gets
  * `-c check_for_update_on_startup=false` after its base command (marked in the legacy copy).
+ * T0710: the Codex skill name is the host's decision; a manual install (`$ct-exec`, stubbed below)
+ * keeps the pre-T0710 output, the `codexSkillName` record is observability only.
  */
 import { describe, expect, it, vi } from 'vitest'
 import { agentRegistry } from '../agent-runtime/agent-registry'
@@ -105,6 +107,8 @@ function electronLikeDeps(settings: AgentCommandSettings | null, workspaceAgents
     recordBlockedDetection: () => {},
     // T0641: never asked here (BAT MCP stub above injects nothing, so no `--name` either)
     claudeNameSupport: async () => ({ inject: false, reason: 'version-unknown' }),
+    // T0710: a manual CT install (`$<skill>`, the pre-T0710 prompt)
+    codexSkillName: async (skill) => ({ name: skill, reason: 'manual' }),
     logger: { warn: vi.fn() },
   }
 }
@@ -141,7 +145,7 @@ describe('createAgentPromptCommandBuilder — Electron output unchanged (T0431)'
       for (const opts of OPTS_MATRIX) {
         // T0523 `agentSource` / T0529 `argsSource` are new (observability only); everything else is unchanged.
         const built = await build(opts)
-        const { agentSource: _agentSource, argsSource: _argsSource, ...rest } = built ?? { agentSource: undefined, argsSource: undefined }
+        const { agentSource: _agentSource, argsSource: _argsSource, codexSkillName: _codexSkillName, ...rest } = built ?? { agentSource: undefined, argsSource: undefined, codexSkillName: undefined }
         expect(built ? rest : null, JSON.stringify(opts)).toEqual(await legacyBuildAgentPromptCommand(deps, opts, workspaceAgents))
       }
     })

@@ -341,6 +341,14 @@
 - 自動更新：`_ct-workorders/` 內的來源跟既有 `fs.watch` 的 `reloadAll`；`_ct-workorders/` 外的兩層在總覽變成可見與按 ↻ 時重讀，不另外監看、不輪詢。
 - 完整契約、合併規則、分類表、遠端行為、已知限制、驗證清單：[docs/agent-guide/ct-tower-overview.md](docs/agent-guide/ct-tower-overview.md)
 
+## CT plugin 安裝（T0710）
+
+- 用途：CT 5.14.0 起可用 zip 或 plugin（`ct@<marketplace>`）安裝；Codex 只裝 plugin 時 skill 名稱是 `ct:ct-exec`，`$ct-exec` 不注入 SKILL.md 且不報錯。BAT 依 agent 所在主機的安裝方式送 `$ct-exec` / `$ct:ct-exec`；ct-config 預設值層與 skill 面板 / `*` 補全認得 plugin。Claude 端字串不變（`/ct-exec`），`bat-terminal.mjs --skill` 白名單不變。
+- 🔴 判斷順序（不得更改）：① `<CODEX_HOME>/skills/<skill>/SKILL.md` 或 `<home>/.agents/skills/<skill>/SKILL.md` → `$<skill>`；② `<CODEX_HOME>/config.toml` 有 `[plugins."ct@<任一>"]` 且 `enabled = true` → `$ct:<skill>`；③ 其他（讀不到、解析失敗、沒有 enabled 行、舊 bat-server）→ `$<skill>`。`CODEX_HOME` 取新分頁的 env（`customEnv` 優先，再 host `process.env`，未設才 `<home>/.codex`），🔴 不得寫死 `~/.codex`。
+- 唯一實作：`electron/ct-install-detect.ts`（`resolveCodexSkillName` / `createCodexSkillNameResolver`、plugin 位置 `ctPluginTowerConfigCandidates` / `claudeCtPluginSkillDirs`；不 import electron、不新增依賴、不丟例外）。🔴 consumer 不得內聯路徑規則：helper 派工 `createAgentPromptCommandBuilder` 的 `codexSkillName` dep、面板 proxied `terminal:control-tower-prompt`（`registerTerminalCommandHandlers`，主機判斷並依 `resolveDispatchShell` 加引號；renderer `resolveControlTowerWorkOrderCommand`）、`ct:read-config-sources`、`claude:scan-skills` / `scan-star-commands`。
+- 🔴 `$ct:ct-exec` 在 pwsh / bash 雙引號內會展開：一律經 `quoteArgForShell`。日誌只記名稱與原因（`[agent-command] codex skill … reason=manual|plugin|fallback-…`），不記 config.toml 內容。
+- 完整判斷規則、config.toml 子集、版本比較、3-2 / 3-3 規則、已知限制、驗證清單：[docs/agent-guide/ct-plugin-install.md](docs/agent-guide/ct-plugin-install.md)
+
 ## Control Tower 本專案規則
 
 - 塔台啟動時**必須讀取** `_ct-workorders/_local-rules.md` 並遵循其中所有規範

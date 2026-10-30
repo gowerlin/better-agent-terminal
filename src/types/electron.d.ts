@@ -787,6 +787,11 @@ interface ElectronAPI {
   ctConfig: {
     readSources: () => Promise<import('./ct-config-sources').CtConfigSources>
   }
+  // T0710 — the CT prompt of the panel's one-click dispatch, decided and quoted by the window's host
+  // (proxied `terminal:control-tower-prompt`; rejects with `No handler for channel` on an older bat-server).
+  ctDispatch: {
+    resolvePrompt: (request: import('./ct-dispatch-prompt').ControlTowerPromptRequest) => Promise<import('./ct-dispatch-prompt').ControlTowerPromptResult>
+  }
   // T0348 / BUG-078 — Control Tower drift telemetry. Renderer parses
   // workorder frontmatter and forwards ParseWarning[] to main via IPC.
   // Main owns the log file (D090 / BUG-069: no node:fs in renderer).

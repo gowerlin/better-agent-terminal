@@ -17,6 +17,7 @@ import {
 import { registerTerminalHandlers } from '../handlers/terminal'
 import { createBatMcpLaunchArgs, defaultClaudeSettingsFiles, registerBatMcpHandlers, type BatMcpHost } from '../bat-mcp-launch'
 import { createCodexNoDaemonSupportCheck, createCodexOscVersionCheck } from '../codex-osc-version'
+import { createCodexSkillNameResolver } from '../ct-install-detect'
 import { registerReportHookHandler } from '../terminal-blocked-state'
 import { WorkerCloseScheduler } from '../close-worker'
 import { CtWorktreeService } from '../ct-worktree'
@@ -509,6 +510,8 @@ export function createHeadlessTerminalModule(opts: {
       ? createBatMcpLaunchArgs(createHeadlessBatMcpHost(opts.batMcpInstallRoot, host, fs.existsSync, opts.getPtyManager), 'dispatch')
       : undefined
     const countRemoteReceivers = opts.countRemoteReceivers
+    // T0710: `$ct-exec` / `$ct:ct-exec` from how CT is installed on this server (its home and env)
+    const codexSkillName = createCodexSkillNameResolver({ homeDir: host.homeDir, env: process.env })
     // PLAN-047 W1 / T0583: git runs on this server, in the server's checkout of the dispatch cwd
     const ctWorktree = opts.ctWorktree ?? new CtWorktreeService({
       gitBinary: createHeadlessGitBinaryResolver(),
@@ -541,6 +544,7 @@ export function createHeadlessTerminalModule(opts: {
         // T0621 (C-5): the codex on this server, probed here
         codexWritesOsc: createCodexOscVersionCheck({ logger: defaultLogger }),
         recordBlockedDetection: (terminalId, detection) => opts.getPtyManager()?.setBlockedDetection(terminalId, detection),
+        codexSkillName, // T0710
         logger: defaultLogger,
       }),
       countRemoteReceivers: opts.countRemoteReceivers,
@@ -548,6 +552,7 @@ export function createHeadlessTerminalModule(opts: {
       validateShell: true,
       workerCloser,
       ctWorktree,
+      codexSkillName, // T0710: terminal:control-tower-prompt
     })
     return () => workerCloser.dispose()
   }

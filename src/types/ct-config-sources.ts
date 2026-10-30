@@ -17,6 +17,9 @@ export interface CtConfigSources {
   homeDir: string
   /** Layer 2: `~/.claude/control-tower-data/config.yaml`, then the legacy `~/.claude/control-tower-config.yaml`. */
   global: CtConfigSourceFile
-  /** Layer 1: the installed Control Tower skill's `references/tower-config.md` (`~/.claude`, then `~/.codex`). */
+  /**
+   * Layer 1: the installed Control Tower skill's `references/tower-config.md` (`~/.claude`, then `~/.codex`);
+   * T0710: with no manual install, the `ct` plugin's copy (Claude, then Codex; `…/plugins/cache/<mkt>/ct/<version>/…`).
+   */
   defaults: CtConfigSourceFile
 }

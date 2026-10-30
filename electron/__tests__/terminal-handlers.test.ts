@@ -58,8 +58,9 @@ const REMOTE: HandlerContext = { windowId: null, connectionId: 'conn-1' }
 const LOCAL_WINDOW: HandlerContext = { windowId: 'win-1' }
 
 describe('registerTerminalHandlers (T0431)', () => {
-  it('registers exactly the five terminal channels (T0562: + terminal:set-role)', () => {
+  it('registers exactly the six terminal channels (T0562: + terminal:set-role; T0710: + terminal:control-tower-prompt)', () => {
     expect([...setup().handlers.keys()].sort()).toEqual([
+      'terminal:control-tower-prompt',
       'terminal:create-agent-command',
       'terminal:create-with-command',
       'terminal:keypress',

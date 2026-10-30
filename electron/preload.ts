@@ -4,6 +4,7 @@ import type { FileEntry, RawFileEntry } from '../src/types/file'
 import { withPathKeys } from '../src/utils/filePathKey'
 import type { ParseWarning } from '../src/utils/ct-frontmatter'
 import type { CtConfigSources } from '../src/types/ct-config-sources'
+import type { ControlTowerPromptRequest, ControlTowerPromptResult } from '../src/types/ct-dispatch-prompt'
 import type {
   VoiceGpuStatus,
   VoiceModelInfo,
@@ -1038,6 +1039,13 @@ const electronAPI = {
   // a bat-server before T0701 rejects with `No handler for channel: ct:read-config-sources`.
   ctConfig: {
     readSources: () => ipcRenderer.invoke('ct:read-config-sources') as Promise<CtConfigSources>,
+  },
+  // T0710 — the CT prompt of the panel's one-click dispatch (`$ct-exec` / `$ct:ct-exec` for Codex),
+  // decided and quoted by the host the window is bound to; a bat-server before T0710 rejects with
+  // `No handler for channel: terminal:control-tower-prompt` (src/utils/control-tower-launch.ts falls back).
+  ctDispatch: {
+    resolvePrompt: (request: ControlTowerPromptRequest) =>
+      ipcRenderer.invoke('terminal:control-tower-prompt', request) as Promise<ControlTowerPromptResult>,
   },
   // T0348 / BUG-078 — Control Tower drift telemetry bridge. Renderer fires
   // and forgets; IO + log path live in main process (D090 / BUG-069).
