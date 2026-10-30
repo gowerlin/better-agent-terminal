@@ -3,7 +3,7 @@ schema_version: 1
 schema_kind: index
 id: _bug-tracker
 index_kind: bugs
-generated_at: "2026-10-30T16:26:13+0800"
+generated_at: "2026-10-30T16:57:32+0800"
 generator: control-tower-sync
 source_globs:
   - _ct-workorders/BUG-*.md
@@ -13,8 +13,8 @@ exclude_globs:
 total: 39
 breakdown:
   OPEN: 0
-  FIXING: 1
-  FIXED: 27
+  FIXING: 0
+  FIXED: 28
   VERIFY: 0
   CLOSED: 11
   WONTFIX: 0
@@ -23,10 +23,10 @@ breakdown:
 # Bug Tracker
 
 > ⚠️ 此文件由 `*sync` 自動生成，請勿手動編輯。
-> 最後同步：2026-10-30 16:26 (UTC+8) — BUG-175 FIXING（T0714）；熱區 Fixing 1 / Fixed 27 / Closed 11
+> 最後同步：2026-10-30 16:57 (UTC+8) — BUG-175 FIXED（T0714 `afe57761`）；熱區 Fixed 28 / Closed 11
 
 ## 統計
-- 🔴 Open: 0 | ⏳ Fixing: 1 | ✅ Fixed: 27 | 🧪 Verify: 0 | 🚫 Closed: 11 | ⛔ Won't Fix: 0 | **Total: 39**
+- 🔴 Open: 0 | ⏳ Fixing: 0 | ✅ Fixed: 28 | 🧪 Verify: 0 | 🚫 Closed: 11 | ⛔ Won't Fix: 0 | **Total: 39**
 
 ## 🔴 Open / 處理中
 
@@ -37,12 +37,12 @@ breakdown:
 
 | ID | 標題 | 嚴重度 | 修復時間 | 連結 |
 |----|------|--------|---------|------|
-| BUG-175 | 縮圖預覽停在 agent 啟動畫面不更新（輸出沒有換行時預覽不前進），並露出 `>0q>4m` 殘骸（T0714 修正中） | 🟡 medium | 2026-10-30 | [BUG-175](BUG-175-thumbnail-preview-stuck-without-newline.md) |
 
 ## ✅ 已修復
 
 | ID | 標題 | 嚴重度 | 修復時間 | 連結 |
 |----|------|--------|---------|------|
+| BUG-175 | 縮圖預覽在輸出沒有換行時不更新、露出 `>0q>4m` 殘骸（T0714 `afe57761` 依游標換列分行 + 完整 CSI；待外部測試者A macOS 實機驗收、未發版） | 🟡 medium | 2026-10-30 | [BUG-175](BUG-175-thumbnail-preview-stuck-without-newline.md) |
 | BUG-174 | 終端 `file:///` 連結：全形字讓底線與可點範圍變短、跨行抓不到、OSC 8 點了沒反應（GitHub #20；T0713 `ff772d40`） | 🟡 medium | 2026-10-30 | [BUG-174](BUG-174-terminal-file-link-cjk-range-wrap-osc8.md) |
 | BUG-171 | 「終端重置」後多個分頁 `[Process exited with code 1]`：NTP 時鐘跳變讓 heartbeat 誤判、recovery 沒關舊 server；T0704 `68ab2a42` + T0705 `d7ffa080`，待下一個預覽版實機驗收 | 🔴 high | 2026-10-25 | [BUG-171](BUG-171-idle-terminals-exit-1-after-terminal-reset.md) |
 | BUG-170 | yolo 提問備援重派後舊 Worker 分頁讓回收 AMBIGUOUS；CT v5.12.0 / v5.12.1 重派前先 `--close-worker`（CT-T022），T0695 / T0696 實機驗收通過 | 🟢 low | 2026-10-22 | [BUG-170](BUG-170-yolo-fallback-redispatch-leaves-old-worker-tab.md) |

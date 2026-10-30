@@ -3,11 +3,11 @@ schema_version: 1
 schema_kind: bug
 id: BUG-175
 title: "縮圖預覽停在 agent 啟動畫面不更新（輸出沒有換行時預覽不前進），並露出 `>0q>4m` 殘骸"
-status: FIXING
+status: FIXED
 severity: medium
 reproducibility: unknown
 created_at: "2026-10-30T16:24:40+0800"
-updated_at: "2026-10-30T16:26:13+0800"
+updated_at: "2026-10-30T16:57:32+0800"
 impact:
   - terminal-thumbnail
 links:
@@ -21,7 +21,7 @@ links:
 |------|------|
 | 嚴重度 | 🟡 medium（縮圖列看不到 Worker 進度，要切進分頁才知道） |
 | 可重現 | 未確認（外部測試者A 的 macOS 上 3 個 Worker 縮圖都卡住） |
-| **狀態** | 🔧 FIXING（T0714 修正中） |
+| **狀態** | ✅ FIXED（T0714 `afe57761`：預覽依游標換列分行、原地更新丟棄、清畫面重來；`stripAnsi` 認完整 CSI 語法；未發版，待外部測試者A macOS 實機驗收） |
 | 回報者 | 外部測試者A（使用者轉達，附截圖） |
 
 ## 現象
@@ -40,3 +40,12 @@ links:
 - 縮圖預覽字串的產生方式（BUG-136 / T0667 加了上限的那段）：是否以 `\n` 切行、沒有換行時是否不更新。
 - `>0q>4m`：看起來是終端查詢碼（`CSI > 0 q` XTVERSION、`CSI > 4 m` modifyOtherKeys）沒有被濾掉，以文字出現在縮圖；是否與不更新同一個原因。
 - 是否只發生在 macOS，Windows 是否也一樣。
+
+## 修正（2026-10-30T16:57:32+0800，T0714 `afe57761`）
+
+- 原因確認與使用者判斷相符：claude 在 alt screen 以游標定位重繪、0 個 `
+`，預覽變成一條無限長的行，`capLine` 只留開頭 256 字 → 停在啟動畫面；`>0q>4m` 是舊 CSI regex 不認 `>` 前綴留下的殘骸。
+- 修正：`src/lib/thumbnail-preview.ts` 的 `markScreenMoves` / `applyScreenMoves`（換列後看得到的文字前分行、第 2 欄以後 < 8 字視為原地更新丟掉、`CSI 2 J` / alt screen 切換重新開始）；`stripAnsi` 改 ECMA-48 完整 CSI。T0667 上限與 150 ms flush 不變；1 MiB 無換行輸入 < 200 ms。
+- Windows 行為變化：ConPTY 以 `CSI row;1 H` 跳過空白列時，原本黏成一行的兩列會分成兩行（較接近實際畫面）。
+- 塔台複驗：縮圖兩個測試檔 39 passed、`npm run typecheck` = 0；Worker：`test:unit` 6167 passed、vite build 成功。
+- 已知限制（T0714 回報）：跳脫序列被切在兩次 flush 之間時後半段變文字（未改）；macOS 若看到 `38;5;246m` 之類殘骸可另開單。

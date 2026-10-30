@@ -1,8 +1,8 @@
 ---
 schema_kind: tower-state
 summary_version: 1
-updated_at: "2026-10-30T16:48:25+0800"
-session: "2026-10-30 第九十八 session 進行中（CT v5.14.3）：BUG-165 / 166 CLOSED、BUG-175 → T0714 派工、GitHub #21 關閉"
+updated_at: "2026-10-30T16:57:32+0800"
+session: "2026-10-30 第九十八 session 進行中（CT v5.14.3）：BUG-165 / 166 CLOSED、BUG-175 FIXED（T0714）、GitHub #21 關閉"
 next_ids:
   workorder: "T0715"
   decision: "D190"
@@ -11,7 +11,7 @@ next_ids:
 todo:
   - "實機驗收 BUG-174（v0.7.2-pre.2 終端 file:/// 連結：全形字、跨行、OSC 8）；通過後關 GitHub #20"
   - "使用者日常使用驗收 BUG-171"
-  - "外部測試者A 驗收 BUG-169"
+  - "外部測試者A 驗收 BUG-169；BUG-175 待發版後 macOS 驗收"
   - "BUG-156 / 159 待特定環境驗收"
 ---
 # Tower State — better-agent-terminal
@@ -105,7 +105,7 @@ todo:
 -1. 🔴 **BUG-174 實機驗收**（`v0.7.2-pre.2`）：終端印出含全形字的 `file:///` 路徑整段有底線、尾端可點；縮窄視窗讓路徑換行再試；Claude CLI 的 Markdown 連結（OSC 8）點得開、滑過顯示目標。通過後 CLOSED 並關 GitHub #20（或等回報者確認）
 0. 🟢 **GitHub #21**：CT 5.14.3 已發布〈巢狀的獨立 repo〉（`mono-repo-patterns.md`；Portal `/deep/features/multi-tower`；BMad-Guide 塔台 2026-10-30 通知，含 CT 5.14.2 + BAT 0.7.2-pre.1 實機結果）；2026-10-30 16:48 已留言並關閉（第九十八 session，使用者同意）；**後續候選**：設定面板「預設值」層找手動安裝沒看 `CLAUDE_CONFIG_DIR`（T0711 回報）
 1. 🔴 **BUG-171 實機驗收**（`v0.7.1-pre.8` 起）：日常使用遇 NTP 校時 / 睡眠喚醒不再「終端已恢復」、分頁不再 exit 1；可看 debug log `[heartbeat] late pong`。T0704 後續候選（TCP 模式 pid 重用、舊 server 結束失敗無補救、卡住但存活永不 recovery）暫不開單
-2. 🔴 **外部測試者A 驗收**：BUG-169（安裝版 `bat-terminal.mjs --version`）→ 通過即 CLOSED（BUG-165 / 166 已於第九十八 session 2026-10-30 依外部測試者A 回覆 CLOSED）
+2. 🔴 **外部測試者A 驗收**：BUG-169（安裝版 `bat-terminal.mjs --version`）；BUG-175（縮圖預覽跟著 claude Worker 更新、無 `>0q>4m`；T0714 `afe57761`，**未發版**）→ 通過即 CLOSED（BUG-165 / 166 已於第九十八 session 2026-10-30 依外部測試者A 回覆 CLOSED）
 3. 🟢 **後續候選**：PLAN-055（recovery 後 agent 分頁可 `--resume`）；總覽計數加「需要處理」徽章（PAUSED / BLOCKED / PARTIAL…，T0702 建議 2）；BAT 封存區 3 檔 `status: CLOSED` 顯示 Invalid（T0702 建議 1）；BAT 自己的 `_tower-state.md` 在 CT v6 上線後寫入摘要；codex Worker 分頁也接管滾輪（T0698 Q-1 [B]，`externalAgent` 欄位）；T0698 e2e（選做未做）；Windows / Linux 滾輪一格行數是否過快待回饋
 4. 🔴 `v0.7.1-pre.2` 剩餘實機驗收：BUG-156 需 Docker Desktop、BUG-159 需一般權限 + codex
 5. 🟢 PLAN-053 Electron 42+、PLAN-052 Docker 可用性（IDEA）；PLAN-054 B6 延後（CT D090）；T0656 網站素材手動拍；`RECOVERY_PENDING` 未實機驗證；前期驗收（外部測試者A BUG-127-135 / 116 / 118、BUG-130 / 105 / 107 / 108 / 097 / 111、T0550、dmg / AppImage、NSIS 重裝、T0360）；dev PC／NAS 主機名稱（使用者未列入去識別化決定）
@@ -116,7 +116,7 @@ todo:
 - 公開 repo（D176）：工單 / commit / BUG 不寫真名、客戶名、家目錄路徑；push 前跑 `.private/` 的檢查樣式
 
 ### 快速連結
-- Bug Tracker → [_bug-tracker.md](_bug-tracker.md)（熱區：Open 0 / Fixing 1 / Fixed 27 / Closed 11，2026-10-30 BUG-175 FIXING（T0714）、BUG-165 / 166 / 172 / 173 CLOSED、BUG-174 FIXED；2026-10-26 第九十五 session `*archive` 歸檔 138 張：T 111 / BUG 21 / PLAN 6，熱區剩 T:103 / BUG:35 / PLAN:20 / EXP:1）｜ Backlog → [_backlog.md](_backlog.md)
+- Bug Tracker → [_bug-tracker.md](_bug-tracker.md)（熱區：Open 0 / Fixing 0 / Fixed 28 / Closed 11，2026-10-30 BUG-175 FIXED（T0714 `afe57761`，未發版）、BUG-165 / 166 / 172 / 173 CLOSED、BUG-174 FIXED；2026-10-26 第九十五 session `*archive` 歸檔 138 張：T 111 / BUG 21 / PLAN 6，熱區剩 T:103 / BUG:35 / PLAN:20 / EXP:1）｜ Backlog → [_backlog.md](_backlog.md)
 - Decision Log → [_decision-log.md](_decision-log.md)（最大 D189）｜ Learnings → [_learnings.md](_learnings.md)（最大 L177）
 - 網站 → https://gowerlin.github.io/better-agent-terminal/｜ 素材 spec → `e2e/site-media.spec.ts`（`BAT_SITE_MEDIA=1`，輸出 `e2e-media/`）
 - 歷史 sessions → [_archive/state-snapshots/INDEX.md](_archive/state-snapshots/INDEX.md)（113 entries）
