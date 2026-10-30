@@ -1,7 +1,7 @@
 ---
 schema_kind: tower-state
 summary_version: 1
-updated_at: "2026-10-30T13:24:04+0800"
+updated_at: "2026-10-30T13:34:24+0800"
 session: "2026-10-30 13:02 第九十七 session 啟動（CT v5.14.0）"
 next_ids:
   workorder: "T0711"
@@ -9,7 +9,7 @@ next_ids:
   bug: "BUG-174"
   plan: "PLAN-056"
 todo:
-  - "T0710 已開（CT plugin 安裝的 Codex 派工字串 3-1～3-3，3-4 評估），待派工；下一批發版，版號回報 CT"
+  - "T0710 DONE（f258ebce，CT plugin 安裝的 Codex 派工字串 3-1～3-3）；3-4 提示與本機 Node 26 測試問題待決定是否併入本批，之後發 0.7.2-pre.1 並回報 CT"
   - "下一版發 0.7.2-pre.1（D187，使用者決定）"
   - "使用者以 v0.7.1-pre.9 日常使用驗收 BUG-171"
   - "外部測試者A 驗收 BUG-165 / 166 / 169"
