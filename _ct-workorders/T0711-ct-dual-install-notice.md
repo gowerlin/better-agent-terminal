@@ -4,15 +4,15 @@ schema_kind: workorder
 id: T0711
 title: "指揮塔總覽：CT 同時以 zip 與 plugin 安裝時提示實際生效的是哪一份（T0710 3-4）"
 type: implementation
-status: PENDING
+status: DONE
 repo: better-agent-terminal
 project: ""
 priority: P3
 sizing: S
 created_at: "2026-10-30T13:57:15+0800"
-started_at: ""
-updated_at: "2026-10-30T13:57:15+0800"
-completed_at: ""
+started_at: "2026-10-30T13:58:39+0800"
+updated_at: "2026-10-30T14:04:34+0800"
+completed_at: "2026-10-30T14:04:34+0800"
 depends_on: []
 related:
   - "T0710 回報區〈3-4 評估〉（偵測方式、提示位置、建議文字，本單照它做）"
@@ -70,18 +70,98 @@ CT 同時以 zip（手動）與 plugin 安裝時，`/ct-exec`、`$ct-exec` 用�
 
 > 以下由 sub-session 填寫，請勿在指揮塔 session 中編輯（唯一例外：`### 待塔台決策` 的 `塔台答覆 Q-n` 行由塔台新增）
 
-### 待塔台決策（僅 yolo Worker 有問題時）
-
-（沒有提問就刪除本段）
-
 ### 完成狀態
+
+**DONE**：驗收 6 項全過。產品 commit `7f669c1a`（未 push）。
 
 ### 產出摘要
 
+**落點檢查：PASS**
+- C-0：工單 `repo` = `better-agent-terminal`，`basename(REPO_ROOT)` = `better-agent-terminal` → PASS
+- C-1：工單在 `REPO_ROOT/_ct-workorders/` 底下 → PASS
+- C-3：前 5 個可測項目都存在 → PASS
+- C-2：工單沒有 `branch` 欄位，略過
+- 沒有設 `CT_HOME`，不是 worktree
+- `BAT_WORKSPACE_ID` = `cc0afc4a-57e9-4f41-b2ed-a2d8bac9e36b`（只記錄）
+- `CT_MODE` = `yolo`，`CT_INTERACTIVE` = `0`
+
+**偵測**：`detectCtInstalls`，在 `electron/ct-install-detect.ts`。
+- Claude 與 Codex 各自查完手動與 plugin 兩邊，不會查到一邊就停。
+- 手動安裝的判定：skill 目錄裡有 `control-tower/SKILL.md` 或 `ct-exec/SKILL.md`。
+  - Claude 的 skill 目錄是 `<CLAUDE_CONFIG_DIR 或 ~/.claude>/skills`。
+  - Codex 先看 `<CODEX_HOME>/skills`，再看 `<home>/.agents/skills`，順序同 T0710 3-1。
+- 手動版號：讀 `control-tower/SKILL.md` 的 `<!-- control-tower-version -->` 註解；沒有的話改讀 `ct-exec/SKILL.md` 的 `<!-- ct-exec-version -->`。
+- plugin 的判定與版號：
+  - Claude 沿用 `findClaudeCtPlugins`，取最新一筆。
+  - Codex 看 `config.toml` 裡有沒有 `enabled = true` 的 `ct@<mkt>`，版號取同一個 marketplace 的 cache 目錄名。
+- 讀不到版號，或讀到的不是版號格式，就填 `null`。停用的 plugin 不算安裝。
+- 不丟例外，不新增依賴。
+
+**傳遞**：`ct:read-config-sources` 的回傳多一個選填欄位 `installs`（型別 `CtInstalls` / `CtAgentInstalls`，在 `src/types/ct-config-sources.ts`）。
+- 既有的 `homeDir` / `global` / `defaults` 沒有改。
+- 遠端由回答的主機判斷。
+
+**顯示**：
+- 純函式 `dualInstallNotices`（在 `src/lib/ct-tower-overview.ts`）。它會防禦舊 server 沒有這個欄位、或欄位格式不對的情況，這時不顯示提示。
+- 畫面 `DualInstallRow`（在 `src/components/TowerOverview.tsx`），放在層狀態列「預設」那一行底下。
+- 版號不同時顯示 ⚠️ 警示：外框用 `.ct-overview-hint`，文字用 `.ct-validation-warn`。其他情況顯示 ℹ️ 資訊。
+- 讀不到的版號不放進文字裡。
+- 提示文字走 i18n（`dualInstall` / `dualInstallVersion`，三個 locale）。
+- `ControlTowerPanel.tsx` 不用改，因為 `configSources` 原本就整份傳給總覽。
+
+**唯讀**：不寫入、不刪除任何檔案，也沒有加按鈕。
+
+**本機唯讀實測**：用 `npx tsx` 以真實 home 呼叫 `detectCtInstalls`，結果是 `claude: manual 5.14.0 / plugin null`、`codex: manual 5.14.0 / plugin null`，和這台機器只裝了 zip 的實況相符。照規則，這種情況總覽不會顯示提示。
+
+**改動檔案**（14 個，都在 `affects_files` 內）：
+- `electron/ct-install-detect.ts`
+- `electron/handlers/ct-config.ts`
+- `src/types/ct-config-sources.ts`
+- `src/components/TowerOverview.tsx`
+- `src/lib/ct-tower-overview.ts`
+- `src/locales/en.json`、`src/locales/zh-TW.json`、`src/locales/zh-CN.json`
+- 測試：`electron/__tests__/ct-install-detect.test.ts`、`electron/__tests__/ct-config-sources.test.ts`、`src/lib/__tests__/ct-tower-overview.test.ts`、`src/components/__tests__/tower-overview.test.tsx`
+- 文件：`docs/agent-guide/ct-plugin-install.md`（新增〈3-4 兩種都裝時提示（T0711）〉）、`docs/agent-guide/ct-tower-overview.md`（新增〈兩種安裝並存的提示（T0711）〉）
+
+**驗證**：
+- 新增的測試涵蓋這些情況：
+  - 都沒裝、只裝手動、只裝 plugin
+  - 兩種都裝，同版與不同版
+  - 版號讀不到
+  - plugin 已停用
+  - `CODEX_HOME` / `CLAUDE_CONFIG_DIR` 有設時
+  - 舊 server 沒有這個欄位、欄位格式不對
+  - RTL：提示出現與不出現、警示 / 資訊兩種樣式、位置在「預設」那一行底下
+- 相關 4 個測試檔：135 項 PASS。
+- `npm run test:unit`：343 個檔案、6130 項 PASS，3 項 skipped，exit 0。
+  - 本機是 Node v26.13.0，沒有加 `NODE_OPTIONS`。
+  - 跑測試的當下，工作樹裡有 T0712 還沒 commit 的 `vitest.setup.ts`（14:03:15 已 commit 為 `2bbc11db`），所以 T0712 提到的 `copy-remote-path.test.tsx` 那 2 項也通過。
+  - stderr 的 `AttachConsole failed` 是 node-pty 測試原本就有的輸出，與本單無關。
+- `npm run typecheck` = 0。
+- `npm run typecheck:electron` = 0。
+- `npx vite build` 成功（exit 0）。
+
+**Commit**：
+- 產品：`7f669c1a`，用 `git commit --only` 只收上面 14 個檔。
+- 工單：在本回報之後另外 commit。
+- 都沒有 push，沒有觸發 workflow，也沒有建 tag。
+
 ### 互動紀錄
+
+沒有。yolo 模式，沒有向塔台提問。
 
 ### Renew 歷程
 
+沒有。
+
 ### 遭遇問題
 
+- 警示樣式沿用既有的 class，沒有新增 CSS：`src/styles/control-tower.css` 不在 `affects_files` 內。如果要獨立的警示外框，需要另外開單。
+- Claude 的手動安裝位置用 `CLAUDE_CONFIG_DIR`（沒設時 `~/.claude`），和 T0710 的 plugin 偵測一致。但 ct-config 預設值層 `ctConfigCandidates` 現行的寫法是固定讀 `<home>/.claude/skills`。本單沒有改它（不在範圍內），只在這裡記下兩者的差異。
+- 已知限制（也寫進了 docs）：
+  - 手動安裝只看 `control-tower` / `ct-exec` 兩個 skill。
+  - Claude plugin 只看 `user` / `managed` scope。
+
 ### 回報時間
+
+2026-10-30T14:04:34+0800
