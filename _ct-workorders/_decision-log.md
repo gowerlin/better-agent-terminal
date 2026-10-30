@@ -1465,6 +1465,13 @@
 - **切分**：W2a 設計語言 + 元件 + 首頁（T0630）→ 預覽通過後 W2b（`/control-tower`、功能、FAQ、回報頁）→ W2c 遠端開發；W3 / W4 不變。
 - **相關**：PLAN-049 / D159 / D160 / T0624 / T0630
 
+### D187 2026-10-30 — 下一版預覽版改走 `0.7.2-pre.1` 版號線
+
+- **背景**：`0.7.1` 線已發到 `v0.7.1-pre.9`；依 `_local-rules.md`「Release 流程實況」，`-pre.N` 最多到 `pre.9`，第十個預覽版須換版號線並先與使用者確認。下一批含 T0710（CT plugin 安裝的 Codex 派工字串，BMad-Guide HANDOVER）。
+- **決定**（使用者 2026-10-30 13:2x）：下一版發 `0.7.2-pre.1`（`gh workflow run pre-release.yml -R gowerlin/better-agent-terminal -f version=0.7.2-pre.1`）；之後同線 `0.7.2-pre.N`，同樣最多到 `pre.9`。
+- **影響**：發版後把 `0.7.2-pre.1` 回報 BMad-Guide 塔台（CT 5.14.1 據此列最低 BAT 版本）；更版重點第一行「接續 `v0.7.1-pre.9`」。
+- **相關**：D168（0.7.1 線）/ D151 / T0710 / `_reply-2026-10-30-ct-plugin-install-detection.md`
+
 ### D186 2026-10-25 — BUG-171 修正：A + B 合成 T0704（P1）現在派；toast i18n 與 server env 洩漏另開 T0705 平行；C 另開 PLAN-055
 
 - **背景**：使用者回報 BAT「終端重置」toast 後多個分頁 `[Process exited with code 1]`（BUG-171 high）。研究 T0703 DONE（`29957a0e`）：2026-10-25 20:59 Windows NTP 校時讓系統時鐘往前跳 3.03 s，`PtyManager.startHeartbeat` 用 `Date.now()`、單次 > 13 s 即判死 → 把活著的 Terminal Server 當死亡 → `handleServerDeath` 殺掉 6 個分頁（5 塔台 + 1 Worker，含本工作區原塔台）的 claude、re-fork 第二個 server；舊 server 沒關、監聽沒拆，送回 `pty:exit(id, 1)` 套到同 id 新 shell；另洩漏舊 server、12 個孤兒 bash、6 個無分頁 shell。T0112 起既有缺陷，不是新回歸。
