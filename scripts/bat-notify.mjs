@@ -112,7 +112,9 @@ With --ask, first register a question for this Worker's Tower, then notify it.
 
 Options:
   --target <id>      Target terminal ID (default: $BAT_TOWER_TERMINAL_ID)
-  --source <label>   Source label shown in UI toast (default: $BAT_TERMINAL_ID)
+  --source <label>   Source label shown in UI toast (default: $BAT_TERMINAL_ID). A Worker reporting
+                     a work order also uses it to mark its tab as reported: pass the same ID as
+                     the dispatch's --workorder, including any prefix (e.g. LB-T0184, not T0184)
   --no-pty-write     Skip PTY pre-fill (UI notification only)
   --submit           Pre-fill PTY, then send Enter through the renderer/xterm
                      keypress path (mutually exclusive with --no-pty-write)
