@@ -95,7 +95,7 @@ todo:
 > 最後更新：2026-10-30 16:16 UTC+8（第九十七 session 收工）
 
 ### 近期完成
-- **`v0.7.2-pre.3` 發佈**（第九十八 session，run `41030478924`，target `ace28006`）：BUG-175 縮圖預覽依游標換列分行、完整 CSI（T0714 `afe57761`）；BUG-165 / 166 依外部測試者A 回覆 CLOSED；GitHub #21 留言並關閉
+- **`v0.7.2-pre.3` 發佈**（第九十八 session，run `41030478924`，target `ace28006`）：BUG-175 縮圖預覽依游標換列分行、完整 CSI（T0714 `afe57761`）；BUG-165 / 166 依外部測試者A 回覆 CLOSED；GitHub #21 留言並關閉；文件 `31e7b167`；Pages `41032124923` 綠、link-check 1350 / 0、首頁 pre.3
 - **`v0.7.2-pre.2` 發佈**（第九十七 session，run `41019051580`，target `58213249`）：BUG-174 終端 `file:///` 連結（全形字範圍、跨行、OSC 8，T0713 `ff772d40`，GitHub #20）；文件 `d5fc59e1`；#20 已留言
 - **`v0.7.2-pre.1` 發佈**（第九十七 session，run `41012819051`，target `27a5a164`）：CT plugin 安裝（T0710 Codex `$ct:ct-exec` 判斷、T0711 兩種安裝並存提示）、T0712 測試相容 Node 26；文件 `5dc51389`；CT 5.14.2 列最低 BAT；GitHub #21 → PLAN-056 DROPPED（D189，CT D463 推薦工單集中上層塔台 repo）
 - **`v0.7.1-pre.9` 發佈**（第九十六 session，run `40803320599`，target `810651a2`）：BUG-172（CT 檔讀取失敗顯示錯誤，T0708 `50fe08d3`）、BUG-173（`critical` 算 High，T0709 `809eab0d`）；源自 BMad-Guide 塔台 ADVISORY（CT D408）；文件 `094b3afe`；Pages `40804521352` 綠、link-check 1331 / 0、首頁 pre.9
