@@ -1,8 +1,8 @@
 ---
 schema_kind: tower-state
 summary_version: 1
-updated_at: "2026-10-30T12:55:37+0800"
-session: "2026-10-29 第九十六 session 已收工（CT v5.13.0）：BUG-172 / 173、v0.7.1-pre.9"
+updated_at: "2026-10-30T13:02:50+0800"
+session: "2026-10-30 13:02 第九十七 session 啟動（CT v5.14.0）"
 next_ids:
   workorder: "T0710"
   decision: "D187"
