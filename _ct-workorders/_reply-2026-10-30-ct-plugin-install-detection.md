@@ -6,8 +6,8 @@ title: 回覆 BMad-Guide 塔台：CT plugin 安裝的派工字串（`$ct:ct-exec
 from: better-agent-terminal
 to: BMad-Guide
 in_reply_to: _handover-2026-10-30-bat-ct-plugin-install-detection
-status: ACKNOWLEDGED
-local_workorder:
+status: RESOLVED
+local_workorder: "T0710 / T0711（T0712 同批）"
 created_at: "2026-10-30T12:55:03+0800"
 ---
 
@@ -38,4 +38,15 @@ created_at: "2026-10-30T12:55:03+0800"
 
 ## 結果（發版後補寫）
 
--
+**BAT `0.7.2-pre.1` 已發佈**（2026-10-30 06:26Z，run `41012819051`，target `27a5a164`；更版重點、CHANGELOG、README CT 整合點表與版本對照表已更新）。CT 5.14.1 請以 **BAT `>= 0.7.2-pre.1`** 為「兩種安裝都支援」的最低版本。
+
+| 項目 | 結果 |
+|---|---|
+| 3-1 | **完成**（T0710 `f258ebce`）。判斷唯一實作 `electron/ct-install-detect.ts`，順序照 § 3-1：分頁 `CODEX_HOME`（customEnv → host env → `~/.codex`）下 `skills/<skill>/SKILL.md` 或 `~/.agents/skills/<skill>/SKILL.md` → `$<skill>`；`config.toml` 有 `[plugins."ct@<任一 mkt>"]` 且 `enabled = true` → `$ct:<skill>`；其他（含 `enabled` 缺、`false`、解析失敗）→ `$<skill>`。helper 派工與面板一鍵派工共用（面板經新 proxied channel `terminal:control-tower-prompt`，遠端在回答主機判斷，舊 bat-server → 現行字串）。`/ct:ct-` 開頭的 prompt 也會正規化。pwsh / cmd / bash 引號都有測試並實際執行。CT 派工命令不變 |
+| 3-2 | **完成**（T0710）。手動安裝優先（另看 `<CODEX_HOME>/skills`）；否則 Claude `installed_plugins.json` 的 `ct@*` `installPath`（支援 `CLAUDE_CONFIG_DIR` / `CLAUDE_CODE_PLUGIN_CACHE_DIR`），再 Codex `<CODEX_HOME>/plugins/cache/*/ct/*`，取最新版；總覽顯示的路徑看得出是 plugin |
+| 3-3 | **完成**（T0710）。skill 掃描與 `*` 補全加入 Claude `ct@*` plugin 的 skill（不含 `ct-guide@*` 與其他 plugin），手動同名只列一次 |
+| 3-4 | **完成**（T0711 `7f669c1a`）。總覽 `*config`「預設」層下方：同一 agent 兩種都裝時一行提示（`/ct-exec`、`$ct-exec` 用 zip 那份），版號不同為警示；版號取手動 `control-tower/SKILL.md` 的 `control-tower-version` 註解與 plugin 版本 |
+
+**驗證**：§ 6-2 隔離試裝（codex-cli 0.164.0，暫存 `CODEX_HOME`）四種狀態——只手動 → `$ct-exec`、兩種都裝 → `$ct-exec`、只 plugin → `$ct:ct-exec`、plugin `enabled = false` → `$ct-exec`——判斷與 `codex debug prompt-input` 列出的 skill 一致；真實 `~/.codex`、`~/.claude` 試裝前後 SHA-256 相同。未做 § 6-3（呼叫模型）與 § 6-4（真實 `claude plugin install`，3-2 / 3-3 以單元測試模擬）。
+
+**順帶**：面板一鍵派工原本送 `codex "$ct-exec T####"`，pwsh / bash 會把 `$ct` 展開（Codex 收到 `-exec T####`），本版一併修正。
