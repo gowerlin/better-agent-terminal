@@ -27,6 +27,7 @@
 | [terminal-links.md](terminal-links.md) | 終端 `file:///` 連結的格子欄位範圍（全形字）、跨行串接、OSC 8 `linkHandler`（scheme 限制、hover 顯示目標） | 終端連結：`file:///` 範圍與 OSC 8（T0713 / BUG-174） |
 | [terminal-server-recovery.md](terminal-server-recovery.md) | Terminal Server 存活判定（單調時鐘 heartbeat、連續 3 次、程序 + IPC 確認）與 recovery（切斷 / 結束舊 server、generation、孤兒先殺樹） | Terminal Server 存活判定與 recovery（T0704 / BUG-171） |
 | [terminal-wheel-reports.md](terminal-wheel-reports.md) | Codex 分頁在 alt screen + 滑鼠追蹤時依累積行數送多個滾輪回報 | Codex 分頁的滾輪回報（T0698 / BUG-165） |
+| [thumbnail-preview.md](thumbnail-preview.md) | 終端縮圖預覽：T0667 上限、游標換列當成換行 / 原地更新 / 清畫面重新開始、stripAnsi 完整 CSI 語法、ConPTY 對照 | 終端縮圖預覽（T0667 / T0714，BUG-175） |
 | [tower-questions.md](tower-questions.md) | Worker 問塔台（`question:*` channel、記憶體 store、`blocked` / `tower`、`pendingQuestions`） | Worker 問塔台（PLAN-048 / T0607） |
 | [tower-tab-title.md](tower-tab-title.md) | `--set-role tower`、yolo 判定、Tower 標題 | 塔台分頁標題（T0562，D147） |
 | [usage-limit-continue.md](usage-limit-continue.md) | 用量限制自動繼續（codex 送文字、claude 只提示 / 只送 Enter） | 用量限制自動繼續（PLAN-044 / T0566，D148） |

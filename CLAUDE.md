@@ -149,6 +149,16 @@
 - 唯一實作 `src/lib/terminal-file-links.ts`（`findFileLinks` / `createOsc8LinkHandler` / `createLinkHoverTooltip`），`TerminalPanel.tsx` 只接線；測試以真 xterm 實例（`src/lib/__tests__/terminal-file-links.test.ts`），升級 xterm 時必跑。
 - 完整原因、規則、WebLinksAddon 檢查、已知限制（含遠端 `file://`）、驗證清單：[docs/agent-guide/terminal-links.md](docs/agent-guide/terminal-links.md)
 
+## 終端縮圖預覽（T0667 / T0714，BUG-175）
+
+- 用途：縮圖列 `.thumbnail-preview` 顯示分頁輸出的最後 8 行；PTY 輸出經 `TerminalThumbnail.tsx` 150 ms 批次 flush 呼叫 `outputPreview`，Claude 面板訊息走 `textPreview`。
+- 🔴 T0667 三個上限（`PREVIEW_INPUT_TAIL_CHARS` 16 Ki、`PREVIEW_LINES` 8、`PREVIEW_LINE_MAX_CHARS` 256）與 150 ms flush 不改；新增處理對輸入長度維持線性。
+- 🔴 全螢幕 TUI 在 Linux / macOS PTY 以游標移動重繪、不送 `\n`（BUG-175）：`markScreenMoves` 把「換到另一列後寫的字」當成新行，`CSI 2 J` / alt screen 切換讓預覽重新開始，換列後少於 8 字、從第 2 欄以後寫的字視為原地更新而丟掉。只用 `\n` 換列的輸出結果不變；列號未知時欄 > 1 的 `CSI row;col H` 不換行（ConPTY 重畫 PSReadLine 提示列）。
+- 🔴 不是終端模擬：不量欄寬、不改寫、flush 之間不留狀態；不得改用 headless xterm 或讀分頁的 xterm buffer，不碰 PTY 輸出與 `onData`。
+- stripAnsi 以 ECMA-48 完整語法移除 CSI（參數 0x30–0x3F、中間 0x20–0x2F、結束 0x40–0x7E；T0714 前留下 `>0q>4m`）。
+- 唯一實作 `src/lib/thumbnail-preview.ts`（`stripAnsi` / `markScreenMoves` / `applyScreenMoves` / `outputPreview`）。
+- 完整規則、實錄、ConPTY 對照數據、行為變化、已知限制、驗證清單：[docs/agent-guide/thumbnail-preview.md](docs/agent-guide/thumbnail-preview.md)
+
 ## 新 PTY 的初始尺寸（T0572 / BUG-145）
 
 - host 一律以 120x30 spawn（`PtyManager.create`、Terminal Server）；`pty:resize` 對 host 還不認得的 id 直接丟棄。分頁先進 store（TerminalPanel 掛載即送第一次 resize），`pty:create` 要等 shell 查詢等非同步步驟後才到 host，所以那次 resize 可能被丟；TerminalPanel 的 resize 去重（`lastSentCols` / `lastSentRows`）之後不再送同一尺寸。⏻ 重啟（`pty:restart`）的新 PTY 同樣是 120x30，去重也擋住重送（修正前 100% 停在 120x30）。

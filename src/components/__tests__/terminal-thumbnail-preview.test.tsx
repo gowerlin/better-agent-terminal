@@ -72,10 +72,10 @@ describe('thumbnail preview stays bounded (T0667)', () => {
       lengths.push(previewOf(thumb).length)
     }
     expect(Math.max(...lengths)).toBeLessThanOrEqual(PREVIEW_MAX_CHARS)
-    const later = lengths.slice(5)
-    expect(Math.max(...later)).toBe(Math.min(...later))
     expect(previewOf(thumb)).not.toContain('\x1b')
-    expect(previewOf(thumb)).toMatch(/row \d+ frame \d+/)
+    // no growth: the last 8 rows of the latest frame (T0714)
+    expect(previewOf(thumb).split('\n')).toEqual(Array.from({ length: 8 }, (_, i) =>
+      expect.stringMatching(new RegExp(`^ row ${33 + i} frame \\d+$`))))
   })
 
   test('Claude streaming text without \\n: the preview is ≤ the limit', () => {
@@ -85,6 +85,25 @@ describe('thumbnail preview stays bounded (T0667)', () => {
     })
     expect(previewOf(thumb).length).toBeGreaterThan(0)
     expect(previewOf(thumb).length).toBeLessThanOrEqual(PREVIEW_MAX_CHARS)
+  })
+})
+
+describe('BUG-175: a TUI that redraws with cursor moves (T0714)', () => {
+  test('claude-like output without \\n: the preview follows the latest lines, no `>0q>4m`', () => {
+    vi.useFakeTimers()
+    const thumb = renderThumb(term('worker'))
+    onOutput('worker', 'demo@mac ~/proj % claude\r\n\x1b[>0q\x1b[>4mClaude Code\x1b[13Gv2.1.306')
+    flush()
+    expect(previewOf(thumb)).toBe('demo@mac ~/proj % claude\nClaude Codev2.1.306')
+    onOutput('worker', '\x1b[?1049h\x1b[2J\x1b[H')
+    for (let i = 1; i <= 20; i++) {
+      onOutput('worker', `\x1b[H\r\x1b[${3 + i}B⏺ Step ${i}\r\x1b[1B✻ Working… (${i}s)\x1b[30;1H\x1b[28;3H`)
+      onOutput('worker', `\x1b[H\r\x1b[12C\x1b[24B${i % 10}\x1b[30;1H\x1b[28;3H`) // timer tick, in place
+      flush()
+      expect(previewOf(thumb).split('\n').slice(-2)).toEqual([`⏺ Step ${i}`, `✻ Working… (${i}s)`])
+    }
+    expect(previewOf(thumb)).not.toContain('>0q')
+    expect(previewOf(thumb)).not.toContain('\x1b')
   })
 })
 
