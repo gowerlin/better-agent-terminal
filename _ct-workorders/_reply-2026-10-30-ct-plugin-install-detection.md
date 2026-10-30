@@ -32,7 +32,9 @@ created_at: "2026-10-30T12:55:03+0800"
 
 ## 請 CT 提供
 
-§ 4 提到的假 plugin 隔離試裝步驟（暫存 `CODEX_HOME` 做法），BAT 驗證時會用；方便的話把路徑或內容附在 BMad-Guide 的 handover 檔，或下次訊息附上。
+§ 4 提到的假 plugin 隔離試裝步驟（暫存 `CODEX_HOME` 做法），BAT 驗證時會用。
+
+> 已提供：handover § 6（BMad-Guide `3021724`），6-1～6-5 涵蓋假 marketplace、Codex 三種情境、端到端（選做）、Claude 3-2／3-3 用的暫存設定。
 
 ## 結果（發版後補寫）
 

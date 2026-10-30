@@ -92,7 +92,7 @@ todo:
 - **CT 正式公開**（第九十二 session，D183 / T0700）：BAT 站 5 處「Control Tower 目前未公開提供」改成「已公開、MIT，取得與安裝方式見安裝頁」（`CT_INSTALL_URL` 由 `CT_PORTAL_URL` 組出）；Pages `40149342854` 上線；回覆稿已直接交 CT 塔台
 
 ### 待辦（依優先序）
--1. 🔴 **CT plugin 安裝的派工字串**（2026-10-30 BMad-Guide HANDOVER `_handover-2026-10-30-bat-ct-plugin-install-detection.md`，已受理 → [_reply-2026-10-30-ct-plugin-install-detection.md](_reply-2026-10-30-ct-plugin-install-detection.md)）：開單做 3-1（Codex 依安裝方式送 `$ct-exec` / `$ct:ct-exec`，必要）、3-2（ct-config 預設值層找 plugin）、3-3（skill 面板 / `*` 補全）；3-4 評估。不單獨發版，下一批一起出，發版後把版號回報 CT（CT 5.14.1 據此改最低 BAT 版本）。另：`6e00031c` 已補 `bat-notify --source` 說明（CT 5.13.1 ADVISORY 可選建議），隨下一版出
+-1. 🔴 **CT plugin 安裝的派工字串**（2026-10-30 BMad-Guide HANDOVER `_handover-2026-10-30-bat-ct-plugin-install-detection.md`，已受理 → [_reply-2026-10-30-ct-plugin-install-detection.md](_reply-2026-10-30-ct-plugin-install-detection.md)）：開單做 3-1（Codex 依安裝方式送 `$ct-exec` / `$ct:ct-exec`，必要）、3-2（ct-config 預設值層找 plugin）、3-3（skill 面板 / `*` 補全）；3-4 評估。驗證用 CT 提供的隔離試裝步驟（handover § 6，BMad-Guide `3021724`；判斷一律用分頁的 `CODEX_HOME`，不寫死 `~/.codex`）。不單獨發版，下一批一起出，發版後把版號回報 CT（CT 5.14.1 據此改最低 BAT 版本）。另：`6e00031c` 已補 `bat-notify --source` 說明（CT 5.13.1 ADVISORY 可選建議），隨下一版出
 0. 🔴 **BUG-172 / 173 實機驗收**（`v0.7.1-pre.9`）：放一份 > 512 KB 的 `_decision-log.md`，決策頁應顯示「無法讀取」與大小；`critical` 項目顯示 High。⚠️ 下一版換版號線（0.7.1 已到 pre.9），先與使用者確認
 1. 🔴 **BUG-171 實機驗收**（`v0.7.1-pre.8` 起）：日常使用遇 NTP 校時 / 睡眠喚醒不再「終端已恢復」、分頁不再 exit 1；可看 debug log `[heartbeat] late pong`。T0704 後續候選（TCP 模式 pid 重用、舊 server 結束失敗無補救、卡住但存活永不 recovery）暫不開單
 2. 🔴 **外部測試者A 驗收**（`v0.7.1-pre.8`，更版重點「待驗收」清單）：BUG-165（macOS 觸控板 Codex 分頁捲動；之前設的 `mouse_scroll_speed = 3` 先移除）、BUG-166（`printf '\e[?1003h\e[?1006h'` 後移動滑鼠，殘骸幾筆即停）、BUG-169（安裝版 `bat-terminal.mjs --version`）→ 通過即 CLOSED
