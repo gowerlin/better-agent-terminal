@@ -3,11 +3,11 @@ schema_version: 1
 schema_kind: bug
 id: BUG-165
 title: "macOS：Codex CLI 分頁內捲動可用但不夠順"
-status: FIXED
+status: CLOSED
 severity: low
 reproducibility: unknown
 created_at: "2026-10-19T15:42:53+0800"
-updated_at: "2026-10-22T02:01:08+0800"
+updated_at: "2026-10-30T16:23:07+0800"
 impact:
   - terminal-rendering
   - codex
@@ -23,7 +23,7 @@ links:
 |------|------|
 | 嚴重度 | 🟢 low（捲動可用；體驗改善） |
 | 可重現 | 未確認 |
-| **狀態** | ✅ FIXED（T0698 `ec4b3c13`，隨 `v0.7.1-pre.6` 發佈，待外部測試者A 實機驗收；原 OPEN：T0670 研究 DONE `8c581f5b`：主因候選 = xterm 滑鼠追蹤模式每個 wheel 事件最多送 1 個回報；**跨平台**，macOS 觸控板最明顯；待 外部測試者A 測試 1 確認後決定是否派 S 修正） |
+| **狀態** | 🚫 CLOSED（2026-10-30 外部測試者A 在 macOS 實機確認使用正常）。前情：✅ FIXED（T0698 `ec4b3c13`，隨 `v0.7.1-pre.6` 發佈；原 OPEN：T0670 研究 DONE `8c581f5b`：主因候選 = xterm 滑鼠追蹤模式每個 wheel 事件最多送 1 個回報；**跨平台**，macOS 觸控板最明顯；待 外部測試者A 測試 1 確認後決定是否派 S 修正） |
 | 回報者 | 外部測試者A（使用者轉達） |
 
 ## 現象
@@ -66,3 +66,8 @@ links:
 
 - codex 分頁（`agentPreset === 'codex-cli'`）+ alt buffer + `vt200` / `drag` / `any` 追蹤 + SGR 時，`attachCustomWheelEventHandler` 依累積行數送多個 SGR 滾輪回報（每事件上限 8，反向丟餘量），回報與 xterm 逐位元相同；其他情況交回 xterm。helper 派工的 codex Worker 分頁不涵蓋（Q-1）。`test:unit` 5891 passed。
 - 待實機：macOS 觸控板手感、Windows / Linux 滾輪一格捲幾行（T0698 前 1 行，之後約與 Claude CLI 分頁相同）；已設 `mouse_scroll_speed = 3` 的使用者可能覺得過快，建議改回預設。
+
+## 結案（2026-10-30T16:23:07+0800，第九十八 session）
+
+- 外部測試者A 回覆（使用者轉達，2026-10-30）：BUG-165 / BUG-166「這兩個可以結案，目前使用上都 ok」。
+- 驗證依據：外部測試者A 在 macOS 實機使用 `v0.7.1-pre.6` 起的預覽版（含目前版本）確認 → 🚫 CLOSED。

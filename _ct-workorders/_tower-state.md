@@ -1,8 +1,8 @@
 ---
 schema_kind: tower-state
 summary_version: 1
-updated_at: "2026-10-30T16:16:10+0800"
-session: "2026-10-30 第九十七 session 已收工（CT v5.14.0）：v0.7.2-pre.1 / pre.2、GitHub #20 / #21"
+updated_at: "2026-10-30T16:23:22+0800"
+session: "2026-10-30 第九十八 session 進行中（CT v5.14.3）：BUG-165 / 166 CLOSED"
 next_ids:
   workorder: "T0714"
   decision: "D190"
@@ -12,7 +12,7 @@ todo:
   - "實機驗收 BUG-174（v0.7.2-pre.2 終端 file:/// 連結：全形字、跨行、OSC 8）；通過後關 GitHub #20"
   - "GitHub #21：等回報者試用或 CT 補巢狀獨立 repo 文件後關閉"
   - "使用者日常使用驗收 BUG-171"
-  - "外部測試者A 驗收 BUG-165 / 166 / 169"
+  - "外部測試者A 驗收 BUG-169"
   - "BUG-156 / 159 待特定環境驗收"
 ---
 # Tower State — better-agent-terminal
@@ -106,7 +106,7 @@ todo:
 -1. 🔴 **BUG-174 實機驗收**（`v0.7.2-pre.2`）：終端印出含全形字的 `file:///` 路徑整段有底線、尾端可點；縮窄視窗讓路徑換行再試；Claude CLI 的 Markdown 連結（OSC 8）點得開、滑過顯示目標。通過後 CLOSED 並關 GitHub #20（或等回報者確認）
 0. 🟢 **GitHub #21**：等回報者試用建議配置，或 CT 補〈巢狀的獨立 repo〉文件後通知再關；**後續候選**：設定面板「預設值」層找手動安裝沒看 `CLAUDE_CONFIG_DIR`（T0711 回報）
 1. 🔴 **BUG-171 實機驗收**（`v0.7.1-pre.8` 起）：日常使用遇 NTP 校時 / 睡眠喚醒不再「終端已恢復」、分頁不再 exit 1；可看 debug log `[heartbeat] late pong`。T0704 後續候選（TCP 模式 pid 重用、舊 server 結束失敗無補救、卡住但存活永不 recovery）暫不開單
-2. 🔴 **外部測試者A 驗收**（`v0.7.1-pre.8`，更版重點「待驗收」清單）：BUG-165（macOS 觸控板 Codex 分頁捲動；之前設的 `mouse_scroll_speed = 3` 先移除）、BUG-166（`printf '\e[?1003h\e[?1006h'` 後移動滑鼠，殘骸幾筆即停）、BUG-169（安裝版 `bat-terminal.mjs --version`）→ 通過即 CLOSED
+2. 🔴 **外部測試者A 驗收**：BUG-169（安裝版 `bat-terminal.mjs --version`）→ 通過即 CLOSED（BUG-165 / 166 已於第九十八 session 2026-10-30 依外部測試者A 回覆 CLOSED）
 3. 🟢 **後續候選**：PLAN-055（recovery 後 agent 分頁可 `--resume`）；總覽計數加「需要處理」徽章（PAUSED / BLOCKED / PARTIAL…，T0702 建議 2）；BAT 封存區 3 檔 `status: CLOSED` 顯示 Invalid（T0702 建議 1）；BAT 自己的 `_tower-state.md` 在 CT v6 上線後寫入摘要；codex Worker 分頁也接管滾輪（T0698 Q-1 [B]，`externalAgent` 欄位）；T0698 e2e（選做未做）；Windows / Linux 滾輪一格行數是否過快待回饋
 4. 🔴 `v0.7.1-pre.2` 剩餘實機驗收：BUG-156 需 Docker Desktop、BUG-159 需一般權限 + codex
 5. 🟢 PLAN-053 Electron 42+、PLAN-052 Docker 可用性（IDEA）；PLAN-054 B6 延後（CT D090）；T0656 網站素材手動拍；`RECOVERY_PENDING` 未實機驗證；前期驗收（外部測試者A BUG-127-135 / 116 / 118、BUG-130 / 105 / 107 / 108 / 097 / 111、T0550、dmg / AppImage、NSIS 重裝、T0360）；dev PC／NAS 主機名稱（使用者未列入去識別化決定）
@@ -117,7 +117,7 @@ todo:
 - 公開 repo（D176）：工單 / commit / BUG 不寫真名、客戶名、家目錄路徑；push 前跑 `.private/` 的檢查樣式
 
 ### 快速連結
-- Bug Tracker → [_bug-tracker.md](_bug-tracker.md)（熱區：Open 0 / Fixing 0 / Fixed 29 / Closed 9，2026-10-30 BUG-172 / 173 CLOSED、BUG-174 FIXED；2026-10-26 第九十五 session `*archive` 歸檔 138 張：T 111 / BUG 21 / PLAN 6，熱區剩 T:103 / BUG:35 / PLAN:20 / EXP:1）｜ Backlog → [_backlog.md](_backlog.md)
+- Bug Tracker → [_bug-tracker.md](_bug-tracker.md)（熱區：Open 0 / Fixing 0 / Fixed 27 / Closed 11，2026-10-30 BUG-165 / 166 / 172 / 173 CLOSED、BUG-174 FIXED；2026-10-26 第九十五 session `*archive` 歸檔 138 張：T 111 / BUG 21 / PLAN 6，熱區剩 T:103 / BUG:35 / PLAN:20 / EXP:1）｜ Backlog → [_backlog.md](_backlog.md)
 - Decision Log → [_decision-log.md](_decision-log.md)（最大 D189）｜ Learnings → [_learnings.md](_learnings.md)（最大 L177）
 - 網站 → https://gowerlin.github.io/better-agent-terminal/｜ 素材 spec → `e2e/site-media.spec.ts`（`BAT_SITE_MEDIA=1`，輸出 `e2e-media/`）
 - 歷史 sessions → [_archive/state-snapshots/INDEX.md](_archive/state-snapshots/INDEX.md)（113 entries）

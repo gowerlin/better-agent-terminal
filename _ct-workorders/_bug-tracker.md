@@ -3,30 +3,30 @@ schema_version: 1
 schema_kind: index
 id: _bug-tracker
 index_kind: bugs
-generated_at: "2026-10-29T09:55:22+0800"
+generated_at: "2026-10-30T16:23:07+0800"
 generator: control-tower-sync
 source_globs:
   - _ct-workorders/BUG-*.md
 exclude_globs:
   - _ct-workorders/_archive/**
   - _ct-workorders/examples/**
-total: 37
+total: 38
 breakdown:
   OPEN: 0
   FIXING: 0
-  FIXED: 30
+  FIXED: 27
   VERIFY: 0
-  CLOSED: 7
+  CLOSED: 11
   WONTFIX: 0
 ---
 
 # Bug Tracker
 
 > ⚠️ 此文件由 `*sync` 自動生成，請勿手動編輯。
-> 最後同步：2026-10-30 15:15 (UTC+8) — BUG-174 FIXED（T0713 `ff772d40`，GitHub #20）；熱區 Fixed 29 / Closed 9
+> 最後同步：2026-10-30 16:23 (UTC+8) — BUG-165 / 166 CLOSED（外部測試者A macOS 實機確認）；熱區 Fixed 27 / Closed 11
 
 ## 統計
-- 🔴 Open: 0 | ⏳ Fixing: 0 | ✅ Fixed: 29 | 🧪 Verify: 0 | 🚫 Closed: 9 | ⛔ Won't Fix: 0 | **Total: 38**
+- 🔴 Open: 0 | ⏳ Fixing: 0 | ✅ Fixed: 27 | 🧪 Verify: 0 | 🚫 Closed: 11 | ⛔ Won't Fix: 0 | **Total: 38**
 
 ## 🔴 Open / 處理中
 
@@ -44,12 +44,10 @@ breakdown:
 |----|------|--------|---------|------|
 | BUG-174 | 終端 `file:///` 連結：全形字讓底線與可點範圍變短、跨行抓不到、OSC 8 點了沒反應（GitHub #20；T0713 `ff772d40`） | 🟡 medium | 2026-10-30 | [BUG-174](BUG-174-terminal-file-link-cjk-range-wrap-osc8.md) |
 | BUG-171 | 「終端重置」後多個分頁 `[Process exited with code 1]`：NTP 時鐘跳變讓 heartbeat 誤判、recovery 沒關舊 server；T0704 `68ab2a42` + T0705 `d7ffa080`，待下一個預覽版實機驗收 | 🔴 high | 2026-10-25 | [BUG-171](BUG-171-idle-terminals-exit-1-after-terminal-reset.md) |
-| BUG-165 | macOS：Codex CLI 分頁內捲動不夠順；T0698 `ec4b3c13` 依累積行數送多個滾輪回報（上限 8），隨 pre.6 發佈，待外部測試者A 實機驗收 | 🟢 low | 2026-10-22 | [BUG-165](BUG-165-macos-codex-cli-scroll-not-smooth.md) |
 | BUG-170 | yolo 提問備援重派後舊 Worker 分頁讓回收 AMBIGUOUS；CT v5.12.0 / v5.12.1 重派前先 `--close-worker`（CT-T022），T0695 / T0696 實機驗收通過 | 🟢 low | 2026-10-22 | [BUG-170](BUG-170-yolo-fallback-redispatch-leaves-old-worker-tab.md) |
 | BUG-169 | 安裝版的 helper 回報版號 v0.0.0；T0691 以 electron-builder `afterPack` 寫只含 name / version 的 `resources/package.json`，打包後 `helper-version` 檢查（`b0ff5673`），等下一個預覽版安裝版驗收 | 🟢 low | 2026-10-21 | [BUG-169](BUG-169-installed-helpers-report-version-0.0.0.md) |
 | BUG-168 | `tests/` 底下沒被跑到的測試失敗與逾時（全部測試過時）；T0680–T0685 修正並收進 vitest／`test:legacy`，ubuntu 試跑 5760 / 0 + 472 / 0；擋版 T0686 | 🟢 low | 2026-10-21 | [BUG-168](BUG-168-tests-dir-tsx-suites-failing-and-timing-out.md) |
 | BUG-167 | `tests/profile-manager-migration.test.ts` 2 項斷言過時（T0277 / T0282 加的 `dockerMounts`、`serverHome` 沒跟上；T0678 `d90b3b50`，13 / 0） | 🟢 low | 2026-10-21 | [BUG-167](BUG-167-profile-manager-migration-test-stale-assertions.md) |
-| BUG-166 | Agent 被訊號結束後的分頁，滑鼠回報被當成文字輸入 shell（T0671 研究；T0672 `64209d44` 自動 / 手動重設滑鼠追蹤；待 外部測試者A 確認、未發版） | 🟡 medium | 2026-10-19 | [BUG-166](BUG-166-mouse-reports-leak-as-text-after-agent-exit.md) |
 | BUG-159 | codex 分頁在 BAT MCP 未注入、非系統管理員時接上 codex 共用 daemon，helper 讀到其他分頁的 `BAT_*`（T0651 `5b1be0f5`） | 🟢 low | 2026-10-18 | [BUG-159](BUG-159-codex-shared-daemon-inherits-other-tab-env.md) |
 | BUG-156 | Docker 設定精靈容器埠固定 `127.0.0.1:9876`，與 BAT RemoteServer 預設埠衝突（T0649 `99abe9a1`） | 🟡 medium | 2026-10-18 | [BUG-156](BUG-156-docker-wizard-port-9876-conflicts-bat-server.md) |
 | BUG-147 | Recovery「重新開始」時舊 Terminal Server 刪掉新 server 的 pid / port 檔 | 🟢 low | 2026-10-17 20:17 | [BUG-147](BUG-147-recovery-fresh-start-pid-file-race.md) |
@@ -82,6 +80,8 @@ breakdown:
 
 | ID | 標題 | 嚴重度 | 關閉時間 | 連結 |
 |----|------|--------|---------|------|
+| BUG-165 | macOS：Codex CLI 分頁內捲動不夠順（T0698 `ec4b3c13` 依累積行數送多個滾輪回報；外部測試者A 以 macOS 實機確認） | 🟢 low | 2026-10-30 | [BUG-165](BUG-165-macos-codex-cli-scroll-not-smooth.md) |
+| BUG-166 | Agent 被訊號結束後的分頁，滑鼠回報被當成文字輸入 shell（T0672 `64209d44` 自動 / 手動重設滑鼠追蹤；外部測試者A 以 macOS 實機確認） | 🟡 medium | 2026-10-30 | [BUG-166](BUG-166-mouse-reports-leak-as-text-after-agent-exit.md) |
 | BUG-172 | 指揮塔面板：檔案超過 512 KiB 時臭蟲／待辦／決策三頁靜默變空、工單從清單消失（只有總覽報 File too large）（T0708 `50fe08d3`；使用者以 v0.7.1-pre.9 實機驗收通過） | 🟡 medium | 2026-10-30 | [BUG-172](BUG-172-ct-panel-file-too-large-silent-empty.md) |
 | BUG-173 | 指揮塔面板：索引文字與 PLAN 檔補優先級時 `critical` 判成 Unknown（frontmatter 路徑算 High）（T0709 `809eab0d`；使用者以 v0.7.1-pre.9 實機驗收通過） | 🟢 low | 2026-10-30 | [BUG-173](BUG-173-ct-priority-critical-text-path-unknown.md) |
 | BUG-164 | macOS GPU 程序在建立 / 切換終端分頁時以同一個 CHECK 崩潰（T0668 符號化；T0669 `32d62a45` macOS 停用 Graphite + 崩潰後重建；外部測試者A 以 v0.7.1-pre.3 確認約 4h40m 0 次崩潰） | 🟢 low | 2026-10-19 | [BUG-164](BUG-164-macos-gpu-process-check-crash-on-tab-create-switch.md) |
