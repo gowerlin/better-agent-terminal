@@ -1,7 +1,7 @@
 ---
 schema_kind: tower-state
 summary_version: 1
-updated_at: "2026-10-30T14:04:25+0800"
+updated_at: "2026-10-30T14:06:21+0800"
 session: "2026-10-30 13:02 第九十七 session 啟動（CT v5.14.0）"
 next_ids:
   workorder: "T0713"
@@ -9,7 +9,7 @@ next_ids:
   bug: "BUG-174"
   plan: "PLAN-056"
 todo:
-  - "0.7.2-pre.1 批次（D188）：T0710 DONE；T0712 DONE（2bbc11db）；T0711（兩種安裝並存提示）執行中；完成後聯合驗證、發版、回報 CT"
+  - "0.7.2-pre.1 批次（D188）T0710 / T0711 / T0712 全 DONE，聯合驗證過（@ ae4602ed：unit 6130 / legacy 472 / typecheck 0 / 0 / build ok）；待使用者同意發版，發版後回報 CT"
   - "下一版發 0.7.2-pre.1（D187，使用者決定）"
   - "使用者以 v0.7.1-pre.9 日常使用驗收 BUG-171"
   - "外部測試者A 驗收 BUG-165 / 166 / 169"
@@ -131,7 +131,7 @@ todo:
 | **決策最大編號** | **D180**（Renew 後 Worker 分頁 ✓：T0693 方案 a + d1 + d2，旁支開 BUG-170，使用者決定，2026-10-22 第八十九 session）；D179（`v0.7.1-pre.5` 發版前先開小批 T0687–T0689，使用者決定，2026-10-21 第八十八 session）；D178（T0684 Q-1／Q-2 檢查 Windows 路徑用 path.win32，塔台代決，2026-10-21 第八十八 session）；D177（BUG-168 修正分組與 CI 兩步，2026-10-21 第八十八 session）；D176（公開 repo 去識別化，2026-10-21 第八十八 session）；D175（網站 `/why` 設計初衷，2026-10-21 第八十八 session）；D174（T0672 Q-1，2026-10-19 第八十六 session）；D173（網站示意可用 `_ct-workorders/`，放寬 D159 / D165 grep 規則一項，2026-10-19 第八十五 session）；D171 / D172 第八十四 session |
 | **EXP 最大編號** | **EXP-WFMINE-001**（📊 CONCLUDED 2026-10-20 17:26；執行單 T0673 DONE `84e21f2d`，7.35M tokens／39 agents；BMad-Guide Workflow 智能提案 Phase 1 試點）；EXP-GPUWHIS-001（CONCLUDED，已歸檔） |
 | **塔台版本** | Control Tower **v5.12.6**（第九十二 session 載入；第九十一 session v5.12.5；第九十 session v5.12.2；CT v5.12.3 起 `--close-worker` 最低 BAT 改為 `>= 0.6.1-pre.4`）；前次 v5.12.1（第八十九 session 重啟後載入；CT-T022 重派前回收舊 Worker 分頁）；前次 v5.11.0（第八十八 session 啟動時載入；本檔未記錄 v5.10 / v5.11 升級過程）；前次記錄 v5.9.0（第八十二 session 載入；CT-T021，BMad-Guide T0174，兩端；實機驗收結案 D071） |
-| **unit test 基線** | **5972 passed / 334 files / 3 skipped**；`test:legacy` 472 / 0（塔台聯合驗證 @ `bfe7f0d6`，發 `v0.7.1-pre.7` 前，2026-10-25 第九十三 session；typecheck 0 / 0、vite build 成功）。前次 5661 passed / 322 files（@ `72d77cf1`，發 `v0.7.1-pre.4` 前，2026-10-19 第八十六 session） |
+| **unit test 基線** | **6130 passed / 343 files / 3 skipped**；`test:legacy` 472 / 0（塔台聯合驗證 @ `ae4602ed`，`0.7.2-pre.1` 批次，2026-10-30 第九十七 session，Node 26；typecheck 0 / 0、vite build 成功）。前次 5972 passed / 334 files / 3 skipped；`test:legacy` 472 / 0（塔台聯合驗證 @ `bfe7f0d6`，發 `v0.7.1-pre.7` 前，2026-10-25 第九十三 session；typecheck 0 / 0、vite build 成功）。前次 5661 passed / 322 files（@ `72d77cf1`，發 `v0.7.1-pre.4` 前，2026-10-19 第八十六 session） |
 
 ---
 
