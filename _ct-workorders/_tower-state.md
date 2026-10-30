@@ -1,15 +1,15 @@
 ---
 schema_kind: tower-state
 summary_version: 1
-updated_at: "2026-10-30T13:02:50+0800"
+updated_at: "2026-10-30T13:06:03+0800"
 session: "2026-10-30 13:02 第九十七 session 啟動（CT v5.14.0）"
 next_ids:
-  workorder: "T0710"
+  workorder: "T0711"
   decision: "D187"
   bug: "BUG-174"
   plan: "PLAN-056"
 todo:
-  - "CT plugin 安裝的 Codex 派工字串（`$ct:ct-exec`，BMad-Guide HANDOVER 已受理 `_reply-2026-10-30-ct-plugin-install-detection.md`）：開單做 3-1～3-3，3-4 評估；下一批發版，版號回報 CT"
+  - "T0710 已開（CT plugin 安裝的 Codex 派工字串 3-1～3-3，3-4 評估），待派工；下一批發版，版號回報 CT"
   - "實機驗收 v0.7.1-pre.9：BUG-172（> 512 KB CT 檔顯示無法讀取）、BUG-173（critical 顯示 High）"
   - "下一版換版號線（0.7.1 已到 pre.9），先與使用者確認"
   - "使用者以 v0.7.1-pre.9 日常使用驗收 BUG-171"
@@ -112,7 +112,7 @@ todo:
 - 歷史 sessions → [_archive/state-snapshots/INDEX.md](_archive/state-snapshots/INDEX.md)（112 entries）
 
 ### 編號起始
-- **T0710** / **BUG-174** / **PLAN-056** / **D187** / **EXP-WFMINE-002**（其他 TOPIC 從 001） / **L178** / **CT-T023**
+- **T0711** / **BUG-174** / **PLAN-056** / **D187** / **EXP-WFMINE-002**（其他 TOPIC 從 001） / **L178** / **CT-T023**
 
 ---
 
