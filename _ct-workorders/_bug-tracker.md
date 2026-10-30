@@ -23,10 +23,10 @@ breakdown:
 # Bug Tracker
 
 > ⚠️ 此文件由 `*sync` 自動生成，請勿手動編輯。
-> 最後同步：2026-10-30 13:20 (UTC+8) — BUG-172 / BUG-173 CLOSED（使用者以 v0.7.1-pre.9 實機驗收通過）；熱區 Fixed 28 / Closed 9
+> 最後同步：2026-10-30 15:06 (UTC+8) — 新增 BUG-174（GitHub #20，T0713 修復中）；熱區 Fixing 1 / Fixed 28 / Closed 9
 
 ## 統計
-- 🔴 Open: 0 | ⏳ Fixing: 0 | ✅ Fixed: 28 | 🧪 Verify: 0 | 🚫 Closed: 9 | ⛔ Won't Fix: 0 | **Total: 37**
+- 🔴 Open: 0 | ⏳ Fixing: 1 | ✅ Fixed: 28 | 🧪 Verify: 0 | 🚫 Closed: 9 | ⛔ Won't Fix: 0 | **Total: 38**
 
 ## 🔴 Open / 處理中
 
@@ -37,6 +37,7 @@ breakdown:
 
 | ID | 標題 | 嚴重度 | 修復時間 | 連結 |
 |----|------|--------|---------|------|
+| BUG-174 | 終端 `file:///` 連結：全形字讓底線與可點範圍變短、跨行抓不到、OSC 8 點了沒反應（GitHub #20） | 🟡 medium | T0713 派工 2026-10-30 | [BUG-174](BUG-174-terminal-file-link-cjk-range-wrap-osc8.md) |
 
 ## ✅ 已修復
 
