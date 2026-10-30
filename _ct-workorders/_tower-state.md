@@ -1,7 +1,7 @@
 ---
 schema_kind: tower-state
 summary_version: 1
-updated_at: "2026-10-30T16:26:13+0800"
+updated_at: "2026-10-30T16:31:08+0800"
 session: "2026-10-30 第九十八 session 進行中（CT v5.14.3）：BUG-165 / 166 CLOSED、BUG-175 → T0714 派工"
 next_ids:
   workorder: "T0715"
@@ -10,7 +10,7 @@ next_ids:
   plan: "PLAN-057"
 todo:
   - "實機驗收 BUG-174（v0.7.2-pre.2 終端 file:/// 連結：全形字、跨行、OSC 8）；通過後關 GitHub #20"
-  - "GitHub #21：等回報者試用或 CT 補巢狀獨立 repo 文件後關閉"
+  - "GitHub #21：CT 5.14.3 已補巢狀獨立 repo 文件，待使用者同意後留言並關閉"
   - "使用者日常使用驗收 BUG-171"
   - "外部測試者A 驗收 BUG-169"
   - "BUG-156 / 159 待特定環境驗收"
@@ -104,7 +104,7 @@ todo:
 
 ### 待辦（依優先序）
 -1. 🔴 **BUG-174 實機驗收**（`v0.7.2-pre.2`）：終端印出含全形字的 `file:///` 路徑整段有底線、尾端可點；縮窄視窗讓路徑換行再試；Claude CLI 的 Markdown 連結（OSC 8）點得開、滑過顯示目標。通過後 CLOSED 並關 GitHub #20（或等回報者確認）
-0. 🟢 **GitHub #21**：等回報者試用建議配置，或 CT 補〈巢狀的獨立 repo〉文件後通知再關；**後續候選**：設定面板「預設值」層找手動安裝沒看 `CLAUDE_CONFIG_DIR`（T0711 回報）
+0. 🟢 **GitHub #21**：CT 5.14.3 已發布〈巢狀的獨立 repo〉（`mono-repo-patterns.md`；Portal `/deep/features/multi-tower`；BMad-Guide 塔台 2026-10-30 通知，含 CT 5.14.2 + BAT 0.7.2-pre.1 實機結果），待使用者同意後留言並關閉；**後續候選**：設定面板「預設值」層找手動安裝沒看 `CLAUDE_CONFIG_DIR`（T0711 回報）
 1. 🔴 **BUG-171 實機驗收**（`v0.7.1-pre.8` 起）：日常使用遇 NTP 校時 / 睡眠喚醒不再「終端已恢復」、分頁不再 exit 1；可看 debug log `[heartbeat] late pong`。T0704 後續候選（TCP 模式 pid 重用、舊 server 結束失敗無補救、卡住但存活永不 recovery）暫不開單
 2. 🔴 **外部測試者A 驗收**：BUG-169（安裝版 `bat-terminal.mjs --version`）→ 通過即 CLOSED（BUG-165 / 166 已於第九十八 session 2026-10-30 依外部測試者A 回覆 CLOSED）
 3. 🟢 **後續候選**：PLAN-055（recovery 後 agent 分頁可 `--resume`）；總覽計數加「需要處理」徽章（PAUSED / BLOCKED / PARTIAL…，T0702 建議 2）；BAT 封存區 3 檔 `status: CLOSED` 顯示 Invalid（T0702 建議 1）；BAT 自己的 `_tower-state.md` 在 CT v6 上線後寫入摘要；codex Worker 分頁也接管滾輪（T0698 Q-1 [B]，`externalAgent` 欄位）；T0698 e2e（選做未做）；Windows / Linux 滾輪一格行數是否過快待回饋
