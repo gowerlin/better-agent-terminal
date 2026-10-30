@@ -3,16 +3,16 @@ schema_version: 1
 schema_kind: index
 id: _bug-tracker
 index_kind: bugs
-generated_at: "2026-10-30T16:23:07+0800"
+generated_at: "2026-10-30T16:25:01+0800"
 generator: control-tower-sync
 source_globs:
   - _ct-workorders/BUG-*.md
 exclude_globs:
   - _ct-workorders/_archive/**
   - _ct-workorders/examples/**
-total: 38
+total: 39
 breakdown:
-  OPEN: 0
+  OPEN: 1
   FIXING: 0
   FIXED: 27
   VERIFY: 0
@@ -23,15 +23,16 @@ breakdown:
 # Bug Tracker
 
 > ⚠️ 此文件由 `*sync` 自動生成，請勿手動編輯。
-> 最後同步：2026-10-30 16:23 (UTC+8) — BUG-165 / 166 CLOSED（外部測試者A macOS 實機確認）；熱區 Fixed 27 / Closed 11
+> 最後同步：2026-10-30 16:25 (UTC+8) — BUG-175 OPEN（縮圖預覽不更新）；熱區 Open 1 / Fixed 27 / Closed 11
 
 ## 統計
-- 🔴 Open: 0 | ⏳ Fixing: 0 | ✅ Fixed: 27 | 🧪 Verify: 0 | 🚫 Closed: 11 | ⛔ Won't Fix: 0 | **Total: 38**
+- 🔴 Open: 1 | ⏳ Fixing: 0 | ✅ Fixed: 27 | 🧪 Verify: 0 | 🚫 Closed: 11 | ⛔ Won't Fix: 0 | **Total: 39**
 
 ## 🔴 Open / 處理中
 
 | ID | 標題 | 嚴重度 | 建立時間 | 連結 |
 |----|------|--------|---------|------|
+| BUG-175 | 縮圖預覽停在 agent 啟動畫面不更新（輸出沒有換行時預覽不前進），並露出 `>0q>4m` 殘骸 | 🟡 medium | 2026-10-30 | [BUG-175](BUG-175-thumbnail-preview-stuck-without-newline.md) |
 
 ## ⏳ 修復中 (FIXING)
 
