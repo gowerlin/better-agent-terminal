@@ -17,6 +17,7 @@ T0710 前 BAT 的 Codex 派工一律送 `$ct-exec`，只裝 plugin 時 Worker �
 - **3-1** Codex 派工字串依該主機的安裝方式送 `$ct-exec` 或 `$ct:ct-exec`（helper 派工與面板一鍵派工）
 - **3-2** ct-config「預設值」層在沒有手動安裝時讀 plugin 的 `tower-config.md`
 - **3-3** Claude 面板的 skill 清單與 `*` 補全列出 `ct@*` plugin 的 skill
+- **3-4**（T0711）同一個 agent 兩種都裝時，指揮塔總覽提示實際生效的是 zip 那份
 - Claude 端字串不變（`/ct-exec`）；`bat-terminal.mjs --skill` 白名單與 CT 的派工命令不變
 
 ## 必守規則
@@ -40,6 +41,7 @@ T0710 前 BAT 的 Codex 派工一律送 `$ct-exec`，只裝 plugin 時 Worker �
 | config.toml 子集解析 | `findCodexCtPlugin`（同檔） |
 | plugin 位置（Claude / Codex） | `findClaudeCtPlugins` / `findCodexCtPlugins` / `ctPluginTowerConfigCandidates` / `claudeCtPluginSkillDirs`（同檔） |
 | 版本比較 | `compareCtPluginVersions`（同檔） |
+| 3-4 兩種都裝（T0711） | 偵測 `detectCtInstalls`（同檔）→ `ct:read-config-sources` 的 `installs`；提示整理 `dualInstallNotices`（`src/lib/ct-tower-overview.ts`）、畫面 `DualInstallRow`（`src/components/TowerOverview.tsx`） |
 | helper 派工 | `createAgentPromptCommandBuilder` 的 `codexSkillName` dep（`electron/terminal-command-handlers.ts`）；main（`electron/main.ts`）與 headless（`createHeadlessTerminalModule`，`electron/remote/headless-entry.ts`）各自以本機 home + `process.env` 建立 |
 | 面板一鍵派工 | channel `terminal:control-tower-prompt`（`registerTerminalCommandHandlers`，本機與 headless 共用）；renderer `resolveControlTowerWorkOrderCommand`（`src/utils/control-tower-launch.ts`），呼叫點 `src/App.tsx`、`src/components/WorkspaceView.tsx` |
 | 3-2 ct-config 預設值層 | `readCtConfigSources` / `readDefaults`（`electron/handlers/ct-config.ts`） |
@@ -126,6 +128,22 @@ renderer 不能讀檔，經 proxied channel `terminal:control-tower-prompt` 由�
 - `*` 補全照舊只收 `ct-*` / `gsd-*` 目錄名。
 - 只看 Claude 的 plugin（面板對象是 Claude），不看 Codex 的 plugin cache。
 
+## 3-4 兩種都裝時提示（T0711）
+
+同一個 agent 同時有 zip 與 plugin 安裝時，`/ct-exec`、`$ct-exec` 跑的是 zip 那份（可能是舊版），使用者看不出來。BAT 在指揮塔「總覽」的 `*config` 區塊提示（畫面規則見 [ct-tower-overview.md](ct-tower-overview.md)「兩種安裝並存的提示」）。
+
+- 🔴 偵測只在 `detectCtInstalls`（`electron/ct-install-detect.ts`）；Claude 與 Codex 各自**不短路**地查完手動與 plugin。唯讀：不改、不刪任何安裝檔或設定檔，也不提供移除按鈕。
+- 傳遞：併進 `ct:read-config-sources` 回傳的**選填**欄位 `installs`（型別 `CtInstalls`，`src/types/ct-config-sources.ts`）；`homeDir` / `global` / `defaults` 不變。遠端由回答的主機判斷；早於 T0711 的 bat-server 沒有這個欄位 → 不顯示提示、不報錯。
+
+| | 手動（zip） | plugin |
+|---|---|---|
+| Claude | `<CLAUDE_CONFIG_DIR 或 ~/.claude>/skills` 有 `control-tower/SKILL.md` 或 `ct-exec/SKILL.md` | `findClaudeCtPlugins` 的最新一筆（`user` / `managed` scope，`enabledPlugins` 沒停用） |
+| Codex | `<CODEX_HOME>/skills`，再 `<home>/.agents/skills`（3-1 的順序），同上兩個檔 | `config.toml` 有 `enabled = true` 的 `[plugins."ct@<mkt>"]`（`findCodexCtPlugin`） |
+| 版號 | `control-tower/SKILL.md` 的 `<!-- control-tower-version: x.y.z -->`，沒有再看 `ct-exec/SKILL.md` 的 `<!-- ct-exec-version: x.y.z -->` | Claude：`installed_plugins.json` 的 `version`（沒有則 cache 目錄的版本段）；Codex：同 marketplace 的 `plugins/cache/<mkt>/ct/<version>` 最新目錄名 |
+
+- 版號讀不到、或不是版號格式（`compareCtPluginVersions` 認不得）→ `null`，不是錯誤；前綴 `v` 去掉。停用的 plugin（Codex `enabled = false`、Claude `enabledPlugins[id] === false`）不算安裝。
+- 每次讀 `ct:read-config-sources` 多幾次 `stat` 與 ≤ 1 MiB 小檔讀取；任何失敗 → 該 agent 回 `{ manual: null, plugin: null }`，不丟例外。
+
 ## 已知限制
 
 - Codex plugin 是否啟用只看 `config.toml` 表頭形式；點號 key / inline table 寫法 → `$<skill>`（③，保守）。
@@ -133,14 +151,15 @@ renderer 不能讀檔，經 proxied channel `terminal:control-tower-prompt` 由�
 - Claude plugin 的啟用只看使用者 `settings.json` 的 `enabledPlugins`，不看專案 / managed 設定。
 - 判斷是派工當下讀檔（不快取）；每次派工最多幾次 `stat` 與一次 ≤ 1 MiB 的讀檔。
 - 手動安裝缺某個 skill 但 plugin 有（例如只手動裝了 `ct-exec`）時，該 skill 走 plugin（`$ct:ct-done`），與 Codex 自己的解析一致。
-- 3-4（兩種都裝時提示）未實作，評估見 T0710 回報區。
+- 3-4 的手動安裝只看 skill 目錄有沒有 `control-tower/SKILL.md` 或 `ct-exec/SKILL.md`，不逐一比對其他 `ct-*` skill；Claude plugin 只看 `user` / `managed` scope（不帶 cwd，專案 scope 的 plugin 不列入）。
 
 ## 驗證清單
 
 - 單元測試：
   - `electron/__tests__/ct-install-detect.test.ts`：§ 6-2 三情境、`enabled = false`、無 config、壞 toml、無 `enabled` 行、大小上限、`~/.agents/skills`、`CODEX_HOME` / customEnv 優先、版本比較、Claude / Codex plugin 位置
   - `electron/__tests__/ct-plugin-dispatch-prefix.test.ts`：helper 派工、raw prompt、無判斷函式 / 丟例外 fallback、customEnv 經 handler、面板 channel 三種 shell 引號；有真 shell 時以 pwsh / cmd / bash 實跑確認收到字面值 `$ct:ct-exec T0710`
-  - `electron/__tests__/ct-config-sources.test.ts`：只 plugin、多版本取最新、手動優先、Codex plugin 用 `CODEX_HOME`
+  - `electron/__tests__/ct-config-sources.test.ts`：只 plugin、多版本取最新、手動優先、Codex plugin 用 `CODEX_HOME`；T0711 回傳 `installs` 且 `defaults` 不變
+  - T0711：`ct-install-detect.test.ts` 的 `detectCtInstalls`（都沒裝 / 只手動 / 只 plugin / 兩種同版與不同版 / 版號讀不到 / 停用的 plugin / `CODEX_HOME`、`CLAUDE_CONFIG_DIR`）；`src/lib/__tests__/ct-tower-overview.test.ts` 的 `dualInstallNotices`（含舊 server 沒有欄位、欄位格式不對）；`src/components/__tests__/tower-overview.test.tsx`（提示出現 / 不出現、警示與資訊、位置在預設層下方）
   - `electron/__tests__/claude-scan-skills-ct-plugin.test.ts`：只 plugin、同名去重、其他 plugin 不列
   - `src/utils/__tests__/control-tower-launch.test.ts`：Claude 不變、Codex 用主機引號、舊 bat-server fallback
   - `src/utils/__tests__/shell-quote.test.ts`：`$ct:ct-exec T0710` 三種 family

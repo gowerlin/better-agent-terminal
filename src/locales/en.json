@@ -787,6 +787,8 @@
       "layerParseError": "YAML error, ignored: {{error}}",
       "noInstalledCt": "No installed Control Tower found; defaults unknown",
       "remoteUnsupported": "Remote workspace: global / default layers cannot be read (this host's BAT is older than this feature)",
+      "dualInstall": "CT is installed for {{agent}} both as a zip{{manualVersion}} and as a plugin{{pluginVersion}}; {{command}} uses the zip one. To use the plugin, remove the manually installed ct-* skill directories.",
+      "dualInstallVersion": " (v{{version}})",
       "layer": {
         "project": "project",
         "global": "global",

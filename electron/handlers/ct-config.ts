@@ -16,12 +16,16 @@
  * (electron/ct-install-detect.ts), from this host's `CLAUDE_CONFIG_DIR` / `CLAUDE_CODE_PLUGIN_CACHE_DIR`
  * / `CODEX_HOME`.
  *
+ * T0711: the answer also carries `installs` (`detectCtInstalls`, same module): whether Claude /
+ * Codex each have a zip install, the plugin, or both, with versions. Optional field; the other
+ * fields are unchanged.
+ *
  * 🔴 No `electron` import here (headless-electron-free guard).
  */
 import * as fs from 'fs/promises'
 import * as path from 'path'
 import { logger } from '../logger'
-import { codexHomeDir, ctPluginTowerConfigCandidates, type CtInstallHost, type EnvLike } from '../ct-install-detect'
+import { codexHomeDir, ctPluginTowerConfigCandidates, detectCtInstalls, type CtInstallHost, type EnvLike } from '../ct-install-detect'
 import type { CtConfigSourceFile, CtConfigSources } from '../../src/types/ct-config-sources'
 import type { HandlerRegistrar } from './types'
 
@@ -84,11 +88,12 @@ function readError(candidate: string, err: unknown): CtConfigSourceFile {
 export async function readCtConfigSources(homeDir: string, env: EnvLike = {}): Promise<CtConfigSources> {
   const candidates = ctConfigCandidates(homeDir, env)
   const host: CtInstallHost = { homeDir, env }
-  const [global, defaults] = await Promise.all([
+  const [global, defaults, installs] = await Promise.all([
     readFirstExisting(candidates.global),
     readDefaults(candidates.defaults, host),
+    detectCtInstalls(host),
   ])
-  return { homeDir, global, defaults }
+  return { homeDir, global, defaults, installs }
 }
 
 /** T0710 (3-2): a manual install wins (it is what runs); only when none exists, the plugin copies. */

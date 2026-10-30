@@ -293,6 +293,53 @@ describe('TowerOverview — *config (R2)', () => {
   })
 })
 
+describe('T0711: CT installed both as a zip and as a plugin', () => {
+  const dualNotices = () => [...document.querySelectorAll('.ct-overview-dual-install')]
+    .map(e => [e.getAttribute('data-level'), e.textContent])
+  const withInstalls = (installs: CtConfigSources['installs']): CtConfigSources => ({ ...sourcesWith(null, DEFAULTS_MD), installs })
+
+  it('different versions → warning under the default layer; same version → info; each agent named', async () => {
+    setup({}, async () => withInstalls({
+      claude: { manual: { version: '5.13.2' }, plugin: { version: '5.14.0', marketplace: 'control-tower' } },
+      codex: { manual: { version: '5.14.0' }, plugin: { version: '5.14.0', marketplace: 'control-tower' } },
+    }))
+    await openOverview()
+    expect(dualNotices()).toEqual([
+      ['warn', '⚠️ CT is installed for Claude both as a zip (v5.13.2) and as a plugin (v5.14.0); /ct-exec uses the zip one. To use the plugin, remove the manually installed ct-* skill directories.'],
+      ['info', 'ℹ️ CT is installed for Codex both as a zip (v5.14.0) and as a plugin (v5.14.0); $ct-exec uses the zip one. To use the plugin, remove the manually installed ct-* skill directories.'],
+    ])
+    const notice = document.querySelector('.ct-overview-dual-install')!
+    expect(notice.parentElement?.classList.contains('ct-overview-layers')).toBe(true)
+    expect(notice.previousElementSibling?.textContent).toContain(ov.layer.default)
+  })
+
+  it('an unreadable version is left out of the text', async () => {
+    setup({}, async () => withInstalls({
+      claude: { manual: { version: null }, plugin: { version: '5.14.0', marketplace: 'control-tower' } },
+      codex: { manual: null, plugin: null },
+    }))
+    await openOverview()
+    expect(dualNotices()).toEqual([
+      ['info', 'ℹ️ CT is installed for Claude both as a zip and as a plugin (v5.14.0); /ct-exec uses the zip one. To use the plugin, remove the manually installed ct-* skill directories.'],
+    ])
+  })
+
+  it('only one kind installed, or an older server without the field → nothing shown', async () => {
+    setup({}, async () => withInstalls({
+      claude: { manual: { version: '5.14.0' }, plugin: null },
+      codex: { manual: null, plugin: { version: '5.14.0', marketplace: 'control-tower' } },
+    }))
+    await openOverview()
+    expect(dualNotices()).toEqual([])
+    cleanup()
+
+    setup({}, async () => sourcesWith(null, DEFAULTS_MD))
+    await openOverview()
+    expect(dualNotices()).toEqual([])
+    expect(configRow('archive_days')).toEqual(['7', 'default'])
+  })
+})
+
 describe('R3 / R5: sprint block and live updates', () => {
   it('sprint block only when sprint-status.yaml exists', async () => {
     setup({

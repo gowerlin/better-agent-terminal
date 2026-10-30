@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import {
+  dualInstallNotices,
   extractLastUpdatedLine,
   formatConfigValue,
   isListedInOverview,
@@ -392,5 +393,41 @@ describe('T0702: TODO is an alias of PENDING', () => {
 
   it('other unknown values stay INVALID', () => {
     expect(parseWorkOrder('T9100-x.md', frontmatterOrder('CLOSED')).status).toBe('INVALID')
+  })
+})
+
+// T0711: one notice per agent with both a zip install and the plugin.
+describe('dualInstallNotices', () => {
+  const none = { manual: null, plugin: null }
+
+  it('only manual / only plugin / nothing → no notice', () => {
+    expect(dualInstallNotices({
+      claude: { manual: { version: '5.14.0' }, plugin: null },
+      codex: { manual: null, plugin: { version: '5.14.0', marketplace: 'm' } },
+    })).toEqual([])
+    expect(dualInstallNotices({ claude: none, codex: none })).toEqual([])
+  })
+
+  it('both, same version → info; different → warn; Claude first', () => {
+    expect(dualInstallNotices({
+      codex: { manual: { version: '5.13.2' }, plugin: { version: '5.14.0', marketplace: 'm' } },
+      claude: { manual: { version: '5.14.0' }, plugin: { version: '5.14.0', marketplace: 'm' } },
+    })).toEqual([
+      { agent: 'claude', manualVersion: '5.14.0', pluginVersion: '5.14.0', level: 'info' },
+      { agent: 'codex', manualVersion: '5.13.2', pluginVersion: '5.14.0', level: 'warn' },
+    ])
+  })
+
+  it('a version that cannot be read → info, version null', () => {
+    expect(dualInstallNotices({
+      claude: { manual: { version: null }, plugin: { version: '5.14.0', marketplace: 'm' } },
+      codex: none,
+    })).toEqual([{ agent: 'claude', manualVersion: null, pluginVersion: '5.14.0', level: 'info' }])
+  })
+
+  it('older server (no field) or a malformed field → no notice, no throw', () => {
+    expect(dualInstallNotices(undefined)).toEqual([])
+    expect(dualInstallNotices('x')).toEqual([])
+    expect(dualInstallNotices({ claude: 'x', codex: { manual: 1, plugin: {} } })).toEqual([])
   })
 })

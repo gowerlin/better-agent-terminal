@@ -786,6 +786,8 @@
       "layerParseError": "YAML 错误，已忽略：{{error}}",
       "noInstalledCt": "找不到已安装的 Control Tower，默认值未知",
       "remoteUnsupported": "远程工作区无法读取 global／默认（远程主机的 BAT 版本较旧）",
+      "dualInstall": "{{agent}}：CT 同时以 zip{{manualVersion}}与 plugin{{pluginVersion}}安装；{{command}} 使用的是 zip 那份。要改用 plugin，请移除手动安装的 ct-* skill 目录。",
+      "dualInstallVersion": "（v{{version}}）",
       "layer": {
         "project": "project",
         "global": "global",

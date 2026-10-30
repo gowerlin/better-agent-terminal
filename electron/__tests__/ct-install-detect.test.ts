@@ -5,6 +5,7 @@
  *     both → `ct-exec`; only manual / plugin `enabled = false` → `ct-exec`; anything unreadable → `ct-exec`
  *   - `CODEX_HOME` of the tab's env, never a fixed `~/.codex`
  *   - 3-2 / 3-3 plugin locations (Claude `installed_plugins.json`, Codex plugin cache, newest version)
+ *   - T0711 (3-4): each agent's installs with versions (`detectCtInstalls`), for the dual-install notice
  * Everything runs in temp dirs; the real `~/.codex` / `~/.claude` are never read.
  */
 import * as fs from 'fs'
@@ -22,6 +23,7 @@ import {
   compareCtPluginVersions,
   createCodexSkillNameResolver,
   ctPluginTowerConfigCandidates,
+  detectCtInstalls,
   findClaudeCtPlugins,
   findCodexCtPlugin,
   findCodexCtPlugins,
@@ -291,5 +293,90 @@ describe('plugin locations (3-2 / 3-3)', () => {
     const candidates = await ctPluginTowerConfigCandidates(host())
     expect(candidates).toHaveLength(2)
     expect(candidates[0].startsWith(claude)).toBe(true)
+  })
+})
+
+describe('T0711 detectCtInstalls — manual / plugin / both, with versions', () => {
+  const manualSkill = (dir: string, version?: string) =>
+    write(path.join(dir, 'control-tower', 'SKILL.md'), `---\nname: control-tower\n---\n${version ? `<!-- control-tower-version: ${version} -->\n` : ''}`)
+
+  function claudePlugin(version: string, marketplace = 'control-tower') {
+    const dir = path.join(home, '.claude', 'plugins', 'cache', marketplace, 'ct', version)
+    write(path.join(dir, 'skills', 'ct-exec', 'SKILL.md'), SKILL_MD)
+    write(path.join(home, '.claude', 'plugins', 'installed_plugins.json'), JSON.stringify({
+      version: 2,
+      plugins: { [`ct@${marketplace}`]: [{ scope: 'user', installPath: dir, version }] },
+    }))
+  }
+
+  it('nothing installed → no installs for either agent', async () => {
+    expect(await detectCtInstalls(host())).toEqual({
+      claude: { manual: null, plugin: null },
+      codex: { manual: null, plugin: null },
+    })
+  })
+
+  it('only manual: Claude version from control-tower/SKILL.md; Codex ct-exec only → version from ct-exec-version', async () => {
+    manualSkill(path.join(home, '.claude', 'skills'), '5.13.2')
+    write(path.join(home, '.codex', 'skills', 'ct-exec', 'SKILL.md'), `${SKILL_MD}<!-- ct-exec-version: 5.12.0 -->\n`)
+    expect(await detectCtInstalls(host())).toEqual({
+      claude: { manual: { version: '5.13.2' }, plugin: null },
+      codex: { manual: { version: '5.12.0' }, plugin: null },
+    })
+  })
+
+  it('only plugin: Claude from installed_plugins.json, Codex enabled in config.toml with its cache version', async () => {
+    claudePlugin('5.14.0')
+    installCodexPlugin(path.join(home, '.codex'), { version: '5.14.0' })
+    expect(await detectCtInstalls(host())).toEqual({
+      claude: { manual: null, plugin: { version: '5.14.0', marketplace: 'control-tower' } },
+      codex: { manual: null, plugin: { version: '5.14.0', marketplace: 'ct-test-mkt' } },
+    })
+  })
+
+  it('both installed, same and different versions (no short-circuit on the manual install)', async () => {
+    manualSkill(path.join(home, '.claude', 'skills'), '5.14.0')
+    claudePlugin('5.14.0')
+    manualSkill(path.join(home, '.agents', 'skills'), '5.13.2')
+    installCodexPlugin(path.join(home, '.codex'), { version: '5.14.0' })
+    expect(await detectCtInstalls(host())).toEqual({
+      claude: { manual: { version: '5.14.0' }, plugin: { version: '5.14.0', marketplace: 'control-tower' } },
+      codex: { manual: { version: '5.13.2' }, plugin: { version: '5.14.0', marketplace: 'ct-test-mkt' } },
+    })
+  })
+
+  it('versions that cannot be read are null, not an error', async () => {
+    manualSkill(path.join(home, '.claude', 'skills'))
+    write(path.join(home, '.claude', 'plugins', 'installed_plugins.json'), JSON.stringify({
+      version: 2,
+      plugins: { 'ct@control-tower': [{ scope: 'user', installPath: path.join(home, 'plugin-dir') }] },
+    }))
+    manualSkill(path.join(home, '.codex', 'skills'), 'not-a-version')
+    write(path.join(home, '.codex', 'config.toml'), '[plugins."ct@mkt"]\nenabled = true\n')
+    expect(await detectCtInstalls(host())).toEqual({
+      claude: { manual: { version: null }, plugin: { version: null, marketplace: 'control-tower' } },
+      codex: { manual: { version: null }, plugin: { version: null, marketplace: 'mkt' } },
+    })
+  })
+
+  it('a disabled Codex plugin and a disabled Claude plugin are not installs', async () => {
+    installCodexPlugin(path.join(home, '.codex'), { enabled: false })
+    claudePlugin('5.14.0')
+    write(path.join(home, '.claude', 'settings.json'), JSON.stringify({ enabledPlugins: { 'ct@control-tower': false } }))
+    expect(await detectCtInstalls(host())).toEqual({
+      claude: { manual: null, plugin: null },
+      codex: { manual: null, plugin: null },
+    })
+  })
+
+  it('follows CODEX_HOME and CLAUDE_CONFIG_DIR, never a fixed ~/.codex / ~/.claude', async () => {
+    const codexHome = path.join(root, 'codex-home')
+    const claudeDir = path.join(root, 'claude-config')
+    manualSkill(path.join(codexHome, 'skills'), '5.13.0')
+    manualSkill(path.join(claudeDir, 'skills'), '5.11.0')
+    manualSkill(path.join(home, '.claude', 'skills'), '1.0.0')
+    const installs = await detectCtInstalls(host({ CODEX_HOME: codexHome, CLAUDE_CONFIG_DIR: claudeDir }))
+    expect(installs.codex.manual).toEqual({ version: '5.13.0' })
+    expect(installs.claude.manual).toEqual({ version: '5.11.0' })
   })
 })

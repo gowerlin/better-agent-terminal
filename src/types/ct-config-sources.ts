@@ -22,4 +22,23 @@ export interface CtConfigSources {
    * T0710: with no manual install, the `ct` plugin's copy (Claude, then Codex; `…/plugins/cache/<mkt>/ct/<version>/…`).
    */
   defaults: CtConfigSourceFile
+  /**
+   * T0711: how CT is installed for each agent on the answering host (`detectCtInstalls`,
+   * electron/ct-install-detect.ts). Optional: a bat-server before T0711 does not send it, and the
+   * overview then shows no dual-install notice.
+   */
+  installs?: CtInstalls
+}
+
+/** T0711: one agent's CT installs. `version` is `null` when it cannot be read (not an error). */
+export interface CtAgentInstalls {
+  /** A zip (manual) install of the skills; this is the one `/ct-exec` / `$ct-exec` runs when both exist. */
+  manual: { version: string | null } | null
+  /** An enabled `ct@<marketplace>` plugin. */
+  plugin: { version: string | null; marketplace: string } | null
+}
+
+export interface CtInstalls {
+  claude: CtAgentInstalls
+  codex: CtAgentInstalls
 }

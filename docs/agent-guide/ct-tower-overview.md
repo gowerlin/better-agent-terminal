@@ -125,6 +125,16 @@ todo:                                     # 選填，字串陣列，顯示前 5 
 - project 層：既有 `fs:readFile` proxied 路徑（遠端主機的檔案）。
 - global / 預設：`ct:read-config-sources` proxied 到視窗綁定的 bat-server，讀**遠端使用者**的家目錄（headless `createHeadlessCtConfigModule`，`host.homeDir` = `os.homedir()`）。遠端沒有安裝 CT → 「找不到已安裝的 Control Tower，預設值未知」。
 - 遠端 bat-server 早於 T0701（沒有 handler，`No handler for channel: ct:read-config-sources`）→ 兩層都顯示「遠端工作區無法讀取 global／預設（遠端主機的 BAT 版本較舊）」，不 fallback 本機。沒有 live 連線 → proxied IPC 照既有規則拒絕，顯示讀取錯誤。
+- T0711：回傳另有選填的 `installs`（`{ claude, codex }`，每個 agent `manual: { version } | null`、`plugin: { version, marketplace } | null`，偵測規則見 [ct-plugin-install.md](ct-plugin-install.md)「3-4」）。既有三個欄位的名稱、型別、語意不變。
+
+### 兩種安裝並存的提示（T0711）
+
+- 同一個 agent（Claude 或 Codex）**同時有**手動與 plugin 安裝時，在層狀態列「預設」那一行底下加一行（`.ct-overview-dual-install`，Claude 在前）；只裝一種、都沒裝、`installs` 不存在（早於 T0711 的 bat-server）或格式不對 → 不顯示任何東西、不報錯。
+- 兩邊版號都讀得到且不同 → 警示（`⚠️`，`data-level="warn"`）；相同或任一讀不到 → 資訊（`ℹ️`，`data-level="info"`）。讀不到的版號從文字省略。
+- 文字（i18n `controlTower.overview.dualInstall` / `dualInstallVersion`，三個 locale）：「Claude：CT 同時以 zip（v5.13.2）與 plugin（v5.14.0）安裝；/ct-exec 使用的是 zip 那份。要改用 plugin，請移除手動安裝的 ct-* skill 目錄。」Codex 那行寫 `$ct-exec`。
+- 🔴 只提示：不改、不刪任何安裝檔或設定檔，不加移除按鈕。整理唯一實作 `dualInstallNotices`（`src/lib/ct-tower-overview.ts`，純函式，對遠端回傳做防禦）、畫面 `DualInstallRow`（`src/components/TowerOverview.tsx`）。
+- 樣式沿用既有 class（`.ct-overview-hint` 底色框；警示文字用 `.ct-validation-warn` 的橘色），沒有新增 CSS。
+
 - channel 分類：`PROXIED_CHANNELS`、`PATH_FREE_CHANNELS`（無參數）、`SERVER_PATH_RESULT_CHANNELS`（回傳的檔案路徑只供顯示，維持 server 形式）。
 
 ## 已知限制
@@ -136,5 +146,5 @@ todo:                                     # 選填，字串陣列，顯示前 5 
 
 ## 驗證清單
 
-- 單元測試：`src/lib/__tests__/ct-tower-overview.test.ts`（摘要有 / 無 / 壞掉、`summary_version` 2、各種不合格的版本與 kind、最後更新 fallback、預設表、config 平 / 巢狀 / 壞掉、三層缺任一層、只在上層出現的鍵、工單分類、無 `status` 的工單檔；T0702：BMad-Guide `T0098` / `T0099-audit-report` 檔頭原文、引用區塊各寫法、報告檔仍 `UNKNOWN`、表頭搶先匹配、`PAUSED`、`TODO` 別名與 drift）；`src/components/__tests__/tower-overview.test.tsx`（畫面各狀態、R4 計數與同編號去重、T0702 計數 / 徽章 / 按鈕 / 總覽列出、R2 來源與被覆蓋值、遠端不支援、R3 sprint 區塊、R5 監看觸發更新與可見 / 重新整理重讀）；`electron/__tests__/ct-config-sources.test.ts`（候選順序、新路徑優先、過大檔案、註冊）；`electron/remote/__tests__/path-aware-channels-coverage.test.ts`、`headless-parity.test.ts`（channel 分類與 headless 註冊）。
+- 單元測試：`src/lib/__tests__/ct-tower-overview.test.ts`（摘要有 / 無 / 壞掉、`summary_version` 2、各種不合格的版本與 kind、最後更新 fallback、預設表、config 平 / 巢狀 / 壞掉、三層缺任一層、只在上層出現的鍵、工單分類、無 `status` 的工單檔；T0702：BMad-Guide `T0098` / `T0099-audit-report` 檔頭原文、引用區塊各寫法、報告檔仍 `UNKNOWN`、表頭搶先匹配、`PAUSED`、`TODO` 別名與 drift）；`src/components/__tests__/tower-overview.test.tsx`（畫面各狀態、R4 計數與同編號去重、T0702 計數 / 徽章 / 按鈕 / 總覽列出、R2 來源與被覆蓋值、遠端不支援、R3 sprint 區塊、R5 監看觸發更新與可見 / 重新整理重讀）；`electron/__tests__/ct-config-sources.test.ts`（候選順序、新路徑優先、過大檔案、註冊；T0711 `installs`）；T0711 兩種安裝並存的提示：`ct-tower-overview.test.ts` 的 `dualInstallNotices`、`tower-overview.test.tsx` 的「CT installed both as a zip and as a plugin」；`electron/remote/__tests__/path-aware-channels-coverage.test.ts`、`headless-parity.test.ts`（channel 分類與 headless 註冊）。
 - 實機（T0701 以隔離實例執行，見工單回報區）：BAT 工作區（沒有摘要）、BMad-Guide（有摘要、沒有 sprint-status.yaml）、scratchpad 工作區（摘要 + 巢狀 config）；外部改 `_tower-config.yaml` / 摘要 `todo` → 不按按鈕約 0.6 s 內更新 → 改回原值，`git diff` 乾淨。

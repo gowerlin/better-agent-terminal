@@ -285,3 +285,39 @@ export function workOrderPhase(status: WorkOrderStatus): WorkOrderPhase {
 export function isListedInOverview(status: WorkOrderStatus): boolean {
   return workOrderPhase(status) === 'open' || status === 'INVALID'
 }
+
+// ─── CT installed twice (T0711) ─────────────────────────────────────────────
+
+export interface DualInstallNotice {
+  agent: 'claude' | 'codex'
+  manualVersion: string | null
+  pluginVersion: string | null
+  /** `warn` when both versions are known and differ; otherwise `info`. */
+  level: 'warn' | 'info'
+}
+
+/**
+ * One notice per agent that has both a zip (manual) install and the `ct` plugin, Claude first.
+ * `installs` comes from another host (bat-server) and may be missing (older server) or malformed:
+ * anything that is not the T0711 shape yields no notice.
+ */
+export function dualInstallNotices(installs: unknown): DualInstallNotice[] {
+  if (!installs || typeof installs !== 'object') return []
+  const notices: DualInstallNotice[] = []
+  for (const agent of ['claude', 'codex'] as const) {
+    const entry = (installs as Record<string, unknown>)[agent]
+    if (!entry || typeof entry !== 'object') continue
+    const { manual, plugin } = entry as { manual?: unknown; plugin?: unknown }
+    if (!manual || typeof manual !== 'object' || !plugin || typeof plugin !== 'object') continue
+    const manualVersion = versionField(manual)
+    const pluginVersion = versionField(plugin)
+    const level = manualVersion !== null && pluginVersion !== null && manualVersion !== pluginVersion ? 'warn' : 'info'
+    notices.push({ agent, manualVersion, pluginVersion, level })
+  }
+  return notices
+}
+
+function versionField(value: object): string | null {
+  const version = (value as { version?: unknown }).version
+  return typeof version === 'string' && version.trim() ? version.trim() : null
+}

@@ -7,8 +7,10 @@ import {
   type ConfigEntry,
   type ConfigLayer,
   type TowerStateParse,
+  type DualInstallNotice,
   CONFIG_LAYER_ORDER,
   TOWER_STATE_TODO_LIMIT,
+  dualInstallNotices,
   isListedInOverview,
   mergeTowerConfig,
   parseTowerConfigDefaults,
@@ -204,6 +206,8 @@ function ConfigSection({ projectConfig, configSources, ctDirPath, onOpenFile }: 
     [defaults, global, project],
   )
 
+  const notices = useMemo(() => dualInstallNotices(sources?.installs), [sources])
+
   const layerName = (layer: ConfigLayer) => t(`controlTower.overview.layer.${layer}`)
 
   return (
@@ -225,6 +229,7 @@ function ConfigSection({ projectConfig, configSources, ctDirPath, onOpenFile }: 
         />
         <LayerStatus name={layerName('global')} text={hostLayerText(t, configSources, 'global', global?.error)} />
         <LayerStatus name={layerName('default')} text={hostLayerText(t, configSources, 'defaults', undefined)} />
+        {notices.map(notice => <DualInstallRow key={notice.agent} notice={notice} />)}
       </div>
 
       <label className="ct-archive-toggle ct-overview-toggle">
@@ -269,6 +274,29 @@ function LayerStatus({ name, text, onOpen }: { name: string; text: string; onOpe
       {onOpen
         ? <button className="ct-overview-link" onClick={onOpen}>{text}</button>
         : <span className="ct-overview-layer-text">{text}</span>}
+    </div>
+  )
+}
+
+/**
+ * T0711: one agent has both a zip install and the `ct` plugin; `/ct-exec` / `$ct-exec` runs the
+ * zip one. Different versions → warning; same or unknown → info. Text only, no action (read-only).
+ */
+function DualInstallRow({ notice }: { notice: DualInstallNotice }) {
+  const { t } = useTranslation()
+  const version = (value: string | null) => (value ? t('controlTower.overview.dualInstallVersion', { version: value }) : '')
+  const text = t('controlTower.overview.dualInstall', {
+    agent: notice.agent === 'claude' ? 'Claude' : 'Codex',
+    command: notice.agent === 'claude' ? '/ct-exec' : '$ct-exec',
+    manualVersion: version(notice.manualVersion),
+    pluginVersion: version(notice.pluginVersion),
+    interpolation: { escapeValue: false },
+  })
+  return (
+    <div className={`ct-overview-hint ct-overview-dual-install ct-overview-dual-install-${notice.level}`} data-level={notice.level}>
+      <span className={notice.level === 'warn' ? 'ct-validation-warn' : undefined}>
+        {notice.level === 'warn' ? '⚠️' : 'ℹ️'} {text}
+      </span>
     </div>
   )
 }

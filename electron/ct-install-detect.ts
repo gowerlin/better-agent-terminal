@@ -8,7 +8,8 @@
  *     `<plugin>:<skill>` and a `$ct-exec` mention of a plugin-only install injects nothing,
  *     silently);
  *   - where the `ct` plugin lives (`ctPluginTowerConfigCandidates` for the ct-config default
- *     layer, `claudeCtPluginSkillDirs` for the skill panel / `*` completion).
+ *     layer, `claudeCtPluginSkillDirs` for the skill panel / `*` completion);
+ *   - T0711: each agent's installs (`detectCtInstalls`) for the overview's dual-install notice.
  *
  * Callers: helper dispatch (`createAgentPromptCommandBuilder`), the panel's one-click dispatch
  * (`terminal:control-tower-prompt`), `ct:read-config-sources` (electron/handlers/ct-config.ts)
@@ -23,6 +24,7 @@
  */
 import * as fs from 'fs/promises'
 import * as path from 'path'
+import type { CtAgentInstalls, CtInstalls } from '../src/types/ct-config-sources'
 
 /** The CT plugin's fixed name (CT `version-governance.md` § plugin 安裝／升級); the marketplace is not fixed. */
 export const CT_PLUGIN_NAME = 'ct'
@@ -332,6 +334,76 @@ export async function ctPluginTowerConfigCandidates(host: CtInstallHost): Promis
 export async function claudeCtPluginSkillDirs(host: CtInstallHost, cwd?: string): Promise<{ dir: string; scope: 'project' | 'global' }[]> {
   const installs = await findClaudeCtPlugins(host, cwd)
   return installs.map(install => ({ dir: path.join(install.root, 'skills'), scope: 'global' as const }))
+}
+
+// ── Both installs at once (T0711) ──
+
+/** `<!-- control-tower-version: x.y.z -->` / `<!-- ct-exec-version: x.y.z -->` in a manual install's SKILL.md. */
+const MANUAL_VERSION_PATTERN = /<!--\s*(?:control-tower|ct-exec)-version:\s*([^\s>]+)\s*-->/
+
+const NO_INSTALLS: CtAgentInstalls = { manual: null, plugin: null }
+
+/**
+ * T0711 (T0710 3-4): Claude's and Codex's CT installs on this host, each looked at in full
+ * (no short-circuit), so the overview can tell when one agent has both a zip install and the
+ * plugin — `/ct-exec` / `$ct-exec` then runs the zip one.
+ *   - manual: Claude `<CLAUDE_CONFIG_DIR>/skills`, Codex `<CODEX_HOME>/skills` then
+ *     `<home>/.agents/skills` (the 3-1 order); a directory counts when it has `ct-exec/SKILL.md` or
+ *     `control-tower/SKILL.md`; version from `control-tower/SKILL.md`, else `ct-exec/SKILL.md`.
+ *   - plugin: Claude `findClaudeCtPlugins` (user / managed scope, not disabled), newest;
+ *     Codex an enabled `[plugins."ct@<mkt>"]` in `config.toml`, version from its cache directory.
+ * An unreadable version is `null`, not an error; any failure leaves that agent without installs.
+ */
+export async function detectCtInstalls(host: CtInstallHost): Promise<CtInstalls> {
+  const [claude, codex] = await Promise.all([
+    detectClaudeInstalls(host).catch(() => NO_INSTALLS),
+    detectCodexInstalls(host).catch(() => NO_INSTALLS),
+  ])
+  return { claude, codex }
+}
+
+async function detectClaudeInstalls(host: CtInstallHost): Promise<CtAgentInstalls> {
+  const manual = await findManualInstall([path.join(claudeConfigDir(host), 'skills')])
+  const newest = (await findClaudeCtPlugins(host))[0]
+  const plugin = newest
+    ? { version: versionOrNull(newest.version), marketplace: newest.id.slice(CT_PLUGIN_NAME.length + 1) }
+    : null
+  return { manual, plugin }
+}
+
+async function detectCodexInstalls(host: CtInstallHost): Promise<CtAgentInstalls> {
+  const codexHome = codexHomeDir(host)
+  const manual = await findManualInstall([path.join(codexHome, 'skills'), path.join(host.homeDir, '.agents', 'skills')])
+  let plugin: CtAgentInstalls['plugin'] = null
+  const config = await readSmallText(path.join(codexHome, 'config.toml'))
+  const state = config.ok ? findCodexCtPlugin(config.text) : null
+  if (state?.status === 'enabled') {
+    const id = `${CT_PLUGIN_NAME}@${state.marketplace}`
+    const cached = (await findCodexCtPlugins(host)).find(install => install.id === id)
+    plugin = { version: cached ? versionOrNull(cached.version) : null, marketplace: state.marketplace }
+  }
+  return { manual, plugin }
+}
+
+async function findManualInstall(skillDirs: string[]): Promise<CtAgentInstalls['manual']> {
+  for (const dir of skillDirs) {
+    const files = [path.join(dir, 'control-tower', 'SKILL.md'), path.join(dir, 'ct-exec', 'SKILL.md')]
+    let found = false
+    for (const file of files) {
+      if (!await isFile(file)) continue
+      found = true
+      const read = await readSmallText(file)
+      const version = read.ok ? read.text.match(MANUAL_VERSION_PATTERN)?.[1] : undefined
+      if (version && versionOrNull(version)) return { version: versionOrNull(version) }
+    }
+    if (found) return { version: null }
+  }
+  return null
+}
+
+/** A plugin cache directory name or a SKILL.md marker that is not a version → `null`. */
+function versionOrNull(version: string): string | null {
+  return parseVersion(version) ? version.trim().replace(/^v/i, '') : null
 }
 
 // ── fs helpers (never throw) ──

@@ -8,6 +8,7 @@ import type { HandlerRegistrar, SharedHandler } from '../handlers/types'
 
 // T0701: `ct:read-config-sources` reads fixed files under the answering host's home only.
 // T0710: plus the `ct` plugin's tower-config.md when no manual install has one.
+// T0711: plus the optional `installs` (zip / plugin per agent); the other fields are unchanged.
 
 let home: string
 
@@ -114,6 +115,24 @@ describe('T0710 (3-2): the ct plugin in the default layer', () => {
         path.join(home, '.claude', 'skills', 'control-tower', 'references', 'tower-config.md'),
         path.join(home, '.codex', 'skills', 'control-tower', 'references', 'tower-config.md'),
       ],
+    })
+  })
+})
+
+describe('T0711: installs in the answer', () => {
+  it('reports both installs for Claude without changing the default layer', async () => {
+    const manual = write('.claude/skills/control-tower/references/tower-config.md', 'manual')
+    write('.claude/skills/control-tower/SKILL.md', '<!-- control-tower-version: 5.13.2 -->\n')
+    const root = path.join(home, '.claude', 'plugins', 'cache', 'control-tower', 'ct', '5.14.0')
+    write('.claude/plugins/installed_plugins.json', JSON.stringify({
+      version: 2,
+      plugins: { 'ct@control-tower': [{ scope: 'user', installPath: root, version: '5.14.0' }] },
+    }))
+    const result = await readCtConfigSources(home)
+    expect(result.defaults).toEqual({ status: 'found', path: manual, content: 'manual' })
+    expect(result.installs).toEqual({
+      claude: { manual: { version: '5.13.2' }, plugin: { version: '5.14.0', marketplace: 'control-tower' } },
+      codex: { manual: null, plugin: null },
     })
   })
 })
