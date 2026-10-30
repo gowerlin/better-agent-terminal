@@ -4,15 +4,15 @@ schema_kind: workorder
 id: T0713
 title: "BUG-174：終端 `file:///` 連結依格子欄位算範圍（全形字）、支援跨行、OSC 8 超連結可點（GitHub #20）"
 type: implementation
-status: PENDING
+status: DONE
 repo: better-agent-terminal
 project: ""
 priority: P2
 sizing: M
 created_at: "2026-10-30T15:06:18+0800"
-started_at: ""
-updated_at: "2026-10-30T15:06:18+0800"
-completed_at: ""
+started_at: "2026-10-30T15:07:35+0800"
+updated_at: "2026-10-30T15:13:41+0800"
+completed_at: "2026-10-30T15:13:41+0800"
 depends_on: []
 related:
   - "BUG-174（現象、根因、行號）"
@@ -72,20 +72,61 @@ GitHub issue #20 回報三件事，塔台已對照原始碼確認（見 BUG-174�
 
 > 以下由 sub-session 填寫，請勿在指揮塔 session 中編輯（唯一例外：`### 待塔台決策` 的 `塔台答覆 Q-n` 行由塔台新增）
 
-### 待塔台決策（僅 yolo Worker 有問題時）
-
-（沒有提問就刪除本段）
-
 ### 完成狀態
+
+**DONE**：驗收 7 項全部完成。
+
+| 驗收項 | 結果 |
+|---|---|
+| 全形字路徑整段有底線、任一處可點；網址前有全形字時起點正確；純 ASCII 結果不變 | ✅ 真 xterm 測試：issue 範例（10 個全形字）range = 1 … `len + 10`（舊演算法停在 `len`）；網址前有全形字起點正確；ASCII 4 組案例與舊演算法逐一相同 |
+| 跨行的長路徑整段是一個連結 | ✅ 跨 3 列從每一列查得到同一 range；寬字提早換行（最後一格空著）也串得起來 |
+| OSC 8：http / https / file 可點開，其他 scheme 不開；滑過看得到實際目標 | ✅ `linkHandler`（`allowNonHttpProtocols: true`）只開三種 scheme；`javascript:` / `vbscript:` / `mailto:` / `data:` / 自訂協定 / 前置空白 / 解析失敗不開，log 只記 scheme 與長度；hover tooltip 顯示目標（> 200 字元保留頭尾） |
+| 範圍計算在純函式，以真 xterm 實例測試 | ✅ `src/lib/terminal-file-links.ts`；`src/lib/__tests__/terminal-file-links.test.ts` 19 項 |
+| `WebLinksAddon` http(s) 在全形字 / 跨行的表現已記錄 | ✅ 見下節，兩者皆正確，未修改 |
+| CLAUDE.md 一節 + `docs/agent-guide/terminal-links.md` + docs 索引 | ✅ |
+| `npm run test:unit` 全綠；`npm run typecheck` = 0；`npx vite build` 成功 | ✅ 344 檔 / 6149 passed、3 skipped；typecheck exit 0；vite build exit 0 |
 
 ### 產出摘要
 
+- **commit**：`ff772d40987b0379fde2c10e25da197121b53c58`（7 檔，+587 / −23；`git commit --only`，未 push）
+- `src/lib/terminal-file-links.ts`（新）：
+  - `findFileLinks(buffer, bufferLineNumber)`：逐格 `getCell(x)` 的 `getChars()` / `getWidth()` 建「code unit → (列, 格, 寬度)」對照，寬度 0 跳過、空格子當空白、寬字提早換行的空最後一格跳過；上下各串 `isWrapped` ≤ `MAX_WRAPPED_ROWS` = 20 列；只回傳碰到被查詢列的連結（xterm `_removeIntersectingLinks` 以被查詢列算佔用格，回傳別列的連結會誤刪）。regex 沿用舊的（`FILE_URL_REGEX`）。
+  - `createOsc8LinkHandler` / `isAllowedOsc8Uri`（原始字串也須以 scheme 開頭，同主行程 `isAllowedExternalUrl`）/ `truncateLinkTarget` / `createLinkHoverTooltip`（`terminal.element` 內的 `xterm-hover terminal-link-hover`，`textContent` 寫入，超出終端時往上 / 往左移）。
+- `src/components/TerminalPanel.tsx`：`new Terminal({ ..., linkHandler })`；`registerLinkProvider` 改為 `findFileLinks(...)` 加 `activate`（仍經 `window.electronAPI.shell.openExternal`、點擊即開）；卸載時 `linkHover.dispose()`。未碰 PTY 輸出、`onData`、WebLinksAddon。
+- `src/styles/panels.css`：`.terminal-panel .terminal-link-hover` 樣式（沿用既有 CSS 變數）。
+- 主行程 `shell:open-external` 未改（已有 scheme 限制：file → `openPath`，其他只放 http / https / mailto），renderer 的 OSC 8 檢查更嚴（不放 mailto）。
+- 文件：CLAUDE.md 新增「終端連結：`file:///` 範圍與 OSC 8（T0713 / BUG-174）」節（6 行，放在「新 PTY 的初始尺寸」節前）；`docs/agent-guide/terminal-links.md`（原因、規則、唯一實作、WebLinksAddon 檢查、已知限制含遠端 `file://`、驗證清單）；`docs/agent-guide/README.md` 加一列。README / CHANGELOG 未改。
+- 沒有新增 i18n 文字（tooltip 只顯示 URI 本身），locales 未改。
+- 公開 repo：測試與文件路徑只用 `/Users/demo`、`C:/Users/demo`。
+
 ### WebLinksAddon http(s) 檢查
+
+`@xterm/addon-web-links` 0.11.0 的 `LinkComputer` 本來就串接 `isWrapped` 續行（上限 2048 字元、遇到含空白的列停）並以 `_mapStrIdx` 逐格換算欄位（含寬字提早換行修正）。以真 xterm 實例 + Unicode 11 測試：
+
+- 網址前（`請看 `）與網址內（`文件/說明`）有全形字：range `start.x = 6`、`end.x = 5 + len + 4`，正確。
+- 跨 3 列的網址（含 15 個全形字）：從第 1 / 2 / 3 列查詢都得到同一個 range。
+
+**結論：沒有問題，不需另開單。**測試留在 `terminal-file-links.test.ts` 的 `WebLinksAddon http(s)` 區塊當回歸。
 
 ### 互動紀錄
 
+無（yolo，未向塔台提問）。
+
 ### Renew 歷程
+
+無。
 
 ### 遭遇問題
 
+- 無阻礙。設計取捨（已寫進 docs「已知限制」）：
+  - 20 列上限下，從距離網址開頭超過 20 列的位置查詢時，那幾列不是連結（串到的文字沒有 `file:///`）；從前 20 列查詢時終點最多到「被查詢列 + 20」。
+  - OSC 8 跨行：xterm 5.5 的 `OscLinkProvider` 逐列產生連結，每列可點、底線只畫滑鼠所在列（xterm 內部 TODO），本單不改 xterm。
+- 未做實機（BAT 視窗）點擊驗證：本單驗證關卡為 unit / typecheck / build，實機步驟寫在 docs 驗證清單，供塔台或發版驗收時跑。
+
+### 落點檢查
+
+- **PASS**。C-0：`repo` = `better-agent-terminal`，`basename(REPO_ROOT)` = `better-agent-terminal`；C-1 PASS；C-3 PASS（`src/components/TerminalPanel.tsx` 存在）；C-2 無 `branch` 欄位（目前 `main`）。`CT_HOME` 未設（非 worktree）。`BAT_WORKSPACE_ID` = `cc0afc4a-57e9-4f41-b2ed-a2d8bac9e36b`（僅記錄）。
+
 ### 回報時間
+
+2026-10-30T15:13:15+0800
