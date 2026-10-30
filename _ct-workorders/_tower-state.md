@@ -1,7 +1,7 @@
 ---
 schema_kind: tower-state
 summary_version: 1
-updated_at: "2026-10-30T13:57:15+0800"
+updated_at: "2026-10-30T14:04:25+0800"
 session: "2026-10-30 13:02 第九十七 session 啟動（CT v5.14.0）"
 next_ids:
   workorder: "T0713"
@@ -9,7 +9,7 @@ next_ids:
   bug: "BUG-174"
   plan: "PLAN-056"
 todo:
-  - "0.7.2-pre.1 批次（D188）：T0710 DONE；T0711（兩種安裝並存提示）/ T0712（測試相容 Node 26）並行中；完成後聯合驗證、發版、回報 CT"
+  - "0.7.2-pre.1 批次（D188）：T0710 DONE；T0712 DONE（2bbc11db）；T0711（兩種安裝並存提示）執行中；完成後聯合驗證、發版、回報 CT"
   - "下一版發 0.7.2-pre.1（D187，使用者決定）"
   - "使用者以 v0.7.1-pre.9 日常使用驗收 BUG-171"
   - "外部測試者A 驗收 BUG-165 / 166 / 169"
