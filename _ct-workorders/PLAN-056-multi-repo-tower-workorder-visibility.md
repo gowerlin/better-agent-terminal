@@ -3,9 +3,10 @@ schema_version: 1
 schema_kind: plan
 id: PLAN-056
 title: "一個塔台統籌多個獨立 repo 時，指揮塔面板看不到子 repo `_ct-workorders/` 的工單（GitHub #21）：先與 CT 塔台聯合研究，未必要改程式"
-status: IDEA
+status: DROPPED
 priority: medium
 created_at: "2026-10-30T15:47:21+0800"
+updated_at: "2026-10-30T15:59:57+0800"
 links:
   source: "GitHub issue #21（2026-10-30，BAT 0.7.2-pre.1、CT 5.14.2，Windows 11）"
   related: [T0583, T0523, T0701]
@@ -57,3 +58,7 @@ GitHub #21：上層目錄放塔台（BAT workspace 指向這裡），底下兩�
 - 推薦方案 1（= 方向 E）：上層 `git init` 當個人塔台 repo、`.gitignore` 排除子 repo、工單全放上層（`repo: <上層>`、`project: <子 repo>`、`affects_files` 從上層寫），Worker 在上層執行、產品用 `git -C <子 repo>` commit；面板與一鍵派工現有行為即可；限制：不能 `isolation: worktree`。推論、未實機驗證。方案 2 = 方向 D（現有文件已涵蓋）。
 - 方向 C：直接放寬不接受；宣告式分離要 CT + BAT 新契約，目前不建議。方向 A / B：不會成為 CT 契約；BAT 若想為既有使用者做唯讀顯示由 BAT 自行決定。
 - CT 待辦：下一版補〈巢狀的獨立 repo〉文件（含拋棄式目錄實機驗證），補好後通知 BAT。
+
+## 結案（2026-10-30，D189，使用者決定）
+
+DROPPED：BAT 不改程式，改走 CT 推薦的目錄配置（方案 1）；不為子 repo 的舊工單做唯讀顯示（舊工單可搬到上層）。已回覆 GitHub #21（issuecomment-6517890887，issue 保持開啟等回報者試用或 CT 文件補好）。CT 補〈巢狀的獨立 repo〉文件後會通知 BAT。

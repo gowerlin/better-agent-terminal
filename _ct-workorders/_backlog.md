@@ -3,7 +3,7 @@ schema_version: 1
 schema_kind: index
 id: _backlog
 index_kind: plans
-generated_at: "2026-10-30T15:48:15+0800"
+generated_at: "2026-10-30T15:59:57+0800"
 generator: control-tower-sync
 source_globs:
   - _ct-workorders/PLAN-*.md
@@ -12,20 +12,20 @@ exclude_globs:
   - _ct-workorders/examples/**
 total: 21
 breakdown:
-  IDEA: 9
+  IDEA: 8
   PLANNED: 1
   IN_PROGRESS: 0
   DONE: 10
-  DROPPED: 1
+  DROPPED: 2
 ---
 
 # Backlog
 
 > ⚠️ 此文件由 `*sync` 自動生成，請勿手動編輯。
-> 最後同步：2026-10-30 15:50 (UTC+8) — 新增 PLAN-056 IDEA（GitHub #21 多 repo 塔台的工單可見性，與 CT 塔台聯合研究）
+> 最後同步：2026-10-30 16:05 (UTC+8) — PLAN-056 DROPPED（D189：不改程式，改走 CT 推薦目錄配置；GitHub #21 已回覆）
 
 ## 統計
-- 💡 Ideas: 9 | 📋 Planned: 1 | 🔄 In Progress: 0 | ✅ Done: 10 | 🚫 Dropped: 1
+- 💡 Ideas: 8 | 📋 Planned: 1 | 🔄 In Progress: 0 | ✅ Done: 10 | 🚫 Dropped: 2
 
 ## Active
 
@@ -38,7 +38,6 @@ breakdown:
 | PLAN-051 | BAT 跨塔台傳訊通道：不同專案的塔台（含 codex 塔台）經 BAT 互相送訊息，不依賴 SendMessage | 🟢 low | 💡 IDEA | [PLAN-051](PLAN-051-cross-tower-messaging-channel.md) |
 | PLAN-052 | Docker 遠端路線可用性：發佈 `bat-server` 映像或裝進任意容器、「Use existing」可選容器、重跑精靈更新既有設定 | 🟢 low | 💡 IDEA | [PLAN-052](PLAN-052-docker-remote-usability.md) |
 | PLAN-053 | 升級 Electron 42+（Chromium 148+）：Electron 41 已停止更新；Graphite out-of-order CHECK 改為 GPU 程序重啟（BUG-164） | 🟢 low | 💡 IDEA | [PLAN-053](PLAN-053-electron-42-upgrade.md) |
-| PLAN-056 | 一個塔台統籌多個獨立 repo 時，指揮塔面板看不到子 repo 的工單（GitHub #21）：與 CT 塔台聯合研究，未必要改程式 | 🟡 medium | 💡 IDEA | [PLAN-056](PLAN-056-multi-repo-tower-workorder-visibility.md) |
 | PLAN-054 | CT Workflow 智能的 BAT 側事項：B4 MCP 政策文件（併下次發版）、B6 CT 面板讀 workflow 欄位（延後：CT D090）；B1 不做 | 🟢 low | 📋 PLANNED | [PLAN-054](PLAN-054-ct-workflow-intelligence-bat-side.md) |
 | PLAN-055 | Terminal Server recovery 後 agent 分頁不再無聲變成 shell：列出被中斷的分頁、claude 保留 session id 並提供 `--resume`（BUG-171 / T0703 C） | 🟡 medium | 💡 IDEA | [PLAN-055](PLAN-055-agent-tabs-after-terminal-server-recovery.md) |
 
@@ -61,4 +60,5 @@ breakdown:
 
 | ~~ID~~ | ~~標題~~ | 原因 | 連結 |
 |--------|---------|------|------|
+| ~~PLAN-056~~ | ~~一個塔台統籌多個獨立 repo 時，指揮塔面板看不到子 repo 的工單（GitHub #21）~~ | 2026-10-30 D189：不改程式，改走 CT 推薦的目錄配置（工單集中上層塔台 repo） | [PLAN-056](PLAN-056-multi-repo-tower-workorder-visibility.md) |
 | ~~PLAN-014~~ | ~~evaluate-vscode-extension-vs-git-gui（2026-10-16 擱置；T0153 ABANDONED）~~ | 2026-10-16 使用者決定擱置 | [PLAN-014](PLAN-014-evaluate-vscode-extension-vs-git-gui.md) |

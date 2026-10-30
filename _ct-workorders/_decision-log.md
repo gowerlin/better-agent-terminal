@@ -1465,6 +1465,12 @@
 - **切分**：W2a 設計語言 + 元件 + 首頁（T0630）→ 預覽通過後 W2b（`/control-tower`、功能、FAQ、回報頁）→ W2c 遠端開發；W3 / W4 不變。
 - **相關**：PLAN-049 / D159 / D160 / T0624 / T0630
 
+### D189 2026-10-30 — PLAN-056（GitHub #21 多 repo 塔台工單可見性）不改程式，DROPPED；照 CT 推薦的目錄配置回覆 #21
+
+- **背景**：GitHub #21 回報一個塔台統籌多個共用 repo 時，子 repo `_ct-workorders/` 的工單在指揮塔面板看不到。使用者判斷可能是目錄規劃或 workspace 切分習慣，請與 CT 塔台聯合研究（HANDOVER `_handover-2026-10-30-multi-repo-tower-layout.md`）。CT 回覆（BMad-Guide `_reply-2026-10-30-multi-repo-tower-layout.md`，CT D463）：BAT 不需改程式；工單跑進子 repo 是因 Worker cwd 在子 repo，不是 C-0 / C-1 要求；推薦上層 `git init` 當個人塔台 repo、工單集中上層、Worker 在上層執行、`git -C` commit 子 repo（不能 worktree 隔離）；A / B 不會成為 CT 契約，唯讀顯示由 BAT 自決。
+- **決定**（使用者 2026-10-30 16:0x，選推薦）：BAT 不改程式，PLAN-056 DROPPED，不為子 repo 舊工單做唯讀顯示；#21 照稿留言（繁中，引用方案 1），issue 保持開啟。
+- **相關**：PLAN-056 / GitHub #21 / CT D463 / BMad-Guide T0368
+
 ### D188 2026-10-30 — `0.7.2-pre.1` 批次：T0710 + T0711（兩種安裝並存提示）+ T0712（單元測試相容 Node 26），T0711 / T0712 並行
 
 - **背景**：T0710 DONE（`f258ebce`）。回報區留下兩件：3-4 兩種安裝並存提示（Worker 建議做，P3）、本機 Node 26 讓 `copy-remote-path.test.tsx` 失敗（CI Node 24 不受影響）。

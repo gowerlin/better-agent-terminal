@@ -1,15 +1,14 @@
 ---
 schema_kind: tower-state
 summary_version: 1
-updated_at: "2026-10-30T15:58:39+0800"
+updated_at: "2026-10-30T15:59:57+0800"
 session: "2026-10-30 13:02 第九十七 session 啟動（CT v5.14.0）"
 next_ids:
   workorder: "T0714"
-  decision: "D189"
+  decision: "D190"
   bug: "BUG-175"
   plan: "PLAN-057"
 todo:
-  - "PLAN-056（GitHub #21）：CT 回覆 BAT 不需改程式、推薦工單集中上層塔台 repo（CT D463）；待使用者決定 PLAN 去留與 #21 留言稿"
   - "v0.7.2-pre.2 已發佈；#20 已留言（issuecomment-6517458473），issue 保持開啟等回報者實機確認；BUG-174 待實機驗收"
   - "v0.7.2-pre.1 已發佈（T0710–T0712）；CT 端已 RESOLVED，最低 BAT 版本放在 CT 5.14.2（v6 beta.6），Codex＋BAT＋plugin 端到端派工未實機跑，CT 有問題會通知"
   - "使用者以 v0.7.1-pre.9 日常使用驗收 BUG-171"
@@ -112,7 +111,7 @@ todo:
 - 歷史 sessions → [_archive/state-snapshots/INDEX.md](_archive/state-snapshots/INDEX.md)（112 entries）
 
 ### 編號起始
-- **T0714** / **BUG-175** / **PLAN-057** / **D189** / **EXP-WFMINE-002**（其他 TOPIC 從 001） / **L178** / **CT-T023**
+- **T0714** / **BUG-175** / **PLAN-057** / **D190** / **EXP-WFMINE-002**（其他 TOPIC 從 001） / **L178** / **CT-T023**
 
 ---
 
