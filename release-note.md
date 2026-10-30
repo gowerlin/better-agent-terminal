@@ -2,6 +2,40 @@
 
 本 fork 各版的更版重點（內容取自 GitHub Releases，最新在上）。上游 tony1223/better-agent-terminal 的 v2.1.x 紀錄保留在檔案最下方。
 
+## v0.7.2-pre.3（2026-10-30）
+
+版號 0.7.2-pre.3，接續 `v0.7.2-pre.2`。
+
+## 修正
+
+- **終端縮圖不更新**（BUG-175）：Claude CLI、Codex CLI 這類全螢幕介面在 macOS / Linux 上重畫畫面時不送換行，縮圖會一直停在啟動畫面，還會出現 `>0q>4m` 之類的亂碼。現在縮圖會跟著畫面最新寫出的內容更新，倒數、計時器這類只改幾個字的更新不會塞滿縮圖，清畫面後縮圖也重新開始；亂碼不再出現
+  - Windows 上原本會黏成一行的兩列（例如 PowerShell 啟動訊息與提示列），現在會分成兩行，比較接近實際畫面
+
+## 待驗收（請更新到本版後協助確認）
+
+以下修正已包含在本版，仍在等實機確認：
+
+- **BUG-175**（本版，macOS）：派幾個 Claude CLI Worker 或開 Claude CLI / Codex CLI 分頁，看縮圖列的縮圖是否跟著分頁內容更新，不再停在啟動畫面，也沒有 `>0q>4m` 之類的字。如果縮圖出現 `38;5;246m` 這類殘骸，請截圖回報
+- **BUG-174**（`v0.7.2-pre.2` 起）：在終端印出含全形字的路徑，例如 `echo 'file:///Users/demo/專案/待處理/範例_v1.0.md'`（換成你機器上存在的檔案），滑過時底線涵蓋整段、點尾端也能開檔；把視窗縮窄讓路徑換行再試一次；在 Claude CLI 分頁請 Claude 用 Markdown 連結回覆某個檔案，點連結能開檔，滑過時顯示實際路徑
+- **BUG-171**（`v0.7.1-pre.8` 起）：日常使用時，遇到系統自動校時、睡眠喚醒後，不再出現「終端已恢復」提示，閒置的 Claude CLI 分頁也不會變成 `[Process exited with code 1]`
+- **BUG-169**（`v0.7.1-pre.6` 起）：執行 `node "<安裝目錄>/resources/scripts/bat-terminal.mjs" --version`，應顯示本版版號而不是 `v0.0.0`
+- **BUG-156**（需 Docker Desktop）：Docker 設定精靈建立容器時，不再與 BAT 本機伺服器搶用 9876 埠
+- **BUG-159**（需一般權限執行 BAT + codex）：Codex CLI 分頁內執行的 helper 讀到的是自己分頁的 `BAT_*`，不是其他分頁的
+
+BUG-165（macOS 觸控板 Codex 分頁捲動）與 BUG-166（滑鼠回報殘留）已由測試者確認，感謝協助。
+
+## 已知事項
+
+- 縮圖顯示的是「最近寫出的幾列」，不一定是畫面最下面幾列（全螢幕介面最下面通常是輸入框與狀態列）
+- 縮圖修正只有自動測試與 Linux / Windows 的實錄對照，尚未在 macOS 實機確認
+- 跨行的超連結（OSC 8）每一列都能點，但底線只畫在滑鼠所在的那一列（終端元件 xterm.js 本身的行為）
+- 終端伺服器真的停止時，BAT 仍只重建 shell，分頁裡原本執行的 Claude CLI / Codex CLI 不會自動接回（PLAN-055）
+- Linux 版本未實機驗證
+
+macOS 仍只提供 Apple Silicon（arm64）版。
+
+**Full Changelog**: https://github.com/gowerlin/better-agent-terminal/compare/v0.7.2-pre.2...v0.7.2-pre.3
+
 ## v0.7.2-pre.2（2026-10-30）
 
 版號 0.7.2-pre.2，接續 `v0.7.2-pre.1`。

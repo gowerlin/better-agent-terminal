@@ -4,6 +4,15 @@ All notable changes to Better Agent Terminal are documented in this file.
 
 ## [Unreleased]
 
+## [0.7.2-pre.3] — 2026-10-30
+
+### Fixed
+- 終端縮圖預覽（BUG-175，T0714）：全螢幕介面在 macOS / Linux PTY 以游標定位重繪、不送 `
+` 時，預覽停在啟動畫面並露出 `>0q>4m`。預覽層依游標換列分行（換列後第 2 欄以後、少於 8 字的原地更新丟掉；`CSI 2 J`、alt screen 切換重新開始），`stripAnsi` 改認 ECMA-48 完整 CSI 語法；T0667 的上限與 150 ms flush 不變。Windows ConPTY 以 `CSI row;1 H` 跳過空白列時，原本黏成一行的兩列改為兩行。唯一實作 `src/lib/thumbnail-preview.ts`
+
+### Known issues
+- 預覽是最近寫出的列，不一定是畫面最下面幾列；跳脫序列被切在兩次 flush 之間時後半段仍可能變成文字；尚未在 macOS 實機確認
+
 ## [0.7.2-pre.2] — 2026-10-30
 
 ### Fixed
