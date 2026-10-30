@@ -1,15 +1,15 @@
 ---
 schema_kind: tower-state
 summary_version: 1
-updated_at: "2026-10-30T13:34:24+0800"
+updated_at: "2026-10-30T13:57:15+0800"
 session: "2026-10-30 13:02 第九十七 session 啟動（CT v5.14.0）"
 next_ids:
-  workorder: "T0711"
-  decision: "D188"
+  workorder: "T0713"
+  decision: "D189"
   bug: "BUG-174"
   plan: "PLAN-056"
 todo:
-  - "T0710 DONE（f258ebce，CT plugin 安裝的 Codex 派工字串 3-1～3-3）；3-4 提示與本機 Node 26 測試問題待決定是否併入本批，之後發 0.7.2-pre.1 並回報 CT"
+  - "0.7.2-pre.1 批次（D188）：T0710 DONE；T0711（兩種安裝並存提示）/ T0712（測試相容 Node 26）並行中；完成後聯合驗證、發版、回報 CT"
   - "下一版發 0.7.2-pre.1（D187，使用者決定）"
   - "使用者以 v0.7.1-pre.9 日常使用驗收 BUG-171"
   - "外部測試者A 驗收 BUG-165 / 166 / 169"
@@ -111,7 +111,7 @@ todo:
 - 歷史 sessions → [_archive/state-snapshots/INDEX.md](_archive/state-snapshots/INDEX.md)（112 entries）
 
 ### 編號起始
-- **T0711** / **BUG-174** / **PLAN-056** / **D188** / **EXP-WFMINE-002**（其他 TOPIC 從 001） / **L178** / **CT-T023**
+- **T0713** / **BUG-174** / **PLAN-056** / **D189** / **EXP-WFMINE-002**（其他 TOPIC 從 001） / **L178** / **CT-T023**
 
 ---
 
