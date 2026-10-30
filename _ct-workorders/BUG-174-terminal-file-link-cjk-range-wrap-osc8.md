@@ -3,11 +3,11 @@ schema_version: 1
 schema_kind: bug
 id: BUG-174
 title: "終端 `file:///` 連結：路徑含全形字時底線與可點範圍變短；跨行的連結抓不到；OSC 8 超連結點了沒反應"
-status: FIXING
+status: FIXED
 severity: medium
 reproducibility: always（路徑含全形字 / 連結跨行 / OSC 8）
 created_at: "2026-10-30T15:06:18+0800"
-updated_at: "2026-10-30T15:06:18+0800"
+updated_at: "2026-10-30T15:14:20+0800"
 impact:
   - terminal-links
 links:
@@ -21,7 +21,7 @@ links:
 |------|------|
 | 嚴重度 | 🟡 medium（agent 常印出含中文的檔案路徑，點不開或只有部分可點） |
 | 可重現 | 必定 |
-| **狀態** | 🔧 FIXING：T0713 |
+| **狀態** | ✅ FIXED：T0713 `ff772d40`（範圍改以格子欄位計算、串接 `isWrapped` 續行 ≤ 20 列、OSC 8 `linkHandler` 只開 http / https / file 並以 hover 顯示目標；`src/lib/terminal-file-links.ts`）；WebLinksAddon http(s) 經測試無此問題；待發版實機驗收 |
 | 回報者 | GitHub issue #20 |
 
 ## 現象

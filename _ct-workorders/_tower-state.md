@@ -1,7 +1,7 @@
 ---
 schema_kind: tower-state
 summary_version: 1
-updated_at: "2026-10-30T15:06:18+0800"
+updated_at: "2026-10-30T15:14:20+0800"
 session: "2026-10-30 13:02 第九十七 session 啟動（CT v5.14.0）"
 next_ids:
   workorder: "T0714"
@@ -9,7 +9,7 @@ next_ids:
   bug: "BUG-175"
   plan: "PLAN-056"
 todo:
-  - "BUG-174（GitHub #20 終端 file:// 連結：全形字範圍、跨行、OSC 8）T0713 執行中；發版後擬 issue 回覆稿給使用者確認再留言"
+  - "BUG-174 FIXED（T0713 ff772d40，GitHub #20），未發版；發版後擬 issue 回覆稿給使用者確認再留言"
   - "v0.7.2-pre.1 已發佈（T0710–T0712）；CT 端已 RESOLVED，最低 BAT 版本放在 CT 5.14.2（v6 beta.6），Codex＋BAT＋plugin 端到端派工未實機跑，CT 有問題會通知"
   - "使用者以 v0.7.1-pre.9 日常使用驗收 BUG-171"
   - "外部測試者A 驗收 BUG-165 / 166 / 169"
