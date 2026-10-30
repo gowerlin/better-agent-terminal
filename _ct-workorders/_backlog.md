@@ -3,16 +3,16 @@ schema_version: 1
 schema_kind: index
 id: _backlog
 index_kind: plans
-generated_at: "2026-10-26T03:20:15+0800"
+generated_at: "2026-10-30T15:48:15+0800"
 generator: control-tower-sync
 source_globs:
   - _ct-workorders/PLAN-*.md
 exclude_globs:
   - _ct-workorders/_archive/**
   - _ct-workorders/examples/**
-total: 20
+total: 21
 breakdown:
-  IDEA: 8
+  IDEA: 9
   PLANNED: 1
   IN_PROGRESS: 0
   DONE: 10
@@ -22,10 +22,10 @@ breakdown:
 # Backlog
 
 > ⚠️ 此文件由 `*sync` 自動生成，請勿手動編輯。
-> 最後同步：2026-10-26 03:20 (UTC+8) — 第九十五 session `*archive`：歸檔 6 張已 DONE、未被引用的 PLAN（PLAN-033 / 037 / 044 / 045 / 046 / 049）→ [_archive/plans/](_archive/plans/)；PLAN-055 IDEA 已列入
+> 最後同步：2026-10-30 15:50 (UTC+8) — 新增 PLAN-056 IDEA（GitHub #21 多 repo 塔台的工單可見性，與 CT 塔台聯合研究）
 
 ## 統計
-- 💡 Ideas: 8 | 📋 Planned: 1 | 🔄 In Progress: 0 | ✅ Done: 10 | 🚫 Dropped: 1
+- 💡 Ideas: 9 | 📋 Planned: 1 | 🔄 In Progress: 0 | ✅ Done: 10 | 🚫 Dropped: 1
 
 ## Active
 
@@ -38,6 +38,7 @@ breakdown:
 | PLAN-051 | BAT 跨塔台傳訊通道：不同專案的塔台（含 codex 塔台）經 BAT 互相送訊息，不依賴 SendMessage | 🟢 low | 💡 IDEA | [PLAN-051](PLAN-051-cross-tower-messaging-channel.md) |
 | PLAN-052 | Docker 遠端路線可用性：發佈 `bat-server` 映像或裝進任意容器、「Use existing」可選容器、重跑精靈更新既有設定 | 🟢 low | 💡 IDEA | [PLAN-052](PLAN-052-docker-remote-usability.md) |
 | PLAN-053 | 升級 Electron 42+（Chromium 148+）：Electron 41 已停止更新；Graphite out-of-order CHECK 改為 GPU 程序重啟（BUG-164） | 🟢 low | 💡 IDEA | [PLAN-053](PLAN-053-electron-42-upgrade.md) |
+| PLAN-056 | 一個塔台統籌多個獨立 repo 時，指揮塔面板看不到子 repo 的工單（GitHub #21）：與 CT 塔台聯合研究，未必要改程式 | 🟡 medium | 💡 IDEA | [PLAN-056](PLAN-056-multi-repo-tower-workorder-visibility.md) |
 | PLAN-054 | CT Workflow 智能的 BAT 側事項：B4 MCP 政策文件（併下次發版）、B6 CT 面板讀 workflow 欄位（延後：CT D090）；B1 不做 | 🟢 low | 📋 PLANNED | [PLAN-054](PLAN-054-ct-workflow-intelligence-bat-side.md) |
 | PLAN-055 | Terminal Server recovery 後 agent 分頁不再無聲變成 shell：列出被中斷的分頁、claude 保留 session id 並提供 `--resume`（BUG-171 / T0703 C） | 🟡 medium | 💡 IDEA | [PLAN-055](PLAN-055-agent-tabs-after-terminal-server-recovery.md) |
 
