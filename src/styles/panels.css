@@ -772,3 +772,21 @@
 .claude-input-area.voice-popover-active {
   overflow: visible;
 }
+
+/* OSC 8 link target on hover (BUG-174 / T0713, createLinkHoverTooltip) */
+.terminal-panel .terminal-link-hover {
+  position: absolute;
+  z-index: 20;
+  max-width: min(640px, 90%);
+  padding: 4px 8px;
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  line-height: 1.4;
+  white-space: pre-wrap;
+  word-break: break-all;
+  pointer-events: none;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+}

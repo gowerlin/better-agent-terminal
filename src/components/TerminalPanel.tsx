@@ -18,6 +18,7 @@ import { attachmentDisplayNames } from '../lib/client-paths'
 import { forcesTerminalSelection, isMouseTrackingDecset, isMouseTrackingOn, MouseReportSelectionKeeper, shouldCloseTerminalContextMenuOnKey, shouldShowTerminalContextMenu } from '../lib/terminal-context-menu'
 import { ALT_SCREEN_EXIT, MOUSE_TRACKING_RESET, MouseReportEchoDetector } from '../lib/mouse-tracking-reset'
 import { mouseReportEncoding, planWheelReports, shouldSendWheelReports, WheelLineAccumulator } from '../lib/terminal-wheel-reports'
+import { createLinkHoverTooltip, createOsc8LinkHandler, findFileLinks } from '../lib/terminal-file-links'
 import { CtToast, useCtToast } from './CtToast'
 import { registerUsageLimitSender } from '../stores/usage-limit-store'
 import { USAGE_LIMIT_ENTER_DELAY_MS, USAGE_LIMIT_SCREEN_LINES, usageLimitRecheckFailure } from '../lib/usage-limit'
@@ -346,6 +347,15 @@ export const TerminalPanel = memo(function TerminalPanel({ terminalId, isActive 
     const settings = settingsStore.getSettings()
     const colors = settingsStore.getTerminalColors()
 
+    // OSC 8 hyperlinks (BUG-174 / T0713): http(s) / file only, real target shown on hover
+    const linkHover = createLinkHoverTooltip(() => terminal.element)
+    const linkHandler = createOsc8LinkHandler({
+      openExternal: uri => { window.electronAPI.shell.openExternal(uri) },
+      log: message => dlog(message),
+      showHover: linkHover.showHover,
+      hideHover: linkHover.hideHover,
+    })
+
     // Create terminal instance with customizable colors
     const terminal = new Terminal({
       theme: {
@@ -376,7 +386,8 @@ export const TerminalPanel = memo(function TerminalPanel({ terminalId, isActive 
       cursorBlink: true,
       scrollback: 10000,
       allowProposedApi: true,
-      allowTransparency: true
+      allowTransparency: true,
+      linkHandler
     })
 
     const fitAddon = new FitAddon()
@@ -394,30 +405,17 @@ export const TerminalPanel = memo(function TerminalPanel({ terminalId, isActive 
     // Use canvas renderer for better rendering performance
     terminal.loadAddon(new CanvasAddon())
 
-    // Register file:// URL link provider (WebLinksAddon only handles http/https)
+    // Register file:// URL link provider (WebLinksAddon only handles http/https).
+    // Ranges are in cells and follow wrapped rows (BUG-174 / T0713, findFileLinks).
     terminal.registerLinkProvider({
       provideLinks(bufferLineNumber, callback) {
-        const line = terminal.buffer.active.getLine(bufferLineNumber - 1)
-        if (!line) { callback(undefined); return }
-        const text = line.translateToString()
-        const fileUrlRegex = /file:\/\/\/[^\s'"\])}>,;`]+/g
-        let match
-        const links = []
-        while ((match = fileUrlRegex.exec(text)) !== null) {
-          const url = match[0]
-          const startX = match.index + 1
-          const endX = match.index + url.length
-          links.push({
-            text: url,
-            range: {
-              start: { x: startX, y: bufferLineNumber },
-              end: { x: endX, y: bufferLineNumber }
-            },
-            activate() {
-              window.electronAPI.shell.openExternal(url)
-            }
-          })
-        }
+        const links = findFileLinks(terminal.buffer.active, bufferLineNumber).map(({ text, range }) => ({
+          text,
+          range,
+          activate() {
+            window.electronAPI.shell.openExternal(text)
+          }
+        }))
         callback(links.length > 0 ? links : undefined)
       }
     })
@@ -1086,6 +1084,7 @@ export const TerminalPanel = memo(function TerminalPanel({ terminalId, isActive 
       doResizeRef.current = null
       resetMouseTrackingRef.current = null
       exitAltScreenRef.current = null
+      linkHover.dispose()
       terminal.dispose()
     }
   }, [terminalId])

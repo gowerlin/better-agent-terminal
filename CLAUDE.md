@@ -140,6 +140,15 @@
 - 唯一實作：純函式 `src/lib/terminal-wheel-reports.ts`（`shouldSendWheelReports` / `planWheelReports`），接線在 `TerminalPanel.tsx` 的 `attachCustomWheelEventHandler`。編碼讀 xterm 內部 `_core.coreMouseService.activeEncoding`（`mouseReportEncoding`），讀不到即關閉；升級 xterm 時必跑 `src/lib/__tests__/terminal-wheel-reports.test.ts`（以真 xterm 實例比對）。
 - 完整換算對照、累積規則、日誌、行為變化、已知限制、驗證清單：[docs/agent-guide/terminal-wheel-reports.md](docs/agent-guide/terminal-wheel-reports.md)
 
+## 終端連結：`file:///` 範圍與 OSC 8（T0713 / BUG-174）
+
+- 用途：純文字 `file:///` 連結的範圍以格子欄位計算（全形字不再讓底線變短）、被換行的長路徑整段是一個連結；Claude Code 輸出的 OSC 8 超連結可點（GitHub #20）。
+- 🔴 範圍一律走 `line.getCell(x)` 的 `getChars()` / `getWidth()` 建對照（寬度 0 = 寬字後半，跳過），不得再用 `translateToString()` 的字串索引當欄位；跨行串接 `isWrapped` 上下各 ≤ `MAX_WRAPPED_ROWS` = 20 列，只回傳碰到被查詢列的連結。
+- 🔴 行為不變：比對 regex（`FILE_URL_REGEX`）、點擊即開、`WebLinksAddon` 的 http(s) 都不改（T0713 實測 WebLinksAddon 的全形字 / 跨行本來就正確）。
+- 🔴 OSC 8 `linkHandler` 只開 `http:` / `https:` / `file:`（經 `shell.openExternal`），其他 scheme 不開、log 只記 scheme 與長度；滑過以 tooltip 顯示實際目標（顯示文字可和目標不同），不加確認對話框。
+- 唯一實作 `src/lib/terminal-file-links.ts`（`findFileLinks` / `createOsc8LinkHandler` / `createLinkHoverTooltip`），`TerminalPanel.tsx` 只接線；測試以真 xterm 實例（`src/lib/__tests__/terminal-file-links.test.ts`），升級 xterm 時必跑。
+- 完整原因、規則、WebLinksAddon 檢查、已知限制（含遠端 `file://`）、驗證清單：[docs/agent-guide/terminal-links.md](docs/agent-guide/terminal-links.md)
+
 ## 新 PTY 的初始尺寸（T0572 / BUG-145）
 
 - host 一律以 120x30 spawn（`PtyManager.create`、Terminal Server）；`pty:resize` 對 host 還不認得的 id 直接丟棄。分頁先進 store（TerminalPanel 掛載即送第一次 resize），`pty:create` 要等 shell 查詢等非同步步驟後才到 host，所以那次 resize 可能被丟；TerminalPanel 的 resize 去重（`lastSentCols` / `lastSentRows`）之後不再送同一尺寸。⏻ 重啟（`pty:restart`）的新 PTY 同樣是 120x30，去重也擋住重送（修正前 100% 停在 120x30）。

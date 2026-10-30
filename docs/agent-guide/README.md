@@ -24,6 +24,7 @@
 | [remote-security.md](remote-security.md) | Remote TLS / fingerprint / bind / token、SSH target、SSH / WSL bundle 安裝與 rollback | Remote 資安（PLAN-018 T0182） |
 | [remote-tower-notify.md](remote-tower-notify.md) | 遠端與本機 PTY 範圍權杖、權限表、跨重開保留、helper frame id 規則 | 遠端 Tower 通知（PLAN-036 K） |
 | [terminal-context-menu.md](terminal-context-menu.md) | 終端右鍵選單與滑鼠追蹤、Esc、Shift + 拖曳選取 | 終端分頁右鍵選單與滑鼠追蹤（T0568 / BUG-142） |
+| [terminal-links.md](terminal-links.md) | 終端 `file:///` 連結的格子欄位範圍（全形字）、跨行串接、OSC 8 `linkHandler`（scheme 限制、hover 顯示目標） | 終端連結：`file:///` 範圍與 OSC 8（T0713 / BUG-174） |
 | [terminal-server-recovery.md](terminal-server-recovery.md) | Terminal Server 存活判定（單調時鐘 heartbeat、連續 3 次、程序 + IPC 確認）與 recovery（切斷 / 結束舊 server、generation、孤兒先殺樹） | Terminal Server 存活判定與 recovery（T0704 / BUG-171） |
 | [terminal-wheel-reports.md](terminal-wheel-reports.md) | Codex 分頁在 alt screen + 滑鼠追蹤時依累積行數送多個滾輪回報 | Codex 分頁的滾輪回報（T0698 / BUG-165） |
 | [tower-questions.md](tower-questions.md) | Worker 問塔台（`question:*` channel、記憶體 store、`blocked` / `tower`、`pendingQuestions`） | Worker 問塔台（PLAN-048 / T0607） |
