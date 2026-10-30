@@ -1,7 +1,7 @@
 ---
 schema_kind: tower-state
 summary_version: 1
-updated_at: "2026-10-30T15:48:15+0800"
+updated_at: "2026-10-30T15:58:39+0800"
 session: "2026-10-30 13:02 第九十七 session 啟動（CT v5.14.0）"
 next_ids:
   workorder: "T0714"
@@ -9,7 +9,7 @@ next_ids:
   bug: "BUG-175"
   plan: "PLAN-057"
 todo:
-  - "PLAN-056（GitHub #21 多 repo 塔台的工單可見性）：已發 HANDOVER 給 BMad-Guide 塔台聯合研究，等 CT 回覆再決定改程式或只寫使用建議；回覆 #21 前先給使用者確認"
+  - "PLAN-056（GitHub #21）：CT 回覆 BAT 不需改程式、推薦工單集中上層塔台 repo（CT D463）；待使用者決定 PLAN 去留與 #21 留言稿"
   - "v0.7.2-pre.2 已發佈；#20 已留言（issuecomment-6517458473），issue 保持開啟等回報者實機確認；BUG-174 待實機驗收"
   - "v0.7.2-pre.1 已發佈（T0710–T0712）；CT 端已 RESOLVED，最低 BAT 版本放在 CT 5.14.2（v6 beta.6），Codex＋BAT＋plugin 端到端派工未實機跑，CT 有問題會通知"
   - "使用者以 v0.7.1-pre.9 日常使用驗收 BUG-171"

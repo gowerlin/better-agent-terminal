@@ -50,3 +50,10 @@ GitHub #21：上層目錄放塔台（BAT workspace 指向這裡），底下兩�
 
 1. 已發 HANDOVER 給 BMad-Guide 塔台（CT 維護方），請 CT 先就 C-0 / C-1 的設計與方向 C、D、E 表示意見。
 2. 收到 CT 回覆後，BAT 塔台決定：只寫使用建議、開研究工單、或開實作工單；並回覆 GitHub #21（對外留言前先給使用者確認）。
+
+## CT 回覆（2026-10-30，BMad-Guide `_reply-2026-10-30-multi-repo-tower-layout.md`，CT D463 / T0368）
+
+- **BAT 不需要改程式。** 前提更正：工單跑進子 repo 是因為 Worker cwd 在子 repo（Worker 在 cwd 底下找工單、`repo` = cwd 的 git toplevel），不是 C-0 / C-1 要求；`parent_workorder` 不是 CT 欄位。
+- 推薦方案 1（= 方向 E）：上層 `git init` 當個人塔台 repo、`.gitignore` 排除子 repo、工單全放上層（`repo: <上層>`、`project: <子 repo>`、`affects_files` 從上層寫），Worker 在上層執行、產品用 `git -C <子 repo>` commit；面板與一鍵派工現有行為即可；限制：不能 `isolation: worktree`。推論、未實機驗證。方案 2 = 方向 D（現有文件已涵蓋）。
+- 方向 C：直接放寬不接受；宣告式分離要 CT + BAT 新契約，目前不建議。方向 A / B：不會成為 CT 契約；BAT 若想為既有使用者做唯讀顯示由 BAT 自行決定。
+- CT 待辦：下一版補〈巢狀的獨立 repo〉文件（含拋棄式目錄實機驗證），補好後通知 BAT。

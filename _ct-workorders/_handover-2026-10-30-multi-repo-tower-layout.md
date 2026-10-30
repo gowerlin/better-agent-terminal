@@ -4,8 +4,8 @@ schema_kind: cross-tower-handover
 type: HANDOVER
 from: better-agent-terminal
 to: BMad-Guide
-status: DRAFT
-local_workorder:
+status: ACKNOWLEDGED
+local_workorder: "BMad-Guide T0368（回覆稿 BMad-Guide/_ct-workorders/_reply-2026-10-30-multi-repo-tower-layout.md，CT D463）"
 created_at: "2026-10-30T15:47:21+0800"
 title: "HANDOVER（聯合研究）—— 一個塔台統籌多個獨立 repo 時，子 repo 的執行紀錄在 BAT 指揮塔面板看不到（GitHub #21）；請 CT 先就落點檢查 C-0 / C-1 與目錄、workspace 切分習慣表示意見"
 related:
