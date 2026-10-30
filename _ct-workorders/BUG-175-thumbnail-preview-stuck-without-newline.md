@@ -3,16 +3,16 @@ schema_version: 1
 schema_kind: bug
 id: BUG-175
 title: "縮圖預覽停在 agent 啟動畫面不更新（輸出沒有換行時預覽不前進），並露出 `>0q>4m` 殘骸"
-status: OPEN
+status: FIXING
 severity: medium
 reproducibility: unknown
 created_at: "2026-10-30T16:24:40+0800"
-updated_at: "2026-10-30T16:24:40+0800"
+updated_at: "2026-10-30T16:26:13+0800"
 impact:
   - terminal-thumbnail
 links:
   discovered_in: "外部測試者A 回報（2026-10-30 15:54，macOS，附截圖；使用者轉達）"
-  related: [BUG-136, T0666, T0667]
+  related: [BUG-136, T0666, T0667, T0714]
 ---
 
 # BUG-175 — 縮圖預覽不更新（輸出沒有換行）
@@ -21,7 +21,7 @@ links:
 |------|------|
 | 嚴重度 | 🟡 medium（縮圖列看不到 Worker 進度，要切進分頁才知道） |
 | 可重現 | 未確認（外部測試者A 的 macOS 上 3 個 Worker 縮圖都卡住） |
-| **狀態** | 📂 OPEN |
+| **狀態** | 🔧 FIXING（T0714 修正中） |
 | 回報者 | 外部測試者A（使用者轉達，附截圖） |
 
 ## 現象

@@ -1,10 +1,10 @@
 ---
 schema_kind: tower-state
 summary_version: 1
-updated_at: "2026-10-30T16:25:01+0800"
-session: "2026-10-30 第九十八 session 進行中（CT v5.14.3）：BUG-165 / 166 CLOSED、BUG-175 OPEN"
+updated_at: "2026-10-30T16:26:13+0800"
+session: "2026-10-30 第九十八 session 進行中（CT v5.14.3）：BUG-165 / 166 CLOSED、BUG-175 → T0714 派工"
 next_ids:
-  workorder: "T0714"
+  workorder: "T0715"
   decision: "D190"
   bug: "BUG-176"
   plan: "PLAN-057"
@@ -117,13 +117,13 @@ todo:
 - 公開 repo（D176）：工單 / commit / BUG 不寫真名、客戶名、家目錄路徑；push 前跑 `.private/` 的檢查樣式
 
 ### 快速連結
-- Bug Tracker → [_bug-tracker.md](_bug-tracker.md)（熱區：Open 1 / Fixing 0 / Fixed 27 / Closed 11，2026-10-30 BUG-175 OPEN、BUG-165 / 166 / 172 / 173 CLOSED、BUG-174 FIXED；2026-10-26 第九十五 session `*archive` 歸檔 138 張：T 111 / BUG 21 / PLAN 6，熱區剩 T:103 / BUG:35 / PLAN:20 / EXP:1）｜ Backlog → [_backlog.md](_backlog.md)
+- Bug Tracker → [_bug-tracker.md](_bug-tracker.md)（熱區：Open 0 / Fixing 1 / Fixed 27 / Closed 11，2026-10-30 BUG-175 FIXING（T0714）、BUG-165 / 166 / 172 / 173 CLOSED、BUG-174 FIXED；2026-10-26 第九十五 session `*archive` 歸檔 138 張：T 111 / BUG 21 / PLAN 6，熱區剩 T:103 / BUG:35 / PLAN:20 / EXP:1）｜ Backlog → [_backlog.md](_backlog.md)
 - Decision Log → [_decision-log.md](_decision-log.md)（最大 D189）｜ Learnings → [_learnings.md](_learnings.md)（最大 L177）
 - 網站 → https://gowerlin.github.io/better-agent-terminal/｜ 素材 spec → `e2e/site-media.spec.ts`（`BAT_SITE_MEDIA=1`，輸出 `e2e-media/`）
 - 歷史 sessions → [_archive/state-snapshots/INDEX.md](_archive/state-snapshots/INDEX.md)（113 entries）
 
 ### 編號起始
-- **T0714** / **BUG-176** / **PLAN-057** / **D190** / **EXP-WFMINE-002**（其他 TOPIC 從 001） / **L178** / **CT-T023**
+- **T0715** / **BUG-176** / **PLAN-057** / **D190** / **EXP-WFMINE-002**（其他 TOPIC 從 001） / **L178** / **CT-T023**
 
 ---
 
