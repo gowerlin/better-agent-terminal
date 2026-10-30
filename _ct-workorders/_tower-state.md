@@ -1,7 +1,7 @@
 ---
 schema_kind: tower-state
 summary_version: 1
-updated_at: "2026-10-30T14:28:31+0800"
+updated_at: "2026-10-30T14:30:00+0800"
 session: "2026-10-30 13:02 第九十七 session 啟動（CT v5.14.0）"
 next_ids:
   workorder: "T0713"
@@ -9,7 +9,7 @@ next_ids:
   bug: "BUG-174"
   plan: "PLAN-056"
 todo:
-  - "v0.7.2-pre.1 已發佈（T0710–T0712）；已回報 BMad-Guide 塔台最低 BAT 版本；歡迎 Codex 使用者以 zip / plugin 兩種安裝試派工"
+  - "v0.7.2-pre.1 已發佈（T0710–T0712）；CT 端已 RESOLVED，最低 BAT 版本放在 CT 5.14.2（v6 beta.6），Codex＋BAT＋plugin 端到端派工未實機跑，CT 有問題會通知"
   - "使用者以 v0.7.1-pre.9 日常使用驗收 BUG-171"
   - "外部測試者A 驗收 BUG-165 / 166 / 169"
   - "BUG-156 / 159 待特定環境驗收"
