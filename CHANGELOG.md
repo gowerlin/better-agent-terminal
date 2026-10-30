@@ -4,6 +4,23 @@ All notable changes to Better Agent Terminal are documented in this file.
 
 ## [Unreleased]
 
+## [0.7.2-pre.1] — 2026-10-30
+
+### Added
+- CT 以 plugin（`ct@control-tower`，CT 5.14.0 起）安裝時，Codex Worker 的派工字串依安裝方式決定：分頁 `CODEX_HOME` 下有手動安裝（`skills/<skill>` 或 `~/.agents/skills/<skill>`）→ `$ct-exec`；只有啟用中的 `ct@*` plugin → `$ct:ct-exec`；判斷不了 → `$ct-exec`。唯一實作 `electron/ct-install-detect.ts`，helper 派工與面板一鍵派工（新 proxied channel `terminal:control-tower-prompt`，遠端在回答主機判斷）共用；Claude 字串不變（T0710，BMad-Guide HANDOVER）
+- 指揮塔總覽「預設」層找得到 plugin 安裝的 `tower-config.md`；Claude CLI 面板 skill 清單與 `*` 補全列出 `ct@*` plugin 的 skill（與手動同名只列一次）（T0710）
+- 指揮塔總覽：Claude / Codex 同時以 zip 與 plugin 安裝 CT 時，提示 `/ct-exec`、`$ct-exec` 使用 zip 那份，版號不同時以警示顯示（`ct:read-config-sources` 選填欄位 `installs`）（T0711）
+
+### Fixed
+- 面板一鍵派工給 Codex 的命令 `codex "$ct-exec T####"` 在 pwsh / bash 把 `$ct` 展開成變數；改由主機依分頁 shell 加引號（T0710）
+
+### Changed
+- `bat-notify.mjs --help` 補充 `--source` 要和派工 `--workorder` 用同一個 ID
+- 單元測試在 Node 25+ 不再讀到 Node 內建的 `localStorage`（`vitest.setup.ts` 改指 jsdom storage；不用 `--no-webstorage`，Node 24 不認得）（T0712）
+
+### Known issues
+- Claude 的 plugin 安裝只有自動測試涵蓋；遠端需升級 BAT 伺服器才會依安裝方式判斷；Linux 版本未實機驗證
+
 ## [0.7.1-pre.9] — 2026-10-29
 
 ### Fixed

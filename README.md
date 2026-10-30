@@ -114,7 +114,7 @@
 
 ## 與 BMad Control Tower 協作
 
-BMad Control Tower（CT）是一套以檔案驅動的多 Agent 開發流程，以 skill 形式安裝在 Claude Code / Codex（`control-tower`、`ct-exec`、`ct-done`、`ct-status` 等）。一個分頁當**塔台**（Tower）：負責對齊需求、開工單、派工、收單與決策；其他分頁當 **Worker**：各自執行一張工單，完成後回報塔台。
+BMad Control Tower（CT）是一套以檔案驅動的多 Agent 開發流程，以 skill 形式安裝在 Claude Code / Codex（`control-tower`、`ct-exec`、`ct-done`、`ct-status` 等；zip 手動安裝或 plugin `ct@control-tower` 皆可）。一個分頁當**塔台**（Tower）：負責對齊需求、開工單、派工、收單與決策；其他分頁當 **Worker**：各自執行一張工單，完成後回報塔台。
 
 Control Tower 已公開（MIT 授權），取得與安裝方式見 [Control Tower 安裝頁](https://gowerlin.github.io/Control-Tower/install)。
 
@@ -155,9 +155,10 @@ BAT 與 CT 分工明確：**BAT 提供終端機、分頁與權限這些基礎設
 | Worker 縮圖狀態 | 縮圖 ⚠️ 等使用者（Claude CLI 的 hook 與 Codex 的 `input`）/ `?` 等塔台答覆 / `✓` 已回報 / `↻` 回報後又在執行（例如塔台 Renew 後）；只有 `✓` 計入「關閉已回報的 Worker 分頁」 | 不需改（舊 CT 的「T#### 提問」也顯示 `?`） |
 | 用量限制自動繼續 | yolo 分頁撞到 5 小時限制後自動續行（設定預設關閉） | 塔台以 `--mode yolo` 宣告後適用 |
 | 工單看板與總覽 | 側欄塔台面板：總覽（塔台狀態、設定的生效值與來源）、看板、Sprint 進度、一鍵 `ct-exec` / `ct-done` | 讀取 `_ct-workorders/`；總覽的下一個編號與待辦讀 `_tower-state.md` 開頭的摘要（`schema_kind: tower-state`、`summary_version: 1`）；單檔上限 512 KB，超過時該頁顯示「無法讀取」（`>= 0.7.1-pre.9`） |
+| CT 的安裝方式（zip / plugin） | Codex Worker 的派工字串依分頁 `CODEX_HOME` 的實際安裝決定：有手動安裝 → `$ct-exec`，只有啟用中的 `ct@*` plugin → `$ct:ct-exec`，判斷不了 → `$ct-exec`（helper 派工與一鍵派工共用；遠端由遠端主機判斷）；總覽「預設」層與 Claude CLI 面板的 skill 清單認得 plugin；兩種都裝時總覽提示實際生效的是 zip 那份 | 派工命令不變（仍只傳 `--skill ct-exec`），前綴由 BAT 決定 |
 | 遠端 | WSL / SSH / Docker 視窗裡的塔台與 Worker 用同一套 helper（`"${BAT_HELPER_NODE:-node}"`） | 遠端需另裝 CT skill |
 
-完整契約（參數、exit code、環境變數、日誌）見 [docs/agent-guide/](docs/agent-guide/README.md) 的「Worker 分頁回收」「塔台分頁標題」「遠端 Tower 通知」「worktree 隔離派工」「worktree 狀態查詢」「helper 唯讀查詢 channel」「BAT MCP shim」「blocked 狀態偵測」「Worker 啟動確認」「Worker 問塔台」「Claude 分頁的 session 名稱」各篇（[CLAUDE.md](CLAUDE.md) 只留摘要）。
+完整契約（參數、exit code、環境變數、日誌）見 [docs/agent-guide/](docs/agent-guide/README.md) 的「Worker 分頁回收」「塔台分頁標題」「遠端 Tower 通知」「worktree 隔離派工」「worktree 狀態查詢」「helper 唯讀查詢 channel」「BAT MCP shim」「blocked 狀態偵測」「Worker 啟動確認」「Worker 問塔台」「Claude 分頁的 session 名稱」「CT plugin 安裝」各篇（[CLAUDE.md](CLAUDE.md) 只留摘要）。
 
 ### 版本對照
 
@@ -181,6 +182,7 @@ BAT 與 CT 分工明確：**BAT 提供終端機、分頁與權限這些基礎設
 | Worker 縮圖 ⚠️ / `?` / `✓` / `↻` | `>= 0.7.0-pre.7`（提問答覆後恢復「執行中」：`>= 0.7.0-pre.8`；Codex 分頁 ⚠️：`>= 0.7.0-pre.9`；回報後又在執行 `↻`：`>= 0.7.1-pre.6`） | 不需要 |
 | 重派同一張工單前回收舊 Worker 分頁（避免回收時 `AMBIGUOUS`） | `>= 0.6.1-pre.4`（沿用 `--close-worker`） | `>= v5.12.0`（舊 CT 重派後舊分頁要手動關） |
 | 指揮塔總覽：塔台狀態、設定生效值與來源、沒有 `sprint-status.yaml` 也能用 | `>= 0.7.1-pre.7` | 不需要；下一個編號與待辦需 CT 寫入 `_tower-state.md` 摘要：`>= v6.0.0-pre.1`（預覽版；舊 CT 只顯示最後更新與進行中工單） |
+| CT 以 plugin 安裝（`ct@control-tower`）時 Codex Worker 派工、面板認得 plugin、兩種都裝的提示 | `>= 0.7.2-pre.1` | CT `>= v5.14.0` 提供 plugin；更舊的 BAT 搭配 Codex 請用 zip 手動安裝 |
 
 <!-- #endregion compatibility -->
 

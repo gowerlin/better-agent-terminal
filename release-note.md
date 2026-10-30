@@ -2,6 +2,63 @@
 
 本 fork 各版的更版重點（內容取自 GitHub Releases，最新在上）。上游 tony1223/better-agent-terminal 的 v2.1.x 紀錄保留在檔案最下方。
 
+## v0.7.2-pre.1（2026-10-30）
+
+版號 0.7.2-pre.1，接續 `v0.7.1-pre.9`。0.7.1 線的預覽版到 pre.9 為止，之後改走 0.7.2 線。
+
+## 新增
+
+- **支援以 plugin 安裝的 Control Tower**：Control Tower 5.14.0 起除了 zip 手動安裝，也可以用 plugin 安裝（`ct@control-tower`）。Codex 只裝 plugin 時，skill 名稱是 `$ct:ct-exec`，原本的 `$ct-exec` 不會載入 skill，而且不會報錯。現在：
+  - 塔台派工給 Codex Worker、以及指揮塔的一鍵派工，會依 Codex 實際的安裝方式送 `$ct-exec` 或 `$ct:ct-exec`：有手動安裝（含兩種都裝）用 `$ct-exec`，只有啟用中的 plugin 用 `$ct:ct-exec`，判斷不了時照舊送 `$ct-exec`。判斷依分頁的 `CODEX_HOME`；遠端視窗由遠端主機判斷
+  - 指揮塔總覽 `*config` 的「預設」層，只裝 plugin 時也讀得到 Control Tower 的預設設定
+  - Claude CLI 面板的 skill 清單與 `*` 指令補全，只裝 plugin 時也列出 Control Tower 的 skill（手動與 plugin 同名只列一次）
+  - Claude CLI 的派工字串不變（`/ct-exec` 三種安裝都能用）
+- **Control Tower 同時以 zip 與 plugin 安裝時提示**：指揮塔總覽 `*config` 區塊會說明 `/ct-exec`、`$ct-exec` 實際使用的是 zip 那份；兩份版本不同時以警示顯示。只裝一種時不顯示
+
+## 修正
+
+- **指揮塔一鍵派工給 Codex 時，`$ct-exec` 被 shell 吃掉**：以前一鍵派工的命令在 PowerShell 與 bash 會把 `$ct` 當成變數展開，Codex 實際收到的是 `-exec T####`。現在由 BAT 依分頁的 shell 加上正確的引號
+
+## 更新
+
+- helper `bat-notify.mjs --help` 補充：`--source` 要和派工時的 `--workorder` 用同一個工單編號
+- 開發者：單元測試在 Node 25 以上（例如 Node 26）也能直接執行，不需另設 `NODE_OPTIONS`
+
+## 歡迎協助測試
+
+本版改了 Codex Worker 的派工字串。如果你用 Codex，歡迎幫忙跑一次塔台 / Worker 流程（用 zip 或 plugin 安裝 Control Tower 都可以，兩種都試更好）：
+
+1. 開一個 Codex CLI 分頁，呼叫 MCP tool `bat_whoami`，確認 `role` 與 `agent`
+2. 由塔台派一張小工單給 Codex Worker（`--agent codex`），看 Worker 分頁送出的是 `$ct-exec` 還是 `$ct:ct-exec`，以及 Worker 有沒有照工單執行
+3. 確認 Worker 完成後通知回到塔台，分頁被回收
+
+結果請到 https://github.com/gowerlin/better-agent-terminal/issues 回報，附上 BAT 版本（`v0.7.2-pre.1`）、`codex --version`，以及 Control Tower 的安裝方式（zip / plugin / 兩種都裝）。
+
+## 待驗收（請更新到本版後協助確認）
+
+以下修正已包含在本版，仍在等實機確認：
+
+- **BUG-171**（`v0.7.1-pre.8` 起）：日常使用時，遇到系統自動校時、睡眠喚醒後，不再出現「終端已恢復」提示，閒置的 Claude CLI 分頁也不會變成 `[Process exited with code 1]`
+- **BUG-165**（macOS 觸控板，Codex 分頁捲動，`v0.7.1-pre.6` 起）：開 Codex CLI 分頁，在 Codex 畫面內快速、慢速捲動，看是否跟手、會不會捲過頭。如果之前照建議在 `~/.codex/config.toml` 的 `[tui]` 段加了 `mouse_scroll_speed = 3`，建議先移除那一行再試
+- **BUG-166**（`v0.7.1-pre.4` 起）：在 macOS 的分頁執行 `printf '\e[?1003h\e[?1006h'` 後移動滑鼠，命令列最多冒出幾筆亂碼就停；Shift + 右鍵選單有「重設滑鼠模式」
+- **BUG-169**（`v0.7.1-pre.6` 起）：執行 `node "<安裝目錄>/resources/scripts/bat-terminal.mjs" --version`，應顯示本版版號而不是 `v0.0.0`
+- **BUG-156**（需 Docker Desktop）：Docker 設定精靈建立容器時，不再與 BAT 本機伺服器搶用 9876 埠
+- **BUG-159**（需一般權限執行 BAT + codex）：Codex CLI 分頁內執行的 helper 讀到的是自己分頁的 `BAT_*`，不是其他分頁的
+
+## 已知事項
+
+- Control Tower 需 5.14.1 以上才會把「BAT `>= 0.7.2-pre.1` 支援 plugin 安裝」寫進文件；在那之前 Control Tower 文件仍建議 Codex 搭配 BAT 時用 zip 手動安裝
+- plugin 判斷已用隔離環境實測 Codex（codex-cli 0.164.0）四種安裝狀態；Claude 的 plugin 安裝只有自動測試涵蓋
+- 遠端視窗需把遠端的 BAT 伺服器升級到本版（重跑設定精靈）才會依安裝方式判斷；舊伺服器照舊送 `$ct-exec`
+- 終端伺服器真的停止時，BAT 仍只重建 shell，分頁裡原本執行的 Claude CLI / Codex CLI 不會自動接回（PLAN-055）
+- Linux 版本未實機驗證
+
+macOS 仍只提供 Apple Silicon（arm64）版。
+
+**Full Changelog**: https://github.com/gowerlin/better-agent-terminal/compare/v0.7.1-pre.9...v0.7.2-pre.1
+
+---
+
 ## v0.7.1-pre.9（2026-10-29）
 
 版號 0.7.1-pre.9，接續 `v0.7.1-pre.8`。
