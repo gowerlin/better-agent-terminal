@@ -2,6 +2,43 @@
 
 本 fork 各版的更版重點（內容取自 GitHub Releases，最新在上）。上游 tony1223/better-agent-terminal 的 v2.1.x 紀錄保留在檔案最下方。
 
+## v0.7.2-pre.2（2026-10-30）
+
+版號 0.7.2-pre.2，接續 `v0.7.2-pre.1`。
+
+## 修正
+
+- **終端裡的 `file:///` 連結**（BUG-174，GitHub #20）：
+  - 路徑含中文等全形字時，底線比網址短、尾端點了沒反應；網址前面有全形字時起點也會偏。現在底線涵蓋整段網址，任一處都能點開
+  - 路徑太長換到下一行時，整段仍是同一個連結（最多往上下串 20 列）
+  - Claude Code 等程式輸出的超連結（OSC 8，例如 Markdown 連結 `[說明](file:///...)`）以前點了沒反應，現在可以點開 `http`、`https`、`file` 連結；其他類型（例如 `javascript:`）不會開啟。滑鼠移上去會顯示實際要開的目標，連結文字與目標不同時也看得出來
+
+## 待驗收（請更新到本版後協助確認）
+
+以下修正已包含在本版，仍在等實機確認：
+
+- **BUG-174**（本版）：在終端印出含全形字的路徑，例如 `echo 'file:///Users/demo/專案/待處理/範例_v1.0.md'`（換成你機器上存在的檔案），滑過時底線涵蓋整段、點尾端也能開檔；把視窗縮窄讓路徑換行再試一次；在 Claude CLI 分頁請 Claude 用 Markdown 連結回覆某個檔案，點連結能開檔，滑過時顯示實際路徑
+- **BUG-171**（`v0.7.1-pre.8` 起）：日常使用時，遇到系統自動校時、睡眠喚醒後，不再出現「終端已恢復」提示，閒置的 Claude CLI 分頁也不會變成 `[Process exited with code 1]`
+- **BUG-165**（macOS 觸控板，Codex 分頁捲動，`v0.7.1-pre.6` 起）：開 Codex CLI 分頁，在 Codex 畫面內快速、慢速捲動，看是否跟手、會不會捲過頭。如果之前照建議在 `~/.codex/config.toml` 的 `[tui]` 段加了 `mouse_scroll_speed = 3`，建議先移除那一行再試
+- **BUG-166**（`v0.7.1-pre.4` 起）：在 macOS 的分頁執行 `printf '\e[?1003h\e[?1006h'` 後移動滑鼠，命令列最多冒出幾筆亂碼就停；Shift + 右鍵選單有「重設滑鼠模式」
+- **BUG-169**（`v0.7.1-pre.6` 起）：執行 `node "<安裝目錄>/resources/scripts/bat-terminal.mjs" --version`，應顯示本版版號而不是 `v0.0.0`
+- **BUG-156**（需 Docker Desktop）：Docker 設定精靈建立容器時，不再與 BAT 本機伺服器搶用 9876 埠
+- **BUG-159**（需一般權限執行 BAT + codex）：Codex CLI 分頁內執行的 helper 讀到的是自己分頁的 `BAT_*`，不是其他分頁的
+
+## 已知事項
+
+- 跨行的超連結（OSC 8）每一列都能點，但底線只畫在滑鼠所在的那一列（終端元件 xterm.js 本身的行為）
+- 遠端視窗（WSL / SSH / Docker）裡的 `file:///` 路徑指的是遠端主機的檔案，點擊時仍以本機開啟，與之前相同
+- `file:///` 連結修正只有自動測試涵蓋，尚未在 BAT 視窗實機點擊確認
+- 終端伺服器真的停止時，BAT 仍只重建 shell，分頁裡原本執行的 Claude CLI / Codex CLI 不會自動接回（PLAN-055）
+- Linux 版本未實機驗證
+
+macOS 仍只提供 Apple Silicon（arm64）版。
+
+**Full Changelog**: https://github.com/gowerlin/better-agent-terminal/compare/v0.7.2-pre.1...v0.7.2-pre.2
+
+---
+
 ## v0.7.2-pre.1（2026-10-30）
 
 版號 0.7.2-pre.1，接續 `v0.7.1-pre.9`。0.7.1 線的預覽版到 pre.9 為止，之後改走 0.7.2 線。

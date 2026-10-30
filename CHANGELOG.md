@@ -4,6 +4,14 @@ All notable changes to Better Agent Terminal are documented in this file.
 
 ## [Unreleased]
 
+## [0.7.2-pre.2] — 2026-10-30
+
+### Fixed
+- 終端 `file:///` 連結（BUG-174，GitHub #20，T0713）：範圍改以格子欄位計算（全形字不再讓底線與可點範圍變短、網址前的全形字不再讓起點偏移）；串接 `isWrapped` 續行（上下各 ≤ 20 列），跨行路徑整段是同一個連結；OSC 8 超連結設定 `linkHandler`，只開 `http` / `https` / `file`，其他 scheme 不開並只記 scheme 與長度，滑過時顯示實際目標。唯一實作 `src/lib/terminal-file-links.ts`；`WebLinksAddon` 的 http(s) 連結經測試本來就正確，未改
+
+### Known issues
+- 跨行的 OSC 8 連結底線只畫在滑鼠所在列（xterm.js 行為）；遠端視窗的 `file:///` 仍以本機開啟；只有自動測試涵蓋，尚未實機點擊確認
+
 ## [0.7.2-pre.1] — 2026-10-30
 
 ### Added
