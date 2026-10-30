@@ -23,10 +23,10 @@ breakdown:
 # Bug Tracker
 
 > ⚠️ 此文件由 `*sync` 自動生成，請勿手動編輯。
-> 最後同步：2026-10-29 09:38 (UTC+8) — 新增 BUG-172 / BUG-173（BMad-Guide 塔台 ADVISORY，CT D408）；熱區 Fixed 30（BUG-172 T0708、BUG-173 T0709） / Closed 7
+> 最後同步：2026-10-30 13:20 (UTC+8) — BUG-172 / BUG-173 CLOSED（使用者以 v0.7.1-pre.9 實機驗收通過）；熱區 Fixed 28 / Closed 9
 
 ## 統計
-- 🔴 Open: 0 | ⏳ Fixing: 0 | ✅ Fixed: 30 | 🧪 Verify: 0 | 🚫 Closed: 7 | ⛔ Won't Fix: 0 | **Total: 37**
+- 🔴 Open: 0 | ⏳ Fixing: 0 | ✅ Fixed: 28 | 🧪 Verify: 0 | 🚫 Closed: 9 | ⛔ Won't Fix: 0 | **Total: 37**
 
 ## 🔴 Open / 處理中
 
@@ -42,8 +42,6 @@ breakdown:
 
 | ID | 標題 | 嚴重度 | 修復時間 | 連結 |
 |----|------|--------|---------|------|
-| BUG-172 | 指揮塔面板：檔案超過 512 KiB 時臭蟲／待辦／決策三頁靜默變空、工單從清單消失（只有總覽報 File too large） | 🟡 medium | 2026-10-29 | [BUG-172](BUG-172-ct-panel-file-too-large-silent-empty.md) |
-| BUG-173 | 指揮塔面板：索引文字與 PLAN 檔補優先級時 `critical` 判成 Unknown（frontmatter 路徑算 High） | 🟢 low | T0708 派工 2026-10-29 | [BUG-173](BUG-173-ct-priority-critical-text-path-unknown.md) |
 | BUG-171 | 「終端重置」後多個分頁 `[Process exited with code 1]`：NTP 時鐘跳變讓 heartbeat 誤判、recovery 沒關舊 server；T0704 `68ab2a42` + T0705 `d7ffa080`，待下一個預覽版實機驗收 | 🔴 high | 2026-10-25 | [BUG-171](BUG-171-idle-terminals-exit-1-after-terminal-reset.md) |
 | BUG-165 | macOS：Codex CLI 分頁內捲動不夠順；T0698 `ec4b3c13` 依累積行數送多個滾輪回報（上限 8），隨 pre.6 發佈，待外部測試者A 實機驗收 | 🟢 low | 2026-10-22 | [BUG-165](BUG-165-macos-codex-cli-scroll-not-smooth.md) |
 | BUG-170 | yolo 提問備援重派後舊 Worker 分頁讓回收 AMBIGUOUS；CT v5.12.0 / v5.12.1 重派前先 `--close-worker`（CT-T022），T0695 / T0696 實機驗收通過 | 🟢 low | 2026-10-22 | [BUG-170](BUG-170-yolo-fallback-redispatch-leaves-old-worker-tab.md) |
@@ -83,6 +81,8 @@ breakdown:
 
 | ID | 標題 | 嚴重度 | 關閉時間 | 連結 |
 |----|------|--------|---------|------|
+| BUG-172 | 指揮塔面板：檔案超過 512 KiB 時臭蟲／待辦／決策三頁靜默變空、工單從清單消失（只有總覽報 File too large）（T0708 `50fe08d3`；使用者以 v0.7.1-pre.9 實機驗收通過） | 🟡 medium | 2026-10-30 | [BUG-172](BUG-172-ct-panel-file-too-large-silent-empty.md) |
+| BUG-173 | 指揮塔面板：索引文字與 PLAN 檔補優先級時 `critical` 判成 Unknown（frontmatter 路徑算 High）（T0709 `809eab0d`；使用者以 v0.7.1-pre.9 實機驗收通過） | 🟢 low | 2026-10-30 | [BUG-173](BUG-173-ct-priority-critical-text-path-unknown.md) |
 | BUG-164 | macOS GPU 程序在建立 / 切換終端分頁時以同一個 CHECK 崩潰（T0668 符號化；T0669 `32d62a45` macOS 停用 Graphite + 崩潰後重建；外部測試者A 以 v0.7.1-pre.3 確認約 4h40m 0 次崩潰） | 🟢 low | 2026-10-19 | [BUG-164](BUG-164-macos-gpu-process-check-crash-on-tab-create-switch.md) |
 | BUG-136 | macOS 舊 Codex 分頁打字嚴重延遲、Renderer 約 100% CPU：縮圖預覽字串無上限累積（T0666 根因、T0667 `a9f0ad5a` 加上限；外部測試者A 以 v0.7.1-pre.3 確認） | 🟡 medium | 2026-10-19 | [BUG-136](BUG-136-macos-old-terminal-typing-lag-renderer-cpu.md) |
 | BUG-158 | 遠端設定畫面殘留英文字樣、缺 zh-TW key；SSH 認證失敗訊息提到「帳號密碼」（T0652 `15a792d4`；0.7.1-pre.2 T0663 實機） | 🟢 low | 2026-10-18 | [BUG-158](BUG-158-remote-ui-english-strings-and-password-wording.md) |

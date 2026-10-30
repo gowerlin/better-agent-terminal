@@ -3,11 +3,11 @@ schema_version: 1
 schema_kind: bug
 id: BUG-173
 title: "指揮塔面板的優先級／嚴重度：frontmatter 的 critical 算 High，索引文字與 PLAN 檔補優先級時的 critical 卻是 Unknown"
-status: FIXED
+status: CLOSED
 severity: low
 reproducibility: always（索引格子或 PLAN 檔只寫 critical、沒有 High 字樣時）
 created_at: "2026-10-29T09:38:19+0800"
-updated_at: "2026-10-29T09:51:57+0800"
+updated_at: "2026-10-30T13:20:37+0800"
 impact:
   - control-tower-panel
 links:
@@ -21,7 +21,7 @@ links:
 |------|------|
 | 嚴重度 | 🟢 low（只影響優先級顯示與排序；CT 索引已改寫成「🔴 High（critical）」可避開） |
 | 可重現 | 必定 |
-| **狀態** | ✅ FIXED：T0709 `809eab0d`（`extractPriority` / `extractSeverity` 認 `critical` → High，含 PLAN 檔補優先級路徑；測試 27 項）；待預覽版實機驗收 |
+| **狀態** | 🚫 CLOSED：T0709 `809eab0d`（`extractPriority` / `extractSeverity` 認 `critical` → High，含 PLAN 檔補優先級路徑；測試 27 項）；使用者以 `v0.7.1-pre.9` 實機驗收通過（2026-10-30） |
 | 回報者 | BMad-Guide 塔台（CT 規範 D408 附帶建議第 2 點） |
 
 ## 現象
