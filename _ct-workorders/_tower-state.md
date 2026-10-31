@@ -1,8 +1,8 @@
 ---
 schema_kind: tower-state
 summary_version: 1
-updated_at: "2026-10-30T17:17:38+0800"
-session: "2026-10-30 第九十八 session 已收工（CT v5.14.3）：BUG-165 / 166 CLOSED、BUG-175 / T0714、v0.7.2-pre.3、GitHub #21 關閉"
+updated_at: "2026-11-01T01:24:49+0800"
+session: "2026-11-01 01:24 第九十九 session 啟動（CT v5.14.4，Full Scan）"
 next_ids:
   workorder: "T0715"
   decision: "D190"
@@ -214,28 +214,29 @@ todo:
 ---
 
 ## 🔍 環境快照
-> 最後掃描:2026-10-23 06:50 (UTC+8) 第九十 session **Full Scan**（啟動時快照已 8 天，依 Startup Protocol 第 7 點；前次 Full Scan 2026-10-15 19:57）
+> 最後掃描:2026-11-01 01:24 (UTC+8) 第九十九 session **Full Scan**（啟動時快照已 9 天，依 Startup Protocol 第 7 點；前次 Full Scan 2026-10-23 06:50）
 
 | 偵測項 | 狀態 | 備註 |
 |--------|------|------|
-| 終端環境 | BAT | `BAT_SESSION=1`, port `9876`, workspace `cc0afc4a-57e9-4f41-b2ed-a2d8bac9e36b`, terminal `8131f1a6…`；無 `BAT_TOWER_TERMINAL_ID` |
-| BAT 派發 | ✅ | 五項 dispatch env 齊備（PowerShell 確認）；另有 `BAT_USER_DATA` / `BAT_IDLE_TIMEOUT_MS` / `BAT_SCROLL_BUFFER_LINES` |
-| BAT 安裝版 | ✅ `0.7.1-pre.6` | exe FileVersion `0.7.1-pre.6`（2026-10-22 02:13）；安裝版 `bat-terminal.mjs --version` → `v0.7.1-pre.6` exit 0（BUG-169 驗收項目的實機證據）；Tower `--set-role tower --mode on` exit 0；`bat_whoami` session 名稱 `better-agent-terminal · Tower` |
+| 終端環境 | BAT | `BAT_SESSION=1`, port `9876`, workspace `cc0afc4a-57e9-4f41-b2ed-a2d8bac9e36b`, terminal `508fced6…`；無 `BAT_TOWER_TERMINAL_ID` |
+| BAT 派發 | ✅ | 五項 dispatch env 齊備（PowerShell 確認）；另有 `BAT_USER_DATA` |
+| BAT 安裝版 | ✅ `0.7.2-pre.3` | exe FileVersion `0.7.2-pre.3`；安裝版 `bat-terminal.mjs --version` → `v0.7.2-pre.3` exit 0；Tower `--set-role tower --mode on` exit 0；`bat_whoami` session 名稱 `better-agent-terminal · Tower` |
 | BAT_HELPER_DIR | ✅ | `C:\Program Files\BetterAgentTerminal\resources\scripts` |
-| BAT debug log | ✅ | `%APPDATA%\BetterAgentTerminal\Logs\debug-20261023-041137.log`（本次啟動） |
-| 平台 | Windows 11 | PowerShell 主，Bash tool 並存；node `v24.22.1` / npm `12.2.1` |
+| BAT debug log | ✅ | `%APPDATA%\BetterAgentTerminal\Logs\debug-20261031-133734.log`（最新） |
+| 平台 | Windows 11 | PowerShell 主，Bash tool 並存；node `v26.13.0` / npm `12.2.1` |
 | gh CLI | ✅ | **必須帶 `-R gowerlin/better-agent-terminal`**（L122） |
 | git remote | 3 個 | `origin`=gowerlin / `upstream`=tony1223 / `scandnavik` |
-| git 同步 | ✅ | `main` = `origin/main` @ `98e84050`（fetch 後 0 / 0）；工作區乾淨；另有 worktree `../.ct-integration/better-agent-terminal`（detached `4e5f5e7f`）；無 stash |
-| 最新 CI / release | ✅ | Pre-Release 2026-10-21 18:02Z success → `v0.7.1-pre.6`；Pages 18:16Z success |
-| Control Tower skills | ✅ v5.12.5 | control-tower 5.12.5（第九十一 session 啟動時；06:50 掃描時為 5.12.2） |
-| 熱區單據 | **T:205 / BUG:55 / PLAN:25 / EXP:1** | BUG：FIXED 27 / CLOSED 28（與 `_bug-tracker.md` 一致）；PLAN：IDEA 7 / PLANNED 1（PLAN-054） |
-| 非終態工單 | 無 | T0153 / T0543 ABANDONED（終態）；EXP-WFMINE-001 frontmatter 無 `status`（內文 CONCLUDED） |
-| 最大編號 | **T0698 / BUG-170 / PLAN-054 / D181 / L174 / CT-T022** | 下張：T0699 / BUG-171 / PLAN-055 / D182 / L175 / CT-T023 |
-| unit test / typecheck | 未重跑 | 最近：5891 passed / 331 files、typecheck 0 / 0（@ `767985e9`，第八十九 session 發 pre.6 前） |
-| state 檔 | ⚠️ 31.9 KB | 超 30 KB 軟警告；季檔 `2026-Q4.md` 166,702 bytes（接近 200 KB 切割點）、INDEX 102 entries |
+| git 同步 | ✅ | `main` = `origin/main` @ `21ca9eba`（fetch 後 0 / 0）；工作區乾淨；另有 worktree `../.ct-integration/better-agent-terminal`（detached `4e5f5e7f`）；無 stash |
+| 最新 CI / release | ✅ | Pre-Release 2026-10-30 09:02Z success → `v0.7.2-pre.3`；Pages 09:15Z success |
+| GitHub open issues | 2 | #20（file link，BUG-174 FIXED，等回報者）；**#22**（2026-10-30 09:54Z 新開，Worker 縮圖停在啟動畫面，回報者用 `0.7.1-pre.9` macOS = BUG-175，`v0.7.2-pre.3` 已修，尚未留言） |
+| Control Tower skills | ✅ v5.14.4 | control-tower 5.14.4（第九十九 session 啟動時） |
+| 熱區單據 | **T:110 / BUG:39 / PLAN:21 / EXP:1** | BUG：FIXED 28 / CLOSED 11（與 `_bug-tracker.md` 一致）；PLAN：DONE 10 / DROPPED 2 / IDEA 8 / PLANNED 1 |
+| 非終態工單 | 無 | |
+| 最大編號 | **T0714 / BUG-175 / PLAN-056 / D189 / L177 / CT-T022** | 下張：T0715 / BUG-176 / PLAN-057 / D190 / L178 / CT-T023 |
+| unit test / typecheck | 未重跑 | 最近：6130 passed / 343 files、typecheck 0 / 0（@ `ae4602ed`，第九十七 session） |
+| state 檔 | ⚠️ 33.1 KB | 超 30 KB 軟警告；`_decision-log.md` 234,033 bytes（< 400 KB 預算）；季檔 `2026-Q4.md` 190,427 bytes（接近 200 KB 切割點）、INDEX 115 列 |
 | 設定來源 | project | `_tower-config.yaml`（auto-session **on**，`yolo_max_retries: 1`，`auto_commit: on`，`worker_auto_close: done`，`worker_close_delay: 10`） |
-| 塔台版本 | v5.12.5 | control-tower skill（第九十一 session） |
+| 塔台版本 | v5.14.4 | control-tower skill（第九十九 session） |
 
 > **Drift / 注意事項**:
 > 1. ✅ ~~D094 mac installer 280 MB cap 長期超標（L130）~~ → D146 取代（每平台 ≤ 320 MiB、zip ≤ 450；pre.4 全數符合）
