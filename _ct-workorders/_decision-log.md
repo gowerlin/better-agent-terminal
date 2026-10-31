@@ -1465,6 +1465,15 @@
 - **切分**：W2a 設計語言 + 元件 + 首頁（T0630）→ 預覽通過後 W2b（`/control-tower`、功能、FAQ、回報頁）→ W2c 遠端開發；W3 / W4 不變。
 - **相關**：PLAN-049 / D159 / D160 / T0624 / T0630
 
+### D190 2026-11-01 — `bat-notify.mjs --ask --no-pty-write` 列為正式契約（T0716：文件＋守門測試＋兩個小修）；Q-B2 / Q-B4 目前不做
+
+- **背景**：BMad-Guide 塔台 HANDOVER（`_handover-2026-11-01-bat-ask-no-pty-write-contract.md`，CT D492–D494）：CT v5.15.0 要讓 yolo Worker 一批 N 題時前 N-1 題用 `--ask --no-pty-write`、最後一題才 `--submit`，請 BAT 確認 Q-B1（阻塞 CT 發版）–Q-B4。T0715 研究（`97a64056`）：Q-B1 現況支援（只呼叫 `question:ask` → `terminal:notify`，handler 只 emit `terminal:notified`，renderer 只做 toast / 徽章 / Worker 標記，與已安裝 `0.7.2-pre.3` 雜湊相同），但沒寫進文件契約、沒有守門測試；Q-B2 現況無佇列；Q-B3 BAT 無法可靠清預填，建議 CT 以結尾 ID 樣式判讀；Q-B4 可行但增益小。
+- **決定**（使用者 2026-11-01 01:4x，兩題皆選推薦）：
+  1. 開 T0716：`--ask --no-pty-write` 寫進 CLAUDE.md / docs / help 的契約並加守門測試；同單修 `--ask` 下 `terminal:notify` 回 `false` 被當成功的缺口（T0715 A5），以及 keypress 階段失敗時 stderr 誤說「Tower 沒收到通知」（改說預填已寫入、Enter 沒送出，並新增一行 `ask: NOTIFY_STEP <step>`，向後相容）。
+  2. Q-B2（`pty:write` / keypress 佇列、去抖動）、Q-B4（一次 `--ask` 帶多題）目前不做；Q-B2 日後若加，保證同一目標 `pty:write` → `keypress` 先進先出；Q-B4 若要做先做只改 helper 的方案 A。
+  3. Q-B3：BAT 不清預填，回覆 CT 建議塔台判讀通知時比對字串結尾的最後一個 `<工單 ID> <關鍵字>`。
+- **相關**：T0715 / T0716 / BMad-Guide HANDOVER / CT D492–D494 / PLAN-048
+
 ### D189 2026-10-30 — PLAN-056（GitHub #21 多 repo 塔台工單可見性）不改程式，DROPPED；照 CT 推薦的目錄配置回覆 #21
 
 - **背景**：GitHub #21 回報一個塔台統籌多個共用 repo 時，子 repo `_ct-workorders/` 的工單在指揮塔面板看不到。使用者判斷可能是目錄規劃或 workspace 切分習慣，請與 CT 塔台聯合研究（HANDOVER `_handover-2026-10-30-multi-repo-tower-layout.md`）。CT 回覆（BMad-Guide `_reply-2026-10-30-multi-repo-tower-layout.md`，CT D463）：BAT 不需改程式；工單跑進子 repo 是因 Worker cwd 在子 repo，不是 C-0 / C-1 要求；推薦上層 `git init` 當個人塔台 repo、工單集中上層、Worker 在上層執行、`git -C` commit 子 repo（不能 worktree 隔離）；A / B 不會成為 CT 契約，唯讀顯示由 BAT 自決。
