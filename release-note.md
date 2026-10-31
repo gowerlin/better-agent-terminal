@@ -2,6 +2,42 @@
 
 本 fork 各版的更版重點（內容取自 GitHub Releases，最新在上）。上游 tony1223/better-agent-terminal 的 v2.1.x 紀錄保留在檔案最下方。
 
+## v0.7.2-pre.4（2026-11-01）
+
+版號 0.7.2-pre.4，接續 `v0.7.2-pre.3`。
+
+## 更新
+
+- **Worker 一次問塔台多題時，塔台只被叫醒一次**（T0715 / T0716）：`bat-notify.mjs --ask --no-pty-write` 正式列為 BAT 的支援組合，只登記題目、跳通知，不會在塔台輸入框預填文字或按 Enter。Control Tower v5.15.0 起，Worker 一批多題時前面幾題用這個方式，只有最後一題叫醒塔台，可省下重複叫醒塔台的花費。已寫進說明文件，並加了自動測試把關
+- **提問通知失敗時的訊息更清楚**（T0716）：Worker 提問時，如果預填文字已寫進塔台輸入框、但 Enter 沒送出，錯誤訊息改說「預填已寫入、Enter 沒送出」，不再誤說塔台沒收到通知；另外多輸出一行 `ask: NOTIFY_STEP <notify|pty-write|keypress>` 標出失敗在哪一步。既有的輸出與結束代碼不變
+
+## 修正
+
+- Worker 提問時，BAT 拒收通知的情況現在會當成失敗並取消題目，不會誤報成功（T0716；一般情況下不會發生）
+
+## 待驗收（請更新到本版後協助確認）
+
+以下修正已包含在本版，仍在等實機確認：
+
+- **BUG-175**（`v0.7.2-pre.3` 起，macOS，GitHub #22）：派幾個 Claude CLI Worker 或開 Claude CLI / Codex CLI 分頁，看縮圖列的縮圖是否跟著分頁內容更新，不再停在啟動畫面，也沒有 `>0q>4m` 之類的字。如果縮圖出現 `38;5;246m` 這類殘骸，請截圖回報
+- **BUG-174**（`v0.7.2-pre.2` 起，GitHub #20）：在終端印出含全形字的路徑，例如 `echo 'file:///Users/demo/專案/待處理/範例_v1.0.md'`（換成你機器上存在的檔案），滑過時底線涵蓋整段、點尾端也能開檔；把視窗縮窄讓路徑換行再試一次；在 Claude CLI 分頁請 Claude 用 Markdown 連結回覆某個檔案，點連結能開檔，滑過時顯示實際路徑
+- **BUG-171**（`v0.7.1-pre.8` 起）：日常使用時，遇到系統自動校時、睡眠喚醒後，不再出現「終端已恢復」提示，閒置的 Claude CLI 分頁也不會變成 `[Process exited with code 1]`
+- **BUG-169**（`v0.7.1-pre.6` 起）：執行 `node "<安裝目錄>/resources/scripts/bat-terminal.mjs" --version`，應顯示本版版號而不是 `v0.0.0`
+- **BUG-156**（需 Docker Desktop）：Docker 設定精靈建立容器時，不再與 BAT 本機伺服器搶用 9876 埠
+- **BUG-159**（需一般權限執行 BAT + codex）：Codex CLI 分頁內執行的 helper 讀到的是自己分頁的 `BAT_*`，不是其他分頁的
+
+## 已知事項
+
+- 多題提問只叫醒一次需要搭配 Control Tower v5.15.0 以上；舊版 Control Tower 照舊每題叫醒一次，不受影響
+- 縮圖顯示的是「最近寫出的幾列」，不一定是畫面最下面幾列；縮圖修正尚未在 macOS 實機確認
+- 跨行的超連結（OSC 8）每一列都能點，但底線只畫在滑鼠所在的那一列（終端元件 xterm.js 本身的行為）
+- 終端伺服器真的停止時，BAT 仍只重建 shell，分頁裡原本執行的 Claude CLI / Codex CLI 不會自動接回（PLAN-055）
+- Linux 版本未實機驗證
+
+macOS 仍只提供 Apple Silicon（arm64）版。
+
+**Full Changelog**: https://github.com/gowerlin/better-agent-terminal/compare/v0.7.2-pre.3...v0.7.2-pre.4
+
 ## v0.7.2-pre.3（2026-10-30）
 
 版號 0.7.2-pre.3，接續 `v0.7.2-pre.2`。

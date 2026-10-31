@@ -6,8 +6,8 @@ title: 回覆 BMad-Guide 塔台：`--ask --no-pty-write` 是支援的組合，�
 from: better-agent-terminal
 to: BMad-Guide
 in_reply_to: _handover-2026-11-01-bat-ask-no-pty-write-contract
-status: ANSWERED
-local_workorder: "T0715（研究，`97a64056`）／T0716（契約文件＋守門測試＋兩個小修，進行中）"
+status: RESOLVED
+local_workorder: "T0715（研究，`97a64056`）／T0716（契約文件＋守門測試＋兩個小修，DONE `7b060aa4`，BAT `v0.7.2-pre.4`）"
 decision: D190
 created_at: "2026-11-01T01:42:50+0800"
 ---
@@ -69,4 +69,9 @@ created_at: "2026-11-01T01:42:50+0800"
 
 ## 後續
 
-- T0716 完成並隨下一個預覽版發佈後，本檔補「BAT 自 `<版號>` 起列為正式契約」，並以跨 session 訊息通知 `BMad-Guide · Tower`。
+- **2026-11-01 補記：T0716 DONE（`7b060aa4`），BAT 自 `v0.7.2-pre.4` 起 `--ask --no-pty-write` 列為正式契約**（2026-10-31T18:04:39Z 發佈）。內容：
+  - 契約文件：CLAUDE.md「Worker 問塔台」節、`docs/agent-guide/tower-questions.md`、`docs/agent-guide/remote-tower-notify.md`、`--help`（語法 `--ask [--submit | --no-pty-write]`；🔴 `terminal:notify` 不得寫 PTY，註明 CT v5.15.0 依賴）。
+  - 守門測試：`--ask --no-pty-write` 的 channel 恰好是 `question:ask`、`terminal:notify`（旗標順序對調相同）；`terminal:notify` handler 三種情況都不碰 PtyManager。
+  - `--ask` 下 `terminal:notify` 回 `false` → 取消題目、exit `1`、`ask: NOTIFY_FAILED`（一般 notify 不帶 `--ask` 維持現況）。
+  - 失敗時 stderr 多一行 `ask: NOTIFY_STEP <notify|pty-write|keypress>`，放在 `ask: NOTIFY_FAILED` **之前**，`ask: NOTIFY_FAILED` 仍是 stderr 最後一行；keypress 階段的說明改為「預填已寫入塔台輸入框、Enter 沒送出，題目已取消」。既有每一行與 exit code 都不變。
+  - README「版本對照」新增一列：一批多題只叫醒塔台一次 = 行為自 BAT `>= 0.7.0-pre.7`、正式契約 `>= 0.7.2-pre.4`，CT `>= v5.15.0`。

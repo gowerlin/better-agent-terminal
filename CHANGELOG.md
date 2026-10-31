@@ -4,6 +4,15 @@ All notable changes to Better Agent Terminal are documented in this file.
 
 ## [Unreleased]
 
+## [0.7.2-pre.4] — 2026-11-01
+
+### Changed
+- `bat-notify.mjs --ask --no-pty-write` 列為正式契約（T0715 / T0716，D190，BMad-Guide HANDOVER）：只呼叫 `question:ask` → `terminal:notify`，`terminal:notify` 只發 `terminal:notified`（toast、徽章、Worker 分頁標記），不寫 PTY、不切換分頁或焦點、不觸發 agent 回合；`notified: yes` 不代表有視窗顯示。寫進 CLAUDE.md「Worker 問塔台」節、`docs/agent-guide/tower-questions.md`、`remote-tower-notify.md` 與 `--help`，並加守門測試（helper channel 序列、handler 不碰 PtyManager）。CT v5.15.0 一批多題時前 N-1 題用它、最後一題 `--submit`，塔台只被叫醒一次
+- `--ask` 失敗時 stderr 依失敗步驟說明（keypress 階段：預填已寫入、Enter 沒送出），並在 `ask: NOTIFY_FAILED` 前新增一行 `ask: NOTIFY_STEP <notify|pty-write|keypress>`；既有輸出行與 exit code 不變（T0716）
+
+### Fixed
+- `--ask` 下 `terminal:notify` 回 `false`（handler 拒收 payload）原本被當成功；改為取消題目、exit 1（T0716；一般 notify 維持現況）
+
 ## [0.7.2-pre.3] — 2026-10-30
 
 ### Fixed
