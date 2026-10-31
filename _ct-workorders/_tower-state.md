@@ -1,7 +1,7 @@
 ---
 schema_kind: tower-state
 summary_version: 1
-updated_at: "2026-11-01T01:35:45+0800"
+updated_at: "2026-11-01T01:43:35+0800"
 session: "2026-11-01 01:24 第九十九 session 啟動（CT v5.14.4，Full Scan）"
 next_ids:
   workorder: "T0715"
@@ -12,7 +12,7 @@ todo:
   - "實機驗收 BUG-174（v0.7.2-pre.2 終端 file:/// 連結：全形字、跨行、OSC 8）；通過後關 GitHub #20"
   - "使用者日常使用驗收 BUG-171"
   - "外部測試者A 驗收 BUG-169 / BUG-175（v0.7.2-pre.3 起）；BUG-175 另等 GitHub #22 回報者回覆（已留言），通過後關 #22"
-  - "T0715 研究（BMad-Guide HANDOVER：--ask --no-pty-write 契約 Q-B1–Q-B4）回報後寫 _reply-2026-11-01-bat-ask-no-pty-write-contract.md 並通知 BMad-Guide · Tower"
+  - "T0716（--ask --no-pty-write 契約文件＋守門測試＋兩個小修，D190）完成後發下一個預覽版，回覆稿補 BAT 版號並通知 BMad-Guide · Tower"
   - "BUG-156 / 159 待特定環境驗收"
 ---
 # Tower State — better-agent-terminal
