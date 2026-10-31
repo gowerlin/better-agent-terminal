@@ -1,7 +1,7 @@
 ---
 schema_kind: tower-state
 summary_version: 1
-updated_at: "2026-11-01T01:24:49+0800"
+updated_at: "2026-11-01T01:35:45+0800"
 session: "2026-11-01 01:24 第九十九 session 啟動（CT v5.14.4，Full Scan）"
 next_ids:
   workorder: "T0715"
@@ -11,7 +11,8 @@ next_ids:
 todo:
   - "實機驗收 BUG-174（v0.7.2-pre.2 終端 file:/// 連結：全形字、跨行、OSC 8）；通過後關 GitHub #20"
   - "使用者日常使用驗收 BUG-171"
-  - "外部測試者A 驗收 BUG-169 / BUG-175（v0.7.2-pre.3 起）"
+  - "外部測試者A 驗收 BUG-169 / BUG-175（v0.7.2-pre.3 起）；BUG-175 另等 GitHub #22 回報者回覆（已留言），通過後關 #22"
+  - "T0715 研究（BMad-Guide HANDOVER：--ask --no-pty-write 契約 Q-B1–Q-B4）回報後寫 _reply-2026-11-01-bat-ask-no-pty-write-contract.md 並通知 BMad-Guide · Tower"
   - "BUG-156 / 159 待特定環境驗收"
 ---
 # Tower State — better-agent-terminal
@@ -111,7 +112,7 @@ todo:
 -1. 🔴 **BUG-174 實機驗收**（`v0.7.2-pre.2`）：終端印出含全形字的 `file:///` 路徑整段有底線、尾端可點；縮窄視窗讓路徑換行再試；Claude CLI 的 Markdown 連結（OSC 8）點得開、滑過顯示目標。通過後 CLOSED 並關 GitHub #20（或等回報者確認）
 0. 🟢 **GitHub #21**：CT 5.14.3 已發布〈巢狀的獨立 repo〉（`mono-repo-patterns.md`；Portal `/deep/features/multi-tower`；BMad-Guide 塔台 2026-10-30 通知，含 CT 5.14.2 + BAT 0.7.2-pre.1 實機結果）；2026-10-30 16:48 已留言並關閉（第九十八 session，使用者同意）；**後續候選**：設定面板「預設值」層找手動安裝沒看 `CLAUDE_CONFIG_DIR`（T0711 回報）
 1. 🔴 **BUG-171 實機驗收**（`v0.7.1-pre.8` 起）：日常使用遇 NTP 校時 / 睡眠喚醒不再「終端已恢復」、分頁不再 exit 1；可看 debug log `[heartbeat] late pong`。T0704 後續候選（TCP 模式 pid 重用、舊 server 結束失敗無補救、卡住但存活永不 recovery）暫不開單
-2. 🔴 **外部測試者A 驗收**：BUG-169（安裝版 `bat-terminal.mjs --version`）；BUG-175（縮圖預覽跟著 claude Worker 更新、無 `>0q>4m`；T0714 `afe57761`，`v0.7.2-pre.3` 起）→ 通過即 CLOSED（BUG-165 / 166 已於第九十八 session 2026-10-30 依外部測試者A 回覆 CLOSED）
+2. 🔴 **外部測試者A 驗收**：BUG-169（安裝版 `bat-terminal.mjs --version`）；BUG-175（縮圖預覽跟著 claude Worker 更新、無 `>0q>4m`；T0714 `afe57761`，`v0.7.2-pre.3` 起）→ 通過即 CLOSED；BUG-175 另有 GitHub #22（macOS、`0.7.1-pre.9` 回報同一現象，2026-11-01 第九十九 session 已留言請升級回報，通過後關 #22）（BUG-165 / 166 已於第九十八 session 2026-10-30 依外部測試者A 回覆 CLOSED）
 3. 🟢 **後續候選**：PLAN-055（recovery 後 agent 分頁可 `--resume`）；總覽計數加「需要處理」徽章（PAUSED / BLOCKED / PARTIAL…，T0702 建議 2）；BAT 封存區 3 檔 `status: CLOSED` 顯示 Invalid（T0702 建議 1）；BAT 自己的 `_tower-state.md` 在 CT v6 上線後寫入摘要；codex Worker 分頁也接管滾輪（T0698 Q-1 [B]，`externalAgent` 欄位）；T0698 e2e（選做未做）；Windows / Linux 滾輪一格行數是否過快待回饋
 4. 🔴 `v0.7.1-pre.2` 剩餘實機驗收：BUG-156 需 Docker Desktop、BUG-159 需一般權限 + codex
 5. 🟢 PLAN-053 Electron 42+、PLAN-052 Docker 可用性（IDEA）；PLAN-054 B6 延後（CT D090）；T0656 網站素材手動拍；`RECOVERY_PENDING` 未實機驗證；前期驗收（外部測試者A BUG-127-135 / 116 / 118、BUG-130 / 105 / 107 / 108 / 097 / 111、T0550、dmg / AppImage、NSIS 重裝、T0360）；dev PC／NAS 主機名稱（使用者未列入去識別化決定）
