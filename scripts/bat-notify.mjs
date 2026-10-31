@@ -127,8 +127,11 @@ Ask the Tower (PLAN-048, Worker tabs only):
                        {"question": "…", "options": ["…", "…"], "allowFreeText": true,
                         "detail": "…", "blocking": true}
                      BAT keeps it in memory only and sends it to this Worker's Tower; then <message>
-                     is sent as a normal notify (toast, pre-fill, --submit). If any notify step
-                     fails, the question is cancelled again (exit 1). stdout:
+                     is sent as a normal notify (toast, pre-fill, --submit). Can be combined with
+                     --no-pty-write: the Tower only gets the UI notification (toast / badge), nothing
+                     is written to its terminal. If any notify step fails, the question is cancelled
+                     again (exit 1; stderr "ask: NOTIFY_STEP notify|pty-write|keypress" says which
+                     step). stdout:
                        "  question: <id>", "  expires: <ISO time>", "  notified: yes"
   --expires-min <n>  With --ask: the question expires after n minutes (1-120; BAT default 30)
   Exit codes: 0 asked and notified / 3 NOT_FOUND (the Tower tab is not running) /
@@ -789,19 +792,32 @@ async function runAsk(ws, { request, stdinBytes }) {
   return exitQuestionMode(ws, ASK_EXIT[code] ?? 1, `ask-${code}`)
 }
 
+/** T0716: the `ask: NOTIFY_STEP <step>` value and the stderr label of each notify step. */
+const ASK_NOTIFY_STEPS = {
+  notify: 'UI notify',
+  'pty-write': 'PTY write',
+  keypress: 'terminal keypress',
+}
+
 /**
  * A notify step after `question:ask` failed: cancel the question (the Tower would not know about
- * it), then exit 1 with `ask: NOTIFY_FAILED`.
+ * it), then exit 1 with `ask: NOTIFY_FAILED`. T0716: `ask: NOTIFY_STEP <step>` comes just before
+ * it (`ask: NOTIFY_FAILED` stays the last line); after a failed keypress the toast and the pre-fill
+ * did reach the Tower — only Enter was not sent, so stderr says that instead of "not notified".
  */
 async function failAfterAsk(ws, asked, step, reason) {
-  console.error(`Error: ${step} failed: ${reason}`)
+  console.error(`Error: ${ASK_NOTIFY_STEPS[step]} failed: ${reason}`)
   const cancel = await invokeChannel(ws, 'question:cancel', [{ questionId: asked.questionId }], 3000)
-  logEvent('bat-notify', 'question-cancel', { questionId: asked.questionId, after: 'notify-failed', step, result: cancel.ok ? 'ok' : cancel.code, status: cancel.ok ? cancel.result.status ?? null : null })
+  logEvent('bat-notify', 'question-cancel', { questionId: asked.questionId, after: 'notify-failed', step: ASK_NOTIFY_STEPS[step], result: cancel.ok ? 'ok' : cancel.code, status: cancel.ok ? cancel.result.status ?? null : null })
+  const what = step === 'keypress'
+    ? 'The Tower got the notification and the pre-fill was written to its input box, but Enter was not sent (the text is left there)'
+    : 'The Tower was not notified'
   if (cancel.ok) {
-    console.error(`[bat-notify] The Tower was not notified; question ${asked.questionId} was cancelled.`)
+    console.error(`[bat-notify] ${what}; question ${asked.questionId} was cancelled.`)
   } else {
-    console.error(`[bat-notify] The Tower was not notified, and question ${asked.questionId} could not be cancelled (${cancel.code}); it expires at ${isoTime(asked.expiresAt)}.`)
+    console.error(`[bat-notify] ${what}, and question ${asked.questionId} could not be cancelled (${cancel.code}); it expires at ${isoTime(asked.expiresAt)}.`)
   }
+  console.error(`ask: NOTIFY_STEP ${step}`)
   console.error('ask: NOTIFY_FAILED')
   return exitQuestionMode(ws, 1, 'ask-notify-failed')
 }
@@ -958,10 +974,16 @@ async function main() {
   }))
 
   const notifyResp = await reply(notifyId)
+  // T0716: with --ask, a `false` reply (BAT refused the payload) is a failed step too; a plain
+  // notify keeps ignoring the reply value (only `error` warns, then the pre-fill goes on)
+  if (asked && !notifyResp.error && notifyResp.result === false) {
+    logEvent('bat-notify', 'send', { channel: 'terminal:notify', result: 'refused' })
+    return failAfterAsk(ws, asked, 'notify', 'BAT refused the notification')
+  }
   if (notifyResp.error) {
     if (asked) {
       logEvent('bat-notify', 'send', { channel: 'terminal:notify', result: 'error', error: notifyResp.error })
-      return failAfterAsk(ws, asked, 'UI notify', notifyResp.error)
+      return failAfterAsk(ws, asked, 'notify', notifyResp.error)
     }
     console.error(`Warning: UI notify failed: ${notifyResp.error}`)
     // Continue to PTY write — not fatal
@@ -1008,7 +1030,7 @@ async function main() {
       const reason = writeResp.error || writeResult?.reason || 'unknown'
       if (asked) {
         logEvent('bat-notify', 'send', { channel: 'pty:write', result: 'error', reason, submit })
-        return failAfterAsk(ws, asked, 'PTY write', reason)
+        return failAfterAsk(ws, asked, 'pty-write', reason)
       }
       console.error(`Error: PTY write failed: ${reason}`)
       logEvent('bat-notify', 'send', {
@@ -1074,7 +1096,7 @@ async function main() {
         const reason = keypressResp.error || keypressResult?.reason || 'unknown'
         if (asked) {
           logEvent('bat-notify', 'send', { channel: 'terminal:keypress', result: 'error', reason, submit, traceId: keypressId })
-          return failAfterAsk(ws, asked, 'terminal keypress', reason)
+          return failAfterAsk(ws, asked, 'keypress', reason)
         }
         console.error(`Error: terminal keypress failed: ${reason}`)
         logEvent('bat-notify', 'send', {

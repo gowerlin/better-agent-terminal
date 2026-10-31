@@ -9,7 +9,7 @@
   | 角色 | 允許 | 限制 |
   |---|---|---|
   | `tower`（無 notify target 的 PTY） | `terminal:create-agent-command`、`terminal:create-with-command`（raw command 模式，本機 T0575、headless T0579）、`terminal:close-worker`（T0536）、`terminal:set-role`（T0562） | set-role：`terminalId` 必須是自己（否則 `target-not-bound`）；close-worker：`towerId` 必須是自己（否則 `tower-not-bound`），只能關 `isWorkerOf(候選, 自己)` 成立的 Worker（不屬於 → `NOT_OWNER`，自己永遠不是自己的 Worker）；create-agent-command 與 create-with-command 同一套檢查：只能建**新** id；create-with-command 的 `command` 須為字串（否則 `invalid-payload`）；`BAT_TOWER_TERMINAL_ID` 只能是自己；`customEnv` 限 `BAT_TOWER_TERMINAL_ID` / `CT_MODE` / `CT_INTERACTIVE` / `MSYS_NO_PATHCONV`；不得指定 `shell`；agent 必須是 registry 已知 id（T0450，未知 → `agent-not-allowed`）；同時存活子 PTY ≤ 8、建立間隔 ≥ 1 s、server 有 PTY 上限時保留 8 個名額給 client（T0450） |
-  | `worker`（帶 `BAT_TOWER_TERMINAL_ID` 的 PTY） | `terminal:notify` / `pty:write` / `terminal:keypress` | target 只能是綁定的 tower；`pty:write` 只收可列印文字（控制字元 → `control-character-not-allowed`，送出走 keypress，T0450） |
+  | `worker`（帶 `BAT_TOWER_TERMINAL_ID` 的 PTY） | `terminal:notify` / `pty:write` / `terminal:keypress` | target 只能是綁定的 tower；`pty:write` 只收可列印文字（控制字元 → `control-character-not-allowed`，送出走 keypress，T0450）；🔴 `terminal:notify` 只發 `terminal:notified`、不寫任何 PTY（CT v5.15.0 的批次提問 `--ask --no-pty-write` 依賴，T0716） |
   | `worker`（T0607） | `question:ask` / `question:cancel` | 沒有目標參數：問題一律送給綁定的 tower，只能取消自己的（`NOT_OWNER`）；`args[0]` 必須是物件（`invalid-payload`） |
   | `tower`（T0607） | `question:answer` | `towerId` 必須是自己（否則 `tower-not-bound`），只能答送給自己的問題（`NOT_OWNER`） |
   | 兩者（T0607） | `question:list` / `question:wait`（唯讀） | 範圍由 handler 判斷（worker：自己提出的；tower：送給自己的），見 [tower-questions.md](tower-questions.md) |

@@ -458,6 +458,21 @@ describe('registerTerminalHandlers (T0431)', () => {
     expect(t.emitted).toHaveLength(1)
   })
 
+  it('T0716: notify never touches the PtyManager (`bat-notify --ask --no-pty-write` writes no PTY; CT v5.15.0 depends on it)', async () => {
+    const touched: string[] = []
+    const pty = new Proxy({}, { get: (_target, key) => { touched.push(String(key)); return vi.fn() } })
+    const getPtyManager = vi.fn(() => pty as ReturnType<TerminalHandlerDeps['getPtyManager']>)
+    const t = setup({ getPtyManager })
+    const questionId = 'q-0123abcd-0123456789abcdef'
+    expect(await t.invoke('terminal:notify', REMOTE, { targetId: 'tower-1', message: 'T0716 提問', source: 'T0716', questionId })).toBe(true)
+    expect(await t.invoke('terminal:notify', LOCAL_WINDOW, { targetId: 'tower-1', message: 'T0716 完成', source: 'T0716' })).toBe(true)
+    expect(await t.invoke('terminal:notify', REMOTE, { targetId: 'tower-1' })).toBe(false)
+    expect(getPtyManager).toHaveBeenCalledTimes(0)
+    expect(touched).toEqual([])
+    expect(t.writes).toEqual([])
+    expect(t.emitted.map(e => e.channel)).toEqual(['terminal:notified', 'terminal:notified'])
+  })
+
   it('T0613: notify of `bat-notify --ask` → its questionId is passed on; a malformed one is dropped', async () => {
     const t = setup()
     const questionId = 'q-0123abcd-0123456789abcdef'

@@ -111,11 +111,13 @@
 ### Worker 提問 `bat-notify.mjs --ask`
 
 ```bash
-"${BAT_HELPER_NODE:-node}" "$BAT_HELPER_DIR/bat-notify.mjs" --ask --source T#### --target "$BAT_TOWER_TERMINAL_ID" [--submit] [--expires-min <1-120>] "T#### 提問" < question.json
+"${BAT_HELPER_NODE:-node}" "$BAT_HELPER_DIR/bat-notify.mjs" --ask --source T#### --target "$BAT_TOWER_TERMINAL_ID" [--submit | --no-pty-write] [--expires-min <1-120>] "T#### 提問" < question.json
 ```
 
 - stdin JSON：`{ "question", "options"?, "allowFreeText"?, "detail"?, "blocking"?, "expiresInMs"? }`，只轉送這些鍵（其他鍵丟掉）；`--expires-min n` → `expiresInMs = n × 60 000`（優先於 JSON）。helper 只檢查「是物件、`question` 是非空字串」，其餘由 BAT 驗證（`INVALID_ARGS`）。
-- 流程：`question:ask` → `terminal:notify`（T0613 起多帶選用欄位 `questionId`，只有 id、不含問題文字）→ `pty:write`（預填）→ `--submit` 時 `terminal:keypress`。三步任一失敗（含逾時、`--ask` 下 `terminal:notify` 錯誤也算失敗，與一般 notify 只警告不同）→ `question:cancel { questionId }` → exit 1（stderr `ask: NOTIFY_FAILED`；取消也失敗時印出到期時間）。
+- 流程：`question:ask` → `terminal:notify`（T0613 起多帶選用欄位 `questionId`，只有 id、不含問題文字）→ `pty:write`（預填）→ `--submit` 時 `terminal:keypress`；`--no-pty-write` 時只有 `question:ask` → `terminal:notify`（T0716 列為契約，`--no-pty-write` 與 `--submit` 互斥 → `ask: USAGE`，旗標位置不影響）。任一步失敗（含逾時；`--ask` 下 `terminal:notify` 回 error 或 `false`（T0716）都算失敗，與一般 notify 只警告不同）→ `question:cancel { questionId }` → exit 1（stderr 倒數第二行 `ask: NOTIFY_STEP <notify|pty-write|keypress>`（T0716）、最後一行 `ask: NOTIFY_FAILED`；取消也失敗時印出到期時間）。
+- 🔴 `--no-pty-write` 的保證（T0716，CT v5.15.0 的批次提問依賴：一批 N 題時前 N-1 題 `--ask --no-pty-write`、最後一題 `--submit`）：`terminal:notify`（`electron/handlers/terminal.ts`，本機與 headless 共用）只發 `terminal:notified`（renderer 只做 toast、縮圖 / 工作區徽章、Worker 分頁標記），**不寫任何 PTY、不切換分頁或焦點、不觸發 agent 回合**。`notified: yes` 表示 BAT 已接受通知，不表示有視窗顯示（headless 沒有 client 時也回 yes）。守門：`electron/__tests__/terminal-handlers.test.ts`（handler 不碰 PtyManager）、`scripts/__tests__/bat-notify-questions.test.mjs`（channel 恰好兩個、stdout 與 `--submit` 相同）。
+- `ask: NOTIFY_STEP`（T0716，C-5 的向後相容擴充：只多一行，既有行與 exit code 不變）：`notify` / `pty-write` → Tower 沒收到預填（`pty-write` 時 toast 已顯示）；`keypress` → toast 與預填已到塔台、Enter 沒送出，預填留在塔台輸入框（逾時時 Enter 可能其實已送達），stderr 照實說明，不再說 Tower 沒收到通知。BAT 不清除預填（D190）。
 - stdout（成功）：
 
   ```text

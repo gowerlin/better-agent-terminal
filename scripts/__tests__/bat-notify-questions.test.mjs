@@ -4,7 +4,10 @@
 //   - --ask: stdin JSON → question:ask (only the known keys, --expires-min → expiresInMs), then
 //     the usual notify (terminal:notify with questionId, T0613 → pty:write → --submit terminal:keypress); stdout
 //     "  question: / expires: / notified: yes"; exit 0 / 3 NOT_FOUND / 10 TOO_MANY_QUESTIONS / 1
-//   - any notify step failing → question:cancel → exit 1, stderr ask: NOTIFY_FAILED
+//   - T0716: --ask --no-pty-write = exactly question:ask → terminal:notify (CT v5.15.0's batched
+//     questions depend on it), same stdout; a `false` notify reply is a failed step under --ask
+//   - any notify step failing → question:cancel → exit 1, stderr ask: NOTIFY_STEP <step> then
+//     ask: NOTIFY_FAILED (last line); a failed keypress says the pre-fill is left, Enter was not sent
 //   - an older host (No handler / channel-not-allowed) → ask: UNSUPPORTED, exit 1, nothing notified
 //   - stdin: not JSON / not an object / no question / empty / > 64 KiB / not UTF-8 → exit 1
 //     ask: INVALID_INPUT, no connection, the input never echoed; a UTF-8 BOM is dropped
@@ -68,6 +71,30 @@ describe('bat-notify --ask (T0608)', () => {
     }
   }, 20000)
 
+  it('T0716: --ask --no-pty-write → only question:ask, terminal:notify; same stdout; flag order does not matter', async () => {
+    for (const args of [
+      ['--ask', '--no-pty-write', '--source', 'T0716', 'T0716 提問'],
+      ['--no-pty-write', '--source', 'T0716', '--ask', 'T0716 提問'],
+    ]) {
+      const remote = await startMockRemote({ 'question:ask': ASKED })
+      try {
+        const r = await run(args, remote.env, JSON.stringify({ question: 'ok?' }))
+        expect(r.code, `${args.join(' ')}: ${r.stderr}`).toBe(0)
+        expect(remote.invokes.map(i => i.channel), args.join(' ')).toEqual(['question:ask', 'terminal:notify'])
+        expect(remote.invokes[1].args).toEqual([{ targetId: 'tower-1', message: 'T0716 提問', source: 'T0716', questionId: QID }])
+        expect(r.stdout.trim().split(/\r?\n/)).toEqual([
+          '✓ Notified tower-1…: T0716 提問',
+          `  question: ${QID}`,
+          '  expires: 2026-10-18T05:30:00.000Z',
+          '  notified: yes',
+        ])
+        expect(r.stderr).toBe('')
+      } finally {
+        await remote.close()
+      }
+    }
+  }, 30000)
+
   it('--submit adds the Enter keypress after the pre-fill; without --expires-min no expiresInMs is sent', async () => {
     const remote = await startMockRemote({ 'question:ask': ASKED })
     try {
@@ -115,21 +142,34 @@ describe('bat-notify --ask (T0608)', () => {
     }
   }, 20000)
 
+  // [name, failing replies, extra flag, channels, NOTIFY_STEP]
   const notifyFailures = [
-    ['terminal:notify error', { 'terminal:notify': { error: 'Forbidden: target-not-bound' } }, ['question:ask', 'terminal:notify', 'question:cancel']],
-    ['pty:write refused', { 'pty:write': { result: { ok: false, reason: 'not-found' } } }, ['question:ask', 'terminal:notify', 'pty:write', 'question:cancel']],
-    ['terminal:keypress refused', { 'terminal:keypress': { result: { ok: false, reason: 'no-renderer' } } }, ['question:ask', 'terminal:notify', 'pty:write', 'terminal:keypress', 'question:cancel']],
+    ['terminal:notify error', { 'terminal:notify': { error: 'Forbidden: target-not-bound' } }, '--submit', ['question:ask', 'terminal:notify', 'question:cancel'], 'notify'],
+    ['terminal:notify error, --no-pty-write', { 'terminal:notify': { error: 'Forbidden: target-not-bound' } }, '--no-pty-write', ['question:ask', 'terminal:notify', 'question:cancel'], 'notify'],
+    // T0716 (T0715 A5): the handler refused the payload (`false`): a plain notify ignores it, --ask does not
+    ['terminal:notify false', { 'terminal:notify': { result: false } }, '--submit', ['question:ask', 'terminal:notify', 'question:cancel'], 'notify'],
+    ['terminal:notify false, --no-pty-write', { 'terminal:notify': { result: false } }, '--no-pty-write', ['question:ask', 'terminal:notify', 'question:cancel'], 'notify'],
+    ['pty:write refused', { 'pty:write': { result: { ok: false, reason: 'not-found' } } }, '--submit', ['question:ask', 'terminal:notify', 'pty:write', 'question:cancel'], 'pty-write'],
+    ['terminal:keypress refused', { 'terminal:keypress': { result: { ok: false, reason: 'no-renderer' } } }, '--submit', ['question:ask', 'terminal:notify', 'pty:write', 'terminal:keypress', 'question:cancel'], 'keypress'],
   ]
-  for (const [name, failing, channels] of notifyFailures) {
-    it(`notify fails (${name}) → question:cancel, exit 1, ask: NOTIFY_FAILED`, async () => {
+  for (const [name, failing, flag, channels, step] of notifyFailures) {
+    it(`notify fails (${name}) → question:cancel, exit 1, ask: NOTIFY_STEP ${step}, ask: NOTIFY_FAILED`, async () => {
       const remote = await startMockRemote({ 'question:ask': ASKED, 'question:cancel': { result: { ok: true, questionId: QID, status: 'cancelled', endReason: 'worker' } }, ...failing })
       try {
-        const r = await run(['--ask', '--submit', 'T0608 提問'], remote.env, JSON.stringify({ question: 'ok?' }))
+        const r = await run(['--ask', flag, 'T0608 提問'], remote.env, JSON.stringify({ question: 'ok?' }))
         expect(r.code).toBe(1)
         expect(remote.invokes.map(i => i.channel)).toEqual(channels)
         expect(remote.invokes.at(-1).args).toEqual([{ questionId: QID }])
-        expect(r.stderr).toContain('ask: NOTIFY_FAILED')
+        expect(r.stderr.trim().split(/\r?\n/).slice(-2)).toEqual([`ask: NOTIFY_STEP ${step}`, 'ask: NOTIFY_FAILED'])
         expect(r.stderr).toContain(`question ${QID} was cancelled`)
+        if (step === 'keypress') {
+          // T0716 (T0715 Q-B3): the toast and the pre-fill did reach the Tower
+          expect(r.stderr).toContain('Error: terminal keypress failed: no-renderer')
+          expect(r.stderr).toContain('the pre-fill was written to its input box, but Enter was not sent')
+          expect(r.stderr).not.toContain('was not notified')
+        } else {
+          expect(r.stderr).toContain('The Tower was not notified')
+        }
         expect(r.stdout).not.toContain('notified: yes')
         expect(helperEvents(remote.dir, 'bat-notify', 'question-cancel').at(-1)).toMatchObject({ questionId: QID, after: 'notify-failed', result: 'ok' })
         expect(helperEvents(remote.dir, 'bat-notify', 'exit').at(-1)).toMatchObject({ code: 1, reason: 'ask-notify-failed' })
@@ -144,9 +184,37 @@ describe('bat-notify --ask (T0608)', () => {
     try {
       const r = await run(['--ask', 'T0608 提問'], remote.env, JSON.stringify({ question: 'ok?' }))
       expect(r.code).toBe(1)
+      expect(r.stderr).toContain('The Tower was not notified, and question')
       expect(r.stderr).toContain('could not be cancelled (NOT_FOUND)')
       expect(r.stderr).toContain('2026-10-18T05:30:00.000Z')
-      expect(r.stderr).toContain('ask: NOTIFY_FAILED')
+      expect(r.stderr.trim().split(/\r?\n/).slice(-2)).toEqual(['ask: NOTIFY_STEP notify', 'ask: NOTIFY_FAILED'])
+    } finally {
+      await remote.close()
+    }
+  }, 20000)
+
+  it('T0716: keypress fails and the cancel fails too → says Enter was not sent and when the question expires', async () => {
+    const remote = await startMockRemote({ 'question:ask': ASKED, 'terminal:keypress': { result: { ok: false, reason: 'no-client' } }, 'question:cancel': { result: { ok: false, code: 'NOT_FOUND' } } })
+    try {
+      const r = await run(['--ask', '--submit', 'T0716 提問'], remote.env, JSON.stringify({ question: 'ok?' }))
+      expect(r.code).toBe(1)
+      expect(r.stderr).toContain('but Enter was not sent (the text is left there), and question')
+      expect(r.stderr).toContain('could not be cancelled (NOT_FOUND)')
+      expect(r.stderr).toContain('2026-10-18T05:30:00.000Z')
+      expect(r.stderr).not.toContain('was not notified')
+      expect(r.stderr.trim().split(/\r?\n/).slice(-2)).toEqual(['ask: NOTIFY_STEP keypress', 'ask: NOTIFY_FAILED'])
+    } finally {
+      await remote.close()
+    }
+  }, 20000)
+
+  it('T0716: a plain notify (no --ask) still ignores a `false` notify reply (exit 0, unchanged)', async () => {
+    const remote = await startMockRemote({ 'terminal:notify': { result: false } })
+    try {
+      const r = await run(['--no-pty-write', 'T0716 完成'], remote.env)
+      expect(r.code, r.stderr).toBe(0)
+      expect(remote.invokes.map(i => i.channel)).toEqual(['terminal:notify'])
+      expect(r.stderr).not.toContain('NOTIFY_')
     } finally {
       await remote.close()
     }
@@ -375,7 +443,7 @@ describe('usage errors (no connection)', () => {
   it('--help documents the modes and exit codes', async () => {
     const r = await run(['--help'], {})
     expect(r.code).toBe(0)
-    for (const text of ['--ask', '--wait-answer <id>', '--cancel-question <id>', '--expires-min <n>', '--timeout-ms <n>', '10 TOO_MANY_QUESTIONS', 'ask: <CODE>', "Unknown option '--ask'", 'Exit 0 does not mean this call', 'only "status: cancelled worker" does']) {
+    for (const text of ['--ask', '--wait-answer <id>', '--cancel-question <id>', '--expires-min <n>', '--timeout-ms <n>', '10 TOO_MANY_QUESTIONS', 'ask: <CODE>', "Unknown option '--ask'", 'Exit 0 does not mean this call', 'only "status: cancelled worker" does', 'Can be combined with\n                     --no-pty-write', 'ask: NOTIFY_STEP notify|pty-write|keypress']) {
       expect(r.stdout, text).toContain(text)
     }
   }, 20000)
