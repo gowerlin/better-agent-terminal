@@ -3,11 +3,11 @@ schema_version: 1
 schema_kind: bug
 id: BUG-183
 title: "關掉（最小化到匣）的遠端 profile 視窗，在「配置」按「開啟」叫不回來，只跳「此配置已在另一個視窗中開啟」"
-status: OPEN
+status: FIXING
 severity: medium
 reproducibility: unknown
 created_at: "2026-11-01T22:04:49+0800"
-updated_at: "2026-11-01T22:04:49+0800"
+updated_at: "2026-11-01T22:07:26+0800"
 impact:
   - profile-window
   - system-tray
@@ -22,7 +22,7 @@ links:
 |------|------|
 | 嚴重度 | 🟡 medium（遠端視窗關掉後，從「配置」叫不回來，只能經系統匣「Show」） |
 | 可重現 | 未確認（使用者遇到一次） |
-| **狀態** | 📂 OPEN |
+| **狀態** | 🔧 FIXING（T0750） |
 | 回報者 | 使用者（BUG-182 實機驗收時，`v0.7.3-pre.1` 安裝版，Windows） |
 
 ## 現象

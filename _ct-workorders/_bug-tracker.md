@@ -3,7 +3,7 @@ schema_version: 1
 schema_kind: index
 id: _bug-tracker
 index_kind: bugs
-generated_at: "2026-11-01T22:04:49+0800"
+generated_at: "2026-11-01T22:07:26+0800"
 generator: control-tower-sync
 source_globs:
   - _ct-workorders/BUG-*.md
@@ -12,8 +12,8 @@ exclude_globs:
   - _ct-workorders/examples/**
 total: 48
 breakdown:
-  OPEN: 2
-  FIXING: 0
+  OPEN: 0
+  FIXING: 2
   FIXED: 3
   VERIFY: 0
   CLOSED: 43
@@ -23,22 +23,22 @@ breakdown:
 # Bug Tracker
 
 > ⚠️ 此文件由 `*sync` 自動生成，請勿手動編輯。
-> 最後同步：2026-11-01 22:04 — 第一百零四 session：BUG-182 CLOSED（使用者 WSL 實機驗收）；開 BUG-183 / 184（驗收中發現）；BUG-175 CLOSED（外部測試者A macOS 實機確認）
+> 最後同步：2026-11-01 22:07 — 第一百零四 session：BUG-183 / 184 → FIXING（T0750）；BUG-182 CLOSED（使用者 WSL 實機驗收）；開 BUG-183 / 184（驗收中發現）；BUG-175 CLOSED（外部測試者A macOS 實機確認）
 
 ## 統計
-- 🔴 Open: 2 | ⏳ Fixing: 0 | ✅ Fixed: 3 | 🧪 Verify: 0 | 🚫 Closed: 43 | ⛔ Won't Fix: 0 | **Total: 48**
+- 🔴 Open: 0 | ⏳ Fixing: 2 | ✅ Fixed: 3 | 🧪 Verify: 0 | 🚫 Closed: 43 | ⛔ Won't Fix: 0 | **Total: 48**
 
 ## 🔴 Open / 處理中
 
 | ID | 標題 | 嚴重度 | 建立時間 | 連結 |
 |----|------|--------|---------|------|
-| BUG-184 | 系統匣圖示選單殘留已「Remove from profile」的視窗，同名項目出現兩個 | 🟢 Low | 2026-11-01 | [BUG-184](BUG-184-tray-menu-lists-window-removed-from-profile.md) |
-| BUG-183 | 關掉（最小化到匣）的遠端 profile 視窗，在「配置」按「開啟」叫不回來，只跳「此配置已在另一個視窗中開啟」 | 🟡 Medium | 2026-11-01 | [BUG-183](BUG-183-hidden-profile-window-not-shown-on-open.md) |
 
 ## ⏳ 修復中 (FIXING)
 
 | ID | 標題 | 嚴重度 | 修復時間 | 連結 |
 |----|------|--------|---------|------|
+| BUG-184 | 系統匣圖示選單殘留已「Remove from profile」的視窗，同名項目出現兩個 | 🟢 Low | 2026-11-01（T0750） | [BUG-184](BUG-184-tray-menu-lists-window-removed-from-profile.md) |
+| BUG-183 | 關掉（最小化到匣）的遠端 profile 視窗，在「配置」按「開啟」叫不回來，只跳「此配置已在另一個視窗中開啟」 | 🟡 Medium | 2026-11-01（T0750） | [BUG-183](BUG-183-hidden-profile-window-not-shown-on-open.md) |
 
 ## ✅ 已修復
 

@@ -3,11 +3,11 @@ schema_version: 1
 schema_kind: bug
 id: BUG-184
 title: "系統匣圖示選單殘留已「Remove from profile」的視窗，同名項目出現兩個"
-status: OPEN
+status: FIXING
 severity: low
 reproducibility: unknown
 created_at: "2026-11-01T22:04:49+0800"
-updated_at: "2026-11-01T22:04:49+0800"
+updated_at: "2026-11-01T22:07:26+0800"
 impact:
   - system-tray
   - profile-window
@@ -22,7 +22,7 @@ links:
 |------|------|
 | 嚴重度 | 🟢 low（選單多一個項目，容易選錯；不影響終端功能） |
 | 可重現 | 未確認（使用者遇到一次） |
-| **狀態** | 📂 OPEN |
+| **狀態** | 🔧 FIXING（T0750） |
 | 回報者 | 使用者（BUG-182 實機驗收時，`v0.7.3-pre.1` 安裝版，Windows） |
 
 ## 現象
