@@ -1,9 +1,9 @@
 # State Snapshot INDEX
 
-> Last archived: 2026-11-01 (Session 103 收工 — Session 100 / 101 快照 archived per PLAN-033；2026-Q4.md 超過 200 KB → 切為 2026-Q4-a.md / 2026-Q4-b.md，各 27 筆)。Index rebuilt: 2026-11-02 05:00 (UTC+8)（第一百零四 session `*archive --state --rebuild-index`：修 9 列跨行表格列、總數 114 → 119；備份 `INDEX.md.bak.1793566856`）
-> Hot path retains: session 103 (本) + session 102 (前) + Quick Recovery / 基本資訊 / 進度快照 / 管理筆記 / 環境快照 / YOLO 歷程 in `_tower-state.md`
+> Last archived: 2026-11-02 (Session 104 進行中瘦身 — Session 102 快照、Session 104 開工條目原文、基本資訊舊值 → 2026-Q4-b.md)。前次：2026-11-01 (Session 103 收工 — Session 100 / 101 快照 archived per PLAN-033；2026-Q4.md 超過 200 KB → 切為 2026-Q4-a.md / 2026-Q4-b.md，各 27 筆)。Index rebuilt: 2026-11-02 05:00 (UTC+8)（第一百零四 session `*archive --state --rebuild-index`：修 9 列跨行表格列、總數 114 → 119；備份 `INDEX.md.bak.1793566856`）
+> Hot path retains: session 103 (本) + session 104 開工條目摘要（一行一則）+ Quick Recovery / 基本資訊（現況）/ 進度快照 / 管理筆記 / 環境快照 / YOLO 歷程 in `_tower-state.md`
 > Archive root: `_ct-workorders/_archive/state-snapshots/`
-> Total archived entries: 119 (0 in Q1 / 58 in Q2-a/b / 5 in Q2-c / 2 in Q3 / 27 in Q4-a / 27 in Q4-b)
+> Total archived entries: 122 (0 in Q1 / 58 in Q2-a/b / 5 in Q2-c / 2 in Q3 / 27 in Q4-a / 30 in Q4-b)
 
 | # | Session | Date | File | Summary |
 |---|---------|------|------|---------|
@@ -126,3 +126,6 @@
 | 117 | 第九十九 session | 2026-11-01 | 2026-Q4-b.md | 第九十九 session, 2026-11-01 01:24-02:09, ~45m, T0715 / T0716, D190, 0.7.2-pre.4 |
 | 118 | 第一百 session | 2026-11-01 | 2026-Q4-b.md | 第一百 session, 2026-11-01 08:10-09:40, ~1h30m, T0717 / T0718, BUG-176, 0.7.2-pre.5 |
 | 119 | 第一百零一 session | 2026-11-01 | 2026-Q4-b.md | 第一百零一 session, 2026-11-01 09:43-10:51, ~1h10m, T0720-T0726, D194-D196, 0.7.2-pre.6 |
+| 120 | 第一百零二 session | 2026-11-01 | 2026-Q4-b.md | 第一百零二 session, 2026-11-01 10:54-17:08, ~6h15m, T0727-T0735, D197-D203, 0.7.2-pre.7 / pre.8 |
+| 121 | 第一百零四 session 開工條目原文 | 2026-11-01 | 2026-Q4-b.md | 第一百零四 session 進行中, 2026-11-01 21:36 - 11-02 04:56, T0750-T0769, D205-D214, 0.7.3-pre.2 / pre.3 / pre.4 |
+| 122 | 基本資訊舊值 | 2026-11-02 | 2026-Q4-b.md | 第一百零四 session 瘦身前的 📦 基本資訊原文（多數欄位停在第八十九 session 前後） |
