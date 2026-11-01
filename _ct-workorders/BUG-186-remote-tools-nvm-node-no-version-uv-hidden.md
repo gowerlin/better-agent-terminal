@@ -3,11 +3,13 @@ schema_version: 1
 schema_kind: bug
 id: BUG-186
 title: "遠端工具偵測：nvm 安裝的 Node.js 顯示「無回應」（在 PATH 上找到但沒有回報版本），`~/.local/bin` 的 uv 顯示「伺服器：不可見」"
-status: FIXED
+status: CLOSED
 severity: medium
 reproducibility: always
 created_at: "2026-11-01T22:33:34+0800"
-updated_at: "2026-11-01T22:51:33+0800"
+updated_at: "2026-11-02T02:11:14+08:00"
+closed_at: "2026-11-02T02:11:14+08:00"
+closed_reason: "verified"
 fixed_at: "2026-11-01T22:51:33+0800"
 fix_commit: 0f021e67
 impact:
@@ -24,7 +26,7 @@ links:
 |------|------|
 | 嚴重度 | 🟡 medium（工具其實已安裝，偵測結果誤導使用者以為要重裝或伺服器用不到） |
 | 可重現 | 必現（T0753 於使用者 WSL 唯讀重現；Docker 以測試容器重現 node 部分） |
-| **狀態** | ✅ FIXED（T0753 `0f021e67`，待實機驗收：WSL server 升到含 T0753 探測的版本後重新檢查） |
+| **狀態** | 🚫 CLOSED（2026-11-02 使用者 WSL 實機驗收通過，server `0.7.3-pre.3`） |
 | 回報者 | 使用者（安裝版 `v0.7.3-pre.1`，WSL `Ubuntu-24.04`，精靈升級 server 到 `0.7.3-pre.1` 時） |
 
 ## 現象
@@ -60,3 +62,9 @@ links:
 - server 檢視：git / gh 比照 `resolveGitBinary` / `resolveGhBinary` 另掃 `/usr/bin`、`/usr/local/bin`、（macOS）`/opt/homebrew/bin`、`~/.local/bin`。
 - 面板：登入檢視找得到（ok / too-old / error）但 server 程序找不到 → 「伺服器程序：不可見（終端分頁找得到）」；tooltip 寫明影響 Git / GitHub 面板與 Claude 面板的工具 / MCP。其他列文案不變。不改 server / unit / 容器的 PATH。
 - 生效條件：探測在 server 端執行，`versionError` 與 git / gh 掃描要 server 升到含 T0753 的版本；新文案在新 client 上對舊 server 也生效。
+
+## 驗收（2026-11-02T02:11:14+08:00，第一百零四 session）
+
+- 修正（T0753 `0f021e67`）在交付版 `v0.7.3-pre.2` 起；使用者以精靈把 WSL `Ubuntu-24.04` 的 bat-server 由 `0.7.3-pre.1` 升到 `0.7.3-pre.3`（塔台唯讀確認版本、port 9877 沿用、fingerprint 不變、profile 仍一份）。
+- 使用者實機：遠端工具面板「重新檢查」後 Node.js 顯示 v26.13.0（libatomic1 已於 01:09 補裝），claude / codex / uv 伺服器檢視皆可見（搭配 PLAN-057 登入 shell PATH：journal `login shell PATH: applied (shell=/bin/bash, 114 ms, +2 entries, 11 total, /mnt 0)`）；舊分頁 ⏻ 重啟正常。
+- 依 R-G003 改 `CLOSED`（`closed_reason: verified`）。

@@ -22,10 +22,10 @@ breakdown:
 # Backlog
 
 > ⚠️ 此文件由 `*sync` 自動生成，請勿手動編輯。
-> 最後同步：2026-11-02 00:25 (UTC+8) — PLAN-057 IN_PROGRESS（T0755 實作完成，待發版實機）
+> 最後同步：2026-11-02 02:11 (UTC+8) — PLAN-057 DONE（`0.7.3-pre.3` WSL 實機驗收）
 
 ## 統計
-- 💡 Ideas: 8 | 📋 Planned: 1 | 🔄 In Progress: 1 | ✅ Done: 10 | 🚫 Dropped: 2
+- 💡 Ideas: 8 | 📋 Planned: 1 | 🔄 In Progress: 0 | ✅ Done: 11 | 🚫 Dropped: 2
 
 ## Active
 
@@ -40,12 +40,12 @@ breakdown:
 | PLAN-053 | 升級 Electron 42+（Chromium 148+）：Electron 41 已停止更新；Graphite out-of-order CHECK 改為 GPU 程序重啟（BUG-164） | 🟢 low | 💡 IDEA | [PLAN-053](PLAN-053-electron-42-upgrade.md) |
 | PLAN-054 | CT Workflow 智能的 BAT 側事項：B4 MCP 政策文件（併下次發版）、B6 CT 面板讀 workflow 欄位（延後：CT D090）；B1 不做 | 🟢 low | 📋 PLANNED | [PLAN-054](PLAN-054-ct-workflow-intelligence-bat-side.md) |
 | PLAN-055 | Terminal Server recovery 後 agent 分頁不再無聲變成 shell：列出被中斷的分頁、claude 保留 session id 並提供 `--resume`（BUG-171 / T0703 C） | 🟡 medium | 💡 IDEA | [PLAN-055](PLAN-055-agent-tabs-after-terminal-server-recovery.md) |
-| PLAN-057 | bat-server（headless）啟動時以登入 shell 取得 PATH（預設開、可關；T0754 量測、T0755 實作，待發版實機） | 🟢 low | 🔄 IN_PROGRESS | [PLAN-057](PLAN-057-headless-server-login-shell-path.md) |
 
 ## Completed
 
 | ID | 標題 | 完成時間 | 連結 |
 |----|------|---------|------|
+| PLAN-057 | bat-server（headless）啟動時以登入 shell 取得 PATH（預設開、可關；T0754 量測、T0755 實作；`0.7.3-pre.3` WSL 實機 `applied`） | 2026-11-02 | [PLAN-057](PLAN-057-headless-server-login-shell-path.md) |
 | PLAN-047 | BAT MCP Server 與 Worktree 合併（路線 [A]：本機範圍權杖、唯讀 MCP、blocked 偵測、worktree 隔離派工；M2 / M3 不續做，D171） | 2026-10-18 | [PLAN-047](PLAN-047-bat-mcp-server-and-worktree-merge.md) |
 | PLAN-050 | 跨 session 傳訊時辨識塔台 / Worker（Claude 分頁 session 命名與對應查詢，CT D067 需求；T0641–T0644，0.7.1-pre.1 T0645 實機） | 2026-10-18 | [PLAN-050](PLAN-050-claude-session-identity-for-cross-session.md) |
 | PLAN-048 | Worker 問塔台 / 塔台答覆的結構化通道（CT-to-BAT 需求，BMad-Guide D036） | 2026-10-18 | [PLAN-048](PLAN-048-worker-ask-tower-channel.md) |

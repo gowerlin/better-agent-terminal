@@ -3,7 +3,8 @@ schema_version: 1
 schema_kind: plan
 id: PLAN-057
 title: "bat-server（headless）啟動時以登入 shell 取得 PATH：遠端的 Claude 面板工具 / MCP、Git 面板找得到 `~/.local/bin`、nvm、Homebrew（預設開、可關）"
-status: IN_PROGRESS
+status: DONE
+completed_at: "2026-11-02T02:11:14+08:00"
 priority: low
 created_at: "2026-11-02T00:25:31+0800"
 links:
@@ -37,3 +38,10 @@ bat-server 由 systemd user unit（WSL / SSH Linux）、launchd（SSH macOS）�
 - `electron/remote/headless-login-path.ts`、`bat-server.mjs` 呼叫、Settings 開關（進階頁，Linux / macOS 遠端視窗）、docs `docs/agent-guide/headless-login-shell-path.md`、CLAUDE.md 一節。
 - 驗證：unit 6448 / 363 files、typecheck 0 / 0、build；6 項突變檢查；WSL 測試 server `applied`（124 ms，+2 項）/ `off` 與現況相同；Docker `applied`。
 - 剩：發版後以精靈升級使用者 bat-server 實機確認（journal `login shell PATH: applied`、工具面板「伺服器：可見」）；macOS 未實測。
+
+## 實機驗收（2026-11-02T02:11:14+08:00，第一百零四 session）
+
+- 隨 `v0.7.3-pre.3` 發佈（run `41332527832`，target `4a5f73d6`）。使用者以精靈把 WSL `Ubuntu-24.04` 的 bat-server 升到 `0.7.3-pre.3`（port 9877 沿用、profile 更新而非新增）。
+- journal：`[bat-server] login shell PATH: applied (shell=/bin/bash, 114 ms, +2 entries, 11 total, /mnt 0)`，與 T0755 測試 server 一致。
+- 使用者實機：遠端工具面板伺服器檢視 claude / codex / uv 皆可見；舊分頁 ⏻ 重啟正常。
+- 未實測：macOS（launchd）、SSH Linux 正式安裝（程式路徑與 WSL 相同，Docker 已於 T0755 驗 `applied`）；列為已知限制，不阻擋結案。
