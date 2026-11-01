@@ -23,15 +23,16 @@ breakdown:
 # Bug Tracker
 
 > ⚠️ 此文件由 `*sync` 自動生成，請勿手動編輯。
-> 最後同步：2026-11-01 17:19 — 第一百零三 session：BUG-167 / 168 / 170 CLOSED（R-G003，CI 測試關卡 / 實機驗收證據）；熱區 Fixed 26 / Closed 17。前次 2026-11-01 12:43 第一百零二 session：BUG-169 / 174 / 176 CLOSED、BUG-177 / 178 / 179 FIXED（T0729 `ceb24910` / T0730 `6f7b3d53` / T0732 `ce648034`）；熱區 Open 0 / Fixing 0 / Fixed 29 / Closed 14
+> 最後同步：2026-11-01 17:40 — 第一百零三 session：BUG-180 OPEN（T0736 發現）；BUG-167 / 168 / 170 CLOSED（R-G003，CI 測試關卡 / 實機驗收證據）；熱區 Open 1 / Fixed 26 / Closed 17。前次 2026-11-01 12:43 第一百零二 session：BUG-169 / 174 / 176 CLOSED、BUG-177 / 178 / 179 FIXED（T0729 `ceb24910` / T0730 `6f7b3d53` / T0732 `ce648034`）；熱區 Open 0 / Fixing 0 / Fixed 29 / Closed 14
 
 ## 統計
-- 🔴 Open: 0 | ⏳ Fixing: 0 | ✅ Fixed: 26 | 🧪 Verify: 0 | 🚫 Closed: 17 | ⛔ Won't Fix: 0 | **Total: 43**
+- 🔴 Open: 1 | ⏳ Fixing: 0 | ✅ Fixed: 26 | 🧪 Verify: 0 | 🚫 Closed: 17 | ⛔ Won't Fix: 0 | **Total: 44**
 
 ## 🔴 Open / 處理中
 
 | ID | 標題 | 嚴重度 | 建立時間 | 連結 |
 |----|------|--------|---------|------|
+| BUG-180 | 剛開的終端分頁在約 100 ms 內被切走時 PTY 被 resize 成 9x5，切回才恢復（T0736 e2e 發現；疑 `TerminalPanel.tsx` initial `doResize` 未再檢查 active） | 🟢 low | 2026-11-01 | [BUG-180](BUG-180-new-tab-switched-away-pty-resized-9x5.md) |
 
 ## ⏳ 修復中 (FIXING)
 
