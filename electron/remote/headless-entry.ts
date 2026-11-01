@@ -27,6 +27,7 @@ import { registerTowerQuestionHandlers } from '../tower-questions'
 import { TerminalAttentionNotifier } from '../terminal-attention'
 import { registerWorktreeStatusHandler } from '../worktree-status-handlers'
 import { mirrorToBatScripts } from './remote-logger'
+import { rotateBatScriptsLog } from '../bat-scripts-log-rotation'
 import { normalizeUsageLimitConfig } from '../../src/lib/usage-limit'
 import { migrateSettingsAgentFields } from '../../src/lib/retired-agent-presets'
 import type { HandlerContext } from '../handlers/types'
@@ -1140,6 +1141,9 @@ export async function createHeadlessServer(opts: HeadlessServerOptions): Promise
   })
   remoteServer.configDir = opts.dataDir
   const log = opts.logger ?? defaultLogger
+  // T0433: helpers in this server's PTYs write bat-scripts.log here (BAT_HELPER_LOG_DIR).
+  const helperLogDir = path.join(opts.dataDir, 'Logs')
+  let batScriptsLogRotated = false
   const ptyLimits = resolveHeadlessPtyLimits(opts, process.env, message => log.warn(message))
 
   // T0385: built-ins first so caller-supplied handlers can override them.
@@ -1164,7 +1168,7 @@ export async function createHeadlessServer(opts: HeadlessServerOptions): Promise
           ? {
               port,
               certPath: path.join(opts.dataDir, 'server-cert.json'),
-              logDir: path.join(opts.dataDir, 'Logs'),
+              logDir: helperLogDir,
             }
           : null
       },
@@ -1229,6 +1233,13 @@ export async function createHeadlessServer(opts: HeadlessServerOptions): Promise
       if (!lockHeld) {
         acquireLock(opts.dataDir)
         lockHeld = true
+      }
+      // T0732 / BUG-179 (D198): rotate <dataDir>/Logs/bat-scripts.log once per process, after the
+      // lock (only the server owning this dataDir rotates) and before the listener starts (no
+      // client, so no PTY and no helper writing yet). Never throws.
+      if (!batScriptsLogRotated) {
+        batScriptsLogRotated = true
+        rotateBatScriptsLog(helperLogDir, { log: message => log.log(message) })
       }
 
       try {

@@ -25,6 +25,7 @@ import { registerReportHookHandler } from './terminal-blocked-state'
 import { registerTowerQuestionHandlers, type TowerQuestionHandlers } from './tower-questions'
 import { TerminalAttentionNotifier } from './terminal-attention'
 import { mirrorToBatScripts } from './remote/remote-logger'
+import { rotateBatScriptsLog } from './bat-scripts-log-rotation'
 import { CtWorktreeService } from './ct-worktree'
 import { UsageLimitContinueScheduler } from './usage-limit-continue'
 import { normalizeUsageLimitConfig } from '../src/lib/usage-limit'
@@ -1660,6 +1661,12 @@ app.whenReady().then(async () => {
   }
   logger.log(`[startup] ═══════════════════════════════════════`)
   logger.log(`[startup] app.whenReady fired at +${t0 - _t0}ms from IPC reg, +${t0 - _processStart}ms from process`)
+  // T0732 / BUG-179 (D198): rotate <userData>/Logs/bat-scripts.log once per startup. Here because
+  // the logs dir is known (logger.init ran in app-paths-bootstrap) and nothing in this process has
+  // written the file yet: its writers are the RemoteServer handlers (mirrorToBatScripts; the server
+  // starts later in this callback) and helpers inside PTYs (no window exists yet). Never throws.
+  const batScriptsLogDir = logger.getLogsDir()
+  if (batScriptsLogDir) rotateBatScriptsLog(batScriptsLogDir, { log: message => logger.log(message) })
   app.setPath('crashDumps', getCrashesDir())
   crashReporter.start({
     submitURL: '',
