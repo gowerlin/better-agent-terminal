@@ -4,6 +4,17 @@ All notable changes to Better Agent Terminal are documented in this file.
 
 ## [Unreleased]
 
+## [0.7.2-pre.7] — 2026-11-01
+
+### Fixed
+- Claude Agent 面板查模型清單時不再開始一個 turn：prompt 改為不送訊息的 AsyncIterable，0 個模型請求、不再在 `~/.claude/projects/<磁碟根>` 留下空白 session 檔（BUG-177 / T0729）
+- Claude Agent 面板讀 session 歷史、session 清單與 plugins 時優先使用 `CLAUDE_CONFIG_DIR`（未設才 `~/.claude`），解析集中在 `electron/claude-config-dir.ts`；未設該變數時行為不變（BUG-178 / T0730）
+- `bat-scripts.log` 啟動時輪替：本機主行程與 headless bat-server 啟動時檔案 > 10 MiB 改名為 `bat-scripts-<時間戳>.log`、保留最近 3 份，改名失敗略過、下次再試；helper 寫入規則不變（BUG-179 / T0732 / D198）
+
+### Changed
+- 新增以本機假 Anthropic API 驅動 Claude Agent 面板的 e2e（工作清單、resume、權限詢問、子代理、V2 遷移、`CLAUDE_CONFIG_DIR`、模型清單不送請求），以及終端 `file:///` / OSC 8 連結與 codex 0.166 Worker `✓ → ↻ → ✓` 的 e2e；不連線、不耗 token（T0727 / T0728）
+- docs 新增「Claude 面板額外的模型請求」：prompt suggestion 與子代理進度摘要的用途、成本與關閉方式（T0733 / T0734 / D199 / D200）
+
 ## [0.7.2-pre.6] — 2026-11-01
 
 ### Added

@@ -2,6 +2,49 @@
 
 本 fork 各版的更版重點（內容取自 GitHub Releases，最新在上）。上游 tony1223/better-agent-terminal 的 v2.1.x 紀錄保留在檔案最下方。
 
+## v0.7.2-pre.7（2026-11-01）
+
+版號 0.7.2-pre.7，接續 `v0.7.2-pre.6`。
+
+## 修正
+
+- **Claude Agent 面板查模型清單不再耗 token**（BUG-177）：面板開啟後查詢可用模型時，Claude CLI 原本會在背景多跑一次對話，送出一個完整的模型請求，並在 Claude 的 session 清單留下一筆空白 session（位置是磁碟根目錄）。現在改成只問清單、不開始對話：不送模型請求，也不留 session 檔
+- **設定了 `CLAUDE_CONFIG_DIR` 時，Claude Agent 面板的歷史與 plugins**（BUG-178）：面板原本固定讀 `~/.claude`，設了 `CLAUDE_CONFIG_DIR` 的使用者接續對話或重開 BAT 後看不到舊訊息，plugins 也從錯的位置載入。現在跟 Claude CLI 一樣優先使用 `CLAUDE_CONFIG_DIR`；沒有設定的使用者行為不變
+- **`bat-scripts.log` 不再無限制變大**（BUG-179）：BAT（含遠端 bat-server）啟動時，這個 helper 診斷日誌超過 10 MiB 就改名成帶時間戳的舊檔，只保留最近 3 份。檔案被其他程式占用時略過，下次啟動再試
+
+## 更新
+
+- **自動化驗收測試**：新增以本機假 API 驅動 Claude Agent 面板的 e2e（工作清單、接續對話、權限詢問、子代理、Claude Agent V2 分頁遷移），以及終端 `file:///` / OSC 8 連結與 Codex Worker「↻ → ✓」狀態的 e2e。這些測試不連線、不耗 token
+
+## 已驗收
+
+- **BUG-174**（終端 `file:///` 連結，GitHub #20）：以本版程式碼的 e2e 確認全形字路徑整段可點、換行的路徑兩列都能開、OSC 8 連結顯示並開啟目標、非 http / https / file 的連結不開；已結案
+- **BUG-169**（安裝版 helper 版號）：Windows 安裝版三個 helper 的 `--version` 都顯示正確版號；已結案
+- **Claude Agent 面板**（`v0.7.2-pre.5` 起）：以假 API 的 e2e 確認串流、權限詢問（允許 / 拒絕）、前景子代理、接續對話正常；原本的 Claude Agent V2 分頁遷移後能接上原對話
+- **Codex 0.166 Worker**（`v0.7.2-pre.5` 起）：回報後再執行顯示 `↻`、回合結束回到 `✓`
+
+## 待驗收（請更新到本版後協助確認）
+
+- **BUG-179**（本版）：更新後重開 BAT 一次，日誌資料夾（Windows `%APPDATA%\BetterAgentTerminal\Logs`）裡原本很大的 `bat-scripts.log` 變成 `bat-scripts-<時間>.log`，新的 `bat-scripts.log` 從小檔開始
+- **BUG-178**（本版，設定了 `CLAUDE_CONFIG_DIR` 的使用者）：在 Claude Agent 面板對話一輪後重開 BAT，接續的分頁仍看得到舊訊息
+- **工作清單與真實模型**（`v0.7.2-pre.6` 起）：真實模型是否會主動使用工作清單；背景執行的子代理在面板上的顯示
+- **Windows 安裝**（`v0.7.2-pre.6` 起）：覆蓋安裝、解除安裝後重新安裝都能正常啟動，安裝時間與前一版差不多
+- **BUG-175**（`v0.7.2-pre.3` 起，macOS，GitHub #22）：縮圖列的縮圖跟著分頁內容更新，不再停在啟動畫面，也沒有 `>0q>4m` 之類的字
+- **BUG-171**（`v0.7.1-pre.8` 起）：系統自動校時、睡眠喚醒後，不再出現「終端已恢復」提示，閒置的 Claude CLI 分頁也不會變成 `[Process exited with code 1]`
+- **BUG-156**（需 Docker Desktop）／**BUG-159**（需一般權限執行 BAT + codex）：同上一版
+
+## 已知事項
+
+- Claude Agent 面板開啟了「下一步建議」（輸入框旁的建議）：從第 2 個回合起，每個回合結束後會多送一個請求，大部分是讀取快取。不需要的話，在 `~/.claude/settings.json` 加 `"promptSuggestionEnabled": false` 即可關閉
+- Claude Agent 面板的子代理（sub-agent）執行時，約每 30 秒會多送一個請求，產生 Agent 卡片上的進度描述；目前沒有關閉選項
+- 工作清單只顯示主對話的項目；子代理自己建立的項目不併入
+- 終端伺服器真的停止時，BAT 仍只重建 shell，分頁裡原本執行的 Claude CLI / Codex CLI 不會自動接回（PLAN-055）
+- Linux 版本未實機驗證
+
+macOS 仍只提供 Apple Silicon（arm64）版。
+
+**Full Changelog**: https://github.com/gowerlin/better-agent-terminal/compare/v0.7.2-pre.6...v0.7.2-pre.7
+
 ## v0.7.2-pre.6（2026-11-01）
 
 版號 0.7.2-pre.6，接續 `v0.7.2-pre.5`。
