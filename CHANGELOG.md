@@ -4,6 +4,9 @@ All notable changes to Better Agent Terminal are documented in this file.
 
 ## [Unreleased]
 
+### Changed
+- 「Claude Agent V1」改名為「Claude Agent」（worktree 版為「Claude Agent (Worktree)」），V2 下架後不再需要版本號（T0722 / D194）。舊分頁的預設標題（`Claude Agent V1`、`Claude Agent V2`、`Claude Agent V1 (Worktree)`）開啟時自動改成新名稱，自己改過的標題不動
+
 ## [0.7.2-pre.5] — 2026-11-01
 
 ### Removed
