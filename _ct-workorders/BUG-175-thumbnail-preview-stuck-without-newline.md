@@ -3,11 +3,13 @@ schema_version: 1
 schema_kind: bug
 id: BUG-175
 title: "縮圖預覽停在 agent 啟動畫面不更新（輸出沒有換行時預覽不前進），並露出 `>0q>4m` 殘骸"
-status: FIXED
+status: CLOSED
 severity: medium
 reproducibility: unknown
 created_at: "2026-10-30T16:24:40+0800"
-updated_at: "2026-11-01T01:35:45+0800"
+updated_at: "2026-11-01T21:40:07+0800"
+closed_at: "2026-11-01T21:40:07+0800"
+closed_reason: "verified"
 impact:
   - terminal-thumbnail
 links:
@@ -22,7 +24,7 @@ links:
 |------|------|
 | 嚴重度 | 🟡 medium（縮圖列看不到 Worker 進度，要切進分頁才知道） |
 | 可重現 | 未確認（外部測試者A 的 macOS 上 3 個 Worker 縮圖都卡住） |
-| **狀態** | ✅ FIXED（T0714 `afe57761`：預覽依游標換列分行、原地更新丟棄、清畫面重來；`stripAnsi` 認完整 CSI 語法；`v0.7.2-pre.3` 已發佈；待外部測試者A 與 GitHub #22 回報者 macOS 實機驗收，通過後關 #22） |
+| **狀態** | 🚫 CLOSED（T0714 `afe57761`；外部測試者A 2026-11-01 回報 macOS 實機正常（使用者轉達）；GitHub #22 回報者尚未回覆，issue 仍開啟） |
 | 回報者 | 外部測試者A（使用者轉達，附截圖） |
 
 ## 現象
@@ -50,3 +52,9 @@ links:
 - Windows 行為變化：ConPTY 以 `CSI row;1 H` 跳過空白列時，原本黏成一行的兩列會分成兩行（較接近實際畫面）。
 - 塔台複驗：縮圖兩個測試檔 39 passed、`npm run typecheck` = 0；Worker：`test:unit` 6167 passed、vite build 成功。
 - 已知限制（T0714 回報）：跳脫序列被切在兩次 flush 之間時後半段變文字（未改）；macOS 若看到 `38;5;246m` 之類殘骸可另開單。
+
+## 驗收（2026-11-01T21:40:07+0800，第一百零四 session）
+
+- 外部測試者A 回報 macOS 實機上 Worker 縮圖已正常更新（使用者轉達；版號未註明，修正自 `v0.7.2-pre.3` 起都在）。
+- 依 R-G003 改 `CLOSED`（`closed_reason: verified`）。
+- GitHub #22：回報者尚未回覆；是否留言並關閉另由使用者決定。
