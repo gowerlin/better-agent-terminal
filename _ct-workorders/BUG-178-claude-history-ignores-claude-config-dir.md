@@ -3,16 +3,16 @@ schema_version: 1
 schema_kind: bug
 id: BUG-178
 title: "Claude 面板讀 session 歷史 / session 清單 / plugins 時不理 `CLAUDE_CONFIG_DIR`（固定讀 `os.homedir()/.claude`），設了該變數的使用者 resume 後歷史是空的"
-status: OPEN
+status: FIXING
 severity: low
 reproducibility: always
 created_at: "2026-11-01T11:17:31+0800"
-updated_at: "2026-11-01T11:17:31+0800"
+updated_at: "2026-11-01T11:51:27+0800"
 impact:
   - claude-agent-panel
 links:
   discovered_in: "T0727 回報區〈發現的問題〉第 2 點（2026-11-01，讀程式碼＋CLI 實測；未在 BAT 內重現面板空歷史）"
-  related: [T0727, T0711]
+  related: [T0730, T0727, T0711]
 ---
 
 # BUG-178 — Claude 面板歷史 / plugins 不理 `CLAUDE_CONFIG_DIR`
@@ -21,7 +21,7 @@ links:
 |------|------|
 | 嚴重度 | 🟢 low（只影響設了 `CLAUDE_CONFIG_DIR` 的使用者） |
 | 可重現 | 一定（推論；CLI 端已實測，BAT 面板端未實際重現） |
-| **狀態** | 📂 OPEN |
+| **狀態** | 🔧 FIXING：T0730（2026-11-01 開單，使用者決定現在修） |
 | 回報者 | T0727 Worker |
 
 ## 現象

@@ -3,7 +3,7 @@ schema_version: 1
 schema_kind: index
 id: _bug-tracker
 index_kind: bugs
-generated_at: "2026-11-01T11:27:01+0800"
+generated_at: "2026-11-01T11:51:27+0800"
 generator: control-tower-sync
 source_globs:
   - _ct-workorders/BUG-*.md
@@ -26,19 +26,19 @@ breakdown:
 > 最後同步：2026-11-01 09:23 (UTC+8) — BUG-176 FIXED（T0719 `59ef7f37`）；熱區 Fixed 29 / Closed 11
 
 ## 統計
-- 🔴 Open: 2 | ⏳ Fixing: 0 | ✅ Fixed: 27 | 🧪 Verify: 0 | 🚫 Closed: 13 | ⛔ Won't Fix: 0 | **Total: 42**
+- 🔴 Open: 0 | ⏳ Fixing: 2 | ✅ Fixed: 27 | 🧪 Verify: 0 | 🚫 Closed: 13 | ⛔ Won't Fix: 0 | **Total: 42**
 
 ## 🔴 Open / 處理中
 
 | ID | 標題 | 嚴重度 | 建立時間 | 連結 |
 |----|------|--------|---------|------|
-| BUG-177 | Claude 面板查模型清單會送一次真的模型請求（耗 token）並留下 session 檔（T0727 發現） | 🟡 Medium | 2026-11-01 | [BUG-177](BUG-177-supported-models-probe-sends-model-request.md) |
-| BUG-178 | Claude 面板讀 session 歷史 / plugins 不理 `CLAUDE_CONFIG_DIR`（T0727 發現） | 🟢 Low | 2026-11-01 | [BUG-178](BUG-178-claude-history-ignores-claude-config-dir.md) |
 
 ## ⏳ 修復中 (FIXING)
 
 | ID | 標題 | 嚴重度 | 修復時間 | 連結 |
 |----|------|--------|---------|------|
+| BUG-177 | Claude 面板查模型清單會送一次真的模型請求（耗 token）並留下 session 檔（T0727 發現；T0729 修正中） | 🟡 Medium | 2026-11-01 | [BUG-177](BUG-177-supported-models-probe-sends-model-request.md) |
+| BUG-178 | Claude 面板讀 session 歷史 / plugins 不理 `CLAUDE_CONFIG_DIR`（T0727 發現；T0730 修正中，排在 T0729 之後） | 🟢 Low | 2026-11-01 | [BUG-178](BUG-178-claude-history-ignores-claude-config-dir.md) |
 
 ## ✅ 已修復
 

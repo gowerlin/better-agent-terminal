@@ -3,17 +3,17 @@ schema_version: 1
 schema_kind: bug
 id: BUG-177
 title: "Claude 面板查模型清單（`getSupportedModels`）會送一次真的模型請求（耗 token），並在 `~/.claude/projects/<磁碟根>` 留下 session 檔"
-status: OPEN
+status: FIXING
 severity: medium
 reproducibility: intermittent
 created_at: "2026-11-01T11:17:31+0800"
-updated_at: "2026-11-01T11:17:31+0800"
+updated_at: "2026-11-01T11:51:27+0800"
 impact:
   - claude-agent-panel
   - token-usage
 links:
   discovered_in: "T0727 回報區〈發現的問題〉第 1 點（2026-11-01，假 Anthropic API e2e＋SDK 直接呼叫原型）"
-  related: [T0727, T0718, T0725]
+  related: [T0729, T0727, T0718, T0725]
 ---
 
 # BUG-177 — 查模型清單會送一次真的模型請求
@@ -22,7 +22,7 @@ links:
 |------|------|
 | 嚴重度 | 🟡 medium（每次查清單可能多一個完整 system prompt＋工具定義的 input token 請求；使用者看不到） |
 | 可重現 | 時有時無（看 `close()` 與 CLI 誰快；T0727 第 1 次全綠執行出現 4 次，第 2 次 0 次） |
-| **狀態** | 📂 OPEN |
+| **狀態** | 🔧 FIXING：T0729（2026-11-01 開單，使用者決定現在修） |
 | 回報者 | T0727 Worker |
 
 ## 現象
