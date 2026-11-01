@@ -225,7 +225,8 @@ describe('createAgentPromptCommandBuilder: resume (T0766)', () => {
   it('`--resume=<id>` after BAT MCP / hooks / --name=, before the custom args; no prompt; the launch name kept', async () => {
     const { build, names } = builder()
     const r = await build({ agent: 'claude-cli', workorder: 'T0766', shellFamily: 'pwsh', terminalId: 'w', resume: { sessionId: S1, sessionName: 'ws · Worker · T0766' } })
-    expect(r?.command).toMatch(new RegExp(`^& 'C:\\\\BAT\\\\claude\\.exe' '--mcp-config=[^']+' '--settings=[^']+' '--name=ws · Worker · T0766' --resume=${S1} --dangerously-skip-permissions$`))
+    // The temp data dir is quoted only when it needs it: Windows paths (`C:\…`) are, Linux `/tmp/…` paths are not (CI ubuntu).
+    expect(r?.command).toMatch(new RegExp(`^& 'C:\\\\BAT\\\\claude\\.exe' ('--mcp-config=[^']+'|--mcp-config=\\S+) ('--settings=[^']+'|--settings=\\S+) '--name=ws · Worker · T0766' --resume=${S1} --dangerously-skip-permissions$`))
     expect(r?.command).not.toContain('--fork-session')
     expect(r?.command).not.toContain('/ct-exec')
     expect(r).toMatchObject({ agentId: 'claude-cli', prompt: '', resume: { mode: 'session', arg: `--resume=${S1}` } })
