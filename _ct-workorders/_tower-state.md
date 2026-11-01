@@ -4,7 +4,7 @@ summary_version: 1
 updated_at: "2026-11-01T09:49:34+0800"
 session: "2026-11-01 第一百零一 session 進行中（CT v5.15.0）：T0720 安裝檔大小研究、T0721 pre.5 後續候選研究、T0722「Claude Agent」改名（D194）並行派工"
 next_ids:
-  workorder: "T0723"
+  workorder: "T0724"
   decision: "D195"
   bug: "BUG-177"
   plan: "PLAN-057"
@@ -14,7 +14,7 @@ todo:
   - "使用者日常使用驗收 BUG-171"
   - "外部測試者A 驗收 BUG-169 / BUG-175（v0.7.2-pre.3 起）；BUG-175 另等 GitHub #22 回報者回覆（已留言），通過後關 #22"
   - "BUG-156 / 159 待特定環境驗收"
-  - "T0722 DONE（`35b2bac3`，未發版）：下次發版更版重點寫「Claude Agent V1 改名 Claude Agent，舊分頁標題自動更新」；網站截圖 `site/public/media/agents-menu.png` 等仍顯示 V1 / V2，待重拍"
+  - "T0722 DONE（`35b2bac3`，未發版）：後續 CHANGELOG `[Unreleased]` 一條＋網站截圖重拍 → T0723；下次發版更版重點記得寫改名"
 ---
 # Tower State — better-agent-terminal
 
