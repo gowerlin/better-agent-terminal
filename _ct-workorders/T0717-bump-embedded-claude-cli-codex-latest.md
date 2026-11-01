@@ -4,13 +4,14 @@ schema_kind: workorder
 id: T0717
 title: "內嵌 claude CLI 與 codex 追最新：@anthropic-ai/claude-code ^2.1.306 → latest（2.1.316）、@openai/codex-sdk / @openai/codex ^0.163.0 → latest（0.166.0），核對 BAT 整合點；Agent SDK 不動（T0718 另做）"
 type: implementation
-status: PENDING
+status: IN_PROGRESS
 repo: better-agent-terminal
 project: maintenance
 priority: P2
 sizing: S
 created_at: "2026-11-01T08:12:30+0800"
-updated_at: "2026-11-01T08:12:30+0800"
+started_at: "2026-11-01T08:14:47+0800"
+updated_at: "2026-11-01T08:14:47+0800"
 target_version: "0.7.2-pre.5"
 depends_on: []
 related:
@@ -39,6 +40,7 @@ affects_files:
 renew_count: 0
 workdir: main repo
 worker_question_timeout: 30
+tower_question: open
 interaction:
   mode_hint: yolo
   interactive: false
@@ -92,6 +94,29 @@ memory_overrides:
 ## 回報區
 
 ### 待塔台決策（僅 yolo Worker 有問題時）
+
+#### Q-1：claude 2.1.312 / 2.1.316 改了兩句限額訊息，`src/lib/usage-limit.ts` 認不得，要不要在本單補上？
+- 提問時間：2026-11-01T08:23:45+0800
+- 證據（binary 字串，2.1.306 → 2.1.316）：
+  - (a) 2.1.312 changelog「Changed usage limit messages to call the 5-hour window the "5-hour limit" instead of the "session limit"」。binary 的名稱表從 `five_hour:"session limit"` 改成 `five_hour:"5-hour limit"`，標題由 `` `You've hit your ${name}` `` 組成，所以撞 5 小時限額時畫面變成 `You've hit your 5-hour limit · resets 3pm (…)`。`CLAUDE_LIMIT_RE` 的名稱只認 `session limit|weekly limit|Opus limit|Sonnet limit|Fable limit|usage limit|limit`，這句不會被辨識成 `claude-limit` → 少了 `cli-unavailable` 提示（CLI 自己的自動繼續沒開時）。
+  - (b) reset 時的通知由 `Usage limit reset · continuing automatically` 改成 `Usage limit reset · Continuing automatically`（大寫 C）。`CLAUDE_RESUMED_RE`（T0692）沒有 `i` 旗標，這句不再被辨識成 `claude-cli-resumed` → 舊的提示不會清掉。
+  - 兩者都只影響提示（claude 一律不送文字，D148）；`claude-stale`（送 Enter）用的 `Your usage limit has reset` / `Press enter to continue` 沒變。
+- 選項：[A] 本單補：`CLAUDE_LIMIT_RE` 加 `5-hour limit`（對應 `session`），`CLAUDE_RESUMED_RE` 的 `continuing automatically` 改成大小寫都認；舊句型保留（system runtime 可能仍是舊 CLI）；補測試與檔頭註解 / `docs/agent-guide/usage-limit-continue.md` / [B] 本單不改，另開 BUG 單處理
+- Worker 建議：[A]，因為 CLAUDE.md「用量限制自動繼續」節規定「CLI 改字串時需同步改此檔與測試」，改動是純追加（不刪任何既有句型、不改決策表），兩個檔都在 `affects_files`。
+- 影響範圍：`src/lib/usage-limit.ts`、`src/lib/__tests__/usage-limit.test.ts`、`docs/agent-guide/usage-limit-continue.md`
+- 阻塞：否（先做其他驗證；收尾前要等答覆）
+
+#### Q-2：codex 0.166 的 OSC 7501 多了 `done` / `error` 狀態，BAT 會把回合已結束的 codex 一直當成 `working`，要不要在本單補上？
+- 提問時間：2026-11-01T08:23:45+0800
+- 證據（上游原始碼 `codex-rs/tui/src/terminal_program_status.rs` / `chatwidget/turn_runtime.rs` / `chatwidget/status_surfaces.rs` / `app.rs`，tag `rust-v0.163.0` 對 `rust-v0.166.0`；binary 字串 `idleworkingblocked` → `idleworkingblockeddone`）：
+  - 0.166 起回合正常結束送 `state=done:app=codex`、失敗送 `state=error:app=codex`，**一直保持到使用者按鍵 / 貼上 / 點滑鼠**（`acknowledge_program_status`）才變回 `idle`；下一回合開始則直接 `working`。
+  - `blocked` 多了 `:kind=permission|question|auth`。BAT 的 `parseCodexOscPayload` 只看 `state=`，`kind` 會被忽略，`blocked` → `blockedReason: input` 照舊，這部分不影響。
+  - `parseCodexOscPayload` 不認得的 `state=` 一律忽略（`src/lib/codex-terminal-state.ts` 檔頭註明）→ 收到 `done` / `error` 時狀態停在上一個 `working`。yolo Worker 沒有人按鍵，所以回合結束後 `terminal:get-state` / `list` 仍回 `working`、`busy` 不結束（T0694 的 `↻` 回不到 `✓`、`terminal:wait` 等不到 idle，只剩 60 s 無輸出備援）。
+  - 影響的是**跑 codex >= 0.166 的分頁**：分頁用系統 codex（T0697），所以使用者的系統 codex 升到 0.166 就會發生，與本單升內嵌版無關；內嵌 0.166 會在 e2e t0621 碰到。
+- 選項：[A] 本單補：`parseCodexOscPayload` 把 `done` / `error` 當成 `idle`（契約對外的狀態值不變，`kind=` 繼續忽略）；補測試與 `docs/agent-guide/blocked-state.md` 的轉換表 / [B] 本單不改，另開 BUG 單（涉及 D158 契約 C-1–C-8 的轉換表，由塔台決定）
+- Worker 建議：[A]，因為 `done` / `error` 的語意就是「回合結束、沒在跑」，對應到 `idle` 不改任何對外欄位；改動只有 parser 的對照表。若塔台認為轉換表屬契約變更要另行決策，選 [B]。
+- 影響範圍：`src/lib/codex-terminal-state.ts`、`src/lib/__tests__/codex-terminal-state.test.ts`、`docs/agent-guide/blocked-state.md`、CLAUDE.md「blocked 狀態偵測」節（一句）。`src/lib/codex-terminal-state.ts` **不在** `affects_files`（`src/lib/__tests__/`、`docs/agent-guide/`、CLAUDE.md 在）。
+- 阻塞：否（先做其他驗證；收尾前要等答覆）
 
 ### 完成狀態
 
