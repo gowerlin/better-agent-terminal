@@ -23,10 +23,10 @@ breakdown:
 # Bug Tracker
 
 > ⚠️ 此文件由 `*sync` 自動生成，請勿手動編輯。
-> 最後同步：2026-11-01 12:43 — 第一百零二 session：BUG-169 / 174 / 176 CLOSED、BUG-177 / 178 / 179 FIXED（T0729 `ceb24910` / T0730 `6f7b3d53` / T0732 `ce648034`）；熱區 Open 0 / Fixing 0 / Fixed 29 / Closed 14
+> 最後同步：2026-11-01 17:19 — 第一百零三 session：BUG-167 / 168 / 170 CLOSED（R-G003，CI 測試關卡 / 實機驗收證據）；熱區 Fixed 26 / Closed 17。前次 2026-11-01 12:43 第一百零二 session：BUG-169 / 174 / 176 CLOSED、BUG-177 / 178 / 179 FIXED（T0729 `ceb24910` / T0730 `6f7b3d53` / T0732 `ce648034`）；熱區 Open 0 / Fixing 0 / Fixed 29 / Closed 14
 
 ## 統計
-- 🔴 Open: 0 | ⏳ Fixing: 0 | ✅ Fixed: 29 | 🧪 Verify: 0 | 🚫 Closed: 14 | ⛔ Won't Fix: 0 | **Total: 43**
+- 🔴 Open: 0 | ⏳ Fixing: 0 | ✅ Fixed: 26 | 🧪 Verify: 0 | 🚫 Closed: 17 | ⛔ Won't Fix: 0 | **Total: 43**
 
 ## 🔴 Open / 處理中
 
@@ -47,9 +47,6 @@ breakdown:
 | BUG-177 | Claude 面板查模型清單會送一次真的模型請求並留下 session 檔；T0729 改用不 yield 的 AsyncIterable prompt，0 請求 / 0 session 檔（`ceb24910`） | 🟡 Medium | 2026-11-01 | [BUG-177](BUG-177-supported-models-probe-sends-model-request.md) |
 | BUG-175 | 縮圖預覽在輸出沒有換行時不更新、露出 `>0q>4m` 殘骸（T0714 `afe57761` 依游標換列分行 + 完整 CSI；`v0.7.2-pre.3`；待外部測試者A 與 GitHub #22 回報者 macOS 實機驗收） | 🟡 medium | 2026-10-30 | [BUG-175](BUG-175-thumbnail-preview-stuck-without-newline.md) |
 | BUG-171 | 「終端重置」後多個分頁 `[Process exited with code 1]`：NTP 時鐘跳變讓 heartbeat 誤判、recovery 沒關舊 server；T0704 `68ab2a42` + T0705 `d7ffa080`，待下一個預覽版實機驗收 | 🔴 high | 2026-10-25 | [BUG-171](BUG-171-idle-terminals-exit-1-after-terminal-reset.md) |
-| BUG-170 | yolo 提問備援重派後舊 Worker 分頁讓回收 AMBIGUOUS；CT v5.12.0 / v5.12.1 重派前先 `--close-worker`（CT-T022），T0695 / T0696 實機驗收通過 | 🟢 low | 2026-10-22 | [BUG-170](BUG-170-yolo-fallback-redispatch-leaves-old-worker-tab.md) |
-| BUG-168 | `tests/` 底下沒被跑到的測試失敗與逾時（全部測試過時）；T0680–T0685 修正並收進 vitest／`test:legacy`，ubuntu 試跑 5760 / 0 + 472 / 0；擋版 T0686 | 🟢 low | 2026-10-21 | [BUG-168](BUG-168-tests-dir-tsx-suites-failing-and-timing-out.md) |
-| BUG-167 | `tests/profile-manager-migration.test.ts` 2 項斷言過時（T0277 / T0282 加的 `dockerMounts`、`serverHome` 沒跟上；T0678 `d90b3b50`，13 / 0） | 🟢 low | 2026-10-21 | [BUG-167](BUG-167-profile-manager-migration-test-stale-assertions.md) |
 | BUG-159 | codex 分頁在 BAT MCP 未注入、非系統管理員時接上 codex 共用 daemon，helper 讀到其他分頁的 `BAT_*`（T0651 `5b1be0f5`） | 🟢 low | 2026-10-18 | [BUG-159](BUG-159-codex-shared-daemon-inherits-other-tab-env.md) |
 | BUG-156 | Docker 設定精靈容器埠固定 `127.0.0.1:9876`，與 BAT RemoteServer 預設埠衝突（T0649 `99abe9a1`） | 🟡 medium | 2026-10-18 | [BUG-156](BUG-156-docker-wizard-port-9876-conflicts-bat-server.md) |
 | BUG-147 | Recovery「重新開始」時舊 Terminal Server 刪掉新 server 的 pid / port 檔 | 🟢 low | 2026-10-17 20:17 | [BUG-147](BUG-147-recovery-fresh-start-pid-file-race.md) |
@@ -82,6 +79,9 @@ breakdown:
 
 | ID | 標題 | 嚴重度 | 關閉時間 | 連結 |
 |----|------|--------|---------|------|
+| BUG-170 | yolo 提問備援重派後舊 Worker 分頁讓回收 AMBIGUOUS；CT v5.12.0 / v5.12.1 重派前先 `--close-worker`（CT-T022），T0695 / T0696 實機驗收通過 | 🟢 low | 2026-11-01 | [BUG-170](BUG-170-yolo-fallback-redispatch-leaves-old-worker-tab.md) |
+| BUG-168 | `tests/` 底下沒被跑到的測試失敗與逾時（全部測試過時）；T0680–T0685 修正並收進 vitest／`test:legacy`，ubuntu 試跑 5760 / 0 + 472 / 0；擋版 T0686 | 🟢 low | 2026-11-01 | [BUG-168](BUG-168-tests-dir-tsx-suites-failing-and-timing-out.md) |
+| BUG-167 | `tests/profile-manager-migration.test.ts` 2 項斷言過時（T0277 / T0282 加的 `dockerMounts`、`serverHome` 沒跟上；T0678 `d90b3b50`，13 / 0） | 🟢 low | 2026-11-01 | [BUG-167](BUG-167-profile-manager-migration-test-stale-assertions.md) |
 | BUG-176 | Agent SDK 0.3 升版後 ajv / ajv-formats 掉出 production 相依樹（T0719 `59ef7f37`；pre.5 / pre.6 CI 三平台打包驗證通過） | 🔴 High | 2026-11-01 | [BUG-176](BUG-176-sdk03-ajv-dropped-from-packaged-app.md) |
 | BUG-174 | 終端 `file:///` 連結：全形字範圍、跨行、OSC 8（GitHub #20；T0713 `ff772d40`；T0728 e2e 驗收） | 🟡 Medium | 2026-11-01 | [BUG-174](BUG-174-terminal-file-link-cjk-range-wrap-osc8.md) |
 | BUG-169 | 安裝版的 helper 回報版號 v0.0.0（T0691 `b0ff5673`；`v0.7.2-pre.6` Windows 安裝版三個 helper `--version` 實測正確） | 🟢 Low | 2026-11-01 | [BUG-169](BUG-169-installed-helpers-report-version-0.0.0.md) |

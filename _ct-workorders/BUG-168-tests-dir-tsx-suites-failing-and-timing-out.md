@@ -3,7 +3,7 @@ schema_version: 1
 schema_kind: bug
 id: BUG-168
 title: "tests/ 底下不在 test:unit 的 tsx／node:test 測試：8 檔失敗（29 項）、9 檔逾時；package.json 2 組 script 指向不存在的檔案"
-status: FIXED
+status: CLOSED
 severity: low
 reproducibility: always
 created_at: "2026-10-21T20:15:54+0800"
@@ -25,7 +25,7 @@ links:
 |------|------|
 | 嚴重度 | 🟢 low（T0679：29 項失敗與 9 個逾時全部是測試過時，沒有產品回歸；原暫定 medium） |
 | 可重現 | 一定 |
-| **狀態** | ✅ FIXED（2026-10-21）：G2 T0680 `21ce7b79`、G3 T0681 `eaf8c168`、G4 T0682 `5bd04ef4`、CI 第一步 T0683 `a35c4ce3`、跨平台與時區 T0684 `4d4bce72`、`test:legacy` 與清理 T0685 `063c4efb`；GitHub 試跑 run `39609350106`（ubuntu）test:unit 5760 / 0、test:legacy 33 檔 472 / 0。擋版關卡 T0686 進行中 |
+| **狀態** | 🚫 CLOSED（2026-11-01 塔台依 R-G003 結案）；原 ✅ FIXED（2026-10-21）：G2 T0680 `21ce7b79`、G3 T0681 `eaf8c168`、G4 T0682 `5bd04ef4`、CI 第一步 T0683 `a35c4ce3`、跨平台與時區 T0684 `4d4bce72`、`test:legacy` 與清理 T0685 `063c4efb`；GitHub 試跑 run `39609350106`（ubuntu）test:unit 5760 / 0、test:legacy 33 檔 472 / 0。擋版關卡 T0686 進行中 |
 | 回報者 | T0678 Worker（盤點） |
 
 ## 現象
@@ -68,3 +68,8 @@ links:
 - **CI 完全沒跑 `npm run test:unit`**：四個 workflow 只有 typecheck，vitest 的 322 檔、5,664 項也不在 CI（塔台已確認）。
 - 旁支：`electron/__tests__/pty-manager-helper-env.test.ts` 兩項斷言沒先清 `BAT_HELPER_LOG_DIR`，shell 有設這個變數時會失敗（測試隔離問題）；`wsl-systemd.ts` 解析使用者失敗時用 `error.message` 而不是 `describeError`（診斷資訊小缺口，不是回歸）。
 - 建議分組（T0679 回報區有完整表）：G1 刪失效 script（XS）、G2 單元測試跟上產品（S；profile-card 搬到 vitest + RTL 則 M）、G3 SSH／WSL 舊測試與 vitest 版去重（S–M）、G4 精靈 mock 補齊並加防卡死（M，可拆 Docker／WSL／SSH）、G5 納入 CI（短期新增 `test:legacy` + 在 CI 跑 `test:unit`，長期收斂到 vitest）。
+
+## 結案（2026-11-01T17:19:44+0800，BAT 第一百零三 session 塔台）
+
+- 依全域 R-G003：BAT `v0.7.2-pre.8` 發版 CI（run `41277080514`）`tests / unit-tests` job success（`test:unit` + `test:legacy`）；T0686 Test gate 自 `v0.7.1-pre.5` 起每版生效。
+- closed_reason: verified

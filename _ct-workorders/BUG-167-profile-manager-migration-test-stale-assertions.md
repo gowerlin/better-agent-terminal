@@ -3,7 +3,7 @@ schema_version: 1
 schema_kind: bug
 id: BUG-167
 title: "tests/profile-manager-migration.test.ts 有 2 項斷言失敗（docker-linux、ssh-linux 的 metadata 比期望多了後來新增的 profile 欄位）；此測試不在 test:unit，一直沒被發現"
-status: FIXED
+status: CLOSED
 severity: low
 reproducibility: always
 created_at: "2026-10-21T19:17:17+0800"
@@ -22,7 +22,7 @@ links:
 |------|------|
 | 嚴重度 | 🟢 low（目前只確認測試失敗；遷移後的 profile 內容是否正確待 T0678 確認） |
 | 可重現 | 一定（每次執行都失敗） |
-| **狀態** | ✅ FIXED（T0678，commit `d90b3b50`） |
+| **狀態** | 🚫 CLOSED（2026-11-01 塔台依 R-G003 結案）；原 ✅ FIXED（T0678，commit `d90b3b50`） |
 | 回報者 | T0677 Worker |
 
 ## 現象
@@ -46,3 +46,8 @@ links:
 - 失敗的不是遷移（`migrateProfile` 4 項一直通過），而是 `extractTargetOSMeta` 的投影斷言：docker-linux 多 `dockerMounts`（T0277，`43d6eea4`），ssh-* 多 `serverHome`（T0282，`462d4f88`）。兩張工單都明訂要把欄位加進 `TargetOSMetadata` 與 `extractTargetOSMeta`（translator 需要），判定為預期行為，測試沒跟上。
 - 只改 `tests/profile-manager-migration.test.ts`（commit `d90b3b50`）：斷言列出完整欄位，另加 dockerMounts 直通一項與 ssh-darwin 的 `serverHome` 檢查。`npx tsx tests/profile-manager-migration.test.ts`：13 passed / 0 failed。
 - `tests/` 底下其他不在 `test:unit` 的測試另有失敗與逾時，盤點表見 T0678 回報區（本單不修）。
+
+## 結案（2026-11-01T17:19:44+0800，BAT 第一百零三 session 塔台）
+
+- 依全域 R-G003：BAT `v0.7.2-pre.8` 發版 CI（run `41277080514`）`tests / unit-tests` job success（`test:unit` + `test:legacy`，含 `tests/profile-manager-migration.test.ts`）；自 T0686 起每次發版都經此關卡。
+- closed_reason: verified
