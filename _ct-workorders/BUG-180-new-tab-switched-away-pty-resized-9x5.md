@@ -3,11 +3,12 @@ schema_version: 1
 schema_kind: bug
 id: BUG-180
 title: "剛開的終端分頁在約 100 ms 內被切走時，PTY 被 resize 成 9x5，直到切回該分頁才恢復"
-status: OPEN
+status: FIXED
 severity: low
 reproducibility: always
 created_at: "2026-11-01T17:40:18+0800"
-updated_at: "2026-11-01T17:40:18+0800"
+updated_at: "2026-11-01T18:03:00+0800"
+fixed_in: "T0741 4500984d"
 impact:
   - terminal-resize
 links:
@@ -21,7 +22,7 @@ links:
 |------|------|
 | 嚴重度 | 🟢 low（只在分頁剛開就被切走時；切回後恢復。agent TUI 在這段期間以 9 欄繪製） |
 | 可重現 | 一定（T0736 e2e 每次都記到） |
-| **狀態** | 📂 OPEN |
+| **狀態** | 🔧 FIXED（T0741 `4500984d`，待部署驗證） |
 | 回報者 | T0736 Worker |
 
 ## 現象
@@ -44,3 +45,11 @@ links:
 
 - initial `doResize()` 到期時再檢查 active / 容器尺寸；容器 0x0 時不送 `pty.resize`（任何 resize 路徑都不應把 0x0 容器 fit 的結果送給 PTY）。
 - 守住 T0572 的 `requestPtySizeSync` 行為與 `e2e/t0572-new-pty-initial-size.spec.ts`。
+
+## 修正（T0741，2026-11-01，commit `4500984d`）
+
+- **查證**：推測的兩段都成立，且找到 9x5 的確切來源。① initial `doResize()` 到期沒有再檢查 active；② 隱藏分頁在 `.terminal-wrapper.hidden`（`display: none`），FitAddon 以 `getComputedStyle` 取容器尺寸，沒有被繪製的元素回傳宣告值 `100%`，`parseInt` 得 100 px，扣掉 padding 與捲軸 ≈ 9x5。`fit()` 先把 xterm 自己縮成 9x5，再送給 PTY。
+- **修正**：`canFitTerminalContainer`（`src/lib/terminal-fit-guard.ts`）—— 容器的 `getBoundingClientRect()` 寬或高 ≤ 0 時不 fit、不送 `pty:resize`、不動去重；由 TerminalPanel `doResize` 開頭與手動重繪呼叫。initial resize 計時器到期時再檢查 `isActiveRef`，unmount 時清除。
+- **驗證**：單元 `src/lib/__tests__/terminal-fit-guard.test.ts`、`src/__tests__/terminal-pty-size-sync.test.tsx`（T0741 區塊 3 案，拿掉修正時失敗）；e2e `e2e/t0741-hidden-new-tab-pty-size.spec.ts`（未修正 build 三輪 `["137x35","9x5"]` 失敗、修正後通過）；`e2e/t0572-new-pty-initial-size.spec.ts`、`e2e/t0571-shift-right-click-copy.spec.ts`、`e2e/v072-pre8-workspace-waiting-real-agents.spec.ts` 綠（pre8 記到「137x35 before selecting it」）。
+- **待驗收**：預覽版實機——連開 Claude CLI 與以塔台開啟 Claude，前一個分頁切回前 agent TUI 不以 9 欄繪製；驗收後改 CLOSED。
+- 細節：[docs/agent-guide/new-pty-initial-size.md](../docs/agent-guide/new-pty-initial-size.md)
