@@ -3,17 +3,17 @@ schema_version: 1
 schema_kind: index
 id: _backlog
 index_kind: plans
-generated_at: "2026-10-30T15:59:57+0800"
+generated_at: "2026-11-02T00:25:31+0800"
 generator: control-tower-sync
 source_globs:
   - _ct-workorders/PLAN-*.md
 exclude_globs:
   - _ct-workorders/_archive/**
   - _ct-workorders/examples/**
-total: 21
+total: 22
 breakdown:
   IDEA: 8
-  PLANNED: 1
+  PLANNED: 2
   IN_PROGRESS: 0
   DONE: 10
   DROPPED: 2
@@ -22,10 +22,10 @@ breakdown:
 # Backlog
 
 > ⚠️ 此文件由 `*sync` 自動生成，請勿手動編輯。
-> 最後同步：2026-10-30 16:05 (UTC+8) — PLAN-056 DROPPED（D189：不改程式，改走 CT 推薦目錄配置；GitHub #21 已回覆）
+> 最後同步：2026-11-02 00:25 (UTC+8) — PLAN-057 PLANNED（D206：headless server 登入 shell PATH，先量測 T0754）
 
 ## 統計
-- 💡 Ideas: 8 | 📋 Planned: 1 | 🔄 In Progress: 0 | ✅ Done: 10 | 🚫 Dropped: 2
+- 💡 Ideas: 8 | 📋 Planned: 2 | 🔄 In Progress: 0 | ✅ Done: 10 | 🚫 Dropped: 2
 
 ## Active
 
@@ -40,6 +40,7 @@ breakdown:
 | PLAN-053 | 升級 Electron 42+（Chromium 148+）：Electron 41 已停止更新；Graphite out-of-order CHECK 改為 GPU 程序重啟（BUG-164） | 🟢 low | 💡 IDEA | [PLAN-053](PLAN-053-electron-42-upgrade.md) |
 | PLAN-054 | CT Workflow 智能的 BAT 側事項：B4 MCP 政策文件（併下次發版）、B6 CT 面板讀 workflow 欄位（延後：CT D090）；B1 不做 | 🟢 low | 📋 PLANNED | [PLAN-054](PLAN-054-ct-workflow-intelligence-bat-side.md) |
 | PLAN-055 | Terminal Server recovery 後 agent 分頁不再無聲變成 shell：列出被中斷的分頁、claude 保留 session id 並提供 `--resume`（BUG-171 / T0703 C） | 🟡 medium | 💡 IDEA | [PLAN-055](PLAN-055-agent-tabs-after-terminal-server-recovery.md) |
+| PLAN-057 | bat-server（headless）啟動時以登入 shell 取得 PATH（預設開、可關；先量測 T0754） | 🟢 low | 📋 PLANNED | [PLAN-057](PLAN-057-headless-server-login-shell-path.md) |
 
 ## Completed
 
