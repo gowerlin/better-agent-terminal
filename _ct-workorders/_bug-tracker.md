@@ -23,10 +23,10 @@ breakdown:
 # Bug Tracker
 
 > ⚠️ 此文件由 `*sync` 自動生成，請勿手動編輯。
-> 最後同步：2026-11-02 03:22 — 第一百零四 session：BUG-192 → FIXING（T0769，D214）；BUG-191 FIXED（T0760 `eb5c0589`）；開 BUG-192（OPEN，T0768 研究）；BUG-190 FIXED（T0759 `b8a3b7f7`）；BUG-188 FIXED（T0757 `de8a4fd4`）；BUG-189 FIXED（T0758 `ddfb4f38`）；開 BUG-188–191 → FIXING（T0757–T0760，D209 / D210）；BUG-183 / 184 CLOSED（使用者實機，`v0.7.3-pre.3`）；BUG-187 CLOSED（`v0.7.3-pre.3`，使用者裁示）；BUG-186 CLOSED（WSL 實機，server `0.7.3-pre.3`）；BUG-187 FIXED（T0756 `915f90ab`）；開 BUG-187 → FIXING（T0756）；BUG-185 CLOSED（`v0.7.3-pre.2`）；BUG-186 FIXED（T0753 `0f021e67`）；BUG-185 FIXED（T0751 `f9072e16`）；開 BUG-186 → FIXING（T0753）；BUG-183 / 184 FIXED（T0750）；BUG-182 / 175 CLOSED
+> 最後同步：2026-11-02 04:28 — 第一百零四 session：BUG-192 FIXED（T0769 `9ab26222`）；BUG-192 → FIXING（T0769，D214）；BUG-191 FIXED（T0760 `eb5c0589`）；開 BUG-192（OPEN，T0768 研究）；BUG-190 FIXED（T0759 `b8a3b7f7`）；BUG-188 FIXED（T0757 `de8a4fd4`）；BUG-189 FIXED（T0758 `ddfb4f38`）；開 BUG-188–191 → FIXING（T0757–T0760，D209 / D210）；BUG-183 / 184 CLOSED（使用者實機，`v0.7.3-pre.3`）；BUG-187 CLOSED（`v0.7.3-pre.3`，使用者裁示）；BUG-186 CLOSED（WSL 實機，server `0.7.3-pre.3`）；BUG-187 FIXED（T0756 `915f90ab`）；開 BUG-187 → FIXING（T0756）；BUG-185 CLOSED（`v0.7.3-pre.2`）；BUG-186 FIXED（T0753 `0f021e67`）；BUG-185 FIXED（T0751 `f9072e16`）；開 BUG-186 → FIXING（T0753）；BUG-183 / 184 FIXED（T0750）；BUG-182 / 175 CLOSED
 
 ## 統計
-- 🔴 Open: 0 | ⏳ Fixing: 1 | ✅ Fixed: 7 | 🧪 Verify: 0 | 🚫 Closed: 48 | ⛔ Won't Fix: 0 | **Total: 56**
+- 🔴 Open: 0 | ⏳ Fixing: 0 | ✅ Fixed: 8 | 🧪 Verify: 0 | 🚫 Closed: 48 | ⛔ Won't Fix: 0 | **Total: 56**
 
 ## 🔴 Open / 處理中
 
@@ -38,12 +38,12 @@ breakdown:
 
 | ID | 標題 | 嚴重度 | 修復時間 | 連結 |
 |----|------|--------|---------|------|
-| BUG-192 | Claude 面板背景子代理執行中送新訊息會中止整個 query、子代理一起被結束；T0768 研究 → T0769 注入同一個 query＋排隊退路（D214） | 🟡 Medium | 2026-11-02 | [BUG-192](BUG-192-claude-panel-new-message-kills-background-agent.md) |
 
 ## ✅ 已修復
 
 | ID | 標題 | 嚴重度 | 修復時間 | 連結 |
 |----|------|--------|---------|------|
+| BUG-192 | Claude 面板背景子代理執行中送新訊息會中止整個 query、子代理一起被結束；T0768 研究 → T0769 注入同一個 query＋排隊退路（D214） | 🟡 Medium；T0769 `9ab26222` 待實機驗收 | 2026-11-02 | [BUG-192](BUG-192-claude-panel-new-message-kills-background-agent.md) |
 | BUG-191 | 設 `CLAUDE_CODE_PLUGIN_CACHE_DIR` 時 BAT 找 plugins 的位置可能與 CLI 不同；T0760 先實測 | 🟢 Low；T0760 `eb5c0589` 待實機驗收 | 2026-11-02 | [BUG-191](BUG-191-claude-plugin-cache-dir-plugins-lookup.md) |
 | BUG-190 | Claude 面板背景 Agent 執行中不在 active task bar、結束沒有完成標示；T0759 | 🟢 Low；T0759 `b8a3b7f7` 待實機驗收 | 2026-11-02 | [BUG-190](BUG-190-background-agent-not-in-active-task-bar.md) |
 | BUG-188 | 用滑鼠回答（拒絕權限、取消 AskUserQuestion、codex 等待輸入）後 ⚠️ 不清除，與鍵盤回答不一致（D209）；T0757 先查證再精準修 | 🟡 Medium；T0757 `de8a4fd4` 待實機驗收 | 2026-11-02 | [BUG-188](BUG-188-mouse-answer-does-not-clear-waiting-badge.md) |
