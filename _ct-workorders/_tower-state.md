@@ -1,17 +1,18 @@
 ---
 schema_kind: tower-state
 summary_version: 1
-updated_at: "2026-11-01T12:25:49+0800"
-session: "2026-11-01 第一百零二 session 進行中（CT v5.15.0）：T0727–T0729 / T0731 DONE；BUG-169 / 174 / 176 CLOSED、BUG-177 FIXED、#20 關閉；T0730（BUG-178）IN_PROGRESS；BUG-179 FIXING（T0732 等 T0730）；D197 ADVISORY 已回覆；T0733 研究"
+updated_at: "2026-11-01T12:36:56+0800"
+session: "2026-11-01 第一百零二 session 進行中（CT v5.15.0）：T0727–T0731 / T0733 DONE；BUG-169 / 174 / 176 CLOSED、BUG-177 / 178 FIXED、#20 關閉；T0732（BUG-179）IN_PROGRESS；D197 ADVISORY 已 RESOLVED；T0733 prompt suggestion 待使用者決定"
 next_ids:
   workorder: "T0734"
   decision: "D199"
   bug: "BUG-180"
   plan: "PLAN-057"
 todo:
-  - "T0730（BUG-178）進行中"
-  - "T0732（BUG-179 輪替，D198）等 T0730 完成再派；T0733（turn 後多出的請求研究，只查不改）並行"
-  - "T0730 / T0732 完成後聯合驗證，再問使用者是否發 pre.7"
+  - "T0732（BUG-179 輪替，D198）進行中"
+  - "T0733 結論：多出的請求是面板自己開的 prompt suggestion（`promptSuggestions: true`，建議晶片在用），建議不改程式；待使用者決定：維持 / 加 Settings 開關 / 預設關、文件小單、`agentProgressSummaries` 成本研究"
+  - "T0732 完成後聯合驗證，再問使用者是否發 pre.7"
+  - "候選（T0730）：`CLAUDE_CODE_PLUGIN_CACHE_DIR` 時 plugins 清單位置與 CLI 是否一致，需另開單實測"
   - "實機驗收 v0.7.2-pre.6：Windows NSIS 覆蓋安裝 / 解除安裝 / 乾淨重裝與安裝時間（T0726，本機無 Windows Sandbox，手動）；真實模型是否主動用 Task* 與背景 Agent 卡片（T0727 已以假 API 驗 BAT 端 ①–⑨）"
   - "實機驗收 v0.7.2-pre.5 起：Claude Agent 面板（SDK 0.3）真實模型對話（BAT 端、V2 遷移接續、codex 0.166 ↻ → ✓ 已由 T0727 / T0728 e2e 驗過）"
   - "使用者日常使用驗收 BUG-171"
@@ -21,7 +22,7 @@ todo:
 ---
 # Tower State — better-agent-terminal
 
-> 🟢 **第一百零二 session 進行中**（2026-11-01 10:54 起，CT v5.15.0，Fast Path；`--set-role tower --mode on` exit 0；安裝版 helper `v0.7.2-pre.6`）：使用者「pre.6 實機驗收開始，可自動化的先安排」→ T0727（Claude 面板假 Anthropic API e2e，10:59 派工 `started:`）→ T0728（BUG-174 連結＋codex 0.166 ↻ → ✓ e2e，等 T0727 完成再派，避免同時 `vite build`）。NSIS 覆蓋 / 解除 / 乾淨重裝：本機沒有 Windows Sandbox，在主機跑會覆蓋使用中的 BAT → 留手動。**BUG-169 CLOSED**（11:00，使用者「直接 CLOSED」；安裝版三個 helper `--version` = `v0.7.2-pre.6`）→ 熱區 BUG：Fixed 28 / Closed 12。**T0727 DONE**（11:15，`b534941c`；假 Anthropic API e2e ①–⑨ 全 PASS、0 個對外請求；V2 遷移實際走 resume 接上）→ 開 **BUG-177**（`getSupportedModels` 空 prompt 仍跑一個 turn，耗 token）/ **BUG-178**（歷史 / plugins 不理 `CLAUDE_CONFIG_DIR`）；`--close-worker T0727` exit 0；11:17 派 **T0728**（`started:`）。實機仍需：背景 `Agent`（CLI 2.1.316 預設背景）卡片行為、真實模型是否主動用 Task*。**T0728 DONE**（11:25，`947cc9bc`；BUG-174 ①–⑤ PASS、codex 0.166 `✓ → ↻ → ✓` PASS、t0694 / t0621 綠、無缺陷）→ `--close-worker T0728` exit 0；**BUG-174 CLOSED**（HEAD 與 `v0.7.2-pre.6` 的 src / electron / scripts 無差異）。pre.5 待驗的 codex 0.166 ↻ → ✓ 亦以 T0728 涵蓋。使用者「兩個都現在修」＋「留言並關閉 #20」→ 11:51 #20 留言並 CLOSED；T0729（BUG-177）/ T0730（BUG-178，同檔，排在 T0729 後）開單，兩 BUG → FIXING；11:52 派 T0729（`started:`）。BMad-Guide · Tower 來兩則跨 session 訊息：① ADVISORY Worker session 對應（Q-B1–B5）→ 使用者選先研究 → T0731（只查不改、不 build，與 T0729 並行）12:07 派工（`started:`）；② `.claude/settings.local.json` ECC 殘留 2 條 → 使用者授權後塔台備份並移除（allow 27 → 25，JSON 可解析，檔案不在版控）；已回覆 BMad-Guide 收件（對方已標 ACKNOWLEDGED、殘留清單標完成）。**T0729 DONE**（11:59，`ceb24910`；不 yield 的 AsyncIterable prompt，0 請求 / 0 session 檔，e2e ⑩；unit 6262 / 351 files）→ BUG-177 FIXED；**T0731 DONE**（12:10，`d519902c`，回覆稿 DRAFT）→ 開 **BUG-179**（`bat-scripts.log` 無上限，本機 41.6 MB）；`--close-worker` T0729 / T0731 exit 0；12:12 派 **T0730**（`started:`）。R-G003 整理：**BUG-176 CLOSED**（pre.5 / pre.6 CI 三平台打包驗證 success）。使用者裁示 → **D197**（ADVISORY 照 T0731 建議回覆，回覆稿 DELIVERED、已通知 BMad-Guide）、**D198**（BUG-179 規格：啟動時 > 10 MB 輪替、保留 3 份、`report-hook` 雙寫不動 → T0732，排在 T0730 後；turn 後多出的請求 → T0733 研究，12:2x 派工）。
+> 🟢 **第一百零二 session 進行中**（2026-11-01 10:54 起，CT v5.15.0，Fast Path；`--set-role tower --mode on` exit 0；安裝版 helper `v0.7.2-pre.6`）：使用者「pre.6 實機驗收開始，可自動化的先安排」→ T0727（Claude 面板假 Anthropic API e2e，10:59 派工 `started:`）→ T0728（BUG-174 連結＋codex 0.166 ↻ → ✓ e2e，等 T0727 完成再派，避免同時 `vite build`）。NSIS 覆蓋 / 解除 / 乾淨重裝：本機沒有 Windows Sandbox，在主機跑會覆蓋使用中的 BAT → 留手動。**BUG-169 CLOSED**（11:00，使用者「直接 CLOSED」；安裝版三個 helper `--version` = `v0.7.2-pre.6`）→ 熱區 BUG：Fixed 28 / Closed 12。**T0727 DONE**（11:15，`b534941c`；假 Anthropic API e2e ①–⑨ 全 PASS、0 個對外請求；V2 遷移實際走 resume 接上）→ 開 **BUG-177**（`getSupportedModels` 空 prompt 仍跑一個 turn，耗 token）/ **BUG-178**（歷史 / plugins 不理 `CLAUDE_CONFIG_DIR`）；`--close-worker T0727` exit 0；11:17 派 **T0728**（`started:`）。實機仍需：背景 `Agent`（CLI 2.1.316 預設背景）卡片行為、真實模型是否主動用 Task*。**T0728 DONE**（11:25，`947cc9bc`；BUG-174 ①–⑤ PASS、codex 0.166 `✓ → ↻ → ✓` PASS、t0694 / t0621 綠、無缺陷）→ `--close-worker T0728` exit 0；**BUG-174 CLOSED**（HEAD 與 `v0.7.2-pre.6` 的 src / electron / scripts 無差異）。pre.5 待驗的 codex 0.166 ↻ → ✓ 亦以 T0728 涵蓋。使用者「兩個都現在修」＋「留言並關閉 #20」→ 11:51 #20 留言並 CLOSED；T0729（BUG-177）/ T0730（BUG-178，同檔，排在 T0729 後）開單，兩 BUG → FIXING；11:52 派 T0729（`started:`）。BMad-Guide · Tower 來兩則跨 session 訊息：① ADVISORY Worker session 對應（Q-B1–B5）→ 使用者選先研究 → T0731（只查不改、不 build，與 T0729 並行）12:07 派工（`started:`）；② `.claude/settings.local.json` ECC 殘留 2 條 → 使用者授權後塔台備份並移除（allow 27 → 25，JSON 可解析，檔案不在版控）；已回覆 BMad-Guide 收件（對方已標 ACKNOWLEDGED、殘留清單標完成）。**T0729 DONE**（11:59，`ceb24910`；不 yield 的 AsyncIterable prompt，0 請求 / 0 session 檔，e2e ⑩；unit 6262 / 351 files）→ BUG-177 FIXED；**T0731 DONE**（12:10，`d519902c`，回覆稿 DRAFT）→ 開 **BUG-179**（`bat-scripts.log` 無上限，本機 41.6 MB）；`--close-worker` T0729 / T0731 exit 0；12:12 派 **T0730**（`started:`）。R-G003 整理：**BUG-176 CLOSED**（pre.5 / pre.6 CI 三平台打包驗證 success）。使用者裁示 → **D197**（ADVISORY 照 T0731 建議回覆，回覆稿 DELIVERED、已通知 BMad-Guide）、**D198**（BUG-179 規格：啟動時 > 10 MB 輪替、保留 3 份、`report-hook` 雙寫不動 → T0732，排在 T0730 後；turn 後多出的請求 → T0733 研究，12:2x 派工）。 BMad-Guide 回覆 RESOLVED（其 D517）。**T0730 DONE**（`6f7b3d53`；`electron/claude-config-dir.ts` 統一解析，e2e ⑪ / ⑫ PASS、負向對照會失敗；unit 6277 / 352 files）→ BUG-178 FIXED；**T0733 DONE**（`fd4f3f6c`；prompt suggestion，建議不改）；`--close-worker` T0730 / T0733 exit 0；12:36 派 **T0732**（`started:`）。
 
 > 最後更新:2026-11-01 10:51 (UTC+8) — **第一百零一 session 收工**（CT v5.15.0）：T0720 安裝檔研究 / T0721 後續候選研究 / T0722 改名並行 → T0723–T0726（D194–D196）→ **`v0.7.2-pre.6`**（exe 292.9 MiB，D146 上限改 384 / 512 MiB）。前次：第一百 session 收工（2026-11-01 09:41）。
 >
