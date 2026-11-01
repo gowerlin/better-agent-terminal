@@ -14,7 +14,7 @@ todo:
   - "使用者日常使用驗收 BUG-171"
   - "外部測試者A 驗收 BUG-169 / BUG-175（v0.7.2-pre.3 起）；BUG-175 另等 GitHub #22 回報者回覆（已留言），通過後關 #22"
   - "BUG-156 / 159 待特定環境驗收"
-  - "未發版累積：T0722 改名（`35b2bac3`）、T0723 CHANGELOG `[Unreleased]`＋`agents-menu.png`（`9db0c8e2`）、T0724 SDK `Options` 型別＋限額單行負向測試（`886bd987`）、T0726 NSIS 關差分打包（`cab618a5`，本機 exe 292.9 MiB；發版後實機驗 NSIS 覆蓋 / 乾淨重裝與安裝時間）；T0725 進行中（Task 清單，D195，實機驗收耗 token 由使用者做）；D196：D146 上限改每平台 ≤ 384 / zip ≤ 512 MiB"
+  - "未發版累積：T0722 改名（`35b2bac3`）、T0723 CHANGELOG `[Unreleased]`＋`agents-menu.png`（`9db0c8e2`）、T0724 SDK `Options` 型別＋限額單行負向測試（`886bd987`）、T0726 NSIS 關差分打包（`cab618a5`，本機 exe 292.9 MiB；發版後實機驗 NSIS 覆蓋 / 乾淨重裝與安裝時間）、T0725 Claude 面板 Task 清單＋Claude 5 開 todo tools（`08bc8467`，實機驗收耗 token 由使用者做；後續候選 pinned 清單區塊、sub-agent Task*）；批次收齊，待發 `0.7.2-pre.6`；D196：D146 上限改每平台 ≤ 384 / zip ≤ 512 MiB"
 ---
 # Tower State — better-agent-terminal
 
