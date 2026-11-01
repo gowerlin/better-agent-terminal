@@ -4,6 +4,17 @@ All notable changes to Better Agent Terminal are documented in this file.
 
 ## [Unreleased]
 
+## [0.7.3-pre.2] — 2026-11-01
+
+### Fixed
+- 「最小化到系統匣」藏起來的設定檔視窗，在「配置」按「開啟」改為 `show()` + `focus()` 叫回，叫回時不再跳「此配置已在另一個視窗中開啟」；真的無法顯示時改提示從系統匣開啟；second-instance 的 `--profile=` 路徑一併修正（`bringWindowToFront` / `profileOpenNotice`，`src/lib/profile-window-front.ts`；BUG-183 / T0750）
+- 刪除設定檔（`profile:delete`）時一併關閉它的視窗並刪除 registry entry、重建系統匣選單；若那是全部的存活視窗，先開 Default 設定檔（`closeWindowsOfDeletedProfile` / `planDeletedProfileWindows`；BUG-184 / T0750）
+- 遠端工具偵測：工具在 PATH 上卻無法執行時，探測另記 `--version` 的 exit code 與缺少的共用程式庫檔名（白名單，不回傳 stderr 原文），面板說明原因；登入檢視找得到、伺服器程序找不到的工具改標「伺服器程序：不可見（終端分頁找得到）」並改寫 tooltip；git / gh 的伺服器判斷比照實際的 resolver 位置（`electron/remote-tools/probe-script.ts`、`parse.ts`；BUG-186 / T0753）
+
+### Changed
+- 系統匣選單的視窗標籤重複時，第二個起依序加 ` (2)`、` (3)`（`trayWindowLabels`，`src/lib/tray-window-labels.ts`；T0752 / D205）
+- e2e `t0512-profile-panel-layout` 補設定精靈 T0554 升級 / 還原步驟的 stub（`wsl-systemd:snapshot-unit` 等；BUG-185 / T0751）
+
 ## [0.7.3-pre.1] — 2026-11-01
 
 ### Fixed
