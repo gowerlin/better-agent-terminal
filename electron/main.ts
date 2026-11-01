@@ -30,6 +30,7 @@ import { CtWorktreeService } from './ct-worktree'
 import { UsageLimitContinueScheduler } from './usage-limit-continue'
 import { normalizeUsageLimitConfig } from '../src/lib/usage-limit'
 import { bringWindowToFront, planDeletedProfileWindows } from '../src/lib/profile-window-front'
+import { trayWindowLabels } from '../src/lib/tray-window-labels'
 import { savedWorkerOwnership, withSavedWorkerOwnership } from './worker-ownership'
 import { registerPtyHandlers } from './handlers/pty'
 import { registerClaudeHandlers } from './handlers/claude'
@@ -831,10 +832,11 @@ function rebuildTrayMenu() {
   // Per-window entries
   if (windowMap.size > 0) {
     entries.push({ type: 'separator' })
-    for (const [wId, win] of windowMap) {
-      if (win.isDestroyed()) continue
-      // Build a short label from window title or workspace names
-      const label = win.getTitle() || `Window ${wId.slice(0, 8)}`
+    const liveWindows = [...windowMap].filter(([, win]) => !win.isDestroyed())
+    // T0752 (D205): same title twice (two profiles with the same name) → ` (2)`, ` (3)`, … in menu order
+    const labels = trayWindowLabels(liveWindows.map(([wId, win]) => ({ id: wId, title: win.getTitle() })))
+    liveWindows.forEach(([wId, win], index) => {
+      const label = labels[index]
       entries.push({
         label,
         submenu: [
@@ -868,7 +870,7 @@ function rebuildTrayMenu() {
           }
         ]
       })
-    }
+    })
   }
 
   entries.push({ type: 'separator' })
