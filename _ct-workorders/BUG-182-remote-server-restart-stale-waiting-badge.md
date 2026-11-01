@@ -3,13 +3,15 @@ schema_version: 1
 schema_kind: bug
 id: BUG-182
 title: "遠端 bat-server 重啟後，重連的視窗裡分頁的等待 ⚠️ 永遠不清除（看過、送 idle 都沒用），工作區總數多算"
-status: FIXED
+status: CLOSED
 severity: low
 reproducibility: always
 created_at: "2026-11-01T20:48:44+0800"
-updated_at: "2026-11-01T21:07:44+0800"
+updated_at: "2026-11-01T22:04:49+0800"
 fixed_at: "2026-11-01T21:07:44+0800"
 fixed_in: "01796a9e"
+closed_at: "2026-11-01T22:04:49+0800"
+closed_reason: "verified"
 impact:
   - workspace-waiting-badge
   - remote-profile
@@ -24,7 +26,7 @@ links:
 |------|------|
 | 嚴重度 | 🟢 low（只在遠端 server 重啟時；提示錯誤、總數多 1，不影響終端功能） |
 | 可重現 | 一定（T0748 spec ⑤） |
-| **狀態** | ✅ FIXED（T0749，`01796a9e`；待人工驗收） |
+| **狀態** | 🚫 CLOSED（T0749，`01796a9e`；`v0.7.3-pre.1` 使用者實機驗收通過，2026-11-01） |
 | 回報者 | T0748 Worker |
 
 ## 現象
@@ -52,3 +54,11 @@ links:
 - 驗證：unit（`terminal-attention-store.reconcile.test.ts`、`electron/__tests__/terminal-attention.test.ts`）；e2e ⑤ 改為斷言，WSL 實跑 4 次綠（最終版 spec 2 次），突變檢查（App 不接對帳）→ ⑤ 失敗於 `data-waiting` 仍為 `waiting`。
 - 現況記錄（未改）：server 重啟後舊分頁沒有 PTY、不重建 shell，使用者 ⏻ 重啟分頁。
 - 真正的網路中斷（server 仍在）：同一個快照涵蓋（PTY 在 → 取 server 現況），unit 驗證，e2e 未做。
+
+## 驗收（2026-11-01T22:04:49+0800，第一百零四 session，使用者實機）
+
+- 環境：安裝版 BAT `v0.7.3-pre.1`；WSL `Ubuntu-24.04` 的使用者 bat-server 以設定精靈從 `0.6.1-pre.5` 升到 `0.7.3-pre.1`（塔台唯讀確認 `package.json` 版號、`bat-server.service` active、bundle 含 `terminal:attention-snapshot`）。
+- 情境 A（重啟時沒在看該分頁）：WSL 遠端視窗的 bash 分頁送 OSC `blocked` → 實心 ⚠️；切走後重啟 `bat-server.service`；重連後依預期 → **PASS**。
+- 情境 B（重啟時正在看該分頁）：舊分頁 server 重啟後沒有 shell（已知行為），按 ⏻ 重啟後重做，結果符合預期 → **PASS**。
+- 依 R-G003 改 `CLOSED`（`closed_reason: verified`）。
+- 驗收中另發現（與本 BUG 無關，另開單）：BUG-183（關掉的遠端視窗按「開啟」叫不回來）、BUG-184（匣圖示選單殘留已移出 profile 的視窗）。

@@ -3,35 +3,37 @@ schema_version: 1
 schema_kind: index
 id: _bug-tracker
 index_kind: bugs
-generated_at: "2026-11-01T21:40:07+0800"
+generated_at: "2026-11-01T22:04:49+0800"
 generator: control-tower-sync
 source_globs:
   - _ct-workorders/BUG-*.md
 exclude_globs:
   - _ct-workorders/_archive/**
   - _ct-workorders/examples/**
-total: 46
+total: 48
 breakdown:
-  OPEN: 0
+  OPEN: 2
   FIXING: 0
-  FIXED: 4
+  FIXED: 3
   VERIFY: 0
-  CLOSED: 42
+  CLOSED: 43
   WONTFIX: 0
 ---
 
 # Bug Tracker
 
 > ⚠️ 此文件由 `*sync` 自動生成，請勿手動編輯。
-> 最後同步：2026-11-01 21:40 — 第一百零四 session：BUG-175 CLOSED（外部測試者A macOS 實機確認）
+> 最後同步：2026-11-01 22:04 — 第一百零四 session：BUG-182 CLOSED（使用者 WSL 實機驗收）；開 BUG-183 / 184（驗收中發現）；BUG-175 CLOSED（外部測試者A macOS 實機確認）
 
 ## 統計
-- 🔴 Open: 0 | ⏳ Fixing: 0 | ✅ Fixed: 4 | 🧪 Verify: 0 | 🚫 Closed: 42 | ⛔ Won't Fix: 0 | **Total: 46**
+- 🔴 Open: 2 | ⏳ Fixing: 0 | ✅ Fixed: 3 | 🧪 Verify: 0 | 🚫 Closed: 43 | ⛔ Won't Fix: 0 | **Total: 48**
 
 ## 🔴 Open / 處理中
 
 | ID | 標題 | 嚴重度 | 建立時間 | 連結 |
 |----|------|--------|---------|------|
+| BUG-184 | 系統匣圖示選單殘留已「Remove from profile」的視窗，同名項目出現兩個 | 🟢 Low | 2026-11-01 | [BUG-184](BUG-184-tray-menu-lists-window-removed-from-profile.md) |
+| BUG-183 | 關掉（最小化到匣）的遠端 profile 視窗，在「配置」按「開啟」叫不回來，只跳「此配置已在另一個視窗中開啟」 | 🟡 Medium | 2026-11-01 | [BUG-183](BUG-183-hidden-profile-window-not-shown-on-open.md) |
 
 ## ⏳ 修復中 (FIXING)
 
@@ -42,7 +44,6 @@ breakdown:
 
 | ID | 標題 | 嚴重度 | 修復時間 | 連結 |
 |----|------|--------|---------|------|
-| BUG-182 | 遠端 bat-server 重啟後，重連視窗裡分頁的等待 ⚠️ 不清除、總數多算；T0749 `01796a9e` 重連時以 `terminal:attention-snapshot` 依 server 現況對帳（PTY 不在 = 比照 PTY 結束），待預覽版實機驗收（遠端 bat-server 須升到含修正的版本） | 🟢 Low | 2026-11-01 | [BUG-182](BUG-182-remote-server-restart-stale-waiting-badge.md) |
 | BUG-159 | codex 分頁在 BAT MCP 未注入、非系統管理員時接上 codex 共用 daemon，helper 讀到其他分頁的 `BAT_*`（T0651 `5b1be0f5`） | 🟢 low | 2026-10-18 | [BUG-159](BUG-159-codex-shared-daemon-inherits-other-tab-env.md) |
 | BUG-130 | 終端分頁貼圖（Windows 回歸未重現，已加固 + log；mac 送 Ctrl+V） | 🟡 medium | 2026-10-14 13:56 | [BUG-130](BUG-130-terminal-image-paste-regression.md) |
 | BUG-128 | mac：Finder 拷貝後終端 Command+V 貼不上 | 🟡 medium | 2026-10-14 13:29 | [BUG-128](BUG-128-mac-cmd-v-finder-copy-no-paste.md) |
@@ -57,6 +58,7 @@ breakdown:
 
 | ID | 標題 | 嚴重度 | 關閉時間 | 連結 |
 |----|------|--------|---------|------|
+| BUG-182 | 遠端 bat-server 重啟後，重連視窗裡分頁的等待 ⚠️ 不清除、總數多算；T0749 `01796a9e` 重連時依 server 現況對帳；`v0.7.3-pre.1` 使用者 WSL 實機驗收情境 A / B 通過 | 🟢 Low | 2026-11-01 | [BUG-182](BUG-182-remote-server-restart-stale-waiting-badge.md) |
 | BUG-175 | 縮圖預覽在輸出沒有換行時不更新、露出 `>0q>4m` 殘骸；T0714 `afe57761` 依游標換列分行 + 完整 CSI（`v0.7.2-pre.3`）；外部測試者A macOS 實機確認正常（GitHub #22 已關閉） | 🟡 Medium | 2026-11-01 | [BUG-175](BUG-175-thumbnail-preview-stuck-without-newline.md) |
 | BUG-180 | 剛開的終端分頁被切走時 PTY 被 resize 成 9x5；T0741 `canFitTerminalContainer`（`4500984d`）；使用者 `v0.7.2-pre.9` 安裝版實機驗收通過 | 🟢 Low | 2026-11-01 | [BUG-180](BUG-180-new-tab-switched-away-pty-resized-9x5.md) |
 | BUG-181 | Claude 面板 Cache History 把 CLI 的 session 累計 `modelUsage` / `total_cost_usd` 當單一回合；T0744 `0d42ebdc` 依 model 相減、resume 首列 `R*`；T0746 真實模型複驗 PASS（`9e37c226`） | 🟡 Medium | 2026-11-01 | [BUG-181](BUG-181-cache-history-sums-cumulative-model-usage.md) |
