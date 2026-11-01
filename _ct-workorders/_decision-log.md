@@ -1465,6 +1465,14 @@
 - **切分**：W2a 設計語言 + 元件 + 首頁（T0630）→ 預覽通過後 W2b（`/control-tower`、功能、FAQ、回報頁）→ W2c 遠端開發；W3 / W4 不變。
 - **相關**：PLAN-049 / D159 / D160 / T0624 / T0630
 
+### D200 2026-11-01 — 工作區列表顯示「等待使用者」⚠️（T0735）；`agentProgressSummaries` 維持開啟
+
+- **背景**：使用者回報：分頁等待使用者回答時縮圖有 ⚠️，但切到其他工作區看不到。T0734 研究（`72878412` docs / `6f74230f`）：`agentProgressSummaries` 是面板進度描述的來源，子代理每約 30 秒一次、多為 cache read，使用者端無法關閉。
+- **決定**（使用者選定）：
+  - 工作區列表 ⚠️：只看「等待使用者」（hook permission / question / elicitation、codex `input`；不含 `?` / `✓` / `↻`）；所有 agent 分頁都算，縮圖 ⚠️ 擴及非 Worker 分頁；每個工作區都顯示（含目前所在）；滑過列出分頁、點擊切到等最久的分頁；detached 視窗的工作區也算 → T0735（M）。
+  - `agentProgressSummaries`：維持開啟、不加開關（docs 已寫明）。
+- **相關**：T0735 / T0609 / T0694 / T0734 / D199
+
 ### D199 2026-11-01 — Claude 面板 prompt suggestion 維持開啟、補 docs；另研究 `agentProgressSummaries` 成本（T0734）
 
 - **背景**：T0733 研究（`fd4f3f6c`）：turn 結束後多出的請求是面板 `queryOptions.promptSuggestions: true`（2026-02-28 `cdfa90a1` 引入）產生的 prompt suggestion，結果顯示為「Suggested Tab:」建議晶片；主要成本是 cache read，CLI 在 cache 沒熱 / 用量接近限制 / plan mode / turn 1 不送；使用者可用 settings `promptSuggestionEnabled: false` 或 env `CLAUDE_CODE_ENABLE_PROMPT_SUGGESTION=false` 自行關閉。面板經 SDK 開啟，繞過 CLI 終端的 GrowthBook 旗標、焦點與連續不採用降頻。
