@@ -159,7 +159,7 @@ memory_overrides:
 | 系統管理員 | `WindowsPrincipal.IsInRole(Administrator)` = **True**（與塔台 17:49 的判讀一致） |
 | Docker | `docker info` → `failed to connect to the docker API at npipe:////./pipe/docker_engine … The system cannot find the file specified`，**engine 未執行**（CLI 版本依塔台探測為 29.9.2） |
 | WSL | `wsl -l -v`：`Ubuntu-24.04` `Running`，版本 2 |
-| codex | 系統：`C:\Users\Gower\AppData\Local\Programs\OpenAI\Codex\bin\codex.exe` → `codex-cli 0.166.0`；內嵌 `node_modules/@openai/codex/package.json` `"version": "0.166.0"` |
+| codex | 系統：`<使用者資料夾>\AppData\Local\Programs\OpenAI\Codex\bin\codex.exe` → `codex-cli 0.166.0`；內嵌 `node_modules/@openai/codex/package.json` `"version": "0.166.0"` |
 | node | v26.13.0 |
 
 CI 打包證據（BUG-116 / 118）：`gh run view 41277080514 -R gowerlin/better-agent-terminal`，`displayTitle` Pre-Release、`headSha` `cf71bf6f…`、`conclusion` success；`build (macos-latest, mac)` 124761960684、`build (ubuntu-24.04, linux)` 124761960755、`build (windows-latest, win)` 124761960699 皆 success。原文摘錄見對照表 BUG-116 / 118 兩列。
