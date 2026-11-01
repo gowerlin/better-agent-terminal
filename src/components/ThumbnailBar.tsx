@@ -304,14 +304,14 @@ export function ThumbnailBar({
               if (onAddClaudeAgent) items.push(
                 <div className="thumbnail-add-menu-item" onClick={() => { onAddClaudeAgent(); setShowAddMenu(false) }}>
                   <span className="thumbnail-add-menu-icon" style={{ color: '#d97706' }}>✦</span>
-                  Claude Agent V1
+                  Claude Agent
                   <span className="thumbnail-add-menu-suggested">{t('profiles.addMenuSuggested')}</span>
                 </div>
               )
               if (onAddClaudeWorktree) items.push(
                 <div className="thumbnail-add-menu-item" onClick={() => { onAddClaudeWorktree(); setShowAddMenu(false) }}>
                   <span className="thumbnail-add-menu-icon" style={{ color: '#22c55e' }}>🌳</span>
-                  Claude Agent V1 (Worktree)
+                  Claude Agent (Worktree)
                 </div>
               )
               if (onAddClaudeCli) items.push(

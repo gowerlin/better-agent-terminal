@@ -22,7 +22,7 @@ function def(id: string, name: string): AgentDefinition {
   }
 }
 
-const DEFS = [def('claude-code', 'Claude Agent V1'), def('claude-cli', 'Claude CLI'), def('codex-cli', 'Codex CLI')]
+const DEFS = [def('claude-code', 'Claude Agent'), def('claude-cli', 'Claude CLI'), def('codex-cli', 'Codex CLI')]
 const LABEL = en.terminal.openClaudeAsTower
 
 beforeAll(async () => {
@@ -58,7 +58,7 @@ describe('ThumbnailBar "Open Claude as Tower" (T0644)', () => {
     const onAddAgent = vi.fn()
     const onAddClaudeCliAsTower = vi.fn()
     openAddMenu({ onAddAgent, agentDefinitions: DEFS, onAddClaudeCliAsTower })
-    expect(itemOrder([LABEL, 'Claude Agent V1', 'Claude CLI', 'Codex CLI'])).toEqual(['Claude Agent V1', 'Claude CLI', LABEL, 'Codex CLI'])
+    expect(itemOrder([LABEL, 'Claude Agent', 'Claude CLI', 'Codex CLI'])).toEqual(['Claude Agent', 'Claude CLI', LABEL, 'Codex CLI'])
     const item = screen.getByText(LABEL).closest('.thumbnail-add-menu-item') as HTMLElement
     expect(item).toHaveAttribute('title', en.terminal.openClaudeAsTowerHint)
     fireEvent.click(item)

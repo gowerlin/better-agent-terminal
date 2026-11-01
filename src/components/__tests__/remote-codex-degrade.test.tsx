@@ -21,7 +21,7 @@ function def(id: string, name: string): AgentDefinition {
   }
 }
 
-const DEFS = [def('claude-code', 'Claude Agent V1'), def('codex-agent', 'Codex Agent')]
+const DEFS = [def('claude-code', 'Claude Agent'), def('codex-agent', 'Codex Agent')]
 const REASON = en.claude.remoteCodexUnsupportedShort
 
 beforeAll(async () => {
@@ -62,7 +62,7 @@ describe('ThumbnailBar add menu in a remote window', () => {
     fireEvent.click(codex)
     expect(onAddAgent).not.toHaveBeenCalled()
 
-    fireEvent.click(screen.getByText('Claude Agent V1'))
+    fireEvent.click(screen.getByText('Claude Agent'))
     expect(onAddAgent).toHaveBeenCalledWith('claude-code')
   })
 

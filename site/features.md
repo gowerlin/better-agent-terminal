@@ -23,7 +23,7 @@ description: 不用 Control Tower，Better Agent Terminal 本身能做什麼：�
 
 常用的 AI 程式 Agent 都能直接在 BAT 裡開，任何 CLI 工具也能加成自訂 Agent。 {.ct-lead}
 
-<MediaFigure src="/media/agents-menu.png" alt="縮圖列的「+」選單：終端、Claude Agent V1、Claude Agent V2、Claude CLI、以塔台開啟 Claude、Codex Agent、Codex CLI、Gemini CLI、GitHub Copilot CLI，最後是自訂的 Demo Agent。" caption="縮圖列的「+」選單列出可以開的 Agent；最後一項 Demo Agent 是在設定裡加的自訂 CLI。" />
+<MediaFigure src="/media/agents-menu.png" alt="縮圖列的「+」選單：終端、Claude Agent、Claude CLI、以塔台開啟 Claude、Codex Agent、Codex CLI、Gemini CLI、GitHub Copilot CLI，最後是自訂的 Demo Agent。" caption="縮圖列的「+」選單列出可以開的 Agent；最後一項 Demo Agent 是在設定裡加的自訂 CLI。" />
 
 - **Claude Code 面板**：以 Claude Agent SDK 驅動，工具呼叫以結構化事件顯示，權限確認在面板裡回答，也能續接之前的對話。
 - **Claude Code CLI**：在終端機分頁裡使用完整的 CLI。

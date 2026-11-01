@@ -614,7 +614,7 @@
     "remoteChannelUnsupported": "遠端伺服器無法處理此請求（{{channel}}）。請更新遠端主機上的 server bundle，或改在本機工作區使用此功能。",
     "remoteCodexUnsupported": "遠端視窗不支援 Codex Agent：遠端伺服器（bat-server）未內含 Codex。請在此改用 Claude Agent，或在本機視窗開啟 Codex。",
     "remoteCodexUnsupportedShort": "遠端伺服器不支援",
-    "v1Model1mWarning": "在 Claude Agent (V1) 中使用 1M context 模型，cache 效率僅約 25%，可能導致大量無意義的 token 耗損。建議改用 Claude CLI 以獲得更好的 cache 效率。是否繼續？",
+    "v1Model1mWarning": "在 Claude Agent 中使用 1M context 模型，cache 效率僅約 25%，可能導致大量無意義的 token 耗損。建議改用 Claude CLI 以獲得更好的 cache 效率。是否繼續？",
     "v1Model1mHint": "1M context 模型在 V1 中 cache 效率僅約 25%，可能造成大量無意義的 token 耗損。建議改用 Claude CLI 分頁。",
     "submit": "送出",
     "other": "其他...",

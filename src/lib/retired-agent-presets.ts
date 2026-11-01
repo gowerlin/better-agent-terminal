@@ -6,7 +6,12 @@
  * `@anthropic-ai/claude-agent-sdk` 0.3 removed. D123 retired the preset instead of rewriting it
  * as a `query()` wrapper; everything that still names it — a tab's `agentPreset`, a workspace or
  * Settings `defaultAgent`, an `agentCustomArgs` key (workspace and Settings), a helper
- * `--agent` — now means `claude-code` ("Claude Agent V1"), so nothing errors and no tab is lost.
+ * `--agent` — now means `claude-code` ("Claude Agent"), so nothing errors and no tab is lost.
+ *
+ * T0722 / D194: with one SDK panel left, `claude-code` / `claude-code-worktree` dropped the "V1"
+ * from their names ("Claude Agent V1" → "Claude Agent"). The old default titles are retired
+ * titles too (`RETIRED_AGENT_PRESET_TITLES`): a saved tab still showing one gets the current
+ * name, whatever its preset, and `isDefaultTerminalTitle` keeps recognizing them.
  *
  * Single place for that mapping. Pure: no electron / DOM imports (renderer, main and headless
  * bat-server share it). Every function returns its input unchanged (same reference) when there
@@ -27,12 +32,20 @@ export const RETIRED_AGENT_PRESETS: Readonly<Record<string, string>> = Object.fr
 })
 
 /**
- * Default tab titles of retired presets → the replacement preset's default title. Only these
- * exact BAT-generated titles move; a title the user typed is kept.
+ * Default tab titles BAT no longer generates → the title BAT generates today: the retired
+ * preset's name (T0718) and the names before T0722 dropped "V1". Only these exact
+ * BAT-generated titles move; a title the user typed is kept.
  */
 export const RETIRED_AGENT_PRESET_TITLES: Readonly<Record<string, string>> = Object.freeze({
-  'Claude Agent V2': 'Claude Agent V1',
+  'Claude Agent V2': 'Claude Agent',
+  'Claude Agent V1': 'Claude Agent',
+  'Claude Agent V1 (Worktree)': 'Claude Agent (Worktree)',
 })
+
+/** True when `title` is a default title BAT no longer generates (T0718 / T0722). */
+export function isRetiredPresetTitle(title: unknown): boolean {
+  return typeof title === 'string' && Object.prototype.hasOwnProperty.call(RETIRED_AGENT_PRESET_TITLES, title)
+}
 
 export type AgentCustomArgsLayer = 'workspace' | 'settings'
 
@@ -79,9 +92,7 @@ export function migrateAgentCustomArgs<T>(record: T, layer: AgentCustomArgsLayer
 
 /** A saved tab title: a retired preset's default title becomes the replacement's. */
 export function migrateRetiredPresetTitle<T>(title: T): T | string {
-  return typeof title === 'string' && Object.prototype.hasOwnProperty.call(RETIRED_AGENT_PRESET_TITLES, title)
-    ? RETIRED_AGENT_PRESET_TITLES[title]
-    : title
+  return isRetiredPresetTitle(title) ? RETIRED_AGENT_PRESET_TITLES[title as unknown as string] : title
 }
 
 interface SavedAgentFields {
@@ -117,14 +128,20 @@ interface SavedTerminalFields {
 }
 
 /**
- * A saved tab: a retired `agentPreset` becomes its replacement, and the preset's default
- * title (in `title` / `autoTitle`) moves with it. A tab whose preset is not retired is
- * returned unchanged, title included.
+ * A saved tab: a retired `agentPreset` becomes its replacement (T0718), and a retired default
+ * title in `title` / `autoTitle` becomes the current one (T0718 / T0722; any preset, since the
+ * title alone says BAT generated it). Every other field — a typed title, `sdkSessionId`,
+ * `model` — is kept. Nothing to migrate → the same reference.
  */
 export function migrateTerminalAgentPreset<T extends SavedTerminalFields>(terminal: T): T {
-  if (!isRecord(terminal) || !isRetiredAgentPreset(terminal.agentPreset)) return terminal
-  const next: T = { ...terminal, agentPreset: migrateAgentPresetId(terminal.agentPreset) }
-  if (terminal.title !== undefined) next.title = migrateRetiredPresetTitle(terminal.title)
-  if (terminal.autoTitle !== undefined) next.autoTitle = migrateRetiredPresetTitle(terminal.autoTitle)
+  if (!isRecord(terminal)) return terminal
+  const agentPreset = migrateAgentPresetId(terminal.agentPreset)
+  const title = migrateRetiredPresetTitle(terminal.title)
+  const autoTitle = migrateRetiredPresetTitle(terminal.autoTitle)
+  if (agentPreset === terminal.agentPreset && title === terminal.title && autoTitle === terminal.autoTitle) return terminal
+  const next: T = { ...terminal }
+  if (agentPreset !== terminal.agentPreset) next.agentPreset = agentPreset
+  if (title !== terminal.title) next.title = title
+  if (autoTitle !== terminal.autoTitle) next.autoTitle = autoTitle
   return next
 }

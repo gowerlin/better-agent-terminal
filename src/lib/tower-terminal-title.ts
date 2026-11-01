@@ -12,7 +12,10 @@
  * Titles BAT generates (each recognized by `isDefaultTerminalTitle`):
  *   - `workspaceStore.addTerminal`: the agent preset's name, or `New Terminal`
  *   - a restored tab of a retired preset: its replacement's preset name (T0718,
- *     `migrateTerminalAgentPreset`: `Claude Agent V2` → `Claude Agent V1`)
+ *     `migrateTerminalAgentPreset`: `Claude Agent V2` → `Claude Agent`)
+ *   - default titles BAT no longer generates (`RETIRED_AGENT_PRESET_TITLES`: `Claude Agent V1`,
+ *     `Claude Agent V2`, `Claude Agent V1 (Worktree)`, T0722) — restored tabs are migrated, but
+ *     a copy not saved since, or an older BAT, can still show one
  *   - `WorkspaceView.handleAddAgent`: a custom CLI's registry name (`workspaceStore.setAutoTitle`)
  *   - `useRemoteToolInstall`: the remote tool install tab's title (`setAutoTitle`)
  *   - `externalTerminalTitle` (T0553, helper-created tabs): agent name / registry name / known CLI
@@ -23,6 +26,7 @@
  */
 import { AGENT_PRESETS, getAgentPreset } from '../types/agent-presets'
 import { EXTERNAL_TERMINAL_FALLBACK_TITLE, WORKER_ROLE_LABEL, legacyExternalCommand } from './external-terminal-title'
+import { isRetiredPresetTitle } from './retired-agent-presets'
 
 export const TOWER_ROLE_LABEL = 'Tower'
 /** `workspaceStore.addTerminal` without an agent preset. */
@@ -92,6 +96,7 @@ export function isDefaultTerminalTitle(title: string | undefined, ctx: DefaultTi
   if (!value) return true
   if (value === NEW_TERMINAL_TITLE || value === EXTERNAL_TERMINAL_FALLBACK_TITLE) return true
   if (AGENT_PRESETS.some(p => p.name === value)) return true
+  if (isRetiredPresetTitle(value)) return true
   if (ctx.autoTitle && ctx.autoTitle === title) return true
   if (ctx.agentNames?.some(name => !!name && name.trim() === value)) return true
   if (legacyExternalCommand(title) !== null) return true

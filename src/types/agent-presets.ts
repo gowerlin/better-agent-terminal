@@ -18,7 +18,7 @@ export type AgentPresetId = 'claude-code' | 'claude-code-worktree' | 'claude-cli
 export const AGENT_PRESETS: AgentPreset[] = [
   {
     id: 'claude-code',
-    name: 'Claude Agent V1',
+    name: 'Claude Agent',
     icon: '✦',
     color: '#d97706',
     command: 'claude --continue',
@@ -26,7 +26,7 @@ export const AGENT_PRESETS: AgentPreset[] = [
   },
   {
     id: 'claude-code-worktree',
-    name: 'Claude Agent V1 (Worktree)',
+    name: 'Claude Agent (Worktree)',
     icon: '🌳',
     color: '#22c55e',
     debug: true,

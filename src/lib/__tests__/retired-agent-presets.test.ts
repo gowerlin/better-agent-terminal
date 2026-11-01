@@ -7,6 +7,7 @@ import { describe, expect, it } from 'vitest'
 import {
   RETIRED_AGENT_PRESETS,
   isRetiredAgentPreset,
+  isRetiredPresetTitle,
   migrateAgentCustomArgs,
   migrateAgentPresetId,
   migrateRetiredPresetTitle,
@@ -41,14 +42,31 @@ describe('retired presets (T0718)', () => {
     expect(isIntegrated(V2)).toBe(false)
     // claude-code is untouched
     expect(isClaudeSdk('claude-code')).toBe(true)
-    expect(AGENT_PRESETS.find(p => p.id === 'claude-code')?.name).toBe('Claude Agent V1')
+    expect(AGENT_PRESETS.find(p => p.id === 'claude-code')?.name).toBe('Claude Agent')
     expect(resolveControlTowerAgentRuntime('claude-code')).toMatchObject({ command: 'claude', prefix: '/' })
   })
 
   it('a default tab title moves with the preset; a typed title stays', () => {
-    expect(migrateRetiredPresetTitle('Claude Agent V2')).toBe('Claude Agent V1')
+    expect(migrateRetiredPresetTitle('Claude Agent V2')).toBe('Claude Agent')
     expect(migrateRetiredPresetTitle('My V2 tab')).toBe('My V2 tab')
     expect(migrateRetiredPresetTitle(undefined)).toBeUndefined()
+  })
+
+  it('T0722 / D194: the names before "V1" was dropped are retired titles of the current presets', () => {
+    expect(AGENT_PRESETS.find(p => p.id === 'claude-code-worktree')?.name).toBe('Claude Agent (Worktree)')
+    expect(AGENT_PRESETS.map(p => p.name).filter(n => /\bV[12]\b/.test(n))).toEqual([])
+    expect(migrateRetiredPresetTitle('Claude Agent V1')).toBe('Claude Agent')
+    expect(migrateRetiredPresetTitle('Claude Agent V1 (Worktree)')).toBe('Claude Agent (Worktree)')
+    for (const typed of ['Claude Agent', 'Claude Agent (Worktree)', 'claude agent v1', 'Claude Agent V1 ', 'toString', '__proto__']) {
+      expect(migrateRetiredPresetTitle(typed), typed).toBe(typed)
+      expect(isRetiredPresetTitle(typed), typed).toBe(false)
+    }
+    for (const old of ['Claude Agent V1', 'Claude Agent V2', 'Claude Agent V1 (Worktree)']) {
+      expect(isRetiredPresetTitle(old), old).toBe(true)
+      // every target is a name BAT shows today
+      expect(AGENT_PRESETS.map(p => p.name), old).toContain(migrateRetiredPresetTitle(old))
+    }
+    expect(isRetiredPresetTitle(undefined)).toBe(false)
   })
 })
 
@@ -114,11 +132,28 @@ describe('saved workspace / settings / tab (T0718)', () => {
 
   it('tab: preset and its default title (title / autoTitle); typed title and other fields kept', () => {
     expect(migrateTerminalAgentPreset({ id: 't', agentPreset: V2, title: 'Claude Agent V2', sdkSessionId: 's', model: 'm' }))
-      .toEqual({ id: 't', agentPreset: 'claude-code', title: 'Claude Agent V1', sdkSessionId: 's', model: 'm' })
+      .toEqual({ id: 't', agentPreset: 'claude-code', title: 'Claude Agent', sdkSessionId: 's', model: 'm' })
     expect(migrateTerminalAgentPreset({ id: 't', agentPreset: V2, title: 'mine', alias: 'a', autoTitle: 'Claude Agent V2' }))
-      .toEqual({ id: 't', agentPreset: 'claude-code', title: 'mine', alias: 'a', autoTitle: 'Claude Agent V1' })
-    const other = { id: 'x', agentPreset: 'claude-code', title: 'Claude Agent V2' }
-    expect(migrateTerminalAgentPreset(other)).toBe(other)
+      .toEqual({ id: 't', agentPreset: 'claude-code', title: 'mine', alias: 'a', autoTitle: 'Claude Agent' })
+    const typed = { id: 'x', agentPreset: 'claude-code', title: 'mine', sdkSessionId: 's' }
+    expect(migrateTerminalAgentPreset(typed)).toBe(typed)
+    const current = { id: 'y', agentPreset: 'claude-code', title: 'Claude Agent', autoTitle: 'Claude Agent' }
+    expect(migrateTerminalAgentPreset(current)).toBe(current)
+  })
+
+  it('tab (T0722): an old default title moves on any preset; typed title, sdkSessionId, model kept', () => {
+    expect(migrateTerminalAgentPreset({ id: 't', agentPreset: 'claude-code', title: 'Claude Agent V1', sdkSessionId: 's', model: 'm' }))
+      .toEqual({ id: 't', agentPreset: 'claude-code', title: 'Claude Agent', sdkSessionId: 's', model: 'm' })
+    expect(migrateTerminalAgentPreset({ id: 't', agentPreset: 'claude-code', title: 'Claude Agent V2' }))
+      .toEqual({ id: 't', agentPreset: 'claude-code', title: 'Claude Agent' })
+    expect(migrateTerminalAgentPreset({ id: 'w', agentPreset: 'claude-code-worktree', title: 'Claude Agent V1 (Worktree)', sdkSessionId: 's' }))
+      .toEqual({ id: 'w', agentPreset: 'claude-code-worktree', title: 'Claude Agent (Worktree)', sdkSessionId: 's' })
+    expect(migrateTerminalAgentPreset({ id: 't', agentPreset: 'claude-code', title: 'mine', autoTitle: 'Claude Agent V1', model: 'm' }))
+      .toEqual({ id: 't', agentPreset: 'claude-code', title: 'mine', autoTitle: 'Claude Agent', model: 'm' })
+    // a tab without a preset (helper-created) whose title was the preset name
+    expect(migrateTerminalAgentPreset({ id: 'h', title: 'Claude Agent V1' })).toEqual({ id: 'h', title: 'Claude Agent' })
+    // no field appears that was not there
+    expect(Object.keys(migrateTerminalAgentPreset({ id: 'h', title: 'Claude Agent V1' }))).toEqual(['id', 'title'])
   })
 })
 

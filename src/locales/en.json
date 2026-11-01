@@ -615,7 +615,7 @@
     "remoteChannelUnsupported": "The remote server cannot handle this request ({{channel}}). Update the server bundle on the remote host, or use a local workspace for this feature.",
     "remoteCodexUnsupported": "Codex Agent is not available in a remote window: the remote server (bat-server) does not include Codex. Use Claude Agent here, or open Codex in a local window.",
     "remoteCodexUnsupportedShort": "Not available on remote server",
-    "v1Model1mWarning": "1M context models in Claude Agent (V1) may cause significant unnecessary token consumption due to low cache efficiency (~25%). Consider using Claude CLI for better cache performance. Continue?",
+    "v1Model1mWarning": "1M context models in Claude Agent may cause significant unnecessary token consumption due to low cache efficiency (~25%). Consider using Claude CLI for better cache performance. Continue?",
     "v1Model1mHint": "1M context models may cause significant unnecessary token consumption in V1 due to low cache efficiency (~25%). Consider using a Claude CLI tab instead.",
     "submit": "Submit",
     "other": "Other...",

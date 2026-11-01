@@ -53,17 +53,22 @@ describe('workspace load with a retired preset (T0718)', () => {
         { id: 't2', workspaceId: 'w1', agentPreset: V2, title: 'renamed', alias: 'renamed' },
         { id: 't3', workspaceId: 'w2', agentPreset: 'claude-code', title: 'Claude Agent V1' },
         { id: 't4', workspaceId: 'w2', agentPreset: 'claude-cli', title: 'Claude CLI' },
+        { id: 't5', workspaceId: 'w2', agentPreset: 'claude-code-worktree', title: 'Claude Agent V1 (Worktree)', sdkSessionId: 'sdk-5' },
+        { id: 't6', workspaceId: 'w2', agentPreset: 'claude-code', title: 'mine', autoTitle: 'Claude Agent V1', sdkSessionId: 'sdk-6', model: 'claude-opus-5-5' },
       ],
     })
     await workspaceStore.load()
 
     const state = workspaceStore.getState()
-    expect(state.terminals.map(t => t.id)).toEqual(['t1', 't2', 't3', 't4'])
+    expect(state.terminals.map(t => t.id)).toEqual(['t1', 't2', 't3', 't4', 't5', 't6'])
     const t = (id: string) => state.terminals.find(x => x.id === id)!
-    expect(t('t1')).toMatchObject({ agentPreset: 'claude-code', title: 'Claude Agent V1', sdkSessionId: 'sdk-1', model: 'claude-opus-5-5' })
+    expect(t('t1')).toMatchObject({ agentPreset: 'claude-code', title: 'Claude Agent', sdkSessionId: 'sdk-1', model: 'claude-opus-5-5' })
     expect(t('t2')).toMatchObject({ agentPreset: 'claude-code', title: 'renamed', alias: 'renamed' })
-    expect(t('t3')).toMatchObject({ agentPreset: 'claude-code', title: 'Claude Agent V1' })
+    // T0722: the pre-rename default titles move to the current names; typed titles stay
+    expect(t('t3')).toMatchObject({ agentPreset: 'claude-code', title: 'Claude Agent' })
     expect(t('t4')).toMatchObject({ agentPreset: 'claude-cli', title: 'Claude CLI' })
+    expect(t('t5')).toMatchObject({ agentPreset: 'claude-code-worktree', title: 'Claude Agent (Worktree)', sdkSessionId: 'sdk-5' })
+    expect(t('t6')).toMatchObject({ agentPreset: 'claude-code', title: 'mine', autoTitle: 'Claude Agent', sdkSessionId: 'sdk-6', model: 'claude-opus-5-5' })
 
     const ws = (id: string) => state.workspaces.find(w => w.id === id)!
     expect(ws('w1')).toMatchObject({ defaultAgent: 'claude-code', agentCustomArgs: { 'claude-code': '--v2', 'codex-cli': '-m x' } })
@@ -74,6 +79,7 @@ describe('workspace load with a retired preset (T0718)', () => {
     await flush()
     expect(saved).not.toContain(V2)
     expect(saved).not.toContain('Claude Agent V2')
+    expect(saved).not.toContain('Claude Agent V1')
   })
 
   it('a detached window\'s tabs adopted after it closes are migrated too', async () => {
@@ -81,7 +87,7 @@ describe('workspace load with a retired preset (T0718)', () => {
     adoptResult = { terminals: [{ id: 'dv2', workspaceId: ws.id, agentPreset: V2, title: 'Claude Agent V2', sdkSessionId: 'sdk-d' }] }
     const ids = await workspaceStore.adoptDetachedWorkspaceTerminals(ws.id)
     expect(ids).toEqual(['dv2'])
-    expect(workspaceStore.getState().terminals.find(x => x.id === 'dv2')).toMatchObject({ agentPreset: 'claude-code', title: 'Claude Agent V1', sdkSessionId: 'sdk-d' })
+    expect(workspaceStore.getState().terminals.find(x => x.id === 'dv2')).toMatchObject({ agentPreset: 'claude-code', title: 'Claude Agent', sdkSessionId: 'sdk-d' })
   })
 })
 

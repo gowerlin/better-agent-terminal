@@ -206,13 +206,13 @@ describe('registerTerminalHandlers (T0431)', () => {
       await t.invoke('terminal:create-agent-command', REMOTE, dispatch({ BAT_TOWER_TERMINAL_ID: 'not-a-bat-tab' }, { workspaceId: 'ws-a' }))
       expect(t.agentWorkspaces).toEqual(['ws-a'])
       // ws-a is in the registry: a window without it skips the event (multi-window, T0523)
-      expect(t.emitted[0].payload).toEqual({ id: 'worker-1', cwd: '/projd', command: 'claude-code go', agent: 'claude-code', agentName: 'Claude Agent V1', workspaceId: 'ws-a', towerTerminalId: 'not-a-bat-tab', workorder: 'T0001', workspaceResolved: true })
+      expect(t.emitted[0].payload).toEqual({ id: 'worker-1', cwd: '/projd', command: 'claude-code go', agent: 'claude-code', agentName: 'Claude Agent', workspaceId: 'ws-a', towerTerminalId: 'not-a-bat-tab', workorder: 'T0001', workspaceResolved: true })
     })
 
     it('--workspace unknown to the registry → passed on unmarked (renderer falls back to active, T0361)', async () => {
       const t = dispatchSetup()
       await t.invoke('terminal:create-agent-command', REMOTE, dispatch({}, { workspaceId: 'ws-gone' }))
-      expect(t.emitted[0].payload).toEqual({ id: 'worker-1', cwd: '/projd', command: 'claude-code go', agent: 'claude-code', agentName: 'Claude Agent V1', workspaceId: 'ws-gone', workorder: 'T0001' })
+      expect(t.emitted[0].payload).toEqual({ id: 'worker-1', cwd: '/projd', command: 'claude-code go', agent: 'claude-code', agentName: 'Claude Agent', workspaceId: 'ws-gone', workorder: 'T0001' })
     })
 
     it('no --notify-id and no --workspace → active workspace (T0137, unchanged)', async () => {
@@ -220,7 +220,7 @@ describe('registerTerminalHandlers (T0431)', () => {
       await t.invoke('terminal:create-agent-command', REMOTE, dispatch({}))
       expect(t.agentWorkspaces).toEqual([undefined])
       expect(t.created[0].workspaceId).toBeUndefined()
-      expect(t.emitted[0].payload).toEqual({ id: 'worker-1', cwd: '/projd', command: 'claude-code go', agent: 'claude-code', agentName: 'Claude Agent V1', workspaceId: undefined, workorder: 'T0001' })
+      expect(t.emitted[0].payload).toEqual({ id: 'worker-1', cwd: '/projd', command: 'claude-code go', agent: 'claude-code', agentName: 'Claude Agent', workspaceId: undefined, workorder: 'T0001' })
     })
 
     it('reportLanding → { ok, workspace, agent } (bat-terminal.mjs prints it)', async () => {
