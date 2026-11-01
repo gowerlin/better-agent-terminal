@@ -2,6 +2,52 @@
 
 本 fork 各版的更版重點（內容取自 GitHub Releases，最新在上）。上游 tony1223/better-agent-terminal 的 v2.1.x 紀錄保留在檔案最下方。
 
+## v0.7.2-pre.8（2026-11-01）
+
+版號 0.7.2-pre.8，接續 `v0.7.2-pre.7`。
+
+## 新增
+
+- **工作區列表的「等待你回應」提示**（T0735）：任何 agent 分頁（Claude CLI、Codex CLI、塔台、Worker）停下來等你允許權限、回答問題或回應 MCP 詢問時，你不在那個工作區也看得到：
+  - 工作區列表那一列的狀態點左邊出現 ⚠️，有兩個以上分頁在等時附數字；滑過列出是哪些分頁、在等什麼（不顯示問題內容），點 ⚠️ 直接跳到等最久的那個分頁
+  - 側欄停在「塔台」頁籤時，「工作區」頁籤標題旁顯示 ⚠️ 與總數；側欄收合時，收合窄列上也看得到
+  - 縮圖的 ⚠️ 不再只限 Worker 分頁，手動開的 Claude CLI / Codex CLI 分頁與塔台分頁也會顯示
+  - 典型情境：Worker 問塔台、塔台再問你時，塔台分頁會出現 ⚠️
+- **錯過的提示會留著**（T0735）：等待在你看到之前就結束了（例如權限提示逾時、回合自己結束），⚠️ 改成灰色、滑過顯示「hh:mm 曾等待你回應，已結束」，直到你切到那個分頁（而且 BAT 視窗在前景）才消失。這個提醒只保留在本次執行，重開 BAT 後清除
+
+Worker 分頁原本的 `?`（等塔台回答）、`✓`（已回報）、`↻`（回報後又在執行）與「關閉已回報的 Worker 分頁」的計數都沒變；`?` 不會觸發工作區提示。這個功能不需要搭配特定的 Control Tower 版本。
+
+## 待驗收（請更新到本版後協助確認）
+
+- **工作區提示**（本版）：在 A 工作區讓 Claude CLI 分頁問你問題（或請求權限），切到 B 工作區，A 那一列出現 ⚠️；點它跳回該分頁。切到側欄「塔台」頁籤、或收合側欄，也看得到提示。先別回答、讓它逾時或結束，再確認提示變灰、切回該分頁後消失
+- **BUG-179**（`v0.7.2-pre.7` 起）：重開 BAT 一次，日誌資料夾（Windows `%APPDATA%\BetterAgentTerminal\Logs`）裡超過 10 MiB 的 `bat-scripts.log` 變成 `bat-scripts-<時間>.log`
+- **BUG-178**（`v0.7.2-pre.7` 起，設定了 `CLAUDE_CONFIG_DIR` 的使用者）：在 Claude Agent 面板對話一輪後重開 BAT，接續的分頁仍看得到舊訊息
+- **工作清單與真實模型**（`v0.7.2-pre.6` 起）：真實模型是否會主動使用工作清單；背景執行的子代理在面板上的顯示
+- **Windows 安裝**（`v0.7.2-pre.6` 起）：覆蓋安裝、解除安裝後重新安裝都能正常啟動，安裝時間與前一版差不多
+- **BUG-175**（`v0.7.2-pre.3` 起，macOS，GitHub #22）、**BUG-171**（`v0.7.1-pre.8` 起）、**BUG-156** / **BUG-159**：同上一版
+
+## 歡迎協助測試
+
+本版的工作區提示也涵蓋 Codex CLI 分頁（codex `>= 0.163.0` 停下來等你輸入時）。如果你用 Codex CLI，歡迎幫忙試一次：
+
+1. 開一個 Codex CLI 分頁，呼叫 MCP tool `bat_whoami`，確認 `agent` 是 codex
+2. 請 Codex 做一件需要你確認的事，等它停下來問你
+3. 切到另一個工作區，確認原工作區那一列出現 ⚠️，點它會跳回 Codex 分頁
+4. 由塔台派一張小工單給 Codex Worker，確認 Worker 完成後通知回到塔台、分頁被回收
+
+結果請到 [GitHub issues](https://github.com/gowerlin/better-agent-terminal/issues) 回報，附上 BAT 版本與 `codex --version`。
+
+## 已知事項
+
+- 工作區提示還不涵蓋：分離（detached）視窗裡的工作區（主視窗列表本來就不列出它們；分離視窗自己的縮圖照常顯示 ⚠️）、Claude Agent 面板分頁、沒有注入 BAT hooks 的分頁（關閉 BAT MCP、啟動參數放了 `--settings`、Claude 設定關閉 hooks）、封存的工作區
+- Claude Agent 面板的「下一步建議」與子代理進度摘要會多送請求（說明與關閉方式見上一版）
+- 終端伺服器真的停止時，BAT 仍只重建 shell，分頁裡原本執行的 Claude CLI / Codex CLI 不會自動接回（PLAN-055）
+- Linux 版本未實機驗證
+
+macOS 仍只提供 Apple Silicon（arm64）版。
+
+**Full Changelog**: https://github.com/gowerlin/better-agent-terminal/compare/v0.7.2-pre.7...v0.7.2-pre.8
+
 ## v0.7.2-pre.7（2026-11-01）
 
 版號 0.7.2-pre.7，接續 `v0.7.2-pre.6`。

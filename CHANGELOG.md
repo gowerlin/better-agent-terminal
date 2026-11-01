@@ -4,6 +4,15 @@ All notable changes to Better Agent Terminal are documented in this file.
 
 ## [Unreleased]
 
+## [0.7.2-pre.8] — 2026-11-01
+
+### Added
+- 「等待你回應」⚠️ 擴及所有 agent 分頁（Claude CLI、Codex CLI、塔台、Worker），並顯示在工作區列表（狀態點左側，≥ 2 附數字；滑過列出分頁與原因，點擊跳到等最久的分頁）、側欄「工作區」頁籤標題與收合窄列（總數）；判斷與彙總集中在 `src/lib/terminal-attention.ts`（`waitingForUser` / `waitingSummary`），主行程不變（T0735 / D200 / D202）
+- 錯過的等待提示改為灰色 ⚠️ 保留，直到該分頁成為 active 且視窗有焦點才清除；只存在 renderer 記憶體（T0735 / D203）
+
+### Changed
+- Worker 分頁的 `?` / `✓` / `↻` 與批次關閉計數不變；`?`（等塔台）不觸發工作區提示。分離（detached）視窗的工作區暫不涵蓋（D201）
+
 ## [0.7.2-pre.7] — 2026-11-01
 
 ### Fixed
