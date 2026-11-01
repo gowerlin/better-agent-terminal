@@ -4,14 +4,14 @@ schema_kind: workorder
 id: T0739
 title: "pre.5 / pre.6 真實模型驗收（小額）：Claude Agent 面板（SDK 0.3）實際對話、工作清單 Task*、背景 Agent 卡片、Grep / Glob 卡片"
 type: implementation
-status: PENDING
+status: IN_PROGRESS
 repo: better-agent-terminal
 project: maintenance
 priority: P2
 sizing: S
 created_at: "2026-11-01T17:35:39+0800"
-started_at: ""
-updated_at: "2026-11-01T17:35:39+0800"
+started_at: "2026-11-01T18:27:49+0800"
+updated_at: "2026-11-01T18:27:49+0800"
 completed_at: ""
 depends_on: [T0738]
 related:
