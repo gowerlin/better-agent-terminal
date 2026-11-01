@@ -18,6 +18,7 @@ import {
   buildInstallPlan,
   buildUpdatePlan,
   isInstallPlan,
+  missingLibraryFix,
   type InstallPlan,
   type RecipeEnv,
   type RecipeResult,
@@ -220,6 +221,47 @@ describe('node via nvm (T0555)', () => {
   const NVM_UPDATE = 'export NVM_DIR="${NVM_DIR:-$HOME/.nvm}" && . "$NVM_DIR/nvm.sh" && ' + NVM_PROFILE + ' && if [ "$(nvm version-remote --lts)" = "$(nvm current)" ]; then echo "Node.js $(nvm current) is already the latest LTS"; else nvm install --lts --reinstall-packages-from=current && nvm alias default \'lts/*\'; fi'
   const MAC: RecipeEnv = { osFamily: 'darwin', pkgManager: 'brew', privilege: 'password-required', musl: false }
 
+  // T0756 (BUG-187): written out, not built from the module's constants, so a changed step fails here.
+  const LIBATOMIC_CHECK = "{ ldconfig -p || /sbin/ldconfig -p || /usr/sbin/ldconfig -p; } 2>/dev/null | grep -q 'libatomic\\.so\\.1'"
+  const LIBATOMIC_PREREQ: Record<'apt' | 'dnf' | 'yum', Record<'root' | 'sudo', string>> = {
+    apt: {
+      root: `( ${LIBATOMIC_CHECK} || ( apt-get update && apt-get install -y libatomic1 ) )`,
+      sudo: `( ${LIBATOMIC_CHECK} || ( sudo apt-get update && sudo apt-get install -y libatomic1 ) )`,
+    },
+    dnf: {
+      root: `( ${LIBATOMIC_CHECK} || ( dnf install -y libatomic ) )`,
+      sudo: `( ${LIBATOMIC_CHECK} || ( sudo dnf install -y libatomic ) )`,
+    },
+    yum: {
+      root: `( ${LIBATOMIC_CHECK} || ( yum install -y libatomic ) )`,
+      sudo: `( ${LIBATOMIC_CHECK} || ( sudo yum install -y libatomic ) )`,
+    },
+  }
+  const LEAD = 'BetterAgentTerminal: Node.js cannot start because libatomic.so.1 is missing'
+  const HINT_NO_SUDO: Record<'apt' | 'dnf' | 'yum', string> = {
+    apt: `${LEAD}, and this account cannot install system packages. Ask an administrator to run as root: apt-get update && apt-get install -y libatomic1`,
+    dnf: `${LEAD}, and this account cannot install system packages. Ask an administrator to run as root: dnf install -y libatomic`,
+    yum: `${LEAD}, and this account cannot install system packages. Ask an administrator to run as root: yum install -y libatomic`,
+  }
+  const HINT_MANUAL = `${LEAD}. Install it with the distribution package manager (package libatomic1 or libatomic), then run node --version`
+  const withHint = (command: string, hint: string) =>
+    `${command} || { bat_rc=$?; ${LIBATOMIC_CHECK} || echo "${hint}"; (exit $bat_rc); }`
+  const INSTALL_NOTES = ['remoteTools.note.nvmEditsProfile', 'remoteTools.note.nvmLoginProfile', 'remoteTools.note.nvmKeepsSystemNode', 'remoteTools.note.nvmReopenTerminal']
+  const UPDATE_NOTES = ['remoteTools.note.nvmUpdateMovesDefault', 'remoteTools.note.nvmLoginProfile']
+
+  /** The expected Linux node command for one env (T0756), with `nvm` = the T0555 / T0556 install or update. */
+  function linuxNode(nvm: string, pm: RecipeEnv['pkgManager'], privilege: RecipeEnv['privilege']) {
+    const verified = `${nvm} && node --version`
+    if ((pm === 'apt' || pm === 'dnf' || pm === 'yum') && privilege !== 'sudo-missing') {
+      const prereq = LIBATOMIC_PREREQ[pm][privilege === 'root' ? 'root' : 'sudo']
+      return { command: `${prereq} && ${verified}`, needsSudo: privilege !== 'root', prerequisites: [prereq], note: 'remoteTools.note.nodeLibatomic' }
+    }
+    if (pm === 'apt' || pm === 'dnf' || pm === 'yum') {
+      return { command: withHint(verified, HINT_NO_SUDO[pm]), needsSudo: false, prerequisites: undefined, note: 'remoteTools.note.nodeLibatomicNoSudo' }
+    }
+    return { command: withHint(verified, HINT_MANUAL), needsSudo: false, prerequisites: undefined, note: 'remoteTools.note.nodeLibatomicManual' }
+  }
+
   it('nvm is pinned to a release tag, never master', () => {
     expect(NVM_VERSION_TAG).toMatch(/^v\d+\.\d+\.\d+$/)
     expect(NVM_VERSION_TAG).toBe('v0.40.8')
@@ -230,25 +272,67 @@ describe('node via nvm (T0555)', () => {
     for (const { result } of allResults()) expect(JSON.stringify(result)).not.toMatch(/nvm-sh\/nvm\/(master|main|HEAD)\b/)
   })
 
-  it('Linux apt / dnf / yum / none and Linux brew: the same user-space nvm install, no sudo', () => {
+  it('Linux apt / dnf / yum / none and Linux brew: the same user-space nvm install, plus libatomic and the verify step (T0756)', () => {
     for (const pm of ['apt', 'dnf', 'yum', 'none', 'brew'] as const) {
       for (const privilege of PRIVILEGES) {
         const p = plan('node', linux(pm, privilege))
-        expect(p.command).toBe(NVM_INSTALL)
-        expect(p.needsSudo).toBe(false)
+        const expected = linuxNode(NVM_INSTALL, pm, privilege)
+        expect(p.command).toBe(expected.command)
+        expect(p.command).toContain(NVM_INSTALL)
+        expect(p.needsSudo).toBe(expected.needsSudo)
         expect(p.installLocation).toBe('remoteTools.location.nvmDir')
         expect(p.installPath).toBe('~/.nvm')
         expect(p.integrity).toBe('remoteTools.integrity.nvmNodeShasums')
-        expect(p.prerequisites).toBeUndefined()
-        expect(p.notes).toEqual(['remoteTools.note.nvmEditsProfile', 'remoteTools.note.nvmLoginProfile', 'remoteTools.note.nvmKeepsSystemNode', 'remoteTools.note.nvmReopenTerminal'])
+        expect(p.prerequisites).toEqual(expected.prerequisites)
+        expect(p.notes).toEqual([...INSTALL_NOTES, expected.note])
       }
+    }
+  })
+
+  it('T0756: apt with sudo / root installs libatomic1 first, only when the loader cache lacks it', () => {
+    const sudo = plan('node', linux('apt', 'passwordless'))
+    expect(sudo.prerequisites).toEqual([`( ${LIBATOMIC_CHECK} || ( sudo apt-get update && sudo apt-get install -y libatomic1 ) )`])
+    expect(sudo.command.startsWith(`${sudo.prerequisites![0]} && ${NVM_INSTALL}`)).toBe(true)
+    expect(sudo.needsSudo).toBe(true)
+    expect(plan('node', linux('apt', 'password-required')).needsSudo).toBe(true)
+    const root = plan('node', linux('apt', 'root'))
+    expect(root.prerequisites).toEqual([`( ${LIBATOMIC_CHECK} || ( apt-get update && apt-get install -y libatomic1 ) )`])
+    expect(root.needsSudo).toBe(false)
+    expect(root.command).not.toMatch(/\bsudo\b/)
+    // dnf / yum: the package is `libatomic` (T0756: Fedora 44, Rocky 9, Amazon Linux 2).
+    expect(plan('node', linux('dnf', 'passwordless')).prerequisites).toEqual([`( ${LIBATOMIC_CHECK} || ( sudo dnf install -y libatomic ) )`])
+    expect(plan('node', linux('yum', 'root')).prerequisites).toEqual([`( ${LIBATOMIC_CHECK} || ( yum install -y libatomic ) )`])
+    // nvm itself still runs without sudo (T0555): sudo appears only inside the prerequisite.
+    expect(sudo.command.slice(sudo.prerequisites![0].length)).not.toMatch(/\bsudo\b/)
+  })
+
+  it('T0756: no sudo → the install still runs, and the end names the missing library and the root command', () => {
+    for (const pm of ['apt', 'dnf', 'yum'] as const) {
+      const p = plan('node', linux(pm, 'sudo-missing'))
+      expect(p.command.startsWith(`${NVM_INSTALL} && node --version || { `)).toBe(true)
+      expect(p.command).toBe(withHint(`${NVM_INSTALL} && node --version`, HINT_NO_SUDO[pm]))
+      expect(p.prerequisites).toBeUndefined()
+      expect(p.needsSudo).toBe(false)
+      expect(p.command).not.toMatch(/\bsudo\b/)
+    }
+    // No mapped package manager (zypper / pacman hosts report `none`; Linuxbrew): the generic hint.
+    expect(plan('node', linux('none', 'passwordless')).command).toBe(withHint(`${NVM_INSTALL} && node --version`, HINT_MANUAL))
+    expect(plan('node', linux('brew', 'password-required')).command).toBe(withHint(`${NVM_INSTALL} && node --version`, HINT_MANUAL))
+  })
+
+  it('T0756: the hint text is safe inside double quotes typed into an interactive shell', () => {
+    for (const hint of [...Object.values(HINT_NO_SUDO), HINT_MANUAL]) {
+      expect(hint).not.toMatch(/[!$`"\\']/)
+      expect(hint).not.toMatch(/\bsudo\b/)
     }
   })
 
   it('install: nvm loaded into the tab shell, then the LTS, then default → lts/*, then the login profile block (T0556)', () => {
     const command = plan('node', linux('apt', 'root')).command
-    expect(command.endsWith(` && ${NVM_PROFILE}`)).toBe(true)
-    const steps = command.slice(0, -` && ${NVM_PROFILE}`.length).split(' && ')
+    const prefix = `${LIBATOMIC_PREREQ.apt.root} && `
+    expect(command.startsWith(prefix)).toBe(true)
+    expect(command.endsWith(` && ${NVM_PROFILE} && node --version`)).toBe(true)
+    const steps = command.slice(prefix.length, -` && ${NVM_PROFILE} && node --version`.length).split(' && ')
     expect(steps).toEqual([
       'export NVM_DIR="${NVM_DIR:-$HOME/.nvm}"',
       'mkdir -p "$NVM_DIR"',
@@ -285,10 +369,15 @@ describe('node via nvm (T0555)', () => {
     expect(NVM_PROFILE.endsWith(' )')).toBe(true)
   })
 
-  it('macOS (SSH): nvm too, with or without brew; root is fine (no Homebrew involved)', () => {
+  it('macOS (SSH): nvm too, with or without brew; root is fine (no Homebrew involved); unchanged by T0756', () => {
     expect(plan('node', MAC).command).toBe(NVM_INSTALL)
     expect(plan('node', { ...MAC, pkgManager: 'none' }).command).toBe(NVM_INSTALL)
     expect(plan('node', { ...MAC, privilege: 'root' }).command).toBe(NVM_INSTALL)
+    expect(plan('node', { ...MAC, privilege: 'sudo-missing' }).command).toBe(NVM_INSTALL)
+    expect(plan('node', MAC).needsSudo).toBe(false)
+    expect(plan('node', MAC).prerequisites).toBeUndefined()
+    expect(plan('node', MAC).notes).toEqual(INSTALL_NOTES)
+    expect(buildUpdatePlan('node', MAC)).toMatchObject({ command: NVM_UPDATE, needsSudo: false, notes: UPDATE_NOTES })
   })
 
   it('Alpine / musl: no one-click install (nvm would build from source), nodejs.org docs link', () => {
@@ -305,17 +394,27 @@ describe('node via nvm (T0555)', () => {
     expect(buildInstallPlan('node', { osFamily: 'unknown', pkgManager: 'none', privilege: 'root', musl: false })).toEqual({ unsupported: 'no-recipe', docsUrl: 'https://nodejs.org/en/download' })
   })
 
-  it('update: newest LTS unless already on it, packages reinstalled, default moved', () => {
+  it('update: newest LTS unless already on it, packages reinstalled, default moved; libatomic + verify on Linux (T0756)', () => {
     const p = buildUpdatePlan('node', linux('apt', 'password-required'))
+    const expected = linuxNode(NVM_UPDATE, 'apt', 'password-required')
     expect(p).toMatchObject({
       toolId: 'node',
       kind: 'update',
-      command: NVM_UPDATE,
-      needsSudo: false,
+      command: expected.command,
+      needsSudo: true,
+      prerequisites: expected.prerequisites,
       installLocation: 'remoteTools.location.nvmDir',
       integrity: 'remoteTools.integrity.nvmNodeShasums',
-      notes: ['remoteTools.note.nvmUpdateMovesDefault', 'remoteTools.note.nvmLoginProfile'],
+      notes: [...UPDATE_NOTES, 'remoteTools.note.nodeLibatomic'],
     })
+    for (const pm of ['apt', 'dnf', 'yum', 'none', 'brew'] as const) {
+      for (const privilege of PRIVILEGES) {
+        const u = buildUpdatePlan('node', linux(pm, privilege))
+        const e = linuxNode(NVM_UPDATE, pm, privilege)
+        expect(u).toMatchObject({ command: e.command, needsSudo: e.needsSudo, notes: [...UPDATE_NOTES, e.note] })
+        expect(isInstallPlan(u) ? u.prerequisites : 'not-a-plan').toEqual(e.prerequisites)
+      }
+    }
     // T0556: the login profile block comes before the version check, so it lands even when the
     // node is already the newest LTS or nodejs.org cannot be reached.
     const command = (p as InstallPlan).command
@@ -323,6 +422,28 @@ describe('node via nvm (T0555)', () => {
     expect(command.indexOf(NVM_PROFILE)).toBeLessThan(command.indexOf('nvm version-remote'))
     expect(isInstallPlan(p) && p.scriptUrl).toBeFalsy()
     expect(buildUpdatePlan('node', MAC)).toMatchObject({ command: NVM_UPDATE })
+  })
+})
+
+describe('missingLibraryFix (T0756)', () => {
+  it('libatomic.so.1 on glibc Linux with apt / dnf / yum: the package command, sudo when there is sudo', () => {
+    expect(missingLibraryFix('libatomic.so.1', linux('apt', 'passwordless'))).toEqual({ command: 'sudo apt-get update && sudo apt-get install -y libatomic1', asRoot: false })
+    expect(missingLibraryFix('libatomic.so.1', linux('apt', 'root'))).toEqual({ command: 'apt-get update && apt-get install -y libatomic1', asRoot: false })
+    expect(missingLibraryFix('libatomic.so.1', linux('apt', 'sudo-missing'))).toEqual({ command: 'apt-get update && apt-get install -y libatomic1', asRoot: true })
+    expect(missingLibraryFix('libatomic.so.1', linux('dnf', 'password-required'))).toEqual({ command: 'sudo dnf install -y libatomic', asRoot: false })
+    expect(missingLibraryFix('libatomic.so.1', linux('yum', 'sudo-missing'))).toEqual({ command: 'yum install -y libatomic', asRoot: true })
+  })
+
+  it('anything else: null', () => {
+    expect(missingLibraryFix('libpcre2-8.so.0', linux('apt', 'root'))).toBeNull()
+    expect(missingLibraryFix('libatomic.so.1', linux('none', 'root'))).toBeNull()
+    expect(missingLibraryFix('libatomic.so.1', linux('brew', 'passwordless'))).toBeNull()
+    expect(missingLibraryFix('libatomic.so.1', linux('apk', 'root', true))).toBeNull()
+    expect(missingLibraryFix('libatomic.so.1', { osFamily: 'linux', pkgManager: 'apt', privilege: 'root', musl: true })).toBeNull()
+    expect(missingLibraryFix('libatomic.so.1', { osFamily: 'darwin', pkgManager: 'brew', privilege: 'passwordless', musl: false })).toBeNull()
+    // Untrusted report env: anything off-enum gives null, never a command built from it.
+    expect(missingLibraryFix('libatomic.so.1', { osFamily: 'linux', pkgManager: 'apt; rm -rf ~', privilege: 'root', musl: false })).toBeNull()
+    expect(missingLibraryFix('libatomic.so.1', null)).toBeNull()
   })
 })
 

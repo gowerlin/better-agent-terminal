@@ -107,6 +107,9 @@ const REMOTE_TOOLS_UI_KEYS = [
   'remoteTools.hint.tooOld',
   'remoteTools.hint.versionError',
   'remoteTools.hint.versionErrorMissingLibrary',
+  // T0756 (BUG-187): the fix command for libatomic.so.1.
+  'remoteTools.hint.versionErrorMissingLibraryFix',
+  'remoteTools.hint.versionErrorMissingLibraryFixAsRoot',
   'remoteTools.hint.versionErrorExitCode',
   'remoteTools.hint.curlMissing',
   'remoteTools.hint.nodeNotNvm',

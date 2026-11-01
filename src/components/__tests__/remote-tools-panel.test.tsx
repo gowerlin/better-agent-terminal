@@ -302,7 +302,8 @@ describe('RemoteToolsPanel — other statuses and unsupported reasons', () => {
 
   // T0753 (BUG-186): why a found tool did not report a version.
   test('error status with a missing shared library names it', async () => {
-    const report = makeReport({}, {
+    // pkgManager none: no fix command to offer (T0756), the T0753 wording.
+    const report = makeReport({ pkgManager: 'none' }, {
       node: { status: 'error', path: '/home/tester/.nvm/versions/node/v26.13.0/bin/node', versionError: { exitCode: 127, missingLibrary: 'libatomic.so.1' }, nvm: { version: '0.40.8' } },
     })
     await renderPanel({ detect: ok(report) })
@@ -311,6 +312,41 @@ describe('RemoteToolsPanel — other statuses and unsupported reasons', () => {
     expect(row('node').queryByText(rt.hint.versionError)).not.toBeInTheDocument()
     expect(row('node').getByTestId('remote-tool-nvm')).toHaveTextContent('0.40.8')
     expect(row('node').queryByText('26.13.0')).not.toBeInTheDocument()
+  })
+
+  // T0756 (BUG-187): libatomic.so.1 on a mapped package manager → the fix command, from recipe constants.
+  test.each([
+    [{ pkgManager: 'apt', privilege: 'passwordless' }, 'versionErrorMissingLibraryFix', 'sudo apt-get update && sudo apt-get install -y libatomic1'],
+    [{ pkgManager: 'apt', privilege: 'root' }, 'versionErrorMissingLibraryFix', 'apt-get update && apt-get install -y libatomic1'],
+    [{ pkgManager: 'dnf', privilege: 'password-required' }, 'versionErrorMissingLibraryFix', 'sudo dnf install -y libatomic'],
+    [{ pkgManager: 'yum', privilege: 'sudo-missing' }, 'versionErrorMissingLibraryFixAsRoot', 'yum install -y libatomic'],
+    [{ pkgManager: 'apt', privilege: 'sudo-missing' }, 'versionErrorMissingLibraryFixAsRoot', 'apt-get update && apt-get install -y libatomic1'],
+  ] as const)('libatomic.so.1 fix: %o → %s', async (env, key, command) => {
+    const report = makeReport(env, {
+      node: { status: 'error', path: '/home/tester/.nvm/versions/node/v26.13.0/bin/node', versionError: { exitCode: 127, missingLibrary: 'libatomic.so.1' } },
+    })
+    await renderPanel({ detect: ok(report) })
+    expect(row('node').getByText(rt.hint[key].replace('{{library}}', 'libatomic.so.1').replace('{{command}}', command))).toBeInTheDocument()
+    expect(row('node').queryByText(rt.hint.versionErrorMissingLibrary.replace('{{library}}', 'libatomic.so.1'))).not.toBeInTheDocument()
+  })
+
+  test('another missing library: no fix command', async () => {
+    const report = makeReport({}, {
+      rg: { status: 'error', path: '/usr/bin/rg', versionError: { exitCode: 127, missingLibrary: 'libpcre2-8.so.0' } },
+    })
+    await renderPanel({ detect: ok(report) })
+    expect(row('rg').getByText(rt.hint.versionErrorMissingLibrary.replace('{{library}}', 'libpcre2-8.so.0'))).toBeInTheDocument()
+  })
+
+  test.each([
+    [{ osFamily: 'darwin', pkgManager: 'brew' }],
+    [{ musl: true, pkgManager: 'apk', privilege: 'root' }],
+  ] as const)('libatomic.so.1 on %o: no fix command', async (env) => {
+    const report = makeReport(env, {
+      node: { status: 'error', path: '/home/tester/.nvm/versions/node/v26.13.0/bin/node', versionError: { exitCode: 127, missingLibrary: 'libatomic.so.1' } },
+    })
+    await renderPanel({ detect: ok(report) })
+    expect(row('node').getByText(rt.hint.versionErrorMissingLibrary.replace('{{library}}', 'libatomic.so.1'))).toBeInTheDocument()
   })
 
   test('error status with only an exit code shows it', async () => {
@@ -481,11 +517,24 @@ describe('RemoteToolsPanel — Node.js via nvm (T0555)', () => {
     expect(screen.getByRole('link', { name: rt.confirm.viewScript })).toHaveAttribute('href', 'https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.8/install.sh')
     expect(screen.getByText(rt.location.nvmDir, { exact: false })).toBeInTheDocument()
     expect(screen.getByText('~/.nvm')).toBeInTheDocument()
-    expect(screen.getByText(rt.confirm.sudoNo)).toBeInTheDocument()
+    // T0756 (BUG-187): libatomic is installed first when missing — the only step that may use sudo.
+    expect(screen.getByText(rt.confirm.sudoYes)).toBeInTheDocument()
+    expect(screen.getByText(rt.confirm.prerequisites)).toBeInTheDocument()
+    // Once in the prerequisite list, once in the full command.
+    expect(screen.getAllByText(/sudo apt-get install -y libatomic1/)).toHaveLength(2)
+    expect(screen.getByText(rt.note.nodeLibatomic)).toBeInTheDocument()
     expect(screen.getByText(rt.note.nvmEditsProfile)).toBeInTheDocument()
     // T0556: the login profile block is announced; the T0555 "bash -lc does not" caveat is gone.
     expect(screen.getByText(rt.note.nvmLoginProfile)).toBeInTheDocument()
     expect(rt.note.nvmEditsProfile).not.toMatch(/bash -lc/)
+  })
+
+  test('confirm dialog (T0756): no sudo → no prerequisite, no sudo, the libatomic note says what happens', () => {
+    const p = plan(buildInstallPlan('node', { osFamily: 'linux', pkgManager: 'apt', privilege: 'sudo-missing', musl: false }))
+    render(<InstallConfirmDialog plan={p} host="profile" onConfirm={vi.fn()} onCancel={vi.fn()} />)
+    expect(screen.getByText(rt.confirm.sudoNo)).toBeInTheDocument()
+    expect(screen.queryByText(rt.confirm.prerequisites)).not.toBeInTheDocument()
+    expect(screen.getByText(rt.note.nodeLibatomicNoSudo)).toBeInTheDocument()
   })
 
   test('confirm dialog (update, T0556): the login profile block note is shown too', () => {

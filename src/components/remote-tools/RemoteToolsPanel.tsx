@@ -12,7 +12,7 @@ import {
   type RemoteToolTier,
   type RemoteToolWithLogin,
 } from '../../types/remote-tools'
-import { normalizeRecipeEnv, type InstallPlan, type RecipeEnv } from '../../lib/remote-tools/recipes'
+import { missingLibraryFix, normalizeRecipeEnv, type InstallPlan, type RecipeEnv } from '../../lib/remote-tools/recipes'
 import { unsupportedRemoteChannel } from '../../lib/remote-unsupported'
 import { isCurlUsable, toolAction, type ToolAction } from './tool-actions'
 import { InstallConfirmDialog } from './InstallConfirmDialog'
@@ -231,10 +231,23 @@ function serverVisibilityKey(tool: Pick<RemoteToolReport, 'serverVisible' | 'sta
   return FOUND_IN_LOGIN_VIEW.has(tool.status) ? 'remoteTools.server.hiddenLoginOnly' : 'remoteTools.server.hidden'
 }
 
-/** T0753 (BUG-186): the `error` hint names the missing shared library, else the exit code, else the T0408 text. */
-function versionErrorHint(tool: Pick<RemoteToolReport, 'versionError'>): { key: string; params?: Record<string, string | number> } {
+/**
+ * T0753 (BUG-186): the `error` hint names the missing shared library, else the exit code, else the T0408 text.
+ * T0756 (BUG-187): for libatomic.so.1 on a mapped package manager it also gives the fix command
+ * (`missingLibraryFix`: recipe constants + the report's enums only).
+ */
+function versionErrorHint(tool: Pick<RemoteToolReport, 'versionError'>, env: unknown): { key: string; params?: Record<string, string | number> } {
   const err = tool.versionError
-  if (err?.missingLibrary) return { key: 'remoteTools.hint.versionErrorMissingLibrary', params: { library: err.missingLibrary } }
+  if (err?.missingLibrary) {
+    const fix = missingLibraryFix(err.missingLibrary, env)
+    if (fix) {
+      return {
+        key: fix.asRoot ? 'remoteTools.hint.versionErrorMissingLibraryFixAsRoot' : 'remoteTools.hint.versionErrorMissingLibraryFix',
+        params: { library: err.missingLibrary, command: fix.command },
+      }
+    }
+    return { key: 'remoteTools.hint.versionErrorMissingLibrary', params: { library: err.missingLibrary } }
+  }
   if (err?.exitCode !== undefined) return { key: 'remoteTools.hint.versionErrorExitCode', params: { code: err.exitCode } }
   return { key: 'remoteTools.hint.versionError' }
 }
@@ -253,7 +266,7 @@ function ToolRow({ tool, report, action, canInstall, onRequestPlan, onLogin, onO
   const { t } = useTranslation()
   const hasLogin = LOGIN_TOOLS.has(tool.id) && !!tool.login && tool.login !== 'n/a'
   const needsLogin = hasLogin && tool.login !== 'loggedIn'
-  const versionHint = tool.status === 'error' ? versionErrorHint(tool) : null
+  const versionHint = tool.status === 'error' ? versionErrorHint(tool, report.env) : null
   // claude keeps macOS credentials in the Keychain, so a missing file proves nothing there (T0408).
   const credentialHint =
     tool.login === 'unknown' && tool.credentialFilePresent !== undefined

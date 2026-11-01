@@ -1342,6 +1342,8 @@
       "tooOld": "此 Claude Code 版本太舊，無法使用較新的模型。請更新。",
       "versionError": "在 PATH 上找到，但沒有回報版本。",
       "versionErrorMissingLibrary": "在 PATH 上找到，但無法執行：缺少共用程式庫 {{library}}。",
+      "versionErrorMissingLibraryFix": "在 PATH 上找到，但無法執行：缺少共用程式庫 {{library}}。修正方式：{{command}}",
+      "versionErrorMissingLibraryFixAsRoot": "在 PATH 上找到，但無法執行：缺少共用程式庫 {{library}}。此帳號沒有 sudo，請管理員以 root 執行：{{command}}",
       "versionErrorExitCode": "在 PATH 上找到，但沒有回報版本（exit code {{code}}）。",
       "curlMissing": "主機上沒有可用的 curl，此安裝程式無法執行。請先安裝 curl。",
       "nodeNotNvm": "這個 Node.js 不是由 nvm 管理（例如發行版套件）。可以另外透過 nvm 安裝 LTS，系統的 Node.js 不會被移除。"
@@ -1380,7 +1382,10 @@
       "nvmLoginProfile": "BAT 另外會在 bash login shell 讀取的 profile 檔（~/.bash_profile、~/.bash_login、~/.profile 中第一個存在的；都沒有時建立 ~/.profile）結尾加入一段有註解標記的 nvm 載入片段，讓 bash -lc 等非互動 login shell 也找得到這個 Node.js。這段只會加入一次；nvm 已載入時不會重複載入。檔案其他內容不變。",
       "nvmKeepsSystemNode": "系統套件管理員安裝的 Node.js 會保留；有載入 nvm 的 shell 會優先使用 nvm 的版本。",
       "nvmReopenTerminal": "已開啟的終端分頁要重開，才看得到 nvm 與這個 Node.js。",
-      "nvmUpdateMovesDefault": "以 nvm 安裝最新的 LTS，從目前版本重新安裝全域 npm 套件，並設為預設版本。舊版本會保留。如果已經是最新 LTS，不會有任何變更。"
+      "nvmUpdateMovesDefault": "以 nvm 安裝最新的 LTS，從目前版本重新安裝全域 npm 套件，並設為預設版本。舊版本會保留。如果已經是最新 LTS，不會有任何變更。",
+      "nodeLibatomic": "Node.js 25 起的 Linux 版需要系統程式庫 libatomic.so.1。主機沒有時，會先以套件管理員安裝（這一步會用 sudo）；已經有時不會執行套件管理員。nvm 與 Node.js 本身仍裝在家目錄，不需要 sudo。",
+      "nodeLibatomicNoSudo": "Node.js 25 起的 Linux 版需要系統程式庫 libatomic.so.1。此帳號沒有 sudo，BAT 無法安裝它；主機沒有時，執行結束會顯示要請管理員以 root 執行的指令。",
+      "nodeLibatomicManual": "Node.js 25 起的 Linux 版需要系統程式庫 libatomic.so.1。BAT 沒有這台主機套件管理員的對應；主機沒有時，執行結束會說明要安裝的套件（通常是 libatomic1 或 libatomic）。"
     },
     "error": {
       "host-platform": "此主機不支援工具偵測。",
@@ -1439,6 +1444,10 @@
       "notDetected": "指令已執行完畢，但未偵測到 {{tool}}，請查看終端輸出。",
       "redetectFailed": "指令已執行完畢，但重新檢查 {{tool}} 失敗：{{error}}",
       "failed": "{{tool}} 的指令執行失敗（結束代碼 {{code}}），請查看終端輸出。",
+      "cannotRunMissingLibrary": "{{tool}} 已安裝，但無法執行：缺少共用程式庫 {{library}}，請查看終端輸出。",
+      "cannotRunMissingLibraryFix": "{{tool}} 已安裝，但無法執行：缺少共用程式庫 {{library}}。修正方式：{{command}}",
+      "cannotRunMissingLibraryFixAsRoot": "{{tool}} 已安裝，但無法執行：缺少共用程式庫 {{library}}。此帳號沒有 sudo，請管理員以 root 執行：{{command}}",
+      "cannotRunExitCode": "{{tool}} 已安裝，但無法執行（結束代碼 {{code}}），請查看終端輸出。",
       "aborted": "{{tool}} 的終端分頁在指令完成前就關閉了。"
     },
     "hint": {

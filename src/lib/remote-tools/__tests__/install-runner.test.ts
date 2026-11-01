@@ -17,6 +17,7 @@ import { buildInstallPlan, buildUpdatePlan, isInstallPlan, type InstallPlan } fr
 import { createSentinelMatcher, wrapWithSentinel } from '../sentinel'
 import {
   buildHomeProbeCommand,
+  cannotRunNotice,
   completionNotice,
   parseRemoteToolInstallTarget,
   POSIX_FALLBACK_SHELL,
@@ -298,6 +299,62 @@ describe('runRemoteToolInstall — PTY', () => {
     ])
   })
 
+  // T0756 (BUG-187): the node plan ends with `node --version`; a node that cannot start fails the run.
+  const BROKEN_NODE = { status: 'error' as const, path: '/home/u/.nvm/versions/node/v26.13.0/bin/node', versionError: { exitCode: 127, missingLibrary: 'libatomic.so.1' }, nvm: { version: '0.40.8' } }
+
+  test('node (T0756): non-zero exit ⇒ re-detect names the missing library and the fix command', async () => {
+    const h = harness({ detect: [ok(WSL), ok(makeReport({}, { node: BROKEN_NODE }))] })
+    const start = await runRemoteToolInstall({ toolId: 'node', kind: 'install' }, h.deps)
+    if (start.status !== 'started') throw new Error('not started')
+    expect(start.plan.command.endsWith(' && node --version')).toBe(true)
+    h.output('term-1', sentinelOutput(127))
+    await expect(start.done).resolves.toEqual({ kind: 'exit', exitCode: 127 })
+    expect(h.deps.detectHere).toHaveBeenCalledTimes(2)
+    expect(h.notices).toEqual([
+      {
+        level: 'warning',
+        key: 'remoteToolInstall.result.cannotRunMissingLibraryFix',
+        params: { toolKey: 'remoteTools.tool.node.name', library: 'libatomic.so.1', command: 'sudo apt-get update && sudo apt-get install -y libatomic1' },
+      },
+      { level: 'info', key: 'remoteToolInstall.hint.reopenTabsNvm' },
+    ])
+  })
+
+  test('node (T0756): no sudo ⇒ the fix is for an administrator (as root)', async () => {
+    const noSudo = makeReport({ privilege: 'sudo-missing' })
+    const h = harness({ detect: [ok(noSudo), ok(makeReport({ privilege: 'sudo-missing' }, { node: BROKEN_NODE }))] })
+    const start = await runRemoteToolInstall({ toolId: 'node', kind: 'update' }, h.deps)
+    if (start.status !== 'started') throw new Error('not started')
+    h.output('term-1', sentinelOutput(127))
+    await start.done
+    expect(h.notices[0]).toEqual({
+      level: 'warning',
+      key: 'remoteToolInstall.result.cannotRunMissingLibraryFixAsRoot',
+      params: { toolKey: 'remoteTools.tool.node.name', library: 'libatomic.so.1', command: 'apt-get update && apt-get install -y libatomic1' },
+    })
+  })
+
+  test('node (T0756): non-zero exit but node runs (or re-detect fails) ⇒ the plain failure notice', async () => {
+    const runs = makeReport({}, { node: { status: 'ok', path: '/home/u/.nvm/versions/node/v24.22.2/bin/node', version: '24.22.2' } })
+    for (const redetect of [ok(runs), { ok: false as const, errorCode: 'timeout' as const, error: 'x' }]) {
+      const h = harness({ detect: [ok(WSL), redetect] })
+      const start = await runRemoteToolInstall({ toolId: 'node', kind: 'install' }, h.deps)
+      if (start.status !== 'started') throw new Error('not started')
+      h.output('term-1', sentinelOutput(100))
+      await start.done
+      expect(h.notices[0]).toEqual({ level: 'warning', key: 'remoteToolInstall.result.failed', params: { toolKey: 'remoteTools.tool.node.name', code: '100' } })
+    }
+  })
+
+  test('node (T0756): exit 0 but the re-detect says it cannot run ⇒ the reason, not "installed"', async () => {
+    const h = harness({ detect: [ok(WSL), ok(makeReport({}, { node: BROKEN_NODE }))] })
+    const start = await runRemoteToolInstall({ toolId: 'node', kind: 'install' }, h.deps)
+    if (start.status !== 'started') throw new Error('not started')
+    h.output('term-1', sentinelOutput(0))
+    await start.done
+    expect(h.notices[0].key).toBe('remoteToolInstall.result.cannotRunMissingLibraryFix')
+  })
+
   test('PTY exits before the sentinel ⇒ aborted notice, listeners removed', async () => {
     const h = harness()
     const start = await runRemoteToolInstall({ toolId: 'claude', kind: 'install' }, h.deps)
@@ -334,6 +391,29 @@ describe('completionNotice', () => {
       level: 'warning',
       key: 'remoteToolInstall.result.redetectFailed',
       params: { toolKey: 'remoteTools.tool.claude.name', errorKey: 'remoteTools.error.no-markers' },
+    })
+  })
+})
+
+describe('cannotRunNotice (T0756)', () => {
+  const env = makeReport({}).env
+  test('only the whitelisted fields reach the notice', () => {
+    expect(cannotRunNotice('rg', { id: 'rg', status: 'error', login: 'n/a', serverVisible: false, versionError: { exitCode: 127, missingLibrary: 'libpcre2-8.so.0' } }, env)).toEqual({
+      level: 'warning', key: 'remoteToolInstall.result.cannotRunMissingLibrary', params: { toolKey: 'remoteTools.tool.rg.name', library: 'libpcre2-8.so.0' },
+    })
+    expect(cannotRunNotice('rg', { id: 'rg', status: 'error', login: 'n/a', serverVisible: false, versionError: { exitCode: 124 } }, env)).toEqual({
+      level: 'warning', key: 'remoteToolInstall.result.cannotRunExitCode', params: { toolKey: 'remoteTools.tool.rg.name', code: '124' },
+    })
+  })
+  test('no reason, not an error, or no tool ⇒ null', () => {
+    expect(cannotRunNotice('rg', { id: 'rg', status: 'error', login: 'n/a', serverVisible: false }, env)).toBeNull()
+    expect(cannotRunNotice('rg', { id: 'rg', status: 'ok', login: 'n/a', serverVisible: false, versionError: { exitCode: 1 } }, env)).toBeNull()
+    expect(cannotRunNotice('rg', undefined, env)).toBeNull()
+  })
+  test('malformed env: the library is still named, no command', () => {
+    const tool = { id: 'node' as const, status: 'error' as const, login: 'n/a' as const, serverVisible: false, versionError: { missingLibrary: 'libatomic.so.1' } }
+    expect(cannotRunNotice('node', tool, { osFamily: 'linux; rm -rf ~' })).toEqual({
+      level: 'warning', key: 'remoteToolInstall.result.cannotRunMissingLibrary', params: { toolKey: 'remoteTools.tool.node.name', library: 'libatomic.so.1' },
     })
   })
 })

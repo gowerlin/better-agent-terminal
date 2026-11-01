@@ -1342,6 +1342,8 @@
       "tooOld": "此 Claude Code 版本太旧，无法使用较新的模型。请更新。",
       "versionError": "在 PATH 上找到，但没有报告版本。",
       "versionErrorMissingLibrary": "在 PATH 上找到，但无法运行：缺少共享库 {{library}}。",
+      "versionErrorMissingLibraryFix": "在 PATH 上找到，但无法运行：缺少共享库 {{library}}。修复方法：{{command}}",
+      "versionErrorMissingLibraryFixAsRoot": "在 PATH 上找到，但无法运行：缺少共享库 {{library}}。此账号没有 sudo，请管理员以 root 运行：{{command}}",
       "versionErrorExitCode": "在 PATH 上找到，但没有报告版本（exit code {{code}}）。",
       "curlMissing": "主机上没有可用的 curl，此安装程序无法运行。请先安装 curl。",
       "nodeNotNvm": "这个 Node.js 不是由 nvm 管理（例如发行版软件包）。可以另外通过 nvm 安装 LTS，系统的 Node.js 不会被移除。"
@@ -1380,7 +1382,10 @@
       "nvmLoginProfile": "BAT 另外会在 bash login shell 读取的 profile 文件（~/.bash_profile、~/.bash_login、~/.profile 中第一个存在的；都没有时创建 ~/.profile）末尾加入一段带注释标记的 nvm 加载片段，让 bash -lc 等非交互 login shell 也能找到这个 Node.js。这段只会加入一次；nvm 已加载时不会重复加载。文件其他内容不变。",
       "nvmKeepsSystemNode": "系统软件包管理器安装的 Node.js 会保留；加载了 nvm 的 shell 会优先使用 nvm 的版本。",
       "nvmReopenTerminal": "已打开的终端标签页要重新打开，才能看到 nvm 和这个 Node.js。",
-      "nvmUpdateMovesDefault": "用 nvm 安装最新的 LTS，从当前版本重新安装全局 npm 包，并设为默认版本。旧版本会保留。如果已经是最新 LTS，不会有任何变更。"
+      "nvmUpdateMovesDefault": "用 nvm 安装最新的 LTS，从当前版本重新安装全局 npm 包，并设为默认版本。旧版本会保留。如果已经是最新 LTS，不会有任何变更。",
+      "nodeLibatomic": "Node.js 25 起的 Linux 版需要系统库 libatomic.so.1。主机没有时，会先用包管理器安装（这一步会用 sudo）；已经有时不会运行包管理器。nvm 与 Node.js 本身仍装在主目录，不需要 sudo。",
+      "nodeLibatomicNoSudo": "Node.js 25 起的 Linux 版需要系统库 libatomic.so.1。此账号没有 sudo，BAT 无法安装它；主机没有时，运行结束会显示需要请管理员以 root 运行的命令。",
+      "nodeLibatomicManual": "Node.js 25 起的 Linux 版需要系统库 libatomic.so.1。BAT 没有这台主机包管理器的对应；主机没有时，运行结束会说明要安装的包（通常是 libatomic1 或 libatomic）。"
     },
     "error": {
       "host-platform": "此主机不支持工具检测。",
@@ -1439,6 +1444,10 @@
       "notDetected": "命令已执行完毕，但未检测到 {{tool}}，请查看终端输出。",
       "redetectFailed": "命令已执行完毕，但重新检查 {{tool}} 失败：{{error}}",
       "failed": "{{tool}} 的命令执行失败（退出代码 {{code}}），请查看终端输出。",
+      "cannotRunMissingLibrary": "{{tool}} 已安装，但无法运行：缺少共享库 {{library}}，请查看终端输出。",
+      "cannotRunMissingLibraryFix": "{{tool}} 已安装，但无法运行：缺少共享库 {{library}}。修复方法：{{command}}",
+      "cannotRunMissingLibraryFixAsRoot": "{{tool}} 已安装，但无法运行：缺少共享库 {{library}}。此账号没有 sudo，请管理员以 root 运行：{{command}}",
+      "cannotRunExitCode": "{{tool}} 已安装，但无法运行（退出代码 {{code}}），请查看终端输出。",
       "aborted": "{{tool}} 的终端标签页在命令完成前就关闭了。"
     },
     "hint": {

@@ -17,10 +17,11 @@ import {
   REMOTE_TOOL_INSTALL_KINDS,
   type RemoteToolId,
   type RemoteToolInstallKind,
+  type RemoteToolReport,
   type RemoteToolsDetectResult,
 } from '../../types/remote-tools'
 import { unsupportedRemoteChannel } from '../remote-unsupported'
-import { buildInstallPlan, buildUpdatePlan, isInstallPlan, normalizeRecipeEnv, type InstallPlan } from './recipes'
+import { buildInstallPlan, buildUpdatePlan, isInstallPlan, missingLibraryFix, normalizeRecipeEnv, type InstallPlan } from './recipes'
 import { createSentinelMatcher, generateNonce as defaultGenerateNonce, stripAnsi, SENTINEL_NONCE_RE, wrapWithSentinel } from './sentinel'
 
 /** Window event a `host: 'remote-window'` tools panel fires; this window's hook runs the install. */
@@ -188,12 +189,38 @@ async function detect(deps: InstallRunnerDeps): Promise<RemoteToolsDetectResult>
   }
 }
 
+/**
+ * T0756 (BUG-187): the tool landed but does not start. Only what the probe whitelisted (T0753: a
+ * library file name, the exit code) reaches the notice, never stderr; the fix command for
+ * libatomic.so.1 is built from recipe constants and the report's enums. Null = no reason reported.
+ */
+export function cannotRunNotice(toolId: RemoteToolId, tool: RemoteToolReport | undefined, env: unknown): InstallNotice | null {
+  const err = tool?.status === 'error' ? tool.versionError : undefined
+  if (err?.missingLibrary) {
+    const fix = missingLibraryFix(err.missingLibrary, env)
+    if (fix) {
+      return {
+        level: 'warning',
+        key: fix.asRoot ? 'remoteToolInstall.result.cannotRunMissingLibraryFixAsRoot' : 'remoteToolInstall.result.cannotRunMissingLibraryFix',
+        params: toolParams(toolId, { library: err.missingLibrary, command: fix.command }),
+      }
+    }
+    return { level: 'warning', key: 'remoteToolInstall.result.cannotRunMissingLibrary', params: toolParams(toolId, { library: err.missingLibrary }) }
+  }
+  if (err?.exitCode !== undefined) {
+    return { level: 'warning', key: 'remoteToolInstall.result.cannotRunExitCode', params: toolParams(toolId, { code: String(err.exitCode) }) }
+  }
+  return null
+}
+
 /** Result notice from the re-detect after exit 0 (the report decides — `curl | sh` can exit 0 on failure). */
 export function completionNotice(target: RemoteToolInstallTarget, redetect: RemoteToolsDetectResult): InstallNotice {
   if (!redetect.ok) {
     return { level: 'warning', key: 'remoteToolInstall.result.redetectFailed', params: toolParams(target.toolId, { errorKey: `remoteTools.error.${redetect.errorCode}` }) }
   }
   const tool = redetect.report.tools.find(t => t.id === target.toolId)
+  const cannotRun = cannotRunNotice(target.toolId, tool, redetect.report.env)
+  if (cannotRun) return cannotRun
   switch (tool?.status) {
     case 'ok':
       return {
@@ -307,7 +334,14 @@ export async function runRemoteToolInstall(target: RemoteToolInstallTarget, deps
     if (c.exitCode === 0) {
       deps.notify(completionNotice(target, await detect(deps)))
     } else {
-      deps.notify({ level: 'warning', key: 'remoteToolInstall.result.failed', params: toolParams(plan.toolId, { code: String(c.exitCode) }) })
+      // T0756 (BUG-187): the node plan ends with `node --version`; a node that cannot start fails
+      // the run, and the re-detect says why (missing library / exit code). Other tools: unchanged.
+      let cannotRun: InstallNotice | null = null
+      if (plan.toolId === 'node') {
+        const redetect = await detect(deps)
+        if (redetect.ok) cannotRun = cannotRunNotice('node', redetect.report.tools.find(t => t.id === 'node'), redetect.report.env)
+      }
+      deps.notify(cannotRun ?? { level: 'warning', key: 'remoteToolInstall.result.failed', params: toolParams(plan.toolId, { code: String(c.exitCode) }) })
     }
     deps.notify(plan.toolId === 'node' ? REOPEN_HINT_NVM : REOPEN_HINT)
     return c

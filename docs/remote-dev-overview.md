@@ -582,7 +582,8 @@ The remote tools panel (PLAN-037) installs Node.js with
   `libatomic.so.1`; the distro had no `libatomic1`, so `node --version` exited 127 with
   `error while loading shared libraries` — in the user's own terminals too. Fix on the host
   (`sudo apt install libatomic1`, or `nvm use` / `nvm alias default` another version), then
-  Check again. BAT never infers a version from the nvm path.
+  Check again. BAT never infers a version from the nvm path. Since T0756 (BUG-187) BAT's own
+  Node.js install / update handles this first; see "Remote tools: Node.js and libatomic" below.
 - **Why it failed**: for a found tool whose `--version` printed no line, the login-view probe
   adds `tool.<id>.version_rc` (the exit code) and, unless the run was killed by `timeout`
   (124 / 137 / 143), runs `--version` once more and keeps only the file name a dynamic loader
@@ -601,14 +602,45 @@ The remote tools panel (PLAN-037) installs Node.js with
   what the login view (the row status) reports. A tool the login view found (`ok` /
   `too-old` / `error`) that the server process does not see is labelled "Server process: not
   visible (terminal tabs find it)"; other rows keep "Server: visible / not visible".
-- **Where the server PATH comes from** (none of these is changed by BAT): WSL and SSH Linux —
-  the systemd user unit sets no `PATH`, so it inherits `systemctl --user show-environment`
-  (no `~/.local/bin`, no nvm). SSH macOS — launchd's default PATH (no Homebrew). Docker —
-  the image `PATH`; the container runs as root and `/root/.local/bin` is not on the login PATH
-  either, so a tool there is "Not on PATH" in both views.
+- **Where the server PATH comes from**: since PLAN-057 / T0755, bat-server reads the login
+  shell's PATH once at startup and puts it in front of its own (on by default; Settings ›
+  Advanced › "BAT server PATH" turns it off, effective after the BAT server restarts). Details,
+  failure handling and logs: [agent-guide/headless-login-shell-path.md](agent-guide/headless-login-shell-path.md).
+  With it off, or when the login shell fails or times out, the server keeps the PATH it was
+  started with: WSL and SSH Linux — the systemd user unit sets no `PATH`, so it inherits
+  `systemctl --user show-environment` (no `~/.local/bin`, no nvm); SSH macOS — launchd's
+  default PATH (no Homebrew); Docker — the image `PATH`. BAT does not edit the systemd unit,
+  the launchd plist or the image. In Docker the container runs as root and `/root/.local/bin`
+  is not on the login PATH either, so a tool there is "Not on PATH" in both views.
 - Tests: `electron/remote-tools/__tests__/probe-script.test.ts` (string guards; real
   `/bin/sh` cases run on Linux / macOS only), `parse.test.ts`,
   `src/components/__tests__/remote-tools-panel.test.tsx`.
+
+## Remote tools: Node.js and libatomic (T0756 / BUG-187)
+
+- **Why**: nodejs.org's Linux builds of Node.js 25 and later need `libatomic.so.1` (`readelf -d`
+  NEEDED on v25.0.0 – v26.13.0, x64 and arm64; v24 / v22 / v20 do not). Minimal Ubuntu 24.04 /
+  Debian 12 / Fedora / Rocky images lack it, and `nvm install --lts` still exits 0, so the run
+  looked fine while `node` exited 127.
+- **apt / dnf / yum with root or sudo**: the Linux install / update first runs
+  `( <check> || ( <install> ) )`, where the check is `ldconfig -p` (also `/sbin` and
+  `/usr/sbin`, which Debian's non-root PATH lacks) grepping `libatomic.so.1`, and the install is
+  `apt-get update && apt-get install -y libatomic1` or `dnf` / `yum install -y libatomic`
+  (with `sudo ` unless root). A host that already has the library runs no package manager. The
+  confirm dialog lists the step under "Runs first" and says sudo may be used; nvm and Node.js
+  still go into `~/.nvm` without sudo.
+- **No sudo, or no mapped package manager** (`none` covers zypper / pacman hosts; Linuxbrew):
+  the install is not skipped. If node does not start at the end and the library is missing, the
+  tab prints the root command for an administrator (or which package to install), and the run
+  keeps node's exit code.
+- **Verify**: every Linux node install / update ends with `node --version`. A node that cannot
+  start fails the run; the install runner re-detects and the notice names the missing library
+  and, for `libatomic.so.1` on apt / dnf / yum, the fix command (T0753 whitelist, never
+  stderr). The panel row shows the same fix. macOS and Alpine / musl plans are unchanged.
+- Tests: `src/lib/remote-tools/__tests__/recipes.test.ts`, `node-libatomic-shell.test.ts`
+  (real `sh` with fake `ldconfig` / `sudo` / `apt-get` / `dnf` / `node`), `install-runner.test.ts`,
+  `src/components/__tests__/remote-tools-panel.test.tsx`. Real run (T0756 report): Docker
+  `ubuntu:24.04` as root, as a user with passwordless sudo, and as a user without sudo.
 
 ## Troubleshooting (cross-cutting)
 

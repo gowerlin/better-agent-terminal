@@ -89,6 +89,12 @@ export const NOTE_KEYS = [
   'remoteTools.note.nvmReopenTerminal',
   /** Update: newest LTS, global npm packages reinstalled from the old version, default alias moved. */
   'remoteTools.note.nvmUpdateMovesDefault',
+  /** T0756 (BUG-187): libatomic.so.1 is installed first when missing (apt / dnf / yum with root or sudo). */
+  'remoteTools.note.nodeLibatomic',
+  /** T0756: no sudo — BAT cannot install libatomic.so.1; the end of the run names the root command. */
+  'remoteTools.note.nodeLibatomicNoSudo',
+  /** T0756: no mapped package manager — the end of the run says which package to install. */
+  'remoteTools.note.nodeLibatomicManual',
 ] as const
 export type RecipeNoteKey = typeof NOTE_KEYS[number]
 
@@ -468,6 +474,119 @@ const NVM_UPDATE_COMMAND = [
   `if [ "$(nvm version-remote --lts)" = "$(nvm current)" ]; then echo "Node.js $(nvm current) is already the latest LTS"; else nvm install --lts --reinstall-packages-from=current && ${NVM_DEFAULT_LTS}; fi`,
 ].join(' && ')
 
+// ── libatomic for nodejs.org's Linux builds (T0756 / BUG-187) ──────────────────
+
+/**
+ * nodejs.org's Linux builds of Node.js 25 and later load this library (T0756: `readelf -d` NEEDED on
+ * v25.0.0 / v25.9.0 / v26.0.0 / v26.13.0 linux-x64 and v26.13.0 linux-arm64; v24.22.2 / v22.23.4 /
+ * v20.20.2 do not). Minimal Ubuntu 24.04 / Debian 12 / Fedora 44 / Rocky 9 images do not have it,
+ * so `nvm install --lts` lands a node that exits 127 (`error while loading shared libraries`).
+ */
+export const NODE_LIBATOMIC_SONAME = 'libatomic.so.1'
+
+/**
+ * The package that ships it (T0756: `apt-cache policy` + `dpkg-deb -c` on Ubuntu 24.04 / Debian 12,
+ * `dnf provides libatomic.so.1` on Fedora 44 / Rocky 9, `yum provides` on Amazon Linux 2).
+ * Package managers the probe does not report (zypper, pacman, …) come in as `none`: no mapping.
+ */
+export const LIBATOMIC_PACKAGES: Readonly<Record<'apt' | 'dnf' | 'yum', string>> = {
+  apt: 'libatomic1',
+  dnf: 'libatomic',
+  yum: 'libatomic',
+}
+
+/**
+ * Exit 0 when the loader cache lists libatomic.so.1. Debian's non-root login PATH has no
+ * `/usr/sbin` (T0756, Debian 12), so ldconfig's usual places are tried after PATH.
+ */
+export const LIBATOMIC_CHECK = "{ ldconfig -p || /sbin/ldconfig -p || /usr/sbin/ldconfig -p; } 2>/dev/null | grep -q 'libatomic\\.so\\.1'"
+
+/**
+ * T0756 (BUG-187): the last step of a Linux node install / update. `nvm install` can exit 0 with a
+ * node that cannot start; this makes the run fail instead (the loader's exit code, 127), and the
+ * install runner then re-detects and names the missing library (T0753 whitelist, never stderr).
+ */
+export const NODE_VERIFY_COMMAND = 'node --version'
+
+type LibatomicPkgManager = keyof typeof LIBATOMIC_PACKAGES
+
+function libatomicPkgManager(pkgManager: PkgManager): LibatomicPkgManager | null {
+  return pkgManager === 'apt' || pkgManager === 'dnf' || pkgManager === 'yum' ? pkgManager : null
+}
+
+/** Installs the package only when the check fails: a host that has the library runs no package manager. */
+function libatomicPrerequisite(pkgManager: LibatomicPkgManager, s: string): string {
+  return `( ${LIBATOMIC_CHECK} || ( ${distroInstall(pkgManager, s, LIBATOMIC_PACKAGES[pkgManager])} ) )`
+}
+
+/**
+ * Printed at the end when node does not start and the library is missing. No `!` (interactive bash
+ * history expansion), `$` or backquotes inside the double quotes, and no word `sudo` (the matrix
+ * invariant: a command mentions sudo exactly when `needsSudo`).
+ */
+function libatomicHint(pkgManager: LibatomicPkgManager | null): string {
+  const lead = `BetterAgentTerminal: Node.js cannot start because ${NODE_LIBATOMIC_SONAME} is missing`
+  return pkgManager
+    ? `${lead}, and this account cannot install system packages. Ask an administrator to run as root: ${distroInstall(pkgManager, '', LIBATOMIC_PACKAGES[pkgManager])}`
+    : `${lead}. Install it with the distribution package manager (package ${LIBATOMIC_PACKAGES.apt} or ${LIBATOMIC_PACKAGES.dnf}), then run ${NODE_VERIFY_COMMAND}`
+}
+
+/**
+ * `<command>` failed: print the hint when the library is missing, then keep the failing exit code for
+ * the sentinel. Does not stop the install itself (D208: no sudo is not a reason to skip node).
+ */
+export function withLibatomicHint(command: string, pkgManager: LibatomicPkgManager | null): string {
+  return `${command} || { bat_rc=$?; ${LIBATOMIC_CHECK} || echo "${libatomicHint(pkgManager)}"; (exit $bat_rc); }`
+}
+
+/**
+ * The manual fix the panel shows for a missing library (T0756): only libatomic.so.1 on a glibc Linux
+ * host with a mapped package manager. `asRoot` = this account has no sudo, so the command is for an
+ * administrator. Built from constants and enums only; `rawEnv` is the untrusted report env (a
+ * malformed one gives null, as any other host does).
+ */
+export function missingLibraryFix(library: string, rawEnv: unknown): { command: string; asRoot: boolean } | null {
+  let env: RecipeEnv
+  try {
+    env = normalizeRecipeEnv(rawEnv)
+  } catch {
+    return null
+  }
+  if (library !== NODE_LIBATOMIC_SONAME || env.osFamily !== 'linux' || env.musl) return null
+  const pm = libatomicPkgManager(env.pkgManager)
+  if (!pm) return null
+  const s = rootPrefix(env.privilege)
+  return { command: distroInstall(pm, s ?? '', LIBATOMIC_PACKAGES[pm]), asRoot: s === null }
+}
+
+interface NodeLinuxParts {
+  command: string
+  needsSudo: boolean
+  prerequisites?: string[]
+  note: RecipeNoteKey
+}
+
+/**
+ * The Linux part of a node plan (T0756): libatomic first when it can be installed, the verify step
+ * last; otherwise the hint on failure. macOS is unchanged (nodejs.org's darwin builds have no
+ * libatomic dependency; the install runner's re-detect still runs `node --version` there).
+ */
+function nodeLinuxParts(env: RecipeEnv, nvmCommand: string): NodeLinuxParts | null {
+  if (env.osFamily !== 'linux') return null
+  const pm = libatomicPkgManager(env.pkgManager)
+  const s = rootPrefix(env.privilege)
+  const verified = `${nvmCommand} && ${NODE_VERIFY_COMMAND}`
+  if (pm && s !== null) {
+    const prerequisite = libatomicPrerequisite(pm, s)
+    return { command: `${prerequisite} && ${verified}`, needsSudo: needsSudoFor(env.privilege), prerequisites: [prerequisite], note: 'remoteTools.note.nodeLibatomic' }
+  }
+  return {
+    command: withLibatomicHint(verified, pm),
+    needsSudo: false,
+    note: pm ? 'remoteTools.note.nodeLibatomicNoSudo' : 'remoteTools.note.nodeLibatomicManual',
+  }
+}
+
 /** Hosts nvm's prebuilt Node.js runs on; null = a plan can be built. */
 function nodeUnsupported(env: RecipeEnv): UnsupportedPlan | null {
   if (env.osFamily === 'unknown') return { unsupported: 'no-recipe', docsUrl: DOCS.node }
@@ -477,32 +596,42 @@ function nodeUnsupported(env: RecipeEnv): UnsupportedPlan | null {
 }
 
 function nodeInstallPlan(env: RecipeEnv): RecipeResult {
-  return nodeUnsupported(env) ?? {
+  const unsupported = nodeUnsupported(env)
+  if (unsupported) return unsupported
+  const linux = nodeLinuxParts(env, NVM_INSTALL_COMMAND)
+  const notes: RecipeNoteKey[] = ['remoteTools.note.nvmEditsProfile', 'remoteTools.note.nvmLoginProfile', 'remoteTools.note.nvmKeepsSystemNode', 'remoteTools.note.nvmReopenTerminal']
+  return {
     toolId: 'node',
     kind: 'install',
-    command: NVM_INSTALL_COMMAND,
-    needsSudo: false,
+    command: linux?.command ?? NVM_INSTALL_COMMAND,
+    needsSudo: linux?.needsSudo ?? false,
     installLocation: 'remoteTools.location.nvmDir',
     installPath: '~/.nvm',
     docsUrl: DOCS.nvm,
     scriptUrl: SCRIPT.nvm,
     scriptPinned: true,
     integrity: 'remoteTools.integrity.nvmNodeShasums',
-    notes: ['remoteTools.note.nvmEditsProfile', 'remoteTools.note.nvmLoginProfile', 'remoteTools.note.nvmKeepsSystemNode', 'remoteTools.note.nvmReopenTerminal'],
+    ...(linux?.prerequisites ? { prerequisites: linux.prerequisites } : {}),
+    notes: linux ? [...notes, linux.note] : notes,
   }
 }
 
 function nodeUpdatePlan(env: RecipeEnv): RecipeResult {
-  return nodeUnsupported(env) ?? {
+  const unsupported = nodeUnsupported(env)
+  if (unsupported) return unsupported
+  const linux = nodeLinuxParts(env, NVM_UPDATE_COMMAND)
+  const notes: RecipeNoteKey[] = ['remoteTools.note.nvmUpdateMovesDefault', 'remoteTools.note.nvmLoginProfile']
+  return {
     toolId: 'node',
     kind: 'update',
-    command: NVM_UPDATE_COMMAND,
-    needsSudo: false,
+    command: linux?.command ?? NVM_UPDATE_COMMAND,
+    needsSudo: linux?.needsSudo ?? false,
     installLocation: 'remoteTools.location.nvmDir',
     installPath: '~/.nvm',
     docsUrl: DOCS.nvm,
     integrity: 'remoteTools.integrity.nvmNodeShasums',
-    notes: ['remoteTools.note.nvmUpdateMovesDefault', 'remoteTools.note.nvmLoginProfile'],
+    ...(linux?.prerequisites ? { prerequisites: linux.prerequisites } : {}),
+    notes: linux ? [...notes, linux.note] : notes,
   }
 }
 
