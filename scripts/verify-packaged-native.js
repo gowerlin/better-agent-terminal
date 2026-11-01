@@ -33,7 +33,8 @@
  *   - C4  every package the packaged `dist-electron` requires (string-literal require /
  *         require.resolve / `<createRequire>.resolve("<pkg>/package.json")`) plus the
  *         computed-path packages of dynamicRuntimePackages() is packaged, with the
- *         `dependencies` closure of each
+ *         `dependencies` closure of each (packed only when it is in the production dependency
+ *         tree: package.json dependencies, not peerDependencies — T0719 / BUG-176)
  *   - C5  the whisper addon's `dist/` only holds `js/` and this platform's directories
  *   - T0689 `resources/scripts` (the packaged BAT_HELPER_DIR) holds exactly the runtime helpers
  *         (`serverBundleHelperScripts` in scripts/build-server-bundle.mjs): none missing, nothing extra
@@ -429,7 +430,7 @@ function verifyRuntimePackages(asar, platform, arch) {
   if (missingPackages.length > 0) {
     problems.push({
       id: 'runtime-require',
-      message: `${missingPackages.length} runtime package(s) missing from app.asar / app.asar.unpacked (node_modules whitelist in package.json build.files, T0546 C4)`,
+      message: `${missingPackages.length} runtime package(s) missing from app.asar / app.asar.unpacked (node_modules whitelist in package.json build.files, T0546 C4; production dependency tree, T0719)`,
       details: missingPackages,
     });
   }
@@ -858,6 +859,7 @@ function describeLayout(layout) {
 
 function printLayoutHints() {
   console.error('[verify-packaged-native] T0546 runtime-require: add the package (and its dependencies) to the node_modules whitelist in package.json build.files.');
+  console.error('[verify-packaged-native] T0719 runtime-require: electron-builder only packs the production dependency tree (package.json dependencies, never peerDependencies); a package reachable only as a peer must be added to package.json dependencies. Check locally with scripts/__tests__/asar-runtime-deps.test.mjs (after `npx vite build`).');
   console.error('[verify-packaged-native] T0546 sdk-binary / duplicate-claude / whisper-platforms: an exclusion in package.json build.files was lost. T0547 server-bundle-baseline: remove the bat-server-baseline extraResources entry (D146).');
   console.error('[verify-packaged-native] T0689 helper-scripts: package.json build.extraResources (from: scripts) filter must list exactly serverBundleHelperScripts; run `npm run verify:helpers`.');
   console.error('[verify-packaged-native] T0691 helper-version: package.json build.afterPack must stay ./scripts/version-manifest.cjs (it writes resources/package.json = { name, version } of the packaged app).');

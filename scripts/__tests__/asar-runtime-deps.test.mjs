@@ -18,7 +18,14 @@
 //      registered and whitelisted;
 //   3. what T0546 removes stays removed (renderer-only packages, the SDK-bundled claude, the
 //      second Windows claude.exe, other platforms' whisper builds), and the app files matcher
-//      still packs only dist / dist-electron / assets / package.json.
+//      still packs only dist / dist-electron / assets / package.json;
+//   4. (T0719 / BUG-176) every package from part 1 is in the *production dependency tree*. The
+//      whitelist only filters: electron-builder packs node_modules from `npm list --omit dev`,
+//      following each package's `_dependencies` (its package.json dependencies / optional
+//      dependencies), never peerDependencies (app-builder-lib NpmNodeModulesCollector
+//      isProdDependency). A package reachable only through a peer edge is not packed even when it
+//      is installed and whitelisted — Agent SDK 0.3 turned `@modelcontextprotocol/sdk` into a peer,
+//      ajv / ajv-formats fell out, and only CI's packaged check (verify-packaged-native) caught it.
 //
 // Part 1 needs a build (`npx vite build`); without dist-electron/main.js it is skipped and the
 // vite externals + dynamic packages are still checked. The packaged artifact itself is checked
@@ -118,6 +125,45 @@ function dependencyClosure(names) {
     }
   }
   return [...result].sort()
+}
+
+/**
+ * package-lock keys in the production dependency tree of `lockfile` (T0719): the root
+ * `dependencies` / `optionalDependencies`, then each package's `dependencies` /
+ * `optionalDependencies`, resolved like Node (nested copy first). peerDependencies and
+ * devDependencies are not followed — the same edges electron-builder's npm collector follows.
+ */
+function productionTree(lockfile) {
+  const packages = lockfile.packages
+  const edges = (entry) => Object.keys({ ...entry.dependencies, ...entry.optionalDependencies })
+  const resolve = (from, name) => {
+    let base = from
+    for (;;) {
+      const key = `${base ? `${base}/` : ''}node_modules/${name}`
+      if (packages[key]) return key
+      if (!base) return null
+      const i = base.lastIndexOf('/node_modules/')
+      base = i < 0 ? '' : base.slice(0, i)
+    }
+  }
+  const tree = new Set()
+  const queue = edges(packages['']).map((name) => resolve('', name)).filter(Boolean)
+  while (queue.length) {
+    const key = queue.pop()
+    if (tree.has(key)) continue
+    tree.add(key)
+    for (const dep of edges(packages[key])) {
+      const depKey = resolve(key, dep)
+      if (depKey) queue.push(depKey)
+    }
+  }
+  return tree
+}
+
+/** Names in `names` that the app root would not load from the production tree (top-level copy). */
+function missingFromProductionTree(lockfile, names) {
+  const tree = productionTree(lockfile)
+  return [...new Set(names)].filter((name) => !tree.has(`node_modules/${name}`)).sort()
 }
 
 function viteExternals() {
@@ -248,5 +294,59 @@ describe.each(TARGETS)('node_modules whitelist for $os $arch', (target) => {
       expect(keeps(`node_modules/@kutalia/whisper-node-addon/dist/${dir}/whisper.node`), dir).toBe(allowed.includes(dir))
     }
     expect(keeps('node_modules/@kutalia/whisper-node-addon/package.json')).toBe(true)
+  })
+})
+
+describe('runtime packages are in the production dependency tree (T0719 / BUG-176)', () => {
+  it('productionTree follows dependencies / optionalDependencies, never peer or dev edges', () => {
+    const lockfile = {
+      packages: {
+        '': { dependencies: { app: '^1' }, optionalDependencies: { opt: '^1' }, devDependencies: { tool: '^1' } },
+        'node_modules/app': { dependencies: { dep: '^1' }, peerDependencies: { peer: '^1' } },
+        'node_modules/app/node_modules/dep': { dependencies: { leaf: '^1' } },
+        'node_modules/dep': {},
+        'node_modules/leaf': {},
+        'node_modules/opt': { optionalDependencies: { 'opt-bin': '^1' } },
+        'node_modules/opt-bin': {},
+        // installed (npm auto-installs peers) and with its own dependencies, but reachable only via a peer edge
+        'node_modules/peer': { dependencies: { 'peer-dep': '^1' } },
+        'node_modules/peer-dep': {},
+        'node_modules/tool': { dependencies: { 'tool-dep': '^1' } },
+        'node_modules/tool-dep': {},
+      },
+    }
+    expect([...productionTree(lockfile)].sort()).toEqual([
+      'node_modules/app', 'node_modules/app/node_modules/dep', 'node_modules/leaf', 'node_modules/opt', 'node_modules/opt-bin',
+    ])
+    expect(missingFromProductionTree(lockfile, ['app', 'leaf', 'opt-bin', 'peer', 'peer-dep', 'tool', 'dep'])).toEqual(['dep', 'peer', 'peer-dep', 'tool'])
+  })
+
+  it.each(TARGETS)('$os: the vite rollup externals, computed-path packages and platform binaries', (target) => {
+    const externals = viteExternals().filter((name) => name !== 'bufferutil' && name !== 'utf-8-validate')
+    const missing = missingFromProductionTree(lock, [
+      ...externals,
+      ...dynamicRuntimePackages(target.platform, target.arch),
+      `@anthropic-ai/claude-code-${target.platform}-${target.arch}`,
+      `@lydell/node-pty-${target.platform}-${target.arch}`,
+    ])
+    expect(missing, `not in the production dependency tree (add to package.json dependencies): ${missing.join(', ')}`).toEqual([])
+  })
+
+  it.each(TARGETS)('$os: every non-dev top-level package the whitelist keeps (no build needed)', (target) => {
+    // The whitelist says "pack it"; if it is not in the production tree electron-builder never
+    // collects it. dev-only top-level copies are not packed in any case and are skipped.
+    const keeps = nodeModulesFilter(target)
+    const names = Object.entries(lock.packages)
+      .filter(([key, entry]) => /^node_modules\/(@[^/]+\/)?[^/]+$/.test(key) && !entry.dev)
+      .map(([key]) => key.slice('node_modules/'.length))
+      .filter((name) => keeps(`node_modules/${name}/package.json`))
+    expect(names).toEqual(expect.arrayContaining(['ws', 'ajv', 'ajv-formats']))
+    const missing = missingFromProductionTree(lock, names)
+    expect(missing, `whitelisted but not in the production dependency tree (add to package.json dependencies): ${missing.join(', ')}`).toEqual([])
+  })
+
+  it.skipIf(!distBuilt)('every package the built dist-electron requires (needs `npx vite build`)', () => {
+    const missing = missingFromProductionTree(lock, [...scanned.packages.keys()])
+    expect(missing, `required by dist-electron but not in the production dependency tree (add to package.json dependencies): ${missing.join(', ')}`).toEqual([])
   })
 })
