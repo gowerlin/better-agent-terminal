@@ -57,7 +57,7 @@ breakdown:
 
 | ID | 標題 | 嚴重度 | 關閉時間 | 連結 |
 |----|------|--------|---------|------|
-| BUG-175 | 縮圖預覽在輸出沒有換行時不更新、露出 `>0q>4m` 殘骸；T0714 `afe57761` 依游標換列分行 + 完整 CSI（`v0.7.2-pre.3`）；外部測試者A macOS 實機確認正常（GitHub #22 回報者未回覆） | 🟡 Medium | 2026-11-01 | [BUG-175](BUG-175-thumbnail-preview-stuck-without-newline.md) |
+| BUG-175 | 縮圖預覽在輸出沒有換行時不更新、露出 `>0q>4m` 殘骸；T0714 `afe57761` 依游標換列分行 + 完整 CSI（`v0.7.2-pre.3`）；外部測試者A macOS 實機確認正常（GitHub #22 已關閉） | 🟡 Medium | 2026-11-01 | [BUG-175](BUG-175-thumbnail-preview-stuck-without-newline.md) |
 | BUG-180 | 剛開的終端分頁被切走時 PTY 被 resize 成 9x5；T0741 `canFitTerminalContainer`（`4500984d`）；使用者 `v0.7.2-pre.9` 安裝版實機驗收通過 | 🟢 Low | 2026-11-01 | [BUG-180](BUG-180-new-tab-switched-away-pty-resized-9x5.md) |
 | BUG-181 | Claude 面板 Cache History 把 CLI 的 session 累計 `modelUsage` / `total_cost_usd` 當單一回合；T0744 `0d42ebdc` 依 model 相減、resume 首列 `R*`；T0746 真實模型複驗 PASS（`9e37c226`） | 🟡 Medium | 2026-11-01 | [BUG-181](BUG-181-cache-history-sums-cumulative-model-usage.md) |
 | BUG-156 | Docker 設定精靈容器埠固定 `127.0.0.1:9876`，與 BAT RemoteServer 預設埠衝突（T0649 `99abe9a1`） | 🟡 medium | 2026-11-01 | [BUG-156](BUG-156-docker-wizard-port-9876-conflicts-bat-server.md) |

@@ -1,7 +1,7 @@
 ---
 schema_kind: tower-state
 summary_version: 1
-updated_at: "2026-11-01T21:40:07+0800"
+updated_at: "2026-11-01T21:42:45+0800"
 session: "2026-11-01 21:36 第一百零四 session 開工（CT v6.0.0-beta.10，Fast Path）"
 next_ids:
   workorder: "T0750"
@@ -11,7 +11,7 @@ next_ids:
 todo:
   - "BUG-182 實機驗收（`v0.7.3-pre.1`；遠端 bat-server 須以精靈升到 0.7.3-pre.1）"
   - "工作區 ⚠️ 剩餘手動項（`v0.7.2-pre.8` 起）：視窗沒有焦點時等待結束、滑鼠回答後清除"
-  - "外部 / 特定環境驗收：BUG-128 / 130（macOS）、BUG-159（一般權限 ＋ codex）；GitHub #22 是否留言關閉（BUG-175 已 CLOSED）"
+  - "外部 / 特定環境驗收：BUG-128 / 130（macOS）、BUG-159（一般權限 ＋ codex）"
   - "候選（T0747）：auto mode classifier 詢問路徑的 hook / ⚠️（需先定義安全動作與費用上限）"
   - "候選（T0748）：⚠️ 的 SSH / Docker 遠端、正式 bundle 安裝的 bat-server、真正網路中斷、遠端 Worker 分頁與 `?`"
   - "候選：D201 detached 視窗 ⚠️；Claude 面板等待權限 ⚠️；npm 安裝的 codex 不注入 `--no-daemon`（T0742）；背景 Agent 不在 active task bar（T0739）；`CLAUDE_CODE_PLUGIN_CACHE_DIR`（T0730）；PLAN-055"
@@ -19,7 +19,7 @@ todo:
 ---
 # Tower State — better-agent-terminal
 
-> 🟢 **第一百零四 session 開工**（2026-11-01 21:36 (UTC+8)，CT v6.0.0-beta.10，Fast Path；塔台 session `3f9b428a-2c04-4a70-8751-68733dd7b1cc`；`--set-role tower --mode on` exit 0；安裝版 helper `v0.7.3-pre.1`；HEAD `68532d71` = 上次收工 commit、工作區乾淨，`*sync` 沿用收工時索引；熱檔皆在 400 KB 預算內）。21:37 T0360 / T0649 / T0672 / T0691 `FIXED` → `DONE`（對應 BUG 皆已 CLOSED，R-G003，`6ed32a57`）。BUG-182 實機驗收步驟已給使用者（遠端 WSL bat-server 仍 `0.6.1-pre.5`，待精靈升級）。21:40 **BUG-175 CLOSED**（外部測試者A 回報 macOS 實機正常，使用者轉達）→ 熱區 Fixed 4 / Closed 42；GitHub #22 回報者未回覆。
+> 🟢 **第一百零四 session 開工**（2026-11-01 21:36 (UTC+8)，CT v6.0.0-beta.10，Fast Path；塔台 session `3f9b428a-2c04-4a70-8751-68733dd7b1cc`；`--set-role tower --mode on` exit 0；安裝版 helper `v0.7.3-pre.1`；HEAD `68532d71` = 上次收工 commit、工作區乾淨，`*sync` 沿用收工時索引；熱檔皆在 400 KB 預算內）。21:37 T0360 / T0649 / T0672 / T0691 `FIXED` → `DONE`（對應 BUG 皆已 CLOSED，R-G003，`6ed32a57`）。BUG-182 實機驗收步驟已給使用者（遠端 WSL bat-server 仍 `0.6.1-pre.5`，待精靈升級）。21:40 **BUG-175 CLOSED**（外部測試者A 回報 macOS 實機正常，使用者轉達）→ 熱區 Fixed 4 / Closed 42；21:42 使用者選 A → GitHub #22 留言說明並以 `completed` 關閉。
 
 > 最後更新:2026-11-01 21:30 (UTC+8) — **第一百零三 session 收工**（CT v6.0.0-beta.10）：T0736–T0749（D204）→ **`v0.7.2-pre.9`**（BUG-180 / 181）、**`v0.7.3-pre.1`**（BUG-182）；NSIS 重裝驗收 PASS；27 張 BUG 依 R-G003 結案。前次：第一百零二 session 收工（2026-11-01 17:08）。
 >
@@ -96,7 +96,7 @@ eport.md`（real，20:18:03–20:18:31，PS 7.6.9 系統管理員）：⓪ PASS�
 ### 待辦（依優先序）
 1. 🔴 **BUG-182 實機驗收**（`v0.7.3-pre.1`）：遠端 bat-server 也要以精靈升到 0.7.3-pre.1；遠端分頁等待時重啟 server，重連後 ⚠️ 變淡化或消失、總數正確
 2. 🔴 **工作區 ⚠️ 剩餘手動項**（`v0.7.2-pre.8` 起）：視窗沒有焦點時等待結束（`bat-hook.mjs` 計時模擬，三情境步驟見第一百零三 session 對話）、滑鼠回答後清除
-3. 🟡 **外部 / 特定環境驗收**：BUG-128 / 130（macOS）、BUG-159（一般權限 ＋ codex）；GitHub #22 是否留言關閉（BUG-175 已 CLOSED）
+3. 🟡 **外部 / 特定環境驗收**：BUG-128 / 130（macOS）、BUG-159（一般權限 ＋ codex）
 4. 🟢 **後續候選**：auto mode classifier 詢問路徑的 hook / ⚠️（T0747）；⚠️ 的 SSH / Docker 遠端、正式 bundle 安裝的 server、真正網路中斷（T0748）；detached 視窗 ⚠️（D201）；Claude 面板等待權限 ⚠️；npm 安裝的 codex 不注入 `--no-daemon`（T0742）；背景 Agent 不在 active task bar（T0739）；`CLAUDE_CODE_PLUGIN_CACHE_DIR`（T0730）；PLAN-055
 
 ### ⚠️ 鐵則
