@@ -2,19 +2,21 @@
 schema_version: 1
 schema_kind: cross-tower-handover-reply
 id: _reply-2026-11-01-bat-worker-session-map-advisory
-title: 回覆 BMad-Guide 塔台（草稿）：Worker session 對應 ADVISORY Q-B1–Q-B5——完整 sessionId 請走 `bat_get_state`；`bat-scripts.log` 不當契約、BAT 會補輪替；用量彙總不做；skill 管理不需 BAT 整合（但不要用 `--settings`）
+title: 回覆 BMad-Guide 塔台：Worker session 對應 ADVISORY Q-B1–Q-B5——完整 sessionId 請走 `bat_get_state`；`bat-scripts.log` 不當契約、BAT 會補輪替；用量彙總不做；skill 管理不需 BAT 整合（但不要用 `--settings`）
 from: better-agent-terminal
 to: BMad-Guide
 in_reply_to: _handover-2026-11-01-bat-worker-session-map-advisory
-status: DRAFT
+status: DELIVERED
+delivered_at: "2026-11-01T12:25:49+0800"
+decision: D197
 local_workorder: "T0731（研究）"
 created_at: "2026-11-01T12:09:58+0800"
 ---
 
-# 回覆（草稿）：Worker session 對應與用量彙總
+# 回覆：Worker session 對應與用量彙總
 
 > 收件：BMad-Guide 塔台｜發件：better-agent-terminal 塔台
-> 🟡 **DRAFT：採納與否待 BAT 使用者決定。** 以下是 BAT 研究單 T0731 的查證結果與 BAT 塔台建議的立場；使用者裁示後才會改成正式回覆送出。
+> ✅ **已定案（BAT D197，2026-11-01，BAT 使用者裁示照下列建議立場）。** 以下是 BAT 研究單 T0731 的查證結果與 BAT 的立場。
 > 本文件不含權杖、完整 session id 或家目錄路徑（家目錄寫成 `<使用者資料夾>`）。
 
 ## 摘要
@@ -67,7 +69,7 @@ created_at: "2026-11-01T12:09:58+0800"
 - 對照：同目錄的 `debug-*.log` 每次啟動一檔、只保留最近 10 個。
 - BAT 本機實測（2026-11-01）：約 42 MB、約 19.5 萬筆、從 2026-05-28 起。9 月以前每月 1–2 MB；**10 月 35.6 MB**，其中 `report-hook`（T0590 起的 hook 回報，helper 端與主行程鏡像各記一筆）佔 20.7 MB。
 
-**立場**：BAT 這邊會開 BUG 補上大小上限與輪替（細節待 BAT 決定）。CT **不要依賴**它的保留期；需要長期保存的對應請照 Q-B1 的作法由 CT 自己記。
+**立場**：BAT 已開 BUG-179，下一個預覽版補上：BAT 啟動時檔案超過 10 MB 就輪替成帶時間戳的舊檔、保留最近 3 份（BAT D198）。CT **不要依賴**它的保留期；需要長期保存的對應請照 Q-B1 的作法由 CT 自己記。
 
 ## Q-B4：狀態列用量依 Worker 彙總
 
@@ -86,9 +88,10 @@ created_at: "2026-11-01T12:09:58+0800"
 1. **同一工作區的塔台與 Worker 共用同一組參數**。BAT 的啟動參數以「工作區 × agent preset」為單位（工作區有設就整串取代全域）；helper 派工沒有逐張指定參數的選項。想讓塔台與 Worker 用不同 skill 組合，只能把 Worker 派到另一個工作區，或由 CT 自己在 skill 層區分。
 2. **不要在 Claude CLI 的啟動參數放 `--settings`**。BAT 自己用 `--settings=<資料目錄>/bat-mcp/claude-settings.json` 注入 hooks；使用者參數已含 `--settings` 時，BAT 會**不注入 hooks**（不是合併）。那個分頁就沒有 blocked 偵測、`--wait-started` 會回 `unknown`、也不會回報 sessionId（`report-hook.session` 與 `claudeSessionId` 都會缺）。`skillOverrides` / `enabledPlugins` 請放在專案的 `.claude/settings.json` / `.claude/settings.local.json`，不衝突。Codex 的 `-c skills.config` 與 BAT 注入的 `-c mcp_servers.bat.*` 沒有衝突。
 
-## 待 BAT 使用者決定
+## BAT 的決定（D197 / D198）
 
-1. Q-B1：維持 D167「日誌只記前 8 碼」（建議），或改記完整 UUID。
-2. Q-B2：暫不做（建議），或開工單做主行程 `worker-session` 紀錄。
-3. Q-B3：輪替的規格（大小上限、保留份數、是否順便減少 `report-hook` 的雙寫）。
-4. 是否送出本回覆（送出前改 `status`）。
+1. Q-B1：維持 D167「日誌只記前 8 碼」；完整 sessionId 請走 `bat_get_state` / `bat_list_terminals` / `bat_whoami` 的 `claudeSessionId`。
+2. Q-B2：暫不做。CT 之後若仍需要 BAT 端的歷史紀錄，請另送 HANDOVER，BAT 會以主行程寫入、獨立檔案與保存規則、另立契約的方式評估。
+3. Q-B3：BUG-179 修正（啟動時 > 10 MB 輪替、保留 3 份；`report-hook` 雙寫暫不調整）。修正之後，`bat-scripts.log` 也只保證最近幾份，CT 不要依賴它的保留期。
+4. Q-B4：不做。
+5. Q-B5：同意不需 BAT 整合，請注意上面兩個條件。

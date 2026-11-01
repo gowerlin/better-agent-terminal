@@ -1465,6 +1465,20 @@
 - **切分**：W2a 設計語言 + 元件 + 首頁（T0630）→ 預覽通過後 W2b（`/control-tower`、功能、FAQ、回報頁）→ W2c 遠端開發；W3 / W4 不變。
 - **相關**：PLAN-049 / D159 / D160 / T0624 / T0630
 
+### D198 2026-11-01 — BUG-179 `bat-scripts.log` 輪替規格（塔台依使用者授權訂定）＋查 Claude 面板 turn 後多出的請求（研究單）
+
+- **背景**：T0731 查證 `bat-scripts.log` 無上限成長（本機 41.6 MB，10 月 35.6 MB，T0590 起 `report-hook` helper 與主行程雙寫）→ BUG-179。T0729 觀察到 Claude 面板每個 turn 結束後 CLI 在同一對話多送一個請求（疑 prompt suggestion），真實帳號會耗 token。
+- **決定**（使用者 2026-11-01 選「現在修、規格由塔台訂」與「開研究單」）：
+  - BUG-179：主行程（含 headless bat-server）啟動時，`bat-scripts.log` > **10 MB** 就改名為帶時間戳的舊檔，保留最近 **3** 份；改名失敗（Windows `EBUSY` / `EPERM`）靜默略過、下次啟動再試；helper 寫入規則不變；`report-hook` 雙寫**不調整**（風險較低）。排在 T0730 之後（避免同時 build），併入下一個預覽版。
+  - 多出的請求：只查不改的研究單（假 API、不 build，可並行），確認請求性質與是否有選項可關閉。
+- **相關**：BUG-179 / T0731 / T0729 / T0192 / T0193 / T0590
+
+### D197 2026-11-01 — BMad-Guide ADVISORY（Worker session 對應與用量彙總）照 T0731 建議回覆
+
+- **背景**：BMad-Guide 塔台 2026-11-01 送 ADVISORY（不主張必改）Q-B1–Q-B5；T0731 研究（`d519902c`）逐題查證。
+- **決定**（使用者選「照建議送出」）：Q-B1 不採納（維持 D167 日誌只記前 8 碼，完整 id 走 `claudeSessionId` 契約）；Q-B2 暫不採納；Q-B3 開 BUG-179 修輪替，CT 不依賴保留期；Q-B4 不採納；Q-B5 同意不需 BAT 整合，附「不分角色」「不要用 `--settings`」兩個條件。回覆 `_reply-2026-11-01-bat-worker-session-map-advisory.md` 改 DELIVERED 並通知 BMad-Guide · Tower。
+- **相關**：T0731 / D167 / T0642 / BUG-179 / D198
+
 ### D196 2026-11-01 — 安裝檔大小：Windows exe 關閉 NSIS 差分打包（T0726）＋放寬 D146 上限為每平台 ≤ 384 MiB、可攜 zip ≤ 512 MiB
 
 - **背景**：T0720 研究（`ca68ec81`）：pre.5 增量 23–31 MiB 幾乎全來自上游內嵌 binary（claude CLI 2.1.306 → 2.1.316 佔 64–69%、codex 0.163 → 0.166 佔 30–38%），執行期必需、不能拿掉；SDK 平台子套件、重複 claude、其他平台子套件都不在安裝檔。electron-builder 預設 `nsis.differentialPackage` 讓 NSIS 內層 7z 固定 1 MiB 字典、非 solid（為 electron-updater 差分更新），BAT 不用 electron-updater；實測重壓可讓 exe 333 → ≈ 293 MiB。AppImage / dmg / zip 沒有壓縮空間；唯一可拿掉的 codex code mode / voice 元件會砍功能、行為未驗證。

@@ -3,7 +3,7 @@ schema_version: 1
 schema_kind: index
 id: _bug-tracker
 index_kind: bugs
-generated_at: "2026-11-01T12:12:33+0800"
+generated_at: "2026-11-01T12:25:49+0800"
 generator: control-tower-sync
 source_globs:
   - _ct-workorders/BUG-*.md
@@ -23,21 +23,21 @@ breakdown:
 # Bug Tracker
 
 > ⚠️ 此文件由 `*sync` 自動生成，請勿手動編輯。
-> 最後同步：2026-11-01 12:12 (UTC+8) — 第一百零二 session：BUG-169 / 174 / 176 CLOSED、BUG-177 FIXED（T0729 `ceb24910`）、BUG-178 FIXING（T0730）、BUG-179 OPEN；熱區 Open 1 / Fixing 1 / Fixed 27 / Closed 14
+> 最後同步：2026-11-01 12:12 (UTC+8) — 第一百零二 session：BUG-169 / 174 / 176 CLOSED、BUG-177 FIXED（T0729 `ceb24910`）、BUG-178 FIXING（T0730）、BUG-179 FIXING（T0732）；熱區 Open 0 / Fixing 2 / Fixed 27 / Closed 14
 
 ## 統計
-- 🔴 Open: 1 | ⏳ Fixing: 1 | ✅ Fixed: 27 | 🧪 Verify: 0 | 🚫 Closed: 14 | ⛔ Won't Fix: 0 | **Total: 43**
+- 🔴 Open: 0 | ⏳ Fixing: 2 | ✅ Fixed: 27 | 🧪 Verify: 0 | 🚫 Closed: 14 | ⛔ Won't Fix: 0 | **Total: 43**
 
 ## 🔴 Open / 處理中
 
 | ID | 標題 | 嚴重度 | 建立時間 | 連結 |
 |----|------|--------|---------|------|
-| BUG-179 | `bat-scripts.log` 無上限成長，helper 與主行程只 append 不輪替（T0731 發現；輪替規格待使用者決定） | 🟢 Low | 2026-11-01 | [BUG-179](BUG-179-bat-scripts-log-unbounded-growth.md) |
 
 ## ⏳ 修復中 (FIXING)
 
 | ID | 標題 | 嚴重度 | 修復時間 | 連結 |
 |----|------|--------|---------|------|
+| BUG-179 | `bat-scripts.log` 無上限成長，helper 與主行程只 append 不輪替（T0731 發現；T0732 修正中，D198 規格） | 🟢 Low | 2026-11-01 | [BUG-179](BUG-179-bat-scripts-log-unbounded-growth.md) |
 | BUG-178 | Claude 面板讀 session 歷史 / plugins 不理 `CLAUDE_CONFIG_DIR`（T0727 發現；T0730 修正中，排在 T0729 之後） | 🟢 Low | 2026-11-01 | [BUG-178](BUG-178-claude-history-ignores-claude-config-dir.md) |
 
 ## ✅ 已修復

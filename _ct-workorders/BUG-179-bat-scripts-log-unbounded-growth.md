@@ -3,17 +3,17 @@ schema_version: 1
 schema_kind: bug
 id: BUG-179
 title: "`bat-scripts.log` 無上限成長：helper 與主行程都只 append、從不輪替（本機 41.6 MB，10 月單月 35.6 MB）"
-status: OPEN
+status: FIXING
 severity: low
 reproducibility: always
 created_at: "2026-11-01T12:12:33+0800"
-updated_at: "2026-11-01T12:12:33+0800"
+updated_at: "2026-11-01T12:25:49+0800"
 impact:
   - logging
   - helper-scripts
 links:
   discovered_in: "T0731 回報區〈發現的問題〉1（2026-11-01，BMad-Guide ADVISORY Q-B3 查證）"
-  related: [T0731, T0192, T0193, T0590]
+  related: [T0732, D198, T0731, T0192, T0193, T0590]
 ---
 
 # BUG-179 — `bat-scripts.log` 無上限成長
@@ -22,7 +22,7 @@ links:
 |------|------|
 | 嚴重度 | 🟢 low（磁碟用量、附日誌困難、讀檔診斷變慢；不影響功能） |
 | 可重現 | 一定 |
-| **狀態** | 📂 OPEN（輪替規格待使用者決定：門檻大小、保留份數、是否減少 `report-hook` 雙寫） |
+| **狀態** | 🔧 FIXING：T0732（D198 規格：啟動時 > 10 MB 輪替、保留 3 份；排在 T0730 之後） |
 | 回報者 | T0731 Worker |
 
 ## 現象
