@@ -39,9 +39,13 @@
  * (`pickTerminalAttention`). The D203 wait memory follows that event, so a panel wait that ends
  * unseen leaves a faded ⚠️ like a PTY tab's. A panel that unmounts (tab closed, workspace detached
  * to its own window) forgets its wait without a faded ⚠️ (`forgetPanelWaiting`). Memory only.
+ *
+ * T0774 (BUG-193, D216): the click that gives an unfocused window the focus back focuses it before it
+ * switches tabs; the tab active at the regain is not counted as looked at until that click is handled
+ * (`createFocusRegainGate`, wired by App).
  */
 import { useSyncExternalStore } from 'react'
-import { combinePanelWaitingReasons, isEmptyAttention, isEmptyDetachedWaitingReport, isViewedTerminal, nextWaitMemory, panelAttentionEvent, pickTerminalAttention, type AttentionHookReason, type DetachedWaitingReport, type MissedWait, type TerminalAttentionEvent, type TerminalAttentionSnapshotEntry, type WaitMemory } from '../lib/terminal-attention'
+import { combinePanelWaitingReasons, FOCUS_REGAIN_CLICK_SETTLE_MS, FOCUS_REGAIN_MAX_HOLD_MS, FOCUS_REGAIN_POINTER_GRACE_MS, isEmptyAttention, isEmptyDetachedWaitingReport, isViewedTerminal, nextWaitMemory, panelAttentionEvent, pickTerminalAttention, type AttentionHookReason, type DetachedWaitingReport, type MissedWait, type TerminalAttentionEvent, type TerminalAttentionSnapshotEntry, type WaitMemory } from '../lib/terminal-attention'
 
 type Listener = () => void
 
@@ -59,6 +63,8 @@ const waitStarts = new Map<string, number>()
 const missedWaits = new Map<string, MissedWait>()
 /** T0735: the active tab and whether the window has focus (App). */
 let viewing: { activeTerminalId: string | null; windowFocused: boolean } = { activeTerminalId: null, windowFocused: false }
+/** T0774 (BUG-193): the tab a focus regain holds (its miss is not cleared yet); null = none. */
+let regainHeld: string | null = null
 /** T0761: workspace id → the report its detached window sent (non-empty only). */
 const detachedWaiting = new Map<string, DetachedWaitingReport>()
 /** Bumped on every change (`useTerminalAttentionVersion`: lists that count over many tabs). */
@@ -278,10 +284,89 @@ export function getMissedWait(id: string): MissedWait | null {
 
 /**
  * T0735 (D203 ③): the window's active tab and focus changed. The tab now looked at loses its miss.
+ * T0774 (BUG-193, D216): except the tab held by a focus regain (`createFocusRegainGate`) until the
+ * gate releases it.
  */
 export function setViewingState(activeTerminalId: string | null, windowFocused: boolean): void {
   viewing = { activeTerminalId, windowFocused }
-  if (activeTerminalId && windowFocused && missedWaits.delete(activeTerminalId)) notify()
+  if (activeTerminalId && windowFocused && activeTerminalId !== regainHeld && missedWaits.delete(activeTerminalId)) notify()
+}
+
+/** T0774: the window's focus events and the timers (App passes `window` / `document`). */
+export interface FocusRegainGateDeps {
+  hasFocus(): boolean
+  setTimeout(fn: () => void, ms: number): unknown
+  clearTimeout(handle: unknown): void
+  log?(message: string): void
+}
+
+export interface FocusRegainGate {
+  /** The window's `focus` event — call before applying the viewing state. */
+  focus(): void
+  blur(): void
+  pointerDown(): void
+  /** `pointerup` or `pointercancel`. */
+  pointerUp(): void
+  dispose(): void
+}
+
+/**
+ * T0774 (BUG-193, D216): when the window gets the focus back, the tab active then keeps its faded ⚠️
+ * until it is clear whether the click that gave the focus switches to another tab (rules and the
+ * measured event order: `FOCUS_REGAIN_*`, src/lib/terminal-attention.ts). Then the viewing state is
+ * applied again: still that tab and focused → cleared (D203); another tab → it stays faded.
+ */
+export function createFocusRegainGate(deps: FocusRegainGateDeps): FocusRegainGate {
+  let focused = deps.hasFocus()
+  let pressed = false
+  let phase: 'idle' | 'grace' | 'pressed' | 'settle' = 'idle'
+  let timer: unknown = null
+  const stopTimer = () => {
+    if (timer !== null) deps.clearTimeout(timer)
+    timer = null
+  }
+  const wait = (ms: number, next: typeof phase) => {
+    stopTimer()
+    phase = next
+    timer = deps.setTimeout(release, ms)
+  }
+  function release(): void {
+    timer = null
+    phase = 'idle'
+    const held = regainHeld
+    regainHeld = null
+    if (held === null) return
+    setViewingState(viewing.activeTerminalId, viewing.windowFocused)
+    deps.log?.(`[workspace-waiting] focus regain: held=${held} active=${viewing.activeTerminalId ?? '-'} focused=${viewing.windowFocused} → ${viewing.windowFocused && viewing.activeTerminalId === held ? 'looked at' : 'kept'}`)
+  }
+  return {
+    focus() {
+      if (focused) return // a repeated focus event: nothing was regained
+      focused = true
+      regainHeld = viewing.activeTerminalId
+      if (pressed) wait(FOCUS_REGAIN_MAX_HOLD_MS, 'pressed')
+      else wait(FOCUS_REGAIN_POINTER_GRACE_MS, 'grace')
+    },
+    blur() {
+      focused = false
+      stopTimer()
+      phase = 'idle'
+      regainHeld = null
+    },
+    pointerDown() {
+      pressed = true
+      if (phase === 'grace' || phase === 'settle') wait(FOCUS_REGAIN_MAX_HOLD_MS, 'pressed')
+    },
+    pointerUp() {
+      pressed = false
+      if (phase === 'pressed') wait(FOCUS_REGAIN_CLICK_SETTLE_MS, 'settle')
+    },
+    dispose() {
+      stopTimer()
+      phase = 'idle'
+      regainHeld = null
+    },
+  }
 }
 
 /** T0735 (D203 ③): tabs no longer in this window's list are forgotten (closed → no faded ⚠️). */
@@ -356,6 +441,7 @@ export function resetTerminalAttention(): void {
   panelOwners.clear() // T0762
   panelWaits.clear()
   viewing = { activeTerminalId: null, windowFocused: false }
+  regainHeld = null // T0774
   if (attention.size === 0) return
   attention.clear()
   notify()

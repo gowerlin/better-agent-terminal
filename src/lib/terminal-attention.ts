@@ -382,6 +382,26 @@ export function nextWaitMemory(
   return { startedAt: null, missed: { reason: was.reason, startedAt: memory.startedAt } }
 }
 
+/**
+ * T0774 (BUG-193, D216): a click on an unfocused window gives it the focus first and switches tabs only
+ * on its `click`. T0774 measured (Electron 41.2.1 / Chromium 146, Windows; Playwright CDP click and a real
+ * OS click through user32 SendInput): `window.focus` → `pointerdown` about 1.6 ms later → (the button
+ * held) → `pointerup` / `mouseup` / `click` → the active tab changes. So when the window gets the focus
+ * back, the tab active at that moment is not counted as looked at yet (its faded ⚠️ stays):
+ *   - no `pointerdown` within `FOCUS_REGAIN_POINTER_GRACE_MS` (Alt+Tab, `focus()`) → judged then (D203)
+ *   - a `pointerdown` → judged `FOCUS_REGAIN_CLICK_SETTLE_MS` after its `pointerup` / `pointercancel`
+ *     (the click and what it switches to — some handlers switch a tick later — are handled by then)
+ *   - a button held longer than `FOCUS_REGAIN_MAX_HOLD_MS` (a drag that never ends) → judged then
+ * Waits that end meanwhile count the window as focused (no faded ⚠️ flashes up and goes); only the
+ * clearing of the held tab's older faded ⚠️ waits. Gate: `createFocusRegainGate` (terminal-attention-store).
+ */
+/** 60× the measured focus → pointerdown gap; also the delay before an Alt+Tab clears the held tab. */
+export const FOCUS_REGAIN_POINTER_GRACE_MS = 100
+/** After the regain click's pointerup: covers its click handler and a tab switch deferred by a tick. */
+export const FOCUS_REGAIN_CLICK_SETTLE_MS = 50
+/** A press that never ends (pointer lost): stop holding after this long. */
+export const FOCUS_REGAIN_MAX_HOLD_MS = 10_000
+
 /** T0735 (D203 ③): the tab the user looks at — the active tab while the window has focus. */
 export function isViewedTerminal(id: string, activeTerminalId: string | null | undefined, windowFocused: boolean): boolean {
   return windowFocused && !!activeTerminalId && activeTerminalId === id

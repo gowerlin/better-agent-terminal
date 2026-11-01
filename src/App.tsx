@@ -7,7 +7,7 @@ import { ownsTerminalForCloseRequest, workspaceStore } from './stores/workspace-
 import { settingsStore } from './stores/settings-store'
 import { markNotified, markWorkspaceNotified, clearWorkspaceNotification } from './stores/terminal-notifications'
 import { clearUsageLimitStatus, runUsageLimitContinue, setUsageLimitStatus } from './stores/usage-limit-store'
-import { clearTerminalAttention, createReconnectAttentionReconciler, retainTerminals, setDetachedWaiting, setTerminalAttention, setViewingState } from './stores/terminal-attention-store'
+import { clearTerminalAttention, createFocusRegainGate, createReconnectAttentionReconciler, retainTerminals, setDetachedWaiting, setTerminalAttention, setViewingState } from './stores/terminal-attention-store'
 import { sanitizeDetachedWaitingReport, workerNotifyKind } from './lib/terminal-attention'
 import { profileOpenNotice } from './lib/profile-window-front'
 import { Sidebar } from './components/Sidebar'
@@ -842,20 +842,39 @@ export default function App() {
 
   // T0735 (D203 ③): the tab the user looks at = this window's active tab while the window has
   // focus (a wait that ends then leaves no faded ⚠️; a faded one clears); closed tabs are forgotten.
+  // T0774 (BUG-193, D216): the click that gives the window the focus back may switch tabs — the gate
+  // keeps the tab active at the regain faded until that click is handled.
   useEffect(() => {
     const update = () => {
       const current = workspaceStore.getState()
       setViewingState(current.focusedTerminalId, document.hasFocus())
       retainTerminals(current.terminals.map(t => t.id))
     }
+    const gate = createFocusRegainGate({
+      hasFocus: () => document.hasFocus(),
+      setTimeout: (fn, ms) => window.setTimeout(fn, ms),
+      clearTimeout: (handle) => window.clearTimeout(handle as number),
+      log: (message) => window.electronAPI.debug.log(message),
+    })
     update()
     const unsubStore = workspaceStore.subscribe(update)
-    window.addEventListener('focus', update)
-    window.addEventListener('blur', update)
+    const onFocus = () => { gate.focus(); update() }
+    const onBlur = () => { gate.blur(); update() }
+    const onPointerDown = () => gate.pointerDown()
+    const onPointerUp = () => gate.pointerUp()
+    window.addEventListener('focus', onFocus)
+    window.addEventListener('blur', onBlur)
+    window.addEventListener('pointerdown', onPointerDown, true)
+    window.addEventListener('pointerup', onPointerUp, true)
+    window.addEventListener('pointercancel', onPointerUp, true)
     return () => {
       unsubStore()
-      window.removeEventListener('focus', update)
-      window.removeEventListener('blur', update)
+      gate.dispose()
+      window.removeEventListener('focus', onFocus)
+      window.removeEventListener('blur', onBlur)
+      window.removeEventListener('pointerdown', onPointerDown, true)
+      window.removeEventListener('pointerup', onPointerUp, true)
+      window.removeEventListener('pointercancel', onPointerUp, true)
     }
   }, [])
 

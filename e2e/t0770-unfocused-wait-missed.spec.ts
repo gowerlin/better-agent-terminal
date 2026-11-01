@@ -20,6 +20,8 @@
 //   C. another tab selected while unfocused (DOM click), the window gets the focus back → still faded;
 //      the waiting tab selected → cleared
 //   D. the tab active throughout: ends unfocused → faded; the window focused again → cleared (D203 ③)
+//   E. (T0774 / BUG-193) ends unfocused → faded; a Playwright mouse click on the other tab's thumbnail
+//      gives the focus back and switches → still faded; the waiting tab selected → cleared
 // Without OS focus at the start (Playwright cannot always take it) A / C are logged and skipped (PARTIAL).
 
 import { test, expect, type ElectronApplication, type Page } from '@playwright/test'
@@ -233,7 +235,8 @@ test('a wait that ends while the window has no focus leaves a faded ⚠️ on th
     // ── C. another tab selected while unfocused, the focus back → still faded; the tab selected → cleared ──
     // The other tab is selected by a DOM click (the thumbnail's onClick) so the window stays unfocused: a
     // Playwright mouse click gives the page the focus first, while the waiting tab is still the active
-    // one — which counts as looked at (D203) and clears the mark before the switch (first T0770 run).
+    // one (first T0770 run: that cleared the mark before the switch — BUG-193, fixed by T0774; the mouse
+    // click case is E).
     if (method) {
       await thumbOther.evaluate(el => (el as HTMLElement).click())
       await expect(thumbOther).toHaveClass(/\bactive\b/, { timeout: 10_000 })
@@ -280,6 +283,35 @@ test('a wait that ends while the window has no focus leaves a faded ⚠️ on th
       results.D = 'PASS — the waiting tab active throughout: ended unfocused → faded; the window focused again (no click) → cleared'
     } else {
       results.D = 'SKIPPED — depends on B / C'
+    }
+
+    // ── E (T0774 / BUG-193). The tab active, ends unfocused → faded; a Playwright MOUSE click on the other
+    // tab's thumbnail gives the window the focus back (focus first, then pointerdown / click — T0774 probe)
+    // → the waiting tab stays faded; selecting it → cleared ──
+    if (results.D.startsWith('PASS')) {
+      await ask()
+      const methodE = await blurMain(app, win)
+      log(`E. blur method: ${methodE ?? 'none worked'}; ${JSON.stringify(await focusState(app, win))}`)
+      expect(methodE).not.toBeNull()
+      await done()
+      await expect(thumbWait.locator('.attention-badge.missed')).toHaveCount(1, { timeout: 15_000 })
+      await expect(thumbWait).toHaveClass(/\bactive\b/)
+      await thumbOther.click() // Playwright mouse (CDP Input.dispatchMouseEvent), the focus-sink still open
+      await expect(thumbOther).toHaveClass(/\bactive\b/, { timeout: 10_000 })
+      const afterClick = await focusState(app, win)
+      log(`E. after the mouse click on the other tab: ${JSON.stringify(afterClick)}`)
+      expect(afterClick.hasFocus).toBe(true) // the click gave the window the focus back
+      await win.waitForTimeout(1_500) // past every focus-regain timer except the 10 s max hold (no press is held)
+      await expect(thumbWait.locator('.attention-badge.missed')).toHaveCount(1)
+      await expect(rowBadge).toHaveAttribute('data-waiting', 'missed')
+      await thumbWait.click()
+      await expect(thumbWait).toHaveClass(/\bactive\b/, { timeout: 10_000 })
+      await expect(thumbWait.locator('.attention-badge')).toHaveCount(0, { timeout: 15_000 })
+      await expect(rowBadge).toHaveCount(0, { timeout: 15_000 })
+      await closeSink(app)
+      results.E = `PASS — ended unfocused → faded; mouse click on the other tab regained the focus (${JSON.stringify(afterClick)}) → still faded; the waiting tab selected → cleared`
+    } else {
+      results.E = 'SKIPPED — depends on D'
     }
     log(`T0770 ③ results: ${JSON.stringify(results, null, 2)}`)
   } finally {
