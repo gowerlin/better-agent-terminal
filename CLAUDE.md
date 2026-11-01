@@ -212,6 +212,7 @@
 - We track Agent/Task tools from `tool_use` blocks directly in `session.activeTasks` (in `claude-agent-manager.ts`).
 - `stopTask()` falls back to using `toolUseId` as `task_id` when no mapping exists.
 - Tool results for Agent/Task must clean up `activeTasks` entries.
+- `TaskCreate` / `TaskUpdate` / `TaskGet` / `TaskList` 是工作清單工具，**不是** sub-agent（不進 `activeTasks`、不用 `flushSync`）；Claude 面板的 SDK spawn env 以 `claudeTodoToolsEnv`（`sdkSpawnEnv`，`electron/claude-agent-manager.ts`）開啟 `CLAUDE_CODE_ENABLE_TODO_TOOLS=1`（T0725 / D195，已設此變數或 `CLAUDE_CODE_ENABLE_TASKS` 時不加），清單重播唯一實作 `src/lib/claude-task-list.ts`；見 [docs](docs/agent-guide/claude-agent-sdk-cli.md)「Claude 面板工作清單」。
 
 ## React Rendering
 

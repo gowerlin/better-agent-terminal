@@ -143,13 +143,26 @@ export function attachLongPromptUsage(
 }
 
 
+// T0725 / D195: the CLI only gives Claude 5 models the task tools (`TaskCreate` / `TaskUpdate` /
+// `TaskGet` / `TaskList`) when `CLAUDE_CODE_ENABLE_TODO_TOOLS` is true (4.x models get them by
+// default). The Claude panel turns them on for both runtimes. A value already in the environment for
+// `CLAUDE_CODE_ENABLE_TODO_TOOLS` or `CLAUDE_CODE_ENABLE_TASKS` (any value, even empty) is the
+// user's choice: nothing is added, so e.g. `CLAUDE_CODE_ENABLE_TASKS=false` (→ `TodoWrite`) keeps
+// the CLI's own model rules. Claude panel (SDK) only: terminal tabs, helper dispatch and codex do
+// not use this.
+export function claudeTodoToolsEnv(env: NodeJS.ProcessEnv = process.env): Record<string, string> {
+  if (env.CLAUDE_CODE_ENABLE_TODO_TOOLS !== undefined || env.CLAUDE_CODE_ENABLE_TASKS !== undefined) return {}
+  return { CLAUDE_CODE_ENABLE_TODO_TOOLS: '1' }
+}
+
 // BUG-084 / T0372: `DISABLE_UPDATES=1` only for the embedded binary (including system → embedded
 // fallback); a system claude keeps the default env so the user can still `claude update` it.
+// T0725: plus `claudeTodoToolsEnv` for both runtimes.
 // The SDK's `options.env` replaces `process.env` rather than merging, so the inherited env is spread
 // in — read at call time, after ELECTRON_RUN_AS_NODE may have been set for the spawn.
-function sdkSpawnEnv(runtime: ResolvedRuntime): { env?: Record<string, string | undefined> } {
-  const guard = claudeUpdateGuardEnv(runtime.source)
-  return Object.keys(guard).length > 0 ? { env: { ...process.env, ...guard } } : {}
+export function sdkSpawnEnv(runtime: Pick<ResolvedRuntime, 'source'>): { env?: Record<string, string | undefined> } {
+  const extra = { ...claudeUpdateGuardEnv(runtime.source), ...claudeTodoToolsEnv(process.env) }
+  return Object.keys(extra).length > 0 ? { env: { ...process.env, ...extra } } : {}
 }
 
 // Lazy import the SDK (it's an ES module)

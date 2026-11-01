@@ -9,7 +9,7 @@
  *   - get-cli-path / detectRuntime / auth-status / get-supported-models answer
  *     without a login; auth-status reports a logged-out CLI as `{ loggedIn: false }` (T0402)
  *   - spawn env: embedded (incl. system → embedded fallback) carries
- *     DISABLE_UPDATES=1, a system claude does not
+ *     DISABLE_UPDATES=1, a system claude does not (both get CLAUDE_CODE_ENABLE_TODO_TOOLS=1, T0725)
  *   - runtime-degraded / runtime-warning reach the remote client (PROXIED_EVENTS)
  *   - codex channels stay unregistered; a codex preset is rejected clearly
  *   - message archive channels are not on headless (ALWAYS_LOCAL_CHANNELS)
@@ -180,7 +180,11 @@ describe('headless claude spawn env (DISABLE_UPDATES only for embedded)', () => 
     writeRuntimeSettings({ mode: 'system', fallbackToEmbedded: true })
     const { env, executable } = await probeEnv()
     expect(executable).toBe(FAKE_SYSTEM_CLAUDE)
-    expect(env).toBeUndefined() // SDK inherits process.env untouched
+    // T0725: a system claude now gets the inherited env plus the todo-tools flag, still no DISABLE_UPDATES.
+    expect(env?.DISABLE_UPDATES).toBeUndefined()
+    if (process.env.CLAUDE_CODE_ENABLE_TODO_TOOLS === undefined && process.env.CLAUDE_CODE_ENABLE_TASKS === undefined) {
+      expect(env?.CLAUDE_CODE_ENABLE_TODO_TOOLS).toBe('1')
+    }
   })
 
   it('system unavailable → embedded fallback carries DISABLE_UPDATES=1', async () => {

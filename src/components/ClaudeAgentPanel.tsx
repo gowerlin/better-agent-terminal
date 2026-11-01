@@ -15,6 +15,7 @@ import { VoicePreviewPopover } from './voice/VoicePreviewPopover'
 import { extractInterruptedContinuation } from '../utils/interrupted-prompt'
 import { renderChatMarkdown, openChatMarkdownLink } from '../utils/chat-markdown'
 import { classifyClaudeError } from '../lib/claude-error-classify'
+import { EMPTY_TASK_LIST, isTaskListToolName, replayTaskList, taskListProgress, type ClaudeTaskList } from '../lib/claude-task-list'
 import { remoteUnsupportedMessage } from '../lib/remote-unsupported'
 import { buildSnippetContextPrompt, type SnippetForContext } from '../lib/snippet-context'
 import { droppedImageKey, pastedDiskFiles, readFileAsDataUrl } from '../lib/image-attachment'
@@ -246,6 +247,9 @@ export function ClaudeAgentPanel({ sessionId, cwd, isActive, workspaceId, isRemo
   const filePickerInputRef = useRef<HTMLInputElement>(null)
   // Message archiving — keep renderer memory bounded
   const [loadedArchive, setLoadedArchive] = useState<MessageItem[]>([])
+  // T0725: task list (TaskCreate / TaskUpdate / TaskList) replayed from messages that were archived
+  // out of `messages`, so archiving does not lose tasks. Reset together with the archive.
+  const [taskListBase, setTaskListBase] = useState<ClaudeTaskList>(EMPTY_TASK_LIST)
   const [hasMoreArchived, setHasMoreArchived] = useState(false)
   const [isLoadingMore, setIsLoadingMore] = useState(false)
   const [cliCommandWarning, setCliCommandWarning] = useState<string | null>(null)
@@ -413,6 +417,20 @@ export function ClaudeAgentPanel({ sessionId, cwd, isActive, workspaceId, isRemo
 
   // Combine archived + live messages for rendering and scanning
   const allMessages = useMemo(() => [...loadedArchive, ...messages], [loadedArchive, messages])
+
+  // T0725: task list replayed from the live timeline on top of the archived part. Task* are list
+  // tools, not sub-agents: no activeTasks, no flushSync (CLAUDE.md "Sub-agent / Active Tasks Tracking").
+  // The checklist is drawn on the last Task* card of each run of consecutive Task* calls.
+  const taskListView = useMemo(() => {
+    const { snapshots } = replayTaskList(messages, taskListBase)
+    const checklistAt = new Set<string>()
+    messages.forEach((m, i) => {
+      if (!isToolCall(m) || !isTaskListToolName(m.toolName)) return
+      const next = messages[i + 1]
+      if (!next || !isToolCall(next) || !isTaskListToolName(next.toolName)) checklistAt.add(m.id)
+    })
+    return { snapshots, checklistAt }
+  }, [messages, taskListBase])
   const messageCountRef = useRef(0)
   const currentTurnMsgIdRef = useRef<string | null>(null)
   messageCountRef.current = allMessages.length
@@ -502,6 +520,7 @@ export function ClaudeAgentPanel({ sessionId, cwd, isActive, workspaceId, isRemo
     const toArchive = messages.slice(0, excess)
     window.electronAPI.claude.archiveMessages(sessionId, toArchive).then(() => {
       archivedCountRef.current += excess
+      setTaskListBase(prev => replayTaskList(toArchive, prev).list)
       setHasMoreArchived(true)
       setMessages(prev => prev.slice(excess))
       archivingRef.current = false
@@ -585,6 +604,7 @@ export function ClaudeAgentPanel({ sessionId, cwd, isActive, workspaceId, isRemo
             setMessages([message])
             // Clear archive on fresh session start
             setLoadedArchive([])
+            setTaskListBase(EMPTY_TASK_LIST)
             archivedCountRef.current = 0
             loadedFromArchiveRef.current = 0
             setHasMoreArchived(false)
@@ -897,6 +917,7 @@ export function ClaudeAgentPanel({ sessionId, cwd, isActive, workspaceId, isRemo
         subagentMessagesRef.current = subagentBuckets
         const historyItems = mainItems
         setLoadedArchive([])
+        setTaskListBase(EMPTY_TASK_LIST)
         archivedCountRef.current = 0
         loadedFromArchiveRef.current = 0
         setHasMoreArchived(false)
@@ -1200,6 +1221,7 @@ export function ClaudeAgentPanel({ sessionId, cwd, isActive, workspaceId, isRemo
     // Clear UI immediately so user sees the switch
     setMessages([])
     setLoadedArchive([])
+    setTaskListBase(EMPTY_TASK_LIST)
     archivedCountRef.current = 0
     loadedFromArchiveRef.current = 0
     setHasMoreArchived(false)
@@ -2268,6 +2290,41 @@ export function ClaudeAgentPanel({ sessionId, cwd, isActive, workspaceId, isRemo
     )
   }
 
+  // T0725: same look as the TodoWrite checklist (`claude-todo-*` classes).
+  const renderTaskChecklist = (list: ClaudeTaskList) => (
+    <div className="claude-todo-checklist">
+      {list.items.map(task => (
+        <div key={task.key} className={`claude-todo-item claude-todo-${task.status}`} title={task.activeForm || undefined}>
+          <span className="claude-todo-check">
+            {task.status === 'completed' ? '☑' : task.status === 'in_progress' ? '▶' : '☐'}
+          </span>
+          <span className="claude-todo-text">{task.subject}</span>
+        </div>
+      ))}
+    </div>
+  )
+
+  const taskStatusLabel = (status: unknown): string => {
+    switch (status) {
+      case 'pending': return t('claude.taskStatusPending')
+      case 'in_progress': return t('claude.taskStatusInProgress')
+      case 'completed': return t('claude.taskStatusCompleted')
+      case 'deleted': return t('claude.taskStatusDeleted')
+      default: return typeof status === 'string' ? status : ''
+    }
+  }
+
+  const taskCallSummary = (item: ClaudeToolCall): string => {
+    const input = item.input || {}
+    if (item.toolName === 'TaskCreate') return input.subject ? t('claude.taskCreated', { subject: String(input.subject) }) : ''
+    if (item.toolName === 'TaskUpdate') {
+      const id = input.taskId !== undefined ? `#${String(input.taskId)}` : ''
+      if (input.status !== undefined) return t('claude.taskUpdated', { id, status: taskStatusLabel(input.status) })
+      return input.subject ? `${id} ${String(input.subject)}`.trim() : id
+    }
+    return t('claude.taskListSynced')
+  }
+
   const formatTimestamp = (ts: number): string => {
     const d = new Date(ts)
     const now = new Date()
@@ -2323,6 +2380,42 @@ export function ClaudeAgentPanel({ sessionId, cwd, isActive, workspaceId, isRemo
 
       const dotClass = item.denied ? 'dot-denied' : item.isDeferred ? 'dot-deferred' : item.status === 'running' ? 'dot-running' : item.status === 'completed' ? 'dot-success' : 'dot-error'
       const desc = toolDescription(item.input)
+
+      // T0725: TaskCreate / TaskUpdate / TaskList — what this call did, plus the accumulated
+      // checklist on the last card of a run of Task* calls (cards loaded back from the archive or
+      // shown in sub-agent views have no snapshot and show the summary line only).
+      if (isTaskListToolName(item.toolName)) {
+        const snapshot = taskListView.checklistAt.has(item.id) ? taskListView.snapshots.get(item.id) : undefined
+        const progress = snapshot ? taskListProgress(snapshot) : null
+        return (
+          <div key={item.id || index} className="tl-item" data-tool-id={item.id}>
+            <div className={`tl-dot ${dotClass}`} />
+            <div className="tl-content">
+              <div className="claude-tool-header" onClick={() => toggleTool(item.id)}>
+                <span className="claude-tool-name">{t('claude.taskList')}</span>
+                <span className="claude-tool-desc">{taskCallSummary(item)}</span>
+                {progress && progress.total > 0 && <span className="claude-tool-desc">{t('claude.taskListProgress', { completed: progress.completed, total: progress.total })}</span>}
+                {item.timestamp > 0 && <span className="claude-tool-time" title={formatFullTimestamp(item.timestamp)}>{formatTimestamp(item.timestamp)}</span>}
+              </div>
+              {snapshot && (snapshot.items.length > 0 ? renderTaskChecklist(snapshot) : <div className="claude-todo-checklist"><div className="claude-todo-item claude-todo-pending"><span className="claude-todo-text">{t('claude.taskListEmpty')}</span></div></div>)}
+              {expandedTools.has(item.id) && (
+                <div className="claude-tool-body">
+                  <div className="claude-tool-input">
+                    <div className="claude-tool-label">{t('claude.fullInput')}</div>
+                    <pre>{JSON.stringify(item.input, null, 2)}</pre>
+                  </div>
+                  {item.result && (
+                    <div className="claude-tool-input">
+                      <div className="claude-tool-label">{t('claude.out')}</div>
+                      <pre>{item.result}</pre>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+        )
+      }
 
       // ExitPlanMode / EnterPlanMode: show plan content in readable view
       if (item.toolName === 'ExitPlanMode' || item.toolName === 'EnterPlanMode') {
