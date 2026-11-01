@@ -3,12 +3,13 @@ schema_version: 1
 schema_kind: bug
 id: BUG-189
 title: "Windows 上 PATH 第一個 codex 是 npm shim（`codex.cmd`）時版本探測回 `version-unknown`：手動 codex 分頁不加 `--no-daemon`、派工的 codex 不啟用 OSC 狀態"
-status: FIXED
+status: CLOSED
 severity: low
 reproducibility: always
 created_at: "2026-11-02T02:23:44+0800"
-updated_at: "2026-11-02T02:42:32+0800"
+updated_at: "2026-11-02T05:26:29+0800"
 fixed_at: "2026-11-02T02:42:32+0800"
+closed_at: "2026-11-02T05:26:29+0800"
 fix_commit: ddfb4f38
 impact:
   - codex-launch
@@ -23,7 +24,7 @@ links:
 |------|------|
 | 嚴重度 | 🟢 low（npm 全域安裝 codex 的使用者，BUG-159 的修正不生效、Worker 啟動確認回 `unknown`） |
 | 可重現 | 必現（PATH 上 `codex.cmd` 排在 `codex.exe` 之前，或只有 npm 安裝） |
-| **狀態** | ✅ FIXED（T0758 `ddfb4f38`，待實機驗收） |
+| **狀態** | 🚫 CLOSED（T0758 `ddfb4f38`；交付版 `v0.7.3-pre.4` 安裝版自動化實測 T0772 PASS，真的 npm codex） |
 | 回報者 | T0742 Worker |
 
 ## 現象
@@ -38,3 +39,12 @@ links:
 - Windows 上 PATH 第一個 codex 是 npm shim（`codex.cmd` / `.ps1` / `.bat`）時，讀 shim（不執行）追到 `@openai/codex/bin/codex.js`，再照 codex.js 的找法找到平台套件的原生 `codex.exe`，以 `execFile`（不經 shell、5 s）探測版本；手動分頁 `--no-daemon` 與派工 OSC 共用同一個 reader（`resolveNpmCodexShim`，`electron/codex-osc-version.ts`）。追不到維持 `version-unknown`；macOS / Linux 不變。
 - 驗證：單元 14 項＋突變；t0742 新增 npm shim 情境（突變重現 BUG-189 原樣）；t0584 斷言改由同一探測計算（兩種 PATH 皆綠）；typecheck 0 / 0、`test:unit` 6542 passed / 366 files、`vite build`（匯出目錄）。
 - 待實機驗收：以 `npm i -g @openai/codex` 安裝 codex 的 Windows 環境，關 BAT MCP 開 Codex CLI 分頁 → 命令列有 `--no-daemon`。
+
+## 驗收（2026-11-02T05:26:29+0800，第一百零四 session）
+
+- 依據（R-G003）：交付版 `v0.7.3-pre.4` 安裝版（`BAT_E2E_EXECUTABLE`，隔離實例）自動化實測 T0772 情境 ①（`366b96b0` / 回報 `04d57a8f`，D215）。真的 npm 安裝 `@openai/codex@0.166.0`（暫存 prefix，不動使用者環境）在 PATH 最前面：
+  - BAT MCP 關 → `[codex-version] … version=0.166.0 (probed) via=…codex.cmd`，`injected: --no-daemon`，執行中的 `codex.exe` 命令列含 `--no-daemon`。
+  - BAT MCP 開 → 只注入 `mcp_servers.bat.*`、不加 `--no-daemon`。
+  - helper 派 codex Worker → 派工探測同樣追到原生 `codex.exe`，`blockedDetection: osc`（修正前為 `none`）；codex 未登入停在登入選單，`--wait-started` 回 `unconfirmed` exit 8，符合 T0621 契約。
+- `t0742-codex-no-daemon` 在安裝版 2 / 2 綠。
+- 未涵蓋：登入狀態下的 npm codex Worker（`started: <ISO>`）。

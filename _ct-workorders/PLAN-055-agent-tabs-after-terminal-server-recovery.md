@@ -3,7 +3,9 @@ schema_version: 1
 schema_kind: plan
 id: PLAN-055
 title: "Terminal Server recovery 後 agent 分頁不再無聲變成 shell：列出被中斷的 agent 分頁，claude 分頁保留 session id 並提供 `--resume`"
-status: IN_PROGRESS
+status: DONE
+updated_at: "2026-11-02T05:26:29+0800"
+completed_at: "2026-11-02T05:26:29+0800"
 priority: medium
 created_at: "2026-10-25T21:16:40+0800"
 links:
@@ -36,3 +38,10 @@ Terminal Server 真的死掉時，`handleServerDeath` 只重建 shell、不重�
 
 - 使用者全採 T0765 建議（P-1–P-8：不自動、Worker 不附 prompt、不通知塔台、codex 用 `codex resume` 選單、清單只到 BAT 關閉、「重新開始」路徑不做、不加 SessionEnd hook、拆兩張）。
 - 實作：B1 → T0766（快照、列表、分頁標示、claude 一鍵 `--resume`）、B2 → T0767（codex 恢復）；排進本批，與 `0.7.3-pre.4` 一起發。
+
+## 完成（2026-11-02T05:26:29+0800，第一百零四 session）
+
+- 實作：B1 T0766（`cb263cc1`）、B2 T0767（`5d104926`），隨 `v0.7.3-pre.4` 交付。
+- 驗收（R-G003）：交付版 `v0.7.3-pre.4` 安裝版自動化實測 T0773（`bb376b41` / 回報 `02679359`，D215）：隔離實例只結束自己的 Terminal Server → toast 中斷數 2、對話框列 claude 與 codex（不列 shell）、⏸ ×2、不自動恢復；真的 claude 以 `--resume=<同一個 id>`（`=` 形式、無 `--fork-session`、BAT 參數仍在）接回對話並答出 42（Haiku 5.5，3 回合 US$0.0197）；真的 codex 0.166.0 接受 `… resume`（命令列 = 第一次 + ` resume`，無 id、無 `--last`），未登入時先顯示登入畫面。t0766 / t0767 ×2 / t0704 安裝版全綠。
+- 衍生：recovery 後自動開啟的對話框第一次按 Esc 關不掉（焦點仍在 xterm）→ BUG-194。
+- 未涵蓋：已登入 codex 時的 resume 選單畫面本身。

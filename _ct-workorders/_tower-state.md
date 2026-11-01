@@ -1,12 +1,12 @@
 ---
 schema_kind: tower-state
 summary_version: 1
-updated_at: "2026-11-02T05:24:41+0800"
+updated_at: "2026-11-02T05:26:29+0800"
 session: "2026-11-02 04:56 第一百零四 session 塔台重啟（三）（CT v6.0.0-beta.10，Fast Path）"
 next_ids:
   workorder: "T0776"
   decision: "D217"
-  bug: "BUG-194"
+  bug: "BUG-195"
   plan: "PLAN-059"
 todo:
   - "`v0.7.3-pre.4` 自動化驗收 T0770–T0773 進行中（D215，安裝版、隔離實例、真實模型上限 US$1.00）：BUG-188 滑鼠拒絕權限、BUG-189 npm codex、BUG-190 / 192 背景子代理、BUG-191 plugin cache dir、PLAN-055 中斷分頁恢復、detached / Claude 面板 ⚠️"
@@ -102,7 +102,7 @@ eport.md`（real，20:18:03–20:18:31，PS 7.6.9 系統管理員）：⓪ PASS�
 - 歷史 sessions → [_archive/state-snapshots/INDEX.md](_archive/state-snapshots/INDEX.md)（119 entries）
 
 ### 編號起始
-- **T0776** / **BUG-194** / **PLAN-059** / **D217** / **EXP-WFMINE-002**（其他 TOPIC 從 001） / **L178** / **CT-T023**
+- **T0776** / **BUG-195** / **PLAN-059** / **D217** / **EXP-WFMINE-002**（其他 TOPIC 從 001） / **L178** / **CT-T023**
 
 ---
 
