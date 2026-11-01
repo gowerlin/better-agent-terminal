@@ -48,7 +48,8 @@
 - 驗證：
   - 單元：`src/lib/__tests__/cache-history.test.ts`「T0744」（T0739 實測數字：7 個 R 列合計 US$0.1432，舊算法約 0.337；換模型、重置、resume、重送、Clear、舊列、`longPrompt`、面板 source guard）；`electron/__tests__/claude-cache-history-last-call.test.ts` 的 harness 改以累計格式送 result（T0498 的 before 數字以 `perQuery` 保留）。
   - e2e：`e2e/t0744-cache-history-cumulative.spec.ts`（假 API 每回合回報已知 token，由內嵌 CLI 自己累計；新 session 3 回合 → 3 個 `turn` 的 R 列、real $ 合計 = session cost；重開後 resume → `R*`）。
-  - 真實模型複驗（耗少量 token，需使用者同意）：`BAT_E2E_REAL_MODEL=1 npx playwright test e2e/v072-real-model-claude-panel.spec.ts`，再開 Cache History 看 R 列與合計。
+  - 真實模型複驗（耗少量 token，需使用者同意）：`BAT_E2E_REAL_MODEL=1 npx playwright test e2e/v072-real-model-claude-panel.spec.ts`。T0746 起 spec 在兩次啟動結束前各讀一次 Cache History（DOM），逐列比對 `[Claude result]` 日誌的累計值（依 model 相減、resume 第一列 `R*`、real $ 合計 = 最後的 `total_cost_usd`），不符只在最後斷言；`BAT_E2E_RUN_TAG=t####` 指定工作區 / session 資料夾名稱。
+  - 2026-11-01 T0746 複驗（v0.7.2-pre.9 原始碼 build、CLI 2.1.316、Haiku 5.5 + 1 回合 Haiku 4.5，8 個模型回合、US$0.148）：PASS。第一次啟動 7 個 R 列逐列 = 累計差值（換到 4.5 那列的 4.5 子列從 0 起算），real $ 合計 $0.1366 vs `total_cost_usd` 0.136555；resume 後唯一一列為 `R*`、= 累計 0.148042，合計 $0.1480。
 
 ## Claude 面板工作清單（T0725 / D195）
 
@@ -64,7 +65,7 @@
 - **不做**：不加 pinned「工作清單」區塊（與 `TodoWrite` 一致，最新清單就在最後一張 Task\* 卡片；長 session 捲走後要往下看）；sub-agent 自己呼叫的 Task\* 不併入主清單（它們在 sub-agent bucket，不在主時間軸）。
 - 驗證：`src/lib/__tests__/claude-task-list.test.ts`（重播）、`electron/__tests__/claude-todo-tools-env.test.ts`（env 注入與尊重既有值）、`src/__tests__/claude-panel-task-list.test.tsx`（歷史 / 即時事件畫清單、不進 active task bar、`TodoWrite` 不變）、`electron/__tests__/claude-sdk03-task-tools.test.ts`（Task\* 不進 `activeTasks`）。CLI 改結果文字格式時同步改 `claude-task-list.ts` 與測試。
 - e2e（T0727，不耗 token）：`e2e/v072-pre6-claude-panel.spec.ts` 以本機假 Anthropic Messages API（`e2e/fixtures/fake-anthropic-api.ts`，`ANTHROPIC_BASE_URL`）驅動真的內嵌 CLI，涵蓋 Claude 5 / 4.x 首個請求提供 Task\*（CLI 2.1.316 放在 ToolSearch 的 deferred 清單，不在 `tools`）、工作清單逐回合變化、重開後 resume 重建、串流、權限詢問、sub-agent、`claude-code-v2` 分頁遷移、claude-cli 分頁 env；隔離方式（暫存 USERPROFILE、工作區放 `%ProgramData%`、阻擋並記錄對外連線的 proxy）見 spec 檔頭。升 SDK / CLI 時跑一次（需先 `npx vite build`）。
-- 真實模型驗收（T0739，🔴 會耗 token）：`e2e/v072-real-model-claude-panel.spec.ts`，預設 skip，`BAT_E2E_REAL_MODEL=1` 才跑；沿用使用者自己的 claude 登入，只用 `claude-haiku-5-5`（另 1 回合 `claude-haiku-4-5` 對照），≤ 12 回合、session 費用超過 US$1 就停。2026-11-01 結果（CLI 2.1.316）：Haiku 5.5 經 ToolSearch 主動用 TaskCreate / TaskUpdate、清單正確更新，4.5 直接用 Task\*（兩者都沒用 `TodoWrite`）；搜尋走 `Grep`；背景 `Agent` 卡片有「背景」標籤、完成後 dot-success，但執行中不進 active task bar；resume 後歷史重建、可接續。注意：CLI 2.1.316 的 `total_cost_usd` / `modelUsage` 是 session 累計值（含 prompt suggestion 等額外請求、resume 後延續），不是單一回合。
+- 真實模型驗收（T0739，🔴 會耗 token）：`e2e/v072-real-model-claude-panel.spec.ts`，預設 skip，`BAT_E2E_REAL_MODEL=1` 才跑；沿用使用者自己的 claude 登入，只用 `claude-haiku-5-5`（另 1 回合 `claude-haiku-4-5` 對照），≤ 12 回合、session 費用超過 US$0.5 就停（T0746 前為 US$1）。2026-11-01 結果（CLI 2.1.316）：Haiku 5.5 經 ToolSearch 主動用 TaskCreate / TaskUpdate、清單正確更新，4.5 直接用 Task\*（兩者都沒用 `TodoWrite`）；搜尋走 `Grep`；背景 `Agent` 卡片有「背景」標籤、完成後 dot-success，但執行中不進 active task bar；resume 後歷史重建、可接續。注意：CLI 2.1.316 的 `total_cost_usd` / `modelUsage` 是 session 累計值（含 prompt suggestion 等額外請求、resume 後延續），不是單一回合。
 
 ## Claude 設定目錄（BUG-178 / T0730）
 

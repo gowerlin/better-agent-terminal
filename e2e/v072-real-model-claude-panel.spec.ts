@@ -5,7 +5,15 @@
 //   BAT_E2E_REAL_MODEL=1 npx playwright test e2e/v072-real-model-claude-panel.spec.ts
 // Models: claude-haiku-5-5 for every turn, one claude-haiku-4-5 turn (⑥, the 4.x control). Never Opus /
 // Fable / Sonnet. Budget: ≤ 12 model turns, and the run stops before the next turn once the session's
-// `total_cost_usd` (a running total in CLI 2.1.316, side requests included) passes US$1 (MAX_COST_USD).
+// `total_cost_usd` (a running total in CLI 2.1.316, side requests included) passes US$0.5 (MAX_COST_USD;
+// US$1 until T0746).
+//
+// T0746 (BUG-181 re-check): before closing each launch the spec opens the tab's Cache History and compares
+// every R row with the CLI's running totals from the `[Claude result]` log lines (row = this result − the
+// previous one, per model; the first row after the resume is `R*` = the running total itself; real $
+// total = the last `total_cost_usd`). Mismatches are collected and asserted at the end, so a mismatch
+// in launch 1 does not skip the resume. BAT_E2E_RUN_TAG=t#### names the workspace / session folders
+// (default t0739).
 //
 // Isolation: the source build (`npx vite build` first) in its own runtime (fixtures/electron-isolation.ts:
 // own userData, own remote port, inherited BAT_* / CT_* dropped). The real HOME is kept (that is where the
@@ -42,8 +50,9 @@ const TAB = 'e2e-t0739-haiku'
 const MODEL = 'claude-haiku-5-5'
 const MODEL_4X = 'claude-haiku-4-5'
 const MAX_TURNS = 12
-const MAX_COST_USD = 1
+const MAX_COST_USD = 0.5
 const TURN_TIMEOUT_MS = 240_000
+const RUN_TAG = /^t\d{4}$/.test(process.env.BAT_E2E_RUN_TAG ?? '') ? process.env.BAT_E2E_RUN_TAG! : 't0739'
 const NEEDLE = 'T0739-NEEDLE-42'
 const INHERITED = /^(ANTHROPIC_|CLAUDE)/i
 const FORBIDDEN_MODEL = /opus|fable|sonnet/i
@@ -115,8 +124,125 @@ function resultLogLines(userData: string): string[] {
 
 function claudeProjectDirs(): string[] {
   const dir = path.join(os.homedir(), '.claude', 'projects')
-  return fs.existsSync(dir) ? fs.readdirSync(dir).filter(n => /bat-e2e-t0739/i.test(n)) : []
+  return fs.existsSync(dir) ? fs.readdirSync(dir).filter(n => n.toLowerCase().includes(`bat-e2e-${RUN_TAG}`)) : []
 }
+
+// ── T0746: Cache History vs the CLI running totals ──
+
+type UsageEntry = { inputTokens?: number; outputTokens?: number; cacheReadInputTokens?: number; cacheCreationInputTokens?: number; costUSD?: number }
+type UsageMap = Record<string, UsageEntry>
+const TOKEN_FIELDS = ['inputTokens', 'outputTokens', 'cacheReadInputTokens', 'cacheCreationInputTokens'] as const
+
+interface HistoryRow {
+  label: string; basis: string | null; pct: string; calls: string
+  turnRead: number; turnWrite: number; turnTotal: number; output: number; est: string; real: string
+  models: Array<{ model: string; cacheRead: number; cacheWrite: number; output: number; est: string }>
+}
+interface HistoryView { results: HistoryRow[]; calls: number; total: { est: string; real: string } }
+
+/** Opens the tab's Cache History from the status line, reads every row, screenshots it, closes it. */
+async function readCacheHistory(win: Page, shot: string): Promise<HistoryView> {
+  const panel = activePanel(win)
+  await panel.locator('.claude-statusline-item', { hasText: /^cache:/ }).click()
+  const modal = win.locator('.claude-plan-modal', { hasText: 'Cache Efficiency History' })
+  await expect(modal).toBeVisible({ timeout: 10_000 })
+  await modal.screenshot({ path: test.info().outputPath(shot) }).catch(() => undefined)
+  const view = await modal.evaluate((el) => {
+    const num = (s: string | null | undefined) => Number((s ?? '').replace(/[^0-9]/g, '') || '0')
+    const rows = [...el.querySelectorAll('.claude-cache-history-row')]
+    const results = rows.filter(r => r.getAttribute('data-row-kind') === 'result').map(r => {
+      const c = [...r.children].map(x => x.textContent ?? '')
+      const models = [...(r.parentElement?.children ?? [])].slice(1).map(s => {
+        const d = [...s.children].map(x => x.textContent ?? '')
+        return { model: d[3] ?? '', cacheRead: num(d[5]), cacheWrite: num(d[6]), output: num(d[8]), est: d[11] ?? '' }
+      })
+      return { label: c[0], basis: r.getAttribute('data-usage-basis'), pct: c[1], calls: c[2], turnRead: num(c[5]), turnWrite: num(c[6]), turnTotal: num(c[7]), output: num(c[8]), est: c[11], real: c[12], models }
+    })
+    const t = [...(el.querySelector('.claude-cache-history-total')?.children ?? [])].map(x => x.textContent ?? '')
+    return { results, calls: rows.length - results.length, total: { est: t[1] ?? '', real: t[2] ?? '' } }
+  })
+  await modal.getByRole('button', { name: /close|關閉/i }).last().click()
+  await expect(modal).toHaveCount(0)
+  return view
+}
+
+const sameUsage = (a: UsageMap, b: UsageMap): boolean => {
+  const keys = new Set([...Object.keys(a), ...Object.keys(b)])
+  for (const k of keys) {
+    for (const f of TOKEN_FIELDS) if ((a[k]?.[f] || 0) !== (b[k]?.[f] || 0)) return false
+    if (Math.abs((a[k]?.costUSD || 0) - (b[k]?.costUSD || 0)) > 1e-9) return false
+  }
+  return true
+}
+
+/** The rows the panel should show for these running totals: `previous === null` = the first one is R*. */
+function expectedRows(cums: UsageMap[], previous: UsageMap | null): Array<{ basis: string; models: UsageMap; cum: UsageMap }> {
+  const out: Array<{ basis: string; models: UsageMap; cum: UsageMap }> = []
+  let prev = previous
+  for (const cur of cums) {
+    if (prev && sameUsage(prev, cur)) continue
+    if (!prev) { out.push({ basis: 'includes-prior', models: cur, cum: cur }); prev = cur; continue }
+    const models: UsageMap = {}
+    let negative = false
+    for (const [m, u] of Object.entries(cur)) {
+      const p = prev[m] ?? {}
+      const d: UsageEntry = { costUSD: Math.max(0, (u.costUSD || 0) - (p.costUSD || 0)) }
+      for (const f of TOKEN_FIELDS) { d[f] = (u[f] || 0) - (p[f] || 0); if (d[f]! < 0) negative = true }
+      if (TOKEN_FIELDS.some(f => d[f]! > 0) || d.costUSD! > 1e-9) models[m] = d
+    }
+    out.push(negative ? { basis: 'reset', models: cur, cum: cur } : { basis: 'turn', models, cum: cur })
+    prev = cur
+  }
+  return out
+}
+
+const sumField = (u: UsageMap, f: keyof UsageEntry): number => Object.values(u).reduce((s, e) => s + (e[f] || 0), 0)
+const money = (s: string): number | null => { const m = /\$(\d+\.\d+)/.exec(s); return m ? Number(m[1]) : null }
+
+/** Compares the Cache History of one launch with its result log lines; returns the mismatches. */
+function compareCacheHistory(name: string, view: HistoryView, cums: UsageMap[], previous: UsageMap | null, lastTotalCost: number | null, logFn: (m: string) => void): string[] {
+  const bad: string[] = []
+  const exp = expectedRows(cums, previous)
+  logFn(`${name} Cache History: ${view.results.length} R row(s), ${view.calls} per-call row(s), total est ${view.total.est} real ${view.total.real}; result log lines ${cums.length} → expected R rows ${exp.length}; CLI total_cost_usd ${lastTotalCost}`)
+  if (view.results.length !== exp.length) bad.push(`${name}: ${view.results.length} R rows, expected ${exp.length}`)
+  logFn(`${name} | # | label | basis | models | in | c.read | c.write | out | real $ | expected (in / c.read / c.write / out / $) | cumulative c.read / $ | match`)
+  for (let i = 0; i < Math.max(view.results.length, exp.length); i++) {
+    const r = view.results[i]
+    const e = exp[i]
+    if (!r || !e) { logFn(`${name} | ${i + 1} | ${r ? `${r.label} only in the panel` : 'missing in the panel'}`); continue }
+    const eIn = sumField(e.models, 'inputTokens'), eRead = sumField(e.models, 'cacheReadInputTokens'), eWrite = sumField(e.models, 'cacheCreationInputTokens')
+    const eOut = sumField(e.models, 'outputTokens'), eCost = sumField(e.models, 'costUSD')
+    const cRead = sumField(e.cum, 'cacheReadInputTokens'), cCost = sumField(e.cum, 'costUSD')
+    const rIn = r.turnTotal - r.turnRead - r.turnWrite
+    const rCost = money(r.real)
+    const wantLabel = e.basis === 'includes-prior' ? 'R*' : 'R'
+    const issues: string[] = []
+    if (r.label !== wantLabel) issues.push(`label ${r.label} ≠ ${wantLabel}`)
+    if (r.basis !== e.basis) issues.push(`basis ${r.basis} ≠ ${e.basis}`)
+    if (rIn !== eIn) issues.push(`input ${rIn} ≠ ${eIn}`)
+    if (r.turnRead !== eRead) issues.push(`c.read ${r.turnRead} ≠ ${eRead}`)
+    if (r.turnWrite !== eWrite) issues.push(`c.write ${r.turnWrite} ≠ ${eWrite}`)
+    if (r.output !== eOut) issues.push(`output ${r.output} ≠ ${eOut}`)
+    if (rCost === null || Math.abs(rCost - eCost) > 0.00006) issues.push(`real ${r.real} ≠ ${eCost.toFixed(6)}`)
+    const panelModels = r.models.map(m => m.model).sort()
+    const wantModels = Object.keys(e.models).sort()
+    if (r.models.length > 0 && JSON.stringify(panelModels) !== JSON.stringify(wantModels)) issues.push(`models ${JSON.stringify(panelModels)} ≠ ${JSON.stringify(wantModels)}`)
+    // ②: a later row must not be the running total itself (only when the two differ)
+    if (e.basis === 'turn' && i > 0 && cRead !== eRead && r.turnRead === cRead) issues.push('row shows the running total')
+    for (const m of r.models) {
+      const em = e.models[m.model]
+      if (em && (m.cacheRead !== (em.cacheReadInputTokens || 0) || m.cacheWrite !== (em.cacheCreationInputTokens || 0) || m.output !== (em.outputTokens || 0))) issues.push(`${m.model} sub-row ${m.cacheRead}/${m.cacheWrite}/${m.output} ≠ ${em.cacheReadInputTokens}/${em.cacheCreationInputTokens}/${em.outputTokens}`)
+    }
+    logFn(`${name} | ${i + 1} | ${r.label} | ${r.basis} | ${(r.models.length ? r.models.map(m => m.model) : wantModels).join('+')} | ${rIn} | ${r.turnRead} | ${r.turnWrite} | ${r.output} | ${r.real} | ${eIn} / ${eRead} / ${eWrite} / ${eOut} / ${eCost.toFixed(6)} | ${cRead} / ${cCost.toFixed(6)} | ${issues.length ? issues.join('; ') : 'OK'}`)
+    for (const s of issues) bad.push(`${name} row ${i + 1}: ${s}`)
+  }
+  const total = money(view.total.real)
+  if (lastTotalCost !== null && (total === null || Math.abs(total - lastTotalCost) > 0.00011)) bad.push(`${name}: real $ total ${view.total.real} ≠ CLI total_cost_usd ${lastTotalCost.toFixed(6)}`)
+  logFn(`${name} real $ total ${view.total.real} vs CLI total_cost_usd ${lastTotalCost === null ? 'n/a' : lastTotalCost.toFixed(6)} (diff ${total === null || lastTotalCost === null ? 'n/a' : (total - lastTotalCost).toFixed(6)})`)
+  return bad
+}
+
+const logUsage = (line: string): UsageMap => (safeJson(/modelUsage=(.*)$/.exec(line)?.[1] ?? '') ?? {}) as UsageMap
 
 test.skip(process.env.BAT_E2E_REAL_MODEL !== '1', 'real-model acceptance spends tokens: set BAT_E2E_REAL_MODEL=1 to run')
 test.skip(process.platform !== 'win32', 'embedded claude.exe: Windows only')
@@ -132,7 +258,7 @@ test('Claude panel against the real model (Haiku 5.5, small budget): stream, per
   expect(FORBIDDEN_MODEL.test(MODEL) || FORBIDDEN_MODEL.test(MODEL_4X)).toBe(false)
   expect(claudeProjectDirs()).toEqual([])
 
-  const root = fs.mkdtempSync(path.join(process.env.ProgramData || 'C:\\ProgramData', 'bat-e2e-t0739-'))
+  const root = fs.mkdtempSync(path.join(process.env.ProgramData || 'C:\\ProgramData', `bat-e2e-${RUN_TAG}-`))
   const folder = path.join(root, 'ws')
   fs.mkdirSync(path.join(folder, 'docs', 'notes'), { recursive: true })
   fs.writeFileSync(path.join(folder, 'README.md'), '# T0739 workspace\n\nA scratch folder for the BAT real-model acceptance.\n')
@@ -144,6 +270,10 @@ test('Claude panel against the real model (Haiku 5.5, small budget): stream, per
   let win: Page
   let runtimeId = ''
   const logLines: string[] = []
+  const cacheMismatches: string[] = []
+  let launch1UserData = ''
+  let launch1LogCount = 0
+  const sessionTotalCost = async (): Promise<number | null> => ((await win.evaluate((sid) => (window as AnyApi).electronAPI.claude.getSessionMeta(sid), TAB)) as { totalCost?: number } | null)?.totalCost ?? null
 
   /** Sends one turn and waits for its turn end; records model, cost, usage and tools. */
   const turn = async (label: string, prompt: string, model: string, during?: (panel: Locator) => Promise<void>): Promise<TurnRecord | null> => {
@@ -203,6 +333,14 @@ test('Claude panel against the real model (Haiku 5.5, small budget): stream, per
       activeTerminalId: TAB,
     }
     expect(await win.evaluate(async (data) => (window as AnyApi).electronAPI.workspace.save(data), JSON.stringify(seed))).toBe(true)
+    // T0746: the status line's cache item opens Cache History (hidden by default); cost shows the session total
+    await win.evaluate(async () => {
+      const api = (window as AnyApi).electronAPI
+      const raw = await api.settings.load()
+      const s = raw ? JSON.parse(raw) : {}
+      s.statuslineItems = [{ id: 'cacheEff', visible: true, align: 'left' }, { id: 'cost', visible: true, align: 'left' }]
+      await api.settings.save(JSON.stringify(s))
+    })
     await win.reload()
     await win.waitForLoadState('domcontentloaded')
     await expect(activePanel(win)).toBeVisible({ timeout: 45_000 })
@@ -302,9 +440,16 @@ test('Claude panel against the real model (Haiku 5.5, small budget): stream, per
     const sdkSessionId = ((await win.evaluate((sid) => (window as AnyApi).electronAPI.claude.getSessionMeta(sid), TAB)) as { sdkSessionId?: string } | null)?.sdkSessionId ?? ''
     const rec1 = await recorder(win)
     log(`launch 1: prompt suggestions ${rec1.suggestions}; errors ${JSON.stringify(rec1.errors)}; sdkSessionId ${sdkSessionId.slice(0, 8)}…`)
-    logLines.push(...resultLogLines(inst.userData))
+    // T0746: launch 1 starts a new session → every R row is a difference, the first from 0
+    await win.waitForTimeout(3_000)
+    const hist1 = await readCacheHistory(win, 't0746-cache-history-launch1.png').catch((e: unknown) => { cacheMismatches.push(`launch 1: Cache History not readable: ${String(e).slice(0, 200)}`); return null })
+    const launch1Lines = resultLogLines(inst.userData)
+    if (hist1) cacheMismatches.push(...compareCacheHistory('launch 1', hist1, launch1Lines.map(logUsage), {}, await sessionTotalCost(), log))
+    launch1UserData = inst.userData
     await closeIsolated(inst, log, { keepUserData: true })
     inst = undefined
+    launch1LogCount = resultLogLines(launch1UserData).length
+    logLines.push(...resultLogLines(launch1UserData))
 
     // ════════ launch 2: same runtime → resume ════════
     inst = await withoutInheritedClaudeEnv(() => launchIsolated('t0739', log, { runtimeId }))
@@ -322,24 +467,32 @@ test('Claude panel against the real model (Haiku 5.5, small budget): stream, per
     results['⑦'] = `${continued ? 'PASS' : 'RECORDED'} — relaunch restored the tab (sdkSessionId ${savedId?.sdkSessionId === sdkSessionId ? 'same' : 'changed'}), history rebuilt (① text shown); the next turn ${continued ? 'answered "T0739 hello" (context carried over)' : 'did not quote "T0739 hello"'}; reason ${r7?.reason}`
     const rec2 = await recorder(win)
     log(`launch 2: prompt suggestions ${rec2.suggestions}; errors ${JSON.stringify(rec2.errors)}`)
-    logLines.push(...resultLogLines(inst.userData))
+    // T0746: after the resume the first R row is R* (the running total so far), later rows are differences
+    await win.waitForTimeout(3_000)
+    const hist2 = await readCacheHistory(win, 't0746-cache-history-launch2.png').catch((e: unknown) => { cacheMismatches.push(`launch 2: Cache History not readable: ${String(e).slice(0, 200)}`); return null })
+    const launch2Lines = resultLogLines(inst.userData).slice(launch1LogCount)
+    if (hist2) cacheMismatches.push(...compareCacheHistory('launch 2', hist2, launch2Lines.map(logUsage), null, await sessionTotalCost(), log))
+    logLines.push(...launch2Lines)
   } finally {
     if (inst) {
       if (!logLines.length) logLines.push(...resultLogLines(inst.userData))
+      else if (logLines.length === launch1LogCount) logLines.push(...resultLogLines(inst.userData).slice(launch1LogCount))
       await closeIsolated(inst, log)
     }
     if (stopped) log(`⛔ stopped: ${stopped}`)
     for (const [k, v] of Object.entries(results)) log(`${k} ${v}`)
     log(`turns: ${turns.length}; session cost (largest result total_cost_usd) US$${costSum.toFixed(4)}`)
+    log(`T0746 Cache History mismatches: ${cacheMismatches.length ? JSON.stringify(cacheMismatches) : 'none'}`)
     for (const [i, line] of logLines.entries()) log(`result log ${i + 1}: ${line}`)
     fs.rmSync(root, { recursive: true, force: true, maxRetries: 20, retryDelay: 200 })
     const sessions = claudeProjectDirs()
     for (const name of sessions) fs.rmSync(path.join(os.homedir(), '.claude', 'projects', name), { recursive: true, force: true, maxRetries: 10, retryDelay: 200 })
-    log(`removed ${sessions.length} ~/.claude/projects folder(s) matching bat-e2e-t0739; left: ${claudeProjectDirs().length}`)
+    log(`removed ${sessions.length} ~/.claude/projects folder(s) matching bat-e2e-${RUN_TAG}; left: ${claudeProjectDirs().length}`)
     log(`T0739 spec took ${Math.round((Date.now() - startedAt) / 1000)} s`)
   }
   expect(stopped).toBe('')
   expect(costSum).toBeLessThanOrEqual(MAX_COST_USD)
+  expect(cacheMismatches).toEqual([])
 })
 
 function safeJson(s: string): Record<string, unknown> | null {
