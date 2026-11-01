@@ -24,7 +24,7 @@
 
 <div align="center">
 
-**工作區與分頁** — 每個專案一個工作區；塔台分頁派出的 Worker，縮圖會標出 ✓ 已回報、? 在等塔台答覆、⚠️ 在等你；任何分頁在等你時，工作區列表那一列也會出現 ⚠️，切到別的工作區也不會漏掉
+**工作區與分頁** — 每個專案一個工作區；塔台分頁派出的 Worker，縮圖會標出 ✓ 已回報、? 在等塔台答覆、⚠️ 在等你；任何分頁（含 Claude Agent 面板）在等你時，工作區列表那一列也會出現 ⚠️，切到別的工作區、或工作區已分離成獨立視窗也不會漏掉
 <img src="assets/screenshot-overview.png" alt="BAT 主視窗：左側三個工作區，demo-shop 開著塔台分頁，縮圖列有三個 Worker 分頁，分別標著 ✓、?、⚠️" width="800">
 
 **Worker 問塔台** — 規格沒寫清楚的事，Worker 先問塔台，拿到答覆再繼續
@@ -181,7 +181,8 @@ BAT 與 CT 分工明確：**BAT 提供終端機、分頁與權限這些基礎設
 | 一批多題只叫醒塔台一次（前幾題 `--ask --no-pty-write`、最後一題 `--submit`） | 行為自 `>= 0.7.0-pre.7`；列為正式契約、守門測試：`>= 0.7.2-pre.4` | `>= v5.15.0`（舊 CT 照舊每題叫醒一次） |
 | Claude 分頁的 session 名稱、`claudeSessionName` / `claudeSessionId`、`scope: towers`、以塔台開啟 Claude | `>= 0.7.1-pre.1` | 名稱不需要 CT 配合；依這些欄位找塔台：`>= v5.9.0`（舊 CT 照舊） |
 | Worker 縮圖 ⚠️ / `?` / `✓` / `↻` | `>= 0.7.0-pre.7`（提問答覆後恢復「執行中」：`>= 0.7.0-pre.8`；Codex 分頁 ⚠️：`>= 0.7.0-pre.9`；回報後又在執行 `↻`：`>= 0.7.1-pre.6`） | 不需要 |
-| 「等待你回應」⚠️ 擴及所有 agent 分頁（含塔台），並顯示在工作區列表、「工作區」頁籤標題與收合側欄；錯過的提示改灰色保留到看過 | `>= 0.7.2-pre.8`（遠端 bat-server 重啟後依伺服器現況更正：`>= 0.7.3-pre.1`，遠端 server 也要升級） | 不需要（只用既有的 hook / OSC 等待狀態） |
+| 「等待你回應」⚠️ 擴及所有 agent 分頁（含塔台），並顯示在工作區列表、「工作區」頁籤標題與收合側欄；錯過的提示改灰色保留到看過 | `>= 0.7.2-pre.8`（遠端 bat-server 重啟後依伺服器現況更正：`>= 0.7.3-pre.1`，遠端 server 也要升級；用滑鼠回答也清除、已分離視窗的工作區與 Claude Agent 面板也提示：`>= 0.7.3-pre.4`） | 不需要（只用既有的 hook / OSC 等待狀態） |
+| Terminal Server 意外重啟後列出被中斷的 agent 分頁（含塔台派工的 Worker），claude 分頁一鍵 `--resume`、codex 分頁開 `codex resume` 選單 | `>= 0.7.3-pre.4` | 不需要（恢復後 Worker 不會自動繼續；塔台可用 `bat_get_state` 的 `agentStarted` 判斷） |
 | 重派同一張工單前回收舊 Worker 分頁（避免回收時 `AMBIGUOUS`） | `>= 0.6.1-pre.4`（沿用 `--close-worker`） | `>= v5.12.0`（舊 CT 重派後舊分頁要手動關） |
 | 指揮塔總覽：塔台狀態、設定生效值與來源、沒有 `sprint-status.yaml` 也能用 | `>= 0.7.1-pre.7` | 不需要；下一個編號與待辦需 CT 寫入 `_tower-state.md` 摘要：`>= v6.0.0-pre.1`（預覽版；舊 CT 只顯示最後更新與進行中工單） |
 | CT 以 plugin 安裝（`ct@control-tower`）時 Codex Worker 派工、面板認得 plugin、兩種都裝的提示 | `>= 0.7.2-pre.1` | CT `>= v5.14.0` 提供 plugin；更舊的 BAT 搭配 Codex 請用 zip 手動安裝 |

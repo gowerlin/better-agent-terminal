@@ -2,6 +2,64 @@
 
 本 fork 各版的更版重點（內容取自 GitHub Releases，最新在上）。上游 tony1223/better-agent-terminal 的 v2.1.x 紀錄保留在檔案最下方。
 
+## v0.7.3-pre.4（2026-11-01）
+
+版號 0.7.3-pre.4，接續 `v0.7.3-pre.3`。
+
+## 新增
+
+- **Terminal Server 意外重啟後，可以接回被中斷的 agent 分頁**（PLAN-055，T0765 / T0766 / T0767）：以前 BAT 只會在同一個分頁重開一個 shell，畫面上只跳一個提示，原本跑的 claude / codex 對話就斷了
+  - 現在會跳出對話框，列出被中斷的 agent 分頁，分頁縮圖也標上 ⏸；提示訊息會寫「N 個 agent 分頁已中斷」
+  - claude 分頁（含塔台派工的 Worker）按「恢復」就以 `--resume` 接回原對話，BAT MCP、hooks、session 名稱照原樣帶上
+  - codex 分頁按「開啟 resume 選單」會開 codex 自己的 `resume` 選單，列出這個資料夾的 session 讓你挑
+  - 不會自動恢復；按 Esc 或「關閉」只關對話框。被中斷的清單只保留到 BAT 關閉為止
+- **已分離（detached）的工作區也會提示等待使用者 ⚠️**（D212，T0761）：工作區分離成獨立視窗後，裡面有分頁在等你時，主視窗列表會多出一列「↗ 名稱（已分離）」並帶 ⚠️，頁籤標題與收合窄列的總數也算進去；點那一列會把該視窗帶到前面並切到等最久的分頁
+- **Claude Agent 面板等待權限或等你回答時也顯示 ⚠️**（T0762）：和終端分頁一樣，縮圖與工作區列出現 ⚠️，回答、拒絕或停止後消失；你不在看時結束會留下淡化 ⚠️，看過才清除
+
+## 修正
+
+- **用滑鼠回答後 ⚠️ 不消失**（BUG-188，T0757）：在 claude（fullscreen 畫面）用滑鼠點「No」拒絕權限時，回合直接中斷、⚠️ 一直留著。現在等待中的分頁按下滑鼠左鍵，就和按鍵盤一樣清除 ⚠️；滾輪、移動、右鍵不算。滑鼠點擊不會取消 Worker 分頁的自動回收
+- **用 npm 安裝的 codex 讀不到版本**（BUG-189，T0758）：Windows 上 PATH 第一個 codex 是 npm 產生的 `codex.cmd` 時，BAT 判斷不出版本，手動開的 Codex CLI 分頁沒有加 `--no-daemon`、派工的 codex Worker 也沒有狀態回報。現在 BAT 讀 npm 的啟動檔找到真正的 `codex.exe` 再判斷版本（不經 shell 執行）
+- **Claude 面板的背景 Agent 不在執行中清單**（BUG-190，T0759）：背景執行的 Agent 啟動後馬上從 active task bar 消失，結束也沒有標示。現在執行中會留在清單、可以停止，結束後移除並標上完成 / 失敗 / 已停止。另外修正從清單按「停止」時子代理其實沒有停下的問題
+- **背景子代理執行中送出新訊息會把它結束**（BUG-192，T0768 / T0769）：Claude 面板在背景子代理還在跑時送出新訊息，會中止整個對話、子代理一起被結束。現在主回合已回答完時，新訊息直接送進同一個對話、馬上回應，子代理繼續跑；少數送不進去的情況會在訊息下顯示「等背景子代理結束後送出」並可取消。Esc 只停目前的回合，不會停掉背景子代理
+- **設了 `CLAUDE_CODE_PLUGIN_CACHE_DIR` 時找不到 Claude plugins**（BUG-191，T0760）：BAT 現在和 claude CLI 一樣，到該目錄讀 plugins 清單，CT plugin 偵測與面板 plugins 都跟著改；沒設這個變數時行為不變
+
+## 待驗收（請更新到本版後協助確認）
+
+- **PLAN-055**（本版）：Terminal Server 意外結束後（例如在工作管理員結束 BAT 的 Terminal Server 程序），出現中斷清單，claude 分頁按「恢復」接回原對話、codex 分頁開出 resume 選單
+- **BUG-188**（本版）：在 claude 的權限詢問用滑鼠點「No」，⚠️ 立刻消失
+- **BUG-189**（本版）：以 `npm i -g @openai/codex` 安裝 codex 的 Windows 環境，關閉 BAT MCP 後開 Codex CLI 分頁，命令列有 `--no-daemon`
+- **BUG-190 / BUG-192**（本版）：Claude 面板讓模型開一個背景 Agent，執行中出現在 active task bar；這時送出新訊息會馬上得到回應，背景 Agent 繼續跑，結束後標示完成
+- **BUG-191**（本版）：設 `CLAUDE_CODE_PLUGIN_CACHE_DIR` 並以 plugin 安裝 Control Tower，BAT 的 skill 清單認得 CT
+- **detached 視窗 / Claude 面板 ⚠️**（本版）：工作區分離後裡面的分頁等待時主視窗出現提示列；Claude 面板等待權限時縮圖出現 ⚠️
+- **工作區提示**（`v0.7.2-pre.8` 起）：BAT 視窗不在前景時等待結束，應留下淡化 ⚠️
+- **BUG-128** / **BUG-130**（macOS 貼上）：需要 macOS 實機
+- **BUG-159**：一般權限（非系統管理員）執行 BAT、關閉 BAT MCP 時，兩個 Codex CLI 分頁各自讀到自己的環境
+
+## 歡迎協助測試
+
+本版有 codex 相關變更（npm 安裝的 codex 版本判斷、被中斷的 codex 分頁恢復）。如果你用 Codex CLI，歡迎幫忙跑一次塔台 / Worker 流程：
+
+1. 開一個 Codex CLI 分頁，呼叫 MCP tool `bat_whoami`，確認 `role` 與 `agent` 顯示正確
+2. 由塔台派一張小工單給 Codex Worker（`--agent codex`）
+3. 確認 Worker 完成後通知回到塔台、分頁被自動回收
+4. 如果是用 `npm i -g @openai/codex` 安裝的 codex，也請一併確認上面「待驗收」的 BUG-189
+
+結果請到 GitHub issue 回報，並附上 BAT 版本（本版 `0.7.3-pre.4`）與 `codex --version`。
+
+## 已知事項
+
+- 遠端伺服器使用登入 shell PATH 在 macOS（launchd）上尚未實機驗證
+- 中斷清單不涵蓋：BAT 重開時在 Recovery 提示選「重新開始」的情況；版本低於 0.163 的 codex 派工 Worker
+- Codex 面板（`Codex Agent` 面板）等待時尚未顯示 ⚠️
+- 工作區分離後，主視窗已關閉時沒有地方顯示提示列；提示只出現在原本的主視窗
+- 用滑鼠點在 claude 不接受點擊的對話框上（例如 AskUserQuestion 的取消）也會清除 ⚠️，對話框仍開著，與按方向鍵等不回答的按鍵行為一致
+- Linux 版本未實機驗證
+
+macOS 仍只提供 Apple Silicon（arm64）版。
+
+**Full Changelog**: https://github.com/gowerlin/better-agent-terminal/compare/v0.7.3-pre.3...v0.7.3-pre.4
+
 ## v0.7.3-pre.3（2026-11-01）
 
 版號 0.7.3-pre.3，接續 `v0.7.3-pre.2`。

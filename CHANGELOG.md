@@ -4,6 +4,23 @@ All notable changes to Better Agent Terminal are documented in this file.
 
 ## [Unreleased]
 
+## [0.7.3-pre.4] — 2026-11-01
+
+### Added
+- Terminal Server recovery 後列出被中斷的 agent 分頁：快照在 `blockedTracker.clearAll` 之前取、`claudeSessionId` 不再於 recovery 時丟棄（`claude-sessions.json` `interrupted` 項，只保留到 BAT 關閉）；對話框（`ModalOverlay`、Esc = 關閉不 resume）＋縮圖 ⏸＋ toast「N 個 agent 分頁已中斷」；claude 分頁與派工 Worker 一鍵 `--resume=<id>`（沿用 BAT MCP / hooks / `--name`，不附 prompt、不自動恢復）；codex 分頁「開啟 resume 選單」= 原啟動參數後接 `codex resume`（不帶 id、不用 `--last`）（`electron/interrupted-agents.ts`、`src/lib/claude-resume-args.ts`、`src/lib/codex-resume-args.ts`、`InterruptedAgentsDialog.tsx`；PLAN-055 / T0765 / T0766 / T0767 / D211）
+- 已分離（detached）工作區有分頁等待使用者時，主視窗列表多一列「↗ 名稱（已分離）」＋ ⚠️，頁籤標題與收合窄列總數計入，點擊把 detached 視窗帶到前面並切到等最久的分頁；detached 視窗自己算等待彙總，經本機 IPC `workspace:detached-waiting` 回報父視窗（T0761 / D212）
+- Claude Agent 面板等待權限 / AskUserQuestion 時，縮圖與工作區列顯示 ⚠️、回答 / 拒絕 / 停止後清除、沒在看時結束留淡化（面板等待以獨立來源存進 attention store 與主行程推送合併；T0762）
+
+### Fixed
+- 等待中的分頁收到滑鼠左鍵按下即清除 hook 記的 `blocked`（`permission` / `question` / `elicitation`），與鍵盤一致；不算使用者輸入（`--close-worker` 取消規則不變）、不清 codex `input`（`hasMouseButtonPress`、`TerminalBlockedTracker.clearForMousePress`；BUG-188 / T0757 / D209）
+- Windows 上 PATH 第一個 codex 是 npm shim（`codex.cmd` / `.ps1` / `.bat`）時，讀 shim 追到原生 `codex.exe` 再 `execFile` 探測版本：手動 codex 分頁的 `--no-daemon` 與派工 codex 的 OSC 狀態恢復正常（`resolveNpmCodexShim`，`electron/codex-osc-version.ts`；BUG-189 / T0758）
+- Claude 面板背景 Agent（`run_in_background`）執行中留在 active task bar，結束時移除並標示 `[completed]` / `[failed]` / `[stopped …]`；`task_started` 改以 task_id 為 key，task bar「停止」送對 id（BUG-190 / T0759）
+- 設 `CLAUDE_CODE_PLUGIN_CACHE_DIR` 時 plugins 清單與 CT plugin 偵測改從該目錄讀，與 claude CLI 一致（`resolveClaudePluginsDir`，`electron/claude-config-dir.ts`；BUG-191 / T0760）
+- Claude 面板背景子代理執行中、主回合已 result 時送出新訊息，改以 `Query.streamInput()` 注入同一個 query（不中止子代理）；送不進去時排隊並在訊息下顯示「等背景子代理結束後送出」＋取消；宣告 `perTaskStopAffordance`（Esc 只停回合）（BUG-192 / T0768 / T0769 / D214）
+
+### Changed
+- 測試：遠端 ⚠️ / `?` 自動化驗收（SSH 用 WSL 內臨時 sshd、Docker、真正網路中斷、遠端 Worker，`e2e/t0763-remote-waiting-acceptance.spec.ts`，T0763）；auto mode classifier 真實模型研究 spec（預設 skip，T0764）
+
 ## [0.7.3-pre.3] — 2026-11-01
 
 ### Added
