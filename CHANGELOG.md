@@ -4,6 +4,15 @@ All notable changes to Better Agent Terminal are documented in this file.
 
 ## [Unreleased]
 
+## [0.7.2-pre.9] — 2026-11-01
+
+### Fixed
+- 從「+」連續開分頁時，前一個（已被切走的）分頁不再被 resize 成 9x5：容器沒有版面尺寸時不 fit、不送 `pty:resize`、不動去重，initial resize 到期時再檢查分頁是否仍 active（`canFitTerminalContainer`，`src/lib/terminal-fit-guard.ts`；BUG-180 / T0741）
+- Claude Agent 面板 Cache History：CLI 回傳的 `modelUsage` / `total_cost_usd` 是 session 累計值，R 列改為依 model 的本回合差值、合計改為最後累計值，resume 後第一個回合標示 `R*`（含先前累計）；狀態列 session 花費與 `cache:` 數字定義不變（`turnModelUsage` / `applyStatusToCacheHistory`，`src/lib/cache-history.ts`；BUG-181 / T0744）
+
+### Changed
+- 驗收用 e2e 補強（不改產品行為）：真的 Claude CLI / Codex CLI 搭配本機假模型驗證工作區等待提示（T0736）、`bat-scripts.log` 輪替與 Claude 面板介面路徑（T0737）、早期修正的回歸與新增 spec（T0738 / T0742）、真實模型小額驗收 spec（預設略過，`BAT_E2E_REAL_MODEL=1` 才執行；T0739）、以 WSL Docker 驗證 Docker 精靈與遠端（`BAT_E2E_T0743_DOCKER=1`；T0743）、Windows NSIS 重裝驗收腳本 `e2e/manual/nsis-reinstall-acceptance.ps1`（T0740）
+
 ## [0.7.2-pre.8] — 2026-11-01
 
 ### Added
