@@ -1465,6 +1465,13 @@
 - **切分**：W2a 設計語言 + 元件 + 首頁（T0630）→ 預覽通過後 W2b（`/control-tower`、功能、FAQ、回報頁）→ W2c 遠端開發；W3 / W4 不變。
 - **相關**：PLAN-049 / D159 / D160 / T0624 / T0630
 
+### D211 2026-11-02 — PLAN-055 全採 T0765 建議（P-1–P-8），B1 / B2 排進本批（T0766 / T0767），與 `0.7.3-pre.4` 一起發
+
+- **決定**（使用者選定）：方案 B 一鍵恢復；P-1 不自動 resume、P-2 Worker 不附 prompt、P-3 不通知塔台（不改 CT 契約）、P-4 codex 用 `codex resume` 選單、P-5 清單只到 BAT 關閉、P-6 BAT 重開「重新開始」不做、P-7 不加 SessionEnd hook、P-8 拆 B1（T0766）/ B2（T0767）。
+- **排程**：Lane B 改為 T0758 → T0759 → T0760 → T0766 → T0767（B1 改 claude 啟動路徑，與 T0759 / T0760 同區）；與 Lane A 重疊的 `main.ts` / `preload.ts` / `App.tsx` 等以「對方 commit 後再改」協調。
+- **決策者**：使用者（2026-11-02 02:32 前，AskUserQuestion）。
+- **相關**：PLAN-055 / T0765 / T0766 / T0767 / BUG-171 / T0704 / D210
+
 ### D210 2026-11-02 — 後續候選全部排進本批（T0758–T0765），完成後一起發 `0.7.3-pre.4`；遠端 SSH 驗收用 WSL 內臨時 sshd
 
 - **決定**（使用者選定）：四組全排：小修三項（BUG-189 npm codex 版本探測 → T0758、BUG-190 背景 Agent task bar → T0759、BUG-191 `CLAUDE_CODE_PLUGIN_CACHE_DIR` → T0760）；⚠️ 擴充（detached 視窗 → T0761，呈現方式先提選項由使用者選；Claude 面板 → T0762）；遠端 ⚠️ 自動化驗收（SSH / Docker / 網路中斷 / 遠端 Worker 與 `?` → T0763，SSH 用 WSL 內臨時 sshd、不用外部主機）；研究兩項（auto mode classifier 詢問路徑 → T0764，真實模型 Haiku 5.5、≤ 10 回合、≤ US$0.5、只用塔台定義的無害動作；PLAN-055 → T0765，只讀）。

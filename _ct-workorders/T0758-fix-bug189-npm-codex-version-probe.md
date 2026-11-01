@@ -4,8 +4,9 @@ schema_kind: workorder
 id: T0758
 title: "修正 BUG-189：npm 安裝的 codex（`codex.cmd`）也能探測版本；修正 t0584 依賴 npx PATH 的斷言"
 type: implementation
-status: PENDING
-updated_at: "2026-11-02T02:23:44+0800"
+status: IN_PROGRESS
+started_at: "2026-11-02T02:25:19+08:00"
+updated_at: "2026-11-02T02:25:19+08:00"
 session_ids: []
 repo: better-agent-terminal
 project: maintenance
@@ -37,7 +38,7 @@ memory_overrides:
   - "🔴 修正方向：從 shim 解析出實際的 codex 原生執行檔或 node 入口後，以 `execFile`（不經 shell、陣列參數、5 s timeout）跑 `--version`；🔴 不得改用 shell 執行 `.cmd`（CLAUDE.md「Child Process Spawning」）；解析不出時維持 `version-unknown`（行為與現在相同）。快取沿用路徑 + mtime。手動分頁的 `--no-daemon` 與派工的 OSC 判定都走同一個解析（不得各寫一份）。macOS / Linux 行為不變。"
   - "🔴 t0584 第 275 行：改成不依賴 PATH 的斷言（例：明確注入 codex 支援檢查結果，或依當下探測結果計算預期值），說明改法。`t0742-codex-no-daemon` 增加 npm shim 情境（PATH 最前面放測試用 shim 目錄）。"
   - "🔴 驗證：新增 / 修改的單元測試＋突變檢查（拿掉修正，測試要失敗）；`npm run typecheck` = 0、`npm run typecheck:electron` = 0、`npm run test:unit`、`npx vite build`（依上方 build 規則的位置）。"
-  - "🔴 build（Lane B：T0758 → T0759 → T0760，與 Lane A 並行）：主 checkout 的 `dist` / `dist-electron` 可能正被 Lane A 的 e2e 使用。`npx vite build` 與 e2e 一律在 `git archive` 匯出目錄做（`%TEMP%/bat-<工單>-build`，`node_modules` 以 junction 共用主 checkout，T0742 作法）；主 checkout 只跑 `npm run typecheck` / `npm run typecheck:electron` / `npm run test:unit`。跑完刪匯出目錄（先刪 junction 本身，確認主 checkout `node_modules/electron` 仍在）。e2e 一律用隔離實例。"
+  - "🔴 build（Lane B：T0758 → T0759 → T0760 → T0766 → T0767，與 Lane A 並行）：主 checkout 的 `dist` / `dist-electron` 可能正被 Lane A 的 e2e 使用。`npx vite build` 與 e2e 一律在 `git archive` 匯出目錄做（`%TEMP%/bat-<工單>-build`，`node_modules` 以 junction 共用主 checkout，T0742 作法）；主 checkout 只跑 `npm run typecheck` / `npm run typecheck:electron` / `npm run test:unit`。跑完刪匯出目錄（先刪 junction 本身，確認主 checkout `node_modules/electron` 仍在）。e2e 一律用隔離實例。"
   - "🔴 文件：`bat-mcp-shim.md` 已知限制改為新行為；CLAUDE.md「BAT MCP shim」節的 codex daemon 一句如需調整只改必要字。"
   - "🔴 yolo：不得問使用者；判讀問題依 ct-exec § Questions For Tower 問塔台（每輪最多 3 題）。Git：只用 `git commit --only` commit 本單範圍；同一 checkout 有其他 Worker 並行，不得 commit 或改動別人的未提交變更；`CLAUDE.md`、`docs/agent-guide/*.md` 等共用檔若已有別人的未提交修改，等對方 commit 後再改（`git diff <檔>` 確認）。禁止 `git stash` / `git reset` / `git checkout -- <path>` / `git restore`（L138）。用 Python 改檔一律 `newline=''`。公開 repo：依 `_local-rules.md`「公開 repo 去識別化（D176）」。不 push、不發版。"
 ---

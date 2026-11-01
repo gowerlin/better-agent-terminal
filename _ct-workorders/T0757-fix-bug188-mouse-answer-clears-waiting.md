@@ -4,8 +4,9 @@ schema_kind: workorder
 id: T0757
 title: "修正 BUG-188：用滑鼠回答後 ⚠️ 也要清除（先以真 claude / codex 查證各路徑，再精準修）"
 type: implementation
-status: PENDING
-updated_at: "2026-11-02T02:23:44+0800"
+status: IN_PROGRESS
+started_at: "2026-11-02T02:24:55+0800"
+updated_at: "2026-11-02T02:24:55+0800"
 session_ids: []
 repo: better-agent-terminal
 project: maintenance

@@ -3,7 +3,7 @@ schema_version: 1
 schema_kind: plan
 id: PLAN-055
 title: "Terminal Server recovery 後 agent 分頁不再無聲變成 shell：列出被中斷的 agent 分頁，claude 分頁保留 session id 並提供 `--resume`"
-status: IDEA
+status: PLANNED
 priority: medium
 created_at: "2026-10-25T21:16:40+0800"
 links:
@@ -31,3 +31,8 @@ Terminal Server 真的死掉時，`handleServerDeath` 只重建 shell、不重�
 - **設計**：`clearAll` 前取「被中斷 agent 分頁」快照（含 session id）→ 事件＋pull 查詢 → 對話框（依工作區分組）＋分頁「agent 已中斷」標示；claude 以原組裝點加 `--resume=<id>`（使用者分頁 `startClaudeCliPty`、派工分頁 `createAgentPromptCommandBuilder`，BAT MCP / hooks / `--name` 照舊、不加 `--fork-session`）；codex 送 `codex resume`（picker，cwd 篩選）；Worker 可 resume、不通知塔台。
 - **方案**：A 只列出（S）／**B 列出＋一鍵恢復（M，建議，拆 B1 / B2）**／C 全自動＋通知塔台（M–L，需 CT 契約）。
 - **待決點** P-1–P-8（自動 resume、Worker 附帶 prompt、通知塔台、codex、跨重開保留、「重新開始」路徑、SessionEnd hook、拆單）與 B1 實作單草案：見 T0765 回報區。
+
+## 塔台決定（2026-11-02T02:32:46+0800，D211）
+
+- 使用者全採 T0765 建議（P-1–P-8：不自動、Worker 不附 prompt、不通知塔台、codex 用 `codex resume` 選單、清單只到 BAT 關閉、「重新開始」路徑不做、不加 SessionEnd hook、拆兩張）。
+- 實作：B1 → T0766（快照、列表、分頁標示、claude 一鍵 `--resume`）、B2 → T0767（codex 恢復）；排進本批，與 `0.7.3-pre.4` 一起發。
