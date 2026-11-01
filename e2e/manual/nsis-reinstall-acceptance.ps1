@@ -1,0 +1,685 @@
+﻿#Requires -Version 5.1
+<#
+.SYNOPSIS
+  BAT Windows NSIS 安裝檔驗收：覆蓋安裝 → 解除安裝 → 乾淨重裝（T0740）。
+
+.DESCRIPTION
+  步驟：
+    ⓪ 前置檢查：安裝範圍（HKLM / HKCU uninstall 鍵）、安裝路徑、版本、執行中程序、userData 備份
+    ① 下載安裝檔（gh release download）並驗證雜湊
+    ② 覆蓋安裝（同版本）並檢查
+    ③ 靜默解除安裝並檢查
+    ④ 乾淨重裝並檢查
+    ⑤ 選做（-LaunchCheck）：啟動 BAT 10 秒後關閉，檢查 debug log
+    ⑥ 輸出 report.md / report.json 到 %TEMP%\bat-nsis-acceptance-<YYYYMMDD-HHMMSS>\
+
+  任何一步 FAIL：停下、寫報告、印出還原 userData 與重新安裝的指令。
+  🔴 必須在 BAT 已完全關閉（含 Terminal Server）後，從一般 PowerShell（不是 BAT 分頁）執行。
+  -DryRun 只做唯讀檢查（會下載安裝檔到輸出目錄），印出每一步將執行的指令與判讀規則，不改任何東西。
+
+.EXAMPLE
+  pwsh -NoProfile -ExecutionPolicy Bypass -File e2e\manual\nsis-reinstall-acceptance.ps1 -DryRun
+.EXAMPLE
+  pwsh -NoProfile -ExecutionPolicy Bypass -File e2e\manual\nsis-reinstall-acceptance.ps1 -InstallerPath "$env:TEMP\bat-nsis-acceptance-20261101-180000\BetterAgentTerminal.Setup.0.7.2-pre.8.exe"
+#>
+[CmdletBinding()]
+param(
+  [string]$Version = '0.7.2-pre.8',
+  [string]$InstallerPath = '',
+  [string]$ExpectedSha256 = '',
+  [switch]$DryRun,
+  [switch]$StopRunning,
+  [switch]$LaunchCheck,
+  [ValidateSet('Auto', 'AllUsers', 'CurrentUser')]
+  [string]$Scope = 'Auto',
+  [string]$OutputRoot = $env:TEMP,
+  [string]$Repo = 'gowerlin/better-agent-terminal',
+  [int]$InstallTimeoutSec = 900,
+  [int]$UninstallTimeoutSec = 600
+)
+
+Set-StrictMode -Version Latest
+$ErrorActionPreference = 'Stop'
+try { [Console]::OutputEncoding = [System.Text.Encoding]::UTF8 } catch { }
+
+# ---------------------------------------------------------------- 常數
+$ProductName = 'BetterAgentTerminal'
+$AssetName = "BetterAgentTerminal.Setup.$Version.exe"
+$Tag = "v$Version"
+$HelperNames = @('bat-terminal.mjs', 'bat-notify.mjs', 'bat-mcp.mjs')
+$StartedAt = Get-Date
+$Stamp = $StartedAt.ToString('yyyyMMdd-HHmmss')
+$OutDir = Join-Path $OutputRoot "bat-nsis-acceptance-$Stamp"
+$BackupDir = Join-Path $OutDir 'userdata-backup'
+$IsAdmin = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
+
+New-Item -ItemType Directory -Force -Path $OutDir | Out-Null
+
+# ---------------------------------------------------------------- 報告
+function Get-Now { (Get-Date).ToString('yyyy-MM-ddTHH:mm:sszzz') }
+
+$Report = [ordered]@{
+  tool          = 'e2e/manual/nsis-reinstall-acceptance.ps1 (T0740)'
+  mode          = $(if ($DryRun) { 'dry-run' } else { 'real' })
+  version       = $Version
+  startedAt     = $StartedAt.ToString('yyyy-MM-ddTHH:mm:sszzz')
+  finishedAt    = ''
+  result        = ''
+  outputDir     = $OutDir
+  powershell    = $PSVersionTable.PSVersion.ToString()
+  isAdmin       = $IsAdmin
+  installer     = $null
+  installation  = $null
+  userDataDirs  = @()
+  backupDir     = ''
+  steps         = New-Object System.Collections.ArrayList
+  restoreHints  = @()
+}
+
+function New-Step([string]$Id, [string]$Title) {
+  $s = [ordered]@{
+    id = $Id; title = $Title; result = ''; startedAt = (Get-Now); durationSec = $null
+    commands = New-Object System.Collections.ArrayList
+    checks = New-Object System.Collections.ArrayList
+    notes = New-Object System.Collections.ArrayList
+  }
+  [void]$Report.steps.Add($s)
+  Write-Host ''
+  Write-Host "=== $Id $Title ===" -ForegroundColor Cyan
+  return $s
+}
+
+function Add-Check($Step, [string]$Name, [string]$Result, $Expected, $Actual, [string]$Rule = '') {
+  $c = [ordered]@{ name = $Name; result = $Result; expected = "$Expected"; actual = "$Actual"; rule = $Rule }
+  [void]$Step.checks.Add($c)
+  $color = switch ($Result) { 'PASS' { 'Green' } 'FAIL' { 'Red' } 'WARN' { 'Yellow' } default { 'Gray' } }
+  Write-Host ("  [{0}] {1}: expected={2} actual={3}" -f $Result, $Name, $Expected, $Actual) -ForegroundColor $color
+}
+
+function Add-Note($Step, [string]$Text) {
+  [void]$Step.notes.Add($Text)
+  Write-Host "  - $Text"
+}
+
+function Add-Command($Step, [string]$Text) {
+  [void]$Step.commands.Add($Text)
+  $prefix = $(if ($DryRun) { '  (dry-run) 將執行：' } else { '  執行：' })
+  Write-Host "$prefix$Text" -ForegroundColor DarkCyan
+}
+
+function Complete-Step($Step, [string]$Forced = '') {
+  $start = [datetimeoffset]::Parse($Step.startedAt)
+  if ($null -eq $Step.durationSec) { $Step.durationSec = [math]::Round(((Get-Date) - $start.LocalDateTime).TotalSeconds, 1) }
+  if ($Forced) { $Step.result = $Forced }
+  else {
+    $results = @($Step.checks | ForEach-Object { $_.result })
+    if ($results -contains 'FAIL') { $Step.result = 'FAIL' }
+    elseif ($results -contains 'WARN') { $Step.result = 'WARN' }
+    elseif ($DryRun) { $Step.result = 'DRYRUN' }
+    else { $Step.result = 'PASS' }
+  }
+  Write-Host ("  => {0} {1}（{2} s）" -f $Step.id, $Step.result, $Step.durationSec)
+}
+
+function ConvertTo-MdCell([string]$s) { ($s -replace '\|', '\|' -replace "`r?`n", ' ') }
+
+function Save-Report {
+  $Report.finishedAt = Get-Now
+  $utf8 = New-Object System.Text.UTF8Encoding($false)
+  $json = $Report | ConvertTo-Json -Depth 8
+  [System.IO.File]::WriteAllText((Join-Path $OutDir 'report.json'), $json, $utf8)
+
+  $md = New-Object System.Collections.Generic.List[string]
+  $md.Add("# BAT NSIS 重裝驗收報告（T0740）")
+  $md.Add('')
+  $md.Add("- 模式：$($Report.mode)")
+  $md.Add("- 版本：$Version")
+  $md.Add("- 結果：**$($Report.result)**")
+  $md.Add("- 開始：$($Report.startedAt)　結束：$($Report.finishedAt)")
+  $md.Add("- PowerShell：$($Report.powershell)　系統管理員：$($Report.isAdmin)")
+  if ($Report.installer) { $md.Add("- 安裝檔：``$($Report.installer.path)``（$($Report.installer.size) bytes）") }
+  if ($Report.installation) { $md.Add("- 安裝範圍：$($Report.installation.scope)（$($Report.installation.hive)）　路徑：``$($Report.installation.installDir)``") }
+  if ($Report.backupDir) { $md.Add("- userData 備份：``$($Report.backupDir)``（含權杖檔，驗收結束後請刪除）") }
+  $md.Add('')
+  $md.Add('| 步驟 | 結果 | 耗時 (s) |')
+  $md.Add('|---|---|---|')
+  foreach ($s in $Report.steps) { $md.Add("| $($s.id) $($s.title) | $($s.result) | $($s.durationSec) |") }
+  foreach ($s in $Report.steps) {
+    $md.Add('')
+    $md.Add("## $($s.id) $($s.title) — $($s.result)")
+    if ($s.commands.Count -gt 0) {
+      $md.Add('')
+      $md.Add('指令：')
+      $md.Add('')
+      $md.Add('```')
+      foreach ($c in $s.commands) { $md.Add($c) }
+      $md.Add('```')
+    }
+    if ($s.checks.Count -gt 0) {
+      $md.Add('')
+      $md.Add('| 檢查 | 結果 | 預期 | 實際 | 判讀規則 |')
+      $md.Add('|---|---|---|---|---|')
+      foreach ($c in $s.checks) {
+        $md.Add("| $(ConvertTo-MdCell $c.name) | $($c.result) | $(ConvertTo-MdCell $c.expected) | $(ConvertTo-MdCell $c.actual) | $(ConvertTo-MdCell $c.rule) |")
+      }
+    }
+    if ($s.notes.Count -gt 0) {
+      $md.Add('')
+      foreach ($n in $s.notes) { $md.Add("- $n") }
+    }
+  }
+  if ($Report.restoreHints.Count -gt 0) {
+    $md.Add('')
+    $md.Add('## 還原指令')
+    $md.Add('')
+    $md.Add('```powershell')
+    foreach ($h in $Report.restoreHints) { $md.Add($h) }
+    $md.Add('```')
+  }
+  [System.IO.File]::WriteAllText((Join-Path $OutDir 'report.md'), ($md -join "`r`n") + "`r`n", $utf8)
+  Write-Host ''
+  Write-Host "報告：$(Join-Path $OutDir 'report.md')" -ForegroundColor Cyan
+  Write-Host "      $(Join-Path $OutDir 'report.json')" -ForegroundColor Cyan
+}
+
+function Get-RestoreHints {
+  $hints = New-Object System.Collections.Generic.List[string]
+  if ($Report.backupDir -and (Test-Path -LiteralPath $Report.backupDir)) {
+    $hints.Add('# 以備份還原 userData（BAT 必須先關閉；/MIR 會讓目標與備份完全一致）')
+    foreach ($d in (Get-ChildItem -LiteralPath $Report.backupDir -Directory)) {
+      $hints.Add("robocopy `"$($d.FullName)`" `"$(Join-Path $env:APPDATA $d.Name)`" /MIR /COPY:DAT /R:1 /W:1")
+    }
+  }
+  if ($Report.installer -and $Report.installation) {
+    $hints.Add('# 重新安裝（需要時以系統管理員 PowerShell 執行）')
+    $hints.Add("& `"$($Report.installer.path)`" $(Get-InstallArgs $Report.installation.scope $Report.installation.installDir)")
+    $hints.Add('# 或直接雙擊安裝檔，以互動方式安裝')
+  }
+  return $hints.ToArray()
+}
+
+function Stop-Acceptance([string]$Why) {
+  Write-Host ''
+  Write-Host "中止：$Why" -ForegroundColor Red
+  $Report.result = 'FAIL'
+  $Report.restoreHints = @(Get-RestoreHints)
+  Save-Report
+  if ($Report.restoreHints.Count -gt 0) {
+    Write-Host ''
+    Write-Host '還原指令：' -ForegroundColor Yellow
+    foreach ($h in $Report.restoreHints) { Write-Host "  $h" }
+  }
+  exit 1
+}
+
+# ---------------------------------------------------------------- 工具函式
+function Get-Prop($Obj, [string]$Name) {
+  if ($null -ne $Obj -and $Obj.PSObject.Properties[$Name]) { return $Obj.$Name }
+  return $null
+}
+
+function Invoke-Native([string]$File, [string[]]$Arguments) {
+  $ErrorActionPreference = 'Continue'
+  $out = & $File @Arguments 2>&1 | ForEach-Object { "$_" }
+  return [pscustomobject]@{ exitCode = $LASTEXITCODE; output = (@($out) -join "`n") }
+}
+
+function Get-InstallArgs([string]$InstallScope, [string]$Dir) {
+  # electron-builder NSIS（assistedInstaller.nsh / multiUser.nsh）：/allusers 或 /currentuser 決定範圍；
+  # /D= 必須是最後一個參數、不加引號（NSIS 規則，路徑含空白也一樣）。
+  $scopeArg = $(if ($InstallScope -eq 'AllUsers') { '/allusers' } else { '/currentuser' })
+  return "/S $scopeArg /D=$Dir"
+}
+
+function Find-Installations {
+  $found = New-Object System.Collections.ArrayList
+  $roots = @(
+    @{ hive = 'HKLM'; scope = 'AllUsers'; uninstall = @('HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall', 'HKLM:\Software\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall') },
+    @{ hive = 'HKCU'; scope = 'CurrentUser'; uninstall = @('HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall') }
+  )
+  foreach ($r in $roots) {
+    foreach ($u in $r.uninstall) {
+      if (-not (Test-Path -LiteralPath $u)) { continue }
+      foreach ($k in @(Get-ChildItem -LiteralPath $u -ErrorAction SilentlyContinue)) {
+        $p = $null
+        try { $p = Get-ItemProperty -LiteralPath $k.PSPath -ErrorAction Stop } catch { continue }
+        $name = Get-Prop $p 'DisplayName'
+        if (-not $name -or -not ("$name" -like "$ProductName*")) { continue }
+        $guid = $k.PSChildName
+        $appKey = "$($r.hive):\Software\$guid"
+        $appProps = $null
+        if (Test-Path -LiteralPath $appKey) { $appProps = Get-ItemProperty -LiteralPath $appKey -ErrorAction SilentlyContinue }
+        $installDir = Get-Prop $appProps 'InstallLocation'
+        $dirSource = "$appKey\InstallLocation"
+        if (-not $installDir) { $installDir = Get-Prop $p 'InstallLocation'; $dirSource = 'Uninstall\InstallLocation' }
+        $uninstallString = Get-Prop $p 'UninstallString'
+        if (-not $installDir -and $uninstallString -match '^"([^"]+)"') { $installDir = Split-Path -Parent $Matches[1]; $dirSource = 'UninstallString' }
+        [void]$found.Add([ordered]@{
+          hive = $r.hive; scope = $r.scope; guid = $guid; uninstallKey = ($k.PSPath -replace '^Microsoft\.PowerShell\.Core\\Registry::', '')
+          displayName = "$name"; displayVersion = "$(Get-Prop $p 'DisplayVersion')"
+          installDir = "$installDir"; installDirSource = $dirSource; appRegistryKey = $appKey
+          uninstallString = "$uninstallString"; quietUninstallString = "$(Get-Prop $p 'QuietUninstallString')"
+        })
+      }
+    }
+  }
+  return $found.ToArray()
+}
+
+function Get-RelatedProcesses([string]$Dir) {
+  $list = New-Object System.Collections.ArrayList
+  if (-not $Dir) { return $list.ToArray() }
+  $prefix = $Dir.TrimEnd('\') + '\'
+  foreach ($p in @(Get-CimInstance Win32_Process)) {
+    $exe = Get-Prop $p 'ExecutablePath'
+    $cmd = Get-Prop $p 'CommandLine'
+    $kind = $null
+    if ($exe -and $exe.StartsWith($prefix, [StringComparison]::OrdinalIgnoreCase)) { $kind = 'exe-in-install-dir' }
+    elseif ($cmd -and $cmd.IndexOf($prefix, [StringComparison]::OrdinalIgnoreCase) -ge 0 -and $p.ProcessId -ne $PID) { $kind = 'cmdline-references-install-dir' }
+    if ($kind) {
+      # 只記名稱 / PID / 執行檔路徑，不記命令列（可能含使用者資料）
+      [void]$list.Add([ordered]@{ name = $p.Name; pid = $p.ProcessId; kind = $kind; path = "$exe" })
+    }
+  }
+  return $list.ToArray()
+}
+
+function Get-UserDataDirs {
+  return @(Get-ChildItem -LiteralPath $env:APPDATA -Directory -Filter "$ProductName*" -ErrorAction SilentlyContinue | ForEach-Object { $_.FullName })
+}
+
+function Get-UserDataSnapshot([string[]]$Dirs) {
+  $map = @{}
+  foreach ($d in $Dirs) {
+    $base = Split-Path -Leaf $d
+    foreach ($f in @(Get-ChildItem -LiteralPath $d -Recurse -File -Force -ErrorAction SilentlyContinue)) {
+      $rel = $base + $f.FullName.Substring($d.Length)
+      $h = 'unreadable'
+      try { $h = (Get-FileHash -LiteralPath $f.FullName -Algorithm SHA256 -ErrorAction Stop).Hash } catch { }
+      $map[$rel] = "$($f.Length):$h"
+    }
+  }
+  return $map
+}
+
+function Compare-Snapshot([hashtable]$Before, [hashtable]$After) {
+  $added = @($After.Keys | Where-Object { -not $Before.ContainsKey($_) } | Sort-Object)
+  $removed = @($Before.Keys | Where-Object { -not $After.ContainsKey($_) } | Sort-Object)
+  $changed = @($Before.Keys | Where-Object { $After.ContainsKey($_) -and $After[$_] -ne $Before[$_] } | Sort-Object)
+  return [pscustomobject]@{ added = $added; removed = $removed; changed = $changed; same = ($added.Count + $removed.Count + $changed.Count -eq 0) }
+}
+
+function Get-ShortcutPaths([string]$InstallScope) {
+  if ($InstallScope -eq 'AllUsers') {
+    return @{ desktop = (Join-Path $env:PUBLIC "Desktop\$ProductName.lnk"); startMenu = (Join-Path $env:ProgramData "Microsoft\Windows\Start Menu\Programs\$ProductName.lnk") }
+  }
+  return @{ desktop = (Join-Path ([Environment]::GetFolderPath('Desktop')) "$ProductName.lnk"); startMenu = (Join-Path $env:APPDATA "Microsoft\Windows\Start Menu\Programs\$ProductName.lnk") }
+}
+
+function Find-NodeForHelpers([string]$Dir) {
+  $n = Get-Command node -ErrorAction SilentlyContinue
+  if ($n) { return [pscustomobject]@{ kind = 'node'; path = $n.Source } }
+  return [pscustomobject]@{ kind = 'electron-as-node'; path = (Join-Path $Dir "$ProductName.exe") }
+}
+
+function Invoke-Helper($NodeInfo, [string]$Helper) {
+  if ($NodeInfo.kind -eq 'node') { return Invoke-Native $NodeInfo.path @($Helper, '--version') }
+  $old = $env:ELECTRON_RUN_AS_NODE
+  try { $env:ELECTRON_RUN_AS_NODE = '1'; return Invoke-Native $NodeInfo.path @($Helper, '--version') }
+  finally { if ($null -eq $old) { Remove-Item Env:ELECTRON_RUN_AS_NODE -ErrorAction SilentlyContinue } else { $env:ELECTRON_RUN_AS_NODE = $old } }
+}
+
+function Test-InstalledState($Step, [string]$InstallScope, [string]$Dir, [hashtable]$SnapshotBefore, [bool]$DesktopExpected) {
+  $inst = @(Find-Installations | Where-Object { $_.scope -eq $InstallScope })
+  $rule = 'uninstall 鍵在 ⓪ 判定的 hive、DisplayVersion = 版本'
+  if ($inst.Count -eq 1) {
+    Add-Check $Step 'uninstall 鍵 DisplayVersion' $(if ($inst[0].displayVersion -eq $Version) { 'PASS' } else { 'FAIL' }) $Version $inst[0].displayVersion $rule
+    Add-Check $Step '安裝路徑（Software\<GUID>\InstallLocation）' $(if ($inst[0].installDir.TrimEnd('\') -eq $Dir.TrimEnd('\')) { 'PASS' } else { 'FAIL' }) $Dir "$($inst[0].installDir)（來源 $($inst[0].installDirSource)）" '與 ⓪ 的路徑相同'
+  } else {
+    Add-Check $Step 'uninstall 鍵' 'FAIL' "$InstallScope 範圍恰好 1 個" "$($inst.Count) 個" $rule
+  }
+  $other = @(Find-Installations | Where-Object { $_.scope -ne $InstallScope })
+  Add-Check $Step '另一範圍沒有安裝紀錄' $(if ($other.Count -eq 0) { 'PASS' } else { 'WARN' }) '0' "$($other.Count)" '覆蓋安裝不得產生第二份（per-user / per-machine 並存）'
+
+  $exe = Join-Path $Dir "$ProductName.exe"
+  if (Test-Path -LiteralPath $exe) {
+    $fv = (Get-Item -LiteralPath $exe).VersionInfo.FileVersion
+    Add-Check $Step '主程式 FileVersion' $(if ($fv -eq $Version) { 'PASS' } else { 'FAIL' }) $Version $fv '主程式執行 --version 會開啟 GUI，改讀檔案版本資訊'
+  } else { Add-Check $Step '主程式存在' 'FAIL' $exe '不存在' '' }
+
+  $res = Join-Path $Dir 'resources'
+  $pkgPath = Join-Path $res 'package.json'
+  if (Test-Path -LiteralPath $pkgPath) {
+    $pkg = Get-Content -LiteralPath $pkgPath -Raw | ConvertFrom-Json
+    $keys = (@($pkg.PSObject.Properties | ForEach-Object { $_.Name }) | Sort-Object) -join ','
+    Add-Check $Step 'resources/package.json' $(if ((Get-Prop $pkg 'version') -eq $Version -and $keys -eq 'name,version') { 'PASS' } else { 'FAIL' }) "version=$Version, keys=name,version" "version=$(Get-Prop $pkg 'version'), keys=$keys" 'T0691：只含 name / version'
+  } else { Add-Check $Step 'resources/package.json' 'FAIL' '存在' '不存在' '' }
+
+  $nodeInfo = Find-NodeForHelpers $Dir
+  foreach ($h in $HelperNames) {
+    $hp = Join-Path $res "scripts\$h"
+    if (-not (Test-Path -LiteralPath $hp)) { Add-Check $Step "$h --version" 'FAIL' "v$Version" '檔案不存在' ''; continue }
+    $r = Invoke-Helper $nodeInfo $hp
+    $ok = ($r.exitCode -eq 0 -and $r.output -match [regex]::Escape("v$Version"))
+    Add-Check $Step "$h --version" $(if ($ok) { 'PASS' } else { 'FAIL' }) "exit 0, v$Version" "exit $($r.exitCode), $($r.output.Trim())" "以 $($nodeInfo.kind) 執行"
+  }
+
+  $claude = Join-Path $res 'app.asar.unpacked\node_modules\@anthropic-ai\claude-code\bin\claude.exe'
+  $claudeOk = (Test-Path -LiteralPath $claude) -and ((Get-Item -LiteralPath $claude).Length -gt 1MB)
+  Add-Check $Step '內嵌 claude' $(if ($claudeOk) { 'PASS' } else { 'FAIL' }) 'claude-code\bin\claude.exe 存在且 > 1 MiB' $(if (Test-Path -LiteralPath $claude) { "$((Get-Item -LiteralPath $claude).Length) bytes" } else { '不存在' }) 'Windows 只用 claude-code/bin/claude.exe（T0546 C1）'
+  $codex = @(Get-ChildItem -Path (Join-Path $res 'app.asar.unpacked\node_modules\@openai') -Filter 'codex.exe' -Recurse -File -ErrorAction SilentlyContinue | Where-Object { $_.FullName -match '\\codex-win32-[^\\]+\\vendor\\[^\\]+\\bin\\codex\.exe$' })
+  Add-Check $Step '內嵌 codex' $(if ($codex.Count -ge 1) { 'PASS' } else { 'FAIL' }) '@openai\codex-win32-<arch>\vendor\<triple>\bin\codex.exe' $(if ($codex.Count -ge 1) { "$($codex[0].Length) bytes" } else { '不存在' }) ''
+
+  $sc = Get-ShortcutPaths $InstallScope
+  Add-Check $Step '開始功能表捷徑' $(if (Test-Path -LiteralPath $sc.startMenu) { 'PASS' } else { 'FAIL' }) $sc.startMenu $(if (Test-Path -LiteralPath $sc.startMenu) { '存在' } else { '不存在' }) 'createStartMenuShortcut 預設開'
+  $deskNow = Test-Path -LiteralPath $sc.desktop
+  Add-Check $Step '桌面捷徑' $(if ($deskNow -eq $DesktopExpected) { 'PASS' } else { 'WARN' }) $(if ($DesktopExpected) { '存在' } else { '不存在' }) $(if ($deskNow) { '存在' } else { '不存在' }) '覆蓋安裝沿用 ⓪ 的狀態（KeepShortcuts）；乾淨重裝預設建立'
+
+  $running = @(Get-RelatedProcesses $Dir)
+  Add-Check $Step '安裝後沒有自動啟動 BAT' $(if ($running.Count -eq 0) { 'PASS' } else { 'WARN' }) '0' "$($running.Count)" '靜默安裝不帶 --force-run 不會啟動'
+
+  if ($null -ne $SnapshotBefore) {
+    $diff = Compare-Snapshot $SnapshotBefore (Get-UserDataSnapshot (Get-UserDataDirs))
+    Add-Check $Step 'userData 未被改動' $(if ($diff.same) { 'PASS' } else { 'FAIL' }) '與 ⓪ 的 SHA-256 快照相同' "新增 $($diff.added.Count) / 刪除 $($diff.removed.Count) / 變更 $($diff.changed.Count)" '逐檔 SHA-256 + 大小'
+    foreach ($x in ($diff.added + $diff.removed + $diff.changed | Select-Object -First 30)) { Add-Note $Step "userData 差異：$x" }
+  }
+}
+
+function Wait-Until([scriptblock]$Condition, [int]$TimeoutSec, [int]$IntervalMs = 1000) {
+  $sw = [Diagnostics.Stopwatch]::StartNew()
+  while ($sw.Elapsed.TotalSeconds -lt $TimeoutSec) {
+    if (& $Condition) { return $true }
+    Start-Sleep -Milliseconds $IntervalMs
+  }
+  return [bool](& $Condition)
+}
+
+function Invoke-Installer($Step, [string]$Installer, [string]$Arguments) {
+  Add-Command $Step "Start-Process -FilePath `"$Installer`" -ArgumentList '$Arguments' -Wait -PassThru"
+  Add-Note $Step '判讀：exit code 0 = 成功；計時 = Start-Process 開始到安裝程式結束'
+  if ($DryRun) { return }
+  $sw = [Diagnostics.Stopwatch]::StartNew()
+  $p = Start-Process -FilePath $Installer -ArgumentList $Arguments -Wait -PassThru
+  $sw.Stop()
+  $Step.durationSec = [math]::Round($sw.Elapsed.TotalSeconds, 1)
+  Add-Check $Step '安裝程式 exit code' $(if ($p.ExitCode -eq 0) { 'PASS' } else { 'FAIL' }) '0' "$($p.ExitCode)" ''
+  Add-Note $Step "安裝耗時 $($Step.durationSec) s"
+  if ($sw.Elapsed.TotalSeconds -gt $InstallTimeoutSec) { Add-Check $Step '安裝耗時上限' 'WARN' "≤ $InstallTimeoutSec s" "$($Step.durationSec) s" '' }
+}
+
+# ================================================================ ⓪ 前置檢查
+$s0 = New-Step '⓪' '前置檢查'
+Add-Note $s0 "輸出目錄：$OutDir"
+if ($PSVersionTable.PSVersion.Major -lt 5) { Stop-Acceptance '需要 Windows PowerShell 5.1 或 PowerShell 7' }
+Add-Note $s0 "PowerShell $($PSVersionTable.PSVersion)（$($PSVersionTable.PSEdition)）；系統管理員 = $IsAdmin"
+if ($env:BAT_SESSION -or $env:BAT_TERMINAL_ID) {
+  Add-Check $s0 '不在 BAT 分頁內執行' $(if ($DryRun) { 'WARN' } else { 'FAIL' }) '沒有 BAT_SESSION / BAT_TERMINAL_ID' '偵測到 BAT 分頁環境變數' '實際模式必須從 BAT 以外的一般 PowerShell 執行'
+}
+
+$all = @(Find-Installations)
+foreach ($i in $all) { Add-Note $s0 "安裝紀錄：$($i.hive) $($i.displayName) DisplayVersion=$($i.displayVersion) 路徑=$($i.installDir)（來源 $($i.installDirSource)）" }
+$inst = $null
+if ($Scope -ne 'Auto') { $inst = @($all | Where-Object { $_.scope -eq $Scope }) | Select-Object -First 1 }
+elseif ($all.Count -eq 1) { $inst = $all[0] }
+$scopeRule = 'uninstall 鍵在 HKLM = AllUsers（/allusers），在 HKCU = CurrentUser（/currentuser）；兩邊都有時須以 -Scope 指定'
+if ($null -eq $inst) {
+  Add-Check $s0 '安裝範圍判定' 'FAIL' '恰好一個安裝紀錄（或以 -Scope 指定）' "$($all.Count) 個" $scopeRule
+  Complete-Step $s0
+  if (-not $DryRun) { Stop-Acceptance '無法判定安裝範圍' }
+} else {
+  Add-Check $s0 '安裝範圍判定' 'PASS' 'HKLM 或 HKCU 恰好一個' "$($inst.scope)（$($inst.hive)，$($inst.uninstallKey)）" $scopeRule
+  Add-Check $s0 '目前安裝版本' $(if ($inst.displayVersion -eq $Version) { 'PASS' } else { 'WARN' }) $Version $inst.displayVersion '② 是同版本覆蓋安裝；版本不同時 ② 實際上是升 / 降級'
+  $Report.installation = $inst
+  if ($inst.scope -eq 'AllUsers' -and -not $IsAdmin) {
+    Add-Check $s0 '系統管理員權限' $(if ($DryRun) { 'WARN' } else { 'FAIL' }) '是（per-machine 安裝 / 解除安裝需要 UAC）' '否' '請以「以系統管理員身分執行」開啟 PowerShell 再執行；腳本不自動提權'
+  } else {
+    Add-Check $s0 '系統管理員權限' 'PASS' $(if ($inst.scope -eq 'AllUsers') { '是' } else { '不需要' }) $IsAdmin ''
+  }
+
+  $procs = @(Get-RelatedProcesses $inst.installDir)
+  $byName = ($procs | Group-Object { $_.name } | ForEach-Object { "$($_.Name)×$($_.Count)" }) -join ', '
+  Add-Check $s0 '沒有從安裝目錄執行的程序' $(if ($procs.Count -eq 0) { 'PASS' } else { 'FAIL' }) '0' "$($procs.Count)（$byName）" '執行檔位於安裝目錄（BAT、Terminal Server、內嵌 claude / codex），或命令列引用安裝目錄（helper 腳本）'
+  foreach ($p in $procs) { Add-Note $s0 "執行中：$($p.name) PID=$($p.pid) $($p.kind) $($p.path)" }
+  if ($procs.Count -gt 0) {
+    if ($DryRun) {
+      Add-Note $s0 '實際模式會在此中止（不自動結束程序；除非帶 -StopRunning 並輸入 STOP 確認）'
+    } elseif ($StopRunning) {
+      Write-Host ''
+      Write-Host "以下 $($procs.Count) 個程序會被結束（先嘗試正常關閉視窗，15 秒後強制結束程序樹）：" -ForegroundColor Yellow
+      foreach ($p in $procs) { Write-Host "  $($p.name) PID=$($p.pid)" }
+      $answer = Read-Host '輸入 STOP 確認'
+      if ($answer -ne 'STOP') { Complete-Step $s0; Stop-Acceptance '使用者未確認結束程序' }
+      foreach ($p in $procs) { try { [void](Get-Process -Id $p.pid -ErrorAction Stop).CloseMainWindow() } catch { } }
+      [void](Wait-Until { @(Get-RelatedProcesses $inst.installDir).Count -eq 0 } 15)
+      foreach ($p in @(Get-RelatedProcesses $inst.installDir)) { [void](Invoke-Native 'taskkill.exe' @('/F', '/T', '/PID', "$($p.pid)")) }
+      [void](Wait-Until { @(Get-RelatedProcesses $inst.installDir).Count -eq 0 } 15)
+      $left = @(Get-RelatedProcesses $inst.installDir)
+      Add-Check $s0 '-StopRunning 後沒有殘留程序' $(if ($left.Count -eq 0) { 'PASS' } else { 'FAIL' }) '0' "$($left.Count)" ''
+    } else {
+      Complete-Step $s0
+      Stop-Acceptance "仍有 $($procs.Count) 個程序從安裝目錄執行（$byName）。請完全關閉 BAT（含 Terminal Server）後重跑，或加 -StopRunning"
+    }
+  }
+}
+
+$udDirs = @(Get-UserDataDirs)
+$Report.userDataDirs = $udDirs
+$snapshot0 = $null
+foreach ($d in $udDirs) {
+  $files = @(Get-ChildItem -LiteralPath $d -Recurse -File -Force -ErrorAction SilentlyContinue)
+  Add-Note $s0 ("userData：{0}（{1} 檔，{2:N1} MiB）" -f $d, $files.Count, (($files | Measure-Object Length -Sum).Sum / 1MB))
+}
+if ($udDirs.Count -eq 0) { Add-Check $s0 'userData 存在' 'WARN' "%APPDATA%\$ProductName*" '找不到' '沒有 userData 時無法驗證「解除安裝保留 userData」' }
+foreach ($d in $udDirs) { Add-Command $s0 "robocopy `"$d`" `"$(Join-Path $BackupDir (Split-Path -Leaf $d))`" /E /COPY:DAT /R:1 /W:1 /NFL /NDL /NJH /NJS" }
+Add-Note $s0 '判讀：robocopy exit < 8 且備份檔數 = 來源檔數；之後對 userData 逐檔取 SHA-256 快照，②③④ 後比對'
+if (-not $DryRun) {
+  if (@($s0.checks | Where-Object { $_.result -eq 'FAIL' }).Count -gt 0) { Complete-Step $s0; Stop-Acceptance '前置檢查未通過' }
+  New-Item -ItemType Directory -Force -Path $BackupDir | Out-Null
+  foreach ($d in $udDirs) {
+    $dest = Join-Path $BackupDir (Split-Path -Leaf $d)
+    $r = Invoke-Native 'robocopy.exe' @($d, $dest, '/E', '/COPY:DAT', '/R:1', '/W:1', '/NFL', '/NDL', '/NJH', '/NJS')
+    $srcCount = @(Get-ChildItem -LiteralPath $d -Recurse -File -Force).Count
+    $dstCount = @(Get-ChildItem -LiteralPath $dest -Recurse -File -Force).Count
+    Add-Check $s0 "備份 $(Split-Path -Leaf $d)" $(if ($r.exitCode -lt 8 -and $srcCount -eq $dstCount) { 'PASS' } else { 'FAIL' }) "robocopy < 8，$srcCount 檔" "robocopy $($r.exitCode)，$dstCount 檔" ''
+  }
+  $Report.backupDir = $BackupDir
+  Add-Note $s0 "userData 備份：$BackupDir（含 server-token.json 等權杖檔，驗收結束後請刪除）"
+  $snapshot0 = Get-UserDataSnapshot $udDirs
+  $unreadable = @($snapshot0.Values | Where-Object { $_ -like '*:unreadable' }).Count
+  Add-Check $s0 'userData SHA-256 快照' $(if ($unreadable -eq 0) { 'PASS' } else { 'WARN' }) '全部可讀' "$($snapshot0.Count) 檔，無法讀取 $unreadable" '無法讀取通常代表檔案仍被開著（BAT 未完全關閉）'
+}
+if ($DryRun -and $udDirs.Count -gt 0) {
+  $sw = [Diagnostics.Stopwatch]::StartNew()
+  $snapDry = Get-UserDataSnapshot $udDirs
+  $sw.Stop()
+  $unreadableDry = @($snapDry.Values | Where-Object { $_ -like '*:unreadable' }).Count
+  Add-Note $s0 ("(dry-run) 唯讀試算 SHA-256 快照：{0} 檔、無法讀取 {1}、耗時 {2:N1} s（BAT 執行中時被開著的檔案讀不到；實際模式 BAT 已關閉，預期 0）" -f $snapDry.Count, $unreadableDry, $sw.Elapsed.TotalSeconds)
+}
+$desktop0 = $false
+if ($null -ne $inst) { $desktop0 = Test-Path -LiteralPath (Get-ShortcutPaths $inst.scope).desktop; Add-Note $s0 "桌面捷徑（$($inst.scope)）：$(if ($desktop0) { '存在' } else { '不存在' })" }
+Complete-Step $s0
+if (-not $DryRun -and $s0.result -eq 'FAIL') { Stop-Acceptance '前置檢查未通過' }
+
+# ================================================================ ① 安裝檔
+$s1 = New-Step '①' "取得 $Tag 安裝檔並驗證雜湊"
+$expectedSha256 = $ExpectedSha256.ToLowerInvariant()
+$expectedSize = $null
+$gh = Get-Command gh -ErrorAction SilentlyContinue
+if (-not $expectedSha256) {
+  if (-not $gh) { Add-Check $s1 'gh CLI' 'FAIL' '可用（或以 -ExpectedSha256 提供雜湊）' '找不到 gh' '' }
+  else {
+    Add-Command $s1 "gh release view $Tag -R $Repo --json assets"
+    $r = Invoke-Native $gh.Source @('release', 'view', $Tag, '-R', $Repo, '--json', 'assets')
+    if ($r.exitCode -ne 0) { Add-Check $s1 'gh release view' 'FAIL' 'exit 0' "exit $($r.exitCode)：$($r.output)" '' }
+    else {
+      $assets = @(($r.output | ConvertFrom-Json).assets)
+      $a = @($assets | Where-Object { $_.name -eq $AssetName }) | Select-Object -First 1
+      $hasLatestYml = @($assets | Where-Object { $_.name -eq 'latest.yml' }).Count -gt 0
+      Add-Note $s1 "release 資產內 latest.yml：$(if ($hasLatestYml) { '有' } else { '沒有（release 只上傳 exe / zip，見 docs/agent-guide/packaging-release-checks.md「NSIS 差分打包關閉」）→ 以 GitHub 計算的 asset digest（sha256）驗證' })"
+      if ($null -eq $a) { Add-Check $s1 'release 資產' 'FAIL' $AssetName '找不到' '' }
+      else {
+        $digest = "$(Get-Prop $a 'digest')"
+        if ($digest -match '^sha256:([0-9a-fA-F]{64})$') { $expectedSha256 = $Matches[1].ToLowerInvariant() }
+        $expectedSize = [int64](Get-Prop $a 'size')
+        Add-Note $s1 "asset digest：$digest，size $expectedSize"
+        if (-not $expectedSha256) { Add-Check $s1 'asset digest' 'FAIL' 'sha256:<64 hex>' $digest '' }
+      }
+    }
+  }
+}
+if (-not $InstallerPath) {
+  $InstallerPath = Join-Path $OutDir $AssetName
+  if ($gh) {
+    Add-Command $s1 "gh release download $Tag -R $Repo -p `"$AssetName`" -D `"$OutDir`" --clobber"
+    Add-Note $s1 '下載只寫入輸出目錄（-DryRun 也會下載，供實際執行時以 -InstallerPath 重用）'
+    $sw = [Diagnostics.Stopwatch]::StartNew()
+    $r = Invoke-Native $gh.Source @('release', 'download', $Tag, '-R', $Repo, '-p', $AssetName, '-D', $OutDir, '--clobber')
+    $sw.Stop()
+    Add-Check $s1 'gh release download' $(if ($r.exitCode -eq 0) { 'PASS' } else { 'FAIL' }) 'exit 0' "exit $($r.exitCode)" ''
+    Add-Note $s1 ("下載耗時 {0:N1} s" -f $sw.Elapsed.TotalSeconds)
+  }
+} else { Add-Note $s1 "使用 -InstallerPath：$InstallerPath" }
+if (Test-Path -LiteralPath $InstallerPath) {
+  $InstallerPath = (Resolve-Path -LiteralPath $InstallerPath).Path
+  $size = (Get-Item -LiteralPath $InstallerPath).Length
+  $sha256 = (Get-FileHash -LiteralPath $InstallerPath -Algorithm SHA256).Hash.ToLowerInvariant()
+  $sha512hex = (Get-FileHash -LiteralPath $InstallerPath -Algorithm SHA512).Hash
+  $bytes = New-Object byte[] ([int]($sha512hex.Length / 2))
+  for ($i = 0; $i -lt $bytes.Length; $i++) { $bytes[$i] = [Convert]::ToByte($sha512hex.Substring($i * 2, 2), 16) }
+  $sha512b64 = [Convert]::ToBase64String($bytes)
+  $Report.installer = [ordered]@{ path = $InstallerPath; size = $size; sha256 = $sha256; sha512Base64 = $sha512b64 }
+  Add-Note $s1 "sha512（base64，latest.yml 格式）：$sha512b64"
+  if ($expectedSha256) { Add-Check $s1 'SHA-256' $(if ($sha256 -eq $expectedSha256) { 'PASS' } else { 'FAIL' }) $expectedSha256 $sha256 'GitHub asset digest 或 -ExpectedSha256' }
+  else { Add-Check $s1 'SHA-256' 'FAIL' '有預期值' '沒有預期值可比對' '' }
+  if ($null -ne $expectedSize) { Add-Check $s1 '檔案大小' $(if ($size -eq $expectedSize) { 'PASS' } else { 'FAIL' }) $expectedSize $size '' }
+} else { Add-Check $s1 '安裝檔存在' 'FAIL' $InstallerPath '不存在' '' }
+Complete-Step $s1
+if (-not $DryRun -and $s1.result -eq 'FAIL') { Stop-Acceptance '安裝檔取得或驗證失敗' }
+
+if ($null -eq $inst) {
+  $Report.result = $(if ($DryRun) { 'DRYRUN-INCOMPLETE' } else { 'FAIL' })
+  Save-Report
+  exit $(if ($DryRun) { 0 } else { 1 })
+}
+$installScope = $inst.scope
+$installDir = $inst.installDir.TrimEnd('\')
+$installArgs = Get-InstallArgs $installScope $installDir
+
+# ================================================================ ② 預檢（只在 -DryRun）
+if ($DryRun) {
+  $s2p = New-Step '②p' '安裝後檢查邏輯試跑（唯讀，對象是目前已安裝的版本）'
+  Add-Note $s2p '只在 -DryRun 執行：用 ②④ 的同一組檢查讀現有安裝，確認檢查本身可用；userData 比對略過；BAT 執行中，「沒有自動啟動」預期 WARN'
+  Test-InstalledState $s2p $inst.scope $inst.installDir.TrimEnd('\') $null $desktop0
+  Complete-Step $s2p
+}
+
+# ================================================================ ② 覆蓋安裝
+$s2 = New-Step '②' '覆蓋安裝（同版本）'
+Add-Note $s2 "安裝範圍依據：⓪ 的 uninstall 鍵在 $($inst.hive) → $installScope；路徑依據：$($inst.installDirSource)"
+Invoke-Installer $s2 $InstallerPath $installArgs
+if ($DryRun) {
+  Add-Note $s2 '安裝後檢查：uninstall 鍵 DisplayVersion、InstallLocation、主程式 FileVersion、resources/package.json、3 個 helper --version、內嵌 claude / codex、捷徑、沒有自動啟動、userData SHA-256 快照不變'
+} else {
+  Test-InstalledState $s2 $installScope $installDir $snapshot0 $desktop0
+}
+Complete-Step $s2
+if (-not $DryRun -and $s2.result -eq 'FAIL') { Stop-Acceptance '覆蓋安裝檢查失敗' }
+
+# ================================================================ ③ 解除安裝
+$s3 = New-Step '③' '解除安裝（靜默）'
+$cur = $inst
+if (-not $DryRun) { $cur = @(Find-Installations | Where-Object { $_.scope -eq $installScope }) | Select-Object -First 1 }
+$uninstallExe = $null; $uninstallArgs = ''
+$q = $(if ($cur -and $cur.quietUninstallString) { $cur.quietUninstallString } elseif ($cur) { "$($cur.uninstallString) /S" } else { '' })
+if ($q -match '^"([^"]+)"\s*(.*)$') { $uninstallExe = $Matches[1]; $uninstallArgs = $Matches[2].Trim() }
+if (-not $uninstallExe) { Add-Check $s3 '解除安裝指令' 'FAIL' 'QuietUninstallString / UninstallString' "$q" '' }
+else {
+  if ($uninstallArgs -notmatch '(^|\s)/S(\s|$)') { $uninstallArgs = "$uninstallArgs /S".Trim() }
+  Add-Command $s3 "Start-Process -FilePath `"$uninstallExe`" -ArgumentList '$uninstallArgs' -Wait -PassThru"
+  Add-Note $s3 "判讀：exit 0；NSIS 解除安裝程式會複製到 %TEMP% 再執行，原程序先結束，所以之後輪詢到 uninstall 鍵與安裝目錄都消失（上限 $UninstallTimeoutSec s）才算完成；計時含輪詢"
+  Add-Note $s3 '不帶 --delete-app-data：userData 應保留'
+  if (-not $DryRun) {
+    $sw = [Diagnostics.Stopwatch]::StartNew()
+    $p = Start-Process -FilePath $uninstallExe -ArgumentList $uninstallArgs -Wait -PassThru
+    Add-Check $s3 '解除安裝程式 exit code' $(if ($p.ExitCode -eq 0) { 'PASS' } else { 'FAIL' }) '0' "$($p.ExitCode)" ''
+    $done = Wait-Until { (@(Find-Installations | Where-Object { $_.scope -eq $installScope }).Count -eq 0) -and -not (Test-Path -LiteralPath (Join-Path $installDir "$ProductName.exe")) } $UninstallTimeoutSec
+    # 等 %TEMP% 內的 NSIS 解除安裝程式副本（~nsu*.tmp\Un_*.exe）結束
+    [void](Wait-Until { @(Get-CimInstance Win32_Process | Where-Object { (Get-Prop $_ 'ExecutablePath') -match '\\~nsu[^\\]*\.tmp\\' }).Count -eq 0 } 60)
+    $sw.Stop()
+    $s3.durationSec = [math]::Round($sw.Elapsed.TotalSeconds, 1)
+    Add-Note $s3 "解除安裝耗時 $($s3.durationSec) s"
+    Add-Check $s3 '在時限內完成' $(if ($done) { 'PASS' } else { 'FAIL' }) "≤ $UninstallTimeoutSec s" "$($s3.durationSec) s" ''
+    Add-Check $s3 'uninstall 鍵已移除' $(if (@(Find-Installations | Where-Object { $_.scope -eq $installScope }).Count -eq 0) { 'PASS' } else { 'FAIL' }) '不存在' $(if (@(Find-Installations | Where-Object { $_.scope -eq $installScope }).Count -eq 0) { '不存在' } else { '仍存在' }) ''
+    Add-Check $s3 'Software\<GUID> 已移除' $(if (-not (Test-Path -LiteralPath $inst.appRegistryKey)) { 'PASS' } else { 'FAIL' }) '不存在' $(if (Test-Path -LiteralPath $inst.appRegistryKey) { '仍存在' } else { '不存在' }) $inst.appRegistryKey
+    $leftFiles = @(); if (Test-Path -LiteralPath $installDir) { $leftFiles = @(Get-ChildItem -LiteralPath $installDir -Recurse -File -Force -ErrorAction SilentlyContinue) }
+    Add-Check $s3 '安裝目錄已移除' $(if ($leftFiles.Count -eq 0) { 'PASS' } else { 'FAIL' }) '不存在或沒有檔案' $(if (Test-Path -LiteralPath $installDir) { "存在，$($leftFiles.Count) 檔" } else { '不存在' }) ''
+    foreach ($f in ($leftFiles | Select-Object -First 20)) { Add-Note $s3 "殘留：$($f.FullName)" }
+    $sc = Get-ShortcutPaths $installScope
+    foreach ($k in @('desktop', 'startMenu')) {
+      Add-Check $s3 "捷徑已移除（$k）" $(if (-not (Test-Path -LiteralPath $sc[$k])) { 'PASS' } else { 'FAIL' }) '不存在' $(if (Test-Path -LiteralPath $sc[$k]) { '仍存在' } else { '不存在' }) $sc[$k]
+    }
+    if ($null -ne $snapshot0) {
+      $diff = Compare-Snapshot $snapshot0 (Get-UserDataSnapshot (Get-UserDataDirs))
+      Add-Check $s3 'userData 保留且未被改動' $(if ($diff.same) { 'PASS' } else { 'FAIL' }) '與 ⓪ 的 SHA-256 快照相同' "新增 $($diff.added.Count) / 刪除 $($diff.removed.Count) / 變更 $($diff.changed.Count)" ''
+      foreach ($x in ($diff.added + $diff.removed + $diff.changed | Select-Object -First 30)) { Add-Note $s3 "userData 差異：$x" }
+    }
+  } else {
+    Add-Note $s3 '解除安裝後檢查：uninstall 鍵與 Software\<GUID> 已移除、安裝目錄沒有檔案、該範圍的桌面 / 開始功能表捷徑已移除、userData SHA-256 快照不變'
+  }
+}
+Complete-Step $s3
+if (-not $DryRun -and $s3.result -eq 'FAIL') { Stop-Acceptance '解除安裝檢查失敗' }
+
+# ================================================================ ④ 乾淨重裝
+$s4 = New-Step '④' '乾淨重裝'
+Add-Note $s4 '參數與 ② 相同（沒有既有安裝紀錄時，範圍只由 /allusers | /currentuser 決定，路徑只由 /D= 決定）'
+Invoke-Installer $s4 $InstallerPath $installArgs
+if ($DryRun) { Add-Note $s4 '安裝後檢查同 ②（桌面捷徑預期存在）' }
+else { Test-InstalledState $s4 $installScope $installDir $snapshot0 $true }
+Complete-Step $s4
+if (-not $DryRun -and $s4.result -eq 'FAIL') { Stop-Acceptance '乾淨重裝檢查失敗' }
+
+# ================================================================ ⑤ 啟動檢查（選做）
+$s5 = New-Step '⑤' '啟動 BAT 10 秒後關閉（選做，-LaunchCheck）'
+$exePath = Join-Path $installDir "$ProductName.exe"
+$logDir = Join-Path $env:APPDATA "$ProductName\Logs"
+if (-not $LaunchCheck) {
+  Add-Note $s5 '未帶 -LaunchCheck，略過'
+  Complete-Step $s5 'SKIPPED'
+} else {
+  Add-Command $s5 "Start-Process -FilePath `"$exePath`"；10 s 後 CloseMainWindow()，等所有安裝目錄程序結束（上限 60 s，之後提示手動關閉再等 120 s）"
+  Add-Note $s5 "判讀：$logDir 內本次啟動後新增的 debug-*.log 不含 uncaughtException / unhandledRejection；注意 BAT 會還原上次的工作區與分頁"
+  if (-not $DryRun) {
+    $before = @(Get-ChildItem -LiteralPath $logDir -Filter 'debug-*.log' -ErrorAction SilentlyContinue | ForEach-Object { $_.FullName })
+    $launchAt = Get-Date
+    $app = Start-Process -FilePath $exePath -PassThru
+    Start-Sleep -Seconds 10
+    try { [void]$app.CloseMainWindow() } catch { }
+    $closed = Wait-Until { @(Get-RelatedProcesses $installDir).Count -eq 0 } 60
+    if (-not $closed) {
+      Write-Host '  BAT 沒有在 60 秒內結束（可能有關閉確認對話框）。請手動關閉 BAT，腳本再等 120 秒。' -ForegroundColor Yellow
+      $closed = Wait-Until { @(Get-RelatedProcesses $installDir).Count -eq 0 } 120
+    }
+    Add-Check $s5 'BAT 已結束' $(if ($closed) { 'PASS' } else { 'WARN' }) '所有安裝目錄程序結束' $(if ($closed) { '已結束' } else { "仍有 $(@(Get-RelatedProcesses $installDir).Count) 個" }) '腳本不強制結束'
+    $newLogs = @(Get-ChildItem -LiteralPath $logDir -Filter 'debug-*.log' -ErrorAction SilentlyContinue | Where-Object { $before -notcontains $_.FullName -and $_.LastWriteTime -ge $launchAt.AddSeconds(-5) })
+    Add-Check $s5 '產生新的 debug log' $(if ($newLogs.Count -ge 1) { 'PASS' } else { 'WARN' }) '≥ 1' "$($newLogs.Count)" ''
+    foreach ($l in $newLogs) {
+      $hits = @(Select-String -LiteralPath $l.FullName -Pattern 'uncaughtException|unhandledRejection' -SimpleMatch:$false -ErrorAction SilentlyContinue)
+      Add-Check $s5 "$($l.Name) 無 uncaughtException / unhandledRejection" $(if ($hits.Count -eq 0) { 'PASS' } else { 'FAIL' }) '0 行' "$($hits.Count) 行" ''
+    }
+  }
+  Complete-Step $s5
+}
+
+# ================================================================ ⑥ 輸出
+$final = @($Report.steps | ForEach-Object { $_.result })
+if ($DryRun) { $Report.result = 'DRYRUN' }
+elseif ($final -contains 'FAIL') { $Report.result = 'FAIL' }
+elseif ($final -contains 'WARN') { $Report.result = 'PASS-WITH-WARN' }
+else { $Report.result = 'PASS' }
+if ($Report.result -ne 'PASS') { $Report.restoreHints = @(Get-RestoreHints) }
+Save-Report
+Write-Host ''
+Write-Host "整體結果：$($Report.result)" -ForegroundColor $(if ($Report.result -like 'PASS*' -or $Report.result -eq 'DRYRUN') { 'Green' } else { 'Red' })
+if ($Report.backupDir) { Write-Host "userData 備份：$($Report.backupDir)（含權杖檔，確認驗收結果後請刪除）" -ForegroundColor Yellow }
+exit $(if ($Report.result -eq 'FAIL') { 1 } else { 0 })
