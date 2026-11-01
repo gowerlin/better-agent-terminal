@@ -3,11 +3,13 @@ schema_version: 1
 schema_kind: bug
 id: BUG-182
 title: "遠端 bat-server 重啟後，重連的視窗裡分頁的等待 ⚠️ 永遠不清除（看過、送 idle 都沒用），工作區總數多算"
-status: FIXING
+status: FIXED
 severity: low
 reproducibility: always
 created_at: "2026-11-01T20:48:44+0800"
-updated_at: "2026-11-01T20:50:17+0800"
+updated_at: "2026-11-01T21:07:44+0800"
+fixed_at: "2026-11-01T21:07:44+0800"
+fixed_in: "01796a9e"
 impact:
   - workspace-waiting-badge
   - remote-profile
@@ -22,7 +24,7 @@ links:
 |------|------|
 | 嚴重度 | 🟢 low（只在遠端 server 重啟時；提示錯誤、總數多 1，不影響終端功能） |
 | 可重現 | 一定（T0748 spec ⑤） |
-| **狀態** | 🔧 FIXING（T0749） |
+| **狀態** | ✅ FIXED（T0749，`01796a9e`；待人工驗收） |
 | 回報者 | T0748 Worker |
 
 ## 現象
@@ -43,3 +45,10 @@ links:
 - 修正方向（待修正單評估）：重連時對該 profile 的分頁做一次 attention 對帳（server 沒有的 PTY 清除 attention），或 renderer 在 PTY 不存在時不把該分頁算成等待。
 - 重連後分頁沒有 PTY 本身是否符合預期，T0748 未查。
 - 未涵蓋：真正的網路中斷（server 仍在）是否也會殘留。
+
+## 修正（T0749，`01796a9e`，2026-11-01）
+
+- 做法：遠端 profile 視窗收到 `remote:client-status-changed` 由未連線轉已連線時，送一次 proxied `terminal:attention-snapshot(ids)`；server（Electron main 與 headless 共用 `registerAttentionSnapshotHandler`，`electron/terminal-attention.ts`）依自己的現況回 `{ id, alive, attention }`。renderer `reconcileTerminalAttention`（`src/stores/terminal-attention-store.ts`）：PTY 不在 → 比照 PTY 結束（實心 ⚠️、總數清除；沒在看 → 淡化，D203 沿用 PTY 結束的既有處理）；PTY 在 → 以 server 狀態取代（仍在等 → 保留）。不比對時間。
+- 驗證：unit（`terminal-attention-store.reconcile.test.ts`、`electron/__tests__/terminal-attention.test.ts`）；e2e ⑤ 改為斷言，WSL 實跑 4 次綠（最終版 spec 2 次），突變檢查（App 不接對帳）→ ⑤ 失敗於 `data-waiting` 仍為 `waiting`。
+- 現況記錄（未改）：server 重啟後舊分頁沒有 PTY、不重建 shell，使用者 ⏻ 重啟分頁。
+- 真正的網路中斷（server 仍在）：同一個快照涵蓋（PTY 在 → 取 server 現況），unit 驗證，e2e 未做。
