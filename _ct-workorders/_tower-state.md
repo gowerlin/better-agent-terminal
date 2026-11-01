@@ -1,8 +1,8 @@
 ---
 schema_kind: tower-state
 summary_version: 1
-updated_at: "2026-11-01T20:11:18+0800"
-session: "2026-11-01 20:04 第一百零三 session 塔台重啟（BAT 重開，CT v6.0.0-beta.10）；v0.7.2-pre.9 已發佈；T0745 DONE，NSIS 驗收待重跑"
+updated_at: "2026-11-01T20:19:27+0800"
+session: "2026-11-01 20:19 第一百零三 session 塔台重啟（NSIS 驗收後 BAT 重開，CT v6.0.0-beta.10）；v0.7.2-pre.9 NSIS 覆蓋 / 解除 / 乾淨重裝 PASS"
 next_ids:
   workorder: "T0746"
   decision: "D204"
@@ -13,7 +13,7 @@ todo:
   - "BUG-180（`v0.7.2-pre.9` 起）：實機連開 Claude CLI ＋以塔台開啟 Claude，切回前 TUI 不以 9 欄繪製"
   - "候選（T0735）：D200 ⑥ detached 視窗的工作區 ⚠️（Q-1 [A] 草案）；Claude Agent 面板（SDK）分頁等待權限時沒有 PTY attention、不顯示 ⚠️"
   - "候選（T0730）：`CLAUDE_CODE_PLUGIN_CACHE_DIR` 時 plugins 清單位置與 CLI 是否一致，需另開單實測"
-  - "NSIS 驗收重跑：T0745 已修腳本誤判（`ae6b4f84`）；使用者關 BAT 後以系統管理員 PowerShell 跑 `e2e/manual/nsis-reinstall-acceptance.ps1 -Version 0.7.2-pre.9`（同版本覆蓋 ＋ ③ 解除 ＋ ④ 乾淨重裝），回報 report.md 路徑；結束後刪 userData 備份（含權杖）"
+  - "刪除 NSIS 驗收的 userData 備份（含權杖）：`%TEMP%\bat-nsis-acceptance-20261101-200229\userdata-backup`、`…-201803\userdata-backup`（待使用者確認）"
   - "BUG-181（`v0.7.2-pre.9` 起）：實機看 Cache History R 列與合計；可選 `BAT_E2E_REAL_MODEL=1` 複驗（約 US$0.15）"
   - "版號線：0.7.2 線已到 pre.9（最後一版，D151）；下一個預覽版要換線（例 0.7.3-pre.1），先與使用者確認"
   - "候選（T0742）：BUG-159 修正對 npm 安裝的 codex（PATH 第一個是 `codex.cmd`）不注入 `--no-daemon`；`e2e/t0584-bat-mcp-shim.spec.ts` 第 275 行斷言依賴 npx PATH"
@@ -23,6 +23,8 @@ todo:
   - "後續候選：工作清單 pinned 區塊、sub-agent Task* 併入（T0725）；升內嵌 CLI 工單回報附 npm unpackedSize 前後差（D196）"
 ---
 # Tower State — better-agent-terminal
+
+> 🟢 **第一百零三 session 塔台重啟（二）**（2026-11-01 20:19，CT v6.0.0-beta.10，Fast Path；塔台 session `dad82733-7c69-4daa-ac50-d34ffbe6cf0e`；NSIS 驗收後 BAT 重開；`--set-role tower --mode on` exit 0；安裝版 helper `v0.7.2-pre.9`；HEAD `c272c36d`、工作區乾淨，`*sync` 沿用索引）。**NSIS 驗收 PASS**：報告 `%TEMP%at-nsis-acceptance-20261101-201803eport.md`（real，20:18:03–20:18:31，PS 7.6.9 系統管理員）：⓪ PASS（AllUsers / HKLM、安裝版 pre.9、0 個執行中程序、userData 72 檔快照）、① PASS（SHA-256 = GitHub digest）、② 同版本覆蓋 PASS（11.2 s；版本 / helper `--version` / 內嵌 claude / codex / 捷徑 / 無並存 / 未自動啟動；userData 新增 0 / 刪除 0 / 變更 0，T0745 修正生效）、③ 靜默解除 PASS（1.9 s；鍵、目錄、捷徑移除，userData 保留未改）、④ 乾淨重裝 PASS（8.9 s）、⑤ 未選做。pre.6 起待驗的「Windows NSIS 覆蓋 / 乾淨重裝」以本次結案。userData 備份（含權杖）兩份待使用者確認刪除。
 
 > 🟢 **第一百零三 session 塔台重啟**（2026-11-01 20:04，CT v6.0.0-beta.10，Fast Path；塔台 session `dbf4ae74-4623-45e0-89e6-9b7c9361a5df`；BAT 重開（使用者跑 NSIS 驗收）；`--set-role tower --mode on` exit 0；安裝版 helper `v0.7.2-pre.9`；HEAD `bc2fd0d8`、工作區乾淨，`*sync` 沿用索引）。NSIS 驗收報告 `%TEMP%\bat-nsis-acceptance-20261101-200229\report.md`（real，20:02:29–20:03:18）：⓪ WARN（安裝版 pre.8 ≠ 目標 pre.9，預期）、① PASS（SHA-256 = GitHub digest）、② **FAIL**：exit 0、DisplayVersion / FileVersion / `resources/package.json` / 三個 helper `--version` = pre.9、內嵌 claude / codex、捷徑、沒有並存安裝、未自動啟動皆 PASS，**唯一失敗**是 userData 變更 1 檔 `Logs/bat-scripts.log`（塔台推論：腳本在快照之間自己以 node 跑三個 helper `--version`，helper 會寫這個檔 → 腳本誤判，未查證）；腳本在 ② 停止，③ 解除 / ④ 乾淨重裝未跑；userData 備份（含權杖檔）在同目錄 `userdata-backup`。使用者選「開 T0745 修腳本再重跑」→ **T0745**（查證 `bat-scripts.log` 變更來源、修腳本 ② / ④，只演練不安裝）20:06 派工，`started:` exit 0。**T0745 DONE**（20:09，`ae6b4f84`；查證：快照後 `bat-scripts.log` 純 append，新增的是腳本自己在 BAT 外跑的 `bat-terminal` / `bat-notify` `--version`（`bat-mcp` 不寫）；修正：helper 子程序設 `BAT_HELPER_LOG_DIR=<報告目錄>\helper-logs`、`$OutDir` 轉絕對路徑，userData 比對規則不變；`-DryRun` PS 7 綠、PS 5.1 語法 0 錯）；session 快照已寫；`--close-worker T0745` exit 0。待使用者關 BAT 重跑實際模式（`-Version 0.7.2-pre.9`，同版本覆蓋 ＋ ③ ④）。
 
