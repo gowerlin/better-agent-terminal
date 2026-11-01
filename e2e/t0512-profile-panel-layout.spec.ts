@@ -198,6 +198,9 @@ const WIZARD_STUBS: Record<string, unknown> = {
   'wsl:install-bundle': { ok: true },
   'wsl:detect-network-mode': { actual: 'mirrored', declared: 'mirrored', mirroredSupported: true },
   'wsl:pick-server-port': { ok: true, port: 49555 },
+  // T0554: write-systemd-unit snapshots the existing unit first. No unit file (content null)
+  // = first setup, so cancel/rollback removes the unit instead of restoring one (BUG-185).
+  'wsl-systemd:snapshot-unit': { ok: true, content: null, active: false, enabled: false },
   'wsl-systemd:write-unit': { ok: true },
   'wsl:keep-alive': { ok: true },
   'wsl-systemd:enable-linger': { ok: true },
@@ -207,6 +210,12 @@ const WIZARD_STUBS: Record<string, unknown> = {
   'wsl:uninstall-bundle': { ok: true },
   'wsl-systemd:remove-unit': { ok: true },
   'wsl:release-keep-alive': { ok: true },
+  // T0554 upgrade paths: reached only when install-bundle reports `previous: 'kept'` or the
+  // snapshot has a unit, which the stubs above never do. Stubbed so no path reaches wsl.exe.
+  'wsl:restore-bundle': { ok: true, outcome: 'missing' },
+  'wsl:discard-previous-bundle': { ok: true },
+  'wsl-systemd:restore-unit': { ok: true },
+  'wsl-systemd:restart-service': { ok: true },
 }
 
 test('T0512 setup wizard completion block (host=wizard) — evidence that it is unchanged', async () => {
