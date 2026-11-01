@@ -3,11 +3,11 @@ schema_version: 1
 schema_kind: bug
 id: BUG-178
 title: "Claude 面板讀 session 歷史 / session 清單 / plugins 時不理 `CLAUDE_CONFIG_DIR`（固定讀 `os.homedir()/.claude`），設了該變數的使用者 resume 後歷史是空的"
-status: FIXING
+status: FIXED
 severity: low
 reproducibility: always
 created_at: "2026-11-01T11:17:31+0800"
-updated_at: "2026-11-01T11:51:27+0800"
+updated_at: "2026-11-01T12:24:09+08:00"
 impact:
   - claude-agent-panel
 links:
@@ -21,7 +21,7 @@ links:
 |------|------|
 | 嚴重度 | 🟢 low（只影響設了 `CLAUDE_CONFIG_DIR` 的使用者） |
 | 可重現 | 一定（推論；CLI 端已實測，BAT 面板端未實際重現） |
-| **狀態** | 🔧 FIXING：T0730（2026-11-01 開單，使用者決定現在修） |
+| **狀態** | ✅ FIXED：T0730（commit `6f7b3d53`），等驗收 |
 | 回報者 | T0727 Worker |
 
 ## 現象
@@ -43,3 +43,10 @@ links:
 - 這幾處改用與 `handlers/claude.ts` 相同的解析（`CLAUDE_CONFIG_DIR` 優先，未設才 `<home>/.claude`），抽成單一函式；env 來源以實際 spawn CLI 的 env 為準。
 - 一併檢查 T0711 提到的設定面板「預設值」層。
 - 以 `e2e/v072-pre6-claude-panel.spec.ts` 的方式驗證（改用 `CLAUDE_CONFIG_DIR` 隔離時 ④ resume 歷史仍重建）。
+
+## 修正（T0730，commit `6f7b3d53`）
+
+- 新增唯一實作 `resolveClaudeConfigDir(env, homeDir, join?)`（`electron/claude-config-dir.ts`）：`CLAUDE_CONFIG_DIR` 去掉前後空白後非空就用它，否則 `<home>/.claude`；沒設或空字串時路徑與修正前相同。
+- Claude 面板：`loadSessionHistory`、`listSessionsFallback`、`runQuery` 的 `plugins/installed_plugins.json` 改經 `panelClaudeConfigDir`（`electron/claude-agent-manager.ts`），env 取面板 spawn CLI 的 env（`sdkSpawnEnv`）。
+- 同類問題一併修（沒設變數時行為不變）：`claude:scan-skills` / `claude:scan-star-commands` 的使用者 `commands/` / `skills/`、`claude:get-statusline-extras`（原本 `process.env.CLAUDE_CONFIG_DIR ||`，全空白值會被當路徑）、ct-config 預設值層的 Claude 手動安裝（T0711 記下的差異）。`bat-mcp-launch.ts` / `ct-install-detect.ts` 原本就正確，改成呼叫同一函式。ct-config global 層（`control-tower-data`）是 CT 自己的資料路徑，不動。
+- 驗證：`electron/__tests__/claude-config-dir.test.ts`（設 / 未設 / 空字串 / 全空白、consumer、source guard）；e2e `e2e/v072-pre6-claude-panel.spec.ts` 第二個 test（`CLAUDE_CONFIG_DIR` 指到與暫存 home 分開的目錄：session 檔寫在該處、清單找得到、plugins 從該處載入且暫存 home 的誘餌不載、重開後 resume 歷史重建）2 passed，負向對照（修正前的 `claude-agent-manager.ts`）在 plugins 與歷史重建兩處都失敗；`test:unit` 352 檔全過、兩個 typecheck = 0、`vite build` 成功。
