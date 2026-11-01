@@ -4,14 +4,14 @@ schema_kind: workorder
 id: T0672
 title: "修正：BUG-166 — 滑鼠回報被 shell 印成文字時自動關閉本機滑鼠追蹤（F1）+ 右鍵選單「重設滑鼠模式」（F2）"
 type: implementation
-status: FIXED
+status: DONE
 repo: better-agent-terminal
 project: BUG-166
 priority: P2
 sizing: S
 created_at: "2026-10-19T17:35:11+0800"
 started_at: "2026-10-19T17:36:44+0800"
-updated_at: "2026-10-19T17:50:26+0800"
+updated_at: "2026-11-01T21:37:42+0800"
 completed_at: "2026-10-19T17:50:26+0800"
 depends_on: []
 related:
@@ -174,3 +174,7 @@ codex 等 TUI 被訊號結束或崩潰時不還原滑鼠追蹤，xterm 停在追
 
 - 產品：`64209d44349d45b59075a18e8eeb5dbcb5f16d19` — `fix: T0672 BUG-166 turn off mouse tracking a program left on`（11 檔）。
 - 工單：開工 + Q-1 `b9f331b2`；收尾 commit 在本回報之後（hash 不回寫，避免多一個 commit）。
+
+### 塔台收尾補記（2026-11-01 21:37，第一百零四 session）
+
+- 工單 `FIXED` → `DONE`（R-G003）：對應 BUG-166 已 CLOSED（外部測試者A 以 macOS 實機確認，`_bug-tracker.md` 關閉時間 2026-10-30）；工單停在 `FIXED` 是漏改。剩餘事項無。

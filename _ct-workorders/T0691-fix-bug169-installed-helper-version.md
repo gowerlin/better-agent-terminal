@@ -4,14 +4,14 @@ schema_kind: workorder
 id: T0691
 title: "BUG-169 修正：安裝版 helper 的 `--version` 與 BAT MCP `serverInfo.version` 回報實際版號（打包時在 resources 放只含 name / version 的 package.json）"
 type: bugfix
-status: FIXED
+status: DONE
 repo: better-agent-terminal
 project: BUG-169
 priority: P3
 sizing: S
 created_at: "2026-10-21T23:29:38+0800"
 started_at: "2026-10-21T23:31:22+08:00"
-updated_at: "2026-10-21T23:42:16+0800"
+updated_at: "2026-11-01T21:37:42+0800"
 completed_at: "2026-10-21T23:42:16+0800"
 depends_on: []
 related:
@@ -160,3 +160,7 @@ memory_overrides:
 ### 回報時間
 
 2026-10-21T23:42:16+0800
+
+### 塔台收尾補記（2026-11-01 21:37，第一百零四 session）
+
+- 工單 `FIXED` → `DONE`（R-G003）：對應 BUG-169 已於 2026-11-01 11:00 CLOSED（`closed_reason: verified`，`v0.7.2-pre.6` Windows 安裝版三個 helper `--version` 皆回報實際版號）；工單停在 `FIXED` 是漏改。剩餘事項無。

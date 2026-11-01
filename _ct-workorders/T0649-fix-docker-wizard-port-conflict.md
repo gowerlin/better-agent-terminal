@@ -4,14 +4,14 @@ schema_kind: workorder
 id: T0649
 title: "BUG-156：Docker 設定精靈的容器埠不再固定 9876，避開 BAT 自己的 RemoteServer 埠與已佔用埠"
 type: bugfix
-status: FIXED
+status: DONE
 repo: better-agent-terminal
 project: BUG-156
 priority: P2
 sizing: S
 created_at: "2026-10-18T18:33:43+0800"
 started_at: "2026-10-18T18:35:52+0800"
-updated_at: "2026-10-18T18:49:54+0800"
+updated_at: "2026-11-01T21:37:42+0800"
 completed_at: "2026-10-18T18:49:54+0800"
 depends_on: [T0646]
 related:
@@ -213,3 +213,7 @@ T0646 依程式碼改寫 `/remote/docker` 時發現：Docker 精靈的容器埠�
 ### 互動紀錄
 
 無（yolo，沒有向塔台提問）。
+
+### 塔台收尾補記（2026-11-01 21:37，第一百零四 session）
+
+- 工單 `FIXED` → `DONE`（R-G003）：對應 BUG-156 已於第一百零三 session（2026-11-01）CLOSED，依據 T0743 以 WSL Docker 驗收 PASS；工單停在 `FIXED` 是漏改。剩餘事項無。

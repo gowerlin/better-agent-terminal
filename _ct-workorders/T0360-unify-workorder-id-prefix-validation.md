@@ -4,11 +4,11 @@ schema_kind: workorder
 id: T0360
 title: "BUG-082: 統一工單 ID 前綴驗證 + --workspace 缺漏提示 + 未知 workspaceId 行為調查"
 type: fix
-status: FIXED
+status: DONE
 priority: P1
 sizing: M
 created_at: "2026-09-01T22:42:56+08:00"
-updated_at: "2026-09-01T22:55:13+08:00"
+updated_at: "2026-11-01T21:37:42+0800"
 started_at: "2026-09-01T22:45:17+08:00"
 completed_at: "2026-09-01T22:55:13+08:00"
 source_advisory: "BMad-Guide 塔台跨塔台 ADVISORY 2026-09-01（項目 [1] 接受 / [3] B-2 接受 / [4] 調查 / [2] B-1 暫緩）"
@@ -40,7 +40,7 @@ memory_overrides:
 
 # T0360 — 統一工單 ID 前綴驗證（BUG-082）
 
-- **狀態**：FIXED
+- **狀態**：DONE
 - **任務類型**：fix + 調查
 - **工作量預估**：M
 - **目標版本**：v0.4.3
@@ -291,3 +291,7 @@ if (!workspace)       return null
 
 無。
 
+
+### 塔台收尾補記（2026-11-01 21:37，第一百零四 session）
+
+- 工單 `FIXED` → `DONE`（R-G003）：對應 BUG-082 已於 2026-09-02 CLOSED 並歸檔（`_archive/bugs/BUG-082-…`）；工單停在 `FIXED` 是漏改。剩餘事項無。

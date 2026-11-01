@@ -1,8 +1,8 @@
 ---
 schema_kind: tower-state
 summary_version: 1
-updated_at: "2026-11-01T21:30:36+0800"
-session: "2026-11-01 21:30 第一百零三 session 收工（CT v6.0.0-beta.10）：T0736–T0749、D204；v0.7.2-pre.9、v0.7.3-pre.1 已發佈"
+updated_at: "2026-11-01T21:36:41+0800"
+session: "2026-11-01 21:36 第一百零四 session 開工（CT v6.0.0-beta.10，Fast Path）"
 next_ids:
   workorder: "T0750"
   decision: "D205"
@@ -18,6 +18,8 @@ todo:
   - "版號線：0.7.3 線已到 pre.1（D204；最多到 pre.9）"
 ---
 # Tower State — better-agent-terminal
+
+> 🟢 **第一百零四 session 開工**（2026-11-01 21:36 (UTC+8)，CT v6.0.0-beta.10，Fast Path；塔台 session `3f9b428a-2c04-4a70-8751-68733dd7b1cc`；`--set-role tower --mode on` exit 0；安裝版 helper `v0.7.3-pre.1`；HEAD `68532d71` = 上次收工 commit、工作區乾淨，`*sync` 沿用收工時索引；熱檔皆在 400 KB 預算內）。
 
 > 最後更新:2026-11-01 21:30 (UTC+8) — **第一百零三 session 收工**（CT v6.0.0-beta.10）：T0736–T0749（D204）→ **`v0.7.2-pre.9`**（BUG-180 / 181）、**`v0.7.3-pre.1`**（BUG-182）；NSIS 重裝驗收 PASS；27 張 BUG 依 R-G003 結案。前次：第一百零二 session 收工（2026-11-01 17:08）。
 >
