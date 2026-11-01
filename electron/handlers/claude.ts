@@ -28,6 +28,7 @@ import type { ClaudeAgentManager } from '../claude-agent-manager'
 import type { CodexAgentManager } from '../codex-agent-manager'
 import { logger } from '../logger'
 import { claudeCtPluginSkillDirs, type EnvLike } from '../ct-install-detect'
+import { resolveClaudeConfigDir } from '../claude-config-dir'
 import type { HandlerRegistrar, HostDeps } from './types'
 
 /** Thrown when a codex preset reaches a host without codex (headless bat-server). */
@@ -316,12 +317,14 @@ export function registerClaudeHandlers(register: HandlerRegistrar, deps: ClaudeH
     const pathMod = await import('path')
     const results: { name: string; description: string; scope: 'project' | 'global' }[] = []
     const homePath = deps.homeDir
+    // BUG-178 / T0730: the user's commands / skills live in the Claude config dir (`CLAUDE_CONFIG_DIR` of this host)
+    const claudeDir = resolveClaudeConfigDir(deps.env ?? process.env, homePath, (...parts) => pathMod.join(...parts))
     const seen = new Set<string>()
 
     // 1. Scan .claude/commands/ (flat .md files)
     const commandDirs: { dir: string; scope: 'project' | 'global' }[] = [
       { dir: pathMod.join(cwd, '.claude', 'commands'), scope: 'project' },
-      { dir: pathMod.join(homePath, '.claude', 'commands'), scope: 'global' },
+      { dir: pathMod.join(claudeDir, 'commands'), scope: 'global' },
     ]
     for (const { dir, scope } of commandDirs) {
       try {
@@ -346,7 +349,7 @@ export function registerClaudeHandlers(register: HandlerRegistrar, deps: ClaudeH
       { dir: pathMod.join(cwd, '.claude', 'skills'), scope: 'project' },
       { dir: pathMod.join(cwd, '.copilot', 'skills'), scope: 'project' },
       { dir: pathMod.join(cwd, '.agents', 'skills'), scope: 'project' },
-      { dir: pathMod.join(homePath, '.claude', 'skills'), scope: 'global' },
+      { dir: pathMod.join(claudeDir, 'skills'), scope: 'global' },
       { dir: pathMod.join(homePath, '.copilot', 'skills'), scope: 'global' },
       { dir: pathMod.join(homePath, '.agents', 'skills'), scope: 'global' },
       // T0710 (3-3): the Claude `ct@*` plugin's skills (no other plugin), last: a manual install
@@ -386,7 +389,7 @@ export function registerClaudeHandlers(register: HandlerRegistrar, deps: ClaudeH
     const seen = new Set<string>()
 
     const skillDirs = [
-      pathMod.join(homePath, '.claude', 'skills'),
+      pathMod.join(resolveClaudeConfigDir(deps.env ?? process.env, homePath, (...parts) => pathMod.join(...parts)), 'skills'), // BUG-178
       pathMod.join(homePath, '.copilot', 'skills'),
       pathMod.join(homePath, '.agents', 'skills'),
       // T0710 (3-3): the Claude `ct@*` plugin's skills, after the manual ones (same rule as scan-skills)
@@ -425,7 +428,7 @@ export function registerClaudeHandlers(register: HandlerRegistrar, deps: ClaudeH
   // Read statusline extras: account label + plan, memsync status, cached rate limits
   register('claude:get-statusline-extras', async (_ctx) => {
     const homePath = deps.homeDir
-    const claudeDir = process.env.CLAUDE_CONFIG_DIR || path.join(homePath, '.claude')
+    const claudeDir = resolveClaudeConfigDir(deps.env ?? process.env, homePath) // BUG-178 / T0730: shared rule
     const result: {
       accountLabel?: string
       planLabel?: string

@@ -29,6 +29,22 @@
 - 驗證：`src/lib/__tests__/claude-task-list.test.ts`（重播）、`electron/__tests__/claude-todo-tools-env.test.ts`（env 注入與尊重既有值）、`src/__tests__/claude-panel-task-list.test.tsx`（歷史 / 即時事件畫清單、不進 active task bar、`TodoWrite` 不變）、`electron/__tests__/claude-sdk03-task-tools.test.ts`（Task\* 不進 `activeTasks`）。CLI 改結果文字格式時同步改 `claude-task-list.ts` 與測試。
 - e2e（T0727，不耗 token）：`e2e/v072-pre6-claude-panel.spec.ts` 以本機假 Anthropic Messages API（`e2e/fixtures/fake-anthropic-api.ts`，`ANTHROPIC_BASE_URL`）驅動真的內嵌 CLI，涵蓋 Claude 5 / 4.x 首個請求提供 Task\*（CLI 2.1.316 放在 ToolSearch 的 deferred 清單，不在 `tools`）、工作清單逐回合變化、重開後 resume 重建、串流、權限詢問、sub-agent、`claude-code-v2` 分頁遷移、claude-cli 分頁 env；隔離方式（暫存 USERPROFILE、工作區放 `%ProgramData%`、阻擋並記錄對外連線的 proxy）見 spec 檔頭。升 SDK / CLI 時跑一次（需先 `npx vite build`）。
 
+## Claude 設定目錄（BUG-178 / T0730）
+
+- 🔴 **規則**：Claude 的使用者設定目錄 = `CLAUDE_CONFIG_DIR`（去掉前後空白後非空）優先，否則 `<home>/.claude`。唯一實作 `resolveClaudeConfigDir(env, homeDir, join?)`（`electron/claude-config-dir.ts`，不 import electron）。沒設或設成空字串時路徑與 T0730 前完全相同。
+- **env 來源**：每個 consumer 傳「讀的是哪一個 claude」的 env，不一律看主行程 `process.env`：
+  | 位置 | 讀什麼 | env |
+  |---|---|---|
+  | `panelClaudeConfigDir`（`electron/claude-agent-manager.ts`） | Claude 面板的 session 歷史 `loadSessionHistory`、session 清單 fallback `listSessionsFallback`（`projects/<encoded cwd>`）、`runQuery` 的 `plugins/installed_plugins.json` | 面板 spawn CLI 的 env（`sdkSpawnEnv(runtime).env ?? process.env`）。`sdkSpawnEnv` 兩種 runtime 都不動 `CLAUDE_CONFIG_DIR`，所以沒有 runtime 的歷史 / 清單路徑不解析 runtime（`claude-config-dir.test.ts` 守住） |
+  | `claude:scan-skills` / `claude:scan-star-commands` / `claude:get-statusline-extras`（`electron/handlers/claude.ts`） | 使用者的 `commands/`、`skills/`、`account-label.txt`、`cache/` | 回答主機的 env（`deps.env ?? process.env`；遠端 = bat-server） |
+  | `defaultClaudeSettingsFiles`（`electron/bat-mcp-launch.ts`） | `settings.json`（hooks 是否停用） | 分頁啟動時的 env |
+  | `claudeConfigDir`（`electron/ct-install-detect.ts`）、`ctConfigCandidates` 預設值層（`electron/handlers/ct-config.ts`） | CT 手動安裝 `skills/control-tower`、`ct@*` plugin | 回答主機的 env |
+- **不是 Claude 設定目錄（不經這個函式）**：`<home>/.claude/local`（舊版 claude 本機安裝位置，`claude-resolver.ts` / `node-resolver.ts`）、CT 自己的 `<home>/.claude/control-tower-data/config.yaml` 與舊 `control-tower-config.yaml`（ct-config global 層；CT `tower-config.md` 寫死 `~/.claude`，不隨 `CLAUDE_CONFIG_DIR` 移動）、專案的 `<cwd>/.claude`（`worktree-manager.ts`、scan-skills 的 project scope）。Claude 面板以 SDK 在主行程讀 session 清單（`listSessions`）時，SDK 自己讀 `process.env.CLAUDE_CONFIG_DIR`，與 spawn env 相同。
+- 🔴 新增讀 Claude 設定目錄的程式一律經 `resolveClaudeConfigDir`（或上表的包裝），不要手寫 `path.join(home, '.claude')`；`electron/__tests__/claude-config-dir.test.ts` 的 source guard 掃 `electron/` 與 `src/`，例外只有上一點列的檔案。
+- **與 CLI 的已知差異**（刻意保留）：CLI 2.1.316 / SDK 0.3.316 是 `(CLAUDE_CONFIG_DIR ?? join(homedir(), '.claude')).normalize('NFC')`：空字串或全空白照用（相對路徑），並正規化為 NFC。BAT 對空白值回到 `<home>/.claude`、不做 NFC，讓沒設變數的使用者路徑不變。設成空白的 `CLAUDE_CONFIG_DIR` 本身就是壞設定（CLI 會把 session 寫到 cwd 底下的 `projects/`）。
+- **已知限制**：`installed_plugins.json` 的位置沿用 T0710 規則（`<config>/plugins/`）；CT `data-layer-architecture.md` 記載設了 `CLAUDE_CODE_PLUGIN_CACHE_DIR` 時整個 plugins 目錄（含 `installed_plugins.json`）在該處，BAT 目前只把 cache 根目錄改到那裡（`findClaudeCtPlugins`），面板的 plugins 清單也一樣。
+- 驗證：`electron/__tests__/claude-config-dir.test.ts`（設 / 未設 / 空字串 / 全空白；兩種 runtime 的 spawn env；歷史與清單讀 `CLAUDE_CONFIG_DIR`；scan-skills / star commands / statusline extras；ct-config 預設值層與 global 層；source guard）；e2e `e2e/v072-pre6-claude-panel.spec.ts` 第二個 test（⑪ session 檔寫在 `CLAUDE_CONFIG_DIR`、清單找得到、plugins 從 `<CLAUDE_CONFIG_DIR>/plugins` 載入且暫存 home 的誘餌不載；⑫ 重開後 resume 歷史重建）。
+
 # Claude Runtime Selection (PLAN-027, v2.1.49+)
 
 BAT 預設使用**內嵌版** claude CLI（隨 BAT 打包，版本鎖在 `@anthropic-ai/claude-code ^2.1.316`）。若使用者想改用系統上自己安裝的 claude CLI（例如剛 release 的新版），可在 `Settings → Advanced → Claude Runtime` 切換。

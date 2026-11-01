@@ -25,7 +25,7 @@
 import * as fs from 'fs/promises'
 import * as path from 'path'
 import { logger } from '../logger'
-import { codexHomeDir, ctPluginTowerConfigCandidates, detectCtInstalls, type CtInstallHost, type EnvLike } from '../ct-install-detect'
+import { claudeConfigDir, codexHomeDir, ctPluginTowerConfigCandidates, detectCtInstalls, type CtInstallHost, type EnvLike } from '../ct-install-detect'
 import type { CtConfigSourceFile, CtConfigSources } from '../../src/types/ct-config-sources'
 import type { HandlerRegistrar } from './types'
 
@@ -38,6 +38,10 @@ const MAX_CT_CONFIG_FILE_BYTES = 512 * 1024
  * Lookup order per layer (CT `tower-config.md` § 三層設定架構: the new global path wins).
  * Defaults: the manual installs only; T0710 adds `<CODEX_HOME>/skills/…` when `CODEX_HOME` is set
  * elsewhere, and `readCtConfigSources` appends the plugin copies after these.
+ * BUG-178 / T0730: the Claude manual install is `<CLAUDE_CONFIG_DIR>/skills/control-tower` (the
+ * directory claude loads user skills from; `<home>/.claude` when unset), the same rule as
+ * `detectCtInstalls`. The global layer stays under `<home>/.claude`: that is Control Tower's own
+ * data path (`control-tower-data`), which CT does not move with `CLAUDE_CONFIG_DIR`.
  */
 export function ctConfigCandidates(homeDir: string, env: EnvLike = {}): { global: string[]; defaults: string[] } {
   const manualCodex = path.join(homeDir, '.codex', 'skills', 'control-tower', 'references', 'tower-config.md')
@@ -48,7 +52,7 @@ export function ctConfigCandidates(homeDir: string, env: EnvLike = {}): { global
       path.join(homeDir, '.claude', 'control-tower-config.yaml'),
     ],
     defaults: [
-      path.join(homeDir, '.claude', 'skills', 'control-tower', 'references', 'tower-config.md'),
+      path.join(claudeConfigDir({ homeDir, env }), 'skills', 'control-tower', 'references', 'tower-config.md'),
       manualCodex,
       ...(envCodex !== manualCodex ? [envCodex] : []),
     ],

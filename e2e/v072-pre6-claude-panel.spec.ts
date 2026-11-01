@@ -9,8 +9,8 @@
 //   - HTTPS_PROXY / HTTP_PROXY → a proxy that refuses and records everything (NO_PROXY=127.0.0.1),
 //     plus recorders on the main process `fetch` and the session's `webRequest`;
 //   - USERPROFILE / HOME → a temp home, so the CLI's `~/.claude` (sessions, settings) and BAT's
-//     own `~/.claude` reads (plugins list, session history — BAT reads `os.homedir()/.claude`, not
-//     CLAUDE_CONFIG_DIR) are the temp one; inherited CLAUDE* / ANTHROPIC_* variables are dropped.
+//     own `~/.claude` reads (plugins list, session history) are the temp one; inherited CLAUDE* /
+//     ANTHROPIC_* variables are dropped (CLAUDE_CONFIG_DIR is unset in the first test).
 // The workspace folder lives under %ProgramData%, not under the user profile: the CLI loads every
 // ancestor's `.claude/CLAUDE.md` as project memory, so a folder under the user's TMP would read the
 // user's own `~/.claude/CLAUDE.md`.
@@ -31,6 +31,12 @@
 //      and leaves no session file; over the whole run no request comes from a conversation without
 //      any scenario marker (the old probe's empty-prompt turn did)
 //
+// Second test (T0730 / BUG-178): CLAUDE_CONFIG_DIR → a temp dir apart from the temp home:
+//   ⑪ the panel's session file lands under CLAUDE_CONFIG_DIR (none under the temp home), the session
+//      list finds it, and BAT loads the installed plugins from
+//      `<CLAUDE_CONFIG_DIR>/plugins/installed_plugins.json` (a decoy in the temp home's is not loaded)
+//   ⑫ relaunch: the restored tab resumes and its history is rebuilt from CLAUDE_CONFIG_DIR
+//
 // Windows only (embedded claude.exe, pwsh tabs).
 
 import { test, expect, type Page, type Locator } from '@playwright/test'
@@ -50,6 +56,8 @@ const TAB_OPUS = 'e2e-t0727-opus'
 const TAB_SONNET = 'e2e-t0727-sonnet'
 const TAB_V2 = 'e2e-t0727-v2'
 const TAB_CLI = 'e2e-t0727-cli-env'
+const WS_CFG = 'e2e-t0730-ws'
+const TAB_CFG = 'e2e-t0730-config-dir'
 const OPUS = 'claude-opus-5-5'
 const SONNET = 'claude-sonnet-4-6'
 const TASK_TOOLS = ['TaskCreate', 'TaskUpdate', 'TaskList']
@@ -85,6 +93,7 @@ const SCENARIOS: Record<string, Scenario> = {
     { text: ['deny ', 'done'] },
   ][step] ?? null,
   v2: ({ step }) => (step === 0 ? { text: ['v2 ', 'continued'] } : null),
+  cfg: ({ step }) => (step === 0 ? { text: ['config-dir ', 'answer ', 'T0730'] } : null),
 }
 
 /** Child-env probe for ⑨: presence / value of a few keys only — never the whole env. */
@@ -486,3 +495,149 @@ test('Claude panel against a fake Anthropic API: task list, resume, streaming, p
 function requestsFor(fake: FakeAnthropicApi, scenario: string, step: number): FakeRequest | undefined {
   return fake.requests.find(r => r.scenario === scenario && r.step === step)
 }
+
+/** A temp home whose Windows known folders exist (Electron's appData follows USERPROFILE). */
+function makeTempHome(tmp: string): string {
+  const home = path.join(tmp, 'home')
+  for (const dir of [['AppData', 'Roaming'], ['AppData', 'Local'], ['Documents']]) fs.mkdirSync(path.join(home, ...dir), { recursive: true })
+  return home
+}
+
+/** Relative paths of every file under `dir` (none when it does not exist). */
+function filesUnder(dir: string, rel = ''): string[] {
+  return fs.existsSync(dir)
+    ? fs.readdirSync(dir, { withFileTypes: true }).flatMap(e => (e.isDirectory() ? filesUnder(path.join(dir, e.name), `${rel}${e.name}/`) : [`${rel}${e.name}`]))
+    : []
+}
+
+/** A minimal local plugin, recorded in `<pluginsDir>/installed_plugins.json` (v2 format). */
+function installLocalPlugin(pluginsDir: string, name: string): void {
+  const pluginRoot = path.join(pluginsDir, 'cache', 'e2e-local', name, '0.0.1')
+  fs.mkdirSync(path.join(pluginRoot, '.claude-plugin'), { recursive: true })
+  fs.writeFileSync(path.join(pluginRoot, '.claude-plugin', 'plugin.json'), JSON.stringify({ name, version: '0.0.1', description: `${name} (T0730 e2e)` }))
+  fs.mkdirSync(path.join(pluginRoot, 'commands'), { recursive: true })
+  fs.writeFileSync(path.join(pluginRoot, 'commands', `${name}.md`), `---\ndescription: ${name} probe\n---\nT0730 probe command\n`)
+  fs.writeFileSync(path.join(pluginsDir, 'installed_plugins.json'), JSON.stringify({ version: 2, plugins: { [`${name}@e2e-local`]: [{ scope: 'user', installPath: pluginRoot, version: '0.0.1' }] } }))
+}
+
+/** BAT's `[Claude] Loaded n plugins: …` / `No installed plugins` lines in this runtime's logs. */
+function pluginLogLines(userData: string): string[] {
+  const dir = path.join(userData, 'Logs')
+  if (!fs.existsSync(dir)) return []
+  return fs.readdirSync(dir).filter(f => f.endsWith('.log'))
+    .flatMap(f => fs.readFileSync(path.join(dir, f), 'utf8').split(/\r?\n/))
+    .filter(line => line.includes('[Claude] Loaded') || line.includes('[Claude] No installed plugins'))
+}
+
+test('CLAUDE_CONFIG_DIR (T0730 / BUG-178): the panel reads session history, the session list and plugins from CLAUDE_CONFIG_DIR (no token)', async () => {
+  test.setTimeout(300_000)
+  const startedAt = Date.now()
+  const results: Record<string, string> = {}
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'bat-t0730-'))
+  const home = makeTempHome(tmp)
+  const configDir = path.join(tmp, 'claude-config')
+  fs.mkdirSync(path.join(configDir, 'plugins'), { recursive: true })
+  fs.mkdirSync(path.join(home, '.claude', 'plugins'), { recursive: true })
+  installLocalPlugin(path.join(configDir, 'plugins'), 't0730-cfg')
+  installLocalPlugin(path.join(home, '.claude', 'plugins'), 't0730-home') // decoy: must not be loaded
+  const root = fs.mkdtempSync(path.join(process.env.ProgramData || 'C:\\ProgramData', 'bat-e2e-t0730-'))
+  const folder = path.join(root, 'ws')
+  fs.mkdirSync(folder, { recursive: true })
+  const userProjects = path.join(os.homedir(), '.claude', 'projects')
+  const userProjectsTouched = () => (fs.existsSync(userProjects) ? fs.readdirSync(userProjects).filter(n => /t0730/i.test(n)) : [])
+  expect(userProjectsTouched()).toEqual([])
+  const sessionFiles = (base: string) => filesUnder(path.join(base, 'projects')).filter(f => f.endsWith('.jsonl'))
+
+  const fake = await startFakeAnthropicApi(SCENARIOS)
+  const proxy = await startBlockingProxy()
+  const env = {
+    ANTHROPIC_BASE_URL: fake.baseUrl,
+    ANTHROPIC_API_KEY: 't0730-fake-key',
+    CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC: '1',
+    CLAUDE_CONFIG_DIR: configDir,
+    USERPROFILE: home,
+    HOME: home,
+    HTTPS_PROXY: proxy.url,
+    HTTP_PROXY: proxy.url,
+    NO_PROXY: '127.0.0.1,localhost',
+  }
+  log(`T0730: fake Anthropic API ${fake.baseUrl}; workspace ${folder}; temp home ${home}; CLAUDE_CONFIG_DIR ${configDir}`)
+
+  let inst: IsolatedInstance | undefined
+  let bodyPassed = false
+  try {
+    // ════════ launch 1 ════════
+    inst = await withoutInheritedClaudeEnv(() => launchIsolated('t0730', log, { env }))
+    const runtimeId = inst.runtimeId
+    let win = inst.win
+    expect(await inst.app.evaluate(() => process.env.CLAUDE_CONFIG_DIR ?? null)).toBe(configDir)
+    await expect.poll(async () => (await win.evaluate(async () => (window as AnyApi).electronAPI.workspace.load())) !== null, { timeout: 30_000 }).toBe(true)
+    const seed = {
+      workspaces: [{ id: WS_CFG, name: 'T0730', folderPath: folder, createdAt: Date.now() }],
+      activeWorkspaceId: WS_CFG,
+      activeGroup: null,
+      terminals: [{ id: TAB_CFG, workspaceId: WS_CFG, type: 'terminal', agentPreset: 'claude-code', title: 'T0730 Config Dir', cwd: folder, model: SONNET }],
+      activeTerminalId: TAB_CFG,
+    }
+    expect(await win.evaluate(async (data) => (window as AnyApi).electronAPI.workspace.save(data), JSON.stringify(seed))).toBe(true)
+    await win.reload()
+    await win.waitForLoadState('domcontentloaded')
+    await expect(activePanel(win)).toBeVisible({ timeout: 45_000 })
+    const panel = activePanel(win)
+
+    // ── ⑪ one turn: session file, session list, plugins ──
+    await send(win, '[[T0727:cfg]] T0730 config dir probe')
+    const first = await fake.waitFor('cfg', 0, 90_000)
+    log(`⑪ request: ${summary(first)}`)
+    await waitText(panel, 'config-dir answer T0730')
+    const sdkSessionId = await sdkSessionIdOf(win, TAB_CFG)
+    await expect.poll(() => sessionFiles(configDir).some(f => f.endsWith(`${sdkSessionId}.jsonl`)), { timeout: 30_000 }).toBe(true)
+    const inConfig = sessionFiles(configDir)
+    const inHome = sessionFiles(path.join(home, '.claude'))
+    log(`⑪ session files: CLAUDE_CONFIG_DIR ${JSON.stringify(inConfig)}; temp home .claude ${JSON.stringify(inHome)}`)
+    expect(inHome).toEqual([])
+    const listed = await win.evaluate((cwd) => (window as AnyApi).electronAPI.claude.listSessions(cwd), folder) as Array<{ sdkSessionId: string }>
+    log(`⑪ listSessions: ${JSON.stringify(listed.map(s => s.sdkSessionId))}`)
+    expect(listed.map(s => s.sdkSessionId)).toContain(sdkSessionId)
+    const userData = inst.userData
+    let pluginLines: string[] = []
+    await expect.poll(() => { pluginLines = pluginLogLines(userData); return pluginLines.length }, { timeout: 15_000 }).toBeGreaterThan(0)
+    log(`⑪ BAT plugin log: ${JSON.stringify(pluginLines.map(l => l.replace(/^.*?\[Claude\]/, '[Claude]')))}`)
+    expect(pluginLines.every(l => l.includes('Loaded 1 plugins') && l.includes('t0730-cfg') && !l.includes('t0730-home'))).toBe(true)
+    results['⑪'] = `PASS — session ${sdkSessionId.slice(0, 8)}… written under CLAUDE_CONFIG_DIR (${inConfig.length} file(s)), none under the temp home; listSessions finds it; BAT loaded plugin t0730-cfg from <CLAUDE_CONFIG_DIR>/plugins (decoy t0730-home under the temp home not loaded)`
+
+    await closeIsolated(inst, log, { keepUserData: true })
+    inst = undefined
+
+    // ════════ launch 2: same runtime ════════
+    const before = fake.requests.length
+    inst = await withoutInheritedClaudeEnv(() => launchIsolated('t0730', log, { env, runtimeId }))
+    win = inst.win
+    await expect(activePanel(win)).toBeVisible({ timeout: 45_000 })
+    const restored = activePanel(win)
+    // ⑫ BUG-178: before T0730 the history was read from <home>/.claude/projects → an empty panel
+    await waitText(restored, 'config-dir answer T0730')
+    await waitText(restored, 'T0730 config dir probe')
+    const saved = JSON.parse(await win.evaluate(async () => (window as AnyApi).electronAPI.workspace.load()) as string) as { terminals?: Array<{ id: string; sdkSessionId?: string }> }
+    expect(saved.terminals?.find(t => t.id === TAB_CFG)?.sdkSessionId).toBe(sdkSessionId)
+    await restored.screenshot({ path: test.info().outputPath('t0730-config-dir-resumed.png') })
+    log(`⑫ after relaunch: history rebuilt; model requests during restore: ${fake.requests.length - before}`)
+    results['⑫'] = `PASS — relaunched runtime; tab resumed sdkSessionId ${sdkSessionId.slice(0, 8)}…, history (user prompt + answer) rebuilt from CLAUDE_CONFIG_DIR (${fake.requests.length - before} model requests during restore)`
+    bodyPassed = true
+  } finally {
+    if (inst) await closeIsolated(inst, log)
+    log(`T0730 model requests (${fake.requests.length}): ${fake.requests.map(summary).join(' | ')}`)
+    log(`T0730 blocking proxy attempts: ${JSON.stringify(proxy.attempts)}`)
+    for (const [k, v] of Object.entries(results)) log(`${k} ${v}`)
+    await fake.close()
+    await proxy.close()
+    fs.rmSync(root, { recursive: true, force: true, maxRetries: 20, retryDelay: 200 })
+    fs.rmSync(tmp, { recursive: true, force: true, maxRetries: 20, retryDelay: 200 })
+    log(`T0730 spec took ${Math.round((Date.now() - startedAt) / 1000)} s`)
+  }
+  if (bodyPassed) {
+    expect(proxy.attempts).toEqual([])
+    expect(fake.requests.every(r => r.url.startsWith('/v1/messages'))).toBe(true)
+    expect(userProjectsTouched()).toEqual([])
+  }
+})

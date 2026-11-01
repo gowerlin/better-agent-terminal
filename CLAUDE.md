@@ -233,6 +233,7 @@
 - 模型清單 `BAT_BUILTIN_MODELS`（`electron/claude-agent-manager.ts`）；5 系列原生 1M context，不加 `[1m]` 變體；新增 5 系列模型時同步補 `MODEL_LIMITS`（`estimateModelLimits()`）與 `electron/__tests__/claude-model-limits-and-call-usage.test.ts`。
 - 計價唯一 `src/lib/model-pricing.ts`（`getModelPricing()` 以 `includes` 比對，**point release 必須排在 base model 之前**；新增模型時同步補 `src/lib/__tests__/model-pricing.test.ts`）；Cache History 邏輯 `src/lib/cache-history.ts`。
 - `EFFORT_LEVELS` + `EffortLevel` 集中宣告於 `src/types/index.ts`，新增成員時只改 const。
+- Claude 設定目錄（BUG-178 / T0730）：`CLAUDE_CONFIG_DIR`（trim 後非空）優先，否則 `<home>/.claude`；唯一實作 `resolveClaudeConfigDir`（`electron/claude-config-dir.ts`），面板歷史 / session 清單 / plugins 經 `panelClaudeConfigDir`（spawn env）。🔴 不要手寫 `path.join(home, '.claude')`（`claude-config-dir.test.ts` source guard）；env 來源與例外見 [docs](docs/agent-guide/claude-agent-sdk-cli.md)「Claude 設定目錄」。
 - 完整模型 / 計價 / Cache History / effort 說明：[docs/agent-guide/claude-agent-sdk-cli.md](docs/agent-guide/claude-agent-sdk-cli.md)
 
 ### Claude Runtime Selection (PLAN-027, v2.1.49+)

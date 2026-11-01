@@ -17,6 +17,7 @@ import {
   type ResolvedRuntime,
 } from './claude-runtime-router'
 import { claudeUpdateGuardEnv } from './claude-resolver'
+import { resolveClaudeConfigDir } from './claude-config-dir'
 import { HAIKU_5_5_LONG_PROMPT_THRESHOLD } from '../src/lib/model-pricing'
 import type { ClaudeRuntimeDegradedEvent, ClaudeRuntimeWarningEvent } from '../src/types'
 import type { HostDeps, HostEmit, HostNotification, HostNotifier } from './handlers/types'
@@ -163,6 +164,22 @@ export function claudeTodoToolsEnv(env: NodeJS.ProcessEnv = process.env): Record
 export function sdkSpawnEnv(runtime: Pick<ResolvedRuntime, 'source'>): { env?: Record<string, string | undefined> } {
   const extra = { ...claudeUpdateGuardEnv(runtime.source), ...claudeTodoToolsEnv(process.env) }
   return Object.keys(extra).length > 0 ? { env: { ...process.env, ...extra } } : {}
+}
+
+/**
+ * BUG-178 / T0730: the Claude config dir of the CLI the panel spawns — `CLAUDE_CONFIG_DIR` of the
+ * spawn env (`sdkSpawnEnv`, or `process.env` when it adds nothing, which is what the SDK then uses),
+ * else `<home>/.claude` (`resolveClaudeConfigDir`, electron/claude-config-dir.ts). Session history,
+ * the session list fallback and the installed plugins list read under it, so they read where the
+ * CLI writes. `sdkSpawnEnv` does not set `CLAUDE_CONFIG_DIR` for either runtime, so the history /
+ * list paths, which have no resolved runtime, pass none (the answer is the same; a unit test keeps
+ * it so).
+ */
+export function panelClaudeConfigDir(
+  runtime: Pick<ResolvedRuntime, 'source'> = { source: 'embedded' },
+  homeDir?: string,
+): string {
+  return resolveClaudeConfigDir(sdkSpawnEnv(runtime).env ?? process.env, homeDir)
 }
 
 /**
@@ -826,11 +843,11 @@ export class ClaudeAgentManager {
         })
       }
 
-      // Load installed plugins from ~/.claude/plugins/installed_plugins.json
+      // Load installed plugins from <Claude config dir>/plugins/installed_plugins.json (BUG-178:
+      // `CLAUDE_CONFIG_DIR` of the spawn env, else ~/.claude)
       const installedPlugins: Array<{ type: 'local'; path: string }> = []
       try {
-        const os = await import('os')
-        const pluginsJsonPath = pathModule.join(os.homedir(), '.claude', 'plugins', 'installed_plugins.json')
+        const pluginsJsonPath = pathModule.join(panelClaudeConfigDir(resolvedRuntime), 'plugins', 'installed_plugins.json')
         const pluginsData = JSON.parse(fsSync.readFileSync(pluginsJsonPath, 'utf-8'))
         if (pluginsData.plugins) {
           for (const entries of Object.values(pluginsData.plugins)) {
@@ -1792,19 +1809,19 @@ export class ClaudeAgentManager {
   }
 
   private async listSessionsFallback(cwd: string): Promise<SessionSummary[]> {
-    const os = await import('os')
     const readline = await import('readline')
 
     const encoded = cwd.replace(/[^a-zA-Z0-9]/g, '-')
-    const projectDir = pathModule.join(os.homedir(), '.claude', 'projects', encoded)
+    const projectsDir = pathModule.join(panelClaudeConfigDir(), 'projects') // BUG-178
+    const projectDir = pathModule.join(projectsDir, encoded)
 
     const results: SessionSummary[] = []
     const candidates = [projectDir]
     if (process.platform === 'win32' && encoded.length > 0) {
       const lower = encoded[0].toLowerCase() + encoded.slice(1)
       const upper = encoded[0].toUpperCase() + encoded.slice(1)
-      if (lower !== encoded) candidates.push(pathModule.join(os.homedir(), '.claude', 'projects', lower))
-      if (upper !== encoded) candidates.push(pathModule.join(os.homedir(), '.claude', 'projects', upper))
+      if (lower !== encoded) candidates.push(pathModule.join(projectsDir, lower))
+      if (upper !== encoded) candidates.push(pathModule.join(projectsDir, upper))
     }
 
     for (const dir of candidates) {
@@ -1870,11 +1887,10 @@ export class ClaudeAgentManager {
   }
 
   private async loadSessionHistory(sessionId: string, sdkSessionId: string, cwd: string): Promise<void> {
-    const os = await import('os')
     const readline = await import('readline')
 
     const encoded = cwd.replace(/[^a-zA-Z0-9]/g, '-')
-    const projectDir = pathModule.join(os.homedir(), '.claude', 'projects', encoded)
+    const projectDir = pathModule.join(panelClaudeConfigDir(), 'projects', encoded) // BUG-178
     const filePath = pathModule.join(projectDir, `${sdkSessionId}.jsonl`)
 
     try {

@@ -25,6 +25,7 @@
 import * as fs from 'fs/promises'
 import * as path from 'path'
 import type { CtAgentInstalls, CtInstalls } from '../src/types/ct-config-sources'
+import { resolveClaudeConfigDir } from './claude-config-dir'
 
 /** The CT plugin's fixed name (CT `version-governance.md` § plugin 安裝／升級); the marketplace is not fixed. */
 export const CT_PLUGIN_NAME = 'ct'
@@ -251,10 +252,9 @@ function newestFirst(installs: CtPluginInstall[]): CtPluginInstall[] {
   return [...installs].sort((a, b) => compareCtPluginVersions(b.version, a.version))
 }
 
-/** `CLAUDE_CONFIG_DIR`, else `<home>/.claude`. */
+/** `CLAUDE_CONFIG_DIR`, else `<home>/.claude` (`resolveClaudeConfigDir`, BUG-178 / T0730). */
 export function claudeConfigDir(host: CtInstallHost): string {
-  const value = host.env.CLAUDE_CONFIG_DIR?.trim()
-  return value ? value : path.join(host.homeDir, '.claude')
+  return resolveClaudeConfigDir(host.env, host.homeDir)
 }
 
 /**

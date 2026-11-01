@@ -62,6 +62,7 @@ import { quoteArgForShell, type ShellFamily } from '../src/utils/shell-quote'
 import { normalizeClaudeSessionName } from '../src/lib/claude-session-name'
 import { codexArgsRuleOutNoDaemon } from './agent-runtime/agent-registry'
 import type { HandlerRegistrar } from './handlers/types'
+import { resolveClaudeConfigDir } from './claude-config-dir'
 import type { ClaudeNameSupport } from './claude-version-check'
 import type { CodexNoDaemonSupport } from './codex-osc-version'
 import type { ClaudeSessionNameReason, ClaudeSessionNameRecord } from './claude-session-name-record'
@@ -186,7 +187,7 @@ export function defaultClaudeSettingsFiles(
     : platform === 'darwin' ? '/Library/Application Support/ClaudeCode'
       : '/etc/claude-code'
   const p = platform === 'win32' ? path.win32 : path.posix
-  const userDir = env.CLAUDE_CONFIG_DIR?.trim() || p.join(homeDir, '.claude')
+  const userDir = resolveClaudeConfigDir(env, homeDir, (...parts) => p.join(...parts)) // BUG-178 / T0730: shared rule
   return [
     { file: p.join(managedDir, 'managed-settings.json'), managed: true },
     { file: p.join(userDir, 'settings.json'), managed: false },
