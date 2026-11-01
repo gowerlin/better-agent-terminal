@@ -11,8 +11,8 @@ import type { AgentDefinition } from '../types/agent-runtime'
 import { hasNotification, subscribeNotification, clearNotification } from '../stores/terminal-notifications'
 import { useUsageLimitStatus } from '../stores/usage-limit-store'
 import { USAGE_LIMIT_MAX_CONSECUTIVE_SENDS, type UsageLimitStatus } from '../lib/usage-limit'
-import { useTerminalAttention, useWorkerResumed } from '../stores/terminal-attention-store'
-import { workerAttention, type WorkerAttention } from '../lib/terminal-attention'
+import { useMissedWait, useTerminalAttention, useWorkerResumed } from '../stores/terminal-attention-store'
+import { missedWaitToShow, waitingForUser, workerAttention, type MissedWait, type WaitingForUser, type WorkerAttention } from '../lib/terminal-attention'
 import { appendPreviewInput, outputPreview, textPreview } from '../lib/thumbnail-preview'
 
 /** PLAN-044 / T0566: `15:05`-style local clock time of an epoch. */
@@ -50,6 +50,16 @@ function workerAttentionTooltip(t: (key: string, options?: Record<string, unknow
   if (attention.kind === 'blocked') return t(`workerTabs.blockedTooltip.${attention.reason}`, { time })
   const asked = t('workerTabs.questionTooltip', { time })
   return attention.pending > 1 ? `${asked}\n${t('workerTabs.questionPendingTooltip', { count: attention.pending })}` : asked
+}
+
+/** T0735 (D200 ②④): the tooltip of a non-Worker tab's ⚠️ — the same lines as a Worker's ⚠️. */
+export function waitingForUserTooltip(t: (key: string, options?: Record<string, unknown>) => string, waiting: WaitingForUser): string {
+  return t(`workerTabs.blockedTooltip.${waiting.reason}`, { time: clockTime(waiting.since) || t('usageLimit.unknownTime') })
+}
+
+/** T0735 (D203 ②): the tooltip of a faded ⚠️ — when this window saw the wait begin, and that it ended. */
+export function missedWaitTooltip(t: (key: string, options?: Record<string, unknown>) => string, missed: Pick<MissedWait, 'startedAt'>): string {
+  return t('workerTabs.missedTooltip', { time: clockTime(missed.startedAt) || t('usageLimit.unknownTime') })
 }
 
 /**
@@ -230,6 +240,13 @@ export const TerminalThumbnail = memo(function TerminalThumbnail({ terminal, isA
   const resumed = useWorkerResumed(terminal.id)
   const attention = isWorker ? workerAttention(terminal, attentionEvent, resumed) : null
   const showWorkerBadge = isWorker && (!workorderInTitle || !!attention)
+  // T0735 (D200 ②): any other tab that waits for the user (claude hook / codex `input`) shows ⚠️ too;
+  // a Worker keeps its own badge (?, ✓, ↻ and the batch close unchanged)
+  const waiting = isWorker ? null : waitingForUser(attentionEvent)
+  // T0735 (D203 ②): a wait that ended before the user looked at this tab — faded ⚠️ (Workers too:
+  // next to their own badge, which is unchanged)
+  const missedWait = useMissedWait(terminal.id)
+  const missed = missedWaitToShow(attentionEvent, missedWait)
   // PLAN-044 / T0566: the tab's usage-limit state (main's `terminal:usage-limit-status`, memory only)
   const usageLimit = useUsageLimitStatus(terminal.id)
   const workerTooltip = isWorker
@@ -283,6 +300,26 @@ export const TerminalThumbnail = memo(function TerminalThumbnail({ terminal, isA
               {attention
                 ? (workorderInTitle ? WORKER_ATTENTION_MARK[attention.kind] : `${WORKER_ATTENTION_MARK[attention.kind]} ${terminal.workorder}`)
                 : terminal.workorder}
+            </span>
+          )}
+          {waiting && (
+            <span
+              className="attention-badge blocked"
+              title={waitingForUserTooltip(t, waiting)}
+              data-attention="blocked"
+              data-blocked-reason={waiting.reason}
+            >
+              {WORKER_ATTENTION_MARK.blocked}
+            </span>
+          )}
+          {missed && (
+            <span
+              className="attention-badge missed"
+              title={missedWaitTooltip(t, missed)}
+              data-attention="missed"
+              data-blocked-reason={missed.reason}
+            >
+              {WORKER_ATTENTION_MARK.blocked}
             </span>
           )}
           {usageLimit && (

@@ -262,7 +262,15 @@
     "archived": "已归档",
     "collapseSidebar": "收起侧边栏",
     "expandSidebar": "展开侧边栏",
-    "workspaceSettings": "工作区设置…"
+    "workspaceSettings": "工作区设置…",
+    "waitingForUserTooltip": "等待用户：{{count}} 个标签页",
+    "waitingForUserClick": "点击切到 {{title}}（等待最久）",
+    "waitingForUserMissedTooltip": "曾有标签页等待你回应，已结束",
+    "waitingForUserWorkspacesTooltip": "等待用户：{{workspaces}} 个工作区共 {{count}} 个标签页",
+    "waitingForUserWorkspaceLine": "• {{name}}：{{count}}",
+    "waitingForUserWorkspaceMissedLine": "• {{name}}：曾等待你回应，已结束",
+    "waitingForUserShowList": "点击切回工作区列表",
+    "waitingForUserExpand": "点击展开侧栏"
   },
   "profiles": {
     "title": "配置",
@@ -1452,7 +1460,8 @@
     "batchCloseConfirm": "关闭 {{count}} 个标签页",
     "batchCloseStillPrinting": "仍在输出",
     "batchCloseStillPrintingTooltip": "最近 {{seconds}} 秒内有输出，可能仍在执行",
-    "remoteOriginTooltip": "这个终端由远程服务器创建"
+    "remoteOriginTooltip": "这个终端由远程服务器创建",
+    "missedTooltip": "{{time}} 曾等待你回应，已结束"
   },
   "usageLimit": {
     "badge": "限制",

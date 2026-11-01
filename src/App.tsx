@@ -7,7 +7,7 @@ import { ownsTerminalForCloseRequest, workspaceStore } from './stores/workspace-
 import { settingsStore } from './stores/settings-store'
 import { markNotified, markWorkspaceNotified, clearWorkspaceNotification } from './stores/terminal-notifications'
 import { clearUsageLimitStatus, runUsageLimitContinue, setUsageLimitStatus } from './stores/usage-limit-store'
-import { clearTerminalAttention, setTerminalAttention } from './stores/terminal-attention-store'
+import { clearTerminalAttention, retainTerminals, setTerminalAttention, setViewingState } from './stores/terminal-attention-store'
 import { workerNotifyKind } from './lib/terminal-attention'
 import { Sidebar } from './components/Sidebar'
 import { WorkspaceView } from './components/WorkspaceView'
@@ -30,6 +30,7 @@ import { isRemoteNotConnectedError, loadNowOrWhenRemoteConnected, REMOTE_LIMIT_E
 import type { AppState, EnvVariable, TerminalInstance, DockablePanel, DockZone, DockingConfig } from './types'
 import { DOCKABLE_PANELS, DEFAULT_DOCKING_CONFIG } from './types'
 import { AppNotificationDialog } from './components/AppNotificationDialog'
+import { WaitingTotalBadge } from './components/WorkspaceWaitingBadge'
 
 // Lazy-loaded panel components for sidebar docking
 const LazyFileTree = lazy(() => import('./components/FileTree').then(m => ({ default: m.FileTree })))
@@ -800,6 +801,25 @@ export default function App() {
     }
   }, [])
 
+  // T0735 (D203 ③): the tab the user looks at = this window's active tab while the window has
+  // focus (a wait that ends then leaves no faded ⚠️; a faded one clears); closed tabs are forgotten.
+  useEffect(() => {
+    const update = () => {
+      const current = workspaceStore.getState()
+      setViewingState(current.focusedTerminalId, document.hasFocus())
+      retainTerminals(current.terminals.map(t => t.id))
+    }
+    update()
+    const unsubStore = workspaceStore.subscribe(update)
+    window.addEventListener('focus', update)
+    window.addEventListener('blur', update)
+    return () => {
+      unsubStore()
+      window.removeEventListener('focus', update)
+      window.removeEventListener('blur', update)
+    }
+  }, [])
+
   // Poll remote client connection status
   useEffect(() => {
     const check = () => {
@@ -1064,6 +1084,14 @@ export default function App() {
         <button className="left-sidebar-collapsed-btn" onClick={() => { setLeftPanelTab('workspaces'); handleSidebarCollapse(); }} title={t('sidebar.expandSidebar')}>
           {'\u{1F4C2}'}
         </button>
+        {/* T0735 (D202 ③): tabs waiting for the user in any listed workspace; a click expands the sidebar */}
+        {panelSettings.sidebar.collapsed && (
+          <WaitingTotalBadge
+            workspaces={visibleWorkspaces}
+            hintKey="sidebar.waitingForUserExpand"
+            onClick={() => { setLeftPanelTab('workspaces'); handleSidebarCollapse() }}
+          />
+        )}
         {leftDockedPanels.map(panel => (
           <button key={panel} className="left-sidebar-collapsed-btn" onClick={() => {
             setLeftPanelTab(panel)
@@ -1084,6 +1112,8 @@ export default function App() {
                 onClick={() => setLeftPanelTab('workspaces')}
               >
                 {t('workspace.workspaces')}
+                {/* T0735 (D202 ②): seen from another tab (e.g. Control Tower); the button's click only switches tabs */}
+                <WaitingTotalBadge workspaces={visibleWorkspaces} hintKey="sidebar.waitingForUserShowList" />
               </button>
               {leftDockedPanels.map(panel => (
                 <button

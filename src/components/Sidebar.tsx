@@ -10,6 +10,7 @@ import { workspaceStore } from '../stores/workspace-store'
 import { settingsStore } from '../stores/settings-store'
 import { ActivityIndicator } from './ActivityIndicator'
 import { hasWorkspaceNotification, subscribeWorkspaceNotification } from '../stores/terminal-notifications'
+import { WorkspaceWaitingBadge } from './WorkspaceWaitingBadge'
 
 interface SidebarProps {
   width: number
@@ -452,6 +453,8 @@ export function Sidebar({
                 )}
               </div>
               <div className="workspace-item-actions">
+                {/* T0735 (D202 ①): left of the status dot, same line */}
+                <WorkspaceWaitingBadge workspace={workspace} onSelectWorkspace={onSelectWorkspace} />
                 <ActivityIndicator
                   workspaceId={workspace.id}
                   size="small"

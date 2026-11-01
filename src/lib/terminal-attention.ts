@@ -22,6 +22,13 @@
  * clears the tab's `workerReport` / `workerQuestion`, so once the question ends the tab shows
  * nothing (still working) until the Worker notifies again (`workerNotifyKind`).
  * 🔴 The payload carries state fields only — never a question, an option or an answer (D155).
+ *
+ * T0735 (D200): "waits for the user" (⚠️) is one rule for every tab, not only Workers —
+ * `waitingForUser` (a hook reason: permission / question / elicitation, codex `input`). `?` (`tower`,
+ * pending questions), ✓ and ↻ never count. A non-Worker tab's thumbnail shows ⚠️ by it, and the
+ * workspace list sums it per workspace (`workspaceWaitingTabs`; the ⚠️ click goes to
+ * `oldestWaitingTab`). Main already pushes `terminal:attention-changed` for every PTY (no Worker
+ * filter), so nothing changed in main.
  */
 
 /**
@@ -114,9 +121,8 @@ export interface WorkerAttentionTab {
  * (`isWorkerResumedAfterReport`, src/stores/terminal-attention-store.ts); only a reported tab can be.
  */
 export function workerAttention(tab: WorkerAttentionTab, attention: TerminalAttentionEvent | null | undefined, resumed = false): WorkerAttention | null {
-  if (attention && isHookReason(attention.blockedReason)) {
-    return { kind: 'blocked', reason: attention.blockedReason, since: attention.blockedSince ?? null }
-  }
+  const waiting = waitingForUser(attention)
+  if (waiting) return { kind: 'blocked', reason: waiting.reason, since: waiting.since }
   if (attention && (attention.blockedReason === 'tower' || attention.pendingQuestions > 0)) {
     const since = attention.blockedReason === 'tower' ? attention.blockedSince : attention.questionsSince
     return { kind: 'question', since: since ?? null, pending: attention.pendingQuestions, source: 'question' }
@@ -124,4 +130,210 @@ export function workerAttention(tab: WorkerAttentionTab, attention: TerminalAtte
   if (tab.workerQuestion) return { kind: 'question', since: tab.workerQuestion.askedAt, pending: 0, source: 'notify' }
   if (tab.workerReport) return { kind: resumed ? 'resumed' : 'reported', message: tab.workerReport.message, reportedAt: tab.workerReport.reportedAt }
   return null
+}
+
+/** T0735: what a tab waits for the user on (⚠️), and since when (ms epoch; null = unknown). */
+export interface WaitingForUser {
+  reason: AttentionHookReason
+  since: number | null
+}
+
+/**
+ * T0735 (D200 ①): whether a tab — any tab, Worker or not — waits for the user: a claude hook reason
+ * (permission / question / elicitation) or codex's `input`. The same rule as the Worker ⚠️
+ * (`workerAttention`'s first branch). Waiting for the Tower (`tower`, pending questions) is not.
+ */
+export function waitingForUser(attention: TerminalAttentionEvent | null | undefined): WaitingForUser | null {
+  if (!attention || !isHookReason(attention.blockedReason)) return null
+  const since = attention.blockedSince
+  return { reason: attention.blockedReason, since: typeof since === 'number' && Number.isFinite(since) ? since : null }
+}
+
+export function isWaitingForUser(attention: TerminalAttentionEvent | null | undefined): boolean {
+  return waitingForUser(attention) !== null
+}
+
+/** T0735: the fields of a tab the workspace list needs (`TerminalInstance` fits). */
+export interface WaitingTabSource {
+  id: string
+  workspaceId: string
+  title: string
+}
+
+export interface WaitingTab extends WaitingForUser {
+  id: string
+  title: string
+}
+
+/** T0735 (D200 ⑤): longest waiting first — earliest `since`; an unknown `since` last. Stable for ties. */
+export function compareWaitingTabs(a: WaitingForUser, b: WaitingForUser): number {
+  if (a.since === b.since) return 0
+  if (a.since === null) return 1
+  if (b.since === null) return -1
+  return a.since - b.since
+}
+
+/**
+ * T0735 (D200 ②③): the tabs of `workspaceId` that wait for the user, longest waiting first
+ * (`compareWaitingTabs`; ties keep the tab order). Empty = no ⚠️ on the workspace.
+ */
+export function workspaceWaitingTabs(
+  terminals: readonly WaitingTabSource[],
+  workspaceId: string,
+  getAttention: (id: string) => TerminalAttentionEvent | null | undefined,
+): WaitingTab[] {
+  const waiting: WaitingTab[] = []
+  for (const terminal of terminals) {
+    if (terminal.workspaceId !== workspaceId) continue
+    const state = waitingForUser(getAttention(terminal.id))
+    if (state) waiting.push({ id: terminal.id, title: terminal.title, ...state })
+  }
+  return waiting.sort(compareWaitingTabs)
+}
+
+/** T0735 (D200 ⑤): the tab a click on the workspace ⚠️ goes to; null = none waits. */
+export function oldestWaitingTab(waiting: readonly WaitingTab[]): WaitingTab | null {
+  return waiting.length === 0 ? null : [...waiting].sort(compareWaitingTabs)[0]
+}
+
+/** T0735 (D202): the fields of a workspace the summary needs (`Workspace` fits). */
+export interface WaitingWorkspaceSource {
+  id: string
+  name: string
+  alias?: string
+}
+
+export interface WaitingWorkspace {
+  workspaceId: string
+  /** `alias || name`, as the workspace list shows it. */
+  name: string
+  /** Longest waiting first (`workspaceWaitingTabs`). */
+  tabs: WaitingTab[]
+  /** D203: tabs whose wait ended unseen, earliest wait first (`workspaceMissedTabs`). */
+  missed: MissedTab[]
+}
+
+export interface WaitingSummary {
+  /** Waiting tabs over all `workspaces` (D203 ④: the number shows these only). */
+  total: number
+  /** D203: tabs whose wait ended unseen, over all `workspaces`. */
+  missedTotal: number
+  /** Only the workspaces with a waiting or a missed tab, in the order given. */
+  workspaces: WaitingWorkspace[]
+}
+
+/**
+ * T0735 (D200 / D202): the one summary every "waits for the user" ⚠️ outside a thumbnail reads —
+ * a workspace row (its own entry), the 工作區 tab title and the collapsed sidebar (`total`). Only
+ * the workspaces passed count (the window passes the ones its list shows).
+ */
+export function waitingSummary(
+  terminals: readonly WaitingTabSource[],
+  workspaces: readonly WaitingWorkspaceSource[],
+  getAttention: (id: string) => TerminalAttentionEvent | null | undefined,
+  getMissed: (id: string) => MissedWait | null | undefined = () => null,
+): WaitingSummary {
+  const result: WaitingWorkspace[] = []
+  let total = 0
+  let missedTotal = 0
+  for (const workspace of workspaces) {
+    const tabs = workspaceWaitingTabs(terminals, workspace.id, getAttention)
+    const missed = workspaceMissedTabs(terminals, workspace.id, getAttention, getMissed)
+    if (tabs.length === 0 && missed.length === 0) continue
+    total += tabs.length
+    missedTotal += missed.length
+    result.push({ workspaceId: workspace.id, name: workspace.alias || workspace.name, tabs, missed })
+  }
+  return { total, missedTotal, workspaces: result }
+}
+
+/**
+ * T0735 (D203 ④): what a workspace row / the 工作區 tab / the collapsed bar shows — a solid ⚠️
+ * (with the waiting count) when any tab waits, otherwise a faded ⚠️ (no count) when any wait was
+ * missed, otherwise nothing.
+ */
+export type WaitingMarkKind = 'waiting' | 'missed' | null
+
+export function waitingMarkKind(waiting: number, missed: number): WaitingMarkKind {
+  if (waiting > 0) return 'waiting'
+  return missed > 0 ? 'missed' : null
+}
+
+/**
+ * T0735 (D203 ④): the tab a click on a workspace's ⚠️ goes to: the tab waiting longest; with
+ * nothing waiting, the missed tab whose wait started first.
+ */
+export function waitingClickTarget(workspace: Pick<WaitingWorkspace, 'tabs' | 'missed'>): { id: string; title: string } | null {
+  return oldestWaitingTab(workspace.tabs) ?? workspace.missed[0] ?? null
+}
+
+/**
+ * T0735 (D203): a wait that ended while its tab was not being looked at. `startedAt` is the
+ * renderer's clock when this window saw the wait begin (never main's / a remote host's time).
+ * Renderer memory only (src/stores/terminal-attention-store.ts).
+ */
+export interface MissedWait {
+  reason: AttentionHookReason
+  startedAt: number
+}
+
+export interface MissedTab extends MissedWait {
+  id: string
+  title: string
+}
+
+/**
+ * T0735 (D203 ②③): a tab's wait memory after its state changes from `prev` to `next`.
+ *   - a wait starts (no hook reason → one): remember when (`now`), drop an older miss (solid again)
+ *   - a wait ends (hook reason → none) while `viewed`: forget it
+ *   - a wait ends unseen: it becomes a miss (`startedAt` = when it began)
+ *   - otherwise (still waiting, reason changed, never waited): unchanged
+ * `viewed` = the tab is the active tab and the window has focus (`isViewedTerminal`).
+ */
+export interface WaitMemory {
+  /** Renderer time the current wait began; null = not waiting (or its start was not seen). */
+  startedAt: number | null
+  missed: MissedWait | null
+}
+
+export function nextWaitMemory(
+  memory: WaitMemory,
+  prev: TerminalAttentionEvent | null | undefined,
+  next: TerminalAttentionEvent | null | undefined,
+  viewed: boolean,
+  now: number,
+): WaitMemory {
+  const was = waitingForUser(prev)
+  const is = waitingForUser(next)
+  if (is && !was) return { startedAt: now, missed: null }
+  if (is) return memory.startedAt === null ? { startedAt: now, missed: null } : memory
+  if (!was) return memory
+  if (viewed || memory.startedAt === null) return { startedAt: null, missed: null }
+  return { startedAt: null, missed: { reason: was.reason, startedAt: memory.startedAt } }
+}
+
+/** T0735 (D203 ③): the tab the user looks at — the active tab while the window has focus. */
+export function isViewedTerminal(id: string, activeTerminalId: string | null | undefined, windowFocused: boolean): boolean {
+  return windowFocused && !!activeTerminalId && activeTerminalId === id
+}
+
+/** T0735 (D203): a missed wait to show — only while the tab does not wait again. */
+export function missedWaitToShow(attention: TerminalAttentionEvent | null | undefined, missed: MissedWait | null | undefined): MissedWait | null {
+  return missed && !isWaitingForUser(attention) ? missed : null
+}
+
+/** T0735 (D203): the missed tabs of `workspaceId`, earliest wait first (ties keep the tab order). */
+export function workspaceMissedTabs(
+  terminals: readonly WaitingTabSource[],
+  workspaceId: string,
+  getAttention: (id: string) => TerminalAttentionEvent | null | undefined,
+  getMissed: (id: string) => MissedWait | null | undefined,
+): MissedTab[] {
+  const missed: MissedTab[] = []
+  for (const terminal of terminals) {
+    if (terminal.workspaceId !== workspaceId) continue
+    const miss = missedWaitToShow(getAttention(terminal.id), getMissed(terminal.id))
+    if (miss) missed.push({ id: terminal.id, title: terminal.title, ...miss })
+  }
+  return missed.sort((a, b) => a.startedAt - b.startedAt)
 }

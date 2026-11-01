@@ -263,7 +263,15 @@
     "archived": "Archived",
     "collapseSidebar": "Collapse Sidebar",
     "expandSidebar": "Expand Sidebar",
-    "workspaceSettings": "Workspace Settings…"
+    "workspaceSettings": "Workspace Settings…",
+    "waitingForUserTooltip": "Waiting for you: {{count}} tab(s)",
+    "waitingForUserClick": "Click to go to {{title}} (waiting longest)",
+    "waitingForUserMissedTooltip": "A wait for you ended while you were away",
+    "waitingForUserWorkspacesTooltip": "Waiting for you: {{count}} tab(s) in {{workspaces}} workspace(s)",
+    "waitingForUserWorkspaceLine": "• {{name}}: {{count}}",
+    "waitingForUserWorkspaceMissedLine": "• {{name}}: a wait ended while you were away",
+    "waitingForUserShowList": "Click to show the workspace list",
+    "waitingForUserExpand": "Click to expand the sidebar"
   },
   "profiles": {
     "title": "Profiles",
@@ -1453,7 +1461,8 @@
     "batchCloseConfirm": "Close {{count}} tabs",
     "batchCloseStillPrinting": "still printing",
     "batchCloseStillPrintingTooltip": "Printed within the last {{seconds}} s: it may still be working",
-    "remoteOriginTooltip": "A remote server created this terminal"
+    "remoteOriginTooltip": "A remote server created this terminal",
+    "missedTooltip": "Waited for you at {{time}}, ended"
   },
   "usageLimit": {
     "badge": "Limit",

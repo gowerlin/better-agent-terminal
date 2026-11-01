@@ -262,7 +262,15 @@
     "archived": "已歸檔",
     "collapseSidebar": "收合側邊欄",
     "expandSidebar": "展開側邊欄",
-    "workspaceSettings": "工作區設定…"
+    "workspaceSettings": "工作區設定…",
+    "waitingForUserTooltip": "等待使用者：{{count}} 個分頁",
+    "waitingForUserClick": "點擊切到 {{title}}（等最久）",
+    "waitingForUserMissedTooltip": "曾有分頁等待你回應，已結束",
+    "waitingForUserWorkspacesTooltip": "等待使用者：{{workspaces}} 個工作區共 {{count}} 個分頁",
+    "waitingForUserWorkspaceLine": "• {{name}}：{{count}}",
+    "waitingForUserWorkspaceMissedLine": "• {{name}}：曾等待你回應，已結束",
+    "waitingForUserShowList": "點擊切回工作區列表",
+    "waitingForUserExpand": "點擊展開側欄"
   },
   "profiles": {
     "title": "配置",
@@ -1452,7 +1460,8 @@
     "batchCloseConfirm": "關閉 {{count}} 個分頁",
     "batchCloseStillPrinting": "仍在輸出",
     "batchCloseStillPrintingTooltip": "最近 {{seconds}} 秒內有輸出，可能還在執行",
-    "remoteOriginTooltip": "這個終端由遠端伺服器建立"
+    "remoteOriginTooltip": "這個終端由遠端伺服器建立",
+    "missedTooltip": "{{time}} 曾等待你回應，已結束"
   },
   "usageLimit": {
     "badge": "限制",

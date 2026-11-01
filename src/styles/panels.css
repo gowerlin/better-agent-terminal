@@ -507,6 +507,64 @@
   border-color: rgba(97, 175, 239, 0.6);
 }
 
+/* T0735 (D200): ⚠️ of a non-Worker tab (thumbnail) and of a workspace (sidebar) — same look as
+   `.worker-badge.blocked` */
+.attention-badge,
+.workspace-waiting-badge {
+  font-size: 9px;
+  line-height: 1.4;
+  padding: 0 4px;
+  border-radius: 3px;
+  border: 1px solid rgba(224, 108, 117, 0.6);
+  color: #e06c75;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.workspace-waiting-badge {
+  margin-left: 6px;
+  vertical-align: middle;
+  cursor: pointer;
+}
+
+.workspace-waiting-badge:hover {
+  background: rgba(224, 108, 117, 0.15);
+}
+
+/* D202 ①: the active row is accent-blue — a dark pill keeps the ⚠️ and its count readable */
+.workspace-item.active .workspace-waiting-badge {
+  background: rgba(20, 20, 20, 0.55);
+  border-color: rgba(255, 255, 255, 0.75);
+  color: #ffd0d4;
+}
+
+/* D203 ②: a wait that ended before the user looked — faded, grey */
+.attention-badge.missed,
+.workspace-waiting-badge.missed {
+  color: var(--text-secondary);
+  border-color: var(--border-color);
+  filter: grayscale(1);
+  opacity: 0.6;
+}
+
+.workspace-item.active .workspace-waiting-badge.missed {
+  color: rgba(255, 255, 255, 0.8);
+  border-color: rgba(255, 255, 255, 0.5);
+  opacity: 0.75;
+}
+
+/* D202 ②: next to the 工作區 tab title */
+.left-sidebar-tab .workspace-waiting-badge {
+  margin-left: 4px;
+}
+
+/* D202 ③: under the expand button of the collapsed sidebar */
+.left-sidebar-collapsed .workspace-waiting-badge {
+  margin-left: 0;
+  font-size: 9px;
+  padding: 0 2px;
+}
+
 /* PLAN-044 / T0566: usage-limit state of a tab (hint, or the time BAT continues it) */
 .usage-limit-badge {
   font-size: 9px;

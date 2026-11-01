@@ -13,7 +13,7 @@ import { fireEvent, render, screen, within } from '@testing-library/react'
 import i18n from '../../i18n'
 import en from '../../locales/en.json'
 import { ThumbnailBar } from '../ThumbnailBar'
-import { resetTerminalAttention, setTerminalAttention } from '../../stores/terminal-attention-store'
+import { resetTerminalAttention, setTerminalAttention, setViewingState } from '../../stores/terminal-attention-store'
 import type { TerminalAttentionEvent } from '../../lib/terminal-attention'
 import type { TerminalInstance } from '../../types'
 
@@ -178,10 +178,39 @@ describe('Worker badge: waits for the user / for the Tower / reported (T0609)', 
     expect(reportedItem()).toHaveTextContent('(1)')
   })
 
-  test('a non-Worker tab never shows a badge, even when blocked', () => {
+  // T0735 (D200 ②): a non-Worker tab still has no Worker badge (no ? / ✓ / ↻ / work order), but
+  // one that waits for the user shows ⚠️ (until T0735 it showed nothing)
+  test('a non-Worker tab never shows a Worker badge; waiting for the user → ⚠️ only', () => {
     setTerminalAttention(ev('plain', { blockedReason: 'permission', blockedSince: T }))
-    renderBar([term('plain', 'Plain shell')])
+    setTerminalAttention(ev('asker', { blockedReason: 'tower', blockedSince: T, pendingQuestions: 1 }))
+    renderBar([term('plain', 'Plain shell'), term('tower', 'Claude CLI · Tower', { agentPreset: 'claude-cli' }), term('asker', 'Asker')])
     expect(badgeOf('Plain shell')).toBeNull()
+    const warn = () => thumbnailOf('Plain shell').querySelector('.attention-badge') as HTMLElement | null
+    expect(warn()).toHaveTextContent('⚠️')
+    expect(warn()).toHaveAttribute('data-attention', 'blocked')
+    expect(warn()!.title).toBe(`Waiting for you: a permission prompt (since ${clock(T)})`)
+    // a Tower tab in AskUserQuestion (claude hook `question`)
+    expect(thumbnailOf('Claude CLI · Tower').querySelector('.attention-badge')).toBeNull()
+    act(() => setTerminalAttention(ev('tower', { blockedReason: 'question', blockedSince: T })))
+    expect(thumbnailOf('Claude CLI · Tower').querySelector('.attention-badge.blocked')).toHaveTextContent('⚠️')
+    // `tower` (waits for the Tower) is not waiting for the user
+    expect(thumbnailOf('Asker').querySelector('.attention-badge')).toBeNull()
+    // cleared while nobody looked → faded ⚠️ (D203); the tab becomes the looked-at one → gone
+    act(() => setTerminalAttention(ev('plain')))
+    expect(warn()).toHaveAttribute('data-attention', 'missed')
+    expect(warn()).toHaveClass('missed')
+    act(() => setViewingState('plain', true))
+    expect(warn()).toBeNull()
+  })
+
+  test('a Worker that waited unseen keeps its own badge and gets the faded ⚠️ next to it (D203)', () => {
+    setTerminalAttention(ev('w1', { blockedReason: 'permission', blockedSince: T }))
+    renderBar([term('w1', 'Worker one', { towerTerminalId: 'tower', workorder: 'T0601', workerReport: report })])
+    expect(badgeOf('Worker one')).toHaveTextContent('⚠️ T0601')
+    expect(thumbnailOf('Worker one').querySelector('.attention-badge')).toBeNull() // the Worker badge says it
+    act(() => setTerminalAttention(ev('w1')))
+    expect(badgeOf('Worker one')).toHaveTextContent('✓ T0601') // unchanged rule
+    expect(thumbnailOf('Worker one').querySelector('.attention-badge.missed')).toHaveTextContent('⚠️')
   })
 })
 
