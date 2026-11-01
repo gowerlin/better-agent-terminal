@@ -10,7 +10,7 @@ project: maintenance
 priority: P3
 sizing: S
 created_at: "2026-11-02T05:24:41+0800"
-depends_on: [T0774]
+depends_on: [T0774, T0776]
 related:
   - "T0770 回報〈發現的問題〉觀察 1；`e2e/t0770-unfocused-wait-missed.spec.ts`（CDP `Emulation.setFocusEmulationEnabled(false)` 的作法）；BUG-193 / T0774；D216"
 affects_files:
@@ -27,7 +27,7 @@ interaction:
   interactive: false
   intervention_type: context-dependent
 memory_overrides:
-  - "🔴 派工時機：T0774 收單後（本單用 T0774 建出的 source build 驗，確認修正後三支仍綠）。🔴 不得跑 `npx vite build`，用 T0774 留下的 `dist` / `dist-electron`；若 HEAD 的 `src` / `electron` / `scripts` 與那份 build 不同，回報後停下。"
+  - "🔴 派工時機：T0774 與 T0776 都收單後（D217；本單用 T0776 最後建出的 source build 驗，確認兩個修正後三支仍綠）。🔴 不得跑 `npx vite build`，用 T0776 留下的 `dist` / `dist-electron`；若 HEAD 的 `src` / `electron` / `scripts` 與那份 build 不同，回報後停下。"
   - "🔴 範圍：三支 spec 比照 t0770，在需要判斷「視窗有焦點」的步驟前以 CDP 關掉 focus emulation，並在那些步驟記錄作業系統層的焦點證據（Electron `BrowserWindow.getFocusedWindow()` 與 renderer `document.hasFocus()`）；原本會走到 skip 分支的地方，改成真的失焦或真的有焦點時各自斷言。🔴 不改斷言語意（規則以 D200–D203 與 BUG-193 修正後的 `worker-tab-recycle.md` 為準）；不改 `e2e/fixtures/electron-isolation.ts`（需要的 helper 寫在各 spec 內，或三支共用的程式碼抽到新的 `e2e/helpers/` 檔並列進回報）。"
   - "🔴 驗證：三支各連跑 2 次綠；故意讓視窗失焦（例：開 focus-sink 視窗）時，原本假設有焦點的斷言會失敗或走正確分支（證明這次真的量到焦點，回報附證據）。`npm run typecheck` = 0、`npm run typecheck:electron` = 0。`worker-tab-recycle.md` 驗證清單補一行（e2e 焦點注意事項）。不改產品程式碼；發現產品缺陷 → 〈發現的問題〉。不發版、不 push。公開 repo 去識別化（D176）。"
   - "🔴 yolo：不得問使用者；判讀問題依 ct-exec § Questions For Tower 問塔台（每輪最多 3 題）。Git：只用 `git commit --only` commit 自己改的檔案。禁止 `git stash` / `git reset` / `git checkout -- <path>` / `git restore`（L138）。"

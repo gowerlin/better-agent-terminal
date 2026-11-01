@@ -3,7 +3,7 @@ schema_version: 1
 schema_kind: index
 id: _bug-tracker
 index_kind: bugs
-generated_at: "2026-11-02T05:26:29+0800"
+generated_at: "2026-11-02T05:28:58+0800"
 generator: control-tower-sync
 source_globs:
   - _ct-workorders/BUG-*.md
@@ -12,8 +12,8 @@ exclude_globs:
   - _ct-workorders/examples/**
 total: 58
 breakdown:
-  OPEN: 2
-  FIXING: 0
+  OPEN: 0
+  FIXING: 2
   FIXED: 3
   VERIFY: 0
   CLOSED: 53
@@ -23,22 +23,23 @@ breakdown:
 # Bug Tracker
 
 > ⚠️ 此文件由 `*sync` 自動生成，請勿手動編輯。
-> 最後同步：2026-11-02 05:26 — 開 BUG-194（OPEN，low，T0773 F1）；2026-11-02 05:26 — BUG-189 / 191 CLOSED（交付版 `v0.7.3-pre.4` 安裝版自動化實測 T0772，D215）；2026-11-02 05:24 — 開 BUG-193（OPEN，low，D216 → T0774）；2026-11-02 05:23 — BUG-190 / 192 CLOSED（交付版 `v0.7.3-pre.4` 安裝版自動化實測 T0771，含真實模型 Haiku 5.5，D215）；2026-11-02 05:22 — BUG-188 CLOSED（交付版 `v0.7.3-pre.4` 安裝版自動化實測 T0770，D215）；2026-11-02 04:59 — 第一百零四 session 塔台重啟（三）`*sync`：區段與 56 張 BUG 檔一致，只修正 frontmatter 統計（51 / 7 / 44 → 56 / 8 / 48）；2026-11-02 04:28 — BUG-192 FIXED（T0769 `9ab26222`）；BUG-192 → FIXING（T0769，D214）；BUG-191 FIXED（T0760 `eb5c0589`）；開 BUG-192（OPEN，T0768 研究）；BUG-190 FIXED（T0759 `b8a3b7f7`）；BUG-188 FIXED（T0757 `de8a4fd4`）；BUG-189 FIXED（T0758 `ddfb4f38`）；開 BUG-188–191 → FIXING（T0757–T0760，D209 / D210）；BUG-183 / 184 CLOSED（使用者實機，`v0.7.3-pre.3`）；BUG-187 CLOSED（`v0.7.3-pre.3`，使用者裁示）；BUG-186 CLOSED（WSL 實機，server `0.7.3-pre.3`）；BUG-187 FIXED（T0756 `915f90ab`）；開 BUG-187 → FIXING（T0756）；BUG-185 CLOSED（`v0.7.3-pre.2`）；BUG-186 FIXED（T0753 `0f021e67`）；BUG-185 FIXED（T0751 `f9072e16`）；開 BUG-186 → FIXING（T0753）；BUG-183 / 184 FIXED（T0750）；BUG-182 / 175 CLOSED
+> 最後同步：2026-11-02 05:28 — BUG-193 → FIXING（T0774，05:27 派工）、BUG-194 → FIXING（T0776，D217）；2026-11-02 05:26 — 開 BUG-194（OPEN，low，T0773 F1）；2026-11-02 05:26 — BUG-189 / 191 CLOSED（交付版 `v0.7.3-pre.4` 安裝版自動化實測 T0772，D215）；2026-11-02 05:24 — 開 BUG-193（OPEN，low，D216 → T0774）；2026-11-02 05:23 — BUG-190 / 192 CLOSED（交付版 `v0.7.3-pre.4` 安裝版自動化實測 T0771，含真實模型 Haiku 5.5，D215）；2026-11-02 05:22 — BUG-188 CLOSED（交付版 `v0.7.3-pre.4` 安裝版自動化實測 T0770，D215）；2026-11-02 04:59 — 第一百零四 session 塔台重啟（三）`*sync`：區段與 56 張 BUG 檔一致，只修正 frontmatter 統計（51 / 7 / 44 → 56 / 8 / 48）；2026-11-02 04:28 — BUG-192 FIXED（T0769 `9ab26222`）；BUG-192 → FIXING（T0769，D214）；BUG-191 FIXED（T0760 `eb5c0589`）；開 BUG-192（OPEN，T0768 研究）；BUG-190 FIXED（T0759 `b8a3b7f7`）；BUG-188 FIXED（T0757 `de8a4fd4`）；BUG-189 FIXED（T0758 `ddfb4f38`）；開 BUG-188–191 → FIXING（T0757–T0760，D209 / D210）；BUG-183 / 184 CLOSED（使用者實機，`v0.7.3-pre.3`）；BUG-187 CLOSED（`v0.7.3-pre.3`，使用者裁示）；BUG-186 CLOSED（WSL 實機，server `0.7.3-pre.3`）；BUG-187 FIXED（T0756 `915f90ab`）；開 BUG-187 → FIXING（T0756）；BUG-185 CLOSED（`v0.7.3-pre.2`）；BUG-186 FIXED（T0753 `0f021e67`）；BUG-185 FIXED（T0751 `f9072e16`）；開 BUG-186 → FIXING（T0753）；BUG-183 / 184 FIXED（T0750）；BUG-182 / 175 CLOSED
 
 ## 統計
-- 🔴 Open: 2 | ⏳ Fixing: 0 | ✅ Fixed: 3 | 🧪 Verify: 0 | 🚫 Closed: 53 | ⛔ Won't Fix: 0 | **Total: 58**
+- 🔴 Open: 0 | ⏳ Fixing: 2 | ✅ Fixed: 3 | 🧪 Verify: 0 | 🚫 Closed: 53 | ⛔ Won't Fix: 0 | **Total: 58**
 
 ## 🔴 Open / 處理中
 
 | ID | 標題 | 嚴重度 | 建立時間 | 連結 |
 |----|------|--------|---------|------|
-| BUG-194 | 自動開啟的對話框（recovery 後「被中斷的分頁」）第一次按 Esc 關不掉，Esc 送進背景分頁的 PTY（T0773 F1） | 🟢 Low | 2026-11-02 | [BUG-194](BUG-194-auto-opened-dialog-esc-goes-to-xterm.md) |
-| BUG-193 | 視窗沒有焦點時留下的淡化 ⚠️，點另一個分頁取回焦點時被當成「看過」清掉（T0770 觀察 2，D216 → T0774） | 🟢 Low | 2026-11-02 | [BUG-193](BUG-193-focus-regain-click-clears-missed-badge.md) |
+| _（無）_ | | | | |
 
 ## ⏳ 修復中 (FIXING)
 
 | ID | 標題 | 嚴重度 | 修復時間 | 連結 |
 |----|------|--------|---------|------|
+| BUG-193 | 視窗沒有焦點時留下的淡化 ⚠️，點另一個分頁取回焦點時被當成「看過」清掉（T0774，D216） | 🟢 Low | 2026-11-02 | [BUG-193](BUG-193-focus-regain-click-clears-missed-badge.md) |
+| BUG-194 | 自動開啟的對話框（recovery 後「被中斷的分頁」）第一次按 Esc 關不掉，Esc 送進背景分頁的 PTY（T0776，D217） | 🟢 Low | 2026-11-02 | [BUG-194](BUG-194-auto-opened-dialog-esc-goes-to-xterm.md) |
 
 ## ✅ 已修復
 

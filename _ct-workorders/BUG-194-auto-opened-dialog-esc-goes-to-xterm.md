@@ -3,11 +3,11 @@ schema_version: 1
 schema_kind: bug
 id: BUG-194
 title: "自動開啟的對話框（recovery 後「被中斷的分頁」）第一次按 Esc 關不掉，Esc 送進背景分頁的 PTY"
-status: OPEN
+status: FIXING
 severity: low
 reproducibility: always
 created_at: "2026-11-02T05:26:29+0800"
-updated_at: "2026-11-02T05:26:29+0800"
+updated_at: "2026-11-02T05:28:58+0800"
 impact:
   - dialog
   - terminal
@@ -21,7 +21,7 @@ links:
 |------|------|
 | 嚴重度 | 🟢 low（recovery 後 agent 分頁已只剩 shell，影響小；但違反「Esc 統一」規則，其他自動開啟的 Dialog 可能同樣） |
 | 可重現 | 必現（T0773 兩次執行） |
-| **狀態** | 📂 OPEN |
+| **狀態** | 🔧 FIXING（T0776，D217） |
 | 回報者 | T0773 Worker（F1） |
 
 ## 現象

@@ -3,11 +3,11 @@ schema_version: 1
 schema_kind: bug
 id: BUG-193
 title: "視窗沒有焦點時留下的淡化 ⚠️，點另一個分頁取回焦點時被當成「看過」清掉"
-status: OPEN
+status: FIXING
 severity: low
 reproducibility: always
 created_at: "2026-11-02T05:24:41+0800"
-updated_at: "2026-11-02T05:24:41+0800"
+updated_at: "2026-11-02T05:28:58+0800"
 impact:
   - terminal-attention
 links:
@@ -20,7 +20,7 @@ links:
 |------|------|
 | 嚴重度 | 🟢 low（淡化 ⚠️ 提早消失，使用者可能錯過那個分頁的等待結束） |
 | 可重現 | Playwright 滑鼠點擊必現；實體滑鼠未實測 |
-| **狀態** | 📂 OPEN（D216：開單修正，T0774） |
+| **狀態** | 🔧 FIXING（T0774，D216） |
 | 回報者 | T0770 Worker（觀察 2），使用者裁示修正（D216） |
 
 ## 現象
