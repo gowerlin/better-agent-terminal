@@ -23,10 +23,10 @@ breakdown:
 # Bug Tracker
 
 > ⚠️ 此文件由 `*sync` 自動生成，請勿手動編輯。
-> 最後同步：2026-11-01 20:48 — 第一百零三 session：BUG-182 FIXING（T0749）、OPEN（T0748 發現）；BUG-180 CLOSED（使用者 pre.9 實機）、BUG-181 CLOSED（T0746 真實模型複驗）；熱區 Open 0 / Fixing 1 / Fixed 4 / Closed 41。前次 2026-11-01 19:39：BUG-097 / 105 / 107 / 108 / 111 / 156 CLOSED（T0742 / T0743）；BUG-181 FIXED（T0744 `0d42ebdc`）；BUG-135 CLOSED（T0742）；BUG-181 FIXING（T0744）；BUG-181 OPEN（T0739 發現）；T0738 A 類 12 張 CLOSED（BUG-116 / 118 / 127 / 129 / 131 / 132 / 133 / 134 / 137 / 146 / 147 / 171）；BUG-134 回報者改代稱；BUG-180 FIXED（T0741 `4500984d`）；BUG-177 / 178 / 179 CLOSED（T0737 e2e＋BUG-179 實機輪替）；BUG-180 OPEN（T0736 發現）；BUG-167 / 168 / 170 CLOSED（R-G003，CI 測試關卡 / 實機驗收證據）；熱區 Fixing 0 / Fixed 6 / Closed 39。前次 2026-11-01 12:43 第一百零二 session：BUG-169 / 174 / 176 CLOSED、BUG-177 / 178 / 179 FIXED（T0729 `ceb24910` / T0730 `6f7b3d53` / T0732 `ce648034`）；熱區 Open 0 / Fixing 0 / Fixed 29 / Closed 14
+> 最後同步：2026-11-01 21:09 — 第一百零三 session：BUG-182 FIXED（T0749 `01796a9e`）、FIXING（T0749）、OPEN（T0748 發現）；BUG-180 CLOSED（使用者 pre.9 實機）、BUG-181 CLOSED（T0746 真實模型複驗）；熱區 Open 0 / Fixing 0 / Fixed 5 / Closed 41。前次 2026-11-01 19:39：BUG-097 / 105 / 107 / 108 / 111 / 156 CLOSED（T0742 / T0743）；BUG-181 FIXED（T0744 `0d42ebdc`）；BUG-135 CLOSED（T0742）；BUG-181 FIXING（T0744）；BUG-181 OPEN（T0739 發現）；T0738 A 類 12 張 CLOSED（BUG-116 / 118 / 127 / 129 / 131 / 132 / 133 / 134 / 137 / 146 / 147 / 171）；BUG-134 回報者改代稱；BUG-180 FIXED（T0741 `4500984d`）；BUG-177 / 178 / 179 CLOSED（T0737 e2e＋BUG-179 實機輪替）；BUG-180 OPEN（T0736 發現）；BUG-167 / 168 / 170 CLOSED（R-G003，CI 測試關卡 / 實機驗收證據）；熱區 Fixing 0 / Fixed 6 / Closed 39。前次 2026-11-01 12:43 第一百零二 session：BUG-169 / 174 / 176 CLOSED、BUG-177 / 178 / 179 FIXED（T0729 `ceb24910` / T0730 `6f7b3d53` / T0732 `ce648034`）；熱區 Open 0 / Fixing 0 / Fixed 29 / Closed 14
 
 ## 統計
-- 🔴 Open: 0 | ⏳ Fixing: 1 | ✅ Fixed: 4 | 🧪 Verify: 0 | 🚫 Closed: 41 | ⛔ Won't Fix: 0 | **Total: 46**
+- 🔴 Open: 0 | ⏳ Fixing: 0 | ✅ Fixed: 5 | 🧪 Verify: 0 | 🚫 Closed: 41 | ⛔ Won't Fix: 0 | **Total: 46**
 
 ## 🔴 Open / 處理中
 
@@ -37,12 +37,12 @@ breakdown:
 
 | ID | 標題 | 嚴重度 | 修復時間 | 連結 |
 |----|------|--------|---------|------|
-| BUG-182 | 遠端 bat-server 重啟後，重連視窗裡分頁的等待 ⚠️ 永遠不清除、工作區總數多算（T0748 ⑤ 發現；T0749 修正中） | 🟢 Low | 2026-11-01 | [BUG-182](BUG-182-remote-server-restart-stale-waiting-badge.md) |
 
 ## ✅ 已修復
 
 | ID | 標題 | 嚴重度 | 修復時間 | 連結 |
 |----|------|--------|---------|------|
+| BUG-182 | 遠端 bat-server 重啟後，重連視窗裡分頁的等待 ⚠️ 不清除、總數多算；T0749 `01796a9e` 重連時以 `terminal:attention-snapshot` 依 server 現況對帳（PTY 不在 = 比照 PTY 結束），待預覽版實機驗收（遠端 bat-server 須升到含修正的版本） | 🟢 Low | 2026-11-01 | [BUG-182](BUG-182-remote-server-restart-stale-waiting-badge.md) |
 | BUG-175 | 縮圖預覽在輸出沒有換行時不更新、露出 `>0q>4m` 殘骸（T0714 `afe57761` 依游標換列分行 + 完整 CSI；`v0.7.2-pre.3`；待外部測試者A 與 GitHub #22 回報者 macOS 實機驗收） | 🟡 medium | 2026-10-30 | [BUG-175](BUG-175-thumbnail-preview-stuck-without-newline.md) |
 | BUG-159 | codex 分頁在 BAT MCP 未注入、非系統管理員時接上 codex 共用 daemon，helper 讀到其他分頁的 `BAT_*`（T0651 `5b1be0f5`） | 🟢 low | 2026-10-18 | [BUG-159](BUG-159-codex-shared-daemon-inherits-other-tab-env.md) |
 | BUG-130 | 終端分頁貼圖（Windows 回歸未重現，已加固 + log；mac 送 Ctrl+V） | 🟡 medium | 2026-10-14 13:56 | [BUG-130](BUG-130-terminal-image-paste-regression.md) |
