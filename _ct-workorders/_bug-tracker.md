@@ -3,17 +3,17 @@ schema_version: 1
 schema_kind: index
 id: _bug-tracker
 index_kind: bugs
-generated_at: "2026-11-01T23:11:03+0800"
+generated_at: "2026-11-02T01:12:29+0800"
 generator: control-tower-sync
 source_globs:
   - _ct-workorders/BUG-*.md
 exclude_globs:
   - _ct-workorders/_archive/**
   - _ct-workorders/examples/**
-total: 50
+total: 51
 breakdown:
   OPEN: 0
-  FIXING: 0
+  FIXING: 1
   FIXED: 6
   VERIFY: 0
   CLOSED: 44
@@ -23,10 +23,10 @@ breakdown:
 # Bug Tracker
 
 > ⚠️ 此文件由 `*sync` 自動生成，請勿手動編輯。
-> 最後同步：2026-11-01 23:11 — 第一百零四 session：BUG-185 CLOSED（`v0.7.3-pre.2`）；BUG-186 FIXED（T0753 `0f021e67`）；BUG-185 FIXED（T0751 `f9072e16`）；開 BUG-186 → FIXING（T0753）；BUG-183 / 184 FIXED（T0750）；BUG-182 / 175 CLOSED
+> 最後同步：2026-11-02 01:12 — 第一百零四 session：開 BUG-187 → FIXING（T0756）；BUG-185 CLOSED（`v0.7.3-pre.2`）；BUG-186 FIXED（T0753 `0f021e67`）；BUG-185 FIXED（T0751 `f9072e16`）；開 BUG-186 → FIXING（T0753）；BUG-183 / 184 FIXED（T0750）；BUG-182 / 175 CLOSED
 
 ## 統計
-- 🔴 Open: 0 | ⏳ Fixing: 0 | ✅ Fixed: 6 | 🧪 Verify: 0 | 🚫 Closed: 44 | ⛔ Won't Fix: 0 | **Total: 50**
+- 🔴 Open: 0 | ⏳ Fixing: 1 | ✅ Fixed: 6 | 🧪 Verify: 0 | 🚫 Closed: 44 | ⛔ Won't Fix: 0 | **Total: 51**
 
 ## 🔴 Open / 處理中
 
@@ -37,6 +37,7 @@ breakdown:
 
 | ID | 標題 | 嚴重度 | 修復時間 | 連結 |
 |----|------|--------|---------|------|
+| BUG-187 | 遠端工具「安裝 / 更新 Node.js」以 nvm 裝 LTS（v26）時沒有先確保 `libatomic1`，最小安裝的 Linux 裝完 node 無法執行；T0756 修正中 | 🟡 Medium | — | [BUG-187](BUG-187-node-install-recipe-missing-libatomic.md) |
 
 ## ✅ 已修復
 
