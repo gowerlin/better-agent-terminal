@@ -154,4 +154,4 @@ T0770 發現 Playwright 預設對頁面做 focus emulation，`document.hasFocus(
 ### Git
 
 - 產品 commit `1068c5f8`（`git commit --only` 5 個檔）；工單 commit 另一筆（本檔）。未 push。
-- 去識別化（D176）：commit 內容以 `gower|C:\Users|/Users/|@gmail` 掃描無命中；本機日誌含家目錄路徑，未進 repo。
+- 去識別化（D176）：commit 內容依 `.private/` 的檢查樣式掃描無命中（塔台 2026-11-02 改寫：原文直接列出檢查樣式，違反 D176）；本機日誌含家目錄路徑，未進 repo。
