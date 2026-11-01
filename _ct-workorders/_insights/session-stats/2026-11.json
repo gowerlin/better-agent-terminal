@@ -1,5 +1,5 @@
 {
- "generated_at": "2026-11-02T03:27:03+08:00",
+ "generated_at": "2026-11-02T03:48:36+08:00",
  "generator": {
   "script": "ct-session-stats.py",
   "version": "0.1.0"
@@ -14,13 +14,13 @@
  },
  "tower_daily": {
   "2026-11-01": {
-   "api_requests": 139,
-   "cache_read": 38685835,
-   "cache_write": 382058,
-   "cache_write_1h": 382058,
+   "api_requests": 143,
+   "cache_read": 40413386,
+   "cache_write": 389677,
+   "cache_write_1h": 389677,
    "cache_write_5m": 0,
-   "input": 320,
-   "output": 131507
+   "input": 330,
+   "output": 133993
   }
  },
  "workorders": [
@@ -2224,6 +2224,92 @@
     "2.1.316"
    ],
    "workorder": "T0762"
+  },
+  {
+   "attribution": {
+    "conflict": false,
+    "source": "frontmatter",
+    "sources": {
+     "frontmatter": 1
+    }
+   },
+   "by_mcp_server": {},
+   "by_tool": {
+    "Bash": 59,
+    "Edit": 14,
+    "Monitor": 2,
+    "PowerShell": 1,
+    "Read": 5,
+    "ToolSearch": 1,
+    "Write": 2
+   },
+   "counts": {
+    "api_requests": 82,
+    "failures": 1,
+    "same_file_read_ge3": 0,
+    "subagent_files": 0,
+    "tool_calls": 84
+   },
+   "end": "2026-11-01T19:47:47Z",
+   "est_usd": 8.6472,
+   "failures_by_tool": {
+    "Bash": 1
+   },
+   "renews": 0,
+   "sessions": 1,
+   "skills_invoked": {},
+   "start": "2026-11-01T19:27:12Z",
+   "stuck": {
+    "max_consecutive_failures": 1,
+    "max_failures_in_10_calls": 1,
+    "near_repeat_fail_pairs_j50": 0,
+    "repeat_fail_groups_norm": 0
+   },
+   "stuck_signal": false,
+   "subagent_tokens": {
+    "cache_read": 0,
+    "cache_write": 0,
+    "cache_write_1h": 0,
+    "cache_write_5m": 0,
+    "input": 0,
+    "output": 0
+   },
+   "tokens": {
+    "cache_read": 21045613,
+    "cache_write": 306797,
+    "cache_write_1h": 306797,
+    "cache_write_5m": 0,
+    "input": 176,
+    "output": 99148
+   },
+   "top_tools": [
+    [
+     "Bash",
+     59
+    ],
+    [
+     "Edit",
+     14
+    ],
+    [
+     "Read",
+     5
+    ],
+    [
+     "Monitor",
+     2
+    ],
+    [
+     "Write",
+     2
+    ]
+   ],
+   "type": "verification",
+   "unpriced_tokens": 0,
+   "versions": [
+    "2.1.316"
+   ],
+   "workorder": "T0763"
   },
   {
    "attribution": {
