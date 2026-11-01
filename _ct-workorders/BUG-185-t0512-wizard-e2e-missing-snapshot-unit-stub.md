@@ -3,11 +3,13 @@ schema_version: 1
 schema_kind: bug
 id: BUG-185
 title: "e2e `t0512-profile-panel-layout` 第 2 項（WSL 精靈完成區塊）失敗：`WIZARD_STUBS` 缺 T0554 新增的 `wsl-systemd:snapshot-unit`"
-status: FIXED
+status: CLOSED
 severity: low
 reproducibility: always
 created_at: "2026-11-01T22:24:08+0800"
-updated_at: "2026-11-01T22:32:20+0800"
+updated_at: "2026-11-01T23:11:03+0800"
+closed_at: "2026-11-01T23:11:03+0800"
+closed_reason: "verified"
 fixed_at: "2026-11-01T22:32:20+0800"
 fixed_by: T0751
 fix_commit: f9072e16
@@ -24,7 +26,7 @@ links:
 |------|------|
 | 嚴重度 | 🟢 low（只有測試失敗；產品行為不受影響） |
 | 可重現 | 一定（T0750 Worker 實跑） |
-| **狀態** | ✅ FIXED（T0751，`f9072e16`） |
+| **狀態** | 🚫 CLOSED（T0751 `f9072e16`，隨 `v0.7.3-pre.2` 交付） |
 | 回報者 | T0750 Worker |
 
 ## 現象
@@ -43,3 +45,7 @@ links:
 - commit `f9072e16`：`WIZARD_STUBS` 補 `wsl-systemd:snapshot-unit`（`{ ok: true, content: null, active: false, enabled: false }`，首次安裝），另補 T0554 升級 / rollback 路徑的 `wsl:restore-bundle`、`wsl:discard-previous-bundle`、`wsl-systemd:restore-unit`、`wsl-systemd:restart-service`（目前走不到，防禦用）。只改 e2e spec，產品程式碼與斷言不變。
 - 驗證：修正前第 2 項 FAIL（alert「無法讀取目前的 BAT 服務」，`Invalid WSL distro name: E2E Fake`）；修正後兩項連跑 2 次綠；突變檢查（只拿掉 `snapshot-unit` stub）第 2 項如預期 FAIL。
 - 待驗收：隨 D205 發版後由塔台結案 CLOSED。
+
+## 驗收（2026-11-01T23:11:03+0800，第一百零四 session）
+
+- 修正（`f9072e16`）在交付版 `v0.7.3-pre.2`（run `41318631410`，target `655b678b`）內；驗證依據：T0751 連跑 2 次綠＋突變檢查、T0753 重跑 `t0512` 2 passed。只影響測試，依 R-G003 改 `CLOSED`。
