@@ -1465,6 +1465,12 @@
 - **切分**：W2a 設計語言 + 元件 + 首頁（T0630）→ 預覽通過後 W2b（`/control-tower`、功能、FAQ、回報頁）→ W2c 遠端開發；W3 / W4 不變。
 - **相關**：PLAN-049 / D159 / D160 / T0624 / T0630
 
+### D199 2026-11-01 — Claude 面板 prompt suggestion 維持開啟、補 docs；另研究 `agentProgressSummaries` 成本（T0734）
+
+- **背景**：T0733 研究（`fd4f3f6c`）：turn 結束後多出的請求是面板 `queryOptions.promptSuggestions: true`（2026-02-28 `cdfa90a1` 引入）產生的 prompt suggestion，結果顯示為「Suggested Tab:」建議晶片；主要成本是 cache read，CLI 在 cache 沒熱 / 用量接近限制 / plan mode / turn 1 不送；使用者可用 settings `promptSuggestionEnabled: false` 或 env `CLAUDE_CODE_ENABLE_PROMPT_SUGGESTION=false` 自行關閉。面板經 SDK 開啟，繞過 CLI 終端的 GrowthBook 旗標、焦點與連續不採用降頻。
+- **決定**（使用者選「維持並補文件」「開研究單」）：不改程式（No Regressions，功能可見且在用）；`agentProgressSummaries` 研究與 docs 併成 T0734（只改 docs、不 build，與 T0732 並行）。不加 Settings 開關、不改預設。
+- **相關**：T0733 / T0734 / T0729 / BUG-177
+
 ### D198 2026-11-01 — BUG-179 `bat-scripts.log` 輪替規格（塔台依使用者授權訂定）＋查 Claude 面板 turn 後多出的請求（研究單）
 
 - **背景**：T0731 查證 `bat-scripts.log` 無上限成長（本機 41.6 MB，10 月 35.6 MB，T0590 起 `report-hook` helper 與主行程雙寫）→ BUG-179。T0729 觀察到 Claude 面板每個 turn 結束後 CLI 在同一對話多送一個請求（疑 prompt suggestion），真實帳號會耗 token。
