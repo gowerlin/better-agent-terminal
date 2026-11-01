@@ -18,6 +18,7 @@
 | [multi-remote-profiles.md](multi-remote-profiles.md) | 多 remote profile 同時連線、上限、profile index 序列化 | 多 remote profile 同時連線（PLAN-039） |
 | [npm12-install-scripts.md](npm12-install-scripts.md) | npm 12 `allowScripts`、手動補跑、本機打包、CI 與 actions / runner 版本 | 本機開發：npm 12 install scripts（T0471 / T0473） |
 | [packaging-release-checks.md](packaging-release-checks.md) | 打包前置檢查、產物檢查、安裝檔瘦身、CI pipeline、Server bundle baseline | Packaging / Release 前置檢查 |
+| [new-pty-initial-size.md](new-pty-initial-size.md) | 隱藏分頁不 fit 的守門（`canFitTerminalContainer`）、9x5 的來源、initial resize 到期再檢查 active、驗證清單 | 新 PTY 的初始尺寸（T0572 / BUG-145）（T0741 / BUG-180 的部分；T0572 本身仍完整留在 CLAUDE.md） |
 | [pty-process-tree.md](pty-process-tree.md) | 關閉分頁時的程序樹（taskkill / server shutdown / quit） | 關閉分頁時的程序樹（T0540 / PLAN-042） |
 | [recovery-create-hold.md](recovery-create-hold.md) | Recovery 提示期間的 create hold（`pty:create`、helper 派工、`pty:restart`） | Recovery 提示期間的 `pty:create`（T0578 / BUG-146） |
 | [release.md](release.md) | 正式版 / 預覽版 workflow、prerelease 標記與下游發佈、Server bundle tag 線 | Release |

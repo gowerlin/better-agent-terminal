@@ -165,6 +165,7 @@
 
 - host 一律以 120x30 spawn（`PtyManager.create`、Terminal Server）；`pty:resize` 對 host 還不認得的 id 直接丟棄。分頁先進 store（TerminalPanel 掛載即送第一次 resize），`pty:create` 要等 shell 查詢等非同步步驟後才到 host，所以那次 resize 可能被丟；TerminalPanel 的 resize 去重（`lastSentCols` / `lastSentRows`）之後不再送同一尺寸。⏻ 重啟（`pty:restart`）的新 PTY 同樣是 120x30，去重也擋住重送（修正前 100% 停在 120x30）。
 - 修正：`createPtyWithReplay` 在 `{ ok, created: true }`、`restartOrCreatePty` 在 restart 成功時呼叫 `requestPtySizeSync(id)`（`src/lib/pty-replay.ts`）；TerminalPanel 的 sink 重設去重，分頁 active 時立即 `doResize()`，hidden 時等下次 activation 送出。`created: false`（PTY 已在跑）不重送；未掛載的分頁不保留請求（掛載後第一次 resize 時 PTY 已存在）。新建 PTY 一律經這兩個函式，不要直接呼叫 `pty.create` / `pty.restart`。
+- 隱藏的分頁不 fit（T0741 / BUG-180）：容器沒有版面尺寸（寬或高為 0，例如 `display: none` 的隱藏分頁）時不 fit、不送 `pty:resize`、不動去重；掛載時排的 100 ms initial resize 到期時分頁已不 active 就不做（修正前連開分頁時前一個分頁的 PTY 變 9x5）。判斷唯一實作 `canFitTerminalContainer`（`src/lib/terminal-fit-guard.ts`），由 TerminalPanel 的 `doResize` 與手動重繪呼叫；🔴 新的 fit 路徑一律經 `doResize`，不要直接呼叫 `fitAddon.fit()`。細節見 [docs/agent-guide/new-pty-initial-size.md](docs/agent-guide/new-pty-initial-size.md)。
 - 已知限制：Terminal Server recovery（`handleServerDeath` 重建）以 120x30 重建，renderer 不知道，直到下一次 resize / 重繪；背景（未 active）分頁本來就不 fit，其 PTY 在第一次切到該分頁前維持 spawn 尺寸（例如外部建立、尚未切過去的分頁；本單未改）。
 - 驗證：`src/__tests__/terminal-pty-size-sync.test.tsx`；e2e `e2e/t0572-new-pty-initial-size.spec.ts`（隔離實例：還原分頁、4 個新分頁、⏻ 重啟，分頁內 node 腳本記錄 `process.stdout.columns` / `rows`，與工具列重繪後的 xterm 尺寸比對；需先 `npx vite build`）。
 

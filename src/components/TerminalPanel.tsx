@@ -19,6 +19,7 @@ import { forcesTerminalSelection, isMouseTrackingDecset, isMouseTrackingOn, Mous
 import { ALT_SCREEN_EXIT, MOUSE_TRACKING_RESET, MouseReportEchoDetector } from '../lib/mouse-tracking-reset'
 import { mouseReportEncoding, planWheelReports, shouldSendWheelReports, WheelLineAccumulator } from '../lib/terminal-wheel-reports'
 import { createLinkHoverTooltip, createOsc8LinkHandler, findFileLinks } from '../lib/terminal-file-links'
+import { canFitTerminalContainer } from '../lib/terminal-fit-guard'
 import { CtToast, useCtToast } from './CtToast'
 import { registerUsageLimitSender } from '../stores/usage-limit-store'
 import { USAGE_LIMIT_ENTER_DELAY_MS, USAGE_LIMIT_SCREEN_LINES, usageLimitRecheckFailure } from '../lib/usage-limit'
@@ -423,7 +424,15 @@ export const TerminalPanel = memo(function TerminalPanel({ terminalId, isActive 
     // Deduplicated resize helper — avoids redundant pty.resize IPC calls
     let lastSentCols = 0
     let lastSentRows = 0
+    // T0741 / BUG-180: a container with no layout box (hidden tab, display: none) is never
+    // fitted — FitAddon would read `100%` as 100 px and size xterm and the PTY to ~9x5. The dedup
+    // is left as it is, so the size sent once the tab is shown again is not deduped away.
+    const containerFits = () => canFitTerminalContainer(containerRef.current?.getBoundingClientRect())
     const doResize = () => {
+      if (!containerFits()) {
+        dlog(`[resize] skipped (container has no size) terminal=${terminalId}`)
+        return
+      }
       fitAddon.fit()
       const { cols, rows } = terminal
       if (cols !== lastSentCols || rows !== lastSentRows) {
@@ -844,6 +853,11 @@ export const TerminalPanel = memo(function TerminalPanel({ terminalId, isActive 
     const handleRedrawEvent = (e: Event) => {
       const detail = (e as CustomEvent<{ terminalId: string }>).detail
       if (detail.terminalId !== terminalId) return
+      // T0741: same guard as doResize — without it the cols + 1 below would stay on a hidden view.
+      if (!containerFits()) {
+        dlog(`[redraw] skipped (container has no size) terminal=${terminalId}`)
+        return
+      }
       // Force xterm re-render by temporarily changing dimensions,
       // then fitAddon.fit() restores the correct size.
       // Reset dedup counters so PTY resize always fires (triggers SIGWINCH
@@ -1026,9 +1040,17 @@ export const TerminalPanel = memo(function TerminalPanel({ terminalId, isActive 
     })
     resizeObserver.observe(containerRef.current)
 
-    // Initial resize — only for active terminal, delayed to ensure DOM is ready
+    // Initial resize — only for active terminal, delayed to ensure DOM is ready.
+    // T0741 / BUG-180: the tab may be switched away within those 100 ms (e.g. opening two tabs
+    // from "+" in a row) — check again when the timer fires, like the ResizeObserver debounce.
+    let initialResizeTimer: ReturnType<typeof setTimeout> | null = null
     if (isActiveRef.current) {
-      setTimeout(() => {
+      initialResizeTimer = setTimeout(() => {
+        initialResizeTimer = null
+        if (!isActiveRef.current) {
+          dlog(`[resize] initial doResize skipped (no longer active) terminal=${terminalId}`)
+          return
+        }
         dlog(`[resize] initial doResize terminal=${terminalId}`)
         doResize()
       }, 100)
@@ -1074,6 +1096,7 @@ export const TerminalPanel = memo(function TerminalPanel({ terminalId, isActive 
       decorationManagerRef.current?.dispose()
       decorationManagerRef.current = null
       if (resizeTimer) clearTimeout(resizeTimer)
+      if (initialResizeTimer) clearTimeout(initialResizeTimer)
       if (imePendingRaf) cancelAnimationFrame(imePendingRaf)
       resizeObserver.disconnect()
       observer.disconnect()

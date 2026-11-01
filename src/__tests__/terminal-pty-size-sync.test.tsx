@@ -5,6 +5,9 @@
  * reaches the host (the shell lookup is awaited first); the host drops a resize for an id it does
  * not know yet, and the view's dedup never sent the same size again — the PTY kept its spawn size
  * (120x30). ⏻ restart spawned the new PTY at 120x30 while the dedup said the size was sent.
+ *
+ * T0741 / BUG-180: a tab switched away within the 100 ms of its initial resize, or any container
+ * with no layout box (display: none), is not fitted and sends no `pty:resize` (it was ~9x5).
  */
 import { afterEach, beforeAll, beforeEach, describe, expect, test, vi } from 'vitest'
 import { act, cleanup, render, waitFor } from '@testing-library/react'
@@ -23,7 +26,8 @@ const { deepStub, size } = vi.hoisted(() => {
     construct: () => deepStub() as object,
   })
   // xterm's size before / after FitAddon.fit() (the container's size in cells)
-  return { deepStub, size: { cols: 80, rows: 24, fitCols: 137, fitRows: 35, created: 0 } }
+  // `box`: the container's layout box (jsdom lays nothing out; a hidden tab's box is 0x0)
+  return { deepStub, size: { cols: 80, rows: 24, fitCols: 137, fitRows: 35, created: 0, box: { width: 1200, height: 700 } } }
 })
 
 vi.mock('@xterm/xterm', () => ({
@@ -87,6 +91,10 @@ const resizes = () => ptyResize.mock.calls.filter(c => c[0] === ID).map(c => `${
 beforeAll(async () => {
   vi.stubGlobal('ResizeObserver', class { observe() {} unobserve() {} disconnect() {} })
   vi.stubGlobal('MutationObserver', class { observe() {} disconnect() {} takeRecords() { return [] } })
+  vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(() => {
+    const { width, height } = size.box
+    return { width, height, x: 0, y: 0, top: 0, left: 0, right: width, bottom: height, toJSON: () => ({}) } as DOMRect
+  })
   await i18n.changeLanguage('en')
 })
 
@@ -95,6 +103,7 @@ beforeEach(() => {
   size.rows = 24
   size.fitCols = 137
   size.fitRows = 35
+  size.box = { width: 1200, height: 700 }
   ptyResize.mockClear()
   ;(window as unknown as { electronAPI: unknown }).electronAPI = permissiveApi({
     pty: { resize: ptyResize, getBuffer: vi.fn(async () => null) },
@@ -188,6 +197,63 @@ describe('T0572: the fitted size reaches a newly spawned PTY', () => {
     const view = await mountActive()
     view.unmount()
     expect(() => requestPtySizeSync(ID)).not.toThrow()
+    expect(resizes()).toEqual(['137x35'])
+  })
+})
+
+describe('T0741 / BUG-180: no fit and no pty:resize for a tab that is hidden or has no layout box', () => {
+  test('mounted active, switched away within 100 ms → the initial resize does not fit or send; switching back sends the fitted size', async () => {
+    const { TerminalPanel } = await import('../components/TerminalPanel')
+    const before = size.created
+    const view = render(<TerminalPanel terminalId={ID} isActive={true} />)
+    await waitFor(() => expect(size.created).toBeGreaterThan(before))
+    const sentBefore = resizes()
+    // the next "+" tab became active: this one is hidden. Keep its box so only the active check
+    // can stop the timer; a fit now would give what FitAddon reads from a display: none wrapper.
+    view.rerender(<TerminalPanel terminalId={ID} isActive={false} />)
+    size.fitCols = 9
+    size.fitRows = 5
+    await new Promise(r => setTimeout(r, 150))
+    expect(resizes()).toEqual(sentBefore)
+    expect(resizes()).not.toContain('9x5')
+    expect(`${size.cols}x${size.rows}`).not.toBe('9x5')
+    // switched back: the real fit goes out
+    size.fitCols = 137
+    size.fitRows = 35
+    view.rerender(<TerminalPanel terminalId={ID} isActive={true} />)
+    await waitFor(() => expect(resizes().at(-1)).toBe('137x35'))
+    expect(resizes()).not.toContain('9x5')
+  })
+
+  test('container 0x0 → no fit, no pty:resize, and the dedup is not touched (the size goes out once the box is back)', async () => {
+    const view = await mountActive()
+    const { TerminalPanel } = await import('../components/TerminalPanel')
+    size.box = { width: 0, height: 0 }
+    size.fitCols = 9
+    size.fitRows = 5
+    // T0572 sync while the box is 0x0: resets the dedup, the fit is skipped
+    act(() => requestPtySizeSync(ID))
+    window.dispatchEvent(new CustomEvent('terminal-redraw', { detail: { terminalId: ID } }))
+    await new Promise(r => setTimeout(r, 50))
+    expect(resizes()).toEqual(['137x35'])
+    // neither the fit nor the redraw's cols + 1 touched xterm
+    expect(`${size.cols}x${size.rows}`).toBe('137x35')
+    // box back (shown again): the same size is sent, not deduped away
+    size.box = { width: 1200, height: 700 }
+    size.fitCols = 137
+    size.fitRows = 35
+    view.rerender(<TerminalPanel terminalId={ID} isActive={false} />)
+    view.rerender(<TerminalPanel terminalId={ID} isActive={true} />)
+    await waitFor(() => expect(resizes()).toEqual(['137x35', '137x35']))
+  })
+
+  test('width or height alone 0 → still skipped', async () => {
+    await mountActive()
+    for (const box of [{ width: 0, height: 700 }, { width: 1200, height: 0 }]) {
+      size.box = box
+      size.fitCols = 9
+      act(() => requestPtySizeSync(ID))
+    }
     expect(resizes()).toEqual(['137x35'])
   })
 })
