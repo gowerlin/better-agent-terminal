@@ -659,6 +659,8 @@
     "forkButton": "用目前進度分支",
     "attachImages": "附加圖片（最多 5 張）",
     "stop": "停止",
+    "queuedUntilBackgroundDone": "等背景子代理結束後送出。",
+    "cancelQueuedMessage": "取消",
     "stopEsc": "停止（Esc）",
     "sendMessage": "傳送訊息",
     "scrollToBottom": "捲動至底部",

@@ -113,6 +113,7 @@ export const PATH_FREE_CHANNELS: ReadonlyMap<string, string> = new Map([
   ['claude:fork-session', 'sessionId only'],
   ['claude:rewind-to-prompt', 'not available in this build'],
   ['claude:stop-task', 'sessionId + taskId'],
+  ['claude:cancel-queued-message', 'sessionId + queued message id (T0769)'],
   ['claude:rest-session', 'sessionId only'],
   ['claude:wake-session', 'sessionId only'],
   ['claude:is-resting', 'sessionId only'],

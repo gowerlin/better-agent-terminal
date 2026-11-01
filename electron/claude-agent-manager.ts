@@ -247,6 +247,31 @@ function dataUrlToContentBlock(dataUrl: string): { type: 'image'; source: { type
   }
 }
 
+type UserContentBlock =
+  | { type: 'image'; source: { type: 'base64'; media_type: string; data: string } }
+  | { type: 'text'; text: string }
+
+/**
+ * A user message's content: the attached images (data URLs) as image blocks followed by the
+ * prompt as a text block; just the prompt when no image is usable. One builder for the query's
+ * first message (runQuery) and an injected one (T0769).
+ */
+/** T0759 / T0769: a background Agent of the running query is still running. */
+function hasBackgroundTask(session: { activeTasks: Map<string, { background?: boolean }> }): boolean {
+  return Array.from(session.activeTasks.values()).some(t => t.background)
+}
+
+export function buildUserContent(prompt: string, images?: string[]): string | UserContentBlock[] {
+  const imageBlocks = (images ?? [])
+    .map(dataUrl => dataUrlToContentBlock(dataUrl))
+    .filter(Boolean) as UserContentBlock[]
+  if (imageBlocks.length === 0) return prompt
+  return [
+    ...imageBlocks,
+    ...(prompt ? [{ type: 'text' as const, text: prompt }] : []),
+  ]
+}
+
 // Resolve the Claude Code CLI path: single implementation in claude-runtime-router
 // (`resolveEmbeddedClaudePath`, BUG-047 / BUG-052 layout rules; PLAN-036 T0389
 // merged the three former copies). Packaged vs dev layout comes from the host
@@ -313,6 +338,22 @@ interface PendingRequest {
 interface QueuedMessage {
   prompt: string
   images?: string[]
+  /**
+   * T0769 / BUG-192: set on a message that could not be injected into the open query (its input
+   * had closed) and now waits for that query to end. Only these are listed to the renderer
+   * (`claude:queued-messages`) and can be cancelled (`cancelQueuedMessage`).
+   */
+  queuedId?: string
+  /** The user message the renderer shows for it (`claude:message` id / content). */
+  messageId?: string
+  content?: string
+}
+
+/** T0769: what the renderer gets for each queued message (`claude:queued-messages`). */
+export interface ClaudeQueuedMessageInfo {
+  id: string
+  messageId?: string
+  content: string
 }
 
 interface ActiveTask {
@@ -350,6 +391,13 @@ interface SessionInstance {
   worktreeInfo?: WorktreeInfo  // Set when running in worktree isolation
   originalCwd?: string         // Original workspace cwd before worktree redirect
   callUsage?: QueryCallTracker // T0484: per-call usage of the running query
+  /**
+   * T0769 / BUG-192: the latest turn of the running query has its `result` (false at query start
+   * and when a message is injected). While the query is still open after that (a background
+   * Agent keeps it open), a new message goes into the same query (`streamInput`) instead of
+   * aborting it.
+   */
+  mainTurnDone?: boolean
 }
 
 /**
@@ -758,6 +806,23 @@ export class ClaudeAgentManager {
       session.isResting = false
     }
 
+    // T0769 / BUG-192: the turn has its result but a background Agent keeps the query open → send
+    // the message into the same query. Never abort it: that would end the background Agent too,
+    // and a second query would be a second CLI process for this session.
+    // Only while a background Agent runs: then the SDK keeps the CLI's input open (the session is
+    // not idle). Without one the SDK closes the input at the result, and a message written in the
+    // window before the query ends is lost without an error (T0769 e2e ⑦ → ⑦b), so that window
+    // keeps the old path below.
+    if (session.state.isStreaming && session.mainTurnDone && session.queryInstance && hasBackgroundTask(session)) {
+      if (!prompt.trim() && !images?.length) {
+        // BUG-177: never send a blank message (it would run a whole turn); nothing to inject
+        logger.log(`[Claude] blank message while the query is open: not sent sessionId=${sessionId.slice(0, 8)}`)
+        return true
+      }
+      this.injectIntoOpenQuery(sessionId, session, session.queryInstance, prompt, images)
+      return true
+    }
+
     if (session.state.isStreaming) {
       // Abort current query and immediately send the new message
       // Prepend the aborted prompt as context so Claude doesn't forget it
@@ -765,7 +830,7 @@ export class ClaudeAgentManager {
       session.abortController.abort()
       session.pendingPermissions.clear()
       session.pendingAskUser.clear()
-      session.messageQueue.length = 0
+      this.clearMessageQueue(sessionId, session)
       const contextualPrompt = abortedPrompt && abortedPrompt !== prompt
         ? `[使用者先前的訊息（已中斷）: "${abortedPrompt}"]\n\n${prompt}`
         : prompt
@@ -773,8 +838,17 @@ export class ClaudeAgentManager {
       return true
     }
 
-    // Broadcast user message so all windows (including remote host) can see it.
-    // The sender's frontend already adds it locally; dedup by id prevents doubles.
+    this.broadcastUserMessage(sessionId, prompt, images)
+
+    await this.runQuery(sessionId, prompt, images)
+    return true
+  }
+
+  /**
+   * Broadcast user message so all windows (including remote host) can see it.
+   * The sender's frontend already adds it locally; dedup by id prevents doubles.
+   */
+  private broadcastUserMessage(sessionId: string, prompt: string, images?: string[]): ClaudeMessage {
     const userMsg: ClaudeMessage = {
       id: `user-${Date.now()}`,
       sessionId,
@@ -783,10 +857,88 @@ export class ClaudeAgentManager {
       timestamp: Date.now(),
     }
     this.addMessage(sessionId, userMsg)
-
-    await this.runQuery(sessionId, prompt, images)
-    return true
+    return userMsg
   }
+
+  /**
+   * T0769 / BUG-192: send a message into the running query with `Query.streamInput` (the query
+   * stays open after its result while a background Agent runs; the CLI queues the message if it
+   * is busy). Pending permission / AskUserQuestion requests stay (the background Agent may be
+   * waiting on one) and the message goes out as typed (no "interrupted" prefix).
+   *
+   * When the query's input has already closed, `streamInput` rejects at once without sending
+   * anything: the message then waits for the query to end and goes out with the existing
+   * resume path; the renderer lists it (`claude:queued-messages`) and can cancel it.
+   */
+  private injectIntoOpenQuery(sessionId: string, session: SessionInstance, queryInstance: Query, prompt: string, images?: string[]) {
+    const userMsg = this.broadcastUserMessage(sessionId, prompt, images)
+    this.resetQueryUsage(session) // the injected turn gets its own Cache History row (T0744 / T0498)
+    session.currentPrompt = prompt
+    session.mainTurnDone = false
+    const message: SDKUserMessage = {
+      type: 'user',
+      message: { role: 'user', content: buildUserContent(prompt, images) as SDKUserMessage['message']['content'] },
+      parent_tool_use_id: null,
+    }
+    async function* single() { yield message }
+    const background = Array.from(session.activeTasks.values()).filter(t => t.background).length
+    logger.log(`[Claude] inject into open query sessionId=${sessionId.slice(0, 8)} background=${background} images=${images?.length ?? 0}`)
+    queryInstance.streamInput(single()).catch((error: unknown) => {
+      const reason = error instanceof Error ? error.message : String(error)
+      const current = this.sessions.get(sessionId)
+      if (current !== session) return // session reset / killed meanwhile
+      if (session.queryInstance === queryInstance && session.state.isStreaming) {
+        // still the same query, now closing: its result was the last one
+        session.mainTurnDone = true
+      }
+      if (!session.state.isStreaming) {
+        // the query already ended (its finally found no queued message): send it now
+        logger.log(`[Claude] inject failed after the query ended (${reason}); sending with resume`)
+        void this.runQuery(sessionId, prompt, images)
+        return
+      }
+      const queuedId = `queued-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
+      session.messageQueue.push({ prompt, images, queuedId, messageId: userMsg.id, content: userMsg.content })
+      logger.log(`[Claude] inject failed (${reason}); queued ${queuedId} until the query ends`)
+      this.emitQueuedMessages(sessionId, session)
+    })
+  }
+
+  /** T0769: the messages waiting for the open query to end (only those that failed to inject). */
+  private queuedMessageInfos(session: SessionInstance): ClaudeQueuedMessageInfo[] {
+    return session.messageQueue
+      .filter(m => m.queuedId)
+      .map(m => ({ id: m.queuedId!, ...(m.messageId ? { messageId: m.messageId } : {}), content: m.content ?? m.prompt }))
+  }
+
+  private emitQueuedMessages(sessionId: string, session: SessionInstance) {
+    this.send('claude:queued-messages', sessionId, this.queuedMessageInfos(session))
+  }
+
+  /** Empty the message queue; tells the renderer only when a listed (queued) message goes away. */
+  private clearMessageQueue(sessionId: string, session: SessionInstance) {
+    const hadListed = session.messageQueue.some(m => m.queuedId)
+    session.messageQueue.length = 0
+    if (hadListed) this.emitQueuedMessages(sessionId, session)
+  }
+
+  /**
+   * T0769 / D214 P-1: the user cancels a queued message. `idle` tells the renderer that nothing
+   * else will answer (the latest turn has its result, or no query runs), so it can stop showing
+   * the turn as running.
+   */
+  cancelQueuedMessage(sessionId: string, queuedId: string): { cancelled: boolean; idle: boolean } {
+    const session = this.sessions.get(sessionId)
+    if (!session) return { cancelled: false, idle: true }
+    const index = session.messageQueue.findIndex(m => m.queuedId === queuedId)
+    const idle = !session.state.isStreaming || !!session.mainTurnDone
+    if (index === -1) return { cancelled: false, idle }
+    session.messageQueue.splice(index, 1)
+    logger.log(`[Claude] queued message ${queuedId} cancelled sessionId=${sessionId.slice(0, 8)}`)
+    this.emitQueuedMessages(sessionId, session)
+    return { cancelled: true, idle: idle && session.messageQueue.length === 0 }
+  }
+
 
   private async runQuery(sessionId: string, prompt: string, images?: string[]): Promise<void> {
     const session = this.sessions.get(sessionId)
@@ -795,6 +947,9 @@ export class ClaudeAgentManager {
     session.state.isStreaming = true
     session.abortController = new AbortController()
     session.currentPrompt = prompt
+    session.mainTurnDone = false
+    // T0769: the CLI got as far as `system/init` (G0: an interrupt can end it with exit code 1 later)
+    let sawInit = false
 
     // Collect stderr output for better error diagnostics
     let stderrOutput = ''
@@ -939,6 +1094,9 @@ export class ClaudeAgentManager {
         effort: session.effort,
         toolConfig: { askUserQuestion: { previewFormat: 'html' } },
         agentProgressSummaries: true,
+        // T0769 / BUG-192: the task bar stops one task at a time (`stop_task`), so an interrupt
+        // (Esc) only ends the current turn and spares running background Agents.
+        perTaskStopAffordance: true,
         ...(session.model ? { model: session.model } satisfies Partial<Options> : {}),
         ...(installedPlugins.length > 0 ? { plugins: installedPlugins } satisfies Partial<Options> : {}),
         canUseTool,
@@ -969,14 +1127,8 @@ export class ClaudeAgentManager {
       let promptArg: unknown = prompt || ' '
       if (images && images.length > 0) {
         // Images are now passed as data URLs (data:image/...;base64,...) from the frontend
-        const imageBlocks = images
-          .map(dataUrl => dataUrlToContentBlock(dataUrl))
-          .filter(Boolean) as Array<{ type: 'image'; source: { type: 'base64'; media_type: string; data: string } }>
-        if (imageBlocks.length > 0) {
-          const contentBlocks = [
-            ...imageBlocks,
-            ...(prompt ? [{ type: 'text' as const, text: prompt }] : []),
-          ]
+        const contentBlocks = buildUserContent(prompt, images)
+        if (typeof contentBlocks !== 'string') {
           const userMessage = {
             type: 'user' as const,
             message: {
@@ -1004,6 +1156,7 @@ export class ClaudeAgentManager {
       for await (const message of generator) {
         // Check abort
         if (session.abortController.signal.aborted) break
+        if (message.type === 'system' && message.subtype === 'init') sawInit = true
         this.processMessage(sessionId, session, message)
       }
     } catch (error: unknown) {
@@ -1013,8 +1166,10 @@ export class ClaudeAgentManager {
         || errMsg.includes('aborted')
         || session?.abortController.signal.aborted
       if (!isAbort) {
-        // If we were trying to resume and the process crashed, retry without resume
-        if (resumeId && errMsg.includes('exited with code')) {
+        // If we were trying to resume and the process crashed, retry without resume.
+        // Only before `system/init` (T0769): after it the resume worked and the CLI ended later
+        // (e.g. exit code 1 after an interrupt) — re-running the prompt fresh would be wrong.
+        if (resumeId && errMsg.includes('exited with code') && !sawInit) {
           logger.warn('Claude query failed with resume, retrying without resume:', errMsg)
           if (stderrOutput) logger.warn('stderr:', stderrOutput)
           session.sdkSessionId = undefined
@@ -1077,6 +1232,10 @@ export class ClaudeAgentManager {
         // Process queued messages
         const next = session.messageQueue.shift()
         if (next) {
+          if (next.queuedId) {
+            logger.log(`[Claude] sending queued ${next.queuedId} after the query ended`)
+            this.emitQueuedMessages(sessionId, session)
+          }
           this.runQuery(sessionId, next.prompt, next.images)
         }
       }
@@ -1439,6 +1598,7 @@ export class ClaudeAgentManager {
     }
 
     if (message.type === 'result') {
+      session.mainTurnDone = true // T0769: a message sent from now on goes into this query
       const resultMsg = message as {
         subtype: string
         total_cost_usd?: number
@@ -1560,18 +1720,24 @@ export class ClaudeAgentManager {
   async stopSession(sessionId: string): Promise<boolean> {
     const session = this.sessions.get(sessionId)
     if (session) {
-      session.messageQueue.length = 0
+      this.clearMessageQueue(sessionId, session)
+      let interrupted = false
       if (session.queryInstance && session.state.isStreaming) {
         // Use graceful interrupt if the query is active, fallback to abort
         try {
           await session.queryInstance.interrupt()
+          interrupted = true
         } catch {
           session.abortController.abort()
         }
       } else {
         session.abortController.abort()
       }
-      session.state.isStreaming = false
+      // T0769: with perTaskStopAffordance the interrupt spares background Agents and the query
+      // stays open; it is still streaming until runQuery's finally. Marking it idle here would
+      // send the next message to a second query (a second CLI process for this session).
+      const keepsRunning = interrupted && hasBackgroundTask(session)
+      if (!keepsRunning) session.state.isStreaming = false
       // Keep the session alive so the user can continue the conversation
       return true
     }
@@ -1582,7 +1748,7 @@ export class ClaudeAgentManager {
   abortSession(sessionId: string): boolean {
     const session = this.sessions.get(sessionId)
     if (session) {
-      session.messageQueue.length = 0
+      this.clearMessageQueue(sessionId, session)
       session.abortController.abort()
       session.state.isStreaming = false
       return true
@@ -2166,7 +2332,7 @@ export class ClaudeAgentManager {
     const session = this.sessions.get(sessionId)
     if (!session) return false
     session.abortController.abort()
-    session.messageQueue.length = 0
+    this.clearMessageQueue(sessionId, session)
     session.state.isStreaming = false
     try { session.queryInstance?.close() } catch { /* ignore */ }
     session.queryInstance = undefined
@@ -2194,7 +2360,7 @@ export class ClaudeAgentManager {
 
     // Tear down old session completely
     session.abortController.abort()
-    session.messageQueue.length = 0
+    this.clearMessageQueue(sessionId, session)
     try { session.queryInstance?.close() } catch { /* ignore */ }
     this.sessions.delete(sessionId)
     sdkSessionIds.delete(sessionId)

@@ -27,6 +27,12 @@
 //   ⑦b (T0759 / BUG-190) a background Agent (`run_in_background: true`): after the main turn ended it
 //      stays in the active-task bar (1 item, bg tag) while the sub-agent is held; once it ends: bar
 //      empty, card dot-success with `[completed] …`; a 2nd one stopped from the bar → `[stopped …`
+//   ⑦c (T0769 / BUG-192) a message sent while a background Agent runs (main turn already ended) goes
+//      into the same query: its answer shows while the sub-agent is still held, the bar keeps 1 item,
+//      the card never gets `Agent terminated unexpectedly`; Esc during a (held) injected turn ends
+//      only that turn — the sub-agent keeps running and completes once released. The queued fallback
+//      (input already closed) cannot be produced with the real CLI: unit tests cover it
+//      (electron/__tests__/claude-send-during-background-agent.test.ts, src/__tests__/claude-panel-queued-message.test.tsx)
 //   ⑧ a seeded `claude-code-v2` tab with an sdkSessionId: reads as Claude Agent; records whether
 //      the next message resumed or started fresh
 //   ⑨ a claude-cli PTY's env has no CLAUDE_CODE_ENABLE_TODO_TOOLS (and the main process neither)
@@ -98,6 +104,14 @@ const SCENARIOS: Record<string, Scenario> = {
     { text: ['bg2 ', 'launched'] },
   ][step] ?? null,
   bgsub2: ({ step }) => (step === 0 ? { text: ['never ', 'released'] } : null),
+  // T0769 / BUG-192: messages sent into the query a held background sub-agent keeps open
+  'bg-agent3': ({ step, agentTypes }) => [
+    { tool: { name: 'Agent', input: { description: 'T0769 bg probe', prompt: '[[T0727:bgsub3]] report back', subagent_type: agentTypes.includes('general-purpose') ? 'general-purpose' : (agentTypes[0] ?? 'general-purpose'), run_in_background: true } } },
+    { text: ['bg3 ', 'launched'] },
+  ][step] ?? null,
+  bgsub3: ({ step }) => (step === 0 ? { text: ['bg3 sub-agent ', 'finished'] } : null),
+  followup: ({ step }) => (step === 0 ? { text: ['followup ', 'answer'] } : null),
+  slow: ({ step }) => (step === 0 ? { text: ['slow ', 'answer'] } : null),
   'perm-allow': ({ step }) => [
     { tool: { name: 'Bash', input: { command: 'mkdir t0727-perm-allow', description: 'T0727 permission probe (allow)' } } },
     { text: ['allow ', 'done'] },
@@ -388,6 +402,43 @@ test('Claude panel against a fake Anthropic API: task list, resume, streaming, p
     const stopResult = await stopCard.locator('.claude-task-end-label').textContent()
     log(`⑦b after the sub-agent: card result=${JSON.stringify(bgResult)}; stopped from the bar: card result=${JSON.stringify(stopResult)}`)
     results['⑦b'] = `PASS — background Agent: 1 active-task bar item ${JSON.stringify(bgBarLabel)} (tags ${JSON.stringify(bgBarTags)}) after the main turn ended; after the sub-agent: bar empty, card dot-success, ${JSON.stringify(bgResult)}; 2nd background Agent stopped from the bar: bar empty, card ${JSON.stringify(stopResult)}`
+
+    // ── ⑦c (T0769 / BUG-192): send while a background Agent runs → into the same query ──
+    fake.gate('bgsub3')
+    await send(win, '[[T0727:bg-agent3]] delegate in the background, then keep talking')
+    await fake.waitFor('bgsub3', 0, 60_000)
+    await waitText(sonnet, 'bg3 launched') // the main turn is over, the sub-agent is still held
+    await expect(agentCard).toHaveCount(4, { timeout: 15_000 })
+    const bg3Card = agentCard.last()
+    await expect(sonnet.locator('.claude-active-task-item')).toHaveCount(1, { timeout: 15_000 })
+    const subRequestsBefore = fake.requests.filter(r => r.scenario === 'bgsub3').length
+    const followupSentAt = Date.now()
+    await send(win, '[[T0727:followup]] next')
+    await waitText(sonnet, 'followup answer', 30_000)
+    const followupMs = Date.now() - followupSentAt
+    await expect(sonnet.locator('.claude-active-task-item')).toHaveCount(1)
+    await expect(bg3Card.locator('.tl-dot')).toHaveClass(/dot-running/)
+    expect(await sonnet.textContent()).not.toContain('Agent terminated unexpectedly')
+    expect(fake.requests.filter(r => r.scenario === 'bgsub3').length).toBe(subRequestsBefore) // the sub-agent was not restarted
+    await sonnet.screenshot({ path: test.info().outputPath('t0769-followup-during-bg-agent.png') })
+    // Esc during an injected turn (its request held) ends only that turn
+    fake.gate('slow')
+    await send(win, '[[T0727:slow]] a slow turn')
+    await fake.waitFor('slow', 0, 30_000)
+    await activePanel(win).locator('textarea.claude-input').press('Escape')
+    await win.waitForTimeout(3_000)
+    await expect(sonnet.locator('.claude-active-task-item')).toHaveCount(1)
+    await expect(bg3Card.locator('.tl-dot')).toHaveClass(/dot-running/)
+    expect(await sonnet.textContent()).not.toContain('Agent terminated unexpectedly')
+    fake.release('slow', 0)
+    fake.release('bgsub3', 0)
+    await expect(sonnet.locator('.claude-active-task-item')).toHaveCount(0, { timeout: 30_000 })
+    await expect(bg3Card.locator('.claude-task-end-label')).toContainText('[completed] bg3 sub-agent finished', { timeout: 15_000 })
+    await expect(bg3Card.locator('.tl-dot')).toHaveClass(/dot-success/)
+    const bg3Result = await bg3Card.locator('.claude-task-end-label').textContent()
+    expect(await sonnet.textContent()).not.toContain('Agent terminated unexpectedly')
+    log(`⑦c followup answered in ${followupMs} ms while the sub-agent was held; after Esc on the injected turn the sub-agent kept running; released: ${JSON.stringify(bg3Result)}`)
+    results['⑦c'] = `PASS — followup answered in ${followupMs} ms with the background sub-agent held (bar 1 item, card running, no "Agent terminated unexpectedly", sub-agent not restarted); Esc on a held injected turn: bar still 1, card running; released → bar empty, ${JSON.stringify(bg3Result)}`
 
     // ── ⑥: permission in `default` mode, allow then deny ──
     // Between turns the call returns false (the finished query's setPermissionMode throws) but the

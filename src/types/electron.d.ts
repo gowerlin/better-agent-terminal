@@ -391,6 +391,10 @@ interface ElectronAPI {
     forkSession: (sessionId: string) => Promise<{ newSdkSessionId: string } | null>
     rewindToPrompt: (sessionId: string, promptIndex: number) => Promise<{ newSdkSessionId: string; removedPromptCount: number } | { error: string }>
     stopTask: (sessionId: string, taskId: string) => Promise<boolean>
+    /** T0769 / BUG-192: cancel a message that waits for the open query to end; `idle` = nothing else will answer. */
+    cancelQueuedMessage: (sessionId: string, queuedId: string) => Promise<{ cancelled: boolean; idle: boolean } | undefined>
+    /** T0769: the messages waiting for the open query to end (the whole list on every change). */
+    onQueuedMessages: (callback: (sessionId: string, items: import('./claude-agent').ClaudeQueuedMessage[]) => void) => () => void
     restSession: (sessionId: string) => Promise<boolean>
     wakeSession: (sessionId: string) => Promise<boolean>
     isResting: (sessionId: string) => Promise<boolean>

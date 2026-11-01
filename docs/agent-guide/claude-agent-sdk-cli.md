@@ -108,8 +108,26 @@
   - 背景：`tool_use Agent` → `background_tasks_changed`（含該 task）→ `task_started`（`is_backgrounded: true`、`tool_use_id`）→ user `tool_result`「Async agent launched successfully…」（`tool_use_result.status: 'async_launched'`、`isAsync: true`）→ 主回合 `result` → 子代理的訊息（`parent_tool_use_id`）→ `task_updated`（`patch.status: 'completed'`）→ `task_notification`（`status: 'completed'`、`summary` = 子代理最後的文字）→ `background_tasks_changed`（空）→ CLI 自己多跑 1 回合（第 2 個 `result`）→ query 結束。
   - 前景：`task_started`（`is_backgrounded: false`）→ 子代理訊息 → `task_updated` / `task_notification`（`completed`）→ user `tool_result`「[Subagent hand-back] …」（`tool_use_result.status: 'completed'`）→ 主回合繼續。
 - **`stopTask`**（實錄）：送 task_id → `task_updated`（`killed`）+ `task_notification`（`stopped`）後 resolve；卡片 `[stopped by user] …`。🔴 送 tool_use_id 會 resolve 但**不停**（子代理照跑完）：修正前 `activeTasks` 同一子代理有兩筆、先找到 tool_use_id 那筆，送的正是這個 id。主回合 `result` 之後能不能停取決於 SDK 是否還開著 CLI 的輸入：BAT 的選項（`canUseTool`、`promptSuggestions`、`includePartialMessages`）下仍開著，可停（e2e ⑦b、探測實錄）；不帶這些選項的字串 prompt 在第一個 `result` 就關輸入，`stopTask` 不送達、到 query 結束才 reject `Query closed before response received`。後者時背景項目不改寫已標的結果；仍在跑就只把描述改 `[stop failed] …`、保持 `running`。
-- **已知限制**（既有行為，本單未改）：背景子代理執行中 query 仍在跑（`isStreaming`），這時送新訊息會走「中止目前 query 再送」路徑（`sendMessage`）：CLI 被中止、背景子代理一起結束，卡片標 error（`Agent terminated unexpectedly`）。`background_tasks_changed`（level 信號）目前不用。歷史重建（resume）不保留 `isBackground`。
+- **已知限制**：~~背景子代理執行中送新訊息會中止 query、子代理一起結束~~（BUG-192，T0769 起改為注入同一個 query，見下節）。`background_tasks_changed`（level 信號）目前不用。歷史重建（resume）不保留 `isBackground`。
 - **驗證**：`electron/__tests__/claude-background-agent.test.ts`（實錄序列：背景完成 / 失敗 / 舊 CLI / 前景改背景 / 錯誤 tool_result / re-key；前景不變；`stopTask` 送 task_id、失敗不蓋結果）、`src/lib/__tests__/agent-task-label.test.ts`；e2e `e2e/v072-pre6-claude-panel.spec.ts` ⑦b（假 API：主回合結束後 bar 1 項含「背景」標籤、子代理結束後 0 項並標 `[completed] …`；第 2 個背景子代理從 bar 停止 → `[stopped by user] …`；前景 ⑦ 照舊）。修正前的 `claude-agent-manager.ts` 在 ⑦b「主回合結束後 bar 1 項」失敗（實得 0）。
+
+## Claude 面板：背景子代理執行中送出訊息（T0769 / BUG-192，D214）
+
+- **用途**：主回合已 `result`、背景子代理讓 query 仍開著時，使用者送出的新訊息改用 `Query.streamInput()` 送進同一個 query（CLI 正忙時自己排隊），子代理不受影響、卡片與 task bar 不變。修正前走「中止目前 query 再送」：子代理一起結束，卡片標 `Agent terminated unexpectedly`，resume 後模型看不到子代理的結果（T0768 ①）。
+- 🔴 規則：
+  - 背景子代理執行中不得 `abort()` 或另開 query（同一 session 不得同時兩個 CLI 程序）。
+  - 注入路徑不清 `pendingPermissions` / `pendingAskUser`（背景子代理可能正在等權限）、不加「使用者先前的訊息（已中斷）」前綴。
+  - 不送空白訊息（BUG-177）：query 開著時收到空白訊息直接忽略（不注入、不中止）。
+  - T0759 規則不變：背景項目只由 `task_notification` 或 query 結束清除。
+  - 注入回合有獨立的 Cache History R 列：注入時 `resetQueryUsage`，`turnModelUsage` 不改。
+  - query 選項宣告 `perTaskStopAffordance: true`：Esc（`stopSession` → `interrupt`）只停目前回合、不殺背景子代理；逐項停止走 task bar（`stopTask`）。`stopSession` 在背景子代理還在時不把 `isStreaming` 設 false（由 `runQuery` 的 finally 設），否則下一則訊息會另開 query。
+  - `runQuery` 的「`exited with code` → 不 resume 重試（Starting fresh）」只在尚未收到 `system/init` 時做（T0768 G0：interrupt 後 CLI 以 exit 1 結束，不得重跑 prompt）。
+- 🔴 只在背景子代理還在跑（`activeTasks` 有背景項目，`hasBackgroundTask`）時注入：此時 session 不是 idle，SDK 讓 CLI 的輸入開著。沒有背景子代理時 SDK 在 `result` 當下就關輸入，這段到 query 結束前寫入的訊息會**沒有錯誤地遺失**（T0769 e2e 實測：⑦ 的前景 Agent 回合結束後立刻送 ⑦b 的訊息，沒有任何模型請求），所以維持原路徑（中斷＋重送）。
+- **不變**（D214）：主回合本身還在跑（還沒 `result`，含注入的回合）時送出 → 照舊「中斷＋重送」（P-2）；雙 Esc / 停止按鈕 / `/abort` 照舊結束整個 query 含背景子代理（P-3）；常駐串流輸入不做（P-4，PLAN-058）。
+- **送不進去時排隊**（P-1）：query 的輸入已關（`streamInput` 立即 reject，例 `ProcessTransport is not ready for writing`，沒有送出任何東西）→ 訊息排進 `messageQueue`（帶 `queuedId`），query 結束後照現行 resume 送出（模型看得到子代理結果，T0768 ③）。主行程以 `claude:queued-messages`（每次變動送整份清單 `{ id, messageId?, content }`）告知 renderer；面板在該使用者訊息下顯示「等背景子代理結束後送出」＋取消（`claude:cancel-queued-message` → `cancelQueuedMessage`，從 `messageQueue` 移除；回傳 `idle` 為真時 renderer 結束「執行中」顯示）。reject 時 query 已結束（finally 已跑過）→ 直接以 resume 送出，不進佇列。只有排隊的訊息會列出；中斷＋重送的訊息不列。
+- **唯一實作**：`sendMessage` 的注入分支、`injectIntoOpenQuery` / `clearMessageQueue` / `cancelQueuedMessage`、`SessionInstance.mainTurnDone`（`runQuery` 開頭與注入時 false、`result` 時 true）、`buildUserContent`（第一則訊息與注入共用的圖片 content blocks）、`stopSession`（`electron/claude-agent-manager.ts`）；IPC `claude:cancel-queued-message`（`electron/handlers/claude.ts`，只對 Claude session；遠端經 `PROXIED_CHANNELS`）；面板排隊提示的位置 `placeQueuedMessages`（`src/types/claude-agent.ts`：先比 id、再比內容，每則訊息最多一次，找不到的放在列表最後），`ClaudeAgentPanel.tsx` 的 `.claude-queued-note`。
+- **已知限制**：「輸入已關」只在 SDK 自己結束 run 時發生（`session_state_changed: idle`，或 SDK 的 run-end ceiling 計時器到期），以真實 CLI 造不出穩定情境，排隊路徑只有單元測試；排隊清單不跨面板重新掛載（重新掛載後提示不見，訊息仍會送出）；注入依賴「字串 prompt 的 query 在背景子代理執行中輸入仍開著」這個 SDK 行為（0.3.316 實錄），SDK 改了 → 注入 reject → 退回排隊，不會殺子代理。
+- **驗證**：`electron/__tests__/claude-send-during-background-agent.test.ts`（mock SDK `query`：注入不 abort、不另開 query、背景卡片仍 running、權限請求保留、user 訊息廣播、R 列重設、圖片 blocks、空白不送；reject → 排隊、query 結束後 resume 送出、取消；reject 晚於 query 結束 → 直接送；主回合未 `result` → 中斷＋重送對照；`perTaskStopAffordance`；`stopSession` 後再送 → 注入；`exited with code` 在 init 後不重試、init 前照舊重試）＋突變檢查；`src/__tests__/claude-panel-queued-message.test.tsx`（提示位置、取消 IPC、三語系之 zh-TW）；e2e `e2e/v072-pre6-claude-panel.spec.ts` ⑦c（假 API：主回合結束後送 `[[T0727:followup]] next` → 回覆出現、bar 仍 1 項、卡片沒有 `Agent terminated unexpectedly`、子代理沒有重跑；注入回合請求擋住時按 Esc → bar 仍 1 項、卡片 running；放行 → `[completed] …`）。修正前的 build 在 ⑦c 失敗（見 T0769 回報區）。
 
 ## Claude 面板額外的模型請求（T0733 / T0734，D199）
 

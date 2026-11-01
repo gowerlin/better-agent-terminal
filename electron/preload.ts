@@ -363,6 +363,14 @@ const electronAPI = {
       ipcRenderer.invoke('claude:rewind-to-prompt', sessionId, promptIndex) as Promise<{ newSdkSessionId: string; removedPromptCount: number } | { error: string }>,
     stopTask: (sessionId: string, taskId: string) =>
       ipcRenderer.invoke('claude:stop-task', sessionId, taskId) as Promise<boolean>,
+    // T0769 / BUG-192: messages that wait for the open query to end (background Agent running)
+    cancelQueuedMessage: (sessionId: string, queuedId: string) =>
+      ipcRenderer.invoke('claude:cancel-queued-message', sessionId, queuedId) as Promise<{ cancelled: boolean; idle: boolean } | undefined>,
+    onQueuedMessages: (callback: (sessionId: string, items: Array<{ id: string; messageId?: string; content: string }>) => void) => {
+      const handler = (_event: Electron.IpcRendererEvent, sessionId: string, items: Array<{ id: string; messageId?: string; content: string }>) => callback(sessionId, items)
+      ipcRenderer.on('claude:queued-messages', handler)
+      return () => ipcRenderer.removeListener('claude:queued-messages', handler)
+    },
     restSession: (sessionId: string) =>
       ipcRenderer.invoke('claude:rest-session', sessionId) as Promise<boolean>,
     wakeSession: (sessionId: string) =>

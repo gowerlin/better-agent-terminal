@@ -1,8 +1,8 @@
 import { useState, useEffect, useRef, useCallback, useMemo, Fragment, cloneElement, isValidElement } from 'react'
 import { flushSync } from 'react-dom'
 import { useTranslation } from 'react-i18next'
-import type { ClaudeMessage, ClaudeToolCall } from '../types/claude-agent'
-import { isToolCall } from '../types/claude-agent'
+import type { ClaudeMessage, ClaudeQueuedMessage, ClaudeToolCall } from '../types/claude-agent'
+import { isToolCall, placeQueuedMessages } from '../types/claude-agent'
 import type { EffortLevel } from '../types'
 import { EFFORT_LEVELS } from '../types'
 import { settingsStore } from '../stores/settings-store'
@@ -143,6 +143,8 @@ export function ClaudeAgentPanel({ sessionId, cwd, isActive, workspaceId, isRemo
   const [messages, setMessages] = useState<MessageItem[]>([])
   const inputValueRef = useRef('')
   const [isStreaming, setIsStreaming] = useState(false)
+  // T0769 / BUG-192: messages waiting for the open query to end (they could not be injected)
+  const [queuedMessages, setQueuedMessages] = useState<ClaudeQueuedMessage[]>([])
   const [isInterrupted, setIsInterrupted] = useState(false)
   const lastEscRef = useRef(0)
   const [streamingText, setStreamingText] = useState('')
@@ -426,6 +428,7 @@ export function ClaudeAgentPanel({ sessionId, cwd, isActive, workspaceId, isRemo
 
   // Combine archived + live messages for rendering and scanning
   const allMessages = useMemo(() => [...loadedArchive, ...messages], [loadedArchive, messages])
+  const queuedPlacement = useMemo(() => placeQueuedMessages(allMessages, queuedMessages), [allMessages, queuedMessages])
 
   // T0725: task list replayed from the live timeline on top of the archived part. Task* are list
   // tools, not sub-agents: no activeTasks, no flushSync (CLAUDE.md "Sub-agent / Active Tasks Tracking").
@@ -837,6 +840,12 @@ export function ClaudeAgentPanel({ sessionId, cwd, isActive, workspaceId, isRemo
           if (d.thinking) setStreamingThinking(prev => prev + d.thinking)
         }
       }),
+
+      // T0769 / BUG-192 (D214 P-1): the whole list on every change; optional for older hosts / mocks
+      api.onQueuedMessages?.((sid: string, items: ClaudeQueuedMessage[]) => {
+        if (sid !== sessionId) return
+        setQueuedMessages(Array.isArray(items) ? items : [])
+      }) ?? (() => {}),
 
       api.onStatus((sid: string, meta: unknown) => {
         const dlog = (...args: unknown[]) => window.electronAPI?.debug?.log(...args)
@@ -1576,6 +1585,34 @@ export function ClaudeAgentPanel({ sessionId, cwd, isActive, workspaceId, isRemo
     settingsStore.setPromptClientPathHint(false)
     setPromptPathHint(null)
   }, [])
+
+  // T0769 / D214 P-1: cancel a message that waits for the open query to end
+  const cancelQueuedMessage = useCallback(async (queuedId: string) => {
+    const res = await window.electronAPI.claude.cancelQueuedMessage(sessionId, queuedId).catch(() => undefined)
+    if (res?.cancelled) {
+      setQueuedMessages(prev => prev.filter(q => q.id !== queuedId))
+      if (res.idle) {
+        // nothing else will answer: the turn shown as running ends here
+        setIsStreaming(false)
+        setIsInterrupted(false)
+        setStreamingText('')
+        setStreamingThinking('')
+      }
+    }
+  }, [sessionId])
+
+  const renderQueuedNote = (q: ClaudeQueuedMessage) => (
+    <div key={`queued-${q.id}`} className="tl-item claude-queued-note" data-queued-id={q.id}>
+      <div className="tl-dot dot-system" />
+      <div className="tl-content claude-message-system">
+        {t('claude.queuedUntilBackgroundDone')}
+        {' '}
+        <button className="claude-task-stop-btn claude-queued-cancel-btn" onClick={() => { void cancelQueuedMessage(q.id) }}>
+          {t('claude.cancelQueuedMessage')}
+        </button>
+      </div>
+    </div>
+  )
 
   const handleInterrupt = useCallback(() => {
     if (!isStreaming) return
@@ -3121,8 +3158,10 @@ export function ClaudeAgentPanel({ sessionId, cwd, isActive, workspaceId, isRemo
               <span>{formatTimestamp(item.timestamp || 0)}</span>
             </div>
           ) : null
-          return <Fragment key={item.id || `msg-${i}`}>{divider}{renderMessage(item, i)}</Fragment>
+          const queuedHere = item.id ? queuedPlacement.byMessageId.get(item.id) : undefined
+          return <Fragment key={item.id || `msg-${i}`}>{divider}{renderMessage(item, i)}{queuedHere?.map(renderQueuedNote)}</Fragment>
         })}
+        {queuedPlacement.unplaced.map(renderQueuedNote)}
         {isStreaming && !streamingText && !streamingThinking && showThinkingMsg && (
           <div className="tl-item">
             <div className="tl-dot dot-thinking" />

@@ -497,6 +497,8 @@ export function registerClaudeHandlers(register: HandlerRegistrar, deps: ClaudeH
   register('claude:fork-session', (_ctx, sessionId: string) => getSessionManager(sessionId)?.forkSession(sessionId))
   register('claude:rewind-to-prompt', () => ({ error: 'Rewind is not available in this build' }))
   register('claude:stop-task', (_ctx, sessionId: string, taskId: string) => getSessionManager(sessionId)?.stopTask(sessionId, taskId))
+  // T0769 / BUG-192: Claude sessions only (codex has no such queue)
+  register('claude:cancel-queued-message', (_ctx, sessionId: string, queuedId: string) => deps.getClaudeManager()?.cancelQueuedMessage(sessionId, queuedId))
   register('claude:rest-session', (_ctx, sessionId: string) => getSessionManager(sessionId)?.restSession(sessionId))
   register('claude:wake-session', (_ctx, sessionId: string) => getSessionManager(sessionId)?.wakeSession(sessionId))
   register('claude:is-resting', (_ctx, sessionId: string) => getSessionManager(sessionId)?.isResting(sessionId) ?? false)

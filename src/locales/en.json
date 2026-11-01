@@ -660,6 +660,8 @@
     "forkButton": "Fork from current progress",
     "attachImages": "Attach images (max 5)",
     "stop": "Stop",
+    "queuedUntilBackgroundDone": "Will be sent after the background agent finishes.",
+    "cancelQueuedMessage": "Cancel",
     "stopEsc": "Stop (Esc)",
     "sendMessage": "Send message",
     "scrollToBottom": "Scroll to bottom",
