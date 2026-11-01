@@ -23,21 +23,21 @@ breakdown:
 # Bug Tracker
 
 > ⚠️ 此文件由 `*sync` 自動生成，請勿手動編輯。
-> 最後同步：2026-11-01 18:45 — 第一百零三 session：BUG-181 OPEN（T0739 發現）；T0738 A 類 12 張 CLOSED（BUG-116 / 118 / 127 / 129 / 131 / 132 / 133 / 134 / 137 / 146 / 147 / 171）；BUG-134 回報者改代稱；BUG-180 FIXED（T0741 `4500984d`）；BUG-177 / 178 / 179 CLOSED（T0737 e2e＋BUG-179 實機輪替）；BUG-180 OPEN（T0736 發現）；BUG-167 / 168 / 170 CLOSED（R-G003，CI 測試關卡 / 實機驗收證據）；熱區 Open 1 / Fixed 12 / Closed 32。前次 2026-11-01 12:43 第一百零二 session：BUG-169 / 174 / 176 CLOSED、BUG-177 / 178 / 179 FIXED（T0729 `ceb24910` / T0730 `6f7b3d53` / T0732 `ce648034`）；熱區 Open 0 / Fixing 0 / Fixed 29 / Closed 14
+> 最後同步：2026-11-01 18:47 — 第一百零三 session：BUG-181 FIXING（T0744）；BUG-181 OPEN（T0739 發現）；T0738 A 類 12 張 CLOSED（BUG-116 / 118 / 127 / 129 / 131 / 132 / 133 / 134 / 137 / 146 / 147 / 171）；BUG-134 回報者改代稱；BUG-180 FIXED（T0741 `4500984d`）；BUG-177 / 178 / 179 CLOSED（T0737 e2e＋BUG-179 實機輪替）；BUG-180 OPEN（T0736 發現）；BUG-167 / 168 / 170 CLOSED（R-G003，CI 測試關卡 / 實機驗收證據）；熱區 Fixing 1 / Fixed 12 / Closed 32。前次 2026-11-01 12:43 第一百零二 session：BUG-169 / 174 / 176 CLOSED、BUG-177 / 178 / 179 FIXED（T0729 `ceb24910` / T0730 `6f7b3d53` / T0732 `ce648034`）；熱區 Open 0 / Fixing 0 / Fixed 29 / Closed 14
 
 ## 統計
-- 🔴 Open: 1 | ⏳ Fixing: 0 | ✅ Fixed: 12 | 🧪 Verify: 0 | 🚫 Closed: 32 | ⛔ Won't Fix: 0 | **Total: 45**
+- 🔴 Open: 0 | ⏳ Fixing: 1 | ✅ Fixed: 12 | 🧪 Verify: 0 | 🚫 Closed: 32 | ⛔ Won't Fix: 0 | **Total: 45**
 
 ## 🔴 Open / 處理中
 
 | ID | 標題 | 嚴重度 | 建立時間 | 連結 |
 |----|------|--------|---------|------|
-| BUG-181 | Claude 面板 Cache History 把 CLI 的 session 累計 `modelUsage` / `total_cost_usd` 當單一回合，R 列逐列膨脹、合計重複計算（T0739 真實模型發現） | 🟡 medium | 2026-11-01 | [BUG-181](BUG-181-cache-history-sums-cumulative-model-usage.md) |
 
 ## ⏳ 修復中 (FIXING)
 
 | ID | 標題 | 嚴重度 | 修復時間 | 連結 |
 |----|------|--------|---------|------|
+| BUG-181 | Claude 面板 Cache History 把 CLI 的 session 累計 `modelUsage` / `total_cost_usd` 當單一回合，R 列逐列膨脹、合計重複計算（T0739 真實模型發現；T0744 修正中） | 🟡 medium | 2026-11-01 | [BUG-181](BUG-181-cache-history-sums-cumulative-model-usage.md) |
 
 ## ✅ 已修復
 

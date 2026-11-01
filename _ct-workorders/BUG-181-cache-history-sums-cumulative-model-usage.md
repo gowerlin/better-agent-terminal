@@ -3,11 +3,11 @@ schema_version: 1
 schema_kind: bug
 id: BUG-181
 title: "Claude 面板 Cache History：CLI 回傳的 `modelUsage` / `total_cost_usd` 是 session 累計值，R 列當成單一回合、合計再把各列相加 → tokens 與費用逐列膨脹、合計重複計算"
-status: OPEN
+status: FIXING
 severity: medium
 reproducibility: always
 created_at: "2026-11-01T18:44:32+0800"
-updated_at: "2026-11-01T18:44:32+0800"
+updated_at: "2026-11-01T18:47:08+0800"
 impact:
   - claude-panel
   - cost-display
@@ -22,7 +22,7 @@ links:
 |------|------|
 | 嚴重度 | 🟡 medium（費用與 token 顯示錯誤、合計高估；不影響對話功能） |
 | 可重現 | 一定（同一 session 連送 ≥ 2 則） |
-| **狀態** | 📂 OPEN |
+| **狀態** | ⏳ FIXING（T0744） |
 | 回報者 | T0739 Worker |
 
 ## 現象

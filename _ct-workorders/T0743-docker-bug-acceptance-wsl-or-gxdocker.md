@@ -13,7 +13,7 @@ created_at: "2026-11-01T18:36:08+0800"
 started_at: ""
 updated_at: "2026-11-01T18:36:08+0800"
 completed_at: ""
-depends_on: [T0742]
+depends_on: [T0742, T0744]
 related:
   - "T0738 回報區〈C 類需要的環境〉（BUG-105 / 111）；BUG-097（T0738 對象漏列，塔台補上）"
   - "BUG-097 / T0418 / T0427 / T0428、BUG-105 / T0434 一帶、BUG-111 / T0444；`e2e/pre6-ui-remote-acceptance.spec.ts`（U4 BUG-105，需 `node e2e/real-remote/t0514-env.mjs up`）、`e2e/pre6-wizard-acceptance.spec.ts`（W8 BUG-111）、`e2e/real-remote/t0514-env.mjs`"
@@ -35,7 +35,7 @@ memory_overrides:
   - "🔴 不得改使用者環境：不改 WSL / gxdocker 的 daemon 設定（`daemon.json`、systemd）、不讓 dockerd 新增監聽（tcp 2375 等）、不新增 / 切換 `docker context`（會寫 `~/.docker`）、不改 `~/.ssh/config` 或金鑰、不啟動 Docker Desktop、不在使用者 WSL 安裝 / 移除 server bundle（使用者已有 `WSL Ubuntu-24.04` 遠端 profile 與其 bat-server，絕不碰）、不改 Windows 防火牆。"
   - "🔴 只動自己建立的資源：容器、映像、volume、網路、暫存目錄一律以 `bat-e2e-t0743-` 開頭（既有 spec 寫死的名稱如 `bat-t0514-srv` 若無法改，以 opt-in 參數加前綴，或先確認該名稱在目標 Docker 上不存在）。開始前與結束後各記一次 `docker ps -a` / `images` / `volume ls` / `network ls` 的清單（只記名稱與 id），回報區附比對：使用者原有的資源一個都沒變（含那個正在跑的容器）。🔴 不得 `prune`、不得 stop / rm 非自己建立的任何資源；port 只綁 127.0.0.1（BUG-097 驗的就是不全介面暴露），先確認 port 未被佔用。跑完清掉自己建立的全部資源；清不掉就列出並說明。"
   - "🔴 情境：① BUG-097：bat-server 容器的埠只綁 127.0.0.1（不全介面暴露）、container 內 bind 可達、HEALTHCHECK 有路由（以 T0418 / T0427 / T0428 的實際修正為準）。② BUG-105：docker-linux 遠端視窗的 proxied channel 路徑轉換（`pre6-ui-remote-acceptance` U4：claude:* cwd、github:*、git-scaffold:*、worktree:create 轉成容器路徑）；🔴 需要真實 Claude 登入的那一步（`claude:start-session` 後 `pwd`）不做，沿用 spec 的 recorder 取代，回報標明。③ BUG-111：精靈 rollback / 取消時不刪、不停使用者事先建立的容器與資料（`pre6-wizard-acceptance` W8 Docker 側）—— 「使用者事先建立的容器」一律由本單自己建立並命名 `bat-e2e-t0743-user-*` 來扮演，🔴 不得拿使用者真正的容器當受測對象。"
-  - "🔴 不改產品程式碼（`src/` / `electron/` / `scripts/` 都不動）；發現產品缺陷記在〈發現的問題〉，由塔台開 BUG。不改 BUG 單狀態與 `_bug-tracker.md`；回報區列〈BUG 結案建議〉。隔離：BAT 一律用 `e2e/fixtures/electron-isolation.ts` 的隔離實例（不碰使用者正在用的 BAT 與 userData、不執行安裝檔）。T0742 完成後才派本單（避免同時 build）；先 `npx vite build`。不使用真實模型。既有 spec 若預設對安裝版（`BAT_E2E_EXECUTABLE`），本單以 source build 跑並說明；需要 server bundle tarball 時用 repo 的建置腳本產生到暫存目錄或已發佈的 `server-bundle-v0.7.2-pre.8`（`gh release download -R gowerlin/better-agent-terminal`）。"
+  - "🔴 不改產品程式碼（`src/` / `electron/` / `scripts/` 都不動）；發現產品缺陷記在〈發現的問題〉，由塔台開 BUG。不改 BUG 單狀態與 `_bug-tracker.md`；回報區列〈BUG 結案建議〉。隔離：BAT 一律用 `e2e/fixtures/electron-isolation.ts` 的隔離實例（不碰使用者正在用的 BAT 與 userData、不執行安裝檔）。T0742 與 T0744 都完成後才派本單（避免同時 build）；先 `npx vite build`。不使用真實模型。既有 spec 若預設對安裝版（`BAT_E2E_EXECUTABLE`），本單以 source build 跑並說明；需要 server bundle tarball 時用 repo 的建置腳本產生到暫存目錄或已發佈的 `server-bundle-v0.7.2-pre.8`（`gh release download -R gowerlin/better-agent-terminal`）。"
   - "🔴 驗證：跑到的 spec 連跑 2 次綠（Docker 環境準備時間長時可說明只跑 1 次的原因）；改了 e2e 檔則 `npm run typecheck` = 0、`npm run typecheck:electron` = 0（e2e 另以單檔 tsc 檢查）。不發版、不改 CHANGELOG、不 push。公開 repo：依 `_local-rules.md`「公開 repo 去識別化（D176）」，🔴 回報、spec、log 摘錄不得寫 gxdocker 的 HostName / IP、使用者帳號或家目錄路徑（主機只寫 `gxdocker`）。"
   - "🔴 yolo：不得問使用者；判讀問題依 ct-exec § Questions For Tower 問塔台（每輪最多 3 題）。Git：只用 `git commit --only` commit 自己改的檔案。禁止 `git stash` / `git reset` / `git checkout -- <path>` / `git restore`（L138）。"
 ---

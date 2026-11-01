@@ -4,14 +4,14 @@ schema_kind: workorder
 id: T0742
 title: "T0738 B 類補 e2e：BUG-135 detached 收回後 focus、BUG-156 精靈選 port 避開 RemoteServer、BUG-108 面板圖片附件、BUG-107 拖放路徑、BUG-159 手動 codex 分頁 `--no-daemon` 注入"
 type: implementation
-status: PENDING
+status: IN_PROGRESS
 repo: better-agent-terminal
 project: maintenance
 priority: P2
 sizing: M
 created_at: "2026-11-01T18:26:58+0800"
-started_at: ""
-updated_at: "2026-11-01T18:26:58+0800"
+started_at: "2026-11-01T18:45:49+0800"
+updated_at: "2026-11-01T18:45:49+0800"
 completed_at: ""
 depends_on: [T0739]
 related:
