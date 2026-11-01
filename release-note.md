@@ -2,6 +2,60 @@
 
 本 fork 各版的更版重點（內容取自 GitHub Releases，最新在上）。上游 tony1223/better-agent-terminal 的 v2.1.x 紀錄保留在檔案最下方。
 
+## v0.7.2-pre.5（2026-11-01）
+
+版號 0.7.2-pre.5，接續 `v0.7.2-pre.4`。
+
+## 更新
+
+- **內嵌 Claude CLI 升到 2.1.316**（原 2.1.306，T0717）：Claude CLI 分頁、Claude Agent 面板與塔台派出的 Claude Worker 都使用新版
+- **內嵌 Codex 升到 0.166.0**（原 0.163.0，T0717）：Codex Agent 面板使用新版；Codex CLI 分頁與 Codex Worker 仍使用你系統上安裝的 codex
+- **內嵌 Claude Agent SDK 升到 0.3.316**（原 0.2.113，T0718）：Claude Agent 面板改用新版 SDK。新版的工作清單工具（`TaskCreate` / `TaskUpdate` 等）以一般工具卡片顯示；設定檔裡的 MCP server 改在背景連線，比較慢的 server 在對話剛開始時可能還沒有工具
+
+## 移除
+
+- **「Claude Agent V2」分頁類型下架**（T0718）：它使用的 SDK 介面在 SDK 0.3 已移除。「+」選單不再有 Claude Agent V2，Claude Agent 分頁的「升級至 V2 / 降級至 V1」按鈕一併移除
+- 既有的 Claude Agent V2 分頁、工作區或設定裡的預設 Agent、為它設定的自訂啟動參數，開啟時**自動改成 Claude Agent（V1）**：分頁不會消失，會嘗試接續原本的對話（接不上時顯示提示並開新對話）；預設標題「Claude Agent V2」改成「Claude Agent V1」，自己改過的標題不動。塔台派工 `--agent claude-code-v2` 照舊啟動 Claude CLI Worker
+
+## 修正
+
+- **Codex 0.166 的分頁回合結束後一直顯示執行中**（T0717）：codex 0.166 起回合結束改送新的狀態，BAT 原本不認得，分頁標籤停在 `↻`、狀態查詢一直回 `working`。現在回合結束即回到閒置。系統 codex 升到 0.166 的使用者都會遇到，請更新到本版
+- **Claude 新版的用量限制訊息**（T0717）：Claude CLI 2.1.312 起把「session limit」改稱「5-hour limit」、限額重置通知改了大小寫，BAT 原本認不得，少了對應提示。新舊說法現在都認得
+
+## 歡迎協助測試
+
+本版更新了內嵌 Codex，也修正了 Codex 0.166 分頁的狀態。如果你用 Codex，歡迎幫忙跑一次塔台 / Worker 流程：
+
+1. 開一個 Codex CLI 分頁，呼叫 MCP tool `bat_whoami`，確認 `role` 與 `agent`
+2. 由塔台派一張小工單給 Codex Worker（`--agent codex`）
+3. 確認 Worker 每個回合結束後分頁標籤回到 `✓`（不再停在 `↻`），完成後通知回到塔台、分頁被回收
+
+結果請到 https://github.com/gowerlin/better-agent-terminal/issues 回報，附上 BAT 版本（`v0.7.2-pre.5`）與 `codex --version`。
+
+## 待驗收（請更新到本版後協助確認）
+
+以下修正已包含在本版，仍在等實機確認：
+
+- **Claude Agent 面板**（本版）：送訊息、串流、權限詢問、接續對話、子代理（sub-agent）、換模型都正常；原本的 Claude Agent V2 分頁更新後變成 Claude Agent V1，能接續或重新開始對話
+- **BUG-175**（`v0.7.2-pre.3` 起，macOS，GitHub #22）：派幾個 Claude CLI Worker 或開 Claude CLI / Codex CLI 分頁，看縮圖列的縮圖是否跟著分頁內容更新，不再停在啟動畫面，也沒有 `>0q>4m` 之類的字
+- **BUG-174**（`v0.7.2-pre.2` 起，GitHub #20）：在終端印出含全形字的 `file:///` 路徑，滑過時底線涵蓋整段、點尾端也能開檔；縮窄視窗讓路徑換行再試；Claude CLI 的 Markdown 連結點得開、滑過顯示實際路徑
+- **BUG-171**（`v0.7.1-pre.8` 起）：系統自動校時、睡眠喚醒後，不再出現「終端已恢復」提示，閒置的 Claude CLI 分頁也不會變成 `[Process exited with code 1]`
+- **BUG-169**（`v0.7.1-pre.6` 起）：執行 `node "<安裝目錄>/resources/scripts/bat-terminal.mjs" --version`，應顯示本版版號而不是 `v0.0.0`
+- **BUG-156**（需 Docker Desktop）：Docker 設定精靈建立容器時，不再與 BAT 本機伺服器搶用 9876 埠
+- **BUG-159**（需一般權限執行 BAT + codex）：Codex CLI 分頁內執行的 helper 讀到的是自己分頁的 `BAT_*`，不是其他分頁的
+
+## 已知事項
+
+- 新版 SDK 的 Claude 5 等模型預設不提供工作清單工具，Claude Agent 面板的待辦清單通常不會出現；新的工作清單畫面尚未製作
+- 新版 SDK 可能以 Bash 的 `find` / `grep` 搜尋檔案，面板上的 Grep / Glob 卡片可能變少（尚未實機確認）
+- Claude CLI 2.1.316 新增的單行通知 `Usage limit has reset · Press enter to continue` 不會讓 BAT 自動送 Enter（BAT 認得的是原本的兩行寫法）
+- 終端伺服器真的停止時，BAT 仍只重建 shell，分頁裡原本執行的 Claude CLI / Codex CLI 不會自動接回（PLAN-055）
+- Linux 版本未實機驗證
+
+macOS 仍只提供 Apple Silicon（arm64）版。
+
+**Full Changelog**: https://github.com/gowerlin/better-agent-terminal/compare/v0.7.2-pre.4...v0.7.2-pre.5
+
 ## v0.7.2-pre.4（2026-11-01）
 
 版號 0.7.2-pre.4，接續 `v0.7.2-pre.3`。
