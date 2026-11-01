@@ -3,7 +3,7 @@ import * as fsPromises from 'fs/promises'
 import * as pathModule from 'path'
 import type { ClaudeMessage, ClaudeToolCall, ClaudeSessionState } from '../src/types/claude-agent'
 import type { EffortLevel } from '../src/types'
-import type { Query, PermissionMode, PermissionResult, CanUseTool, SlashCommand, SDKUserMessage } from '@anthropic-ai/claude-agent-sdk'
+import type { Query, PermissionMode, PermissionResult, CanUseTool, SlashCommand, SDKUserMessage, Options } from '@anthropic-ai/claude-agent-sdk'
 import { logger } from './logger'
 import { getNodeExecutable, isElectronFallback } from './node-resolver'
 import { worktreeManager } from './worktree-manager'
@@ -823,13 +823,17 @@ export class ClaudeAgentManager {
       const currentMode = session.permissionMode
       // Map app-level bypassPlan to SDK's plan mode
       const sdkMode: PermissionMode = currentMode === 'bypassPlan' ? 'plan' : currentMode
-      const queryOptions: Record<string, unknown> = {
+      // T0724: typed as the SDK's `Options` so a renamed / removed option fails
+      // `npm run typecheck:electron` on the next SDK upgrade. Conditional spreads
+      // carry `satisfies Partial<Options>` because TS does not excess-property-check
+      // a spread (T0721 R3).
+      const queryOptions: Options = {
         abortController: session.abortController,
         cwd: session.cwd,
         systemPrompt: { type: 'preset', preset: 'claude_code' },
         tools: { type: 'preset', preset: 'claude_code' },
         permissionMode: sdkMode,
-        ...(currentMode === 'bypassPermissions' ? { allowDangerouslySkipPermissions: true } : {}),
+        ...(currentMode === 'bypassPermissions' ? { allowDangerouslySkipPermissions: true } satisfies Partial<Options> : {}),
         includePartialMessages: true,
         promptSuggestions: true,
         settingSources: ['user', 'project', 'local'],
@@ -837,12 +841,16 @@ export class ClaudeAgentManager {
         effort: session.effort,
         toolConfig: { askUserQuestion: { previewFormat: 'html' } },
         agentProgressSummaries: true,
-        ...(session.model ? { model: session.model } : {}),
-        ...(installedPlugins.length > 0 ? { plugins: installedPlugins } : {}),
+        ...(session.model ? { model: session.model } satisfies Partial<Options> : {}),
+        ...(installedPlugins.length > 0 ? { plugins: installedPlugins } satisfies Partial<Options> : {}),
         canUseTool,
-        ...(claudeCodePath ? { pathToClaudeCodeExecutable: claudeCodePath } : {}),
-        ...sdkSpawnEnv(resolvedRuntime),
-        ...(nodeExecutable !== 'node' || electronFallback ? { executable: nodeExecutable } : {}),
+        ...(claudeCodePath ? { pathToClaudeCodeExecutable: claudeCodePath } satisfies Partial<Options> : {}),
+        ...(sdkSpawnEnv(resolvedRuntime) satisfies Partial<Options>),
+        // SDK declares `executable` as a runtime name ('bun' | 'deno' | 'node'); BAT passes
+        // the full node / Electron path. At runtime the SDK uses it as the spawn command only
+        // when the CLI path is a `.js` file and ignores it for the native binary, so passing
+        // a path is the existing behavior; the cast only narrows the type (T0721 R3).
+        ...(nodeExecutable !== 'node' || electronFallback ? { executable: nodeExecutable as Options['executable'] } satisfies Partial<Options> : {}),
         stderr: (data: string) => {
           logger.error('[Claude Code stderr]', data)
           stderrOutput += data
@@ -889,7 +897,7 @@ export class ClaudeAgentManager {
 
       const generator = query({
         prompt: promptArg as Parameters<typeof query>[0]['prompt'],
-        options: queryOptions as Parameters<typeof query>[0]['options'],
+        options: queryOptions,
       })
 
       // Store the query instance so we can call runtime methods
@@ -2218,10 +2226,11 @@ export class ClaudeAgentManager {
           resume: currentSdkId,
           forkSession: true,
           maxTurns: 1,
-          ...(claudeCodePath ? { pathToClaudeCodeExecutable: claudeCodePath } : {}),
-          ...sdkSpawnEnv(resolvedRuntime),
-          ...(nodeExecutable !== 'node' ? { executable: nodeExecutable } : {}),
-        } as Parameters<typeof query>[0]['options'],
+          ...(claudeCodePath ? { pathToClaudeCodeExecutable: claudeCodePath } satisfies Partial<Options> : {}),
+          ...(sdkSpawnEnv(resolvedRuntime) satisfies Partial<Options>),
+          // Path, not a runtime name: see the `executable` note in the main query options (T0724).
+          ...(nodeExecutable !== 'node' ? { executable: nodeExecutable as Options['executable'] } satisfies Partial<Options> : {}),
+        } satisfies Options,
       })
 
       // Must wait for `result` (not just `init`) — the CLI only writes the forked

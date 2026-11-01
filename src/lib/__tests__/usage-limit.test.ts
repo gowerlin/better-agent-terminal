@@ -162,6 +162,28 @@ describe('claude CLI auto continue (2.1.234+) and the stale phase', () => {
     expect(decide([limit, 'Your usage limit has reset'])).toMatchObject({ action: 'hint', hint: 'cli-unavailable' })
   })
 
+  // T0724 (T0721 R1): CLI 2.1.316 also appends `Usage limit has reset · Press enter to continue`
+  // to the transcript in the same stale event (2.1.306 writes `press` in lower case). It stays on
+  // screen after the stale phase ends, so it is deliberately not recognised: only the footer
+  // (`Your usage limit has reset` + `Press enter to continue`, which leaves with the phase) counts.
+  it.each([
+    'Usage limit has reset · Press enter to continue',
+    'Usage limit has reset · press enter to continue',
+  ])('the transcript notice "%s" is not the stale phase', (notice) => {
+    // alone → none, with or without a TUI prefix
+    expect(classify([notice])).toEqual({ kind: 'none' })
+    expect(classify([`  ⎿  ${notice}`])).toEqual({ kind: 'none' })
+    expect(decide([notice, ...CLAUDE_PROMPT])).toEqual({ action: 'none' })
+    // with the two-line footer below it → still send-enter, from the footer
+    const stale = [limit, notice, 'Your usage limit has reset', 'Press enter to continue', ...CLAUDE_PROMPT]
+    expect(classify(stale)).toEqual({ kind: 'claude-stale', line: 3 })
+    expect(decide(stale)).toMatchObject({ action: 'send-enter', agent: 'claude' })
+    // the stale phase ended (footer gone, the notice left in the transcript) → no Enter
+    const after = [limit, notice, '⏺ Picking up where I left off', ...CLAUDE_PROMPT]
+    expect(decide(after)).not.toMatchObject({ action: 'send-enter' })
+    expect(usageLimitRecheckFailure([notice, ...CLAUDE_PROMPT], 'enter', NOW)).toBe('screen shows none')
+  })
+
   it('the bottom-most recognised line wins', () => {
     expect(decide(['Usage limit reached · continuing automatically at 4pm · esc to cancel', 'Automatic continue cancelled · /rate-limit-options to re-arm'])).toMatchObject({ hint: 'cli-stopped' })
     expect(decide(['Automatic continue cancelled · /rate-limit-options to re-arm', 'Usage limit reached again · continuing automatically at 4pm · esc to cancel'])).toMatchObject({ hint: 'cli-auto' })

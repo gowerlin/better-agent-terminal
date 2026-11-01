@@ -14,6 +14,10 @@
  *     `Usage limit available again · continuing now` / `Usage limit reset · continuing automatically`
  *     (2.1.316: `· Continuing automatically`; either case is read, T0717)
  *     when it resumes, and after a sleep past the reset `Your usage limit has reset` + `Press enter to continue`.
+ *     Not recognised, on purpose (T0721 R1 / T0724): the same stale event also appends
+ *     `Usage limit has reset · Press enter to continue` (2.1.306: `press`) to the transcript. That
+ *     notice stays on screen after the stale phase ends, so it would trigger an Enter (and pass the
+ *     re-check) when the CLI no longer waits; only the footer above, which leaves with the phase, counts.
  *   - codex-cli 0.160.0 / 0.162.1: `You've hit your usage limit[ for <model>]. … Try again at 3:05 PM.`
  *     (`try again later.` without a time), non-timed `Your workspace is out of credits` /
  *     `You hit your spend cap` / `Usage limit reached. You've reached your usage limit` /
