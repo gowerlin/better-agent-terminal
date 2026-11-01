@@ -3,7 +3,7 @@ schema_version: 1
 schema_kind: plan
 id: PLAN-057
 title: "bat-server（headless）啟動時以登入 shell 取得 PATH：遠端的 Claude 面板工具 / MCP、Git 面板找得到 `~/.local/bin`、nvm、Homebrew（預設開、可關）"
-status: PLANNED
+status: IN_PROGRESS
 priority: low
 created_at: "2026-11-02T00:25:31+0800"
 links:
@@ -31,3 +31,9 @@ bat-server 由 systemd user unit（WSL / SSH Linux）、launchd（SSH macOS）�
 - 套用點：`scripts/bat-server.mjs` `main()`，`createHeadlessServer` 之前；開關 `<dataDir>/settings.json` `headlessLoginShellPath`（`!== false` 為開）。
 - 實作單草案與待決點見 T0754 回報區 ⑦ 與〈需要使用者決定的點〉。
 - D207：不加環境變數覆蓋、不過濾 `/mnt`、接受分頁 PATH 重複 → 實作單 **T0755**。
+
+## 實作（T0755 DONE，`681a8d64`）
+
+- `electron/remote/headless-login-path.ts`、`bat-server.mjs` 呼叫、Settings 開關（進階頁，Linux / macOS 遠端視窗）、docs `docs/agent-guide/headless-login-shell-path.md`、CLAUDE.md 一節。
+- 驗證：unit 6448 / 363 files、typecheck 0 / 0、build；6 項突變檢查；WSL 測試 server `applied`（124 ms，+2 項）/ `off` 與現況相同；Docker `applied`。
+- 剩：發版後以精靈升級使用者 bat-server 實機確認（journal `login shell PATH: applied`、工具面板「伺服器：可見」）；macOS 未實測。
