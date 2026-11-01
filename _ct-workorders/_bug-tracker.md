@@ -3,7 +3,7 @@ schema_version: 1
 schema_kind: index
 id: _bug-tracker
 index_kind: bugs
-generated_at: "2026-11-02T01:12:29+0800"
+generated_at: "2026-11-02T01:36:43+0800"
 generator: control-tower-sync
 source_globs:
   - _ct-workorders/BUG-*.md
@@ -13,8 +13,8 @@ exclude_globs:
 total: 51
 breakdown:
   OPEN: 0
-  FIXING: 1
-  FIXED: 6
+  FIXING: 0
+  FIXED: 7
   VERIFY: 0
   CLOSED: 44
   WONTFIX: 0
@@ -23,10 +23,10 @@ breakdown:
 # Bug Tracker
 
 > ⚠️ 此文件由 `*sync` 自動生成，請勿手動編輯。
-> 最後同步：2026-11-02 01:12 — 第一百零四 session：開 BUG-187 → FIXING（T0756）；BUG-185 CLOSED（`v0.7.3-pre.2`）；BUG-186 FIXED（T0753 `0f021e67`）；BUG-185 FIXED（T0751 `f9072e16`）；開 BUG-186 → FIXING（T0753）；BUG-183 / 184 FIXED（T0750）；BUG-182 / 175 CLOSED
+> 最後同步：2026-11-02 01:36 — 第一百零四 session：BUG-187 FIXED（T0756 `915f90ab`）；開 BUG-187 → FIXING（T0756）；BUG-185 CLOSED（`v0.7.3-pre.2`）；BUG-186 FIXED（T0753 `0f021e67`）；BUG-185 FIXED（T0751 `f9072e16`）；開 BUG-186 → FIXING（T0753）；BUG-183 / 184 FIXED（T0750）；BUG-182 / 175 CLOSED
 
 ## 統計
-- 🔴 Open: 0 | ⏳ Fixing: 1 | ✅ Fixed: 6 | 🧪 Verify: 0 | 🚫 Closed: 44 | ⛔ Won't Fix: 0 | **Total: 51**
+- 🔴 Open: 0 | ⏳ Fixing: 0 | ✅ Fixed: 7 | 🧪 Verify: 0 | 🚫 Closed: 44 | ⛔ Won't Fix: 0 | **Total: 51**
 
 ## 🔴 Open / 處理中
 
@@ -37,12 +37,12 @@ breakdown:
 
 | ID | 標題 | 嚴重度 | 修復時間 | 連結 |
 |----|------|--------|---------|------|
-| BUG-187 | 遠端工具「安裝 / 更新 Node.js」以 nvm 裝 LTS（v26）時沒有先確保 `libatomic1`，最小安裝的 Linux 裝完 node 無法執行；T0756 修正中 | 🟡 Medium | — | [BUG-187](BUG-187-node-install-recipe-missing-libatomic.md) |
 
 ## ✅ 已修復
 
 | ID | 標題 | 嚴重度 | 修復時間 | 連結 |
 |----|------|--------|---------|------|
+| BUG-187 | 遠端工具「安裝 / 更新 Node.js」以 nvm 裝 LTS（v26）時沒有先確保 `libatomic1`，最小安裝的 Linux 裝完 node 無法執行；T0756 `915f90ab` 缺程式庫時先補裝（不可提權則提示）、裝完驗證 `node --version`，待實機驗收 | 🟡 Medium | 2026-11-02 | [BUG-187](BUG-187-node-install-recipe-missing-libatomic.md) |
 | BUG-186 | 遠端工具偵測：nvm 的 Node.js「無回應」（實為缺 `libatomic.so.1` 無法執行）、`~/.local/bin` 工具「伺服器：不可見」；T0753 `0f021e67` 說明無法執行的原因、改標「伺服器程序：不可見（終端分頁找得到）」、git / gh 判斷比照 resolver | 🟡 Medium | 2026-11-01 | [BUG-186](BUG-186-remote-tools-nvm-node-no-version-uv-hidden.md) |
 | BUG-184 | 系統匣圖示選單殘留已刪除 profile 的視窗，同名項目出現兩個（成因是「配置」✕ 刪 profile 不關視窗）；T0750 `8a432d40` 刪 profile 時關掉它的視窗，待實機驗收 | 🟢 Low | 2026-11-01 | [BUG-184](BUG-184-tray-menu-lists-window-removed-from-profile.md) |
 | BUG-183 | 關掉（最小化到匣）的 profile 視窗，在「配置」按「開啟」叫不回來，只跳「此配置已在另一個視窗中開啟」；T0750 `8a432d40` 隱藏的視窗 show + focus、叫回時不通知（本機 profile 同樣受影響），待實機驗收 | 🟡 Medium | 2026-11-01 | [BUG-183](BUG-183-hidden-profile-window-not-shown-on-open.md) |
