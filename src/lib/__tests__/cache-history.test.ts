@@ -1,15 +1,23 @@
 /**
  * T0498 — Cache History rows (`applyStatusToCacheHistory`) and grand total (`cacheHistoryGrandTotal`).
+ * T0744 / BUG-181 — R rows from the CLI's session running totals (`turnModelUsage`, `cacheHistoryApiTotal`).
  * The end-to-end replay through `ClaudeAgentManager.processMessage` is in
  * electron/__tests__/claude-cache-history-last-call.test.ts.
  */
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import {
   applyStatusToCacheHistory,
+  cacheHistoryApiTotal,
   cacheHistoryGrandTotal,
+  cacheHistoryRealCost,
   cacheHistoryRowCosts,
   cacheHistoryTotalRows,
+  freshUsageBaseline,
   MAX_CACHE_HISTORY_CALL_ROWS,
+  turnModelUsage,
+  unknownUsageBaseline,
   type CacheHistoryEntry,
   type CacheHistoryStatus,
   type LastCallUsage,
@@ -133,7 +141,12 @@ describe('applyStatusToCacheHistory — pre-T0498 server (no lastCall field)', (
     const a: CacheHistoryEntry[] = []
     const b: CacheHistoryEntry[] = []
     seq.forEach((m, i) => { applyStatusToCacheHistory(a, m, ctx(i)); legacyPush(b, m, ctx(i)) })
-    expect(a).toEqual(b)
+    // T0744: the R row also records the running totals it was taken from; with no earlier result
+    // (a new session) its numbers are those totals, as before
+    const r = a.find(h => h.isResult)!
+    expect(r.usageBasis).toBe('turn')
+    expect(r.cumulativeModelUsage).toEqual(r.modelUsage)
+    expect(a.map(({ cumulativeModelUsage: _c, usageBasis: _u, ...rest }) => rest)).toEqual(b)
   })
 })
 
@@ -195,5 +208,181 @@ describe('cacheHistoryGrandTotal', () => {
     applyStatusToCacheHistory(hist, status({ lastCall: call('a', 1, 10, 0, 0, 1, 'gpt-5') }), ctx())
     expect(cacheHistoryGrandTotal(hist)).toEqual({ total: 0, hasAnyCost: false })
     expect(cacheHistoryGrandTotal([])).toEqual({ total: 0, hasAnyCost: false })
+  })
+})
+
+// ── T0744 / BUG-181: the CLI's `modelUsage` / `total_cost_usd` are session running totals ──
+describe('T0744 — R rows from the CLI running totals', () => {
+  type MU = NonNullable<CacheHistoryStatus['modelUsage']>
+  const H55 = 'claude-haiku-5-5'
+  const H45 = 'claude-haiku-4-5'
+  const u = (input: number, write: number, read: number, output: number, costUSD: number) =>
+    ({ inputTokens: input, cacheCreationInputTokens: write, cacheReadInputTokens: read, outputTokens: output, costUSD })
+  /** A result status carrying running totals, the way claude-agent-manager forwards the CLI's result. */
+  const resultOf = (mu: MU, lastQueryCalls = 1): CacheHistoryStatus => {
+    let input = 0, read = 0, write = 0, output = 0, cost = 0
+    for (const s of Object.values(mu)) { input += s.inputTokens + s.cacheReadInputTokens + s.cacheCreationInputTokens; read += s.cacheReadInputTokens; write += s.cacheCreationInputTokens; output += s.outputTokens; cost += s.costUSD }
+    return status({ model: H55, inputTokens: input, cacheReadTokens: read, cacheCreationTokens: write, outputTokens: output, totalCost: cost, lastQueryCalls, modelUsage: mu, lastCall: null })
+  }
+  const add = (a: MU, b: MU): MU => {
+    const out: MU = JSON.parse(JSON.stringify(a))
+    for (const [k, v] of Object.entries(b)) {
+      const o = out[k] ?? u(0, 0, 0, 0, 0)
+      out[k] = u(o.inputTokens + v.inputTokens, o.cacheCreationInputTokens + v.cacheCreationInputTokens, o.cacheReadInputTokens + v.cacheReadInputTokens, o.outputTokens + v.outputTokens, o.costUSD + v.costUSD)
+    }
+    return out
+  }
+
+  // T0739〈用量〉: per-turn `result.usage` and the running `total_cost_usd`. The turn of ⑤'s background
+  // sub-agent + CLI follow-up (no own usage line; +0.005329 on haiku-5-5) and the haiku-4-5 prompt
+  // suggestion after ⑥ (+0.008099) land in the next result. Their token counts are not in T0739 and
+  // are made up here (example values).
+  const T0739_TURNS: Array<{ name: string; usage: MU }> = [
+    { name: '①', usage: { [H55]: u(2, 21_679, 18_282, 8, 0.004650) } },
+    { name: '②', usage: { [H55]: u(4, 17_300, 66_522, 89, 0.004170) } },
+    { name: '③', usage: { [H55]: u(4, 4_227, 88_685, 151, 0.002303) } },
+    { name: '④', usage: { [H55]: u(10, 8_938, 265_630, 849, 0.005421) } },
+    { name: '⑤', usage: { [H55]: u(4, 4_878, 115_520, 212, 0.002907) } },
+    // ⑥ on haiku-4-5, plus the background sub-agent turn on haiku-5-5 before it (example tokens)
+    { name: '⑥', usage: { [H55]: u(6, 3_000, 52_000, 300, 0.005329), [H45]: u(26, 48_391, 94_317, 474, 0.108610) } },
+    // ⑦ on haiku-5-5, plus the haiku-4-5 prompt suggestion after ⑥ (example tokens)
+    { name: '⑦', usage: { [H55]: u(2, 5_410, 62_526, 8, 0.001711), [H45]: u(3, 0, 48_000, 20, 0.008099) } },
+  ]
+  const runningTotals = (): MU[] => {
+    const out: MU[] = []
+    let acc: MU = {}
+    for (const t of T0739_TURNS) { acc = add(acc, t.usage); out.push(acc) }
+    return out
+  }
+  const realCost = (h: CacheHistoryEntry) => Object.values(h.modelUsage!).reduce((s, m) => s + m.costUSD, 0)
+
+  it('T0739 numbers: each R row is its turn; real $ total = the last running total (0.1432), not the old ~0.34', () => {
+    const totals = runningTotals()
+    expect(Object.values(totals.at(-1)!).reduce((s, m) => s + m.costUSD, 0)).toBeCloseTo(0.143200, 6)
+    // the pre-T0744 panel added the running totals up
+    const oldSum = totals.reduce((s, mu) => s + Object.values(mu).reduce((x, m) => x + m.costUSD, 0), 0)
+    expect(oldSum).toBeCloseTo(0.3372, 4) // T0739 reported ~0.34
+
+    const hist: CacheHistoryEntry[] = []
+    const baseline = freshUsageBaseline()
+    for (const mu of totals) expect(applyStatusToCacheHistory(hist, resultOf(mu), ctx(), baseline)).toBe('result')
+    expect(hist).toHaveLength(T0739_TURNS.length)
+    expect(hist.every(h => h.usageBasis === 'turn')).toBe(true)
+    hist.forEach((h, i) => {
+      const turn = T0739_TURNS[i].usage
+      expect(Object.keys(h.modelUsage!).sort(), T0739_TURNS[i].name).toEqual(Object.keys(turn).sort())
+      for (const [model, want] of Object.entries(turn)) {
+        const got = h.modelUsage![model]
+        expect([got.inputTokens, got.cacheCreationInputTokens, got.cacheReadInputTokens, got.outputTokens]).toEqual([want.inputTokens, want.cacheCreationInputTokens, want.cacheReadInputTokens, want.outputTokens])
+        expect(got.costUSD).toBeCloseTo(want.costUSD, 9)
+      }
+      const w = Object.values(turn)
+      const read = w.reduce((s, x) => s + x.cacheReadInputTokens, 0)
+      const all = w.reduce((s, x) => s + x.inputTokens + x.cacheReadInputTokens + x.cacheCreationInputTokens, 0)
+      expect([h.cacheRead, h.totalInput, h.outputTokens, h.pct]).toEqual([read, all, w.reduce((s, x) => s + x.outputTokens, 0), Math.round((read / all) * 100)])
+      expect(h.cumulativeModelUsage).toEqual(totals[i])
+    })
+    // ② as T0739 measured it: running cache read 84,804 = ① 18,282 + ② 66,522; the row shows 66,522
+    expect(totals[1][H55].cacheReadInputTokens).toBe(84_804)
+    expect(hist[1].cacheRead).toBe(66_522)
+    expect(realCost(hist[1])).toBeCloseTo(0.004170, 9)
+
+    const api = cacheHistoryApiTotal(hist)
+    expect(api.hasApiCost).toBe(true)
+    expect(api.total).toBeCloseTo(0.143200, 9)
+    expect(hist.reduce((s, h) => s + cacheHistoryRealCost(h)!, 0)).toBeCloseTo(api.total, 12)
+    // est. $: the rows' estimates add up to the estimate of the last running totals (prices are linear)
+    const lastEst = Object.entries(totals.at(-1)!).reduce((s, [m, x]) => s + estimateModelUsageCost(m, x)!.totalCost, 0)
+    expect(cacheHistoryGrandTotal(hist).total).toBeCloseTo(lastEst, 12)
+    expect(baseline.modelUsage).toEqual(totals.at(-1))
+  })
+
+  it('a model new to the session starts from 0; a model with nothing new this turn is left out of the row', () => {
+    const t1: MU = { [H55]: u(1, 100, 1_000, 10, 0.01) }
+    const t2: MU = { [H55]: u(1, 100, 1_000, 10, 0.01), [H45]: u(5, 500, 5_000, 50, 0.05) }
+    const r = turnModelUsage(t2, t1)
+    expect(r.basis).toBe('turn')
+    expect(Object.keys(r.modelUsage)).toEqual([H45])
+    expect(r.modelUsage[H45]).toEqual(u(5, 500, 5_000, 50, 0.05))
+    // nothing new at all: the models stay, at 0
+    const same = turnModelUsage(t1, t1)
+    expect(same).toEqual({ modelUsage: { [H55]: u(0, 0, 0, 0, 0) }, basis: 'turn' })
+  })
+
+  it('a total that went down (reset, e.g. /clear or a zeroed crash result): the row is the new totals; next row diffs from them', () => {
+    const hist: CacheHistoryEntry[] = []
+    const baseline = freshUsageBaseline()
+    applyStatusToCacheHistory(hist, resultOf({ [H55]: u(10, 1_000, 50_000, 100, 0.05) }), ctx(), baseline)
+    applyStatusToCacheHistory(hist, resultOf({ [H55]: u(2, 200, 3_000, 20, 0.004) }), ctx(), baseline)
+    applyStatusToCacheHistory(hist, resultOf({ [H55]: u(3, 300, 7_000, 30, 0.006) }), ctx(), baseline)
+    expect(hist.map(h => h.usageBasis)).toEqual(['turn', 'reset', 'turn'])
+    expect(hist[1].modelUsage![H55]).toEqual(u(2, 200, 3_000, 20, 0.004))
+    expect(hist[2].modelUsage![H55].cacheReadInputTokens).toBe(4_000)
+    expect(hist[2].modelUsage![H55].costUSD).toBeCloseTo(0.002, 12)
+    // what was spent: 0.05 before the reset + 0.006 after
+    expect(cacheHistoryApiTotal(hist).total).toBeCloseTo(0.056, 12)
+    // only the token count dropping, or a model disappearing, is also a reset
+    expect(turnModelUsage({ [H55]: u(10, 1_000, 49_999, 100, 0.06) }, { [H55]: u(10, 1_000, 50_000, 100, 0.05) }).basis).toBe('reset')
+    expect(turnModelUsage({ [H55]: u(10, 1_000, 50_000, 100, 0.05) }, { [H55]: u(10, 1_000, 50_000, 100, 0.05), [H45]: u(1, 0, 0, 1, 0.001) }).basis).toBe('reset')
+    // float noise in costUSD is not a reset
+    expect(turnModelUsage({ [H55]: u(10, 1_000, 50_000, 100, 0.3 - 1e-15) }, { [H55]: u(10, 1_000, 50_000, 100, 0.3) }).basis).toBe('turn')
+  })
+
+  it('resume: the first result is R* (includes-prior, the running total as received); later rows are turns; real $ total = the running total', () => {
+    const totals = runningTotals()
+    const hist: CacheHistoryEntry[] = []
+    const baseline = unknownUsageBaseline()
+    // the panel resumed after ⑥: it never saw ①–⑥
+    applyStatusToCacheHistory(hist, resultOf(totals[5]), ctx(), baseline)
+    applyStatusToCacheHistory(hist, resultOf(totals[6]), ctx(), baseline)
+    expect(hist.map(h => h.usageBasis)).toEqual(['includes-prior', 'turn'])
+    expect(hist[0].modelUsage).toEqual(totals[5])
+    expect(realCost(hist[1])).toBeCloseTo(0.001711 + 0.008099, 9)
+    expect(cacheHistoryApiTotal(hist).total).toBeCloseTo(0.143200, 9)
+  })
+
+  it('the same result re-sent (setModel, Clear then setModel) adds no row; Clear keeps the baseline', () => {
+    const totals = runningTotals()
+    const hist: CacheHistoryEntry[] = []
+    const baseline = freshUsageBaseline()
+    applyStatusToCacheHistory(hist, resultOf(totals[0]), ctx(), baseline)
+    expect(applyStatusToCacheHistory(hist, resultOf(totals[0]), ctx(), baseline)).toBeNull()
+    hist.length = 0 // the panel's Clear button
+    expect(applyStatusToCacheHistory(hist, resultOf(totals[0]), ctx(), baseline)).toBeNull()
+    expect(hist).toHaveLength(0)
+    applyStatusToCacheHistory(hist, resultOf(totals[1]), ctx(), baseline)
+    expect(hist[0].usageBasis).toBe('turn')
+    expect(hist[0].cacheRead).toBe(66_522)
+  })
+
+  it('without a baseline argument the previous R row of the history is the baseline (none: 0)', () => {
+    const totals = runningTotals()
+    const hist: CacheHistoryEntry[] = []
+    applyStatusToCacheHistory(hist, resultOf(totals[0]), ctx())
+    applyStatusToCacheHistory(hist, resultOf(totals[1]), ctx())
+    expect(hist.map(h => [h.usageBasis, h.cacheRead])).toEqual([['turn', 18_282], ['turn', 66_522]])
+    // a row from before T0744 (running totals in `modelUsage`, no `cumulativeModelUsage`) works the same
+    const old: CacheHistoryEntry[] = [{ ...hist[0], modelUsage: totals[0], cumulativeModelUsage: undefined, usageBasis: undefined }]
+    applyStatusToCacheHistory(old, resultOf(totals[1]), ctx())
+    expect(old[1].cacheRead).toBe(66_522)
+  })
+
+  it('keeps the query own longPrompt split (not a running total); pricing still clamps it to the row', () => {
+    const prev: MU = { [H55]: u(1_000, 0, 200_000, 100, 0.03) }
+    const cur: MU = { [H55]: { ...u(2_000, 0, 300_000, 200, 0.08), longPrompt: { inputTokens: 1_000, outputTokens: 100, cacheReadInputTokens: 100_000, cacheCreationInputTokens: 0 } } }
+    const r = turnModelUsage(cur, prev)
+    expect(r.modelUsage[H55].longPrompt).toEqual({ inputTokens: 1_000, outputTokens: 100, cacheReadInputTokens: 100_000, cacheCreationInputTokens: 0 })
+    expect(r.modelUsage[H55].longPrompt).not.toBe(cur[H55].longPrompt)
+    // the whole delta (1,000 input / 100,000 read / 100 output) is the long-prompt call
+    expect(estimateModelUsageCost(H55, r.modelUsage[H55])!.totalCost).toBeCloseTo((1_000 * 0.50 + 100_000 * 0.05 + 100 * 2.50) / 1e6, 12)
+  })
+
+  it('ClaudeAgentPanel passes its baseline and takes real $ from cache-history.ts (no inline costUSD sums)', () => {
+    const src = readFileSync(join(__dirname, '..', '..', 'components', 'ClaudeAgentPanel.tsx'), 'utf8')
+    expect(src).toContain('cacheUsageBaselineRef.current)')
+    expect(src).toContain('cacheHistoryApiTotal(hist)')
+    expect(src).toContain('cacheHistoryRealCost(h)')
+    expect(src).not.toMatch(/apiTotal \+= m\.costUSD/)
+    expect(src).not.toMatch(/reduce\(\(s, m\) => s \+ \(m\.costUSD/)
   })
 })

@@ -24,7 +24,7 @@ import { findClientPathsInPrompt, resolvePromptPathSuggestions, type PromptPathH
 import { useIsRemoteWindow } from '../hooks/useIsRemoteWindow'
 import { CtToast, useCtToast } from './CtToast'
 import { type ModelUsageTokens } from '../lib/model-pricing'
-import { applyStatusToCacheHistory, cacheHistoryGrandTotal, cacheHistoryRowCosts, type CacheHistoryEntry, type LastCallUsage } from '../lib/cache-history'
+import { applyStatusToCacheHistory, cacheHistoryApiTotal, cacheHistoryGrandTotal, cacheHistoryRealCost, cacheHistoryRowCosts, freshUsageBaseline, unknownUsageBaseline, type CacheHistoryEntry, type CacheHistoryUsageBaseline, type LastCallUsage } from '../lib/cache-history'
 import {
   CLAUDE_OPEN_LOGIN_TERMINAL_EVENT,
   getClaudeAuthStatus,
@@ -208,6 +208,9 @@ export function ClaudeAgentPanel({ sessionId, cwd, isActive, workspaceId, isRemo
   const [promptSuggestion, setPromptSuggestion] = useState<string | null>(null)
   // Cache efficiency history — last 20 readings for smoothed display
   const cacheHistoryRef = useRef<CacheHistoryEntry[]>([])
+  // T0744 / BUG-181: the CLI's running totals of the last result, subtracted from the next one.
+  // Unknown until this panel starts a fresh session (resume / fork / remount: the first R row is R*).
+  const cacheUsageBaselineRef = useRef<CacheHistoryUsageBaseline>(unknownUsageBaseline())
   // Track last result for cache expiry warning (timestamp + total input tokens)
   const lastResultRef = useRef<{ timestamp: number; totalInput: number } | null>(null)
   const [showCacheHistory, setShowCacheHistory] = useState(false)
@@ -823,7 +826,11 @@ export function ClaudeAgentPanel({ sessionId, cwd, isActive, workspaceId, isRemo
         const m = meta as SessionMeta
         setSessionMeta(m)
         // Track cache efficiency history (T0498: one row per main-agent call, one R row per result)
-        const histKind = applyStatusToCacheHistory(cacheHistoryRef.current, m, { timestamp: Date.now(), messageCount: messageCountRef.current, turnStartMsgId: currentTurnMsgIdRef.current })
+        const histKind = applyStatusToCacheHistory(cacheHistoryRef.current, m, { timestamp: Date.now(), messageCount: messageCountRef.current, turnStartMsgId: currentTurnMsgIdRef.current }, cacheUsageBaselineRef.current)
+        if (histKind === 'result') {
+          const basis = cacheHistoryRef.current[cacheHistoryRef.current.length - 1]?.usageBasis
+          if (basis && basis !== 'turn') dlog(`${tag} cache history R row usageBasis=${basis}`)
+        }
         // Update last result ref for cache expiry warning
         if (histKind === 'result') {
           lastResultRef.current = { timestamp: Date.now(), totalInput: m.inputTokens }
@@ -888,6 +895,7 @@ export function ClaudeAgentPanel({ sessionId, cwd, isActive, workspaceId, isRemo
         setAskOtherText({})
         setSessionMeta(null)
         setHasSdkSession(false)
+        cacheUsageBaselineRef.current = freshUsageBaseline()
         // Do not clear worktreeInfo — resetSession preserves the worktree
         // and startSession re-emits claude:worktree-info before this event fires.
         workspaceStore.setTerminalSdkSessionId(sessionId, undefined)
@@ -1026,6 +1034,7 @@ export function ClaudeAgentPanel({ sessionId, cwd, isActive, workspaceId, isRemo
           .catch(showRemoteUnsupported)
       } else {
         dlog(`${stag} FRESH startSession`)
+        cacheUsageBaselineRef.current = freshUsageBaseline()
         window.electronAPI.claude.startSession(sessionId, {
           cwd, permissionMode, model: effectiveModel,
           effort: effectiveEffort as EffortLevel,
@@ -1229,6 +1238,8 @@ export function ClaudeAgentPanel({ sessionId, cwd, isActive, workspaceId, isRemo
     setStreamingThinking('')
     setIsStreaming(false)
     setSessionMeta(null)
+    // T0744: another session's running totals — its first result here is R* (includes earlier turns)
+    cacheUsageBaselineRef.current = unknownUsageBaseline()
     // Reset the started guard so the new session can start
     startedSessions.delete(sessionId)
     sessionStartedRef.current = false
@@ -1400,6 +1411,7 @@ export function ClaudeAgentPanel({ sessionId, cwd, isActive, workspaceId, isRemo
       setStreamingText('')
       setStreamingThinking('')
       cacheHistoryRef.current = []
+      cacheUsageBaselineRef.current = freshUsageBaseline()
       lastResultRef.current = null
       setCacheCountdown(null)
       await window.electronAPI.claude.resetSession(sessionId)
@@ -3825,7 +3837,12 @@ export function ClaudeAgentPanel({ sessionId, cwd, isActive, workspaceId, isRemo
                     if (!h.isResult) callNum++
                     const isSkip = h.totalInput < 50000
                     const pctColor = h.pct >= 70 ? '#89ca78' : h.pct >= 40 ? '#e6a700' : '#e05252'
-                    const realTurnCost = h.isResult && h.modelUsage ? Object.values(h.modelUsage).reduce((s, m) => s + (m.costUSD || 0), 0) : null
+                    const realTurnCost = cacheHistoryRealCost(h)
+                    const includesPrior = h.isResult && h.usageBasis === 'includes-prior'
+                    const rowTitle = !h.isResult ? undefined
+                      : includesPrior ? 'View turn conversation. R*: first result this panel saw in a resumed session — includes the earlier turns of the session'
+                      : h.usageBasis === 'reset' ? 'View turn conversation. The CLI reset its running totals here (e.g. /clear): this row is the new running total'
+                      : 'View turn conversation'
                     const models = cacheHistoryRowCosts(h)
                     const turnReadCost = models?.reduce((s, m) => m.readCost !== null ? s + m.readCost : s, 0) ?? null
                     const turnWriteCost = models?.reduce((s, m) => m.writeCost !== null ? s + m.writeCost : s, 0) ?? null
@@ -3833,8 +3850,8 @@ export function ClaudeAgentPanel({ sessionId, cwd, isActive, workspaceId, isRemo
                     const hasMultiModel = models && models.length > 1
                     return (
                       <div key={i}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', padding: '3px 0', borderBottom: hasMultiModel ? 'none' : '1px solid #222', ...(h.isResult ? { borderTop: '1px solid #444', background: '#1a1a2e' } : {}) }}>
-                          <span style={{ width: 24, color: h.isResult ? '#c678dd' : isSkip ? '#666' : '#eee', cursor: h.isResult ? 'pointer' : 'default', textDecoration: h.isResult ? 'underline' : 'none' }} onClick={() => h.isResult && setCacheEntryModal(i)} title={h.isResult ? 'View turn conversation' : undefined}>{h.isResult ? 'R' : callNum}</span>
+                        <div className="claude-cache-history-row" data-row-kind={h.isResult ? 'result' : 'call'} data-usage-basis={h.usageBasis} style={{ display: 'flex', justifyContent: 'space-between', padding: '3px 0', borderBottom: hasMultiModel ? 'none' : '1px solid #222', ...(h.isResult ? { borderTop: '1px solid #444', background: '#1a1a2e' } : {}) }}>
+                          <span style={{ width: 24, color: h.isResult ? '#c678dd' : isSkip ? '#666' : '#eee', cursor: h.isResult ? 'pointer' : 'default', textDecoration: h.isResult ? 'underline' : 'none' }} onClick={() => h.isResult && setCacheEntryModal(i)} title={rowTitle}>{h.isResult ? (includesPrior ? 'R*' : 'R') : callNum}</span>
                           <span style={{ width: 36, textAlign: 'right', color: isSkip ? '#eee' : pctColor }}>{h.pct}%</span>
                           <span style={{ width: 36, textAlign: 'right', color: isSkip ? '#666' : '#d19a66' }}>{h.isResult ? h.calls : 1}</span>
                           <span style={{ width: 76, textAlign: 'right', color: isSkip ? '#666' : '#8be9fd' }}>{h.callCacheRead ? h.callCacheRead.toLocaleString() : '—'}</span>
@@ -3871,15 +3888,10 @@ export function ClaudeAgentPanel({ sessionId, cwd, isActive, workspaceId, isRemo
                     )
                   }) })()}
                   {hist.length > 0 && (() => {
-                    let apiTotal = 0
-                    let hasApiCost = false
-                    for (const h of hist) {
-                      if (h.isResult && h.modelUsage) {
-                        for (const m of Object.values(h.modelUsage)) { if (m.costUSD) { apiTotal += m.costUSD; hasApiCost = true } }
-                      }
-                    }
+                    // T0744 / BUG-181: each R row is its turn's share of the CLI's running total
+                    const { total: apiTotal, hasApiCost } = cacheHistoryApiTotal(hist)
                     return (
-                      <div style={{ display: 'flex', justifyContent: 'space-between', padding: '5px 0', borderTop: '1px solid #444', fontWeight: 600 }}>
+                      <div className="claude-cache-history-total" style={{ display: 'flex', justifyContent: 'space-between', padding: '5px 0', borderTop: '1px solid #444', fontWeight: 600 }}>
                         <span style={{ flex: 1, color: '#bbb' }}>Total</span>
                         <span style={{ width: 64, textAlign: 'right', color: hasAnyCost ? '#eee' : '#666' }}>{hasAnyCost ? `$${grandTotal.toFixed(4)}` : '—'}</span>
                         <span style={{ width: 64, textAlign: 'right', color: hasApiCost ? '#50fa7b' : '#666' }}>{hasApiCost ? `$${apiTotal.toFixed(4)}` : '—'}</span>
@@ -3890,7 +3902,7 @@ export function ClaudeAgentPanel({ sessionId, cwd, isActive, workspaceId, isRemo
                   {hist.length === 0 && <div style={{ color: '#666', padding: '8px 0' }}>No readings yet.</div>}
                 </div>
                 <div style={{ fontSize: 12, color: '#e05252', marginTop: 8, lineHeight: 1.5 }}>
-                  ⚠ Experimental: cost is estimated from built-in pricing table. Result (R) rows include sub-agent costs and per-model token breakdown — use these as more accurate estimates. The real $ column shows exact API billing (costUSD). Verify independently.
+                  ⚠ Experimental: cost is estimated from built-in pricing table. Result (R) rows include sub-agent costs and per-model token breakdown — use these as more accurate estimates. The real $ column shows exact API billing (costUSD). R rows are the turn's share of the session's running totals (calls between turns, such as prompt suggestions, count toward the next turn); R* includes the earlier turns of a resumed session. Verify independently.
                 </div>
               </div>
             </div>

@@ -10,9 +10,45 @@
   - 0.3.142 Breaking 三項：① V2 session API（`unstable_v2_*` / `SDKSession` / `SDKSessionOptions`）移除 → `claude-code-v2`「Claude Agent V2」preset 下架（D123：不改寫成 `query()` wrapper），V1↔V2 切換鈕、「+」選單的 V2 項目一併移除。T0722 / D194：只剩一種 SDK 面板，`claude-code` / `claude-code-worktree` 的顯示名稱拿掉「V1」，改為 `Claude Agent` / `Claude Agent (Worktree)`（renderer `src/types/agent-presets.ts`、main `electron/agent-runtime/agent-registry.ts`、`ThumbnailBar.tsx` 沒有 agent 定義時的備用選單、i18n `v1Model1mWarning` 文字；id、helper `--agent`、IPC / remote 協定不變）。舊預設標題 `Claude Agent V1` / `V2` / `V1 (Worktree)` → 新名稱的對照只在 `src/lib/retired-agent-presets.ts` `RETIRED_AGENT_PRESET_TITLES`：分頁還原與 detached adopt 經 `migrateTerminalAgentPreset` 改 `title` / `autoTitle`（只改完全相同的字串，不論 preset；使用者標題、`sdkSessionId`、`model` 不動），`isDefaultTerminalTitle` 經 `isRetiredPresetTitle` 仍當預設標題。新舊版混用：顯示名稱由 client（桌面版）自己決定 ——「+」選單的 `agent:list-definitions` 不經 proxy、由本機 main registry 回答，分頁標題（`externalTerminalTitle`、`towerAgentLabel`）先用 renderer preset 名稱，server 帶的 `agentName` 只在 renderer 不認得該 preset 時才用；所以舊 client 連新 bat-server 照舊顯示 `Claude Agent V1`，新 client 連舊 bat-server 顯示 `Claude Agent`，沒有任何協定欄位變動。② MCP server 改背景連線，使用者設定檔裡慢的 server 在 `init` 為 `pending`（BAT 不自帶 `mcpServers`、面板不顯示 MCP 狀態，只影響首輪工具是否已可用）；③ SDK session 改用 `TaskCreate` / `TaskUpdate` / `TaskGet` / `TaskList`（取代 `TodoWrite`）。面板把它們畫成工作清單卡片（T0725 起，見下「Claude 面板工作清單」；`TodoWrite` 勾選清單只對舊 session 歷史），**不是** sub-agent：`activeTasks` 只登記 `Agent` / `Task`（`electron/__tests__/claude-sdk03-task-tools.test.ts`）。另外 Claude 5 系列模型預設不帶 task 工具（CLI 側行為，T0368），T0725 起面板以 `CLAUDE_CODE_ENABLE_TODO_TOOLS=1` 開啟。
   - peer：0.3.143 起 `@anthropic-ai/sdk`（`>=0.93.0`）、`@modelcontextprotocol/sdk`（`^1.29.0`）、`zod`（`^4.0.0`）是 peerDependencies。repo 的 `@modelcontextprotocol/sdk` 1.29.0 / `zod` 4.3.6 已滿足、不升；`@anthropic-ai/sdk` 0.81.0 → 1.3.0（新增 `@opentelemetry/api` / `standardwebhooks` / `@stablelib/base64` / `fast-sha256`）。只影響型別：BAT 只 import `.`（`sdk.mjs`），執行期外部依賴仍只有 `ajv` / `ajv-formats`（安裝檔白名單已有）；`./core` 入口才 import MCP SDK / zod。npm 12 在既有 lock 上升級會回自相矛盾的 `ERESOLVE`（peer 衝突），T0718 以移植方式產 lock（見工單回報區）。
   - `query()` 選項（`systemPrompt` / `tools` preset、`settingSources`、`thinking: adaptive`、`effort`、`toolConfig`、`agentProgressSummaries`、`promptSuggestions`、`plugins`、`canUseTool`、`resume` / `continue`、`pathToClaudeCodeExecutable`、`env`、`executable`、`forkSession` / `maxTurns`）在 0.3.316 的 `Options` 型別上逐一存在；`runQuery` 的 `queryOptions` 是 `Record<string, unknown>` 再轉型，typecheck 抓不到選項改名，升 SDK 時要另外比對。`CanUseTool` 可回 `null`（抑制自動回應）只是型別放寬，BAT 不回 `null`。
-- Cache History 的列與總計邏輯在 `src/lib/cache-history.ts`（T0498）。主行程在主 agent 的串流 `claude:status` 帶 `lastCall`（該次 API 呼叫的 id / model / query 編號 / token，取自 per-call tracker）；query 開始與 result 時為 `null`（`null` 代表新版 server，欄位不存在代表舊版，renderer 走舊邏輯）。單次呼叫列一呼叫一列，以自己的 token 計價。R 列為 SDK `modelUsage`，含同 query 所有呼叫（含 sub-agent），**總計不重複加同 query 的單次呼叫列**，只加沒有 result 的 query 與進行中 query 的列。開始 query 時經 `resetQueryUsage()` 清 `modelUsage` / `lastCall` / tracker（T0498 前已下架的 V2 路徑不清，上一 result 會被當成新的 R 列重複加總；V2 路徑 T0718 移除）。
+- Cache History 的列與總計邏輯在 `src/lib/cache-history.ts`（T0498）。主行程在主 agent 的串流 `claude:status` 帶 `lastCall`（該次 API 呼叫的 id / model / query 編號 / token，取自 per-call tracker）；query 開始與 result 時為 `null`（`null` 代表新版 server，欄位不存在代表舊版，renderer 走舊邏輯）。單次呼叫列一呼叫一列，以自己的 token 計價。R 列取自 SDK `modelUsage`，含同 query 所有呼叫（含 sub-agent；`modelUsage` 是 session 累計，T0744 起 R 列是本回合的差值，見「Cache History 的 R 列：CLI 累計值換算」節），**總計不重複加同 query 的單次呼叫列**，只加沒有 result 的 query 與進行中 query 的列。開始 query 時經 `resetQueryUsage()` 清 `modelUsage` / `lastCall` / tracker（T0498 前已下架的 V2 路徑不清，上一 result 會被當成新的 R 列重複加總；V2 路徑 T0718 移除）。
 - `EFFORT_LEVELS = ['low','medium','high','max','xhigh']` + `EffortLevel` type 集中宣告於 `src/types/index.ts`。新增 effort 成員時只改 const，其他檔案自動套用。
 - Settings 的 effort dropdown 包含完整 5 級，不再標示「(Opus only)」（T0374 移除：CLI 2.1.289 對 Sonnet 5.5 / Fable 5.1 / Opus 5.5 的 `supportedEffortLevels` 皆含 `max` 與 `xhigh`，T0368；CLI 2.1.296 的 Haiku 5.5 同為 5 級，T0483；2.1.300 五個 alias 皆不變，T0541；2.1.306 同，T0690；2.1.316 同，T0717）。`xhigh` 需 CLI `>= 2.1.111`。
+
+## Cache History 的 R 列：CLI 累計值換算（T0744 / BUG-181）
+
+- 🔴 必守：R 列的 tokens 與費用 = 本回合累計 − 同一 session 上一個 result 的累計，依 model 分開相減；換算唯一實作 `turnModelUsage`（`src/lib/cache-history.ts`），ClaudeAgentPanel 不內聯；計價一律經 `src/lib/model-pricing.ts`。
+- 語意（SDK 0.3.316 `SDKResultSuccess` / `SDKResultError` 的型別註解；T0739 以 CLI 2.1.316 實測）：
+  - `result.modelUsage`、`result.total_cost_usd`：**session 累計值**。每個 result 帶到目前為止的總量，涵蓋主 agent、Task 子代理、sidechain 與 compaction 等內部呼叫（不含權限分類器、token 計數等 query pipeline 以外的呼叫）。resume / fork 的 session 從 transcript 存的總量接續（第一個 result 就含先前的回合）；session 中的 `/clear` 重置；crash / 啟動錯誤的 result 可能是 0。
+  - `result.usage`：只有主 agent 迴圈，而且是單一回合。
+  - 主行程不換算：`claude:status` 的 `modelUsage`、`inputTokens` / `outputTokens` / `cacheReadTokens` / `cacheCreationTokens`（result 後由 `modelUsage` 加總）與 `totalCost` 都是累計值。`claude:status` / `claude:result` 的 IPC 簽章不變。
+- 換算規則（`turnModelUsage(current, previous)`，由 `applyStatusToCacheHistory(hist, status, ctx, baseline)` 呼叫）：
+  - 依 model：本回合 = 本次累計 − 基準。新出現的 model 以 0 為基準；這回合沒有變化的 model 不列（全部沒變時保留為 0）。
+  - 任何欄位（4 個 token 欄位或 `costUSD`；`costUSD` 容許 1e-9 浮點誤差）比基準小，或基準裡有用量的 model 不見了 → 視為累計重置：該列 = 本次累計原值（`usageBasis: 'reset'`），面板記 debug log `cache history R row usageBasis=reset`，`#` 欄 tooltip 說明。
+  - 基準未知 → 該列 = 本次累計原值（`usageBasis: 'includes-prior'`），`#` 欄顯示 `R*`，tooltip 說明含 session 先前的回合；面板記 debug log。
+  - 與基準完全相同的 result（同一個 result 重送，例如回合結束後 setModel 的 status）不加列。
+  - `longPrompt`（主行程依本 query 的呼叫追蹤，不是累計值）原樣保留；`estimateModelUsageCost` 本來就把它夾在列的總量內。
+  - R 列的 `%`、turn c.read / c.write / total、output、est. $、real $ 都由差值算出；`cumulativeModelUsage` 保留收到的累計原值（下一列的基準）。
+- 基準（`CacheHistoryUsageBaseline`，面板的 `cacheUsageBaselineRef`）：
+  - 新 session（掛載時沒有 `sdkSessionId`、`/new`、`claude:session-reset`）→ `freshUsageBaseline()`（全 0）。
+  - 掛載時 auto-resume（BAT 重開）、從清單 resume 另一個 session、fork 出的新分頁、面板重新掛載 → `unknownUsageBaseline()`：resume 後第一個 R 列是 `R*`（含先前累計），之後的列正常相減。
+  - 選「標示 R*」而不是「改用 `result.usage`」：`usage` 不含子代理與額外請求、也沒有 `costUSD`，用它會讓 real $ 合計 ≠ 累計值。
+  - Cache History 的 Clear 只清列、不清基準（session 的累計沒變）。
+- 合計：
+  - real $ = `cacheHistoryApiTotal(hist)`（R 列的 `costUSD` 相加）。從新 session 或 `R*` 開始、中途沒有重置時，等於最後一個 result 的累計值（= 狀態列 session cost `totalCost`）；中途重置時 = 重置前的累計 + 重置後的累計（實際花費）。
+  - est. $ = `cacheHistoryGrandTotal(hist)`，規則不變（T0498）；R 列改成差值後不再重複計算。
+  - 各列 real $ = `cacheHistoryRealCost(h)`。
+  - 已知限制：`R*` 列（含先前回合）的 est. $ 只有本 query 的長 prompt 呼叫用 Haiku 5.5 long 價（`longPrompt` 只追本 query），先前回合一律以基本價估 → 低估（T0744 e2e ②：est. $0.0845、real $0.1626）；real $ 不受影響。
+- 回合之間的額外請求（prompt suggestion、背景子代理結束後 CLI 自己接續的回合等）會算進下一個 R 列。
+- 存檔：Cache History 只在記憶體（`cacheHistoryRef`），沒有存檔與還原，所以沒有「舊存檔」要換算；BAT 重開後是空的，resume 後第一列為 `R*`。`applyStatusToCacheHistory` 沒給 `baseline` 時，以 hist 裡上一個 R 列的 `cumulativeModelUsage`（T0744 前建立的列：`modelUsage`，當時就是累計值）為基準，沒有 R 列時以 0 為基準。
+- 不變：
+  - 單次呼叫列、pre-T0498 server 的非 R 列。
+  - 狀態列：`cost` = 累計 `totalCost`（session cost）；`cache:` 百分比 = 累計 cache read ÷ 累計 input（session 值）。
+  - 狀態列 `cache:` 的顏色取 history 裡 input ≥ 50k 的列的最低 %，R 列改成每回合後，這個顏色跟著改用每回合的值。
+- Codex 面板（`CodexAgentPanel.tsx` 自己有一份 Cache History，未改）：`codex-agent-manager.ts` 不送 `modelUsage`（所以沒有 R 列）；`turn.completed.usage` 依 `@openai/codex-sdk` 型別註解是單一回合，主行程以 `+=` 加到 `inputTokens` / `outputTokens` / `cacheReadTokens`（session 累計）。
+- 驗證：
+  - 單元：`src/lib/__tests__/cache-history.test.ts`「T0744」（T0739 實測數字：7 個 R 列合計 US$0.1432，舊算法約 0.337；換模型、重置、resume、重送、Clear、舊列、`longPrompt`、面板 source guard）；`electron/__tests__/claude-cache-history-last-call.test.ts` 的 harness 改以累計格式送 result（T0498 的 before 數字以 `perQuery` 保留）。
+  - e2e：`e2e/t0744-cache-history-cumulative.spec.ts`（假 API 每回合回報已知 token，由內嵌 CLI 自己累計；新 session 3 回合 → 3 個 `turn` 的 R 列、real $ 合計 = session cost；重開後 resume → `R*`）。
+  - 真實模型複驗（耗少量 token，需使用者同意）：`BAT_E2E_REAL_MODEL=1 npx playwright test e2e/v072-real-model-claude-panel.spec.ts`，再開 Cache History 看 R 列與合計。
 
 ## Claude 面板工作清單（T0725 / D195）
 

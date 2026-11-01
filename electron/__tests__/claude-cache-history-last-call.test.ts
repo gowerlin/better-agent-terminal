@@ -7,6 +7,9 @@
  *   already contains, plus a stale row holding the previous result's totals; on V2 the previous
  *   result's `modelUsage` rode along on the next query's statuses and was added again as R rows.
  *   The pre-T0498 renderer logic is copied verbatim below to show the before / after numbers.
+ * - T0744 / BUG-181: the CLI's result `modelUsage` / `total_cost_usd` are session running totals
+ *   (SDK 0.3.316 docs, T0739 measurement). The harness sends them that way by default; the
+ *   pre-T0498 "before" numbers keep the per-query `modelUsage` T0498 modelled (`perQuery`).
  */
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
@@ -19,7 +22,7 @@ vi.mock('electron', () => new Proxy({}, {
 }))
 
 import { ClaudeAgentManager, createQueryCallTracker, mainAgentCall, trackStreamEventUsage } from '../claude-agent-manager'
-import { applyStatusToCacheHistory, cacheHistoryGrandTotal, cacheHistoryRowCosts, type CacheHistoryEntry, type CacheHistoryStatus } from '../../src/lib/cache-history'
+import { applyStatusToCacheHistory, cacheHistoryApiTotal, cacheHistoryGrandTotal, cacheHistoryRowCosts, type CacheHistoryEntry, type CacheHistoryStatus } from '../../src/lib/cache-history'
 import { estimateCallCost } from '../../src/lib/model-pricing'
 
 type Internals = {
@@ -35,8 +38,11 @@ afterEach(() => {
 const MODEL = 'claude-opus-5-5'
 type Call = { id: string; input: number; read: number; write: number; output: number; sub?: string }
 
-function harness() {
+/** `perQuery`: each result carries only its own query's usage (the T0498 model, not the real CLI). */
+function harness(opts: { perQuery?: boolean } = {}) {
   const emit = vi.fn()
+  // T0744: the CLI's running totals across the session's results
+  const running = { input: 0, output: 0, read: 0, write: 0, cost: 0 }
   const manager = new ClaudeAgentManager({ emit, getSettings: () => ({ notifyOnComplete: false }) })
   managers.push(manager)
   const session = {
@@ -66,10 +72,14 @@ function harness() {
       pm({ type: 'stream_event', parent_tool_use_id: null, event: { type: 'message_delta', usage: { output_tokens: c.output } } })
     }
     const sum = (k: keyof Call) => calls.reduce((s, c) => s + (c[k] as number), 0)
+    running.input += sum('input'); running.output += sum('output'); running.read += sum('read'); running.write += sum('write'); running.cost += 0.01
+    const mu = opts.perQuery
+      ? { inputTokens: sum('input'), outputTokens: sum('output'), cacheReadInputTokens: sum('read'), cacheCreationInputTokens: sum('write'), costUSD: 0.01 }
+      : { inputTokens: running.input, outputTokens: running.output, cacheReadInputTokens: running.read, cacheCreationInputTokens: running.write, costUSD: running.cost }
     pm({
-      type: 'result', subtype: 'success', total_cost_usd: 0, num_turns: calls.length, duration_ms: 1,
+      type: 'result', subtype: 'success', total_cost_usd: opts.perQuery ? 0 : running.cost, num_turns: calls.length, duration_ms: 1,
       usage: { input_tokens: sum('input'), output_tokens: sum('output') },
-      modelUsage: { [MODEL]: { inputTokens: sum('input'), outputTokens: sum('output'), cacheReadInputTokens: sum('read'), cacheCreationInputTokens: sum('write'), costUSD: 0.01 } },
+      modelUsage: { [MODEL]: mu },
     })
   }
   const statuses = () => emit.mock.calls.filter(c => c[0] === 'claude:status').map(c => c[2] as CacheHistoryStatus)
@@ -182,7 +192,7 @@ describe('claude:status lastCall', () => {
 
 describe('T0498 A — grand total before / after (processMessage replay)', () => {
   it('scenario 1 (V1): per-call rows covered by the result were added again', () => {
-    const h = harness()
+    const h = harness({ perQuery: true })
     h.query(Q1)
     h.query(Q2)
     const truth = [...Q1, ...Q2].reduce((s, c) => s + callCost(c), 0)
@@ -192,7 +202,10 @@ describe('T0498 A — grand total before / after (processMessage replay)', () =>
     // rows 1 and 2 of query 1 (msg_1 priced with output 1, msg_2 with msg_1's output) on top of R1
     expect(before).toBeCloseTo(0.3354 + 0.10802 + 0.043, 10)
 
-    const rows = newRows(h.statuses())
+    const hc = harness()
+    hc.query(Q1)
+    hc.query(Q2)
+    const rows = newRows(hc.statuses())
     expect(rows.map(r => r.isResult ? 'R' : r.callId)).toEqual(['msg_1', 'msg_2', 'msg_3', 'R', 'msg_4', 'msg_5', 'R'])
     expect(cacheHistoryGrandTotal(rows).total).toBeCloseTo(truth, 10)
     // each per-call row shows and prices that call (main agent only; the sub-agent call is in R)
@@ -204,7 +217,7 @@ describe('T0498 A — grand total before / after (processMessage replay)', () =>
   })
 
   it('scenario 2 (V1): the next query\'s first row carried the previous result\'s totals', () => {
-    const h = harness()
+    const h = harness({ perQuery: true })
     h.query(Q3)
     h.query(Q4)
     const truth = [...Q3, ...Q4].reduce((s, c) => s + callCost(c), 0)
@@ -215,11 +228,14 @@ describe('T0498 A — grand total before / after (processMessage replay)', () =>
     // the stale 100,000 row (= query 1 again) and msg_7 priced with query 1's output
     expect(legacyGrandTotal(legacy)).toBeCloseTo(0.1836 + 0.071 + 0.0528, 10)
 
-    expect(cacheHistoryGrandTotal(newRows(h.statuses())).total).toBeCloseTo(truth, 10)
+    const hc = harness()
+    hc.query(Q3)
+    hc.query(Q4)
+    expect(cacheHistoryGrandTotal(newRows(hc.statuses())).total).toBeCloseTo(truth, 10)
   })
 
   it('scenario 2 (V2): the previous result rode along as extra R rows (est. and real $ both inflated)', () => {
-    const old = harness()
+    const old = harness({ perQuery: true })
     old.query(Q3, 'v2-old')
     old.query(Q4, 'v2-old')
     const legacy = legacyRows(withoutLastCall(old.statuses()))
@@ -234,6 +250,8 @@ describe('T0498 A — grand total before / after (processMessage replay)', () =>
     const rows = newRows(fixed.statuses())
     expect(rows.map(r => r.isResult ? 'R' : r.callId)).toEqual(['msg_6', 'R', 'msg_7', 'msg_8', 'R'])
     expect(cacheHistoryGrandTotal(rows).total).toBeCloseTo(0.1836, 10)
+    // T0744: each R row is its query's share of the running total (0.01 + 0.01), not 0.01 + 0.02
     expect(legacyApiTotal(rows)).toBeCloseTo(0.02, 10)
+    expect(cacheHistoryApiTotal(rows)).toEqual({ total: expect.closeTo(0.02, 10), hasApiCost: true })
   })
 })

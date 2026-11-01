@@ -13,6 +13,8 @@
 //     (title / prompt-suggestion / summary side calls), get a plain `ok`.
 //   - `gate(name)` holds every step of a scenario until `release(name, step)`, so a spec can check
 //     the UI between two model turns.
+//   - A turn may set `usage` (T0744): the token counts its stream reports, so the CLI's running
+//     `modelUsage` / `total_cost_usd` in the result grow by known amounts.
 //
 // `startBlockingProxy` is an HTTP(S) proxy that refuses everything and records what was attempted:
 // set it as `HTTPS_PROXY` / `HTTP_PROXY` (with `NO_PROXY=127.0.0.1,localhost`) to prove that no
@@ -24,8 +26,10 @@ import http from 'node:http'
 import type net from 'node:net'
 
 export interface ToolCall { name: string; input: Record<string, unknown> }
+/** Token counts a streamed turn reports (T0744); a missing field keeps the default (input 10, output 5, no cache). */
+export interface FakeUsage { input_tokens?: number; output_tokens?: number; cache_creation_input_tokens?: number; cache_read_input_tokens?: number }
 /** One model turn: streamed text (each string is one delta) and / or one tool call. */
-export interface FakeTurn { text?: string[]; tool?: ToolCall; /** Pause after each text delta (default: the server's `deltaDelayMs`). */ deltaDelayMs?: number }
+export interface FakeTurn { text?: string[]; tool?: ToolCall; /** Pause after each text delta (default: the server's `deltaDelayMs`). */ deltaDelayMs?: number; usage?: FakeUsage }
 
 export interface ScenarioContext {
   step: number
@@ -143,7 +147,8 @@ export function startFakeAnthropicApi(scenarios: Record<string, Scenario>, opts:
 
   async function writeTurn(res: http.ServerResponse, model: string, turn: FakeTurn): Promise<void> {
     const id = `msg_t0727_${++msgSeq}`
-    const usage = { input_tokens: 10, output_tokens: 1, cache_creation_input_tokens: 0, cache_read_input_tokens: 0 }
+    const { output_tokens: finalOutput = 5, ...startUsage } = turn.usage ?? {}
+    const usage = { input_tokens: 10, output_tokens: 1, cache_creation_input_tokens: 0, cache_read_input_tokens: 0, ...startUsage }
     res.writeHead(200, { 'content-type': 'text/event-stream', 'cache-control': 'no-cache' })
     const ev = (type: string, data: Record<string, unknown>) => res.write(`event: ${type}\ndata: ${JSON.stringify({ type, ...data })}\n\n`)
     ev('message_start', { message: { id, type: 'message', role: 'assistant', model, content: [], stop_reason: null, stop_sequence: null, usage } })
@@ -163,7 +168,7 @@ export function startFakeAnthropicApi(scenarios: Record<string, Scenario>, opts:
       ev('content_block_delta', { index, delta: { type: 'input_json_delta', partial_json: JSON.stringify(turn.tool.input) } })
       ev('content_block_stop', { index })
     }
-    ev('message_delta', { delta: { stop_reason: turn.tool ? 'tool_use' : 'end_turn', stop_sequence: null }, usage: { output_tokens: 5 } })
+    ev('message_delta', { delta: { stop_reason: turn.tool ? 'tool_use' : 'end_turn', stop_sequence: null }, usage: { output_tokens: finalOutput } })
     ev('message_stop', {})
     res.end()
   }
