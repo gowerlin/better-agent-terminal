@@ -3,11 +3,11 @@ schema_version: 1
 schema_kind: bug
 id: BUG-177
 title: "Claude 面板查模型清單（`getSupportedModels`）會送一次真的模型請求（耗 token），並在 `~/.claude/projects/<磁碟根>` 留下 session 檔"
-status: FIXING
+status: FIXED
 severity: medium
 reproducibility: intermittent
 created_at: "2026-11-01T11:17:31+0800"
-updated_at: "2026-11-01T11:51:27+0800"
+updated_at: "2026-11-01T11:58:47+0800"
 impact:
   - claude-agent-panel
   - token-usage
@@ -22,7 +22,7 @@ links:
 |------|------|
 | 嚴重度 | 🟡 medium（每次查清單可能多一個完整 system prompt＋工具定義的 input token 請求；使用者看不到） |
 | 可重現 | 時有時無（看 `close()` 與 CLI 誰快；T0727 第 1 次全綠執行出現 4 次，第 2 次 0 次） |
-| **狀態** | 🔧 FIXING：T0729（2026-11-01 開單，使用者決定現在修） |
+| **狀態** | ✅ FIXED：T0729（commit `ceb24910`），等驗收 |
 | 回報者 | T0727 Worker |
 
 ## 現象
@@ -46,3 +46,9 @@ links:
 - 用不會開始 turn 的 prompt（例如不 yield 的 AsyncIterable，T0718 init smoke 的做法：`initializationResult()` 不送訊息）取得模型清單。
 - 或快取結果，避免每個 session 都查。
 - 修正後以假 API 斷言「查模型清單 = 0 個 `/v1/messages` 請求、不建立 session 檔」。
+
+## 修正（T0729，commit `ceb24910`）
+
+- `getSupportedModels` 的 prompt 由 `''` 改成不 yield 任何訊息的 AsyncIterable（`idleSdkPrompt`，`electron/claude-agent-manager.ts`）；讀完 `supportedModels()` 後結束 iterable 再 `close()`。`cwd: '/'`、runtime 路徑、spawn env、與 `BAT_BUILTIN_MODELS` 的合併都不變；沒有加快取（不送請求後每個 session 查一次只多一個短命子行程）。
+- SDK 原型（假 API、內嵌 CLI 2.1.316）：舊做法 3 秒內 1 個 `claude-opus-5-5` 請求＋`projects/D--/<uuid>.jsonl`；新做法 0 請求、0 session 檔，模型清單相同（`default` / `opus` / `fable` / `sonnet` / `haiku`）。
+- 驗證：`e2e/v072-pre6-claude-panel.spec.ts` ⑩（`getSupportedModels` 後 4 秒內 0 個請求、暫存 home 沒有新 session 檔；整次執行沒有來自無標記對話的請求）＋①–⑨ 全綠；`electron/__tests__/claude-supported-models-probe.test.ts`；`test:unit` 351 檔全過、兩個 typecheck = 0、`vite build` 成功。
