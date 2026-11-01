@@ -4,13 +4,15 @@ schema_kind: workorder
 id: T0753
 title: "BUG-186 修正：遠端工具偵測 nvm 的 Node.js「無回應」與 `~/.local/bin` 工具「伺服器：不可見」；WSL / Docker / SSH 三種遠端都檢查"
 type: implementation
-status: PENDING
+status: IN_PROGRESS
 repo: better-agent-terminal
 project: maintenance
 priority: P2
 sizing: S
 created_at: "2026-11-01T22:33:34+0800"
-updated_at: "2026-11-01T22:33:34+0800"
+started_at: "2026-11-01T22:38:29+0800"
+updated_at: "2026-11-01T22:38:29+0800"
+tower_question: open
 depends_on: []
 related:
   - "BUG-186（使用者 WSL 精靈截圖）；D205（本單完成後與 T0750 / T0751 / T0752 一起發 `0.7.3-pre.2`，使用者指示「nvm 與 uv 偵測錯誤也一起修」）"
@@ -79,4 +81,34 @@ memory_overrides:
 
 ## 回報區
 
-（Worker 填寫）
+### 待塔台決策
+
+#### Q-1：node「無回應」其實是正確的偵測結果（node 本身無法執行），要怎麼呈現？
+- **提問時間**：2026-11-01T22:38:29+0800
+- **證據**（WSL `Ubuntu-24.04`，唯讀）：`<使用者家目錄>/.nvm/versions/node/v26.13.0/bin/node --version` → `error while loading shared libraries: libatomic.so.1: cannot open shared object file`，exit 127；使用者自己的登入互動 shell（`bash -l -i -c 'node --version'`）同樣失敗；`libatomic1` 未安裝（`ldconfig -p` 0 筆）。nvm 預設 `lts/*` 指向 v26.13.0；另一版 v24.22.0 正常。探測腳本取版本的方式（`timeout 5 <path> --version`）沒有問題，工單要求「顯示 v26.13.0」無法成立。
+- **選項**：
+  - A（建議）：維持「無回應」，探測另記 `--version` 的 exit code 與「缺少的共用程式庫名稱」（只取符合 `lib…\.so…` 白名單的檔名，不回傳 stderr 原文），面板說明改成「在 PATH 上找到，但無法執行：缺少共用程式庫 libatomic.so.1」（沒有可辨識原因時附 exit code）。所有工具共用，ok 的工具顯示不變。
+  - B：從 nvm 路徑推出 `v26.13.0` 顯示在版本欄，狀態仍「無回應」。
+  - C：只改文案（不改探測）。
+  - 其他。
+- **建議理由**：A 讓使用者知道要裝 `libatomic1`（或換 node 版本），且不把壞掉的 node 顯示成有版本；B 會誤導。
+- **影響**：probe 多兩個 key、parse / types / i18n（三語）、面板一行；不影響其他工具。
+- **是否阻塞**：是（決定目標 1 的實作）。
+
+#### Q-2：「伺服器：不可見」對 server 程序是正確的、對 server 開的終端分頁不正確，要怎麼修？
+- **提問時間**：2026-11-01T22:38:29+0800
+- **證據**：判斷依據 = bat-server 程序自己的 PATH（`/bin/sh -c 'command -v …'`，`buildServerProbeInvocation`）。WSL 的 bat-server（systemd user unit）PATH = `/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/snap/bin`（unit 沒設 PATH，繼承 `systemctl --user show-environment`），沒有 `~/.local/bin`、沒有 nvm。server 開的終端分頁走 `bash -l -i`（`PtyManager`，headless 共用），`~/.profile` 加入 `~/.local/bin`、`.bashrc` 載入 nvm → 分頁裡 `uv` 找得到（實測登入互動 shell `command -v uv` = `<使用者家目錄>/.local/bin/uv`）。server 程序本身：Git / GitHub 面板的 git / gh 另有 resolver 會掃 `~/.local/bin`、`/usr/local/bin`；Claude 面板（內嵌 claude）的 Bash 工具、MCP 子程序繼承 server PATH，確實找不到 uv / nvm node。tooltip 只寫「Git / GitHub 面板」。三種遠端同一套探測：SSH Linux 同 WSL（systemd user unit）、SSH macOS 是 launchd（PATH 更窄，沒有 Homebrew）、Docker 用映像 PATH（root；`/root/.local/bin` 連登入 shell 都不在 PATH，登入檢視本來就標「不在 PATH」）。
+- **選項**：
+  - A（建議，本單）：不改 server PATH，只修判斷 / 顯示：登入檢視找得到、server 程序找不到時改標「伺服器程序：不可見（終端分頁可用）」之類的文案，tooltip 寫清楚影響範圍（Git / GitHub 面板、Claude 面板的工具與 MCP）；git / gh 的 server 判斷比照 headless resolver 多掃 `~/.local/bin`、`/usr/local/bin`（與實際一致）。
+  - B：bat-server 啟動時以登入 shell 取得 PATH 套到自己（比照 macOS 的 `early-path-fix`，含 timeout），systemd / launchd / Docker 都生效 → Claude 面板、MCP 也找得到；行為變更，影響所有 headless 子程序，需重啟 server，建議另開單。
+  - C：systemd / launchd unit 寫入 `Environment=PATH=…`（安裝當下的登入 PATH）；只有新裝 / 升級生效，Docker 不適用。
+  - D：拿掉這個標記。
+  - 其他。
+- **建議理由**：A 範圍小、可隨 `0.7.3-pre.2` 發；B 才是「server 程序真的用得到」的根治，但屬行為變更且影響面大，不宜併入本批。
+- **影響**：A：parse（server 判斷）、i18n 三語、面板文案、unit test；B / C：另開單。
+- **是否阻塞**：是（決定目標 2 的實作）。
+
+### 互動紀錄
+
+- [22:34] 開工；落點檢查 C-0 PASS（`repo` = `better-agent-terminal` = basename），`CT_HOME` 未設。
+- [22:38] 實測確認 node 無法執行（libatomic）、server PATH 與分頁 PATH 不同 → Q-1、Q-2 問塔台。
