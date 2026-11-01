@@ -23,16 +23,15 @@ breakdown:
 # Bug Tracker
 
 > ⚠️ 此文件由 `*sync` 自動生成，請勿手動編輯。
-> 最後同步：2026-11-01 17:57 — 第一百零三 session：BUG-177 / 178 / 179 CLOSED（T0737 e2e＋BUG-179 實機輪替）；BUG-180 OPEN（T0736 發現）；BUG-167 / 168 / 170 CLOSED（R-G003，CI 測試關卡 / 實機驗收證據）；熱區 Open 1 / Fixed 23 / Closed 20。前次 2026-11-01 12:43 第一百零二 session：BUG-169 / 174 / 176 CLOSED、BUG-177 / 178 / 179 FIXED（T0729 `ceb24910` / T0730 `6f7b3d53` / T0732 `ce648034`）；熱區 Open 0 / Fixing 0 / Fixed 29 / Closed 14
+> 最後同步：2026-11-01 18:04 — 第一百零三 session：BUG-180 FIXED（T0741 `4500984d`）；BUG-177 / 178 / 179 CLOSED（T0737 e2e＋BUG-179 實機輪替）；BUG-180 OPEN（T0736 發現）；BUG-167 / 168 / 170 CLOSED（R-G003，CI 測試關卡 / 實機驗收證據）；熱區 Open 0 / Fixed 24 / Closed 20。前次 2026-11-01 12:43 第一百零二 session：BUG-169 / 174 / 176 CLOSED、BUG-177 / 178 / 179 FIXED（T0729 `ceb24910` / T0730 `6f7b3d53` / T0732 `ce648034`）；熱區 Open 0 / Fixing 0 / Fixed 29 / Closed 14
 
 ## 統計
-- 🔴 Open: 1 | ⏳ Fixing: 0 | ✅ Fixed: 23 | 🧪 Verify: 0 | 🚫 Closed: 20 | ⛔ Won't Fix: 0 | **Total: 44**
+- 🔴 Open: 0 | ⏳ Fixing: 0 | ✅ Fixed: 24 | 🧪 Verify: 0 | 🚫 Closed: 20 | ⛔ Won't Fix: 0 | **Total: 44**
 
 ## 🔴 Open / 處理中
 
 | ID | 標題 | 嚴重度 | 建立時間 | 連結 |
 |----|------|--------|---------|------|
-| BUG-180 | 剛開的終端分頁在約 100 ms 內被切走時 PTY 被 resize 成 9x5，切回才恢復（T0736 e2e 發現；疑 `TerminalPanel.tsx` initial `doResize` 未再檢查 active） | 🟢 low | 2026-11-01 | [BUG-180](BUG-180-new-tab-switched-away-pty-resized-9x5.md) |
 
 ## ⏳ 修復中 (FIXING)
 
@@ -43,6 +42,7 @@ breakdown:
 
 | ID | 標題 | 嚴重度 | 修復時間 | 連結 |
 |----|------|--------|---------|------|
+| BUG-180 | 剛開的終端分頁被切走時 PTY 被 resize 成 9x5；T0741 `canFitTerminalContainer` 守門：容器無尺寸不 fit、不送 resize，initial resize 到期再檢查 active（`4500984d`），待預覽版實機驗收 | 🟢 low | 2026-11-01 | [BUG-180](BUG-180-new-tab-switched-away-pty-resized-9x5.md) |
 | BUG-175 | 縮圖預覽在輸出沒有換行時不更新、露出 `>0q>4m` 殘骸（T0714 `afe57761` 依游標換列分行 + 完整 CSI；`v0.7.2-pre.3`；待外部測試者A 與 GitHub #22 回報者 macOS 實機驗收） | 🟡 medium | 2026-10-30 | [BUG-175](BUG-175-thumbnail-preview-stuck-without-newline.md) |
 | BUG-171 | 「終端重置」後多個分頁 `[Process exited with code 1]`：NTP 時鐘跳變讓 heartbeat 誤判、recovery 沒關舊 server；T0704 `68ab2a42` + T0705 `d7ffa080`，待下一個預覽版實機驗收 | 🔴 high | 2026-10-25 | [BUG-171](BUG-171-idle-terminals-exit-1-after-terminal-reset.md) |
 | BUG-159 | codex 分頁在 BAT MCP 未注入、非系統管理員時接上 codex 共用 daemon，helper 讀到其他分頁的 `BAT_*`（T0651 `5b1be0f5`） | 🟢 low | 2026-10-18 | [BUG-159](BUG-159-codex-shared-daemon-inherits-other-tab-env.md) |
