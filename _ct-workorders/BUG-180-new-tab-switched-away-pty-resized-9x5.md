@@ -3,11 +3,12 @@ schema_version: 1
 schema_kind: bug
 id: BUG-180
 title: "剛開的終端分頁在約 100 ms 內被切走時，PTY 被 resize 成 9x5，直到切回該分頁才恢復"
-status: FIXED
+status: CLOSED
 severity: low
 reproducibility: always
 created_at: "2026-11-01T17:40:18+0800"
-updated_at: "2026-11-01T18:03:00+0800"
+updated_at: "2026-11-01T20:38:00+0800"
+closed_reason: "verified: 使用者以安裝版 v0.7.2-pre.9 實機驗收（連開 Claude CLI ＋以塔台開啟 Claude，切回前分頁不以 9 欄繪製）"
 fixed_in: "T0741 4500984d"
 impact:
   - terminal-resize
@@ -22,7 +23,7 @@ links:
 |------|------|
 | 嚴重度 | 🟢 low（只在分頁剛開就被切走時；切回後恢復。agent TUI 在這段期間以 9 欄繪製） |
 | 可重現 | 一定（T0736 e2e 每次都記到） |
-| **狀態** | 🔧 FIXED（T0741 `4500984d`，待部署驗證） |
+| **狀態** | 🚫 CLOSED（2026-11-01 使用者以安裝版 `v0.7.2-pre.9` 實機驗收通過，塔台依 R-G003 結案）；原 🔧 FIXED（T0741 `4500984d`，待部署驗證） |
 | 回報者 | T0736 Worker |
 
 ## 現象
