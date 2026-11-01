@@ -314,6 +314,7 @@
 - 唯一實作：`TerminalBlockedTracker`、`registerReportHookHandler`（`electron/terminal-blocked-state.ts`）；hook 事件表 `BAT_CLAUDE_HOOKS`（`electron/bat-mcp-launch.ts`），經 `--settings=<dataDir>/bat-mcp/claude-settings.json` 注入（只對 claude-cli，設定檔只有 `hooks`、無權杖）。回報 channel `terminal:report-hook` 的目標永遠是呼叫者自己。
 - hook 腳本 `scripts/bat-hook.mjs`：🔴 **不得影響 claude**：一律 exit 0、stdout 不輸出任何東西（`PermissionRequest` / `PreToolUse` 印 JSON 會替使用者做決定）、任何失敗靜默、總時限 `HOOK_DEADLINE_MS` = 1.8 s（stdin 300 ms、連線 1 s、invoke 1 s）。
 - 使用者 / 專案設定 `disableAllHooks: true` 時 BAT hooks 也停用。🔴 不得在 `--settings` 寫 `disableAllHooks: false` 反制。
+- 滑鼠回答（T0757 / BUG-188，D209）：blocked 中的分頁收到滑鼠左鍵按下 → 清除 hook reason（`hasMouseButtonPress`，`electron/terminal-blocked-state.ts`；`PtyManager.noteMousePress`）。🔴 仍不算使用者輸入（不更新 `lastUserInputAt`，`--close-worker`、用量限制等待不被滑鼠取消），不清 codex `input`。實機查證表見 docs「滑鼠回答」。
 - codex（T0621 / D158，契約 C-1–C-8）：codex `>= 0.163.0` 自己在 PTY 送 OSC 7501（`state=idle|working|blocked|clear`）；`blocked` → `blockedReason: input`（`source: 'osc'`，與 hook reason 同級、優先於 `tower`），`working` / `idle` / `clear` / PTY 結束 / recovery 清除（0.166+ 的 `done` / `error` 解析為 `idle`，T0717），🔴 使用者輸入**不清除** `input`；第一個序列把 `blockedDetection` 設為 `osc`（已是 `hook` 時忽略）。解析唯一實作 `src/lib/codex-terminal-state.ts`，接在 `PtyManager.enqueuePtyOutput`（🔴 只讀、不改寫輸出）與 `handleReplayBuffer`（BAT 重開補掃），轉換 `TerminalBlockedTracker.observeCodexState`。🔴 不得注入 codex hooks、`-c notify`、`-c tui.*`。
 - 完整事件表、清除規則、注入條件、codex 轉換表、日誌、已知限制（含滑鼠回答的清除漏洞）、驗證清單：[docs/agent-guide/blocked-state.md](docs/agent-guide/blocked-state.md)
 

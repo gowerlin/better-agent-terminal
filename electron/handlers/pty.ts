@@ -16,6 +16,7 @@ import * as path from 'path'
 import type { CreatePtyOptions, PtyCreateResult } from '../../src/types'
 import { isTerminalAutoReply } from '../close-worker'
 import { logger } from '../logger'
+import { hasMouseButtonPress } from '../terminal-blocked-state'
 import { PtyLimitError, type PtyManager } from '../pty-manager'
 import { resolveShellPath } from '../shell-path-resolver'
 import type { HandlerContext, HandlerRegistrar } from './types'
@@ -108,6 +109,10 @@ export function registerPtyHandlers(register: HandlerRegistrar, deps: PtyHandler
     if (fromUser && !isTerminalAutoReply(data)) {
       manager.noteUserInput(id)
       deps.onUserInput?.(id)
+    } else if (fromUser && hasMouseButtonPress(data)) {
+      // T0757 / BUG-188 (D209): a click answers a prompt like a key does — clears the hook `blocked`
+      // only; still not user input for `--close-worker` / the usage-limit wait (T0551 unchanged)
+      manager.noteMousePress(id)
     }
     return manager.writeWithResult(id, data)
   })

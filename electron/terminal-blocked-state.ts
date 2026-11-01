@@ -21,6 +21,13 @@
  * headless client's `pty:write`, not `{ auto: true }`, not only terminal auto-replies), the PTY
  * ending (exit / kill, so `pty:restart` too), and the Terminal Server recovery.
  *
+ * T0757 / BUG-188 (D209): also cleared by a left mouse button press in the tab (`hasMouseButtonPress`,
+ * `PtyManager.noteMousePress` → `clearForMousePress`, cause `mouse press`). Verified with the real
+ * claude 2.1.316 (fullscreen renderer, the one that tracks the mouse): a click on "No" in a permission
+ * prompt interrupts the turn with no hook at all, so only the press itself says the user answered.
+ * The press is still not user input (`--close-worker`, the usage-limit wait) and never clears codex's
+ * `input`. Table: docs/agent-guide/blocked-state.md「滑鼠回答」.
+ *
  * T0657 (BUG-162): a permission prompt answered without the keyboard (by mouse, or claude's own
  * timeout — the dangerous-rm safety check auto-denies after 120 s even under
  * `--dangerously-skip-permissions`) is cleared by `post-tool-batch`. `PostToolBatch` runs once all
@@ -187,6 +194,36 @@ export const HOOK_AGENT_ID_PATTERN = HOOK_TOOL_NAME_PATTERN
 export const BLOCKED_DETECTION_MAX = 512
 /** An `unchanged` report is mirrored to bat-scripts.log at most this often per terminal. */
 export const REPORT_HOOK_UNCHANGED_LOG_INTERVAL_MS = 5_000
+
+// T0757: the mouse reports xterm writes while a program tracks the mouse (same shapes as
+// TERMINAL_AUTO_REPLY_SEQUENCES in electron/close-worker.ts): SGR `ESC [ < b ; x ; y M|m`,
+// urxvt `ESC [ b+32 ; x ; y M`, X10 / normal `ESC [ M <b+32><x+32><y+32>`.
+// eslint-disable-next-line no-control-regex
+const MOUSE_REPORT = /\x1b\[<(\d+);\d+;\d+([Mm])|\x1b\[(\d+);\d+;\d+M|\x1b\[M([\x20-\xff])[\x20-\xff]{2}/g
+
+/**
+ * T0757 / BUG-188 (D209): true when a `pty:write` holds a press of the left mouse button — what a
+ * click on a TUI's prompt option sends. Not a press: a release (SGR `m`; X10 / urxvt button 3), a
+ * motion or drag (+32), the wheel (+64), buttons 8–11 (+128), the middle / right button. Shift /
+ * Meta / Ctrl (+4 / +8 / +16) are allowed. Anything else in the write is ignored (the caller has
+ * already decided it is only terminal auto-replies, `isTerminalAutoReply`).
+ */
+export function hasMouseButtonPress(data: unknown): boolean {
+  if (typeof data !== 'string' || !data.includes('\x1b[')) return false
+  for (const m of data.matchAll(MOUSE_REPORT)) {
+    let code: number
+    if (m[1] !== undefined) {
+      if (m[2] !== 'M') continue // SGR release
+      code = Number(m[1])
+    } else if (m[3] !== undefined) {
+      code = Number(m[3]) - 32
+    } else {
+      code = m[4].charCodeAt(0) - 32
+    }
+    if ((code & ~(4 | 8 | 16)) === 0) return true // left button, no motion / wheel / extra button bits
+  }
+  return false
+}
 
 export interface BlockedState {
   reason: TrackedBlockedReason
@@ -385,6 +422,17 @@ export class TerminalBlockedTracker {
   clearForUserInput(id: string): boolean {
     if (this.states.get(id)?.reason === 'input') return false
     return this.clear(id, 'user input')
+  }
+
+    /**
+   * T0757 / BUG-188 (D209): the user pressed the left mouse button in PTY `id`
+   * (`hasMouseButtonPress`): clears a hook reason like typed input does (an answer by mouse is an
+   * answer), never codex's `input` (same rule as `clearForUserInput`). Only the `blocked` state:
+   * it is not user input for `--close-worker` or the usage-limit wait (PtyManager does not record it).
+   */
+  clearForMousePress(id: string): boolean {
+    if (this.states.get(id)?.reason === 'input') return false
+    return this.clear(id, 'mouse press')
   }
 
   /** Clears PTY `id`; true when it was blocked. */

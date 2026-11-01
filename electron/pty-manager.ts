@@ -1110,6 +1110,17 @@ export class PtyManager implements CloseWorkerPtyManager {
     this.blockedTracker.clearForUserInput(id) // T0590; T0621: not codex's `input`
   }
 
+  /**
+   * T0757 / BUG-188 (D209): the user pressed the left mouse button in PTY `id` (a local window's /
+   * headless client's `pty:write` made only of terminal auto-replies that holds a press,
+   * `hasMouseButtonPress`). Clears a hook `blocked` reason as typing does; it is still not user input
+   * (`lastUserInputAt` unchanged: `--close-worker` and the usage-limit wait ignore the mouse, T0551).
+   */
+  noteMousePress(id: string): void {
+    if (!this.instances.has(id)) return
+    this.blockedTracker.clearForMousePress(id)
+  }
+
   // ── PLAN-047 M1b-1 / T0590: `blocked` (electron/terminal-blocked-state.ts) ──
 
   /**
