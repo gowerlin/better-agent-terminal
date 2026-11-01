@@ -1,8 +1,8 @@
 ---
 schema_kind: tower-state
 summary_version: 1
-updated_at: "2026-11-01T02:09:43+0800"
-session: "2026-11-01 第九十九 session 已收工（CT v5.14.4）：GitHub #22 留言、T0715 / T0716（--ask --no-pty-write 契約，D190）、v0.7.2-pre.4"
+updated_at: "2026-11-01T08:10:01+0800"
+session: "2026-11-01 第一百 session 進行中（CT v5.15.0，Fast Path）；前次第九十九 session 已收工：T0715 / T0716、v0.7.2-pre.4"
 next_ids:
   workorder: "T0717"
   decision: "D191"
@@ -16,7 +16,7 @@ todo:
 ---
 # Tower State — better-agent-terminal
 
-> 最後更新:2026-11-01 02:09 (UTC+8) — **第九十九 session 收工**（CT v5.14.4）：BMad-Guide HANDOVER → T0715 / T0716（`--ask --no-pty-write` 正式契約，D190）→ **`v0.7.2-pre.4`**；GitHub #22 留言。前次：第九十八 session 收工（2026-10-30 17:17）。
+> 最後更新:2026-11-01 08:10 (UTC+8) — **第一百 session 啟動**（CT v5.15.0，Fast Path；`--set-role tower --mode on` exit 0；安裝版 helper `v0.7.2-pre.4`；`main` = `origin/main` @ `b403d0f5`）。前次：**第九十九 session 收工**（CT v5.14.4）：BMad-Guide HANDOVER → T0715 / T0716（`--ask --no-pty-write` 正式契約，D190）→ **`v0.7.2-pre.4`**；GitHub #22 留言。前次：第九十八 session 收工（2026-10-30 17:17）。
 >
 > **下次起手**:BUG-175（外部測試者A ＋ GitHub #22 回報者）/ BUG-169 / BUG-174（#20）待驗收；使用者日常使用驗收 BUG-171；BUG-156 / 159 仍待特定環境；熱區無進行中工單；預覽版線 `0.7.2-pre.N`（已到 pre.4，最多 pre.9）。
 ---
