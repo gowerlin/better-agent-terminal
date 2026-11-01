@@ -13,7 +13,7 @@ created_at: "2026-11-01T17:20:13+0800"
 started_at: ""
 updated_at: "2026-11-01T17:20:13+0800"
 completed_at: ""
-depends_on: [T0737]
+depends_on: [T0737, T0741]
 related:
   - "`_ct-workorders/_bug-tracker.md`〈✅ 已修復〉；各 BUG 單的修正工單與回報區"
   - "`e2e/`（72 支 spec，含 t0523 / t0524 / t0530 / t0531 / t0532 / t0539 / t0578 / t0580 等）、`e2e/fixtures/electron-isolation.ts`"
@@ -34,7 +34,7 @@ memory_overrides:
   - "🔴 範圍：① 對照表；② 在 HEAD 以隔離實例重跑對照到的既有 e2e（先 `npx vite build`），記錄每支結果與耗時；③ 對 B 類中最有價值、各自 ≤ 1 個情境的，最多新增 3 支 spec（其餘列為後續候選，由塔台開單）；④ 環境探測只做唯讀查詢：`docker info` 能否連上 engine、`wsl -l -v`、是否以系統管理員執行、內嵌 / 系統 codex 版本 —— 只記結果。⑤ BUG-116 / 118（mac / Linux 打包）可用 `gh run view <run> -R gowerlin/better-agent-terminal --log` 唯讀查 `v0.7.2-pre.8` 發版 run `41277080514` 的 `verify-packaged-native.js` 輸出當證據。"
   - "🔴 不得做（會動到使用者環境或不可逆）：不建立 / 刪除 / 停止任何 Docker 容器或映像、不在使用者的 WSL 安裝或移除 server bundle、不連 SSH 遠端、不改系統時間（BUG-171 只驗『結束隔離實例自己的 Terminal Server 程序 → recovery 依序執行、新 shell 不被套 exit 1』這條，程序以隔離 userData 的 pid 檔辨識，🔴 絕不碰使用者 BAT 的 Terminal Server）、不執行安裝檔。會寫系統剪貼簿的 spec（例如 t0524 貼圖）：先備份剪貼簿文字、跑完還原；無法安全還原就不跑並註明。Docker / WSL / 遠端相關 spec 一律不跑，歸 C 並寫明需要什麼，由塔台與使用者決定。"
   - "🔴 不改產品程式碼（`src/` / `electron/` / `scripts/` 都不動）；不改 BUG 單狀態與 `_bug-tracker.md`（由塔台依本單建議處理）；重跑發現 FAIL → 記在〈發現的問題〉附重現步驟、log 位置，判斷是產品回歸還是測試過時，不在本單修。"
-  - "🔴 隔離：一律用 `e2e/fixtures/electron-isolation.ts` 的隔離實例，不以預設實例啟動 source build、不碰使用者正在用的 BAT 與 userData；T0737 完成後才派本單（避免同時 build）。暫存目錄跑完要清掉；清不掉就把路徑寫進回報區。需要 LLM 的 spec 只能打本機假模型（`e2e/fixtures/fake-anthropic-api.ts` 或 spec 自帶的假 API），不得用真實登入；回報對外請求數。"
+  - "🔴 隔離：一律用 `e2e/fixtures/electron-isolation.ts` 的隔離實例，不以預設實例啟動 source build、不碰使用者正在用的 BAT 與 userData；T0737 與 T0741 都完成後才派本單（避免同時 build）。暫存目錄跑完要清掉；清不掉就把路徑寫進回報區。需要 LLM 的 spec 只能打本機假模型（`e2e/fixtures/fake-anthropic-api.ts` 或 spec 自帶的假 API），不得用真實登入；回報對外請求數。"
   - "🔴 驗證：新增 spec（若有）連跑 2 次綠；`npm run typecheck` = 0、`npm run typecheck:electron` = 0。不發版、不改 CHANGELOG、不 push。公開 repo：依 `_local-rules.md`「公開 repo 去識別化（D176）」，外部測試者一律用代稱。"
   - "🔴 yolo：不得問使用者；判讀問題依 ct-exec § Questions For Tower 問塔台（每輪最多 3 題）。Git：只用 `git commit --only` commit 自己改的檔案。禁止 `git stash` / `git reset` / `git checkout -- <path>` / `git restore`（L138）。"
 ---
