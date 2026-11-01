@@ -4,14 +4,14 @@ schema_kind: workorder
 id: T0753
 title: "BUG-186 修正：遠端工具偵測 nvm 的 Node.js「無回應」與 `~/.local/bin` 工具「伺服器：不可見」；WSL / Docker / SSH 三種遠端都檢查"
 type: implementation
-status: FIXED
+status: DONE
 repo: better-agent-terminal
 project: maintenance
 priority: P2
 sizing: S
 created_at: "2026-11-01T22:33:34+0800"
 started_at: "2026-11-01T22:38:29+0800"
-updated_at: "2026-11-01T22:52:04+0800"
+updated_at: "2026-11-01T22:54:27+0800"
 completed_at: "2026-11-01T22:52:04+0800"
 session_ids:
   - "f9aec736-0fbd-409d-9e6f-0683e87b752d"
@@ -229,3 +229,9 @@ Docker 實測細節：容器 `--rm --network none`，以唯讀 bind mount 帶入
 ### Renew 歷程
 
 - 無。
+
+### 塔台收尾補記（2026-11-01 22:54，第一百零四 session）
+
+- 工單 `FIXED` → `DONE`（`FIXED` 是 BUG 狀態）；BUG-186 維持 FIXED，待 `0.7.3-pre.2` 實機驗收（使用者 WSL server 升級後「重新檢查」）。
+- 〈發現的問題〉1（選項 B：bat-server 啟動取登入 shell PATH）列為候選，待使用者決定；2–4 情境罕見，暫不開單。
+- 塔台複跑 `parse` / `probe-script` / `remote-tools-panel` 測試：178 passed / 6 skipped。

@@ -3,7 +3,7 @@ schema_version: 1
 schema_kind: index
 id: _bug-tracker
 index_kind: bugs
-generated_at: "2026-11-01T22:34:40+0800"
+generated_at: "2026-11-01T22:54:27+0800"
 generator: control-tower-sync
 source_globs:
   - _ct-workorders/BUG-*.md
@@ -13,8 +13,8 @@ exclude_globs:
 total: 50
 breakdown:
   OPEN: 0
-  FIXING: 1
-  FIXED: 6
+  FIXING: 0
+  FIXED: 7
   VERIFY: 0
   CLOSED: 43
   WONTFIX: 0
@@ -23,10 +23,10 @@ breakdown:
 # Bug Tracker
 
 > ⚠️ 此文件由 `*sync` 自動生成，請勿手動編輯。
-> 最後同步：2026-11-01 22:34 — 第一百零四 session：BUG-185 FIXED（T0751 `f9072e16`）；開 BUG-186 → FIXING（T0753）；BUG-183 / 184 FIXED（T0750）；BUG-182 / 175 CLOSED
+> 最後同步：2026-11-01 22:54 — 第一百零四 session：BUG-186 FIXED（T0753 `0f021e67`）；BUG-185 FIXED（T0751 `f9072e16`）；開 BUG-186 → FIXING（T0753）；BUG-183 / 184 FIXED（T0750）；BUG-182 / 175 CLOSED
 
 ## 統計
-- 🔴 Open: 0 | ⏳ Fixing: 1 | ✅ Fixed: 6 | 🧪 Verify: 0 | 🚫 Closed: 43 | ⛔ Won't Fix: 0 | **Total: 50**
+- 🔴 Open: 0 | ⏳ Fixing: 0 | ✅ Fixed: 7 | 🧪 Verify: 0 | 🚫 Closed: 43 | ⛔ Won't Fix: 0 | **Total: 50**
 
 ## 🔴 Open / 處理中
 
@@ -37,12 +37,12 @@ breakdown:
 
 | ID | 標題 | 嚴重度 | 修復時間 | 連結 |
 |----|------|--------|---------|------|
-| BUG-186 | 遠端工具偵測：nvm 安裝的 Node.js 顯示「無回應」、`~/.local/bin` 的 uv 顯示「伺服器：不可見」（WSL；Docker / SSH 一併檢查） | 🟡 Medium | 2026-11-01（T0753） | [BUG-186](BUG-186-remote-tools-nvm-node-no-version-uv-hidden.md) |
 
 ## ✅ 已修復
 
 | ID | 標題 | 嚴重度 | 修復時間 | 連結 |
 |----|------|--------|---------|------|
+| BUG-186 | 遠端工具偵測：nvm 的 Node.js「無回應」（實為缺 `libatomic.so.1` 無法執行）、`~/.local/bin` 工具「伺服器：不可見」；T0753 `0f021e67` 說明無法執行的原因、改標「伺服器程序：不可見（終端分頁找得到）」、git / gh 判斷比照 resolver | 🟡 Medium | 2026-11-01 | [BUG-186](BUG-186-remote-tools-nvm-node-no-version-uv-hidden.md) |
 | BUG-185 | e2e `t0512-profile-panel-layout` 第 2 項失敗：`WIZARD_STUBS` 缺 `wsl-systemd:snapshot-unit`；T0751 `f9072e16` 補 stub（另補 4 個 T0554 升級 / rollback channel），只影響測試 | 🟢 Low | 2026-11-01 | [BUG-185](BUG-185-t0512-wizard-e2e-missing-snapshot-unit-stub.md) |
 | BUG-184 | 系統匣圖示選單殘留已刪除 profile 的視窗，同名項目出現兩個（成因是「配置」✕ 刪 profile 不關視窗）；T0750 `8a432d40` 刪 profile 時關掉它的視窗，待實機驗收 | 🟢 Low | 2026-11-01 | [BUG-184](BUG-184-tray-menu-lists-window-removed-from-profile.md) |
 | BUG-183 | 關掉（最小化到匣）的 profile 視窗，在「配置」按「開啟」叫不回來，只跳「此配置已在另一個視窗中開啟」；T0750 `8a432d40` 隱藏的視窗 show + focus、叫回時不通知（本機 profile 同樣受影響），待實機驗收 | 🟡 Medium | 2026-11-01 | [BUG-183](BUG-183-hidden-profile-window-not-shown-on-open.md) |
