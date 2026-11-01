@@ -27,6 +27,7 @@
 - **面板**（`ClaudeAgentPanel.tsx`）：Task\* 卡片標題「工作清單」＋本次動作摘要（新增：subject / `#id → 狀態` / 已同步清單）；每段連續的 Task\* 呼叫只在最後一張卡片畫累積清單（沿用 `TodoWrite` 的 `claude-todo-*` 樣式，`activeForm` 放 tooltip）與「已完成 n/m」。重播只看主時間軸 `messages`；被封存（`ARCHIVE_TRIGGER`）移出的訊息先重播進 `taskListBase`，所以封存不會丟項目；session 重開 / 歷史載入 / resume 切換時與封存一起重設。從封存載回的舊卡片、sub-agent 視窗內的 Task\* 卡片沒有快照，只顯示摘要。`TodoWrite` 的顯示不變。
 - **不做**：不加 pinned「工作清單」區塊（與 `TodoWrite` 一致，最新清單就在最後一張 Task\* 卡片；長 session 捲走後要往下看）；sub-agent 自己呼叫的 Task\* 不併入主清單（它們在 sub-agent bucket，不在主時間軸）。
 - 驗證：`src/lib/__tests__/claude-task-list.test.ts`（重播）、`electron/__tests__/claude-todo-tools-env.test.ts`（env 注入與尊重既有值）、`src/__tests__/claude-panel-task-list.test.tsx`（歷史 / 即時事件畫清單、不進 active task bar、`TodoWrite` 不變）、`electron/__tests__/claude-sdk03-task-tools.test.ts`（Task\* 不進 `activeTasks`）。CLI 改結果文字格式時同步改 `claude-task-list.ts` 與測試。
+- e2e（T0727，不耗 token）：`e2e/v072-pre6-claude-panel.spec.ts` 以本機假 Anthropic Messages API（`e2e/fixtures/fake-anthropic-api.ts`，`ANTHROPIC_BASE_URL`）驅動真的內嵌 CLI，涵蓋 Claude 5 / 4.x 首個請求提供 Task\*（CLI 2.1.316 放在 ToolSearch 的 deferred 清單，不在 `tools`）、工作清單逐回合變化、重開後 resume 重建、串流、權限詢問、sub-agent、`claude-code-v2` 分頁遷移、claude-cli 分頁 env；隔離方式（暫存 USERPROFILE、工作區放 `%ProgramData%`、阻擋並記錄對外連線的 proxy）見 spec 檔頭。升 SDK / CLI 時跑一次（需先 `npx vite build`）。
 
 # Claude Runtime Selection (PLAN-027, v2.1.49+)
 
