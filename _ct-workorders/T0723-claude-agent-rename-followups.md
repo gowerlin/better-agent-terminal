@@ -4,14 +4,14 @@ schema_kind: workorder
 id: T0723
 title: "T0722 後續：CHANGELOG `[Unreleased]` 記錄「Claude Agent」改名；重拍網站上仍顯示「Claude Agent V1 / V2」的截圖"
 type: implementation
-status: PENDING
+status: IN_PROGRESS
 repo: better-agent-terminal
 project: maintenance
 priority: P3
 sizing: S
 created_at: "2026-11-01T10:00:48+0800"
-started_at: ""
-updated_at: "2026-11-01T10:00:48+0800"
+started_at: "2026-11-01T10:01:51+0800"
+updated_at: "2026-11-01T10:01:51+0800"
 completed_at: ""
 depends_on: [T0722]
 related:
