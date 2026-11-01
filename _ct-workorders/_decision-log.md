@@ -1465,6 +1465,16 @@
 - **切分**：W2a 設計語言 + 元件 + 首頁（T0630）→ 預覽通過後 W2b（`/control-tower`、功能、FAQ、回報頁）→ W2c 遠端開發；W3 / W4 不變。
 - **相關**：PLAN-049 / D159 / D160 / T0624 / T0630
 
+### D196 2026-11-01 — 安裝檔大小：Windows exe 關閉 NSIS 差分打包（T0726）＋放寬 D146 上限為每平台 ≤ 384 MiB、可攜 zip ≤ 512 MiB
+
+- **背景**：T0720 研究（`ca68ec81`）：pre.5 增量 23–31 MiB 幾乎全來自上游內嵌 binary（claude CLI 2.1.306 → 2.1.316 佔 64–69%、codex 0.163 → 0.166 佔 30–38%），執行期必需、不能拿掉；SDK 平台子套件、重複 claude、其他平台子套件都不在安裝檔。electron-builder 預設 `nsis.differentialPackage` 讓 NSIS 內層 7z 固定 1 MiB 字典、非 solid（為 electron-updater 差分更新），BAT 不用 electron-updater；實測重壓可讓 exe 333 → ≈ 293 MiB。AppImage / dmg / zip 沒有壓縮空間；唯一可拿掉的 codex code mode / voice 元件會砍功能、行為未驗證。
+- **決定**（使用者 2026-11-01 選「A + C」）：
+  - **A**：`build.nsis.differentialPackage: false`＋守門斷言＋docs → T0726。
+  - **C**：**D146 的大小上限由本決策取代**：每平台安裝檔 ≤ **384 MiB**、可攜 zip ≤ **512 MiB**，仍以 CI `Report artifact sizes` 量測（無 CI 門檻、只供發版時對照）。D146 其餘內容（不內建 baseline、壓縮設定、codex 繼續內建）不變。
+  - 不做：B（排除 codex 選用元件）、D（claude / codex 隨需下載）。
+  - 後續：升內嵌 CLI 的工單回報附 npm `dist.unpackedSize` 前後差（T0720 建議 4）。
+- **相關**：T0720 / T0726 / D146 / D094 / T0546 / T0547 / T0548 / T0717
+
 ### D195 2026-11-01 — Claude 面板開啟 todo / task 工具並做累積式工作清單 UI（T0725）；T0721 的 R1 / R3 併成 T0724（塔台依研究建議）
 
 - **背景**：T0721 研究（`8b2037b5`）：CLI 2.1.316 預設工具是 Task*，但 Claude 5 模型需 `CLAUDE_CODE_ENABLE_TODO_TOOLS=1` 或點名工具才拿得到；BAT 內建 Claude 5 模型因此沒有工作清單，4.x 只畫成一般卡片。R1（單行 `Press enter to continue`）會留在對話紀錄，觸發 `claude-stale` 會誤送 Enter；R3 型別化試驗 typecheck 0 錯、行為不變。
