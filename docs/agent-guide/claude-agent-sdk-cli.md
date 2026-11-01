@@ -45,6 +45,76 @@
 - **已知限制**：`installed_plugins.json` 的位置沿用 T0710 規則（`<config>/plugins/`）；CT `data-layer-architecture.md` 記載設了 `CLAUDE_CODE_PLUGIN_CACHE_DIR` 時整個 plugins 目錄（含 `installed_plugins.json`）在該處，BAT 目前只把 cache 根目錄改到那裡（`findClaudeCtPlugins`），面板的 plugins 清單也一樣。
 - 驗證：`electron/__tests__/claude-config-dir.test.ts`（設 / 未設 / 空字串 / 全空白；兩種 runtime 的 spawn env；歷史與清單讀 `CLAUDE_CONFIG_DIR`；scan-skills / star commands / statusline extras；ct-config 預設值層與 global 層；source guard）；e2e `e2e/v072-pre6-claude-panel.spec.ts` 第二個 test（⑪ session 檔寫在 `CLAUDE_CONFIG_DIR`、清單找得到、plugins 從 `<CLAUDE_CONFIG_DIR>/plugins` 載入且暫存 home 的誘餌不載；⑫ 重開後 resume 歷史重建）。
 
+## Claude 面板額外的模型請求（T0733 / T0734，D199）
+
+Claude 面板在 `queryOptions`（`electron/claude-agent-manager.ts`）開了兩個 SDK 選項，除了你送出的訊息之外，還會多送幾個模型請求。兩者都計入 token 用量（訂閱帳號計入用量限制）。D199：兩項都維持開啟，這裡記下用途、成本與關閉方式。
+
+數字來源標記：**實測** = SDK 0.3.316 驅動內嵌 CLI 2.1.316 打本機假 Anthropic API（不連 api.anthropic.com、不耗 token；T0733 / T0734 原型）；**原始碼** = 讀 CLI 2.1.316 二進位內的 JS；**估算** = 依實測大小推算真實帳號，不是帳單數字。
+
+### 1. 下一步建議（prompt suggestion，`promptSuggestions: true`）
+
+- **用途**：猜你下一句可能要打什麼，顯示成輸入框上方的「建議」晶片；輸入框是空的時候按 Tab 會填入（`claude:prompt-suggestion` IPC → `ClaudeAgentPanel.tsx`）。
+- **什麼時候送**（實測 + 原始碼）：每個 turn 的 `result` 之後送 1 個，一個 turn 內有多個工具回合也只送 1 個。以下情況不送：
+  - 對話裡的 assistant 回覆少於 2 則（所以第 1 個 turn 通常不送）；
+  - plan mode；
+  - 上一次回應是 API 錯誤；
+  - 有待回答的權限詢問；
+  - 帳號用量接近或到達限制；
+  - cache 沒熱（上一次回應的未快取 input + output，或再加上 cache write，超過 10,000 tokens）。
+- **請求內容**（實測）：把主對話 fork 一次，`model`、system、tools、`thinking`、`effort` 都和主請求相同，最後多一則約 1.4 KB 的 `[SUGGESTION MODE…]` 提示。
+- **成本**（估算）：
+  - input 約等於整段對話 context（真實 session 估 30k–150k+ tokens），因為只在 cache 熱的時候送，大部分是 cache read（約 0.1 倍價），換算約 3k–15k 個一般 input token；
+  - 未快取部分約 300–400 tokens；
+  - output 是 2–12 個字，另加 adaptive thinking，thinking 數量量不到；
+  - 大約讓每個 turn 的 cache read 多一倍。
+- **面板比 Claude CLI 終端少的節流**（原始碼）：終端版另有 GrowthBook 旗標（服務端逐帳號開放）、連續不採用時降頻（每 10 個 turn 才產生 1 次）、終端沒有焦點時不產生。面板經 SDK 選項直接開啟，這三個都不適用，所以面板分頁不在畫面上時也照樣產生。
+- **使用者自己關閉**（三種都實測為 0 個額外請求，不必改 BAT）：
+  - `~/.claude/settings.json` 寫 `"promptSuggestionEnabled": false`（面板的 `settingSources` 含 `user`，所以會讀到）；
+  - 或在啟動 BAT 的環境設 `CLAUDE_CODE_ENABLE_PROMPT_SUGGESTION=false`（env 優先於 setting）；
+  - 開發者：把 `queryOptions.promptSuggestions` 改成 `false`。
+  - 關掉之後面板就沒有建議晶片，Tab 也不會填入；其他功能不受影響。
+
+### 2. 子代理進度摘要（`agentProgressSummaries: true`）
+
+- **用途**：子代理（`Agent` 工具）執行期間，大約每 30 秒產生一句 3–5 個字的英文進行式描述，例如 `Reading runAgent.ts`。SDK 以 `task_progress` 訊息送出，`summary` 欄位放這句話，`description` 欄位也放同一句。
+- **BAT 怎麼顯示**（原始碼）：
+  - `processMessage`（`task_progress` 分支）寫進 Agent 工具卡片的 `description`；
+  - 會加上最後一個工具名，例如 `Reading notes.txt [Glob]`；
+  - 經 `claude:tool-result` IPC 顯示在 `ClaudeAgentPanel.tsx` 時間軸 Agent 卡片的進度列（`.claude-task-progress-text`），以及上方執行中工作列（`.claude-active-task-progress`）。
+  - 子代理下一次呼叫工具時，這一行會被 CLI 自己的工具標籤蓋掉（例如 `Glob: step1*.txt` 或 `Finding step1*.txt [Glob]`），所以摘要只在兩次工具呼叫之間看得到。
+- **頻率**（實測 + 原始碼）：
+  - 子代理啟動 30 秒後第一次，之後在上一次摘要完成 30 秒後再一次；
+  - 子代理的對話少於 3 則、或和上次相比沒有變化（例如卡在一個很長的指令上）就跳過；
+  - 前景與背景子代理都會產生；同時跑多個子代理時各自計時。
+  - 實測：一個跑 72 秒的子代理，在第 30.6 秒與第 60.6 秒各送 1 次（前景、背景結果相同）。
+- **請求內容**（實測）：
+  - 把子代理自己的對話 fork 一次：`model`、system、tools（12 個）、`max_tokens` 128000、`thinking`（adaptive，display omitted）、`effort` 都和子代理的請求相同，只在最後一則 user 訊息加上約 0.6 KB 的「Describe your most recent action in 3-5 words…」提示（第二次起附上一句摘要，要求說新的）；
+  - CLI 以拒絕所有工具、只跑 1 回合的方式送出；
+  - `cache_control` 標在倒數第二則訊息上：讀子代理已寫入的快取，不寫入新快取（原始碼 `skipCacheWrite: true`）。
+  - 最小環境（沒有 CLAUDE.md、plugins、MCP）下每次約 38 KB（約 9.5k tokens，以 4 B/token 估）。
+- **成本**（估算）：每次摘要約等於「子代理再多跑一步」的 input：
+  - 大部分是 cache read（子代理目前的整段 context，真實工作常見 20k–100k tokens，換算約 2k–10k 個一般 input token）；
+  - 未快取部分 = 提示約 150 tokens + 子代理最近一次工具結果；
+  - output 是幾個字，另加 adaptive thinking（沿用子代理的 `effort`），數量量不到；
+  - 模型 = 子代理的模型（子代理沿用主模型時就是 Opus 等級）。
+  - 例：一個連續工作 5 分鐘的子代理約產生 9 次摘要。
+- **怎麼關閉**（實測）：**只有 SDK 選項有效**。
+  - `queryOptions.agentProgressSummaries` 改成 `false`（或不傳）→ 0 次。
+  - 使用者端目前沒有自己關的辦法：env `CLAUDE_CODE_AGENT_PROGRESS_SUMMARIES=0` 無效，settings 沒有對應的鍵（試過 `agentProgressSummaries` / `agentProgressSummariesEnabled`，都無效）。
+  - 反過來，選項為 `false` 時，BAT 主行程環境有 `CLAUDE_CODE_AGENT_PROGRESS_SUMMARIES=1` 仍會開啟。
+  - 關掉之後少的只有這一句摘要：卡片進度列改成只顯示 CLI 自己的工具標籤；`task_progress` 照樣送（每次子代理呼叫工具時），「可能已停滯」判斷（60 秒沒有進度）、停止按鈕、子代理紀錄都不受影響。
+- **Claude CLI 終端分頁**（原始碼，未以真實帳號實測）：
+  - BAT 不額外開啟，行為和一般 `claude` 相同；
+  - 互動式終端的前景子代理不產生摘要；
+  - 背景子代理預設會產生，除非是非互動模式，或 fork-subagent 功能被關閉；CLI 2.1.316 的 `Agent` 預設背景執行，所以終端裡多數子代理也有摘要；
+  - 終端版另受服務端旗標控制：可能改用小模型、不帶快取的精簡版請求，也可能在子代理的快取可能已冷時暫緩。
+
+### 附註
+
+- 查模型清單不再送模型請求：BUG-177 修正後，`getSupportedModels` 的 probe 不跑 turn（T0729，見本檔開頭「`idleSdkPrompt`」）。
+- 第一個 turn 另有一個 0 tools 的會話標題請求（每個 session 一次）：只在沒設 `CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC` 時出現，和上面兩項無關（T0733 實測）。
+- 升 SDK / CLI 時，選項名稱、頻率與提示字串可能改變；本節數字以 SDK 0.3.316 / CLI 2.1.316 為準。
+
 # Claude Runtime Selection (PLAN-027, v2.1.49+)
 
 BAT 預設使用**內嵌版** claude CLI（隨 BAT 打包，版本鎖在 `@anthropic-ai/claude-code ^2.1.316`）。若使用者想改用系統上自己安裝的 claude CLI（例如剛 release 的新版），可在 `Settings → Advanced → Claude Runtime` 切換。
