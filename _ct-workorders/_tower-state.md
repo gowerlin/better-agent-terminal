@@ -1,8 +1,8 @@
 ---
 schema_kind: tower-state
 summary_version: 1
-updated_at: "2026-11-01T09:12:39+0800"
-session: "2026-11-01 第一百 session 進行中（CT v5.15.0）：T0717 / T0718 DONE；0.7.2-pre.5 CI 打包失敗（BUG-176），T0719 修正中，修好後重發"
+updated_at: "2026-11-01T09:23:24+0800"
+session: "2026-11-01 第一百 session 進行中（CT v5.15.0）：T0717 / T0718 / T0719 DONE；BUG-176 FIXED；0.7.2-pre.5 重發中"
 next_ids:
   workorder: "T0720"
   decision: "D194"
@@ -273,6 +273,7 @@ todo:
 - 08:35 T0717 DONE（`101adaaf`；unit 6182 / legacy 472 / typecheck 0 / 0 / build / e2e t0592 / t0621；塔台抽驗內嵌 claude 2.1.316、codex 0.166.0）→ `--close-worker` exit 0 → T0718 派工（`started: 2026-11-01T00:35:17Z`）
 - 09:01 T0718 DONE（`61dff300` / `45113164` / `54f52048`；無提問；unit 6203 / 347 files / legacy 472 / build / asar-runtime-deps 實跑 / 隔離實例遷移實測；塔台複驗 SDK 0.3.316、typecheck 0 / 0、殘留引用只剩遷移碼與註解）→ D123 Phase 2 完成 → `--close-worker` exit 0
 - 09:03 使用者「現在發 0.7.2-pre.5」→ 塔台聯合驗證（unit 6203 / 347 files、legacy 472、build）綠、去識別化 / 金鑰掃描 0 → push `a3a74762` → `pre-release.yml` run 41259467662 → **mac 打包驗證失敗**（ajv / ajv-formats 不在安裝檔），其他 build 取消、release skipped、未建 tag → BUG-176 / D193 / T0719 派工；發版文件（CHANGELOG / README / release-note）已備妥未 commit，更版重點草稿在 scratchpad
+- 09:23 T0719 DONE（`59ef7f37`；ajv / ajv-formats 加進 `dependencies`、production 相依樹守門、本機 Windows 打包驗證修正前 1 → 後 0；unit 6211 / legacy 472；塔台複驗守門 31 / 31、lock diff 只有 2 行）→ BUG-176 FIXED → `--close-worker` exit 0 → 重發 `0.7.2-pre.5`
 
 ### 歷史 Session（摘要）
 

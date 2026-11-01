@@ -23,10 +23,10 @@ breakdown:
 # Bug Tracker
 
 > ⚠️ 此文件由 `*sync` 自動生成，請勿手動編輯。
-> 最後同步：2026-11-01 09:12 (UTC+8) — BUG-176 FIXING（T0719，SDK 0.3 後 ajv 不在安裝檔，擋 0.7.2-pre.5）；熱區 Fixing 1 / Fixed 28 / Closed 11
+> 最後同步：2026-11-01 09:23 (UTC+8) — BUG-176 FIXED（T0719 `59ef7f37`）；熱區 Fixed 29 / Closed 11
 
 ## 統計
-- 🔴 Open: 0 | ⏳ Fixing: 1 | ✅ Fixed: 28 | 🧪 Verify: 0 | 🚫 Closed: 11 | ⛔ Won't Fix: 0 | **Total: 40**
+- 🔴 Open: 0 | ⏳ Fixing: 0 | ✅ Fixed: 29 | 🧪 Verify: 0 | 🚫 Closed: 11 | ⛔ Won't Fix: 0 | **Total: 40**
 
 ## 🔴 Open / 處理中
 
@@ -37,12 +37,12 @@ breakdown:
 
 | ID | 標題 | 嚴重度 | 修復時間 | 連結 |
 |----|------|--------|---------|------|
-| BUG-176 | Agent SDK 0.3 升版後 ajv / ajv-formats 掉出 production 相依樹，安裝檔不含它們，mac 打包驗證失敗擋下 0.7.2-pre.5（T0719） | 🔴 High | 2026-11-01 | [BUG-176](BUG-176-sdk03-ajv-dropped-from-packaged-app.md) |
 
 ## ✅ 已修復
 
 | ID | 標題 | 嚴重度 | 修復時間 | 連結 |
 |----|------|--------|---------|------|
+| BUG-176 | Agent SDK 0.3 升版後 ajv / ajv-formats 掉出 production 相依樹，安裝檔不含它們，mac 打包驗證失敗擋下 0.7.2-pre.5（T0719 `59ef7f37` 加進 dependencies + production 相依樹守門；待重發 CI 確認 mac / Linux） | 🔴 High | 2026-11-01 | [BUG-176](BUG-176-sdk03-ajv-dropped-from-packaged-app.md) |
 | BUG-175 | 縮圖預覽在輸出沒有換行時不更新、露出 `>0q>4m` 殘骸（T0714 `afe57761` 依游標換列分行 + 完整 CSI；`v0.7.2-pre.3`；待外部測試者A 與 GitHub #22 回報者 macOS 實機驗收） | 🟡 medium | 2026-10-30 | [BUG-175](BUG-175-thumbnail-preview-stuck-without-newline.md) |
 | BUG-174 | 終端 `file:///` 連結：全形字讓底線與可點範圍變短、跨行抓不到、OSC 8 點了沒反應（GitHub #20；T0713 `ff772d40`） | 🟡 medium | 2026-10-30 | [BUG-174](BUG-174-terminal-file-link-cjk-range-wrap-osc8.md) |
 | BUG-171 | 「終端重置」後多個分頁 `[Process exited with code 1]`：NTP 時鐘跳變讓 heartbeat 誤判、recovery 沒關舊 server；T0704 `68ab2a42` + T0705 `d7ffa080`，待下一個預覽版實機驗收 | 🔴 high | 2026-10-25 | [BUG-171](BUG-171-idle-terminals-exit-1-after-terminal-reset.md) |
