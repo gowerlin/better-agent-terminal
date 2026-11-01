@@ -8,6 +8,7 @@ status: IN_PROGRESS
 started_at: "2026-11-02T03:49:49+08:00"
 updated_at: "2026-11-02T03:49:49+08:00"
 session_ids: []
+tower_question: open
 repo: better-agent-terminal
 project: maintenance
 priority: P3
@@ -81,6 +82,15 @@ codex 分頁的「恢復」按鈕、指令組裝、測試、文件。
 ## 回報區
 
 > 以下由 sub-session 填寫，請勿在指揮塔 session 中編輯（唯一例外：`### 待塔台決策` 的 `塔台答覆 Q-n` 行由塔台新增）
+
+### 待塔台決策
+
+#### Q-1：codex 恢復需要改兩個不在 `affects_files` 的檔，是否擴大範圍？
+- 提問時間：2026-11-02T03:51:49+0800
+- 選項：[A] 擴大：加入 `src/stores/interrupted-agents-store.ts`（`isResumableAgent` 擋掉 codex、`resumeInterruptedAgent` 回 `NOT_CLAUDE`、使用者分頁 / main 的分流都在這裡）與新檔 `src/lib/codex-resume-args.ts`（`codex resume` 參數判斷，main 與 renderer 共用，比照 T0766 的 `src/lib/claude-resume-args.ts`）/ [B] 不擴大：只在 `InterruptedAgentsDialog.tsx` 另寫 codex 分流、判斷內聯在 main 與 WorkspaceView 各一份 / [C] 其他：________
+- Worker 建議：[A]。B1 的恢復分流唯一實作就在 store，不改它 codex 列永遠回 `NOT_CLAUDE`；[B] 會在 dialog 繞過 store、判斷寫兩份，違反「唯一實作」慣例。兩檔都不在 Lane A 的重疊清單，目前沒有別人的未提交修改。
+- 影響範圍：上述兩檔＋其單元測試；其餘照 `affects_files`
+- 阻塞：否（先做 main 端 `electron/terminal-command-handlers.ts` / `electron/interrupted-agents.ts` 與查證；改 renderer 前等答覆）
 
 ### 完成狀態
 
