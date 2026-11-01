@@ -3,7 +3,7 @@ schema_version: 1
 schema_kind: index
 id: _bug-tracker
 index_kind: bugs
-generated_at: "2026-11-02T05:22:28+0800"
+generated_at: "2026-11-02T05:23:23+0800"
 generator: control-tower-sync
 source_globs:
   - _ct-workorders/BUG-*.md
@@ -14,19 +14,19 @@ total: 56
 breakdown:
   OPEN: 0
   FIXING: 0
-  FIXED: 7
+  FIXED: 5
   VERIFY: 0
-  CLOSED: 49
+  CLOSED: 51
   WONTFIX: 0
 ---
 
 # Bug Tracker
 
 > ⚠️ 此文件由 `*sync` 自動生成，請勿手動編輯。
-> 最後同步：2026-11-02 05:22 — BUG-188 CLOSED（交付版 `v0.7.3-pre.4` 安裝版自動化實測 T0770，D215）；2026-11-02 04:59 — 第一百零四 session 塔台重啟（三）`*sync`：區段與 56 張 BUG 檔一致，只修正 frontmatter 統計（51 / 7 / 44 → 56 / 8 / 48）；2026-11-02 04:28 — BUG-192 FIXED（T0769 `9ab26222`）；BUG-192 → FIXING（T0769，D214）；BUG-191 FIXED（T0760 `eb5c0589`）；開 BUG-192（OPEN，T0768 研究）；BUG-190 FIXED（T0759 `b8a3b7f7`）；BUG-188 FIXED（T0757 `de8a4fd4`）；BUG-189 FIXED（T0758 `ddfb4f38`）；開 BUG-188–191 → FIXING（T0757–T0760，D209 / D210）；BUG-183 / 184 CLOSED（使用者實機，`v0.7.3-pre.3`）；BUG-187 CLOSED（`v0.7.3-pre.3`，使用者裁示）；BUG-186 CLOSED（WSL 實機，server `0.7.3-pre.3`）；BUG-187 FIXED（T0756 `915f90ab`）；開 BUG-187 → FIXING（T0756）；BUG-185 CLOSED（`v0.7.3-pre.2`）；BUG-186 FIXED（T0753 `0f021e67`）；BUG-185 FIXED（T0751 `f9072e16`）；開 BUG-186 → FIXING（T0753）；BUG-183 / 184 FIXED（T0750）；BUG-182 / 175 CLOSED
+> 最後同步：2026-11-02 05:23 — BUG-190 / 192 CLOSED（交付版 `v0.7.3-pre.4` 安裝版自動化實測 T0771，含真實模型 Haiku 5.5，D215）；2026-11-02 05:22 — BUG-188 CLOSED（交付版 `v0.7.3-pre.4` 安裝版自動化實測 T0770，D215）；2026-11-02 04:59 — 第一百零四 session 塔台重啟（三）`*sync`：區段與 56 張 BUG 檔一致，只修正 frontmatter 統計（51 / 7 / 44 → 56 / 8 / 48）；2026-11-02 04:28 — BUG-192 FIXED（T0769 `9ab26222`）；BUG-192 → FIXING（T0769，D214）；BUG-191 FIXED（T0760 `eb5c0589`）；開 BUG-192（OPEN，T0768 研究）；BUG-190 FIXED（T0759 `b8a3b7f7`）；BUG-188 FIXED（T0757 `de8a4fd4`）；BUG-189 FIXED（T0758 `ddfb4f38`）；開 BUG-188–191 → FIXING（T0757–T0760，D209 / D210）；BUG-183 / 184 CLOSED（使用者實機，`v0.7.3-pre.3`）；BUG-187 CLOSED（`v0.7.3-pre.3`，使用者裁示）；BUG-186 CLOSED（WSL 實機，server `0.7.3-pre.3`）；BUG-187 FIXED（T0756 `915f90ab`）；開 BUG-187 → FIXING（T0756）；BUG-185 CLOSED（`v0.7.3-pre.2`）；BUG-186 FIXED（T0753 `0f021e67`）；BUG-185 FIXED（T0751 `f9072e16`）；開 BUG-186 → FIXING（T0753）；BUG-183 / 184 FIXED（T0750）；BUG-182 / 175 CLOSED
 
 ## 統計
-- 🔴 Open: 0 | ⏳ Fixing: 0 | ✅ Fixed: 7 | 🧪 Verify: 0 | 🚫 Closed: 49 | ⛔ Won't Fix: 0 | **Total: 56**
+- 🔴 Open: 0 | ⏳ Fixing: 0 | ✅ Fixed: 5 | 🧪 Verify: 0 | 🚫 Closed: 51 | ⛔ Won't Fix: 0 | **Total: 56**
 
 ## 🔴 Open / 處理中
 
@@ -43,9 +43,7 @@ breakdown:
 
 | ID | 標題 | 嚴重度 | 修復時間 | 連結 |
 |----|------|--------|---------|------|
-| BUG-192 | Claude 面板背景子代理執行中送新訊息會中止整個 query、子代理一起被結束；T0768 研究 → T0769 注入同一個 query＋排隊退路（D214） | 🟡 Medium；T0769 `9ab26222` 待實機驗收 | 2026-11-02 | [BUG-192](BUG-192-claude-panel-new-message-kills-background-agent.md) |
 | BUG-191 | 設 `CLAUDE_CODE_PLUGIN_CACHE_DIR` 時 BAT 找 plugins 的位置可能與 CLI 不同；T0760 先實測 | 🟢 Low；T0760 `eb5c0589` 待實機驗收 | 2026-11-02 | [BUG-191](BUG-191-claude-plugin-cache-dir-plugins-lookup.md) |
-| BUG-190 | Claude 面板背景 Agent 執行中不在 active task bar、結束沒有完成標示；T0759 | 🟢 Low；T0759 `b8a3b7f7` 待實機驗收 | 2026-11-02 | [BUG-190](BUG-190-background-agent-not-in-active-task-bar.md) |
 | BUG-189 | npm 安裝的 codex（`codex.cmd`）版本探測回 unknown：手動分頁不加 `--no-daemon`、派工 codex 無 OSC 狀態；T0758 | 🟢 Low；T0758 `ddfb4f38` 待實機驗收 | 2026-11-02 | [BUG-189](BUG-189-npm-codex-shim-no-version-probe.md) |
 | BUG-159 | codex 分頁在 BAT MCP 未注入、非系統管理員時接上 codex 共用 daemon，helper 讀到其他分頁的 `BAT_*`（T0651 `5b1be0f5`） | 🟢 low | 2026-10-18 | [BUG-159](BUG-159-codex-shared-daemon-inherits-other-tab-env.md) |
 | BUG-130 | 終端分頁貼圖（Windows 回歸未重現，已加固 + log；mac 送 Ctrl+V） | 🟡 medium | 2026-10-14 13:56 | [BUG-130](BUG-130-terminal-image-paste-regression.md) |
@@ -61,6 +59,8 @@ breakdown:
 
 | ID | 標題 | 嚴重度 | 關閉時間 | 連結 |
 |----|------|--------|---------|------|
+| BUG-192 | Claude 面板背景子代理執行中送新訊息會中止整個 query；T0769 `9ab26222` 注入同一個 query＋排隊退路（D214）；`v0.7.3-pre.4` 安裝版 T0771 實測（真實模型走注入） | 🟡 Medium | 2026-11-02 | [BUG-192](BUG-192-claude-panel-new-message-kills-background-agent.md) |
+| BUG-190 | Claude 面板背景子代理執行中不在 active task bar、結束沒標示；T0759 `b8a3b7f7`；`v0.7.3-pre.4` 安裝版 T0771 實測（含真實模型） | 🟢 Low | 2026-11-02 | [BUG-190](BUG-190-background-agent-not-in-active-task-bar.md) |
 | BUG-188 | 用滑鼠回答後 ⚠️ 不清除，與鍵盤回答不一致（D209）；T0757 `de8a4fd4` 滑鼠左鍵按下清 hook reason；`v0.7.3-pre.4` 安裝版 T0770 實測 | 🟡 Medium | 2026-11-02 | [BUG-188](BUG-188-mouse-answer-does-not-clear-waiting-badge.md) |
 | BUG-183 | 關掉（最小化到匣）的 profile 視窗，在「配置」按「開啟」叫不回來，只跳「此配置已在另一個視窗中開啟」；T0750 `8a432d40` 隱藏的視窗 show + focus、叫回時不通知（本機 profile 同樣受影響）；`v0.7.3-pre.3` 使用者實機驗收通過 | 🟡 Medium | 2026-11-02 | [BUG-183](BUG-183-hidden-profile-window-not-shown-on-open.md) |
 | BUG-184 | 系統匣圖示選單殘留已刪除 profile 的視窗，同名項目出現兩個（成因是「配置」✕ 刪 profile 不關視窗）；T0750 `8a432d40` 刪 profile 時關掉它的視窗；`v0.7.3-pre.3` 使用者實機驗收通過 | 🟢 Low | 2026-11-02 | [BUG-184](BUG-184-tray-menu-lists-window-removed-from-profile.md) |

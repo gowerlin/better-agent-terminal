@@ -3,12 +3,13 @@ schema_version: 1
 schema_kind: bug
 id: BUG-192
 title: "Claude Agent 面板：背景子代理執行中送出新訊息，會中止整個 query、背景子代理一起被結束（卡片 error `Agent terminated unexpectedly`）"
-status: FIXED
+status: CLOSED
 severity: medium
 reproducibility: always
 created_at: "2026-11-02T03:08:29+0800"
-updated_at: "2026-11-02T04:28:37+0800"
+updated_at: "2026-11-02T05:23:23+0800"
 fixed_at: "2026-11-02T04:28:37+0800"
+closed_at: "2026-11-02T05:23:23+0800"
 fix_commit: 9ab26222
 impact:
   - claude-agent-panel
@@ -23,7 +24,7 @@ links:
 |------|------|
 | 嚴重度 | 🟡 medium（CLI 2.1.316 的 Agent 預設背景執行，使用者在子代理跑的時候繼續對話就會殺掉它） |
 | 可重現 | 必現（背景子代理執行中、query 仍在進行時送新訊息） |
-| **狀態** | ✅ FIXED（T0769 `9ab26222`，待實機驗收） |
+| **狀態** | 🚫 CLOSED（T0769 `9ab26222`；交付版 `v0.7.3-pre.4` 安裝版自動化實測 T0771 PASS，真實模型走注入路徑） |
 | 回報者 | T0759 Worker |
 
 ## 現象
@@ -46,3 +47,10 @@ links:
 - 驗證：單元 15＋7 突變、面板 4＋1 突變；e2e v072-pre6-claude-panel ⑦c 兩輪綠（followup 約 150 ms 回覆、背景子代理不受影響），驗紅（修正前背景子代理被中止）；不回歸 ①–⑫ 全 PASS；typecheck 0 / 0、`test:unit` 6681 / 380 files、`vite build`（匯出目錄）。
 - 已知限制：排隊清單不跨面板重新掛載；依賴 SDK 0.3.316 背景子代理執行中輸入仍開的行為（改了會退回排隊）。
 - 待實機驗收：真實模型下背景子代理執行中送出新訊息 → 立即回覆、子代理繼續、task bar 不變。
+
+## 驗收（2026-11-02T05:23:23+0800，第一百零四 session）
+
+- 依據（R-G003）：交付版 `v0.7.3-pre.4` 安裝版（`BAT_E2E_EXECUTABLE`，隔離實例）自動化實測 T0771（`a173f74a` / 回報 `c24f9556`，D215）。
+- 假 API：`v072-pre6-claude-panel` ⑦c PASS（主回合 result 後送訊息 157 ms 回覆、bar 仍 1 項、子代理未重跑、無 `Agent terminated unexpectedly`；注入回合中 Esc 後子代理照常完成）。
+- 真實模型（Haiku 5.5）：背景子代理執行中、主回合已 result 時送「1+1」→ 3.1 s 回覆「2」，走**注入路徑**；bar 仍 1 項、卡片 running、無「已中斷」前綴、無排隊提示，子代理之後照常 `[completed]`。
+- 未涵蓋：排隊退路（「等背景子代理結束後送出」＋取消）在真實時序下沒有出現，只有單元測試涵蓋（docs 已知限制）；macOS / Linux。
