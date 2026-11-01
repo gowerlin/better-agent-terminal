@@ -4,7 +4,7 @@ summary_version: 1
 updated_at: "2026-11-01T09:49:34+0800"
 session: "2026-11-01 第一百零一 session 進行中（CT v5.15.0）：T0720 安裝檔大小研究、T0721 pre.5 後續候選研究、T0722「Claude Agent」改名（D194）並行派工"
 next_ids:
-  workorder: "T0724"
+  workorder: "T0725"
   decision: "D195"
   bug: "BUG-177"
   plan: "PLAN-057"
