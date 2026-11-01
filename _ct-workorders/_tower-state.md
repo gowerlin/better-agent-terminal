@@ -1,20 +1,21 @@
 ---
 schema_kind: tower-state
 summary_version: 1
-updated_at: "2026-11-01T09:49:34+0800"
-session: "2026-11-01 第一百零一 session 進行中（CT v5.15.0）：T0720 安裝檔大小研究、T0721 pre.5 後續候選研究、T0722「Claude Agent」改名（D194）並行派工"
+updated_at: "2026-11-01T10:50:31+0800"
+session: "2026-11-01 第一百零一 session 進行中（CT v5.15.0）：T0720–T0726（D194–D196）全部 DONE，v0.7.2-pre.6 已發佈（run 41265747434，exe 292.9 MiB）"
 next_ids:
   workorder: "T0727"
   decision: "D197"
   bug: "BUG-177"
   plan: "PLAN-057"
 todo:
-  - "實機驗收 v0.7.2-pre.5：Claude Agent 面板（SDK 0.3）真實對話、V2 分頁遷移後接續、codex 0.166 Worker 回合結束 ↻ → ✓；產物大小超 D146 預算待決定"
+  - "實機驗收 v0.7.2-pre.6：Claude Agent 面板工作清單（Claude 5 / 4.x、resume 後重建，耗 token）；Windows NSIS 覆蓋安裝 / 解除安裝 / 乾淨重裝與安裝時間（T0726）"
+  - "實機驗收 v0.7.2-pre.5 起：Claude Agent 面板（SDK 0.3）真實對話、V2 分頁遷移後接續、codex 0.166 Worker 回合結束 ↻ → ✓"
   - "實機驗收 BUG-174（v0.7.2-pre.2 終端 file:/// 連結：全形字、跨行、OSC 8）；通過後關 GitHub #20"
   - "使用者日常使用驗收 BUG-171"
   - "外部測試者A 驗收 BUG-169 / BUG-175（v0.7.2-pre.3 起）；BUG-175 另等 GitHub #22 回報者回覆（已留言），通過後關 #22"
   - "BUG-156 / 159 待特定環境驗收"
-  - "未發版累積：T0722 改名（`35b2bac3`）、T0723 CHANGELOG `[Unreleased]`＋`agents-menu.png`（`9db0c8e2`）、T0724 SDK `Options` 型別＋限額單行負向測試（`886bd987`）、T0726 NSIS 關差分打包（`cab618a5`，本機 exe 292.9 MiB；發版後實機驗 NSIS 覆蓋 / 乾淨重裝與安裝時間）、T0725 Claude 面板 Task 清單＋Claude 5 開 todo tools（`08bc8467`，實機驗收耗 token 由使用者做；後續候選 pinned 清單區塊、sub-agent Task*）；批次收齊，待發 `0.7.2-pre.6`；D196：D146 上限改每平台 ≤ 384 / zip ≤ 512 MiB"
+  - "後續候選：工作清單 pinned 區塊、sub-agent Task* 併入（T0725）；升內嵌 CLI 工單回報附 npm unpackedSize 前後差（D196）"
 ---
 # Tower State — better-agent-terminal
 
@@ -104,6 +105,7 @@ todo:
 > 最後更新：2026-11-01 09:41 UTC+8（第一百 session 收工）
 
 ### 近期完成
+- **`v0.7.2-pre.6` 發佈**（第一百零一 session，run `41265747434`，target `093a0079`）：「Claude Agent」改名（T0722 / T0723）、SDK `Options` 型別＋限額單行負向測試（T0724）、Claude 面板工作清單＋Claude 5 開 todo tools（T0725，D195）、NSIS 關差分打包 exe 333 → 292.9 MiB（T0726，D196 上限改 384 / 512 MiB）；exe 292.9 / zip 458.9 / AppImage 328.8 / dmg 345.7 MiB；文件 `5c7fb4d6`；Pages `41266736735` 綠、link-check 1372 / 0、首頁 pre.6
 - **`v0.7.2-pre.5` 發佈**（第一百 session，run `41260924862`，target `826471bd`）：內嵌 claude CLI 2.1.316 / codex 0.166.0（T0717 `101adaaf`，含 D192 claude 新限額句型、codex OSC `done` / `error` → idle）、Agent SDK 0.3.316 + Claude Agent V2 下架與自動遷移（T0718，D123 Phase 2）、BUG-176 ajv 打包修正＋production 相依樹守門（T0719 `59ef7f37`）；首發 run `41259467662` 失敗未建 tag；文件 `c4f139e3`；Pages `41261890580` 綠、link-check 1365 / 0、首頁 pre.5
 - **`v0.7.2-pre.4` 發佈**（第九十九 session，run `41226677868`，target `44d86f13`）：BMad-Guide HANDOVER → T0715 研究（`97a64056`）→ D190 → T0716（`7b060aa4`）`--ask --no-pty-write` 列為正式契約＋守門測試＋`ask: NOTIFY_STEP`；回覆稿 RESOLVED（CT 塔台確認結案，CT v5.15.0 最低 BAT `>= 0.7.0-pre.7`、正式契約 `>= 0.7.2-pre.4`）；文件 `83bfd725`；Pages `41227746757` 綠、link-check 1356 / 0、首頁 pre.4；GitHub #22（= BUG-175）已留言
 - **`v0.7.2-pre.3` 發佈**（第九十八 session，run `41030478924`，target `ace28006`）：BUG-175 縮圖預覽依游標換列分行、完整 CSI（T0714 `afe57761`）；BUG-165 / 166 依外部測試者A 回覆 CLOSED；GitHub #21 留言並關閉；文件 `31e7b167`；Pages `41032124923` 綠、link-check 1350 / 0、首頁 pre.3
