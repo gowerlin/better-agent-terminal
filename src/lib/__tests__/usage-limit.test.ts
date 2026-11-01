@@ -43,6 +43,8 @@ const CODEX_PROMPT = ['› Ask Codex to do anything', '', '  ⏎ send   ⇧⏎ n
 describe('claude limit sentences', () => {
   it.each([
     ['session limit', 'session'],
+    // T0717: CLI 2.1.312+ names the 5-hour window `5-hour limit` (`five_hour:"5-hour limit"` in 2.1.316)
+    ['5-hour limit', 'session'],
     ['weekly limit', 'weekly'],
     ['Opus limit', 'model'],
     ['Sonnet limit', 'model'],
@@ -58,6 +60,8 @@ describe('claude limit sentences', () => {
   it('with · progress saved, a curly apostrophe, and the Fable "reached" form', () => {
     expect(classify(['You’ve hit your session limit · resets 3:30pm (Asia/Taipei) · progress saved'])).toMatchObject({ kind: 'claude-limit', limit: 'session', resetText: '3:30pm (Asia/Taipei)' })
     expect(classify(["You've reached your Fable limit."])).toMatchObject({ kind: 'claude-limit', limit: 'model', resetsAt: null })
+    // T0717: the 2.1.312+ wording decides like `session limit` (no CLI auto continue on screen → cli-unavailable)
+    expect(decide(["  ⎿  You've hit your 5-hour limit · resets 4pm (Asia/Taipei) · progress saved", ...CLAUDE_PROMPT])).toMatchObject({ action: 'hint', hint: 'cli-unavailable' })
   })
 
   it.each([
@@ -121,6 +125,11 @@ describe('claude CLI auto continue (2.1.234+) and the stale phase', () => {
     expect(decide(screen)).toEqual({ action: 'none', line: 2 })
     // a newer limit below it still wins
     expect(decide([resumed, 'Usage limit reached again · continuing automatically at 4pm · esc to cancel'])).toMatchObject({ hint: 'cli-auto' })
+    // T0717: CLI 2.1.316 capitalises it (`Usage limit reset · Continuing automatically`)
+    const resumed316 = 'Usage limit reset · Continuing automatically'
+    expect(classify([resumed316])).toEqual({ kind: 'claude-cli-resumed', line: 0 })
+    expect(decide([limit, 'Usage limit reached · continuing automatically at 4pm · esc to cancel', resumed316, ...CLAUDE_PROMPT])).toEqual({ action: 'none', line: 2 })
+    expect(classify([`The CLI prints ${resumed316} when it resumes.`])).toEqual({ kind: 'none' })
     // quoted in a reply
     expect(classify([`The CLI prints ${resumed} when it resumes.`])).toEqual({ kind: 'none' })
     expect(classify([`"${resumed}"`])).toEqual({ kind: 'none' })

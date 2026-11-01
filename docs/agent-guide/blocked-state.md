@@ -46,7 +46,10 @@
     | 任何值（該 PTY 第一個） | `blockedDetection` → `osc`（已是 `hook` 時整個序列忽略）、`agentStarted: true`（BAT 收到的時間） |
     | `blocked` | → `blocked` / `input`（已是 `input` → 不變，`blockedSince` 不動） |
     | `working` / `idle` / `clear` | → 清除 |
-    | `app=` 不是 `codex`、未知的 `state=` 值 | 忽略（寬鬆解析，只認 `state=`） |
+    | `done` / `error`（codex `>= 0.166.0`） | 解析器當成 `idle`（`CODEX_IDLE_ALIASES`，`src/lib/codex-terminal-state.ts`，T0717 / D192）：→ 清除、回合結束 |
+    | `app=` 不是 `codex`、未知的 `state=` 值 | 忽略（寬鬆解析，只認 `state=`；`blocked` 後的 `:kind=permission|question|auth` 也忽略） |
+
+    codex 0.166.0 起（T0717，上游 `codex-rs/tui/src/terminal_program_status.rs` / `chatwidget/turn_runtime.rs` / `app.rs`）：回合正常結束送 `state=done`、失敗送 `state=error`，保持到使用者按鍵 / 貼上 / 點滑鼠才改送 `idle`，下一回合開始直接送 `working`；`blocked` 多帶 `:kind=`。沒有對照前，yolo Worker（沒人按鍵）回合結束後會一直停在 `working`。對外的 `state` / `blockedReason` 值不變（契約 C-1–C-8 不動）。
 
     T0694：同一序列另驅動回合狀態（`working` → 開始、`idle` / `clear` → 結束、`blocked` 不變），見上方「回合信號」。
 

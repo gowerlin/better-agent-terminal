@@ -30,12 +30,20 @@ describe('parseCodexOscPayload', () => {
     ['state=working', 'working'],
     ['app=codex:state=blocked', 'blocked'],
     ['state=idle;app=codex', 'idle'],
+    // T0717 (D192): codex 0.166+ ends a turn with `done` / `error` (kept until a key press) → idle;
+    // `blocked` carries `:kind=…`, ignored
+    ['state=done:app=codex', 'idle'],
+    ['state=error:app=codex', 'idle'],
+    ['state=blocked:app=codex:kind=permission', 'blocked'],
+    ['state=blocked:app=codex:kind=question', 'blocked'],
+    ['state=blocked:app=codex:kind=auth', 'blocked'],
   ])('%s → %s', (payload, state) => {
     expect(parseCodexOscPayload(payload)).toBe(state)
   })
 
   it.each([
     ['state=idle:app=other', 'another app'],
+    ['state=done:app=other', 'another app (done)'],
     ['state=thinking:app=codex', 'unknown value'],
     ['status=idle', 'no state key'],
     ['', 'empty'],
@@ -54,6 +62,21 @@ describe('scanCodexStates', () => {
   it('other OSC sequences (titles, OSC 9, 7501 of another app, unknown values) are ignored', () => {
     const text = `\x1b]0;codex${BEL}\x1b]9;Approval requested${BEL}${osc('state=idle:app=vim')}${osc('state=thinking')}${osc('state=blocked:app=codex')}`
     expect(scanCodexStates(text).states).toEqual(['blocked'])
+  })
+
+  it('codex 0.166 turn: working → blocked (kind) → working → done → (key press) idle', () => {
+    // the exact bytes 0.166 writes: `ESC ] 7501 ; state=<s>:app=codex[:kind=<k>] ESC \`
+    const text = [
+      osc('state=working:app=codex'),
+      osc('state=blocked:app=codex:kind=permission'),
+      osc('state=working:app=codex'),
+      osc('state=done:app=codex'),
+      osc('state=idle:app=codex'),
+      osc('state=working:app=codex'),
+      osc('state=error:app=codex'),
+    ].join('out ')
+    expect(scanCodexStates(text).states).toEqual(['working', 'blocked', 'working', 'idle', 'idle', 'working', 'idle'])
+    expect(lastCodexState(text)).toBe('idle')
   })
 
   it('a sequence broken by another escape or an overlong one is skipped; the scan goes on', () => {

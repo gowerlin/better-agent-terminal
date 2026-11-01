@@ -7,10 +7,12 @@
  *
  * Message sources (T0564 §1a / §1d / §2a, read from the CLI binaries, no live sample):
  *   - claude CLI 2.1.300: `You've hit your <session|weekly|Opus|Sonnet|Fable|usage> limit · resets 3pm (Asia/Taipei)`
+ *     (2.1.312+ calls the 5-hour window `5-hour limit` instead of `session limit`; both are read, T0717)
  *     (`· progress saved` may follow), non-timed `monthly spend limit` / `team's shared budget` /
  *     `out of usage credits` / `org is out of usage` / `seat type …`; the CLI's own auto-continue
  *     (2.1.234+) prints `… continuing automatically at 3pm …`, `Automatic continue stopped|cancelled …`,
  *     `Usage limit available again · continuing now` / `Usage limit reset · continuing automatically`
+ *     (2.1.316: `· Continuing automatically`; either case is read, T0717)
  *     when it resumes, and after a sleep past the reset `Your usage limit has reset` + `Press enter to continue`.
  *   - codex-cli 0.160.0 / 0.162.1: `You've hit your usage limit[ for <model>]. … Try again at 3:05 PM.`
  *     (`try again later.` without a time), non-timed `Your workspace is out of credits` /
@@ -119,7 +121,7 @@ const DOT = '[·•]'
 /** The reset text after `resets` (strict: what `parseClaudeResetTime` reads, plus a zone). */
 const CLAUDE_RESET_TEXT = '(?:[A-Za-z]{3,9}\\.? \\d{1,2},\\s*(?:\\d{4},\\s*)?)?\\d{1,2}(?::\\d{2})?\\s*[AaPp][Mm](?:\\s*\\([^)]+\\))?'
 const CLAUDE_LIMIT_RE = new RegExp(
-  `${PREFIX}You${APOS}ve (?:hit|reached) your (session limit|weekly limit|Opus limit|Sonnet limit|Fable limit|usage limit|limit)(?=\\s*(?:${DOT}|\\.|$))(?:\\s*${DOT}\\s*resets\\s+(${CLAUDE_RESET_TEXT}))?(?:\\s*${DOT}\\s*progress saved)?\\s*\\.?\\s*$`,
+  `${PREFIX}You${APOS}ve (?:hit|reached) your (session limit|5-hour limit|weekly limit|Opus limit|Sonnet limit|Fable limit|usage limit|limit)(?=\\s*(?:${DOT}|\\.|$))(?:\\s*${DOT}\\s*resets\\s+(${CLAUDE_RESET_TEXT}))?(?:\\s*${DOT}\\s*progress saved)?\\s*\\.?\\s*$`,
   'u',
 )
 const CLAUDE_BLOCKED_RE = new RegExp(
@@ -128,7 +130,8 @@ const CLAUDE_BLOCKED_RE = new RegExp(
 )
 const CLAUDE_AUTO_RE = new RegExp(`${PREFIX}(?:Usage limit reached(?: again)?\\s*${DOT}\\s*)?continuing automatically(?: at (.+?))?(?:\\s*${DOT}.*)?$`, 'iu')
 // `Usage limit reset · continuing automatically` (T0692): the notice when the armed auto continue fires at the reset.
-const CLAUDE_RESUMED_RE = new RegExp(`${PREFIX}(?:Usage limit available again\\b|Continuing shortly\\b|Usage limit reset\\s*${DOT}\\s*continuing automatically\\b)`, 'u')
+// CLI 2.1.316 capitalises it (`· Continuing automatically`, T0717): either case.
+const CLAUDE_RESUMED_RE = new RegExp(`${PREFIX}(?:Usage limit available again\\b|Continuing shortly\\b|Usage limit reset\\s*${DOT}\\s*[Cc]ontinuing automatically\\b)`, 'u')
 const CLAUDE_STOPPED_RE = new RegExp(`${PREFIX}Automatic continue (?:stopped|cancell?ed|canceled)\\b`, 'u')
 const CLAUDE_STALE_HEAD_RE = new RegExp(`${PREFIX}Your usage limit has reset\\b`, 'u')
 const CLAUDE_STALE_PRESS_RE = new RegExp(`${PREFIX}Press enter to continue\\b`, 'iu')
@@ -156,7 +159,7 @@ export type UsageLimitScreen =
   | { kind: 'claude-stale'; line: number }
 
 function claudeLimitKind(name: string): ClaudeLimitKind {
-  if (name === 'session limit') return 'session'
+  if (name === 'session limit' || name === '5-hour limit') return 'session'
   if (name === 'weekly limit') return 'weekly'
   if (name === 'usage limit' || name === 'limit') return 'usage'
   return 'model'

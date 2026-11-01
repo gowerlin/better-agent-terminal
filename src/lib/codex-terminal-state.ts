@@ -8,6 +8,11 @@
  * The sequence is undocumented: parse leniently — only the `state=` value counts, an `app=` other
  * than `codex` drops the sequence, an unknown `state=` value is ignored.
  *
+ * codex `>= 0.166.0` (T0717, D192; `codex-rs/tui/src/terminal_program_status.rs`): a turn that ends
+ * sends `state=done` (failed: `state=error`) instead of `idle`, kept until the user presses a key,
+ * pastes or clicks; both read as `idle` (`CODEX_IDLE_ALIASES`). `blocked` may carry
+ * `:kind=permission|question|auth`, which is ignored (still `blocked`).
+ *
  * Read-only: the output itself is never changed (xterm drops the unknown OSC).
  * Shared by main / headless (electron/pty-manager.ts `enqueuePtyOutput`, the Terminal Server replay).
  * 🔴 No `electron` / DOM import.
@@ -19,6 +24,9 @@ export const CODEX_TERMINAL_STATES: readonly CodexTerminalState[] = ['idle', 'wo
 
 /** The first codex release that writes OSC 7501 (0.162.1 and older do not, T0619). */
 export const CODEX_OSC_MIN_VERSION = '0.163.0'
+
+/** codex 0.166+ end-of-turn states that mean "not running" (T0717, D192): read as `idle`. */
+export const CODEX_IDLE_ALIASES: readonly string[] = ['done', 'error']
 
 /** `ESC ] 7501 ;` */
 export const CODEX_OSC_PREFIX = '\x1b]7501;'
@@ -40,6 +48,7 @@ export function parseCodexOscPayload(payload: string): CodexTerminalState | null
     if (key === 'app' && value !== 'codex') return null
     if (key === 'state' && state === null) state = value
   }
+  if (state !== null && CODEX_IDLE_ALIASES.includes(state)) return 'idle'
   return state !== null && (CODEX_TERMINAL_STATES as readonly string[]).includes(state) ? state as CodexTerminalState : null
 }
 
