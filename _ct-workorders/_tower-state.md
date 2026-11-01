@@ -1,15 +1,16 @@
 ---
 schema_kind: tower-state
 summary_version: 1
-updated_at: "2026-11-01T10:59:16+0800"
-session: "2026-11-01 第一百零二 session 進行中（CT v5.15.0）：pre.6 自動化驗收 T0727（IN_PROGRESS，Claude 面板假 API e2e）→ T0728（PENDING，終端連結＋codex ↻ e2e）"
+updated_at: "2026-11-01T11:17:31+0800"
+session: "2026-11-01 第一百零二 session 進行中（CT v5.15.0）：pre.6 自動化驗收 T0727 DONE（①–⑨ PASS，開 BUG-177 / 178）→ T0728 IN_PROGRESS（終端連結＋codex ↻ e2e）；BUG-169 CLOSED"
 next_ids:
   workorder: "T0729"
   decision: "D197"
-  bug: "BUG-177"
+  bug: "BUG-179"
   plan: "PLAN-057"
 todo:
-  - "實機驗收 v0.7.2-pre.6：Claude Agent 面板工作清單（Claude 5 / 4.x、resume 後重建，耗 token）；Windows NSIS 覆蓋安裝 / 解除安裝 / 乾淨重裝與安裝時間（T0726）"
+  - "BUG-177（查模型清單送真請求，medium）/ BUG-178（不理 CLAUDE_CONFIG_DIR，low）OPEN：待使用者決定是否在 T0728 後批次修正"
+  - "實機驗收 v0.7.2-pre.6：Windows NSIS 覆蓋安裝 / 解除安裝 / 乾淨重裝與安裝時間（T0726，本機無 Windows Sandbox，手動）；真實模型是否主動用 Task* 與背景 Agent 卡片（T0727 已以假 API 驗 BAT 端 ①–⑨）"
   - "實機驗收 v0.7.2-pre.5 起：Claude Agent 面板（SDK 0.3）真實對話、V2 分頁遷移後接續、codex 0.166 Worker 回合結束 ↻ → ✓"
   - "實機驗收 BUG-174（v0.7.2-pre.2 終端 file:/// 連結：全形字、跨行、OSC 8）；通過後關 GitHub #20"
   - "使用者日常使用驗收 BUG-171"
@@ -19,7 +20,7 @@ todo:
 ---
 # Tower State — better-agent-terminal
 
-> 🟢 **第一百零二 session 進行中**（2026-11-01 10:54 起，CT v5.15.0，Fast Path；`--set-role tower --mode on` exit 0；安裝版 helper `v0.7.2-pre.6`）：使用者「pre.6 實機驗收開始，可自動化的先安排」→ T0727（Claude 面板假 Anthropic API e2e，10:59 派工 `started:`）→ T0728（BUG-174 連結＋codex 0.166 ↻ → ✓ e2e，等 T0727 完成再派，避免同時 `vite build`）。NSIS 覆蓋 / 解除 / 乾淨重裝：本機沒有 Windows Sandbox，在主機跑會覆蓋使用中的 BAT → 留手動。**BUG-169 CLOSED**（11:00，使用者「直接 CLOSED」；安裝版三個 helper `--version` = `v0.7.2-pre.6`）→ 熱區 BUG：Fixed 28 / Closed 12。
+> 🟢 **第一百零二 session 進行中**（2026-11-01 10:54 起，CT v5.15.0，Fast Path；`--set-role tower --mode on` exit 0；安裝版 helper `v0.7.2-pre.6`）：使用者「pre.6 實機驗收開始，可自動化的先安排」→ T0727（Claude 面板假 Anthropic API e2e，10:59 派工 `started:`）→ T0728（BUG-174 連結＋codex 0.166 ↻ → ✓ e2e，等 T0727 完成再派，避免同時 `vite build`）。NSIS 覆蓋 / 解除 / 乾淨重裝：本機沒有 Windows Sandbox，在主機跑會覆蓋使用中的 BAT → 留手動。**BUG-169 CLOSED**（11:00，使用者「直接 CLOSED」；安裝版三個 helper `--version` = `v0.7.2-pre.6`）→ 熱區 BUG：Fixed 28 / Closed 12。**T0727 DONE**（11:15，`b534941c`；假 Anthropic API e2e ①–⑨ 全 PASS、0 個對外請求；V2 遷移實際走 resume 接上）→ 開 **BUG-177**（`getSupportedModels` 空 prompt 仍跑一個 turn，耗 token）/ **BUG-178**（歷史 / plugins 不理 `CLAUDE_CONFIG_DIR`）；`--close-worker T0727` exit 0；11:17 派 **T0728**（`started:`）。實機仍需：背景 `Agent`（CLI 2.1.316 預設背景）卡片行為、真實模型是否主動用 Task*。
 
 > 最後更新:2026-11-01 10:51 (UTC+8) — **第一百零一 session 收工**（CT v5.15.0）：T0720 安裝檔研究 / T0721 後續候選研究 / T0722 改名並行 → T0723–T0726（D194–D196）→ **`v0.7.2-pre.6`**（exe 292.9 MiB，D146 上限改 384 / 512 MiB）。前次：第一百 session 收工（2026-11-01 09:41）。
 >
