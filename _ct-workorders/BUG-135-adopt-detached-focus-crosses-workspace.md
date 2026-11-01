@@ -3,11 +3,11 @@ schema_version: 1
 schema_kind: bug
 id: BUG-135
 title: "detached 視窗關閉、父視窗取回終端清單時，focus fallback 取全域 terminals[0]，可能指向其他工作區的終端"
-status: FIXED
+status: CLOSED
 severity: low
 reproducibility: unknown
 created_at: "2026-10-15T01:32:28+0800"
-updated_at: "2026-10-15T01:43:47+0800"
+updated_at: "2026-11-01T19:07:33+0800"
 fixed_at: "2026-10-15T01:43:47+0800"
 impact:
   - detached-window
@@ -24,7 +24,7 @@ links:
 |------|------|
 | 嚴重度 | 🟢 low（focus 指錯對象：snippet 貼上、Skills / Agents 面板等讀 `focusedTerminalId` 的功能會作用到別的工作區終端） |
 | 可重現 | 未確認（程式碼證據，T0531） |
-| **狀態** | ✅ FIXED（T0532，待驗收） |
+| **狀態** | 🚫 CLOSED（2026-11-01 塔台依 R-G003 結案）；原 ✅ FIXED（T0532，待驗收） |
 | 回報者 | T0531 Worker |
 
 ## 現象
@@ -42,3 +42,8 @@ focus fallback 限定在 active 工作區（或被取回的工作區，依語意
 - `replaceWorkspaceTerminals()`（adopt 路徑）：focus 終端已不在 → active 工作區的第一個終端，沒有則 `null`（原為全域 `terminals[0]`）
 - 同類一併修正：`removeWorkspace()` / `archiveWorkspace()` 改變 active 工作區時 focus 設 `null`（同 `setActiveWorkspace()`）；`addExternalTerminal()` 落在非 active 工作區時不搶 focus；`applySerializedData()`（reload）只保留 active 工作區內的 focus
 - 驗證：`src/stores/__tests__/workspace-store.focusFallback.test.ts`（修正前 6 紅、修正後 12 綠）；adopt 流程、所有權釋放、save 佇列順序未動（detached 系列 e2e 綠）
+
+## 結案（2026-11-01T19:07:33+0800，BAT 第一百零三 session 塔台）
+
+- 依全域 R-G003：修正 T0532 `8b5251a8` 隨 v0.6.1-pre.1 起各版交付；T0742 `e2e/t0742-adopt-detached-focus.spec.ts` 在 HEAD `95f9f160` PASS ×2，且驗紅成功（fallback 改回修正前 → A 工作區的貼上進到 B 的終端）。
+- closed_reason: verified
