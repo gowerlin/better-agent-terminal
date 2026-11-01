@@ -4,6 +4,15 @@ All notable changes to Better Agent Terminal are documented in this file.
 
 ## [Unreleased]
 
+## [0.7.3-pre.1] — 2026-11-01
+
+### Fixed
+- 遠端 bat-server 重啟、視窗重新連上後，工作區的等待提示 ⚠️ 不再一直殘留：renderer 在遠端「未連線 → 已連線」時以新的唯讀 proxied channel `terminal:attention-snapshot` 依伺服器現況對帳，PTY 已不存在比照 PTY 結束（沒在看留淡化、不計入總數），PTY 仍在則以伺服器狀態取代；舊 bat-server 沒有此 channel 時維持原狀（`createReconnectAttentionReconciler` / `reconcileTerminalAttention`，`src/stores/terminal-attention-store.ts`；`registerAttentionSnapshotHandler`，`electron/terminal-attention.ts`；BUG-182 / T0749）
+
+### Changed
+- 驗收用 e2e 補強（不改產品行為）：真實模型 spec 比對 Cache History 與 CLI 累計值（T0746）、真實模型工作區等待提示 spec（預設略過，`BAT_E2E_REAL_MODEL=1` 才執行；T0747）、WSL 遠端工作區等待提示 spec（測試專用 headless server，不動使用者的 WSL bat-server；T0748）、NSIS 重裝驗收腳本的 helper 日誌改寫到報告目錄（T0745）
+- 預覽版改走 `0.7.3-pre.N` 版號線（D204）
+
 ## [0.7.2-pre.9] — 2026-11-01
 
 ### Fixed
