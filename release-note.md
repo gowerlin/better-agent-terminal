@@ -2,6 +2,45 @@
 
 本 fork 各版的更版重點（內容取自 GitHub Releases，最新在上）。上游 tony1223/better-agent-terminal 的 v2.1.x 紀錄保留在檔案最下方。
 
+## v0.7.3-pre.3（2026-11-01）
+
+版號 0.7.3-pre.3，接續 `v0.7.3-pre.2`。
+
+## 新增
+
+- **遠端 bat-server 使用登入 shell 的 PATH**（PLAN-057，T0754 / T0755）：遠端伺服器（WSL、SSH、Docker）啟動時，會讀一次你的登入 shell 設定（`~/.profile`、`~/.bashrc`、`~/.zshrc` 等）取得 PATH。Claude Agent 面板在遠端執行的工具與 MCP（例如 `npx`、`uvx`），以及 Git 面板，現在找得到 `~/.local/bin`、nvm、Homebrew 裡的程式，和終端分頁一致
+  - 預設開啟；不需要時到遠端視窗的「設定 › 進階 › BAT 伺服器 PATH」關閉，重新啟動 BAT 伺服器後生效
+  - 讀取設定逾時（3 秒）或失敗時保留原本的 PATH，伺服器照常啟動
+  - 遠端 bat-server 要用設定精靈升級到本版才會生效
+
+## 修正
+
+- **在 Linux 遠端安裝 / 更新 Node.js 後跑不起來**（BUG-187，T0756）：Node.js 25 起的官方 Linux 版需要系統程式庫 `libatomic.so.1`，最小安裝的 Ubuntu / Debian / Fedora 等沒有，BAT 用 nvm 裝完的 Node.js 會無法執行
+  - 現在安裝 / 更新前會先檢查，缺少時一併安裝（apt `libatomic1`、dnf / yum `libatomic`），確認畫面的「先執行」會列出這一步；已經有的主機不會多跑套件管理器
+  - 帳號不能安裝系統套件時，照常安裝 Node.js，並在結果提示要請管理員執行的指令
+  - 安裝 / 更新最後會確認 `node --version` 能執行；失敗時顯示原因與修正方式，不再當成成功
+  - macOS 不受影響
+
+## 待驗收（請更新到本版後協助確認）
+
+- **PLAN-057 / BUG-187**（本版）：遠端 bat-server 以設定精靈升級到本版後，遠端工具清單按「重新檢查」，裝在 `~/.local/bin`、nvm 的工具應顯示「伺服器：可見」；在缺 `libatomic1` 的 Linux 主機以 BAT 安裝 Node.js 後應能執行
+- **BUG-183 / BUG-184 / BUG-186**（`v0.7.3-pre.2`）：關掉的設定檔視窗按「開啟」直接出現、刪除設定檔後系統匣不再列出它的視窗、遠端工具清單的「無法執行」原因與伺服器標記
+- **工作區提示**（`v0.7.2-pre.8` 起）：BAT 視窗不在前景時等待結束，應留下淡化 ⚠️；用滑鼠回答權限或問題後提示是否消失
+- **BUG-128** / **BUG-130**（macOS 貼上）：需要 macOS 實機
+- **BUG-159**：一般權限（非系統管理員）執行 BAT、關閉 BAT MCP 時，兩個 Codex CLI 分頁各自讀到自己的環境
+
+## 已知事項
+
+- 遠端伺服器使用登入 shell PATH 在 macOS（launchd）上尚未實機驗證
+- 遠端伺服器開的終端分頁 PATH 裡 `~/.local/bin` 可能多出一份（不影響使用）
+- 遠端 bat-server 重啟後，分頁不會自動重建 shell，需要 ⏻ 重啟分頁
+- 遠端工作區的 ⚠️ 只顯示在該遠端連線自己的視窗裡
+- Linux 版本未實機驗證
+
+macOS 仍只提供 Apple Silicon（arm64）版。
+
+**Full Changelog**: https://github.com/gowerlin/better-agent-terminal/compare/v0.7.3-pre.2...v0.7.3-pre.3
+
 ## v0.7.3-pre.2（2026-11-01）
 
 版號 0.7.3-pre.2，接續 `v0.7.3-pre.1`。

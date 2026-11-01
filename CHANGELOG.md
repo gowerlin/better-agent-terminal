@@ -4,6 +4,17 @@ All notable changes to Better Agent Terminal are documented in this file.
 
 ## [Unreleased]
 
+## [0.7.3-pre.3] — 2026-11-01
+
+### Added
+- 遠端 bat-server（headless）啟動時以登入 shell 取得 PATH：`<shell> -l -i -c` 加隨機標記讀取、`spawn` detached 並在 3000 ms 逾時以 SIGKILL 結束整個程序群組，合併進 `process.env.PATH`（登入 PATH 在前、去重）；任何失敗保留原 PATH、照常啟動。Claude Agent 面板的工具 / MCP、system claude、codex 在遠端找得到 `~/.local/bin`、nvm、Homebrew。預設開，`<dataDir>/settings.json` `headlessLoginShellPath: false` 或遠端視窗「設定 › 進階 › BAT 伺服器 PATH」關閉（`applyHeadlessLoginShellPath`，`electron/remote/headless-login-path.ts`，`scripts/bat-server.mjs`；PLAN-057 / T0754 / T0755 / D206 / D207）
+
+### Fixed
+- 遠端工具「安裝 / 更新 Node.js」：Linux 上安裝前檢查 `libatomic.so.1`（Node.js 25 起的官方 Linux binary 需要），缺少且可提權時先以 apt `libatomic1` / dnf、yum `libatomic` 補裝並列進「先執行」；不可提權或沒有對應套件管理器時照常安裝並提示管理員指令；安裝 / 更新最後驗證 `node --version`，無法執行時面板顯示原因與修正指令（`src/lib/remote-tools/recipes.ts`、`install-runner.ts`；BUG-187 / T0756 / D208）
+
+### Changed
+- 文件：遠端 server PATH 改為預設取自登入 shell（`docs/agent-guide/remote-security.md`、`docs/remote-dev-overview.md`、`docs/agent-guide/headless-login-shell-path.md`；T0755 / T0756）
+
 ## [0.7.3-pre.2] — 2026-11-01
 
 ### Fixed
