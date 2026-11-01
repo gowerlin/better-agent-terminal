@@ -44,6 +44,7 @@
 - **與 CLI 的已知差異**（刻意保留）：CLI 2.1.316 / SDK 0.3.316 是 `(CLAUDE_CONFIG_DIR ?? join(homedir(), '.claude')).normalize('NFC')`：空字串或全空白照用（相對路徑），並正規化為 NFC。BAT 對空白值回到 `<home>/.claude`、不做 NFC，讓沒設變數的使用者路徑不變。設成空白的 `CLAUDE_CONFIG_DIR` 本身就是壞設定（CLI 會把 session 寫到 cwd 底下的 `projects/`）。
 - **已知限制**：`installed_plugins.json` 的位置沿用 T0710 規則（`<config>/plugins/`）；CT `data-layer-architecture.md` 記載設了 `CLAUDE_CODE_PLUGIN_CACHE_DIR` 時整個 plugins 目錄（含 `installed_plugins.json`）在該處，BAT 目前只把 cache 根目錄改到那裡（`findClaudeCtPlugins`），面板的 plugins 清單也一樣。
 - 驗證：`electron/__tests__/claude-config-dir.test.ts`（設 / 未設 / 空字串 / 全空白；兩種 runtime 的 spawn env；歷史與清單讀 `CLAUDE_CONFIG_DIR`；scan-skills / star commands / statusline extras；ct-config 預設值層與 global 層；source guard）；e2e `e2e/v072-pre6-claude-panel.spec.ts` 第二個 test（⑪ session 檔寫在 `CLAUDE_CONFIG_DIR`、清單找得到、plugins 從 `<CLAUDE_CONFIG_DIR>/plugins` 載入且暫存 home 的誘餌不載；⑫ 重開後 resume 歷史重建）。
+- 介面層 e2e（T0737，不耗 token）：`e2e/v072-pre7-claude-panel-ui.spec.ts` 從介面操作（縮圖列「+」新增 Claude Agent、`/model` 選模型、`/resume`、斜線選單、塔台 › 總覽）：BUG-177 新分頁與模型清單 0 個模型請求 / 0 個 session 檔、送一則後只有 1 個且 `/resume` 只列它；BUG-178 session 與 plugins 指令來自 `CLAUDE_CONFIG_DIR`、`*config` 預設值層讀 `<CLAUDE_CONFIG_DIR>/skills/control-tower/references/tower-config.md`、重開後新分頁以 `/resume` 接續、HOME 下 `.claude` 誘餌檔不變。
 
 ## Claude 面板額外的模型請求（T0733 / T0734，D199）
 
