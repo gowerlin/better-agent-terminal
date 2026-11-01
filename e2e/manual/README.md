@@ -65,3 +65,5 @@
 - 結束代碼：`0` = PASS、`PASS-WITH-WARN` 或演練；`1` = 有步驟 FAIL。
 - 解除安裝程式會先把自己複製到 `%TEMP%` 再執行，原本的程序會馬上結束；腳本等到 uninstall 鍵與安裝目錄都消失，才算解除安裝完成，所以 ③ 的耗時包含這段等待。
 - 在 BAT 分頁內執行時，⓪ 會偵測到 BAT 的環境變數：演練只記 WARN，實際模式直接中止。
+- helper `--version` 檢查不會寫入 userData（T0745）：helper 一啟動就 append 一筆到 `bat-scripts.log`，在 BAT 外執行時預設落在 `%APPDATA%\BetterAgentTerminal\Logs\`，會被 ② / ④ 的 userData 比對判成「變更 1 檔」。腳本只在執行 helper 的子程序期間設 `BAT_HELPER_LOG_DIR=<報告目錄>\helper-logs`（`scripts/_bat-logger.mjs` 的第一優先），helper 的紀錄寫在報告目錄的 `helper-logs\bat-scripts.log`。userData 比對規則不變：`Logs\bat-scripts.log` 仍有變更就是 FAIL，代表驗收期間有其他程式寫入（例如 BAT 沒有完全關閉）。
+- `-Version` 與目前安裝的版本相同時，② 才是真正的同版本覆蓋，⓪「目前安裝版本」為 PASS；版本不同時 ⓪ 記 WARN，② 實際上是升級或降級。例如已裝 0.7.2-pre.9 時重跑，帶 `-Version 0.7.2-pre.9`（可用 `-InstallerPath` 重用上次下載的安裝檔）。

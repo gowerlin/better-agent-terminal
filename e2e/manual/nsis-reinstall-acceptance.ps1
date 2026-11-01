@@ -54,6 +54,11 @@ $BackupDir = Join-Path $OutDir 'userdata-backup'
 $IsAdmin = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
 
 New-Item -ItemType Directory -Force -Path $OutDir | Out-Null
+# 轉成絕對路徑：helper 的 BAT_HELPER_LOG_DIR 只接受絕對路徑（相對值會被忽略、改寫 userData），-OutputRoot 可能是相對路徑
+$OutDir = (Resolve-Path -LiteralPath $OutDir).ProviderPath
+$BackupDir = Join-Path $OutDir 'userdata-backup'
+# T0745：helper --version 檢查的 bat-scripts.log 導到這裡，不寫入 userData（見 Invoke-Helper）
+$HelperLogDir = Join-Path $OutDir 'helper-logs'
 
 # ---------------------------------------------------------------- 報告
 function Get-Now { (Get-Date).ToString('yyyy-MM-ddTHH:mm:sszzz') }
@@ -323,10 +328,25 @@ function Find-NodeForHelpers([string]$Dir) {
 }
 
 function Invoke-Helper($NodeInfo, [string]$Helper) {
-  if ($NodeInfo.kind -eq 'node') { return Invoke-Native $NodeInfo.path @($Helper, '--version') }
-  $old = $env:ELECTRON_RUN_AS_NODE
-  try { $env:ELECTRON_RUN_AS_NODE = '1'; return Invoke-Native $NodeInfo.path @($Helper, '--version') }
-  finally { if ($null -eq $old) { Remove-Item Env:ELECTRON_RUN_AS_NODE -ErrorAction SilentlyContinue } else { $env:ELECTRON_RUN_AS_NODE = $old } }
+  # T0745：helper 一啟動（含 --version）就 append 一筆到 bat-scripts.log。位置依 scripts/_bat-logger.mjs：
+  # BAT_HELPER_LOG_DIR（絕對路徑）> BAT_USER_DATA\Logs > %APPDATA%\BetterAgentTerminal\Logs。
+  # 在 BAT 外執行時落在 userData，② / ④ 的 userData SHA-256 比對就會把腳本自己的寫入判成 FAIL。
+  # 只在這次子程序執行期間設定（本腳本程序的 Process 範圍，結束即還原），不改使用者環境。
+  $set = [ordered]@{ BAT_HELPER_LOG_DIR = $HelperLogDir }
+  if ($NodeInfo.kind -ne 'node') { $set['ELECTRON_RUN_AS_NODE'] = '1' }
+  $saved = @{}
+  foreach ($k in @($set.Keys)) {
+    $saved[$k] = [Environment]::GetEnvironmentVariable($k, 'Process')
+    [Environment]::SetEnvironmentVariable($k, $set[$k], 'Process')
+  }
+  try { return Invoke-Native $NodeInfo.path @($Helper, '--version') }
+  finally { foreach ($k in @($saved.Keys)) { [Environment]::SetEnvironmentVariable($k, $saved[$k], 'Process') } }
+}
+
+function Get-HelperLogLineCount {
+  $f = Join-Path $HelperLogDir 'bat-scripts.log'
+  if (-not (Test-Path -LiteralPath $f)) { return 0 }
+  return @(Get-Content -LiteralPath $f -ErrorAction SilentlyContinue).Count
 }
 
 function Test-InstalledState($Step, [string]$InstallScope, [string]$Dir, [hashtable]$SnapshotBefore, [bool]$DesktopExpected) {
@@ -356,13 +376,17 @@ function Test-InstalledState($Step, [string]$InstallScope, [string]$Dir, [hashta
   } else { Add-Check $Step 'resources/package.json' 'FAIL' '存在' '不存在' '' }
 
   $nodeInfo = Find-NodeForHelpers $Dir
+  $envDesc = "BAT_HELPER_LOG_DIR=$HelperLogDir$(if ($nodeInfo.kind -ne 'node') { '、ELECTRON_RUN_AS_NODE=1' })"
+  $helperLogBefore = Get-HelperLogLineCount
   foreach ($h in $HelperNames) {
     $hp = Join-Path $res "scripts\$h"
     if (-not (Test-Path -LiteralPath $hp)) { Add-Check $Step "$h --version" 'FAIL' "v$Version" '檔案不存在' ''; continue }
+    Add-Note $Step "helper 指令：`"$($nodeInfo.path)`" `"$hp`" --version（子程序環境：$envDesc）"
     $r = Invoke-Helper $nodeInfo $hp
     $ok = ($r.exitCode -eq 0 -and $r.output -match [regex]::Escape("v$Version"))
     Add-Check $Step "$h --version" $(if ($ok) { 'PASS' } else { 'FAIL' }) "exit 0, v$Version" "exit $($r.exitCode), $($r.output.Trim())" "以 $($nodeInfo.kind) 執行"
   }
+  Add-Note $Step ("helper 日誌導向：{0}（本步驟新增 {1} 行；helper 檢查不寫入 userData 的 Logs\bat-scripts.log）" -f (Join-Path $HelperLogDir 'bat-scripts.log'), ((Get-HelperLogLineCount) - $helperLogBefore))
 
   $claude = Join-Path $res 'app.asar.unpacked\node_modules\@anthropic-ai\claude-code\bin\claude.exe'
   $claudeOk = (Test-Path -LiteralPath $claude) -and ((Get-Item -LiteralPath $claude).Length -gt 1MB)
@@ -579,6 +603,7 @@ Add-Note $s2 "安裝範圍依據：⓪ 的 uninstall 鍵在 $($inst.hive) → $i
 Invoke-Installer $s2 $InstallerPath $installArgs
 if ($DryRun) {
   Add-Note $s2 '安裝後檢查：uninstall 鍵 DisplayVersion、InstallLocation、主程式 FileVersion、resources/package.json、3 個 helper --version、內嵌 claude / codex、捷徑、沒有自動啟動、userData SHA-256 快照不變'
+  Add-Note $s2 "helper --version 執行時子程序帶 BAT_HELPER_LOG_DIR=$HelperLogDir，helper 的 bat-scripts.log 寫到報告目錄，不寫入 userData（T0745；④ 相同）"
 } else {
   Test-InstalledState $s2 $installScope $installDir $snapshot0 $desktop0
 }
