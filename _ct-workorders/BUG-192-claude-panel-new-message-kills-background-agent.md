@@ -3,11 +3,11 @@ schema_version: 1
 schema_kind: bug
 id: BUG-192
 title: "Claude Agent 面板：背景子代理執行中送出新訊息，會中止整個 query、背景子代理一起被結束（卡片 error `Agent terminated unexpectedly`）"
-status: OPEN
+status: FIXING
 severity: medium
 reproducibility: always
 created_at: "2026-11-02T03:08:29+0800"
-updated_at: "2026-11-02T03:08:29+0800"
+updated_at: "2026-11-02T03:22:26+0800"
 impact:
   - claude-agent-panel
   - active-tasks
@@ -21,7 +21,7 @@ links:
 |------|------|
 | 嚴重度 | 🟡 medium（CLI 2.1.316 的 Agent 預設背景執行，使用者在子代理跑的時候繼續對話就會殺掉它） |
 | 可重現 | 必現（背景子代理執行中、query 仍在進行時送新訊息） |
-| **狀態** | 📂 OPEN（T0768 研究中） |
+| **狀態** | 🔧 FIXING（T0769，D214） |
 | 回報者 | T0759 Worker |
 
 ## 現象
