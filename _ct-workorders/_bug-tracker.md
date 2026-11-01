@@ -3,18 +3,18 @@ schema_version: 1
 schema_kind: index
 id: _bug-tracker
 index_kind: bugs
-generated_at: "2026-11-01T22:07:26+0800"
+generated_at: "2026-11-01T22:24:08+0800"
 generator: control-tower-sync
 source_globs:
   - _ct-workorders/BUG-*.md
 exclude_globs:
   - _ct-workorders/_archive/**
   - _ct-workorders/examples/**
-total: 48
+total: 49
 breakdown:
-  OPEN: 0
-  FIXING: 2
-  FIXED: 3
+  OPEN: 1
+  FIXING: 0
+  FIXED: 5
   VERIFY: 0
   CLOSED: 43
   WONTFIX: 0
@@ -23,27 +23,28 @@ breakdown:
 # Bug Tracker
 
 > ⚠️ 此文件由 `*sync` 自動生成，請勿手動編輯。
-> 最後同步：2026-11-01 22:07 — 第一百零四 session：BUG-183 / 184 → FIXING（T0750）；BUG-182 CLOSED（使用者 WSL 實機驗收）；開 BUG-183 / 184（驗收中發現）；BUG-175 CLOSED（外部測試者A macOS 實機確認）
+> 最後同步：2026-11-01 22:24 — 第一百零四 session：BUG-183 / 184 FIXED（T0750 `8a432d40`）；開 BUG-185（T0750 發現）；BUG-182 / 175 CLOSED
 
 ## 統計
-- 🔴 Open: 0 | ⏳ Fixing: 2 | ✅ Fixed: 3 | 🧪 Verify: 0 | 🚫 Closed: 43 | ⛔ Won't Fix: 0 | **Total: 48**
+- 🔴 Open: 1 | ⏳ Fixing: 0 | ✅ Fixed: 5 | 🧪 Verify: 0 | 🚫 Closed: 43 | ⛔ Won't Fix: 0 | **Total: 49**
 
 ## 🔴 Open / 處理中
 
 | ID | 標題 | 嚴重度 | 建立時間 | 連結 |
 |----|------|--------|---------|------|
+| BUG-185 | e2e `t0512-profile-panel-layout` 第 2 項失敗：`WIZARD_STUBS` 缺 `wsl-systemd:snapshot-unit`（T0750 發現，只影響測試） | 🟢 Low | 2026-11-01 | [BUG-185](BUG-185-t0512-wizard-e2e-missing-snapshot-unit-stub.md) |
 
 ## ⏳ 修復中 (FIXING)
 
 | ID | 標題 | 嚴重度 | 修復時間 | 連結 |
 |----|------|--------|---------|------|
-| BUG-184 | 系統匣圖示選單殘留已「Remove from profile」的視窗，同名項目出現兩個 | 🟢 Low | 2026-11-01（T0750） | [BUG-184](BUG-184-tray-menu-lists-window-removed-from-profile.md) |
-| BUG-183 | 關掉（最小化到匣）的遠端 profile 視窗，在「配置」按「開啟」叫不回來，只跳「此配置已在另一個視窗中開啟」 | 🟡 Medium | 2026-11-01（T0750） | [BUG-183](BUG-183-hidden-profile-window-not-shown-on-open.md) |
 
 ## ✅ 已修復
 
 | ID | 標題 | 嚴重度 | 修復時間 | 連結 |
 |----|------|--------|---------|------|
+| BUG-184 | 系統匣圖示選單殘留已刪除 profile 的視窗，同名項目出現兩個（成因是「配置」✕ 刪 profile 不關視窗）；T0750 `8a432d40` 刪 profile 時關掉它的視窗，待實機驗收 | 🟢 Low | 2026-11-01 | [BUG-184](BUG-184-tray-menu-lists-window-removed-from-profile.md) |
+| BUG-183 | 關掉（最小化到匣）的 profile 視窗，在「配置」按「開啟」叫不回來，只跳「此配置已在另一個視窗中開啟」；T0750 `8a432d40` 隱藏的視窗 show + focus、叫回時不通知（本機 profile 同樣受影響），待實機驗收 | 🟡 Medium | 2026-11-01 | [BUG-183](BUG-183-hidden-profile-window-not-shown-on-open.md) |
 | BUG-159 | codex 分頁在 BAT MCP 未注入、非系統管理員時接上 codex 共用 daemon，helper 讀到其他分頁的 `BAT_*`（T0651 `5b1be0f5`） | 🟢 low | 2026-10-18 | [BUG-159](BUG-159-codex-shared-daemon-inherits-other-tab-env.md) |
 | BUG-130 | 終端分頁貼圖（Windows 回歸未重現，已加固 + log；mac 送 Ctrl+V） | 🟡 medium | 2026-10-14 13:56 | [BUG-130](BUG-130-terminal-image-paste-regression.md) |
 | BUG-128 | mac：Finder 拷貝後終端 Command+V 貼不上 | 🟡 medium | 2026-10-14 13:29 | [BUG-128](BUG-128-mac-cmd-v-finder-copy-no-paste.md) |
