@@ -23,7 +23,7 @@ breakdown:
 # Bug Tracker
 
 > ⚠️ 此文件由 `*sync` 自動生成，請勿手動編輯。
-> 最後同步：2026-11-01 19:07 — 第一百零三 session：BUG-135 CLOSED（T0742）；BUG-181 FIXING（T0744）；BUG-181 OPEN（T0739 發現）；T0738 A 類 12 張 CLOSED（BUG-116 / 118 / 127 / 129 / 131 / 132 / 133 / 134 / 137 / 146 / 147 / 171）；BUG-134 回報者改代稱；BUG-180 FIXED（T0741 `4500984d`）；BUG-177 / 178 / 179 CLOSED（T0737 e2e＋BUG-179 實機輪替）；BUG-180 OPEN（T0736 發現）；BUG-167 / 168 / 170 CLOSED（R-G003，CI 測試關卡 / 實機驗收證據）；熱區 Fixing 1 / Fixed 11 / Closed 33。前次 2026-11-01 12:43 第一百零二 session：BUG-169 / 174 / 176 CLOSED、BUG-177 / 178 / 179 FIXED（T0729 `ceb24910` / T0730 `6f7b3d53` / T0732 `ce648034`）；熱區 Open 0 / Fixing 0 / Fixed 29 / Closed 14
+> 最後同步：2026-11-01 19:10 — 第一百零三 session：BUG-181 FIXED（T0744 `0d42ebdc`）；BUG-135 CLOSED（T0742）；BUG-181 FIXING（T0744）；BUG-181 OPEN（T0739 發現）；T0738 A 類 12 張 CLOSED（BUG-116 / 118 / 127 / 129 / 131 / 132 / 133 / 134 / 137 / 146 / 147 / 171）；BUG-134 回報者改代稱；BUG-180 FIXED（T0741 `4500984d`）；BUG-177 / 178 / 179 CLOSED（T0737 e2e＋BUG-179 實機輪替）；BUG-180 OPEN（T0736 發現）；BUG-167 / 168 / 170 CLOSED（R-G003，CI 測試關卡 / 實機驗收證據）；熱區 Fixing 0 / Fixed 12 / Closed 33。前次 2026-11-01 12:43 第一百零二 session：BUG-169 / 174 / 176 CLOSED、BUG-177 / 178 / 179 FIXED（T0729 `ceb24910` / T0730 `6f7b3d53` / T0732 `ce648034`）；熱區 Open 0 / Fixing 0 / Fixed 29 / Closed 14
 
 ## 統計
 - 🔴 Open: 0 | ⏳ Fixing: 0 | ✅ Fixed: 12 | 🧪 Verify: 0 | 🚫 Closed: 33 | ⛔ Won't Fix: 0 | **Total: 45**

@@ -1,5 +1,5 @@
 {
- "generated_at": "2026-11-01T19:07:03+08:00",
+ "generated_at": "2026-11-01T19:10:29+08:00",
  "generator": {
   "script": "ct-session-stats.py",
   "version": "0.1.0"
@@ -14,13 +14,13 @@
  },
  "tower_daily": {
   "2026-11-01": {
-   "api_requests": 120,
-   "cache_read": 29951281,
-   "cache_write": 311449,
-   "cache_write_1h": 311449,
+   "api_requests": 125,
+   "cache_read": 31758608,
+   "cache_write": 323642,
+   "cache_write_1h": 323642,
    "cache_write_5m": 0,
-   "input": 260,
-   "output": 111004
+   "input": 272,
+   "output": 116098
   }
  },
  "workorders": [
@@ -598,6 +598,90 @@
     "2.1.316"
    ],
    "workorder": "T0742"
+  },
+  {
+   "attribution": {
+    "conflict": false,
+    "source": "frontmatter",
+    "sources": {
+     "frontmatter": 1
+    }
+   },
+   "by_mcp_server": {},
+   "by_tool": {
+    "Bash": 69,
+    "Edit": 2,
+    "ScheduleWakeup": 2,
+    "ToolSearch": 1,
+    "Write": 12
+   },
+   "counts": {
+    "api_requests": 82,
+    "failures": 2,
+    "same_file_read_ge3": 0,
+    "subagent_files": 0,
+    "tool_calls": 86
+   },
+   "end": "2026-11-01T11:10:24Z",
+   "est_usd": 7.8611,
+   "failures_by_tool": {
+    "Bash": 2
+   },
+   "renews": 0,
+   "sessions": 1,
+   "skills_invoked": {},
+   "start": "2026-11-01T10:47:25Z",
+   "stuck": {
+    "max_consecutive_failures": 1,
+    "max_failures_in_10_calls": 1,
+    "near_repeat_fail_pairs_j50": 0,
+    "repeat_fail_groups_norm": 0
+   },
+   "stuck_signal": false,
+   "subagent_tokens": {
+    "cache_read": 0,
+    "cache_write": 0,
+    "cache_write_1h": 0,
+    "cache_write_5m": 0,
+    "input": 0,
+    "output": 0
+   },
+   "tokens": {
+    "cache_read": 18561115,
+    "cache_write": 277196,
+    "cache_write_1h": 277196,
+    "cache_write_5m": 0,
+    "input": 168,
+    "output": 96534
+   },
+   "top_tools": [
+    [
+     "Bash",
+     69
+    ],
+    [
+     "Write",
+     12
+    ],
+    [
+     "Edit",
+     2
+    ],
+    [
+     "ScheduleWakeup",
+     2
+    ],
+    [
+     "ToolSearch",
+     1
+    ]
+   ],
+   "type": "implementation",
+   "unpriced_tokens": 0,
+   "versions": [
+    "2.1.316"
+   ],
+   "workorder": "T0744"
   }
  ]
 }
