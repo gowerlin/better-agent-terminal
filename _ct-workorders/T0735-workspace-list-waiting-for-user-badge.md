@@ -4,14 +4,14 @@ schema_kind: workorder
 id: T0735
 title: "工作區列表顯示「等待使用者」提示：任何 agent 分頁在等權限 / 回答時，所屬工作區出現 ⚠️，滑過列出分頁、點擊跳過去；縮圖 ⚠️ 擴及非 Worker 分頁"
 type: implementation
-status: PENDING
+status: IN_PROGRESS
 repo: better-agent-terminal
 project: maintenance
 priority: P2
 sizing: M
 created_at: "2026-11-01T13:00:33+0800"
-started_at: ""
-updated_at: "2026-11-01T13:00:33+0800"
+started_at: "2026-11-01T13:01:58+0800"
+updated_at: "2026-11-01T13:01:58+0800"
 completed_at: ""
 depends_on: []
 related:
@@ -35,6 +35,7 @@ affects_files:
   - docs/agent-guide/blocked-state.md
   - _ct-workorders/T0735-workspace-list-waiting-for-user-badge.md
 renew_count: 0
+tower_question: open
 workdir: main repo
 worker_question_timeout: 30
 interaction:
@@ -87,6 +88,16 @@ memory_overrides:
 ## 回報區
 
 > 以下由 sub-session 填寫，請勿在指揮塔 session 中編輯
+
+### 待塔台決策
+
+#### Q-1：D200 ⑥（detached 視窗的工作區）以現有程式做不到，要怎麼處理？
+- 提問時間：2026-11-01T13:04:12+0800
+- 現況（查證）：(1) 主視窗工作區列表把已分離的工作區整列隱藏（`src/App.tsx` `nonDetachedWorkspaces`），沒有地方放 ⚠️；(2) 主視窗 store 只有分離前的分頁，分離後在 detached 視窗新開的分頁，主視窗不知道它屬於哪個工作區、也沒有標題（`terminal:attention-changed` 只帶 tab id）；(3) 聚焦 detached 視窗可沿用 `workspace:detach`（已分離時只 `focus()`），但「在該視窗選到某個分頁」沒有 IPC。
+- 選項：[A] 本單做：主視窗列表為已分離的工作區保留一列（淡化＋「已分離」標示；點列 = 聚焦該 detached 視窗，取代目前的隱藏）；attention 事件加 `workspaceId`（主行程 / headless 從 PtyInstance 帶，只是 id）；新增 IPC（main focus 該 detached 視窗並通知它選到分頁）。會超出 affects_files：`electron/main.ts`、`electron/preload.ts`、`src/types/electron.d.ts`、`src/App.tsx`、`electron/remote/headless-entry.ts`。主視窗不認得的分頁，tooltip 顯示短 ID。 / [B] 本單只做 ①–⑤，⑥ 寫進已知限制、另開後續單 / [C] 其他：________
+- Worker 建議：[B]，因為 [A] 會改變主視窗列表的既有行為（已分離工作區由隱藏改為顯示），D200 沒寫到列表本身要改，且要動 main / preload / headless 與 attention 事件契約，規模超過本單 M；①–⑤ 不受影響，可先交付。若使用者確定要 ⑥，選 [A] 我在本單做完。
+- 影響範圍：D200 ⑥、上列檔案、`path-aware-channels.ts` 的事件說明
+- 阻塞：否（先做 ①–⑤；⑥ 等答覆）
 
 ### 完成狀態
 
