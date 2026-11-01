@@ -1465,6 +1465,13 @@
 - **切分**：W2a 設計語言 + 元件 + 首頁（T0630）→ 預覽通過後 W2b（`/control-tower`、功能、FAQ、回報頁）→ W2c 遠端開發；W3 / W4 不變。
 - **相關**：PLAN-049 / D159 / D160 / T0624 / T0630
 
+### D216 2026-11-02 — T0770 兩個觀察：取回焦點的點擊清掉淡化 ⚠️ 開 BUG-193 修正（T0774）；e2e 關 focus emulation（T0775），排在 T0774 之後
+
+- **背景**：T0770（`v0.7.3-pre.4` 安裝版）觀察 2：視窗失焦時 active 分頁 X 的等待結束留淡化 ⚠️，用滑鼠點另一個分頁 Y 取回焦點時，X 的淡化被當成看過清掉（推論：`focus` 事件先於 click 切換，`App.tsx` 依 D203 以當下 active 判斷）。觀察 1：Playwright 預設 focus emulation 讓 `document.hasFocus()` 永遠是 true，t0735 / t0757 / t0761 沒有真的驗到「有焦點」那一支。
+- **決定**（使用者選建議）：① 開 BUG-193（low）與 T0774：先查證事件順序再修；取回焦點的那次點擊若切到別的分頁，原分頁淡化保留，只恢復焦點不點擊照 D203 清除，其他 D200–D203 規則不變。② 開 T0775：三支 e2e 比照 t0770 關掉 focus emulation，排在 T0774 之後一起驗。T0774 要 `vite build`，等 T0772 / T0773 收單後才派。
+- **決策者**：使用者（2026-11-02 第一百零四 session，記錄於 05:24，AskUserQuestion）。
+- **相關**：BUG-193 / T0770 / T0774 / T0775 / D203 / D215
+
 ### D215 2026-11-02 — `v0.7.3-pre.4` 驗收改自動化：開 T0770–T0773 對安裝版跑，真實模型全批上限 US$1.00
 
 - **背景**：pre.4 待驗收 BUG-188–192、PLAN-055、detached / Claude 面板 ⚠️。手動驗收有三個問題：BUG-189 / 191 的前置環境（npm 安裝的 codex、`CLAUDE_CODE_PLUGIN_CACHE_DIR` ＋ plugin 安裝的 CT）與使用者現況不同；PLAN-055 要結束使用者自己的 Terminal Server，會中斷塔台；既有 e2e 只用假 API / 假 claude / 假 codex。e2e 有 `BAT_E2E_EXECUTABLE`（T0510）可直接啟動安裝版。
