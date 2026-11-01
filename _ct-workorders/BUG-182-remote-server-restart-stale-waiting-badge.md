@@ -3,17 +3,17 @@ schema_version: 1
 schema_kind: bug
 id: BUG-182
 title: "遠端 bat-server 重啟後，重連的視窗裡分頁的等待 ⚠️ 永遠不清除（看過、送 idle 都沒用），工作區總數多算"
-status: OPEN
+status: FIXING
 severity: low
 reproducibility: always
 created_at: "2026-11-01T20:48:44+0800"
-updated_at: "2026-11-01T20:48:44+0800"
+updated_at: "2026-11-01T20:50:17+0800"
 impact:
   - workspace-waiting-badge
   - remote-profile
 links:
   discovered_in: "T0748 回報區〈發現的問題〉1（2026-11-01，WSL 遠端工作區 ⚠️ 驗收，情境 ⑤ 選做）"
-  related: [T0748, T0735]
+  related: [T0748, T0735, T0749]
 ---
 
 # BUG-182 — 遠端 server 重啟後殘留的等待 ⚠️ 不會清除
@@ -22,7 +22,7 @@ links:
 |------|------|
 | 嚴重度 | 🟢 low（只在遠端 server 重啟時；提示錯誤、總數多 1，不影響終端功能） |
 | 可重現 | 一定（T0748 spec ⑤） |
-| **狀態** | 📂 OPEN |
+| **狀態** | 🔧 FIXING（T0749） |
 | 回報者 | T0748 Worker |
 
 ## 現象
