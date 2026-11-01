@@ -23,3 +23,10 @@ bat-server 由 systemd user unit（WSL / SSH Linux）、launchd（SSH macOS）�
 - 再依量測結果開實作單。比照 `electron/early-path-fix.ts`：timeout、只取 PATH、失敗退回原 PATH。
 - 預設開、可關（headless settings 開關，D206）。關閉時行為與現況完全相同。
 - 生效需要升級並重啟 server。
+
+## 研究結果（T0754 DONE，`6ddb08e1`）
+
+- 取法：`<登入 shell> -l -i -c` ＋隨機標記；`spawn` detached、逾時 3000 ms 以 SIGKILL 砍整個程序群組、用 `exit` 事件（`execFile` 的 timeout 對 `bash -i` 無效）。WSL 實測中位 123 ms。
+- WSL systemd 下 `/mnt/*` 項為 0；套用後分頁的 `~/.local/bin` 多一份；沒找到會讓 BAT 壞掉的路徑。
+- 套用點：`scripts/bat-server.mjs` `main()`，`createHeadlessServer` 之前；開關 `<dataDir>/settings.json` `headlessLoginShellPath`（`!== false` 為開）。
+- 實作單草案與待決點見 T0754 回報區 ⑦ 與〈需要使用者決定的點〉。

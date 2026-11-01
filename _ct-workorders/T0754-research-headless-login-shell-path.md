@@ -13,6 +13,8 @@ created_at: "2026-11-02T00:25:31+0800"
 started_at: "2026-11-02T00:26:48+0800"
 updated_at: "2026-11-02T00:43:58+0800"
 completed_at: "2026-11-02T00:43:58+0800"
+session_ids:
+  - "352584d8-b56a-4377-9929-3d6b6d78421a"
 depends_on: []
 related:
   - "PLAN-057；D206；T0753 Q-2 與回報區〈發現的問題〉1（BUG-186）"
@@ -287,7 +289,7 @@ shell 的選法：`process.env.SHELL` → `os.userInfo().shell` → `/bin/sh`。
 ### 量測資源與使用者環境
 
 - 量測腳本只放在 Worker scratchpad（Windows 端，經 `/mnt/c` 讀取）和 WSL 的 `/tmp/bat-e2e-t0754*`。結束時 `/tmp/bat-e2e-t0754*` 已刪除，沒有殘留的 `sleep` 程序。
-- Docker：只建立了 `bat-e2e-t0754-inspect`／`-a`／`-b`／`-c` 容器（都用 `--rm`）和 `bat-e2e-t0754-shells:local` 映像；結束時 t0754 的容器和映像都是 0。使用者的容器 `bat-server-sms-platform` 沒有動（前後都是 Up / healthy）。
+- Docker：只建立了 `bat-e2e-t0754-inspect`／`-a`／`-b`／`-c` 容器（都用 `--rm`）和 `bat-e2e-t0754-shells:local` 映像；結束時 t0754 的容器和映像都是 0。使用者既有的 bat-server 容器（名稱含專案名，塔台收單時改代稱）沒有動（前後都是 Up / healthy）。
 - 使用者 bat-server 前後比對：`bat-server.service` 的 MainPID `357`、`active/running`、`NRestarts=0`、`ActiveEnterTimestamp` `2026-11-02 00:22:46` 前後都相同；unit 檔、`~/.profile`、`~/.bashrc` 的 mtime 都早於本單開始時間（沒有修改）。
 - 沒有用 SSH 主機；macOS 沒有實測。
 
