@@ -59,7 +59,7 @@ breakdown:
 | ID | 標題 | 嚴重度 | 關閉時間 | 連結 |
 |----|------|--------|---------|------|
 | BUG-191 | 設 `CLAUDE_CODE_PLUGIN_CACHE_DIR` 時 BAT 找 plugins 的位置與 CLI 不同；T0760 `eb5c0589` `resolveClaudePluginsDir`；`v0.7.3-pre.4` 安裝版 T0772 實測 | 🟢 Low | 2026-11-02 | [BUG-191](BUG-191-claude-plugin-cache-dir-plugins-lookup.md) |
-| BUG-189 | npm 安裝的 codex（`codex.cmd` shim）探測不到版本，`--no-daemon` 與派工 OSC 失效；T0758 `ddfb4f38` 讀 shim 追到原生 `codex.exe`；`v0.7.3-pre.4` 安裝版 T0772 實測 | 🟡 Medium | 2026-11-02 | [BUG-189](BUG-189-npm-codex-shim-no-version-probe.md) |
+| BUG-189 | npm 安裝的 codex（`codex.cmd` shim）探測不到版本，`--no-daemon` 與派工 OSC 失效；T0758 `ddfb4f38` 讀 shim 追到原生 `codex.exe`；`v0.7.3-pre.4` 安裝版 T0772 實測 | 🟢 Low | 2026-11-02 | [BUG-189](BUG-189-npm-codex-shim-no-version-probe.md) |
 | BUG-192 | Claude 面板背景子代理執行中送新訊息會中止整個 query；T0769 `9ab26222` 注入同一個 query＋排隊退路（D214）；`v0.7.3-pre.4` 安裝版 T0771 實測（真實模型走注入） | 🟡 Medium | 2026-11-02 | [BUG-192](BUG-192-claude-panel-new-message-kills-background-agent.md) |
 | BUG-190 | Claude 面板背景子代理執行中不在 active task bar、結束沒標示；T0759 `b8a3b7f7`；`v0.7.3-pre.4` 安裝版 T0771 實測（含真實模型） | 🟢 Low | 2026-11-02 | [BUG-190](BUG-190-background-agent-not-in-active-task-bar.md) |
 | BUG-188 | 用滑鼠回答後 ⚠️ 不清除，與鍵盤回答不一致（D209）；T0757 `de8a4fd4` 滑鼠左鍵按下清 hook reason；`v0.7.3-pre.4` 安裝版 T0770 實測 | 🟡 Medium | 2026-11-02 | [BUG-188](BUG-188-mouse-answer-does-not-clear-waiting-badge.md) |
