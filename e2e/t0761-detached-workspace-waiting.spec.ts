@@ -11,8 +11,15 @@
 //   2. hook ask-user-question in B's tab → main: row ⚠️ (tooltip lists the tab), tab title ⚠️
 //   3. done while the detached window shows another tab → row faded (D203, decided in the detached window)
 //   4. waits again → solid; a click on the row → the detached window in front, the tab selected
-//   5. done while looked at in the detached window → the row goes (only with OS focus; logged, else skipped)
+//   5. done while looked at in the detached window → the row goes; done while the detached window has no
+//      OS focus → the row stays, faded (D203)
 //   6. the detached window closes → no row, B's own row is back
+//
+// T0775: Playwright's focus emulation is off for both windows (e2e/helpers/real-focus.ts, CDP
+// `Emulation.setFocusEmulationEnabled` false), so step 5 branches on the real OS focus of the detached
+// window: its document.hasFocus() and Electron's BrowserWindow.getFocusedWindow() are logged (`[focus] …`).
+// With the emulation on, document.hasFocus() was always true and step 5 never measured the focus.
+// `BAT_E2E_FORCE_UNFOCUSED=1` gives the focus to a second window instead (counter-check: the faded branch).
 
 import { test, expect, type ElectronApplication, type Page } from '@playwright/test'
 import { execFile } from 'node:child_process'
@@ -20,6 +27,7 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { REPO_ROOT, closeIsolated, launchIsolated, testLogger, type IsolatedInstance } from './fixtures/electron-isolation'
+import { closeFocusSink, disableFocusEmulation, focusEvidence, focusWindow, takeFocus } from './helpers/real-focus'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type AnyApi = any
@@ -145,12 +153,17 @@ test('a detached workspace waiting for the user shows a row in the main window; 
     }
     const rowB = win.locator('.workspace-list .workspace-item', { hasText: NAME_B })
     await expect(rowB).toBeVisible({ timeout: 30_000 })
+    // T0775: the real OS focus from here on (step 5 branches on it)
+    await disableFocusEmulation(app, win)
+    log(`[focus] main: emulation off: ${JSON.stringify(await focusEvidence(app, win))}`)
 
     // ── 1. B detached → hidden in the main list, no row ──
     const opened = app.waitForEvent('window', { timeout: 30_000 })
     expect(await win.evaluate(async (id) => (window as AnyApi).electronAPI.workspace.detach(id), WS_B)).toBe(true)
     const detached = await opened
     await detached.waitForLoadState('domcontentloaded')
+    await disableFocusEmulation(app, detached)
+    log(`[focus] detached: emulation off: ${JSON.stringify(await focusEvidence(app, detached))}`)
     await expect(detached.locator('.workspace-container.active .thumbnail', { hasText: 'Shell B' })).toBeVisible({ timeout: 30_000 })
     await expect(rowB).toBeHidden({ timeout: 10_000 })
     const detachedRow = win.locator('.detached-waiting-item')
@@ -171,12 +184,8 @@ test('a detached workspace waiting for the user shows a row in the main window; 
     // the detached window shows Shell B, the main window has the focus → the user does not look at the tab
     await detached.locator('.workspace-container.active .thumbnail', { hasText: 'Shell B' }).click()
     await expect.poll(() => activeThumbTitle(detached), { timeout: 10_000 }).toContain('Shell B')
-    await app.evaluate(({ BrowserWindow }) => {
-      const main = BrowserWindow.getAllWindows().find(w => !w.webContents.getURL().includes('detached='))
-      main?.show()
-      main?.focus()
-    })
-    log(`focused window before the wait: ${await focusedWindow(app)}`)
+    const mainFocused = await focusWindow(app, win, 'main')
+    log(`[focus] before the wait: main focused ${mainFocused}; main ${JSON.stringify(await focusEvidence(app, win))}; detached ${JSON.stringify(await focusEvidence(app, detached))}`)
 
     let jobs = 0
     const hook = async (event: string, input: Record<string, string>) => {
@@ -227,17 +236,29 @@ test('a detached workspace waiting for the user shows a row in the main window; 
     })).toBe(true)
     await detached.screenshot({ path: test.info().outputPath('detached-window-tab.png') })
 
-    // ── 5. answered while looked at → the row goes (needs OS focus on the detached window) ──
-    await detached.evaluate(() => window.dispatchEvent(new Event('focus')))
-    const looked = await detached.evaluate(() => document.hasFocus())
-    log(`detached document.hasFocus() = ${looked}`)
+    log(`[focus] 4. detached after the click: ${JSON.stringify(await focusEvidence(app, detached))}`)
+
+    // ── 5. answered while looked at → the row goes; answered while the detached window has no OS focus → faded ──
+    const before = await takeFocus(app, detached, 'detached', '5. before done', log)
     await done()
-    if (looked) {
+    const after = await focusEvidence(app, detached)
+    log(`[focus] 5. after done: ${JSON.stringify(after)}`)
+    // the focus must not have moved while the wait ended, or the branch below would be a guess
+    expect(after.hasFocus, 'the detached window focus changed while the wait ended').toBe(before.hasFocus)
+    if (before.hasFocus) {
+      expect(before.focusedWindow).toBe('detached') // the OS focus is really on the detached window
       await expect(detachedRow).toHaveCount(0, { timeout: 15_000 })
+      await win.waitForTimeout(1_500) // stays gone (no late faded mark)
+      await expect(detachedRow).toHaveCount(0)
+      log(`5. detached focused (${JSON.stringify(before)}): done while looked at → no row`)
     } else {
+      expect(before.focusedWindow).not.toBe('detached')
       await expect(rowBadge).toHaveAttribute('data-waiting', 'missed', { timeout: 15_000 })
-      test.info().annotations.push({ type: 'skip-step', description: 'detached window focus unavailable: "answered while looked at" not checked' })
+      await expect(rowBadge).toHaveClass(/\bmissed\b/)
+      log(`5. detached unfocused (${JSON.stringify(before)}): done → the row stays, faded`)
+      test.info().annotations.push({ type: 'focus', description: `step 5 ran with the detached window unfocused (${JSON.stringify(before)}): faded row asserted` })
     }
+    await closeFocusSink(app)
 
     // ── 6. the detached window closes → no row; B's own row is back ──
     await ask()
@@ -256,7 +277,10 @@ test('a detached workspace waiting for the user shows a row in the main window; 
     await expect(rowB.locator('.workspace-waiting-badge')).toHaveAttribute('data-waiting', 'waiting', { timeout: 15_000 })
     await win.screenshot({ path: test.info().outputPath('reattached.png') })
   } finally {
-    if (inst) await closeIsolated(inst, log)
+    if (inst) {
+      await closeFocusSink(inst.app)
+      await closeIsolated(inst, log)
+    }
     fs.rmSync(tmp, { recursive: true, force: true })
   }
 })

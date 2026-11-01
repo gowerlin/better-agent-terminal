@@ -11,8 +11,14 @@
 //      tooltip lists the tab; the 工作區 tab title shows ⚠️ while the Control Tower tab is shown
 //   2. ask-user-question-done unseen → faded ⚠️ on A's row and the tab title
 //   3. waits again → solid; the sidebar collapsed → ⚠️ on the bar, its click expands the sidebar
-//   4. a click on A's ⚠️ → A active, the Tower tab selected; done while looked at → no faded ⚠️
-//      (only when the BAT window has focus — Playwright cannot always give it; logged, then skipped)
+//   4. a click on A's ⚠️ → A active, the Tower tab selected; done while looked at → no faded ⚠️;
+//      done while the window has no OS focus → faded ⚠️ (D203)
+//
+// T0775: Playwright's focus emulation is off for the window (e2e/helpers/real-focus.ts, CDP
+// `Emulation.setFocusEmulationEnabled` false), so step 4 branches on the real OS focus: the renderer's
+// document.hasFocus() and Electron's BrowserWindow.getFocusedWindow() are logged (`[focus] …`). With the
+// emulation on, document.hasFocus() was always true and the "no faded ⚠️" check never measured the focus.
+// `BAT_E2E_FORCE_UNFOCUSED=1` gives the focus to a second window instead (counter-check: the faded branch).
 
 import { test, expect, type ElectronApplication, type Page } from '@playwright/test'
 import { execFile } from 'node:child_process'
@@ -20,6 +26,7 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { REPO_ROOT, closeIsolated, launchIsolated, testLogger, type IsolatedInstance } from './fixtures/electron-isolation'
+import { closeFocusSink, disableFocusEmulation, focusEvidence, takeFocus } from './helpers/real-focus'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type AnyApi = any
@@ -130,6 +137,9 @@ test('workspace list ⚠️ for a non-Worker tab waiting for the user; tab title
     await win.waitForLoadState('domcontentloaded')
     await expect(rowOf(win, WS_A)).toBeVisible({ timeout: 30_000 })
     await expect(win.locator('.workspace-container.active .terminal-wrapper')).toHaveCount(1, { timeout: 30_000 })
+    // T0775: the real OS focus from here on (step 4 branches on it)
+    await disableFocusEmulation(app, win)
+    log(`[focus] emulation off (CDP Emulation.setFocusEmulationEnabled false): ${JSON.stringify(await focusEvidence(app, win))}`)
 
     // a non-Worker tab in A (raw command, no --notify-id)
     const env = await helperEnv(app, userData, inst.remotePort, tmp)
@@ -213,20 +223,31 @@ test('workspace list ⚠️ for a non-Worker tab waiting for the user; tab title
     // the active (accent-blue) row keeps the solid ⚠️ readable (D202 ①)
     await expect(rowBadge).toHaveAttribute('data-waiting', 'waiting')
     await win.screenshot({ path: test.info().outputPath('active-row-badge.png') })
-    await app.evaluate(({ BrowserWindow }) => { const w = BrowserWindow.getAllWindows()[0]; w.show(); w.focus() })
-    await win.evaluate(() => window.dispatchEvent(new Event('focus')))
-    const focused = await win.evaluate(() => document.hasFocus())
-    log(`document.hasFocus() = ${focused}`)
+    const before = await takeFocus(app, win, 'main', '4. before done', log)
     await done()
-    if (focused) {
+    const after = await focusEvidence(app, win)
+    log(`[focus] 4. after done: ${JSON.stringify(after)}`)
+    // the focus must not have moved while the wait ended, or the branch below would be a guess
+    expect(after.hasFocus, 'the window focus changed while the wait ended').toBe(before.hasFocus)
+    if (before.hasFocus) {
+      expect(before.focusedWindow).toBe('main') // the OS focus is really on the main window
       await expect(rowBadge).toHaveCount(0, { timeout: 15_000 }) // looked at → cleared, no faded mark
+      await win.waitForTimeout(1_500) // stays gone (no late faded mark)
+      await expect(rowBadge).toHaveCount(0)
+      log(`4. focused (${JSON.stringify(before)}): done while looked at → no faded ⚠️`)
     } else {
-      // no OS focus for the test window: the wait counts as unseen (D203 ③)
+      // no OS focus for the window: the wait counts as unseen (D203 ③)
+      expect(before.focusedWindow).not.toBe('main')
       await expect(rowBadge).toHaveAttribute('data-waiting', 'missed', { timeout: 15_000 })
-      test.info().annotations.push({ type: 'skip-step', description: 'window focus unavailable: "done while looked at" not checked' })
+      await expect(rowBadge).toHaveClass(/\bmissed\b/)
+      log(`4. unfocused (${JSON.stringify(before)}): done → faded ⚠️ on A's row`)
+      test.info().annotations.push({ type: 'focus', description: `step 4 ran unfocused (${JSON.stringify(before)}): faded ⚠️ asserted` })
     }
   } finally {
-    if (inst) await closeIsolated(inst, log)
+    if (inst) {
+      await closeFocusSink(inst.app)
+      await closeIsolated(inst, log)
+    }
     fs.rmSync(tmp, { recursive: true, force: true })
   }
 })

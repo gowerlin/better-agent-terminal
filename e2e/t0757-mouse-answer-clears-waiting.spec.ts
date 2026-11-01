@@ -26,6 +26,16 @@
 // Without the fix the run fails at ② (mutation check, T0757 report). Windows only; `npx vite build` first.
 // claude 2.1.316 also ignored a click right after the terminal got the focus back (focus-out / -in) and after
 // a wheel scroll — so the spec does not click the thumbnail and scrolls last (W, before the keyboard answer K).
+//
+// T0775: Playwright's focus emulation is off for the window (e2e/helpers/real-focus.ts, CDP
+// `Emulation.setFocusEmulationEnabled` false), so "looked at" is the real OS focus: before every answer the
+// spec gives the window the focus and logs the renderer's document.hasFocus() and Electron's
+// BrowserWindow.getFocusedWindow() (`[focus] …`); after the clear it reads them again and asserts by them —
+// focused → no faded ⚠️, unfocused → faded ⚠️ (D203). The reading after the clear decides: a Playwright mouse
+// click gives an unfocused window the focus before its press reaches the PTY (T0770 E / T0774). With the
+// emulation on, document.hasFocus() was always true and the "no faded ⚠️" checks never measured the focus.
+// `BAT_E2E_FORCE_UNFOCUSED=1` (counter-check) takes the focus away before the keyboard answer K only — a
+// click would give it back, and claude ignores a click that comes with a focus-in — so K must leave a faded ⚠️.
 import { test, expect, type Page } from '@playwright/test'
 import { execFileSync } from 'node:child_process'
 import fs from 'node:fs'
@@ -34,6 +44,7 @@ import os from 'node:os'
 import path from 'node:path'
 import { REPO_ROOT, closeIsolated, launchIsolated, testLogger, type IsolatedInstance } from './fixtures/electron-isolation'
 import { startBlockingProxy, startFakeAnthropicApi, type FakeAnthropicApi, type Scenario } from './fixtures/fake-anthropic-api'
+import { FORCE_UNFOCUSED, closeFocusSink, disableFocusEmulation, focusEvidence, takeFocus, type FocusEvidence } from './helpers/real-focus'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type AnyApi = any
@@ -381,12 +392,13 @@ test('a mouse answer clears ⚠️ (thumbnail + workspace row) like a key does; 
     log(`claude: mouse tracking ${s0?.mouse}, ${s0?.buffer} buffer, ${s0?.cols}x${s0?.rows}`)
     expect(s0?.mouse, 'claude fullscreen renderer tracks the mouse').not.toBe('none')
 
-    // looked at = the active tab of a focused window (D203: an answer while looked at leaves no faded ⚠️)
-    await app.evaluate(({ BrowserWindow }) => { const w = BrowserWindow.getAllWindows()[0]; w.show(); w.focus() })
-    await win.evaluate(() => window.dispatchEvent(new Event('focus')))
-    const focused = await win.evaluate(() => document.hasFocus())
-    log(`document.hasFocus() = ${focused}`)
-    if (!focused) test.info().annotations.push({ type: 'skip-step', description: 'window focus unavailable: the "no faded ⚠️" checks are skipped' })
+    // looked at = the active tab of a focused window (D203: an answer while looked at leaves no faded ⚠️).
+    // T0775: the real OS focus from here on.
+    await disableFocusEmulation(app, win)
+    log(`[focus] emulation off (CDP Emulation.setFocusEmulationEnabled false): ${JSON.stringify(await focusEvidence(app, win))}`)
+    /** The window focused before an answer (forced away for K with BAT_E2E_FORCE_UNFOCUSED=1); logged. */
+    const focusFor = (key: string) => takeFocus(app, win, 'main', `${key} before the answer`, log, { forceUnfocused: FORCE_UNFOCUSED && key === 'K' })
+    await focusFor('start')
 
     /** Prompt → blocked (⚠️ on the thumbnail and the row); returns the log marks taken before the prompt. */
     const block = async (key: string, scenario: string, reason: string) => {
@@ -401,16 +413,31 @@ test('a mouse answer clears ⚠️ (thumbnail + workspace row) like a key does; 
       await win.waitForTimeout(2_000)
       return mark
     }
-    /** ⚠️ gone from the thumbnail and the row, no faded mark (looked at). */
-    const expectCleared = async (key: string, mark: { debug: number; scripts: number }, cause: RegExp) => {
+    const focusSeen: Record<string, string> = {}
+    /**
+     * ⚠️ gone from the thumbnail and the row: no faded mark when the window had the OS focus as the wait
+     * ended (looked at), a faded one when it had not (D203). `before` = the focus taken before the answer.
+     */
+    const expectCleared = async (key: string, mark: { debug: number; scripts: number }, cause: RegExp, before: FocusEvidence) => {
       await waitLine(cli.id, mark.debug, /→ cleared \(/, `${key} cleared`, 15_000)
       const cleared = linesSince(cli.id, mark.debug).find(l => /→ cleared \(/.test(l))!
+      if (!cause.test(cleared)) log(`${key}: unexpected clear; lines since the mark ${JSON.stringify(linesSince(cli.id, mark.debug))}; hooks ${JSON.stringify(hooksSince(cli.id, mark.scripts))}`)
       expect(cleared).toMatch(cause)
-      if (focused) {
+      const after = await focusEvidence(app, win)
+      log(`[focus] ${key} after the clear: ${JSON.stringify(after)} (before the answer: ${JSON.stringify(before)})`)
+      await expect(thumbOf(cli.title!).locator('.attention-badge.blocked')).toHaveCount(0, { timeout: 15_000 })
+      if (after.hasFocus) {
         await expect(thumbOf(cli.title!).locator('.attention-badge')).toHaveCount(0, { timeout: 15_000 })
         await expect(rowBadge).toHaveCount(0, { timeout: 15_000 })
+        await win.waitForTimeout(1_000) // stays gone (no late faded mark)
+        await expect(thumbOf(cli.title!).locator('.attention-badge')).toHaveCount(0)
+        focusSeen[key] = `focused (${JSON.stringify(after)}) → no faded ⚠️`
       } else {
-        await expect(thumbOf(cli.title!).locator('.attention-badge.blocked')).toHaveCount(0, { timeout: 15_000 })
+        expect(after.focusedWindow).not.toBe('main')
+        await expect(thumbOf(cli.title!).locator('.attention-badge.missed')).toHaveCount(1, { timeout: 15_000 })
+        await expect(rowBadge).toHaveAttribute('data-waiting', 'missed', { timeout: 15_000 })
+        focusSeen[key] = `unfocused (${JSON.stringify(after)}) → faded ⚠️`
+        test.info().annotations.push({ type: 'focus', description: `${key} ended unfocused (${JSON.stringify(after)}): faded ⚠️ asserted` })
       }
       return cleared
     }
@@ -421,30 +448,34 @@ test('a mouse answer clears ⚠️ (thumbnail + workspace row) like a key does; 
 
     // ── ① permission, click "1. Yes" ──
     let mark = await block('①', 't0757-perm-allow', 'permission')
+    let focus = await focusFor('①')
     await clickText(win, cli.id, /(?<=1\. )Yes/)
-    let cleared = await expectCleared('①', mark, /\(mouse press\)|\(hook post-tool-batch\)/)
+    let cleared = await expectCleared('①', mark, /\(mouse press\)|\(hook post-tool-batch\)/, focus)
     await settle('t0757-perm-allow', true)
     results['①'] = `PASS — permission, click "1. Yes": ${cleared}; hooks ${JSON.stringify(hooksSince(cli.id, mark.scripts))}; the tool ran`
 
     // ── ② permission, click "4. No": claude interrupts the turn, no hook at all → the press clears ──
     mark = await block('②', 't0757-perm-deny', 'permission')
+    focus = await focusFor('②')
     await clickText(win, cli.id, /(?<=4\. )No/)
-    cleared = await expectCleared('②', mark, /\(mouse press\)/)
+    cleared = await expectCleared('②', mark, /\(mouse press\)/, focus)
     await settle('t0757-perm-deny', false)
     expect(hooksSince(cli.id, mark.scripts).filter(h => !/^(user-prompt-submit|permission-request)→/.test(h)), 'no hook after a mouse "No"').toEqual([])
     results['②'] = `PASS — permission, click "4. No" (turn interrupted, no hook): ${cleared}`
 
     // ── ③ AskUserQuestion, click "1. Alpha" ──
     mark = await block('③', 't0757-ask-pick', 'question')
+    focus = await focusFor('③')
     await clickText(win, cli.id, /(?<=1\. )Alpha/)
-    cleared = await expectCleared('③', mark, /\(mouse press\)|\(hook ask-user-question-done\)/)
+    cleared = await expectCleared('③', mark, /\(mouse press\)|\(hook ask-user-question-done\)/, focus)
     await settle('t0757-ask-pick', true)
     results['③'] = `PASS — question, click "1. Alpha": ${cleared}; hooks ${JSON.stringify(hooksSince(cli.id, mark.scripts))}`
 
     // ── ④ AskUserQuestion, click "Chat about this" (claude 2.1.316 ignores the click; Esc is the only way out) ──
     mark = await block('④', 't0757-ask-cancel', 'question')
+    focus = await focusFor('④')
     await clickText(win, cli.id, /Chat about this/)
-    cleared = await expectCleared('④', mark, /\(mouse press\)/)
+    cleared = await expectCleared('④', mark, /\(mouse press\)/, focus)
     const s4 = await screenOf(win, cli.id)
     const dialogOpen = (s4?.lines ?? []).some(l => /Chat about this/.test(l))
     log(`④ after the click the question dialog is ${dialogOpen ? 'still open (claude ignores the click)' : 'closed'}`)
@@ -455,8 +486,9 @@ test('a mouse answer clears ⚠️ (thumbnail + workspace row) like a key does; 
     // ── ⑤ elicitation, click "Decline" (claude 2.1.316 ignores clicks in the form; the press clears like a key) ──
     mark = await block('⑤', 't0757-elic', 'elicitation')
     await expect.poll(async () => (await screenOf(win, cli.id))?.lines.some(l => /Decline/.test(l)), { timeout: 30_000 }).toBe(true)
+    focus = await focusFor('⑤')
     await clickText(win, cli.id, /Decline/)
-    cleared = await expectCleared('⑤', mark, /\(mouse press\)|\(hook elicitation-done\)/)
+    cleared = await expectCleared('⑤', mark, /\(mouse press\)|\(hook elicitation-done\)/, focus)
     const s5 = await screenOf(win, cli.id)
     const formOpen = (s5?.lines ?? []).some(l => /Decline/.test(l))
     await write(cli.id, '\x1b')
@@ -474,10 +506,15 @@ test('a mouse answer clears ⚠️ (thumbnail + workspace row) like a key does; 
     await expect(rowBadge).toHaveText('⚠️')
     await expect(thumbOf(cli.title!).locator('.attention-badge.blocked')).toHaveCount(1)
     results.W = 'PASS — 6 wheel events over the blocked claude tab (mouse tracking on): still blocked, thumbnail and row ⚠️'
+    focus = await focusFor('K')
     await write(cli.id, '\r')
-    cleared = await expectCleared('K', mark, /\(user input\)|\(hook ask-user-question-done\)/)
+    cleared = await expectCleared('K', mark, /\(user input\)|\(hook ask-user-question-done\)/, focus)
     await settle('t0757-ask-pick', false)
     results.K = `PASS — question, Enter: ${cleared}`
+    if (FORCE_UNFOCUSED) {
+      await closeFocusSink(app)
+      await focusFor('after K')
+    }
 
     // ── ⑥ codex input: a click on the approval option changes nothing (codex 0.166 ignores it, no OSC); `y` does ──
     if (CODEX) {
@@ -508,7 +545,9 @@ test('a mouse answer clears ⚠️ (thumbnail + workspace row) like a key does; 
     expect(debug).not.toMatch(/batcap\.[A-Za-z0-9_-]{16,}/)
     expect(rig.proxy.attempts.filter(a => /api\.anthropic\.com|api\.openai\.com/.test(a))).toEqual([])
     log(`T0757 results: ${JSON.stringify(results, null, 2)}`)
+    log(`T0757 focus at each clear (T0775): ${JSON.stringify(focusSeen, null, 2)}`)
   } finally {
+    await closeFocusSink(rig.app)
     await rig.cleanup()
   }
 })
