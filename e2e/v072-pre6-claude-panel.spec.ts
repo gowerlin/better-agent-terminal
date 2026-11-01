@@ -24,6 +24,9 @@
 //   ⑤ streamed text shows while streaming (cursor) and in full afterwards
 //   ⑥ a Bash tool_use in `default` mode: permission card, allow → runs, deny → does not run
 //   ⑦ a (foreground) Agent tool_use: Agent card + active-task bar while the sub-agent runs, cleared after
+//   ⑦b (T0759 / BUG-190) a background Agent (`run_in_background: true`): after the main turn ended it
+//      stays in the active-task bar (1 item, bg tag) while the sub-agent is held; once it ends: bar
+//      empty, card dot-success with `[completed] …`; a 2nd one stopped from the bar → `[stopped …`
 //   ⑧ a seeded `claude-code-v2` tab with an sdkSessionId: reads as Claude Agent; records whether
 //      the next message resumed or started fresh
 //   ⑨ a claude-cli PTY's env has no CLAUDE_CODE_ENABLE_TODO_TOOLS (and the main process neither)
@@ -84,6 +87,17 @@ const SCENARIOS: Record<string, Scenario> = {
     { text: ['agent ', 'done'] },
   ][step] ?? null,
   sub: ({ step }) => (step === 0 ? { text: ['sub-agent ', 'finished'] } : null),
+  // T0759 / BUG-190: the main turn ends at the launch; the held sub-agent keeps running after it.
+  'bg-agent': ({ step, agentTypes }) => [
+    { tool: { name: 'Agent', input: { description: 'T0759 bg probe', prompt: '[[T0727:bgsub]] report back', subagent_type: agentTypes.includes('general-purpose') ? 'general-purpose' : (agentTypes[0] ?? 'general-purpose'), run_in_background: true } } },
+    { text: ['bg ', 'launched'] },
+  ][step] ?? null,
+  bgsub: ({ step }) => (step === 0 ? { text: ['bg sub-agent ', 'finished'] } : null),
+  'bg-stop': ({ step, agentTypes }) => [
+    { tool: { name: 'Agent', input: { description: 'T0759 bg stop probe', prompt: '[[T0727:bgsub2]] report back', subagent_type: agentTypes.includes('general-purpose') ? 'general-purpose' : (agentTypes[0] ?? 'general-purpose'), run_in_background: true } } },
+    { text: ['bg2 ', 'launched'] },
+  ][step] ?? null,
+  bgsub2: ({ step }) => (step === 0 ? { text: ['never ', 'released'] } : null),
   'perm-allow': ({ step }) => [
     { tool: { name: 'Bash', input: { command: 'mkdir t0727-perm-allow', description: 'T0727 permission probe (allow)' } } },
     { text: ['allow ', 'done'] },
@@ -336,6 +350,44 @@ test('Claude panel against a fake Anthropic API: task list, resume, streaming, p
     await expect(sonnet.locator('.claude-active-task-item')).toHaveCount(0, { timeout: 15_000 })
     await expect(agentCard.locator('.tl-dot')).toHaveClass(/dot-success/, { timeout: 15_000 })
     results['⑦'] = `PASS — Agent card (${subRequest.model}, subagent request ${subRequest.tools.length} tools) + 1 active-task bar item ${JSON.stringify(barLabel)} while the sub-agent was held; after it: bar empty, card dot-success`
+
+    // ── ⑦b (T0759 / BUG-190): background Agent ──
+    fake.gate('bgsub')
+    await send(win, '[[T0727:bg-agent]] delegate in the background')
+    await fake.waitFor('bgsub', 0, 60_000)
+    await waitText(sonnet, 'bg launched') // the main turn is over, the sub-agent is still held
+    const bgCard = agentCard.last()
+    await expect(agentCard).toHaveCount(2, { timeout: 15_000 })
+    await expect(sonnet.locator('.claude-active-task-item')).toHaveCount(1, { timeout: 15_000 })
+    await win.waitForTimeout(2_000) // T0739: the bar emptied ~1.5 s after the launch
+    await expect(sonnet.locator('.claude-active-task-item')).toHaveCount(1)
+    const bgBarLabel = await sonnet.locator('.claude-active-task-item .claude-active-task-label').first().textContent()
+    const bgBarTags = await sonnet.locator('.claude-active-task-item .claude-task-tag').allTextContents()
+    expect(bgBarLabel).toContain('T0759 bg probe')
+    await expect(bgCard.locator('.tl-dot')).toHaveClass(/dot-running/)
+    await sonnet.screenshot({ path: test.info().outputPath('t0759-bg-agent-running.png') })
+    log(`⑦b while the background sub-agent is held: bar label=${JSON.stringify(bgBarLabel)} tags=${JSON.stringify(bgBarTags)}`)
+    fake.release('bgsub', 0)
+    await expect(sonnet.locator('.claude-active-task-item')).toHaveCount(0, { timeout: 30_000 })
+    await expect(bgCard.locator('.tl-dot')).toHaveClass(/dot-success/, { timeout: 15_000 })
+    await expect(bgCard.locator('.claude-task-end-label')).toContainText('[completed] bg sub-agent finished', { timeout: 15_000 })
+    const bgResult = await bgCard.locator('.claude-task-end-label').textContent()
+    await sonnet.screenshot({ path: test.info().outputPath('t0759-bg-agent-after.png') })
+    // A second background Agent, stopped from the active-task bar while its sub-agent is held.
+    fake.gate('bgsub2')
+    await send(win, '[[T0727:bg-stop]] delegate in the background, then stop it')
+    await fake.waitFor('bgsub2', 0, 60_000)
+    await waitText(sonnet, 'bg2 launched')
+    const stopCard = agentCard.last()
+    await expect(agentCard).toHaveCount(3, { timeout: 15_000 })
+    await expect(sonnet.locator('.claude-active-task-item')).toHaveCount(1, { timeout: 15_000 })
+    await sonnet.locator('.claude-active-task-item .claude-task-stop-btn').first().click()
+    await expect(sonnet.locator('.claude-active-task-item')).toHaveCount(0, { timeout: 30_000 })
+    await expect(stopCard.locator('.claude-task-end-label')).toContainText('[stopped', { timeout: 15_000 })
+    await expect(stopCard.locator('.tl-dot')).toHaveClass(/dot-success/)
+    const stopResult = await stopCard.locator('.claude-task-end-label').textContent()
+    log(`⑦b after the sub-agent: card result=${JSON.stringify(bgResult)}; stopped from the bar: card result=${JSON.stringify(stopResult)}`)
+    results['⑦b'] = `PASS — background Agent: 1 active-task bar item ${JSON.stringify(bgBarLabel)} (tags ${JSON.stringify(bgBarTags)}) after the main turn ended; after the sub-agent: bar empty, card dot-success, ${JSON.stringify(bgResult)}; 2nd background Agent stopped from the bar: bar empty, card ${JSON.stringify(stopResult)}`
 
     // ── ⑥: permission in `default` mode, allow then deny ──
     // Between turns the call returns false (the finished query's setPermissionMode throws) but the

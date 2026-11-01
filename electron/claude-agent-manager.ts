@@ -309,6 +309,13 @@ interface ActiveTask {
   lastProgressTime: number
   stalled?: boolean
   lastToolName?: string
+  /**
+   * T0759 / BUG-190: runs as a background task (`task_started.is_backgrounded`,
+   * `task_updated.patch.is_backgrounded`, or the tool_result's `tool_use_result.status:
+   * 'async_launched'`). Its tool_result arrives at launch, so the entry stays until the
+   * task_notification (or the end of the query).
+   */
+  background?: boolean
 }
 
 interface SessionInstance {
@@ -555,6 +562,38 @@ export class ClaudeAgentManager {
       }
     }
     this.send('claude:tool-result', sessionId, { id: toolId, ...updates })
+  }
+
+  /**
+   * A tool_result block. Agent / Task entries in `activeTasks` end here (CLAUDE.md "Sub-agent /
+   * Active Tasks Tracking"), except a background one (T0759 / BUG-190): its tool_result is the
+   * launch notice, so it stays `running` until its task_notification, or until the query ends
+   * (`runQuery`'s finally).
+   */
+  private applyToolResult(sessionId: string, session: SessionInstance, toolUseId: string, resultStr: string, isError: boolean | undefined, launchedInBackground: boolean, logTag: string) {
+    const activeTask = Array.from(session.activeTasks.entries()).find(([, t]) => t.toolUseId === toolUseId)
+    if (activeTask && resultStr) {
+      const [taskKey, task] = activeTask
+      if ((task.background || launchedInBackground) && !isError) {
+        task.background = true
+        logger.log(`[activeTasks] Background launch${logTag} ${toolUseId.slice(0, 12)}: kept until task_notification`)
+        this.updateToolCall(sessionId, toolUseId, { status: 'running', result: resultStr, isBackground: true })
+        return
+      }
+      logger.log(`[activeTasks] Completed${logTag} ${toolUseId.slice(0, 12)} is_error=${isError}`)
+      session.activeTasks.delete(taskKey)
+    }
+    const hasActiveTask = session.activeTasks.has(toolUseId)
+    this.updateToolCall(sessionId, toolUseId, {
+      status: hasActiveTask ? 'running' : (isError ? 'error' : 'completed'),
+      result: resultStr,
+    })
+  }
+
+  private deleteActiveTasksOf(session: SessionInstance, toolUseId: string) {
+    for (const [key, task] of session.activeTasks) {
+      if (task.toolUseId === toolUseId) session.activeTasks.delete(key)
+    }
   }
 
   async startSession(sessionId: string, options: { cwd: string; prompt?: string; sdkSessionId?: string; permissionMode?: AppPermissionMode; model?: string; effort?: EffortLevel; useWorktree?: boolean; worktreePath?: string; worktreeBranch?: string }): Promise<boolean> {
@@ -1179,16 +1218,7 @@ export class ClaudeAgentManager {
             const resultContent = typeof resultBlock.content === 'string'
               ? resultBlock.content
               : JSON.stringify(resultBlock.content)
-            const activeTask = Array.from(session.activeTasks.entries()).find(([, t]) => t.toolUseId === resultBlock.tool_use_id)
-            if (activeTask && resultContent) {
-              logger.log(`[activeTasks] Completed ${resultBlock.tool_use_id.slice(0, 12)} is_error=${resultBlock.is_error}`)
-              session.activeTasks.delete(activeTask[0])
-            }
-            const hasActiveTask = session.activeTasks.has(resultBlock.tool_use_id)
-            this.updateToolCall(sessionId, resultBlock.tool_use_id, {
-              status: hasActiveTask ? 'running' : (resultBlock.is_error ? 'error' : 'completed'),
-              result: resultContent,
-            })
+            this.applyToolResult(sessionId, session, resultBlock.tool_use_id, resultContent, resultBlock.is_error, false, '')
           }
         }
       }
@@ -1197,22 +1227,19 @@ export class ClaudeAgentManager {
     if (message.type === 'user') {
       const content = message.message?.content
       if (Array.isArray(content)) {
+        // T0759: `tool_use_result` describes the message's tool result; only trust it when the
+        // message carries exactly one tool_result block.
+        const resultBlocks = content.filter((b: unknown) => (b as { type?: string })?.type === 'tool_result')
+        const toolUseResultStatus = resultBlocks.length === 1
+          ? (message as { tool_use_result?: { status?: unknown } }).tool_use_result?.status
+          : undefined
         for (const block of content) {
           if ('type' in block && block.type === 'tool_result') {
             const resultBlock = block as { tool_use_id: string; content?: unknown; is_error?: boolean }
             const resultStr = typeof resultBlock.content === 'string'
               ? resultBlock.content
               : JSON.stringify(resultBlock.content)
-            const activeTask = Array.from(session.activeTasks.entries()).find(([, t]) => t.toolUseId === resultBlock.tool_use_id)
-            if (activeTask && resultStr) {
-              logger.log(`[activeTasks] Completed (user msg) ${resultBlock.tool_use_id.slice(0, 12)} is_error=${resultBlock.is_error}`)
-              session.activeTasks.delete(activeTask[0])
-            }
-            const hasActiveTask = session.activeTasks.has(resultBlock.tool_use_id)
-            this.updateToolCall(sessionId, resultBlock.tool_use_id, {
-              status: hasActiveTask ? 'running' : (resultBlock.is_error ? 'error' : 'completed'),
-              result: resultStr,
-            })
+            this.applyToolResult(sessionId, session, resultBlock.tool_use_id, resultStr, resultBlock.is_error, toolUseResultStatus === 'async_launched', ' (user msg)')
           }
         }
       }
@@ -1316,7 +1343,7 @@ export class ClaudeAgentManager {
     if (message.type === 'system') {
       const subtype = (message as { subtype?: string }).subtype
       logger.log(`[claude:system] subtype=${subtype} keys=${Object.keys(message).join(',')}`)
-      if (subtype === 'task_started' || subtype === 'task_progress' || subtype === 'task_notification') {
+      if (subtype === 'task_started' || subtype === 'task_progress' || subtype === 'task_notification' || subtype === 'task_updated') {
         const agentMsg = message as {
           subtype: string
           task_id?: string
@@ -1326,18 +1353,40 @@ export class ClaudeAgentManager {
           status?: string
           usage?: { total_tokens?: number; tool_uses?: number; duration_ms?: number }
           last_tool_name?: string
+          is_backgrounded?: boolean
+          patch?: { is_backgrounded?: boolean }
         }
-        logger.log(`[agent-progress] ${subtype} task_id=${agentMsg.task_id} tool_use_id=${agentMsg.tool_use_id} desc=${agentMsg.description?.slice(0, 60)} status=${agentMsg.status}`)
+        logger.log(`[agent-progress] ${subtype} task_id=${agentMsg.task_id} tool_use_id=${agentMsg.tool_use_id} desc=${agentMsg.description?.slice(0, 60)} status=${agentMsg.status}${agentMsg.is_backgrounded ? ' backgrounded' : ''}`)
         if (subtype === 'task_started' && agentMsg.task_id) {
+          // T0759: re-key the entry the Agent / Task tool_use registered (by tool_use_id) to the
+          // task_id, so one sub-agent has one entry and stopTask sends the task_id (CLI 2.1.316
+          // resolves stop_task for a tool_use_id without stopping anything).
+          const registered = agentMsg.tool_use_id ? session.activeTasks.get(agentMsg.tool_use_id) : undefined
+          if (agentMsg.tool_use_id && registered && agentMsg.tool_use_id !== agentMsg.task_id) {
+            session.activeTasks.delete(agentMsg.tool_use_id)
+          }
+          const background = agentMsg.is_backgrounded === true || registered?.background === true
           session.activeTasks.set(agentMsg.task_id, {
             toolUseId: agentMsg.tool_use_id || '',
             description: agentMsg.description || '',
             lastProgressTime: Date.now(),
+            ...(background ? { background: true } : {}),
           })
           if (agentMsg.tool_use_id) {
             this.updateToolCall(sessionId, agentMsg.tool_use_id, {
               description: agentMsg.description,
+              ...(background ? { isBackground: true } : {}),
             } as Partial<ClaudeToolCall>)
+          }
+        } else if (subtype === 'task_updated' && agentMsg.task_id) {
+          // A foreground sub-agent moved to the background: its tool_result arrives now.
+          const task = session.activeTasks.get(agentMsg.task_id)
+          if (task && agentMsg.patch?.is_backgrounded === true && !task.background) {
+            task.background = true
+            logger.log(`[activeTasks] Backgrounded task_id=${agentMsg.task_id}`)
+            if (task.toolUseId) {
+              this.updateToolCall(sessionId, task.toolUseId, { isBackground: true } as Partial<ClaudeToolCall>)
+            }
           }
         } else if (subtype === 'task_progress' && agentMsg.task_id) {
           const task = session.activeTasks.get(agentMsg.task_id)
@@ -1357,15 +1406,21 @@ export class ClaudeAgentManager {
             }
           }
         } else if (subtype === 'task_notification' && agentMsg.task_id) {
+          // T0759: an entry still keyed by tool_use_id (no task_started seen) also matches.
           const task = session.activeTasks.get(agentMsg.task_id)
+            ?? (agentMsg.tool_use_id ? session.activeTasks.get(agentMsg.tool_use_id) : undefined)
           if (task && task.toolUseId) {
             const statusLabel = agentMsg.status === 'completed' ? 'completed' : agentMsg.status === 'failed' ? 'failed' : 'stopped'
             this.updateToolCall(sessionId, task.toolUseId, {
               status: agentMsg.status === 'failed' ? 'error' : 'completed',
               description: `[${statusLabel}] ${agentMsg.summary || task.description}`,
             } as Partial<ClaudeToolCall>)
+            if (task.background) {
+              logger.log(`[activeTasks] Background task ended task_id=${agentMsg.task_id} status=${agentMsg.status}`)
+            }
           }
           session.activeTasks.delete(agentMsg.task_id)
+          if (task?.toolUseId) this.deleteActiveTasksOf(session, task.toolUseId)
         }
       }
     }
@@ -1557,6 +1612,19 @@ export class ClaudeAgentManager {
       return true
     } catch (e) {
       logger.warn(`[stopTask] stopTask(${targetTaskId}) failed:`, e)
+      if (targetTask?.background) {
+        // T0759: after the main turn's result the SDK has closed the CLI's input (string prompt),
+        // so stop_task is never delivered and only rejects when the query ends — by then the
+        // task_notification has already set the result. Do not overwrite it; while the task is
+        // still running it stays running (it was not stopped).
+        const stillRunning = Array.from(session.activeTasks.values()).some(t => t.toolUseId === toolUseId)
+        if (stillRunning) {
+          this.updateToolCall(sessionId, toolUseId, {
+            description: `[stop failed] ${targetTask.summary || targetTask.description}`,
+          } as Partial<ClaudeToolCall>)
+        }
+        return false
+      }
       // Fallback: try interrupt to stop the whole session if stopTask fails
       logger.log(`[stopTask] Falling back to marking tool as stopped in UI`)
       this.updateToolCall(sessionId, toolUseId, {

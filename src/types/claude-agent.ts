@@ -20,6 +20,8 @@ export interface ClaudeToolCall {
   denied?: boolean
   isDeferred?: boolean
   parentToolUseId?: string
+  /** Agent / Task running as a background task (T0759 / BUG-190): set by the main process. */
+  isBackground?: boolean
   timestamp: number
 }
 

@@ -15,6 +15,7 @@ import { VoicePreviewPopover } from './voice/VoicePreviewPopover'
 import { extractInterruptedContinuation } from '../utils/interrupted-prompt'
 import { renderChatMarkdown, openChatMarkdownLink } from '../utils/chat-markdown'
 import { classifyClaudeError } from '../lib/claude-error-classify'
+import { backgroundAgentResultLabel, isBackgroundAgentCall } from '../lib/agent-task-label'
 import { EMPTY_TASK_LIST, isTaskListToolName, replayTaskList, taskListProgress, type ClaudeTaskList } from '../lib/claude-task-list'
 import { remoteUnsupportedMessage } from '../lib/remote-unsupported'
 import { buildSnippetContextPrompt, type SnippetForContext } from '../lib/snippet-context'
@@ -2492,7 +2493,8 @@ export function ClaudeAgentPanel({ sessionId, cwd, isActive, workspaceId, isRemo
           : prompt
         const model = item.input.model ? String(item.input.model) : null
         const maxTurns = item.input.max_turns ? String(item.input.max_turns) : null
-        const runBg = item.input.run_in_background ? true : false
+        const runBg = isBackgroundAgentCall(item)
+        const bgResultLabel = backgroundAgentResultLabel(item)
         const resultRaw = item.result ? (typeof item.result === 'string' ? item.result : String(item.result)) : ''
         const { content: resultText, reminders: resultReminders, errors: resultErrors } = splitSystemReminders(resultRaw)
         const resultLines = resultText.split('\n')
@@ -2525,6 +2527,11 @@ export function ClaudeAgentPanel({ sessionId, cwd, isActive, workspaceId, isRemo
                 <div className={`claude-task-progress ${isStalled ? 'stalled' : ''}`}>
                   <span className="claude-task-progress-text">{progressLabel}</span>
                   {isStalled && <span className="claude-task-stall-warn">{t('claude.agentMayBeStalled')}</span>}
+                </div>
+              )}
+              {bgResultLabel && (
+                <div className="claude-task-progress claude-task-end-label">
+                  <span className="claude-task-progress-text">{bgResultLabel}</span>
                 </div>
               )}
               {item.status === 'running' && (
@@ -3053,7 +3060,7 @@ export function ClaudeAgentPanel({ sessionId, cwd, isActive, workspaceId, isRemo
                 {progressDesc && !isStalled && <span className="claude-active-task-progress">{progressDesc}</span>}
                 {isStalled && <span className="claude-active-task-stalled">{t('claude.stalled')}</span>}
                 <span className="claude-active-task-time">{formatElapsed(task.timestamp)}</span>
-                {!!task.input.run_in_background && <span className="claude-task-tag">{t('claude.bg')}</span>}
+                {isBackgroundAgentCall(task) && <span className="claude-task-tag">{t('claude.bg')}</span>}
                 <button className="claude-task-stop-btn" onClick={(e) => {
                   e.stopPropagation()
                   window.electronAPI.claude.stopTask(sessionId, task.id)
