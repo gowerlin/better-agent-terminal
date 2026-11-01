@@ -23,10 +23,10 @@ breakdown:
 # Bug Tracker
 
 > ⚠️ 此文件由 `*sync` 自動生成，請勿手動編輯。
-> 最後同步：2026-11-02 02:13 — 第一百零四 session：BUG-183 / 184 CLOSED（使用者實機，`v0.7.3-pre.3`）；BUG-187 CLOSED（`v0.7.3-pre.3`，使用者裁示）；BUG-186 CLOSED（WSL 實機，server `0.7.3-pre.3`）；BUG-187 FIXED（T0756 `915f90ab`）；開 BUG-187 → FIXING（T0756）；BUG-185 CLOSED（`v0.7.3-pre.2`）；BUG-186 FIXED（T0753 `0f021e67`）；BUG-185 FIXED（T0751 `f9072e16`）；開 BUG-186 → FIXING（T0753）；BUG-183 / 184 FIXED（T0750）；BUG-182 / 175 CLOSED
+> 最後同步：2026-11-02 02:24 — 第一百零四 session：開 BUG-188–191 → FIXING（T0757–T0760，D209 / D210）；BUG-183 / 184 CLOSED（使用者實機，`v0.7.3-pre.3`）；BUG-187 CLOSED（`v0.7.3-pre.3`，使用者裁示）；BUG-186 CLOSED（WSL 實機，server `0.7.3-pre.3`）；BUG-187 FIXED（T0756 `915f90ab`）；開 BUG-187 → FIXING（T0756）；BUG-185 CLOSED（`v0.7.3-pre.2`）；BUG-186 FIXED（T0753 `0f021e67`）；BUG-185 FIXED（T0751 `f9072e16`）；開 BUG-186 → FIXING（T0753）；BUG-183 / 184 FIXED（T0750）；BUG-182 / 175 CLOSED
 
 ## 統計
-- 🔴 Open: 0 | ⏳ Fixing: 0 | ✅ Fixed: 3 | 🧪 Verify: 0 | 🚫 Closed: 48 | ⛔ Won't Fix: 0 | **Total: 51**
+- 🔴 Open: 0 | ⏳ Fixing: 4 | ✅ Fixed: 3 | 🧪 Verify: 0 | 🚫 Closed: 48 | ⛔ Won't Fix: 0 | **Total: 55**
 
 ## 🔴 Open / 處理中
 
@@ -37,6 +37,10 @@ breakdown:
 
 | ID | 標題 | 嚴重度 | 修復時間 | 連結 |
 |----|------|--------|---------|------|
+| BUG-188 | 用滑鼠回答（拒絕權限、取消 AskUserQuestion、codex 等待輸入）後 ⚠️ 不清除，與鍵盤回答不一致（D209）；T0757 先查證再精準修 | 🟡 Medium | 2026-11-02 | [BUG-188](BUG-188-mouse-answer-does-not-clear-waiting-badge.md) |
+| BUG-189 | npm 安裝的 codex（`codex.cmd`）版本探測回 unknown：手動分頁不加 `--no-daemon`、派工 codex 無 OSC 狀態；T0758 | 🟢 Low | 2026-11-02 | [BUG-189](BUG-189-npm-codex-shim-no-version-probe.md) |
+| BUG-190 | Claude 面板背景 Agent 執行中不在 active task bar、結束沒有完成標示；T0759 | 🟢 Low | 2026-11-02 | [BUG-190](BUG-190-background-agent-not-in-active-task-bar.md) |
+| BUG-191 | 設 `CLAUDE_CODE_PLUGIN_CACHE_DIR` 時 BAT 找 plugins 的位置可能與 CLI 不同；T0760 先實測 | 🟢 Low | 2026-11-02 | [BUG-191](BUG-191-claude-plugin-cache-dir-plugins-lookup.md) |
 
 ## ✅ 已修復
 
