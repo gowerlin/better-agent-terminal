@@ -1465,6 +1465,13 @@
 - **切分**：W2a 設計語言 + 元件 + 首頁（T0630）→ 預覽通過後 W2b（`/control-tower`、功能、FAQ、回報頁）→ W2c 遠端開發；W3 / W4 不變。
 - **相關**：PLAN-049 / D159 / D160 / T0624 / T0630
 
+### D215 2026-11-02 — `v0.7.3-pre.4` 驗收改自動化：開 T0770–T0773 對安裝版跑，真實模型全批上限 US$1.00
+
+- **背景**：pre.4 待驗收 BUG-188–192、PLAN-055、detached / Claude 面板 ⚠️。手動驗收有三個問題：BUG-189 / 191 的前置環境（npm 安裝的 codex、`CLAUDE_CODE_PLUGIN_CACHE_DIR` ＋ plugin 安裝的 CT）與使用者現況不同；PLAN-055 要結束使用者自己的 Terminal Server，會中斷塔台；既有 e2e 只用假 API / 假 claude / 假 codex。e2e 有 `BAT_E2E_EXECUTABLE`（T0510）可直接啟動安裝版。
+- **決定**（使用者選建議）：開四張自動化驗收單並行派工，優先對安裝版（`0.7.3-pre.4`）跑、不行時用與 tag 相同原始碼的現有 source build，四張都不得 build、不改產品程式碼、不改共用 fixture，一律用隔離實例：T0770 終端分頁類（BUG-188、T0761、視窗沒有焦點時的淡化 ⚠️）、T0771 Claude 面板（T0762、BUG-190、BUG-192，假 API ＋真實模型）、T0772 環境類（BUG-189 暫存 npm prefix、BUG-191 暫存 plugin 目錄）、T0773 PLAN-055（隔離實例自己的 Terminal Server，真的 claude `--resume`、真的 codex `resume`）。真實模型一律 Haiku 5.5，全批上限 US$1.00（T0771 ≤ US$0.60、T0773 ≤ US$0.40）。通過的項目依 R-G003 結案，驗收依據寫「交付版 `v0.7.3-pre.4` 自動化實測」。
+- **決策者**：使用者（2026-11-02 第一百零四 session，記錄於 05:08，AskUserQuestion：「四張都開並派工」、費用上限 US$1.00）。
+- **相關**：T0770 / T0771 / T0772 / T0773 / BUG-188 / BUG-189 / BUG-190 / BUG-191 / BUG-192 / PLAN-055 / D209–D214 / T0510
+
 ### D214 2026-11-02 — BUG-192 採 T0768 方案 C（注入同一個 query＋排隊退路）；P-1–P-4 全採建議；開 T0769、PLAN-058
 
 - **背景**：T0768 研究：主回合 `result` 之後、背景子代理仍在跑時 query 輸入仍開著，`Query.streamInput()` 可注入新訊息，子代理不受影響；送不進去時排隊，query 結束後以 resume 送出，模型看得到子代理結果。宣告 `perTaskStopAffordance: true` 後 Esc 只停回合、不殺背景子代理。

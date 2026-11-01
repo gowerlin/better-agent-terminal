@@ -1,15 +1,15 @@
 ---
 schema_kind: tower-state
 summary_version: 1
-updated_at: "2026-11-02T05:03:09+0800"
+updated_at: "2026-11-02T05:13:57+0800"
 session: "2026-11-02 04:56 第一百零四 session 塔台重啟（三）（CT v6.0.0-beta.10，Fast Path）"
 next_ids:
-  workorder: "T0770"
-  decision: "D215"
+  workorder: "T0774"
+  decision: "D216"
   bug: "BUG-193"
   plan: "PLAN-059"
 todo:
-  - "`v0.7.3-pre.4` 實機驗收：BUG-188 滑鼠拒絕權限、BUG-189 npm codex、BUG-190 / 192 背景子代理、BUG-191 plugin cache dir、PLAN-055 中斷分頁恢復、detached / Claude 面板 ⚠️"
+  - "`v0.7.3-pre.4` 自動化驗收 T0770–T0773 進行中（D215，安裝版、隔離實例、真實模型上限 US$1.00）：BUG-188 滑鼠拒絕權限、BUG-189 npm codex、BUG-190 / 192 背景子代理、BUG-191 plugin cache dir、PLAN-055 中斷分頁恢復、detached / Claude 面板 ⚠️"
   - "工作區 ⚠️ 剩餘手動項（`v0.7.2-pre.8` 起）：視窗沒有焦點時等待結束、滑鼠回答後清除"
   - "外部 / 特定環境驗收：BUG-128 / 130（macOS）、BUG-159（一般權限 ＋ codex）"
   - "版號線：0.7.3 線已到 pre.4（D204；最多到 pre.9）"
@@ -86,8 +86,8 @@ eport.md`（real，20:18:03–20:18:31，PS 7.6.9 系統管理員）：⓪ PASS�
 - **`v0.7.2-pre.7` 發佈**（第一百零二 session，run `41274458418`）：BUG-177 / 178 / 179（T0729 / T0730 / T0732）
 
 ### 待辦（依優先序）
-1. 🔴 **`v0.7.3-pre.4` 實機驗收**（BUG-188–192、PLAN-055、detached / Claude 面板 ⚠️；T0757–T0769 全部 DONE）
-2. 🔴 **工作區 ⚠️ 剩餘手動項**（`v0.7.2-pre.8` 起）：視窗沒有焦點時等待結束（`bat-hook.mjs` 計時模擬，三情境步驟見第一百零三 session 對話）、滑鼠回答後清除
+1. 🔴 **`v0.7.3-pre.4` 自動化驗收**（D215）：T0770 終端分頁類（BUG-188、detached ⚠️、無焦點淡化）、T0771 Claude 面板（T0762、BUG-190 / 192，真實模型 ≤ US$0.60）、T0772 環境類（BUG-189 / 191）、T0773 PLAN-055（≤ US$0.40）；通過即依 R-G003 結案
+2. 🔴 **工作區 ⚠️ 剩餘手動項**（`v0.7.2-pre.8` 起）：視窗沒有焦點時等待結束、滑鼠回答後清除 → 併入 T0770（D215）
 3. 🟡 **外部 / 特定環境驗收**：BUG-128 / 130（macOS）、BUG-159（一般權限 ＋ codex）
 
 ### ⚠️ 鐵則
@@ -102,7 +102,7 @@ eport.md`（real，20:18:03–20:18:31，PS 7.6.9 系統管理員）：⓪ PASS�
 - 歷史 sessions → [_archive/state-snapshots/INDEX.md](_archive/state-snapshots/INDEX.md)（119 entries）
 
 ### 編號起始
-- **T0770** / **BUG-193** / **PLAN-059** / **D215** / **EXP-WFMINE-002**（其他 TOPIC 從 001） / **L178** / **CT-T023**
+- **T0774** / **BUG-193** / **PLAN-059** / **D216** / **EXP-WFMINE-002**（其他 TOPIC 從 001） / **L178** / **CT-T023**
 
 ---
 
