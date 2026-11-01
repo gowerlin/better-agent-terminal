@@ -3,11 +3,11 @@ schema_version: 1
 schema_kind: bug
 id: BUG-181
 title: "Claude 面板 Cache History：CLI 回傳的 `modelUsage` / `total_cost_usd` 是 session 累計值，R 列當成單一回合、合計再把各列相加 → tokens 與費用逐列膨脹、合計重複計算"
-status: FIXING
+status: FIXED
 severity: medium
 reproducibility: always
 created_at: "2026-11-01T18:44:32+0800"
-updated_at: "2026-11-01T18:47:08+0800"
+updated_at: "2026-11-01T19:09:37+0800"
 impact:
   - claude-panel
   - cost-display
@@ -22,7 +22,7 @@ links:
 |------|------|
 | 嚴重度 | 🟡 medium（費用與 token 顯示錯誤、合計高估；不影響對話功能） |
 | 可重現 | 一定（同一 session 連送 ≥ 2 則） |
-| **狀態** | ⏳ FIXING（T0744） |
+| **狀態** | 🔧 FIXED（T0744，commit `0d42ebdc`；待真實模型複驗） |
 | 回報者 | T0739 Worker |
 
 ## 現象
@@ -42,3 +42,11 @@ links:
 
 - 假 API e2e（T0727）不送 `modelUsage`，所以以往抓不到。更早的 CLI 版本是否也是累計值未查。
 - 修正方向（待修正單評估）：R 列以「本回合累計 − 上一回合累計」（依 model 分開）或改用 `result.usage` 計；合計改用最後一個累計值；resume 後第一個回合的基準要處理（累計延續）。計價仍走 `src/lib/model-pricing.ts`。
+
+## 修正（T0744，2026-11-01）
+
+- commit `0d42ebdc`：R 列 = 本回合累計 − 上一個 result 的累計（依 model；變小視為重置；resume / fork 後第一列為 `R*`，含先前累計），唯一實作 `turnModelUsage`（`src/lib/cache-history.ts`）；real $ 合計 = `cacheHistoryApiTotal`（= 最後累計 = 狀態列 session cost）。主行程與 IPC 未改。
+- 查證：SDK 0.3.316 型別註解確認 `modelUsage` / `total_cost_usd` 為 session 累計、`usage` 為單一回合主 agent；e2e 證實 resume 後 CLI 延續累計。
+- 驗證：`test:unit` 全過、兩個 typecheck = 0、`vite build` 成功、e2e `t0744-cache-history-cumulative.spec.ts`（假 API）與 `v072-pre6` / `v072-pre7` 全過。
+- 待驗收：真實模型 `BAT_E2E_REAL_MODEL=1 npx playwright test e2e/v072-real-model-claude-panel.spec.ts` 後開 Cache History 看 R 列與合計（使用者同意後）。
+- 已知限制：`R*` 列的 est. $ 對 Haiku 5.5 長 prompt 低估（只有本 query 用 long 價）；real $ 正確。
