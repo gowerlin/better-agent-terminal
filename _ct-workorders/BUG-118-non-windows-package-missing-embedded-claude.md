@@ -3,11 +3,11 @@ schema_version: 1
 schema_kind: bug
 id: BUG-118
 title: "非 Windows 打包版（mac 兩種 arch、Linux AppImage）缺 claude-code/bin/claude.exe：electron-builder 在非 Windows 目標排除 node_modules 內 .exe → 預設 embedded runtime 的 Agent / claude-cli 分頁無法啟動"
-status: FIXED
+status: CLOSED
 severity: high
 reproducibility: always
 created_at: "2026-10-13T16:59:31+08:00"
-updated_at: "2026-10-13T17:16:52+08:00"
+updated_at: "2026-11-01T18:26:37+0800"
 impact:
   - macos
   - linux
@@ -25,7 +25,7 @@ links:
 |------|------|
 | 嚴重度 | 🔴 high（mac / Linux 使用者在預設 embedded runtime 下 Agent 與 claude-cli 分頁不可用） |
 | 可重現 | 必現（靜態證據：pre.2 x64 / arm64 dmg、AppImage；mac / Linux 實機未驗） |
-| **狀態** | ✅ FIXED（T0475，D136；待 pre.3 CI 與 mac / Linux 實機驗收） |
+| **狀態** | 🚫 CLOSED（2026-11-01 塔台依 R-G003 結案）；原 ✅ FIXED（T0475，D136；待 pre.3 CI 與 mac / Linux 實機驗收） |
 | 回報者 | 塔台（T0474 研究附帶發現 E4） |
 
 ## 證據（T0474 E4，`v0.6.0-pre.2` release 產物靜態檢查）
@@ -67,3 +67,8 @@ links:
   - 把解壓樹裡的平台子套件目錄改名後，mac / Linux 都 exit 1，並列出兩個候選。
   - 細節見 T0475 回報區。
 - **未驗**：mac / Linux 實機啟動 Agent 與 claude-cli 分頁（AI 無法代驗）；pre.3 CI 實跑由塔台觀察。
+
+## 結案（2026-11-01T18:26:37+0800，BAT 第一百零三 session 塔台）
+
+- 依全域 R-G003（T0738 盤點 A 類）：修正 v0.6.0-pre.3；`v0.7.2-pre.8` CI（run `41277080514`）mac / linux 打包檢查內嵌 claude 皆在；T0516 WSL 解 AppImage `claude --version` PASS。
+- closed_reason: verified

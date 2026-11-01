@@ -3,11 +3,11 @@ schema_version: 1
 schema_kind: bug
 id: BUG-137
 title: "程序已結束的分頁按 ⏻ 重啟沒有任何反應（PtyManager.restart 找不到 instance 回 false，UI 未檢查）"
-status: FIXED
+status: CLOSED
 severity: low
 reproducibility: always
 created_at: "2026-10-15T16:13:05+0800"
-updated_at: "2026-10-15T17:30:31+0800"
+updated_at: "2026-11-01T18:26:37+0800"
 fixed_at: "2026-10-15T17:30:31+0800"
 fixed_by: T0539
 fix_commit: 2ff55bdd
@@ -24,7 +24,7 @@ links:
 |------|------|
 | 嚴重度 | 🟢 low（繞行：關掉分頁重開） |
 | 可重現 | 必現（T0539 隔離實例實測：`pty:kill` 後與 shell `exit` 後皆是） |
-| **狀態** | ✅ FIXED（T0539，`2ff55bdd`） |
+| **狀態** | 🚫 CLOSED（2026-11-01 塔台依 R-G003 結案）；原 ✅ FIXED（T0539，`2ff55bdd`） |
 
 ## 現象（程式碼推論）
 
@@ -46,3 +46,8 @@ T0525 起 `restart` 會沿用 `customEnv` / `agentPreset`。instance 不存在�
 - 修正在 renderer：`WorkspaceView.handleRestart` 的一般終端分支改用 `restartOrCreatePty`（`src/lib/pty-replay.ts`）。`pty:restart` 回 `true` → 與修正前相同；否則以同一 id `pty:create`（工作區 env、`workspaceId`、`agentPreset`，env 由 `buildPtyEnv` 組裝），再依 `spawned` 重送 terminal-driven agent 的啟動命令。仍失敗 → 分頁內印 `terminal.restartFailedNotice`。
 - 限制：補建的 PTY 沒有原 Worker 的 `BAT_TOWER_TERMINAL_ID` / `CT_MODE` / `workorder`（main 已無記錄）；`--close-worker` 仍可經 T0537 已存歸屬找到該分頁。
 - 驗證：`src/lib/__tests__/pty-restart-or-create.test.ts`、e2e `e2e/t0539-restart-exited-terminal.spec.ts`。細節見 T0539 回報區。
+
+## 結案（2026-11-01T18:26:37+0800，BAT 第一百零三 session 塔台）
+
+- 依全域 R-G003（T0738 盤點 A 類）：修正 v0.6.1-pre.3；`e2e/t0539-restart-exited-terminal.spec.ts` 在 HEAD `e0588e55` PASS（T0738）。
+- closed_reason: verified

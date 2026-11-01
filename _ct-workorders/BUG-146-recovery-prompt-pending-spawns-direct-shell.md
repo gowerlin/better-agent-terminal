@@ -3,11 +3,11 @@ schema_version: 1
 schema_kind: bug
 id: BUG-146
 title: "BAT 重開且 Terminal Server 存活時，Recovery 提示回答前還原分頁的 pty:create 走 direct node-pty，同 id 另起一個本機 shell"
-status: FIXED
+status: CLOSED
 severity: medium
 reproducibility: always
 created_at: "2026-10-17T19:55:06+0800"
-updated_at: "2026-10-17T20:15:11+0800"
+updated_at: "2026-11-01T18:26:37+0800"
 fixed_at: "2026-10-17T20:15:11+0800"
 fixed_by: T0578
 fix_commit: "f833e3b0"
@@ -26,7 +26,7 @@ links:
 |------|------|
 | 嚴重度 | 🟡 medium（多出一個看不見的 shell 程序；其輸出併入同 id） |
 | 可重現 | 必現（T0576 隔離實例日誌） |
-| **狀態** | ✅ FIXED（T0578，`f833e3b0`，待實機驗收） |
+| **狀態** | 🚫 CLOSED（2026-11-01 塔台依 R-G003 結案）；原 ✅ FIXED（T0578，`f833e3b0`，待實機驗收） |
 
 ## 現象
 
@@ -60,3 +60,8 @@ T0576、T0575、T0108、T0110、T0572、PLAN-047
 - **修正前 / 後**（隔離實例 e2e）：提示待決時主程序下 `pwsh.exe` 1 個（選保留後仍在）→ 0 個；`Created terminal using node-pty` → `[BUG-146] pty:create … held` + `pty:create SKIP (idempotent)`。
 - **未涵蓋**：同步呼叫 `ptyManager.create` 的 helper 派工 / `restart` 在提示期間仍 direct spawn（warn 記錄），見 T0578 回報「殘留風險 1」。
 - 驗證：`electron/__tests__/recovery-create-hold.test.ts`、`e2e/t0578-recovery-no-direct-shell.spec.ts`。
+
+## 結案（2026-11-01T18:26:37+0800，BAT 第一百零三 session 塔台）
+
+- 依全域 R-G003（T0738 盤點 A 類）：修正 v0.7.0-pre.1；`e2e/t0578-recovery-no-direct-shell.spec.ts`（2）、`e2e/t0580-recovery-helper-dispatch.spec.ts` 在 HEAD `e0588e55` PASS（T0738）；T0581 安裝版實機「保留」路徑。
+- closed_reason: verified

@@ -3,11 +3,11 @@ schema_version: 1
 schema_kind: bug
 id: BUG-116
 title: "macOS（0.6.0-pre.2）啟動即崩潰：main process 載入 @kutalia/whisper-node-addon 找不到 darwin-arm64/whisper.node → Uncaught Exception，整個 app 無法開啟"
-status: FIXED
+status: CLOSED
 severity: high
 reproducibility: always
 created_at: "2026-10-13T15:43:35+08:00"
-updated_at: "2026-10-13T16:15:06+08:00"
+updated_at: "2026-11-01T18:26:37+0800"
 impact:
   - app-launch
   - voice-input
@@ -24,7 +24,7 @@ links:
 |------|------|
 | 嚴重度 | 🔴 high（使用者端 app 完全無法開啟） |
 | 可重現 | 必現（macOS 任一 arch；根因見下） |
-| **狀態** | ✅ FIXED（T0468，待 mac 實機驗收） |
+| **狀態** | 🚫 CLOSED（2026-11-01 塔台依 R-G003 結案）；原 ✅ FIXED（T0468，待 mac 實機驗收） |
 | 回報者 | 外部使用者 外部測試者A（2026-10-13 15:38 轉述，附截圖） |
 | 版本 | `0.6.0-pre.2`（macOS；回報者稱「前兩天還能開」） |
 
@@ -113,3 +113,8 @@ cd "/Applications/BetterAgentTerminal.app/Contents/Resources/app.asar.unpacked/n
 - **驗證加深**：`scripts/verify-native-modules.js` 以同一規則檢查 host 平台 `whisper.node`（桌面包 host win32-x64 / linux-x64 / darwin-x64 / darwin-arm64 缺即 fail-fast；其他 host 如 linux-arm64 server-bundle runner 只 warn）
 - **影響面查證**：`main.ts` 自 `882be11`（04-11）頂層 import voice-handler、voice-handler 自 `cb65614`（04-23）頂層 import 上游，lock 一直是 1.1.0 ⇒ **自 `v0.2.5-pre.1` 起所有 macOS 版本啟動必崩**（靜態推論）
 - 待辦：mac 實機驗收（新版不需 symlink workaround 即可啟動 + 語音可用）；CI mac job 對兩個 arch 產物檢查 `.node`（未做）；`voice-opencc.ts` 頂層 `require('opencc-js')` 同型風險（建議另案）。詳見 T0468 回報區
+
+## 結案（2026-11-01T18:26:37+0800，BAT 第一百零三 session 塔台）
+
+- 依全域 R-G003（T0738 盤點 A 類）：修正 v0.6.0-pre.3；外部測試者A macOS 實機 pre.5–pre.7 正常啟動並使用數小時（T0526 判讀）；`v0.7.2-pre.8` CI（run `41277080514`）mac 打包檢查 whisper.node 在 `dist/mac-arm64/`。殘留（不擋結案）：mac 語音轉寫未實機驗。
+- closed_reason: verified

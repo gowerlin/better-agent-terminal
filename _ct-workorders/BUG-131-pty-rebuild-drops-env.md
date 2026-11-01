@@ -3,11 +3,11 @@ schema_version: 1
 schema_kind: bug
 id: BUG-131
 title: "本機 PTY 重建路徑掉 env：Terminal Server heartbeat 復原重建 PTY 時不帶 env（BAT_* / 工作區環境變數缺或過期）；Electron pty:restart 丟掉 customEnv（工作區環境變數、Worker 的 BAT_TOWER_TERMINAL_ID）"
-status: FIXED
+status: CLOSED
 severity: medium
 reproducibility: always
 created_at: "2026-10-14T13:48:52+0800"
-updated_at: "2026-10-14T13:54:46+0800"
+updated_at: "2026-11-01T18:26:37+0800"
 fixed_at: "2026-10-14T13:54:46+0800"
 impact:
   - pty
@@ -25,7 +25,7 @@ links:
 |------|------|
 | 嚴重度 | 🟡 medium（重建後的分頁派工 / notify 失效或送錯；工作區環境變數消失） |
 | 可重現 | 必現（程式碼證據，T0523） |
-| **狀態** | ✅ FIXED（T0525，待塔台驗收） |
+| **狀態** | 🚫 CLOSED（2026-11-01 塔台依 R-G003 結案）；原 ✅ FIXED（T0525，待塔台驗收） |
 | 回報者 | T0523 Worker |
 
 ## 現象（程式碼證據）
@@ -52,3 +52,8 @@ links:
 - headless 權杖語意不變：restart 仍是 kill（撤銷舊權杖）→ create（`helperEnv` 簽發同角色新權杖）
 
 驗證：`electron/__tests__/pty-manager-helper-env.test.ts`「rebuilds keep the full env (T0525 / BUG-131)」7 案；細節見 T0525 回報區。
+
+## 結案（2026-11-01T18:26:37+0800，BAT 第一百零三 session 塔台）
+
+- 依全域 R-G003（T0738 盤點 A 類）：修正 v0.6.0-pre.8；T0738 新增 `e2e/t0738-recovery-keeps-env.spec.ts` PASS ×3、`e2e/t0539-restart-exited-terminal.spec.ts` 在 HEAD `e0588e55` PASS。
+- closed_reason: verified

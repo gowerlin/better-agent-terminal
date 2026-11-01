@@ -3,11 +3,11 @@ schema_version: 1
 schema_kind: bug
 id: BUG-127
 title: "指揮塔面板：在兩個工作區之間切換時，右上角疊出一整排「新工單: T000x」toast（外部測試者A 稱「殘影」），蓋住面板分頁與標題"
-status: FIXED
+status: CLOSED
 severity: low
 reproducibility: always
 created_at: "2026-10-14T13:19:21+0800"
-updated_at: "2026-10-14T13:27:16+0800"
+updated_at: "2026-11-01T18:26:37+0800"
 fixed_at: "2026-10-14T13:27:16+0800"
 impact:
   - control-tower-panel
@@ -24,7 +24,7 @@ links:
 |------|------|
 | 嚴重度 | 🟢 low（誤導 + 遮擋面板；功能未壞） |
 | 可重現 | 推定必現（兩個工作區都有 `_ct-workorders/` 時） |
-| **狀態** | ✅ FIXED（T0521，待 mac 實機驗收） |
+| **狀態** | 🚫 CLOSED（2026-11-01 塔台依 R-G003 結案）；原 ✅ FIXED（T0521，待 mac 實機驗收） |
 | 回報者 | 外部測試者A（mac） |
 
 ## 現象
@@ -55,3 +55,8 @@ links:
 - 切換工作區清除面板 toast；單次 > 3 張新工單合併為一則；面板最多同時 5 則
 - `.ct-toast-*` 背景改為 tint 疊在 `var(--bg-secondary)` 上的不透明底色
 - 驗證：`src/components/__tests__/control-tower-panel-toasts.test.tsx`（8 案）、`npm run typecheck` = 0、`npm run test:unit` 全綠、`npx vite build` exit 0
+
+## 結案（2026-11-01T18:26:37+0800，BAT 第一百零三 session 塔台）
+
+- 依全域 R-G003（T0738 盤點 A 類）：修正 v0.6.0-pre.8；T0738 新增 `e2e/t0738-ct-panel-switch-toasts.spec.ts` 在 HEAD `e0588e55` PASS ×3。
+- closed_reason: verified

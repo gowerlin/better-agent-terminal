@@ -3,11 +3,11 @@ schema_version: 1
 schema_kind: bug
 id: BUG-132
 title: "agent CLI 自行保存的 BAT_* 環境不是自己 PTY 的值（外部測試者A 的 Codex：專案D 分頁一整天看到專案B 塔台的 BAT_TERMINAL_ID / BAT_WORKSPACE_ID）→ 塔台派工落到別的工作區，Worker 完成通知送進別的專案塔台"
-status: FIXED
+status: CLOSED
 severity: medium
 reproducibility: sometimes
 created_at: "2026-10-14T17:04:00+0800"
-updated_at: "2026-10-14T17:16:45+0800"
+updated_at: "2026-11-01T18:26:37+0800"
 fixed_at: "2026-10-14T17:16:45+0800"
 impact:
   - control-tower
@@ -26,7 +26,7 @@ links:
 |------|------|
 | 嚴重度 | 🟡 medium（Worker 落在別的工作區；yolo 時完成訊息會**送進**別的專案塔台並觸發它的流程） |
 | 可重現 | 有時（取決於 agent CLI 的環境保存機制；外部測試者A 的 Codex 一整天持續） |
-| **狀態** | ✅ FIXED（T0527：cwd 一致性檢查，治標 + 擋 yolo 誤送；遠端 headless 未涵蓋，根治 [A] 仍在 backlog） |
+| **狀態** | 🚫 CLOSED（2026-11-01 塔台依 R-G003 結案）；原 ✅ FIXED（T0527：cwd 一致性檢查，治標 + 擋 yolo 誤送；遠端 headless 未涵蓋，根治 [A] 仍在 backlog） |
 | 回報者 | T0526（外部測試者A 日誌） |
 
 ## 現象
@@ -46,3 +46,8 @@ links:
 - **T0527（[B]）**：派工 cwd 與落點工作區 `folderPath` 的一致性檢查。不一致 → helper 警告 + main `logger.warn`；yolo 且 cwd 明確屬於另一個工作區 → 拒絕派工（exit 1）
 - **[A] PID 祖先鏈辨識呼叫者 PTY（根治）**：backlog，#11 反覆發生或其他 agent CLI 出現同類情況時提高優先
 - **[C] codex-cli preset 關閉 shell snapshot**：等 外部測試者A 確認機制後評估
+
+## 結案（2026-11-01T18:26:37+0800，BAT 第一百零三 session 塔台）
+
+- 依全域 R-G003（T0738 盤點 A 類）：修正 v0.6.0-pre.9（cwd 守門範圍；遠端與 PID 鏈根治未做，屬原單已知範圍）；`e2e/t0523-dispatch-workspace.spec.ts` 在 HEAD `e0588e55` PASS（T0738）。
+- closed_reason: verified

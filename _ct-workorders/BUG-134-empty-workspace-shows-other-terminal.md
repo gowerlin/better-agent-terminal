@@ -3,17 +3,17 @@ schema_version: 1
 schema_kind: bug
 id: BUG-134
 title: "工作區的終端全部關閉後，主畫面殘留顯示另一個工作區（或已關閉）的 Agent 終端畫面，無法操作、看起來像當機"
-status: FIXED
+status: CLOSED
 severity: medium
 reproducibility: always
 created_at: "2026-10-15T01:16:21+0800"
-updated_at: "2026-10-15T01:26:30+0800"
+updated_at: "2026-11-01T18:26:37+0800"
 fixed_at: "2026-10-15T01:26:30+0800"
 impact:
   - workspace-switch
   - terminal-rendering
 links:
-  discovered_in: "使用者轉述連國盛回報（2026-10-15 01:06）"
+  discovered_in: "使用者轉述外部測試者B回報（2026-10-15 01:06）"
   fix_workorder: T0531
   related: [BUG-127]
 ---
@@ -24,8 +24,8 @@ links:
 |------|------|
 | 嚴重度 | 🟡 medium（看起來像當機，使用者誤判程式掛掉；新增終端可恢復） |
 | 可重現 | 必現（使用者 pre.10 本機重現，2026-10-15 01:22） |
-| **狀態** | ✅ FIXED（T0531：隱藏工作區的 active 分頁面板改為真正隱藏 + 空工作區空狀態 + removeTerminal focus 不跨工作區） |
-| 回報者 | 連國盛（使用者轉述，2026-10-15 01:06），Windows；BAT 版本未知（推測 pre.8 以後） |
+| **狀態** | 🚫 CLOSED（2026-11-01 塔台依 R-G003 結案）；原 ✅ FIXED（T0531：隱藏工作區的 active 分頁面板改為真正隱藏 + 空工作區空狀態 + removeTerminal focus 不跨工作區） |
+| 回報者 | 外部測試者B（使用者轉述，2026-10-15 01:06），Windows；BAT 版本未知（推測 pre.8 以後） |
 
 ## 現象
 
@@ -61,3 +61,8 @@ links:
 - 使用者指示：先從程式碼分析，找不出原因再向回報者要 debug log + `bat-scripts.log`
 - 修正（T0531）：`.workspace-container.hidden .workspace-tab-panel.active { visibility: hidden; pointer-events: none }`；`WorkspaceView` 終端分頁在 0 個終端時渲染不透明空狀態（`terminals-empty-state`，三語 `terminal.emptyWorkspace` / `terminal.addTerminal`，含「新增終端」按鈕）；`removeTerminal` 的 focus fallback 限同工作區，沒有則 `null`。驗證：`src/stores/__tests__/workspace-store.removeTerminal.test.ts`、e2e `e2e/t0531-empty-workspace-view.spec.ts`
 - 相關：BUG-127（切換工作區時的指揮塔 toast / 「殘影」，T0521）—— 「殘影」用詞相同，但 BUG-127 是 toast，本單是主畫面終端
+
+## 結案（2026-11-01T18:26:37+0800，BAT 第一百零三 session 塔台）
+
+- 依全域 R-G003（T0738 盤點 A 類）：修正 v0.6.0-pre.11；`e2e/t0531-empty-workspace-view.spec.ts` 在 HEAD `e0588e55` PASS（T0738；有修正前紅的紀錄）。
+- closed_reason: verified

@@ -3,7 +3,7 @@ schema_version: 1
 schema_kind: bug
 id: BUG-147
 title: "Recovery 選「重新開始」時，舊 Terminal Server 延後刪 pid / port 檔，把新 server 剛寫的檔案刪掉（下次啟動再 fork、前一個成孤兒）"
-status: FIXED
+status: CLOSED
 severity: low
 reproducibility: always
 created_at: "2026-10-17T20:16:57+0800"
@@ -23,7 +23,7 @@ links:
 |------|------|
 | 嚴重度 | 🟢 low（多一個孤兒 Terminal Server，idle timeout 才結束） |
 | 可重現 | 必現（T0578 隔離實例：重新開始後 30 s 內 pid 檔不存在） |
-| **狀態** | ✅ FIXED（T0578，`f833e3b0`；塔台補記錄） |
+| **狀態** | 🚫 CLOSED（2026-11-01 塔台依 R-G003 結案）；原 ✅ FIXED（T0578，`f833e3b0`；塔台補記錄） |
 
 ## 現象
 
@@ -35,3 +35,8 @@ BAT 重開且 Terminal Server 存活，Recovery 選「重新開始」：
 ## 修正
 
 T0578 在 fresh-start handler 加 `waitForTerminalServerExit`（`isServerRunning` 為否，最多 5 s，逾時 warn 後照舊）再刪檔、fork。修正後 3 輪都取得新 pid。實機驗收隨 `v0.7.0-pre.1`。
+
+## 結案（2026-11-01T18:26:37+0800，BAT 第一百零三 session 塔台）
+
+- 依全域 R-G003（T0738 盤點 A 類）：修正 v0.7.0-pre.1；`e2e/t0578-recovery-no-direct-shell.spec.ts` fresh start 在 HEAD `e0588e55` PASS（T0738；重新開始路徑無實機紀錄）。
+- closed_reason: verified

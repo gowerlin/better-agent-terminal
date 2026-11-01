@@ -3,11 +3,11 @@ schema_version: 1
 schema_kind: bug
 id: BUG-133
 title: "detached 視窗內「開啟設定」沒有反應：onOpenSettings 只 setShowSettings(true)，但 detached 分支沒有渲染 SettingsPanel"
-status: FIXED
+status: CLOSED
 severity: low
 reproducibility: always
 created_at: "2026-10-14T18:09:18+0800"
-updated_at: "2026-10-14T18:16:36+0800"
+updated_at: "2026-11-01T18:26:37+0800"
 fixed_at: "2026-10-14T18:16:36+0800"
 impact:
   - detached-window
@@ -24,7 +24,7 @@ links:
 |------|------|
 | 嚴重度 | 🟢 low（detached 視窗內無法開 Settings，需回主視窗） |
 | 可重現 | 必現（程式碼證據，T0529） |
-| **狀態** | ✅ FIXED（T0530，待驗收） |
+| **狀態** | 🚫 CLOSED（2026-11-01 塔台依 R-G003 結案）；原 ✅ FIXED（T0530，待驗收） |
 | 回報者 | T0529 Worker |
 
 ## 現象
@@ -38,3 +38,8 @@ detached 視窗 GitHub 面板（及其他傳入 `onOpenSettings` 的元件）的
 ## 修復（T0530）
 
 採方案 B：detached 視窗的「開啟設定」改呼叫 `workspace.openSettingsInParent()`（`workspace:open-settings-in-parent`），main 把父主視窗（父視窗已關則取同 profile 最近活動的主視窗）還原 / 顯示 / focus，並送 `app:open-settings` 讓它開 `SettingsPanel`。detached 視窗不渲染 `SettingsPanel`，全域設定不多出一個寫入者。找不到主視窗時 detached 視窗顯示三語提示（`app.openSettingsNoMainWindow`）。詳見 T0530 回報區。
+
+## 結案（2026-11-01T18:26:37+0800，BAT 第一百零三 session 塔台）
+
+- 依全域 R-G003（T0738 盤點 A 類）：修正 v0.6.0-pre.10；`e2e/t0530-detached-open-settings.spec.ts` 在 HEAD `e0588e55` PASS（T0738）。
+- closed_reason: verified

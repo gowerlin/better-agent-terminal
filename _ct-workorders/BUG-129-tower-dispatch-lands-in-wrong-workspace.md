@@ -3,11 +3,11 @@ schema_version: 1
 schema_kind: bug
 id: BUG-129
 title: "塔台派工落到錯的工作區：外部測試者A 在 專案D 工作區的 Codex 塔台用 bat-terminal.mjs --workspace \"$BAT_WORKSPACE_ID\" --agent default 派 T0001，Worker 分頁出現在另一個工作區（專案B），而且用 Claude Code 開（預期 Codex）"
-status: FIXED
+status: CLOSED
 severity: medium
 reproducibility: conditional
 created_at: "2026-10-14T13:31:24+0800"
-updated_at: "2026-10-14T17:04:00+0800"
+updated_at: "2026-11-01T18:26:37+0800"
 fixed_at: "2026-10-14T13:48:23+0800"
 impact:
   - control-tower
@@ -25,7 +25,7 @@ links:
 |------|------|
 | 嚴重度 | 🟡 medium（Worker 在錯的工作區 / 錯的 agent 執行；cwd 正確所以改的是對的專案，但使用者看不到、Tower 通知可能送錯地方） |
 | 可重現 | 條件式：塔台所在的 agent CLI（Codex）沿用了別的分頁的 `BAT_*` 環境時必然重現（T0526 依 外部測試者A 日誌判定） |
-| **狀態** | ✅ FIXED（T0523；外部測試者A 情境待日誌 / 實機確認，見下方殘留風險） |
+| **狀態** | 🚫 CLOSED（2026-11-01 塔台依 R-G003 結案）；原 ✅ FIXED（T0523；外部測試者A 情境待日誌 / 實機確認，見下方殘留風險） |
 | 回報者 | 外部測試者A（mac） |
 
 ## 現象（外部測試者A 原話與截圖）
@@ -101,3 +101,8 @@ links:
 - #11 另開 **BUG-132**（修正單 T0527：cwd 一致性檢查，yolo 且 cwd 明確屬於另一個工作區時拒派）
 - 本 BUG 維持 FIXED（BAT 端 #4 / #5 / #10 已於 pre.8 修正），待 外部測試者A pre.8 回饋後結案
 - agent 開成 Claude：當時全域 Settings 未設、工作區層級無 UI → PLAN-040
+
+## 結案（2026-11-01T18:26:37+0800，BAT 第一百零三 session 塔台）
+
+- 依全域 R-G003（T0738 盤點 A 類）：修正 v0.6.0-pre.8；`e2e/t0523-dispatch-workspace.spec.ts`、`e2e/t0529-workspace-agent-launch.spec.ts` 在 HEAD `e0588e55` PASS（T0738）；D141 原訂等外部回饋，塔台依 R-G003 以測試環境實測結案。
+- closed_reason: verified
