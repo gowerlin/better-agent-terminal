@@ -28,6 +28,7 @@
 - **不做**：不加 pinned「工作清單」區塊（與 `TodoWrite` 一致，最新清單就在最後一張 Task\* 卡片；長 session 捲走後要往下看）；sub-agent 自己呼叫的 Task\* 不併入主清單（它們在 sub-agent bucket，不在主時間軸）。
 - 驗證：`src/lib/__tests__/claude-task-list.test.ts`（重播）、`electron/__tests__/claude-todo-tools-env.test.ts`（env 注入與尊重既有值）、`src/__tests__/claude-panel-task-list.test.tsx`（歷史 / 即時事件畫清單、不進 active task bar、`TodoWrite` 不變）、`electron/__tests__/claude-sdk03-task-tools.test.ts`（Task\* 不進 `activeTasks`）。CLI 改結果文字格式時同步改 `claude-task-list.ts` 與測試。
 - e2e（T0727，不耗 token）：`e2e/v072-pre6-claude-panel.spec.ts` 以本機假 Anthropic Messages API（`e2e/fixtures/fake-anthropic-api.ts`，`ANTHROPIC_BASE_URL`）驅動真的內嵌 CLI，涵蓋 Claude 5 / 4.x 首個請求提供 Task\*（CLI 2.1.316 放在 ToolSearch 的 deferred 清單，不在 `tools`）、工作清單逐回合變化、重開後 resume 重建、串流、權限詢問、sub-agent、`claude-code-v2` 分頁遷移、claude-cli 分頁 env；隔離方式（暫存 USERPROFILE、工作區放 `%ProgramData%`、阻擋並記錄對外連線的 proxy）見 spec 檔頭。升 SDK / CLI 時跑一次（需先 `npx vite build`）。
+- 真實模型驗收（T0739，🔴 會耗 token）：`e2e/v072-real-model-claude-panel.spec.ts`，預設 skip，`BAT_E2E_REAL_MODEL=1` 才跑；沿用使用者自己的 claude 登入，只用 `claude-haiku-5-5`（另 1 回合 `claude-haiku-4-5` 對照），≤ 12 回合、session 費用超過 US$1 就停。2026-11-01 結果（CLI 2.1.316）：Haiku 5.5 經 ToolSearch 主動用 TaskCreate / TaskUpdate、清單正確更新，4.5 直接用 Task\*（兩者都沒用 `TodoWrite`）；搜尋走 `Grep`；背景 `Agent` 卡片有「背景」標籤、完成後 dot-success，但執行中不進 active task bar；resume 後歷史重建、可接續。注意：CLI 2.1.316 的 `total_cost_usd` / `modelUsage` 是 session 累計值（含 prompt suggestion 等額外請求、resume 後延續），不是單一回合。
 
 ## Claude 設定目錄（BUG-178 / T0730）
 
