@@ -1,5 +1,5 @@
 {
- "generated_at": "2026-11-01T17:40:12+08:00",
+ "generated_at": "2026-11-01T17:47:17+08:00",
  "generator": {
   "script": "ct-session-stats.py",
   "version": "0.1.0"
@@ -14,13 +14,13 @@
  },
  "tower_daily": {
   "2026-11-01": {
-   "api_requests": 51,
-   "cache_read": 9435363,
-   "cache_write": 203434,
-   "cache_write_1h": 203434,
+   "api_requests": 65,
+   "cache_read": 12935530,
+   "cache_write": 224235,
+   "cache_write_1h": 224235,
    "cache_write_5m": 0,
-   "input": 112,
-   "output": 48478
+   "input": 144,
+   "output": 61055
   }
  },
  "workorders": [
@@ -102,6 +102,88 @@
     "2.1.316"
    ],
    "workorder": "T0736"
+  },
+  {
+   "attribution": {
+    "conflict": false,
+    "source": "frontmatter",
+    "sources": {
+     "frontmatter": 1
+    }
+   },
+   "by_mcp_server": {},
+   "by_tool": {
+    "Bash": 13,
+    "Edit": 1,
+    "PowerShell": 13,
+    "Read": 4,
+    "Write": 2
+   },
+   "counts": {
+    "api_requests": 32,
+    "failures": 0,
+    "same_file_read_ge3": 0,
+    "subagent_files": 0,
+    "tool_calls": 33
+   },
+   "end": "2026-11-01T09:46:42Z",
+   "est_usd": 3.6738,
+   "failures_by_tool": {},
+   "renews": 0,
+   "sessions": 1,
+   "skills_invoked": {},
+   "start": "2026-11-01T09:36:53Z",
+   "stuck": {
+    "max_consecutive_failures": 0,
+    "max_failures_in_10_calls": 0,
+    "near_repeat_fail_pairs_j50": 0,
+    "repeat_fail_groups_norm": 0
+   },
+   "stuck_signal": false,
+   "subagent_tokens": {
+    "cache_read": 0,
+    "cache_write": 0,
+    "cache_write_1h": 0,
+    "cache_write_5m": 0,
+    "input": 0,
+    "output": 0
+   },
+   "tokens": {
+    "cache_read": 5328215,
+    "cache_write": 178981,
+    "cache_write_1h": 178981,
+    "cache_write_5m": 0,
+    "input": 64,
+    "output": 58803
+   },
+   "top_tools": [
+    [
+     "Bash",
+     13
+    ],
+    [
+     "PowerShell",
+     13
+    ],
+    [
+     "Read",
+     4
+    ],
+    [
+     "Write",
+     2
+    ],
+    [
+     "Edit",
+     1
+    ]
+   ],
+   "type": "implementation",
+   "unpriced_tokens": 0,
+   "versions": [
+    "2.1.316"
+   ],
+   "workorder": "T0740"
   }
  ]
 }

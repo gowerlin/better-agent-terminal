@@ -53,7 +53,7 @@ memory_overrides:
 
 使用者要求把 pre.6 以前還沒驗收的項目也安排自動驗收。熱區有 22 張 FIXED BUG（不含 T0737 處理的 177 / 178 / 179）在等驗收，其中不少修正工單當時已寫了 e2e，但沒有在新版上重跑；另有部分只能在 macOS / Linux、Docker、WSL、遠端主機或真實模型上驗。本單先把每張的證據與可自動化程度盤清楚，重跑既有 e2e，讓塔台依 R-G003 結案或另開補 e2e 的工單。
 
-本機環境（塔台 17:20 唯讀探測，供參考，Worker 以自己的探測為準）：非系統管理員、`docker --version` = 29.9.2（engine 是否執行未查）、WSL 有 `Ubuntu-24.04`。
+本機環境（塔台唯讀探測，供參考，Worker 以自己的探測為準）：🔴 **本機 BAT 是以系統管理員身分執行**（17:49 以 `WindowsPrincipal.IsInRole(Administrator)` = True 確認；17:20 那次以 Git Bash `whoami /groups` 判成非系統管理員是錯的，T0740 也偵測到提權）→ Worker 分頁同樣提權，BUG-159（需一般權限）無法在本機 BAT 分頁內驗，歸 C、寫明需要一般權限的 BAT；`docker --version` = 29.9.2（engine 是否執行未查）、WSL 有 `Ubuntu-24.04`。
 
 ## 範圍
 
