@@ -1465,6 +1465,15 @@
 - **切分**：W2a 設計語言 + 元件 + 首頁（T0630）→ 預覽通過後 W2b（`/control-tower`、功能、FAQ、回報頁）→ W2c 遠端開發；W3 / W4 不變。
 - **相關**：PLAN-049 / D159 / D160 / T0624 / T0630
 
+### D191 2026-11-01 — 內嵌 claude / codex 全部追最新：CLI 2.1.316 + codex 0.166.0（T0717），Agent SDK 升 0.3.316 並執行 D123 Phase 2（T0718）
+
+- **背景**：使用者指示「將內嵌 claude, codex cli/sdk 更新到最新」。塔台 2026-11-01 08:1x `npm view`：`@anthropic-ai/claude-code` 實裝 2.1.306，latest 2.1.316（stable 2.1.309）；`@anthropic-ai/claude-agent-sdk` 實裝 0.2.113，latest 0.3.316（0.2 線最新 0.2.141）；`@openai/codex-sdk` / `@openai/codex` 實裝 0.163.0，latest 0.166.0。SDK 0.3 移除 V2 session API（T0368），D123 決定下架 `claude-code-v2` preset，但 Phase 2 一直沒排，`src` / `electron` 仍有 10 檔引用。
+- **選項**：SDK 留 0.2 線 → 0.2.141（推薦，風險小）／升 0.3.316 含 D123 Phase 2／SDK 不動；CLI 追 latest 2.1.316（推薦）／stable 2.1.309。
+- **決定**（使用者 2026-11-01 08:1x）：**SDK 升 0.3.316（含 D123 Phase 2）**；**CLI 追 latest 2.1.316**。拆兩張依序執行（都動 `package-lock.json`，不並行）：
+  1. T0717：claude CLI → latest、codex SDK / CLI → latest；SDK 不動。
+  2. T0718（依賴 T0717）：下架 `claude-code-v2`、已存設定自動遷到 `claude-code`、Agent SDK → 0.3 latest；CHANGELOG 註明下架與自動遷移。
+- **相關**：D122 / D123 / T0368 / T0690 / T0697 / T0717 / T0718
+
 ### D190 2026-11-01 — `bat-notify.mjs --ask --no-pty-write` 列為正式契約（T0716：文件＋守門測試＋兩個小修）；Q-B2 / Q-B4 目前不做
 
 - **背景**：BMad-Guide 塔台 HANDOVER（`_handover-2026-11-01-bat-ask-no-pty-write-contract.md`，CT D492–D494）：CT v5.15.0 要讓 yolo Worker 一批 N 題時前 N-1 題用 `--ask --no-pty-write`、最後一題才 `--submit`，請 BAT 確認 Q-B1（阻塞 CT 發版）–Q-B4。T0715 研究（`97a64056`）：Q-B1 現況支援（只呼叫 `question:ask` → `terminal:notify`，handler 只 emit `terminal:notified`，renderer 只做 toast / 徽章 / Worker 標記，與已安裝 `0.7.2-pre.3` 雜湊相同），但沒寫進文件契約、沒有守門測試；Q-B2 現況無佇列；Q-B3 BAT 無法可靠清預填，建議 CT 以結尾 ID 樣式判讀；Q-B4 可行但增益小。
