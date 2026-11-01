@@ -4,15 +4,15 @@ schema_kind: workorder
 id: T0735
 title: "工作區列表顯示「等待使用者」提示：任何 agent 分頁在等權限 / 回答時，所屬工作區出現 ⚠️，滑過列出分頁、點擊跳過去；縮圖 ⚠️ 擴及非 Worker 分頁"
 type: implementation
-status: IN_PROGRESS
+status: DONE
 repo: better-agent-terminal
 project: maintenance
 priority: P2
 sizing: M
 created_at: "2026-11-01T13:00:33+0800"
 started_at: "2026-11-01T13:01:58+0800"
-updated_at: "2026-11-01T13:01:58+0800"
-completed_at: ""
+updated_at: "2026-11-01T13:25:52+0800"
+completed_at: "2026-11-01T13:25:52+0800"
 depends_on: []
 related:
   - "D200（使用者 2026-11-01 第一百零二 session 提出並選定範圍）"
@@ -35,7 +35,6 @@ affects_files:
   - docs/agent-guide/blocked-state.md
   - _ct-workorders/T0735-workspace-list-waiting-for-user-badge.md
 renew_count: 0
-tower_question: open
 workdir: main repo
 worker_question_timeout: 30
 interaction:
@@ -101,6 +100,110 @@ memory_overrides:
 
 ### 完成狀態
 
+**DONE**（D200 ①–⑤、D202 ①–③、D203 ①–⑥ 與塔台補充的「塔台分頁 AskUserQuestion」案例都完成並驗證；D200 ⑥ 依塔台 Q-1 答覆 [B] 不做，寫進已知限制）
+
+- 產品 commit：`b4daaf1f` feat(attention): waiting-for-user ⚠️ on every tab and in the workspace list (T0735)
+- 驗證時的工作樹 = `b4daaf1f` 的內容，只差 commit 前補的一處：`src/components/Sidebar.tsx` 檔尾多一行空白，已刪掉（`git diff --check` 抓到，不影響行為）
+
+#### 落點檢查
+
+- C-0：PASS（frontmatter `repo` = `better-agent-terminal`；`basename(REPO_ROOT)` = `better-agent-terminal`）
+- C-1：PASS（工單在 `REPO_ROOT/_ct-workorders/` 底下）
+- C-3：PASS，只做紀錄（`affects_files` 前幾項都存在）
+- C-2：工單沒有 `branch` 欄位，所以沒比對（目前在 `main`）
+- `CT_HOME` 未設定，不是 worktree 隔離；`BAT_WORKSPACE_ID` = `cc0afc4a-57e9-4f41-b2ed-a2d8bac9e36b`（只是紀錄）
+
+#### 查證結論：主行程不用改
+
+- `TerminalAttentionNotifier`（`electron/terminal-attention.ts`）本來就對**每個** PTY 推送，沒有 Worker 過濾。
+- 非 Worker 分頁的範圍權杖是 `tower` 角色（`electron/remote/helper-capability.ts:192`），`terminal:report-hook` 允許 `tower` / `worker` 兩種角色（`:419`）。
+- 手動開的 claude-cli 分頁會注入 hooks，「以塔台開啟 Claude」的塔台分頁也一樣（renderer `withBatMcpLaunchArgs`，需 `batMcpEnabled`，預設開）。
+- 所以塔台分頁的 `PreToolUse(AskUserQuestion)` → `blocked` / `question` 原本就會推到 renderer。`electron/terminal-attention.ts` 不用動，e2e 也實測確認（見下）。
+
+#### D200 / D202 / D203 逐項
+
+| 項目 | 結果 | 依據 |
+|---|---|---|
+| D200 ① 只有「等待使用者」會觸發（hook permission / question / elicitation，codex `input`）；`?` / `✓` / `↻` 不觸發 | PASS | `waitingForUser`，`workerAttention` 第一個分支改呼叫它，結果不變；單元測試 `terminal-attention-waiting.test.ts` |
+| D200 ② 所有分頁都算；非 Worker 縮圖也顯示 ⚠️ | PASS | 縮圖 `.attention-badge.blocked`；Worker 標籤（`?` / `✓` / `↻`、批次關閉）不變；`worker-tab-attention.test.tsx`、e2e |
+| D200 ③ 每個工作區都顯示（含目前所在）；多個分頁在等時附數字 | PASS | 列 badge `⚠️` / `⚠️ N`（≥ 2 才附數字）；元件測試 |
+| D200 ④ 滑過列出分頁標題與原因，不顯示問題內容 | PASS | tooltip 用 `workerTabs.blockedTooltip.*`；元件測試核對全文 |
+| D200 ⑤ 點 ⚠️ 切工作區並選到等最久的分頁；點列的其他位置只切工作區 | PASS | `focusWaitingTab`、`waitingClickTarget`；元件測試、e2e |
+| D200 ⑥ detached 視窗的工作區 | **未涵蓋（塔台 Q-1 答 [B]）** | 見下方已知限制 (a) |
+| 塔台補充：塔台分頁（非 Worker）在 AskUserQuestion 時，另一個工作區的列表看得到 ⚠️，`-done` 後消失 | PASS | 單元：`sidebar-waiting-badge.test.tsx` 第一案、`worker-tab-attention.test.tsx`（`Claude CLI · Tower` 分頁，`question`）。e2e：非 Worker 分頁在自己的 PTY 內跑 `bat-hook.mjs ask-user-question` → 另一個工作區的列出現 ⚠️ → `ask-user-question-done`。依 D203，沒人看時變淡化，分頁被看（active＋視窗有焦點）時才消失，兩段都有驗。註：e2e 的分頁是 raw command 開的非 Worker 分頁（權杖同為 `tower` 角色），不是真的 `launchRole: 'tower'` claude-cli（e2e 不啟動 LLM）；hook → 推送 → renderer 這條路徑相同 |
+| D202 ① 列右側、狀態點左邊，同一行；藍底的 active 列也看得清楚 | PASS | `.workspace-item-actions` 第一個子元素（e2e 斷言 DOM 順序）；active 列改深色底（截圖 `active-row-badge.png` 目視確認） |
+| D202 ② 「工作區」頁籤標題旁顯示總數；點擊只切回頁籤；滑過列出工作區名稱與數量 | PASS | `WaitingTotalBadge`；元件測試、e2e（Control Tower 停駐左側時） |
+| D202 ③ 側欄收合時窄列顯示，點擊展開 | PASS | 📂 下方 `WaitingTotalBadge`（只在收合時顯示）；元件測試、e2e。不需要問塔台：收合窄列一直都在 |
+| D202 三處共用同一個彙總函式 | PASS | `waitingSummary`（元件經 `useWaitingSummary`） |
+| D203 ① 等待中 = 實心 | PASS | — |
+| D203 ② 結束時沒看過 → 淡化，四處都顯示；tooltip「hh:mm 曾等待你回應，已結束」，時間用 renderer 收到開始事件的時間 | PASS | `.missed`；`workerTabs.missedTooltip`；`nextWaitMemory` 用 renderer `Date.now()` |
+| D203 ③ 「看過」= active 分頁＋視窗有焦點；結束當下正在看 → 清除；失焦時結束 → 淡化，回到視窗並 active 後清除；分頁關閉 → 清除 | PASS | `isViewedTerminal`、`setViewingState`（App：`focusedTerminalId` + `document.hasFocus()`，focus / blur 時重算）、`retainTerminals`；store 測試六種情境；e2e 有取得視窗焦點（`document.hasFocus() = true`），「正在看時結束不留淡化」有實測 |
+| D203 ④ 彙總時實心優先，數字只算等待中的；淡化不附數字；點淡化 → 跳到開始等待最早的分頁 | PASS | `waitingMarkKind`、`waitingClickTarget`；測試 |
+| D203 ⑤ 狀態只在 renderer 記憶體；判斷寫成純函式 | PASS | `terminal-attention.ts` 純函式；狀態在 `terminal-attention-store.ts` |
+| D203 ⑥ 測試涵蓋六種情境 | PASS | `terminal-attention-store.missed.test.ts` |
+
+#### 我自己決定的設計（D202 / D203 允許）
+
+- **淡化的 ⚠️ 不附數字**：讓它不搶眼，只表示「有錯過的」；實心才帶數字。
+- **點淡化的提示時，跳到開始等待最早的分頁**：和實心「等最久的」同一個方向；看過之後下一個再浮上來。
+- **頁籤標題的 ⚠️ 不論停在哪個頁籤都顯示**（D202 ② 的字面「任一工作區有分頁在等就出現」）。停在工作區頁籤時，它和列上的 ⚠️ 會同時看到。
+- **Worker 分頁的淡化 ⚠️ 加在它自己的標籤旁邊**，Worker 標籤本身（`?` / `✓` / `↻`）不變。
+- **點列上的 ⚠️ 也會切回終端頁籤**（送 `workspace-switch-tab`，和點縮圖一樣），不然分頁停在檔案等頁籤時看不到選到的分頁。
+
+#### 異動檔案
+
+- 產品：`src/lib/terminal-attention.ts`、`src/stores/terminal-attention-store.ts`、`src/components/TerminalThumbnail.tsx`、`src/components/Sidebar.tsx`、`src/components/WorkspaceWaitingBadge.tsx`（新）、`src/App.tsx`、`src/styles/panels.css`、`src/locales/{en,zh-TW,zh-CN}.json`（新 key：`sidebar.waitingForUser*` 8 個、`workerTabs.missedTooltip`）
+- 測試：`src/lib/__tests__/terminal-attention-waiting.test.ts`（新）、`src/stores/__tests__/terminal-attention-store.missed.test.ts`（新）、`src/components/__tests__/sidebar-waiting-badge.test.tsx`（新）、`src/components/__tests__/worker-tab-attention.test.tsx`（改）、`e2e/t0735-workspace-waiting-badge.spec.ts`（新）
+- 文件：`CLAUDE.md`（「Worker 分頁回收」節加一行）、`docs/agent-guide/worker-tab-recycle.md`（新增 T0735 條，並更正原本「非 Worker 不顯示」那句）、`docs/agent-guide/blocked-state.md`（一行）
+- 主行程沒有改（`electron/**` 0 個檔）
+
+#### 驗證
+
+| 關卡 | 結果 |
+|---|---|
+| `npm run test:unit` | PASS — 357 個檔、6326 passed / 3 skipped |
+| `npm run typecheck` | 0 |
+| `npm run typecheck:electron` | 0 |
+| `npx vite build` | 成功 |
+| e2e（隔離實例，跑之前先 `npx vite build`） | PASS 4/4：`t0735-workspace-waiting-badge`（新）、`t0609-worker-attention-badge`、`t0694-worker-resumed-badge`、`t0538-worker-tab-batch-close`，共 24.0 s |
+| 截圖（`e2e-results/`，不 commit） | `row-badge.png`、`row-badge-missed.png`、`active-row-badge.png` 都目視確認過：位置、灰色淡化、藍底可讀 |
+
+只用隔離實例（`launchIsolated`），沒有用預設實例啟動 source build，也沒有啟動 LLM。e2e 的工作區名稱都是 `e2e-t0735-*`，沒有真實工作區名稱。
+
+### 相關通過案例判定
+
+| 案例 | 判定 |
+|---|---|
+| e2e `t0609-worker-attention-badge`（Worker ⚠️ / ? / ✓、N 只算 ✓） | 仍成立，重跑綠 |
+| e2e `t0694-worker-resumed-badge`（↻） | 仍成立，重跑綠 |
+| e2e `t0538-worker-tab-batch-close`（批次關閉） | 仍成立，重跑綠 |
+| `workspace-store.workerAttention.test.ts` / `workspace-store.workerResumed.test.ts` | 仍成立（全套單元測試綠，沒有修改） |
+| `worker-tab-attention.test.tsx`「a non-Worker tab never shows a badge, even when blocked」 | 原本的斷言（沒有 `.worker-badge`）仍然通過；但這個案例的**意圖**被 D200 ② 刻意改掉（非 Worker 現在會顯示 ⚠️）。依規格改名並擴充：「沒有 Worker 標籤，等待使用者時只顯示 ⚠️」。這是使用者決定的行為改變，不是回歸 |
+
+### 已知限制
+
+- (a) **detached 視窗的工作區（D200 ⑥，Q-1 [B]）**：主視窗列表本來就隱藏已分離的工作區；分離後新開的分頁主視窗不知道屬於哪個工作區；也沒有「在 detached 視窗選分頁」的 IPC。detached 視窗自己的縮圖 ⚠️ 照常。請塔台另開後續候選。
+- (b) Claude 面板（Agent SDK）分頁沒有 PTY attention，所以不顯示。
+- (c) `blockedDetection: none` 的分頁不會顯示：BAT MCP 關閉、claude 設定把 hooks 關掉、舊 codex、raw command 跑的 agent 沒有注入 hooks。
+- (d) attention 與淡化都只存在各視窗的記憶體：視窗重新載入後，要等下一次狀態變更才會顯示；等待中途重新載入的視窗，沒看到開始事件，結束時不會留淡化。
+- (e) 封存的工作區列不顯示 ⚠️，也不計入頁籤標題 / 收合窄列的總數（只算主視窗列表上的工作區）。
+
+### 遭遇問題
+
+- 本單沒列進 `affects_files`、但實際改到的檔：`src/App.tsx` 與新檔 `src/components/WorkspaceWaitingBadge.tsx`。原因是塔台補充二、三要求的「工作區」頁籤標題、收合窄列、「看過」狀態的接線都在 `App.tsx`，三處共用的元件放在新檔。範圍是塔台補充指定的，不算擴大範圍。
+- 依 ct-exec，塔台的三則跨 session 補充（tower 分頁案例、D202、D203）都視為塔台指示照做，沒有回覆。
+
+### 後續建議
+
+- 為 D200 ⑥（detached 視窗的工作區）另開後續候選：Q-1 選項 [A] 的作法可以直接當起點。
+
 ### 互動紀錄
 
+- [13:04] Q-1: D200 ⑥ detached 視窗的工作區用現有程式做不到，要怎麼處理？（BAT 通道 `--ask`，id `q-0927f7dd-…`） → A（塔台，13:08）: [B] 使用者決定：本單只做 ①–⑤，⑥ 寫進已知限制，塔台另開後續候選；detached 視窗自己的縮圖 ⚠️ 照常，主視窗列表隱藏已分離工作區的行為不改 → Action: 只做 ①–⑤，⑥ 寫進已知限制 (a)
+- [時間未記錄] 塔台補充（跨 session 訊息）：驗收多一個「塔台分頁 AskUserQuestion」案例 → Action: 查證主行程不用改，加了單元測試與 e2e，見逐項表
+- [時間未記錄] 塔台補充二（D202）：三處顯示位置 → Action: 做列右側、頁籤標題、收合窄列，三處共用 `waitingSummary`
+- [時間未記錄] 塔台補充三（D203）：淡化保留規則 → Action: 在 store 記錄等待開始 / 錯過，加 `nextWaitMemory` 等純函式，四處都顯示淡化
+
 ### 回報時間
+
+2026-11-01T13:25:52+0800
