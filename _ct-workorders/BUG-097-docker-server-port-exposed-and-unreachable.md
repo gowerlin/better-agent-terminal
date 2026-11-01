@@ -22,7 +22,7 @@ links:
 |------|------|
 | 嚴重度 | 🔴 high（PLAN-036 P0 上線 `pty:create` 後，Docker profile 一旦可連即為 LAN 上的 container root shell；目前推測連不上，暴露面有限） |
 | 可重現 | 未實測（程式碼證據 + 推測） |
-| **狀態** | 🔧 FIXED（T0418，等 runtime 驗收：本機 Docker daemon 未起，image build / `docker run` / health 未實測） |
+| **狀態** | 🚫 CLOSED（2026-11-01 塔台依 R-G003 結案）；原 🔧 FIXED（T0418，等 runtime 驗收：本機 Docker daemon 未起，image build / `docker run` / health 未實測） |
 | 回報者 | T0386 Worker（研究目標 5 安全） |
 
 ## 現象（程式碼證據）
