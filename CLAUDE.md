@@ -360,6 +360,15 @@
 - 開啟已存在的 profile 視窗一律經 `bringWindowToFront`（`src/lib/profile-window-front.ts`，隱藏的要 `show()`；T0750 / BUG-183）；`profile:delete` 成功後經 `closeWindowsOfDeletedProfile` 關閉該 profile 的視窗（BUG-184），見 docs。
 - 完整生命週期、失敗對話框、e2e 與實機驗收：[docs/agent-guide/multi-remote-profiles.md](docs/agent-guide/multi-remote-profiles.md)
 
+## headless server 的登入 shell PATH（PLAN-057 / T0755，D206 / D207）
+
+- 用途：bat-server 由 systemd / launchd / 容器 ENTRYPOINT 啟動，PATH 沒有 `~/.local/bin`、nvm、Homebrew；啟動時以登入 shell 取一次 PATH 合併進 `process.env.PATH`，讓 server 程序的子程序（Claude 面板 Bash 工具 / MCP、system claude、codex、工具面板伺服器檢視）找得到。
+- 唯一實作 `electron/remote/headless-login-path.ts`（`resolveLoginShellPath` 純邏輯、`runLoginShell`、`applyHeadlessLoginShellPath`；不 import electron），`server-entry.ts` 匯出。🔴 只由 `scripts/bat-server.mjs` `main()` 在 `resolveDataDir` 之後、`createHeadlessServer` 之前 `await serverEntry.applyHeadlessLoginShellPath?.(…)`，不得放進 `createHeadlessServer`（source guard）。
+- 🔴 取法：`<shell> -l -i -c` + 每次隨機標記、只取最後一組；`spawn` `detached: true`，逾時 3000 ms 以 `process.kill(-pid, 'SIGKILL')` 砍整個程序群組，以 `exit` 事件結束並 `destroy()` pipes。不得用 `execFile` / `spawnSync` 的 timeout（interactive bash 忽略 SIGTERM）。shell：`SHELL` → `os.userInfo().shell` → `/bin/sh`，白名單 `selectLoginShell`，fish 用 `string join : $PATH`。
+- 合併：登入 PATH 在前、原 PATH 獨有項接後、去重保留首次、登入項只收絕對路徑、有換行 / NUL 整個不用；`/mnt/<磁碟>/` 不過濾、只記數量。🔴 任何失敗 PATH 不動、記一行、照常啟動；日誌不記完整 PATH；win32 不執行。
+- 開關：`<dataDir>/settings.json` `headlessLoginShellPath`（`!== false` 為開，啟動時讀一次）；🔴 關閉時不 spawn、不碰 `process.env`（測試守住）；不加環境變數覆蓋（D207）。Settings「進階」只在 Linux / macOS 主機的遠端視窗顯示。分頁 PATH 的 `~/.local/bin` 多一份接受，不改 `PtyManager` / `early-path-fix.ts` / git / gh resolver。
+- 完整規則、日誌、影響表、已知限制（macOS 未實測）、驗證清單：[docs/agent-guide/headless-login-shell-path.md](docs/agent-guide/headless-login-shell-path.md)
+
 ## 指揮塔總覽（T0701，D184）
 
 - 用途：「塔台 › 指揮塔 › 總覽」依序顯示塔台狀態（`_tower-state.md`）、`*config` 生效值與來源（預設 → global → project）、sprint 區塊（只在有 `sprint-status.yaml` 時）。

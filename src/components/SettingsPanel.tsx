@@ -113,6 +113,8 @@ export function SettingsPanel({ onClose, targetOS }: SettingsPanelProps) {
   // T0393: a remote profile window's shells run on the remote host
   const shellPlatform = shellPlatformForTargetOS(targetOS, platform)
   const platformShellOptions = getShellOptionsForPlatform(shellPlatform)
+  // PLAN-057 / T0755: a remote window whose host is Linux / macOS (the headless bat-server runs there)
+  const isPosixRemoteWindow = !!targetOS && shellPlatformForTargetOS(targetOS, 'win32') !== 'win32'
 
   useEffect(() => {
     return settingsStore.subscribe(() => {
@@ -1175,6 +1177,23 @@ export function SettingsPanel({ onClose, targetOS }: SettingsPanelProps) {
               <p className="settings-hint">{t('settings.batMcpEnabledHint')}</p>
             </div>
           </div>
+          {/* PLAN-057 / T0755: headless bat-server takes the login shell's PATH — remote (Linux / macOS host) windows only */}
+          {isPosixRemoteWindow && (
+            <div className="settings-section headless-login-path-settings">
+              <h3>{t('settings.headlessLoginShellPathTitle')}</h3>
+              <div className="settings-group checkbox-group">
+                <label>
+                  <input
+                    type="checkbox"
+                    checked={settings.headlessLoginShellPath !== false}
+                    onChange={e => settingsStore.setHeadlessLoginShellPath(e.target.checked)}
+                  />
+                  {t('settings.headlessLoginShellPath')}
+                </label>
+                <p className="settings-hint">{t('settings.headlessLoginShellPathHint')}</p>
+              </div>
+            </div>
+          )}
           <div className="settings-section">
             <h3>{t('settings.debugLogging')}</h3>
 

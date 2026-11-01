@@ -376,6 +376,13 @@ class SettingsStore {
     this.save()
   }
 
+  // PLAN-057 / T0755: headless bat-server reads it once at startup (remote windows only)
+  setHeadlessLoginShellPath(enabled: boolean): void {
+    this.settings = { ...this.settings, headlessLoginShellPath: enabled }
+    this.notify()
+    this.save()
+  }
+
   setUsageLimitContinueText(text: string): void {
     this.settings = { ...this.settings, usageLimitContinueText: text }
     this.notify()

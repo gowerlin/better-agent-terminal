@@ -13,6 +13,7 @@
 | [ct-tower-overview.md](ct-tower-overview.md) | 指揮塔「總覽」：`_tower-state.md` 摘要契約 v1、`*config` 三層生效值與來源、`ct:read-config-sources`、無狀態工單計數、自動更新 | 指揮塔總覽（T0701，D184） |
 | [detached-workspace.md](detached-workspace.md) | detached 視窗的 registry 合併、所有權、關窗 flush、quit 互動、Settings 入口 | Detached workspace 視窗的持久化（T0453 / T0491） |
 | [dialog-close-and-escape.md](dialog-close-and-escape.md) | Dialog 不因點擊外部關閉、`ModalOverlay`、Esc 統一 | Dialog 不因點擊外部關閉（T0563）、Esc 統一（T0567） |
+| [headless-login-shell-path.md](headless-login-shell-path.md) | headless bat-server 啟動時以登入 shell 取得 PATH（`-l -i` + 隨機標記、detached + 逾時砍程序群組、合併規則、`headlessLoginShellPath` 開關、套用點、影響、實測） | headless server 的登入 shell PATH（PLAN-057 / T0755，D206 / D207） |
 | [helper-query-channels.md](helper-query-channels.md) | helper 唯讀查詢 channel（whoami / list / get-state / read-output / wait） | helper 唯讀查詢 channel（PLAN-047 M1 / T0582） |
 | [logging.md](logging.md) | 日誌、啟動期 crash capture、`[gpu]`、單一 userData、helper userData、PTY env 組裝點、塔台派工落點 | Logging |
 | [multi-remote-profiles.md](multi-remote-profiles.md) | 多 remote profile 同時連線、上限、profile index 序列化 | 多 remote profile 同時連線（PLAN-039） |

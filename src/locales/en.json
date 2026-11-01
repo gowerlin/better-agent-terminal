@@ -232,6 +232,9 @@
     "usageLimitContinueDelayHint": "0–60, default 2, so the limit has actually lifted.",
     "batMcpTitle": "BAT MCP",
     "batMcpEnabled": "BAT MCP (lets the agent in a tab query BAT)",
+    "headlessLoginShellPathTitle": "BAT server PATH",
+    "headlessLoginShellPath": "Use the login shell's PATH for the BAT server",
+    "headlessLoginShellPathHint": "On by default. When the BAT server on this host starts, it reads PATH from your login shell (the same rc files a terminal tab reads), so the server process and what it starts (the Claude panel's tools and MCP servers, the system claude, codex) find tools in ~/.local/bin, nvm or Homebrew. If the login shell fails or takes longer than 3 seconds, the server keeps its own PATH. Takes effect after the BAT server restarts. Terminal tabs still read their own rc files as before.",
     "batMcpEnabledHint": "On by default. Claude CLI and Codex CLI tabs that BAT starts (new / restored / restarted tabs and Control Tower dispatches) get the read-only \"bat\" MCP server: the agent can ask which tab it is, list its Workers, read their output and wait for them. Applies to tabs started after the change. Not added when your custom args already pass --mcp-config (Claude) or define mcp_servers.bat (Codex), nor to commands run as typed. Claude CLI tabs also get hooks that tell BAT when claude waits for you (a permission prompt, a question, an MCP dialog: the \"blocked\" state); not added when your custom args already pass --settings."
   },
   "sidebar": {

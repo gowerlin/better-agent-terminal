@@ -386,6 +386,8 @@ export interface AppSettings {
   usageLimitContinueDelayMinutes?: number;   // 重置後延遲分鐘（0–60，預設 2）
   // PLAN-047 M1 / T0584：BAT 啟動 claude / codex 分頁時掛上 `bat` MCP server（electron/bat-mcp-launch.ts 讀取）
   batMcpEnabled?: boolean;                   // 預設 true（只有 false 才關閉）
+  // PLAN-057 / T0755（D206）：headless bat-server 啟動時以登入 shell 取得 PATH（electron/remote/headless-login-path.ts 讀 <dataDir>/settings.json，啟動時讀一次）
+  headlessLoginShellPath?: boolean;          // 預設 true（只有 false 才關閉）；只在遠端視窗（Linux / macOS 主機）顯示
 }
 
 // ============================================

@@ -141,6 +141,11 @@ async function main() {
       .finally(() => process.exit(1))
   })
 
+  // PLAN-057 / T0755: take the login shell's PATH before anything reads process.env.PATH
+  // (`<dataDir>/settings.json` `headlessLoginShellPath`, on unless false). Never throws; a failure
+  // leaves PATH unchanged. `?.` keeps an older server-entry without the export working.
+  await serverEntry.applyHeadlessLoginShellPath?.({ dataDir, logger: console })
+
   server = await serverEntry.createHeadlessServer({
     dataDir,
     port,
