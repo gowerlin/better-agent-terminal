@@ -1,7 +1,7 @@
 ---
 schema_kind: tower-state
 summary_version: 1
-updated_at: "2026-11-02T04:57:17+0800"
+updated_at: "2026-11-02T04:59:01+0800"
 session: "2026-11-02 04:56 第一百零四 session 塔台重啟（三）（CT v6.0.0-beta.10，Fast Path）"
 next_ids:
   workorder: "T0770"
@@ -110,13 +110,13 @@ eport.md`（real，20:18:03–20:18:31，PS 7.6.9 系統管理員）：⓪ PASS�
 - 公開 repo（D176）：工單 / commit / BUG 不寫真名、客戶名、家目錄路徑；push 前跑 `.private/` 的檢查樣式
 
 ### 快速連結
-- Bug Tracker → [_bug-tracker.md](_bug-tracker.md)（熱區：Open 0 / Fixing 1 / Fixed 7 / Closed 48，2026-11-02 04:28）｜ Backlog → [_backlog.md](_backlog.md)
+- Bug Tracker → [_bug-tracker.md](_bug-tracker.md)（熱區：Open 0 / Fixing 0 / Fixed 8 / Closed 48，2026-11-02 04:59 `*sync`）｜ Backlog → [_backlog.md](_backlog.md)
 - Decision Log → [_decision-log.md](_decision-log.md)（最大 D214）｜ Learnings → [_learnings.md](_learnings.md)（最大 L177）
 - 網站 → https://gowerlin.github.io/better-agent-terminal/｜ 素材 spec → `e2e/site-media.spec.ts`（`BAT_SITE_MEDIA=1`，輸出 `e2e-media/`）
 - 歷史 sessions → [_archive/state-snapshots/INDEX.md](_archive/state-snapshots/INDEX.md)（119 entries）
 
 ### 編號起始
-- **T0770** / **BUG-193** / **PLAN-059** / **D212** / **EXP-WFMINE-002**（其他 TOPIC 從 001） / **L178** / **CT-T023**
+- **T0770** / **BUG-193** / **PLAN-059** / **D215** / **EXP-WFMINE-002**（其他 TOPIC 從 001） / **L178** / **CT-T023**
 
 ---
 

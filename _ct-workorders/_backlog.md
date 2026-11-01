@@ -3,26 +3,26 @@ schema_version: 1
 schema_kind: index
 id: _backlog
 index_kind: plans
-generated_at: "2026-11-02T00:25:31+0800"
+generated_at: "2026-11-02T04:59:01+0800"
 generator: control-tower-sync
 source_globs:
   - _ct-workorders/PLAN-*.md
 exclude_globs:
   - _ct-workorders/_archive/**
   - _ct-workorders/examples/**
-total: 22
+total: 23
 breakdown:
   IDEA: 8
   PLANNED: 1
   IN_PROGRESS: 1
-  DONE: 10
+  DONE: 11
   DROPPED: 2
 ---
 
 # Backlog
 
 > ⚠️ 此文件由 `*sync` 自動生成，請勿手動編輯。
-> 最後同步：2026-11-02 03:49 (UTC+8) — PLAN-055 IN_PROGRESS（T0766 B1 DONE，T0767 B2 進行中）；開 PLAN-058（IDEA，D214）；PLAN-057 DONE
+> 最後同步：2026-11-02 04:59 (UTC+8) — 第一百零四 session 塔台重啟（三）`*sync`：區段與 23 張 PLAN 檔一致，只修正 frontmatter 統計（total 22 → 23、DONE 10 → 11）；PLAN-055 B1（T0766）/ B2（T0767）皆 DONE、已隨 `v0.7.3-pre.4` 發佈，維持 IN_PROGRESS 等實機驗收。前次 2026-11-02 03:49 (UTC+8) — PLAN-055 IN_PROGRESS（T0766 B1 DONE，T0767 B2 進行中）；開 PLAN-058（IDEA，D214）；PLAN-057 DONE
 
 ## 統計
 - 💡 Ideas: 8 | 📋 Planned: 1 | 🔄 In Progress: 1 | ✅ Done: 11 | 🚫 Dropped: 2
