@@ -3,7 +3,7 @@ schema_version: 1
 schema_kind: index
 id: _bug-tracker
 index_kind: bugs
-generated_at: "2026-10-30T16:57:32+0800"
+generated_at: "2026-11-01T11:00:36+0800"
 generator: control-tower-sync
 source_globs:
   - _ct-workorders/BUG-*.md
@@ -26,7 +26,7 @@ breakdown:
 > 最後同步：2026-11-01 09:23 (UTC+8) — BUG-176 FIXED（T0719 `59ef7f37`）；熱區 Fixed 29 / Closed 11
 
 ## 統計
-- 🔴 Open: 0 | ⏳ Fixing: 0 | ✅ Fixed: 29 | 🧪 Verify: 0 | 🚫 Closed: 11 | ⛔ Won't Fix: 0 | **Total: 40**
+- 🔴 Open: 0 | ⏳ Fixing: 0 | ✅ Fixed: 28 | 🧪 Verify: 0 | 🚫 Closed: 12 | ⛔ Won't Fix: 0 | **Total: 40**
 
 ## 🔴 Open / 處理中
 
@@ -47,7 +47,6 @@ breakdown:
 | BUG-174 | 終端 `file:///` 連結：全形字讓底線與可點範圍變短、跨行抓不到、OSC 8 點了沒反應（GitHub #20；T0713 `ff772d40`） | 🟡 medium | 2026-10-30 | [BUG-174](BUG-174-terminal-file-link-cjk-range-wrap-osc8.md) |
 | BUG-171 | 「終端重置」後多個分頁 `[Process exited with code 1]`：NTP 時鐘跳變讓 heartbeat 誤判、recovery 沒關舊 server；T0704 `68ab2a42` + T0705 `d7ffa080`，待下一個預覽版實機驗收 | 🔴 high | 2026-10-25 | [BUG-171](BUG-171-idle-terminals-exit-1-after-terminal-reset.md) |
 | BUG-170 | yolo 提問備援重派後舊 Worker 分頁讓回收 AMBIGUOUS；CT v5.12.0 / v5.12.1 重派前先 `--close-worker`（CT-T022），T0695 / T0696 實機驗收通過 | 🟢 low | 2026-10-22 | [BUG-170](BUG-170-yolo-fallback-redispatch-leaves-old-worker-tab.md) |
-| BUG-169 | 安裝版的 helper 回報版號 v0.0.0；T0691 以 electron-builder `afterPack` 寫只含 name / version 的 `resources/package.json`，打包後 `helper-version` 檢查（`b0ff5673`），等下一個預覽版安裝版驗收 | 🟢 low | 2026-10-21 | [BUG-169](BUG-169-installed-helpers-report-version-0.0.0.md) |
 | BUG-168 | `tests/` 底下沒被跑到的測試失敗與逾時（全部測試過時）；T0680–T0685 修正並收進 vitest／`test:legacy`，ubuntu 試跑 5760 / 0 + 472 / 0；擋版 T0686 | 🟢 low | 2026-10-21 | [BUG-168](BUG-168-tests-dir-tsx-suites-failing-and-timing-out.md) |
 | BUG-167 | `tests/profile-manager-migration.test.ts` 2 項斷言過時（T0277 / T0282 加的 `dockerMounts`、`serverHome` 沒跟上；T0678 `d90b3b50`，13 / 0） | 🟢 low | 2026-10-21 | [BUG-167](BUG-167-profile-manager-migration-test-stale-assertions.md) |
 | BUG-159 | codex 分頁在 BAT MCP 未注入、非系統管理員時接上 codex 共用 daemon，helper 讀到其他分頁的 `BAT_*`（T0651 `5b1be0f5`） | 🟢 low | 2026-10-18 | [BUG-159](BUG-159-codex-shared-daemon-inherits-other-tab-env.md) |
@@ -82,6 +81,7 @@ breakdown:
 
 | ID | 標題 | 嚴重度 | 關閉時間 | 連結 |
 |----|------|--------|---------|------|
+| BUG-169 | 安裝版的 helper 回報版號 v0.0.0（T0691 `b0ff5673`；`v0.7.2-pre.6` Windows 安裝版三個 helper `--version` 實測正確） | 🟢 Low | 2026-11-01 | [BUG-169](BUG-169-installed-helpers-report-version-0.0.0.md) |
 | BUG-165 | macOS：Codex CLI 分頁內捲動不夠順（T0698 `ec4b3c13` 依累積行數送多個滾輪回報；外部測試者A 以 macOS 實機確認） | 🟢 low | 2026-10-30 | [BUG-165](BUG-165-macos-codex-cli-scroll-not-smooth.md) |
 | BUG-166 | Agent 被訊號結束後的分頁，滑鼠回報被當成文字輸入 shell（T0672 `64209d44` 自動 / 手動重設滑鼠追蹤；外部測試者A 以 macOS 實機確認） | 🟡 medium | 2026-10-30 | [BUG-166](BUG-166-mouse-reports-leak-as-text-after-agent-exit.md) |
 | BUG-172 | 指揮塔面板：檔案超過 512 KiB 時臭蟲／待辦／決策三頁靜默變空、工單從清單消失（只有總覽報 File too large）（T0708 `50fe08d3`；使用者以 v0.7.1-pre.9 實機驗收通過） | 🟡 medium | 2026-10-30 | [BUG-172](BUG-172-ct-panel-file-too-large-silent-empty.md) |

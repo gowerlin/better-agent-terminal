@@ -3,11 +3,13 @@ schema_version: 1
 schema_kind: bug
 id: BUG-169
 title: "安裝版的 helper 回報版號 v0.0.0（`--version`、BAT MCP `serverInfo.version`）：helper 讀 `<scripts>/../package.json`，安裝目錄的 `resources/` 沒有這個檔"
-status: FIXED
+status: CLOSED
 severity: low
 reproducibility: always
 created_at: "2026-10-21T22:17:40+0800"
-updated_at: "2026-10-21T23:41:10+0800"
+updated_at: "2026-11-01T11:00:36+0800"
+closed_at: "2026-11-01T11:00:36+0800"
+closed_reason: "verified"
 impact:
   - helper-scripts
   - bat-mcp
@@ -22,7 +24,7 @@ links:
 |------|------|
 | 嚴重度 | 🟢 low（只影響顯示；塔台判讀 helper 一律看 exit code，不讀版號） |
 | 可重現 | 一定（安裝版） |
-| **狀態** | ✅ FIXED：T0691（`b0ff5673`，方向 ①：打包時在 resources 放只含 name / version 的 package.json），等下一個預覽版的安裝版驗收；原本排除於 `v0.7.1-pre.5`（D179） |
+| **狀態** | 🚫 CLOSED：2026-11-01 第一百零二 session 依安裝版 `v0.7.2-pre.6`（Windows NSIS）實測結案，使用者決定不等外部測試者A |
 | 回報者 | T0689 Worker |
 
 ## 現象
@@ -48,3 +50,9 @@ T0689 改 `extraResources` 前同樣如此（`*.mjs` 也不含 `package.json`）
 - **Electron 不會把它當 app 載入**：Electron 41.2.1 的 browser init 只讀 `<resources>/{app,app.asar,default_app.asar}/package.json`（`appSearchPaths`）。
 - **實測**（`npm run build:dir`，Windows x64）：`release/win-unpacked/resources/package.json` = `{ "name": "better-agent-terminal", "version": "0.7.1-pre.5" }`；在 `resources/scripts`、清掉 `BAT_*` 連線 env 執行 `bat-terminal.mjs` / `bat-notify.mjs` / `bat-mcp.mjs --version` 都印 `v0.7.1-pre.5`；BAT MCP `initialize`（不連線）回 `serverInfo.version: "0.7.1-pre.5"`；暫時移走該檔則回到 `v0.0.0` / `"0.0.0"`（確認原因）。CI 路徑演練（`CI=true VERSION=v0.7.1-t0691.1 node scripts/build-version.js` → `electron-builder --win --dir`）：resources / app.asar / `--version` 皆 `0.7.1-t0691.1`，演練後 `package.json` / lock 無 diff。`verify-packaged-native.js --platform win` 綠。
 - **未驗**：mac / Linux 實際產物（由 CI 的 `verify-packaged-native.js` 驗）、NSIS 安裝後的安裝目錄（下一個預覽版驗收）。
+
+## 結案紀錄
+
+- **時間**：2026-11-01T11:00:36+0800（第一百零二 session，使用者「BUG-169 直接 CLOSED」）
+- **驗證依據**：交付版 `v0.7.2-pre.6`（GitHub Release，run `41265747434`）的 Windows 安裝版，`<安裝目錄>\resources\scripts` 執行 `bat-terminal.mjs --version` / `bat-notify.mjs --version` / `bat-mcp.mjs --version` 皆印 `v0.7.2-pre.6`、exit 0；`resources\package.json` = `{ "name": "better-agent-terminal", "version": "0.7.2-pre.6" }`。本機安裝版自 `v0.7.2-pre.3` 起即回正確版號（第九十九 session Full Scan）。
+- **未另驗**：mac / Linux 安裝版（CI `verify-packaged-native.js` 的 `helper-version` 每次發版都檢查）、BAT MCP `serverInfo.version`（與 `--version` 讀同一個檔）。
