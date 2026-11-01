@@ -3,11 +3,11 @@ schema_version: 1
 schema_kind: bug
 id: BUG-108
 title: "Claude 面板圖片附件走 proxied image:read-as-data-url：貼上圖片暫存於 os.tmpdir() 不在工作區白名單（本機疑似 Path access denied）；遠端視窗讀的是 server 檔案系統"
-status: FIXED
+status: CLOSED
 severity: medium
 reproducibility: always
 created_at: "2026-10-05T05:51:45+08:00"
-updated_at: "2026-10-05T06:56:06+08:00"
+updated_at: "2026-11-01T19:39:30+0800"
 impact:
   - attachments
 links:
@@ -42,3 +42,8 @@ links:
 - 兩 channel 為 `registerLocalHandlers` 內純 `ipcMain.handle`，不進 `PROXIED_CHANNELS` / handler registry（RemoteServer 呼叫不到），比 ALWAYS_LOCAL 更嚴格（塔台已接受此偏離）
 - 檔案樹 / PathLinker 預覽維持 proxied `image:read-as-data-url`
 - 待驗：T0436 回報區「使用者實機步驟」（本機 + WSL 遠端；拖放 / 貼上 / 對話框）
+
+## 結案（2026-11-01T19:39:30+0800，BAT 第一百零三 session 塔台）
+
+- 依全域 R-G003（測試環境實測）：本機：T0742 `e2e/t0742-panel-image-attachments.spec.ts` PASS ×2（驗紅）；遠端：T0743（`60419cc2`；source build 0.7.2-pre.8 + `server-bundle-v0.7.2-pre.8` + WSL Docker 29.1.3，隔離實例，各連跑 2 次全綠） U8 remote ×2（附件在 client 讀，容器端 proxied 讀取被拒為對照）。
+- closed_reason: verified

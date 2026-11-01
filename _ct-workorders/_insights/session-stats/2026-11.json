@@ -1,5 +1,5 @@
 {
- "generated_at": "2026-11-01T19:10:29+08:00",
+ "generated_at": "2026-11-01T19:39:37+08:00",
  "generator": {
   "script": "ct-session-stats.py",
   "version": "0.1.0"
@@ -14,13 +14,13 @@
  },
  "tower_daily": {
   "2026-11-01": {
-   "api_requests": 125,
-   "cache_read": 31758608,
-   "cache_write": 323642,
-   "cache_write_1h": 323642,
+   "api_requests": 132,
+   "cache_read": 34402120,
+   "cache_write": 340048,
+   "cache_write_1h": 340048,
    "cache_write_5m": 0,
-   "input": 272,
-   "output": 116098
+   "input": 288,
+   "output": 123929
   }
  },
  "workorders": [
@@ -598,6 +598,90 @@
     "2.1.316"
    ],
    "workorder": "T0742"
+  },
+  {
+   "attribution": {
+    "conflict": false,
+    "source": "frontmatter",
+    "sources": {
+     "frontmatter": 1
+    }
+   },
+   "by_mcp_server": {},
+   "by_tool": {
+    "Bash": 83,
+    "Edit": 9,
+    "PowerShell": 3,
+    "Read": 3,
+    "Write": 2
+   },
+   "counts": {
+    "api_requests": 92,
+    "failures": 1,
+    "same_file_read_ge3": 0,
+    "subagent_files": 0,
+    "tool_calls": 100
+   },
+   "end": "2026-11-01T11:38:23Z",
+   "est_usd": 8.8179,
+   "failures_by_tool": {
+    "Bash": 1
+   },
+   "renews": 0,
+   "sessions": 1,
+   "skills_invoked": {},
+   "start": "2026-11-01T11:10:47Z",
+   "stuck": {
+    "max_consecutive_failures": 1,
+    "max_failures_in_10_calls": 1,
+    "near_repeat_fail_pairs_j50": 0,
+    "repeat_fail_groups_norm": 0
+   },
+   "stuck_signal": false,
+   "subagent_tokens": {
+    "cache_read": 0,
+    "cache_write": 0,
+    "cache_write_1h": 0,
+    "cache_write_5m": 0,
+    "input": 0,
+    "output": 0
+   },
+   "tokens": {
+    "cache_read": 22249442,
+    "cache_write": 307468,
+    "cache_write_1h": 307468,
+    "cache_write_5m": 0,
+    "input": 184,
+    "output": 95378
+   },
+   "top_tools": [
+    [
+     "Bash",
+     83
+    ],
+    [
+     "Edit",
+     9
+    ],
+    [
+     "PowerShell",
+     3
+    ],
+    [
+     "Read",
+     3
+    ],
+    [
+     "Write",
+     2
+    ]
+   ],
+   "type": "implementation",
+   "unpriced_tokens": 0,
+   "versions": [
+    "2.1.316"
+   ],
+   "workorder": "T0743"
   },
   {
    "attribution": {

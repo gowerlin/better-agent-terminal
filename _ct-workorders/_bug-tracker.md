@@ -23,10 +23,10 @@ breakdown:
 # Bug Tracker
 
 > ⚠️ 此文件由 `*sync` 自動生成，請勿手動編輯。
-> 最後同步：2026-11-01 19:10 — 第一百零三 session：BUG-181 FIXED（T0744 `0d42ebdc`）；BUG-135 CLOSED（T0742）；BUG-181 FIXING（T0744）；BUG-181 OPEN（T0739 發現）；T0738 A 類 12 張 CLOSED（BUG-116 / 118 / 127 / 129 / 131 / 132 / 133 / 134 / 137 / 146 / 147 / 171）；BUG-134 回報者改代稱；BUG-180 FIXED（T0741 `4500984d`）；BUG-177 / 178 / 179 CLOSED（T0737 e2e＋BUG-179 實機輪替）；BUG-180 OPEN（T0736 發現）；BUG-167 / 168 / 170 CLOSED（R-G003，CI 測試關卡 / 實機驗收證據）；熱區 Fixing 0 / Fixed 12 / Closed 33。前次 2026-11-01 12:43 第一百零二 session：BUG-169 / 174 / 176 CLOSED、BUG-177 / 178 / 179 FIXED（T0729 `ceb24910` / T0730 `6f7b3d53` / T0732 `ce648034`）；熱區 Open 0 / Fixing 0 / Fixed 29 / Closed 14
+> 最後同步：2026-11-01 19:39 — 第一百零三 session：BUG-097 / 105 / 107 / 108 / 111 / 156 CLOSED（T0742 / T0743）；BUG-181 FIXED（T0744 `0d42ebdc`）；BUG-135 CLOSED（T0742）；BUG-181 FIXING（T0744）；BUG-181 OPEN（T0739 發現）；T0738 A 類 12 張 CLOSED（BUG-116 / 118 / 127 / 129 / 131 / 132 / 133 / 134 / 137 / 146 / 147 / 171）；BUG-134 回報者改代稱；BUG-180 FIXED（T0741 `4500984d`）；BUG-177 / 178 / 179 CLOSED（T0737 e2e＋BUG-179 實機輪替）；BUG-180 OPEN（T0736 發現）；BUG-167 / 168 / 170 CLOSED（R-G003，CI 測試關卡 / 實機驗收證據）；熱區 Fixing 0 / Fixed 6 / Closed 39。前次 2026-11-01 12:43 第一百零二 session：BUG-169 / 174 / 176 CLOSED、BUG-177 / 178 / 179 FIXED（T0729 `ceb24910` / T0730 `6f7b3d53` / T0732 `ce648034`）；熱區 Open 0 / Fixing 0 / Fixed 29 / Closed 14
 
 ## 統計
-- 🔴 Open: 0 | ⏳ Fixing: 0 | ✅ Fixed: 12 | 🧪 Verify: 0 | 🚫 Closed: 33 | ⛔ Won't Fix: 0 | **Total: 45**
+- 🔴 Open: 0 | ⏳ Fixing: 0 | ✅ Fixed: 6 | 🧪 Verify: 0 | 🚫 Closed: 39 | ⛔ Won't Fix: 0 | **Total: 45**
 
 ## 🔴 Open / 處理中
 
@@ -46,14 +46,8 @@ breakdown:
 | BUG-180 | 剛開的終端分頁被切走時 PTY 被 resize 成 9x5；T0741 `canFitTerminalContainer` 守門：容器無尺寸不 fit、不送 resize，initial resize 到期再檢查 active（`4500984d`），待預覽版實機驗收 | 🟢 low | 2026-11-01 | [BUG-180](BUG-180-new-tab-switched-away-pty-resized-9x5.md) |
 | BUG-175 | 縮圖預覽在輸出沒有換行時不更新、露出 `>0q>4m` 殘骸（T0714 `afe57761` 依游標換列分行 + 完整 CSI；`v0.7.2-pre.3`；待外部測試者A 與 GitHub #22 回報者 macOS 實機驗收） | 🟡 medium | 2026-10-30 | [BUG-175](BUG-175-thumbnail-preview-stuck-without-newline.md) |
 | BUG-159 | codex 分頁在 BAT MCP 未注入、非系統管理員時接上 codex 共用 daemon，helper 讀到其他分頁的 `BAT_*`（T0651 `5b1be0f5`） | 🟢 low | 2026-10-18 | [BUG-159](BUG-159-codex-shared-daemon-inherits-other-tab-env.md) |
-| BUG-156 | Docker 設定精靈容器埠固定 `127.0.0.1:9876`，與 BAT RemoteServer 預設埠衝突（T0649 `99abe9a1`） | 🟡 medium | 2026-10-18 | [BUG-156](BUG-156-docker-wizard-port-9876-conflicts-bat-server.md) |
 | BUG-130 | 終端分頁貼圖（Windows 回歸未重現，已加固 + log；mac 送 Ctrl+V） | 🟡 medium | 2026-10-14 13:56 | [BUG-130](BUG-130-terminal-image-paste-regression.md) |
 | BUG-128 | mac：Finder 拷貝後終端 Command+V 貼不上 | 🟡 medium | 2026-10-14 13:29 | [BUG-128](BUG-128-mac-cmd-v-finder-copy-no-paste.md) |
-| BUG-111 | 設定精靈 rollback 會刪 / 停使用者自己的 Docker 容器與資料（T0444） | 🔴 high | 2026-10-05 | [BUG-111](BUG-111-wizard-rollback-touches-user-owned-resources.md) |
-| BUG-108 | Claude 面板圖片附件走 proxied 讀檔：本機工作區外圖片被 path guard 擋、遠端讀錯檔案系統（T0436） | 🟡 medium | 2026-10-05 | [BUG-108](BUG-108-image-attachment-read-path-denied.md) |
-| BUG-107 | Electron 41 拖放檔案取不到路徑（`File.path` 已移除）（T0435；須與 T0437 同版） | 🟡 medium | 2026-10-05 | [BUG-107](BUG-107-drag-drop-file-path-missing-electron41.md) |
-| BUG-097 | Docker 遠端埠全介面暴露、container 內 bind 不可達、HEALTHCHECK 無路由（T0418 / T0427 / T0428） | 🔴 high | 2026-10-05 | [BUG-097](BUG-097-docker-server-port-exposed-and-unreachable.md) |
-| BUG-105 | 遠端路徑轉換只涵蓋 fs / git(7) / pty / image：claude:*（cwd）、github:*、git-scaffold:*、worktree:create 不轉 | 🔴 high | 2026-10-05 | [BUG-105](BUG-105-proxied-channels-missing-path-translation.md) |
 
 ## 🧪 驗收中 (VERIFY)
 
@@ -65,6 +59,12 @@ breakdown:
 
 | ID | 標題 | 嚴重度 | 關閉時間 | 連結 |
 |----|------|--------|---------|------|
+| BUG-156 | Docker 設定精靈容器埠固定 `127.0.0.1:9876`，與 BAT RemoteServer 預設埠衝突（T0649 `99abe9a1`） | 🟡 medium | 2026-11-01 | [BUG-156](BUG-156-docker-wizard-port-9876-conflicts-bat-server.md) |
+| BUG-111 | 設定精靈 rollback 會刪 / 停使用者自己的 Docker 容器與資料（T0444） | 🔴 high | 2026-11-01 | [BUG-111](BUG-111-wizard-rollback-touches-user-owned-resources.md) |
+| BUG-108 | Claude 面板圖片附件走 proxied 讀檔：本機工作區外圖片被 path guard 擋、遠端讀錯檔案系統（T0436） | 🟡 medium | 2026-11-01 | [BUG-108](BUG-108-image-attachment-read-path-denied.md) |
+| BUG-107 | Electron 41 拖放檔案取不到路徑（`File.path` 已移除）（T0435；須與 T0437 同版） | 🟡 medium | 2026-11-01 | [BUG-107](BUG-107-drag-drop-file-path-missing-electron41.md) |
+| BUG-097 | Docker 遠端埠全介面暴露、container 內 bind 不可達、HEALTHCHECK 無路由（T0418 / T0427 / T0428） | 🔴 high | 2026-11-01 | [BUG-097](BUG-097-docker-server-port-exposed-and-unreachable.md) |
+| BUG-105 | 遠端路徑轉換只涵蓋 fs / git(7) / pty / image：claude:*（cwd）、github:*、git-scaffold:*、worktree:create 不轉 | 🔴 high | 2026-11-01 | [BUG-105](BUG-105-proxied-channels-missing-path-translation.md) |
 | BUG-135 | focus fallback 跨工作區（adopt / 刪除 / 封存工作區、外部終端、reload；T0532 `8b5251a8`，含新工作區空狀態不閃） | 🟢 low | 2026-11-01 | [BUG-135](BUG-135-adopt-detached-focus-crosses-workspace.md) |
 | BUG-171 | 「終端重置」後多個分頁 `[Process exited with code 1]`：NTP 時鐘跳變讓 heartbeat 誤判、recovery 沒關舊 server；T0704 `68ab2a42` + T0705 `d7ffa080`，待下一個預覽版實機驗收 | 🔴 high | 2026-11-01 | [BUG-171](BUG-171-idle-terminals-exit-1-after-terminal-reset.md) |
 | BUG-147 | Recovery「重新開始」時舊 Terminal Server 刪掉新 server 的 pid / port 檔 | 🟢 low | 2026-11-01 | [BUG-147](BUG-147-recovery-fresh-start-pid-file-race.md) |

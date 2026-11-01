@@ -3,11 +3,11 @@ schema_version: 1
 schema_kind: bug
 id: BUG-105
 title: "遠端視窗的路徑轉換只涵蓋 fs / git(7) / pty / image：claude:*（cwd）、github:*、git-scaffold:*、worktree:create 等新上線 headless 的 channel 不做 client→server 路徑轉換"
-status: FIXED
+status: CLOSED
 severity: high
 reproducibility: likely
 created_at: "2026-10-05T04:37:14+08:00"
-updated_at: "2026-10-05T04:51:06+08:00"
+updated_at: "2026-11-01T19:39:30+0800"
 impact:
   - remote-claude
   - remote-git
@@ -22,7 +22,7 @@ links:
 |------|------|
 | 嚴重度 | 🔴 high（遠端視窗的工作區若存 client 形式路徑，Claude 面板、GitHub 面板、Git Graph、worktree 會在錯誤 / 不存在的目錄執行） |
 | 可重現 | likely（程式碼推論，未實機；T0397 E4 顯示 WSL 視窗資料夾對話框預設 `\\wsl.localhost\Ubuntu-24.04\home\<使用者>`） |
-| **狀態** | ✅ FIXED（T0416 `e2daec1`；轉換在 main 端，需新 BAT build 實機驗證） |
+| **狀態** | 🚫 CLOSED（2026-11-01 塔台依 R-G003 結案）；原 ✅ FIXED（T0416 `e2daec1`；轉換在 main 端，需新 BAT build 實機驗證） |
 | 回報者 | T0405 Worker（回報區「遭遇問題」2）；塔台 04:35 擴大判斷到 `claude:*` |
 
 ## 現象（程式碼證據）
@@ -40,3 +40,8 @@ links:
 - 2026-10-05 04:51 塔台複驗：1825 tests / vite / e2e 0 failed / tsc 40 / legacy node:test 11/11
 - 待實機：使用者以新 build 在 WSL 視窗用 `\\wsl.localhost\…` 與 `C:\…` 兩種工作區開 Claude 面板（`pwd`）與 Git Graph
 - 自由文字 / 附件路徑：T0437（ALWAYS_LOCAL `remote:resolve-client-paths`；Claude / Codex 面板 `@` 附件改送 server 形式，不可達者移除 + toast；使用者手打 / 貼上文字不改寫，見 T0421）
+
+## 結案（2026-11-01T19:39:30+0800，BAT 第一百零三 session 塔台）
+
+- 依全域 R-G003（測試環境實測）：T0743（`60419cc2`；source build 0.7.2-pre.8 + `server-bundle-v0.7.2-pre.8` + WSL Docker 29.1.3，隔離實例，各連跑 2 次全綠）：`e2e/pre6-ui-remote-acceptance.spec.ts` U4 ×2，claude:*（scan-skills / list-sessions）、github:*、git-scaffold:*、worktree:create 都轉成容器路徑 `/work`；`claude:start-session` 後 `pwd` 未端到端（recorder 只驗 cwd 參數）。
+- closed_reason: verified

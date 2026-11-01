@@ -3,11 +3,11 @@ schema_version: 1
 schema_kind: bug
 id: BUG-107
 title: "Electron 41 拖放檔案取不到路徑：DOM File.path 已移除（Electron 32+），Claude 面板 / Sidebar 拖放失效；Codex 面板呼叫不存在的 shell.getPathForFile"
-status: FIXED
+status: CLOSED
 severity: medium
 reproducibility: always
 created_at: "2026-10-05T05:51:45+08:00"
-updated_at: "2026-10-05T05:59:13+08:00"
+updated_at: "2026-11-01T19:39:30+0800"
 impact:
   - attachments
   - drag-drop
@@ -22,7 +22,7 @@ links:
 |------|------|
 | 嚴重度 | 🟡 medium（本機與遠端視窗皆受影響；拖放附件 / 拖放加入工作區失效） |
 | 可重現 | 推定 100%（程式碼證據；T0421 研究） |
-| **狀態** | ✅ FIXED |
+| **狀態** | 🚫 CLOSED（2026-11-01 塔台依 R-G003 結案）；原 ✅ FIXED |
 | 回報者 | T0421 Worker（研究回報區「調查結論 §0」） |
 
 ## 現象（程式碼證據，T0421）
@@ -41,3 +41,8 @@ preload 暴露 `webUtils.getPathForFile`（對齊 Codex 既有呼叫名 `shell.g
 - preload `shell.getPathForFile` → `webUtils.getPathForFile`；Claude 面板 / Sidebar 拖放改用此 API；Claude / Codex `addFileByPath` 檔名改 `/[\\/]/` 切
 - 測試：`src/__tests__/drag-drop-get-path-for-file.test.tsx`、`electron/__tests__/preload-get-path-for-file.test.ts`；`npm run test:unit` 全綠；`tsc --noEmit` 40 → 39
 - 待使用者實機驗收（步驟見 T0435 回報區）；遠端視窗附件路徑由 T0437 處理
+
+## 結案（2026-11-01T19:39:30+0800，BAT 第一百零三 session 塔台）
+
+- 依全域 R-G003（測試環境實測）：本機：T0742 `e2e/t0742-terminal-drop-path.spec.ts` PASS ×2（驗紅）；遠端：T0743（`60419cc2`；source build 0.7.2-pre.8 + `server-bundle-v0.7.2-pre.8` + WSL Docker 29.1.3，隔離實例，各連跑 2 次全綠） U7 remote ×2。真實檔案總管拖放未自動化（不擋結案）。
+- closed_reason: verified

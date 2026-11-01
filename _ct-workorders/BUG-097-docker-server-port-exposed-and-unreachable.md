@@ -3,11 +3,11 @@ schema_version: 1
 schema_kind: bug
 id: BUG-097
 title: "Docker 遠端：`-p` 未綁 host 127.0.0.1（全介面暴露）、container 內 bat-server 綁 127.0.0.1（推測連不上）、HEALTHCHECK `/health` 無路由"
-status: FIXED
+status: CLOSED
 severity: high
 reproducibility: unknown
 created_at: "2026-10-04T23:58:00+08:00"
-updated_at: "2026-10-05T05:43:39+08:00"
+updated_at: "2026-11-01T19:39:30+0800"
 impact:
   - docker-remote
   - security
@@ -43,3 +43,8 @@ links:
 - HEALTHCHECK 改為 bundle node 的 TLS handshake 探測（不加 HTTP `/health`）；`scripts/verify-docker-image.mjs` 同步
 - wizard `waitForHealthy` 等待 5s → 45s（首次 probe 在 interval 30s 後）
 - 待驗：Docker 可用時 build image → `verify:docker-image` → wizard 新建 container → health `healthy`、`docker port` 為 `127.0.0.1:<port>`、BAT 連線成功；既有 container 需重建（見 T0418 回報區）
+
+## 結案（2026-11-01T19:39:30+0800，BAT 第一百零三 session 塔台）
+
+- 依全域 R-G003（測試環境實測）：T0743（`60419cc2`；source build 0.7.2-pre.8 + `server-bundle-v0.7.2-pre.8` + WSL Docker 29.1.3，隔離實例，各連跑 2 次全綠）：D1 精靈 `docker run -p 127.0.0.1:<port>:9876`、container 內 `--bind-interface all`、TLS HEALTHCHECK healthy、非 loopback 位址連不到；D5 舊映像警告。T0427「發佈在所有介面」警告未實測（需真的綁 0.0.0.0），由 `detectContainerExposure` 單元測試涵蓋。
+- closed_reason: verified
