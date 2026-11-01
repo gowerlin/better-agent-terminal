@@ -1,14 +1,15 @@
 ---
 schema_kind: tower-state
 summary_version: 1
-updated_at: "2026-11-01T09:23:24+0800"
-session: "2026-11-01 第一百 session 進行中（CT v5.15.0）：T0717 / T0718 / T0719 DONE；BUG-176 FIXED；0.7.2-pre.5 重發中"
+updated_at: "2026-11-01T09:39:10+0800"
+session: "2026-11-01 第一百 session 進行中（CT v5.15.0）：內嵌 claude / codex / Agent SDK 追最新（T0717–T0719，D191–D193，BUG-176 FIXED）、v0.7.2-pre.5 已發佈"
 next_ids:
   workorder: "T0720"
   decision: "D194"
   bug: "BUG-177"
   plan: "PLAN-057"
 todo:
+  - "實機驗收 v0.7.2-pre.5：Claude Agent 面板（SDK 0.3）真實對話、V2 分頁遷移後接續、codex 0.166 Worker 回合結束 ↻ → ✓；產物大小超 D146 預算待決定"
   - "實機驗收 BUG-174（v0.7.2-pre.2 終端 file:/// 連結：全形字、跨行、OSC 8）；通過後關 GitHub #20"
   - "使用者日常使用驗收 BUG-171"
   - "外部測試者A 驗收 BUG-169 / BUG-175（v0.7.2-pre.3 起）；BUG-175 另等 GitHub #22 回報者回覆（已留言），通過後關 #22"
@@ -274,6 +275,8 @@ todo:
 - 09:01 T0718 DONE（`61dff300` / `45113164` / `54f52048`；無提問；unit 6203 / 347 files / legacy 472 / build / asar-runtime-deps 實跑 / 隔離實例遷移實測；塔台複驗 SDK 0.3.316、typecheck 0 / 0、殘留引用只剩遷移碼與註解）→ D123 Phase 2 完成 → `--close-worker` exit 0
 - 09:03 使用者「現在發 0.7.2-pre.5」→ 塔台聯合驗證（unit 6203 / 347 files、legacy 472、build）綠、去識別化 / 金鑰掃描 0 → push `a3a74762` → `pre-release.yml` run 41259467662 → **mac 打包驗證失敗**（ajv / ajv-formats 不在安裝檔），其他 build 取消、release skipped、未建 tag → BUG-176 / D193 / T0719 派工；發版文件（CHANGELOG / README / release-note）已備妥未 commit，更版重點草稿在 scratchpad
 - 09:23 T0719 DONE（`59ef7f37`；ajv / ajv-formats 加進 `dependencies`、production 相依樹守門、本機 Windows 打包驗證修正前 1 → 後 0；unit 6211 / legacy 472；塔台複驗守門 31 / 31、lock diff 只有 2 行）→ BUG-176 FIXED → `--close-worker` exit 0 → 重發 `0.7.2-pre.5`
+- 09:36 **`v0.7.2-pre.5` 發佈**（run `41260924862`，12 job 全綠，target `826471bd`，release 01:36:02Z）→ 更版重點 → 文件 `c4f139e3`（CHANGELOG / release-note / README 版本對照 Codex 列 / package 版號）→ Pages `41261890580` 綠、link-check 1365 / 0、首頁 pre.5
+- ⚠️ 產物大小超過 D146 預算（每平台 ≤ 320 MiB、zip ≤ 450）：exe 333 / zip 458 / AppImage 328 / dmg 345 MiB（pre.4：309 / 428 / 305 / 322），約 +24 MiB，推測來自 claude CLI 2.1.316 與 SDK 0.3 平台 binary，未查證
 
 ### 歷史 Session（摘要）
 
