@@ -1465,6 +1465,13 @@
 - **切分**：W2a 設計語言 + 元件 + 首頁（T0630）→ 預覽通過後 W2b（`/control-tower`、功能、FAQ、回報頁）→ W2c 遠端開發；W3 / W4 不變。
 - **相關**：PLAN-049 / D159 / D160 / T0624 / T0630
 
+### D207 2026-11-02 — PLAN-057 依 T0754 草案實作（T0755）：不加環境變數覆蓋、不過濾 `/mnt`、接受分頁 PATH 重複
+
+- **決定**：照 T0754 回報區⑦開實作單 T0755 並派工。① 只有 `<dataDir>/settings.json` `headlessLoginShellPath` 開關，不加環境變數覆蓋；② WSL 的 `/mnt/<磁碟>/` 項不過濾（日誌記數量）；③ server 開的分頁 PATH `~/.local/bin` 多一份接受，不改共用的 `PtyManager`。
+- **理由**：套用失敗自動退回原 PATH、server 不會起不來，Settings 開關足夠；systemd 下實測 `/mnt` 0 項，server 與分頁一致較好理解；重複不影響功能，改 `PtyManager` 範圍變大。
+- **決策者**：使用者（2026-11-02 00:46，選項式提問，四題皆選建議）。
+- **相關**：PLAN-057 / T0754 / T0755 / D206
+
 ### D206 2026-11-02 — bat-server 啟動時取登入 shell PATH：開 PLAN-057，先量測再實作，預設開、可關
 
 - **決定**：T0753 Q-2 選項 B（headless server 啟動時以登入 shell 取得 PATH 套到自己）開 PLAN-057；先派研究單 T0754 在測試環境量測（不動使用者的 bat-server），看數據再開實作單。之後實作時加 headless settings 開關，**預設開**、可關；關閉時行為與現況完全相同。

@@ -30,3 +30,4 @@ bat-server 由 systemd user unit（WSL / SSH Linux）、launchd（SSH macOS）�
 - WSL systemd 下 `/mnt/*` 項為 0；套用後分頁的 `~/.local/bin` 多一份；沒找到會讓 BAT 壞掉的路徑。
 - 套用點：`scripts/bat-server.mjs` `main()`，`createHeadlessServer` 之前；開關 `<dataDir>/settings.json` `headlessLoginShellPath`（`!== false` 為開）。
 - 實作單草案與待決點見 T0754 回報區 ⑦ 與〈需要使用者決定的點〉。
+- D207：不加環境變數覆蓋、不過濾 `/mnt`、接受分頁 PATH 重複 → 實作單 **T0755**。
