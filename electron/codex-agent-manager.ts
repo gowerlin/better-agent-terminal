@@ -75,7 +75,6 @@ type CodexStartOptions = {
   permissionMode?: string
   model?: string
   effort?: string
-  apiVersion?: string
   codexSandboxMode?: CodexSandboxMode
   codexApprovalPolicy?: CodexApprovalPolicy
   agentPreset?: string

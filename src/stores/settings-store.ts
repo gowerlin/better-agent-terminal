@@ -2,6 +2,7 @@ import type { AppSettings, ShellType, FontType, ColorPresetId, EnvVariable, Agen
 import type { AgentPresetId } from '../types/agent-presets'
 import { FONT_OPTIONS, COLOR_PRESETS, AGENT_COMMAND_OPTIONS, STATUSLINE_ITEMS, DEFAULT_CLAUDE_RUNTIME_SETTINGS } from '../types'
 import { clampUsageLimitDelayMinutes } from '../lib/usage-limit'
+import { migrateSettingsAgentFields } from '../lib/retired-agent-presets'
 
 type Listener = () => void
 
@@ -482,7 +483,10 @@ class SettingsStore {
     if (data) {
       try {
         const parsed = JSON.parse(data)
-        this.settings = { ...defaultSettings, ...parsed }
+        // T0718 / D123: a retired preset in `defaultAgent` / `agentCustomArgs` → its replacement.
+        // In memory only (written on the next Settings save); main / headless readers apply the
+        // same migration at lookup time (`agent-launch-settings`).
+        this.settings = migrateSettingsAgentFields({ ...defaultSettings, ...parsed })
         this.notify()
       } catch (e) {
         console.error('Failed to parse settings:', e)

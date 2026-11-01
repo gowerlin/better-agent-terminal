@@ -224,3 +224,38 @@ describe('headless agent command inputs (T0431)', () => {
     expect(readHeadlessTerminalSettings({ agentCustomArgs: ['--x'] })).toEqual({})
   })
 })
+
+describe('retired claude-code-v2 preset (T0718 / D123)', () => {
+  it('headless settings.json naming it reads as claude-code', () => {
+    expect(readHeadlessTerminalSettings({
+      defaultAgent: 'claude-code-v2',
+      agentCustomArgs: { 'claude-code-v2': '--v2', 'claude-cli': '--c' },
+    })).toEqual({ defaultAgent: 'claude-code', agentCustomArgs: { 'claude-code': '--v2', 'claude-cli': '--c' } })
+  })
+
+  it('a default agent of claude-code-v2 (workspace or Settings) still dispatches a Claude CLI Worker', async () => {
+    for (const settings of [{ defaultAgent: 'claude-code-v2' }, null]) {
+      const build = createAgentPromptCommandBuilder({
+        readSettings: () => settings,
+        resolveWorkspaceAgentSettings: async () => (settings ? null : { defaultAgent: 'claude-code-v2' }),
+        ensureElevationApplied: async () => {},
+        resolveClaudeBaseCommand: async () => CLAUDE_BASE,
+        logger: { warn: () => {} },
+      })
+      const built = await build({ skill: 'ct-exec', workorder: 'T0718', workspaceId: 'ws' })
+      expect(built?.command).toBe(`${CLAUDE_BASE} '/ct-exec T0718'`)
+      expect(built?.agentSource).toBe(settings ? 'settings' : 'workspace')
+    }
+  })
+
+  it('its custom args (moved to claude-code) still apply to that dispatch', async () => {
+    const build = createAgentPromptCommandBuilder({
+      readSettings: () => ({ defaultAgent: 'claude-code-v2', agentCustomArgs: { 'claude-code-v2': '--model opus' } }),
+      resolveWorkspaceAgentSettings: async () => null,
+      ensureElevationApplied: async () => {},
+      resolveClaudeBaseCommand: async () => CLAUDE_BASE,
+      logger: { warn: () => {} },
+    })
+    expect((await build({ skill: 'ct-exec', workorder: 'T0718' }))?.command).toBe(`${CLAUDE_BASE} --model opus '/ct-exec T0718'`)
+  })
+})

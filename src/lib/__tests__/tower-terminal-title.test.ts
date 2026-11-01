@@ -54,10 +54,9 @@ describe('isDefaultTerminalTitle (T0562) — every title BAT generates', () => {
     expect(isDefaultTerminalTitle(undefined)).toBe(true)
   })
 
-  it('addTerminal with a preset / switchTerminalApiVersion: every agent preset name', () => {
+  it('addTerminal with a preset (or a restored tab of a retired preset, T0718): every agent preset name', () => {
     for (const preset of AGENT_PRESETS) expect(isDefaultTerminalTitle(preset.name), preset.id).toBe(true)
     expect(isDefaultTerminalTitle('Claude Agent V1')).toBe(true)
-    expect(isDefaultTerminalTitle('Claude Agent V2')).toBe(true)
   })
 
   it('a custom CLI name (registry, sent with the event) or the tab autoTitle (setAutoTitle / helper raw command)', () => {

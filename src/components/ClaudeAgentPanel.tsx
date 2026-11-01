@@ -134,9 +134,7 @@ export function ClaudeAgentPanel({ sessionId, cwd, isActive, workspaceId, isRemo
   const { t } = useTranslation()
   const { messages: noticeToasts, addToast: addNoticeToast, dismissToast: dismissNoticeToast } = useCtToast()
   const isRemoteConnectedRef = useRef(!!isRemoteConnected)
-  // Determine if this is a V2 session based on agentPreset
   const terminal = workspaceStore.getState().terminals.find(t => t.id === sessionId)
-  const isV2Session = terminal?.agentPreset === 'claude-code-v2'
   const isWorktreeSession = terminal?.agentPreset === 'claude-code-worktree'
   const [messages, setMessages] = useState<MessageItem[]>([])
   const inputValueRef = useRef('')
@@ -987,10 +985,9 @@ export function ClaudeAgentPanel({ sessionId, cwd, isActive, workspaceId, isRemo
       const terminal = workspaceStore.getState().terminals.find(t => t.id === sessionId)
       const savedSdkSessionId = terminal?.sdkSessionId
       const savedModel = terminal?.model
-      const apiVersion = terminal?.agentPreset === 'claude-code-v2' ? 'v2' as const : 'v1' as const
       const useWorktree = terminal?.agentPreset === 'claude-code-worktree'
       const globalSettings = settingsStore.getSettings()
-      dlog(`${stag} sdkSessionId=${savedSdkSessionId?.slice(0, 8)} pendingPrompt="${terminal?.pendingPrompt || ''}" apiVersion=${apiVersion}`)
+      dlog(`${stag} sdkSessionId=${savedSdkSessionId?.slice(0, 8)} pendingPrompt="${terminal?.pendingPrompt || ''}"`)
 
       // Restore saved model to UI, or use global default
       const effectiveModel = savedModel || globalSettings.defaultModel
@@ -1003,14 +1000,14 @@ export function ClaudeAgentPanel({ sessionId, cwd, isActive, workspaceId, isRemo
       if (savedSdkSessionId) {
         dlog(`${stag} AUTO-RESUME sdkSessionId=${savedSdkSessionId.slice(0, 8)}`)
         historyLoadedRef.current = true
-        window.electronAPI.claude.resumeSession(sessionId, savedSdkSessionId, cwd, savedModel, apiVersion,
+        window.electronAPI.claude.resumeSession(sessionId, savedSdkSessionId, cwd, savedModel, undefined,
           useWorktree ? true : undefined, terminal?.worktreePath, terminal?.worktreeBranch)
           .catch(showRemoteUnsupported)
       } else {
         dlog(`${stag} FRESH startSession`)
         window.electronAPI.claude.startSession(sessionId, {
           cwd, permissionMode, model: effectiveModel,
-          effort: effectiveEffort as EffortLevel, apiVersion,
+          effort: effectiveEffort as EffortLevel,
           ...(useWorktree ? { useWorktree: true, worktreePath: terminal?.worktreePath, worktreeBranch: terminal?.worktreeBranch } : {}),
         }).catch(showRemoteUnsupported)
       }
@@ -1184,13 +1181,8 @@ export function ClaudeAgentPanel({ sessionId, cwd, isActive, workspaceId, isRemo
   }, [isActive])
 
   const handleModelSelect = useCallback(async (modelValue: string) => {
-    // V2: warn that model change will recreate session and re-apply context
-    if (isV2Session && modelValue !== currentModel) {
-      const ok = await window.electronAPI.dialog.confirm(t('claude.v2ModelChangeWarning'))
-      if (!ok) return
-    }
-    // V1: warn about 1M model cache inefficiency
-    if (!isV2Session && modelValue.includes('[1m]') && modelValue !== currentModel) {
+    // Warn about 1M model cache inefficiency
+    if (modelValue.includes('[1m]') && modelValue !== currentModel) {
       const ok = await window.electronAPI.dialog.confirm(t('claude.v1Model1mWarning'))
       if (!ok) return
     }
@@ -1199,7 +1191,7 @@ export function ClaudeAgentPanel({ sessionId, cwd, isActive, workspaceId, isRemo
     setTimeout(() => textareaRef.current?.focus(), 0)
     await window.electronAPI.claude.setModel(sessionId, modelValue)
     workspaceStore.updateTerminalModel(sessionId, modelValue)
-  }, [sessionId, isV2Session, currentModel, t])
+  }, [sessionId, currentModel, t])
 
   const handleResumeSelect = useCallback(async (sdkSessionId: string) => {
     console.log(`[Claude:${sessionId.slice(0, 8)}] handleResumeSelect sdkSessionId=${sdkSessionId.slice(0, 8)}`)
@@ -1220,10 +1212,9 @@ export function ClaudeAgentPanel({ sessionId, cwd, isActive, workspaceId, isRemo
     sessionStartedRef.current = false
     // Mark that history will be loaded — prevents sys-init from wiping messages
     historyLoadedRef.current = true
-    const apiVersion = isV2Session ? 'v2' as const : 'v1' as const
-    await window.electronAPI.claude.resumeSession(sessionId, sdkSessionId, cwd, undefined, apiVersion)
+    await window.electronAPI.claude.resumeSession(sessionId, sdkSessionId, cwd)
     workspaceStore.setTerminalSdkSessionId(sessionId, sdkSessionId)
-  }, [sessionId, cwd, isV2Session])
+  }, [sessionId, cwd])
 
   const handleForkSession = useCallback(async () => {
     const dlog = (...args: unknown[]) => window.electronAPI?.debug?.log(...args)
@@ -3257,12 +3248,7 @@ export function ClaudeAgentPanel({ sessionId, cwd, isActive, workspaceId, isRemo
               })()}
             </div>
           )}
-          {isV2Session && (
-            <div className="claude-model-1m-hint">{t('claude.v2ModelListHint')}</div>
-          )}
-          {!isV2Session && (
-            <div className="claude-model-1m-hint">{t('claude.v1Model1mHint')}</div>
-          )}
+          <div className="claude-model-1m-hint">{t('claude.v1Model1mHint')}</div>
           <div className="claude-permission-hint">{t('claude.escToCancel')}</div>
         </div>
       )}
@@ -3547,18 +3533,16 @@ export function ClaudeAgentPanel({ sessionId, cwd, isActive, workspaceId, isRemo
                 {'</>'} {currentModel}{sessionMeta && sessionMeta.contextWindow > 0 ? ` (${sessionMeta.contextWindow >= 1000000 ? `${Math.round(sessionMeta.contextWindow / 1000000)}M` : `${Math.round(sessionMeta.contextWindow / 1000)}k`})` : ''}
               </span>
             )}
-            {!isV2Session && (
-              <select
-                className="claude-effort-select"
-                value={effortLevel}
-                onChange={handleEffortChange}
-                title={t('claude.effortLevel')}
-              >
-                {EFFORT_LEVELS.map(level => (
-                  <option key={level} value={level}>{level}</option>
-                ))}
-              </select>
-            )}
+            <select
+              className="claude-effort-select"
+              value={effortLevel}
+              onChange={handleEffortChange}
+              title={t('claude.effortLevel')}
+            >
+              {EFFORT_LEVELS.map(level => (
+                <option key={level} value={level}>{level}</option>
+              ))}
+            </select>
             {accountInfo?.organization && (
               <span className="claude-status-btn claude-account-info" title={`${accountInfo.email || ''} (${accountInfo.subscriptionType || 'unknown'})`}>
                 {accountInfo.organization}

@@ -44,8 +44,6 @@ vi.mock('@anthropic-ai/claude-agent-sdk', () => ({
   getSessionMessages: async () => [],
   getSubagentMessages: async () => [],
   listSubagents: async () => [],
-  unstable_v2_createSession: () => { throw new Error('not used') },
-  unstable_v2_resumeSession: () => { throw new Error('not used') },
 }))
 
 const system = vi.hoisted(() => ({ info: null as ClaudeRuntimeInfo | null }))

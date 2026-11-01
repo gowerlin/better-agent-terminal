@@ -59,7 +59,8 @@ function preT0535ConfirmClose(id: string, terminal: TerminalInstance | undefined
   return out
 }
 
-const PRESETS = [undefined, 'none', 'claude-cli', 'claude-cli-worktree', 'codex-cli', 'claude-code', 'claude-code-v2', 'claude-code-worktree', 'codex-agent', 'codex-agent-worktree'] as const
+// T0718: `claude-code-v2` left this list with the preset (D123); saved V2 tabs load as `claude-code`.
+const PRESETS = [undefined, 'none', 'claude-cli', 'claude-cli-worktree', 'codex-cli', 'claude-code', 'claude-code-worktree', 'codex-agent', 'codex-agent-worktree'] as const
 
 describe('closeTerminalNow = the pre-T0535 ✕ close steps (T0535)', () => {
   for (const preset of PRESETS) {

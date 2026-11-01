@@ -11,7 +11,6 @@ export interface ControlTowerAgentRuntime {
 
 const CLAUDE_PRESETS = new Set<AgentPresetId>([
   'claude-code',
-  'claude-code-v2',
   'claude-code-worktree',
   'claude-cli',
   'claude-cli-worktree',

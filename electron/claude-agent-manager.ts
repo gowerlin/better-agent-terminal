@@ -3,7 +3,7 @@ import * as fsPromises from 'fs/promises'
 import * as pathModule from 'path'
 import type { ClaudeMessage, ClaudeToolCall, ClaudeSessionState } from '../src/types/claude-agent'
 import type { EffortLevel } from '../src/types'
-import type { Query, PermissionMode, PermissionResult, CanUseTool, SlashCommand, SDKSession, SDKSessionOptions, SDKUserMessage } from '@anthropic-ai/claude-agent-sdk'
+import type { Query, PermissionMode, PermissionResult, CanUseTool, SlashCommand, SDKUserMessage } from '@anthropic-ai/claude-agent-sdk'
 import { logger } from './logger'
 import { getNodeExecutable, isElectronFallback } from './node-resolver'
 import { worktreeManager } from './worktree-manager'
@@ -171,19 +171,6 @@ async function getQuery() {
   return queryFn
 }
 
-// V2 SDK lazy imports
-let createSessionFn: typeof import('@anthropic-ai/claude-agent-sdk').unstable_v2_createSession | null = null
-let resumeSessionV2Fn: typeof import('@anthropic-ai/claude-agent-sdk').unstable_v2_resumeSession | null = null
-
-async function getV2Api() {
-  if (!createSessionFn) {
-    const sdk = await import('@anthropic-ai/claude-agent-sdk')
-    createSessionFn = sdk.unstable_v2_createSession
-    resumeSessionV2Fn = sdk.unstable_v2_resumeSession
-  }
-  return { createSession: createSessionFn!, resumeSession: resumeSessionV2Fn! }
-}
-
 // Parse a data URL (data:image/png;base64,...) into a content block
 function dataUrlToContentBlock(dataUrl: string): { type: 'image'; source: { type: 'base64'; media_type: string; data: string } } | null {
   const match = dataUrl.match(/^data:(image\/[a-z+]+);base64,(.+)$/i)
@@ -294,9 +281,6 @@ interface SessionInstance {
   currentPrompt?: string  // Track the currently running prompt for abort context
   isResting?: boolean
   activeTasks: Map<string, ActiveTask>
-  apiVersion: 'v1' | 'v2'
-  v2Session?: SDKSession  // V2 persistent session object
-  v2SessionModel?: string // Model the V2 session was created with (to detect changes)
   worktreeInfo?: WorktreeInfo  // Set when running in worktree isolation
   originalCwd?: string         // Original workspace cwd before worktree redirect
   callUsage?: QueryCallTracker // T0484: per-call usage of the running query
@@ -527,7 +511,7 @@ export class ClaudeAgentManager {
     this.send('claude:tool-result', sessionId, { id: toolId, ...updates })
   }
 
-  async startSession(sessionId: string, options: { cwd: string; prompt?: string; sdkSessionId?: string; permissionMode?: AppPermissionMode; model?: string; effort?: EffortLevel; apiVersion?: 'v1' | 'v2'; useWorktree?: boolean; worktreePath?: string; worktreeBranch?: string }): Promise<boolean> {
+  async startSession(sessionId: string, options: { cwd: string; prompt?: string; sdkSessionId?: string; permissionMode?: AppPermissionMode; model?: string; effort?: EffortLevel; useWorktree?: boolean; worktreePath?: string; worktreeBranch?: string }): Promise<boolean> {
     // Prevent duplicate session creation
     if (this.sessions.has(sessionId)) {
       return true
@@ -607,7 +591,6 @@ export class ClaudeAgentManager {
         model: options.model,
         messageQueue: [],
         activeTasks: new Map(),
-        apiVersion: options.apiVersion || 'v1',
         ...(worktreeInfo ? { worktreeInfo, originalCwd: options.cwd } : {}),
       })
 
@@ -710,10 +693,6 @@ export class ClaudeAgentManager {
   private async runQuery(sessionId: string, prompt: string, images?: string[]): Promise<void> {
     const session = this.sessions.get(sessionId)
     if (!session) return
-
-    if (session.apiVersion === 'v2') {
-      return this.runQueryV2(sessionId, prompt, images)
-    }
 
     session.state.isStreaming = true
     session.abortController = new AbortController()
@@ -998,8 +977,7 @@ export class ClaudeAgentManager {
     }
   }
 
-  // Clear per-query fields so renderer can distinguish streaming vs result (V1 and V2 —
-  // T0498: V2 used to keep the last result's modelUsage, so its streaming statuses looked like results)
+  // Clear per-query fields so renderer can distinguish streaming vs result (T0498)
   private resetQueryUsage(session: SessionInstance) {
     session.metadata.modelUsage = undefined
     session.metadata.lastCall = null
@@ -1008,7 +986,7 @@ export class ClaudeAgentManager {
     session.metadata.cacheWrite1hTokens = undefined
   }
 
-  // Shared message processing for both V1 and V2 streams
+  // Shared message processing for query() streams
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private processMessage(sessionId: string, session: SessionInstance, message: any) {
     // Debug: log all message types
@@ -1457,250 +1435,12 @@ export class ClaudeAgentManager {
     }
   }
 
-  // V2 session-based query — persistent session, multi-turn without process restart
-  private async runQueryV2(sessionId: string, prompt: string, _images?: string[]): Promise<void> {
-    const session = this.sessions.get(sessionId)
-    if (!session) return
-
-    session.state.isStreaming = true
-    session.abortController = new AbortController()
-    session.currentPrompt = prompt
-    this.send('claude:streaming', sessionId, true)
-
-    try {
-      const resolvedRuntime = await this.resolveRuntimeForSession(sessionId)
-      const claudeCodePath = resolvedRuntime.path
-      const nodeExecutable = getNodeExecutable()
-      const electronFallback = isElectronFallback()
-      if (electronFallback) {
-        process.env.ELECTRON_RUN_AS_NODE = '1'
-      }
-      logger.log(`[Claude V2] runQueryV2: claudeCodePath=${claudeCodePath || 'none'} (source=${resolvedRuntime.source})`)
-
-      // Build canUseTool (same logic as V1)
-      const canUseTool: CanUseTool = async (toolName, input, opts) => {
-        if (toolName === 'AskUserQuestion') {
-          return new Promise((resolve) => {
-            session.pendingAskUser.set(opts.toolUseID, { resolve })
-            this.send('claude:ask-user', sessionId, {
-              toolUseId: opts.toolUseID,
-              questions: (input as Record<string, unknown>).questions,
-            })
-          })
-        }
-        if (session.permissionMode === 'bypassPlan') {
-          if (toolName === 'ExitPlanMode') {
-            return new Promise((resolve) => {
-              session.pendingPermissions.set(opts.toolUseID, {
-                resolve: (result: PermissionResult) => {
-                  if ((result as { behavior: string }).behavior === 'allow') {
-                    session.permissionMode = 'bypassPermissions'
-                    this.send('claude:modeChange', sessionId, 'bypassPermissions')
-                  }
-                  resolve(result)
-                }
-              })
-              this.send('claude:permission-request', sessionId, {
-                toolUseId: opts.toolUseID,
-                toolName,
-                input,
-                suggestions: opts.suggestions,
-                decisionReason: 'Exit plan mode and switch to bypass execution?',
-              })
-            })
-          }
-          return { behavior: 'allow', updatedInput: input as Record<string, unknown> }
-        }
-        if (session.permissionMode === 'bypassPermissions') {
-          return { behavior: 'allow', updatedInput: input as Record<string, unknown> }
-        }
-        if (session.permissionMode === 'acceptEdits') {
-          const autoApprovedTools = ['Write', 'Edit', 'NotebookEdit', 'Read', 'Glob', 'Grep']
-          if (autoApprovedTools.includes(toolName)) {
-            return { behavior: 'allow', updatedInput: input as Record<string, unknown> }
-          }
-        }
-        return new Promise((resolve) => {
-          const wrappedResolve = toolName === 'ExitPlanMode'
-            ? (result: PermissionResult) => {
-                if ((result as { behavior: string }).behavior === 'allow') {
-                  if ((result as { dontAskAgain?: boolean }).dontAskAgain) {
-                    session.permissionMode = 'acceptEdits'
-                  } else {
-                    session.permissionMode = 'default'
-                  }
-                  this.send('claude:modeChange', sessionId, session.permissionMode)
-                }
-                resolve(result)
-              }
-            : resolve
-          session.pendingPermissions.set(opts.toolUseID, { resolve: wrappedResolve })
-          this.send('claude:permission-request', sessionId, {
-            toolUseId: opts.toolUseID,
-            toolName,
-            input,
-            suggestions: opts.suggestions,
-          })
-        })
-      }
-
-      const currentMode = session.permissionMode
-      const sdkMode: PermissionMode = currentMode === 'bypassPlan' ? 'plan' : currentMode as PermissionMode
-
-      // Create or reuse V2 session; recreate if model changed
-      const effectiveModel = session.model || 'sonnet'
-      if (session.v2Session && session.v2SessionModel !== effectiveModel) {
-        logger.log(`[Claude V2] Model changed: ${session.v2SessionModel} → ${effectiveModel}, recreating session`)
-        try { session.v2Session.close() } catch { /* ignore */ }
-        session.v2Session = undefined
-      }
-      if (!session.v2Session) {
-        const { createSession, resumeSession } = await getV2Api()
-        const v2Options: SDKSessionOptions = {
-          model: effectiveModel,
-          permissionMode: sdkMode,
-          canUseTool,
-          ...(claudeCodePath ? { pathToClaudeCodeExecutable: claudeCodePath } : {}),
-          ...sdkSpawnEnv(resolvedRuntime),
-          // SDKSessionOptions types `executable` as a runtime name ('node' | 'bun'), but the SDK
-          // spawns the value as the command, so an absolute node / Electron path works (same as v1).
-          ...(nodeExecutable !== 'node' || electronFallback ? { executable: nodeExecutable as SDKSessionOptions['executable'] } : {}),
-        }
-
-        // Only resume if the sdkSessionId was created by a V2 session
-        const v2ResumeId = session.v2SessionModel ? session.sdkSessionId : undefined
-        logger.log(`[Claude V2] Creating session: model=${v2Options.model}, permissionMode=${v2Options.permissionMode}, cwd=${session.cwd}, resumeId=${v2ResumeId || 'none'}`)
-
-        // WORKAROUND: V2 SDK's SDKSessionOptions does not support a `cwd` parameter.
-        // The subprocess inherits process.cwd() which in Electron defaults to "/".
-        // Temporarily chdir so the spawned subprocess uses the correct working directory.
-        const previousCwd = process.cwd()
-        try {
-          process.chdir(session.cwd)
-          if (v2ResumeId) {
-            session.v2Session = resumeSession(v2ResumeId, v2Options)
-          } else {
-            session.v2Session = createSession(v2Options)
-          }
-        } finally {
-          process.chdir(previousCwd)
-        }
-        session.v2SessionModel = effectiveModel
-      }
-
-      // Send message — if images are attached, construct a multi-content SDKUserMessage
-      if (_images && _images.length > 0) {
-        const imageBlocks = _images
-          .map(dataUrl => dataUrlToContentBlock(dataUrl))
-          .filter(Boolean) as Array<{ type: 'image'; source: { type: 'base64'; media_type: string; data: string } }>
-        if (imageBlocks.length > 0) {
-          const contentBlocks = [
-            ...imageBlocks,
-            ...(prompt ? [{ type: 'text' as const, text: prompt }] : []),
-          ]
-          await session.v2Session.send({
-            type: 'user' as const,
-            message: {
-              role: 'user' as const,
-              // media_type is whatever the data URL declared (not narrowed here, same as v1);
-              // the API rejects unsupported image types.
-              content: contentBlocks as SDKUserMessage['message']['content'],
-            },
-            parent_tool_use_id: null,
-          })
-        } else {
-          await session.v2Session.send(prompt || ' ')
-        }
-      } else {
-        await session.v2Session.send(prompt || ' ')
-      }
-
-      this.resetQueryUsage(session)
-      // Stream messages — reuse shared processMessage()
-      for await (const message of session.v2Session.stream()) {
-        if (session.abortController.signal.aborted) {
-          session.v2Session.close()
-          session.v2Session = undefined
-          break
-        }
-        const msgType = (message as { type?: string; subtype?: string })
-        if (msgType.type === 'system') {
-          logger.log(`[Claude V2] system event: subtype=${msgType.subtype ?? 'none'} raw=`, JSON.stringify(message))
-        }
-        this.processMessage(sessionId, session, message)
-      }
-    } catch (error: unknown) {
-      const errMsg = error instanceof Error ? error.message : String(error)
-      const isAbort = errMsg === 'aborted' || errMsg.includes('aborted') || session?.abortController.signal.aborted
-      if (!isAbort) {
-        logger.error('[Claude V2] query error:', error)
-        if (error instanceof Error && error.stack) {
-          logger.error('Stack:', error.stack)
-        }
-        // If resume failed (process exit or invalid session ID), retry fresh
-        if (session.sdkSessionId && (errMsg.includes('exited with code') || errMsg.includes('No conversation found'))) {
-          logger.warn('[Claude V2] Resume failed, retrying fresh')
-          session.sdkSessionId = undefined
-          session.v2Session = undefined
-          sdkSessionIds.delete(sessionId)
-          session.state.isStreaming = false
-          this.addMessage(sessionId, {
-            id: `sys-retry-${Date.now()}`,
-            sessionId,
-            role: 'system',
-            content: 'Previous V2 session could not be resumed. Starting fresh...',
-            timestamp: Date.now(),
-          })
-          return this.runQueryV2(sessionId, prompt, _images)
-        }
-        this.send('claude:error', sessionId, errMsg)
-      }
-    } finally {
-      if (isElectronFallback()) {
-        delete process.env.ELECTRON_RUN_AS_NODE
-      }
-      if (session) {
-        session.state.isStreaming = false
-        session.currentPrompt = undefined
-        session.activeTasks.clear()
-        for (const msg of session.state.messages) {
-          if ('toolName' in msg && (msg as ClaudeToolCall).status === 'running') {
-            const toolMsg = msg as ClaudeToolCall
-            toolMsg.status = 'error'
-            toolMsg.result = toolMsg.result || 'Agent terminated unexpectedly'
-            this.send('claude:tool-result', sessionId, {
-              id: toolMsg.id,
-              status: 'error',
-              result: toolMsg.result,
-            })
-          }
-        }
-        this.send('claude:streaming', sessionId, false)
-        // Send completion notification for V2 (V1 handles this in processMessage)
-        if (!session.messageQueue.length) {
-          this.sendCompletionNotification(session)
-        }
-        const next = session.messageQueue.shift()
-        if (next) {
-          this.runQueryV2(sessionId, next.prompt, next.images)
-        }
-      }
-    }
-  }
-
   async stopSession(sessionId: string): Promise<boolean> {
     const session = this.sessions.get(sessionId)
     if (session) {
       session.messageQueue.length = 0
-      // V2: close the persistent session
-      if (session.apiVersion === 'v2' && session.v2Session) {
-        try {
-          session.v2Session.close()
-        } catch { /* ignore close errors */ }
-        session.v2Session = undefined
-        session.abortController.abort()
-      } else if (session.queryInstance && session.state.isStreaming) {
-        // V1: Use graceful interrupt if the query is active, fallback to abort
+      if (session.queryInstance && session.state.isStreaming) {
+        // Use graceful interrupt if the query is active, fallback to abort
         try {
           await session.queryInstance.interrupt()
         } catch {
@@ -1721,10 +1461,6 @@ export class ClaudeAgentManager {
     const session = this.sessions.get(sessionId)
     if (session) {
       session.messageQueue.length = 0
-      if (session.apiVersion === 'v2' && session.v2Session) {
-        try { session.v2Session.close() } catch { /* ignore */ }
-        session.v2Session = undefined
-      }
       session.abortController.abort()
       session.state.isStreaming = false
       return true
@@ -1828,14 +1564,6 @@ export class ClaudeAgentManager {
     const limits = estimateModelLimits(model)
     session.metadata.contextWindow = limits.contextWindow
     session.metadata.maxOutputTokens = limits.maxOutputTokens
-
-
-    if (session.apiVersion === 'v2') {
-      // V2: model change takes effect on next send (session will be recreated in runQueryV2)
-      logger.log(`[setModel] V2 stored model ${model} for session ${sessionId.slice(0, 8)} (takes effect on next message)`)
-      this.send('claude:status', sessionId, { ...session.metadata })
-      return true
-    }
 
     if (!session.queryInstance) {
       logger.log(`[setModel] stored model ${model} for session ${sessionId.slice(0, 8)} (no active query)`)
@@ -2277,7 +2005,7 @@ export class ClaudeAgentManager {
     this.send('claude:history', sessionId, items)
   }
 
-  async resumeSession(sessionId: string, sdkSessionIdToResume: string, cwd: string, model?: string, apiVersion?: 'v1' | 'v2', useWorktree?: boolean, worktreePath?: string, worktreeBranch?: string): Promise<boolean> {
+  async resumeSession(sessionId: string, sdkSessionIdToResume: string, cwd: string, model?: string, useWorktree?: boolean, worktreePath?: string, worktreeBranch?: string): Promise<boolean> {
     // Stop current session if running
     const session = this.sessions.get(sessionId)
     if (session) {
@@ -2290,7 +2018,7 @@ export class ClaudeAgentManager {
     sdkSessionIds.set(sessionId, sdkSessionIdToResume)
     // startSession already calls loadSessionHistory when sdkSessionId is provided
     const result = await this.startSession(sessionId, {
-      cwd, sdkSessionId: sdkSessionIdToResume, model, permissionMode: 'bypassPermissions', apiVersion,
+      cwd, sdkSessionId: sdkSessionIdToResume, model, permissionMode: 'bypassPermissions',
       ...(useWorktree ? { useWorktree: true, worktreePath, worktreeBranch } : {}),
     })
     return result
@@ -2324,7 +2052,6 @@ export class ClaudeAgentManager {
     const permissionMode = session.permissionMode
     const effort = session.effort
     const model = session.model
-    const apiVersion = session.apiVersion
     // Preserve worktree — never auto-delete. Reuse it on the fresh session.
     const existingWorktreeInfo = session.worktreeInfo
 
@@ -2340,7 +2067,6 @@ export class ClaudeAgentManager {
     const ok = await this.startSession(sessionId, {
       cwd: originalCwd,
       permissionMode,
-      apiVersion,
       useWorktree: !!existingWorktreeInfo,
       worktreePath: existingWorktreeInfo?.worktreePath,
       worktreeBranch: existingWorktreeInfo?.branchName,

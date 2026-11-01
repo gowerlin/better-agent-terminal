@@ -13,7 +13,7 @@ import { ResizeHandle } from './ResizeHandle'
 import { WorkerPanel } from './WorkerPanel'
 import { CtToast, useCtToast } from './CtToast'
 import { AgentPresetId, getAgentPreset } from '../types/agent-presets'
-import { isClaudeSdk, isClaudeCli, isIntegrated, isWorktreeAgent } from '../types/agent-runtime'
+import { isClaudeCli, isIntegrated, isWorktreeAgent } from '../types/agent-runtime'
 import type { AgentDefinition } from '../types/agent-runtime'
 import { resolveControlTowerAgentRuntime, resolveControlTowerWorkOrderCommand } from '../utils/control-tower-launch'
 import { detectShellFamily, quoteCommandPath } from '../utils/shell-quote'
@@ -718,12 +718,6 @@ export function WorkspaceView({ workspace, terminals, focusedTerminalId, isActiv
     workspaceStore.save()
   }, [workspace.id])
 
-  const handleAddClaudeAgentV2 = useCallback(() => {
-    const agentTerminal = workspaceStore.addTerminal(workspace.id, 'claude-code-v2' as AgentPresetId)
-    workspaceStore.setFocusedTerminal(agentTerminal.id)
-    workspaceStore.save()
-  }, [workspace.id])
-
   const handleAddClaudeWorktree = useCallback(() => {
     const agentTerminal = workspaceStore.addTerminal(workspace.id, 'claude-code-worktree' as AgentPresetId)
     workspaceStore.setFocusedTerminal(agentTerminal.id)
@@ -1032,25 +1026,6 @@ export function WorkspaceView({ workspace, terminals, focusedTerminalId, isActiv
     }
   }, [terminals, workspace.id, workspace.folderPath, workspace.envVars, t])
 
-  const handleSwitchApiVersion = useCallback(async (id: string) => {
-    const terminal = terminals.find(t => t.id === id)
-    if (!terminal || !terminal.agentPreset || !isClaudeSdk(terminal.agentPreset) || terminal.agentPreset === 'claude-code-worktree') return
-    // Stop current session
-    await window.electronAPI.claude.stopSession(id)
-    // Switch agentPreset in store
-    const newPreset = workspaceStore.switchTerminalApiVersion(id)
-    if (!newPreset) return
-    const newApiVersion = newPreset === 'claude-code-v2' ? 'v2' as const : 'v1' as const
-    // Resume with the same sdkSessionId but new API version
-    const sdkSessionId = terminal.sdkSessionId
-    if (sdkSessionId) {
-      await window.electronAPI.claude.resumeSession(id, sdkSessionId, terminal.cwd, terminal.model, newApiVersion)
-    } else {
-      await window.electronAPI.claude.startSession(id, { cwd: terminal.cwd, apiVersion: newApiVersion })
-    }
-    workspaceStore.save()
-  }, [terminals])
-
   const handleFocus = useCallback((id: string) => {
     workspaceStore.setFocusedTerminal(id)
     // Switch back to terminal tab when clicking a terminal thumbnail
@@ -1127,7 +1102,6 @@ export function WorkspaceView({ workspace, terminals, focusedTerminalId, isActiv
                   isActive={isActive && activeTab === 'terminal'}
                   onClose={handleCloseTerminal}
                   onRestart={handleRestart}
-                  onSwitchApiVersion={handleSwitchApiVersion}
                   isRemoteConnected={isRemoteConnected}
                   workspaceId={workspace.id}
                 />
@@ -1148,7 +1122,6 @@ export function WorkspaceView({ workspace, terminals, focusedTerminalId, isActiv
                   isActive={isActive && activeTab === 'terminal' && terminal.id === mainTerminal?.id}
                   onClose={handleCloseTerminal}
                   onRestart={handleRestart}
-                  onSwitchApiVersion={handleSwitchApiVersion}
                   isRemoteConnected={isRemoteConnected}
                   workspaceId={workspace.id}
                 />
@@ -1253,7 +1226,7 @@ export function WorkspaceView({ workspace, terminals, focusedTerminalId, isActiv
         return null
     }
   }, [terminals, mainTerminal, isActive, activeTab, workspace, hasGithubRemote, handleAddTerminal, awaitingDefaultTerminals,
-      handleCloseTerminal, handleRestart, handleSwitchApiVersion, handleSendToWorker, handleFocus, handleSendToClaude,
+      handleCloseTerminal, handleRestart, handleSendToWorker, handleFocus, handleSendToClaude,
       handleSnippetPasteToTerminal, handleSnippetSendToAgent, handleExecWorkOrder, handleDoneWorkOrder, focusedTerminalId])
 
   // Render the active tab content for the main pane
@@ -1448,7 +1421,6 @@ export function WorkspaceView({ workspace, terminals, focusedTerminalId, isActiv
         agentDefinitions={agentDefinitions.filter(d => d.id !== 'none').filter(d => !d.debug || isDebugMode).filter(d => !isWorktreeAgent(d.id) || (isDebugMode && isGitRepo))}
         unavailableAgents={isRemoteConnected ? remoteUnavailableAgents : undefined}
         onAddClaudeAgent={handleAddClaudeAgent}
-        onAddClaudeAgentV2={handleAddClaudeAgentV2}
         onAddClaudeWorktree={isDebugMode && isGitRepo ? handleAddClaudeWorktree : undefined}
         onAddClaudeCli={handleAddClaudeCli}
         onAddClaudeCliWorktree={isDebugMode && isGitRepo ? handleAddClaudeCliWorktree : undefined}

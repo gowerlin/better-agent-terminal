@@ -165,7 +165,7 @@ describe('claude:status lastCall', () => {
     expect(mainAgentCall(t)).toMatchObject({ id: 'main', query: t.seq, inputTokens: 5 })
   })
 
-  it('resetQueryUsage clears the previous result for V1 and V2 (runQueryV2 calls it)', () => {
+  it('resetQueryUsage clears the previous result (runQuery calls it; the V2 path is gone, T0718)', () => {
     const h = harness()
     h.query(Q3)
     expect(h.session.metadata.modelUsage).toBeDefined()
@@ -174,8 +174,7 @@ describe('claude:status lastCall', () => {
     expect(h.session.metadata.lastCall).toBeNull()
     expect(h.session.metadata.cacheWrite5mTokens).toBeUndefined()
     const src = readFileSync(join(__dirname, '..', 'claude-agent-manager.ts'), 'utf8')
-    const v2 = src.slice(src.indexOf('private async runQueryV2('), src.indexOf('v2Session.stream()'))
-    expect(v2).toContain('this.resetQueryUsage(session)')
+    expect(src).not.toContain('runQueryV2')
     const v1 = src.slice(src.indexOf('private async runQuery('), src.indexOf('const generator = query('))
     expect(v1).toContain('this.resetQueryUsage(session)')
   })

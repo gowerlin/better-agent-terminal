@@ -145,7 +145,6 @@ export function CodexAgentPanel({ sessionId, cwd, isActive, workspaceId, onClose
   const isRemoteConnectedRef = useRef(!!isRemoteConnected)
   const terminal = workspaceStore.getState().terminals.find(t => t.id === sessionId)
   const isCodexSession = true
-  const isV2Session = terminal?.agentPreset === 'claude-code-v2'
   const isWorktreeSession = terminal?.agentPreset === 'claude-code-worktree' || terminal?.agentPreset === 'codex-agent-worktree' || !!terminal?.worktreePath
   const normalizedAgentParams = normalizeAgentParams(terminal?.agentPreset, terminal?.agentParams)
   const [messages, setMessages] = useState<MessageItem[]>([])
@@ -1084,10 +1083,9 @@ export function CodexAgentPanel({ sessionId, cwd, isActive, workspaceId, onClose
       const terminal = workspaceStore.getState().terminals.find(t => t.id === sessionId)
       const savedSdkSessionId = terminal?.sdkSessionId
       const savedModel = terminal?.model
-      const apiVersion = terminal?.agentPreset === 'claude-code-v2' ? 'v2' as const : 'v1' as const
       const useWorktree = terminal?.agentPreset === 'claude-code-worktree' || terminal?.agentPreset === 'codex-agent-worktree' || !!terminal?.worktreePath
       const globalSettings = settingsStore.getSettings()
-      dlog(`${stag} sdkSessionId=${savedSdkSessionId?.slice(0, 8)} pendingPrompt="${terminal?.pendingPrompt || ''}" apiVersion=${apiVersion}`)
+      dlog(`${stag} sdkSessionId=${savedSdkSessionId?.slice(0, 8)} pendingPrompt="${terminal?.pendingPrompt || ''}"`)
 
       // Restore saved model to UI, or use global default
       const effectiveModel = isCodexSession
@@ -1104,7 +1102,7 @@ export function CodexAgentPanel({ sessionId, cwd, isActive, workspaceId, onClose
       if (savedSdkSessionId) {
         dlog(`${stag} AUTO-RESUME sdkSessionId=${savedSdkSessionId.slice(0, 8)}`)
         historyLoadedRef.current = true
-        window.electronAPI.claude.resumeSession(sessionId, savedSdkSessionId, cwd, savedModel, apiVersion,
+        window.electronAPI.claude.resumeSession(sessionId, savedSdkSessionId, cwd, savedModel, undefined,
           useWorktree ? true : undefined, terminal?.worktreePath, terminal?.worktreeBranch, terminal?.agentPreset,
           codexSandboxMode, codexApprovalPolicy)
       } else {
@@ -1112,7 +1110,6 @@ export function CodexAgentPanel({ sessionId, cwd, isActive, workspaceId, onClose
         window.electronAPI.claude.startSession(sessionId, {
           cwd, permissionMode, model: effectiveModel,
           effort: effectiveEffort as EffortLevel,
-          apiVersion,
           agentPreset: terminal?.agentPreset,
           ...(isCodexSession ? { codexSandboxMode, codexApprovalPolicy } : {}),
           ...(useWorktree ? { useWorktree: true, worktreePath: terminal?.worktreePath, worktreeBranch: terminal?.worktreeBranch } : {}),
@@ -1308,13 +1305,8 @@ export function CodexAgentPanel({ sessionId, cwd, isActive, workspaceId, onClose
       const ok = await window.electronAPI.dialog.confirm(t('claude.codexModelChangeWarning'))
       if (!ok) return
     }
-    // V2: warn that model change will recreate session and re-apply context
-    if (!isCodexSession && isV2Session && modelValue !== currentModel) {
-      const ok = await window.electronAPI.dialog.confirm(t('claude.v2ModelChangeWarning'))
-      if (!ok) return
-    }
-    // V1: warn about 1M model cache inefficiency
-    if (!isCodexSession && !isV2Session && modelValue.includes('[1m]') && modelValue !== currentModel) {
+    // Warn about 1M model cache inefficiency
+    if (!isCodexSession && modelValue.includes('[1m]') && modelValue !== currentModel) {
       const ok = await window.electronAPI.dialog.confirm(t('claude.v1Model1mWarning'))
       if (!ok) return
     }
@@ -1339,7 +1331,7 @@ export function CodexAgentPanel({ sessionId, cwd, isActive, workspaceId, onClose
       setCacheCountdown(null)
       await window.electronAPI.claude.resetSession(sessionId)
     }
-  }, [sessionId, isCodexSession, isV2Session, currentModel, t, autoCorrectCodexEffort])
+  }, [sessionId, isCodexSession, currentModel, t, autoCorrectCodexEffort])
 
   const handleResumeSelect = useCallback(async (sdkSessionId: string) => {
     console.log(`[Claude:${sessionId.slice(0, 8)}] handleResumeSelect sdkSessionId=${sdkSessionId.slice(0, 8)}`)
@@ -1360,10 +1352,9 @@ export function CodexAgentPanel({ sessionId, cwd, isActive, workspaceId, onClose
     sessionStartedRef.current = false
     // Mark that history will be loaded — prevents sys-init from wiping messages
     historyLoadedRef.current = true
-    const apiVersion = isV2Session ? 'v2' as const : 'v1' as const
-    await window.electronAPI.claude.resumeSession(sessionId, sdkSessionId, cwd, undefined, apiVersion, undefined, undefined, undefined, terminal?.agentPreset, codexSandboxMode, codexApprovalPolicy)
+    await window.electronAPI.claude.resumeSession(sessionId, sdkSessionId, cwd, undefined, undefined, undefined, undefined, undefined, terminal?.agentPreset, codexSandboxMode, codexApprovalPolicy)
     workspaceStore.setTerminalSdkSessionId(sessionId, sdkSessionId)
-  }, [sessionId, cwd, isV2Session])
+  }, [sessionId, cwd])
 
   const handleForkSession = useCallback(async () => {
     const dlog = (...args: unknown[]) => window.electronAPI?.debug?.log(...args)
@@ -3555,10 +3546,7 @@ export function CodexAgentPanel({ sessionId, cwd, isActive, workspaceId, onClose
               })()}
             </div>
           )}
-          {!isCodexSession && isV2Session && (
-            <div className="claude-model-1m-hint">{t('claude.v2ModelListHint')}</div>
-          )}
-          {!isCodexSession && !isV2Session && (
+          {!isCodexSession && (
             <div className="claude-model-1m-hint">{t('claude.v1Model1mHint')}</div>
           )}
           <div className="claude-permission-hint">{t('claude.escToCancel')}</div>
@@ -3854,18 +3842,16 @@ export function CodexAgentPanel({ sessionId, cwd, isActive, workspaceId, onClose
                 {'</>'} {currentModel || '(default)'}{sessionMeta && sessionMeta.contextWindow > 0 ? ` (${sessionMeta.contextWindow >= 1000000 ? `${Math.round(sessionMeta.contextWindow / 1000000)}M` : `${Math.round(sessionMeta.contextWindow / 1000)}k`})` : ''}
               </span>
             )}
-            {(isCodexSession || !isV2Session) && (
-              <select
-                className="claude-effort-select"
-                value={effortLevel}
-                onChange={handleEffortChange}
-                title={t('claude.effortLevel')}
-              >
-                {(isCodexSession ? codexEffortOptions : EFFORT_LEVELS).map(level => (
-                  <option key={level} value={level}>{level}</option>
-                ))}
-              </select>
-            )}
+            <select
+              className="claude-effort-select"
+              value={effortLevel}
+              onChange={handleEffortChange}
+              title={t('claude.effortLevel')}
+            >
+              {(isCodexSession ? codexEffortOptions : EFFORT_LEVELS).map(level => (
+                <option key={level} value={level}>{level}</option>
+              ))}
+            </select>
             {!isCodexSession && accountInfo?.organization && (
               <span className="claude-status-btn claude-account-info" title={`${accountInfo.email || ''} (${accountInfo.subscriptionType || 'unknown'})`}>
                 {accountInfo.organization}

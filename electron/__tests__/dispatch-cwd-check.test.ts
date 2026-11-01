@@ -130,6 +130,8 @@ describe('--agent shorthand (normalizeAgentAlias)', () => {
     expect(normalizeAgentAlias('gemini')).toBe('gemini-cli')
     expect(normalizeAgentAlias('codex-cli')).toBe('codex-cli')
     expect(normalizeAgentAlias('claude-code')).toBe('claude-code')
+    // T0718 / D123: the retired Claude Agent V2 preset id → claude-code (same Claude CLI Worker as before)
+    expect(normalizeAgentAlias('claude-code-v2')).toBe('claude-code')
     expect(normalizeAgentAlias('codx')).toBe('codx')
     expect(normalizeAgentAlias('constructor')).toBe('constructor')
     expect(normalizeAgentAlias('../codex')).toBe('../codex')

@@ -53,7 +53,7 @@ export const PATH_ARG_SCHEMA: Readonly<Record<string, PathArgSchema>> = {
   // T0416 (BUG-105): channels brought online on headless by PLAN-036 (T0401 / T0405)
   // (sessionId, { cwd, worktreePath?, ... })
   'claude:start-session': { kind: 'object-fields', index: 1, fields: ['cwd', 'worktreePath'] },
-  // (sessionId, sdkSessionId, cwd, model?, apiVersion?, useWorktree?, worktreePath?, ...)
+  // (sessionId, sdkSessionId, cwd, model?, retiredApiVersion?, useWorktree?, worktreePath?, ...) — slot 4 ignored since T0718
   'claude:resume-session': { kind: 'arg-indices', indices: [2, 6] },
   'claude:list-sessions': 'first-string',
   'claude:scan-skills': 'first-string',

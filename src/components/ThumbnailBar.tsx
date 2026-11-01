@@ -25,7 +25,6 @@ interface ThumbnailBarProps {
   unavailableAgents?: Readonly<Record<string, string>>
   // Legacy callbacks — kept for backward compat, remove when fully migrated
   onAddClaudeAgent?: () => void
-  onAddClaudeAgentV2?: () => void
   onAddClaudeWorktree?: () => void
   onAddClaudeCli?: () => void
   onAddClaudeCliWorktree?: () => void
@@ -59,7 +58,6 @@ export function ThumbnailBar({
   agentDefinitions = [],
   unavailableAgents,
   onAddClaudeAgent,
-  onAddClaudeAgentV2,
   onAddClaudeWorktree,
   onAddClaudeCli,
   onAddClaudeCliWorktree,
@@ -308,12 +306,6 @@ export function ThumbnailBar({
                   <span className="thumbnail-add-menu-icon" style={{ color: '#d97706' }}>✦</span>
                   Claude Agent V1
                   <span className="thumbnail-add-menu-suggested">{t('profiles.addMenuSuggested')}</span>
-                </div>
-              )
-              if (onAddClaudeAgentV2) items.push(
-                <div className="thumbnail-add-menu-item" onClick={() => { onAddClaudeAgentV2(); setShowAddMenu(false) }}>
-                  <span className="thumbnail-add-menu-icon" style={{ color: '#eab308' }}>✦</span>
-                  Claude Agent V2
                 </div>
               )
               if (onAddClaudeWorktree) items.push(

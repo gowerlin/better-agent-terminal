@@ -5,6 +5,7 @@ import { normalizeAgentParams } from '../types/agent-profiles'
 import { isIntegrated, isWorktreeAgent } from '../types/agent-runtime'
 import { requestPtyReplay } from '../lib/pty-replay'
 import { resolveEffectiveAgentArgs, resolveEffectiveDefaultAgent, type EffectiveDefaultAgent } from '../lib/agent-launch-settings'
+import { migrateTerminalAgentPreset, migrateWorkspaceAgentFields } from '../lib/retired-agent-presets'
 import { clearPreviewCache } from '../components/TerminalThumbnail'
 import { externalTerminalTitle, legacyExternalCommand } from '../lib/external-terminal-title'
 import { isDefaultTerminalTitle, towerTerminalTitle, type TerminalRoleChangeInfo } from '../lib/tower-terminal-title'
@@ -150,7 +151,9 @@ function restoreLayoutSnapshot(layout: LayoutSnapshot): void {
 }
 
 /** A persisted terminal → store instance; null when its workspace is gone. */
-function toTerminalInstance(t: Partial<TerminalInstance>, workspaceMap: Map<string, Workspace>): TerminalInstance | null {
+function toTerminalInstance(saved: Partial<TerminalInstance>, workspaceMap: Map<string, Workspace>): TerminalInstance | null {
+  // T0718 / D123: a tab saved with a retired preset (`claude-code-v2`) opens as its replacement
+  const t = migrateTerminalAgentPreset(saved)
   const ws = t.workspaceId ? workspaceMap.get(t.workspaceId) : undefined
   if (!ws?.folderPath) {
     window.electronAPI?.debug?.log?.(`[workspace-store] Warning: terminal ${t.id} has no valid workspace, skipping`)
@@ -702,21 +705,6 @@ class WorkspaceStore {
     return ids
   }
 
-  switchTerminalApiVersion(id: string): 'claude-code' | 'claude-code-v2' | null {
-    const terminal = this.state.terminals.find(t => t.id === id)
-    if (!terminal) return null
-    const newPreset = terminal.agentPreset === 'claude-code' ? 'claude-code-v2' as const : 'claude-code' as const
-    const newTitle = newPreset === 'claude-code-v2' ? 'Claude Agent V2' : 'Claude Agent V1'
-    this.state = {
-      ...this.state,
-      terminals: this.state.terminals.map(t =>
-        t.id === id ? { ...t, agentPreset: newPreset, title: t.alias || newTitle } : t
-      )
-    }
-    this.notify()
-    return newPreset
-  }
-
   /** The user names tab `id` (MainPanel). T0562: the title is no longer BAT's (`autoTitle` cleared). */
   renameTerminal(id: string, title: string): void {
     this.state = {
@@ -1242,7 +1230,8 @@ class WorkspaceStore {
   private applySerializedData(data: string): void {
     try {
       const parsed = JSON.parse(data)
-      const workspaces: Workspace[] = parsed.workspaces || []
+      // T0718 / D123: retired presets in `defaultAgent` / `agentCustomArgs` → their replacement
+      const workspaces: Workspace[] = (parsed.workspaces || []).map((w: Workspace) => migrateWorkspaceAgentFields(w))
       const workspaceMap = new Map(workspaces.map((w: Workspace) => [w.id, w]))
       const terminals: TerminalInstance[] = (parsed.terminals || [])
         .map((t: Partial<TerminalInstance>) => toTerminalInstance(t, workspaceMap))

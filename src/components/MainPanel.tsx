@@ -5,7 +5,7 @@ import { TerminalPanel } from './TerminalPanel'
 import { ActivityIndicator } from './ActivityIndicator'
 import { PromptBox } from './PromptBox'
 import { getAgentPreset } from '../types/agent-presets'
-import { isIntegrated, isClaudeSdk, isAgent as isAgentCheck } from '../types/agent-runtime'
+import { isIntegrated, isAgent as isAgentCheck } from '../types/agent-runtime'
 import type { AgentDefinition } from '../types/agent-runtime'
 import { workspaceStore } from '../stores/workspace-store'
 import { useVoicePopover } from '../hooks/useVoicePopover'
@@ -24,15 +24,13 @@ interface MainPanelProps {
   isActive: boolean
   onClose: (id: string) => void
   onRestart: (id: string) => void
-  onSwitchApiVersion?: (id: string) => void
   isRemoteConnected?: boolean
   workspaceId?: string
 }
 
-export const MainPanel = memo(function MainPanel({ terminal, isActive, onClose, onRestart, onSwitchApiVersion, isRemoteConnected, workspaceId }: Readonly<MainPanelProps>) {
+export const MainPanel = memo(function MainPanel({ terminal, isActive, onClose, onRestart, isRemoteConnected, workspaceId }: Readonly<MainPanelProps>) {
   const isAgent = isAgentCheck(terminal.agentPreset)
   const isClaudeCode = isIntegrated(terminal.agentPreset || '')
-  const canSwitchClaudeApiVersion = isClaudeSdk(terminal.agentPreset || '')
   const isCodexAgent = terminal.agentPreset === 'codex-agent' || terminal.agentPreset === 'codex-agent-worktree'
   const presetConfig = isAgent ? getAgentPreset(terminal.agentPreset!) : null
   const [registryDef, setRegistryDef] = useState<AgentDefinition | null>(null)
@@ -186,25 +184,6 @@ export const MainPanel = memo(function MainPanel({ terminal, isActive, onClose, 
             >
               💬
             </button>
-          )}
-          {canSwitchClaudeApiVersion && onSwitchApiVersion && (
-            <>
-              <button
-                className="action-btn"
-                onClick={() => onSwitchApiVersion(terminal.id)}
-                title={terminal.agentPreset === 'claude-code' ? t('claude.switchToV2') : t('claude.switchToV1')}
-              >
-                {terminal.agentPreset === 'claude-code' ? t('claude.switchToV2') : t('claude.switchToV1')}
-              </button>
-              <button
-                className="action-btn"
-                onClick={() => window.alert(t('claude.v1v2Help'))}
-                title="V1 vs V2"
-                style={{ padding: '0 4px', minWidth: 'auto' }}
-              >
-                ?
-              </button>
-            </>
           )}
           <button
             className="action-btn"

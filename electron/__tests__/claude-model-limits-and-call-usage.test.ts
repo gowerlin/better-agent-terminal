@@ -178,7 +178,7 @@ describe('setModel → claude:status limits', () => {
     const emit = vi.fn()
     const manager = new ClaudeAgentManager({ emit, getSettings: () => ({}) })
     managers.push(manager)
-    const session = { apiVersion: 'v1', metadata: { contextWindow: 0, maxOutputTokens: 0 }, messageQueue: [], activeTasks: new Map(), pendingPermissions: new Map(), pendingAskUser: new Map(), abortController: new AbortController(), state: {} }
+    const session = { metadata: { contextWindow: 0, maxOutputTokens: 0 }, messageQueue: [], activeTasks: new Map(), pendingPermissions: new Map(), pendingAskUser: new Map(), abortController: new AbortController(), state: {} }
     ;(manager as unknown as { sessions: Map<string, unknown> }).sessions.set('s1', session)
     expect(await manager.setModel('s1', model)).toBe(true)
     const status = emit.mock.calls.filter(c => c[0] === 'claude:status').pop()![2] as { contextWindow: number; maxOutputTokens: number }

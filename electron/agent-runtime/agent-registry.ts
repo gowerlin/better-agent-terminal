@@ -52,22 +52,6 @@ const BUILTIN_DEFINITIONS: AgentDefinition[] = [
     suggested: true,
   },
   {
-    id: 'claude-code-v2',
-    name: 'Claude Agent V2',
-    icon: '✦',
-    color: '#eab308',
-    providerId: 'claude-sdk',
-    providerMode: 'integrated',
-    supportsWorktree: false,
-    supportsStructuredEvents: true,
-    supportsImages: true,
-    supportsResume: true,
-    supportsModelSelection: true,
-    supportsApprovalFlow: true,
-    supportsSandbox: false,
-    supportsYolo: true,
-  },
-  {
     id: 'claude-code-worktree',
     name: 'Claude Agent V1 (Worktree)',
     icon: '🌳',
@@ -411,7 +395,7 @@ class AgentRegistry {
   }
 
   isClaudeSdk(definitionId: string): boolean {
-    return definitionId === 'claude-code' || definitionId === 'claude-code-v2' || definitionId === 'claude-code-worktree'
+    return definitionId === 'claude-code' || definitionId === 'claude-code-worktree'
   }
 
   isClaudeCli(definitionId: string): boolean {

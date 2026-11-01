@@ -70,7 +70,7 @@ export interface CustomCliDefinition {
 
 /** Check if a definition ID represents a Claude SDK integrated agent */
 export function isClaudeSdk(id: string): boolean {
-  return id === 'claude-code' || id === 'claude-code-v2' || id === 'claude-code-worktree'
+  return id === 'claude-code' || id === 'claude-code-worktree'
 }
 
 /** Check if a definition ID represents a Claude CLI terminal agent */

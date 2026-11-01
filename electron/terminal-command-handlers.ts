@@ -6,6 +6,7 @@ import {
   type AgentLaunchSource,
   type WorkspaceAgentLaunchFields,
 } from '../src/lib/agent-launch-settings'
+import { isRetiredAgentPreset, migrateAgentPresetId } from '../src/lib/retired-agent-presets'
 import { agentRegistry } from './agent-runtime/agent-registry'
 import { needsClaudeNameSupport, withBatMcpArgs, type BatMcpLaunchRequest, type BatMcpLaunchResult } from './bat-mcp-launch'
 import type { ClaudeNameSupport } from './claude-version-check'
@@ -385,8 +386,14 @@ function isKnownRegistryAgent(agentId: string): boolean {
  * `claude-cli`. Maps only to an id `isKnownAgent` accepts: the id itself, its lower-case
  * form, or `<id>-cli`. Anything else comes back unchanged (and stays unknown), so a
  * registry-agent check of the result (headless helper capability, T0450) still refuses it.
+ * T0718 / D123: a retired preset id (`claude-code-v2`) maps to its replacement (`claude-code`),
+ * so `--agent claude-code-v2` still launches the same Claude CLI Worker as before.
  */
 export function normalizeAgentAlias(agent: string, isKnownAgent: (agentId: string) => boolean = isKnownRegistryAgent): string {
+  if (isRetiredAgentPreset(agent)) {
+    const replacement = migrateAgentPresetId(agent)
+    if (isKnownAgent(replacement)) return replacement
+  }
   if (isKnownAgent(agent)) return agent
   const lower = agent.trim().toLowerCase()
   if (!/^[a-z0-9][a-z0-9._-]*$/.test(lower)) return agent
@@ -1029,7 +1036,7 @@ export function userArgsSetCodexUpdateCheck(extraArgs: string | undefined): bool
 
 export function toTerminalDrivenAgentId(agentId: string): string {
   if (agentId === 'claude-code-worktree') return 'claude-cli-worktree'
-  if (agentId === 'claude-code' || agentId === 'claude-code-v2') return 'claude-cli'
+  if (agentId === 'claude-code') return 'claude-cli'
   if (agentId === 'codex-agent' || agentId === 'codex-agent-worktree') return 'codex-cli'
   return agentId
 }

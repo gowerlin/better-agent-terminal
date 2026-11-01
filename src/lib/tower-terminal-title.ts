@@ -11,7 +11,8 @@
  *
  * Titles BAT generates (each recognized by `isDefaultTerminalTitle`):
  *   - `workspaceStore.addTerminal`: the agent preset's name, or `New Terminal`
- *   - `workspaceStore.switchTerminalApiVersion`: `Claude Agent V1` / `Claude Agent V2` (preset names)
+ *   - a restored tab of a retired preset: its replacement's preset name (T0718,
+ *     `migrateTerminalAgentPreset`: `Claude Agent V2` → `Claude Agent V1`)
  *   - `WorkspaceView.handleAddAgent`: a custom CLI's registry name (`workspaceStore.setAutoTitle`)
  *   - `useRemoteToolInstall`: the remote tool install tab's title (`setAutoTitle`)
  *   - `externalTerminalTitle` (T0553, helper-created tabs): agent name / registry name / known CLI

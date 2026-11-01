@@ -12,7 +12,13 @@
  *       workspace `agentCustomArgs` HAS the key (an empty string included) → it replaces the
  *       global value as a whole (not concatenated); empty = no custom args in this workspace
  *       workspace has no key → Settings `agentCustomArgs[preset]`
+ *
+ * T0718 / D123: saved data may still name a retired preset (`claude-code-v2`); every lookup
+ * here reads it as its replacement (`retired-agent-presets.ts`), so main / headless consumers
+ * that read the raw files get the same answer as the renderer after its load-time migration.
  */
+
+import { migrateAgentCustomArgs, migrateAgentPresetId } from './retired-agent-presets'
 
 export const BUILTIN_DEFAULT_AGENT = 'claude-code'
 
@@ -59,9 +65,9 @@ export function resolveEffectiveDefaultAgent(
   settings: GlobalAgentLaunchFields | null | undefined,
 ): EffectiveDefaultAgent {
   const fromWorkspace = nonEmptyString(workspace?.defaultAgent)
-  if (fromWorkspace) return { agent: fromWorkspace, source: 'workspace' }
+  if (fromWorkspace) return { agent: migrateAgentPresetId(fromWorkspace), source: 'workspace' }
   const fromSettings = nonEmptyString(settings?.defaultAgent)
-  if (fromSettings) return { agent: fromSettings, source: 'settings' }
+  if (fromSettings) return { agent: migrateAgentPresetId(fromSettings), source: 'settings' }
   return { agent: BUILTIN_DEFAULT_AGENT, source: 'builtin' }
 }
 
@@ -75,9 +81,9 @@ export function resolveEffectiveAgentArgs(
   settings: GlobalAgentLaunchFields | null | undefined,
   presetIds: string | readonly string[],
 ): EffectiveAgentArgs {
-  const ids = (typeof presetIds === 'string' ? [presetIds] : presetIds).filter(id => !!id)
+  const ids = [...new Set((typeof presetIds === 'string' ? [presetIds] : presetIds).filter(id => !!id).map(id => migrateAgentPresetId(id)))]
 
-  const workspaceArgs = argsRecord(workspace?.agentCustomArgs)
+  const workspaceArgs = argsRecord(migrateAgentCustomArgs(workspace?.agentCustomArgs, 'workspace'))
   if (workspaceArgs) {
     for (const id of ids) {
       if (!Object.prototype.hasOwnProperty.call(workspaceArgs, id)) continue
@@ -87,7 +93,7 @@ export function resolveEffectiveAgentArgs(
     }
   }
 
-  const globalArgs = argsRecord(settings?.agentCustomArgs)
+  const globalArgs = argsRecord(migrateAgentCustomArgs(settings?.agentCustomArgs, 'settings'))
   if (globalArgs) {
     for (const id of ids) {
       const value = globalArgs[id]
@@ -105,10 +111,11 @@ export function hasWorkspaceArgsOverride(
   workspace: WorkspaceAgentLaunchFields | null | undefined,
   presetId: string,
 ): boolean {
-  const workspaceArgs = argsRecord(workspace?.agentCustomArgs)
+  const workspaceArgs = argsRecord(migrateAgentCustomArgs(workspace?.agentCustomArgs, 'workspace'))
+  const id = migrateAgentPresetId(presetId)
   return !!workspaceArgs
-    && Object.prototype.hasOwnProperty.call(workspaceArgs, presetId)
-    && typeof workspaceArgs[presetId] === 'string'
+    && Object.prototype.hasOwnProperty.call(workspaceArgs, id)
+    && typeof workspaceArgs[id] === 'string'
 }
 
 /** `base` + effective args, separated by one space; `base` unchanged when there are none. */

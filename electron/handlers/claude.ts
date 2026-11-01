@@ -214,7 +214,7 @@ export function registerClaudeHandlers(register: HandlerRegistrar, deps: ClaudeH
 
   // Integrated Agent SDKs. Codex intentionally shares the existing claude:* renderer
   // event surface so the chat panels can reuse the mature Claude UI plumbing.
-  register('claude:start-session', async (_ctx, sessionId: string, options: { cwd: string; prompt?: string; permissionMode?: PermissionMode | 'bypassPlan'; model?: string; effort?: EffortLevel; apiVersion?: 'v1' | 'v2'; useWorktree?: boolean; worktreePath?: string; worktreeBranch?: string; agentPreset?: string; codexSandboxMode?: 'read-only' | 'workspace-write' | 'danger-full-access'; codexApprovalPolicy?: 'untrusted' | 'on-request' | 'never' }) => {
+  register('claude:start-session', async (_ctx, sessionId: string, options: { cwd: string; prompt?: string; permissionMode?: PermissionMode | 'bypassPlan'; model?: string; effort?: EffortLevel; useWorktree?: boolean; worktreePath?: string; worktreeBranch?: string; agentPreset?: string; codexSandboxMode?: 'read-only' | 'workspace-write' | 'danger-full-access'; codexApprovalPolicy?: 'untrusted' | 'on-request' | 'never' }) => {
     if (options.agentPreset === 'codex-agent' || options.agentPreset === 'codex-agent-worktree') {
       const codexManager = codex() // throws before recording the session on a host without codex
       sessionKinds.set(sessionId, 'codex')
@@ -480,14 +480,16 @@ export function registerClaudeHandlers(register: HandlerRegistrar, deps: ClaudeH
   register('claude:resolve-ask-user', (_ctx, sessionId: string, toolUseId: string, answers: Record<string, string>) => getSessionManager(sessionId)?.resolveAskUser(sessionId, toolUseId, answers))
   register('claude:list-sessions', (_ctx, cwd: string, agentPreset?: string) =>
     (agentPreset === 'codex-agent' || agentPreset === 'codex-agent-worktree') ? codex()?.listSessions(cwd) : deps.getClaudeManager()?.listSessions(cwd))
-  register('claude:resume-session', (_ctx, sessionId: string, sdkSessionId: string, cwd: string, model?: string, apiVersion?: 'v1' | 'v2', useWorktree?: boolean, worktreePath?: string, worktreeBranch?: string, agentPreset?: string, codexSandboxMode?: 'read-only' | 'workspace-write' | 'danger-full-access', codexApprovalPolicy?: 'untrusted' | 'on-request' | 'never') => {
+  // T0718: argument 4 was `apiVersion` ('v1' | 'v2'); the V2 API is gone, the slot stays so the
+  // later positions (and older peers over remote) still line up. Ignored.
+  register('claude:resume-session', (_ctx, sessionId: string, sdkSessionId: string, cwd: string, model?: string, _retiredApiVersion?: unknown, useWorktree?: boolean, worktreePath?: string, worktreeBranch?: string, agentPreset?: string, codexSandboxMode?: 'read-only' | 'workspace-write' | 'danger-full-access', codexApprovalPolicy?: 'untrusted' | 'on-request' | 'never') => {
     if (agentPreset === 'codex-agent' || agentPreset === 'codex-agent-worktree') {
       const codexManager = codex() // throws before recording the session on a host without codex
       sessionKinds.set(sessionId, 'codex')
       return codexManager?.resumeSession(sessionId, sdkSessionId, cwd, model, codexSandboxMode, codexApprovalPolicy, useWorktree, worktreePath, worktreeBranch)
     }
     sessionKinds.set(sessionId, 'claude')
-    return deps.getClaudeManager()?.resumeSession(sessionId, sdkSessionId, cwd, model, apiVersion, useWorktree, worktreePath, worktreeBranch)
+    return deps.getClaudeManager()?.resumeSession(sessionId, sdkSessionId, cwd, model, useWorktree, worktreePath, worktreeBranch)
   })
   register('claude:fork-session', (_ctx, sessionId: string) => getSessionManager(sessionId)?.forkSession(sessionId))
   register('claude:rewind-to-prompt', () => ({ error: 'Rewind is not available in this build' }))

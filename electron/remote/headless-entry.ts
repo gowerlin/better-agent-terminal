@@ -28,6 +28,7 @@ import { TerminalAttentionNotifier } from '../terminal-attention'
 import { registerWorktreeStatusHandler } from '../worktree-status-handlers'
 import { mirrorToBatScripts } from './remote-logger'
 import { normalizeUsageLimitConfig } from '../../src/lib/usage-limit'
+import { migrateSettingsAgentFields } from '../../src/lib/retired-agent-presets'
 import type { HandlerContext } from '../handlers/types'
 import type { PersistedShellSettings } from '../shell-path-resolver'
 import {
@@ -460,6 +461,8 @@ export function createHeadlessClaudeModule(opts: { installRoot?: string } = {}):
 /**
  * T0431: the settings fields `terminal:*` reads from `<dataDir>/settings.json`,
  * dropping values of the wrong type (the file is hand-editable on the server).
+ * T0718 / D123: a retired preset (`claude-code-v2`) in `defaultAgent` / `agentCustomArgs`
+ * reads as its replacement (the file itself is not rewritten).
  */
 export function readHeadlessTerminalSettings(raw: Record<string, unknown>): PersistedShellSettings & AgentCommandSettings {
   const settings: PersistedShellSettings & AgentCommandSettings = {}
@@ -474,7 +477,7 @@ export function readHeadlessTerminalSettings(raw: Record<string, unknown>): Pers
     }
     settings.agentCustomArgs = args
   }
-  return settings
+  return migrateSettingsAgentFields(settings)
 }
 
 /**

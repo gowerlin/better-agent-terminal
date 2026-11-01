@@ -82,7 +82,7 @@ describe('restartOrCreatePty', () => {
 
 describe('WorkspaceView ⏻ (source guard)', () => {
   const src = fs.readFileSync(path.join(__dirname, '..', '..', 'components', 'WorkspaceView.tsx'), 'utf8')
-  const handleRestart = src.slice(src.indexOf('const handleRestart = useCallback'), src.indexOf('const handleSwitchApiVersion'))
+  const handleRestart = src.slice(src.indexOf('const handleRestart = useCallback'), src.indexOf('const handleFocus = useCallback'))  // T0718: handleSwitchApiVersion (V1 ↔ V2) is gone
 
   it('restarts through restartOrCreatePty with the tab data, not a bare pty.restart', () => {
     expect(handleRestart).toContain('restartOrCreatePty({')
