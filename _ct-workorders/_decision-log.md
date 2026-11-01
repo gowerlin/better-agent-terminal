@@ -1465,6 +1465,15 @@
 - **切分**：W2a 設計語言 + 元件 + 首頁（T0630）→ 預覽通過後 W2b（`/control-tower`、功能、FAQ、回報頁）→ W2c 遠端開發；W3 / W4 不變。
 - **相關**：PLAN-049 / D159 / D160 / T0624 / T0630
 
+### D195 2026-11-01 — Claude 面板開啟 todo / task 工具並做累積式工作清單 UI（T0725）；T0721 的 R1 / R3 併成 T0724（塔台依研究建議）
+
+- **背景**：T0721 研究（`8b2037b5`）：CLI 2.1.316 預設工具是 Task*，但 Claude 5 模型需 `CLAUDE_CODE_ENABLE_TODO_TOOLS=1` 或點名工具才拿得到；BAT 內建 Claude 5 模型因此沒有工作清單，4.x 只畫成一般卡片。R1（單行 `Press enter to continue`）會留在對話紀錄，觸發 `claude-stale` 會誤送 Enter；R3 型別化試驗 typecheck 0 錯、行為不變。
+- **決定**：
+  - 使用者選「開啟並做 UI」：Claude 面板（SDK）spawn env 加 `CLAUDE_CODE_ENABLE_TODO_TOOLS=1`（尊重既有值、不加 Settings 開關、不用 `allowedTools`），並以重播函式累積顯示 Task 清單 → T0725（M）。實機驗收（耗 token）留給使用者。
+  - 塔台依研究建議：R1 不加句型、只補負向測試與註記；R3 做 → 合併為 T0724（S）。
+  - 順序：T0724 → T0725（同檔 `electron/claude-agent-manager.ts`）；兩張都在 T0723 之後派（避免同時 `vite build`）。
+- **相關**：T0721 / T0724 / T0725 / T0718 / D148 / D191
+
 ### D194 2026-11-01 — 安裝檔大小先研究（T0720）再決定是否放寬 D146；pre.5 後續候選研究（T0721）同時進行；「Claude Agent V1」改名「Claude Agent」直接實作（T0722）
 
 - **背景**：`v0.7.2-pre.5` 四個安裝檔比 pre.4 大約 23–30 MiB，全部超過 D146 預算（exe 333 / zip 458 / AppImage 328 / dmg 345 MiB）；T0717 / T0718 留下後續候選四項（claude 單行 `Press enter to continue`、Task tools 清單 UI、「Claude Agent V1」改名、`queryOptions` 用 SDK `Options` 型別）。
