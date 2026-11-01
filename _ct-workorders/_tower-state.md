@@ -1,8 +1,8 @@
 ---
 schema_kind: tower-state
 summary_version: 1
-updated_at: "2026-11-01T10:50:31+0800"
-session: "2026-11-01 第一百零一 session 進行中（CT v5.15.0）：T0720–T0726（D194–D196）全部 DONE，v0.7.2-pre.6 已發佈（run 41265747434，exe 292.9 MiB）"
+updated_at: "2026-11-01T10:51:38+0800"
+session: "2026-11-01 第一百零一 session 已收工（CT v5.15.0）：T0720–T0726（D194–D196）、Claude Agent 改名、工作清單、NSIS 瘦身、v0.7.2-pre.6"
 next_ids:
   workorder: "T0727"
   decision: "D197"
@@ -19,12 +19,49 @@ todo:
 ---
 # Tower State — better-agent-terminal
 
-> 最後更新:2026-11-01 09:41 (UTC+8) — **第一百 session 收工**（CT v5.15.0）：內嵌 claude / codex / Agent SDK 追最新 → T0717 / T0718（D123 Phase 2，V2 preset 下架）→ CI 打包失敗 BUG-176 → T0719 → **`v0.7.2-pre.5`**。前次：第九十九 session 收工（2026-11-01 02:09）。
+> 最後更新:2026-11-01 10:51 (UTC+8) — **第一百零一 session 收工**（CT v5.15.0）：T0720 安裝檔研究 / T0721 後續候選研究 / T0722 改名並行 → T0723–T0726（D194–D196）→ **`v0.7.2-pre.6`**（exe 292.9 MiB，D146 上限改 384 / 512 MiB）。前次：第一百 session 收工（2026-11-01 09:41）。
 >
-> **下次起手**:BUG-175（外部測試者A ＋ GitHub #22 回報者）/ BUG-169 / BUG-174（#20）待驗收；使用者日常使用驗收 BUG-171；BUG-156 / 159 仍待特定環境；pre.5 實機驗收（Claude 面板 SDK 0.3、V2 遷移、codex 0.166 ↻ → ✓）；產物大小超 D146 預算待決定；熱區無進行中工單；預覽版線 `0.7.2-pre.N`（已到 pre.5，最多 pre.9）。
+> **下次起手**:pre.6 實機驗收（Claude 面板工作清單 Claude 5 / 4.x、Windows NSIS 覆蓋 / 乾淨重裝與安裝時間）；pre.5 起 Claude 面板 SDK 0.3 / V2 遷移 / codex 0.166 ↻ → ✓；BUG-175（外部測試者A ＋ GitHub #22）/ BUG-169 / BUG-174（#20）/ BUG-171 / BUG-156 / 159 待驗收；熱區無進行中工單；預覽版線 `0.7.2-pre.N`（已到 pre.6，最多 pre.9）。
 ---
 
-## 🛏 本 Session 收工快照 (第一百 session, 2026-11-01 08:10 - 09:40, ~1h30m)
+## 🛏 本 Session 收工快照 (第一百零一 session, 2026-11-01 09:43 - 10:51, ~1h10m)
+
+### 主軸：pre.5 安裝檔超 D146 研究（T0720）＋後續候選研究（T0721）＋「Claude Agent」改名（T0722）並行 → T0723–T0726 → **`v0.7.2-pre.6`**
+
+#### 時間線（時間取自系統 / git / gh）
+
+1. **09:43** 啟動（CT v5.15.0，Fast Path）；`--set-role tower --mode on` exit 0；安裝版 helper `v0.7.2-pre.5`；`bat_whoami` 名稱已是 `· Tower`
+2. **09:49** 使用者「A 出結論再決定 B 是否放寬，C 研究單可同時進行」＋「Claude Agent V1 拿掉 V1」→ **D194**；09:52 T0720 / T0721 / T0722 三張並行派工（研究單不跑 build）
+3. **09:58** T0722 DONE（`35b2bac3`）→ 使用者「兩件待辦可排單」→ T0723（CHANGELOG `[Unreleased]`＋網站截圖）10:01 派工 → 10:04 DONE（`9db0c8e2`）
+4. **10:03** T0721 DONE（`8b2037b5`）：R1 不做句型、R3 做 → T0724；R2 使用者選「開啟並做 UI」→ **D195** / T0725
+5. **10:07** T0720 DONE（`ca68ec81`）：增量來自上游 claude / codex binary；NSIS 差分打包可省約 40 MiB → 使用者選 A + C → **D196**（D146 上限改 384 / 512 MiB）/ T0726
+6. **10:09** T0724 DONE（`886bd987`）→ 10:17 T0726 DONE（`cab618a5`，本機 exe 292.9 MiB）→ 10:29 T0725 DONE（`08bc8467`）；為避免同時 `vite build`，T0724 → T0726 → T0725 依序派
+7. **10:3x** 使用者「現在發 0.7.2-pre.6」→ 聯合驗證綠（typecheck 0 / 0、build、unit 6256 / 350 files、legacy 472 / 0）→ 去識別化 0 → push → run `41265747434`（12 job 全綠，target `093a0079`）→ 更版重點 → 文件 `5c7fb4d6` → Pages `41266736735` 綠、link-check 1372 / 0、首頁 pre.6
+8. **10:51** 收工（使用者「收工」）；本次收工歸檔第九十九 session 快照
+
+### 本輪戰績
+
+| 類別 | 數量 | 備註 |
+|---|---|---|
+| 派發工單 | 7 | T0720–T0726 皆 DONE、首派即過、無提問；最多 3 張並行 |
+| 決策 | 3 | D194–D196（使用者決定） |
+| BUG | 0 | |
+| 發版 | 1 | `v0.7.2-pre.6`：exe 292.9 / zip 458.9 / AppImage 328.8 / dmg 345.7 MiB（D196 上限內） |
+
+### 重點觀察
+
+- 並行時要錯開 build：研究單禁止在 repo 跑 build；會跑 `vite build` / 打包的實作單依序派（T0724 → T0726 → T0725）
+- T0725 一個既有測試失敗時 vitest diff 把整份 `process.env`（含 Worker helper 權杖）印進 scratchpad log；Worker 已刪除並改成只比對特定 key；本 session commit 掃描 0 筆。候選：其他測試對整個 env 物件斷言的寫法一併檢查
+- 後續候選：工作清單 pinned 區塊、sub-agent Task* 併入（T0725）；升內嵌 CLI 工單回報附 npm `unpackedSize` 前後差（D196）；`_decision-log.md` 索引表仍只到 D129（第九十九 session 起的候選）
+
+### 編號起始（下 session）
+
+- **T0727** / **BUG-177** / **PLAN-057** / **D197** / **EXP-WFMINE-002** / **L178** / **CT-T023**
+
+---
+
+
+## 🛏 前 Session 收工快照 (第一百 session, 2026-11-01 08:10 - 09:40, ~1h30m)
 
 ### 主軸：內嵌 claude / codex / Agent SDK 追最新 → T0717 / T0718（D123 Phase 2）→ CI 打包失敗 BUG-176 → T0719 → **`v0.7.2-pre.5`**
 
@@ -62,47 +99,9 @@ todo:
 ---
 
 
-## 🛏 前 Session 收工快照 (第九十九 session, 2026-11-01 01:24 - 02:09, ~45m)
-
-### 主軸：Full Scan → GitHub #22（= BUG-175）留言 → BMad-Guide HANDOVER `--ask --no-pty-write` 契約 → T0715 研究 → D190 → T0716 → **`v0.7.2-pre.4`** → 回覆結案
-
-#### 時間線（時間取自系統 / git / gh）
-
-1. **01:24** 啟動（CT v5.14.4，環境快照 9 天 → Full Scan，`37777b98`）；`--set-role tower --mode on` exit 0；安裝版 BAT / helper `0.7.2-pre.3`；索引一致
-2. **01:2x** BMad-Guide 塔台 HANDOVER（`--ask --no-pty-write` 是否支援的契約，Q-B1 阻塞 CT v5.15.0）→ T0715 研究派工（`started:` 17:32:45Z）
-3. **01:35** GitHub #22（macOS、`0.7.1-pre.9` 回報 Worker 縮圖停在啟動畫面 = BUG-175）依使用者同意留言（英文，issue 保持開啟）；BUG-175 連 #22（`6f2c16b9`）
-4. **01:40** T0715 DONE（`97a64056`）：Q-B1 支援、Q-B2 無佇列、Q-B3 BAT 無法可靠清預填、Q-B4 可行但增益小 → 使用者選推薦 → **D190**：開 T0716（契約文件＋守門測試＋兩個小修），Q-B2 / Q-B4 不做
-5. **01:42** T0716 派工；回覆稿 `_reply-2026-11-01-bat-ask-no-pty-write-contract.md`（`203bd8d7`）→ 通知 BMad-Guide · Tower
-6. **01:50** T0716 DONE（`7b060aa4`；Worker 驗證 unit 6174 / legacy 472 / typecheck 0 / 0 / build / verify:helpers；塔台複驗 60 / 60）→ 使用者「現在發 0.7.2-pre.4」
-7. **02:04** `pre-release.yml` `0.7.2-pre.4`（run `41226677868`，12 job 全綠，target `44d86f13`）→ 更版重點 → 文件 `83bfd725`（README 整合點＋版本對照新增一列）→ Pages `41227746757` 綠、link-check 1356 / 0、首頁 pre.4 → 回覆稿 RESOLVED、通知 CT；CT 塔台確認結案（CT v5.15.0 最低 BAT `>= 0.7.0-pre.7`、正式契約 `>= 0.7.2-pre.4`）
-8. **02:09** 收工（使用者「收工」）；本次收工歸檔第九十七 session 快照
-
-### 本輪戰績
-
-| 類別 | 數量 | 備註 |
-|---|---|---|
-| 派發工單 | 2 | T0715（研究）/ T0716，皆 DONE、首派即過、無提問 |
-| 決策 | 1 | D190 |
-| 發版 | 1 | `v0.7.2-pre.4` |
-| GitHub | #22 留言 | 等回報者 macOS 驗收 |
-| 跨塔台 | 1 | BMad-Guide HANDOVER（`--ask --no-pty-write`）雙方結案 |
-
-### 重點觀察
-
-- `_decision-log.md` 的「決策索引」表只到 D129，D130 以後只有詳細紀錄；BAT 決策頁讀法依 CT 契約要求索引涵蓋每一筆，候選：收斂或補索引（未處理）
-- T0716 Worker 回報：`TMP` 指到長路徑 scratchpad 時 6 個 git worktree 測試檔失敗（`'$GIT_DIR' too big`），改系統預設 TMP 即過，與產品無關
-
-### 編號起始（下 session）
-
-- **T0717** / **BUG-176** / **PLAN-057** / **D191** / **EXP-WFMINE-002** / **L178** / **CT-T023**
-
----
-
----
-
 ## 🌅 起手式（Quick Recovery）
 
-> 最後更新：2026-11-01 09:41 UTC+8（第一百 session 收工）
+> 最後更新：2026-11-01 10:51 UTC+8（第一百零一 session 收工）
 
 ### 近期完成
 - **`v0.7.2-pre.6` 發佈**（第一百零一 session，run `41265747434`，target `093a0079`）：「Claude Agent」改名（T0722 / T0723）、SDK `Options` 型別＋限額單行負向測試（T0724）、Claude 面板工作清單＋Claude 5 開 todo tools（T0725，D195）、NSIS 關差分打包 exe 333 → 292.9 MiB（T0726，D196 上限改 384 / 512 MiB）；exe 292.9 / zip 458.9 / AppImage 328.8 / dmg 345.7 MiB；文件 `5c7fb4d6`；Pages `41266736735` 綠、link-check 1372 / 0、首頁 pre.6
@@ -136,7 +135,7 @@ todo:
 - 歷史 sessions → [_archive/state-snapshots/INDEX.md](_archive/state-snapshots/INDEX.md)（116 entries）
 
 ### 編號起始
-- **T0720** / **BUG-177** / **PLAN-057** / **D194** / **EXP-WFMINE-002**（其他 TOPIC 從 001） / **L178** / **CT-T023**
+- **T0727** / **BUG-177** / **PLAN-057** / **D197** / **EXP-WFMINE-002**（其他 TOPIC 從 001） / **L178** / **CT-T023**
 
 ---
 
@@ -146,7 +145,7 @@ todo:
 |------|------|
 | **專案** | better-agent-terminal |
 | **Fork 上游** | tony1223/better-agent-terminal（另有 `scandnavik` remote；⚠️ gh 預設解析到 upstream，見 L122） |
-| **目前版號** | **0.7.2-pre.5**（package.json + lock，2026-11-01；`0.7.2` 線，D187，最多到 pre.9） |
+| **目前版號** | **0.7.2-pre.6**（package.json + lock，2026-11-01；`0.7.2` 線，D187，最多到 pre.9） |
 | **最新 release** | `v0.7.2-pre.5`（2026-11-01 01:36Z，run `41260924862`，target `826471bd`：內嵌 claude 2.1.316 / codex 0.166.0 / Agent SDK 0.3.316、V2 下架、BUG-176；exe 333 / zip 458 / AppImage 328 / dmg 345 MiB，超 D146）、`v0.7.2-pre.4`（2026-10-31 18:04Z，run `41226677868`，target `44d86f13`：`--ask --no-pty-write` 正式契約，T0715 / T0716，D190）、`v0.7.2-pre.3`（2026-10-30 09:13Z，run `41030478924`，target `ace28006`：BUG-175 縮圖預覽，T0714）、`v0.7.2-pre.2`（2026-10-30 07:26Z，run `41019051580`，target `58213249`：BUG-174）、`v0.7.2-pre.1`（06:26Z，run `41012819051`，target `27a5a164`：T0710–T0712）；各附 `server-bundle-v<版號>`（7 assets）；exe 309 / zip 428 / AppImage 305 / dmg 322 MiB。更早：`v0.7.1-pre.6`（2026-10-22 02:14，run `39649193569`，target `8fb92004`：BUG-165 codex 分頁滾輪、BUG-169 helper 版號、T0692 用量限制 resumed、T0694 `↻`、內嵌 codex 0.163；Test gate tests 18:06:48Z → build 18:06:50Z；更版重點已寫；文件 `8bd1f47a`；Pages `39651190345` 綠、link-check 1274 / 0；exe 309 / zip 428 / AppImage 305 / dmg 322 MiB）+ `server-bundle-v0.7.1-pre.6`（7 assets）。前一版 `v0.7.1-pre.5`（2026-10-21 22:43，run `39617678592`，target `d0ebd708`：SSH 啟動失敗字首、內嵌 claude CLI 2.1.306、安裝檔只收 6 個執行期 helper、Test gate、MCP 寫入型 tool 政策、網站 `/why`；**Test gate 首次生效**：`tests / unit-tests` 14:32:29–14:36:27Z，build 14:36:30Z 才開始；更版重點已寫；exe 306 / zip 423 / AppImage 306 / dmg 319 MiB）+ `server-bundle-v0.7.1-pre.5`（7 assets；darwin-arm64 job 在 API 停在 `in_progress`，但每個 step 含 Complete job 都 success、tarball 已發佈，屬 GitHub 顯示問題）。前一版 `v0.7.1-pre.4`（2026-10-19 18:03，run `39233550117`，target `8883cebd`：BUG-166 滑鼠追蹤殘留自動 / 手動重設；更版重點已寫；repo 文件 `4ae0e89d`；Pages `39234927266` 綠、link-check 1152 / 0 errors、首頁 pre.4；exe 298 / zip 412 / AppImage 297 / dmg 309 MiB）+ `server-bundle-v0.7.1-pre.4`（7 assets）。前一版 `v0.7.1-pre.3`（2026-10-19 13:00，run `39201696170`，target `bf4bfe4f`：BUG-136 縮圖預覽上限、BUG-164 macOS 停用 Graphite + GPU 崩潰後重建；更版重點已寫；repo 文件 `892df2ec`；exe 298 / zip 412 / AppImage 297 / dmg 310 MiB）+ `server-bundle-v0.7.1-pre.3`（7 assets）。更早見 `release-note.md` / `CHANGELOG.md` |
 | **前一 tag** | `v0.7.1-pre.5`（2026-10-21 22:43，`d0ebd708`） |
 | **目前主軸** | `v0.7.1-pre.5` 已發佈（第八十八 session，D179 小批 T0687–T0690）；等 外部測試者A 驗收 BUG-166（pre.4 起）；BUG-165 有空再排；下一批候選 BUG-169；T0675 PARTIAL 等使用者下載 S2-04／05；熱區無進行中工單 |
@@ -275,6 +274,7 @@ todo:
 
 ### 歷史 Session（摘要）
 
+- 2026-11-01 第一百零一 session：auto-session on，per-dispatch `--mode yolo --no-interactive`；T0720–T0726 全部 `started:`、無提問，T0720 / T0721 / T0722 並行；`worker_auto_close` 回收 7 次；`v0.7.2-pre.6` 發佈
 - 2026-11-01 第一百 session：auto-session on，per-dispatch `--mode yolo --no-interactive`；T0717–T0719 全部 `started:`、依序執行；結構化提問 2 次（T0717 Q-1 / Q-2，`--answer` exit 0 ×2，D192）；`worker_auto_close` 回收 3 次；`v0.7.2-pre.5` 發佈（首發 CI 打包失敗 → BUG-176 / T0719 → 重發）
 - 2026-11-01 第九十九 session：auto-session on，per-dispatch `--mode yolo --no-interactive`；T0715 / T0716 `started:`、無提問；`worker_auto_close` 回收 2 次；`v0.7.2-pre.4` 發佈
 - 2026-10-30 第九十八 session：auto-session on，per-dispatch `--mode yolo --no-interactive`；T0714 `started:`、無提問；`worker_auto_close` 回收 1 次；`v0.7.2-pre.3` 發佈
