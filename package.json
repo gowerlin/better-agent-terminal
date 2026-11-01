@@ -131,7 +131,8 @@
       "shortcutName": "BetterAgentTerminal",
       "installerIcon": "assets/icon.ico",
       "uninstallerIcon": "assets/icon.ico",
-      "installerHeaderIcon": "assets/icon.ico"
+      "installerHeaderIcon": "assets/icon.ico",
+      "differentialPackage": false
     },
     "mac": {
       "target": [

@@ -218,6 +218,37 @@ describe('verify-helper-bundle.js server bundle check (T0433)', () => {
       expect(zipArgs).not.toContain('-mpass=15')
     })
 
+    // T0726 / D196: BAT does not use electron-updater and releases upload no .blockmap, so the
+    // NSIS differential package (inner 7z with a 1 MiB dictionary, non-solid) only costs size.
+    it('NSIS differential package is off: the inner 7z is solid with the default dictionary (T0726)', async () => {
+      const pkg = JSON.parse(readFileSync(join(repoRoot, 'package.json'), 'utf8'))
+      expect(pkg.build.nsis.differentialPackage).toBe(false)
+      // app-builder-lib's own decision. The package index has to load first: NsisTarget.js on
+      // its own hits a circular import (LinuxPackager extends an undefined PlatformPackager).
+      await import('app-builder-lib')
+      const { NsisTarget } = await import('app-builder-lib/out/targets/nsis/NsisTarget.js')
+      const { compute7zCompressArgs } = await import('app-builder-lib/out/targets/archive.js')
+      const { configureDifferentialAwareArchiveOptions } = await import('app-builder-lib/out/targets/differentialUpdateInfoBuilder.js')
+      const isAware = Object.getOwnPropertyDescriptor(NsisTarget.prototype, 'isBuildDifferentialAware').get
+      expect(isAware.call({ isPortable: false, options: pkg.build.nsis })).toBe(false)
+      expect(isAware.call({ isPortable: false, options: { ...pkg.build.nsis, differentialPackage: undefined } })).toBe(true)
+      // buildAppPackage only routes through configureDifferentialAwareArchiveOptions (-md=1m,
+      // -ms=off) when differential-aware, and createBlockmap is gated the same way. Guard the
+      // upstream shape so an electron-builder upgrade that changes it fails here.
+      const buildAppPackage = NsisTarget.prototype.buildAppPackage.toString()
+      expect(buildAppPackage).toMatch(/isBuildDifferentialAware\s*\?\s*\(0, differentialUpdateInfoBuilder_1\.configureDifferentialAwareArchiveOptions\)\(archiveOptions\)\s*:\s*archiveOptions/)
+      expect(buildAppPackage).toMatch(/const format = !isBuildDifferentialAware && options\.useZip \? "zip" : "7z"/)
+      expect(pkg.build.nsis.useZip).toBeUndefined()
+      const archiveOptions = { withoutDir: true, compression: pkg.build.win.compression }
+      const args = compute7zCompressArgs('7z', archiveOptions)
+      expect(args).toContain('-mx=9')
+      expect(args).not.toContain('-ms=off')
+      expect(args.some((a) => a.startsWith('-md='))).toBe(false)
+      // What it was before T0726, from the same functions.
+      const before = compute7zCompressArgs('7z', configureDifferentialAwareArchiveOptions({ ...archiveOptions }))
+      expect(before).toEqual(expect.arrayContaining(['-mx=9', '-md=1m', '-ms=off']))
+    })
+
     it('build and build:dir clear dist-electron first with a Node one-liner (no shell rm)', () => {
       const pkg = JSON.parse(readFileSync(join(repoRoot, 'package.json'), 'utf8'))
       expect(pkg.scripts.build.startsWith('npm run clean:dist-electron && ')).toBe(true)
