@@ -4,6 +4,13 @@ All notable changes to Better Agent Terminal are documented in this file.
 
 ## [Unreleased]
 
+### Removed
+- 「Claude Agent V2」（`claude-code-v2`）分頁類型下架（D123，T0718）：它使用的 Claude Agent SDK V2 session API 在 SDK 0.3 已移除。「+」選單不再有 Claude Agent V2，Claude Agent 分頁的「升級至 V2 / 降級至 V1」按鈕一併移除
+- 既有的 Claude Agent V2 分頁、工作區 / Settings 的預設 Agent、以它為對象的自訂啟動參數，開啟時自動改成 Claude Agent（V1）：分頁不會消失，會嘗試接續原本的對話（接不上時顯示提示並從新對話開始）；預設標題「Claude Agent V2」改成「Claude Agent V1」，自己改過的標題不動；Claude Agent 已有自己的自訂參數時以它為準。塔台派工 `--agent claude-code-v2` 照舊啟動 Claude CLI Worker
+
+### Changed
+- 內嵌 Claude Agent SDK 升到 0.3.316（原 0.2.113，T0718 / D191）；`@anthropic-ai/sdk` 隨 peer 依賴升到 1.3.0。新版 SDK 的 Claude 面板以一般工具卡片顯示 `TaskCreate` / `TaskUpdate` 等工作清單工具；設定檔裡的 MCP server 改在背景連線
+
 ## [0.7.2-pre.4] — 2026-11-01
 
 ### Changed
