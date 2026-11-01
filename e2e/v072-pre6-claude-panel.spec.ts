@@ -27,6 +27,9 @@
 //   ⑧ a seeded `claude-code-v2` tab with an sdkSessionId: reads as Claude Agent; records whether
 //      the next message resumed or started fresh
 //   ⑨ a claude-cli PTY's env has no CLAUDE_CODE_ENABLE_TODO_TOOLS (and the main process neither)
+//   ⑩ (T0729 / BUG-177) reading the model list (`claude:get-supported-models`) sends 0 model requests
+//      and leaves no session file; over the whole run no request comes from a conversation without
+//      any scenario marker (the old probe's empty-prompt turn did)
 //
 // Windows only (embedded claude.exe, pwsh tabs).
 
@@ -182,7 +185,7 @@ async function sdkSessionIdOf(win: Page, tabId: string): Promise<string> {
 test.skip(process.platform !== 'win32', 'embedded claude.exe and pwsh tabs: Windows only')
 test.skip(!fs.existsSync(EMBEDDED_CLAUDE), `embedded claude CLI not found at ${EMBEDDED_CLAUDE}`)
 
-test('Claude panel against a fake Anthropic API: task list, resume, streaming, permission, sub-agent, V2 migration, claude-cli env (no token)', async () => {
+test('Claude panel against a fake Anthropic API: task list, resume, streaming, permission, sub-agent, V2 migration, claude-cli env, model-list probe (no token)', async () => {
   test.setTimeout(600_000)
   const startedAt = Date.now()
   const results: Record<string, string> = {}
@@ -199,6 +202,13 @@ test('Claude panel against a fake Anthropic API: task list, resume, streaming, p
   const userProjects = path.join(os.homedir(), '.claude', 'projects')
   const userProjectsTouched = () => (fs.existsSync(userProjects) ? fs.readdirSync(userProjects).filter(n => /t0727/i.test(n)) : [])
   expect(userProjectsTouched()).toEqual([])
+  /** Session files (relative paths) under the temp home's `.claude/projects`. */
+  const tempHomeProjects = (): string[] => {
+    const walk = (dir: string, rel: string): string[] => (fs.existsSync(dir)
+      ? fs.readdirSync(dir, { withFileTypes: true }).flatMap(e => (e.isDirectory() ? walk(path.join(dir, e.name), `${rel}${e.name}/`) : [`${rel}${e.name}`]))
+      : [])
+    return walk(path.join(home, '.claude', 'projects'), '')
+  }
 
   const fake = await startFakeAnthropicApi(SCENARIOS)
   const proxy = await startBlockingProxy()
@@ -362,6 +372,20 @@ test('Claude panel against a fake Anthropic API: task list, resume, streaming, p
     await win.evaluate((id) => (window as AnyApi).electronAPI.pty.kill(id), TAB_CLI)
     results['⑨'] = `PASS — claude-cli PTY: CLAUDE_CODE_ENABLE_TODO_TOOLS=${cliEnv.CLAUDE_CODE_ENABLE_TODO_TOOLS}, CLAUDE_CODE_ENABLE_TASKS=${cliEnv.CLAUDE_CODE_ENABLE_TASKS}, DISABLE_UPDATES=${cliEnv.DISABLE_UPDATES} (control); main process CLAUDE_CODE_ENABLE_TODO_TOOLS=null`
 
+    // ── ⑩ (T0729 / BUG-177): reading the model list sends no model request and leaves no session file ──
+    const projectsBefore = tempHomeProjects()
+    const requestsBefore = fake.requests.length
+    const models = await win.evaluate((sid) => (window as AnyApi).electronAPI.claude.getSupportedModels(sid), TAB_OPUS) as Array<{ value: string; source: string }>
+    const sdkRows = models.filter(m => m.source === 'sdk').map(m => m.value)
+    await win.waitForTimeout(4_000) // BUG-177: the old probe's turn reached the API within ~3 s of the list
+    const probeRequests = fake.requests.slice(requestsBefore)
+    const newProjects = tempHomeProjects().filter(p => !projectsBefore.includes(p))
+    log(`⑩ getSupportedModels: ${models.length} rows, sdk rows ${JSON.stringify(sdkRows)}; model requests during the probe: ${probeRequests.length} ${JSON.stringify(probeRequests.map(summary))}; new temp home session files: ${JSON.stringify(newProjects)}`)
+    expect(sdkRows.length, 'positive control: the list came from the CLI, not the builtin fallback').toBeGreaterThan(0)
+    expect(probeRequests).toEqual([])
+    expect(newProjects).toEqual([])
+    results['⑩'] = `PASS — getSupportedModels: ${models.length} rows (sdk ${JSON.stringify(sdkRows)}); 0 model requests within 4 s; no new session file under the temp home's .claude/projects`
+
     await selectTab(win, 'T0727 Opus')
     await collectNet(inst)
     await closeIsolated(inst, log, { keepUserData: true })
@@ -435,6 +459,7 @@ test('Claude panel against a fake Anthropic API: task list, resume, streaming, p
     // ── no request left the machine ──
     const offMachine = [...netSeen.fetch, ...netSeen.web].filter(u => !/^https?:\/\/(127\.0\.0\.1|localhost)(:\d+)?\//i.test(u))
     log(`model requests (${fake.requests.length}): ${fake.requests.map(summary).join(' | ')}`)
+    log(`requests without a scenario: ${JSON.stringify(fake.requests.filter(r => r.scenario === null).map(r => `#${r.seq} model=${r.model} tools=${r.tools.length} messages=${r.messageCount} marked=${r.userText.includes('[[T0727:')}`))}`)
     log(`blocking proxy attempts: ${JSON.stringify(proxy.attempts)}; main fetch / webRequest off-machine: ${JSON.stringify(offMachine)}`)
     log(`user ~/.claude/projects entries for this run: ${JSON.stringify(userProjectsTouched())}; temp home sessions: ${JSON.stringify(fs.existsSync(path.join(home, '.claude', 'projects')) ? fs.readdirSync(path.join(home, '.claude', 'projects')) : [])}`)
     for (const [k, v] of Object.entries(results)) log(`${k} ${v}`)
@@ -450,6 +475,10 @@ test('Claude panel against a fake Anthropic API: task list, resume, streaming, p
     expect(proxy.attempts).toEqual([])
     expect(offMachine).toEqual([])
     expect(fake.requests.every(r => r.url.startsWith('/v1/messages'))).toBe(true)
+    // BUG-177: the panel reads the model list once per session; those probes must not start a turn.
+    // The old probe's turn was a conversation with no scenario marker at all (a blank user message);
+    // requests without a scenario inside a marked conversation are the CLI's own follow-ups.
+    expect(fake.requests.filter(r => r.tools.length > 0 && !r.userText.includes('[[T0727:')).map(summary)).toEqual([])
     expect(userProjectsTouched()).toEqual([])
   }
 })

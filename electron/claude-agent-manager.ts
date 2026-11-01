@@ -165,6 +165,22 @@ export function sdkSpawnEnv(runtime: Pick<ResolvedRuntime, 'source'>): { env?: R
   return Object.keys(extra).length > 0 ? { env: { ...process.env, ...extra } } : {}
 }
 
+/**
+ * T0729 / BUG-177: a streaming-input prompt that never yields a message, for queries that only read
+ * the CLI's initialize answer (`supportedModels()`). With a string prompt — even `''` — the CLI runs
+ * a turn: one full request to the default model and a session file under `~/.claude/projects/`.
+ * With no user message the CLI only answers control requests. `release()` ends the iterable so the
+ * SDK's input loop finishes; call it before `close()`.
+ */
+export function idleSdkPrompt(): { prompt: AsyncIterable<SDKUserMessage>; release: () => void } {
+  let release!: () => void
+  const released = new Promise<void>(resolve => { release = resolve })
+  return {
+    prompt: { async *[Symbol.asyncIterator]() { await released } },
+    release,
+  }
+}
+
 // Lazy import the SDK (it's an ES module)
 let queryFn: typeof import('@anthropic-ai/claude-agent-sdk').query | null = null
 let listSessionsFn: typeof import('@anthropic-ai/claude-agent-sdk').listSessions | null = null
@@ -1616,6 +1632,8 @@ export class ClaudeAgentManager {
     const builtinValues = new Set(BAT_BUILTIN_MODELS.map(m => m.value))
     const builtins = BAT_BUILTIN_MODELS.map(m => ({ ...m, source: 'builtin' as const }))
     let instance: Query | undefined
+    // T0729 / BUG-177: no user message → no model request, no session file (see idleSdkPrompt).
+    const idle = idleSdkPrompt()
     try {
       const query = await getQuery()
       // Use the same runtime router result as real spawns; without it the SDK falls back to
@@ -1623,7 +1641,7 @@ export class ClaudeAgentManager {
       const resolvedRuntime = await this.resolveRuntimeForSession(sessionId)
       const claudeCodePath = resolvedRuntime.path
       instance = query({
-        prompt: '',
+        prompt: idle.prompt,
         options: {
           cwd: '/',
           ...(claudeCodePath ? { pathToClaudeCodeExecutable: claudeCodePath } : {}),
@@ -1647,6 +1665,7 @@ export class ClaudeAgentManager {
       return builtins
     } finally {
       // The model-list probe spawns its own CLI process; terminate it once the list is read.
+      idle.release()
       try { instance?.close() } catch { /* ignore */ }
     }
   }
