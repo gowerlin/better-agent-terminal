@@ -1,11 +1,11 @@
 ---
 schema_kind: tower-state
 summary_version: 1
-updated_at: "2026-11-01T09:41:10+0800"
-session: "2026-11-01 第一百 session 已收工（CT v5.15.0）：內嵌 claude 2.1.316 / codex 0.166.0 / Agent SDK 0.3.316（T0717–T0719，D191–D193，BUG-176 FIXED，D123 Phase 2）、v0.7.2-pre.5"
+updated_at: "2026-11-01T09:49:34+0800"
+session: "2026-11-01 第一百零一 session 進行中（CT v5.15.0）：T0720 安裝檔大小研究、T0721 pre.5 後續候選研究、T0722「Claude Agent」改名（D194）並行派工"
 next_ids:
-  workorder: "T0720"
-  decision: "D194"
+  workorder: "T0723"
+  decision: "D195"
   bug: "BUG-177"
   plan: "PLAN-057"
 todo:

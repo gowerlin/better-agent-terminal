@@ -1465,6 +1465,16 @@
 - **切分**：W2a 設計語言 + 元件 + 首頁（T0630）→ 預覽通過後 W2b（`/control-tower`、功能、FAQ、回報頁）→ W2c 遠端開發；W3 / W4 不變。
 - **相關**：PLAN-049 / D159 / D160 / T0624 / T0630
 
+### D194 2026-11-01 — 安裝檔大小先研究（T0720）再決定是否放寬 D146；pre.5 後續候選研究（T0721）同時進行；「Claude Agent V1」改名「Claude Agent」直接實作（T0722）
+
+- **背景**：`v0.7.2-pre.5` 四個安裝檔比 pre.4 大約 23–30 MiB，全部超過 D146 預算（exe 333 / zip 458 / AppImage 328 / dmg 345 MiB）；T0717 / T0718 留下後續候選四項（claude 單行 `Press enter to continue`、Task tools 清單 UI、「Claude Agent V1」改名、`queryOptions` 用 SDK `Options` 型別）。
+- **決定**（使用者 2026-11-01 第一百零一 session）：
+  - 「A 出結論再決定 B 是否放寬」→ T0720 研究增加量來源與對策；D146 是否放寬等結論再決定。
+  - 「C 研究單可同時進行」→ T0721 研究其餘三項，與 T0720 並行。
+  - 「Claude Agent V1 拿掉 V1 因為已無分版本」→ T0722 直接實作改名：顯示名稱改為「Claude Agent」；舊存檔的預設標題（`Claude Agent V1` / `Claude Agent V2`）視為預設標題並遷移，使用者自訂標題不動。
+  - 並行安排（塔台）：T0722 會改程式並跑 build，T0720 / T0721 不在本 repo 跑 build / 打包，避免互相覆蓋 `dist-electron/`、`release/`。
+- **相關**：D146 / D123 / D191 / T0717 / T0718 / T0720 / T0721 / T0722
+
 ### D193 2026-11-01 — `0.7.2-pre.5` CI 打包失敗（BUG-176）：開 T0719 補回 ajv 並加本機守門，修好後同版號重發（塔台代決）
 
 - **背景**：使用者指示發 `0.7.2-pre.5`。run 41259467662 的 mac 打包驗證報 `ajv` / `ajv-formats` 不在安裝檔，其他平台 build 取消、release skipped、未建 tag。塔台查 lock：SDK 0.3.316 沒有 `dependencies`（MCP SDK 等改 peer），ajv 掉出 production 相依樹；本機白名單測試沒抓到。
