@@ -124,6 +124,7 @@
 - Esc 一律經 `ModalOverlay` 的 `onEscape`（確認類 = **取消**），由 `src/components/common/modal-stack.ts` 統一處理，只作用於最上層。🔴 Dialog 不得自己加 `keydown` listener 關閉（T0567 前 Profiles / 工具安裝確認各自掛 window listener，已移除）。
 - 🔴 新增 Dialog 要給 `onEscape`；刻意不給的要加進 `dialog-escape.test.tsx` 的 `NO_ESCAPE_DIALOGS`（source guard 逐檔計數）。
 - 沒有 `onEscape` 的 Dialog（`RecoveryPrompt`、setup wizard）擋下 Esc。
+- 焦點（T0776 / BUG-194）：Dialog 開啟時焦點不在 Dialog 內（例：自動開啟時還在 xterm）→ 聚焦遮罩（`tabIndex={-1}`），`autoFocus` 的元素不搶；關閉時焦點回到開啟前的元素（仍在 DOM、且焦點還在 Dialog 內或 `<body>`）。唯一實作 `takeDialogFocus` / `restoreDialogFocus`（`modal-stack.ts`），由 `ModalOverlay` 呼叫；🔴 不在各 Dialog 另寫、不改成 capture 階段攔截 Esc。
 - 完整清單、Esc 規則細節、驗證清單：[docs/agent-guide/dialog-close-and-escape.md](docs/agent-guide/dialog-close-and-escape.md)
 
 ## 終端分頁右鍵選單與滑鼠追蹤（T0568 / BUG-142）

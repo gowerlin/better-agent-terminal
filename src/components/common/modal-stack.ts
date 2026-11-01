@@ -66,6 +66,45 @@ function onKeyDown(e: KeyboardEvent) {
   top.onEscape?.()
 }
 
+/** An element focus can go back to: not `<body>` / `<html>` (= nothing had the focus). */
+function returnTarget(el: Element | null): HTMLElement | null {
+  if (!(el instanceof HTMLElement)) return null
+  if (el === document.body || el === document.documentElement) return null
+  return el
+}
+
+/**
+ * T0776 (BUG-194): a dialog that mounts while the focus is outside it (it opened by itself — a
+ * Terminal Server recovery, an IPC event — while an xterm had the focus) takes the focus on its
+ * backdrop (`tabIndex=-1`), so the first Esc reaches this module instead of being written into
+ * the background PTY by xterm. A dialog whose `autoFocus` child already has the focus keeps it.
+ *
+ * Returns the element to give the focus back to when the dialog closes: the one focused now when
+ * that is outside the dialog (an earlier dialog of the same commit counts), otherwise
+ * `focusBeforeRender` (read on the dialog's first render, before an `autoFocus` child took it).
+ */
+export function takeDialogFocus(el: HTMLElement | null, focusBeforeRender: Element | null): HTMLElement | null {
+  if (!el) return null
+  const active = document.activeElement
+  if (active && el.contains(active)) return returnTarget(focusBeforeRender)
+  const before = returnTarget(active)
+  el.focus({ preventScroll: true })
+  return before
+}
+
+/**
+ * T0776: on close, the focus goes back to `restoreTo` (still in the document) — but only when it
+ * is still in this dialog or nowhere (`<body>`): a dialog that moved the focus elsewhere itself
+ * (a panel focusing its input box) or a dialog closing under another one keeps it where it is.
+ */
+export function restoreDialogFocus(el: HTMLElement | null, restoreTo: HTMLElement | null): void {
+  if (!restoreTo || !restoreTo.isConnected) return
+  const active = document.activeElement
+  const focusInDialogOrNowhere = !active || active === document.body || active === document.documentElement || (!!el && el.contains(active))
+  if (!focusInDialogOrNowhere) return
+  restoreTo.focus({ preventScroll: true })
+}
+
 export function registerModal(entry: Omit<ModalStackEntry, 'seq'>): ModalStackEntry {
   const registered: ModalStackEntry = { ...entry, seq: nextSeq++ }
   entries.add(registered)
