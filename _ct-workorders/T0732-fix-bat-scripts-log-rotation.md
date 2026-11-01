@@ -4,14 +4,14 @@ schema_kind: workorder
 id: T0732
 title: "BUG-179：`bat-scripts.log` 啟動時輪替（> 10 MB 改名帶時間戳、保留 3 份；本機主行程與 headless bat-server）"
 type: implementation
-status: FIXED
+status: DONE
 repo: better-agent-terminal
 project: maintenance
 priority: P2
 sizing: S
 created_at: "2026-11-01T12:25:49+0800"
 started_at: "2026-11-01T12:37:05+0800"
-updated_at: "2026-11-01T12:43:19+0800"
+updated_at: "2026-11-01T12:43:59+0800"
 completed_at: "2026-11-01T12:43:19+0800"
 depends_on: [T0730]
 related:
@@ -154,3 +154,7 @@ T0731 查證 `bat-scripts.log` 從不輪替（本機 41.6 MB，10 月單月 35.6
 ### 回報時間
 
 2026-11-01T12:43:19+0800
+
+### 塔台收尾補記
+
+- 2026-11-01T12:43:59+0800：工單狀態由 `FIXED` 改為 `DONE`（FIXED 是 BUG 單的狀態；工單範圍與驗收三項皆完成，L177）。BUG-179 維持 `FIXED`，待下一個預覽版實機驗收（重開 BAT 後出現 `bat-scripts-<stamp>.log`、debug log 有 `[bat-scripts-log] rotated`）。

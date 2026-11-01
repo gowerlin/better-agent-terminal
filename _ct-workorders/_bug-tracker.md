@@ -3,7 +3,7 @@ schema_version: 1
 schema_kind: index
 id: _bug-tracker
 index_kind: bugs
-generated_at: "2026-11-01T12:36:56+0800"
+generated_at: "2026-11-01T12:43:59+0800"
 generator: control-tower-sync
 source_globs:
   - _ct-workorders/BUG-*.md
@@ -23,10 +23,10 @@ breakdown:
 # Bug Tracker
 
 > ⚠️ 此文件由 `*sync` 自動生成，請勿手動編輯。
-> 最後同步：2026-11-01 12:36 (UTC+8) — 第一百零二 session：BUG-169 / 174 / 176 CLOSED、BUG-177 / 178 FIXED（T0729 `ceb24910` / T0730 `6f7b3d53`）、BUG-179 FIXING（T0732）；熱區 Open 0 / Fixing 1 / Fixed 28 / Closed 14
+> 最後同步：2026-11-01 12:43 — 第一百零二 session：BUG-169 / 174 / 176 CLOSED、BUG-177 / 178 / 179 FIXED（T0729 `ceb24910` / T0730 `6f7b3d53` / T0732 `ce648034`）；熱區 Open 0 / Fixing 0 / Fixed 29 / Closed 14
 
 ## 統計
-- 🔴 Open: 0 | ⏳ Fixing: 1 | ✅ Fixed: 28 | 🧪 Verify: 0 | 🚫 Closed: 14 | ⛔ Won't Fix: 0 | **Total: 43**
+- 🔴 Open: 0 | ⏳ Fixing: 0 | ✅ Fixed: 29 | 🧪 Verify: 0 | 🚫 Closed: 14 | ⛔ Won't Fix: 0 | **Total: 43**
 
 ## 🔴 Open / 處理中
 
@@ -37,12 +37,12 @@ breakdown:
 
 | ID | 標題 | 嚴重度 | 修復時間 | 連結 |
 |----|------|--------|---------|------|
-| BUG-179 | `bat-scripts.log` 無上限成長，helper 與主行程只 append 不輪替（T0731 發現；T0732 修正中，D198 規格） | 🟢 Low | 2026-11-01 | [BUG-179](BUG-179-bat-scripts-log-unbounded-growth.md) |
 
 ## ✅ 已修復
 
 | ID | 標題 | 嚴重度 | 修復時間 | 連結 |
 |----|------|--------|---------|------|
+| BUG-179 | `bat-scripts.log` 無上限成長；T0732 啟動時 > 10 MiB 輪替、保留 3 份（本機主行程與 headless，`ce648034`），待實機驗收 | 🟢 Low | 2026-11-01 | [BUG-179](BUG-179-bat-scripts-log-unbounded-growth.md) |
 | BUG-178 | Claude 面板讀 session 歷史 / session 清單 / plugins 不理 `CLAUDE_CONFIG_DIR`；T0730 抽成 `electron/claude-config-dir.ts` 統一解析（`6f7b3d53`） | 🟢 Low | 2026-11-01 | [BUG-178](BUG-178-claude-history-ignores-claude-config-dir.md) |
 | BUG-177 | Claude 面板查模型清單會送一次真的模型請求並留下 session 檔；T0729 改用不 yield 的 AsyncIterable prompt，0 請求 / 0 session 檔（`ceb24910`） | 🟡 Medium | 2026-11-01 | [BUG-177](BUG-177-supported-models-probe-sends-model-request.md) |
 | BUG-175 | 縮圖預覽在輸出沒有換行時不更新、露出 `>0q>4m` 殘骸（T0714 `afe57761` 依游標換列分行 + 完整 CSI；`v0.7.2-pre.3`；待外部測試者A 與 GitHub #22 回報者 macOS 實機驗收） | 🟡 medium | 2026-10-30 | [BUG-175](BUG-175-thumbnail-preview-stuck-without-newline.md) |
