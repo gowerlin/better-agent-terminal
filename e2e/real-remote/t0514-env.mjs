@@ -21,6 +21,11 @@
  * read or contacted; no other container / image is touched.
  *
  * State (build context, connection.json) lives in `%TEMP%\bat-t0514`.
+ *
+ * T0743: `--name-prefix <p>` (opt-in) names the container `<p>t0514-srv` and the image
+ * `<p>t0514-srv:local`, for a Docker engine where the default names already exist or every
+ * resource a run creates must carry one prefix. Pass the same prefix to `status` / `down`.
+ * Without it every name is exactly as above.
  */
 
 import { execFileSync } from 'node:child_process'
@@ -67,17 +72,24 @@ export function docker(distro, args, opts) {
   return wsl(distro, ['docker', ...args], opts)
 }
 
+/** Docker image / container name prefix (lowercase: image references must be). */
+const PREFIX_RX = /^[a-z0-9][a-z0-9._-]*$/
+
 function parseArgs(argv) {
-  const opts = { command: argv[0] ?? 'help', distro: DEFAULT_DISTRO, port: DEFAULT_PORT, baselineDir: '', rmi: false }
+  const opts = { command: argv[0] ?? 'help', distro: DEFAULT_DISTRO, port: DEFAULT_PORT, baselineDir: '', rmi: false, namePrefix: '' }
   for (let i = 1; i < argv.length; i++) {
     const arg = argv[i]
     if (arg === '--distro') opts.distro = argv[++i]
     else if (arg === '--port') opts.port = Number(argv[++i])
     else if (arg === '--baseline-dir') opts.baselineDir = argv[++i]
     else if (arg === '--rmi') opts.rmi = true
+    else if (arg === '--name-prefix') opts.namePrefix = argv[++i] ?? ''
     else throw new Error(`unknown option ${arg}`)
   }
   if (!NAME_RX.test(opts.distro)) throw new Error(`invalid --distro ${opts.distro}`)
+  if (opts.namePrefix && !PREFIX_RX.test(opts.namePrefix)) throw new Error(`invalid --name-prefix ${opts.namePrefix}`)
+  opts.container = opts.namePrefix ? `${opts.namePrefix}t0514-srv` : CONTAINER
+  opts.image = opts.namePrefix ? `${opts.namePrefix}t0514-srv:local` : IMAGE
   if (!Number.isInteger(opts.port) || opts.port < 1024 || opts.port > 65535 || opts.port === 9876 || opts.port === 9877) throw new Error(`invalid --port ${opts.port}`)
   return opts
 }
@@ -90,13 +102,13 @@ function portFree(port) {
   })
 }
 
-function ownContainers(distro) {
-  const out = docker(distro, ['ps', '-a', '--filter', `label=${LABEL}`, '--filter', `name=^/${CONTAINER}$`, '--format', '{{.ID}} {{.Names}} {{.Status}}'])
+function ownContainers(distro, container = CONTAINER) {
+  const out = docker(distro, ['ps', '-a', '--filter', `label=${LABEL}`, '--filter', `name=^/${container}$`, '--format', '{{.ID}} {{.Names}} {{.Status}}'])
   return out.split(/\r?\n/).filter(Boolean)
 }
 
-function nameTaken(distro) {
-  return docker(distro, ['ps', '-a', '--filter', `name=^/${CONTAINER}$`, '--format', '{{.ID}}']).trim().length > 0
+function nameTaken(distro, container = CONTAINER) {
+  return docker(distro, ['ps', '-a', '--filter', `name=^/${container}$`, '--format', '{{.ID}}']).trim().length > 0
 }
 
 function baselineTarball(dir) {
@@ -148,12 +160,12 @@ async function waitFor(what, fn, timeoutMs = 60_000) {
 async function up(opts) {
   if (process.platform !== 'win32') throw new Error('Windows host only (WSL + Docker in WSL)')
   log(`docker engine in ${opts.distro}: ${docker(opts.distro, ['version', '--format', '{{.Server.Version}}']).trim()}`)
-  const own = ownContainers(opts.distro)
+  const own = ownContainers(opts.distro, opts.container)
   if (own.length > 0) {
-    log(`removing previous ${CONTAINER} (${own.join('; ')})`)
-    docker(opts.distro, ['rm', '-f', CONTAINER])
-  } else if (nameTaken(opts.distro)) {
-    throw new Error(`a container named ${CONTAINER} exists WITHOUT label ${LABEL} — not ours, refusing to touch it`)
+    log(`removing previous ${opts.container} (${own.join('; ')})`)
+    docker(opts.distro, ['rm', '-f', opts.container])
+  } else if (nameTaken(opts.distro, opts.container)) {
+    throw new Error(`a container named ${opts.container} exists WITHOUT label ${LABEL} — not ours, refusing to touch it`)
   }
   await waitFor(`127.0.0.1:${opts.port} to be free (pass --port <free port>)`, () => portFree(opts.port), 15_000)
 
@@ -161,29 +173,29 @@ async function up(opts) {
   const base = baselineTarball(opts.baselineDir)
   const ctx = buildContext(base.tarball)
   const ctxPosix = wsl(opts.distro, ['wslpath', '-a', ctx]).trim()
-  log(`docker build ${IMAGE} from ${path.basename(base.tarball)} (manifest version ${base.version}, sha256 ${base.sha256.slice(0, 16)}…)`)
-  docker(opts.distro, ['build', '-q', '--label', LABEL, '-t', IMAGE, ctxPosix], { timeout: 900_000 })
+  log(`docker build ${opts.image} from ${path.basename(base.tarball)} (manifest version ${base.version}, sha256 ${base.sha256.slice(0, 16)}…)`)
+  docker(opts.distro, ['build', '-q', '--label', LABEL, '-t', opts.image, ctxPosix], { timeout: 900_000 })
 
   const id = docker(opts.distro, [
-    'run', '-d', '--name', CONTAINER, '--label', LABEL, '--hostname', CONTAINER_HOSTNAME,
-    '-p', `127.0.0.1:${opts.port}:${CONTAINER_SERVER_PORT}`, IMAGE,
+    'run', '-d', '--name', opts.container, '--label', LABEL, '--hostname', CONTAINER_HOSTNAME,
+    '-p', `127.0.0.1:${opts.port}:${CONTAINER_SERVER_PORT}`, opts.image,
   ]).trim()
-  log(`container ${CONTAINER} ${id.slice(0, 12)} → 127.0.0.1:${opts.port}`)
+  log(`container ${opts.container} ${id.slice(0, 12)} → 127.0.0.1:${opts.port}`)
 
   await waitFor('bat-server certificate + token', () =>
-    docker(opts.distro, ['exec', CONTAINER, 'sh', '-c', `test -s ${DATA_DIR}/server-cert.json && test -s ${DATA_DIR}/server-token.json && echo ready`]).includes('ready'))
-  const fingerprint = normalizeFingerprint(parseFingerprintField(docker(opts.distro, ['exec', CONTAINER, 'grep', '-o', '-E', '"fingerprint"[[:space:]]*:[[:space:]]*"[0-9A-Fa-f:]+"', `${DATA_DIR}/server-cert.json`])))
-  const token = decodeTokenFile(docker(opts.distro, ['exec', CONTAINER, 'cat', `${DATA_DIR}/server-token.json`]))
+    docker(opts.distro, ['exec', opts.container, 'sh', '-c', `test -s ${DATA_DIR}/server-cert.json && test -s ${DATA_DIR}/server-token.json && echo ready`]).includes('ready'))
+  const fingerprint = normalizeFingerprint(parseFingerprintField(docker(opts.distro, ['exec', opts.container, 'grep', '-o', '-E', '"fingerprint"[[:space:]]*:[[:space:]]*"[0-9A-Fa-f:]+"', `${DATA_DIR}/server-cert.json`])))
+  const token = decodeTokenFile(docker(opts.distro, ['exec', opts.container, 'cat', `${DATA_DIR}/server-token.json`]))
   await waitFor(`127.0.0.1:${opts.port} accepting connections from Windows`, () => new Promise((resolve) => {
     const s = net.connect(opts.port, '127.0.0.1', () => { s.destroy(); resolve(true) })
     s.once('error', () => resolve(false))
   }))
-  const bundleVersion = docker(opts.distro, ['exec', CONTAINER, 'sh', '-c', 'cat /home/bat/.local/bat-server/package.json']).match(/"version"\s*:\s*"([^"]+)"/)?.[1] ?? 'unknown'
+  const bundleVersion = docker(opts.distro, ['exec', opts.container, 'sh', '-c', 'cat /home/bat/.local/bat-server/package.json']).match(/"version"\s*:\s*"([^"]+)"/)?.[1] ?? 'unknown'
 
   const config = {
     createdBy: 'T0514 t0514-env.mjs',
     distro: opts.distro,
-    container: CONTAINER,
+    container: opts.container,
     hostname: CONTAINER_HOSTNAME,
     host: '127.0.0.1',
     port: opts.port,
@@ -202,26 +214,26 @@ async function up(opts) {
 }
 
 function status(opts) {
-  const own = ownContainers(opts.distro)
-  log(`containers (${LABEL}, ${CONTAINER}): ${own.length ? own.join('; ') : 'none'}`)
+  const own = ownContainers(opts.distro, opts.container)
+  log(`containers (${LABEL}, ${opts.container}): ${own.length ? own.join('; ') : 'none'}`)
   log(`state dir ${STATE_DIR}: ${existsSync(STATE_DIR) ? 'present' : 'absent'}; connection.json ${existsSync(CONFIG_PATH) ? 'present' : 'absent'}`)
 }
 
 function down(opts) {
-  const own = ownContainers(opts.distro)
+  const own = ownContainers(opts.distro, opts.container)
   if (own.length > 0) {
-    docker(opts.distro, ['rm', '-f', CONTAINER])
-    log(`removed ${CONTAINER} (${own.join('; ')})`)
-  } else if (nameTaken(opts.distro)) {
-    log(`a container named ${CONTAINER} exists without label ${LABEL} — not ours, left alone`)
+    docker(opts.distro, ['rm', '-f', opts.container])
+    log(`removed ${opts.container} (${own.join('; ')})`)
+  } else if (nameTaken(opts.distro, opts.container)) {
+    log(`a container named ${opts.container} exists without label ${LABEL} — not ours, left alone`)
   } else {
-    log(`no ${CONTAINER} container`)
+    log(`no ${opts.container} container`)
   }
   if (opts.rmi) {
-    const img = docker(opts.distro, ['images', '-q', '--filter', `label=${LABEL}`, '--filter', `reference=${IMAGE}`]).trim()
+    const img = docker(opts.distro, ['images', '-q', '--filter', `label=${LABEL}`, '--filter', `reference=${opts.image}`]).trim()
     if (img) {
-      docker(opts.distro, ['rmi', IMAGE])
-      log(`removed image ${IMAGE}`)
+      docker(opts.distro, ['rmi', opts.image])
+      log(`removed image ${opts.image}`)
     }
   }
   // Keep evidence (screenshots / logs) when the spec wrote it under the state dir.
@@ -244,7 +256,7 @@ export async function main(argv = process.argv.slice(2)) {
   else if (opts.command === 'down') down(opts)
   else if (opts.command === 'status') status(opts)
   else {
-    console.log('Usage: node e2e/real-remote/t0514-env.mjs <up|status|down> [--distro Ubuntu-24.04] [--port 29514] [--baseline-dir <dir>] [--rmi]')
+    console.log('Usage: node e2e/real-remote/t0514-env.mjs <up|status|down> [--distro Ubuntu-24.04] [--port 29514] [--baseline-dir <dir>] [--rmi] [--name-prefix <p>]')
     return opts.command === 'help' ? 0 : 1
   }
   return 0
