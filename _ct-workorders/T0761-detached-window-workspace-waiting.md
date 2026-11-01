@@ -4,8 +4,9 @@ schema_kind: workorder
 id: T0761
 title: "detached 視窗的工作區也提示等待使用者 ⚠️（D200 ⑥ / D201 延後項）：先提呈現方式，使用者選定後實作"
 type: implementation
-status: PENDING
-updated_at: "2026-11-02T02:23:44+0800"
+status: IN_PROGRESS
+started_at: "2026-11-02T02:54:11+0800"
+updated_at: "2026-11-02T02:54:11+0800"
 session_ids: []
 repo: better-agent-terminal
 project: maintenance
@@ -39,6 +40,7 @@ affects_files:
 renew_count: 0
 workdir: main repo
 worker_question_timeout: 30
+tower_question: open
 interaction:
   mode_hint: yolo
   interactive: false
@@ -85,6 +87,20 @@ D200 ⑥ 要求 detached 視窗的工作區也計入等待提示；T0735 時改�
 ## 回報區
 
 > 以下由 sub-session 填寫，請勿在指揮塔 session 中編輯（唯一例外：`### 待塔台決策` 的 `塔台答覆 Q-n` 行由塔台新增）
+
+### 待塔台決策
+
+#### Q-1：detached 視窗的工作區有分頁在等待使用者時，主視窗要用哪種方式提示 ⚠️？
+- 提問時間：2026-11-02T02:55:40+0800
+- 現況（只讀查證）：主視窗列表把已分離的工作區整列隱藏（`App.tsx` `nonDetachedWorkspaces`）；attention 事件每個視窗都收得到，但 detach 後在 detached 視窗新開的分頁主視窗 store 裡沒有（不知所屬工作區、沒有標題）；「看過」（D203）只發生在 detached 視窗；main 沒有「讓 detached 視窗切到某分頁」的 IPC（`workspace:detach` 對已分離的工作區只會 `focus()` 那個視窗）。三個選項共通的作法：**由 detached 視窗自己算它那個工作區的等待彙總**（沿用 `waitingSummary`＋D203 的看過 / 淡化，看過與否在 detached 視窗判斷），經新的本機 IPC（detached → main → 父視窗，`ipcMain` 直接處理、不經 proxied，所以遠端 profile 視窗的 detached 視窗也適用；headless / bat-server 不用改）送給父視窗，父視窗只顯示、不重算。
+- 選項：
+  - [A] **主視窗列表多一列精簡提示列**：只在已分離的工作區「有等待或淡化」時出現（平常列表不變，仍隱藏已分離的工作區），樣式「↗ <工作區名>（已分離） ⚠️ / ⚠️ N」，放在一般工作區列下方；② 工作區頁籤標題、③ 收合窄列的總數也計入；滑過列出分頁標題與原因（不含問題內容）；點擊 → detached 視窗還原 / 帶到前面並切到等最久的分頁（終端頁籤）。要動：detached renderer 送彙總、新 IPC 兩組（彙總轉送、`focus-detached-terminal`：main 對 detached 視窗 restore / show / focus 並送「切到分頁」給它）、preload、App.tsx 新列元件、`WaitingTotalBadge` 計入、三語 i18n、e2e、docs。規模 M。風險：父視窗已關、detached 視窗還在 → 沒地方顯示（寫成已知限制）。
+  - [B] **不加列，只計入總數**：② 頁籤標題、③ 收合窄列的 ⚠️ N 計入已分離工作區，tooltip 多一行「<工作區名>（已分離）：N」；點擊行為不變（② 只切頁籤、③ 只展開），不提供跳到 detached 視窗分頁。要動：彙總轉送 IPC 一組、`WaitingTotalBadge`、i18n、e2e、docs。規模 S–M。缺點：使用者看得到數字，但列表裡找不到是哪一列，要自己切到 detached 視窗。
+  - [C] **不改主視窗，改 detached 視窗本身**：detached 視窗有分頁在等待時，視窗標題加「⚠️ N」前綴，視窗不在前景時閃工作列（`BrowserWindow.flashFrame`，Windows / Linux；macOS 無此效果），看過或等待結束停止。只動 detached renderer＋main 一個 IPC。規模 S。不符合 D200 ⑥「主視窗工作區列表也算」的字面，但不改主視窗任何行為。
+  - [其他] 例：A＋C 一起做（規模 M+）。
+- Worker 建議：[A]，因為它直接補上 D200 ⑥（主視窗看得到、點了就到），平常列表行為不變（只在有等待 / 淡化時出現一列，符合 D201「不改隱藏已分離工作區」的精神），且點擊行為與 D200 ⑤ 一致（跳到等最久的分頁）。
+- 影響範圍：`src/App.tsx`、`src/components/WorkspaceWaitingBadge.tsx`、`src/stores/terminal-attention-store.ts`（或新 store）、`electron/main.ts`、`electron/preload.ts`、i18n 三語、`e2e/`、`docs/agent-guide/worker-tab-recycle.md` / `detached-workspace.md`、CLAUDE.md 一行。
+- 阻塞：是（Step 2 實作起要等答覆）
 
 ### 完成狀態
 
