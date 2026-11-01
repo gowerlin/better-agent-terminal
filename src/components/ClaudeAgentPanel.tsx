@@ -7,6 +7,8 @@ import type { EffortLevel } from '../types'
 import { EFFORT_LEVELS } from '../types'
 import { settingsStore } from '../stores/settings-store'
 import { workspaceStore } from '../stores/workspace-store'
+import { forgetPanelWaiting, setPanelWaiting } from '../stores/terminal-attention-store'
+import { claudePanelWaitingReason } from '../lib/terminal-attention'
 import type { AgentPresetId } from '../types/agent-presets'
 import { LinkedText, FilePreviewModal } from './PathLinker'
 import { useVoicePopover } from '../hooks/useVoicePopover'
@@ -181,6 +183,9 @@ export function ClaudeAgentPanel({ sessionId, cwd, isActive, workspaceId, isRemo
   const [permissionFocus, setPermissionFocus] = useState(0) // 0=Yes, 1=Yes always, 2=No, 3=custom text
   const [permissionCustomText, setPermissionCustomText] = useState('')
   const [pendingQuestion, setPendingQuestion] = useState<PendingAskUser | null>(null)
+  // T0762: the query failed or was stopped (error / stop / interrupt / abort) after the latest permission /
+  // AskUserQuestion request — a card still shown then no longer waits for the user (no ⚠️).
+  const [waitTurnEnded, setWaitTurnEnded] = useState(false)
   const [askAnswers, setAskAnswers] = useState<Record<string, string>>({})
   const [askOtherText, setAskOtherText] = useState<Record<string, string>>({})
   const [attachedImages, setAttachedImages] = useState<AttachedImage[]>([])
@@ -565,6 +570,21 @@ export function ClaudeAgentPanel({ sessionId, cwd, isActive, workspaceId, isRemo
     workspaceStore.setTerminalPendingAction(sessionId, hasPending)
   }, [sessionId, pendingPermission, pendingQuestion])
 
+  // T0762 (D200 / D203): the permission / AskUserQuestion card → the tab's ⚠️ (thumbnail, workspace
+  // list, faded when it ends unseen) through the attention store; the rule is claudePanelWaitingReason.
+  const panelWaitOwnerRef = useRef<object>({})
+  useEffect(() => {
+    setPanelWaiting(sessionId, panelWaitOwnerRef.current, claudePanelWaitingReason({
+      permission: !!pendingPermission,
+      question: !!pendingQuestion,
+      turnEnded: waitTurnEnded,
+    }))
+  }, [sessionId, pendingPermission, pendingQuestion, waitTurnEnded])
+  useEffect(() => {
+    const owner = panelWaitOwnerRef.current
+    return () => forgetPanelWaiting(sessionId, owner)
+  }, [sessionId])
+
   // Keep breathing light active (yellow) while streaming/thinking/executing tools
   useEffect(() => {
     if (!isStreaming) return
@@ -787,6 +807,7 @@ export function ClaudeAgentPanel({ sessionId, cwd, isActive, workspaceId, isRemo
         })
         setIsStreaming(false)
         setIsInterrupted(false)
+        setWaitTurnEnded(true) // T0762: the query failed — a leftover card no longer waits
         // T0402: a failed message may mean "not logged in" — re-check unless already guiding.
         if (!loginGuideShownRef.current) void refreshLoginGuide(true)
       }),
@@ -862,6 +883,7 @@ export function ClaudeAgentPanel({ sessionId, cwd, isActive, workspaceId, isRemo
       api.onPermissionRequest((sid: string, data: unknown) => {
         if (sid !== sessionId) return
         setPendingPermission(data as PendingPermission)
+        setWaitTurnEnded(false) // T0762
         setPermissionFocus(0)
         setPermissionCustomText('')
       }),
@@ -869,6 +891,7 @@ export function ClaudeAgentPanel({ sessionId, cwd, isActive, workspaceId, isRemo
       api.onAskUser((sid: string, data: unknown) => {
         if (sid !== sessionId) return
         setPendingQuestion(data as PendingAskUser)
+        setWaitTurnEnded(false) // T0762
         setAskAnswers({})
         setAskOtherText({})
       }),
@@ -1387,6 +1410,7 @@ export function ClaudeAgentPanel({ sessionId, cwd, isActive, workspaceId, isRemo
       setStreamingText('')
       setStreamingThinking('')
       setPendingPermission(null)
+      setWaitTurnEnded(true) // T0762: stopped — a leftover AskUserQuestion card no longer waits
       setMessages(prev => {
         const updated = prev.map(m => {
           if ('toolName' in m && (m as ClaudeToolCall).status === 'running') {
@@ -1560,6 +1584,7 @@ export function ClaudeAgentPanel({ sessionId, cwd, isActive, workspaceId, isRemo
     setStreamingText('')
     setStreamingThinking('')
     setPendingPermission(null)
+    setWaitTurnEnded(true) // T0762: stopped — a leftover AskUserQuestion card no longer waits
     textareaRef.current?.focus()
   }, [sessionId, isStreaming])
 
@@ -1572,6 +1597,7 @@ export function ClaudeAgentPanel({ sessionId, cwd, isActive, workspaceId, isRemo
     setStreamingText('')
     setStreamingThinking('')
     setPendingPermission(null)
+    setWaitTurnEnded(true) // T0762: stopped — a leftover AskUserQuestion card no longer waits
     setMessages(prev => {
       // Mark any running tool calls as interrupted (red dot)
       const updated = prev.map(m => {

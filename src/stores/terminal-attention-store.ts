@@ -31,9 +31,17 @@
  * workspace (`setDetachedWaiting`, from App; `DetachedWaitingReport`). Shown as received — the
  * detached window decides what waits and what was missed (the user looks at those tabs there).
  * Cleared when the workspace comes back (`workspace:reattached`). Memory only.
+ *
+ * T0762 (D200 / D203): + what Claude Agent panels wait for the user on (`setPanelWaiting`, from
+ * ClaudeAgentPanel: its permission / AskUserQuestion card). A panel has no PTY, so main never pushes
+ * for it; its wait is kept apart from main's pushes (a reconnect snapshot or a PTY exit of the same
+ * id never clears it) and `getTerminalAttention` hands readers the one event to use
+ * (`pickTerminalAttention`). The D203 wait memory follows that event, so a panel wait that ends
+ * unseen leaves a faded ⚠️ like a PTY tab's. A panel that unmounts (tab closed, workspace detached
+ * to its own window) forgets its wait without a faded ⚠️ (`forgetPanelWaiting`). Memory only.
  */
 import { useSyncExternalStore } from 'react'
-import { isEmptyAttention, isEmptyDetachedWaitingReport, isViewedTerminal, nextWaitMemory, type DetachedWaitingReport, type MissedWait, type TerminalAttentionEvent, type TerminalAttentionSnapshotEntry, type WaitMemory } from '../lib/terminal-attention'
+import { combinePanelWaitingReasons, isEmptyAttention, isEmptyDetachedWaitingReport, isViewedTerminal, nextWaitMemory, panelAttentionEvent, pickTerminalAttention, type AttentionHookReason, type DetachedWaitingReport, type MissedWait, type TerminalAttentionEvent, type TerminalAttentionSnapshotEntry, type WaitMemory } from '../lib/terminal-attention'
 
 type Listener = () => void
 
@@ -59,16 +67,28 @@ let version = 0
 const changeSeqs = new Map<string, number>()
 /** T0749: counts pushes / exits (a snapshot skips tabs changed after it was requested). */
 let changeSeq = 0
+/** T0762: tab id → each mounted Claude Agent panel of it → what that panel waits on. */
+const panelOwners = new Map<string, Map<object, AttentionHookReason>>()
+/** T0762: tab id → the attention its panels stand for (present only while one waits). */
+const panelWaits = new Map<string, TerminalAttentionEvent>()
+
+/** T0762: the one event readers get for tab `id` (main's push or its panel's wait). */
+function effectiveAttention(id: string): TerminalAttentionEvent | null {
+  return pickTerminalAttention(attention.get(id), panelWaits.get(id))
+}
 
 function notify(): void {
   version++
   for (const listener of listeners) listener()
 }
 
-/** T0735: apply `nextWaitMemory` for tab `id` going from `prev` to `next`; true = the miss changed. */
-function updateWaitMemory(id: string, prev: TerminalAttentionEvent | null, next: TerminalAttentionEvent | null): boolean {
+/**
+ * T0735: apply `nextWaitMemory` for tab `id` going from `prev` to `next`; true = the miss changed.
+ * T0762: `forceViewed` = the wait ends without a faded ⚠️ (a panel that unmounted).
+ */
+function updateWaitMemory(id: string, prev: TerminalAttentionEvent | null, next: TerminalAttentionEvent | null, forceViewed = false): boolean {
   const memory: WaitMemory = { startedAt: waitStarts.get(id) ?? null, missed: missedWaits.get(id) ?? null }
-  const viewed = isViewedTerminal(id, viewing.activeTerminalId, viewing.windowFocused)
+  const viewed = forceViewed || isViewedTerminal(id, viewing.activeTerminalId, viewing.windowFocused)
   const after = nextWaitMemory(memory, prev, next, viewed, Date.now())
   if (after.startedAt === null) waitStarts.delete(id)
   else waitStarts.set(id, after.startedAt)
@@ -85,17 +105,20 @@ export function setTerminalAttention(info: TerminalAttentionEvent): void {
 }
 
 function applyAttention(info: TerminalAttentionEvent): void {
-  const missChanged = updateWaitMemory(info.id, attention.get(info.id) ?? null, isEmptyAttention(info) ? null : info) // T0735
+  const prev = effectiveAttention(info.id) // T0762: what readers saw (main's push or the panel's wait)
   // T0694: a turn starts when this window sees `busy` go from absent to true
   const wasBusy = attention.get(info.id)?.busy === true
   const busy = info.busy === true
   if (busy && !wasBusy) turnStarts.set(info.id, ++seq)
   else if (!busy) turnStarts.delete(info.id)
   if (isEmptyAttention(info)) {
-    if (attention.delete(info.id) || missChanged) notify()
+    const deleted = attention.delete(info.id)
+    const missChanged = updateWaitMemory(info.id, prev, effectiveAttention(info.id)) // T0735
+    if (deleted || missChanged) notify()
     return
   }
   attention.set(info.id, info)
+  updateWaitMemory(info.id, prev, effectiveAttention(info.id)) // T0735
   notify()
 }
 
@@ -106,8 +129,54 @@ export function clearTerminalAttention(id: string): void {
 
 function applyExit(id: string): void {
   turnStarts.delete(id) // T0694: the PTY is gone, so is its turn
-  const missChanged = updateWaitMemory(id, attention.get(id) ?? null, null) // T0735: a PTY exit ends a wait too
-  if (attention.delete(id) || missChanged) notify()
+  const prev = effectiveAttention(id)
+  const deleted = attention.delete(id)
+  // T0735: a PTY exit ends a wait too (T0762: not a panel's — a panel's tab has no PTY)
+  const missChanged = updateWaitMemory(id, prev, effectiveAttention(id))
+  if (deleted || missChanged) notify()
+}
+
+/** T0762: rebuild tab `id`'s panel wait from its panels; true = what readers get changed. */
+function applyPanelWaits(id: string, forget: boolean): boolean {
+  const prev = effectiveAttention(id)
+  const owners = panelOwners.get(id)
+  const reason = owners ? combinePanelWaitingReasons(owners.values()) : null
+  const current = panelWaits.get(id)
+  if (!reason) panelWaits.delete(id)
+  else if (current?.blockedReason !== reason) panelWaits.set(id, panelAttentionEvent(id, reason, current?.blockedSince ?? Date.now()))
+  const next = effectiveAttention(id)
+  if (prev === next) return false
+  updateWaitMemory(id, prev, next, forget)
+  return true
+}
+
+/**
+ * T0762: Claude Agent panel `owner` (one mounted panel of tab `id`) waits for the user on `reason`
+ * now (null = nothing: answered, denied, cancelled, the turn or the session ended). The tab waits
+ * while any of its panels does; the wait's start is this renderer's clock when the first one began.
+ */
+export function setPanelWaiting(id: string, owner: object, reason: AttentionHookReason | null): void {
+  if (typeof id !== 'string' || !id || !owner) return
+  let owners = panelOwners.get(id)
+  if (reason) {
+    if (!owners) panelOwners.set(id, owners = new Map())
+    owners.set(owner, reason)
+  } else if (owners) {
+    owners.delete(owner)
+    if (owners.size === 0) panelOwners.delete(id)
+  }
+  if (applyPanelWaits(id, false)) notify()
+}
+
+/**
+ * T0762: panel `owner` of tab `id` unmounted (the tab closed, or its workspace moved to a detached
+ * window, which shows it from there): its wait is dropped without a faded ⚠️.
+ */
+export function forgetPanelWaiting(id: string, owner: object): void {
+  const owners = panelOwners.get(id)
+  if (!owners?.delete(owner)) return
+  if (owners.size === 0) panelOwners.delete(id)
+  if (applyPanelWaits(id, true)) notify()
 }
 
 /** T0749: the tabs this window holds attention for (a reconcile asks about them too). */
@@ -227,8 +296,9 @@ export function retainTerminals(ids: Iterable<string>): void {
   if (changed) notify()
 }
 
+/** T0762: main's push for the tab, or its Claude Agent panel's wait (`pickTerminalAttention`). */
 export function getTerminalAttention(id: string): TerminalAttentionEvent | null {
-  return attention.get(id) ?? null
+  return effectiveAttention(id)
 }
 
 /** T0694: a Worker notify for these tabs was received (any kind: report, `提問`, `--ask`). */
@@ -283,6 +353,8 @@ export function resetTerminalAttention(): void {
   waitStarts.clear()
   missedWaits.clear()
   detachedWaiting.clear() // T0761
+  panelOwners.clear() // T0762
+  panelWaits.clear()
   viewing = { activeTerminalId: null, windowFocused: false }
   if (attention.size === 0) return
   attention.clear()

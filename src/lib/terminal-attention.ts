@@ -165,6 +165,62 @@ export function isWaitingForUser(attention: TerminalAttentionEvent | null | unde
   return waitingForUser(attention) !== null
 }
 
+/**
+ * T0762 (D200 / D203 for the Claude Agent panel): the cards a panel shows that wait for the user.
+ * The panel runs the SDK in the host process, not in a PTY, so main never pushes
+ * `terminal:attention-changed` for it; the panel (src/components/ClaudeAgentPanel.tsx) tells the
+ * renderer store instead (`setPanelWaiting`, src/stores/terminal-attention-store.ts), and the store
+ * hands every reader the same `TerminalAttentionEvent` shape (`panelAttentionEvent` /
+ * `pickTerminalAttention`), so the thumbnail ⚠️, the workspace list, the D203 faded ⚠️ and a detached
+ * window's report all go through `waitingForUser` / `waitingSummary` / `nextWaitMemory` unchanged.
+ *   - `permission` — the tool permission card (`claude:permission-request`, ExitPlanMode included)
+ *   - `question`   — the AskUserQuestion card (`claude:ask-user`)
+ *   - `turnEnded`  — the query failed or was stopped (error / stop / interrupt / abort) after the
+ *                    latest request: a card still on screen no longer waits for the user. A `result`
+ *                    does not count: a background sub-agent (T0759) can still ask after its main
+ *                    turn's result, and an answered card is gone anyway.
+ */
+export interface ClaudePanelCards {
+  permission: boolean
+  question: boolean
+  turnEnded: boolean
+}
+
+/** T0762: what a Claude Agent panel waits for the user on now (the permission card first); null = nothing. */
+export function claudePanelWaitingReason(cards: ClaudePanelCards): AttentionHookReason | null {
+  if (cards.turnEnded) return null
+  if (cards.permission) return 'permission'
+  return cards.question ? 'question' : null
+}
+
+/** T0762: several panels of one tab (a pinned pane renders a second one): `permission` over `question`. */
+export function combinePanelWaitingReasons(reasons: Iterable<AttentionHookReason | null | undefined>): AttentionHookReason | null {
+  let result: AttentionHookReason | null = null
+  for (const reason of reasons) {
+    if (reason === 'permission') return 'permission'
+    if (reason && !result) result = reason
+  }
+  return result
+}
+
+/** T0762: the attention a waiting panel stands for (`since` = renderer time the wait began). */
+export function panelAttentionEvent(id: string, reason: AttentionHookReason, since: number): TerminalAttentionEvent {
+  return { id, blockedReason: reason, blockedSince: since, pendingQuestions: 0 }
+}
+
+/**
+ * T0762: the attention a reader gets for a tab — main's (`pty`) while it waits for the user, otherwise
+ * the panel's while that waits, otherwise main's. A Claude Agent panel tab has no PTY, so in practice
+ * one of the two is null; returns one of the given objects (stable for `useSyncExternalStore`).
+ */
+export function pickTerminalAttention(
+  pty: TerminalAttentionEvent | null | undefined,
+  panel: TerminalAttentionEvent | null | undefined,
+): TerminalAttentionEvent | null {
+  if (isWaitingForUser(pty)) return pty ?? null
+  return panel ?? pty ?? null
+}
+
 /** T0735: the fields of a tab the workspace list needs (`TerminalInstance` fits). */
 export interface WaitingTabSource {
   id: string
