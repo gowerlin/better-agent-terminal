@@ -1,5 +1,5 @@
 {
- "generated_at": "2026-11-02T03:20:01+08:00",
+ "generated_at": "2026-11-02T03:27:03+08:00",
  "generator": {
   "script": "ct-session-stats.py",
   "version": "0.1.0"
@@ -14,13 +14,13 @@
  },
  "tower_daily": {
   "2026-11-01": {
-   "api_requests": 132,
-   "cache_read": 34402120,
-   "cache_write": 340048,
-   "cache_write_1h": 340048,
+   "api_requests": 139,
+   "cache_read": 38685835,
+   "cache_write": 382058,
+   "cache_write_1h": 382058,
    "cache_write_5m": 0,
-   "input": 288,
-   "output": 123929
+   "input": 320,
+   "output": 131507
   }
  },
  "workorders": [
@@ -2145,6 +2145,85 @@
     "2.1.316"
    ],
    "workorder": "T0761"
+  },
+  {
+   "attribution": {
+    "conflict": false,
+    "source": "frontmatter",
+    "sources": {
+     "frontmatter": 1
+    }
+   },
+   "by_mcp_server": {},
+   "by_tool": {
+    "Bash": 56,
+    "Edit": 21,
+    "Read": 6,
+    "Write": 3
+   },
+   "counts": {
+    "api_requests": 67,
+    "failures": 1,
+    "same_file_read_ge3": 0,
+    "subagent_files": 0,
+    "tool_calls": 86
+   },
+   "end": "2026-11-01T19:26:54Z",
+   "est_usd": 5.7636,
+   "failures_by_tool": {
+    "Bash": 1
+   },
+   "renews": 0,
+   "sessions": 1,
+   "skills_invoked": {},
+   "start": "2026-11-01T19:12:56Z",
+   "stuck": {
+    "max_consecutive_failures": 1,
+    "max_failures_in_10_calls": 1,
+    "near_repeat_fail_pairs_j50": 0,
+    "repeat_fail_groups_norm": 0
+   },
+   "stuck_signal": false,
+   "subagent_tokens": {
+    "cache_read": 0,
+    "cache_write": 0,
+    "cache_write_1h": 0,
+    "cache_write_5m": 0,
+    "input": 0,
+    "output": 0
+   },
+   "tokens": {
+    "cache_read": 13362802,
+    "cache_write": 233692,
+    "cache_write_1h": 233692,
+    "cache_write_5m": 0,
+    "input": 134,
+    "output": 61050
+   },
+   "top_tools": [
+    [
+     "Bash",
+     56
+    ],
+    [
+     "Edit",
+     21
+    ],
+    [
+     "Read",
+     6
+    ],
+    [
+     "Write",
+     3
+    ]
+   ],
+   "type": "implementation",
+   "unpriced_tokens": 0,
+   "versions": [
+    "2.1.316"
+   ],
+   "workorder": "T0762"
   },
   {
    "attribution": {
