@@ -1,15 +1,15 @@
 ---
 schema_kind: tower-state
 summary_version: 1
-updated_at: "2026-11-01T22:27:32+0800"
+updated_at: "2026-11-01T22:34:40+0800"
 session: "2026-11-01 21:36 第一百零四 session 開工（CT v6.0.0-beta.10，Fast Path）"
 next_ids:
-  workorder: "T0753"
+  workorder: "T0754"
   decision: "D206"
-  bug: "BUG-186"
+  bug: "BUG-187"
   plan: "PLAN-057"
 todo:
-  - "T0751（BUG-185）/ T0752（匣選單同名標籤 (b)）進行中 → 完成後與 T0750 一起發 `0.7.3-pre.2`（D205）；之後 BUG-183 / 184 實機驗收"
+  - "T0753（BUG-186 遠端工具偵測，WSL / Docker / SSH）進行中 → 完成後與 T0750–T0752 一起發 `0.7.3-pre.2`（D205）；之後 BUG-183 / 184 / 186 實機驗收"
   - "工作區 ⚠️ 剩餘手動項（`v0.7.2-pre.8` 起）：視窗沒有焦點時等待結束、滑鼠回答後清除"
   - "外部 / 特定環境驗收：BUG-128 / 130（macOS）、BUG-159（一般權限 ＋ codex）"
   - "候選（T0747）：auto mode classifier 詢問路徑的 hook / ⚠️（需先定義安全動作與費用上限）"
@@ -19,11 +19,11 @@ todo:
 ---
 # Tower State — better-agent-terminal
 
-> 🟢 **第一百零四 session 開工**（2026-11-01 21:36 (UTC+8)，CT v6.0.0-beta.10，Fast Path；塔台 session `3f9b428a-2c04-4a70-8751-68733dd7b1cc`；`--set-role tower --mode on` exit 0；安裝版 helper `v0.7.3-pre.1`；HEAD `68532d71` = 上次收工 commit、工作區乾淨，`*sync` 沿用收工時索引；熱檔皆在 400 KB 預算內）。21:37 T0360 / T0649 / T0672 / T0691 `FIXED` → `DONE`（對應 BUG 皆已 CLOSED，R-G003，`6ed32a57`）。BUG-182 實機驗收步驟已給使用者（遠端 WSL bat-server 仍 `0.6.1-pre.5`，待精靈升級）。21:40 **BUG-175 CLOSED**（外部測試者A 回報 macOS 實機正常，使用者轉達）→ 熱區 Fixed 4 / Closed 42；21:42 使用者選 A → GitHub #22 留言說明並以 `completed` 關閉。21:45 使用者以精靈把 WSL bat-server 升到 `0.7.3-pre.1`（塔台唯讀確認）。22:04 **BUG-182 CLOSED**（使用者 WSL 實機：情境 A / B 通過，B 需先 ⏻ 重啟舊分頁）；驗收中發現 → 開 **BUG-183**（隱藏的 profile 視窗按「開啟」不顯示，medium）/ **BUG-184**（匣選單殘留已移出 profile 的視窗，low）→ 熱區 Open 2 / Fixed 3 / Closed 43。使用者「開單修，派 T0750」→ 開 **T0750**（BUG-183 / 184 → FIXING），22:07 派工（yolo，`started:` exit 0）。**T0750 DONE**（22:21，`8a432d40`；BUG-183 成因如初步定位，本機 profile 同樣受影響、second-instance 路徑一併修；BUG-184 成因不同：「配置」✕ 的 `profile:delete` 只刪 profile 不關視窗；新增 `src/lib/profile-window-front.ts`；unit 6376 / 360 files、typecheck 0 / 0、build；e2e t0750 突變檢查兩項皆失敗、修正後連跑 2 次綠；detached / plan039 / t0513 等 13 項綠；塔台複跑新 unit 17 / 17）→ **BUG-183 / 184 FIXED**；開 **BUG-185**（t0512 第 2 項缺 `wsl-systemd:snapshot-unit` stub，low）→ 熱區 Open 1 / Fixed 5 / Closed 43；session 快照已寫；`--close-worker T0750` exit 0。使用者「開單修 BUG-185。匣選單標籤用 (b)，都好了一起發版」→ **D205** → 開 **T0751**（BUG-185 → FIXING）/ **T0752**（匣選單同名標籤加序號），並行（T0752 等 T0751 commit 後才 build）；22:27 兩張派工（yolo，皆 `started:` exit 0）。
+> 🟢 **第一百零四 session 開工**（2026-11-01 21:36 (UTC+8)，CT v6.0.0-beta.10，Fast Path；塔台 session `3f9b428a-2c04-4a70-8751-68733dd7b1cc`；`--set-role tower --mode on` exit 0；安裝版 helper `v0.7.3-pre.1`；HEAD `68532d71` = 上次收工 commit、工作區乾淨，`*sync` 沿用收工時索引；熱檔皆在 400 KB 預算內）。21:37 T0360 / T0649 / T0672 / T0691 `FIXED` → `DONE`（對應 BUG 皆已 CLOSED，R-G003，`6ed32a57`）。BUG-182 實機驗收步驟已給使用者（遠端 WSL bat-server 仍 `0.6.1-pre.5`，待精靈升級）。21:40 **BUG-175 CLOSED**（外部測試者A 回報 macOS 實機正常，使用者轉達）→ 熱區 Fixed 4 / Closed 42；21:42 使用者選 A → GitHub #22 留言說明並以 `completed` 關閉。21:45 使用者以精靈把 WSL bat-server 升到 `0.7.3-pre.1`（塔台唯讀確認）。22:04 **BUG-182 CLOSED**（使用者 WSL 實機：情境 A / B 通過，B 需先 ⏻ 重啟舊分頁）；驗收中發現 → 開 **BUG-183**（隱藏的 profile 視窗按「開啟」不顯示，medium）/ **BUG-184**（匣選單殘留已移出 profile 的視窗，low）→ 熱區 Open 2 / Fixed 3 / Closed 43。使用者「開單修，派 T0750」→ 開 **T0750**（BUG-183 / 184 → FIXING），22:07 派工（yolo，`started:` exit 0）。**T0750 DONE**（22:21，`8a432d40`；BUG-183 成因如初步定位，本機 profile 同樣受影響、second-instance 路徑一併修；BUG-184 成因不同：「配置」✕ 的 `profile:delete` 只刪 profile 不關視窗；新增 `src/lib/profile-window-front.ts`；unit 6376 / 360 files、typecheck 0 / 0、build；e2e t0750 突變檢查兩項皆失敗、修正後連跑 2 次綠；detached / plan039 / t0513 等 13 項綠；塔台複跑新 unit 17 / 17）→ **BUG-183 / 184 FIXED**；開 **BUG-185**（t0512 第 2 項缺 `wsl-systemd:snapshot-unit` stub，low）→ 熱區 Open 1 / Fixed 5 / Closed 43；session 快照已寫；`--close-worker T0750` exit 0。使用者「開單修 BUG-185。匣選單標籤用 (b)，都好了一起發版」→ **D205** → 開 **T0751**（BUG-185 → FIXING）/ **T0752**（匣選單同名標籤加序號），並行（T0752 等 T0751 commit 後才 build）；22:27 兩張派工（yolo，皆 `started:` exit 0）。**T0752 DONE**（22:32，`7775fa8f`；`src/lib/tray-window-labels.ts`；unit 6385 / 361 files、typecheck 0 / 0、build（T0751 commit 後）、t0750 e2e 綠）。**T0751 DONE**（22:32，`f9072e16`；補 `snapshot-unit` 與 4 個升級 / rollback stub；t0512 兩項連跑 2 次綠、突變檢查失敗如預期；Worker 寫 FIXED，塔台改 DONE）→ **BUG-185 FIXED**；兩張 session 快照已寫、`--close-worker` exit 0。使用者「nvm 與 uv 偵測錯誤也一起修」＋「也檢查 docker 或 ssh」→ 開 **BUG-186**（medium）/ **T0753**（BUG-186 → FIXING），完成後一起發 pre.2。
 
 > 最後更新:2026-11-01 21:30 (UTC+8) — **第一百零三 session 收工**（CT v6.0.0-beta.10）：T0736–T0749（D204）→ **`v0.7.2-pre.9`**（BUG-180 / 181）、**`v0.7.3-pre.1`**（BUG-182）；NSIS 重裝驗收 PASS；27 張 BUG 依 R-G003 結案。前次：第一百零二 session 收工（2026-11-01 17:08）。
 >
-> **下次起手**:T0751 / T0752 收單 → 發 `0.7.3-pre.2`（D205）→ BUG-183 / 184 實機驗收；工作區 ⚠️ 無焦點時結束（使用者手動）、滑鼠回答；BUG-128 / 130（macOS）/ 159（一般權限）待驗收；熱區無進行中工單；版號線 `0.7.3-pre.N`（已到 pre.1）。
+> **下次起手**:T0753 收單 → 發 `0.7.3-pre.2`（D205）→ BUG-183 / 184 / 186 實機驗收；工作區 ⚠️ 無焦點時結束（使用者手動）、滑鼠回答；BUG-128 / 130（macOS）/ 159（一般權限）待驗收；熱區無進行中工單；版號線 `0.7.3-pre.N`（已到 pre.1）。
 
 > 前次:2026-11-01 17:08 (UTC+8) — **第一百零二 session 收工**（CT v5.15.0）：T0727–T0735（D197–D203）→ **`v0.7.2-pre.7`**、**`v0.7.2-pre.8`**（工作區等待提示）。
 
@@ -94,7 +94,7 @@ eport.md`（real，20:18:03–20:18:31，PS 7.6.9 系統管理員）：⓪ PASS�
 - **`v0.7.2-pre.7` 發佈**（第一百零二 session，run `41274458418`）：BUG-177 / 178 / 179（T0729 / T0730 / T0732）
 
 ### 待辦（依優先序）
-1. 🔴 **T0751 / T0752 → 發 `0.7.3-pre.2`**（D205，含 T0750）；之後 BUG-183 / 184 實機驗收
+1. 🔴 **T0753 → 發 `0.7.3-pre.2`**（D205，含 T0750–T0752）；之後 BUG-183 / 184 / 186 實機驗收
 2. 🔴 **工作區 ⚠️ 剩餘手動項**（`v0.7.2-pre.8` 起）：視窗沒有焦點時等待結束（`bat-hook.mjs` 計時模擬，三情境步驟見第一百零三 session 對話）、滑鼠回答後清除
 3. 🟡 **外部 / 特定環境驗收**：BUG-128 / 130（macOS）、BUG-159（一般權限 ＋ codex）
 4. 🟢 **後續候選**：auto mode classifier 詢問路徑的 hook / ⚠️（T0747）；⚠️ 的 SSH / Docker 遠端、正式 bundle 安裝的 server、真正網路中斷（T0748）；detached 視窗 ⚠️（D201）；Claude 面板等待權限 ⚠️；npm 安裝的 codex 不注入 `--no-daemon`（T0742）；背景 Agent 不在 active task bar（T0739）；`CLAUDE_CODE_PLUGIN_CACHE_DIR`（T0730）；PLAN-055
@@ -105,13 +105,13 @@ eport.md`（real，20:18:03–20:18:31，PS 7.6.9 系統管理員）：⓪ PASS�
 - 公開 repo（D176）：工單 / commit / BUG 不寫真名、客戶名、家目錄路徑；push 前跑 `.private/` 的檢查樣式
 
 ### 快速連結
-- Bug Tracker → [_bug-tracker.md](_bug-tracker.md)（熱區：Open 0 / Fixing 1 / Fixed 5 / Closed 43，2026-11-01 22:27）｜ Backlog → [_backlog.md](_backlog.md)
+- Bug Tracker → [_bug-tracker.md](_bug-tracker.md)（熱區：Open 0 / Fixing 1 / Fixed 6 / Closed 43，2026-11-01 22:34）｜ Backlog → [_backlog.md](_backlog.md)
 - Decision Log → [_decision-log.md](_decision-log.md)（最大 D205）｜ Learnings → [_learnings.md](_learnings.md)（最大 L177）
 - 網站 → https://gowerlin.github.io/better-agent-terminal/｜ 素材 spec → `e2e/site-media.spec.ts`（`BAT_SITE_MEDIA=1`，輸出 `e2e-media/`）
 - 歷史 sessions → [_archive/state-snapshots/INDEX.md](_archive/state-snapshots/INDEX.md)（119 entries）
 
 ### 編號起始
-- **T0753** / **BUG-186** / **PLAN-057** / **D206** / **EXP-WFMINE-002**（其他 TOPIC 從 001） / **L178** / **CT-T023**
+- **T0754** / **BUG-187** / **PLAN-057** / **D206** / **EXP-WFMINE-002**（其他 TOPIC 從 001） / **L178** / **CT-T023**
 
 ---
 

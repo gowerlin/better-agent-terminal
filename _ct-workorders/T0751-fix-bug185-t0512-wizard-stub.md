@@ -4,14 +4,14 @@ schema_kind: workorder
 id: T0751
 title: "BUG-185 修正：e2e `t0512-profile-panel-layout` 第 2 項補 `wsl-systemd:snapshot-unit` stub，並核對 `WIZARD_STUBS` 與精靈現況"
 type: implementation
-status: FIXED
+status: DONE
 repo: better-agent-terminal
 project: maintenance
 priority: P3
 sizing: XS
 created_at: "2026-11-01T22:26:23+0800"
 started_at: "2026-11-01T22:27:48+0800"
-updated_at: "2026-11-01T22:32:20+0800"
+updated_at: "2026-11-01T22:34:40+0800"
 completed_at: "2026-11-01T22:32:20+0800"
 session_ids:
   - "b4720162-3235-4e2e-a6e0-7d8ee95aff50"
@@ -146,3 +146,7 @@ T0750 重跑相關 e2e 時發現 `t0512-profile-panel-layout` 第 2 項失敗：
 ### 後續建議
 
 - BUG-185 → FIXED（已改）；隨 D205 與 T0750 / T0752 一起發版後可 CLOSED。
+
+### 塔台收尾補記（2026-11-01 22:34，第一百零四 session）
+
+- 工單 `FIXED` → `DONE`：工單狀態用 `DONE`（`FIXED` 是 BUG 狀態）；BUG-185 維持 FIXED，隨 `0.7.3-pre.2` 發版後結案。回報區〈發現的問題〉1（`tarballPath` 字串跳脫）屬測試內既有瑕疵、不影響結果，暫不開單。
