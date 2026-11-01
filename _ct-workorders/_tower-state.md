@@ -1,10 +1,10 @@
 ---
 schema_kind: tower-state
 summary_version: 1
-updated_at: "2026-11-01T10:51:38+0800"
-session: "2026-11-01 第一百零一 session 已收工（CT v5.15.0）：T0720–T0726（D194–D196）、Claude Agent 改名、工作清單、NSIS 瘦身、v0.7.2-pre.6"
+updated_at: "2026-11-01T10:59:16+0800"
+session: "2026-11-01 第一百零二 session 進行中（CT v5.15.0）：pre.6 自動化驗收 T0727（IN_PROGRESS，Claude 面板假 API e2e）→ T0728（PENDING，終端連結＋codex ↻ e2e）"
 next_ids:
-  workorder: "T0727"
+  workorder: "T0729"
   decision: "D197"
   bug: "BUG-177"
   plan: "PLAN-057"
@@ -18,6 +18,8 @@ todo:
   - "後續候選：工作清單 pinned 區塊、sub-agent Task* 併入（T0725）；升內嵌 CLI 工單回報附 npm unpackedSize 前後差（D196）"
 ---
 # Tower State — better-agent-terminal
+
+> 🟢 **第一百零二 session 進行中**（2026-11-01 10:54 起，CT v5.15.0，Fast Path；`--set-role tower --mode on` exit 0；安裝版 helper `v0.7.2-pre.6`）：使用者「pre.6 實機驗收開始，可自動化的先安排」→ T0727（Claude 面板假 Anthropic API e2e，10:59 派工 `started:`）→ T0728（BUG-174 連結＋codex 0.166 ↻ → ✓ e2e，等 T0727 完成再派，避免同時 `vite build`）。NSIS 覆蓋 / 解除 / 乾淨重裝：本機沒有 Windows Sandbox，在主機跑會覆蓋使用中的 BAT → 留手動。BUG-169：本機安裝版 `bat-terminal.mjs --version` = `v0.7.2-pre.6`（Windows 已實測），待使用者決定是否不等外部測試者A 直接 CLOSED。
 
 > 最後更新:2026-11-01 10:51 (UTC+8) — **第一百零一 session 收工**（CT v5.15.0）：T0720 安裝檔研究 / T0721 後續候選研究 / T0722 改名並行 → T0723–T0726（D194–D196）→ **`v0.7.2-pre.6`**（exe 292.9 MiB，D146 上限改 384 / 512 MiB）。前次：第一百 session 收工（2026-11-01 09:41）。
 >
