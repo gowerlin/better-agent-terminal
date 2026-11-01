@@ -14,6 +14,7 @@ todo:
   - "使用者日常使用驗收 BUG-171"
   - "外部測試者A 驗收 BUG-169 / BUG-175（v0.7.2-pre.3 起）；BUG-175 另等 GitHub #22 回報者回覆（已留言），通過後關 #22"
   - "BUG-156 / 159 待特定環境驗收"
+  - "T0722 DONE（`35b2bac3`，未發版）：下次發版更版重點寫「Claude Agent V1 改名 Claude Agent，舊分頁標題自動更新」；網站截圖 `site/public/media/agents-menu.png` 等仍顯示 V1 / V2，待重拍"
 ---
 # Tower State — better-agent-terminal
 
