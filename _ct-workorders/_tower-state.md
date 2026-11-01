@@ -1,8 +1,8 @@
 ---
 schema_kind: tower-state
 summary_version: 1
-updated_at: "2026-11-01T08:35:18+0800"
-session: "2026-11-01 第一百 session 進行中（CT v5.15.0）：D191 內嵌 claude / codex 追最新，T0717 DONE（D192），T0718 執行中"
+updated_at: "2026-11-01T09:01:25+0800"
+session: "2026-11-01 第一百 session 進行中（CT v5.15.0）：D191 內嵌 claude / codex 追最新，T0717 / T0718 DONE（D192；D123 Phase 2 完成），待決定是否發 0.7.2-pre.5"
 next_ids:
   workorder: "T0719"
   decision: "D193"
@@ -271,6 +271,7 @@ todo:
 - 08:14 T0717 派工（`--mode yolo --no-interactive`，`started: 2026-11-01T00:14:21Z`）
 - 08:24 [提問] T0717 Q-1 / Q-2（BAT 通道，non-blocking 收尾前答）→ 塔台代決皆 A，`--answer` exit 0 ×2（D192）
 - 08:35 T0717 DONE（`101adaaf`；unit 6182 / legacy 472 / typecheck 0 / 0 / build / e2e t0592 / t0621；塔台抽驗內嵌 claude 2.1.316、codex 0.166.0）→ `--close-worker` exit 0 → T0718 派工（`started: 2026-11-01T00:35:17Z`）
+- 09:01 T0718 DONE（`61dff300` / `45113164` / `54f52048`；無提問；unit 6203 / 347 files / legacy 472 / build / asar-runtime-deps 實跑 / 隔離實例遷移實測；塔台複驗 SDK 0.3.316、typecheck 0 / 0、殘留引用只剩遷移碼與註解）→ D123 Phase 2 完成 → `--close-worker` exit 0
 
 ### 歷史 Session（摘要）
 
