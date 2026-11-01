@@ -12,7 +12,8 @@
 //      bat_read_output (marker seen, token masked)
 //   3. Tower (MCP): bat_wait until=exit while the Worker's shell exits → changed, exited
 //   4. `agent:bat-mcp-launch-args`: claude `--mcp-config=<userData>/bat-mcp/claude.json` (file has
-//      command / args only), codex `-c mcp_servers.bat.*`; Settings off → ''
+//      command / args only), codex `-c mcp_servers.bat.*`; Settings off → claude '', codex
+//      `--no-daemon` or '' (T0651; which one depends on the codex on PATH, T0758)
 //   5. the embedded claude (isolated CLAUDE_CONFIG_DIR, no prompt) health-checks the server of the
 //      BAT-generated file: ✔ Connected
 //   6. bat-scripts.log has the bat-mcp tool-call lines, never the output or a token
@@ -23,6 +24,7 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { REPO_ROOT, closeIsolated, launchIsolated, testLogger, type IsolatedInstance } from './fixtures/electron-isolation'
+import { createCodexNoDaemonSupportCheck } from '../electron/codex-osc-version'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type AnyApi = any
@@ -272,7 +274,15 @@ test('bat MCP shim: tools from inside the tabs (scoped), launch args, claude hea
       await api.settings.save(JSON.stringify({ ...current, batMcpEnabled: false }))
     })
     expect(await win.evaluate(() => (window as AnyApi).electronAPI.agent.batMcpLaunchArgs('claude-cli', 'pwsh', ''))).toBe('')
-    expect(await win.evaluate(() => (window as AnyApi).electronAPI.agent.batMcpLaunchArgs('codex-cli', 'pwsh', ''))).toBe('')
+    // T0758 / BUG-189: with BAT MCP off a codex tab still gets `--no-daemon` (T0651) when the codex on
+    // BAT's PATH is >= 0.156.0. Which codex that is depends on how the test runs (`npx playwright` puts
+    // node_modules\.bin first: the embedded codex's npm shim, followed since T0758; without it: whatever
+    // codex the machine has, or none), so the expected value comes from the same probe on the same PATH
+    // (the app inherits this process's PATH; Windows / Linux leave it untouched, early-path-fix.ts).
+    const noDaemon = await createCodexNoDaemonSupportCheck({ logger: { log } })()
+    log(`codex on PATH for --no-daemon: ${JSON.stringify(noDaemon)}`)
+    expect(await win.evaluate(() => (window as AnyApi).electronAPI.agent.batMcpLaunchArgs('codex-cli', 'pwsh', '')))
+      .toBe(noDaemon.inject ? '--no-daemon' : '')
 
     // ── 5. embedded claude health check of the BAT-generated server (no prompt) ──
     const claudeBin = path.join(REPO_ROOT, 'node_modules', '@anthropic-ai', 'claude-code', 'bin', 'claude.exe')

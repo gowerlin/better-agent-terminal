@@ -449,14 +449,14 @@ describe('query handlers: osc / input (T0621)', () => {
 describe('C-5: the dispatched codex and its version (electron/codex-osc-version.ts)', () => {
   const files = (list: string[]) => (p: string) => list.includes(p)
 
-  it('resolves `codex` on PATH (Windows: the first directory holding a codex must hold codex.exe)', () => {
+  it('resolves `codex` on PATH (Windows: codex.exe in the first directory holding a codex; an npm shim there is followed only when readable, T0758)', () => {
     const win = { platform: 'win32' as const }
     expect(resolveDispatchCodexBinary('codex -c features.daemon_auto_start=false', {
       ...win, env: { Path: 'C:\\a;C:\\b' }, isFile: files(['C:\\b\\codex.exe']),
     })).toEqual({ path: 'C:\\b\\codex.exe' })
     expect(resolveDispatchCodexBinary('codex', {
       ...win, env: { PATH: 'C:\\npm;C:\\b' }, isFile: files(['C:\\npm\\codex.cmd', 'C:\\b\\codex.exe']),
-    })).toEqual({ reason: 'first codex on PATH is C:\\npm\\codex.cmd (needs a shell)' })
+    })).toEqual({ reason: 'first codex on PATH is C:\\npm\\codex.cmd (cannot read the shim)' })
     expect(resolveDispatchCodexBinary('codex', {
       ...win, env: { PATH: '"C:\\x y"' }, isFile: files(['C:\\x y\\codex.exe', 'C:\\x y\\codex.cmd']),
     })).toEqual({ path: 'C:\\x y\\codex.exe' })
@@ -467,7 +467,9 @@ describe('C-5: the dispatched codex and its version (electron/codex-osc-version.
 
   it('a custom CLI: an absolute path is probed as it is; a bare other word is unknown', () => {
     expect(resolveDispatchCodexBinary('/opt/codex/bin/codex --x', { platform: 'linux', env: {}, isFile: files(['/opt/codex/bin/codex']) })).toEqual({ path: '/opt/codex/bin/codex' })
-    expect(resolveDispatchCodexBinary('C:\\tools\\codex.cmd', { platform: 'win32', env: {}, isFile: () => true })).toEqual({ reason: 'custom CLI is not an .exe' })
+    // T0758: a .cmd custom CLI is followed only as an npm shim (codex-npm-shim-version.test.ts)
+    expect(resolveDispatchCodexBinary('C:\\tools\\codex.cmd', { platform: 'win32', env: {}, isFile: () => true })).toEqual({ reason: 'custom CLI C:\\tools\\codex.cmd (cannot read the shim)' })
+    expect(resolveDispatchCodexBinary('C:\\tools\\codex.vbs', { platform: 'win32', env: {}, isFile: () => true })).toEqual({ reason: 'custom CLI is not an .exe' })
     expect(resolveDispatchCodexBinary('mycodex', { platform: 'linux', env: {}, isFile: () => true })).toEqual({ reason: "launch command 'mycodex' is not codex on PATH" })
   })
 

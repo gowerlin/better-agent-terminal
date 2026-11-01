@@ -90,6 +90,7 @@ describe('createCodexNoDaemonSupportCheck', () => {
       env: { PATH: opts.pathValue ?? '/usr/bin' },
       isFile: p => files.includes(p),
       mtimeMs: () => 1,
+      readFile: () => null, // T0758: shims are not on disk here
       execFile,
       logger: { log: m => lines.push(m) },
     })
@@ -126,7 +127,8 @@ describe('createCodexNoDaemonSupportCheck', () => {
     const none = check('codex-cli 0.163.0', { files: [] })
     expect(await none.run()).toEqual({ inject: false, reason: 'version-unknown' })
     expect(none.calls).toEqual([])
-    // Windows: an npm shim first on PATH cannot run without a shell
+    // Windows: an npm shim first on PATH that cannot be followed (here: not on disk) → unknown;
+    // a real npm shim is followed to its codex.exe (T0758, codex-npm-shim-version.test.ts)
     const shim = check('codex-cli 0.163.0', { platform: 'win32', files: ['C:\\npm\\codex.cmd', 'C:\\Codex\\codex.exe'], pathValue: 'C:\\npm;C:\\Codex' })
     expect(await shim.run()).toEqual({ inject: false, reason: 'version-unknown' })
     expect(shim.calls).toEqual([])

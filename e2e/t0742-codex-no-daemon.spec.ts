@@ -6,11 +6,17 @@
 // Before T0651 a codex tab without the MCP args got nothing (`git show 5b1be0f5^:electron/bat-mcp-launch.ts`:
 // Settings off → `{ injected: false, reason }`, no codex part at all), so its command line was plain `codex`.
 //
-// One scenario: Settings `batMcpEnabled: false`; a Codex CLI tab from the thumbnail "+" menu. The
-// decision probes the codex on BAT's PATH (`codex --version`, must be >= 0.156.0; the real codex.exe).
-// BAT gets PATH without node_modules/.bin (see APP_PATH). The tab's shell must not start the real
-// codex (no login, no daemon), so the workspace env puts a directory first on the tab's PATH whose
-// `codex.cmd` only prints its arguments. The test checks the
+// Settings `batMcpEnabled: false`; a Codex CLI tab from the thumbnail "+" menu. The decision probes
+// the codex on BAT's PATH (`codex --version`, must be >= 0.156.0). Two scenarios, BAT's PATH differs:
+//   - codex.exe: BAT gets PATH without node_modules/.bin (see APP_PATH); the first codex is the real
+//     codex.exe (skipped when the machine has none).
+//   - npm shim (T0758 / BUG-189): a directory laid out like `npm i -g @openai/codex` goes first on
+//     BAT's PATH: `codex.cmd` / `codex.ps1` (npm's own shim text) → node_modules\@openai\codex\bin\codex.js,
+//     with the platform package nested under it (a junction to the repo's embedded
+//     @openai/codex-win32-x64). Before T0758 the probe stopped at the shim (`version=unknown`, no
+//     `--no-daemon`); now it reads the shim and probes the nested codex.exe.
+// The tab's shell must not start the real codex (no login, no daemon), so the workspace env puts a
+// directory first on the tab's PATH whose `codex.cmd` only prints its arguments. The test checks the
 // launch decision in the debug log and the arguments the tab's command line handed to `codex`.
 //
 // Isolated source build (`npx vite build` first), see fixtures/electron-isolation.ts. Windows only
@@ -21,7 +27,7 @@ import { execFileSync } from 'node:child_process'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
-import { closeIsolated, launchIsolated, testLogger, type IsolatedInstance } from './fixtures/electron-isolation'
+import { REPO_ROOT, closeIsolated, launchIsolated, testLogger, type IsolatedInstance } from './fixtures/electron-isolation'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type AnyApi = any
@@ -77,10 +83,75 @@ const plain = (s: string) => s.replace(/\x1b\[[0-?]*[ -/]*[@-~]/g, '').replace(/
 const CODEX = process.platform === 'win32' ? codexOnPath() : null
 const CODEX_VERSION = CODEX ? versionOf(CODEX) : null
 
+// T0758: the repo's embedded npm codex (what the npm-shim scenario links to)
+const REPO_NODE_MODULES = path.join(REPO_ROOT, 'node_modules')
+const EMBEDDED_PLATFORM_PKG = path.join(REPO_NODE_MODULES, '@openai', 'codex-win32-x64')
+const EMBEDDED_EXE = path.join(EMBEDDED_PLATFORM_PKG, 'vendor', 'x86_64-pc-windows-msvc', 'bin', 'codex.exe')
+const EMBEDDED_VERSION = process.platform === 'win32' && process.arch === 'x64' && fs.existsSync(EMBEDDED_EXE) ? versionOf(EMBEDDED_EXE) : null
+
+/** npm 11's cmd-shim / ps1 shim for `npm i -g @openai/codex` (T0758 查證: written by `npm i -g --prefix`). */
+const NPM_GLOBAL_CMD = [
+  '@ECHO off', 'GOTO start', ':find_dp0', 'SET dp0=%~dp0', 'EXIT /b', ':start', 'SETLOCAL', 'CALL :find_dp0', '',
+  'IF EXIST "%dp0%\\node.exe" (', '  SET "_prog=%dp0%\\node.exe"', ') ELSE (', '  SET "_prog=node"', ')', '',
+  'endLocal & goto #_undefined_# 2>NUL || title %COMSPEC% & set PATHEXT=%PATHEXT:;.JS;=;% & "%_prog%"  "%dp0%\\node_modules\\@openai\\codex\\bin\\codex.js" %*',
+].join('\r\n')
+const NPM_GLOBAL_PS1 = [
+  '#!/usr/bin/env pwsh', '$basedir=Split-Path $MyInvocation.MyCommand.Definition -Parent', '$exe=".exe"',
+  'if (Test-Path "$basedir/node$exe") {', '  & "$basedir/node$exe"  "$basedir/node_modules/@openai/codex/bin/codex.js" $args',
+  '} else {', '  & "node$exe"  "$basedir/node_modules/@openai/codex/bin/codex.js" $args', '}', 'exit $LASTEXITCODE',
+].join('\n')
+
+/**
+ * `<dir>` laid out like `npm i -g --prefix <dir> @openai/codex`: the shims, the package's codex.js /
+ * package.json (copied), its nested platform package (a junction to the repo's). Returns the codex.exe
+ * the probe must find and a cleanup that removes the junction itself, never what it points at.
+ */
+function npmGlobalInstall(dir: string): { exe: string; cleanup: () => void } {
+  const pkg = path.join(dir, 'node_modules', '@openai', 'codex')
+  fs.mkdirSync(path.join(pkg, 'bin'), { recursive: true })
+  fs.copyFileSync(path.join(REPO_NODE_MODULES, '@openai', 'codex', 'bin', 'codex.js'), path.join(pkg, 'bin', 'codex.js'))
+  fs.copyFileSync(path.join(REPO_NODE_MODULES, '@openai', 'codex', 'package.json'), path.join(pkg, 'package.json'))
+  fs.writeFileSync(path.join(dir, 'codex.cmd'), NPM_GLOBAL_CMD)
+  fs.writeFileSync(path.join(dir, 'codex.ps1'), NPM_GLOBAL_PS1)
+  const link = path.join(pkg, 'node_modules', '@openai', 'codex-win32-x64')
+  fs.mkdirSync(path.dirname(link), { recursive: true })
+  fs.symlinkSync(EMBEDDED_PLATFORM_PKG, link, 'junction')
+  return {
+    exe: path.join(link, 'vendor', 'x86_64-pc-windows-msvc', 'bin', 'codex.exe'),
+    cleanup: () => {
+      if (fs.existsSync(link)) fs.unlinkSync(link) // the junction only
+      if (!fs.existsSync(EMBEDDED_EXE)) throw new Error(`the embedded codex is gone after removing the junction: ${EMBEDDED_EXE}`)
+    },
+  }
+}
+
 test.skip(process.platform !== 'win32', 'pwsh tab + codex.cmd shim: Windows only')
-test.skip(!CODEX || !CODEX_VERSION || !atLeast(CODEX_VERSION, '0.156.0'), `needs codex.exe >= 0.156.0 first on PATH (found ${CODEX ?? 'none'} ${CODEX_VERSION ?? ''})`)
 
 test('a codex tab opened with BAT MCP off gets --no-daemon on its command line', async () => {
+  test.skip(!CODEX || !CODEX_VERSION || !atLeast(CODEX_VERSION, '0.156.0'), `needs codex.exe >= 0.156.0 first on PATH (found ${CODEX ?? 'none'} ${CODEX_VERSION ?? ''})`)
+  await codexTabGetsNoDaemon('t0742-no-daemon', () => ({ appPath: APP_PATH, probePath: CODEX!, version: CODEX_VERSION! }))
+})
+
+test('T0758 / BUG-189: the first codex on the app PATH is an npm shim → probed through it, --no-daemon', async () => {
+  test.skip(!EMBEDDED_VERSION || !atLeast(EMBEDDED_VERSION, '0.156.0'), `needs the embedded npm codex >= 0.156.0 (x64; found ${EMBEDDED_VERSION ?? 'none'})`)
+  let cleanup: (() => void) | undefined
+  try {
+    await codexTabGetsNoDaemon('t0758-npm-shim', (tmp) => {
+      const npmDir = path.join(tmp, 'npm')
+      const install = npmGlobalInstall(npmDir)
+      cleanup = install.cleanup
+      return { appPath: `${npmDir};${APP_PATH}`, probePath: install.exe, version: EMBEDDED_VERSION!, via: path.join(npmDir, 'codex.cmd') }
+    })
+  } finally {
+    cleanup?.()
+  }
+})
+
+/**
+ * Isolated BAT with `setup(tmp).appPath` as PATH; a Codex CLI tab with BAT MCP off. The probe line must
+ * name `probePath` (and `via`, the npm shim) with `version`; the tab's command line must carry `--no-daemon`.
+ */
+async function codexTabGetsNoDaemon(name: string, setup: (tmp: string) => { appPath: string; probePath: string; version: string; via?: string }): Promise<void> {
   test.setTimeout(150_000)
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'bat-t0742-codex-'))
   const folder = path.join(tmp, 'ws')
@@ -90,8 +161,9 @@ test('a codex tab opened with BAT MCP off gets --no-daemon on its command line',
   fs.writeFileSync(path.join(shimDir, 'codex.cmd'), `@echo ${ARGV_MARK} %*\r\n`)
   let inst: IsolatedInstance | undefined
   try {
-    log(`codex on BAT's PATH: ${CODEX} ${CODEX_VERSION}; tab PATH starts with the shim dir ${shimDir}`)
-    inst = await launchIsolated('t0742-no-daemon', log, { env: { [pathKey]: APP_PATH } })
+    const { appPath, probePath, version, via } = setup(tmp)
+    log(`BAT's PATH starts with ${appPath.split(';')[0]}; expected probe ${probePath} ${version}${via ? ` via ${via}` : ''}; tab PATH starts with the shim dir ${shimDir}`)
+    inst = await launchIsolated(name, log, { env: { [pathKey]: appPath } })
     const { win, userData } = inst
     await expect.poll(async () => (await win.evaluate(async () => (window as AnyApi).electronAPI.workspace.load())) !== null, { timeout: 30_000 }).toBe(true)
     await win.evaluate(async () => {
@@ -102,7 +174,7 @@ test('a codex tab opened with BAT MCP off gets --no-daemon on its command line',
     const seed = {
       workspaces: [{
         id: WS, name: 'T0742 codex', folderPath: folder, createdAt: Date.now(),
-        envVars: [{ key: pathKey, value: `${shimDir};${APP_PATH}`, enabled: true }],
+        envVars: [{ key: pathKey, value: `${shimDir};${appPath}`, enabled: true }],
       }],
       activeWorkspaceId: WS,
       activeGroup: null,
@@ -145,7 +217,8 @@ test('a codex tab opened with BAT MCP off gets --no-daemon on its command line',
     log(`probe: ${probe.map(l => l.trim()).join(' | ')}`)
     expect(decision).toContain('→ injected: --no-daemon')
     expect(decision).toMatch(/mcp=no \(/)
-    expect(probe.some(l => l.toLowerCase().includes(CODEX!.toLowerCase()) && l.includes(`version=${CODEX_VERSION}`))).toBe(true)
+    expect(probe.some(l => l.toLowerCase().includes(`path=${probePath.toLowerCase()} `) && l.includes(`version=${version}`)
+      && (!via || l.toLowerCase().includes(`via=${via.toLowerCase()}`)))).toBe(true)
 
     // The tab's command line: the shim prints what `codex` was called with.
     let argv = ''
@@ -156,9 +229,12 @@ test('a codex tab opened with BAT MCP off gets --no-daemon on its command line',
     }, { timeout: 20_000 }).not.toBe('')
     log(`codex was called with: ${argv}`)
     expect(argv.split(/\s+/)).toContain('--no-daemon')
-    await win.screenshot({ path: test.info().outputPath('codex-tab.png') })
+    await win.screenshot({ path: test.info().outputPath(`${name}-codex-tab.png`) })
   } finally {
     await closeIsolated(inst, log)
+    // the npm-shim scenario's junction goes first, so rmSync never walks into the repo's node_modules
+    const junction = path.join(tmp, 'npm', 'node_modules', '@openai', 'codex', 'node_modules', '@openai', 'codex-win32-x64')
+    if (fs.existsSync(junction)) fs.unlinkSync(junction)
     fs.rmSync(tmp, { recursive: true, force: true })
   }
-})
+}
