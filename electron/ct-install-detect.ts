@@ -25,7 +25,7 @@
 import * as fs from 'fs/promises'
 import * as path from 'path'
 import type { CtAgentInstalls, CtInstalls } from '../src/types/ct-config-sources'
-import { resolveClaudeConfigDir } from './claude-config-dir'
+import { resolveClaudeConfigDir, resolveClaudePluginsDir } from './claude-config-dir'
 
 /** The CT plugin's fixed name (CT `version-governance.md` § plugin 安裝／升級); the marketplace is not fixed. */
 export const CT_PLUGIN_NAME = 'ct'
@@ -258,20 +258,29 @@ export function claudeConfigDir(host: CtInstallHost): string {
 }
 
 /**
- * Claude's installed `ct@*` plugins, newest first, from `<CLAUDE_CONFIG_DIR>/plugins/installed_plugins.json`
+ * Claude's plugins dir: `CLAUDE_CODE_PLUGIN_CACHE_DIR`, else `<config>/plugins` (`resolveClaudePluginsDir`,
+ * BUG-191 / T0760). `cwd` = the claude's cwd, for a relative value.
+ */
+export function claudePluginsDir(host: CtInstallHost, cwd?: string): string {
+  return resolveClaudePluginsDir(host.env, host.homeDir, cwd)
+}
+
+/**
+ * Claude's installed `ct@*` plugins, newest first, from `<plugins dir>/installed_plugins.json` (`claudePluginsDir`:
+ * `CLAUDE_CODE_PLUGIN_CACHE_DIR`, else `<config>/plugins`; BUG-191)
  * (v2: `plugins: { "ct@mkt": [{ scope, installPath, version, projectPath? }] }`; a single object
  * per id is accepted too). Kept: `user` / `managed` scope (or none), and `project` / `local` only
  * when `projectPath` is `cwd`. Skipped: an id the user settings disable (`enabledPlugins[id] === false`).
- * `installPath` missing → `<CLAUDE_CODE_PLUGIN_CACHE_DIR | <config>/plugins>/cache/<mkt>/ct/<version>`.
+ * `settings.json` stays in the config dir. `installPath` missing → `<plugins dir>/cache/<mkt>/ct/<version>`.
  */
 export async function findClaudeCtPlugins(host: CtInstallHost, cwd?: string): Promise<CtPluginInstall[]> {
   const configDir = claudeConfigDir(host)
-  const installed = await readSmallJson(path.join(configDir, 'plugins', 'installed_plugins.json'))
+  const pluginsDir = claudePluginsDir(host, cwd)
+  const installed = await readSmallJson(path.join(pluginsDir, 'installed_plugins.json'))
   const plugins = installed && typeof installed === 'object' ? (installed as { plugins?: unknown }).plugins : undefined
   if (!plugins || typeof plugins !== 'object' || Array.isArray(plugins)) return []
   const settings = await readSmallJson(path.join(configDir, 'settings.json'))
   const enabledPlugins = settings && typeof settings === 'object' ? (settings as { enabledPlugins?: unknown }).enabledPlugins : undefined
-  const cacheRoot = host.env.CLAUDE_CODE_PLUGIN_CACHE_DIR?.trim() || path.join(configDir, 'plugins')
 
   const found: CtPluginInstall[] = []
   for (const [id, value] of Object.entries(plugins as Record<string, unknown>)) {
@@ -290,7 +299,7 @@ export async function findClaudeCtPlugins(host: CtInstallHost, cwd?: string): Pr
       const version = typeof record.version === 'string' ? record.version : ''
       const root = typeof record.installPath === 'string' && record.installPath
         ? record.installPath
-        : version ? path.join(cacheRoot, 'cache', marketplace, CT_PLUGIN_NAME, version) : ''
+        : version ? path.join(pluginsDir, 'cache', marketplace, CT_PLUGIN_NAME, version) : ''
       if (!root) continue
       found.push({ agent: 'claude', id, version: version || path.basename(root), root })
     }

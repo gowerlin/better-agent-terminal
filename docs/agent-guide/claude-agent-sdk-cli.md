@@ -73,15 +73,29 @@
 - **env 來源**：每個 consumer 傳「讀的是哪一個 claude」的 env，不一律看主行程 `process.env`：
   | 位置 | 讀什麼 | env |
   |---|---|---|
-  | `panelClaudeConfigDir`（`electron/claude-agent-manager.ts`） | Claude 面板的 session 歷史 `loadSessionHistory`、session 清單 fallback `listSessionsFallback`（`projects/<encoded cwd>`）、`runQuery` 的 `plugins/installed_plugins.json` | 面板 spawn CLI 的 env（`sdkSpawnEnv(runtime).env ?? process.env`）。`sdkSpawnEnv` 兩種 runtime 都不動 `CLAUDE_CONFIG_DIR`，所以沒有 runtime 的歷史 / 清單路徑不解析 runtime（`claude-config-dir.test.ts` 守住） |
+  | `panelClaudeConfigDir`（`electron/claude-agent-manager.ts`） | Claude 面板的 session 歷史 `loadSessionHistory`、session 清單 fallback `listSessionsFallback`（`projects/<encoded cwd>`）；`runQuery` 的 `installed_plugins.json` 經 `panelClaudePluginsDir`（見下方 plugins 目錄） | 面板 spawn CLI 的 env（`sdkSpawnEnv(runtime).env ?? process.env`）。`sdkSpawnEnv` 兩種 runtime 都不動 `CLAUDE_CONFIG_DIR`，所以沒有 runtime 的歷史 / 清單路徑不解析 runtime（`claude-config-dir.test.ts` 守住） |
   | `claude:scan-skills` / `claude:scan-star-commands` / `claude:get-statusline-extras`（`electron/handlers/claude.ts`） | 使用者的 `commands/`、`skills/`、`account-label.txt`、`cache/` | 回答主機的 env（`deps.env ?? process.env`；遠端 = bat-server） |
   | `defaultClaudeSettingsFiles`（`electron/bat-mcp-launch.ts`） | `settings.json`（hooks 是否停用） | 分頁啟動時的 env |
   | `claudeConfigDir`（`electron/ct-install-detect.ts`）、`ctConfigCandidates` 預設值層（`electron/handlers/ct-config.ts`） | CT 手動安裝 `skills/control-tower`、`ct@*` plugin | 回答主機的 env |
 - **不是 Claude 設定目錄（不經這個函式）**：`<home>/.claude/local`（舊版 claude 本機安裝位置，`claude-resolver.ts` / `node-resolver.ts`）、CT 自己的 `<home>/.claude/control-tower-data/config.yaml` 與舊 `control-tower-config.yaml`（ct-config global 層；CT `tower-config.md` 寫死 `~/.claude`，不隨 `CLAUDE_CONFIG_DIR` 移動）、專案的 `<cwd>/.claude`（`worktree-manager.ts`、scan-skills 的 project scope）。Claude 面板以 SDK 在主行程讀 session 清單（`listSessions`）時，SDK 自己讀 `process.env.CLAUDE_CONFIG_DIR`，與 spawn env 相同。
 - 🔴 新增讀 Claude 設定目錄的程式一律經 `resolveClaudeConfigDir`（或上表的包裝），不要手寫 `path.join(home, '.claude')`；`electron/__tests__/claude-config-dir.test.ts` 的 source guard 掃 `electron/` 與 `src/`，例外只有上一點列的檔案。
 - **與 CLI 的已知差異**（刻意保留）：CLI 2.1.316 / SDK 0.3.316 是 `(CLAUDE_CONFIG_DIR ?? join(homedir(), '.claude')).normalize('NFC')`：空字串或全空白照用（相對路徑），並正規化為 NFC。BAT 對空白值回到 `<home>/.claude`、不做 NFC，讓沒設變數的使用者路徑不變。設成空白的 `CLAUDE_CONFIG_DIR` 本身就是壞設定（CLI 會把 session 寫到 cwd 底下的 `projects/`）。
-- **已知限制**：`installed_plugins.json` 的位置沿用 T0710 規則（`<config>/plugins/`）；CT `data-layer-architecture.md` 記載設了 `CLAUDE_CODE_PLUGIN_CACHE_DIR` 時整個 plugins 目錄（含 `installed_plugins.json`）在該處，BAT 目前只把 cache 根目錄改到那裡（`findClaudeCtPlugins`），面板的 plugins 清單也一樣。
-- 驗證：`electron/__tests__/claude-config-dir.test.ts`（設 / 未設 / 空字串 / 全空白；兩種 runtime 的 spawn env；歷史與清單讀 `CLAUDE_CONFIG_DIR`；scan-skills / star commands / statusline extras；ct-config 預設值層與 global 層；source guard）；e2e `e2e/v072-pre6-claude-panel.spec.ts` 第二個 test（⑪ session 檔寫在 `CLAUDE_CONFIG_DIR`、清單找得到、plugins 從 `<CLAUDE_CONFIG_DIR>/plugins` 載入且暫存 home 的誘餌不載；⑫ 重開後 resume 歷史重建）。
+- **plugins 目錄（BUG-191 / T0760）**：🔴 規則 = `CLAUDE_CODE_PLUGIN_CACHE_DIR`（去掉前後空白後非空）優先，**整個 plugins 目錄**（`installed_plugins.json`、`known_marketplaces.json`、`cache/<mkt>/<plugin>/<version>`）都在那裡；否則 `<Claude 設定目錄>/plugins`。值為 `~` / `~/…` → 家目錄底下；相對路徑 → 相對於該 claude 的 cwd（呼叫端沒給 cwd 時原樣使用）。`settings.json`（`enabledPlugins`）留在設定目錄。沒設、空字串、全空白時路徑與 T0760 前完全相同。唯一實作 `resolveClaudePluginsDir(env, homeDir, cwd?, pathApi?)`（`electron/claude-config-dir.ts`）；consumer：`findClaudeCtPlugins`（經 `claudePluginsDir`，`electron/ct-install-detect.ts`；skill 面板 / `*` 補全、ct-config 預設值層與 `installs` 都經它）、面板 `runQuery` 的 plugins 清單（`panelClaudePluginsDir(runtime, session.cwd)`，env 與 `panelClaudeConfigDir` 相同）。🔴 不要手接 `<config>/plugins` 或直接讀 `CLAUDE_CODE_PLUGIN_CACHE_DIR`（`claude-config-dir.test.ts` source guard）。
+- **plugins 目錄實測（T0760，內嵌 CLI 2.1.316，暫存 HOME / USERPROFILE，本機 `directory` marketplace 裝假 `ct` plugin，不連網）**：
+
+  | `CLAUDE_CONFIG_DIR` | `CLAUDE_CODE_PLUGIN_CACHE_DIR` | `installed_plugins.json` / `known_marketplaces.json` | plugin 內容 | `settings.json` |
+  |---|---|---|---|---|
+  | 未設 | 未設 | `<home>/.claude/plugins/` | `<home>/.claude/plugins/cache/<mkt>/ct/<ver>` | `<home>/.claude/` |
+  | 設 | 未設 | `<config>/plugins/` | `<config>/plugins/cache/…` | `<config>/` |
+  | 未設 | 設 | `<cache dir>/` | `<cache dir>/cache/…` | `<home>/.claude/` |
+  | 設 | 設 | `<cache dir>/` | `<cache dir>/cache/…` | `<config>/` |
+  | 未設 | `''` / `'   '` | `<home>/.claude/plugins/` | 同左 `cache/…` | `<home>/.claude/` |
+  | 未設 | `~/pc` | `<home>/pc/` | `<home>/pc/cache/…` | `<home>/.claude/` |
+  | 未設 | `relpc`（相對） | `<cwd>/relpc/` | `<cwd>/relpc/cache/…` | `<home>/.claude/` |
+
+  `installed_plugins.json` 的 `installPath` 是 plugin 內容的絕對路徑。CLI 原始碼（2.1.316）：plugins 根目錄函式 = `CLAUDE_CODE_PLUGIN_CACHE_DIR` 有值則用它，否則 `join(<config>, 'plugins')`；`installed_plugins.json` = `join(<plugins 根目錄>, 'installed_plugins.json')`。
+- **已知差異（未涵蓋）**：CLI 的 Cowork 模式（`CLAUDE_CODE_USE_COWORK_PLUGINS=1`，T0760 實測）改用 `<config>/cowork_plugins/` 與 `<config>/cowork_settings.json`（設了 `CLAUDE_CODE_PLUGIN_CACHE_DIR` 時 plugins 仍在 cache dir）；BAT 不認這個模式，照舊讀 `plugins` / `settings.json`。CLI 另有 `CLAUDE_CODE_PLUGIN_USE_ZIP_CACHE`（zip cache 的 marketplace 檔）與 `CLAUDE_CODE_PLUGIN_SEED_DIR`（唯讀 seed 目錄），BAT 不讀。
+- 驗證：`electron/__tests__/claude-config-dir.test.ts`（設 / 未設 / 空字串 / 全空白；兩種 runtime 的 spawn env；歷史與清單讀 `CLAUDE_CONFIG_DIR`；scan-skills / star commands / statusline extras；ct-config 預設值層與 global 層；source guard；T0760：`resolveClaudePluginsDir` 設 / 未設 / 空白 / `~` / 相對路徑、`panelClaudePluginsDir`、BUG-191 source guard）、`ct-install-detect.test.ts` / `ct-config-sources.test.ts`（T0760：cache dir 的 `installed_plugins.json`、設了變數時不讀 `<config>/plugins`、`enabledPlugins` 仍讀設定目錄）；e2e `e2e/v072-pre6-claude-panel.spec.ts` 第二個 test（⑪ session 檔寫在 `CLAUDE_CONFIG_DIR`、清單找得到、plugins 從 `<CLAUDE_CONFIG_DIR>/plugins` 載入且暫存 home 的誘餌不載；⑫ 重開後 resume 歷史重建）。
 - 介面層 e2e（T0737，不耗 token）：`e2e/v072-pre7-claude-panel-ui.spec.ts` 從介面操作（縮圖列「+」新增 Claude Agent、`/model` 選模型、`/resume`、斜線選單、塔台 › 總覽）：BUG-177 新分頁與模型清單 0 個模型請求 / 0 個 session 檔、送一則後只有 1 個且 `/resume` 只列它；BUG-178 session 與 plugins 指令來自 `CLAUDE_CONFIG_DIR`、`*config` 預設值層讀 `<CLAUDE_CONFIG_DIR>/skills/control-tower/references/tower-config.md`、重開後新分頁以 `/resume` 接續、HOME 下 `.claude` 誘餌檔不變。
 
 ## Claude 面板的背景子代理（T0759 / BUG-190）

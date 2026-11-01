@@ -17,7 +17,7 @@ import {
   type ResolvedRuntime,
 } from './claude-runtime-router'
 import { claudeUpdateGuardEnv } from './claude-resolver'
-import { resolveClaudeConfigDir } from './claude-config-dir'
+import { resolveClaudeConfigDir, resolveClaudePluginsDir } from './claude-config-dir'
 import { HAIKU_5_5_LONG_PROMPT_THRESHOLD } from '../src/lib/model-pricing'
 import type { ClaudeRuntimeDegradedEvent, ClaudeRuntimeWarningEvent } from '../src/types'
 import type { HostDeps, HostEmit, HostNotification, HostNotifier } from './handlers/types'
@@ -180,6 +180,19 @@ export function panelClaudeConfigDir(
   homeDir?: string,
 ): string {
   return resolveClaudeConfigDir(sdkSpawnEnv(runtime).env ?? process.env, homeDir)
+}
+
+/**
+ * BUG-191 / T0760: the plugins dir of the CLI the panel spawns — `CLAUDE_CODE_PLUGIN_CACHE_DIR` of the
+ * spawn env (same env as `panelClaudeConfigDir`), else `<config dir>/plugins` (`resolveClaudePluginsDir`,
+ * electron/claude-config-dir.ts). `cwd` = the session cwd the CLI runs in (a relative value is against it).
+ */
+export function panelClaudePluginsDir(
+  runtime: Pick<ResolvedRuntime, 'source'> = { source: 'embedded' },
+  cwd?: string,
+  homeDir?: string,
+): string {
+  return resolveClaudePluginsDir(sdkSpawnEnv(runtime).env ?? process.env, homeDir, cwd)
 }
 
 /**
@@ -882,11 +895,11 @@ export class ClaudeAgentManager {
         })
       }
 
-      // Load installed plugins from <Claude config dir>/plugins/installed_plugins.json (BUG-178:
-      // `CLAUDE_CONFIG_DIR` of the spawn env, else ~/.claude)
+      // Load installed plugins from <plugins dir>/installed_plugins.json (BUG-191: the spawn env's
+      // `CLAUDE_CODE_PLUGIN_CACHE_DIR`, else <Claude config dir>/plugins — BUG-178)
       const installedPlugins: Array<{ type: 'local'; path: string }> = []
       try {
-        const pluginsJsonPath = pathModule.join(panelClaudeConfigDir(resolvedRuntime), 'plugins', 'installed_plugins.json')
+        const pluginsJsonPath = pathModule.join(panelClaudePluginsDir(resolvedRuntime, session.cwd), 'installed_plugins.json')
         const pluginsData = JSON.parse(fsSync.readFileSync(pluginsJsonPath, 'utf-8'))
         if (pluginsData.plugins) {
           for (const entries of Object.values(pluginsData.plugins)) {

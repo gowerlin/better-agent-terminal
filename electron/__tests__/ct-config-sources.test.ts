@@ -108,6 +108,20 @@ describe('T0710 (3-2): the ct plugin in the default layer', () => {
     expect((await readCtConfigSources(home, { CODEX_HOME: codexHome })).defaults).toEqual({ status: 'found', path: file, content: 'codex plugin' })
   })
 
+  it('BUG-191: CLAUDE_CODE_PLUGIN_CACHE_DIR → the plugin listed in <cache dir>/installed_plugins.json', async () => {
+    const cacheDir = path.join(home, 'plugin-cache')
+    const root = path.join(cacheDir, 'cache', 'control-tower', 'ct', '5.14.0')
+    write(path.relative(home, path.join(root, TOWER_CONFIG)), 'cache-dir plugin')
+    write(path.relative(home, path.join(cacheDir, 'installed_plugins.json')), JSON.stringify({
+      version: 2,
+      plugins: { 'ct@control-tower': [{ scope: 'user', installPath: root, version: '5.14.0' }] },
+    }))
+    expect((await readCtConfigSources(home)).defaults.status).toBe('missing')
+    const result = await readCtConfigSources(home, { CLAUDE_CODE_PLUGIN_CACHE_DIR: cacheDir })
+    expect(result.defaults).toEqual({ status: 'found', path: path.join(root, TOWER_CONFIG), content: 'cache-dir plugin' })
+    expect(result.installs?.claude.plugin).toEqual({ version: '5.14.0', marketplace: 'control-tower' })
+  })
+
   it('no install at all → missing with the manual candidates (unchanged)', async () => {
     expect((await readCtConfigSources(home)).defaults).toEqual({
       status: 'missing',

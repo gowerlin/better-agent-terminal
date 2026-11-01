@@ -14,7 +14,8 @@
  * plugin's copy (Claude `ct@*` plugin, then Codex, newest version first; the path shows
  * `plugins/cache/<marketplace>/ct/<version>`). The locations are `ctPluginTowerConfigCandidates`
  * (electron/ct-install-detect.ts), from this host's `CLAUDE_CONFIG_DIR` / `CLAUDE_CODE_PLUGIN_CACHE_DIR`
- * / `CODEX_HOME`.
+ * / `CODEX_HOME`. BUG-191 / T0760: with `CLAUDE_CODE_PLUGIN_CACHE_DIR` the whole Claude plugins dir
+ * (`installed_plugins.json` included) is there — `resolveClaudePluginsDir` (electron/claude-config-dir.ts).
  *
  * T0711: the answer also carries `installs` (`detectCtInstalls`, same module): whether Claude /
  * Codex each have a zip install, the plugin, or both, with versions. Optional field; the other

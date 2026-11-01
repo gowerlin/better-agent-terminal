@@ -102,7 +102,7 @@ renderer 不能讀檔，經 proxied channel `terminal:control-tower-prompt` 由�
 
 1. 手動安裝（照舊，實際生效的是它）：`~/.claude/skills/control-tower/references/tower-config.md` → `~/.codex/skills/…`（T0710 加：`CODEX_HOME` 設在別處時再加 `<CODEX_HOME>/skills/…`）
 2. 都沒有才找 plugin（`ctPluginTowerConfigCandidates`，只取有這個檔的版本）：
-   - Claude：`<CLAUDE_CONFIG_DIR 或 ~/.claude>/plugins/installed_plugins.json` 中 `ct@*` 的 `installPath`；沒有 `installPath` 時 `<CLAUDE_CODE_PLUGIN_CACHE_DIR 或 <config>/plugins>/cache/<mkt>/ct/<version>`。只取 `user` / `managed` scope（ct-config 沒有 cwd，`project` / `local` scope 不算）；使用者 `settings.json` 的 `enabledPlugins["ct@…"] === false` 跳過。
+   - Claude：`<plugins 目錄>/installed_plugins.json` 中 `ct@*` 的 `installPath`；沒有 `installPath` 時 `<plugins 目錄>/cache/<mkt>/ct/<version>`。plugins 目錄（BUG-191 / T0760，CLI 2.1.316 實測）= `CLAUDE_CODE_PLUGIN_CACHE_DIR`（去空白後非空；整個 plugins 目錄含 `installed_plugins.json` 都在那裡），否則 `<CLAUDE_CONFIG_DIR 或 ~/.claude>/plugins`；唯一實作 `resolveClaudePluginsDir`（`electron/claude-config-dir.ts`），規則與實測表見 [claude-agent-sdk-cli.md](claude-agent-sdk-cli.md)「Claude 設定目錄」。只取 `user` / `managed` scope（ct-config 沒有 cwd，`project` / `local` scope 不算）；使用者 `settings.json`（設定目錄，不隨 `CLAUDE_CODE_PLUGIN_CACHE_DIR` 移動）的 `enabledPlugins["ct@…"] === false` 跳過。
    - Codex：`<CODEX_HOME>/plugins/cache/*/ct/*/skills/control-tower/references/tower-config.md`
    - 順序：Claude plugin → Codex plugin，各自新版在前。
 3. 都沒有 → `missing`，`tried` 照舊只列手動安裝的位置。
@@ -156,7 +156,7 @@ renderer 不能讀檔，經 proxied channel `terminal:control-tower-prompt` 由�
 ## 驗證清單
 
 - 單元測試：
-  - `electron/__tests__/ct-install-detect.test.ts`：§ 6-2 三情境、`enabled = false`、無 config、壞 toml、無 `enabled` 行、大小上限、`~/.agents/skills`、`CODEX_HOME` / customEnv 優先、版本比較、Claude / Codex plugin 位置
+  - `electron/__tests__/ct-install-detect.test.ts`：§ 6-2 三情境、`enabled = false`、無 config、壞 toml、無 `enabled` 行、大小上限、`~/.agents/skills`、`CODEX_HOME` / customEnv 優先、版本比較、Claude / Codex plugin 位置；T0760（BUG-191）：`CLAUDE_CODE_PLUGIN_CACHE_DIR` 時 `installed_plugins.json` 與 `cache/` 都在該目錄、不讀 `<config>/plugins`、`enabledPlugins` 仍讀設定目錄、`~/…` 與相對路徑、空白值不變
   - `electron/__tests__/ct-plugin-dispatch-prefix.test.ts`：helper 派工、raw prompt、無判斷函式 / 丟例外 fallback、customEnv 經 handler、面板 channel 三種 shell 引號；有真 shell 時以 pwsh / cmd / bash 實跑確認收到字面值 `$ct:ct-exec T0710`
   - `electron/__tests__/ct-config-sources.test.ts`：只 plugin、多版本取最新、手動優先、Codex plugin 用 `CODEX_HOME`；T0711 回傳 `installs` 且 `defaults` 不變
   - T0711：`ct-install-detect.test.ts` 的 `detectCtInstalls`（都沒裝 / 只手動 / 只 plugin / 兩種同版與不同版 / 版號讀不到 / 停用的 plugin / `CODEX_HOME`、`CLAUDE_CONFIG_DIR`）；`src/lib/__tests__/ct-tower-overview.test.ts` 的 `dualInstallNotices`（含舊 server 沒有欄位、欄位格式不對）；`src/components/__tests__/tower-overview.test.tsx`（提示出現 / 不出現、警示與資訊、位置在預設層下方）

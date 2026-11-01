@@ -18,10 +18,10 @@ vi.mock('electron', () => new Proxy({}, {
 }))
 vi.mock('../logger', () => ({ logger: { log: vi.fn(), error: vi.fn(), warn: vi.fn() } }))
 
-import { resolveClaudeConfigDir } from '../claude-config-dir'
-import { ClaudeAgentManager, panelClaudeConfigDir, sdkSpawnEnv } from '../claude-agent-manager'
+import { resolveClaudeConfigDir, resolveClaudePluginsDir } from '../claude-config-dir'
+import { ClaudeAgentManager, panelClaudeConfigDir, panelClaudePluginsDir, sdkSpawnEnv } from '../claude-agent-manager'
 import { defaultClaudeSettingsFiles } from '../bat-mcp-launch'
-import { claudeConfigDir } from '../ct-install-detect'
+import { claudeConfigDir, claudePluginsDir } from '../ct-install-detect'
 import { ctConfigCandidates } from '../handlers/ct-config'
 import { registerClaudeHandlers } from '../handlers/claude'
 
@@ -65,6 +65,72 @@ describe('resolveClaudeConfigDir', () => {
       expect(claudeConfigDir({ homeDir: '/home/u', env }).replace(/\\/g, '/')).toBe(expected)
       expect(defaultClaudeSettingsFiles(env, 'linux', '/home/u')[1].file).toBe(path.posix.join(expected, 'settings.json'))
     }
+  })
+})
+
+// BUG-191 / T0760: CLI 2.1.316 measured — CLAUDE_CODE_PLUGIN_CACHE_DIR moves the whole plugins dir
+// (installed_plugins.json, known_marketplaces.json, cache/); '' / blanks → <config>/plugins; '~/x' →
+// <home>/x; a relative value → against the CLI's cwd.
+describe('resolveClaudePluginsDir', () => {
+  const posix = path.posix
+  const win = path.win32
+
+  it.each([[{}], [{ CLAUDE_CODE_PLUGIN_CACHE_DIR: '' }], [{ CLAUDE_CODE_PLUGIN_CACHE_DIR: '   ' }], [{ CLAUDE_CODE_PLUGIN_CACHE_DIR: '\t' }]])(
+    'unset / empty / blank %j → <config dir>/plugins (unchanged)', (env) => {
+      expect(resolveClaudePluginsDir(env, '/home/u', undefined, posix)).toBe('/home/u/.claude/plugins')
+      expect(resolveClaudePluginsDir({ ...env, CLAUDE_CONFIG_DIR: '/cfg/claude' }, '/home/u', undefined, posix)).toBe('/cfg/claude/plugins')
+      expect(resolveClaudePluginsDir(env, 'C:\\Users\\demo', undefined, win)).toBe('C:\\Users\\demo\\.claude\\plugins')
+    })
+
+  it('set → the value (trimmed), whatever CLAUDE_CONFIG_DIR is', () => {
+    expect(resolveClaudePluginsDir({ CLAUDE_CODE_PLUGIN_CACHE_DIR: '/pc' }, '/home/u', undefined, posix)).toBe('/pc')
+    expect(resolveClaudePluginsDir({ CLAUDE_CODE_PLUGIN_CACHE_DIR: ' /pc ', CLAUDE_CONFIG_DIR: '/cfg' }, '/home/u', '/proj', posix)).toBe('/pc')
+    expect(resolveClaudePluginsDir({ CLAUDE_CODE_PLUGIN_CACHE_DIR: 'D:\\pc' }, 'C:\\Users\\demo', 'C:\\proj', win)).toBe('D:\\pc')
+  })
+
+  it('~ / ~/… → under home', () => {
+    expect(resolveClaudePluginsDir({ CLAUDE_CODE_PLUGIN_CACHE_DIR: '~' }, '/home/u', undefined, posix)).toBe('/home/u')
+    expect(resolveClaudePluginsDir({ CLAUDE_CODE_PLUGIN_CACHE_DIR: '~/pc' }, '/home/u', '/proj', posix)).toBe('/home/u/pc')
+    expect(resolveClaudePluginsDir({ CLAUDE_CODE_PLUGIN_CACHE_DIR: '~\\pc' }, 'C:\\Users\\demo', undefined, win)).toBe('C:\\Users\\demo\\pc')
+  })
+
+  it('relative → against cwd when given, else as is', () => {
+    expect(resolveClaudePluginsDir({ CLAUDE_CODE_PLUGIN_CACHE_DIR: 'relpc' }, '/home/u', '/proj', posix)).toBe('/proj/relpc')
+    expect(resolveClaudePluginsDir({ CLAUDE_CODE_PLUGIN_CACHE_DIR: 'relpc' }, 'C:\\Users\\demo', 'C:\\proj', win)).toBe('C:\\proj\\relpc')
+    expect(resolveClaudePluginsDir({ CLAUDE_CODE_PLUGIN_CACHE_DIR: 'relpc' }, '/home/u', undefined, posix)).toBe('relpc')
+  })
+
+  it('claudePluginsDir (CT install detection) follows the same rule', () => {
+    for (const env of [{}, { CLAUDE_CODE_PLUGIN_CACHE_DIR: '' }, { CLAUDE_CONFIG_DIR: '/cfg' }, { CLAUDE_CODE_PLUGIN_CACHE_DIR: '/pc' }]) {
+      expect(claudePluginsDir({ homeDir: root, env })).toBe(resolveClaudePluginsDir(env, root))
+    }
+  })
+})
+
+describe('panelClaudePluginsDir (the Claude panel plugins list, SDK spawn env)', () => {
+  const savedCache = process.env.CLAUDE_CODE_PLUGIN_CACHE_DIR
+  afterEach(() => {
+    if (savedCache === undefined) delete process.env.CLAUDE_CODE_PLUGIN_CACHE_DIR
+    else process.env.CLAUDE_CODE_PLUGIN_CACHE_DIR = savedCache
+  })
+
+  it('unset → <config dir>/plugins; set → the value, for every runtime', () => {
+    delete process.env.CLAUDE_CODE_PLUGIN_CACHE_DIR
+    const home = path.join(root, 'home')
+    expect(panelClaudePluginsDir({ source: 'embedded' }, undefined, home)).toBe(path.join(home, '.claude', 'plugins'))
+    const cache = path.join(root, 'pc')
+    process.env.CLAUDE_CODE_PLUGIN_CACHE_DIR = cache
+    for (const source of ['embedded', 'system', 'system-fallback-to-embedded'] as const) {
+      expect(panelClaudePluginsDir({ source }, path.join(root, 'proj'), home)).toBe(cache)
+      expect((sdkSpawnEnv({ source }).env ?? process.env).CLAUDE_CODE_PLUGIN_CACHE_DIR).toBe(cache)
+    }
+    process.env.CLAUDE_CODE_PLUGIN_CACHE_DIR = 'relpc'
+    expect(panelClaudePluginsDir({ source: 'embedded' }, path.join(root, 'proj'), home)).toBe(path.join(root, 'proj', 'relpc'))
+  })
+
+  it('runQuery reads installed_plugins.json from panelClaudePluginsDir with the session cwd', () => {
+    const src = fs.readFileSync(path.join(PROJECT_ROOT, 'electron/claude-agent-manager.ts'), 'utf-8')
+    expect(src).toContain("pathModule.join(panelClaudePluginsDir(resolvedRuntime, session.cwd), 'installed_plugins.json')")
   })
 })
 
@@ -218,6 +284,15 @@ describe('source guard (BUG-178)', () => {
     const offenders = [...sources('electron'), ...sources('src')]
       .filter(f => !(f in ALLOWED))
       .filter(f => fs.readFileSync(path.join(PROJECT_ROOT, f), 'utf-8').split('\n').some(line => HOME_CLAUDE.test(line)))
+    expect(offenders).toEqual([])
+  })
+
+  it('BUG-191: no other electron/ or src/ file reads CLAUDE_CODE_PLUGIN_CACHE_DIR or joins <config>/plugins itself', () => {
+    const offenders = [...sources('electron'), ...sources('src')]
+      .filter(f => f !== 'electron/claude-config-dir.ts')
+      .filter(f => fs.readFileSync(path.join(PROJECT_ROOT, f), 'utf-8').split('\n').some(line =>
+        /\.CLAUDE_CODE_PLUGIN_CACHE_DIR\b|\[['"]CLAUDE_CODE_PLUGIN_CACHE_DIR['"]\]/.test(line)
+        || /['"]plugins['"]\s*,\s*['"]installed_plugins\.json['"]/.test(line)))
     expect(offenders).toEqual([])
   })
 

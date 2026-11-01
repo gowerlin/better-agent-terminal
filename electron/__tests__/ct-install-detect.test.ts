@@ -255,15 +255,78 @@ describe('plugin locations (3-2 / 3-3)', () => {
     expect(await findClaudeCtPlugins(host(), project)).toEqual([])
   })
 
-  it('Claude: CLAUDE_CONFIG_DIR, and CLAUDE_CODE_PLUGIN_CACHE_DIR when installPath is missing', async () => {
+  it('Claude: CLAUDE_CONFIG_DIR → <config>/plugins/installed_plugins.json; installPath missing → <config>/plugins/cache', async () => {
+    const configDir = path.join(root, 'claude-home')
+    const pluginDir = path.join(configDir, 'plugins', 'cache', 'ct-test-mkt', 'ct', '0.0.1')
+    write(path.join(pluginDir, 'skills', 'control-tower', 'references', 'tower-config.md'), 'defaults')
+    writeInstalled(configDir, { 'ct@ct-test-mkt': [{ scope: 'user', version: '0.0.1' }] })
+    const env = { CLAUDE_CONFIG_DIR: configDir }
+    expect((await findClaudeCtPlugins(host(env))).map(p => p.root)).toEqual([pluginDir])
+    expect(await ctPluginTowerConfigCandidates(host(env))).toEqual([path.join(pluginDir, 'skills', 'control-tower', 'references', 'tower-config.md')])
+  })
+
+  // BUG-191 / T0760: CLI 2.1.316 measured — with CLAUDE_CODE_PLUGIN_CACHE_DIR the whole plugins dir
+  // (installed_plugins.json, known_marketplaces.json, cache/) is there; settings.json stays in the config dir.
+  function writeInstalledAt(pluginsDir: string, plugins: Record<string, unknown>) {
+    write(path.join(pluginsDir, 'installed_plugins.json'), JSON.stringify({ version: 2, plugins }))
+  }
+
+  it('Claude: CLAUDE_CODE_PLUGIN_CACHE_DIR → installed_plugins.json and cache/ under it (as the CLI lays it out)', async () => {
     const configDir = path.join(root, 'claude-home')
     const cacheDir = path.join(root, 'plugin-cache')
     const pluginDir = path.join(cacheDir, 'cache', 'ct-test-mkt', 'ct', '0.0.1')
     write(path.join(pluginDir, 'skills', 'control-tower', 'references', 'tower-config.md'), 'defaults')
-    writeInstalled(configDir, { 'ct@ct-test-mkt': [{ scope: 'user', version: '0.0.1' }] })
-    const env = { CLAUDE_CONFIG_DIR: configDir, CLAUDE_CODE_PLUGIN_CACHE_DIR: cacheDir }
-    expect((await findClaudeCtPlugins(host(env))).map(p => p.root)).toEqual([pluginDir])
-    expect(await ctPluginTowerConfigCandidates(host(env))).toEqual([path.join(pluginDir, 'skills', 'control-tower', 'references', 'tower-config.md')])
+    write(path.join(pluginDir, 'skills', 'ct-exec', 'SKILL.md'), SKILL_MD)
+    writeInstalledAt(cacheDir, { 'ct@ct-test-mkt': [{ scope: 'user', installPath: pluginDir, version: '0.0.1' }] })
+    for (const env of [
+      { CLAUDE_CONFIG_DIR: configDir, CLAUDE_CODE_PLUGIN_CACHE_DIR: cacheDir },
+      { CLAUDE_CODE_PLUGIN_CACHE_DIR: `  ${cacheDir} ` },
+    ]) {
+      expect((await findClaudeCtPlugins(host(env))).map(p => p.root)).toEqual([pluginDir])
+      expect(await ctPluginTowerConfigCandidates(host(env))).toEqual([path.join(pluginDir, 'skills', 'control-tower', 'references', 'tower-config.md')])
+      expect(await claudeCtPluginSkillDirs(host(env))).toEqual([{ dir: path.join(pluginDir, 'skills'), scope: 'global' }])
+    }
+  })
+
+  it('Claude: CLAUDE_CODE_PLUGIN_CACHE_DIR, installPath missing → <cache dir>/cache/<mkt>/ct/<version>', async () => {
+    const cacheDir = path.join(root, 'plugin-cache')
+    const pluginDir = path.join(cacheDir, 'cache', 'ct-test-mkt', 'ct', '0.0.1')
+    writeInstalledAt(cacheDir, { 'ct@ct-test-mkt': [{ scope: 'user', version: '0.0.1' }] })
+    expect((await findClaudeCtPlugins(host({ CLAUDE_CODE_PLUGIN_CACHE_DIR: cacheDir }))).map(p => p.root)).toEqual([pluginDir])
+  })
+
+  it('Claude: CLAUDE_CODE_PLUGIN_CACHE_DIR set → <config>/plugins/installed_plugins.json is not read (the CLI does not)', async () => {
+    const cacheDir = path.join(root, 'plugin-cache')
+    const stale = claudePluginRoot('ct', '5.14.0')
+    writeInstalled(path.join(home, '.claude'), { 'ct@control-tower': [{ scope: 'user', installPath: stale, version: '5.14.0' }] })
+    expect((await findClaudeCtPlugins(host())).map(p => p.root)).toEqual([stale])
+    expect(await findClaudeCtPlugins(host({ CLAUDE_CODE_PLUGIN_CACHE_DIR: cacheDir }))).toEqual([])
+  })
+
+  it('Claude: CLAUDE_CODE_PLUGIN_CACHE_DIR set, disabled in <config>/settings.json → skipped', async () => {
+    const cacheDir = path.join(root, 'plugin-cache')
+    const pluginDir = path.join(cacheDir, 'cache', 'ct-test-mkt', 'ct', '0.0.1')
+    writeInstalledAt(cacheDir, { 'ct@ct-test-mkt': [{ scope: 'user', installPath: pluginDir, version: '0.0.1' }] })
+    const env = { CLAUDE_CODE_PLUGIN_CACHE_DIR: cacheDir }
+    expect(await findClaudeCtPlugins(host(env))).toHaveLength(1)
+    write(path.join(home, '.claude', 'settings.json'), JSON.stringify({ enabledPlugins: { 'ct@ct-test-mkt': false } }))
+    expect(await findClaudeCtPlugins(host(env))).toEqual([])
+  })
+
+  it('Claude: CLAUDE_CODE_PLUGIN_CACHE_DIR relative → against the cwd given; ~/… → under home', async () => {
+    const project = path.join(root, 'proj')
+    const relDir = path.join(project, 'relpc')
+    writeInstalledAt(relDir, { 'ct@ct-test-mkt': [{ scope: 'user', installPath: path.join(relDir, 'x'), version: '0.0.1' }] })
+    expect((await findClaudeCtPlugins(host({ CLAUDE_CODE_PLUGIN_CACHE_DIR: 'relpc' }), project)).map(p => p.root)).toEqual([path.join(relDir, 'x')])
+    const tildeDir = path.join(home, 'pc')
+    writeInstalledAt(tildeDir, { 'ct@ct-test-mkt': [{ scope: 'user', installPath: path.join(tildeDir, 'y'), version: '0.0.2' }] })
+    expect((await findClaudeCtPlugins(host({ CLAUDE_CODE_PLUGIN_CACHE_DIR: '~/pc' }))).map(p => p.root)).toEqual([path.join(tildeDir, 'y')])
+  })
+
+  it.each([[''], ['   ']])('Claude: CLAUDE_CODE_PLUGIN_CACHE_DIR %j → <config>/plugins (unchanged)', async (value) => {
+    const dir = claudePluginRoot('ct', '5.14.0')
+    writeInstalled(path.join(home, '.claude'), { 'ct@control-tower': [{ scope: 'user', installPath: dir, version: '5.14.0' }] })
+    expect((await findClaudeCtPlugins(host({ CLAUDE_CODE_PLUGIN_CACHE_DIR: value }))).map(p => p.root)).toEqual([dir])
   })
 
   it('Claude: a broken installed_plugins.json is no plugin', async () => {
