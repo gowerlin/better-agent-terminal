@@ -7,7 +7,7 @@ import { ownsTerminalForCloseRequest, workspaceStore } from './stores/workspace-
 import { settingsStore } from './stores/settings-store'
 import { markNotified, markWorkspaceNotified, clearWorkspaceNotification } from './stores/terminal-notifications'
 import { clearUsageLimitStatus, runUsageLimitContinue, setUsageLimitStatus } from './stores/usage-limit-store'
-import { clearTerminalAttention, retainTerminals, setTerminalAttention, setViewingState } from './stores/terminal-attention-store'
+import { clearTerminalAttention, createReconnectAttentionReconciler, retainTerminals, setTerminalAttention, setViewingState } from './stores/terminal-attention-store'
 import { workerNotifyKind } from './lib/terminal-attention'
 import { Sidebar } from './components/Sidebar'
 import { WorkspaceView } from './components/WorkspaceView'
@@ -795,9 +795,19 @@ export default function App() {
   useEffect(() => {
     const unsubAttention = window.electronAPI.pty.onAttentionChanged((info) => setTerminalAttention(info))
     const unsubExit = window.electronAPI.pty.onExit((id) => clearTerminalAttention(id))
+    // T0749 (BUG-182): a remote profile window connected again → its server's attention of its tabs
+    // now (a restarted server has no PTY and sends no exit for the old tabs; pushes sent while
+    // disconnected never arrived). Local windows get no remote status events.
+    const reconciler = createReconnectAttentionReconciler({
+      snapshot: (ids) => window.electronAPI.pty.attentionSnapshot(ids),
+      terminalIds: () => workspaceStore.getState().terminals.map(tm => tm.id),
+      log: (message) => window.electronAPI.debug.log(message),
+    })
+    const unsubStatus = window.electronAPI.remote.onClientStatusChanged((status) => { void reconciler.onStatus(status) })
     return () => {
       unsubAttention()
       unsubExit()
+      unsubStatus()
     }
   }, [])
 

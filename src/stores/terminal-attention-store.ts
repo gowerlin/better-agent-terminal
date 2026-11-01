@@ -18,9 +18,17 @@
  * active tab and the window has focus (`setViewingState`, from App). A miss clears when the tab
  * is looked at, waits again, or is closed (`retainTerminals`). Rules: `nextWaitMemory`
  * (src/lib/terminal-attention.ts); times are this renderer's clock. Memory only.
+ *
+ * T0749 (BUG-182): a remote profile window that connects again asks its server for the attention of
+ * its tabs now (`terminal:attention-snapshot`) and applies it (`reconcileTerminalAttention`, wired by
+ * `createReconnectAttentionReconciler` in App): a tab whose PTY no longer runs on the server is
+ * handled as a PTY exit (`clearTerminalAttention` — its ⚠️ goes, a wait the user did not see leaves
+ * a faded ⚠️ as after any exit), a running one takes the server's state (a change missed while
+ * disconnected). Only the server's answer decides — no time is compared. A tab that got a push
+ * after the request was sent keeps that push (it is newer).
  */
 import { useSyncExternalStore } from 'react'
-import { isEmptyAttention, isViewedTerminal, nextWaitMemory, type MissedWait, type TerminalAttentionEvent, type WaitMemory } from '../lib/terminal-attention'
+import { isEmptyAttention, isViewedTerminal, nextWaitMemory, type MissedWait, type TerminalAttentionEvent, type TerminalAttentionSnapshotEntry, type WaitMemory } from '../lib/terminal-attention'
 
 type Listener = () => void
 
@@ -40,6 +48,10 @@ const missedWaits = new Map<string, MissedWait>()
 let viewing: { activeTerminalId: string | null; windowFocused: boolean } = { activeTerminalId: null, windowFocused: false }
 /** Bumped on every change (`useTerminalAttentionVersion`: lists that count over many tabs). */
 let version = 0
+/** T0749: tab id → `changeSeq` of the latest push / exit applied to it. */
+const changeSeqs = new Map<string, number>()
+/** T0749: counts pushes / exits (a snapshot skips tabs changed after it was requested). */
+let changeSeq = 0
 
 function notify(): void {
   version++
@@ -61,6 +73,11 @@ function updateWaitMemory(id: string, prev: TerminalAttentionEvent | null, next:
 
 export function setTerminalAttention(info: TerminalAttentionEvent): void {
   if (!info || typeof info.id !== 'string') return
+  changeSeqs.set(info.id, ++changeSeq) // T0749
+  applyAttention(info)
+}
+
+function applyAttention(info: TerminalAttentionEvent): void {
   const missChanged = updateWaitMemory(info.id, attention.get(info.id) ?? null, isEmptyAttention(info) ? null : info) // T0735
   // T0694: a turn starts when this window sees `busy` go from absent to true
   const wasBusy = attention.get(info.id)?.busy === true
@@ -76,9 +93,87 @@ export function setTerminalAttention(info: TerminalAttentionEvent): void {
 }
 
 export function clearTerminalAttention(id: string): void {
+  changeSeqs.set(id, ++changeSeq) // T0749
+  applyExit(id)
+}
+
+function applyExit(id: string): void {
   turnStarts.delete(id) // T0694: the PTY is gone, so is its turn
   const missChanged = updateWaitMemory(id, attention.get(id) ?? null, null) // T0735: a PTY exit ends a wait too
   if (attention.delete(id) || missChanged) notify()
+}
+
+/** T0749: the tabs this window holds attention for (a reconcile asks about them too). */
+export function attentionTerminalIds(): string[] {
+  return [...attention.keys()]
+}
+
+/** T0749: mark taken before a `terminal:attention-snapshot` request (`reconcileTerminalAttention`). */
+export function attentionChangeMark(): number {
+  return changeSeq
+}
+
+/**
+ * T0749 (BUG-182): apply the host's `terminal:attention-snapshot` answer, requested at `mark`
+ * (`attentionChangeMark`). `alive: false` = the PTY is gone: same as a PTY exit (`clearTerminalAttention`;
+ * D203: an unseen wait ends as a faded ⚠️). `alive: true` = the host's state now (empty = no longer
+ * waiting). A tab pushed / exited after `mark` is skipped (that push is newer). Returns what it did.
+ */
+export function reconcileTerminalAttention(entries: readonly TerminalAttentionSnapshotEntry[], mark: number): { gone: number; applied: number; skipped: number } {
+  const result = { gone: 0, applied: 0, skipped: 0 }
+  if (!Array.isArray(entries)) return result
+  for (const entry of entries) {
+    if (!entry || typeof entry.id !== 'string' || !entry.id) continue
+    if ((changeSeqs.get(entry.id) ?? 0) > mark) { result.skipped++; continue }
+    if (entry.alive !== true) {
+      applyExit(entry.id)
+      result.gone++
+      continue
+    }
+    const info = entry.attention && entry.attention.id === entry.id ? entry.attention : { id: entry.id, pendingQuestions: 0 }
+    applyAttention(info)
+    result.applied++
+  }
+  return result
+}
+
+/** T0749: what `createReconnectAttentionReconciler` needs (App passes the window's API and store). */
+export interface ReconnectAttentionDeps {
+  /** `window.electronAPI.pty.attentionSnapshot`. */
+  snapshot(ids: string[]): Promise<TerminalAttentionSnapshotEntry[]>
+  /** The window's tab ids (`workspaceStore` terminals). */
+  terminalIds(): readonly string[]
+  log?(message: string): void
+}
+
+/**
+ * T0749 (BUG-182): feed it the window's `remote:client-status-changed` events. A `connected` after a
+ * not-connected status this window saw → one `terminal:attention-snapshot` of the window's tabs and
+ * the tabs it holds attention for → `reconcileTerminalAttention`. The first status seen never
+ * reconciles (nothing was missed yet); a failed request (an older bat-server without the handler,
+ * disconnected again) keeps what the window has. Local windows get no such events.
+ */
+export function createReconnectAttentionReconciler(deps: ReconnectAttentionDeps): { onStatus(status: { connected: boolean; profileId?: string }): Promise<void> } {
+  let lastConnected: boolean | null = null
+  return {
+    async onStatus(status) {
+      const was = lastConnected
+      lastConnected = status.connected === true
+      if (!lastConnected || was !== false) return
+      const ids = [...new Set([...deps.terminalIds(), ...attentionTerminalIds()])]
+      if (ids.length === 0) return
+      const mark = attentionChangeMark()
+      let entries: TerminalAttentionSnapshotEntry[]
+      try {
+        entries = await deps.snapshot(ids)
+      } catch (error) {
+        deps.log?.(`[attention] reconnect reconcile profile=${status.profileId ?? '-'} ids=${ids.length} → not reconciled (${error instanceof Error ? error.message.slice(0, 160) : String(error).slice(0, 160)})`)
+        return
+      }
+      const done = reconcileTerminalAttention(Array.isArray(entries) ? entries : [], mark)
+      deps.log?.(`[attention] reconnect reconcile profile=${status.profileId ?? '-'} ids=${ids.length} gone=${done.gone} applied=${done.applied} skipped=${done.skipped}`)
+    },
+  }
 }
 
 /** T0735 (D203): the wait of tab `id` that ended unseen, or null. */
@@ -102,6 +197,7 @@ export function retainTerminals(ids: Iterable<string>): void {
     if (!keep.has(id)) { missedWaits.delete(id); changed = true }
   }
   for (const id of [...waitStarts.keys()]) if (!keep.has(id)) waitStarts.delete(id)
+  for (const id of [...changeSeqs.keys()]) if (!keep.has(id) && !attention.has(id)) changeSeqs.delete(id) // T0749
   if (changed) notify()
 }
 
@@ -156,6 +252,8 @@ export function useTerminalAttentionVersion(): number {
 export function resetTerminalAttention(): void {
   turnStarts.clear()
   notifySeqs.clear()
+  changeSeqs.clear()
+  changeSeq = 0
   waitStarts.clear()
   missedWaits.clear()
   viewing = { activeTerminalId: null, windowFocused: false }

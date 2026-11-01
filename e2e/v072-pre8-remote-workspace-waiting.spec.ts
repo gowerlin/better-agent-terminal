@@ -30,7 +30,9 @@
 //   ④ ① waiting + R's shell blocked again (R ⚠️ 2, remote window total ⚠️ 2) + a local tab in A blocked
 //      (local window A ⚠️, its total ⚠️) — neither window counts the other's tabs; a click on R's
 //      ⚠️ 2 → R active, the claude tab (waiting longest) selected; then every wait answered
-//   ⑤ (INFO) the test server stopped and started again: the row ⚠️ before / while disconnected / after
+//   ⑤ the test server stopped and started again (T0749 / BUG-182): the old PTY is gone on the restarted
+//      server → after reconnecting the window's snapshot drops the solid ⚠️ (faded: not seen, D203), the
+//      totals no longer count it; looked at → cleared
 //
 // Windows host + WSL distro (default Ubuntu-24.04, BAT_E2E_T0748_DISTRO) with an installed bat-server
 // bundle; otherwise skipped. Isolated source build (dist-electron), see fixtures/electron-isolation.ts.
@@ -459,12 +461,19 @@ test('WSL remote workspace: tab waits (codex OSC 7501 / real claude hook on the 
     await expect.poll(async () => (aAfter = (await aBadge.count()) === 0 ? 'cleared' : (await aBadge.getAttribute('data-waiting')) ?? ''), { timeout: 15_000 }).toMatch(/^(cleared|missed)$/)
     results['④-answers'] = `PASS — Enter on claude's prompt (looked at, focus=${focused4}) → cleared, the approved turn went on; R shell idle (not looked at) → R row faded; A idle → ${aAfter}`
 
-    // ── ⑤ (INFO) the server stopped / started again ──
-    // R's shell blocked; the claude tab exits first (a restarted server would start claude again)
+    // ── ⑤ the server stopped / started again (T0749 / BUG-182) ──
+    // R's shell blocked; the claude tab exits first (a restarted server would start claude again).
+    // The restarted server has no PTY for the old tabs (and never sends their exit): after the window
+    // connects again it asks the server (`terminal:attention-snapshot`) and drops the ⚠️ of the tabs
+    // whose PTY is gone, as a PTY exit — the wait was not seen (R's active tab is the claude tab), so
+    // it ends as a faded ⚠️ (D203) and the totals no longer count it.
     await write(r, claude.id, '/exit\r')
     await write(r, TAB_R, OSC_BASH('blocked'))
     await expect(rBadge).toHaveAttribute('data-waiting', 'waiting', { timeout: 15_000 })
     await expect(rBadge).toHaveAttribute('data-waiting-target', TAB_R, { timeout: 15_000 })
+    await expect(rBadge).toHaveText('⚠️', { timeout: 15_000 })
+    const totalBefore = await windowTotal(r)
+    expect(totalBefore).toMatchObject({ kind: 'waiting', count: '1' })
     const shellPid = async (mark: string) => {
       await write(r, TAB_R, `echo ${mark}-$$\r`)
       let pid = ''
@@ -472,6 +481,8 @@ test('WSL remote workspace: tab waits (codex OSC 7501 / real claude hook on the 
       return pid
     }
     const badgeState = async () => ({ kind: await rBadge.getAttribute('data-waiting', { timeout: 1_000 }).catch(() => null), count: await rBadge.count(), target: await rBadge.getAttribute('data-waiting-target', { timeout: 1_000 }).catch(() => null) })
+    const reconcileLines = () => debugLog().split('\n').filter(l => l.includes('[attention] reconnect reconcile'))
+    const reconcileBefore = reconcileLines().length
     const pidBefore = await shellPid('t0748-pid-a')
     const stopped = await stopServer()
     let disconnected = false
@@ -480,30 +491,38 @@ test('WSL remote workspace: tab waits (codex OSC 7501 / real claude hook on the 
     const whileDown = { connected: !disconnected, ...(await badgeState()) }
     const logBeforeRestart = (await serverLog()).length
     const restarted = await startServer({ port, token, fakePort: fake.port, proxyPort: proxy.port })
+    expect(restarted).toContain('listening')
     let reconnected = false
-    await expect.poll(async () => (reconnected = await connected()), { timeout: 90_000 }).toBe(true).catch(() => {})
-    const pidAfter = reconnected ? await shellPid('t0748-pid-b').catch(() => 'none') : 'none'
-    await r.waitForTimeout(20_000)
+    await expect.poll(async () => (reconnected = await connected()), { timeout: 90_000 }).toBe(true)
+    // the solid ⚠️ goes (faded: not seen), then the reconcile log: one snapshot, the shell tab gone on the server
+    await expect(rBadge).toHaveAttribute('data-waiting', 'missed', { timeout: 30_000 })
+    let reconcile = ''
+    await expect.poll(() => (reconcile = reconcileLines().slice(reconcileBefore).at(-1) ?? ''), { timeout: 15_000 }).toMatch(/ gone=[1-9]\d* /)
     const afterUp = { connected: reconnected, ...(await badgeState()) }
+    expect(afterUp).toMatchObject({ kind: 'missed', count: 1 })
+    expect(await rBadge.textContent()).toBe('⚠️') // no count: nothing waits
+    const totalAfter = await windowTotal(r)
+    expect(totalAfter).toMatchObject({ kind: 'missed', count: '0' })
     const sinceRestart = (await serverLog()).slice(logBeforeRestart)
     const blockedSinceRestart = sinceRestart.split('\n').filter(l => l.includes(TAB_R) && /\[blocked\]/.test(l)).map(l => l.replace(/^.*\[blocked\]/, '[blocked]'))
-    const tabLinesSinceRestart = sinceRestart.split('\n').filter(l => l.includes(TAB_R)).length
+    const snapshotLines = sinceRestart.split('\n').filter(l => l.includes('[attention] snapshot')).map(l => l.replace(/^.*\[attention\]/, '[attention]'))
     const cwdAfter = await r.evaluate((tid) => (window as AnyApi).electronAPI.pty.getCwd(tid), TAB_R).catch((e: unknown) => `error ${String(e).slice(0, 120)}`)
     const tail = stripAnsi(await buffer(r, TAB_R)).trim().split('\n').slice(-3).join(' / ').slice(-300)
-    log(`⑤ after reconnect: server log lines naming ${TAB_R} since restart: ${tabLinesSinceRestart}; pty.getCwd = ${JSON.stringify(cwdAfter)}; screen tail: ${JSON.stringify(tail)}`)
+    log(`⑤ after reconnect: reconcile ${JSON.stringify(reconcile.replace(/^.*\[attention\]/, '[attention]'))}; server ${JSON.stringify(snapshotLines)}; pty.getCwd = ${JSON.stringify(cwdAfter)}; screen tail: ${JSON.stringify(tail)}`)
     await r.screenshot({ path: test.info().outputPath('5-after-reconnect.png') })
-    // looked at in the focused window: does the stale mark go?
-    await focusWindow(app, r)
+    // the faded ⚠️ goes when the tab is looked at (focused window)
+    const focused5 = await focusWindow(app, r)
     await selectWorkspace(r, WS_R)
     await thumbOf(r, TITLE_R).click()
-    await r.waitForTimeout(3_000)
-    const lookedAt = await badgeState()
-    // a new OSC state from the new shell
-    await write(r, TAB_R, OSC_BASH('idle'))
-    await r.waitForTimeout(3_000)
-    const afterIdle = await badgeState()
-    log(`⑤ shell pid ${pidBefore} → stop: ${stopped.trim()} → while down ${JSON.stringify(whileDown)}; restart: ${restarted.trim().split('\n')[0]}; new shell pid ${pidAfter}; server [blocked] lines for ${TAB_R} since restart: ${JSON.stringify(blockedSinceRestart)}; 20 s after reconnect ${JSON.stringify(afterUp)}; R + the tab looked at ${JSON.stringify(lookedAt)}; new shell idle ${JSON.stringify(afterIdle)}`)
-    results['⑤'] = `INFO — R row waiting (${TAB_R}, shell pid ${pidBefore}); server stopped → while disconnected ${JSON.stringify(whileDown)}; started again, reconnected=${reconnected}, new shell pid ${pidAfter}, server [blocked] lines for the tab since restart: ${blockedSinceRestart.length}; 20 s after reconnect ${JSON.stringify(afterUp)}; looked at ${JSON.stringify(lookedAt)}; the new shell's OSC idle → ${JSON.stringify(afterIdle)}`
+    let lookedAt = await badgeState()
+    if (focused5) {
+      await expect(rBadge).toHaveCount(0, { timeout: 15_000 })
+      lookedAt = await badgeState()
+    } else {
+      log(`⑤ document.hasFocus() = false — "looked at" not checked`)
+    }
+    log(`⑤ shell pid ${pidBefore} → stop: ${stopped.trim()} → while down ${JSON.stringify(whileDown)}; restart: ${restarted.trim().split('\n')[0]}; server [blocked] lines for ${TAB_R} since restart: ${JSON.stringify(blockedSinceRestart)}; total before ${JSON.stringify(totalBefore)} → after ${JSON.stringify(totalAfter)}; after reconnect ${JSON.stringify(afterUp)}; looked at (focus=${focused5}) ${JSON.stringify(lookedAt)}`)
+    results['⑤'] = `PASS — R row waiting (${TAB_R}, shell pid ${pidBefore}), total ⚠️ 1; server stopped → while disconnected ${JSON.stringify(whileDown)}; started again, reconnected; the window's snapshot: ${reconcile.replace(/^.*reconnect reconcile /, '')} → R row faded ⚠️ (no count), total faded (count 0)${focused5 ? '; looked at → cleared' : ' (looked at: no OS focus, not checked)'}`
 
     // ── logs: never the command text, never a token ──
     const slog = await serverLog()

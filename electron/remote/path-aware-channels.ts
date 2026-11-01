@@ -163,6 +163,7 @@ export const PATH_FREE_CHANNELS: ReadonlyMap<string, string> = new Map([
   ['agent:bat-mcp-launch-args', 'T0584: agent id + shell family + custom args (no client path)'],
   ['ct:read-config-sources', 'T0701: no args (reads fixed files in the server home)'],
   ['terminal:control-tower-prompt', 'T0710: { agent, skill, workorder, customEnv? } (customEnv is the tab env, already host form like terminal:create-with-command); result is prompt text'],
+  ['terminal:attention-snapshot', 'T0749: tab ids only; result is state fields (no path)'],
   ['remote:resolve-client-paths', 'ALWAYS_LOCAL (never proxied); client paths are the input, the handler applies the window translator itself'],
 ])
 

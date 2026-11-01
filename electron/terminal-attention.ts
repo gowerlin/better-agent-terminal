@@ -20,12 +20,27 @@
  * 🔴 The payload carries state fields only (`TerminalAttentionEvent`): never a question, an
  * option, an answer or a token (D155). `[attention]` log lines carry the same fields.
  * 🔴 No `electron` import here (shared with headless).
+ *
+ * T0749 (BUG-182): + `terminal:attention-snapshot` (`registerAttentionSnapshotHandler`) — the
+ * attention of the tabs a window asks about as this host has them now, plus whether each one's PTY
+ * still runs here. A remote profile window asks after it connects again (src/App.tsx →
+ * `reconcileTerminalAttention`, src/stores/terminal-attention-store.ts): pushes sent while it was
+ * disconnected never reach it, and a restarted server has no PTY (and sends no exit) for the tabs
+ * it had before. Read only, state fields only (the push's payload); a bat-server older than T0749
+ * has no handler and the window keeps what it had.
  */
-import { isEmptyAttention, type TerminalAttentionEvent } from '../src/lib/terminal-attention'
+import { isEmptyAttention, type TerminalAttentionEvent, type TerminalAttentionSnapshotEntry } from '../src/lib/terminal-attention'
+
+export type { TerminalAttentionSnapshotEntry }
 import type { BlockedState } from './terminal-blocked-state'
 import type { QuestionSummary } from './tower-questions'
 
 export const ATTENTION_CHANGED_CHANNEL = 'terminal:attention-changed'
+export const ATTENTION_SNAPSHOT_CHANNEL = 'terminal:attention-snapshot'
+/** T0749: at most this many ids per `terminal:attention-snapshot` (the rest are not answered). */
+export const ATTENTION_SNAPSHOT_MAX_IDS = 1000
+const ATTENTION_SNAPSHOT_MAX_ID_LENGTH = 256
+
 
 export interface TerminalAttentionDeps {
   /** What running PTY `id` is blocked on (`PtyManager.getBlockedState`); null = not blocked / gone. */
@@ -114,9 +129,69 @@ export class TerminalAttentionNotifier {
     this.deps.logger?.log(`[attention] terminal=${id} → ${describe(event)}${typeof windows === 'number' ? ` windows=${windows}` : ''}`)
   }
 
+  /**
+   * T0749: tab `id`'s attention as `send` would compute it now — not sent, `sent` unchanged (the
+   * next change is still pushed). Null when it cannot be computed.
+   */
+  current(id: string): TerminalAttentionEvent | null {
+    try {
+      return computeTerminalAttention(id, this.deps.getBlockedState(id), this.deps.getQuestionSummary?.(id) ?? null, this.deps.isTurnActive?.(id) ?? false)
+    } catch {
+      return null
+    }
+  }
+
   dispose(): void {
     this.disposed = true
     this.dirty.clear()
     this.sent.clear()
   }
+}
+
+/** T0749: the ids of a snapshot request — non-empty strings, de-duplicated, at most `ATTENTION_SNAPSHOT_MAX_IDS`. */
+export function normalizeAttentionSnapshotIds(raw: unknown): string[] {
+  if (!Array.isArray(raw)) return []
+  const ids: string[] = []
+  const seen = new Set<string>()
+  for (const value of raw) {
+    if (ids.length >= ATTENTION_SNAPSHOT_MAX_IDS) break
+    if (typeof value !== 'string' || !value || value.length > ATTENTION_SNAPSHOT_MAX_ID_LENGTH || seen.has(value)) continue
+    seen.add(value)
+    ids.push(value)
+  }
+  return ids
+}
+
+/** T0749: the answer for `ids` — a PTY that does not run here has no attention. */
+export function attentionSnapshot(
+  ids: readonly string[],
+  isAlive: (id: string) => boolean,
+  current: (id: string) => TerminalAttentionEvent | null,
+): TerminalAttentionSnapshotEntry[] {
+  return ids.map((id) => {
+    const alive = isAlive(id)
+    return { id, alive, attention: alive ? current(id) ?? { id, pendingQuestions: 0 } : null }
+  })
+}
+
+/**
+ * T0749 (BUG-182): `terminal:attention-snapshot(ids)` on this host — Electron main and headless
+ * bat-server register the same handler. Answers `TerminalAttentionSnapshotEntry[]`, one per valid id.
+ * 🔴 Read only, state fields only; the `[attention]` log line has counts only.
+ */
+export function registerAttentionSnapshotHandler(opts: {
+  registerHandler: (channel: string, handler: (ctx: unknown, ids?: unknown) => unknown) => void
+  getNotifier: () => TerminalAttentionNotifier | null
+  isAlive: (id: string) => boolean
+  logger?: { log(...args: unknown[]): void }
+}): void {
+  opts.registerHandler(ATTENTION_SNAPSHOT_CHANNEL, (_ctx, raw) => {
+    const ids = normalizeAttentionSnapshotIds(raw)
+    const notifier = opts.getNotifier()
+    const entries = attentionSnapshot(ids, opts.isAlive, id => notifier?.current(id) ?? null)
+    const gone = entries.filter(e => !e.alive).length
+    const nonEmpty = entries.filter(e => !isEmptyAttention(e.attention)).length
+    opts.logger?.log(`[attention] snapshot ids=${ids.length} gone=${gone} nonEmpty=${nonEmpty}`)
+    return entries
+  })
 }

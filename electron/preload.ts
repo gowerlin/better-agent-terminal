@@ -19,7 +19,7 @@ import type { RemoteToolInstallKind, RemoteToolInstallRequest, RemoteToolInstall
 import type { ClientPathPurpose, ResolvedClientPath } from '../src/lib/client-paths'
 import type { TerminalRoleChangeInfo } from '../src/lib/tower-terminal-title'
 import type { UsageLimitContinueEvent, UsageLimitStatusEvent } from '../src/lib/usage-limit'
-import type { TerminalAttentionEvent } from '../src/lib/terminal-attention'
+import type { TerminalAttentionEvent, TerminalAttentionSnapshotEntry } from '../src/lib/terminal-attention'
 
 type RendererLogLevel = 'error' | 'warn' | 'info' | 'log' | 'debug'
 
@@ -35,6 +35,8 @@ const electronAPI = {
     kill: (id: string) => ipcRenderer.invoke('pty:kill', id),
     restart: (id: string, cwd: string, shell?: string) => ipcRenderer.invoke('pty:restart', id, cwd, shell),
     getCwd: (id: string) => ipcRenderer.invoke('pty:get-cwd', id),
+    // T0749 (BUG-182): the host's attention of these tabs now (+ whether each PTY still runs there)
+    attentionSnapshot: (ids: string[]) => ipcRenderer.invoke('terminal:attention-snapshot', ids) as Promise<TerminalAttentionSnapshotEntry[]>,
     createWithCommand: (opts: { id: string; cwd: string; command: string; shell?: string; customEnv?: Record<string, string>; workspaceId?: string }) =>
       ipcRenderer.invoke('terminal:create-with-command', opts),
     onOutput: (callback: (id: string, data: string) => void) => {

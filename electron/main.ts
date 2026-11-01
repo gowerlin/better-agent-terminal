@@ -23,7 +23,7 @@ import { registerTerminalQueryHandlers, savedTabsFromRegistry, workspaceNameFrom
 import { registerWorktreeStatusHandler } from './worktree-status-handlers'
 import { registerReportHookHandler } from './terminal-blocked-state'
 import { registerTowerQuestionHandlers, type TowerQuestionHandlers } from './tower-questions'
-import { TerminalAttentionNotifier } from './terminal-attention'
+import { registerAttentionSnapshotHandler, TerminalAttentionNotifier } from './terminal-attention'
 import { mirrorToBatScripts } from './remote/remote-logger'
 import { rotateBatScriptsLog } from './bat-scripts-log-rotation'
 import { CtWorktreeService } from './ct-worktree'
@@ -2443,6 +2443,14 @@ function registerProxiedHandlers() {
     isTurnActive: id => ptyManager?.isAgentTurnActive(id) ?? false, // T0694
     getQuestionSummary: id => towerQuestions.summaryFor(id),
     emit: terminalEmit,
+    logger,
+  })
+  // T0749 (BUG-182): `terminal:attention-snapshot` — same handler as headless (a remote profile
+  // window asks its server after reconnecting; a local window's call lands here, nothing asks yet)
+  registerAttentionSnapshotHandler({
+    registerHandler,
+    getNotifier: () => terminalAttention,
+    isAlive: id => ptyManager?.isAlive(id) ?? false,
     logger,
   })
   // PLAN-047 M1 / T0582: read-only helper queries (same module as headless). The caller is its

@@ -24,7 +24,7 @@ import { CtWorktreeService } from '../ct-worktree'
 import { UsageLimitContinueScheduler } from '../usage-limit-continue'
 import { registerTerminalQueryHandlers } from '../terminal-query-handlers'
 import { registerTowerQuestionHandlers } from '../tower-questions'
-import { TerminalAttentionNotifier } from '../terminal-attention'
+import { registerAttentionSnapshotHandler, TerminalAttentionNotifier } from '../terminal-attention'
 import { registerWorktreeStatusHandler } from '../worktree-status-handlers'
 import { mirrorToBatScripts } from './remote-logger'
 import { rotateBatScriptsLog } from '../bat-scripts-log-rotation'
@@ -625,6 +625,7 @@ export function createHeadlessBatMcpModule(opts: { installRoot?: string; getPtyM
  * T0609 (BUG-153): + `terminal:attention-changed` to the connected clients (electron/terminal-attention.ts)
  * from the tower-question store and the pty module's `blocked` changes (`onBlockedChange`).
  * T0694: + `busy` (the agent's turn, `PtyManager.isAgentTurnActive`), same as Electron main.
+ * T0749 (BUG-182): + `terminal:attention-snapshot` (electron/terminal-attention.ts), same as Electron main.
  */
 export function createHeadlessTerminalQueryModule(opts: {
   getPtyManager: () => PtyManager | null
@@ -657,6 +658,13 @@ export function createHeadlessTerminalQueryModule(opts: {
       logger: defaultLogger,
     })
     const notifier = attention
+    // T0749 (BUG-182): a client window that connects again asks for its tabs' attention now
+    registerAttentionSnapshotHandler({
+      registerHandler: register,
+      getNotifier: () => notifier,
+      isAlive: id => opts.getPtyManager()?.isAlive(id) ?? false,
+      logger: defaultLogger,
+    })
     const unsubscribeBlocked = opts.onBlockedChange?.(id => notifier.refresh(id))
     const unsubscribeExit = opts.onPtyExit?.(id => towerQuestions.terminalEnded(id))
     const queries = registerTerminalQueryHandlers({

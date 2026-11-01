@@ -12,6 +12,8 @@
  *   - D155: no event / log line carries a question, an option, a detail or an answer
  *   - tracker / store listeners that throw change nothing; dispose stops sending
  *   - main.ts / headless wiring (source guard)
+ *   - T0749 (BUG-182): `terminal:attention-snapshot` — alive + the state now (as the push), a PTY that
+ *     is gone / never ran here → alive false; sent pushes unchanged; ids validated; wiring
  */
 import * as fs from 'fs'
 import { createRequire } from 'module'
@@ -31,11 +33,11 @@ import { logger } from '../logger'
 import type { PtyManager as PtyManagerType } from '../pty-manager'
 import type { HandlerContext } from '../remote/handler-registry'
 import { HelperCapabilityRegistry } from '../remote/helper-capability'
-import { ATTENTION_CHANGED_CHANNEL, computeTerminalAttention, TerminalAttentionNotifier } from '../terminal-attention'
+import { ATTENTION_CHANGED_CHANNEL, ATTENTION_SNAPSHOT_CHANNEL, ATTENTION_SNAPSHOT_MAX_IDS, computeTerminalAttention, normalizeAttentionSnapshotIds, registerAttentionSnapshotHandler, TerminalAttentionNotifier } from '../terminal-attention'
 import { TerminalBlockedTracker } from '../terminal-blocked-state'
 import { CODEX_OSC_PREFIX } from '../../src/lib/codex-terminal-state'
 import { QUESTION_DEFAULT_EXPIRES_MS, QUESTION_POLL_LEASE_MS, registerTowerQuestionHandlers, type TowerQuestionHandlers } from '../tower-questions'
-import type { TerminalAttentionEvent } from '../../src/lib/terminal-attention'
+import type { TerminalAttentionEvent, TerminalAttentionSnapshotEntry } from '../../src/lib/terminal-attention'
 
 class FakePty {
   onData = vi.fn()
@@ -407,6 +409,83 @@ describe('listeners that throw', () => {
   })
 })
 
+describe('terminal:attention-snapshot (T0749 / BUG-182)', () => {
+  const osc = (state: string) => `${CODEX_OSC_PREFIX}state=${state}:app=codex\x1b\\`
+  function snapshotHandler(t: ReturnType<typeof setup>) {
+    const handlers = new Map<string, (ctx: unknown, ids?: unknown) => unknown>()
+    const lines: string[] = []
+    registerAttentionSnapshotHandler({
+      registerHandler: (channel, handler) => { handlers.set(channel, handler) },
+      getNotifier: () => t.notifier,
+      isAlive: id => t.manager.isAlive(id),
+      logger: { log: (...args: unknown[]) => { lines.push(args.map(String).join(' ')) } },
+    })
+    expect([...handlers.keys()]).toEqual([ATTENTION_SNAPSHOT_CHANNEL])
+    const ask = (ids: unknown) => handlers.get(ATTENTION_SNAPSHOT_CHANNEL)!({ windowId: null }, ids) as TerminalAttentionSnapshotEntry[]
+    return { ask, lines }
+  }
+
+  it('a waiting PTY → alive + its attention (same as the push); a gone / unknown one → alive false', async () => {
+    const t = setup()
+    const { ask, lines } = snapshotHandler(t)
+    t.output('wk', osc('blocked'))
+    await settle()
+    const pushed = of(t.sent, 'wk').at(-1)
+    expect(pushed).toMatchObject({ blockedReason: 'input' })
+    const sentBefore = t.sent.length
+    const entries = ask(['wk', 'wk2', 'never-here'])
+    expect(entries).toEqual([
+      { id: 'wk', alive: true, attention: pushed },
+      { id: 'wk2', alive: true, attention: { id: 'wk2', pendingQuestions: 0 } },
+      { id: 'never-here', alive: false, attention: null },
+    ])
+    expect(t.sent.length).toBe(sentBefore) // asking sends nothing
+    expect(lines.at(-1)).toBe('[attention] snapshot ids=3 gone=1 nonEmpty=1')
+    // the PTY exits → gone
+    t.exit('wk')
+    await settle()
+    expect(ask(['wk'])).toEqual([{ id: 'wk', alive: false, attention: null }])
+  })
+
+  it('the next change after a snapshot is still pushed (the notifier keeps what it sent)', async () => {
+    const t = setup()
+    const { ask } = snapshotHandler(t)
+    t.output('wk', osc('blocked'))
+    await settle()
+    ask(['wk'])
+    t.output('wk', osc('idle'))
+    await settle()
+    expect(of(t.sent, 'wk').at(-1)).toEqual({ id: 'wk', pendingQuestions: 0 })
+  })
+
+  it('a blocking tower question shows as tower (same precedence as the push)', async () => {
+    const t = setup()
+    const { ask } = snapshotHandler(t)
+    expect(t.ask('wk')).toMatchObject({ ok: true })
+    await settle()
+    expect(ask(['wk'])[0]).toMatchObject({ alive: true, attention: { blockedReason: 'tower', pendingQuestions: 1 } })
+    // D155: never the question text
+    expect(JSON.stringify(ask(['wk']))).not.toContain(QUESTION)
+  })
+
+  it('ids: strings only, de-duplicated, capped; anything else → empty answer', () => {
+    expect(normalizeAttentionSnapshotIds(undefined)).toEqual([])
+    expect(normalizeAttentionSnapshotIds('wk')).toEqual([])
+    expect(normalizeAttentionSnapshotIds(['a', 'a', '', 3, null, 'x'.repeat(300), 'b'])).toEqual(['a', 'b'])
+    const many = Array.from({ length: ATTENTION_SNAPSHOT_MAX_IDS + 5 }, (_, i) => `id-${i}`)
+    expect(normalizeAttentionSnapshotIds(many)).toHaveLength(ATTENTION_SNAPSHOT_MAX_IDS)
+    const t = setup()
+    const { ask } = snapshotHandler(t)
+    expect(ask({ ids: ['wk'] })).toEqual([])
+  })
+
+  it('no notifier yet → a live tab answers empty, never throws', () => {
+    const handlers = new Map<string, (ctx: unknown, ids?: unknown) => unknown>()
+    registerAttentionSnapshotHandler({ registerHandler: (c, h) => { handlers.set(c, h) }, getNotifier: () => null, isAlive: () => true })
+    expect(handlers.get(ATTENTION_SNAPSHOT_CHANNEL)!({}, ['x'])).toEqual([{ id: 'x', alive: true, attention: { id: 'x', pendingQuestions: 0 } }])
+  })
+})
+
 describe('wiring (source guard)', () => {
   const main = fs.readFileSync(path.resolve(__dirname, '..', 'main.ts'), 'utf8')
   const headless = fs.readFileSync(path.resolve(__dirname, '..', 'remote', 'headless-entry.ts'), 'utf8')
@@ -423,5 +502,9 @@ describe('wiring (source guard)', () => {
     expect(headless).toContain('const unsubscribeBlocked = opts.onBlockedChange?.(id => notifier.refresh(id))')
     expect(headless).toContain('emit: (channel, payload) => host.emit(channel, payload),')
     expect(headless).toContain('for (const listener of [...blockedChangeListeners]) listener(id)')
+  })
+  it('T0749: both hosts register terminal:attention-snapshot on their notifier and PtyManager', () => {
+    expect(main).toMatch(/registerAttentionSnapshotHandler\(\{\s*registerHandler,\s*getNotifier: \(\) => terminalAttention,\s*isAlive: id => ptyManager\?\.isAlive\(id\) \?\? false,/)
+    expect(headless).toMatch(/registerAttentionSnapshotHandler\(\{\s*registerHandler: register,\s*getNotifier: \(\) => notifier,\s*isAlive: id => opts\.getPtyManager\(\)\?\.isAlive\(id\) \?\? false,/)
   })
 })

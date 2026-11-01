@@ -88,6 +88,9 @@ export const PROXIED_CHANNELS = new Set([
   // T0710: the CT prompt of the panel's one-click dispatch, decided and quoted by the host that
   // runs the tab (electron/terminal-command-handlers.ts); an older bat-server has no handler
   'terminal:control-tower-prompt',
+  // T0749 (BUG-182): the attention of the window's tabs on the host now (electron/terminal-attention.ts);
+  // a remote window asks after reconnecting; an older bat-server has no handler
+  'terminal:attention-snapshot',
   // T0437 (BUG-105): client paths → the window's host form; ALWAYS_LOCAL (answered by this
   // machine's main with the window's PathTranslator), listed here only for the IPC binding.
   'remote:resolve-client-paths',

@@ -62,6 +62,18 @@ export interface TerminalAttentionEvent {
   busy?: true
 }
 
+/**
+ * T0749 (BUG-182): one tab of a `terminal:attention-snapshot` answer (electron/terminal-attention.ts)
+ * — the host's state now, which a remote window applies after it connects again.
+ */
+export interface TerminalAttentionSnapshotEntry {
+  id: string
+  /** The tab's PTY runs on the host now. */
+  alive: boolean
+  /** Its attention now (an empty one = nothing to show); null when `alive` is false. */
+  attention: TerminalAttentionEvent | null
+}
+
 export function isEmptyAttention(event: TerminalAttentionEvent | null | undefined): boolean {
   return !event || (!event.blockedReason && !(event.pendingQuestions > 0) && event.busy !== true)
 }

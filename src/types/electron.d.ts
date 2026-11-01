@@ -104,6 +104,8 @@ interface ElectronAPI {
     kill: (id: string) => Promise<boolean>
     restart: (id: string, cwd: string, shell?: string) => Promise<boolean>
     getCwd: (id: string) => Promise<string | null>
+    /** T0749 (BUG-182): `terminal:attention-snapshot` — the host's attention of these tabs now; an older bat-server rejects (no handler). */
+    attentionSnapshot: (ids: string[]) => Promise<import('../lib/terminal-attention').TerminalAttentionSnapshotEntry[]>
     createWithCommand: (opts: { id: string; cwd: string; command: string; shell?: string; customEnv?: Record<string, string>; workspaceId?: string }) => Promise<boolean>
     onOutput: (callback: (id: string, data: string) => void) => () => void
     onExit: (callback: (id: string, exitCode: number) => void) => () => void
