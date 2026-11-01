@@ -3,7 +3,7 @@ schema_version: 1
 schema_kind: index
 id: _bug-tracker
 index_kind: bugs
-generated_at: "2026-11-01T22:24:08+0800"
+generated_at: "2026-11-01T22:27:32+0800"
 generator: control-tower-sync
 source_globs:
   - _ct-workorders/BUG-*.md
@@ -12,8 +12,8 @@ exclude_globs:
   - _ct-workorders/examples/**
 total: 49
 breakdown:
-  OPEN: 1
-  FIXING: 0
+  OPEN: 0
+  FIXING: 1
   FIXED: 5
   VERIFY: 0
   CLOSED: 43
@@ -23,21 +23,21 @@ breakdown:
 # Bug Tracker
 
 > ⚠️ 此文件由 `*sync` 自動生成，請勿手動編輯。
-> 最後同步：2026-11-01 22:24 — 第一百零四 session：BUG-183 / 184 FIXED（T0750 `8a432d40`）；開 BUG-185（T0750 發現）；BUG-182 / 175 CLOSED
+> 最後同步：2026-11-01 22:27 — 第一百零四 session：BUG-185 → FIXING（T0751）；BUG-183 / 184 FIXED（T0750 `8a432d40`）；開 BUG-185（T0750 發現）；BUG-182 / 175 CLOSED
 
 ## 統計
-- 🔴 Open: 1 | ⏳ Fixing: 0 | ✅ Fixed: 5 | 🧪 Verify: 0 | 🚫 Closed: 43 | ⛔ Won't Fix: 0 | **Total: 49**
+- 🔴 Open: 0 | ⏳ Fixing: 1 | ✅ Fixed: 5 | 🧪 Verify: 0 | 🚫 Closed: 43 | ⛔ Won't Fix: 0 | **Total: 49**
 
 ## 🔴 Open / 處理中
 
 | ID | 標題 | 嚴重度 | 建立時間 | 連結 |
 |----|------|--------|---------|------|
-| BUG-185 | e2e `t0512-profile-panel-layout` 第 2 項失敗：`WIZARD_STUBS` 缺 `wsl-systemd:snapshot-unit`（T0750 發現，只影響測試） | 🟢 Low | 2026-11-01 | [BUG-185](BUG-185-t0512-wizard-e2e-missing-snapshot-unit-stub.md) |
 
 ## ⏳ 修復中 (FIXING)
 
 | ID | 標題 | 嚴重度 | 修復時間 | 連結 |
 |----|------|--------|---------|------|
+| BUG-185 | e2e `t0512-profile-panel-layout` 第 2 項失敗：`WIZARD_STUBS` 缺 `wsl-systemd:snapshot-unit`（T0750 發現，只影響測試） | 🟢 Low | 2026-11-01（T0751） | [BUG-185](BUG-185-t0512-wizard-e2e-missing-snapshot-unit-stub.md) |
 
 ## ✅ 已修復
 

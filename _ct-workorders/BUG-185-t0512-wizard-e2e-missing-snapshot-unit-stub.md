@@ -3,11 +3,11 @@ schema_version: 1
 schema_kind: bug
 id: BUG-185
 title: "e2e `t0512-profile-panel-layout` 第 2 項（WSL 精靈完成區塊）失敗：`WIZARD_STUBS` 缺 T0554 新增的 `wsl-systemd:snapshot-unit`"
-status: OPEN
+status: FIXING
 severity: low
 reproducibility: always
 created_at: "2026-11-01T22:24:08+0800"
-updated_at: "2026-11-01T22:24:08+0800"
+updated_at: "2026-11-01T22:27:32+0800"
 impact:
   - e2e-test
 links:
@@ -21,7 +21,7 @@ links:
 |------|------|
 | 嚴重度 | 🟢 low（只有測試失敗；產品行為不受影響） |
 | 可重現 | 一定（T0750 Worker 實跑） |
-| **狀態** | 📂 OPEN |
+| **狀態** | 🔧 FIXING（T0751） |
 | 回報者 | T0750 Worker |
 
 ## 現象
