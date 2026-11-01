@@ -218,6 +218,27 @@ function ToolGroups({ report, recipeEnv, canInstall, onRequestPlan, onLogin, onO
   )
 }
 
+/** Statuses whose binary the login view found (the terminal tabs the server opens find it too). */
+const FOUND_IN_LOGIN_VIEW: ReadonlySet<RemoteToolReport['status']> = new Set(['ok', 'too-old', 'error'])
+
+/**
+ * T0753 (BUG-186): the server view is the server process's own PATH. A tool the login view found
+ * but the server process does not see is still on the PATH of the terminal tabs (login shell), so
+ * say so instead of a bare "not visible". Every other case keeps the T0411 wording.
+ */
+function serverVisibilityKey(tool: Pick<RemoteToolReport, 'serverVisible' | 'status'>): string {
+  if (tool.serverVisible) return 'remoteTools.server.visible'
+  return FOUND_IN_LOGIN_VIEW.has(tool.status) ? 'remoteTools.server.hiddenLoginOnly' : 'remoteTools.server.hidden'
+}
+
+/** T0753 (BUG-186): the `error` hint names the missing shared library, else the exit code, else the T0408 text. */
+function versionErrorHint(tool: Pick<RemoteToolReport, 'versionError'>): { key: string; params?: Record<string, string | number> } {
+  const err = tool.versionError
+  if (err?.missingLibrary) return { key: 'remoteTools.hint.versionErrorMissingLibrary', params: { library: err.missingLibrary } }
+  if (err?.exitCode !== undefined) return { key: 'remoteTools.hint.versionErrorExitCode', params: { code: err.exitCode } }
+  return { key: 'remoteTools.hint.versionError' }
+}
+
 interface ToolRowProps {
   tool: RemoteToolReport
   report: RemoteToolsReport
@@ -232,6 +253,7 @@ function ToolRow({ tool, report, action, canInstall, onRequestPlan, onLogin, onO
   const { t } = useTranslation()
   const hasLogin = LOGIN_TOOLS.has(tool.id) && !!tool.login && tool.login !== 'n/a'
   const needsLogin = hasLogin && tool.login !== 'loggedIn'
+  const versionHint = tool.status === 'error' ? versionErrorHint(tool) : null
   // claude keeps macOS credentials in the Keychain, so a missing file proves nothing there (T0408).
   const credentialHint =
     tool.login === 'unknown' && tool.credentialFilePresent !== undefined
@@ -258,7 +280,7 @@ function ToolRow({ tool, report, action, canInstall, onRequestPlan, onLogin, onO
         )}
         {report.serverViewAvailable && (
           <span className="remote-tools-server" title={t('remoteTools.server.tooltip')}>
-            {t(tool.serverVisible ? 'remoteTools.server.visible' : 'remoteTools.server.hidden')}
+            {t(serverVisibilityKey(tool))}
           </span>
         )}
         <span className="remote-tools-actions">
@@ -293,7 +315,7 @@ function ToolRow({ tool, report, action, canInstall, onRequestPlan, onLogin, onO
       {action.kind === 'install' && action.alongside && <div className="remote-tools-hint">{t('remoteTools.hint.nodeNotNvm')}</div>}
       {tool.status === 'not-on-path' && <div className="remote-tools-hint">{t('remoteTools.hint.notOnPath')}</div>}
       {tool.status === 'too-old' && <div className="remote-tools-hint remote-tools-hint--warn">{t('remoteTools.hint.tooOld')}</div>}
-      {tool.status === 'error' && <div className="remote-tools-hint">{t('remoteTools.hint.versionError')}</div>}
+      {versionHint && <div className="remote-tools-hint">{t(versionHint.key, versionHint.params)}</div>}
       {action.kind === 'install' && action.blockedByCurl && (
         <div className="remote-tools-hint remote-tools-hint--warn">{t('remoteTools.hint.curlMissing')}</div>
       )}

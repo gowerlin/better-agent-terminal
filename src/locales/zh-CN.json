@@ -1316,7 +1316,8 @@
     "server": {
       "visible": "服务器：可见",
       "hidden": "服务器：不可见",
-      "tooltip": "BAT 服务器进程（Git / GitHub 面板）能否在自己的 PATH 上找到此工具。",
+      "hiddenLoginOnly": "服务器进程：不可见（终端标签页能找到）",
+      "tooltip": "BAT 服务器进程能否找到此工具：看它自己的 PATH（git / gh 另外检查常见安装位置）。影响 Git / GitHub 面板，以及 Claude 面板运行的工具与 MCP。终端标签页走登录 shell，以左边的状态为准。",
       "viewUnavailable": "无法检查 BAT 服务器进程能看到哪些工具。"
     },
     "env": {
@@ -1337,6 +1338,8 @@
       "notOnPath": "已安装，但还不在登录 PATH 上。请打开一个新的终端标签页。",
       "tooOld": "此 Claude Code 版本太旧，无法使用较新的模型。请更新。",
       "versionError": "在 PATH 上找到，但没有报告版本。",
+      "versionErrorMissingLibrary": "在 PATH 上找到，但无法运行：缺少共享库 {{library}}。",
+      "versionErrorExitCode": "在 PATH 上找到，但没有报告版本（exit code {{code}}）。",
       "curlMissing": "主机上没有可用的 curl，此安装程序无法运行。请先安装 curl。",
       "nodeNotNvm": "这个 Node.js 不是由 nvm 管理（例如发行版软件包）。可以另外通过 nvm 安装 LTS，系统的 Node.js 不会被移除。"
     },

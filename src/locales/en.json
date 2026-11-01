@@ -1317,7 +1317,8 @@
     "server": {
       "visible": "Server: visible",
       "hidden": "Server: not visible",
-      "tooltip": "Whether the BAT server process (Git / GitHub panels) can find this tool on its own PATH.",
+      "hiddenLoginOnly": "Server process: not visible (terminal tabs find it)",
+      "tooltip": "Whether the BAT server process can find this tool: its own PATH (plus the usual install locations for git / gh). This affects the Git / GitHub panels and the tools and MCP servers the Claude panel runs. Terminal tabs run a login shell and see what the status on the left reports.",
       "viewUnavailable": "Could not check what the BAT server process can see."
     },
     "env": {
@@ -1338,6 +1339,8 @@
       "notOnPath": "Installed, but not on the login PATH yet. Open a new terminal tab to pick it up.",
       "tooOld": "This Claude Code is too old for newer models. Update it.",
       "versionError": "Found on PATH, but it did not report a version.",
+      "versionErrorMissingLibrary": "Found on PATH, but it cannot run: shared library {{library}} is missing.",
+      "versionErrorExitCode": "Found on PATH, but it did not report a version (exit code {{code}}).",
       "curlMissing": "curl is not available on the host, so this installer cannot run. Install curl first.",
       "nodeNotNvm": "This Node.js is not managed by nvm (for example the distro package). You can add the nvm LTS next to it; the system Node.js is not removed."
     },

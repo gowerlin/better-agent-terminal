@@ -300,6 +300,43 @@ describe('RemoteToolsPanel — other statuses and unsupported reasons', () => {
     expect(row('gh').queryByRole('button', { name: rt.install })).not.toBeInTheDocument()
   })
 
+  // T0753 (BUG-186): why a found tool did not report a version.
+  test('error status with a missing shared library names it', async () => {
+    const report = makeReport({}, {
+      node: { status: 'error', path: '/home/tester/.nvm/versions/node/v26.13.0/bin/node', versionError: { exitCode: 127, missingLibrary: 'libatomic.so.1' }, nvm: { version: '0.40.8' } },
+    })
+    await renderPanel({ detect: ok(report) })
+    expect(row('node').getByText(rt.status.error)).toBeInTheDocument()
+    expect(row('node').getByText(rt.hint.versionErrorMissingLibrary.replace('{{library}}', 'libatomic.so.1'))).toBeInTheDocument()
+    expect(row('node').queryByText(rt.hint.versionError)).not.toBeInTheDocument()
+    expect(row('node').getByTestId('remote-tool-nvm')).toHaveTextContent('0.40.8')
+    expect(row('node').queryByText('26.13.0')).not.toBeInTheDocument()
+  })
+
+  test('error status with only an exit code shows it', async () => {
+    const report = makeReport({}, { rg: { status: 'error', path: '/usr/bin/rg', versionError: { exitCode: 124 } } })
+    await renderPanel({ detect: ok(report) })
+    expect(row('rg').getByText(rt.hint.versionErrorExitCode.replace('{{code}}', '124'))).toBeInTheDocument()
+  })
+
+  // T0753 (BUG-186): the server view is the server process's PATH; terminal tabs use the login shell.
+  test('server badge: found in the login view but not by the server process → terminal tabs find it', async () => {
+    const report = makeReport({}, {
+      uv: { status: 'ok', path: '/home/tester/.local/bin/uv', version: '0.12.23', serverVisible: false },
+      node: { status: 'error', path: '/home/tester/.nvm/versions/node/v26.13.0/bin/node', serverVisible: false },
+      git: { status: 'ok', path: '/usr/bin/git', version: '2.43.0', serverVisible: true },
+      codex: { status: 'not-on-path', path: '/home/tester/.local/bin/codex', serverVisible: false },
+    })
+    await renderPanel({ detect: ok(report) })
+    expect(row('uv').getByText(rt.server.hiddenLoginOnly)).toBeInTheDocument()
+    expect(row('node').getByText(rt.server.hiddenLoginOnly)).toBeInTheDocument()
+    expect(row('git').getByText(rt.server.visible)).toBeInTheDocument()
+    // Not found in the login view either: unchanged wording.
+    expect(row('codex').getByText(rt.server.hidden)).toBeInTheDocument()
+    expect(row('claude').getByText(rt.server.hidden)).toBeInTheDocument()
+    expect(row('uv').getByText(rt.server.hiddenLoginOnly)).toHaveAttribute('title', rt.server.tooltip)
+  })
+
   test('sudo-missing: package installs are unsupported with the reason', async () => {
     const report = makeReport({ privilege: 'sudo-missing' }, { curl: { status: 'ok' } })
     await renderPanel({ detect: ok(report) })

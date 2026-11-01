@@ -95,7 +95,17 @@ export interface RemoteToolReport {
   nvm?: { version?: string }
   /** `node` only (T0555): the reported node is nvm's (`$NVM_DIR/versions/node/...`). */
   nvmManaged?: boolean
-  /** Whether the server process (headless handler PATH) can see this tool. */
+  /**
+   * `error` only (T0753 / BUG-186): why the found binary did not report a version — the
+   * `--version` exit code and, when a dynamic loader said so, the missing shared library file
+   * name (e.g. `libatomic.so.1`). Never stderr text.
+   */
+  versionError?: { exitCode?: number; missingLibrary?: string }
+  /**
+   * Whether the server process can see this tool: its own PATH (headless handler PATH), plus for
+   * `git` / `gh` the install locations the server's resolvers also scan (T0753). Terminal tabs the
+   * server opens run a login shell and see what the login view reports instead.
+   */
   serverVisible: boolean
 }
 

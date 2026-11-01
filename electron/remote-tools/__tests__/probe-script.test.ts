@@ -67,7 +67,8 @@ describe('probe scripts: security guards (T0407 §6)', () => {
   it.each(SCRIPTS)('%s only expands a fixed set of shell variables', (_name, script) => {
     // Every ${...} must be a known env var with a default, never a value supplied from outside.
     const braced = [...script.matchAll(/\$\{([^}]*)\}/g)].map(m => m[1].split(':-')[0])
-    const allowed = new Set(['WSL_DISTRO_NAME', 'ANTHROPIC_API_KEY', 'CLAUDE_CODE_OAUTH_TOKEN', 'OPENAI_API_KEY', 'GH_TOKEN', 'GITHUB_TOKEN', 'CLAUDE_CONFIG_DIR', 'CODEX_HOME', 'GH_CONFIG_DIR', 'XDG_CONFIG_HOME', 'NVM_DIR'])
+    // T0753: two pattern expansions of the probe-local `bat_vout` (exit code trailer / version text).
+    const allowed = new Set(['bat_vout##*__bat_rc=', 'bat_vout%__bat_rc=*', 'WSL_DISTRO_NAME', 'ANTHROPIC_API_KEY', 'CLAUDE_CODE_OAUTH_TOKEN', 'OPENAI_API_KEY', 'GH_TOKEN', 'GITHUB_TOKEN', 'CLAUDE_CONFIG_DIR', 'CODEX_HOME', 'GH_CONFIG_DIR', 'XDG_CONFIG_HOME', 'NVM_DIR'])
     for (const name of braced) expect(allowed, name).toContain(name)
     // Command substitution is limited to probe-local commands.
     const substitutions = [...script.matchAll(/\$\(([^)]*)\)?/g)].map(m => m[1].trim().split(/\s+/)[0])
@@ -115,11 +116,39 @@ describe('probe scripts: security guards (T0407 §6)', () => {
   it('tools are only executed when found off /mnt (interop never runs)', () => {
     const lines = scriptLines(LOGIN_PROBE_SCRIPT)
     const versionLine = lines.findIndex(l => l.includes('"$bat_path" --version'))
-    expect(lines.filter(l => l.includes('"$bat_path" --version'))).toHaveLength(1)
+    // T0753: a second `--version` run (missing-library check) sits inside the same found block.
+    const versionLines = lines.map((l, i) => [l, i] as const).filter(([l]) => l.includes('"$bat_path" --version'))
+    expect(versionLines).toHaveLength(2)
     expect(lines[versionLine - 1].trim()).toBe('if [ "$bat_state" = found ]; then')
+    const foundEnd = lines.findIndex((l, i) => i > versionLine && l === '  fi')
+    for (const [, i] of versionLines) expect(i).toBeLessThan(foundEnd)
     expect(LOGIN_PROBE_SCRIPT).toContain('case "$bat_path" in /mnt/[a-z]/*) bat_state=interop ;; esac')
     // T0555: the nvm node override re-applies the interop rule (once in bat_locate, once here).
     expect(LOGIN_PROBE_SCRIPT.split('case "$bat_path" in /mnt/[a-z]/*) bat_state=interop ;; esac')).toHaveLength(3)
+  })
+
+  // T0753 (BUG-186): stderr of `--version` never reaches the output; only a sed-extracted file name does.
+  it('version failure: only the exit code and a loader-reported library file name are printed', () => {
+    const lines = scriptLines(LOGIN_PROBE_SCRIPT)
+    const stderrLines = lines.filter(l => l.includes('2>&1') && l.includes('"$bat_path"'))
+    expect(stderrLines).toHaveLength(1)
+    const [line] = stderrLines
+    expect(line).toContain('bat_emit "tool.$bat_name.missing_lib" "$(bat_run 5 "$bat_path" --version 2>&1 >/dev/null </dev/null | sed -n ')
+    expect(line).toContain("-e 's/^.*error while loading shared libraries: \\([A-Za-z0-9._+-]*\\): .*$/\\1/p'")
+    expect(line).toContain("-e 's/^Error loading shared library \\([A-Za-z0-9._+-]*\\): .*$/\\1/p'")
+    expect(line.trim().endsWith('| head -n1)" ;;')).toBe(true)
+    // No second run after a timeout kill.
+    expect(LOGIN_PROBE_SCRIPT).toContain('        124|137|143) ;;')
+    // The first run keeps stderr discarded, as before.
+    expect(LOGIN_PROBE_SCRIPT).toContain('bat_vout=$(bat_run 5 "$bat_path" --version 2>/dev/null </dev/null; printf \'\\n__bat_rc=%s\' "$?")')
+  })
+
+  it('server probe (T0753): git / gh also scan the locations the server resolvers scan; other tools stay PATH-only', () => {
+    expect(SERVER_PROBE_SCRIPT).toContain('bat_srv_dirs="/usr/bin /usr/local/bin"')
+    expect(SERVER_PROBE_SCRIPT).toContain('if [ "$(uname -s 2>/dev/null)" = Darwin ]; then bat_srv_dirs="$bat_srv_dirs /opt/homebrew/bin"; fi')
+    expect(SERVER_PROBE_SCRIPT).toContain('    *:git|*:gh)')
+    expect(SERVER_PROBE_SCRIPT).toContain('      for bat_dir in $bat_srv_dirs "$HOME/.local/bin"; do')
+    expect(SERVER_PROBE_SCRIPT.split('bat_state=found')).toHaveLength(3) // bat_locate + the git / gh scan
   })
 
   it('the server probe runs nothing but command -v', () => {
@@ -350,6 +379,66 @@ describe.skipIf(process.platform === 'win32' || !fs.existsSync('/bin/sh'))('logi
       const report = parseRemoteToolsReport(await runLoginProbe(home))
       expect(report).not.toBeNull()
       expect(tool(report, 'node').nvm).toEqual({})
+    } finally {
+      fs.rmSync(home, { recursive: true, force: true })
+    }
+  })
+})
+
+// T0753 (BUG-186): a found binary that cannot run, under a real /bin/sh.
+describe.skipIf(process.platform === 'win32' || !fs.existsSync('/bin/sh'))('login probe version failures under a real /bin/sh', () => {
+  function runLogin(dir: string): Promise<string> {
+    return new Promise((resolve, reject) => {
+      execFile('/bin/sh', ['-c', LOGIN_PROBE_SCRIPT], { env: { PATH: dir + ':/usr/bin:/bin', HOME: dir }, timeout: 20000 }, (err, stdout) => {
+        if (err && !stdout) reject(err)
+        else resolve(String(stdout))
+      })
+    })
+  }
+
+  it('glibc / musl loader errors → missing library; other stderr is never printed', async () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 't0753-probe-'))
+    try {
+      fs.writeFileSync(path.join(dir, 'uv'), '#!/bin/sh\necho "$0: error while loading shared libraries: libatomic.so.1: cannot open shared object file: No such file or directory" >&2\nexit 127\n', { mode: 0o755 })
+      fs.writeFileSync(path.join(dir, 'rg'), '#!/bin/sh\necho "Error loading shared library libstdc++.so.6: No such file or directory (needed by $0)" >&2\nexit 127\n', { mode: 0o755 })
+      fs.writeFileSync(path.join(dir, 'codex'), '#!/bin/sh\necho "do-not-print-me" >&2\nexit 3\n', { mode: 0o755 })
+      const stdout = await runLogin(dir)
+      expect(stdout).not.toContain('do-not-print-me')
+      const report = parseRemoteToolsReport(stdout)
+      expect(tool(report, 'uv')).toMatchObject({ status: 'error', versionError: { exitCode: 127, missingLibrary: 'libatomic.so.1' } })
+      expect(tool(report, 'rg')).toMatchObject({ status: 'error', versionError: { exitCode: 127, missingLibrary: 'libstdc++.so.6' } })
+      expect(tool(report, 'codex')).toMatchObject({ status: 'error', versionError: { exitCode: 3 } })
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('a working tool keeps its version and gets no versionError', async () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 't0753-probe-'))
+    try {
+      fs.writeFileSync(path.join(dir, 'uv'), '#!/bin/sh\necho "uv 0.12.23 (x86_64-unknown-linux-gnu)"\necho "line two"\necho warn >&2\n', { mode: 0o755 })
+      const uv = tool(parseRemoteToolsReport(await runLogin(dir)), 'uv')
+      expect(uv).toMatchObject({ status: 'ok', version: '0.12.23' })
+      expect(uv.versionError).toBeUndefined()
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true })
+    }
+  })
+})
+
+describe.skipIf(process.platform === 'win32' || !fs.existsSync('/bin/sh'))('server probe git / gh scan under a real /bin/sh', () => {
+  it('git / gh in $HOME/.local/bin are visible to the server view even off PATH; uv there is not', async () => {
+    const home = fs.mkdtempSync(path.join(os.tmpdir(), 't0753-srv-'))
+    try {
+      fs.mkdirSync(path.join(home, '.local', 'bin'), { recursive: true })
+      for (const name of ['git', 'gh', 'uv']) fs.writeFileSync(path.join(home, '.local', 'bin', name), '#!/bin/sh\n', { mode: 0o755 })
+      const stdout = await new Promise<string>((resolve, reject) => {
+        execFile('/bin/sh', ['-c', SERVER_PROBE_SCRIPT], { env: { PATH: '/nonexistent', HOME: home }, timeout: 5000 }, (err, out) => (err && !out ? reject(err) : resolve(String(out))))
+      })
+      const r = parseRemoteToolsReport([PROBE_BEGIN_MARKER, PROBE_END_MARKER].join('\n'), stdout)
+      expect(tool(r, 'git').serverVisible).toBe(true)
+      expect(tool(r, 'gh').serverVisible).toBe(true)
+      expect(tool(r, 'uv').serverVisible).toBe(false)
     } finally {
       fs.rmSync(home, { recursive: true, force: true })
     }

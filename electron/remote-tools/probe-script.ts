@@ -138,7 +138,21 @@ const LOGIN_PROBE_BODY: readonly string[] = [
   '  bat_emit "tool.$bat_name.state" "$bat_state"',
   '  if [ -n "$bat_path" ]; then bat_emit "tool.$bat_name.path" "$bat_path"; fi',
   '  if [ "$bat_state" = found ]; then',
-  '    bat_emit "tool.$bat_name.version" "$(bat_run 5 "$bat_path" --version 2>/dev/null </dev/null | head -n1)"',
+  // T0753 (BUG-186): keep the exit code too. stdout only for the version (stderr still discarded);
+  // a trailer line carries `$?` so no pipe to `head` can turn it into SIGPIPE.
+  '    bat_vout=$(bat_run 5 "$bat_path" --version 2>/dev/null </dev/null; printf \'\\n__bat_rc=%s\' "$?")',
+  '    bat_vrc=${bat_vout##*__bat_rc=}',
+  '    bat_vline=$(printf \'%s\\n\' "${bat_vout%__bat_rc=*}" | head -n1)',
+  '    bat_emit "tool.$bat_name.version" "$bat_vline"',
+  // No version line: report the exit code and, from a second run (not after a timeout kill), only the
+  // file name a dynamic loader says is missing (glibc / musl wording). The rest of stderr is never printed.
+  '    if [ -z "$bat_vline" ]; then',
+  '      bat_emit "tool.$bat_name.version_rc" "$bat_vrc"',
+  '      case "$bat_vrc" in',
+  '        124|137|143) ;;',
+  '        *) bat_emit "tool.$bat_name.missing_lib" "$(bat_run 5 "$bat_path" --version 2>&1 >/dev/null </dev/null | sed -n -e \'s/^.*error while loading shared libraries: \\([A-Za-z0-9._+-]*\\): .*$/\\1/p\' -e \'s/^Error loading shared library \\([A-Za-z0-9._+-]*\\): .*$/\\1/p\' | head -n1)" ;;',
+  '      esac',
+  '    fi',
   '    case "$bat_name" in',
   '      claude) bat_login "$bat_path" auth status ;;',
   '      codex) bat_login "$bat_path" login status ;;',
@@ -155,10 +169,29 @@ const LOGIN_PROBE_BODY: readonly string[] = [
   'if [ -e "${GH_CONFIG_DIR:-${XDG_CONFIG_HOME:-$HOME/.config}/gh}/hosts.yml" ]; then bat_emit tool.gh.cred 1; else bat_emit tool.gh.cred 0; fi',
 ]
 
-/** Server view (the headless handler's own PATH): visibility only, nothing is executed. */
+/**
+ * Server view (the headless handler's own PATH): visibility only, nothing is executed.
+ * T0753 (BUG-186): git / gh are not looked up on PATH alone by the server — `resolveGitBinary` /
+ * `resolveGhBinary` (electron/gh-resolver.ts) also scan the usual install locations, which a
+ * systemd / launchd service PATH lacks — so the server view scans the same locations for those two.
+ */
 const SERVER_PROBE_BODY: readonly string[] = [
+  'bat_srv_dirs="/usr/bin /usr/local/bin"',
+  'if [ "$(uname -s 2>/dev/null)" = Darwin ]; then bat_srv_dirs="$bat_srv_dirs /opt/homebrew/bin"; fi',
   'for bat_name in ' + TOOL_NAMES + '; do',
   '  bat_locate "$bat_name"',
+  '  case "$bat_state:$bat_name" in',
+  '    found:*) ;;',
+  '    *:git|*:gh)',
+  '      for bat_dir in $bat_srv_dirs "$HOME/.local/bin"; do',
+  '        if [ -f "$bat_dir/$bat_name" ] && [ -x "$bat_dir/$bat_name" ]; then',
+  '          bat_state=found',
+  '          bat_path="$bat_dir/$bat_name"',
+  '          break',
+  '        fi',
+  '      done',
+  '      ;;',
+  '  esac',
   '  bat_emit "tool.$bat_name.state" "$bat_state"',
   '  if [ -n "$bat_path" ]; then bat_emit "tool.$bat_name.path" "$bat_path"; fi',
   'done',

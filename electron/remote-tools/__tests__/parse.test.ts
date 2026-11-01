@@ -14,6 +14,7 @@ import {
   loginStateFromExitCode,
   parseRemoteToolsReport,
   parseToolVersion,
+  parseVersionError,
   sanitizeProbeValue,
 } from '../parse'
 import { PROBE_BEGIN_MARKER, PROBE_END_MARKER } from '../probe-script'
@@ -361,6 +362,64 @@ describe('claude version gate and broken binaries', () => {
     expect(tool(r, 'uv')).toEqual({ id: 'uv', status: 'error', path: '/x/uv', login: 'n/a', serverVisible: false })
   })
 
+  // T0753 (BUG-186): the WSL capture — nvm's node v26 without libatomic1.
+  it('found but cannot run: exit code and missing shared library are reported', () => {
+    const r = mustParse(block([
+      'tool.node.nvm=0.40.8',
+      'tool.node.state=found',
+      'tool.node.path=/home/tester/.nvm/versions/node/v26.13.0/bin/node',
+      'tool.node.version=',
+      'tool.node.version_rc=127',
+      'tool.node.missing_lib=libatomic.so.1',
+      'tool.node.nvm_managed=1',
+    ]))
+    expect(tool(r, 'node')).toEqual({
+      id: 'node',
+      status: 'error',
+      path: '/home/tester/.nvm/versions/node/v26.13.0/bin/node',
+      versionError: { exitCode: 127, missingLibrary: 'libatomic.so.1' },
+      login: 'n/a',
+      nvm: { version: '0.40.8' },
+      serverVisible: false,
+    })
+    // No version is invented from the nvm path.
+    expect(tool(r, 'node').version).toBeUndefined()
+  })
+
+  it('timeout (124) without a library: exit code only', () => {
+    const r = mustParse(block(['tool.rg.state=found', 'tool.rg.path=/usr/bin/rg', 'tool.rg.version=', 'tool.rg.version_rc=124']))
+    expect(tool(r, 'rg').versionError).toEqual({ exitCode: 124 })
+  })
+
+  it('versionError keys are ignored when the tool reported a version (ok tools unchanged)', () => {
+    const r = mustParse(block(['tool.git.state=found', 'tool.git.path=/usr/bin/git', 'tool.git.version=git version 2.43.0', 'tool.git.version_rc=1', 'tool.git.missing_lib=libz.so.1']))
+    expect(tool(r, 'git')).toEqual({ id: 'git', status: 'ok', path: '/usr/bin/git', version: '2.43.0', login: 'n/a', serverVisible: false })
+  })
+
+  it('versionError keys are ignored for missing / off-path tools', () => {
+    const r = mustParse(block(['tool.uv.state=offpath', 'tool.uv.path=/home/tester/.local/bin/uv', 'tool.uv.version_rc=127', 'tool.uv.missing_lib=libatomic.so.1']))
+    expect(tool(r, 'uv').versionError).toBeUndefined()
+  })
+
+  it.each([
+    [{ version_rc: '127', missing_lib: 'libatomic.so.1' }, { exitCode: 127, missingLibrary: 'libatomic.so.1' }],
+    [{ version_rc: '127', missing_lib: 'libstdc++.so.6' }, { exitCode: 127, missingLibrary: 'libstdc++.so.6' }],
+    [{ version_rc: '1', missing_lib: '' }, { exitCode: 1 }],
+    [{ version_rc: '0' }, { exitCode: 0 }],
+    [{ version_rc: '256' }, undefined],
+    [{ version_rc: '-1' }, undefined],
+    [{ version_rc: '1; rm -rf /' }, undefined],
+    [{ missing_lib: 'libfoo.so' }, { missingLibrary: 'libfoo.so' }],
+    [{ missing_lib: 'TOKEN=abc' }, undefined],
+    [{ missing_lib: '/usr/lib/libatomic.so.1' }, undefined],
+    [{ missing_lib: 'libatomic.so.1 extra text' }, undefined],
+    [{ missing_lib: 'notalib.so.1' }, undefined],
+    [{ missing_lib: 'lib' + 'x'.repeat(200) + '.so' }, undefined],
+    [{}, undefined],
+  ] as const)('parseVersionError(%j) → %j', (fields, expected) => {
+    expect(parseVersionError(fields)).toEqual(expected)
+  })
+
   it('unparsable version text → ok without a version', () => {
     const r = mustParse(block(['tool.claude.state=found', 'tool.claude.path=/x/claude', 'tool.claude.version=claude: something odd']))
     expect(tool(r, 'claude')).toMatchObject({ status: 'ok' })
@@ -513,7 +572,7 @@ describe('hostile / noisy output', () => {
 
 describe('key whitelist', () => {
   it('contains only env.* and tool.<known id>.<known field> keys', () => {
-    for (const k of PROBE_KEY_WHITELIST) expect(k).toMatch(/^(env\.[a-z_]+|env\.auth\.[A-Z_]+|tool\.(claude|git|gh|codex|curl|bash|rg|uv|python3|node)\.(state|path|version|login|cred)|tool\.node\.(nvm|nvm_managed))$/)
+    for (const k of PROBE_KEY_WHITELIST) expect(k).toMatch(/^(env\.[a-z_]+|env\.auth\.[A-Z_]+|tool\.(claude|git|gh|codex|curl|bash|rg|uv|python3|node)\.(state|path|version|login|cred|version_rc|missing_lib)|tool\.node\.(nvm|nvm_managed))$/)
   })
 })
 

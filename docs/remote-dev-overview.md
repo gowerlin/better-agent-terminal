@@ -575,6 +575,41 @@ The remote tools panel (PLAN-037) installs Node.js with
   `bash -lc` / `sh -lc` find node. Unit and real-shell tests:
   `src/lib/remote-tools/__tests__/recipes.test.ts`, `nvm-login-profile.test.ts`.
 
+## Remote tools: "No response" and the server badge (T0753 / BUG-186)
+
+- **"No response" (`error`) means the binary did not print a version**, not that the
+  detection is wrong. BUG-186 case: nvm's default `lts/*` was Node.js v26.13.0, which needs
+  `libatomic.so.1`; the distro had no `libatomic1`, so `node --version` exited 127 with
+  `error while loading shared libraries` — in the user's own terminals too. Fix on the host
+  (`sudo apt install libatomic1`, or `nvm use` / `nvm alias default` another version), then
+  Check again. BAT never infers a version from the nvm path.
+- **Why it failed**: for a found tool whose `--version` printed no line, the login-view probe
+  adds `tool.<id>.version_rc` (the exit code) and, unless the run was killed by `timeout`
+  (124 / 137 / 143), runs `--version` once more and keeps only the file name a dynamic loader
+  says is missing (glibc `error while loading shared libraries: <lib>:`, musl `Error loading
+  shared library <lib>:`) as `tool.<id>.missing_lib`. The rest of stderr is never printed.
+  `parse.ts` (`parseVersionError`) passes the exit code (0–255) and a name matching
+  `^lib[A-Za-z0-9._+-]*\.so(\.[0-9]+)*$` (≤ 128 chars) as `versionError` on `error` rows only.
+  The row says "cannot run: shared library <lib> is missing", else "did not report a version
+  (exit code N)", else the T0408 text. Tools that report a version are unchanged. Needs a
+  server with the T0753 probe; older servers give the T0408 text.
+- **Server badge** = the server process's own view: `command -v` with the server's PATH, plus
+  for `git` / `gh` the locations `resolveGitBinary` / `resolveGhBinary` also scan
+  (`/usr/bin`, `/usr/local/bin`, `/opt/homebrew/bin` on macOS, `~/.local/bin`). It matters for
+  the Git / GitHub panels and for the tools and MCP servers the Claude panel runs. Terminal
+  tabs the server opens run a login interactive shell (`-l -i`, `PtyManager`), so they see
+  what the login view (the row status) reports. A tool the login view found (`ok` /
+  `too-old` / `error`) that the server process does not see is labelled "Server process: not
+  visible (terminal tabs find it)"; other rows keep "Server: visible / not visible".
+- **Where the server PATH comes from** (none of these is changed by BAT): WSL and SSH Linux —
+  the systemd user unit sets no `PATH`, so it inherits `systemctl --user show-environment`
+  (no `~/.local/bin`, no nvm). SSH macOS — launchd's default PATH (no Homebrew). Docker —
+  the image `PATH`; the container runs as root and `/root/.local/bin` is not on the login PATH
+  either, so a tool there is "Not on PATH" in both views.
+- Tests: `electron/remote-tools/__tests__/probe-script.test.ts` (string guards; real
+  `/bin/sh` cases run on Linux / macOS only), `parse.test.ts`,
+  `src/components/__tests__/remote-tools-panel.test.tsx`.
+
 ## Troubleshooting (cross-cutting)
 
 For environment-specific troubleshooting see the per-env guides. The issues

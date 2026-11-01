@@ -45,7 +45,8 @@ export const MAX_VALUE_LENGTH = 256
 /** Upper bound on lines read inside one block; a real probe prints well under 100. */
 export const MAX_BLOCK_LINES = 512
 
-const TOOL_FIELDS = ['state', 'path', 'version', 'login', 'cred'] as const
+/** T0753 (BUG-186): `version_rc` / `missing_lib` are printed only for a found tool without a version line. */
+const TOOL_FIELDS = ['state', 'path', 'version', 'login', 'cred', 'version_rc', 'missing_lib'] as const
 type ToolField = typeof TOOL_FIELDS[number]
 
 /** T0555: node-only keys (nvm version, whether the reported node is nvm's). */
@@ -216,6 +217,25 @@ interface ToolProbeFields {
   version?: string
   login?: string
   cred?: string
+  version_rc?: string
+  missing_lib?: string
+}
+
+/** A shared-library file name as a dynamic loader prints it (`libatomic.so.1`); anything else is dropped. */
+const MISSING_LIBRARY_RE = /^lib[A-Za-z0-9._+-]*\.so(?:\.[0-9]+)*$/
+const EXIT_CODE_RE = /^[0-9]{1,3}$/
+
+/**
+ * T0753 (BUG-186): why a found tool did not report a version. Only the exit code (0–255) and a
+ * whitelisted library file name pass; the probe never prints the rest of stderr.
+ */
+export function parseVersionError(fields: { version_rc?: string; missing_lib?: string }): RemoteToolReport['versionError'] | undefined {
+  const out: NonNullable<RemoteToolReport['versionError']> = {}
+  const rc = fields.version_rc?.trim()
+  if (rc !== undefined && EXIT_CODE_RE.test(rc) && Number(rc) <= 255) out.exitCode = Number(rc)
+  const lib = fields.missing_lib?.trim()
+  if (lib !== undefined && lib.length <= 128 && MISSING_LIBRARY_RE.test(lib)) out.missingLibrary = lib
+  return out.exitCode === undefined && out.missingLibrary === undefined ? undefined : out
 }
 
 function toolFields(values: Map<string, string>, id: RemoteToolId): ToolProbeFields {
@@ -255,6 +275,10 @@ function parseTool(id: RemoteToolId, fields: ToolProbeFields): Omit<RemoteToolRe
   const tool: Omit<RemoteToolReport, 'serverVisible'> = { id, status }
   if (path !== undefined && status !== 'missing') tool.path = path
   if (version !== undefined) tool.version = version
+  if (status === 'error') {
+    const versionError = parseVersionError(fields)
+    if (versionError) tool.versionError = versionError
+  }
   if (hasLogin(id)) {
     // Login was only checked for a runnable binary; otherwise there is nothing to ask.
     tool.login = status === 'ok' || status === 'too-old' ? loginStateFromExitCode(fields.login) : 'n/a'
