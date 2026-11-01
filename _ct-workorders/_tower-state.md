@@ -4,7 +4,7 @@ summary_version: 1
 updated_at: "2026-11-01T20:04:58+0800"
 session: "2026-11-01 20:04 第一百零三 session 塔台重啟（BAT 重開，CT v6.0.0-beta.10）；v0.7.2-pre.9 已發佈；NSIS 驗收 ② FAIL 待判讀"
 next_ids:
-  workorder: "T0745"
+  workorder: "T0746"
   decision: "D204"
   bug: "BUG-182"
   plan: "PLAN-057"
