@@ -143,6 +143,10 @@ T0722 把「Claude Agent V1」改名為「Claude Agent」後，留下兩件事�
 - 本機另有 `assets/screenshot-*.png`（README 用）不在本單 `affects_files`，未檢查也未改動；README 截圖為 overview / git / question，依檔名推測不含「+」選單。
 - Playwright `screens` 測試順帶產出其他截圖（overview、files 等的新版），只替換了 `agents-menu.png`，其餘不換（非改名造成的差異，避免無謂變動）。
 
+### 互動紀錄
+
+無（未向塔台提問、未與使用者互動）。
+
 ### 回報時間
 
 2026-11-01T10:04:32+08:00
