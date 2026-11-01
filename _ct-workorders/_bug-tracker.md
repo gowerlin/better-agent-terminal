@@ -23,10 +23,10 @@ breakdown:
 # Bug Tracker
 
 > ⚠️ 此文件由 `*sync` 自動生成，請勿手動編輯。
-> 最後同步：2026-11-01 19:39 — 第一百零三 session：BUG-097 / 105 / 107 / 108 / 111 / 156 CLOSED（T0742 / T0743）；BUG-181 FIXED（T0744 `0d42ebdc`）；BUG-135 CLOSED（T0742）；BUG-181 FIXING（T0744）；BUG-181 OPEN（T0739 發現）；T0738 A 類 12 張 CLOSED（BUG-116 / 118 / 127 / 129 / 131 / 132 / 133 / 134 / 137 / 146 / 147 / 171）；BUG-134 回報者改代稱；BUG-180 FIXED（T0741 `4500984d`）；BUG-177 / 178 / 179 CLOSED（T0737 e2e＋BUG-179 實機輪替）；BUG-180 OPEN（T0736 發現）；BUG-167 / 168 / 170 CLOSED（R-G003，CI 測試關卡 / 實機驗收證據）；熱區 Fixing 0 / Fixed 6 / Closed 39。前次 2026-11-01 12:43 第一百零二 session：BUG-169 / 174 / 176 CLOSED、BUG-177 / 178 / 179 FIXED（T0729 `ceb24910` / T0730 `6f7b3d53` / T0732 `ce648034`）；熱區 Open 0 / Fixing 0 / Fixed 29 / Closed 14
+> 最後同步：2026-11-01 20:32 — 第一百零三 session：BUG-181 CLOSED（T0746 真實模型複驗）；熱區 Fixing 0 / Fixed 5 / Closed 40。前次 2026-11-01 19:39：BUG-097 / 105 / 107 / 108 / 111 / 156 CLOSED（T0742 / T0743）；BUG-181 FIXED（T0744 `0d42ebdc`）；BUG-135 CLOSED（T0742）；BUG-181 FIXING（T0744）；BUG-181 OPEN（T0739 發現）；T0738 A 類 12 張 CLOSED（BUG-116 / 118 / 127 / 129 / 131 / 132 / 133 / 134 / 137 / 146 / 147 / 171）；BUG-134 回報者改代稱；BUG-180 FIXED（T0741 `4500984d`）；BUG-177 / 178 / 179 CLOSED（T0737 e2e＋BUG-179 實機輪替）；BUG-180 OPEN（T0736 發現）；BUG-167 / 168 / 170 CLOSED（R-G003，CI 測試關卡 / 實機驗收證據）；熱區 Fixing 0 / Fixed 6 / Closed 39。前次 2026-11-01 12:43 第一百零二 session：BUG-169 / 174 / 176 CLOSED、BUG-177 / 178 / 179 FIXED（T0729 `ceb24910` / T0730 `6f7b3d53` / T0732 `ce648034`）；熱區 Open 0 / Fixing 0 / Fixed 29 / Closed 14
 
 ## 統計
-- 🔴 Open: 0 | ⏳ Fixing: 0 | ✅ Fixed: 6 | 🧪 Verify: 0 | 🚫 Closed: 39 | ⛔ Won't Fix: 0 | **Total: 45**
+- 🔴 Open: 0 | ⏳ Fixing: 0 | ✅ Fixed: 5 | 🧪 Verify: 0 | 🚫 Closed: 40 | ⛔ Won't Fix: 0 | **Total: 45**
 
 ## 🔴 Open / 處理中
 
@@ -42,7 +42,6 @@ breakdown:
 
 | ID | 標題 | 嚴重度 | 修復時間 | 連結 |
 |----|------|--------|---------|------|
-| BUG-181 | Claude 面板 Cache History 把 CLI 的 session 累計 `modelUsage` / `total_cost_usd` 當單一回合，R 列逐列膨脹、合計重複計算（T0739 真實模型發現；T0744 `0d42ebdc` 依 model 相減成每回合、resume 後首列 `R*`；待真實模型複驗） | 🟡 medium | 2026-11-01 | [BUG-181](BUG-181-cache-history-sums-cumulative-model-usage.md) |
 | BUG-180 | 剛開的終端分頁被切走時 PTY 被 resize 成 9x5；T0741 `canFitTerminalContainer` 守門：容器無尺寸不 fit、不送 resize，initial resize 到期再檢查 active（`4500984d`），待預覽版實機驗收 | 🟢 low | 2026-11-01 | [BUG-180](BUG-180-new-tab-switched-away-pty-resized-9x5.md) |
 | BUG-175 | 縮圖預覽在輸出沒有換行時不更新、露出 `>0q>4m` 殘骸（T0714 `afe57761` 依游標換列分行 + 完整 CSI；`v0.7.2-pre.3`；待外部測試者A 與 GitHub #22 回報者 macOS 實機驗收） | 🟡 medium | 2026-10-30 | [BUG-175](BUG-175-thumbnail-preview-stuck-without-newline.md) |
 | BUG-159 | codex 分頁在 BAT MCP 未注入、非系統管理員時接上 codex 共用 daemon，helper 讀到其他分頁的 `BAT_*`（T0651 `5b1be0f5`） | 🟢 low | 2026-10-18 | [BUG-159](BUG-159-codex-shared-daemon-inherits-other-tab-env.md) |
@@ -59,6 +58,7 @@ breakdown:
 
 | ID | 標題 | 嚴重度 | 關閉時間 | 連結 |
 |----|------|--------|---------|------|
+| BUG-181 | Claude 面板 Cache History 把 CLI 的 session 累計 `modelUsage` / `total_cost_usd` 當單一回合；T0744 `0d42ebdc` 依 model 相減、resume 首列 `R*`；T0746 真實模型複驗 PASS（`9e37c226`） | 🟡 Medium | 2026-11-01 | [BUG-181](BUG-181-cache-history-sums-cumulative-model-usage.md) |
 | BUG-156 | Docker 設定精靈容器埠固定 `127.0.0.1:9876`，與 BAT RemoteServer 預設埠衝突（T0649 `99abe9a1`） | 🟡 medium | 2026-11-01 | [BUG-156](BUG-156-docker-wizard-port-9876-conflicts-bat-server.md) |
 | BUG-111 | 設定精靈 rollback 會刪 / 停使用者自己的 Docker 容器與資料（T0444） | 🔴 high | 2026-11-01 | [BUG-111](BUG-111-wizard-rollback-touches-user-owned-resources.md) |
 | BUG-108 | Claude 面板圖片附件走 proxied 讀檔：本機工作區外圖片被 path guard 擋、遠端讀錯檔案系統（T0436） | 🟡 medium | 2026-11-01 | [BUG-108](BUG-108-image-attachment-read-path-denied.md) |

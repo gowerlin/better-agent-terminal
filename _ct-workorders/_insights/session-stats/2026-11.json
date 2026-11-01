@@ -1,5 +1,5 @@
 {
- "generated_at": "2026-11-01T20:11:13+08:00",
+ "generated_at": "2026-11-01T20:31:42+08:00",
  "generator": {
   "script": "ct-session-stats.py",
   "version": "0.1.0"
@@ -843,6 +843,92 @@
     "2.1.316"
    ],
    "workorder": "T0745"
+  },
+  {
+   "attribution": {
+    "conflict": false,
+    "source": "frontmatter",
+    "sources": {
+     "frontmatter": 1
+    }
+   },
+   "by_mcp_server": {},
+   "by_tool": {
+    "Bash": 51,
+    "Edit": 14,
+    "Monitor": 1,
+    "PowerShell": 1,
+    "Read": 1,
+    "ToolSearch": 1,
+    "Write": 2
+   },
+   "counts": {
+    "api_requests": 61,
+    "failures": 1,
+    "same_file_read_ge3": 0,
+    "subagent_files": 0,
+    "tool_calls": 71
+   },
+   "end": "2026-11-01T12:31:34Z",
+   "est_usd": 4.8144,
+   "failures_by_tool": {
+    "Bash": 1
+   },
+   "renews": 0,
+   "sessions": 1,
+   "skills_invoked": {},
+   "start": "2026-11-01T12:23:22Z",
+   "stuck": {
+    "max_consecutive_failures": 1,
+    "max_failures_in_10_calls": 1,
+    "near_repeat_fail_pairs_j50": 0,
+    "repeat_fail_groups_norm": 0
+   },
+   "stuck_signal": false,
+   "subagent_tokens": {
+    "cache_read": 0,
+    "cache_write": 0,
+    "cache_write_1h": 0,
+    "cache_write_5m": 0,
+    "input": 0,
+    "output": 0
+   },
+   "tokens": {
+    "cache_read": 11640040,
+    "cache_write": 199207,
+    "cache_write_1h": 199207,
+    "cache_write_5m": 0,
+    "input": 124,
+    "output": 44614
+   },
+   "top_tools": [
+    [
+     "Bash",
+     51
+    ],
+    [
+     "Edit",
+     14
+    ],
+    [
+     "Write",
+     2
+    ],
+    [
+     "Monitor",
+     1
+    ],
+    [
+     "PowerShell",
+     1
+    ]
+   ],
+   "type": "implementation",
+   "unpriced_tokens": 0,
+   "versions": [
+    "2.1.316"
+   ],
+   "workorder": "T0746"
   }
  ]
 }
