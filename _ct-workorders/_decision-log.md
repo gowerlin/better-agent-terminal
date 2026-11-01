@@ -1465,6 +1465,12 @@
 - **切分**：W2a 設計語言 + 元件 + 首頁（T0630）→ 預覽通過後 W2b（`/control-tower`、功能、FAQ、回報頁）→ W2c 遠端開發；W3 / W4 不變。
 - **相關**：PLAN-049 / D159 / D160 / T0624 / T0630
 
+### D193 2026-11-01 — `0.7.2-pre.5` CI 打包失敗（BUG-176）：開 T0719 補回 ajv 並加本機守門，修好後同版號重發（塔台代決）
+
+- **背景**：使用者指示發 `0.7.2-pre.5`。run 41259467662 的 mac 打包驗證報 `ajv` / `ajv-formats` 不在安裝檔，其他平台 build 取消、release skipped、未建 tag。塔台查 lock：SDK 0.3.316 沒有 `dependencies`（MCP SDK 等改 peer），ajv 掉出 production 相依樹；本機白名單測試沒抓到。
+- **決定**（塔台代決，屬使用者已授權的發版範圍內）：開 T0719（P1）：把執行期需要 / 打包檢查要求的套件明確加進 `dependencies`（不在檢查腳本豁免），補「production 相依樹」的本機守門與本機 Windows 打包驗證；完成後同版號 `0.7.2-pre.5` 重發。已備妥未 commit 的發版文件留在工作區，Worker 不得動。
+- **相關**：BUG-176 / T0718 / T0719 / T0546 / D191
+
 ### D192 2026-11-01 — T0717 Q-1 / Q-2 皆在本單補（塔台代決）：claude 新限額句型、codex OSC 7501 `done` / `error` → `idle`
 
 - **背景**：T0717 Worker 核對新版 binary 時發現：Q-1 claude 2.1.312 起限額標題改成 `You've hit your 5-hour limit`、reset 通知改成 `Continuing automatically`（大寫 C），`src/lib/usage-limit.ts` 認不得（只影響提示，claude 一律不送文字，D148）；Q-2 codex 0.166 回合結束送 OSC 7501 `state=done`、失敗送 `state=error`（保持到使用者按鍵），BAT parser 忽略未知狀態 → 回合已結束仍回 `working`，`↻` 回不到 `✓`、`terminal:wait` 等不到 idle。Q-2 與內嵌升版無關，系統 codex 升到 0.166 即發生。

@@ -23,10 +23,10 @@ breakdown:
 # Bug Tracker
 
 > ⚠️ 此文件由 `*sync` 自動生成，請勿手動編輯。
-> 最後同步：2026-10-30 16:57 (UTC+8) — BUG-175 FIXED（T0714 `afe57761`）；熱區 Fixed 28 / Closed 11
+> 最後同步：2026-11-01 09:12 (UTC+8) — BUG-176 FIXING（T0719，SDK 0.3 後 ajv 不在安裝檔，擋 0.7.2-pre.5）；熱區 Fixing 1 / Fixed 28 / Closed 11
 
 ## 統計
-- 🔴 Open: 0 | ⏳ Fixing: 0 | ✅ Fixed: 28 | 🧪 Verify: 0 | 🚫 Closed: 11 | ⛔ Won't Fix: 0 | **Total: 39**
+- 🔴 Open: 0 | ⏳ Fixing: 1 | ✅ Fixed: 28 | 🧪 Verify: 0 | 🚫 Closed: 11 | ⛔ Won't Fix: 0 | **Total: 40**
 
 ## 🔴 Open / 處理中
 
@@ -37,6 +37,7 @@ breakdown:
 
 | ID | 標題 | 嚴重度 | 修復時間 | 連結 |
 |----|------|--------|---------|------|
+| BUG-176 | Agent SDK 0.3 升版後 ajv / ajv-formats 掉出 production 相依樹，安裝檔不含它們，mac 打包驗證失敗擋下 0.7.2-pre.5（T0719） | 🔴 High | 2026-11-01 | [BUG-176](BUG-176-sdk03-ajv-dropped-from-packaged-app.md) |
 
 ## ✅ 已修復
 
