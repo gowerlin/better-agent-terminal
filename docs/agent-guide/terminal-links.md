@@ -49,4 +49,5 @@ GitHub issue #20（BAT 0.7.1-pre.9，macOS；Claude Code 在 BAT 分頁印出 `f
   - 跨 3 列的長路徑（從每一列查得到同一 range）、寬字提早換行、只回傳碰到該列的連結、20 列上限。
   - OSC 8：http / https / file 呼叫 `openExternal`；`javascript:` 等不呼叫、log 只含 scheme 與長度；hover / leave；經 xterm 真的 `OscLinkProvider`（顯示文字 `README`、目標 `file:///…`）；沒有 `linkHandler` 時 file 連結被丟掉的對照；tooltip DOM。
   - `WebLinksAddon` http(s)：全形字、跨行。
+- e2e `e2e/v072-pre6-terminal-links.spec.ts`（T0728；隔離實例、Windows ConPTY 的 pwsh 分頁，node 腳本在固定列印出內容，主行程 `shell:open-external` 換成只記錄參數）：① 含全形字的路徑第一格 / 最後一格是連結、前後一格不是，點最後一格送出完整路徑；② 超過終端寬度而換行的路徑，點第二列（含最後一格）送出同一個完整路徑；③ OSC 8（顯示 `README`、目標 `file:///…`）滑過 tooltip 顯示目標、點下送出目標、離開後 tooltip 消失；④ OSC 8 `javascript:` 不送出、日誌只有 scheme 與長度；⑤ `https://`（WebLinksAddon）照舊。需先 `npx vite build`。
 - 實機：在 BAT 分頁 `printf` 含全形字的 `file:///` 路徑（窄視窗讓它換行）、Claude Code 輸出 Markdown 檔案連結（OSC 8），滑過看底線 / tooltip、點擊開檔。
