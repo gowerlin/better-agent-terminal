@@ -3,11 +3,13 @@ schema_version: 1
 schema_kind: bug
 id: BUG-174
 title: "終端 `file:///` 連結：路徑含全形字時底線與可點範圍變短；跨行的連結抓不到；OSC 8 超連結點了沒反應"
-status: FIXED
+status: CLOSED
 severity: medium
 reproducibility: always（路徑含全形字 / 連結跨行 / OSC 8）
 created_at: "2026-10-30T15:06:18+0800"
-updated_at: "2026-10-30T15:14:20+0800"
+updated_at: "2026-11-01T11:27:01+0800"
+closed_at: "2026-11-01T11:27:01+0800"
+closed_reason: "verified"
 impact:
   - terminal-links
 links:
@@ -21,7 +23,7 @@ links:
 |------|------|
 | 嚴重度 | 🟡 medium（agent 常印出含中文的檔案路徑，點不開或只有部分可點） |
 | 可重現 | 必定 |
-| **狀態** | ✅ FIXED：T0713 `ff772d40`（範圍改以格子欄位計算、串接 `isWrapped` 續行 ≤ 20 列、OSC 8 `linkHandler` 只開 http / https / file 並以 hover 顯示目標；`src/lib/terminal-file-links.ts`）；WebLinksAddon http(s) 經測試無此問題；待發版實機驗收 |
+| **狀態** | 🚫 CLOSED：2026-11-01 T0728 e2e（與 `v0.7.2-pre.6` 相同的產品程式碼）①–⑤ 全 PASS |
 | 回報者 | GitHub issue #20 |
 
 ## 現象
@@ -40,3 +42,10 @@ links:
 ## 修正
 
 見 T0713。
+
+## 結案紀錄
+
+- **時間**：2026-11-01T11:27:01+0800（第一百零二 session）
+- **驗證依據**：T0728（`947cc9bc`，`e2e/v072-pre6-terminal-links.spec.ts`）在隔離實例的 pwsh 分頁（Windows ConPTY）實測：① 含全形字的路徑首末格皆可點、點擊收到完整路徑；② 222 字元換行路徑兩列都開同一路徑；③ OSC 8 hover 顯示目標、點擊開目標；④ `javascript:` 不開、log 只記 scheme 與長度；⑤ WebLinksAddon https 不變。HEAD 與 tag `v0.7.2-pre.6` 之間 `src/` / `electron/` / `scripts/` 無差異（`package.json` 只差版號），等同交付版程式碼。
+- **未另驗**：macOS（回報者平台；修正是 xterm buffer 計算，與平台無關）、「單列再縮窗 reflow 成兩列」（單元測試涵蓋）。
+- GitHub #20：2026-10-30 已留言（`v0.7.2-pre.2` 修正說明），issue 是否關閉由使用者決定。
