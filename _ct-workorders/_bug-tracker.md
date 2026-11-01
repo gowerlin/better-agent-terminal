@@ -23,15 +23,16 @@ breakdown:
 # Bug Tracker
 
 > ⚠️ 此文件由 `*sync` 自動生成，請勿手動編輯。
-> 最後同步：2026-11-02 03:05 — 第一百零四 session：BUG-190 FIXED（T0759 `b8a3b7f7`）；BUG-188 FIXED（T0757 `de8a4fd4`）；BUG-189 FIXED（T0758 `ddfb4f38`）；開 BUG-188–191 → FIXING（T0757–T0760，D209 / D210）；BUG-183 / 184 CLOSED（使用者實機，`v0.7.3-pre.3`）；BUG-187 CLOSED（`v0.7.3-pre.3`，使用者裁示）；BUG-186 CLOSED（WSL 實機，server `0.7.3-pre.3`）；BUG-187 FIXED（T0756 `915f90ab`）；開 BUG-187 → FIXING（T0756）；BUG-185 CLOSED（`v0.7.3-pre.2`）；BUG-186 FIXED（T0753 `0f021e67`）；BUG-185 FIXED（T0751 `f9072e16`）；開 BUG-186 → FIXING（T0753）；BUG-183 / 184 FIXED（T0750）；BUG-182 / 175 CLOSED
+> 最後同步：2026-11-02 03:08 — 第一百零四 session：開 BUG-192（OPEN，T0768 研究）；BUG-190 FIXED（T0759 `b8a3b7f7`）；BUG-188 FIXED（T0757 `de8a4fd4`）；BUG-189 FIXED（T0758 `ddfb4f38`）；開 BUG-188–191 → FIXING（T0757–T0760，D209 / D210）；BUG-183 / 184 CLOSED（使用者實機，`v0.7.3-pre.3`）；BUG-187 CLOSED（`v0.7.3-pre.3`，使用者裁示）；BUG-186 CLOSED（WSL 實機，server `0.7.3-pre.3`）；BUG-187 FIXED（T0756 `915f90ab`）；開 BUG-187 → FIXING（T0756）；BUG-185 CLOSED（`v0.7.3-pre.2`）；BUG-186 FIXED（T0753 `0f021e67`）；BUG-185 FIXED（T0751 `f9072e16`）；開 BUG-186 → FIXING（T0753）；BUG-183 / 184 FIXED（T0750）；BUG-182 / 175 CLOSED
 
 ## 統計
-- 🔴 Open: 0 | ⏳ Fixing: 1 | ✅ Fixed: 6 | 🧪 Verify: 0 | 🚫 Closed: 48 | ⛔ Won't Fix: 0 | **Total: 55**
+- 🔴 Open: 1 | ⏳ Fixing: 1 | ✅ Fixed: 6 | 🧪 Verify: 0 | 🚫 Closed: 48 | ⛔ Won't Fix: 0 | **Total: 56**
 
 ## 🔴 Open / 處理中
 
 | ID | 標題 | 嚴重度 | 建立時間 | 連結 |
 |----|------|--------|---------|------|
+| BUG-192 | Claude 面板背景子代理執行中送新訊息會中止整個 query、子代理一起被結束；T0768 研究（串流輸入 vs 排隊） | 🟡 Medium | 2026-11-02 | [BUG-192](BUG-192-claude-panel-new-message-kills-background-agent.md) |
 
 ## ⏳ 修復中 (FIXING)
 

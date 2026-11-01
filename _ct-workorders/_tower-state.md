@@ -1,15 +1,15 @@
 ---
 schema_kind: tower-state
 summary_version: 1
-updated_at: "2026-11-02T03:05:30+0800"
+updated_at: "2026-11-02T03:08:29+0800"
 session: "2026-11-02 01:59 第一百零四 session 塔台重啟（二）（CT v6.0.0-beta.10，Fast Path）"
 next_ids:
-  workorder: "T0768"
-  decision: "D213"
-  bug: "BUG-192"
+  workorder: "T0769"
+  decision: "D214"
+  bug: "BUG-193"
   plan: "PLAN-058"
 todo:
-  - "本批 T0757–T0767（D209–D211）完成後一起發 `0.7.3-pre.4`：Lane A T0757 → T0761 → T0762 → T0763 → T0764；Lane B T0758 → T0759 → T0760 → T0766 → T0767；T0765 DONE"
+  - "本批 T0757–T0767（D209–D211）完成後一起發 `0.7.3-pre.4`：Lane A T0757 → T0761 → T0762 → T0763 → T0764；Lane B T0758 → T0759 → T0760 → T0766 → T0767（＋BUG-192 實作單，待 T0768）；T0765 DONE；T0768 研究並行"
   - "工作區 ⚠️ 剩餘手動項（`v0.7.2-pre.8` 起）：視窗沒有焦點時等待結束、滑鼠回答後清除"
   - "外部 / 特定環境驗收：BUG-128 / 130（macOS）、BUG-159（一般權限 ＋ codex）"
   - "版號線：0.7.3 線已到 pre.3（D204；最多到 pre.9）"
@@ -20,7 +20,7 @@ todo:
 
 > 🟢 **第一百零四 session 塔台重啟**（2026-11-02 00:23 (UTC+8)，CT v6.0.0-beta.10，Fast Path；塔台 session `353a4768-d323-407c-8333-437e0582057f`；`--set-role tower --mode on` exit 0；安裝版 helper `v0.7.3-pre.2`（使用者已裝 pre.2，可開始 BUG-183 / 184 / 186 實機驗收）；HEAD `084bfc31` = 上次發佈記帳 commit、工作區乾淨，`*sync` 沿用索引；熱檔皆在 400 KB 預算內；熱區無進行中工單）。00:25 使用者對 T0753 Q-2 B 選「PLAN＋先量測」、開關「預設開、可關」→ **D206** → 開 **PLAN-057**（PLANNED）＋研究單 **T0754**（只查不改、不動使用者 bat-server）；00:26 派工（yolo，`started:` exit 0）。**T0754 DONE**（00:43，`6ddb08e1`；`-l -i -c` ＋標記、detached ＋ SIGKILL 程序群組、逾時 3000 ms、WSL 中位 123 ms；systemd 下 `/mnt` 0 項；套用點 `bat-server.mjs` `createHeadlessServer` 前；開關 `headlessLoginShellPath`；實作單草案已附；macOS 未實測；使用者 bat-server 前後相同、測試資源已清；附註使用者 WSL 的 nvm node v26.13.0 缺 `libatomic.so.1`、BuildKit 快取可能留有 `debian:12-slim` 層）；去識別化：回報區使用者容器名改代稱；session id 已補記、session 快照已寫；`--close-worker T0754` exit 0。00:46 使用者待決點 1–3 皆選建議（不加環境變數、不過濾 `/mnt`、接受分頁重複）並「現在開單派工」→ **D207** → 開 **T0755**（PLAN-057 實作）；00:47 派工（yolo，`started:` exit 0）。**T0755 DONE**（01:06，`681a8d64`，14 檔；`electron/remote/headless-login-path.ts`、`bat-server.mjs` 在 `createHeadlessServer` 前呼叫、Settings 進階頁開關（Linux / macOS 遠端視窗）、三語系、docs ＋ CLAUDE.md 一節；unit 6448 / 363 files、typecheck 0 / 0、build；6 項突變檢查皆抓到（1a 補 `trap '' TERM` 情境）；WSL 測試 server 開 `applied`（124 ms，+2 項）/ 關 `off` 與現況相同、分頁 PATH 只多一份 `~/.local/bin`；Docker `applied`；使用者 bat-server 前後相同；macOS 未實測；塔台複跑新測試 40 passed / 4 skipped、三檔 LF）→ PLAN-057 IN_PROGRESS（待發版實機）；session id 一致、session 快照已寫；`--close-worker T0755` exit 0。01:09 使用者「libatomic 一起處理」→ 塔台在 WSL `Ubuntu-24.04` 以 root `apt-get install -y libatomic1`（14.2.0-4ubuntu2~24.04.1）；nvm 預設 node v26.13.0 可執行（`node` v26.13.0、`npx` 11.20.0），T0754 待決點 4 解除。01:12 使用者問建立 profile 時會不會自動處理 → PATH 會（pre.3 起每次 server 啟動）、libatomic 不會；塔台查到 BAT 的 Node.js recipe（`nvm install --lts`）沒先確保 `libatomic1`（使用者 WSL 即此）、兩份文件仍寫「BAT 不改 server PATH」→ 使用者「開單派工，修好一起發 pre.3」→ **D208** → 開 **BUG-187**（medium，FIXING）/ **T0756**；01:13 派工（yolo，`started:` exit 0）。**T0756 DONE**（01:35，`915f90ab`，14 檔；查證 Node.js 25 起 Linux binary 需要 `libatomic.so.1`、套件名 apt `libatomic1` / dnf / yum `libatomic`；可提權時先檢查再補裝並列進「先執行」、不可提權時提示且保留 exit code、Linux 安裝 / 更新最後 `node --version`、失敗時面板顯示原因與指令；macOS / musl 不變；兩份文件改為 server 預設取登入 shell PATH；unit 6479 / 364 files、typecheck 0 / 0、build；6 項突變檢查；Docker `ubuntu:24.04` 最小映像 root / 免密碼 sudo / 無 sudo 三情境實跑；範圍外加 `i18n-completeness.test.ts` 2 個 key（必要）；塔台複跑相關測試 255 passed、LF）→ **BUG-187 FIXED**；session id 一致、session 快照已寫；`--close-worker T0756` exit 0。
 
-> 🟢 **第一百零四 session 塔台重啟（二）**（2026-11-02 01:59 (UTC+8)，CT v6.0.0-beta.10，Fast Path；塔台 session `a6fdcb75-810b-4930-b066-d9e575fd97ff`；`--set-role tower --mode on` exit 0；安裝版 helper `v0.7.3-pre.3`；HEAD `b95cde9c`、`main` = `origin/main`（0 / 0）、工作區乾淨；熱區無進行中工單）。前一個塔台 session 在記帳前結束，依 git / gh 補記：**`v0.7.3-pre.3` 發佈**（PLAN-057 登入 shell PATH、BUG-187 Node.js recipe libatomic）：run `41332527832` success（target `4a5f73d6`，publishedAt 2026-11-01T17:53:26Z）；更版重點已寫；package.json → 0.7.3-pre.3；CHANGELOG / release-note 更新（文件 `b95cde9c`）；Pages `41333896260` build / deploy / link-check 皆 success（首頁版號未另查）。BUG-187 維持 FIXED、PLAN-057 維持 IN_PROGRESS，待精靈升級遠端 bat-server 實機確認。使用者問現有 profile 怎麼升級 → 重跑「+ 更多 ▾ → 新增 WSL 設定檔」（同發行版＋同 port 會更新原 profile，不必先刪；塔台唯讀確認現有 profile localhost:9877）。02:06 使用者以精靈升級完成 → 塔台唯讀確認：server `0.7.3-pre.3`、unit active（02:06:52）、port 9877 沿用、fingerprint 不變、`.bat-old` / `.bat-new` 已清、profile 仍一份；journal `login shell PATH: applied (shell=/bin/bash, 114 ms, +2 entries, 11 total, /mnt 0)`。使用者實機：工具面板 claude / codex / uv 伺服器檢視皆可見、Node.js v26.13.0、舊分頁 ⏻ 重啟正常 → 02:11 **BUG-186 CLOSED**、**PLAN-057 DONE**（R-G003）→ 熱區 Fixed 6 / Closed 45。使用者選 A → 02:12 **BUG-187 CLOSED**（交付版 pre.3 ＋ T0756 Docker 三情境，R-G003）→ 熱區 Fixed 5 / Closed 46。使用者回報 BUG-183 / 184 實機測試通過 → 02:13 **BUG-183 / 184 CLOSED**（R-G003）→ 熱區 Fixed 3 / Closed 48。push `b95cde9c..4bb8dc71`（去識別化 0、金鑰 0）。使用者「滑鼠回答後 ⚠️ 要清除」→ **D209** → 開 **BUG-188**；後續候選全排 → **D210** → 開 **BUG-189 / 190 / 191**、**T0757–T0765**（Lane A T0757 → T0761 → T0762 → T0763 → T0764、Lane B T0758 → T0759 → T0760、T0765 只讀並行；完成後發 `0.7.3-pre.4`）→ 熱區 Fixing 4 / Fixed 3 / Closed 48。02:24 第一波派工 **T0757** / **T0758** / **T0765**（yolo，皆 `started:` exit 0）。 **T0758 DONE**（02:40，`ddfb4f38`，9 檔；npm shim 讀檔追到原生 `codex.exe` 再 `execFile` 探測、手動分頁與派工共用 reader；t0742 npm shim 情境＋突變重現 BUG-189、t0584 斷言改由同一探測計算；unit 6542 / 366 files、typecheck 0 / 0、build（匯出目錄））→ **BUG-189 FIXED**；session id 一致、session 快照已寫；`--close-worker T0758`；02:42 派 **T0759**。 **T0757 DONE**（02:52，`de8a4fd4`，8 檔；查證：唯一「回答了沒有信號」的是滑鼠拒絕權限（回合中斷、無 hook）；④⑤⑥ 目前不接受點擊；修正：blocked 中左鍵按下清 hook reason、不算輸入、不清 codex `input`；單元 49＋突變、e2e t0757（修正前 ② 失敗）、既有 ⚠️ e2e 4 支綠、unit 6542 / 366 files、typecheck 0 / 0、build；範圍外加 `pty-manager.ts` 11 行 `noteMousePress`（必要）；Worker 寫 FIXED，塔台改 DONE）→ **BUG-188 FIXED**；session id 一致、session 快照已寫；`--close-worker T0757`；02:53 派 **T0761**。 [提問] 02:59 T0761 Q-1（BAT 通道，呈現方式屬使用者偏好）→ 轉問使用者 → 選 A → **D212**；`--answer --choice 1` exit 0。 **T0759 DONE**（03:03，`b8a3b7f7`，9 檔；背景 Agent 的 tool_result 不清、結束信號到才移除並標示；`task_started` 改以 task_id 為 key，順修前景 `stopTask` 送錯 id 不停（範圍外但必要，已回報）；單元 16＋6 突變、e2e ⑦b（修正前失敗）、unit 6556 / 368 files、typecheck 0 / 0、build（匯出目錄））→ **BUG-190 FIXED**；Worker 後續建議：背景子代理執行中送新訊息會中止整個 query、殺掉子代理（既有行為，待使用者決定）；session id 一致、session 快照已寫；`--close-worker T0759`；03:05 派 **T0760**。
+> 🟢 **第一百零四 session 塔台重啟（二）**（2026-11-02 01:59 (UTC+8)，CT v6.0.0-beta.10，Fast Path；塔台 session `a6fdcb75-810b-4930-b066-d9e575fd97ff`；`--set-role tower --mode on` exit 0；安裝版 helper `v0.7.3-pre.3`；HEAD `b95cde9c`、`main` = `origin/main`（0 / 0）、工作區乾淨；熱區無進行中工單）。前一個塔台 session 在記帳前結束，依 git / gh 補記：**`v0.7.3-pre.3` 發佈**（PLAN-057 登入 shell PATH、BUG-187 Node.js recipe libatomic）：run `41332527832` success（target `4a5f73d6`，publishedAt 2026-11-01T17:53:26Z）；更版重點已寫；package.json → 0.7.3-pre.3；CHANGELOG / release-note 更新（文件 `b95cde9c`）；Pages `41333896260` build / deploy / link-check 皆 success（首頁版號未另查）。BUG-187 維持 FIXED、PLAN-057 維持 IN_PROGRESS，待精靈升級遠端 bat-server 實機確認。使用者問現有 profile 怎麼升級 → 重跑「+ 更多 ▾ → 新增 WSL 設定檔」（同發行版＋同 port 會更新原 profile，不必先刪；塔台唯讀確認現有 profile localhost:9877）。02:06 使用者以精靈升級完成 → 塔台唯讀確認：server `0.7.3-pre.3`、unit active（02:06:52）、port 9877 沿用、fingerprint 不變、`.bat-old` / `.bat-new` 已清、profile 仍一份；journal `login shell PATH: applied (shell=/bin/bash, 114 ms, +2 entries, 11 total, /mnt 0)`。使用者實機：工具面板 claude / codex / uv 伺服器檢視皆可見、Node.js v26.13.0、舊分頁 ⏻ 重啟正常 → 02:11 **BUG-186 CLOSED**、**PLAN-057 DONE**（R-G003）→ 熱區 Fixed 6 / Closed 45。使用者選 A → 02:12 **BUG-187 CLOSED**（交付版 pre.3 ＋ T0756 Docker 三情境，R-G003）→ 熱區 Fixed 5 / Closed 46。使用者回報 BUG-183 / 184 實機測試通過 → 02:13 **BUG-183 / 184 CLOSED**（R-G003）→ 熱區 Fixed 3 / Closed 48。push `b95cde9c..4bb8dc71`（去識別化 0、金鑰 0）。使用者「滑鼠回答後 ⚠️ 要清除」→ **D209** → 開 **BUG-188**；後續候選全排 → **D210** → 開 **BUG-189 / 190 / 191**、**T0757–T0765**（Lane A T0757 → T0761 → T0762 → T0763 → T0764、Lane B T0758 → T0759 → T0760、T0765 只讀並行；完成後發 `0.7.3-pre.4`）→ 熱區 Fixing 4 / Fixed 3 / Closed 48。02:24 第一波派工 **T0757** / **T0758** / **T0765**（yolo，皆 `started:` exit 0）。 **T0758 DONE**（02:40，`ddfb4f38`，9 檔；npm shim 讀檔追到原生 `codex.exe` 再 `execFile` 探測、手動分頁與派工共用 reader；t0742 npm shim 情境＋突變重現 BUG-189、t0584 斷言改由同一探測計算；unit 6542 / 366 files、typecheck 0 / 0、build（匯出目錄））→ **BUG-189 FIXED**；session id 一致、session 快照已寫；`--close-worker T0758`；02:42 派 **T0759**。 **T0757 DONE**（02:52，`de8a4fd4`，8 檔；查證：唯一「回答了沒有信號」的是滑鼠拒絕權限（回合中斷、無 hook）；④⑤⑥ 目前不接受點擊；修正：blocked 中左鍵按下清 hook reason、不算輸入、不清 codex `input`；單元 49＋突變、e2e t0757（修正前 ② 失敗）、既有 ⚠️ e2e 4 支綠、unit 6542 / 366 files、typecheck 0 / 0、build；範圍外加 `pty-manager.ts` 11 行 `noteMousePress`（必要）；Worker 寫 FIXED，塔台改 DONE）→ **BUG-188 FIXED**；session id 一致、session 快照已寫；`--close-worker T0757`；02:53 派 **T0761**。 [提問] 02:59 T0761 Q-1（BAT 通道，呈現方式屬使用者偏好）→ 轉問使用者 → 選 A → **D212**；`--answer --choice 1` exit 0。 **T0759 DONE**（03:03，`b8a3b7f7`，9 檔；背景 Agent 的 tool_result 不清、結束信號到才移除並標示；`task_started` 改以 task_id 為 key，順修前景 `stopTask` 送錯 id 不停（範圍外但必要，已回報）；單元 16＋6 突變、e2e ⑦b（修正前失敗）、unit 6556 / 368 files、typecheck 0 / 0、build（匯出目錄））→ **BUG-190 FIXED**；Worker 後續建議：背景子代理執行中送新訊息會中止整個 query、殺掉子代理（既有行為，待使用者決定）；session id 一致、session 快照已寫；`--close-worker T0759`；03:05 派 **T0760**。 使用者「排進這批，開 BUG-192 和研究單」→ **D213** → 開 **BUG-192**（OPEN，medium）/ 研究單 **T0768**（只研究、假 API、不 build，並行）；03:08 派 T0768。
 
 > 最後更新:2026-11-01 21:30 (UTC+8) — **第一百零三 session 收工**（CT v6.0.0-beta.10）：T0736–T0749（D204）→ **`v0.7.2-pre.9`**（BUG-180 / 181）、**`v0.7.3-pre.1`**（BUG-182）；NSIS 重裝驗收 PASS；27 張 BUG 依 R-G003 結案。前次：第一百零二 session 收工（2026-11-01 17:08）。
 >
@@ -65,7 +65,7 @@ eport.md`（real，20:18:03–20:18:31，PS 7.6.9 系統管理員）：⓪ PASS�
 
 ### 編號起始（下 session）
 
-- **T0750** / **BUG-183** / **PLAN-057** / **D213** / **EXP-WFMINE-002** / **L178** / **CT-T023**
+- **T0750** / **BUG-183** / **PLAN-057** / **D214** / **EXP-WFMINE-002** / **L178** / **CT-T023**
 
 ---
 
@@ -97,7 +97,7 @@ eport.md`（real，20:18:03–20:18:31，PS 7.6.9 系統管理員）：⓪ PASS�
 - **`v0.7.2-pre.7` 發佈**（第一百零二 session，run `41274458418`）：BUG-177 / 178 / 179（T0729 / T0730 / T0732）
 
 ### 待辦（依優先序）
-1. 🔴 **本批 T0757–T0767 → 發 `0.7.3-pre.4`**（D209–D211）：Lane A T0757 → T0761 → T0762 → T0763 → T0764；Lane B T0758 → T0759 → T0760 → T0766 → T0767；T0765 DONE
+1. 🔴 **本批 T0757–T0767 → 發 `0.7.3-pre.4`**（D209–D211）：Lane A T0757 → T0761 → T0762 → T0763 → T0764；Lane B T0758 → T0759 → T0760 → T0766 → T0767（＋BUG-192 實作單，待 T0768）；T0765 DONE；T0768 研究並行
 2. 🔴 **工作區 ⚠️ 剩餘手動項**（`v0.7.2-pre.8` 起）：視窗沒有焦點時等待結束（`bat-hook.mjs` 計時模擬，三情境步驟見第一百零三 session 對話）、滑鼠回答後清除
 3. 🟡 **外部 / 特定環境驗收**：BUG-128 / 130（macOS）、BUG-159（一般權限 ＋ codex）
 
@@ -107,13 +107,13 @@ eport.md`（real，20:18:03–20:18:31，PS 7.6.9 系統管理員）：⓪ PASS�
 - 公開 repo（D176）：工單 / commit / BUG 不寫真名、客戶名、家目錄路徑；push 前跑 `.private/` 的檢查樣式
 
 ### 快速連結
-- Bug Tracker → [_bug-tracker.md](_bug-tracker.md)（熱區：Open 0 / Fixing 1 / Fixed 6 / Closed 48，2026-11-02 03:05）｜ Backlog → [_backlog.md](_backlog.md)
-- Decision Log → [_decision-log.md](_decision-log.md)（最大 D212）｜ Learnings → [_learnings.md](_learnings.md)（最大 L177）
+- Bug Tracker → [_bug-tracker.md](_bug-tracker.md)（熱區：Open 1 / Fixing 1 / Fixed 6 / Closed 48，2026-11-02 03:05）｜ Backlog → [_backlog.md](_backlog.md)
+- Decision Log → [_decision-log.md](_decision-log.md)（最大 D213）｜ Learnings → [_learnings.md](_learnings.md)（最大 L177）
 - 網站 → https://gowerlin.github.io/better-agent-terminal/｜ 素材 spec → `e2e/site-media.spec.ts`（`BAT_SITE_MEDIA=1`，輸出 `e2e-media/`）
 - 歷史 sessions → [_archive/state-snapshots/INDEX.md](_archive/state-snapshots/INDEX.md)（119 entries）
 
 ### 編號起始
-- **T0768** / **BUG-192** / **PLAN-058** / **D212** / **EXP-WFMINE-002**（其他 TOPIC 從 001） / **L178** / **CT-T023**
+- **T0769** / **BUG-193** / **PLAN-058** / **D212** / **EXP-WFMINE-002**（其他 TOPIC 從 001） / **L178** / **CT-T023**
 
 ---
 
