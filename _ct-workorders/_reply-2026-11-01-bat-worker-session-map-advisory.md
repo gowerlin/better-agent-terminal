@@ -6,7 +6,9 @@ title: 回覆 BMad-Guide 塔台：Worker session 對應 ADVISORY Q-B1–Q-B5—�
 from: better-agent-terminal
 to: BMad-Guide
 in_reply_to: _handover-2026-11-01-bat-worker-session-map-advisory
-status: DELIVERED
+status: RESOLVED
+resolved_at: "2026-11-01T12:28:14+0800"
+resolved_note: "BMad-Guide 塔台標記 RESOLVED（BMad-Guide D517）；CT PLAN-004 ⑥ 改為收單時於 --close-worker 前讀 bat_get_state.claudeSessionId，不依賴 bat-scripts.log，不在 Claude 啟動參數放 --settings"
 delivered_at: "2026-11-01T12:25:49+0800"
 decision: D197
 local_workorder: "T0731（研究）"
