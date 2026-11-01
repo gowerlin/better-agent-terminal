@@ -93,13 +93,15 @@
 
 - 每一次 `SessionStart`（`startup` / `resume` / `clear` / `compact`）都以新值取代；`agentStartedAt` 仍只記第一次（T0600 契約不變）。e2e 實測 `/clear`（`source: clear`）換 sessionId、`agentStartedAt` 不變。
 - PTY 結束（exit / kill，含 ⏻ 重啟）清除（結束紀錄保留）；Terminal Server recovery 全部清除（重建的 PTY 沒有 claude）；使用者輸入不清除。
+- T0766（PLAN-055 B1）：recovery 不再把 session id 丟掉。清除前的快照把它記進「被中斷的 agent 分頁」清單（`electron/interrupted-agents.ts`，terminal-server-recovery.md「被中斷的 agent 分頁」），供 `--resume=<id>` 使用；查詢（`claudeSessionId`）在 recovery 後仍回 `null`（分頁裡沒有 claude），resume 後 claude 的 `SessionStart` 回報同一個 id 才恢復。
 - 名稱不隨 PTY 清除：它是「最後一次啟動決策注入的名稱」，不代表 claude 此刻還在執行（claude 結束、shell 還在時照樣回傳）。
 
 ### 持久化（C-8，只有 Electron）
 
 - 唯一實作 `ClaudeSessionPersistence`（`electron/claude-session-name-record.ts`），比照 T0576 的 `helper-capabilities.json`：`<userData>/claude-sessions.json` = `{ version: 1, sessions: [{ terminalId, name, sessionId }] }`，只存**執行中** PTY 中兩值至少一個非 `null` 的；🔴 不含權杖。原子寫入（temp + rename），內容沒變不重寫。
 - main.ts：whenReady 時與 helper capabilities 同時 `load`（PtyManager 建立前，`loadClaudeSessions`）→ 項目先列為 pending；Terminal Server 的 PTY list（`onSurvivingPtys`）`settle`：仍存活的 id 還原名稱（若之後已有新的啟動決策則不覆寫）與 sessionId（`PtyManager.restoreClaudeSessionId`，已回報新的則不覆寫），其餘丟棄；沒有存活的 Terminal Server（`startTerminalServer` 的 fork 前）全部丟棄。
-- 寫入時機：啟動決策（`recordClaudeSessionName`）、sessionId 改變（`PtyManagerDeps.onClaudeSessionChange`）、PTY 結束（`onPtyExit`）、Terminal Server recovery（`onServerRecovery`）。
+- 寫入時機：啟動決策（`recordClaudeSessionName`）、sessionId 改變（`PtyManagerDeps.onClaudeSessionChange`）、PTY 結束（`onPtyExit`）、Terminal Server recovery（`onServerRecovery`）、T0766 被中斷清單變動。
+- T0766：被中斷清單中有 session id 的分頁另存在 `interrupted: [{ terminalId, sessionId, at }]`（`getInterrupted` = `InterruptedAgentsStore.interruptedSessions`），只在有項目時才寫這個鍵（沒有 recovery 時檔案與 T0766 前相同）；resume / 略過 / 關分頁 / 新的 `session-start` 後移除。🔴 BAT 重開時不還原（D211 P-5：清單只存到 BAT 關閉），`load` 只記 `[claude-session] <n> interrupted entr(y|ies) of the previous process not restored` 並立即重寫檔案把它們丟掉（`sessions` 照常列為 pending）。
 - 不經 renderer 的 `workspace:save`、不動 window registry。headless 不持久化（bat-server 重啟後兩值都是 `null`，已知限制）。
 - 還原不包含 `agentStartedAt` / `blockedDetection` / tower 角色（各自的既有限制）：BAT 重開後分頁可能是 `claudeSessionId` 有值、`blockedDetection: none`、`agentStarted: null`（e2e 實測）。
 

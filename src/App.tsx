@@ -22,6 +22,8 @@ import { ResizeHandle } from './components/ResizeHandle'
 import { ProfilePanel } from './components/ProfilePanel'
 import { RecoveryPrompt } from './components/RecoveryPrompt'
 import { SERVER_STATUS_TOAST_KEYS, ServerStatusToast, type ServerStatusToastKey } from './components/ServerStatusToast'
+import { InterruptedAgentsController } from './components/InterruptedAgentsDialog'
+import { OPEN_INTERRUPTED_AGENTS_EVENT, useInterruptedAgents } from './stores/interrupted-agents-store'
 import { CtToast, useCtToast } from './components/CtToast'
 import { useRuntimeToasts } from './hooks/useRuntimeToasts'
 import { useRemoteToolInstall } from './hooks/useRemoteToolInstall'
@@ -137,6 +139,8 @@ export default function App() {
   const [appNotification, setAppNotification] = useState<string | null>(null)
   const [recoveryInfo, setRecoveryInfo] = useState<{ ptyCount: number } | null>(null)
   const [serverStatusToast, setServerStatusToast] = useState<ServerStatusToastKey | null>(null)
+  // PLAN-055 B1 / T0766: this window's agent tabs the Terminal Server recovery interrupted (toast count)
+  const interruptedAgentCount = useInterruptedAgents().length
   const [envDialogWorkspaceId, setEnvDialogWorkspaceId] = useState<string | null>(null)
   // T0133: Worker→Tower notification toasts (queue of transient toasts)
   const [notifyToasts, setNotifyToasts] = useState<{ id: string; text: string }[]>([])
@@ -1092,6 +1096,8 @@ export default function App() {
         </main>
         {/* T0761 (D212): this workspace's ⚠️ summary → the parent window's list */}
         <DetachedWaitingReporter workspace={ws} />
+        {/* PLAN-055 B1 / T0766: this window's tabs interrupted by a Terminal Server recovery */}
+        <InterruptedAgentsController />
         {appNotification && (
           <AppNotificationDialog message={appNotification} onClose={() => setAppNotification(null)} />
         )}
@@ -1458,8 +1464,13 @@ export default function App() {
         />
       )}
       {serverStatusToast && (
-        <ServerStatusToast messageKey={serverStatusToast} onDismiss={() => setServerStatusToast(null)} />
+        <ServerStatusToast messageKey={serverStatusToast} onDismiss={() => setServerStatusToast(null)}
+          interruptedCount={interruptedAgentCount}
+          onOpenInterrupted={() => window.dispatchEvent(new CustomEvent(OPEN_INTERRUPTED_AGENTS_EVENT))}
+        />
       )}
+      {/* PLAN-055 B1 / T0766: tabs of a workspace shown in a detached window are listed there */}
+      <InterruptedAgentsController excludeWorkspaceIds={detachedIds} />
       {notifyToasts.length > 0 && (
         <div className="bat-notify-toast-stack">
           {notifyToasts.map(toast => (

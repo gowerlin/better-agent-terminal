@@ -16,13 +16,30 @@ export type ServerStatusToastKey = typeof SERVER_STATUS_TOAST_KEYS[keyof typeof 
 interface ServerStatusToastProps {
   messageKey: ServerStatusToastKey
   onDismiss: () => void
+  /**
+   * PLAN-055 B1 / T0766: agent tabs of this window the recovery interrupted. On the `recovered`
+   * toast a count > 0 adds a line and a click opens InterruptedAgentsDialog; 0 / absent = the toast
+   * as before T0766.
+   */
+  interruptedCount?: number
+  onOpenInterrupted?: () => void
 }
 
-export function ServerStatusToast({ messageKey, onDismiss }: ServerStatusToastProps) {
+export function ServerStatusToast({ messageKey, onDismiss, interruptedCount = 0, onOpenInterrupted }: ServerStatusToastProps) {
   const { t } = useTranslation()
+  const showInterrupted = messageKey === SERVER_STATUS_TOAST_KEYS.recovered && interruptedCount > 0
+  const handleClick = () => {
+    if (showInterrupted) onOpenInterrupted?.()
+    onDismiss()
+  }
   return (
-    <div className="server-status-toast" onClick={onDismiss}>
+    <div className="server-status-toast" onClick={handleClick}>
       {t(messageKey)}
+      {showInterrupted && (
+        <div className="server-status-toast-interrupted" data-interrupted-count={interruptedCount}>
+          {t('app.terminalServerRecoveredInterrupted', { count: interruptedCount })}
+        </div>
+      )}
     </div>
   )
 }

@@ -489,6 +489,7 @@ describe('source guard (T0567)', () => {
       'components/RecoveryPrompt.tsx',
       'components/profiles/EditRemoteProfileModal.tsx',
       'components/remote-tools/InstallConfirmDialog.tsx',
+      'components/InterruptedAgentsDialog.tsx', // T0766: Esc = close, resumes nothing
     ]) expect(covered).toContain(f)
   })
 })

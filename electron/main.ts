@@ -16,6 +16,8 @@ import { createCodexNoDaemonSupportCheck, createCodexOscVersionCheck } from './c
 import { createCodexSkillNameResolver } from './ct-install-detect'
 import { createClaudeNameSupportCheck } from './claude-version-check'
 import { CLAUDE_SESSION_STORE_FILE, ClaudeSessionPersistence, claudeSessionNameRecords } from './claude-session-name-record'
+import { InterruptedAgentsStore, buildInterruptedAgentSnapshot, resumeInterruptedDispatchAgent } from './interrupted-agents'
+import { detectShellFamily } from '../src/utils/shell-quote'
 import { checkDispatchCwd, findWorkspaceAgentSettings, resolveDispatchWorkspaceFromEntries, type DispatchWorkspaceRequest, type DispatchWorkspaceResolution } from './dispatch-workspace'
 import { createTerminalWindowEmit, registerTerminalHandlers } from './handlers/terminal'
 import { capabilityOrSavedTabOwnership, WorkerCloseScheduler } from './close-worker'
@@ -540,10 +542,28 @@ function loadLocalHelperCapabilities(): void {
 // PLAN-050 / T0642 (C-8): the claude session name / id of each running PTY, kept in
 // `<userData>/claude-sessions.json` (no token) and put back for a tab the Terminal Server kept alive
 // while BAT was closed — loaded and settled next to the T0576 capabilities.
+// PLAN-055 B1 / T0766 (D211): the agent tabs a Terminal Server recovery interrupted (memory only,
+// until BAT quits; their claude session ids also go into claude-sessions.json while listed)
+const interruptedAgents = new InterruptedAgentsStore(logger)
+
 const claudeSessionPersistence = new ClaudeSessionPersistence({
   records: claudeSessionNameRecords,
   getPtyManager: () => ptyManager,
   log: logger,
+  getInterrupted: () => interruptedAgents.interruptedSessions(), // T0766
+})
+
+// T0766: every change of the list → claude-sessions.json + this BAT's windows (each window keeps the
+// ids of its own tabs; not broadcastHub: the recovery is of this machine's Terminal Server)
+interruptedAgents.onChange((reason) => {
+  claudeSessionPersistence.persist()
+  const payload = { reason, agents: interruptedAgents.list() }
+  for (const win of getAllWindows()) {
+    if (win.isDestroyed()) continue
+    try {
+      win.webContents.send('terminal-server:agents-interrupted', payload)
+    } catch { /* render frame disposed during reload / close */ }
+  }
 })
 
 /** T0642: loads the previous BAT process's claude sessions as pending (whenReady, before any PTY). */
@@ -955,16 +975,34 @@ function createElectronPtyDeps(): PtyManagerDeps {
       if (localHelperCapabilities.revokeTerminal(id) > 0) logger.log(`[helper-cap] revoked: terminal=${id}`)
       usageLimitScheduler?.onExit(id)
       towerQuestionHandlers?.terminalEnded(id) // T0607: questions it asked / was asked → cancelled
+      interruptedAgents.remove(id, 'pty-ended') // T0766: closed / restarted / resumed tab
       claudeSessionPersistence.persist() // T0642: its claude session is no longer stored
+    },
+    // PLAN-055 B1 / T0766: the tabs the recovery interrupts — taken before it clears their session ids
+    onAgentsInterrupted: (sources) => {
+      const snapshot = buildInterruptedAgentSnapshot(sources, {
+        nameOf: id => claudeSessionNameRecords.get(id)?.name ?? null,
+        now: Date.now(),
+      })
+      if (snapshot.length === 0) {
+        logger.log(`[interrupted-agents] recovery interrupted no agent tab (${sources.length} PTY(s) rebuilt as shells)`)
+        return
+      }
+      interruptedAgents.record(snapshot)
     },
     // T0607: the Terminal Server recovery cancels every pending tower question
     // T0642: and drops every claude session id (the rebuilt PTYs run no claude)
+    // T0766: except those of the interrupted tabs (`getInterrupted`), kept for `--resume`
     onServerRecovery: () => {
       towerQuestionHandlers?.serverRecovered()
       claudeSessionPersistence.persist()
     },
     // T0642: a SessionStart hook sent a (new) session id
-    onClaudeSessionChange: () => claudeSessionPersistence.persist(),
+    // T0766: a listed interrupted tab whose claude started again (resumed) leaves the list
+    onClaudeSessionChange: (id) => {
+      interruptedAgents.remove(id, 'session-start')
+      claudeSessionPersistence.persist()
+    },
     // T0609: a hook `blocked` entered / cleared → the windows' Worker badges
     onBlockedChange: (id) => terminalAttention?.refresh(id),
     // T0129 / T0575: BAT_REMOTE_PORT + the PTY's own capability as BAT_REMOTE_TOKEN (tower, or a
@@ -4024,6 +4062,32 @@ function registerLocalHandlers() {
     if (!ptyManager) return []
     return ptyManager.getLastOutput(targetId, lines)
   })
+
+  // PLAN-055 B1 / T0766: the interrupted agent tabs — pull (a window mounted after the event),
+  // dismiss (略過), and resume a helper-dispatched claude Worker. 🔴 Renderer IPC only: never a
+  // RemoteServer / helper channel (registerHandler), D211.
+  ipcMain.handle('terminal-server:query-interrupted-agents', () => interruptedAgents.list())
+  ipcMain.handle('terminal:dismiss-interrupted-agent', (_event, terminalId: unknown) => {
+    return typeof terminalId === 'string' ? interruptedAgents.remove(terminalId, 'dismissed') : false
+  })
+  ipcMain.handle('terminal:resume-interrupted-agent', (_event, terminalId: unknown) => resumeInterruptedDispatchAgent({
+    store: interruptedAgents,
+    isRunning: id => !!ptyManager?.getTerminalInfo(id),
+    buildCommand: async (request) => {
+      const built = await buildAgentPromptCommand({
+        agent: request.agent,
+        ...(request.workspaceId ? { workspaceId: request.workspaceId } : {}),
+        ...(request.workorder ? { workorder: request.workorder } : {}),
+        terminalId: request.terminalId,
+        // the rebuilt shell is the one the tab was created with (T0598: quote for that shell)
+        shellFamily: detectShellFamily(request.shell ?? ptyManager?.getDefaultShell() ?? ''),
+        resume: request.resume,
+      })
+      return built ? { command: built.command, ...(built.resume ? { resume: built.resume } : {}) } : null
+    },
+    writeCommand: (id, command) => ptyManager?.writeDispatchCommand(id, command),
+    logger,
+  }, terminalId))
 
   // T0111: Pull-model query — renderer calls this after mounting to catch events sent before listener was ready
   ipcMain.handle('terminal-server:query-pending-recovery', () => {

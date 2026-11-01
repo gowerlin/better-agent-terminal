@@ -67,6 +67,8 @@
     "terminalServerRecovering": "Terminal Server stopped responding, recovering automatically...",
     "terminalServerRecovered": "Terminals recovered (output history was reset)",
     "terminalServerRecoveryFailed": "Terminal Server recovery failed. Please restart the app.",
+    "terminalServerRecoveredInterrupted_one": "{{count}} agent tab was interrupted — click to review",
+    "terminalServerRecoveredInterrupted_other": "{{count}} agent tabs were interrupted — click to review",
     "recoveryPromptTitle": "Previous terminal session detected",
     "recoveryPromptAlive_one": "Terminal Server is still running, with <strong>{{count}}</strong> terminal still alive.",
     "recoveryPromptAlive_other": "Terminal Server is still running, with <strong>{{count}}</strong> terminals still alive.",
@@ -1458,6 +1460,26 @@
       "reopenTabsNvm": "Terminal tabs that were already open must be reopened to load nvm.",
       "posixShell": "The install tab uses {{fallback}} because {{shell}} is not a POSIX shell."
     }
+  },
+  "interruptedAgents": {
+    "title": "Agent tabs interrupted by the Terminal Server recovery",
+    "desc": "The Terminal Server restarted and these tabs now run a plain shell. Resume a claude tab to continue its conversation; nothing resumes on its own.",
+    "towerFirst": "Resume Towers first: a Worker reports to its Tower's tab.",
+    "tower": "Tower",
+    "worker": "Worker {{workorder}}",
+    "sessionKnown": "session {{id}}",
+    "sessionUnknown": "session unknown: opens claude's resume menu",
+    "codexLater": "codex: resume is not available yet",
+    "unknownAgent": "agent unknown: cannot resume",
+    "resume": "Resume",
+    "resumePicker": "Open resume menu",
+    "resumeAll": "Resume all claude ({{count}})",
+    "dismiss": "Dismiss",
+    "badgeTooltip": "The agent in this tab was interrupted by the Terminal Server recovery — click to review",
+    "resumed": "Resumed: {{title}}",
+    "resumedPicker": "Opened claude's resume menu: {{title}}",
+    "resumedUserArgs": "{{title}}: the custom args already choose the session, so --resume was not added",
+    "resumeFailed": "Could not resume {{title}} ({{reason}})"
   },
   "workerTabs": {
     "badgeTooltip": "Worker for {{workorder}}, dispatched by {{tower}}",

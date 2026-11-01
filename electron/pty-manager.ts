@@ -15,6 +15,7 @@ import type { CtMode } from './ct-mode'
 import type { CtWorktreeRecord } from './ct-worktree'
 import { LaunchSuspectWatcher, TerminalBlockedTracker, type BlockedDetection, type BlockedState, type HookReportEvent, type HookReportResult } from './terminal-blocked-state'
 import { CodexStateScanner, lastCodexState } from '../src/lib/codex-terminal-state'
+import type { InterruptedAgentSource } from './interrupted-agents'
 
 // Try to import @lydell/node-pty, fall back to child_process if not available
 let pty: typeof import('@lydell/node-pty') | null = null
@@ -282,6 +283,14 @@ export interface PtyManagerDeps {
    * throwing listener is logged and ignored. Undefined = no hook.
    */
   onClaudeSessionChange?: (id: string) => void
+  /**
+   * PLAN-055 B1 / T0766: the Terminal Server died — what each PTY about to be rebuilt as a plain
+   * shell still knew (`collectInterruptedAgentSources`), taken before the recovery clears its
+   * `agentStarted` / claude session id. Electron lists the interrupted agent tabs from it
+   * (electron/interrupted-agents.ts). Called once per recovery, also with `[]`. A throwing listener
+   * is logged and ignored. Undefined = no hook.
+   */
+  onAgentsInterrupted?: (sources: InterruptedAgentSource[]) => void
   /** T0704: replaces parts of `defaultServerWatchdogDeps` (tests). Undefined = the defaults. */
   serverWatchdog?: Partial<ServerWatchdogDeps>
 }
@@ -1188,6 +1197,34 @@ export class PtyManager implements CloseWorkerPtyManager {
     return this.blockedTracker.restoreSessionId(id, sessionId)
   }
 
+  /**
+   * PLAN-055 B1 / T0766: per PTY the Terminal Server recovery is about to rebuild (no own process —
+   * a PTY spawned directly during the recovery is not rebuilt), what the interrupted-agents list
+   * needs: launch fields of the instance plus the tracker's `agentStarted` / claude session id /
+   * detection. 🔴 Read before `blockedTracker.clearAll` (handleServerDeath).
+   */
+  collectInterruptedAgentSources(): InterruptedAgentSource[] {
+    const out: InterruptedAgentSource[] = []
+    for (const [id, inst] of this.instances) {
+      if (inst.process) continue
+      const towerTerminalId = inst.customEnv?.BAT_TOWER_TERMINAL_ID || undefined
+      out.push({
+        terminalId: id,
+        cwd: inst.cwd,
+        ...(inst.shell ? { shell: inst.shell } : {}),
+        ...(inst.workspaceId ? { workspaceId: inst.workspaceId } : {}),
+        ...(inst.agentPreset ? { agentPreset: inst.agentPreset } : {}),
+        ...(inst.workorder ? { workorder: inst.workorder } : {}),
+        ...(towerTerminalId ? { towerTerminalId } : {}),
+        ...(inst.role ? { role: inst.role } : {}),
+        startedAt: this.blockedTracker.getStartedAt(id),
+        sessionId: this.blockedTracker.getSessionId(id),
+        blockedDetection: this.blockedTracker.getDetection(id),
+      })
+    }
+    return out
+  }
+
   /** T0450: running PTYs and the `maxInstances` cap (0 = unlimited) — the helper creation quota. */
   getCapacity(): { count: number; max: number } {
     const max = this.deps.maxInstances
@@ -1804,6 +1841,13 @@ export class PtyManager implements CloseWorkerPtyManager {
       }
       // T0576: none of the server's PTYs survives; the rebuild below spawns new ones
       this.notifySurvivingPtys([])
+      // T0766 (PLAN-055 B1): which agent tabs this interrupts — 🔴 before clearAll drops their
+      // `agentStarted` / claude session id
+      try {
+        this.deps.onAgentsInterrupted?.(this.collectInterruptedAgentSources())
+      } catch (e) {
+        logger.warn('[PtyManager] onAgentsInterrupted listener failed:', e)
+      }
       // T0590: the rebuilt shells run no claude yet (T0600: nor `agentStarted`; T0621: nor codex)
       this.blockedTracker.clearAll('Terminal Server recovery')
       this.codexStates.dispose()

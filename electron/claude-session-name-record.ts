@@ -85,6 +85,12 @@ export const CLAUDE_SESSION_STORE_VERSION = 1
 const STORED_NAME_MAX = 512
 const STORED_TERMINAL_ID_PATTERN = /^[A-Za-z0-9._-]{1,128}$/
 
+/** What `persist` compares to skip an unchanged write (T0766: + the interrupted entries). */
+function bodyOf(sessions: readonly PersistedClaudeSession[], interrupted: readonly PersistedInterruptedSession[]): string {
+  return JSON.stringify({ sessions, interrupted })
+}
+const EMPTY_BODY = bodyOf([], [])
+
 /** One running PTY's claude session as stored (at least one of `name` / `sessionId` is set). */
 export interface PersistedClaudeSession {
   terminalId: string
@@ -92,9 +98,22 @@ export interface PersistedClaudeSession {
   sessionId: string | null
 }
 
+/**
+ * PLAN-055 B1 / T0766: the session id of a claude tab a Terminal Server recovery interrupted
+ * (electron/interrupted-agents.ts), kept next to `sessions` while it is listed — the recovery no
+ * longer writes it away. Written only when there is one (the file of a process without a recovery is
+ * unchanged); never restored on reopen (D211 P-5: the list lives until BAT quits).
+ */
+export interface PersistedInterruptedSession {
+  terminalId: string
+  sessionId: string
+  /** When the recovery interrupted it (ms epoch). */
+  at: number
+}
+
 export type ClaudeSessionStoreRead =
   | { status: 'missing'; sessions: [] }
-  | { status: 'ok'; sessions: PersistedClaudeSession[]; skipped: number }
+  | { status: 'ok'; sessions: PersistedClaudeSession[]; skipped: number; interrupted?: number }
   | { status: 'corrupt'; sessions: []; error: string }
 
 function validSession(raw: unknown): PersistedClaudeSession | null {
@@ -129,15 +148,19 @@ export function readClaudeSessionStore(filePath: string): ClaudeSessionStoreRead
       const session = validSession(raw)
       if (session) sessions.push(session)
     }
-    return { status: 'ok', sessions, skipped: parsed.sessions.length - sessions.length }
+    // T0766: interrupted entries are counted, never restored (D211 P-5)
+    const rawInterrupted = (parsed as { interrupted?: unknown }).interrupted
+    const interrupted = Array.isArray(rawInterrupted) ? rawInterrupted.length : 0
+    return { status: 'ok', sessions, skipped: parsed.sessions.length - sessions.length, ...(interrupted > 0 ? { interrupted } : {}) }
   } catch (error) {
     return { status: 'corrupt', sessions: [], error: error instanceof Error ? error.message : String(error) }
   }
 }
 
 /** T0642: writes the store atomically (temp file + rename, as `writeHelperCapabilityStore`). Throws on failure. */
-export function writeClaudeSessionStore(filePath: string, sessions: readonly PersistedClaudeSession[]): void {
-  const body = JSON.stringify({ version: CLAUDE_SESSION_STORE_VERSION, sessions }, null, 2) + '\n'
+export function writeClaudeSessionStore(filePath: string, sessions: readonly PersistedClaudeSession[], interrupted: readonly PersistedInterruptedSession[] = []): void {
+  // T0766: `interrupted` only when there is one — the same file as before T0766 otherwise
+  const body = JSON.stringify({ version: CLAUDE_SESSION_STORE_VERSION, sessions, ...(interrupted.length > 0 ? { interrupted } : {}) }, null, 2) + '\n'
   const tmp = path.join(path.dirname(filePath), `.${path.basename(filePath)}.${process.pid}.tmp`)
   fs.writeFileSync(tmp, body, { encoding: 'utf8', mode: 0o600 })
   try {
@@ -160,6 +183,11 @@ export interface ClaudeSessionPersistenceOptions {
   /** null until the PtyManager exists. */
   getPtyManager(): ClaudeSessionPtySource | null
   log: { log(message: string): void; warn(message: string): void }
+  /**
+   * PLAN-055 B1 / T0766: the session ids of the claude tabs a recovery interrupted, still listed
+   * (`InterruptedAgentsStore.interruptedSessions`). Absent = none.
+   */
+  getInterrupted?(): PersistedInterruptedSession[]
   /** Tests. Default `Date.now`. */
   now?(): number
 }
@@ -189,14 +217,17 @@ export class ClaudeSessionPersistence {
       this.opts.log.warn(`[claude-session] ${name} unreadable (${stored.error}) — nothing restored`)
     } else if (stored.status === 'ok') {
       for (const session of stored.sessions) this.pending.set(session.terminalId, session)
+      // T0766 (D211 P-5): a previous process's interrupted list is not carried over (dropped below)
+      if (stored.interrupted) this.opts.log.log(`[claude-session] ${stored.interrupted} interrupted entr${stored.interrupted === 1 ? 'y' : 'ies'} of the previous process not restored`)
       if (stored.sessions.length > 0 || stored.skipped > 0) {
         this.opts.log.log(`[claude-session] loaded ${stored.sessions.length} entr${stored.sessions.length === 1 ? 'y' : 'ies'} from ${name}${stored.skipped > 0 ? ` (${stored.skipped} invalid skipped)` : ''} — pending the Terminal Server's PTY list`)
       }
     }
     this.filePath = filePath
     // a damaged store / skipped entries are rewritten from what is valid
-    if (stored.status === 'corrupt' || (stored.status === 'ok' && stored.skipped > 0)) this.persist()
-    else this.lastWritten = stored.status === 'ok' ? this.body() : '[]' // a missing file is written once there is something
+    // T0766: + a previous process's interrupted entries, dropped now
+    if (stored.status === 'corrupt' || (stored.status === 'ok' && (stored.skipped > 0 || !!stored.interrupted))) this.persist()
+    else this.lastWritten = stored.status === 'ok' ? this.body() : EMPTY_BODY // a missing file is written once there is something
     return stored.status
   }
 
@@ -243,17 +274,29 @@ export class ClaudeSessionPersistence {
     return [...out.values()]
   }
 
+  /** T0766: the listed interrupted tabs' session ids to store (validated; none = `[]`). */
+  interruptedEntries(): PersistedInterruptedSession[] {
+    try {
+      return (this.opts.getInterrupted?.() ?? [])
+        .filter(entry => STORED_TERMINAL_ID_PATTERN.test(entry.terminalId) && CLAUDE_SESSION_ID_PATTERN.test(entry.sessionId))
+        .map(entry => ({ terminalId: entry.terminalId, sessionId: entry.sessionId, at: entry.at }))
+    } catch {
+      return []
+    }
+  }
+
   private body(): string {
-    return JSON.stringify(this.entries())
+    return bodyOf(this.entries(), this.interruptedEntries())
   }
 
   persist(): void {
     if (!this.filePath) return
     try {
       const entries = this.entries()
-      const body = JSON.stringify(entries)
+      const interrupted = this.interruptedEntries()
+      const body = bodyOf(entries, interrupted)
       if (body === this.lastWritten) return
-      writeClaudeSessionStore(this.filePath, entries)
+      writeClaudeSessionStore(this.filePath, entries, interrupted)
       this.lastWritten = body
     } catch (error) {
       this.opts.log.warn(`[claude-session] could not write ${path.basename(this.filePath)}: ${error instanceof Error ? error.message : String(error)}`)

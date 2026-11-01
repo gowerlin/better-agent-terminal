@@ -197,7 +197,8 @@
   5. re-fork。
   - 結束舊 server 不得用 `server:shutdown` / SIGTERM（會刪掉屬於新 server 的 pid / port / registry 檔）。孤兒清理先殺程序樹、再殺 shell（T0540 順序）。
 - 唯一實作：`PtyManager.startHeartbeat` / `handleServerDeath` / `endReplacedServer` / `handleServerMessage(msg, generation)`、`killOrphanPtyProcesses`（`electron/pty-manager.ts`，main.ts 啟動清理也用它）。程序操作經 `PtyManagerDeps.serverWatchdog`，只有測試替換。headless 不走 Terminal Server，不受影響。
-- 完整判死條件、generation 選擇理由、日誌、殘留風險、T0703 時間線、驗證清單：[docs/agent-guide/terminal-server-recovery.md](docs/agent-guide/terminal-server-recovery.md)
+- 被中斷的 agent 分頁（PLAN-055 B1 / T0766，D211）：recovery 前的快照（`collectInterruptedAgentSources` → `onAgentsInterrupted`，🔴 在 `blockedTracker.clearAll` 之前）列進 `InterruptedAgentsStore`（`electron/interrupted-agents.ts`），renderer 以對話框 `InterruptedAgentsDialog`、縮圖 ⏸、recovery toast 列出；claude 分頁一鍵 `--resume=<id>`（session 未知 → `--resume` picker；自訂參數已含 resume 類旗標則不加），codex 只列出（T0767）。🔴 不自動 resume、Worker 不附 prompt、不通知塔台；resume 一律經 `startClaudeCliPty`（使用者分頁，先 kill、不再 `worktree.create`）或 main `terminal:resume-interrupted-agent` → `createAgentPromptCommandBuilder` 的 `resume`（其他 claude 分頁，renderer IPC only、不是 helper channel）；`--resume=` 用 `=` 形式、不加 `--fork-session`；參數判斷唯一實作 `claudeResumeArgs`（`src/lib/claude-resume-args.ts`）。session id 只在 main 記憶體與 `claude-sessions.json` 的 `interrupted`（不跨 BAT 重開），日誌只記前 8 碼。
+- 完整判死條件、generation 選擇理由、日誌、殘留風險、T0703 時間線、被中斷的 agent 分頁、驗證清單：[docs/agent-guide/terminal-server-recovery.md](docs/agent-guide/terminal-server-recovery.md)
 
 ## Child Process Spawning
 

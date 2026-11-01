@@ -610,7 +610,8 @@ describe('wiring (T0642 source guards)', () => {
     const deps = main.match(/function createElectronPtyDeps\(\): PtyManagerDeps \{([\s\S]*?)\n\}/)![1]
     expect(deps).toContain('claudeSessionPersistence.persist() // T0642: its claude session is no longer stored')
     expect(deps).toMatch(/onServerRecovery: \(\) => \{\n      towerQuestionHandlers\?\.serverRecovered\(\)\n      claudeSessionPersistence\.persist\(\)/)
-    expect(deps).toContain('onClaudeSessionChange: () => claudeSessionPersistence.persist(),')
+    // T0766: + an interrupted tab whose claude started again leaves the list
+    expect(deps).toMatch(/onClaudeSessionChange: \(id\) => \{\n      interruptedAgents\.remove\(id, 'session-start'\)\n      claudeSessionPersistence\.persist\(\)/)
     expect(main).toContain('getClaudeSessionName: terminalId => claudeSessionNameRecords.get(terminalId)?.name ?? null, // T0642')
   })
 

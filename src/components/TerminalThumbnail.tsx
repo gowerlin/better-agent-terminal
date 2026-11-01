@@ -12,6 +12,7 @@ import { hasNotification, subscribeNotification, clearNotification } from '../st
 import { useUsageLimitStatus } from '../stores/usage-limit-store'
 import { USAGE_LIMIT_MAX_CONSECUTIVE_SENDS, type UsageLimitStatus } from '../lib/usage-limit'
 import { useMissedWait, useTerminalAttention, useWorkerResumed } from '../stores/terminal-attention-store'
+import { OPEN_INTERRUPTED_AGENTS_EVENT, useInterruptedAgent } from '../stores/interrupted-agents-store'
 import { missedWaitToShow, waitingForUser, workerAttention, type MissedWait, type WaitingForUser, type WorkerAttention } from '../lib/terminal-attention'
 import { appendPreviewInput, outputPreview, textPreview } from '../lib/thumbnail-preview'
 
@@ -249,6 +250,8 @@ export const TerminalThumbnail = memo(function TerminalThumbnail({ terminal, isA
   const missed = missedWaitToShow(attentionEvent, missedWait)
   // PLAN-044 / T0566: the tab's usage-limit state (main's `terminal:usage-limit-status`, memory only)
   const usageLimit = useUsageLimitStatus(terminal.id)
+  // PLAN-055 B1 / T0766: its agent was interrupted by a Terminal Server recovery (memory only)
+  const interrupted = useInterruptedAgent(terminal.id)
   const workerTooltip = isWorker
     ? [
         t('workerTabs.badgeTooltip', { workorder: terminal.workorder, tower: towerTitle || terminal.towerTerminalId!.slice(0, 8) }),
@@ -320,6 +323,20 @@ export const TerminalThumbnail = memo(function TerminalThumbnail({ terminal, isA
               data-blocked-reason={missed.reason}
             >
               {WORKER_ATTENTION_MARK.blocked}
+            </span>
+          )}
+          {interrupted && (
+            <span
+              className="interrupted-agent-badge"
+              title={t('interruptedAgents.badgeTooltip')}
+              data-interrupted-agent={interrupted.agent}
+              style={{ cursor: 'pointer', flexShrink: 0 }}
+              onClick={(e) => {
+                e.stopPropagation()
+                window.dispatchEvent(new CustomEvent(OPEN_INTERRUPTED_AGENTS_EVENT))
+              }}
+            >
+              ⏸
             </span>
           )}
           {usageLimit && (

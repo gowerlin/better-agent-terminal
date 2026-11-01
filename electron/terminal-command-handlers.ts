@@ -11,6 +11,7 @@ import { agentRegistry } from './agent-runtime/agent-registry'
 import { needsClaudeNameSupport, withBatMcpArgs, type BatMcpLaunchRequest, type BatMcpLaunchResult } from './bat-mcp-launch'
 import type { ClaudeNameSupport } from './claude-version-check'
 import { claudeSessionName } from '../src/lib/claude-session-name'
+import { claudeResumeArgs, type ClaudeResumeArgsDecision } from '../src/lib/claude-resume-args'
 import {
   passThroughDispatchWorkspace,
   type DispatchCwdCheck,
@@ -236,6 +237,8 @@ export interface BuiltAgentCommand {
   argsSource?: AgentLaunchSource
   /** T0710: the Codex CT skill name and why (`$ct-exec` / `$ct:ct-exec`); codex CT prompts only. */
   codexSkillName?: CodexSkillNameDecision
+  /** PLAN-055 B1 / T0766: the `--resume` decision of a resume build (`AgentPromptCommandOptions.resume`). */
+  resume?: ClaudeResumeArgsDecision
 }
 
 /** T0710: resolves the Codex CT skill name on this host (`createCodexSkillNameResolver`, electron/ct-install-detect.ts). */
@@ -970,6 +973,15 @@ export interface AgentPromptCommandOptions {
   workspaceName?: string
   /** T0710: the env the tab is created with (helper `customEnv`); its `CODEX_HOME` wins over the host's. */
   customEnv?: Record<string, string>
+  /**
+   * PLAN-055 B1 / T0766: resume the claude of an interrupted Worker (electron/interrupted-agents.ts)
+   * instead of sending a prompt — the same command (BAT MCP, hooks, `--name=`, custom args) plus
+   * `claudeResumeArgs` (`--resume=<id>`, or `--resume` for claude's picker, nothing when the custom
+   * args choose the session) right after BAT's args, and no prompt (D211 P-2). `sessionName` = the
+   * name the tab was launched with (claudeSessionNameRecords); absent → computed as for a dispatch.
+   * claude-cli only (null otherwise).
+   */
+  resume?: { sessionId: string | null; sessionName?: string }
 }
 
 /** Settings fields `buildAgentPromptCommand` reads. */
@@ -1130,20 +1142,29 @@ export function createAgentPromptCommandBuilder(deps: AgentPromptCommandDeps): (
       return codexSkillName.name
     }
     const isCodex = isCodexAgentId(agentId)
+    // T0766: a resume build — claude-cli only, no prompt
+    if (opts.resume && agentId !== 'claude-cli' && agentId !== 'claude-cli-worktree') {
+      deps.logger.warn(`[agent-command] resume is claude-cli only (agent=${requestedAgent} resolved=${agentId})`)
+      return null
+    }
     const skillMode = Boolean(opts.skill && opts.workorder)
-    const prompt = skillMode
+    const requestedPrompt = opts.resume ? '' : skillMode
       ? buildControlTowerSkillPrompt(agentId, opts.skill!, opts.workorder!,
         isCodex && CT_SKILL_PATTERN.test(opts.skill!) && WORKORDER_ID_PATTERN.test(opts.workorder!) ? await codexName(opts.skill!) : undefined)
       : opts.prompt
-    if (!prompt) {
+    if (!requestedPrompt && !opts.resume) {
       deps.logger.warn(`[agent-command] invalid prompt payload for agent=${requestedAgent} resolved=${agentId} skill=${opts.skill ?? 'n/a'} workorder=${opts.workorder ?? 'n/a'}`)
       return null
     }
+    const prompt = requestedPrompt ?? ''
 
     const slashSkill = isCodex && !skillMode ? prompt.match(CT_SLASH_PROMPT_PATTERN)?.[1] : undefined
     const normalized = normalizeControlTowerPromptForAgent(agentId, prompt, slashSkill ? await codexName(slashSkill) : undefined)
     // T0641 (R1): a claude Worker is `<ws> · Worker · <T####>` (a prompt dispatch: `<ws> · <short id>`)
-    const sessionName = opts.skill && opts.workorder
+    // T0766: a resume keeps the name the tab was launched with
+    const sessionName = opts.resume?.sessionName
+      ? opts.resume.sessionName
+      : (opts.skill || opts.resume) && opts.workorder
       ? claudeSessionName({ role: 'worker', workspaceName: opts.workspaceName, workorder: opts.workorder })
       : opts.terminalId ? claudeSessionName({ role: 'tab', workspaceName: opts.workspaceName, terminalId: opts.terminalId }) : null
     const mcpRequest: BatMcpLaunchRequest = {
@@ -1182,7 +1203,21 @@ export function createAgentPromptCommandBuilder(deps: AgentPromptCommandDeps): (
         }
       }
     }
+    // T0766: `--resume=<id>` after BAT's args, before the custom args (`=` form; no `--fork-session`)
+    const resume = opts.resume ? claudeResumeArgs(opts.resume.sessionId, extraArgs) : undefined
+    if (resume?.arg) baseCommand = `${baseCommand} ${resume.arg}`
     const commandWithArgs = extraArgs.trim() ? `${baseCommand} ${extraArgs.trim()}` : baseCommand
+    if (resume) {
+      return {
+        command: commandWithArgs,
+        agentId,
+        prompt: '',
+        prefixNormalized: false,
+        agentSource,
+        argsSource: effectiveArgs.source,
+        resume,
+      }
+    }
     return {
       command: `${commandWithArgs} ${quoteArgForShell(normalized.prompt, opts.shellFamily ?? 'posix')}`,
       agentId,

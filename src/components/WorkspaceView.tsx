@@ -18,6 +18,8 @@ import type { AgentDefinition } from '../types/agent-runtime'
 import { resolveControlTowerAgentRuntime, resolveControlTowerWorkOrderCommand } from '../utils/control-tower-launch'
 import { detectShellFamily, quoteCommandPath } from '../utils/shell-quote'
 import { createPtyThenLaunch, createPtyWithReplay, restartOrCreatePty, showPtyNotice } from '../lib/pty-replay'
+import { claudeResumeArgs, type ClaudeResumeArgsDecision } from '../lib/claude-resume-args'
+import { registerTabResumeHandler } from '../stores/interrupted-agents-store'
 import { withBatMcpLaunchArgs } from '../lib/bat-mcp-launch'
 import { claudeSessionName } from '../lib/claude-session-name'
 import { towerTerminalTitle } from '../lib/tower-terminal-title'
@@ -724,8 +726,14 @@ export function WorkspaceView({ workspace, terminals, focusedTerminalId, isActiv
     workspaceStore.save()
   }, [workspace.id])
 
-  /** Create a claude-cli PTY terminal with bundled CLI, CLAUDE_CODE_NO_FLICKER, and optional worktree */
-  const startClaudeCliPty = useCallback(async (terminalId: string, cwd: string, isWorktree: boolean) => {
+  /**
+   * Create a claude-cli PTY terminal with bundled CLI, CLAUDE_CODE_NO_FLICKER, and optional worktree.
+   * PLAN-055 B1 / T0766: `resume` (a tab the Terminal Server recovery interrupted) — `cwd` is the
+   * shell's launch cwd (a worktree tab's worktree: 🔴 no second `worktree.create`), and
+   * `claudeResumeArgs` (`--resume=<id>` / `--resume` / none for custom args that choose the session)
+   * goes after BAT's args, before the custom args. Returns that decision (null without `resume`).
+   */
+  const startClaudeCliPty = useCallback(async (terminalId: string, cwd: string, isWorktree: boolean, resume?: { sessionId: string | null }): Promise<ClaudeResumeArgsDecision | null> => {
     const settings = settingsStore.getSettings()
     const shell = await getShellFromSettings()
     const customEnv = mergeEnvVars(settings.globalEnvVars, workspace.envVars)
@@ -733,7 +741,7 @@ export function WorkspaceView({ workspace, terminals, focusedTerminalId, isActiv
 
     // Set up worktree if needed
     let effectiveCwd = cwd
-    if (isWorktree) {
+    if (isWorktree && !resume) {
       const wtResult = await window.electronAPI.worktree.create(terminalId, cwd)
       if (wtResult.success && wtResult.worktreePath) {
         effectiveCwd = wtResult.worktreePath
@@ -755,6 +763,9 @@ export function WorkspaceView({ workspace, terminals, focusedTerminalId, isActiv
       ? claudeSessionName({ role: 'tower', workspaceName: sessionWorkspaceNameRef.current })
       : claudeSessionName({ role: 'tab', workspaceName: sessionWorkspaceNameRef.current, terminalId })) ?? undefined
     const cmdParts = [await withBatMcpLaunchArgs(quoteCommandPath(cliPath, detectShellFamily(shell ?? '')), presetId, shell, customArgs, terminalId, sessionName)]
+    // T0766: `--resume=<id>` after BAT's args (`=` form, no `--fork-session`)
+    const resumeDecision = resume ? claudeResumeArgs(resume.sessionId, customArgs) : null
+    if (resumeDecision?.arg) cmdParts.push(resumeDecision.arg)
     if (customArgs) {
       cmdParts.push(customArgs)
     }
@@ -781,7 +792,26 @@ export function WorkspaceView({ workspace, terminals, focusedTerminalId, isActiv
     if (!result.created) {
       window.electronAPI?.debug?.log(`[T0403] claude-cli terminal=${terminalId}: PTY already running, launch command skipped`)
     }
+    return resumeDecision
   }, [workspace.folderPath, workspace.envVars])
+
+  // PLAN-055 B1 / T0766: resume a claude-cli tab of this workspace the Terminal Server recovery
+  // interrupted — like ⏻ (kill, then a new PTY with the launch command) plus `--resume`, in the
+  // rebuilt shell's cwd (main's snapshot), never a new worktree.
+  useEffect(() => registerTabResumeHandler(workspace.id, async (agent) => {
+    const terminal = workspaceStore.getState().terminals.find(tm => tm.id === agent.terminalId)
+    if (!terminal || !terminal.agentPreset || !isClaudeCli(terminal.agentPreset)) return { ok: false, code: 'NOT_CLAUDE_TAB' }
+    await window.electronAPI.pty.kill(terminal.id)
+    const decision = await startClaudeCliPty(
+      terminal.id,
+      agent.cwd || terminal.worktreePath || terminal.cwd || workspace.folderPath,
+      isWorktreeAgent(terminal.agentPreset),
+      { sessionId: agent.claudeSessionId },
+    )
+    void window.electronAPI.terminalServer.dismissInterruptedAgent(terminal.id).catch(() => false)
+    const mode = decision?.mode ?? 'picker'
+    return { ok: true, mode, ...(decision?.reason ? { reason: decision.reason } : {}) }
+  }), [workspace.id, workspace.folderPath, startClaudeCliPty])
 
   const handleAddClaudeCli = useCallback(async () => {
     const terminal = workspaceStore.addTerminal(workspace.id, 'claude-cli' as AgentPresetId)

@@ -53,7 +53,7 @@ T0704 修正兩件事：
 
 1. `isRecovering = true`，停 heartbeat，`serverGeneration++`，廣播 `terminal-server:status` `recovering`。
 2. `detachServer()`：從舊 ChildProcess 移除 PtyManager 自己的 `'message'` / `'exit'` 監聽（main.ts 掛的其他監聽保留），IPC 還連著就 `disconnect()`。TCP socket `destroy()`。
-3. 清除狀態（T0576 `onSurvivingPtys([])`、blocked / codex 狀態、T0607 `onServerRecovery`）。
+3. 清除狀態（T0576 `onSurvivingPtys([])`、blocked / codex 狀態、T0607 `onServerRecovery`）。T0766：`onSurvivingPtys([])` 之後、`blockedTracker.clearAll` **之前**呼叫 `onAgentsInterrupted(collectInterruptedAgentSources())`（見下節「被中斷的 agent 分頁」）。
 4. 讀 registry，`endReplacedServer(oldServer, registry.serverPid)`：
    - fork IPC：ChildProcess 自己表示還在執行（Node 握著 handle，pid 不會被重用），而且 `process.kill(pid, 0)` 成功 → 結束它。
    - TCP（BAT 重開後沒有 ChildProcess）：registry 的 `serverPid`，只要該程序存在就結束它。
@@ -80,6 +80,41 @@ T0704 修正兩件事：
 - 新 id 的 `pty:create` 照舊 direct spawn，重建時保留它，不重建到新 server 上。
 - 不使用 T0578 的 create hold：hold 會讓 helper 派工在 2 s 後回 `RECOVERY_PENDING`，等於改變 helper 行為。
 
+## 被中斷的 agent 分頁（PLAN-055 B1 / T0766，D211）
+
+recovery 以同 id 重建的是 shell，分頁裡原本的 claude / codex 已經不在。T0766 起 BAT 列出這些分頁，claude 分頁可一鍵以 `--resume=<id>` 接續原本的對話。
+
+**必守規則**
+
+- 🔴 快照在 `blockedTracker.clearAll` 之前取（之後 `agentStarted` / claude session id 已被清掉）。`Terminal Server died — attempting recovery` 日誌字串不改；recovery 五步順序（T0704）不改。
+- 🔴 不自動 resume（D211 P-1，不加 Settings 開關）；Worker resume 不附 prompt（P-2）；不通知塔台、不改 CT 契約、不加 state 欄位（P-3）；清單只存到 BAT 關閉（P-5）；BAT 重開時 Recovery 提示選「重新開始」的路徑不做（P-6）；不加 `SessionEnd` hook（P-7）。
+- 🔴 resume 指令一律經既有組裝點：使用者開的 claude-cli 分頁走 renderer `startClaudeCliPty`（先 `pty.kill` 再啟動，同 ⏻；worktree 分頁不再 `worktree.create`，用快照的 cwd），其他 claude 分頁（helper 派工的 Worker、在 shell 手打的 claude）走 main `terminal:resume-interrupted-agent` → `createAgentPromptCommandBuilder` 的 `resume` 選項 → `writeDispatchCommand` 寫入重建的 shell。`--resume=<id>` 用 `=` 形式，放在 BAT 參數（`--mcp-config=` / `--settings=` / `--name=`）之後、自訂參數之前；不加 `--fork-session`。`buildBatMcpLaunchArgs` 語意不變。
+- 🔴 `terminal:resume-interrupted-agent` / `terminal:dismiss-interrupted-agent` / `terminal-server:query-interrupted-agents` 只用 `ipcMain.handle`（renderer），不進 `PROXIED_CHANNELS`、不經 `registerHandler`、不是 helper channel。
+- 🔴 session id 只存 main 記憶體與 `claude-sessions.json`（`interrupted` 陣列，見 claude-session-name.md），日誌只記前 8 碼。
+
+**唯一實作**
+
+- 快照來源：`PtyManager.collectInterruptedAgentSources`、dep `PtyManagerDeps.onAgentsInterrupted`（`electron/pty-manager.ts`）。
+- 判定 / 快照 / 清單 / Worker resume：`electron/interrupted-agents.ts`（`buildInterruptedAgentSnapshot`、`InterruptedAgentsStore`、`resumeInterruptedDispatchAgent`；不 import electron）。main 單例 `interruptedAgents`（`electron/main.ts`）。
+- `--resume` 參數：`claudeResumeArgs` / `userArgsSetClaudeResume`（`src/lib/claude-resume-args.ts`，main 與 renderer 共用）。
+- renderer：`src/stores/interrupted-agents-store.ts`（只留本視窗的分頁、兩條 resume 路徑）、`src/components/InterruptedAgentsDialog.tsx`（`InterruptedAgentsDialog` + `InterruptedAgentsController`）、縮圖 ⏸（`TerminalThumbnail.tsx`）、recovery toast 補數量（`ServerStatusToast.tsx`）、`WorkspaceView.tsx` 的 `startClaudeCliPty(…, resume)` 與 `registerTabResumeHandler`。
+
+**哪些分頁會列出**（近似）：`agentPreset` 不是 `none`，或有過 `session-start` / OSC 7501（`startedAt`），或有 claude session id。純 shell 不列。使用者已自己離開 claude 的分頁也會列出（沒有 `SessionEnd`，P-7）。`launchedBy`：有工單或 `BAT_TOWER_TERMINAL_ID` → `dispatch`，否則 `tab`。agent：`agentPreset`；沒有時有 session id → `claude-cli`、detection `osc` → `codex-cli`、其他 `unknown`。
+
+**流程**
+
+1. recovery 時 main 建快照（`claudeSessionName` 取 `claudeSessionNameRecords`），沒有 agent 分頁只記一行；有則記進清單。同 id 第二次 recovery 若沒有 session id，沿用第一次的。
+2. 每次清單變動 main 以 `terminal-server:agents-interrupted`（`{ reason: 'recovery' | 'update', agents }`）送給本 BAT 的視窗（不送 broadcastHub），並 `claudeSessionPersistence.persist()`。renderer 掛載時以 `terminal-server:query-interrupted-agents` 補拿（T0111 模式）。
+3. renderer 只保留自己 store 裡有的分頁（主視窗排除已分離到 detached 視窗的工作區）。`reason: 'recovery'` 且本視窗有分頁 → 自動開對話框；縮圖顯示 ⏸（點擊開對話框）；`recovered` toast 補一行「N 個 agent 分頁已中斷」，點擊開對話框（N = 0 時 toast 與 T0766 前相同）。
+4. 對話框（`ModalOverlay`、[X]、Esc = 關閉、不 resume）：依工作區分組，組內 塔台 → 一般分頁 → Worker，同時有塔台與 Worker 時提示先恢復塔台。claude 列：有 session id →「恢復」（`--resume=<id>`），沒有 →「開啟 resume 選單」（`--resume` 不帶值，claude 自己的 picker，依 cwd 篩選）；codex / unknown 列沒有恢復按鈕（codex 由 T0767 / B2 提供）。每列「略過」；底部「全部恢復 claude」（依序、塔台先）與「關閉」。
+5. 自訂參數已含 `--resume` / `-r` / `--continue` / `-c` / `--session-id` / `--from-pr` / `--teleport`（或短旗標群組含 `r` / `c`）→ 不加 `--resume`，照原指令啟動，對話框顯示原因。
+6. 移除條件：resume（`resumed`）、略過（`dismissed`）、PTY 結束（關分頁、⏻ 重啟、resume 前的 kill；`onPtyExit` → `pty-ended`）、claude 回報新的 session id（`onClaudeSessionChange` → `session-start`）。resume 後 claude 的 `SessionStart`（source=resume）回報同一個 session id，`agentStarted` / `claudeSessionId` 自然恢復。
+7. 使用者開的分頁所在工作區在本視窗從未掛載（lazy mount）時，先切到該工作區，等它註冊 resume handler（上限 5 s，逾時回 `NO_WORKSPACE_VIEW`）。
+
+**cwd 編碼查證（claude 2.1.316）**：session 檔在 `<設定目錄>/projects/<SN(cwd)>/<id>.jsonl`，`SN` = 非英數字元換成 `-`，超過 200 字元時截斷並接 `-<雜湊 base36>`；目錄名可被 `CLAUDE_CODE_PROJECT_DIR_NAME` 覆寫（有 `CLAUDE_CONFIG_DIR` 時），Windows 比對不分大小寫。規則不夠穩定，所以 BAT **不檢查 session 檔**、只檢查 id 格式（UUID），找不到時 claude 自己回 `No conversation found with session ID: <id>`（實測 `claude -p --resume=<不存在的 id> --name=x` → 這句、exit 1、不送 API）。`--resume=<id>` 與 `--name=` 可並用；`-n` 在 resume 時是否更新顯示名稱未實機驗證（help：「Set a display name for this session」），BAT 的 `claudeSessionName` 取自自己的紀錄，不受影響。
+
+**日誌**：`[interrupted-agents] interrupted: terminal=<id> agent=<agent> launchedBy=tab|dispatch [workorder=<T####>] session=<前 8 碼>|unknown`、`recovery interrupted <n> agent tab(s); listed <m>`、`recovery interrupted no agent tab (<n> PTY(s) rebuilt as shells)`、`removed: terminal=<id> (resumed|dismissed|pty-ended|session-start)`、`resumed dispatch: … mode=session|picker|none [reason=user-args]`；renderer `[interrupted-agents] resume terminal=<id> … → ok mode=… | failed <code>`；`[claude-session] <n> interrupted entr(y|ies) of the previous process not restored`。
+
 ## 日誌
 
 | 日誌 | 意義 |
@@ -105,7 +140,7 @@ T0704 修正兩件事：
 - **TCP 模式的 `serverPid`**：BAT 重開後以 TCP 連線，沒有 ChildProcess，舊 server 的 pid 取自 registry。TCP `close` 到 recovery 只有幾毫秒，但理論上這段時間 pid 可能被別的程序重用，那個程序樹會被結束。為了避免 graceful shutdown 中的舊 server 事後刪掉新 server 的檔案，接受這個風險。
 - **舊 server 結束失敗**：`killTree` 與 `SIGKILL` 都失敗時（記 `signal=failed`），舊 server 仍活著但已切斷。它在 IPC 斷線 `BAT_IDLE_TIMEOUT_MS`（預設 30 分鐘）後自行 shutdown，屆時會刪掉 pid / port / registry 檔（當時屬於新 server）。目前只記日誌，沒有補救。
 - **server 卡住但程序與 IPC 都在**：依規格永遠不 recovery，只記 `late pong`，分頁看起來沒有回應，直到 server 恢復。
-- recovery 仍只重建 shell，agent 分頁變成空 shell（PLAN-055）。重建尺寸仍是 120x30（CLAUDE.md「新 PTY 的初始尺寸」已知限制）。
+- recovery 仍只重建 shell，不自動重啟 agent（D211 P-1）：T0766 起列出被中斷的 agent 分頁，claude 分頁可一鍵 `--resume`；codex 分頁只列出（恢復由 T0767 / B2 提供）。清單是近似值：使用者已自己離開 claude 的分頁也會列出（沒有 `SessionEnd` hook，P-7）；清單與 session id 不跨 BAT 重開（P-5）；BAT 重開時 Recovery 提示選「重新開始」的分頁不列（P-6）；Worker resume 後停在中斷前的對話，不會自己繼續，也不通知塔台（P-2 / P-3，塔台可由 `bat_get_state` 的 `agentStarted` 判斷）。session 檔不預先檢查（見上節 cwd 編碼查證），id 不存在時 claude 自己報錯。重建尺寸仍是 120x30（CLAUDE.md「新 PTY 的初始尺寸」已知限制）。
 
 ## T0703 時間線摘要（BUG-171）
 
@@ -146,3 +181,8 @@ T0704 修正兩件事：
     - 沒有以舊 server / 舊 shell 為父程序的殘留程序。
     - 分頁收不到 `pty:exit`。
     - 分頁內指令回報的 PPID 是新 shell。
+- T0766（被中斷的 agent 分頁）：
+  - 單元 `electron/__tests__/pty-manager-interrupted-agents.test.ts`：dep 在 `clearAll` 之前呼叫（呼叫當下 tracker 仍有 session id / `agentStarted`，recovery 後清掉）、Worker 帶工單與塔台、listener 丟例外照常完成、source guard（位置與日誌字串）。突變：把呼叫移到 `clearAll` 之後 → 失敗。
+  - 單元 `electron/__tests__/interrupted-agents.test.ts`：快照只列 agent 分頁、純 shell 不列；清單合併 / 移除 / 事件；Worker resume（請求內容、`\r`、拒絕情況）；channel 只在 `ipcMain.handle`；builder `resume`（`--resume=<id>` 在 BAT 參數之後、自訂參數之前、沒有 prompt、沿用 `--name=`；session 未知 → `--resume`；自訂參數含 resume 類旗標 → 不加；codex 拒絕；不帶 `resume` 時指令不變）；`claude-sessions.json` 的 `interrupted` 項（recovery 後保留、離開清單後移除、重開不還原、沒有時檔案格式不變）。
+  - 單元 `src/lib/__tests__/claude-resume-args.test.ts`、`src/components/__tests__/interrupted-agents-dialog.test.tsx`（分組與排序、按鈕、Esc / [X] 只關閉、全部恢復只算 claude、store 兩條 resume 路徑與未掛載工作區、toast 數量、source guard：⏻ 重啟仍不帶 `--resume`、resume 先 kill 再 `startClaudeCliPty`、不再 `worktree.create`）、`dialog-escape.test.tsx`（涵蓋清單）。
+  - e2e `e2e/t0766-interrupted-agents-recovery.spec.ts`（隔離實例，Windows，需先 `npx vite build`）：以 .NET Framework `csc` 編 stub `claude.exe`（system runtime customPath；記錄 argv、經 `bat-hook.mjs session-start` 回報假 session id），一個 claude-cli 分頁 + 一個 shell 分頁（塔台）+ 一個 helper 派工的 Worker，只 `taskkill /F` server → 對話框只列 claude 分頁與 Worker、兩個 ⏸、`claude-sessions.json` 有 `interrupted`；恢復後 stub argv 含 `--resume=<id>` 與 `--mcp-config=` / `--settings=` / 原 `--name=`（Worker 沒有 `/ct-exec`），`SessionStart` 再次回報，對話框與標示消失。

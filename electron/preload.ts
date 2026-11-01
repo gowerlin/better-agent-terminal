@@ -1053,6 +1053,17 @@ const electronAPI = {
       ipcRenderer.on('terminal-server:status', handler)
       return () => ipcRenderer.removeListener('terminal-server:status', handler)
     },
+    // PLAN-055 B1 / T0766: the agent tabs a Terminal Server recovery interrupted (the whole list on
+    // every change), its pull query, dismiss (略過) and main's resume of a claude tab the renderer
+    // does not launch itself (a helper-dispatched Worker). Local BAT only: not proxied.
+    onAgentsInterrupted: (callback: (event: { reason: 'recovery' | 'update'; agents: unknown[] }) => void) => {
+      const handler = (_event: Electron.IpcRendererEvent, payload: { reason: 'recovery' | 'update'; agents: unknown[] }) => callback(payload)
+      ipcRenderer.on('terminal-server:agents-interrupted', handler)
+      return () => ipcRenderer.removeListener('terminal-server:agents-interrupted', handler)
+    },
+    queryInterruptedAgents: () => ipcRenderer.invoke('terminal-server:query-interrupted-agents') as Promise<unknown[]>,
+    dismissInterruptedAgent: (terminalId: string) => ipcRenderer.invoke('terminal:dismiss-interrupted-agent', terminalId) as Promise<boolean>,
+    resumeInterruptedAgent: (terminalId: string) => ipcRenderer.invoke('terminal:resume-interrupted-agent', terminalId) as Promise<unknown>,
   },
   // T0701 — Control Tower config layers outside the workspace (global config, installed
   // skill's tower-config.md). Proxied: the host the window is bound to reads its own home;
