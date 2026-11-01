@@ -3,11 +3,11 @@ schema_version: 1
 schema_kind: bug
 id: BUG-179
 title: "`bat-scripts.log` 無上限成長：helper 與主行程都只 append、從不輪替（本機 41.6 MB，10 月單月 35.6 MB）"
-status: FIXING
+status: FIXED
 severity: low
 reproducibility: always
 created_at: "2026-11-01T12:12:33+0800"
-updated_at: "2026-11-01T12:25:49+0800"
+updated_at: "2026-11-01T12:42:42+0800"
 impact:
   - logging
   - helper-scripts
@@ -22,7 +22,7 @@ links:
 |------|------|
 | 嚴重度 | 🟢 low（磁碟用量、附日誌困難、讀檔診斷變慢；不影響功能） |
 | 可重現 | 一定 |
-| **狀態** | 🔧 FIXING：T0732（D198 規格：啟動時 > 10 MB 輪替、保留 3 份；排在 T0730 之後） |
+| **狀態** | ✅ FIXED：T0732（commit `ce648034`），等驗收 |
 | 回報者 | T0731 Worker |
 
 ## 現象
@@ -38,3 +38,11 @@ links:
 - 可選：減少 `report-hook` 雙寫。
 - 日誌寫入失敗不得影響業務（兩個 logger 的既有失敗政策）。
 - 對外說明：`bat-scripts.log` 是診斷日誌、欄位不是契約，CT 不應依賴保留期（BMad-Guide ADVISORY Q-B3 回覆）。
+
+## 修正（T0732，commit `ce648034`）
+
+- 唯一實作 `rotateBatScriptsLog`（`electron/bat-scripts-log-rotation.ts`）：`bat-scripts.log` > 10 MiB（10 × 1024 × 1024 bytes）改名 `bat-scripts-<YYYYMMDD-HHMMSS>.log`（本機時間；同秒已有同名檔加 `-2`…，不覆寫），之後只留最近 3 份（依檔名時間戳）；改名 / 刪除 / 列目錄失敗只記一行 debug log（`[bat-scripts-log] … will retry next startup`）、下次啟動再試，不丟例外。舊檔清理每次啟動都做。
+- 呼叫位置：本機 `electron/main.ts` `app.whenReady()` callback 開頭（`logger.getLogsDir()`，在 `remoteServer.start` 與任何視窗 / PTY 之前）；headless `createHeadlessServer().start()` 取得 dataDir 鎖之後、`remoteServer.start` 之前，輪替 `<dataDir>/Logs`（= PTY 的 `BAT_HELPER_LOG_DIR`），每個 server 一次。
+- 不變：helper `scripts/_bat-logger.mjs` 寫入規則 / 檔名 / 欄位、`report-hook` 雙寫、兩個 logger 的失敗政策、append 路徑。
+- 驗證：新測試 `electron/__tests__/bat-scripts-log-rotation.test.ts`、`electron/remote/__tests__/headless-bat-scripts-log-rotation.test.ts`（temp 目錄）；`test:unit` 354 檔 6298 passed / 3 skipped、`test:legacy` 33 檔 472 passed、`typecheck` = 0、`typecheck:electron` = 0、`npx vite build` 成功。
+- 待驗收：實機（本機 41.6 MB 的 `bat-scripts.log`）重開 BAT 後應出現 `bat-scripts-<stamp>.log` 與 debug log 的 `[bat-scripts-log] rotated` 行；本單未對真實日誌做輪替。
