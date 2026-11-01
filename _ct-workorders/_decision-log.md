@@ -1465,6 +1465,14 @@
 - **切分**：W2a 設計語言 + 元件 + 首頁（T0630）→ 預覽通過後 W2b（`/control-tower`、功能、FAQ、回報頁）→ W2c 遠端開發；W3 / W4 不變。
 - **相關**：PLAN-049 / D159 / D160 / T0624 / T0630
 
+### D192 2026-11-01 — T0717 Q-1 / Q-2 皆在本單補（塔台代決）：claude 新限額句型、codex OSC 7501 `done` / `error` → `idle`
+
+- **背景**：T0717 Worker 核對新版 binary 時發現：Q-1 claude 2.1.312 起限額標題改成 `You've hit your 5-hour limit`、reset 通知改成 `Continuing automatically`（大寫 C），`src/lib/usage-limit.ts` 認不得（只影響提示，claude 一律不送文字，D148）；Q-2 codex 0.166 回合結束送 OSC 7501 `state=done`、失敗送 `state=error`（保持到使用者按鍵），BAT parser 忽略未知狀態 → 回合已結束仍回 `working`，`↻` 回不到 `✓`、`terminal:wait` 等不到 idle。Q-2 與內嵌升版無關，系統 codex 升到 0.166 即發生。
+- **決定**（塔台代決，2026-11-01 08:24，BAT `--answer` exit 0，兩題皆選 Worker 建議 A）：
+  1. Q-1：`CLAUDE_LIMIT_RE` 加 `5-hour limit`（對應 session）、`CLAUDE_RESUMED_RE` 大小寫都認；舊句型保留（system runtime 可能仍是舊 CLI）；補測試與 docs。CLAUDE.md「用量限制自動繼續」節本來就要求 CLI 改字串時同步改。
+  2. Q-2：`parseCodexOscPayload` 把 `done` / `error` 當成 `idle`；對外狀態值與 D158 契約 C-1–C-8 的欄位不變（只是 parser 對照表追加，`kind=` 照舊忽略），不需通知 CT；授權 `src/lib/codex-terminal-state.ts` 列入 T0717 範圍；補測試、`blocked-state.md` 轉換表、CLAUDE.md 一句。
+- **相關**：T0717 / D148 / D158 / T0621 / T0692 / T0694
+
 ### D191 2026-11-01 — 內嵌 claude / codex 全部追最新：CLI 2.1.316 + codex 0.166.0（T0717），Agent SDK 升 0.3.316 並執行 D123 Phase 2（T0718）
 
 - **背景**：使用者指示「將內嵌 claude, codex cli/sdk 更新到最新」。塔台 2026-11-01 08:1x `npm view`：`@anthropic-ai/claude-code` 實裝 2.1.306，latest 2.1.316（stable 2.1.309）；`@anthropic-ai/claude-agent-sdk` 實裝 0.2.113，latest 0.3.316（0.2 線最新 0.2.141）；`@openai/codex-sdk` / `@openai/codex` 實裝 0.163.0，latest 0.166.0。SDK 0.3 移除 V2 session API（T0368），D123 決定下架 `claude-code-v2` preset，但 Phase 2 一直沒排，`src` / `electron` 仍有 10 檔引用。

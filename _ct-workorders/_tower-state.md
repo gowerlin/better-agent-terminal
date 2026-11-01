@@ -1,11 +1,11 @@
 ---
 schema_kind: tower-state
 summary_version: 1
-updated_at: "2026-11-01T08:10:01+0800"
-session: "2026-11-01 第一百 session 進行中（CT v5.15.0，Fast Path）；前次第九十九 session 已收工：T0715 / T0716、v0.7.2-pre.4"
+updated_at: "2026-11-01T08:24:47+0800"
+session: "2026-11-01 第一百 session 進行中（CT v5.15.0）：D191 內嵌 claude / codex 追最新，T0717 執行中（Q-1 / Q-2 已答，D192），T0718 待派"
 next_ids:
-  workorder: "T0717"
-  decision: "D191"
+  workorder: "T0719"
+  decision: "D193"
   bug: "BUG-176"
   plan: "PLAN-057"
 todo:
@@ -265,6 +265,11 @@ todo:
 - 本 session yolo 派發：45 張完成（另重派 2、ct-done 補救 1）
 - 斷點觸發：A×0, B×0, **C×17**（scope 內，05:55 起依使用者授權由塔台直接裁決）、使用者中斷×0
 - 使用者修正：1（Worker 啟動檢查 30 秒 → ≥ 3 分鐘）
+
+### 第一百 session（進行中）
+
+- 08:14 T0717 派工（`--mode yolo --no-interactive`，`started: 2026-11-01T00:14:21Z`）
+- 08:24 [提問] T0717 Q-1 / Q-2（BAT 通道，non-blocking 收尾前答）→ 塔台代決皆 A，`--answer` exit 0 ×2（D192）
 
 ### 歷史 Session（摘要）
 
