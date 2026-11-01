@@ -3,7 +3,7 @@ schema_version: 1
 schema_kind: plan
 id: PLAN-055
 title: "Terminal Server recovery 後 agent 分頁不再無聲變成 shell：列出被中斷的 agent 分頁，claude 分頁保留 session id 並提供 `--resume`"
-status: PLANNED
+status: IN_PROGRESS
 priority: medium
 created_at: "2026-10-25T21:16:40+0800"
 links:
