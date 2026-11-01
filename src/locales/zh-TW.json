@@ -329,6 +329,7 @@
     "saveAndOpen": "儲存當前並開啟",
     "newWindow": "開啟",
     "alreadyOpen": "此配置已在另一個視窗中開啟。",
+    "alreadyOpenNotShown": "此配置的視窗已開啟，但無法顯示。請從系統匣圖示選單 → 該視窗 → Show 開啟。",
     "host": "主機",
     "fetchProfiles": "取得配置",
     "fetchingProfiles": "取得中...",

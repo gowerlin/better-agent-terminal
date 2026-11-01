@@ -29,6 +29,7 @@ import { rotateBatScriptsLog } from './bat-scripts-log-rotation'
 import { CtWorktreeService } from './ct-worktree'
 import { UsageLimitContinueScheduler } from './usage-limit-continue'
 import { normalizeUsageLimitConfig } from '../src/lib/usage-limit'
+import { bringWindowToFront, planDeletedProfileWindows } from '../src/lib/profile-window-front'
 import { savedWorkerOwnership, withSavedWorkerOwnership } from './worker-ownership'
 import { registerPtyHandlers } from './handlers/pty'
 import { registerClaudeHandlers } from './handlers/claude'
@@ -1977,9 +1978,9 @@ app.whenReady().then(async () => {
         return w && !w.isDestroyed()
       })
       if (openWin) {
-        const w = windowMap.get(openWin.id)!
-        if (w.isMinimized()) w.restore()
-        w.focus()
+        // T0750 (BUG-183): a window hidden by minimize-to-tray needs show(), not only focus()
+        const brought = bringWindowToFront(windowMap.get(openWin.id)!)
+        logger.log(`[profile-window] second-instance --profile=${profileId2}: existing window ${openWin.id} ${brought}`)
       } else {
         await profileManager.activateProfile(profileId2)
         const result = await loadProfileSnapshotDetailed(profileId2)
@@ -3382,6 +3383,8 @@ function registerLocalHandlers() {
   ipcMain.handle('profile:delete', async (_event, profileId: string) => {
     const deleted = await profileManager.delete(profileId)
     void syncWslKeepAlive('profile:delete')
+    // T0750 (BUG-184): the deleted profile's windows go too (they stayed in the tray menu).
+    if (deleted) await closeWindowsOfDeletedProfile(profileId)
     return deleted
   })
   ipcMain.handle('profile:rename', async (_event, profileId: string, newName: string) => profileManager.rename(profileId, newName))
@@ -3632,10 +3635,11 @@ function registerLocalHandlers() {
     })
     if (openWindows.length > 0) {
       const mostRecent = openWindows.sort((a, b) => b.lastActiveAt - a.lastActiveAt)[0]
-      const win = windowMap.get(mostRecent.id)!
-      if (win.isMinimized()) win.restore()
-      win.focus()
-      return { alreadyOpen: true, windowId: mostRecent.id }
+      // T0750 (BUG-183): a window hidden by minimize-to-tray needs show(), not only focus();
+      // the renderer shows no notice once a hidden / minimized window came back (profileOpenNotice).
+      const broughtToFront = bringWindowToFront(windowMap.get(mostRecent.id)!)
+      logger.log(`[profile-window] open ${profileId}: existing window ${mostRecent.id} ${broughtToFront}`)
+      return { alreadyOpen: true, windowId: mostRecent.id, broughtToFront }
     }
 
     // Mark profile as active
@@ -3673,6 +3677,27 @@ function registerLocalHandlers() {
     return { alreadyOpen: false, windowIds: [entry.id] }
   }
   ipcMain.handle('app:open-new-instance', async (_event, profileId: string) => openProfileWindows(profileId))
+
+  // T0750 (BUG-184): deleting a profile closes the windows bound to it — before, they stayed open
+  // (in the tray menu too) bound to a profile that no longer exists. Closing them would leave no
+  // window at all → the Default profile opens first (otherwise the app would quit).
+  const closeWindowsOfDeletedProfile = async (profileId: string) => {
+    try {
+      const liveWindowIds = [...windowMap].filter(([, w]) => !w.isDestroyed()).map(([id]) => id)
+      const plan = planDeletedProfileWindows(await windowRegistry.readAll(), liveWindowIds, profileId)
+      if (plan.closeIds.length === 0 && plan.staleEntryIds.length === 0) return
+      logger.log(`[profile-window] profile ${profileId} deleted: closing ${plan.closeIds.length} window(s), dropping ${plan.staleEntryIds.length} stale entr(ies), fallback=${plan.openFallback}`)
+      if (plan.openFallback) await openProfileWindows('default')
+      for (const id of [...plan.closeIds, ...plan.staleEntryIds]) await windowRegistry.removeEntry(id)
+      for (const id of plan.closeIds) {
+        const w = windowMap.get(id)
+        if (w && !w.isDestroyed()) w.destroy()
+      }
+      rebuildTrayMenu()
+    } catch (err) {
+      logger.error(`[profile-window] closing windows of deleted profile ${profileId} failed: ${err}`)
+    }
+  }
 
   // PLAN-037 T0412 — cross-window remote-tool install (both local-only). A local window
   // (wizard / ProfileCard) parks { profileId, toolId, kind } and the profile's window is

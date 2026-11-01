@@ -329,6 +329,7 @@
     "saveAndOpen": "保存当前并打开",
     "newWindow": "打开",
     "alreadyOpen": "此配置已在另一个窗口中打开。",
+    "alreadyOpenNotShown": "此配置的窗口已打开，但无法显示。请从系统托盘图标菜单 → 该窗口 → Show 打开。",
     "host": "主机",
     "fetchProfiles": "获取配置",
     "fetchingProfiles": "获取中...",

@@ -176,7 +176,7 @@ interface ElectronAPI {
     writeImage: (filePath: string) => Promise<boolean>
   }
   app: {
-    openNewInstance: (profileId: string) => Promise<{ alreadyOpen: boolean; windowId?: string; windowIds?: string[] }>
+    openNewInstance: (profileId: string) => Promise<{ alreadyOpen: boolean; windowId?: string; windowIds?: string[]; error?: string; broughtToFront?: import('../lib/profile-window-front').BringToFrontResult }>
     getLaunchProfile: () => Promise<string | null>
     getWindowId: () => Promise<string | null>
     getWindowProfile: () => Promise<string | null>

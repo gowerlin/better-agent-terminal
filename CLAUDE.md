@@ -357,6 +357,7 @@
 - `RemoteConnectionRegistry`（`electron/remote/remote-connection-registry.ts`）取代單一 `remoteClient`：每個 profile 一條連線、一把 mutex。proxied IPC 依 sender 綁定的 profile 路由，無 live 連線即拒絕，不 fallback 本機。
 - 寬限 / 上限常數（`IDLE_GRACE_MS` = 15 s、`MAX_CONCURRENT_REMOTE_PROFILES` = 8 等）皆無注入點，測試不得為縮短等待改產品常數；第 9 個 profile 被拒，不擠掉既有連線。
 - profile index 序列化（T0509）：`profiles/index.json` 讀改寫一律經 `withIndexLock()`（`electron/profile-manager.ts`）。🔴 鎖內程式碼不得呼叫 `ProfileManager` 公開方法（佇列不可重入，會等自己）；新增方法時建立邏輯用 `addProfileEntry()`。
+- 開啟已存在的 profile 視窗一律經 `bringWindowToFront`（`src/lib/profile-window-front.ts`，隱藏的要 `show()`；T0750 / BUG-183）；`profile:delete` 成功後經 `closeWindowsOfDeletedProfile` 關閉該 profile 的視窗（BUG-184），見 docs。
 - 完整生命週期、失敗對話框、e2e 與實機驗收：[docs/agent-guide/multi-remote-profiles.md](docs/agent-guide/multi-remote-profiles.md)
 
 ## 指揮塔總覽（T0701，D184）

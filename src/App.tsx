@@ -9,6 +9,7 @@ import { markNotified, markWorkspaceNotified, clearWorkspaceNotification } from 
 import { clearUsageLimitStatus, runUsageLimitContinue, setUsageLimitStatus } from './stores/usage-limit-store'
 import { clearTerminalAttention, createReconnectAttentionReconciler, retainTerminals, setTerminalAttention, setViewingState } from './stores/terminal-attention-store'
 import { workerNotifyKind } from './lib/terminal-attention'
+import { profileOpenNotice } from './lib/profile-window-front'
 import { Sidebar } from './components/Sidebar'
 import { WorkspaceView } from './components/WorkspaceView'
 import { SettingsPanel } from './components/SettingsPanel'
@@ -1023,9 +1024,10 @@ export default function App() {
   // Open profile in a new app instance (or focus if already open)
   const handleProfileNewWindow = useCallback(async (profileId: string) => {
     const result = await window.electronAPI.app.openNewInstance(profileId)
-    if (result?.alreadyOpen) {
-      setAppNotification(t('profiles.alreadyOpen'))
-    }
+    // T0750 (BUG-183): a hidden (minimize to tray) or minimized window that came back needs no notice
+    const notice = profileOpenNotice(result)
+    if (notice === 'already-open') setAppNotification(t('profiles.alreadyOpen'))
+    else if (notice === 'not-shown') setAppNotification(t('profiles.alreadyOpenNotShown'))
     setShowProfiles(false)
   }, [t])
 

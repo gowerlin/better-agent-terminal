@@ -330,6 +330,7 @@
     "saveAndOpen": "Save Current & Open",
     "newWindow": "Open",
     "alreadyOpen": "This profile is already open in another window.",
+    "alreadyOpenNotShown": "This profile's window is already open but could not be shown. Use the tray icon menu → the window → Show.",
     "host": "Host",
     "fetchProfiles": "Fetch Profiles",
     "fetchingProfiles": "Fetching...",
