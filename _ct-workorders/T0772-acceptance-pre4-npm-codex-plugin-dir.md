@@ -4,12 +4,17 @@ schema_kind: workorder
 id: T0772
 title: "pre.4 自動化驗收（安裝版）：環境類 —— BUG-189 npm 安裝的 codex（暫存 prefix）、BUG-191 `CLAUDE_CODE_PLUGIN_CACHE_DIR` 下以 plugin 安裝 CT"
 type: implementation
-status: PENDING
+status: DONE
 repo: better-agent-terminal
 project: maintenance
 priority: P2
 sizing: S
 created_at: "2026-11-02T05:08:42+0800"
+started_at: "2026-11-02T05:14:34+0800"
+updated_at: "2026-11-02T05:26:00+0800"
+completed_at: "2026-11-02T05:26:00+0800"
+session_ids:
+  - "9200e5d5-9c04-4b7e-a1cf-49095c4a2218"
 depends_on: []
 related:
   - "BUG-189（T0758 `ddfb4f38`）、BUG-191（T0760 `eb5c0589`）；D215（本批自動化驗收）"
@@ -64,11 +69,87 @@ memory_overrides:
 
 ## 驗收
 
-- [ ] 情境 ①a–c、②逐項結果，每項寫明驗收對象（安裝版 / source build）與用了哪個 marketplace
-- [ ] t0742-codex-no-daemon 綠、兩個 typecheck = 0
-- [ ] 暫存目錄已清除
-- [ ] 〈發現的問題〉與〈仍需手動〉
+- [x] 情境 ①a–c、②逐項結果，每項寫明驗收對象（安裝版 / source build）與用了哪個 marketplace
+- [x] t0742-codex-no-daemon 綠、兩個 typecheck = 0
+- [x] 暫存目錄已清除
+- [x] 〈發現的問題〉與〈仍需手動〉
 
 ---
 
 ## 回報區
+
+### 完成狀態
+
+- **狀態**：DONE（情境 ①a–c、② 全部 PASS；t0742-codex-no-daemon 2/2 綠；兩個 typecheck = 0；暫存目錄已清除）
+- **驗收對象**：全部情境都用安裝版 `C:\Program Files\BetterAgentTerminal\BetterAgentTerminal.exe`（FileVersion `0.7.3-pre.4`），以 `BAT_E2E_EXECUTABLE` 啟動隔離實例；沒有用 source build，沒有跑 `npx vite build`，沒改 `e2e/fixtures/electron-isolation.ts`
+- **marketplace**：公開的 `gowerlin/Control-Tower`（`control-tower`，`ct@control-tower` 5.15.0，`gitCommitSha` `4bb9d997…`）；不需要用到假 marketplace（spec 內留有 T0760 式的本機假 marketplace 作為連不上時的後備）
+- **session_id**：9200e5d5-9c04-4b7e-a1cf-49095c4a2218
+
+### 落點檢查
+
+- **結果**：PASS
+- C-0：`repo` = `better-agent-terminal`，`basename(REPO_ROOT)` = `better-agent-terminal` → PASS（REPO_ROOT = 本 repo 主 checkout，`main`）
+- C-1：工單在 REPO_ROOT 底下 → PASS
+- C-3：`e2e/t0772-*.spec.ts` 含萬用字元、`_ct-workorders/` 項目排除；其餘 3 項皆存在 → PASS
+- C-2：工單沒有 `branch` 欄位 → 不適用
+- 未設 `CT_HOME`（非 worktree）；`BAT_WORKSPACE_ID` = `cc0afc4a-57e9-4f41-b2ed-a2d8bac9e36b`（僅記錄）；`CT_MODE` = `yolo`
+
+### 產出與 commit
+
+- 產品 commit `366b96b0`：
+  - 新增 `e2e/t0772-pre4-env-acceptance.spec.ts`（2 個 test：① BUG-189、② BUG-191）
+  - `docs/agent-guide/bat-mcp-shim.md`「codex 共用 daemon」驗證清單補一行（npm 安裝 codex 實測）
+  - `docs/agent-guide/ct-plugin-install.md` 驗證清單補一行（`CLAUDE_CODE_PLUGIN_CACHE_DIR` 實測）
+- 沒改 `e2e/t0742-codex-no-daemon.spec.ts`（安裝版直接跑得過，不需要改）；沒改產品程式碼
+
+### 情境 ① BUG-189：npm 安裝的 codex（安裝版）
+
+環境：`npm i -g --prefix <暫存>\npm --cache <暫存>\npm-cache @openai/codex@0.166.0`（npm 12.2.1，exit 0，約 4 s；npm cache 也放暫存，沒用使用者的全域 npm 與 cache）。npm 寫出 `codex.cmd` / `codex.ps1`，原生檔在 `<prefix>\node_modules\@openai\codex\node_modules\@openai\codex-win32-x64\vendor\x86_64-pc-windows-msvc\bin\codex.exe`（`--version` = 0.166.0）。隔離實例 PATH = `<prefix>;<原 PATH 去掉 node_modules\.bin>`、`CODEX_HOME` = 空暫存目錄（未登入）。分頁 shell（pwsh + 使用者 profile）的 `Get-Command codex` = `<prefix>\codex.ps1`。分頁內跑的是這個真的 npm codex（不是假 shim）。
+
+| 項目 | 結果 | 證據 |
+|---|---|---|
+| a) BAT MCP 關 → Codex CLI 分頁 | PASS | `[codex-version] path=<prefix>\…\codex-win32-x64\vendor\x86_64-pc-windows-msvc\bin\codex.exe version=0.166.0 (probed) via=<prefix>\codex.cmd`（不是 `version=unknown (first codex on PATH is …codex.cmd …)`）；`[bat-mcp] tab agent=codex-cli terminal=… → injected: --no-daemon; mcp=no (turned off in Settings)`；執行中的 `codex.exe` 命令列 `-c features.daemon_auto_start=false --no-daemon` |
+| b) BAT MCP 開 → Codex CLI 分頁 | PASS | 決策 `→ injected: -c 'mcp_servers.bat.command=…' -c 'mcp_servers.bat.args=[…bat-mcp.mjs]' -c 'mcp_servers.bat.env_vars=[…名稱…]' -c mcp_servers.bat.tool_timeout_sec=60`，沒有 `--no-daemon`；執行中的 `codex.exe` 命令列同樣只有 `mcp_servers.bat.*`、無 `--no-daemon` |
+| c) 塔台分頁以 helper 派 codex Worker | PASS | `--set-role tower --mode yolo` exit 0；`bat-terminal.mjs --notify-id … --workspace … --agent codex --skill ct-exec --workorder T0772 --cwd <ws> --mode yolo --wait-started 30000` → `Terminal created`、`agent: codex-cli`；派工探測 `[codex-version] … version=0.166.0 (probed) via=<prefix>\codex.cmd`；`bat_get_state(Worker)` = `blockedDetection: osc`、`agentStarted: false`、`state: idle`；`--wait-started` 回 `  started: unconfirmed`、exit **8**、stderr `create: LAUNCH_UNCONFIRMED`（分頁保留）。Worker 命令列 `-c features.daemon_auto_start=false -c mcp_servers.bat.* -c check_for_update_on_startup=false "$ct-exec T0772"`（派工不加 `--no-daemon`，符合規則）；`[agent-command] codex skill … name=$ct-exec reason=fallback-no-plugin` |
+
+①c 的畫面照實記錄：codex 未登入，Worker 停在「Welcome to Codex … Choose how you want to use Codex. > 1. Sign in with ChatGPT …」登入選單，沒有送 OSC 7501，所以 `agentStarted` 一直是 `false`、`--wait-started` 回 `unconfirmed`。這符合 T0621 契約（`osc` 分頁在第一個 OSC 7501 之前是 `false`，逾時回 `unconfirmed` exit 8），**不算缺陷**。BUG-189 修正前，經 npm shim 時派工探測回 `unknown`，Worker 會是 `blockedDetection: none`、`started: unknown`；本次是 `osc`，證明派工路徑也追到原生 `codex.exe`。
+
+### 情境 ② BUG-191：`CLAUDE_CODE_PLUGIN_CACHE_DIR` 下的 CT plugin（安裝版）
+
+安裝：安裝版內嵌 CLI（`resources\app.asar.unpacked\node_modules\@anthropic-ai\claude-code\bin\claude.exe`，2.1.316），env 拿掉本 session 的 `BAT_*` / `CT_*` / `CLAUDE*` / `ANTHROPIC*`，`HOME` / `USERPROFILE` 指向暫存 home、`DISABLE_AUTOUPDATER=1`、`GIT_TERMINAL_PROMPT=0`：`claude plugin marketplace add gowerlin/Control-Tower` → `claude plugin install ct@control-tower --scope user`，兩步都 `✔ Successfully`。裝兩份：A = 設定目錄 a + cache 目錄 a；對照組 = 設定目錄 b、不設 cache 變數。暫存 home 安裝後仍是空的（CLI 沒寫到 home）。
+
+| 項目 | 結果 | 證據 |
+|---|---|---|
+| `installed_plugins.json` 在 cache 目錄 | PASS | `<cache-a>\installed_plugins.json` 存在、`<config-a>\plugins\installed_plugins.json` 不存在；`installPath` = `<cache-a>\cache\control-tower\ct\5.15.0`（`known_marketplaces.json`、`marketplaces\` 也在 cache 目錄） |
+| A) BAT env 設 `CLAUDE_CONFIG_DIR=<config-a>` + `CLAUDE_CODE_PLUGIN_CACHE_DIR=<cache-a>` | PASS | `claude:scan-skills` 列出 plugin 的 8 個 skill（`control-tower`、`ct-done`、`ct-evolve`、`ct-exec`、`ct-fieldguide`、`ct-help`、`ct-insights`、`ct-status`，scope `global`），與 plugin 的 `skills\` 目錄完全一致；`claude:scan-star-commands`（`*` 補全）= `ct-done … ct-status` 7 個；Skills 面板（右側 dock）顯示 `/ct-exec` 等（截圖於 `e2e-results`）；`ct:read-config-sources` 的 `installs.claude.plugin` = `{ version: "5.15.0", marketplace: "control-tower" }` |
+| B) 同 `<config-a>`、不設 cache 變數 | PASS（對照） | skill 清單沒有任何 ct-*、`*` 補全為空、`installs.claude.plugin` = `null`：路徑不變，仍是 `<設定目錄>/plugins`（那裡沒有東西） |
+| C) `<config-b>`（不設 cache 變數安裝）、不設 cache 變數 | PASS（對照） | `installed_plugins.json` 在 `<config-b>\plugins\`；skill / `*` 補全 / `installs.claude.plugin` 都與 A 相同 |
+| 指揮塔總覽 `*config` 預設值層來源（`ct:read-config-sources`） | PASS（讀得到；來源見下） | 三次啟動 `defaults` 都是 `found`，路徑 `<使用者資料夾>\.codex\skills\control-tower\references\tower-config.md` |
+
+預設值層說明：測試機器本來就有手動安裝的 Codex CT（`<使用者資料夾>\.codex\skills\control-tower\…`，只檢查存在），依 T0710 3-2「手動安裝優先（那份才是實際執行的）」，預設值層讀的是手動那份，所以在這台機器上看不到「預設值層讀 plugin 的 `tower-config.md`」。spec 會偵測這件事：沒有手動安裝時改驗 `defaults.path` 在 plugin 目錄底下。BAT 的 `homeDir` 取 `app.getPath('home')`（實測 = 使用者家目錄），不能用 env 改，所以本單沒辦法在不動使用者家目錄的情況下驗到這一段（見〈仍需手動〉）。plugin 是否被讀到，已由 `installs.claude.plugin`（同一個 channel、同一個 `findClaudeCtPlugins`）證明。
+
+### 驗證
+
+- `BAT_E2E_EXECUTABLE=<安裝版> npx playwright test e2e/t0772-pre4-env-acceptance.spec.ts`：② 1 passed（33.5 s）、① 1 passed（56.4 s）；各跑 1 次，沒有重跑
+- `BAT_E2E_EXECUTABLE=<安裝版> npx playwright test e2e/t0742-codex-no-daemon.spec.ts`：2 passed（原生 codex.exe 0.166.0 → `--no-daemon`；npm shim 情境 → `via=…codex.cmd`、`--no-daemon`）
+- `npm run typecheck` = 0、`npm run typecheck:electron` = 0。`e2e/` 不在兩個 tsconfig 的範圍內；另以 `tsc --noEmit --skipLibCheck --target ES2022 --module esnext --moduleResolution bundler --types node e2e/t0772-pre4-env-acceptance.spec.ts` 單檔檢查 = 0
+- 清理：`%TEMP%\bat-t0772-*` 0 個、`%APPDATA%\BetterAgentTerminal-runtime-e2e-t0772*` 0 個、命令列含 `bat-t0772` 的程序 0 個（npm prefix、npm cache、CODEX_HOME、兩個 CLAUDE_CONFIG_DIR、plugin cache、暫存 home 都在各 test 的暫存目錄內，`finally` 先殺殘留程序再刪；情境 ② 的事前手動試裝目錄也已刪除）
+- 安全：沒讀、沒印任何認證檔或權杖；process 命令列只查含本次暫存目錄名的 `codex.exe` / `node.exe`，日誌把 `batcap.` 遮掉；`env_vars` 只有名稱。spec 與 docs 不含使用者家目錄路徑或帳號（`gowerlin/Control-Tower` 是公開 repo 名稱，docs 原本就有）
+
+### 發現的問題
+
+- 無產品缺陷。
+
+### 仍需手動
+
+- 「只裝 CT plugin（沒有任何手動安裝）時，總覽預設值層顯示 plugin 的 `tower-config.md`」：這台機器有手動 Codex CT，依規則讀手動那份；要實機看到得在沒有 `~/.codex/skills/control-tower` 的機器上驗（邏輯本身由 `electron/__tests__/ct-config-sources.test.ts`「只 plugin」涵蓋）。
+- codex 登入狀態下的 npm codex Worker（`started: <ISO>`）：本單照工單不登入；登入後的流程與原生 codex 相同（`e2e/t0621-codex-osc-state.spec.ts` 以假模型涵蓋）。
+- daemon 行為本身（非系統管理員 BAT + 已登入 codex）仍如 T0742 所述只能手動。
+
+### 遭遇問題
+
+- 寫 docs 時一度用 bash heredoc 包 JS 插入文字，反斜線被當成跳脫字元寫壞了一行（`\n`、`\v`、`\b`），已改用 `String.raw` 腳本重寫該行並檢查 diff，最終檔案正確。
+
+### 互動紀錄
+
+- 無（yolo；沒有需要問塔台的問題）。
