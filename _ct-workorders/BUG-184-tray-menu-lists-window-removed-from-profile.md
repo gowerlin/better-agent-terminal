@@ -3,11 +3,13 @@ schema_version: 1
 schema_kind: bug
 id: BUG-184
 title: "系統匣圖示選單殘留已「Remove from profile」的視窗，同名項目出現兩個"
-status: FIXED
+status: CLOSED
 severity: low
 reproducibility: unknown
 created_at: "2026-11-01T22:04:49+0800"
-updated_at: "2026-11-01T22:21:13+0800"
+updated_at: "2026-11-02T02:13:04+08:00"
+closed_at: "2026-11-02T02:13:04+08:00"
+closed_reason: "verified"
 fixed_at: "2026-11-01T22:21:13+0800"
 fixed_by: "T0750 (8a432d40)"
 impact:
@@ -24,7 +26,7 @@ links:
 |------|------|
 | 嚴重度 | 🟢 low（選單多一個項目，容易選錯；不影響終端功能） |
 | 可重現 | 未確認（使用者遇到一次） |
-| **狀態** | ✅ FIXED（T0750，`8a432d40`，待驗收） |
+| **狀態** | 🚫 CLOSED（2026-11-02 使用者實機驗收通過，安裝版 `v0.7.3-pre.3`） |
 | 回報者 | 使用者（BUG-182 實機驗收時，`v0.7.3-pre.1` 安裝版，Windows） |
 
 ## 現象
@@ -46,3 +48,8 @@ links:
 - **修正**：`profile:delete` 成功後 `closeWindowsOfDeletedProfile`（`electron/main.ts`，選擇邏輯 `planDeletedProfileWindows`）destroy 該 profile 的存活視窗（含隱藏的）、刪 registry entry、重建匣選單；那些視窗若是全部的存活視窗，先開 Default profile。
 - **匣選單標籤**：未改（提案見 T0750 回報區）。
 - **驗證**：unit `src/lib/__tests__/profile-window-front.test.ts`、e2e `e2e/t0750-profile-window-reopen.spec.ts`（突變檢查：未修正版失敗於「C 的視窗應消失」）。待使用者實機驗收。
+
+## 驗收（2026-11-02T02:13:04+08:00，第一百零四 session）
+
+- 修正（T0750 `8a432d40`）在交付版 `v0.7.3-pre.2` 起；使用者以安裝版 `v0.7.3-pre.3` 實機測試通過：在「配置」以 ✕ 刪除開著的 profile 時視窗一併關閉、匣選單不殘留。
+- 依 R-G003 改 `CLOSED`（`closed_reason: verified`）。
