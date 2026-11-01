@@ -4,8 +4,9 @@ schema_kind: workorder
 id: T0767
 title: "PLAN-055 B2：被中斷的 codex 分頁提供恢復（`codex resume` 選單，依 cwd 篩選）"
 type: implementation
-status: PENDING
-updated_at: "2026-11-02T02:32:46+0800"
+status: IN_PROGRESS
+started_at: "2026-11-02T03:49:49+08:00"
+updated_at: "2026-11-02T03:49:49+08:00"
 session_ids: []
 repo: better-agent-terminal
 project: maintenance
