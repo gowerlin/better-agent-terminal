@@ -6,6 +6,7 @@ import {
   OPEN_INTERRUPTED_AGENTS_EVENT,
   forgetInterruptedAgent,
   getInterruptedAgent,
+  isCodexResumableAgent,
   isResumableAgent,
   resumeInterruptedAgent,
   setInterruptedAgents,
@@ -17,8 +18,9 @@ import {
  * PLAN-055 B1 / T0766 (D211): the agent tabs a Terminal Server recovery interrupted (this window's
  * tabs only), grouped by workspace — Towers first, Workers last (a Worker reports to its Tower's
  * tab). Per row: 恢復 (claude: `--resume=<id>`, or claude's resume menu when the session id is
- * unknown) and 略過; at the bottom 全部恢復（claude） and 關閉. codex / unknown rows have no resume
- * (codex: T0767). Nothing resumes on its own (P-1).
+ * unknown) and 略過; at the bottom 全部恢復 and 關閉. PLAN-055 B2 / T0767: codex rows resume with
+ * codex's own `resume` menu (sessions of the tab's directory; BAT knows no codex session id);
+ * unknown rows have no resume. Nothing resumes on its own (P-1).
  * T0563 / T0567: `ModalOverlay`, an [X], Esc = close (keeps the list, resumes nothing).
  */
 
@@ -72,12 +74,12 @@ export function InterruptedAgentsDialog({ rows, busy, message, onResume, onResum
   const towerFirst = rows.some(row => row.agent.role === 'tower') && rows.some(row => !!(row.agent.workorder || row.agent.towerTerminalId))
 
   const statusOf = (agent: InterruptedAgentInfo): string => {
+    if (isCodexResumableAgent(agent)) return t('interruptedAgents.codexPicker')
     if (isResumableAgent(agent)) {
       return agent.claudeSessionId
         ? t('interruptedAgents.sessionKnown', { id: agent.claudeSessionId.slice(0, 8) })
         : t('interruptedAgents.sessionUnknown')
     }
-    if (agent.agent === 'codex-cli') return t('interruptedAgents.codexLater')
     return t('interruptedAgents.unknownAgent')
   }
 
@@ -114,7 +116,7 @@ export function InterruptedAgentsDialog({ rows, busy, message, onResume, onResum
                       </span>
                       {canResume && (
                         <button className="dialog-btn confirm" data-action="resume" disabled={isBusy} onClick={() => onResume(agent.terminalId)}>
-                          {agent.claudeSessionId ? t('interruptedAgents.resume') : t('interruptedAgents.resumePicker')}
+                          {agent.claudeSessionId && !isCodexResumableAgent(agent) ? t('interruptedAgents.resume') : t('interruptedAgents.resumePicker')}
                         </button>
                       )}
                       <button className="dialog-btn cancel" data-action="dismiss" disabled={isBusy} onClick={() => onDismiss(agent.terminalId)}>
@@ -226,8 +228,10 @@ export function InterruptedAgentsController({ excludeWorkspaceIds }: Readonly<{ 
         activateWorkspace: (wsId) => workspaceStore.setActiveWorkspace(wsId),
       })
       window.electronAPI?.debug?.log(`[interrupted-agents] resume terminal=${terminalId} agent=${agent.agent} launchedBy=${agent.launchedBy} → ${result.ok ? `ok mode=${result.mode}${result.reason ? ` reason=${result.reason}` : ''}` : `failed ${result.code}`}`)
+      const codex = isCodexResumableAgent(agent) // T0767: codex's own resume menu
       if (!result.ok) setMessage(t('interruptedAgents.resumeFailed', { title, reason: result.code }))
-      else if (result.reason === 'user-args') setMessage(t('interruptedAgents.resumedUserArgs', { title }))
+      else if (result.reason === 'user-args') setMessage(t(codex ? 'interruptedAgents.resumedCodexUserArgs' : 'interruptedAgents.resumedUserArgs', { title }))
+      else if (codex) setMessage(t('interruptedAgents.resumedCodexPicker', { title }))
       else setMessage(t(result.mode === 'picker' ? 'interruptedAgents.resumedPicker' : 'interruptedAgents.resumed', { title }))
     } catch (err) {
       setMessage(t('interruptedAgents.resumeFailed', { title, reason: err instanceof Error ? err.message : String(err) }))

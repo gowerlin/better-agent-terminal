@@ -145,13 +145,13 @@ describe('resumeInterruptedDispatchAgent', () => {
     expect(store.has('w')).toBe(false)
   })
 
-  it('refuses: unknown id, codex (B2), a PTY no longer running, a failed build — nothing written, entry kept', async () => {
+  it('refuses: unknown id, an unknown agent, a PTY no longer running, a failed build — nothing written, entry kept', async () => {
     const store = new InterruptedAgentsStore()
-    store.record([agent({ terminalId: 'c', agent: 'codex-cli' }), agent({ terminalId: 'w', launchedBy: 'dispatch' })])
+    store.record([agent({ terminalId: 'c', agent: 'unknown' }), agent({ terminalId: 'w', launchedBy: 'dispatch' })])
     const { deps: d, writes } = deps(store)
     expect(await resumeInterruptedDispatchAgent(d, 'nope')).toMatchObject({ ok: false, code: 'NOT_FOUND' })
     expect(await resumeInterruptedDispatchAgent(d, 42)).toMatchObject({ ok: false, code: 'NOT_FOUND' })
-    expect(await resumeInterruptedDispatchAgent(d, 'c')).toMatchObject({ ok: false, code: 'NOT_CLAUDE' })
+    expect(await resumeInterruptedDispatchAgent(d, 'c')).toMatchObject({ ok: false, code: 'NOT_RESUMABLE' })
     expect(await resumeInterruptedDispatchAgent({ ...d, isRunning: () => false }, 'w')).toMatchObject({ ok: false, code: 'NOT_RUNNING' })
     expect(await resumeInterruptedDispatchAgent({ ...d, buildCommand: async () => null }, 'w')).toMatchObject({ ok: false, code: 'BUILD_FAILED' })
     expect(writes).toEqual([])
@@ -249,9 +249,9 @@ describe('createAgentPromptCommandBuilder: resume (T0766)', () => {
     }
   })
 
-  it('claude-cli only: a codex resume build is refused (B2)', async () => {
+  it('claude-cli / codex-cli only (T0767): a resume build of another agent is refused', async () => {
     const { build } = builder()
-    expect(await build({ agent: 'codex-cli', shellFamily: 'posix', terminalId: 'c', resume: { sessionId: null } })).toBeNull()
+    expect(await build({ agent: 'gemini-cli', shellFamily: 'posix', terminalId: 'g', resume: { sessionId: null } })).toBeNull()
   })
 
   it('without `resume` the dispatch command is unchanged (prompt last, no --resume)', async () => {

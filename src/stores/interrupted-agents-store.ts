@@ -6,12 +6,13 @@
  * Memory only — the ⏸ thumbnail mark and InterruptedAgentsDialog read it.
  *
  * Resuming (`resumeInterruptedAgent`):
- *   - a claude-cli tab the user opened (the renderer has its `agentPreset`): the workspace's
- *     `startClaudeCliPty` with `--resume` (WorkspaceView registers a handler per workspace; a
- *     workspace never mounted in this window is activated first)
- *   - any other claude tab (a helper-dispatched Worker, a claude typed into a shell): main's
+ *   - a claude-cli / codex-cli tab the user opened (the renderer has its `agentPreset`): the
+ *     workspace's handler — `startClaudeCliPty` with `--resume`, or (T0767) ⏻'s path with codex's
+ *     `resume` picker (WorkspaceView registers a handler per workspace; a workspace never mounted
+ *     in this window is activated first)
+ *   - any other claude / codex tab (a helper-dispatched Worker, an agent typed into a shell): main's
  *     `terminal:resume-interrupted-agent`
- *   - codex / unknown: not resumable in B1 (codex: T0767)
+ *   - unknown: not resumable
  * Nothing resumes on its own (D211 P-1).
  */
 import { useSyncExternalStore } from 'react'
@@ -59,9 +60,24 @@ function subscribe(listener: () => void): () => void {
   return () => { listeners.delete(listener) }
 }
 
-/** A claude-cli agent (the only kind B1 resumes). */
-export function isResumableAgent(agent: Pick<InterruptedAgentInfo, 'agent'>): boolean {
+/** A claude-cli agent (B1: `--resume`). */
+export function isClaudeResumableAgent(agent: Pick<InterruptedAgentInfo, 'agent'>): boolean {
   return agent.agent === 'claude-cli' || agent.agent === 'claude-cli-worktree'
+}
+
+/** A codex-cli agent (B2 / T0767: codex's `resume` picker). */
+export function isCodexResumableAgent(agent: Pick<InterruptedAgentInfo, 'agent'>): boolean {
+  return agent.agent === 'codex-cli'
+}
+
+/** An agent BAT can resume: claude-cli or codex-cli (mirror of `isResumableInterruptedAgent`, electron/interrupted-agents.ts). */
+export function isResumableAgent(agent: Pick<InterruptedAgentInfo, 'agent'>): boolean {
+  return isClaudeResumableAgent(agent) || isCodexResumableAgent(agent)
+}
+
+/** The renderer presets a workspace handler resumes itself (a tab the user opened). */
+function hasTabResumePreset(preset: string | undefined): boolean {
+  return preset === 'claude-cli' || preset === 'claude-cli-worktree' || preset === 'codex-cli'
 }
 
 /**
@@ -107,7 +123,7 @@ export function useInterruptedAgents(): InterruptedAgentInfo[] {
 
 // ── resume ──
 
-/** What a workspace's handler does: kill + `startClaudeCliPty` with `--resume`. */
+/** What a workspace's handler does: kill + `startClaudeCliPty` with `--resume`; codex-cli (T0767): ⏻ + `resume`. */
 export type TabResumeHandler = (agent: InterruptedAgentInfo) => Promise<ResumeInterruptedAgentResult>
 
 const tabResumeHandlers = new Map<string, TabResumeHandler>()
@@ -161,13 +177,12 @@ export interface ResumeInterruptedAgentDeps {
   handlerTimeoutMs?: number
 }
 
-/** Resumes one interrupted claude tab (see the file header for the two paths). */
+/** Resumes one interrupted claude / codex tab (see the file header for the two paths). */
 export async function resumeInterruptedAgent(agent: InterruptedAgentInfo, deps: ResumeInterruptedAgentDeps): Promise<ResumeInterruptedAgentResult> {
-  if (!isResumableAgent(agent)) return { ok: false, code: 'NOT_CLAUDE' }
+  if (!isResumableAgent(agent)) return { ok: false, code: 'NOT_RESUMABLE' }
   const terminal = deps.terminalOf(agent.terminalId)
   if (!terminal) return { ok: false, code: 'NOT_FOUND' }
-  const preset = terminal.agentPreset
-  if (preset === 'claude-cli' || preset === 'claude-cli-worktree') {
+  if (hasTabResumePreset(terminal.agentPreset)) {
     let handler = tabResumeHandlers.get(terminal.workspaceId) ?? null
     if (!handler) {
       deps.activateWorkspace(terminal.workspaceId)

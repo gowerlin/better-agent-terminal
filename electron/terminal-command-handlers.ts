@@ -12,6 +12,7 @@ import { needsClaudeNameSupport, withBatMcpArgs, type BatMcpLaunchRequest, type 
 import type { ClaudeNameSupport } from './claude-version-check'
 import { claudeSessionName } from '../src/lib/claude-session-name'
 import { claudeResumeArgs, type ClaudeResumeArgsDecision } from '../src/lib/claude-resume-args'
+import { codexResumeArgs, type CodexResumeArgsDecision } from '../src/lib/codex-resume-args'
 import {
   passThroughDispatchWorkspace,
   type DispatchCwdCheck,
@@ -237,8 +238,8 @@ export interface BuiltAgentCommand {
   argsSource?: AgentLaunchSource
   /** T0710: the Codex CT skill name and why (`$ct-exec` / `$ct:ct-exec`); codex CT prompts only. */
   codexSkillName?: CodexSkillNameDecision
-  /** PLAN-055 B1 / T0766: the `--resume` decision of a resume build (`AgentPromptCommandOptions.resume`). */
-  resume?: ClaudeResumeArgsDecision
+  /** PLAN-055 B1 / T0766: the `--resume` decision of a resume build (`AgentPromptCommandOptions.resume`); T0767: codex's `resume`. */
+  resume?: ClaudeResumeArgsDecision | CodexResumeArgsDecision
 }
 
 /** T0710: resolves the Codex CT skill name on this host (`createCodexSkillNameResolver`, electron/ct-install-detect.ts). */
@@ -979,7 +980,10 @@ export interface AgentPromptCommandOptions {
    * `claudeResumeArgs` (`--resume=<id>`, or `--resume` for claude's picker, nothing when the custom
    * args choose the session) right after BAT's args, and no prompt (D211 P-2). `sessionName` = the
    * name the tab was launched with (claudeSessionNameRecords); absent → computed as for a dispatch.
-   * claude-cli only (null otherwise).
+   * PLAN-055 B2 / T0767: codex-cli too — the same command (BAT MCP `-c`, the dispatch's update-check
+   * `-c`, custom args) plus `codexResumeArgs` (the `resume` subcommand: codex's picker, filtered by
+   * the cwd; nothing when the custom args already resume / fork); `sessionId` is ignored (BAT has
+   * none for codex, never `--last`). Other agents: null.
    */
   resume?: { sessionId: string | null; sessionName?: string }
 }
@@ -1142,9 +1146,9 @@ export function createAgentPromptCommandBuilder(deps: AgentPromptCommandDeps): (
       return codexSkillName.name
     }
     const isCodex = isCodexAgentId(agentId)
-    // T0766: a resume build — claude-cli only, no prompt
-    if (opts.resume && agentId !== 'claude-cli' && agentId !== 'claude-cli-worktree') {
-      deps.logger.warn(`[agent-command] resume is claude-cli only (agent=${requestedAgent} resolved=${agentId})`)
+    // T0766: a resume build — no prompt; claude-cli, or (T0767) codex-cli
+    if (opts.resume && agentId !== 'claude-cli' && agentId !== 'claude-cli-worktree' && agentId !== 'codex-cli') {
+      deps.logger.warn(`[agent-command] resume is claude-cli / codex-cli only (agent=${requestedAgent} resolved=${agentId})`)
       return null
     }
     const skillMode = Boolean(opts.skill && opts.workorder)
@@ -1204,7 +1208,10 @@ export function createAgentPromptCommandBuilder(deps: AgentPromptCommandDeps): (
       }
     }
     // T0766: `--resume=<id>` after BAT's args, before the custom args (`=` form; no `--fork-session`)
-    const resume = opts.resume ? claudeResumeArgs(opts.resume.sessionId, extraArgs) : undefined
+    // T0767: codex → the `resume` subcommand (codex's picker, filtered by the cwd), same place; never `--last`
+    const resume = !opts.resume ? undefined
+      : agentId === 'codex-cli' ? codexResumeArgs(extraArgs)
+      : claudeResumeArgs(opts.resume.sessionId, extraArgs)
     if (resume?.arg) baseCommand = `${baseCommand} ${resume.arg}`
     const commandWithArgs = extraArgs.trim() ? `${baseCommand} ${extraArgs.trim()}` : baseCommand
     if (resume) {

@@ -293,8 +293,11 @@ describe('source guards', () => {
     const view = read('src/components/WorkspaceView.tsx')
     const launches = view.match(/buildLaunchCommand\(/g) ?? []
     const wrapped = view.match(/buildLaunchCommand\([^\n]*\)(?:\.then\(\(cmd: string \| null\) =>|\s*\n\s*\.then\(cmd =>)\s*\n?\s*cmd \? withBatMcpLaunchArgs\(/g) ?? []
-    expect(launches.length).toBe(4)
+    // T0767: + the codex resume of an interrupted tab (resumeCodexCliTab), wrapped on the next line
+    const codexResume = view.match(/buildLaunchCommand\('codex-cli', undefined, extraArgs\)\n[^\n]*\n\s*const launchWithBatArgs = await withBatMcpLaunchArgs\(launchCmd, /g) ?? []
+    expect(launches.length).toBe(5)
     expect(wrapped.length).toBe(4)
+    expect(codexResume.length).toBe(1)
     expect(view).toMatch(/const cmdParts = \[await withBatMcpLaunchArgs\(quoteCommandPath\(cliPath/)
   })
 })

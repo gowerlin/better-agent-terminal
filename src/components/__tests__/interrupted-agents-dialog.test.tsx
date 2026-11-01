@@ -57,7 +57,7 @@ describe('InterruptedAgentsDialog', () => {
     return handlers
   }
 
-  it('rows: claude with a session → Resume, without → Open resume menu, codex / unknown → no resume; all rows can be dismissed', () => {
+  it('rows: claude with a session → Resume, without → Open resume menu, codex → Open resume menu (T0767), unknown → no resume; all rows can be dismissed', () => {
     const h = renderDialog([
       row(info({ terminalId: 'c1', claudeSessionId: S1 })),
       row(info({ terminalId: 'c2' })),
@@ -68,14 +68,14 @@ describe('InterruptedAgentsDialog', () => {
     expect(within(item('c1')).getByRole('button', { name: 'Resume' })).toBeInTheDocument()
     expect(within(item('c1')).getByText('session 11111111')).toBeInTheDocument()
     expect(within(item('c2')).getByRole('button', { name: 'Open resume menu' })).toBeInTheDocument()
-    expect(item('x1').querySelector('[data-action="resume"]')).toBeNull()
-    expect(within(item('x1')).getByText('codex: resume is not available yet')).toBeInTheDocument()
+    expect(within(item('x1')).getByRole('button', { name: 'Open resume menu' })).toBeInTheDocument()
+    expect(within(item('x1')).getByText("codex: opens codex's resume menu (sessions of this folder)")).toBeInTheDocument()
     expect(item('u1').querySelector('[data-action="resume"]')).toBeNull()
     fireEvent.click(within(item('c1')).getByRole('button', { name: 'Resume' }))
     expect(h.onResume).toHaveBeenCalledWith('c1')
     fireEvent.click(within(item('x1')).getByRole('button', { name: 'Dismiss' }))
     expect(h.onDismiss).toHaveBeenCalledWith('x1')
-    expect(screen.getByRole('button', { name: 'Resume all claude (2)' })).toBeEnabled()
+    expect(screen.getByRole('button', { name: 'Resume all (3)' })).toBeEnabled()
   })
 
   it('Esc and [X] close without resuming or dismissing', () => {
@@ -89,15 +89,15 @@ describe('InterruptedAgentsDialog', () => {
     expect(h.onDismiss).not.toHaveBeenCalled()
   })
 
-  it('a Tower and a Worker → the "resume Towers first" hint; no claude row → resume-all disabled', () => {
+  it('a Tower and a Worker → the "resume Towers first" hint; no resumable row → resume-all disabled', () => {
     renderDialog([
       row(info({ terminalId: 'w1', workorder: 'T1', launchedBy: 'dispatch' })),
       row(info({ terminalId: 't1', role: 'tower' })),
     ])
     expect(screen.getByText(/Resume Towers first/)).toBeInTheDocument()
     document.body.innerHTML = ''
-    renderDialog([row(info({ terminalId: 'x1', agent: 'codex-cli' }))])
-    expect(screen.getByRole('button', { name: 'Resume all claude (0)' })).toBeDisabled()
+    renderDialog([row(info({ terminalId: 'u1', agent: 'unknown' }))])
+    expect(screen.getByRole('button', { name: 'Resume all (0)' })).toBeDisabled()
   })
 })
 
@@ -110,11 +110,11 @@ describe('interrupted-agents-store', () => {
     expect(listInterruptedAgents().map(a => a.terminalId)).toEqual(['mine'])
   })
 
-  it('a claude-cli tab → the workspace handler (startClaudeCliPty); other claude tabs → main; codex → refused', async () => {
+  it('a claude-cli tab → the workspace handler (startClaudeCliPty); other claude tabs → main; unknown → refused', async () => {
     setInterruptedAgents([
       info({ terminalId: 'tab', claudeSessionId: S1 }),
       info({ terminalId: 'worker', launchedBy: 'dispatch', workorder: 'T1' }),
-      info({ terminalId: 'codex', agent: 'codex-cli' }),
+      info({ terminalId: 'unknown', agent: 'unknown' }),
     ], () => true)
     const handler = vi.fn(async () => ({ ok: true as const, mode: 'session' as const }))
     registerTabResumeHandler('ws-1', handler)
@@ -129,8 +129,8 @@ describe('interrupted-agents-store', () => {
     expect(resumeInMain).not.toHaveBeenCalled()
     expect(await resumeInterruptedAgent(getInterruptedAgent('worker')!, deps)).toEqual({ ok: true, mode: 'picker' })
     expect(resumeInMain).toHaveBeenCalledWith('worker')
-    expect(await resumeInterruptedAgent(getInterruptedAgent('codex')!, deps)).toMatchObject({ ok: false, code: 'NOT_CLAUDE' })
-    expect(listInterruptedAgents().map(a => a.terminalId)).toEqual(['codex'])
+    expect(await resumeInterruptedAgent(getInterruptedAgent('unknown')!, deps)).toMatchObject({ ok: false, code: 'NOT_RESUMABLE' })
+    expect(listInterruptedAgents().map(a => a.terminalId)).toEqual(['unknown'])
   })
 
   it('a workspace whose view is not mounted is activated first, then its handler runs', async () => {

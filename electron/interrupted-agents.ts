@@ -8,9 +8,10 @@
  * `PtyManagerDeps.onAgentsInterrupted`; Electron main builds the snapshot here
  * (`buildInterruptedAgentSnapshot`), keeps it in `interruptedAgents` and tells its windows
  * (`terminal-server:agents-interrupted`). The renderer lists the tabs (InterruptedAgentsDialog, a ⏸
- * mark on the thumbnail) and resumes a claude tab on request:
+ * mark on the thumbnail) and resumes a claude / codex tab on request:
  *   - a tab the user opened (`launchedBy: 'tab'`): the renderer's `startClaudeCliPty` with
- *     `--resume=<id>` (src/components/WorkspaceView.tsx)
+ *     `--resume=<id>`, or (T0767) for a codex-cli tab ⏻'s path plus codex's `resume` picker
+ *     (src/components/WorkspaceView.tsx)
  *   - a helper-dispatched Worker (`launchedBy: 'dispatch'`, the renderer has no `agentPreset`):
  *     `terminal:resume-interrupted-agent` → `resumeInterruptedDispatchAgent` (the dispatch's
  *     `createAgentPromptCommandBuilder` with `resume`, written into the rebuilt shell)
@@ -25,9 +26,11 @@
  * for the running process only, never restored on reopen); Towers are not notified (P-3).
  *
  * 🔴 No `electron` import. Session ids are logged by their first 8 characters only; no token here.
- * codex tabs are listed only — resuming them is B2 (T0767).
+ * PLAN-055 B2 / T0767 (D211 P-4 a): a codex tab resumes with `codex resume` — codex's own picker,
+ * filtered by the cwd (src/lib/codex-resume-args.ts); BAT has no codex session id, never `--last`.
  */
 import { claudeResumeArgs, type ClaudeResumeMode } from '../src/lib/claude-resume-args'
+import { codexResumeArgs } from '../src/lib/codex-resume-args'
 import { CLAUDE_SESSION_ID_PATTERN, sessionIdForLog, type BlockedDetection } from './terminal-blocked-state'
 
 /** What PtyManager knows of one rebuilt PTY right before the recovery clears its tracker state. */
@@ -75,9 +78,19 @@ export function isAgentPreset(preset: string | undefined): boolean {
   return !!preset && preset !== 'none'
 }
 
-/** A claude-cli tab (the only kind B1 resumes). */
+/** A claude-cli tab (B1 resumes it with `--resume`). */
 export function isClaudeCliAgent(agent: string): boolean {
   return agent === 'claude-cli' || agent === 'claude-cli-worktree'
+}
+
+/** A codex-cli tab (T0767 resumes it with codex's `resume` picker). */
+export function isCodexCliAgent(agent: string): boolean {
+  return agent === 'codex-cli'
+}
+
+/** The agents BAT can resume: claude-cli (B1) and codex-cli (B2). `unknown` / others: listed only. */
+export function isResumableInterruptedAgent(agent: string): boolean {
+  return isClaudeCliAgent(agent) || isCodexCliAgent(agent)
 }
 
 function agentOf(source: InterruptedAgentSource): string {
@@ -209,7 +222,7 @@ export class InterruptedAgentsStore {
 
 export type ResumeInterruptedAgentResult =
   | { ok: true; mode: ClaudeResumeMode; reason?: 'user-args' }
-  | { ok: false; code: 'NOT_FOUND' | 'NOT_RUNNING' | 'NOT_CLAUDE' | 'BUILD_FAILED'; message?: string }
+  | { ok: false; code: 'NOT_FOUND' | 'NOT_RUNNING' | 'NOT_RESUMABLE' | 'BUILD_FAILED'; message?: string }
 
 /** What `resumeInterruptedDispatchAgent` builds the command with (the dispatch builder's subset). */
 export interface ResumeCommandRequest {
@@ -237,17 +250,18 @@ export interface ResumeDispatchDeps {
 }
 
 /**
- * Resumes an interrupted claude tab in its rebuilt shell: the dispatch's command builder with
- * `--resume=<id>` (or `--resume`) and no prompt (D211 P-2), written into the shell (idle, new: no
- * kill needed). The entry leaves the list. The renderer sends here the tabs it cannot launch
- * itself — a helper-dispatched Worker (no renderer `agentPreset`), a claude typed into a shell; a
- * claude-cli tab the user opened goes through its own `startClaudeCliPty` instead.
+ * Resumes an interrupted claude / codex tab in its rebuilt shell: the dispatch's command builder with
+ * `--resume=<id>` (or `--resume`) for claude, codex's `resume` picker for codex (T0767), and no
+ * prompt (D211 P-2), written into the shell (idle, new, already in the tab's cwd: no kill needed).
+ * The entry leaves the list. The renderer sends here the tabs it cannot launch itself — a
+ * helper-dispatched Worker (no renderer `agentPreset`), a claude / codex typed into a shell; a
+ * claude-cli / codex-cli tab the user opened goes through its own workspace's launch path instead.
  */
 export async function resumeInterruptedDispatchAgent(deps: ResumeDispatchDeps, terminalId: unknown): Promise<ResumeInterruptedAgentResult> {
   if (typeof terminalId !== 'string' || !terminalId) return { ok: false, code: 'NOT_FOUND', message: 'terminalId required' }
   const agent = deps.store.get(terminalId)
   if (!agent) return { ok: false, code: 'NOT_FOUND' }
-  if (!isClaudeCliAgent(agent.agent)) return { ok: false, code: 'NOT_CLAUDE', message: `agent ${agent.agent}` }
+  if (!isResumableInterruptedAgent(agent.agent)) return { ok: false, code: 'NOT_RESUMABLE', message: `agent ${agent.agent}` }
   if (!deps.isRunning(terminalId)) return { ok: false, code: 'NOT_RUNNING' }
   const built = await deps.buildCommand({
     agent: agent.agent,
@@ -261,7 +275,7 @@ export async function resumeInterruptedDispatchAgent(deps: ResumeDispatchDeps, t
     deps.logger.log(`[interrupted-agents] resume failed: terminal=${terminalId} (no command)`)
     return { ok: false, code: 'BUILD_FAILED' }
   }
-  const decision = built.resume ?? claudeResumeArgs(agent.claudeSessionId, '')
+  const decision = built.resume ?? (isCodexCliAgent(agent.agent) ? codexResumeArgs('') : claudeResumeArgs(agent.claudeSessionId, ''))
   deps.writeCommand(terminalId, built.command + '\r')
   deps.store.remove(terminalId, 'resumed')
   deps.logger.log(`[interrupted-agents] resumed dispatch: ${describeInterruptedAgent(agent)} mode=${decision.mode}${decision.reason ? ` reason=${decision.reason}` : ''}`)

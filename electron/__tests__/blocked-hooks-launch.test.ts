@@ -374,7 +374,7 @@ describe('source guards (T0590)', () => {
   it('every renderer launch passes the tab id to withBatMcpLaunchArgs', () => {
     const view = read('src/components/WorkspaceView.tsx')
     const calls = view.match(/withBatMcpLaunchArgs\([^\n]*\)/g) ?? []
-    expect(calls).toHaveLength(5)
+    expect(calls).toHaveLength(6) // T0767: + the codex resume (resumeCodexCliTab)
     // T0641: the claude-cli launch also passes its session name
     for (const call of calls) expect(call, call).toMatch(/, (terminal\.id|agentTerminal\.id|terminalId|id)(, sessionName)?\)/)
   })
