@@ -10,7 +10,7 @@ import { workspaceStore } from '../stores/workspace-store'
 import { settingsStore } from '../stores/settings-store'
 import { ActivityIndicator } from './ActivityIndicator'
 import { hasWorkspaceNotification, subscribeWorkspaceNotification } from '../stores/terminal-notifications'
-import { WorkspaceWaitingBadge } from './WorkspaceWaitingBadge'
+import { DetachedWorkspaceWaitingRows, WorkspaceWaitingBadge } from './WorkspaceWaitingBadge'
 
 interface SidebarProps {
   width: number
@@ -22,6 +22,8 @@ interface SidebarProps {
   activeProfileName?: string
   isRemoteConnected?: boolean
   archivedWorkspaces: Workspace[]
+  /** T0761 (D212): this window's detached workspaces (a row only while one waits for the user). */
+  detachedWorkspaces?: Workspace[]
   onSetActiveGroup: (group: string | null) => void
   onSetWorkspaceGroup: (id: string, group: string | undefined) => void
   onSelectWorkspace: (id: string) => void
@@ -48,6 +50,7 @@ export function Sidebar({
   activeProfileName,
   isRemoteConnected,
   archivedWorkspaces,
+  detachedWorkspaces = [],
   onSetActiveGroup,
   onSetWorkspaceGroup,
   onSelectWorkspace,
@@ -465,6 +468,8 @@ export function Sidebar({
         )
         )}
       </div>
+      {/* T0761 (D200 ⑥ / D212): detached workspaces whose window has a tab waiting for the user */}
+      <DetachedWorkspaceWaitingRows workspaces={detachedWorkspaces} />
       {/* Archived Workspaces */}
       {archivedWorkspaces.length > 0 && (
         <div className="archived-section">

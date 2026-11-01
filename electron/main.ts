@@ -30,6 +30,7 @@ import { CtWorktreeService } from './ct-worktree'
 import { UsageLimitContinueScheduler } from './usage-limit-continue'
 import { normalizeUsageLimitConfig } from '../src/lib/usage-limit'
 import { bringWindowToFront, planDeletedProfileWindows } from '../src/lib/profile-window-front'
+import { DETACHED_WAITING_MAX_ID, sanitizeDetachedWaitingReport } from '../src/lib/terminal-attention'
 import { trayWindowLabels } from '../src/lib/tray-window-labels'
 import { savedWorkerOwnership, withSavedWorkerOwnership } from './worker-ownership'
 import { registerPtyHandlers } from './handlers/pty'
@@ -3890,6 +3891,36 @@ function registerLocalHandlers() {
     detachedWindows.delete(workspaceId)
     detachedWindowRecords.delete(workspaceId)
     return true
+  })
+
+  // T0761 (D200 ⑥ / D212): a detached window's waiting summary of its workspace → its parent main
+  // window (the list there shows a row for it while something waits). The workspace is the
+  // sender's own (never taken from the payload); main forwards only the sanitized fields.
+  ipcMain.on('workspace:detached-waiting', (event, report: unknown) => {
+    const workspaceId = event.sender.isDestroyed() ? null : getDetachedWorkspaceIdByWebContents(event.sender)
+    if (workspaceId === null) return
+    const clean = sanitizeDetachedWaitingReport(report)
+    if (!clean) return
+    const parentWindowId = detachedWindowRecords.get(workspaceId)?.parentWindowId ?? null
+    const parentWin = parentWindowId ? windowMap.get(parentWindowId) : undefined
+    const sent = !!parentWin && !parentWin.isDestroyed()
+    if (sent) parentWin.webContents.send('workspace:detached-waiting-changed', workspaceId, clean)
+    logger.log(`[detached-waiting] workspace=${workspaceId} waiting=${clean.tabs.length} missed=${clean.missed.length} → ${sent ? `parent ${parentWindowId}` : 'no parent window'}`)
+  })
+
+  // T0761: a click on that row — the detached window comes to the front (hidden / minimized too,
+  // `bringWindowToFront`) and selects the tab (the detached renderer checks it is one of its own).
+  ipcMain.handle('workspace:focus-detached-terminal', async (_event, workspaceId: unknown, terminalId: unknown) => {
+    if (typeof workspaceId !== 'string' || !workspaceId || typeof terminalId !== 'string' || !terminalId || terminalId.length > DETACHED_WAITING_MAX_ID) return 'invalid'
+    const win = detachedWindows.get(workspaceId)
+    if (!win || win.isDestroyed() || detachedTeardownPending(workspaceId)) {
+      logger.log(`[detached-waiting] focus workspace=${workspaceId} terminal=${terminalId} → not detached`)
+      return 'not-detached'
+    }
+    const front = bringWindowToFront(win)
+    if (!win.isDestroyed()) win.webContents.send('workspace:focus-terminal', terminalId)
+    logger.log(`[detached-waiting] focus workspace=${workspaceId} terminal=${terminalId} → ${front}`)
+    return front
   })
 
   // T0530 (BUG-133): a detached window has no SettingsPanel; its parent (or another main window

@@ -19,7 +19,7 @@ import type { RemoteToolInstallKind, RemoteToolInstallRequest, RemoteToolInstall
 import type { ClientPathPurpose, ResolvedClientPath } from '../src/lib/client-paths'
 import type { TerminalRoleChangeInfo } from '../src/lib/tower-terminal-title'
 import type { UsageLimitContinueEvent, UsageLimitStatusEvent } from '../src/lib/usage-limit'
-import type { TerminalAttentionEvent, TerminalAttentionSnapshotEntry } from '../src/lib/terminal-attention'
+import type { DetachedWaitingReport, TerminalAttentionEvent, TerminalAttentionSnapshotEntry } from '../src/lib/terminal-attention'
 
 type RendererLogLevel = 'error' | 'warn' | 'info' | 'log' | 'debug'
 
@@ -117,6 +117,23 @@ const electronAPI = {
       const handler = (_event: Electron.IpcRendererEvent, workspaceId: string) => callback(workspaceId)
       ipcRenderer.on('workspace:reattached', handler)
       return () => ipcRenderer.removeListener('workspace:reattached', handler)
+    },
+    /** T0761 (D212): detached window — its workspace's waiting summary, for its parent main window's list. */
+    reportDetachedWaiting: (report: DetachedWaitingReport) => ipcRenderer.send('workspace:detached-waiting', report),
+    /** T0761: main window — a detached window's waiting summary (main checked the sender). */
+    onDetachedWaiting: (callback: (workspaceId: string, report: unknown) => void) => {
+      const handler = (_event: Electron.IpcRendererEvent, workspaceId: string, report: unknown) => callback(workspaceId, report)
+      ipcRenderer.on('workspace:detached-waiting-changed', handler)
+      return () => ipcRenderer.removeListener('workspace:detached-waiting-changed', handler)
+    },
+    /** T0761: main window — bring the detached window of `workspaceId` to the front and select tab `terminalId` there. */
+    focusDetachedTerminal: (workspaceId: string, terminalId: string) =>
+      ipcRenderer.invoke('workspace:focus-detached-terminal', workspaceId, terminalId),
+    /** T0761: detached window — main asks it to select tab `terminalId` (a click in the parent's list). */
+    onFocusTerminal: (callback: (terminalId: string) => void) => {
+      const handler = (_event: Electron.IpcRendererEvent, terminalId: string) => callback(terminalId)
+      ipcRenderer.on('workspace:focus-terminal', handler)
+      return () => ipcRenderer.removeListener('workspace:focus-terminal', handler)
     },
     /** T0530 (BUG-133): from a detached window — its parent main window comes to the front and opens Settings. */
     openSettingsInParent: () => ipcRenderer.invoke('workspace:open-settings-in-parent'),

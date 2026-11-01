@@ -26,9 +26,14 @@
  * a faded ⚠️ as after any exit), a running one takes the server's state (a change missed while
  * disconnected). Only the server's answer decides — no time is compared. A tab that got a push
  * after the request was sent keeps that push (it is newer).
+ *
+ * T0761 (D212): + in a main window, the waiting report each of its detached windows sent for its
+ * workspace (`setDetachedWaiting`, from App; `DetachedWaitingReport`). Shown as received — the
+ * detached window decides what waits and what was missed (the user looks at those tabs there).
+ * Cleared when the workspace comes back (`workspace:reattached`). Memory only.
  */
 import { useSyncExternalStore } from 'react'
-import { isEmptyAttention, isViewedTerminal, nextWaitMemory, type MissedWait, type TerminalAttentionEvent, type TerminalAttentionSnapshotEntry, type WaitMemory } from '../lib/terminal-attention'
+import { isEmptyAttention, isEmptyDetachedWaitingReport, isViewedTerminal, nextWaitMemory, type DetachedWaitingReport, type MissedWait, type TerminalAttentionEvent, type TerminalAttentionSnapshotEntry, type WaitMemory } from '../lib/terminal-attention'
 
 type Listener = () => void
 
@@ -46,6 +51,8 @@ const waitStarts = new Map<string, number>()
 const missedWaits = new Map<string, MissedWait>()
 /** T0735: the active tab and whether the window has focus (App). */
 let viewing: { activeTerminalId: string | null; windowFocused: boolean } = { activeTerminalId: null, windowFocused: false }
+/** T0761: workspace id → the report its detached window sent (non-empty only). */
+const detachedWaiting = new Map<string, DetachedWaitingReport>()
 /** Bumped on every change (`useTerminalAttentionVersion`: lists that count over many tabs). */
 let version = 0
 /** T0749: tab id → `changeSeq` of the latest push / exit applied to it. */
@@ -176,6 +183,25 @@ export function createReconnectAttentionReconciler(deps: ReconnectAttentionDeps)
   }
 }
 
+/**
+ * T0761 (D212): the waiting report of detached workspace `workspaceId` (main window). Empty or null
+ * → forgotten (nothing shown for it).
+ */
+export function setDetachedWaiting(workspaceId: string, report: DetachedWaitingReport | null): void {
+  if (typeof workspaceId !== 'string' || !workspaceId) return
+  if (isEmptyDetachedWaitingReport(report)) {
+    if (detachedWaiting.delete(workspaceId)) notify()
+    return
+  }
+  detachedWaiting.set(workspaceId, report as DetachedWaitingReport)
+  notify()
+}
+
+/** T0761: the report of detached workspace `workspaceId`, or null. */
+export function getDetachedWaiting(workspaceId: string): DetachedWaitingReport | null {
+  return detachedWaiting.get(workspaceId) ?? null
+}
+
 /** T0735 (D203): the wait of tab `id` that ended unseen, or null. */
 export function getMissedWait(id: string): MissedWait | null {
   return missedWaits.get(id) ?? null
@@ -256,6 +282,7 @@ export function resetTerminalAttention(): void {
   changeSeq = 0
   waitStarts.clear()
   missedWaits.clear()
+  detachedWaiting.clear() // T0761
   viewing = { activeTerminalId: null, windowFocused: false }
   if (attention.size === 0) return
   attention.clear()

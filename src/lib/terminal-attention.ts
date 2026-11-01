@@ -223,6 +223,8 @@ export interface WaitingWorkspace {
   tabs: WaitingTab[]
   /** D203: tabs whose wait ended unseen, earliest wait first (`workspaceMissedTabs`). */
   missed: MissedTab[]
+  /** T0761: the workspace is in a detached window (its parent shows that window's report). */
+  detached?: boolean
 }
 
 export interface WaitingSummary {
@@ -348,4 +350,101 @@ export function workspaceMissedTabs(
     if (miss) missed.push({ id: terminal.id, title: terminal.title, ...miss })
   }
   return missed.sort((a, b) => a.startedAt - b.startedAt)
+}
+
+/**
+ * T0761 (D200 ⑥ / D212): a detached window's ⚠️ in its parent main window. The parent's list hides
+ * a detached workspace and does not know the tabs opened in its detached window; the user looks at
+ * those tabs (D203 "viewed") only there. So the detached window sums its own workspace (the same
+ * `waitingSummary`, with its own miss memory) and sends this report through main
+ * (`workspace:detached-waiting`, local IPC) to its parent, which only shows it: a row for the
+ * workspace while it has a waiting or missed tab, counted in the 工作區 tab title and the collapsed
+ * bar too. Tab titles and reasons only — never a question's text (D155).
+ */
+export interface DetachedWaitingReport {
+  /** Longest waiting first. */
+  tabs: WaitingTab[]
+  /** Earliest wait first. `startedAt` is the detached window's clock (same machine as its parent). */
+  missed: MissedTab[]
+}
+
+/** T0761: a report carries at most this many tabs per list (one workspace's tabs). */
+export const DETACHED_WAITING_MAX_TABS = 64
+/** T0761: id / title length a report keeps (longer titles are cut, longer ids drop the tab). */
+export const DETACHED_WAITING_MAX_ID = 200
+export const DETACHED_WAITING_MAX_TITLE = 200
+
+/** T0761: what the detached window sends for its workspace's summary entry (none = empty). */
+export function detachedWaitingReport(entry: Pick<WaitingWorkspace, 'tabs' | 'missed'> | null | undefined): DetachedWaitingReport {
+  return { tabs: entry ? [...entry.tabs] : [], missed: entry ? [...entry.missed] : [] }
+}
+
+/** T0761: a report is empty = the parent shows nothing for the workspace. */
+export function isEmptyDetachedWaitingReport(report: DetachedWaitingReport | null | undefined): boolean {
+  return !report || (report.tabs.length === 0 && report.missed.length === 0)
+}
+
+function finiteOrNull(value: unknown): number | null {
+  return typeof value === 'number' && Number.isFinite(value) ? value : null
+}
+
+function cleanTabBase(value: unknown): { id: string; title: string; reason: AttentionHookReason } | null {
+  if (!value || typeof value !== 'object') return null
+  const raw = value as Record<string, unknown>
+  if (typeof raw.id !== 'string' || !raw.id || raw.id.length > DETACHED_WAITING_MAX_ID) return null
+  if (!isHookReason(raw.reason)) return null
+  const title = typeof raw.title === 'string' ? raw.title.slice(0, DETACHED_WAITING_MAX_TITLE) : ''
+  return { id: raw.id, title, reason: raw.reason }
+}
+
+/**
+ * T0761: the report as received (main from the detached window, the parent from main) — only the
+ * fields above, hook reasons only, at most `DETACHED_WAITING_MAX_TABS` per list. Not an object with
+ * two arrays → null (ignored).
+ */
+export function sanitizeDetachedWaitingReport(value: unknown): DetachedWaitingReport | null {
+  if (!value || typeof value !== 'object') return null
+  const raw = value as Record<string, unknown>
+  if (!Array.isArray(raw.tabs) || !Array.isArray(raw.missed)) return null
+  const tabs: WaitingTab[] = []
+  for (const item of raw.tabs.slice(0, DETACHED_WAITING_MAX_TABS)) {
+    const base = cleanTabBase(item)
+    if (base) tabs.push({ ...base, since: finiteOrNull((item as Record<string, unknown>).since) })
+  }
+  const missed: MissedTab[] = []
+  for (const item of raw.missed.slice(0, DETACHED_WAITING_MAX_TABS)) {
+    const base = cleanTabBase(item)
+    const startedAt = base ? finiteOrNull((item as Record<string, unknown>).startedAt) : null
+    if (base && startedAt !== null) missed.push({ ...base, startedAt })
+  }
+  return { tabs: tabs.sort(compareWaitingTabs), missed: missed.sort((a, b) => a.startedAt - b.startedAt) }
+}
+
+/**
+ * T0761: the summary entries of the parent's detached workspaces (in the order given) whose report
+ * has a waiting or missed tab; `detached: true` marks them for the tooltip and the row.
+ */
+export function detachedWaitingWorkspaces(
+  workspaces: readonly WaitingWorkspaceSource[],
+  getReport: (workspaceId: string) => DetachedWaitingReport | null | undefined,
+): WaitingWorkspace[] {
+  const result: WaitingWorkspace[] = []
+  for (const workspace of workspaces) {
+    const report = getReport(workspace.id)
+    if (!report || isEmptyDetachedWaitingReport(report)) continue
+    result.push({ workspaceId: workspace.id, name: workspace.alias || workspace.name, tabs: report.tabs, missed: report.missed, detached: true })
+  }
+  return result
+}
+
+/** T0761: `summary` (the listed workspaces) plus the detached ones after them; the totals add up. */
+export function mergeWaitingSummary(summary: WaitingSummary, detached: readonly WaitingWorkspace[]): WaitingSummary {
+  if (detached.length === 0) return summary
+  let total = summary.total
+  let missedTotal = summary.missedTotal
+  for (const entry of detached) {
+    total += entry.tabs.length
+    missedTotal += entry.missed.length
+  }
+  return { total, missedTotal, workspaces: [...summary.workspaces, ...detached] }
 }

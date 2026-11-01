@@ -11,6 +11,7 @@ import type {
 import type { RemoteToolInstallKind, RemoteToolInstallRequest, RemoteToolInstallRequestResult, RemoteToolId, RemoteToolsDetectResult } from './remote-tools'
 import type { RemoteInvokeRefusedEvent, RemoteWindowStatusEvent } from '../lib/remote-not-connected'
 import type { ClientPathPurpose, ResolvedClientPath } from '../lib/client-paths'
+import type { DetachedWaitingReport } from '../lib/terminal-attention'
 import type { RemoteProfileConnectionSnapshot } from '../components/profiles/remote-status'
 
 // Shared profile record shape (mirrors preload.ts + profile-manager.ts surface).
@@ -133,6 +134,14 @@ interface ElectronAPI {
     getDetachedId: () => string | null
     onDetached: (callback: (workspaceId: string) => void) => () => void
     onReattached: (callback: (workspaceId: string) => void) => () => void
+    /** T0761 (D212): detached window — its workspace's waiting summary, sent to its parent main window. */
+    reportDetachedWaiting: (report: DetachedWaitingReport) => void
+    /** T0761: main window — a detached window's waiting summary (sanitize before use). */
+    onDetachedWaiting: (callback: (workspaceId: string, report: unknown) => void) => () => void
+    /** T0761: main window — the detached window comes to the front and selects the tab. */
+    focusDetachedTerminal: (workspaceId: string, terminalId: string) => Promise<'focused' | 'restored' | 'not-shown' | 'not-detached' | 'invalid'>
+    /** T0761: detached window — select tab `terminalId` (asked by the parent's list). */
+    onFocusTerminal: (callback: (terminalId: string) => void) => () => void
     /** T0530 (BUG-133): detached window only — the parent (or another main window of the profile) opens Settings. */
     openSettingsInParent: () => Promise<
       | { ok: true; windowId: string; viaParent: boolean }

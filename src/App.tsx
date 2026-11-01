@@ -7,8 +7,8 @@ import { ownsTerminalForCloseRequest, workspaceStore } from './stores/workspace-
 import { settingsStore } from './stores/settings-store'
 import { markNotified, markWorkspaceNotified, clearWorkspaceNotification } from './stores/terminal-notifications'
 import { clearUsageLimitStatus, runUsageLimitContinue, setUsageLimitStatus } from './stores/usage-limit-store'
-import { clearTerminalAttention, createReconnectAttentionReconciler, retainTerminals, setTerminalAttention, setViewingState } from './stores/terminal-attention-store'
-import { workerNotifyKind } from './lib/terminal-attention'
+import { clearTerminalAttention, createReconnectAttentionReconciler, retainTerminals, setDetachedWaiting, setTerminalAttention, setViewingState } from './stores/terminal-attention-store'
+import { sanitizeDetachedWaitingReport, workerNotifyKind } from './lib/terminal-attention'
 import { profileOpenNotice } from './lib/profile-window-front'
 import { Sidebar } from './components/Sidebar'
 import { WorkspaceView } from './components/WorkspaceView'
@@ -31,7 +31,7 @@ import { isRemoteNotConnectedError, loadNowOrWhenRemoteConnected, REMOTE_LIMIT_E
 import type { AppState, EnvVariable, TerminalInstance, DockablePanel, DockZone, DockingConfig } from './types'
 import { DOCKABLE_PANELS, DEFAULT_DOCKING_CONFIG } from './types'
 import { AppNotificationDialog } from './components/AppNotificationDialog'
-import { WaitingTotalBadge } from './components/WorkspaceWaitingBadge'
+import { DetachedWaitingReporter, WaitingTotalBadge } from './components/WorkspaceWaitingBadge'
 
 // Lazy-loaded panel components for sidebar docking
 const LazyFileTree = lazy(() => import('./components/FileTree').then(m => ({ default: m.FileTree })))
@@ -724,6 +724,7 @@ export default function App() {
     })
 
     const unsubReattach = window.electronAPI.workspace.onReattached((wsId) => {
+      setDetachedWaiting(wsId, null) // T0761: its window is gone; the workspace's own row shows it again
       setDetachedIds(prev => {
         const next = new Set(prev)
         next.delete(wsId)
@@ -811,6 +812,29 @@ export default function App() {
       unsubStatus()
     }
   }, [])
+
+  // T0761 (D200 ⑥ / D212): main window — the waiting summaries its detached windows send (shown as
+  // a row per detached workspace). Detached window — a click on that row selects one of its tabs.
+  useEffect(() => {
+    if (!detachedWorkspaceId) {
+      return window.electronAPI.workspace.onDetachedWaiting((workspaceId, report) => {
+        if (typeof workspaceId !== 'string') return
+        setDetachedWaiting(workspaceId, sanitizeDetachedWaitingReport(report))
+      })
+    }
+    return window.electronAPI.workspace.onFocusTerminal((terminalId) => {
+      const terminal = workspaceStore.getState().terminals.find(tm => tm.id === terminalId)
+      if (!terminal || terminal.workspaceId !== detachedWorkspaceId) {
+        window.electronAPI.debug.log(`[workspace-waiting] detached window: focus terminal=${terminalId} → not in this window`)
+        return
+      }
+      workspaceStore.setFocusedTerminal(terminalId)
+      window.setTimeout(() => {
+        window.dispatchEvent(new CustomEvent('workspace-switch-tab', { detail: { tab: 'terminal' } }))
+      }, 0)
+      window.electronAPI.debug.log(`[workspace-waiting] detached window: focus terminal=${terminalId}`)
+    })
+  }, [detachedWorkspaceId])
 
   // T0735 (D203 ③): the tab the user looks at = this window's active tab while the window has
   // focus (a wait that ends then leaves no faded ⚠️; a faded one clears); closed tabs are forgotten.
@@ -1066,6 +1090,8 @@ export default function App() {
             />
           </div>
         </main>
+        {/* T0761 (D212): this workspace's ⚠️ summary → the parent window's list */}
+        <DetachedWaitingReporter workspace={ws} />
         {appNotification && (
           <AppNotificationDialog message={appNotification} onClose={() => setAppNotification(null)} />
         )}
@@ -1088,6 +1114,8 @@ export default function App() {
   const nonDetachedWorkspaces = state.workspaces.filter(w => !detachedIds.has(w.id))
   const visibleWorkspaces = nonDetachedWorkspaces.filter(w => !w.archived)
   const archivedWorkspaces = nonDetachedWorkspaces.filter(w => w.archived)
+  // T0761 (D212): still hidden from the list; a row shows only while its window reports a wait
+  const detachedListWorkspaces = state.workspaces.filter(w => detachedIds.has(w.id) && !w.archived)
 
   return (
     <div className="app">
@@ -1100,6 +1128,7 @@ export default function App() {
         {panelSettings.sidebar.collapsed && (
           <WaitingTotalBadge
             workspaces={visibleWorkspaces}
+            detachedWorkspaces={detachedListWorkspaces}
             hintKey="sidebar.waitingForUserExpand"
             onClick={() => { setLeftPanelTab('workspaces'); handleSidebarCollapse() }}
           />
@@ -1125,7 +1154,7 @@ export default function App() {
               >
                 {t('workspace.workspaces')}
                 {/* T0735 (D202 ②): seen from another tab (e.g. Control Tower); the button's click only switches tabs */}
-                <WaitingTotalBadge workspaces={visibleWorkspaces} hintKey="sidebar.waitingForUserShowList" />
+                <WaitingTotalBadge workspaces={visibleWorkspaces} detachedWorkspaces={detachedListWorkspaces} hintKey="sidebar.waitingForUserShowList" />
               </button>
               {leftDockedPanels.map(panel => (
                 <button
@@ -1154,6 +1183,7 @@ export default function App() {
                   groups={workspaceStore.getGroups()}
                   activeGroup={workspaceStore.getActiveGroup()}
                   archivedWorkspaces={archivedWorkspaces}
+                  detachedWorkspaces={detachedListWorkspaces}
                   onSetActiveGroup={(group) => workspaceStore.setActiveGroup(group)}
                   onSetWorkspaceGroup={(id, group) => workspaceStore.setWorkspaceGroup(id, group)}
                   onSelectWorkspace={(id) => workspaceStore.setActiveWorkspace(id)}
@@ -1209,6 +1239,7 @@ export default function App() {
               groups={workspaceStore.getGroups()}
               activeGroup={workspaceStore.getActiveGroup()}
               archivedWorkspaces={archivedWorkspaces}
+              detachedWorkspaces={detachedListWorkspaces}
               onSetActiveGroup={(group) => workspaceStore.setActiveGroup(group)}
               onSetWorkspaceGroup={(id, group) => workspaceStore.setWorkspaceGroup(id, group)}
               onSelectWorkspace={(id) => workspaceStore.setActiveWorkspace(id)}

@@ -273,7 +273,9 @@
     "waitingForUserWorkspaceLine": "• {{name}}：{{count}}",
     "waitingForUserWorkspaceMissedLine": "• {{name}}：曾等待你回应，已结束",
     "waitingForUserShowList": "点击切回工作区列表",
-    "waitingForUserExpand": "点击展开侧栏"
+    "waitingForUserExpand": "点击展开侧栏",
+    "detachedWorkspaceName": "{{name}}（已分离）",
+    "detachedWaitingClick": "点击带出分离的窗口并切到 {{title}}（等最久）"
   },
   "profiles": {
     "title": "配置",

@@ -848,3 +848,11 @@
   pointer-events: none;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
 }
+
+/* T0761 (D212): a detached workspace's row, only while its window has a tab waiting for the user */
+.detached-waiting-list {
+  border-top: 1px dashed var(--border-color);
+}
+.workspace-item.detached-waiting-item .workspace-alias {
+  font-style: italic;
+}

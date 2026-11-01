@@ -274,7 +274,9 @@
     "waitingForUserWorkspaceLine": "• {{name}}: {{count}}",
     "waitingForUserWorkspaceMissedLine": "• {{name}}: a wait ended while you were away",
     "waitingForUserShowList": "Click to show the workspace list",
-    "waitingForUserExpand": "Click to expand the sidebar"
+    "waitingForUserExpand": "Click to expand the sidebar",
+    "detachedWorkspaceName": "{{name}} (detached)",
+    "detachedWaitingClick": "Click to bring the detached window to the front on {{title}} (waiting longest)"
   },
   "profiles": {
     "title": "Profiles",
