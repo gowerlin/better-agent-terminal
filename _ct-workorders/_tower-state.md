@@ -1,28 +1,30 @@
 ---
 schema_kind: tower-state
 summary_version: 1
-updated_at: "2026-11-02T01:36:43+0800"
-session: "2026-11-02 00:23 第一百零四 session 塔台重啟（CT v6.0.0-beta.10，Fast Path）"
+updated_at: "2026-11-02T02:00:22+0800"
+session: "2026-11-02 01:59 第一百零四 session 塔台重啟（二）（CT v6.0.0-beta.10，Fast Path）"
 next_ids:
   workorder: "T0757"
   decision: "D209"
   bug: "BUG-188"
   plan: "PLAN-058"
 todo:
-  - "T0756（BUG-187 Node.js recipe libatomic）完成後與 PLAN-057 一起發 `0.7.3-pre.3`（D208）；發版後精靈升級 WSL bat-server 實機確認"
-  - "BUG-183 / 184 / 186 實機驗收（`v0.7.3-pre.2`；BUG-186 需遠端 server 以精靈升級）"
+  - "`v0.7.3-pre.3` 已發佈：精靈升級 WSL bat-server 實機確認 PLAN-057 `applied`、BUG-187 Node.js recipe"
+  - "BUG-183 / 184 / 186 實機驗收（`v0.7.3-pre.2` 起；BUG-186 需遠端 server 以精靈升級）"
   - "工作區 ⚠️ 剩餘手動項（`v0.7.2-pre.8` 起）：視窗沒有焦點時等待結束、滑鼠回答後清除"
   - "外部 / 特定環境驗收：BUG-128 / 130（macOS）、BUG-159（一般權限 ＋ codex）"
   - "候選（T0747）：auto mode classifier 詢問路徑的 hook / ⚠️（需先定義安全動作與費用上限）"
   - "候選（T0748）：⚠️ 的 SSH / Docker 遠端、正式 bundle 安裝的 bat-server、真正網路中斷、遠端 Worker 分頁與 `?`"
   - "候選：D201 detached 視窗 ⚠️；Claude 面板等待權限 ⚠️；npm 安裝的 codex 不注入 `--no-daemon`（T0742）；背景 Agent 不在 active task bar（T0739）；`CLAUDE_CODE_PLUGIN_CACHE_DIR`（T0730）；PLAN-055"
-  - "版號線：0.7.3 線已到 pre.2（D204；最多到 pre.9）"
+  - "版號線：0.7.3 線已到 pre.3（D204；最多到 pre.9）"
 ---
 # Tower State — better-agent-terminal
 
 > 🟢 **第一百零四 session 開工**（2026-11-01 21:36 (UTC+8)，CT v6.0.0-beta.10，Fast Path；塔台 session `3f9b428a-2c04-4a70-8751-68733dd7b1cc`；`--set-role tower --mode on` exit 0；安裝版 helper `v0.7.3-pre.1`；HEAD `68532d71` = 上次收工 commit、工作區乾淨，`*sync` 沿用收工時索引；熱檔皆在 400 KB 預算內）。21:37 T0360 / T0649 / T0672 / T0691 `FIXED` → `DONE`（對應 BUG 皆已 CLOSED，R-G003，`6ed32a57`）。BUG-182 實機驗收步驟已給使用者（遠端 WSL bat-server 仍 `0.6.1-pre.5`，待精靈升級）。21:40 **BUG-175 CLOSED**（外部測試者A 回報 macOS 實機正常，使用者轉達）→ 熱區 Fixed 4 / Closed 42；21:42 使用者選 A → GitHub #22 留言說明並以 `completed` 關閉。21:45 使用者以精靈把 WSL bat-server 升到 `0.7.3-pre.1`（塔台唯讀確認）。22:04 **BUG-182 CLOSED**（使用者 WSL 實機：情境 A / B 通過，B 需先 ⏻ 重啟舊分頁）；驗收中發現 → 開 **BUG-183**（隱藏的 profile 視窗按「開啟」不顯示，medium）/ **BUG-184**（匣選單殘留已移出 profile 的視窗，low）→ 熱區 Open 2 / Fixed 3 / Closed 43。使用者「開單修，派 T0750」→ 開 **T0750**（BUG-183 / 184 → FIXING），22:07 派工（yolo，`started:` exit 0）。**T0750 DONE**（22:21，`8a432d40`；BUG-183 成因如初步定位，本機 profile 同樣受影響、second-instance 路徑一併修；BUG-184 成因不同：「配置」✕ 的 `profile:delete` 只刪 profile 不關視窗；新增 `src/lib/profile-window-front.ts`；unit 6376 / 360 files、typecheck 0 / 0、build；e2e t0750 突變檢查兩項皆失敗、修正後連跑 2 次綠；detached / plan039 / t0513 等 13 項綠；塔台複跑新 unit 17 / 17）→ **BUG-183 / 184 FIXED**；開 **BUG-185**（t0512 第 2 項缺 `wsl-systemd:snapshot-unit` stub，low）→ 熱區 Open 1 / Fixed 5 / Closed 43；session 快照已寫；`--close-worker T0750` exit 0。使用者「開單修 BUG-185。匣選單標籤用 (b)，都好了一起發版」→ **D205** → 開 **T0751**（BUG-185 → FIXING）/ **T0752**（匣選單同名標籤加序號），並行（T0752 等 T0751 commit 後才 build）；22:27 兩張派工（yolo，皆 `started:` exit 0）。**T0752 DONE**（22:32，`7775fa8f`；`src/lib/tray-window-labels.ts`；unit 6385 / 361 files、typecheck 0 / 0、build（T0751 commit 後）、t0750 e2e 綠）。**T0751 DONE**（22:32，`f9072e16`；補 `snapshot-unit` 與 4 個升級 / rollback stub；t0512 兩項連跑 2 次綠、突變檢查失敗如預期；Worker 寫 FIXED，塔台改 DONE）→ **BUG-185 FIXED**；兩張 session 快照已寫、`--close-worker` exit 0。使用者「nvm 與 uv 偵測錯誤也一起修」＋「也檢查 docker 或 ssh」→ 開 **BUG-186**（medium）/ **T0753**（BUG-186 → FIXING），完成後一起發 pre.2；22:34 T0753 派工（yolo，`started:` exit 0）。[提問] 22:39 T0753 Q-1 / Q-2（BAT 通道）→ 塔台代決皆 A：Q-1 node v26.13.0 缺 `libatomic.so.1` 本身無法執行，「無回應」正確，改為說明原因（白名單取程式庫檔名、不回 stderr 原文）；Q-2 不改 server PATH，只修判斷與文案（「伺服器程序：不可見（終端分頁可用）」、git / gh 判斷比照 headless resolver）；B（server 啟動取登入 shell PATH）另提使用者。`--answer` 皆 exit 0。**T0753 DONE**（22:52，`0f021e67`；node 無法執行時探測取 exit code 與缺少的程式庫檔名（白名單）、面板說明原因；「伺服器程序：不可見（終端分頁找得到）」；git / gh server 判斷比照 resolver；WSL / Docker 實測修正前後對照、SSH 程式碼＋ unit；unit 6408 / 361 files、typecheck 0 / 0、build、t0512 綠；塔台複跑相關測試 178 passed；Worker 寫 FIXED，塔台改 DONE）→ **BUG-186 FIXED**；session 快照已寫；`--close-worker T0753` exit 0。聯合驗證 @ `655b678b` 全綠（typecheck 0 / 0、vite build、unit 6408 / 361 files、legacy 472 / 0）、去識別化 0、金鑰 0 → push → **`v0.7.3-pre.2` 發佈**：run `41318631410` 11 job 全綠（target `655b678b`，publishedAt 2026-11-01T15:07:46Z）；exe 292 / zip 458 / AppImage 328 / dmg 345 MiB；server-bundle 7 assets；更版重點已寫（無 codex 變更，省略「歡迎協助測試」）；package.json → 0.7.3-pre.2；CHANGELOG / release-note 更新（README 無需更新）。文件 `1b79ea5a`；Pages `41319789237` 綠、link-check 1405 / 0、首頁 0.7.3-pre.2。**BUG-185 CLOSED**（交付版 pre.2，R-G003）→ 熱區 Open 0 / Fixed 6 / Closed 44。
 
 > 🟢 **第一百零四 session 塔台重啟**（2026-11-02 00:23 (UTC+8)，CT v6.0.0-beta.10，Fast Path；塔台 session `353a4768-d323-407c-8333-437e0582057f`；`--set-role tower --mode on` exit 0；安裝版 helper `v0.7.3-pre.2`（使用者已裝 pre.2，可開始 BUG-183 / 184 / 186 實機驗收）；HEAD `084bfc31` = 上次發佈記帳 commit、工作區乾淨，`*sync` 沿用索引；熱檔皆在 400 KB 預算內；熱區無進行中工單）。00:25 使用者對 T0753 Q-2 B 選「PLAN＋先量測」、開關「預設開、可關」→ **D206** → 開 **PLAN-057**（PLANNED）＋研究單 **T0754**（只查不改、不動使用者 bat-server）；00:26 派工（yolo，`started:` exit 0）。**T0754 DONE**（00:43，`6ddb08e1`；`-l -i -c` ＋標記、detached ＋ SIGKILL 程序群組、逾時 3000 ms、WSL 中位 123 ms；systemd 下 `/mnt` 0 項；套用點 `bat-server.mjs` `createHeadlessServer` 前；開關 `headlessLoginShellPath`；實作單草案已附；macOS 未實測；使用者 bat-server 前後相同、測試資源已清；附註使用者 WSL 的 nvm node v26.13.0 缺 `libatomic.so.1`、BuildKit 快取可能留有 `debian:12-slim` 層）；去識別化：回報區使用者容器名改代稱；session id 已補記、session 快照已寫；`--close-worker T0754` exit 0。00:46 使用者待決點 1–3 皆選建議（不加環境變數、不過濾 `/mnt`、接受分頁重複）並「現在開單派工」→ **D207** → 開 **T0755**（PLAN-057 實作）；00:47 派工（yolo，`started:` exit 0）。**T0755 DONE**（01:06，`681a8d64`，14 檔；`electron/remote/headless-login-path.ts`、`bat-server.mjs` 在 `createHeadlessServer` 前呼叫、Settings 進階頁開關（Linux / macOS 遠端視窗）、三語系、docs ＋ CLAUDE.md 一節；unit 6448 / 363 files、typecheck 0 / 0、build；6 項突變檢查皆抓到（1a 補 `trap '' TERM` 情境）；WSL 測試 server 開 `applied`（124 ms，+2 項）/ 關 `off` 與現況相同、分頁 PATH 只多一份 `~/.local/bin`；Docker `applied`；使用者 bat-server 前後相同；macOS 未實測；塔台複跑新測試 40 passed / 4 skipped、三檔 LF）→ PLAN-057 IN_PROGRESS（待發版實機）；session id 一致、session 快照已寫；`--close-worker T0755` exit 0。01:09 使用者「libatomic 一起處理」→ 塔台在 WSL `Ubuntu-24.04` 以 root `apt-get install -y libatomic1`（14.2.0-4ubuntu2~24.04.1）；nvm 預設 node v26.13.0 可執行（`node` v26.13.0、`npx` 11.20.0），T0754 待決點 4 解除。01:12 使用者問建立 profile 時會不會自動處理 → PATH 會（pre.3 起每次 server 啟動）、libatomic 不會；塔台查到 BAT 的 Node.js recipe（`nvm install --lts`）沒先確保 `libatomic1`（使用者 WSL 即此）、兩份文件仍寫「BAT 不改 server PATH」→ 使用者「開單派工，修好一起發 pre.3」→ **D208** → 開 **BUG-187**（medium，FIXING）/ **T0756**；01:13 派工（yolo，`started:` exit 0）。**T0756 DONE**（01:35，`915f90ab`，14 檔；查證 Node.js 25 起 Linux binary 需要 `libatomic.so.1`、套件名 apt `libatomic1` / dnf / yum `libatomic`；可提權時先檢查再補裝並列進「先執行」、不可提權時提示且保留 exit code、Linux 安裝 / 更新最後 `node --version`、失敗時面板顯示原因與指令；macOS / musl 不變；兩份文件改為 server 預設取登入 shell PATH；unit 6479 / 364 files、typecheck 0 / 0、build；6 項突變檢查；Docker `ubuntu:24.04` 最小映像 root / 免密碼 sudo / 無 sudo 三情境實跑；範圍外加 `i18n-completeness.test.ts` 2 個 key（必要）；塔台複跑相關測試 255 passed、LF）→ **BUG-187 FIXED**；session id 一致、session 快照已寫；`--close-worker T0756` exit 0。
+
+> 🟢 **第一百零四 session 塔台重啟（二）**（2026-11-02 01:59 (UTC+8)，CT v6.0.0-beta.10，Fast Path；塔台 session `a6fdcb75-810b-4930-b066-d9e575fd97ff`；`--set-role tower --mode on` exit 0；安裝版 helper `v0.7.3-pre.3`；HEAD `b95cde9c`、`main` = `origin/main`（0 / 0）、工作區乾淨；熱區無進行中工單）。前一個塔台 session 在記帳前結束，依 git / gh 補記：**`v0.7.3-pre.3` 發佈**（PLAN-057 登入 shell PATH、BUG-187 Node.js recipe libatomic）：run `41332527832` success（target `4a5f73d6`，publishedAt 2026-11-01T17:53:26Z）；更版重點已寫；package.json → 0.7.3-pre.3；CHANGELOG / release-note 更新（文件 `b95cde9c`）；Pages `41333896260` build / deploy / link-check 皆 success（首頁版號未另查）。BUG-187 維持 FIXED、PLAN-057 維持 IN_PROGRESS，待精靈升級遠端 bat-server 實機確認。
 
 > 最後更新:2026-11-01 21:30 (UTC+8) — **第一百零三 session 收工**（CT v6.0.0-beta.10）：T0736–T0749（D204）→ **`v0.7.2-pre.9`**（BUG-180 / 181）、**`v0.7.3-pre.1`**（BUG-182）；NSIS 重裝驗收 PASS；27 張 BUG 依 R-G003 結案。前次：第一百零二 session 收工（2026-11-01 17:08）。
 >
@@ -90,6 +92,7 @@ eport.md`（real，20:18:03–20:18:31，PS 7.6.9 系統管理員）：⓪ PASS�
 > 最後更新：2026-11-01 21:30 UTC+8（第一百零三 session 收工）
 
 ### 近期完成
+- **`v0.7.3-pre.3` 發佈**（第一百零四 session，run `41332527832`，target `4a5f73d6`）：PLAN-057 遠端 bat-server 取登入 shell PATH（T0754 / T0755）、BUG-187 Node.js recipe libatomic（T0756）
 - **`v0.7.3-pre.2` 發佈**（第一百零四 session，run `41318631410`，target `655b678b`）：BUG-183 / 184 profile 視窗（T0750）、BUG-186 遠端工具偵測（T0753）、匣選單同名標籤（T0752）、BUG-185 測試 stub（T0751）
 - **`v0.7.3-pre.1` 發佈**（第一百零三 session，run `41310103490`，target `b6f48c07`）：BUG-182 遠端 server 重啟後 ⚠️ 對帳（T0749 `01796a9e`）；D204 換線；文件 `de8b8a7a`；Pages `41311358391` 綠、link-check 1398 / 0
 - **`v0.7.2-pre.9` 發佈**（第一百零三 session，run `41303235035`，target `5e33faec`）：BUG-180 分頁 9x5（T0741）、BUG-181 Cache History 累計（T0744）；之後 NSIS 重裝驗收 PASS（T0740 / T0745）、BUG-180 / 181 CLOSED
@@ -101,7 +104,7 @@ eport.md`（real，20:18:03–20:18:31，PS 7.6.9 系統管理員）：⓪ PASS�
 1. 🔴 **BUG-183 / 184 / 186 實機驗收**（`v0.7.3-pre.2`；BUG-186 需遠端 server 以精靈升級後「重新檢查」）
 2. 🔴 **工作區 ⚠️ 剩餘手動項**（`v0.7.2-pre.8` 起）：視窗沒有焦點時等待結束（`bat-hook.mjs` 計時模擬，三情境步驟見第一百零三 session 對話）、滑鼠回答後清除
 3. 🟡 **外部 / 特定環境驗收**：BUG-128 / 130（macOS）、BUG-159（一般權限 ＋ codex）
-4. 🟡 **T0756 → 發 `0.7.3-pre.3`**（D208：BUG-187 ＋ PLAN-057）；發版後精靈升級 WSL bat-server 確認 `applied`
+4. 🟡 **`v0.7.3-pre.3` 實機**（D208）：精靈升級 WSL bat-server → 確認 PLAN-057 `applied`、BUG-187 Node.js recipe（之後 BUG-187 CLOSED、PLAN-057 DONE）
 5. 🟢 **後續候選**：auto mode classifier 詢問路徑的 hook / ⚠️（T0747）；⚠️ 的 SSH / Docker 遠端、正式 bundle 安裝的 server、真正網路中斷（T0748）；detached 視窗 ⚠️（D201）；Claude 面板等待權限 ⚠️；npm 安裝的 codex 不注入 `--no-daemon`（T0742）；背景 Agent 不在 active task bar（T0739）；`CLAUDE_CODE_PLUGIN_CACHE_DIR`（T0730）；PLAN-055
 
 ### ⚠️ 鐵則
