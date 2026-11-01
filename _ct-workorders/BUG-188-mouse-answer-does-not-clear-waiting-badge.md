@@ -3,12 +3,13 @@ schema_version: 1
 schema_kind: bug
 id: BUG-188
 title: "用滑鼠回答（拒絕權限、取消 AskUserQuestion、codex 等待輸入）後 ⚠️ 不清除，與鍵盤回答結果不一致"
-status: FIXED
+status: CLOSED
 severity: medium
 reproducibility: always
 created_at: "2026-11-02T02:23:44+0800"
-updated_at: "2026-11-02T02:53:52+0800"
+updated_at: "2026-11-02T05:22:28+0800"
 fixed_at: "2026-11-02T02:53:52+0800"
+closed_at: "2026-11-02T05:22:28+0800"
 fix_commit: de8a4fd4
 impact:
   - terminal-attention
@@ -23,7 +24,7 @@ links:
 |------|------|
 | 嚴重度 | 🟡 medium（回答了仍顯示等待使用者，縮圖 / 工作區 ⚠️ 誤導，等到回合結束才消失） |
 | 可重現 | 依路徑而定（見現象） |
-| **狀態** | ✅ FIXED（T0757 `de8a4fd4`，待實機驗收） |
+| **狀態** | 🚫 CLOSED（T0757 `de8a4fd4`；交付版 `v0.7.3-pre.4` 安裝版自動化實測 T0770 PASS） |
 | 回報者 | 使用者（D209：鍵盤或滑鼠回答，結果都是有回答，⚠️ 都要清除） |
 
 ## 現象
@@ -41,3 +42,8 @@ links:
 - 驗證：單元 49 項＋突變；e2e t0757 ①–⑤ / 滾輪不清 / 鍵盤照舊 / codex 不變，修正前 ② 失敗；既有 ⚠️ e2e 4 支綠；typecheck 0 / 0、`test:unit` 6542 / 366 files、`vite build`。
 - 已知取捨：無法分辨點到哪個選項，blocked 中任何左鍵按下都清（與鍵盤按方向鍵也會清一致，D209）。
 - 待實機驗收：fullscreen claude 以滑鼠拒絕權限 → ⚠️ 立即消失。
+
+## 驗收（2026-11-02T05:22:28+0800，第一百零四 session）
+
+- 依據（R-G003）：交付版 `v0.7.3-pre.4` 安裝版（`BAT_E2E_EXECUTABLE`，隔離實例）跑 `e2e/t0757-mouse-answer-clears-waiting.spec.ts`，T0770 情境 ① PASS（`7ad66d1d` / 回報 `01761b22`，D215）：滑鼠點「No」拒絕權限 → `cleared (mouse press)`，縮圖與工作區列 ⚠️ 立即消失、看著分頁不留淡化；滑鼠允許 / AskUserQuestion / elicitation 清除、滾輪不清、鍵盤照舊、codex `input` 不被滑鼠清。
+- 未涵蓋：macOS / Linux（t0757 只支援 Windows）。
