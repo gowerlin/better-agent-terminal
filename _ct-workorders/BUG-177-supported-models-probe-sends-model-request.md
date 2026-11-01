@@ -3,11 +3,11 @@ schema_version: 1
 schema_kind: bug
 id: BUG-177
 title: "Claude 面板查模型清單（`getSupportedModels`）會送一次真的模型請求（耗 token），並在 `~/.claude/projects/<磁碟根>` 留下 session 檔"
-status: FIXED
+status: CLOSED
 severity: medium
 reproducibility: intermittent
 created_at: "2026-11-01T11:17:31+0800"
-updated_at: "2026-11-01T11:58:47+0800"
+updated_at: "2026-11-01T17:57:14+0800"
 impact:
   - claude-agent-panel
   - token-usage
@@ -22,7 +22,7 @@ links:
 |------|------|
 | 嚴重度 | 🟡 medium（每次查清單可能多一個完整 system prompt＋工具定義的 input token 請求；使用者看不到） |
 | 可重現 | 時有時無（看 `close()` 與 CLI 誰快；T0727 第 1 次全綠執行出現 4 次，第 2 次 0 次） |
-| **狀態** | ✅ FIXED：T0729（commit `ceb24910`），等驗收 |
+| **狀態** | 🚫 CLOSED（2026-11-01 塔台依 R-G003 結案）；原 ✅ FIXED：T0729（commit `ceb24910`），等驗收 |
 | 回報者 | T0727 Worker |
 
 ## 現象
@@ -52,3 +52,8 @@ links:
 - `getSupportedModels` 的 prompt 由 `''` 改成不 yield 任何訊息的 AsyncIterable（`idleSdkPrompt`，`electron/claude-agent-manager.ts`）；讀完 `supportedModels()` 後結束 iterable 再 `close()`。`cwd: '/'`、runtime 路徑、spawn env、與 `BAT_BUILTIN_MODELS` 的合併都不變；沒有加快取（不送請求後每個 session 查一次只多一個短命子行程）。
 - SDK 原型（假 API、內嵌 CLI 2.1.316）：舊做法 3 秒內 1 個 `claude-opus-5-5` 請求＋`projects/D--/<uuid>.jsonl`；新做法 0 請求、0 session 檔，模型清單相同（`default` / `opus` / `fable` / `sonnet` / `haiku`）。
 - 驗證：`e2e/v072-pre6-claude-panel.spec.ts` ⑩（`getSupportedModels` 後 4 秒內 0 個請求、暫存 home 沒有新 session 檔；整次執行沒有來自無標記對話的請求）＋①–⑨ 全綠；`electron/__tests__/claude-supported-models-probe.test.ts`；`test:unit` 351 檔全過、兩個 typecheck = 0、`vite build` 成功。
+
+## 結案（2026-11-01T17:57:14+0800，BAT 第一百零三 session 塔台）
+
+- 依全域 R-G003：修正隨 `v0.7.2-pre.7` 交付；T0737（`cb22545b`）以 source build（= pre.8 產品碼）從介面驗：新分頁、`/model` 載入並切換模型 0 個模型請求 / 0 個 session 檔，送一則後只 1 個 session、`/resume` 只列它；既有 e2e ⑩ 重跑綠。
+- closed_reason: verified

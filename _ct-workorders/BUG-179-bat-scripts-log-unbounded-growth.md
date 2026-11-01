@@ -3,11 +3,11 @@ schema_version: 1
 schema_kind: bug
 id: BUG-179
 title: "`bat-scripts.log` 無上限成長：helper 與主行程都只 append、從不輪替（本機 41.6 MB，10 月單月 35.6 MB）"
-status: FIXED
+status: CLOSED
 severity: low
 reproducibility: always
 created_at: "2026-11-01T12:12:33+0800"
-updated_at: "2026-11-01T12:42:42+0800"
+updated_at: "2026-11-01T17:57:14+0800"
 impact:
   - logging
   - helper-scripts
@@ -22,7 +22,7 @@ links:
 |------|------|
 | 嚴重度 | 🟢 low（磁碟用量、附日誌困難、讀檔診斷變慢；不影響功能） |
 | 可重現 | 一定 |
-| **狀態** | ✅ FIXED：T0732（commit `ce648034`），等驗收 |
+| **狀態** | 🚫 CLOSED（2026-11-01 塔台依 R-G003 結案）；原 ✅ FIXED：T0732（commit `ce648034`），等驗收 |
 | 回報者 | T0731 Worker |
 
 ## 現象
@@ -46,3 +46,8 @@ links:
 - 不變：helper `scripts/_bat-logger.mjs` 寫入規則 / 檔名 / 欄位、`report-hook` 雙寫、兩個 logger 的失敗政策、append 路徑。
 - 驗證：新測試 `electron/__tests__/bat-scripts-log-rotation.test.ts`、`electron/remote/__tests__/headless-bat-scripts-log-rotation.test.ts`（temp 目錄）；`test:unit` 354 檔 6298 passed / 3 skipped、`test:legacy` 33 檔 472 passed、`typecheck` = 0、`typecheck:electron` = 0、`npx vite build` 成功。
 - 待驗收：實機（本機 41.6 MB 的 `bat-scripts.log`）重開 BAT 後應出現 `bat-scripts-<stamp>.log` 與 debug log 的 `[bat-scripts-log] rotated` 行；本單未對真實日誌做輪替。
+
+## 結案（2026-11-01T17:57:14+0800，BAT 第一百零三 session 塔台）
+
+- 依全域 R-G003：修正隨 `v0.7.2-pre.7` 交付；使用者安裝版 pre.8 於 2026-11-01 17:10:40 啟動時實機輪替（`<appData>\BetterAgentTerminal\Logs\bat-scripts-20261101-171040.log` 42.3 MiB，現行檔重新開始；塔台只看檔名與大小）；T0737（`cb22545b`）隔離實例驗 ① 改名 ② 只留 3 份 ③ 10 MiB 不動 ④ 輪替後 helper 照常寫 ⑤ 檔案被鎖照常啟動；headless 由 `headless-bat-scripts-log-rotation.test.ts` 涵蓋（遠端主機未實機）。
+- closed_reason: verified
