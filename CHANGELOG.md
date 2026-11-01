@@ -4,8 +4,19 @@ All notable changes to Better Agent Terminal are documented in this file.
 
 ## [Unreleased]
 
+## [0.7.2-pre.6] — 2026-11-01
+
+### Added
+- Claude Agent 面板的工作清單（T0725 / D195）：依 `TaskCreate` / `TaskUpdate` / `TaskList` 累積成清單，畫在每段連續工作清單卡片的最後一張，附「已完成 n/m」；接續對話、重開 BAT、封存舊訊息後都會重建。工作清單工具不會被當成子代理（不進 active tasks bar）
+- Claude Agent 面板替 Claude 5 模型開啟工作清單工具（`CLAUDE_CODE_ENABLE_TODO_TOOLS=1`，T0725 / D195）；只影響面板、不影響 Claude CLI 分頁，環境已設 `CLAUDE_CODE_ENABLE_TODO_TOOLS` / `CLAUDE_CODE_ENABLE_TASKS` 時以使用者的值為準
+
 ### Changed
-- 「Claude Agent V1」改名為「Claude Agent」（worktree 版為「Claude Agent (Worktree)」），V2 下架後不再需要版本號（T0722 / D194）。舊分頁的預設標題（`Claude Agent V1`、`Claude Agent V2`、`Claude Agent V1 (Worktree)`）開啟時自動改成新名稱，自己改過的標題不動
+- 「Claude Agent V1」改名為「Claude Agent」（worktree 版為「Claude Agent (Worktree)」），V2 下架後不再需要版本號（T0722 / D194）。舊分頁的預設標題（`Claude Agent V1`、`Claude Agent V2`、`Claude Agent V1 (Worktree)`）開啟時自動改成新名稱，自己改過的標題不動；網站「+」選單截圖同步更新（T0723）
+- Windows 安裝檔關閉 NSIS 差分打包，內層改為整包壓縮（64 MiB 字典），exe 約 333 → 293 MiB（T0726 / D196）；BAT 不使用 electron-updater，不再產生的 `.blockmap` 本來就不上傳。安裝檔大小上限改為每平台 ≤ 384 MiB、可攜 zip ≤ 512 MiB（D196，取代 D146 的數值）
+- Claude Agent 面板的 SDK 選項改用 SDK 0.3 的 `Options` 型別，SDK 升版時選項改名會在 typecheck 抓到（T0724）
+
+### Fixed
+- 確認 Claude CLI 2.1.316 的單行 `Usage limit has reset · Press enter to continue` 會留在對話紀錄裡，刻意不以它觸發自動送 Enter，補上測試與說明；行為與上一版相同（T0721 / T0724）
 
 ## [0.7.2-pre.5] — 2026-11-01
 
