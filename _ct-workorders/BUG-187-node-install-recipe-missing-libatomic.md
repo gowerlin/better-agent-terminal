@@ -3,11 +3,13 @@ schema_version: 1
 schema_kind: bug
 id: BUG-187
 title: "遠端工具「安裝 / 更新 Node.js」以 nvm 裝 LTS（v26）時沒有先確保 `libatomic1`，最小安裝的 Linux 裝完 node 無法執行"
-status: FIXED
+status: CLOSED
 severity: medium
 reproducibility: always
 created_at: "2026-11-02T01:12:29+0800"
-updated_at: "2026-11-02T01:36:43+0800"
+updated_at: "2026-11-02T02:12:36+08:00"
+closed_at: "2026-11-02T02:12:36+08:00"
+closed_reason: "verified"
 fixed_at: "2026-11-02T01:35:01+0800"
 fix_commit: 915f90ab
 impact:
@@ -24,7 +26,7 @@ links:
 |------|------|
 | 嚴重度 | 🟡 medium（BAT 自己的安裝按鈕裝出跑不起來的 node；node / npx / MCP 全部失敗） |
 | 可重現 | 必現（沒有 `libatomic1` 的 Ubuntu / Debian 等，nvm LTS = v26 時） |
-| **狀態** | ✅ FIXED（T0756 `915f90ab`，待 `0.7.3-pre.3` 實機驗收） |
+| **狀態** | 🚫 CLOSED（2026-11-02，交付版 `v0.7.3-pre.3` ＋ T0756 Docker 實測，使用者裁示直接結案） |
 | 回報者 | 塔台（BUG-186 / T0754 追查時發現） |
 
 ## 現象
@@ -44,3 +46,9 @@ links:
 
 - alpine 已有前例：`apk` 時先 `apk add ${recipe.alpinePackages}` 再跑 recipe（`recipes.ts`）。
 - 偵測端說明原因：T0753（`parseVersionError`，`missingLibrary`）。
+
+## 驗收（2026-11-02T02:12:36+08:00，第一百零四 session）
+
+- 修正（T0756 `915f90ab`）在交付版 `v0.7.3-pre.3`（run `41332527832`，target `4a5f73d6`）內。
+- 驗證依據：T0756 在 Docker `ubuntu:24.04` 最小映像實跑 root / 免密碼 sudo / 無 sudo 三情境，另有 6 項突變檢查；使用者 WSL 的 bat-server 已升到 `0.7.3-pre.3`，nvm 的 node v26.13.0 可以執行（libatomic1 已於 01:09 補裝）。
+- 使用者選擇不在自己的 WSL 實跑「安裝 / 更新 Node.js」（會執行 `nvm install --lts`，而且缺程式庫的路徑在已補裝的環境走不到），直接結案。依 R-G003 改 `CLOSED`。

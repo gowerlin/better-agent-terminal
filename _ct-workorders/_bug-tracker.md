@@ -23,10 +23,10 @@ breakdown:
 # Bug Tracker
 
 > ⚠️ 此文件由 `*sync` 自動生成，請勿手動編輯。
-> 最後同步：2026-11-02 02:11 — 第一百零四 session：BUG-186 CLOSED（WSL 實機，server `0.7.3-pre.3`）；BUG-187 FIXED（T0756 `915f90ab`）；開 BUG-187 → FIXING（T0756）；BUG-185 CLOSED（`v0.7.3-pre.2`）；BUG-186 FIXED（T0753 `0f021e67`）；BUG-185 FIXED（T0751 `f9072e16`）；開 BUG-186 → FIXING（T0753）；BUG-183 / 184 FIXED（T0750）；BUG-182 / 175 CLOSED
+> 最後同步：2026-11-02 02:12 — 第一百零四 session：BUG-187 CLOSED（`v0.7.3-pre.3`，使用者裁示）；BUG-186 CLOSED（WSL 實機，server `0.7.3-pre.3`）；BUG-187 FIXED（T0756 `915f90ab`）；開 BUG-187 → FIXING（T0756）；BUG-185 CLOSED（`v0.7.3-pre.2`）；BUG-186 FIXED（T0753 `0f021e67`）；BUG-185 FIXED（T0751 `f9072e16`）；開 BUG-186 → FIXING（T0753）；BUG-183 / 184 FIXED（T0750）；BUG-182 / 175 CLOSED
 
 ## 統計
-- 🔴 Open: 0 | ⏳ Fixing: 0 | ✅ Fixed: 6 | 🧪 Verify: 0 | 🚫 Closed: 45 | ⛔ Won't Fix: 0 | **Total: 51**
+- 🔴 Open: 0 | ⏳ Fixing: 0 | ✅ Fixed: 5 | 🧪 Verify: 0 | 🚫 Closed: 46 | ⛔ Won't Fix: 0 | **Total: 51**
 
 ## 🔴 Open / 處理中
 
@@ -42,7 +42,6 @@ breakdown:
 
 | ID | 標題 | 嚴重度 | 修復時間 | 連結 |
 |----|------|--------|---------|------|
-| BUG-187 | 遠端工具「安裝 / 更新 Node.js」以 nvm 裝 LTS（v26）時沒有先確保 `libatomic1`，最小安裝的 Linux 裝完 node 無法執行；T0756 `915f90ab` 缺程式庫時先補裝（不可提權則提示）、裝完驗證 `node --version`，待實機驗收 | 🟡 Medium | 2026-11-02 | [BUG-187](BUG-187-node-install-recipe-missing-libatomic.md) |
 | BUG-184 | 系統匣圖示選單殘留已刪除 profile 的視窗，同名項目出現兩個（成因是「配置」✕ 刪 profile 不關視窗）；T0750 `8a432d40` 刪 profile 時關掉它的視窗，待實機驗收 | 🟢 Low | 2026-11-01 | [BUG-184](BUG-184-tray-menu-lists-window-removed-from-profile.md) |
 | BUG-183 | 關掉（最小化到匣）的 profile 視窗，在「配置」按「開啟」叫不回來，只跳「此配置已在另一個視窗中開啟」；T0750 `8a432d40` 隱藏的視窗 show + focus、叫回時不通知（本機 profile 同樣受影響），待實機驗收 | 🟡 Medium | 2026-11-01 | [BUG-183](BUG-183-hidden-profile-window-not-shown-on-open.md) |
 | BUG-159 | codex 分頁在 BAT MCP 未注入、非系統管理員時接上 codex 共用 daemon，helper 讀到其他分頁的 `BAT_*`（T0651 `5b1be0f5`） | 🟢 low | 2026-10-18 | [BUG-159](BUG-159-codex-shared-daemon-inherits-other-tab-env.md) |
@@ -59,6 +58,7 @@ breakdown:
 
 | ID | 標題 | 嚴重度 | 關閉時間 | 連結 |
 |----|------|--------|---------|------|
+| BUG-187 | 遠端工具「安裝 / 更新 Node.js」以 nvm 裝 LTS（v26）時沒有先確保 `libatomic1`，最小安裝的 Linux 裝完 node 無法執行；T0756 `915f90ab` 缺程式庫時先補裝（不可提權則提示）、裝完驗證 `node --version`；隨 `v0.7.3-pre.3` 交付（Docker 三情境實測） | 🟡 Medium | 2026-11-02 | [BUG-187](BUG-187-node-install-recipe-missing-libatomic.md) |
 | BUG-186 | 遠端工具偵測：nvm 的 Node.js「無回應」（實為缺 `libatomic.so.1` 無法執行）、`~/.local/bin` 工具「伺服器：不可見」；T0753 `0f021e67` 說明無法執行的原因、改標「伺服器程序：不可見（終端分頁找得到）」、git / gh 判斷比照 resolver；WSL 實機驗收通過（server `0.7.3-pre.3`） | 🟡 Medium | 2026-11-02 | [BUG-186](BUG-186-remote-tools-nvm-node-no-version-uv-hidden.md) |
 | BUG-185 | e2e `t0512-profile-panel-layout` 第 2 項失敗：`WIZARD_STUBS` 缺 `wsl-systemd:snapshot-unit`；T0751 `f9072e16` 補 stub（另補 4 個 T0554 升級 / rollback channel），只影響測試；隨 `v0.7.3-pre.2` 交付 | 🟢 Low | 2026-11-01 | [BUG-185](BUG-185-t0512-wizard-e2e-missing-snapshot-unit-stub.md) |
 | BUG-182 | 遠端 bat-server 重啟後，重連視窗裡分頁的等待 ⚠️ 不清除、總數多算；T0749 `01796a9e` 重連時依 server 現況對帳；`v0.7.3-pre.1` 使用者 WSL 實機驗收情境 A / B 通過 | 🟢 Low | 2026-11-01 | [BUG-182](BUG-182-remote-server-restart-stale-waiting-badge.md) |
