@@ -3,11 +3,13 @@ schema_version: 1
 schema_kind: bug
 id: BUG-200
 title: "`terminal-blocked-state.test.ts` 的 T0790 / T0791「兩個真實 hook 程序」測試靠 300 ms 時間差製造亂序，重負載下順序不顛倒而失敗；另有 5 檔真子程序測試在兩個 `test:unit` 同時跑時逾時"
-status: FIXING
+status: FIXED
 severity: low
 reproducibility: rare
 created_at: "2026-11-02T23:01:45+0800"
-updated_at: "2026-11-02T23:05:00+0800"
+updated_at: "2026-11-02T23:58:42+0800"
+fixed_at: "2026-11-02T23:58:42+0800"
+fix_commit: 2b3f0b1b
 impact:
   - test-infra
 links:
@@ -20,7 +22,7 @@ links:
 |------|------|
 | 嚴重度 | 🟢 low（只影響測試；產品行為無關。CI Test gate 若撞到會擋發版） |
 | 可重現 | 只在重負載：兩個 `npm run test:unit` 同時跑（24 核）時出現；正常整套 3 次、`test:unit` ＋ 8 個 CPU 忙迴圈都沒有出現（T0793） |
-| **狀態** | 🔧 FIXING（T0794） |
+| **狀態** | ✅ FIXED（T0794 `2b3f0b1b`，待 CI Test gate 驗收） |
 | 回報者 | 塔台（T0793 Worker 首次記錄） |
 
 ## 現象
@@ -55,3 +57,13 @@ links:
 
 - 2026-11-02 23:01 開單（OPEN，low）。T0793 收單時登記；不擋任何發版，建議與下一版前的修正一起處理（D235）。
 - 2026-11-02 23:05 → FIXING：使用者決定現在修（D236），開 T0794（P2，M）：A 改寫兩支順序測試由測試控制到達順序；B 5 檔＋`worktree-status-after-close` 先量再改；不改 `vite.config.ts` 與產品。
+- 2026-11-02 23:58 → FIXED（T0794 `2b3f0b1b`，只改測試檔；待 CI Test gate 驗收）。
+
+## T0794 結果
+
+- **A（順序測試）**：T0790 / T0791 兩支改成由測試控制到達順序：handler 攔住先啟動程序的回報，等它到達 BAT 之後才 spawn 第二個程序，第二個回報處理完才放行。仍是兩個真實 `bat-hook.mjs` 程序，斷言不變。另發現第二種失敗：重負載下先 spawn 的程序反而較晚啟動（`at` 較晚），改寫後一併排除（第二個程序在第一個的回報到達後才 spawn）。
+  - 修改前：單跑這兩支＋96 個 CPU 忙迴圈執行緒，10 次失敗 7 次（順序顛倒、`at` 顛倒、5 s 逾時）；48 執行緒 5 次失敗 1 次（`at` 顛倒）。兩套 `test:unit` 同時跑 3 次（6 套）都沒出現。
+  - 修改後：96 執行緒下順序 / `at` 斷言不再失敗，但仍是預設 5 s 時 10 次中 8 次逾時；describe 設 30 s 後 10 次中 9 次通過、1 次是 `beforeAll`（RemoteServer 產生自簽憑證）超過預設 10 s；`beforeAll` 也設 30 s 後再跑 10 次，10 次全過（最慢 12.5 s）。
+  - 突變檢查：暫時拿掉產品 `TerminalBlockedTracker` 的兩處 `at` 比較 → 兩支都失敗；已還原，產品檔無差異。
+- **B（逾時）**：`server-bundle-install-script`、`node-libatomic-shell`、`headless-git`（2 個 describe）、`git-scaffold-env`、`terminal-blocked-state`（hook describe）設 30 s；`worktree-status-after-close` 40 s（兩套並行下 14.1–19.2 s，git trace2：時間花在每次建立程序，不是某一步），測試自己的 git 關掉自動 maintenance。註解寫量測值。
+- 驗證：整套 3 次 exit 0；兩套並行 2 次範圍內 6 檔全過（第 1 次兩邊都只有範圍外的 `scripts/__tests__/dev-deploy-headless.test.mjs` 失敗：兩套同時寫 `dist-server/dev-deploy-headless`，EPERM／ENOENT，修改前也出現）；`typecheck` / `typecheck:electron` = 0；`test:legacy` 33 / 33。詳見 T0794 回報區。
