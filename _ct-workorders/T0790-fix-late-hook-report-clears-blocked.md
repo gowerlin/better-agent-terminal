@@ -4,14 +4,14 @@ schema_kind: workorder
 id: T0790
 title: "修正 BUG-197：晚到的 hook 回報（`user-prompt-submit` / `stop`）不得清掉同一回合、時間比它晚發生的 `permission` / `question` blocked"
 type: implementation
-status: PENDING
+status: IN_PROGRESS
 repo: better-agent-terminal
 project: maintenance
 priority: P1
 sizing: M
 created_at: "2026-11-02T19:25:46+0800"
-started_at: ""
-updated_at: "2026-11-02T19:25:46+0800"
+started_at: "2026-11-02T19:26:58+0800"
+updated_at: "2026-11-02T19:26:58+0800"
 completed_at: ""
 session_ids: []
 depends_on: []
@@ -34,6 +34,7 @@ affects_files:
 renew_count: 0
 workdir: main repo
 worker_question_timeout: 30
+tower_question: open
 interaction:
   mode_hint: yolo
   interactive: false
@@ -83,6 +84,19 @@ claude 的每個 hook 都是一個獨立的 `bat-hook.mjs` 程序，回報到主
 ## 回報區
 
 > 以下由 sub-session 填寫，請勿在指揮塔 session 中編輯
+
+### 待塔台決策
+
+#### Q-1：`at` 要從 handler 傳進 tracker，必須改 `electron/pty-manager.ts`（不在 affects_files），可以改嗎？
+- **提問時間**：2026-11-02T19:31:05+0800
+- **說明**：`terminal:report-hook` handler 只能呼叫 `PtyManager.reportHookEvent(id, event, toolName, sessionId, agentId)`，它原樣轉給 `TerminalBlockedTracker.report`。要把新欄位 `at` 傳進去，只能在這個方法多加一個參數並轉發（簽章＋轉發共 2 行，加 1 行 JSDoc；其他行為不變）。
+- **選項**：
+  - A. 允許改 `electron/pty-manager.ts`，只限 `reportHookEvent` 的簽章、轉發與註解（加進 affects_files）
+  - B. 不改 pty-manager.ts，改用別的方式把 `at` 傳到 tracker（例：handler 直接拿 tracker，需改 `ReportHookPtyManager` 介面與 main / headless 的接線，改動更大）
+  - 其他
+- **建議**：A。理由：改動最小、與 T0642 / T0657 加 `sessionId` / `agentId` 的做法相同；B 要改更多接線檔。
+- **影響**：不能改 → 修正無法生效（tracker 收不到 `at`）。
+- **是否阻擋後續步驟**：是（單元測試的 PtyManager 層與 e2e 都要經過這裡）；hook 端與 tracker 的修改可先做。
 
 ### 完成狀態
 
