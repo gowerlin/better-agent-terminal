@@ -3,11 +3,11 @@ schema_version: 1
 schema_kind: bug
 id: BUG-197
 title: "claude 的 `user-prompt-submit` hook 回報晚到，清掉同一回合較早記下的 `permission` / `question` blocked（對話框其實還在）"
-status: OPEN
+status: FIXING
 severity: medium
 reproducibility: rare
 created_at: "2026-11-02T19:22:54+0800"
-updated_at: "2026-11-02T19:22:54+0800"
+updated_at: "2026-11-02T19:25:46+0800"
 impact:
   - tower-worker
   - blocked-state
@@ -21,7 +21,7 @@ links:
 |------|------|
 | 嚴重度 | 🟡 medium（blocked 被錯誤清除 → BUG-196 的保留不觸發；若 Worker 送的是 `--submit`，Enter 仍會替使用者作答。也影響 ⚠️ 提示與 `bat_get_state`） |
 | 可重現 | 偶發：T0788 e2e 60 次情境中 1 次（假模型回得極快時） |
-| **狀態** | 📂 OPEN |
+| **狀態** | 🔧 FIXING（T0790） |
 | 回報者 | 塔台（T0788 Worker 首次記錄） |
 
 ## 現象
@@ -43,3 +43,4 @@ links:
 ## 處理紀錄
 
 - 2026-11-02 19:22 開單（OPEN，medium），T0788 收單時登記。
+- 2026-11-02 19:25 → FIXING：開修正單 T0790（D230），修完與 BUG-196 一起發 `0.7.3-pre.8`。

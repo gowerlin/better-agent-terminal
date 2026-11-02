@@ -1465,6 +1465,17 @@
 - **切分**：W2a 設計語言 + 元件 + 首頁（T0630）→ 預覽通過後 W2b（`/control-tower`、功能、FAQ、回報頁）→ W2c 遠端開發；W3 / W4 不變。
 - **相關**：PLAN-049 / D159 / D160 / T0624 / T0630
 
+### D230 2026-11-02 — 先修 BUG-197（T0790）再與 BUG-196 一起發 `0.7.3-pre.8`
+
+- **背景**：T0788 DONE，BUG-196 FIXED。T0788 發現 BUG-197：hook 回報亂序，晚到的 `user-prompt-submit` 清掉 blocked（e2e 60 次中 1 次）。這時 notify-hold 不會觸發，`--submit` 仍可能替使用者作答。
+- **決定**（使用者選「先修 BUG-197 再發」，依「一批修完再發一次」的做法）：
+  1. 開 T0790（P1，yolo）：依事件發生的先後判斷清除，建議用跨程序可比較的單調時鐘、不用牆鐘；舊 hook 腳本行為不變；查證 `stop` 等其他清除事件。BUG-197 → FIXING。
+  2. e2e t0787 拿掉「偵測到 RACE 就重跑」的容錯，改成直接斷言，至少跑 3 輪。
+  3. T0790 DONE → 聯合驗證 → 發 `0.7.3-pre.8`（更版重點寫 BUG-196 / BUG-197）→ 把版號告訴 CT 塔台（CT T0399）。
+  4. 遠端 profile 視窗看不到「待送 N」（T0788 已知限制）留在 docs，暫不開單。
+- **決策者**：使用者。2026-11-02 第一百零六 session。
+- **相關**：BUG-197 / BUG-196 / T0788 / T0790 / D228
+
 ### D229 2026-11-02 — T0789 結論：PLAN-061 縮小為「非 Windows 主機上關掉 hooks 的 claude 分頁」，維持 IDEA（low），等觸發條件再開單
 
 - **背景**：T0789 DONE（`d86ac489`）。終端回覆 claude 的 `OSC 7501 ; ?` 探詢之後，claude 會穩定送出 idle / working / blocked(permission|question) / done / error / clear，`disableAllHooks` 下照送。但 Windows 本機 ConPTY 會丟掉 OSC 回覆，而且 conhost 會搶答 DA1，BAT 主要使用環境拿不到效益。另查到現行解析器上限 128 會丟掉最重要的 `blocked:kind=permission`（130 字元），子代理結束的 `state=clear:id=…` 不帶 `app`。
