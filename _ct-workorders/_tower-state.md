@@ -1,15 +1,14 @@
 ---
 schema_kind: tower-state
 summary_version: 1
-updated_at: "2026-11-02T22:33:52+08:00"
-session: "2026-11-02 22:33 第一百零七 session 收工（CT v6.0.0-beta.10）"
+updated_at: "2026-11-02T22:38:57+08:00"
+session: "2026-11-02 22:38 第一百零八 session 開工（CT v6.0.0-beta.10）"
 next_ids:
   workorder: "T0792"
   decision: "D234"
   bug: "BUG-200"
   plan: "PLAN-062"
 todo:
-  - "換版到 pre.9 後若跑 NSIS 重裝驗收：讀 `%TEMP%\\bat-nsis-acceptance-<時間>\\report.md`、刪 `userdata-backup`"
   - "BUG-196 / BUG-197 FIXED（pre.8 起）：196 使用者實機；197 / 198 開 T0792 自動化驗收（安裝版 pre.9）→ CLOSED"
   - "BUG-198（low）FIXED（T0791 `20bc7a88`），已隨 `v0.7.3-pre.9` 發佈；驗收順序 196 → 197 → 198 → 159（D233）"
   - "BUG-199（low，`nvm-login-profile.test.ts` 負載逾時，BUG-195 同類）待開修正單"
@@ -24,6 +23,12 @@ todo:
 > 最後更新:2026-11-02 22:33 (UTC+8) — **第一百零七 session 收工**：pre.8 NSIS 重裝驗收 PASS；BUG-198 T0791 修 → **`v0.7.3-pre.9`** 發佈（`0.7.3-pre.N` 線用完）；開 BUG-199（測試逾時，low）；四張待驗收 BUG 排序（D233）。前次：第一百零六 session 收工（2026-11-02 20:50）。
 >
 > **下次起手**:熱區無進行中工單。① 使用者「換版」到 pre.9：若跑 NSIS 重裝驗收（`e2e\manual\nsis-reinstall-acceptance.ps1 -Version 0.7.3-pre.9`），讀報告 `%TEMP%\bat-nsis-acceptance-<時間>\report.md` 並刪 `userdata-backup`；② 驗收（D233 順序）：BUG-196 使用者實機 → 開 T0792 自動化驗收（安裝版 pre.9 跑 `t0787` 多輪＋`t0694` 步驟 6）涵蓋 BUG-197 / 198 → 三張一起 CLOSED；BUG-159 需非系統管理員環境，最後；③ BUG-199（low）待開修正單（比照 T0786）；④ 下一版前先問使用者版號線（`0.7.3-pre.N` 已用完）；Linux AppImage 待回報；PLAN-059 C 待問 CT（Q5）。
+
+---
+
+## 🟢 本 Session 進行中（第一百零八 session）
+
+> 🟢 **第一百零八 session 開工**（2026-11-02 22:38 (UTC+8)，CT v6.0.0-beta.10，Fast Path；塔台 session `f34696de-6639-472a-96fd-e52716378f13`；`--set-role tower --mode on` exit 0；安裝版 helper `v0.7.3-pre.9`（已換版）；HEAD `13f0f372`、`main` = `origin/main`（0 / 0）、工作區乾淨；熱區 187 張工單皆 DONE；BUG 熱區 Open 1（BUG-199）/ Fixed 4 / Closed 58，與 `_bug-tracker.md` 一致，免重建；`bat_list_questions` pending 0）。**`v0.7.3-pre.9` NSIS 完整重裝驗收 PASS-WITH-WARN**（`e2e\manual\nsis-reinstall-acceptance.ps1` real 模式，22:36:37–22:37:20；AllUsers / HKLM；唯一 WARN = ⓪ 目前安裝版是 pre.8，② 實為升級而非同版覆蓋，屬預期；① SHA-256 `7adb1790…` ② 覆蓋 ③ 靜默解除 ④ 乾淨重裝全 PASS，三支 helper `--version` = v0.7.3-pre.9、內嵌 claude / codex 存在、userData 130 檔 SHA-256 未變；⑤ LaunchCheck 未帶 → SKIPPED）。報告 `%TEMP%\bat-nsis-acceptance-20261102-223637\report.md`；含權杖的 `userdata-backup`（130 檔）已刪除。
 
 ---
 
@@ -113,7 +118,7 @@ todo:
 
 ### 待辦（依優先序）
 1. 🟡 **驗收（D233 順序）**：BUG-196 使用者實機（塔台停在權限對話框時收到 Worker 完成通知 → 對話框維持、縮圖「📨 待送 1」、答完才進輸入框）→ T0792 自動化驗收 BUG-197 / 198（安裝版 pre.9 跑 `t0787` 多輪＋`t0694` 步驟 6）→ 三張 CLOSED
-2. 🟡 **pre.9 NSIS 重裝驗收**（若使用者換版時跑）：讀報告、刪 `userdata-backup`
+2. ✅ ~~**pre.9 NSIS 重裝驗收**~~：PASS-WITH-WARN（第一百零八 session 22:37，WARN = 從 pre.8 升級，預期），備份已刪
 3. 🟢 **BUG-199**（low）：`nvm-login-profile.test.ts` 負載逾時，比照 T0786 開修正單
 4. 🟡 **BUG-159 驗收**：需非系統管理員環境 ＋ codex，最後；🟢 Linux AppImage（Ubuntu 22.04）待回報；t0757 偶發失敗再發生才開 BUG（D218）
 5. 🟢 下一版前先問使用者版號線（`0.7.3-pre.N` 已用完）；PLAN-059 C（問 CT Q5）
