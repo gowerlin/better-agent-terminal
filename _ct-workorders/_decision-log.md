@@ -1465,6 +1465,16 @@
 - **切分**：W2a 設計語言 + 元件 + 首頁（T0630）→ 預覽通過後 W2b（`/control-tower`、功能、FAQ、回報頁）→ W2c 遠端開發；W3 / W4 不變。
 - **相關**：PLAN-049 / D159 / D160 / T0624 / T0630
 
+### D222 2026-11-02 — PLAN-053 主升級先開研究單 T0781；接受 npm 12 lock `peer` 旗標（T0782）；T0782 完成、聯合驗證綠後發 `0.7.3-pre.6`
+
+- **背景**：T0779 DONE（Electron 41.10.7，`a09887fb`；macOS / Linux 未驗證）。Worker 回報 npm 12 重算 lock 會帶出約 100 項只有 `peer` 旗標翻轉的既有漂移（HEAD 可重現、與 electron 無關），之後每張改相依的工單都會碰到。
+- **決定**（使用者「1. PLAN-053 主升級：現在就開研究單，2、3 依塔台建議」）：
+  1. 開 T0781（研究：42–45 選哪版、破壞性變更對照 BAT、相依相容性、BUG-164 Graphite、EXP 驗證計畫與工單草案）；只研究，不改 lock、不在 repo 內安裝或 build。
+  2. 開 T0782：先查證打包閉包（`asar-runtime-deps.test.mjs`、`verify-packaged-native`）與 CI 版本 npm 的 `npm ci` 不受影響，再一次接受 `peer` 旗標；任何版本變動或影響即停。
+  3. T0781 / T0782 並行（檔案不重疊；T0781 不 build）。T0782 完成、聯合驗證全綠後 push 並發 `0.7.3-pre.6`（帶 Electron 41.10.7、git-poc 清理、lock 旗標；macOS / Linux 以該版 CI 三平台 build 與 `macos-acceptance.yml` 驗證 T0779）。T0781 不阻擋發版。
+- **決策者**：使用者（2、3 依塔台建議）。2026-11-02 第一百零五 session。
+- **相關**：PLAN-053 / T0779 / T0781 / T0782 / T0780 / D221 / D218
+
 ### D221 2026-11-02 — 其餘 PLAN 狀態核對：PLAN-053 調 high 並先升 Electron 41.10.7（T0779）；PLAN-029 R3 刪除 `git-poc`（T0780）；其他維持 IDEA
 
 - **背景**：使用者要求逐張核對未結 PLAN。塔台以 grep 與 lock 檔核對前提：
