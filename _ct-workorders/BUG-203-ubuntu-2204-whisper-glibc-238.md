@@ -7,7 +7,7 @@ status: OPEN
 severity: low
 reproducibility: unverified
 created_at: "2026-11-03T02:17:46+0800"
-updated_at: "2026-11-03T02:17:46+0800"
+updated_at: "2026-11-03T03:06:07+0800"
 impact:
   - linux
   - voice
@@ -42,3 +42,4 @@ links:
 ## 處理紀錄
 
 - 2026-11-03 02:17 開單（OPEN，low，待查）。
+- 2026-11-03 03:06 T0799 查證（只記錄，狀態不動）：linux-acceptance W1（main 程序照 `electron/whisper-addon-loader.ts` 的方式 `require` 打包內的 `dist/linux-x64/whisper.node`），desktop-build `41502529486` 的 AppImage，run `41504087753` / `41504962084` / `41505876807`。**22.04 與 24.04 都載入失敗，錯誤原文相同**：`libwhisper.so.1: cannot open shared object file: No such file or directory`。`libwhisper.so.1` 其實就在同一個目錄（`appimage-inspect.md` 有列），是 `whisper.node` 的相依函式庫不在動態載入器的搜尋路徑上（同目錄不會自動搜尋），所以兩個 OS 都在 glibc 版本檢查之前就失敗；22.04 的 `GLIBC_2.38` 要先解決這個才看得到。⇒ Linux 打包版的語音輸入目前在 22.04 與 24.04 都不能用（推論：比本單原本的 glibc 問題範圍更大，可能需另開 BUG，由塔台決定）。

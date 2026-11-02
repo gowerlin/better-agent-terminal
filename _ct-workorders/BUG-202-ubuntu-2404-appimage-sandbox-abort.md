@@ -3,11 +3,13 @@ schema_version: 1
 schema_kind: bug
 id: BUG-202
 title: "Ubuntu 24.04 預設設定下直接執行 AppImage 會崩潰：AppArmor 擋住 unprivileged user namespace，Chromium 退回 setuid `chrome-sandbox`，而它不是 root 擁有的 4755 → FATAL（SIGTRAP）"
-status: FIXING
+status: FIXED
 severity: high
 reproducibility: always
 created_at: "2026-11-03T02:17:46+0800"
-updated_at: "2026-11-03T02:21:33+0800"
+updated_at: "2026-11-03T03:06:07+0800"
+fixed_at: "2026-11-03T03:06:07+0800"
+fix_commit: d773cb6780ac176e6fa16000fa67a49eb8f7eb69
 impact:
   - linux
   - packaging
@@ -21,7 +23,7 @@ links:
 |------|------|
 | 嚴重度 | 🔴 high（Ubuntu 目前的 LTS、預設設定下，直接執行 AppImage 就開不起來） |
 | 可重現 | 每次：GitHub `ubuntu-24.04` runner（`apparmor_restrict_unprivileged_userns = 1`，與桌面版預設相同）run `41495143950`、`41496512040` 都重現；L1（Playwright）與 L2（直接 spawn）皆同 |
-| **狀態** | ⏳ FIXING（T0799，D244） |
+| **狀態** | ✅ FIXED（T0799 `d773cb67`，分支 `ct/T0799`，待合併與交付版驗收） |
 | 回報者 | 塔台（T0797 / T0798 CI 驗收） |
 
 ## 現象
@@ -50,3 +52,10 @@ links:
 
 - 2026-11-03 02:17 開單（OPEN，high），依 T0798 回報與正式 run `41496512040`；修法待使用者決定。
 - 2026-11-03 02:21 → FIXING：使用者選「偵測後自動加 `--no-sandbox`」（D244），派 T0799。
+- 2026-11-03 03:06 → FIXED：T0799 `d773cb67`（＋`52b1a91c` LF、`a682ea7b` / `792db8e9` 驗收 spec、`bdcd5747` / `c7cfabda` docs，分支 `ct/T0799`，交塔台合併）。desktop-build `41502529486` 的 AppImage 在 linux-acceptance `41504962084` / `41505876807`：22.04 PASS（sandbox 開）、24.04 WARN `sandbox auto-disabled (BUG-202 fallback)`（不再崩潰）。待合併後交付版驗收再 CLOSED。
+
+## T0799 結果
+
+- 修法：`afterPack` 把 AppImage 的 `BetterAgentTerminal` 換成 `/bin/sh` 啟動器、Electron 二進位改名 `BetterAgentTerminal.bin`（`scripts/appimage-sandbox-launcher.cjs`）。只在「userns 用不了（`apparmor_restrict_unprivileged_userns = 1` 且二進位沒被套 AppArmor profile；否則 `unshare -Ur true` 失敗）＋`chrome-sandbox` 不是 root setuid＋參數沒有 `--no-sandbox`＋非 `ELECTRON_RUN_AS_NODE`」時加 `--no-sandbox`，stderr 一行固定字串、debug log `[WARN] [sandbox] Chromium sandbox auto-disabled …`（`electron/linux-sandbox-fallback.ts`）。
+- 注入點：main.ts `appendSwitch` 太晚（Chromium 在 JS 前決定 sandbox；BUG-202 崩潰時連 debug log 都沒寫），所以用啟動前的包裝層。
+- 驗證：22.04 L1 / L2 PASS、renderer sandbox 開、命令列無 `--no-sandbox`；24.04 L1 WARN（視窗 / 終端 / echo 過、0 個 `[CRASH]`）、L2 PASS。文件 `docs/agent-guide/linux-appimage-sandbox.md`（含 AppArmor profile 範例，未實測）。
