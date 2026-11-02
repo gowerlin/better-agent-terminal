@@ -1465,6 +1465,15 @@
 - **切分**：W2a 設計語言 + 元件 + 首頁（T0630）→ 預覽通過後 W2b（`/control-tower`、功能、FAQ、回報頁）→ W2c 遠端開發；W3 / W4 不變。
 - **相關**：PLAN-049 / D159 / D160 / T0624 / T0630
 
+### D236 2026-11-02 — 下一版號線 `0.7.4-pre.N`；BUG-200 現在修（T0794）
+
+- **背景**：`0.7.3-pre.N` 到 pre.9 用完（`_local-rules.md`：`-pre.N` 最多到 pre.9）；BUG-200（low）D235 原定與下一版前修正一起處理。
+- **決定**（使用者「0.7.4-pre.1，BUG-200：要現在就派工修」）：
+  1. 下一個預覽版是 `0.7.4-pre.1`，之後走 `0.7.4-pre.N`；`_local-rules.md` 版號線同步更新。本決策只定版號線，不代表立即發版。
+  2. 開 T0794（P2，M，yolo `--no-interactive`）：A 兩支真 hook 程序順序測試改由測試控制到達順序（不改產品與 `bat-hook.mjs`，突變檢查證明仍測得到 BUG-197 / 198）；B 5 檔真子程序測試＋`worktree-status-after-close` 先量再改（per-describe timeout 30 s，後者上限 60 s）；不改 `vite.config.ts`、不實作共用 helper。BUG-200 → FIXING。
+- **決策者**：使用者。2026-11-02 第一百零八 session。
+- **相關**：T0794 / BUG-200 / D235 / D204 / T0793
+
 ### D235 2026-11-02 — T0792 / T0793 收單：BUG-197 / 198 CLOSED；BUG-199 維持 FIXED；開 BUG-200 不立即派工
 
 - **背景**：T0792 DONE（安裝版 `v0.7.3-pre.9`：`t0787` 3 輪 30 情境＋UI＋codex 全過、races 0；`t0694` 3 次含步驟 6 全過）。T0793 DONE（`f03adbd6` / `1b46a400`：`nvm-login-profile` 真 shell `describe` 30 s timeout；整套 3 次＋CPU 負載綠）；另回報兩個 `test:unit` 同時跑時範圍外的失敗：T0790 / T0791 真 hook 程序順序測試（設計問題）與 5 檔逾時。

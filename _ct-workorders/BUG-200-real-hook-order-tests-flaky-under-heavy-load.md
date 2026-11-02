@@ -3,11 +3,11 @@ schema_version: 1
 schema_kind: bug
 id: BUG-200
 title: "`terminal-blocked-state.test.ts` 的 T0790 / T0791「兩個真實 hook 程序」測試靠 300 ms 時間差製造亂序，重負載下順序不顛倒而失敗；另有 5 檔真子程序測試在兩個 `test:unit` 同時跑時逾時"
-status: OPEN
+status: FIXING
 severity: low
 reproducibility: rare
 created_at: "2026-11-02T23:01:45+0800"
-updated_at: "2026-11-02T23:01:45+0800"
+updated_at: "2026-11-02T23:05:00+0800"
 impact:
   - test-infra
 links:
@@ -20,7 +20,7 @@ links:
 |------|------|
 | 嚴重度 | 🟢 low（只影響測試；產品行為無關。CI Test gate 若撞到會擋發版） |
 | 可重現 | 只在重負載：兩個 `npm run test:unit` 同時跑（24 核）時出現；正常整套 3 次、`test:unit` ＋ 8 個 CPU 忙迴圈都沒有出現（T0793） |
-| **狀態** | 📂 OPEN |
+| **狀態** | 🔧 FIXING（T0794） |
 | 回報者 | 塔台（T0793 Worker 首次記錄） |
 
 ## 現象
@@ -54,3 +54,4 @@ links:
 ## 處理紀錄
 
 - 2026-11-02 23:01 開單（OPEN，low）。T0793 收單時登記；不擋任何發版，建議與下一版前的修正一起處理（D235）。
+- 2026-11-02 23:05 → FIXING：使用者決定現在修（D236），開 T0794（P2，M）：A 改寫兩支順序測試由測試控制到達順序；B 5 檔＋`worktree-status-after-close` 先量再改；不改 `vite.config.ts` 與產品。
