@@ -343,22 +343,39 @@ test('T0778 macOS paste acceptance (BUG-128 / BUG-130)', async () => {
     }
 
     // ------------------------------------------------------------------ scenarios
-    const fileScenario = async (id: string, title: string, key: 'command' | 'control', paths: string[]) => {
+    /**
+     * Puts `paths` on the clipboard (script or Finder) and checks, with an independent pasteboard
+     * read, that the file name list holds exactly those paths before any key is pressed. A clipboard
+     * that is not right is a setup problem, not a BAT result (run #1: a script write kept 1 of 2 items).
+     */
+    const prepareFiles = async (paths: string[], source: 'script' | 'Finder'): Promise<{ ok: boolean; evidence: string }> => {
+      const notes: string[] = []
+      for (let tryNo = 1; tryNo <= 2; tryNo++) {
+        notes.push(source === 'script' ? await setFilesByScript(paths) : (await setFilesByFinder(paths)).evidence.slice(0, 200))
+        const { view, raw } = await readPasteboard(scripts)
+        const names = view?.filenames ?? []
+        const ok = names.length === paths.length && paths.every(p => names.includes(p))
+        notes.push(`check #${tryNo}: items=${view?.items.length ?? '?'} filenames=${JSON.stringify(names)}${view ? '' : ` (${describeCmd(raw)})`}`)
+        if (ok) return { ok, evidence: notes.join('; ') }
+      }
+      return { ok: false, evidence: notes.join('; ') }
+    }
+
+    const fileScenario = async (id: string, title: string, key: 'command' | 'control', paths: string[], reps = 3) => {
       const expected = quoted(paths)
       const attempts: Attempt[] = []
       const ev: string[] = []
-      ev.push(await setFilesByScript(paths))
-      for (const via of ['pw', 'os'] as const) {
-        attempts.push(await press(key, via, expected, 'script'))
-        // a paste must not change the clipboard; re-write anyway so each attempt starts the same
-        ev.push(await setFilesByScript(paths))
-      }
-      if (finderOk) {
-        const r = await setFilesByFinder(paths)
-        ev.push(`Finder: ${r.evidence}`)
+      for (const source of (finderOk ? ['script', 'Finder'] : ['script']) as Array<'script' | 'Finder'>) {
         for (const via of ['pw', 'os'] as const) {
-          if (!r.ok) { attempts.push({ label: `Finder / ${via}`, result: 'FAIL', evidence: 'Finder copy did not put the files on the clipboard' }); continue }
-          attempts.push(await press(key, via, expected, 'Finder'))
+          for (let i = 1; i <= reps; i++) {
+            const setup = await prepareFiles(paths, source)
+            if (i === 1 || !setup.ok) ev.push(`${source} / ${via} #${i} setup: ${setup.evidence}`)
+            if (!setup.ok) {
+              attempts.push({ label: `${key} via ${via} / ${source} #${i}`, result: 'ERROR', evidence: 'setup invalid: the clipboard did not hold exactly these files' })
+              continue
+            }
+            attempts.push(await press(key, via, expected, `${source} #${i}`))
+          }
         }
       }
       const shot = path.join(reportDir, `${slug(id)}.png`)
@@ -504,10 +521,11 @@ test('T0778 macOS paste acceptance (BUG-128 / BUG-130)', async () => {
         const info = await runCmd('osascript', ['-e', 'clipboard info'], 15_000)
         ev.push(`osascript clipboard info: ${describeCmd(info)}`)
         await xterm.click()
+        // the CLI draws the space in "[Image #1]" with a cursor move, which stripAnsi drops (run #1)
         await win.keyboard.press('Control+v')
-        const placeholder = await expect.poll(async () => /\[Image #\d+\]/.test(await since()), { timeout: 25_000, intervals: [1_000] }).toBe(true).then(() => true, () => false)
+        const placeholder = await expect.poll(async () => /\[Image\s*#\d+\]/.test(await since()), { timeout: 25_000, intervals: [1_000] }).toBe(true).then(() => true, () => false)
         const text = await since()
-        const m = /\[Image #\d+\][^\n]{0,40}/.exec(text)
+        const m = /\[Image\s*#\d+\][^\n]{0,40}/.exec(text)
         ev.push(`image placeholder in the CLI input: ${placeholder}${m ? ` (${show(m[0])})` : ''}`)
         if (!placeholder) ev.push(`output tail: ${show(text.slice(-800))}`)
         await win.screenshot({ path: path.join(reportDir, 's8-claude.png') }).catch(() => { /* ignore */ })

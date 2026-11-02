@@ -63,7 +63,14 @@ function run(argv) {
   const urls = $.NSMutableArray.array
   for (const p of argv) urls.addObject($.NSURL.fileURLWithPath(p))
   const ok = pb.writeObjects(urls)
-  return JSON.stringify({ ok: !!ok, count: argv.length })
+  // Run #1 (T0778): another process sometimes saw only the first item of a multi-URL write. Stay
+  // alive until the pasteboard reports every item (and the file name list), then a little longer.
+  const itemsAtWrite = Number(pb.pasteboardItems.count)
+  let waitedMs = 0
+  const names = () => { const v = ObjC.deepUnwrap(pb.propertyListForType('NSFilenamesPboardType')); return Array.isArray(v) ? v.length : 0 }
+  while ((Number(pb.pasteboardItems.count) < argv.length || names() < argv.length) && waitedMs < 3000) { delay(0.1); waitedMs += 100 }
+  delay(0.3)
+  return JSON.stringify({ ok: !!ok, count: argv.length, itemsAtWrite: itemsAtWrite, items: Number(pb.pasteboardItems.count), filenames: names(), waitedMs: waitedMs })
 }
 `
 
