@@ -1,15 +1,14 @@
 ---
 schema_kind: tower-state
 summary_version: 1
-updated_at: "2026-11-03T00:40:10+08:00"
-session: "2026-11-03 00:40 第一百零八 session 收工（CT v6.0.0-beta.10）"
+updated_at: "2026-11-03T01:03:10+08:00"
+session: "2026-11-03 01:02 第一百零九 session 開工（CT v6.0.0-beta.11）"
 next_ids:
   workorder: "T0797"
   decision: "D242"
   bug: "BUG-202"
   plan: "PLAN-062"
 todo:
-  - "換版到 `0.7.4-pre.1` 後若跑 NSIS 重裝驗收：讀 `%TEMP%\\bat-nsis-acceptance-<時間>\\report.md`、刪 `userdata-backup`"
   - "BUG-159（FIXED）驗收：需非系統管理員環境 ＋ codex"
   - "待驗收：Linux AppImage（Ubuntu 22.04，Electron 45）"
   - "PLAN-059：A 完成（BUG-196 CLOSED）；B = PLAN-061（IDEA low，D229）；C 待問 CT（Q5）；Q4 未解"
@@ -22,6 +21,12 @@ todo:
 > 最後更新:2026-11-03 00:40 (UTC+8) — **第一百零八 session 收工**：pre.9 NSIS 驗收；BUG-196 / 197 / 198 驗收結案（T0796 實機、T0792 安裝版 e2e）；BUG-199 / 200 / 201 測試修正（T0793 / T0794 / T0795）→ **`v0.7.4-pre.1`** 發佈並 CLOSED；移除 lean-ctx 殘留（CT ADVISORY）。前次：第一百零七 session 收工（2026-11-02 22:33）。
 >
 > **下次起手**:熱區無進行中工單、無 OPEN BUG。① 使用者換版到 `0.7.4-pre.1` 時可跑 NSIS 重裝驗收（`e2e\manual\nsis-reinstall-acceptance.ps1 -Version 0.7.4-pre.1`），讀報告並刪 `userdata-backup`；② BUG-159 需非系統管理員環境＋codex；③ Linux AppImage 待回報；④ PLAN-059 C 待問 CT（Q5）。
+
+---
+
+## 🟢 第一百零九 session（進行中）
+
+> 🟢 **第一百零九 session 開工**（2026-11-03 01:02 (UTC+8)，CT v6.0.0-beta.11，Fast Path；塔台 session `3c0519a9-727a-4151-91aa-b69ccdcadeb9`；`--set-role tower --mode on` exit 0；安裝版 FileVersion / helper `v0.7.4-pre.1`（已換版）；HEAD `737b495c`、`main` = `origin/main`（0 / 0）、工作區乾淨；熱區 192 張工單皆終態；BUG 熱區 Fixed 1（159）/ Closed 64；PLAN DONE 15 / DROPPED 2 / IDEA 8 / PLANNED 1；`bat_list_questions` pending 0；熱區檔案皆 < 400 KB）。**`v0.7.4-pre.1` NSIS 完整重裝驗收 PASS-WITH-WARN**（`e2e\manual\nsis-reinstall-acceptance.ps1` real 模式，01:00:47–01:01:25；AllUsers / HKLM；唯一 WARN = ⓪ 目前安裝版是 pre.9，② 實為升級，屬預期；① SHA-256 `8ed58046…` ② ③ ④ 全 PASS，三支 helper `--version` = v0.7.4-pre.1、內嵌 claude / codex 存在、userData 130 檔 SHA-256 未變；⑤ SKIPPED）。報告 `%TEMP%\bat-nsis-acceptance-20261103-010047\report.md`；含權杖的 `userdata-backup`（130 檔）已刪除。00:39:49 那次 FAIL = ⓪ 偵測到 BAT 仍在執行（10 個程序），前置檢查擋下、未安裝，屬設計行為。
 
 ---
 
@@ -105,10 +110,10 @@ todo:
 - **`v0.7.3-pre.9` 發佈**（第一百零七 session）：BUG-198（T0791）
 
 ### 待辦（依優先序）
-1. 🟡 **`v0.7.4-pre.1` NSIS 重裝驗收**（使用者換版時）：讀報告、刪 `userdata-backup`
-2. 🟡 **BUG-159 驗收**：需非系統管理員環境 ＋ codex
-3. 🟢 Linux AppImage（Ubuntu 22.04）待回報；t0757 偶發失敗再發生才開 BUG（D218）
-4. 🟢 PLAN-059 C（問 CT Q5）；PLAN-060 / 061 IDEA
+1. 🟡 **BUG-159 驗收**：需非系統管理員環境 ＋ codex
+2. 🟢 Linux AppImage（Ubuntu 22.04）待回報；t0757 偶發失敗再發生才開 BUG（D218）
+3. 🟢 PLAN-059 C（問 CT Q5）；PLAN-060 / 061 IDEA
+（`v0.7.4-pre.1` NSIS 重裝驗收 PASS-WITH-WARN，第一百零九 session 01:01）
 
 ### ⚠️ 鐵則
 - **所有 `gh` 指令必須帶 `-R gowerlin/better-agent-terminal`**（L122）
@@ -142,7 +147,7 @@ todo:
 | **PLAN 最大編號** | **PLAN-061** IDEA（非 Windows 的 claude 7501，D229）；PLAN-060 IDEA（macOS 簽章）；PLAN-059 PLANNED；PLAN-029 / 053 / 054 / 055 / 057 DONE |
 | **決策最大編號** | **D241**（發 `0.7.4-pre.1`，第一百零八 session） |
 | **EXP 最大編號** | **EXP-WFMINE-001**（📊 CONCLUDED 2026-10-20）；EXP-GPUWHIS-001（CONCLUDED，已歸檔） |
-| **塔台版本** | Control Tower **v6.0.0-beta.10**（第一百零三 session 起） |
+| **塔台版本** | Control Tower **v6.0.0-beta.11**（第一百零九 session 起） |
 | **unit test 基線** | **6783 passed / 385 files**；typecheck 0 / 0、vite build、legacy 472 / 33（塔台聯合驗證 @ `f5d9d4f4`，`0.7.4-pre.1`，2026-11-03 第一百零八 session）；兩套 `test:unit` 並行也全綠（T0795） |
 | **舊值** | 瘦身前的長版本見 [`_archive/state-snapshots/2026-Q4-b.md`](_archive/state-snapshots/2026-Q4-b.md)〈基本資訊舊值〉 |
 
