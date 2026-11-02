@@ -1,8 +1,8 @@
 ---
 schema_kind: tower-state
 summary_version: 1
-updated_at: "2026-11-02T11:17:34+08:00"
-session: "2026-11-02 11:17 第一百零四 session 收工（CT v6.0.0-beta.10）"
+updated_at: "2026-11-02T13:01:56+08:00"
+session: "2026-11-02 13:01 第一百零五 session 開工（CT v6.0.0-beta.10）"
 next_ids:
   workorder: "T0779"
   decision: "D219"
@@ -15,6 +15,8 @@ todo:
   - "版號線：0.7.3 線已到 pre.5（D204；最多到 pre.9）"
 ---
 # Tower State — better-agent-terminal
+
+> 🟢 **第一百零五 session 開工**（2026-11-02 13:01 (UTC+8)，CT v6.0.0-beta.10，Fast Path；塔台 session `c85c39b0-308c-4087-8f2f-2e18466a0cbd`；`--set-role tower --mode on` exit 0；安裝版 helper `v0.7.3-pre.5`；HEAD `e0c6d63d`、`main` = `origin/main`、工作區乾淨；熱區 174 張工單全為 DONE；BUG 熱區 Fixed 1（BUG-159）/ Closed 57，與 `_bug-tracker.md` 一致，免重建）。
 
 > 🛏 **第一百零四 session 已收工**（2026-11-02 11:17 (UTC+8)）。本 session 各次開工 / 重啟條目已移入下方〈本 Session 收工快照（第一百零四 session）〉時間線。
 
