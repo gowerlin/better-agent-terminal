@@ -1465,6 +1465,17 @@
 - **切分**：W2a 設計語言 + 元件 + 首頁（T0630）→ 預覽通過後 W2b（`/control-tower`、功能、FAQ、回報頁）→ W2c 遠端開發；W3 / W4 不變。
 - **相關**：PLAN-049 / D159 / D160 / T0624 / T0630
 
+### D226 2026-11-02 — PLAN-059 第一步開研究單 T0787（Q1 主、Q2 / Q3 順查），隔離實例＋假模型，不改產品程式
+
+- **背景**：PLAN-059（D219）拆分方向第 1 點是研究工單；R1（Worker `bat-notify --submit` 可能替停在權限對話框 / AskUserQuestion 的塔台作答）未確認，決定 A 是 BUG 還是改善。`v0.7.3-pre.7` NSIS 完整重裝驗收 PASS，熱區無進行中工單。
+- **決定**（使用者「刪除備份，push，然後開 PLAN-059 研究單」）：
+  1. 開 T0787（research，P1，yolo）：Q1 六種情境（權限對話框 / AskUserQuestion / idle / 預填 / `--ask --no-pty-write` / `--ask --submit`）各 ≥ 2 次，以假模型請求紀錄為證；Q2 逐一查 claude / codex / gemini / opencode 是否送 OSC 7501；Q3 只用 herdr 官方來源。
+  2. 只研究：唯一可新增的 repo 檔是探針 spec `e2e/t0787-notify-into-blocked-tower.spec.ts`；真實模型花費 0；不碰使用者的 BAT。
+  3. 產出含子項 A 的契約草案（不帶新參數行為不變），需 CT 配合的部分收單後送 CT 塔台；子項 B 依 Q2 / Q3 定範圍。PLAN-059 維持 PLANNED。
+  4. Q4（NSIS 覆蓋升級時 Terminal Server 會不會被結束）：pre.7 NSIS 驗收的前置條件就是「沒有從安裝目錄執行的程序」，所以答不了 Q4，不在本單範圍，仍留在 PLAN-059。
+- **決策者**：使用者（開單）／塔台（範圍）。2026-11-02 第一百零六 session。
+- **相關**：PLAN-059 / D219 / T0787 / T0769 / T0716
+
 ### D225 2026-11-02 — 先派 T0785（safeStorage async）與 T0786（BUG-195 測試逾時），兩張完成後一起發 `0.7.3-pre.7`
 
 - **背景**：Electron 45 已合回 main（D224）；BUG-195 一天 4 次逾時，CI Test gate 有擋發版的風險；T0785 原本排在 Electron 46 前。
