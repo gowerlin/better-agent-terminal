@@ -120,6 +120,43 @@ interface LaunchOutcome {
   result: Result
 }
 
+type RejectionListener = (reason: unknown, promise: Promise<unknown>) => void
+const PLAYWRIGHT_LAUNCH_FAILED = 'Process failed to launch!'
+
+/**
+ * `electron.launch`, without letting a launch failure stop the test (T0798).
+ *
+ * Playwright 1.59 (`playwright-core` server/electron/electron.js) waits for several stderr lines with
+ * `waitForLine`; when the app exits before printing them, every one of those promises rejects with
+ * "Process failed to launch!". The awaited one reaches our catch, but `waitForXserverError` and
+ * `chromeMatchPromise` reject unhandled, and the Playwright worker treats any unhandled rejection as fatal:
+ * it fails the test and stops it, so L2, L1b and the verdict never ran (run 41492924250, ubuntu-24.04, report
+ * with no rows). While the launch is in flight (and 1 s after a failure, for the sibling rejections), this
+ * swallows exactly that error and hands every other rejection to the worker's own listeners.
+ */
+async function launchElectron(options: Parameters<typeof electron.launch>[0]): Promise<ElectronApplication> {
+  const original = process.listeners('unhandledRejection') as RejectionListener[]
+  let swallowed = 0
+  const filter: RejectionListener = (reason, promise) => {
+    if (reason instanceof Error && reason.message === PLAYWRIGHT_LAUNCH_FAILED) { swallowed++; return }
+    for (const l of original) l(reason, promise)
+  }
+  process.removeAllListeners('unhandledRejection')
+  process.on('unhandledRejection', filter)
+  let failed = false
+  try {
+    return await electron.launch(options)
+  } catch (err) {
+    failed = true
+    throw err
+  } finally {
+    if (failed) await new Promise(r => setTimeout(r, 1000))
+    process.removeListener('unhandledRejection', filter)
+    for (const l of original) process.on('unhandledRejection', l)
+    if (swallowed) log(`launch: ignored ${swallowed} unhandled "${PLAYWRIGHT_LAUNCH_FAILED}" rejection(s) from Playwright's launch helpers`)
+  }
+}
+
 test.skip(process.platform !== 'linux', 'T0797: Linux runner only')
 test.skip(!E2E_EXECUTABLE, 'T0797: BAT_E2E_EXECUTABLE must point to the AppImage under test')
 
@@ -164,7 +201,7 @@ test('T0797 Linux AppImage launch acceptance', async () => {
     const t0 = Date.now()
     let app: ElectronApplication
     try {
-      app = await electron.launch({ executablePath: E2E_EXECUTABLE, args, env, chromiumSandbox, timeout: LAUNCH_TIMEOUT_MS })
+      app = await launchElectron({ executablePath: E2E_EXECUTABLE, args, env, chromiumSandbox, timeout: LAUNCH_TIMEOUT_MS })
     } catch (err) {
       ev.push(`launch failed after ${Date.now() - t0} ms: ${clip(errText(err))}`)
       report.add({ id, title, result: 'FAIL', evidence: ev })
