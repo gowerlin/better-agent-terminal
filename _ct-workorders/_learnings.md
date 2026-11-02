@@ -3790,3 +3790,14 @@ Codex 那張是外部測試者回報才發現；Claude 那張是使用者隨口�
 - mac 的 BUG 不要預設「只能等真人」；先看能不能用 `macos-acceptance.yml` 對交付版跑（`gh workflow run macos-acceptance.yml -R gowerlin/better-agent-terminal -f version=<版號>`）
 - 結案理由寫 run 編號，並列出 runner 驗不到的項目（實體鍵盤與輸入法、其他 macOS 版本、剪貼簿工具）
 - JXA 一次寫多個 NSURL 到剪貼簿可能只留 1 個 item：寫入後要獨立讀回確認（T0778 run #1 的誤判）
+
+## L179
+
+**來源**：第一百零五 session（2026-11-02），開 BUG-195 時塔台自己改 `_bug-tracker.md`
+
+**現象**：塔台用 `sed 's/^| _（無）_ | | | | |$/<BUG-195 列>/'` 把新 BUG 放進 Open 區段，結果 tracker 裡 VERIFY、WONTFIX 等每個空區段的佔位列長得一模一樣，三個區段都被換成 BUG-195，而且已經 push（`c04931ab`）。之後補記 BUG-195 時 grep 才發現同一列出現 3 次。
+
+**How to apply**：
+- 改 `_bug-tracker.md` / `_backlog.md` 這類「多個區段有相同佔位列」的索引：用 Edit 並把區段標題一起放進 old_string，或用行號定位；不要用全檔 `sed s/…/…/`
+- 改完照例跑 `grep -n "^| BUG-" _bug-tracker.md | awk -F'|' '{print $2}' | sort | uniq -d`（應為空）與 `npx vitest run src/types/__tests__`（parser 測試）
+- 寫給 Worker 的 tracker 更新指示也寫明「只動該列，不要全檔替換」（T0786 照此執行，沒有出錯）
