@@ -77,3 +77,28 @@ BAT 已經有的（不需動作）：「做完了但還沒看」（✓ / 淡化 
 
 - PLANNED（D219：登記為主 PLAN，後續再拆子 PLAN 與工單）。
 - 2026-11-02 第一百零六 session：拆分方向第 1 點開研究單 **T0787**（Q1 主、Q2 / Q3 順查；D226）。Q4 未解：`v0.7.3-pre.7` NSIS 重裝驗收的前置條件是 BAT 已關閉，沒有測到執行中的 Terminal Server。
+
+## T0787 結論摘要
+
+只摘要；情境表、證據、契約草案全文見 `T0787-research-notify-into-blocked-tower.md` 回報區。
+
+- **Q1 / R1 成立 → BUG（建議 High）**：
+  - 實測環境：隔離實例＋假模型、真實派工的 Worker 權杖、內嵌 claude 2.1.316，30/30 次重現。
+  - 塔台停在權限對話框時，Worker 的 `--submit`（含 CT 批次提問最後一題 `--ask --submit`）送出的 Enter 選中「1. Yes」，工具真的執行；停在 AskUserQuestion 時選中第一個選項。
+  - 塔台分頁在背景或前景結果相同。
+  - 只預填不按 Enter 不會作答，但文字被對話框吞掉。`--ask --no-pty-write` 不受影響。
+  - 另一個發現：這個 Enter 被記成塔台的「使用者輸入」（`[blocked] → cleared (user input)`）。
+- **子項 A 建議**：
+  - 主行程在目標分頁有 hook / osc `blocked` 時，把 helper 的「預填＋Enter」整組保留，離開 `blocked` 並安靜 1 s 後送出（沿用 T0769：提示待送、可取消、有上限）。
+  - helper exit code 與 stdout 不變（R3）。
+  - 契約草案 v0 有 4 項待 CT 塔台確認：上限 / 逾時、submit Enter 不算使用者輸入、可選的 `--report-hold`、預設保留的方向。
+- **Q2**：
+  - codex 0.166 主動送。
+  - claude 2.1.316 有編碼器（`app=claude-code`），但只在終端回覆 `OSC 7501 ; ?` 探詢後才送；BAT 實測 0 次回報。
+  - gemini 0.66.0 / opencode 1.19.5 字串掃描沒有。
+- **Q3**：
+  - 沒有獨立規格文件。herdr-core `schema/README.md` § Status 與 `status.rs` 是官方來源（state 6 值、`kind` = permission / question / auth、`:` 分隔、title / msg 為 base64）。
+  - 探詢的回覆格式未確認。
+  - BAT 解析器的 128 字元上限放不下帶 title / msg 的序列。
+- **子項 B 建議**：白名單（codex、claude-code），不全開；先開研究單實測「回覆 claude 探詢」，排在 A 之後。
+- 狀態維持 PLANNED。
