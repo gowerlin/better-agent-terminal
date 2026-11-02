@@ -1,5 +1,5 @@
 {
- "generated_at": "2026-11-02T15:28:01+08:00",
+ "generated_at": "2026-11-02T17:10:40+08:00",
  "generator": {
   "script": "ct-session-stats.py",
   "version": "0.1.0"
@@ -23,13 +23,13 @@
    "output": 147100
   },
   "2026-11-02": {
-   "api_requests": 181,
-   "cache_read": 66784431,
-   "cache_write": 482768,
-   "cache_write_1h": 482768,
+   "api_requests": 263,
+   "cache_read": 113625324,
+   "cache_write": 1150911,
+   "cache_write_1h": 1150911,
    "cache_write_5m": 0,
-   "input": 402,
-   "output": 165820
+   "input": 592,
+   "output": 214970
   }
  },
  "workorders": [
@@ -4035,6 +4035,94 @@
     "2.1.316"
    ],
    "workorder": "T0784"
+  },
+  {
+   "attribution": {
+    "conflict": false,
+    "source": "frontmatter",
+    "sources": {
+     "frontmatter": 1
+    }
+   },
+   "by_mcp_server": {
+    "bat": 1
+   },
+   "by_tool": {
+    "Bash": 60,
+    "Edit": 8,
+    "PowerShell": 4,
+    "Read": 2,
+    "ToolSearch": 1,
+    "Write": 1,
+    "mcp__bat__bat_wait_question": 1
+   },
+   "counts": {
+    "api_requests": 71,
+    "failures": 1,
+    "same_file_read_ge3": 0,
+    "subagent_files": 0,
+    "tool_calls": 77
+   },
+   "end": "2026-11-02T09:09:56Z",
+   "est_usd": 4.6593,
+   "failures_by_tool": {
+    "Bash": 1
+   },
+   "renews": 0,
+   "sessions": 1,
+   "skills_invoked": {},
+   "start": "2026-11-02T08:58:45Z",
+   "stuck": {
+    "max_consecutive_failures": 1,
+    "max_failures_in_10_calls": 1,
+    "near_repeat_fail_pairs_j50": 0,
+    "repeat_fail_groups_norm": 0
+   },
+   "stuck_signal": false,
+   "subagent_tokens": {
+    "cache_read": 0,
+    "cache_write": 0,
+    "cache_write_1h": 0,
+    "cache_write_5m": 0,
+    "input": 0,
+    "output": 0
+   },
+   "tokens": {
+    "cache_read": 11755414,
+    "cache_write": 172687,
+    "cache_write_1h": 172687,
+    "cache_write_5m": 0,
+    "input": 142,
+    "output": 46307
+   },
+   "top_tools": [
+    [
+     "Bash",
+     60
+    ],
+    [
+     "Edit",
+     8
+    ],
+    [
+     "PowerShell",
+     4
+    ],
+    [
+     "Read",
+     2
+    ],
+    [
+     "ToolSearch",
+     1
+    ]
+   ],
+   "type": "implementation",
+   "unpriced_tokens": 0,
+   "versions": [
+    "2.1.316"
+   ],
+   "workorder": "T0785"
   }
  ]
 }

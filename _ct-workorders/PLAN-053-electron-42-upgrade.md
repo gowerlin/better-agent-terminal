@@ -3,7 +3,8 @@ schema_version: 1
 schema_kind: plan
 id: PLAN-053
 title: "升級 Electron 42+（Chromium 148+）：Electron 41 已停止更新；Graphite out-of-order CHECK 改為 GPU 程序重啟"
-status: IN_PROGRESS
+status: DONE
+completed_at: "2026-11-02T17:10:40+0800"
 priority: high
 created_at: "2026-10-19T12:41:35+0800"
 links:
@@ -74,3 +75,9 @@ links:
 - T0784 三平台驗收：`desktop-build -f ref=ct/T0784` run `41406521021` 全綠（三平台 electron=45.2.1、Linux typecheck / tests 綠、mac 未簽章）；`macos-acceptance --ref ct/T0784 -f build_run_id=41406521021` run `41407564434` 全 PASS（app 0.0.0-exp.784 / Electron 45.2.1；Finder 複製實際格式含 `text/uri-list`，BAT `source=uri-list`）。
 - 模式 ① 機械合併（五條判準成立）：`ct-merge/T0784` merge commit `9f2ed99c`（parent1 `5ec89fc5`、parent2 `08b26812`），使用者斷點 E 確認後 `--ff-only` → main `9f2ed99c`；worktree 已移除，分支保留待使用者同意刪除。
 - 剩：T0785（safeStorage async，Electron 46 前）；macOS 簽章另見 PLAN-060。全部完成後本 PLAN 改 DONE。
+
+## 塔台收尾補記（2026-11-02 第一百零五 session）
+
+- **DONE**：T0779（41.10.7）、T0781（研究）、T0783（只 build 的三平台 workflow）、T0784（Electron 45.2.1，`9f2ed99c` 合回 main）、T0785（safeStorage async，`ca0d1509`；含 20 支 e2e 改 `decryptStringAsync`）皆完成。
+- 交付驗證：隨 `0.7.3-pre.7` 發佈（D225），release 前 NSIS 完整重裝驗收；macOS 系統通知不顯示屬已知事項，簽章另見 PLAN-060。
+- 下一次大版本：Electron 45 暫定支援到 2027-04-27；46 預定 2027-01-05 stable，屆時另開 PLAN。
