@@ -3,9 +3,10 @@ schema_version: 1
 schema_kind: plan
 id: PLAN-054
 title: "CT Workflow 智能的 BAT 側事項：B4 MCP 政策文件、B6 CT 面板讀 workflow 欄位（等 CT v5.11.0）"
-status: PLANNED
+status: DONE
 priority: low
 created_at: "2026-10-20T17:29:22+0800"
+completed_at: "2026-11-02T14:00:57+0800"
 links:
   source: "BMad-Guide 塔台 HANDOVER `D:\\ForgejoGit\\@Gower_Labs\\BMad-Guide\\_ct-workorders\\_handover-2026-10-20-bat-workflow-intelligence.md` §3；使用者 2026-10-20 指示「開 PLAN-054 照建議，B1 先不做」"
   related: [EXP-WFMINE-001, T0673, PLAN-041, PLAN-047, CT-T015]
@@ -42,3 +43,9 @@ B8 試點已由 EXP-WFMINE-001 / T0673 完成（`84e21f2d`）。結論之一（�
 
 1. ~~B4 跟哪一版一起發~~ → 使用者 2026-10-20 決定：併入下一次發版批次，跟該批工單一起開單。
 2. B6 延後（CT D090：具名 workflow 停在 🔵、不參與派發；v5.11.0 不定義 `execution` / `workflow` / `workflow_run_id` / `workflow_stats`）。回測報告：`D:\ForgejoGit\@Gower_Labs\BMad-Guide\_ct-workorders\T0182-report-workflow-backtest.md`（BAT T0653 召回 88% 但沒重現推翻 T0646 的結論；T0534 召回 61%）。CT 重新定義欄位、發出契約後再評估欄位、顯示位置（CT 面板工單列 / 詳情）與 parser（`src/types/` 工單 frontmatter 解析）。
+
+## 塔台收尾補記（2026-11-02 第一百零五 session，D220）
+
+- **結案**：DONE。範圍內可做的都已交付：B4（T0687，`873e6efb`，隨 `v0.7.1-pre.5` 發佈）、B8（EXP-WFMINE-001 / T0673）。B1 / B2 / B3 / B5 / B7 原本就是不做或不排程。
+- **B6 不在本 PLAN 續做**：CT v6.0.0-beta.10 `references/workflow-engine.md`〈尚未定案（待卡片達 🟡 後再定，D090）〉仍寫明工單 frontmatter 欄位（`execution`、`workflow`、`workflow_args`、`workflow_budget`、`workflow_run_id`、`workflow_stats`）與交給 BAT 的欄位介面契約「BAT PLAN-054 的 B6 一併延後」；閘門 G2 未通過（D089），兩張知識卡停在 🔵。等 CT 定義欄位、G2 通過並以 HANDOVER 或 CT-T### 發出契約後，另開新 PLAN。
+- **不要混淆**：v6 方法論轉接的 `methodology.layers.<層>.workflow`（例 `pstack:poteto-mode`）是方法論 adapter 欄位，不是 B6 的 Claude Code Workflow 執行欄位。CT 面板若要顯示方法論欄位，屬新需求，另開 PLAN。

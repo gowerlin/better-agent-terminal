@@ -1465,6 +1465,15 @@
 - **切分**：W2a 設計語言 + 元件 + 首頁（T0630）→ 預覽通過後 W2b（`/control-tower`、功能、FAQ、回報頁）→ W2c 遠端開發；W3 / W4 不變。
 - **相關**：PLAN-049 / D159 / D160 / T0624 / T0630
 
+### D220 2026-11-02 — PLAN-054 結案 DONE；B6 等 CT 定義 workflow 欄位與契約後另開新 PLAN
+
+- **背景**：使用者問 CT v6 之後 PLAN-054 是否還需推進。塔台查 CT v6.0.0-beta.10 `references/workflow-engine.md`〈尚未定案（待卡片達 🟡 後再定，D090）〉：工單 workflow 執行欄位（`execution`、`workflow_run_id`、`workflow_stats` 等）與交給 BAT 的介面契約仍延後，並點名「BAT PLAN-054 的 B6 一併延後」；G2 未通過。v6 方法論轉接的 `methodology.layers.<層>.workflow` 是另一回事。
+- **決定**（使用者「改」）：
+  1. PLAN-054 改 DONE：B4（T0687）、B8（T0673）已交付，其餘原本就不做或不排程；文末補〈塔台收尾補記〉。
+  2. B6 不留在本 PLAN：CT 定義欄位、G2 通過並以 HANDOVER 或 CT-T### 發出契約後另開新 PLAN。CT 面板顯示方法論欄位屬新需求，另開 PLAN。
+- **決策者**：使用者（塔台建議，依 R-G003）。2026-11-02 第一百零五 session。
+- **相關**：PLAN-054 / T0687 / T0673 / EXP-WFMINE-001 / D179
+
 ### D219 2026-11-02 — Herdr 對照研究登記為主 PLAN-059；子 PLAN 與工單之後再拆
 
 - **背景**：使用者要求比較 Herdr（2026-10 底推出的原生桌面版與 herdr-core 運行時期）與 BAT，研究值得借鏡的功能與移植可行性。塔台以 herdrdev 兩個官方 repo 的 README 與 docs（GitHub API）對照 BAT，產出研究報告 Artifact「Herdr 對照 BAT」。查證過程發現 `pty:write` 不看目標分頁是否 blocked（`electron/handlers/pty.ts:104`），Worker 的 `--submit` 通知可能打進停在權限對話框的塔台（未實測）。
