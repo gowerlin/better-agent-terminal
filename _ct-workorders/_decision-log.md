@@ -1465,6 +1465,20 @@
 - **切分**：W2a 設計語言 + 元件 + 首頁（T0630）→ 預覽通過後 W2b（`/control-tower`、功能、FAQ、回報頁）→ W2c 遠端開發；W3 / W4 不變。
 - **相關**：PLAN-049 / D159 / D160 / T0624 / T0630
 
+### D221 2026-11-02 — 其餘 PLAN 狀態核對：PLAN-053 調 high 並先升 Electron 41.10.7（T0779）；PLAN-029 R3 刪除 `git-poc`（T0780）；其他維持 IDEA
+
+- **背景**：使用者要求逐張核對未結 PLAN。塔台以 grep 與 lock 檔核對前提：
+  - PLAN-053：`package-lock.json` 鎖 Electron 41.2.1；41 線最後一版 41.10.7 已停止更新，npm `latest` 45.2.1。
+  - PLAN-029：R5 已完成（T0309）；R3 的 `src/components/git-poc/` 與 `vite.config.benchmark.ts` 都沒有被引用（T0154 benchmark 殘留）。
+  - PLAN-015（雙 render 路徑）、PLAN-038（遠端附件上傳）、PLAN-043（WSL Phase 2 / 3）、PLAN-051（跨塔台傳訊，D169 觸發條件未成立）、PLAN-052（Docker 三個前提仍成立）：前提仍在、無需求或觸發。
+- **決定**（使用者「補，053 調 high 開 41.10.7 小單，029 開刪除單」；043 / 051 / 052 前一輪「補，第 2 點先記著」）：
+  1. 各 PLAN 補〈2026-11-02 狀態核對〉；PLAN-051 更正 codex daemon 前提；PLAN-052 與 PLAN-059 E 互相連結；`docs/plan-007-release-checklist.md` 第 63 行 mirrored 措辭記在 PLAN-043，下次 WSL 工單一併改。
+  2. PLAN-053 優先度 low → high；開 T0779（41.2.1 → 41.10.7，不升大版本）。主升級待 T0779 收單後重新查目標版本並拆研究單。
+  3. PLAN-029 R3 採選項 C：開 T0780 刪除；完成後 PLAN-029 DONE。
+  4. 派工順序 T0780 → T0779（兩張都要 build，不並行）。
+- **決策者**：使用者。2026-11-02 第一百零五 session。
+- **相關**：PLAN-053 / PLAN-029 / PLAN-015 / PLAN-038 / PLAN-043 / PLAN-051 / PLAN-052 / T0779 / T0780 / T0668 / T0309 / T0154
+
 ### D220 2026-11-02 — PLAN-054 結案 DONE；B6 等 CT 定義 workflow 欄位與契約後另開新 PLAN
 
 - **背景**：使用者問 CT v6 之後 PLAN-054 是否還需推進。塔台查 CT v6.0.0-beta.10 `references/workflow-engine.md`〈尚未定案（待卡片達 🟡 後再定，D090）〉：工單 workflow 執行欄位（`execution`、`workflow_run_id`、`workflow_stats` 等）與交給 BAT 的介面契約仍延後，並點名「BAT PLAN-054 的 B6 一併延後」；G2 未通過。v6 方法論轉接的 `methodology.layers.<層>.workflow` 是另一回事。

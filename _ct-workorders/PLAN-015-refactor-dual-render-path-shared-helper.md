@@ -90,3 +90,7 @@ T0155 加 `'git-graph'` 成員時只補了 `App.tsx`，漏 `WorkspaceView.tsx` �
 - T0158 已用方案 A（最小修改）關閉 BUG-037，本 PLAN 純屬結構清理
 - 建議等 PLAN-014 Phase 3 Tα3 及後續 panel 功能穩定後再動手（避免開發中途動架構）
 - 若決定執行，先派研究工單（T-xxxx）確認 App/WorkspaceView context 差異面，再派實作工單
+
+## 2026-11-02 狀態核對（第一百零五 session，塔台 grep 核對）
+
+- **維持 IDEA**：前提仍成立。`src/App.tsx` `renderDockablePanel`（約 977 行）與 `src/components/WorkspaceView.tsx` `renderTabContent`（約 1156 行）仍是兩套 switch；面板清單也有兩份型別（`src/types/index.ts` `DockablePanel` 與 `WorkspaceView.tsx` 的 `WorkspaceTab`）。BUG-037 之後未見同類問題再發生；屬預防性重構，無急迫性。

@@ -76,3 +76,8 @@ created_at: "2026-04-26T20:42:00+08:00"
 ## 回報區
 
 > （IDEA 階段，待拍板轉 PLANNED 後再填）
+
+## 2026-11-02 狀態核對（第一百零五 session，D221）
+
+- R5 已完成（T0309，`vite.config.ts` `manualChunks` 的 `setup-wizard`）。
+- R3：塔台 grep 核對整個 `src/components/git-poc/` 都沒有被引用（`GitPocPlaceholder` 無引用、benchmark 不在任何 build entry、`vite.config.benchmark.ts` 無 npm script 使用；`SvgCommitGraph` / `useVirtualizer` 已於 T0154 搬到 `src/components/git-panel/`）。使用者決定採選項 C 刪除 → 開 **T0780**。T0780 完成後本 PLAN 改 DONE。

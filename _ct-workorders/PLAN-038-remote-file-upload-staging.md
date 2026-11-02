@@ -6,7 +6,7 @@ title: 本機檔案上傳到遠端暫存目錄（SSH 附件、Docker 掛載外�
 status: IDEA
 priority: low
 created_at: "2026-10-05T05:51:45+08:00"
-updated_at: "2026-10-05T05:51:45+08:00"
+updated_at: "2026-11-02T14:07:33+0800"
 links:
   research_workorder: T0421
   related: [BUG-105, PLAN-036, D134]
@@ -37,3 +37,7 @@ links:
 ## 不在範圍
 
 - 雙向同步、資料夾上傳
+
+## 2026-11-02 狀態核對（第一百零五 session）
+
+- **維持 IDEA**：前提仍成立。遠端遇到本機附件仍是 T0437 的「拒絕並提示」，沒有上傳用的 channel；沒有使用者回報需要。
