@@ -1465,6 +1465,16 @@
 - **切分**：W2a 設計語言 + 元件 + 首頁（T0630）→ 預覽通過後 W2b（`/control-tower`、功能、FAQ、回報頁）→ W2c 遠端開發；W3 / W4 不變。
 - **相關**：PLAN-049 / D159 / D160 / T0624 / T0630
 
+### D231 2026-11-02 — 開 BUG-198（low）不擋 `0.7.3-pre.8`；授權塔台一路完成 pre.8 發版
+
+- **背景**：T0790 DONE，BUG-197 FIXED。T0790 查證時發現 BUG-198：上一回合晚到的 `stop` 會讓新回合提早結束（`↻` → `✓`），只影響標示與批次關閉的判斷。
+- **決定**（使用者兩題皆選建議）：
+  1. 開 BUG-198（OPEN，low），排下一版；用 T0790 的 `at` 修。
+  2. 授權塔台照慣例一路完成：聯合驗證 → 去識別化與金鑰掃描 → push main → `pre-release.yml -f version=0.7.3-pre.8` → 更版重點 → CHANGELOG / release-note → Pages / link-check → 通知 CT 塔台版號（CT T0399）。任一關卡失敗就停下回報。
+  3. 更版重點含〈歡迎協助測試〉：notify-hold 涵蓋 Codex 塔台（D153）。
+- **決策者**：使用者。2026-11-02 第一百零六 session。
+- **相關**：BUG-196 / BUG-197 / BUG-198 / T0788 / T0790 / D230
+
 ### D230 2026-11-02 — 先修 BUG-197（T0790）再與 BUG-196 一起發 `0.7.3-pre.8`
 
 - **背景**：T0788 DONE，BUG-196 FIXED。T0788 發現 BUG-197：hook 回報亂序，晚到的 `user-prompt-submit` 清掉 blocked（e2e 60 次中 1 次）。這時 notify-hold 不會觸發，`--submit` 仍可能替使用者作答。
