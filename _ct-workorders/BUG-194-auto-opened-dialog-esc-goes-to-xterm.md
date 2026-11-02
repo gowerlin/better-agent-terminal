@@ -3,12 +3,14 @@ schema_version: 1
 schema_kind: bug
 id: BUG-194
 title: "自動開啟的對話框（recovery 後「被中斷的分頁」）第一次按 Esc 關不掉，Esc 送進背景分頁的 PTY"
-status: FIXED
+status: CLOSED
 severity: low
 reproducibility: always
 created_at: "2026-11-02T05:26:29+0800"
-updated_at: "2026-11-02T09:59:20+08:00"
+updated_at: "2026-11-02T10:50:16+0800"
 fixed_at: "2026-11-02T05:56:34+0800"
+closed_at: "2026-11-02T10:50:16+0800"
+closed_reason: verified
 fix_commit: e717c786
 impact:
   - dialog
@@ -23,7 +25,7 @@ links:
 |------|------|
 | 嚴重度 | 🟢 low（recovery 後 agent 分頁已只剩 shell，影響小；但違反「Esc 統一」規則，其他自動開啟的 Dialog 可能同樣） |
 | 可重現 | 必現（T0773 兩次執行） |
-| **狀態** | ✅ FIXED（T0776 `e717c786`，已發版 `v0.7.3-pre.5`，待驗收） |
+| **狀態** | 🚫 CLOSED（T0776 `e717c786`；交付版 `v0.7.3-pre.5` 安裝版自動化實測 T0777 PASS） |
 | 回報者 | T0773 Worker（F1） |
 
 ## 現象
@@ -43,3 +45,8 @@ links:
 - 驗證：單元 12 項＋3 種突變；e2e t0776 修正前失敗、修正後 ①（recovery 對話框）② Settings 第一次 Esc 關閉、PTY 沒收到、焦點回 xterm；t0563 / t0567 / t0766 / t0767 不回歸；typecheck 0 / 0、`test:unit` 6705 passed / 382 files、`vite build`。塔台複跑 `dialog-auto-focus` ＋ `dialog-escape` 33 / 33。
 - 行為變化：所有 Dialog 關閉後焦點回到開啟前的元素（原本落在 `<body>`）。
 - 未涵蓋：`RecoveryPrompt` 只有單元測試。
+
+## 驗收（2026-11-02T10:50:16+0800，第一百零四 session）
+
+- 依據（R-G003）：交付版 `v0.7.3-pre.5` 安裝版（`BAT_E2E_EXECUTABLE`，隔離實例）T0777（`e1e7f2d1` / 回報 `954b0348`）跑 t0776 PASS：`InterruptedAgentsDialog`（只結束隔離實例自己的 Terminal Server）與 Settings（`app:open-settings`）自動開啟時焦點在遮罩、第一次 Esc 關閉、PTY 沒收到 `1b`、關閉後焦點回 xterm；記錄器以「未開 Dialog 時 Esc 進 PTY」對照有效。不回歸 t0563 / t0567 綠。
+- 未涵蓋（只有單元測試）：`AppNotificationDialog`、`RecoveryPrompt`（後者沒有 `onEscape`、Esc 本來就被擋）。

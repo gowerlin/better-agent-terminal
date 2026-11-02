@@ -3,12 +3,14 @@ schema_version: 1
 schema_kind: bug
 id: BUG-193
 title: "視窗沒有焦點時留下的淡化 ⚠️，點另一個分頁取回焦點時被當成「看過」清掉"
-status: FIXED
+status: CLOSED
 severity: low
 reproducibility: always
 created_at: "2026-11-02T05:24:41+0800"
-updated_at: "2026-11-02T09:59:20+08:00"
+updated_at: "2026-11-02T10:50:16+0800"
 fixed_at: "2026-11-02T05:38:26+0800"
+closed_at: "2026-11-02T10:50:16+0800"
+closed_reason: verified
 fix_commit: bd59ab0f
 impact:
   - terminal-attention
@@ -22,7 +24,7 @@ links:
 |------|------|
 | 嚴重度 | 🟢 low（淡化 ⚠️ 提早消失，使用者可能錯過那個分頁的等待結束） |
 | 可重現 | Playwright 滑鼠點擊必現；實體滑鼠未實測 |
-| **狀態** | ✅ FIXED（T0774 `bd59ab0f`，已發版 `v0.7.3-pre.5`，待驗收） |
+| **狀態** | 🚫 CLOSED（T0774 `bd59ab0f`；交付版 `v0.7.3-pre.5` 安裝版自動化實測 T0777 PASS，含作業系統真實點擊） |
 | 回報者 | T0770 Worker（觀察 2），使用者裁示修正（D216） |
 
 ## 現象
@@ -38,3 +40,8 @@ links:
 - 修正：視窗由失焦變有焦點時暫緩當下 active 的分頁（`createFocusRegainGate`，`src/stores/terminal-attention-store.ts`）；100 ms 內沒有 `pointerdown` → 照 D203 判斷；有 → 等 `pointerup` 後 50 ms 再判斷（仍停在原分頁才算看過）；上限 10 s。常數集中在 `src/lib/terminal-attention.ts`；`App.tsx` viewing effect 接 focus / blur / pointer 事件；`nextWaitMemory` 未改。日誌 `[workspace-waiting] focus regain: … → looked at|kept`。
 - 驗證：單元 12 案＋突變（9 案失敗）；e2e t0770 新增 E，修正前失敗、修正後 A–E 全 PASS；t0735 / t0761 / t0762 綠；typecheck 0 / 0、`test:unit` 6693 passed / 381 files、`vite build`。塔台複跑新單元 12 / 12。
 - 已知：Alt+Tab 回來後淡化最多延後 100 ms 清除；macOS / Linux 事件順序未實測。
+
+## 驗收（2026-11-02T10:50:16+0800，第一百零四 session）
+
+- 依據（R-G003）：交付版 `v0.7.3-pre.5` 安裝版（`BAT_E2E_EXECUTABLE`，隔離實例）T0777（`e1e7f2d1` / 回報 `954b0348`）：t0770 A–E PASS（E：Playwright 點另一個分頁取回焦點 → 原分頁淡化保留）；新 `e2e/t0777-real-click-focus-regain.spec.ts` 以 user32 `SetCursorPos` + `mouse_event` 真實點擊（點前 HWND 比對 `rootMatches:true`）→ 淡化保留、log `focus regain: … → kept`；切回 → 清除。不回歸 t0735 / t0761 / t0762 / t0757 綠。
+- 未涵蓋：多螢幕、Alt+Tab 後點擊、觸控板；macOS / Linux。
