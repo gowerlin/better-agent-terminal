@@ -10,7 +10,7 @@ next_ids:
   plan: "PLAN-061"
 todo:
   - "熱區無進行中工單。T0779 DONE（Electron 41.10.7，`a09887fb`；macOS / Linux 待下次預覽版 CI 三平台 build 與 `macos-acceptance.yml`）；T0780 DONE（PLAN-029 DONE）"
-  - "PLAN-053 DONE（Electron 45 合回 main `9f2ed99c`、T0785 `ca0d1509`）；分支 `ct/T0784`、`ct-merge/T0784`、origin `ct/T0784` 待使用者同意刪除"
+  - "PLAN-053 DONE（Electron 45 合回 main `9f2ed99c`、T0785 `ca0d1509`）；分支 `ct/T0784`、`ct-merge/T0784`、origin `ct/T0784` 已刪除（使用者同意，`git branch -d`）"
   - "`v0.7.3-pre.7` 已發佈（Electron 45.2.1；2026-11-02T09:35:29Z；macOS 交付版驗收 PASS run `41422176485`）；待驗收：NSIS 完整重裝（使用者關 BAT 跑 `e2e\manual\nsis-reinstall-acceptance.ps1 -Version 0.7.3-pre.7`）、Linux AppImage（Ubuntu 22.04）"
   - "PLAN-060（IDEA）：macOS Developer ID 簽章與公證（使用者先接受不顯示系統通知，D224）"
   - "熱區 BUG：Open 0 / Fixed 1（BUG-159）/ Closed 58；BUG-195 CLOSED（pre.7 CI Test gate 綠）"
