@@ -256,7 +256,7 @@
 
 ## Electron Runtime
 
-- 本專案使用 Electron 41.x（Node 24、Chromium M146）；於 PLAN-016 Phase 2 從 Electron 28.3.3 升級（EXP-ELECTRON41-001 CONCLUDED）。
+- 本專案使用 Electron 41.x（Node 24、Chromium M146）；於 PLAN-016 Phase 2 從 Electron 28.3.3 升級（EXP-ELECTRON41-001 CONCLUDED）。目前版號 **41.10.7**（T0779，2026-11-02 從 41.2.1 升；Node 24.18.0、Chromium 146.0.7680.216、ABI 145 不變）。41 線已停止更新（41.10.7 是最後一版，T0668），大版本升級見 PLAN-053。
 - native modules（Electron ABI 145）：目前沒有任何原生模組需要針對 Electron 重建。`@lydell/node-pty`、`@kutalia/whisper-node-addon` 都直接使用上游 prebuilt binary。`sharp`（含 `@img/*`）只是 devDependency，給 `scripts/generate-icons.js` 用，桌面 app 與 server bundle 都不打包（T0503）。T0492 移除了 app 與 server bundle 都沒用到的 `better-sqlite3`，postinstall 裡的 `electron-rebuild -f -w better-sqlite3`（T0473）也一起刪掉。T0492 在乾淨的 `npm ci` 上跑 `npx @electron/rebuild`：win32-x64 與 linux-x64 都是 0 個模組要重建，因為 prod 樹裡已沒有任何套件在根目錄放 `binding.gyp`（`sharp` 的在 `src/` 底下，不會被掃到）。CI 桌面 build job 的 `npx --yes @electron/rebuild` step 仍保留，原因是 darwin-arm64 host 沒有實測，留著當保險（現在等同 no-op）。日後若新增需要 Electron ABI 的原生模組，要加回 postinstall rebuild（不經 `npm rebuild`，見下節「根 `postinstall`」），並把它列進 `verify-native-modules.js`。**不要**用 `npm rebuild <pkg>` 重建這類模組：它會重跑套件的 install script，`prebuild-install` 預設 `runtime=node`，下載回來的是 Node ABI 的 prebuilt，反而造成 `NODE_MODULE_VERSION mismatch`（T0473 以 npm 11.19.0 實測過）。
 - BAT 內執行 `npm run dev` 需確認 `ELECTRON_RUN_AS_NODE` 未被污染（見 BUG-038 / T0161）。若 renderer 無法啟動且 log 出現 `ELECTRON_RUN_AS_NODE=1`，清除該環境變數後重試。
 - electron-builder 26.x（2026-04-18 PLAN-005 / EXP-BUILDER26-001 CONCLUDED，原 24.13.3 → 26.8.1，清除 9 個 Group A CVE，見 PLAN-003 Group A）。
