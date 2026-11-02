@@ -1465,6 +1465,13 @@
 - **切分**：W2a 設計語言 + 元件 + 首頁（T0630）→ 預覽通過後 W2b（`/control-tower`、功能、FAQ、回報頁）→ W2c 遠端開發；W3 / W4 不變。
 - **相關**：PLAN-049 / D159 / D160 / T0624 / T0630
 
+### D241 2026-11-03 — 發 `0.7.4-pre.1`（BUG-199 / 200 / 201 測試修正）
+
+- **背景**：BUG-196 / 197 / 198 已 CLOSED；BUG-199 / 200 / 201（測試穩定性 / 隔離）FIXED，待 CI Test gate。版號線 `0.7.4-pre.N`（D236）。自 `v0.7.3-pre.9` 起非 `(ct)` commit 只有測試與開發用部署腳本（`f03adbd6` / `1b46a400` / `2b3f0b1b` / `216973bb` / `6c2b6b93`），產品行為無變更；另移除 lean-ctx 殘留（D239）。
+- **決定**（使用者「a」）：照慣例發 `0.7.4-pre.1`：聯合驗證 → 去識別化與金鑰掃描 → push main → `pre-release.yml -f version=0.7.4-pre.1` → 更版重點 → CHANGELOG / release-note / README / package.json → Pages / link-check。任一關卡失敗就停下回報。無 codex 相關變更，不寫〈歡迎協助測試〉。CI Test gate 綠 → BUG-199 / 200 / 201 CLOSED。
+- **決策者**：使用者。2026-11-03 第一百零八 session。
+- **相關**：D236 / D240 / BUG-199 / BUG-200 / BUG-201 / T0793 / T0794 / T0795
+
 ### D240 2026-11-03 — BUG-196 實機驗收：以 AskUserQuestion 對話框代替權限對話框（T0796 空工單）
 
 - **背景**：使用者「push 先做 BUG-196 實機驗收」。本塔台 session 是 bypass 權限模式，不會出現權限對話框；BUG-196 的 R1 同樣涵蓋 AskUserQuestion（T0787：30 / 30）。

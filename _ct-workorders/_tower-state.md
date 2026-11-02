@@ -5,7 +5,7 @@ updated_at: "2026-11-03T00:16:05+08:00"
 session: "2026-11-03 00:16 第一百零八 session 進行中（CT v6.0.0-beta.10）：BUG-196 CLOSED，熱區無進行中工單"
 next_ids:
   workorder: "T0797"
-  decision: "D241"
+  decision: "D242"
   bug: "BUG-202"
   plan: "PLAN-062"
 todo:
