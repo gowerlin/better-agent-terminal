@@ -167,39 +167,88 @@ jobs:
 
       # Static facts from the extracted image (no FUSE needed): glibc symbol versions the binaries require,
       # unresolved libraries, the chrome-sandbox mode and whether AppRun adds --no-sandbox by itself.
+      # Informational only (T0798): a check that cannot get its value records `n/a` and the error text; nothing
+      # here fails the job or cuts the list short. The default shell is `bash -e {0}`: with errexit + pipefail,
+      # one ELF file without GLIBC symbol versions made `v=$(max_glibc …)` fail, which ended the loop after a few
+      # files and failed the step before the Playwright run (run 41491827025). So errexit and pipefail are off
+      # and every helper returns 0.
       - name: Inspect the AppImage
         run: |
-          set -uo pipefail
+          set +e +o pipefail
+          set -u
           chmod +x "$APPIMAGE"
           x="$RUNNER_TEMP/extract"
+          rm -rf "$x"
           mkdir -p "$x"
-          (cd "$x" && "$APPIMAGE" --appimage-extract >/dev/null)
           root="$x/squashfs-root"
-          bin=$(sed -n 's/^BIN="\$APPDIR\/\(.*\)"$/\1/p' "$root/AppRun" | head -n 1)
-          max_glibc() { objdump -T "$1" 2>/dev/null | grep -o 'GLIBC_[0-9.]*' | sort -uV | tail -n 1; }
+          (cd "$x" && "$APPIMAGE" --appimage-extract >/dev/null 2>"$x.err")
+          extract_rc=$?
+          sys_glibc=$(ldd --version 2>/dev/null | head -n 1 | grep -o '[0-9][0-9]*\.[0-9][0-9]*$')
+          # highest GLIBC_x.y the file references; `none` (no glibc symbol versions) or `n/a (objdump: …)`
+          max_glibc() {
+            local out
+            if ! out=$(objdump -T "$1" 2>&1); then
+              printf 'n/a (objdump: %s)' "$(printf '%s\n' "${out//"$root"\//}" | head -n 1)"
+              return 0
+            fi
+            out=$(printf '%s\n' "$out" | grep -o 'GLIBC_[0-9][0-9.]*' | sort -uV | tail -n 1)
+            printf '%s' "${out:-none}"
+          }
+          # ` (above this system's glibc 2.35)` when a GLIBC_x.y requirement is newer than this system's glibc
+          above_system() {
+            case "$1" in GLIBC_[0-9]*) ;; *) return 0 ;; esac
+            [ -n "$sys_glibc" ] || return 0
+            local v="${1#GLIBC_}"
+            if [ "$v" != "$sys_glibc" ] && [ "$(printf '%s\n%s\n' "$sys_glibc" "$v" | sort -V | tail -n 1)" = "$v" ]; then
+              printf " (above this system's glibc %s)" "$sys_glibc"
+            fi
+            return 0
+          }
           {
             echo "## AppImage inspection (${{ matrix.os }})"
             echo '```'
-            echo "file: $(basename "$APPIMAGE") ($(stat -c %s "$APPIMAGE") bytes)"
-            echo "AppRun BIN: ${bin:-?}"
-            echo "AppRun adds --no-sandbox: $(grep -c -- '--no-sandbox' "$root/AppRun" || true) occurrence(s)"
-            echo "desktop Exec: $(grep -h '^Exec=' "$root"/*.desktop 2>/dev/null | head -n 1)"
-            echo "chrome-sandbox: $(stat -c '%A %U:%G' "$root/chrome-sandbox" 2>/dev/null || echo absent)"
-            if [ -n "$bin" ] && [ -f "$root/$bin" ]; then
-              echo "main binary max GLIBC: $(max_glibc "$root/$bin")"
-              echo "main binary unresolved libraries:"
-              ldd "$root/$bin" | grep 'not found' || echo "  (none)"
+            echo "file: $(basename "$APPIMAGE") ($(stat -c %s "$APPIMAGE" 2>/dev/null || echo n/a) bytes)"
+            echo "system glibc: ${sys_glibc:-n/a}"
+            if [ "$extract_rc" -ne 0 ] || [ ! -f "$root/AppRun" ]; then
+              echo "--appimage-extract: n/a (exit $extract_rc: $(head -n 3 "$x.err" 2>/dev/null | tr '\n' ' '))"
+            else
+              bin=$(sed -n 's/^BIN="\$APPDIR\/\(.*\)"$/\1/p' "$root/AppRun" | head -n 1)
+              echo "AppRun BIN: ${bin:-?}"
+              echo "AppRun adds --no-sandbox: $(grep -c -- '--no-sandbox' "$root/AppRun") occurrence(s)"
+              echo "desktop Exec: $(grep -h '^Exec=' "$root"/*.desktop 2>/dev/null | head -n 1)"
+              echo "chrome-sandbox: $(stat -c '%A %U:%G' "$root/chrome-sandbox" 2>/dev/null || echo absent)"
+              if [ -n "$bin" ] && [ -f "$root/$bin" ]; then
+                echo "main binary max GLIBC: $(max_glibc "$root/$bin")"
+                echo "main binary unresolved libraries:"
+                ldd "$root/$bin" 2>&1 | grep 'not found' || echo "  (none)"
+              fi
+              # every ELF file in the image, not a top-N: the whisper addon's .so files sit far down the list
+              mapfile -d '' files < <(find "$root" -type f \( -perm -u+x -o -name '*.so' -o -name '*.so.*' -o -name '*.node' \) -print0 2>/dev/null)
+              rows=()
+              ldd_rows=()
+              for f in "${files[@]}"; do
+                [ "$(head -c 4 "$f" 2>/dev/null | od -An -tx1 | tr -d ' \n')" = "7f454c46" ] || continue
+                rel="${f#"$root"/}"
+                v=$(max_glibc "$f")
+                rows+=("$v $rel$(above_system "$v")")
+                while IFS= read -r line; do
+                  [ -n "$line" ] && ldd_rows+=("$rel: ${line//"$root"\//}")
+                done < <(ldd "$f" 2>&1 | grep 'not found' | sed 's/^[[:space:]]*//')
+              done
+              echo "highest GLIBC requirement per ELF file (all ${#rows[@]} ELF files, newest first):"
+              if [ "${#rows[@]}" -gt 0 ]; then
+                printf '%s\n' "${rows[@]}" | grep '^GLIBC_' | sort -V -r
+                printf '%s\n' "${rows[@]}" | grep -v '^GLIBC_' | sort
+              else
+                echo "  (no ELF files found)"
+              fi
+              echo "unresolved libraries / symbol versions per ELF file (ldd 'not found'):"
+              if [ "${#ldd_rows[@]}" -gt 0 ]; then printf '%s\n' "${ldd_rows[@]}"; else echo "  (none)"; fi
             fi
-            echo "highest GLIBC requirement per ELF file (top 10):"
-            find "$root" -type f \( -perm -u+x -o -name '*.so' -o -name '*.so.*' -o -name '*.node' \) -print0 \
-              | while IFS= read -r -d '' f; do
-                  [ "$(head -c 4 "$f" | od -An -tx1 | tr -d ' \n')" = "7f454c46" ] || continue
-                  v=$(max_glibc "$f")
-                  [ -n "$v" ] && printf '%s %s\n' "$v" "${f#"$root"/}"
-                done | sort -V -r | head -n 10
             echo '```'
           } | tee "$REPORT_DIR/appimage-inspect.md"
-          rm -rf "$x"
+          rm -rf "$x" "$x.err"
+          exit 0
 
       - name: Install test dependencies (no install scripts)
         run: npm ci --ignore-scripts
