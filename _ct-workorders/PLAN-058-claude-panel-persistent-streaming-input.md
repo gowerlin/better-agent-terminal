@@ -8,7 +8,7 @@ priority: low
 created_at: "2026-11-02T03:22:26+0800"
 links:
   source: "T0768 回報區方案 B；D214 P-4"
-  related: [BUG-192, T0768, T0769, T0759]
+  related: [BUG-192, T0768, T0769, T0759, PLAN-059]
 ---
 
 # PLAN-058 — Claude 面板常駐串流輸入
@@ -22,6 +22,10 @@ T0768 查證：SDK 0.3.316 的 AsyncIterable prompt 可在同一個 CLI 程序�
 - 每個 session 一個常駐 query＋inbox；決定何時結束 / 重開程序（休眠 `isResting`、worktree、headless）。
 - `isStreaming` 語意、`messageQueue` / retry / resume、`setModel` / `effort`（改用 `applyFlagSettings`）、`setPermissionMode`、Cache History 全部重驗。
 - 規模 L、回歸面大；每個面板多一個常駐 claude 程序。
+
+## 相關
+
+- PLAN-059（Herdr 對照研究）：互不依賴，可分開排程或並行。PLAN-059 A 改的是終端分頁的 PTY 寫入，本 PLAN 改的是 Claude 面板的 SDK 輸入；helper 派工一律把面板 agent 轉成 CLI（`toTerminalDrivenAgentId`），塔台 / Worker 通知不會進面板。兩邊只共用「agent 忙碌或等待時，送進來的訊息排隊而不是中斷或直接打入」這個處理原則（提示待送、可取消、有上限，沿用 T0769）。
 
 ## 狀態
 

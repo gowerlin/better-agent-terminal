@@ -8,7 +8,7 @@ priority: medium
 created_at: "2026-11-02T13:23:24+0800"
 links:
   source: "Herdr 對照 BAT 研究報告（Artifact https://claude.ai/artifact/Ybj66gYLkMHZE8xUyyDiEy，私人連結；2026-11-02 第一百零五 session）"
-  related: [D219]
+  related: [D219, PLAN-058, T0769]
 ---
 
 # PLAN-059 — Herdr 對照研究的借鏡項目（主 PLAN）
@@ -67,6 +67,11 @@ BAT 已經有的（不需動作）：「做完了但還沒看」（✓ / 淡化 
 3. 子 PLAN：B（OSC 7501 通用化，依 Q2 / Q3 定全開或白名單）。
 4. C 等 CT 回覆（Q5）再決定是否開子 PLAN。
 5. D、E、F 留在本 PLAN 記錄，觸發條件：升級時終端被中斷的回報（D）、要支援暫時沙箱 / Docker 內使用（E）、第三方 client 需求（F）。
+
+## 相關
+
+- PLAN-058（Claude 面板常駐串流輸入）：互不依賴，可分開排程或並行。本 PLAN 的 A–E 都在終端分頁 / PTY / Terminal Server / 遠端傳輸；PLAN-058 只改 Claude 面板的 SDK 輸入（`electron/claude-agent-manager.ts`），檔案不重疊。helper 派工一律把面板 agent 轉成 CLI（`toTerminalDrivenAgentId`，`electron/terminal-command-handlers.ts`），塔台 / Worker 通知不會進面板。
+- 共用原則：agent 忙碌或等待時送進來的訊息排隊，不中斷、不直接打入。A 開單時沿用 T0769 已驗收的處理方式（提示待送、可取消、有上限），讓面板與終端行為一致。
 
 ## 狀態
 
