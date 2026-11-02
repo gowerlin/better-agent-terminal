@@ -6,7 +6,7 @@ title: WSL 環境自動化 Phase 2 / 3（由 PLAN-035 移出）：已安裝環�
 status: IDEA
 priority: low
 created_at: "2026-10-16T02:27:40+0800"
-updated_at: "2026-10-16T02:27:40+0800"
+updated_at: "2026-11-02T14:04:38+0800"
 links:
   related: [PLAN-035, T0380, D127, D128]
 ---
@@ -35,3 +35,10 @@ PLAN-035 Phase 1 已修好已安裝環境最常見的問題（網路模式誤判
 ## 參考
 
 - `PLAN-035-wsl-environment-full-automation.md`（使用者裁決 D127、T0380 研究後修訂 D128、交付階段）
+
+## 2026-11-02 狀態核對（第一百零五 session，塔台 grep 核對，未深查）
+
+- **維持 IDEA**：Phase 2（已安裝環境自動修正）、Phase 3（從零安裝＋重開機接續）都沒做：程式沒有 `wsl --install` 路徑、沒有重開機接續。目前沒有使用者回報需要從零安裝。
+- 候選「孤兒 `wsl.exe`（Job Object）」：沒做（`electron/` 無 Job Object）。
+- 候選「keep-alive per-profile / lazy」「runner step abort」：grep 未見相關改動，未深查。
+- 候選「文件措辭對齊『NAT 不需強制改』」：大致完成。`docs/wsl-deployment.md` 已改為「NAT 一般可用，連線測試失敗才處理」（T0653，`9dd30ef0`）。**剩 `docs/plan-007-release-checklist.md` 第 63 行**仍寫「確認 `.wslconfig` 用 `networkingMode=mirrored`（或測 fallback 時記錄 NAT）」：使用者 2026-11-02 決定先記著，下次有 WSL 相關工單時一併改，不單獨開單。

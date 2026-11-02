@@ -8,7 +8,7 @@ priority: medium
 created_at: "2026-11-02T13:23:24+0800"
 links:
   source: "Herdr 對照 BAT 研究報告（Artifact https://claude.ai/artifact/Ybj66gYLkMHZE8xUyyDiEy，私人連結；2026-11-02 第一百零五 session）"
-  related: [D219, PLAN-058, T0769]
+  related: [D219, PLAN-058, T0769, PLAN-052]
 ---
 
 # PLAN-059 — Herdr 對照研究的借鏡項目（主 PLAN）

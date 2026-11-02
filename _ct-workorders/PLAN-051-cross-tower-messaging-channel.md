@@ -46,3 +46,8 @@ BAT 已有的塔台 ↔ Worker 通道（派工、`bat-notify`、`question:*`）�
 - **重新評估的觸發條件**（任一成立就重開）：① 實際出現一邊是 codex 塔台的跨專案往來；② 遠端（WSL / SSH / Docker）塔台需要和本機塔台往來，且不能用 Remote Control；③ SendMessage 在 BAT 塔台上出現無法繞過的限制（例如兩邊權限模式造成 hold、被組織設定 deny）。
 - **日後要做時的依據**：T0647 回報區 Q2（推薦 (b) 結構化訊息箱，不推薦預填 / `--submit`）、Q3（只放寬「已宣告塔台 → 其他已宣告塔台，寫進 store」，PTY 只收 BAT 固定提示行）、Q4（第一版只限同一 host）、Q5 介面契約草案 C-1–C-9 與切分（M，可分兩單）。
 - 衍生：codex 共用 daemon 環境變數繼承風險 → T0648 探針（D169）。
+
+## 2026-11-02 狀態核對（第一百零五 session）
+
+- **維持 IDEA**：D169 的三個重新評估觸發條件從 2026-10-18 起都沒有成立（決策紀錄與塔台狀態沒有 codex 塔台的跨專案往來、遠端塔台往來、或 SendMessage 繞不過的限制）。跨 session 選收件人已由 CT `cross-project-coordination.md` § 跨 session 選收件人 處理，找不到收件人時退回 `_reply-*.md`。
+- **前提更正**：上方「BAT 以系統管理員權限執行時注入 `features.daemon_auto_start=false`，此時 BAT 的 codex 分頁不在共用 daemon 上」已過時。T0648 / T0651（BUG-159）後，BAT 的 codex 分頁不分權限都不在共用 daemon 上：有注入 BAT MCP 的分頁靠非 `features.*` 的 `-c` 走 embedded，沒注入的手動分頁加 `--no-daemon`（CLAUDE.md「BAT MCP shim」節）。所以 `codex queue` 送不到 BAT 的 codex 分頁；這讓 BAT 自建通道的理由更充分，但仍等觸發條件成立。

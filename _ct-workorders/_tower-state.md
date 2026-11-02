@@ -1,7 +1,7 @@
 ---
 schema_kind: tower-state
 summary_version: 1
-updated_at: "2026-11-02T14:00:57+08:00"
+updated_at: "2026-11-02T14:04:38+08:00"
 session: "2026-11-02 13:01 第一百零五 session 開工（CT v6.0.0-beta.10）"
 next_ids:
   workorder: "T0779"
@@ -17,7 +17,7 @@ todo:
 ---
 # Tower State — better-agent-terminal
 
-> 🟢 **第一百零五 session 開工**（2026-11-02 13:01 (UTC+8)，CT v6.0.0-beta.10，Fast Path；塔台 session `c85c39b0-308c-4087-8f2f-2e18466a0cbd`；`--set-role tower --mode on` exit 0；安裝版 helper `v0.7.3-pre.5`；HEAD `e0c6d63d`、`main` = `origin/main`、工作區乾淨；熱區 174 張工單全為 DONE；BUG 熱區 Fixed 1（BUG-159）/ Closed 57，與 `_bug-tracker.md` 一致，免重建）。使用者要求比較 Herdr（原生桌面版＋herdr-core）與 BAT → 塔台以官方 repo docs 產出研究報告 Artifact「Herdr 對照 BAT」（https://claude.ai/artifact/Ybj66gYLkMHZE8xUyyDiEy，私人）；查證發現 `pty:write` 不看目標是否 blocked（未實測影響）。13:23 使用者「登記為主 PLAN，後續再拆子 PLAN 與拆單、開單」→ **D219** → 開 **PLAN-059**（PLANNED，medium）。PLAN-058 / PLAN-059 互相補〈相關〉：互不依賴，只共用「忙碌時訊息排隊」原則（`c64658ef`）。14:00 使用者問 PLAN-054 是否還需推進 → 查 CT v6 `workflow-engine.md` 仍延後 B6 欄位與契約 → **D220** → **PLAN-054 DONE**（B6 等 CT 契約另開新 PLAN）。
+> 🟢 **第一百零五 session 開工**（2026-11-02 13:01 (UTC+8)，CT v6.0.0-beta.10，Fast Path；塔台 session `c85c39b0-308c-4087-8f2f-2e18466a0cbd`；`--set-role tower --mode on` exit 0；安裝版 helper `v0.7.3-pre.5`；HEAD `e0c6d63d`、`main` = `origin/main`、工作區乾淨；熱區 174 張工單全為 DONE；BUG 熱區 Fixed 1（BUG-159）/ Closed 57，與 `_bug-tracker.md` 一致，免重建）。使用者要求比較 Herdr（原生桌面版＋herdr-core）與 BAT → 塔台以官方 repo docs 產出研究報告 Artifact「Herdr 對照 BAT」（https://claude.ai/artifact/Ybj66gYLkMHZE8xUyyDiEy，私人）；查證發現 `pty:write` 不看目標是否 blocked（未實測影響）。13:23 使用者「登記為主 PLAN，後續再拆子 PLAN 與拆單、開單」→ **D219** → 開 **PLAN-059**（PLANNED，medium）。PLAN-058 / PLAN-059 互相補〈相關〉：互不依賴，只共用「忙碌時訊息排隊」原則（`c64658ef`）。14:00 使用者問 PLAN-054 是否還需推進 → 查 CT v6 `workflow-engine.md` 仍延後 B6 欄位與契約 → **D220** → **PLAN-054 DONE**（B6 等 CT 契約另開新 PLAN）。14:04 使用者要求核對 PLAN-043 / 051 / 052 → 三張前提仍成立、無需求或觸發，**維持 IDEA**，各補〈2026-11-02 狀態核對〉（051 更正 codex daemon 前提；052 連結 PLAN-059 E）；`docs/plan-007-release-checklist.md` 第 63 行 mirrored 措辭記在 PLAN-043，下次 WSL 工單一併改。
 
 > 🛏 **第一百零四 session 已收工**（2026-11-02 11:17 (UTC+8)）。本 session 各次開工 / 重啟條目已移入下方〈本 Session 收工快照（第一百零四 session）〉時間線。
 
