@@ -1,17 +1,17 @@
 ---
 schema_kind: tower-state
 summary_version: 1
-updated_at: "2026-11-02T10:13:23+08:00"
+updated_at: "2026-11-02T10:43:30+08:00"
 session: "2026-11-02 10:12 第一百零四 session 塔台重啟（四）（CT v6.0.0-beta.10，Fast Path）"
 next_ids:
-  workorder: "T0777"
+  workorder: "T0778"
   decision: "D218"
   bug: "BUG-195"
   plan: "PLAN-059"
 todo:
-  - "`v0.7.3-pre.5` 已發（2026-11-02，run 41373933464、Pages / link-check 綠）；待驗收 BUG-193 / 194（本版修正；可用安裝版跑 t0770 情境 E / t0776 自動化結案）"
-  - "外部 / 特定環境驗收：BUG-128 / 130（macOS）、BUG-159（一般權限 ＋ codex）"
-  - "選擇性：t0757 一次 flake（③ 清除原因 `user-prompt-submit`，疑 `permission-request` hook 晚到，T0775 已加診斷），使用者未決定是否開單觀察"
+  - "T0777 安裝版 pre.5 自動驗收 BUG-193 / 194（含不回歸 t0757 觀察）；通過即依 R-G003 結案"
+  - "外部 / 特定環境驗收：BUG-128 / 130（macOS；評估 GitHub Actions macOS runner 中）、BUG-159（一般權限 ＋ codex）"
+  - "觀察：t0757 一次偶發失敗（③ 清除原因 `user-prompt-submit`，疑 `permission-request` hook 晚到，T0775 已加診斷）；使用者裁示（2026-11-02）**再發生才開 BUG**，不預先開單"
   - "版號線：0.7.3 線已到 pre.5（D204；最多到 pre.9）"
 ---
 # Tower State — better-agent-terminal
@@ -26,7 +26,7 @@ todo:
 
 > 🟢 **第一百零四 session 塔台重啟（三）**（2026-11-02 04:56 (UTC+8)，CT v6.0.0-beta.10，Fast Path；塔台 session `c46dd3a3-0b3d-4606-b959-5ea60d008605`；`--set-role tower --mode on` exit 0；安裝版 helper `v0.7.3-pre.4`；HEAD `5115cd25`、`main` = `origin/main`（0 / 0）、工作區乾淨；熱區 165 張工單全為 DONE；熱檔皆在 400 KB 預算內，`_tower-state.md` 73,857 bytes 超過本地規則 60 KB 強制提示門檻）。`*sync`（`202db4b7`）→ `*archive --state --rebuild-index`（`7b18cdfd`）→ 瘦身 74 → 38 KB（`47a5c622`）→ push。使用者選自動化驗收 → **D215** → 開 **T0770–T0773**（`08315288`）；05:14 四張派工（yolo，皆 `started:` exit 0）。**T0770 DONE**（`7ad66d1d`，安裝版：BUG-188、detached ⚠️、無焦點淡化全 PASS）→ **BUG-188 CLOSED**；觀察 2 / 1 → 使用者 **D216** → 開 **BUG-193**（low）/ **T0774**（修正，等 T0772 / T0773 後派）/ **T0775**（e2e 關 focus emulation，接 T0774）。**T0771 DONE**（`a173f74a`，安裝版＋真實模型 Haiku 5 回合 US$0.0256）→ **BUG-190 / 192 CLOSED**。**T0773 DONE**（`bb376b41`，安裝版＋真的 claude `--resume` 答出 42、真的 codex `resume`；3 回合 US$0.0197）→ **PLAN-055 DONE**；F1 → 開 **BUG-194**（自動開啟的對話框第一次 Esc 關不掉，low）。**T0772 DONE**（`366b96b0`，安裝版：真的 npm codex、真的 CT plugin）→ **BUG-189 / 191 CLOSED**。四張 session 快照已寫、`--close-worker` 皆已排程；真實模型全批 US$0.045（上限 US$1.00）。05:27 派 **T0774**（yolo，`started:` exit 0）。使用者 **D217** → 開 **T0776**（BUG-194，接 T0774）、T0775 改接 T0776；這批完成後發 `0.7.3-pre.5`。**T0774 DONE**（`bd59ab0f`，查證 CDP 與真實點擊順序相同；取回焦點暫緩判斷；單元 12＋突變、t0770 E 修正前失敗 / 後通過、t0735 / t0761 / t0762 綠、unit 6693 / 381 files）→ **BUG-193 FIXED**；塔台複跑新單元 12 / 12；session 快照已寫、`--close-worker`；05:38 派 **T0776**（yolo，`started:` exit 0）。**T0776 DONE**（`e717c786`，盤點 4 個自動開啟的 Dialog；`ModalOverlay` 開啟時聚焦、關閉時還原；單元 12＋突變、t0776 修正前失敗 / 後通過、t0563 / t0567 / t0766 / t0767 綠、unit 6705 / 382 files）→ **BUG-194 FIXED**；塔台複跑 33 / 33；session 快照已寫、`--close-worker`；派 **T0775**。**T0775 DONE**（`1068c5f8`，`e2e/helpers/real-focus.ts`；三支關 emulation 各連跑 2 次綠、反證走淡化分支；t0757 一次 flake（③ 清除原因為 `user-prompt-submit`，疑晚到的 `permission-request` hook，已加診斷）） → session 快照、`--close-worker`；06:11 開始聯合驗證。聯合驗證全綠 @ `213d03ef`（typecheck 0 / 0、vite build、unit 6705 / 382 files、legacy 472 / 33）。使用者裁示「照推」（`213d03ef` 歷史留存）；去識別化與金鑰掃描 0（`claude-mem` 2 筆為 origin 既有的誤報）；09:43 push `47a5c622..478fd178`，觸發 `pre-release.yml -f version=0.7.3-pre.5`（run 41373933464）。CI 全綠（含 typecheck / tests / 三平台 build / server-bundle），01:57Z 發佈 `v0.7.3-pre.5`（4 個安裝檔）＋ `server-bundle-v0.7.3-pre.5`；`gh release edit` 寫入更版重點並比對一致；三文件＋`package.json` → `79de9015` push；Pages build / deploy / link-check 綠、首頁顯示 `0.7.3-pre.5`。BUG-193 / 194 維持 FIXED（已發版、待驗收）。
 
-> 🟢 **第一百零四 session 塔台重啟（四）**（2026-11-02 10:12 (UTC+8)，CT v6.0.0-beta.10，Fast Path；塔台 session `49d1e952-e247-4830-b12e-6c99de58e501`；`--set-role tower --mode on` exit 0；安裝版 helper `v0.7.3-pre.5`；HEAD `eb9a41f3`、`main` = `origin/main`、工作區乾淨；熱區 172 張工單全為 DONE；BUG 熱區 Fixed 5（128 / 130 / 159 / 193 / 194）/ Closed 53，與 `_bug-tracker.md` 一致，免重建；`_tower-state.md` 41 KB 超本地 30 KB 軟警告）。
+> 🟢 **第一百零四 session 塔台重啟（四）**（2026-11-02 10:12 (UTC+8)，CT v6.0.0-beta.10，Fast Path；塔台 session `49d1e952-e247-4830-b12e-6c99de58e501`；`--set-role tower --mode on` exit 0；安裝版 helper `v0.7.3-pre.5`；HEAD `eb9a41f3`、`main` = `origin/main`、工作區乾淨；熱區 172 張工單全為 DONE；BUG 熱區 Fixed 5（128 / 130 / 159 / 193 / 194）/ Closed 53，與 `_bug-tracker.md` 一致，免重建；`_tower-state.md` 41 KB 超本地 30 KB 軟警告）。使用者三項指示：① 開 **T0777**（安裝版 pre.5 自動驗收 BUG-193 / 194，不回歸含 t0757）並派工；② 評估以 GitHub Actions macOS runner 驗 BUG-128 / 130；③ t0757 偶發失敗「先記住，又發生再開單」。
 
 > 最後更新:2026-11-02 05:03 (UTC+8) — **第一百零四 session 進行中**：`v0.7.3-pre.2` / `pre.3` / `pre.4` 已發佈；`_tower-state.md` 瘦身（第一百零二 session 快照、本 session 開工條目原文、基本資訊舊值移入 `2026-Q4-b.md`）。前次：第一百零三 session 收工（2026-11-01 21:30）。
 >
@@ -104,7 +104,7 @@ eport.md`（real，20:18:03–20:18:31，PS 7.6.9 系統管理員）：⓪ PASS�
 - 歷史 sessions → [_archive/state-snapshots/INDEX.md](_archive/state-snapshots/INDEX.md)（119 entries）
 
 ### 編號起始
-- **T0777** / **BUG-195** / **PLAN-059** / **D218** / **EXP-WFMINE-002**（其他 TOPIC 從 001） / **L178** / **CT-T023**
+- **T0778** / **BUG-195** / **PLAN-059** / **D218** / **EXP-WFMINE-002**（其他 TOPIC 從 001） / **L178** / **CT-T023**
 
 ---
 
