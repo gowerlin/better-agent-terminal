@@ -4,7 +4,12 @@ schema_kind: workorder
 id: T0780
 title: "PLAN-029 R3：刪除沒有被引用的 `src/components/git-poc/`（T0154 benchmark）與 `vite.config.benchmark.ts`"
 type: implementation
-status: PENDING
+status: DONE
+started_at: "2026-11-02T14:10:29+0800"
+updated_at: "2026-11-02T14:14:27+0800"
+completed_at: "2026-11-02T14:14:27+0800"
+session_ids:
+  - "35a2dc0c-be2e-45f3-b111-a432346b7d59"
 repo: better-agent-terminal
 project: maintenance
 priority: P3
@@ -65,11 +70,11 @@ PLAN-029 的 R5（setup-wizard 獨立 chunk）已由 T0309 完成，只剩 R3：
 
 ## 驗收
 
-- [ ] 無引用確認紀錄（指令與結果）
-- [ ] 刪除清單
-- [ ] `.gitignore` 處理結果與理由
-- [ ] typecheck 0 / 0、`test:unit` 全綠、`vite build`、`verify-renderer-imports` 綠
-- [ ] PLAN-029 補〈T0780 結果〉並改 DONE
+- [x] 無引用確認紀錄（指令與結果）
+- [x] 刪除清單
+- [x] `.gitignore` 處理結果與理由
+- [x] typecheck 0 / 0、`test:unit` 全綠、`vite build`、`verify-renderer-imports` 綠
+- [x] PLAN-029 補〈T0780 結果〉並改 DONE
 
 ---
 
@@ -79,14 +84,49 @@ PLAN-029 的 R5（setup-wizard 獨立 chunk）已由 T0309 完成，只剩 R3：
 
 ### 完成狀態
 
+- **DONE**（驗收 5 項全過）
+- **落點檢查**：PASS。C-0：`repo` = `better-agent-terminal`，`basename(REPO_ROOT)` = `better-agent-terminal`；C-1 工單在 REPO_ROOT 下；C-2 無 `branch` 欄位（目前 `main`）；C-3：`vite.config.benchmark.ts`、`.gitignore`、PLAN-029 皆存在（`src/components/git-poc/**` 為萬用字元，排除）。`BAT_WORKSPACE_ID` = `cc0afc4a-57e9-4f41-b2ed-a2d8bac9e36b`（僅記錄）。`CT_MODE=yolo`、`CT_INTERACTIVE=0`，未設 `CT_HOME`（非 worktree）。
+- **session_id**：35a2dc0c-be2e-45f3-b111-a432346b7d59
+
 ### 產出摘要
+
+- **無引用確認**（`git grep -n <樣式> -- . ':(exclude)_ct-workorders/' ':(exclude)src/components/git-poc/'`）：
+  - `git-poc`：只命中 `.gitignore:37-38`（規則）、`src/components/git-panel/SvgCommitGraph.tsx:4`、`useVirtualizer.ts:4`（「Migrated from … (T0154)」歷史註解，保留不改）、`vite.config.benchmark.ts:12`（被刪檔本身）。
+  - `vite.config.benchmark`：只命中 `vite.config.benchmark.ts:4`（被刪檔自己的註解）。
+  - `GitPocPlaceholder`：0 筆。
+  - ⇒ `package.json` scripts、`tsconfig*.json`、ESLint、`vite.config.ts`、electron-builder 設定、`.github/workflows/` 都沒有引用。
+- **刪除清單**（`git rm -r src/components/git-poc`、`git rm vite.config.benchmark.ts`，共 14 個追蹤檔、1344 行）：`GitPocPlaceholder.tsx`、`README.md`、`benchmark/BenchApp.tsx`、`CommitIndex.ts`、`SvgCommitGraph.tsx`、`fpsMeter.ts`、`index.html`、`indexBench.ts`、`main.tsx`、`synthGen.ts`、`useVirtualizer.ts`、`_bench-screenshot-100k.png`、`_bench-screenshot-500k.png`，以及 `vite.config.benchmark.ts`。
+- **`.gitignore`**：未修改。本機產物 `src/components/git-poc/benchmark/_bench-trace-500k-scroll.json`（219,451,647 bytes）與 `_bench-index-result.json`（1,828 bytes）仍在、未刪 → 第 37–38 行保留（否則變成未追蹤檔）。另：第 39 行 `dist-benchmark/` 本機目錄也還在，未列在本單範圍，同樣保留。使用者自行刪除這些本機檔案後，可再移除第 37–39 行。
+- **PLAN-029**：frontmatter `status: DONE`、`completed_at`，Metadata 表狀態列改 ✅ DONE，文末補〈T0780 結果〉。`_backlog.md` 未動。
 
 ### 驗證
 
+驗證時 HEAD = `6d76c1a5`（工作樹已 `git rm`，未 commit）：
+
+| 關卡 | 結果 |
+|---|---|
+| `npm run typecheck` | exit 0 |
+| `npm run typecheck:electron` | exit 0 |
+| `npx vite build` | exit 0 |
+| `node scripts/verify-renderer-imports.js` | OK — scanned 213 files under src/ (2 allow-listed) |
+| `npm run test:unit` | 第 1 次：1 失敗（`electron/__tests__/worktree-status-after-close.test.ts` 的 `live → exited → git …` 在全套平行負載下 5000 ms 逾時，該測試用真 git 與 PtyManager，與 git-poc 無關）；單檔重跑 2/2 通過（3 passed，約 3 s）；第 2 次全套：**382 檔 / 6705 passed / 10 skipped，exit 0** |
+
+e2e 依工單不跑。
+
 ### 遭遇問題
+
+- `test:unit` 第一次有一個 git worktree 測試在全套負載下逾時（見上表），單檔與第二次全套都通過，判定為負載下的不穩定，與本單無關。未修改該測試（範圍外）；若塔台在其他工單也看到同一測試逾時，可另開單評估調高該測試的 timeout。
 
 ### 互動紀錄
 
+- 無（yolo，未向塔台提問）。
+
 ### commit 狀態
 
+- 產品 commit：`16a3a326` — `chore: T0780 remove unused git-poc benchmark and vite.config.benchmark.ts, PLAN-029 DONE`（`git commit --only`：14 個刪除路徑 + PLAN-029）。
+- 工單 commit：本回報區所在 commit（只含本工單檔）。
+- 未 push。
+
 ### 回報時間
+
+- 2026-11-02T14:14:03+0800
