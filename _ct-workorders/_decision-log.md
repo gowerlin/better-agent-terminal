@@ -1465,6 +1465,18 @@
 - **切分**：W2a 設計語言 + 元件 + 首頁（T0630）→ 預覽通過後 W2b（`/control-tower`、功能、FAQ、回報頁）→ W2c 遠端開發；W3 / W4 不變。
 - **相關**：PLAN-049 / D159 / D160 / T0624 / T0630
 
+### D228 2026-11-02 — 採納 CT 回覆（CT D543）：通知保留期間不設逾時；`--ask --submit` 遇 `held-full` 照現行路徑先取消題目再 exit 1；T0788 Renew #1
+
+- **背景**：CT 塔台回覆 `BMad-Guide/_ct-workorders/_reply-2026-11-02-bat-notify-hold-contract.md`（CT D543，CT 使用者已核准）：同意預設保留、⑨、⑩，⑤ 的上限 8 也同意。逾時兩案都不採：丟棄會讓通知無聲遺失（helper 已回 ok，Worker 不會走備援）；照送會重現 BUG-196。CT 請 BAT 確認 `--ask --submit` 遇 `held-full` 時的行為。
+- **查證**：`scripts/bat-notify.mjs` 約 1028 行：`writeResp.error || writeResult.ok === false` → `failAfterAsk(…, 'pty-write', …)` → 先 `question:cancel`，再 exit 1，stderr `ask: NOTIFY_STEP pty-write`。所以 `held-full`（`ok: false`）會走這條路徑。
+- **決定**（塔台代決，範圍內：CT 契約確認，不改 helper 介面）：
+  1. 保留期間不設逾時。通知只在三種情況離開佇列：離開 blocked 並安靜 1 s 後送出、使用者取消、PTY 結束 / 重啟 / recovery 時丟棄。
+  2. `held-full` 照現行 `--ask` 失敗路徑處理；T0788 新增測試守住（題目 `cancelled`、exit 1、`NOTIFY_STEP pty-write`）。
+  3. 配對的 keypress 併入已保留的那一筆，不另佔名額。
+  4. T0788 Renew #1。修正版發佈時把版號告訴 CT 塔台（CT T0399 文件補註）。
+- **決策者**：塔台（依 CT 回覆）。2026-11-02 第一百零六 session。
+- **相關**：BUG-196 / T0788 / D227 / CT D543 / CT T0399
+
 ### D227 2026-11-02 — BUG-196 開修正單 T0788（契約暫定值先做、同時送 CT 確認）；並行開研究單 T0789（回覆 claude 的 OSC 7501 探詢）與子 PLAN-061（B 白名單）
 
 - **背景**：T0787 DONE（`40767172`）：R1 成立。Worker 通知打進停在權限對話框或 AskUserQuestion 的塔台時，Enter 會選中預設選項（30 / 30）→ 開 BUG-196（high）。契約草案 v0 第 5（上限 / 逾時）、9（submit Enter 不算使用者輸入）、10（`--report-hold`）點與「預設就保留」的方向要 CT 確認。Q2 / Q3 結果顯示子項 B 的價值在於讓 claude 送 7501。

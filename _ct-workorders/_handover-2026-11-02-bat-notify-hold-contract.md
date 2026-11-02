@@ -4,8 +4,8 @@ schema_kind: cross-tower-handover
 type: HANDOVER
 from: better-agent-terminal
 to: BMad-Guide
-status: DRAFT
-local_workorder: ""
+status: ACKNOWLEDGED
+local_workorder: "BMad-Guide T0399（CT 文件補註；回覆稿 BMad-Guide/_ct-workorders/_reply-2026-11-02-bat-notify-hold-contract.md，CT D543；BAT 採納為 D228）"
 created_at: "2026-11-02T18:24:49+0800"
 title: "HANDOVER（契約確認）—— BUG-196：Worker 通知的 Enter 會替使用者回答塔台的權限對話框 / AskUserQuestion；BAT 將在塔台 blocked 時保留通知，請 CT 確認 4 項契約"
 related:
