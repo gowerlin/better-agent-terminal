@@ -285,6 +285,7 @@
 
 - Remote server 以 `wss://` + 自簽憑證（`electron/remote/certificate.ts`），client 以 SHA-256 fingerprint（TOFU）驗證。憑證 `app.getPath('userData')/server-cert.json`，**不要手動刪除**（既有 client 全部失效）。
 - Bind-interface：`localhost`（預設）/ `tailscale`（fail-closed，不 fallback）/ `all`。Token `server-token.json` 以 `safeStorage` 加密。`selfsigned@^5.x` 是 async API。
+- safeStorage 只用 async API（T0785，Electron 46 移除同步 API）：唯一實作 `electron/remote/secrets.ts`（`isAsyncEncryptionAvailable` / `encryptStringAsync` / `decryptStringAsync`，整條介面回 Promise）。🔴 不得再呼叫同步 `isEncryptionAvailable` / `encryptString` / `decryptString`（`secrets.test.ts` source guard）；舊密文直接可解、不重新產生，Linux fallback 不變。
 - SSH target（T0505）：`buildBaseSshArgs`（`electron/remote/ssh-args.ts`）；SSH 與 WSL 的 bundle 安裝共用 `electron/server-bundle-install-script.ts`（乾淨覆蓋、刪除白名單、精靈升級的 rollback，T0552 / T0554）；WSL 升版沿用 port `pickServerPortForUnit`（`electron/wsl-systemd.ts`）。
 - 完整說明（QR payload、ProfilePanel、SSH wizard 安裝 / 啟動 / 取消 rollback、systemd / launchd 參數）：[docs/agent-guide/remote-security.md](docs/agent-guide/remote-security.md)
 

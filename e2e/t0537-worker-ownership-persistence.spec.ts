@@ -63,7 +63,7 @@ async function helperEnv(app: ElectronApplication, userData: string, remotePort:
   await expect.poll(() => fs.existsSync(path.join(userData, 'server-token.json')), { timeout: 30_000 }).toBe(true)
   const record = JSON.parse(fs.readFileSync(path.join(userData, 'server-token.json'), 'utf8'))
   const token: string = record.encrypted
-    ? await app.evaluate(({ safeStorage }, data) => safeStorage.decryptString(Buffer.from(data, 'base64')), record.data as string)
+    ? await app.evaluate(async ({ safeStorage }, data) => (await safeStorage.decryptStringAsync(Buffer.from(data, 'base64'))).result, record.data as string)
     : record.data
   const env: NodeJS.ProcessEnv = {}
   for (const [k, v] of Object.entries(process.env)) if (!k.startsWith('BAT_') && !k.startsWith('CT_')) env[k] = v

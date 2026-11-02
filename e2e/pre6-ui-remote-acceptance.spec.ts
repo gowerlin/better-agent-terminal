@@ -391,7 +391,7 @@ test.describe('T0514 — pre.6 installed build: UI / remote routing (opt-in)', (
     const ipcHasMerge = await app.evaluate(({ ipcMain }) => ((ipcMain as AnyApi)._invokeHandlers as Map<string, unknown>).has('worktree:merge'))
     const record = JSON.parse(fs.readFileSync(path.join(userData, 'server-token.json'), 'utf8'))
     const localToken: string = record.encrypted
-      ? await app.evaluate(({ safeStorage }, data) => safeStorage.decryptString(Buffer.from(data, 'base64')), record.data as string)
+      ? await app.evaluate(async ({ safeStorage }, data) => (await safeStorage.decryptStringAsync(Buffer.from(data, 'base64'))).result, record.data as string)
       : record.data
     const localMerge = await wsInvoke(inst!.remotePort, localToken, 'worktree:merge', [sessionId])
     const remoteMerge = await wsInvoke(cfg!.port, cfg!.token, 'worktree:merge', [sessionId])

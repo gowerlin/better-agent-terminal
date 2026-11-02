@@ -1111,17 +1111,17 @@ export function getHeadlessBundleVersion(): string {
 
 export async function loadOrGenerateToken(dataDir: string): Promise<string> {
   const tokenPath = path.join(dataDir, 'server-token.json')
-  const persisted = readSecretFile(tokenPath)
+  const persisted = await readSecretFile(tokenPath)
   if (persisted) return persisted
 
   const token = randomBytes(32).toString('base64url')
-  writeSecretFile(tokenPath, token)
+  await writeSecretFile(tokenPath, token)
   return token
 }
 
 export async function createHeadlessServer(opts: HeadlessServerOptions): Promise<HeadlessServer> {
   fs.mkdirSync(opts.dataDir, { recursive: true })
-  const strategy = opts.secretStrategy ?? detectSecretStrategy()
+  const strategy = opts.secretStrategy ?? (await detectSecretStrategy())
   setSecretStrategy(strategy)
 
   let resolvedToken = opts.token ?? (await loadOrGenerateToken(opts.dataDir))

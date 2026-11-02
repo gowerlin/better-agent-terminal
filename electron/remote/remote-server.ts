@@ -536,15 +536,15 @@ export class RemoteServer {
     return path.join(this.configDir, TOKEN_FILENAME)
   }
 
-  private loadPersistedToken(): string | null {
+  private async loadPersistedToken(): Promise<string | null> {
     if (!this.configDir) return null
     return readSecretFile(this.tokenPath())
   }
 
-  private persistToken(token: string): void {
+  private async persistToken(token: string): Promise<void> {
     if (!this.configDir) return
     try {
-      writeSecretFile(this.tokenPath(), token)
+      await writeSecretFile(this.tokenPath(), token)
     } catch (e) {
       this.log.warn('[RemoteServer] Failed to persist token:', e)
     }
@@ -588,7 +588,7 @@ export class RemoteServer {
       throw new Error(bindResolution.error)
     }
 
-    this.token = token || this.loadPersistedToken() || randomBytes(16).toString('hex')
+    this.token = token || (await this.loadPersistedToken()) || randomBytes(16).toString('hex')
     this.currentBindInterface = bindInterface
     this.currentHost = bindResolution.host
 
@@ -867,7 +867,7 @@ export class RemoteServer {
       this.notifyClientCount()
     }, this.heartbeatIntervalMs)
 
-    this.persistToken(this.token)
+    await this.persistToken(this.token)
 
     const actualPort = this.port ?? port
     // T0432: no part of the token is logged (T0420 out-of-scope ②).
@@ -885,13 +885,13 @@ export class RemoteServer {
   }
 
   async rotateToken(opts: { gracePeriodMs?: number } = {}): Promise<RotateTokenResult> {
-    const oldToken = this.token || this.loadPersistedToken() || randomBytes(16).toString('hex')
+    const oldToken = this.token || (await this.loadPersistedToken()) || randomBytes(16).toString('hex')
     const token = randomBytes(32).toString('base64url')
     const oldValidUntil = Date.now() + (opts.gracePeriodMs ?? 300_000)
 
     this.previousToken = { token: oldToken, validUntil: oldValidUntil }
     this.token = token
-    this.persistToken(token)
+    await this.persistToken(token)
 
     this.log.log(
       `[RemoteServer] Token rotated; old token valid until ${new Date(oldValidUntil).toISOString()}`

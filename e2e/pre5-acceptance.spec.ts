@@ -337,7 +337,7 @@ test('A5 ≥ 20 helper dispatches (5+ concurrent pairs) under pty:output load: n
     await expect.poll(() => fs.existsSync(path.join(userData, 'server-token.json')), { timeout: 30_000 }).toBe(true)
     const record = JSON.parse(fs.readFileSync(path.join(userData, 'server-token.json'), 'utf8'))
     const token: string = record.encrypted
-      ? await app.evaluate(({ safeStorage }, data) => safeStorage.decryptString(Buffer.from(data, 'base64')), record.data as string)
+      ? await app.evaluate(async ({ safeStorage }, data) => (await safeStorage.decryptStringAsync(Buffer.from(data, 'base64'))).result, record.data as string)
       : record.data
     expect(token.length).toBeGreaterThan(16)
     const status = await win.evaluate(async () => (window as AnyApi).electronAPI.remote.serverStatus())
