@@ -4,12 +4,14 @@ schema_kind: workorder
 id: T0785
 title: "safeStorage 改用 async API（Electron 45 棄用同步 API、46 移除）：`electron/remote/secrets.ts` 與呼叫端"
 type: implementation
-status: PENDING
+status: IN_PROGRESS
 repo: better-agent-terminal
 project: maintenance
 priority: P2
 sizing: M
 created_at: "2026-11-02T14:46:38+0800"
+started_at: "2026-11-02T16:59:33+0800"
+updated_at: "2026-11-02T16:59:33+0800"
 depends_on: [T0784]
 related:
   - "PLAN-053；D223（使用者選「分開另開一張單」）；T0781 回報區（45 那列 safeStorage、工單草案 2）"
@@ -25,6 +27,7 @@ affects_files:
 renew_count: 0
 workdir: main repo
 worker_question_timeout: 30
+tower_question: open
 interaction:
   mode_hint: yolo
   interactive: false
@@ -70,6 +73,19 @@ T0781 查證：Electron 45 把 `safeStorage` 的同步 API 標為棄用、46 移
 ## 回報區
 
 > 以下由 sub-session 填寫
+
+### 待塔台決策
+
+#### Q-1：其他 19 支 e2e spec 的同步 `safeStorage.decryptString` 要不要在本單一起改？
+- **提問時間**：2026-11-02T17:01:38+0800
+- **問題**：`affects_files` 只列 `e2e/pre5-acceptance.spec.ts`，但另有 19 支 e2e spec 以 `app.evaluate(({ safeStorage }, data) => safeStorage.decryptString(...))` 讀隔離實例的 `server-token.json`（`pre6-ui-remote-acceptance`、`t0523`、`t0529`、`t0535`、`t0537`、`t0538`、`t0551`、`t0553`、`t0562`、`t0575`、`t0583`、`t0598`、`t0609`、`t0694`、`t0735`、`t0761`、`t0766`、`t0767`、`v072-pre6-codex-resumed`）。Electron 45 仍可用（棄用），46 移除後這些 spec 會全部失敗。
+- **選項**：
+  - A：本單一起改（每支一行，改成 `(await safeStorage.decryptStringAsync(...)).result`），只跑 `pre5-acceptance` 與 1–2 支代表 spec 實測，其餘只做 typecheck／語法檢查。
+  - B：本單只改 `pre5-acceptance`，其餘 19 支記為後續工單（46 之前做）。
+  - 其他。
+- **建議**：A。理由：改法機械、每支一行、與本單同一個棄用；拆單要再派一次 Worker，且容易在 46 前漏掉。
+- **影響**：A 會讓本單多改 19 個 `affects_files` 外的檔（只動那一行）。
+- **是否阻塞後續步驟**：否（`pre5-acceptance`、樣本實測、文件照做，等答覆期間繼續）。
 
 ### 完成狀態
 
