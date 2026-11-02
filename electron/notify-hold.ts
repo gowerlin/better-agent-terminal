@@ -23,13 +23,14 @@
  *      `terminal:keypress` event: the window's xterm makes it, as before). `blocked` is checked
  *      again before every step.
  *   5. At most `NOTIFY_HOLD_MAX_PER_TARGET` items per tab (one more → `{ ok: false, reason:
- *      'held-full' }`, bat-notify exit 1); an item older than `NOTIFY_HOLD_MAX_AGE_MS` is dropped
- *      (`expired`; its toast was shown long ago).
+ *      'held-full' }`, bat-notify exit 1; under `--ask` it cancels the question first). The Enter of
+ *      a held write joins it and never counts as one more. Renew #1 (D228): no expiry — dropping it
+ *      would lose a notify silently (the helper got `ok`), sending it would bring BUG-196 back.
  *   6. The windows show "N held" and cancel one or all (`list` / `cancel`, renderer IPC only);
  *      cancelling drops the PTY write only (toast, Worker ✓ unchanged).
  *   7. The PTY ending (exit / kill, so ⏻ restart), the Terminal Server recovery drop everything;
  *      nothing is persisted.
- *   8. Logs `[notify-hold] held|sent|cancelled|expired|dropped terminal=<id> source=<id>
+ *   8. Logs `[notify-hold] held|sent|cancelled|dropped terminal=<id> source=<id>
  *      reason=<r> len=<n>` — 🔴 never the text.
  *
  * Items 9 (the submit Enter is not user input: the renderer writes it `{ auto: true }`,
@@ -46,8 +47,6 @@ import type { HandlerContext } from './remote/handler-registry'
 
 /** Items held per tab at most; one more is refused (`held-full`). */
 export const NOTIFY_HOLD_MAX_PER_TARGET = 8
-/** An item held longer than this is dropped (`expired`). */
-export const NOTIFY_HOLD_MAX_AGE_MS = 30 * 60_000
 /** After the tab left `blocked`, this long without user input / a new `blocked` before sending. */
 export const NOTIFY_HOLD_QUIET_MS = 1_000
 /** A `terminal:keypress` this soon after a held `pty:write` (same connection, same tab) joins it. */
@@ -111,7 +110,6 @@ interface HeldItem {
   /** ms epoch the text came in (the pair window counts from it). */
   textAt?: number
   enter?: NotifyHoldKeypress
-  expiry: unknown
 }
 
 interface TargetQueue {
@@ -253,7 +251,6 @@ export class NotifyHoldController {
     this.disposed = true
     for (const queue of this.queues.values()) {
       if (queue.quietTimer !== null) this.clearTimer(queue.quietTimer)
-      for (const item of queue.items) this.clearTimer(item.expiry)
     }
     this.queues.clear()
   }
@@ -300,9 +297,7 @@ export class NotifyHoldController {
       ...(workorder ? { workorder } : {}),
       heldAt: now,
       reason,
-      expiry: null,
     }
-    item.expiry = this.setTimer(() => this.expire(item), NOTIFY_HOLD_MAX_AGE_MS)
     return item
   }
 
@@ -435,13 +430,6 @@ export class NotifyHoldController {
     }
   }
 
-  private expire(item: HeldItem): void {
-    const queue = this.queues.get(item.targetId)
-    if (!queue || !queue.items.includes(item)) return
-    this.remove(queue, item, 'expired', `older than ${NOTIFY_HOLD_MAX_AGE_MS / 60_000} min`)
-    this.afterChange(item.targetId)
-  }
-
   private dropAll(id: string, cause: string): void {
     const queue = this.queues.get(id)
     if (!queue) return
@@ -459,11 +447,10 @@ export class NotifyHoldController {
   }
 
   /** Takes `item` out; logs `action` (null = it was sent, already logged). */
-  private remove(queue: TargetQueue, item: HeldItem, action: 'cancelled' | 'expired' | 'dropped' | null, cause: string, len?: number): void {
+  private remove(queue: TargetQueue, item: HeldItem, action: 'cancelled' | 'dropped' | null, cause: string, len?: number): void {
     const index = queue.items.indexOf(item)
     if (index < 0) return
     queue.items.splice(index, 1)
-    this.clearTimer(item.expiry)
     if (!action) return
     const parts = len !== undefined ? 'text' : partsOf(item)
     const length = len ?? item.text?.length ?? 0

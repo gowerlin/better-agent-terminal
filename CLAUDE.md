@@ -353,9 +353,9 @@
 
 - 用途：塔台停在權限對話框 / AskUserQuestion / codex 審批時，Worker `bat-notify --submit`（含 `--ask --submit`）的 Enter 會替使用者作答（T0787：30 / 30）。主行程把 helper 送來的文字＋Enter 整組保留，離開 blocked、安靜 1 s 後依序送出。
 - 🔴 觸發只限 `ctx.helper` 的 `pty:write` / `terminal:keypress`、目標 reason `permission` / `question` / `elicitation` / `input`；`tower` 不觸發，`blockedDetection: none` 照舊送出（記 `skipped (detection none)`）；本機視窗 / headless client 輸入與 `{ auto: true }` 不保留。目標已有保留項目時，後到的 helper 寫入排在後面。
-- 🔴 保留時回 `{ ok: true, held: true }`：bat-notify / bat-terminal 的 exit code 與 stdout 不變（不加 `--report-hold`）；第 9 筆回 `held-full`（exit 1）、每筆 30 分鐘逾時丟棄；PTY 結束 / ⏻ / recovery 全丟、不持久化。常數 `NOTIFY_HOLD_*` 集中在同檔（CT 確認中，改值只改常數）。
+- 🔴 保留時回 `{ ok: true, held: true }`：bat-notify / bat-terminal 的 exit code 與 stdout 不變（不加 `--report-hold`）；第 9 筆回 `held-full`（exit 1；`--ask` 先取消題目），配對的 Enter 併入不佔名額；🔴 不設逾時（D228：丟棄會無聲遺失、照送會重現 BUG-196），只在送出、使用者取消、PTY 結束 / ⏻ / recovery 時離開佇列；不持久化。常數 `NOTIFY_HOLD_*` 集中在同檔（CT 確認中，改值只改常數）。
 - 🔴 helper 的 submit Enter（renderer `dispatchEnter`，`terminal:keypress`）寫 `{ auto: true }`：不算使用者輸入（不清 ⚠️、不更新 `lastUserInputAt`、不取消用量限制等待）；焦點行為不變（`restoreFocus` 只給 T0566）。
-- 🔴 日誌 `[notify-hold] held|sent|cancelled|expired|dropped …` 只記 id / reason / 長度，不記文字；「待送 N」清單（`src/types/notify-hold.ts`）也不含文字。
+- 🔴 日誌 `[notify-hold] held|sent|cancelled|dropped …` 只記 id / reason / 長度，不記文字；「待送 N」清單（`src/types/notify-hold.ts`）也不含文字。
 - 唯一實作 `NotifyHoldController`（`electron/notify-hold.ts`，不 import electron，本機與 headless 共用）；`pty.ts` / `terminal.ts` 只接線，不改 `TerminalBlockedTracker` 的判斷。縮圖「📨 待送 N」與取消：`src/stores/notify-hold-store.ts`、`TerminalThumbnail.tsx`，IPC `terminal:notify-hold-list` / `-cancel` 是本機 `ipcMain.handle`（🔴 不是 helper channel；遠端視窗看不到清單）。
 - 完整契約、常數、日誌、已知限制、驗證清單（e2e `e2e/t0787-notify-into-blocked-tower.spec.ts`）：[docs/agent-guide/notify-hold.md](docs/agent-guide/notify-hold.md)
 

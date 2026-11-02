@@ -9,7 +9,7 @@
  *   - `{ ok: true, held: true }`; the 9th item → `{ ok: false, reason: 'held-full' }`
  *   - sent after 1 s quiet (user input restarts it, a new `blocked` stops it), text → 250 ms → Enter,
  *     `blocked` checked again before every step; order kept, later writes queue behind
- *   - 30 min → expired; PTY exit / Terminal Server recovery → dropped; cancel one / all
+ *   - no expiry (Renew #1, D228); PTY exit / Terminal Server recovery → dropped; cancel one / all
  *   - logs never carry the text
  *   - wired: `pty:write` / `terminal:keypress` handlers (real PtyManager + TerminalBlockedTracker)
  */
@@ -30,7 +30,6 @@ vi.mock('../remote/remote-logger', () => ({
 import { logger } from '../logger'
 import {
   NOTIFY_HOLD_ENTER_DELAY_MS,
-  NOTIFY_HOLD_MAX_AGE_MS,
   NOTIFY_HOLD_MAX_PER_TARGET,
   NOTIFY_HOLD_PAIR_WINDOW_MS,
   NOTIFY_HOLD_QUIET_MS,
@@ -66,7 +65,8 @@ class FakeManager implements NotifyHoldPtyManager {
     return this.writeOk ? { ok: true } : { ok: false, reason: 'pty-not-found' }
   }
   getWorkorder(id: string): string | undefined { return id === 'worker-1' ? 'T0001' : undefined }
-  block(reason: BlockedState['reason'], id = 'tower') { this.blocked.set(id, { reason, since: 1 }) }
+  /** `tower` is never a tracked reason (the query handlers synthesize it); the controller must not hold on it anyway. */
+  block(reason: BlockedState['reason'] | 'tower', id = 'tower') { this.blocked.set(id, { reason: reason as BlockedState['reason'], since: 1 }) }
 }
 
 function setupController(opts: { keypressOk?: boolean } = {}) {
@@ -293,22 +293,39 @@ describe('NotifyHoldController — sending', () => {
   })
 })
 
-describe('NotifyHoldController — expiry, lifecycle, cancel', () => {
+describe('NotifyHoldController — no expiry, lifecycle, cancel', () => {
   beforeEach(() => { vi.useFakeTimers() })
   afterEach(() => { vi.useRealTimers() })
 
-  it(`an item held ${NOTIFY_HOLD_MAX_AGE_MS / 60_000} min is dropped (expired), never sent`, async () => {
+  it('Renew #1 (D228): no expiry — held for hours, still sent once the tab is answered', async () => {
     const s = setupController()
     s.pm.block('permission')
     s.controller.interceptWrite(WORKER, 'tower', 'x')
-    await vi.advanceTimersByTimeAsync(NOTIFY_HOLD_MAX_AGE_MS - 1)
+    s.controller.interceptKeypress(WORKER, enter())
+    await vi.advanceTimersByTimeAsync(6 * 60 * 60_000)
     expect(s.controller.count('tower')).toBe(1)
-    await vi.advanceTimersByTimeAsync(1)
-    expect(s.controller.count('tower')).toBe(0)
-    expect(s.lines.some(l => l.startsWith('[notify-hold] expired terminal=tower'))).toBe(true)
+    expect(s.lines.some(l => /\[notify-hold\] (expired|dropped)/.test(l))).toBe(false)
     s.unblock()
-    await vi.advanceTimersByTimeAsync(10_000)
-    expect(s.pm.writes).toEqual([])
+    await vi.advanceTimersByTimeAsync(NOTIFY_HOLD_QUIET_MS + NOTIFY_HOLD_ENTER_DELAY_MS)
+    expect(s.pm.writes).toEqual([['tower', 'x']])
+    expect(s.keypresses.length).toBe(1)
+  })
+
+  it(`Renew #1: with ${NOTIFY_HOLD_MAX_PER_TARGET} writes held, the Enter of each one joins it (never held-full); the next write is held-full`, () => {
+    const { pm, controller } = setupController()
+    pm.block('permission')
+    for (let i = 0; i < NOTIFY_HOLD_MAX_PER_TARGET; i++) {
+      const ctx: HandlerContext = { windowId: null, connectionId: `conn-${i}`, helper: { terminalId: `worker-${i}`, role: 'worker', towerId: 'tower' } }
+      expect(controller.interceptWrite(ctx, 'tower', `n${i}`)).toEqual(HELD)
+      expect(controller.count('tower')).toBe(i + 1)
+    }
+    for (let i = 0; i < NOTIFY_HOLD_MAX_PER_TARGET; i++) {
+      const ctx: HandlerContext = { windowId: null, connectionId: `conn-${i}`, helper: { terminalId: `worker-${i}`, role: 'worker', towerId: 'tower' } }
+      expect(controller.interceptKeypress(ctx, enter(`T09${i}`))).toEqual(HELD)
+    }
+    expect(controller.count('tower')).toBe(NOTIFY_HOLD_MAX_PER_TARGET)
+    expect(controller.list('tower')[0].items.every(i => i.hasText && i.hasEnter)).toBe(true)
+    expect(controller.interceptWrite(WORKER, 'tower', 'one more')).toEqual({ ok: false, reason: 'held-full' })
   })
 
   it('the PTY ending (exit / kill / ⏻ restart) drops everything held for it (count logged)', async () => {
