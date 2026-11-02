@@ -1,9 +1,9 @@
 # State Snapshot INDEX
 
-> Last archived: 2026-11-02 (Session 105 收工 — Session 103 收工快照 → 2026-Q4-b.md)
-> Hot path retains: session 105 (本) + session 104 (前) + Quick Recovery / 基本資訊 / 進度快照 / 環境快照 / YOLO 歷程
+> Last archived: 2026-11-02 (Session 106 收工 — Session 104 收工快照 → 2026-Q4-b.md)
+> Hot path retains: session 106 (本) + session 105 (前) + Quick Recovery / 基本資訊 / 進度快照 / 環境快照 / YOLO 歷程
 > Archive root: `_ct-workorders/_archive/state-snapshots/`
-> Total archived entries: 123 (0 in Q1 / 58 in Q2-a/b / 5 in Q2-c / 2 in Q3 / 27 in Q4-a / 31 in Q4-b)
+> Total archived entries: 124 (0 in Q1 / 58 in Q2-a/b / 5 in Q2-c / 2 in Q3 / 27 in Q4-a / 32 in Q4-b)
 
 | # | Session | Date | File | Summary |
 |---|---------|------|------|---------|
@@ -130,3 +130,4 @@
 | 121 | 第一百零四 session 開工條目原文 | 2026-11-01 | 2026-Q4-b.md | 第一百零四 session 進行中, 2026-11-01 21:36 - 11-02 04:56, T0750-T0769, D205-D214, 0.7.3-pre.2 / pre.3 / pre.4 |
 | 122 | 基本資訊舊值 | 2026-11-02 | 2026-Q4-b.md | 第一百零四 session 瘦身前的 📦 基本資訊原文（多數欄位停在第八十九 session 前後） |
 | 123 | 第一百零三 session | 2026-11-01 | 2026-Q4-b.md | 第一百零三 session, 2026-11-01 17:11-21:30, ~4h20m, T0736-T0749, D204, 0.7.2-pre.9 / 0.7.3-pre.1 |
+| 124 | 第一百零四 session | 2026-11-01 | 2026-Q4-b.md | 第一百零四 session, 2026-11-01 21:36 - 11-02 11:17, 五個塔台 session, T0750-T0778, D206-D218, 0.7.3-pre.2 / pre.3 / pre.4 / pre.5 |

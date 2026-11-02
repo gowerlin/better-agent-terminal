@@ -3801,3 +3801,14 @@ Codex 那張是外部測試者回報才發現；Claude 那張是使用者隨口�
 - 改 `_bug-tracker.md` / `_backlog.md` 這類「多個區段有相同佔位列」的索引：用 Edit 並把區段標題一起放進 old_string，或用行號定位；不要用全檔 `sed s/…/…/`
 - 改完照例跑 `grep -n "^| BUG-" _bug-tracker.md | awk -F'|' '{print $2}' | sort | uniq -d`（應為空）與 `npx vitest run src/types/__tests__`（parser 測試）
 - 寫給 Worker 的 tracker 更新指示也寫明「只動該列，不要全檔替換」（T0786 照此執行，沒有出錯）
+
+## L180
+
+**來源**：第一百零六 session（2026-11-02），T0788 / T0789 兩張單並行，同一個 checkout
+
+**現象**：T0789 在 WSL 下 `cd /tmp/ct-T0789` 失敗（WSL 閒置後 `/tmp` 被清空），指令沒有中止，就在 repo 目錄以 WSL 的 node 跑了整套 `npx playwright test`，約 4 分鐘後才發現。追蹤檔沒被改，但 Playwright 開跑會清空共用的 `e2e-results/`，當時 T0788 正在用這個目錄跑 t0787 的 e2e。T0788 最後一次 e2e 在這之後重跑，證據仍有效。
+
+**How to apply**：
+- 並行 Worker 的工單在 `memory_overrides` 寫明「e2e 一律帶自己的 `--output` 暫存目錄，不清共用的 `e2e-results/`」（T0790 起已寫進工單）
+- Worker 腳本中切目錄一律寫成 `cd <dir> || exit 1`，不要讓後面的指令在錯的目錄執行
+- 塔台收單時，若並行的另一張單回報誤跑，核對這張單的 e2e 證據時間是不是在誤跑之後
