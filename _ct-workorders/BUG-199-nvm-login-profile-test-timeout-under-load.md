@@ -3,11 +3,11 @@ schema_version: 1
 schema_kind: bug
 id: BUG-199
 title: "`nvm-login-profile.test.ts` 的真 bash 測試在整套 `test:unit` 負載下逾時 5 s（BUG-195 同類，第五支）"
-status: OPEN
+status: FIXING
 severity: low
 reproducibility: rare
 created_at: "2026-11-02T22:12:53+0800"
-updated_at: "2026-11-02T22:12:53+0800"
+updated_at: "2026-11-02T22:40:55+0800"
 impact:
   - test-infra
 links:
@@ -20,7 +20,7 @@ links:
 |------|------|
 | 嚴重度 | 🟢 low（只影響測試；產品行為無關。CI Test gate 若撞到會擋發版） |
 | 可重現 | 偶發：整套 1 次中 1 次；單檔 3 / 3 通過（7.2–8.7 s），整套重跑通過 |
-| **狀態** | 📂 OPEN |
+| **狀態** | 🔧 FIXING（T0793） |
 | 回報者 | 塔台（聯合驗證） |
 
 ## 現象
@@ -43,3 +43,4 @@ links:
 ## 處理紀錄
 
 - 2026-11-02 22:12 開單（OPEN，low）。`0.7.3-pre.9` 聯合驗證發現；整套重跑綠，不擋 pre.9（比照 BUG-195 首次出現時的處置）。
+- 2026-11-02 22:40 → FIXING：開 T0793（P3，S，D234），比照 T0786 先量再改；共用 helper / 標記只評估、不實作。

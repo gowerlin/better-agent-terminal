@@ -1465,6 +1465,17 @@
 - **切分**：W2a 設計語言 + 元件 + 首頁（T0630）→ 預覽通過後 W2b（`/control-tower`、功能、FAQ、回報頁）→ W2c 遠端開發；W3 / W4 不變。
 - **相關**：PLAN-049 / D159 / D160 / T0624 / T0630
 
+### D234 2026-11-02 — 並行開 T0792（安裝版 pre.9 驗收 BUG-197 / 198）與 T0793（BUG-199）；本版不需 CT 配合改版
+
+- **背景**：`v0.7.3-pre.9` 已發佈並通過 NSIS 完整重裝驗收（第一百零八 session 22:37，PASS-WITH-WARN，WARN = 從 pre.8 升級）。待驗收 BUG-196 / 197 / 198 / 159（D233 順序）；BUG-199（low）OPEN。
+- **決定**（使用者「直接推進」）：
+  1. 開 T0792（verification，P2，S）：以安裝版 exe（`BAT_E2E_EXECUTABLE`）跑 `t0787` 3 輪、`t0694` 3 次（含步驟 6），隔離實例＋假模型；只驗收不修。PASS → 塔台將 BUG-197 / 198 改 CLOSED（R-G003：交付版實測）。BUG-196 仍等使用者實機（D233 第一項），不因自動化先行而跳過。
+  2. 開 T0793（implementation，P3，S）：比照 T0786 先量再改 `nvm-login-profile.test.ts`；共用 helper / 標記只評估不實作；BUG-199 → FIXING。
+  3. 兩單 `affects_files` 不重疊，並行派工（yolo `--no-interactive`）；負載互相影響時各自在回報區註明。
+  4. **CT 不需配合改版**：pre.9 只改 BAT 內部回合判斷（T0791，`TerminalBlockedTracker`），helper 參數、exit code、查詢回傳、`bat-hook.mjs` 都沒變；pre.8 的 notify-hold 契約已由 CT 確認（CT D543、CT T0399 文件補註）。不另送 HANDOVER。
+- **決策者**：使用者（推進）；塔台（切分與 CT 判斷）。2026-11-02 第一百零八 session。
+- **相關**：T0792 / T0793 / BUG-197 / BUG-198 / BUG-199 / D233 / T0786 / T0791
+
 ### D233 2026-11-02 — 發 `0.7.3-pre.9`（BUG-198）；四張待驗收 BUG 依塔台建議排序
 
 - **背景**：T0791 DONE，BUG-198 FIXED；熱區無 OPEN BUG。待驗收：BUG-196 / 197（pre.8）、BUG-198（本版）、BUG-159（T0651，需非系統管理員環境）。
