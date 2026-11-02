@@ -1465,6 +1465,13 @@
 - **切分**：W2a 設計語言 + 元件 + 首頁（T0630）→ 預覽通過後 W2b（`/control-tower`、功能、FAQ、回報頁）→ W2c 遠端開發；W3 / W4 不變。
 - **相關**：PLAN-049 / D159 / D160 / T0624 / T0630
 
+### D242 2026-11-03 — Linux AppImage 驗收改由 CI 啟動驗收（T0797，`linux-acceptance.yml`）
+
+- **背景**：待辦「Linux AppImage（Ubuntu 22.04）待回報」源自 T0784 的 Linux 待驗項目（AppImage 啟動、22.04 相容；T0781 未確認 Electron 45 的 glibc 下限）。CI 只打包不啟動，也沒有指定回報人，等於無人負責。
+- **決定**（使用者選 1）：開 T0797，照 `macos-acceptance.yml` 新增只 `workflow_dispatch` 的 `linux-acceptance.yml`（ubuntu-22.04 / 24.04，測 release 或 desktop-build 的 AppImage），首選 Playwright 開窗＋終端分頁 echo，不得以 `--no-sandbox` 掩蓋相容性問題。不進發版關卡。Worker 不 push；收單後塔台 push 並以 `-f version=0.7.4-pre.1` 執行，結果決定此待辦結案或開 BUG。
+- **決策者**：使用者。2026-11-03 第一百零九 session。
+- **相關**：T0797 / T0784 / T0781 / PLAN-053 / D224
+
 ### D241 2026-11-03 — 發 `0.7.4-pre.1`（BUG-199 / 200 / 201 測試修正）
 
 - **背景**：BUG-196 / 197 / 198 已 CLOSED；BUG-199 / 200 / 201（測試穩定性 / 隔離）FIXED，待 CI Test gate。版號線 `0.7.4-pre.N`（D236）。自 `v0.7.3-pre.9` 起非 `(ct)` commit 只有測試與開發用部署腳本（`f03adbd6` / `1b46a400` / `2b3f0b1b` / `216973bb` / `6c2b6b93`），產品行為無變更；另移除 lean-ctx 殘留（D239）。
