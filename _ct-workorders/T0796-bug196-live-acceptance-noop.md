@@ -89,7 +89,10 @@ memory_overrides:
 
 ### 通知結果
 
-（待通知後補寫）
+- 指令：`"${BAT_HELPER_NODE:-node}" "$BAT_HELPER_DIR/bat-notify.mjs" --source "T0796" --target "$BAT_TOWER_TERMINAL_ID" --submit "T0796 完成"`（只送一次，未重送）
+- 送出時間：2026-11-03T00:15:25+0800（指令結束後取的系統時間）
+- exit code：`0`
+- stdout 原文：`✓ Notified 508fced6…: T0796 完成`（helper 自行截短的目標分頁 id 前綴，非權杖）
 
 ### 互動紀錄
 
