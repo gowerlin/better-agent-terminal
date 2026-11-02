@@ -3,11 +3,13 @@ schema_version: 1
 schema_kind: bug
 id: BUG-196
 title: "Worker 通知（`bat-notify --submit`、`--ask --submit`）的 Enter 替使用者回答塔台的權限對話框 / AskUserQuestion"
-status: FIXED
+status: CLOSED
 severity: high
 reproducibility: always
 created_at: "2026-11-02T18:20:48+0800"
-updated_at: "2026-11-02T19:20:41+0800"
+updated_at: "2026-11-03T00:16:05+0800"
+closed_at: "2026-11-03T00:16:05+0800"
+closed_reason: verified
 impact:
   - security
   - tower-worker
@@ -21,7 +23,7 @@ links:
 |------|------|
 | 嚴重度 | 🔴 high（權限對話框被自動核准，需要核准的工具在使用者沒有同意的情況下執行；事後畫面分不出是不是使用者按的） |
 | 可重現 | 必現：T0787 隔離實例＋假模型，30 / 30（3 輪 × 10 情境；塔台分頁在背景或前景都一樣） |
-| **狀態** | ✅ FIXED（T0788，`94ad2b83` / `610f592b`；待驗收） |
+| **狀態** | 🚫 CLOSED（T0788 `94ad2b83` / `610f592b`；交付版 `v0.7.3-pre.9` 使用者實機 T0796 ＋安裝版 e2e T0792） |
 | 回報者 | 塔台（T0787 研究單實測，PLAN-059 R1） |
 
 ## 現象
@@ -64,3 +66,4 @@ T0787 回報區〈建議方向 ②〉的契約草案 v0：主行程在塔台 hoo
   - 2026-11-02 19:20 Renew #1（D228）`610f592b`：拿掉逾時（只在送出 / 取消 / PTY 結束 / recovery 離開佇列）；守門測試 `--ask --submit` 遇 `held-full` 先 `question:cancel` 再 exit 1（stderr `ask: NOTIFY_STEP pty-write`）；配對的 Enter 不佔名額。
   - 新發現（另案）：e2e 60 次裡 1 次，claude 的 hook 回報亂序（`permission-request` 先、`user-prompt-submit` 後）把 `blocked` 清掉而對話框仍在，那次通知不會被保留。屬 `TerminalBlockedTracker` 既有競態（本單不改判斷規則），建議塔台另開 BUG。
   - 待驗收：實機（使用者的 BAT）塔台停在權限對話框時收到 Worker 完成通知 → 對話框不被作答，答完後通知送進輸入框。
+- 2026-11-03 00:16 → CLOSED（`closed_reason: verified`，D240）：使用者實機（安裝版 `v0.7.3-pre.9`，塔台分頁停在 AskUserQuestion 對話框）派 T0796 空工單，Worker `bat-notify --submit` exit 0。BAT 日誌：16:14:58Z `→ blocked reason=question` → 16:15:25Z `[notify-hold] held … part=text` / `part=enter`（queued=1）→ 使用者確認對話框維持、縮圖「📨 待送 1」後作答，16:15:41Z `cleared (user input)` → 16:15:42Z `sent` text / enter（安靜 1 s）→ 塔台輸入框收到「T0796 完成」。權限對話框情境：T0792 以安裝版 pre.9 跑 `t0787` 3 輪（含權限對話框情境）全過、races 0。
