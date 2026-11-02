@@ -31,3 +31,10 @@ links:
 - **優先度 low → high**（使用者決定）。塔台查證：`package-lock.json` 鎖 **41.2.1**（`package.json` `^41.2.1`）；electron@41 最新 41.10.7（41 線最後一版、已停止更新），npm `latest` 為 **45.2.1**。BAT 除了停在停更的版本線，連 41 線之後 8 個修補小版本都沒裝；修補版通常含 Chromium 安全修正（推論）。
 - **第一步**：開 **T0779**，在 41 線內升到 41.10.7（大版本不變、原生模組 ABI 不變）。
 - **主升級**：待決第 1 點要重新查目標版本（T0668 查證時是 42 / 43 / 44，現在已有 45）；仍比照 PLAN-016 先開 EXP 分支驗證（待決第 4 點）。狀態維持 IDEA，T0779 收單後再拆主升級的研究單。
+
+## T0779 結果（2026-11-02）
+
+- **版本**：Electron 41.2.1 → **41.10.7**（`package.json` `^41.10.7`；Node 24.18.0、Chromium 146.0.7680.216、ABI 145 不變）。lock 只改 electron 與它自己的相依（`@electron/get` 2.0.3 → 5.1.0，`extract-zip` 換成 `@electron-internal/extract-zip`，連帶移除只給舊版用的 7 個套件）；原生模組、electron-builder、vite、內嵌 CLI、GPU / Graphite 設定都沒動。
+- **驗證（Windows x64）**：verify-native-modules、typecheck 0 / 0、`test:unit`、`test:legacy`、`vite build`、`build:dir` ＋ `verify-packaged-native.js` 全綠，打包產物 Electron = 41.10.7；e2e 冒煙 5 支（t0572 / t0776 / t0735 / t0744 / t0762）全過。
+- **未驗證**：macOS / Linux，待 CI 三平台 build 與 `macos-acceptance.yml`。
+- 狀態維持 IDEA、優先度不變；主升級（42+）另開單。
