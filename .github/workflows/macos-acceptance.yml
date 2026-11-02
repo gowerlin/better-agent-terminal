@@ -1,0 +1,128 @@
+name: macOS acceptance (manual)
+
+# T0778: BUG-128 (Finder copy + Command+V in a terminal tab) / BUG-130 (terminal image paste key)
+# acceptance on a GitHub-hosted macOS runner, against a *released* dmg (not a source build).
+# workflow_dispatch only and not part of any release workflow. No secrets: the release download uses
+# this job's read-only GITHUB_TOKEN. The spec never changes macOS privacy (TCC) settings; a refusal
+# is recorded as a result. See docs/agent-guide/macos-ci-acceptance.md.
+#
+#   gh workflow run macos-acceptance.yml -R gowerlin/better-agent-terminal -f version=0.7.3-pre.5
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release to test: tag v<version>, asset BetterAgentTerminal-<version>-arm64.dmg'
+        required: true
+        default: '0.7.3-pre.5'
+
+permissions:
+  contents: read
+
+jobs:
+  macos-acceptance:
+    runs-on: macos-15
+    timeout-minutes: 30
+    env:
+      VERSION: ${{ inputs.version }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+          cache: 'npm'
+
+      - name: Check the version input
+        run: |
+          if ! [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-pre\.[0-9]+)?$ ]]; then
+            echo "::error::invalid version input: $VERSION"
+            exit 1
+          fi
+
+      - name: Download the dmg and check its SHA-256 digest
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          dmg="BetterAgentTerminal-${VERSION}-arm64.dmg"
+          mkdir -p "$RUNNER_TEMP/dmg"
+          gh release download "v${VERSION}" -R gowerlin/better-agent-terminal -p "$dmg" -D "$RUNNER_TEMP/dmg"
+          expected=$(gh release view "v${VERSION}" -R gowerlin/better-agent-terminal --json assets --jq ".assets[] | select(.name == \"$dmg\") | .digest")
+          actual="sha256:$(shasum -a 256 "$RUNNER_TEMP/dmg/$dmg" | cut -d' ' -f1)"
+          echo "release digest: $expected"
+          echo "downloaded:     $actual"
+          if [ -z "$expected" ] || [ "$expected" != "$actual" ]; then
+            echo "::error::SHA-256 digest mismatch (or no digest on the release asset)"
+            exit 1
+          fi
+          echo "DMG=$RUNNER_TEMP/dmg/$dmg" >> "$GITHUB_ENV"
+
+      - name: Mount the dmg and copy the app out
+        run: |
+          set -euo pipefail
+          hdiutil attach "$DMG" -nobrowse -readonly -mountpoint "$RUNNER_TEMP/mnt"
+          app=$(find "$RUNNER_TEMP/mnt" -maxdepth 1 -name '*.app' | head -n 1)
+          mkdir -p "$RUNNER_TEMP/app"
+          copy="$RUNNER_TEMP/app/$(basename "$app")"
+          ditto "$app" "$copy"
+          hdiutil detach "$RUNNER_TEMP/mnt"
+          # only the copy; harmless when the attribute is absent
+          xattr -dr com.apple.quarantine "$copy" || true
+          exe="$copy/Contents/MacOS/$(/usr/libexec/PlistBuddy -c 'Print :CFBundleExecutable' "$copy/Contents/Info.plist")"
+          ls -l "$exe"
+          /usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$copy/Contents/Info.plist"
+          codesign -dv "$copy" 2>&1 | grep -E '^(Identifier|Format|Signature|TeamIdentifier|Authority)' || true
+          spctl --assess --type execute -vv "$copy" 2>&1 || true
+          echo "BAT_E2E_EXECUTABLE=$exe" >> "$GITHUB_ENV"
+
+      - name: Install test dependencies (no install scripts)
+        run: npm ci --ignore-scripts
+
+      - name: Runner context
+        run: |
+          sw_vers
+          uname -m
+          launchctl managername
+          echo "SHELL=$SHELL user=$(id -un)"
+
+      - name: Acceptance (Playwright, e2e/macos)
+        env:
+          MACOS_REPORT_DIR: ${{ runner.temp }}/report
+        run: npx playwright test e2e/macos/ --reporter=list
+
+      - name: Report
+        if: always()
+        run: |
+          f="$RUNNER_TEMP/report/macos-report.md"
+          if [ -f "$f" ]; then
+            cat "$f"
+            cat "$f" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "no report was written"
+          fi
+
+      - name: Remove secret-looking files from the artifacts
+        if: always()
+        run: |
+          for d in "$RUNNER_TEMP/report" e2e-results; do
+            [ -d "$d" ] || continue
+            grep -rlE 'batcap\.[A-Za-z0-9_-]{8,}|ghp_|github_pat_|ghs_[A-Za-z0-9]{20,}|sk-ant-|-----BEGIN [A-Z ]*PRIVATE KEY' "$d" | while read -r f; do
+              echo "::warning::removed $f (secret-like pattern)"
+              rm -f "$f"
+            done || true
+          done
+
+      - name: Upload report and screenshots
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: macos-acceptance-${{ inputs.version }}-attempt${{ github.run_attempt }}
+          path: |
+            ${{ runner.temp }}/report
+            e2e-results
+          retention-days: 7
+          if-no-files-found: warn
