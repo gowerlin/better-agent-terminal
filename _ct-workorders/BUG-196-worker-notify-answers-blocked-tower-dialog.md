@@ -3,11 +3,11 @@ schema_version: 1
 schema_kind: bug
 id: BUG-196
 title: "Worker 通知（`bat-notify --submit`、`--ask --submit`）的 Enter 替使用者回答塔台的權限對話框 / AskUserQuestion"
-status: FIXING
+status: FIXED
 severity: high
 reproducibility: always
 created_at: "2026-11-02T18:20:48+0800"
-updated_at: "2026-11-02T18:24:49+0800"
+updated_at: "2026-11-02T19:20:41+0800"
 impact:
   - security
   - tower-worker
@@ -21,7 +21,7 @@ links:
 |------|------|
 | 嚴重度 | 🔴 high（權限對話框被自動核准，需要核准的工具在使用者沒有同意的情況下執行；事後畫面分不出是不是使用者按的） |
 | 可重現 | 必現：T0787 隔離實例＋假模型，30 / 30（3 輪 × 10 情境；塔台分頁在背景或前景都一樣） |
-| **狀態** | 🔧 FIXING（T0788） |
+| **狀態** | ✅ FIXED（T0788，`94ad2b83` / `610f592b`；待驗收） |
 | 回報者 | 塔台（T0787 研究單實測，PLAN-059 R1） |
 
 ## 現象
@@ -58,3 +58,9 @@ T0787 回報區〈建議方向 ②〉的契約草案 v0：主行程在塔台 hoo
 
 - 2026-11-02 18:20 開單（OPEN，high），T0787 收單時登記。
 - 2026-11-02 18:24 → FIXING：開修正單 T0788（D227）；契約第 5 / 9 / 10 點用 T0787 建議值，同時送 CT 塔台確認（`_handover-2026-11-02-bat-notify-hold-contract.md`）。
+- 2026-11-02 19:02 → FIXED（T0788，commit `94ad2b83`）：主行程在塔台 hook / osc `blocked`（`permission` / `question` / `elicitation` / codex `input`）時保留 helper 的文字＋Enter，答完、安靜 1 s 後依序送出（`electron/notify-hold.ts`，本機與 headless 共用）；bat-notify exit code / stdout 不變；縮圖「📨 待送 N」可逐筆 / 全部取消；helper 的 submit Enter 改 `{ auto: true }`（不算使用者輸入）。驗證：`e2e/t0787-notify-into-blocked-tower.spec.ts` 改斷言版 2 passed（claude 10 情境 × 2 輪 20 / 20 對話框維持、模型沒收到答案、使用者答完後收到通知；「待送 N」與取消；codex 0.166.0 審批提示保留 → `y` 核准 → 模型收到通知），單元 `electron/__tests__/notify-hold.test.ts` 33 項＋突變檢查。
+  - 附帶發現的更正：`--close-worker` 的取消條件是被關閉的 Worker 分頁自己的使用者輸入（`close-worker.ts` `fire`），塔台分頁的 submit Enter 本來就不影響它（原推論不成立）；實際受影響的是塔台分頁自己的 ⚠️ 與用量限制等待，已由 `{ auto: true }` 修正（單元測試＋e2e ③ 驗證不再出現 `cleared (user input)`）。
+  - 已知限制：`blockedDetection: none` 的分頁照舊直接送出；遠端 profile 視窗看不到「待送 N」（保留照樣生效）。見 `docs/agent-guide/notify-hold.md`。
+  - 2026-11-02 19:20 Renew #1（D228）`610f592b`：拿掉逾時（只在送出 / 取消 / PTY 結束 / recovery 離開佇列）；守門測試 `--ask --submit` 遇 `held-full` 先 `question:cancel` 再 exit 1（stderr `ask: NOTIFY_STEP pty-write`）；配對的 Enter 不佔名額。
+  - 新發現（另案）：e2e 60 次裡 1 次，claude 的 hook 回報亂序（`permission-request` 先、`user-prompt-submit` 後）把 `blocked` 清掉而對話框仍在，那次通知不會被保留。屬 `TerminalBlockedTracker` 既有競態（本單不改判斷規則），建議塔台另開 BUG。
+  - 待驗收：實機（使用者的 BAT）塔台停在權限對話框時收到 Worker 完成通知 → 對話框不被作答，答完後通知送進輸入框。
