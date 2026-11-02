@@ -1,11 +1,11 @@
 ---
 schema_kind: tower-state
 summary_version: 1
-updated_at: "2026-11-02T22:38:57+08:00"
-session: "2026-11-02 22:38 第一百零八 session 開工（CT v6.0.0-beta.10）"
+updated_at: "2026-11-02T22:42:36+08:00"
+session: "2026-11-02 22:42 第一百零八 session 進行中（CT v6.0.0-beta.10）：T0792 / T0793 執行中"
 next_ids:
-  workorder: "T0792"
-  decision: "D234"
+  workorder: "T0794"
+  decision: "D235"
   bug: "BUG-200"
   plan: "PLAN-062"
 todo:
@@ -28,7 +28,7 @@ todo:
 
 ## 🟢 本 Session 進行中（第一百零八 session）
 
-> 🟢 **第一百零八 session 開工**（2026-11-02 22:38 (UTC+8)，CT v6.0.0-beta.10，Fast Path；塔台 session `f34696de-6639-472a-96fd-e52716378f13`；`--set-role tower --mode on` exit 0；安裝版 helper `v0.7.3-pre.9`（已換版）；HEAD `13f0f372`、`main` = `origin/main`（0 / 0）、工作區乾淨；熱區 187 張工單皆 DONE；BUG 熱區 Open 1（BUG-199）/ Fixed 4 / Closed 58，與 `_bug-tracker.md` 一致，免重建；`bat_list_questions` pending 0）。**`v0.7.3-pre.9` NSIS 完整重裝驗收 PASS-WITH-WARN**（`e2e\manual\nsis-reinstall-acceptance.ps1` real 模式，22:36:37–22:37:20；AllUsers / HKLM；唯一 WARN = ⓪ 目前安裝版是 pre.8，② 實為升級而非同版覆蓋，屬預期；① SHA-256 `7adb1790…` ② 覆蓋 ③ 靜默解除 ④ 乾淨重裝全 PASS，三支 helper `--version` = v0.7.3-pre.9、內嵌 claude / codex 存在、userData 130 檔 SHA-256 未變；⑤ LaunchCheck 未帶 → SKIPPED）。報告 `%TEMP%\bat-nsis-acceptance-20261102-223637\report.md`；含權杖的 `userdata-backup`（130 檔）已刪除。
+> 🟢 **第一百零八 session 開工**（2026-11-02 22:38 (UTC+8)，CT v6.0.0-beta.10，Fast Path；塔台 session `f34696de-6639-472a-96fd-e52716378f13`；`--set-role tower --mode on` exit 0；安裝版 helper `v0.7.3-pre.9`（已換版）；HEAD `13f0f372`、`main` = `origin/main`（0 / 0）、工作區乾淨；熱區 187 張工單皆 DONE；BUG 熱區 Open 1（BUG-199）/ Fixed 4 / Closed 58，與 `_bug-tracker.md` 一致，免重建；`bat_list_questions` pending 0）。**`v0.7.3-pre.9` NSIS 完整重裝驗收 PASS-WITH-WARN**（`e2e\manual\nsis-reinstall-acceptance.ps1` real 模式，22:36:37–22:37:20；AllUsers / HKLM；唯一 WARN = ⓪ 目前安裝版是 pre.8，② 實為升級而非同版覆蓋，屬預期；① SHA-256 `7adb1790…` ② 覆蓋 ③ 靜默解除 ④ 乾淨重裝全 PASS，三支 helper `--version` = v0.7.3-pre.9、內嵌 claude / codex 存在、userData 130 檔 SHA-256 未變；⑤ LaunchCheck 未帶 → SKIPPED）。報告 `%TEMP%\bat-nsis-acceptance-20261102-223637\report.md`；含權杖的 `userdata-backup`（130 檔）已刪除。使用者「直接推進，另外需要通知 CT 塔台改版配合嗎」→ **D234**（CT 不需配合：pre.9 無介面變更）→ 開 **T0792**（安裝版 pre.9 驗收 BUG-197 / 198）、**T0793**（BUG-199 → FIXING）（`07f14a7f`）。22:42 並行派 **T0792**（Worker `ead67dbb…`，`started: 14:42:33Z`）、**T0793**（Worker `cc8f6356…`，`started: 14:42:36Z`），皆 yolo `--no-interactive`、exit 0。
 
 ---
 
