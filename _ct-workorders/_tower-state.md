@@ -1,15 +1,16 @@
 ---
 schema_kind: tower-state
 summary_version: 1
-updated_at: "2026-11-02T22:32:17+08:00"
-session: "2026-11-02 21:43 第一百零七 session 塔台重啟（CT v6.0.0-beta.10）"
+updated_at: "2026-11-02T22:33:52+08:00"
+session: "2026-11-02 22:33 第一百零七 session 收工（CT v6.0.0-beta.10）"
 next_ids:
   workorder: "T0792"
   decision: "D234"
   bug: "BUG-200"
   plan: "PLAN-062"
 todo:
-  - "BUG-196 / BUG-197 FIXED，已隨 `v0.7.3-pre.8` 發佈；待使用者實機驗收 → CLOSED"
+  - "換版到 pre.9 後若跑 NSIS 重裝驗收：讀 `%TEMP%\\bat-nsis-acceptance-<時間>\\report.md`、刪 `userdata-backup`"
+  - "BUG-196 / BUG-197 FIXED（pre.8 起）：196 使用者實機；197 / 198 開 T0792 自動化驗收（安裝版 pre.9）→ CLOSED"
   - "BUG-198（low）FIXED（T0791 `20bc7a88`），已隨 `v0.7.3-pre.9` 發佈；驗收順序 196 → 197 → 198 → 159（D233）"
   - "BUG-199（low，`nvm-login-profile.test.ts` 負載逾時，BUG-195 同類）待開修正單"
   - "待驗收：Linux AppImage（Ubuntu 22.04，Electron 45）；BUG-159（一般權限 ＋ codex，需使用者本機）"
@@ -20,17 +21,48 @@ todo:
 ---
 # Tower State — better-agent-terminal
 
+> 最後更新:2026-11-02 22:33 (UTC+8) — **第一百零七 session 收工**：pre.8 NSIS 重裝驗收 PASS；BUG-198 T0791 修 → **`v0.7.3-pre.9`** 發佈（`0.7.3-pre.N` 線用完）；開 BUG-199（測試逾時，low）；四張待驗收 BUG 排序（D233）。前次：第一百零六 session 收工（2026-11-02 20:50）。
+>
+> **下次起手**:熱區無進行中工單。① 使用者「換版」到 pre.9：若跑 NSIS 重裝驗收（`e2e\manual\nsis-reinstall-acceptance.ps1 -Version 0.7.3-pre.9`），讀報告 `%TEMP%\bat-nsis-acceptance-<時間>\report.md` 並刪 `userdata-backup`；② 驗收（D233 順序）：BUG-196 使用者實機 → 開 T0792 自動化驗收（安裝版 pre.9 跑 `t0787` 多輪＋`t0694` 步驟 6）涵蓋 BUG-197 / 198 → 三張一起 CLOSED；BUG-159 需非系統管理員環境，最後；③ BUG-199（low）待開修正單（比照 T0786）；④ 下一版前先問使用者版號線（`0.7.3-pre.N` 已用完）；Linux AppImage 待回報；PLAN-059 C 待問 CT（Q5）。
+
+---
+
+## 🛏 本 Session 收工快照 (第一百零七 session, 2026-11-02 21:40 - 2026-11-02 22:33, ~55m)
+
+### 主軸：pre.8 NSIS 驗收 → BUG-198 修正（T0791）→ `v0.7.3-pre.9`
+
+#### 時間線（時間取自系統 / git / gh）
+
 > 🟢 **第一百零七 session 開工**（2026-11-02 21:40 (UTC+8)，CT v6.0.0-beta.10，Fast Path；塔台 session `2c1fd280-0f34-4dfc-af2a-71b815044fcf`；`--set-role tower --mode on` exit 0；安裝版 BAT / helper `v0.7.3-pre.8`（已換版）；HEAD `d1c3e40a`、`main` = `origin/main`（0 / 0）、工作區乾淨；熱區工單無非終態；BUG 熱區 Open 1（BUG-198）/ Fixed 3 / Closed 58，與 `_bug-tracker.md` 一致，免重建；`%TEMP%` 只有 pre.7 的 `bat-nsis-acceptance-20261102-175507`，**pre.8 未跑 NSIS 重裝驗收**）。
 >
 > 🟢 **第一百零七 session 塔台重啟**（2026-11-02 21:43 (UTC+8)，CT v6.0.0-beta.10，Fast Path；塔台 session `1ccb4733-ea63-4a7e-8b63-6faa91addd19`；`--set-role tower --mode on` exit 0；安裝版 helper `v0.7.3-pre.8`；HEAD `7c7f7cfe`（`main` ahead 1，未 push）；熱區 186 張工單無非終態；BUG Open 1 / Fixed 3 / Closed 58；`bat_list_questions` pending 0；熱區檔案皆 < 400 KB）。**`v0.7.3-pre.8` NSIS 完整重裝驗收 PASS**（`e2e\manual\nsis-reinstall-acceptance.ps1` real 模式，21:41:34–21:42:14；AllUsers / HKLM；① SHA-256 `b44a333e…` ② 同版覆蓋 ③ 靜默解除 ④ 乾淨重裝全 PASS，三支 helper `--version` = v0.7.3-pre.8、內嵌 claude / codex 存在、userData 130 檔 SHA-256 未變；⑤ LaunchCheck 未帶 → SKIPPED）。報告 `%TEMP%\bat-nsis-acceptance-20261102-214134\report.md`；含權杖的 `userdata-backup`（130 檔）已刪除。使用者「開 BUG-198 的修正單並派工」→ **D232** → 開 **T0791**（P2，S；沿用 T0790 的 `at`，晚到的 `stop` 不結束較晚開始的回合）；BUG-198 → FIXING（tracker 只動該列，Open 0 / Fixing 1）。21:47 派 **T0791**（yolo `--no-interactive`，exit 0，`started: 2026-11-02T13:47:20.353Z`；Worker 分頁 `f9977817…`）。**T0791 DONE**（`20bc7a88`，22:05；`TerminalBlockedTracker` 記目前回合 `user-prompt-submit` 中最晚的 `at`，`stop` 的 `at` 較早 → 不結束回合、記 `[turn] … kept: … reported late`（`endTurnByStop`）；任一方沒有 `at` 照舊；`bat-hook.mjs` 未改；修正前 4 情境重現、真實 hook 程序與 e2e 也重現；突變 7 / 4 失敗；e2e `t0694` 新步驟 6 綠、不回歸 `t0609` / `t0735` / `t0590` / `t0787` 綠；typecheck 0 / 0、unit 6782 / 385、legacy 472 / 33、vite build；殘留：同一回合 prompt 晚於自己的 `stop` → 多留 60 s `↻`（方向安全，記在 docs）；工單 `status: TODO` 應寫 `PENDING`（塔台模板筆誤））→ **BUG-198 FIXED**（tracker 只動該列，Fixed 4）；session id 已在 `session_ids`；session 快照已寫；`--close-worker T0791` exit 0。使用者「發 0.7.3-pre.9 與驗收的有 BUG-159、196、197、198 建議安排順序」→ **D233** → 聯合驗證 @ `5ebcc71f`：verify-native、typecheck 0 / 0、vite build、legacy 472 / 33 綠；unit 1 失敗（`nvm-login-profile.test.ts` 真 bash 5 s 逾時，BUG-195 同類第五支）→ 單檔 3 / 3、整套重跑 6782 / 385 綠 → 開 **BUG-199**（OPEN，low，不擋發版）。去識別化 9 組 0、未推 diff 金鑰 0。驗收順序建議：① BUG-196 使用者實機 ② BUG-197 同場＋自動化 t0787 ③ BUG-198 自動化 t0694 ④ BUG-159 需非系統管理員環境，最後。push `d1c3e40a..61fcd31c` → `pre-release.yml -f version=0.7.3-pre.9` run `41459914265` 12 job 全綠（CI unit 未逾時）→ **`v0.7.3-pre.9` 發佈**（14:29:12Z；exe 305 / zip 473 / AppImage 337 / dmg 352 MiB；server-bundle 7 assets）；更版重點已寫入並比對（含〈待驗收〉四項，無 codex 變更不寫〈歡迎協助測試〉）；CHANGELOG / release-note / package.json → `c1bef62e` push（README 無需更新：無 CT 介面變更）；Pages `41462684452` 綠、link-check 1445 / 0、首頁 0.7.3-pre.9。**`0.7.3-pre.N` 線已用完**，下一版前先問使用者版號線。
 
-> 最後更新:2026-11-02 20:50 (UTC+8) — **第一百零六 session 收工**：pre.7 NSIS 重裝驗收 PASS；PLAN-059 研究（T0787 / T0789）→ BUG-196（high，Worker 通知替塔台作答）T0788 修、BUG-197 T0790 修 → **`v0.7.3-pre.8`** 發佈；契約經 CT 確認（CT D543）；PLAN-061 縮小範圍。前次：第一百零五 session 收工（2026-11-02 17:47）。
->
-> **下次起手**:熱區無進行中工單。① BUG-196 / 197 待使用者以 `v0.7.3-pre.8` 實機驗收（塔台停在權限對話框時收到 Worker 完成通知 → 對話框維持、縮圖「📨 待送 1」、答完才進輸入框）→ CLOSED；② 使用者「換版」時若跑 NSIS 重裝驗收（`e2e\manual\nsis-reinstall-acceptance.ps1 -Version 0.7.3-pre.8`），讀報告 `%TEMP%\bat-nsis-acceptance-<時間>\report.md` 並刪 `userdata-backup`；③ BUG-198（low）待開修正單；④ Linux AppImage / BUG-159 待使用者；PLAN-059 C 待問 CT（Q5）。版號線 `0.7.3-pre.N` 已到 pre.8，pre.9 是最後一個，之後升版號線前先問使用者。
+- 2026-11-02 22:33 使用者「收工, 換版」。收工前：Session 105 快照歸檔（`2026-Q4-b.md`、INDEX 125）、L181（工單 `status` 用 `PENDING`）、去識別化與金鑰掃描後 push。
+
+### 本輪戰績
+
+| 類別 | 數量 | 備註 |
+|---|---|---|
+| 派發工單 | 1 | T0791 DONE（一次啟動、無提問） |
+| 決策 | 2 | D232–D233 |
+| BUG | 開 1 / 修 1 | BUG-198 FIXED（待驗收）；BUG-199（low）OPEN；熱區 Open 1 / Fixed 4 / Closed 58 |
+| 發版 | 1 | `v0.7.3-pre.9`（run `41459914265`；Pages `41462684452`，link-check 1445 / 0） |
+| 驗收 | 1 | `v0.7.3-pre.8` NSIS 完整重裝 PASS |
+
+### 重點觀察
+
+- T0790 的 hook 程序啟動時間 `at` 一次解決同類的兩個亂序（blocked 清除、回合結束）；剩下的反方向（同一回合 prompt 晚於自己的 `stop`）方向安全，只記在 docs
+- 真子程序測試的負載逾時又多一支（BUG-199，BUG-195 同類第五支）；逐檔加 timeout 會一直追加，修正單可考慮共用 helper / 標記
+- 塔台開單時 frontmatter 寫成 `status: TODO`，Worker 視同未開始照常處理 → L181
+- 後續候選：T0792 自動化驗收（BUG-197 / 198）；BUG-199；新版號線
+
+### 編號起始（下 session）
+
+- **T0792** / **BUG-200** / **PLAN-062** / **D234** / **EXP-WFMINE-002** / **L182** / **CT-T023**
 
 ---
 
-## 🛏 本 Session 收工快照 (第一百零六 session, 2026-11-02 17:52 - 2026-11-02 20:50, ~3h)
+## 🛏 前 Session 收工快照 (第一百零六 session, 2026-11-02 17:52 - 2026-11-02 20:50, ~3h)
 
 ### 主軸：pre.7 NSIS 驗收 → PLAN-059 研究（T0787 / T0789）→ BUG-196 / BUG-197 修正（T0788 / T0790，契約經 CT 確認）→ `v0.7.3-pre.8`
 
@@ -69,62 +101,22 @@ todo:
 
 ---
 
-## 🛏 前 Session 收工快照 (第一百零五 session, 2026-11-02 13:01 - 2026-11-02 17:47, ~4h45m)
-
-### 主軸：Herdr 對照研究（PLAN-059）→ PLAN 全面核對 → Electron 41.2.1 → 41.10.7 → 45.2.1（PLAN-053）→ `v0.7.3-pre.6` / `pre.7`
-
-#### 時間線（時間取自系統 / git / gh）
-
-> 🟢 **第一百零五 session 開工**（2026-11-02 13:01 (UTC+8)，CT v6.0.0-beta.10，Fast Path；塔台 session `c85c39b0-308c-4087-8f2f-2e18466a0cbd`；`--set-role tower --mode on` exit 0；安裝版 helper `v0.7.3-pre.5`；HEAD `e0c6d63d`、`main` = `origin/main`、工作區乾淨；熱區 174 張工單全為 DONE；BUG 熱區 Fixed 1（BUG-159）/ Closed 57，與 `_bug-tracker.md` 一致，免重建）。使用者要求比較 Herdr（原生桌面版＋herdr-core）與 BAT → 塔台以官方 repo docs 產出研究報告 Artifact「Herdr 對照 BAT」（https://claude.ai/artifact/Ybj66gYLkMHZE8xUyyDiEy，私人）；查證發現 `pty:write` 不看目標是否 blocked（未實測影響）。13:23 使用者「登記為主 PLAN，後續再拆子 PLAN 與拆單、開單」→ **D219** → 開 **PLAN-059**（PLANNED，medium）。PLAN-058 / PLAN-059 互相補〈相關〉：互不依賴，只共用「忙碌時訊息排隊」原則（`c64658ef`）。14:00 使用者問 PLAN-054 是否還需推進 → 查 CT v6 `workflow-engine.md` 仍延後 B6 欄位與契約 → **D220** → **PLAN-054 DONE**（B6 等 CT 契約另開新 PLAN）。14:04 使用者要求核對 PLAN-043 / 051 / 052 → 三張前提仍成立、無需求或觸發，**維持 IDEA**，各補〈2026-11-02 狀態核對〉（051 更正 codex daemon 前提；052 連結 PLAN-059 E）；`docs/plan-007-release-checklist.md` 第 63 行 mirrored 措辭記在 PLAN-043，下次 WSL 工單一併改。14:07 核對 PLAN-015 / 029 / 038 / 053 → 使用者「補，053 調 high 開 41.10.7 小單，029 開刪除單」→ **D221**：PLAN-053 high（lock 鎖 Electron 41.2.1；41 線最後 41.10.7、`latest` 45.2.1）開 **T0779**；PLAN-029 R3 開 **T0780**（刪 `src/components/git-poc/`、`vite.config.benchmark.ts`）；PLAN-015 / 038 維持 IDEA；派工順序 T0780 → T0779。14:10 派 **T0780**（yolo，`started:` exit 0）。**T0780 DONE**（`16a3a326` 刪 15 檔 1344 行、報告 `ea03227b`；無引用確認、`.gitignore` 37–38 行因本機產物仍在而保留；typecheck 0 / 0、vite build、verify-renderer-imports、unit 6705 / 382 files（首跑 `worktree-status-after-close` 負載逾時 1 次，重跑通過））→ **PLAN-029 DONE**；session 快照已寫；`--close-worker T0780`。14:15 派 **T0779**（yolo，`started:` exit 0）。**T0779 DONE**（`a09887fb` `package.json` `^41.10.7`、lock 只改 electron 與其相依（`@electron/get` 2.0.3 → 5.1.0 等）、CLAUDE.md「Electron Runtime」；報告 `11004251`；Chromium 146.0.7680.216 / Node 24.18.0 / ABI 145；verify-native-modules、typecheck 0 / 0、vite build、unit 6705 / 382 files、legacy 472 / 33、`build:dir`＋`verify-packaged-native` 綠、打包產物 Electron 41.10.7；e2e 冒煙 5 支綠（t0572 / t0776 / t0735 / t0762 / t0744）；macOS / Linux 未驗證；npm 12 重算 lock 的 100 項 `peer` 旗標漂移未寫入（與 electron 無關，列待決））；session 快照已寫；`--close-worker T0779`。14:28 使用者「PLAN-053 主升級現在開研究單，2、3 依塔台建議」→ **D222** → 開 **T0781**（研究）、**T0782**（lock `peer` 旗標），並行派工；T0782 後發 `0.7.3-pre.6`。14:29 兩張派工（皆 `started:` exit 0）。**T0782 DONE**（`7f9d4eeb` 只改 lock：996 套件不變、非 peer 欄位 0 變更、peer +78 / −22（加上的是 Agent SDK peer `@anthropic-ai/sdk`、`@modelcontextprotocol/sdk` 與 express / hono 閉包；去掉的是直接相依）；electron-builder 收集器與 `asar-runtime-deps.test.mjs` 都不讀 `peer`；asar 測試 31 綠、`build:dir`＋`verify-packaged-native` 綠；CI npm 11.19.1 / 11.19.0 `npm ci --dry-run` 接受、npm 11 重算逐位元相同；typecheck 0 / 0、unit 6705 / 382）；塔台依建議補 `docs/agent-guide/npm12-install-scripts.md` 一行；session 快照已寫；`--close-worker T0782`。14:37 聯合驗證 @ `7063f11e`：typecheck 0 / 0、vite build、legacy 472 / 33 綠；unit 1 失敗（`worktree-status-after-close` 5093 ms 逾時，第二次出現）→ 單檔 3/3、重跑全套 6705 / 382 綠 → 開 **BUG-195**（OPEN，low，不擋發版）。去識別化樣式 9 組 0 筆、未推 diff 金鑰 0。14:40 push `e0c6d63d..c04931ab`（17 commits），觸發 `pre-release.yml -f version=0.7.3-pre.6`（run `41401358379`）。**T0781 DONE**（`40c9fa57`；推薦一次升 **Electron 45**（45.2.1：Chromium 156 / Node 24.22.1 / ABI 150，暫定支援到 2027-04-27；42 已停止支援、43 剩約 2 個月）；BAT 命中：44 起 main 行程 `clipboard` 改 W3C 形式（`readImage` / `writeImage` 移除、`read` 回 Promise，影響貼圖、複製圖片、macOS Finder 貼上，規模 M）、42 起 electron 不在 postinstall 下載 binary、macOS 通知需簽章、44 起最低 macOS 13、Linux badge 失效、45 safeStorage 同步 API 棄用（46 移除）；原生模組都是 N-API，45.2.1 實測可載入；Graphite：156 已含 CHECK 修正，但 context-lost 重啟仍計入 5 分鐘 3 次上限、另有 `kAsyncShaderCompilesFailed` CHECK → 建議保留 macOS `disable-skia-graphite`；附 EXP 驗證計畫與兩張工單草案）；session 快照已寫；`--close-worker T0781`。使用者四題皆選建議 → **D223** → PLAN-053 IN_PROGRESS；開 **T0783**（只 build 的三平台 workflow）、**T0784**（Electron 45，`isolation: worktree`，depends T0783）、**T0785**（safeStorage async，depends T0784）。14:49 派 **T0783**（yolo，`started:` exit 0）。CI run `41401358379` 12 job 全綠（target `c04931ab`）→ **`v0.7.3-pre.6` 發佈**（publishedAt 06:52:55Z；exe 293 / zip 459 / AppImage 329 / dmg 343 MiB；server-bundle 7 assets）；`gh release edit` 更版重點已比對；CHANGELOG / release-note / package.json → `3c560a33`（README 無需更新）；push `c04931ab..3c560a33`；Pages `41402905578` 綠、link-check 1429 / 0、首頁 0.7.3-pre.6。使用者「跑 macos-acceptance 驗 pre.6」→ run `41403139756`。**T0783 DONE**（`5090001e`：`desktop-build.yml`（只 `workflow_dispatch`、`contents: read`、版號拒絕 `-pre.N`、三平台打包＋檢查、artifact 7 天、無 tag / release）；`macos-acceptance.yml` 加 `build_run_id`（舊輸入行為不變、加 `actions: read`）；actionlint 0；查證 pre-release 不簽章（ad-hoc）、repo 無 secret → mac 未簽章）；session 快照已寫；`--close-worker T0783`。push `3c560a33..a63f5ea0`；`desktop-build -f ref=main` 試跑 run `41403219280`。14:58 派 **T0784**（yolo，`--isolation worktree`，`started:` exit 0；worktree `...bat-worktreesbetter-agent-terminalT0784`、branch `ct/T0784`、base `a63f5ea0`）。`macos-acceptance -f version=0.7.3-pre.6` run `41403139756` **全 PASS**（app 0.7.3-pre.6 / Electron 41.10.7；P1–P5、BUG-128 ①–④、BUG-130 ⑤–⑦、⑧ 內嵌 claude 圖片佔位、模型請求 0）→ T0779 macOS 驗收通過。`desktop-build` 試跑 run `41403219280` 全綠（三平台 artifact、`0.0.0-exp.1`、`published: no`、`mac signed: false`，無新 tag / release）；`macos-acceptance -f build_run_id=41403219280` run `41404236126` 全 PASS（app 0.0.0-exp.1 / Electron 41.10.7）→ T0784 三平台驗收路徑可用。T0784 提問 Q-1（`e2e/fixtures/electron-isolation.ts` 不在 affects_files：Electron 45 的 `firstWindow()` 回傳時還在空白頁，7 支 e2e 第一個 `win.evaluate` 失敗）→ 塔台代決 **[A]** 擴大範圍改 fixture（有上限的等待、相容 41、不改產品載入流程），`--answer` exit 0（BAT 問答通道）。**T0784 DONE**（`ct/T0784`：`1bfa3b36` / `4ef1a915` / `08b26812`，base `a63f5ea0`，validated = head `08b26812`；Electron **45.2.1**（Chromium 156.0.8078.75 / Node 24.22.1 / ABI 150）；main 行程 clipboard 改 W3C（`readClipboardPng`、`readClipboardFilePaths` async，IPC 形狀不變）；`allowScripts.electron` 移除、mac postinstall 先 `require('electron')`；Linux badge 分支移除；Notification `failed` 記 log；README macOS 13+；typecheck 基線 0 / 4 → 0 / 0；unit 6713（BUG-195 逾時 2 次、單檔過）、legacy 472 / 33；`build:dir`＋`verify-packaged-native` 綠、產物 45.2.1；e2e 10 支綠（fixture 修正後 7/7、相容 41 實測）、pre5 A4 因使用者日誌輪替失敗（與版本無關）；對話框起始目錄 41 / 45 相同）；session 快照已寫（`--project` worktree）；`--close-worker T0784 --worktree keep`。塔台：分支 diff 掃描 0 → push `ct/T0784` → `desktop-build -f ref=ct/T0784 -f version=0.0.0-exp.784` run `41406521021`。BUG-195 補記 2 次並改 `frequent`；發現 14:39 開 BUG-195 時 sed 誤把它寫進 `_bug-tracker.md` VERIFY / WONTFIX 的佔位列（已推上 `c04931ab`），已修正、parser 測試 65 綠。`desktop-build -f ref=ct/T0784` run `41406521021` 全綠（三平台 electron=45.2.1）；`macos-acceptance --ref ct/T0784 -f build_run_id=41406521021` run `41407564434` 全 PASS（Electron 45.2.1；Finder 複製有 `text/uri-list`、BAT `source=uri-list`）。`bat_worktree_status` 五條判準成立 → 模式 ①：`ct-merge/T0784` merge `9f2ed99c` → 使用者斷點 E 確認 → `--ff-only` main `9f2ed99c`；整合 worktree detach；T0784 worktree 移除；主 checkout `npm ci` → electron 45.2.1。使用者選先接受 macOS 不顯示系統通知 → **D224**、開 **PLAN-060**（IDEA）。使用者「push，先派 T0785 與 BUG-195，一起發 pre.7」→ 掃描 0 → push `a63f5ea0..9063e167` → **D225** → 開 **T0786**（BUG-195）、BUG-195 → FIXING；T0785 補派工前說明（pre5 A4 與版本無關、BUG-195 並行）。16:58 兩張並行派工（皆 `started:` exit 0）。T0785 提問 Q-1（另 19 支 e2e spec 以同步 `safeStorage.decryptString` 讀 `server-token.json`，不在 affects_files）→ 塔台代決 **A** 一起改（只改那一處或共用 helper、實測 pre5＋2 支代表、其餘 tsc＋grep 確認無同步呼叫），`--answer` exit 0。T0786 提問 Q-1（本檔已修 `8de128de`，但整套 3 次都另有 `ct-worktree-status` / `ct-worktree` / `dev-deploy-headless` 真 git 測試逾時）→ 塔台代決 **A** 三檔一併處理（只動測試、per-describe timeout 附量測、BUG-195 擴大涵蓋；整套 3 次＋負載 1 次 exit 0；第五支以上再出現先回報），`--answer` exit 0。**T0785 DONE**（`ca0d1509`：`secrets.ts` 只用 async API，`remote-server.ts` / `headless-entry.ts` 呼叫端 await；新 `secrets.test.ts` 9 個含 source guard；20 支 e2e 改 `decryptStringAsync`；全 repo 同步 safeStorage 呼叫 0；typecheck 0 / 0、vite build；unit 9 個真 git 逾時（同 BUG-195 類，單檔過）；pre5 A1 / A3x / A5、t0575、t0735 綠，A4 照預期失敗；舊密文樣本與實際 app 啟動：舊 token 可解、棄用警告 0 行；Linux / macOS 未實測）；session 快照已寫；`--close-worker T0785`；**PLAN-053 DONE**。**T0786 DONE**（`8de128de` / `121df3e2`：量測確認整套下每個 git 呼叫均勻變慢 2–3 倍、無單一慢步驟、不是產品問題；snapshot git 程序 4 → 2；4 檔真 git / bash `describe` 設 30 s（量到最大 14.4 s）；修改前整套 3/3 exit 1 → 修改後 3/3 exit 0（6723 passed）、負載下 2 種都綠、無第五支；`typecheck:electron` 0）→ **BUG-195 FIXED**（tracker 只動該列，parser 65 綠）；session 快照已寫；`--close-worker T0786`。聯合驗證 @ `e73acb3b` 全綠（electron 45.2.1；verify-native-modules、typecheck 0 / 0、vite build、unit 6723 / 383 一次綠、legacy 472 / 33）→ 去識別化 9 組 0、金鑰 0 → push `9063e167..e73acb3b` → `pre-release.yml -f version=0.7.3-pre.7` run `41419978047` 12 job 全綠 → **`v0.7.3-pre.7` 發佈**（09:35:29Z；exe 305 / zip 474 / AppImage 337 / dmg 352 MiB；server-bundle 7 assets）；更版重點已寫入；CHANGELOG / release-note / package.json → `eb4bcc63`（README 已於 T0784 改 Electron 45 / macOS 13）；**BUG-195 CLOSED**；Pages `41422354153` 綠、link-check 1434 / 0、首頁 0.7.3-pre.7；`macos-acceptance -f version=0.7.3-pre.7` run `41422176485` **全 PASS**（交付版 0.7.3-pre.7 / Electron 45.2.1；P1–P5、BUG-128 ①–④、BUG-130 ⑤–⑦、⑧）。
-
-- 2026-11-02 17:47 使用者「收工換版」。收工前：Session 103 快照歸檔（`2026-Q4-b.md`、INDEX 123）、L179（tracker 佔位列不得全檔 sed）、去識別化與金鑰掃描後 push。
-
-### 本輪戰績
-
-| 類別 | 數量 | 備註 |
-|---|---|---|
-| 派發工單 | 8 | T0779–T0786 皆 DONE；T0784 為 `isolation: worktree`（模式 ① 合回）；最多 2 張並行 |
-| 塔台代答提問 | 3 | T0784 / T0785 / T0786 各 Q-1，皆經 BAT 問答通道 `--answer` |
-| 決策 | 7 | D219–D225 |
-| BUG | 開 1 / 結 1 | BUG-195（測試逾時，T0786 修 4 檔，pre.7 CI 綠 CLOSED）；熱區 Open 0 / Fixed 1（BUG-159）/ Closed 58 |
-| PLAN | 開 2 / 結 3 | 開 PLAN-059（PLANNED）、PLAN-060（IDEA）；DONE PLAN-029 / 053 / 054；核對 015 / 038 / 043 / 051 / 052 維持 IDEA |
-| 發版 | 2 | `v0.7.3-pre.6`（Electron 41.10.7）、`v0.7.3-pre.7`（Electron 45.2.1） |
-| CI | desktop-build 2 / macos-acceptance 5 | 新 `desktop-build.yml`（只 build、不發布）；macOS 驗收 pre.6、exp.1、exp.784、pre.7 全 PASS |
-| Artifact | 1 | 研究報告「Herdr 對照 BAT」（私人） |
-
-### 重點觀察
-
-- Electron 大版本升級一個 session 走完：研究單（T0781）→ 只 build 的三平台 workflow（T0783）→ worktree 隔離試做（T0784）→ `desktop-build` ＋ `macos-acceptance --ref` 驗三平台 → 模式 ① 合回 → 發版後再驗交付版
-- Electron 42+ 的坑：postinstall 不下載 binary（`allowScripts.electron` 移除）、Playwright `firstWindow()` 回傳時還在空白頁（e2e fixture 要等網址）、main 行程 clipboard 改 W3C、未簽章 mac app 不顯示通知（本 fork 全為 ad-hoc，PLAN-060）
-- 真 git / bash 的測試在整套平行下每個子程序均勻變慢 2–3 倍；修法是減呼叫＋per-describe timeout，不改全域（BUG-195）
-- 塔台自己改索引時的全檔 `sed` 誤傷多個區段（L179）；索引改動一律帶區段定位並跑 parser 測試
-- 後續候選：PLAN-059 A（通知送進 blocked 塔台，先實測 Q1）/ B（OSC 7501 不限 codex）；`desktop-build.yml` 的 unit-tests 步驟名稱說明過時、`src/lib/terminal-paste.ts:61` 註解過時（T0784 回報）；臨時 clipboard IPC e2e 可納入 repo
-
-### 編號起始（下 session）
-
-- **T0787** / **BUG-196** / **PLAN-061** / **D226** / **EXP-WFMINE-002** / **L180** / **CT-T023**
-
----
-
----
-
 ## 🌅 起手式（Quick Recovery）
 
-> 最後更新：2026-11-02 20:50 UTC+8（第一百零六 session 收工）
+> 最後更新：2026-11-02 22:33 UTC+8（第一百零七 session 收工）
 
 ### 近期完成
+- **`v0.7.3-pre.9` 發佈**（第一百零七 session，run `41459914265`，target `61fcd31c`）：BUG-198 晚到的 `stop`（T0791）；Pages `41462684452` 綠；`0.7.3-pre.N` 線用完
+- **`v0.7.3-pre.8` NSIS 完整重裝驗收 PASS**（第一百零七 session 21:42）
 - **`v0.7.3-pre.8` 發佈**（第一百零六 session，run `41441910377`，target `d5667366`）：BUG-196 notify-hold（T0788）、BUG-197 hook 亂序（T0790）；Pages `41444068830` 綠
 - **PLAN-059 研究**（第一百零六 session）：T0787（R1 成立 → BUG-196）、T0789（Windows ConPTY 擋 OSC 回覆 → PLAN-061 縮小，D229）
-- **跨塔台**（第一百零六 session）：notify-hold 契約 HANDOVER ACKNOWLEDGED（CT D543 / BAT D228；CT T0399 文件補註 `>= 0.7.3-pre.8`）
-- **`v0.7.3-pre.7` NSIS 完整重裝驗收 PASS**（第一百零六 session 17:55）
-- **`v0.7.3-pre.7` 發佈**（第一百零五 session）：Electron 45.2.1、safeStorage async、BUG-195
 
 ### 待辦（依優先序）
-1. 🟡 **BUG-196 / 197 待驗收**（`v0.7.3-pre.8`）：塔台停在權限對話框時收到 Worker 完成通知 → 對話框維持、縮圖「📨 待送 1」、答完才進輸入框 → CLOSED
-2. ✅ ~~pre.8 NSIS 重裝驗收~~ → PASS（第一百零七 session 21:42，備份已刪）
-3. 🟢 **BUG-198**（low）FIXED（T0791 `20bc7a88`）：未發版，等下一個預覽版
-4. 🟡 **BUG-159 驗收**：需使用者本機以一般權限（非系統管理員）開 BAT ＋ codex；🟢 Linux AppImage（Ubuntu 22.04）待回報；t0757 偶發失敗再發生才開 BUG（D218）
-5. 🟢 PLAN-059 C（問 CT Q5）；版號線 0.7.3 已到 pre.8，pre.9 之後升線前先問使用者
+1. 🟡 **驗收（D233 順序）**：BUG-196 使用者實機（塔台停在權限對話框時收到 Worker 完成通知 → 對話框維持、縮圖「📨 待送 1」、答完才進輸入框）→ T0792 自動化驗收 BUG-197 / 198（安裝版 pre.9 跑 `t0787` 多輪＋`t0694` 步驟 6）→ 三張 CLOSED
+2. 🟡 **pre.9 NSIS 重裝驗收**（若使用者換版時跑）：讀報告、刪 `userdata-backup`
+3. 🟢 **BUG-199**（low）：`nvm-login-profile.test.ts` 負載逾時，比照 T0786 開修正單
+4. 🟡 **BUG-159 驗收**：需非系統管理員環境 ＋ codex，最後；🟢 Linux AppImage（Ubuntu 22.04）待回報；t0757 偶發失敗再發生才開 BUG（D218）
+5. 🟢 下一版前先問使用者版號線（`0.7.3-pre.N` 已用完）；PLAN-059 C（問 CT Q5）
 
 ### ⚠️ 鐵則
 - **所有 `gh` 指令必須帶 `-R gowerlin/better-agent-terminal`**（L122）
@@ -133,14 +125,14 @@ todo:
 - 改 `_bug-tracker.md` / `_backlog.md` 不用全檔 `sed`，改完跑 parser 測試（L179）
 
 ### 快速連結
-- Bug Tracker → [_bug-tracker.md](_bug-tracker.md)（熱區：Open 1 / Fixing 0 / Fixed 3 / Closed 58，2026-11-02 19:51）｜ Backlog → [_backlog.md](_backlog.md)
-- Decision Log → [_decision-log.md](_decision-log.md)（最大 D231）｜ Learnings → [_learnings.md](_learnings.md)（最大 L180）
+- Bug Tracker → [_bug-tracker.md](_bug-tracker.md)（熱區：Open 1 / Fixing 0 / Fixed 4 / Closed 58，2026-11-02 22:12）｜ Backlog → [_backlog.md](_backlog.md)
+- Decision Log → [_decision-log.md](_decision-log.md)（最大 D233）｜ Learnings → [_learnings.md](_learnings.md)（最大 L181）
 - 研究報告 Artifact「Herdr 對照 BAT」→ https://claude.ai/artifact/Ybj66gYLkMHZE8xUyyDiEy（私人）
 - 網站 → https://gowerlin.github.io/better-agent-terminal/｜ 素材 spec → `e2e/site-media.spec.ts`（`BAT_SITE_MEDIA=1`，輸出 `e2e-media/`）
-- 歷史 sessions → [_archive/state-snapshots/INDEX.md](_archive/state-snapshots/INDEX.md)（124 entries）
+- 歷史 sessions → [_archive/state-snapshots/INDEX.md](_archive/state-snapshots/INDEX.md)（125 entries）
 
 ### 編號起始
-- **T0792** / **BUG-200** / **PLAN-062** / **D234** / **EXP-WFMINE-002**（其他 TOPIC 從 001） / **L181** / **CT-T023**
+- **T0792** / **BUG-200** / **PLAN-062** / **D234** / **EXP-WFMINE-002**（其他 TOPIC 從 001） / **L182** / **CT-T023**
 
 ---
 
@@ -152,14 +144,14 @@ todo:
 | **Fork 上游** | tony1223/better-agent-terminal（另有 `scandnavik` remote；⚠️ gh 預設解析到 upstream，見 L122） |
 | **目前版號** | **0.7.3-pre.9**（package.json + lock；D204 `0.7.3-pre.N` 線已用完，下一版先問使用者） |
 | **最新 release** | `v0.7.3-pre.9`（2026-11-02T14:29:12Z，run `41459914265`，target `61fcd31c`：BUG-198 晚到的 `stop`）；前一 tag `v0.7.3-pre.8`（12:19:33Z）；更早見 `release-note.md` / `CHANGELOG.md` |
-| **目前主軸** | 熱區無進行中工單、無 OPEN BUG；待讀 pre.7 NSIS 報告；PLAN-059 待拆；BUG-159 待使用者本機 |
-| **工單最大編號** | **T0786** DONE（BUG-195）；T0779–T0786 皆 DONE（第一百零五 session） |
-| **BUG 最大編號** | **BUG-198** OPEN（low，T0790 發現）；BUG-196 / 197 FIXED；熱區 Open 1 / Fixing 0 / Fixed 3 / Closed 58（2026-11-02 19:51） |
-| **PLAN 最大編號** | **PLAN-060** IDEA（macOS 簽章）；PLAN-059 PLANNED；PLAN-029 / 053 / 054 / 055 / 057 DONE |
-| **決策最大編號** | **D225**（派 T0785 / T0786，之後發 `0.7.3-pre.7`，第一百零五 session） |
+| **目前主軸** | 熱區無進行中工單；BUG-196 / 197 / 198 / 159 待驗收（D233 順序）；BUG-199 待修；下一版先定版號線 |
+| **工單最大編號** | **T0791** DONE（BUG-198，第一百零七 session）；T0787–T0790 皆 DONE（第一百零六 session） |
+| **BUG 最大編號** | **BUG-199** OPEN（low，測試逾時）；BUG-159 / 196 / 197 / 198 FIXED；熱區 Open 1 / Fixing 0 / Fixed 4 / Closed 58（2026-11-02 22:12） |
+| **PLAN 最大編號** | **PLAN-061** IDEA（非 Windows 的 claude 7501，D229）；PLAN-060 IDEA（macOS 簽章）；PLAN-059 PLANNED；PLAN-029 / 053 / 054 / 055 / 057 DONE |
+| **決策最大編號** | **D233**（發 `0.7.3-pre.9`、待驗收排序，第一百零七 session） |
 | **EXP 最大編號** | **EXP-WFMINE-001**（📊 CONCLUDED 2026-10-20）；EXP-GPUWHIS-001（CONCLUDED，已歸檔） |
 | **塔台版本** | Control Tower **v6.0.0-beta.10**（第一百零三 session 起） |
-| **unit test 基線** | **6772 passed / 385 files**；typecheck 0 / 0、vite build、legacy 472 / 33（塔台聯合驗證 @ `c1178479`，`0.7.3-pre.8` 批次，2026-11-02 第一百零六 session） |
+| **unit test 基線** | **6782 passed / 385 files**；typecheck 0 / 0、vite build、legacy 472 / 33（塔台聯合驗證 @ `5ebcc71f`，`0.7.3-pre.9` 批次，2026-11-02 第一百零七 session；首跑 BUG-199 逾時 1 次，重跑綠） |
 | **舊值** | 瘦身前的長版本見 [`_archive/state-snapshots/2026-Q4-b.md`](_archive/state-snapshots/2026-Q4-b.md)〈基本資訊舊值〉 |
 
 ---

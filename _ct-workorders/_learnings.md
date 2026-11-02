@@ -3812,3 +3812,13 @@ Codex 那張是外部測試者回報才發現；Claude 那張是使用者隨口�
 - 並行 Worker 的工單在 `memory_overrides` 寫明「e2e 一律帶自己的 `--output` 暫存目錄，不清共用的 `e2e-results/`」（T0790 起已寫進工單）
 - Worker 腳本中切目錄一律寫成 `cd <dir> || exit 1`，不要讓後面的指令在錯的目錄執行
 - 塔台收單時，若並行的另一張單回報誤跑，核對這張單的 e2e 證據時間是不是在誤跑之後
+
+## L181
+
+**來源**：第一百零七 session（2026-11-02），T0791
+
+**現象**：塔台照 T0790 的 frontmatter 改寫 T0791，`status` 寫成 `TODO`。CT 模板（`work-order-template.md`）與 ct-exec 預期的初始值是 `PENDING`；Worker 回報「`TODO` 視同未開始」並照常執行，沒有造成問題，但 BAT 指揮塔面板與 `*sync` 的狀態分類可能把 `TODO` 當成未知狀態。
+
+**How to apply**：
+- 新工單 frontmatter 一律 `status: PENDING`；從舊工單複製 frontmatter 時，`status` / `started_at` / `completed_at` / `session_ids` / `renew_count` 都改回初始值
+- 派工前快速看一眼 frontmatter 的 `status` 是否為 `PENDING`
