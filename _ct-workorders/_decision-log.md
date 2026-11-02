@@ -1465,6 +1465,13 @@
 - **切分**：W2a 設計語言 + 元件 + 首頁（T0630）→ 預覽通過後 W2b（`/control-tower`、功能、FAQ、回報頁）→ W2c 遠端開發；W3 / W4 不變。
 - **相關**：PLAN-049 / D159 / D160 / T0624 / T0630
 
+### D243 2026-11-03 — `linux-acceptance.yml` 首跑在靜態檢查中斷，開 T0798 修正；授權 Worker push `ct/T0798` 分支在 GitHub 上迭代
+
+- **背景**：T0797 DONE 後塔台 push 並跑 run `41491827025`（`-f version=0.7.4-pre.1`）：ubuntu-22.04 / 24.04 都在「Inspect the AppImage」中途 exit 1，Playwright 未執行，沒有結論。屬 T0797 交付的 workflow 缺陷，不是 AppImage 結果。24.04 runner `apparmor_restrict_unprivileged_userns = 1`（同桌面預設）。
+- **決定**（塔台，範圍內後續，依 D242 已授權的 push / 執行此 workflow）：開 T0798 修正；workflow 只在 GitHub 上跑得出結果，所以授權 Worker push 分支 `ct/T0798`、以 `--ref ct/T0798` dispatch 最多 5 次、完成後刪遠端分支；不 push `main`、不修產品。修好後塔台 push `main` 並以 `main` 再跑一次正式結論。
+- **決策者**：塔台。2026-11-03 第一百零九 session。
+- **相關**：T0798 / T0797 / D242
+
 ### D242 2026-11-03 — Linux AppImage 驗收改由 CI 啟動驗收（T0797，`linux-acceptance.yml`）
 
 - **背景**：待辦「Linux AppImage（Ubuntu 22.04）待回報」源自 T0784 的 Linux 待驗項目（AppImage 啟動、22.04 相容；T0781 未確認 Electron 45 的 glibc 下限）。CI 只打包不啟動，也沒有指定回報人，等於無人負責。

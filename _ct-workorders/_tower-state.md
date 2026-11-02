@@ -1,16 +1,16 @@
 ---
 schema_kind: tower-state
 summary_version: 1
-updated_at: "2026-11-03T01:10:23+08:00"
+updated_at: "2026-11-03T01:33:04+08:00"
 session: "2026-11-03 01:02 第一百零九 session 開工（CT v6.0.0-beta.11）"
 next_ids:
-  workorder: "T0798"
-  decision: "D243"
+  workorder: "T0799"
+  decision: "D244"
   bug: "BUG-202"
   plan: "PLAN-062"
 todo:
   - "BUG-159（FIXED）驗收：需非系統管理員環境 ＋ codex"
-  - "T0797 進行中（Linux AppImage 啟動驗收 workflow，D242）；收單後塔台 push 並跑 `linux-acceptance.yml -f version=0.7.4-pre.1`"
+  - "T0798 進行中（修正 `linux-acceptance.yml` Inspect 步驟，D243）；修好後塔台 push main 並以 main 跑 `-f version=0.7.4-pre.1` 取正式結論（Linux AppImage 22.04 / 24.04）"
   - "PLAN-059：A 完成（BUG-196 CLOSED）；B = PLAN-061（IDEA low，D229）；C 待問 CT（Q5）；Q4 未解"
   - "PLAN-060（IDEA）：macOS Developer ID 簽章（目前 macOS 不顯示系統通知）"
   - "觀察：t0757 偶發失敗再發生才開 BUG（D218）"
@@ -26,7 +26,7 @@ todo:
 
 ## 🟢 第一百零九 session（進行中）
 
-> 🟢 **第一百零九 session 開工**（2026-11-03 01:02 (UTC+8)，CT v6.0.0-beta.11，Fast Path；塔台 session `3c0519a9-727a-4151-91aa-b69ccdcadeb9`；`--set-role tower --mode on` exit 0；安裝版 FileVersion / helper `v0.7.4-pre.1`（已換版）；HEAD `737b495c`、`main` = `origin/main`（0 / 0）、工作區乾淨；熱區 192 張工單皆終態；BUG 熱區 Fixed 1（159）/ Closed 64；PLAN DONE 15 / DROPPED 2 / IDEA 8 / PLANNED 1；`bat_list_questions` pending 0；熱區檔案皆 < 400 KB）。**`v0.7.4-pre.1` NSIS 完整重裝驗收 PASS-WITH-WARN**（`e2e\manual\nsis-reinstall-acceptance.ps1` real 模式，01:00:47–01:01:25；AllUsers / HKLM；唯一 WARN = ⓪ 目前安裝版是 pre.9，② 實為升級，屬預期；① SHA-256 `8ed58046…` ② ③ ④ 全 PASS，三支 helper `--version` = v0.7.4-pre.1、內嵌 claude / codex 存在、userData 130 檔 SHA-256 未變；⑤ SKIPPED）。報告 `%TEMP%\bat-nsis-acceptance-20261103-010047\report.md`；含權杖的 `userdata-backup`（130 檔）已刪除。00:39:49 那次 FAIL = ⓪ 偵測到 BAT 仍在執行（10 個程序），前置檢查擋下、未安裝，屬設計行為。使用者問「Linux AppImage 待回報是等什麼」→ 查明源自 T0784 Linux 待驗項目、CI 只打包不啟動、無指定回報人 → 使用者選 1 → **D242** → 開 **T0797**（`linux-acceptance.yml`，ubuntu-22.04 / 24.04 啟動驗收）（`eb119562`）。01:10 派 **T0797**（yolo `--no-interactive`，exit 0，`started: 17:10:23Z`；Worker `2a5b42f8…`）。
+> 🟢 **第一百零九 session 開工**（2026-11-03 01:02 (UTC+8)，CT v6.0.0-beta.11，Fast Path；塔台 session `3c0519a9-727a-4151-91aa-b69ccdcadeb9`；`--set-role tower --mode on` exit 0；安裝版 FileVersion / helper `v0.7.4-pre.1`（已換版）；HEAD `737b495c`、`main` = `origin/main`（0 / 0）、工作區乾淨；熱區 192 張工單皆終態；BUG 熱區 Fixed 1（159）/ Closed 64；PLAN DONE 15 / DROPPED 2 / IDEA 8 / PLANNED 1；`bat_list_questions` pending 0；熱區檔案皆 < 400 KB）。**`v0.7.4-pre.1` NSIS 完整重裝驗收 PASS-WITH-WARN**（`e2e\manual\nsis-reinstall-acceptance.ps1` real 模式，01:00:47–01:01:25；AllUsers / HKLM；唯一 WARN = ⓪ 目前安裝版是 pre.9，② 實為升級，屬預期；① SHA-256 `8ed58046…` ② ③ ④ 全 PASS，三支 helper `--version` = v0.7.4-pre.1、內嵌 claude / codex 存在、userData 130 檔 SHA-256 未變；⑤ SKIPPED）。報告 `%TEMP%\bat-nsis-acceptance-20261103-010047\report.md`；含權杖的 `userdata-backup`（130 檔）已刪除。00:39:49 那次 FAIL = ⓪ 偵測到 BAT 仍在執行（10 個程序），前置檢查擋下、未安裝，屬設計行為。使用者問「Linux AppImage 待回報是等什麼」→ 查明源自 T0784 Linux 待驗項目、CI 只打包不啟動、無指定回報人 → 使用者選 1 → **D242** → 開 **T0797**（`linux-acceptance.yml`，ubuntu-22.04 / 24.04 啟動驗收）（`eb119562`）。01:10 派 **T0797**（yolo `--no-interactive`，exit 0，`started: 17:10:23Z`；Worker `2a5b42f8…`）。**T0797 DONE**（`cd938ab6`，01:27；`linux-acceptance.yml`（`version` / `build_run_id`、ubuntu-22.04 / 24.04、SHA-256、無 secret、artifact 刪密鑰檔）＋ `e2e/linux/` Playwright L1（L2 / L1b 備援）＋ docs / CLAUDE.md 一行；驗收級別 ①；發現並修正 Playwright 在 Linux 預設加 `--no-sandbox`（spec 改 `chromiumSandbox: true` 並以 renderer `NSpid` 佐證）；本機 WSL Ubuntu 24.04（glibc 2.39）對 `v0.7.4-pre.1` L1 PASS、sandbox 開啟；actionlint 0、typecheck 0 / 0、unit 6783 / 385；🟡 靜態檢查：whisper addon `libggml-base.so` / `libggml-vulkan.so` 需 `GLIBC_2.38`，22.04 只有 2.35，推論 22.04 語音輸入會失敗，建議等 CI 結果再開 BUG）；session id 已在 `session_ids`；session 快照已寫；`--close-worker T0797` exit 0。去識別化 9 組 0、金鑰 0（唯一命中為 workflow 刪密鑰檔的比對樣式本身）→ push `737b495c..c29793b2`（含本 session 塔台 commit）→ `linux-acceptance.yml -f version=0.7.4-pre.1` run `41491827025`（17:30:34Z）→ **failure**：兩個 OS 都在「Inspect the AppImage」中途 exit 1（ELF 清單截斷），Playwright 未執行、無結論；24.04 runner `apparmor_restrict_unprivileged_userns = 1`。→ **D243** → 開 **T0798**（修正 Inspect 步驟，授權 push `ct/T0798` 在 GitHub 迭代）。
 
 ---
 
