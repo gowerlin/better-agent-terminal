@@ -4,6 +4,23 @@ All notable changes to Better Agent Terminal are documented in this file.
 
 ## [Unreleased]
 
+## [0.7.3-pre.7] — 2026-11-02
+
+### Changed
+- Electron 41.10.7 → 45.2.1（Chromium 156.0.8078.75、Node 24.22.1、ABI 150；原生模組皆 N-API 不需重建；T0784 / PLAN-053 / D223 / D224）
+  - main 行程 clipboard 改 W3C 寫法（`clipboard.read()` / `write()` ＋ `ClipboardItem`；`readClipboardPng`、`readClipboardFilePaths` async，`electron/image-attachments.ts`、`electron/clipboard-file-paths.ts`），IPC channel 與回傳形狀不變；macOS Finder 檔案路徑改讀 `text/uri-list`
+  - macOS 最低版本 13（Ventura）；Linux `app.setBadgeCount` 分支移除（Electron 44 移除 Unity）；`Notification` `failed` 事件寫 `[notification] failed to show:` 日誌
+  - `allowScripts.electron` 移除（42 起 postinstall 不下載 binary，第一次 `require('electron')` / `install.js` 才下載）；mac 根 `postinstall` 先觸發下載再 `plutil`
+  - e2e fixture：`firstWindow()` 後先等網址不是空白頁再 `waitForLoadState`（Electron 45 時序，`e2e/fixtures/electron-isolation.ts`）
+- `safeStorage` 只用 async API（`isAsyncEncryptionAvailable` / `encryptStringAsync` / `decryptStringAsync`，`electron/remote/secrets.ts`；呼叫端 `remote-server.ts` / `headless-entry.ts`；舊密文相容、source guard；20 支 e2e 改 `decryptStringAsync`；T0785）
+- CI：新增只打包、不發布的三平台 workflow `desktop-build.yml`（`workflow_dispatch`，不建 tag / release）；`macos-acceptance.yml` 可用 `build_run_id` 測其 dmg（T0783）
+
+### Fixed
+- 真 git / 真 bash 的單元測試在整套 `test:unit` 負載下逾時 5 s：snapshot git 程序 4 → 2，四檔真子程序 `describe` 設 30 s（`worktree-status-after-close`、`ct-worktree-status`、`ct-worktree`、`dev-deploy-headless`；BUG-195 / T0786）
+
+### Known issues
+- macOS 版沒有 Apple Developer ID 簽章，Electron 42 起不顯示系統通知（PLAN-060）
+
 ## [0.7.3-pre.6] — 2026-11-02
 
 ### Changed

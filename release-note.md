@@ -2,6 +2,36 @@
 
 本 fork 各版的更版重點（內容取自 GitHub Releases，最新在上）。上游 tony1223/better-agent-terminal 的 v2.1.x 紀錄保留在檔案最下方。
 
+## v0.7.3-pre.7（2026-11-02）
+
+版號 0.7.3-pre.7，接續 `v0.7.3-pre.6`。
+
+## 更新
+
+- **Electron 升到 45.2.1**（PLAN-053，T0784）：原本的 Electron 41 已停止更新。新版是 Chromium 156、Node 24.22.1，官方暫定支援到 2027 年 4 月。終端、Claude / Codex 面板、貼上檔案與圖片、遠端連線的使用方式都沒有改變
+- **macOS 最低版本改為 13（Ventura）**：Electron 44 起不再支援 macOS 12
+- 遠端連線權杖的加密改用新的非同步介面（T0785）：已存的權杖照常可用，升級後已連線過的遠端 client 不需要重新配對
+- `v0.7.3-pre.6` 的 Electron 41.10.7 已在 GitHub Actions 的 macOS 環境對交付版實測通過（Finder 貼上檔案、貼上圖片）
+- 內部：修正幾支在高負載下偶爾逾時的單元測試（BUG-195，T0786）；新增只打包、不發布的三平台建置流程，供升級試做驗證（T0783）
+
+## 待驗收（請更新到本版後協助確認）
+
+- **Electron 45**（本版）：Windows 已跑完整測試、打包檢查與 e2e；macOS 交付版的貼上檔案與圖片已在 GitHub Actions 實測通過。請 macOS / Linux 使用者照常使用，有啟動、繪圖、終端顯示或貼上的異常請回報；Linux 特別請在 Ubuntu 22.04 上試啟動 AppImage
+- **遠端連線**（本版）：從舊版升級後，已設定的 WSL / SSH / Docker 遠端應能直接連上
+- **BUG-159**：一般權限（非系統管理員）執行 BAT、關閉 BAT MCP 時，兩個 Codex CLI 分頁各自讀到自己的環境
+
+## 已知事項
+
+- **macOS 不會顯示 BAT 的系統通知**：Electron 42 起，沒有 Apple 開發者簽章的 app 不能發系統通知，而 BAT 的 macOS 版目前沒有正式簽章。BAT 視窗內的提示、⚠️ 與分頁標示不受影響。正式簽章另案評估（PLAN-060）
+- Linux：dock 圖示上的數字徽章不再顯示（Electron 44 移除 Unity 支援）
+- 遠端伺服器使用登入 shell PATH 在 macOS（launchd）上尚未實機驗證
+- 中斷清單不涵蓋：BAT 重開時在 Recovery 提示選「重新開始」的情況；版本低於 0.163 的 codex 派工 Worker
+- Codex 面板（`Codex Agent` 面板）等待時尚未顯示 ⚠️
+
+macOS 仍只提供 Apple Silicon（arm64）版。
+
+**Full Changelog**: https://github.com/gowerlin/better-agent-terminal/compare/v0.7.3-pre.6...v0.7.3-pre.7
+
 ## v0.7.3-pre.6（2026-11-02）
 
 版號 0.7.3-pre.6，接續 `v0.7.3-pre.5`。
