@@ -16,6 +16,7 @@
 | [headless-login-shell-path.md](headless-login-shell-path.md) | headless bat-server 啟動時以登入 shell 取得 PATH（`-l -i` + 隨機標記、detached + 逾時砍程序群組、合併規則、`headlessLoginShellPath` 開關、套用點、影響、實測） | headless server 的登入 shell PATH（PLAN-057 / T0755，D206 / D207） |
 | [helper-query-channels.md](helper-query-channels.md) | helper 唯讀查詢 channel（whoami / list / get-state / read-output / wait） | helper 唯讀查詢 channel（PLAN-047 M1 / T0582） |
 | [linux-ci-acceptance.md](linux-ci-acceptance.md) | GitHub Actions ubuntu-22.04 / 24.04 runner 啟動發佈的 AppImage（`linux-acceptance.yml` 只能手動觸發、FUSE / sandbox 處理、L1 / L2 / L1b 與 PASS / WARN / FAIL 判讀、AppImage 靜態檢查、本機 WSL 實測） | Release（T0797 一行） |
+| [linux-appimage-sandbox.md](linux-appimage-sandbox.md) | Linux AppImage 啟動器：userns 受限且 `chrome-sandbox` 不是 root 4755 時自動加 `--no-sandbox`（注入點查證、判斷條件、stderr / debug log、安全取捨、AppArmor profile 範例、已知限制、驗證清單） | Linux AppImage 的 sandbox 自動降級（T0799 / BUG-202，D244） |
 | [logging.md](logging.md) | 日誌、啟動期 crash capture、`[gpu]`、單一 userData、helper userData、PTY env 組裝點、塔台派工落點 | Logging |
 | [macos-ci-acceptance.md](macos-ci-acceptance.md) | GitHub Actions macOS runner 對發佈 dmg 驗 BUG-128 / 130（`macos-acceptance.yml` 只能手動觸發、可行性表 P1–P5、情境 ①–⑧、與真人 Mac 的差異） | （無；T0778 新增，是否補 CLAUDE.md 小節由塔台決定） |
 | [multi-remote-profiles.md](multi-remote-profiles.md) | 多 remote profile 同時連線、上限、profile index 序列化 | 多 remote profile 同時連線（PLAN-039） |

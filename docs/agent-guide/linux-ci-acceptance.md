@@ -36,7 +36,7 @@ gh workflow run linux-acceptance.yml -R gowerlin/better-agent-terminal -f build_
 - 「Runner context」步驟在**安裝套件之前**記錄：OS、kernel、glibc、`apparmor_restrict_unprivileged_userns` / `unprivileged_userns_clone` / `max_user_namespaces`、`/dev/fuse`、`libfuse.so.2` 有沒有、`fusermount`。這是「全新系統的使用者一開始的狀態」。
 - 🔴 FUSE 用一般使用者的方式：照 Ubuntu 的 AppImage 說明裝 `libfuse2`（22.04）/ `libfuse2t64`（24.04），另裝 `fuse3`（`fusermount`，桌面版預設就有）。**不用** `--appimage-extract-and-run`：那會跳過使用者會撞到的 FUSE 掛載。
 - 也裝 `xvfb`、`binutils`（`objdump`）、`fonts-noto-cjk`、`fonts-noto-color-emoji`：兩個字型是 Ubuntu 桌面版預設；runner 沒有時 zh-TW 介面與 emoji 圖示在截圖裡是方塊（T0797 本機 WSL 實測）。
-- 「Inspect the AppImage」步驟：`--appimage-extract`（不需要 FUSE）後列出 AppRun 的 `BIN`、AppRun 會不會自己加 `--no-sandbox`、`.desktop` 的 `Exec=`、`chrome-sandbox` 權限、主程式需要的最高 `GLIBC_*` 與 `ldd` 找不到的函式庫、整個映像**每一個** ELF 檔需要的最高 `GLIBC_*`（高於該 runner glibc 的標 `(above this system's glibc …)`；沒有 glibc 版本符號的記 `none`、`objdump` 讀不了的記 `n/a (objdump: …)`），以及每個 ELF 檔 `ldd` 的 `not found` 行（缺函式庫或 `` version `GLIBC_2.xx' not found ``）。🔴 這一步只記錄（T0798）：關掉 errexit / pipefail、每個輔助函式都回 0，任何一項取不到都寫 `n/a` 與錯誤原文，不得讓 job 失敗或截斷清單；不得改用整步 `continue-on-error: true`（清單照樣會截斷）。
+- 「Inspect the AppImage」步驟：`--appimage-extract`（不需要 FUSE）後列出 AppRun 的 `BIN`、AppRun 會不會自己加 `--no-sandbox`、`.desktop` 的 `Exec=`、`chrome-sandbox` 權限、`BIN` 是不是 T0799 的 sandbox 啟動器（是的話主程式是 `BIN.bin`）、主程式需要的最高 `GLIBC_*` 與 `ldd` 找不到的函式庫、整個映像**每一個** ELF 檔需要的最高 `GLIBC_*`（高於該 runner glibc 的標 `(above this system's glibc …)`；沒有 glibc 版本符號的記 `none`、`objdump` 讀不了的記 `n/a (objdump: …)`），以及每個 ELF 檔 `ldd` 的 `not found` 行（缺函式庫或 `` version `GLIBC_2.xx' not found ``）。🔴 這一步只記錄（T0798）：關掉 errexit / pipefail、每個輔助函式都回 0，任何一項取不到都寫 `n/a` 與錯誤原文，不得讓 job 失敗或截斷清單；不得改用整步 `continue-on-error: true`（清單照樣會截斷）。
 - 驗收：`xvfb-run -a npx playwright test e2e/linux/`，`BAT_E2E_EXECUTABLE` = AppImage 本身。測試依賴只裝 `npm ci --ignore-scripts`。
 - artifact `linux-acceptance-<version 或 build<run id>>-<os>-attempt<N>`（報告 md / json、截圖、BAT debug log、`appimage-inspect.md`、`runner-context.md`），保留 7 天。spec 只從 userData 抄 `Logs/debug-*.log`；上傳前仍刪掉 `server-token.json` / `server-cert.json` / `helper-capabilities.json` / `claude-sessions.json`（userData 裡存金鑰、權杖、session id 的檔），以及內容含權杖樣式的檔案（同 macOS workflow）。
 - job summary 依序放 `linux-report.md`、`appimage-inspect.md`、`runner-context.md`。
@@ -45,20 +45,21 @@ gh workflow run linux-acceptance.yml -R gowerlin/better-agent-terminal -f build_
 
 | 列 | 何時跑 | 內容 |
 |---|---|---|
-| L1 | 一律 | Playwright `_electron.launch` 啟動 AppImage（🔴 `chromiumSandbox: true`，不加 `--no-sandbox`）；主視窗可見、預設工作區的終端分頁出現、用鍵盤輸入 `echo T0797_$((6*7))_<隨機>`，PTY 輸出出現 `T0797_42_<隨機>`（只有 shell 的輸出含 `_42_`）、截圖、renderer 在自己的 PID namespace（sandbox 有開）、debug log 已建立且 0 個 `[CRASH]`、結束對話框回答「結束＋停止 Terminal Server」後正常關閉 |
-| L2 | L1 啟動失敗時 | 不經 Playwright、不帶任何除錯旗標，照使用者在終端機執行的方式啟動；20 s 後仍在、debug log 已建立且沒有 `[CRASH]`。用來分辨「app 起不來」與「Playwright 驅動不了」 |
+| L1 | 一律 | Playwright `_electron.launch` 啟動 AppImage（🔴 `chromiumSandbox: true`，不加 `--no-sandbox`）；主視窗可見、預設工作區的終端分頁出現、用鍵盤輸入 `echo T0797_$((6*7))_<隨機>`，PTY 輸出出現 `T0797_42_<隨機>`（只有 shell 的輸出含 `_42_`）、截圖、renderer 在自己的 PID namespace（sandbox 有開）、主程序命令列沒有 `--no-sandbox`、debug log 已建立且 0 個 `[CRASH]`、結束對話框回答「結束＋停止 Terminal Server」後正常關閉。T0799：AppImage 啟動器自己加了 `--no-sandbox`（debug log `[sandbox] Chromium sandbox auto-disabled …`，見 [linux-appimage-sandbox.md](linux-appimage-sandbox.md)）時，sandbox 兩項不判、其餘都過 → 列結果 **WARN**，證據寫 `sandbox auto-disabled (BUG-202 fallback)` |
+| L2 | 一律（T0799 起；之前只在 L1 啟動失敗時） | 不經 Playwright、不帶任何除錯旗標，照使用者在終端機執行的方式啟動；等 debug log 出現（最多 120 s），之後再 20 s 仍在、送 SIGTERM 之前沒有 `[CRASH]`；記錄 stdout / stderr 有沒有啟動器的 `[sandbox] userns restricted …` 那一行。FAIL → verdict FAIL。T0799 run `41504087753` 的兩個修正：① 24.04 從啟動到 debug log 超過 20 s（L1 開窗 70 s），原本「啟動後 20 s」時 log 還不存在；② SIGTERM 送給整個程序群組，GPU / Utility 子程序被它殺掉而記 `[CRASH] child-process-gone`，這些行時間在 SIGTERM 之後，不算 |
 | L1b | L1 啟動失敗時 | L1 重跑並加 `--no-sandbox`，只為了繼續驗其他項目；報告中與 L1 分開列 |
+| W1 | 第一個啟動成功的 Playwright 列（通常 L1） | BUG-203 查證，**INFO**、不影響 verdict：main 程序照 `electron/whisper-addon-loader.ts` 的方式載入打包內的 `@kutalia/whisper-node-addon`（從 app 解析 `<pkg>/package.json` → `dist/linux-<arch>/whisper.node` → `app.asar` 改 `app.asar.unpacked` → `require`，要匯出 `whisper()`），記成功或錯誤原文（掛載路徑換成 `<appdir>/`） |
 
-整體結論（`linux-report.md` 的 `verdict`）：
+整體結論（`linux-report.md` 的 `verdict`，`verdictReason` 寫原因；meta 另有 `sandbox`、`whisper`）：
 
-- **PASS**：L1 全部通過。
-- **WARN**：L1 啟動了但有項目沒過（`[CRASH]`、沒正常關閉、鍵盤輸入只能經 `pty.write` 才到、renderer 沒有 sandbox），或 L1 起不來而 L1b 可以（= 要 `--no-sandbox` 才能用）。job 綠燈但有 `::warning::` 註記，**不是 PASS**。
-- **FAIL**：L1 啟動了但連終端都沒有，或 L1 與 L1b 都起不來。test 失敗（紅燈）。
+- **PASS**：L1 全部通過，且 L2 PASS。
+- **WARN**：L1 啟動了但有項目沒過（`[CRASH]`、沒正常關閉、鍵盤輸入只能經 `pty.write` 才到、renderer 沒有 sandbox 或命令列有 `--no-sandbox` 而啟動器沒有回報降級），或 L1 是 WARN（`sandbox auto-disabled (BUG-202 fallback)`：開得起來，但沒有 sandbox，要持續看得見），或 L1 起不來而 L1b 可以（= 要 `--no-sandbox` 才能用）。job 綠燈但有 `::warning::` 註記，**不是 PASS**。
+- **FAIL**：L1 啟動了但連終端都沒有，或 L1 與 L1b 都起不來，或 L2 FAIL。test 失敗（紅燈）。
 
 判讀重點：
 
 - 起不來時先看 L1 的 `launch failed` 原文：`The SUID sandbox helper binary was found, but is not configured correctly` / `No usable sandbox!` 之類 = Chromium sandbox；`dlopen(): error loading libfuse.so.2` / `fuse: device not found` = FUSE；`error while loading shared libraries` = 缺函式庫（對照 `appimage-inspect.md` 的 `not found`）；`GLIBC_2.xx not found` = glibc 太舊（對照最高 `GLIBC_*`）。
-- 24.04 的 AppArmor 限制：`runner-context.md` 的 `apparmor_restrict_unprivileged_userns = 1` 時，非 setuid 的 `chrome-sandbox`（AppImage 是 FUSE 掛載，不會是 setuid）只能用 user namespace，被擋就起不來。🔴 這個情況本身就是要回報的結果，不得改成一開始就加 `--no-sandbox` 或改 sysctl 讓它過。runner 的值是 0 時，runner 上的 PASS 不能代表預設設定的 24.04 桌面（桌面版預設是 1），報告要寫明。2026-11 的 GitHub `ubuntu-24.04` runner 是 1（T0798 實測），與桌面版預設相同。
+- 24.04 的 AppArmor 限制：`runner-context.md` 的 `apparmor_restrict_unprivileged_userns = 1` 時，非 setuid 的 `chrome-sandbox`（AppImage 是 FUSE 掛載，不會是 setuid）只能用 user namespace，被擋就起不來（BUG-202）。T0799 起 AppImage 的啟動器偵測到這個情況會自己加 `--no-sandbox`，L1 / L2 照常啟動、報告標 `sandbox auto-disabled (BUG-202 fallback)`、verdict WARN。🔴 spec 與 workflow 本身仍不得一開始就加 `--no-sandbox` 或改 sysctl / AppArmor 讓它過：降級必須是產品自己做的、而且看得見。runner 的值是 0 時，runner 上的 PASS 不能代表預設設定的 24.04 桌面（桌面版預設是 1），報告要寫明。2026-11 的 GitHub `ubuntu-24.04` runner 是 1（T0798 實測），與桌面版預設相同。
 - 啟動耗時：`window loaded after … ms`（含 FUSE 掛載與 xz squashfs 解壓）、`terminal tab visible`、`marker … ms after launch` 三個時間都在 L1 的證據裡。
 
 ## 本機 WSL 實測（2026-11-03，`v0.7.4-pre.1`）
@@ -81,6 +82,17 @@ run `41495143950`（分支 `ct/T0798` `f5b94408`，workflow / spec 與 `main` `d
 - 啟動耗時含 FUSE 掛載與 xz squashfs 解壓，runner 之間差很多（22.04 同一版另一次 43 s）。
 - ELF GLIBC：整個映像 53 個 ELF 檔，最高 `GLIBC_2.38` 的只有 `@kutalia/whisper-node-addon/dist/linux-x64/libggml-base.so`、`libggml-vulkan.so`。22.04 上 `ldd` 報 `` version `GLIBC_2.38' not found ``（兩個都有），`libggml-vulkan.so` 另有 `` `GLIBCXX_3.4.32' not found ``；其餘 whisper `.so` 最高 `GLIBC_2.34`。啟動時不載入 whisper（debug log 只有 `[voice]` 註冊 handler 的行、沒有錯誤），所以 22.04 的 L1 不受影響；語音輸入在 22.04 實際能不能用沒有驗。whisper 的 `.so` 之間互相依賴的 `libggml*.so => not found` 兩個 OS 都有（`ldd` 不會往同目錄找），不代表執行期一定失敗。
 - codex 的 `vendor/x86_64-unknown-linux-musl/` 執行檔（`codex`、`rg`、`bwrap` 等）是 musl 靜態連結，記為 `none`。
+
+## GitHub runner 實測（T0799，2026-11-03，desktop-build `41502529486` 的 AppImage）
+
+| run | OS | verdict | L1 | L2 | W1（whisper） |
+|---|---|---|---|---|---|
+| `41504087753`（舊 L2 判讀） | 22.04 / 24.04 | FAIL / FAIL | PASS / WARN（自動降級） | FAIL / FAIL：判讀問題，見 L2 列說明 | 兩邊都 `libwhisper.so.1: cannot open shared object file: No such file or directory` |
+| `41504962084` | 22.04 | **PASS** | PASS（sandbox 開、命令列無 `--no-sandbox`） | PASS（debug log 37 s 後出現） | 同上 |
+| `41504962084` | 24.04 | **WARN** | WARN：`sandbox auto-disabled (BUG-202 fallback)`，視窗 92 s、鍵盤 echo、0 個 `[CRASH]` | PASS（debug log 44 s 後出現） | 同上 |
+
+- W1：`libwhisper.so.1` 就在 `whisper.node` 同一個目錄（`appimage-inspect.md` 有列），但 `whisper.node` 載入時動態載入器找不到它，兩個 OS 都在 glibc 版本檢查之前就失敗，所以 22.04 的 `GLIBC_2.38`（BUG-203）在這個錯誤之後才會遇到、目前看不到。
+- `41505876807`（L2 同時看輸出開頭與 debug log 的降級紀錄）：22.04 **PASS**（L1 / L2 PASS、sandbox 開）；24.04 **WARN**（L1 WARN 自動降級、L2 PASS，stderr 那一行與 debug log 那一行都有）。W1 結果同上。
 
 ## 已知限制與陷阱
 

@@ -263,6 +263,13 @@
 - BAT 內執行 `npm run dev` 需確認 `ELECTRON_RUN_AS_NODE` 未被污染（見 BUG-038 / T0161）。若 renderer 無法啟動且 log 出現 `ELECTRON_RUN_AS_NODE=1`，清除該環境變數後重試。
 - electron-builder 26.x（2026-04-18 PLAN-005 / EXP-BUILDER26-001 CONCLUDED，原 24.13.3 → 26.8.1，清除 9 個 Group A CVE，見 PLAN-003 Group A）。
 
+## Linux AppImage 的 sandbox 自動降級（T0799 / BUG-202，D244）
+
+- 用途：Ubuntu 24.04 預設（`apparmor_restrict_unprivileged_userns = 1`）直接執行 AppImage 會因 `chrome-sandbox` 不是 root 4755 而 FATAL；啟動器偵測到時自動加 `--no-sandbox`，stderr 印 `[sandbox] userns restricted and chrome-sandbox not setuid root: starting with --no-sandbox (BUG-202)`、debug log 記 `[sandbox] …`。
+- 🔴 只在「userns 用不了（AppArmor 限制且二進位沒被套 profile／`unshare` 失敗）＋`chrome-sandbox` 不是 root setuid＋參數沒有 `--no-sandbox`＋不是 `ELECTRON_RUN_AS_NODE`」全部成立時加；其餘原樣 `exec`。只影響 Linux AppImage，不改 Windows / macOS、`.desktop` 的 `Exec`。🔴 不能改成 main.ts `appendSwitch`（Chromium 在 JS 之前就決定 sandbox）。
+- 唯一實作：`afterPack`（`scripts/version-manifest.cjs`）→ `scripts/appimage-sandbox-launcher.cjs`（把 Electron 二進位改名 `BetterAgentTerminal.bin`，原位置放 `/bin/sh` 啟動器，所以 `process.execPath` 是 `.bin`）；log 與標記 env 清除 `takeLinuxSandboxStart`（`electron/linux-sandbox-fallback.ts`）；打包後 `verify-packaged-native.js` `appimage-launcher`。
+- 完整判斷、安全取捨、AppArmor profile 範例、已知限制、驗證清單：[docs/agent-guide/linux-appimage-sandbox.md](docs/agent-guide/linux-appimage-sandbox.md)
+
 ## 本機開發：npm 12 install scripts（T0471 / T0473）
 
 - npm 12 預設擋相依套件的 install scripts（`npm ci` 仍 exit 0，只在結尾警告）。`package.json` `allowScripts` 以 name-only entry 放行 `esbuild`、`sharp`、`@anthropic-ai/claude-code`。`electron` 於 T0784 移除（D223）：Electron 42 起它沒有 install script，binary 在第一次 `require('electron')` 時下載（見「Electron Runtime」）。

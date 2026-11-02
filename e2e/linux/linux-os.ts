@@ -145,6 +145,8 @@ export interface DebugLogView {
   files: string[]
   /** the `[startup] Debug logging started. PID=… argv=…` line (electron/logger.ts) */
   startupLine: string
+  /** the `[sandbox] …` line (T0799, electron/linux-sandbox-fallback.ts); '' when missing */
+  sandboxLine: string
   /** `[CRASH] …` lines (electron/main.ts uncaughtException / unhandledRejection / *-process-gone, early-crash-log.ts) */
   crashLines: string[]
   errorCount: number
@@ -167,6 +169,7 @@ export function readDebugLogs(userData: string): DebugLogView {
   return {
     files: files.map(f => path.join(dir, f)),
     startupLine: clip(lines.find(l => l.includes('[startup] Debug logging started.')) ?? ''),
+    sandboxLine: clip(lines.find(l => l.includes('] [sandbox] ')) ?? ''),
     crashLines: lines.filter(l => l.includes('[CRASH]')).map(clip),
     errorCount: errors.length,
     errorSamples: errors.slice(0, 8).map(clip),
@@ -182,26 +185,48 @@ export interface PlainLaunchResult {
   exitSignal: string | null
   /** stderr / stdout tail (2000 chars) */
   outputTail: string
+  /** the first 2000 chars of stderr / stdout (T0799: the launcher's line comes first and falls out of the tail) */
+  outputHead: string
   /** how the process ended: 'SIGTERM' (exited within the grace period) / 'SIGKILL' / 'exited by itself' */
   ended: string
   ms: number
+  /** ms after spawn when `ready()` first returned true; null when it never did (or no `ready` was given) */
+  readyAfterMs: number | null
+  /** when the SIGTERM was sent (ISO); null when the process exited by itself first */
+  termSentAt: string | null
+}
+
+export interface PlainLaunchOptions {
+  /** polled every 500 ms; the `holdMs` hold starts when it returns true (T0799: the debug log exists) */
+  ready?: () => boolean
+  /** longest wait for `ready` before the hold starts anyway (default 0 = no wait) */
+  readyMaxMs?: number
 }
 
 /**
- * Starts the AppImage the way a user does from a terminal (no Playwright, no debugging flags), waits
- * `holdMs`, then sends SIGTERM to its process group and SIGKILL after `graceMs`. BAT answers SIGTERM with
+ * Starts the AppImage the way a user does from a terminal (no Playwright, no debugging flags), waits until
+ * `opts.ready()` (at most `opts.readyMaxMs`; T0799: a slow FUSE + xz start on 24.04 took > 20 s before the
+ * debug log existed), waits `holdMs`, then sends SIGTERM to its process group and SIGKILL after `graceMs`.
+ * Children killed by that SIGTERM log `[CRASH] child-process-gone`; callers judge only lines before `termSentAt`. BAT answers SIGTERM with
  * its quit confirmation dialog (T0144, electron/main.ts `before-quit`), so 'SIGKILL' after a SIGTERM is
  * expected when nobody answers the dialog; it is recorded, not judged.
  */
-export function plainLaunch(executable: string, args: string[], env: Record<string, string>, holdMs = 20_000, graceMs = 10_000): Promise<PlainLaunchResult> {
+export function plainLaunch(executable: string, args: string[], env: Record<string, string>, holdMs = 20_000, graceMs = 10_000, opts: PlainLaunchOptions = {}): Promise<PlainLaunchResult> {
   const started = Date.now()
   return new Promise(resolve => {
     let out = ''
+    let head = ''
     let exitCode: number | null = null
     let exitSignal: string | null = null
     let exited = false
+    let readyAfterMs: number | null = null
+    let termSentAt: string | null = null
     const child = spawn(executable, args, { env, detached: true, stdio: ['ignore', 'pipe', 'pipe'] })
-    const keep = (d: Buffer) => { out = (out + d.toString('utf8')).slice(-8000) }
+    const keep = (d: Buffer) => {
+      const t = d.toString('utf8')
+      if (head.length < 2000) head = (head + t).slice(0, 2000)
+      out = (out + t).slice(-8000)
+    }
     child.stdout?.on('data', keep)
     child.stderr?.on('data', keep)
     // a spawn failure (EACCES, ENOENT) emits 'error' and no 'exit'
@@ -211,10 +236,11 @@ export function plainLaunch(executable: string, args: string[], env: Record<stri
       try { if (child.pid) process.kill(-child.pid, sig) } catch { /* gone */ }
     }
     const finish = (aliveAfterHold: boolean, ended: string) => resolve({
-      aliveAfterHold, exitCode, exitSignal, outputTail: out.slice(-2000), ended, ms: Date.now() - started,
+      aliveAfterHold, exitCode, exitSignal, outputTail: out.slice(-2000), outputHead: head, ended, ms: Date.now() - started, readyAfterMs, termSentAt,
     })
-    setTimeout(() => {
+    const hold = () => setTimeout(() => {
       if (exited) { finish(false, 'exited by itself'); return }
+      termSentAt = new Date().toISOString()
       killGroup('SIGTERM')
       setTimeout(() => {
         if (exited) { finish(true, 'SIGTERM'); return }
@@ -222,5 +248,14 @@ export function plainLaunch(executable: string, args: string[], env: Record<stri
         setTimeout(() => finish(true, 'SIGKILL'), 2_000)
       }, graceMs)
     }, holdMs)
+    const readyMaxMs = opts.ready ? opts.readyMaxMs ?? 0 : 0
+    const poll = () => {
+      let ok = false
+      try { ok = !!opts.ready?.() } catch { /* not ready */ }
+      if (ok) readyAfterMs = Date.now() - started
+      if (ok || exited || Date.now() - started >= readyMaxMs) { hold(); return }
+      setTimeout(poll, 500)
+    }
+    poll()
   })
 }

@@ -19,7 +19,9 @@
  *   plus the whisper.node presence check from T0470.
  *
  * linux (T0475): the embedded claude in `<out>/linux-unpacked` (x64) must exist and be
- * an ELF for the requested arch.
+ * an ELF for the requested arch. T0799 / BUG-202 `appimage-launcher`: `<executableName>` is the
+ * sandbox launcher script (scripts/appimage-sandbox-launcher.cjs, installed by the afterPack hook)
+ * and `<executableName>.bin` is an ELF for the requested arch (the Electron binary it execs).
  *
  * win (T0546): the embedded claude `claude-code/bin/claude.exe` in `<out>/win-unpacked` (x64)
  * must exist and be a PE image for the requested arch.
@@ -60,6 +62,7 @@ const fs = require('fs');
 const { builtinModules } = require('module');
 const path = require('path');
 const { VERSION_MANIFEST_FILE, versionManifestProblems } = require('./version-manifest.cjs');
+const { REAL_BINARY_SUFFIX, isLauncherFile } = require('./appimage-sandbox-launcher.cjs');
 
 const WHISPER_ADDON_PACKAGE = '@kutalia/whisper-node-addon';
 const WHISPER_ADDON_BINARY = 'whisper.node';
@@ -748,6 +751,31 @@ function verifyPackagedMac(outDir, archs = DEFAULT_MAC_ARCHS) {
   return { ok: results.every((r) => r.ok), archs: results };
 }
 
+/** package.json build.executableName (the Linux / Windows executable name). */
+function packagedExecutableName() {
+  return require('../package.json').build.executableName;
+}
+
+/**
+ * T0799 / BUG-202: `<appOutDir>/<executableName>` must be the AppImage sandbox launcher and
+ * `<executableName>.bin` an ELF of `expectedMachine`. Returns the problems (empty = ok).
+ */
+function verifyAppImageLauncher(appOutDir, executableName, expectedMachine) {
+  const launcher = path.join(appOutDir, executableName);
+  const real = launcher + REAL_BINARY_SUFFIX;
+  const details = [];
+  if (!fs.existsSync(launcher)) details.push(`missing: ${launcher}`);
+  else if (!isLauncherFile(launcher)) details.push(`not the sandbox launcher script: ${launcher} (the afterPack hook did not install it)`);
+  if (!fs.existsSync(real)) {
+    details.push(`missing: ${real}`);
+  } else {
+    const machine = elfMachine(readHeader(real));
+    if (machine === null) details.push(`not an ELF binary: ${real}`);
+    else if (expectedMachine !== undefined && machine !== expectedMachine) details.push(`${real} is ELF e_machine 0x${machine.toString(16)}, expected 0x${expectedMachine.toString(16)}`);
+  }
+  return details.length ? [{ id: 'appimage-launcher', message: 'AppImage sandbox launcher not installed (BUG-202 / T0799)', details }] : [];
+}
+
 /** Linux: the embedded claude in each requested arch's unpacked directory, plus the T0546 layout. */
 function verifyPackagedLinux(outDir, archs = DEFAULT_LINUX_ARCHS) {
   const results = archs.map((arch) => {
@@ -776,6 +804,7 @@ function verifyPackagedLinux(outDir, archs = DEFAULT_LINUX_ARCHS) {
       }
       layout = verifyPackagedLayout(resourcesPath, 'linux', arch);
       problems.push(...layout.problems);
+      problems.push(...verifyAppImageLauncher(appOutDir, packagedExecutableName(), expected));
     }
     return { arch, appOutDir, embeddedClaude: claude, layout, problems, ok: problems.length === 0 };
   });
@@ -900,7 +929,7 @@ function reportMac(result, opts) {
 
 function reportLinux(result, opts) {
   for (const r of result.archs) {
-    if (r.ok) console.log(`[verify-packaged-native] ✅ linux ${r.arch}: embedded claude ${r.embeddedClaude.found} (ELF e_machine 0x${r.embeddedClaude.elfMachine.toString(16)})${describeLayout(r.layout)}`);
+    if (r.ok) console.log(`[verify-packaged-native] ✅ linux ${r.arch}: embedded claude ${r.embeddedClaude.found} (ELF e_machine 0x${r.embeddedClaude.elfMachine.toString(16)})${describeLayout(r.layout)}, AppImage sandbox launcher installed`);
   }
   if (result.ok) {
     console.log(`[verify-packaged-native] ✅ every linux package passed (${opts.archs.join(', ')})`);
@@ -913,6 +942,7 @@ function reportLinux(result, opts) {
   console.error('');
   console.error('[verify-packaged-native] The AppImage for these archs would ship without a working embedded claude (BUG-118) or unslimmed (T0546).');
   console.error('[verify-packaged-native] Check that `electron-builder --linux` ran, @anthropic-ai/claude-code-linux-<arch> is installed, and build.asarUnpack still covers @anthropic-ai/claude-code-*.');
+  console.error('[verify-packaged-native] T0799 appimage-launcher: package.json build.afterPack must stay ./scripts/version-manifest.cjs and build.linux.target must include AppImage (the hook installs the launcher only then).');
   printLayoutHints();
   return false;
 }
@@ -983,6 +1013,7 @@ module.exports = {
   verifyPackagedLayout,
   verifyPackagedMac,
   verifyPackagedLinux,
+  verifyAppImageLauncher,
   verifyPackagedWin,
   parseArgs,
 };

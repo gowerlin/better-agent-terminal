@@ -19,6 +19,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const { afterPackAppImageLauncher } = require('./appimage-sandbox-launcher.cjs');
 
 const VERSION_MANIFEST_FILE = 'package.json';
 const VERSION_MANIFEST_KEYS = ['name', 'version'];
@@ -58,13 +59,18 @@ function writeVersionManifest(resourcesDir, name, version) {
   return target;
 }
 
-/** electron-builder `afterPack` hook (package.json build.afterPack). Runs before signing. */
+/**
+ * electron-builder `afterPack` hook (package.json build.afterPack). Runs before signing.
+ * Also installs the Linux AppImage sandbox launcher (BUG-202 / T0799, scripts/appimage-sandbox-launcher.cjs);
+ * that step is a no-op unless the build is Linux with an AppImage target.
+ */
 async function afterPack(context) {
   const { packager, appOutDir } = context;
   const { name, version } = packager.appInfo;
   if (!name || !version) throw new Error(`afterPack (T0691): app name / version unavailable (name=${name}, version=${version})`);
   const target = writeVersionManifest(packager.getResourcesDir(appOutDir), name, version);
   console.log(`  • afterPack (T0691): wrote ${target} (${name} ${version})`);
+  afterPackAppImageLauncher(context);
 }
 
 module.exports = {

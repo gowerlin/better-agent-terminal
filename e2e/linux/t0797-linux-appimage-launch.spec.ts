@@ -4,11 +4,18 @@
 //
 // Run by .github/workflows/linux-acceptance.yml (workflow_dispatch only) under `xvfb-run`. Levels:
 //   L1  Playwright launch, default sandbox: window, terminal tab, keyboard `echo` marker, screenshot,
-//       debug log, sandbox evidence, normal quit. Passing L1 = PASS.
-//   L2  only when L1 could not launch: the same AppImage started with no Playwright / debugging flags,
-//       alive after 20 s? debug log written? (tells "the app cannot start" from "Playwright cannot drive it")
+//       debug log, sandbox evidence, normal quit. Passing L1 = PASS. T0799 / BUG-202: when the AppImage
+//       launcher turned the sandbox off by itself (userns restricted, chrome-sandbox not setuid root; debug
+//       log `[sandbox] Chromium sandbox auto-disabled`), a run that passes everything else is WARN with
+//       `sandbox auto-disabled (BUG-202 fallback)`: no crash, but the lost sandbox stays visible.
+//       Without the fallback, `--no-sandbox` on the main command line or an unsandboxed renderer is not PASS.
+//   L2  always (T0799; before: only when L1 could not launch): the same AppImage started with no Playwright /
+//       debugging flags, alive after 20 s? debug log written? A FAIL makes the verdict FAIL.
 //   L1b only when L1 could not launch: L1 again with `--no-sandbox`, only to keep checking the other items.
 //       Never the first attempt; a run that needs it is WARN, not PASS.
+//   W1  INFO only (BUG-203 check, T0799): in the first launched Playwright run, the main process loads the
+//       packaged `@kutalia/whisper-node-addon` the way electron/whisper-addon-loader.ts does; records success
+//       or the error text. Never changes the verdict.
 // Every row lands in `linux-report.md` / `.json` under `LINUX_REPORT_DIR` (rewritten after each row).
 // See docs/agent-guide/linux-ci-acceptance.md.
 
@@ -30,8 +37,13 @@ const log = testLogger('t0797')
 const WS = 'e2e-t0797-ws'
 const TERM = 'e2e-t0797-term'
 const LAUNCH_TIMEOUT_MS = 120_000
+/** scripts/appimage-sandbox-launcher.cjs SANDBOX_FALLBACK_STDERR_LINE (T0799) */
+const SANDBOX_FALLBACK_STDERR_LINE = '[sandbox] userns restricted and chrome-sandbox not setuid root: starting with --no-sandbox (BUG-202)'
+/** electron/linux-sandbox-fallback.ts, state `auto-disabled` */
+const SANDBOX_AUTO_DISABLED_LOG = '[sandbox] Chromium sandbox auto-disabled by the AppImage launcher (BUG-202 fallback)'
+const SANDBOX_AUTO_DISABLED_NOTE = 'sandbox auto-disabled (BUG-202 fallback)'
 
-type Result = 'PASS' | 'FAIL' | 'PARTIAL' | 'SKIP' | 'ERROR'
+type Result = 'PASS' | 'WARN' | 'FAIL' | 'PARTIAL' | 'SKIP' | 'ERROR' | 'INFO'
 type Verdict = 'PASS' | 'WARN' | 'FAIL'
 
 interface Row {
@@ -76,6 +88,7 @@ const clip = (s: string, n = 3000) => (s.length > n ? `${s.slice(0, n)}…` : s)
 function describeLogs(v: DebugLogView, ev: string[]): void {
   ev.push(`debug log files: ${v.files.length ? v.files.map(f => path.basename(f)).join(', ') : 'none'}`)
   ev.push(`startup line: ${JSON.stringify(v.startupLine || '(missing)')}`)
+  ev.push(`sandbox line: ${JSON.stringify(v.sandboxLine || '(missing)')}`)
   ev.push(`[CRASH] lines: ${v.crashLines.length}${v.crashLines.length ? ` ${JSON.stringify(v.crashLines.slice(0, 5))}` : ''}`)
   ev.push(`[ERROR] lines: ${v.errorCount}${v.errorSamples.length ? ` (first ${v.errorSamples.length}: ${JSON.stringify(v.errorSamples)})` : ''}`)
 }
@@ -118,6 +131,15 @@ function removeRuntimeUserData(userData: string, runtimeId: string): void {
 interface LaunchOutcome {
   launched: boolean
   result: Result
+  /** the AppImage launcher turned the sandbox off by itself (T0799) */
+  sandboxAutoDisabled: boolean
+}
+
+interface WhisperLoad {
+  ok: boolean
+  packageJson: string
+  addonPath: string
+  error: string
 }
 
 type RejectionListener = (reason: unknown, promise: Promise<unknown>) => void
@@ -205,7 +227,7 @@ test('T0797 Linux AppImage launch acceptance', async () => {
     } catch (err) {
       ev.push(`launch failed after ${Date.now() - t0} ms: ${clip(errText(err))}`)
       report.add({ id, title, result: 'FAIL', evidence: ev })
-      return { launched: false, result: 'FAIL' }
+      return { launched: false, result: 'FAIL', sandboxAutoDisabled: false }
     }
     let stderrTail = ''
     app.process().stderr?.on('data', (d: Buffer) => { stderrTail = (stderrTail + d.toString('utf8')).slice(-6000) })
@@ -213,6 +235,7 @@ test('T0797 Linux AppImage launch acceptance', async () => {
     let userData = ''
     let serverPid: number | null = null
     let result: Result = 'FAIL'
+    let sandboxAutoDisabled = false
     const closeLog: string[] = []
     try {
       userData = await app.evaluate(({ app: a }) => a.getPath('userData'))
@@ -244,7 +267,8 @@ test('T0797 Linux AppImage launch acceptance', async () => {
       ev.push(`app ${meta.version}, Electron ${meta.electron}; window visible=${meta.visible} bounds=${meta.bounds}`)
       // Chromium rewrites its process title, so /proc/<pid>/cmdline can be one space-joined string.
       const mainCmd = procCmdline(meta.pid).join(' ')
-      ev.push(`main process command line has --no-sandbox: ${/(^|\s)--no-sandbox(\s|$)/.test(mainCmd)}; app.commandLine no-sandbox switch: ${meta.noSandboxSwitch}`)
+      const mainHasNoSandbox = /(^|\s)--no-sandbox(\s|$)/.test(mainCmd)
+      ev.push(`main process command line has --no-sandbox: ${mainHasNoSandbox}; app.commandLine no-sandbox switch: ${meta.noSandboxSwitch}`)
       ev.push(`main process: ${JSON.stringify(mainCmd.slice(0, 400))}`)
       const base = sandboxView(meta.pid, 'Browser')
       ev.push(`main process baseline: NSpid=${base.nspid} Seccomp=${base.seccomp}`)
@@ -298,6 +322,10 @@ test('T0797 Linux AppImage launch acceptance', async () => {
       const thumbText = (await win.locator('.thumbnail-preview').allInnerTexts().catch(() => [] as string[])).join('\n')
       ev.push(`marker in BAT's thumbnail preview text: ${thumbText.includes(marker)}`)
       await win.screenshot({ path: path.join(reportDir, `${id}-window.png`) }).then(() => ev.push(`screenshot: ${id}-window.png`), (err) => ev.push(`screenshot failed: ${errText(err)}`))
+      if (!whisperChecked) {
+        whisperChecked = true
+        await whisperRow(app, id)
+      }
 
       serverPid = readPid(userData)
       await win.evaluate((termId) => (window as AnyApi).electronAPI.pty.kill(termId), TERM).catch(() => { /* gone */ })
@@ -313,13 +341,24 @@ test('T0797 Linux AppImage launch acceptance', async () => {
       copyLogs(logs, reportDir, id)
       const argvNoSandbox = /argv=.*--no-sandbox/.test(logs.startupLine)
       ev.push(`--no-sandbox in the logged argv: ${argvNoSandbox}`)
+      // T0799: the launcher's own record (debug log; its stderr line is printed before Playwright attaches)
+      sandboxAutoDisabled = logs.sandboxLine.includes(SANDBOX_AUTO_DISABLED_LOG) || stderrTail.includes(SANDBOX_FALLBACK_STDERR_LINE)
+      ev.push(`AppImage launcher turned the sandbox off (BUG-202 fallback): ${sandboxAutoDisabled}`)
 
       const core = meta.visible && xtermVisible && markerVia === 'keyboard'
-      // A sandbox launch whose renderer still runs unsandboxed means something turned it off: not a PASS.
-      const sandboxOk = !chromiumSandbox || renderers.length === 0 || rendererSandboxed
-      if (!sandboxOk) ev.push('renderer is not sandboxed although the launch did not ask for --no-sandbox')
+      let sandboxOk: boolean
+      if (chromiumSandbox && sandboxAutoDisabled) {
+        // expected: the launcher added --no-sandbox, so the renderer runs unsandboxed. Not a crash, not a PASS.
+        sandboxOk = true
+        ev.push(SANDBOX_AUTO_DISABLED_NOTE)
+      } else {
+        // A sandbox launch whose renderer still runs unsandboxed, or whose command line has --no-sandbox,
+        // means something turned it off: not a PASS.
+        sandboxOk = !chromiumSandbox || ((renderers.length === 0 || rendererSandboxed) && !mainHasNoSandbox && !meta.noSandboxSwitch)
+        if (!sandboxOk) ev.push('sandbox is off (renderer unsandboxed or --no-sandbox on the command line) although the launch did not ask for --no-sandbox and the launcher did not report its fallback')
+      }
       const clean = logs.files.length > 0 && logs.crashLines.length === 0 && closedNormally && sandboxOk
-      result = core && clean ? 'PASS' : core || markerVia !== 'none' ? 'PARTIAL' : 'FAIL'
+      result = core && clean ? (chromiumSandbox && sandboxAutoDisabled ? 'WARN' : 'PASS') : core || markerVia !== 'none' ? 'PARTIAL' : 'FAIL'
     } catch (err) {
       ev.push(`error: ${clip(errText(err))}`)
       result = 'ERROR'
@@ -335,8 +374,47 @@ test('T0797 Linux AppImage launch acceptance', async () => {
       removeRuntimeUserData(userData, runtimeId)
     }
     report.add({ id, title, result, evidence: ev })
-    return { launched: true, result }
+    return { launched: true, result, sandboxAutoDisabled }
   }
+
+  /**
+   * W1 (BUG-203 check, INFO only): load the packaged whisper addon in the main process the way
+   * electron/whisper-addon-loader.ts does: resolve `<pkg>/package.json` from the app, `dist/linux-<arch>/whisper.node`,
+   * app.asar -> app.asar.unpacked, require it, expect a `whisper` function. Records the outcome; never judged.
+   */
+  async function whisperRow(app: ElectronApplication, from: string): Promise<void> {
+    const ev: string[] = [`from the ${from} run; system glibc: ${sys.glibc}`]
+    let load: WhisperLoad
+    try {
+      load = await app.evaluate(() => {
+        const out = { ok: false, packageJson: '', addonPath: '', error: '' }
+        try {
+          const nodePath = process.getBuiltinModule('path') as typeof import('path')
+          const nodeModule = process.getBuiltinModule('module') as typeof import('module')
+          const req = nodeModule.createRequire(nodePath.join(process.resourcesPath, 'app.asar', 'dist-electron', 'main.js'))
+          out.packageJson = req.resolve('@kutalia/whisper-node-addon/package.json')
+          const p = nodePath.join(nodePath.dirname(out.packageJson), 'dist', `linux-${process.arch}`, 'whisper.node')
+          out.addonPath = p.replace(/([\\/])app\.asar([\\/])/, '$1app.asar.unpacked$2')
+          const mod = req(out.addonPath) as { whisper?: unknown } | null
+          if (typeof mod?.whisper !== 'function') throw new Error(`${out.addonPath} does not export a whisper() function`)
+          out.ok = true
+        } catch (err) {
+          out.error = err instanceof Error ? err.message : String(err)
+        }
+        return out
+      })
+    } catch (err) {
+      load = { ok: false, packageJson: '', addonPath: '', error: `evaluate failed: ${errText(err)}` }
+    }
+    const rel = (p: string) => p.replace(/^.*?\/resources\//, 'resources/')
+    ev.push(`package.json: ${load.packageJson ? rel(load.packageJson) : '(not resolved)'}`)
+    ev.push(`addon: ${load.addonPath ? rel(load.addonPath) : '(not resolved)'}`)
+    ev.push(load.ok ? 'whisper addon loaded (whisper() exported)' : `load error: ${JSON.stringify(clip(load.error.replace(/\/tmp\/\.mount_[^/]+\//g, '<appdir>/'), 1500))}`)
+    report.meta.whisper = load.ok ? 'loaded' : 'load failed (see W1)'
+    report.add({ id: 'W1', title: 'BUG-203 查證（INFO，不影響 verdict）：main 程序依 whisper-addon-loader 的方式載入打包內的 whisper addon', result: 'INFO', evidence: ev })
+  }
+
+  let whisperChecked = false
 
   /** L2: the AppImage with no Playwright, as a user starts it from a terminal. */
   async function plainRun(): Promise<Result> {
@@ -345,32 +423,61 @@ test('T0797 Linux AppImage launch acceptance', async () => {
     const env = isolatedEnv(await freePort())
     const appData = process.env.XDG_CONFIG_HOME || path.join(os.homedir(), '.config')
     const userData = path.join(appData, `BetterAgentTerminal-runtime-${runtimeId}`)
-    const r = await plainLaunch(E2E_EXECUTABLE, [`--runtime=${runtimeId}`], env)
-    ev.push(`alive after 20 s: ${r.aliveAfterHold}; ended: ${r.ended}; exit code=${r.exitCode} signal=${r.exitSignal}; ${r.ms} ms`)
+    // T0799: hold 20 s from the moment the debug log exists (at most 120 s wait), not from spawn
+    const logsDir = path.join(userData, 'Logs')
+    const hasLog = () => { try { return fs.readdirSync(logsDir).some(f => /^debug-.*\.log$/.test(f)) } catch { return false } }
+    const r = await plainLaunch(E2E_EXECUTABLE, [`--runtime=${runtimeId}`], env, 20_000, 10_000, { ready: hasLog, readyMaxMs: 120_000 })
+    ev.push(`debug log appeared after: ${r.readyAfterMs === null ? 'not within 120 s' : `${r.readyAfterMs} ms`}`)
+    ev.push(`alive 20 s after that: ${r.aliveAfterHold}; SIGTERM sent at ${r.termSentAt ?? '-'}; ended: ${r.ended}; exit code=${r.exitCode} signal=${r.exitSignal}; ${r.ms} ms`)
+    const stderrLine = r.outputHead.includes(SANDBOX_FALLBACK_STDERR_LINE) || r.outputTail.includes(SANDBOX_FALLBACK_STDERR_LINE)
+    ev.push(`launcher stderr line (BUG-202 fallback): ${stderrLine}`)
     if (r.outputTail.trim()) ev.push(`stdout/stderr tail: ${JSON.stringify(r.outputTail.slice(-1500))}`)
     await reapTerminalServer(readPid(userData), ev)
     const logs = readDebugLogs(userData)
     describeLogs(logs, ev)
     copyLogs(logs, reportDir, 'L2')
     removeRuntimeUserData(userData, runtimeId)
-    const result: Result = r.aliveAfterHold && logs.files.length > 0 && logs.crashLines.length === 0 ? 'PASS' : 'FAIL'
-    report.add({ id: 'L2', title: '最低檢查：不經 Playwright 啟動 AppImage，20 s 後仍在、debug log 已建立且沒有 [CRASH]', result, evidence: ev })
+    const logLine = logs.sandboxLine.includes(SANDBOX_AUTO_DISABLED_LOG)
+    ev.push(`debug log [sandbox] auto-disabled line: ${logLine}`)
+    if (stderrLine || logLine) ev.push(SANDBOX_AUTO_DISABLED_NOTE)
+    if (stderrLine !== logLine) ev.push('launcher stderr line and debug log line disagree')
+    // `[CRASH] child-process-gone` lines after our own SIGTERM to the process group are caused by it (T0799, 22.04 run 41504087753)
+    const crashesBeforeTerm = logs.crashLines.filter(l => {
+      const ts = /^\[([^\]]+)\]/.exec(l)?.[1]
+      return !r.termSentAt || !ts || ts < r.termSentAt
+    })
+    ev.push(`[CRASH] lines before the SIGTERM: ${crashesBeforeTerm.length}${crashesBeforeTerm.length ? ` ${JSON.stringify(crashesBeforeTerm.slice(0, 5))}` : ''}`)
+    const result: Result = r.aliveAfterHold && r.readyAfterMs !== null && logs.files.length > 0 && crashesBeforeTerm.length === 0 ? 'PASS' : 'FAIL'
+    report.add({ id: 'L2', title: '最低檢查：不經 Playwright 啟動 AppImage，debug log 建立（≤ 120 s）後再 20 s 仍在，送 SIGTERM 前沒有 [CRASH]', result, evidence: ev })
     return result
   }
 
   let verdict: Verdict = 'FAIL'
+  const reasons: string[] = []
   try {
     const l1 = await playwrightRun('L1', '① Playwright 啟動 AppImage（預設 sandbox，不加 --no-sandbox）：視窗、終端分頁鍵盤輸入 echo 標記、截圖、debug log、正常結束', [])
+    report.meta.sandbox = !l1.launched ? 'unknown (L1 did not launch)' : l1.sandboxAutoDisabled ? SANDBOX_AUTO_DISABLED_NOTE : 'not auto-disabled'
     if (l1.result === 'PASS') {
       verdict = 'PASS'
+    } else if (l1.result === 'WARN') {
+      verdict = 'WARN'
+      reasons.push(`L1: ${SANDBOX_AUTO_DISABLED_NOTE}`)
     } else if (l1.launched) {
       verdict = l1.result === 'PARTIAL' ? 'WARN' : 'FAIL'
-    } else {
-      await plainRun()
+      reasons.push(`L1: ${l1.result}`)
+    }
+    const l2 = await plainRun()
+    if (!l1.launched) {
       const l1b = await playwrightRun('L1b', '① 重跑並加 --no-sandbox（只為了繼續驗其他項目；需要它即不是 PASS）', ['--no-sandbox'])
       verdict = l1b.result === 'PASS' || l1b.result === 'PARTIAL' ? 'WARN' : 'FAIL'
+      reasons.push(`L1 did not launch; L1b: ${l1b.result}`)
+    }
+    if (l2 === 'FAIL') {
+      verdict = 'FAIL'
+      reasons.push('L2: FAIL')
     }
   } finally {
+    report.meta.verdictReason = reasons.length ? reasons.join('; ') : '-'
     report.meta.verdict = verdict
     report.meta.finishedAt = new Date().toISOString()
     report.flush()
