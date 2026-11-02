@@ -1,8 +1,8 @@
 ---
 schema_kind: tower-state
 summary_version: 1
-updated_at: "2026-11-02T20:50:48+08:00"
-session: "2026-11-02 20:50 第一百零六 session 收工（CT v6.0.0-beta.10）"
+updated_at: "2026-11-02T21:40:19+08:00"
+session: "2026-11-02 21:40 第一百零七 session 開工（CT v6.0.0-beta.10）"
 next_ids:
   workorder: "T0791"
   decision: "D232"
@@ -20,7 +20,7 @@ todo:
 ---
 # Tower State — better-agent-terminal
 
-> 🛏 **第一百零六 session 已收工**（2026-11-02 20:50 (UTC+8)）。本 session 開工條目與經過已移入下方〈本 Session 收工快照（第一百零六 session）〉。
+> 🟢 **第一百零七 session 開工**（2026-11-02 21:40 (UTC+8)，CT v6.0.0-beta.10，Fast Path；塔台 session `2c1fd280-0f34-4dfc-af2a-71b815044fcf`；`--set-role tower --mode on` exit 0；安裝版 BAT / helper `v0.7.3-pre.8`（已換版）；HEAD `d1c3e40a`、`main` = `origin/main`（0 / 0）、工作區乾淨；熱區工單無非終態；BUG 熱區 Open 1（BUG-198）/ Fixed 3 / Closed 58，與 `_bug-tracker.md` 一致，免重建；`%TEMP%` 只有 pre.7 的 `bat-nsis-acceptance-20261102-175507`，**pre.8 未跑 NSIS 重裝驗收**）。
 
 > 最後更新:2026-11-02 20:50 (UTC+8) — **第一百零六 session 收工**：pre.7 NSIS 重裝驗收 PASS；PLAN-059 研究（T0787 / T0789）→ BUG-196（high，Worker 通知替塔台作答）T0788 修、BUG-197 T0790 修 → **`v0.7.3-pre.8`** 發佈；契約經 CT 確認（CT D543）；PLAN-061 縮小範圍。前次：第一百零五 session 收工（2026-11-02 17:47）。
 >
