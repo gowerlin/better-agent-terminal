@@ -4,6 +4,16 @@ All notable changes to Better Agent Terminal are documented in this file.
 
 ## [Unreleased]
 
+## [0.7.3-pre.5] — 2026-11-02
+
+### Fixed
+- BAT 不在前景時，取回焦點的那次點擊切到別的分頁，原 active 分頁等待結束留下的淡化 ⚠️ 不再被當成「看過」清掉；回到前景後仍停在該分頁（或 Alt+Tab 切回）才清除（閘門 `createFocusRegainGate`，常數 `FOCUS_REGAIN_*`，`src/lib/terminal-attention.ts`、`src/stores/terminal-attention-store.ts`、`src/App.tsx`；BUG-193 / T0774 / D216）
+- 自動開啟的 Dialog（Terminal Server recovery 後的「被中斷的分頁」、detached 視窗開設定等）開啟時焦點還在 xterm，第一次 Esc 送進 PTY 且沒關：`ModalOverlay` 開啟時焦點不在 Dialog 內就聚焦遮罩（`tabIndex={-1}`，`autoFocus` 子元素不搶），關閉時焦點回到開啟前的元素（`takeDialogFocus` / `restoreDialogFocus`，`src/components/common/modal-stack.ts`；BUG-194 / T0776 / D217）
+
+### Changed
+- 所有 Dialog 關閉後焦點回到開啟前的元素（原本落在 `<body>`）（T0776）
+- 測試：`v0.7.3-pre.4` 待驗收項目以安裝版自動化驗收（PLAN-055 中斷分頁、BUG-188–192、detached 工作區與 Claude 面板 ⚠️，含真實模型 spec，`e2e/t0770-*`–`t0773-*`；T0770–T0773 / D215）；e2e 以 CDP `Emulation.setFocusEmulationEnabled(false)` 量真實視窗焦點（`e2e/helpers/real-focus.ts`，t0735 / t0757 / t0761；T0775）
+
 ## [0.7.3-pre.4] — 2026-11-01
 
 ### Added
