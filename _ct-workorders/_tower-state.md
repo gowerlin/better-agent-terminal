@@ -6,13 +6,13 @@ session: "2026-11-02 13:01 第一百零五 session 開工（CT v6.0.0-beta.10）
 next_ids:
   workorder: "T0783"
   decision: "D223"
-  bug: "BUG-195"
+  bug: "BUG-196"
   plan: "PLAN-060"
 todo:
   - "熱區無進行中工單。T0779 DONE（Electron 41.10.7，`a09887fb`；macOS / Linux 待下次預覽版 CI 三平台 build 與 `macos-acceptance.yml`）；T0780 DONE（PLAN-029 DONE）"
   - "進行中：T0781 研究 PLAN-053 主升級目標版本；T0782 DONE（`7f9d4eeb`）"
   - "T0782 完成＋聯合驗證綠 → push → 發 `0.7.3-pre.6`（D222；T0781 不阻擋）"
-  - "觀察：`electron/__tests__/worktree-status-after-close.test.ts` 在 `test:unit` 全套負載下一次 5 s 逾時（T0780，單檔與第二次全套通過）；再發生才開單評估 timeout"
+  - "BUG-195（OPEN，low）：`worktree-status-after-close.test.ts` 全套負載下偶發 5 s 逾時（第二次出現已開單；CI 擋到就重跑並排進下一批）"
   - "PLAN-059（Herdr 對照研究，主 PLAN，D219）待拆子 PLAN 與開單；建議先開研究單實測 Q1（Worker 通知打進停在權限對話框的塔台）"
   - "唯一待驗收：BUG-159（一般權限 ＋ codex，需使用者本機）；熱區無進行中工單、無 OPEN BUG"
   - "選擇性：mac 相關修正可用 `macos-acceptance.yml`（`workflow_dispatch -f version=`）回歸（D218）"
@@ -21,7 +21,7 @@ todo:
 ---
 # Tower State — better-agent-terminal
 
-> 🟢 **第一百零五 session 開工**（2026-11-02 13:01 (UTC+8)，CT v6.0.0-beta.10，Fast Path；塔台 session `c85c39b0-308c-4087-8f2f-2e18466a0cbd`；`--set-role tower --mode on` exit 0；安裝版 helper `v0.7.3-pre.5`；HEAD `e0c6d63d`、`main` = `origin/main`、工作區乾淨；熱區 174 張工單全為 DONE；BUG 熱區 Fixed 1（BUG-159）/ Closed 57，與 `_bug-tracker.md` 一致，免重建）。使用者要求比較 Herdr（原生桌面版＋herdr-core）與 BAT → 塔台以官方 repo docs 產出研究報告 Artifact「Herdr 對照 BAT」（https://claude.ai/artifact/Ybj66gYLkMHZE8xUyyDiEy，私人）；查證發現 `pty:write` 不看目標是否 blocked（未實測影響）。13:23 使用者「登記為主 PLAN，後續再拆子 PLAN 與拆單、開單」→ **D219** → 開 **PLAN-059**（PLANNED，medium）。PLAN-058 / PLAN-059 互相補〈相關〉：互不依賴，只共用「忙碌時訊息排隊」原則（`c64658ef`）。14:00 使用者問 PLAN-054 是否還需推進 → 查 CT v6 `workflow-engine.md` 仍延後 B6 欄位與契約 → **D220** → **PLAN-054 DONE**（B6 等 CT 契約另開新 PLAN）。14:04 使用者要求核對 PLAN-043 / 051 / 052 → 三張前提仍成立、無需求或觸發，**維持 IDEA**，各補〈2026-11-02 狀態核對〉（051 更正 codex daemon 前提；052 連結 PLAN-059 E）；`docs/plan-007-release-checklist.md` 第 63 行 mirrored 措辭記在 PLAN-043，下次 WSL 工單一併改。14:07 核對 PLAN-015 / 029 / 038 / 053 → 使用者「補，053 調 high 開 41.10.7 小單，029 開刪除單」→ **D221**：PLAN-053 high（lock 鎖 Electron 41.2.1；41 線最後 41.10.7、`latest` 45.2.1）開 **T0779**；PLAN-029 R3 開 **T0780**（刪 `src/components/git-poc/`、`vite.config.benchmark.ts`）；PLAN-015 / 038 維持 IDEA；派工順序 T0780 → T0779。14:10 派 **T0780**（yolo，`started:` exit 0）。**T0780 DONE**（`16a3a326` 刪 15 檔 1344 行、報告 `ea03227b`；無引用確認、`.gitignore` 37–38 行因本機產物仍在而保留；typecheck 0 / 0、vite build、verify-renderer-imports、unit 6705 / 382 files（首跑 `worktree-status-after-close` 負載逾時 1 次，重跑通過））→ **PLAN-029 DONE**；session 快照已寫；`--close-worker T0780`。14:15 派 **T0779**（yolo，`started:` exit 0）。**T0779 DONE**（`a09887fb` `package.json` `^41.10.7`、lock 只改 electron 與其相依（`@electron/get` 2.0.3 → 5.1.0 等）、CLAUDE.md「Electron Runtime」；報告 `11004251`；Chromium 146.0.7680.216 / Node 24.18.0 / ABI 145；verify-native-modules、typecheck 0 / 0、vite build、unit 6705 / 382 files、legacy 472 / 33、`build:dir`＋`verify-packaged-native` 綠、打包產物 Electron 41.10.7；e2e 冒煙 5 支綠（t0572 / t0776 / t0735 / t0762 / t0744）；macOS / Linux 未驗證；npm 12 重算 lock 的 100 項 `peer` 旗標漂移未寫入（與 electron 無關，列待決））；session 快照已寫；`--close-worker T0779`。14:28 使用者「PLAN-053 主升級現在開研究單，2、3 依塔台建議」→ **D222** → 開 **T0781**（研究）、**T0782**（lock `peer` 旗標），並行派工；T0782 後發 `0.7.3-pre.6`。14:29 兩張派工（皆 `started:` exit 0）。**T0782 DONE**（`7f9d4eeb` 只改 lock：996 套件不變、非 peer 欄位 0 變更、peer +78 / −22（加上的是 Agent SDK peer `@anthropic-ai/sdk`、`@modelcontextprotocol/sdk` 與 express / hono 閉包；去掉的是直接相依）；electron-builder 收集器與 `asar-runtime-deps.test.mjs` 都不讀 `peer`；asar 測試 31 綠、`build:dir`＋`verify-packaged-native` 綠；CI npm 11.19.1 / 11.19.0 `npm ci --dry-run` 接受、npm 11 重算逐位元相同；typecheck 0 / 0、unit 6705 / 382）；塔台依建議補 `docs/agent-guide/npm12-install-scripts.md` 一行；session 快照已寫；`--close-worker T0782`。
+> 🟢 **第一百零五 session 開工**（2026-11-02 13:01 (UTC+8)，CT v6.0.0-beta.10，Fast Path；塔台 session `c85c39b0-308c-4087-8f2f-2e18466a0cbd`；`--set-role tower --mode on` exit 0；安裝版 helper `v0.7.3-pre.5`；HEAD `e0c6d63d`、`main` = `origin/main`、工作區乾淨；熱區 174 張工單全為 DONE；BUG 熱區 Fixed 1（BUG-159）/ Closed 57，與 `_bug-tracker.md` 一致，免重建）。使用者要求比較 Herdr（原生桌面版＋herdr-core）與 BAT → 塔台以官方 repo docs 產出研究報告 Artifact「Herdr 對照 BAT」（https://claude.ai/artifact/Ybj66gYLkMHZE8xUyyDiEy，私人）；查證發現 `pty:write` 不看目標是否 blocked（未實測影響）。13:23 使用者「登記為主 PLAN，後續再拆子 PLAN 與拆單、開單」→ **D219** → 開 **PLAN-059**（PLANNED，medium）。PLAN-058 / PLAN-059 互相補〈相關〉：互不依賴，只共用「忙碌時訊息排隊」原則（`c64658ef`）。14:00 使用者問 PLAN-054 是否還需推進 → 查 CT v6 `workflow-engine.md` 仍延後 B6 欄位與契約 → **D220** → **PLAN-054 DONE**（B6 等 CT 契約另開新 PLAN）。14:04 使用者要求核對 PLAN-043 / 051 / 052 → 三張前提仍成立、無需求或觸發，**維持 IDEA**，各補〈2026-11-02 狀態核對〉（051 更正 codex daemon 前提；052 連結 PLAN-059 E）；`docs/plan-007-release-checklist.md` 第 63 行 mirrored 措辭記在 PLAN-043，下次 WSL 工單一併改。14:07 核對 PLAN-015 / 029 / 038 / 053 → 使用者「補，053 調 high 開 41.10.7 小單，029 開刪除單」→ **D221**：PLAN-053 high（lock 鎖 Electron 41.2.1；41 線最後 41.10.7、`latest` 45.2.1）開 **T0779**；PLAN-029 R3 開 **T0780**（刪 `src/components/git-poc/`、`vite.config.benchmark.ts`）；PLAN-015 / 038 維持 IDEA；派工順序 T0780 → T0779。14:10 派 **T0780**（yolo，`started:` exit 0）。**T0780 DONE**（`16a3a326` 刪 15 檔 1344 行、報告 `ea03227b`；無引用確認、`.gitignore` 37–38 行因本機產物仍在而保留；typecheck 0 / 0、vite build、verify-renderer-imports、unit 6705 / 382 files（首跑 `worktree-status-after-close` 負載逾時 1 次，重跑通過））→ **PLAN-029 DONE**；session 快照已寫；`--close-worker T0780`。14:15 派 **T0779**（yolo，`started:` exit 0）。**T0779 DONE**（`a09887fb` `package.json` `^41.10.7`、lock 只改 electron 與其相依（`@electron/get` 2.0.3 → 5.1.0 等）、CLAUDE.md「Electron Runtime」；報告 `11004251`；Chromium 146.0.7680.216 / Node 24.18.0 / ABI 145；verify-native-modules、typecheck 0 / 0、vite build、unit 6705 / 382 files、legacy 472 / 33、`build:dir`＋`verify-packaged-native` 綠、打包產物 Electron 41.10.7；e2e 冒煙 5 支綠（t0572 / t0776 / t0735 / t0762 / t0744）；macOS / Linux 未驗證；npm 12 重算 lock 的 100 項 `peer` 旗標漂移未寫入（與 electron 無關，列待決））；session 快照已寫；`--close-worker T0779`。14:28 使用者「PLAN-053 主升級現在開研究單，2、3 依塔台建議」→ **D222** → 開 **T0781**（研究）、**T0782**（lock `peer` 旗標），並行派工；T0782 後發 `0.7.3-pre.6`。14:29 兩張派工（皆 `started:` exit 0）。**T0782 DONE**（`7f9d4eeb` 只改 lock：996 套件不變、非 peer 欄位 0 變更、peer +78 / −22（加上的是 Agent SDK peer `@anthropic-ai/sdk`、`@modelcontextprotocol/sdk` 與 express / hono 閉包；去掉的是直接相依）；electron-builder 收集器與 `asar-runtime-deps.test.mjs` 都不讀 `peer`；asar 測試 31 綠、`build:dir`＋`verify-packaged-native` 綠；CI npm 11.19.1 / 11.19.0 `npm ci --dry-run` 接受、npm 11 重算逐位元相同；typecheck 0 / 0、unit 6705 / 382）；塔台依建議補 `docs/agent-guide/npm12-install-scripts.md` 一行；session 快照已寫；`--close-worker T0782`。14:37 聯合驗證 @ `7063f11e`：typecheck 0 / 0、vite build、legacy 472 / 33 綠；unit 1 失敗（`worktree-status-after-close` 5093 ms 逾時，第二次出現）→ 單檔 3/3、重跑全套 6705 / 382 綠 → 開 **BUG-195**（OPEN，low，不擋發版）。去識別化樣式 9 組 0 筆、未推 diff 金鑰 0。
 
 > 🛏 **第一百零四 session 已收工**（2026-11-02 11:17 (UTC+8)）。本 session 各次開工 / 重啟條目已移入下方〈本 Session 收工快照（第一百零四 session）〉時間線。
 
@@ -143,7 +143,7 @@ eport.md`（real，20:18:03–20:18:31，PS 7.6.9 系統管理員）：⓪ PASS�
 - 歷史 sessions → [_archive/state-snapshots/INDEX.md](_archive/state-snapshots/INDEX.md)（119 entries）
 
 ### 編號起始
-- **T0783** / **BUG-195** / **PLAN-060** / **D223** / **EXP-WFMINE-002**（其他 TOPIC 從 001） / **L179** / **CT-T023**
+- **T0783** / **BUG-196** / **PLAN-060** / **D223** / **EXP-WFMINE-002**（其他 TOPIC 從 001） / **L179** / **CT-T023**
 
 ---
 
@@ -157,7 +157,7 @@ eport.md`（real，20:18:03–20:18:31，PS 7.6.9 系統管理員）：⓪ PASS�
 | **最新 release** | `v0.7.3-pre.5`（2026-11-02T01:57Z，run `41373933464`，target `478fd178`）；前一 tag `v0.7.3-pre.4`（2026-11-01T20:50:21Z，run `41347727443`，target `26c7eb25`）；更早見 `release-note.md` / `CHANGELOG.md` |
 | **目前主軸** | 熱區無進行中工單、無 OPEN BUG；唯一待驗收 BUG-159（使用者本機） |
 | **工單最大編號** | **T0780** DONE（刪除 `git-poc`，PLAN-029 R3）；**T0779** DONE（Electron 41.10.7，`a09887fb`） |
-| **BUG 最大編號** | **BUG-194** CLOSED；熱區 Open 0 / Fixing 0 / Fixed 1 / Closed 57（2026-11-02 11:11） |
+| **BUG 最大編號** | **BUG-195** OPEN（測試偶發逾時，low）；熱區 Open 1 / Fixing 0 / Fixed 1 / Closed 57（2026-11-02 14:39） |
 | **PLAN 最大編號** | **PLAN-059** PLANNED（Herdr 對照研究主 PLAN，待拆）；PLAN-058 IDEA；PLAN-054 / PLAN-055 / PLAN-057 DONE |
 | **決策最大編號** | **D222**（PLAN-053 研究單 T0781、lock 旗標 T0782、之後發 `0.7.3-pre.6`，第一百零五 session） |
 | **EXP 最大編號** | **EXP-WFMINE-001**（📊 CONCLUDED 2026-10-20）；EXP-GPUWHIS-001（CONCLUDED，已歸檔） |
