@@ -185,6 +185,8 @@ export interface PlainLaunchResult {
   exitSignal: string | null
   /** stderr / stdout tail (2000 chars) */
   outputTail: string
+  /** the first 2000 chars of stderr / stdout (T0799: the launcher's line comes first and falls out of the tail) */
+  outputHead: string
   /** how the process ended: 'SIGTERM' (exited within the grace period) / 'SIGKILL' / 'exited by itself' */
   ended: string
   ms: number
@@ -213,13 +215,18 @@ export function plainLaunch(executable: string, args: string[], env: Record<stri
   const started = Date.now()
   return new Promise(resolve => {
     let out = ''
+    let head = ''
     let exitCode: number | null = null
     let exitSignal: string | null = null
     let exited = false
     let readyAfterMs: number | null = null
     let termSentAt: string | null = null
     const child = spawn(executable, args, { env, detached: true, stdio: ['ignore', 'pipe', 'pipe'] })
-    const keep = (d: Buffer) => { out = (out + d.toString('utf8')).slice(-8000) }
+    const keep = (d: Buffer) => {
+      const t = d.toString('utf8')
+      if (head.length < 2000) head = (head + t).slice(0, 2000)
+      out = (out + t).slice(-8000)
+    }
     child.stdout?.on('data', keep)
     child.stderr?.on('data', keep)
     // a spawn failure (EACCES, ENOENT) emits 'error' and no 'exit'
@@ -229,7 +236,7 @@ export function plainLaunch(executable: string, args: string[], env: Record<stri
       try { if (child.pid) process.kill(-child.pid, sig) } catch { /* gone */ }
     }
     const finish = (aliveAfterHold: boolean, ended: string) => resolve({
-      aliveAfterHold, exitCode, exitSignal, outputTail: out.slice(-2000), ended, ms: Date.now() - started, readyAfterMs, termSentAt,
+      aliveAfterHold, exitCode, exitSignal, outputTail: out.slice(-2000), outputHead: head, ended, ms: Date.now() - started, readyAfterMs, termSentAt,
     })
     const hold = () => setTimeout(() => {
       if (exited) { finish(false, 'exited by itself'); return }
