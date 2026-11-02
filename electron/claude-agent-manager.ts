@@ -421,7 +421,8 @@ export interface ClaudeHostWindow {
 export interface DesktopNotificationApi {
   isSupported(): boolean
   new (options: { title: string; body: string; silent?: boolean }): {
-    on(event: 'click', listener: () => void): unknown
+    // T0784: 'failed' too (Electron 42+ macOS: an unsigned app's UNNotification is not shown).
+    on(event: 'click' | 'failed', listener: (...args: unknown[]) => void): unknown
     show(): void
   }
 }
@@ -463,6 +464,11 @@ export function createElectronNotifier(
             break
           }
         }
+      })
+      // T0784: Electron 42+ emits 'failed' when the OS refuses the notification (macOS: app
+      // not signed; Windows: toast error). Log it instead of failing silently.
+      notification.on('failed', (_event: unknown, error: unknown) => {
+        logger.warn('[notification] failed to show:', typeof error === 'string' ? error : String(error))
       })
       notification.show()
     },

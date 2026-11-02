@@ -217,12 +217,24 @@ test('T0778 macOS paste acceptance (BUG-128 / BUG-130)', async () => {
 
     // ------------------------------------------------------------------ shared helpers
     const batView = async (): Promise<string> => {
-      const main = await app.evaluate(({ clipboard }) => ({
-        formats: clipboard.availableFormats(),
-        NSFilenamesPboardType: clipboard.read('NSFilenamesPboardType').slice(0, 500),
-        publicFileUrl: clipboard.read('public.file-url').slice(0, 300),
-        hasImage: !clipboard.readImage().isEmpty(),
-      }))
+      // T0784 (Electron 44+): W3C-style clipboard. `types` is the evidence of the real macOS
+      // type names Electron reports for a Finder copy (electron/clipboard-file-paths.ts reads
+      // text/uri-list, then the raw NSFilenamesPboardType / public.file-url custom formats).
+      const main = await app.evaluate(async ({ clipboard }) => {
+        const items = await clipboard.read()
+        const text = async (type: string, max: number): Promise<string> => {
+          const item = items.find(i => i.types.includes(type))
+          if (!item) return ''
+          try { return (await (await item.getType(type) as Blob).text()).slice(0, max) } catch (e) { return `getType threw ${(e as Error).message}` }
+        }
+        return {
+          types: [...new Set(items.flatMap(i => i.types))],
+          uriList: await text('text/uri-list', 500),
+          NSFilenamesPboardType: await text('electron application/osclipboard;format="NSFilenamesPboardType"', 500),
+          publicFileUrl: await text('electron application/osclipboard;format="public.file-url"', 300),
+          hasImage: await clipboard.has('image/png'),
+        }
+      })
       const readFilePaths = await win.evaluate(async () => (window as AnyApi).electronAPI.clipboard.readFilePaths()).catch((e: Error) => `threw ${e.message}`)
       return JSON.stringify({ ...main, readFilePaths })
     }
@@ -417,8 +429,12 @@ test('T0778 macOS paste acceptance (BUG-128 / BUG-130)', async () => {
     }), 'base64'))
     const setImage = async (source: 'electron' | 'png'): Promise<string> => {
       if (source === 'electron') {
-        await app.evaluate(({ clipboard, nativeImage }, file) => { clipboard.clear(); clipboard.writeImage(nativeImage.createFromPath(file)) }, pngFile)
-        return `Electron clipboard.writeImage (BAT main): pasteboard ${await pasteboard()}`
+        await app.evaluate(async ({ clipboard, ClipboardItem, nativeImage }, file) => {
+          clipboard.clear()
+          const png = nativeImage.createFromPath(file).toPNG()
+          await clipboard.write([new ClipboardItem({ 'image/png': new Blob([new Uint8Array(png)], { type: 'image/png' }) })])
+        }, pngFile)
+        return `Electron clipboard.write image/png (BAT main, same as clipboard:writeImage): pasteboard ${await pasteboard()}`
       }
       const w = await jxa(scripts.writePng, [pngFile])
       return `JXA setData public.png (another process): ${describeCmd(w)}; pasteboard ${await pasteboard()}`
@@ -436,7 +452,7 @@ test('T0778 macOS paste acceptance (BUG-128 / BUG-130)', async () => {
       report.add({
         id, title, result: verdictOf(attempts.map(a => a.result)),
         keys: [...new Set(attempts.filter(a => a.result !== '不可行').map(a => (a.label.includes('Playwright') ? 'Playwright' : 'OS')))].join(' + '),
-        clipboard: 'script (Electron writeImage / JXA public.png)',
+        clipboard: 'script (Electron clipboard.write image/png / JXA public.png)',
         evidence: [...ev, ...attempts.map(a => `${a.result} ${a.label}: ${a.evidence}`)],
       })
       return attempts

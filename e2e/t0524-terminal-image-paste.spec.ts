@@ -27,44 +27,62 @@ console.log('T0524_ECHO_READY')
 process.stdin.on('data', (d) => { console.log('T0524_HEX:' + d.toString('hex') + ':END') })
 `
 
+// T0784 (Electron 44+): main's clipboard is W3C-style — read() → ClipboardItem[] / write()
+// with ClipboardItem, all Promise-based; readImage / writeImage / readHTML / availableFormats
+// are gone. "formats" below are the MIME types read() reports.
 interface SavedClipboard { text: string; html: string; image: string }
 
 async function saveClipboard(app: ElectronApplication): Promise<SavedClipboard> {
-  return app.evaluate(({ clipboard }) => {
-    const image = clipboard.readImage()
-    return { text: clipboard.readText(), html: clipboard.readHTML(), image: image.isEmpty() ? '' : image.toDataURL() }
+  return app.evaluate(async ({ clipboard }) => {
+    const items = await clipboard.read()
+    const payload = async (type: string): Promise<Blob | null> => {
+      const item = items.find(i => i.types.includes(type))
+      return item ? (await item.getType(type)) as Blob : null
+    }
+    const html = await payload('text/html')
+    const png = await payload('image/png')
+    return {
+      text: await clipboard.readText(),
+      html: html ? await html.text() : '',
+      image: png ? Buffer.from(await png.arrayBuffer()).toString('base64') : '',
+    }
   })
 }
 
 async function restoreClipboard(app: ElectronApplication, saved: SavedClipboard): Promise<void> {
-  await app.evaluate(({ clipboard, nativeImage }, s) => {
+  await app.evaluate(async ({ clipboard, ClipboardItem }, s) => {
     clipboard.clear()
-    const data: { text?: string; html?: string; image?: Electron.NativeImage } = {}
-    if (s.text) data.text = s.text
-    if (s.html) data.html = s.html
-    if (s.image) data.image = nativeImage.createFromDataURL(s.image)
-    if (Object.keys(data).length > 0) clipboard.write(data)
+    const data: Record<string, string | Blob> = {}
+    if (s.text) data['text/plain'] = s.text
+    if (s.html) data['text/html'] = s.html
+    if (s.image) data['image/png'] = new Blob([new Uint8Array(Buffer.from(s.image, 'base64'))], { type: 'image/png' })
+    if (Object.keys(data).length > 0) await clipboard.write([new ClipboardItem(data)])
   }, saved)
 }
 
+async function clipboardTypes(app: ElectronApplication): Promise<string[]> {
+  return app.evaluate(async ({ clipboard }) => [...new Set((await clipboard.read()).flatMap(i => i.types))])
+}
+
 async function putImage(app: ElectronApplication): Promise<string[]> {
-  return app.evaluate(({ clipboard, nativeImage }) => {
+  await app.evaluate(async ({ clipboard, ClipboardItem, nativeImage }) => {
     const w = 24
     const h = 16
     const bgra = Buffer.alloc(w * h * 4)
     for (let i = 0; i < w * h; i++) bgra.set([0x30, 0x60, 0xe0, 0xff], i * 4)
     clipboard.clear()
-    clipboard.writeImage(nativeImage.createFromBitmap(bgra, { width: w, height: h }))
-    return clipboard.availableFormats()
+    const png = nativeImage.createFromBitmap(bgra, { width: w, height: h }).toPNG()
+    await clipboard.write([new ClipboardItem({ 'image/png': new Blob([new Uint8Array(png)], { type: 'image/png' }) })])
   })
+  return clipboardTypes(app)
 }
 
 async function putText(app: ElectronApplication, text: string): Promise<string[]> {
-  return app.evaluate(({ clipboard }, t) => {
+  await app.evaluate(async ({ clipboard }, t) => {
     clipboard.clear()
-    clipboard.writeText(t)
-    return clipboard.availableFormats()
+    await clipboard.writeText(t)
   }, text)
+  return clipboardTypes(app)
 }
 
 // What most Windows screenshot tools do: a .NET / Win32 bitmap set by another process.
@@ -167,7 +185,7 @@ test('Ctrl+V: image → CLI image-paste key in the PTY, text → text', async ()
 
     // 1. Image on the clipboard.
     const imageFormats = await putImage(app)
-    log(`image clipboard formats (main availableFormats): ${JSON.stringify(imageFormats)}`)
+    log(`image clipboard formats (main read() types): ${JSON.stringify(imageFormats)}`)
     log(`image clipboard, renderer Async Clipboard: ${await asyncClipboardView(win)}`)
     const imageChunks = await pressAndCollect(win, 'Control+v')
     log(`Ctrl+V with image → PTY bytes ${JSON.stringify(imageChunks)} (expected ${expectedKey})`)
@@ -177,7 +195,7 @@ test('Ctrl+V: image → CLI image-paste key in the PTY, text → text', async ()
     let externalChunks: string[] | null = null
     if (process.platform === 'win32') {
       log(`.NET Clipboard.SetImage 2560x1440: ${await powershellSta(DOTNET_SET_IMAGE)}`)
-      log(`external image formats (main availableFormats): ${JSON.stringify(await app.evaluate(({ clipboard }) => clipboard.availableFormats()))}`)
+      log(`external image formats (main read() types): ${JSON.stringify(await clipboardTypes(app))}`)
       log(`external image, renderer Async Clipboard: ${await asyncClipboardView(win)}`)
       log(`claude CLI checkImage (ContainsImage) on it: ${await powershellSta(CLI_CHECK_IMAGE)}`)
       externalChunks = await pressAndCollect(win, 'Control+v')

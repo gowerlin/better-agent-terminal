@@ -28,7 +28,7 @@
     "build": "npm run clean:dist-electron && node scripts/verify-native-modules.js && node scripts/verify-helper-bundle.js && node scripts/verify-renderer-imports.js && vite build && electron-builder",
     "build:dir": "npm run clean:dist-electron && node scripts/verify-native-modules.js && node scripts/verify-helper-bundle.js && node scripts/verify-renderer-imports.js && vite build && electron-builder --dir",
     "build:release": "node scripts/build-version.js",
-    "postinstall": "node -e \"if(process.platform==='darwin'){const p=require('path').join('node_modules/electron/dist/Electron.app/Contents/Info.plist');try{require('child_process').execSync('plutil -replace CFBundleName -string BetterAgentTerminal '+p+' && plutil -replace CFBundleDisplayName -string BetterAgentTerminal '+p)}catch(e){}}\" && echo 'postinstall done'",
+    "postinstall": "node -e \"if(process.platform==='darwin'){try{require('electron')}catch(e){}const p=require('path').join('node_modules/electron/dist/Electron.app/Contents/Info.plist');try{require('child_process').execSync('plutil -replace CFBundleName -string BetterAgentTerminal '+p+' && plutil -replace CFBundleDisplayName -string BetterAgentTerminal '+p)}catch(e){}}\" && echo 'postinstall done'",
     "test:unit": "vitest run",
     "test:unit:watch": "vitest",
     "test:unit:ui": "vitest --ui",
@@ -87,7 +87,7 @@
     "@vitest/ui": "^4.1.5",
     "concurrently": "^8.2.0",
     "cross-env": "^10.1.0",
-    "electron": "^41.10.7",
+    "electron": "^45.2.1",
     "electron-builder": "^26.8.1",
     "jsdom": "^29.0.2",
     "png-to-ico": "^3.0.1",
@@ -202,7 +202,6 @@
     ]
   },
   "allowScripts": {
-    "electron": true,
     "esbuild": true,
     "sharp": true,
     "@anthropic-ai/claude-code": true

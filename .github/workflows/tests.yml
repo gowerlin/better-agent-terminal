@@ -23,13 +23,16 @@ jobs:
           cache: 'npm'
 
       # Same install as the typecheck job (esbuild / rollup ship their binaries as optional platform
-      # packages, node-pty uses its prebuilt), plus the one install script vitest needs: some test
-      # files load modules that `require('electron')` unmocked, and without electron's postinstall
-      # (path.txt + dist/) that require throws "Electron failed to install correctly".
+      # packages, node-pty uses its prebuilt), plus the electron binary vitest needs: some test
+      # files load modules that `require('electron')` unmocked, and that require needs path.txt +
+      # dist/. T0784: Electron 42+ has no postinstall (npm ci never downloads the binary); its
+      # index.js would download on the first require, but inside a test worker and with a
+      # `Downloading Electron binary...` line on stdout, so the binary is fetched here up front.
+      # install.js is the same file as the `install-electron` bin (Electron 45.2.1, T0784).
       - name: Install dependencies (no install scripts)
         run: npm ci --ignore-scripts
 
-      - name: Install the electron binary (electron's postinstall only)
+      - name: Install the electron binary (install.js, before any require('electron'))
         run: node node_modules/electron/install.js
 
       - name: Unit tests (vitest)
