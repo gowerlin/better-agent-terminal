@@ -2,6 +2,32 @@
 
 本 fork 各版的更版重點（內容取自 GitHub Releases，最新在上）。上游 tony1223/better-agent-terminal 的 v2.1.x 紀錄保留在檔案最下方。
 
+## v0.7.3-pre.6（2026-11-02）
+
+版號 0.7.3-pre.6，接續 `v0.7.3-pre.5`。
+
+## 更新
+
+- **Electron 升到 41.10.7**（T0779，PLAN-053）：原本是 41.2.1，現在是 Electron 41 這條線的最後一版（Chromium 146.0.7680.216、Node 24.18.0）。大版本不變，原生模組與設定都沒有改，使用上不會有差別；修補版通常帶有 Chromium 的安全修正
+- `v0.7.3-pre.5` 的待驗收項目已確認通過：BUG-193（點別的分頁回到 BAT 時保留灰色 ⚠️）、BUG-194（自動跳出的對話框第一次 Esc 就關閉）以安裝版的自動化測試在 Windows 上確認；BUG-128 / BUG-130（macOS 貼上檔案與文字）以 GitHub Actions 的 macOS 環境對交付版實測通過
+- 內部清理：移除沒有用到的 git 圖譜效能測試原型（T0780）；重新整理相依套件鎖定檔的中繼資料，套件版本都沒有變（T0782）
+
+## 待驗收（請更新到本版後協助確認）
+
+- **Electron 41.10.7**（本版）：在 Windows 上已跑過完整測試與打包檢查；macOS / Linux 版請照常使用，有任何啟動、繪圖或終端顯示的異常請回報
+- **BUG-159**：一般權限（非系統管理員）執行 BAT、關閉 BAT MCP 時，兩個 Codex CLI 分頁各自讀到自己的環境
+
+## 已知事項
+
+- Electron 41 這條線已停止更新，升級到仍在維護的大版本正在評估中（PLAN-053）
+- 遠端伺服器使用登入 shell PATH 在 macOS（launchd）上尚未實機驗證
+- 中斷清單不涵蓋：BAT 重開時在 Recovery 提示選「重新開始」的情況；版本低於 0.163 的 codex 派工 Worker
+- Codex 面板（`Codex Agent` 面板）等待時尚未顯示 ⚠️
+
+macOS 仍只提供 Apple Silicon（arm64）版。
+
+**Full Changelog**: https://github.com/gowerlin/better-agent-terminal/compare/v0.7.3-pre.5...v0.7.3-pre.6
+
 ## v0.7.3-pre.5（2026-11-02）
 
 版號 0.7.3-pre.5，接續 `v0.7.3-pre.4`。

@@ -4,6 +4,14 @@ All notable changes to Better Agent Terminal are documented in this file.
 
 ## [Unreleased]
 
+## [0.7.3-pre.6] — 2026-11-02
+
+### Changed
+- Electron 41.2.1 → 41.10.7（41 線最後一版；Chromium 146.0.7680.216、Node 24.18.0、ABI 145 不變；`package.json` `^41.10.7`，lock 只改 electron 與其相依；T0779 / PLAN-053 / D221）
+- 相依套件鎖定檔重算 `peer` 旗標（100 項，套件版本不變；打包集合與 CI `npm ci` 不受影響；T0782 / D222）
+- 移除沒有被引用的 git 圖譜 benchmark 原型 `src/components/git-poc/` 與 `vite.config.benchmark.ts`（T0780 / PLAN-029）
+- 驗收：`v0.7.3-pre.5` 的 BUG-193 / 194 以安裝版自動化確認（T0777）；BUG-128 / 130 以 GitHub Actions macOS runner 對交付版 dmg 實測（`macos-acceptance.yml`，T0778 / D218）
+
 ## [0.7.3-pre.5] — 2026-11-02
 
 ### Fixed
