@@ -3,7 +3,7 @@ schema_version: 1
 schema_kind: plan
 id: PLAN-053
 title: "升級 Electron 42+（Chromium 148+）：Electron 41 已停止更新；Graphite out-of-order CHECK 改為 GPU 程序重啟"
-status: IDEA
+status: IN_PROGRESS
 priority: high
 created_at: "2026-10-19T12:41:35+0800"
 links:
@@ -48,3 +48,12 @@ links:
 - **待決 3（Graphite）**：43 / 44 / 45 的 Chromium 都已把 `kOutOfOrderRecording` 改成 context lost，但 context lost 重啟以 exit code 34 結束，**仍計入 5 分鐘 3 次的 crash limit**（原始碼查證）；`kAsyncShaderCompilesFailed` 仍會 CHECK。建議升級時**保留** macOS `disable-skia-graphite`，之後另開單評估。
 - **待決 4（EXP）**：建議比照 PLAN-016 開 `EXP-ELECTRON45-001`（分支 `exp/electron45`），驗證關卡與三平台作法見 T0781。開工前塔台待決：三平台 CI 怎麼跑（預覽版屬對外動作）、`allowScripts.electron` 去留、safeStorage 是否併入。
 - 狀態維持 IDEA。
+
+## 2026-11-02 塔台：主升級開工（D223）
+
+- 狀態 IDEA → **IN_PROGRESS**。依 T0781 建議目標 **Electron 45**。使用者決定：
+  1. 試做用 `T####` ＋ BAT worktree 隔離（不用 EXP 前綴手動 worktree）→ **T0784**（`isolation: worktree`，分支 `ct/T0784`）。
+  2. 三平台用新增的只 build、不發布 workflow 驗 → **T0783**（先做）。
+  3. safeStorage async 另開 → **T0785**（T0784 合回後、Electron 46 前）。
+  4. `allowScripts.electron` 在 T0784 一併移除並記錄。
+- 順序：T0783 → push main → 塔台試跑 desktop-build → 派 T0784（Windows 關卡）→ 塔台以 desktop-build ＋ macos-acceptance 驗 `ct/T0784` 三平台 → 合併工單回 main → T0785。

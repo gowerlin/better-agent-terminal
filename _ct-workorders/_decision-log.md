@@ -1465,6 +1465,18 @@
 - **切分**：W2a 設計語言 + 元件 + 首頁（T0630）→ 預覽通過後 W2b（`/control-tower`、功能、FAQ、回報頁）→ W2c 遠端開發；W3 / W4 不變。
 - **相關**：PLAN-049 / D159 / D160 / T0624 / T0630
 
+### D223 2026-11-02 — Electron 主升級目標 45：T0783 只 build 的三平台 workflow → T0784 worktree 隔離試做 → T0785 safeStorage async；`allowScripts.electron` 移除
+
+- **背景**：T0781 DONE：推薦一次升到 Electron 45（42 已停止支援、43 剩約 2 個月；44 / 45 都要改 main 行程 clipboard，工作量相同；原生模組皆 N-API、45.2.1 實測可載入；Graphite 的 context-lost 重啟仍計入 crash limit，建議保留 macOS `disable-skia-graphite`）。開 EXP 前有三項待決。
+- **決定**（使用者四題皆選建議，AskUserQuestion）：
+  1. 試做用 `T####` ＋ BAT worktree 隔離（`isolation: worktree`），不用 EXP 前綴手動 worktree → T0784。
+  2. 三平台用新增的只 build、不發布 workflow（不建 tag / release）→ T0783 先做；`macos-acceptance.yml` 可改測它的產物。
+  3. safeStorage async 另開 T0785，T0784 合回後、Electron 46 前做。
+  4. `allowScripts.electron`（42 起無作用）在 T0784 一併移除並更新文件。
+- PLAN-053 → IN_PROGRESS。順序：T0783 → push main → 塔台試跑 → 派 T0784（Windows 關卡）→ 塔台跑三平台 → 合併工單 → T0785。
+- **決策者**：使用者。2026-11-02 第一百零五 session。
+- **相關**：PLAN-053 / T0781 / T0783 / T0784 / T0785 / T0779 / T0669 / D222
+
 ### D222 2026-11-02 — PLAN-053 主升級先開研究單 T0781；接受 npm 12 lock `peer` 旗標（T0782）；T0782 完成、聯合驗證綠後發 `0.7.3-pre.6`
 
 - **背景**：T0779 DONE（Electron 41.10.7，`a09887fb`；macOS / Linux 未驗證）。Worker 回報 npm 12 重算 lock 會帶出約 100 項只有 `peer` 旗標翻轉的既有漂移（HEAD 可重現、與 electron 無關），之後每張改相依的工單都會碰到。
