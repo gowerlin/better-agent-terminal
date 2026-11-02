@@ -423,8 +423,12 @@ test('T0797 Linux AppImage launch acceptance', async () => {
     const env = isolatedEnv(await freePort())
     const appData = process.env.XDG_CONFIG_HOME || path.join(os.homedir(), '.config')
     const userData = path.join(appData, `BetterAgentTerminal-runtime-${runtimeId}`)
-    const r = await plainLaunch(E2E_EXECUTABLE, [`--runtime=${runtimeId}`], env)
-    ev.push(`alive after 20 s: ${r.aliveAfterHold}; ended: ${r.ended}; exit code=${r.exitCode} signal=${r.exitSignal}; ${r.ms} ms`)
+    // T0799: hold 20 s from the moment the debug log exists (at most 120 s wait), not from spawn
+    const logsDir = path.join(userData, 'Logs')
+    const hasLog = () => { try { return fs.readdirSync(logsDir).some(f => /^debug-.*\.log$/.test(f)) } catch { return false } }
+    const r = await plainLaunch(E2E_EXECUTABLE, [`--runtime=${runtimeId}`], env, 20_000, 10_000, { ready: hasLog, readyMaxMs: 120_000 })
+    ev.push(`debug log appeared after: ${r.readyAfterMs === null ? 'not within 120 s' : `${r.readyAfterMs} ms`}`)
+    ev.push(`alive 20 s after that: ${r.aliveAfterHold}; SIGTERM sent at ${r.termSentAt ?? '-'}; ended: ${r.ended}; exit code=${r.exitCode} signal=${r.exitSignal}; ${r.ms} ms`)
     const fallback = r.outputTail.includes(SANDBOX_FALLBACK_STDERR_LINE)
     ev.push(`launcher stderr line (BUG-202 fallback): ${fallback}`)
     if (fallback) ev.push(SANDBOX_AUTO_DISABLED_NOTE)
@@ -434,8 +438,14 @@ test('T0797 Linux AppImage launch acceptance', async () => {
     describeLogs(logs, ev)
     copyLogs(logs, reportDir, 'L2')
     removeRuntimeUserData(userData, runtimeId)
-    const result: Result = r.aliveAfterHold && logs.files.length > 0 && logs.crashLines.length === 0 ? 'PASS' : 'FAIL'
-    report.add({ id: 'L2', title: '最低檢查：不經 Playwright 啟動 AppImage，20 s 後仍在、debug log 已建立且沒有 [CRASH]', result, evidence: ev })
+    // `[CRASH] child-process-gone` lines after our own SIGTERM to the process group are caused by it (T0799, 22.04 run 41504087753)
+    const crashesBeforeTerm = logs.crashLines.filter(l => {
+      const ts = /^\[([^\]]+)\]/.exec(l)?.[1]
+      return !r.termSentAt || !ts || ts < r.termSentAt
+    })
+    ev.push(`[CRASH] lines before the SIGTERM: ${crashesBeforeTerm.length}${crashesBeforeTerm.length ? ` ${JSON.stringify(crashesBeforeTerm.slice(0, 5))}` : ''}`)
+    const result: Result = r.aliveAfterHold && r.readyAfterMs !== null && logs.files.length > 0 && crashesBeforeTerm.length === 0 ? 'PASS' : 'FAIL'
+    report.add({ id: 'L2', title: '最低檢查：不經 Playwright 啟動 AppImage，debug log 建立（≤ 120 s）後再 20 s 仍在，送 SIGTERM 前沒有 [CRASH]', result, evidence: ev })
     return result
   }
 

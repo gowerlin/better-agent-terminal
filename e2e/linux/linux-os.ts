@@ -188,21 +188,36 @@ export interface PlainLaunchResult {
   /** how the process ended: 'SIGTERM' (exited within the grace period) / 'SIGKILL' / 'exited by itself' */
   ended: string
   ms: number
+  /** ms after spawn when `ready()` first returned true; null when it never did (or no `ready` was given) */
+  readyAfterMs: number | null
+  /** when the SIGTERM was sent (ISO); null when the process exited by itself first */
+  termSentAt: string | null
+}
+
+export interface PlainLaunchOptions {
+  /** polled every 500 ms; the `holdMs` hold starts when it returns true (T0799: the debug log exists) */
+  ready?: () => boolean
+  /** longest wait for `ready` before the hold starts anyway (default 0 = no wait) */
+  readyMaxMs?: number
 }
 
 /**
- * Starts the AppImage the way a user does from a terminal (no Playwright, no debugging flags), waits
- * `holdMs`, then sends SIGTERM to its process group and SIGKILL after `graceMs`. BAT answers SIGTERM with
+ * Starts the AppImage the way a user does from a terminal (no Playwright, no debugging flags), waits until
+ * `opts.ready()` (at most `opts.readyMaxMs`; T0799: a slow FUSE + xz start on 24.04 took > 20 s before the
+ * debug log existed), waits `holdMs`, then sends SIGTERM to its process group and SIGKILL after `graceMs`.
+ * Children killed by that SIGTERM log `[CRASH] child-process-gone`; callers judge only lines before `termSentAt`. BAT answers SIGTERM with
  * its quit confirmation dialog (T0144, electron/main.ts `before-quit`), so 'SIGKILL' after a SIGTERM is
  * expected when nobody answers the dialog; it is recorded, not judged.
  */
-export function plainLaunch(executable: string, args: string[], env: Record<string, string>, holdMs = 20_000, graceMs = 10_000): Promise<PlainLaunchResult> {
+export function plainLaunch(executable: string, args: string[], env: Record<string, string>, holdMs = 20_000, graceMs = 10_000, opts: PlainLaunchOptions = {}): Promise<PlainLaunchResult> {
   const started = Date.now()
   return new Promise(resolve => {
     let out = ''
     let exitCode: number | null = null
     let exitSignal: string | null = null
     let exited = false
+    let readyAfterMs: number | null = null
+    let termSentAt: string | null = null
     const child = spawn(executable, args, { env, detached: true, stdio: ['ignore', 'pipe', 'pipe'] })
     const keep = (d: Buffer) => { out = (out + d.toString('utf8')).slice(-8000) }
     child.stdout?.on('data', keep)
@@ -214,10 +229,11 @@ export function plainLaunch(executable: string, args: string[], env: Record<stri
       try { if (child.pid) process.kill(-child.pid, sig) } catch { /* gone */ }
     }
     const finish = (aliveAfterHold: boolean, ended: string) => resolve({
-      aliveAfterHold, exitCode, exitSignal, outputTail: out.slice(-2000), ended, ms: Date.now() - started,
+      aliveAfterHold, exitCode, exitSignal, outputTail: out.slice(-2000), ended, ms: Date.now() - started, readyAfterMs, termSentAt,
     })
-    setTimeout(() => {
+    const hold = () => setTimeout(() => {
       if (exited) { finish(false, 'exited by itself'); return }
+      termSentAt = new Date().toISOString()
       killGroup('SIGTERM')
       setTimeout(() => {
         if (exited) { finish(true, 'SIGTERM'); return }
@@ -225,5 +241,14 @@ export function plainLaunch(executable: string, args: string[], env: Record<stri
         setTimeout(() => finish(true, 'SIGKILL'), 2_000)
       }, graceMs)
     }, holdMs)
+    const readyMaxMs = opts.ready ? opts.readyMaxMs ?? 0 : 0
+    const poll = () => {
+      let ok = false
+      try { ok = !!opts.ready?.() } catch { /* not ready */ }
+      if (ok) readyAfterMs = Date.now() - started
+      if (ok || exited || Date.now() - started >= readyMaxMs) { hold(); return }
+      setTimeout(poll, 500)
+    }
+    poll()
   })
 }
