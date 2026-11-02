@@ -183,6 +183,7 @@ BAT 與 CT 分工明確：**BAT 提供終端機、分頁與權限這些基礎設
 | Worker 縮圖 ⚠️ / `?` / `✓` / `↻` | `>= 0.7.0-pre.7`（提問答覆後恢復「執行中」：`>= 0.7.0-pre.8`；Codex 分頁 ⚠️：`>= 0.7.0-pre.9`；回報後又在執行 `↻`：`>= 0.7.1-pre.6`） | 不需要 |
 | 「等待你回應」⚠️ 擴及所有 agent 分頁（含塔台），並顯示在工作區列表、「工作區」頁籤標題與收合側欄；錯過的提示改灰色保留到看過 | `>= 0.7.2-pre.8`（遠端 bat-server 重啟後依伺服器現況更正：`>= 0.7.3-pre.1`，遠端 server 也要升級；用滑鼠回答也清除、已分離視窗的工作區與 Claude Agent 面板也提示：`>= 0.7.3-pre.4`；點別的分頁讓 BAT 回到前景時保留原分頁的灰色提示：`>= 0.7.3-pre.5`） | 不需要（只用既有的 hook / OSC 等待狀態） |
 | Terminal Server 意外重啟後列出被中斷的 agent 分頁（含塔台派工的 Worker），claude 分頁一鍵 `--resume`、codex 分頁開 `codex resume` 選單 | `>= 0.7.3-pre.4` | 不需要（恢復後 Worker 不會自動繼續；塔台可用 `bat_get_state` 的 `agentStarted` 判斷） |
+| 塔台等你回答（權限對話框、AskUserQuestion、codex 審批）時保留 Worker 通知，答完再送；縮圖「📨 待送 N」可取消 | `>= 0.7.3-pre.8`（遠端 bat-server 也要升級；遠端 profile 視窗不顯示「待送 N」） | 不需要（helper 參數、exit code、輸出不變；滿 8 筆時 `--ask` 照舊先取消題目再 exit 1） |
 | 重派同一張工單前回收舊 Worker 分頁（避免回收時 `AMBIGUOUS`） | `>= 0.6.1-pre.4`（沿用 `--close-worker`） | `>= v5.12.0`（舊 CT 重派後舊分頁要手動關） |
 | 指揮塔總覽：塔台狀態、設定生效值與來源、沒有 `sprint-status.yaml` 也能用 | `>= 0.7.1-pre.7` | 不需要；下一個編號與待辦需 CT 寫入 `_tower-state.md` 摘要：`>= v6.0.0-pre.1`（預覽版；舊 CT 只顯示最後更新與進行中工單） |
 | CT 以 plugin 安裝（`ct@control-tower`）時 Codex Worker 派工、面板認得 plugin、兩種都裝的提示 | `>= 0.7.2-pre.1` | CT `>= v5.14.0` 提供 plugin；更舊的 BAT 搭配 Codex 請用 zip 手動安裝 |

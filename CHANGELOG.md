@@ -4,6 +4,17 @@ All notable changes to Better Agent Terminal are documented in this file.
 
 ## [Unreleased]
 
+## [0.7.3-pre.8] — 2026-11-02
+
+### Fixed
+- Worker 通知（`bat-notify --submit`、`--ask --submit`、預填）在塔台停在權限對話框 / AskUserQuestion / codex 審批時替使用者作答：主行程依 hook / osc blocked（`permission` / `question` / `elicitation` / `input`）整組保留文字＋Enter，離開 blocked 並安靜 1 s 後依序送出；每個塔台上限 8 筆（第 9 筆 `held-full` → bat-notify exit 1；`--ask` 先取消題目），保留不逾時，PTY 結束 / 重啟 / recovery 丟棄；縮圖「📨 待送 N」可逐筆 / 全部取消；helper exit code / stdout 不變；唯一實作 `electron/notify-hold.ts`，本機與 headless 共用（BUG-196 / T0787 / T0788 / D227 / D228，契約經 CT 確認 CT D543）
+- helper 觸發的 submit Enter 帶 `{ auto: true }`：不算塔台的使用者輸入，不清 blocked、不取消用量限制等待（BUG-196 / T0788）
+- 晚到的 hook 回報（`user-prompt-submit` / `stop` / `post-tool-batch` 等）清掉較晚發生的 blocked：`bat-hook.mjs` 送 hook 程序啟動時間 `at`（`process.hrtime`，跨程序單調），tracker 對較早發生的清除事件不清除；舊 hook 行為不變（BUG-197 / T0790 / D230）
+
+### Known issues
+- 遠端 profile 視窗看不到「📨 待送 N」（保留照樣生效）；`blockedDetection: none` 的分頁照舊直接送出
+- 晚到的 `stop` 會讓新回合提早結束（`↻` → `✓`，BUG-198）
+
 ## [0.7.3-pre.7] — 2026-11-02
 
 ### Changed

@@ -2,6 +2,47 @@
 
 本 fork 各版的更版重點（內容取自 GitHub Releases，最新在上）。上游 tony1223/better-agent-terminal 的 v2.1.x 紀錄保留在檔案最下方。
 
+## v0.7.3-pre.8（2026-11-02）
+
+版號 0.7.3-pre.8，接續 `v0.7.3-pre.7`。
+
+## 修正
+
+- **Worker 的完成通知不再替你回答塔台的對話框**（BUG-196，T0788）：舊版在塔台停在權限對話框或「Claude 要你選一個選項」（AskUserQuestion）時，Worker 送來的完成通知或提問會同時按下 Enter，替你選了預設選項，像「1. Yes」就會讓指令直接執行。現在 BAT 會先把通知留著，等你自己回答、畫面安靜 1 秒後才送進塔台的輸入框。Codex 塔台停在審批提示時也一樣。
+  - 塔台分頁的縮圖會顯示「📨 待送 N」，點開可以看到是哪張工單送的，也可以逐筆或全部取消。取消只是不送進輸入框，通知提示和 Worker 的 ✓ 照常顯示。
+  - 每個塔台最多保留 8 則，保留期間不會逾時。塔台分頁關閉或重啟時，保留的通知會一起丟掉。
+  - Worker 端的指令、exit code 與輸出都沒有改變，Control Tower 不需要升級。
+- **塔台的 ⚠️ 不會在對話框還開著時被錯清掉**（BUG-197，T0790）：claude 的 hook 回報偶爾會晚到，舊版因此把「等你回答」的狀態清掉，⚠️ 消失，上面的通知保留也跟著失效。現在改依事件實際發生的先後判斷。
+- Worker 的完成通知不再被記成你在塔台的輸入，不會清掉塔台的 ⚠️，也不會取消用量限制的自動繼續等待（BUG-196）。
+
+## 待驗收（請更新到本版後協助確認）
+
+- **BUG-196 / BUG-197**（本版）：塔台停在權限對話框或選項卡時收到 Worker 完成通知，對話框應維持原樣、縮圖出現「📨 待送 1」；你回答之後，通知應出現在塔台輸入框。
+- **Electron 45**（`v0.7.3-pre.7` 起）：請 macOS / Linux 使用者照常使用，有啟動、繪圖、終端顯示或貼上的異常請回報；Linux 特別請在 Ubuntu 22.04 上試啟動 AppImage。
+- **BUG-159**：一般權限（非系統管理員）執行 BAT、關閉 BAT MCP 時，兩個 Codex CLI 分頁各自讀到自己的環境。
+
+## 歡迎協助測試
+
+本版改了 Worker 通知送進塔台的方式，也涵蓋 Codex 塔台。歡迎 Codex 使用者用 Codex CLI 跑一次塔台 / Worker 流程：
+
+1. 開一個 Codex CLI 分頁，呼叫 MCP tool `bat_whoami`，確認 `role` 與 `agent`。
+2. 由塔台派一張小工單給 Codex Worker。
+3. 確認 Worker 完成後，通知回到塔台、Worker 分頁被回收。如果塔台當時停在審批提示，通知應在你核准或拒絕之後才出現。
+
+結果請到 GitHub issue 回報，並附上 BAT 與 codex 的版本。
+
+## 已知事項
+
+- 遠端 profile 視窗（WSL / SSH / Docker）看不到「📨 待送 N」徽章，但通知照樣會被保留。
+- 使用者關掉 claude hooks 的分頁（`disableAllHooks`）BAT 判斷不出是否在等你回答，通知會照舊直接送出。
+- Worker 回報後又開始新回合時，`↻` 偶爾會提早變回 `✓`（BUG-198，下一版處理）。
+- **macOS 不會顯示 BAT 的系統通知**：沒有 Apple 開發者簽章的 app 不能發系統通知（PLAN-060）。BAT 視窗內的提示、⚠️ 與分頁標示不受影響。
+- Linux：dock 圖示上的數字徽章不再顯示。
+
+macOS 仍只提供 Apple Silicon（arm64）版。
+
+**Full Changelog**: https://github.com/gowerlin/better-agent-terminal/compare/v0.7.3-pre.7...v0.7.3-pre.8
+
 ## v0.7.3-pre.7（2026-11-02）
 
 版號 0.7.3-pre.7，接續 `v0.7.3-pre.6`。
