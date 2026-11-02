@@ -1,15 +1,15 @@
 ---
 schema_kind: tower-state
 summary_version: 1
-updated_at: "2026-11-02T17:53:37+08:00"
-session: "2026-11-02 17:52 第一百零六 session 開工（CT v6.0.0-beta.10）"
+updated_at: "2026-11-02T17:57:10+08:00"
+session: "2026-11-02 17:57 第一百零六 session 塔台重啟（CT v6.0.0-beta.10）"
 next_ids:
   workorder: "T0787"
   decision: "D226"
   bug: "BUG-196"
   plan: "PLAN-061"
 todo:
-  - "讀 `v0.7.3-pre.7` NSIS 完整重裝驗收報告（使用者換版時跑；`%TEMP%\\bat-nsis-acceptance-<時間>\\report.md`）"
+  - "刪除 NSIS 驗收的 userData 備份（`%TEMP%\\bat-nsis-acceptance-20261102-175507\\userdata-backup`，含權杖檔；等使用者確認）"
   - "待驗收：Linux AppImage（Ubuntu 22.04，Electron 45）；BUG-159（一般權限 ＋ codex，需使用者本機）；熱區無進行中工單、無 OPEN BUG"
   - "PLAN-059（Herdr 對照研究，主 PLAN）待拆子 PLAN 與開單；建議先開研究單實測 Q1"
   - "PLAN-060（IDEA）：macOS Developer ID 簽章（目前 macOS 不顯示系統通知）"
@@ -19,6 +19,8 @@ todo:
 # Tower State — better-agent-terminal
 
 > 🟢 **第一百零六 session 開工**（2026-11-02 17:52 (UTC+8)，CT v6.0.0-beta.10，Fast Path；塔台 session `7389073a-fb88-435e-86cb-9f7e3fcf5481`；`--set-role tower --mode on` exit 0；安裝版 BAT / helper `v0.7.3-pre.7`；HEAD `c2fd544b`、`main` = `origin/main`（0 / 0）、工作區乾淨；熱區 182 張工單全為 DONE；BUG 熱區 Fixed 1（BUG-159）/ Closed 58，與 `_bug-tracker.md` 一致，免重建；`bat_list_questions` pending 0；`%TEMP%` 下找不到 `bat-nsis-acceptance-*` 報告目錄）。
+
+> 🟢 **第一百零六 session 塔台重啟**（2026-11-02 17:57 (UTC+8)，CT v6.0.0-beta.10，Fast Path；塔台 session `3e6b868e-4618-40e8-a3c3-aeda376d340a`；`--set-role tower --mode on` exit 0；安裝版 BAT `0.7.3-pre.7`（FileVersion）；HEAD `6d43cfb4`（`main` ahead 1，未 push）；`bat_list_questions` pending 0）。**`v0.7.3-pre.7` NSIS 完整重裝驗收 PASS**（`e2e\manual\nsis-reinstall-acceptance.ps1` real 模式，17:55:07–17:55:45；AllUsers / HKLM；① 雜湊 `fae4c623…` ② 同版覆蓋 ③ 靜默解除 ④ 乾淨重裝全 PASS，三支 helper `--version` = v0.7.3-pre.7、內嵌 claude / codex 存在、userData 86 檔 SHA-256 未變；⑤ LaunchCheck 未帶 → SKIPPED）。報告 `%TEMP%\bat-nsis-acceptance-20261102-175507\report.md`；userData 備份含權杖檔待刪。
 
 > 🛏 **第一百零五 session 已收工**（2026-11-02 17:47 (UTC+8)）。本 session 開工條目與經過已移入下方〈本 Session 收工快照（第一百零五 session）〉。
 
@@ -122,7 +124,7 @@ todo:
 - **PLAN 核對**（第一百零五 session）：PLAN-029 / 054 DONE；PLAN-015 / 038 / 043 / 051 / 052 維持 IDEA；開 PLAN-060（macOS 簽章）
 
 ### 待辦（依優先序）
-1. 🟡 **pre.7 NSIS 完整重裝驗收**：讀使用者換版時跑的報告（`%TEMP%\bat-nsis-acceptance-<時間>\report.md`）
+1. ✅ ~~**pre.7 NSIS 完整重裝驗收**~~ → PASS（第一百零六 session 17:55）；待刪 `userdata-backup`（含權杖檔）
 2. 🟡 **PLAN-059 拆單**：先開研究單實測 Q1（Worker 通知打進停在權限對話框的塔台）
 3. 🟡 **BUG-159 驗收**：需使用者本機以一般權限（非系統管理員）開 BAT ＋ codex
 4. 🟢 **Linux AppImage**（Ubuntu 22.04，Electron 45）待回報；t0757 偶發失敗再發生才開 BUG（D218）
