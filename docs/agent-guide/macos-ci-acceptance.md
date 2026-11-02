@@ -1,6 +1,6 @@
 # macOS runner 驗收（T0778）
 
-用 GitHub Actions 的 macOS runner，對**已發佈的 dmg**（不是從 source build）跑 BUG-128（Finder 複製檔案 + Command+V 貼進終端分頁，T0522）與 BUG-130 mac 部分（終端貼圖鍵 `\x16`，T0524）的驗收。
+用 GitHub Actions 的 macOS runner，對**已發佈的 dmg**（不是從 source build；T0783 起也可測 `desktop-build.yml` 打出的 dmg，見「測 desktop-build 產物」）跑 BUG-128（Finder 複製檔案 + Command+V 貼進終端分頁，T0522）與 BUG-130 mac 部分（終端貼圖鍵 `\x16`，T0524）的驗收。
 
 - workflow：`.github/workflows/macos-acceptance.yml`（只有 `workflow_dispatch`，不接進任何發版流程）
 - spec：`e2e/macos/t0778-macos-paste-acceptance.spec.ts`，macOS 輔助（osascript / JXA）：`e2e/macos/mac-os.ts`
@@ -18,9 +18,25 @@ gh run download <run id> -R gowerlin/better-agent-terminal -D <資料夾>
 
 `version` 必須是 `X.Y.Z` 或 `X.Y.Z-pre.N`，對應 tag `v<version>` 與資產 `BetterAgentTerminal-<version>-arm64.dmg`。
 
+## 測 desktop-build 產物（T0783）
+
+試做分支沒有 release 可下載時，先用 `desktop-build.yml` 打包（不發布，見 [packaging-release-checks.md](packaging-release-checks.md)「只 build、不發布的桌面 workflow」），等該 run 結束後再測它的 dmg：
+
+```bash
+gh workflow run desktop-build.yml -R gowerlin/better-agent-terminal -f ref=<分支或 SHA>
+gh run list -R gowerlin/better-agent-terminal --workflow desktop-build.yml -L 3          # 取 run id，等它 completed
+gh workflow run macos-acceptance.yml -R gowerlin/better-agent-terminal -f build_run_id=<desktop-build run id>
+```
+
+- `build_run_id` 有值時：不下載 release、`version` 不使用（仍有預設值，不必給）。步驟依序是：`build_run_id` 必須是數字 → `gh run view` 確認該 run 的 workflow 是 `Desktop build (no release)` → `gh run download -n desktop-mac` → 印出 `BUILD-INFO.txt`（ref、commit、版號、mac 簽章狀態）與 `mac-signature.txt` → artifact 內必須正好一個 dmg，且 SHA-256 等於同一個 artifact 的 `SHA256SUMS.txt`，不符即停。之後的掛載、複製 `.app`、Playwright spec 與舊流程相同，spec 沒有改。
+- `build_run_id` 空白（預設）：與 T0778 原本的流程完全相同（只差 workflow 多一個 `actions: read` 權限，讀別的 run 的 artifact 需要它；仍只用 job 自己的 `GITHUB_TOKEN`，不用任何 secret）。
+- 結果 artifact 名稱：`macos-acceptance-build<run id>-attempt<N>`（release 模式仍是 `macos-acceptance-<version>-attempt<N>`）。job summary 多一段「Tested build」列出 `BUILD-INFO.txt`。
+- desktop-build 的 artifact 只保留 7 天，過期要重跑 desktop-build。run 還在跑時 artifact 可能還沒上傳完，請等 run 結束再 dispatch。
+- 與 release dmg 的差異：desktop-build 的 dmg 在沒有簽章 secret 時是 ad-hoc 簽章（與 pre-release 相同）；`BUILD-INFO.txt` 的 `mac signed:` 行與 `mac-signature.txt` 寫明實際狀態，判讀通知 / Gatekeeper 相關結果時先看這兩處。
+
 ## workflow 規則（必守）
 
-- 只有 `workflow_dispatch`；`permissions: contents: read`；runner `macos-15`（標準 runner，公開 repo 免費；🔴 不用 larger / 付費 runner）；`timeout-minutes: 30`（實測整個 job 約 5 分鐘、spec 約 2.7 分鐘）。
+- 只有 `workflow_dispatch`；`permissions: contents: read`、`actions: read`（T0783：讀 desktop-build run 的 artifact）；runner `macos-15`（標準 runner，公開 repo 免費；🔴 不用 larger / 付費 runner）；`timeout-minutes: 30`（實測整個 job 約 5 分鐘、spec 約 2.7 分鐘）。
 - 🔴 不使用任何 secret：下載 release 用 job 自己的唯讀 `GITHUB_TOKEN`（只給下載那一步）。
 - 下載 dmg 後比對 release 資產的 `digest`（`sha256:…`），不符即停。
 - 掛載 dmg（`hdiutil attach -nobrowse -readonly`）→ `ditto` 複製 `.app` 到 `$RUNNER_TEMP/app` → 卸載 → 只對複製出來的那份 `xattr -dr com.apple.quarantine`（gh 下載的檔案本來就沒有 quarantine，這步是保險）→ `BAT_E2E_EXECUTABLE=<.app>/Contents/MacOS/<CFBundleExecutable>`。

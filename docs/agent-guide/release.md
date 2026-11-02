@@ -17,6 +17,7 @@ gh workflow run pre-release.yml -R gowerlin/better-agent-terminal -f version=X.Y
 ```
 
 - 🔴 **`gh` 一律帶 `-R gowerlin/better-agent-terminal`**：本 repo 有 3 個 remote（`origin`=gowerlin / `upstream`=tony1223 / `scandnavik`），`gh` 預設解析到 **upstream**。不帶 `-R` 時唯讀操作報 404，寫入操作（`gh release create` / `gh pr create`）則是打到別人的 repo。
+- 只 build、不發布（T0783 / D223）：`desktop-build.yml`（`workflow_dispatch` only，輸入 `ref` / `version`，預設 `0.0.0-exp.<run number>`）在任一分支 / commit 打三平台安裝檔，只上傳 workflow artifact（7 天）。🔴 **不是發版線**：不建 tag、GitHub Release、`server-bundle-v*`，不部署 Pages，不動 Homebrew / Chocolatey，`permissions: contents: read`；版號不得用 `X.Y.Z-pre.N`。試做分支用它，不要拿 `pre-release.yml` 試做。細節見 [packaging-release-checks.md](packaging-release-checks.md)「只 build、不發布的桌面 workflow」。
 - 🔴 **`-f version=` 不可留空**：留空會走自動遞增 —— `git tag -l 'v*' --sort=-v:refname | head -n1` → patch +1 → 找未使用的 `-pre.N`（`pre-release.yml:34-55`）。本 repo 有 **257 個 `v*` tag**，橫跨 `v0.x`（本 fork 主線）/ `v2.2.x` / `v4.0.x` 三條版本線，`-v:refname` 排序第一名是 **`v4.0.3-pre.1`**，留空即產出 `4.0.4-pre.1`，與主線完全脫節。判版方式：取**本 fork 主線（`v0.x`）**最新 tag 遞增，不要信排序第一名。
 
 # prerelease 標記與下游發佈

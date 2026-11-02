@@ -52,6 +52,31 @@
 - **Release 驗收必跑 NSIS 完整重裝**：`--dir` mode 和 `zip` smoke 不是 production 等價；release 前必須完整「uninstall → 跑 installer → 啟動 UI → 踩 voice input / terminal 路徑」驗收（BUG-056 盲點記錄；原清單的 sqlite 路徑隨 better-sqlite3 於 T0492 移除，app 本來就沒用它）。
   - Windows 覆蓋安裝 / 解除安裝 / 乾淨重裝與耗時，用獨立腳本 `e2e/manual/nsis-reinstall-acceptance.ps1`（T0740；關閉 BAT 後在一般 PowerShell 執行，先 `-DryRun`；步驟與判讀見 [e2e/manual/README.md](../../e2e/manual/README.md)）。腳本不涵蓋啟動後的 UI / voice input / terminal 路徑，仍要手動走。
 
+# 只 build、不發布的桌面 workflow（T0783，D223）
+
+用途：在任一分支 / commit 上打三平台安裝檔（Windows x64、macOS arm64、Linux x64）並上傳成 workflow artifact，給試做分支（例 Electron 45 升級，T0784）驗三平台與 macOS 驗收。`pre-release.yml` 會建 tag、GitHub prerelease 與 `server-bundle-v*`，是對外動作，不適合拿來試做。
+
+```bash
+gh workflow run desktop-build.yml -R gowerlin/better-agent-terminal -f ref=main
+gh workflow run desktop-build.yml -R gowerlin/better-agent-terminal -f ref=<分支或 SHA> [-f version=0.0.0-exp.1] [-f checks=false] [-f mac_sign=off] [-f mac_notarize=true]
+gh run list -R gowerlin/better-agent-terminal --workflow desktop-build.yml -L 3
+gh run download <run id> -R gowerlin/better-agent-terminal -n desktop-mac -D <資料夾>
+```
+
+- 🔴 **不發布**：只有 `workflow_dispatch`；`permissions: contents: read`；沒有 tag、GitHub Release、`server-bundle-v*`、Pages、Homebrew / Chocolatey 任何 step。產物只在 Actions 的 artifact（`desktop-win` / `desktop-mac` / `desktop-linux`，保留 7 天）。🔴 不得在這個 workflow 加任何發布動作；要發版走 `pre-release.yml` / `release.yml`。
+- workflow 檔本身要在預設分支上才能 dispatch（GitHub 規則）；`ref` 決定**建置哪個 commit**，workflow 定義永遠是 dispatch 時那個分支（預設 `main`）上的版本。`prepare` job 把 `ref` 解析成一個 SHA，其他 job 都 checkout 這個 SHA（建置中途分支前進也不影響）。
+- `version`：寫進安裝檔的版號，必須是 `X.Y.Z-<後綴>`，且不得是發版線的 `X.Y.Z-pre.N`；留空 = `0.0.0-exp.<run number>`。`build-version.js` 以 `VERSION` env 寫入（與發版 workflow 同一條路）。
+- 建置步驟是 `pre-release.yml` `build` job 的複本（`npm ci` → `@electron/rebuild` → `verify-native-modules.js` → `build-version.js` → `electron-builder --publish never` → 三平台 `verify-packaged-native.js` → `report-artifact-sizes.mjs`），之後多一步寫 `BUILD-INFO.txt`（run、ref、commit、版號、mac 簽章狀態、`published: no`）與 `SHA256SUMS.txt`，兩個檔跟安裝檔放在同一個 artifact。改 `pre-release.yml` 的 build 步驟時同步看這個檔（本檔不共用步驟，T0783 預設不抽 composite action）。
+- `checks`（預設開）：在同一個 SHA 上另跑 typecheck 與 `test:unit` / `test:legacy`（步驟抄自 `pre-release.yml` 的 `typecheck` 與 `tests.yml`）。不能直接 `uses: ./.github/workflows/tests.yml`：它 checkout `github.sha`（dispatch 的那個分支），不是 `ref`。兩者與 build **並行、不擋 build**：檢查失敗時 run 是紅的，但安裝檔照樣上傳，方便試做分支同時看 build 與測試結果。發版的 Test gate 仍只有 `tests.yml`。
+- **macOS 簽章**（`mac_sign`，預設 `auto`）：
+  - `pre-release.yml` 沒有任何簽章設定，產物是 ad-hoc 簽章、未公證（T0778 實測 `Signature=adhoc`、`spctl` rejected）；`release.yml` 匯入 `APPLE_CERTIFICATE_P12` / `APPLE_CERTIFICATE_PASSWORD` 到 keychain 並以 `APPLE_ID` / `APPLE_APP_SPECIFIC_PASSWORD` / `APPLE_TEAM_ID` 公證。
+  - `auto`：兩個憑證 secret 都存在 → 照 `release.yml` 匯入憑證簽章（`package.json` `build.mac.identity`）；不存在 → 不簽章，指令與 `pre-release.yml` 完全相同（ad-hoc），並以 `::warning::` 標示。`off`：一律不簽章。只看 secret 是否存在，不印出任何值。
+  - `mac_notarize`（預設關，公證較慢）：只在已簽章且三個 `APPLE_*` 都存在時公證；否則 `APPLE_*` env 為空，electron-builder 跳過公證（`getNotarizeOptions` 沒有認證 → `skipped macOS notarization`），與 pre-release 相同。要了公證但缺 secret 只 warning、不失敗。
+  - 簽章結果（`codesign -dv`、`spctl --assess`）寫進 artifact 的 `mac-signature.txt` 與 `BUILD-INFO.txt` 的 `mac signed:` 行。
+  - 現況（2026-11-02 T0783 查）：本 repo 沒有設定任何 repository secret，`auto` 實際產出未簽章 dmg。Electron 42 起未簽章的 app 不顯示 macOS 通知（T0781），試做分支在 runner 上看不到通知屬預期，不是回歸。日後設定 secret 時，憑證的身分要與 `build.mac.identity` 相同，否則簽章步驟失敗。
+- macOS 驗收：`macos-acceptance.yml -f build_run_id=<desktop-build run id>` 測這個 run 的 dmg，見 [macos-ci-acceptance.md](macos-ci-acceptance.md)「測 desktop-build 產物」。
+- 驗證 workflow：actionlint（本機沒有時 `go install github.com/rhysd/actionlint/cmd/actionlint@latest`）。
+
 # Server bundle baseline（PLAN-031；D146 起安裝檔不內建）
 
 - **不內建、隨需下載 + 匯入**（D146 / T0547，0.6.1-pre.4 起；推翻 D092 的「安裝檔內建 baseline」，D093 / D095 / D120 保留）：安裝檔沒有 `resources/bat-server-baseline`（打包規則見「Packaging / Release 前置檢查」的安裝檔瘦身規則）。WSL / SSH wizard 的 `install-server-bundle` 經 distributor（`electron/remote/server-bundle-distributor.ts`）依序：

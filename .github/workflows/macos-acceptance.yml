@@ -7,6 +7,12 @@ name: macOS acceptance (manual)
 # is recorded as a result. See docs/agent-guide/macos-ci-acceptance.md.
 #
 #   gh workflow run macos-acceptance.yml -R gowerlin/better-agent-terminal -f version=0.7.3-pre.5
+#
+# T0783: -f build_run_id=<run id> tests the dmg of a desktop-build.yml run (artifact `desktop-mac`,
+# checked against its SHA256SUMS.txt) instead of a release; `version` is then ignored. Reading
+# another run's artifacts needs `actions: read` (still the job's own token, no secrets).
+#
+#   gh workflow run macos-acceptance.yml -R gowerlin/better-agent-terminal -f build_run_id=<desktop-build run id>
 on:
   workflow_dispatch:
     inputs:
@@ -14,9 +20,14 @@ on:
         description: 'Release to test: tag v<version>, asset BetterAgentTerminal-<version>-arm64.dmg'
         required: true
         default: '0.7.3-pre.5'
+      build_run_id:
+        description: 'Optional (T0783): a desktop-build.yml run id; tests that run''s desktop-mac dmg instead of the release, and version is ignored'
+        required: false
+        default: ''
 
 permissions:
   contents: read
+  actions: read
 
 jobs:
   macos-acceptance:
@@ -24,6 +35,7 @@ jobs:
     timeout-minutes: 30
     env:
       VERSION: ${{ inputs.version }}
+      BUILD_RUN_ID: ${{ inputs.build_run_id }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v7
@@ -37,6 +49,7 @@ jobs:
           cache: 'npm'
 
       - name: Check the version input
+        if: inputs.build_run_id == ''
         run: |
           if ! [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-pre\.[0-9]+)?$ ]]; then
             echo "::error::invalid version input: $VERSION"
@@ -44,6 +57,7 @@ jobs:
           fi
 
       - name: Download the dmg and check its SHA-256 digest
+        if: inputs.build_run_id == ''
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -60,6 +74,51 @@ jobs:
             exit 1
           fi
           echo "DMG=$RUNNER_TEMP/dmg/$dmg" >> "$GITHUB_ENV"
+
+      # T0783: the dmg of a desktop-build.yml run. The run must be a desktop-build run of this
+      # repo; the dmg must match the SHA256SUMS.txt that run wrote next to it.
+      - name: Download the desktop-build dmg and check its SHA-256 digest
+        if: inputs.build_run_id != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          if ! [[ "$BUILD_RUN_ID" =~ ^[0-9]+$ ]]; then
+            echo "::error::invalid build_run_id input: $BUILD_RUN_ID"
+            exit 1
+          fi
+          wf=$(gh run view "$BUILD_RUN_ID" -R gowerlin/better-agent-terminal --json workflowName --jq .workflowName)
+          if [ "$wf" != "Desktop build (no release)" ]; then
+            echo "::error::run $BUILD_RUN_ID is not a desktop-build.yml run (workflow: $wf)"
+            exit 1
+          fi
+          gh run view "$BUILD_RUN_ID" -R gowerlin/better-agent-terminal --json status,conclusion,headBranch,createdAt --jq '"run status: \(.status) / \(.conclusion); dispatched from \(.headBranch) at \(.createdAt)"'
+          d="$RUNNER_TEMP/dmg"
+          mkdir -p "$d"
+          gh run download "$BUILD_RUN_ID" -R gowerlin/better-agent-terminal -n desktop-mac -D "$d"
+          cat "$d/BUILD-INFO.txt"
+          cat "$d/mac-signature.txt" 2>/dev/null || true
+          dmgs=("$d"/*.dmg)
+          if [ "${#dmgs[@]}" -ne 1 ] || [ ! -f "${dmgs[0]}" ]; then
+            echo "::error::expected exactly one dmg in the desktop-mac artifact"
+            exit 1
+          fi
+          dmg=$(basename "${dmgs[0]}")
+          expected=$(awk -v f="$dmg" '{ name=$2; sub(/^\*/, "", name); if (name == f) print $1 }' "$d/SHA256SUMS.txt")
+          actual=$(shasum -a 256 "$d/$dmg" | cut -d' ' -f1)
+          echo "build digest: $expected"
+          echo "downloaded:   $actual"
+          if [ -z "$expected" ] || [ "$expected" != "$actual" ]; then
+            echo "::error::SHA-256 digest mismatch (or the dmg is missing from SHA256SUMS.txt)"
+            exit 1
+          fi
+          {
+            echo "### Tested build"
+            echo '```'
+            cat "$d/BUILD-INFO.txt"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          echo "DMG=$d/$dmg" >> "$GITHUB_ENV"
 
       - name: Mount the dmg and copy the app out
         run: |
@@ -120,7 +179,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: macos-acceptance-${{ inputs.version }}-attempt${{ github.run_attempt }}
+          name: macos-acceptance-${{ inputs.build_run_id != '' && format('build{0}', inputs.build_run_id) || inputs.version }}-attempt${{ github.run_attempt }}
           path: |
             ${{ runner.temp }}/report
             e2e-results

@@ -1,0 +1,373 @@
+name: Desktop build (no release)
+
+# T0783 (D223): build the three desktop installers (Windows x64, macOS arm64, Linux x64) from any
+# branch or commit and upload them as workflow artifacts (7 days). For trial branches such as the
+# Electron 45 upgrade (T0784); macos-acceptance.yml can test the dmg with -f build_run_id=<run id>.
+#
+# 🔴 This workflow never publishes anything: no tag, no GitHub Release, no server-bundle-v*, no
+# Pages deploy, no Homebrew / Chocolatey. The token is read-only (contents: read). Release
+# workflows stay pre-release.yml / release.yml; their behaviour is not shared with or changed by
+# this file (the build steps below are copies of pre-release.yml's `build` job).
+#
+#   gh workflow run desktop-build.yml -R gowerlin/better-agent-terminal -f ref=main
+#   gh workflow run desktop-build.yml -R gowerlin/better-agent-terminal -f ref=<branch or SHA> -f version=0.0.0-exp.1
+#
+# See docs/agent-guide/packaging-release-checks.md "只 build、不發布的桌面 workflow".
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: 'Branch, tag or commit SHA to build'
+        required: false
+        default: 'main'
+        type: string
+      version:
+        description: 'Version written into the installers; must have a pre-release suffix that is not -pre.N (e.g. 0.0.0-exp.1). Empty = 0.0.0-exp.<run number>'
+        required: false
+        default: ''
+        type: string
+      checks:
+        description: 'Also run typecheck + unit / legacy tests on the same commit (in parallel; they do not gate the build)'
+        required: false
+        default: true
+        type: boolean
+      mac_sign:
+        description: 'macOS code signing. auto = sign like release.yml when the APPLE_CERTIFICATE_P12 secret exists, otherwise build unsigned (ad-hoc, same as pre-release.yml); off = always unsigned'
+        required: false
+        default: 'auto'
+        type: choice
+        options:
+          - auto
+          - 'off'
+      mac_notarize:
+        description: 'Notarize the macOS app (only when it is signed and APPLE_ID / APPLE_APP_SPECIFIC_PASSWORD / APPLE_TEAM_ID exist; slower)'
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+
+jobs:
+  prepare:
+    runs-on: ubuntu-24.04
+    outputs:
+      version: ${{ steps.resolve.outputs.VERSION }}
+      sha: ${{ steps.resolve.outputs.SHA }}
+    steps:
+      - name: Checkout the requested ref
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.ref }}
+          fetch-depth: 1
+          persist-credentials: false
+
+      # Every later job checks out this exact SHA, so all platforms build the same commit even
+      # when the branch moves during the run.
+      - name: Resolve version and commit
+        id: resolve
+        env:
+          INPUT_REF: ${{ inputs.ref }}
+          INPUT_VERSION: ${{ inputs.version }}
+        run: |
+          set -euo pipefail
+          VERSION="${INPUT_VERSION:-0.0.0-exp.${GITHUB_RUN_NUMBER}}"
+          VERSION="${VERSION#v}"
+          # Must not look like a published version: a pre-release suffix is required, and the
+          # release lines' own -pre.N form is refused.
+          if ! [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+-[0-9A-Za-z][0-9A-Za-z.-]*$ ]]; then
+            echo "::error::version must be X.Y.Z-<suffix> (e.g. 0.0.0-exp.1): $VERSION"
+            exit 1
+          fi
+          if [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+-pre\.[0-9]+$ ]]; then
+            echo "::error::X.Y.Z-pre.N is the release lines' form; use another suffix (e.g. 0.0.0-exp.1): $VERSION"
+            exit 1
+          fi
+          SHA=$(git rev-parse HEAD)
+          echo "VERSION=${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "SHA=${SHA}" >> "$GITHUB_OUTPUT"
+          {
+            echo "### Desktop build (no release)"
+            echo ""
+            echo "- ref: \`${INPUT_REF}\`"
+            echo "- commit: \`${SHA}\`"
+            echo "- version: \`${VERSION}\`"
+            echo "- artifacts: \`desktop-win\` / \`desktop-mac\` / \`desktop-linux\` (7 days); nothing is published"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  # Same steps as pre-release.yml's typecheck job, on the requested commit.
+  typecheck:
+    if: ${{ inputs.checks }}
+    needs: prepare
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.prepare.outputs.sha }}
+          persist-credentials: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+          cache: 'npm'
+
+      - name: Install dependencies (no install scripts)
+        run: npm ci --ignore-scripts
+
+      - name: Typecheck (src/)
+        run: npm run typecheck
+
+      - name: Typecheck (electron/)
+        run: npm run typecheck:electron
+
+  # The test steps of tests.yml, on the requested commit. tests.yml itself cannot be reused here:
+  # it checks out github.sha (the commit this workflow file was dispatched from), not inputs.ref.
+  # Release gating stays in tests.yml; keep these steps in step with it.
+  tests:
+    if: ${{ inputs.checks }}
+    needs: prepare
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.prepare.outputs.sha }}
+          persist-credentials: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+          cache: 'npm'
+
+      - name: Install dependencies (no install scripts)
+        run: npm ci --ignore-scripts
+
+      - name: Install the electron binary (electron's postinstall only)
+        run: node node_modules/electron/install.js
+
+      - name: Unit tests (vitest)
+        env:
+          BAT_HELPER_LOG_DIR: ${{ runner.temp }}/bat-helper-logs
+          BAT_USER_DATA: ${{ runner.temp }}/bat-user-data
+        run: npm run test:unit
+
+      - name: Legacy tests (tests/, outside vitest)
+        if: ${{ !cancelled() }}
+        env:
+          BAT_HELPER_LOG_DIR: ${{ runner.temp }}/bat-helper-logs
+          BAT_USER_DATA: ${{ runner.temp }}/bat-user-data
+        run: npm run test:legacy
+
+  # Copy of pre-release.yml's build job (packaging + verify-packaged-native.js per platform), plus
+  # optional macOS signing. Does not wait for typecheck / tests: a trial branch still gets its
+  # installers when a check fails (the run is red either way).
+  build:
+    needs: prepare
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            platform: win
+          - os: macos-latest
+            platform: mac
+          - os: ubuntu-24.04
+            platform: linux
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.prepare.outputs.sha }}
+          persist-credentials: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+          cache: 'npm'
+
+      - name: Windows cleanup (avoid EPERM locks)
+        if: matrix.platform == 'win'
+        shell: pwsh
+        run: |
+          if (Test-Path node_modules) { Remove-Item node_modules -Recurse -Force }
+          npm cache verify
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Rebuild native modules for Electron
+        run: npx --yes @electron/rebuild
+
+      - name: Verify required native modules present
+        run: node scripts/verify-native-modules.js
+
+      - name: Update version and build
+        env:
+          VERSION: v${{ needs.prepare.outputs.version }}
+        run: node scripts/build-version.js
+
+      - name: Package for Windows
+        if: matrix.platform == 'win'
+        run: npx electron-builder --win --publish never
+
+      - name: Verify packaged native binaries (Windows x64)
+        if: matrix.platform == 'win'
+        run: node scripts/verify-packaged-native.js --platform win --out release --arch x64
+
+      # Signing is decided from secret *presence* only; no secret value is printed.
+      - name: Decide macOS signing
+        if: matrix.platform == 'mac'
+        id: macsign
+        env:
+          MAC_SIGN: ${{ inputs.mac_sign }}
+          MAC_NOTARIZE: ${{ inputs.mac_notarize }}
+          HAS_CERT: ${{ secrets.APPLE_CERTIFICATE_P12 != '' && secrets.APPLE_CERTIFICATE_PASSWORD != '' }}
+          HAS_NOTARY: ${{ secrets.APPLE_ID != '' && secrets.APPLE_APP_SPECIFIC_PASSWORD != '' && secrets.APPLE_TEAM_ID != '' }}
+        run: |
+          sign=false
+          notarize=false
+          if [ "$MAC_SIGN" = "auto" ] && [ "$HAS_CERT" = "true" ]; then sign=true; fi
+          if [ "$sign" = "true" ] && [ "$MAC_NOTARIZE" = "true" ]; then
+            if [ "$HAS_NOTARY" = "true" ]; then
+              notarize=true
+            else
+              echo "::warning::mac_notarize was requested but APPLE_ID / APPLE_APP_SPECIFIC_PASSWORD / APPLE_TEAM_ID are not all set; building without notarization"
+            fi
+          fi
+          if [ "$sign" = "false" ]; then
+            echo "::warning::macOS app is NOT signed (mac_sign=$MAC_SIGN, certificate secret present=$HAS_CERT): ad-hoc signature, same as pre-release.yml"
+          fi
+          echo "sign=$sign" >> "$GITHUB_OUTPUT"
+          echo "notarize=$notarize" >> "$GITHUB_OUTPUT"
+          echo "macOS signing: sign=$sign notarize=$notarize"
+
+      # Same as release.yml's "Import Code Signing Certificate".
+      - name: Import Code Signing Certificate
+        if: matrix.platform == 'mac' && steps.macsign.outputs.sign == 'true'
+        env:
+          CERTIFICATE_P12: ${{ secrets.APPLE_CERTIFICATE_P12 }}
+          CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+        run: |
+          echo "$CERTIFICATE_P12" | base64 --decode > certificate.p12
+          security create-keychain -p actions build.keychain
+          security default-keychain -s build.keychain
+          security unlock-keychain -p actions build.keychain
+          security import certificate.p12 -k build.keychain -P "$CERTIFICATE_PASSWORD" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k actions build.keychain
+          rm certificate.p12
+
+      # Same command as pre-release.yml / release.yml. Notarization runs only when steps.macsign
+      # decided so: otherwise the APPLE_* env is empty and electron-builder skips it
+      # (getNotarizeOptions: no credentials -> "skipped macOS notarization"), exactly as in
+      # pre-release.yml, where these variables are not set at all.
+      - name: Package for macOS
+        if: matrix.platform == 'mac'
+        env:
+          APPLE_ID: ${{ steps.macsign.outputs.notarize == 'true' && secrets.APPLE_ID || '' }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ steps.macsign.outputs.notarize == 'true' && secrets.APPLE_APP_SPECIFIC_PASSWORD || '' }}
+          APPLE_TEAM_ID: ${{ steps.macsign.outputs.notarize == 'true' && secrets.APPLE_TEAM_ID || '' }}
+        run: npx electron-builder --mac --publish never
+
+      - name: Verify packaged native binaries (macOS arm64)
+        if: matrix.platform == 'mac'
+        run: node scripts/verify-packaged-native.js --platform mac --out release --arch arm64
+
+      - name: Record macOS signature
+        if: matrix.platform == 'mac'
+        env:
+          SIGN: ${{ steps.macsign.outputs.sign }}
+          NOTARIZE: ${{ steps.macsign.outputs.notarize }}
+        run: |
+          app=$(find release -maxdepth 2 -name '*.app' -type d | head -n 1)
+          {
+            echo "macOS signed: $SIGN (notarized: $NOTARIZE)"
+            codesign -dv "$app" 2>&1 | grep -E '^(Identifier|Format|Signature|TeamIdentifier|Authority)' || true
+            spctl --assess --type execute -vv "$app" 2>&1 || true
+          } | tee release/mac-signature.txt
+
+      - name: Package for Linux
+        if: matrix.platform == 'linux'
+        run: npx electron-builder --linux --publish never
+
+      - name: Verify packaged embedded claude (Linux x64)
+        if: matrix.platform == 'linux'
+        run: node scripts/verify-packaged-native.js --platform linux --out release --arch x64
+
+      - name: Report artifact sizes
+        continue-on-error: true
+        run: node scripts/report-artifact-sizes.mjs --out release
+
+      # BUILD-INFO.txt + SHA256SUMS.txt go into every artifact; macos-acceptance.yml checks the dmg
+      # against SHA256SUMS.txt.
+      - name: Write build info and checksums
+        shell: bash
+        env:
+          INPUT_REF: ${{ inputs.ref }}
+          VERSION: ${{ needs.prepare.outputs.version }}
+          SHA: ${{ needs.prepare.outputs.sha }}
+          PLATFORM: ${{ matrix.platform }}
+          SIGN: ${{ steps.macsign.outputs.sign }}
+          NOTARIZE: ${{ steps.macsign.outputs.notarize }}
+        run: |
+          set -euo pipefail
+          cd release
+          shopt -s nullglob
+          files=(*.exe *.zip *.dmg *.AppImage)
+          if [ ${#files[@]} -eq 0 ]; then echo "::error::no installer in release/"; exit 1; fi
+          {
+            echo "workflow: desktop-build.yml (no release)"
+            echo "run: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID} (attempt ${GITHUB_RUN_ATTEMPT})"
+            echo "ref: ${INPUT_REF}"
+            echo "commit: ${SHA}"
+            echo "version: ${VERSION}"
+            echo "platform: ${PLATFORM}"
+            if [ "$PLATFORM" = "mac" ]; then echo "mac signed: ${SIGN} (notarized: ${NOTARIZE})"; fi
+            echo "published: no (workflow artifact only)"
+          } > BUILD-INFO.txt
+          if command -v sha256sum >/dev/null; then sha256sum "${files[@]}" > SHA256SUMS.txt; else shasum -a 256 "${files[@]}" > SHA256SUMS.txt; fi
+          cat BUILD-INFO.txt SHA256SUMS.txt
+          { echo "#### ${PLATFORM}"; echo '```'; cat BUILD-INFO.txt SHA256SUMS.txt; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload Windows artifacts
+        if: matrix.platform == 'win'
+        uses: actions/upload-artifact@v7
+        with:
+          name: desktop-win
+          retention-days: 7
+          if-no-files-found: error
+          path: |
+            release/*.zip
+            release/*.exe
+            release/BUILD-INFO.txt
+            release/SHA256SUMS.txt
+
+      - name: Upload macOS artifacts
+        if: matrix.platform == 'mac'
+        uses: actions/upload-artifact@v7
+        with:
+          name: desktop-mac
+          retention-days: 7
+          if-no-files-found: error
+          path: |
+            release/*.dmg
+            release/BUILD-INFO.txt
+            release/SHA256SUMS.txt
+            release/mac-signature.txt
+
+      - name: Upload Linux artifacts
+        if: matrix.platform == 'linux'
+        uses: actions/upload-artifact@v7
+        with:
+          name: desktop-linux
+          retention-days: 7
+          if-no-files-found: error
+          path: |
+            release/*.AppImage
+            release/BUILD-INFO.txt
+            release/SHA256SUMS.txt
