@@ -444,6 +444,7 @@
 - 正式版 `release.yml`（push `v*` tag 觸發）；預覽版 `pre-release.yml`（**`workflow_dispatch` only**，push tag 不會觸發）：`gh workflow run pre-release.yml -R gowerlin/better-agent-terminal -f version=X.Y.Z-pre.N`
 - 🔴 **`gh` 一律帶 `-R gowerlin/better-agent-terminal`**：本 repo 有 3 個 remote（`origin`=gowerlin / `upstream`=tony1223 / `scandnavik`），`gh` 預設解析到 **upstream**。不帶 `-R` 時唯讀操作報 404，寫入操作（`gh release create` / `gh pr create`）則是打到別人的 repo。
 - 只 build、不發布（T0783 / D223）：`desktop-build.yml`（`workflow_dispatch`，`-f ref=<分支或 SHA>`，版號預設 `0.0.0-exp.<run>`）打三平台安裝檔，只上傳 artifact（7 天），試做分支用它；`macos-acceptance.yml -f build_run_id=<run id>` 可測它的 dmg。🔴 不建 tag / GitHub Release / `server-bundle-v*`、不部署 Pages，不得加任何發布動作。見 [docs](docs/agent-guide/packaging-release-checks.md)「只 build、不發布的桌面 workflow」。
+- Linux AppImage 啟動驗收（T0797 / D242）：`gh workflow run linux-acceptance.yml -R gowerlin/better-agent-terminal -f version=<版號>`（或 `-f build_run_id=<desktop-build run id>`），ubuntu-22.04 / 24.04 各跑一次、只手動觸發；🔴 spec 的 L1 必須 `chromiumSandbox: true`（Playwright 在 Linux 預設加 `--no-sandbox`），見 [docs](docs/agent-guide/linux-ci-acceptance.md)。
 - 🔴 **`-f version=` 不可留空**：留空會走自動遞增 —— `git tag -l 'v*' --sort=-v:refname | head -n1` → patch +1 → 找未使用的 `-pre.N`（`pre-release.yml:34-55`）。本 repo 有 **257 個 `v*` tag**，橫跨 `v0.x`（本 fork 主線）/ `v2.2.x` / `v4.0.x` 三條版本線，`-v:refname` 排序第一名是 **`v4.0.3-pre.1`**，留空即產出 `4.0.4-pre.1`，與主線完全脫節。判版方式：取**本 fork 主線（`v0.x`）**最新 tag 遞增，不要信排序第一名。
 - 完整 workflow 對照、行號、下游發佈：[docs/agent-guide/release.md](docs/agent-guide/release.md)
 

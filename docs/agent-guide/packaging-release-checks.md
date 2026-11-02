@@ -75,6 +75,7 @@ gh run download <run id> -R gowerlin/better-agent-terminal -n desktop-mac -D <�
   - 簽章結果（`codesign -dv`、`spctl --assess`）寫進 artifact 的 `mac-signature.txt` 與 `BUILD-INFO.txt` 的 `mac signed:` 行。
   - 現況（2026-11-02 T0783 查）：本 repo 沒有設定任何 repository secret，`auto` 實際產出未簽章 dmg。Electron 42 起未簽章的 app 不顯示 macOS 通知（T0781），試做分支在 runner 上看不到通知屬預期，不是回歸。日後設定 secret 時，憑證的身分要與 `build.mac.identity` 相同，否則簽章步驟失敗。
 - macOS 驗收：`macos-acceptance.yml -f build_run_id=<desktop-build run id>` 測這個 run 的 dmg，見 [macos-ci-acceptance.md](macos-ci-acceptance.md)「測 desktop-build 產物」。
+- Linux 驗收（T0797）：`linux-acceptance.yml -f build_run_id=<desktop-build run id>` 在 ubuntu-22.04 / 24.04 啟動這個 run 的 AppImage（`-f version=<版號>` 測 release），見 [linux-ci-acceptance.md](linux-ci-acceptance.md)。
 - 驗證 workflow：actionlint（本機沒有時 `go install github.com/rhysd/actionlint/cmd/actionlint@latest`）。
 
 # Server bundle baseline（PLAN-031；D146 起安裝檔不內建）

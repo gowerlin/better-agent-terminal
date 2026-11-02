@@ -1,0 +1,248 @@
+name: Linux acceptance (manual)
+
+# T0797 (D242): does the Linux AppImage start on Ubuntu 22.04 / 24.04? Starts a *released* AppImage (or the
+# AppImage of a desktop-build.yml run) on GitHub-hosted ubuntu-22.04 / ubuntu-24.04 runners under xvfb and
+# checks window, terminal tab, keyboard input, debug log and a normal quit (e2e/linux/).
+# workflow_dispatch only and not part of any release workflow. No secrets: downloads use this job's
+# read-only GITHUB_TOKEN. The AppImage is started the way a user starts it: through the AppImage runtime
+# (FUSE, libfuse2 installed like Ubuntu's AppImage instructions say) with the Chromium sandbox on; nothing
+# changes sysctls or AppArmor. A sandbox refusal is a result. See docs/agent-guide/linux-ci-acceptance.md.
+#
+#   gh workflow run linux-acceptance.yml -R gowerlin/better-agent-terminal -f version=0.7.4-pre.1
+#   gh workflow run linux-acceptance.yml -R gowerlin/better-agent-terminal -f build_run_id=<desktop-build run id>
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release to test: tag v<version>, asset BetterAgentTerminal-<version>.AppImage'
+        required: true
+        default: '0.7.4-pre.1'
+      build_run_id:
+        description: 'Optional: a desktop-build.yml run id; tests that run''s desktop-linux AppImage instead of the release, and version is ignored'
+        required: false
+        default: ''
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  linux-acceptance:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-22.04, ubuntu-24.04]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    env:
+      VERSION: ${{ inputs.version }}
+      BUILD_RUN_ID: ${{ inputs.build_run_id }}
+    steps:
+      # `runner` is not available in job-level env; every later step reads REPORT_DIR from GITHUB_ENV.
+      - name: Report directory
+        run: |
+          mkdir -p "$RUNNER_TEMP/report"
+          echo "REPORT_DIR=$RUNNER_TEMP/report" >> "$GITHUB_ENV"
+
+      - name: Checkout code
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+          cache: 'npm'
+
+      - name: Check the version input
+        if: inputs.build_run_id == ''
+        run: |
+          if ! [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-pre\.[0-9]+)?$ ]]; then
+            echo "::error::invalid version input: $VERSION"
+            exit 1
+          fi
+
+      - name: Download the AppImage and check its SHA-256 digest
+        if: inputs.build_run_id == ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          img="BetterAgentTerminal-${VERSION}.AppImage"
+          mkdir -p "$RUNNER_TEMP/appimage"
+          gh release download "v${VERSION}" -R gowerlin/better-agent-terminal -p "$img" -D "$RUNNER_TEMP/appimage"
+          expected=$(gh release view "v${VERSION}" -R gowerlin/better-agent-terminal --json assets --jq ".assets[] | select(.name == \"$img\") | .digest")
+          actual="sha256:$(sha256sum "$RUNNER_TEMP/appimage/$img" | cut -d' ' -f1)"
+          echo "release digest: $expected"
+          echo "downloaded:     $actual"
+          if [ -z "$expected" ] || [ "$expected" != "$actual" ]; then
+            echo "::error::SHA-256 digest mismatch (or no digest on the release asset)"
+            exit 1
+          fi
+          echo "APPIMAGE=$RUNNER_TEMP/appimage/$img" >> "$GITHUB_ENV"
+
+      # The AppImage of a desktop-build.yml run. The run must be a desktop-build run of this repo; the
+      # AppImage must match the SHA256SUMS.txt that run wrote next to it.
+      - name: Download the desktop-build AppImage and check its SHA-256 digest
+        if: inputs.build_run_id != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          if ! [[ "$BUILD_RUN_ID" =~ ^[0-9]+$ ]]; then
+            echo "::error::invalid build_run_id input: $BUILD_RUN_ID"
+            exit 1
+          fi
+          wf=$(gh run view "$BUILD_RUN_ID" -R gowerlin/better-agent-terminal --json workflowName --jq .workflowName)
+          if [ "$wf" != "Desktop build (no release)" ]; then
+            echo "::error::run $BUILD_RUN_ID is not a desktop-build.yml run (workflow: $wf)"
+            exit 1
+          fi
+          gh run view "$BUILD_RUN_ID" -R gowerlin/better-agent-terminal --json status,conclusion,headBranch,createdAt --jq '"run status: \(.status) / \(.conclusion); dispatched from \(.headBranch) at \(.createdAt)"'
+          d="$RUNNER_TEMP/appimage"
+          mkdir -p "$d"
+          gh run download "$BUILD_RUN_ID" -R gowerlin/better-agent-terminal -n desktop-linux -D "$d"
+          cat "$d/BUILD-INFO.txt"
+          shopt -s nullglob
+          imgs=("$d"/*.AppImage)
+          if [ "${#imgs[@]}" -ne 1 ]; then
+            echo "::error::expected exactly one AppImage in the desktop-linux artifact"
+            exit 1
+          fi
+          img=$(basename "${imgs[0]}")
+          expected=$(awk -v f="$img" '{ name=$2; sub(/^\*/, "", name); if (name == f) print $1 }' "$d/SHA256SUMS.txt")
+          actual=$(sha256sum "$d/$img" | cut -d' ' -f1)
+          echo "build digest: $expected"
+          echo "downloaded:   $actual"
+          if [ -z "$expected" ] || [ "$expected" != "$actual" ]; then
+            echo "::error::SHA-256 digest mismatch (or the AppImage is missing from SHA256SUMS.txt)"
+            exit 1
+          fi
+          {
+            echo "### Tested build (${{ matrix.os }})"
+            echo '```'
+            cat "$d/BUILD-INFO.txt"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          echo "APPIMAGE=$d/$img" >> "$GITHUB_ENV"
+
+      # Record what a fresh system has *before* installing anything: a user on a clean install starts here.
+      - name: Runner context (before installing packages)
+        run: |
+          set -u
+          {
+            echo "## Runner context (${{ matrix.os }}, before apt)"
+            echo '```'
+            grep PRETTY_NAME /etc/os-release
+            uname -r
+            ldd --version | head -n 1
+            for f in /proc/sys/kernel/apparmor_restrict_unprivileged_userns /proc/sys/kernel/unprivileged_userns_clone /proc/sys/user/max_user_namespaces; do
+              printf '%s = %s\n' "$f" "$(cat "$f" 2>/dev/null || echo absent)"
+            done
+            ls -l /dev/fuse 2>&1 || true
+            echo "libfuse.so.2: $(ldconfig -p | grep -c 'libfuse\.so\.2' || true) entries"
+            echo "fusermount: $(command -v fusermount || echo none) / fusermount3: $(command -v fusermount3 || echo none)"
+            echo "xvfb-run: $(command -v xvfb-run || echo none)"
+            echo "user: $(id -un)  SHELL=$SHELL"
+            echo '```'
+          } | tee "$REPORT_DIR/runner-context.md"
+
+      # FUSE the way Ubuntu tells AppImage users to get it (22.04: libfuse2; 24.04: libfuse2t64). Not
+      # --appimage-extract-and-run: that skips the FUSE mount users go through. fuse3 (fusermount) is part
+      # of a default Ubuntu desktop; installing it is a no-op when the runner image already has it.
+      # fonts-noto-cjk / fonts-noto-color-emoji are also Ubuntu desktop defaults; without them the zh-TW UI
+      # and the emoji icons render as boxes in the screenshot (T0797 local WSL run). binutils: objdump.
+      - name: Install FUSE 2, Xvfb and desktop fonts
+        run: |
+          set -euo pipefail
+          . /etc/os-release
+          case "$VERSION_ID" in
+            22.04) fuse=libfuse2 ;;
+            *) fuse=libfuse2t64 ;;
+          esac
+          sudo apt-get update -q
+          sudo apt-get install -y -q --no-install-recommends "$fuse" fuse3 xvfb binutils fonts-noto-cjk fonts-noto-color-emoji
+          echo "installed: $fuse fuse3 xvfb binutils fonts-noto-cjk fonts-noto-color-emoji"
+
+      # Static facts from the extracted image (no FUSE needed): glibc symbol versions the binaries require,
+      # unresolved libraries, the chrome-sandbox mode and whether AppRun adds --no-sandbox by itself.
+      - name: Inspect the AppImage
+        run: |
+          set -uo pipefail
+          chmod +x "$APPIMAGE"
+          x="$RUNNER_TEMP/extract"
+          mkdir -p "$x"
+          (cd "$x" && "$APPIMAGE" --appimage-extract >/dev/null)
+          root="$x/squashfs-root"
+          bin=$(sed -n 's/^BIN="\$APPDIR\/\(.*\)"$/\1/p' "$root/AppRun" | head -n 1)
+          max_glibc() { objdump -T "$1" 2>/dev/null | grep -o 'GLIBC_[0-9.]*' | sort -uV | tail -n 1; }
+          {
+            echo "## AppImage inspection (${{ matrix.os }})"
+            echo '```'
+            echo "file: $(basename "$APPIMAGE") ($(stat -c %s "$APPIMAGE") bytes)"
+            echo "AppRun BIN: ${bin:-?}"
+            echo "AppRun adds --no-sandbox: $(grep -c -- '--no-sandbox' "$root/AppRun" || true) occurrence(s)"
+            echo "desktop Exec: $(grep -h '^Exec=' "$root"/*.desktop 2>/dev/null | head -n 1)"
+            echo "chrome-sandbox: $(stat -c '%A %U:%G' "$root/chrome-sandbox" 2>/dev/null || echo absent)"
+            if [ -n "$bin" ] && [ -f "$root/$bin" ]; then
+              echo "main binary max GLIBC: $(max_glibc "$root/$bin")"
+              echo "main binary unresolved libraries:"
+              ldd "$root/$bin" | grep 'not found' || echo "  (none)"
+            fi
+            echo "highest GLIBC requirement per ELF file (top 10):"
+            find "$root" -type f \( -perm -u+x -o -name '*.so' -o -name '*.so.*' -o -name '*.node' \) -print0 \
+              | while IFS= read -r -d '' f; do
+                  [ "$(head -c 4 "$f" | od -An -tx1 | tr -d ' \n')" = "7f454c46" ] || continue
+                  v=$(max_glibc "$f")
+                  [ -n "$v" ] && printf '%s %s\n' "$v" "${f#"$root"/}"
+                done | sort -V -r | head -n 10
+            echo '```'
+          } | tee "$REPORT_DIR/appimage-inspect.md"
+          rm -rf "$x"
+
+      - name: Install test dependencies (no install scripts)
+        run: npm ci --ignore-scripts
+
+      - name: Acceptance (Playwright, e2e/linux, under xvfb)
+        run: |
+          export BAT_E2E_EXECUTABLE="$APPIMAGE" LINUX_REPORT_DIR="$REPORT_DIR"
+          xvfb-run -a --server-args="-screen 0 1600x1000x24" npx playwright test e2e/linux/ --reporter=list
+
+      - name: Report
+        if: always()
+        run: |
+          for f in "$REPORT_DIR/linux-report.md" "$REPORT_DIR/appimage-inspect.md" "$REPORT_DIR/runner-context.md"; do
+            if [ -f "$f" ]; then
+              cat "$f"
+              { cat "$f"; echo; } >> "$GITHUB_STEP_SUMMARY"
+            else
+              echo "not written: $(basename "$f")"
+            fi
+          done
+
+      # The spec copies only Logs/debug-*.log out of userData; the names below are the userData files that
+      # hold keys or tokens (server-token.json, server-cert.json, helper-capabilities.json) in case one ever
+      # lands here, plus a content scan.
+      - name: Remove secret-looking files from the artifacts
+        if: always()
+        run: |
+          for d in "$REPORT_DIR" e2e-results; do
+            [ -d "$d" ] || continue
+            find "$d" -type f \( -name 'server-token.json' -o -name 'server-cert.json' -o -name 'helper-capabilities.json' -o -name 'claude-sessions.json' \) -print -delete
+            grep -rlE 'batcap\.[A-Za-z0-9_-]{8,}|ghp_|github_pat_|ghs_[A-Za-z0-9]{20,}|sk-ant-|-----BEGIN [A-Z ]*PRIVATE KEY' "$d" | while read -r f; do
+              echo "::warning::removed $f (secret-like pattern)"
+              rm -f "$f"
+            done || true
+          done
+
+      - name: Upload report, screenshots and debug logs
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: linux-acceptance-${{ inputs.build_run_id != '' && format('build{0}', inputs.build_run_id) || inputs.version }}-${{ matrix.os }}-attempt${{ github.run_attempt }}
+          path: |
+            ${{ runner.temp }}/report
+            e2e-results
+          retention-days: 7
+          if-no-files-found: warn
