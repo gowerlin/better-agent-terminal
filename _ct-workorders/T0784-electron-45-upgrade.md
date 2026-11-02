@@ -11,7 +11,8 @@ priority: P1
 sizing: L
 created_at: "2026-11-02T14:46:38+0800"
 started_at: "2026-11-02T14:58:22+0800"
-updated_at: "2026-11-02T14:58:22+0800"
+updated_at: "2026-11-02T15:20:55+0800"
+tower_question: open
 depends_on: [T0783]
 isolation: worktree
 related:
@@ -100,6 +101,15 @@ Electron 41 已停止更新。T0781 研究建議一次升到 45（支援到 2027
 ## 回報區
 
 > 以下由 sub-session 填寫
+
+### 待塔台決策
+
+#### Q-1：e2e 共用 fixture `e2e/fixtures/electron-isolation.ts` 不在 affects_files，能否擴大範圍改它，讓 Electron 45 下 7 支 e2e 通過？
+- 提問時間：2026-11-02T15:20:55+0800
+- 選項：[A] 擴大範圍：在 `launchIsolated` 的 `app.firstWindow()` 之後先等網址不是空白頁再 `waitForLoadState`（5 行＋註解），與產品變更同在 `ct/T0784` commit / [B] 不改 fixture：本單 e2e 關卡記 PARTIAL，另開單修 / [C] 其他：________
+- Worker 建議：[A]。原因：同一份 `dist-electron`，Electron 41.10.7 的 `firstWindow()` 回傳時已在 `dist/index.html`，45.2.1 回傳時還在初始空白頁（`url=""`），`domcontentloaded` 對空白頁就成立，幾 ms 後 `loadFile` 才導覽、把 `win.evaluate` 的 context 毀掉（兩版各實測 2 次）。產品只載入一次，屬測試工具時序。t0572 / t0776 / t0735 / t0744 / t0762 / t0738 / t0704 第一次全部在啟動後第一個 `win.evaluate` 失敗；在 worktree 未 commit 試改 fixture 後 7/7 通過（2.6 分鐘）。`firstWindow()` 只有這個 fixture 與手動用的 `site-media.spec.ts` 呼叫，改一處涵蓋全部 e2e；不改的話升級合回 main 後所有 e2e 都會偶發失敗。
+- 影響範圍：`e2e/fixtures/electron-isolation.ts`（新增）；關卡 ⑥ 的結果；`pre5-acceptance` 也走這個 fixture
+- 阻塞：否（先做不受影響的步驟：packaged 版驗證、對話框起始目錄比對、回報草稿；收尾前等答覆）
 
 ### 完成狀態
 
