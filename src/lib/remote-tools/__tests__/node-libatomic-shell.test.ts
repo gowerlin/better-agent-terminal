@@ -50,7 +50,11 @@ function withoutNvm(kind: 'install' | 'update', env: RecipeEnv): string {
 const LDCONFIG_HAS = '\t1 libs found in cache `/etc/ld.so.cache\'\n\tlibatomic.so.1 (libc6,x86-64) => /usr/lib/x86_64-linux-gnu/libatomic.so.1\n'
 const LDCONFIG_LACKS = '\t1 libs found in cache `/etc/ld.so.cache\'\n\tlibc.so.6 (libc6,x86-64, OS ABI: Linux 3.2.0) => /usr/lib/x86_64-linux-gnu/libc.so.6\n'
 
-describe.skipIf(!shAvailable)('node recipe libatomic steps under a real sh (T0756)', () => {
+// T0794 / BUG-200: each test runs the recipe under a real sh with fake ldconfig / sudo / apt-get /
+// dnf / node scripts (each one a process; the first test runs it twice, install and update). Alone the
+// slowest test takes 0.6 s; with two `test:unit` running at once on 24 cores up to 5.4 s, over the
+// default 5 s in 2 of 6 runs. 30 s, the same as the T0786 / T0793 real-subprocess tests.
+describe.skipIf(!shAvailable)('node recipe libatomic steps under a real sh (T0756)', { timeout: 30_000 }, () => {
   let dir: string
   let bin: string
 

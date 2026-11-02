@@ -109,7 +109,11 @@ function shPath(p: string): string {
 
 const shellAvailable = hasPosixShell()
 
-describe.skipIf(!shellAvailable)('install script under a real sh (T0552 / BUG-139)', () => {
+// T0794 / BUG-200: every test runs real sh processes — the bundle (sh + tar + gzip) and the install
+// script itself (tar, mv, rm …, the thing under test), so nothing can go. Alone the slowest test takes
+// 0.8 s (the file 7.4–7.6 s); with two `test:unit` running at once on 24 cores they measured up to
+// 5.9 s, over the default 5 s in 4 of 6 runs. 30 s, the same as the T0786 / T0793 real-subprocess tests.
+describe.skipIf(!shellAvailable)('install script under a real sh (T0552 / BUG-139)', { timeout: 30_000 }, () => {
   let base: string
   let parent: string
   let root: string

@@ -901,7 +901,12 @@ function runHook(event: string, stdin: string, env: NodeJS.ProcessEnv): Promise<
   })
 }
 
-describe('scripts/bat-hook.mjs ↔ RemoteServer + capabilities', () => {
+// T0794 / BUG-200: every test here runs real `bat-hook.mjs` node processes in a row against a real
+// RemoteServer (the T0657 test 16 of them). Alone the slowest test takes 0.9 s; with two `test:unit`
+// running at once on 24 cores up to 4.6 s, and 5.0 / 5.3 s (over the default 5 s) in T0793; the two
+// T0790 / T0791 order tests under 96 CPU-bound threads up to 12.5 s. 30 s, the same as the T0786 /
+// T0793 real-subprocess tests.
+describe('scripts/bat-hook.mjs ↔ RemoteServer + capabilities', { timeout: 30_000 }, () => {
   let dir: string
   let logDir: string
   let manager: PtyManagerType
@@ -921,6 +926,25 @@ describe('scripts/bat-hook.mjs ↔ RemoteServer + capabilities', () => {
    */
   let t0642Bat = false
   const T0590_EVENTS = ['permission-request', 'ask-user-question', 'elicitation', 'user-prompt-submit', 'stop']
+  /**
+   * T0794 / BUG-200: one report the handler holds until the test releases it, so two real hook
+   * processes reach the tracker in the order the test chooses. The T0790 / T0791 tests used a
+   * wall-clock gap instead (the first process's stdin left open for STDIN_TIMEOUT_MS, 300 ms, the
+   * second spawned 30 ms later); under heavy load the second process took longer than that gap, and
+   * the first process could even start after the second (its `at` later) — both seen in T0794.
+   */
+  let heldReport: { event: string; terminalId: string; arrive: () => void; released: Promise<void>; handled: () => void } | null = null
+  /** Hold the next `event` report of `terminalId`: `arrived` once it reaches BAT, `handled` once the tracker has it. */
+  function holdReport(event: string, terminalId: string) {
+    let arrive!: () => void
+    let release!: () => void
+    let handled!: () => void
+    const arrived = new Promise<void>(resolve => { arrive = resolve })
+    const released = new Promise<void>(resolve => { release = resolve })
+    const done = new Promise<void>(resolve => { handled = resolve })
+    heldReport = { event, terminalId, arrive, released, handled }
+    return { arrived, release, handled: done }
+  }
 
   const hookEnv = (id: string): NodeJS.ProcessEnv => ({
     BAT_REMOTE_PORT: String(port),
@@ -955,21 +979,33 @@ describe('scripts/bat-hook.mjs ↔ RemoteServer + capabilities', () => {
     })
     registerReportHookHandler({
       // record what crosses the wire: the event (and a tool name), never the hook input
-      registerHandler: (channel, handler) => registerHandler(channel, (ctx, ...args) => {
-        received.push(args)
-        const event = (args[0] as { event?: unknown } | undefined)?.event
-        if (oldBat && !T0590_EVENTS.includes(String(event))) return { ok: false, code: 'INVALID_ARGS', message: 'event' }
-        if (t0642Bat) {
-          if (event === 'post-tool-batch') return { ok: false, code: 'INVALID_ARGS', message: 'event' }
-          const { agentId: _ignored, ...rest } = args[0] as Record<string, unknown>
-          return handler(ctx, rest)
+      registerHandler: (channel, handler) => {
+        const answer = (ctx: HandlerContext, args: unknown[]): unknown => {
+          received.push(args)
+          const event = (args[0] as { event?: unknown } | undefined)?.event
+          if (oldBat && !T0590_EVENTS.includes(String(event))) return { ok: false, code: 'INVALID_ARGS', message: 'event' }
+          if (t0642Bat) {
+            if (event === 'post-tool-batch') return { ok: false, code: 'INVALID_ARGS', message: 'event' }
+            const { agentId: _ignored, ...rest } = args[0] as Record<string, unknown>
+            return handler(ctx, rest)
+          }
+          if (t0600Bat) {
+            const { sessionId: _dropped, ...rest } = args[0] as Record<string, unknown>
+            return handler(ctx, rest)
+          }
+          return handler(ctx, ...args)
         }
-        if (t0600Bat) {
-          const { sessionId: _dropped, ...rest } = args[0] as Record<string, unknown>
-          return handler(ctx, rest)
-        }
-        return handler(ctx, ...args)
-      }),
+        registerHandler(channel, (ctx, ...args) => {
+          const held = heldReport
+          if (held && (args[0] as { event?: unknown } | undefined)?.event === held.event && ctx.helper?.terminalId === held.terminalId) {
+            heldReport = null
+            held.arrive()
+            // `received` keeps the order the tracker sees: a held report goes in when it is released
+            return held.released.then(() => answer(ctx, args)).finally(held.handled)
+          }
+          return answer(ctx, args)
+        })
+      },
       getPtyManager: () => manager,
       logger: { log: () => {} },
     })
@@ -981,7 +1017,7 @@ describe('scripts/bat-hook.mjs ↔ RemoteServer + capabilities', () => {
     })
     server.configDir = dir
     port = (await server.start(0, 'h'.repeat(32), 'localhost')).port
-  })
+  }, 30_000) // T0794: the new self-signed certificate; under the heaviest T0794 load once over the default 10 s
 
   afterAll(() => {
     queries?.dispose()
@@ -1336,19 +1372,25 @@ describe('scripts/bat-hook.mjs ↔ RemoteServer + capabilities', () => {
 
   it('T0790 / BUG-197: two real hook processes — the earlier UserPromptSubmit reports after the PermissionRequest: the prompt stays blocked; exit 0, stdout empty', async () => {
     manager.create({ id: 'hk-late', ...TAB, workspaceId: 'ws', customEnv: { BAT_TOWER_TERMINAL_ID: 'hk-tower' } })
-    // the UserPromptSubmit process starts first, but claude has not closed its stdin yet: it reads until
-    // STDIN_TIMEOUT_MS (300 ms) and reports late; the PermissionRequest process starts after it and reports at once
+    // the UserPromptSubmit process starts first but reports after the PermissionRequest process, which
+    // starts after it (in claude: its stdin was not closed yet, so it read until STDIN_TIMEOUT_MS).
+    // T0794 / BUG-200: BAT holds that report until the PermissionRequest is handled, and the
+    // PermissionRequest process is spawned only once the report has arrived — so it surely started
+    // later (`at` later) and reported first, whatever the load; no wall-clock gap.
+    const hold = holdReport('user-prompt-submit', 'hk-late')
     const base: NodeJS.ProcessEnv = Object.fromEntries(Object.entries(process.env).filter(([k]) => !k.toUpperCase().startsWith('BAT_')))
     const late = spawn(process.execPath, [HOOK, 'user-prompt-submit'], { env: { ...base, ...hookEnv('hk-late') }, stdio: ['pipe', 'pipe', 'pipe'] })
     let lateStdout = ''
     late.stdout.on('data', d => { lateStdout += d })
     late.stdin.on('error', () => {})
-    late.stdin.write(JSON.stringify({ hook_event_name: 'UserPromptSubmit', prompt: 'SECRET-PROMPT' }))
+    late.stdin.end(JSON.stringify({ hook_event_name: 'UserPromptSubmit', prompt: 'SECRET-PROMPT' }))
     const lateExit = new Promise<number | null>(resolve => late.on('exit', code => resolve(code)))
-    await new Promise(resolve => setTimeout(resolve, 30))
+    expect(await Promise.race([hold.arrived.then(() => 'arrived'), lateExit.then(() => 'exited first')])).toBe('arrived')
     const perm = await runHook('permission-request', JSON.stringify({ hook_event_name: 'PermissionRequest', tool_name: 'Bash', tool_input: { command: 'SECRET' } }), hookEnv('hk-late'))
     expect(perm).toMatchObject({ code: 0, stdout: '' })
     expect(manager.getBlockedState('hk-late')).toMatchObject({ reason: 'permission' })
+    hold.release()
+    await hold.handled
     expect(await lateExit).toBe(0)
     expect(lateStdout).toBe('')
     const reports = received.slice(-2) as Array<[{ event: string; at: string }]>
@@ -1366,17 +1408,23 @@ describe('scripts/bat-hook.mjs ↔ RemoteServer + capabilities', () => {
     manager.create({ id: 'hk-turn', ...TAB, workspaceId: 'ws', customEnv: { BAT_TOWER_TERMINAL_ID: 'hk-tower' } })
     expect(await runHook('user-prompt-submit', JSON.stringify({ hook_event_name: 'UserPromptSubmit' }), hookEnv('hk-turn'))).toMatchObject({ code: 0, stdout: '' })
     expect(manager.isAgentTurnActive('hk-turn')).toBe(true)
-    // turn 1's Stop process starts first but reads stdin until STDIN_TIMEOUT_MS (300 ms) and reports late;
-    // turn 2's UserPromptSubmit process starts after it and reports at once
+    // turn 1's Stop process starts first but reports after turn 2's UserPromptSubmit process, which
+    // starts after it (in claude: the Stop hook read stdin until STDIN_TIMEOUT_MS). T0794 / BUG-200: BAT
+    // holds the Stop report until the UserPromptSubmit is handled, and that process is spawned only once
+    // the Stop report has arrived — so it surely started later (`at` later); no wall-clock gap.
+    const hold = holdReport('stop', 'hk-turn')
     const base: NodeJS.ProcessEnv = Object.fromEntries(Object.entries(process.env).filter(([k]) => !k.toUpperCase().startsWith('BAT_')))
     const late = spawn(process.execPath, [HOOK, 'stop'], { env: { ...base, ...hookEnv('hk-turn') }, stdio: ['pipe', 'pipe', 'pipe'] })
     let lateStdout = ''
     late.stdout.on('data', d => { lateStdout += d })
     late.stdin.on('error', () => {})
-    late.stdin.write(JSON.stringify({ hook_event_name: 'Stop' }))
+    late.stdin.end(JSON.stringify({ hook_event_name: 'Stop' }))
     const lateExit = new Promise<number | null>(resolve => late.on('exit', code => resolve(code)))
-    await new Promise(resolve => setTimeout(resolve, 30))
+    expect(await Promise.race([hold.arrived.then(() => 'arrived'), lateExit.then(() => 'exited first')])).toBe('arrived')
     expect(await runHook('user-prompt-submit', JSON.stringify({ hook_event_name: 'UserPromptSubmit' }), hookEnv('hk-turn'))).toMatchObject({ code: 0, stdout: '' })
+    expect(manager.isAgentTurnActive('hk-turn')).toBe(true)
+    hold.release()
+    await hold.handled
     expect(await lateExit).toBe(0)
     expect(lateStdout).toBe('')
     const reports = received.slice(-2) as Array<[{ event: string; at: string }]>

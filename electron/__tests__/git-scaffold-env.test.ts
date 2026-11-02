@@ -112,7 +112,11 @@ describe('SIMPLE_GIT_UNSAFE_ENV_KEYS / stripSimpleGitUnsafeEnv (T0429)', () => {
   })
 })
 
-describe('git-scaffold:* child env (T0429)', () => {
+// T0794 / BUG-200: the Git Graph channels run real git through simple-git against the temp repo (what
+// is checked is the env those git processes get). Alone the slowest test takes 0.4 s; with two
+// `test:unit` running at once on 24 cores up to 3.6 s, and 5.0 / 5.4 s (over the default 5 s) in
+// T0793. 30 s, the same as the T0786 / T0793 real-subprocess tests.
+describe('git-scaffold:* child env (T0429)', { timeout: 30_000 }, () => {
   it('headless: Git Graph channels work against a server env carrying EDITOR / PAGER / GIT_SSH_COMMAND …', async () => {
     let reads = 0
     const invoke = register({

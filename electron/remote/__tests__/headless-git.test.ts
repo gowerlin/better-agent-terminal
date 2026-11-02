@@ -130,7 +130,11 @@ const T0405_CHANNELS = [
   'git-scaffold:healthCheck', 'git-scaffold:getRepoInfo', 'git-scaffold:listCommits',
 ]
 
-describe('git / github / worktree on headless (T0405)', () => {
+// T0794 / BUG-200: the tests below go through a real headless server to real git / simple-git (and a
+// fake gh script) — the git processes are what is checked. Alone the slowest test takes 1.0 s; with two
+// `test:unit` running at once on 24 cores up to 4.8 s, and 5.0–5.2 s (over the default 5 s) in T0793.
+// 30 s, the same as the T0786 / T0793 real-subprocess tests.
+describe('git / github / worktree on headless (T0405)', { timeout: 30_000 }, () => {
   it('all 21 channels are proxied and no longer listed unsupported', () => {
     for (const channel of T0405_CHANNELS) {
       expect(PROXIED_CHANNELS.has(channel), channel).toBe(true)
@@ -216,7 +220,8 @@ describe('git / github / worktree on headless (T0405)', () => {
   })
 })
 
-describe('worktree:* / git-scaffold:* child env on headless (T0429)', () => {
+// T0794 / BUG-200: real git through the headless server, as above.
+describe('worktree:* / git-scaffold:* child env on headless (T0429)', { timeout: 30_000 }, () => {
   const batKeys = (env: object) => Object.keys(env).filter(k => k.toUpperCase().startsWith('BAT_'))
 
   it('git-scaffold:* (Git Graph) works with EDITOR / PAGER in the server env; simple-git gets it scrubbed', async () => {

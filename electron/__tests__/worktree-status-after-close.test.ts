@@ -75,8 +75,10 @@ afterAll(() => {
   for (const dir of roots) rmSync(dir, { recursive: true, force: true })
 })
 
+// T0794 / BUG-200: `maintenance.auto=false` — no `git maintenance run --auto` after the test's own commits
+// (two git processes fewer per test; nothing here looks at it).
 function git(cwd: string, ...args: string[]): string {
-  return execFileSync('git', ['-c', 'core.longpaths=true', '-c', 'user.email=t@example.invalid', '-c', 'user.name=t', ...args], {
+  return execFileSync('git', ['-c', 'core.longpaths=true', '-c', 'maintenance.auto=false', '-c', 'user.email=t@example.invalid', '-c', 'user.name=t', ...args], {
     cwd, encoding: 'utf8', windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'],
   }).trim()
 }
@@ -182,7 +184,14 @@ describe('PtyManager exited record keeps the worktree (T0589)', () => {
 // git by design). Alone ~2.5–3 s; in the whole `test:unit` on 24 cores every git call slows evenly
 // (no single step), the long test measured 6.8 / 14.4 / 7.4 s — over the default 5 s in 3 of 3
 // runs before T0786. 30 s ≈ 2× the measured maximum.
-describe('worktree:terminal-status after the tab closed — real PtyManager + git (T0589)', { timeout: 30_000 }, () => {
+// T0794 / BUG-200: with two `test:unit` running at once (24 cores) the long test measured 14.1–18.5 s
+// in 8 runs, and over 30 s once in T0793 (an e2e run was sharing the machine). Where the time goes
+// (git trace2, both tests of this file, 75 git processes): git itself 2.7 s alone → 8.2 s under that
+// load, the gaps between one git exiting and the next starting (process creation, the busy worker)
+// 3.6 s → 14.2 s — every spawn slows, no single step does. The handler's git calls are what is
+// checked; the test's own drop the automatic maintenance (see `git`; 72 processes). 40 s ≈ 2× the
+// measured maximum.
+describe('worktree:terminal-status after the tab closed — real PtyManager + git (T0589)', { timeout: 40_000 }, () => {
   function wire() {
     const { manager, registry, create, exit } = makeManager()
     const service = new CtWorktreeService()
