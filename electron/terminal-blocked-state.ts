@@ -94,6 +94,12 @@
  * (no hooks, no OSC) never has a turn. User input neither starts nor ends one. Logs:
  * `[turn] terminal=<id> → started|ended (<cause>)`.
  *
+ * T0791 / BUG-198: a claude `Stop` whose `at` (T0790) is earlier than the latest `at` of the current
+ * turn's `UserPromptSubmit` is the previous turn's, reported late: it does not end the turn (logged
+ * `[turn] terminal=<id> kept: hook stop happened <n>ms before the current turn (reported late)`).
+ * Without `at` on either side it ends the turn as before. The blocked state is judged by T0790's rule
+ * on its own. codex's OSC (one ordered output stream) and the quiet fallback have no such disorder.
+ *
  * 🔴 No `electron` import here (PtyManager and headless use it).
  */
 import type { CodexTerminalState } from '../src/lib/codex-terminal-state'
@@ -323,8 +329,12 @@ export class TerminalBlockedTracker {
   private readonly permissionAgents = new Map<string, Map<string, bigint | null> | 'any'>()
   /** T0790: blocked PTY id → the latest `at` of the hook events that entered / kept its reason. */
   private readonly blockedAt = new Map<string, bigint>()
-  /** T0694: running PTY id → its agent's turn (start time, the quiet fallback's timer). */
-  private readonly turns = new Map<string, { since: number; timer: unknown }>()
+  /**
+   * T0694: running PTY id → its agent's turn (start time, the quiet fallback's timer).
+   * T0791: + `startedAt` — the latest `at` of the `user-prompt-submit` reports that started / kept it
+   * (absent = none carried one).
+   */
+  private readonly turns = new Map<string, { since: number; timer: unknown; startedAt?: bigint }>()
 
   constructor(
     private readonly logger?: BlockedTrackerLogger,
@@ -378,8 +388,8 @@ export class TerminalBlockedTracker {
       return { result, state }
     }
     // T0694: the turn (independent of `blocked`; the result below stays about `blocked`)
-    if (event === 'user-prompt-submit') this.startTurn(id, `hook ${event}`)
-    else if (event === 'stop') this.endTurn(id, `hook ${event}`)
+    if (event === 'user-prompt-submit') this.startTurn(id, `hook ${event}`, at)
+    else if (event === 'stop') this.endTurnByStop(id, at)
     const reason = hookEventReason(event, toolName)
     const agent = agentId ?? MAIN_AGENT
     const agentLog = agentId ? ` agent=${agentId}` : ''
@@ -554,13 +564,35 @@ export class TerminalBlockedTracker {
     return this.turns.has(id)
   }
 
-  /** T0694: a turn started; a running one keeps its start. True when none was running. */
-  private startTurn(id: string, cause: string): boolean {
-    if (this.turns.has(id)) return false
-    this.turns.set(id, { since: this.now(), timer: this.armTurnTimer(id, this.turnQuietEndMs()) })
+  /**
+   * T0694: a turn started; a running one keeps its start. True when none was running.
+   * T0791: `at` (a hook's, absent = unknown) — a running turn keeps the latest one (a later turn's
+   * prompt may arrive before the previous turn's `Stop`).
+   */
+  private startTurn(id: string, cause: string, at?: bigint): boolean {
+    const running = this.turns.get(id)
+    if (running) {
+      if (at !== undefined && (running.startedAt === undefined || at > running.startedAt)) running.startedAt = at
+      return false
+    }
+    this.turns.set(id, { since: this.now(), timer: this.armTurnTimer(id, this.turnQuietEndMs()), ...(at !== undefined ? { startedAt: at } : {}) })
     this.logger?.log(`[turn] terminal=${id} → started (${cause})`)
     this.changed(id)
     return true
+  }
+
+  /**
+   * T0791 / BUG-198: a claude `Stop` — ends the turn unless it happened before the current turn's
+   * prompt (`at` earlier than `startedAt`: the previous turn's `Stop`, reported late). Without `at` on
+   * either side it ends the turn as before. True when the turn ended.
+   */
+  private endTurnByStop(id: string, at?: bigint): boolean {
+    const startedAt = this.turns.get(id)?.startedAt
+    if (at !== undefined && startedAt !== undefined && at < startedAt) {
+      this.logger?.log(`[turn] terminal=${id} kept: hook stop happened ${formatHookAtGap(startedAt - at)} before the current turn (reported late)`)
+      return false
+    }
+    return this.endTurn(id, 'hook stop')
   }
 
   /** T0694: the turn of PTY `id` ended; true when one was running. */

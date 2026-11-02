@@ -194,6 +194,111 @@ describe('TerminalBlockedTracker: the agent turn (T0694)', () => {
   })
 })
 
+describe('T0791 / BUG-198: a Stop reported late does not end a turn that started after it', () => {
+  // `at` = when the hook process started (`process.hrtime` ns, T0790); t1 < t2 < t3 < t4
+  const t1 = 1_000_000n
+  const t2 = 2_000_000n
+  const t3 = 5_000_000n
+  const t4 = 9_000_000n
+
+  it('turn 1 prompt (t1) → turn 2 prompt (t3) arrives first → turn 1 Stop (t2) arrives late: turn 2 goes on; its own Stop (t4) ends it', () => {
+    const { tr, lines, changes } = makeTracker()
+    tr.report('a', 'user-prompt-submit', undefined, undefined, undefined, t1)
+    expect(tr.report('a', 'user-prompt-submit', undefined, undefined, undefined, t3)).toEqual({ result: 'unchanged', state: null })
+    // the report-hook result stays about `blocked` (contract unchanged)
+    expect(tr.report('a', 'stop', undefined, undefined, undefined, t2)).toEqual({ result: 'unchanged', state: null })
+    expect(tr.isTurnActive('a')).toBe(true)
+    expect(tr.report('a', 'stop', undefined, undefined, undefined, t4)).toEqual({ result: 'unchanged', state: null })
+    expect(tr.isTurnActive('a')).toBe(false)
+    expect(lines).toEqual([
+      '[turn] terminal=a → started (hook user-prompt-submit)',
+      '[turn] terminal=a kept: hook stop happened 3.0ms before the current turn (reported late)',
+      '[turn] terminal=a → ended (hook stop)',
+    ])
+    expect(changes).toEqual(['a', 'a']) // a kept Stop announces nothing
+  })
+
+  it('turn 1 already ended without its Stop (the quiet fallback) → turn 2 starts (t3) → turn 1 Stop (t2) late: kept', () => {
+    const { tr, clock } = makeTracker(10_000)
+    tr.report('a', 'user-prompt-submit', undefined, undefined, undefined, t1)
+    clock.advance(10_000)
+    expect(tr.isTurnActive('a')).toBe(false)
+    tr.report('a', 'user-prompt-submit', undefined, undefined, undefined, t3)
+    tr.report('a', 'stop', undefined, undefined, undefined, t2)
+    expect(tr.isTurnActive('a')).toBe(true)
+    expect(clock.timers).toBe(1) // the quiet fallback of turn 2 still runs
+    clock.advance(10_000)
+    expect(tr.isTurnActive('a')).toBe(false)
+  })
+
+  it('the normal order ends the turn: a Stop after the turn’s prompt, or at the same time', () => {
+    const { tr } = makeTracker()
+    tr.report('a', 'user-prompt-submit', undefined, undefined, undefined, t1)
+    tr.report('a', 'stop', undefined, undefined, undefined, t2)
+    expect(tr.isTurnActive('a')).toBe(false)
+    tr.report('a', 'user-prompt-submit', undefined, undefined, undefined, t3)
+    tr.report('a', 'stop', undefined, undefined, undefined, t3)
+    expect(tr.isTurnActive('a')).toBe(false)
+  })
+
+  it('a later prompt without `at` keeps the latest known start; an earlier prompt reported late does not move it back', () => {
+    const { tr } = makeTracker()
+    tr.report('a', 'user-prompt-submit', undefined, undefined, undefined, t3)
+    tr.report('a', 'user-prompt-submit')
+    tr.report('a', 'user-prompt-submit', undefined, undefined, undefined, t1)
+    tr.report('a', 'stop', undefined, undefined, undefined, t2)
+    expect(tr.isTurnActive('a')).toBe(true)
+    tr.report('a', 'stop', undefined, undefined, undefined, t4)
+    expect(tr.isTurnActive('a')).toBe(false)
+  })
+
+  it('without `at` on either side the behavior is as before T0791 (an older hook script, an older bat-server)', () => {
+    const { tr } = makeTracker()
+    tr.report('a', 'user-prompt-submit', undefined, undefined, undefined, t3)
+    tr.report('a', 'stop') // Stop without `at`
+    expect(tr.isTurnActive('a')).toBe(false)
+    tr.report('a', 'user-prompt-submit') // the turn's prompt without `at`
+    tr.report('a', 'stop', undefined, undefined, undefined, t2)
+    expect(tr.isTurnActive('a')).toBe(false)
+    tr.report('a', 'user-prompt-submit')
+    tr.report('a', 'stop')
+    expect(tr.isTurnActive('a')).toBe(false)
+  })
+
+  it('a turn that ended forgets its start: the next turn’s prompt without `at` lets any Stop end it', () => {
+    const { tr } = makeTracker()
+    tr.report('a', 'user-prompt-submit', undefined, undefined, undefined, t3)
+    tr.report('a', 'stop', undefined, undefined, undefined, t4)
+    tr.report('a', 'user-prompt-submit')
+    tr.report('a', 'stop', undefined, undefined, undefined, t1)
+    expect(tr.isTurnActive('a')).toBe(false)
+    // the PTY ending / the recovery forget it the same way
+    tr.report('b', 'user-prompt-submit', undefined, undefined, undefined, t3)
+    tr.clearStarted('b')
+    tr.report('b', 'user-prompt-submit')
+    tr.report('b', 'stop', undefined, undefined, undefined, t1)
+    expect(tr.isTurnActive('b')).toBe(false)
+  })
+
+  it('a late Stop still clears nothing it would not clear under T0790, and a kept turn leaves blocked to T0790’s rule', () => {
+    const { tr } = makeTracker()
+    tr.report('a', 'user-prompt-submit', undefined, undefined, undefined, t1)
+    tr.report('a', 'user-prompt-submit', undefined, undefined, undefined, t3)
+    tr.report('a', 'permission-request', 'Bash', undefined, undefined, t4)
+    // turn 1's Stop (t2): the turn is kept (T0791) and the prompt too (T0790)
+    expect(tr.report('a', 'stop', undefined, undefined, undefined, t2)).toMatchObject({ result: 'unchanged', state: { reason: 'permission' } })
+    expect(tr.isTurnActive('a')).toBe(true)
+    expect(tr.get('a')).toMatchObject({ reason: 'permission' })
+  })
+
+  it('codex OSC turns are unaffected (no `at`, one ordered output stream)', () => {
+    const { tr } = makeTracker()
+    tr.observeCodexState('c', 'working')
+    tr.observeCodexState('c', 'idle')
+    expect(tr.isTurnActive('c')).toBe(false)
+  })
+})
+
 describe('the quiet fallback (T0694 step 0: claude runs no Stop on Esc, StopFailure on an API error)', () => {
   it('the default is AGENT_TURN_QUIET_END_MS = 60 s', () => {
     expect(AGENT_TURN_QUIET_END_MS).toBe(60_000)

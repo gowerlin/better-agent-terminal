@@ -416,12 +416,18 @@ describe('T0790 / BUG-197: a clearing hook reported late does not clear a blocke
     expect(tracker.report('a', 'user-prompt-submit', undefined, undefined, undefined, 400n)).toEqual({ result: 'cleared', state: null })
   })
 
-  it('the previous turn’s Stop reported after the next turn’s prompt: kept (the turn ends as before, T0694)', () => {
+  it('a Stop reported after a later prompt: kept; the turn ends unless the Stop is older than the turn’s own prompt (T0791 / BUG-198)', () => {
     const { tracker } = setup()
     tracker.report('a', 'user-prompt-submit', undefined, undefined, undefined, 500n)
     tracker.report('a', 'permission-request', 'Bash', undefined, undefined, 700n)
+    // the Stop (600) is after the turn's prompt (500): the turn ends (T0694), the prompt (700) stays (T0790)
     expect(tracker.report('a', 'stop', undefined, undefined, undefined, 600n)).toMatchObject({ result: 'unchanged', state: { reason: 'permission' } })
     expect(tracker.isTurnActive('a')).toBe(false)
+    // the previous turn's Stop (600) after the next turn's prompt (650): neither the prompt nor the turn ends
+    tracker.report('b', 'user-prompt-submit', undefined, undefined, undefined, 650n)
+    tracker.report('b', 'permission-request', 'Bash', undefined, undefined, 700n)
+    expect(tracker.report('b', 'stop', undefined, undefined, undefined, 600n)).toMatchObject({ result: 'unchanged', state: { reason: 'permission' } })
+    expect(tracker.isTurnActive('b')).toBe(true)
   })
 
   it('ask-user-question-done / elicitation-done reported late are kept too; the latest entry of the same reason counts', () => {
@@ -669,6 +675,26 @@ describe('terminal:report-hook', () => {
       h.call('terminal:report-hook', h.asHelper('sh'), { event: 'permission-request', toolName: 'Bash', at: '999999999999999999' })
       expect(h.call('terminal:report-hook', h.asHelper('sh'), { event: 'stop', at: bad }), JSON.stringify(bad))
         .toEqual({ ok: true, terminalId: 'sh', result: 'cleared', state: 'not-blocked' })
+    }
+    expect(h.hookLogs).toEqual([])
+  })
+
+  it('T0791 / BUG-198: `at` over the channel — the previous turn’s Stop reported late keeps the turn; malformed `at` ends it as before; never answered', () => {
+    scene()
+    expect(h.call('terminal:report-hook', h.asHelper('wk'), { event: 'user-prompt-submit', at: '100000000' }))
+      .toEqual({ ok: true, terminalId: 'wk', result: 'unchanged', state: 'not-blocked' })
+    h.call('terminal:report-hook', h.asHelper('wk'), { event: 'user-prompt-submit', at: '300000000' })
+    expect(h.call('terminal:report-hook', h.asHelper('wk'), { event: 'stop', at: '200000000' }))
+      .toEqual({ ok: true, terminalId: 'wk', result: 'unchanged', state: 'not-blocked' })
+    expect(h.manager.isAgentTurnActive('wk')).toBe(true)
+    expect(logs).toContain('[turn] terminal=wk kept: hook stop happened 100.0ms before the current turn (reported late)')
+    h.call('terminal:report-hook', h.asHelper('wk'), { event: 'stop', at: '400000000' })
+    expect(h.manager.isAgentTurnActive('wk')).toBe(false)
+    // malformed `at` → as without it: the Stop ends the turn
+    for (const bad of [42, '', 'abc', '-5', '0', '1'.repeat(21), { n: 1 }, null]) {
+      h.call('terminal:report-hook', h.asHelper('sh'), { event: 'user-prompt-submit', at: '999999999999999999' })
+      h.call('terminal:report-hook', h.asHelper('sh'), { event: 'stop', at: bad })
+      expect(h.manager.isAgentTurnActive('sh'), JSON.stringify(bad)).toBe(false)
     }
     expect(h.hookLogs).toEqual([])
   })
@@ -1334,6 +1360,34 @@ describe('scripts/bat-hook.mjs ↔ RemoteServer + capabilities', () => {
     // the turn's own Stop (a later process) clears it
     expect(await runHook('stop', JSON.stringify({ hook_event_name: 'Stop' }), hookEnv('hk-late'))).toMatchObject({ code: 0, stdout: '' })
     expect(manager.getBlockedState('hk-late')).toBeNull()
+  })
+
+  it('T0791 / BUG-198: two real hook processes — the previous turn’s Stop reports after the next turn’s UserPromptSubmit: the turn goes on; exit 0, stdout empty', async () => {
+    manager.create({ id: 'hk-turn', ...TAB, workspaceId: 'ws', customEnv: { BAT_TOWER_TERMINAL_ID: 'hk-tower' } })
+    expect(await runHook('user-prompt-submit', JSON.stringify({ hook_event_name: 'UserPromptSubmit' }), hookEnv('hk-turn'))).toMatchObject({ code: 0, stdout: '' })
+    expect(manager.isAgentTurnActive('hk-turn')).toBe(true)
+    // turn 1's Stop process starts first but reads stdin until STDIN_TIMEOUT_MS (300 ms) and reports late;
+    // turn 2's UserPromptSubmit process starts after it and reports at once
+    const base: NodeJS.ProcessEnv = Object.fromEntries(Object.entries(process.env).filter(([k]) => !k.toUpperCase().startsWith('BAT_')))
+    const late = spawn(process.execPath, [HOOK, 'stop'], { env: { ...base, ...hookEnv('hk-turn') }, stdio: ['pipe', 'pipe', 'pipe'] })
+    let lateStdout = ''
+    late.stdout.on('data', d => { lateStdout += d })
+    late.stdin.on('error', () => {})
+    late.stdin.write(JSON.stringify({ hook_event_name: 'Stop' }))
+    const lateExit = new Promise<number | null>(resolve => late.on('exit', code => resolve(code)))
+    await new Promise(resolve => setTimeout(resolve, 30))
+    expect(await runHook('user-prompt-submit', JSON.stringify({ hook_event_name: 'UserPromptSubmit' }), hookEnv('hk-turn'))).toMatchObject({ code: 0, stdout: '' })
+    expect(await lateExit).toBe(0)
+    expect(lateStdout).toBe('')
+    const reports = received.slice(-2) as Array<[{ event: string; at: string }]>
+    expect(reports.map(r => r[0].event)).toEqual(['user-prompt-submit', 'stop'])
+    expect(BigInt(reports[1][0].at)).toBeLessThan(BigInt(reports[0][0].at))
+    expect(manager.isAgentTurnActive('hk-turn')).toBe(true)
+    expect(logs.some(l => /^\[turn\] terminal=hk-turn kept: hook stop happened \d+\.\dms before the current turn \(reported late\)$/.test(l))).toBe(true)
+    // turn 2's own Stop (a later process) ends it
+    expect(await runHook('stop', JSON.stringify({ hook_event_name: 'Stop' }), hookEnv('hk-turn'))).toMatchObject({ code: 0, stdout: '' })
+    expect(manager.isAgentTurnActive('hk-turn')).toBe(false)
+    manager.kill('hk-turn')
   })
 })
 

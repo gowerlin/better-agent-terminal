@@ -13,6 +13,7 @@
 //   3. T0695 reports and prints → N = 1; the confirm lists only T0695, marked "still printing", unmarked after 5 s
 //   4. T0694's turn ends without a new report (stop) → ✓, N = 2
 //   5. another turn, a new report inside it → ✓ (counted) while the turn still runs
+//   6. T0791 / BUG-198: the previous turn's Stop reports after the next turn's prompt → ↻ stays; the next Stop → ✓
 //
 // The quiet fallback (60 s without output ends a turn claude ended without `Stop`) is covered by the
 // unit tests (electron/__tests__/agent-turn-attention.test.ts), not here.
@@ -59,6 +60,32 @@ setInterval(() => {
   if (job.print) {
     process.stdout.write(job.print + '\\n')
     return done(file, { code: 0, stdout: '', stderr: '' })
+  }
+  if (job.race) {
+    // T0791: helper processes started job.race[i].delayMs apart; \`hold\` writes stdin without closing it
+    // (the hook reads it until its 300 ms stdin timeout, so it reports late)
+    const results = []
+    let left = job.race.length
+    job.race.forEach((step, i) => {
+      setTimeout(() => {
+        const r = { code: null, stdout: '', stderr: '' }
+        results[i] = r
+        const c = spawn(process.execPath, [path.join(scripts, step.script), ...step.args.map(fill)], { env: process.env, windowsHide: true })
+        c.stdout.on('data', d => { r.stdout += d })
+        c.stderr.on('data', d => { r.stderr += d })
+        c.stdin.on('error', () => {})
+        c.on('exit', () => { try { c.stdin.end() } catch {} })
+        c.on('close', code => {
+          r.code = code
+          if (--left > 0) return
+          const bad = results.find(x => x.code !== 0)
+          done(file, { code: bad ? bad.code : 0, stdout: results.map(x => x.stdout).join(''), stderr: results.map(x => x.stderr).join('') })
+        })
+        if (step.hold) c.stdin.write(step.stdin || '')
+        else c.stdin.end(step.stdin || '')
+      }, step.delayMs || 0)
+    })
+    return
   }
   const child = spawn(process.execPath, [path.join(scripts, job.script), ...job.args.map(fill)], { env: process.env, windowsHide: true })
   let stdout = '', stderr = ''
@@ -170,14 +197,14 @@ test('a reported Worker that works again shows ↻ and is not batch-closed; its 
     }
     const jobCount = new Map<string, number>()
     /** Runs a job inside Worker `id`'s PTY (its own capability) and waits for it. */
-    const inWorker = async (id: string, job: { script?: string; args?: string[]; stdin?: string; print?: string }) => {
+    const inWorker = async (id: string, job: { script?: string; args?: string[]; stdin?: string; print?: string; race?: Array<{ script: string; args: string[]; stdin?: string; hold?: boolean; delayMs?: number }> }) => {
       const n = jobCount.get(id) ?? 0
       jobCount.set(id, n + 1)
       fs.writeFileSync(path.join(jobsDir, `${id}-${n}.json`), JSON.stringify(job))
       const res = path.join(jobsDir, `${id}-${n}.res.json`)
       await expect.poll(() => fs.existsSync(res), { timeout: 30_000 }).toBe(true)
       const out = JSON.parse(fs.readFileSync(res, 'utf8')) as HelperRun
-      log(`in ${id}: ${job.script ?? 'print'} ${(job.args ?? []).join(' ')} → exit=${out.code}\n${out.stdout}${out.stderr}`)
+      log(`in ${id}: ${job.race ? `race ${job.race.map(r => r.args.join(' ')).join(' / ')}` : job.script ?? 'print'} ${(job.args ?? []).join(' ')} → exit=${out.code}\n${out.stdout}${out.stderr}`)
       expect(out.code, out.stderr).toBe(0)
       return out
     }
@@ -243,6 +270,27 @@ test('a reported Worker that works again shows ↻ and is not batch-closed; its 
     await expect(badge1).toHaveAttribute('title', /Renew #1/)
     await expectReportedCount(win, view, 2)
     await turnEnd(w1)
+
+    // -- 6. T0791 / BUG-198: the previous turn's Stop reports after the next turn's UserPromptSubmit --
+    // (two real hook processes in the Worker PTY: the Stop starts first, holds its stdin open and reports
+    // ~300 ms later; the next prompt starts 30 ms after it and reports at once) -> the new turn goes on
+    await expect(badge1).toHaveText('✓', { timeout: 15_000 })
+    await turnStart(w1)
+    await expect(badge1).toHaveText('↻', { timeout: 15_000 })
+    await inWorker(w1, { race: [
+      { script: 'bat-hook.mjs', args: ['stop'], stdin: JSON.stringify({ hook_event_name: 'Stop' }), hold: true },
+      { script: 'bat-hook.mjs', args: ['user-prompt-submit'], stdin: JSON.stringify({ hook_event_name: 'UserPromptSubmit' }), delayMs: 30 },
+    ] })
+    await expect.poll(() => readDebugLogs(userData).includes(`[turn] terminal=${w1} kept: hook stop happened `), { timeout: 15_000 }).toBe(true)
+    expect(readDebugLogs(userData)).toMatch(new RegExp(String.raw`\[turn\] terminal=${w1} kept: hook stop happened \d+\.\dms before the current turn \(reported late\)`))
+    await win.waitForTimeout(1_000) // a wrongly ended turn would have pushed busy=false by now
+    await expect(badge1).toHaveText('↻')
+    await expect(badge1).toHaveAttribute('data-attention', 'resumed')
+    await expectReportedCount(win, view, 1)
+    await turnEnd(w1) // the new turn's own Stop
+    await expect(badge1).toHaveText('✓', { timeout: 15_000 })
+    await expectReportedCount(win, view, 2)
+
     // memory only: what is saved is the report, nothing about the turn
     await expect.poll(async () => (await savedTerminals(win)).find(t => t.id === w1)?.workerReport?.message, { timeout: 15_000 }).toBe('T0694 完成（Renew #1）')
 
