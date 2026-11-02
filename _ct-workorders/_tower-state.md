@@ -42,7 +42,7 @@ todo:
 
 > 🟢 **第一百零四 session 塔台重啟（四）**（2026-11-02 10:12 (UTC+8)，CT v6.0.0-beta.10，Fast Path；塔台 session `49d1e952-e247-4830-b12e-6c99de58e501`；`--set-role tower --mode on` exit 0；安裝版 helper `v0.7.3-pre.5`；HEAD `eb9a41f3`、`main` = `origin/main`、工作區乾淨；熱區 172 張工單全為 DONE；BUG 熱區 Fixed 5（128 / 130 / 159 / 193 / 194）/ Closed 53，與 `_bug-tracker.md` 一致，免重建；`_tower-state.md` 41 KB 超本地 30 KB 軟警告）。使用者三項指示：① 開 **T0777**（安裝版 pre.5 自動驗收 BUG-193 / 194，不回歸含 t0757）並派工；② 評估以 GitHub Actions macOS runner 驗 BUG-128 / 130；③ t0757 偶發失敗「先記住，又發生再開單」。10:44 派 **T0777**（yolo，`started:` exit 0）。使用者同意 → 開 **T0778**（macOS runner 探路，`workflow_dispatch` only、≤ 8 run，授權 push main），10:47 派工（yolo，`started:` exit 0）。**T0777 DONE**（`e1e7f2d1` / 回報 `954b0348`；安裝版 pre.5：t0770 A–E、t0776、新 t0777 user32 真實點擊 HWND 比對 PASS；不回歸 t0735 / t0761 / t0762 / t0563 / t0567 / t0757 綠，t0757 偶發失敗未重現；typecheck 0 / 0）→ **BUG-193 / 194 CLOSED**（R-G003）→ 熱區 Fixed 3 / Closed 55；session 快照已寫；`--close-worker T0777`。**T0778 DONE**（`051b053e` / `4ef73ab0` / `083a66ce` / 回報 `064f337d` `5516dec6`，已 push；`macos-acceptance.yml` run `41380866131` success，2 / 8 run；`macos-15` Aqua 可用、Finder Apple Events 與 System Events 送鍵未被 TCC 擋；BUG-128 ①–④、BUG-130 ⑤–⑦ 全 PASS（60 次按鍵 0 失敗）、⑧ 內嵌 claude `[Image #1]`、模型請求 0）→ **BUG-128 / 130 CLOSED**（R-G003）→ 熱區 Fixed 1 / Closed 57；session 快照已寫；`--close-worker T0778`。
 
-- 11:17 使用者「收工」。收工前：`.private/` 去識別化樣式 4（`<claude-mem-context>`）排除路徑改到 T0676 歸檔後位置並排除 `2026-Q4-b.md`（本機檔，重跑 0 筆）；push `5516dec6..eade725c`（掃描 0）；D218、L178。
+- 11:17 使用者「收工」。收工前：`.private/` 去識別化樣式 4（claude-mem 殘留標籤）排除路徑改到 T0676 歸檔後位置並排除 `2026-Q4-b.md`（本機檔，重跑 0 筆）；push `5516dec6..eade725c`（掃描 0）；D218、L178。
 
 ### 本輪戰績
 
