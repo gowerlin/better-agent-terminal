@@ -902,7 +902,7 @@ function runHook(event: string, stdin: string, env: NodeJS.ProcessEnv): Promise<
 }
 
 // T0794 / BUG-200: every test here runs real `bat-hook.mjs` node processes in a row against a real
-// RemoteServer (the T0657 test 16 of them). Alone the slowest test takes 0.9 s; with two `test:unit`
+// RemoteServer (the T0657 test 14 of them). Alone the slowest test takes 0.9 s; with two `test:unit`
 // running at once on 24 cores up to 4.6 s, and 5.0 / 5.3 s (over the default 5 s) in T0793; the two
 // T0790 / T0791 order tests under 96 CPU-bound threads up to 12.5 s. 30 s, the same as the T0786 /
 // T0793 real-subprocess tests.
