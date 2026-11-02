@@ -38,7 +38,12 @@ import { fileURLToPath, pathToFileURL } from 'node:url'
 
 const projectRoot = path.join(path.dirname(fileURLToPath(import.meta.url)), '..')
 const BUILD_SCRIPT = path.join(projectRoot, 'scripts', 'build-server-bundle.mjs')
-const STAGING_ROOT = path.join(projectRoot, 'dist-server', 'dev-deploy-headless')
+/**
+ * Default staging root. T0795 / BUG-201: `main(argv, { stagingRoot })` can point a run at its
+ * own directory (the tests use one mkdtemp dir per run, so two `test:unit` runs on the same
+ * checkout no longer overwrite each other's build). The CLI always uses this default.
+ */
+export const DEFAULT_STAGING_ROOT = path.join(projectRoot, 'dist-server', 'dev-deploy-headless')
 
 export const NAME_RX = /^[A-Za-z0-9._-]+$/
 // Absolute POSIX path or `~/...`; no shell metacharacters, no `..` segments.
@@ -51,7 +56,6 @@ const REMOTE_SUBDIR = ['electron', 'remote']
 export const HELPER_SUBDIR = ['scripts']
 /** T0434: plan / FILE-line name of a helper: `scripts/<name>`. */
 export const HELPER_PREFIX = `${HELPER_SUBDIR.join('/')}/`
-const STAGING_HELPERS = path.join(STAGING_ROOT, ...HELPER_SUBDIR)
 const WSL_TIMEOUT_MS = 30_000
 const WSL_RESTART_TIMEOUT_MS = 60_000
 
@@ -645,12 +649,21 @@ function reportExpects(expects, label) {
   return !missing
 }
 
-export async function main(argv = process.argv.slice(2)) {
+/**
+ * @param argv     CLI arguments.
+ * @param options  Programmatic only (no CLI flag): `stagingRoot` replaces DEFAULT_STAGING_ROOT
+ *                 for the build output, the staged helpers (`<stagingRoot>/scripts`) and the WSL
+ *                 inspect / deploy scripts (T0795 / BUG-201).
+ */
+export async function main(argv = process.argv.slice(2), { stagingRoot = DEFAULT_STAGING_ROOT } = {}) {
   const opts = parseArgs(argv)
   if (opts.help) {
     console.log(USAGE)
     return 0
   }
+
+  const STAGING_ROOT = stagingRoot
+  const STAGING_HELPERS = path.join(STAGING_ROOT, ...HELPER_SUBDIR)
 
   const config = loadBuildConfig()
   const files = outputFileNames(config.entryPoints)

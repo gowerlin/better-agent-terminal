@@ -11,6 +11,7 @@ import { fileURLToPath } from 'node:url'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import {
+  DEFAULT_STAGING_ROOT,
   DEFAULT_TAG,
   DEFAULT_WSL_INSTALL_ROOT,
   HELPER_PREFIX,
@@ -317,12 +318,18 @@ describe('dir: target (local fs)', () => {
   })
 })
 
+// T0795 / BUG-201: every test builds into its own mkdtemp staging dir (`main(argv, { stagingRoot })`),
+// never the shared default <repo>/dist-server/dev-deploy-headless — two `test:unit` runs on the same
+// checkout used to overwrite each other's build there (EPERM / ENOENT / EBUSY).
 describe('main() dry-run never writes', () => {
   let root
+  let staging
   let logSpy
+  const run = (argv) => main(argv, { stagingRoot: staging })
 
   beforeEach(() => {
     root = makeInstallRoot()
+    staging = mkdtempSync(path.join(tmpdir(), 't0795-staging-'))
     for (const name of FILES) writeFileSync(remote(root, name), `orig ${name}`)
     writeFileSync(remote(root, 'server-entry.js.bak-dev'), 'orig server-entry.js')
     logSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
@@ -331,12 +338,16 @@ describe('main() dry-run never writes', () => {
   afterEach(() => {
     logSpy.mockRestore()
     rmSync(root, { recursive: true, force: true })
+    rmSync(staging, { recursive: true, force: true })
   })
 
   it('deploy dry-run builds into staging but leaves the install root untouched', async () => {
     const before = snapshot(root)
-    expect(await main(['--target', `dir:${root}`])).toBe(0)
+    expect(await run(['--target', `dir:${root}`])).toBe(0)
     expect(snapshot(root)).toEqual(before)
+    // T0795: the build and the staged helpers land in the given staging dir
+    for (const name of FILES) expect(existsSync(path.join(staging, name))).toBe(true)
+    for (const name of HELPERS) expect(existsSync(path.join(staging, ...HELPER_SUBDIR, name))).toBe(true)
     const output = logSpy.mock.calls.flat().join('\n')
     expect(output).toMatch(/DRY-RUN/)
     expect(output).toMatch(/server-entry\.js\s+built=[0-9a-f]{12} installed=[0-9a-f]{12} action=overwrite backup=keep-existing/)
@@ -348,7 +359,7 @@ describe('main() dry-run never writes', () => {
   }, 120_000)
 
   it('T0434: --yes deploys JS + helpers into a dir target, --rollback --yes takes both back', async () => {
-    expect(await main(['--target', `dir:${root}`, '--yes', '--tag', 't0434'])).toBe(0)
+    expect(await run(['--target', `dir:${root}`, '--yes', '--tag', 't0434'])).toBe(0)
     for (const name of HELPERS) {
       expect(sha256(readFileSync(path.join(root, 'scripts', name)))).toBe(sha256(readFileSync(path.join(REPO_SCRIPTS, name))))
       expect(existsSync(path.join(root, 'scripts', `${name}.bak-t0434.absent`))).toBe(true)
@@ -356,16 +367,21 @@ describe('main() dry-run never writes', () => {
     expect(readFileSync(remote(root, 'server-entry.js.bak-t0434'), 'utf8')).toBe('orig server-entry.js')
     expect(logSpy.mock.calls.flat().join('\n')).toMatch(/deployed sha256 matches built output/)
 
-    expect(await main(['--target', `dir:${root}`, '--rollback', '--yes', '--tag', 't0434'])).toBe(0)
+    expect(await run(['--target', `dir:${root}`, '--rollback', '--yes', '--tag', 't0434'])).toBe(0)
     for (const name of HELPERS) expect(existsSync(path.join(root, 'scripts', name))).toBe(false)
     expect(readFileSync(remote(root, 'server-entry.js'), 'utf8')).toBe('orig server-entry.js')
     expect(logSpy.mock.calls.flat().join('\n')).toContain('REMOVED scripts/bat-terminal.mjs')
   }, 120_000)
 
+  it('T0795: the CLI default staging root stays <repo>/dist-server/dev-deploy-headless', () => {
+    expect(DEFAULT_STAGING_ROOT).toBe(path.join(REPO_SCRIPTS, '..', 'dist-server', 'dev-deploy-headless'))
+  })
+
   it('rollback dry-run leaves the install root untouched', async () => {
     const before = snapshot(root)
-    expect(await main(['--target', `dir:${root}`, '--rollback'])).toBe(0)
+    expect(await run(['--target', `dir:${root}`, '--rollback'])).toBe(0)
     expect(snapshot(root)).toEqual(before)
+    expect(readdirSync(staging)).toEqual([]) // rollback builds nothing
   })
 })
 
