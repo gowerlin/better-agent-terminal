@@ -4,7 +4,7 @@ schema_kind: plan
 id: PLAN-061
 title: "OSC 7501 狀態回報不限 codex：白名單 `codex` / `claude-code`、放寬解析長度（PLAN-059 子項 B）"
 status: IDEA
-priority: medium
+priority: low
 created_at: "2026-11-02T18:24:49+0800"
 links:
   source: "PLAN-059 子項 B；T0787 回報區〈Q2〉〈Q3〉〈建議方向 ③〉；D227"
@@ -34,6 +34,7 @@ BAT 的 OSC 7501 解析器（`src/lib/codex-terminal-state.ts`）會丟掉 `app�
 ## 狀態
 
 - IDEA（D227：登記子 PLAN，等 T0789 結果再定範圍與開單）。
+- 2026-11-02 19:05 T0789 DONE → **D229**：範圍縮小為「非 Windows 主機上關掉 hooks 的 claude 分頁」，維持 IDEA、priority 改 low。定案方向：回覆放主行程（T0789 做法 B）；第一版只用在 `blockedDetection: none` 的分頁（同 codex 規則，已是 `hook` 時忽略 7501）；「hook 不知道的事」（Esc 中斷、API 錯誤、背景子代理）不在本 PLAN。觸發條件：有遠端 headless 或 macOS 使用者回報 hooks 關閉時看不到 ⚠️，或 Windows ConPTY 行為改變（升版檢查見 T0789 ⑤-5）。開單時以 T0789〈建議下一步〉的草案為準。
 
 ## T0789 結論摘要
 

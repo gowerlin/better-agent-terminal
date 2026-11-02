@@ -1465,6 +1465,17 @@
 - **切分**：W2a 設計語言 + 元件 + 首頁（T0630）→ 預覽通過後 W2b（`/control-tower`、功能、FAQ、回報頁）→ W2c 遠端開發；W3 / W4 不變。
 - **相關**：PLAN-049 / D159 / D160 / T0624 / T0630
 
+### D229 2026-11-02 — T0789 結論：PLAN-061 縮小為「非 Windows 主機上關掉 hooks 的 claude 分頁」，維持 IDEA（low），等觸發條件再開單
+
+- **背景**：T0789 DONE（`d86ac489`）。終端回覆 claude 的 `OSC 7501 ; ?` 探詢之後，claude 會穩定送出 idle / working / blocked(permission|question) / done / error / clear，`disableAllHooks` 下照送。但 Windows 本機 ConPTY 會丟掉 OSC 回覆，而且 conhost 會搶答 DA1，BAT 主要使用環境拿不到效益。另查到現行解析器上限 128 會丟掉最重要的 `blocked:kind=permission`（130 字元），子代理結束的 `state=clear:id=…` 不帶 `app`。
+- **決定**（塔台代決，範圍內：研究結論的後續排程，不動產品）：
+  1. PLAN-061 維持 IDEA，priority medium → low，範圍縮小為「非 Windows 主機（遠端 headless、macOS / Linux 本機）上關掉 hooks 的 claude 分頁」。
+  2. 定案方向：回覆放主行程（T0789 做法 B：`PtyManager.enqueuePtyOutput`，replay 不回、win32 不回）；第一版只用在 `blockedDetection: none` 的分頁（同 codex 規則）；Esc 中斷 / API 錯誤 / 背景子代理不在本 PLAN。
+  3. 觸發開單：有遠端 headless 或 macOS 使用者回報 hooks 關閉時看不到 ⚠️，或 Windows ConPTY 行為改變。
+  4. T0789 誤在 repo 目錄以 WSL 跑整套 e2e（18:51，約 4 分鐘，已停止；追蹤檔未改）：`e2e-results/` 可能被清空。T0788 收單時確認它的 e2e 證據是在這之後重跑的；`e2e-results/` 的殘留在 T0788 收單後清理（gitignored）。
+- **決策者**：塔台。2026-11-02 第一百零六 session。
+- **相關**：PLAN-061 / PLAN-059 / T0789 / T0787 / T0621 / T0788
+
 ### D228 2026-11-02 — 採納 CT 回覆（CT D543）：通知保留期間不設逾時；`--ask --submit` 遇 `held-full` 照現行路徑先取消題目再 exit 1；T0788 Renew #1
 
 - **背景**：CT 塔台回覆 `BMad-Guide/_ct-workorders/_reply-2026-11-02-bat-notify-hold-contract.md`（CT D543，CT 使用者已核准）：同意預設保留、⑨、⑩，⑤ 的上限 8 也同意。逾時兩案都不採：丟棄會讓通知無聲遺失（helper 已回 ok，Worker 不會走備援）；照送會重現 BUG-196。CT 請 BAT 確認 `--ask --submit` 遇 `held-full` 時的行為。
