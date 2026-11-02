@@ -12,12 +12,20 @@
  * dialog. File-tree / PathLinker previews keep using `image:read-as-data-url` (they show
  * workspace files, which live on the server in a remote window).
  *
- * No `electron` import: main passes in `clipboard.readImage()` and the dialog's paths.
+ * No `electron` import: main passes in the clipboard image and the dialog's paths.
+ *
+ * T0784 (Electron 44+): `clipboard.readImage()` is gone. `readClipboardPng` takes the
+ * `image/png` payload from `clipboard.read()`; main decodes it with `nativeImage` and hands
+ * the result to `clipboardImageToDataUrl` unchanged. On Windows Electron also exposes a
+ * bitmap-only clipboard (CF_BITMAP / CF_DIB, e.g. a screenshot) as `image/png` (measured in T0784).
  */
 import * as fs from 'fs/promises'
 import * as path from 'path'
+import { clipboardItemTypes, type ClipboardItemReader } from './clipboard-file-paths'
 import { logger } from './logger'
 import { MAX_IMAGE_SIZE } from './path-guard'
+
+export const CLIPBOARD_IMAGE_TYPE = 'image/png'
 
 /** Same set the panels used to split dialog picks into images vs. files. */
 export const ATTACHMENT_IMAGE_EXTENSIONS: ReadonlySet<string> = new Set(['.png', '.jpg', '.jpeg', '.gif', '.bmp', '.webp', '.svg'])
@@ -42,6 +50,28 @@ export interface AttachmentSelection {
 export interface ClipboardImageLike {
   isEmpty(): boolean
   toPNG(): Buffer
+}
+
+/**
+ * PNG bytes of the clipboard image (first item carrying `image/png`); null when there is none.
+ * Logs the MIME types `read()` returned (names only) under `[clipboard] read-image`.
+ */
+export async function readClipboardPng(clipboard: ClipboardItemReader): Promise<Buffer | null> {
+  const items = await clipboard.read()
+  let png: Buffer | null = null
+  const item = items.find(i => i.types.includes(CLIPBOARD_IMAGE_TYPE))
+  if (item) {
+    try {
+      const payload = await item.getType(CLIPBOARD_IMAGE_TYPE)
+      if (payload && typeof (payload as Blob).arrayBuffer === 'function') {
+        png = Buffer.from(await (payload as Blob).arrayBuffer())
+      }
+    } catch {
+      // Rejects when the type vanished between read() and getType(): same as no image.
+    }
+  }
+  logger.debug(`[clipboard] read-image types=${JSON.stringify(clipboardItemTypes(items))} png=${png ? png.length : 'none'}`)
+  return png && png.length > 0 ? png : null
 }
 
 /** `clipboard:read-image-data-url`: null when the clipboard holds no image. */

@@ -282,7 +282,7 @@ better-agent-terminal/
 |------|------|
 | 前端 | React 18 + TypeScript 5 |
 | 終端機 | xterm.js 5（`@xterm/xterm`）+ node-pty（`@lydell/node-pty`） |
-| 框架 | Electron 41 |
+| 框架 | Electron 45 |
 | AI | `@anthropic-ai/claude-agent-sdk`（內嵌 `@anthropic-ai/claude-code` CLI）+ `@openai/codex-sdk` |
 | 建置 | Vite 7 + electron-builder 26 |
 | 儲存 | JSON 檔（`settings.json`、`windows.json`、`profiles/`、`snippets.json` 等，位置見「設定」） |
@@ -373,7 +373,7 @@ BAT 的所有資料都在同一個目錄（打包版與 `npm run dev` 相同）�
 #### macOS
 - 首次使用語音輸入時會彈出系統權限對話框
 - 拒絕後可至「系統設定 > 隱私與安全性 > 麥克風」重新授權
-- 要求 macOS 12 (Monterey) 以上（Electron 41 的最低需求）與 Apple Silicon
+- 要求 macOS 13 (Ventura) 以上（Electron 44 起的最低需求）與 Apple Silicon
 - App 的 Info.plist 已包含 `NSMicrophoneUsageDescription`，打包後可正常觸發系統權限提示
 
 #### Windows

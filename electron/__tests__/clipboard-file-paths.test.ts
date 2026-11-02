@@ -6,7 +6,15 @@
 import { readFileSync } from 'fs'
 import { join } from 'path'
 import { describe, expect, test, vi } from 'vitest'
-import { filePathFromFileUrl, parseFilenamesPlist, readClipboardFilePaths } from '../clipboard-file-paths'
+import {
+  NS_FILENAMES_TYPE,
+  PUBLIC_FILE_URL_TYPE,
+  URI_LIST_TYPE,
+  filePathFromFileUrl,
+  parseFilenamesPlist,
+  parseUriList,
+  readClipboardFilePaths,
+} from '../clipboard-file-paths'
 import { ALWAYS_LOCAL_CHANNELS } from '../remote/headless-channel-status'
 import { PATH_ARG_SCHEMA } from '../remote/path-aware-channels'
 import { PROXIED_CHANNELS } from '../remote/protocol'
@@ -20,8 +28,20 @@ ${paths.map(p => `\t<string>${p}</string>`).join('\n')}
 </plist>
 `
 
+/**
+ * Electron 44+ clipboard (T0784): `read()` resolves to ClipboardItem[]; `getType` resolves to a
+ * Blob and rejects for a type the item does not carry. `formats` keys are MIME types.
+ */
 function fakeClipboard(formats: Record<string, string>) {
-  return { read: vi.fn((format: string) => formats[format] ?? '') }
+  const types = Object.keys(formats)
+  const item = {
+    types,
+    getType: vi.fn(async (type: string) => {
+      if (!(type in formats)) throw new DOMException(`type ${type} not found`, 'NotFoundError')
+      return new Blob([formats[type]], { type: 'text/plain' })
+    }),
+  }
+  return { read: vi.fn(async () => [item]), item }
 }
 
 describe('parseFilenamesPlist', () => {
@@ -66,29 +86,66 @@ describe('filePathFromFileUrl', () => {
   })
 })
 
+describe('parseUriList', () => {
+  test('RFC 2483: CRLF / LF lines, comments and non-file URIs skipped', () => {
+    expect(parseUriList('file:///Users/tester/a.txt\r\n# comment\r\nhttps://example.com/x\r\nfile:///Users/tester/My%20Folder\r\n')).toEqual([
+      '/Users/tester/a.txt',
+      '/Users/tester/My Folder',
+    ])
+    expect(parseUriList('file:///tmp/one\nfile:///.file/id=1.2\n')).toEqual(['/tmp/one'])
+    expect(parseUriList('')).toEqual([])
+  })
+})
+
 describe('readClipboardFilePaths', () => {
-  test('macOS: NSFilenamesPboardType list wins (multi-select)', () => {
+  test('format names: text/uri-list and the raw macOS pasteboard types', () => {
+    expect(URI_LIST_TYPE).toBe('text/uri-list')
+    expect(NS_FILENAMES_TYPE).toBe('electron application/osclipboard;format="NSFilenamesPboardType"')
+    expect(PUBLIC_FILE_URL_TYPE).toBe('electron application/osclipboard;format="public.file-url"')
+  })
+
+  test('macOS: text/uri-list wins (multi-select, Electron maps NSFilenamesPboardType to it)', async () => {
     const clipboard = fakeClipboard({
-      NSFilenamesPboardType: plist(['/Users/tester/a.txt', '/Users/tester/b c.txt']),
-      'public.file-url': 'file:///Users/tester/a.txt',
+      [URI_LIST_TYPE]: 'file:///Users/tester/a.txt\r\nfile:///Users/tester/b%20c.txt',
+      [NS_FILENAMES_TYPE]: plist(['/Users/tester/other.txt']),
+      [PUBLIC_FILE_URL_TYPE]: 'file:///Users/tester/a.txt',
     })
-    expect(readClipboardFilePaths(clipboard, 'darwin')).toEqual(['/Users/tester/a.txt', '/Users/tester/b c.txt'])
+    await expect(readClipboardFilePaths(clipboard, 'darwin')).resolves.toEqual(['/Users/tester/a.txt', '/Users/tester/b c.txt'])
   })
 
-  test('macOS: falls back to public.file-url when the list is absent', () => {
-    const clipboard = fakeClipboard({ 'public.file-url': 'file:///Users/tester/My%20Folder' })
-    expect(readClipboardFilePaths(clipboard, 'darwin')).toEqual(['/Users/tester/My Folder'])
-    expect(clipboard.read).toHaveBeenCalledWith('NSFilenamesPboardType')
+  test('macOS: raw NSFilenamesPboardType list when text/uri-list is absent', async () => {
+    const clipboard = fakeClipboard({
+      [NS_FILENAMES_TYPE]: plist(['/Users/tester/a.txt', '/Users/tester/b c.txt']),
+      [PUBLIC_FILE_URL_TYPE]: 'file:///Users/tester/a.txt',
+    })
+    await expect(readClipboardFilePaths(clipboard, 'darwin')).resolves.toEqual(['/Users/tester/a.txt', '/Users/tester/b c.txt'])
   })
 
-  test('macOS: text-only clipboard → []', () => {
-    expect(readClipboardFilePaths(fakeClipboard({ 'public.utf8-plain-text': 'hello' }), 'darwin')).toEqual([])
+  test('macOS: falls back to public.file-url when both lists are absent', async () => {
+    const clipboard = fakeClipboard({ [PUBLIC_FILE_URL_TYPE]: 'file:///Users/tester/My%20Folder' })
+    await expect(readClipboardFilePaths(clipboard, 'darwin')).resolves.toEqual(['/Users/tester/My Folder'])
+    expect(clipboard.read).toHaveBeenCalledTimes(1)
+    expect(clipboard.item.getType).not.toHaveBeenCalledWith(URI_LIST_TYPE)
   })
 
-  test('Windows / Linux: [] without touching the clipboard', () => {
+  test('macOS: text-only clipboard → []', async () => {
+    await expect(readClipboardFilePaths(fakeClipboard({ 'text/plain': 'hello' }), 'darwin')).resolves.toEqual([])
+  })
+
+  test('macOS: empty clipboard (no items, or an item with no types) → []', async () => {
+    await expect(readClipboardFilePaths({ read: async () => [] }, 'darwin')).resolves.toEqual([])
+    await expect(readClipboardFilePaths(fakeClipboard({}), 'darwin')).resolves.toEqual([])
+  })
+
+  test('macOS: getType rejecting (type vanished after read) → treated as absent', async () => {
+    const item = { types: [URI_LIST_TYPE], getType: vi.fn(async () => { throw new Error('gone') }) }
+    await expect(readClipboardFilePaths({ read: async () => [item] }, 'darwin')).resolves.toEqual([])
+  })
+
+  test('Windows / Linux: [] without touching the clipboard', async () => {
     for (const platform of ['win32', 'linux'] as const) {
-      const clipboard = fakeClipboard({ NSFilenamesPboardType: plist(['/x']) })
-      expect(readClipboardFilePaths(clipboard, platform)).toEqual([])
+      const clipboard = fakeClipboard({ [URI_LIST_TYPE]: 'file:///x' })
+      await expect(readClipboardFilePaths(clipboard, platform)).resolves.toEqual([])
       expect(clipboard.read).not.toHaveBeenCalled()
     }
   })

@@ -15,10 +15,10 @@
 import * as fs from 'fs'
 import * as os from 'os'
 import * as path from 'path'
-import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { registerFsHandlers } from '../handlers/fs'
 import type { SharedHandler } from '../handlers/types'
-import { clipboardImageToDataUrl, readSelectedAttachments } from '../image-attachments'
+import { CLIPBOARD_IMAGE_TYPE, clipboardImageToDataUrl, readClipboardPng, readSelectedAttachments } from '../image-attachments'
 import { MAX_IMAGE_SIZE, createPathAllowlist } from '../path-guard'
 import { ALWAYS_LOCAL_CHANNELS } from '../remote/headless-channel-status'
 import { PATH_ARG_SCHEMA } from '../remote/path-aware-channels'
@@ -80,6 +80,46 @@ describe('electron/image-attachments', () => {
     expect(() => clipboardImageToDataUrl({ isEmpty: () => false, toPNG: () => big })).toThrow(/Image too large/)
   })
 
+  // T0784 (Electron 44+): the clipboard image comes from clipboard.read() → ClipboardItem → Blob.
+  const clipboardWith = (items: Array<Record<string, Blob>>) => {
+    const fakeItems = items.map(payloads => ({
+      types: Object.keys(payloads),
+      getType: vi.fn(async (type: string) => {
+        if (!(type in payloads)) throw new DOMException(`type ${type} not found`, 'NotFoundError')
+        return payloads[type]
+      }),
+    }))
+    return { read: vi.fn(async () => fakeItems), items: fakeItems }
+  }
+
+  it('readClipboardPng: PNG bytes of the first item carrying image/png', async () => {
+    expect(CLIPBOARD_IMAGE_TYPE).toBe('image/png')
+    const png = Buffer.from([0x89, 0x50, 0x4e, 0x47, 1, 2, 3])
+    const clipboard = clipboardWith([
+      { 'text/plain': new Blob(['caption']) },
+      { 'image/png': new Blob([new Uint8Array(png)], { type: 'image/png' }), 'text/plain': new Blob(['x']) },
+    ])
+    const got = await readClipboardPng(clipboard)
+    expect(got).toEqual(png)
+    expect(Buffer.isBuffer(got)).toBe(true)
+    expect(clipboard.items[1].getType).toHaveBeenCalledWith('image/png')
+  })
+
+  it('readClipboardPng: null for text-only, empty, zero-byte and vanished images', async () => {
+    await expect(readClipboardPng(clipboardWith([{ 'text/plain': new Blob(['hi']) }]))).resolves.toBeNull()
+    await expect(readClipboardPng(clipboardWith([]))).resolves.toBeNull()
+    await expect(readClipboardPng(clipboardWith([{}]))).resolves.toBeNull()
+    await expect(readClipboardPng(clipboardWith([{ 'image/png': new Blob([]) }]))).resolves.toBeNull()
+    const vanished = { types: ['image/png'], getType: vi.fn(async () => { throw new Error('gone') }) }
+    await expect(readClipboardPng({ read: async () => [vanished] })).resolves.toBeNull()
+  })
+
+  it('readClipboardPng: other image types are not read (same as readImage before T0784)', async () => {
+    const clipboard = clipboardWith([{ 'image/jpeg': new Blob(['jpeg']) }])
+    await expect(readClipboardPng(clipboard)).resolves.toBeNull()
+    expect(clipboard.items[0].getType).not.toHaveBeenCalled()
+  })
+
   it('readSelectedAttachments: images read locally (outside any workspace), files by path, unreadable skipped', async () => {
     const result = await readSelectedAttachments([
       path.join(tmp, 'pic.png'),
@@ -118,6 +158,14 @@ describe('local-only channels (no proxy, no handler registry, no renderer path)'
     const body = registerLocalHandlersBody()
     expect(body).toMatch(/ipcMain\.handle\('dialog:select-attachments', async \(event\) =>/)
     expect(body).toMatch(/ipcMain\.handle\('clipboard:read-image-data-url', \(\) =>/)
+  })
+
+  it('T0784: main uses the Electron 44+ clipboard API (no readImage / writeImage / read(format))', () => {
+    const body = registerLocalHandlersBody()
+    expect(mainSource).not.toMatch(/clipboard\.(readImage|writeImage|readHTML|readBuffer|availableFormats)\(/)
+    expect(mainSource).not.toMatch(/clipboard\.read\(['"`]/)
+    expect(body).toContain('const png = await readClipboardPng(clipboard)')
+    expect(body).toContain("await clipboard.write([new ClipboardItem({ 'image/png': new Blob([new Uint8Array(image.toPNG())], { type: 'image/png' }) })])")
   })
 
   it('never put in the handler registry (unreachable from a RemoteServer client)', () => {

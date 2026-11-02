@@ -1,7 +1,7 @@
 // BUG-119 / T0480: must stay the first import — it fixes userData (setName + runtime +
 // migration + setPath) before any other module body runs. See app-paths-bootstrap.ts.
 import { migrationReport, resolvedUserData, runtimeId } from './app-paths-bootstrap'
-import { app, BrowserWindow, ipcMain, dialog, shell, Menu, Tray, powerMonitor, clipboard, nativeImage, crashReporter, Notification } from 'electron'
+import { app, BrowserWindow, ipcMain, dialog, shell, Menu, Tray, powerMonitor, clipboard, ClipboardItem, nativeImage, crashReporter, Notification } from 'electron'
 import path from 'path'
 import { pathToFileURL } from 'url'
 import * as fs from 'fs/promises'
@@ -68,7 +68,7 @@ import { configureRuntimeRouter, getRuntimeSettingsSnapshot, resolveClaudeRuntim
 import { ClaudeAgentManager, createElectronClaudeEmit, createElectronNotifier, type ClaudeAgentManagerDeps } from './claude-agent-manager'
 import { CodexAgentManager } from './codex-agent-manager'
 import { checkForUpdates, UpdateCheckResult } from './update-checker'
-import { clipboardImageToDataUrl, readSelectedAttachments } from './image-attachments'
+import { clipboardImageToDataUrl, readClipboardPng, readSelectedAttachments } from './image-attachments'
 import { readClipboardFilePaths } from './clipboard-file-paths'
 import { snippetDb, CreateSnippetInput } from './snippet-db'
 import { ProfileManager, type ProfileEntry, type ProfileSnapshot } from './profile-manager'
@@ -2993,8 +2993,15 @@ function registerLocalHandlers() {
   })
   ipcMain.handle('update:get-version', () => app.getVersion())
 
+  // T0784 (Electron 44+): main's clipboard is W3C-style (`read()` / `write()` + ClipboardItem,
+  // Promise-based); readImage / writeImage are gone. Channel names, arguments and return
+  // shapes are unchanged. Reading: readClipboardPng (electron/image-attachments.ts).
+  const readClipboardImage = async (): Promise<Electron.NativeImage> => {
+    const png = await readClipboardPng(clipboard)
+    return png ? nativeImage.createFromBuffer(png) : nativeImage.createEmpty()
+  }
   ipcMain.handle('clipboard:saveImage', async () => {
-    const image = clipboard.readImage()
+    const image = await readClipboardImage()
     if (image.isEmpty()) return null
     const os = await import('os')
     const filePath = path.join(os.tmpdir(), `bat-clipboard-${Date.now()}.png`)
@@ -3004,13 +3011,15 @@ function registerLocalHandlers() {
   // T0436 / BUG-108: panel paste attachments take the image straight from this machine's
   // clipboard (no temp file, no proxied image:read-as-data-url). clipboard:saveImage stays
   // for PromptBox, which needs a file path for the terminal agent.
-  ipcMain.handle('clipboard:read-image-data-url', () => clipboardImageToDataUrl(clipboard.readImage()))
+  ipcMain.handle('clipboard:read-image-data-url', () => readClipboardImage().then(clipboardImageToDataUrl))
   // T0522 / BUG-128: Finder-copied items as paths for Command+V in a terminal (macOS; [] elsewhere).
   ipcMain.handle('clipboard:read-file-paths', () => readClipboardFilePaths(clipboard, process.platform))
   ipcMain.handle('clipboard:writeImage', async (_event, filePath: string) => {
     const image = nativeImage.createFromPath(filePath)
     if (image.isEmpty()) return false
-    clipboard.writeImage(image)
+    // Written as image/png; on Windows Electron also puts CF_DIB / CF_BITMAP on the clipboard
+    // (T0784 measured: PNG, Format17, Bitmap, DeviceIndependentBitmap), as writeImage did.
+    await clipboard.write([new ClipboardItem({ 'image/png': new Blob([new Uint8Array(image.toPNG())], { type: 'image/png' }) })])
     return true
   })
 
@@ -3634,12 +3643,11 @@ function registerLocalHandlers() {
     return sameProfile.findIndex(e => e.id === windowId) + 1
   })
 
-  // Dock badge count (macOS/Linux)
+  // Dock badge count (macOS). T0784: Electron 44 removed Unity support, so app.setBadgeCount
+  // only works on macOS; the Linux branch (a no-op since then) was removed.
   ipcMain.handle('app:set-dock-badge', (_event, count: number) => {
     if (process.platform === 'darwin') {
       app.dock?.setBadge(count > 0 ? String(count) : '')
-    } else if (process.platform === 'linux') {
-      app.setBadgeCount(count)
     }
   })
 
