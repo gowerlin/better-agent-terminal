@@ -4,12 +4,14 @@ schema_kind: workorder
 id: T0784
 title: "PLAN-053：Electron 41.10.7 → 45（worktree 隔離試做；main 行程 clipboard 改 W3C 寫法；Windows 驗收關卡）"
 type: implementation
-status: PENDING
+status: IN_PROGRESS
 repo: better-agent-terminal
 project: maintenance
 priority: P1
 sizing: L
 created_at: "2026-11-02T14:46:38+0800"
+started_at: "2026-11-02T14:58:22+0800"
+updated_at: "2026-11-02T14:58:22+0800"
 depends_on: [T0783]
 isolation: worktree
 related:
