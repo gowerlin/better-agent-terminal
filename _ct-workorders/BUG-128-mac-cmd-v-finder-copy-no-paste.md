@@ -3,12 +3,14 @@ schema_version: 1
 schema_kind: bug
 id: BUG-128
 title: "macOS 終端：在 Finder 裡 Command+C 拷貝檔案後，到 BAT 終端按 Command+V 貼不上，只有 Ctrl+V 可以（從 LINE 或 BAT 內部複製的文字 Command+V 正常）"
-status: FIXED
+status: CLOSED
 severity: medium
 reproducibility: always
 created_at: "2026-10-14T13:19:21+0800"
-updated_at: "2026-10-14T13:29:48+0800"
+updated_at: "2026-11-02T11:11:34+0800"
 fixed_at: "2026-10-14T13:29:48+0800"
+closed_at: "2026-11-02T11:11:34+0800"
+closed_reason: verified
 impact:
   - terminal
   - clipboard
@@ -25,7 +27,7 @@ links:
 |------|------|
 | 嚴重度 | 🟡 medium（mac 標準快捷鍵失效；有 Ctrl+V 繞道） |
 | 可重現 | 必現（外部測試者A 回報） |
-| **狀態** | ✅ FIXED（T0522，待 外部測試者A mac 實機驗收） |
+| **狀態** | 🚫 CLOSED（T0522；交付版 `v0.7.3-pre.5` 在 GitHub Actions macOS 15 runner 實測 T0778 PASS） |
 | 回報者 | 外部測試者A（mac） |
 
 ## 現象（外部測試者A 原話）
@@ -61,3 +63,8 @@ links:
 - 終端（mac）：Command+V、Ctrl+V、右鍵選單 Paste 統一走 `pasteClipboardMac()`：剪貼簿有檔案項目 → 與拖放相同的 `insertFilePaths()`（`remote:resolve-client-paths` + `quoteArgForShell`，空白分隔、不送 Enter）；否則 `readText()` → `handlePasteText()`。Command+V 在 keydown `preventDefault`，另在容器 capture 階段吞掉 1 秒內隨後的原生 paste，純文字不會貼兩次
 - Claude / Codex 面板（mac）：paste 事件裡有實體路徑的 Files（`getPathForFile` 非空）時，比照拖放附加（圖片讀 File 成 data URL、其他檔案以路徑附加）；截圖 / 網頁圖片（無路徑）仍走 T0436 的 `clipboard.readImageDataUrl()`
 - Windows / Linux：Ctrl+V（含 Windows 圖片 → `\x1bv`）、Ctrl+Shift+V、右鍵 Paste、面板 paste 行為不變（單元測試守住）
+
+## 驗收（2026-11-02T11:11:34+0800，第一百零四 session）
+
+- 依據（R-G003）：交付版 `v0.7.3-pre.5` arm64 dmg（release digest 比對一致）在 GitHub Actions `macos-15` runner（macOS 15.8.2，Aqua 工作階段）以 `.github/workflows/macos-acceptance.yml` 實測，T0778 run [41380866131](https://github.com/gowerlin/better-agent-terminal/actions/runs/41380866131) success：剪貼簿由 **Finder 自己複製**（AppleScript 選取＋System Events Command+C，含 file reference URL）與腳本寫入兩種來源，按鍵用 **作業系統層**（System Events）與 Playwright 兩種；單檔、多檔、路徑含空白各 12 / 12 貼出完整路徑，純文字 Command+V 照常（2 / 2）。spec `e2e/macos/t0778-macos-paste-acceptance.spec.ts`，說明 `docs/agent-guide/macos-ci-acceptance.md`。
+- 未涵蓋：實體鍵盤與輸入法（注音開著時 Command+V）、非 US 鍵盤、macOS 15 以外、剪貼簿管理工具、其他來源的檔案複製、中文檔名、zsh；Claude / Codex 面板的 Finder 貼上（只驗終端分頁）。外部測試者A 原始回報未再回覆。

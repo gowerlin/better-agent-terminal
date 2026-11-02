@@ -3,7 +3,7 @@ schema_version: 1
 schema_kind: index
 id: _bug-tracker
 index_kind: bugs
-generated_at: "2026-11-02T10:50:16+08:00"
+generated_at: "2026-11-02T11:11:34+08:00"
 generator: control-tower-sync
 source_globs:
   - _ct-workorders/BUG-*.md
@@ -14,19 +14,19 @@ total: 58
 breakdown:
   OPEN: 0
   FIXING: 0
-  FIXED: 3
+  FIXED: 1
   VERIFY: 0
-  CLOSED: 55
+  CLOSED: 57
   WONTFIX: 0
 ---
 
 # Bug Tracker
 
 > ⚠️ 此文件由 `*sync` 自動生成，請勿手動編輯。
-> 最後同步：2026-11-02 10:50 — BUG-193 / 194 CLOSED（交付版 `v0.7.3-pre.5` 安裝版自動化實測 T0777）；2026-11-02 09:59 — BUG-193 / 194 已隨 `v0.7.3-pre.5` 發版（待驗收）；2026-11-02 05:56 — BUG-194 FIXED（T0776 `e717c786`）；2026-11-02 05:38 — BUG-193 FIXED（T0774 `bd59ab0f`）；2026-11-02 05:28 — BUG-193 → FIXING（T0774，05:27 派工）、BUG-194 → FIXING（T0776，D217）；2026-11-02 05:26 — 開 BUG-194（OPEN，low，T0773 F1）；2026-11-02 05:26 — BUG-189 / 191 CLOSED（交付版 `v0.7.3-pre.4` 安裝版自動化實測 T0772，D215）；2026-11-02 05:24 — 開 BUG-193（OPEN，low，D216 → T0774）；2026-11-02 05:23 — BUG-190 / 192 CLOSED（交付版 `v0.7.3-pre.4` 安裝版自動化實測 T0771，含真實模型 Haiku 5.5，D215）；2026-11-02 05:22 — BUG-188 CLOSED（交付版 `v0.7.3-pre.4` 安裝版自動化實測 T0770，D215）；2026-11-02 04:59 — 第一百零四 session 塔台重啟（三）`*sync`：區段與 56 張 BUG 檔一致，只修正 frontmatter 統計（51 / 7 / 44 → 56 / 8 / 48）；2026-11-02 04:28 — BUG-192 FIXED（T0769 `9ab26222`）；BUG-192 → FIXING（T0769，D214）；BUG-191 FIXED（T0760 `eb5c0589`）；開 BUG-192（OPEN，T0768 研究）；BUG-190 FIXED（T0759 `b8a3b7f7`）；BUG-188 FIXED（T0757 `de8a4fd4`）；BUG-189 FIXED（T0758 `ddfb4f38`）；開 BUG-188–191 → FIXING（T0757–T0760，D209 / D210）；BUG-183 / 184 CLOSED（使用者實機，`v0.7.3-pre.3`）；BUG-187 CLOSED（`v0.7.3-pre.3`，使用者裁示）；BUG-186 CLOSED（WSL 實機，server `0.7.3-pre.3`）；BUG-187 FIXED（T0756 `915f90ab`）；開 BUG-187 → FIXING（T0756）；BUG-185 CLOSED（`v0.7.3-pre.2`）；BUG-186 FIXED（T0753 `0f021e67`）；BUG-185 FIXED（T0751 `f9072e16`）；開 BUG-186 → FIXING（T0753）；BUG-183 / 184 FIXED（T0750）；BUG-182 / 175 CLOSED
+> 最後同步：2026-11-02 11:11 — BUG-128 / 130 CLOSED（交付版 `v0.7.3-pre.5` 在 GitHub Actions macOS runner 實測 T0778）；2026-11-02 10:50 — BUG-193 / 194 CLOSED（交付版 `v0.7.3-pre.5` 安裝版自動化實測 T0777）；2026-11-02 09:59 — BUG-193 / 194 已隨 `v0.7.3-pre.5` 發版（待驗收）；2026-11-02 05:56 — BUG-194 FIXED（T0776 `e717c786`）；2026-11-02 05:38 — BUG-193 FIXED（T0774 `bd59ab0f`）；2026-11-02 05:28 — BUG-193 → FIXING（T0774，05:27 派工）、BUG-194 → FIXING（T0776，D217）；2026-11-02 05:26 — 開 BUG-194（OPEN，low，T0773 F1）；2026-11-02 05:26 — BUG-189 / 191 CLOSED（交付版 `v0.7.3-pre.4` 安裝版自動化實測 T0772，D215）；2026-11-02 05:24 — 開 BUG-193（OPEN，low，D216 → T0774）；2026-11-02 05:23 — BUG-190 / 192 CLOSED（交付版 `v0.7.3-pre.4` 安裝版自動化實測 T0771，含真實模型 Haiku 5.5，D215）；2026-11-02 05:22 — BUG-188 CLOSED（交付版 `v0.7.3-pre.4` 安裝版自動化實測 T0770，D215）；2026-11-02 04:59 — 第一百零四 session 塔台重啟（三）`*sync`：區段與 56 張 BUG 檔一致，只修正 frontmatter 統計（51 / 7 / 44 → 56 / 8 / 48）；2026-11-02 04:28 — BUG-192 FIXED（T0769 `9ab26222`）；BUG-192 → FIXING（T0769，D214）；BUG-191 FIXED（T0760 `eb5c0589`）；開 BUG-192（OPEN，T0768 研究）；BUG-190 FIXED（T0759 `b8a3b7f7`）；BUG-188 FIXED（T0757 `de8a4fd4`）；BUG-189 FIXED（T0758 `ddfb4f38`）；開 BUG-188–191 → FIXING（T0757–T0760，D209 / D210）；BUG-183 / 184 CLOSED（使用者實機，`v0.7.3-pre.3`）；BUG-187 CLOSED（`v0.7.3-pre.3`，使用者裁示）；BUG-186 CLOSED（WSL 實機，server `0.7.3-pre.3`）；BUG-187 FIXED（T0756 `915f90ab`）；開 BUG-187 → FIXING（T0756）；BUG-185 CLOSED（`v0.7.3-pre.2`）；BUG-186 FIXED（T0753 `0f021e67`）；BUG-185 FIXED（T0751 `f9072e16`）；開 BUG-186 → FIXING（T0753）；BUG-183 / 184 FIXED（T0750）；BUG-182 / 175 CLOSED
 
 ## 統計
-- 🔴 Open: 0 | ⏳ Fixing: 0 | ✅ Fixed: 3 | 🧪 Verify: 0 | 🚫 Closed: 55 | ⛔ Won't Fix: 0 | **Total: 58**
+- 🔴 Open: 0 | ⏳ Fixing: 0 | ✅ Fixed: 1 | 🧪 Verify: 0 | 🚫 Closed: 57 | ⛔ Won't Fix: 0 | **Total: 58**
 
 ## 🔴 Open / 處理中
 
@@ -44,8 +44,6 @@ breakdown:
 | ID | 標題 | 嚴重度 | 修復時間 | 連結 |
 |----|------|--------|---------|------|
 | BUG-159 | codex 分頁在 BAT MCP 未注入、非系統管理員時接上 codex 共用 daemon，helper 讀到其他分頁的 `BAT_*`（T0651 `5b1be0f5`） | 🟢 low | 2026-10-18 | [BUG-159](BUG-159-codex-shared-daemon-inherits-other-tab-env.md) |
-| BUG-130 | 終端分頁貼圖（Windows 回歸未重現，已加固 + log；mac 送 Ctrl+V） | 🟡 medium | 2026-10-14 13:56 | [BUG-130](BUG-130-terminal-image-paste-regression.md) |
-| BUG-128 | mac：Finder 拷貝後終端 Command+V 貼不上 | 🟡 medium | 2026-10-14 13:29 | [BUG-128](BUG-128-mac-cmd-v-finder-copy-no-paste.md) |
 
 ## 🧪 驗收中 (VERIFY)
 
@@ -57,6 +55,8 @@ breakdown:
 
 | ID | 標題 | 嚴重度 | 關閉時間 | 連結 |
 |----|------|--------|---------|------|
+| BUG-130 | 終端分頁貼圖（Windows 間歇失效已加固 + log；mac Ctrl+V 送 `\x16`）；T0524；mac：`v0.7.3-pre.5` 在 GitHub Actions macOS runner 實測 T0778 | 🟡 Medium | 2026-11-02 | [BUG-130](BUG-130-terminal-image-paste-regression.md) |
+| BUG-128 | mac：Finder 拷貝後終端 Command+V 貼不上；T0522 讀剪貼簿檔案路徑；`v0.7.3-pre.5` 在 GitHub Actions macOS runner 實測 T0778（Finder 真複製＋作業系統層按鍵） | 🟡 Medium | 2026-11-02 | [BUG-128](BUG-128-mac-cmd-v-finder-copy-no-paste.md) |
 | BUG-194 | 自動開啟的對話框第一次按 Esc 關不掉，Esc 送進背景分頁；T0776 `e717c786` 開啟時聚焦遮罩、關閉時還原焦點；`v0.7.3-pre.5` 安裝版 T0777 實測 | 🟢 Low | 2026-11-02 | [BUG-194](BUG-194-auto-opened-dialog-esc-goes-to-xterm.md) |
 | BUG-193 | 視窗沒有焦點時留下的淡化 ⚠️，點另一個分頁取回焦點時被清掉；T0774 `bd59ab0f` `createFocusRegainGate`；`v0.7.3-pre.5` 安裝版 T0777 實測（含作業系統真實點擊） | 🟢 Low | 2026-11-02 | [BUG-193](BUG-193-focus-regain-click-clears-missed-badge.md) |
 | BUG-191 | 設 `CLAUDE_CODE_PLUGIN_CACHE_DIR` 時 BAT 找 plugins 的位置與 CLI 不同；T0760 `eb5c0589` `resolveClaudePluginsDir`；`v0.7.3-pre.4` 安裝版 T0772 實測 | 🟢 Low | 2026-11-02 | [BUG-191](BUG-191-claude-plugin-cache-dir-plugins-lookup.md) |

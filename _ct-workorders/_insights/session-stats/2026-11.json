@@ -1,5 +1,5 @@
 {
- "generated_at": "2026-11-02T10:50:16+08:00",
+ "generated_at": "2026-11-02T11:11:34+08:00",
  "generator": {
   "script": "ct-session-stats.py",
   "version": "0.1.0"
@@ -23,13 +23,13 @@
    "output": 147100
   },
   "2026-11-02": {
-   "api_requests": 31,
-   "cache_read": 5239119,
-   "cache_write": 169617,
-   "cache_write_1h": 169617,
+   "api_requests": 45,
+   "cache_read": 8329628,
+   "cache_write": 198745,
+   "cache_write_1h": 198745,
    "cache_write_5m": 0,
-   "input": 68,
-   "output": 24935
+   "input": 98,
+   "output": 35296
   }
  },
  "workorders": [
@@ -3468,6 +3468,89 @@
     "2.1.316"
    ],
    "workorder": "T0777"
+  },
+  {
+   "attribution": {
+    "conflict": false,
+    "source": "frontmatter",
+    "sources": {
+     "frontmatter": 1
+    }
+   },
+   "by_mcp_server": {},
+   "by_tool": {
+    "Bash": 53,
+    "Edit": 8,
+    "PowerShell": 1,
+    "Read": 5,
+    "ToolSearch": 1,
+    "Write": 4
+   },
+   "counts": {
+    "api_requests": 66,
+    "failures": 0,
+    "same_file_read_ge3": 0,
+    "subagent_files": 0,
+    "tool_calls": 72
+   },
+   "end": "2026-11-02T03:11:12Z",
+   "est_usd": 6.7035,
+   "failures_by_tool": {},
+   "renews": 0,
+   "sessions": 1,
+   "skills_invoked": {},
+   "start": "2026-11-02T02:47:17Z",
+   "stuck": {
+    "max_consecutive_failures": 0,
+    "max_failures_in_10_calls": 0,
+    "near_repeat_fail_pairs_j50": 0,
+    "repeat_fail_groups_norm": 0
+   },
+   "stuck_signal": false,
+   "subagent_tokens": {
+    "cache_read": 0,
+    "cache_write": 0,
+    "cache_write_1h": 0,
+    "cache_write_5m": 0,
+    "input": 0,
+    "output": 0
+   },
+   "tokens": {
+    "cache_read": 14148105,
+    "cache_write": 263655,
+    "cache_write_1h": 263655,
+    "cache_write_5m": 0,
+    "input": 138,
+    "output": 88202
+   },
+   "top_tools": [
+    [
+     "Bash",
+     53
+    ],
+    [
+     "Edit",
+     8
+    ],
+    [
+     "Read",
+     5
+    ],
+    [
+     "Write",
+     4
+    ],
+    [
+     "PowerShell",
+     1
+    ]
+   ],
+   "type": "research",
+   "unpriced_tokens": 0,
+   "versions": [
+    "2.1.316"
+   ],
+   "workorder": "T0778"
   }
  ]
 }

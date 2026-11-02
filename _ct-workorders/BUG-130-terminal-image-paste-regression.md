@@ -3,12 +3,14 @@ schema_version: 1
 schema_kind: bug
 id: BUG-130
 title: "終端分頁貼圖失效（Windows 回歸）：剪貼簿有圖片時 Ctrl+V 原本會轉成 claude CLI 的貼圖鍵，現在貼不出圖；mac 終端的 Ctrl+V 被 BAT 拿去當文字貼上，claude CLI 也無法貼圖"
-status: FIXED
+status: CLOSED
 severity: medium
 reproducibility: always
 created_at: "2026-10-14T13:36:40+0800"
-updated_at: "2026-10-14T14:07:18+0800"
+updated_at: "2026-11-02T11:11:34+0800"
 fixed_at: "2026-10-14T13:56:08+0800"
+closed_at: "2026-11-02T11:11:34+0800"
+closed_reason: verified
 impact:
   - terminal
   - clipboard
@@ -25,7 +27,7 @@ links:
 |------|------|
 | 嚴重度 | 🟡 medium（終端裡跑 claude CLI 時不能貼截圖；文字貼上正常） |
 | 可重現 | 必現（使用者回報） |
-| **狀態** | ✅ FIXED（T0524；Windows 隔離實例自動化驗證，mac 實機交 外部測試者A） |
+| **狀態** | 🚫 CLOSED（T0524；Windows 隔離實例自動化驗證；mac：交付版 `v0.7.3-pre.5` 在 GitHub Actions macOS 15 runner 實測 T0778 PASS） |
 | 回報者 | 使用者（Windows）；mac 部分來自 T0522 回報區 |
 
 ## 現象
@@ -68,3 +70,9 @@ links:
 ## 使用者後續（2026-10-14 14:07）
 
 - 使用者回報 pre.7 上 Ctrl+V 貼圖「現在又好了，可能不明原因會暫時失效」⇒ **間歇性**，與 T0524 推定根因（舊程式讀剪貼簿失敗時靜默退回文字）一致。pre.8 起每次判斷寫 `[terminal-paste]` log，再發生時以 log 判定
+
+## 驗收（2026-11-02T11:11:34+0800，第一百零四 session）
+
+- mac（R-G003）：交付版 `v0.7.3-pre.5` arm64 dmg 在 GitHub Actions `macos-15` runner 實測，T0778 run [41380866131](https://github.com/gowerlin/better-agent-terminal/actions/runs/41380866131) success：有圖 Control+V → PTY 收到 `\x16`（3 / 3）、有圖 Command+V → `\x16`（3 / 3，T0524 規格）、有檔案 Control+V → 貼路徑（12 / 12，含 Finder 自己複製）、純文字 Control+V → 一般貼上（2 / 2）；按鍵含作業系統層（System Events）與 Playwright；安裝版內嵌 claude CLI 2.1.316 ＋假模型在 Ctrl+V 後輸入列出現 `[Image #1]`（模型請求 0）。
+- Windows：T0524 隔離實例（含安裝版 pre.7 執行檔）PTY 收到 `1b76`；修正自 pre.8 起隨交付版發佈，2026-10-14 之後沒有再回報貼圖失效。原本的間歇性根因未證實；再發生時以 `[terminal-paste]` log 開新 BUG。
+- 未涵蓋：mac 實體鍵盤與輸入法、macOS 15 以外、登入帳號的真 claude 貼圖（只驗到佔位出現）。
