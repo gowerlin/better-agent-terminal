@@ -57,3 +57,14 @@ links:
   3. safeStorage async 另開 → **T0785**（T0784 合回後、Electron 46 前）。
   4. `allowScripts.electron` 在 T0784 一併移除並記錄。
 - 順序：T0783 → push main → 塔台試跑 desktop-build → 派 T0784（Windows 關卡）→ 塔台以 desktop-build ＋ macos-acceptance 驗 `ct/T0784` 三平台 → 合併工單回 main → T0785。
+
+## T0784 結果（2026-11-02，Windows 關卡；分支 `ct/T0784`，未合併）
+
+> 只是摘要，證據見 `T0784-electron-45-upgrade.md` 回報區。狀態不改（合併後由塔台改）。
+
+- **版本**：Electron 41.10.7 → **45.2.1**（`package.json` `^45.2.1`；Chromium 156.0.8078.75、Node 24.22.1、V8 15.6、ABI 150）。lock 只改 electron 本身（版本、`hasInstallScript` 拿掉、多 `install-electron` bin）。electron-builder 26.8.1、Playwright 1.59.1、vite / vite-plugin-electron、node-pty、whisper、內嵌 CLI 都沒動。
+- **binary 下載**：`allowScripts.electron` 已移除（D223）；`npm ci` 不再下載，第一次 `require('electron')` 或 `install.js` 才下載。`tests.yml` 的 `node node_modules/electron/install.js` 在 45 仍可用，保留並改註解。mac 根 `postinstall` 改成先 `require('electron')` 再 `plutil`。
+- **clipboard 改寫**：`readClipboardPng`（`electron/image-attachments.ts`）、`readClipboardFilePaths`（`electron/clipboard-file-paths.ts`，`text/uri-list` → 原始 `NSFilenamesPboardType` → `public.file-url`）、`clipboard:writeImage` 寫 `image/png`；IPC channel / 參數 / 回傳形狀不變，Windows 實測寫入後系統同時有 PNG / DIB / Bitmap、只有 Bitmap 的剪貼簿讀得到。其他命中項：Notification `failed` 記 log、Linux `setBadgeCount` 分支移除、README macOS 13+。
+- **驗證（Windows x64）**：typecheck 0 / 0（改前 `typecheck:electron` 4）、`test:legacy` 全綠、`test:unit` 只有 BUG-195 逾時（單檔 3/3 過）、`build:dir` ＋ `verify-packaged-native` 綠（產物 Electron 45.2.1）、e2e 指定清單全過（pre5 A4 因使用者日誌已輪替而失敗，與版本無關）。
+- **新發現**：Electron 45 + Playwright 1.59 的 `firstWindow()` 回傳時還在初始空白頁，e2e fixture 改成先等 app 網址（塔台答覆 Q-1 擴大範圍）。
+- **未驗證**：macOS / Linux（Finder 貼上的實際格式名、`[gpu]` Graphite 停用、簽章版通知、AppImage、Ubuntu 22.04），待塔台以 `desktop-build.yml` ＋ `macos-acceptance.yml` 驗。
