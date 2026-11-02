@@ -1465,6 +1465,13 @@
 - **切分**：W2a 設計語言 + 元件 + 首頁（T0630）→ 預覽通過後 W2b（`/control-tower`、功能、FAQ、回報頁）→ W2c 遠端開發；W3 / W4 不變。
 - **相關**：PLAN-049 / D159 / D160 / T0624 / T0630
 
+### D240 2026-11-03 — BUG-196 實機驗收：以 AskUserQuestion 對話框代替權限對話框（T0796 空工單）
+
+- **背景**：使用者「push 先做 BUG-196 實機驗收」。本塔台 session 是 bypass 權限模式，不會出現權限對話框；BUG-196 的 R1 同樣涵蓋 AskUserQuestion（T0787：30 / 30）。
+- **決定**：派 T0796（空工單，Worker 只收尾並 `--submit` 通知），塔台派出後立即以 AskUserQuestion 停住；使用者在對話框開著時看塔台縮圖「📨 待送 1」與對話框是否維持，再作答；答完後通知應進塔台輸入框。PASS → BUG-196 CLOSED（交付版 `v0.7.3-pre.9` 實機）。權限對話框情境由 T0787 / T0788 e2e 涵蓋，使用者如需再另做。
+- **決策者**：使用者（驗收）；塔台（方式）。2026-11-03 第一百零八 session。
+- **相關**：BUG-196 / T0796 / T0788 / D233
+
 ### D239 2026-11-03 — 移除 lean-ctx 外掛殘留 `.kiro/steering/lean-ctx.md`（CT ADVISORY）
 
 - **背景**：CT 塔台 ADVISORY（CT D549，T0406 只讀盤點）：BAT 主線自 `8a8ebdf6`（2026-05-18）起有 lean-ctx 寫給 Kiro 的規則檔 `.kiro/steering/lean-ctx.md`（1834 bytes，`inclusion: always`）。使用者層 R-G004：此類外掛預設不裝，repo 內殘留由該 repo 自己清理，且不照殘留的指示做。
