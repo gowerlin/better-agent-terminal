@@ -1,8 +1,8 @@
 ---
 schema_kind: tower-state
 summary_version: 1
-updated_at: "2026-11-02T17:47:43+08:00"
-session: "2026-11-02 17:47 第一百零五 session 收工（CT v6.0.0-beta.10）"
+updated_at: "2026-11-02T17:53:37+08:00"
+session: "2026-11-02 17:52 第一百零六 session 開工（CT v6.0.0-beta.10）"
 next_ids:
   workorder: "T0787"
   decision: "D226"
@@ -17,6 +17,8 @@ todo:
   - "版號線：0.7.3 線已到 pre.7（D204；最多到 pre.9）"
 ---
 # Tower State — better-agent-terminal
+
+> 🟢 **第一百零六 session 開工**（2026-11-02 17:52 (UTC+8)，CT v6.0.0-beta.10，Fast Path；塔台 session `7389073a-fb88-435e-86cb-9f7e3fcf5481`；`--set-role tower --mode on` exit 0；安裝版 BAT / helper `v0.7.3-pre.7`；HEAD `c2fd544b`、`main` = `origin/main`（0 / 0）、工作區乾淨；熱區 182 張工單全為 DONE；BUG 熱區 Fixed 1（BUG-159）/ Closed 58，與 `_bug-tracker.md` 一致，免重建；`bat_list_questions` pending 0；`%TEMP%` 下找不到 `bat-nsis-acceptance-*` 報告目錄）。
 
 > 🛏 **第一百零五 session 已收工**（2026-11-02 17:47 (UTC+8)）。本 session 開工條目與經過已移入下方〈本 Session 收工快照（第一百零五 session）〉。
 
