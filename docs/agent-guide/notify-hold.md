@@ -66,7 +66,7 @@ CT 已回覆（BMad-Guide `_reply-2026-11-02-bat-notify-hold-contract.md`，CT D
 ## 已知限制
 
 - `blockedDetection: none`（使用者關掉 hooks、非 claude / codex 分頁）照舊直接送出，Enter 仍可能作答對話框：BAT 無法判斷。
-- 保留以 `TerminalBlockedTracker` 的狀態為準。T0788 e2e 量到一次（60 次裡 1 次，假模型回得極快）：claude 的 hook 回報亂序，`permission-request` 先到、`user-prompt-submit` 後到，把 `blocked` 清掉，對話框其實還在 → 那次通知不會被保留（`--submit` 時 Enter 仍會作答）。這是 hook 回報的既有競態（T0590 範圍，本單不改判斷規則），已回報塔台另案處理；e2e 偵測到就記 `RACE` 並重跑該情境（`races` 計數）。
+- 保留以 `TerminalBlockedTracker` 的狀態為準。T0788 e2e 量到一次（60 次裡 1 次，假模型回得極快）：claude 的 hook 回報亂序，`permission-request` 先到、`user-prompt-submit` 後到，把 `blocked` 清掉，對話框其實還在 → 那次通知不會被保留（`--submit` 時 Enter 仍會作答）。這是 hook 回報的既有競態（BUG-197）。**T0790 已修**：hook 回報帶程序啟動時間 `at`，晚到、發生得比 `blocked` 早的清除事件不再清除（[blocked-state.md](blocked-state.md)「晚到的清除回報」）；e2e 拿掉 T0788 的「偵測到 `RACE` 就重跑」，改成直接斷言通知前 `blocked` 仍在，另記被保留的晚到回報（`lateReports`）。殘留：`at` 是 hook 的 node 程序啟動時間，兩個事件間隔小於 shell + node 啟動時間的差異時仍可能判斷錯（量不到發生率）。
 - 遠端 profile 視窗：保留在 bat-server 上照樣生效，但「待送 N」與取消只在本機視窗（`terminal:notify-hold-*` 是 Electron 的本機 IPC，沒有加進 `PROXIED_CHANNELS` / `PROXIED_EVENTS`）。遠端視窗看不到待送清單；要支援需另開工單（protocol / path-aware 分類，D227 範圍外）。
 - 送出時塔台若正在工作中（使用者答完後 claude 繼續原回合），文字會打進 claude 的輸入框、Enter 讓 claude 排隊 —— 與修正前塔台忙碌時收到通知相同。
 - 文字送出後、Enter 送出前（250 ms）塔台若又進入 blocked：Enter 留著等下次答完，但已送出的文字可能被新對話框吞掉（與修正前同一個競態，窗口縮到 250 ms）。

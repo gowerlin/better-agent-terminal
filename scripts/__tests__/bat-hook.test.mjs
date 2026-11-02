@@ -1,11 +1,17 @@
 // PLAN-047 M1b-1 / T0590: scripts/bat-hook.mjs — what a hook reports (pure), stdin reading, and
 // `reportHook` against a stand-in connection (the real RemoteServer path is
 // electron/__tests__/terminal-blocked-state.test.ts). T0657: `post-tool-batch` / `agentId`, reading
-// only the fields before `tool_input` / `tool_calls`.
+// only the fields before `tool_input` / `tool_calls`. T0790: `at` (`hookStartedAt`, the process start on the
+// host's monotonic clock).
 import { PassThrough } from 'stream'
 import { describe, expect, it } from 'vitest'
-import { HOOK_EVENTS, HOOK_INPUT_STOP_FIELDS, hookInputPrefix, hookReport, readHookInput, reportHook, SESSION_ID_PATTERN } from '../bat-hook.mjs'
+import { spawnSync } from 'child_process'
+import path from 'path'
+import { fileURLToPath, pathToFileURL } from 'url'
+import { HOOK_EVENTS, HOOK_INPUT_STOP_FIELDS, hookInputPrefix, hookReport, hookStartedAt, readHookInput, reportHook, SESSION_ID_PATTERN } from '../bat-hook.mjs'
 
+// T0790: not `new URL(…, import.meta.url)` (vite rewrites that pattern into an asset URL)
+const HOOK_URL = pathToFileURL(path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 'bat-hook.mjs')).href
 const SID = '0f3c2a9e-6b1d-4c8e-9a7f-1d2e3f4a5b6c'
 
 describe('hookReport', () => {
@@ -191,5 +197,46 @@ describe('reportHook', () => {
     expect(await reportHook('stop', {}, { env, connection: throwing })).toMatchObject({ result: 'failed', code: 'ERROR' })
     expect(await reportHook('bogus', {}, { env, connection: conn({ ok: true }) })).toMatchObject({ result: 'skipped' })
     expect(await reportHook('stop', {}, { env: {} })).toMatchObject({ result: 'not-in-bat' })
+  })
+})
+
+describe('T0790 / BUG-197: hookStartedAt / `at`', () => {
+  it('the process start on process.hrtime (ns, decimal string): hrtime − uptime; undefined on anything odd', () => {
+    expect(hookStartedAt(() => 10_000_000_000n, () => 2.5)).toBe('7500000000')
+    expect(hookStartedAt(() => 1_000n, () => 2.5)).toBeUndefined() // not > 0
+    expect(hookStartedAt(() => { throw new Error('x') }, () => 1)).toBeUndefined()
+    expect(hookStartedAt(() => 5n, () => Number.NaN)).toBeUndefined() // BigInt(NaN) throws
+    const at = hookStartedAt()
+    expect(at).toMatch(/^[0-9]{1,20}$/)
+    // stable within the process (the start, not the time of the call), and not after now
+    const again = hookStartedAt()
+    expect(Math.abs(Number(BigInt(again) - BigInt(at)))).toBeLessThan(1_000_000)
+    expect(BigInt(at)).toBeLessThanOrEqual(process.hrtime.bigint())
+  })
+
+  it('another process on this host: its start lies between this process’s clock readings around it (one clock across processes)', () => {
+    for (let i = 0; i < 3; i++) {
+      const before = process.hrtime.bigint()
+      const child = spawnSync(process.execPath, ['--input-type=module', '-e', `import { hookStartedAt } from ${JSON.stringify(HOOK_URL)}; process.stdout.write(hookStartedAt() ?? '')`], { encoding: 'utf8', timeout: 30_000 })
+      const after = process.hrtime.bigint()
+      expect(child.status, child.stderr).toBe(0)
+      const at = BigInt(child.stdout)
+      expect(at).toBeGreaterThan(before)
+      expect(at).toBeLessThan(after)
+    }
+  })
+
+  it('reportHook sends `at` as given, beside the report; absent → not sent (as before)', async () => {
+    const env = { BAT_REMOTE_PORT: '1', BAT_REMOTE_TOKEN: 'batcap.x' }
+    const calls = []
+    const c = { close() {}, async invoke(channel, args) { calls.push(args); return { ok: true, result: { ok: true, result: 'cleared' } } } }
+    await reportHook('stop', { hook_event_name: 'Stop' }, { env, connection: c, at: '123456789' })
+    await reportHook('permission-request', { hook_event_name: 'PermissionRequest', tool_name: 'Bash', agent_id: 'a1' }, { env, connection: c, at: '5' })
+    await reportHook('stop', {}, { env, connection: c })
+    expect(calls).toEqual([
+      [{ event: 'stop', at: '123456789' }],
+      [{ event: 'permission-request', toolName: 'Bash', agentId: 'a1', at: '5' }],
+      [{ event: 'stop' }],
+    ])
   })
 })

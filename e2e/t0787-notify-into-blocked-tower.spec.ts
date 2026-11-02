@@ -232,6 +232,8 @@ test(PROBE
 
   const results: Array<Record<string, unknown>> = []
   const races: Array<Record<string, unknown>> = []
+  /** T0790: late clearing hook reports BAT kept (`[blocked] … kept: hook … reported late`). */
+  const lateReports: Array<Record<string, unknown>> = []
   let inst: IsolatedInstance | undefined
   try {
     inst = await withoutInheritedAgentEnv(() => launchIsolated('t0787', log, { env }))
@@ -399,11 +401,11 @@ test(PROBE
 
     for (let run = 1; run <= RUNS; run++) {
       for (const t of TRIALS) {
-      // T0788: a trial whose `blocked` was already cleared before the notify (claude's hook reports
-      // arriving out of order — a late `user-prompt-submit` after `permission-request`, measured once in
-      // 60 trials) is not a test of the hold: logged, counted in `races`, retried (at most twice)
-      for (let attempt = 0; ; attempt++) {
-        const name = `t0787-${t.kind}-r${run}-${t.key.replace(/[^a-z0-9]/gi, '') || 'x'}${t.key.codePointAt(0)}${attempt ? `-a${attempt}` : ''}`
+      // T0790 / BUG-197: claude's hook reports may arrive out of order (a late `user-prompt-submit` after
+      // `permission-request`, measured once in 60 trials by T0788, which retried such a trial). BAT now
+      // keeps the blocked state then (`[blocked] … kept: hook … reported late`): asserted, no retry.
+      {
+        const name = `t0787-${t.kind}-r${run}-${t.key.replace(/[^a-z0-9]/gi, '') || 'x'}${t.key.codePointAt(0)}`
         const source = /^(T\d{4})/.exec(t.message)![1]
         const mark = { debug: debugLog().length, scripts: scriptsLog().length, req: fake.requests.length }
         const before = Math.max(0, ...fake.requests.map(r => count(r.userText, t.message)))
@@ -418,13 +420,16 @@ test(PROBE
           await win.waitForTimeout(2_000) // the dialog is drawn and takes input (T0757)
           screenBefore = await screenOf(win, T)
           const blockedNow = linesSince(T, mark.debug, /\[blocked\]/)
-          if (!PROBE && /→ cleared/.test(blockedNow.at(-1) ?? '') && attempt < 2) {
-            log(`${t.key} run ${run}: RACE — blocked already cleared before the notify (${blockedNow.at(-1)}); dialog up: ${isDialog(screenBefore)}; retrying`)
-            races.push({ trial: t.key, run, attempt, lines: blockedNow })
-            await resetTower()
-            await win.waitForTimeout(1_000)
-            continue
+          const lateKept = blockedNow.filter(l => /kept: hook .* \(reported late\)/.test(l))
+          if (lateKept.length) {
+            log(`${t.key} run ${run}: late hook report kept (BUG-197): ${lateKept.join(' | ')}`)
+            lateReports.push({ trial: t.key, run, lines: lateKept })
           }
+          if (/→ cleared/.test(blockedNow.at(-1) ?? '')) {
+            log(`${t.key} run ${run}: RACE — blocked already cleared before the notify (${blockedNow.at(-1)}); dialog up: ${isDialog(screenBefore)}`)
+            races.push({ trial: t.key, run, lines: blockedNow })
+          }
+          if (!PROBE) expect(blockedNow.at(-1) ?? '', `${t.key} run ${run}: BUG-197 — blocked must still be set before the notify`).not.toMatch(/→ cleared/)
         }
         const sentAt = Date.now()
         const job = await inWorker([getState, { kind: 'helper', script: 'bat-notify.mjs', args: notifyArgs(t, source),
@@ -457,7 +462,6 @@ test(PROBE
         await resetTower()
         // a turn that went on: let it end before the next trial
         await win.waitForTimeout(1_000)
-        break
       }
       }
     }
@@ -507,8 +511,8 @@ test(PROBE
 
     expect(debugLog()).not.toMatch(/batcap\.[A-Za-z0-9_-]{16,}/)
     expect(proxy.attempts.filter(a => /api\.anthropic\.com/.test(a))).toEqual([])
-    log(`hook-order races (blocked cleared before the notify, retried): ${races.length}`)
-    const out = { claudeVersion, runs: RUNS, towerTab: towerActive ? 'active' : 'background', results, races, q2 }
+    log(`hook-order races (blocked cleared before the notify): ${races.length}; late hook reports kept (BUG-197): ${lateReports.length}`)
+    const out = { claudeVersion, runs: RUNS, towerTab: towerActive ? 'active' : 'background', results, races, lateReports, q2 }
     fs.writeFileSync(test.info().outputPath('t0787-results.json'), JSON.stringify(out, null, 2))
     if (process.env.T0787_RESULTS) fs.writeFileSync(process.env.T0787_RESULTS, JSON.stringify(out, null, 2))
   } finally {

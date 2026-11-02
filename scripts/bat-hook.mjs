@@ -29,6 +29,9 @@
 // only) the subagent id — never tool_input / tool_response / tool_calls, `source`,
 // `transcript_path`, `cwd`, an elicitation's content / action, a prompt, a message or a token. Outside BAT (no BAT_REMOTE_*) it exits at once.
 //
+// T0790 / BUG-197: + `at`, a time value only — when this process started (`hookStartedAt`), so BAT can
+// tell a report that arrived late (claude runs every hook as its own process) from a newer one.
+//
 // Zero external dependencies — Node.js 18+ built-in modules only.
 
 import { realpathSync } from 'fs'
@@ -73,6 +76,25 @@ export const AGENT_ID_PATTERN = TOOL_NAME_PATTERN
 export const HOOK_INPUT_STOP_FIELDS = { 'permission-request': 'tool_input', 'post-tool-batch': 'tool_calls' }
 /** T0642 (D167): a claude session id as sent (anything else is not sent). */
 export const SESSION_ID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
+/**
+ * T0790 / BUG-197: when this hook process started, as `process.hrtime` ns (a decimal string; BigInt does
+ * not survive JSON), or undefined. `process.hrtime` is the host's monotonic clock (libuv `uv_hrtime`:
+ * QueryPerformanceCounter on Windows, CLOCK_MONOTONIC on Linux, mach_absolute_time on macOS), the same
+ * counter in every process of the host — never the wall clock (BUG-171: NTP moves it). The process start
+ * (`hrtime - uptime`; node's uptime counts from its own start on the same clock), not the time this line
+ * runs: module loading varies by tens of ms between two hook processes (T0790 measured on Windows: a
+ * second process spawned 0–5 ms later read an earlier script time in 83 of 90 pairs, an earlier process
+ * start in 0 of 90).
+ */
+export function hookStartedAt(hrtime = () => process.hrtime.bigint(), uptime = () => process.uptime()) {
+  try {
+    const at = hrtime() - BigInt(Math.round(uptime() * 1e9))
+    return at > 0n ? String(at) : undefined
+  } catch {
+    return undefined
+  }
+}
 
 /**
  * What to report for `event` given claude's hook input (already parsed; null = none / unreadable):
@@ -169,8 +191,9 @@ export function readHookInput(stream = process.stdin, timeoutMs = STDIN_TIMEOUT_
 /**
  * One report. `{ result, code?, sessionId?, agentId?, durationMs }` (`sessionId`: the one sent, for
  * the log's first 8 characters; T0657: `agentId`, the one sent), never throws. `connection` / `env` for tests.
+ * T0790: `at` (`hookStartedAt()`, main passes it) goes into the report as is; absent = not sent.
  */
-export async function reportHook(event, input, { env = process.env, connection } = {}) {
+export async function reportHook(event, input, { env = process.env, connection, at } = {}) {
   const startedAt = Date.now()
   const report = hookReport(event, input)
   if (!report) return { result: 'skipped', durationMs: Date.now() - startedAt }
@@ -183,7 +206,7 @@ export async function reportHook(event, input, { env = process.env, connection }
     clientName: 'bat-hook',
   })
   try {
-    const outcome = await conn.invoke('terminal:report-hook', [report], INVOKE_TIMEOUT_MS)
+    const outcome = await conn.invoke('terminal:report-hook', [typeof at === 'string' ? { ...report, at } : report], INVOKE_TIMEOUT_MS)
     if (!outcome.ok) return { result: 'failed', code: outcome.code, ...sent, durationMs: Date.now() - startedAt }
     const value = outcome.result
     if (value && typeof value === 'object' && value.ok === false) {
@@ -214,7 +237,7 @@ async function main() {
   if (!process.env.BAT_REMOTE_PORT || !process.env.BAT_REMOTE_TOKEN) process.exit(0)
   const stopField = Object.hasOwn(HOOK_INPUT_STOP_FIELDS, event) ? HOOK_INPUT_STOP_FIELDS[event] : undefined
   const input = await readHookInput(process.stdin, STDIN_TIMEOUT_MS, stopField)
-  const outcome = await reportHook(event, input)
+  const outcome = await reportHook(event, input, { at: hookStartedAt() })
   if (outcome.result !== 'skipped') {
     logEvent('bat-hook', 'report-hook', {
       // `hook`, not `event`: the log record's own `event` is 'report-hook'

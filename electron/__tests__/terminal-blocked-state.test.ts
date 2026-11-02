@@ -56,6 +56,7 @@ import {
   isStartReportEvent,
   LAUNCH_SUSPECT_WINDOW_MS,
   LaunchSuspectWatcher,
+  parseHookAt,
   PERMISSION_AGENTS_MAX,
   registerReportHookHandler,
   REPORT_HOOK_UNCHANGED_LOG_INTERVAL_MS,
@@ -76,6 +77,8 @@ const ptySpawn = vi.fn((_shell: string, _args: string[], _opts: unknown) => new 
 const CWD = os.tmpdir()
 const TAB = { cwd: CWD, type: 'terminal' as const, shell: '/bin/sh' }
 const HOOK = path.resolve(__dirname, '..', '..', 'scripts', 'bat-hook.mjs')
+/** T0790: every report of the real hook process carries when the process started (`process.hrtime` ns). */
+const AT = expect.stringMatching(/^[0-9]{1,20}$/)
 let PtyManager: typeof PtyManagerType
 // dynamic: handlers/pty imports pty-manager, which must load after the fake node-pty is in place
 let registerPtyHandlers: typeof RegisterPtyHandlers
@@ -380,6 +383,123 @@ describe('TerminalBlockedTracker', () => {
   })
 })
 
+describe('T0790 / BUG-197: a clearing hook reported late does not clear a blocked state that happened after it', () => {
+  const setup = () => {
+    const lines: string[] = []
+    const tracker = new TerminalBlockedTracker({ log: m => lines.push(m) }, () => 1000)
+    return { lines, tracker }
+  }
+
+  it('T0788’s order — permission-request arrives first, its turn’s user-prompt-submit (earlier) after: stays blocked, the turn still starts', () => {
+    const { lines, tracker } = setup()
+    expect(tracker.report('a', 'permission-request', 'Bash', undefined, undefined, 2_000_000n)).toMatchObject({ result: 'blocked' })
+    expect(tracker.report('a', 'user-prompt-submit', undefined, undefined, undefined, 1_000_000n))
+      .toEqual({ result: 'unchanged', state: { reason: 'permission', since: 1000, event: 'permission-request', toolName: 'Bash' } })
+    expect(tracker.get('a')).toMatchObject({ reason: 'permission' })
+    expect(tracker.isTurnActive('a')).toBe(true) // T0694: the turn signal is not lost
+    expect(lines).toEqual([
+      '[blocked] terminal=a → blocked reason=permission (hook permission-request tool=Bash)',
+      '[turn] terminal=a → started (hook user-prompt-submit)',
+      '[blocked] terminal=a kept: hook user-prompt-submit happened 1.0ms before the blocked state (reported late)',
+    ])
+    // the user's answer and the turn's own Stop (both later) clear as before
+    expect(tracker.report('a', 'stop', undefined, undefined, undefined, 3_000_000n)).toEqual({ result: 'cleared', state: null })
+    expect(tracker.isTurnActive('a')).toBe(false)
+  })
+
+  it('the normal order clears: an event that happened after the blocked state, or at the same time', () => {
+    const { tracker } = setup()
+    tracker.report('a', 'user-prompt-submit', undefined, undefined, undefined, 100n)
+    tracker.report('a', 'ask-user-question', undefined, undefined, undefined, 200n)
+    expect(tracker.report('a', 'ask-user-question-done', undefined, undefined, undefined, 300n)).toEqual({ result: 'cleared', state: null })
+    tracker.report('a', 'elicitation', undefined, undefined, undefined, 400n)
+    expect(tracker.report('a', 'user-prompt-submit', undefined, undefined, undefined, 400n)).toEqual({ result: 'cleared', state: null })
+  })
+
+  it('the previous turn’s Stop reported after the next turn’s prompt: kept (the turn ends as before, T0694)', () => {
+    const { tracker } = setup()
+    tracker.report('a', 'user-prompt-submit', undefined, undefined, undefined, 500n)
+    tracker.report('a', 'permission-request', 'Bash', undefined, undefined, 700n)
+    expect(tracker.report('a', 'stop', undefined, undefined, undefined, 600n)).toMatchObject({ result: 'unchanged', state: { reason: 'permission' } })
+    expect(tracker.isTurnActive('a')).toBe(false)
+  })
+
+  it('ask-user-question-done / elicitation-done reported late are kept too; the latest entry of the same reason counts', () => {
+    const { tracker } = setup()
+    // T0597: PreToolUse, then PermissionRequest of AskUserQuestion (same reason, later) — the later one counts
+    tracker.report('a', 'ask-user-question', undefined, undefined, undefined, 100n)
+    expect(tracker.report('a', 'permission-request', 'AskUserQuestion', undefined, undefined, 190n).result).toBe('unchanged')
+    expect(tracker.report('a', 'user-prompt-submit', undefined, undefined, undefined, 150n).result).toBe('unchanged')
+    expect(tracker.report('a', 'ask-user-question-done', undefined, undefined, undefined, 180n).result).toBe('unchanged')
+    expect(tracker.report('a', 'ask-user-question-done', undefined, undefined, undefined, 250n).result).toBe('cleared')
+    tracker.report('b', 'elicitation', undefined, undefined, undefined, 500n)
+    expect(tracker.report('b', 'elicitation-done', undefined, undefined, undefined, 499n).result).toBe('unchanged')
+    expect(tracker.report('b', 'elicitation-done', undefined, undefined, undefined, 501n).result).toBe('cleared')
+  })
+
+  it('post-tool-batch compares with its own agent’s prompt: a late batch keeps it, an older agent’s batch still removes that agent', () => {
+    const { tracker } = setup()
+    tracker.report('a', 'permission-request', 'Bash', undefined, undefined, 200n) // main thread
+    tracker.report('a', 'permission-request', 'Bash', undefined, 'x1', 400n)
+    // main's batch resolved before x1's prompt appeared: not late for main → main removed, x1 still open
+    expect(tracker.report('a', 'post-tool-batch', undefined, undefined, undefined, 300n).result).toBe('unchanged')
+    // x1's previous batch, reported after x1's new prompt: kept (x1 not removed)
+    expect(tracker.report('a', 'post-tool-batch', undefined, undefined, 'x1', 350n).result).toBe('unchanged')
+    expect(tracker.get('a')).toMatchObject({ reason: 'permission' })
+    expect(tracker.report('a', 'post-tool-batch', undefined, undefined, 'x1', 500n).result).toBe('cleared')
+    // the same agent's second prompt of one batch: its later time counts
+    tracker.report('b', 'permission-request', 'Bash', undefined, undefined, 100n)
+    tracker.report('b', 'permission-request', 'Bash', undefined, undefined, 300n)
+    expect(tracker.report('b', 'post-tool-batch', undefined, undefined, undefined, 200n).result).toBe('unchanged')
+    expect(tracker.report('b', 'post-tool-batch', undefined, undefined, undefined, 301n).result).toBe('cleared')
+  })
+
+  it(`more than ${PERMISSION_AGENTS_MAX} agents (any batch clears): compared with the blocked state`, () => {
+    const { tracker } = setup()
+    for (let i = 0; i <= PERMISSION_AGENTS_MAX; i++) tracker.report('a', 'permission-request', 'Bash', undefined, `ag${i}`, BigInt(100 + i))
+    expect(tracker.report('a', 'post-tool-batch', undefined, undefined, 'zz', 120n).result).toBe('unchanged')
+    expect(tracker.report('a', 'post-tool-batch', undefined, undefined, 'zz', 1000n).result).toBe('cleared')
+  })
+
+  it('without `at` on either side the behavior is as before T0790 (an older hook script, a mixed one)', () => {
+    const { tracker } = setup()
+    tracker.report('a', 'permission-request', 'Bash')
+    expect(tracker.report('a', 'user-prompt-submit', undefined, undefined, undefined, 1n).result).toBe('cleared')
+    tracker.report('a', 'permission-request', 'Bash', undefined, undefined, 2_000n)
+    expect(tracker.report('a', 'user-prompt-submit').result).toBe('cleared')
+    tracker.report('a', 'post-tool-batch') // nothing to clear
+    tracker.report('a', 'permission-request', 'Bash')
+    tracker.report('a', 'permission-request', 'Bash', undefined, 'x1')
+    expect(tracker.report('a', 'post-tool-batch', undefined, undefined, 'x1', 5n).result).toBe('unchanged') // main still open
+    expect(tracker.report('a', 'post-tool-batch', undefined, undefined, undefined, 5n).result).toBe('cleared')
+  })
+
+  it('a state left by the user (input, mouse) forgets its time: the next entry without `at` clears as before', () => {
+    const { tracker } = setup()
+    tracker.report('a', 'permission-request', 'Bash', undefined, undefined, 5_000n)
+    expect(tracker.clearForUserInput('a')).toBe(true)
+    tracker.report('a', 'permission-request', 'Bash')
+    expect(tracker.report('a', 'stop', undefined, undefined, undefined, 1n).result).toBe('cleared')
+    tracker.report('a', 'ask-user-question', undefined, undefined, undefined, 5_000n)
+    expect(tracker.clearForMousePress('a')).toBe(true)
+    tracker.report('a', 'ask-user-question')
+    expect(tracker.report('a', 'user-prompt-submit', undefined, undefined, undefined, 1n).result).toBe('cleared')
+    // another reason replaces the state: its own time counts
+    tracker.report('a', 'permission-request', 'Bash', undefined, undefined, 9_000n)
+    tracker.report('a', 'elicitation')
+    expect(tracker.report('a', 'stop', undefined, undefined, undefined, 1n).result).toBe('cleared')
+  })
+
+  it('parseHookAt: a decimal string 1 … 2^64-1 only', () => {
+    expect(parseHookAt('1')).toBe(1n)
+    expect(parseHookAt('123456789012345678')).toBe(123456789012345678n)
+    expect(parseHookAt('18446744073709551615')).toBe(18446744073709551615n)
+    for (const bad of [undefined, null, 5, 5n, '', '0', '00', '-1', '1.5', ' 1', '1e9', 'abc', '18446744073709551616', '1'.repeat(21), ['1'], { at: '1' }]) {
+      expect(parseHookAt(bad), String(bad)).toBeUndefined()
+    }
+  })
+})
+
 describe('PtyManager (T0590)', () => {
   it('a report needs a running PTY; cleared by the user input, kill, exit and restart', () => {
     const { manager, create, exit } = makeManager()
@@ -527,6 +647,30 @@ describe('terminal:report-hook', () => {
     // the tool name of AskUserQuestion is not kept (nothing but the event is needed)
     h.call('terminal:report-hook', h.asHelper('wk'), { event: 'ask-user-question', toolName: 'AskUserQuestion' })
     expect(h.manager.getBlockedState('wk')).toEqual({ reason: 'question', since: expect.any(Number), event: 'ask-user-question' })
+  })
+
+  it('T0790: `at` over the channel — a late clearing report keeps the state; malformed `at` is ignored (no error); never answered or returned by a query', () => {
+    scene()
+    const AT_PERM = '987654321098765432'
+    expect(h.call('terminal:report-hook', h.asHelper('wk'), { event: 'permission-request', toolName: 'Bash', at: AT_PERM }))
+      .toEqual({ ok: true, terminalId: 'wk', result: 'blocked', state: 'blocked', blockedReason: 'permission' })
+    expect(h.call('terminal:report-hook', h.asHelper('wk'), { event: 'user-prompt-submit', at: '987654321000000000' }))
+      .toEqual({ ok: true, terminalId: 'wk', result: 'unchanged', state: 'blocked', blockedReason: 'permission' })
+    expect(logs.some(l => /^\[blocked\] terminal=wk kept: hook user-prompt-submit happened 98\.7ms before the blocked state \(reported late\)$/.test(l))).toBe(true)
+    // `at` stays inside the tracker
+    expect(h.manager.getBlockedState('wk')).toEqual({ reason: 'permission', since: expect.any(Number), event: 'permission-request', toolName: 'Bash' })
+    const towerCtx = h.asHelper('tw')
+    const state = h.call('terminal:get-state', towerCtx, { terminalId: 'wk' })
+    expect(state).toMatchObject({ ok: true, state: 'blocked', blockedReason: 'permission' })
+    expect(JSON.stringify(state)).not.toMatch(/987654321|"at"/)
+    expect(JSON.stringify(h.call('terminal:list', towerCtx, {}))).not.toMatch(/987654321|"at"/)
+    // malformed `at` → as without it: this one clears
+    for (const bad of [42, '', 'abc', '-5', '0', '1'.repeat(21), '18446744073709551616', { n: 1 }, null]) {
+      h.call('terminal:report-hook', h.asHelper('sh'), { event: 'permission-request', toolName: 'Bash', at: '999999999999999999' })
+      expect(h.call('terminal:report-hook', h.asHelper('sh'), { event: 'stop', at: bad }), JSON.stringify(bad))
+        .toEqual({ ok: true, terminalId: 'sh', result: 'cleared', state: 'not-blocked' })
+    }
+    expect(h.hookLogs).toEqual([])
   })
 
   it('T0594: ask-user-question-done over the channel — clears the caller’s question, leaves a permission prompt', () => {
@@ -831,7 +975,7 @@ describe('scripts/bat-hook.mjs ↔ RemoteServer + capabilities', () => {
     const run = await runHook('ask-user-question', JSON.stringify(input), hookEnv('hk-worker'))
     expect(run).toMatchObject({ code: 0, stdout: '' })
     expect(manager.getBlockedState('hk-worker')).toMatchObject({ reason: 'question' })
-    expect(received.at(-1)).toEqual([{ event: 'ask-user-question' }])
+    expect(received.at(-1)).toEqual([{ event: 'ask-user-question', at: AT }])
     expect(JSON.stringify(received)).not.toMatch(/SECRET|tool_input|batcap/)
 
     const log = fs.readFileSync(path.join(logDir, 'bat-scripts.log'), 'utf8')
@@ -853,7 +997,7 @@ describe('scripts/bat-hook.mjs ↔ RemoteServer + capabilities', () => {
     const run = await runHook('permission-request', JSON.stringify({ hook_event_name: 'PermissionRequest', tool_name: 'Bash', tool_input: { command: 'rm -rf SECRET' } }), hookEnv('hk-worker'))
     expect(run).toMatchObject({ code: 0, stdout: '' })
     expect(await waiting).toMatchObject({ ok: true, changed: true, state: 'blocked', blockedReason: 'permission', blockedDetection: 'hook' })
-    expect(received.at(-1)).toEqual([{ event: 'permission-request', toolName: 'Bash' }])
+    expect(received.at(-1)).toEqual([{ event: 'permission-request', toolName: 'Bash', at: AT }])
     // the tower (shell tab capability too) reports for itself
     expect(await runHook('elicitation', JSON.stringify({ hook_event_name: 'Notification', notification_type: 'elicitation_dialog' }), hookEnv('hk-tower'))).toMatchObject({ code: 0, stdout: '' })
     expect(manager.getBlockedState('hk-tower')).toMatchObject({ reason: 'elicitation' })
@@ -881,7 +1025,7 @@ describe('scripts/bat-hook.mjs ↔ RemoteServer + capabilities', () => {
     const run = await runHook('ask-user-question-done', JSON.stringify(input), hookEnv('hk-worker'))
     expect(run).toMatchObject({ code: 0, stdout: '' })
     expect(manager.getBlockedState('hk-worker')).toBeNull()
-    expect(received.at(-1)).toEqual([{ event: 'ask-user-question-done' }])
+    expect(received.at(-1)).toEqual([{ event: 'ask-user-question-done', at: AT }])
     expect(JSON.stringify(received)).not.toMatch(/SECRET|tool_response|tool_input/)
     const log = fs.readFileSync(path.join(logDir, 'bat-scripts.log'), 'utf8')
     expect(log.trim().split('\n').map(l => JSON.parse(l) as Record<string, unknown>).filter(e => e.script === 'bat-hook').at(-1))
@@ -904,7 +1048,7 @@ describe('scripts/bat-hook.mjs ↔ RemoteServer + capabilities', () => {
     }
     const run = await runHook('permission-request', JSON.stringify(input), hookEnv('hk-worker'))
     expect(run).toMatchObject({ code: 0, stdout: '' })
-    expect(received.at(-1)).toEqual([{ event: 'permission-request', toolName: 'AskUserQuestion' }])
+    expect(received.at(-1)).toEqual([{ event: 'permission-request', toolName: 'AskUserQuestion', at: AT }])
     expect(JSON.stringify(received)).not.toMatch(/SECRET|tool_input/)
     expect(await towerState()).toMatchObject({ ok: true, state: 'blocked', blockedReason: 'question', blockedSince: since, source: 'hook' })
     await runHook('ask-user-question-done', JSON.stringify({ hook_event_name: 'PostToolUse', tool_name: 'AskUserQuestion' }), hookEnv('hk-worker'))
@@ -950,7 +1094,7 @@ describe('scripts/bat-hook.mjs ↔ RemoteServer + capabilities', () => {
     const run = await runHook('elicitation-done', JSON.stringify(input), hookEnv('hk-worker'))
     expect(run).toMatchObject({ code: 0, stdout: '' })
     expect(manager.getBlockedState('hk-worker')).toBeNull()
-    expect(received.at(-1)).toEqual([{ event: 'elicitation-done' }])
+    expect(received.at(-1)).toEqual([{ event: 'elicitation-done', at: AT }])
 
     // the request cancelled / timed out: no ElicitationResult, only the notification
     await elicit()
@@ -961,7 +1105,7 @@ describe('scripts/bat-hook.mjs ↔ RemoteServer + capabilities', () => {
     }), hookEnv('hk-worker'))
     expect(note).toMatchObject({ code: 0, stdout: '' })
     expect(manager.getBlockedState('hk-worker')).toBeNull()
-    expect(received.at(-1)).toEqual([{ event: 'elicitation-done' }])
+    expect(received.at(-1)).toEqual([{ event: 'elicitation-done', at: AT }])
     expect(JSON.stringify(received)).not.toMatch(/SECRET|content|accept|cancel/)
 
     // another notification type wired to the same event (none is, but a shared settings file could) sends nothing
@@ -1013,18 +1157,18 @@ describe('scripts/bat-hook.mjs ↔ RemoteServer + capabilities', () => {
     const run = await runHook('post-tool-batch', batch(undefined, 400 * 1024), hookEnv('hk-worker'))
     expect(run).toMatchObject({ code: 0, stdout: '' })
     expect(run.ms).toBeLessThan(2_000)
-    expect(received.at(-1)).toEqual([{ event: 'post-tool-batch' }])
+    expect(received.at(-1)).toEqual([{ event: 'post-tool-batch', at: AT }])
     expect(manager.getBlockedState('hk-worker')).toBeNull()
     expect(lastHookLog()).toMatchObject({ event: 'report-hook', hook: 'post-tool-batch', result: 'cleared', terminalId: 'hk-worker' })
 
     // a subagent's prompt: the main thread's batch leaves it, the subagent's own clears it
     await runHook('permission-request', permission('a4f1c2'), hookEnv('hk-worker'))
-    expect(received.at(-1)).toEqual([{ event: 'permission-request', toolName: 'Bash', agentId: 'a4f1c2' }])
+    expect(received.at(-1)).toEqual([{ event: 'permission-request', toolName: 'Bash', agentId: 'a4f1c2', at: AT }])
     await runHook('post-tool-batch', batch(), hookEnv('hk-worker'))
     expect(manager.getBlockedState('hk-worker')).toMatchObject({ reason: 'permission' })
     expect(lastHookLog()).toMatchObject({ hook: 'post-tool-batch', result: 'unchanged' })
     expect(await runHook('post-tool-batch', batch('a4f1c2'), hookEnv('hk-worker'))).toMatchObject({ code: 0, stdout: '' })
-    expect(received.at(-1)).toEqual([{ event: 'post-tool-batch', agentId: 'a4f1c2' }])
+    expect(received.at(-1)).toEqual([{ event: 'post-tool-batch', agentId: 'a4f1c2', at: AT }])
     expect(manager.getBlockedState('hk-worker')).toBeNull()
     expect(lastHookLog()).toMatchObject({ hook: 'post-tool-batch', agent: 'a4f1c2', result: 'cleared' })
 
@@ -1053,7 +1197,7 @@ describe('scripts/bat-hook.mjs ↔ RemoteServer + capabilities', () => {
     try {
       const prompt = await runHook('permission-request', JSON.stringify({ agent_id: 'a9', hook_event_name: 'PermissionRequest', tool_name: 'Bash', tool_input: {} }), hookEnv('hk-worker'))
       expect(prompt).toMatchObject({ code: 0, stdout: '' })
-      expect(received.at(-1)).toEqual([{ event: 'permission-request', toolName: 'Bash', agentId: 'a9' }])
+      expect(received.at(-1)).toEqual([{ event: 'permission-request', toolName: 'Bash', agentId: 'a9', at: AT }])
       expect(manager.getBlockedState('hk-worker')).toMatchObject({ reason: 'permission', toolName: 'Bash' })
       for (const agent of [undefined, 'a9']) {
         const run = await runHook('post-tool-batch', JSON.stringify({ ...(agent ? { agent_id: agent } : {}), hook_event_name: 'PostToolBatch', tool_calls: [] }), hookEnv('hk-worker'))
@@ -1092,7 +1236,7 @@ describe('scripts/bat-hook.mjs ↔ RemoteServer + capabilities', () => {
     const run = await runHook('session-start', JSON.stringify(input), hookEnv('hk-start'))
     expect(run).toMatchObject({ code: 0, stdout: '' })
     expect(run.ms).toBeLessThan(2_000)
-    expect(received.at(-1)).toEqual([{ event: 'session-start' }])
+    expect(received.at(-1)).toEqual([{ event: 'session-start', at: AT }])
     expect(JSON.stringify(received)).not.toMatch(/SECRET|startup|batcap/)
     const startedAt = manager.getAgentStartedAt('hk-start')
     expect(startedAt).toEqual(expect.any(Number))
@@ -1126,7 +1270,7 @@ describe('scripts/bat-hook.mjs ↔ RemoteServer + capabilities', () => {
     const run = await runHook('session-start', JSON.stringify(input(sid1, 'startup')), hookEnv('hk-sid'))
     expect(run).toMatchObject({ code: 0, stdout: '' })
     expect(run.ms).toBeLessThan(2_000)
-    expect(received.at(-1)).toEqual([{ event: 'session-start', sessionId: sid1 }])
+    expect(received.at(-1)).toEqual([{ event: 'session-start', sessionId: sid1, at: AT }])
     expect(manager.getClaudeSessionId('hk-sid')).toBe(sid1)
     const startedAt = manager.getAgentStartedAt('hk-sid')
     expect(await runHook('session-start', JSON.stringify(input(sid2, 'clear')), hookEnv('hk-sid'))).toMatchObject({ code: 0, stdout: '' })
@@ -1140,7 +1284,7 @@ describe('scripts/bat-hook.mjs ↔ RemoteServer + capabilities', () => {
     expect(log).not.toContain(sid2)
     // not a UUID: not sent; the id stays
     await runHook('session-start', JSON.stringify(input('not-a-uuid', 'resume')), hookEnv('hk-sid'))
-    expect(received.at(-1)).toEqual([{ event: 'session-start' }])
+    expect(received.at(-1)).toEqual([{ event: 'session-start', at: AT }])
     expect(manager.getClaudeSessionId('hk-sid')).toBe(sid2)
     // a BAT before T0642 ignores the field: exit 0, nothing on stdout, nothing recorded
     t0600Bat = true
@@ -1162,6 +1306,34 @@ describe('scripts/bat-hook.mjs ↔ RemoteServer + capabilities', () => {
     const towerHelper = { terminalId: 'hk-tower', role: 'tower' as const }
     expect(await invokeHandler('terminal:get-state', [{ terminalId: 'hk-sid' }], null, 'tw', towerHelper)).toMatchObject({ ok: true, claudeSessionId: sid2 })
     manager.kill('hk-sid')
+  })
+
+  it('T0790 / BUG-197: two real hook processes — the earlier UserPromptSubmit reports after the PermissionRequest: the prompt stays blocked; exit 0, stdout empty', async () => {
+    manager.create({ id: 'hk-late', ...TAB, workspaceId: 'ws', customEnv: { BAT_TOWER_TERMINAL_ID: 'hk-tower' } })
+    // the UserPromptSubmit process starts first, but claude has not closed its stdin yet: it reads until
+    // STDIN_TIMEOUT_MS (300 ms) and reports late; the PermissionRequest process starts after it and reports at once
+    const base: NodeJS.ProcessEnv = Object.fromEntries(Object.entries(process.env).filter(([k]) => !k.toUpperCase().startsWith('BAT_')))
+    const late = spawn(process.execPath, [HOOK, 'user-prompt-submit'], { env: { ...base, ...hookEnv('hk-late') }, stdio: ['pipe', 'pipe', 'pipe'] })
+    let lateStdout = ''
+    late.stdout.on('data', d => { lateStdout += d })
+    late.stdin.on('error', () => {})
+    late.stdin.write(JSON.stringify({ hook_event_name: 'UserPromptSubmit', prompt: 'SECRET-PROMPT' }))
+    const lateExit = new Promise<number | null>(resolve => late.on('exit', code => resolve(code)))
+    await new Promise(resolve => setTimeout(resolve, 30))
+    const perm = await runHook('permission-request', JSON.stringify({ hook_event_name: 'PermissionRequest', tool_name: 'Bash', tool_input: { command: 'SECRET' } }), hookEnv('hk-late'))
+    expect(perm).toMatchObject({ code: 0, stdout: '' })
+    expect(manager.getBlockedState('hk-late')).toMatchObject({ reason: 'permission' })
+    expect(await lateExit).toBe(0)
+    expect(lateStdout).toBe('')
+    const reports = received.slice(-2) as Array<[{ event: string; at: string }]>
+    expect(reports.map(r => r[0].event)).toEqual(['permission-request', 'user-prompt-submit'])
+    expect(BigInt(reports[1][0].at)).toBeLessThan(BigInt(reports[0][0].at))
+    expect(manager.getBlockedState('hk-late')).toMatchObject({ reason: 'permission' })
+    expect(manager.isAgentTurnActive('hk-late')).toBe(true) // T0694: the late report still started the turn
+    expect(JSON.stringify(received)).not.toMatch(/SECRET/)
+    // the turn's own Stop (a later process) clears it
+    expect(await runHook('stop', JSON.stringify({ hook_event_name: 'Stop' }), hookEnv('hk-late'))).toMatchObject({ code: 0, stdout: '' })
+    expect(manager.getBlockedState('hk-late')).toBeNull()
   })
 })
 
