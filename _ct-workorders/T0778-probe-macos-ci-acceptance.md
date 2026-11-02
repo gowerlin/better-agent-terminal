@@ -166,7 +166,7 @@ Run：[41380866131](https://github.com/gowerlin/better-agent-terminal/actions/ru
 - push 1：`eb9a41f3..051b053e`（含塔台的 `(ct)` commit、T0777 已 commit 的 `e1e7f2d1` / `954b0348` / `1acc1803`，與本單 `051b053e`）。
 - push 2：`051b053e..4ef73ab0`（本單 spec 修正）。
 - push 3：本單 docs `083a66ce` 與工單收尾 commit（結案時一起推）。
-- 每次 push 前以 `.private/` 的檢查樣式掃要推的 diff：0 命中；金鑰樣式（`sk-ant-`、`ghp_`、`github_pat_`、`AKIA`、`AIza`、`PRIVATE KEY`、`batcap.`）只命中 workflow 裡「刪除含權杖檔案」那一行的 regex 本身（不是金鑰）。追蹤檔整體掃描另有 2 筆既有的 `<claude-mem-context>`（`_ct-workorders/_archive/state-snapshots/2026-Q4-b.md`、`_ct-workorders/_archive/workorders/T0676-deidentify-public-records.md`，是 T0676 的紀錄被歸檔後排除路徑沒跟上，不在本單 push 的 diff 內）——請塔台留意檢查樣式的排除路徑。
+- 每次 push 前以 `.private/` 的檢查樣式掃要推的 diff：0 命中；`_local-rules.md`〈公開 repo 去識別化〉列的常見金鑰樣式只命中 workflow 裡「刪除含權杖檔案」那一行的 regex 本身（不是金鑰）。追蹤檔整體掃描另有 2 筆既有的 claude-mem 殘留標籤命中（`_ct-workorders/_archive/state-snapshots/2026-Q4-b.md`、`_ct-workorders/_archive/workorders/T0676-deidentify-public-records.md`；T0676 的紀錄被歸檔後，檢查樣式的排除路徑沒跟上新位置），不在本單 push 的 diff 內——請塔台留意排除路徑。
 - 兩個 run 的 artifact 下載後本機掃描 `batcap.`、`BAT_REMOTE_TOKEN`、`server-token`、`GITHUB_TOKEN`、`ghs_` 等：0 命中。
 
 ### 遭遇問題
