@@ -38,3 +38,13 @@ links:
 - **驗證（Windows x64）**：verify-native-modules、typecheck 0 / 0、`test:unit`、`test:legacy`、`vite build`、`build:dir` ＋ `verify-packaged-native.js` 全綠，打包產物 Electron = 41.10.7；e2e 冒煙 5 支（t0572 / t0776 / t0735 / t0744 / t0762）全過。
 - **未驗證**：macOS / Linux，待 CI 三平台 build 與 `macos-acceptance.yml`。
 - 狀態維持 IDEA、優先度不變；主升級（42+）另開單。
+
+## T0781 結論摘要（2026-11-02）
+
+> 只是摘要，證據、行號、來源連結與工單草案見 `T0781-research-electron-major-upgrade-target.md` 回報區。
+
+- **待決 1（目標版本）**：建議**一次升到 Electron 45**（45.2.x：Chromium 156、Node 24.22.1、ABI 150，暫定支援到 2027-04-27）。42 已在 2026-10-20 停止支援；43 只剩約 2 個月；44 與 45 工作量相同。備案：45 本身有回歸時退到 44.x。
+- **待決 2（回歸範圍）**：需要改的主要是 **Electron 44 的 main 行程 `clipboard` 改寫**（`readImage` / `writeImage` 移除、`read` 改 Promise，45.2.1 實測），影響圖片貼上 / 複製圖片 / macOS Finder 檔案貼上（`electron/main.ts`、`clipboard-file-paths.ts`、3 支 e2e），規模 M。其餘：42 起 `electron` 不再 postinstall 下載（CI 已用 `install.js`，可用）、macOS 通知需簽章（正式版已簽）、44 起 macOS 13 以上（README 要改）、Linux badge 失效；45 的 `safeStorage` 同步 API 棄用，46 移除（另開單）。原生模組 `@lydell/node-pty`、`@kutalia/whisper-node-addon` 都是 N-API，已在 45.2.1 實測載入；Node 主版本不變。electron-builder / Playwright 支援範圍未確認，EXP 一次只換 Electron。
+- **待決 3（Graphite）**：43 / 44 / 45 的 Chromium 都已把 `kOutOfOrderRecording` 改成 context lost，但 context lost 重啟以 exit code 34 結束，**仍計入 5 分鐘 3 次的 crash limit**（原始碼查證）；`kAsyncShaderCompilesFailed` 仍會 CHECK。建議升級時**保留** macOS `disable-skia-graphite`，之後另開單評估。
+- **待決 4（EXP）**：建議比照 PLAN-016 開 `EXP-ELECTRON45-001`（分支 `exp/electron45`），驗證關卡與三平台作法見 T0781。開工前塔台待決：三平台 CI 怎麼跑（預覽版屬對外動作）、`allowScripts.electron` 去留、safeStorage 是否併入。
+- 狀態維持 IDEA。
