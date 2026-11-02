@@ -4,14 +4,17 @@ schema_kind: workorder
 id: T0791
 title: "修正 BUG-198：上一回合晚到的 `stop` hook 回報不得結束時間比它晚開始的新回合（Worker 分頁 `↻` 不得提早變回 `✓`）"
 type: implementation
-status: TODO
+status: DONE
 repo: better-agent-terminal
 project: maintenance
 priority: P2
 sizing: S
 created_at: "2026-11-02T21:45:51+0800"
-updated_at: "2026-11-02T21:45:51+0800"
-session_ids: []
+started_at: "2026-11-02T21:48:33+0800"
+updated_at: "2026-11-02T22:05:25+0800"
+completed_at: "2026-11-02T22:05:25+0800"
+session_ids:
+  - "76d2d583-f2c0-4bd3-a83a-b7ab4c1ed3b1"
 depends_on: []
 related:
   - "BUG-198（low，FIXING）；T0790 回報區〈遭遇問題〉第 2 點；BUG-197 / T0790（hook 程序啟動時間 `at`、`parseHookAt`、`blockedAt`）；T0694 / D180（回合信號 `↻`）；D232"
@@ -79,3 +82,92 @@ claude 的每個 hook 都是一個獨立的 `bat-hook.mjs` 程序，回報到主
 ## 回報區
 
 > 以下由 sub-session 填寫，請勿在指揮塔 session 中編輯
+
+### 完成狀態
+
+- **狀態**：DONE（BUG-198 → FIXED，寫在 BUG 單）
+- **完成時間**：2026-11-02T22:05:25+0800
+- **產品 commit**：`20bc7a88` fix: a late Stop hook no longer ends a turn that started after it (T0791, BUG-198)
+- **session_id**：76d2d583-f2c0-4bd3-a83a-b7ab4c1ed3b1
+
+### 落點檢查
+
+- 結果：PASS
+- C-0：`repo` = `better-agent-terminal`，`basename(REPO_ROOT)` = `better-agent-terminal` → PASS（`REPO_ROOT` = 主 checkout，非 worktree；`CT_HOME` 未設）
+- C-1：工單在 `REPO_ROOT/_ct-workorders/` 下 → PASS
+- C-3：`electron/terminal-blocked-state.ts` 等皆存在 → PASS（資訊性）
+- C-2：工單無 `branch` 欄位，目前 `main`
+- `BAT_WORKSPACE_ID`：`cc0afc4a-57e9-4f41-b2ed-a2d8bac9e36b`（只記錄）；`CT_MODE=yolo`、`CT_INTERACTIVE=0`、`BAT_REMOTE_TOKEN` 已設定
+- 工單 `status` 原為 `TODO`（非 `PENDING`），視同未開始，直接改 `IN_PROGRESS`
+
+### 查證結果
+
+**① 重現（修正前）**：在 `electron/__tests__/agent-turn-attention.test.ts` 先寫好新測試、修正前執行 → 4 個情境失敗（回合 1 `user-prompt-submit` at=t1 → 回合 2 `user-prompt-submit` at=t3 先到 → 回合 1 `stop` at=t2 晚到 → 回合 2 被結束，`isTurnActive` = false）。另以兩個真實 `bat-hook.mjs` 程序重現（`stop` 程序先啟動、stdin 不關，讀到 300 ms 逾時才回報；30 ms 後啟動的 `user-prompt-submit` 立即回報 → `at` 順序 stop < prompt、到達順序相反），隔離實例 e2e 同法重現（突變版在 `[turn] … kept:` 日誌斷言失敗）。
+
+**② 其他回合信號有沒有同類亂序**：
+
+| 信號 | 來源 | 會不會亂序 | 結論 |
+|---|---|---|---|
+| claude `user-prompt-submit` → 開始 | 各自的 hook 程序（`async`） | 會（與其他 hook 程序間） | 開始的方向：晚到的 prompt 仍開始回合（T0790 既有行為）；本單只讓它更新回合開始時間（取最晚） |
+| claude `stop` → 結束 | 各自的 hook 程序（`async`） | **會**（本 BUG） | 已修：`at` 早於目前回合開始時間 → 不結束 |
+| claude 其他結束路徑 | 無 —— BAT 不注入 `StopFailure`；Esc 中斷不跑 `Stop` | — | 由逾時備援涵蓋，不受影響 |
+| `session-start` | hook 程序 | 會，但不碰回合 | 無影響 |
+| codex OSC 7501 `working` / `idle` / `clear` | 同一個 PTY 的輸出串流，`enqueuePtyOutput` 依序解析 | 不會 | 不需處理（無 `at`，行為不變；單元測試斷言） |
+| 60 s 無輸出備援 | 主行程自己的計時器，讀 PTY 最後輸出時間 | 不會 | 不需處理；被保留的 `stop` 不動計時器，新回合的備援照常（單元測試斷言） |
+| PTY 結束 / ⏻ / recovery | 主行程事件 | 不會 | 照舊結束並忘掉回合開始時間 |
+| 反方向：同一回合的 `user-prompt-submit` 晚於它**自己的** `stop` | hook 程序 | 理論上會（極短回合 + async prompt hook） | **未處理**：回合多留到逾時備援 60 s，方向安全（顯示 `↻`、不計入批次關閉），已寫進 docs；若要處理需另開單 |
+
+### 修改內容
+
+- `electron/terminal-blocked-state.ts`：回合物件加 `startedAt?: bigint`（目前回合 `user-prompt-submit` 中最晚的 `at`）；`startTurn(id, cause, at?)` 新開回合時記下、回合進行中收到較晚的 `at` 時更新（較早的、沒有 `at` 的不改）；新 `endTurnByStop(id, at?)`：`at < startedAt` → 不結束，記 `[turn] terminal=<id> kept: hook stop happened <n>ms before the current turn (reported late)`（格式比照 T0790 `[blocked] … kept:`，用同一個 `formatHookAtGap`），否則 `endTurn(id, 'hook stop')`（日誌與 T0694 相同）。被保留的 `stop` 不呼叫 `onChange`。`report` 回傳、`blocked` 判斷（T0790）不變，`at` 不進任何查詢 / 推送。檔頭補 T0791 段。
+- `bat-hook.mjs`：未改（T0790 已送 `at`）。
+- `electron/__tests__/agent-turn-attention.test.ts`：新增「T0791 / BUG-198」段 8 個測試（亂序重現、回合 1 已被逾時備援結束、正常順序與相等時間、回合中較晚 / 沒有 / 較早的 prompt、任一方沒有 `at`、回合結束後忘掉開始時間（含 PTY 結束）、與 T0790 `blocked` 規則並存、codex 不受影響）。
+- `electron/__tests__/terminal-blocked-state.test.ts`：T0790 段原本斷言「上一回合的 `stop` 晚到 → 回合結束」（`isTurnActive` = false，即本 BUG 的行為）改寫為兩個情境：`stop` 晚於回合 prompt → 結束（不變）、上一回合的 `stop` 晚於下一回合 prompt → 回合維持；新增 `terminal:report-hook` channel 測試（`at` 經 channel、不合法照舊結束、`hookLogs` 空）與真實 hook 程序測試（exit 0、stdout 空、`at` 順序、`kept:` 日誌）。
+- `e2e/t0694-worker-resumed-badge.spec.ts`：Worker 腳本新增 `race` 工作（依 `delayMs` 啟動多個 helper，`hold` = 寫 stdin 不關）；新增步驟 6：`↻` 中跑上一回合 `stop`（hold）+ 30 ms 後下一回合 `user-prompt-submit` → `kept:` 日誌、1 s 後仍 `↻` / `resumed`、N = 1；下一個 `stop` → `✓`、N = 2。
+- `docs/agent-guide/blocked-state.md`：「晚到的清除回報」新增「回合結束（T0791 / BUG-198）」一點（規則、其他信號結論、反方向未處理）、改寫回合信號與殘留兩句、日誌一行、驗證一段。
+- `docs/agent-guide/worker-tab-recycle.md`：回合信號段 `stop` 後補一句。
+- `CLAUDE.md`：只改既有「晚到的清除回報（T0790 / BUG-197）」那一行（把「回合信號照舊」換成 T0791 規則），未新增段落、未改 `##` 標題。
+- `_ct-workorders/BUG-198-…md`：FIXED（`20bc7a88`）＋〈處理紀錄〉。`_bug-tracker.md` 未動（塔台更新）。
+
+### 驗收結果
+
+| 項目 | 結果 | 證據 |
+|---|---|---|
+| ① 單元：亂序 / 正常順序 / 沒有 `at`（任一方）/ `at` 不合法 | PASS | `agent-turn-attention` 32 → 全綠；`terminal-blocked-state` 53 全綠 |
+| ① 突變：拿掉比較 | PASS（測試抓得到） | 7 個測試失敗；另一突變「回合進行中不更新開始時間」→ 4 個失敗；均已還原（`git diff` 確認） |
+| ② e2e `t0694-worker-resumed-badge`（含新步驟 6） | PASS | 1 passed（15.0 s）；突變版 1 failed（`spec.ts:284`），還原後重建 |
+| ③ 不回歸 e2e | PASS | `t0609` 1 passed、`t0735` 1 passed、`t0590` 1 passed、`t0787` 2 passed（6.8 m） |
+| ④ `npm run typecheck` | PASS | 0 |
+| ④ `npm run typecheck:electron` | PASS | 0 |
+| ④ `npm run test:unit` | PASS | 385 files、6782 passed / 10 skipped |
+| ④ `npm run test:legacy` | PASS | files 33 passed、tests 472 passed |
+| ④ `npx vite build` | PASS | exit 0 |
+
+- 實測一律隔離實例（`launchIsolated`）＋自訂 CLI / 真實 `bat-hook.mjs`，無 LLM，真實模型花費 0；未碰使用者的 BAT 與塔台分頁。e2e 各帶自己的 `--output`（scratchpad），未清共用 `e2e-results/`。
+
+### 相關通過案例判定（不回歸）
+
+| 已驗收項目 | 判定 |
+|---|---|
+| T0694 回合信號 `↻` / `✓`（`agent-turn-attention` 既有 24 個、e2e `t0694` 步驟 1–5） | 不變：既有測試全綠；正常順序與沒有 `at` 的路徑照舊結束；renderer（`isWorkerResumedAfterReport`）未改 |
+| T0790 blocked 清除（`kept: … reported late`） | 不變：T0790 段除改寫的那一則（原斷言即本 BUG 行為，回合部分）外全綠；`blocked` 的部分在改寫後仍斷言相同結果；真實 hook 程序測試綠 |
+| blocked 契約 / `report-hook` 回傳 | 不變：`report` 回傳仍只講 `blocked`（新測試斷言 `{ result: 'unchanged', state: null }`）；`at` 不進查詢 |
+| 滑鼠回答（T0757）、使用者輸入規則 | 未觸及；`blocked-mouse-press` 單元綠 |
+| codex OSC（T0621） | 未觸及（`startTurn` 不帶 `at`）；新測試斷言 |
+| `agentStarted`（T0600） | 未觸及；`terminal-blocked-state` 的 T0600 段綠 |
+| notify-hold（T0788） | `notify-hold` / `notify-hold-ask-held-full` 單元綠、e2e `t0787` 2 passed |
+| `--close-worker` 等安靜 | 未觸及（不讀回合狀態）；`test:unit` 全綠 |
+| attention 推送（`busy`） | `terminal-attention` 單元綠、e2e `t0609` / `t0735` 綠；被保留的 `stop` 不送 `onChange` |
+
+### 遭遇問題
+
+1. 工單 frontmatter `status: TODO`（ct-exec 預期 `PENDING`），視同未開始處理。
+2. e2e 新增的 RegExp 一開始寫在 template literal 內，`\[` 會被當成 `[`；改用 `String.raw` 後才正確（未 commit 錯誤版本）。
+
+### 互動紀錄
+
+- 無（yolo；沒有需要問塔台的問題，設計照工單建議方向，未偏離）。
+
+### 後續建議
+
+- 反方向亂序（同一回合的 `user-prompt-submit` 晚於它自己的 `stop` 到達 → 回合多留 60 s 顯示 `↻`）方向安全，未處理；若塔台認為需要，可另開單用同一個 `at` 比較（`stop` 的 `at` 晚於晚到的 prompt → 不開新回合）。
