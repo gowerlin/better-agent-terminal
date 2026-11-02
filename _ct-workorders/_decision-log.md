@@ -1465,6 +1465,18 @@
 - **切分**：W2a 設計語言 + 元件 + 首頁（T0630）→ 預覽通過後 W2b（`/control-tower`、功能、FAQ、回報頁）→ W2c 遠端開發；W3 / W4 不變。
 - **相關**：PLAN-049 / D159 / D160 / T0624 / T0630
 
+### D227 2026-11-02 — BUG-196 開修正單 T0788（契約暫定值先做、同時送 CT 確認）；並行開研究單 T0789（回覆 claude 的 OSC 7501 探詢）與子 PLAN-061（B 白名單）
+
+- **背景**：T0787 DONE（`40767172`）：R1 成立。Worker 通知打進停在權限對話框或 AskUserQuestion 的塔台時，Enter 會選中預設選項（30 / 30）→ 開 BUG-196（high）。契約草案 v0 第 5（上限 / 逾時）、9（submit Enter 不算使用者輸入）、10（`--report-hold`）點與「預設就保留」的方向要 CT 確認。Q2 / Q3 結果顯示子項 B 的價值在於讓 claude 送 7501。
+- **決定**（使用者兩題皆選：開單並送 CT 確認；研究單＋子 PLAN 一起開）：
+  1. 開 T0788（P0，yolo）修 BUG-196 → FIXING。第 5 / 9 / 10 點用 T0787 建議值：每個塔台最多 8 筆、逾時 30 分鐘丟棄、submit Enter 算 `auto`、不加 `--report-hold`。數值集中成常數，CT 回覆不同時只改常數。
+  2. 寫 HANDOVER `_handover-2026-11-02-bat-notify-hold-contract.md`，以跨 session 訊息通知 `BMad-Guide · Tower`。
+  3. 開 T0789（P2，研究，yolo）：不靠 BAT，以 node-pty＋假模型直接實測 claude；不在 repo build，以免和 T0788 衝突。
+  4. 開 PLAN-061（IDEA，PLAN-059 子項 B），前置 T0789。
+  5. T0788 / T0789 並行（檔案不重疊）。T0788 完成、聯合驗證後，併下一個預覽版（`0.7.3-pre.8`）。
+- **決策者**：使用者。2026-11-02 第一百零六 session。
+- **相關**：BUG-196 / T0787 / T0788 / T0789 / PLAN-059 / PLAN-061 / T0769 / T0716
+
 ### D226 2026-11-02 — PLAN-059 第一步開研究單 T0787（Q1 主、Q2 / Q3 順查），隔離實例＋假模型，不改產品程式
 
 - **背景**：PLAN-059（D219）拆分方向第 1 點是研究工單；R1（Worker `bat-notify --submit` 可能替停在權限對話框 / AskUserQuestion 的塔台作答）未確認，決定 A 是 BUG 還是改善。`v0.7.3-pre.7` NSIS 完整重裝驗收 PASS，熱區無進行中工單。

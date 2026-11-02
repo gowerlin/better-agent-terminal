@@ -3,11 +3,11 @@ schema_version: 1
 schema_kind: bug
 id: BUG-196
 title: "Worker 通知（`bat-notify --submit`、`--ask --submit`）的 Enter 替使用者回答塔台的權限對話框 / AskUserQuestion"
-status: OPEN
+status: FIXING
 severity: high
 reproducibility: always
 created_at: "2026-11-02T18:20:48+0800"
-updated_at: "2026-11-02T18:20:48+0800"
+updated_at: "2026-11-02T18:24:49+0800"
 impact:
   - security
   - tower-worker
@@ -21,7 +21,7 @@ links:
 |------|------|
 | 嚴重度 | 🔴 high（權限對話框被自動核准，需要核准的工具在使用者沒有同意的情況下執行；事後畫面分不出是不是使用者按的） |
 | 可重現 | 必現：T0787 隔離實例＋假模型，30 / 30（3 輪 × 10 情境；塔台分頁在背景或前景都一樣） |
-| **狀態** | 📂 OPEN |
+| **狀態** | 🔧 FIXING（T0788） |
 | 回報者 | 塔台（T0787 研究單實測，PLAN-059 R1） |
 
 ## 現象
@@ -57,3 +57,4 @@ T0787 回報區〈建議方向 ②〉的契約草案 v0：主行程在塔台 hoo
 ## 處理紀錄
 
 - 2026-11-02 18:20 開單（OPEN，high），T0787 收單時登記。
+- 2026-11-02 18:24 → FIXING：開修正單 T0788（D227）；契約第 5 / 9 / 10 點用 T0787 建議值，同時送 CT 塔台確認（`_handover-2026-11-02-bat-notify-hold-contract.md`）。
