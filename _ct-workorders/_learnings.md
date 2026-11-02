@@ -3822,3 +3822,15 @@ Codex 那張是外部測試者回報才發現；Claude 那張是使用者隨口�
 **How to apply**：
 - 新工單 frontmatter 一律 `status: PENDING`；從舊工單複製 frontmatter 時，`status` / `started_at` / `completed_at` / `session_ids` / `renew_count` 都改回初始值
 - 派工前快速看一眼 frontmatter 的 `status` 是否為 `PENDING`
+
+## L182
+
+**來源**：第一百零八 session（2026-11-02 / 03），T0793 / T0794（BUG-200）
+
+**現象**：T0790 / T0791 的「兩個真實 hook 程序」測試以牆鐘時間差製造亂序（第一個程序 stdin 不關、等 300 ms 才回報，30 ms 後第二個程序立即回報）。單一 `test:unit` 一直綠，但兩套並行或 CPU 負載下，第二個 node 程序啟動＋回報超過約 270 ms，順序沒顛倒、甚至程序啟動時間反過來，斷言失敗（96 執行緒負載 10 次 7 次失敗）。拉長 timeout 解決不了。T0794 改成測試攔住先啟動程序的回報、等它到達後才 spawn 第二個、第二個處理完才放行，10 / 10 通過，突變檢查仍抓得到原 BUG。
+
+**How to apply**：
+- 測試要製造「先後」時，用事件 / 攔截層控制順序，不用 `setTimeout` 時間差；寫好後在 CPU 負載下（例：N 個 `worker_threads` 忙迴圈，或兩套 `test:unit` 並行）連跑幾次再交
+- 真子程序測試的逾時先量測再設 per-describe timeout（30 s 起），註解寫量測值；共用固定輸出目錄的測試改用 `mkdtemp`（BUG-201）
+- 塔台開修正單時，驗收加「兩套 `test:unit` 同時跑」：同一 checkout 常並行兩個 Worker
+

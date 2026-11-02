@@ -1,9 +1,9 @@
 # State Snapshot INDEX
 
-> Last archived: 2026-11-02 (Session 107 收工 — Session 105 收工快照 → 2026-Q4-b.md)
-> Hot path retains: session 107 (本) + session 106 (前) + Quick Recovery / 基本資訊 / 進度快照 / 環境快照 / YOLO 歷程
+> Last archived: 2026-11-03 (Session 108 收工 — Session 106 收工快照 → 2026-Q4-b.md)
+> Hot path retains: session 108 (本) + session 107 (前) + Quick Recovery / 基本資訊 / 進度快照 / 環境快照 / YOLO 歷程
 > Archive root: `_ct-workorders/_archive/state-snapshots/`
-> Total archived entries: 125 (0 in Q1 / 58 in Q2-a/b / 5 in Q2-c / 2 in Q3 / 27 in Q4-a / 33 in Q4-b)
+> Total archived entries: 126 (0 in Q1 / 58 in Q2-a/b / 5 in Q2-c / 2 in Q3 / 27 in Q4-a / 34 in Q4-b)
 
 | # | Session | Date | File | Summary |
 |---|---------|------|------|---------|
@@ -132,3 +132,4 @@
 | 123 | 第一百零三 session | 2026-11-01 | 2026-Q4-b.md | 第一百零三 session, 2026-11-01 17:11-21:30, ~4h20m, T0736-T0749, D204, 0.7.2-pre.9 / 0.7.3-pre.1 |
 | 124 | 第一百零四 session | 2026-11-01 | 2026-Q4-b.md | 第一百零四 session, 2026-11-01 21:36 - 11-02 11:17, 五個塔台 session, T0750-T0778, D206-D218, 0.7.3-pre.2 / pre.3 / pre.4 / pre.5 |
 | 125 | 第一百零五 session | 2026-11-02 | 2026-Q4-b.md | 第一百零五 session, 2026-11-02 13:01-17:47, T0779-T0786, D219-D225, Electron 45, 0.7.3-pre.6 / pre.7 |
+| 126 | 第一百零六 session | 2026-11-02 | 2026-Q4-b.md | 第一百零六 session, 2026-11-02 17:52-20:50, T0787-T0790, D226-D231, BUG-196 / 197, 0.7.3-pre.8 |

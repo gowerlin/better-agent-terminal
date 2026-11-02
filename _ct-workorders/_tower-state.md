@@ -1,36 +1,65 @@
 ---
 schema_kind: tower-state
 summary_version: 1
-updated_at: "2026-11-03T00:36:09+08:00"
-session: "2026-11-03 00:36 第一百零八 session 進行中（CT v6.0.0-beta.10）：`v0.7.4-pre.1` 發佈"
+updated_at: "2026-11-03T00:40:10+08:00"
+session: "2026-11-03 00:40 第一百零八 session 收工（CT v6.0.0-beta.10）"
 next_ids:
   workorder: "T0797"
   decision: "D242"
   bug: "BUG-202"
   plan: "PLAN-062"
 todo:
-  - "BUG-199（low）FIXED（T0793 `f03adbd6`）：下一版 CI Test gate 綠 → CLOSED"
-  - "待驗收：Linux AppImage（Ubuntu 22.04，Electron 45）；BUG-159（一般權限 ＋ codex，需使用者本機）"
-  - "PLAN-059：A = BUG-196 / T0788；B = PLAN-061（IDEA low，D229 縮小為非 Windows、等觸發）；C 待問 CT（Q5）；Q4 未解"
+  - "換版到 `0.7.4-pre.1` 後若跑 NSIS 重裝驗收：讀 `%TEMP%\\bat-nsis-acceptance-<時間>\\report.md`、刪 `userdata-backup`"
+  - "BUG-159（FIXED）驗收：需非系統管理員環境 ＋ codex"
+  - "待驗收：Linux AppImage（Ubuntu 22.04，Electron 45）"
+  - "PLAN-059：A 完成（BUG-196 CLOSED）；B = PLAN-061（IDEA low，D229）；C 待問 CT（Q5）；Q4 未解"
   - "PLAN-060（IDEA）：macOS Developer ID 簽章（目前 macOS 不顯示系統通知）"
   - "觀察：t0757 偶發失敗再發生才開 BUG（D218）"
   - "版號線：`0.7.4-pre.N`，已發 pre.1（D236 / D241）"
 ---
 # Tower State — better-agent-terminal
 
-> 最後更新:2026-11-02 22:33 (UTC+8) — **第一百零七 session 收工**：pre.8 NSIS 重裝驗收 PASS；BUG-198 T0791 修 → **`v0.7.3-pre.9`** 發佈（`0.7.3-pre.N` 線用完）；開 BUG-199（測試逾時，low）；四張待驗收 BUG 排序（D233）。前次：第一百零六 session 收工（2026-11-02 20:50）。
+> 最後更新:2026-11-03 00:40 (UTC+8) — **第一百零八 session 收工**：pre.9 NSIS 驗收；BUG-196 / 197 / 198 驗收結案（T0796 實機、T0792 安裝版 e2e）；BUG-199 / 200 / 201 測試修正（T0793 / T0794 / T0795）→ **`v0.7.4-pre.1`** 發佈並 CLOSED；移除 lean-ctx 殘留（CT ADVISORY）。前次：第一百零七 session 收工（2026-11-02 22:33）。
 >
-> **下次起手**:熱區無進行中工單。① 使用者「換版」到 pre.9：若跑 NSIS 重裝驗收（`e2e\manual\nsis-reinstall-acceptance.ps1 -Version 0.7.3-pre.9`），讀報告 `%TEMP%\bat-nsis-acceptance-<時間>\report.md` 並刪 `userdata-backup`；② 驗收（D233 順序）：BUG-196 使用者實機 → 開 T0792 自動化驗收（安裝版 pre.9 跑 `t0787` 多輪＋`t0694` 步驟 6）涵蓋 BUG-197 / 198 → 三張一起 CLOSED；BUG-159 需非系統管理員環境，最後；③ BUG-199（low）待開修正單（比照 T0786）；④ 下一版前先問使用者版號線（`0.7.3-pre.N` 已用完）；Linux AppImage 待回報；PLAN-059 C 待問 CT（Q5）。
+> **下次起手**:熱區無進行中工單、無 OPEN BUG。① 使用者換版到 `0.7.4-pre.1` 時可跑 NSIS 重裝驗收（`e2e\manual\nsis-reinstall-acceptance.ps1 -Version 0.7.4-pre.1`），讀報告並刪 `userdata-backup`；② BUG-159 需非系統管理員環境＋codex；③ Linux AppImage 待回報；④ PLAN-059 C 待問 CT（Q5）。
 
 ---
 
-## 🟢 本 Session 進行中（第一百零八 session）
+## 🛏 本 Session 收工快照 (第一百零八 session, 2026-11-02 22:38 - 2026-11-03 00:40, ~2h)
+
+### 主軸：pre.9 NSIS 驗收 → BUG-196 / 197 / 198 驗收結案（T0792 / T0796）→ BUG-199 / 200 / 201 修正（T0793 / T0794 / T0795）→ `v0.7.4-pre.1`
+
+#### 時間線（時間取自系統 / git / gh）
 
 > 🟢 **第一百零八 session 開工**（2026-11-02 22:38 (UTC+8)，CT v6.0.0-beta.10，Fast Path；塔台 session `f34696de-6639-472a-96fd-e52716378f13`；`--set-role tower --mode on` exit 0；安裝版 helper `v0.7.3-pre.9`（已換版）；HEAD `13f0f372`、`main` = `origin/main`（0 / 0）、工作區乾淨；熱區 187 張工單皆 DONE；BUG 熱區 Open 1（BUG-199）/ Fixed 4 / Closed 58，與 `_bug-tracker.md` 一致，免重建；`bat_list_questions` pending 0）。**`v0.7.3-pre.9` NSIS 完整重裝驗收 PASS-WITH-WARN**（`e2e\manual\nsis-reinstall-acceptance.ps1` real 模式，22:36:37–22:37:20；AllUsers / HKLM；唯一 WARN = ⓪ 目前安裝版是 pre.8，② 實為升級而非同版覆蓋，屬預期；① SHA-256 `7adb1790…` ② 覆蓋 ③ 靜默解除 ④ 乾淨重裝全 PASS，三支 helper `--version` = v0.7.3-pre.9、內嵌 claude / codex 存在、userData 130 檔 SHA-256 未變；⑤ LaunchCheck 未帶 → SKIPPED）。報告 `%TEMP%\bat-nsis-acceptance-20261102-223637\report.md`；含權杖的 `userdata-backup`（130 檔）已刪除。使用者「直接推進，另外需要通知 CT 塔台改版配合嗎」→ **D234**（CT 不需配合：pre.9 無介面變更）→ 開 **T0792**（安裝版 pre.9 驗收 BUG-197 / 198）、**T0793**（BUG-199 → FIXING）（`07f14a7f`）。22:42 並行派 **T0792**（Worker `ead67dbb…`，`started: 14:42:33Z`）、**T0793**（Worker `cc8f6356…`，`started: 14:42:36Z`），皆 yolo `--no-interactive`、exit 0。**T0793 DONE**（`f03adbd6` / `1b46a400`，22:59；量測：整檔 58 次真 shell spawn，整套負載下均勻變慢 2–4 倍、無單一慢步驟、無可省工作 → 真 shell `describe` 設 30 s；修改前整套 3 / 3 綠（未重現原事故）、修改後 3 / 3 綠、兩個 `test:unit` 同時跑本檔最慢 5.2 / 5.4 s 通過、CPU 負載綠；typecheck 0；parser 12 / 12；範圍外：兩個 `test:unit` 同時跑時 T0790 / T0791 真 hook 程序順序斷言失敗＋5 檔逾時；共用 helper 評估 A / B / C，建議短期 C）→ **BUG-199 FIXED**（待下一版 CI Test gate）。**T0792 DONE**（`eb527060`，23:00；安裝版 FileVersion / helper `0.7.3-pre.9`；`t0787` 3 輪 2 passed、30 情境＋UI＋codex ⑤ 全過、races 0、lateReports 0；`t0694` 3 次 1 passed、步驟 6 `kept:` 各 1 行；塔台 claude hook 由安裝版注入安裝版 `bat-hook.mjs`；spec 的 helper 用 repo `scripts/`，與安裝版 SHA-256 相同）。兩張 session id 已在 `session_ids`；session 快照已寫；`--close-worker T0792` / `T0793` exit 0。→ **D235**：BUG-197 / 198 **CLOSED**（交付版實測）；開 **BUG-200**（OPEN，low，不立即派工）。熱區 BUG：Open 1 / Fixed 3（159 / 196 / 199）/ Closed 60。使用者「0.7.4-pre.1，BUG-200：要現在就派工修」→ **D236**（版號線 `0.7.4-pre.N`，`_local-rules.md` 同步）→ 開 **T0794**（BUG-200 → FIXING）。23:06 派 **T0794**（yolo `--no-interactive`，exit 0，`started: 15:06:12Z`；Worker `154a3dfe…`）。**T0794 DONE**（`2b3f0b1b` / `216973bb`，23:58；只改 6 個測試檔；A：`holdReport` 由測試控制 hook 回報到達順序，96 執行緒負載下修改前 10 次 7 失敗 → 修改後 10 / 10，突變檢查兩支都失敗；B：5 檔 describe 30 s、`worktree-status-after-close` 40 s＋`maintenance.auto=false`（trace2：每次建立程序均勻變慢）；偏離：`beforeAll` 30 s；整套 3 / 3 綠、兩套並行範圍內全過、typecheck 0 / 0、legacy 472 / 33；範圍外 `dev-deploy-headless` 兩套並行輸出目錄衝突）→ **BUG-200 FIXED**；session id 已在 `session_ids`；session 快照已寫；`--close-worker T0794` exit 0。→ **D237**：接受 `beforeAll` 偏離；開 **BUG-201**（OPEN，low）。熱區 BUG：Open 1（201）/ Fixed 4（159 / 196 / 199 / 200）/ Closed 60。使用者「BUG-201：現在派工修」→ **D238** → 開 **T0795**（BUG-201 → FIXING）。00:04 派 **T0795**（yolo `--no-interactive`，exit 0，`started: 16:04:18Z`；Worker `44e759b7…`）。**T0795 DONE**（`6c2b6b93`，00:11；修改前兩個 vitest 並行 6 輪 4 輪失敗（`ENOENT` / `EBUSY` / `EPERM`）；`main(argv, { stagingRoot })`，預設 `DEFAULT_STAGING_ROOT` 不變、無新 CLI 旗標 / env；測試各用 `mkdtemp`；並行 8 輪 16 / 16 綠、整套 6783 綠、**兩套 `test:unit` 並行兩邊都 exit 0**（同時佐證 BUG-200）、預設目錄 mtime 不被測試改動、CLI dry-run 預設路徑不變、typecheck:electron 0、legacy 472 / 33）→ **BUG-201 FIXED**；session id 已在 `session_ids`；session 快照已寫；`--close-worker T0795` exit 0。熱區 BUG：Open 0 / Fixed 5（159 / 196 / 199 / 200 / 201）/ Closed 60。00:13 收到 CT 塔台 ADVISORY（CT D549：lean-ctx 殘留 `.kiro/steering/lean-ctx.md`）→ **D239** 塔台直接 `git rm`（R-G004；無引用）。使用者「push 先做 BUG-196 實機驗收」→ push `13f0f372..c7af5c87` → **D240** → 開 **T0796**（空工單，AskUserQuestion 版驗收）。00:14 派 **T0796**（`started: 16:14:51Z`）並以 AskUserQuestion 停住 → 使用者選「PASS：待送 1、對話框仍在」；日誌 `held` text / enter（16:15:25Z）→ 作答 `cleared (user input)`（16:15:41Z）→ `sent`（16:15:42Z）→ 塔台收到「T0796 完成」。T0796 DONE（`d163a65d` / `b68e1bf1`，bat-notify exit 0）；session 快照已寫；`--close-worker T0796` exit 0。→ **BUG-196 CLOSED**（D240）。熱區 BUG：Open 0 / Fixed 4（159 / 199 / 200 / 201）/ Closed 61。使用者「a」→ **D241** 發 `0.7.4-pre.1`：聯合驗證 @ `f5d9d4f4` 全綠（verify-native、typecheck 0 / 0、vite build、unit 6783 / 385、legacy 472 / 33）→ 去識別化 9 組 0、金鑰 0 → push `c7af5c87..f5d9d4f4` → `pre-release.yml -f version=0.7.4-pre.1` run `41480278090` 12 job 全綠 → **`v0.7.4-pre.1` 發佈**（16:34:36Z；exe 305 / zip 474 / AppImage 337 / dmg 352 MiB；server-bundle 7 assets）；更版重點已寫入並比對（無 codex 變更不寫〈歡迎協助測試〉）；CI Test gate 綠 → **BUG-199 / 200 / 201 CLOSED**（熱區 Fixed 1（159）/ Closed 64）；CHANGELOG / release-note / package.json → `bd25ffa8` push（README 無需更新：無 CT 介面變更）；Pages `41483187892` 綠、link-check 1451 / 0、首頁 0.7.4-pre.1。
 
+- 2026-11-03 00:40 使用者「收工」。收工前：Session 106 快照歸檔（`2026-Q4-b.md`、INDEX 126）、L182（以時間差製造亂序的測試在負載下失效）、去識別化與金鑰掃描後 push。
+
+### 本輪戰績
+
+| 類別 | 數量 | 備註 |
+|---|---|---|
+| 派發工單 | 5 | T0792（安裝版驗收）/ T0793 / T0794 / T0795（測試修正）/ T0796（實機驗收空工單）皆 DONE、一次啟動、無提問；T0792 / T0793 並行 |
+| 決策 | 8 | D234–D241 |
+| BUG | 開 2 / 修 3 / 結 6 | 開 BUG-200 / 201；修 199 / 200 / 201；CLOSED 196 / 197 / 198 / 199 / 200 / 201；熱區 Open 0 / Fixed 1（159）/ Closed 64 |
+| 發版 | 1 | `v0.7.4-pre.1`（run `41480278090`；Pages `41483187892`，link-check 1451 / 0） |
+| 驗收 | 3 | `v0.7.3-pre.9` NSIS 重裝 PASS-WITH-WARN；BUG-196 實機（AskUserQuestion）；BUG-197 / 198 安裝版 e2e |
+| 跨塔台 | ADVISORY 1 | CT D549：lean-ctx 殘留 → D239 移除 |
+
+### 重點觀察
+
+- 測試以牆鐘時間差製造亂序（300 ms）在負載下失效；改由測試攔住回報控制順序後，96 執行緒負載 10 / 10 通過 → L182
+- 修完 BUG-200 / 201 後，「兩套 `test:unit` 同時跑」第一次整套全綠；同一 checkout 並行 Worker 各自驗證不再互相干擾
+- bypass 權限模式的塔台不會出現權限對話框；BUG-196 實機驗收改用 AskUserQuestion，權限情境由安裝版 e2e 涵蓋（D240）
+- 後續候選：BUG-159 驗收；`v0.7.4-pre.1` NSIS 重裝驗收（換版時）；Linux AppImage；PLAN-059 C（問 CT Q5）
+
+### 編號起始（下 session）
+
+- **T0797** / **BUG-202** / **PLAN-062** / **D242** / **EXP-WFMINE-002** / **L183** / **CT-T023**
+
 ---
 
-## 🛏 本 Session 收工快照 (第一百零七 session, 2026-11-02 21:40 - 2026-11-02 22:33, ~55m)
+## 🛏 前 Session 收工快照 (第一百零七 session, 2026-11-02 21:40 - 2026-11-02 22:33, ~55m)
 
 ### 主軸：pre.8 NSIS 驗收 → BUG-198 修正（T0791）→ `v0.7.3-pre.9`
 
@@ -65,61 +94,21 @@ todo:
 
 ---
 
-## 🛏 前 Session 收工快照 (第一百零六 session, 2026-11-02 17:52 - 2026-11-02 20:50, ~3h)
-
-### 主軸：pre.7 NSIS 驗收 → PLAN-059 研究（T0787 / T0789）→ BUG-196 / BUG-197 修正（T0788 / T0790，契約經 CT 確認）→ `v0.7.3-pre.8`
-
-#### 時間線（時間取自系統 / git / gh）
-
-> 🟢 **第一百零六 session 開工**（2026-11-02 17:52 (UTC+8)，CT v6.0.0-beta.10，Fast Path；塔台 session `7389073a-fb88-435e-86cb-9f7e3fcf5481`；`--set-role tower --mode on` exit 0；安裝版 BAT / helper `v0.7.3-pre.7`；HEAD `c2fd544b`、`main` = `origin/main`（0 / 0）、工作區乾淨；熱區 182 張工單全為 DONE；BUG 熱區 Fixed 1（BUG-159）/ Closed 58，與 `_bug-tracker.md` 一致，免重建；`bat_list_questions` pending 0；`%TEMP%` 下找不到 `bat-nsis-acceptance-*` 報告目錄）。
-
-> 🟢 **第一百零六 session 塔台重啟**（2026-11-02 17:57 (UTC+8)，CT v6.0.0-beta.10，Fast Path；塔台 session `3e6b868e-4618-40e8-a3c3-aeda376d340a`；`--set-role tower --mode on` exit 0；安裝版 BAT `0.7.3-pre.7`（FileVersion）；HEAD `6d43cfb4`（`main` ahead 1，未 push）；`bat_list_questions` pending 0）。**`v0.7.3-pre.7` NSIS 完整重裝驗收 PASS**（`e2e\manual\nsis-reinstall-acceptance.ps1` real 模式，17:55:07–17:55:45；AllUsers / HKLM；① 雜湊 `fae4c623…` ② 同版覆蓋 ③ 靜默解除 ④ 乾淨重裝全 PASS，三支 helper `--version` = v0.7.3-pre.7、內嵌 claude / codex 存在、userData 86 檔 SHA-256 未變；⑤ LaunchCheck 未帶 → SKIPPED）。報告 `%TEMP%\bat-nsis-acceptance-20261102-175507\report.md`；userData 備份含權杖檔待刪。使用者「刪除備份，push，然後開 PLAN-059 研究單」→ 備份已刪（86 檔）→ 去識別化 9 組 0、金鑰 0 → push `c2fd544b..47a1b232` → **D226** → 開 **T0787**（research，Q1 主、Q2 / Q3 順查，隔離實例＋假模型；`1cfb4277`）。18:01 派 **T0787**（yolo `--no-interactive`，exit 0，`started: 2026-11-02T10:01:03.423Z`；Worker 分頁 `2d0c6fe6…`）。**T0787 DONE**（`40767172`，18:19；source build＋隔離實例＋假模型，真實模型 0；**R1 成立**：權限對話框 / AskUserQuestion 遇 `--submit` 或 `--ask --submit` 都被 Enter 選中預設 / 第一個選項，30 / 30；只預填則文字被吞；`--ask --no-pty-write` 正常；另發現 submit Enter 被記成塔台的使用者輸入；Q2：主動送 OSC 7501 只有 codex，claude 2.1.316 要終端回覆探詢才送，gemini / opencode 無；Q3：沒有獨立規格，herdr-core `status.rs` 定 6 個 state；建議 A 在主行程保留通知（契約草案 v0，🟥 待 CT）、B 白名單 `codex` / `claude-code`、另開研究單回覆 claude 探詢）；session id 已在 `session_ids`；session 快照已寫；`--close-worker T0787` exit 0。→ 開 **BUG-196**（OPEN，high），parser 測試 65 綠。使用者選「開單並送 CT 確認」＋「研究單＋子 PLAN」→ **D227** → 開 **T0788**（BUG-196 修正，P0；BUG-196 → FIXING）、**T0789**（研究：回覆 claude 探詢）、**PLAN-061**（IDEA，子項 B）；HANDOVER `_handover-2026-11-02-bat-notify-hold-contract.md` 給 CT 塔台（`1f88c637`；SendMessage → `BMad-Guide · Tower` 送達，未讀）。18:28 並行派 **T0788**（Worker `431a7c54…`，`started: 10:28:07Z`）、**T0789**（Worker `ad8f2d19…`，`started: 10:28:10Z`），皆 yolo `--no-interactive`、exit 0。19:01 CT 回覆（CT D543）：同意預設保留、⑨、⑩、上限 8；逾時兩案皆不採，詢問 `--ask --submit` 遇 `held-full` → 查證 `bat-notify.mjs` 約 1028 行先 `question:cancel` 再 exit 1 → **D228**：不設逾時、加測試守住；T0788 **Renew #1**；handover → ACKNOWLEDGED；回覆 CT。**T0789 DONE**（`d86ac489`，19:04；回覆格式 `ESC]7501;?` 加 BEL / ST、DA1 之前送到、2 s 內；Linux 回覆後 claude 送 idle / working / blocked(permission|question) / done / error / clear，`disableAllHooks` 照送；**Windows ConPTY 丟 OSC 回覆、conhost 搶答 DA1 → Windows 本機無效**；解析器上限 128 會丟 130 字元的 blocked；子紀錄 clear 不帶 app；誤在 repo 以 WSL 跑整套 e2e 約 4 分鐘，追蹤檔未改）；session 快照已寫；`--close-worker T0789` exit 0 → **D229**：PLAN-061 縮小範圍、low、維持 IDEA。**T0788 DONE**（`94ad2b83` 主修正、`610f592b` Renew #1、`e0d24af6` 回報；Worker 原寫 `status: FIXED`，塔台改 DONE（L177）；`electron/notify-hold.ts` 唯一實作，縮圖「📨 待送 N」、取消；不設逾時；`--ask --submit` 遇 `held-full` 先取消題目再 exit 1（新測試）；submit Enter 算 `auto`；typecheck 0 / 0、unit 6758 / 385、legacy 472 / 33、vite build、突變檢查；e2e 斷言版最終 2 passed（19:20，在 T0789 誤跑之後）、codex 0.166 審批提示也通過；不回歸 6 支 e2e 實跑綠；`--close-worker` 推論不成立（取消條件是 Worker 自己的輸入）；遠端 profile 視窗看不到「待送 N」列為後續）→ **BUG-196 FIXED**；session 快照已寫；`--close-worker T0788` exit 0；`e2e-results/` 已無 T0789 殘留。→ 開 **BUG-197**（OPEN，medium：`user-prompt-submit` hook 晚到清掉 blocked，T0788 e2e 60 次中 1 次）。使用者選「先修 BUG-197 再發」→ **D230** → 開 **T0790**（BUG-197 → FIXING，`03019bf5`）。19:26 派 **T0790**（yolo `--no-interactive`，exit 0，`started: 11:26:51Z`；Worker `8210fb48…`）。[提問] T0790 Q-1（`at` 要經 `electron/pty-manager.ts` `reportHookEvent` 轉發，不在 affects_files）→ 塔台代決 **A**（只限該方法的簽章、轉發與註解），`--answer --choice 1` exit 0（BAT 問答通道）。**T0790 DONE**（`77ad79ea`，19:50；Worker 寫 `status: FIXED` → 塔台改 DONE；`bat-hook.mjs` 送 hook 程序啟動時間 `at`（`process.hrtime.bigint() − uptime`，跨程序單調，Windows 實測 40 / 40、程序啟動時間顛倒 0 / 90），tracker 對 `user-prompt-submit` / `stop` / `post-tool-batch` 等清除事件 `at` 早於 blocked 就不清（記 `kept: … reported late`），回合照舊；舊 hook / 無 `at` 行為不變；`pty-manager.ts` 只改 `reportHookEvent`（Q-1）；突變 7 / 10 失敗；e2e t0787 拿掉 RACE 重跑 3 輪 30 情境＋UI＋codex 全 PASS races 0；t0590 / t0600 / t0621 / t0757 綠；typecheck 0 / 0、unit 6772 / 385、legacy 472 / 33、vite build、verify:helpers；殘留：上一回合晚到的 `stop` 會讓新回合 `↻` 提早變 `✓`（T0694，未修）、shell＋node 啟動差異下仍可能顛倒）→ **BUG-197 FIXED**；session 快照已寫；`--close-worker T0790` exit 0。→ 開 **BUG-198**（OPEN，low：晚到的 `stop` 提早結束新回合）；使用者「開單但不擋 pre.8」＋「授權一路做完」→ **D231** → 聯合驗證 @ `c1178479` 全綠（electron 45.2.1；verify-native、typecheck 0 / 0、vite build、unit 6772 / 385 一次綠、legacy 472 / 33）→ 去識別化 9 組 0、金鑰 0 → push `47a1b232..d5667366` → `pre-release.yml -f version=0.7.3-pre.8` run `41441910377` 12 job 全綠 → **`v0.7.3-pre.8` 發佈**（12:19:33Z；exe 305 / zip 474 / AppImage 337 / dmg 352 MiB；server-bundle 7 assets）；更版重點已寫入並比對；CHANGELOG / release-note / README（版本對照加一列）/ package.json → `d62e70c6` push；Pages `41444068830` 綠、link-check 1440 / 0、首頁 0.7.3-pre.8；SendMessage 通知 CT 塔台版號（CT T0399）。
-
-- 2026-11-02 20:50 使用者「收工 換版」。收工前：Session 104 快照歸檔（`2026-Q4-b.md`、INDEX 124）、L180（並行 Worker 共用 `e2e-results/`、`cd` 失敗未中止）、去識別化與金鑰掃描後 push。
-
-### 本輪戰績
-
-| 類別 | 數量 | 備註 |
-|---|---|---|
-| 派發工單 | 4 | T0787 / T0789（研究）、T0788 / T0790（修正）皆 DONE；T0788 / T0789 並行；T0788 / T0790 Worker 寫 `status: FIXED`，塔台改 DONE |
-| 塔台代答提問 | 1 | T0790 Q-1（BAT 問答通道 `--answer`）；另 T0788 Renew #1（CT 回覆） |
-| 決策 | 6 | D226–D231 |
-| BUG | 開 3 / 修 2 | BUG-196（high）、BUG-197（medium）FIXED 待驗收；BUG-198（low）OPEN |
-| PLAN | 開 1 | PLAN-061（IDEA low）；PLAN-059 子項 A 完成、B 縮小 |
-| 跨塔台 | HANDOVER 1 | `_handover-2026-11-02-bat-notify-hold-contract.md` ACKNOWLEDGED（CT D543，CT T0399 文件補註） |
-| 發版 | 1 | `v0.7.3-pre.8`（run `41441910377`；Pages `41444068830`，link-check 1440 / 0） |
-| 驗收 | 1 | `v0.7.3-pre.7` NSIS 完整重裝 PASS |
-
-### 重點觀察
-
-- 研究單先實測再決定：T0787 證實 R1 是 high BUG（30 / 30），而不是「改善項」；T0789 證實 Windows ConPTY 擋掉 OSC 回覆，B 的範圍因此縮小
-- 契約先送 CT、用暫定值並行實作：CT 回覆後以 Renew 調整（拿掉逾時），沒有延誤發版
-- hook 程序各自獨立 → 到達順序 ≠ 發生順序；用 `process.hrtime` 程序啟動時間（跨程序單調）判斷（T0790）；同類問題還有回合信號（BUG-198）
-- 並行 Worker 共用 `e2e-results/`、WSL `cd` 失敗沒有中止就在 repo 跑整套 e2e（T0789）→ L180
-- 後續候選：遠端 profile 視窗的「📨 待送 N」（需 proxied channel）；PLAN-061（非 Windows 主機的 claude 7501）；PLAN-059 C / D / E
-
-### 編號起始（下 session）
-
-- **T0791** / **BUG-199** / **PLAN-062** / **D232** / **EXP-WFMINE-002** / **L181** / **CT-T023**
-
----
-
 ## 🌅 起手式（Quick Recovery）
 
-> 最後更新：2026-11-02 22:33 UTC+8（第一百零七 session 收工）
+> 最後更新：2026-11-03 00:40 UTC+8（第一百零八 session 收工）
 
 ### 近期完成
-- **`v0.7.3-pre.9` 發佈**（第一百零七 session，run `41459914265`，target `61fcd31c`）：BUG-198 晚到的 `stop`（T0791）；Pages `41462684452` 綠；`0.7.3-pre.N` 線用完
-- **`v0.7.3-pre.8` NSIS 完整重裝驗收 PASS**（第一百零七 session 21:42）
-- **`v0.7.3-pre.8` 發佈**（第一百零六 session，run `41441910377`，target `d5667366`）：BUG-196 notify-hold（T0788）、BUG-197 hook 亂序（T0790）；Pages `41444068830` 綠
-- **PLAN-059 研究**（第一百零六 session）：T0787（R1 成立 → BUG-196）、T0789（Windows ConPTY 擋 OSC 回覆 → PLAN-061 縮小，D229）
+- **`v0.7.4-pre.1` 發佈**（第一百零八 session，run `41480278090`，target `f5d9d4f4`）：BUG-199 / 200 / 201 測試修正；Pages `41483187892` 綠；版號線改 `0.7.4-pre.N`（D236）
+- **BUG-196 / 197 / 198 CLOSED**（第一百零八 session）：T0796 實機（AskUserQuestion）、T0792 安裝版 pre.9 e2e
+- **`v0.7.3-pre.9` NSIS 完整重裝驗收 PASS-WITH-WARN**（第一百零八 session 22:37）
+- **`v0.7.3-pre.9` 發佈**（第一百零七 session）：BUG-198（T0791）
 
 ### 待辦（依優先序）
-1. ✅ ~~BUG-196 / 197 / 198~~ 已 CLOSED（T0796 實機、T0792 安裝版 e2e，D235 / D240）
-2. ✅ ~~**pre.9 NSIS 重裝驗收**~~：PASS-WITH-WARN（第一百零八 session 22:37，WARN = 從 pre.8 升級，預期），備份已刪
-3. 🟢 **BUG-199** FIXED（T0793）等下一版 CI Test gate；**BUG-200** / **BUG-201** FIXED（T0794 / T0795）等下一版 CI
-4. 🟡 **BUG-159 驗收**：需非系統管理員環境 ＋ codex，最後；🟢 Linux AppImage（Ubuntu 22.04）待回報；t0757 偶發失敗再發生才開 BUG（D218）
-5. 🟢 下一版 `0.7.4-pre.1`（D236）；PLAN-059 C（問 CT Q5）
+1. 🟡 **`v0.7.4-pre.1` NSIS 重裝驗收**（使用者換版時）：讀報告、刪 `userdata-backup`
+2. 🟡 **BUG-159 驗收**：需非系統管理員環境 ＋ codex
+3. 🟢 Linux AppImage（Ubuntu 22.04）待回報；t0757 偶發失敗再發生才開 BUG（D218）
+4. 🟢 PLAN-059 C（問 CT Q5）；PLAN-060 / 061 IDEA
 
 ### ⚠️ 鐵則
 - **所有 `gh` 指令必須帶 `-R gowerlin/better-agent-terminal`**（L122）
@@ -128,14 +117,14 @@ todo:
 - 改 `_bug-tracker.md` / `_backlog.md` 不用全檔 `sed`，改完跑 parser 測試（L179）
 
 ### 快速連結
-- Bug Tracker → [_bug-tracker.md](_bug-tracker.md)（熱區：Open 1 / Fixing 0 / Fixed 4 / Closed 58，2026-11-02 22:12）｜ Backlog → [_backlog.md](_backlog.md)
-- Decision Log → [_decision-log.md](_decision-log.md)（最大 D233）｜ Learnings → [_learnings.md](_learnings.md)（最大 L181）
+- Bug Tracker → [_bug-tracker.md](_bug-tracker.md)（熱區：Open 0 / Fixing 0 / Fixed 1 / Closed 64，2026-11-03 00:36）｜ Backlog → [_backlog.md](_backlog.md)
+- Decision Log → [_decision-log.md](_decision-log.md)（最大 D241）｜ Learnings → [_learnings.md](_learnings.md)（最大 L182）
 - 研究報告 Artifact「Herdr 對照 BAT」→ https://claude.ai/artifact/Ybj66gYLkMHZE8xUyyDiEy（私人）
 - 網站 → https://gowerlin.github.io/better-agent-terminal/｜ 素材 spec → `e2e/site-media.spec.ts`（`BAT_SITE_MEDIA=1`，輸出 `e2e-media/`）
-- 歷史 sessions → [_archive/state-snapshots/INDEX.md](_archive/state-snapshots/INDEX.md)（125 entries）
+- 歷史 sessions → [_archive/state-snapshots/INDEX.md](_archive/state-snapshots/INDEX.md)（126 entries）
 
 ### 編號起始
-- **T0792** / **BUG-200** / **PLAN-062** / **D234** / **EXP-WFMINE-002**（其他 TOPIC 從 001） / **L182** / **CT-T023**
+- **T0797** / **BUG-202** / **PLAN-062** / **D242** / **EXP-WFMINE-002**（其他 TOPIC 從 001） / **L183** / **CT-T023**
 
 ---
 
@@ -147,14 +136,14 @@ todo:
 | **Fork 上游** | tony1223/better-agent-terminal（另有 `scandnavik` remote；⚠️ gh 預設解析到 upstream，見 L122） |
 | **目前版號** | **0.7.4-pre.1**（package.json + lock；D236 `0.7.4-pre.N` 線） |
 | **最新 release** | `v0.7.4-pre.1`（2026-11-02T16:34:36Z，run `41480278090`，target `f5d9d4f4`：BUG-199 / 200 / 201 測試修正）；前一 tag `v0.7.3-pre.9`（2026-11-02T14:29:12Z，run `41459914265`，target `61fcd31c`：BUG-198 晚到的 `stop`）；前一 tag `v0.7.3-pre.8`（12:19:33Z）；更早見 `release-note.md` / `CHANGELOG.md` |
-| **目前主軸** | 熱區無進行中工單；BUG-196 / 197 / 198 / 159 待驗收（D233 順序）；BUG-199 待修；下一版先定版號線 |
-| **工單最大編號** | **T0791** DONE（BUG-198，第一百零七 session）；T0787–T0790 皆 DONE（第一百零六 session） |
-| **BUG 最大編號** | **BUG-199** OPEN（low，測試逾時）；BUG-159 / 196 / 197 / 198 FIXED；熱區 Open 1 / Fixing 0 / Fixed 4 / Closed 58（2026-11-02 22:12） |
+| **目前主軸** | 熱區無進行中工單、無 OPEN BUG；BUG-159 待驗收；`v0.7.4-pre.1` 已發佈 |
+| **工單最大編號** | **T0796** DONE（BUG-196 實機驗收，第一百零八 session）；T0792–T0795 皆 DONE |
+| **BUG 最大編號** | **BUG-201** CLOSED；熱區 Open 0 / Fixing 0 / Fixed 1（BUG-159）/ Closed 64（2026-11-03 00:36） |
 | **PLAN 最大編號** | **PLAN-061** IDEA（非 Windows 的 claude 7501，D229）；PLAN-060 IDEA（macOS 簽章）；PLAN-059 PLANNED；PLAN-029 / 053 / 054 / 055 / 057 DONE |
-| **決策最大編號** | **D233**（發 `0.7.3-pre.9`、待驗收排序，第一百零七 session） |
+| **決策最大編號** | **D241**（發 `0.7.4-pre.1`，第一百零八 session） |
 | **EXP 最大編號** | **EXP-WFMINE-001**（📊 CONCLUDED 2026-10-20）；EXP-GPUWHIS-001（CONCLUDED，已歸檔） |
 | **塔台版本** | Control Tower **v6.0.0-beta.10**（第一百零三 session 起） |
-| **unit test 基線** | **6782 passed / 385 files**；typecheck 0 / 0、vite build、legacy 472 / 33（塔台聯合驗證 @ `5ebcc71f`，`0.7.3-pre.9` 批次，2026-11-02 第一百零七 session；首跑 BUG-199 逾時 1 次，重跑綠） |
+| **unit test 基線** | **6783 passed / 385 files**；typecheck 0 / 0、vite build、legacy 472 / 33（塔台聯合驗證 @ `f5d9d4f4`，`0.7.4-pre.1`，2026-11-03 第一百零八 session）；兩套 `test:unit` 並行也全綠（T0795） |
 | **舊值** | 瘦身前的長版本見 [`_archive/state-snapshots/2026-Q4-b.md`](_archive/state-snapshots/2026-Q4-b.md)〈基本資訊舊值〉 |
 
 ---
@@ -274,6 +263,7 @@ todo:
 
 ### 歷史 Session（摘要）
 
+- 2026-11-02 第一百零八 session：auto-session on，per-dispatch `--mode yolo --no-interactive`；T0792–T0796 共 5 張全部 `started:`、DONE、無提問；T0792 / T0793 並行；`worker_auto_close` 回收 5 次；`v0.7.4-pre.1` 發佈
 - 2026-11-02 第一百零六 session：auto-session on，per-dispatch `--mode yolo --no-interactive`；T0787–T0790 共 4 張全部 `started:`、DONE；T0788 / T0789 並行；結構化提問 1 次（T0790 Q-1 `--answer`）；T0788 Renew #1（CT 回覆）；`worker_auto_close` 回收 4 次；`v0.7.3-pre.8` 發佈
 - 2026-11-02 第一百零四 session：auto-session on，per-dispatch `--mode yolo --no-interactive`；T0750–T0778 共 29 張全部 `started:`、DONE；T0770–T0773 四張並行；`worker_auto_close` 回收；`v0.7.3-pre.2`–`pre.5` 發佈
 - 2026-11-01 第一百零一 session：auto-session on，per-dispatch `--mode yolo --no-interactive`；T0720–T0726 全部 `started:`、無提問，T0720 / T0721 / T0722 並行；`worker_auto_close` 回收 7 次；`v0.7.2-pre.6` 發佈
