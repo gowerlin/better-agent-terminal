@@ -30,7 +30,7 @@
 | 不是 `1` 且沒有 `unshare` | `/proc/sys/kernel/unprivileged_userns_clone` = `0` 或 `/proc/sys/user/max_user_namespaces` = `0` → 用不了；否則可用 |
 
 - AppArmor 限制下為什麼不直接用 `unshare` 試：profile 是依執行檔路徑套用的，`unshare` 是另一個執行檔，套到 BAT 二進位的 profile 對它無效，結果會和 Chromium 實際的情況不同。所以那種情況改看二進位自己跑起來的 AppArmor 標籤。
-- probe 的成本：只在 `apparmor_restrict_unprivileged_userns = 1` 而且前三個條件都成立時才跑，一次 Node 模式啟動（約數百 ms，CI 實測見下）。22.04 等不受限的系統只多一次 `unshare`。
+- probe 的成本：只在 `apparmor_restrict_unprivileged_userns = 1` 而且前三個條件都成立時才跑，一次 Node 模式啟動（耗時未單獨量測；CI 上 AppImage 從啟動到開窗本來就要 70–90 s，主要是 FUSE 掛載與 xz 解壓）。22.04 等不受限的系統只多一次 `unshare`。
 
 ## 日誌
 
@@ -101,6 +101,16 @@ sudo apparmor_parser -R /etc/apparmor.d/bat-appimage && sudo rm /etc/apparmor.d/
 2. `npx vitest run electron/__tests__/linux-sandbox-fallback.test.ts scripts/__tests__/verify-packaged-native.test.mjs`。
 3. `desktop-build.yml`（`-f ref=<分支>`）→ `linux-acceptance.yml -f build_run_id=<run id>`：22.04 必須 PASS、renderer sandbox 開、主程序命令列沒有 `--no-sandbox`；24.04 能啟動、L1 / L2 標 `sandbox auto-disabled (BUG-202 fallback)`、verdict WARN（見 [linux-ci-acceptance.md](linux-ci-acceptance.md)）。
 
-## CI 實測（T0799）
+## CI 實測（T0799，2026-11-03）
 
-（見本檔下方由 T0799 填入的結果。）
+desktop-build run `41502529486`（分支 `ct/T0799` `52b1a91c`，版號 `0.0.0-exp.3`）：Linux job 的 `afterPack (T0799): BetterAgentTerminal = AppImage sandbox launcher, Electron binary = BetterAgentTerminal.bin`、`verify-packaged-native` 的 `appimage-launcher` 通過；Windows / macOS job 沒有這一行（啟動器只裝在 Linux AppImage）；同 run 的 tests job（ubuntu-24.04）跑了啟動器的 23 個測試。
+
+linux-acceptance（同一個 AppImage；run `41504962084`、`41505876807`，兩次結論相同，表為 `41504962084` 的數字）：
+
+| OS | `apparmor_restrict_unprivileged_userns` | verdict | L1 | L2 | 主程序命令列 | renderer sandbox |
+|---|---|---|---|---|---|---|
+| ubuntu-22.04 | 0 | **PASS** | PASS（視窗 69 s、終端 73 s、鍵盤 echo 75 s，debug log `[INFO] [sandbox] Chromium sandbox requested`） | PASS | 沒有 `--no-sandbox` | 有開（Tab `NSpid` 三層） |
+| ubuntu-24.04 | 1 | **WARN**（`sandbox auto-disabled (BUG-202 fallback)`） | WARN（視窗 92 s、終端 97 s、鍵盤 echo 102 s，0 個 `[CRASH]`，debug log `[WARN] [sandbox] Chromium sandbox auto-disabled …`） | PASS（stderr 有啟動器那一行） | `BetterAgentTerminal.bin --no-sandbox …` | 沒有（預期） |
+
+- T0799 前同一個 runner（run `41496512040`）24.04 的 L1 / L2 都是 `FATAL:…setuid_sandbox_host.cc:172` 崩潰。
+- 24.04 的 probe 讀到 `unconfined`（runner 沒有替 BAT 裝 profile），結果與預期相同；「裝了 profile → 不加」只有單元測試（假的標籤），未在真機驗。

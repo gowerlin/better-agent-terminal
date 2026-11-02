@@ -46,7 +46,7 @@ gh workflow run linux-acceptance.yml -R gowerlin/better-agent-terminal -f build_
 | 列 | 何時跑 | 內容 |
 |---|---|---|
 | L1 | 一律 | Playwright `_electron.launch` 啟動 AppImage（🔴 `chromiumSandbox: true`，不加 `--no-sandbox`）；主視窗可見、預設工作區的終端分頁出現、用鍵盤輸入 `echo T0797_$((6*7))_<隨機>`，PTY 輸出出現 `T0797_42_<隨機>`（只有 shell 的輸出含 `_42_`）、截圖、renderer 在自己的 PID namespace（sandbox 有開）、主程序命令列沒有 `--no-sandbox`、debug log 已建立且 0 個 `[CRASH]`、結束對話框回答「結束＋停止 Terminal Server」後正常關閉。T0799：AppImage 啟動器自己加了 `--no-sandbox`（debug log `[sandbox] Chromium sandbox auto-disabled …`，見 [linux-appimage-sandbox.md](linux-appimage-sandbox.md)）時，sandbox 兩項不判、其餘都過 → 列結果 **WARN**，證據寫 `sandbox auto-disabled (BUG-202 fallback)` |
-| L2 | 一律（T0799 起；之前只在 L1 啟動失敗時） | 不經 Playwright、不帶任何除錯旗標，照使用者在終端機執行的方式啟動；20 s 後仍在、debug log 已建立且沒有 `[CRASH]`；記錄 stdout / stderr 有沒有啟動器的 `[sandbox] userns restricted …` 那一行。FAIL → verdict FAIL |
+| L2 | 一律（T0799 起；之前只在 L1 啟動失敗時） | 不經 Playwright、不帶任何除錯旗標，照使用者在終端機執行的方式啟動；等 debug log 出現（最多 120 s），之後再 20 s 仍在、送 SIGTERM 之前沒有 `[CRASH]`；記錄 stdout / stderr 有沒有啟動器的 `[sandbox] userns restricted …` 那一行。FAIL → verdict FAIL。T0799 run `41504087753` 的兩個修正：① 24.04 從啟動到 debug log 超過 20 s（L1 開窗 70 s），原本「啟動後 20 s」時 log 還不存在；② SIGTERM 送給整個程序群組，GPU / Utility 子程序被它殺掉而記 `[CRASH] child-process-gone`，這些行時間在 SIGTERM 之後，不算 |
 | L1b | L1 啟動失敗時 | L1 重跑並加 `--no-sandbox`，只為了繼續驗其他項目；報告中與 L1 分開列 |
 | W1 | 第一個啟動成功的 Playwright 列（通常 L1） | BUG-203 查證，**INFO**、不影響 verdict：main 程序照 `electron/whisper-addon-loader.ts` 的方式載入打包內的 `@kutalia/whisper-node-addon`（從 app 解析 `<pkg>/package.json` → `dist/linux-<arch>/whisper.node` → `app.asar` 改 `app.asar.unpacked` → `require`，要匯出 `whisper()`），記成功或錯誤原文（掛載路徑換成 `<appdir>/`） |
 
@@ -82,6 +82,17 @@ run `41495143950`（分支 `ct/T0798` `f5b94408`，workflow / spec 與 `main` `d
 - 啟動耗時含 FUSE 掛載與 xz squashfs 解壓，runner 之間差很多（22.04 同一版另一次 43 s）。
 - ELF GLIBC：整個映像 53 個 ELF 檔，最高 `GLIBC_2.38` 的只有 `@kutalia/whisper-node-addon/dist/linux-x64/libggml-base.so`、`libggml-vulkan.so`。22.04 上 `ldd` 報 `` version `GLIBC_2.38' not found ``（兩個都有），`libggml-vulkan.so` 另有 `` `GLIBCXX_3.4.32' not found ``；其餘 whisper `.so` 最高 `GLIBC_2.34`。啟動時不載入 whisper（debug log 只有 `[voice]` 註冊 handler 的行、沒有錯誤），所以 22.04 的 L1 不受影響；語音輸入在 22.04 實際能不能用沒有驗。whisper 的 `.so` 之間互相依賴的 `libggml*.so => not found` 兩個 OS 都有（`ldd` 不會往同目錄找），不代表執行期一定失敗。
 - codex 的 `vendor/x86_64-unknown-linux-musl/` 執行檔（`codex`、`rg`、`bwrap` 等）是 musl 靜態連結，記為 `none`。
+
+## GitHub runner 實測（T0799，2026-11-03，desktop-build `41502529486` 的 AppImage）
+
+| run | OS | verdict | L1 | L2 | W1（whisper） |
+|---|---|---|---|---|---|
+| `41504087753`（舊 L2 判讀） | 22.04 / 24.04 | FAIL / FAIL | PASS / WARN（自動降級） | FAIL / FAIL：判讀問題，見 L2 列說明 | 兩邊都 `libwhisper.so.1: cannot open shared object file: No such file or directory` |
+| `41504962084` | 22.04 | **PASS** | PASS（sandbox 開、命令列無 `--no-sandbox`） | PASS（debug log 37 s 後出現） | 同上 |
+| `41504962084` | 24.04 | **WARN** | WARN：`sandbox auto-disabled (BUG-202 fallback)`，視窗 92 s、鍵盤 echo、0 個 `[CRASH]` | PASS（debug log 44 s 後出現） | 同上 |
+
+- W1：`libwhisper.so.1` 就在 `whisper.node` 同一個目錄（`appimage-inspect.md` 有列），但 `whisper.node` 載入時動態載入器找不到它，兩個 OS 都在 glibc 版本檢查之前就失敗，所以 22.04 的 `GLIBC_2.38`（BUG-203）在這個錯誤之後才會遇到、目前看不到。
+- `41505876807`（L2 同時看輸出開頭與 debug log 的降級紀錄）：22.04 **PASS**（L1 / L2 PASS、sandbox 開）；24.04 **WARN**（L1 WARN 自動降級、L2 PASS，stderr 那一行與 debug log 那一行都有）。W1 結果同上。
 
 ## 已知限制與陷阱
 
