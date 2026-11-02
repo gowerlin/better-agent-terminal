@@ -369,7 +369,11 @@ describe('main() dry-run never writes', () => {
   })
 })
 
-describe('renderBashScript (WSL target)', () => {
+// T0786 / BUG-195: the round-trip tests run the generated script with a real bash (Git Bash on
+// Windows: every sha256sum / cp is a new process). In the whole `test:unit` on 24 cores they slow
+// evenly; measured before T0786 up to 10.8 s (`deploy + rollback round-trip …`, timed out) against
+// the default 5 s. 30 s ≈ 3× that, the same as each script's own execFileSync timeout.
+describe('renderBashScript (WSL target)', { timeout: 30_000 }, () => {
   const base = { installRoot: '~/.local/bat-server', stagingDir: '/mnt/d/x', files: FILES, tag: 'dev', restart: true, expectStrings: [] }
 
   it('inspect mode is read-only', () => {

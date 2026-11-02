@@ -90,15 +90,22 @@ function ok(result: CtWorktreeStatusResult | CtWorktreeGitStatusResult) {
   return result
 }
 
-/** What a read-only query must not change in a checkout. */
+/**
+ * What a read-only query must not change in a checkout: status, HEAD, current branch, every branch.
+ * T0786 / BUG-195: two git processes instead of four — `--porcelain=v2 --branch` carries
+ * `# branch.oid` (HEAD) and `# branch.head` (the branch) in front of the same entries.
+ */
 function snapshot(dir: string) {
   return {
-    status: git(dir, 'status', '--porcelain=v1', '--untracked-files=all'),
-    head: git(dir, 'rev-parse', 'HEAD'),
-    branch: git(dir, 'rev-parse', '--abbrev-ref', 'HEAD'),
+    status: git(dir, 'status', '--porcelain=v2', '--branch', '--untracked-files=all'),
     branches: git(dir, 'for-each-ref', '--format=%(refname) %(objectname)', 'refs/heads'),
   }
 }
+
+// T0786 / BUG-195: the real-git tests run git processes in a row (the fixture's and the service's).
+// In the whole `test:unit` on 24 cores every git call slows evenly; measured before T0786 up to
+// 7.5 s (`ahead / behind …`, timed out) against the default 5 s. 30 s leaves room for that load.
+const REAL_GIT_TIMEOUT_MS = 30_000
 
 describe('affects_files parsing (pure)', () => {
   it('reads block lists (quoted or not), flow lists, an empty list, and no field / no frontmatter', () => {
@@ -160,7 +167,7 @@ describe('affects_files parsing (pure)', () => {
   })
 })
 
-describe('CtWorktreeService.status (real git)', () => {
+describe('CtWorktreeService.status (real git)', { timeout: REAL_GIT_TIMEOUT_MS }, () => {
   it('a fresh worktree: 0 / 0, clean, nothing changed; a query changes nothing', async () => {
     const { repo } = makeRepo()
     const record = await isolated(repo)
@@ -278,7 +285,7 @@ describe('CtWorktreeService.status (real git)', () => {
   })
 })
 
-describe('CtWorktreeService.statusFromGit (T0589, real git)', () => {
+describe('CtWorktreeService.statusFromGit (T0589, real git)', { timeout: REAL_GIT_TIMEOUT_MS }, () => {
   it('a registered worktree: found by the location rules from a sub-directory; read as usual; nothing changes', async () => {
     const { repo } = makeRepo()
     const record = await isolated(repo)

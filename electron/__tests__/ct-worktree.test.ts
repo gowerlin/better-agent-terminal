@@ -106,7 +106,13 @@ describe('ct-worktree helpers', () => {
   })
 })
 
-describe('CtWorktreeService.prepare (real git)', () => {
+// T0786 / BUG-195: the real-git tests run git processes in a row (the fixture's and the service's).
+// In the whole `test:unit` on 24 cores every git call slows evenly; measured before T0786 up to
+// 5.3 s (`dispatch again …`, timed out) and 5.0 s (`remove: uncommitted …`) against the default
+// 5 s. 30 s leaves room for that load.
+const REAL_GIT_TIMEOUT_MS = 30_000
+
+describe('CtWorktreeService.prepare (real git)', { timeout: REAL_GIT_TIMEOUT_MS }, () => {
   it('creates the worktree outside the repo on ct/<T####> from HEAD', async () => {
     const { root, repo, head } = makeRepo()
     const r = await service.prepare({ cwd: repo, workorder: 't0001' })
@@ -245,7 +251,7 @@ describe('CtWorktreeService.prepare (real git)', () => {
   })
 })
 
-describe('CtWorktreeService.cleanup (real git)', () => {
+describe('CtWorktreeService.cleanup (real git)', { timeout: REAL_GIT_TIMEOUT_MS }, () => {
   async function prepared(workorder: string) {
     const fixture = makeRepo()
     const r = await service.prepare({ cwd: fixture.repo, workorder })
