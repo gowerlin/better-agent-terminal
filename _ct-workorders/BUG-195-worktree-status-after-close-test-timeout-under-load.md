@@ -3,12 +3,14 @@ schema_version: 1
 schema_kind: bug
 id: BUG-195
 title: "真 git / 真子程序的單元測試在整套 `test:unit` 負載下逾時 5 s（`worktree-status-after-close.test.ts` 等 4 檔）"
-status: FIXED
+status: CLOSED
 severity: low
 reproducibility: frequent
 created_at: "2026-11-02T14:39:02+0800"
 updated_at: "2026-11-02T17:16:58+0800"
 fixed_at: "2026-11-02T17:16:58+0800"
+closed_at: "2026-11-02T17:37:52+0800"
+closed_reason: verified
 fix_commit:
   - 8de128de
   - 121df3e2
@@ -24,7 +26,7 @@ links:
 |------|------|
 | 嚴重度 | 🟢 low（只影響測試；產品行為無關。CI Test gate（T0686）若遇到會擋發版，重跑即過） |
 | 可重現 | 偶發：2026-11-02 兩次（全套平行負載下）；單檔與重跑全套都通過 |
-| **狀態** | ✅ FIXED（T0786 `8de128de` / `121df3e2`，D225；範圍擴及 4 檔，T0786 Q-1） |
+| **狀態** | 🚫 CLOSED（T0786 `8de128de` / `121df3e2`；`v0.7.3-pre.7` 聯合驗證 unit 一次綠、CI Test gate 綠 run `41419978047`） |
 | 回報者 | 塔台（T0780 Worker 首次記錄；第二次出現依「再發生才開單」開單） |
 
 ## 現象
