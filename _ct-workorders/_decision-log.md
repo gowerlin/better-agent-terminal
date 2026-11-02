@@ -1465,6 +1465,16 @@
 - **切分**：W2a 設計語言 + 元件 + 首頁（T0630）→ 預覽通過後 W2b（`/control-tower`、功能、FAQ、回報頁）→ W2c 遠端開發；W3 / W4 不變。
 - **相關**：PLAN-049 / D159 / D160 / T0624 / T0630
 
+### D237 2026-11-03 — T0794 收單：BUG-200 FIXED（待 CI）；接受 `beforeAll` 30 s 偏離；開 BUG-201
+
+- **背景**：T0794 DONE（`2b3f0b1b` / `216973bb`，只改 6 個測試檔）。A：兩支真 hook 程序測試以 `holdReport` 由測試控制到達順序，96 執行緒負載 10 / 10 通過，突變檢查兩支都失敗（仍測得到 BUG-197 / 198）；B：5 檔 describe 30 s、`worktree-status-after-close` 40 s＋`maintenance.auto=false`；整套 3 / 3、兩套並行範圍內全過、typecheck 0 / 0、legacy 綠。偏離：同 describe 的 `beforeAll` 設 30 s（自簽憑證在重負載下超過 10 s hookTimeout）。範圍外：`dev-deploy-headless.test.mjs` 兩套並行時共用輸出目錄互相覆蓋。
+- **決定**（塔台，斷點 C 範圍內）：
+  1. 接受 `beforeAll` 30 s：在 affects_files 內、只改測試、理由有量測。
+  2. BUG-200 維持 FIXED，下一版 CI Test gate 綠 → CLOSED（比照 BUG-195 / 199）。
+  3. 開 BUG-201（OPEN，low）：輸出目錄衝突，不是逾時；同一 checkout 並行 Worker 會撞到。是否立即派工由使用者決定。
+- **決策者**：塔台。2026-11-03 第一百零八 session。
+- **相關**：T0794 / BUG-200 / BUG-201 / D236
+
 ### D236 2026-11-02 — 下一版號線 `0.7.4-pre.N`；BUG-200 現在修（T0794）
 
 - **背景**：`0.7.3-pre.N` 到 pre.9 用完（`_local-rules.md`：`-pre.N` 最多到 pre.9）；BUG-200（low）D235 原定與下一版前修正一起處理。
