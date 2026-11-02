@@ -1,8 +1,8 @@
 ---
 schema_kind: tower-state
 summary_version: 1
-updated_at: "2026-11-03T03:10:02+08:00"
-session: "2026-11-03 01:02 第一百零九 session 開工（CT v6.0.0-beta.11）"
+updated_at: "2026-11-03T03:13:20+08:00"
+session: "2026-11-03 03:13 第一百零九 session 收工（CT v6.0.0-beta.11）"
 next_ids:
   workorder: "T0800"
   decision: "D245"
@@ -20,19 +20,48 @@ todo:
 ---
 # Tower State — better-agent-terminal
 
-> 最後更新:2026-11-03 00:40 (UTC+8) — **第一百零八 session 收工**：pre.9 NSIS 驗收；BUG-196 / 197 / 198 驗收結案（T0796 實機、T0792 安裝版 e2e）；BUG-199 / 200 / 201 測試修正（T0793 / T0794 / T0795）→ **`v0.7.4-pre.1`** 發佈並 CLOSED；移除 lean-ctx 殘留（CT ADVISORY）。前次：第一百零七 session 收工（2026-11-02 22:33）。
+> 最後更新:2026-11-03 03:13 (UTC+8) — **第一百零九 session 收工**：`v0.7.4-pre.1` NSIS 驗收 PASS-WITH-WARN；新增 Linux AppImage 啟動驗收 workflow（T0797 / T0798）：22.04 PASS、24.04 預設設定崩潰（BUG-202）→ T0799 啟動器自動降級 sandbox，FIXED 並合併；Linux 語音輸入無法載入（BUG-204）、22.04 glibc（BUG-203）。前次：第一百零八 session 收工（2026-11-03 00:40）。
 >
-> **下次起手**:熱區無進行中工單、無 OPEN BUG。① 使用者換版到 `0.7.4-pre.1` 時可跑 NSIS 重裝驗收（`e2e\manual\nsis-reinstall-acceptance.ps1 -Version 0.7.4-pre.1`），讀報告並刪 `userdata-backup`；② BUG-159 需非系統管理員環境＋codex；③ Linux AppImage 待回報；④ PLAN-059 C 待問 CT（Q5）。
+> **下次起手**:熱區無進行中工單。① BUG-204（Linux whisper 找不到 `libwhisper.so.1`，medium）是否派工；② 發 `0.7.4-pre.2` 後跑 `linux-acceptance.yml -f version=0.7.4-pre.2`（22.04 PASS / 24.04 WARN auto-disabled）結 BUG-202；③ BUG-159 需非系統管理員環境＋codex；④ PLAN-059 C 待問 CT（Q5）。
 
 ---
 
-## 🟢 第一百零九 session（進行中）
+## 🛏 本 Session 收工快照 (第一百零九 session, 2026-11-03 01:02 - 2026-11-03 03:13, ~2h10m)
+
+### 主軸：`v0.7.4-pre.1` NSIS 驗收 → Linux AppImage 驗收 workflow（T0797 / T0798）→ BUG-202 修正（T0799）→ 開 BUG-203 / 204
+
+#### 時間線（時間取自系統 / git / gh）
 
 > 🟢 **第一百零九 session 開工**（2026-11-03 01:02 (UTC+8)，CT v6.0.0-beta.11，Fast Path；塔台 session `3c0519a9-727a-4151-91aa-b69ccdcadeb9`；`--set-role tower --mode on` exit 0；安裝版 FileVersion / helper `v0.7.4-pre.1`（已換版）；HEAD `737b495c`、`main` = `origin/main`（0 / 0）、工作區乾淨；熱區 192 張工單皆終態；BUG 熱區 Fixed 1（159）/ Closed 64；PLAN DONE 15 / DROPPED 2 / IDEA 8 / PLANNED 1；`bat_list_questions` pending 0；熱區檔案皆 < 400 KB）。**`v0.7.4-pre.1` NSIS 完整重裝驗收 PASS-WITH-WARN**（`e2e\manual\nsis-reinstall-acceptance.ps1` real 模式，01:00:47–01:01:25；AllUsers / HKLM；唯一 WARN = ⓪ 目前安裝版是 pre.9，② 實為升級，屬預期；① SHA-256 `8ed58046…` ② ③ ④ 全 PASS，三支 helper `--version` = v0.7.4-pre.1、內嵌 claude / codex 存在、userData 130 檔 SHA-256 未變；⑤ SKIPPED）。報告 `%TEMP%\bat-nsis-acceptance-20261103-010047\report.md`；含權杖的 `userdata-backup`（130 檔）已刪除。00:39:49 那次 FAIL = ⓪ 偵測到 BAT 仍在執行（10 個程序），前置檢查擋下、未安裝，屬設計行為。使用者問「Linux AppImage 待回報是等什麼」→ 查明源自 T0784 Linux 待驗項目、CI 只打包不啟動、無指定回報人 → 使用者選 1 → **D242** → 開 **T0797**（`linux-acceptance.yml`，ubuntu-22.04 / 24.04 啟動驗收）（`eb119562`）。01:10 派 **T0797**（yolo `--no-interactive`，exit 0，`started: 17:10:23Z`；Worker `2a5b42f8…`）。**T0797 DONE**（`cd938ab6`，01:27；`linux-acceptance.yml`（`version` / `build_run_id`、ubuntu-22.04 / 24.04、SHA-256、無 secret、artifact 刪密鑰檔）＋ `e2e/linux/` Playwright L1（L2 / L1b 備援）＋ docs / CLAUDE.md 一行；驗收級別 ①；發現並修正 Playwright 在 Linux 預設加 `--no-sandbox`（spec 改 `chromiumSandbox: true` 並以 renderer `NSpid` 佐證）；本機 WSL Ubuntu 24.04（glibc 2.39）對 `v0.7.4-pre.1` L1 PASS、sandbox 開啟；actionlint 0、typecheck 0 / 0、unit 6783 / 385；🟡 靜態檢查：whisper addon `libggml-base.so` / `libggml-vulkan.so` 需 `GLIBC_2.38`，22.04 只有 2.35，推論 22.04 語音輸入會失敗，建議等 CI 結果再開 BUG）；session id 已在 `session_ids`；session 快照已寫；`--close-worker T0797` exit 0。去識別化 9 組 0、金鑰 0（唯一命中為 workflow 刪密鑰檔的比對樣式本身）→ push `737b495c..c29793b2`（含本 session 塔台 commit）→ `linux-acceptance.yml -f version=0.7.4-pre.1` run `41491827025`（17:30:34Z）→ **failure**：兩個 OS 都在「Inspect the AppImage」中途 exit 1（ELF 清單截斷），Playwright 未執行、無結論；24.04 runner `apparmor_restrict_unprivileged_userns = 1`。→ **D243** → 開 **T0798**（修正 Inspect 步驟，授權 push `ct/T0798` 在 GitHub 迭代）。01:33 派 **T0798**（yolo `--no-interactive`，exit 0，`started: 17:33:53Z`；Worker `4ce80a9b…`）。收到 BMad-Guide 塔台 ADVISORY（CT v6.0.0-beta.11 預發行：執行中補充〈塔台補充（執行中 #N）〉，Worker 於驗證 / 產品 commit / 回報前自讀；BAT 介面與最低版本不變；全文 BMad-Guide `_ct-workorders/_handover-2026-11-03-bat-ct-beta11-midflight-addendum.md`）→ 不需回覆、BAT 無需改程式；本塔台已在 beta.11。**T0798 DONE**（`41c7f5fa` / `498a78d3` / `d977a92a` / `37f62a9f`，01:57；根因 = `bash -e`＋`pipefail` 下無 glibc 符號的 ELF（codex musl）讓 `v=$(max_glibc …)` 結束管線子 shell；另修 spec 兩處（launch 失敗的 unhandled rejection 讓測試停掉、`ldconfig -p` 輸出截斷誤報 libfuse2）；`--ref ct/T0798` dispatch 3 次，最後 run `41495143950`：**22.04 PASS**（L1、sandbox 開）、**24.04 WARN**（`apparmor_restrict_unprivileged_userns = 1` 下 L1 / L2 FATAL `chrome-sandbox … owned by root and has mode 4755`，L1b `--no-sandbox` PASS）；完整 ELF 53 個：whisper `libggml-base.so` / `libggml-vulkan.so` 需 `GLIBC_2.38`（＋`GLIBCXX_3.4.32`），22.04 只有 2.35，啟動不載入 whisper、語音輸入未驗；遠端 `ct/T0798` 已刪，本機分支保留）；session id 已在 `session_ids`；session 快照已寫；`--close-worker T0798` exit 0。去識別化 9 組 0、金鑰 0 → push `c29793b2..ad123f61` → 以 `main` 跑正式結論 run `41496512040`（18:00:52Z）。使用者同意 → 本機分支 `ct/T0798` 刪除（`f5b94408`；3 個驗證用 commit，workflow / `e2e/linux` 與 `main` diff 為空；遠端早已刪）。02:06 `*sync`：工單 194 張全 DONE；BUG Fixed 1 / Closed 64、PLAN Active 9 / Completed 15 / Dropped 2，與 `_bug-tracker.md` / `_backlog.md` 一致，免重建；歸檔候選（完成 > 2 天）工單 112、BUG 14（`auto_archive_prompt: off`，未歸檔）；未結 BUG 清理提示不觸發；`sprint-status.yaml` 停在 2026-05-23（手動里程碑摘要，非 tracker）。正式結論 run `41496512040`（`main` @ `ad123f61`，success）：**22.04 PASS**（L1，sandbox 開）/ **24.04 WARN**（L1 / L2 FATAL `chrome-sandbox`，L1b `--no-sandbox` PASS）→ 開 **BUG-202**（OPEN，high，24.04 AppImage sandbox；修法三選一待使用者）、**BUG-203**（OPEN，low，22.04 whisper `GLIBC_2.38`，待實測）；tracker 只動 Open 區段與統計，parser 12 / 12。原待辦「Linux AppImage 待回報」以 BUG-202 / 203 取代。使用者選「偵測後自動加 `--no-sandbox`」＋「BUG-203 併入同單查證」→ **D244** → 開 **T0799**、BUG-202 → FIXING（tracker 只動該列，parser 12 / 12）（`48264d1d`）。02:22 派 **T0799**（yolo `--no-interactive`，exit 0，`started: 18:22:57Z`；Worker `9cfd9ef3…`）。**T0799 DONE**（03:07；分支 `ct/T0799` 6 commit：`d773cb67` 實作 / `52b1a91c` / `bdcd5747` / `a682ea7b` / `792db8e9` / `c7cfabda`；`afterPack` 把 AppImage 的 `BetterAgentTerminal` 換成 `/bin/sh` 啟動器（`scripts/appimage-sandbox-launcher.cjs`）、Electron 改名 `.bin`，只在 userns 用不了＋`chrome-sandbox` 非 root setuid＋未帶 `--no-sandbox`＋非 `ELECTRON_RUN_AS_NODE` 時加 `--no-sandbox`，stderr＋debug log `[sandbox]` 一行（`electron/linux-sandbox-fallback.ts`）；查證 `appendSwitch` 太晚（崩潰時連 debug log 都沒有）；desktop-build `41502529486` 全綠（Windows / macOS 不經啟動器）→ linux-acceptance `41505876807`：22.04 PASS（sandbox 開、無 `--no-sandbox`）、24.04 WARN `sandbox auto-disabled (BUG-202 fallback)`、L2 兩邊 PASS；typecheck 0 / 0、unit 6800 / 387、legacy 472 / 33、vite build、shellcheck 0；BUG-202 → FIXED；W1：whisper 在 22.04 / 24.04 都 `libwhisper.so.1: cannot open shared object file`）；session id 已在 `session_ids`；session 快照已寫；`--close-worker T0799` exit 0。merge-base `7bf3155f`、main 之後只動 `_ct-workorders/**`、無衝突 → `git merge --no-ff ct/T0799` → `bf561a3d`（產品樹與 `c7cfabda` 相同）、本機 `ct/T0799` 以 `-d` 刪除（已合併；遠端已刪）。開 **BUG-204**（OPEN，medium：Linux 打包版 whisper 找不到 `libwhisper.so.1`，遮住 BUG-203）。
 
+- 2026-11-03 03:13 使用者「收工」。收工前：Session 107 快照歸檔（`2026-Q4-b.md`、INDEX 127）、L183（Linux CI 驗收的三個陷阱）、去識別化與金鑰掃描後 push。
+
+### 本輪戰績
+
+| 類別 | 數量 | 備註 |
+|---|---|---|
+| 派發工單 | 3 | T0797（驗收 workflow）/ T0798（修 Inspect 步驟）/ T0799（BUG-202）皆 DONE、一次啟動、無提問 |
+| 決策 | 3 | D242–D244 |
+| BUG | 開 3 / 修 1 | 開 BUG-202（high）/ 203（low）/ 204（medium）；BUG-202 FIXED（已合併 `bf561a3d`，待交付版驗收）；熱區 Open 2（203 / 204）/ Fixed 2（159 / 202）/ Closed 64 |
+| CI 驗收 | 3 + 分支迭代 | linux-acceptance 首跑 `41491827025` FAIL（workflow 缺陷）→ 正式 `41496512040`（22.04 PASS / 24.04 WARN）；T0798 / T0799 分支共 6 次、desktop-build 1 次 |
+| 合併 | 1 | `ct/T0799` `--no-ff` → `bf561a3d`；`ct/T0798`（使用者同意）/ `ct/T0799` 刪除 |
+| 驗收 | 1 | `v0.7.4-pre.1` NSIS 完整重裝 PASS-WITH-WARN |
+| 跨塔台 | ADVISORY 1 | BMad-Guide 塔台：CT v6.0.0-beta.11 執行中補充（BAT 無需改） |
+
+### 重點觀察
+
+- 「待回報」沒有指定回報人＝沒人負責：改成 CI 可重跑的驗收後，一天內找到 2 個實際 BUG（24.04 sandbox、Linux 語音輸入）
+- Playwright `_electron.launch` 在 Linux 預設加 `--no-sandbox`，會讓 sandbox 相容性測試假通過；Actions `run` 預設 `bash -e`＋`pipefail` 讓管線內的 while 子 shell 中途結束 → L183
+- Chromium 在 Electron main JS 之前決定 sandbox，`appendSwitch('no-sandbox')` 來不及；用 `afterPack` 啟動器包裝（T0799）
+- 後續候選：BUG-204（Linux whisper `libwhisper.so.1`）→ BUG-203；`0.7.4-pre.2` 後以 `linux-acceptance -f version=` 結 BUG-202；AppArmor profile 範例未實機驗
+
+### 編號起始（下 session）
+
+- **T0800** / **BUG-205** / **PLAN-062** / **D245** / **EXP-WFMINE-002** / **L184** / **CT-T023**
+
 ---
 
-## 🛏 本 Session 收工快照 (第一百零八 session, 2026-11-02 22:38 - 2026-11-03 00:40, ~2h)
+## 🛏 前 Session 收工快照 (第一百零八 session, 2026-11-02 22:38 - 2026-11-03 00:40, ~2h)
 
 ### 主軸：pre.9 NSIS 驗收 → BUG-196 / 197 / 198 驗收結案（T0792 / T0796）→ BUG-199 / 200 / 201 修正（T0793 / T0794 / T0795）→ `v0.7.4-pre.1`
 
@@ -66,56 +95,21 @@ todo:
 
 ---
 
-## 🛏 前 Session 收工快照 (第一百零七 session, 2026-11-02 21:40 - 2026-11-02 22:33, ~55m)
-
-### 主軸：pre.8 NSIS 驗收 → BUG-198 修正（T0791）→ `v0.7.3-pre.9`
-
-#### 時間線（時間取自系統 / git / gh）
-
-> 🟢 **第一百零七 session 開工**（2026-11-02 21:40 (UTC+8)，CT v6.0.0-beta.10，Fast Path；塔台 session `2c1fd280-0f34-4dfc-af2a-71b815044fcf`；`--set-role tower --mode on` exit 0；安裝版 BAT / helper `v0.7.3-pre.8`（已換版）；HEAD `d1c3e40a`、`main` = `origin/main`（0 / 0）、工作區乾淨；熱區工單無非終態；BUG 熱區 Open 1（BUG-198）/ Fixed 3 / Closed 58，與 `_bug-tracker.md` 一致，免重建；`%TEMP%` 只有 pre.7 的 `bat-nsis-acceptance-20261102-175507`，**pre.8 未跑 NSIS 重裝驗收**）。
->
-> 🟢 **第一百零七 session 塔台重啟**（2026-11-02 21:43 (UTC+8)，CT v6.0.0-beta.10，Fast Path；塔台 session `1ccb4733-ea63-4a7e-8b63-6faa91addd19`；`--set-role tower --mode on` exit 0；安裝版 helper `v0.7.3-pre.8`；HEAD `7c7f7cfe`（`main` ahead 1，未 push）；熱區 186 張工單無非終態；BUG Open 1 / Fixed 3 / Closed 58；`bat_list_questions` pending 0；熱區檔案皆 < 400 KB）。**`v0.7.3-pre.8` NSIS 完整重裝驗收 PASS**（`e2e\manual\nsis-reinstall-acceptance.ps1` real 模式，21:41:34–21:42:14；AllUsers / HKLM；① SHA-256 `b44a333e…` ② 同版覆蓋 ③ 靜默解除 ④ 乾淨重裝全 PASS，三支 helper `--version` = v0.7.3-pre.8、內嵌 claude / codex 存在、userData 130 檔 SHA-256 未變；⑤ LaunchCheck 未帶 → SKIPPED）。報告 `%TEMP%\bat-nsis-acceptance-20261102-214134\report.md`；含權杖的 `userdata-backup`（130 檔）已刪除。使用者「開 BUG-198 的修正單並派工」→ **D232** → 開 **T0791**（P2，S；沿用 T0790 的 `at`，晚到的 `stop` 不結束較晚開始的回合）；BUG-198 → FIXING（tracker 只動該列，Open 0 / Fixing 1）。21:47 派 **T0791**（yolo `--no-interactive`，exit 0，`started: 2026-11-02T13:47:20.353Z`；Worker 分頁 `f9977817…`）。**T0791 DONE**（`20bc7a88`，22:05；`TerminalBlockedTracker` 記目前回合 `user-prompt-submit` 中最晚的 `at`，`stop` 的 `at` 較早 → 不結束回合、記 `[turn] … kept: … reported late`（`endTurnByStop`）；任一方沒有 `at` 照舊；`bat-hook.mjs` 未改；修正前 4 情境重現、真實 hook 程序與 e2e 也重現；突變 7 / 4 失敗；e2e `t0694` 新步驟 6 綠、不回歸 `t0609` / `t0735` / `t0590` / `t0787` 綠；typecheck 0 / 0、unit 6782 / 385、legacy 472 / 33、vite build；殘留：同一回合 prompt 晚於自己的 `stop` → 多留 60 s `↻`（方向安全，記在 docs）；工單 `status: TODO` 應寫 `PENDING`（塔台模板筆誤））→ **BUG-198 FIXED**（tracker 只動該列，Fixed 4）；session id 已在 `session_ids`；session 快照已寫；`--close-worker T0791` exit 0。使用者「發 0.7.3-pre.9 與驗收的有 BUG-159、196、197、198 建議安排順序」→ **D233** → 聯合驗證 @ `5ebcc71f`：verify-native、typecheck 0 / 0、vite build、legacy 472 / 33 綠；unit 1 失敗（`nvm-login-profile.test.ts` 真 bash 5 s 逾時，BUG-195 同類第五支）→ 單檔 3 / 3、整套重跑 6782 / 385 綠 → 開 **BUG-199**（OPEN，low，不擋發版）。去識別化 9 組 0、未推 diff 金鑰 0。驗收順序建議：① BUG-196 使用者實機 ② BUG-197 同場＋自動化 t0787 ③ BUG-198 自動化 t0694 ④ BUG-159 需非系統管理員環境，最後。push `d1c3e40a..61fcd31c` → `pre-release.yml -f version=0.7.3-pre.9` run `41459914265` 12 job 全綠（CI unit 未逾時）→ **`v0.7.3-pre.9` 發佈**（14:29:12Z；exe 305 / zip 473 / AppImage 337 / dmg 352 MiB；server-bundle 7 assets）；更版重點已寫入並比對（含〈待驗收〉四項，無 codex 變更不寫〈歡迎協助測試〉）；CHANGELOG / release-note / package.json → `c1bef62e` push（README 無需更新：無 CT 介面變更）；Pages `41462684452` 綠、link-check 1445 / 0、首頁 0.7.3-pre.9。**`0.7.3-pre.N` 線已用完**，下一版前先問使用者版號線。
-
-- 2026-11-02 22:33 使用者「收工, 換版」。收工前：Session 105 快照歸檔（`2026-Q4-b.md`、INDEX 125）、L181（工單 `status` 用 `PENDING`）、去識別化與金鑰掃描後 push。
-
-### 本輪戰績
-
-| 類別 | 數量 | 備註 |
-|---|---|---|
-| 派發工單 | 1 | T0791 DONE（一次啟動、無提問） |
-| 決策 | 2 | D232–D233 |
-| BUG | 開 1 / 修 1 | BUG-198 FIXED（待驗收）；BUG-199（low）OPEN；熱區 Open 1 / Fixed 4 / Closed 58 |
-| 發版 | 1 | `v0.7.3-pre.9`（run `41459914265`；Pages `41462684452`，link-check 1445 / 0） |
-| 驗收 | 1 | `v0.7.3-pre.8` NSIS 完整重裝 PASS |
-
-### 重點觀察
-
-- T0790 的 hook 程序啟動時間 `at` 一次解決同類的兩個亂序（blocked 清除、回合結束）；剩下的反方向（同一回合 prompt 晚於自己的 `stop`）方向安全，只記在 docs
-- 真子程序測試的負載逾時又多一支（BUG-199，BUG-195 同類第五支）；逐檔加 timeout 會一直追加，修正單可考慮共用 helper / 標記
-- 塔台開單時 frontmatter 寫成 `status: TODO`，Worker 視同未開始照常處理 → L181
-- 後續候選：T0792 自動化驗收（BUG-197 / 198）；BUG-199；新版號線
-
-### 編號起始（下 session）
-
-- **T0792** / **BUG-200** / **PLAN-062** / **D234** / **EXP-WFMINE-002** / **L182** / **CT-T023**
-
----
-
 ## 🌅 起手式（Quick Recovery）
 
-> 最後更新：2026-11-03 00:40 UTC+8（第一百零八 session 收工）
+> 最後更新：2026-11-03 03:13 UTC+8（第一百零九 session 收工）
 
 ### 近期完成
-- **`v0.7.4-pre.1` 發佈**（第一百零八 session，run `41480278090`，target `f5d9d4f4`）：BUG-199 / 200 / 201 測試修正；Pages `41483187892` 綠；版號線改 `0.7.4-pre.N`（D236）
-- **BUG-196 / 197 / 198 CLOSED**（第一百零八 session）：T0796 實機（AskUserQuestion）、T0792 安裝版 pre.9 e2e
-- **`v0.7.3-pre.9` NSIS 完整重裝驗收 PASS-WITH-WARN**（第一百零八 session 22:37）
-- **`v0.7.3-pre.9` 發佈**（第一百零七 session）：BUG-198（T0791）
+- **BUG-202 FIXED**（第一百零九 session，T0799，合併 `bf561a3d`）：AppImage 在 userns 受限＋`chrome-sandbox` 非 root setuid 時自動加 `--no-sandbox`
+- **Linux AppImage 啟動驗收 workflow**（T0797 / T0798）：`linux-acceptance.yml`，正式 run `41496512040`
+- **`v0.7.4-pre.1` NSIS 完整重裝驗收 PASS-WITH-WARN**（第一百零九 session 01:01）
+- **`v0.7.4-pre.1` 發佈**（第一百零八 session）：BUG-199 / 200 / 201
 
 ### 待辦（依優先序）
-1. 🟡 **BUG-159 驗收**：需非系統管理員環境 ＋ codex
-2. 🟢 Linux AppImage（Ubuntu 22.04）待回報；t0757 偶發失敗再發生才開 BUG（D218）
-3. 🟢 PLAN-059 C（問 CT Q5）；PLAN-060 / 061 IDEA
-（`v0.7.4-pre.1` NSIS 重裝驗收 PASS-WITH-WARN，第一百零九 session 01:01）
+1. 🟡 **BUG-204**（OPEN，medium）：Linux 打包版 whisper 找不到 `libwhisper.so.1`（遮住 BUG-203）
+2. 🟡 **BUG-202 結案**：`0.7.4-pre.2` 發佈後 `gh workflow run linux-acceptance.yml -R gowerlin/better-agent-terminal -f version=0.7.4-pre.2`
+3. 🟡 **BUG-159 驗收**：需非系統管理員環境 ＋ codex
+4. 🟢 BUG-203（22.04 glibc，待 BUG-204 後實測）；PLAN-059 C（問 CT Q5）；PLAN-060 / 061 IDEA；t0757 偶發失敗再發生才開 BUG（D218）
 
 ### ⚠️ 鐵則
 - **所有 `gh` 指令必須帶 `-R gowerlin/better-agent-terminal`**（L122）
@@ -124,14 +118,14 @@ todo:
 - 改 `_bug-tracker.md` / `_backlog.md` 不用全檔 `sed`，改完跑 parser 測試（L179）
 
 ### 快速連結
-- Bug Tracker → [_bug-tracker.md](_bug-tracker.md)（熱區：Open 0 / Fixing 0 / Fixed 1 / Closed 64，2026-11-03 00:36）｜ Backlog → [_backlog.md](_backlog.md)
-- Decision Log → [_decision-log.md](_decision-log.md)（最大 D241）｜ Learnings → [_learnings.md](_learnings.md)（最大 L182）
+- Bug Tracker → [_bug-tracker.md](_bug-tracker.md)（熱區：Open 2 / Fixing 0 / Fixed 2 / Closed 64，2026-11-03 03:10）｜ Backlog → [_backlog.md](_backlog.md)
+- Decision Log → [_decision-log.md](_decision-log.md)（最大 D244）｜ Learnings → [_learnings.md](_learnings.md)（最大 L183）
 - 研究報告 Artifact「Herdr 對照 BAT」→ https://claude.ai/artifact/Ybj66gYLkMHZE8xUyyDiEy（私人）
 - 網站 → https://gowerlin.github.io/better-agent-terminal/｜ 素材 spec → `e2e/site-media.spec.ts`（`BAT_SITE_MEDIA=1`，輸出 `e2e-media/`）
-- 歷史 sessions → [_archive/state-snapshots/INDEX.md](_archive/state-snapshots/INDEX.md)（126 entries）
+- 歷史 sessions → [_archive/state-snapshots/INDEX.md](_archive/state-snapshots/INDEX.md)（127 entries）
 
 ### 編號起始
-- **T0797** / **BUG-202** / **PLAN-062** / **D242** / **EXP-WFMINE-002**（其他 TOPIC 從 001） / **L183** / **CT-T023**
+- **T0800** / **BUG-205** / **PLAN-062** / **D245** / **EXP-WFMINE-002**（其他 TOPIC 從 001） / **L184** / **CT-T023**
 
 ---
 
@@ -143,14 +137,14 @@ todo:
 | **Fork 上游** | tony1223/better-agent-terminal（另有 `scandnavik` remote；⚠️ gh 預設解析到 upstream，見 L122） |
 | **目前版號** | **0.7.4-pre.1**（package.json + lock；D236 `0.7.4-pre.N` 線） |
 | **最新 release** | `v0.7.4-pre.1`（2026-11-02T16:34:36Z，run `41480278090`，target `f5d9d4f4`：BUG-199 / 200 / 201 測試修正）；前一 tag `v0.7.3-pre.9`（2026-11-02T14:29:12Z，run `41459914265`，target `61fcd31c`：BUG-198 晚到的 `stop`）；前一 tag `v0.7.3-pre.8`（12:19:33Z）；更早見 `release-note.md` / `CHANGELOG.md` |
-| **目前主軸** | 熱區無進行中工單、無 OPEN BUG；BUG-159 待驗收；`v0.7.4-pre.1` 已發佈 |
-| **工單最大編號** | **T0796** DONE（BUG-196 實機驗收，第一百零八 session）；T0792–T0795 皆 DONE |
-| **BUG 最大編號** | **BUG-201** CLOSED；熱區 Open 0 / Fixing 0 / Fixed 1（BUG-159）/ Closed 64（2026-11-03 00:36） |
+| **目前主軸** | 熱區無進行中工單；BUG-202 FIXED 待交付版 linux-acceptance；BUG-204 / 203 OPEN（Linux 語音輸入）；BUG-159 待驗收 |
+| **工單最大編號** | **T0799** DONE（BUG-202 AppImage sandbox 自動降級，第一百零九 session）；T0797 / T0798 皆 DONE |
+| **BUG 最大編號** | **BUG-204** OPEN（Linux whisper）；熱區 Open 2（203 / 204）/ Fixing 0 / Fixed 2（159 / 202）/ Closed 64（2026-11-03 03:10） |
 | **PLAN 最大編號** | **PLAN-061** IDEA（非 Windows 的 claude 7501，D229）；PLAN-060 IDEA（macOS 簽章）；PLAN-059 PLANNED；PLAN-029 / 053 / 054 / 055 / 057 DONE |
-| **決策最大編號** | **D241**（發 `0.7.4-pre.1`，第一百零八 session） |
+| **決策最大編號** | **D244**（BUG-202 自動降級＋BUG-203 併入查證，第一百零九 session） |
 | **EXP 最大編號** | **EXP-WFMINE-001**（📊 CONCLUDED 2026-10-20）；EXP-GPUWHIS-001（CONCLUDED，已歸檔） |
 | **塔台版本** | Control Tower **v6.0.0-beta.11**（第一百零九 session 起） |
-| **unit test 基線** | **6783 passed / 385 files**；typecheck 0 / 0、vite build、legacy 472 / 33（塔台聯合驗證 @ `f5d9d4f4`，`0.7.4-pre.1`，2026-11-03 第一百零八 session）；兩套 `test:unit` 並行也全綠（T0795） |
+| **unit test 基線** | **6800 passed / 387 files**（T0799 本機，`d773cb67`）；typecheck 0 / 0、vite build、legacy 472 / 33；desktop-build `41502529486` tests job 綠；上一次塔台聯合驗證 6783 / 385 @ `f5d9d4f4` |
 | **舊值** | 瘦身前的長版本見 [`_archive/state-snapshots/2026-Q4-b.md`](_archive/state-snapshots/2026-Q4-b.md)〈基本資訊舊值〉 |
 
 ---
@@ -270,6 +264,7 @@ todo:
 
 ### 歷史 Session（摘要）
 
+- 2026-11-03 第一百零九 session：auto-session on，per-dispatch `--mode yolo --no-interactive`；T0797–T0799 共 3 張全部 `started:`、DONE、無提問；T0798 / T0799 授權 push `ct/*` 分支在 GitHub 迭代；`worker_auto_close` 回收 3 次；無發版
 - 2026-11-02 第一百零八 session：auto-session on，per-dispatch `--mode yolo --no-interactive`；T0792–T0796 共 5 張全部 `started:`、DONE、無提問；T0792 / T0793 並行；`worker_auto_close` 回收 5 次；`v0.7.4-pre.1` 發佈
 - 2026-11-02 第一百零六 session：auto-session on，per-dispatch `--mode yolo --no-interactive`；T0787–T0790 共 4 張全部 `started:`、DONE；T0788 / T0789 並行；結構化提問 1 次（T0790 Q-1 `--answer`）；T0788 Renew #1（CT 回覆）；`worker_auto_close` 回收 4 次；`v0.7.3-pre.8` 發佈
 - 2026-11-02 第一百零四 session：auto-session on，per-dispatch `--mode yolo --no-interactive`；T0750–T0778 共 29 張全部 `started:`、DONE；T0770–T0773 四張並行；`worker_auto_close` 回收；`v0.7.3-pre.2`–`pre.5` 發佈

@@ -3834,3 +3834,15 @@ Codex 那張是外部測試者回報才發現；Claude 那張是使用者隨口�
 - 真子程序測試的逾時先量測再設 per-describe timeout（30 s 起），註解寫量測值；共用固定輸出目錄的測試改用 `mkdtemp`（BUG-201）
 - 塔台開修正單時，驗收加「兩套 `test:unit` 同時跑」：同一 checkout 常並行兩個 Worker
 
+## L183
+
+**來源**：第一百零九 session（2026-11-03），T0797 / T0798 / T0799（BUG-202）
+
+**現象**：Linux AppImage 驗收 workflow 首跑就踩到三個「看起來過了 / 看起來壞了」的陷阱：① Playwright `_electron.launch` 在 Linux 預設加 `--no-sandbox`（`chromiumSandbox` 預設 false），T0797 本機第一次在沒開 sandbox 下「通過」，正好掩蓋 24.04 的 sandbox 崩潰；② GitHub Actions `run` 預設 shell 是 `bash -e`，加上步驟內 `pipefail`，管線裡 while 迴圈的 `v=$(f)` 回非 0 就結束子 shell，資訊性的靜態檢查讓整個 job 失敗、清單截斷（本機以一般 `bash` 跑沒事）；③ Chromium 在 Electron main JS 之前決定 sandbox，`app.commandLine.appendSwitch('no-sandbox')` 來不及（崩潰時連第一行 debug log 都沒有）。
+
+**How to apply**：
+- 用 Playwright 驗 Electron 的 sandbox / 安全旗標時，明確傳 `chromiumSandbox: true`，並以程序實際狀態（renderer `NSpid`、命令列）佐證，不只看「開得起來」
+- 只記錄用的 workflow 步驟開頭 `set +e +o pipefail`、迴圈不放在管線子 shell（`mapfile < <(…)`），本機驗證用 `bash -e` 跑同一段
+- 要改 Chromium 啟動期行為（sandbox、GPU 等）先確認是否早於 main JS；來不及就在啟動前包裝（afterPack 啟動器）
+- 「待回報」沒有指定回報人就是沒人負責：能自動化就改成 CI 可重跑的驗收
+
