@@ -4,7 +4,7 @@ schema_kind: workorder
 id: T0788
 title: "修正 BUG-196：塔台在等使用者回答（權限對話框 / AskUserQuestion / codex 審批）時，主行程先保留 helper 送來的通知（文字＋Enter），使用者答完、安靜 1 s 後再送；submit Enter 不算使用者輸入"
 type: implementation
-status: FIXED
+status: DONE
 repo: better-agent-terminal
 project: maintenance
 priority: P0
