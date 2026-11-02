@@ -34,3 +34,14 @@ BAT 的 OSC 7501 解析器（`src/lib/codex-terminal-state.ts`）會丟掉 `app�
 ## 狀態
 
 - IDEA（D227：登記子 PLAN，等 T0789 結果再定範圍與開單）。
+
+## T0789 結論摘要
+
+（只摘要；證據、序列實錄表與工單草案見 T0789 回報區。）
+
+- 回覆格式：`ESC ] 7501 ; ?`，BEL 或 ST 結尾；要在 claude 的 DA1 回覆之前、2 秒內送到。每個 claude 程序只探詢一次。
+- 回覆後（Linux PTY 實測，claude `2.1.316`）：claude 送 `idle` / `working` / `blocked:kind=permission|question` / `done` / `error` / `clear`，與 BAT hook 幾乎同時；`disableAllHooks` 下照送。另有背景子代理的 `id=` 子紀錄。
+- **Windows 本機做不到**：系統 ConPTY 丟掉 OSC 回覆，claude 的 DA1 由 conhost 搶答。效益只在非 Windows 主機（遠端 headless、macOS / Linux）。
+- 對解析器的影響：實測最長 payload 130（理論約 2.8k）→ 上限建議 4096；`state=clear` 與 `state=clear:id=…` 不帶 `app`，帶 `id=` 的子紀錄不得影響分頁狀態；`title` / `msg` 不解碼、不記錄。
+- 副作用：回覆後 claude 不再用 OSC 0 標題做忙碌動畫（BAT 沒用到）；多餘回覆被忽略。
+- 建議：範圍縮小為「非 Windows 主機的 claude 7501」；回覆放主行程（`PtyManager` 輸出端）；沿用 codex 規則，已是 `hook` 的分頁忽略 7501。待塔台決定後開單。
