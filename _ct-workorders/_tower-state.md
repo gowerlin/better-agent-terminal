@@ -1,15 +1,15 @@
 ---
 schema_kind: tower-state
 summary_version: 1
-updated_at: "2026-11-02T18:00:34+08:00"
+updated_at: "2026-11-02T18:21:33+08:00"
 session: "2026-11-02 17:57 第一百零六 session 塔台重啟（CT v6.0.0-beta.10）"
 next_ids:
   workorder: "T0788"
   decision: "D227"
-  bug: "BUG-196"
+  bug: "BUG-197"
   plan: "PLAN-061"
 todo:
-  - "T0787（PLAN-059 研究單：Q1 通知打進 blocked 塔台、Q2 / Q3 OSC 7501）進行中，等回報"
+  - "BUG-196（high，Worker 通知替塔台作答，T0787 實測 30 / 30）待開修正單；子項 A 契約草案 v0 的 🟥 項目待 CT 塔台確認"
   - "待驗收：Linux AppImage（Ubuntu 22.04，Electron 45）；BUG-159（一般權限 ＋ codex，需使用者本機）；無 OPEN BUG"
   - "PLAN-059（Herdr 對照研究，主 PLAN）：T0787 收單後依 Q1 結果開 BUG 或子 PLAN（A），B 依 Q2 / Q3 定範圍"
   - "PLAN-060（IDEA）：macOS Developer ID 簽章（目前 macOS 不顯示系統通知）"
@@ -20,7 +20,7 @@ todo:
 
 > 🟢 **第一百零六 session 開工**（2026-11-02 17:52 (UTC+8)，CT v6.0.0-beta.10，Fast Path；塔台 session `7389073a-fb88-435e-86cb-9f7e3fcf5481`；`--set-role tower --mode on` exit 0；安裝版 BAT / helper `v0.7.3-pre.7`；HEAD `c2fd544b`、`main` = `origin/main`（0 / 0）、工作區乾淨；熱區 182 張工單全為 DONE；BUG 熱區 Fixed 1（BUG-159）/ Closed 58，與 `_bug-tracker.md` 一致，免重建；`bat_list_questions` pending 0；`%TEMP%` 下找不到 `bat-nsis-acceptance-*` 報告目錄）。
 
-> 🟢 **第一百零六 session 塔台重啟**（2026-11-02 17:57 (UTC+8)，CT v6.0.0-beta.10，Fast Path；塔台 session `3e6b868e-4618-40e8-a3c3-aeda376d340a`；`--set-role tower --mode on` exit 0；安裝版 BAT `0.7.3-pre.7`（FileVersion）；HEAD `6d43cfb4`（`main` ahead 1，未 push）；`bat_list_questions` pending 0）。**`v0.7.3-pre.7` NSIS 完整重裝驗收 PASS**（`e2e\manual\nsis-reinstall-acceptance.ps1` real 模式，17:55:07–17:55:45；AllUsers / HKLM；① 雜湊 `fae4c623…` ② 同版覆蓋 ③ 靜默解除 ④ 乾淨重裝全 PASS，三支 helper `--version` = v0.7.3-pre.7、內嵌 claude / codex 存在、userData 86 檔 SHA-256 未變；⑤ LaunchCheck 未帶 → SKIPPED）。報告 `%TEMP%\bat-nsis-acceptance-20261102-175507\report.md`；userData 備份含權杖檔待刪。使用者「刪除備份，push，然後開 PLAN-059 研究單」→ 備份已刪（86 檔）→ 去識別化 9 組 0、金鑰 0 → push `c2fd544b..47a1b232` → **D226** → 開 **T0787**（research，Q1 主、Q2 / Q3 順查，隔離實例＋假模型；`1cfb4277`）。18:01 派 **T0787**（yolo `--no-interactive`，exit 0，`started: 2026-11-02T10:01:03.423Z`；Worker 分頁 `2d0c6fe6…`）。
+> 🟢 **第一百零六 session 塔台重啟**（2026-11-02 17:57 (UTC+8)，CT v6.0.0-beta.10，Fast Path；塔台 session `3e6b868e-4618-40e8-a3c3-aeda376d340a`；`--set-role tower --mode on` exit 0；安裝版 BAT `0.7.3-pre.7`（FileVersion）；HEAD `6d43cfb4`（`main` ahead 1，未 push）；`bat_list_questions` pending 0）。**`v0.7.3-pre.7` NSIS 完整重裝驗收 PASS**（`e2e\manual\nsis-reinstall-acceptance.ps1` real 模式，17:55:07–17:55:45；AllUsers / HKLM；① 雜湊 `fae4c623…` ② 同版覆蓋 ③ 靜默解除 ④ 乾淨重裝全 PASS，三支 helper `--version` = v0.7.3-pre.7、內嵌 claude / codex 存在、userData 86 檔 SHA-256 未變；⑤ LaunchCheck 未帶 → SKIPPED）。報告 `%TEMP%\bat-nsis-acceptance-20261102-175507\report.md`；userData 備份含權杖檔待刪。使用者「刪除備份，push，然後開 PLAN-059 研究單」→ 備份已刪（86 檔）→ 去識別化 9 組 0、金鑰 0 → push `c2fd544b..47a1b232` → **D226** → 開 **T0787**（research，Q1 主、Q2 / Q3 順查，隔離實例＋假模型；`1cfb4277`）。18:01 派 **T0787**（yolo `--no-interactive`，exit 0，`started: 2026-11-02T10:01:03.423Z`；Worker 分頁 `2d0c6fe6…`）。**T0787 DONE**（`40767172`，18:19；source build＋隔離實例＋假模型，真實模型 0；**R1 成立**：權限對話框 / AskUserQuestion 遇 `--submit` 或 `--ask --submit` 都被 Enter 選中預設 / 第一個選項，30 / 30；只預填則文字被吞；`--ask --no-pty-write` 正常；另發現 submit Enter 被記成塔台的使用者輸入；Q2：主動送 OSC 7501 只有 codex，claude 2.1.316 要終端回覆探詢才送，gemini / opencode 無；Q3：沒有獨立規格，herdr-core `status.rs` 定 6 個 state；建議 A 在主行程保留通知（契約草案 v0，🟥 待 CT）、B 白名單 `codex` / `claude-code`、另開研究單回覆 claude 探詢）；session id 已在 `session_ids`；session 快照已寫；`--close-worker T0787` exit 0。→ 開 **BUG-196**（OPEN，high），parser 測試 65 綠。
 
 > 🛏 **第一百零五 session 已收工**（2026-11-02 17:47 (UTC+8)）。本 session 開工條目與經過已移入下方〈本 Session 收工快照（第一百零五 session）〉。
 
@@ -125,7 +125,7 @@ todo:
 
 ### 待辦（依優先序）
 1. ✅ ~~**pre.7 NSIS 完整重裝驗收**~~ → PASS（第一百零六 session 17:55）；備份已刪
-2. 🟡 **T0787**（PLAN-059 研究單）：等回報，依 Q1 結果開 BUG 或子 PLAN
+2. 🔴 **BUG-196**（high）：開修正單；子項 A 契約草案 v0（T0787 回報區）的 🟥 項目送 CT 塔台確認
 3. 🟡 **BUG-159 驗收**：需使用者本機以一般權限（非系統管理員）開 BAT ＋ codex
 4. 🟢 **Linux AppImage**（Ubuntu 22.04，Electron 45）待回報；t0757 偶發失敗再發生才開 BUG（D218）
 
@@ -143,7 +143,7 @@ todo:
 - 歷史 sessions → [_archive/state-snapshots/INDEX.md](_archive/state-snapshots/INDEX.md)（123 entries）
 
 ### 編號起始
-- **T0788** / **BUG-196** / **PLAN-061** / **D227** / **EXP-WFMINE-002**（其他 TOPIC 從 001） / **L180** / **CT-T023**
+- **T0788** / **BUG-197** / **PLAN-061** / **D227** / **EXP-WFMINE-002**（其他 TOPIC 從 001） / **L180** / **CT-T023**
 
 ---
 
@@ -157,7 +157,7 @@ todo:
 | **最新 release** | `v0.7.3-pre.7`（2026-11-02T09:35:29Z，run `41419978047`，target `e73acb3b`：Electron 45.2.1、safeStorage async、BUG-195）；前一 tag `v0.7.3-pre.6`（06:52:55Z，run `41401358379`）；更早見 `release-note.md` / `CHANGELOG.md` |
 | **目前主軸** | 熱區無進行中工單、無 OPEN BUG；待讀 pre.7 NSIS 報告；PLAN-059 待拆；BUG-159 待使用者本機 |
 | **工單最大編號** | **T0786** DONE（BUG-195）；T0779–T0786 皆 DONE（第一百零五 session） |
-| **BUG 最大編號** | **BUG-195** CLOSED；熱區 Open 0 / Fixing 0 / Fixed 1 / Closed 58（2026-11-02 17:37） |
+| **BUG 最大編號** | **BUG-196** OPEN（high，T0787）；熱區 Open 1 / Fixing 0 / Fixed 1 / Closed 58（2026-11-02 18:20） |
 | **PLAN 最大編號** | **PLAN-060** IDEA（macOS 簽章）；PLAN-059 PLANNED；PLAN-029 / 053 / 054 / 055 / 057 DONE |
 | **決策最大編號** | **D225**（派 T0785 / T0786，之後發 `0.7.3-pre.7`，第一百零五 session） |
 | **EXP 最大編號** | **EXP-WFMINE-001**（📊 CONCLUDED 2026-10-20）；EXP-GPUWHIS-001（CONCLUDED，已歸檔） |
