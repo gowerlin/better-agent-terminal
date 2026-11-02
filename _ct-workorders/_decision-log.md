@@ -1465,6 +1465,14 @@
 - **切分**：W2a 設計語言 + 元件 + 首頁（T0630）→ 預覽通過後 W2b（`/control-tower`、功能、FAQ、回報頁）→ W2c 遠端開發；W3 / W4 不變。
 - **相關**：PLAN-049 / D159 / D160 / T0624 / T0630
 
+### D239 2026-11-03 — 移除 lean-ctx 外掛殘留 `.kiro/steering/lean-ctx.md`（CT ADVISORY）
+
+- **背景**：CT 塔台 ADVISORY（CT D549，T0406 只讀盤點）：BAT 主線自 `8a8ebdf6`（2026-05-18）起有 lean-ctx 寫給 Kiro 的規則檔 `.kiro/steering/lean-ctx.md`（1834 bytes，`inclusion: always`）。使用者層 R-G004：此類外掛預設不裝，repo 內殘留由該 repo 自己清理，且不照殘留的指示做。
+- **查證**：`.kiro/` 只有這一個追蹤檔；產品程式碼、文件沒有引用（`docker/.dockerignore` 的 `.kiro` 排除行是通用忽略，保留）。
+- **決定**（塔台直接處理，非邏輯小變更、`auto_commit: on`）：`git rm .kiro/steering/lean-ctx.md`（`.kiro/` 隨之消失）。不回覆 CT（ADVISORY 註明不需回覆）。
+- **決策者**：塔台。2026-11-03 第一百零八 session。
+- **相關**：R-G004 / CT D549 / CT T0406
+
 ### D238 2026-11-03 — BUG-201 現在修（T0795）
 
 - **背景**：BUG-201（low）：`dev-deploy-headless.test.mjs` 的 `main()` 測試寫進固定的 `dist-server/dev-deploy-headless`，兩個 `test:unit` 同時跑時互相覆蓋（D237 登記）。
