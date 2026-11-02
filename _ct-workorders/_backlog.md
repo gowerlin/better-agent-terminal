@@ -12,27 +12,26 @@ exclude_globs:
   - _ct-workorders/examples/**
 total: 24
 breakdown:
-  IDEA: 8
+  IDEA: 7
   PLANNED: 1
   IN_PROGRESS: 0
-  DONE: 13
+  DONE: 14
   DROPPED: 2
 ---
 
 # Backlog
 
 > ⚠️ 此文件由 `*sync` 自動生成，請勿手動編輯。
-> 最後同步：2026-11-02 14:07 (UTC+8) — PLAN-053 調 high（開 T0779）；PLAN-029 開 T0780（R3 刪除 `git-poc`）；PLAN-015 / 038 / 043 / 051 / 052 核對後維持 IDEA（D221）。前次 2026-11-02 14:00 (UTC+8) — PLAN-054 DONE（B4 / B8 已交付；B6 等 CT 契約另開新 PLAN，D220）。前次 2026-11-02 13:23 (UTC+8) — 開 PLAN-059（PLANNED，主 PLAN，D219）。前次 2026-11-02 05:26 (UTC+8) — PLAN-055 DONE（交付版 `v0.7.3-pre.4` 安裝版自動化實測 T0773，D215）。前次 2026-11-02 04:59 (UTC+8) — 第一百零四 session 塔台重啟（三）`*sync`：區段與 23 張 PLAN 檔一致，只修正 frontmatter 統計（total 22 → 23、DONE 10 → 11）；PLAN-055 B1（T0766）/ B2（T0767）皆 DONE、已隨 `v0.7.3-pre.4` 發佈，維持 IN_PROGRESS 等實機驗收。前次 2026-11-02 03:49 (UTC+8) — PLAN-055 IN_PROGRESS（T0766 B1 DONE，T0767 B2 進行中）；開 PLAN-058（IDEA，D214）；PLAN-057 DONE
+> 最後同步：2026-11-02 14:16 (UTC+8) — PLAN-029 DONE（T0780 刪除 `git-poc`，`16a3a326`）。前次 2026-11-02 14:07 (UTC+8) — PLAN-053 調 high（開 T0779）；PLAN-029 開 T0780（R3 刪除 `git-poc`）；PLAN-015 / 038 / 043 / 051 / 052 核對後維持 IDEA（D221）。前次 2026-11-02 14:00 (UTC+8) — PLAN-054 DONE（B4 / B8 已交付；B6 等 CT 契約另開新 PLAN，D220）。前次 2026-11-02 13:23 (UTC+8) — 開 PLAN-059（PLANNED，主 PLAN，D219）。前次 2026-11-02 05:26 (UTC+8) — PLAN-055 DONE（交付版 `v0.7.3-pre.4` 安裝版自動化實測 T0773，D215）。前次 2026-11-02 04:59 (UTC+8) — 第一百零四 session 塔台重啟（三）`*sync`：區段與 23 張 PLAN 檔一致，只修正 frontmatter 統計（total 22 → 23、DONE 10 → 11）；PLAN-055 B1（T0766）/ B2（T0767）皆 DONE、已隨 `v0.7.3-pre.4` 發佈，維持 IN_PROGRESS 等實機驗收。前次 2026-11-02 03:49 (UTC+8) — PLAN-055 IN_PROGRESS（T0766 B1 DONE，T0767 B2 進行中）；開 PLAN-058（IDEA，D214）；PLAN-057 DONE
 
 ## 統計
-- 💡 Ideas: 8 | 📋 Planned: 1 | 🔄 In Progress: 0 | ✅ Done: 13 | 🚫 Dropped: 2
+- 💡 Ideas: 7 | 📋 Planned: 1 | 🔄 In Progress: 0 | ✅ Done: 14 | 🚫 Dropped: 2
 
 ## Active
 
 | ID | 標題 | 優先級 | 狀態 | 連結 |
 |----|------|--------|------|------|
 | PLAN-015 | refactor-dual-render-path-shared-helper | 🟢 low | 💡 IDEA | [PLAN-015](PLAN-015-refactor-dual-render-path-shared-helper.md) |
-| PLAN-029 | Renderer hardening：R3 indexBench.ts + R5 setup-wizard chunk 切分（BUG-069 衍生） | 🟢 low | 💡 IDEA | [PLAN-029](PLAN-029-renderer-hardening-r3-r5-from-bug069-audit.md) |
 | PLAN-038 | 本機檔案上傳到遠端暫存目錄（SSH 附件、Docker 掛載外、遠端 CLI 貼圖） | 🟢 low | 💡 IDEA | [PLAN-038](PLAN-038-remote-file-upload-staging.md) |
 | PLAN-043 | WSL 環境自動化 Phase 2 / 3（由 PLAN-035 移出）：已安裝環境自動修正、從零安裝與重開機接續 | 🟢 low | 💡 IDEA | [PLAN-043](PLAN-043-wsl-automation-phase2-3.md) |
 | PLAN-051 | BAT 跨塔台傳訊通道：不同專案的塔台（含 codex 塔台）經 BAT 互相送訊息，不依賴 SendMessage | 🟢 low | 💡 IDEA | [PLAN-051](PLAN-051-cross-tower-messaging-channel.md) |
@@ -45,6 +44,7 @@ breakdown:
 
 | ID | 標題 | 完成時間 | 連結 |
 |----|------|---------|------|
+| PLAN-029 | Renderer hardening：R5 setup-wizard chunk（T0309）、R3 刪除未引用的 `git-poc` benchmark（T0780） | 2026-11-02 | [PLAN-029](PLAN-029-renderer-hardening-r3-r5-from-bug069-audit.md) |
 | PLAN-054 | CT Workflow 智能的 BAT 側事項：B4 MCP 政策文件（T0687）、B8 試點（T0673）已交付；B6 等 CT 定義欄位與契約後另開新 PLAN（D220） | 2026-11-02 | [PLAN-054](PLAN-054-ct-workflow-intelligence-bat-side.md) |
 | PLAN-055 | Terminal Server recovery 後列出被中斷的 agent 分頁、claude 一鍵 `--resume`、codex `resume` 選單（T0766 / T0767；`v0.7.3-pre.4` 安裝版 T0773 實測） | 2026-11-02 | [PLAN-055](PLAN-055-agent-tabs-after-terminal-server-recovery.md) |
 | PLAN-057 | bat-server（headless）啟動時以登入 shell 取得 PATH（預設開、可關；T0754 量測、T0755 實作；`0.7.3-pre.3` WSL 實機 `applied`） | 2026-11-02 | [PLAN-057](PLAN-057-headless-server-login-shell-path.md) |

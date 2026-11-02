@@ -1,5 +1,5 @@
 {
- "generated_at": "2026-11-02T11:11:34+08:00",
+ "generated_at": "2026-11-02T14:15:04+08:00",
  "generator": {
   "script": "ct-session-stats.py",
   "version": "0.1.0"
@@ -23,13 +23,13 @@
    "output": 147100
   },
   "2026-11-02": {
-   "api_requests": 45,
-   "cache_read": 8329628,
-   "cache_write": 198745,
-   "cache_write_1h": 198745,
+   "api_requests": 99,
+   "cache_read": 28484299,
+   "cache_write": 359242,
+   "cache_write_1h": 359242,
    "cache_write_5m": 0,
-   "input": 98,
-   "output": 35296
+   "input": 226,
+   "output": 101718
   }
  },
  "workorders": [
@@ -3551,6 +3551,83 @@
     "2.1.316"
    ],
    "workorder": "T0778"
+  },
+  {
+   "attribution": {
+    "conflict": false,
+    "source": "frontmatter",
+    "sources": {
+     "frontmatter": 1
+    }
+   },
+   "by_mcp_server": {},
+   "by_tool": {
+    "Bash": 24,
+    "Edit": 2,
+    "PowerShell": 1,
+    "Read": 2
+   },
+   "counts": {
+    "api_requests": 29,
+    "failures": 0,
+    "same_file_read_ge3": 0,
+    "subagent_files": 0,
+    "tool_calls": 29
+   },
+   "end": "2026-11-02T06:14:40Z",
+   "est_usd": 1.8496,
+   "failures_by_tool": {},
+   "renews": 0,
+   "sessions": 1,
+   "skills_invoked": {},
+   "start": "2026-11-02T06:10:12Z",
+   "stuck": {
+    "max_consecutive_failures": 0,
+    "max_failures_in_10_calls": 0,
+    "near_repeat_fail_pairs_j50": 0,
+    "repeat_fail_groups_norm": 0
+   },
+   "stuck_signal": false,
+   "subagent_tokens": {
+    "cache_read": 0,
+    "cache_write": 0,
+    "cache_write_1h": 0,
+    "cache_write_5m": 0,
+    "input": 0,
+    "output": 0
+   },
+   "tokens": {
+    "cache_read": 3737867,
+    "cache_write": 107732,
+    "cache_write_1h": 107732,
+    "cache_write_5m": 0,
+    "input": 58,
+    "output": 11997
+   },
+   "top_tools": [
+    [
+     "Bash",
+     24
+    ],
+    [
+     "Edit",
+     2
+    ],
+    [
+     "Read",
+     2
+    ],
+    [
+     "PowerShell",
+     1
+    ]
+   ],
+   "type": "implementation",
+   "unpriced_tokens": 0,
+   "versions": [
+    "2.1.316"
+   ],
+   "workorder": "T0780"
   }
  ]
 }
