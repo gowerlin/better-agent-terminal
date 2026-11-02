@@ -7,7 +7,7 @@ status: FIXED
 severity: low
 reproducibility: always
 created_at: "2026-11-02T05:24:41+0800"
-updated_at: "2026-11-02T05:38:26+0800"
+updated_at: "2026-11-02T09:59:20+08:00"
 fixed_at: "2026-11-02T05:38:26+0800"
 fix_commit: bd59ab0f
 impact:
@@ -22,7 +22,7 @@ links:
 |------|------|
 | 嚴重度 | 🟢 low（淡化 ⚠️ 提早消失，使用者可能錯過那個分頁的等待結束） |
 | 可重現 | Playwright 滑鼠點擊必現；實體滑鼠未實測 |
-| **狀態** | ✅ FIXED（T0774 `bd59ab0f`，待發版 `0.7.3-pre.5`） |
+| **狀態** | ✅ FIXED（T0774 `bd59ab0f`，已發版 `v0.7.3-pre.5`，待驗收） |
 | 回報者 | T0770 Worker（觀察 2），使用者裁示修正（D216） |
 
 ## 現象

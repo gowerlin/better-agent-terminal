@@ -7,7 +7,7 @@ status: FIXED
 severity: low
 reproducibility: always
 created_at: "2026-11-02T05:26:29+0800"
-updated_at: "2026-11-02T05:56:34+0800"
+updated_at: "2026-11-02T09:59:20+08:00"
 fixed_at: "2026-11-02T05:56:34+0800"
 fix_commit: e717c786
 impact:
@@ -23,7 +23,7 @@ links:
 |------|------|
 | 嚴重度 | 🟢 low（recovery 後 agent 分頁已只剩 shell，影響小；但違反「Esc 統一」規則，其他自動開啟的 Dialog 可能同樣） |
 | 可重現 | 必現（T0773 兩次執行） |
-| **狀態** | ✅ FIXED（T0776 `e717c786`，待發版 `0.7.3-pre.5`） |
+| **狀態** | ✅ FIXED（T0776 `e717c786`，已發版 `v0.7.3-pre.5`，待驗收） |
 | 回報者 | T0773 Worker（F1） |
 
 ## 現象
