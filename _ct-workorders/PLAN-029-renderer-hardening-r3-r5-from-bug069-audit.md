@@ -3,7 +3,8 @@ schema_version: 1
 schema_kind: plan
 id: PLAN-029
 title: Renderer hardening：R3 indexBench.ts 整理 + R5 setup-wizard chunk 切分（BUG-069 audit 衍生）
-status: IDEA
+status: DONE
+completed_at: "2026-11-02T14:13:37+0800"
 priority: low
 created_at: "2026-04-26T20:42:00+08:00"
 ---
@@ -17,7 +18,7 @@ created_at: "2026-04-26T20:42:00+08:00"
 | 標題 | Renderer hardening：R3 indexBench.ts misplaced require + R5 setup-wizard manualChunks 切分 |
 | 優先級 | 🟢 Low |
 | 類型 | 技術改善 |
-| 狀態 | 💡 IDEA — R5 已由 T0309（PLAN-030 合併）落地，僅剩 R3 indexBench.ts 整理待評估 |
+| 狀態 | ✅ DONE — R5 由 T0309（PLAN-030 合併）落地；R3 由 T0780 刪除 `src/components/git-poc/` 完成（2026-11-02） |
 | 建立時間 | 2026-04-26 20:42 (UTC+8) |
 | 來源 | T0303 BUG-069 wider audit Risk Inventory R3 + R5 |
 | 動機 | BUG-069 修復後仍有兩項 renderer 結構性風險：R3（src/ 下 misplaced require 腳本）+ R5（setup-wizard 未獨立 chunk 導致 wizard regression 影響 launch）。非阻塞但值得排程。 |
@@ -81,3 +82,10 @@ created_at: "2026-04-26T20:42:00+08:00"
 
 - R5 已完成（T0309，`vite.config.ts` `manualChunks` 的 `setup-wizard`）。
 - R3：塔台 grep 核對整個 `src/components/git-poc/` 都沒有被引用（`GitPocPlaceholder` 無引用、benchmark 不在任何 build entry、`vite.config.benchmark.ts` 無 npm script 使用；`SvgCommitGraph` / `useVirtualizer` 已於 T0154 搬到 `src/components/git-panel/`）。使用者決定採選項 C 刪除 → 開 **T0780**。T0780 完成後本 PLAN 改 DONE。
+
+## T0780 結果（2026-11-02）
+
+- **R3 完成（選項 C：刪除）**。刪除前再核對無引用：`git grep` `git-poc` / `vite.config.benchmark` / `GitPocPlaceholder`（排除 `_ct-workorders/` 與被刪目錄）只命中 `.gitignore` 規則與 `src/components/git-panel/SvgCommitGraph.tsx`、`useVirtualizer.ts` 檔頭的歷史註解（保留不改）；`package.json` scripts、`tsconfig*.json`、ESLint、`vite.config.ts`、electron-builder 設定、`.github/workflows/` 都沒有引用。
+- **刪除**（`git rm`，14 個追蹤檔）：`src/components/git-poc/`（`GitPocPlaceholder.tsx`、`README.md`、`benchmark/` 底下 `BenchApp.tsx`、`CommitIndex.ts`、`SvgCommitGraph.tsx`、`fpsMeter.ts`、`index.html`、`indexBench.ts`、`main.tsx`、`synthGen.ts`、`useVirtualizer.ts`、`_bench-screenshot-100k.png`、`_bench-screenshot-500k.png`）與 `vite.config.benchmark.ts`。
+- **`.gitignore`**：本機產物 `_bench-trace-500k-scroll.json`（約 210 MB）與 `_bench-index-result.json` 仍在、未刪，所以第 37–38 行保留（否則會變成未追蹤檔）；`dist-benchmark/`（第 39 行）本機目錄也仍在，同樣保留。使用者自行刪除這些本機檔案後，可再移除這三行。
+- 驗證：`npm run typecheck` = 0、`npm run typecheck:electron` = 0、`npm run test:unit` 382 檔全綠、`npx vite build` 成功、`node scripts/verify-renderer-imports.js` OK。
