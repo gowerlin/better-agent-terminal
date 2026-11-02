@@ -23,7 +23,7 @@ links:
 |------|------|
 | 嚴重度 | 🔴 high（Ubuntu 目前的 LTS、預設設定下，直接執行 AppImage 就開不起來） |
 | 可重現 | 每次：GitHub `ubuntu-24.04` runner（`apparmor_restrict_unprivileged_userns = 1`，與桌面版預設相同）run `41495143950`、`41496512040` 都重現；L1（Playwright）與 L2（直接 spawn）皆同 |
-| **狀態** | ✅ FIXED（T0799 `d773cb67`，分支 `ct/T0799`，待合併與交付版驗收） |
+| **狀態** | ✅ FIXED（T0799 `d773cb67`，2026-11-03 03:09 合併回 main `bf561a3d`；待交付版 `linux-acceptance -f version=<版號>` 驗收） |
 | 回報者 | 塔台（T0797 / T0798 CI 驗收） |
 
 ## 現象
