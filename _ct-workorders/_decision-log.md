@@ -1465,6 +1465,16 @@
 - **切分**：W2a 設計語言 + 元件 + 首頁（T0630）→ 預覽通過後 W2b（`/control-tower`、功能、FAQ、回報頁）→ W2c 遠端開發；W3 / W4 不變。
 - **相關**：PLAN-049 / D159 / D160 / T0624 / T0630
 
+### D235 2026-11-02 — T0792 / T0793 收單：BUG-197 / 198 CLOSED；BUG-199 維持 FIXED；開 BUG-200 不立即派工
+
+- **背景**：T0792 DONE（安裝版 `v0.7.3-pre.9`：`t0787` 3 輪 30 情境＋UI＋codex 全過、races 0；`t0694` 3 次含步驟 6 全過）。T0793 DONE（`f03adbd6` / `1b46a400`：`nvm-login-profile` 真 shell `describe` 30 s timeout；整套 3 次＋CPU 負載綠）；另回報兩個 `test:unit` 同時跑時範圍外的失敗：T0790 / T0791 真 hook 程序順序測試（設計問題）與 5 檔逾時。
+- **決定**（塔台，斷點 C 範圍內）：
+  1. BUG-197 / 198 → CLOSED（`closed_reason: verified`，交付版安裝版實測，R-G003）。BUG-196 仍等使用者實機（D233 第一項）。
+  2. BUG-199 維持 FIXED：驗證依據是下一個發版的 CI Test gate 綠（比照 BUG-195）。
+  3. 開 BUG-200（OPEN，low）記兩類範圍外失敗；只在兩個 `test:unit` 同時跑時出現、CI 未見 → 不立即派工，與下一版前的修正一起處理（batch）。共用 helper / vitest projects 的 B 案等同類再發生再開 PLAN。
+- **決策者**：塔台。2026-11-02 第一百零八 session。
+- **相關**：T0792 / T0793 / BUG-197 / BUG-198 / BUG-199 / BUG-200 / D234 / D233
+
 ### D234 2026-11-02 — 並行開 T0792（安裝版 pre.9 驗收 BUG-197 / 198）與 T0793（BUG-199）；本版不需 CT 配合改版
 
 - **背景**：`v0.7.3-pre.9` 已發佈並通過 NSIS 完整重裝驗收（第一百零八 session 22:37，PASS-WITH-WARN，WARN = 從 pre.8 升級）。待驗收 BUG-196 / 197 / 198 / 159（D233 順序）；BUG-199（low）OPEN。
