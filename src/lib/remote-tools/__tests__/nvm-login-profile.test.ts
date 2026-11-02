@@ -38,7 +38,7 @@ const BASH_PROFILE_SOURCING_BASHRC = '[ -f "$HOME/.bashrc" ] && . "$HOME/.bashrc
 // T0793 / BUG-199: every test here spawns real shells in a row (the append command: sh + a subshell
 // + grep; each login: sh → exec <shell> plus its login profile, Git Bash's /etc/profile included).
 // Nothing in them can go without losing what is checked, so each spawn is the inherent cost: alone
-// 0.1–0.5 s, the slowest test 0.6 s. In the whole `test:unit` on 24 cores every spawn slows evenly
+// 0.1–0.5 s, the slowest test 1.0 s. In the whole `test:unit` on 24 cores every spawn slows evenly
 // (2–4×, single spawns up to 1.6 s): measured up to 3.8 s per test, once over the default 5 s
 // (`~/.profile layout: bash -lc finds it; …`, timed out), and up to 5.4 s with two `test:unit`
 // running at once. 30 s leaves room for that load, the same as the T0786 / BUG-195 real-subprocess
