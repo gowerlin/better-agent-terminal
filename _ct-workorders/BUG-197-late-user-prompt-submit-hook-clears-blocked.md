@@ -3,11 +3,11 @@ schema_version: 1
 schema_kind: bug
 id: BUG-197
 title: "claude 的 `user-prompt-submit` hook 回報晚到，清掉同一回合較早記下的 `permission` / `question` blocked（對話框其實還在）"
-status: FIXING
+status: FIXED
 severity: medium
 reproducibility: rare
 created_at: "2026-11-02T19:22:54+0800"
-updated_at: "2026-11-02T19:25:46+0800"
+updated_at: "2026-11-02T19:49:43+0800"
 impact:
   - tower-worker
   - blocked-state
@@ -21,7 +21,7 @@ links:
 |------|------|
 | 嚴重度 | 🟡 medium（blocked 被錯誤清除 → BUG-196 的保留不觸發；若 Worker 送的是 `--submit`，Enter 仍會替使用者作答。也影響 ⚠️ 提示與 `bat_get_state`） |
 | 可重現 | 偶發：T0788 e2e 60 次情境中 1 次（假模型回得極快時） |
-| **狀態** | 🔧 FIXING（T0790） |
+| **狀態** | ✅ FIXED（T0790，commit `77ad79ea`；待驗收） |
 | 回報者 | 塔台（T0788 Worker 首次記錄） |
 
 ## 現象
@@ -44,3 +44,4 @@ links:
 
 - 2026-11-02 19:22 開單（OPEN，medium），T0788 收單時登記。
 - 2026-11-02 19:25 → FIXING：開修正單 T0790（D230），修完與 BUG-196 一起發 `0.7.3-pre.8`。
+- 2026-11-02 19:49 → FIXED（T0790，commit `77ad79ea`）：`bat-hook.mjs` 每個回報帶 `at`（hook 程序啟動時間，`process.hrtime` ns，同一主機跨程序共用的單調時鐘）；`TerminalBlockedTracker` 遇到 `at` 早於目前 `blocked` 的清除事件（`post-tool-batch` 比同一 agent 的權限請求）不清除，回合信號照舊；沒有 / 不合法的 `at` 行為不變。查證：`stop`、`post-tool-batch`、`ask-user-question-done`、`elicitation-done` 同屬 async，一併適用。驗證：單元（亂序重現、突變對照）、兩個真實 hook 程序的反序回報、e2e t0787 拿掉 RACE 重跑 3 輪 30 情境 races 0、不回歸 e2e t0590 / t0600 / t0621 / t0757、`test:unit` / `test:legacy` 全過。殘留：`at` 是 node 啟動時間而非 claude 觸發時間，間隔小於 shell + node 啟動差異時仍可能判斷錯（見 `docs/agent-guide/blocked-state.md`「晚到的清除回報」）。待與 BUG-196 一起於 `0.7.3-pre.8` 驗收。
