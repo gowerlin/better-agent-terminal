@@ -139,7 +139,7 @@ if ! has_no_sandbox "$@" && ! sandbox_helper_ok "$dir/chrome-sandbox" && userns_
   exec "$bin" --no-sandbox "$@"
 fi
 exec "$bin" "$@"
-`;
+`.replace(/\r\n/g, '\n'); // a CRLF checkout must not put \r into a /bin/sh script
 }
 
 /** True when `<file>` is a launcher this module wrote. */
