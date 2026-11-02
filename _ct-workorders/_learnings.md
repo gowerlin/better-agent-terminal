@@ -3779,3 +3779,14 @@ Codex 那張是外部測試者回報才發現；Claude 那張是使用者隨口�
 - 收單時先看工單 `status`；是 `FIXED` 就改成 `DONE` 並在回報區記一筆，再執行 `worker_auto_close`
 
 **候選晉升**：CT（ct-exec 收尾時，`project` 是 BUG 的實作單也應寫 `DONE`）
+
+## L178
+
+**來源**：第一百零四 session（2026-11-02），T0778 收單
+
+**現象**：BUG-128 / 130（mac）等外部 Mac 使用者實機驗收等了 19 天。改用 GitHub Actions `macos-15` 標準 runner（公開 repo 免費）後，一張探路單、2 次 run 就拿到交付版 dmg 的實測證據：runner 有 Aqua 工作階段，叫 Finder 複製檔案（Apple Events）、System Events 送 Command+V、`screencapture` 都沒被 TCC 擋（runner 映像本身的授權，沒有改任何權限）。
+
+**How to apply**：
+- mac 的 BUG 不要預設「只能等真人」；先看能不能用 `macos-acceptance.yml` 對交付版跑（`gh workflow run macos-acceptance.yml -R gowerlin/better-agent-terminal -f version=<版號>`）
+- 結案理由寫 run 編號，並列出 runner 驗不到的項目（實體鍵盤與輸入法、其他 macOS 版本、剪貼簿工具）
+- JXA 一次寫多個 NSURL 到剪貼簿可能只留 1 個 item：寫入後要獨立讀回確認（T0778 run #1 的誤判）

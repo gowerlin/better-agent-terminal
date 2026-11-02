@@ -1,20 +1,34 @@
 ---
 schema_kind: tower-state
 summary_version: 1
-updated_at: "2026-11-02T11:11:34+08:00"
-session: "2026-11-02 10:12 第一百零四 session 塔台重啟（四）（CT v6.0.0-beta.10，Fast Path）"
+updated_at: "2026-11-02T11:17:34+08:00"
+session: "2026-11-02 11:17 第一百零四 session 收工（CT v6.0.0-beta.10）"
 next_ids:
   workorder: "T0779"
-  decision: "D218"
+  decision: "D219"
   bug: "BUG-195"
   plan: "PLAN-059"
 todo:
-  - "BUG-193 / 194 / 128 / 130 CLOSED（T0777 安裝版、T0778 macOS runner，2026-11-02）；熱區唯一 FIXED：BUG-159（一般權限 ＋ codex，需使用者本機）"
-  - "選擇性：mac 相關修正可用 `macos-acceptance.yml`（`workflow_dispatch -f version=`）回歸；`.private/` 檢查樣式的 claude-mem 排除路徑未跟上歸檔位置（2 筆既有誤報，T0778 回報）"
-  - "觀察：t0757 一次偶發失敗（③ 清除原因 `user-prompt-submit`，疑 `permission-request` hook 晚到，T0775 已加診斷）；使用者裁示（2026-11-02）**再發生才開 BUG**，不預先開單"
+  - "唯一待驗收：BUG-159（一般權限 ＋ codex，需使用者本機）；熱區無進行中工單、無 OPEN BUG"
+  - "選擇性：mac 相關修正可用 `macos-acceptance.yml`（`workflow_dispatch -f version=`）回歸（D218）"
+  - "觀察：t0757 一次偶發失敗（③ 清除原因 `user-prompt-submit`，疑 `permission-request` hook 晚到，T0775 已加診斷；T0777 重跑未重現）；**再發生才開 BUG**（D218）"
   - "版號線：0.7.3 線已到 pre.5（D204；最多到 pre.9）"
 ---
 # Tower State — better-agent-terminal
+
+> 🛏 **第一百零四 session 已收工**（2026-11-02 11:17 (UTC+8)）。本 session 各次開工 / 重啟條目已移入下方〈本 Session 收工快照（第一百零四 session）〉時間線。
+
+> 最後更新:2026-11-02 11:17 (UTC+8) — **第一百零四 session 收工**：`v0.7.3-pre.2`–`pre.5` 四次發佈；pre.4 / pre.5 自動化驗收（安裝版、GitHub Actions macOS runner）把 BUG 熱區清到只剩 BUG-159。前次：第一百零三 session 收工（2026-11-01 21:30）。
+>
+> **下次起手**:熱區無進行中工單、無 OPEN BUG；唯一待驗收 BUG-159（需使用者本機以一般權限＋codex）；t0757 偶發失敗再發生才開 BUG（D218）；mac 相關修正可跑 `macos-acceptance.yml` 回歸；版號線 `0.7.3-pre.N`（已到 pre.5，最多 pre.9）。
+
+---
+
+## 🛏 本 Session 收工快照 (第一百零四 session, 2026-11-01 21:36 - 2026-11-02 11:17, 含五個塔台 session)
+
+### 主軸：pre.1 之後的修正與自動化驗收 → `v0.7.3-pre.2` / `pre.3` / `pre.4` / `pre.5` 四次發佈；pre.4 / pre.5 以安裝版＋macOS runner 自動化驗收，BUG 熱區只剩 BUG-159
+
+#### 時間線（時間取自系統 / git / gh；五個塔台 session）
 
 > 🟢 **第一百零四 session 開工**（2026-11-01 21:36 (UTC+8)，CT v6.0.0-beta.10，Fast Path；塔台 session `3f9b428a-2c04-4a70-8751-68733dd7b1cc`）：BUG-175 / 182 CLOSED → BUG-183–186、T0750–T0753 → **`v0.7.3-pre.2`** 發佈。
 
@@ -28,13 +42,34 @@ todo:
 
 > 🟢 **第一百零四 session 塔台重啟（四）**（2026-11-02 10:12 (UTC+8)，CT v6.0.0-beta.10，Fast Path；塔台 session `49d1e952-e247-4830-b12e-6c99de58e501`；`--set-role tower --mode on` exit 0；安裝版 helper `v0.7.3-pre.5`；HEAD `eb9a41f3`、`main` = `origin/main`、工作區乾淨；熱區 172 張工單全為 DONE；BUG 熱區 Fixed 5（128 / 130 / 159 / 193 / 194）/ Closed 53，與 `_bug-tracker.md` 一致，免重建；`_tower-state.md` 41 KB 超本地 30 KB 軟警告）。使用者三項指示：① 開 **T0777**（安裝版 pre.5 自動驗收 BUG-193 / 194，不回歸含 t0757）並派工；② 評估以 GitHub Actions macOS runner 驗 BUG-128 / 130；③ t0757 偶發失敗「先記住，又發生再開單」。10:44 派 **T0777**（yolo，`started:` exit 0）。使用者同意 → 開 **T0778**（macOS runner 探路，`workflow_dispatch` only、≤ 8 run，授權 push main），10:47 派工（yolo，`started:` exit 0）。**T0777 DONE**（`e1e7f2d1` / 回報 `954b0348`；安裝版 pre.5：t0770 A–E、t0776、新 t0777 user32 真實點擊 HWND 比對 PASS；不回歸 t0735 / t0761 / t0762 / t0563 / t0567 / t0757 綠，t0757 偶發失敗未重現；typecheck 0 / 0）→ **BUG-193 / 194 CLOSED**（R-G003）→ 熱區 Fixed 3 / Closed 55；session 快照已寫；`--close-worker T0777`。**T0778 DONE**（`051b053e` / `4ef73ab0` / `083a66ce` / 回報 `064f337d` `5516dec6`，已 push；`macos-acceptance.yml` run `41380866131` success，2 / 8 run；`macos-15` Aqua 可用、Finder Apple Events 與 System Events 送鍵未被 TCC 擋；BUG-128 ①–④、BUG-130 ⑤–⑦ 全 PASS（60 次按鍵 0 失敗）、⑧ 內嵌 claude `[Image #1]`、模型請求 0）→ **BUG-128 / 130 CLOSED**（R-G003）→ 熱區 Fixed 1 / Closed 57；session 快照已寫；`--close-worker T0778`。
 
-> 最後更新:2026-11-02 05:03 (UTC+8) — **第一百零四 session 進行中**：`v0.7.3-pre.2` / `pre.3` / `pre.4` 已發佈；`_tower-state.md` 瘦身（第一百零二 session 快照、本 session 開工條目原文、基本資訊舊值移入 `2026-Q4-b.md`）。前次：第一百零三 session 收工（2026-11-01 21:30）。
->
-> **下次起手**:`v0.7.3-pre.4` 實機驗收（BUG-188–192、PLAN-055、detached / Claude 面板 ⚠️）；工作區 ⚠️ 無焦點時結束、滑鼠回答；BUG-128 / 130（macOS）/ 159（一般權限）待驗收；熱區無進行中工單；版號線 `0.7.3-pre.N`（已到 pre.4）。
+- 11:17 使用者「收工」。收工前：`.private/` 去識別化樣式 4（`<claude-mem-context>`）排除路徑改到 T0676 歸檔後位置並排除 `2026-Q4-b.md`（本機檔，重跑 0 筆）；push `5516dec6..eade725c`（掃描 0）；D218、L178。
+
+### 本輪戰績
+
+| 類別 | 數量 | 備註 |
+|---|---|---|
+| 派發工單 | 29 | T0750–T0778 皆 DONE；最多 4 張並行（T0770–T0773） |
+| 決策 | 13 | D206–D218 |
+| BUG | 開 12 / 結 16 | 開 BUG-183–194；本 session 結案 16 張（含 BUG-128 / 130 / 193 / 194）；熱區 Open 0 / Fixed 1（BUG-159）/ Closed 57 |
+| PLAN | — | PLAN-057 / PLAN-055 DONE；開 PLAN-058（IDEA） |
+| 發版 | 4 | `v0.7.3-pre.2` / `pre.3` / `pre.4` / `pre.5` |
+| 真實模型花費 | 重啟（三）起約 US$0.045 | T0771 0.0256、T0773 0.0197；更早見歸檔 |
+| macOS runner | 2 run | `macos-acceptance.yml`（T0778），公開 repo 標準 runner 免費 |
+
+### 重點觀察
+
+- 驗收預設走「安裝版 `BAT_E2E_EXECUTABLE` 隔離實例＋假模型」，真實模型只做小額 spec；mac 改用 GitHub Actions `macos-15` runner 對交付版 dmg 實測（Finder 真複製＋System Events 按鍵，TCC 未擋，L178 / D218）
+- Playwright 預設做 focus emulation，`document.hasFocus()` 恆為 true；量焦點的 e2e 要經 `e2e/helpers/real-focus.ts`（T0775）
+- 作業系統真實點擊（user32）可在本機驗，但點擊前必須以 HWND 確認是隔離實例的視窗（T0774 / T0777）
+- 後續候選：BUG-194 的 `AppNotificationDialog` / `RecoveryPrompt` 只有單元測試；BUG-128 的 Claude / Codex 面板 Finder 貼上未在 mac 實測；mac 中文檔名情境
+
+### 編號起始（下 session）
+
+- **T0779** / **BUG-195** / **PLAN-059** / **D219** / **EXP-WFMINE-002** / **L179** / **CT-T023**
 
 ---
 
-## 🛏 本 Session 收工快照 (第一百零三 session, 2026-11-01 17:11 - 21:30, ~4h20m)
+## 🛏 前 Session 收工快照 (第一百零三 session, 2026-11-01 17:11 - 21:30, ~4h20m)
 
 ### 主軸：pre.6–pre.8 待驗收的自動化驗收（T0736–T0748）→ BUG-180 / 181 / 182 → `v0.7.2-pre.9`、`v0.7.3-pre.1`（D204 換線）
 
@@ -75,22 +110,19 @@ eport.md`（real，20:18:03–20:18:31，PS 7.6.9 系統管理員）：⓪ PASS�
 
 ## 🌅 起手式（Quick Recovery）
 
-> 最後更新：2026-11-02 05:03 UTC+8（第一百零四 session 瘦身）
+> 最後更新：2026-11-02 11:17 UTC+8（第一百零四 session 收工）
 
 ### 近期完成
-- **`v0.7.3-pre.4` 發佈**（第一百零四 session，run `41347727443`，target `26c7eb25`）：PLAN-055 中斷分頁恢復（T0766 / T0767）、detached / Claude 面板 ⚠️（T0761 / T0762）、BUG-188 滑鼠回答（T0757）、BUG-189–192（T0758 / T0759 / T0760 / T0769）
-- **`v0.7.3-pre.3` 發佈**（第一百零四 session，run `41332527832`，target `4a5f73d6`）：PLAN-057 遠端 bat-server 取登入 shell PATH（T0754 / T0755）、BUG-187 Node.js recipe libatomic（T0756）
-- **`v0.7.3-pre.2` 發佈**（第一百零四 session，run `41318631410`，target `655b678b`）：BUG-183 / 184 profile 視窗（T0750）、BUG-186 遠端工具偵測（T0753）、匣選單同名標籤（T0752）、BUG-185 測試 stub（T0751）
-- **`v0.7.3-pre.1` 發佈**（第一百零三 session，run `41310103490`，target `b6f48c07`）：BUG-182 遠端 server 重啟後 ⚠️ 對帳（T0749 `01796a9e`）；D204 換線；文件 `de8b8a7a`；Pages `41311358391` 綠、link-check 1398 / 0
-- **`v0.7.2-pre.9` 發佈**（第一百零三 session，run `41303235035`，target `5e33faec`）：BUG-180 分頁 9x5（T0741）、BUG-181 Cache History 累計（T0744）；之後 NSIS 重裝驗收 PASS（T0740 / T0745）、BUG-180 / 181 CLOSED
-- **自動化驗收批次**（第一百零三 session，T0736–T0748）：工作區 ⚠️（假模型 / 真實模型 / WSL 遠端）、Docker 遠端、真實模型 Claude 面板；27 張 BUG CLOSED
-- **`v0.7.2-pre.8` 發佈**（第一百零二 session，run `41277080514`）：工作區等待提示 ⚠️（T0735，D200–D203）
-- **`v0.7.2-pre.7` 發佈**（第一百零二 session，run `41274458418`）：BUG-177 / 178 / 179（T0729 / T0730 / T0732）
+- **pre.4 / pre.5 自動化驗收收尾**（第一百零四 session）：T0777 安裝版 pre.5 → BUG-193 / 194 CLOSED；T0778 GitHub Actions macOS runner（`macos-acceptance.yml`，run `41380866131`）→ BUG-128 / 130 CLOSED（D218）
+- **`v0.7.3-pre.5` 發佈**（第一百零四 session，run `41373933464`，target `478fd178`）：BUG-193 取回焦點的點擊不清淡化 ⚠️（T0774）、BUG-194 自動開啟的對話框焦點（T0776）、e2e 真實焦點（T0775）
+- **`v0.7.3-pre.4` 發佈**（第一百零四 session，run `41347727443`，target `26c7eb25`）：PLAN-055 中斷分頁恢復、detached / Claude 面板 ⚠️、BUG-188–192；T0770–T0773 安裝版驗收全 PASS
+- **`v0.7.3-pre.3` 發佈**（第一百零四 session，run `41332527832`）：PLAN-057 遠端 bat-server 登入 shell PATH、BUG-187
+- **`v0.7.3-pre.2` 發佈**（第一百零四 session，run `41318631410`）：BUG-183 / 184 / 186、匣選單同名標籤
 
 ### 待辦（依優先序）
-1. 🔴 **`v0.7.3-pre.4` 自動化驗收**（D215）：T0770 終端分頁類（BUG-188、detached ⚠️、無焦點淡化）、T0771 Claude 面板（T0762、BUG-190 / 192，真實模型 ≤ US$0.60）、T0772 環境類（BUG-189 / 191）、T0773 PLAN-055（≤ US$0.40）；通過即依 R-G003 結案
-2. 🔴 **工作區 ⚠️ 剩餘手動項**（`v0.7.2-pre.8` 起）：視窗沒有焦點時等待結束、滑鼠回答後清除 → 併入 T0770（D215）
-3. 🟡 **外部 / 特定環境驗收**：BUG-128 / 130（macOS）、BUG-159（一般權限 ＋ codex）
+1. 🟡 **BUG-159 驗收**：需使用者本機以一般權限（非系統管理員）開 BAT ＋ codex（GitHub Windows runner 為管理員，做不到）
+2. 🟢 **觀察**：t0757 偶發失敗再發生才開 BUG（D218）
+3. 🟢 **選擇性**：mac 相關修正跑 `macos-acceptance.yml` 回歸；BUG-194 其餘兩個 Dialog、BUG-128 面板貼上、mac 中文檔名
 
 ### ⚠️ 鐵則
 - **所有 `gh` 指令必須帶 `-R gowerlin/better-agent-terminal`**（L122）
@@ -99,12 +131,12 @@ eport.md`（real，20:18:03–20:18:31，PS 7.6.9 系統管理員）：⓪ PASS�
 
 ### 快速連結
 - Bug Tracker → [_bug-tracker.md](_bug-tracker.md)（熱區：Open 0 / Fixing 0 / Fixed 1 / Closed 57，2026-11-02 11:11；舊值 04:59 `*sync`）｜ Backlog → [_backlog.md](_backlog.md)
-- Decision Log → [_decision-log.md](_decision-log.md)（最大 D214）｜ Learnings → [_learnings.md](_learnings.md)（最大 L177）
+- Decision Log → [_decision-log.md](_decision-log.md)（最大 D218）｜ Learnings → [_learnings.md](_learnings.md)（最大 L178）
 - 網站 → https://gowerlin.github.io/better-agent-terminal/｜ 素材 spec → `e2e/site-media.spec.ts`（`BAT_SITE_MEDIA=1`，輸出 `e2e-media/`）
 - 歷史 sessions → [_archive/state-snapshots/INDEX.md](_archive/state-snapshots/INDEX.md)（119 entries）
 
 ### 編號起始
-- **T0779** / **BUG-195** / **PLAN-059** / **D218** / **EXP-WFMINE-002**（其他 TOPIC 從 001） / **L178** / **CT-T023**
+- **T0779** / **BUG-195** / **PLAN-059** / **D219** / **EXP-WFMINE-002**（其他 TOPIC 從 001） / **L179** / **CT-T023**
 
 ---
 
@@ -114,16 +146,16 @@ eport.md`（real，20:18:03–20:18:31，PS 7.6.9 系統管理員）：⓪ PASS�
 |------|------|
 | **專案** | better-agent-terminal |
 | **Fork 上游** | tony1223/better-agent-terminal（另有 `scandnavik` remote；⚠️ gh 預設解析到 upstream，見 L122） |
-| **目前版號** | **0.7.3-pre.4**（package.json + lock；D204 `0.7.3-pre.N` 線，最多到 pre.9） |
-| **最新 release** | `v0.7.3-pre.4`（2026-11-01T20:50:21Z，run `41347727443`，target `26c7eb25`）；前一 tag `v0.7.3-pre.3`（2026-11-01T17:53:26Z，run `41332527832`，target `4a5f73d6`）；更早見 `release-note.md` / `CHANGELOG.md` |
-| **目前主軸** | `v0.7.3-pre.4` 實機驗收（BUG-188–192、PLAN-055）；熱區無進行中工單 |
-| **工單最大編號** | **T0769** DONE `9ab26222`（BUG-192） |
+| **目前版號** | **0.7.3-pre.5**（package.json + lock；D204 `0.7.3-pre.N` 線，最多到 pre.9） |
+| **最新 release** | `v0.7.3-pre.5`（2026-11-02T01:57Z，run `41373933464`，target `478fd178`）；前一 tag `v0.7.3-pre.4`（2026-11-01T20:50:21Z，run `41347727443`，target `26c7eb25`）；更早見 `release-note.md` / `CHANGELOG.md` |
+| **目前主軸** | 熱區無進行中工單、無 OPEN BUG；唯一待驗收 BUG-159（使用者本機） |
+| **工單最大編號** | **T0778** DONE（macOS runner 驗收，`051b053e` / `4ef73ab0` / `083a66ce`） |
 | **BUG 最大編號** | **BUG-194** CLOSED；熱區 Open 0 / Fixing 0 / Fixed 1 / Closed 57（2026-11-02 11:11） |
-| **PLAN 最大編號** | **PLAN-058** IDEA；PLAN-055 IN_PROGRESS（待實機驗收）；PLAN-054 PLANNED |
-| **決策最大編號** | **D214**（BUG-192 注入同一個 query、PLAN-058，第一百零四 session） |
+| **PLAN 最大編號** | **PLAN-058** IDEA；PLAN-055 / PLAN-057 DONE；PLAN-054 PLANNED |
+| **決策最大編號** | **D218**（mac BUG 以 macOS runner 實測結案、t0757 再發生才開單，第一百零四 session） |
 | **EXP 最大編號** | **EXP-WFMINE-001**（📊 CONCLUDED 2026-10-20）；EXP-GPUWHIS-001（CONCLUDED，已歸檔） |
 | **塔台版本** | Control Tower **v6.0.0-beta.10**（第一百零三 session 起） |
-| **unit test 基線** | **6681 passed / 380 files**；`test:legacy` 472 / 0；typecheck 0 / 0、vite build 成功（塔台聯合驗證 @ `31fa4974`，`0.7.3-pre.4` 批次，2026-11-02 第一百零四 session） |
+| **unit test 基線** | **6705 passed / 382 files**；typecheck 0 / 0、vite build 成功（塔台聯合驗證 @ `213d03ef`，`0.7.3-pre.5` 批次，2026-11-02 第一百零四 session） |
 | **舊值** | 瘦身前的長版本見 [`_archive/state-snapshots/2026-Q4-b.md`](_archive/state-snapshots/2026-Q4-b.md)〈基本資訊舊值〉 |
 
 ---
@@ -243,6 +275,7 @@ eport.md`（real，20:18:03–20:18:31，PS 7.6.9 系統管理員）：⓪ PASS�
 
 ### 歷史 Session（摘要）
 
+- 2026-11-02 第一百零四 session：auto-session on，per-dispatch `--mode yolo --no-interactive`；T0750–T0778 共 29 張全部 `started:`、DONE；T0770–T0773 四張並行；`worker_auto_close` 回收；`v0.7.3-pre.2`–`pre.5` 發佈
 - 2026-11-01 第一百零一 session：auto-session on，per-dispatch `--mode yolo --no-interactive`；T0720–T0726 全部 `started:`、無提問，T0720 / T0721 / T0722 並行；`worker_auto_close` 回收 7 次；`v0.7.2-pre.6` 發佈
 - 2026-11-01 第一百 session：auto-session on，per-dispatch `--mode yolo --no-interactive`；T0717–T0719 全部 `started:`、依序執行；結構化提問 2 次（T0717 Q-1 / Q-2，`--answer` exit 0 ×2，D192）；`worker_auto_close` 回收 3 次；`v0.7.2-pre.5` 發佈（首發 CI 打包失敗 → BUG-176 / T0719 → 重發）
 - 2026-11-01 第九十九 session：auto-session on，per-dispatch `--mode yolo --no-interactive`；T0715 / T0716 `started:`、無提問；`worker_auto_close` 回收 2 次；`v0.7.2-pre.4` 發佈

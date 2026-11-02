@@ -1465,6 +1465,16 @@
 - **切分**：W2a 設計語言 + 元件 + 首頁（T0630）→ 預覽通過後 W2b（`/control-tower`、功能、FAQ、回報頁）→ W2c 遠端開發；W3 / W4 不變。
 - **相關**：PLAN-049 / D159 / D160 / T0624 / T0630
 
+### D218 2026-11-02 — mac 的 BUG 可用 GitHub Actions macOS runner 對交付版實測結案（T0778）；t0757 偶發失敗再發生才開 BUG
+
+- **背景**：BUG-128 / 130（mac）自 2026-10-14 FIXED 後一直等外部 Mac 使用者實機驗收。使用者問能否改用 GitHub Actions macOS runner；塔台評估需探路，使用者同意開 T0778。T0778 實測 `macos-15` runner 有 Aqua 工作階段，Finder Apple Events 與 System Events 送鍵沒被 TCC 擋，交付版 `v0.7.3-pre.5` dmg 上 BUG-128 / 130 情境全 PASS（run `41380866131`）。
+- **決定**：
+  1. 交付版在 macOS runner 上以「Finder 自己複製＋作業系統層按鍵」實測通過，算 R-G003「已在測試環境實測過」，可結案；結案理由寫明 run 編號與未涵蓋項（實體鍵盤 / 輸入法、其他 macOS 版本等）。BUG-128 / 130 依此 CLOSED（BUG-130 Windows 部分以 T0524 隔離實例驗證＋10/14 後無再發生一併結案，再發生以 `[terminal-paste]` log 開新 BUG）。
+  2. 之後 mac 相關修正可用 `.github/workflows/macos-acceptance.yml`（只 `workflow_dispatch`，`-f version=`）回歸；不接進發版流程。
+  3. t0757 的一次偶發失敗（③ 清除原因 `user-prompt-submit`）不預先開單，再發生才開 BUG（使用者裁示）；T0777 重跑未重現。
+- **決策者**：使用者（開探路單、t0757 處置）；塔台（第 1 點的結案判準，依 R-G003）。2026-11-02 第一百零四 session 重啟（四）。
+- **相關**：BUG-128 / BUG-130 / T0778 / T0777 / T0522 / T0524 / T0775 / L178
+
 ### D217 2026-11-02 — BUG-194（自動開啟的對話框第一次 Esc 關不掉）開 T0776 與 T0774 同批；這批（T0774 → T0776 → T0775）完成後發 `0.7.3-pre.5`
 
 - **背景**：T0773 F1：recovery 後自動開啟的「被中斷的分頁」對話框，焦點仍在 xterm，第一次 Esc 被送進背景分頁的 PTY、對話框沒關，違反 CLAUDE.md「Esc 統一」（T0567）。其他自動開啟的 Dialog 可能同樣。
