@@ -1,16 +1,16 @@
 ---
 schema_kind: tower-state
 summary_version: 1
-updated_at: "2026-11-03T02:17:46+08:00"
+updated_at: "2026-11-03T02:21:33+08:00"
 session: "2026-11-03 01:02 第一百零九 session 開工（CT v6.0.0-beta.11）"
 next_ids:
-  workorder: "T0799"
-  decision: "D244"
+  workorder: "T0800"
+  decision: "D245"
   bug: "BUG-204"
   plan: "PLAN-062"
 todo:
   - "BUG-159（FIXED）驗收：需非系統管理員環境 ＋ codex"
-  - "BUG-202（OPEN，high）：Ubuntu 24.04 AppImage sandbox 崩潰，修法三選一（AppArmor profile / 偵測後自動 --no-sandbox / 只寫文件）待使用者決定"
+  - "T0799 進行中：BUG-202（FIXING）AppImage 偵測後自動加 --no-sandbox ＋ BUG-203 whisper 載入查證（D244）；收單後塔台 push main"
   - "BUG-203（OPEN，low）：22.04 whisper 需 GLIBC_2.38，待實測語音輸入"
   - "PLAN-059：A 完成（BUG-196 CLOSED）；B = PLAN-061（IDEA low，D229）；C 待問 CT（Q5）；Q4 未解"
   - "PLAN-060（IDEA）：macOS Developer ID 簽章（目前 macOS 不顯示系統通知）"

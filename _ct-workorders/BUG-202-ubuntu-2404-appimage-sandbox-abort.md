@@ -3,11 +3,11 @@ schema_version: 1
 schema_kind: bug
 id: BUG-202
 title: "Ubuntu 24.04 預設設定下直接執行 AppImage 會崩潰：AppArmor 擋住 unprivileged user namespace，Chromium 退回 setuid `chrome-sandbox`，而它不是 root 擁有的 4755 → FATAL（SIGTRAP）"
-status: OPEN
+status: FIXING
 severity: high
 reproducibility: always
 created_at: "2026-11-03T02:17:46+0800"
-updated_at: "2026-11-03T02:17:46+0800"
+updated_at: "2026-11-03T02:21:33+0800"
 impact:
   - linux
   - packaging
@@ -21,7 +21,7 @@ links:
 |------|------|
 | 嚴重度 | 🔴 high（Ubuntu 目前的 LTS、預設設定下，直接執行 AppImage 就開不起來） |
 | 可重現 | 每次：GitHub `ubuntu-24.04` runner（`apparmor_restrict_unprivileged_userns = 1`，與桌面版預設相同）run `41495143950`、`41496512040` 都重現；L1（Playwright）與 L2（直接 spawn）皆同 |
-| **狀態** | 📂 OPEN |
+| **狀態** | ⏳ FIXING（T0799，D244） |
 | 回報者 | 塔台（T0797 / T0798 CI 驗收） |
 
 ## 現象
@@ -49,3 +49,4 @@ links:
 ## 處理紀錄
 
 - 2026-11-03 02:17 開單（OPEN，high），依 T0798 回報與正式 run `41496512040`；修法待使用者決定。
+- 2026-11-03 02:21 → FIXING：使用者選「偵測後自動加 `--no-sandbox`」（D244），派 T0799。

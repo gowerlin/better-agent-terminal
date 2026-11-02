@@ -1465,6 +1465,16 @@
 - **切分**：W2a 設計語言 + 元件 + 首頁（T0630）→ 預覽通過後 W2b（`/control-tower`、功能、FAQ、回報頁）→ W2c 遠端開發；W3 / W4 不變。
 - **相關**：PLAN-049 / D159 / D160 / T0624 / T0630
 
+### D244 2026-11-03 — BUG-202 採「偵測後自動加 `--no-sandbox`」；BUG-203 實測併入 T0799
+
+- **背景**：正式 Linux 驗收 run `41496512040`：22.04 PASS（sandbox 開）、24.04 預設設定下直接執行 AppImage FATAL（`chrome-sandbox` 非 root 4755），加 `--no-sandbox` 正常（BUG-202）；whisper `libggml-*.so` 需 `GLIBC_2.38`，22.04 疑似無法載入（BUG-203，靜態推論）。AppImage 內附 `.desktop` 本來就帶 `--no-sandbox`。
+- **決定**（使用者，兩題皆選建議）：
+  1. BUG-202：只在 userns 受限且 `chrome-sandbox` 非 root 4755 時自動加 `--no-sandbox`，印 stderr 與 debug log 一行、文件寫明安全取捨與可選的 AppArmor profile；其他情況與平台不變。開 T0799，BUG-202 → FIXING。
+  2. BUG-203：在 T0799 的 linux-acceptance 加 whisper 載入查證（只記錄、不修）。
+  3. 授權 Worker push `ct/T0799` 分支並以 `desktop-build.yml` / `linux-acceptance.yml`（皆不發布）驗證，不 push `main`。
+- **決策者**：使用者。2026-11-03 第一百零九 session。
+- **相關**：BUG-202 / BUG-203 / T0799 / T0797 / T0798 / D242 / D243
+
 ### D243 2026-11-03 — `linux-acceptance.yml` 首跑在靜態檢查中斷，開 T0798 修正；授權 Worker push `ct/T0798` 分支在 GitHub 上迭代
 
 - **背景**：T0797 DONE 後塔台 push 並跑 run `41491827025`（`-f version=0.7.4-pre.1`）：ubuntu-22.04 / 24.04 都在「Inspect the AppImage」中途 exit 1，Playwright 未執行，沒有結論。屬 T0797 交付的 workflow 缺陷，不是 AppImage 結果。24.04 runner `apparmor_restrict_unprivileged_userns = 1`（同桌面預設）。
