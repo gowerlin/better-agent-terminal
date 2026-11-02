@@ -4,12 +4,15 @@ schema_kind: workorder
 id: T0786
 title: "BUG-195：`worktree-status-after-close.test.ts` 在整套 `test:unit` 下常逾時 —— 找出慢在哪裡，讓它在全套負載下穩定通過"
 type: implementation
-status: PENDING
+status: IN_PROGRESS
 repo: better-agent-terminal
 project: maintenance
 priority: P2
 sizing: S
 created_at: "2026-11-02T16:57:24+0800"
+started_at: "2026-11-02T16:58:55+0800"
+updated_at: "2026-11-02T17:08:46+0800"
+tower_question: open
 depends_on: []
 related:
   - "BUG-195（發生紀錄 4 次，`frequent`）；D225；T0589（這支測試的來源：Worker 分頁關閉後的 worktree 狀態查詢）；T0686（CI Test gate：`test:unit` 失敗即不發版）"
@@ -71,6 +74,23 @@ memory_overrides:
 ## 回報區
 
 > 以下由 sub-session 填寫
+
+### 待塔台決策
+
+#### Q-1：同一負載下其他三支真 git 測試也逾時 —— 驗收「整套連跑 3 次都綠」要不要把它們納入本單？
+- **提問時間**：2026-11-02T17:08:46+0800
+- **現況**：本檔已修（`8de128de`：snapshot 從 4 個 git 程序減為 2 個；真 git 的 `describe` 設 `{ timeout: 30_000 }`）。修改後 3 次整套這支都綠（6.8 / 14.4 / 7.4 s），但 3 次整套都 exit 1，失敗的是範圍外的其他測試，同樣是預設 5 s 逾時：
+  - `electron/__tests__/ct-worktree-status.test.ts`（real git 的 4 個 it；第 1 次 1 個、第 2 次 4 個；修改前第 3 次也有 1 個）
+  - `electron/__tests__/ct-worktree.test.ts` › `dispatch again → reused, not rebuilt; base = fork point`（第 2 次）
+  - `scripts/__tests__/dev-deploy-headless.test.mjs` › `deploy + rollback round-trip through the generated script`（第 2、3 次，最長 10.8 s）
+  - 原因相同：真 git／子程序在 24 核全套平行負載下每個呼叫均勻變慢（這段期間 T0785 也在同一 checkout 工作）。
+- **選項**：
+  - A. 擴大範圍：對這三檔做同樣處理（先減不必要的 git 呼叫，再替真 git 的 `describe` 設明確 timeout 並註明量測依據），一併記在 BUG-195，再跑整套 3 次＋負載 1 次。
+  - B. 不擴大：本單只驗本檔（整套 3 次這支都綠、其他失敗列為範圍外），另開 BUG／工單處理其他三檔。
+  - 其他。
+- **建議**：A。同一根因、同一種修法，而且發 `0.7.3-pre.7` 前 CI Test gate 也可能被它們擋下；分開處理要多一輪派工。每檔只動測試檔，不改產品程式碼與全域 `testTimeout`。
+- **影響**：A → `affects_files` 多三個測試檔，預估多 20–30 分鐘；B → 本單可以直接收尾。
+- **是否阻擋後續步驟**：是（驗證步驟「整套連跑 3 次都綠」要依答覆決定判準）。
 
 ### 完成狀態
 
