@@ -5,9 +5,9 @@ id: BUG-195
 title: "單元測試 `worktree-status-after-close.test.ts` 在整套 `test:unit` 的負載下偶發 5 s 逾時"
 status: OPEN
 severity: low
-reproducibility: intermittent
+reproducibility: frequent
 created_at: "2026-11-02T14:39:02+0800"
-updated_at: "2026-11-02T14:39:02+0800"
+updated_at: "2026-11-02T15:28:49+0800"
 impact:
   - tests
 links:
@@ -35,6 +35,8 @@ links:
 |---|---|---|
 | 2026-11-02 約 14:12 | T0780 Worker 跑 `npm run test:unit`（全套） | 逾時 1 次；單檔重跑 3/3 過、第二次全套 6705 passed |
 | 2026-11-02 約 14:37 | 塔台 `0.7.3-pre.6` 聯合驗證 @ `7063f11e`（同時有 T0781 Worker 並行研究） | 逾時 1 次（5093 ms）；單檔重跑 3/3 過（2.97 s）、第二次全套 382 files / 6705 passed |
+| 2026-11-02 約 15:10 | T0784 Worker 第 1 次全套（`ct/T0784` @ `1bfa3b36`，同時有對話框探測腳本） | 逾時（6511 ms）；單檔 3/3 過 |
+| 2026-11-02 約 15:15 | T0784 Worker 第 2 次全套（無其他工作，但機器上約 25 個其他 session 的 node / claude 程序） | 逾時（5926 ms）；這支 `vi.mock('electron')`、在 Node 執行，與 Electron 升級無關 |
 
 ## 推論（未驗證）
 
@@ -44,3 +46,7 @@ links:
 ## 處置
 
 - 目前不擋 `0.7.3-pre.6`（兩次重跑都綠）。CI 若被它擋下：重跑該 job，並把本單排進下一批修正。
+
+## 2026-11-02 塔台補記（第一百零五 session）
+
+- 一天內 4 次（2 次在無其他工作時），頻率比開單時高，`reproducibility` 改 `frequent`。CI Test gate（T0686）擋發版的機率不低，建議排進下一批修正（不等再擋到 CI）。
