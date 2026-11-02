@@ -2,6 +2,33 @@
 
 本 fork 各版的更版重點（內容取自 GitHub Releases，最新在上）。上游 tony1223/better-agent-terminal 的 v2.1.x 紀錄保留在檔案最下方。
 
+## v0.7.3-pre.9（2026-11-02）
+
+版號 0.7.3-pre.9，接續 `v0.7.3-pre.8`。
+
+## 修正
+
+- **Worker 分頁的 `↻` 不會再提早變回 `✓`**（BUG-198，T0791）：Worker 回報後又開始新的一輪工作時，分頁會顯示 `↻`，做完才回到 `✓`。舊版在上一輪的結束訊號晚到時，會把新的一輪當成已經結束，`↻` 提早變回 `✓`，批次關閉也可能把還在工作的 Worker 算進去。現在改依事件實際發生的先後判斷。
+
+## 待驗收（請更新到本版後協助確認）
+
+- **BUG-196 / BUG-197**（`v0.7.3-pre.8` 起）：塔台停在權限對話框或選項卡時收到 Worker 完成通知，對話框應維持原樣、縮圖出現「📨 待送 1」；你回答之後，通知應出現在塔台輸入框。
+- **BUG-198**（本版）：Worker 回報後又開始工作時，分頁應顯示 `↻`，直到那一輪做完才變回 `✓`。
+- **Electron 45**（`v0.7.3-pre.7` 起）：請 macOS / Linux 使用者照常使用，有啟動、繪圖、終端顯示或貼上的異常請回報；Linux 特別請在 Ubuntu 22.04 上試啟動 AppImage。
+- **BUG-159**：一般權限（非系統管理員）執行 BAT、關閉 BAT MCP 時，兩個 Codex CLI 分頁各自讀到自己的環境。
+
+## 已知事項
+
+- 遠端 profile 視窗（WSL / SSH / Docker）看不到「📨 待送 N」徽章，但通知照樣會被保留。
+- 使用者關掉 claude hooks 的分頁（`disableAllHooks`）BAT 判斷不出是否在等你回答，通知會照舊直接送出。
+- 很短的一輪工作偶爾會多顯示 `↻` 最多 60 秒才變回 `✓`；這段時間 Worker 不會被算進批次關閉。
+- **macOS 不會顯示 BAT 的系統通知**：沒有 Apple 開發者簽章的 app 不能發系統通知（PLAN-060）。BAT 視窗內的提示、⚠️ 與分頁標示不受影響。
+- Linux：dock 圖示上的數字徽章不再顯示。
+
+macOS 仍只提供 Apple Silicon（arm64）版。
+
+**Full Changelog**: https://github.com/gowerlin/better-agent-terminal/compare/v0.7.3-pre.8...v0.7.3-pre.9
+
 ## v0.7.3-pre.8（2026-11-02）
 
 版號 0.7.3-pre.8，接續 `v0.7.3-pre.7`。

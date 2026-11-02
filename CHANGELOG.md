@@ -4,6 +4,15 @@ All notable changes to Better Agent Terminal are documented in this file.
 
 ## [Unreleased]
 
+## [0.7.3-pre.9] — 2026-11-02
+
+### Fixed
+- 晚到的 `stop` hook 回報結束了時間比它晚開始的新回合（Worker 分頁 `↻` 提早變回 `✓`）：`TerminalBlockedTracker` 記下目前回合 `user-prompt-submit` 中最晚的 hook 程序啟動時間 `at`，`stop` 的 `at` 較早 → 不結束回合，記 `[turn] … kept: … reported late`（`endTurnByStop`）；任一方沒有 `at` 行為不變；`bat-hook.mjs` 未改（BUG-198 / T0791 / D232）
+
+### Known issues
+- 同一回合的 `user-prompt-submit` 晚於它自己的 `stop` 到達時，回合多留到 60 s 逾時備援（`↻`，不計入批次關閉）
+- 遠端 profile 視窗看不到「📨 待送 N」（保留照樣生效）；`blockedDetection: none` 的分頁照舊直接送出
+
 ## [0.7.3-pre.8] — 2026-11-02
 
 ### Fixed
