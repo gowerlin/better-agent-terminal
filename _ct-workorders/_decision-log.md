@@ -1465,6 +1465,15 @@
 - **切分**：W2a 設計語言 + 元件 + 首頁（T0630）→ 預覽通過後 W2b（`/control-tower`、功能、FAQ、回報頁）→ W2c 遠端開發；W3 / W4 不變。
 - **相關**：PLAN-049 / D159 / D160 / T0624 / T0630
 
+### D224 2026-11-02 — T0784（Electron 45）以模式 ① 合回 main；macOS 未簽章不顯示系統通知先接受，簽章另開 PLAN-060
+
+- **背景**：T0784 DONE（Windows 關卡）；塔台 push `ct/T0784` 後 `desktop-build` run `41406521021` 三平台全綠、`macos-acceptance --ref ct/T0784` run `41407564434` 全 PASS（Electron 45.2.1；Finder 複製實際有 `text/uri-list`）。`bat_worktree_status`：behind 7 但 main 只在 `_ct-workorders/**` 前進、validated = head `08b26812`、outOfScope []、conflicts []、dirty []，五條判準成立。另 T0783 查證本 fork 所有 dmg 都是 ad-hoc 簽章，Electron 42+ 未簽章 app 不顯示 macOS 系統通知。
+- **決定**（使用者斷點 E 與簽章兩題皆選建議）：
+  1. 模式 ①：整合 worktree `ct-merge/T0784` `--no-ff` → `9f2ed99c`（parent1 `5ec89fc5`、parent2 `08b26812`，產品樹與 `08b26812` 相同）→ `--ff-only` → main `9f2ed99c`。worktree 移除（不 `--force`）；`ct/T0784`、`ct-merge/T0784` 與 origin 的 `ct/T0784` 保留待使用者同意刪除。主 checkout `npm ci` 同步到 45.2.1。
+  2. macOS 系統通知：先接受，下一個帶 Electron 45 的預覽版在更版重點〈已知事項〉寫明；Apple Developer ID 簽章與公證記為 PLAN-060（IDEA）。
+- **決策者**：使用者。2026-11-02 第一百零五 session。
+- **相關**：PLAN-053 / PLAN-060 / T0784 / T0783 / T0781 / T0785 / D223
+
 ### D223 2026-11-02 — Electron 主升級目標 45：T0783 只 build 的三平台 workflow → T0784 worktree 隔離試做 → T0785 safeStorage async；`allowScripts.electron` 移除
 
 - **背景**：T0781 DONE：推薦一次升到 Electron 45（42 已停止支援、43 剩約 2 個月；44 / 45 都要改 main 行程 clipboard，工作量相同；原生模組皆 N-API、45.2.1 實測可載入；Graphite 的 context-lost 重啟仍計入 crash limit，建議保留 macOS `disable-skia-graphite`）。開 EXP 前有三項待決。

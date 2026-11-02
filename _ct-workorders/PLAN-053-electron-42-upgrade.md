@@ -68,3 +68,9 @@ links:
 - **驗證（Windows x64）**：typecheck 0 / 0（改前 `typecheck:electron` 4）、`test:legacy` 全綠、`test:unit` 只有 BUG-195 逾時（單檔 3/3 過）、`build:dir` ＋ `verify-packaged-native` 綠（產物 Electron 45.2.1）、e2e 指定清單全過（pre5 A4 因使用者日誌已輪替而失敗，與版本無關）。
 - **新發現**：Electron 45 + Playwright 1.59 的 `firstWindow()` 回傳時還在初始空白頁，e2e fixture 改成先等 app 網址（塔台答覆 Q-1 擴大範圍）。
 - **未驗證**：macOS / Linux（Finder 貼上的實際格式名、`[gpu]` Graphite 停用、簽章版通知、AppImage、Ubuntu 22.04），待塔台以 `desktop-build.yml` ＋ `macos-acceptance.yml` 驗。
+
+## 2026-11-02 塔台：Electron 45 已合回 main（D224）
+
+- T0784 三平台驗收：`desktop-build -f ref=ct/T0784` run `41406521021` 全綠（三平台 electron=45.2.1、Linux typecheck / tests 綠、mac 未簽章）；`macos-acceptance --ref ct/T0784 -f build_run_id=41406521021` run `41407564434` 全 PASS（app 0.0.0-exp.784 / Electron 45.2.1；Finder 複製實際格式含 `text/uri-list`，BAT `source=uri-list`）。
+- 模式 ① 機械合併（五條判準成立）：`ct-merge/T0784` merge commit `9f2ed99c`（parent1 `5ec89fc5`、parent2 `08b26812`），使用者斷點 E 確認後 `--ff-only` → main `9f2ed99c`；worktree 已移除，分支保留待使用者同意刪除。
+- 剩：T0785（safeStorage async，Electron 46 前）；macOS 簽章另見 PLAN-060。全部完成後本 PLAN 改 DONE。
