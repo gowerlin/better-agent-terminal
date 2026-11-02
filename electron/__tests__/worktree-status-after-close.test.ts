@@ -102,11 +102,14 @@ function makeRepo(): string {
   return repo
 }
 
+/**
+ * Status, HEAD and current branch of `dir` plus every branch. T0786 / BUG-195: two git processes
+ * instead of four — `--porcelain=v2 --branch` carries `# branch.oid` (HEAD) and `# branch.head`
+ * (the branch) in front of the same entries.
+ */
 function snapshot(dir: string) {
   return {
-    status: git(dir, 'status', '--porcelain=v1', '--untracked-files=all'),
-    head: git(dir, 'rev-parse', 'HEAD'),
-    branch: git(dir, 'rev-parse', '--abbrev-ref', 'HEAD'),
+    status: git(dir, 'status', '--porcelain=v2', '--branch', '--untracked-files=all'),
     branches: git(dir, 'for-each-ref', '--format=%(refname) %(objectname)', 'refs/heads'),
   }
 }
@@ -175,7 +178,11 @@ describe('PtyManager exited record keeps the worktree (T0589)', () => {
   })
 })
 
-describe('worktree:terminal-status after the tab closed — real PtyManager + git (T0589)', () => {
+// T0786 / BUG-195: about 60 git processes in a row (the test's own plus the handler's: the query is
+// git by design). Alone ~2.5–3 s; in the whole `test:unit` on 24 cores every git call slows evenly
+// (no single step), the long test measured 6.8 / 14.4 / 7.4 s — over the default 5 s in 3 of 3
+// runs before T0786. 30 s ≈ 2× the measured maximum.
+describe('worktree:terminal-status after the tab closed — real PtyManager + git (T0589)', { timeout: 30_000 }, () => {
   function wire() {
     const { manager, registry, create, exit } = makeManager()
     const service = new CtWorktreeService()
