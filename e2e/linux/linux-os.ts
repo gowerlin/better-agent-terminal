@@ -145,6 +145,8 @@ export interface DebugLogView {
   files: string[]
   /** the `[startup] Debug logging started. PID=… argv=…` line (electron/logger.ts) */
   startupLine: string
+  /** the `[sandbox] …` line (T0799, electron/linux-sandbox-fallback.ts); '' when missing */
+  sandboxLine: string
   /** `[CRASH] …` lines (electron/main.ts uncaughtException / unhandledRejection / *-process-gone, early-crash-log.ts) */
   crashLines: string[]
   errorCount: number
@@ -167,6 +169,7 @@ export function readDebugLogs(userData: string): DebugLogView {
   return {
     files: files.map(f => path.join(dir, f)),
     startupLine: clip(lines.find(l => l.includes('[startup] Debug logging started.')) ?? ''),
+    sandboxLine: clip(lines.find(l => l.includes('] [sandbox] ')) ?? ''),
     crashLines: lines.filter(l => l.includes('[CRASH]')).map(clip),
     errorCount: errors.length,
     errorSamples: errors.slice(0, 8).map(clip),

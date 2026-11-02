@@ -101,6 +101,7 @@ import { getConnectionInfo } from './remote/tunnel-manager'
 import { closeAllSshWizardTunnels, registerSshSetupHandlers } from './remote/ssh-setup-handlers'
 import { logger, type LogLevel } from './logger'
 import { createGpuStatusLog, decideSkiaGraphite, formatSkiaGraphiteDecision, GPU_BASELINE_FALLBACK_MS, summarizeGpuInfo } from './gpu-status-log'
+import { takeLinuxSandboxStart } from './linux-sandbox-fallback'
 import { describeMigrationReport } from './userdata-migration'
 import { isServerRunning, readPidFile, readPortFile, removePidFile, removePortFile } from './terminal-server/pid-manager'
 import { readRegistry, clearRegistry } from './terminal-server/pty-registry'
@@ -164,6 +165,12 @@ app.commandLine.appendSwitch('disable-features', 'ServiceWorker')
 const skiaGraphite = decideSkiaGraphite(process.platform, process.env)
 if (skiaGraphite.disable) app.commandLine.appendSwitch('disable-skia-graphite')
 logger.log(formatSkiaGraphiteDecision(skiaGraphite, process.platform))
+
+// BUG-202 / T0799: the Linux AppImage launcher (scripts/appimage-sandbox-launcher.cjs) may have added
+// --no-sandbox before Electron started; log which case this is and drop its marker from process.env.
+const linuxSandboxStart = takeLinuxSandboxStart(process.platform, process.env, app.commandLine.hasSwitch('no-sandbox'))
+if (linuxSandboxStart?.state === 'auto-disabled') logger.warn(linuxSandboxStart.line)
+else if (linuxSandboxStart) logger.info(linuxSandboxStart.line)
 
 // App name, --runtime=N / BAT_RUNTIME=N and the userData directory are resolved in
 // app-paths-bootstrap (first import). Each runtime gets its own userData and single-instance lock.

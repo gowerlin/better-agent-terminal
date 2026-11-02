@@ -6,7 +6,10 @@ name: Linux acceptance (manual)
 # workflow_dispatch only and not part of any release workflow. No secrets: downloads use this job's
 # read-only GITHUB_TOKEN. The AppImage is started the way a user starts it: through the AppImage runtime
 # (FUSE, libfuse2 installed like Ubuntu's AppImage instructions say) with the Chromium sandbox on; nothing
-# changes sysctls or AppArmor. A sandbox refusal is a result. See docs/agent-guide/linux-ci-acceptance.md.
+# changes sysctls or AppArmor. A sandbox refusal is a result. T0799 / BUG-202: the AppImage's own launcher may
+# start it with --no-sandbox when userns are restricted (24.04); the spec reports that as
+# `sandbox auto-disabled (BUG-202 fallback)` (WARN) and checks whisper loading (W1, INFO, BUG-203).
+# See docs/agent-guide/linux-ci-acceptance.md and docs/agent-guide/linux-appimage-sandbox.md.
 #
 #   gh workflow run linux-acceptance.yml -R gowerlin/better-agent-terminal -f version=0.7.4-pre.1
 #   gh workflow run linux-acceptance.yml -R gowerlin/better-agent-terminal -f build_run_id=<desktop-build run id>
@@ -217,10 +220,18 @@ jobs:
               echo "AppRun adds --no-sandbox: $(grep -c -- '--no-sandbox' "$root/AppRun") occurrence(s)"
               echo "desktop Exec: $(grep -h '^Exec=' "$root"/*.desktop 2>/dev/null | head -n 1)"
               echo "chrome-sandbox: $(stat -c '%A %U:%G' "$root/chrome-sandbox" 2>/dev/null || echo absent)"
-              if [ -n "$bin" ] && [ -f "$root/$bin" ]; then
-                echo "main binary max GLIBC: $(max_glibc "$root/$bin")"
+              # T0799: BIN is the sandbox launcher script; the Electron binary is BIN.bin
+              elf_bin="$bin"
+              if [ -n "$bin" ] && head -n 2 "$root/$bin" 2>/dev/null | grep -q 'AppImage launcher (BUG-202'; then
+                echo "sandbox launcher (BUG-202 / T0799): $bin is the launcher script, Electron binary $bin.bin"
+                elf_bin="$bin.bin"
+              else
+                echo "sandbox launcher (BUG-202 / T0799): absent ($bin is not the launcher script)"
+              fi
+              if [ -n "$elf_bin" ] && [ -f "$root/$elf_bin" ]; then
+                echo "main binary ($elf_bin) max GLIBC: $(max_glibc "$root/$elf_bin")"
                 echo "main binary unresolved libraries:"
-                ldd "$root/$bin" 2>&1 | grep 'not found' || echo "  (none)"
+                ldd "$root/$elf_bin" 2>&1 | grep 'not found' || echo "  (none)"
               fi
               # every ELF file in the image, not a top-N: the whisper addon's .so files sit far down the list
               mapfile -d '' files < <(find "$root" -type f \( -perm -u+x -o -name '*.so' -o -name '*.so.*' -o -name '*.node' \) -print0 2>/dev/null)

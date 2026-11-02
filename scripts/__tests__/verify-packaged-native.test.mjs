@@ -54,6 +54,7 @@ const {
 } = require(SCRIPT)
 const nativeModules = require('../verify-native-modules.js')
 const { afterPack, versionManifestContent, versionManifestProblems } = require('../version-manifest.cjs')
+const { installAppImageLauncher } = require('../appimage-sandbox-launcher.cjs')
 
 const APP = 'BetterAgentTerminal.app'
 const dirs = []
@@ -218,8 +219,11 @@ function makeApp(outDir, arch, { omit = [], packed = HEALTHY_PACKED } = {}) {
   return appPath
 }
 
-function makeLinux(outDir, arch, claude, { packed = HEALTHY_PACKED } = {}) {
+function makeLinux(outDir, arch, claude, { packed = HEALTHY_PACKED, launcher = true } = {}) {
   const resources = path.join(outDir, linuxAppOutDirName(arch), 'resources')
+  // T0799: the Electron binary, then (like the afterPack hook) the sandbox launcher in its place
+  writeFile(path.join(outDir, linuxAppOutDirName(arch), 'BetterAgentTerminal'), elf(ELF_MACHINES[arch]))
+  if (launcher) installAppImageLauncher(path.join(outDir, linuxAppOutDirName(arch)), 'BetterAgentTerminal')
   writeRuntimePackages(resources, 'linux', arch)
   writeHelperScripts(resources)
   writeHelperVersion(resources)
@@ -582,6 +586,22 @@ describe('verifyPackagedLinux', () => {
     const cli = runCli(['--platform', 'linux', '--out', out2])
     expect(cli.code).toBe(1)
     expect(cli.stderr).toContain('not an ELF binary')
+  })
+
+  it('AppImage sandbox launcher missing or the .bin is not an ELF → fail (T0799 appimage-launcher)', () => {
+    const out = makeOutDir()
+    makeLinux(out, 'x64', elf(ELF_MACHINES.x64), { launcher: false })
+    const result = verifyPackagedLinux(out)
+    expect(result.archs[0].problems.map((p) => p.id)).toEqual(['appimage-launcher'])
+    expect(result.archs[0].problems[0].details.join(' ')).toContain('not the sandbox launcher script')
+    const cli = runCli(['--platform', 'linux', '--out', out])
+    expect(cli.code).toBe(1)
+    expect(cli.stderr).toContain('T0799 appimage-launcher')
+
+    const out2 = makeOutDir()
+    makeLinux(out2, 'x64', elf(ELF_MACHINES.x64))
+    writeFile(path.join(out2, linuxAppOutDirName('x64'), 'BetterAgentTerminal.bin'), elf(ELF_MACHINES.arm64))
+    expect(verifyPackagedLinux(out2).archs[0].problems.map((p) => p.details)).toEqual([[expect.stringContaining('expected 0x3e')]])
   })
 
   it('no linux-unpacked directory → fail', () => {
