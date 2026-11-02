@@ -1,16 +1,16 @@
 ---
 schema_kind: tower-state
 summary_version: 1
-updated_at: "2026-11-03T01:03:10+08:00"
+updated_at: "2026-11-03T01:10:23+08:00"
 session: "2026-11-03 01:02 第一百零九 session 開工（CT v6.0.0-beta.11）"
 next_ids:
-  workorder: "T0797"
-  decision: "D242"
+  workorder: "T0798"
+  decision: "D243"
   bug: "BUG-202"
   plan: "PLAN-062"
 todo:
   - "BUG-159（FIXED）驗收：需非系統管理員環境 ＋ codex"
-  - "待驗收：Linux AppImage（Ubuntu 22.04，Electron 45）"
+  - "T0797 進行中（Linux AppImage 啟動驗收 workflow，D242）；收單後塔台 push 並跑 `linux-acceptance.yml -f version=0.7.4-pre.1`"
   - "PLAN-059：A 完成（BUG-196 CLOSED）；B = PLAN-061（IDEA low，D229）；C 待問 CT（Q5）；Q4 未解"
   - "PLAN-060（IDEA）：macOS Developer ID 簽章（目前 macOS 不顯示系統通知）"
   - "觀察：t0757 偶發失敗再發生才開 BUG（D218）"
@@ -26,7 +26,7 @@ todo:
 
 ## 🟢 第一百零九 session（進行中）
 
-> 🟢 **第一百零九 session 開工**（2026-11-03 01:02 (UTC+8)，CT v6.0.0-beta.11，Fast Path；塔台 session `3c0519a9-727a-4151-91aa-b69ccdcadeb9`；`--set-role tower --mode on` exit 0；安裝版 FileVersion / helper `v0.7.4-pre.1`（已換版）；HEAD `737b495c`、`main` = `origin/main`（0 / 0）、工作區乾淨；熱區 192 張工單皆終態；BUG 熱區 Fixed 1（159）/ Closed 64；PLAN DONE 15 / DROPPED 2 / IDEA 8 / PLANNED 1；`bat_list_questions` pending 0；熱區檔案皆 < 400 KB）。**`v0.7.4-pre.1` NSIS 完整重裝驗收 PASS-WITH-WARN**（`e2e\manual\nsis-reinstall-acceptance.ps1` real 模式，01:00:47–01:01:25；AllUsers / HKLM；唯一 WARN = ⓪ 目前安裝版是 pre.9，② 實為升級，屬預期；① SHA-256 `8ed58046…` ② ③ ④ 全 PASS，三支 helper `--version` = v0.7.4-pre.1、內嵌 claude / codex 存在、userData 130 檔 SHA-256 未變；⑤ SKIPPED）。報告 `%TEMP%\bat-nsis-acceptance-20261103-010047\report.md`；含權杖的 `userdata-backup`（130 檔）已刪除。00:39:49 那次 FAIL = ⓪ 偵測到 BAT 仍在執行（10 個程序），前置檢查擋下、未安裝，屬設計行為。
+> 🟢 **第一百零九 session 開工**（2026-11-03 01:02 (UTC+8)，CT v6.0.0-beta.11，Fast Path；塔台 session `3c0519a9-727a-4151-91aa-b69ccdcadeb9`；`--set-role tower --mode on` exit 0；安裝版 FileVersion / helper `v0.7.4-pre.1`（已換版）；HEAD `737b495c`、`main` = `origin/main`（0 / 0）、工作區乾淨；熱區 192 張工單皆終態；BUG 熱區 Fixed 1（159）/ Closed 64；PLAN DONE 15 / DROPPED 2 / IDEA 8 / PLANNED 1；`bat_list_questions` pending 0；熱區檔案皆 < 400 KB）。**`v0.7.4-pre.1` NSIS 完整重裝驗收 PASS-WITH-WARN**（`e2e\manual\nsis-reinstall-acceptance.ps1` real 模式，01:00:47–01:01:25；AllUsers / HKLM；唯一 WARN = ⓪ 目前安裝版是 pre.9，② 實為升級，屬預期；① SHA-256 `8ed58046…` ② ③ ④ 全 PASS，三支 helper `--version` = v0.7.4-pre.1、內嵌 claude / codex 存在、userData 130 檔 SHA-256 未變；⑤ SKIPPED）。報告 `%TEMP%\bat-nsis-acceptance-20261103-010047\report.md`；含權杖的 `userdata-backup`（130 檔）已刪除。00:39:49 那次 FAIL = ⓪ 偵測到 BAT 仍在執行（10 個程序），前置檢查擋下、未安裝，屬設計行為。使用者問「Linux AppImage 待回報是等什麼」→ 查明源自 T0784 Linux 待驗項目、CI 只打包不啟動、無指定回報人 → 使用者選 1 → **D242** → 開 **T0797**（`linux-acceptance.yml`，ubuntu-22.04 / 24.04 啟動驗收）（`eb119562`）。01:10 派 **T0797**（yolo `--no-interactive`，exit 0，`started: 17:10:23Z`；Worker `2a5b42f8…`）。
 
 ---
 
