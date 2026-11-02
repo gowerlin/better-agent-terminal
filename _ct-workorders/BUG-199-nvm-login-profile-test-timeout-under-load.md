@@ -3,12 +3,14 @@ schema_version: 1
 schema_kind: bug
 id: BUG-199
 title: "`nvm-login-profile.test.ts` 的真 bash 測試在整套 `test:unit` 負載下逾時 5 s（BUG-195 同類，第五支）"
-status: FIXED
+status: CLOSED
 severity: low
 reproducibility: rare
 created_at: "2026-11-02T22:12:53+0800"
-updated_at: "2026-11-02T22:58:26+0800"
+updated_at: "2026-11-03T00:36:09+0800"
 fixed_at: "2026-11-02T22:58:26+0800"
+closed_at: "2026-11-03T00:36:09+0800"
+closed_reason: verified
 fix_commit: f03adbd6
 impact:
   - test-infra
@@ -22,7 +24,7 @@ links:
 |------|------|
 | 嚴重度 | 🟢 low（只影響測試；產品行為無關。CI Test gate 若撞到會擋發版） |
 | 可重現 | 偶發：整套 1 次中 1 次；單檔 3 / 3 通過（7.2–8.7 s），整套重跑通過 |
-| **狀態** | ✅ FIXED（T0793 `f03adbd6`，待 CI Test gate 驗收） |
+| **狀態** | 🚫 CLOSED（T0793 `f03adbd6`；`v0.7.4-pre.1` CI Test gate 綠（run `41480278090`，unit＋legacy）） |
 | 回報者 | 塔台（聯合驗證） |
 
 ## 現象
@@ -47,6 +49,7 @@ links:
 - 2026-11-02 22:12 開單（OPEN，low）。`0.7.3-pre.9` 聯合驗證發現；整套重跑綠，不擋 pre.9（比照 BUG-195 首次出現時的處置）。
 - 2026-11-02 22:40 → FIXING：開 T0793（P3，S，D234），比照 T0786 先量再改；共用 helper / 標記只評估、不實作。
 - 2026-11-02 22:58 → FIXED（T0793 `f03adbd6`）。
+- 2026-11-03 00:36 → CLOSED（`closed_reason: verified`，D241）：`v0.7.4-pre.1` CI Test gate 綠（run `41480278090`，unit＋legacy）。
 
 ## T0793 結果
 

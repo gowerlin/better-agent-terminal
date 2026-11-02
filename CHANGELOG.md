@@ -4,6 +4,17 @@ All notable changes to Better Agent Terminal are documented in this file.
 
 ## [Unreleased]
 
+## [0.7.4-pre.1] — 2026-11-03
+
+### Changed
+- 版號線改走 `0.7.4-pre.N`（`0.7.3-pre.N` 到 pre.9 為止；D236）；產品行為無變更
+- 真子程序（shell / git / hook）單元測試在整套負載下逾時：量測後替 `describe` 設明確 timeout（30 s，`worktree-status-after-close` 40 s＋`maintenance.auto=false`），註解記量測值；不改全域 `testTimeout`、不改產品（BUG-199 / T0793、BUG-200 / T0794）
+- `terminal-blocked-state.test.ts` 的 T0790 / T0791「兩個真實 hook 程序」測試改由測試攔住先啟動程序的回報（`holdReport`）控制到達順序，不再依賴 300 ms 時間差；突變檢查仍能抓到 BUG-197 / 198（BUG-200 / T0794）
+- `scripts/dev-deploy-headless.mjs` 的 `main(argv, { stagingRoot })` 可指定 staging 目錄（預設 `DEFAULT_STAGING_ROOT` 不變、無新 CLI 旗標 / env），測試各用 `mkdtemp`，兩套 `test:unit` 同時跑不再互相覆蓋（BUG-201 / T0795）
+
+### Removed
+- lean-ctx 外掛殘留 `.kiro/steering/lean-ctx.md`（D239）
+
 ## [0.7.3-pre.9] — 2026-11-02
 
 ### Fixed
