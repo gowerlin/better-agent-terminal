@@ -138,6 +138,11 @@ export async function launchIsolated(
     // Guard: never run against the default (installed BAT) userData.
     expect(path.basename(userData)).toContain(`-runtime-${runtimeId}`)
     const win = await app.firstWindow()
+    // T0784: on Electron 45 (Playwright 1.59) firstWindow() returns while the window is still on its
+    // initial blank document (url ''), and domcontentloaded resolves for that blank page; the
+    // loadFile / loadURL navigation commits a few ms later and destroys any evaluate context. Wait
+    // for the app's own URL first (on Electron 41 firstWindow() already returned at it).
+    await expect.poll(() => win.url(), { timeout: 30_000 }).not.toMatch(/^(about:blank)?$/)
     await win.waitForLoadState('domcontentloaded')
     log(`launched runtime=${runtimeId} userData=${userData} remotePort=${remotePort}${E2E_EXECUTABLE ? ` executable=${E2E_EXECUTABLE}` : ''}`)
     return { app, win, runtimeId, userData, remotePort }
