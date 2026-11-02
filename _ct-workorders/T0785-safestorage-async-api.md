@@ -32,6 +32,7 @@ interaction:
 memory_overrides:
   - "🔴 派工時機：T0784（Electron 45）合回 main 之後才派；時限是 Electron 46 stable（暫定 2027-01-05）之前。塔台派工前若 T0784 未合併，本單維持 PENDING。"
   - "🔴 改法：`safeStorage.isEncryptionAvailable` / `encryptString` / `decryptString` 改用 `isAsyncEncryptionAvailable` / `encryptStringAsync` / `decryptStringAsync`；`SecretStrategy` 等同步介面一路改成 async 到所有呼叫端。🔴 既有密文不得重新產生或失效（官方：同步 API 加密的密文可用 `decryptStringAsync` 解）；Linux 無 keychain 時的 fallback（`warnFallbackOnce`）行為不變；權杖與密文永不寫日誌。"
+  - "🔴 塔台補充（2026-11-02 派工前）：T0784 已合回 main（`9f2ed99c`，Electron 45.2.1）。`pre5-acceptance` 的 A4 會讀使用者真實 `Logs` 找 `[userdata-migration] marker: written`，那份日誌已被輪替刪掉，T0784 已確認 A4 失敗與版本無關；本單只看 safeStorage 相關段落（A1 等），A4 失敗照實記錄、不算本單失敗。BUG-195（`worktree-status-after-close` 逾時）由 T0786 並行處理，本單遇到就單檔重跑並記錄。T0786 只改那支測試與 BUG-195 檔，不要碰。"
   - "🔴 驗證：`npm run typecheck` = 0、`npm run typecheck:electron` = 0；`test:unit` 全綠；`e2e/pre5-acceptance.spec.ts`（舊 token 仍能解、遠端連線照常）；以舊版本加密的 `server-token.json` 樣本實測可解（隔離 userData，不碰使用者的檔案）；45 啟動時不再出現 safeStorage 棄用警告。"
   - "🔴 文件：`remote-security.md` 與 CLAUDE.md「Remote 資安」節補一行（async API、唯一實作位置）。不發版、不 push。公開 repo 去識別化（D176）。yolo：不得問使用者；判讀問題依 ct-exec § Questions For Tower 問塔台。Git：只用 `git commit --only`。禁止 `git stash` / `git reset` / `git checkout -- <path>` / `git restore`（L138）。"
 ---

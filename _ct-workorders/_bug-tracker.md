@@ -12,8 +12,8 @@ exclude_globs:
   - _ct-workorders/examples/**
 total: 59
 breakdown:
-  OPEN: 1
-  FIXING: 0
+  OPEN: 0
+  FIXING: 1
   FIXED: 1
   VERIFY: 0
   CLOSED: 57
@@ -23,21 +23,22 @@ breakdown:
 # Bug Tracker
 
 > ⚠️ 此文件由 `*sync` 自動生成，請勿手動編輯。
-> 最後同步：2026-11-02 15:29 — BUG-195 補記（一天 4 次，`frequent`）；修正 14:39 誤把 BUG-195 也寫進 VERIFY / WONTFIX 區段的佔位列；2026-11-02 14:39 — 開 BUG-195（OPEN，low，測試偶發逾時，第二次出現）；2026-11-02 11:11 — BUG-128 / 130 CLOSED（交付版 `v0.7.3-pre.5` 在 GitHub Actions macOS runner 實測 T0778）；2026-11-02 10:50 — BUG-193 / 194 CLOSED（交付版 `v0.7.3-pre.5` 安裝版自動化實測 T0777）；2026-11-02 09:59 — BUG-193 / 194 已隨 `v0.7.3-pre.5` 發版（待驗收）；2026-11-02 05:56 — BUG-194 FIXED（T0776 `e717c786`）；2026-11-02 05:38 — BUG-193 FIXED（T0774 `bd59ab0f`）；2026-11-02 05:28 — BUG-193 → FIXING（T0774，05:27 派工）、BUG-194 → FIXING（T0776，D217）；2026-11-02 05:26 — 開 BUG-194（OPEN，low，T0773 F1）；2026-11-02 05:26 — BUG-189 / 191 CLOSED（交付版 `v0.7.3-pre.4` 安裝版自動化實測 T0772，D215）；2026-11-02 05:24 — 開 BUG-193（OPEN，low，D216 → T0774）；2026-11-02 05:23 — BUG-190 / 192 CLOSED（交付版 `v0.7.3-pre.4` 安裝版自動化實測 T0771，含真實模型 Haiku 5.5，D215）；2026-11-02 05:22 — BUG-188 CLOSED（交付版 `v0.7.3-pre.4` 安裝版自動化實測 T0770，D215）；2026-11-02 04:59 — 第一百零四 session 塔台重啟（三）`*sync`：區段與 56 張 BUG 檔一致，只修正 frontmatter 統計（51 / 7 / 44 → 56 / 8 / 48）；2026-11-02 04:28 — BUG-192 FIXED（T0769 `9ab26222`）；BUG-192 → FIXING（T0769，D214）；BUG-191 FIXED（T0760 `eb5c0589`）；開 BUG-192（OPEN，T0768 研究）；BUG-190 FIXED（T0759 `b8a3b7f7`）；BUG-188 FIXED（T0757 `de8a4fd4`）；BUG-189 FIXED（T0758 `ddfb4f38`）；開 BUG-188–191 → FIXING（T0757–T0760，D209 / D210）；BUG-183 / 184 CLOSED（使用者實機，`v0.7.3-pre.3`）；BUG-187 CLOSED（`v0.7.3-pre.3`，使用者裁示）；BUG-186 CLOSED（WSL 實機，server `0.7.3-pre.3`）；BUG-187 FIXED（T0756 `915f90ab`）；開 BUG-187 → FIXING（T0756）；BUG-185 CLOSED（`v0.7.3-pre.2`）；BUG-186 FIXED（T0753 `0f021e67`）；BUG-185 FIXED（T0751 `f9072e16`）；開 BUG-186 → FIXING（T0753）；BUG-183 / 184 FIXED（T0750）；BUG-182 / 175 CLOSED
+> 最後同步：2026-11-02 16:57 — BUG-195 → FIXING（T0786，D225）；2026-11-02 15:29 — BUG-195 補記（一天 4 次，`frequent`）；修正 14:39 誤把 BUG-195 也寫進 VERIFY / WONTFIX 區段的佔位列；2026-11-02 14:39 — 開 BUG-195（OPEN，low，測試偶發逾時，第二次出現）；2026-11-02 11:11 — BUG-128 / 130 CLOSED（交付版 `v0.7.3-pre.5` 在 GitHub Actions macOS runner 實測 T0778）；2026-11-02 10:50 — BUG-193 / 194 CLOSED（交付版 `v0.7.3-pre.5` 安裝版自動化實測 T0777）；2026-11-02 09:59 — BUG-193 / 194 已隨 `v0.7.3-pre.5` 發版（待驗收）；2026-11-02 05:56 — BUG-194 FIXED（T0776 `e717c786`）；2026-11-02 05:38 — BUG-193 FIXED（T0774 `bd59ab0f`）；2026-11-02 05:28 — BUG-193 → FIXING（T0774，05:27 派工）、BUG-194 → FIXING（T0776，D217）；2026-11-02 05:26 — 開 BUG-194（OPEN，low，T0773 F1）；2026-11-02 05:26 — BUG-189 / 191 CLOSED（交付版 `v0.7.3-pre.4` 安裝版自動化實測 T0772，D215）；2026-11-02 05:24 — 開 BUG-193（OPEN，low，D216 → T0774）；2026-11-02 05:23 — BUG-190 / 192 CLOSED（交付版 `v0.7.3-pre.4` 安裝版自動化實測 T0771，含真實模型 Haiku 5.5，D215）；2026-11-02 05:22 — BUG-188 CLOSED（交付版 `v0.7.3-pre.4` 安裝版自動化實測 T0770，D215）；2026-11-02 04:59 — 第一百零四 session 塔台重啟（三）`*sync`：區段與 56 張 BUG 檔一致，只修正 frontmatter 統計（51 / 7 / 44 → 56 / 8 / 48）；2026-11-02 04:28 — BUG-192 FIXED（T0769 `9ab26222`）；BUG-192 → FIXING（T0769，D214）；BUG-191 FIXED（T0760 `eb5c0589`）；開 BUG-192（OPEN，T0768 研究）；BUG-190 FIXED（T0759 `b8a3b7f7`）；BUG-188 FIXED（T0757 `de8a4fd4`）；BUG-189 FIXED（T0758 `ddfb4f38`）；開 BUG-188–191 → FIXING（T0757–T0760，D209 / D210）；BUG-183 / 184 CLOSED（使用者實機，`v0.7.3-pre.3`）；BUG-187 CLOSED（`v0.7.3-pre.3`，使用者裁示）；BUG-186 CLOSED（WSL 實機，server `0.7.3-pre.3`）；BUG-187 FIXED（T0756 `915f90ab`）；開 BUG-187 → FIXING（T0756）；BUG-185 CLOSED（`v0.7.3-pre.2`）；BUG-186 FIXED（T0753 `0f021e67`）；BUG-185 FIXED（T0751 `f9072e16`）；開 BUG-186 → FIXING（T0753）；BUG-183 / 184 FIXED（T0750）；BUG-182 / 175 CLOSED
 
 ## 統計
-- 🔴 Open: 1 | ⏳ Fixing: 0 | ✅ Fixed: 1 | 🧪 Verify: 0 | 🚫 Closed: 57 | ⛔ Won't Fix: 0 | **Total: 59**
+- 🔴 Open: 0 | ⏳ Fixing: 1 | ✅ Fixed: 1 | 🧪 Verify: 0 | 🚫 Closed: 57 | ⛔ Won't Fix: 0 | **Total: 59**
 
 ## 🔴 Open / 處理中
 
 | ID | 標題 | 嚴重度 | 建立時間 | 連結 |
 |----|------|--------|---------|------|
-| BUG-195 | 單元測試 `worktree-status-after-close.test.ts` 在整套 `test:unit` 下常逾時（2026-11-02 共 4 次、2 次無其他負載；單檔重跑即過） | 🟢 low | 2026-11-02 | [BUG-195](BUG-195-worktree-status-after-close-test-timeout-under-load.md) |
+| _（無）_ | | | | |
 
 ## ⏳ 修復中 (FIXING)
 
 | ID | 標題 | 嚴重度 | 修復時間 | 連結 |
 |----|------|--------|---------|------|
+| BUG-195 | 單元測試 `worktree-status-after-close.test.ts` 在整套 `test:unit` 下常逾時（2026-11-02 共 4 次；T0786 修正中） | 🟢 low | 2026-11-02 | [BUG-195](BUG-195-worktree-status-after-close-test-timeout-under-load.md) |
 
 ## ✅ 已修復
 

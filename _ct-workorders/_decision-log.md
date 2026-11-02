@@ -1465,6 +1465,17 @@
 - **切分**：W2a 設計語言 + 元件 + 首頁（T0630）→ 預覽通過後 W2b（`/control-tower`、功能、FAQ、回報頁）→ W2c 遠端開發；W3 / W4 不變。
 - **相關**：PLAN-049 / D159 / D160 / T0624 / T0630
 
+### D225 2026-11-02 — 先派 T0785（safeStorage async）與 T0786（BUG-195 測試逾時），兩張完成後一起發 `0.7.3-pre.7`
+
+- **背景**：Electron 45 已合回 main（D224）；BUG-195 一天 4 次逾時，CI Test gate 有擋發版的風險；T0785 原本排在 Electron 46 前。
+- **決定**（使用者「push，先派 T0785 與 BUG-195，一起發 pre.7」）：
+  1. push main（`a63f5ea0..9063e167`，去識別化 9 組與金鑰掃描 0）。
+  2. 開 T0786（BUG-195：先量哪一步慢、優先縮短，必要時才替這支測試設 timeout；不改產品常數、不改全域 timeout、不 skip / retry）；BUG-195 → FIXING。T0785 / T0786 並行（檔案不重疊；T0786 正好在負載下驗證）。
+  3. 兩張 DONE → 聯合驗證 → NSIS 完整重裝驗收（Electron 大版本，release 前；使用者關 BAT 跑 `e2e/manual/nsis-reinstall-acceptance.ps1`）→ 發 `0.7.3-pre.7`（更版重點〈已知事項〉：macOS 系統通知不顯示（PLAN-060）、最低 macOS 13）。
+  4. 分支 `ct/T0784` / `ct-merge/T0784` / origin `ct/T0784` 未裁示，維持保留。
+- **決策者**：使用者。2026-11-02 第一百零五 session。
+- **相關**：PLAN-053 / PLAN-060 / BUG-195 / T0785 / T0786 / T0784 / D224
+
 ### D224 2026-11-02 — T0784（Electron 45）以模式 ① 合回 main；macOS 未簽章不顯示系統通知先接受，簽章另開 PLAN-060
 
 - **背景**：T0784 DONE（Windows 關卡）；塔台 push `ct/T0784` 後 `desktop-build` run `41406521021` 三平台全綠、`macos-acceptance --ref ct/T0784` run `41407564434` 全 PASS（Electron 45.2.1；Finder 複製實際有 `text/uri-list`）。`bat_worktree_status`：behind 7 但 main 只在 `_ct-workorders/**` 前進、validated = head `08b26812`、outOfScope []、conflicts []、dirty []，五條判準成立。另 T0783 查證本 fork 所有 dmg 都是 ad-hoc 簽章，Electron 42+ 未簽章 app 不顯示 macOS 系統通知。

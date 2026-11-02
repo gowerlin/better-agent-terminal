@@ -3,7 +3,7 @@ schema_version: 1
 schema_kind: bug
 id: BUG-195
 title: "單元測試 `worktree-status-after-close.test.ts` 在整套 `test:unit` 的負載下偶發 5 s 逾時"
-status: OPEN
+status: FIXING
 severity: low
 reproducibility: frequent
 created_at: "2026-11-02T14:39:02+0800"
@@ -20,7 +20,7 @@ links:
 |------|------|
 | 嚴重度 | 🟢 low（只影響測試；產品行為無關。CI Test gate（T0686）若遇到會擋發版，重跑即過） |
 | 可重現 | 偶發：2026-11-02 兩次（全套平行負載下）；單檔與重跑全套都通過 |
-| **狀態** | 📂 OPEN（後續待辦，短期不排；再擋到 CI 時優先處理） |
+| **狀態** | 🔧 FIXING（T0786，D225） |
 | 回報者 | 塔台（T0780 Worker 首次記錄；第二次出現依「再發生才開單」開單） |
 
 ## 現象
