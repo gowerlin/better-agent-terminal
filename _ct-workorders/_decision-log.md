@@ -1465,6 +1465,15 @@
 - **切分**：W2a 設計語言 + 元件 + 首頁（T0630）→ 預覽通過後 W2b（`/control-tower`、功能、FAQ、回報頁）→ W2c 遠端開發；W3 / W4 不變。
 - **相關**：PLAN-049 / D159 / D160 / T0624 / T0630
 
+### D219 2026-11-02 — Herdr 對照研究登記為主 PLAN-059；子 PLAN 與工單之後再拆
+
+- **背景**：使用者要求比較 Herdr（2026-10 底推出的原生桌面版與 herdr-core 運行時期）與 BAT，研究值得借鏡的功能與移植可行性。塔台以 herdrdev 兩個官方 repo 的 README 與 docs（GitHub API）對照 BAT，產出研究報告 Artifact「Herdr 對照 BAT」。查證過程發現 `pty:write` 不看目標分頁是否 blocked（`electron/handlers/pty.ts:104`），Worker 的 `--submit` 通知可能打進停在權限對話框的塔台（未實測）。
+- **決定**（使用者指示「將此報告登記為主 PLAN，後續再安排拆子 PLAN 與拆單、開單」）：
+  1. 開 PLAN-059（PLANNED，medium）收錄研究結論、子項 A–F、R1–R5、Q1–Q5。
+  2. 本次不拆子 PLAN、不開工單；拆分方向寫在 PLAN-059〈拆分方向〉，待使用者安排。
+- **決策者**：使用者。2026-11-02 第一百零五 session。
+- **相關**：PLAN-059
+
 ### D218 2026-11-02 — mac 的 BUG 可用 GitHub Actions macOS runner 對交付版實測結案（T0778）；t0757 偶發失敗再發生才開 BUG
 
 - **背景**：BUG-128 / 130（mac）自 2026-10-14 FIXED 後一直等外部 Mac 使用者實機驗收。使用者問能否改用 GitHub Actions macOS runner；塔台評估需探路，使用者同意開 T0778。T0778 實測 `macos-15` runner 有 Aqua 工作階段，Finder Apple Events 與 System Events 送鍵沒被 TCC 擋，交付版 `v0.7.3-pre.5` dmg 上 BUG-128 / 130 情境全 PASS（run `41380866131`）。

@@ -1,14 +1,15 @@
 ---
 schema_kind: tower-state
 summary_version: 1
-updated_at: "2026-11-02T13:01:56+08:00"
+updated_at: "2026-11-02T13:23:24+08:00"
 session: "2026-11-02 13:01 第一百零五 session 開工（CT v6.0.0-beta.10）"
 next_ids:
   workorder: "T0779"
-  decision: "D219"
+  decision: "D220"
   bug: "BUG-195"
-  plan: "PLAN-059"
+  plan: "PLAN-060"
 todo:
+  - "PLAN-059（Herdr 對照研究，主 PLAN，D219）待拆子 PLAN 與開單；建議先開研究單實測 Q1（Worker 通知打進停在權限對話框的塔台）"
   - "唯一待驗收：BUG-159（一般權限 ＋ codex，需使用者本機）；熱區無進行中工單、無 OPEN BUG"
   - "選擇性：mac 相關修正可用 `macos-acceptance.yml`（`workflow_dispatch -f version=`）回歸（D218）"
   - "觀察：t0757 一次偶發失敗（③ 清除原因 `user-prompt-submit`，疑 `permission-request` hook 晚到，T0775 已加診斷；T0777 重跑未重現）；**再發生才開 BUG**（D218）"
@@ -16,7 +17,7 @@ todo:
 ---
 # Tower State — better-agent-terminal
 
-> 🟢 **第一百零五 session 開工**（2026-11-02 13:01 (UTC+8)，CT v6.0.0-beta.10，Fast Path；塔台 session `c85c39b0-308c-4087-8f2f-2e18466a0cbd`；`--set-role tower --mode on` exit 0；安裝版 helper `v0.7.3-pre.5`；HEAD `e0c6d63d`、`main` = `origin/main`、工作區乾淨；熱區 174 張工單全為 DONE；BUG 熱區 Fixed 1（BUG-159）/ Closed 57，與 `_bug-tracker.md` 一致，免重建）。
+> 🟢 **第一百零五 session 開工**（2026-11-02 13:01 (UTC+8)，CT v6.0.0-beta.10，Fast Path；塔台 session `c85c39b0-308c-4087-8f2f-2e18466a0cbd`；`--set-role tower --mode on` exit 0；安裝版 helper `v0.7.3-pre.5`；HEAD `e0c6d63d`、`main` = `origin/main`、工作區乾淨；熱區 174 張工單全為 DONE；BUG 熱區 Fixed 1（BUG-159）/ Closed 57，與 `_bug-tracker.md` 一致，免重建）。使用者要求比較 Herdr（原生桌面版＋herdr-core）與 BAT → 塔台以官方 repo docs 產出研究報告 Artifact「Herdr 對照 BAT」（https://claude.ai/artifact/Ybj66gYLkMHZE8xUyyDiEy，私人）；查證發現 `pty:write` 不看目標是否 blocked（未實測影響）。13:23 使用者「登記為主 PLAN，後續再拆子 PLAN 與拆單、開單」→ **D219** → 開 **PLAN-059**（PLANNED，medium）。
 
 > 🛏 **第一百零四 session 已收工**（2026-11-02 11:17 (UTC+8)）。本 session 各次開工 / 重啟條目已移入下方〈本 Session 收工快照（第一百零四 session）〉時間線。
 
@@ -138,7 +139,7 @@ eport.md`（real，20:18:03–20:18:31，PS 7.6.9 系統管理員）：⓪ PASS�
 - 歷史 sessions → [_archive/state-snapshots/INDEX.md](_archive/state-snapshots/INDEX.md)（119 entries）
 
 ### 編號起始
-- **T0779** / **BUG-195** / **PLAN-059** / **D219** / **EXP-WFMINE-002**（其他 TOPIC 從 001） / **L179** / **CT-T023**
+- **T0779** / **BUG-195** / **PLAN-060** / **D220** / **EXP-WFMINE-002**（其他 TOPIC 從 001） / **L179** / **CT-T023**
 
 ---
 
@@ -153,8 +154,8 @@ eport.md`（real，20:18:03–20:18:31，PS 7.6.9 系統管理員）：⓪ PASS�
 | **目前主軸** | 熱區無進行中工單、無 OPEN BUG；唯一待驗收 BUG-159（使用者本機） |
 | **工單最大編號** | **T0778** DONE（macOS runner 驗收，`051b053e` / `4ef73ab0` / `083a66ce`） |
 | **BUG 最大編號** | **BUG-194** CLOSED；熱區 Open 0 / Fixing 0 / Fixed 1 / Closed 57（2026-11-02 11:11） |
-| **PLAN 最大編號** | **PLAN-058** IDEA；PLAN-055 / PLAN-057 DONE；PLAN-054 PLANNED |
-| **決策最大編號** | **D218**（mac BUG 以 macOS runner 實測結案、t0757 再發生才開單，第一百零四 session） |
+| **PLAN 最大編號** | **PLAN-059** PLANNED（Herdr 對照研究主 PLAN，待拆）；PLAN-058 IDEA；PLAN-055 / PLAN-057 DONE；PLAN-054 PLANNED |
+| **決策最大編號** | **D219**（Herdr 對照研究登記為主 PLAN-059，第一百零五 session） |
 | **EXP 最大編號** | **EXP-WFMINE-001**（📊 CONCLUDED 2026-10-20）；EXP-GPUWHIS-001（CONCLUDED，已歸檔） |
 | **塔台版本** | Control Tower **v6.0.0-beta.10**（第一百零三 session 起） |
 | **unit test 基線** | **6705 passed / 382 files**；typecheck 0 / 0、vite build 成功（塔台聯合驗證 @ `213d03ef`，`0.7.3-pre.5` 批次，2026-11-02 第一百零四 session） |
