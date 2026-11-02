@@ -15,6 +15,8 @@ import { useMissedWait, useTerminalAttention, useWorkerResumed } from '../stores
 import { OPEN_INTERRUPTED_AGENTS_EVENT, useInterruptedAgent } from '../stores/interrupted-agents-store'
 import { missedWaitToShow, waitingForUser, workerAttention, type MissedWait, type WaitingForUser, type WorkerAttention } from '../lib/terminal-attention'
 import { appendPreviewInput, outputPreview, textPreview } from '../lib/thumbnail-preview'
+import { cancelNotifyHold, useNotifyHold } from '../stores/notify-hold-store'
+import type { NotifyHoldItem } from '../types/notify-hold'
 
 /** PLAN-044 / T0566: `15:05`-style local clock time of an epoch. */
 function clockTime(epoch: number | null): string {
@@ -40,6 +42,12 @@ function usageLimitTooltip(t: (key: string, options?: Record<string, unknown>) =
     case 'not-yolo': return t('usageLimit.notYolo', { reset })
     case 'cap': return t('usageLimit.cap', { count: USAGE_LIMIT_MAX_CONSECUTIVE_SENDS })
   }
+}
+
+/** T0788 / BUG-196: what a held notification still holds (locale keys `notifyHold.parts*`). */
+function notifyHoldParts(t: (key: string, options?: Record<string, unknown>) => string, item: NotifyHoldItem): string {
+  if (item.hasText && item.hasEnter) return t('notifyHold.partsTextEnter')
+  return item.hasEnter ? t('notifyHold.partsEnter') : t('notifyHold.partsText')
 }
 
 /** T0609 (BUG-153): the second tooltip line of a Worker badge (locale keys `workerTabs.*`). */
@@ -258,8 +266,23 @@ export const TerminalThumbnail = memo(function TerminalThumbnail({ terminal, isA
         workerAttentionTooltip(t, attention),
       ].join('\n')
     : undefined
+  // T0788 / BUG-196: Worker notifications main holds while this tab waits for the user (memory only)
+  const heldNotifications = useNotifyHold(terminal.id)
+  const [holdMenu, setHoldMenu] = useState<{ x: number; y: number } | null>(null)
+  const { pos: holdPos, menuRef: holdRef } = useMenuPosition(holdMenu)
   const [ctxMenu, setCtxMenu] = useState<{ x: number; y: number } | null>(null)
   const { pos: ctxPos, menuRef: ctxRef } = useMenuPosition(ctxMenu)
+
+  // T0788: the list is a popover — an outside click closes it; nothing left to show closes it too
+  useEffect(() => {
+    if (!holdMenu) return
+    const close = () => setHoldMenu(null)
+    document.addEventListener('click', close)
+    return () => document.removeEventListener('click', close)
+  }, [holdMenu])
+  useEffect(() => {
+    if (holdMenu && heldNotifications.length === 0) setHoldMenu(null)
+  }, [holdMenu, heldNotifications.length])
 
   // Close context menu on outside click
   useEffect(() => {
@@ -339,6 +362,21 @@ export const TerminalThumbnail = memo(function TerminalThumbnail({ terminal, isA
               ⏸
             </span>
           )}
+          {heldNotifications.length > 0 && (
+            <span
+              className="notify-hold-badge"
+              title={t('notifyHold.badgeTooltip', { count: heldNotifications.length })}
+              data-notify-hold={heldNotifications.length}
+              style={{ cursor: 'pointer', flexShrink: 0, fontSize: '0.85em', padding: '0 4px', borderRadius: 4, background: 'var(--bg-tertiary, rgba(128,128,128,0.25))' }}
+              onClick={(e) => {
+                e.stopPropagation()
+                setCtxMenu(null)
+                setHoldMenu(holdMenu ? null : { x: e.clientX, y: e.clientY })
+              }}
+            >
+              📨 {t('notifyHold.badge', { count: heldNotifications.length })}
+            </span>
+          )}
           {usageLimit && (
             <span
               className={`usage-limit-badge ${usageLimit.state}`}
@@ -355,6 +393,52 @@ export const TerminalThumbnail = memo(function TerminalThumbnail({ terminal, isA
       <div className="thumbnail-preview" style={{ fontFamily }}>
         {preview || (isAgent ? '' : '$ _')}
       </div>
+      {holdMenu && heldNotifications.length > 0 && createPortal(
+        <div
+          ref={holdRef}
+          className="context-menu notify-hold-menu"
+          data-terminal-id={terminal.id}
+          style={{
+            ...(holdPos
+              ? { position: 'fixed' as const, left: holdPos.x, top: holdPos.y, zIndex: 1000 }
+              : { position: 'fixed' as const, left: holdMenu.x, top: holdMenu.y, zIndex: 1000, visibility: 'hidden' as const }),
+            maxWidth: 360,
+          }}
+          onClick={e => e.stopPropagation()}
+        >
+          <div style={{ padding: '6px 10px', fontWeight: 600 }}>{t('notifyHold.title', { count: heldNotifications.length })}</div>
+          <div style={{ padding: '0 10px 6px', fontSize: '0.85em', opacity: 0.8, whiteSpace: 'normal' }}>{t('notifyHold.desc')}</div>
+          {heldNotifications.map(item => (
+            <div
+              key={item.holdId}
+              className="notify-hold-item"
+              data-hold-id={item.holdId}
+              style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '2px 10px' }}
+            >
+              <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {item.workorder || t('notifyHold.source', { id: item.sourceTerminalId ? item.sourceTerminalId.slice(0, 8) : '?' })}
+                {' · '}{clockTime(item.heldAt)}{' · '}{notifyHoldParts(t, item)}
+              </span>
+              <button
+                className="context-menu-item"
+                data-action="cancel-held-notification"
+                style={{ width: 'auto', flexShrink: 0 }}
+                onClick={() => { void cancelNotifyHold(terminal.id, item.holdId) }}
+              >
+                {t('notifyHold.cancel')}
+              </button>
+            </div>
+          ))}
+          <button
+            className="context-menu-item"
+            data-action="cancel-all-held-notifications"
+            onClick={() => { void cancelNotifyHold(terminal.id); setHoldMenu(null) }}
+          >
+            ✕ {t('notifyHold.cancelAll')}
+          </button>
+        </div>,
+        document.body
+      )}
       {ctxMenu && createPortal(
         <div
           ref={ctxRef}

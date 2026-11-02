@@ -43,7 +43,11 @@ interface RemoteKeypressTrace {
   dataEvents: number
   dataBytes: number
   dataControls: string[]
-  /** T0566: what xterm writes for this keypress is BAT's automatic write (`pty.write` `{ auto }`). */
+  /**
+   * T0566: what xterm writes for this keypress is BAT's automatic write (`pty.write` `{ auto }`).
+   * T0788 / BUG-196: a helper's `--submit` Enter too — it is not the user's input (it no longer clears
+   * the tab's ⚠️, nor cancels its usage-limit wait).
+   */
   auto?: boolean
 }
 
@@ -596,7 +600,8 @@ export const TerminalPanel = memo(function TerminalPanel({ terminalId, isActive 
 
     // `bat-notify --submit` (terminal:keypress) and the usage-limit continue (T0566): Enter through
     // xterm, so the agent gets the bytes a real Enter key produces. False = no xterm textarea.
-    const dispatchEnter = (info: { traceId: string; source?: string; reason?: string; auto?: boolean }): boolean => {
+    // `restoreFocus` (T0566's background continue): give the focus back afterwards.
+    const dispatchEnter = (info: { traceId: string; source?: string; reason?: string; auto?: boolean; restoreFocus?: boolean }): boolean => {
       const { traceId } = info
       const textarea = containerRef.current?.querySelector('.xterm-helper-textarea') as HTMLTextAreaElement | null
       if (!textarea) {
@@ -616,7 +621,7 @@ export const TerminalPanel = memo(function TerminalPanel({ terminalId, isActive 
       remoteKeypressTraceRef.current = trace
       // T0566: an automatic continue may land in a background tab — give the focus back afterwards
       // so the user's typing keeps going where it was.
-      const previousFocus = info.auto ? document.activeElement as HTMLElement | null : null
+      const previousFocus = info.restoreFocus ? document.activeElement as HTMLElement | null : null
 
       try {
         terminal.focus()
@@ -639,7 +644,9 @@ export const TerminalPanel = memo(function TerminalPanel({ terminalId, isActive 
       if (!isEnter) return
       const traceId = info.traceId ?? `renderer-${Date.now().toString(36)}`
       dlog(`[terminal-submit] remote Enter received terminal=${terminalId} trace=${traceId} source=${info.source ?? '?'} reason=${info.reason ?? '?'} path=dom-keydown`)
-      dispatchEnter({ traceId, source: info.source, reason: info.reason })
+      // T0788 / BUG-196 (contract item 9): the helper's Enter is BAT's automatic write, not the user's
+      // input — focus behaviour unchanged (no `restoreFocus`)
+      dispatchEnter({ traceId, source: info.source, reason: info.reason, auto: true })
     })
 
     // PLAN-044 / T0566: the usage limit reset — re-check this screen, type the text (automatic
@@ -652,7 +659,7 @@ export const TerminalPanel = memo(function TerminalPanel({ terminalId, isActive 
         await new Promise<void>(resolve => setTimeout(resolve, USAGE_LIMIT_ENTER_DELAY_MS))
       }
       dlog(`[terminal-submit] remote Enter received terminal=${terminalId} trace=${info.traceId} source=usage-limit reason=${info.agent} path=dom-keydown`)
-      if (!dispatchEnter({ traceId: info.traceId, source: 'usage-limit', reason: info.agent, auto: true })) {
+      if (!dispatchEnter({ traceId: info.traceId, source: 'usage-limit', reason: info.agent, auto: true, restoreFocus: true })) {
         await window.electronAPI.pty.write(terminalId, '\r', { auto: true })
         return { ok: true, path: 'pty-write (no xterm textarea)' }
       }

@@ -20,6 +20,7 @@ import type { ClientPathPurpose, ResolvedClientPath } from '../src/lib/client-pa
 import type { TerminalRoleChangeInfo } from '../src/lib/tower-terminal-title'
 import type { UsageLimitContinueEvent, UsageLimitStatusEvent } from '../src/lib/usage-limit'
 import type { DetachedWaitingReport, TerminalAttentionEvent, TerminalAttentionSnapshotEntry } from '../src/lib/terminal-attention'
+import type { NotifyHoldChangedEvent } from '../src/types/notify-hold'
 
 type RendererLogLevel = 'error' | 'warn' | 'info' | 'log' | 'debug'
 
@@ -98,6 +99,17 @@ const electronAPI = {
       const handler = (_event: Electron.IpcRendererEvent, info: UsageLimitContinueEvent) => callback(info)
       ipcRenderer.on('terminal:usage-limit-continue', handler)
       return () => ipcRenderer.removeListener('terminal:usage-limit-continue', handler)
+    },
+    // T0788 / BUG-196: the helper notifications held while a tab waits for the user (local IPC only)
+    notifyHoldList: () => ipcRenderer.invoke('terminal:notify-hold-list') as Promise<NotifyHoldChangedEvent[]>,
+    notifyHoldCancel: (terminalId: string, holdId?: string) =>
+      (holdId === undefined
+        ? ipcRenderer.invoke('terminal:notify-hold-cancel', terminalId)
+        : ipcRenderer.invoke('terminal:notify-hold-cancel', terminalId, holdId)) as Promise<number>,
+    onNotifyHoldChanged: (callback: (info: NotifyHoldChangedEvent) => void) => {
+      const handler = (_event: Electron.IpcRendererEvent, info: NotifyHoldChangedEvent) => callback(info)
+      ipcRenderer.on('terminal:notify-hold-changed', handler)
+      return () => ipcRenderer.removeListener('terminal:notify-hold-changed', handler)
     }
   },
   workspace: {

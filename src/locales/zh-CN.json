@@ -1462,6 +1462,18 @@
       "posixShell": "{{shell}} 不是 POSIX shell，安装标签页改用 {{fallback}}。"
     }
   },
+  "notifyHold": {
+    "badge": "待发 {{count}}",
+    "badgeTooltip": "待发通知 {{count}}：这个标签页在等你回答，Worker 的通知先保留，答完后自动发送。点击查看",
+    "title": "待发通知 {{count}}",
+    "desc": "标签页在等你回答（权限、问题对话框）时，Worker 的通知先保留；你答完、安静 1 秒后依次送进输入框。取消只丢弃要送进输入框的文字，提示与 Worker ✓ 不受影响。",
+    "source": "来源 {{id}}",
+    "partsTextEnter": "文字＋Enter",
+    "partsText": "只有文字",
+    "partsEnter": "只有 Enter",
+    "cancel": "取消",
+    "cancelAll": "全部取消"
+  },
   "interruptedAgents": {
     "title": "Terminal Server 重启中断的 agent 标签页",
     "desc": "Terminal Server 已重启，这些标签页现在只剩 shell。恢复 claude 标签页即可接续原本的对话；codex 标签页会打开 codex 的 resume 菜单让你选 session；不会自动恢复。",

@@ -1,7 +1,19 @@
 // T0787 (PLAN-059 Q1 / R1): what a Worker's `bat-notify` does to a Tower that waits for the user.
+// T0788 / BUG-196: the regression test of the fix (electron/notify-hold.ts) — runs by default.
 //
-// PROBE ONLY (`T0787_PROBE=1`; `T0787_RUNS=<n>` rounds, default 2): records, asserts nothing about the
-// outcome. Kept as the reproduction for a follow-up BUG / regression test.
+// Default (assertions, `T0787_RUNS=<n>` rounds, default 2): every trial at a dialog (① ② ①d ②d ④ ⑥) →
+// the notify exits 0 as before, the dialog stays, claude's turn does not go on (no tool_result), BAT logs
+// `[notify-hold] held` and never `cleared (user input)`; then the user answers the dialog in the Tower tab
+// (Enter from the window) → after 1 s quiet BAT sends the held text (and its Enter): the model gets
+// "T#### 完成" (④ pre-fill: the text lands in the input, the model gets nothing). ③ (idle) is sent at
+// once; ⑤ (`--ask --no-pty-write`) writes nothing. Then the "Held N" badge of the Tower thumbnail: two
+// held notifications listed, one cancelled, then all; the answer then sends nothing.
+// `T0787_PROBE=1`: the T0787 probe (records only, asserts nothing about the outcome).
+//
+// T0788 ⑤ (second test, assertions): a codex tab at its approval prompt (OSC 7501 `blocked` → `input`) as
+// the Tower of a dispatched Worker: the Worker's `--submit` is held, the prompt stays; `y` from the window
+// approves → after 1 s quiet the model gets "T0788 完成". Real codex TUI (>= 0.163.0, as e2e/t0621: BAT_E2E_CODEX,
+// the official installer, PATH, the bundled one) against a fake Responses API; skipped without one.
 //
 // Real paths, no token (as T0757 / T0736): the Tower is the embedded claude CLI in a "Claude CLI" tab of an
 // isolated BAT (fixtures/electron-isolation.ts), talking to fixtures/fake-anthropic-api.ts behind a
@@ -18,8 +30,9 @@
 //
 // Windows only (embedded claude.exe); `npx vite build` first. Results also go to `$T0787_RESULTS` (JSON).
 import { test, expect, type Page } from '@playwright/test'
-import { execFile } from 'node:child_process'
+import { execFile, execFileSync } from 'node:child_process'
 import fs from 'node:fs'
+import http from 'node:http'
 import os from 'node:os'
 import path from 'node:path'
 import { REPO_ROOT, closeIsolated, launchIsolated, testLogger, type IsolatedInstance } from './fixtures/electron-isolation'
@@ -37,6 +50,7 @@ const INHERITED = /^(ANTHROPIC_|CLAUDE|OPENAI_|CODEX_)/i
 const CLAUDE_ITEM = /^\s*▶\s*Claude CLI\s*(suggested|建議|建议)?\s*$/
 const MODERN = { _meta: { 'io.modelcontextprotocol/protocolVersion': '2026-07-28' } }
 const RUNS = Math.max(1, Number(process.env.T0787_RUNS ?? 2) || 2)
+const PROBE = !!process.env.T0787_PROBE
 
 /** tool_result text the fake API received in step 1 of each scenario (the answer claude sent). */
 const toolResultOf: Record<string, string> = {}
@@ -182,8 +196,9 @@ const TRIALS: Trial[] = [
 test.skip(process.platform !== 'win32', 'embedded claude.exe and pwsh tabs: Windows only')
 test.skip(!fs.existsSync(EMBEDDED_CLAUDE), `embedded claude CLI not found at ${EMBEDDED_CLAUDE}`)
 
-test('PROBE: Worker notify into a Tower blocked on a permission / AskUserQuestion dialog (no token)', async () => {
-  test.skip(!process.env.T0787_PROBE, 'set T0787_PROBE=1 to run the T0787 probe')
+test(PROBE
+  ? 'PROBE: Worker notify into a Tower blocked on a permission / AskUserQuestion dialog (no token)'
+  : 'T0788 / BUG-196: a Worker notify into a Tower at a permission / AskUserQuestion dialog is held until the user answers (no token)', async () => {
   test.setTimeout(1_800_000)
 
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'bat-t0787-'))
@@ -338,6 +353,49 @@ test('PROBE: Worker notify into a Tower blocked on a permission / AskUserQuestio
       await win.waitForTimeout(2_500)
     }
 
+    const modelGot = (message: string) => Math.max(0, ...fake.requests.map(r => count(r.userText, message)))
+    /** T0788: the assertions of one trial; a dialog trial ends with the user's own answer. */
+    const assertTrial = async (t: Trial, name: string, r: Record<string, AnyApi>, markDebug: number, before: number) => {
+      const ctx = `${t.key} ${name}`
+      expect(r.notify.exit, `${ctx}: bat-notify exit code unchanged`).toBe(0)
+      expect(r.notify.stdout[0], ctx).toContain('✓ Notified')
+      if (t.kind === 'idle') {
+        // ③: sent at once, as before
+        expect(r.messageSentToModel, `${ctx}: idle Tower gets the notify at once`).toBe(true)
+        expect(linesSince(T, markDebug, /\[notify-hold\] held/), ctx).toEqual([])
+        expect(linesSince(T, markDebug, /cleared \(user input\)/), `${ctx}: the submit Enter is not user input (item 9)`).toEqual([])
+        return
+      }
+      expect(r.dialogBefore, ctx).toBe(true)
+      expect(r.dialogAfter, `${ctx}: the dialog stays`).toBe(true)
+      expect(r.claudeTurnWentOn, `${ctx}: nobody answered the dialog`).toBe(false)
+      expect(r.toolResult, `${ctx}: claude sent no tool_result`).toBeNull()
+      expect(r.messageSentToModel, ctx).toBe(false)
+      expect((r.blockedLines as string[]).filter(l => /cleared \(user input\)/.test(l)), `${ctx}: the Worker's Enter is not user input`).toEqual([])
+      if (t.mode === 'ask-no-pty-write') {
+        // ⑤: nothing for the PTY, nothing held (T0716)
+        expect(linesSince(T, markDebug, /\[notify-hold\]/), ctx).toEqual([])
+        return
+      }
+      expect(linesSince(T, markDebug, /\[notify-hold\] held/).length, `${ctx}: held`).toBeGreaterThan(0)
+      // the user answers in the Tower tab (a real Enter from the window: "1. Yes" / the first option)
+      const answerMark = debugLog().length
+      await write(T, '\r')
+      await expect.poll(() => fake.requests.some(q => q.scenario === name && q.step === 1), { timeout: 60_000, message: `${ctx}: the user's answer` }).toBe(true)
+      await expect.poll(() => linesSince(T, answerMark, /\[notify-hold\] sent .*part=text/).length, { timeout: 30_000, message: `${ctx}: held text sent` }).toBeGreaterThan(0)
+      if (t.mode === 'prefill') {
+        // ④: the pre-fill now lands in the input (no Enter: the model gets nothing)
+        await expect.poll(async () => (await screenOf(win, T)).some(l => l.includes(t.message)), { timeout: 15_000, message: `${ctx}: pre-fill in the input` }).toBe(true)
+        await win.waitForTimeout(3_000)
+        expect(modelGot(t.message), `${ctx}: a pre-fill is not submitted`).toBe(before)
+        return
+      }
+      await expect.poll(() => linesSince(T, answerMark, /\[notify-hold\] sent .*part=enter/).length, { timeout: 30_000, message: `${ctx}: held Enter sent` }).toBeGreaterThan(0)
+      await expect.poll(() => modelGot(t.message), { timeout: 60_000, message: `${ctx}: the model gets the notify after the answer` }).toBeGreaterThan(before)
+      // let that turn end before the next trial
+      await win.waitForTimeout(3_000)
+    }
+
     for (let run = 1; run <= RUNS; run++) {
       for (const t of TRIALS) {
         const name = `t0787-${t.kind}-r${run}-${t.key.replace(/[^a-z0-9]/gi, '') || 'x'}${t.key.codePointAt(0)}`
@@ -381,11 +439,52 @@ test('PROBE: Worker notify into a Tower blocked on a permission / AskUserQuestio
         log(`${t.key} run ${run}: ${JSON.stringify(r, null, 1)}`)
         if (process.env.T0787_SCREENS) log(`${t.key} run ${run} screen before:\n${screenBefore.join('\n')}\nscreen after:\n${screenAfter.join('\n')}`)
         results.push(r)
+        if (!PROBE) await assertTrial(t, name, r, mark.debug, before)
         if (qid) await inWorker([{ kind: 'helper', script: 'bat-notify.mjs', args: ['--cancel-question', qid] }])
         await resetTower()
         // a turn that went on: let it end before the next trial
         await win.waitForTimeout(1_000)
       }
+    }
+
+    if (!PROBE) {
+      // ── T0788: the "Held N" badge of the Tower thumbnail, cancel one / all ──
+      const name = 't0787-perm-ui'
+      const mark = debugLog().length
+      await write(T, `[[T0727:${name}]] go`)
+      await win.waitForTimeout(600)
+      await write(T, '\r')
+      await fake.waitFor(name, 0, 60_000)
+      await expect.poll(() => linesSince(T, mark, /→ blocked reason=permission /).length, { timeout: 60_000 }).toBeGreaterThan(0)
+      await win.waitForTimeout(2_000)
+      const msgs = ['T0901 完成', 'T0902 完成']
+      for (const [i, message] of msgs.entries()) {
+        const job = await inWorker([{ kind: 'helper', script: 'bat-notify.mjs', args: ['--source', `T090${i + 1}`, '--target', '{env:BAT_TOWER_TERMINAL_ID}', '--submit', message] }])
+        expect(job[0].code, job[0].stderr).toBe(0)
+      }
+      const badge = win.locator('.thumbnail .notify-hold-badge').first()
+      await expect(badge).toHaveAttribute('data-notify-hold', '2', { timeout: 15_000 })
+      await badge.click()
+      const menu = win.locator('.notify-hold-menu')
+      await expect(menu.locator('.notify-hold-item')).toHaveCount(2)
+      await expect(menu).toContainText('T0901')
+      await expect(menu).toContainText('T0902')
+      await menu.locator('.notify-hold-item').first().locator('[data-action="cancel-held-notification"]').click()
+      await expect(badge).toHaveAttribute('data-notify-hold', '1')
+      await expect(menu.locator('.notify-hold-item')).toHaveCount(1)
+      await expect(menu).toContainText('T0902')
+      await menu.locator('[data-action="cancel-all-held-notifications"]').click()
+      await expect(win.locator('.thumbnail .notify-hold-badge')).toHaveCount(0)
+      expect(linesSince(T, mark, /\[notify-hold\] cancelled/).length).toBe(2)
+      // the dialog is still up; the user answers it: nothing held is left to send
+      expect(isDialog(await screenOf(win, T))).toBe(true)
+      await write(T, '\r')
+      await fake.waitFor(name, 1, 60_000)
+      await win.waitForTimeout(4_000)
+      expect(linesSince(T, mark, /\[notify-hold\] sent/)).toEqual([])
+      for (const message of msgs) expect(modelGot(message), message).toBe(0)
+      results.push({ trial: 'ui', badge: 'held 2 → cancel one → cancel all', sent: 0 })
+      await resetTower()
     }
 
     const q2 = { afterStart: q2AfterStart, atEnd: await q2Capture() }
@@ -403,5 +502,188 @@ test('PROBE: Worker notify into a Tower blocked on a permission / AskUserQuestio
     for (const dir of [tmp, root]) {
       try { fs.rmSync(dir, { recursive: true, force: true, maxRetries: 20, retryDelay: 200 }) } catch (e) { log(`could not remove ${dir}: ${e instanceof Error ? e.message : String(e)}`) }
     }
+  }
+})
+
+
+// ── T0788 ⑤: a codex Tower at its approval prompt (OSC 7501 `input`) ──
+
+function codexVersion(bin: string): string | null {
+  try {
+    return /codex-cli\s+v?(\d+\.\d+\.\d+)/.exec(execFileSync(bin, ['--version'], { encoding: 'utf8', timeout: 15_000, windowsHide: true }))?.[1] ?? null
+  } catch {
+    return null
+  }
+}
+
+/** The first codex.exe >= 0.163.0 (OSC 7501) on this machine (same search as e2e/t0621), or null. */
+function findOscCodex(): { bin: string; version: string } | null {
+  if (process.platform !== 'win32') return null
+  const atLeast = (v: string) => { const a = v.split('.').map(Number); return a[0] > 0 || a[1] > 163 || (a[1] === 163 && a[2] >= 0) }
+  const candidates: string[] = []
+  if (process.env.BAT_E2E_CODEX) candidates.push(process.env.BAT_E2E_CODEX)
+  const local = process.env.LOCALAPPDATA || path.join(os.homedir(), 'AppData', 'Local')
+  candidates.push(path.join(local, 'Programs', 'OpenAI', 'Codex', 'bin', 'codex.exe'))
+  for (const dir of (process.env.PATH ?? '').split(';')) if (dir.trim()) candidates.push(path.join(dir.trim().replace(/^"(.*)"$/, '$1'), 'codex.exe'))
+  const vendor = path.join(REPO_ROOT, 'node_modules', '@openai', `codex-${process.platform}-${process.arch}`, 'vendor')
+  try {
+    for (const triple of fs.readdirSync(vendor)) candidates.push(path.join(vendor, triple, 'bin', 'codex.exe'))
+  } catch { /* not installed */ }
+  for (const bin of candidates) {
+    if (!fs.existsSync(bin)) continue
+    const version = codexVersion(bin)
+    if (version && atLeast(version)) return { bin, version }
+  }
+  return null
+}
+
+/** Fake Responses API (as e2e/t0621): the first turn with tools gets one escalated command, everything else `ok`; bodies kept. */
+function startFakeResponses(toolCommand: string): Promise<{ port: number; bodies: string[]; close(): Promise<void> }> {
+  const bodies: string[] = []
+  let toolSent = false
+  const usage = { input_tokens: 1, input_tokens_details: { cached_tokens: 0 }, output_tokens: 1, output_tokens_details: { reasoning_tokens: 0 }, total_tokens: 2 }
+  const sse = (res: http.ServerResponse, events: unknown[]) => {
+    res.writeHead(200, { 'content-type': 'text/event-stream', 'cache-control': 'no-cache' })
+    for (const e of events) res.write(`event: ${(e as { type: string }).type}\ndata: ${JSON.stringify(e)}\n\n`)
+    res.end()
+  }
+  const server = http.createServer((req, res) => {
+    let body = ''
+    req.on('data', d => { body += d })
+    req.on('end', () => {
+      if (!req.url?.includes('/responses')) { res.writeHead(404, { 'content-type': 'application/json' }); res.end('{}'); return }
+      bodies.push(body)
+      let j: { tools?: Array<{ name?: string; type?: string }>; input?: Array<{ type?: string }> } = {}
+      try { j = JSON.parse(body) } catch { /* empty */ }
+      const tools = (j.tools ?? []).map(t => t.name ?? t.type ?? '')
+      const id = `resp_${bodies.length}`
+      const hasOutput = (j.input ?? []).some(i => i.type === 'function_call_output' || i.type === 'custom_tool_call_output')
+      if (toolSent || hasOutput || tools.length === 0) {
+        sse(res, [
+          { type: 'response.created', response: { id } },
+          { type: 'response.output_item.done', item: { type: 'message', role: 'assistant', id: `msg_${id}`, content: [{ type: 'output_text', text: 'ok' }] } },
+          { type: 'response.completed', response: { id, usage } },
+        ])
+        return
+      }
+      toolSent = true
+      const [name, args] = tools.includes('shell_command')
+        ? ['shell_command', { command: toolCommand, sandbox_permissions: 'require_escalated', justification: 'T0788 approval probe' }]
+        : tools.includes('exec_command')
+          ? ['exec_command', { cmd: toolCommand, sandbox_permissions: 'require_escalated', justification: 'T0788 approval probe' }]
+          : ['shell', { command: ['powershell', '-Command', toolCommand] }]
+      sse(res, [
+        { type: 'response.created', response: { id } },
+        { type: 'response.output_item.done', item: { type: 'function_call', id: `fc_${id}`, call_id: `call_${id}`, name, arguments: JSON.stringify(args) } },
+        { type: 'response.completed', response: { id, usage } },
+      ])
+    })
+  })
+  return new Promise(resolve => server.listen(0, '127.0.0.1', () => resolve({
+    port: (server.address() as { port: number }).port,
+    bodies,
+    close: () => new Promise<void>(r => { server.closeAllConnections?.(); server.close(() => r()) }),
+  })))
+}
+
+const CODEX = PROBE ? null : findOscCodex()
+
+test('T0788 ⑤: a Worker notify into a codex Tower at its approval prompt is held until it is approved (no model call)', async () => {
+  test.skip(PROBE, 'the T0787 probe runs the claude trials only')
+  test.skip(!CODEX, 'no codex >= 0.163.0 found (BAT_E2E_CODEX, %LOCALAPPDATA%\\Programs\\OpenAI\\Codex\\bin, PATH, bundled)')
+  test.setTimeout(600_000)
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'bat-t0788c-'))
+  const folder = path.join(tmp, 'ws')
+  const trusted = path.join(folder, 'trusted')
+  const codexHome = path.join(tmp, 'codex-home')
+  const jobsDir = path.join(tmp, 'jobs')
+  for (const dir of [folder, trusted, codexHome, jobsDir]) fs.mkdirSync(dir, { recursive: true })
+  const workerScript = slash(path.join(tmp, 'worker.mjs'))
+  fs.writeFileSync(workerScript, WORKER_SCRIPT(slash(jobsDir)))
+  const fakeModel = await startFakeResponses('Write-Output T0788-APPROVED')
+  fs.writeFileSync(path.join(codexHome, 'config.toml'), [
+    'model = "gpt-mock"', 'model_provider = "mock"', '',
+    '[model_providers.mock]', 'name = "mock"', `base_url = "http://127.0.0.1:${fakeModel.port}/v1"`, 'wire_api = "responses"', '',
+    `[projects.'${trusted}']`, 'trust_level = "trusted"', '',
+  ].join('\n'))
+  log(`codex ${CODEX!.version} at ${CODEX!.bin}; fake Responses API on 127.0.0.1:${fakeModel.port}`)
+  const WSC = 'e2e-t0788-codex'
+  const SHELL = 'e2e-t0788-codex-shell'
+  const MESSAGE = 'T0788 完成'
+  let inst: IsolatedInstance | undefined
+  try {
+    inst = await launchIsolated('t0788c', log, { env: { PATH: `${path.dirname(CODEX!.bin)};${process.env.PATH ?? ''}`, CODEX_HOME: codexHome } })
+    const { app, win, userData, remotePort } = inst
+    const debugLog = () => {
+      const dir = path.join(userData, 'Logs')
+      return fs.readdirSync(dir).filter(f => f.startsWith('debug-')).map(f => fs.readFileSync(path.join(dir, f), 'utf8')).join('\n')
+    }
+    await expect.poll(async () => (await win.evaluate(async () => (window as AnyApi).electronAPI.workspace.load())) !== null, { timeout: 30_000 }).toBe(true)
+    expect(await win.evaluate((def) => (window as AnyApi).electronAPI.agent.registerCustomCli(def), {
+      id: WORKER_AGENT, name: 'T0788 worker', icon: 'W', color: '#888888', command: 'node', args: [workerScript],
+    })).toBeTruthy()
+    const seed = {
+      workspaces: [{ id: WSC, name: WSC, folderPath: folder, createdAt: Date.now(), defaultAgent: WORKER_AGENT, agentCustomArgs: { 'codex-cli': '-a on-request -s read-only' } }],
+      activeWorkspaceId: WSC, activeGroup: null,
+      terminals: [{ id: SHELL, workspaceId: WSC, type: 'terminal', title: 'T0788 shell', cwd: folder }],
+      activeTerminalId: SHELL,
+    }
+    expect(await win.evaluate(async (data) => (window as AnyApi).electronAPI.workspace.save(data), JSON.stringify(seed))).toBe(true)
+    await win.reload()
+    await win.waitForLoadState('domcontentloaded')
+    await expect.poll(async () => win.evaluate((tid) => (window as AnyApi).electronAPI.pty.getCwd(tid), SHELL), { timeout: 30_000 }).not.toBeNull()
+
+    await expect.poll(() => fs.existsSync(path.join(userData, 'server-token.json')), { timeout: 30_000 }).toBe(true)
+    const record = JSON.parse(fs.readFileSync(path.join(userData, 'server-token.json'), 'utf8'))
+    const token: string = record.encrypted
+      ? await app.evaluate(async ({ safeStorage }, data) => (await safeStorage.decryptStringAsync(Buffer.from(data, 'base64'))).result, record.data as string)
+      : record.data
+    const helperEnv: NodeJS.ProcessEnv = {}
+    for (const [k, v] of Object.entries(process.env)) if (!k.startsWith('BAT_') && !k.startsWith('CT_')) helperEnv[k] = v
+    Object.assign(helperEnv, {
+      BAT_REMOTE_PORT: String(remotePort), BAT_REMOTE_TOKEN: token,
+      BAT_SERVER_CERT_PATH: path.join(userData, 'server-cert.json'), BAT_HELPER_LOG_DIR: path.join(tmp, 'helper-logs'), BAT_USER_DATA: tmp,
+    })
+
+    // the codex tab (the "Tower" of the Worker below): its first turn asks for an approval
+    const codexRun = await runHelper('bat-terminal.mjs', helperEnv, ['--notify-id', SHELL, '--workspace', WSC, '--agent', 'codex', '--skill', 'ct-exec', '--workorder', 'T0788', '--cwd', trusted, '--wait-started', '60000'], folder)
+    expect(codexRun.code, `${codexRun.stdout}\n${codexRun.stderr}`).toBe(0)
+    const C = codexRun.terminalId!
+    await expect.poll(() => debugLog().includes(`[blocked] terminal=${C} → blocked reason=input (osc)`), { timeout: 120_000, message: 'codex approval prompt' }).toBe(true)
+    await win.waitForTimeout(2_000)
+
+    // the Worker, bound to the codex tab (its BAT_TOWER_TERMINAL_ID)
+    const workerRun = await runHelper('bat-terminal.mjs', helperEnv, ['--notify-id', C, '--workspace', WSC, '--skill', 'ct-exec', '--workorder', 'T0001'], folder)
+    expect(workerRun.code, workerRun.stderr).toBe(0)
+    const W = workerRun.terminalId!
+    await expect.poll(() => fs.existsSync(path.join(jobsDir, `${W}.ready`)), { timeout: 30_000 }).toBe(true)
+    expect(debugLog()).toContain(`[helper-cap] issued: terminal=${W} role=worker tower=${C}`)
+    // the approval prompt is still up (the dispatch did not touch it)
+    expect(debugLog().split('\n').filter(l => l.includes(`[blocked] terminal=${C} → cleared`))).toEqual([])
+
+    const bodiesBefore = fakeModel.bodies.length
+    const gotMessage = () => fakeModel.bodies.some(b => b.includes(MESSAGE))
+    const mark = debugLog().length
+    fs.writeFileSync(path.join(jobsDir, `${W}-0.json`), JSON.stringify({ steps: [{ kind: 'helper', script: 'bat-notify.mjs', args: ['--source', 'T0001', '--target', '{env:BAT_TOWER_TERMINAL_ID}', '--submit', MESSAGE] }] }))
+    await expect.poll(() => fs.existsSync(path.join(jobsDir, `${W}-0.res.json`)), { timeout: 60_000 }).toBe(true)
+    const [notify] = JSON.parse(fs.readFileSync(path.join(jobsDir, `${W}-0.res.json`), 'utf8'))
+    expect(notify.code, notify.stderr).toBe(0)
+    await win.waitForTimeout(6_000)
+    const since = () => debugLog().slice(mark).split('\n')
+    expect(since().filter(l => l.includes('[notify-hold] held') && l.includes(`terminal=${C}`) && l.includes('reason=input')).length, 'held (codex input)').toBeGreaterThan(0)
+    expect(since().filter(l => l.includes(`[blocked] terminal=${C} → cleared`)), 'the approval prompt stays').toEqual([])
+    expect(fakeModel.bodies.length, 'codex sent nothing (not approved)').toBe(bodiesBefore)
+    expect(gotMessage()).toBe(false)
+
+    // the user approves in the codex tab
+    await win.evaluate(({ id }) => (window as AnyApi).electronAPI.pty.write(id, 'y'), { id: C })
+    await expect.poll(() => since().some(l => l.includes(`[blocked] terminal=${C} → cleared (osc`)), { timeout: 60_000, message: 'approved' }).toBe(true)
+    await expect.poll(() => since().some(l => l.includes('[notify-hold] sent') && l.includes(`terminal=${C}`) && l.includes('part=enter')), { timeout: 60_000, message: 'held Enter sent' }).toBe(true)
+    await expect.poll(gotMessage, { timeout: 90_000, message: 'the model gets the notify after the approval' }).toBe(true)
+    expect(debugLog()).not.toMatch(/batcap\.[A-Za-z0-9_-]{16,}/)
+  } finally {
+    if (inst) await closeIsolated(inst, log)
+    await fakeModel.close()
+    try { fs.rmSync(tmp, { recursive: true, force: true, maxRetries: 20, retryDelay: 200 }) } catch (e) { log(`could not remove ${tmp}: ${e instanceof Error ? e.message : String(e)}`) }
   }
 })

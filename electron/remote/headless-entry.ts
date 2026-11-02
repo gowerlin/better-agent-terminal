@@ -22,6 +22,7 @@ import { registerReportHookHandler } from '../terminal-blocked-state'
 import { WorkerCloseScheduler } from '../close-worker'
 import { CtWorktreeService } from '../ct-worktree'
 import { UsageLimitContinueScheduler } from '../usage-limit-continue'
+import { NotifyHoldController } from '../notify-hold'
 import { registerTerminalQueryHandlers } from '../terminal-query-handlers'
 import { registerTowerQuestionHandlers } from '../tower-questions'
 import { registerAttentionSnapshotHandler, TerminalAttentionNotifier } from '../terminal-attention'
@@ -335,6 +336,11 @@ export function buildHeadlessHelperEnv(opts: {
  * PLAN-048 / T0607: `onPtyExit` — also told of every PTY that is gone (the tower-question store).
  * T0609: `onBlockedChange` — a PTY's hook `blocked` changed (the attention push); T0694: or its
  * agent's turn started / ended.
+ * T0788 / BUG-196: a helper's text + Enter into a tab that waits for the user is held
+ * (electron/notify-hold.ts, same controller as Electron main) and sent once it is answered; the
+ * Enter then goes to the clients as `terminal:keypress` (`keypressReceivers` 0 → dropped, logged).
+ * `onNotifyHold` hands the controller to the terminal module (its `terminal:keypress`). No
+ * "N held" list on headless: the windows' list / cancel are Electron's local IPC.
  */
 export const USAGE_LIMIT_CONFIG_TTL_MS = 5000
 
@@ -349,6 +355,10 @@ export function createHeadlessPtyModule(opts: {
   onPtyExit?: (id: string) => void
   /** T0609: a PTY's hook `blocked` changed (the attention push of the query module). */
   onBlockedChange?: (id: string) => void
+  /** T0788: clients that would receive a held Enter now (the `terminal:keypress` broadcast). Absent: assumed. */
+  keypressReceivers?: () => number
+  /** T0788: the held-notification controller of this PtyManager. */
+  onNotifyHold?: (controller: NotifyHoldController) => void
 } = {}): HandlerModule {
   return (register, host) => {
     const capabilities = opts.helperCapabilities
@@ -360,6 +370,16 @@ export function createHeadlessPtyModule(opts: {
       configTtlMs: USAGE_LIMIT_CONFIG_TTL_MS,
       emit: (channel, payload) => host.emit(channel, payload),
       ...(opts.usageLimitCanDeliver ? { canDeliver: opts.usageLimitCanDeliver } : {}),
+      logger: defaultLogger,
+    })
+    const keypressReceivers = opts.keypressReceivers
+    const notifyHold = new NotifyHoldController({
+      getPtyManager: () => manager,
+      emitKeypress: (payload) => {
+        if (keypressReceivers && keypressReceivers() <= 0) return false
+        host.emit('terminal:keypress', payload)
+        return true
+      },
       logger: defaultLogger,
     })
     manager = new PtyManager({
@@ -379,11 +399,15 @@ export function createHeadlessPtyModule(opts: {
         : undefined,
       onPtyExit: id => {
         usageLimit.onExit(id)
+        notifyHold.onPtyExit(id) // T0788
         if (capabilities && capabilities.revokeTerminal(id) > 0) defaultLogger.log(`[headless] helper capability revoked: terminal=${id}`)
         opts.onPtyExit?.(id) // T0607
       },
       onPtyOutput: (id, data) => usageLimit.onOutput(id, data),
-      ...(opts.onBlockedChange ? { onBlockedChange: opts.onBlockedChange } : {}), // T0609
+      onBlockedChange: id => {
+        opts.onBlockedChange?.(id) // T0609
+        notifyHold.onBlockedChange(id) // T0788
+      },
     })
     const ptys = manager
     registerPtyHandlers(register, {
@@ -391,9 +415,12 @@ export function createHeadlessPtyModule(opts: {
       validateShell: true,
       ...(opts.isUserInput ? { isUserInput: opts.isUserInput } : {}),
       onUserInput: id => usageLimit.onUserInput(id),
+      notifyHold, // T0788
     })
     opts.onManager?.(ptys)
+    opts.onNotifyHold?.(notifyHold)
     return () => {
+      notifyHold.dispose()
       usageLimit.dispose()
       ptys.dispose()
     }
@@ -507,6 +534,8 @@ export function createHeadlessTerminalModule(opts: {
   ctWorktree?: CtWorktreeService
   /** T0584: bundle root whose `scripts/bat-mcp.mjs` dispatched claude / codex get; absent ⇒ none. */
   batMcpInstallRoot?: string
+  /** T0788: the pty module's held-notification controller (`terminal:keypress` into a waiting tab). */
+  getNotifyHold?: () => NotifyHoldController | null
 }): HandlerModule {
   return (register, host) => {
     const readSettings = () => readHeadlessTerminalSettings(host.getSettings())
@@ -557,6 +586,9 @@ export function createHeadlessTerminalModule(opts: {
       workerCloser,
       ctWorktree,
       codexSkillName, // T0710: terminal:control-tower-prompt
+      ...(opts.getNotifyHold
+        ? { notifyHold: { interceptKeypress: (ctx, payload) => opts.getNotifyHold?.()?.interceptKeypress(ctx, payload) ?? null } }
+        : {}), // T0788
     })
     return () => workerCloser.dispose()
   }
@@ -957,6 +989,8 @@ export function createHeadlessHandlerModules(opts: {
   }
 } = {}): HandlerModule[] {
   let ptyManager: PtyManager | null = null
+  // T0788: the pty module's held-notification controller (the terminal module's keypress uses it)
+  let notifyHold: NotifyHoldController | null = null
   // T0607: the tower-question store hears of PTYs that are gone
   const ptyExitListeners = new Set<(id: string) => void>()
   // T0609: the attention push hears of `blocked` changes
@@ -977,6 +1011,13 @@ export function createHeadlessHandlerModules(opts: {
       opts.pty?.onBlockedChange?.(id)
       for (const listener of [...blockedChangeListeners]) listener(id)
     },
+    ...(opts.terminal?.countRemoteReceivers
+      ? { keypressReceivers: () => opts.terminal!.countRemoteReceivers!({ windowId: null }) }
+      : {}),
+    onNotifyHold: controller => {
+      notifyHold = controller
+      opts.pty?.onNotifyHold?.(controller)
+    },
   })
   return [
     ptyModule, // T0390
@@ -987,6 +1028,7 @@ export function createHeadlessHandlerModules(opts: {
       isWorkerOf: opts.terminal?.isWorkerOf, // T0536
       checkAgentAvailable: createHeadlessAgentAvailabilityCheck(toolsCache), // T0433
       batMcpInstallRoot: opts.installRoot ?? defaultHeadlessInstallRoot(), // T0584
+      getNotifyHold: () => notifyHold, // T0788
     }),
     createHeadlessBatMcpModule({ installRoot: opts.installRoot, getPtyManager: () => ptyManager }), // T0584; T0590: blockedDetection
     createHeadlessTerminalQueryModule({ // T0582; T0607: + tower questions

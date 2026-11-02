@@ -124,6 +124,12 @@ interface ElectronAPI {
     onAttentionChanged: (callback: (info: import('../lib/terminal-attention').TerminalAttentionEvent) => void) => () => void
     /** PLAN-044 / T0566: `terminal:usage-limit-continue` — the window holding tab `id` re-checks and continues. */
     onUsageLimitContinue: (callback: (info: import('../lib/usage-limit').UsageLimitContinueEvent) => void) => () => void
+    /** T0788 / BUG-196: the helper notifications this BAT holds for its tabs (local IPC; empty in a remote window). */
+    notifyHoldList: () => Promise<import('./notify-hold').NotifyHoldChangedEvent[]>
+    /** T0788: cancels one held notification of tab `terminalId` (`holdId`), or all of them; resolves to how many. */
+    notifyHoldCancel: (terminalId: string, holdId?: string) => Promise<number>
+    /** T0788: `terminal:notify-hold-changed` — tab `terminalId`'s held notifications now (empty = none). */
+    onNotifyHoldChanged: (callback: (info: import('./notify-hold').NotifyHoldChangedEvent) => void) => () => void
   }
   workspace: {
     save: (data: string) => Promise<boolean>

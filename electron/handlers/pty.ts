@@ -16,6 +16,7 @@ import * as path from 'path'
 import type { CreatePtyOptions, PtyCreateResult } from '../../src/types'
 import { isTerminalAutoReply } from '../close-worker'
 import { logger } from '../logger'
+import type { NotifyHoldController } from '../notify-hold'
 import { hasMouseButtonPress } from '../terminal-blocked-state'
 import { PtyLimitError, type PtyManager } from '../pty-manager'
 import { resolveShellPath } from '../shell-path-resolver'
@@ -37,6 +38,12 @@ export interface PtyHandlerDeps {
    * feeds `noteUserInput`) — the usage-limit scheduler cancels a pending automatic continue.
    */
   onUserInput?: (id: string) => void
+  /**
+   * T0788 / BUG-196: a helper's `pty:write` into a tab that waits for the user (a permission prompt,
+   * AskUserQuestion, a codex approval) is held until the tab is answered (electron/notify-hold.ts);
+   * the user's input restarts its quiet wait. Absent: written at once (before T0788).
+   */
+  notifyHold?: Pick<NotifyHoldController, 'interceptWrite' | 'onUserInput'>
 }
 
 /**
@@ -105,10 +112,15 @@ export function registerPtyHandlers(register: HandlerRegistrar, deps: PtyHandler
     const manager = deps.getPtyManager()
     if (!manager) return { ok: false, reason: 'manager-not-ready' }
     const auto = !!opts && typeof opts === 'object' && (opts as { auto?: unknown }).auto === true
+    // T0788 / BUG-196: a helper's write into a tab that waits for the user is held, not written
+    // (`{ ok: true, held: true }`; bat-notify only checks `ok === false`, so its exit code is unchanged)
+    const held = deps.notifyHold?.interceptWrite(ctx, id, data)
+    if (held) return held
     const fromUser = !auto && (deps.isUserInput ? deps.isUserInput(ctx) : !ctx.connectionId)
     if (fromUser && !isTerminalAutoReply(data)) {
       manager.noteUserInput(id)
       deps.onUserInput?.(id)
+      deps.notifyHold?.onUserInput(id)
     } else if (fromUser && hasMouseButtonPress(data)) {
       // T0757 / BUG-188 (D209): a click answers a prompt like a key does — clears the hook `blocked`
       // only; still not user input for `--close-worker` / the usage-limit wait (T0551 unchanged)

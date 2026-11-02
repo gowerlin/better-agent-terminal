@@ -33,6 +33,7 @@ import {
   type TerminalCommandHandlerDeps,
 } from '../terminal-command-handlers'
 import type { WorkerCloseScheduler } from '../close-worker'
+import type { NotifyHoldController, NotifyHoldKeypress } from '../notify-hold'
 import { setTerminalRole } from '../terminal-role'
 import { QUESTION_ID_PATTERN } from '../tower-questions'
 import { shellPathRejection } from './pty'
@@ -88,6 +89,11 @@ export interface TerminalHandlerDeps {
    * resolver the host gives `createAgentPromptCommandBuilder`). Absent: `$<skill>`.
    */
   codexSkillName?: CodexSkillNameResolver
+  /**
+   * T0788 / BUG-196: a helper's `terminal:keypress` into a tab that waits for the user is held with
+   * its text (electron/notify-hold.ts) and sent once the tab is answered. Absent: sent at once.
+   */
+  notifyHold?: Pick<NotifyHoldController, 'interceptKeypress'>
 }
 
 /**
@@ -204,6 +210,31 @@ export function registerTerminalHandlers(register: HandlerRegistrar, deps: Termi
         traceId: opts?.traceId,
       })
       return { ok: false, reason: 'invalid-payload' }
+    }
+
+    // T0788 / BUG-196: held while the target waits for the user (its Enter would answer the prompt);
+    // `{ ok: true, held: true }` — bat-notify's exit code and stdout are unchanged
+    const holdPayload: NotifyHoldKeypress = {
+      targetId: opts.targetId,
+      key: 'Enter',
+      code: 'Enter',
+      keyCode: 13,
+      ...(opts.source !== undefined ? { source: opts.source } : {}),
+      ...(opts.reason !== undefined ? { reason: opts.reason } : {}),
+      ...(opts.traceId !== undefined ? { traceId: opts.traceId } : {}),
+    }
+    const held = deps.notifyHold?.interceptKeypress(_ctx, holdPayload)
+    if (held) {
+      logger.log(`[remote][terminal] ipc-result channel=terminal:keypress result=${held.ok ? 'held' : `false reason=${held.reason}`} target=${opts.targetId} trace=${opts.traceId ?? 'n/a'}`)
+      mirrorToBatScripts('ipc-result', {
+        channel: 'terminal:keypress',
+        targetTerminalId: opts.targetId,
+        sourceTerminalId: opts.source,
+        result: held.ok ? 'held' : false,
+        ...(held.ok ? {} : { reason: held.reason }),
+        traceId: opts.traceId,
+      })
+      return held
     }
 
     // headless: the Enter is synthesized by a client renderer. With nobody connected the

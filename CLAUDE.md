@@ -349,6 +349,16 @@
 - 🔴 使用者在 Worker 分頁輸入**不清除** `tower`、不取消問題（中斷後由 120 s 租約到期 `expired` / `not-polled`）。
 - 完整契約、helper / MCP 細節、限制常數、結束原因、日誌、已知限制、驗證清單（含 e2e `e2e/t0611-tower-question.spec.ts`）：[docs/agent-guide/tower-questions.md](docs/agent-guide/tower-questions.md)
 
+## 塔台等使用者回答時保留 Worker 通知（T0788 / BUG-196，D227）
+
+- 用途：塔台停在權限對話框 / AskUserQuestion / codex 審批時，Worker `bat-notify --submit`（含 `--ask --submit`）的 Enter 會替使用者作答（T0787：30 / 30）。主行程把 helper 送來的文字＋Enter 整組保留，離開 blocked、安靜 1 s 後依序送出。
+- 🔴 觸發只限 `ctx.helper` 的 `pty:write` / `terminal:keypress`、目標 reason `permission` / `question` / `elicitation` / `input`；`tower` 不觸發，`blockedDetection: none` 照舊送出（記 `skipped (detection none)`）；本機視窗 / headless client 輸入與 `{ auto: true }` 不保留。目標已有保留項目時，後到的 helper 寫入排在後面。
+- 🔴 保留時回 `{ ok: true, held: true }`：bat-notify / bat-terminal 的 exit code 與 stdout 不變（不加 `--report-hold`）；第 9 筆回 `held-full`（exit 1）、每筆 30 分鐘逾時丟棄；PTY 結束 / ⏻ / recovery 全丟、不持久化。常數 `NOTIFY_HOLD_*` 集中在同檔（CT 確認中，改值只改常數）。
+- 🔴 helper 的 submit Enter（renderer `dispatchEnter`，`terminal:keypress`）寫 `{ auto: true }`：不算使用者輸入（不清 ⚠️、不更新 `lastUserInputAt`、不取消用量限制等待）；焦點行為不變（`restoreFocus` 只給 T0566）。
+- 🔴 日誌 `[notify-hold] held|sent|cancelled|expired|dropped …` 只記 id / reason / 長度，不記文字；「待送 N」清單（`src/types/notify-hold.ts`）也不含文字。
+- 唯一實作 `NotifyHoldController`（`electron/notify-hold.ts`，不 import electron，本機與 headless 共用）；`pty.ts` / `terminal.ts` 只接線，不改 `TerminalBlockedTracker` 的判斷。縮圖「📨 待送 N」與取消：`src/stores/notify-hold-store.ts`、`TerminalThumbnail.tsx`，IPC `terminal:notify-hold-list` / `-cancel` 是本機 `ipcMain.handle`（🔴 不是 helper channel；遠端視窗看不到清單）。
+- 完整契約、常數、日誌、已知限制、驗證清單（e2e `e2e/t0787-notify-into-blocked-tower.spec.ts`）：[docs/agent-guide/notify-hold.md](docs/agent-guide/notify-hold.md)
+
 ## Claude 分頁的 session 名稱（PLAN-050 / T0641，D167）
 
 - 用途：claude-cli 分頁啟動時加 `claude --name=<名稱>`，讓 CT 從 ListAgents 分得出 BAT 的塔台與 Worker。格式唯一實作 `claudeSessionName`（`src/lib/claude-session-name.ts`，main / renderer 共用）：Worker `<ws> · Worker · <T####>`、Tower `<ws> · Tower`（「以塔台開啟 Claude」，T0644）、其他 `<ws> · <短 ID>`；`<ws>` = 工作區 `alias || name` 清理後 ≤ 60 字、整個名稱 ≤ 200 字（從 `<ws>` 截斷）、空 → `BAT`。

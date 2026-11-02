@@ -1463,6 +1463,18 @@
       "posixShell": "The install tab uses {{fallback}} because {{shell}} is not a POSIX shell."
     }
   },
+  "notifyHold": {
+    "badge": "Held {{count}}",
+    "badgeTooltip": "{{count}} held notification(s): this tab waits for your answer, so Worker notifications are held and sent once you answer. Click to review",
+    "title": "Held notifications ({{count}})",
+    "desc": "While the tab waits for your answer (a permission or question prompt), Worker notifications are held; after you answer and the tab is quiet for 1 s they are typed into its input in order. Cancelling drops only the text for the input; the toast and the Worker ✓ stay.",
+    "source": "from {{id}}",
+    "partsTextEnter": "text + Enter",
+    "partsText": "text only",
+    "partsEnter": "Enter only",
+    "cancel": "Cancel",
+    "cancelAll": "Cancel all"
+  },
   "interruptedAgents": {
     "title": "Agent tabs interrupted by the Terminal Server recovery",
     "desc": "The Terminal Server restarted and these tabs now run a plain shell. Resume a claude tab to continue its conversation, or a codex tab to pick its session from codex's resume menu; nothing resumes on its own.",

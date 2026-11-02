@@ -491,7 +491,8 @@ describe('wiring (source guard)', () => {
   const headless = fs.readFileSync(path.resolve(__dirname, '..', 'remote', 'headless-entry.ts'), 'utf8')
 
   it('Electron main: blocked + questions → the notifier → every window and broadcastHub (terminalEmit)', () => {
-    expect(main).toContain('onBlockedChange: (id) => terminalAttention?.refresh(id)')
+    // T0788: + the held notifications (electron/notify-hold.ts) hear the same change
+    expect(main).toContain('onBlockedChange: (id) => {\n      terminalAttention?.refresh(id)\n      notifyHold?.onBlockedChange(id)\n    },')
     expect(main).toContain('onChange: (workerId) => terminalAttention?.refresh(workerId)')
     expect(main).toMatch(/terminalAttention = new TerminalAttentionNotifier\(\{[^}]*emit: terminalEmit,/)
     expect(main).toContain('terminalAttention?.dispose()')

@@ -30,6 +30,7 @@ import { mirrorToBatScripts } from './remote/remote-logger'
 import { rotateBatScriptsLog } from './bat-scripts-log-rotation'
 import { CtWorktreeService } from './ct-worktree'
 import { UsageLimitContinueScheduler } from './usage-limit-continue'
+import { NOTIFY_HOLD_CHANGED_CHANNEL, NotifyHoldController } from './notify-hold'
 import { normalizeUsageLimitConfig } from '../src/lib/usage-limit'
 import { bringWindowToFront, planDeletedProfileWindows } from '../src/lib/profile-window-front'
 import { DETACHED_WAITING_MAX_ID, sanitizeDetachedWaitingReport } from '../src/lib/terminal-attention'
@@ -497,6 +498,8 @@ let terminalAttention: TerminalAttentionNotifier | null = null
 const ctWorktreeService = new CtWorktreeService()
 // PLAN-044 / T0566: usage-limit detection + automatic continue (registerProxiedHandlers builds it).
 let usageLimitScheduler: UsageLimitContinueScheduler | null = null
+// T0788 / BUG-196: helper notifications held while a tab waits for the user (registerProxiedHandlers builds it).
+let notifyHold: NotifyHoldController | null = null
 let claudeManager: ClaudeAgentManager | null = null
 let codexManager: CodexAgentManager | null = null
 const sessionManagerMap = new Map<string, 'claude' | 'codex'>()
@@ -974,6 +977,7 @@ function createElectronPtyDeps(): PtyManagerDeps {
     onPtyExit: (id) => {
       if (localHelperCapabilities.revokeTerminal(id) > 0) logger.log(`[helper-cap] revoked: terminal=${id}`)
       usageLimitScheduler?.onExit(id)
+      notifyHold?.onPtyExit(id) // T0788: the notifications held for it are dropped
       towerQuestionHandlers?.terminalEnded(id) // T0607: questions it asked / was asked → cancelled
       interruptedAgents.remove(id, 'pty-ended') // T0766: closed / restarted / resumed tab
       claudeSessionPersistence.persist() // T0642: its claude session is no longer stored
@@ -996,6 +1000,7 @@ function createElectronPtyDeps(): PtyManagerDeps {
     onServerRecovery: () => {
       towerQuestionHandlers?.serverRecovered()
       claudeSessionPersistence.persist()
+      notifyHold?.onServerRecovery() // T0788: every held notification is dropped
     },
     // T0642: a SessionStart hook sent a (new) session id
     // T0766: a listed interrupted tab whose claude started again (resumed) leaves the list
@@ -1004,7 +1009,11 @@ function createElectronPtyDeps(): PtyManagerDeps {
       claudeSessionPersistence.persist()
     },
     // T0609: a hook `blocked` entered / cleared → the windows' Worker badges
-    onBlockedChange: (id) => terminalAttention?.refresh(id),
+    // T0788: a held notification is sent once the tab no longer waits for the user
+    onBlockedChange: (id) => {
+      terminalAttention?.refresh(id)
+      notifyHold?.onBlockedChange(id)
+    },
     // T0129 / T0575: BAT_REMOTE_PORT + the PTY's own capability as BAT_REMOTE_TOKEN (tower, or a
     // worker of its customEnv.BAT_TOWER_TERMINAL_ID) — no longer the server token
     helperEnv: (id, customEnv) => buildLocalHelperEnv({
@@ -1473,6 +1482,7 @@ async function cleanupAllProcesses(): Promise<void> {
   try { towerQuestionHandlers?.dispose() } catch { /* ignore */ }
   try { terminalAttention?.dispose() } catch { /* ignore */ }
   try { usageLimitScheduler?.dispose() } catch { /* ignore */ }
+  try { notifyHold?.dispose() } catch { /* ignore */ }
   try { ptyManager?.dispose() } catch { /* ignore */ }
   claudeManager = null
   codexManager = null
@@ -2424,16 +2434,32 @@ function registerProxiedHandlers() {
     logger,
   })
 
-  // PTY + settings:get-shell-path — shared with headless bat-server (PLAN-036 T0390)
-  registerPtyHandlers(registerHandler, {
-    getPtyManager: () => ptyManager,
-    onUserInput: (id) => usageLimitScheduler?.onUserInput(id),
-  })
-
   // terminal:create-with-command / create-agent-command / notify / keypress — shared with
   // headless bat-server (PLAN-036 T0431, electron/handlers/terminal.ts). Events go to every
   // window + broadcastHub (remote clients of this BAT).
   const terminalEmit = createTerminalWindowEmit(() => BrowserWindow.getAllWindows(), (channel, payload) => broadcastHub.broadcast(channel, payload))
+
+  // T0788 / BUG-196: a helper's text + Enter into a tab that waits for the user is held, then sent
+  // (the Enter as the same `terminal:keypress` event). "N held" goes to this BAT's own windows only
+  // (renderer IPC `terminal:notify-hold-list` / `-cancel`, local; a remote window's tabs: headless).
+  const localWindowEmit = createTerminalWindowEmit(() => BrowserWindow.getAllWindows(), () => {})
+  notifyHold = new NotifyHoldController({
+    getPtyManager: () => ptyManager,
+    emitKeypress: (payload) => {
+      terminalEmit('terminal:keypress', payload)
+      return true
+    },
+    emitChanged: (event) => { localWindowEmit(NOTIFY_HOLD_CHANGED_CHANNEL, event) },
+    logger,
+    mirrorToBatScripts,
+  })
+
+  // PTY + settings:get-shell-path — shared with headless bat-server (PLAN-036 T0390)
+  registerPtyHandlers(registerHandler, {
+    getPtyManager: () => ptyManager,
+    onUserInput: (id) => usageLimitScheduler?.onUserInput(id),
+    notifyHold,
+  })
   // PLAN-041 / T0535: terminal:close-worker — `terminal:close-requested` goes to every window
   // (detached ones too); the one holding the tab closes it like ✕.
   // T0537: a Worker this process recorded nothing for (BAT reopened) is found by its saved tab.
@@ -2464,6 +2490,7 @@ function registerProxiedHandlers() {
     workerCloser: workerCloseScheduler,
     ctWorktree: ctWorktreeService,
     codexSkillName, // T0710: terminal:control-tower-prompt
+    notifyHold, // T0788
   })
 
   // PLAN-048 / T0607 (D155 / D156): a Worker asks its Tower (same module as headless). Questions
@@ -4069,6 +4096,14 @@ function registerLocalHandlers() {
   ipcMain.handle('supervisor:get-worker-output', (_event, targetId: string, lines: number) => {
     if (!ptyManager) return []
     return ptyManager.getLastOutput(targetId, lines)
+  })
+
+  // T0788 / BUG-196: the notifications held for this BAT's tabs — pull (a window mounted after the
+  // event) and cancel (one / all). 🔴 Renderer IPC only: never a RemoteServer / helper channel.
+  ipcMain.handle('terminal:notify-hold-list', () => notifyHold?.list() ?? [])
+  ipcMain.handle('terminal:notify-hold-cancel', (_event, terminalId: unknown, holdId?: unknown) => {
+    if (typeof terminalId !== 'string' || !notifyHold) return 0
+    return notifyHold.cancel(terminalId, typeof holdId === 'string' ? holdId : undefined)
   })
 
   // PLAN-055 B1 / T0766: the interrupted agent tabs — pull (a window mounted after the event),
