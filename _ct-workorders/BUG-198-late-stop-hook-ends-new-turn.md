@@ -3,11 +3,11 @@ schema_version: 1
 schema_kind: bug
 id: BUG-198
 title: "上一回合的 `stop` hook 回報晚於下一回合的 `user-prompt-submit` 到達時，新回合被提早結束（Worker 分頁 `↻` 提早變回 `✓`）"
-status: OPEN
+status: FIXING
 severity: low
 reproducibility: rare
 created_at: "2026-11-02T19:51:41+0800"
-updated_at: "2026-11-02T19:51:41+0800"
+updated_at: "2026-11-02T21:45:51+0800"
 impact:
   - tower-worker
 links:
@@ -20,7 +20,7 @@ links:
 |------|------|
 | 嚴重度 | 🟢 low（只影響 Worker 分頁的回合標示：`↻` 提早變回 `✓`，批次關閉可能把還在執行的 Worker 算進去；60 s 無輸出備援在該回合不會再開始） |
 | 可重現 | 偶發，未量測（與 BUG-197 同類的 hook 回報亂序） |
-| **狀態** | 📂 OPEN |
+| **狀態** | 🔧 FIXING |
 | 回報者 | 塔台（T0790 Worker 查證時發現） |
 
 ## 現象
@@ -37,3 +37,4 @@ links:
 ## 處理紀錄
 
 - 2026-11-02 19:51 開單（OPEN，low），T0790 收單時登記；不擋 `0.7.3-pre.8`（D231）。
+- 2026-11-02 21:45 → FIXING：開 T0791（P2，yolo），使用者指示開修正單並派工（D232）。

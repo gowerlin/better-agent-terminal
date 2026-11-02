@@ -1,16 +1,16 @@
 ---
 schema_kind: tower-state
 summary_version: 1
-updated_at: "2026-11-02T21:43:15+08:00"
+updated_at: "2026-11-02T21:45:51+08:00"
 session: "2026-11-02 21:43 第一百零七 session 塔台重啟（CT v6.0.0-beta.10）"
 next_ids:
-  workorder: "T0791"
-  decision: "D232"
+  workorder: "T0792"
+  decision: "D233"
   bug: "BUG-199"
   plan: "PLAN-062"
 todo:
   - "BUG-196 / BUG-197 FIXED，已隨 `v0.7.3-pre.8` 發佈；待使用者實機驗收 → CLOSED"
-  - "BUG-198（low，晚到的 `stop` 提早結束新回合）待開修正單"
+  - "BUG-198（low）FIXING：T0791 修正中（D232），收單後隨下一個預覽版"
   - "待驗收：Linux AppImage（Ubuntu 22.04，Electron 45）；BUG-159（一般權限 ＋ codex，需使用者本機）"
   - "PLAN-059：A = BUG-196 / T0788；B = PLAN-061（IDEA low，D229 縮小為非 Windows、等觸發）；C 待問 CT（Q5）；Q4 未解"
   - "PLAN-060（IDEA）：macOS Developer ID 簽章（目前 macOS 不顯示系統通知）"
@@ -21,7 +21,7 @@ todo:
 
 > 🟢 **第一百零七 session 開工**（2026-11-02 21:40 (UTC+8)，CT v6.0.0-beta.10，Fast Path；塔台 session `2c1fd280-0f34-4dfc-af2a-71b815044fcf`；`--set-role tower --mode on` exit 0；安裝版 BAT / helper `v0.7.3-pre.8`（已換版）；HEAD `d1c3e40a`、`main` = `origin/main`（0 / 0）、工作區乾淨；熱區工單無非終態；BUG 熱區 Open 1（BUG-198）/ Fixed 3 / Closed 58，與 `_bug-tracker.md` 一致，免重建；`%TEMP%` 只有 pre.7 的 `bat-nsis-acceptance-20261102-175507`，**pre.8 未跑 NSIS 重裝驗收**）。
 >
-> 🟢 **第一百零七 session 塔台重啟**（2026-11-02 21:43 (UTC+8)，CT v6.0.0-beta.10，Fast Path；塔台 session `1ccb4733-ea63-4a7e-8b63-6faa91addd19`；`--set-role tower --mode on` exit 0；安裝版 helper `v0.7.3-pre.8`；HEAD `7c7f7cfe`（`main` ahead 1，未 push）；熱區 186 張工單無非終態；BUG Open 1 / Fixed 3 / Closed 58；`bat_list_questions` pending 0；熱區檔案皆 < 400 KB）。**`v0.7.3-pre.8` NSIS 完整重裝驗收 PASS**（`e2e\manual\nsis-reinstall-acceptance.ps1` real 模式，21:41:34–21:42:14；AllUsers / HKLM；① SHA-256 `b44a333e…` ② 同版覆蓋 ③ 靜默解除 ④ 乾淨重裝全 PASS，三支 helper `--version` = v0.7.3-pre.8、內嵌 claude / codex 存在、userData 130 檔 SHA-256 未變；⑤ LaunchCheck 未帶 → SKIPPED）。報告 `%TEMP%\bat-nsis-acceptance-20261102-214134\report.md`；含權杖的 `userdata-backup`（130 檔）已刪除。
+> 🟢 **第一百零七 session 塔台重啟**（2026-11-02 21:43 (UTC+8)，CT v6.0.0-beta.10，Fast Path；塔台 session `1ccb4733-ea63-4a7e-8b63-6faa91addd19`；`--set-role tower --mode on` exit 0；安裝版 helper `v0.7.3-pre.8`；HEAD `7c7f7cfe`（`main` ahead 1，未 push）；熱區 186 張工單無非終態；BUG Open 1 / Fixed 3 / Closed 58；`bat_list_questions` pending 0；熱區檔案皆 < 400 KB）。**`v0.7.3-pre.8` NSIS 完整重裝驗收 PASS**（`e2e\manual\nsis-reinstall-acceptance.ps1` real 模式，21:41:34–21:42:14；AllUsers / HKLM；① SHA-256 `b44a333e…` ② 同版覆蓋 ③ 靜默解除 ④ 乾淨重裝全 PASS，三支 helper `--version` = v0.7.3-pre.8、內嵌 claude / codex 存在、userData 130 檔 SHA-256 未變；⑤ LaunchCheck 未帶 → SKIPPED）。報告 `%TEMP%\bat-nsis-acceptance-20261102-214134\report.md`；含權杖的 `userdata-backup`（130 檔）已刪除。使用者「開 BUG-198 的修正單並派工」→ **D232** → 開 **T0791**（P2，S；沿用 T0790 的 `at`，晚到的 `stop` 不結束較晚開始的回合）；BUG-198 → FIXING（tracker 只動該列，Open 0 / Fixing 1）。
 
 > 最後更新:2026-11-02 20:50 (UTC+8) — **第一百零六 session 收工**：pre.7 NSIS 重裝驗收 PASS；PLAN-059 研究（T0787 / T0789）→ BUG-196（high，Worker 通知替塔台作答）T0788 修、BUG-197 T0790 修 → **`v0.7.3-pre.8`** 發佈；契約經 CT 確認（CT D543）；PLAN-061 縮小範圍。前次：第一百零五 session 收工（2026-11-02 17:47）。
 >
@@ -121,7 +121,7 @@ todo:
 ### 待辦（依優先序）
 1. 🟡 **BUG-196 / 197 待驗收**（`v0.7.3-pre.8`）：塔台停在權限對話框時收到 Worker 完成通知 → 對話框維持、縮圖「📨 待送 1」、答完才進輸入框 → CLOSED
 2. ✅ ~~pre.8 NSIS 重裝驗收~~ → PASS（第一百零七 session 21:42，備份已刪）
-3. 🟢 **BUG-198**（low）：晚到的 `stop` 提早結束新回合，用 T0790 的 `at` 修
+3. 🟢 **BUG-198**（low）FIXING：T0791 修正中（D232）
 4. 🟡 **BUG-159 驗收**：需使用者本機以一般權限（非系統管理員）開 BAT ＋ codex；🟢 Linux AppImage（Ubuntu 22.04）待回報；t0757 偶發失敗再發生才開 BUG（D218）
 5. 🟢 PLAN-059 C（問 CT Q5）；版號線 0.7.3 已到 pre.8，pre.9 之後升線前先問使用者
 
@@ -139,7 +139,7 @@ todo:
 - 歷史 sessions → [_archive/state-snapshots/INDEX.md](_archive/state-snapshots/INDEX.md)（124 entries）
 
 ### 編號起始
-- **T0791** / **BUG-199** / **PLAN-062** / **D232** / **EXP-WFMINE-002**（其他 TOPIC 從 001） / **L181** / **CT-T023**
+- **T0792** / **BUG-199** / **PLAN-062** / **D233** / **EXP-WFMINE-002**（其他 TOPIC 從 001） / **L181** / **CT-T023**
 
 ---
 
