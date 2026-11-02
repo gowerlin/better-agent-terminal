@@ -232,6 +232,7 @@ jobs:
                 v=$(max_glibc "$f")
                 rows+=("$v $rel$(above_system "$v")")
                 while IFS= read -r line; do
+                  line="${line#"$f: "}"   # ldd repeats the file name before a symbol-version error
                   [ -n "$line" ] && ldd_rows+=("$rel: ${line//"$root"\//}")
                 done < <(ldd "$f" 2>&1 | grep 'not found' | sed 's/^[[:space:]]*//')
               done

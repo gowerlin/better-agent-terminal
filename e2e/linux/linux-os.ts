@@ -18,8 +18,12 @@ export interface CmdResult {
   error?: string
 }
 
-/** execFile that never rejects; output trimmed to 2000 chars per stream. */
-export function runCmd(file: string, args: string[], timeoutMs = 30_000): Promise<CmdResult> {
+/**
+ * execFile that never rejects; output trimmed to `outLimit` chars per stream (default 2000, for reports).
+ * Pass a larger limit when the caller searches the output (e.g. `ldconfig -p`, which is far longer than 2000
+ * chars: T0798 found `libfuse2` reported as not found because its line was cut off).
+ */
+export function runCmd(file: string, args: string[], timeoutMs = 30_000, outLimit = 2000): Promise<CmdResult> {
   const started = Date.now()
   return new Promise(resolve => {
     execFile(file, args, { timeout: timeoutMs, encoding: 'utf8', maxBuffer: 4 * 1024 * 1024 }, (err, stdout, stderr) => {
@@ -27,8 +31,8 @@ export function runCmd(file: string, args: string[], timeoutMs = 30_000): Promis
       const timedOut = !!e && (e.killed === true || e.signal === 'SIGTERM') && Date.now() - started >= timeoutMs - 50
       resolve({
         code: e ? (typeof e.code === 'number' ? e.code : null) : 0,
-        stdout: String(stdout ?? '').trim().slice(0, 2000),
-        stderr: String(stderr ?? '').trim().slice(0, 2000),
+        stdout: String(stdout ?? '').trim().slice(0, outLimit),
+        stderr: String(stderr ?? '').trim().slice(0, outLimit),
         ms: Date.now() - started,
         timedOut,
         error: e && typeof e.code !== 'number' ? `${e.code ?? ''} ${e.message}`.trim().slice(0, 400) : undefined,
@@ -86,7 +90,7 @@ export async function systemInfo(): Promise<SystemInfo> {
   // `ldd --version` prints e.g. "ldd (Ubuntu GLIBC 2.35-0ubuntu3.8) 2.35" on its first line
   const ldd = await runCmd('ldd', ['--version'])
   const sys = (p: string) => (readText(p) ?? 'absent').trim()
-  const ldconfig = await runCmd('ldconfig', ['-p'])
+  const ldconfig = await runCmd('ldconfig', ['-p'], 30_000, 4 * 1024 * 1024)
   const fuse2 = ldconfig.stdout.split('\n').filter(l => /libfuse\.so\.2/.test(l)).map(l => l.trim()).join('; ')
   return {
     os: pretty,
