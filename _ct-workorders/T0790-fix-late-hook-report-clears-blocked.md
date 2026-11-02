@@ -4,7 +4,7 @@ schema_kind: workorder
 id: T0790
 title: "修正 BUG-197：晚到的 hook 回報（`user-prompt-submit` / `stop`）不得清掉同一回合、時間比它晚發生的 `permission` / `question` blocked"
 type: implementation
-status: FIXED
+status: DONE
 repo: better-agent-terminal
 project: maintenance
 priority: P1
