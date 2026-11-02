@@ -3,11 +3,11 @@ schema_version: 1
 schema_kind: bug
 id: BUG-201
 title: "`dev-deploy-headless.test.mjs` 的 `main()` 測試共用 `dist-server/dev-deploy-headless` 輸出目錄：兩個 `test:unit` 同時跑時互相覆蓋（`EPERM` / `ENOENT` / `Build failed`）"
-status: OPEN
+status: FIXING
 severity: low
 reproducibility: rare
 created_at: "2026-11-03T00:01:46+0800"
-updated_at: "2026-11-03T00:01:46+0800"
+updated_at: "2026-11-03T00:03:22+0800"
 impact:
   - test-infra
 links:
@@ -20,7 +20,7 @@ links:
 |------|------|
 | 嚴重度 | 🟢 low（只影響測試；產品行為無關。同一 checkout 有兩個 Worker 各自跑 `test:unit` 時會撞到） |
 | 可重現 | 只在兩個 `npm run test:unit` 同時跑：T0794 兩套並行 2 次中 1 次；修改前（`pre-b2`）與量測中（`trc-b`）也出現過；單一 `test:unit`（CI）3 次都沒有 |
-| **狀態** | 📂 OPEN |
+| **狀態** | 🔧 FIXING（T0795） |
 | 回報者 | 塔台（T0794 Worker 首次記錄） |
 
 ## 現象
@@ -40,3 +40,4 @@ links:
 ## 處理紀錄
 
 - 2026-11-03 00:01 開單（OPEN，low）。T0794 收單時登記（D237）。
+- 2026-11-03 00:03 → FIXING：使用者決定現在修（D238），開 T0795（P2，S）：staging 根目錄可由呼叫端覆寫，測試用自己的暫存目錄；預設行為不變。
