@@ -16,6 +16,7 @@
 | [headless-login-shell-path.md](headless-login-shell-path.md) | headless bat-server 啟動時以登入 shell 取得 PATH（`-l -i` + 隨機標記、detached + 逾時砍程序群組、合併規則、`headlessLoginShellPath` 開關、套用點、影響、實測） | headless server 的登入 shell PATH（PLAN-057 / T0755，D206 / D207） |
 | [helper-query-channels.md](helper-query-channels.md) | helper 唯讀查詢 channel（whoami / list / get-state / read-output / wait） | helper 唯讀查詢 channel（PLAN-047 M1 / T0582） |
 | [logging.md](logging.md) | 日誌、啟動期 crash capture、`[gpu]`、單一 userData、helper userData、PTY env 組裝點、塔台派工落點 | Logging |
+| [macos-ci-acceptance.md](macos-ci-acceptance.md) | GitHub Actions macOS runner 對發佈 dmg 驗 BUG-128 / 130（`macos-acceptance.yml` 只能手動觸發、可行性表 P1–P5、情境 ①–⑧、與真人 Mac 的差異） | （無；T0778 新增，是否補 CLAUDE.md 小節由塔台決定） |
 | [multi-remote-profiles.md](multi-remote-profiles.md) | 多 remote profile 同時連線、上限、profile index 序列化 | 多 remote profile 同時連線（PLAN-039） |
 | [npm12-install-scripts.md](npm12-install-scripts.md) | npm 12 `allowScripts`、手動補跑、本機打包、CI 與 actions / runner 版本 | 本機開發：npm 12 install scripts（T0471 / T0473） |
 | [packaging-release-checks.md](packaging-release-checks.md) | 打包前置檢查、產物檢查、安裝檔瘦身、CI pipeline、Server bundle baseline | Packaging / Release 前置檢查 |
