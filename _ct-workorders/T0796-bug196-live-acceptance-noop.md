@@ -4,14 +4,17 @@ schema_kind: workorder
 id: T0796
 title: "BUG-196 實機驗收用的空工單：Worker 只寫回報並以 yolo `--submit` 通知塔台（塔台此時停在 AskUserQuestion 對話框）"
 type: verification
-status: PENDING
+status: DONE
 repo: better-agent-terminal
 project: maintenance
 priority: P2
 sizing: XS
 created_at: "2026-11-03T00:14:24+0800"
-updated_at: "2026-11-03T00:14:24+0800"
-session_ids: []
+updated_at: "2026-11-03T00:15:11+0800"
+started_at: "2026-11-03T00:14:59+0800"
+completed_at: "2026-11-03T00:15:11+0800"
+session_ids:
+  - "ab15bea6-b7c0-4fb7-8392-6a4c871c1b17"
 depends_on: []
 related:
   - "BUG-196（high，FIXED，T0788 notify-hold，pre.8 起）；D233 / D240；CLAUDE.md「塔台等使用者回答時保留 Worker 通知（T0788 / BUG-196，D227）」"
@@ -54,3 +57,44 @@ memory_overrides:
 ## 回報區
 
 > 以下由 sub-session 填寫，請勿在指揮塔 session 中編輯
+
+### 完成狀態
+
+- **狀態**：DONE
+- **開始時間**：2026-11-03T00:14:59+0800
+- **回報時間**：2026-11-03T00:15:11+0800
+- **session_id**：ab15bea6-b7c0-4fb7-8392-6a4c871c1b17
+
+### 落點檢查
+
+- **結果**：PASS
+- C-0：`repo` = `better-agent-terminal`，`basename(REPO_ROOT)` = `better-agent-terminal` → PASS（REPO_ROOT `D:/ForgejoGit/@Gower_Labs/BMad-Guide/better-agent-terminal/better-agent-terminal`）
+- C-1：工單位於 REPO_ROOT 下 → PASS
+- C-3：`affects_files` 只有 `_ct-workorders/` 內的本工單 → not applicable
+- C-2：工單無 `branch` 欄位；目前分支 `main`
+- `CT_HOME` 未設定（非 worktree 隔離）
+- `BAT_WORKSPACE_ID`：`cc0afc4a-57e9-4f41-b2ed-a2d8bac9e36b`（僅記錄）
+
+### 環境
+
+- `CT_MODE`：yolo
+- `BAT_TOWER_TERMINAL_ID`：存在（值不記錄）
+- `BAT_REMOTE_PORT`：存在；`BAT_REMOTE_TOKEN`：已設定
+- `BAT_HELPER_DIR`：存在
+
+### 執行內容
+
+- 本單無實作工作；未改其他檔案、未跑測試、未 build、未 push。
+- 收尾順序：回報區 + DONE → `git commit --only` 本工單檔 → `bat-notify.mjs --submit` 通知塔台 → 通知結果補寫進下方〈通知結果〉→ 再 commit 一次。
+
+### 通知結果
+
+（待通知後補寫）
+
+### 互動紀錄
+
+- 無（`worker_question_timeout: 0`，未提問）
+
+### 遭遇問題
+
+- 無
