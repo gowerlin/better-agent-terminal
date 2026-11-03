@@ -3,9 +3,10 @@ schema_version: 1
 schema_kind: plan
 id: PLAN-059
 title: "Herdr 對照研究的借鏡項目（主 PLAN）：送文字前先看目標狀態、OSC 7501 不限 codex、等任一 Worker、holder 模型、SSH stdio 遠端"
-status: PLANNED
+status: DONE
 priority: medium
 created_at: "2026-11-02T13:23:24+0800"
+completed_at: "2026-11-04T01:34:49+0800"
 links:
   source: "Herdr 對照 BAT 研究報告（Artifact https://claude.ai/artifact/Ybj66gYLkMHZE8xUyyDiEy，私人連結；2026-11-02 第一百零五 session）"
   related: [D219, PLAN-058, T0769, PLAN-052]
@@ -104,3 +105,4 @@ BAT 已經有的（不需動作）：「做完了但還沒看」（✓ / 淡化 
 - **子項 B 建議**：白名單（codex、claude-code），不全開；先開研究單實測「回覆 claude 探詢」，排在 A 之後。
 - 狀態維持 PLANNED。
 - 2026-11-04 第一百一十四 session（D265）：子項 B 完成——PLAN-061 DONE（T0811 實作、T0818 交付版 `v0.7.4-pre.5` WSL 驗收：真 claude 權限對話框 `blocked`）。A（BUG-196）、B 完成，C 不做；剩 Q4 → 研究單 **T0820**（本機靜態分析 electron-builder NSIS＋GitHub Actions Windows runner 實測覆蓋升級時 Terminal Server / shell 是否存活）。T0820 結果出來後本 PLAN → DONE：D 依結果拆 IDEA 子 PLAN 或留紀錄，E / F 留在本檔附觸發條件。
+- 2026-11-04 01:34 **→ DONE**（D266）：**Q4 已答**（T0820，GitHub Actions Windows runner run `41683870546`，pre.4 → pre.5）：NSIS 安裝程式以 TerminateProcess 結束安裝目錄下所有程序（主行程、Terminal Server），shell 因 ConPTY 由 server 持有一併結束；主視窗已關、保留 server 時一樣；重開走孤兒清理、無 Recovery 提示。子項 D（holder 模型）的觸發條件等於成立，但完整做法需把 ConPTY 持有者移出安裝目錄並跨版本接回（L）→ 移到 **PLAN-063**（PLANNED）：先做升級前提示＋升級後說明（T0821），正常結束路徑待評估，holder 維持 IDEA。子項 E（SSH stdio 遠端）、F（可機讀 API）維持只記錄，觸發條件見〈拆分方向〉第 5 點。A（BUG-196）、B（PLAN-061）完成，C 不做。

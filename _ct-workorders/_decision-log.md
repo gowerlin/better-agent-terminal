@@ -1465,6 +1465,16 @@
 - **切分**：W2a 設計語言 + 元件 + 首頁（T0630）→ 預覽通過後 W2b（`/control-tower`、功能、FAQ、回報頁）→ W2c 遠端開發；W3 / W4 不變。
 - **相關**：PLAN-049 / D159 / D160 / T0624 / T0630
 
+### D266 2026-11-04 — PLAN-059 DONE；NSIS 升級中斷終端 → 開 PLAN-063，先做升級前提示＋升級後說明（T0821）
+
+- **背景**：T0820（Windows runner run `41683870546`）答 Q4：NSIS 安裝程式以 TerminateProcess 結束安裝目錄下所有程序（主行程、Terminal Server），shell 因 ConPTY 由 server 持有一併結束；保留 server 也一樣；重開走孤兒清理、沒有 Recovery 或任何說明。holder 模型要把 ConPTY 持有者移出安裝目錄並跨版本接回（L）。
+- **決定**（使用者兩題皆選推薦）：
+  1. PLAN-059 → DONE（A、B 完成，C 不做，D 移到 PLAN-063，E / F 只記錄）。
+  2. 開 **PLAN-063**（PLANNED，medium）：子項 1 升級前提示（S）＋2 升級後說明（M）立刻開 **T0821**；3 正常結束路徑（NSIS `customCheckAppRunning`）等 1、2 完成再評估；4 holder 模型 IDEA。
+  3. 本機分支 `ct/T0820`（暫時探測 spec＋workflow）保留到 PLAN-063 用完，真實升級驗收時改寫重跑。
+- **決策者**：使用者。2026-11-04 第一百一十四 session。
+- **相關**：D219 / D265 / T0820 / T0766 / T0767 / PLAN-059 / PLAN-063
+
 ### D265 2026-11-04 — PLAN-059 收尾路線：研究單 T0820 答 Q4，之後 PLAN-059 → DONE
 
 - **背景**：PLAN-059 子項 A（BUG-196 / T0788）與 B（PLAN-061）已完成、C 不做（CT D568）；D / E / F 只記錄。D（holder 模型）的價值取決於未解的 Q4：NSIS 覆蓋升級時執行中的 Terminal Server 與 shell 會不會被結束（歷次 NSIS 驗收都先關 BAT）。本機不能實測（會打斷使用者的 BAT）；Windows Sandbox 未啟用（需重開機）。
