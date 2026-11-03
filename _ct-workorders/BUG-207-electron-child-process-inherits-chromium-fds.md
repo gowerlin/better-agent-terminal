@@ -41,3 +41,4 @@ Electron 主行程（Linux）有約 49 個沒有 CLOEXEC 的 fd（GPU / NetworkS
 - 2026-11-03 17:59 → FIXING（T0807，D253）。
 - 2026-11-03 18:35 → FIXED（T0807 `5e056b72`，分支 `ct/T0807`；main 已前進非 `_ct-workorders` 檔（T0808），改派合併工單 T0809）。
 - 2026-11-03 20:12 合併：T0809 `57c826f3`，使用者確認斷點 E 後 main `--ff-only` → `2b860ba1`（未 push）。
+- 2026-11-03 20:27 隨 `v0.7.4-pre.4` 發佈（run `41633956229`，target `6bfa01e0`）；待交付版 Linux 實機 / 自動化驗收後 CLOSED。

@@ -1465,6 +1465,12 @@
 - **切分**：W2a 設計語言 + 元件 + 首頁（T0630）→ 預覽通過後 W2b（`/control-tower`、功能、FAQ、回報頁）→ W2c 遠端開發；W3 / W4 不變。
 - **相關**：PLAN-049 / D159 / D160 / T0624 / T0630
 
+### D256 2026-11-03 — 發 `0.7.4-pre.4`（BUG-205 / 206 / 207 Linux fd 外流修正、BUG-208）
+
+- **決定**（使用者 D253「三張同批修，再發版」）：同批四張 BUG 修完後發預覽版 `0.7.4-pre.4`（D236 版號線）。發版前驗證沿用 T0809 在 merge commit `57c826f3` 的完整驗收（typecheck 0 / 0、vite build、unit 397 檔 / 6949、legacy 472 / 33），`main` 產品樹與之相同，verify-native 通過；去識別化 9 組 0、金鑰 0。push `dd3eeb14..6bfa01e0` → run `41633956229` 12 job 全綠 → 發佈 12:25:15Z（target `6bfa01e0`）；更版重點承接上一版〈待驗收〉〈已知事項〉（L184），BUG-159 已結案移除。BUG-208 依 CI Test gate CLOSED；BUG-205 / 206 / 207 待交付版 Linux 驗收。
+- **決策者**：使用者（發版）；塔台（內容）。2026-11-03 第一百一十二 session。
+- **相關**：D252 / D253 / D255 / T0806 / T0807 / T0808 / T0809
+
 ### D255 2026-11-03 — 上游 node-pty 的 fd 外流缺陷由使用者自行送 MSRC；揭露時序疏失記錄
 
 - **背景**：T0805 / T0806 查到 `@lydell/node-pty`（= microsoft/node-pty PR #867 的程式碼）在 Linux 的 `pty_close_inherited_fds()` 後備迴圈遇到 fd 缺號就停（塔台以上游 `main` `35c28c7d` 的 `src/unix/pty.cc` 確認），master fd 也沒有 CLOEXEC（PR #986 仍 open）。microsoft/node-pty 的 SECURITY.md 要求安全漏洞送 MSRC、不開公開 issue。
