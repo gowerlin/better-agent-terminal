@@ -3855,3 +3855,13 @@ Codex 那張是外部測試者回報才發現；Claude 那張是使用者隨口�
 **How to apply**：
 - 起草更版重點前，先 `gh release view v<上一版> -R gowerlin/better-agent-terminal --json body` 取全文，以它為底稿：〈待驗收〉逐項判斷（已驗收的移除、本版新增 FIXED 待驗的加入），〈已知事項〉逐項判斷仍否成立再加上本版的
 - 本版若有 BUG 已靠 CI 驗收結案，但只在 runner 上驗過，仍列進〈待驗收〉請真人桌面確認
+
+## L185
+
+**來源**：第一百一十二 session（2026-11-03），T0803（BUG-159 WSL 驗收）、T0804（`app.close()` 查證）
+
+**現象**：① T0803 Worker 在未登入的 codex TUI 送 Enter，選中預設的「Sign in with ChatGPT」，經 WSL interop 在 Windows 瀏覽器自動完成授權（工單已寫「不得登入」仍發生）。② T0803 自寫 Playwright 腳本關 BAT，`app.close()` 不返回；T0804 查明是關閉確認預設保留 Terminal Server，crashpad 持有主行程 stdio，Playwright 的 `close` 事件等不到——不是缺陷，repo 的 `closeIsolated` 早已處理。
+
+**How to apply**：
+- 驗收 / 查證工單若會開 agent 分頁：寫明「不得在 agent TUI 送任何按鍵，除非先確認已登入」；WSL 的瀏覽器授權會落到 Windows 已登入的瀏覽器，等同自動同意
+- 工單要 Worker 以 Playwright 驅動 BAT 時，寫明「關閉一律用 `closeIsolated`（`e2e/fixtures/electron-isolation.ts`），或關閉確認回答離開＋結束 Terminal Server」；要保留 server 時先等主行程 `exit` 再收 server（順序反了 watchdog 會重新 fork）
