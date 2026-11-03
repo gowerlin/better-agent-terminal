@@ -4,6 +4,23 @@ All notable changes to Better Agent Terminal are documented in this file.
 
 ## [Unreleased]
 
+## [0.7.4-pre.5] — 2026-11-04
+
+### Added
+- Claude 面板：主回合進行中送出的訊息以 `streamInput`＋uuid 排進同一個 query（不中斷、不加「已中斷」前綴、不清權限 / 提問卡），以 `command_lifecycle` 回執 2 s 判斷送達，沒有回執或被拒則在 query 結束後 resume 送出且只送一次；面板「待送」可取消（`cancelAsyncMessage`），Esc 先取消待送再停止回合，卡片等待時提示「請先回答上方問題」；沒有 `msg_lifecycle_v1` 的較舊 CLI 維持中斷＋重送（PLAN-058 W0，T0815，D259）
+- Linux / macOS 主機：BAT 主行程回覆 claude 的 OSC 7501 探詢（`ESC ] 7501 ; ?`，每個探詢一次；replay、child_process 後援與 Windows 不回），關掉 hooks 的 claude 分頁改由 OSC 7501 判斷 `blocked` / `agentStarted`；解析器白名單 `codex` / `claude-code`、長度上限 128 → 4096、帶 `id=` 的子代理紀錄不影響分頁（PLAN-061，T0811）
+
+### Fixed
+- Linux：Terminal Server 的 fork 改經 child_process fd guard，只保留 IPC 與 AppImage keepalive（固定 fd 4），不再是 crashpad client；保留 Terminal Server 離開時，以管線等待 BAT 輸出結束的啟動方式（`out=$(…)`、`| tee`）不再等到 server 結束（PLAN-062，T0816）
+- Linux：直接執行 AppImage、保留 Terminal Server 離開後，AppImage 掛載不再被卸載（之前 server 會在已卸載的掛載上執行，讀取得到 ENOTCONN）（BUG-209，T0816）
+- Claude 面板：關閉分頁時以 `claude:dispose-session` 結束並移除 session（舊 host 退回 `stopSession`）；`ELECTRON_RUN_AS_NODE` 只經 SDK spawn env 傳入、不再寫全域 `process.env`；query 結束時清 `queryInstance`；`command_lifecycle` 日誌改為 debug 摘要（PLAN-058 W1，T0814）
+- 測試：t0807 Linux e2e 的 G2 對照組改用主行程 `process.execPath`，交付版 AppImage 也能判定（T0810）；t0806 / t0807 取樣競態穩定化（T0816）
+
+### Known Issues
+- Windows：選「離開但保留 Terminal Server」時主程式 stdout / stderr 維持開啟到 Terminal Server 結束（server 繼承 std handle，需原生程式碼，暫不處理）
+- Windows 本機關掉 claude hooks 的分頁仍無法判斷是否在等使用者回答（系統 ConPTY 丟掉 OSC 回覆）
+- Claude 面板：權限 / 提問卡片顯示時輸入框隱藏，需先回答卡片
+
 ## [0.7.4-pre.4] — 2026-11-03
 
 ### Security

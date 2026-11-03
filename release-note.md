@@ -2,6 +2,61 @@
 
 本 fork 各版的更版重點（內容取自 GitHub Releases，最新在上）。上游 tony1223/better-agent-terminal 的 v2.1.x 紀錄保留在檔案最下方。
 
+## v0.7.4-pre.5（2026-11-04）
+
+版號 0.7.4-pre.5，接續 `v0.7.4-pre.4`。
+
+本版重點：Claude 面板在回覆進行中送出訊息時改為排隊、不再中斷；Linux / macOS 上關掉 hooks 的 claude 分頁也能顯示「等你回答」；Linux 保留 Terminal Server 離開後的兩個問題一併修好。
+
+## 新增
+
+- **Claude 面板：回覆進行中送出的訊息改為排隊，不再中斷目前回覆**（PLAN-058，T0814 / T0815）：之前在 Claude 回覆途中送出新訊息，會先中斷這一輪、再把兩則合併重送。現在新訊息排在同一個對話裡，這一輪回覆完才處理；面板顯示「目前回合結束後送出。」並可取消。按 Esc 停止目前回覆時，排隊中的訊息會一起取消。權限或提問卡片出現時，提示會改成「請先回答上方問題，回答後送出。」較舊、不支援排隊確認的 claude CLI 維持原本的中斷＋重送。
+- **Linux / macOS：關掉 hooks 的 claude 分頁也能顯示「等你回答」**（PLAN-061，T0811）：claude 會以終端序列（OSC 7501）回報自己的狀態，BAT 現在會回應它的探詢，所以使用者關掉 claude hooks（`disableAllHooks`）的分頁，在權限對話框或提問時也會顯示 ⚠️，`--wait-started` 也能確認啟動。有 hooks 的分頁、codex 分頁與 Windows 本機的行為不變（Windows 的系統終端會丟掉這個回應，無法支援）。
+
+## 修正
+
+- **Linux：保留 Terminal Server 離開後，以管線等待 BAT 輸出的啟動方式不再一直等**（PLAN-062，T0816）：之前選「離開但保留 Terminal Server」後，`out=$(./BAT.AppImage)`、`./BAT.AppImage | tee log` 這類啟動方式會等到 Terminal Server 結束。現在 BAT 結束約 1 秒內就會返回。Terminal Server 也不再繼承 BAT 主程式的內部連線。
+- **Linux：保留 Terminal Server 離開後，AppImage 不再被卸載**（BUG-209，T0816）：之前直接執行 AppImage、保留 Terminal Server 離開後，AppImage 的掛載會被卸載，留下的 Terminal Server 之後可能因讀不到程式而當掉。現在掛載會保留到 Terminal Server 結束。
+- **Claude 面板：關閉分頁時會結束背後的 claude 程序**（T0814）：之前只停止、程序留在記憶體裡。也不再在執行期間把 `ELECTRON_RUN_AS_NODE` 寫進 BAT 主程式的全域環境變數。
+
+## 待驗收（請更新到本版後協助確認）
+
+- **Claude 面板排隊（所有平台）**：已以假 API 與真實模型（Haiku 5.5）自動化驗證。請在 Claude 面板回覆途中再送一則訊息，確認會排隊、回覆完才處理、可以取消；按 Esc 後排隊的訊息會一起取消。
+- **claude OSC 7501（Linux / macOS）**：已在 WSL（Ubuntu 24.04）以真 claude 驗證啟動確認、以模擬程式驗證「等你回答」；真 claude 的權限對話框與 macOS 尚未實機驗證。請關掉 hooks 的 Linux / macOS 使用者確認 claude 跳出權限對話框時分頁會顯示 ⚠️。
+- **PLAN-062 / BUG-209（Linux）**：已在 GitHub Actions 的 Ubuntu 22.04 / 24.04 以打包後的 AppImage 驗證，尚未在真人桌面實機驗證。請 Linux 使用者照常使用「離開但保留 Terminal Server」，重開後選「還原」確認分頁正常。
+- **語音輸入可用性檢查（macOS）**：已在 Windows 實機與 GitHub Actions 的 Ubuntu 22.04 / 24.04 驗證，macOS 尚未實機驗證。請 macOS 使用者確認麥克風按鈕照常可按、語音輸入正常。
+- **BUG-202 / BUG-204（Linux）**：請在 Ubuntu 24.04 桌面直接執行 AppImage，確認能開啟，並試用語音輸入。這兩項已在 GitHub Actions 的 Ubuntu runner 驗收，尚未在真人桌面實機驗證。
+- **Electron 45**（`v0.7.3-pre.7` 起）：請 macOS / Linux 使用者照常使用，有啟動、繪圖、終端顯示或貼上的異常請回報。
+
+## 歡迎協助測試
+
+本版調整了 BAT 讀取 codex 狀態序列的方式（共用 claude 的新解析，長度上限放寬）。如果你用 Codex CLI 當 Worker，歡迎跑一次 Tower / Worker 流程：
+
+1. 開一個 Codex CLI 分頁，呼叫 MCP tool `bat_whoami`，確認 `role` 與 `agent`。
+2. 由塔台派一張小工單給 Codex Worker。
+3. 確認 Worker 完成後通知回到塔台、分頁被回收；codex 等你核准時分頁會顯示 ⚠️。
+
+結果請到 GitHub issue 回報，附上 BAT 與 codex 版本。
+
+## 已知事項
+
+- Windows：選擇「離開但保留 Terminal Server」時，BAT 主程式的 stdout / stderr 會維持開啟到 Terminal Server 結束（成因與 Linux 不同，需要原生程式碼才能修，暫不處理）。macOS 推論只在擷取 stderr 時會發生，未實測。
+- Linux 的 fd 保護需要 `/bin/bash`（或 `/usr/bin/bash`）；沒有 bash 的系統（例如部分 NixOS 設定）維持修正前的行為，BAT 會在 debug log 記一行。
+- **Linux 語音輸入需要 glibc 2.38 以上（Ubuntu 24.04 起）**：Ubuntu 22.04 等較舊的發行版無法使用語音輸入；麥克風按鈕會停用並說明原因，BAT 其他功能不受影響（BUG-203，列為已知限制）。
+- Linux 語音輸入另需系統提供 `libgomp1` 與 `libvulkan1`（一般桌面版預設已安裝；精簡安裝的系統請先 `sudo apt install libgomp1 libvulkan1`，裝好後到 Settings › 語音輸入按「重新檢查」）。
+- 語音可用性檢查在很慢的機器上可能逾時（上限 15 秒），這時按鈕維持可按，與之前的行為相同。
+- Ubuntu 24.04 自動關閉 sandbox 時，安全性比開啟 sandbox 時低；這是讓 AppImage 能在預設設定下開啟的取捨。
+- 遠端 profile 視窗（WSL / SSH / Docker）看不到「📨 待送 N」徽章，但通知照樣會被保留。
+- Windows 本機上關掉 claude hooks（`disableAllHooks`）的分頁，BAT 仍判斷不出是否在等你回答，通知會照舊直接送出（Linux / macOS 主機已由本版的 OSC 7501 補上）。
+- Claude 面板：權限或提問卡片顯示時輸入框會隱藏，所以要先回答卡片才能再輸入。
+- 很短的一輪工作偶爾會多顯示 `↻` 最多 60 秒才變回 `✓`；這段時間 Worker 不會被算進批次關閉。
+- **macOS 不會顯示 BAT 的系統通知**：沒有 Apple 開發者簽章的 app 不能發系統通知（PLAN-060）。BAT 視窗內的提示、⚠️ 與分頁標示不受影響。
+- Linux：dock 圖示上的數字徽章不再顯示。
+
+macOS 仍只提供 Apple Silicon（arm64）版。
+
+**Full Changelog**: https://github.com/gowerlin/better-agent-terminal/compare/v0.7.4-pre.4...v0.7.4-pre.5
+
 ## v0.7.4-pre.4（2026-11-03）
 
 版號 0.7.4-pre.4，接續 `v0.7.4-pre.3`。
