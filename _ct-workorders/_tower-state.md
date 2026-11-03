@@ -1,8 +1,8 @@
 ---
 schema_kind: tower-state
 summary_version: 1
-updated_at: "2026-11-04T03:41:40+08:00"
-session: "2026-11-04 03:37 第一百一十五 session 開工（CT v6.0.0-beta.11）"
+updated_at: "2026-11-04T03:42:34+08:00"
+session: "2026-11-04 03:37 - 03:42 第一百一十五 session 收工（CT v6.0.0-beta.11）"
 next_ids:
   workorder: "T0826"
   decision: "D270"
@@ -12,7 +12,7 @@ todo:
   - "MSRC 回報 microsoft/node-pty（使用者自行處理，D255）"
   - "PLAN-058：T0814（W1）`fc22e04a`＋T0815（W0）`0b67db03` DONE，T0819 安裝版 pre.5 假 API e2e PASS，待使用者手動確認（清單在 T0819 回報區）；可選後續：卡片等待時讓輸入框可送出（T0815〈遭遇問題〉1，未開單）"
   - "觀察：語音可用性檢查 macOS 未實機；`unknown(timeout)` 若實機出現可把逾時提到 30 s（T0802 後續建議）"
-  - "PLAN-063（IN_PROGRESS）：子項 1＋2 T0821 `710e4179` DONE；tooltip T0822 `05117326` DONE；子項 3 T0823 合併 main `83597e8e`（T0824）；BUG-210 FIXED（T0825 `bfde0beb`）；這批已隨 `v0.7.4-pre.6` 發佈（D269），真實升級驗收待下一版，完成後與 T0821 一起發 `0.7.4-pre.6`（D267）；4 holder IDEA；本機分支 `ct/T0820`（探測 spec＋暫時 workflow）保留到本 PLAN 用完，下次發版後改寫重跑做真實升級驗收（D266）"
+  - "PLAN-063（IN_PROGRESS）：子項 1＋2 T0821 `710e4179` DONE；tooltip T0822 `05117326` DONE；子項 3 T0823 合併 main `83597e8e`（T0824）；BUG-210 FIXED（T0825 `bfde0beb`）；這批已隨 `v0.7.4-pre.6` 發佈（D267 / D269）；真實升級驗收（pre.6 → 下一版，BAT 執行中升級）待下一版；4 holder IDEA；本機分支 `ct/T0820`（探測 spec＋暫時 workflow）保留到本 PLAN 用完，下次發版後改寫重跑做真實升級驗收（D266）"
   - "PLAN-060（IDEA）：macOS Developer ID 簽章（目前 macOS 不顯示系統通知）"
   - "觀察：t0757 偶發失敗再發生才開 BUG（D218）"
   - "版號線：`0.7.4-pre.N`，已發 pre.1 – pre.6（D236 / D241 / D248 / D256 / D262 / D269）"
@@ -21,9 +21,30 @@ todo:
 
 > 🟢 **第一百一十五 session 開工**（2026-11-04 03:37 (UTC+8)，CT v6.0.0-beta.11，Fast Path；塔台 session `96f9499a-1ea6-4a55-9722-6c14f0490c85`；`--set-role tower --mode on` exit 0；`bat_whoami` 名稱 `better-agent-terminal · Tower`；安裝版 FileVersion `0.7.4-pre.6`；HEAD `7c645e89`、`main` = `origin/main`（fetch 後 0 / 0）、工作區乾淨；熱區 221 張工單皆 DONE；BUG 熱區 Closed 73 / WONTFIX 1、無未結；PLAN IN_PROGRESS 2 / IDEA 6 / DONE 18 / DROPPED 2；`bat_list_questions` pending 0）。**`v0.7.4-pre.6` NSIS 完整重裝驗收 PASS-WITH-WARN**（real 模式 03:35:58–03:36:58；AllUsers / HKLM；唯一 WARN = ⓪ 目前安裝版 pre.5，② 實為升級，屬預期；① SHA-256 `350b79f0…` ② ③ ④ 全 PASS，三支 helper `--version` = v0.7.4-pre.6、內嵌 claude / codex 存在、userData 130 檔 SHA-256 未變；⑤ SKIPPED；驗收時 BAT 已關閉，T0823 的「安裝前請 BAT 正常結束」路徑未經過，真實升級驗收仍待下一版）；報告 `%TEMP%\bat-nsis-acceptance-20261104-033558\report.md`；含權杖的 `userdata-backup` 已刪除。
 >
-> 最後更新:2026-11-04 03:41 (UTC+8) — **第一百一十五 session**：`v0.7.4-pre.6` NSIS 重裝驗收 PASS-WITH-WARN；`*archive --state` 把第一百零九～一百一十四 session 移到 `_archive/state-snapshots/2026-Q4-c.md`。
+> 最後更新:2026-11-04 03:42 (UTC+8) — **第一百一十五 session 收工**：`v0.7.4-pre.6` NSIS 重裝驗收 PASS-WITH-WARN；`*archive --state` 把第一百零九～一百一十四 session 移到 `_archive/state-snapshots/2026-Q4-c.md`（狀態檔 81 KB → 21 KB）。
 >
-> **下次起手**:熱區無進行中工單、無未結 BUG。① PLAN-058 等使用者手動確認（T0819 回報區）；② PLAN-063 真實升級驗收等下一版；③ 收工時寫第一百一十五 session 收工快照。
+> **下次起手**:熱區無進行中工單、無未結 BUG。① PLAN-058 等使用者手動確認（T0819 回報區 5 步）；② PLAN-063 真實升級驗收等下一版（`ct/T0820` 探測 spec 改寫重跑，D266）；③ MSRC（使用者自行處理）。
+
+---
+
+## 🛏 本 Session 收工快照 (第一百一十五 session, 2026-11-04 03:37 - 2026-11-04 03:42, ~5m)
+
+### 主軸：`v0.7.4-pre.6` NSIS 重裝驗收判讀 → 推送記帳 commit → `*archive --state`
+
+#### 時間線（時間取自系統 / git）
+
+1. **03:37** Fast Path；`--set-role tower --mode on` exit 0；安裝版 `0.7.4-pre.6`；熱區工單全 DONE、無未結 BUG；`bat_list_questions` pending 0
+2. **03:38** 讀 `%TEMP%\bat-nsis-acceptance-20261104-033558\report.md` → PASS-WITH-WARN（WARN = ⓪ 原安裝版 pre.5，預期）；刪 `userdata-backup`；記帳 `678f87d2`
+3. **03:39** 使用者「推記帳 commit、跑 `*archive --state`」→ 去識別化 9 組 0、金鑰 0 → push `7c645e89..678f87d2`
+4. **03:42** `*archive --state`：109 / 110 收工快照＋111–114 開工條目 → 新季檔 `2026-Q4-c.md`（Q4-b 已 186 KB）；INDEX 129–134、總數改正為 134；起手式 / 基本資訊更新到目前狀態 → `73f3dde6`
+5. **03:42** 收工
+
+### 本輪戰績
+- 驗收：`v0.7.4-pre.6` NSIS 完整重裝 PASS-WITH-WARN（T0823 安裝前請 BAT 結束的路徑未經過：驗收時 BAT 已關閉）
+- 狀態檔瘦身：81,174 → 20,814 bytes；無新工單 / BUG / 決策
+
+### 編號起始（下 session）
+- **T0826** / **BUG-211** / **PLAN-064** / **D270** / **L186** / **CT-T023**
 
 ---
 
