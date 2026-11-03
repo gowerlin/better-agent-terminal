@@ -175,6 +175,10 @@ test('T0807 Electron main-process children keep only their stdio fds', async () 
       const refPid = spawn('/bin/bash', ['-c', 'for f in /proc/self/fd/*; do n=${f##*/}; case $n in 0|1|2|*[!0-9]*) ;; *) eval "exec $n>&-" ;; esac; done; exec "$0" "$@"', refExe, '-e', 'setTimeout(()=>{},3710000)'], { stdio: 'ignore', env: { PATH: process.env.PATH ?? '/usr/bin:/bin', HOME: os.homedir(), ELECTRON_RUN_AS_NODE: '1' } }).pid!
       started.push(refPid)
       await until('reference exec\'d', () => cmdline(refPid)[0] === refExe).catch(e => { throw new Error(`${(e as Error).message} (reference argv ${JSON.stringify(cmdline(refPid))})`) })
+      // T0816: a fixed 1.5 s once sampled the reference before Electron-as-node had opened its own fds
+      // (24.04, linux-acceptance run 41664258284: reference [] while the child had v8 snapshot / eventpoll /
+      // eventfd); wait until it has mapped its V8 snapshot (≤ 10 s), then let it settle
+      await until('reference started', () => fdsOf(refPid).some(f => f.target.endsWith('v8_context_snapshot.bin')), 10_000).catch(() => { /* judged with what it has */ })
       await new Promise(r => setTimeout(r, 1500))
       const kind = (t: string) => t.startsWith('socket:') ? 'socket' : t.startsWith('pipe:') ? 'pipe' : t
       const ownKinds = inheritable(refPid).map(f => kind(f.target)) // numbers vary between runs, kinds do not

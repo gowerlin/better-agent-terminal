@@ -170,14 +170,24 @@ test('T0806 Linux PTY children keep only fd 0–2', async () => {
       await until(`${id} fds settle`, () => extraFds(pid).length === 0 && fdsOf(pid).some(f => f.fd === 255), 8_000).catch(() => { /* judged below */ })
       return pid
     }
-    function judgeShell(label: string, id: string, pid: number, parent: number, ev: string[]): boolean {
+    async function judgeShell(label: string, id: string, pid: number, parent: number, ev: string[]): Promise<boolean> {
       const argv = cmdline(pid)
       // T0816: one /proc snapshot for the verdict and the evidence (they were read separately)
       const fds = fdsOf(pid)
-      const extra = fds.filter(f => !ALLOWED_FDS.has(f.fd))
       const ptmx = fds.some(f => f.target === '/dev/ptmx')
+      // T0816: an inherited fd never goes away; a login profile's own one does (22.04, linux-acceptance run
+      // 41664258284: `3=/etc/init.d` while a profile listed it). Only extras still open — same fd, same
+      // target — after up to 5 s count.
+      const first = fds.filter(f => !ALLOWED_FDS.has(f.fd))
+      let extra = first
+      for (let i = 0; i < 20 && extra.length > 0; i++) {
+        await new Promise(r => setTimeout(r, 250))
+        const now = fdsOf(pid)
+        extra = extra.filter(e => now.some(f => f.fd === e.fd && f.target === e.target))
+      }
+      const transient = first.filter(e => !extra.includes(e))
       const logged = new RegExp(`server spawned PTY ${id} \\(pid ${pid}\\) fd-guard=closed`).test(debugLog(userData))
-      ev.push(`${label}: pid ${pid}, parent ${ppidOf(pid)} (Terminal Server ${parent}), argv ${JSON.stringify(argv)}, fds ${JSON.stringify(fds.map(f => `${f.fd}=${f.target.replace(os.homedir(), '~')}`))}, /dev/ptmx: ${ptmx}, log "server spawned PTY ${id} (pid ${pid}) fd-guard=closed": ${logged}`)
+      ev.push(`${label}: pid ${pid}, parent ${ppidOf(pid)} (Terminal Server ${parent}), argv ${JSON.stringify(argv)}, fds ${JSON.stringify(fds.map(f => `${f.fd}=${f.target.replace(os.homedir(), '~')}`))}${transient.length ? ` (closed again within 5 s, not inherited: ${JSON.stringify(transient.map(f => `${f.fd}=${f.target}`))})` : ''}, /dev/ptmx: ${ptmx}, log "server spawned PTY ${id} (pid ${pid}) fd-guard=closed": ${logged}`)
       return extra.length === 0 && !ptmx && ppidOf(pid) === parent && logged && argv.slice(1).join(' ') === '-l -i' && !argv.includes('-c')
     }
 
@@ -191,8 +201,8 @@ test('T0806 Linux PTY children keep only fd 0–2', async () => {
       const b = await settledShell(TERM_B, server)
       expect(shellOf(TERM_A, server)).toBe(a) // the reload re-sent pty:create for A idempotently
       ev.push(`B (pid ${b}) was spawned while A (pid ${a}) was running`)
-      const okA = judgeShell('A', TERM_A, a, server, ev)
-      const okB = judgeShell('B', TERM_B, b, server, ev)
+      const okA = await judgeShell('A', TERM_A, a, server, ev)
+      const okB = await judgeShell('B', TERM_B, b, server, ev)
       const serverMasters = fdsOf(server).filter(f => f.target === '/dev/ptmx').length
       ev.push(`Terminal Server ${server} holds ${serverMasters} /dev/ptmx (both tabs' masters; a leak would have been visible)`)
       add({ id: 'F1', title: 'two shell tabs: only fd 0–2 (+255), no /dev/ptmx; pid / parent / argv unchanged', result: okA && okB && serverMasters >= 2 ? 'PASS' : 'FAIL', evidence: ev })
@@ -206,7 +216,7 @@ test('T0806 Linux PTY children keep only fd 0–2', async () => {
       expect(await win.evaluate(([i, c]) => (window as AnyApi).electronAPI.pty.restart(i, c), [TERM_A, folder])).toBe(true)
       await until('old shell A gone', () => !isAlive(before))
       const a = await settledShell(TERM_A, server)
-      const okA = judgeShell('A after restart', TERM_A, a, server, ev)
+      const okA = await judgeShell('A after restart', TERM_A, a, server, ev)
       const b = shellOf(TERM_B, server)!
       const okB = extraFds(b).length === 0
       ev.push(`B (pid ${b}) after A's restart: fds ${describeFds(b)}`)
@@ -239,7 +249,7 @@ test('T0806 Linux PTY children keep only fd 0–2', async () => {
       const server = await until('re-forked Terminal Server', () => { const p = serverPid(); return p && p !== oldServer && isAlive(p) ? p : null }, 30_000)
       const a = await settledShell(TERM_A, server)
       ev.push(`killed Terminal Server ${oldServer} (shell A was ${oldA}, alive after recovery: ${isAlive(oldA)}); new server ${server}`)
-      const okA = judgeShell('A rebuilt by the recovery', TERM_A, a, server, ev)
+      const okA = await judgeShell('A rebuilt by the recovery', TERM_A, a, server, ev)
       add({ id: 'F4', title: 'Terminal Server recovery rebuild: the rebuilt shell is clean', result: okA && !isAlive(oldA) ? 'PASS' : 'FAIL', evidence: ev })
     }
 
@@ -265,7 +275,7 @@ test('T0806 Linux PTY children keep only fd 0–2', async () => {
       ev.push(`after Recovery "keep": server ${serverPid()}, shell A pid ${shellOf(TERM_A, server)} (same: ${sameA}), fds ${describeFds(a)}`)
       await save([{ id: TERM_A, title: 'T0806 A' }, { id: TERM_C, title: 'T0806 C' }])
       const c = await settledShell(TERM_C, server)
-      const okC = judgeShell('C (new tab on the surviving server)', TERM_C, c, server, ev)
+      const okC = await judgeShell('C (new tab on the surviving server)', TERM_C, c, server, ev)
       const masters = fdsOf(server).filter(f => f.target === '/dev/ptmx').length
       ev.push(`surviving Terminal Server ${server} holds ${masters} /dev/ptmx`)
       add({ id: 'F6', title: 'Recovery prompt "keep": the kept shell stays clean; a new tab on the surviving server is clean', result: sameA && extraFds(a).length === 0 && okC && masters >= 2 ? 'PASS' : 'FAIL', evidence: ev })
