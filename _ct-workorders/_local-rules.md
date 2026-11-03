@@ -529,6 +529,9 @@ CI 會用 `VERSION` env 覆寫（`scripts/build-version.js` 優先序：env > gi
 - `README.md`：只在功能、安裝、平台支援、版號範例等描述與本版不符時才改；無需修改時在回報中寫明「README 無需更新」。
 - **README 必含「與 BMad Control Tower 協作」章節**（2026-10-17 使用者指示：「BAT 的 README.md 更新時，要加一章節說明與 BMad-Control-Tower 的協作與整合」）：每次更新 README 時一併檢查該章節（協作流程、BAT 整合點表、版本對照表）。BAT ↔ CT 介面契約有新增或改變（新 helper 參數、新功能需要對應 CT 版本）時，同步更新整合點表與版本對照表（BAT 最低版號 + CT 最低版號）。~~CT 維持未開源：README 不放 CT 的取得連結或內部 repo 位置~~（使用者 2026-10-17 指示；2026-10-25 D183 改寫）**CT 已公開（MIT）：README 的協作章節可寫取得方式並連到 CT Portal 安裝頁；安裝 / 升級步驟與 CT Release 直連仍只留在 Portal**（既有的 skill 名稱說明與版本對照表的 CT 最低版號照舊）。
 - 順序：CI 綠 → `gh release edit`（更版重點）→ 三文件 commit（`docs: release notes for v<版號> (ct)`）→ push（依當次授權）→ 回報發佈完成。
+- **回報發佈完成時必附 NSIS 重裝驗收提醒與指令**（2026-11-03 使用者指示：「以後都要提醒我，給我指令，不然我會當成可自行手動下載安裝」）：每次發佈（預覽版與正式版）的完成回報都要主動寫出完整指令，不只列在待辦——
+  `pwsh -NoProfile -ExecutionPolicy Bypass -File e2e\manual\nsis-reinstall-acceptance.ps1 -Version <版號>`
+  並說明：BAT 須完全關閉（含 Terminal Server）、在 BAT 以外的系統管理員 PowerShell、於 repo 根目錄執行；🔴 `-Version` 必帶（腳本預設值是舊版）；可先 `-DryRun`；BAT 沒關乾淨可加 `-StopRunning`。使用者重開 BAT 回報跑完後，塔台讀最新 `%TEMP%\bat-nsis-acceptance-*\report.md` 判讀，並刪除含權杖的 `userdata-backup`。
 - **網站同步確認**（PLAN-049 W4 / T0659，D160 第 3 點）：三文件 push 會觸發 Pages workflow（`.github/workflows/pages.yml`）。確認該 run 綠燈、網站首頁下載區的版號 = 本版；並打開 `link-check` job 的 summary，有 broken 連結就開單修（該 job 只警告、不擋部署，不看就不會有人發現）。
 
 ### 下游發佈（D137 / T0476）
