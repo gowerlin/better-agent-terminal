@@ -43,8 +43,8 @@ breakdown:
 
 | ID | 標題 | 嚴重度 | 修復時間 | 連結 |
 |----|------|--------|---------|------|
-| BUG-206 | Linux：headless / direct 模式的宿主以 child_process 起的子程序（Claude 面板的 claude CLI、git 等）繼承所有分頁的 pty master（T0806 盤點；T0807 `5e056b72`（`ct/T0807`），待合併（T0809）與發版後實機驗收） | 🔴 high | 2026-11-03 | [BUG-206](BUG-206-headless-direct-child-process-inherits-pty-masters.md) |
-| BUG-207 | Linux：Electron 主行程以 child_process 起的子程序繼承 Chromium 約 49 個沒有 CLOEXEC 的描述元（T0806 盤點；T0807 `5e056b72`（`ct/T0807`），待合併（T0809）與發版後實機驗收） | 🟢 low | 2026-11-03 | [BUG-207](BUG-207-electron-child-process-inherits-chromium-fds.md) |
+| BUG-206 | Linux：headless / direct 模式的宿主以 child_process 起的子程序（Claude 面板的 claude CLI、git 等）繼承所有分頁的 pty master（T0806 盤點；T0807 `5e056b72`，合併 `57c826f3`；待發版後實機驗收） | 🔴 high | 2026-11-03 | [BUG-206](BUG-206-headless-direct-child-process-inherits-pty-masters.md) |
+| BUG-207 | Linux：Electron 主行程以 child_process 起的子程序繼承 Chromium 約 49 個沒有 CLOEXEC 的描述元（T0806 盤點；T0807 `5e056b72`，合併 `57c826f3`；待發版後實機驗收） | 🟢 low | 2026-11-03 | [BUG-207](BUG-207-electron-child-process-inherits-chromium-fds.md) |
 | BUG-208 | 測試呼叫 helper `--version` / `--help` 時沒把 `BAT_USER_DATA` / `BAT_HELPER_LOG_DIR` 指到暫存目錄，寫進使用者真實的 `bat-scripts.log`（T0806 發現；T0808 `e585c762`，待發版 CI Test gate） | 🟢 low | 2026-11-03 | [BUG-208](BUG-208-helper-tests-write-real-bat-scripts-log.md) |
 | BUG-205 | Linux：分頁的 shell 繼承比它早開的分頁的 pty master 與 Electron 主行程的描述元（T0806 `524c9e10`，合併 `2dd282e5`；待發版後真 Linux 驗收；D252 發版前不公開） | 🔴 high | 2026-11-03 | [BUG-205](BUG-205-linux-pty-inherits-fds-and-other-tab-pty-master.md) |
 
