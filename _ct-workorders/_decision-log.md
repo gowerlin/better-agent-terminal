@@ -1465,6 +1465,13 @@
 - **切分**：W2a 設計語言 + 元件 + 首頁（T0630）→ 預覽通過後 W2b（`/control-tower`、功能、FAQ、回報頁）→ W2c 遠端開發；W3 / W4 不變。
 - **相關**：PLAN-049 / D159 / D160 / T0624 / T0630
 
+### D257 2026-11-03 — BUG-205 依交付版 linux-acceptance 結案；t0807 spec 改成相容 AppImage 後重跑驗 BUG-206 / 207（T0810）
+
+- **背景**：linux-acceptance `41636533467`（`-f version=0.7.4-pre.4`，`main` @ `00b24984`）對交付版 AppImage：22.04 / 24.04 的 t0806 F1–F6 全 PASS；t0807 G1 PASS（`[child-fd-guard] installed (/bin/bash)`），G2 兩邊都在 `e2e/linux/t0807-child-process-fds.spec.ts:168`「reference exec'd」逾時，G2 / G3 未判定。塔台初判：對照組直接 exec AppImage，執行後 cmdline[0] 是掛載目錄內的 `BetterAgentTerminal.bin`（L1 證據：主行程 `/tmp/.mount_*/BetterAgentTerminal.bin`），永遠不等於 AppImage 路徑；T0807 當時以 `electron-builder --linux dir` 驗證所以沒遇到。
+- **決定**：① BUG-205 CLOSED（交付版兩個 OS 實測）。② 使用者選「開工單修 spec」→ T0810：只改 t0807 spec 使其相容 AppImage（`--linux dir` 照舊可跑），不改產品；授權 push `ct/T0810` 以 `linux-acceptance.yml --ref ct/T0810 -f version=0.7.4-pre.4` 在 CI 驗證（驗完刪遠端分支）；G2 / G3 PASS 後 BUG-206 / 207 依交付版結果 CLOSED，不需新版號。G2 / G3 若真的 FAIL（產品問題）→ 停下回報，不修產品。
+- **決策者**：使用者（方向）；塔台（範圍）。2026-11-03 第一百一十三 session。
+- **相關**：D252 / D253 / D256 / T0806 / T0807 / T0798（`--ref` 分支 CI 驗證先例）/ BUG-205 / 206 / 207
+
 ### D256 2026-11-03 — 發 `0.7.4-pre.4`（BUG-205 / 206 / 207 Linux fd 外流修正、BUG-208）
 
 - **決定**（使用者 D253「三張同批修，再發版」）：同批四張 BUG 修完後發預覽版 `0.7.4-pre.4`（D236 版號線）。發版前驗證沿用 T0809 在 merge commit `57c826f3` 的完整驗收（typecheck 0 / 0、vite build、unit 397 檔 / 6949、legacy 472 / 33），`main` 產品樹與之相同，verify-native 通過；去識別化 9 組 0、金鑰 0。push `dd3eeb14..6bfa01e0` → run `41633956229` 12 job 全綠 → 發佈 12:25:15Z（target `6bfa01e0`）；更版重點承接上一版〈待驗收〉〈已知事項〉（L184），BUG-159 已結案移除。BUG-208 依 CI Test gate CLOSED；BUG-205 / 206 / 207 待交付版 Linux 驗收。
