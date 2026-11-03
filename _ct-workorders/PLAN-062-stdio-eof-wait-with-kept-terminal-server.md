@@ -34,3 +34,4 @@ T0804 實測：關閉確認預設保留 Terminal Server（T0144）。Terminal Se
 - 2026-11-03 17:06 T0805 補記：另有一個變體——分頁留下的背景程序繼承了 crashpad client socket，即使選「離開＋結束 Terminal Server」，crashpad 也留到背景程序結束（BUG-205，修 BUG-205 的方案 A 會一併解掉）。原題（保留 Terminal Server 時 server 本身就是 crashpad client）需要 T0805 方案 C（fork server 時不讓它成為 crashpad client，代價是 server 當掉不產生 dump），維持 IDEA。
 - 2026-11-03 21:11 → IN_PROGRESS（D258，使用者指示開始）：T0812（研究：現況、候選修法與副作用，之後再開實作單）。
 - 2026-11-03 22:19 T0812 DONE（研究，`6c38522b`）→ **D260**：Linux 實作方案 A3（Terminal Server 的 fork 經 fd guard、只留 IPC 與 keepalive fd 4、不當 crashpad client），T0816（worktree）；一併修 BUG-209（mount 被卸載）；Windows / macOS 不修、寫文件；Playwright＋AppImage 不可控。
+- 2026-11-04 00:11 T0816 DONE＋T0817 合併 → main `5c721d88`：Linux Terminal Server fork 經 fd guard（只留 IPC＋keepalive fd 4、不當 crashpad client）；linux-acceptance `41667030155` K1–K5 PASS。維持 IN_PROGRESS，待發版後交付版驗收。

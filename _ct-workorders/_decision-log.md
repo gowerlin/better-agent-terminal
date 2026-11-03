@@ -1465,6 +1465,13 @@
 - **切分**：W2a 設計語言 + 元件 + 首頁（T0630）→ 預覽通過後 W2b（`/control-tower`、功能、FAQ、回報頁）→ W2c 遠端開發；W3 / W4 不變。
 - **相關**：PLAN-049 / D159 / D160 / T0624 / T0630
 
+### D261 2026-11-04 — T0816 以模式 ② 合併（T0817），使用者確認斷點 E 後 ff；BUG-209 FIXED
+
+- **背景**：T0816（隔離）DONE 後，直接合併判準第 1 條（main 自 base `685bb3d7` 多了 T0815 產品 commit `0b67db03`）與第 2 條（`validated_sha` `24eb000c` ≠ head `69093e41`，差 4 個只改 `e2e/linux/*.spec.ts` 的 commit，已由 linux-acceptance `41667030155` 在 head 驗過）不成立 → 派模式 ② 合併工單 T0817。
+- **結果**：T0817 在整合 worktree `ct-merge/T0816` 自 `base_main_sha` `04058080` `--no-ff` 合併 → `84ebb7af`（parent1 `04058080`、parent2 `69093e41`），無衝突（`CLAUDE.md` 兩邊不同小節自動合併、72,079 字元），範圍外檔案 0；在 merge commit 上 typecheck 0 / 0、vite build、unit 401 檔 / 7045、legacy 472 / 33 全過；T0816 產品檔未被合併改動，Linux 不重跑。塔台收單 SHA 比對 ①–③ 成立（第 ② 步以 parent2 = 目前 `ct/T0816` head、merge commit 完整驗收取代 `validated_sha` 相等）；第 ⑤ 步 main 只多 `_ct-workorders/**` → 整合分支再 `--no-ff` 併 main → `5c721d88`（產品樹與 `84ebb7af` 相同）；斷點 E 使用者選「快轉 main」→ `main` `--ff-only` → `5c721d88`（第 ④ 步確認）；整合 worktree detach；T0816 worktree 乾淨、`git worktree remove`（未加 `--force`）；分支 `ct/T0816` / `ct-merge/T0816` 保留到使用者同意刪除。BUG-209 → FIXED（待交付版驗收）。未 push。
+- **決策者**：塔台（模式）；使用者（ff）。2026-11-04 第一百一十三 session。
+- **相關**：D031 / D254 / D260 / T0816 / T0817 / PLAN-062 / BUG-209
+
 ### D260 2026-11-03 — PLAN-062 實作 Linux 方案 A3（T0816，worktree 隔離並行）；開 BUG-209 併入同單
 
 - **背景**：T0812（研究）以交付版 `v0.7.4-pre.4` 重現 PLAN-062 三種情境（Playwright / `out=$(…)` / `| tee` 都等到 server 結束），成因：Electron 在 Linux 對 `ELECTRON_RUN_AS_NODE` 的 fork 自動加 crashpad env 與 fd，Terminal Server 成為 crashpad client，crashpad handler 持有主行程 stdio；Terminal Server 的 fork 被 T0807 刻意排除在 fd guard 外。方案 A3 實測 `out=$(…)` 908 ms 返回、dump 無損失（server 目前本來就不產生 dump）、T0704 / T0578 正常。另實測既有問題：一般啟動時 keepalive fd 3 被 IPC 蓋掉，保留 server 離開後 AppImage mount 被卸載（ENOTCONN）。Windows 有同樣現象但成因是 server 繼承 std handle（需原生程式碼），macOS 推論只有擷取 stderr 時會卡。
