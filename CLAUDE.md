@@ -184,8 +184,17 @@
 - 🔴 只有 Linux 套用；Windows / macOS 傳給 `spawn` 的內容與日誌完全不變（`guardPtySpawnFds` 回傳原物件）。沒有 `/bin/bash`、`/usr/bin/bash` 時照舊直接 spawn，記一行 `[pty-fd-guard]` debug log。
 - 🔴 包裝不得改變既有行為：pid 是 shell（wrapper `exec` 成 shell）、argv[0] 是原 `file`、參數原樣、env 與 cwd 不變（`BASH_ENV` 不給包裝的 bash 並由腳本還原，原本沒有的 `PWD` / `SHLVL` 再拿掉）、只保留 fd 0–2。腳本是固定字串，shell 與參數只當位置參數、以陣列傳給 `spawn`。
 - 唯一實作 `guardPtySpawnFds`（`electron/pty-spawn-fd-guard.ts`，純函式、不 import electron）；Terminal Server `createPty`、`PtyManager` direct `pty.spawn` 與 `child_process.spawn` fallback 都經它（headless 同一個 `PtyManager`）。🔴 新增 PTY spawn 路徑一律經它；`PtyManager` 存 / 送給 server 的仍是原 shell / args（server 端才包裝）。Linux server 在 `pty:created` 帶 `fdGuard`，主行程記 `fd-guard=closed`。
-- 已知限制：更新前就在跑的舊 Terminal Server 不包裝；主行程以 `child_process` 起的其他子程序仍收到主行程的 fd（不在本節範圍）。
+- 已知限制：更新前就在跑的舊 Terminal Server 不包裝；`child_process` 子程序見下一節。
 - 完整規則、env 處理表、consumer 不回歸表、日誌、驗證（單元測試＋ `e2e/linux/t0806-pty-fd-inheritance.spec.ts` F1–F6）：[docs/agent-guide/linux-pty-fd-inheritance.md](docs/agent-guide/linux-pty-fd-inheritance.md)
+
+## Linux child_process 子程序只保留 stdio（T0807 / BUG-206 / BUG-207，D253）
+
+- 用途：Linux 上主行程與 headless bat-server 以 `child_process` 起的子程序（claude CLI / Agent SDK、codex、git 與其 hook、gh、ssh…）原本繼承 Chromium 的描述元，headless / direct 模式下還拿到所有分頁的 pty master。現在每個子程序經 bash 包裝，exec 前關掉 stdio 以外的 fd。
+- 🔴 只有 Linux 安裝；Windows / macOS 不碰任何 binding、spawn 與日誌不變。攔截點是 libuv 入口 `process.binding('process_wrap').Process.prototype.spawn` 與 `process.binding('spawn_sync').spawn`（涵蓋所有 async / sync API 與 SDK 內部的 spawn）；不改 `node_modules`、不逐點改 spawn。不認得的 binding 形狀 → 原樣 spawn＋記一行（fail open）。🔴 升級 Electron / bundled node 時必跑 `electron/__tests__/child-process-fd-guard-linux.test.ts`。
+- 🔴 不得改變既有行為：保留 fd 0 … stdio 數−1（`fork` 的 IPC、額外 pipe）與 `CRASHDUMP_SIGNAL_FD`；pid、argv（`exec -a`）、執行檔（`resolveChildExecutable` 照 libuv 的 PATH 順序）、env（`BASH_ENV` / `PWD` / `SHLVL` 還原）、cwd、detached、exit code 不變；找不到 / 不可執行的命令不包裝（照舊 ENOENT / EACCES）；已包裝的不重複包。
+- 唯一實作 `electron/child-process-fd-guard.ts`（`guardChildSpawn` 純函式、`installChildProcessFdGuard`、`runWithoutChildProcessFdGuard`；不 import electron）。🔴 安裝點只有 `electron/main.ts` 模組層（任何 spawn 之前）與 `scripts/bat-server.mjs` `main()`（`loadServerEntry` 後、`applyHeadlessLoginShellPath` 前）；Terminal Server 不安裝，它的兩個 `fork` 包在 `runWithoutChildProcessFdGuard`（PLAN-062 方案 C）。新的 BAT 行程若持有 pty master 或起長時間子程序也要安裝。
+- 已知限制：`early-path-fix` 在安裝前執行（沒有 master）；`argv0` ≠ `file` 且原 env 沒有 `SHLVL` 時子程序收到 `SHLVL=0`；常駐的舊 bat-server 要重啟才生效。
+- 完整規則、env 表、呼叫點盤點、日誌、驗證（Linux 實測＋ `e2e/linux/t0807-child-process-fds.spec.ts` G1–G3）：[docs/agent-guide/linux-pty-fd-inheritance.md](docs/agent-guide/linux-pty-fd-inheritance.md)「child_process 子程序只保留 stdio」
 
 ## Recovery 提示期間的 `pty:create`（T0578 / BUG-146）
 

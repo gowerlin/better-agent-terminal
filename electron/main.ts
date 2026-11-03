@@ -7,6 +7,7 @@ import { pathToFileURL } from 'url'
 import * as fs from 'fs/promises'
 import * as fsSync from 'fs'
 import { spawnSync, fork } from 'child_process'
+import { installChildProcessFdGuard, runWithoutChildProcessFdGuard } from './child-process-fd-guard'
 import { DetachedTerminalOwners, saveDetachedWorkspaceTerminals, saveWindowWorkspaces, WindowRegistry, workspaceTerminals, type WorkspaceSavePayload } from './window-registry'
 import { createRendererFlusher, DETACHED_CLOSE_FLUSH_TIMEOUT_MS, DetachedTeardowns, flushBeforeClose, QUIT_FLUSH_TIMEOUT_MS, type CloseGuard } from './renderer-flush'
 import { openSettingsInWindow, pickSettingsWindow, type OpenSettingsInParentResult } from './detached-open-settings'
@@ -149,6 +150,11 @@ process.on('unhandledRejection', (reason) => {
   logger.error(`[CRASH] unhandledRejection: ${reason instanceof Error ? reason.stack || reason.message : String(reason)}`)
 })
 handOffEarlyCrashCapture()
+
+// BUG-206 / BUG-207 / T0807: Linux only — every child_process child of this process keeps only its
+// stdio fds (no Chromium descriptors; no pty master when PtyManager runs in direct mode). Installed
+// before anything below spawns; the Terminal Server fork opts out (runWithoutChildProcessFdGuard).
+installChildProcessFdGuard({ log: line => logger.log(line) })
 
 // GPU disk cache: set dedicated path to avoid "Unable to move the cache" errors on Windows.
 // These errors block GPU compositing and can add seconds to first paint.
@@ -408,7 +414,8 @@ async function startTerminalServer(): Promise<void> {
     const scrollBufferLines = tsSettings?.terminalServerScrollBufferLines ?? 1000
     const idleTimeoutMinutes = tsSettings?.terminalServerIdleTimeoutMinutes ?? 30
 
-    const child = fork(serverScript, [], {
+    // T0807: the Terminal Server keeps its inherited fds (PLAN-062 option C, out of scope); its IPC fd 3 is stdio anyway.
+    const child = runWithoutChildProcessFdGuard(() => fork(serverScript, [], {
       detached: true,
       stdio: ['ignore', 'ignore', 'ignore', 'ipc'],
       env: {
@@ -417,7 +424,7 @@ async function startTerminalServer(): Promise<void> {
         BAT_SCROLL_BUFFER_LINES: String(scrollBufferLines),
         BAT_IDLE_TIMEOUT_MS: String(idleTimeoutMinutes * 60000),
       },
-    })
+    }))
 
     child.on('error', (err) => {
       logger.error(`[terminal-server] fork error: ${err}`)
@@ -468,7 +475,8 @@ async function reforkTerminalServer(): Promise<import('child_process').ChildProc
     const scrollBufferLines = tsSettings?.terminalServerScrollBufferLines ?? 1000
     const idleTimeoutMinutes = tsSettings?.terminalServerIdleTimeoutMinutes ?? 30
 
-    const child = fork(serverScript, [], {
+    // T0807: the Terminal Server keeps its inherited fds (PLAN-062 option C, out of scope); its IPC fd 3 is stdio anyway.
+    const child = runWithoutChildProcessFdGuard(() => fork(serverScript, [], {
       detached: true,
       stdio: ['ignore', 'ignore', 'ignore', 'ipc'],
       env: {
@@ -477,7 +485,7 @@ async function reforkTerminalServer(): Promise<import('child_process').ChildProc
         BAT_SCROLL_BUFFER_LINES: String(scrollBufferLines),
         BAT_IDLE_TIMEOUT_MS: String(idleTimeoutMinutes * 60000),
       },
-    })
+    }))
 
     child.on('error', (err) => {
       logger.error(`[terminal-server] re-fork error: ${err}`)
