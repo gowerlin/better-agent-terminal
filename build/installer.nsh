@@ -13,18 +13,24 @@
 ; `_CHECK_APP_RUNNING` needs: both are declared here instead.
 ;
 ; What changes for the user (docs/agent-guide/upgrade-interruption.md):
-;   - BAT running, installer not elevated, BAT new enough (T0823+): same "is running, OK to close"
-;     prompt (silent /S: accepted), then BAT quits normally (saves, stops its Terminal Server) instead
-;     of being force-ended. If it is still running after BAT_INSTALLER_QUIT_TIMEOUT_MS (old BAT that
-;     ignores the argument, BAT still starting, a quit dialog already open), the template's check runs
-;     as before: interactive installs show its prompt a second time, then force-end.
-;   - Elevated installer (per-machine), or BAT not running: exactly the template's behaviour.
+;   - BAT running, installer not elevated, BAT installed by a T0823+ installer (marker file): same "is
+;     running, OK to close" prompt (silent /S: accepted), then BAT quits normally (saves, stops its
+;     Terminal Server) instead of being force-ended. If it is still running after
+;     BAT_INSTALLER_QUIT_TIMEOUT_MS (BAT still starting, a quit dialog already open), the template's
+;     check runs as before: interactive installs show its prompt a second time, then force-end.
+;   - Elevated installer (per-machine), BAT installed before T0823 (no marker), or BAT not running:
+;     exactly the template's behaviour.
 
 !include "getProcessInfo.nsh"
 Var pid
 
 ; Same string as INSTALLER_QUIT_REQUEST_ARG in electron/installer-quit-request.ts.
 !define BAT_INSTALLER_QUIT_ARG "--installer-quit-request"
+; Written by this installer (customInstall) into the installed app: "the BAT installed here understands the
+; request". A BAT installed before T0823 has no such file and is not asked: it would take the argument as
+; "open a new window" (its second-instance handler), save that window, and be force-ended 15 s later anyway.
+; The uninstaller removes $INSTDIR (RMDir /r), so a downgrade drops the file with the rest.
+!define BAT_INSTALLER_QUIT_MARKER "resources\installer-quit-request.supported"
 ; How long the installer waits for every process under $INSTDIR to end after the request.
 !define BAT_INSTALLER_QUIT_TIMEOUT_MS 15000
 !define BAT_INSTALLER_QUIT_POLL_MS 500
@@ -36,6 +42,7 @@ Var pid
   ${If} $3 != "${APP_EXECUTABLE_FILENAME}"
   ${AndIfNot} ${UAC_IsAdmin}
   ${AndIf} ${FileExists} "$INSTDIR\${APP_EXECUTABLE_FILENAME}"
+  ${AndIf} ${FileExists} "$INSTDIR\${BAT_INSTALLER_QUIT_MARKER}"
     !insertmacro FIND_PROCESS "${APP_EXECUTABLE_FILENAME}" $R0
     ${If} $R0 == 0
       ${IfNot} ${isUpdated}
@@ -63,6 +70,18 @@ Var pid
       ${EndIf}
     ${EndIf}
   ${EndIf}
+!macroend
+
+; installSection.nsh inserts customInstall after the files are in place (installer only).
+!macro customInstall
+  Push $0
+  ClearErrors
+  FileOpen $0 "$INSTDIR\${BAT_INSTALLER_QUIT_MARKER}" w
+  ${IfNot} ${Errors}
+    FileWrite $0 "T0823: BetterAgentTerminal.exe accepts ${BAT_INSTALLER_QUIT_ARG}$\r$\n"
+    FileClose $0
+  ${EndIf}
+  Pop $0
 !macroend
 
 !macro customCheckAppRunning

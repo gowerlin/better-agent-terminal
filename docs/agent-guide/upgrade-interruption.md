@@ -89,7 +89,8 @@ N = 兩份清單依 terminal id 的聯集（紀錄在前）；claude session 以
 
 ### 流程
 
-1. 安裝程式（`batRequestGracefulQuit`）：不是 app 本身、未提權、`$INSTDIR\BetterAgentTerminal.exe` 存在，且 `FIND_PROCESS` 找到安裝目錄下的程序 →
+0. 安裝時（`customInstall`，檔案放好之後）：寫 `$INSTDIR\resources\installer-quit-request.supported`（`BAT_INSTALLER_QUIT_MARKER`），代表「裝在這裡的 BAT 認得請求」。T0823 前的安裝沒有這個檔；任何解除安裝（含降版時舊版安裝程式先跑的解除安裝）都 `RMDir /r $INSTDIR`，檔案跟著消失。
+1. 安裝程式（`batRequestGracefulQuit`）：不是 app 本身、未提權、`$INSTDIR\BetterAgentTerminal.exe` 與標記檔都存在，且 `FIND_PROCESS` 找到安裝目錄下的程序 →
 2. 不是 `--updated` 時先顯示範本同一句提示（`$(appRunning)`，確定 / 取消；取消 = 結束安裝程式；`/S` 自動確定）。
 3. `Exec "<安裝目錄>\BetterAgentTerminal.exe --installer-quit-request"`，每 `BAT_INSTALLER_QUIT_POLL_MS` = 500 ms 以 `FIND_PROCESS` 檢查，最多 `BAT_INSTALLER_QUIT_TIMEOUT_MS` = 15 s（`GetTickCount` 計時）。
 4. 無論結果，接著跑範本的 `_CHECK_APP_RUNNING`：程序都結束了 → 什麼都不做；還有 → 範本原本的提示 / 強制結束（與 T0823 前相同）。
@@ -112,7 +113,8 @@ N = 兩份清單依 terminal id 的聯集（紀錄在前）；claude session 以
 |---|---|---|
 | 互動安裝、BAT（T0823+）在跑 | 「正在執行，按確定關閉」→ BAT 被強制結束 | 同一句提示 → BAT 自己存檔、停 Terminal Server 後結束（通常 1 秒內），不再出現 BAT 的離開確認對話框 |
 | `/S` 靜默安裝、BAT（T0823+）在跑 | 直接強制結束 | 直接請 BAT 正常結束 |
-| BAT 是 T0823 前的版本（例 pre.5 → pre.6 這一次） | 強制結束 | 請求被舊版當成「開新視窗」（舊版的 `second-instance`）；等滿 15 s 後範本照舊：互動安裝**再顯示一次**提示，然後強制結束。安裝多花約 15 s |
+| 裝著的 BAT 是 T0823 前的安裝程式裝的（例 pre.5 → pre.6 這一次） | 強制結束 | 相同（沒有標記檔，不送請求）。若送了，舊版會把參數當成「開新視窗」（舊版的 `second-instance`，`createEntry` 立即存進 windows.json），15 s 後仍被強制結束，重開多一個空視窗——所以用標記擋掉 |
+| BAT 還在啟動、或離開對話框開著 | 強制結束 | 送出請求、等滿 15 s，範本照舊：互動安裝**再顯示一次**提示，然後強制結束 |
 | 提權（所有使用者）安裝 | 強制結束（或 inner instance 不檢查） | 相同 |
 | 只剩保留的 Terminal Server | server 被強制結束、重開走孤兒清理 | 請求行程請 server 正常 shutdown |
 | BAT 以 `--runtime=N` 執行 | 強制結束 | 相同（請求只到預設 runtime 的 lock；逾時後回退） |
@@ -123,7 +125,8 @@ N = 兩份清單依 terminal id 的聯集（紀錄在前）；claude session 以
 - **子項 4（holder 模型：讓 ConPTY 持有者撐過升級）未做**，見 PLAN-063。升級仍會結束所有終端；子項 3 只讓結束變成正常結束。
 - macOS / Linux 的升級行為未研究：偵測邏輯在所有平台都會跑（版本變＋有孤兒或紀錄才觸發），但升級前的提示與 NSIS 請求只在 Windows。
 - 只看「版本變＋（孤兒或紀錄）」：版本變了、上一次結束時剛好有 Terminal Server 被當機 / 手動結束（不是安裝程式）也會被說成升級。反過來，升級前已先「結束並停止 Terminal Server」的使用者沒有孤兒也沒有紀錄，不顯示（也沒有東西被結束）。
-- T0823 前的版本在跑時，請求會讓它開一個新視窗（舊版 `second-instance` 的行為），接著被強制結束；只在升到第一個含 T0823 的版本時發生一次。
+- 第一次升到含 T0823 的版本時（裝著的是 T0823 前的版本）不送請求，照舊強制結束、重開走孤兒清理；之後的升級才是正常結束。
+- 標記只看安裝目錄：使用者自己複製或刪掉 `resources\installer-quit-request.supported` 會讓判斷失準（多送：舊版開一個視窗、15 s 後回退；少送：照舊強制結束）。
 - 使用者的離開對話框開著時收到請求：不處理，交給安裝程式 15 s 後回退。
 - 「只顯示一次」是每個 BAT 行程給第一個視窗；多個主視窗時其他視窗不顯示（清單本身每個視窗照舊只列自己的分頁）。
 - `InterruptedAgentsStore` 只在記憶體（D211 P-5）：升級說明關掉後、BAT 再重開一次，清單就沒了。
@@ -134,6 +137,6 @@ N = 兩份清單依 terminal id 的聯集（紀錄在前）；claude session 以
 
 - 單元：`electron/__tests__/upgrade-interruption.test.ts`（觸發條件四種、版本檔讀寫失敗、來源判斷、`UpgradeInterruptionCheck` 生命週期與只給一次、`cause: 'upgrade'` 的 session-start 規則、main.ts 孤兒清理順序 source guard）；`src/components/__tests__/upgrade-interruption.test.tsx`（三語字串、更新通知只在 win32 顯示且既有內容不變、toast、對話框標題、App.tsx source guard）。突變：拿掉版本條件 / N 條件 / win32 判斷 / session-start 規則 → 對應測試失敗（T0821 實測）。
 - e2e：`e2e/t0821-upgrade-interruption.spec.ts`（Windows、隔離 runtime、需先 `npx vite build`）：開兩個 shell 分頁 → 關閉時保留 Terminal Server → `taskkill /F /PID <server>`（不帶 `/T`，模擬安裝程式）→ 改寫 `last-run-version.json` 為舊版、寫一筆上一個行程的 claude session 紀錄（不啟動 claude、不呼叫模型）→ 重開：toast 含 N=2 與兩個版本、日誌 `detected … ended-ptys=2 agent-tabs=1`、兩個分頁還原、點 toast 開清單（1 列 claude-cli、session 前 8 碼、升級說明）、reload 後不再顯示；對照組（不改版本）：不顯示、沒有 `detected`，孤兒清理照舊。
-- T0823 單元：`electron/__tests__/installer-quit-request.test.ts`（參數辨識、紀錄驗證與只讀一次、`InstallerQuitController` 啟動中保留 / 只處理一次 / 已在 quit 時不處理 / 失敗仍結束、沒有 BAT 主行程時停 server、新版偵測合併規則、main.ts / installer.nsh / package.json source guard、electron-builder 範本掛勾與版本）。突變 9 種（拿掉紀錄條件、啟動中直接執行、請求時不停 server、忽略紀錄、紀錄不刪、忽略進行中的 quit、nsh 不送請求、whenReady 不擋請求行程（兩種寫法））→ 對應測試失敗。
+- T0823 單元：`electron/__tests__/installer-quit-request.test.ts`（參數辨識、紀錄驗證與只讀一次、`InstallerQuitController` 啟動中保留 / 只處理一次 / 已在 quit 時不處理 / 失敗仍結束、沒有 BAT 主行程時停 server、新版偵測合併規則、main.ts / installer.nsh / package.json source guard、electron-builder 範本掛勾與版本）。突變 11 種（拿掉紀錄條件、啟動中直接執行、請求時不停 server、忽略紀錄、紀錄不刪、忽略進行中的 quit、nsh 不送請求、whenReady 不擋請求行程（兩種寫法）、nsh 不看標記、`customInstall` 不寫標記）→ 對應測試失敗。
 - T0823 e2e：`e2e/t0823-installer-graceful-quit.spec.ts`（Windows、隔離 runtime、需先 `npx vite build`）：兩個 shell 分頁 → 第二個實例帶 `--installer-quit-request` → BAT 在 15 s 內結束（不跳對話框）、`[quit] terminal server stopped (via IPC server:shutdown)`、pid / port / registry 檔已清、shell 已結束、紀錄列 2 個終端 → 改寫上次版本後重開：toast N=2、`detected … source=installer`、紀錄已刪、沒有孤兒清理；對照（不改版本）：不顯示、紀錄已刪；server-only：保留 server 離開後送請求 → 請求行程停掉 server、紀錄 `server-only`。
 - 真實升級（pre.N → pre.N+1 兩版都含本功能）要等下次發版：以 T0820 的探測 spec（本機分支 `ct/T0820`）改寫，情境 ①② 重開後檢查 `[upgrade-interruption] detected` 行與 toast，並確認情境「先結束並停止 Terminal Server 再升級」不顯示。

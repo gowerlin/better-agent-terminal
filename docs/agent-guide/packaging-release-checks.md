@@ -69,7 +69,7 @@
   1. `allowOnlyOneInstallerInstance.nsh` 仍有 `!ifmacrodef customCheckAppRunning` → `!insertmacro customCheckAppRunning`，否則仍是 `IS_POWERSHELL_AVAILABLE` ＋ `_CHECK_APP_RUNNING`。
   2. 定義 `customCheckAppRunning` 時範本仍跳過 `!include "getProcessInfo.nsh"` 與 `Var pid`（`build/installer.nsh` 自己補；範本若改成無條件宣告 `Var pid`，會變成重複宣告、編譯失敗——拿掉本檔那一行）。
   3. `_CHECK_APP_RUNNING` / `IS_POWERSHELL_AVAILABLE` / `FIND_PROCESS` 仍存在、名稱與參數不變；`$(appRunning)` / `$(appClosing)` 語言字串仍在 `messages.yml`。
-  4. 呼叫時機不變：`installSection.nsh` 在 `${ifNot} ${UAC_IsInnerInstance}` 時插入 `CHECK_APP_RUNNING`（在 `uninstallOldVersion` 之前）；`uninstaller.nsh` 的 `un.checkAppRunning`；舊版解除安裝程式以 `/S --updated` 執行。
+  4. 呼叫時機不變：`installSection.nsh` 在 `${ifNot} ${UAC_IsInnerInstance}` 時插入 `CHECK_APP_RUNNING`（在 `uninstallOldVersion` 之前），檔案放好後插入 `customInstall`（寫標記檔 `resources\installer-quit-request.supported`）；`uninstaller.nsh` 的 `un.checkAppRunning`，且解除安裝仍 `RMDir /r $INSTDIR`（降版時標記跟著消失）；舊版解除安裝程式以 `/S --updated` 執行。
   5. 本機 `npx vite build` 後以上面的指令編一次 NSIS，再以 `desktop-build.yml` 的安裝檔在 Windows runner 實測（T0823 的探測做法見工單回報區），確認 `[installer-quit]` 日誌與 Terminal Server 正常 shutdown；全部核對完才改測試裡的版本號。
 
 # 只 build、不發布的桌面 workflow（T0783，D223）
