@@ -1497,6 +1497,7 @@
     "resumeAll": "全部恢复（{{count}}）",
     "dismiss": "略过",
     "badgeTooltip": "这个标签页的 agent 因 Terminal Server 重启而中断，点击查看",
+    "badgeUpgradeTooltip": "这个标签页的 agent 因安装新版而中断，点击查看",
     "resumed": "已恢复：{{title}}",
     "resumedPicker": "已打开 claude 的 resume 菜单：{{title}}",
     "resumedUserArgs": "{{title}}：自定义参数已指定 session，未加 --resume",

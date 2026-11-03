@@ -258,7 +258,8 @@ export const TerminalThumbnail = memo(function TerminalThumbnail({ terminal, isA
   const missed = missedWaitToShow(attentionEvent, missedWait)
   // PLAN-044 / T0566: the tab's usage-limit state (main's `terminal:usage-limit-status`, memory only)
   const usageLimit = useUsageLimitStatus(terminal.id)
-  // PLAN-055 B1 / T0766: its agent was interrupted by a Terminal Server recovery (memory only)
+  // PLAN-055 B1 / T0766: its agent was interrupted by a Terminal Server recovery (memory only);
+  // T0822: an upgrade-caused entry (`cause: 'upgrade'`, T0821) gets its own tooltip
   const interrupted = useInterruptedAgent(terminal.id)
   const workerTooltip = isWorker
     ? [
@@ -351,7 +352,7 @@ export const TerminalThumbnail = memo(function TerminalThumbnail({ terminal, isA
           {interrupted && (
             <span
               className="interrupted-agent-badge"
-              title={t('interruptedAgents.badgeTooltip')}
+              title={t(interrupted.cause === 'upgrade' ? 'interruptedAgents.badgeUpgradeTooltip' : 'interruptedAgents.badgeTooltip')}
               data-interrupted-agent={interrupted.agent}
               style={{ cursor: 'pointer', flexShrink: 0 }}
               onClick={(e) => {

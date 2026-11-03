@@ -1498,6 +1498,7 @@
     "resumeAll": "Resume all ({{count}})",
     "dismiss": "Dismiss",
     "badgeTooltip": "The agent in this tab was interrupted by the Terminal Server recovery — click to review",
+    "badgeUpgradeTooltip": "The agent in this tab was ended by installing the new version — click to review",
     "resumed": "Resumed: {{title}}",
     "resumedPicker": "Opened claude's resume menu: {{title}}",
     "resumedUserArgs": "{{title}}: the custom args already choose the session, so --resume was not added",
