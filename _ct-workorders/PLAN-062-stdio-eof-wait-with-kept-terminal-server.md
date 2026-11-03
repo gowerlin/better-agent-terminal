@@ -3,9 +3,10 @@ schema_version: 1
 schema_kind: plan
 id: PLAN-062
 title: "以「等 stdout / stderr 結束」方式啟動 BAT 的外部程式會一直等（Terminal Server 保留時 crashpad 持有主行程 stdio）"
-status: IN_PROGRESS
+status: DONE
 priority: low
 created_at: "2026-11-03T16:27:42+0800"
+completed_at: "2026-11-04T00:56:59+0800"
 links:
   source: "T0804 回報區〈結論〉C 觀察 1；D251"
   related: [T0803, T0804, T0805, T0144]
@@ -35,3 +36,4 @@ T0804 實測：關閉確認預設保留 Terminal Server（T0144）。Terminal Se
 - 2026-11-03 21:11 → IN_PROGRESS（D258，使用者指示開始）：T0812（研究：現況、候選修法與副作用，之後再開實作單）。
 - 2026-11-03 22:19 T0812 DONE（研究，`6c38522b`）→ **D260**：Linux 實作方案 A3（Terminal Server 的 fork 經 fd guard、只留 IPC 與 keepalive fd 4、不當 crashpad client），T0816（worktree）；一併修 BUG-209（mount 被卸載）；Windows / macOS 不修、寫文件；Playwright＋AppImage 不可控。
 - 2026-11-04 00:11 T0816 DONE＋T0817 合併 → main `5c721d88`：Linux Terminal Server fork 經 fd guard（只留 IPC＋keepalive fd 4、不當 crashpad client）；linux-acceptance `41667030155` K1–K5 PASS。維持 IN_PROGRESS，待發版後交付版驗收。
+- 2026-11-04 00:56 → **DONE**：交付版 `v0.7.4-pre.5` AppImage 的 linux-acceptance `41676550640` ubuntu-22.04 / 24.04 皆 success（K1：保留 server 離開後 `out=$(…)` ≤ 10 s 返回；K2：server 只繼承 fd 0–3＋keepalive fd 4、無 crashpad env / socket；K3 BUG-209；K4 Recovery 保留；K5 renderer dump 照寫），BUG-209 同時 CLOSED。範圍內未做（D260 決定）：Windows / macOS 不修（只寫文件）、Playwright＋AppImage 的 `app.close()` 保留 server 時仍會等（FUSE 持有 Playwright 的 fd，e2e 照舊 `closeIsolated`）。
