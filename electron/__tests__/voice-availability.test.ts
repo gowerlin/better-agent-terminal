@@ -62,8 +62,8 @@ describe('buildVoiceProbeEnv', () => {
   it('🔴 drops BAT_* / CT_* / tokens / NODE_OPTIONS / ELECTRON_*, adds only ELECTRON_RUN_AS_NODE', () => {
     const env = buildVoiceProbeEnv({
       PATH: '/usr/bin', HOME: '/home/tester', LD_LIBRARY_PATH: '/opt/lib', SystemRoot: 'C:\\Windows',
-      BAT_REMOTE_TOKEN: 'batcap.x', BAT_REMOTE_PORT: '1', bat_session: 'x', CT_MODE: 'yolo',
-      GITHUB_TOKEN: 'ghp_x', ANTHROPIC_API_KEY: 'sk-ant-x', MY_SECRET: 's', DB_PASSWORD: 'p', AWS_SECRET_ACCESS_KEY: 'k',
+      BAT_REMOTE_TOKEN: 'fake-cap', BAT_REMOTE_PORT: '1', bat_session: 'x', CT_MODE: 'yolo',
+      GITHUB_TOKEN: 'fake-token', ANTHROPIC_API_KEY: 'fake-key', MY_SECRET: 's', DB_PASSWORD: 'p', AWS_SECRET_ACCESS_KEY: 'k',
       NODE_OPTIONS: '--require x', ELECTRON_RUN_AS_NODE: '', ELECTRON_ENABLE_LOGGING: '1', UNDEF: undefined,
     })
     expect(env).toEqual({
