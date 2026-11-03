@@ -3,12 +3,14 @@ schema_version: 1
 schema_kind: bug
 id: BUG-202
 title: "Ubuntu 24.04 預設設定下直接執行 AppImage 會崩潰：AppArmor 擋住 unprivileged user namespace，Chromium 退回 setuid `chrome-sandbox`，而它不是 root 擁有的 4755 → FATAL（SIGTRAP）"
-status: FIXED
+status: CLOSED
 severity: high
 reproducibility: always
 created_at: "2026-11-03T02:17:46+0800"
-updated_at: "2026-11-03T03:06:07+0800"
+updated_at: "2026-11-03T12:35:20+0800"
 fixed_at: "2026-11-03T03:06:07+0800"
+closed_at: "2026-11-03T12:35:20+0800"
+closed_reason: "交付版 v0.7.4-pre.2 linux-acceptance 41578537967 實測通過"
 fix_commit: d773cb6780ac176e6fa16000fa67a49eb8f7eb69
 impact:
   - linux
@@ -23,7 +25,7 @@ links:
 |------|------|
 | 嚴重度 | 🔴 high（Ubuntu 目前的 LTS、預設設定下，直接執行 AppImage 就開不起來） |
 | 可重現 | 每次：GitHub `ubuntu-24.04` runner（`apparmor_restrict_unprivileged_userns = 1`，與桌面版預設相同）run `41495143950`、`41496512040` 都重現；L1（Playwright）與 L2（直接 spawn）皆同 |
-| **狀態** | ✅ FIXED（T0799 `d773cb67`，2026-11-03 03:09 合併回 main `bf561a3d`；待交付版 `linux-acceptance -f version=<版號>` 驗收） |
+| **狀態** | 🚫 CLOSED（T0799；交付版 `v0.7.4-pre.2` linux-acceptance `41578537967` 驗收通過） |
 | 回報者 | 塔台（T0797 / T0798 CI 驗收） |
 
 ## 現象
@@ -59,3 +61,7 @@ links:
 - 修法：`afterPack` 把 AppImage 的 `BetterAgentTerminal` 換成 `/bin/sh` 啟動器、Electron 二進位改名 `BetterAgentTerminal.bin`（`scripts/appimage-sandbox-launcher.cjs`）。只在「userns 用不了（`apparmor_restrict_unprivileged_userns = 1` 且二進位沒被套 AppArmor profile；否則 `unshare -Ur true` 失敗）＋`chrome-sandbox` 不是 root setuid＋參數沒有 `--no-sandbox`＋非 `ELECTRON_RUN_AS_NODE`」時加 `--no-sandbox`，stderr 一行固定字串、debug log `[WARN] [sandbox] Chromium sandbox auto-disabled …`（`electron/linux-sandbox-fallback.ts`）。
 - 注入點：main.ts `appendSwitch` 太晚（Chromium 在 JS 前決定 sandbox；BUG-202 崩潰時連 debug log 都沒寫），所以用啟動前的包裝層。
 - 驗證：22.04 L1 / L2 PASS、renderer sandbox 開、命令列無 `--no-sandbox`；24.04 L1 WARN（視窗 / 終端 / echo 過、0 個 `[CRASH]`）、L2 PASS。文件 `docs/agent-guide/linux-appimage-sandbox.md`（含 AppArmor profile 範例，未實測）。
+
+## 結案紀錄
+
+- 2026-11-03 12:35 CLOSED：交付版 `v0.7.4-pre.2`（pre-release run `41577071236`）的 linux-acceptance run `41578537967`（`-f version=0.7.4-pre.2`）：ubuntu-22.04 verdict **PASS**（L1 / L2 PASS，sandbox 開、未自動降級）；ubuntu-24.04 verdict **WARN**，`verdictReason` 只有 `L1: sandbox auto-disabled (BUG-202 fallback)`，L2 PASS。符合結案條件（22.04 PASS / 24.04 WARN auto-disabled）。

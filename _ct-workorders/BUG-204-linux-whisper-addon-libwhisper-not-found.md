@@ -3,12 +3,14 @@ schema_version: 1
 schema_kind: bug
 id: BUG-204
 title: "Linux 打包版語音輸入無法載入：`whisper.node` 找不到同目錄的 `libwhisper.so.1`（相依 `.so` 不在動態載入器搜尋路徑，22.04 / 24.04 皆同）"
-status: FIXED
+status: CLOSED
 severity: medium
 reproducibility: always
 created_at: "2026-11-03T03:10:02+0800"
-updated_at: "2026-11-03T12:07:51+0800"
+updated_at: "2026-11-03T12:35:20+0800"
 fixed_at: "2026-11-03T12:07:51+0800"
+closed_at: "2026-11-03T12:35:20+0800"
+closed_reason: "交付版 v0.7.4-pre.2 linux-acceptance 41578537967 實測通過"
 fix_commit: "fb4c0f8c（分支 ct/T0800；docs 3d02147b）"
 impact:
   - linux
@@ -23,7 +25,7 @@ links:
 |------|------|
 | 嚴重度 | 🟡 medium（Linux 打包版的語音輸入完全不能用；BAT 其他功能不受影響） |
 | 可重現 | 每次：ubuntu-22.04 / 24.04 runner，三次 run 錯誤原文相同 |
-| **狀態** | ✅ FIXED（T0800 `fb4c0f8c`，分支 `ct/T0800`，待合併與交付版驗收） |
+| **狀態** | 🚫 CLOSED（T0800；交付版 `v0.7.4-pre.2` linux-acceptance `41578537967` 24.04 W1 PASS） |
 | 回報者 | 塔台（T0799 CI 查證） |
 
 ## 現象
@@ -56,3 +58,7 @@ links:
 - **驗證**：desktop-build `41575226873` 三平台綠（Linux log：`afterPack (T0800): whisper RUNPATH = $ORIGIN for 8 file(s) … (patchelf 0.18.0)`、`verify-packaged-native` ✅）。linux-acceptance `41575592616`：24.04 W1 **PASS**（`whisper addon loaded (whisper() exported)`，RUNPATH `$ORIGIN`），verdict WARN 僅因 BUG-202 自動降級；22.04 verdict PASS，W1 INFO = BUG-203 的 `GLIBC_2.38`。
 - **執行期系統相依**：`libgomp1`、`libvulkan1` 仍由系統提供（runner 有）；沒裝 `libgomp1` 時錯誤改為 `libgomp.so.1: cannot open shared object file`（WSL 實測）。
 - **降級行為（只記錄）**：whisper 只在第一次辨識時載入，失敗不影響啟動與其他功能；debug log 一次 `[voice] whisper addon unavailable, voice input disabled: …`，renderer 錄音停止後顯示 `辨識失敗: Voice recognition module (whisper) is unavailable: …`，麥克風按鈕不會事先隱藏。
+
+## 結案紀錄
+
+- 2026-11-03 12:35 CLOSED：交付版 `v0.7.4-pre.2`（pre-release run `41577071236`）的 linux-acceptance run `41578537967`：ubuntu-24.04 W1 **PASS**（`whisper addon loaded (whisper() exported)`，RUNPATH `[$ORIGIN]`）；ubuntu-22.04 W1 INFO（`GLIBC_2.38` not found，BUG-203 已列為已知限制，D246）。
