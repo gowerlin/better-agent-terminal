@@ -1465,6 +1465,16 @@
 - **切分**：W2a 設計語言 + 元件 + 首頁（T0630）→ 預覽通過後 W2b（`/control-tower`、功能、FAQ、回報頁）→ W2c 遠端開發；W3 / W4 不變。
 - **相關**：PLAN-049 / D159 / D160 / T0624 / T0630
 
+### D252 2026-11-03 — BUG-205 以方案 A 現在修（開 T0806，worktree 隔離）；修正發版前不公開；child_process 子程序的 fd 外流由修正單一併查證
+
+- **背景**：T0805 查證 BUG-205（🔴 high）：Linux PTY 子程序繼承比它早開的分頁的 pty master（不需權杖可對塔台分頁送輸入）與主行程約 30 個描述元。上游 node-pty 1.2.0-beta 的修正在 BAT 的 fd 分布下仍漏。repo 與 `_ct-workorders/` 公開。
+- **決定**（使用者三題皆選塔台建議）：
+  1. 方案 A 現在修：Linux 上 PTY 子程序經 exec 包裝關掉 fd ≥ 3，唯一實作一個純函式，Terminal Server / direct / fallback 共用；Windows / macOS 不變；不升級 node-pty、不做 PLAN-062 原題。T0806 以 worktree（`ct/T0806`）隔離。
+  2. 揭露時程：修正發版前不公開——塔台記帳 commit 留在本機、`ct/T0806` 不 push、不跑需要 push 的 workflow、不對上游回報；Linux 驗證改在本機 WSL。修正隨下一個預覽版一起公開（屆時再決定是否到 microsoft/node-pty 回報）。
+  3. 主行程 `child_process` 子程序的 fd 外流：T0806 只查不修，回報盤點表後再決定是否另開單。
+- **決策者**：使用者。2026-11-03 第一百一十二 session。
+- **相關**：BUG-205 / T0805 / T0806 / PLAN-062 / T0575 / D149 / T0788
+
 ### D251 2026-11-03 — T0804 兩項觀察：開 T0805 查證 PTY shell 繼承 Terminal Server 描述元；stdio EOF 等待記為 PLAN-062（IDEA）
 
 - **背景**：T0804 結論 A＋B、無缺陷，另有兩項觀察：① 以等 stdio EOF 方式啟動 BAT 的外部程式在 Terminal Server 保留時會一直等（推論）；② PTY 內 shell 繼承 Terminal Server 的描述元，含 crashpad client socket（實測）。

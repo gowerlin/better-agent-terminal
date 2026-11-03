@@ -3,11 +3,11 @@ schema_version: 1
 schema_kind: bug
 id: BUG-205
 title: "Linux：分頁的 shell 繼承比它早開的分頁的 pty master 與 Electron 主行程的描述元（不需權杖即可對前面的分頁送輸入；背景程序讓 crashpad 留著）"
-status: OPEN
+status: FIXING
 severity: high
 reproducibility: always（Linux；T0805 實測 WSL Ubuntu 24.04，`v0.7.4-pre.3` AppImage）
 created_at: "2026-11-03T17:06:51+0800"
-updated_at: "2026-11-03T17:06:51+0800"
+updated_at: "2026-11-03T17:08:46+0800"
 impact:
   - linux
   - pty
@@ -22,7 +22,7 @@ links:
 |------|------|
 | 嚴重度 | 🔴 high（跨分頁 pty master：分頁內任何程式不需 `batcap.` 權杖就能對比它早開的分頁送輸入、搶讀輸出，繞過範圍權杖（T0575 / D149）與 T0788 的保留機制；其餘描述元外流屬 medium；T0805 建議 P2） |
 | 可重現 | 每次（Linux 的 Terminal Server / direct 模式；headless 只有 pty master） |
-| **狀態** | 📂 OPEN |
+| **狀態** | 🔧 FIXING（T0806，方案 A，D252；修正發版前不公開） |
 | 回報者 | 塔台（T0805 查證） |
 
 ## 現象
@@ -53,3 +53,4 @@ links:
 ## 狀態歷程
 
 - 2026-11-03 17:06 開單（OPEN，T0805 結論）。
+- 2026-11-03 17:08 → FIXING（T0806，方案 A；D252：修正發版前不 push、不對外回報）。
