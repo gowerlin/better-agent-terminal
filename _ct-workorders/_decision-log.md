@@ -1465,6 +1465,16 @@
 - **切分**：W2a 設計語言 + 元件 + 首頁（T0630）→ 預覽通過後 W2b（`/control-tower`、功能、FAQ、回報頁）→ W2c 遠端開發；W3 / W4 不變。
 - **相關**：PLAN-049 / D159 / D160 / T0624 / T0630
 
+### D263 2026-11-04 — PLAN-061 / 058 交付版驗收各開一張驗收工單（T0818 / T0819）
+
+- **背景**：`v0.7.4-pre.5` 已發佈，Windows NSIS 重裝驗收 PASS-WITH-WARN（第一百一十四 session）。PLAN-061（T0811）在開發版以假程式與真 claude（假 API）驗過，**真 claude 權限對話框的 `blocked` 未實測**；PLAN-058（T0814＋T0815）以開發版 build 跑假 API e2e 與真實模型 PASS，交付版未驗。
+- **決定**（使用者兩題皆選推薦）：
+  1. PLAN-061 → **T0818**（verification）：WSL Ubuntu 24.04、交付版 pre.5 AppImage、內嵌真 claude、本機假 API（不連外、花費 0）、hooks 關閉的 claude 分頁；驗 `none` → `osc`、權限對話框 `blocked`、回答後清除；按鍵只在確認畫面是權限對話框後才送，登入畫面一律不送（L185）；不改 repo。
+  2. PLAN-058 → **T0819**（verification）：以 `BAT_E2E_EXECUTABLE` 對安裝版 pre.5 跑既有假 API 的 Claude 面板 e2e（⑦d–⑦f 與不回歸 ①–⑫、pre7 UI），不跑真實模型；通過後塔台給使用者手動確認清單，使用者確認才結 PLAN-058。
+  3. 兩張 `affects_files` 只有各自工單、不重疊，並行派工。
+- **決策者**：使用者（驗收方式）；塔台（工單內容）。2026-11-04 第一百一十四 session。
+- **相關**：D229 / D259 / D262 / T0803 / T0811 / T0814 / T0815 / PLAN-058 / PLAN-061
+
 ### D262 2026-11-04 — 發 `0.7.4-pre.5`（PLAN-061 / 058 / 062、BUG-209）
 
 - **決定**（使用者「要」）：發預覽版 `0.7.4-pre.5`（D236 版號線）。內容：T0811（PLAN-061 claude OSC 7501，非 Windows）、T0814＋T0815（PLAN-058 W1＋W0：Claude 面板主回合中送出改排隊）、T0816（PLAN-062 A3＋BUG-209：Linux Terminal Server fork 經 fd guard）。發版前驗證沿用 T0817 在 merge commit `84ebb7af` 的完整驗收（typecheck 0 / 0、vite build、unit 401 檔 / 7045、legacy 472 / 33），HEAD 產品樹與之相同，verify-native 通過；去識別化 9 組 0（含推送範圍）、金鑰 2 筆皆為 T0811 測試假值 `sk-ant-T0811-secret`。分支 `ct/T0816` / `ct-merge/T0816` 依使用者同意以 `-d` 刪除。
