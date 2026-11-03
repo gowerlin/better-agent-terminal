@@ -1465,6 +1465,15 @@
 - **切分**：W2a 設計語言 + 元件 + 首頁（T0630）→ 預覽通過後 W2b（`/control-tower`、功能、FAQ、回報頁）→ W2c 遠端開發；W3 / W4 不變。
 - **相關**：PLAN-049 / D159 / D160 / T0624 / T0630
 
+### D268 2026-11-04 — T0823 合併（T0824，模式 ②）後 ff main；開 BUG-210 併入 `0.7.4-pre.6` 這批（T0825）
+
+- **背景**：T0823（隔離）DONE，直接合併第 1 條不成立（main 多 T0822 產品 `05117326`）→ T0824 模式 ②：`ct-merge/T0823` 自 `b4305473` `--no-ff` → `1e2f4586`（parent2 `edec0dfe`），無衝突、範圍外 0，merge commit 上 typecheck 0 / 0、unit 405 檔 / 7119、legacy 472 / 33、vite build；收單 SHA 比對 ①–③ 成立，⑤ main 只多 `_ct-workorders/**` → 整合分支再併 main 記帳 → `83597e8e`。T0823 另回報：沒拿到 single-instance lock 的第二個實例 `app.quit()` 後仍跑 whenReady（既有行為）。
+- **決定**（使用者）：
+  1. 斷點 E 選快轉 → `main` `--ff-only` → `83597e8e`（④ 成立）；整合 worktree detach；T0823 worktree 以 `git worktree remove` 移除（`--close-worker … --worktree remove` exit 3，分頁已在收單時關閉）；`ct/T0823`、`ct-merge/T0823` 保留到使用者同意刪除。
+  2. 開 **BUG-210**（low）→ FIXING，**T0825**（S，main）併入這批，修完再發 `0.7.4-pre.6`。
+- **決策者**：使用者（ff、BUG 併批）；塔台（模式、工單內容）。2026-11-04 第一百一十四 session。
+- **相關**：D031 / D267 / T0823 / T0824 / BUG-210 / PLAN-063
+
 ### D267 2026-11-04 — 縮圖 tooltip（T0822）＋PLAN-063 子項 3 正常結束路徑（T0823）與 T0821 湊成一批後發 `0.7.4-pre.6`
 
 - **背景**：T0821（升級前提示＋升級後說明）已在 main；使用者不單獨發版，要與縮圖 ⏸ tooltip、PLAN-063 子項 3 湊成一批。
