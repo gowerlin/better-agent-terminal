@@ -51,3 +51,8 @@ BAT 已有的塔台 ↔ Worker 通道（派工、`bat-notify`、`question:*`）�
 
 - **維持 IDEA**：D169 的三個重新評估觸發條件從 2026-10-18 起都沒有成立（決策紀錄與塔台狀態沒有 codex 塔台的跨專案往來、遠端塔台往來、或 SendMessage 繞不過的限制）。跨 session 選收件人已由 CT `cross-project-coordination.md` § 跨 session 選收件人 處理，找不到收件人時退回 `_reply-*.md`。
 - **前提更正**：上方「BAT 以系統管理員權限執行時注入 `features.daemon_auto_start=false`，此時 BAT 的 codex 分頁不在共用 daemon 上」已過時。T0648 / T0651（BUG-159）後，BAT 的 codex 分頁不分權限都不在共用 daemon 上：有注入 BAT MCP 的分頁靠非 `features.*` 的 `-c` 走 embedded，沒注入的手動分頁加 `--no-daemon`（CLAUDE.md「BAT MCP shim」節）。所以 `codex queue` 送不到 BAT 的 codex 分頁；這讓 BAT 自建通道的理由更充分，但仍等觸發條件成立。
+
+## 2026-11-04 狀態核對（第一百一十四 session，D264）
+
+- **維持 IDEA**（使用者選推薦）。2026-11-02 之後的跨塔台往來 3 次（D227 / D228 notify-hold 契約、PLAN-059 C 的 Q5（CT D568）、CT beta.11 執行中補充工單），全部是「Claude 塔台 ↔ Claude 塔台、同一台機器」，以跨 session 訊息＋`_handover-*.md` / `_reply-*.md` 送達，沒有失敗。D169 三個觸發條件（codex 塔台往來、遠端塔台往來、SendMessage 繞不過的限制）仍 0 件。
+- 條件成立時直接依 T0647 Q5（C-1–C-9，M，可分 A / B 兩單＋CT-T###）開單，開單前仍需使用者決定 D149 放寬幅度、收件預設、是否限同一 host。
