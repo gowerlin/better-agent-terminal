@@ -20,6 +20,7 @@
 const fs = require('fs');
 const path = require('path');
 const { afterPackAppImageLauncher } = require('./appimage-sandbox-launcher.cjs');
+const { afterPackWhisperRunpath } = require('./linux-whisper-runpath.cjs');
 
 const VERSION_MANIFEST_FILE = 'package.json';
 const VERSION_MANIFEST_KEYS = ['name', 'version'];
@@ -63,13 +64,17 @@ function writeVersionManifest(resourcesDir, name, version) {
  * electron-builder `afterPack` hook (package.json build.afterPack). Runs before signing.
  * Also installs the Linux AppImage sandbox launcher (BUG-202 / T0799, scripts/appimage-sandbox-launcher.cjs);
  * that step is a no-op unless the build is Linux with an AppImage target.
+ * Linux builds (any target) also set RUNPATH $ORIGIN on the packaged whisper addon's libraries with patchelf
+ * (BUG-204 / T0800, scripts/linux-whisper-runpath.cjs); a Linux build host without patchelf fails here.
+ * `deps` is for tests only (electron-builder passes just the context).
  */
-async function afterPack(context) {
+async function afterPack(context, deps = {}) {
   const { packager, appOutDir } = context;
   const { name, version } = packager.appInfo;
   if (!name || !version) throw new Error(`afterPack (T0691): app name / version unavailable (name=${name}, version=${version})`);
   const target = writeVersionManifest(packager.getResourcesDir(appOutDir), name, version);
   console.log(`  • afterPack (T0691): wrote ${target} (${name} ${version})`);
+  afterPackWhisperRunpath(context, deps);
   afterPackAppImageLauncher(context);
 }
 

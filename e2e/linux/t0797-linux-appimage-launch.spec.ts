@@ -13,9 +13,11 @@
 //       debugging flags, alive after 20 s? debug log written? A FAIL makes the verdict FAIL.
 //   L1b only when L1 could not launch: L1 again with `--no-sandbox`, only to keep checking the other items.
 //       Never the first attempt; a run that needs it is WARN, not PASS.
-//   W1  INFO only (BUG-203 check, T0799): in the first launched Playwright run, the main process loads the
-//       packaged `@kutalia/whisper-node-addon` the way electron/whisper-addon-loader.ts does; records success
-//       or the error text. Never changes the verdict.
+//   W1  T0800 / BUG-204 (T0799: INFO only): in the first launched Playwright run, the main process loads the
+//       packaged `@kutalia/whisper-node-addon` the way electron/whisper-addon-loader.ts does. Loaded = PASS.
+//       Not loaded = WARN (verdict at least WARN) where the system glibc is >= 2.38 (24.04) or unknown; INFO
+//       (recorded only) where it is older (22.04, the addon needs GLIBC_2.38: BUG-203). Evidence also has the
+//       addon's RUNPATH (`readelf -d`) and, on failure, the `ldd` lines that are `not found`.
 // Every row lands in `linux-report.md` / `.json` under `LINUX_REPORT_DIR` (rewritten after each row).
 // See docs/agent-guide/linux-ci-acceptance.md.
 
@@ -26,8 +28,8 @@ import os from 'node:os'
 import path from 'node:path'
 import { closeIsolated, E2E_EXECUTABLE, freePort, isolatedEnv, readPid, testLogger } from '../fixtures/electron-isolation'
 import {
-  describeCmd, plainLaunch, procCmdline, readDebugLogs, runCmd, sandboxView, stripAnsi, systemInfo,
-  type DebugLogView, type SandboxView,
+  describeCmd, judgeWhisperLoad, plainLaunch, procCmdline, readDebugLogs, runCmd, sandboxView, stripAnsi, systemInfo,
+  type DebugLogView, type SandboxView, type WhisperJudgement,
 } from './linux-os'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -378,9 +380,9 @@ test('T0797 Linux AppImage launch acceptance', async () => {
   }
 
   /**
-   * W1 (BUG-203 check, INFO only): load the packaged whisper addon in the main process the way
-   * electron/whisper-addon-loader.ts does: resolve `<pkg>/package.json` from the app, `dist/linux-<arch>/whisper.node`,
-   * app.asar -> app.asar.unpacked, require it, expect a `whisper` function. Records the outcome; never judged.
+   * W1 (T0800): load the packaged whisper addon in the main process the way electron/whisper-addon-loader.ts
+   * does: resolve `<pkg>/package.json` from the app, `dist/linux-<arch>/whisper.node`, app.asar ->
+   * app.asar.unpacked, require it, expect a `whisper` function. Judged by judgeWhisperLoad (e2e/linux/linux-os.ts).
    */
   async function whisperRow(app: ElectronApplication, from: string): Promise<void> {
     const ev: string[] = [`from the ${from} run; system glibc: ${sys.glibc}`]
@@ -410,11 +412,25 @@ test('T0797 Linux AppImage launch acceptance', async () => {
     ev.push(`package.json: ${load.packageJson ? rel(load.packageJson) : '(not resolved)'}`)
     ev.push(`addon: ${load.addonPath ? rel(load.addonPath) : '(not resolved)'}`)
     ev.push(load.ok ? 'whisper addon loaded (whisper() exported)' : `load error: ${JSON.stringify(clip(load.error.replace(/\/tmp\/\.mount_[^/]+\//g, '<appdir>/'), 1500))}`)
-    report.meta.whisper = load.ok ? 'loaded' : 'load failed (see W1)'
-    report.add({ id: 'W1', title: 'BUG-203 查證（INFO，不影響 verdict）：main 程序依 whisper-addon-loader 的方式載入打包內的 whisper addon', result: 'INFO', evidence: ev })
+    if (load.addonPath) {
+      // T0800: RUNPATH must be $ORIGIN (afterPack, scripts/linux-whisper-runpath.cjs); the AppImage stays mounted while the app runs
+      const re = await runCmd('readelf', ['-d', load.addonPath])
+      const runpath = re.stdout.split('\n').filter(l => /\((RUNPATH|RPATH)\)/.test(l)).map(l => l.replace(/^.*\((RUNPATH|RPATH)\)\s*/, '$1 ')).join('; ')
+      ev.push(`whisper.node ${runpath || (re.code === 0 ? 'RUNPATH: none' : `readelf failed: ${describeCmd(re)}`)}`)
+      if (!load.ok) {
+        const ldd = await runCmd('ldd', [load.addonPath], 30_000, 20_000)
+        const missing = ldd.stdout.split('\n').map(l => l.trim()).filter(l => l.includes('not found'))
+        ev.push(`ldd not found: ${missing.length ? JSON.stringify(missing) : ldd.code === 0 ? 'none' : describeCmd(ldd)}`)
+      }
+    }
+    whisper = judgeWhisperLoad(load.ok, sys.glibc)
+    ev.push(`W1: ${whisper.note}`)
+    report.meta.whisper = load.ok ? 'loaded' : `load failed (W1 ${whisper.result})`
+    report.add({ id: 'W1', title: 'whisper addon 載入（T0800 / BUG-204）：main 程序依 whisper-addon-loader 的方式載入打包內的 whisper.node；glibc >= 2.38 必須成功（失敗 = WARN），較舊的 glibc 只記錄（BUG-203）', result: whisper.result, evidence: ev })
   }
 
   let whisperChecked = false
+  let whisper: WhisperJudgement | null = null
 
   /** L2: the AppImage with no Playwright, as a user starts it from a terminal. */
   async function plainRun(): Promise<Result> {
@@ -475,6 +491,12 @@ test('T0797 Linux AppImage launch acceptance', async () => {
     if (l2 === 'FAIL') {
       verdict = 'FAIL'
       reasons.push('L2: FAIL')
+    }
+    // set inside whisperRow (a closure), so TS would narrow the `let` to its `null` initializer here
+    const w1 = whisper as WhisperJudgement | null
+    if (w1?.result === 'WARN') {
+      if (verdict === 'PASS') verdict = 'WARN'
+      reasons.push('W1: whisper addon failed to load (T0800 / BUG-204)')
     }
   } finally {
     report.meta.verdictReason = reasons.length ? reasons.join('; ') : '-'

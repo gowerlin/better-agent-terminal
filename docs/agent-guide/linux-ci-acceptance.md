@@ -48,12 +48,12 @@ gh workflow run linux-acceptance.yml -R gowerlin/better-agent-terminal -f build_
 | L1 | 一律 | Playwright `_electron.launch` 啟動 AppImage（🔴 `chromiumSandbox: true`，不加 `--no-sandbox`）；主視窗可見、預設工作區的終端分頁出現、用鍵盤輸入 `echo T0797_$((6*7))_<隨機>`，PTY 輸出出現 `T0797_42_<隨機>`（只有 shell 的輸出含 `_42_`）、截圖、renderer 在自己的 PID namespace（sandbox 有開）、主程序命令列沒有 `--no-sandbox`、debug log 已建立且 0 個 `[CRASH]`、結束對話框回答「結束＋停止 Terminal Server」後正常關閉。T0799：AppImage 啟動器自己加了 `--no-sandbox`（debug log `[sandbox] Chromium sandbox auto-disabled …`，見 [linux-appimage-sandbox.md](linux-appimage-sandbox.md)）時，sandbox 兩項不判、其餘都過 → 列結果 **WARN**，證據寫 `sandbox auto-disabled (BUG-202 fallback)` |
 | L2 | 一律（T0799 起；之前只在 L1 啟動失敗時） | 不經 Playwright、不帶任何除錯旗標，照使用者在終端機執行的方式啟動；等 debug log 出現（最多 120 s），之後再 20 s 仍在、送 SIGTERM 之前沒有 `[CRASH]`；記錄 stdout / stderr 有沒有啟動器的 `[sandbox] userns restricted …` 那一行。FAIL → verdict FAIL。T0799 run `41504087753` 的兩個修正：① 24.04 從啟動到 debug log 超過 20 s（L1 開窗 70 s），原本「啟動後 20 s」時 log 還不存在；② SIGTERM 送給整個程序群組，GPU / Utility 子程序被它殺掉而記 `[CRASH] child-process-gone`，這些行時間在 SIGTERM 之後，不算 |
 | L1b | L1 啟動失敗時 | L1 重跑並加 `--no-sandbox`，只為了繼續驗其他項目；報告中與 L1 分開列 |
-| W1 | 第一個啟動成功的 Playwright 列（通常 L1） | BUG-203 查證，**INFO**、不影響 verdict：main 程序照 `electron/whisper-addon-loader.ts` 的方式載入打包內的 `@kutalia/whisper-node-addon`（從 app 解析 `<pkg>/package.json` → `dist/linux-<arch>/whisper.node` → `app.asar` 改 `app.asar.unpacked` → `require`，要匯出 `whisper()`），記成功或錯誤原文（掛載路徑換成 `<appdir>/`） |
+| W1 | 第一個啟動成功的 Playwright 列（通常 L1） | T0800 / BUG-204 起為判定項（T0799 時只記錄）：main 程序照 `electron/whisper-addon-loader.ts` 的方式載入打包內的 `@kutalia/whisper-node-addon`（從 app 解析 `<pkg>/package.json` → `dist/linux-<arch>/whisper.node` → `app.asar` 改 `app.asar.unpacked` → `require`，要匯出 `whisper()`）。載入成功 → **PASS**；失敗時依系統 glibc（`ldd --version`）：≥ 2.38（24.04）或讀不到版本 → **WARN**，verdict 至少 WARN（`verdictReason` 寫 `W1: whisper addon failed to load`）；< 2.38（22.04）→ **INFO**，只記錄（addon 需要 `GLIBC_2.38`，BUG-203），不影響 verdict。判斷唯一實作 `judgeWhisperLoad`（`e2e/linux/linux-os.ts`，單元測試 `scripts/__tests__/linux-acceptance-w1.test.mjs`）。證據：錯誤原文（掛載路徑換成 `<appdir>/`）、`whisper.node` 的 RUNPATH（`readelf -d`，應為 `$ORIGIN`，見 [packaging-release-checks.md](packaging-release-checks.md)「Linux whisper addon：函式庫搜尋路徑」）、失敗時 `ldd` 的 `not found` 行 |
 
 整體結論（`linux-report.md` 的 `verdict`，`verdictReason` 寫原因；meta 另有 `sandbox`、`whisper`）：
 
 - **PASS**：L1 全部通過，且 L2 PASS。
-- **WARN**：L1 啟動了但有項目沒過（`[CRASH]`、沒正常關閉、鍵盤輸入只能經 `pty.write` 才到、renderer 沒有 sandbox 或命令列有 `--no-sandbox` 而啟動器沒有回報降級），或 L1 是 WARN（`sandbox auto-disabled (BUG-202 fallback)`：開得起來，但沒有 sandbox，要持續看得見），或 L1 起不來而 L1b 可以（= 要 `--no-sandbox` 才能用）。job 綠燈但有 `::warning::` 註記，**不是 PASS**。
+- **WARN**：L1 啟動了但有項目沒過（`[CRASH]`、沒正常關閉、鍵盤輸入只能經 `pty.write` 才到、renderer 沒有 sandbox 或命令列有 `--no-sandbox` 而啟動器沒有回報降級），或 L1 是 WARN（`sandbox auto-disabled (BUG-202 fallback)`：開得起來，但沒有 sandbox，要持續看得見），或 L1 起不來而 L1b 可以（= 要 `--no-sandbox` 才能用），或 W1 是 WARN（glibc ≥ 2.38 的系統上 whisper 載不起來，T0800）。job 綠燈但有 `::warning::` 註記，**不是 PASS**。
 - **FAIL**：L1 啟動了但連終端都沒有，或 L1 與 L1b 都起不來，或 L2 FAIL。test 失敗（紅燈）。
 
 判讀重點：
@@ -93,6 +93,20 @@ run `41495143950`（分支 `ct/T0798` `f5b94408`，workflow / spec 與 `main` `d
 
 - W1：`libwhisper.so.1` 就在 `whisper.node` 同一個目錄（`appimage-inspect.md` 有列），但 `whisper.node` 載入時動態載入器找不到它，兩個 OS 都在 glibc 版本檢查之前就失敗，所以 22.04 的 `GLIBC_2.38`（BUG-203）在這個錯誤之後才會遇到、目前看不到。
 - `41505876807`（L2 同時看輸出開頭與 debug log 的降級紀錄）：22.04 **PASS**（L1 / L2 PASS、sandbox 開）；24.04 **WARN**（L1 WARN 自動降級、L2 PASS，stderr 那一行與 debug log 那一行都有）。W1 結果同上。
+
+## GitHub runner 實測（T0800，2026-11-03，desktop-build `41575226873` 的 AppImage）
+
+BUG-204 修正後（`afterPack` 以 patchelf 把 whisper 共享物件的 RUNPATH 改成 `$ORIGIN`，見 [packaging-release-checks.md](packaging-release-checks.md)「Linux whisper addon：函式庫搜尋路徑」），linux-acceptance run `41575592616`：
+
+| OS | glibc | verdict | L1 | L2 | W1（whisper） |
+|---|---|---|---|---|---|
+| 22.04 | 2.35 | **PASS** | PASS（sandbox 開、命令列無 `--no-sandbox`） | PASS | **INFO**：`` GLIBC_2.38' not found `` (`libggml-base.so`、`libggml-vulkan.so`），`ldd` 另有 `` GLIBCXX_3.4.32' not found `` (`libggml-vulkan.so`) = BUG-203，只記錄 |
+| 24.04 | 2.39 | **WARN**（`L1: sandbox auto-disabled (BUG-202 fallback)`） | WARN（自動降級） | PASS | **PASS**：`whisper addon loaded (whisper() exported)` |
+
+- 兩邊 `whisper.node` 的 RUNPATH 都是 `$ORIGIN`（`readelf -d`）；`libwhisper.so.1` 找不到的錯誤消失。22.04 現在看得到 BUG-203 的 glibc 錯誤。
+- L1 / L2 判讀與 T0799 run `41505876807` 一致（22.04 PASS、24.04 WARN 自動降級）。
+- runner 上 `libgomp1` / `libvulkan1` 都已存在，所以 24.04 載入成功；最小安裝的系統若沒有這兩個套件，W1 會以 `libgomp.so.1` / `libvulkan.so.1` 的 `not found` 失敗（T0800 在沒裝 `libgomp1` 的 WSL 24.04 實測過 `libgomp.so.1`）。
+- W1 只驗載入（`require` + 匯出 `whisper()`），沒有實際轉錄音檔。
 
 ## 已知限制與陷阱
 
