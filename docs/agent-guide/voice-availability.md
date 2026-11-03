@@ -108,7 +108,15 @@ type VoiceAvailability =
 - Windows 的載入錯誤不含 DLL 名稱，一律 `load-failed`、只顯示原文摘要。
 - macOS 未實機驗證（desktop-build 綠燈＋單元測試覆蓋）；`ELECTRON_RUN_AS_NODE` 依賴 Electron 的 RunAsNode fuse（本專案沒有關閉，`claude-agent-manager.ts` 的 Electron fallback 也依賴它）。若日後關閉該 fuse，子程序會變成完整 app 啟動：結果會是 `unknown`（逾時被殺），行為退回 T0802 前，但要記得同步改這裡。
 - 檢查只驗 `require` ＋匯出 `whisper()`，不實際轉錄；模型未下載、GPU 後端初始化失敗等仍由正式辨識回報。
-- 子程序與主行程用同一個 Electron 執行檔，啟動時多一個短命程序（本機 Windows 實測 40–170 ms）。
+- 子程序與主行程用同一個 Electron 執行檔，啟動時多一個短命程序。實測耗時：本機 Windows（原始碼 build）40–170 ms；GitHub runner 的 AppImage（FUSE 掛載、冷啟動）24.04 4489 ms、22.04 8808 ms（linux-acceptance run `41587066026`）。逾時 15 s 的餘裕約 1.7 倍；更慢的機器會得到 `unknown(timeout)`，行為退回 T0802 前（不會誤停用），需要時再調 `VOICE_AVAILABILITY_TIMEOUT_MS`。
+
+## 實測（T0802）
+
+| 環境 | 結果 | 麥克風按鈕 | 證據 |
+|---|---|---|---|
+| 本機 Windows 11（原始碼 build，隔離 runtime） | `available(probe)`，`registered` 後 5.05 s 檢查、40 ms | 首次啟動沒有分頁，未顯示 | debug log `[voice] availability: available in 40 ms (probe)` |
+| GitHub ubuntu-24.04（glibc 2.39，desktop-build `41586110095` 的 AppImage） | `available(probe)` | 可按，`title` = `語音輸入 (Alt+M)` | linux-acceptance `41587066026` V1 PASS |
+| GitHub ubuntu-22.04（glibc 2.35） | `unavailable(glibc-too-old)`，`requiredGlibc` 2.38 | 停用，`data-voice-unavailable=glibc-too-old`，`title` 三行（無法使用／glibc 太舊／需要 glibc 2.38 以上的系統） | 同上 V1 PASS |
 
 ## 驗證清單
 

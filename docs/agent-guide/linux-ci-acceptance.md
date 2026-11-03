@@ -109,6 +109,16 @@ BUG-204 修正後（`afterPack` 以 patchelf 把 whisper 共享物件的 RUNPATH
 - runner 上 `libgomp1` / `libvulkan1` 都已存在，所以 24.04 載入成功；最小安裝的系統若沒有這兩個套件，W1 會以 `libgomp.so.1` / `libvulkan.so.1` 的 `not found` 失敗（T0800 在沒裝 `libgomp1` 的 WSL 24.04 實測過 `libgomp.so.1`）。
 - W1 只驗載入（`require` + 匯出 `whisper()`），沒有實際轉錄音檔。
 
+T0802（語音可用性事先檢查，V1 新增）：desktop-build `41586110095`（`ct/T0802`）的 AppImage，linux-acceptance run `41587066026`：
+
+| OS | glibc | verdict | L1 | L2 | W1 | V1（語音可用性） |
+|---|---|---|---|---|---|---|
+| 22.04 | 2.35 | **PASS** | PASS | PASS | INFO（BUG-203） | **PASS**：`unavailable(glibc-too-old)`、`requiredGlibc` 2.38，麥克風按鈕停用、`data-voice-unavailable=glibc-too-old`；檢查耗時 8808 ms |
+| 24.04 | 2.39 | **WARN**（`L1: sandbox auto-disabled (BUG-202 fallback)`） | WARN（自動降級） | PASS | PASS | **PASS**：`available(probe)`，按鈕可按；檢查耗時 4489 ms |
+
+- L1 / L2 / W1 與 T0800（run `41575592616`）一致。
+- 檢查在 runner 上比本機慢（AppImage 經 FUSE 冷讀 addon 的共享物件），仍在 15 s 逾時內，見 [voice-availability.md](voice-availability.md)「已知限制」。
+
 ## 已知限制與陷阱
 
 - **產品已知限制（BUG-203 WONTFIX，D246）**：上游 `@kutalia/whisper-node-addon` 的 `libggml-base.so` / `libggml-vulkan.so` 需要 `GLIBC_2.38`（`libggml-vulkan.so` 另需 `GLIBCXX_3.4.32`），glibc < 2.38（Ubuntu 22.04 為 2.35）不支援語音輸入；寫在 README「語音輸入 › Linux」。W1 在 22.04 判 INFO 即反映此限制，不是待修項目。要支援 22.04 時重開 BUG-203（修法：上游以較舊的 glibc 重建，或 BAT 自建 whisper）。
