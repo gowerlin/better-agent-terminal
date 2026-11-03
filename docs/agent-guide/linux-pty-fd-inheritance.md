@@ -106,9 +106,9 @@ Windows、macOS 不安裝，行為與日誌不變。
 ## 必守規則（child_process）
 
 - 🔴 只有 Linux 安裝；`installChildProcessFdGuard` 在其他平台直接回 `not-linux`，不碰任何 binding、不記日誌（單元測試守住）。
-- 🔴 唯一實作 `electron/child-process-fd-guard.ts`：純函式 `guardChildSpawn` / `resolveChildExecutable`（不 import electron、不碰 fs），安裝 `installChildProcessFdGuard`、退出 `runWithoutChildProcessFdGuard`。呼叫端不內聯、不逐點改 spawn。
+- 🔴 唯一實作 `electron/child-process-fd-guard.ts`：純函式 `guardChildSpawn` / `resolveChildExecutable`（不 import electron、不碰 fs），安裝 `installChildProcessFdGuard`、退出 `runWithoutChildProcessFdGuard`（T0816 起沒有產品呼叫端，只給測試當反向對照）、Terminal Server fork 專用的 `runWithoutCrashpadClient`（T0816）。呼叫端不內聯、不逐點改 spawn。
 - 🔴 安裝點只有兩個：`electron/main.ts`（模組層，`handOffEarlyCrashCapture()` 之後、任何 spawn 之前）與 `scripts/bat-server.mjs` `main()`（`loadServerEntry` 之後、`applyHeadlessLoginShellPath` 之前，經 `server-entry` 匯出）。Terminal Server 行程不安裝。新的 BAT 行程若會持有 pty master 或起長時間子程序，也要安裝。
-- 🔴 Terminal Server 的兩個 `fork`（`startTerminalServer` / `reforkTerminalServer`）包在 `runWithoutChildProcessFdGuard` 裡：server 本身的描述元屬 PLAN-062 方案 C，不在本單。
+- 🔴 Terminal Server 的 fork（T0816 起只有一個 `forkTerminalServer`，`startTerminalServer` 與 T0704 的 `reforkTerminalServer` 共用）經 guard，但在 `runWithoutCrashpadClient` 裡：不保留 `CRASHDUMP_SIGNAL_FD` 的 fd、env 不帶兩個 crashpad 變數。規則見下一章「Terminal Server 的 fork」。（T0807 時這兩個 fork 包在 `runWithoutChildProcessFdGuard`，PLAN-062 方案 C。）
 - 🔴 攔截點是 libuv 的兩個入口：`process.binding('process_wrap').Process.prototype.spawn`（spawn / execFile / exec / fork，含第三方程式碼如 Claude Agent SDK 內部的 spawn）與 `process.binding('spawn_sync').spawn`（spawnSync / execFileSync / execSync）。沒有改 `node_modules`、沒有改 SDK 的 spawn 選項。
 - 🔴 binding 的呼叫形狀是 Node 內部細節（Node 24.22 / 26.13 實測：async 是位置參數 `spawn(file, args, cwd, envPairs, stdio, flags, uid, gid)`、sync 是物件 `spawn(options)`；舊版的物件形 async 也支援）。不認得的形狀 → 原樣 spawn＋記一行日誌（fail open，不讓 spawn 失敗）。升級 Electron（Node）或 bundled node 時必跑 `electron/__tests__/child-process-fd-guard-linux.test.ts`。
 - 🔴 包裝不得改變既有行為（WSL 實測，見「驗證（child_process）」）：
@@ -155,7 +155,7 @@ guard 裝在 libuv 入口，所以下表每個呼叫點在 Linux 都自動套用
 
 | 檔案 | 行程 | 呼叫 | 長短 | IPC / 額外 fd | Linux 處置 |
 |---|---|---|---|---|---|
-| `main.ts` `startTerminalServer` / `reforkTerminalServer` | Electron 主行程 | `fork(terminal-server.js)` | 長（跨 BAT 存活） | `ipc` 在 fd 3 | **不包裝**（`runWithoutChildProcessFdGuard`，PLAN-062 方案 C） |
+| `main.ts` `forkTerminalServer`（`startTerminalServer` / `reforkTerminalServer`） | Electron 主行程 | `fork(terminal-server.js)` | 長（跨 BAT 存活） | `ipc` 在 fd 3；AppImage keepalive 在 fd 4 | 包裝，`runWithoutCrashpadClient`（T0816；T0807 時不包裝） |
 | `main.ts`（`spawnSync('powershell')`、以編輯器開資料夾的 `execFile`、其他 `execFile`） | 主行程 | spawnSync / execFile | 短 | 無 | 包裝（powershell 只在 Windows 呼叫） |
 | `claude-agent-manager.ts` → Claude Agent SDK | 主行程 / headless | SDK 內部 `spawn` | **長**（claude CLI，再起 MCP / Bash 工具） | stdio pipe | 包裝（BUG-206 / 207 主要對象） |
 | `codex-agent-manager.ts` → `@openai/codex-sdk` | 主行程 / headless | SDK 內部 `spawn` | **長** | stdio pipe | 包裝 |
@@ -177,17 +177,64 @@ guard 裝在 libuv 入口，所以下表每個呼叫點在 Linux 都自動套用
 
 ## 驗證（child_process）
 
-- 單元測試 `electron/__tests__/child-process-fd-guard.test.ts`（各平台）：`guardChildSpawn` Linux 形狀、非 Linux 不包裝、參數原樣且不進腳本、keep = stdio 數（`fork` 的 IPC fd 保留）、`CRASHDUMP_SIGNAL_FD`、找不到 / 不可執行不包裝、`BASH_ENV` / `PWD` / `SHLVL` flags、`argv0`、`envPairs` 未給、不重複包裝；`resolveChildExecutable` 的 PATH 規則；`installChildProcessFdGuard` 以假 binding：非 Linux 不碰 binding、位置參數 async 與物件 sync 都包裝且不改呼叫端的物件、`runWithoutChildProcessFdGuard`、fail open、重複安裝、uninstall；source guard（`main.ts` 安裝在 fork 之前且兩個 fork 都退出、`bat-server.mjs` 的順序、Terminal Server 不安裝）。
+- 單元測試 `electron/__tests__/child-process-fd-guard.test.ts`（各平台）：`guardChildSpawn` Linux 形狀、非 Linux 不包裝、參數原樣且不進腳本、keep = stdio 數（`fork` 的 IPC fd 保留）、`CRASHDUMP_SIGNAL_FD`、找不到 / 不可執行不包裝、`BASH_ENV` / `PWD` / `SHLVL` flags、`argv0`、`envPairs` 未給、不重複包裝；`resolveChildExecutable` 的 PATH 規則；`installChildProcessFdGuard` 以假 binding：非 Linux 不碰 binding、位置參數 async 與物件 sync 都包裝且不改呼叫端的物件、`runWithoutChildProcessFdGuard`、`runWithoutCrashpadClient`（T0816）、fail open、重複安裝、uninstall；source guard（`main.ts` 安裝在 fork 之前、只有一個 fork 且經 `runWithoutCrashpadClient`（T0816）、`bat-server.mjs` 的順序、Terminal Server 不安裝）。
 - Linux 實測 `electron/__tests__/child-process-fd-guard-linux.test.ts`（Linux 才跑，真 libuv / bash / node-pty）：本行程以 `PtyManager` direct 模式開兩個 shell（等同 headless）。
   - 反向對照：安裝前、以及 `runWithoutChildProcessFdGuard` 內，子程序與 git hook 都拿到兩個 `/dev/ptmx`。
   - 安裝後：spawn / execFile / exec / fork / promisify(execFile) / spawnSync / execFileSync / execSync 與 `git commit` 執行的 pre-commit hook 都沒有 master、沒有 stdio 以外沒設 `O_CLOEXEC` 的 fd；額外 `pipe`（fd 3）與 fork 的 IPC 照常可用。
   - 與不包裝的 spawn 比對：pid、ppid、argv（含 `argv0`）、cwd、env（失效 PWD、沒有 PWD / SHLVL、`BASH_ENV` 不被 source）、PATH 找到的 shebang 腳本、exit code / stdout / stderr、SIGTERM、`detached` 程序群組 SIGKILL、ENOENT / EACCES / cwd 不存在的錯誤物件。
-- e2e `e2e/linux/t0807-child-process-fds.spec.ts`（打包的 Linux 版，`BAT_E2E_EXECUTABLE`）：G1 安裝日誌；G2 主行程 `spawn('sleep')` / `execFile('sleep')` / `execPath`＋`ELECTRON_RUN_AS_NODE` 的子程序沒有 stdio 以外沒設 `O_CLOEXEC` 的 fd（execPath 子程序只多保留 `CRASHDUMP_SIGNAL_FD`）；G3 反向對照：主行程本身與（不包裝的）Terminal Server 都有大量沒設 `O_CLOEXEC` 的 fd，shell 分頁照常可用且乾淨。T0806 的 F1–F6 一起跑以確認不回歸。G2 的對照組（同一執行檔、關掉 fd ≥ 3 後從測試行程啟動）用主行程的 `process.execPath`，不是 `BAT_E2E_EXECUTABLE`（T0810）：交付版的 `BAT_E2E_EXECUTABLE` 是 `.AppImage`，經 runtime 掛載與 AppRun / T0799 啟動器才 exec 掛載點內的 `BetterAgentTerminal.bin`（且帶 runtime 的 FUSE fd），對照組的 argv[0] 永遠不是 AppImage 路徑；app 執行中掛載點存在，`--linux dir` 目錄版的 execPath 就是執行檔本身。
+- e2e `e2e/linux/t0807-child-process-fds.spec.ts`（打包的 Linux 版，`BAT_E2E_EXECUTABLE`）：G1 安裝日誌；G2 主行程 `spawn('sleep')` / `execFile('sleep')` / `execPath`＋`ELECTRON_RUN_AS_NODE` 的子程序沒有 stdio 以外沒設 `O_CLOEXEC` 的 fd（execPath 子程序只多保留 `CRASHDUMP_SIGNAL_FD`）；G3 反向對照：主行程本身有大量沒設 `O_CLOEXEC` 的 fd，shell 分頁照常可用且乾淨（T0816 前 G3 也要求 Terminal Server ≥ 10 個；server 改經 guard 後只記錄數量，判定移到 t0816 K2）。T0806 的 F1–F6 一起跑以確認不回歸。G2 的對照組（同一執行檔、關掉 fd ≥ 3 後從測試行程啟動）用主行程的 `process.execPath`，不是 `BAT_E2E_EXECUTABLE`（T0810）：交付版的 `BAT_E2E_EXECUTABLE` 是 `.AppImage`，經 runtime 掛載與 AppRun / T0799 啟動器才 exec 掛載點內的 `BetterAgentTerminal.bin`（且帶 runtime 的 FUSE fd），對照組的 argv[0] 永遠不是 AppImage 路徑；app 執行中掛載點存在，`--linux dir` 目錄版的 execPath 就是執行檔本身。
 
 ## 已知限制（child_process）
 
-- Terminal Server 本身（PLAN-062 方案 C）不在範圍；`early-path-fix` 的 login shell 在 guard 安裝前執行（沒有 master，只有 Chromium 的 fd，短命）。
+- Terminal Server 本身在 T0816 補上（下一章）；`early-path-fix` 的 login shell 在 guard 安裝前執行（沒有 master，只有 Chromium 的 fd，短命）。
 - 更新前就在跑的舊 bat-server（systemd / launchd 常駐）要重啟才會安裝。
 - `argv0` 選項與 `file` 不同且原 env 沒有 `SHLVL` 時，子程序收到 `SHLVL=0`。
 - 可執行但沒有 shebang 的文字檔：libuv 與 bash `exec` 的處理可能不同（BAT 沒有這種呼叫）。
 - binding 是 Node 內部介面：Node 改了形狀時 guard 退回不包裝並記一行（不會讓 spawn 失敗），升級時以 Linux 實測檔確認。
+
+# Terminal Server 的 fork：只留 IPC 與 AppImage keepalive、不當 crashpad client（T0816 / PLAN-062 方案 A3 / BUG-209，D260）
+
+T0812（研究）的結論，Linux 上兩個問題同一個改動修掉：
+
+- **PLAN-062**：Electron 在 Linux 對 `process.execPath`＋`ELECTRON_RUN_AS_NODE` 的子程序自動在 envPairs **後面**加 `CRASHDUMP_SIGNAL_FD` / `CRASHPAD_HANDLER_PID`（`lib/node/init.ts`，呼叫端的 `env` 拿掉也沒用），子程序（`shell/app/node_main.cc`）因此成為 crashpad client。crashpad handler 由主行程 `crashReporter.start()` 啟動，持有主行程的 fd 1 / 2，並在還有 client 時不結束（`exception_handler_server.cc`）。保留 Terminal Server 離開時，server 是 client → crashpad 留著 → `out=$(BAT …)`、`BAT … | tee`、以 pipe 收輸出的外部程式等到 server 結束才返回。
+- **BUG-209**：AppImage runtime 的 FUSE 程序持有 keepalive pipe 的寫入端，讀取端在主行程（一般啟動在 fd 3，Playwright 啟動在 fd 5）。fork 的 IPC 放在 fd 3，把 keepalive 蓋掉；server 沒有持有 keepalive，主行程結束後 mount 就卸載，保留下來的 server 從已卸載的映像執行（T0812 實測 `/proc/<server>/exe` 讀回 `ENOTCONN`；推論之後載入新頁面會 SIGBUS）。
+
+## 必守規則（Terminal Server fork）
+
+- 🔴 只有 Linux。Windows / macOS 的 fork 參數（`detached`、`stdio: ['ignore','ignore','ignore','ipc']`、env）與日誌完全不變：`planTerminalServerFork` 在非 Linux 回原本的 stdio、不讀 /proc、不記日誌；guard 在非 Linux 不安裝，`runWithoutCrashpadClient` 沒有作用（單元測試守住）。
+- 🔴 唯一 fork 點 `forkTerminalServer`（`electron/main.ts`）：`startTerminalServer` 與 T0704 recovery 的 `reforkTerminalServer` 都經它；新增 Terminal Server 啟動路徑一律經它。
+- 🔴 fork 在 `runWithoutCrashpadClient`（`electron/child-process-fd-guard.ts`）裡：guard 包裝該次 spawn 時從 envPairs 去掉 `CRASHPAD_CLIENT_ENV_KEYS`（兩個變數的每一筆），因此不保留 `CRASHDUMP_SIGNAL_FD` 指的 fd。可巢狀、例外後還原；只在 guard 會包裝時生效（沒裝 guard、`runWithoutChildProcessFdGuard` 內、命令解析不到時 env 照原樣）。
+- 🔴 stdio：有 keepalive → `['ignore','ignore','ignore','ipc', <keepalive fd>]`（server 的 fd 4）；沒有 → `['ignore','ignore','ignore','ipc']`。🔴 不得用 `'ignore'` 佔第 5 格：libuv 遇到 UV_IGNORE 不碰 fd 4，guard 又保留 < stdio 數的 fd，主行程自己的 fd 4（例：Playwright 傳入的 socket）會留給 server（T0812 實驗踩過）。
+- 🔴 keepalive 偵測唯一實作 `findAppImageKeepaliveFd`（`electron/appimage-keepalive.ts`，不 import electron，經 deps 讀 /proc、不丟例外）：只在 `process.env.APPIMAGE` 有值時，找本行程 fd ≥ 3 的 pipe，其另一端（同一個 pipe inode、**不同**的存取模式，排除兩邊共用的同一個 file description，例如啟動方傳入、FUSE 也繼承到的 pipe）在 `/proc/<pid>/exe` = `APPIMAGE`（或其 realpath，去掉 ` (deleted)`）的程序手上。找不到 / 多於一個 / 讀取失敗 → 不帶 keepalive、照舊啟動，記一行 `[terminal-server]` debug log。
+- 🔴 結果：server 繼承的 fd 只剩 0–3（＋keepalive 時 4），env 沒有兩個 crashpad 變數；pid = server（包裝 `exec` 成 server），argv / env / cwd / `detached` 照 T0807 規則。
+- Terminal Server **不再是 crashpad client，不會產生 crash dump**。T0812 實測（WSL Ubuntu 24.04）改動前也不產生（server `process.crash()` / `kill -SEGV`、主行程 fork 的 `ELECTRON_RUN_AS_NODE` 子程序都沒有 dump；原因未查證），所以實際沒有損失。renderer 與主行程的 dump 不受影響（K5）。
+- headless 不受影響：bat-server 不 fork Terminal Server（`createHeadlessServer` 用 `PtyManager` direct）。T0806 `guardPtySpawnFds`、T0807 的安裝點規則不變。
+
+## 日誌（Terminal Server fork）
+
+只在 Linux、每次 fork 一行（debug log）：
+
+- `[terminal-server] fork (Linux, PLAN-062 A3): fd guard without crashpad client; AppImage keepalive fd <n> → 4 (runtime pid <pid>)`
+- `[terminal-server] fork (Linux, PLAN-062 A3): fd guard without crashpad client; AppImage keepalive: none (<reason>[: <detail>])`，reason：`not-appimage` / `no-runtime-process` / `not-found` / `ambiguous` / `error`。
+
+不記路徑以外的 /proc 內容，不記 env 值。
+
+## 驗證（Terminal Server fork）
+
+- 單元測試：`electron/__tests__/child-process-fd-guard.test.ts`（`withoutCrashpadClient` 去掉兩個 env pair 且不保留該 fd、`envPairs` 未給時同樣過濾、非 Linux 不包裝；`runWithoutCrashpadClient` 以假 binding 涵蓋 async / sync、巢狀、例外後還原、範圍外照 T0807、在 `runWithoutChildProcessFdGuard` 內不包裝；source guard：只有一個 fork、經 `runWithoutCrashpadClient`、`stdio: plan.stdio`、兩個呼叫端都用 helper）、`electron/__tests__/appimage-keepalive.test.ts`（假 /proc：沒有 APPIMAGE 不讀 /proc、一般啟動 fd 3、Playwright 啟動 fd 5 且跳過共用的 fd 3 / 4、stdio 不算、沒有 runtime 程序、realpath / ` (deleted)`、本行程不算、多個 pipe → ambiguous、同一 pipe 兩個 fd 取最小、fdinfo 讀不到 / /proc 讀不到不丟例外；`planTerminalServerFork` 非 Linux 不查不記、Linux 第 5 格是 keepalive、沒有時只有 4 格、lookup 丟例外照舊啟動）、`electron/__tests__/local-helper-capability.test.ts`（server env 不含 `BAT_REMOTE_*`，改成一個 fork）。
+- Linux 實測 `electron/__tests__/child-process-fd-guard-linux.test.ts`：以 server 的 fork 形狀（`runWithoutCrashpadClient`＋`stdio [ignore×3, ipc, <fd>]`，env 帶指向 pty master 的 `CRASHDUMP_SIGNAL_FD`）fork：fd 只有 0–4、fd 4 是傳入的 fd、fd 3 是 IPC socket、env 沒有 `CRASH*`；4 格時 fd 4 不存在；範圍外反向對照照舊保留該 fd 與 env。
+- e2e `e2e/linux/t0816-terminal-server-fork.spec.ts`（打包的 Linux 版，linux-acceptance.yml 跑 AppImage）：
+  - K2：Playwright 啟動與一般啟動（`bash -c 'out=$(…)'`，關掉 fd ≥ 3 後啟動）各一次：server fd ≥ 3 與主行程共用的 pipe / socket 只有 fd 4 的 keepalive（主行程也持有、FUSE runtime 持有另一端），environ 沒有兩個 crashpad 變數名稱，`ss -xapn` 找不到對端是 crashpad 的 server socket，debug log 的 fork 行（一般啟動是 `keepalive fd 3 → 4`）。server 自己開的 fd（TCP、pty master、Electron node 模式自己的 fd）不算繼承。
+  - K1：一般啟動、保留 server 離開：主行程結束 2 s 後，除了讀取的 bash 沒有程序持有主行程的 stdout pipe，`out=$(…)` 在主行程結束後 ≤ 10 s 返回。🔴 不拿 Playwright `app.close()` 計時（FUSE 持有 Playwright 的 fd 3 / 4，mount 活多久就等多久）。一般啟動經主行程 Node inspector（`--inspect=127.0.0.1:<空閒埠>`）讀 pid、回答關閉確認（「離開」、不勾「結束 Terminal Server」）。
+  - K3：同一次，主行程結束後 `/proc/mounts` 仍有 server 執行檔所在的 mount，`/proc/<server>/exe` 最後 64 KiB 讀得回來。
+  - K4：重開同一 runtime，Recovery 提示按「還原」，保留的 server 與 shell 能執行指令。
+  - K5：renderer CDP `Page.crash` 仍寫出 `Crashes/pending/*.dmp`。
+  - T0806 F1–F6、T0807 G1–G3 一起跑（G3 判準見上一章）。
+
+## 已知限制（Terminal Server fork）
+
+- Playwright＋AppImage 的 `app.close()` 在保留 server 時仍會等：AppImage 的 FUSE runtime 持有 Playwright 額外傳入的 fd 3 / 4，mount 留到 server 結束（這正是 BUG-209 要的行為）。e2e 一律用 `closeIsolated`（勾選結束 server）。
+- 更新前就在跑的舊 Terminal Server 仍是舊的 fd 狀態，結束後才生效。
+- **Windows（不修，D260）**：同類現象由 server 本身造成。libuv 在 Windows 以 `bInheritHandles=TRUE` 呼叫 `CreateProcessW`，主行程所有可繼承的 handle（含 std handle）都會帶給 server，`stdio: 'ignore'` 管不到；T0812 實測 stdout / stderr 是 pipe、保留 server 離開時 `close` 等到 server 結束。要修需原生程式碼（`PROC_THREAD_ATTRIBUTE_HANDLE_LIST` 或清掉 std handle 的繼承旗標）；Windows 是 GUI 子系統，很少以擷取 stdout 的方式啟動。
+- **macOS（推論，未實測）**：crashpad handler 只保留 stderr、libuv 用 `POSIX_SPAWN_CLOEXEC_DEFAULT`；推論只擷取 stdout 時不卡、擷取 stderr 時會等到 server 結束。不處理。
+- Linux 上 `ELECTRON_RUN_AS_NODE` 子程序（server 以外）照 T0807 保留 `CRASHDUMP_SIGNAL_FD` 的 fd；這類子程序若活得比主行程久，也會讓 crashpad 與主行程 stdio 留著（推論，T0812 其他觀察 3）。

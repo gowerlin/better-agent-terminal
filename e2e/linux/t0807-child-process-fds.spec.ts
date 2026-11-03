@@ -10,8 +10,9 @@
 //       (how the Claude SDK fallback / voice probe start) from the main process: no fd ≥ 3 without
 //       O_CLOEXEC (the execPath child keeps only the fd its CRASHDUMP_SIGNAL_FD names), no /dev/ptmx
 //   G3  reverse control: the main process itself has many fds without O_CLOEXEC (what a child used to
-//       inherit, T0806: 49) and the Terminal Server — still forked unguarded (PLAN-062 option C) —
-//       does carry them; the shell tab under that server is still clean (T0806) and answers
+//       inherit, T0806: 49); the shell tab under the Terminal Server is still clean (T0806) and answers.
+//       T0816 (PLAN-062 A3): the Terminal Server is no longer forked unguarded, so its count is recorded only
+//       (judged by e2e/linux/t0816-terminal-server-fork.spec.ts K2); before T0816 G3 also required it ≥ 10
 // Only reads /proc (fd lists, link targets, fdinfo flags, cmdline, environ variable NAMES). Everything
 // this test starts is killed by pid after checking its command line. See
 // docs/agent-guide/linux-pty-fd-inheritance.md.
@@ -207,14 +208,14 @@ test('T0807 Electron main-process children keep only their stdio fds', async () 
       const mainInh = inheritable(mainPid)
       const serverInh = inheritable(server)
       ev.push(`main process ${mainPid}: ${mainInh.length} fds without O_CLOEXEC ${classify(mainInh)} (what an unguarded child inherits)`)
-      ev.push(`Terminal Server ${server} (forked unguarded, PLAN-062 option C): ${serverInh.length} fds without O_CLOEXEC ${classify(serverInh)}`)
+      ev.push(`Terminal Server ${server} (T0816: forked through the guard, only IPC + AppImage keepalive inherited; recorded only, see t0816 K2): ${serverInh.length} fds without O_CLOEXEC ${classify(serverInh)}`)
       const shellFds = fdsOf(shell)
       const shellExtra = shellFds.filter(f => ![0, 1, 2, 255].includes(f.fd))
       ev.push(`shell A ${shell} under the server: fds ${describe(shellFds)}`)
       await win.evaluate(([i, t]) => (window as AnyApi).electronAPI.pty.write(i, t), [TERM_A, `echo t0807-$((6*7)) > '${folder}/a.txt'\r`])
       const answered = await until('shell A answered', () => { try { return fs.readFileSync(path.join(folder, 'a.txt'), 'utf8').trim() === 't0807-42' } catch { return false } }, 15_000).then(() => true, () => false)
       ev.push(`shell A ran a command: ${answered}`)
-      add({ id: 'G3', title: 'reverse control: main and the (unguarded) Terminal Server carry inheritable fds; the shell tab still works and is clean', result: mainInh.length >= 10 && serverInh.length >= 10 && shellExtra.length === 0 && answered ? 'PASS' : 'FAIL', evidence: ev })
+      add({ id: 'G3', title: 'reverse control: the main process carries inheritable fds; the shell tab still works and is clean', result: mainInh.length >= 10 && shellExtra.length === 0 && answered ? 'PASS' : 'FAIL', evidence: ev })
     }
   } finally {
     for (const pid of started) {

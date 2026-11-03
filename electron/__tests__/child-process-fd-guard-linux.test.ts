@@ -31,7 +31,7 @@ vi.mock('../remote/remote-logger', () => ({
 }))
 
 import { logger } from '../logger'
-import { installChildProcessFdGuard, runWithoutChildProcessFdGuard } from '../child-process-fd-guard'
+import { installChildProcessFdGuard, runWithoutChildProcessFdGuard, runWithoutCrashpadClient } from '../child-process-fd-guard'
 
 const RUN = process.platform === 'linux' && fs.existsSync('/bin/bash') && fs.existsSync('/proc/self/fd')
 
@@ -173,9 +173,42 @@ describe.runIf(RUN)('child_process children of a process holding pty masters (re
     expect(masters(JSON.parse(fs.readFileSync(hookOut, 'utf8')) as Report)).toBeGreaterThanOrEqual(2)
   })
 
-  it('runWithoutChildProcessFdGuard: the spawn is the unguarded one (Terminal Server fork)', () => {
+  it('runWithoutChildProcessFdGuard: the spawn is the unguarded one (reverse control)', () => {
     const { out } = runWithoutChildProcessFdGuard(() => spawnSyncReport())
     expect(masters(out)).toBeGreaterThanOrEqual(2)
+  })
+
+  it('T0816 Terminal Server fork shape: runWithoutCrashpadClient + fork stdio [ignore×3, ipc, <fd>]: fd 0–4 only, fd 4 = that fd, no crashpad env', async () => {
+    // a crashpad-client env as Electron appends it: CRASHDUMP_SIGNAL_FD names an fd without O_CLOEXEC (a pty master here)
+    const crashFd = fs.readdirSync('/proc/self/fd').map(Number).find(fd => { try { return fs.readlinkSync(`/proc/self/fd/${fd}`) === '/dev/ptmx' } catch { return false } })!
+    expect(crashFd).toBeGreaterThan(4)
+    const keepalive = fs.openSync(path.join(dir, 'keepalive'), 'w') // stands in for the AppImage keepalive pipe
+    const env = { ...baseEnv(), ELECTRON_RUN_AS_NODE: '1', CRASHDUMP_SIGNAL_FD: String(crashFd), CRASHPAD_HANDLER_PID: '1' }
+    const forkReport = (stdio: childProcess.StdioOptions) => new Promise<Report>((res, rej) => {
+      const c = childProcess.fork(reporter, [], { stdio, env, detached: true })
+      c.once('message', m => res(m as Report))
+      c.once('error', rej)
+    })
+    try {
+      for (const stdio of [['ignore', 'ignore', 'ignore', 'ipc', keepalive], ['ignore', 'ignore', 'ignore', 'ipc']] as childProcess.StdioOptions[]) {
+        const keep = (stdio as unknown[]).length
+        const out = await runWithoutCrashpadClient(() => forkReport(stdio))
+        const label = `${JSON.stringify(stdio)}: ${JSON.stringify(out.fds)}`
+        expect(masters(out), label).toBe(0)
+        expect(leaked(out, keep), label).toEqual([])
+        expect(out.fds.find(f => f.fd === 3)?.target, label).toMatch(/^socket:/)
+        if (keep === 5) expect(out.fds.find(f => f.fd === 4)?.target, label).toBe(path.join(dir, 'keepalive'))
+        else expect(out.fds.find(f => f.fd === 4 && f.cloexec === false), label).toBeUndefined()
+        expect(Object.keys(out.env).filter(k => k.startsWith('CRASH')), label).toEqual([])
+        expect(out.env.ELECTRON_RUN_AS_NODE).toBe('1')
+      }
+      // reverse control: outside the scope the guard keeps the CRASHDUMP_SIGNAL_FD fd and env (T0807)
+      const kept = await forkReport(['ignore', 'ignore', 'ignore', 'ipc'])
+      expect(kept.fds.find(f => f.fd === crashFd)?.target).toBe('/dev/ptmx')
+      expect(kept.env.CRASHDUMP_SIGNAL_FD).toBe(String(crashFd))
+    } finally {
+      fs.closeSync(keepalive)
+    }
   })
 
   it('pid, ppid, argv, cwd and env equal the unguarded spawn (PWD stale / absent, SHLVL absent, BASH_ENV)', () => {

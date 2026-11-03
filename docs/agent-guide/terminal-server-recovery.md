@@ -34,7 +34,7 @@ T0704 修正兩件事：
 | 訊息分派與 generation | `handleServerMessage(msg, generation)` |
 | 孤兒清理 | `killOrphanPtyProcesses`（`electron/pty-manager.ts`，export；Electron 啟動時的孤兒清理 `startTerminalServer` 也用它） |
 | 程序操作（可注入） | `ServerWatchdogDeps` / `defaultServerWatchdogDeps`，經 `PtyManagerDeps.serverWatchdog` 替換（只有測試會替換） |
-| re-fork | `reforkTerminalServer`（`electron/main.ts`），經 `ptyManager.onRequestNewServer` 呼叫 |
+| re-fork | `reforkTerminalServer`（`electron/main.ts`），經 `ptyManager.onRequestNewServer` 呼叫；fork 本身與首次啟動共用 `forkTerminalServer`（T0816：Linux 經 fd guard、只留 IPC 與 AppImage keepalive，見 [linux-pty-fd-inheritance.md](linux-pty-fd-inheritance.md)「Terminal Server 的 fork」） |
 | 樹狀結束 | T0540 的 `killProcessTree`（`electron/terminal-server/process-tree.ts`）；本單不另寫一份 |
 
 ## 判死條件（A）

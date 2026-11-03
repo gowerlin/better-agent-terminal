@@ -527,8 +527,10 @@ describe('main.ts wiring (T0575 source guard)', () => {
   })
 
   it('the Terminal Server is forked without inherited BAT_REMOTE_*', () => {
+    // T0816: one fork (forkTerminalServer), used by startTerminalServer and reforkTerminalServer
     const forks = main.match(/fork\(serverScript, \[\], \{[\s\S]*?env: \{\s*\.\.\.(\w+\(\)|process\.env)/g) ?? []
-    expect(forks).toHaveLength(2)
+    expect(forks).toHaveLength(1)
     for (const fork of forks) expect(fork).toContain('...terminalServerInheritedEnv()')
+    expect(main.match(/forkTerminalServer\(serverScript, userDataPath\)/g)).toHaveLength(2)
   })
 })
