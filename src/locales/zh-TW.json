@@ -69,6 +69,8 @@
     "terminalServerRecoveryFailed": "Terminal Server 恢復失敗，請重新啟動應用程式",
     "terminalServerRecoveredInterrupted_one": "{{count}} 個 agent 分頁已中斷，按此查看",
     "terminalServerRecoveredInterrupted_other": "{{count}} 個 agent 分頁已中斷，按此查看",
+    "upgradeInterrupted_one": "BAT 已升級（v{{from}} → v{{to}}）。安裝新版時結束了 {{count}} 個終端，包括其中執行中的指令與 agent；分頁已用新的 shell 重新開啟。",
+    "upgradeInterrupted_other": "BAT 已升級（v{{from}} → v{{to}}）。安裝新版時結束了 {{count}} 個終端，包括其中執行中的指令與 agent；分頁已用新的 shell 重新開啟。",
     "recoveryPromptTitle": "偵測到上次的終端 session",
     "recoveryPromptAlive": "Terminal Server 仍在運行，有 <strong>{{count}}</strong> 個終端存活。",
     "recoveryPromptQuestion": "是否要恢復上次的工作狀態？",
@@ -535,7 +537,8 @@
     "currentVersion": "目前版本：v{{version}}",
     "newVersion": "新版本：{{version}}",
     "whatsNew": "更新內容：",
-    "viewOnGithub": "在 GitHub 上查看"
+    "viewOnGithub": "在 GitHub 上查看",
+    "windowsInstallEndsTerminals": "安裝新版會結束所有終端分頁，包括執行中的指令與 agent（claude、codex）。請先完成或保存工作。"
   },
   "envVars": {
     "title": "環境變數",
@@ -1480,6 +1483,8 @@
   "interruptedAgents": {
     "title": "Terminal Server 重啟中斷的 agent 分頁",
     "desc": "Terminal Server 已重啟，這些分頁現在只剩 shell。恢復 claude 分頁即可接續原本的對話；codex 分頁會開啟 codex 的 resume 選單讓你選 session；不會自動恢復。",
+    "upgradeTitle": "升級結束的 agent 分頁",
+    "upgradeDesc": "安裝新版時結束了這些分頁的 agent。分頁已重新開啟，claude / codex 分頁可能已經開了新的 agent；按「恢復」會結束新開的 agent，接續升級前的對話（codex 從 codex 的 resume 選單選 session）；不會自動恢復。",
     "towerFirst": "請先恢復塔台：Worker 的完成通知會寫進塔台分頁。",
     "tower": "塔台",
     "worker": "Worker {{workorder}}",

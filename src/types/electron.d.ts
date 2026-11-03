@@ -12,7 +12,7 @@ import type { RemoteToolInstallKind, RemoteToolInstallRequest, RemoteToolInstall
 import type { RemoteInvokeRefusedEvent, RemoteWindowStatusEvent } from '../lib/remote-not-connected'
 import type { ClientPathPurpose, ResolvedClientPath } from '../lib/client-paths'
 import type { DetachedWaitingReport } from '../lib/terminal-attention'
-import type { InterruptedAgentInfo, InterruptedAgentsEvent, ResumeInterruptedAgentResult } from '../stores/interrupted-agents-store'
+import type { InterruptedAgentInfo, InterruptedAgentsEvent, ResumeInterruptedAgentResult, UpgradeInterruptionNotice } from '../stores/interrupted-agents-store'
 import type { RemoteProfileConnectionSnapshot } from '../components/profiles/remote-status'
 
 // Shared profile record shape (mirrors preload.ts + profile-manager.ts surface).
@@ -855,6 +855,8 @@ interface ElectronAPI {
     onAgentsInterrupted: (callback: (event: InterruptedAgentsEvent) => void) => () => void
     /** T0766: pull — the current list (a window mounted after the event). */
     queryInterruptedAgents: () => Promise<InterruptedAgentInfo[]>
+    /** PLAN-063 / T0821: the upgrade notice for the first window that asks, then null (shown once). */
+    queryUpgradeInterruption?: () => Promise<UpgradeInterruptionNotice | null>
     /** T0766: 略過 — the entry leaves the list (true when it was listed). */
     dismissInterruptedAgent: (terminalId: string) => Promise<boolean>
     /** T0766: main resumes a claude tab the renderer does not launch itself (helper-dispatched Worker). */

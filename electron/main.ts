@@ -19,6 +19,7 @@ import { createCodexSkillNameResolver } from './ct-install-detect'
 import { createClaudeNameSupportCheck } from './claude-version-check'
 import { CLAUDE_SESSION_STORE_FILE, ClaudeSessionPersistence, claudeSessionNameRecords } from './claude-session-name-record'
 import { InterruptedAgentsStore, buildInterruptedAgentSnapshot, resumeInterruptedDispatchAgent } from './interrupted-agents'
+import { LAST_RUN_VERSION_FILE, UpgradeInterruptionCheck } from './upgrade-interruption'
 import { detectShellFamily } from '../src/utils/shell-quote'
 import { checkDispatchCwd, findWorkspaceAgentSettings, resolveDispatchWorkspaceFromEntries, type DispatchWorkspaceRequest, type DispatchWorkspaceResolution } from './dispatch-workspace'
 import { createTerminalWindowEmit, registerTerminalHandlers } from './handlers/terminal'
@@ -240,6 +241,8 @@ let _terminalServerStarted = false
 let _terminalServerProcess: import('child_process').ChildProcess | null = null
 // T0110: Stores pending recovery state when BAT restarts and finds live PTYs
 let pendingRecovery: { port: number; ptyCount: number } | null = null
+// PLAN-063 / T0821: the first start after an upgrade (version changed + orphan PTYs) — created in whenReady
+let upgradeInterruptionCheck: UpgradeInterruptionCheck | null = null
 
 /**
  * Probe a running Terminal Server to count how many PTY processes are alive.
@@ -383,6 +386,10 @@ async function startTerminalServer(): Promise<void> {
     // T0113: Kill orphan PTY processes tracked in registry
     // T0704 (BUG-171): tree before shell (T0540 order) — SIGTERM first left the shell's children behind
     const registry = readRegistry(userDataPath)
+    // T0821: only remembers the ended PTYs (+ the previous process's claude sessions, settled below)
+    try {
+      upgradeInterruptionCheck?.noteOrphanCleanup(registry?.ptys ?? [], claudeSessionPersistence.entries())
+    } catch { /* never in the way of the cleanup */ }
     if (registry?.ptys.length) {
       await killOrphanPtyProcesses(registry.ptys.map(entry => entry.pid))
       logger.log(`[terminal-server] Cleaned ${registry.ptys.length} orphan PTY process(es) from registry`)
@@ -585,6 +592,31 @@ interruptedAgents.onChange((reason) => {
     } catch { /* render frame disposed during reload / close */ }
   }
 })
+
+/**
+ * PLAN-063 / T0821: decides once whether an upgrade ended this machine's terminals
+ * (electron/upgrade-interruption.ts) and lists their agent tabs in `interruptedAgents` — before the
+ * first window exists, so the windows pull the list and the notice. Never throws.
+ */
+async function finishUpgradeInterruptionCheck(): Promise<void> {
+  const check = upgradeInterruptionCheck
+  if (!check) return
+  try {
+    const windows = await windowRegistry.readAll()
+    let snapshot: ReturnType<typeof buildInterruptedAgentSnapshot> = []
+    const sources = check.finish(windows, (list, nameOf) => {
+      snapshot = buildInterruptedAgentSnapshot(list, {
+        nameOf,
+        now: Date.now(),
+        cause: 'upgrade',
+      })
+      return snapshot.length
+    })
+    if (sources && snapshot.length > 0) interruptedAgents.record(snapshot, 'upgrade')
+  } catch (err) {
+    logger.log(`[upgrade-interruption] check failed: ${err instanceof Error ? err.message : String(err)}`)
+  }
+}
 
 /** T0642: loads the previous BAT process's claude sessions as pending (whenReady, before any PTY). */
 function loadClaudeSessions(): void {
@@ -1822,8 +1854,19 @@ app.whenReady().then(async () => {
   // T0377: kick off elevation detection early (non-blocking; launch-command builders await it)
   void ensureElevationApplied()
 
+  // PLAN-063 / T0821: the previous run's version, read before this run writes its own
+  upgradeInterruptionCheck = new UpgradeInterruptionCheck({
+    filePath: path.join(app.getPath('userData'), LAST_RUN_VERSION_FILE),
+    currentVersion: app.getVersion(),
+    logger,
+  })
+  upgradeInterruptionCheck.begin()
+
   // Start Terminal Server (PLAN-008 Phase 2) as independent background process
   await startTerminalServer()
+
+  // T0821: an upgrade ended the terminals → the notice (pull, once) and its agent tabs (T0766 list)
+  await finishUpgradeInterruptionCheck()
 
   // Load user-defined custom CLIs from disk
   try {
@@ -4129,6 +4172,8 @@ function registerLocalHandlers() {
   // dismiss (略過), and resume a helper-dispatched claude Worker. 🔴 Renderer IPC only: never a
   // RemoteServer / helper channel (registerHandler), D211.
   ipcMain.handle('terminal-server:query-interrupted-agents', () => interruptedAgents.list())
+  // PLAN-063 / T0821: the upgrade notice — the first window that asks gets it, then null (shown once)
+  ipcMain.handle('terminal-server:query-upgrade-interruption', () => upgradeInterruptionCheck?.takeNotice() ?? null)
   ipcMain.handle('terminal:dismiss-interrupted-agent', (_event, terminalId: unknown) => {
     return typeof terminalId === 'string' ? interruptedAgents.remove(terminalId, 'dismissed') : false
   })

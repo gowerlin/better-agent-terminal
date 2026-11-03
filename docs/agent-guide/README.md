@@ -37,6 +37,7 @@
 | [thumbnail-preview.md](thumbnail-preview.md) | 終端縮圖預覽：T0667 上限、游標換列當成換行 / 原地更新 / 清畫面重新開始、stripAnsi 完整 CSI 語法、ConPTY 對照 | 終端縮圖預覽（T0667 / T0714，BUG-175） |
 | [tower-questions.md](tower-questions.md) | Worker 問塔台（`question:*` channel、記憶體 store、`blocked` / `tower`、`pendingQuestions`） | Worker 問塔台（PLAN-048 / T0607） |
 | [tower-tab-title.md](tower-tab-title.md) | `--set-role tower`、yolo 判定、Tower 標題 | 塔台分頁標題（T0562，D147） |
+| [upgrade-interruption.md](upgrade-interruption.md) | Windows 更新通知的「安裝會結束所有終端」提示；升級後第一次啟動以「上次版本 ≠ 目前版本＋孤兒清理 N ≥ 1」判定、toast 說明 N 個終端被結束（只顯示一次）、agent 分頁列進「被中斷的 agent 分頁」（`cause: 'upgrade'`）；T0820 實測摘要、日誌、已知限制、驗證清單 | 升級結束終端的提示與說明（PLAN-063 / T0821） |
 | [usage-limit-continue.md](usage-limit-continue.md) | 用量限制自動繼續（codex 送文字、claude 只提示 / 只送 Enter） | 用量限制自動繼續（PLAN-044 / T0566，D148） |
 | [voice-availability.md](voice-availability.md) | 語音輸入可用性事先檢查：啟動後以短命子程序（`ELECTRON_RUN_AS_NODE`）試載 whisper、三態與原因代碼、麥克風停用與安裝提示、Alt+M、Settings 重新檢查、日誌、遠端 / detached 行為、已知限制 | 語音輸入可用性事先檢查（T0802，D247） |
 | [worker-launch-confirmation.md](worker-launch-confirmation.md) | Worker 啟動確認（`SessionStart` hook、`agentStarted`、`--wait-started` / exit 8） | Worker 啟動確認（T0600，D154） |

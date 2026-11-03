@@ -31,6 +31,33 @@ export interface InterruptedAgentInfo {
   cwd: string
   shell?: string
   at: number
+  /** PLAN-063 / T0821: `upgrade` = ended by an upgrade (first start after it); absent = a Terminal Server recovery. */
+  cause?: 'upgrade'
+}
+
+/** Mirror of electron/upgrade-interruption.ts `UpgradeInterruptionNotice`. */
+export interface UpgradeInterruptionNotice {
+  previousVersion: string
+  currentVersion: string
+  /** Terminals the upgrade ended. */
+  ptyCount: number
+  /** Of those, the agent tabs listed in InterruptedAgentsDialog. */
+  agentCount: number
+}
+
+/** T0821: a notice main sent, as far as the renderer trusts it (null = nothing to show). */
+export function parseUpgradeInterruptionNotice(raw: unknown): UpgradeInterruptionNotice | null {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null
+  const { previousVersion, currentVersion, ptyCount, agentCount } = raw as Record<string, unknown>
+  if (typeof previousVersion !== 'string' || typeof currentVersion !== 'string') return null
+  if (typeof ptyCount !== 'number' || !Number.isInteger(ptyCount) || ptyCount < 1) return null
+  const agents = typeof agentCount === 'number' && Number.isInteger(agentCount) && agentCount > 0 ? agentCount : 0
+  return { previousVersion, currentVersion, ptyCount, agentCount: agents }
+}
+
+/** Every listed entry was ended by an upgrade (InterruptedAgentsDialog's title / text). */
+export function allUpgradeInterrupted(list: readonly Pick<InterruptedAgentInfo, 'cause'>[]): boolean {
+  return list.length > 0 && list.every(agent => agent.cause === 'upgrade')
 }
 
 export interface InterruptedAgentsEvent {

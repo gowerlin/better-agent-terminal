@@ -71,6 +71,11 @@ export interface InterruptedAgent {
   shell?: string
   /** When the recovery interrupted it (ms epoch). */
   at: number
+  /**
+   * PLAN-063 / T0821: `upgrade` = ended by an upgrade (the first start after it found the PTY in the
+   * orphan cleanup, electron/upgrade-interruption.ts); absent = a Terminal Server recovery (T0766).
+   */
+  cause?: 'upgrade'
 }
 
 /** `agentPreset` names an agent (anything but a plain shell). */
@@ -109,6 +114,8 @@ export interface InterruptedAgentSnapshotOptions {
   /** The `--name=` recorded for the terminal (claudeSessionNameRecords), or null. */
   nameOf(terminalId: string): string | null
   now: number
+  /** T0821: `upgrade` marks every entry (`InterruptedAgent.cause`); absent = a recovery. */
+  cause?: 'upgrade'
 }
 
 /** The interrupted agent tabs among the rebuilt PTYs; plain shells are left out. */
@@ -130,6 +137,7 @@ export function buildInterruptedAgentSnapshot(sources: readonly InterruptedAgent
       cwd: source.cwd,
       ...(source.shell ? { shell: source.shell } : {}),
       at: opts.now,
+      ...(opts.cause ? { cause: opts.cause } : {}),
     })
   }
   return out
@@ -160,8 +168,10 @@ export class InterruptedAgentsStore {
   /**
    * A recovery's snapshot. An id already listed (a second recovery before the user acted) keeps the
    * session id it had when the new snapshot has none — the tracker was cleared by the first one.
+   * T0821: `source: 'upgrade'` (the first start after an upgrade) logs so and emits `update`: the
+   * renderer opens the dialog from the upgrade notice, not on its own.
    */
-  record(snapshot: readonly InterruptedAgent[]): void {
+  record(snapshot: readonly InterruptedAgent[], source: 'recovery' | 'upgrade' = 'recovery'): void {
     for (const agent of snapshot) {
       const previous = this.entries.get(agent.terminalId)
       const merged: InterruptedAgent = previous && !agent.claudeSessionId && previous.claudeSessionId
@@ -171,8 +181,8 @@ export class InterruptedAgentsStore {
       this.entries.set(agent.terminalId, merged)
       this.logger?.log(`[interrupted-agents] interrupted: ${describeInterruptedAgent(merged)}`)
     }
-    this.logger?.log(`[interrupted-agents] recovery interrupted ${snapshot.length} agent tab(s); listed ${this.entries.size}`)
-    this.emit('recovery')
+    this.logger?.log(`[interrupted-agents] ${source === 'upgrade' ? 'upgrade' : 'recovery'} interrupted ${snapshot.length} agent tab(s); listed ${this.entries.size}`)
+    this.emit(source === 'upgrade' ? 'update' : 'recovery')
   }
 
   list(): InterruptedAgent[] {
@@ -188,8 +198,13 @@ export class InterruptedAgentsStore {
     return this.entries.has(terminalId)
   }
 
-  /** True when it was listed. */
+  /**
+   * True when it was listed. T0821: an upgrade entry ignores `session-start` — its restored
+   * claude-cli tab launches a new claude on its own (WorkspaceView), whose `session-start` is not a
+   * resume; the resume paths end the PTY first (`pty-ended`) or remove it (`resumed` / `dismissed`).
+   */
   remove(terminalId: string, cause: InterruptedAgentRemoval): boolean {
+    if (cause === 'session-start' && this.entries.get(terminalId)?.cause === 'upgrade') return false
     if (!this.entries.delete(terminalId)) return false
     this.logger?.log(`[interrupted-agents] removed: terminal=${terminalId} (${cause})`)
     this.emit('update')

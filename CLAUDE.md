@@ -220,6 +220,14 @@
 - 被中斷的 agent 分頁（PLAN-055 B1 / T0766，D211）：recovery 前的快照（`collectInterruptedAgentSources` → `onAgentsInterrupted`，🔴 在 `blockedTracker.clearAll` 之前）列進 `InterruptedAgentsStore`（`electron/interrupted-agents.ts`），renderer 以對話框 `InterruptedAgentsDialog`、縮圖 ⏸、recovery toast 列出；claude 分頁一鍵 `--resume=<id>`（session 未知 → `--resume` picker；自訂參數已含 resume 類旗標則不加）；codex 分頁（B2 / T0767）一鍵 `codex resume`（codex 自己的選單、依 cwd 篩選，`resume` 放在 BAT 參數之後、自訂參數之前；🔴 不用 `--last`、不猜 session id；使用者分頁經 `resumeCodexCliTab`（⏻ 路徑 + `withBatMcpLaunchArgs`），其他走 main builder 的 `resume`；判斷唯一實作 `codexResumeArgs`，`src/lib/codex-resume-args.ts`）。🔴 不自動 resume、Worker 不附 prompt、不通知塔台；resume 一律經 `startClaudeCliPty`（使用者分頁，先 kill、不再 `worktree.create`）或 main `terminal:resume-interrupted-agent` → `createAgentPromptCommandBuilder` 的 `resume`（其他 claude 分頁，renderer IPC only、不是 helper channel）；`--resume=` 用 `=` 形式、不加 `--fork-session`；參數判斷唯一實作 `claudeResumeArgs`（`src/lib/claude-resume-args.ts`）。session id 只在 main 記憶體與 `claude-sessions.json` 的 `interrupted`（不跨 BAT 重開），日誌只記前 8 碼。
 - 完整判死條件、generation 選擇理由、日誌、殘留風險、T0703 時間線、被中斷的 agent 分頁、驗證清單：[docs/agent-guide/terminal-server-recovery.md](docs/agent-guide/terminal-server-recovery.md)
 
+## 升級結束終端的提示與說明（PLAN-063 / T0821）
+
+- 用途：Windows 的 NSIS 安裝程式會結束 BAT 與 Terminal Server，所有分頁的 shell / 指令 / agent 跟著結束，重開走孤兒清理、沒有 Recovery 提示（T0820）。更新通知在 win32 多一行提示（`showsWindowsUpgradeWarning`，`UpdateNotification.tsx`）；升級後第一次啟動以 toast 說明「上次升級結束了 N 個終端」，agent 分頁列進「被中斷的 agent 分頁」。
+- 🔴 觸發唯一實作 `detectUpgradeInterruption`（`electron/upgrade-interruption.ts`）：`<userData>/last-run-version.json` 的上次版本 ≠ 目前版本 **且** 本次孤兒清理的 registry PTY 數 N ≥ 1；版本相同（當機）、N = 0、沒有上次版本都不觸發。`UpgradeInterruptionCheck.begin()` 在 `startTerminalServer()` 前讀舊值並寫入目前版本；`noteOrphanCleanup` 只記 id，🔴 孤兒清理的行為與順序（T0540 先殺樹）、Recovery（T0578）、server recovery（T0704）不變（`upgrade-interruption.test.ts` source guard）。模組不 import electron、不在 import 期取 userData。
+- 說明：IPC `terminal-server:query-upgrade-interruption`（本機 `ipcMain.handle`，不是 helper channel），第一個問的視窗拿到、之後 null（只顯示一次）；renderer 沿用 `ServerStatusToast`（`UPGRADE_INTERRUPTED_TOAST_KEY`）。
+- agent 分頁：`buildUpgradeInterruptedSources`（存檔 `agentPreset`、上一個行程的 `claude-sessions.json`）→ `buildInterruptedAgentSnapshot(…, { cause: 'upgrade' })` → `InterruptedAgentsStore.record(…, 'upgrade')`（送 `update`，不自己開對話框）。🔴 `cause: 'upgrade'` 的項目不因 `session-start` 移除（還原的 claude-cli 分頁會自己開新 claude）；恢復一律沿用 T0766 / T0767 路徑，不自動 resume、不通知塔台；日誌 `[upgrade-interruption] …` 只記版本與數量。
+- 子項 3（NSIS 自訂）/ 4（holder 模型）未做；完整條件、日誌、已知限制、驗證清單：[docs/agent-guide/upgrade-interruption.md](docs/agent-guide/upgrade-interruption.md)
+
 ## Child Process Spawning
 
 新增涉及 child_process 的程式碼（特別是 IPC handler / wizard step / shell 互動）：

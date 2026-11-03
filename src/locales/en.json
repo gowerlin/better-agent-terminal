@@ -69,6 +69,8 @@
     "terminalServerRecoveryFailed": "Terminal Server recovery failed. Please restart the app.",
     "terminalServerRecoveredInterrupted_one": "{{count}} agent tab was interrupted — click to review",
     "terminalServerRecoveredInterrupted_other": "{{count}} agent tabs were interrupted — click to review",
+    "upgradeInterrupted_one": "BAT was upgraded (v{{from}} → v{{to}}). Installing the new version ended {{count}} terminal, including the command or agent running in it; the tab was reopened with a new shell.",
+    "upgradeInterrupted_other": "BAT was upgraded (v{{from}} → v{{to}}). Installing the new version ended {{count}} terminals, including the commands and agents running in them; the tabs were reopened with new shells.",
     "recoveryPromptTitle": "Previous terminal session detected",
     "recoveryPromptAlive_one": "Terminal Server is still running, with <strong>{{count}}</strong> terminal still alive.",
     "recoveryPromptAlive_other": "Terminal Server is still running, with <strong>{{count}}</strong> terminals still alive.",
@@ -536,7 +538,8 @@
     "currentVersion": "Current: v{{version}}",
     "newVersion": "New: {{version}}",
     "whatsNew": "What's New:",
-    "viewOnGithub": "View on GitHub"
+    "viewOnGithub": "View on GitHub",
+    "windowsInstallEndsTerminals": "Installing the new version ends every terminal tab, including running commands and agents (claude, codex). Finish or save your work first."
   },
   "envVars": {
     "title": "Environment Variables",
@@ -1481,6 +1484,8 @@
   "interruptedAgents": {
     "title": "Agent tabs interrupted by the Terminal Server recovery",
     "desc": "The Terminal Server restarted and these tabs now run a plain shell. Resume a claude tab to continue its conversation, or a codex tab to pick its session from codex's resume menu; nothing resumes on its own.",
+    "upgradeTitle": "Agent tabs ended by the upgrade",
+    "upgradeDesc": "Installing the new version ended these tabs' agents. The tabs were reopened; a claude / codex tab may already run a new agent. Resume ends that new agent and continues the conversation from before the upgrade (codex: pick it from codex's resume menu); nothing resumes on its own.",
     "towerFirst": "Resume Towers first: a Worker reports to its Tower's tab.",
     "tower": "Tower",
     "worker": "Worker {{workorder}}",

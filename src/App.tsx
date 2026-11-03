@@ -21,9 +21,9 @@ import { WorkspaceEnvDialog } from './components/WorkspaceEnvDialog'
 import { ResizeHandle } from './components/ResizeHandle'
 import { ProfilePanel } from './components/ProfilePanel'
 import { RecoveryPrompt } from './components/RecoveryPrompt'
-import { SERVER_STATUS_TOAST_KEYS, ServerStatusToast, type ServerStatusToastKey } from './components/ServerStatusToast'
+import { SERVER_STATUS_TOAST_KEYS, ServerStatusToast, UPGRADE_INTERRUPTED_TOAST_KEY, type ServerStatusToastKey } from './components/ServerStatusToast'
 import { InterruptedAgentsController } from './components/InterruptedAgentsDialog'
-import { OPEN_INTERRUPTED_AGENTS_EVENT, useInterruptedAgents } from './stores/interrupted-agents-store'
+import { OPEN_INTERRUPTED_AGENTS_EVENT, parseUpgradeInterruptionNotice, useInterruptedAgents, type UpgradeInterruptionNotice } from './stores/interrupted-agents-store'
 import { CtToast, useCtToast } from './components/CtToast'
 import { useRuntimeToasts } from './hooks/useRuntimeToasts'
 import { useRemoteToolInstall } from './hooks/useRemoteToolInstall'
@@ -139,6 +139,8 @@ export default function App() {
   const [appNotification, setAppNotification] = useState<string | null>(null)
   const [recoveryInfo, setRecoveryInfo] = useState<{ ptyCount: number } | null>(null)
   const [serverStatusToast, setServerStatusToast] = useState<ServerStatusToastKey | null>(null)
+  // PLAN-063 / T0821: the upgrade ended the terminals (main hands it to one window, once)
+  const [upgradeNotice, setUpgradeNotice] = useState<UpgradeInterruptionNotice | null>(null)
   // PLAN-055 B1 / T0766: this window's agent tabs the Terminal Server recovery interrupted (toast count)
   const interruptedAgentCount = useInterruptedAgents().length
   const [envDialogWorkspaceId, setEnvDialogWorkspaceId] = useState<string | null>(null)
@@ -714,6 +716,14 @@ export default function App() {
     window.electronAPI.terminalServer.queryPendingRecovery().then((info) => {
       if (info) setRecoveryInfo(info)
     })
+
+    // PLAN-063 / T0821: pull — the upgrade notice is decided before any window exists
+    window.electronAPI.terminalServer.queryUpgradeInterruption?.().then((raw) => {
+      const notice = parseUpgradeInterruptionNotice(raw)
+      if (!notice) return
+      window.electronAPI?.debug?.log(`[upgrade-interruption] notice shown: previous=${notice.previousVersion} current=${notice.currentVersion} ended-ptys=${notice.ptyCount} agent-tabs=${notice.agentCount}`)
+      setUpgradeNotice(notice)
+    }).catch(() => { /* older main */ })
 
     // T0112: heartbeat watchdog status toast notifications
     const unsubServerStatus = window.electronAPI.terminalServer.onStatusChange((status) => {
@@ -1484,6 +1494,15 @@ export default function App() {
       )}
       {serverStatusToast && (
         <ServerStatusToast messageKey={serverStatusToast} onDismiss={() => setServerStatusToast(null)}
+          interruptedCount={interruptedAgentCount}
+          onOpenInterrupted={() => window.dispatchEvent(new CustomEvent(OPEN_INTERRUPTED_AGENTS_EVENT))}
+        />
+      )}
+      {/* PLAN-063 / T0821: after the heartbeat toast (same place); stays until clicked */}
+      {!serverStatusToast && upgradeNotice && (
+        <ServerStatusToast messageKey={UPGRADE_INTERRUPTED_TOAST_KEY}
+          messageValues={{ count: upgradeNotice.ptyCount, from: upgradeNotice.previousVersion, to: upgradeNotice.currentVersion }}
+          onDismiss={() => setUpgradeNotice(null)}
           interruptedCount={interruptedAgentCount}
           onOpenInterrupted={() => window.dispatchEvent(new CustomEvent(OPEN_INTERRUPTED_AGENTS_EVENT))}
         />

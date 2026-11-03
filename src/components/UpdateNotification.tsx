@@ -17,6 +17,15 @@ interface UpdateCheckResult {
   latestRelease: ReleaseInfo | null
 }
 
+/**
+ * PLAN-063 子項 1 / T0821: on Windows the NSIS installer ends every BAT process, the Terminal Server
+ * included, so every tab's shell, command and agent ends with it (T0820). Only Windows says so: the
+ * macOS / Linux upgrade was not studied.
+ */
+export function showsWindowsUpgradeWarning(platform: string | undefined): boolean {
+  return platform === 'win32'
+}
+
 export function UpdateNotification() {
   const { t } = useTranslation()
   const [updateInfo, setUpdateInfo] = useState<UpdateCheckResult | null>(null)
@@ -88,6 +97,10 @@ export function UpdateNotification() {
               <h4>{t('update.whatsNew')}</h4>
               <pre>{changelogLines}</pre>
             </div>
+          )}
+
+          {showsWindowsUpgradeWarning(window.electronAPI?.platform) && (
+            <p className="update-windows-warning" role="note" style={{ margin: '12px 0 0', color: 'var(--warning-color, #e5a50a)', fontSize: 13, lineHeight: 1.5 }}>{t('update.windowsInstallEndsTerminals')}</p>
           )}
         </div>
 

@@ -4,6 +4,7 @@ import { ModalOverlay } from './common/ModalOverlay'
 import { workspaceStore } from '../stores/workspace-store'
 import {
   OPEN_INTERRUPTED_AGENTS_EVENT,
+  allUpgradeInterrupted,
   forgetInterruptedAgent,
   getInterruptedAgent,
   isCodexResumableAgent,
@@ -72,6 +73,9 @@ export function InterruptedAgentsDialog({ rows, busy, message, onResume, onResum
   const groups = groupInterruptedAgentRows(rows)
   const resumable = rows.filter(row => isResumableAgent(row.agent))
   const towerFirst = rows.some(row => row.agent.role === 'tower') && rows.some(row => !!(row.agent.workorder || row.agent.towerTerminalId))
+  // PLAN-063 / T0821: every row ended by an upgrade → its own title / text (the restored claude / codex
+  // tabs already run a new agent; 恢復 ends it and resumes the conversation from before the upgrade)
+  const upgrade = allUpgradeInterrupted(rows.map(row => row.agent))
 
   const statusOf = (agent: InterruptedAgentInfo): string => {
     if (isCodexResumableAgent(agent)) return t('interruptedAgents.codexPicker')
@@ -87,10 +91,10 @@ export function InterruptedAgentsDialog({ rows, busy, message, onResume, onResum
     <ModalOverlay className="dialog-overlay" onEscape={onClose}>
       <div className="dialog interrupted-agents-dialog" role="dialog" onClick={e => e.stopPropagation()} style={{ maxWidth: 640, width: '100%' }}>
         <div className="dialog-header">
-          <h3 style={{ margin: 0 }}>{t('interruptedAgents.title')}</h3>
+          <h3 style={{ margin: 0 }}>{t(upgrade ? 'interruptedAgents.upgradeTitle' : 'interruptedAgents.title')}</h3>
           <button className="dialog-close-btn interrupted-agents-x" aria-label={t('common.close')} title={t('common.close')} onClick={onClose}>×</button>
         </div>
-        <p>{t('interruptedAgents.desc')}</p>
+        <p className="interrupted-agents-desc" data-cause={upgrade ? 'upgrade' : 'recovery'}>{t(upgrade ? 'interruptedAgents.upgradeDesc' : 'interruptedAgents.desc')}</p>
         {towerFirst && <p className="interrupted-agents-tower-first" style={{ color: 'var(--text-secondary)' }}>{t('interruptedAgents.towerFirst')}</p>}
         <div className="interrupted-agents-groups" style={{ maxHeight: '50vh', overflowY: 'auto' }}>
           {groups.map(group => (

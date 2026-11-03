@@ -1095,6 +1095,8 @@ const electronAPI = {
       return () => ipcRenderer.removeListener('terminal-server:agents-interrupted', handler)
     },
     queryInterruptedAgents: () => ipcRenderer.invoke('terminal-server:query-interrupted-agents') as Promise<unknown[]>,
+    // PLAN-063 / T0821: the upgrade notice (an upgrade ended the terminals) — once, then null
+    queryUpgradeInterruption: () => ipcRenderer.invoke('terminal-server:query-upgrade-interruption') as Promise<unknown>,
     dismissInterruptedAgent: (terminalId: string) => ipcRenderer.invoke('terminal:dismiss-interrupted-agent', terminalId) as Promise<boolean>,
     resumeInterruptedAgent: (terminalId: string) => ipcRenderer.invoke('terminal:resume-interrupted-agent', terminalId) as Promise<unknown>,
   },
