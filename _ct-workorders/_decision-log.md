@@ -1465,6 +1465,13 @@
 - **切分**：W2a 設計語言 + 元件 + 首頁（T0630）→ 預覽通過後 W2b（`/control-tower`、功能、FAQ、回報頁）→ W2c 遠端開發；W3 / W4 不變。
 - **相關**：PLAN-049 / D159 / D160 / T0624 / T0630
 
+### D265 2026-11-04 — PLAN-059 收尾路線：研究單 T0820 答 Q4，之後 PLAN-059 → DONE
+
+- **背景**：PLAN-059 子項 A（BUG-196 / T0788）與 B（PLAN-061）已完成、C 不做（CT D568）；D / E / F 只記錄。D（holder 模型）的價值取決於未解的 Q4：NSIS 覆蓋升級時執行中的 Terminal Server 與 shell 會不會被結束（歷次 NSIS 驗收都先關 BAT）。本機不能實測（會打斷使用者的 BAT）；Windows Sandbox 未啟用（需重開機）。
+- **決定**（使用者選推薦）：開研究單 **T0820**——本機只做靜態分析（electron-builder NSIS 模板、`build.nsis`、自動更新路徑）；實測在 GitHub Actions Windows runner，授權 push `ct/T0820` 並在該分支放暫時 workflow（`on: push`），安裝 pre.4 → 開著 BAT／只剩 Terminal Server 兩情境下覆蓋安裝 pre.5，記錄程序存活與 Recovery；驗完刪遠端分支，不進 main。結果出來後 PLAN-059 → DONE，D 依結果拆 IDEA 子 PLAN 或留紀錄；E / F 留在 PLAN-059 附觸發條件。
+- **決策者**：使用者（路線）；塔台（工單內容）。2026-11-04 第一百一十四 session。
+- **相關**：D219 / D226 / D247 / T0740 / T0801 / PLAN-059
+
 ### D264 2026-11-04 — PLAN-051（跨塔台傳訊通道）維持 IDEA
 
 - **背景**：使用者要求評估 PLAN-051。2026-11-02 之後跨塔台往來 3 次，皆 Claude ↔ Claude 同一台機器、跨 session 訊息＋handover / reply 檔送達；D169 三個重新評估觸發條件仍 0 件。現在做需新增「塔台寫給別的塔台」的權限（放寬 D149），沒有需求時徒增 prompt injection 面。

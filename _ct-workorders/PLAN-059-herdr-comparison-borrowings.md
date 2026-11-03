@@ -103,3 +103,4 @@ BAT 已經有的（不需動作）：「做完了但還沒看」（✓ / 淡化 
   - BAT 解析器的 128 字元上限放不下帶 title / msg 的序列。
 - **子項 B 建議**：白名單（codex、claude-code），不全開；先開研究單實測「回覆 claude 探詢」，排在 A 之後。
 - 狀態維持 PLANNED。
+- 2026-11-04 第一百一十四 session（D265）：子項 B 完成——PLAN-061 DONE（T0811 實作、T0818 交付版 `v0.7.4-pre.5` WSL 驗收：真 claude 權限對話框 `blocked`）。A（BUG-196）、B 完成，C 不做；剩 Q4 → 研究單 **T0820**（本機靜態分析 electron-builder NSIS＋GitHub Actions Windows runner 實測覆蓋升級時 Terminal Server / shell 是否存活）。T0820 結果出來後本 PLAN → DONE：D 依結果拆 IDEA 子 PLAN 或留紀錄，E / F 留在本檔附觸發條件。
