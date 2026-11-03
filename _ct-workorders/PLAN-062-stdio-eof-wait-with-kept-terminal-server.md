@@ -3,7 +3,7 @@ schema_version: 1
 schema_kind: plan
 id: PLAN-062
 title: "以「等 stdout / stderr 結束」方式啟動 BAT 的外部程式會一直等（Terminal Server 保留時 crashpad 持有主行程 stdio）"
-status: IDEA
+status: IN_PROGRESS
 priority: low
 created_at: "2026-11-03T16:27:42+0800"
 links:
@@ -32,3 +32,4 @@ T0804 實測：關閉確認預設保留 Terminal Server（T0144）。Terminal Se
 
 - IDEA（D251，low）。
 - 2026-11-03 17:06 T0805 補記：另有一個變體——分頁留下的背景程序繼承了 crashpad client socket，即使選「離開＋結束 Terminal Server」，crashpad 也留到背景程序結束（BUG-205，修 BUG-205 的方案 A 會一併解掉）。原題（保留 Terminal Server 時 server 本身就是 crashpad client）需要 T0805 方案 C（fork server 時不讓它成為 crashpad client，代價是 server 當掉不產生 dump），維持 IDEA。
+- 2026-11-03 21:11 → IN_PROGRESS（D258，使用者指示開始）：T0812（研究：現況、候選修法與副作用，之後再開實作單）。

@@ -3,7 +3,7 @@ schema_version: 1
 schema_kind: plan
 id: PLAN-061
 title: "OSC 7501 狀態回報不限 codex：白名單 `codex` / `claude-code`、放寬解析長度（PLAN-059 子項 B）"
-status: IDEA
+status: IN_PROGRESS
 priority: low
 created_at: "2026-11-02T18:24:49+0800"
 links:
@@ -46,3 +46,4 @@ BAT 的 OSC 7501 解析器（`src/lib/codex-terminal-state.ts`）會丟掉 `app�
 - 對解析器的影響：實測最長 payload 130（理論約 2.8k）→ 上限建議 4096；`state=clear` 與 `state=clear:id=…` 不帶 `app`，帶 `id=` 的子紀錄不得影響分頁狀態；`title` / `msg` 不解碼、不記錄。
 - 副作用：回覆後 claude 不再用 OSC 0 標題做忙碌動畫（BAT 沒用到）；多餘回覆被忽略。
 - 建議：範圍縮小為「非 Windows 主機的 claude 7501」；回覆放主行程（`PtyManager` 輸出端）；沿用 codex 規則，已是 `hook` 的分頁忽略 7501。待塔台決定後開單。
+- 2026-11-03 21:11 → IN_PROGRESS（D258，使用者指示開始）：T0811（實作，照 D229 / T0789 草案）。

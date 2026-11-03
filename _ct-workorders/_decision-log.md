@@ -1465,6 +1465,17 @@
 - **切分**：W2a 設計語言 + 元件 + 首頁（T0630）→ 預覽通過後 W2b（`/control-tower`、功能、FAQ、回報頁）→ W2c 遠端開發；W3 / W4 不變。
 - **相關**：PLAN-049 / D159 / D160 / T0624 / T0630
 
+### D258 2026-11-03 — 開始 PLAN-061 / 062 / 058：061 照 D229 草案實作（T0811），062 / 058 先研究（T0812 / T0813）
+
+- **背景**：使用者「開始 PLAN-061, 062, 058」。三題由使用者選定（皆選推薦）。
+- **決定**：
+  1. PLAN-061 → **T0811**（實作）：照 D229 / T0789〈建議下一步〉草案——解析器白名單 `codex` / `claude-code`、上限 4096、`id=` 子紀錄不影響分頁、無 app 的 `state=clear` 才是分頁 clear；主行程 `PtyManager.enqueuePtyOutput` 在非 Windows 主機回覆探詢一次（replay 不回）；只補 `blockedDetection: none` 的 claude 分頁（已是 `hook` 時忽略）。不做 hook 分頁的回合信號補強。Linux 實機：claude 未登入時不登入、改用假程式在真 PTY 驗證（L185）。
+  2. PLAN-062 → **T0812**（研究）：以交付版 `v0.7.4-pre.4` 重現、比較候選修法（fork server 不當 crashpad client、crashpad 不持有主行程 stdio、其他），量測副作用後再開實作單。
+  3. PLAN-058 → **T0813**（研究）：設計＋repo 外最小原型量測（Haiku 5.5、≤ 20 輪），產出生命週期設計、影響表、Settings 開關與資源上限建議、分階段實作草案。
+  4. 三張並行：T0812 / T0813 只改各自工單檔，與 T0811 的 `affects_files` 不重疊；不隔離 worktree。三個 PLAN → IN_PROGRESS。
+- **決策者**：使用者（範圍）；塔台（工單內容）。2026-11-03 第一百一十三 session。
+- **相關**：D214 / D229 / D251 / T0768 / T0789 / T0804 / T0805 / PLAN-058 / 061 / 062
+
 ### D257 2026-11-03 — BUG-205 依交付版 linux-acceptance 結案；t0807 spec 改成相容 AppImage 後重跑驗 BUG-206 / 207（T0810）
 
 - **背景**：linux-acceptance `41636533467`（`-f version=0.7.4-pre.4`，`main` @ `00b24984`）對交付版 AppImage：22.04 / 24.04 的 t0806 F1–F6 全 PASS；t0807 G1 PASS（`[child-fd-guard] installed (/bin/bash)`），G2 兩邊都在 `e2e/linux/t0807-child-process-fds.spec.ts:168`「reference exec'd」逾時，G2 / G3 未判定。塔台初判：對照組直接 exec AppImage，執行後 cmdline[0] 是掛載目錄內的 `BetterAgentTerminal.bin`（L1 證據：主行程 `/tmp/.mount_*/BetterAgentTerminal.bin`），永遠不等於 AppImage 路徑；T0807 當時以 `electron-builder --linux dir` 驗證所以沒遇到。
