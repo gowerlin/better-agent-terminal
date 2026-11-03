@@ -10,7 +10,7 @@ next_ids:
   plan: "PLAN-064"
 todo:
   - "MSRC 回報 microsoft/node-pty（使用者自行處理，D255）"
-  - "`v0.7.4-pre.6` NSIS 完整重裝驗收（`pwsh -NoProfile -ExecutionPolicy Bypass -File e2e\manual\nsis-reinstall-acceptance.ps1 -Version 0.7.4-pre.6`），回來讀 report.md、刪 `userdata-backup`"
+  - "`v0.7.4-pre.6` NSIS 完整重裝驗收（`pwsh -NoProfile -ExecutionPolicy Bypass -File e2e\\manual\\nsis-reinstall-acceptance.ps1 -Version 0.7.4-pre.6`），回來讀 report.md、刪 `userdata-backup`"
   - "PLAN-058：T0814（W1）`fc22e04a`＋T0815（W0）`0b67db03` DONE，T0819 安裝版 pre.5 假 API e2e PASS，待使用者手動確認（清單在 T0819 回報區）；可選後續：卡片等待時讓輸入框可送出（T0815〈遭遇問題〉1，未開單）"
   - "觀察：語音可用性檢查 macOS 未實機；`unknown(timeout)` 若實機出現可把逾時提到 30 s（T0802 後續建議）"
   - "PLAN-063（IN_PROGRESS）：子項 1＋2 T0821 `710e4179` DONE；tooltip T0822 `05117326` DONE；子項 3 T0823 合併 main `83597e8e`（T0824）；BUG-210 FIXED（T0825 `bfde0beb`）；這批已隨 `v0.7.4-pre.6` 發佈（D269），真實升級驗收待下一版，完成後與 T0821 一起發 `0.7.4-pre.6`（D267）；4 holder IDEA；本機分支 `ct/T0820`（探測 spec＋暫時 workflow）保留到本 PLAN 用完，下次發版後改寫重跑做真實升級驗收（D266）"
