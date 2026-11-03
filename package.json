@@ -132,7 +132,8 @@
       "installerIcon": "assets/icon.ico",
       "uninstallerIcon": "assets/icon.ico",
       "installerHeaderIcon": "assets/icon.ico",
-      "differentialPackage": false
+      "differentialPackage": false,
+      "include": "build/installer.nsh"
     },
     "mac": {
       "target": [
