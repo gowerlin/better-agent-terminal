@@ -111,6 +111,7 @@ import { installNavigationGuards } from './navigation-guard'
 import { buildExecutableConfirmDialog, EXECUTABLE_CONFIRM_OPEN_INDEX, handleOpenExternal, handleOpenPath } from './open-external-guard'
 import type { CustomCliDefinition } from './agent-runtime/types'
 import { registerVoiceHandlers } from './voice-handler'
+import { startVoiceAvailabilityCheck } from './voice-availability'
 import {
   logDrift as ctDriftLog,
   readRecentDrift as ctDriftReadRecent,
@@ -1772,6 +1773,8 @@ app.whenReady().then(async () => {
   // Register voice handlers only after app is ready because it installs
   // permission handling on session.defaultSession.
   registerVoiceHandlers(getAllWindows)
+  // T0802 / D247: whisper availability, once, in a child process, a few seconds after ready (not at startup)
+  startVoiceAvailabilityCheck()
 
   // Create system tray icon
   try {

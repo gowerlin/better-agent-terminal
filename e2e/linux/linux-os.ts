@@ -108,6 +108,49 @@ export function judgeWhisperLoad(loaded: boolean, glibcLine: string): WhisperJud
   return { result: 'INFO', judged, note: `recorded only: system glibc ${v} < ${WHISPER_MIN_GLIBC} the addon needs (BUG-203)` }
 }
 
+export interface VoiceAvailabilityJudgement {
+  result: 'PASS' | 'WARN'
+  /** what this system should report */
+  expected: 'available' | 'unavailable(glibc-too-old)'
+  /** what BAT reported: `available` / `unavailable(<code>)` / `unknown(<reason>)` / `none` */
+  observed: string
+  note: string
+}
+
+/** `{ state, code?, reason? }` from `electronAPI.voice.getAvailability()` → `available` / `unavailable(code)` / `unknown(reason)`. */
+export function voiceAvailabilityLabel(a: { state?: unknown; code?: unknown; reason?: unknown } | null | undefined): string {
+  if (!a || typeof a.state !== 'string') return 'none'
+  if (a.state === 'unavailable') return `unavailable(${String(a.code)})`
+  if (a.state === 'unknown') return `unknown(${String(a.reason)})`
+  return a.state
+}
+
+/**
+ * V1 (T0802 / D247): BAT's own whisper availability check (electron/voice-availability.ts, a child process a few
+ * seconds after start). glibc >= 2.38 (24.04) or unknown → must be `available`; older glibc (22.04, BUG-203) →
+ * must be `unavailable(glibc-too-old)`. Anything else (including `unknown`) = WARN. A mic button whose disabled
+ * state disagrees with the reported state is also WARN.
+ */
+export function judgeVoiceAvailability(
+  a: { state?: unknown; code?: unknown; reason?: unknown } | null | undefined,
+  glibcLine: string,
+  micButton?: { found: boolean; disabled: boolean; unavailableAttr: string | null },
+): VoiceAvailabilityJudgement {
+  const v = glibcVersionOf(glibcLine)
+  const expected = v === null || versionAtLeast(v, WHISPER_MIN_GLIBC) ? 'available' : 'unavailable(glibc-too-old)'
+  const observed = voiceAvailabilityLabel(a)
+  if (observed !== expected) {
+    return { result: 'WARN', expected, observed, note: `expected ${expected} (system glibc ${v ?? 'unknown'}), BAT reported ${observed}` }
+  }
+  if (micButton?.found) {
+    const shouldBeDisabled = expected !== 'available'
+    if (micButton.disabled !== shouldBeDisabled || (micButton.unavailableAttr !== null) !== shouldBeDisabled) {
+      return { result: 'WARN', expected, observed, note: `reported ${observed} but the mic button is disabled=${micButton.disabled} data-voice-unavailable=${micButton.unavailableAttr}` }
+    }
+  }
+  return { result: 'PASS', expected, observed, note: `${observed} as expected (system glibc ${v ?? 'unknown'})${micButton?.found ? '; mic button agrees' : '; no mic button on screen'}` }
+}
+
 // ---------------------------------------------------------------- system facts
 
 export interface SystemInfo {
@@ -191,6 +234,8 @@ export interface DebugLogView {
   sandboxLine: string
   /** `[CRASH] …` lines (electron/main.ts uncaughtException / unhandledRejection / *-process-gone, early-crash-log.ts) */
   crashLines: string[]
+  /** T0802: `[voice] availability: …` lines (electron/voice-availability.ts) */
+  voiceLines: string[]
   errorCount: number
   errorSamples: string[]
 }
@@ -213,6 +258,7 @@ export function readDebugLogs(userData: string): DebugLogView {
     startupLine: clip(lines.find(l => l.includes('[startup] Debug logging started.')) ?? ''),
     sandboxLine: clip(lines.find(l => l.includes('] [sandbox] ')) ?? ''),
     crashLines: lines.filter(l => l.includes('[CRASH]')).map(clip),
+    voiceLines: lines.filter(l => l.includes('[voice] availability:')).map(clip),
     errorCount: errors.length,
     errorSamples: errors.slice(0, 8).map(clip),
   }

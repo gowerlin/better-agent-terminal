@@ -15,6 +15,7 @@ import type {
   WhisperModelSize,
 } from '../src/types/voice'
 import { VOICE_IPC_CHANNELS } from '../src/types/voice-ipc'
+import type { VoiceAvailability } from '../src/lib/voice-availability'
 import type { RemoteToolInstallKind, RemoteToolInstallRequest, RemoteToolInstallRequestResult, RemoteToolId, RemoteToolsDetectResult } from '../src/types/remote-tools'
 import type { ClientPathPurpose, ResolvedClientPath } from '../src/lib/client-paths'
 import type { TerminalRoleChangeInfo } from '../src/lib/tower-terminal-title'
@@ -1056,6 +1057,14 @@ const electronAPI = {
     },
     // T0239 — GPU status hint for Settings UI
     getGpuStatus: () => ipcRenderer.invoke(VOICE_IPC_CHANNELS.getGpuStatus) as Promise<VoiceGpuStatus>,
+    // T0802 — whisper availability (unknown until the background check after startup finishes)
+    getAvailability: () => ipcRenderer.invoke(VOICE_IPC_CHANNELS.getAvailability) as Promise<VoiceAvailability>,
+    recheckAvailability: () => ipcRenderer.invoke(VOICE_IPC_CHANNELS.recheckAvailability) as Promise<VoiceAvailability>,
+    onAvailabilityChanged: (callback: (availability: VoiceAvailability) => void) => {
+      const handler = (_event: Electron.IpcRendererEvent, availability: VoiceAvailability) => callback(availability)
+      ipcRenderer.on(VOICE_IPC_CHANNELS.availabilityChanged, handler)
+      return () => ipcRenderer.removeListener(VOICE_IPC_CHANNELS.availabilityChanged, handler)
+    },
   },
   terminalServer: {
     onRecoveryAvailable: (callback: (info: { ptyCount: number }) => void) => {

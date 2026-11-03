@@ -37,6 +37,7 @@ import {
   transcribe as whisperTranscribe,
   WhisperAddonUnavailableError,
 } from './whisper-addon-loader'
+import { getVoiceAvailability, registerVoiceAvailabilityHandlers } from './voice-availability'
 
 // --- Constants ---------------------------------------------------------------
 
@@ -299,6 +300,10 @@ type GetAllWindows = () => BrowserWindow[]
 export function registerVoiceHandlers(getAllWindows: GetAllWindows): void {
   ensureMicrophonePermission()
 
+  // T0802: voice:getAvailability / voice:recheckAvailability (+ availabilityChanged push). The background
+  // check itself is started by main.ts (startVoiceAvailabilityCheck), not here.
+  registerVoiceAvailabilityHandlers(getAllWindows)
+
   ipcMain.handle(VOICE_IPC_CHANNELS.listModels, async () => {
     logger.log('[voice] listModels invoked')
     return scanDownloadedModels()
@@ -432,6 +437,8 @@ export function registerVoiceHandlers(getAllWindows: GetAllWindows): void {
         logger.warn('[voice] transcribe rejected: whisper addon unavailable')
         throw new WhisperAddonUnavailableError(addon.error.message)
       }
+      // T0802: the real load wins over the availability check
+      getVoiceAvailability().noteRealLoadSucceeded()
 
       // Check model exists
       const modelPath = getVoiceModelFilePath(modelSize)

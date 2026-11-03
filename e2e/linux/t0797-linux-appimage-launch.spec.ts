@@ -18,6 +18,11 @@
 //       Not loaded = WARN (verdict at least WARN) where the system glibc is >= 2.38 (24.04) or unknown; INFO
 //       (recorded only) where it is older (22.04, the addon needs GLIBC_2.38: BUG-203). Evidence also has the
 //       addon's RUNPATH (`readelf -d`) and, on failure, the `ldd` lines that are `not found`.
+//   V1  T0802 / D247: in the same run, BAT's own availability check (child process a few seconds after start)
+//       read through `electronAPI.voice.getAvailability()` (what the mic button uses), polled until it leaves
+//       `unknown(pending)` (≤ 60 s). glibc >= 2.38 (24.04) or unknown → `available`; older (22.04) →
+//       `unavailable(glibc-too-old)`. Anything else = WARN; so is a mic button that disagrees. The debug log
+//       `[voice] availability:` line is evidence. Judged by judgeVoiceAvailability (e2e/linux/linux-os.ts).
 // Every row lands in `linux-report.md` / `.json` under `LINUX_REPORT_DIR` (rewritten after each row).
 // See docs/agent-guide/linux-ci-acceptance.md.
 
@@ -28,8 +33,8 @@ import os from 'node:os'
 import path from 'node:path'
 import { closeIsolated, E2E_EXECUTABLE, freePort, isolatedEnv, readPid, testLogger } from '../fixtures/electron-isolation'
 import {
-  describeCmd, judgeWhisperLoad, plainLaunch, procCmdline, readDebugLogs, runCmd, sandboxView, stripAnsi, systemInfo,
-  type DebugLogView, type SandboxView, type WhisperJudgement,
+  describeCmd, judgeVoiceAvailability, judgeWhisperLoad, plainLaunch, procCmdline, readDebugLogs, runCmd, sandboxView, stripAnsi, systemInfo,
+  voiceAvailabilityLabel, type DebugLogView, type SandboxView, type VoiceAvailabilityJudgement, type WhisperJudgement,
 } from './linux-os'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -328,6 +333,10 @@ test('T0797 Linux AppImage launch acceptance', async () => {
         whisperChecked = true
         await whisperRow(app, id)
       }
+      if (!voiceChecked) {
+        voiceChecked = true
+        await voiceRow(win, id, userData, t0)
+      }
 
       serverPid = readPid(userData)
       await win.evaluate((termId) => (window as AnyApi).electronAPI.pty.kill(termId), TERM).catch(() => { /* gone */ })
@@ -432,6 +441,44 @@ test('T0797 Linux AppImage launch acceptance', async () => {
   let whisperChecked = false
   let whisper: WhisperJudgement | null = null
 
+  /**
+   * V1 (T0802): BAT's availability check, as the renderer sees it (`electronAPI.voice.getAvailability()`, the
+   * state the mic button follows), plus the mic button itself when the terminal tab shows one, plus the
+   * `[voice] availability:` debug log line. Judged by judgeVoiceAvailability (e2e/linux/linux-os.ts).
+   */
+  async function voiceRow(win: Page, from: string, userData: string, launchT0: number): Promise<void> {
+    const ev: string[] = [`from the ${from} run; system glibc: ${sys.glibc}`]
+    type Avail = { state?: string; code?: string; reason?: string; libraries?: string[]; requiredGlibc?: string; detail?: string } | null
+    const read = async (): Promise<Avail> => win.evaluate(async () => {
+      const api = (window as AnyApi).electronAPI?.voice
+      return typeof api?.getAvailability === 'function' ? await api.getAvailability() : null
+    }).catch(() => null)
+    let a: Avail = null
+    const pollT0 = Date.now()
+    while (Date.now() - pollT0 < 60_000) {
+      a = await read()
+      if (!a || !(a.state === 'unknown' && a.reason === 'pending')) break
+      await new Promise(r => setTimeout(r, 1000))
+    }
+    ev.push(`getAvailability: ${a ? JSON.stringify({ ...a, detail: a.detail ? clip(a.detail.replace(/\/tmp\/\.mount_[^/]+\//g, '<appdir>/'), 400) : undefined }) : 'not available (preload has no voice.getAvailability)'} (${Date.now() - launchT0} ms after launch)`)
+    const mic = win.locator('.prompt-box-mic').first()
+    const found = (await mic.count().catch(() => 0)) > 0
+    const button = found
+      ? { found, disabled: await mic.isDisabled().catch(() => false), unavailableAttr: await mic.getAttribute('data-voice-unavailable').catch(() => null) }
+      : { found, disabled: false, unavailableAttr: null }
+    const title = found ? await mic.getAttribute('title').catch(() => null) : null
+    ev.push(`mic button: ${found ? `disabled=${button.disabled} data-voice-unavailable=${button.unavailableAttr} title=${JSON.stringify(title)}` : 'not on screen'}`)
+    const lines = readDebugLogs(userData).voiceLines.map(l => l.replace(/\/tmp\/\.mount_[^/]+\//g, '<appdir>/'))
+    ev.push(`debug log: ${lines.length ? JSON.stringify(lines) : 'no [voice] availability: line'}`)
+    voice = judgeVoiceAvailability(a, sys.glibc, button)
+    ev.push(`V1: ${voice.note}`)
+    report.meta.voiceAvailability = voiceAvailabilityLabel(a)
+    report.add({ id: 'V1', title: '語音可用性事先檢查（T0802 / D247）：glibc >= 2.38 應為 available、較舊（22.04）應為 unavailable(glibc-too-old)；麥克風按鈕停用狀態須一致', result: voice.result, evidence: ev })
+  }
+
+  let voiceChecked = false
+  let voice: VoiceAvailabilityJudgement | null = null
+
   /** L2: the AppImage with no Playwright, as a user starts it from a terminal. */
   async function plainRun(): Promise<Result> {
     const ev: string[] = []
@@ -497,6 +544,11 @@ test('T0797 Linux AppImage launch acceptance', async () => {
     if (w1?.result === 'WARN') {
       if (verdict === 'PASS') verdict = 'WARN'
       reasons.push('W1: whisper addon failed to load (T0800 / BUG-204)')
+    }
+    const v1 = voice as VoiceAvailabilityJudgement | null
+    if (v1?.result === 'WARN') {
+      if (verdict === 'PASS') verdict = 'WARN'
+      reasons.push(`V1: voice availability ${v1.observed}, expected ${v1.expected} (T0802)`)
     }
   } finally {
     report.meta.verdictReason = reasons.length ? reasons.join('; ') : '-'

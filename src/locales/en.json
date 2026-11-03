@@ -1533,5 +1533,28 @@
     "notYolo": "Usage limit (resets {{reset}}): not a yolo tab, BAT does not continue it",
     "cap": "Usage limit again after {{count}} automatic continues in a row: BAT stops continuing this tab until you type in it",
     "unknownTime": "unknown"
+  },
+  "voiceAvailability": {
+    "unavailableTitle": "Voice input is unavailable on this computer",
+    "reason": {
+      "missingLibrary": "Missing system library: {{libraries}}",
+      "glibcTooOld": "The system glibc is too old: the voice module needs glibc {{version}} or newer",
+      "loadFailed": "The voice recognition module (whisper) cannot be loaded: {{detail}}"
+    },
+    "action": {
+      "aptInstall": "Install: {{command}} (Debian / Ubuntu; package names may differ on other distributions), then press \"Check again\" in Settings › Voice or restart BAT",
+      "installLibrary": "Install the package that provides {{libraries}}, then press \"Check again\" or restart BAT",
+      "glibc": "Needs a system with glibc {{version}} or newer (for example Ubuntu 24.04)"
+    },
+    "settings": {
+      "label": "Availability",
+      "available": "✅ Available",
+      "unavailable": "❌ Unavailable",
+      "pending": "Not checked yet (BAT checks a few seconds after start)",
+      "unknown": "⚠ Not confirmed ({{reason}})",
+      "unknownHint": "The check itself did not finish; voice input stays enabled and shows an error when you use it if the module cannot load.",
+      "recheck": "Check again",
+      "checking": "Checking…"
+    }
   }
 }

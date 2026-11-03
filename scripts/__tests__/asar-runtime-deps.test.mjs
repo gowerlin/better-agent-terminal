@@ -64,6 +64,9 @@ const DYNAMIC_REQUIRE_SITES = {
   'electron/codex-agent-manager.ts': ['@openai/codex-${platform}-${arch}'],
   // loadWhisperAddon: `${WHISPER_ADDON_PACKAGE}/package.json`, then the addon by absolute path
   'electron/whisper-addon-loader.ts': ['@kutalia/whisper-node-addon'],
+  // T0802: VOICE_PROBE_SCRIPT runs in a child (ELECTRON_RUN_AS_NODE) and requires the addon path that
+  // locateWhisperAddon resolved (same package as above); process.dlopen probes system libraries only
+  'electron/voice-availability.ts': ['@kutalia/whisper-node-addon'],
 }
 
 const DYNAMIC_SITE_PATTERNS = [

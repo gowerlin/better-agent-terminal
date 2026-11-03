@@ -1,5 +1,8 @@
 import { useState, useCallback, useRef, useEffect } from 'react'
+import { useTranslation } from 'react-i18next'
 import { RecordingService, RecordingError } from '../lib/voice'
+import { getVoiceAvailabilitySnapshot } from '../lib/voice-availability-store'
+import { isVoiceUnavailable, voiceUnavailableText } from '../lib/voice-availability'
 import type { WhisperModelSize, VoicePreferences } from '../types/voice'
 import { DEFAULT_VOICE_PREFERENCES } from '../types/voice'
 
@@ -29,6 +32,7 @@ export function useVoiceRecording(opts?: UseVoiceRecordingOptions): UseVoiceReco
   const [error, setError] = useState<string | null>(null)
   const [lastTranscription, setLastTranscription] = useState<string | null>(null)
 
+  const { t } = useTranslation()
   const recorderRef = useRef<RecordingService | null>(null)
   const prefsRef = useRef<VoicePreferences>(DEFAULT_VOICE_PREFERENCES)
   const onTranscribedRef = useRef(opts?.onTranscribed)
@@ -51,6 +55,15 @@ export function useVoiceRecording(opts?: UseVoiceRecordingOptions): UseVoiceReco
   const start = useCallback(async () => {
     if (state !== 'idle') return
     setError(null)
+
+    // T0802 / D247: the availability check said whisper cannot load here, so no recording (every entry —
+    // mic button, Alt+M — goes through start()). unknown / available: unchanged.
+    const availability = getVoiceAvailabilitySnapshot()
+    if (isVoiceUnavailable(availability)) {
+      setError(voiceUnavailableText(availability, t))
+      debugLog(`[voice] useVoiceRecording: not started, voice input unavailable (${availability.code})`)
+      return
+    }
 
     // Check if model is downloaded
     const preferredSize: WhisperModelSize = prefsRef.current.modelSize
@@ -92,7 +105,7 @@ export function useVoiceRecording(opts?: UseVoiceRecordingOptions): UseVoiceReco
       setState('idle')
       debugLog('[voice] useVoiceRecording: start failed', (err as Error)?.message)
     }
-  }, [state, getRecorder])
+  }, [state, getRecorder, t])
 
   const stop = useCallback(async () => {
     if (state !== 'recording') return

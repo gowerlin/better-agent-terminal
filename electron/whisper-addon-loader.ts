@@ -145,29 +145,44 @@ function errorMessage(err: unknown): string {
   return err instanceof Error ? err.message : String(err)
 }
 
+export type WhisperAddonLocation = { ok: true; addonPath: string } | { ok: false; error: Error }
+
+export type WhisperAddonLocateDeps = Pick<WhisperAddonLoaderDeps, 'platform' | 'arch' | 'resolvePackageJson' | 'exists'>
+
+/**
+ * Where `whisper.node` is for this host, without loading it. The single path rule shared by the real load
+ * (`createWhisperAddonLoader`) and the T0802 availability probe (`electron/voice-availability.ts`).
+ */
+export function locateWhisperAddon(deps: WhisperAddonLocateDeps): WhisperAddonLocation {
+  const hostLabel = `${deps.platform}-${deps.arch}`
+  if (whisperAddonDirCandidates(deps.platform, deps.arch).length === 0) {
+    return { ok: false, error: new Error(`unsupported platform ${hostLabel}`) }
+  }
+
+  let packageRoot: string
+  try {
+    packageRoot = path.dirname(deps.resolvePackageJson())
+  } catch (err) {
+    return { ok: false, error: new Error(`${WHISPER_ADDON_PACKAGE} is not installed (${errorMessage(err)})`) }
+  }
+
+  const { addonPath, tried } = resolveWhisperAddonPath(packageRoot, deps.platform, deps.arch, deps.exists)
+  if (!addonPath) {
+    return {
+      ok: false,
+      error: new Error(`no ${WHISPER_ADDON_BINARY} for ${hostLabel} (tried: ${tried.join(', ')})`),
+    }
+  }
+  return { ok: true, addonPath }
+}
+
 export function createWhisperAddonLoader(deps: WhisperAddonLoaderDeps): WhisperAddonLoader {
   let state: WhisperAddonState | null = null
 
   const tryLoad = (): WhisperAddonState => {
-    const hostLabel = `${deps.platform}-${deps.arch}`
-    if (whisperAddonDirCandidates(deps.platform, deps.arch).length === 0) {
-      return { ok: false, error: new Error(`unsupported platform ${hostLabel}`) }
-    }
-
-    let packageRoot: string
-    try {
-      packageRoot = path.dirname(deps.resolvePackageJson())
-    } catch (err) {
-      return { ok: false, error: new Error(`${WHISPER_ADDON_PACKAGE} is not installed (${errorMessage(err)})`) }
-    }
-
-    const { addonPath, tried } = resolveWhisperAddonPath(packageRoot, deps.platform, deps.arch, deps.exists)
-    if (!addonPath) {
-      return {
-        ok: false,
-        error: new Error(`no ${WHISPER_ADDON_BINARY} for ${hostLabel} (tried: ${tried.join(', ')})`),
-      }
-    }
+    const located = locateWhisperAddon(deps)
+    if (!located.ok) return located
+    const { addonPath } = located
 
     let whisper: unknown
     try {
@@ -206,17 +221,32 @@ export function createWhisperAddonLoader(deps: WhisperAddonLoaderDeps): WhisperA
   return { load, transcribe }
 }
 
-function createDefaultLoader(): WhisperAddonLoader {
-  const req = createRequire(import.meta.url ?? __filename)
-  return createWhisperAddonLoader({
+function defaultRequire(): NodeJS.Require {
+  return createRequire(import.meta.url ?? __filename)
+}
+
+function defaultLocateDeps(req: NodeJS.Require): WhisperAddonLocateDeps {
+  return {
     platform: process.platform,
     arch: process.arch,
     resolvePackageJson: () => req.resolve(`${WHISPER_ADDON_PACKAGE}/package.json`),
-    requireNative: (addonPath) => req(addonPath),
     exists: existsSync,
+  }
+}
+
+function createDefaultLoader(): WhisperAddonLoader {
+  const req = defaultRequire()
+  return createWhisperAddonLoader({
+    ...defaultLocateDeps(req),
+    requireNative: (addonPath) => req(addonPath),
     logError: (...args) => logger.error(...args),
     logInfo: (...args) => logger.log(...args),
   })
+}
+
+/** T0802: `locateWhisperAddon` for this process (same resolution as the real load); never loads the addon. */
+export function locateDefaultWhisperAddon(): WhisperAddonLocation {
+  return locateWhisperAddon(defaultLocateDeps(defaultRequire()))
 }
 
 let defaultLoader: WhisperAddonLoader | null = null

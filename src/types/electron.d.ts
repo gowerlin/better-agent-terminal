@@ -793,6 +793,13 @@ interface ElectronAPI {
      * in the current user preference (auto vs force-cpu).
      */
     getGpuStatus: () => Promise<VoiceGpuStatus>
+    /** T0802 — whisper availability, checked in a child process after startup (src/lib/voice-availability.ts). */
+    getAvailability: () => Promise<import('../lib/voice-availability').VoiceAvailability>
+    /** T0802 — run the check again now (Settings › Voice). */
+    recheckAvailability: () => Promise<import('../lib/voice-availability').VoiceAvailability>
+    onAvailabilityChanged: (
+      callback: (availability: import('../lib/voice-availability').VoiceAvailability) => void
+    ) => () => void
   }
   fs: {
     readdir: (dirPath: string) => Promise<import('./file').FileEntry[]>

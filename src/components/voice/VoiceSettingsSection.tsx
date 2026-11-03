@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
+import { VoiceAvailabilityStatus } from './VoiceAvailabilityStatus'
 import type {
   WhisperModelSize,
   VoiceGpuMode,
@@ -250,6 +251,9 @@ export function VoiceSettingsSection() {
   return (
     <div className="settings-section">
       <h3>🎤 語音輸入</h3>
+
+      {/* T0802 — whisper availability (checked in a child process after startup) */}
+      <VoiceAvailabilityStatus />
 
       {/* A. Model Management */}
       <div className="settings-group">

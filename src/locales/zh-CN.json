@@ -1532,5 +1532,28 @@
     "notYolo": "用量限制（{{reset}} 重置）：不是 yolo 标签页，BAT 不自动继续",
     "cap": "连续自动继续 {{count}} 次后再次撞到限制：BAT 停止自动继续此标签页，直到你在标签页内输入",
     "unknownTime": "未知"
+  },
+  "voiceAvailability": {
+    "unavailableTitle": "这台电脑无法使用语音输入",
+    "reason": {
+      "missingLibrary": "缺少系统函数库：{{libraries}}",
+      "glibcTooOld": "系统的 glibc 太旧：语音模块需要 glibc {{version}} 以上",
+      "loadFailed": "语音识别模块（whisper）无法加载：{{detail}}"
+    },
+    "action": {
+      "aptInstall": "安装：{{command}}（Debian / Ubuntu 命令，其他发行版的软件包名称可能不同），装好后在 Settings › 语音输入按「重新检查」或重开 BAT",
+      "installLibrary": "请安装提供 {{libraries}} 的软件包，装好后按「重新检查」或重开 BAT",
+      "glibc": "需要 glibc {{version}} 以上的系统（例 Ubuntu 24.04）"
+    },
+    "settings": {
+      "label": "可用性",
+      "available": "✅ 可以使用",
+      "unavailable": "❌ 无法使用",
+      "pending": "尚未检查（BAT 启动几秒后自动检查）",
+      "unknown": "⚠ 未确认（{{reason}}）",
+      "unknownHint": "检查本身没有完成；语音输入照常可用，实际使用时若无法加载会显示错误。",
+      "recheck": "重新检查",
+      "checking": "检查中…"
+    }
   }
 }

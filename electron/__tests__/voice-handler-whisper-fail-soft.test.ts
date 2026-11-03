@@ -35,6 +35,7 @@ vi.mock('../whisper-addon-loader', async (importOriginal) => {
 import { registerVoiceHandlers } from '../voice-handler'
 import { VOICE_IPC_CHANNELS } from '../../src/types/voice-ipc'
 import { WhisperAddonUnavailableError } from '../whisper-addon-loader'
+import { getVoiceAvailability } from '../voice-availability'
 
 describe('voice-handler whisper fail-soft', () => {
   beforeEach(() => {
@@ -47,6 +48,10 @@ describe('voice-handler whisper fail-soft', () => {
     expect(() => registerVoiceHandlers(() => [])).not.toThrow()
     expect(handlers.has(VOICE_IPC_CHANNELS.transcribe)).toBe(true)
     expect(handlers.has(VOICE_IPC_CHANNELS.listModels)).toBe(true)
+    // T0802: availability channels are registered, the check is not started here (main.ts starts it)
+    expect(handlers.has(VOICE_IPC_CHANNELS.getAvailability)).toBe(true)
+    expect(handlers.has(VOICE_IPC_CHANNELS.recheckAvailability)).toBe(true)
+    expect(getVoiceAvailability().get()).toEqual({ state: 'unknown', reason: 'pending' })
     expect(loaderMocks.loadWhisperAddon).not.toHaveBeenCalled()
   })
 
@@ -72,5 +77,7 @@ describe('voice-handler whisper fail-soft', () => {
     await expect(Promise.resolve(transcribe({}, new ArrayBuffer(64), 16000)))
       .rejects.toThrow(/not downloaded/)
     expect(loaderMocks.transcribe).not.toHaveBeenCalled()
+    // T0802: the real load succeeded, so availability says so (wins over any earlier check)
+    expect(getVoiceAvailability().get()).toEqual({ state: 'available', source: 'load' })
   })
 })
