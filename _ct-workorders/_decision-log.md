@@ -1465,6 +1465,16 @@
 - **切分**：W2a 設計語言 + 元件 + 首頁（T0630）→ 預覽通過後 W2b（`/control-tower`、功能、FAQ、回報頁）→ W2c 遠端開發；W3 / W4 不變。
 - **相關**：PLAN-049 / D159 / D160 / T0624 / T0630
 
+### D260 2026-11-03 — PLAN-062 實作 Linux 方案 A3（T0816，worktree 隔離並行）；開 BUG-209 併入同單
+
+- **背景**：T0812（研究）以交付版 `v0.7.4-pre.4` 重現 PLAN-062 三種情境（Playwright / `out=$(…)` / `| tee` 都等到 server 結束），成因：Electron 在 Linux 對 `ELECTRON_RUN_AS_NODE` 的 fork 自動加 crashpad env 與 fd，Terminal Server 成為 crashpad client，crashpad handler 持有主行程 stdio；Terminal Server 的 fork 被 T0807 刻意排除在 fd guard 外。方案 A3 實測 `out=$(…)` 908 ms 返回、dump 無損失（server 目前本來就不產生 dump）、T0704 / T0578 正常。另實測既有問題：一般啟動時 keepalive fd 3 被 IPC 蓋掉，保留 server 離開後 AppImage mount 被卸載（ENOTCONN）。Windows 有同樣現象但成因是 server 繼承 std handle（需原生程式碼），macOS 推論只有擷取 stderr 時會卡。
+- **決定**（使用者三題皆選推薦）：
+  1. 實作 A3（**T0816**，P3 / M）：照 T0812〈5〉草案；只有 Linux，Windows / macOS 不變、只寫文件；Playwright＋AppImage 不可控（FUSE 持有 Playwright 額外 fd），e2e 照舊 `closeIsolated`。
+  2. 開 **BUG-209**（medium）→ FIXING，由 T0816 一併修、以 K3 驗收。
+  3. T0816 `isolation: worktree`，與 T0815 並行；授權 push `ct/T0816` 以 desktop-build＋linux-acceptance 驗證，驗完刪遠端分支；CLAUDE.md 只改「Linux child_process 子程序只保留 stdio」節，合併時塔台處理。
+- **決策者**：使用者（範圍與排程）；塔台（工單內容）。2026-11-03 第一百一十三 session。
+- **相關**：D251 / D253 / D258 / T0804 / T0805 / T0807 / T0812 / PLAN-062 / BUG-209
+
 ### D259 2026-11-03 — PLAN-058 改走方案 D：主回合中送出改為排隊（改變 D214 P-2）；先 W1 前置修正（T0814）再 W0（T0815）；常駐程序（方案 B）延後
 
 - **背景**：T0813（研究）實測 SDK 0.3.316 / CLI 2.1.316：常駐 query＋inbox（方案 B）可行，但每面板閒置約 215 MB＋conhost、回歸面大；另發現現行「每則訊息一個字串 prompt query」在主回合中 `streamInput` 也會由 CLI 排隊（方案 D，6/6），以 `command_lifecycle` 回執確認送達，不需常駐程序。
