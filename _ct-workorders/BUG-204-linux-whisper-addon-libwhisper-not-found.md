@@ -3,11 +3,13 @@ schema_version: 1
 schema_kind: bug
 id: BUG-204
 title: "Linux 打包版語音輸入無法載入：`whisper.node` 找不到同目錄的 `libwhisper.so.1`（相依 `.so` 不在動態載入器搜尋路徑，22.04 / 24.04 皆同）"
-status: FIXING
+status: FIXED
 severity: medium
 reproducibility: always
 created_at: "2026-11-03T03:10:02+0800"
-updated_at: "2026-11-03T11:45:52+0800"
+updated_at: "2026-11-03T12:07:51+0800"
+fixed_at: "2026-11-03T12:07:51+0800"
+fix_commit: "fb4c0f8c（分支 ct/T0800；docs 3d02147b）"
 impact:
   - linux
   - voice
@@ -21,7 +23,7 @@ links:
 |------|------|
 | 嚴重度 | 🟡 medium（Linux 打包版的語音輸入完全不能用；BAT 其他功能不受影響） |
 | 可重現 | 每次：ubuntu-22.04 / 24.04 runner，三次 run 錯誤原文相同 |
-| **狀態** | 🔧 FIXING（T0800） |
+| **狀態** | ✅ FIXED（T0800 `fb4c0f8c`，分支 `ct/T0800`，待合併與交付版驗收） |
 | 回報者 | 塔台（T0799 CI 查證） |
 
 ## 現象
@@ -45,3 +47,12 @@ links:
 
 - 2026-11-03 03:10 開單（OPEN，medium），依 T0799 W1 查證；BUG-203 的 glibc 問題被本單遮住，兩單一起處理較合理。
 - 2026-11-03 11:45 → FIXING（T0800，D245）：先查證再選修法，塔台偏好打包時讓相依函式庫從同目錄解析；不用 `LD_LIBRARY_PATH`；BUG-203 在同單只查證。
+- 2026-11-03 12:07 → FIXED（T0800 `fb4c0f8c`，docs `3d02147b`，分支 `ct/T0800` 待合併）：afterPack 以 patchelf 把打包內 whisper 共享物件的 RUNPATH 改成 `$ORIGIN`；desktop-build `41575226873` 三平台綠、linux-acceptance `41575592616` 24.04 W1 PASS。CLOSED 依據：合併後交付版（pre-release）的 linux-acceptance 24.04 W1 PASS。
+
+## T0800 結果
+
+- **根因（上游，非 BAT 打包）**：`@kutalia/whisper-node-addon` 1.1.0 的 `dist/linux-x64/` ELF 都帶上游 CI 建置目錄的 RUNPATH（`whisper.node`：`/home/runner/work/whisper-node-addon/whisper-node-addon/deps/whisper.cpp/build/Release`；`libwhisper.so*` / `libggml.so` / `libggml-cpu.so` 同路徑加結尾空項目；`libggml-vulkan.so` 另有 `…/VULKAN_SDK/lib`；`libggml-base.so` 沒有 RUNPATH）。dev 環境（WSL Ubuntu 24.04，直接 `require` `node_modules` 的 `whisper.node`）同樣 `libwhisper.so.1: cannot open shared object file`。`libwhisper.so` / `.so.1` / `.so.1.7.6` 是三個內容相同的實檔（npm tarball 不保留 symlink），名稱與 `NEEDED` 一致。
+- **修法**：`afterPack`（`scripts/version-manifest.cjs` → `scripts/linux-whisper-runpath.cjs`）在 Linux 打包時對 `dist/linux-*` 的共享物件跑 `patchelf --set-rpath '$ORIGIN'`，讀回檢查；缺 patchelf → 打包失敗。`verify-packaged-native.js` 加 `whisper-runpath`。三個會打 Linux 的 workflow 在打包前 `Install patchelf (Linux, BUG-204)`。不用 `LD_LIBRARY_PATH`；Windows / macOS 不變。
+- **驗證**：desktop-build `41575226873` 三平台綠（Linux log：`afterPack (T0800): whisper RUNPATH = $ORIGIN for 8 file(s) … (patchelf 0.18.0)`、`verify-packaged-native` ✅）。linux-acceptance `41575592616`：24.04 W1 **PASS**（`whisper addon loaded (whisper() exported)`，RUNPATH `$ORIGIN`），verdict WARN 僅因 BUG-202 自動降級；22.04 verdict PASS，W1 INFO = BUG-203 的 `GLIBC_2.38`。
+- **執行期系統相依**：`libgomp1`、`libvulkan1` 仍由系統提供（runner 有）；沒裝 `libgomp1` 時錯誤改為 `libgomp.so.1: cannot open shared object file`（WSL 實測）。
+- **降級行為（只記錄）**：whisper 只在第一次辨識時載入，失敗不影響啟動與其他功能；debug log 一次 `[voice] whisper addon unavailable, voice input disabled: …`，renderer 錄音停止後顯示 `辨識失敗: Voice recognition module (whisper) is unavailable: …`，麥克風按鈕不會事先隱藏。

@@ -7,7 +7,7 @@ status: OPEN
 severity: low
 reproducibility: unverified
 created_at: "2026-11-03T02:17:46+0800"
-updated_at: "2026-11-03T03:06:07+0800"
+updated_at: "2026-11-03T12:07:51+0800"
 impact:
   - linux
   - voice
@@ -43,3 +43,4 @@ links:
 
 - 2026-11-03 02:17 開單（OPEN，low，待查）。
 - 2026-11-03 03:06 T0799 查證（只記錄，狀態不動）：linux-acceptance W1（main 程序照 `electron/whisper-addon-loader.ts` 的方式 `require` 打包內的 `dist/linux-x64/whisper.node`），desktop-build `41502529486` 的 AppImage，run `41504087753` / `41504962084` / `41505876807`。**22.04 與 24.04 都載入失敗，錯誤原文相同**：`libwhisper.so.1: cannot open shared object file: No such file or directory`。`libwhisper.so.1` 其實就在同一個目錄（`appimage-inspect.md` 有列），是 `whisper.node` 的相依函式庫不在動態載入器的搜尋路徑上（同目錄不會自動搜尋），所以兩個 OS 都在 glibc 版本檢查之前就失敗；22.04 的 `GLIBC_2.38` 要先解決這個才看得到。⇒ Linux 打包版的語音輸入目前在 22.04 與 24.04 都不能用（推論：比本單原本的 glibc 問題範圍更大，可能需另開 BUG，由塔台決定）。
+- 2026-11-03 12:07 T0800 查證（只記錄，狀態不動）：BUG-204 修正（RUNPATH `$ORIGIN`）後，desktop-build `41575226873` 的 AppImage，linux-acceptance run `41575592616` 的 22.04（`ldd (Ubuntu GLIBC 2.35-0ubuntu3.15) 2.35`）W1 **實測載入失敗**，錯誤原文：`` /lib/x86_64-linux-gnu/libc.so.6: version `GLIBC_2.38' not found (required by <appdir>/resources/app.asar.unpacked/node_modules/@kutalia/whisper-node-addon/dist/linux-x64/libggml-base.so) ``；`ldd` 另列 `libggml-vulkan.so` 的 `` GLIBC_2.38' not found `` 與 `` /lib/x86_64-linux-gnu/libstdc++.so.6: version `GLIBCXX_3.4.32' not found ``。⇒ 靜態檢查的推論成立：22.04 語音輸入不能用。同 run 24.04（glibc 2.39）載入成功。22.04 啟動驗收不受影響（verdict PASS）。
