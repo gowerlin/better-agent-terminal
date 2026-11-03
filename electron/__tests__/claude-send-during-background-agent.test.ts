@@ -7,6 +7,10 @@
  * the renderer lists it and can cancel it (D214 P-1). A message sent while the turn itself runs
  * keeps the old interrupt-and-resend path (P-2). Message shapes: SDK 0.3.316 / CLI 2.1.316 against
  * the T0727 fake API (T0759 / T0768 reports).
+ *
+ * T0815 (PLAN-058 W0): these frames' `system/init` carries no `capabilities`, i.e. a CLI without
+ * `command_lifecycle` receipts (`msg_lifecycle_v1`) — such a CLI keeps exactly these pre-T0815
+ * paths. The receipt-tracked path (CLI 2.1.316) is `claude-send-during-turn.test.ts`.
  */
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
@@ -234,9 +238,9 @@ describe('input already closed: the message waits for the query to end (D214 P-1
     await h.m.sendMessage('s1', 'next')
     await tick()
     const [[item]] = h.sent('claude:queued-messages') as Array<Array<{ id: string }>>
-    expect(h.m.cancelQueuedMessage('s1', item.id)).toEqual({ cancelled: true, idle: true })
+    await expect(h.m.cancelQueuedMessage('s1', item.id)).resolves.toEqual({ cancelled: true, idle: true })
     expect(h.sent('claude:queued-messages').at(-1)).toEqual([])
-    expect(h.m.cancelQueuedMessage('s1', item.id)).toEqual({ cancelled: false, idle: true })
+    await expect(h.m.cancelQueuedMessage('s1', item.id)).resolves.toEqual({ cancelled: false, idle: true })
     fq.end()
     await tick()
     expect(h.calls).toHaveLength(1)

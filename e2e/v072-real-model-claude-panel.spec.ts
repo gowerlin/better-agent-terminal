@@ -32,6 +32,9 @@
 //   ⑥ switch the tab's model to claude-haiku-4-5 and send one turn (the 4.x todo-tool control)
 //   ⑦ close and relaunch the same runtime → the tab resumes, the history is rebuilt, one more turn continues
 //
+// Second test (T0815 / PLAN-058 W0, run alone with `-g T0815`): a message sent while a turn streams is
+// queued and answered after it, Esc cancels a waiting message, the R rows match the CLI totals.
+//
 // Windows only (embedded claude.exe).
 
 import { test, expect, type Page, type Locator } from '@playwright/test'
@@ -492,6 +495,127 @@ test('Claude panel against the real model (Haiku 5.5, small budget): stream, per
   }
   expect(stopped).toBe('')
   expect(costSum).toBeLessThanOrEqual(MAX_COST_USD)
+  expect(cacheMismatches).toEqual([])
+})
+
+// T0815 (PLAN-058 W0, D259): a message sent while a turn runs is queued in the same query, Esc cancels
+// a waiting message, and the Cache History R rows still match the CLI's running totals. Its own test,
+// so it can run alone: BAT_E2E_REAL_MODEL=1 BAT_E2E_RUN_TAG=t0815 npx playwright test e2e/v072-real-model-claude-panel.spec.ts -g T0815
+// Budget: 4 user turns (≤ T0815_MAX_RESULTS results), Haiku 5.5 only, the same US$ cap.
+const T0815_MAX_RESULTS = 6
+
+test('T0815: send during a turn is queued (Haiku 5.5): both answered, Esc cancels the waiting message, R rows = CLI totals', async () => {
+  test.setTimeout(900_000)
+  const startedAt = Date.now()
+  const results: Record<string, string> = {}
+  const cacheMismatches: string[] = []
+  expect(FORBIDDEN_MODEL.test(MODEL)).toBe(false)
+  expect(claudeProjectDirs()).toEqual([])
+  const root = fs.mkdtempSync(path.join(process.env.ProgramData || 'C:\\ProgramData', `bat-e2e-${RUN_TAG}-`))
+  const folder = path.join(root, 'ws')
+  fs.mkdirSync(folder, { recursive: true })
+  let inst: IsolatedInstance | undefined
+  let lastCost: number | null = null
+  let resultCount = 0
+  try {
+    inst = await withoutInheritedClaudeEnv(() => launchIsolated('t0739', log))
+    const win = inst.win
+    await expect.poll(async () => (await win.evaluate(async () => (window as AnyApi).electronAPI.workspace.load())) !== null, { timeout: 30_000 }).toBe(true)
+    const seed = {
+      workspaces: [{ id: WS, name: 'T0815', folderPath: folder, createdAt: Date.now() }],
+      activeWorkspaceId: WS,
+      activeGroup: null,
+      terminals: [{ id: TAB, workspaceId: WS, type: 'terminal', agentPreset: 'claude-code', title: 'T0815 Haiku', cwd: folder, model: MODEL }],
+      activeTerminalId: TAB,
+    }
+    expect(await win.evaluate(async (data) => (window as AnyApi).electronAPI.workspace.save(data), JSON.stringify(seed))).toBe(true)
+    await win.evaluate(async () => {
+      const api = (window as AnyApi).electronAPI
+      const raw = await api.settings.load()
+      const s = raw ? JSON.parse(raw) : {}
+      s.statuslineItems = [{ id: 'cacheEff', visible: true, align: 'left' }, { id: 'cost', visible: true, align: 'left' }]
+      await api.settings.save(JSON.stringify(s))
+    })
+    await win.reload()
+    await win.waitForLoadState('domcontentloaded')
+    await expect(activePanel(win)).toBeVisible({ timeout: 45_000 })
+    await installRecorders(win)
+    const panel = activePanel(win)
+    const input = panel.locator('textarea.claude-input')
+    const note = panel.locator('.claude-queued-note')
+    const running = async () => ((await input.getAttribute('placeholder')) ?? '').startsWith('Press Esc to pause')
+    const sendText = async (text: string) => { await input.click(); await input.fill(text); await input.press('Enter') }
+    const resultsSoFar = async () => (await recorder(win)).results.length as number
+    const waitResults = async (n: number) => {
+      expect(n).toBeLessThanOrEqual(T0815_MAX_RESULTS)
+      await expect.poll(resultsSoFar, { timeout: TURN_TIMEOUT_MS, intervals: [1_000] }).toBeGreaterThanOrEqual(n)
+      const rec = await recorder(win)
+      resultCount = rec.results.length
+      lastCost = rec.results.at(-1)?.totalCost ?? lastCost
+      if ((lastCost ?? 0) > MAX_COST_USD) throw new Error(`cost US$${lastCost} > ${MAX_COST_USD}`)
+    }
+    const afterPrompt = async (marker: string) => ((await panel.textContent()) ?? '').split(marker).at(-1) ?? ''
+
+    // ── ① send during a streaming turn → queued, then answered after it ──
+    await sendText('T0815-1: Count from 1 to 60, one number per line, then write the line "count finished". Do not use any tools.')
+    await panel.locator('.claude-cursor').first().waitFor({ state: 'visible', timeout: 120_000 })
+    await sendText('T0815-2: Reply with the two words "second ok" in UPPERCASE letters and nothing else. Do not use any tools.')
+    const shownQueued = await note.first().waitFor({ state: 'visible', timeout: 10_000 }).then(() => true, () => false)
+    const queuedText = shownQueued ? ((await note.first().textContent()) ?? '').trim() : ''
+    const queuedAttr = shownQueued ? await note.first().getAttribute('data-waits-for') : null
+    expect(await running()).toBe(true)
+    await waitResults(2)
+    await expect.poll(async () => afterPrompt('T0815-2'), { timeout: 30_000 }).toContain('SECOND OK')
+    const tail1 = await afterPrompt('T0815-2')
+    expect(tail1).toContain('count finished') // the first turn finished (not interrupted), its answer after the queued prompt
+    expect(tail1.indexOf('count finished')).toBeLessThan(tail1.indexOf('SECOND OK'))
+    expect((await panel.textContent()) ?? '').not.toContain('使用者先前的訊息（已中斷）')
+    await expect(note).toHaveCount(0, { timeout: 15_000 })
+    await expect.poll(running, { timeout: 30_000 }).toBe(false)
+    const rec1 = await recorder(win)
+    log(`① queued note shown=${shownQueued} waits-for=${queuedAttr} text=${JSON.stringify(queuedText)}; results ${rec1.results.length} ${JSON.stringify(rec1.results.map((r: AnyApi) => r.subtype))}; cost ${lastCost}`)
+    expect(rec1.results.slice(0, 2).map((r: AnyApi) => r.subtype)).toEqual(['success', 'success'])
+    results['①'] = `PASS — sent while the first turn streamed: note ${shownQueued ? `${JSON.stringify(queuedText)} (waits-for=${queuedAttr})` : 'not caught (gone within the poll)'}; the first turn finished ("count finished"), then "SECOND OK"; 2 results (success, success); no 已中斷; turn shown as ended`
+
+    // ── ② Esc while a message waits → it is cancelled; the next message works ──
+    await sendText('T0815-3: Count from 1 to 300, one number per line. Do not use any tools.')
+    await panel.locator('.claude-cursor').first().waitFor({ state: 'visible', timeout: 120_000 })
+    await sendText('T0815-4: Reply with the word "apple" in UPPERCASE letters and nothing else.')
+    await expect(note).toHaveCount(1, { timeout: 10_000 })
+    await input.press('Escape')
+    await expect(note).toHaveCount(0, { timeout: 15_000 })
+    await waitResults(3) // the interrupted turn's result
+    await win.waitForTimeout(10_000)
+    const afterEsc = await resultsSoFar()
+    const tail2 = await afterPrompt('T0815-4')
+    expect(afterEsc).toBe(3) // no turn ran for the cancelled message
+    expect(tail2).not.toContain('APPLE')
+    await expect.poll(running, { timeout: 30_000 }).toBe(false)
+    await sendText('T0815-5: Reply with the words "after esc" in UPPERCASE letters and nothing else. Do not use any tools.')
+    await waitResults(4)
+    await expect.poll(async () => afterPrompt('T0815-5'), { timeout: 30_000 }).toContain('AFTER ESC')
+    expect(await afterPrompt('T0815-5')).not.toContain('APPLE')
+    const rec2 = await recorder(win)
+    log(`② results ${JSON.stringify(rec2.results.map((r: AnyApi) => r.subtype))}; cost ${lastCost}`)
+    results['②'] = `PASS — Esc with a waiting message: note gone, ${afterEsc} results after 10 s (the interrupted turn only, ${JSON.stringify(rec2.results[2]?.subtype)}), no "APPLE"; the next message answered "AFTER ESC"`
+
+    // ── ③ Cache History R rows vs the CLI running totals ──
+    await win.waitForTimeout(3_000)
+    const hist = await readCacheHistory(win, 't0815-cache-history.png').catch((e: unknown) => { cacheMismatches.push(`Cache History not readable: ${String(e).slice(0, 200)}`); return null })
+    const lines = resultLogLines(inst.userData)
+    const sessionCost = ((await win.evaluate((sid) => (window as AnyApi).electronAPI.claude.getSessionMeta(sid), TAB)) as { totalCost?: number } | null)?.totalCost ?? null
+    if (hist) cacheMismatches.push(...compareCacheHistory('T0815', hist, lines.map(logUsage), {}, sessionCost, log))
+    for (const [i, line] of lines.entries()) log(`T0815 result log ${i + 1}: ${line}`)
+    results['③'] = `${cacheMismatches.length ? 'FAIL' : 'PASS'} — ${hist?.results.length ?? 0} R rows vs ${lines.length} result log lines; real $ total ${hist?.total.real ?? 'n/a'} vs CLI total_cost_usd ${sessionCost}`
+  } finally {
+    if (inst) await closeIsolated(inst, log)
+    for (const [k, v] of Object.entries(results)) log(`T0815 ${k} ${v}`)
+    log(`T0815 results: ${resultCount}; session cost (last total_cost_usd) US$${lastCost ?? 'n/a'}; Cache History mismatches: ${cacheMismatches.length ? JSON.stringify(cacheMismatches) : 'none'}`)
+    fs.rmSync(root, { recursive: true, force: true, maxRetries: 20, retryDelay: 200 })
+    const sessions = claudeProjectDirs()
+    for (const name of sessions) fs.rmSync(path.join(os.homedir(), '.claude', 'projects', name), { recursive: true, force: true, maxRetries: 10, retryDelay: 200 })
+    log(`removed ${sessions.length} ~/.claude/projects folder(s) matching bat-e2e-${RUN_TAG}; left: ${claudeProjectDirs().length}; took ${Math.round((Date.now() - startedAt) / 1000)} s`)
+  }
   expect(cacheMismatches).toEqual([])
 })
 

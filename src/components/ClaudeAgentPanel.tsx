@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback, useMemo, Fragment, cloneEleme
 import { flushSync } from 'react-dom'
 import { useTranslation } from 'react-i18next'
 import type { ClaudeMessage, ClaudeQueuedMessage, ClaudeToolCall } from '../types/claude-agent'
-import { isToolCall, placeQueuedMessages } from '../types/claude-agent'
+import { isToolCall, keepsStreamingAfterResult, placeQueuedMessages, queuedNoteKey } from '../types/claude-agent'
 import type { EffortLevel } from '../types'
 import { EFFORT_LEVELS } from '../types'
 import { settingsStore } from '../stores/settings-store'
@@ -445,6 +445,8 @@ export function ClaudeAgentPanel({ sessionId, cwd, isActive, workspaceId, isRemo
   }, [messages, taskListBase])
   const messageCountRef = useRef(0)
   const currentTurnMsgIdRef = useRef<string | null>(null)
+  // T0815: user messages sent while a turn ran — each starts a later turn (Cache History anchor)
+  const queuedTurnMsgIdsRef = useRef<string[]>([])
   messageCountRef.current = allMessages.length
 
   // Active tasks (running Task/Agent tool calls) for the indicator bar
@@ -763,7 +765,14 @@ export function ClaudeAgentPanel({ sessionId, cwd, isActive, workspaceId, isRemo
 
       api.onResult((sid: string, resultData: unknown) => {
         if (sid !== sessionId) return
-        setIsStreaming(false)
+        // T0815: messages sent during the turn still need their turn → keep showing "running"
+        if (keepsStreamingAfterResult(resultData)) {
+          const nextTurnMsgId = queuedTurnMsgIdsRef.current.shift()
+          if (nextTurnMsgId) currentTurnMsgIdRef.current = nextTurnMsgId
+        } else {
+          queuedTurnMsgIdsRef.current = []
+          setIsStreaming(false)
+        }
         setIsInterrupted(false)
         setStreamingText('')
         setStreamingThinking('')
@@ -1566,7 +1575,12 @@ export function ClaudeAgentPanel({ sessionId, cwd, isActive, workspaceId, isRemo
       : ''
     const displayContent = (trimmed + imageNote + fileNote).replace(/^\n/, '')
     const userMsgId = `user-${Date.now()}`
-    currentTurnMsgIdRef.current = userMsgId
+    // T0815: sent while a turn runs → it is queued (its turn comes after this one)
+    if (isStreaming && !isInterrupted) queuedTurnMsgIdsRef.current.push(userMsgId)
+    else {
+      queuedTurnMsgIdsRef.current = []
+      currentTurnMsgIdRef.current = userMsgId
+    }
     if (!isRemoteConnectedRef.current) {
       setMessages(prev => [...prev, {
         id: userMsgId,
@@ -1579,7 +1593,7 @@ export function ClaudeAgentPanel({ sessionId, cwd, isActive, workspaceId, isRemo
 
     await window.electronAPI.claude.sendMessage(sessionId, promptToSend, imageDataUrls.length > 0 ? imageDataUrls : undefined)
       .catch(showRemoteUnsupported)
-  }, [isStreaming, sessionId, attachedImages, attachedFiles, clearInput, t, addNoticeToast, isRemoteWindow])
+  }, [isStreaming, isInterrupted, sessionId, attachedImages, attachedFiles, clearInput, t, addNoticeToast, isRemoteWindow])
 
   const disablePromptPathHint = useCallback(() => {
     settingsStore.setPromptClientPathHint(false)
@@ -1587,25 +1601,31 @@ export function ClaudeAgentPanel({ sessionId, cwd, isActive, workspaceId, isRemo
   }, [])
 
   // T0769 / D214 P-1: cancel a message that waits for the open query to end
+  // T0815: also one sent during a turn ("待送"); `cancelled: false` = it already started
   const cancelQueuedMessage = useCallback(async (queuedId: string) => {
     const res = await window.electronAPI.claude.cancelQueuedMessage(sessionId, queuedId).catch(() => undefined)
-    if (res?.cancelled) {
-      setQueuedMessages(prev => prev.filter(q => q.id !== queuedId))
+    if (!res) return
+    setQueuedMessages(prev => prev.filter(q => q.id !== queuedId))
+    if (res.cancelled) {
       if (res.idle) {
         // nothing else will answer: the turn shown as running ends here
+        queuedTurnMsgIdsRef.current = []
         setIsStreaming(false)
         setIsInterrupted(false)
         setStreamingText('')
         setStreamingThinking('')
       }
+    } else {
+      addNoticeToast(t('claude.queuedMessageAlreadyStarted'), 'info', 5000)
     }
-  }, [sessionId])
+  }, [sessionId, addNoticeToast, t])
 
+  const queuedCardWaiting = !!(pendingPermission || pendingQuestion)
   const renderQueuedNote = (q: ClaudeQueuedMessage) => (
-    <div key={`queued-${q.id}`} className="tl-item claude-queued-note" data-queued-id={q.id}>
+    <div key={`queued-${q.id}`} className="tl-item claude-queued-note" data-queued-id={q.id} data-waits-for={q.waitsFor ?? 'query'}>
       <div className="tl-dot dot-system" />
       <div className="tl-content claude-message-system">
-        {t('claude.queuedUntilBackgroundDone')}
+        {t(`claude.${queuedNoteKey(q, queuedCardWaiting)}`)}
         {' '}
         <button className="claude-task-stop-btn claude-queued-cancel-btn" onClick={() => { void cancelQueuedMessage(q.id) }}>
           {t('claude.cancelQueuedMessage')}
@@ -1616,7 +1636,8 @@ export function ClaudeAgentPanel({ sessionId, cwd, isActive, workspaceId, isRemo
 
   const handleInterrupt = useCallback(() => {
     if (!isStreaming) return
-    window.electronAPI.claude.stopSession(sessionId)
+    window.electronAPI.claude.stopSession(sessionId) // T0815: also cancels the waiting ("待送") messages
+    queuedTurnMsgIdsRef.current = []
     setIsInterrupted(true)
     setStreamingText('')
     setStreamingThinking('')

@@ -1,6 +1,7 @@
 import * as fsSync from 'fs'
 import * as fsPromises from 'fs/promises'
 import * as pathModule from 'path'
+import { randomUUID } from 'crypto'
 import type { ClaudeMessage, ClaudeToolCall, ClaudeSessionState } from '../src/types/claude-agent'
 import type { EffortLevel } from '../src/types'
 import type { Query, PermissionMode, PermissionResult, CanUseTool, SlashCommand, SDKUserMessage, Options } from '@anthropic-ai/claude-agent-sdk'
@@ -360,11 +361,83 @@ interface QueuedMessage {
   content?: string
 }
 
-/** T0769: what the renderer gets for each queued message (`claude:queued-messages`). */
+/**
+ * T0769: what the renderer gets for each queued message (`claude:queued-messages`).
+ * T0815: `waitsFor` = `turn` (sent into the running query, runs after its current turn or folds
+ * into it) or `query` (could not go in; sent with resume when the query ends).
+ */
 export interface ClaudeQueuedMessageInfo {
   id: string
   messageId?: string
   content: string
+  waitsFor?: 'turn' | 'query'
+}
+
+/**
+ * T0815 (PLAN-058 W0, D259): a message sent into the running query (`streamInput`, with its own
+ * `uuid`), tracked by the CLI's `command_lifecycle` frames.
+ * - `sending`: written, no receipt yet (`queued` / `started`)
+ * - `queued`: the CLI queued it (receipt); it runs after the current turn, or folds into it
+ * - `started`: its turn started (or it folded into the running turn); the next `result` answers it
+ * - `fallback`: no receipt (rejected / timed out): it waits in `messageQueue` for the query to end;
+ *   kept here only so a late receipt removes that copy (never sent twice)
+ * - `cancel-requested`: cancelled by the user / Esc; a late `queued` receipt cancels it again
+ */
+type PendingSendState = 'sending' | 'queued' | 'started' | 'fallback' | 'cancel-requested'
+
+interface PendingSend {
+  uuid: string
+  prompt: string
+  images?: string[]
+  messageId: string
+  content: string
+  query: Query
+  state: PendingSendState
+  timer?: ReturnType<typeof setTimeout>
+}
+
+/** T0815: a session's sent-message map (created on first use for session objects built elsewhere). */
+function sendsOf(session: { pendingSends?: Map<string, PendingSend> }): Map<string, PendingSend> {
+  if (!session.pendingSends) session.pendingSends = new Map()
+  return session.pendingSends
+}
+
+/** T0815: how long a message sent into the running query waits for its `queued` receipt. */
+export const INJECT_RECEIPT_TIMEOUT_MS = 2000
+
+/** T0815: the init capability that says the CLI sends `command_lifecycle` frames for uuid-stamped messages. */
+export const LIFECYCLE_CAPABILITY = 'msg_lifecycle_v1'
+
+/**
+ * T0815: a `command_lifecycle` frame's uuid and state, or null. CLI 2.1.316 writes
+ * `{ type: 'system', subtype: 'command_lifecycle', command_uuid, state }` (states `queued` /
+ * `started` / `completed` / `cancelled` / `discarded` / `refused`); the `{ type:
+ * 'command_lifecycle', uuid, state }` shape is accepted too (same as `commandLifecycleSummary`).
+ */
+export function parseCommandLifecycle(message: unknown): { uuid: string; state: string } | null {
+  if (!message || typeof message !== 'object') return null
+  const m = message as { type?: unknown; subtype?: unknown; uuid?: unknown; command_uuid?: unknown; state?: unknown }
+  const isLifecycle = m.type === 'command_lifecycle' || (m.type === 'system' && m.subtype === 'command_lifecycle')
+  if (!isLifecycle) return null
+  const uuid = typeof m.command_uuid === 'string' ? m.command_uuid : typeof m.uuid === 'string' ? m.uuid : ''
+  if (!uuid || typeof m.state !== 'string') return null
+  return { uuid, state: m.state }
+}
+
+/**
+ * T0815: the only call of `Query.cancelAsyncMessage` (SDK 0.3.316 has it in `sdk.mjs` but not in
+ * the `Query` type of `sdk.d.ts`). True = the CLI dropped the message from its queue; false = it
+ * was not in the queue (already started, not there yet) or the call failed / does not exist.
+ * 🔴 SDK upgrade: run `electron/__tests__/claude-send-during-turn.test.ts` (it checks the method).
+ */
+export async function cancelSdkQueuedMessage(instance: Query, uuid: string): Promise<boolean> {
+  const fn = (instance as unknown as { cancelAsyncMessage?: (messageUuid: string) => Promise<unknown> }).cancelAsyncMessage
+  if (typeof fn !== 'function') return false
+  try {
+    return (await fn.call(instance, uuid)) === true
+  } catch {
+    return false
+  }
 }
 
 interface ActiveTask {
@@ -409,6 +482,13 @@ interface SessionInstance {
    * aborting it.
    */
   mainTurnDone?: boolean
+  /** T0815: messages sent into the running query, by uuid (see `PendingSend`). */
+  pendingSends: Map<string, PendingSend>
+  /**
+   * T0815: the CLI advertised `msg_lifecycle_v1` on its latest `system/init` (undefined before the
+   * first one). False → a message sent during a query takes the pre-T0815 paths (T0769 / D214 P-2).
+   */
+  lifecycleReceipts?: boolean
   /**
    * T0814 (PLAN-058 W1): what the last ended query read at initialization. `queryInstance` is
    * cleared when its query ends; account info / slash commands / agents come from the SDK's cached
@@ -806,6 +886,7 @@ export class ClaudeAgentManager {
         effort: options.effort || 'high',
         model: options.model,
         messageQueue: [],
+        pendingSends: new Map(),
         activeTasks: new Map(),
         ...(worktreeInfo ? { worktreeInfo, originalCwd: options.cwd } : {}),
       })
@@ -876,15 +957,36 @@ export class ClaudeAgentManager {
       session.isResting = false
     }
 
-    // T0769 / BUG-192: the turn has its result but a background Agent keeps the query open → send
-    // the message into the same query. Never abort it: that would end the background Agent too,
-    // and a second query would be a second CLI process for this session.
-    // Only while a background Agent runs: then the SDK keeps the CLI's input open (the session is
-    // not idle). Without one the SDK closes the input at the result, and a message written in the
-    // window before the query ends is lost without an error (T0769 e2e ⑦ → ⑦b), so that window
-    // keeps the old path below.
+    const blank = !prompt.trim() && !images?.length
+
+    // T0815 (PLAN-058 W0, D259 — replaces D214 P-2): a message sent while a query runs goes into
+    // that query (`streamInput`, own uuid); the CLI queues it after the current turn or folds it
+    // into the turn at a tool boundary (permission / AskUserQuestion card waiting). Never abort,
+    // never a second query, pending cards stay, no "interrupted" prefix. Delivery is confirmed by
+    // the `command_lifecycle` `queued` receipt (≤ INJECT_RECEIPT_TIMEOUT_MS); a rejected write or no
+    // receipt → the message waits for the query to end and goes out with resume (T0769 fallback).
+    // Also covers T0769 (a background Agent keeps the query open after the result).
+    if (session.state.isStreaming && session.lifecycleReceipts !== false) {
+      if (blank) {
+        // BUG-177: never send a blank message (it would run a whole turn)
+        logger.log(`[Claude] blank message while a query runs: not sent sessionId=${sessionId.slice(0, 8)}`)
+        return true
+      }
+      if (session.queryInstance) {
+        this.sendIntoRunningQuery(sessionId, session, session.queryInstance, prompt, images)
+      } else {
+        // the query is still being created (runtime / SDK load): wait for it to end, no abort
+        this.queueUntilQueryEnds(sessionId, session, prompt, images, 'query not created yet')
+      }
+      return true
+    }
+
+    // T0769 / BUG-192 (a CLI without `command_lifecycle` receipts, `lifecycleReceipts === false`):
+    // the turn has its result but a background Agent keeps the query open → send the message into
+    // the same query. Only while a background Agent runs: without one the SDK closes the input at
+    // the result, and a message written before the query ends is lost without an error.
     if (session.state.isStreaming && session.mainTurnDone && session.queryInstance && hasBackgroundTask(session)) {
-      if (!prompt.trim() && !images?.length) {
+      if (blank) {
         // BUG-177: never send a blank message (it would run a whole turn); nothing to inject
         logger.log(`[Claude] blank message while the query is open: not sent sessionId=${sessionId.slice(0, 8)}`)
         return true
@@ -894,6 +996,7 @@ export class ClaudeAgentManager {
     }
 
     if (session.state.isStreaming) {
+      // Pre-T0815 path, only for a CLI without `command_lifecycle` receipts (D214 P-2):
       // Abort current query and immediately send the new message
       // Prepend the aborted prompt as context so Claude doesn't forget it
       const abortedPrompt = session.currentPrompt
@@ -974,39 +1077,233 @@ export class ClaudeAgentManager {
     })
   }
 
-  /** T0769: the messages waiting for the open query to end (only those that failed to inject). */
+  /**
+   * T0815 (PLAN-058 W0): send a message into the running query with its own uuid. The CLI answers
+   * with `command_lifecycle` frames (`onCommandLifecycle`); until its `queued` receipt the message
+   * is `sending`. No receipt within INJECT_RECEIPT_TIMEOUT_MS (armed once the CLI's init said it
+   * sends receipts) or a rejected write → `fallbackPendingSend`. The Cache History row is reset when
+   * its turn starts (`started`), not here: the running turn is still streaming.
+   */
+  private sendIntoRunningQuery(sessionId: string, session: SessionInstance, queryInstance: Query, prompt: string, images?: string[]) {
+    const userMsg = this.broadcastUserMessage(sessionId, prompt, images)
+    const uuid = randomUUID()
+    const entry: PendingSend = { uuid, prompt, images, messageId: userMsg.id, content: userMsg.content, query: queryInstance, state: 'sending' }
+    sendsOf(session).set(uuid, entry)
+    const message: SDKUserMessage = {
+      type: 'user',
+      message: { role: 'user', content: buildUserContent(prompt, images) as SDKUserMessage['message']['content'] },
+      parent_tool_use_id: null,
+      uuid,
+    }
+    async function* single() { yield message }
+    const background = Array.from(session.activeTasks.values()).filter(t => t.background).length
+    logger.log(`[Claude] send into the running query sessionId=${sessionId.slice(0, 8)} uuid=${uuid.slice(0, 8)} turnDone=${!!session.mainTurnDone} background=${background} cards=${session.pendingPermissions.size + session.pendingAskUser.size} images=${images?.length ?? 0}`)
+    if (session.lifecycleReceipts === true) this.armReceiptTimer(sessionId, session, entry)
+    this.emitQueuedMessages(sessionId, session)
+    queryInstance.streamInput(single()).catch((error: unknown) => {
+      const reason = error instanceof Error ? error.message : String(error)
+      if (sendsOf(session).get(uuid) !== entry || entry.state !== 'sending') return
+      this.fallbackPendingSend(sessionId, session, entry, `write rejected: ${reason}`)
+    })
+  }
+
+  private armReceiptTimer(sessionId: string, session: SessionInstance, entry: PendingSend) {
+    if (entry.timer) return
+    entry.timer = setTimeout(() => {
+      entry.timer = undefined
+      if (sendsOf(session).get(entry.uuid) !== entry || entry.state !== 'sending') return
+      this.fallbackPendingSend(sessionId, session, entry, `no receipt in ${INJECT_RECEIPT_TIMEOUT_MS} ms`)
+    }, INJECT_RECEIPT_TIMEOUT_MS)
+  }
+
+  private clearReceiptTimer(entry: PendingSend) {
+    if (entry.timer) clearTimeout(entry.timer)
+    entry.timer = undefined
+  }
+
+  /**
+   * T0815: the message did not reach the CLI (write rejected, no receipt, `refused` / `discarded`
+   * before it started) → wait for the query to end and send it with resume; when no query runs,
+   * send it now. A cancelled one is just dropped. While its query runs the entry stays as
+   * `fallback`, so a late `queued` receipt removes the queued copy instead of sending it twice.
+   */
+  private fallbackPendingSend(sessionId: string, session: SessionInstance, entry: PendingSend, reason: string) {
+    if (this.sessions.get(sessionId) !== session) return
+    this.clearReceiptTimer(entry)
+    if (entry.state === 'cancel-requested') {
+      sendsOf(session).delete(entry.uuid)
+      return
+    }
+    entry.state = 'fallback'
+    if (session.state.isStreaming) {
+      if (session.queryInstance !== entry.query) sendsOf(session).delete(entry.uuid)
+      session.messageQueue.push({ prompt: entry.prompt, images: entry.images, queuedId: entry.uuid, messageId: entry.messageId, content: entry.content })
+      logger.log(`[Claude] message ${entry.uuid.slice(0, 8)} not delivered (${reason}); queued until the query ends`)
+      this.emitQueuedMessages(sessionId, session)
+      return
+    }
+    sendsOf(session).delete(entry.uuid)
+    logger.log(`[Claude] message ${entry.uuid.slice(0, 8)} not delivered (${reason}) and the query has ended: sending with resume`)
+    this.emitQueuedMessages(sessionId, session)
+    void this.runQuery(sessionId, entry.prompt, entry.images)
+  }
+
+  /** T0815: a message sent while the query is still being created: wait for it to end (listed, cancellable). */
+  private queueUntilQueryEnds(sessionId: string, session: SessionInstance, prompt: string, images: string[] | undefined, reason: string) {
+    const userMsg = this.broadcastUserMessage(sessionId, prompt, images)
+    const queuedId = randomUUID()
+    session.messageQueue.push({ prompt, images, queuedId, messageId: userMsg.id, content: userMsg.content })
+    logger.log(`[Claude] message ${queuedId.slice(0, 8)} queued until the query ends (${reason}) sessionId=${sessionId.slice(0, 8)}`)
+    this.emitQueuedMessages(sessionId, session)
+  }
+
+  /**
+   * T0815: the CLI's `command_lifecycle` frame for a message sent into the running query. Frames for
+   * uuids this session did not send (the CLI's own commands) are ignored.
+   */
+  private onCommandLifecycle(sessionId: string, session: SessionInstance, uuid: string, state: string) {
+    const entry = sendsOf(session).get(uuid)
+    if (!entry) return
+    const short = uuid.slice(0, 8)
+    if (state === 'queued') {
+      this.clearReceiptTimer(entry)
+      if (entry.state === 'fallback') {
+        // a late receipt: the CLI has it after all — drop the copy waiting for the query to end
+        this.removeQueuedCopy(session, uuid)
+        entry.state = 'queued'
+        logger.log(`[Claude] message ${short} receipt after fallback: the queued copy is dropped (not sent twice)`)
+        this.emitQueuedMessages(sessionId, session)
+      } else if (entry.state === 'cancel-requested') {
+        void cancelSdkQueuedMessage(entry.query, uuid).then(ok => logger.log(`[Claude] message ${short} queued after cancel: cancelled=${ok}`))
+      } else if (entry.state === 'sending') {
+        entry.state = 'queued'
+      }
+      return
+    }
+    if (state === 'started') {
+      this.clearReceiptTimer(entry)
+      if (entry.state === 'fallback') this.removeQueuedCopy(session, uuid)
+      if (entry.state === 'cancel-requested') logger.log(`[Claude] message ${short} started before its cancel reached the CLI`)
+      entry.state = 'started'
+      if (session.mainTurnDone) {
+        // its own turn (the previous one has its result): its own Cache History row (T0744 / T0498)
+        this.resetQueryUsage(session)
+        session.mainTurnDone = false
+      }
+      // else: folded into the running turn (CLI: at a tool boundary) — it shares that turn's row
+      session.currentPrompt = entry.prompt
+      this.emitQueuedMessages(sessionId, session)
+      return
+    }
+    if (state === 'completed' || state === 'cancelled') {
+      this.clearReceiptTimer(entry)
+      if (entry.state === 'fallback') this.removeQueuedCopy(session, uuid)
+      sendsOf(session).delete(uuid)
+      if (state === 'cancelled') logger.log(`[Claude] message ${short} cancelled by the CLI`)
+      this.emitQueuedMessages(sessionId, session)
+      return
+    }
+    if (state === 'discarded' || state === 'refused') {
+      logger.log(`[Claude] message ${short} ${state} by the CLI (was ${entry.state})`)
+      if (entry.state === 'started' || entry.state === 'cancel-requested') {
+        this.clearReceiptTimer(entry)
+        sendsOf(session).delete(uuid)
+        this.emitQueuedMessages(sessionId, session)
+        return
+      }
+      if (entry.state === 'fallback') return // already waiting for the query to end
+      this.fallbackPendingSend(sessionId, session, entry, state)
+    }
+  }
+
+  private removeQueuedCopy(session: SessionInstance, queuedId: string) {
+    const index = session.messageQueue.findIndex(m => m.queuedId === queuedId)
+    if (index !== -1) session.messageQueue.splice(index, 1)
+  }
+
+  /** T0815: the messages the renderer lists as waiting ("待送"): sent and not started, then the queue. */
   private queuedMessageInfos(session: SessionInstance): ClaudeQueuedMessageInfo[] {
-    return session.messageQueue
+    const inQuery: ClaudeQueuedMessageInfo[] = [...sendsOf(session).values()]
+      .filter(e => e.state === 'sending' || e.state === 'queued')
+      .map(e => ({ id: e.uuid, messageId: e.messageId, content: e.content, waitsFor: 'turn' as const }))
+    const queued: ClaudeQueuedMessageInfo[] = session.messageQueue
       .filter(m => m.queuedId)
-      .map(m => ({ id: m.queuedId!, ...(m.messageId ? { messageId: m.messageId } : {}), content: m.content ?? m.prompt }))
+      .map(m => ({ id: m.queuedId!, ...(m.messageId ? { messageId: m.messageId } : {}), content: m.content ?? m.prompt, waitsFor: 'query' as const }))
+    return [...inQuery, ...queued]
   }
 
   private emitQueuedMessages(sessionId: string, session: SessionInstance) {
     this.send('claude:queued-messages', sessionId, this.queuedMessageInfos(session))
   }
 
-  /** Empty the message queue; tells the renderer only when a listed (queued) message goes away. */
-  private clearMessageQueue(sessionId: string, session: SessionInstance) {
-    const hadListed = session.messageQueue.some(m => m.queuedId)
+  /**
+   * Empty the message queue; tells the renderer only when a listed (queued) message goes away.
+   * T0815: the messages sent into the query go too (`dropSends`, default) — stop / abort / rest /
+   * reset / dispose end the query; Esc (`stopSession`) cancels them itself first.
+   */
+  private clearMessageQueue(sessionId: string, session: SessionInstance, dropSends = true) {
+    const hadListed = this.queuedMessageInfos(session).length > 0
     session.messageQueue.length = 0
+    if (dropSends) {
+      for (const entry of sendsOf(session).values()) this.clearReceiptTimer(entry)
+      sendsOf(session).clear()
+    }
     if (hadListed) this.emitQueuedMessages(sessionId, session)
   }
 
+  /** T0815: messages that still need a turn of their own (not started yet, not cancelled). */
+  private waitingSendCount(session: SessionInstance): number {
+    let n = session.messageQueue.length
+    for (const e of sendsOf(session).values()) if (e.state === 'sending' || e.state === 'queued') n++
+    return n
+  }
+
   /**
-   * T0769 / D214 P-1: the user cancels a queued message. `idle` tells the renderer that nothing
-   * else will answer (the latest turn has its result, or no query runs), so it can stop showing
-   * the turn as running.
+   * T0769 / D214 P-1: nothing else will answer (no query, or the latest turn has its result and no
+   * sent message is still waiting or running), so the renderer can stop showing the turn as running.
    */
-  cancelQueuedMessage(sessionId: string, queuedId: string): { cancelled: boolean; idle: boolean } {
+  private turnIdle(session: SessionInstance): boolean {
+    if (!session.state.isStreaming) return true
+    if (!session.mainTurnDone) return false
+    if (session.messageQueue.length > 0) return false
+    for (const e of sendsOf(session).values()) if (e.state === 'sending' || e.state === 'queued' || e.state === 'started') return false
+    return true
+  }
+
+  /**
+   * T0769 / D214 P-1: the user cancels a queued message ("待送"). T0815: one sent into the running
+   * query is cancelled in the CLI (`cancelSdkQueuedMessage`); when the CLI no longer has it in its
+   * queue it has started (`cancelled: false`, it leaves the list). One without a receipt yet is
+   * marked cancelled (its receipt, if it comes, cancels it). `idle`: see `turnIdle`.
+   */
+  async cancelQueuedMessage(sessionId: string, queuedId: string): Promise<{ cancelled: boolean; idle: boolean }> {
     const session = this.sessions.get(sessionId)
     if (!session) return { cancelled: false, idle: true }
+    const short = queuedId.slice(0, 12)
     const index = session.messageQueue.findIndex(m => m.queuedId === queuedId)
-    const idle = !session.state.isStreaming || !!session.mainTurnDone
-    if (index === -1) return { cancelled: false, idle }
-    session.messageQueue.splice(index, 1)
-    logger.log(`[Claude] queued message ${queuedId} cancelled sessionId=${sessionId.slice(0, 8)}`)
+    if (index !== -1) {
+      session.messageQueue.splice(index, 1)
+      sendsOf(session).delete(queuedId) // a fallback copy's entry
+      logger.log(`[Claude] queued message ${short} cancelled sessionId=${sessionId.slice(0, 8)}`)
+      this.emitQueuedMessages(sessionId, session)
+      return { cancelled: true, idle: this.turnIdle(session) }
+    }
+    const entry = sendsOf(session).get(queuedId)
+    if (!entry || (entry.state !== 'sending' && entry.state !== 'queued')) return { cancelled: false, idle: this.turnIdle(session) }
+    const hadReceipt = entry.state === 'queued'
+    entry.state = 'cancel-requested'
+    this.clearReceiptTimer(entry)
     this.emitQueuedMessages(sessionId, session)
-    return { cancelled: true, idle: idle && session.messageQueue.length === 0 }
+    const ok = await cancelSdkQueuedMessage(entry.query, queuedId)
+    logger.log(`[Claude] message ${short} cancel in the CLI: ${ok ? 'cancelled' : hadReceipt ? 'not in its queue (started)' : 'no receipt yet (marked cancelled)'} sessionId=${sessionId.slice(0, 8)}`)
+    if (ok || !hadReceipt) {
+      if (ok && sendsOf(session).get(queuedId) === entry) sendsOf(session).delete(queuedId)
+      return { cancelled: true, idle: this.turnIdle(session) }
+    }
+    // already dequeued for its turn: it runs (the `started` frame may still be on its way)
+    if (sendsOf(session).get(queuedId) === entry && entry.state === 'cancel-requested') entry.state = 'started'
+    this.emitQueuedMessages(sessionId, session)
+    return { cancelled: false, idle: this.turnIdle(session) }
   }
 
 
@@ -1290,6 +1587,26 @@ export class ClaudeAgentManager {
         session.lastQueryInit = sawInit ? readQueryInit(generator) : undefined
       }
       if (session) {
+        // T0815: messages sent into this query that never started (the CLI ended first) wait in the
+        // queue and go out with resume like any queued message; started / cancelled ones are done.
+        let sendsSettled = false
+        if (generator) {
+          const aborted = session.abortController.signal.aborted
+          for (const entry of [...sendsOf(session).values()]) {
+            if (entry.query !== generator) continue
+            sendsSettled = true
+            this.clearReceiptTimer(entry)
+            const waiting = entry.state === 'sending' || entry.state === 'queued'
+            // dropped from the map: a late write rejection / timer finds nothing to send (a
+            // `fallback` entry's copy already waits in messageQueue)
+            sendsOf(session).delete(entry.uuid)
+            if (waiting && !aborted) {
+              entry.state = 'fallback'
+              session.messageQueue.push({ prompt: entry.prompt, images: entry.images, queuedId: entry.uuid, messageId: entry.messageId, content: entry.content })
+              logger.log(`[Claude] message ${entry.uuid.slice(0, 8)} did not start before the query ended; sending with resume`)
+            }
+          }
+        }
         session.state.isStreaming = false
         session.currentPrompt = undefined
         session.activeTasks.clear()
@@ -1307,13 +1624,16 @@ export class ClaudeAgentManager {
           }
         }
         // Process queued messages
+        const listedBefore = sendsSettled
         const next = session.messageQueue.shift()
         if (next) {
           if (next.queuedId) {
             logger.log(`[Claude] sending queued ${next.queuedId} after the query ended`)
-            this.emitQueuedMessages(sessionId, session)
           }
+          if (next.queuedId || listedBefore) this.emitQueuedMessages(sessionId, session)
           this.runQuery(sessionId, next.prompt, next.images)
+        } else if (listedBefore) {
+          this.emitQueuedMessages(sessionId, session)
         }
       }
     }
@@ -1337,6 +1657,9 @@ export class ClaudeAgentManager {
     if (lifecycleSummary) {
       // T0814: command_lifecycle → one debug-level summary line instead of a `[claude:msg]` line
       logger.debug(lifecycleSummary)
+      // T0815: receipts / turn boundaries of the messages sent into the running query
+      const lifecycle = parseCommandLifecycle(message)
+      if (lifecycle) this.onCommandLifecycle(sessionId, session, lifecycle.uuid, lifecycle.state)
     } else if (message.type !== 'stream_event' && message.type !== 'assistant') {
       logger.log(`[claude:msg] type=${message.type} subtype=${msgSubtype || ''} parent_tool_use_id=${(message as { parent_tool_use_id?: string }).parent_tool_use_id || 'none'}`)
     }
@@ -1371,7 +1694,24 @@ export class ClaudeAgentManager {
     }
 
     if (message.type === 'system' && message.subtype === 'init') {
-      const initMsg = message as { session_id: string; model?: string; cwd?: string; permissionMode?: string }
+      const initMsg = message as { session_id: string; model?: string; cwd?: string; permissionMode?: string; capabilities?: unknown }
+      // T0815: the CLI sends `command_lifecycle` receipts → messages sent into the query are tracked
+      const receipts = Array.isArray(initMsg.capabilities) && initMsg.capabilities.includes(LIFECYCLE_CAPABILITY)
+      if (session.lifecycleReceipts !== receipts) logger.log(`[Claude] lifecycle receipts ${receipts ? 'on' : 'off'} (${LIFECYCLE_CAPABILITY}) sessionId=${sessionId.slice(0, 8)}`)
+      session.lifecycleReceipts = receipts
+      for (const entry of [...sendsOf(session).values()]) {
+        if (entry.state !== 'sending') continue
+        if (receipts) {
+          this.armReceiptTimer(sessionId, session, entry) // sent before the first init
+        } else {
+          // no receipts will come: it went into the query like a T0769 injection; nothing to track
+          sendsOf(session).delete(entry.uuid)
+          this.emitQueuedMessages(sessionId, session)
+        }
+      }
+      // No usage reset here: a sent message's turn is reset at its `started` frame (whichever of the
+      // two comes first), the query's first turn at runQuery start; a turn the CLI starts on its own
+      // (after a background Agent ends) keeps the pre-T0815 behavior.
       session.sdkSessionId = initMsg.session_id
       sdkSessionIds.set(sessionId, initMsg.session_id)
       session.metadata.model = initMsg.model
@@ -1680,6 +2020,15 @@ export class ClaudeAgentManager {
 
     if (message.type === 'result') {
       session.mainTurnDone = true // T0769: a message sent from now on goes into this query
+      // T0815: this result answers every sent message that started (its own turn, or folded in)
+      let answered = 0
+      for (const entry of [...sendsOf(session).values()]) {
+        if (entry.state !== 'started') continue
+        sendsOf(session).delete(entry.uuid)
+        answered++
+      }
+      const pendingTurns = this.waitingSendCount(session)
+      if (answered || pendingTurns) logger.log(`[Claude] result: answered=${answered} still waiting=${pendingTurns} sessionId=${sessionId.slice(0, 8)}`)
       const resultMsg = message as {
         subtype: string
         total_cost_usd?: number
@@ -1792,6 +2141,8 @@ export class ClaudeAgentManager {
         totalTokens: session.state.totalTokens,
         result: resultMsg.result,
         errors: resultMsg.errors,
+        // T0815: sent messages that still need a turn — the renderer keeps showing "running"
+        pendingTurns,
       })
 
       this.sendCompletionNotification(session, resultMsg.result)
@@ -1801,13 +2152,32 @@ export class ClaudeAgentManager {
   async stopSession(sessionId: string): Promise<boolean> {
     const session = this.sessions.get(sessionId)
     if (session) {
-      this.clearMessageQueue(sessionId, session)
+      // T0815 (D259 ③): Esc also cancels every message still waiting. The ones sent into the query
+      // are cancelled in the CLI before the interrupt (after it the CLI's drain loop would start the
+      // next one at once), then once more for any the interrupt receipt lists as `still_queued`.
+      const waiting = [...sendsOf(session).values()].filter(e => e.state === 'sending' || e.state === 'queued' || e.state === 'fallback')
+      for (const entry of waiting) {
+        entry.state = 'cancel-requested'
+        this.clearReceiptTimer(entry)
+      }
+      this.clearMessageQueue(sessionId, session, false)
+      if (waiting.length) this.emitQueuedMessages(sessionId, session)
       let interrupted = false
       if (session.queryInstance && session.state.isStreaming) {
+        const instance = session.queryInstance
+        const ours = waiting.filter(e => e.query === instance)
+        for (const entry of ours) {
+          void cancelSdkQueuedMessage(instance, entry.uuid).then(ok => logger.log(`[Claude] Esc: message ${entry.uuid.slice(0, 8)} cancelled=${ok}`))
+        }
         // Use graceful interrupt if the query is active, fallback to abort
         try {
-          await session.queryInstance.interrupt()
+          const receipt = await instance.interrupt()
           interrupted = true
+          const stillQueued = Array.isArray(receipt?.still_queued) ? receipt.still_queued : []
+          for (const uuid of stillQueued) {
+            if (ours.some(e => e.uuid === uuid)) void cancelSdkQueuedMessage(instance, uuid)
+          }
+          if (ours.length || stillQueued.length) logger.log(`[Claude] Esc: interrupt cancelled ${ours.length} waiting message(s), still_queued=${stillQueued.length} sessionId=${sessionId.slice(0, 8)}`)
         } catch {
           session.abortController.abort()
         }

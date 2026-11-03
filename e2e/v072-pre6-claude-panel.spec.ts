@@ -33,6 +33,14 @@
 //      only that turn — the sub-agent keeps running and completes once released. The queued fallback
 //      (input already closed) cannot be produced with the real CLI: unit tests cover it
 //      (electron/__tests__/claude-send-during-background-agent.test.ts, src/__tests__/claude-panel-queued-message.test.tsx)
+//   ⑦d (T0815 / PLAN-058 W0, D259) a message sent while the main turn is held: 「目前回合結束後送出」 note
+//      (waits-for=turn); released → both answered in the same conversation, the 2nd sent once, no
+//      「已中斷」 prefix, the 1st not re-sent. ⑦e cancel on the note → no request for it. ⑦f Esc while
+//      a message waits → note gone, no request for it, the next message answers normally.
+//   ⑥b (T0815, D259 ④) a message waiting when the permission card comes up (the input box is hidden while
+//      a card waits, so it is sent before): 「目前回合結束後送出」 → 「請先回答上方問題，回答後送出」,
+//      the card stays; 是 → the tool runs, then the message is answered (records whether the CLI folded
+//      it into the same turn)
 //   ⑧ a seeded `claude-code-v2` tab with an sdkSessionId: reads as Claude Agent; records whether
 //      the next message resumed or started fresh
 //   ⑨ a claude-cli PTY's env has no CLAUDE_CODE_ENABLE_TODO_TOOLS (and the main process neither)
@@ -120,6 +128,19 @@ const SCENARIOS: Record<string, Scenario> = {
     { tool: { name: 'Bash', input: { command: 'mkdir t0727-perm-deny', description: 'T0727 permission probe (deny)' } } },
     { text: ['deny ', 'done'] },
   ][step] ?? null,
+  // T0815 (PLAN-058 W0): messages sent while a (held) turn runs
+  'turn-a': ({ step }) => (step === 0 ? { text: ['turn-a ', 'answer'] } : null),
+  'turn-b': ({ step }) => (step === 0 ? { text: ['turn-b ', 'answer'] } : null),
+  'turn-c': ({ step }) => (step === 0 ? { text: ['turn-c ', 'answer'] } : null),
+  'turn-d': ({ step }) => (step === 0 ? { text: ['turn-d ', 'never'] } : null),
+  'turn-e': ({ step }) => (step === 0 ? { text: ['turn-e ', 'answer'] } : null),
+  'turn-f': ({ step }) => (step === 0 ? { text: ['turn-f ', 'never'] } : null),
+  'turn-g': ({ step }) => (step === 0 ? { text: ['turn-g ', 'answer'] } : null),
+  'perm-fold': ({ step }) => [
+    { tool: { name: 'Bash', input: { command: 'mkdir t0815-perm-fold', description: 'T0815 permission probe (fold)' } } },
+    { text: ['fold ', 'done'] },
+  ][step] ?? null,
+  'fold-extra': ({ step }) => (step === 0 ? { text: ['fold-extra ', 'answer'] } : null),
   v2: ({ step }) => (step === 0 ? { text: ['v2 ', 'continued'] } : null),
   cfg: ({ step }) => (step === 0 ? { text: ['config-dir ', 'answer ', 'T0730'] } : null),
 }
@@ -440,6 +461,66 @@ test('Claude panel against a fake Anthropic API: task list, resume, streaming, p
     log(`⑦c followup answered in ${followupMs} ms while the sub-agent was held; after Esc on the injected turn the sub-agent kept running; released: ${JSON.stringify(bg3Result)}`)
     results['⑦c'] = `PASS — followup answered in ${followupMs} ms with the background sub-agent held (bar 1 item, card running, no "Agent terminated unexpectedly", sub-agent not restarted); Esc on a held injected turn: bar still 1, card running; released → bar empty, ${JSON.stringify(bg3Result)}`
 
+    // ── ⑦d (T0815 / PLAN-058 W0, D259): send while the main turn runs → queued, not interrupted ──
+    const input = activePanel(win).locator('textarea.claude-input')
+    const notRunning = async () => !((await input.getAttribute('placeholder')) ?? '').startsWith('Press Esc to pause')
+    await expect.poll(notRunning, { timeout: 30_000 }).toBe(true)
+    const queuedNote = sonnet.locator('.claude-queued-note')
+    fake.gate('turn-a')
+    await send(win, '[[T0727:turn-a]] first turn')
+    await fake.waitFor('turn-a', 0, 60_000)
+    await send(win, '[[T0727:turn-b]] sent during the turn')
+    await expect(queuedNote).toHaveCount(1, { timeout: 15_000 })
+    await expect(queuedNote).toHaveAttribute('data-waits-for', 'turn')
+    const turnNoteText = ((await queuedNote.textContent()) ?? '').trim()
+    expect(turnNoteText).toContain('目前回合結束後送出。')
+    await sonnet.screenshot({ path: test.info().outputPath('t0815-queued-during-turn.png') })
+    fake.release('turn-a', 0)
+    await waitText(sonnet, 'turn-a answer', 30_000)
+    await waitText(sonnet, 'turn-b answer', 30_000)
+    await expect(queuedNote).toHaveCount(0, { timeout: 15_000 })
+    await expect.poll(notRunning, { timeout: 30_000 }).toBe(true)
+    const turnB = fake.requests.filter(r => r.scenario === 'turn-b')
+    expect(turnB).toHaveLength(1) // sent once
+    expect(turnB[0].userText).toContain('[[T0727:turn-a]]') // the same conversation, after turn-a
+    expect(turnB[0].userText).not.toContain('使用者先前的訊息（已中斷）')
+    expect(await sonnet.textContent()).not.toContain('使用者先前的訊息（已中斷）')
+    expect(fake.requests.filter(r => r.scenario === 'turn-a')).toHaveLength(1) // turn-a was not aborted and re-sent
+    log(`⑦d note ${JSON.stringify(turnNoteText)}; turn-b request ${summary(turnB[0])} messages=${turnB[0].messageCount}`)
+    results['⑦d'] = `PASS — sent during a held turn: note ${JSON.stringify(turnNoteText)} (waits-for=turn); released → "turn-a answer" then "turn-b answer" in the same conversation (turn-b request ${turnB[0].messageCount} messages, sent once, no 已中斷 prefix, turn-a not re-sent); note gone, turn shown as ended`
+
+    // ── ⑦e (T0815): cancel a waiting message ──
+    fake.gate('turn-c')
+    await send(win, '[[T0727:turn-c]] another turn')
+    await fake.waitFor('turn-c', 0, 60_000)
+    await send(win, '[[T0727:turn-d]] cancel me')
+    await expect(queuedNote).toHaveCount(1, { timeout: 15_000 })
+    await queuedNote.locator('.claude-queued-cancel-btn').click()
+    await expect(queuedNote).toHaveCount(0, { timeout: 15_000 })
+    fake.release('turn-c', 0)
+    await waitText(sonnet, 'turn-c answer', 30_000)
+    await expect.poll(notRunning, { timeout: 30_000 }).toBe(true)
+    await win.waitForTimeout(3_000)
+    expect(fake.requests.filter(r => r.scenario === 'turn-d')).toEqual([])
+    results['⑦e'] = 'PASS — cancel on the waiting note: note gone; the held turn answered; no request for the cancelled message within 3 s; turn shown as ended'
+
+    // ── ⑦f (T0815, D259 ③): Esc stops the turn and cancels the waiting message ──
+    fake.gate('turn-e')
+    await send(win, '[[T0727:turn-e]] a turn to stop')
+    await fake.waitFor('turn-e', 0, 60_000)
+    await send(win, '[[T0727:turn-f]] dropped by Esc')
+    await expect(queuedNote).toHaveCount(1, { timeout: 15_000 })
+    await input.press('Escape')
+    await expect(queuedNote).toHaveCount(0, { timeout: 15_000 })
+    fake.release('turn-e', 0)
+    await win.waitForTimeout(3_000)
+    expect(fake.requests.filter(r => r.scenario === 'turn-f')).toEqual([])
+    await expect.poll(notRunning, { timeout: 30_000 }).toBe(true)
+    await send(win, '[[T0727:turn-g]] after Esc')
+    await waitText(sonnet, 'turn-g answer', 60_000)
+    expect(fake.requests.filter(r => r.scenario === 'turn-f')).toEqual([])
+    results['⑦f'] = 'PASS — Esc during a held turn with a waiting message: note gone, no request for the waiting message; the next message answered normally'
+
     // ── ⑥: permission in `default` mode, allow then deny ──
     // Between turns the call returns false (the finished query's setPermissionMode throws) but the
     // session keeps the mode for the next turn — the permission card below is the real check.
@@ -467,6 +548,61 @@ test('Claude panel against a fake Anthropic API: task list, resume, streaming, p
     expect(fs.existsSync(path.join(folder, 't0727-perm-deny'))).toBe(false)
     log(`⑥ allow: title=${JSON.stringify(allowTitle)} folder created; deny: folder absent; deny turn messages=${denyRequest?.messageCount}`)
     results['⑥'] = `PASS — permission card (${JSON.stringify(allowTitle.trim())}); 是 → mkdir ran (folder exists); 否 → folder absent, the model got the denial and answered`
+
+    // ── ⑥b (T0815, D259 ④): a waiting message when the permission card comes up → after the answer ──
+    // The input box is hidden while a card waits (existing UI), so the message is sent while the turn
+    // is held, before its tool call; then the card comes up and the note says to answer it first.
+    fake.gate('perm-fold')
+    fake.release('perm-fold', 1) // only the request that returns the Bash call is held
+    await send(win, '[[T0727:perm-fold]] make a folder, then more')
+    await fake.waitFor('perm-fold', 0, 60_000)
+    await send(win, '[[T0727:fold-extra]] extra sent before the card')
+    const foldNote = sonnet.locator('.claude-queued-note')
+    await expect(foldNote).toHaveCount(1, { timeout: 15_000 })
+    const foldNoteBefore = ((await foldNote.textContent()) ?? '').trim()
+    expect(foldNoteBefore).toContain('目前回合結束後送出。')
+    fake.release('perm-fold', 0)
+    await expect(card).toBeVisible({ timeout: 60_000 })
+    await expect(foldNote).toContainText('請先回答上方問題，回答後送出。', { timeout: 15_000 })
+    const foldNoteText = ((await foldNote.textContent()) ?? '').trim()
+    expect(foldNoteText).toContain('請先回答上方問題，回答後送出。')
+    await expect(card).toBeVisible() // the card stays; nothing was interrupted
+    await sonnet.screenshot({ path: test.info().outputPath('t0815-queued-while-card-waits.png') })
+    await card.locator('.claude-permission-option').first().click() // 1 是
+    const foldLog = () => {
+      const dir = path.join(inst!.userData, 'Logs')
+      const lines = fs.existsSync(dir) ? fs.readdirSync(dir).filter(f => f.endsWith('.log')).flatMap(f => fs.readFileSync(path.join(dir, f), 'utf8').split(/\r?\n/)) : []
+      return lines.filter(l => /send into the running query|not delivered|did not start|receipt after fallback|result: answered|lifecycle receipts|claude:lifecycle/.test(l)).slice(-30).map(l => l.replace(/^.*?\[(Claude|claude:lifecycle)\]/, '[$1]'))
+    }
+    const foldRequests = () => fake.requests.filter(r => r.scenario === 'perm-fold' || r.scenario === 'fold-extra')
+      .map(r => `#${r.seq} ${r.scenario}/${r.step} messages=${r.messageCount} carriesFoldExtra=${r.userText.includes('[[T0727:fold-extra]]')}`)
+    // The CLI either folds the message into this turn at the tool result (T0813 F3′: its lifecycle goes
+    // queued → started → completed with the permission turn, no turn of its own; the fake API does not
+    // see the folded text, so it answers the tool result with "fold done"), or runs it as its own turn
+    // afterwards ("fold-extra answer"). Either way it is delivered once and nothing is interrupted.
+    const settled = await expect.poll(async () => {
+      const text = (await sonnet.textContent()) ?? ''
+      return text.includes('fold-extra answer') || (text.includes('fold done') && (await foldNote.count()) === 0)
+    }, { timeout: 60_000 }).toBe(true).then(() => true, () => false)
+    const bat = foldLog()
+    const sendLine = [...bat].reverse().find(l => l.includes('send into the running query'))
+    const foldUuid = /uuid=([0-9a-f]{8})/.exec(sendLine ?? '')?.[1] ?? ''
+    const states = bat.filter(l => foldUuid && l.includes(`uuid=${foldUuid}`) && l.includes('state=')).map(l => /state=(\w+)/.exec(l)?.[1])
+    log(`⑥b requests ${JSON.stringify(foldRequests())}; message ${foldUuid} lifecycle ${JSON.stringify(states)}`)
+    if (!settled) {
+      log(`⑥b not settled: BAT log ${JSON.stringify(bat)}; panel has "fold done": ${((await sonnet.textContent()) ?? '').includes('fold done')}`)
+      throw new Error('⑥b: the message waiting when the permission card came up was not answered')
+    }
+    await expect(foldNote).toHaveCount(0, { timeout: 15_000 })
+    await expect.poll(async () => !((await activePanel(win).locator('textarea.claude-input').getAttribute('placeholder')) ?? '').startsWith('Press Esc to pause'), { timeout: 30_000 }).toBe(true)
+    expect(fs.existsSync(path.join(folder, 't0815-perm-fold'))).toBe(true)
+    expect(await sonnet.textContent()).not.toContain('使用者先前的訊息（已中斷）')
+    const foldExtra = fake.requests.filter(r => r.scenario === 'fold-extra')
+    expect(foldExtra.length).toBeLessThanOrEqual(1) // never sent twice
+    const foldedIn = foldExtra.length === 0
+    if (foldedIn) expect(states).toEqual(expect.arrayContaining(['queued', 'started', 'completed']))
+    expect(fake.requests.filter(r => r.scenario === 'perm-fold' && r.step === 0)).toHaveLength(1) // the turn was not interrupted / re-run
+    results['⑥b'] = `PASS — waiting note ${JSON.stringify(foldNoteBefore)} → when the permission card came up ${JSON.stringify(foldNoteText)}, card kept; 是 → mkdir ran; ${foldedIn ? `the CLI folded the message into the same turn at the tool result (lifecycle ${JSON.stringify(states)}, no turn of its own)` : 'it ran as its own turn afterwards ("fold-extra answer")'}; sent once, no 已中斷, the permission turn not re-run`
     const sonnetSession = await sdkSessionIdOf(win, TAB_SONNET)
 
     // ── ⑨: a claude-cli PTY's env ──

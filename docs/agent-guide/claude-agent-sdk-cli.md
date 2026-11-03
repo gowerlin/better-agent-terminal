@@ -114,6 +114,8 @@
 
 ## Claude 面板：背景子代理執行中送出訊息（T0769 / BUG-192，D214）
 
+> T0815（PLAN-058 W0，D259）起：CLI 在 `system/init` 宣告 `msg_lifecycle_v1`（內嵌 2.1.316 有）時，query 進行中送出的訊息一律走下一節「主回合中送出排進同一個 query」（含本節的背景子代理情境）；本節的注入、「中斷＋重送」與排隊路徑只留給**沒有回執的 CLI**（`lifecycleReceipts === false`，較舊的 system runtime）。下面的「不變（D214）」第一點（主回合中送出＝中斷＋重送）在有回執的 CLI 上已改變。
+
 - **用途**：主回合已 `result`、背景子代理讓 query 仍開著時，使用者送出的新訊息改用 `Query.streamInput()` 送進同一個 query（CLI 正忙時自己排隊），子代理不受影響、卡片與 task bar 不變。修正前走「中止目前 query 再送」：子代理一起結束，卡片標 `Agent terminated unexpectedly`，resume 後模型看不到子代理的結果（T0768 ①）。
 - 🔴 規則：
   - 背景子代理執行中不得 `abort()` 或另開 query（同一 session 不得同時兩個 CLI 程序）。
@@ -139,6 +141,25 @@
 - **`command_lifecycle` 日誌**：CLI 的 `command_lifecycle` 訊息（`{ type: 'command_lifecycle', uuid, state }`；也接受 `system` + `command_uuid`）不再記 `[claude:msg]` 行，改記一行 debug 等級 `[claude:lifecycle] state=<state> uuid=<前 8 碼>`（`commandLifecycleSummary`）；其他訊息的 `[claude:msg]` 不變。
 - **唯一實作**：`sdkSpawnEnv` / `disposeSession` / `readQueryInit` / `commandLifecycleSummary` / `runQuery` finally（`electron/claude-agent-manager.ts`）、handler `claude:dispose-session`（`electron/handlers/claude.ts`）、`closeTerminalNow`（`src/stores/workspace-store.ts`）。
 - **驗證**：`electron/__tests__/claude-panel-prereq-t0814.test.ts`（全域 env 前後不變、spawn env 有該變數、使用者原有值不被刪；dispose 後不在 map、`close()`、排隊不再送；query 結束後不呼叫已結束 query 的 `setModel` 等、init 快取可讀；停止後立刻送新訊息的守衛；lifecycle 日誌）＋突變檢查；`src/stores/__tests__/workspace-store.closeTerminalNow.test.ts`。
+
+## Claude 面板：主回合中送出排進同一個 query（T0815，PLAN-058 W0，D259）
+
+- **用途**：主回合進行中（含權限卡 / AskUserQuestion 卡等待、背景子代理讓 query 開著）送出的訊息，不再中斷目前回合；以 `Query.streamInput()` 送進同一個 query，CLI 排在目前回合之後（或在工具結果的邊界折入同一回合），面板在該訊息下顯示「待送」＋取消。取代 D214 P-2 的「中斷＋重送」。T0813 實測（SDK 0.3.316 / CLI 2.1.316）：字串 prompt 的 query 在主回合中接受 `streamInput`，CLI 排隊後在第 1 個 `result` 之後跑第 2 回合（6/6），不需常駐程序（方案 B 延後）。
+- 🔴 規則（D259）：
+  - 不 `abort()`、不另開 query、不清 `pendingPermissions` / `pendingAskUser`、不加「使用者先前的訊息（已中斷）」前綴、不送空白訊息（BUG-177）。
+  - 每則送出帶自己的 `uuid`（`crypto.randomUUID()`）；同一則不得送兩次：只有沒拿到回執（`streamInput` reject、`INJECT_RECEIPT_TIMEOUT_MS` = 2000 ms 內沒有 `queued`）、或 CLI 回 `refused` / `discarded` 而且還沒 `started` 時，才改走「query 結束後以 resume 送出」；之後才到的 `queued` 回執會把那份排隊的副本移除。
+  - `resetQueryUsage` 在該訊息自己的回合開始時呼叫（`started` 時上一回合已 `result`；`system/init` 與 `started` 誰先到都一樣，init 不重設），不在送出時（主回合還在串流，會清掉它的單次呼叫列）；折入同一回合的訊息與該回合共用一列 R。query 的第一回合（字串 prompt、沒有 uuid）照舊在 `runQuery` 開頭重設；CLI 自己開的回合（背景子代理結束後）維持 T0815 前的行為。`turnModelUsage` 不改。
+  - Esc（`stopSession`）：先對每則待送訊息呼叫 `cancelSdkQueuedMessage`，再 `interrupt()`（之後 CLI 的 drain loop 會立刻開下一則，所以順序不能反），回執 `still_queued` 列到的再取消一次；待送清單清空。停止 / 雙 Esc（`abortSession`）、`/abort`、休眠、reset、關分頁照舊結束 query，待送一併丟掉。
+  - `Query.cancelAsyncMessage` 在 `sdk.mjs` 有、`sdk.d.ts` 的 `Query` 型別沒有：🔴 只經 `cancelSdkQueuedMessage`（型別轉換、不存在或丟錯回 false）呼叫；SDK 升版必跑 `electron/__tests__/claude-send-during-turn.test.ts`（檢查 `sdk.mjs` 仍有該方法、呼叫點只有一處）。d.ts 補上型別時拿掉轉換並更新該測試。
+  - T0759（背景項目只由 `task_notification` 或 query 結束清除）、T0769「`exited with code` 的不 resume 重試只在尚未收到 `system/init` 時」不變。
+- **回執判斷**：CLI 的 `command_lifecycle`（2.1.316：`{ type: 'system', subtype: 'command_lifecycle', command_uuid, state }`，state `queued` / `started` / `completed` / `cancelled` / `discarded` / `refused`）。`system/init` 的 `capabilities` 有 `msg_lifecycle_v1` → `lifecycleReceipts = true`，回執計時從送出（或第一個 init 之前送出的，從該 init）開始；init 沒有這個 capability → `false`，之後 query 中送出走 T0769 / D214 的舊路徑，已送出的視為已送達（不計時、不重送）。
+- **每則訊息的狀態**（`SessionInstance.pendingSends`，key = uuid）：`sending`（已寫、沒回執）→ `queued`（回執）→ `started`（回合開始或折入）→ 下一個 `result` 視為已回答、移除；`fallback`（沒回執，副本在 `messageQueue` 等 query 結束）；`cancel-requested`（使用者取消 / Esc；晚到的 `queued` 會再取消一次，計時器到期不重送）。query 結束時還在 `sending` / `queued` 的（CLI 先結束）→ 進 `messageQueue` 以 resume 送出（使用者 abort 的不送）。query 還在建立（`queryInstance` 未設）時送出 → 直接排隊等 query 結束，不 abort。
+- **「執行中」**：主行程 `isStreaming` 仍 = query 開著。`claude:result` 多一個 `pendingTurns`（`sending` / `queued` 的數量＋`messageQueue` 長度）；renderer `keepsStreamingAfterResult` 為真時不結束「執行中」（停止按鈕、T0762 等待卡、縮圖狀態跟著），舊 host 沒有這個欄位 → 照舊結束。取消的 `idle`（`turnIdle`）：沒有 query，或最新回合已 `result` 而且沒有 `sending` / `queued` / `started` 與排隊訊息。Cache History 的回合錨點：執行中送出的訊息 id 排進 `queuedTurnMsgIdsRef`，`pendingTurns > 0` 的 `result` 時換下一個。
+- **待送清單**：`claude:queued-messages`（形狀沿用 T0769，多 `waitsFor`：`turn` = 已送進 query、`query` = 等 query 結束）；面板 `.claude-queued-note`（`data-waits-for`）文字：有權限 / 提問卡等待時「請先回答上方問題，回答後送出。」，`turn`「目前回合結束後送出。」，`query` / 沒有欄位「等背景子代理結束後送出。」（`queuedNoteKey`）。取消 `claude:cancel-queued-message` 改為 async：`turn` 的呼叫 `cancelSdkQueuedMessage`，CLI 已不在佇列（已開始）→ `cancelled: false`，面板移除提示並顯示「這則訊息已開始處理，無法取消。」；還沒回執的標 `cancel-requested` 並回 `cancelled: true`；`query` 的從 `messageQueue` 移除（不呼叫 CLI）。
+- **卡片等待時**：權限卡 / AskUserQuestion 卡顯示時輸入框是隱藏的（既有 UI），所以實際情境是「訊息先排隊、之後卡片出現」：提示改為「請先回答上方問題」，回答後 CLI 在工具結果邊界折入（T0813 F3′）或排在之後；不自動中斷提問（D259 ④）。
+- **唯一實作**：`sendMessage` 的追蹤分支、`sendIntoRunningQuery` / `armReceiptTimer` / `fallbackPendingSend` / `queueUntilQueryEnds` / `onCommandLifecycle` / `queuedMessageInfos` / `waitingSendCount` / `turnIdle` / `cancelQueuedMessage` / `stopSession`、`parseCommandLifecycle` / `cancelSdkQueuedMessage` / `INJECT_RECEIPT_TIMEOUT_MS` / `LIFECYCLE_CAPABILITY`、`processMessage` 的 init / lifecycle / result、`runQuery` finally（`electron/claude-agent-manager.ts`）；`queuedNoteKey` / `keepsStreamingAfterResult`（`src/types/claude-agent.ts`）；`ClaudeAgentPanel.tsx` 的 `onResult` / `cancelQueuedMessage` / `renderQueuedNote`；字串 `claude.queuedUntilTurnDone` / `queuedUntilAnswered` / `queuedMessageAlreadyStarted`。
+- **已知限制**：取消時 CLI 若已把訊息取出準備下一回合（`cancelAsyncMessage` 回 false），它照常執行；Esc 的取消也一樣（極窄的時間窗）。沒有回執的 CLI 在第一個 init 之前送出的訊息，只能等 init 才知道要不要計時。待送清單不跨面板重新掛載（重新掛載後提示不見，訊息仍會送出）。
+- **驗證**：`electron/__tests__/claude-send-during-turn.test.ts`（28 項：帶 uuid、不 abort / 不另開 query / 卡片保留 / 無前綴；`queued` → `pendingTurns` → `started` 才重設 R 列（兩種 frame 順序，init 不重設）、折入不重設；空白不送；背景子代理情境；沒回執 2 s → 排隊、晚到回執去重、及時回執不排隊、reject、query 結束後 reject、`refused`、query 先結束；query 建立中送出；capability 才計時、沒有 capability 走舊路徑；取消四種情況；Esc 先取消再 interrupt、`still_queued` 再取消、排隊副本丟掉；abort 後計時器不重送；helper 與 SDK 升版守門）＋突變檢查 13/13；`electron/__tests__/claude-send-during-background-agent.test.ts`（沒有回執的 CLI：T0769 / D214 舊路徑）；`src/__tests__/claude-panel-queued-message.test.tsx`（`turn` / 卡片等待文字、已開始的取消、`pendingTurns` 維持執行中、舊 host）；e2e `e2e/v072-pre6-claude-panel.spec.ts` ⑦d / ⑦e / ⑦f / ⑥b（假 API）、`e2e/v072-real-model-claude-panel.spec.ts` 的 T0815 test（Haiku 5.5）。
 
 ## Claude 面板額外的模型請求（T0733 / T0734，D199）
 

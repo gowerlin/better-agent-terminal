@@ -38,11 +38,30 @@ export interface ClaudeSessionState {
  * T0769 / BUG-192: a message that could not go into the open query (its input had closed) and
  * waits for that query to end (`claude:queued-messages`). `messageId` / `content` = the user
  * message main broadcast for it.
+ * T0815 (PLAN-058 W0): also a message sent while a turn runs (`waitsFor: 'turn'`: the CLI runs it
+ * after that turn, or folds it in once a waiting card is answered); `'query'` (or absent, older
+ * hosts) = it waits for the query to end.
  */
 export interface ClaudeQueuedMessage {
   id: string
   messageId?: string
   content: string
+  waitsFor?: 'turn' | 'query'
+}
+
+/** T0815: which "待送" note a queued message shows (i18n key under `claude.`). */
+export function queuedNoteKey(q: Pick<ClaudeQueuedMessage, 'waitsFor'>, cardWaiting: boolean): string {
+  if (cardWaiting) return 'queuedUntilAnswered'
+  return q.waitsFor === 'turn' ? 'queuedUntilTurnDone' : 'queuedUntilBackgroundDone'
+}
+
+/**
+ * T0815: whether the panel still shows the turn as running after a `result`: the host says sent
+ * messages still need a turn (`pendingTurns`, absent on older hosts → stop as before).
+ */
+export function keepsStreamingAfterResult(resultData: unknown): boolean {
+  const n = (resultData as { pendingTurns?: unknown } | undefined)?.pendingTurns
+  return typeof n === 'number' && n > 0
 }
 
 /**
