@@ -335,7 +335,10 @@ describe('bat-terminal --wait-started (T0600)', () => {
   }, 60000)
 
   it('--help documents it (exit 8, the three lines, the old-helper rule)', async () => {
-    const r = await run(['--help'], {})
+    // T0808 / BUG-208: --help is logged too; an empty env wrote to the user's real bat-scripts.log
+    const dir = join(tmpdir(), `bat-t0600-help-${process.pid}-${Date.now()}-${Math.random().toString(16).slice(2)}`)
+    tempDirs.push(dir)
+    const r = await run(['--help'], { BAT_HELPER_LOG_DIR: join(dir, 'Logs'), BAT_USER_DATA: dir })
     expect(r.code).toBe(0)
     expect(r.stdout).toContain('--wait-started <ms>')
     expect(r.stdout).toContain('started: unconfirmed')

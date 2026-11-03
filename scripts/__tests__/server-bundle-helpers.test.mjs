@@ -25,6 +25,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { afterAll, describe, expect, it } from 'vitest'
+import { cleanupHelperLogDir, helperLogEnv } from './_helper-test-env.mjs'
 
 const repoRoot = fileURLToPath(new URL('../..', import.meta.url))
 const scriptsDir = join(repoRoot, 'scripts')
@@ -39,6 +40,7 @@ function makeTmp(label) {
 }
 afterAll(() => {
   for (const dir of tmpRoots) rmSync(dir, { recursive: true, force: true })
+  cleanupHelperLogDir()
 })
 
 function parseHelperList(source) {
@@ -49,8 +51,11 @@ function parseHelperList(source) {
 
 const cleanEnv = () => Object.fromEntries(Object.entries(process.env).filter(([k]) => !k.toUpperCase().startsWith('BAT_')))
 
+// T0808 / BUG-208: without opts.env the helpers log to a temp dir, never the user's real
+// bat-scripts.log. The logger / userData tests below pass their own env (cleanEnv() + a temp
+// home), so they still see BAT_HELPER_LOG_DIR / BAT_USER_DATA unset.
 function runNode(args, opts = {}) {
-  return spawnSync(process.execPath, args, { encoding: 'utf8', env: cleanEnv(), timeout: 20_000, ...opts })
+  return spawnSync(process.execPath, args, { encoding: 'utf8', env: { ...cleanEnv(), ...helperLogEnv() }, timeout: 20_000, ...opts })
 }
 
 /** <root>/package.json + <root>/scripts/<listed helpers> — the staging layout. */

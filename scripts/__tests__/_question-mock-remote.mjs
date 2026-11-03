@@ -11,12 +11,14 @@ import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import tls from 'node:tls'
 import selfsigned from 'selfsigned'
+import { cleanupHelperLogDir, helperLogEnv } from './_helper-test-env.mjs'
 
 export const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..')
 const tempDirs = []
 
 export function cleanupTempDirs() {
   for (const dir of tempDirs.splice(0)) rmSync(dir, { recursive: true, force: true })
+  cleanupHelperLogDir()
 }
 
 function wsFrame(payload) {
@@ -154,6 +156,8 @@ export async function startMockRemote(replies = {}, { decoy = false } = {}) {
 /**
  * Runs `scripts/<script>` with `args`; `stdin` = a string / Buffer written then closed, or
  * undefined for no stdin at all ('ignore'). BAT_* / CT_* of this process are not inherited.
+ * The log goes to helperLogEnv() unless `env` names its own dir (T0808 / BUG-208: an empty
+ * `env`, e.g. for `--help`, used to land in the user's real bat-scripts.log).
  */
 export function runHelper(script, args, env, stdin) {
   return new Promise((res) => {
@@ -162,7 +166,7 @@ export function runHelper(script, args, env, stdin) {
     for (const [k, v] of Object.entries(process.env)) if (!k.startsWith('BAT_') && !k.startsWith('CT_')) childEnv[k] = v
     const child = spawn(process.execPath, [join(repoRoot, 'scripts', script), ...args], {
       cwd: repoRoot,
-      env: { ...childEnv, ...env },
+      env: { ...childEnv, ...helperLogEnv(), ...env },
       stdio: [stdin === undefined ? 'ignore' : 'pipe', 'pipe', 'pipe'],
       windowsHide: true,
     })
