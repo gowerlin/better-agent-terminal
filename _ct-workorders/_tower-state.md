@@ -1,8 +1,8 @@
 ---
 schema_kind: tower-state
 summary_version: 1
-updated_at: "2026-11-03T12:55:36+08:00"
-session: "2026-11-03 12:55 第一百一十 session 收工（CT v6.0.0-beta.11）"
+updated_at: "2026-11-03T13:21:51+08:00"
+session: "2026-11-03 13:21 第一百一十一 session 開工（CT v6.0.0-beta.11）"
 next_ids:
   workorder: "T0801"
   decision: "D247"
@@ -10,7 +10,6 @@ next_ids:
   plan: "PLAN-062"
 todo:
   - "BUG-159（FIXED）驗收：需非系統管理員環境 ＋ codex"
-  - "`v0.7.4-pre.2` NSIS 完整重裝驗收：使用者換版中（`pwsh -NoProfile -ExecutionPolicy Bypass -File e2e\\manual\\nsis-reinstall-acceptance.ps1 -Version 0.7.4-pre.2`），回來讀 report.md"
   - "驗收腳本 `-Version` 預設值過時（`0.7.2-pre.8`），可開小單改必填"
   - "PLAN-059：A 完成（BUG-196 CLOSED）；B = PLAN-061（IDEA low，D229）；C 待問 CT（Q5）；Q4 未解"
   - "PLAN-060（IDEA）：macOS Developer ID 簽章（目前 macOS 不顯示系統通知）"
@@ -19,6 +18,8 @@ todo:
 ---
 # Tower State — better-agent-terminal
 
+> 🟢 **第一百一十一 session 開工**（2026-11-03 13:21 (UTC+8)，CT v6.0.0-beta.11，Fast Path；塔台 session `b05ebcaa-774b-4e4c-9fdd-448dc83ab281`；`--set-role tower --mode on` exit 0；`bat_whoami` 名稱 `better-agent-terminal · Tower`；安裝版 FileVersion `0.7.4-pre.2`；HEAD `eb20ca4d`、`main` = `origin/main`（fetch 後 0 / 0）、工作區乾淨；熱區 196 張工單皆 DONE；BUG 熱區 Fixed 1（159）/ Closed 66 / WONTFIX 1，與 `_bug-tracker.md` 一致；`bat_list_questions` pending 0）。**`v0.7.4-pre.2` NSIS 完整重裝驗收 PASS-WITH-WARN**（real 模式 12:58:01–12:59:06；AllUsers / HKLM；唯一 WARN = ⓪ 目前安裝版 pre.1，② 實為升級，屬預期；① SHA-256 `c8eef1bc…` ② ③ ④ 全 PASS，三支 helper `--version` = v0.7.4-pre.2、內嵌 claude / codex 存在、userData 130 檔 SHA-256 未變；⑤ SKIPPED）；報告 `%TEMP%\bat-nsis-acceptance-20261103-125801\report.md`；含權杖的 `userdata-backup` 已刪除。
+>
 > 最後更新:2026-11-03 12:55 (UTC+8) — **第一百一十 session 收工**：T0800 修好 Linux 語音輸入（BUG-204，whisper RUNPATH `$ORIGIN`）；BUG-203（22.04 glibc 2.38）列為已知限制；`v0.7.4-pre.2` 發佈，交付版 linux-acceptance 驗收後 BUG-202 / 204 CLOSED。前次：第一百零九 session 收工（2026-11-03 03:13）。
 >
 > **下次起手**:熱區無進行中工單、無 OPEN BUG。① 使用者換版中：讀最新 `%TEMP%\bat-nsis-acceptance-*\report.md` 判讀 `v0.7.4-pre.2` NSIS 重裝驗收、刪 `userdata-backup`（指令 `pwsh -NoProfile -ExecutionPolicy Bypass -File e2e\manual\nsis-reinstall-acceptance.ps1 -Version 0.7.4-pre.2`）；② 驗收腳本 `-Version` 預設值過時，問是否改必填；③ BUG-159 需非系統管理員環境＋codex；④ PLAN-059 C 待問 CT（Q5）。
@@ -105,7 +106,7 @@ todo:
 - **BUG-202**（T0799）：AppImage 在 userns 受限時自動加 `--no-sandbox`
 
 ### 待辦（依優先序）
-1. 🟡 **`v0.7.4-pre.2` NSIS 重裝驗收**：使用者換版中，回來讀 `%TEMP%\bat-nsis-acceptance-*\report.md`、刪 `userdata-backup`
+1. ✅ ~~`v0.7.4-pre.2` NSIS 重裝驗收~~ → PASS-WITH-WARN（第一百一十一 session 開工判讀）
 2. 🟡 **BUG-159 驗收**：需非系統管理員環境 ＋ codex
 3. 🟢 驗收腳本 `-Version` 預設值過時（可開小單改必填）；T0800 後續建議（`libgomp1` / `libvulkan1`、麥克風按鈕事先停用）
 4. 🟢 PLAN-059 C（問 CT Q5）；PLAN-060 / 061 IDEA；t0757 偶發失敗再發生才開 BUG（D218）
