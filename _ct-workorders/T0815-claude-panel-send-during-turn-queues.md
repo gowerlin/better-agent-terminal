@@ -11,7 +11,7 @@ priority: P3
 sizing: M
 created_at: "2026-11-03T21:31:40+0800"
 started_at: ""
-updated_at: "2026-11-03T21:31:40+0800"
+updated_at: "2026-11-03T21:48:14+0800"
 completed_at: ""
 session_ids: []
 depends_on: [T0814, T0811]
@@ -28,6 +28,7 @@ affects_files:
   - "src/locales/**（三個 locale 的新字串）"
   - docs/agent-guide/claude-agent-sdk-cli.md
   - CLAUDE.md
+  - "electron/__tests__/claude-panel-prereq-t0814.test.ts（只在行為變更需要時調整，不得刪項）"
   - _ct-workorders/T0815-claude-panel-send-during-turn-queues.md
 renew_count: 0
 workdir: main repo
@@ -41,7 +42,8 @@ memory_overrides:
   - "🔴 其他必守（T0813〈6〉W0）：以 uuid 追蹤 `queued` / `started` / `completed` / `cancelled`；`resetQueryUsage` 移到某 uuid `started`（或沒有 uuid 的 `system/init`）時呼叫，不在送出時呼叫；有未完成的 uuid 時第一個 `result` 不結束「執行中」（主行程與 renderer 的 `isStreaming`），停止按鈕、T0762 等待卡、縮圖狀態要跟著正確；T0769 的背景子代理注入併入同一條路徑（不再限 `hasBackgroundTask`），T0759 規則不變；`exited with code` 的不 resume 重試只在尚未收到 `system/init` 時（T0769）不變；`flushSync` 規則照 CLAUDE.md React Rendering 節。"
   - "🔴 不回歸：e2e ⑦ / ⑦b / ⑦c、權限 allow / deny、BUG-177（`e2e/v072-pre7-claude-panel-ui.spec.ts`）、BUG-178、T0744 單元、`/resume`、圖片附件、雙 Esc 停止、T0814 的 dispose-session；`npm run typecheck` = 0、`npm run typecheck:electron` = 0、`npm run test:unit`、`npm run test:legacy`、`npx vite build`。"
   - "🔴 驗收含真實模型：Haiku 5.5（`claude-haiku-5-5`）在 `e2e/v072-real-model-claude-panel.spec.ts` 加情境（回合中送出被排隊並回覆、Esc 後待送被取消且下一則正常、R 列與 `total_cost_usd` 相符），總共不超過 20 個 query 輪次；使用本機已登入的 claude，不登入 / 登出、不改 `~/.claude`；費用記入回報。假 API e2e 用 `e2e/fixtures/fake-anthropic-api.ts`（主回合以 gate 擋住時送第 2 則 → 待送提示 → 放行後兩則都有回覆、沒有「已中斷」前綴；權限卡等待時送出 → 允許後折入；取消待送；Esc 取消待送）。單元＋突變檢查。"
-  - "🔴 文件：`docs/agent-guide/claude-agent-sdk-cli.md` 新節（行為、uuid 追蹤、回執判斷、cancelAsyncMessage 守門）；CLAUDE.md「Sub-agent / Active Tasks Tracking」節把 T0769「主回合中送出（中斷＋重送）不變」改成新行為（遵守 CLAUDE.md 撰寫規則）。"
+  - "🔴 文件：`docs/agent-guide/claude-agent-sdk-cli.md` 新節（行為、uuid 追蹤、回執判斷、cancelAsyncMessage 守門）；CLAUDE.md「Sub-agent / Active Tasks Tracking」節把 T0769「主回合中送出（中斷＋重送）不變」改成新行為（遵守 CLAUDE.md 撰寫規則）。另補 T0814 的 CLAUDE.md 條目（T0814 不改 CLAUDE.md，見 T0814 回報區〈後續〉原文）：「Claude Agent SDK / CLI」節加一行（`sdkSpawnEnv(runtime, { electronRunAsNode })`、🔴 不得寫全域 `process.env`；`closeTerminalNow` → `claude:dispose-session`，舊 host reject → `stopSession`，⏻ 重啟維持 stop＋start；`runQuery` 結束清 `queryInstance`（generator 守衛），account / 指令 / agents 讀 `lastQueryInit`；連到 docs 該節），「Electron Runtime」節 BUG-038 那行補「T0814 起面板 query 不再寫全域 env」。"
+  - "🔴 T0814（`fc22e04a`）已改 `claude-agent-manager.ts`：`queryInstance` 在 query 結束時清（generator 守衛）、`lastQueryInit` 快取、`disposeSession`、`command_lifecycle` 改為 `[claude:lifecycle]` debug 摘要（`commandLifecycleSummary`，未解析狀態）。本單在此基礎上解析 lifecycle 狀態，不得破壞 T0814 的 22 項測試（`electron/__tests__/claude-panel-prereq-t0814.test.ts`）。"
   - "🔴 yolo：不得問使用者；問題依 ct-exec § Questions For Tower 問塔台。不發版、不 push。Git：只 commit 本單範圍（`git commit --only` 或明列路徑）。禁止 `git stash`（含 `git stash list`）/ `git reset` / `git checkout -- <path>` / `git restore`（L138）。公開 repo（D176）。"
 ---
 
