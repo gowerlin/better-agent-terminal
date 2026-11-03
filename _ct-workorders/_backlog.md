@@ -3,7 +3,7 @@ schema_version: 1
 schema_kind: index
 id: _backlog
 index_kind: plans
-generated_at: "2026-11-04T01:34:49+0800"
+generated_at: "2026-11-04T01:53:56+0800"
 generator: control-tower-sync
 source_globs:
   - _ct-workorders/PLAN-*.md
@@ -13,8 +13,8 @@ exclude_globs:
 total: 28
 breakdown:
   IDEA: 6
-  PLANNED: 1
-  IN_PROGRESS: 1
+  PLANNED: 0
+  IN_PROGRESS: 2
   DONE: 18
   DROPPED: 2
 ---
@@ -22,10 +22,10 @@ breakdown:
 # Backlog
 
 > ⚠️ 此文件由 `*sync` 自動生成，請勿手動編輯。
-> 最後同步：2026-11-04 01:34 (UTC+8) — PLAN-059 DONE（Q4 由 T0820 回答，D266）；開 PLAN-063（PLANNED medium，NSIS 升級中斷終端的緩解，T0821）。前次 2026-11-04 01:09 (UTC+8) — PLAN-061 DONE（交付版 `v0.7.4-pre.5` AppImage WSL 驗收 T0818 PASS）。前次 2026-11-04 00:56 (UTC+8) — PLAN-062 DONE（交付版 `v0.7.4-pre.5` linux-acceptance `41676550640` K1–K5 PASS）。前次 2026-11-03 21:11 (UTC+8) — PLAN-058 / 061 / 062 → IN_PROGRESS（D258：T0811 實作、T0812 / T0813 研究）。前次 2026-11-03 16:27 (UTC+8) — 開 PLAN-062（IDEA low，T0804 觀察，D251）。前次 2026-11-02 19:05 (UTC+8) — PLAN-061 依 T0789 結論縮小範圍、改 low，維持 IDEA（D229）。前次 2026-11-02 18:24 (UTC+8) — 開 PLAN-061（IDEA，PLAN-059 子項 B，OSC 7501 白名單，D227；前置 T0789）。前次 2026-11-02 17:10 (UTC+8) — PLAN-053 DONE（T0785 safeStorage async 完成）。前次 2026-11-02 16:56 (UTC+8) — 開 PLAN-060（IDEA，macOS 簽章，D224）；PLAN-053 的 Electron 45 已合回 main（T0784，`9f2ed99c`）。前次 2026-11-02 14:46 (UTC+8) — PLAN-053 IN_PROGRESS（目標 Electron 45，T0783 / T0784 / T0785，D223）。前次 2026-11-02 14:16 (UTC+8) — PLAN-029 DONE（T0780 刪除 `git-poc`，`16a3a326`）。前次 2026-11-02 14:07 (UTC+8) — PLAN-053 調 high（開 T0779）；PLAN-029 開 T0780（R3 刪除 `git-poc`）；PLAN-015 / 038 / 043 / 051 / 052 核對後維持 IDEA（D221）。前次 2026-11-02 14:00 (UTC+8) — PLAN-054 DONE（B4 / B8 已交付；B6 等 CT 契約另開新 PLAN，D220）。前次 2026-11-02 13:23 (UTC+8) — 開 PLAN-059（PLANNED，主 PLAN，D219）。前次 2026-11-02 05:26 (UTC+8) — PLAN-055 DONE（交付版 `v0.7.3-pre.4` 安裝版自動化實測 T0773，D215）。前次 2026-11-02 04:59 (UTC+8) — 第一百零四 session 塔台重啟（三）`*sync`：區段與 23 張 PLAN 檔一致，只修正 frontmatter 統計（total 22 → 23、DONE 10 → 11）；PLAN-055 B1（T0766）/ B2（T0767）皆 DONE、已隨 `v0.7.3-pre.4` 發佈，維持 IN_PROGRESS 等實機驗收。前次 2026-11-02 03:49 (UTC+8) — PLAN-055 IN_PROGRESS（T0766 B1 DONE，T0767 B2 進行中）；開 PLAN-058（IDEA，D214）；PLAN-057 DONE
+> 最後同步：2026-11-04 01:53 (UTC+8) — PLAN-063 → IN_PROGRESS（T0821 `710e4179` 子項 1＋2 DONE，待發版）。前次 2026-11-04 01:34 (UTC+8) — PLAN-059 DONE（Q4 由 T0820 回答，D266）；開 PLAN-063（PLANNED medium，NSIS 升級中斷終端的緩解，T0821）。前次 2026-11-04 01:09 (UTC+8) — PLAN-061 DONE（交付版 `v0.7.4-pre.5` AppImage WSL 驗收 T0818 PASS）。前次 2026-11-04 00:56 (UTC+8) — PLAN-062 DONE（交付版 `v0.7.4-pre.5` linux-acceptance `41676550640` K1–K5 PASS）。前次 2026-11-03 21:11 (UTC+8) — PLAN-058 / 061 / 062 → IN_PROGRESS（D258：T0811 實作、T0812 / T0813 研究）。前次 2026-11-03 16:27 (UTC+8) — 開 PLAN-062（IDEA low，T0804 觀察，D251）。前次 2026-11-02 19:05 (UTC+8) — PLAN-061 依 T0789 結論縮小範圍、改 low，維持 IDEA（D229）。前次 2026-11-02 18:24 (UTC+8) — 開 PLAN-061（IDEA，PLAN-059 子項 B，OSC 7501 白名單，D227；前置 T0789）。前次 2026-11-02 17:10 (UTC+8) — PLAN-053 DONE（T0785 safeStorage async 完成）。前次 2026-11-02 16:56 (UTC+8) — 開 PLAN-060（IDEA，macOS 簽章，D224）；PLAN-053 的 Electron 45 已合回 main（T0784，`9f2ed99c`）。前次 2026-11-02 14:46 (UTC+8) — PLAN-053 IN_PROGRESS（目標 Electron 45，T0783 / T0784 / T0785，D223）。前次 2026-11-02 14:16 (UTC+8) — PLAN-029 DONE（T0780 刪除 `git-poc`，`16a3a326`）。前次 2026-11-02 14:07 (UTC+8) — PLAN-053 調 high（開 T0779）；PLAN-029 開 T0780（R3 刪除 `git-poc`）；PLAN-015 / 038 / 043 / 051 / 052 核對後維持 IDEA（D221）。前次 2026-11-02 14:00 (UTC+8) — PLAN-054 DONE（B4 / B8 已交付；B6 等 CT 契約另開新 PLAN，D220）。前次 2026-11-02 13:23 (UTC+8) — 開 PLAN-059（PLANNED，主 PLAN，D219）。前次 2026-11-02 05:26 (UTC+8) — PLAN-055 DONE（交付版 `v0.7.3-pre.4` 安裝版自動化實測 T0773，D215）。前次 2026-11-02 04:59 (UTC+8) — 第一百零四 session 塔台重啟（三）`*sync`：區段與 23 張 PLAN 檔一致，只修正 frontmatter 統計（total 22 → 23、DONE 10 → 11）；PLAN-055 B1（T0766）/ B2（T0767）皆 DONE、已隨 `v0.7.3-pre.4` 發佈，維持 IN_PROGRESS 等實機驗收。前次 2026-11-02 03:49 (UTC+8) — PLAN-055 IN_PROGRESS（T0766 B1 DONE，T0767 B2 進行中）；開 PLAN-058（IDEA，D214）；PLAN-057 DONE
 
 ## 統計
-- 💡 Ideas: 6 | 📋 Planned: 1 | 🔄 In Progress: 1 | ✅ Done: 18 | 🚫 Dropped: 2
+- 💡 Ideas: 6 | 📋 Planned: 0 | 🔄 In Progress: 2 | ✅ Done: 18 | 🚫 Dropped: 2
 
 ## Active
 
@@ -38,7 +38,7 @@ breakdown:
 | PLAN-052 | Docker 遠端路線可用性：發佈 `bat-server` 映像或裝進任意容器、「Use existing」可選容器、重跑精靈更新既有設定 | 🟢 low | 💡 IDEA | [PLAN-052](PLAN-052-docker-remote-usability.md) |
 | PLAN-058 | Claude 面板改用常駐串流輸入：每個面板一個常駐 query，主回合進行中送出也能排隊、不中斷（T0768 方案 B，D214） | 🟢 low | 🔄 IN_PROGRESS | [PLAN-058](PLAN-058-claude-panel-persistent-streaming-input.md) |
 | PLAN-060 | macOS 安裝檔改用 Apple Developer ID 簽章與公證（Electron 42 起未簽章 app 不顯示系統通知；本 fork 目前全為 ad-hoc；D224） | 🟢 low | 💡 IDEA | [PLAN-060](PLAN-060-macos-developer-id-signing.md) |
-| PLAN-063 | Windows NSIS 升級會結束所有終端：升級前提示、升級後說明（T0821）；正常結束路徑待評估、holder 模型維持 IDEA（T0820，D266） | 🟡 medium | 📋 PLANNED | [PLAN-063](PLAN-063-upgrade-interrupts-terminals-mitigation.md) |
+| PLAN-063 | Windows NSIS 升級會結束所有終端：升級前提示、升級後說明（T0821 `710e4179`，待發版）；正常結束路徑待評估、holder 模型維持 IDEA（T0820，D266） | 🟡 medium | 🔄 IN_PROGRESS | [PLAN-063](PLAN-063-upgrade-interrupts-terminals-mitigation.md) |
 
 ## Completed
 
