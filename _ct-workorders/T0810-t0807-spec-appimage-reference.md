@@ -4,14 +4,14 @@ schema_kind: workorder
 id: T0810
 title: "t0807 Linux e2e：G2 對照組相容 AppImage，讓交付版 linux-acceptance 能判定 BUG-206 / 207"
 type: implementation
-status: PENDING
+status: IN_PROGRESS
 repo: better-agent-terminal
 project: maintenance
 priority: P2
 sizing: S
 created_at: "2026-11-03T20:43:13+0800"
-started_at: ""
-updated_at: "2026-11-03T20:43:13+0800"
+started_at: "2026-11-03T20:44:28+0800"
+updated_at: "2026-11-03T20:44:28+0800"
 completed_at: ""
 session_ids: []
 depends_on: []
