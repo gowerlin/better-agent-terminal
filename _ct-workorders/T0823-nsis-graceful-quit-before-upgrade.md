@@ -4,7 +4,7 @@ schema_kind: workorder
 id: T0823
 title: "PLAN-063 子項 3：Windows NSIS 安裝新版時先請執行中的 BAT 正常結束（存檔、停 Terminal Server），逾時才照舊強制結束"
 type: implementation
-status: IN_PROGRESS
+status: DONE
 repo: better-agent-terminal
 project: maintenance
 priority: P2
@@ -12,7 +12,10 @@ sizing: M
 isolation: worktree
 created_at: "2026-11-04T02:02:42+0800"
 started_at: "2026-11-04T02:04:46+0800"
-updated_at: "2026-11-04T02:04:46+0800"
+updated_at: "2026-11-04T02:58:49+0800"
+completed_at: "2026-11-04T02:58:49+0800"
+session_ids:
+  - "2686bbd1-dce9-4928-b7be-3cf97b206e68"
 depends_on: []
 related:
   - "PLAN-063；D267；T0820（NSIS `allowOnlyOneInstallerInstance.nsh` 的 `FIND_PROCESS` / `KILL_PROCESS` / `_CHECK_APP_RUNNING`，`customCheckAppRunning` 覆寫點；實測 run `41683870546`；本機分支 `ct/T0820` 的探測 spec＋暫時 workflow）；T0821（`710e4179`：升級後說明以『版本變＋孤兒清理 N ≥ 1』觸發）；T0504（關窗前 flush）；T0540（`stopTerminalServerGracefully` / `server:shutdown`，Windows 不得用 SIGTERM）；T0783（`desktop-build.yml`）"
@@ -91,4 +94,123 @@ T0820 實測：Windows 的 NSIS 安裝程式以 `Win32_Process.Path` 開頭為�
 
 ## 回報區
 
-（由 Worker 填寫）
+### 完成狀態
+
+- **狀態**：DONE
+- **完成時間**：2026-11-04T02:58:49+0800
+- **session_id**：2686bbd1-dce9-4928-b7be-3cf97b206e68
+- **隔離分支證據**：
+  - `branch`：`ct/T0823`（遠端已刪，本機 worktree 分支保留供合併）
+  - `base_sha`：`8d071c884a9fc679a02eecbafd93edb3e3c0bdee`
+  - `validated_sha`：`edec0dfee5fbd7356c9e0b8edfba6e3f5e5c8dd7`
+  - `head_sha`：`edec0dfee5fbd7356c9e0b8edfba6e3f5e5c8dd7`（= validated；CI 安裝檔的 BUILD-INFO commit 也是這個）
+  - worktree `git status --porcelain`：空
+- **產品 commit**（`ct/T0823`）：`3738d6ca` feat、`0530fd1f` docs、`79ff3ced` fix（標記檔）、`edec0dfe` fix（提權也送請求）
+
+### 落點檢查
+
+- PASS。C-0：frontmatter `repo` = `better-agent-terminal`，`basename "$CT_HOME"` = `better-agent-terminal`。C-1：工單在 `$CT_HOME/_ct-workorders/` 下。C-3：`affects_files` 抽查皆有既存祖先目錄（`build/`、`electron/`、`e2e/`、`docs/agent-guide/`）。C-2：無 `branch` 欄位。
+- `CT_HOME` 已設定；`CT_WORKTREE_BRANCH` = `ct/T0823`；`BAT_WORKSPACE_ID` = `cc0afc4a-57e9-4f41-b2ed-a2d8bac9e36b`（只記錄）；`BAT_REMOTE_TOKEN` 已設定。`CT_MODE` = `yolo`、`CT_INTERACTIVE` = `0`。
+- 依賴：worktree 內 `npm ci`（CLAUDE.md 未另述，照 CI 做法）。
+
+### 範圍 1：研究結論（electron-builder / app-builder-lib 26.8.1，實讀範本）
+
+| 誰 | 何時 | 是否呼叫 `customCheckAppRunning` |
+|---|---|---|
+| 新版安裝程式（per-user，本專案預設 `oneClick: false`、`perMachine: false`） | install section 開頭、`uninstallOldVersion` 之前（`installSection.nsh:33-36`） | 是 |
+| 新版安裝程式，「所有使用者」→ UAC 提權 | 提權後的 inner instance 跑 install section，`${ifNot} ${UAC_IsInnerInstance}` 擋掉 | **否**（範本本來就不檢查，之後舊版解除安裝程式以舊版範本強制結束） |
+| 安裝程式本身已以系統管理員執行（含 UAC 關閉的電腦、GitHub runner） | install section（非 inner instance） | 是 |
+| 舊版解除安裝程式（覆蓋安裝時新版以 `/S --updated` 執行） | `un.checkAppRunning`（`uninstaller.nsh:1-3`） | 用**舊版**編進去的版本；T0823+ 的版本有本單巨集，`--updated` → 不跳提示；此時 BAT 已被新版安裝程式請走 |
+| 使用者解除安裝 | `un.checkAppRunning` | 是 |
+
+- 覆寫點：`build/installer.nsh` 經 `build.nsis.include` 進入共用 header（`NsisTarget.computeCommonInstallerScriptHeader`），位置在 `allowOnlyOneInstallerInstance.nsh` 之前。範本 `!ifmacrondef customCheckAppRunning` 時才 `!include "getProcessInfo.nsh"` 與 `Var pid`，所以本檔自己補這兩行。
+- 回退：**原樣** `!insertmacro _CHECK_APP_RUNNING`（範本巨集，不是複製）；`IS_POWERSHELL_AVAILABLE` / `FIND_PROCESS` 也沿用範本。
+- 版本相依提醒：`installer-quit-request.test.ts` 最後一個測試鎖住 `app-builder-lib` = 26.8.1 與上述掛勾原文（含 `customInstall` 插入點、解除安裝 `RMDir /r $INSTDIR`），版本一變就失敗並指向 `packaging-release-checks.md`「NSIS：安裝前請 BAT 正常結束」的 5 點核對清單。
+
+### 實作摘要
+
+- **安裝程式端**（`build/installer.nsh`，`package.json` `build.nsis.include`）：
+  - `customInstall`：檔案放好後寫標記 `$INSTDIR\resources\installer-quit-request.supported`（`BAT_INSTALLER_QUIT_MARKER`）。
+  - `customCheckAppRunning` = `IS_POWERSHELL_AVAILABLE` → `batRequestGracefulQuit` → `_CHECK_APP_RUNNING`。
+  - `batRequestGracefulQuit`：不是 app 本身、`$INSTDIR\BetterAgentTerminal.exe` 與標記檔都在、`FIND_PROCESS` 找到程序 → 非 `--updated` 時先顯示範本同一句 `$(appRunning)`（確定 / 取消，`/S` 自動確定）→ `Exec "<exe>" --installer-quit-request` → 每 `BAT_INSTALLER_QUIT_POLL_MS` = 500 ms 檢查，最多 `BAT_INSTALLER_QUIT_TIMEOUT_MS` = 15000 ms（`GetTickCount`）→ 範本的 `_CHECK_APP_RUNNING`（程序都結束 → 什麼都不做；否則照舊）。
+- **BAT 端**（唯一實作 `electron/installer-quit-request.ts`，不 import electron）：
+  - 參數 `--installer-quit-request`（完全相等才算），其他 argv / `additionalData` 不讀，不開埠。
+  - 執行中的 BAT：載入時註冊的 `second-instance` listener → `InstallerQuitController`（啟動未完成時保留到 `markReady()`；只處理一次；已在 quit → 只記一行）→ 寫 `<userData>/installer-quit-record.json`（PTY id / cwd、這些 PTY 的 claude session；temp＋rename、0600）→ `installerQuitRequested = true; app.quit()` → `before-quit` 不顯示確認、`shouldStopServer = true`，其餘照原流程（flush 每個 renderer 含 detached、profile 快照、`stopTerminalServerGracefully`、`runCleanupOnce`）。
+  - 沒有 BAT 主行程（請求行程拿到 lock）：`runInstallerQuitWithoutApp` → 保留的 Terminal Server 在跑就以 registry 寫紀錄（`source: server-only`）、TCP `server:shutdown`、等最多 8 s → `app.exit(0)`。
+  - 🔴 請求行程不論有沒有 lock，whenReady 開頭 return（`installerQuitRequestProcess`）。
+  - 日誌 `[installer-quit] …` 只記數量。
+- **新版啟動**：`begin()` 後 `takeInstallerQuitRecord`（讀一次即刪，壞掉也刪）→ `noteInstallerQuit`。`detectUpgradeInterruption`：版本變 **且**（孤兒 ≥ 1 **或** 紀錄 ≥ 1）；N = 兩份依 id 的聯集；claude session 以紀錄為準；`detected` 行結尾加 `source=orphans|installer|installer+orphans`（T0821 單元測試的精確字串同步改；T0821 e2e 用子字串比對，不受影響）。
+
+### 實作中發現並修正的三件事
+
+1. **第二個實例的 `app.quit()` 不會擋掉 whenReady**（本機 e2e 實測）：帶參數的第二個實例在主實例結束、釋放 lock 與 Terminal Server 後跑起完整啟動，讀掉紀錄並 fork 了新 server（pid 檔殘留）。修正：請求行程一律在 whenReady 開頭 return。
+   - 這也代表**一般的第二個實例**（不帶參數）同樣會跑部分 whenReady，是 T0823 前就有的行為，本單未改，列入後續。
+2. **舊版 BAT 會把參數當成「開新視窗」**：舊版 `second-instance` 沒有 `--profile` 時 `createEntry`（立即存 windows.json）＋ `createWindow`，15 s 後仍被強制結束，重開會多一個空視窗。修正：只有 T0823+ 安裝程式寫的標記檔存在才送請求。降版時解除安裝程式 `RMDir /r $INSTDIR`，標記會一起消失。CI 實測舊版情境：`marker=false`、不送請求、重開只有 1 個視窗、windows.json 1 筆。
+3. **提權守門讓 CI 一個請求都沒送**：原本加了 `${AndIfNot} ${UAC_IsAdmin}`（避免以系統管理員啟動 BAT）。探測 run `41694445245` 顯示 runner `elevated: True`，新→新情境 BAT 仍被強制結束。請求行程只轉交 argv / 停 server 就結束、不開視窗，所以拿掉守門。UAC 經 inner instance 的 per-machine 安裝照舊不呼叫。
+
+### 驗證
+
+| 證據線 | 結果 |
+|---|---|
+| `npm run typecheck` | 0（exit 0，`edec0dfe`） |
+| `npm run typecheck:electron` | 0（exit 0） |
+| `npx vite build` | exit 0 |
+| `npm run test:unit` | 404 檔 passed / 2 skipped；7113 tests passed / 38 skipped |
+| `npm run test:legacy` | 33 / 33 檔，472 passed / 0 failed |
+| 新單元 `electron/__tests__/installer-quit-request.test.ts` | 26 passed（與 `upgrade-interruption.test.ts` 合計） |
+| 突變（每次備份→改壞→跑→還原，未用 git restore） | 11 / 11 被抓到：拿掉紀錄條件、啟動中直接執行、請求時不停 server、忽略紀錄、紀錄不刪、忽略進行中的 quit、nsh 不送請求、whenReady 不擋請求行程（拿掉 / 改回 `installerQuitWithoutApp`）、nsh 不看標記、`customInstall` 不寫標記。拿回 `UAC_IsAdmin` 由 `not.toContain` 守住 |
+| 本機 e2e `e2e/t0823-installer-graceful-quit.spec.ts`（隔離 runtime、開發版 build） | 3 / 3 passed。upgrade：請求後 BAT 約 0.5 s 結束、不跳對話框、`[quit] terminal server stopped (via IPC server:shutdown)`、pid / port / registry 檔已清、shell 結束、紀錄 2 個終端 → 改寫上次版本重開：toast「結束了 2 個終端」、`detected … ended-ptys=2 agent-tabs=0 source=installer`、紀錄已刪、無孤兒清理。control：不顯示、紀錄已刪。server-only：請求行程 0.47 s 結束、server 停、紀錄 `server-only` |
+| 不回歸 e2e | `t0821-upgrade-interruption` 2 / 2、`t0766-interrupted-agents-recovery`、`t0578-recovery-no-direct-shell`；與 t0823 合計 8 / 8 passed |
+| 本機 NSIS 編譯 | `npx electron-builder --win nsis --x64 --publish never`（`-WX`）安裝程式與解除安裝程式皆成功；`builder-debug.yml` header 含 `!include "…\build\installer.nsh"`。本機未執行任何安裝檔 |
+| CI 打包 | `desktop-build.yml -f ref=ct/T0823`：run `41693086032`（`3738d6ca`，0.7.4-exp.823）、`41694382819`（`79ff3ced`，已取消）、**`41695712401`（`edec0dfe`，0.7.4-exp.8232，三平台 success）** |
+| CI 實測（Windows runner，`ct/T0823-probe`，暫時 workflow＋探測 spec，預設 runtime） | 最終 run **`41697475355`** success（3 / 3），見下表；第一次 run `41694445245` 用的是提權守門版本，揭露問題 3 |
+
+**最終 CI 實測（run `41697475355`，`/S /currentuser`，runner 為 elevated）**
+
+| 情境 | 安裝 exit / 耗時 | 結束方式 | 檔案 / 紀錄 | 重開 |
+|---|---|---|---|---|
+| 新→新（exp.8232 執行中＋`ping -t` 分頁，再裝 exp.8232） | 0 / 21.5 s | 正常結束：`request received: recorded 1 terminal(s)` → `quit without confirmation` → flush → profile → `terminal server stopped (via IPC server:shutdown)`，約 0.2 s。main / server / shell / ping 都結束 | pid / port / registry 檔已清；紀錄 `running-app`、1 個 PTY | 上次版本改成 pre.5 模擬：toast「v0.7.4-pre.5 → v0.7.4-exp.8232 … 結束了 1 個終端」；`detected … source=installer`；1 個視窗 |
+| 舊版執行中（pre.5 執行中，裝 exp.8232） | 0 / 24.0 s | 沒有標記（`marker=false`）→ 不送請求 → 範本照舊強制結束（與 T0823 前相同） | pid / port / registry 檔留著；無紀錄 | 孤兒清理 `Cleaned 1 orphan`；pre.5 沒有 `last-run-version.json`（T0821 尚未發佈）→ `none: previous=unknown`、不顯示；1 個視窗、windows.json 1 筆（沒有多出視窗） |
+| 只剩 server（exp.8232 離開時保留 server，再裝 exp.8232） | 0 / 20.4 s | 請求行程拿到 lock：`no running BAT; Terminal Server running with 1 terminal(s) (recorded)` → `Terminal Server stopped (server:shutdown)`，約 0.2 s | 檔案已清；紀錄 `server-only` | toast 出現、`detected … source=installer` |
+
+- 對照的耗時差異：新→新 21.5 s 與舊版情境 24.0 s 相近，正常結束沒有拖慢安裝。
+- 工單原本預期「舊版執行中 → 逾時後回到強制結束」；標記檔讓它**不送請求、直接**照舊強制結束（不等 15 s、不開視窗）。決策理由見上面第 2 點。
+- 遠端分支 `ct/T0823`、`ct/T0823-probe` 已刪（`git ls-remote` 0 筆）；探測檔案只在 `ct/T0823-probe` 的 commit（`e572cfae`，以 `commit-tree` 建立），不在 `ct/T0823`。未帶 secret，未建 tag / Release / Pages。
+
+### 使用者看得到的差異（互動安裝與 `/S`）
+
+| 情況 | T0823 前 | T0823 後 |
+|---|---|---|
+| 互動安裝、BAT 由 T0823+ 安裝程式所裝且在跑 | 「正在執行，按確定關閉」→ 強制結束 | 同一句提示（同一個語言字串）→ BAT 自己存檔、停 Terminal Server 後結束（通常 1 秒內）；不會出現 BAT 自己的離開確認對話框 |
+| `/S` 靜默 | 直接強制結束 | 直接請 BAT 正常結束（CI 實測） |
+| BAT 由 T0823 前的安裝程式所裝（pre.5 → pre.6 這一次） | 強制結束 | 相同（CI 實測） |
+| BAT 還在啟動、或使用者的離開對話框開著 | 強制結束 | 送出請求、等滿 15 s，然後範本照舊：互動安裝**再顯示一次**提示，再強制結束（推論，未截圖） |
+| 「所有使用者」經 UAC 提權 | inner instance 不檢查 | 相同 |
+| 以另一個帳號的憑證提權 | 強制結束 | 請求到不了使用者的 BAT（lock 依帳號），等 15 s 後回退（推論） |
+| BAT 以 `--runtime=N` 執行 | 強制結束 | 相同，但先等 15 s（請求只到預設 runtime；推論） |
+| 重開後的說明 | 版本變＋孤兒 → toast | 版本變＋（孤兒或紀錄）→ 同一則 toast，文字不變 |
+
+### 變更檔案
+
+- `build/installer.nsh`（新）、`package.json`（`build.nsis.include`）
+- `electron/installer-quit-request.ts`（新）、`electron/main.ts`、`electron/upgrade-interruption.ts`
+- `electron/__tests__/installer-quit-request.test.ts`（新）、`electron/__tests__/upgrade-interruption.test.ts`（`detected` 行加 `source=orphans`）
+- `e2e/t0823-installer-graceful-quit.spec.ts`（新）
+- `CLAUDE.md`（「升級結束終端的提示與說明」節：觸發條件＋子項 3 一點）、`docs/agent-guide/upgrade-interruption.md`（子項 3 全節：呼叫時機表、流程、安全、使用者差異；偵測表、日誌；移除 ⏸ tooltip 那句已知限制）、`docs/agent-guide/packaging-release-checks.md`（新節「NSIS：安裝前請 BAT 正常結束」與升級 electron-builder 的核對清單）
+
+### 遭遇問題
+
+- 見〈實作中發現並修正的三件事〉。
+- Python heredoc 在本機以 cp950 讀取，含中文的取代失敗（未寫入任何檔案），改用 Edit 工具。
+- 第二次 desktop-build（`41694382819`）因提權守門要拿掉而取消。
+
+### 後續建議（給塔台）
+
+1. **一般第二個實例也會跑 whenReady**（T0823 實測副產品）：不帶參數的第二個實例 `app.quit()` 後 whenReady 照樣執行（建 tray、`begin()`、`startTerminalServer()` 等），直到行程退出。主實例在跑時通常無害，但與主實例結束的時間點重疊時，可能像本單第 1 點那樣 fork 出新 server。建議另開工單評估，是否在 `!gotTheLock` 時一律讓 whenReady return。
+2. 真實升級 pre.6 → pre.7（兩版都含本功能）發佈後，以本單探測 spec 的做法再驗一次，不必模擬上次版本。探測 spec 只存在已刪的 `ct/T0823-probe`；本機 commit `e572cfae` 仍在 object store，可 `git show e572cfae:e2e/t0823-nsis-probe.spec.ts` 取回。
+3. 互動安裝的畫面差異只有推論（CI 只能跑 `/S`）；發版後的 NSIS 重裝驗收可順手看一次（BAT 開著時互動安裝）。
+
+### 互動紀錄
+
+- [02:04] 開工；yolo、沒有向塔台提問（所有設計選擇都在範圍內自行決定，記於上方）。
+- [02:38] 依 CI run `41694445245` 拿掉提權守門（範圍內的實作修正）。
