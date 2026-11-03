@@ -270,6 +270,15 @@
 - 唯一實作：`afterPack`（`scripts/version-manifest.cjs`）→ `scripts/appimage-sandbox-launcher.cjs`（把 Electron 二進位改名 `BetterAgentTerminal.bin`，原位置放 `/bin/sh` 啟動器，所以 `process.execPath` 是 `.bin`）；log 與標記 env 清除 `takeLinuxSandboxStart`（`electron/linux-sandbox-fallback.ts`）；打包後 `verify-packaged-native.js` `appimage-launcher`。
 - 完整判斷、安全取捨、AppArmor profile 範例、已知限制、驗證清單：[docs/agent-guide/linux-appimage-sandbox.md](docs/agent-guide/linux-appimage-sandbox.md)
 
+## 語音輸入可用性事先檢查（T0802，D247）
+
+- 用途：所有平台在啟動後背景檢查一次 whisper addon 能不能載入；`unavailable` 時麥克風按鈕停用、滑過顯示原因與安裝指令，開始錄音（按鈕、Alt+M）被擋下並顯示同一段文字，Settings › 語音輸入顯示可用性與「重新檢查」。
+- 🔴 檢查在短命子程序：`process.execPath` ＋ `ELECTRON_RUN_AS_NODE=1` 執行 `VOICE_PROBE_SCRIPT`（只 `require` addon、印一行就結束），`execFile` ＋陣列參數＋ 15 s timeout；app ready 後 5 s 才 spawn、每次啟動一次、結果只在記憶體。🔴 主行程不得提早載入 whisper；子程序 env（`buildVoiceProbeEnv`）不含 `BAT_*` / `CT_*` / 權杖類變數、不加 `LD_LIBRARY_PATH`；addon 路徑一律經 `locateWhisperAddon`（與正式載入共用）。
+- 🔴 三態：`available` / `unavailable`（`missing-library` / `glibc-too-old` / `load-failed`）/ `unknown`（未檢查、逾時、當掉、無法啟動）。🔴 `unknown` 與 `available` 的畫面與行為和 T0802 前相同；正式載入（第一次辨識）的行為、log、錯誤訊息不變，成功時 `noteRealLoadSucceeded()` 以正式結果為準。
+- `voice:*` 只在本機主行程（不在 `PROXIED_CHANNELS`、headless 沒有），remote profile / detached 視窗的辨識也在本機，可用性只有本機一份。
+- 唯一實作：純函式 `src/lib/voice-availability.ts`（原因代碼、提示文字）、主行程 `electron/voice-availability.ts`（`createVoiceAvailability` / IPC `voice:getAvailability` / `voice:recheckAvailability` / `voice:availabilityChanged`）、renderer `src/lib/voice-availability-store.ts`、`MicButton.tsx`、`useVoiceRecording.ts` `start()`、`VoiceAvailabilityStatus.tsx`；字串 `voiceAvailability.*`。linux-acceptance V1：22.04 `unavailable(glibc-too-old)`、24.04 `available`。
+- 完整規則、原因代碼表、UI 行為、日誌、遠端查證、已知限制、驗證清單：[docs/agent-guide/voice-availability.md](docs/agent-guide/voice-availability.md)
+
 ## 本機開發：npm 12 install scripts（T0471 / T0473）
 
 - npm 12 預設擋相依套件的 install scripts（`npm ci` 仍 exit 0，只在結尾警告）。`package.json` `allowScripts` 以 name-only entry 放行 `esbuild`、`sharp`、`@anthropic-ai/claude-code`。`electron` 於 T0784 移除（D223）：Electron 42 起它沒有 install script，binary 在第一次 `require('electron')` 時下載（見「Electron Runtime」）。
