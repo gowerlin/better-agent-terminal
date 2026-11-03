@@ -149,4 +149,4 @@ memory_overrides:
 
 ### 後續建議
 
-- 塔台合併 `ct/T0810` 回 `main`（`ct/T0810` 以 `main` 的 `36265f29` 為基底，main 之後只多本單收單 commit，可 fast-forward 以外的方式直接 merge，或 cherry-pick `77fde527`）。
+- 塔台合併 `ct/T0810` 回 `main`（`ct/T0810` 以 `main` 的 `36265f29` 為基底，main 之後多了本單收單 commit，兩邊已分岔、無法 `--ff-only`；用一般 merge 或 cherry-pick `77fde527`，兩邊改的檔案不重疊）。
