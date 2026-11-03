@@ -1465,6 +1465,12 @@
 - **切分**：W2a 設計語言 + 元件 + 首頁（T0630）→ 預覽通過後 W2b（`/control-tower`、功能、FAQ、回報頁）→ W2c 遠端開發；W3 / W4 不變。
 - **相關**：PLAN-049 / D159 / D160 / T0624 / T0630
 
+### D250 2026-11-03 — 開 T0804 查證 AppImage 版 `app.close()` 不返回（T0803 觀察）
+
+- **決定**（使用者「開一張查證工單」）：研究型、只查證不修；在 WSL 隔離實例重現，比對關閉確認、不經 AppImage 啟動器、使用者正常關閉三種情況，結論分 A 測試方式 / B 設計行為 / C 產品缺陷；C 由塔台另開 BUG 與修正單。沿用 T0803 教訓：不開 agent 分頁、不在 TUI 送按鍵、不登入任何服務；不得關閉使用者正在用的 BAT。
+- **決策者**：使用者（開單）；塔台（範圍與限制）。2026-11-03 第一百一十二 session。
+- **相關**：T0803 / T0804 / T0797 / T0144 / T0540
+
 ### D249 2026-11-03 — BUG-159 改在本機 WSL Ubuntu（非 root）以 `v0.7.4-pre.3` AppImage 驗收（開 T0803）
 
 - **背景**：BUG-159（FIXED，T0651）待「非系統管理員＋codex」環境驗收；本機 Windows 的 UAC 關閉，BAT 一定以系統管理員執行。WSL Ubuntu-24.04 是一般使用者（uid 1000）、codex `0.160.0`（`>= 0.156.0`）、共用 daemon 跑過；Linux 上 `AgentRegistry.isElevated()` 恆為 false，`--no-daemon` 的判斷（`codexNoDaemonDecision`）與平台無關。
