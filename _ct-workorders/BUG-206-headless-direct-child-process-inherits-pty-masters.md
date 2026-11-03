@@ -3,11 +3,14 @@ schema_version: 1
 schema_kind: bug
 id: BUG-206
 title: "Linux：headless / direct 模式的宿主以 child_process 起的子程序（Claude 面板的 claude CLI、git 等）繼承所有分頁的 pty master"
-status: FIXING
+status: FIXED
 severity: high
 reproducibility: always（Linux；T0806 以 node＋`@lydell/node-pty` 1.1.0 模擬宿主實測）
 created_at: "2026-11-03T17:57:10+0800"
-updated_at: "2026-11-03T17:59:11+0800"
+updated_at: "2026-11-03T18:35:35+0800"
+fixed_at: "2026-11-03T18:34:39+0800"
+fixed_by: T0807
+fix_commit: "5e056b72（分支 ct/T0807，待合併 T0809）"
 impact:
   - linux
   - pty
@@ -22,7 +25,7 @@ links:
 |------|------|
 | 嚴重度 | 🔴 high（與 BUG-205 同類：不需權杖即可對分頁送輸入；路徑是宿主的 child_process 子程序，例如 headless bat-server 起的 claude CLI 及其 Bash 工具） |
 | 可重現 | 每次（Linux 的 headless bat-server 與 direct 模式；Electron 的 Terminal Server 模式下 master 在 server，主行程沒有，不受影響） |
-| **狀態** | 🔧 FIXING（T0807，D253） |
+| **狀態** | ✅ FIXED（T0807 `5e056b72`：Linux 主行程與 headless bat-server 在 libuv 入口安裝 child_process fd guard，子程序經固定 bash 包裝只保留 stdio（＋`CRASHDUMP_SIGNAL_FD`）；WSL 實測 8 種 API 與 git hook 0 個 master、主行程 `sleep` 可繼承 fd 49 → 0；待合併（T0809）與發版後實機驗收；D252 發版前不公開） |
 | 回報者 | 塔台（T0806 盤點） |
 
 ## 現象
@@ -38,3 +41,4 @@ node-pty 為每個分頁開的 master 在宿主程序內沒有 `FD_CLOEXEC`。he
 
 - 2026-11-03 17:57 開單（OPEN，T0806 盤點；D252 揭露時程同 BUG-205）。
 - 2026-11-03 17:59 → FIXING（T0807，D253）。
+- 2026-11-03 18:35 → FIXED（T0807 `5e056b72`，分支 `ct/T0807`；main 已前進非 `_ct-workorders` 檔（T0808），改派合併工單 T0809）。

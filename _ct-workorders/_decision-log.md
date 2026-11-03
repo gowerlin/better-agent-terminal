@@ -1465,6 +1465,13 @@
 - **切分**：W2a 設計語言 + 元件 + 首頁（T0630）→ 預覽通過後 W2b（`/control-tower`、功能、FAQ、回報頁）→ W2c 遠端開發；W3 / W4 不變。
 - **相關**：PLAN-049 / D159 / D160 / T0624 / T0630
 
+### D254 2026-11-03 — T0806 模式 ① 合併紀錄補記；T0807 改派模式 ② 合併工單 T0809
+
+- **T0806 合併（模式 ①，補記）**：被合併 T0806（`ct/T0806` head `524c9e10` = `validated_sha`）；`base_main_sha` `e5eef78d`；整合 worktree `ct-merge/T0806` `--no-ff` → merge commit `2dd282e5`（parent1 `e5eef78d`、parent2 `524c9e10`）；`main` `--ff-only` → `2dd282e5`；未 push。🔴 塔台疏失：當時 auto-session 為 `on`（非 yolo），依 merge-workorder 斷點 E 應在 ff 前暫停請使用者確認，塔台未暫停即 ff；也未當下寫本筆決策紀錄。ff 只在本機、可回復，產品樹與 Worker 驗過的 `524c9e10` 相同；之後的合併一律在 ff 前停下確認。
+- **T0807**：五條直接合併判準第 1 條不成立（`main` 自 base `842ef07d` 起多了 T0808 的測試檔 `e585c762`，不只 `_ct-workorders/**`）；其餘四條成立（`validated_sha` = head `5e056b72`、範圍外 0、衝突 0、dirty 0）→ 改派模式 ② 合併工單 **T0809**：Worker 在整合 worktree `--no-ff` 合併並跑專案完整驗收（T0807 與 T0808 的組合未一起驗過）；不 ff，ff 前塔台停在斷點 E 請使用者確認。
+- **決策者**：塔台（依 merge-workorder 規則）。2026-11-03 第一百一十二 session。
+- **相關**：T0806 / T0807 / T0808 / T0809 / D252 / D253
+
 ### D253 2026-11-03 — BUG-206 / 207 / 208 與 BUG-205 同批修完再發 `0.7.4-pre.4`（開 T0807 / T0808 並行）
 
 - **背景**：T0806（BUG-205）已合併 `2dd282e5`、未 push；其盤點另開 BUG-206（high，headless / direct 宿主的 child_process 子程序繼承所有分頁 pty master）、207（low，Electron child_process 子程序繼承 Chromium fd）、208（low，helper 測試寫真實 `bat-scripts.log`）。

@@ -4,7 +4,7 @@ schema_kind: workorder
 id: T0807
 title: "BUG-206 / BUG-207：Linux 上 child_process 子程序不再繼承 pty master（headless / direct 宿主）與主行程描述元（長時間執行的子程序）"
 type: implementation
-status: FIXED
+status: DONE
 repo: better-agent-terminal
 project: maintenance
 priority: P2
