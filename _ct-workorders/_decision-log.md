@@ -1465,6 +1465,12 @@
 - **切分**：W2a 設計語言 + 元件 + 首頁（T0630）→ 預覽通過後 W2b（`/control-tower`、功能、FAQ、回報頁）→ W2c 遠端開發；W3 / W4 不變。
 - **相關**：PLAN-049 / D159 / D160 / T0624 / T0630
 
+### D262 2026-11-04 — 發 `0.7.4-pre.5`（PLAN-061 / 058 / 062、BUG-209）
+
+- **決定**（使用者「要」）：發預覽版 `0.7.4-pre.5`（D236 版號線）。內容：T0811（PLAN-061 claude OSC 7501，非 Windows）、T0814＋T0815（PLAN-058 W1＋W0：Claude 面板主回合中送出改排隊）、T0816（PLAN-062 A3＋BUG-209：Linux Terminal Server fork 經 fd guard）。發版前驗證沿用 T0817 在 merge commit `84ebb7af` 的完整驗收（typecheck 0 / 0、vite build、unit 401 檔 / 7045、legacy 472 / 33），HEAD 產品樹與之相同，verify-native 通過；去識別化 9 組 0（含推送範圍）、金鑰 2 筆皆為 T0811 測試假值 `sk-ant-T0811-secret`。分支 `ct/T0816` / `ct-merge/T0816` 依使用者同意以 `-d` 刪除。
+- **決策者**：使用者（發版、刪分支）；塔台（內容）。2026-11-04 第一百一十三 session。
+- **相關**：D256 / D258 / D259 / D260 / D261
+
 ### D261 2026-11-04 — T0816 以模式 ② 合併（T0817），使用者確認斷點 E 後 ff；BUG-209 FIXED
 
 - **背景**：T0816（隔離）DONE 後，直接合併判準第 1 條（main 自 base `685bb3d7` 多了 T0815 產品 commit `0b67db03`）與第 2 條（`validated_sha` `24eb000c` ≠ head `69093e41`，差 4 個只改 `e2e/linux/*.spec.ts` 的 commit，已由 linux-acceptance `41667030155` 在 head 驗過）不成立 → 派模式 ② 合併工單 T0817。
