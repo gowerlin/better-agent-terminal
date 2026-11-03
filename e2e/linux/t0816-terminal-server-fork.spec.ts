@@ -170,7 +170,7 @@ async function inspectorEval(url: string, expression: string): Promise<unknown> 
     ws.send(JSON.stringify({ id: 1, method: 'Runtime.evaluate', params: { expression, awaitPromise: true, returnByValue: true, includeCommandLineAPI: true } }))
     const m = await reply
     if (m.error || m.result?.exceptionDetails) throw new Error(JSON.stringify(m.error ?? m.result.exceptionDetails).slice(0, 600))
-    return m.result?.result?.value
+    return m.result?.result && 'value' in m.result.result ? m.result.result.value : JSON.stringify(m.result).slice(0, 300)
   } finally {
     ws.close()
   }
@@ -288,13 +288,20 @@ test('T0816 Terminal Server fork: only IPC + AppImage keepalive, no crashpad cli
       plain.stderr!.on('data', () => { /* drained */ })
       const bashPid = plain.pid!
       const url = await inspectorUrl(inspectPort)
-      const main = Number(await inspectorEval(url, 'process.pid'))
+      // the main process: argv carries this runtime and inspector port, no --type= (not a Chromium child),
+      // not the reading bash, not the AppImage runtime (exe = the .AppImage file)
+      const main = await until('main process of the normal start', () => pids().find(p => {
+        const argv = cmdline(p)
+        return p !== bashPid && argv.includes(`--runtime=${runtimeId}`) && argv.includes(`--inspect=127.0.0.1:${inspectPort}`)
+          && !argv.some(a => a.startsWith('--type=')) && exeOf(p).replace(/ (deleted)$/, '') !== appImage && path.basename(exeOf(p)) !== 'bash'
+      }), 120_000)
+      const inspectorPid = await inspectorEval(url, 'process.pid').catch(err => `error ${(err as Error).message}`)
       const previous = readPid(userData)
       const server = await until('Terminal Server of the normal start', () => { const p = readPid(userData); return p && p !== previous && isAlive(p) ? p : null }, 120_000)
       const shell = await until('shell of A (normal start)', () => shellOf(TERM_A, server), 60_000)
       await new Promise(r => setTimeout(r, 1500))
       const stdoutTarget = fdsOf(main).find(f => f.fd === 1)?.target ?? ''
-      k2.ev.push(`normal start: bash ${bashPid}, main ${main} (argv[0] ${path.basename(cmdline(main)[0] ?? '?')}, ppid ${ppidOf(main)}), fds ${describeFds(fdsOf(main).filter(f => f.fd <= 5))}`)
+      k2.ev.push(`normal start: bash ${bashPid}, main ${main} (exe ${path.basename(exeOf(main))}, ppid ${ppidOf(main)}, inspector process.pid ${JSON.stringify(inspectorPid)}), fds ${describeFds(fdsOf(main).filter(f => f.fd <= 5))}`)
       if (!await judgeServer('normal start', main, server, appImage, k2.ev)) k2.ok = false
       const line = debugLog(userData).split('\n').filter(l => l.includes('[terminal-server] fork (Linux, PLAN-062 A3)')).at(-1) ?? ''
       k2.ev.push(`normal start debug log: ${line.replace(/^.*?\[terminal-server\]/, '[terminal-server]') || 'missing'}`)
@@ -358,7 +365,8 @@ test('T0816 Terminal Server fork: only IPC + AppImage keepalive, no crashpad cli
       const dumps = () => { try { return fs.readdirSync(pending).filter(f => f.endsWith('.dmp')) } catch { return [] } }
       const before = dumps()
       const cdp = await app.context().newCDPSession(win)
-      await cdp.send('Page.crash').catch(() => { /* the target dies */ })
+      // not awaited: the target dies before it can answer, and the send may never settle (first CI run hung here)
+      void cdp.send('Page.crash').catch(() => { /* the target dies */ })
       const after = await until('renderer dump', () => { const d = dumps().filter(f => !before.includes(f)); return d.length > 0 ? d : null }, 30_000).catch(() => [] as string[])
       ev5.push(`Crashes/pending before ${before.length}, new after Page.crash: ${after.length}`)
       add({ id: 'K5', title: 'renderer Page.crash still writes Crashes/pending/*.dmp', result: after.length > 0 ? 'PASS' : 'FAIL', evidence: ev5 })
