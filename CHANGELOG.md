@@ -4,6 +4,9 @@ All notable changes to Better Agent Terminal are documented in this file.
 
 ## [Unreleased]
 
+### Known Issues
+- Linux：語音輸入需要 glibc 2.38 以上（Ubuntu 24.04 起），Ubuntu 22.04 等較舊發行版無法使用語音輸入（上游 whisper addon 的 `libggml-base.so` / `libggml-vulkan.so` 需 `GLIBC_2.38`）；另需系統的 `libgomp1` / `libvulkan1`（BUG-203 WONTFIX，D246）
+
 ## [0.7.4-pre.1] — 2026-11-03
 
 ### Changed

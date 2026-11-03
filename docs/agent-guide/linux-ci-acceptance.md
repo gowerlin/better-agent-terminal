@@ -110,6 +110,7 @@ BUG-204 修正後（`afterPack` 以 patchelf 把 whisper 共享物件的 RUNPATH
 
 ## 已知限制與陷阱
 
+- **產品已知限制（BUG-203 WONTFIX，D246）**：上游 `@kutalia/whisper-node-addon` 的 `libggml-base.so` / `libggml-vulkan.so` 需要 `GLIBC_2.38`（`libggml-vulkan.so` 另需 `GLIBCXX_3.4.32`），glibc < 2.38（Ubuntu 22.04 為 2.35）不支援語音輸入；寫在 README「語音輸入 › Linux」。W1 在 22.04 判 INFO 即反映此限制，不是待修項目。要支援 22.04 時重開 BUG-203（修法：上游以較舊的 glibc 重建，或 BAT 自建 whisper）。
 - 🔴 **Playwright 在 Linux 預設替 Electron 加 `--no-sandbox`**（`playwright-core` `server/electron/electron.js`：`chromiumSandbox` 預設 false 時 `unshift('--no-sandbox')`）。T0797 本機第一次實跑就因此「通過」了沒開 sandbox 的啟動。spec 對 L1 傳 `chromiumSandbox: true`；改 spec 時不得拿掉。
 - 🔴 **Playwright 1.59 的 `electron.launch` 失敗會讓測試直接停掉**：app 在印出 `Debugger listening` 前就結束時，`playwright-core` 的 `waitForLine` 有好幾個 promise 一起以 `Process failed to launch!` reject；被 await 的那個進得到 spec 的 catch，但 `waitForXserverError` / `chromeMatchPromise` 沒人處理，Playwright worker 把 unhandled rejection 當成致命錯誤，讓測試失敗並停掉（`workerMain.js` `unhandledError`）。結果 L2、L1b、verdict 都沒跑，`linux-report.md` 只有 meta、沒有任何列（T0798 run `41492924250` 的 24.04）。spec 一律經 `launchElectron`（同檔）啟動：launch 期間（失敗後再 1 s）只吞掉這個錯誤訊息，其他 rejection 交回 worker 原本的 listener。改 spec 或升 Playwright 時不得改回直接呼叫 `electron.launch`。
 - `Seccomp: 2` 不能當 sandbox 證據：WSL 上主程序本身就是 2，`--no-sandbox` 的子程序也是 2。只用 `NSpid` 有沒有兩個以上的值判斷。

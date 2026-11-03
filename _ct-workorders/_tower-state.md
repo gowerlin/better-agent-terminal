@@ -1,18 +1,18 @@
 ---
 schema_kind: tower-state
 summary_version: 1
-updated_at: "2026-11-03T12:10:17+08:00"
-session: "2026-11-03 12:10 第一百一十 session：T0800 收單並合併（CT v6.0.0-beta.11）"
+updated_at: "2026-11-03T12:12:10+08:00"
+session: "2026-11-03 12:12 第一百一十 session：BUG-203 列為已知限制（CT v6.0.0-beta.11）"
 next_ids:
   workorder: "T0801"
-  decision: "D246"
+  decision: "D247"
   bug: "BUG-205"
   plan: "PLAN-062"
 todo:
   - "BUG-159（FIXED）驗收：需非系統管理員環境 ＋ codex"
   - "BUG-202（FIXED，已合併 bf561a3d）：下一個預覽版發佈後跑 `linux-acceptance.yml -f version=<版號>`，22.04 PASS / 24.04 WARN auto-disabled 即 CLOSED"
   - "BUG-204（FIXED，已合併 2aed2831）：同一次 `linux-acceptance -f version=<版號>` 24.04 W1 PASS 即 CLOSED"
-  - "BUG-203（OPEN，low）：22.04 whisper 需 GLIBC_2.38，T0800 已實測成立，嚴重度依 22.04 支援政策重評"
+  - "下一版更版重點〈已知事項〉：Linux 語音輸入需 glibc 2.38（22.04 不支援，BUG-203 WONTFIX，D246）＋系統 `libgomp1` / `libvulkan1`"
   - "PLAN-059：A 完成（BUG-196 CLOSED）；B = PLAN-061（IDEA low，D229）；C 待問 CT（Q5）；Q4 未解"
   - "PLAN-060（IDEA）：macOS Developer ID 簽章（目前 macOS 不顯示系統通知）"
   - "觀察：t0757 偶發失敗再發生才開 BUG（D218）"
@@ -28,7 +28,7 @@ todo:
 
 ## 🟢 進行中 Session（第一百一十 session，2026-11-03 11:44 起）
 
-> 🟢 **第一百一十 session 開工**（2026-11-03 11:44 (UTC+8)，CT v6.0.0-beta.11，Fast Path；塔台 session `3803ef47-2727-4298-9db5-bd566255765c`；`--set-role tower --mode on` exit 0；`bat_whoami` 名稱 `better-agent-terminal · Tower`；安裝版 FileVersion `0.7.4-pre.1`；HEAD `ab9e8117`、`main` = `origin/main`（fetch 後 0 / 0）、工作區乾淨；熱區 195 張工單皆 DONE；BUG 熱區 Open 2（203 / 204）/ Fixed 2（159 / 202）/ Closed 64，與 `_bug-tracker.md` 一致，免重建；PLAN DONE 15 / DROPPED 2 / IDEA 8 / PLANNED 1；`bat_list_questions` pending 0；熱區檔案皆 < 400 KB）。使用者「依塔台建議推進」→ **D245** → 開 **T0800**（BUG-204 → FIXING；查證後打包時修 whisper 相依函式庫搜尋路徑、不用 `LD_LIBRARY_PATH`；授權 push `ct/T0800` 驗證）。11:47 派 **T0800**（yolo `--no-interactive`，exit 0，`started: 03:47:34Z`；分頁 `61b52c31…`）。**T0800 DONE**（12:08；分支 `ct/T0800`：`fb4c0f8c` 實作 / `3d02147b` docs；根因在上游：`@kutalia/whisper-node-addon` 1.1.0 的 ELF RUNPATH 指向上游 CI 建置目錄、無 `$ORIGIN`，dev 環境同樣失敗；修法：`afterPack` → `scripts/linux-whisper-runpath.cjs` 以 `patchelf --set-rpath '$ORIGIN'` 改 8 個檔並讀回檢查，缺 patchelf 打包失敗，三個 Linux workflow 加 patchelf step，`verify-packaged-native.js` 加 `whisper-runpath`；desktop-build `41575226873` 三平台綠；linux-acceptance `41575592616`：24.04 W1 PASS（verdict WARN 只因 BUG-202 自動降級）、22.04 PASS（W1 INFO = BUG-203 `GLIBC_2.38` 實測成立）；typecheck 0 / 0、unit 6826 / 389、legacy 472 / 33、vite build；系統相依 `libgomp1` / `libvulkan1` 不在 AppImage 內；BUG-204 → FIXED）；session id 已在 `session_ids`（`bat_get_state` 相同）；session 快照已寫；`--close-worker T0800` exit 0。merge-base `03fac3d1`、main 之後只動 `_ct-workorders/**` → `git merge --no-ff ct/T0800` → `2aed2831`（產品樹與 `3d02147b` 相同）、本機 `ct/T0800` 以 `-d` 刪除（遠端已刪）。
+> 🟢 **第一百一十 session 開工**（2026-11-03 11:44 (UTC+8)，CT v6.0.0-beta.11，Fast Path；塔台 session `3803ef47-2727-4298-9db5-bd566255765c`；`--set-role tower --mode on` exit 0；`bat_whoami` 名稱 `better-agent-terminal · Tower`；安裝版 FileVersion `0.7.4-pre.1`；HEAD `ab9e8117`、`main` = `origin/main`（fetch 後 0 / 0）、工作區乾淨；熱區 195 張工單皆 DONE；BUG 熱區 Open 2（203 / 204）/ Fixed 2（159 / 202）/ Closed 64，與 `_bug-tracker.md` 一致，免重建；PLAN DONE 15 / DROPPED 2 / IDEA 8 / PLANNED 1；`bat_list_questions` pending 0；熱區檔案皆 < 400 KB）。使用者「依塔台建議推進」→ **D245** → 開 **T0800**（BUG-204 → FIXING；查證後打包時修 whisper 相依函式庫搜尋路徑、不用 `LD_LIBRARY_PATH`；授權 push `ct/T0800` 驗證）。11:47 派 **T0800**（yolo `--no-interactive`，exit 0，`started: 03:47:34Z`；分頁 `61b52c31…`）。**T0800 DONE**（12:08；分支 `ct/T0800`：`fb4c0f8c` 實作 / `3d02147b` docs；根因在上游：`@kutalia/whisper-node-addon` 1.1.0 的 ELF RUNPATH 指向上游 CI 建置目錄、無 `$ORIGIN`，dev 環境同樣失敗；修法：`afterPack` → `scripts/linux-whisper-runpath.cjs` 以 `patchelf --set-rpath '$ORIGIN'` 改 8 個檔並讀回檢查，缺 patchelf 打包失敗，三個 Linux workflow 加 patchelf step，`verify-packaged-native.js` 加 `whisper-runpath`；desktop-build `41575226873` 三平台綠；linux-acceptance `41575592616`：24.04 W1 PASS（verdict WARN 只因 BUG-202 自動降級）、22.04 PASS（W1 INFO = BUG-203 `GLIBC_2.38` 實測成立）；typecheck 0 / 0、unit 6826 / 389、legacy 472 / 33、vite build；系統相依 `libgomp1` / `libvulkan1` 不在 AppImage 內；BUG-204 → FIXED）；session id 已在 `session_ids`（`bat_get_state` 相同）；session 快照已寫；`--close-worker T0800` exit 0。merge-base `03fac3d1`、main 之後只動 `_ct-workorders/**` → `git merge --no-ff ct/T0800` → `2aed2831`（產品樹與 `3d02147b` 相同）、本機 `ct/T0800` 以 `-d` 刪除（遠端已刪）。使用者「先把它寫進已知限制」→ **D246**：BUG-203 → WONTFIX；README「語音輸入 › Linux」、`CHANGELOG.md` `[Unreleased]`〈Known Issues〉、`docs/agent-guide/linux-ci-acceptance.md` 各加一則（塔台直接處理，純文件）。熱區 BUG：Open 0 / Fixed 3（159 / 202 / 204）/ Closed 64 / WONTFIX 1。
 
 ---
 

@@ -1465,6 +1465,13 @@
 - **切分**：W2a 設計語言 + 元件 + 首頁（T0630）→ 預覽通過後 W2b（`/control-tower`、功能、FAQ、回報頁）→ W2c 遠端開發；W3 / W4 不變。
 - **相關**：PLAN-049 / D159 / D160 / T0624 / T0630
 
+### D246 2026-11-03 — BUG-203（Ubuntu 22.04 語音輸入需 glibc 2.38）列為已知限制，WONTFIX
+
+- **背景**：T0800 修好 BUG-204 後，linux-acceptance `41575592616` 實測 22.04（glibc 2.35）載入 whisper 失敗：上游 `@kutalia/whisper-node-addon` 的 `libggml-base.so` / `libggml-vulkan.so` 需 `GLIBC_2.38`（另 `GLIBCXX_3.4.32`）；24.04 載入成功。修法只有上游以較舊的 glibc 重建或 BAT 自建 whisper。
+- **決定**（使用者「先把它寫進已知限制」）：BUG-203 → WONTFIX（R-G003：屬實但不修，寫進交付文件的已知限制）。已寫入 README「語音輸入 › Linux」（同列系統需 `libgomp1` / `libvulkan1`）、`CHANGELOG.md` `[Unreleased]`〈Known Issues〉、`docs/agent-guide/linux-ci-acceptance.md`〈已知限制與陷阱〉；下一版更版重點〈已知事項〉照列。linux-acceptance 22.04 W1 的 INFO 判讀不變。要支援 22.04 時重開 BUG-203。
+- **決策者**：使用者。2026-11-03 第一百一十 session。
+- **相關**：BUG-203 / BUG-204 / T0800 / D245
+
 ### D245 2026-11-03 — 先修 BUG-204（開 T0800）：查證後在打包時讓 whisper 相依函式庫從同目錄解析，不用 `LD_LIBRARY_PATH`；授權 push `ct/T0800` 驗證
 
 - **背景**：T0799 W1：Linux 打包版 `whisper.node` 在 22.04 / 24.04 都找不到同目錄的 `libwhisper.so.1`（缺 `$ORIGIN` RUNPATH），Linux 語音輸入完全不能用，也遮住 BUG-203（22.04 `GLIBC_2.38`）。使用者同意塔台建議「先修 BUG-204，再發 `0.7.4-pre.2` 一併結 BUG-202」。
