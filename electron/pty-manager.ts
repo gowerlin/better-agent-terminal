@@ -15,7 +15,7 @@ import { isTerminalAutoReply, normalizeWorkorderId, type CloseWorkerPtyManager }
 import type { CtMode } from './ct-mode'
 import type { CtWorktreeRecord } from './ct-worktree'
 import { LaunchSuspectWatcher, TerminalBlockedTracker, type BlockedDetection, type BlockedState, type HookReportEvent, type HookReportResult } from './terminal-blocked-state'
-import { CodexStateScanner, lastCodexState } from '../src/lib/codex-terminal-state'
+import { CodexStateScanner, lastCodexState, PROGRAM_STATUS_PROBE_REPLY } from '../src/lib/codex-terminal-state'
 import type { InterruptedAgentSource } from './interrupted-agents'
 import { describePtyFdGuardSkip, guardPtySpawnFds, type PtyFdGuardDeps, type PtyFdGuardOutcome } from './pty-spawn-fd-guard'
 
@@ -300,6 +300,12 @@ export interface PtyManagerDeps {
    * (electron/pty-spawn-fd-guard.ts; tests). Undefined = `process.platform` + `fs.existsSync`.
    */
   fdGuard?: PtyFdGuardDeps
+  /**
+   * PLAN-061 / T0811: the platform of the host running the PTYs (this process: the Terminal Server
+   * is forked on the same host, headless runs its own PtyManager), for the OSC 7501 probe reply —
+   * `win32` (system ConPTY drops OSC replies, T0789) writes none (tests). Undefined = `process.platform`.
+   */
+  hostPlatform?: NodeJS.Platform
 }
 
 /** T0404: `pty:create` refused because the manager already runs `maxInstances` PTYs. */
@@ -901,10 +907,12 @@ export class PtyManager implements CloseWorkerPtyManager {
   private enqueuePtyOutput(id: string, data: string) {
     this.lastOutputAt.set(id, Date.now())
     this.launchSuspect.output(id, data) // T0600 option B
-    // T0621: read only — the data goes to the renderer unchanged
-    for (const state of this.codexStates.feed(id, data)) {
+    // T0621: read only — the data goes to the renderer unchanged. T0811: + claude's, and its probe
+    const scan = this.codexStates.scan(id, data)
+    for (const state of scan.states) {
       if (this.instances.has(id)) this.blockedTracker.observeCodexState(id, state)
     }
+    if (scan.probes > 0) this.replyToProgramStatusProbes(id, scan.probes)
     if (this.deps.onPtyOutput) {
       try {
         this.deps.onPtyOutput(id, data)
@@ -919,6 +927,27 @@ export class PtyManager implements CloseWorkerPtyManager {
         this.flushPtyOutputs()
       }, PtyManager.BATCH_INTERVAL_MS)
     }
+  }
+
+  /**
+   * PLAN-061 / T0811 (D229): claude asks `ESC ] 7501 ; ?` once per process and sends its OSC 7501
+   * states only when the terminal answers within 2 s and before its DA1 answer (T0789 ①). The
+   * answer is written here, as the output arrives — before the renderer's xterm sees the probe
+   * (and answers DA1), with no window or client needed — one fixed `PROGRAM_STATUS_PROBE_REPLY`
+   * per probe. Not from the replay (`handleReplayBuffer` does not come here), not into a
+   * `child_process` fallback, not on a win32 host (system ConPTY drops it). `write` is BAT's own
+   * write: not user input (`lastUserInputAt`, ⚠️, `--close-worker`, the usage-limit wait untouched),
+   * not held by `holdInputForDispatch`.
+   */
+  private replyToProgramStatusProbes(id: string, probes: number): void {
+    const instance = this.instances.get(id)
+    if (!instance?.usePty) return
+    if ((this.deps.hostPlatform ?? process.platform) === 'win32') {
+      logger.log(`[program-status] terminal=${id} probe seen, no reply (win32 ConPTY drops OSC replies)`)
+      return
+    }
+    this.write(id, PROGRAM_STATUS_PROBE_REPLY.repeat(probes))
+    logger.log(`[program-status] terminal=${id} probe → reply${probes > 1 ? ` x${probes}` : ''}`)
   }
 
   private flushPtyOutputs() {

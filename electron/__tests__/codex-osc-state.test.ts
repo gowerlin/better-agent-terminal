@@ -329,7 +329,7 @@ describe('PtyManager: the OSC 7501 tap (T0621)', () => {
     expect(recovery).toMatch(/this\.blockedTracker\.clearAll\('Terminal Server recovery'\)\s*\n\s*this\.codexStates\.dispose\(\)/)
     // read only: the tap does not touch `data` before it is queued
     const tap = src.slice(src.indexOf('private enqueuePtyOutput('), src.indexOf('private flushPtyOutputs('))
-    expect(tap).toMatch(/this\.codexStates\.feed\(id, data\)/)
+    expect(tap).toMatch(/this\.codexStates\.scan\(id, data\)/) // T0811: states + probes
     expect(tap).toMatch(/this\.outputBuffers\.set\(id, prev \+ data\)/)
   })
 })

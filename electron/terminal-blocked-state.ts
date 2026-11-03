@@ -71,6 +71,12 @@
  *   blocked                                      → blocked / input
  *   working, idle, clear                         → cleared
  *
+ * PLAN-061 / T0811 (D229): claude's OSC 7501 (`app=claude-code`, sent once the PTY host answered
+ * its probe — non-Windows hosts only, electron/pty-manager.ts `replyToProgramStatusProbes`) takes
+ * the same path and the same table (`done` / `error` read as idle; a sub-agent's `id=` record is
+ * dropped by the parser). A claude tab with BAT's hooks is `hook` from its launch and ignores it:
+ * only a tab whose hooks are off (`none`) moves to `osc`.
+ *
  * `osc` is set by the first sequence seen (observed: BAT's codex tabs and a `codex` typed into a
  * shell alike) or by the dispatch launch decision (`codex --version` >= 0.163.0, T0621 C-5); never
  * over `hook` (a hook tab ignores the sequence). `input` is not cleared by user input (codex sends

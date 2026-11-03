@@ -32,7 +32,7 @@
 ### 狀態欄位：`terminal:get-state` / `terminal:list` / `terminal:wait`
 
 - 每個 state 回傳（get-state、wait、list 的每一列）多 **`agentStarted: true | false | null`**；get-state / wait 在 `true` 時另回 **`agentStartedAt`**（ms epoch）。list 只有 `agentStarted`。
-  - `true`：這個 PTY 的 claude 執行過 `SessionStart` hook，或（T0621）codex 送過第一個 OSC 7501。
+  - `true`：這個 PTY 的 claude 執行過 `SessionStart` hook，或（T0621）codex 送過第一個 OSC 7501；或（T0811）非 Windows 主機上 hooks 關閉的 claude 分頁送過第一個 OSC 7501（BAT 回覆探詢後約 7 ms 的 `state=idle`；這類分頁啟動時記 `none`，所以 `--wait-started` 多半在第一個序列之前就回 `started: unknown`（規則與 helper 都沒改），之後的 get-state / list / wait 才看得到 `true`，見 [blocked-state.md](blocked-state.md)「claude（OSC 7501）」）。
   - `false`：`blockedDetection: hook`（BAT 注入了 hooks），還沒收到 `SessionStart`；或（T0621）`blockedDetection: osc`，還沒收到 OSC 7501（例如卡在「Trust this folder?」）。
   - `null`：`blockedDetection: none`，這個分頁無法判定（codex 低於 0.163.0 或版本確認不到、自訂 CLI、raw command、Settings「BAT MCP」關閉、自訂參數已含 `--settings`、找不到 `bat-hook.mjs`、claude 設定關閉 hooks…）。**不得**當成啟動失敗。
 - `terminal:wait` 的 `until` 多 **`'agent-started'`**：`agentStarted` 不是 `false`（`true` 或 `null`）或 `state: 'exited'` 時成立；條件已成立即回、逾時 `changed: false`（既有規則）。範圍沿用 `authorizeHelperQueryTarget`（wait = `output` 存取：自己，或 tower 權杖查自己的 Worker）。
