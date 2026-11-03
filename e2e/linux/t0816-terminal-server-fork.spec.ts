@@ -175,7 +175,9 @@ async function inspectorEval(url: string, expression: string): Promise<unknown> 
     ws.close()
   }
 }
-const ELECTRON = "(typeof require === 'function' ? require : process.mainModule.require.bind(process.mainModule))('electron')"
+// the main bundle is CommonJS (dist-electron/main.js), so process.mainModule.require reaches 'electron';
+// the inspector's command-line `require` is the fallback
+const ELECTRON = "(() => { try { return process.mainModule.require('electron') } catch (e) { if (typeof require === 'function') return require('electron'); throw e } })()"
 
 // ── K2 judgement (one server, one start) ─────────────────────────────────────
 
