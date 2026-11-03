@@ -4,14 +4,14 @@ schema_kind: workorder
 id: T0801
 title: "NSIS 重裝驗收腳本 `-Version` 改必填（預設值停在 `0.7.2-pre.8`，漏帶就驗到舊版）"
 type: implementation
-status: TODO
+status: IN_PROGRESS
 repo: better-agent-terminal
 project: maintenance
 priority: P2
 sizing: S
 created_at: "2026-11-03T13:30:03+0800"
-started_at: ""
-updated_at: "2026-11-03T13:30:03+0800"
+started_at: "2026-11-03T13:32:09+0800"
+updated_at: "2026-11-03T13:35:20+0800"
 completed_at: ""
 session_ids: []
 depends_on: []
@@ -26,6 +26,7 @@ affects_files:
 renew_count: 0
 workdir: main repo
 worker_question_timeout: 30
+tower_question: open
 interaction:
   mode_hint: yolo
   interactive: false
@@ -75,4 +76,16 @@ memory_overrides:
 
 ## 回報區
 
-（Worker 填寫）
+### 待塔台決策
+
+#### Q-1：新測試放哪裡？`affects_files` 只有 `e2e/manual/__tests__/**`，但 vitest 收不到那裡
+- **提問時間**：2026-11-03T13:35:20+0800
+- **背景**：`vite.config.ts` 的 `test.exclude` 含 `e2e/**`，`test:legacy` 只掃 `tests/`（且 🔴 不得放 `tests/`）。放在 `e2e/manual/__tests__/` 的測試不會被 `npm run test:unit` / `test:legacy` / CI 執行。腳本與兩份文件已改完、失敗路徑已實測。測試內容：以 `pwsh -NoProfile -NonInteractive -File` 執行腳本，斷言不帶 `-Version`、`-Version v0.7.4-pre.2`、`-Version 0.7.4-exp.1` 等都 exit 2、stderr 有用法、`-OutputRoot`（temp）底下沒有產生任何目錄；合法版號以 `-OutputRoot 'C:\bad|name'` 讓腳本在 New-Item 停下，斷言錯誤來自 New-Item（不會下載 / 安裝）；沒有 pwsh / 非 Windows 時 skip。
+- **選項**：
+  - A. 放 `scripts/__tests__/nsis-reinstall-acceptance-version.test.mjs`（vitest 已收；`affects_files` 多一個檔）
+  - B. 放 `e2e/manual/__tests__/`，並改 `vite.config.ts` 的 include / exclude 讓 vitest 收（`affects_files` 多 `vite.config.ts`，動到共用設定）
+  - C. 不補自動測試，只留回報區的實測紀錄
+  - 其他
+- **建議**：A。理由：不動共用設定、與既有 `scripts/__tests__/linux-acceptance-w1.test.mjs` 等驗收腳本測試同處；只多一個測試檔。
+- **影響**：只影響測試檔位置與 `affects_files`；產品腳本與文件不受影響。
+- **是否阻擋後續**：是（阻擋補測試與收尾）
