@@ -4,13 +4,15 @@ schema_kind: workorder
 id: T0823
 title: "PLAN-063 子項 3：Windows NSIS 安裝新版時先請執行中的 BAT 正常結束（存檔、停 Terminal Server），逾時才照舊強制結束"
 type: implementation
-status: PENDING
+status: IN_PROGRESS
 repo: better-agent-terminal
 project: maintenance
 priority: P2
 sizing: M
 isolation: worktree
 created_at: "2026-11-04T02:02:42+0800"
+started_at: "2026-11-04T02:04:46+0800"
+updated_at: "2026-11-04T02:04:46+0800"
 depends_on: []
 related:
   - "PLAN-063；D267；T0820（NSIS `allowOnlyOneInstallerInstance.nsh` 的 `FIND_PROCESS` / `KILL_PROCESS` / `_CHECK_APP_RUNNING`，`customCheckAppRunning` 覆寫點；實測 run `41683870546`；本機分支 `ct/T0820` 的探測 spec＋暫時 workflow）；T0821（`710e4179`：升級後說明以『版本變＋孤兒清理 N ≥ 1』觸發）；T0504（關窗前 flush）；T0540（`stopTerminalServerGracefully` / `server:shutdown`，Windows 不得用 SIGTERM）；T0783（`desktop-build.yml`）"
