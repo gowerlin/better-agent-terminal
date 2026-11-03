@@ -1465,6 +1465,16 @@
 - **切分**：W2a 設計語言 + 元件 + 首頁（T0630）→ 預覽通過後 W2b（`/control-tower`、功能、FAQ、回報頁）→ W2c 遠端開發；W3 / W4 不變。
 - **相關**：PLAN-049 / D159 / D160 / T0624 / T0630
 
+### D267 2026-11-04 — 縮圖 tooltip（T0822）＋PLAN-063 子項 3 正常結束路徑（T0823）與 T0821 湊成一批後發 `0.7.4-pre.6`
+
+- **背景**：T0821（升級前提示＋升級後說明）已在 main；使用者不單獨發版，要與縮圖 ⏸ tooltip、PLAN-063 子項 3 湊成一批。
+- **決定**（使用者指示）：
+  1. **T0822**（S，main）：⏸ tooltip 依 `cause: 'upgrade'` 顯示升級文字，不改 docs。
+  2. **T0823**（M，`isolation: worktree`）：NSIS `customCheckAppRunning` 先以 single-instance 參數請執行中的 BAT 正常結束（flush-save、停 Terminal Server、不跳確認），逾時或任何錯誤回到 electron-builder 預設強制結束；正常結束時寫紀錄，新版啟動時與孤兒清理合併判斷顯示 T0821 的說明；授權 push `ct/T0823` 跑 `desktop-build.yml`、另一分支 `ct/T0823-probe` 放暫時 workflow 在 Windows runner 實測（新→新正常結束、舊版執行中→回退），驗完刪兩個遠端分支；docs 由本單統一更新（含移除 tooltip 的已知限制）。
+  3. 兩張 `affects_files` 不重疊、並行；T0823 合併回 main 後與 T0821 / T0822 一起發 `0.7.4-pre.6`（發版前再確認）。
+- **決策者**：使用者（批次）；塔台（工單內容）。2026-11-04 第一百一十四 session。
+- **相關**：D266 / T0820 / T0821 / PLAN-063
+
 ### D266 2026-11-04 — PLAN-059 DONE；NSIS 升級中斷終端 → 開 PLAN-063，先做升級前提示＋升級後說明（T0821）
 
 - **背景**：T0820（Windows runner run `41683870546`）答 Q4：NSIS 安裝程式以 TerminateProcess 結束安裝目錄下所有程序（主行程、Terminal Server），shell 因 ConPTY 由 server 持有一併結束；保留 server 也一樣；重開走孤兒清理、沒有 Recovery 或任何說明。holder 模型要把 ConPTY 持有者移出安裝目錄並跨版本接回（L）。

@@ -23,7 +23,7 @@ T0820（PLAN-059 Q4）以 GitHub Actions Windows runner 實測（run `4168387054
 |---|---|---|---|
 | 1 | 升級前提示：Windows 上的更新通知（與 README / 安裝說明）告知「安裝新版會結束所有終端分頁與 agent，請先完成工作」 | S | ✅ T0821 `710e4179`（待發版） |
 | 2 | 升級後說明：啟動時偵測「版本與上次執行不同＋走了孤兒清理」→ 提示上次升級結束了 N 個終端；claude / codex 分頁盡量沿用 T0766 / T0767 的「被中斷的 agent 分頁」對話框與一鍵 resume | M | ✅ T0821 `710e4179`（待發版；真實升級驗收待兩版都含本功能） |
-| 3 | 正常結束代替 TerminateProcess：NSIS `customCheckAppRunning` 先請 BAT 正常 quit（flush-save、server shutdown、清 pid 檔），逾時才強制 | M | 等 1、2 完成再評估 |
+| 3 | 正常結束代替 TerminateProcess：NSIS `customCheckAppRunning` 先請 BAT 正常 quit（flush-save、server shutdown、清 pid 檔），逾時才強制 | M | T0823（D267） |
 | 4 | holder 模型（ConPTY 持有者放安裝目錄外、跨版本接回）——PLAN-059 子項 D | L | IDEA：使用者確實需要「升級不中斷長任務」時再評估 |
 
 ## 相關
@@ -35,3 +35,4 @@ T0820（PLAN-059 Q4）以 GitHub Actions Windows runner 實測（run `4168387054
 
 - 2026-11-04 01:34 開單（D266，PLANNED）：先做子項 1＋2（T0821），3 等 1、2 完成再評估，4 維持 IDEA。
 - 2026-11-04 01:53 → IN_PROGRESS：T0821 DONE（`710e4179`）——子項 1：Windows 更新通知加「安裝新版會結束所有終端」（三語，`showsWindowsUpgradeWarning`）、README；子項 2：`electron/upgrade-interruption.ts`（`last-run-version.json`；版本變＋孤兒清理 N ≥ 1 才觸發），沿用 `ServerStatusToast` 顯示一次，claude / codex 分頁以 `cause: 'upgrade'` 列進既有「被中斷的 agent 分頁」（不因 `session-start` 移除，D-1 塔台接受）；單元 42、突變 4 / 4、e2e 模擬升級＋對照 2 passed、t0766 / t0578 不回歸；typecheck 0 / 0、unit 403 檔 / 7087、legacy 472 / 33、vite build。待發版；真實升級驗收要 pre.N → pre.N+1 兩版都含本功能，以 `ct/T0820` 探測 spec 改寫重跑（檢查點見 T0821 回報區）。小後續：縮圖 ⏸ tooltip 依 `cause` 顯示升級文字（未開單）。
+- 2026-11-04 02:02（D267）：使用者決定與縮圖 tooltip、子項 3 湊成一批再發 `0.7.4-pre.6` → 開 **T0822**（⏸ tooltip 依 cause，S）、**T0823**（子項 3：NSIS `customCheckAppRunning` 先請 BAT 正常結束、逾時回退強制，worktree＋Windows runner 實測，M），並行。
