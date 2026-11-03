@@ -100,6 +100,10 @@ async function main() {
   }
 
   const serverEntry = loadServerEntry(true)
+  // BUG-206 / T0807: Linux — this process holds every tab's pty master (direct PTYs, node-pty sets
+  // no FD_CLOEXEC); every child_process child (claude CLI, git, …) keeps only its stdio fds from
+  // here on. Never throws; not Linux → nothing installed. `?.` keeps an older server-entry working.
+  serverEntry.installChildProcessFdGuard?.({ log: (line) => console.log(line) })
   const dataDir = resolveDataDir(values['data-dir'], serverEntry.resolveDefaultDataDir)
   const port = resolvePort(values.port)
   const bindInterface = values['bind-interface']
