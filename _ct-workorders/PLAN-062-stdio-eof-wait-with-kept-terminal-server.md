@@ -31,3 +31,4 @@ T0804 實測：關閉確認預設保留 Terminal Server（T0144）。Terminal Se
 ## 狀態
 
 - IDEA（D251，low）。
+- 2026-11-03 17:06 T0805 補記：另有一個變體——分頁留下的背景程序繼承了 crashpad client socket，即使選「離開＋結束 Terminal Server」，crashpad 也留到背景程序結束（BUG-205，修 BUG-205 的方案 A 會一併解掉）。原題（保留 Terminal Server 時 server 本身就是 crashpad client）需要 T0805 方案 C（fork server 時不讓它成為 crashpad client，代價是 server 當掉不產生 dump），維持 IDEA。
