@@ -3,11 +3,11 @@ schema_version: 1
 schema_kind: bug
 id: BUG-207
 title: "Linux：Electron 主行程以 child_process 起的子程序（git、gh、claude CLI、codex 等）繼承 Chromium 約 49 個沒有 CLOEXEC 的描述元"
-status: OPEN
+status: FIXING
 severity: low
 reproducibility: always（Linux；T0806 在 WSL 隔離實例實測）
 created_at: "2026-11-03T17:57:10+0800"
-updated_at: "2026-11-03T17:57:10+0800"
+updated_at: "2026-11-03T17:59:11+0800"
 impact:
   - linux
   - child-process
@@ -21,7 +21,7 @@ links:
 |------|------|
 | 嚴重度 | 🟢 low（不含 pty master；同 uid 本來就能直接開這些檔案，新增的只有 Mojo socket / crashpad 等匿名通道；T0806 建議 P3） |
 | 可重現 | 每次（Linux） |
-| **狀態** | 📂 OPEN |
+| **狀態** | 🔧 FIXING（T0807，D253） |
 | 回報者 | 塔台（T0806 盤點） |
 
 ## 現象
@@ -35,3 +35,4 @@ Electron 主行程（Linux）有約 49 個沒有 CLOEXEC 的 fd（GPU / NetworkS
 ## 狀態歷程
 
 - 2026-11-03 17:57 開單（OPEN，T0806 盤點）。
+- 2026-11-03 17:59 → FIXING（T0807，D253）。

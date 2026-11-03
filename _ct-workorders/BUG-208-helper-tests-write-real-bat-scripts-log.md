@@ -3,11 +3,11 @@ schema_version: 1
 schema_kind: bug
 id: BUG-208
 title: "測試呼叫 helper `--version` / `--help` 時沒把 `BAT_USER_DATA` / `BAT_HELPER_LOG_DIR` 指到暫存目錄，寫進使用者真實的 `bat-scripts.log`"
-status: OPEN
+status: FIXING
 severity: low
 reproducibility: always（T0806 在 Windows `npm run test:unit` 與 WSL vitest 都實測到）
 created_at: "2026-11-03T17:57:10+0800"
-updated_at: "2026-11-03T17:57:10+0800"
+updated_at: "2026-11-03T17:59:11+0800"
 impact:
   - tests
 links:
@@ -20,7 +20,7 @@ links:
 |------|------|
 | 嚴重度 | 🟢 low（只多寫幾行 helper 名稱 / pid / argv，不含權杖；但違反 CLAUDE.md「helper 測試須設 `BAT_HELPER_LOG_DIR` / `BAT_USER_DATA` 到 temp」） |
 | 可重現 | 每次跑完整 unit 測試 |
-| **狀態** | 📂 OPEN |
+| **狀態** | 🔧 FIXING（T0808，D253） |
 | 回報者 | 塔台（T0806 發現） |
 
 ## 現象
@@ -34,3 +34,4 @@ links:
 ## 狀態歷程
 
 - 2026-11-03 17:57 開單（OPEN，T0806 發現）。
+- 2026-11-03 17:59 → FIXING（T0808，D253）。

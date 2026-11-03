@@ -1465,6 +1465,13 @@
 - **切分**：W2a 設計語言 + 元件 + 首頁（T0630）→ 預覽通過後 W2b（`/control-tower`、功能、FAQ、回報頁）→ W2c 遠端開發；W3 / W4 不變。
 - **相關**：PLAN-049 / D159 / D160 / T0624 / T0630
 
+### D253 2026-11-03 — BUG-206 / 207 / 208 與 BUG-205 同批修完再發 `0.7.4-pre.4`（開 T0807 / T0808 並行）
+
+- **背景**：T0806（BUG-205）已合併 `2dd282e5`、未 push；其盤點另開 BUG-206（high，headless / direct 宿主的 child_process 子程序繼承所有分頁 pty master）、207（low，Electron child_process 子程序繼承 Chromium fd）、208（low，helper 測試寫真實 `bat-scripts.log`）。
+- **決定**（使用者選塔台建議）：三張同批修，完成後發 `0.7.4-pre.4`，屆時一併 push 與公開 BUG-205 系列。T0807（BUG-206＋207，worktree 隔離、不 push；需 native 或範圍過大時停在 PARTIAL）與 T0808（BUG-208，只改測試、主 checkout）`affects_files` 不重疊（`electron/__tests__/` 若 T0808 需要改須先問塔台），並行派工。D252 揭露時程沿用。
+- **決策者**：使用者（範圍與發版順序）；塔台（工單切分、並行）。2026-11-03 第一百一十二 session。
+- **相關**：BUG-205 / 206 / 207 / 208 / T0806 / T0807 / T0808 / D252
+
 ### D252 2026-11-03 — BUG-205 以方案 A 現在修（開 T0806，worktree 隔離）；修正發版前不公開；child_process 子程序的 fd 外流由修正單一併查證
 
 - **背景**：T0805 查證 BUG-205（🔴 high）：Linux PTY 子程序繼承比它早開的分頁的 pty master（不需權杖可對塔台分頁送輸入）與主行程約 30 個描述元。上游 node-pty 1.2.0-beta 的修正在 BAT 的 fd 分布下仍漏。repo 與 `_ct-workorders/` 公開。
