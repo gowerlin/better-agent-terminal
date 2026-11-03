@@ -28,7 +28,7 @@ todo:
 
 ## 🟢 進行中 Session（第一百一十 session，2026-11-03 11:44 起）
 
-> 🟢 **第一百一十 session 開工**（2026-11-03 11:44 (UTC+8)，CT v6.0.0-beta.11，Fast Path；塔台 session `3803ef47-2727-4298-9db5-bd566255765c`；`--set-role tower --mode on` exit 0；`bat_whoami` 名稱 `better-agent-terminal · Tower`；安裝版 FileVersion `0.7.4-pre.1`；HEAD `ab9e8117`、`main` = `origin/main`（fetch 後 0 / 0）、工作區乾淨；熱區 195 張工單皆 DONE；BUG 熱區 Open 2（203 / 204）/ Fixed 2（159 / 202）/ Closed 64，與 `_bug-tracker.md` 一致，免重建；PLAN DONE 15 / DROPPED 2 / IDEA 8 / PLANNED 1；`bat_list_questions` pending 0；熱區檔案皆 < 400 KB）。使用者「依塔台建議推進」→ **D245** → 開 **T0800**（BUG-204 → FIXING；查證後打包時修 whisper 相依函式庫搜尋路徑、不用 `LD_LIBRARY_PATH`；授權 push `ct/T0800` 驗證）。
+> 🟢 **第一百一十 session 開工**（2026-11-03 11:44 (UTC+8)，CT v6.0.0-beta.11，Fast Path；塔台 session `3803ef47-2727-4298-9db5-bd566255765c`；`--set-role tower --mode on` exit 0；`bat_whoami` 名稱 `better-agent-terminal · Tower`；安裝版 FileVersion `0.7.4-pre.1`；HEAD `ab9e8117`、`main` = `origin/main`（fetch 後 0 / 0）、工作區乾淨；熱區 195 張工單皆 DONE；BUG 熱區 Open 2（203 / 204）/ Fixed 2（159 / 202）/ Closed 64，與 `_bug-tracker.md` 一致，免重建；PLAN DONE 15 / DROPPED 2 / IDEA 8 / PLANNED 1；`bat_list_questions` pending 0；熱區檔案皆 < 400 KB）。使用者「依塔台建議推進」→ **D245** → 開 **T0800**（BUG-204 → FIXING；查證後打包時修 whisper 相依函式庫搜尋路徑、不用 `LD_LIBRARY_PATH`；授權 push `ct/T0800` 驗證）。11:47 派 **T0800**（yolo `--no-interactive`，exit 0，`started: 03:47:34Z`；分頁 `61b52c31…`）。
 
 ---
 
