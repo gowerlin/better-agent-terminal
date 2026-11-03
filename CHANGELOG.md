@@ -4,6 +4,19 @@ All notable changes to Better Agent Terminal are documented in this file.
 
 ## [Unreleased]
 
+## [0.7.4-pre.3] — 2026-11-03
+
+### Added
+- 語音輸入可用性事先檢查：所有平台在啟動 5 s 後以 `ELECTRON_RUN_AS_NODE` 短命子程序試載 whisper addon（主行程不載入；子程序 env 去掉 `BAT_*` / `CT_*` / 權杖類變數，逾時 15 s），結果三態 available / unavailable（`missing-library` / `glibc-too-old` / `load-failed`）/ unknown；`unavailable` 時麥克風按鈕停用並以 `title` 顯示原因與建議動作（Linux 缺庫 → `sudo apt install …`、glibc 太舊 → 需 2.38 以上），`useVoiceRecording.start()` 擋下所有錄音入口並顯示同一段原因，Settings › 語音輸入顯示可用性與「重新檢查」；unknown 維持原行為、正式載入結果優先；`linux-acceptance` 新增 V1（22.04 `unavailable(glibc-too-old)`、24.04 `available`）；唯一實作 `electron/voice-availability.ts` / `src/lib/voice-availability.ts`（T0802，D247）
+
+### Changed
+- `e2e/manual/nsis-reinstall-acceptance.ps1` 的 `-Version` 改必填、無預設值；沒帶或格式不是 `X.Y.Z` / `X.Y.Z-pre.N` 時在任何動作之前把用法寫到 stderr 並 exit 2（T0801，D247）
+
+### Known Issues
+- Linux：語音輸入需要 glibc 2.38 以上（Ubuntu 24.04 起），Ubuntu 22.04 等較舊發行版的麥克風按鈕會停用並說明原因；另需系統的 `libgomp1` / `libvulkan1`（BUG-203 WONTFIX，D246）
+- 語音可用性檢查逾時（15 s）時視為未知、按鈕照常可按
+- macOS 的語音可用性檢查尚未實機驗證
+
 ## [0.7.4-pre.2] — 2026-11-03
 
 ### Fixed

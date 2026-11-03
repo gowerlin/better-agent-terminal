@@ -2,6 +2,47 @@
 
 本 fork 各版的更版重點（內容取自 GitHub Releases，最新在上）。上游 tony1223/better-agent-terminal 的 v2.1.x 紀錄保留在檔案最下方。
 
+## v0.7.4-pre.3（2026-11-03）
+
+版號 0.7.4-pre.3，接續 `v0.7.4-pre.2`。
+
+本版讓語音輸入在用不了時提前告訴你：BAT 啟動後會在背景檢查語音辨識模組能不能載入，用不了就停用麥克風按鈕並說明原因，不用再錄完音才看到「辨識失敗」。
+
+## 新增
+
+- **語音輸入用不了時，麥克風按鈕會先停用並說明原因**（T0802）：BAT 啟動幾秒後，在背景以另一個短暫的程序試載語音辨識模組（不佔 BAT 主程式的記憶體、不拖慢啟動）。確定用不了時：
+  - 麥克風按鈕變灰，滑過去顯示原因與建議動作。例如 Linux 缺系統函式庫時顯示 `sudo apt install libgomp1 libvulkan1`（只列實際缺的；以 Debian / Ubuntu 為例），glibc 太舊時說明需要 glibc 2.38 以上（例如 Ubuntu 24.04）。
+  - Alt+M 等開始錄音的方式不會開始錄音，改顯示同樣的原因。
+  - Settings › 語音輸入最上方顯示「可用性」，可按「重新檢查」（例如裝好函式庫之後）。
+  - 檢查還沒跑完、或檢查本身失敗 / 逾時時，維持原本的行為（按鈕照常可按）。語音可用時畫面與之前完全相同。三個平台都會檢查。
+
+## 更新
+
+- 開發者：Windows 安裝檔重裝驗收腳本（`e2e/manual/nsis-reinstall-acceptance.ps1`）的 `-Version` 改為必填，沒帶或格式不對時直接結束、不下載也不安裝，避免驗到舊版（T0801）。
+
+## 待驗收（請更新到本版後協助確認）
+
+- **語音輸入可用性檢查（macOS）**：本版已在 Windows 實機與 GitHub Actions 的 Ubuntu 22.04 / 24.04 驗證，macOS 尚未實機驗證。請 macOS 使用者確認麥克風按鈕照常可按、語音輸入正常。
+- **BUG-202 / BUG-204（Linux）**：請在 Ubuntu 24.04 桌面直接執行 AppImage，確認能開啟，並試用語音輸入。這兩項已在 GitHub Actions 的 Ubuntu runner 驗收，尚未在真人桌面實機驗證。
+- **Electron 45**（`v0.7.3-pre.7` 起）：請 macOS / Linux 使用者照常使用，有啟動、繪圖、終端顯示或貼上的異常請回報。
+- **BUG-159**：一般權限（非系統管理員）執行 BAT、關閉 BAT MCP 時，兩個 Codex CLI 分頁各自讀到自己的環境。
+
+## 已知事項
+
+- **Linux 語音輸入需要 glibc 2.38 以上（Ubuntu 24.04 起）**：Ubuntu 22.04 等較舊的發行版無法使用語音輸入；本版起麥克風按鈕會停用並說明原因，BAT 其他功能不受影響（BUG-203，列為已知限制）。
+- Linux 語音輸入另需系統提供 `libgomp1` 與 `libvulkan1`（一般桌面版預設已安裝；精簡安裝的系統請先 `sudo apt install libgomp1 libvulkan1`，裝好後到 Settings › 語音輸入按「重新檢查」）。
+- 語音可用性檢查在很慢的機器上可能逾時（上限 15 秒），這時按鈕維持可按，與之前的行為相同。
+- Ubuntu 24.04 自動關閉 sandbox 時，安全性比開啟 sandbox 時低；這是讓 AppImage 能在預設設定下開啟的取捨。
+- 遠端 profile 視窗（WSL / SSH / Docker）看不到「📨 待送 N」徽章，但通知照樣會被保留。
+- 使用者關掉 claude hooks 的分頁（`disableAllHooks`）BAT 判斷不出是否在等你回答，通知會照舊直接送出。
+- 很短的一輪工作偶爾會多顯示 `↻` 最多 60 秒才變回 `✓`；這段時間 Worker 不會被算進批次關閉。
+- **macOS 不會顯示 BAT 的系統通知**：沒有 Apple 開發者簽章的 app 不能發系統通知（PLAN-060）。BAT 視窗內的提示、⚠️ 與分頁標示不受影響。
+- Linux：dock 圖示上的數字徽章不再顯示。
+
+macOS 仍只提供 Apple Silicon（arm64）版。
+
+**Full Changelog**: https://github.com/gowerlin/better-agent-terminal/compare/v0.7.4-pre.2...v0.7.4-pre.3
+
 ## v0.7.4-pre.2（2026-11-03）
 
 版號 0.7.4-pre.2，接續 `v0.7.4-pre.1`。
