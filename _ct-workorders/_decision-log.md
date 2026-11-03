@@ -1465,6 +1465,13 @@
 - **切分**：W2a 設計語言 + 元件 + 首頁（T0630）→ 預覽通過後 W2b（`/control-tower`、功能、FAQ、回報頁）→ W2c 遠端開發；W3 / W4 不變。
 - **相關**：PLAN-049 / D159 / D160 / T0624 / T0630
 
+### D251 2026-11-03 — T0804 兩項觀察：開 T0805 查證 PTY shell 繼承 Terminal Server 描述元；stdio EOF 等待記為 PLAN-062（IDEA）
+
+- **背景**：T0804 結論 A＋B、無缺陷，另有兩項觀察：① 以等 stdio EOF 方式啟動 BAT 的外部程式在 Terminal Server 保留時會一直等（推論）；② PTY 內 shell 繼承 Terminal Server 的描述元，含 crashpad client socket（實測）。
+- **決定**（使用者「其餘問題依建議」）：② 開 T0805（研究型 P3，盤點每個 fd 的來源與 CLOEXEC、影響、direct / headless / Windows / macOS 對照、修正方向；不修）；① 開 PLAN-062（IDEA low，觸發條件：使用者回報或 T0805 修正自然涵蓋）。T0803 意外的 Codex CLI 登入，使用者已在帳號端撤銷 → 該事項結束。
+- **決策者**：使用者（依塔台建議）。2026-11-03 第一百一十二 session。
+- **相關**：T0804 / T0805 / PLAN-062 / L185
+
 ### D250 2026-11-03 — 開 T0804 查證 AppImage 版 `app.close()` 不返回（T0803 觀察）
 
 - **決定**（使用者「開一張查證工單」）：研究型、只查證不修；在 WSL 隔離實例重現，比對關閉確認、不經 AppImage 啟動器、使用者正常關閉三種情況，結論分 A 測試方式 / B 設計行為 / C 產品缺陷；C 由塔台另開 BUG 與修正單。沿用 T0803 教訓：不開 agent 分頁、不在 TUI 送按鍵、不登入任何服務；不得關閉使用者正在用的 BAT。
