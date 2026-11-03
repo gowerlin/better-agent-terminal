@@ -1465,6 +1465,14 @@
 - **切分**：W2a 設計語言 + 元件 + 首頁（T0630）→ 預覽通過後 W2b（`/control-tower`、功能、FAQ、回報頁）→ W2c 遠端開發；W3 / W4 不變。
 - **相關**：PLAN-049 / D159 / D160 / T0624 / T0630
 
+### D255 2026-11-03 — 上游 node-pty 的 fd 外流缺陷由使用者自行送 MSRC；揭露時序疏失記錄
+
+- **背景**：T0805 / T0806 查到 `@lydell/node-pty`（= microsoft/node-pty PR #867 的程式碼）在 Linux 的 `pty_close_inherited_fds()` 後備迴圈遇到 fd 缺號就停（塔台以上游 `main` `35c28c7d` 的 `src/unix/pty.cc` 確認），master fd 也沒有 CLOEXEC（PR #986 仍 open）。microsoft/node-pty 的 SECURITY.md 要求安全漏洞送 MSRC、不開公開 issue。
+- **決定**（使用者選）：送 MSRC，由使用者本人提交（msrc.microsoft.com 或 secure@microsoft.com）；塔台只準備英文內容（依 SECURITY.md 要求的欄位整理），不以 gh 開公開 issue、不在 PR #986 留言。
+- **揭露時序疏失**：D252 約定修正發版時才公開，但 `pre-release.yml` 只能 build 已 push 的 ref，塔台 push `6bfa01e0` 後才觸發 CI（run `41633956229`），漏洞細節（T0805 回報、BUG-205 重現步驟）比安裝檔早公開一段 CI 時間；push 前未提出讓使用者決定。之後的安全性缺陷：工單與 BUG 單在發版前只寫行為與影響，重現步驟、fd 編號、探測輸出等利用細節先放 `.private/`（不追蹤），發版後再補進工單；push 前先向使用者說明公開時序並請使用者決定（build workflow 都需要已 push 的 ref，無法先 build 後 push）。
+- **決策者**：使用者（管道）；塔台（內容）。2026-11-03 第一百一十二 session。
+- **相關**：BUG-205 / 206 / T0805 / T0806 / T0807 / D252 / D253
+
 ### D254 2026-11-03 — T0806 模式 ① 合併紀錄補記；T0807 改派模式 ② 合併工單 T0809
 
 - **T0806 合併（模式 ①，補記）**：被合併 T0806（`ct/T0806` head `524c9e10` = `validated_sha`）；`base_main_sha` `e5eef78d`；整合 worktree `ct-merge/T0806` `--no-ff` → merge commit `2dd282e5`（parent1 `e5eef78d`、parent2 `524c9e10`）；`main` `--ff-only` → `2dd282e5`；未 push。🔴 塔台疏失：當時 auto-session 為 `on`（非 yolo），依 merge-workorder 斷點 E 應在 ff 前暫停請使用者確認，塔台未暫停即 ff；也未當下寫本筆決策紀錄。ff 只在本機、可回復，產品樹與 Worker 驗過的 `524c9e10` 相同；之後的合併一律在 ff 前停下確認。
