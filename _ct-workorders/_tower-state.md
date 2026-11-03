@@ -5,7 +5,7 @@ updated_at: "2026-11-04T03:15:53+08:00"
 session: "2026-11-04 00:39 第一百一十四 session 開工（CT v6.0.0-beta.11）"
 next_ids:
   workorder: "T0826"
-  decision: "D269"
+  decision: "D270"
   bug: "BUG-211"
   plan: "PLAN-064"
 todo:
