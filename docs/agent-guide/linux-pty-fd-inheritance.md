@@ -182,7 +182,7 @@ guard 裝在 libuv 入口，所以下表每個呼叫點在 Linux 都自動套用
   - 反向對照：安裝前、以及 `runWithoutChildProcessFdGuard` 內，子程序與 git hook 都拿到兩個 `/dev/ptmx`。
   - 安裝後：spawn / execFile / exec / fork / promisify(execFile) / spawnSync / execFileSync / execSync 與 `git commit` 執行的 pre-commit hook 都沒有 master、沒有 stdio 以外沒設 `O_CLOEXEC` 的 fd；額外 `pipe`（fd 3）與 fork 的 IPC 照常可用。
   - 與不包裝的 spawn 比對：pid、ppid、argv（含 `argv0`）、cwd、env（失效 PWD、沒有 PWD / SHLVL、`BASH_ENV` 不被 source）、PATH 找到的 shebang 腳本、exit code / stdout / stderr、SIGTERM、`detached` 程序群組 SIGKILL、ENOENT / EACCES / cwd 不存在的錯誤物件。
-- e2e `e2e/linux/t0807-child-process-fds.spec.ts`（打包的 Linux 版，`BAT_E2E_EXECUTABLE`）：G1 安裝日誌；G2 主行程 `spawn('sleep')` / `execFile('sleep')` / `execPath`＋`ELECTRON_RUN_AS_NODE` 的子程序沒有 stdio 以外沒設 `O_CLOEXEC` 的 fd（execPath 子程序只多保留 `CRASHDUMP_SIGNAL_FD`）；G3 反向對照：主行程本身與（不包裝的）Terminal Server 都有大量沒設 `O_CLOEXEC` 的 fd，shell 分頁照常可用且乾淨。T0806 的 F1–F6 一起跑以確認不回歸。
+- e2e `e2e/linux/t0807-child-process-fds.spec.ts`（打包的 Linux 版，`BAT_E2E_EXECUTABLE`）：G1 安裝日誌；G2 主行程 `spawn('sleep')` / `execFile('sleep')` / `execPath`＋`ELECTRON_RUN_AS_NODE` 的子程序沒有 stdio 以外沒設 `O_CLOEXEC` 的 fd（execPath 子程序只多保留 `CRASHDUMP_SIGNAL_FD`）；G3 反向對照：主行程本身與（不包裝的）Terminal Server 都有大量沒設 `O_CLOEXEC` 的 fd，shell 分頁照常可用且乾淨。T0806 的 F1–F6 一起跑以確認不回歸。G2 的對照組（同一執行檔、關掉 fd ≥ 3 後從測試行程啟動）用主行程的 `process.execPath`，不是 `BAT_E2E_EXECUTABLE`（T0810）：交付版的 `BAT_E2E_EXECUTABLE` 是 `.AppImage`，經 runtime 掛載與 AppRun / T0799 啟動器才 exec 掛載點內的 `BetterAgentTerminal.bin`（且帶 runtime 的 FUSE fd），對照組的 argv[0] 永遠不是 AppImage 路徑；app 執行中掛載點存在，`--linux dir` 目錄版的 execPath 就是執行檔本身。
 
 ## 已知限制（child_process）
 

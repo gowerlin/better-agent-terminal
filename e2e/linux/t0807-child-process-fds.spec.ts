@@ -163,9 +163,17 @@ test('T0807 Electron main-process children keep only their stdio fds', async () 
       // Reference for the Electron-as-node child: the same binary started from a clean slate (every fd
       // ≥ 3 closed before exec, from this test process). Electron opens a few fds of its own without
       // O_CLOEXEC (v8 snapshot, eventpoll, eventfd); those are not inherited and show up here too.
-      const refPid = spawn('/bin/bash', ['-c', 'for f in /proc/self/fd/*; do n=${f##*/}; case $n in 0|1|2|*[!0-9]*) ;; *) eval "exec $n>&-" ;; esac; done; exec "$0" "$@"', E2E_EXECUTABLE, '-e', 'setTimeout(()=>{},3710000)'], { stdio: 'ignore', env: { PATH: process.env.PATH ?? '/usr/bin:/bin', HOME: os.homedir(), ELECTRON_RUN_AS_NODE: '1' } }).pid!
+      // "The same binary" is the main process's process.execPath — exactly what the execPathNode child
+      // runs — not BAT_E2E_EXECUTABLE (T0810): for the AppImage, BAT_E2E_EXECUTABLE is the .AppImage, whose
+      // runtime mounts the squashfs (adding its own FUSE fds) and goes through AppRun and the T0799 launcher
+      // to `/tmp/.mount_*/BetterAgentTerminal.bin`, so the reference never had the AppImage path as
+      // argv[0]. The mount stays while the app runs; for a `--linux dir` build execPath is the
+      // executable itself, as before.
+      const refExe = await app.evaluate(() => process.execPath)
+      ev.push(`reference binary: main process execPath ${refExe} (BAT_E2E_EXECUTABLE ${path.basename(E2E_EXECUTABLE)}, /proc/${mainPid}/exe ${(() => { try { return fs.readlinkSync(`/proc/${mainPid}/exe`) } catch { return '?' } })()})`)
+      const refPid = spawn('/bin/bash', ['-c', 'for f in /proc/self/fd/*; do n=${f##*/}; case $n in 0|1|2|*[!0-9]*) ;; *) eval "exec $n>&-" ;; esac; done; exec "$0" "$@"', refExe, '-e', 'setTimeout(()=>{},3710000)'], { stdio: 'ignore', env: { PATH: process.env.PATH ?? '/usr/bin:/bin', HOME: os.homedir(), ELECTRON_RUN_AS_NODE: '1' } }).pid!
       started.push(refPid)
-      await until('reference exec\'d', () => cmdline(refPid)[0] === E2E_EXECUTABLE || cmdline(refPid)[0] === fs.realpathSync(E2E_EXECUTABLE))
+      await until('reference exec\'d', () => cmdline(refPid)[0] === refExe).catch(e => { throw new Error(`${(e as Error).message} (reference argv ${JSON.stringify(cmdline(refPid))})`) })
       await new Promise(r => setTimeout(r, 1500))
       const kind = (t: string) => t.startsWith('socket:') ? 'socket' : t.startsWith('pipe:') ? 'pipe' : t
       const ownKinds = inheritable(refPid).map(f => kind(f.target)) // numbers vary between runs, kinds do not
