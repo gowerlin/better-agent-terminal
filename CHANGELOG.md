@@ -4,6 +4,21 @@ All notable changes to Better Agent Terminal are documented in this file.
 
 ## [Unreleased]
 
+## [0.7.4-pre.4] — 2026-11-03
+
+### Security
+- Linux：分頁的 shell 不再繼承比它早開的分頁的 pty master 與 Electron 主行程 / Terminal Server 的描述元（之前分頁內的程式可不經權杖對前面的分頁送輸入或讀走輸出）。PTY 子程序經固定的 `/bin/bash -c` 包裝，exec shell 前關掉 fd ≥ 3；pid / argv / env / cwd 不變；沒有 bash 時不包裝並記 log；Windows / macOS 不變；唯一實作 `electron/pty-spawn-fd-guard.ts`（BUG-205 / T0806，D252）
+- Linux：Electron 主行程與 headless bat-server 以 `child_process` 起的子程序（claude CLI、codex、git 與 hook 等）只保留 stdio（＋`CRASHDUMP_SIGNAL_FD`）：在 libuv 的 `process_wrap` / `spawn_sync` 入口安裝 guard，經固定 bash 包裝；找不到的命令不包裝（照舊 ENOENT），不認得的呼叫形狀 fail open；Terminal Server 的 `fork` 排除；唯一實作 `electron/child-process-fd-guard.ts`（BUG-206 / BUG-207 / T0807，D253）
+
+### Fixed
+- Linux：分頁留下背景程序時，選「離開＋結束 Terminal Server」後 `chrome_crashpad_handler` 不再留著（BUG-205）
+- 測試呼叫 helper 時一律把 `BAT_USER_DATA` / `BAT_HELPER_LOG_DIR` 指到暫存目錄，不再寫進真實的 `bat-scripts.log`；新增 source guard `scripts/__tests__/helper-test-log-dir.test.mjs`（BUG-208 / T0808）
+
+### Known Issues
+- Linux：沒有 `/bin/bash` 與 `/usr/bin/bash` 的系統維持修正前的行為（記一行 debug log）
+- Linux：選「離開但保留 Terminal Server」時，主程式 stdout / stderr 維持開啟到 Terminal Server 結束（PLAN-062）
+- 遠端 headless bat-server 需重新啟動才會套用 child_process guard
+
 ## [0.7.4-pre.3] — 2026-11-03
 
 ### Added

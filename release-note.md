@@ -2,6 +2,43 @@
 
 本 fork 各版的更版重點（內容取自 GitHub Releases，最新在上）。上游 tony1223/better-agent-terminal 的 v2.1.x 紀錄保留在檔案最下方。
 
+## v0.7.4-pre.4（2026-11-03）
+
+版號 0.7.4-pre.4，接續 `v0.7.4-pre.3`。
+
+本版是 Linux 的安全性修正：分頁裡執行的程式不再拿得到其他分頁的終端控制端與 BAT 內部的連線。建議 Linux 使用者更新。Windows 與 macOS 的行為不變。
+
+## 修正
+
+- **Linux：分頁裡的程式不再拿得到其他分頁的終端控制端**（BUG-205，T0806）：之前每個分頁的 shell 會繼承比它早開的分頁的 pty master，以及 BAT 主程式的多個內部連線與檔案。分頁裡的程式因此可以不經 BAT 的權限檢查，直接對前面的分頁（包括塔台分頁）送出輸入或讀走輸出。現在每個分頁的 shell 只保留標準輸入 / 輸出 / 錯誤；分頁的 pid、參數、環境變數與工作目錄都不變。也一併修好：分頁留在背景的程式還活著時，關閉 BAT 後會留下一個 `chrome_crashpad_handler` 程序。
+- **Linux：BAT 起的其他子程序也不再繼承這些連線**（BUG-206 / BUG-207，T0807）：headless bat-server（遠端 WSL / SSH / Docker）與 Terminal Server 起不來時的 direct 模式下，Claude 面板的 claude CLI、codex、git（含 git hook）等子程序之前會拿到所有分頁的終端控制端；桌面版主程式起的子程序則會繼承約 49 個內部連線與檔案。現在這些子程序只保留標準輸入 / 輸出 / 錯誤（需要的通訊通道照常保留）；命令找不到時的錯誤與以前相同。遠端主機的 bat-server 要重新啟動後才會套用。
+- 開發者：測試不再寫進使用者真實的 `bat-scripts.log`（BUG-208，T0808）。
+
+## 待驗收（請更新到本版後協助確認）
+
+- **BUG-205 / 206 / 207（Linux）**：本版已在 WSL（Ubuntu 24.04）以打包後的 Linux 版實測，尚未在真人桌面與遠端 headless 實機驗證。請 Linux 使用者照常開多個分頁、使用 Claude 面板與 git，有分頁無法啟動、指令找不到或行為改變請回報。
+- **語音輸入可用性檢查（macOS）**：已在 Windows 實機與 GitHub Actions 的 Ubuntu 22.04 / 24.04 驗證，macOS 尚未實機驗證。請 macOS 使用者確認麥克風按鈕照常可按、語音輸入正常。
+- **BUG-202 / BUG-204（Linux）**：請在 Ubuntu 24.04 桌面直接執行 AppImage，確認能開啟，並試用語音輸入。這兩項已在 GitHub Actions 的 Ubuntu runner 驗收，尚未在真人桌面實機驗證。
+- **Electron 45**（`v0.7.3-pre.7` 起）：請 macOS / Linux 使用者照常使用，有啟動、繪圖、終端顯示或貼上的異常請回報。
+
+## 已知事項
+
+- Linux 的這項修正需要 `/bin/bash`（或 `/usr/bin/bash`）；沒有 bash 的系統（例如部分 NixOS 設定）維持修正前的行為，BAT 會在 debug log 記一行。
+- Linux：選擇「離開但保留 Terminal Server」時，BAT 主程式的 stdout / stderr 會維持開啟到 Terminal Server 結束；以管線等待 BAT 輸出結束的外部啟動方式（例如 `out=$(./BAT.AppImage)`）會一直等（PLAN-062）。
+- **Linux 語音輸入需要 glibc 2.38 以上（Ubuntu 24.04 起）**：Ubuntu 22.04 等較舊的發行版無法使用語音輸入；麥克風按鈕會停用並說明原因，BAT 其他功能不受影響（BUG-203，列為已知限制）。
+- Linux 語音輸入另需系統提供 `libgomp1` 與 `libvulkan1`（一般桌面版預設已安裝；精簡安裝的系統請先 `sudo apt install libgomp1 libvulkan1`，裝好後到 Settings › 語音輸入按「重新檢查」）。
+- 語音可用性檢查在很慢的機器上可能逾時（上限 15 秒），這時按鈕維持可按，與之前的行為相同。
+- Ubuntu 24.04 自動關閉 sandbox 時，安全性比開啟 sandbox 時低；這是讓 AppImage 能在預設設定下開啟的取捨。
+- 遠端 profile 視窗（WSL / SSH / Docker）看不到「📨 待送 N」徽章，但通知照樣會被保留。
+- 使用者關掉 claude hooks 的分頁（`disableAllHooks`）BAT 判斷不出是否在等你回答，通知會照舊直接送出。
+- 很短的一輪工作偶爾會多顯示 `↻` 最多 60 秒才變回 `✓`；這段時間 Worker 不會被算進批次關閉。
+- **macOS 不會顯示 BAT 的系統通知**：沒有 Apple 開發者簽章的 app 不能發系統通知（PLAN-060）。BAT 視窗內的提示、⚠️ 與分頁標示不受影響。
+- Linux：dock 圖示上的數字徽章不再顯示。
+
+macOS 仍只提供 Apple Silicon（arm64）版。
+
+**Full Changelog**: https://github.com/gowerlin/better-agent-terminal/compare/v0.7.4-pre.3...v0.7.4-pre.4
+
 ## v0.7.4-pre.3（2026-11-03）
 
 版號 0.7.4-pre.3，接續 `v0.7.4-pre.2`。
