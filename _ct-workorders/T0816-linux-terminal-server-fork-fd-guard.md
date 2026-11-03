@@ -4,15 +4,15 @@ schema_kind: workorder
 id: T0816
 title: "Linux：Terminal Server 的 fork 改經 fd guard——只留 IPC 與 AppImage keepalive（fd 4）、不當 crashpad client（PLAN-062 方案 A3、BUG-209）"
 type: implementation
-status: PENDING
+status: IN_PROGRESS
 repo: better-agent-terminal
 project: maintenance
 priority: P3
 sizing: M
 isolation: worktree
 created_at: "2026-11-03T22:19:09+0800"
-started_at: ""
-updated_at: "2026-11-03T22:19:09+0800"
+started_at: "2026-11-03T22:20:53+08:00"
+updated_at: "2026-11-03T22:20:53+08:00"
 completed_at: ""
 session_ids: []
 depends_on: []
