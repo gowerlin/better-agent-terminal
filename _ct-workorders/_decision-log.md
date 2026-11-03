@@ -1465,6 +1465,17 @@
 - **切分**：W2a 設計語言 + 元件 + 首頁（T0630）→ 預覽通過後 W2b（`/control-tower`、功能、FAQ、回報頁）→ W2c 遠端開發；W3 / W4 不變。
 - **相關**：PLAN-049 / D159 / D160 / T0624 / T0630
 
+### D245 2026-11-03 — 先修 BUG-204（開 T0800）：查證後在打包時讓 whisper 相依函式庫從同目錄解析，不用 `LD_LIBRARY_PATH`；授權 push `ct/T0800` 驗證
+
+- **背景**：T0799 W1：Linux 打包版 `whisper.node` 在 22.04 / 24.04 都找不到同目錄的 `libwhisper.so.1`（缺 `$ORIGIN` RUNPATH），Linux 語音輸入完全不能用，也遮住 BUG-203（22.04 `GLIBC_2.38`）。使用者同意塔台建議「先修 BUG-204，再發 `0.7.4-pre.2` 一併結 BUG-202」。
+- **決定**（塔台，使用者授權依建議推進）：
+  1. 開 T0800，BUG-204 → FIXING。Worker 先查證（`readelf -d`、dev 環境是否同樣失敗、打包內檔案型態）再選修法；塔台偏好打包時處理（例 `afterPack` `patchelf --set-rpath '$ORIGIN'`，打包主機缺工具時明確失敗或安裝，`verify-packaged-native.js` 驗 RUNPATH）；執行期預載需實測可靠才用。
+  2. 🔴 不用 `LD_LIBRARY_PATH`（含 T0799 的 AppImage 啟動器）：會傳給 PTY 內的 shell 與所有子程序。
+  3. linux-acceptance W1 改為判定項：24.04 必須載入成功；22.04 照實記錄（BUG-203 只查證、不修）。
+  4. 比照 D244 授權 push `ct/T0800` 並以 `desktop-build.yml` / `linux-acceptance.yml`（皆不發布）驗證，不 push `main`。
+- **決策者**：塔台（使用者「依塔台建議推進」）。2026-11-03 第一百一十 session。
+- **相關**：BUG-204 / BUG-203 / BUG-202 / T0800 / T0799 / D244
+
 ### D244 2026-11-03 — BUG-202 採「偵測後自動加 `--no-sandbox`」；BUG-203 實測併入 T0799
 
 - **背景**：正式 Linux 驗收 run `41496512040`：22.04 PASS（sandbox 開）、24.04 預設設定下直接執行 AppImage FATAL（`chrome-sandbox` 非 root 4755），加 `--no-sandbox` 正常（BUG-202）；whisper `libggml-*.so` 需 `GLIBC_2.38`，22.04 疑似無法載入（BUG-203，靜態推論）。AppImage 內附 `.desktop` 本來就帶 `--no-sandbox`。

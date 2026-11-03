@@ -3,11 +3,11 @@ schema_version: 1
 schema_kind: bug
 id: BUG-204
 title: "Linux 打包版語音輸入無法載入：`whisper.node` 找不到同目錄的 `libwhisper.so.1`（相依 `.so` 不在動態載入器搜尋路徑，22.04 / 24.04 皆同）"
-status: OPEN
+status: FIXING
 severity: medium
 reproducibility: always
 created_at: "2026-11-03T03:10:02+0800"
-updated_at: "2026-11-03T03:10:02+0800"
+updated_at: "2026-11-03T11:45:52+0800"
 impact:
   - linux
   - voice
@@ -21,7 +21,7 @@ links:
 |------|------|
 | 嚴重度 | 🟡 medium（Linux 打包版的語音輸入完全不能用；BAT 其他功能不受影響） |
 | 可重現 | 每次：ubuntu-22.04 / 24.04 runner，三次 run 錯誤原文相同 |
-| **狀態** | 📂 OPEN |
+| **狀態** | 🔧 FIXING（T0800） |
 | 回報者 | 塔台（T0799 CI 查證） |
 
 ## 現象
@@ -44,3 +44,4 @@ links:
 ## 處理紀錄
 
 - 2026-11-03 03:10 開單（OPEN，medium），依 T0799 W1 查證；BUG-203 的 glibc 問題被本單遮住，兩單一起處理較合理。
+- 2026-11-03 11:45 → FIXING（T0800，D245）：先查證再選修法，塔台偏好打包時讓相依函式庫從同目錄解析；不用 `LD_LIBRARY_PATH`；BUG-203 在同單只查證。

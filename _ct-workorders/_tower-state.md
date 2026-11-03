@@ -1,17 +1,17 @@
 ---
 schema_kind: tower-state
 summary_version: 1
-updated_at: "2026-11-03T11:44:06+08:00"
-session: "2026-11-03 11:44 第一百一十 session 開工（CT v6.0.0-beta.11）"
+updated_at: "2026-11-03T11:45:52+08:00"
+session: "2026-11-03 11:45 第一百一十 session：派 T0800（BUG-204）（CT v6.0.0-beta.11）"
 next_ids:
-  workorder: "T0800"
-  decision: "D245"
+  workorder: "T0801"
+  decision: "D246"
   bug: "BUG-205"
   plan: "PLAN-062"
 todo:
   - "BUG-159（FIXED）驗收：需非系統管理員環境 ＋ codex"
   - "BUG-202（FIXED，已合併 bf561a3d）：下一個預覽版發佈後跑 `linux-acceptance.yml -f version=<版號>`，22.04 PASS / 24.04 WARN auto-disabled 即 CLOSED"
-  - "BUG-204（OPEN，medium）：Linux 打包版 whisper 找不到 libwhisper.so.1（遮住 BUG-203）"
+  - "T0800（BUG-204 FIXING，medium）：Linux 打包版 whisper 找不到 libwhisper.so.1（遮住 BUG-203），派工中"
   - "BUG-203（OPEN，low）：22.04 whisper 需 GLIBC_2.38，待實測語音輸入"
   - "PLAN-059：A 完成（BUG-196 CLOSED）；B = PLAN-061（IDEA low，D229）；C 待問 CT（Q5）；Q4 未解"
   - "PLAN-060（IDEA）：macOS Developer ID 簽章（目前 macOS 不顯示系統通知）"
@@ -28,7 +28,7 @@ todo:
 
 ## 🟢 進行中 Session（第一百一十 session，2026-11-03 11:44 起）
 
-> 🟢 **第一百一十 session 開工**（2026-11-03 11:44 (UTC+8)，CT v6.0.0-beta.11，Fast Path；塔台 session `3803ef47-2727-4298-9db5-bd566255765c`；`--set-role tower --mode on` exit 0；`bat_whoami` 名稱 `better-agent-terminal · Tower`；安裝版 FileVersion `0.7.4-pre.1`；HEAD `ab9e8117`、`main` = `origin/main`（fetch 後 0 / 0）、工作區乾淨；熱區 195 張工單皆 DONE；BUG 熱區 Open 2（203 / 204）/ Fixed 2（159 / 202）/ Closed 64，與 `_bug-tracker.md` 一致，免重建；PLAN DONE 15 / DROPPED 2 / IDEA 8 / PLANNED 1；`bat_list_questions` pending 0；熱區檔案皆 < 400 KB）。
+> 🟢 **第一百一十 session 開工**（2026-11-03 11:44 (UTC+8)，CT v6.0.0-beta.11，Fast Path；塔台 session `3803ef47-2727-4298-9db5-bd566255765c`；`--set-role tower --mode on` exit 0；`bat_whoami` 名稱 `better-agent-terminal · Tower`；安裝版 FileVersion `0.7.4-pre.1`；HEAD `ab9e8117`、`main` = `origin/main`（fetch 後 0 / 0）、工作區乾淨；熱區 195 張工單皆 DONE；BUG 熱區 Open 2（203 / 204）/ Fixed 2（159 / 202）/ Closed 64，與 `_bug-tracker.md` 一致，免重建；PLAN DONE 15 / DROPPED 2 / IDEA 8 / PLANNED 1；`bat_list_questions` pending 0；熱區檔案皆 < 400 KB）。使用者「依塔台建議推進」→ **D245** → 開 **T0800**（BUG-204 → FIXING；查證後打包時修 whisper 相依函式庫搜尋路徑、不用 `LD_LIBRARY_PATH`；授權 push `ct/T0800` 驗證）。
 
 ---
 
