@@ -1,5 +1,5 @@
 {
- "generated_at": "2026-11-03T03:10:01+08:00",
+ "generated_at": "2026-11-03T12:10:04+08:00",
  "generator": {
   "script": "ct-session-stats.py",
   "version": "0.1.0"
@@ -30,6 +30,15 @@
    "cache_write_5m": 0,
    "input": 602,
    "output": 219559
+  },
+  "2026-11-03": {
+   "api_requests": 35,
+   "cache_read": 6038402,
+   "cache_write": 177528,
+   "cache_write_1h": 177528,
+   "cache_write_5m": 0,
+   "input": 72,
+   "output": 22755
   }
  },
  "workorders": [
@@ -5283,6 +5292,92 @@
     "2.1.316"
    ],
    "workorder": "T0799"
+  },
+  {
+   "attribution": {
+    "conflict": false,
+    "source": "frontmatter",
+    "sources": {
+     "frontmatter": 1
+    }
+   },
+   "by_mcp_server": {},
+   "by_tool": {
+    "Bash": 83,
+    "Edit": 26,
+    "Grep": 2,
+    "Monitor": 1,
+    "PowerShell": 3,
+    "ToolSearch": 1,
+    "Write": 4
+   },
+   "counts": {
+    "api_requests": 106,
+    "failures": 1,
+    "same_file_read_ge3": 0,
+    "subagent_files": 0,
+    "tool_calls": 120
+   },
+   "end": "2026-11-03T04:09:55Z",
+   "est_usd": 9.5319,
+   "failures_by_tool": {
+    "Bash": 1
+   },
+   "renews": 0,
+   "sessions": 1,
+   "skills_invoked": {},
+   "start": "2026-11-03T03:47:35Z",
+   "stuck": {
+    "max_consecutive_failures": 1,
+    "max_failures_in_10_calls": 1,
+    "near_repeat_fail_pairs_j50": 0,
+    "repeat_fail_groups_norm": 0
+   },
+   "stuck_signal": false,
+   "subagent_tokens": {
+    "cache_read": 0,
+    "cache_write": 0,
+    "cache_write_1h": 0,
+    "cache_write_5m": 0,
+    "input": 0,
+    "output": 0
+   },
+   "tokens": {
+    "cache_read": 26687756,
+    "cache_write": 305840,
+    "cache_write_1h": 305840,
+    "cache_write_5m": 0,
+    "input": 220,
+    "output": 87338
+   },
+   "top_tools": [
+    [
+     "Bash",
+     83
+    ],
+    [
+     "Edit",
+     26
+    ],
+    [
+     "Write",
+     4
+    ],
+    [
+     "PowerShell",
+     3
+    ],
+    [
+     "Grep",
+     2
+    ]
+   ],
+   "type": "implementation",
+   "unpriced_tokens": 0,
+   "versions": [
+    "2.1.316"
+   ],
+   "workorder": "T0800"
   }
  ]
 }
