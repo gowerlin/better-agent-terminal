@@ -1,5 +1,5 @@
 {
- "generated_at": "2026-11-03T13:39:51+08:00",
+ "generated_at": "2026-11-03T14:07:36+08:00",
  "generator": {
   "script": "ct-session-stats.py",
   "version": "0.1.0"
@@ -32,13 +32,13 @@
    "output": 219559
   },
   "2026-11-03": {
-   "api_requests": 42,
-   "cache_read": 7885574,
-   "cache_write": 200514,
-   "cache_write_1h": 200514,
+   "api_requests": 49,
+   "cache_read": 9567819,
+   "cache_write": 213001,
+   "cache_write_1h": 213001,
    "cache_write_5m": 0,
-   "input": 88,
-   "output": 31820
+   "input": 104,
+   "output": 37030
   }
  },
  "workorders": [
@@ -5467,6 +5467,91 @@
     "2.1.316"
    ],
    "workorder": "T0801"
+  },
+  {
+   "attribution": {
+    "conflict": false,
+    "source": "frontmatter",
+    "sources": {
+     "frontmatter": 1
+    }
+   },
+   "by_mcp_server": {},
+   "by_tool": {
+    "Bash": 103,
+    "Edit": 10,
+    "Grep": 2,
+    "PowerShell": 3,
+    "Read": 4,
+    "Write": 13
+   },
+   "counts": {
+    "api_requests": 126,
+    "failures": 1,
+    "same_file_read_ge3": 0,
+    "subagent_files": 0,
+    "tool_calls": 135
+   },
+   "end": "2026-11-03T06:07:18Z",
+   "est_usd": 11.716,
+   "failures_by_tool": {
+    "Bash": 1
+   },
+   "renews": 0,
+   "sessions": 1,
+   "skills_invoked": {},
+   "start": "2026-11-03T05:32:07Z",
+   "stuck": {
+    "max_consecutive_failures": 1,
+    "max_failures_in_10_calls": 1,
+    "near_repeat_fail_pairs_j50": 0,
+    "repeat_fail_groups_norm": 0
+   },
+   "stuck_signal": false,
+   "subagent_tokens": {
+    "cache_read": 0,
+    "cache_write": 0,
+    "cache_write_1h": 0,
+    "cache_write_5m": 0,
+    "input": 0,
+    "output": 0
+   },
+   "tokens": {
+    "cache_read": 33132883,
+    "cache_write": 324164,
+    "cache_write_1h": 324164,
+    "cache_write_5m": 0,
+    "input": 252,
+    "output": 124754
+   },
+   "top_tools": [
+    [
+     "Bash",
+     103
+    ],
+    [
+     "Write",
+     13
+    ],
+    [
+     "Edit",
+     10
+    ],
+    [
+     "Read",
+     4
+    ],
+    [
+     "PowerShell",
+     3
+    ]
+   ],
+   "type": "implementation",
+   "unpriced_tokens": 0,
+   "versions": [
+    "2.1.316"
+   ],
+   "workorder": "T0802"
   }
  ]
 }
