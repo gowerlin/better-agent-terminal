@@ -1,9 +1,9 @@
 # State Snapshot INDEX
 
-> Last archived: 2026-11-03 (Session 110 收工 — Session 108 收工快照 → 2026-Q4-b.md)
-> Hot path retains: session 108 (本) + session 107 (前) + Quick Recovery / 基本資訊 / 進度快照 / 環境快照 / YOLO 歷程
+> Last archived: 2026-11-04 (Session 115 開工 `*archive --state` — Session 109 – 114 → 2026-Q4-c.md)
+> Hot path retains: session 115 開工條目 + Quick Recovery / 基本資訊 / 進度快照 / 環境快照 / YOLO 歷程
 > Archive root: `_ct-workorders/_archive/state-snapshots/`
-> Total archived entries: 126 (0 in Q1 / 58 in Q2-a/b / 5 in Q2-c / 2 in Q3 / 27 in Q4-a / 34 in Q4-b)
+> Total archived entries: 134 (27 in Q2-a / 31 in Q2-b / 5 in Q2-c / 2 in Q3 / 27 in Q4-a / 36 in Q4-b / 6 in Q4-c)
 
 | # | Session | Date | File | Summary |
 |---|---------|------|------|---------|
@@ -135,3 +135,9 @@
 | 126 | 第一百零六 session | 2026-11-02 | 2026-Q4-b.md | 第一百零六 session, 2026-11-02 17:52-20:50, T0787-T0790, D226-D231, BUG-196 / 197, 0.7.3-pre.8 |
 | 127 | 第一百零七 session | 2026-11-02 | 2026-Q4-b.md | 第一百零七 session, 2026-11-02 21:40-22:33, T0791, D232-D233, BUG-198 / 199, 0.7.3-pre.9 |
 | 128 | 第一百零八 session | 2026-11-02 | 2026-Q4-b.md | 第一百零八 session, 2026-11-02 22:38 - 11-03 00:40, T0792-T0796, D234-D241, BUG-196-201, 0.7.4-pre.1 |
+| 129 | 第一百零九 session | 2026-11-03 | 2026-Q4-c.md | 第一百零九 session, 2026-11-03 01:02-03:13, T0797-T0799, BUG-202-204, 0.7.4-pre.1 NSIS 驗收, Linux AppImage 驗收 workflow |
+| 130 | 第一百一十 session | 2026-11-03 | 2026-Q4-c.md | 第一百一十 session, 2026-11-03 11:44-12:55, T0800, D246, BUG-203 / 204, 0.7.4-pre.2 |
+| 131 | 第一百一十一 session | 2026-11-03 | 2026-Q4-c.md | 第一百一十一 session, 2026-11-03 13:21 開工, T0801-T0802, D247-D248, 0.7.4-pre.3 |
+| 132 | 第一百一十二 session | 2026-11-03 | 2026-Q4-c.md | 第一百一十二 session, 2026-11-03 15:21 開工, T0803-T0809, D249-D256, BUG-205-208, 0.7.4-pre.4 |
+| 133 | 第一百一十三 session | 2026-11-03 | 2026-Q4-c.md | 第一百一十三 session, 2026-11-03 20:39 開工, T0810-T0817, D257-D262, BUG-205 / 206 / 209, 0.7.4-pre.5 |
+| 134 | 第一百一十四 session | 2026-11-04 | 2026-Q4-c.md | 第一百一十四 session, 2026-11-04 00:39 開工, T0818-T0825, D263-D269, PLAN-063, BUG-210, 0.7.4-pre.6 |
