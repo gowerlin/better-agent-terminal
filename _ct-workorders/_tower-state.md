@@ -1,8 +1,8 @@
 ---
 schema_kind: tower-state
 summary_version: 1
-updated_at: "2026-11-03T03:13:20+08:00"
-session: "2026-11-03 03:13 第一百零九 session 收工（CT v6.0.0-beta.11）"
+updated_at: "2026-11-03T11:44:06+08:00"
+session: "2026-11-03 11:44 第一百一十 session 開工（CT v6.0.0-beta.11）"
 next_ids:
   workorder: "T0800"
   decision: "D245"
@@ -23,6 +23,12 @@ todo:
 > 最後更新:2026-11-03 03:13 (UTC+8) — **第一百零九 session 收工**：`v0.7.4-pre.1` NSIS 驗收 PASS-WITH-WARN；新增 Linux AppImage 啟動驗收 workflow（T0797 / T0798）：22.04 PASS、24.04 預設設定崩潰（BUG-202）→ T0799 啟動器自動降級 sandbox，FIXED 並合併；Linux 語音輸入無法載入（BUG-204）、22.04 glibc（BUG-203）。前次：第一百零八 session 收工（2026-11-03 00:40）。
 >
 > **下次起手**:熱區無進行中工單。① BUG-204（Linux whisper 找不到 `libwhisper.so.1`，medium）是否派工；② 發 `0.7.4-pre.2` 後跑 `linux-acceptance.yml -f version=0.7.4-pre.2`（22.04 PASS / 24.04 WARN auto-disabled）結 BUG-202；③ BUG-159 需非系統管理員環境＋codex；④ PLAN-059 C 待問 CT（Q5）。
+
+---
+
+## 🟢 進行中 Session（第一百一十 session，2026-11-03 11:44 起）
+
+> 🟢 **第一百一十 session 開工**（2026-11-03 11:44 (UTC+8)，CT v6.0.0-beta.11，Fast Path；塔台 session `3803ef47-2727-4298-9db5-bd566255765c`；`--set-role tower --mode on` exit 0；`bat_whoami` 名稱 `better-agent-terminal · Tower`；安裝版 FileVersion `0.7.4-pre.1`；HEAD `ab9e8117`、`main` = `origin/main`（fetch 後 0 / 0）、工作區乾淨；熱區 195 張工單皆 DONE；BUG 熱區 Open 2（203 / 204）/ Fixed 2（159 / 202）/ Closed 64，與 `_bug-tracker.md` 一致，免重建；PLAN DONE 15 / DROPPED 2 / IDEA 8 / PLANNED 1；`bat_list_questions` pending 0；熱區檔案皆 < 400 KB）。
 
 ---
 
