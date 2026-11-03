@@ -1,3 +1,4 @@
+import * as fs from 'fs'
 import * as net from 'net'
 import * as path from 'path'
 import { spawn, ChildProcess } from 'child_process'
@@ -16,6 +17,7 @@ import type { CtWorktreeRecord } from './ct-worktree'
 import { LaunchSuspectWatcher, TerminalBlockedTracker, type BlockedDetection, type BlockedState, type HookReportEvent, type HookReportResult } from './terminal-blocked-state'
 import { CodexStateScanner, lastCodexState } from '../src/lib/codex-terminal-state'
 import type { InterruptedAgentSource } from './interrupted-agents'
+import { describePtyFdGuardSkip, guardPtySpawnFds, type PtyFdGuardDeps, type PtyFdGuardOutcome } from './pty-spawn-fd-guard'
 
 // Try to import @lydell/node-pty, fall back to child_process if not available
 let pty: typeof import('@lydell/node-pty') | null = null
@@ -293,6 +295,11 @@ export interface PtyManagerDeps {
   onAgentsInterrupted?: (sources: InterruptedAgentSource[]) => void
   /** T0704: replaces parts of `defaultServerWatchdogDeps` (tests). Undefined = the defaults. */
   serverWatchdog?: Partial<ServerWatchdogDeps>
+  /**
+   * BUG-205 / T0806: platform / file check for the Linux fd guard of direct spawns
+   * (electron/pty-spawn-fd-guard.ts; tests). Undefined = `process.platform` + `fs.existsSync`.
+   */
+  fdGuard?: PtyFdGuardDeps
 }
 
 /** T0404: `pty:create` refused because the manager already runs `maxInstances` PTYs. */
@@ -427,6 +434,8 @@ export class PtyManager implements CloseWorkerPtyManager {
   // both alive it is still only logged (`[heartbeat] late pong`), never a recovery
   private static readonly HEARTBEAT_MAX_MISSES = 3
   private readonly watchdog: ServerWatchdogDeps
+  /** BUG-205 / T0806 */
+  private readonly fdGuard: PtyFdGuardDeps
   // T0704: bumped when a recovery starts; a listener attached to an earlier server drops its messages
   private serverGeneration = 0
   private droppedStaleMessages = 0
@@ -445,6 +454,7 @@ export class PtyManager implements CloseWorkerPtyManager {
   constructor(deps: PtyManagerDeps) {
     this.deps = deps
     this.watchdog = { ...defaultServerWatchdogDeps, ...deps.serverWatchdog }
+    this.fdGuard = deps.fdGuard ?? { platform: process.platform, fileExists: (p) => fs.existsSync(p) }
   }
 
   /** `process.env` minus the keys the host asked to drop (T0390). */
@@ -698,7 +708,7 @@ export class PtyManager implements CloseWorkerPtyManager {
       case 'pty:exit':
         this.handlePtyExit(msg.id, msg.exitCode); break
       case 'pty:created':
-        this.handlePtyCreated(msg.id, msg.pid); break
+        this.handlePtyCreated(msg.id, msg.pid, msg.fdGuard); break
       case 'pty:list':
         this.handleReplayList(msg.ptys); break
       case 'pty:buffer':
@@ -768,10 +778,12 @@ export class PtyManager implements CloseWorkerPtyManager {
     this.enqueuePtyOutput(id, data)
   }
 
-  private handlePtyCreated(id: string, pid: number): void {
+  private handlePtyCreated(id: string, pid: number, fdGuard?: PtyFdGuardOutcome): void {
     const instance = this.instances.get(id)
     if (instance) instance.awaitingCreated = false
-    logger.log(`[PtyManager] server spawned PTY ${id} (pid ${pid})`)
+    // T0806 / BUG-205: only a Linux server reports `fdGuard`; other platforms log what they logged before
+    logger.log(`[PtyManager] server spawned PTY ${id} (pid ${pid})${fdGuard ? ` fd-guard=${fdGuard}` : ''}`)
+    if (fdGuard === 'no-bash') logger.log(describePtyFdGuardSkip('the shell', `Terminal Server PTY ${id}`))
   }
 
   /**
@@ -1442,12 +1454,15 @@ export class PtyManager implements CloseWorkerPtyManager {
         // terminals don't inherit Node-only mode from the Claude SDK fallback (claude-agent-manager.ts:511,1233).
         delete (envWithUtf8 as Record<string, string | undefined>).ELECTRON_RUN_AS_NODE
 
-        const ptyProcess = pty.spawn(shell, args, {
+        // BUG-205 / T0806: Linux → through the fd guard (pid / argv / env unchanged); elsewhere unchanged
+        const guard = guardPtySpawnFds({ file: shell, args, env: envWithUtf8 as Record<string, string> }, this.fdGuard)
+        this.logFdGuard(guard, shell, id, 'node-pty')
+        const ptyProcess = pty.spawn(guard.command.file, guard.command.args, {
           name: 'xterm-256color',
           cols: 120,
           rows: 30,
           cwd,
-          env: envWithUtf8 as { [key: string]: string }
+          env: guard.command.env
         })
 
         ptyProcess.onData((data: string) => {
@@ -1486,9 +1501,12 @@ export class PtyManager implements CloseWorkerPtyManager {
         // BUG-038: strip ELECTRON_RUN_AS_NODE (same rationale as node-pty branch above).
         delete (envWithUtf8 as Record<string, string | undefined>).ELECTRON_RUN_AS_NODE
 
-        const childProcess = spawn(shell, shellArgs, {
+        // BUG-205 / T0806: same fd guard as the node-pty branch
+        const guard = guardPtySpawnFds({ file: shell, args: shellArgs, env: envWithUtf8 as NodeJS.ProcessEnv }, this.fdGuard)
+        this.logFdGuard(guard, shell, id, 'child_process')
+        const childProcess = spawn(guard.command.file, guard.command.args, {
           cwd,
-          env: envWithUtf8 as NodeJS.ProcessEnv,
+          env: guard.command.env,
           stdio: ['pipe', 'pipe', 'pipe'],
           shell: false,
           windowsHide: true
@@ -1525,6 +1543,12 @@ export class PtyManager implements CloseWorkerPtyManager {
     }
 
     return true
+  }
+
+  /** BUG-205 / T0806: one debug line per Linux direct spawn; nothing on other platforms. No env values. */
+  private logFdGuard(guard: ReturnType<typeof guardPtySpawnFds>, shell: string, id: string, via: string): void {
+    if (guard.wrapped) logger.log(`[pty-fd-guard] ${via} ${id}: ${guard.wrapper} closes inherited fds >= 3, then execs ${shell}`)
+    else if (guard.reason === 'no-bash') logger.log(describePtyFdGuardSkip(shell, `${via} ${id}`))
   }
 
   write(id: string, data: string): void {

@@ -1,9 +1,11 @@
+import * as fs from 'fs'
 import * as net from 'net'
 import { RingBuffer } from './ring-buffer'
 import { writePortFile, removePortFile, removePidFile } from './pid-manager'
 import { addPtyEntry, removePtyEntry, clearRegistry, writeRegistry } from './pty-registry'
 import { defaultKillTreeDeps, killProcessTree, type KillTreeDeps } from './process-tree'
 import type { ServerRequest, ServerResponse } from './protocol'
+import { guardPtySpawnFds, type PtyFdGuardDeps } from '../pty-spawn-fd-guard'
 
 // Load @lydell/node-pty at runtime — same pattern as pty-manager.ts
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -65,6 +67,8 @@ export function buildServerPtyEnv(
 /** T0540: injectable for tests (taskkill, platform, process exit). */
 export interface TerminalServerDeps extends KillTreeDeps {
   exit: (code: number) => void
+  /** BUG-205 / T0806: Linux PTY children keep only fd 0–2 (electron/pty-spawn-fd-guard.ts). */
+  fdGuard: PtyFdGuardDeps
 }
 
 /**
@@ -102,6 +106,7 @@ export class TerminalServer {
       platform: deps.platform ?? defaultKillTreeDeps.platform,
       execFile: deps.execFile ?? defaultKillTreeDeps.execFile,
       exit: deps.exit ?? ((code) => process.exit(code)),
+      fdGuard: deps.fdGuard ?? { platform: process.platform, fileExists: (p) => fs.existsSync(p) },
     }
   }
 
@@ -240,12 +245,15 @@ export class TerminalServer {
     try {
       const ptyEnv = buildServerPtyEnv(process.env, req.env)
 
-      const ptyProcess = pty.spawn(req.shell, req.args, {
+      // BUG-205 / T0806: on Linux the shell starts through the fd guard (pid / argv / env unchanged);
+      // elsewhere `spawn` gets exactly what it got before.
+      const guard = guardPtySpawnFds({ file: req.shell, args: req.args, env: ptyEnv }, this.deps.fdGuard)
+      const ptyProcess = pty.spawn(guard.command.file, guard.command.args, {
         name: 'xterm-256color',
         cols: req.cols,
         rows: req.rows,
         cwd: req.cwd,
-        env: ptyEnv,
+        env: guard.command.env,
       })
 
       const buffer = new RingBuffer(this.bufferLines)
@@ -276,8 +284,12 @@ export class TerminalServer {
         )
       }
 
-      // pty:created only goes back to the requester
-      this.sendToClient({ type: 'pty:created', id: req.id, pid: ptyProcess.pid as number }, via, socket)
+      // pty:created only goes back to the requester. T0806: `fdGuard` only on Linux (main logs it;
+      // the server's own stderr goes nowhere), so other platforms send the same message as before.
+      const created: Extract<ServerResponse, { type: 'pty:created' }> = { type: 'pty:created', id: req.id, pid: ptyProcess.pid as number }
+      if (guard.wrapped) created.fdGuard = 'closed'
+      else if (guard.reason === 'no-bash') created.fdGuard = 'no-bash'
+      this.sendToClient(created, via, socket)
     } catch (e) {
       this.sendToClient({ type: 'error', requestType: 'pty:create', message: String(e) }, via, socket)
     }

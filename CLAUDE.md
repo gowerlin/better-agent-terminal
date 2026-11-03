@@ -178,6 +178,15 @@
 - ⏻ 重啟已結束的分頁（T0539 / BUG-137）：`restartOrCreatePty`（`src/lib/pty-replay.ts`）。
 - 完整實測、macOS / Linux 行為、驗證清單：[docs/agent-guide/pty-process-tree.md](docs/agent-guide/pty-process-tree.md)
 
+## Linux PTY 子程序只保留 fd 0–2（T0806 / BUG-205，D252）
+
+- 用途：Linux 上 Chromium 的 fd 不設 CLOEXEC、libuv 與 `@lydell/node-pty` 1.1.0 起子程序時不關 fd，分頁的 shell 原本會繼承主行程 / Terminal Server 的描述元與比它早開的分頁的 pty master（T0805）。現在 Linux 的 PTY 子程序經 bash 包裝，exec shell 前關掉 fd ≥ 3。
+- 🔴 只有 Linux 套用；Windows / macOS 傳給 `spawn` 的內容與日誌完全不變（`guardPtySpawnFds` 回傳原物件）。沒有 `/bin/bash`、`/usr/bin/bash` 時照舊直接 spawn，記一行 `[pty-fd-guard]` debug log。
+- 🔴 包裝不得改變既有行為：pid 是 shell（wrapper `exec` 成 shell）、argv[0] 是原 `file`、參數原樣、env 與 cwd 不變（`BASH_ENV` 不給包裝的 bash 並由腳本還原，原本沒有的 `PWD` / `SHLVL` 再拿掉）、只保留 fd 0–2。腳本是固定字串，shell 與參數只當位置參數、以陣列傳給 `spawn`。
+- 唯一實作 `guardPtySpawnFds`（`electron/pty-spawn-fd-guard.ts`，純函式、不 import electron）；Terminal Server `createPty`、`PtyManager` direct `pty.spawn` 與 `child_process.spawn` fallback 都經它（headless 同一個 `PtyManager`）。🔴 新增 PTY spawn 路徑一律經它；`PtyManager` 存 / 送給 server 的仍是原 shell / args（server 端才包裝）。Linux server 在 `pty:created` 帶 `fdGuard`，主行程記 `fd-guard=closed`。
+- 已知限制：更新前就在跑的舊 Terminal Server 不包裝；主行程以 `child_process` 起的其他子程序仍收到主行程的 fd（不在本節範圍）。
+- 完整規則、env 處理表、consumer 不回歸表、日誌、驗證（單元測試＋ `e2e/linux/t0806-pty-fd-inheritance.spec.ts` F1–F6）：[docs/agent-guide/linux-pty-fd-inheritance.md](docs/agent-guide/linux-pty-fd-inheritance.md)
+
 ## Recovery 提示期間的 `pty:create`（T0578 / BUG-146）
 
 - BAT 重開、Terminal Server 存活且有 PTY 時，main `ptyManager.holdCreates(...)`；`pty:create` handler（`electron/handlers/pty.ts`）在 hold 中等 `whenCreatesReleased`。🔴 Recovery 提示回答前不得 spawn direct shell：此時 PtyManager 尚未連上任何 Terminal Server，T0578 前的 create 走 direct node-pty，同 id 在 Electron 主程序下另起一個 shell（選「保留」後仍存活，輸出併入同 id；T0578 隔離實例實測 `pwsh.exe` 1 個）。

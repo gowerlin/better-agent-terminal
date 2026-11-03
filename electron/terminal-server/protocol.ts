@@ -2,6 +2,8 @@
 // Uses child_process.fork's built-in IPC (process.send / process.on('message')),
 // which handles JSON serialization automatically.
 
+import type { PtyFdGuardOutcome } from '../pty-spawn-fd-guard'
+
 // Requests sent from BAT main process → Terminal Server
 export type ServerRequest =
   | { type: 'pty:create'; id: string; shell: string; args: string[]; cwd: string; cols: number; rows: number; env?: Record<string, string> }
@@ -16,7 +18,8 @@ export type ServerRequest =
 
 // Responses sent from Terminal Server → BAT main process
 export type ServerResponse =
-  | { type: 'pty:created'; id: string; pid: number }
+  // T0806 / BUG-205: `fdGuard` only from a Linux server (electron/pty-spawn-fd-guard.ts); absent elsewhere and from older servers
+  | { type: 'pty:created'; id: string; pid: number; fdGuard?: PtyFdGuardOutcome }
   | { type: 'pty:data'; id: string; data: string }
   | { type: 'pty:exit'; id: string; exitCode: number }
   | { type: 'pty:buffer'; id: string; lines: string[] }
