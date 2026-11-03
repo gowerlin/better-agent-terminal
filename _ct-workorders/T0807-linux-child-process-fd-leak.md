@@ -11,8 +11,9 @@ priority: P2
 sizing: L
 created_at: "2026-11-03T17:59:11+0800"
 started_at: "2026-11-03T18:00:46+0800"
-updated_at: "2026-11-03T18:00:46+0800"
+updated_at: "2026-11-03T18:27:10+0800"
 completed_at: ""
+tower_question: open
 session_ids: []
 depends_on: [T0806]
 isolation: worktree
@@ -86,3 +87,12 @@ T0806 修好 PTY 子程序（BUG-205），盤點時發現：headless / direct �
 ---
 
 ## 回報區
+
+### 待塔台決策
+
+#### Q-1：headless 安裝點放在 `scripts/bat-server.mjs`、並更新 `docs/agent-guide/README.md` 索引列，兩檔不在 `affects_files`，是否接受？
+- 提問時間：2026-11-03T18:27:10+0800
+- 選項：[A] 接受：`scripts/bat-server.mjs` `main()` 在 `loadServerEntry` 之後、`applyHeadlessLoginShellPath` 之前呼叫 `serverEntry.installChildProcessFdGuard?.(…)`（`server-entry.ts` 匯出，比照 T0755 login-shell PATH 的位置與 source guard），`docs/agent-guide/README.md` 只改 linux-pty-fd-inheritance 那一列的說明 / 對應節 / [B] 不動 `bat-server.mjs`：改在 `electron/remote/headless-entry.ts` `createHeadlessServer` 內安裝（缺點：測試在行程內建立 headless server 時也會裝上全域 guard，且 bat-server 的 login-shell PATH spawn 在它之前）；README 索引列還原 / [C] 其他：________
+- Worker 建議：[A]。guard 是行程層級的安裝（libuv 入口），headless 唯一的行程入口就是 `bat-server.mjs`；放在那裡最早、只裝一次、不影響行程內建立 headless server 的測試。README 是 docs/agent-guide 索引，CLAUDE.md 規定改功能時兩邊一起更新（T0806 也改了同一列）。
+- 影響範圍：`scripts/bat-server.mjs`（+4 行）、`docs/agent-guide/README.md`（1 列）；選 [B] 要改 `headless-entry.ts`、source guard 測試與文件。
+- 阻塞：否（其餘實作與驗證已完成；填完成狀態前等答覆）
