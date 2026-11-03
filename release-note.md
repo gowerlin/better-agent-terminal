@@ -2,6 +2,42 @@
 
 本 fork 各版的更版重點（內容取自 GitHub Releases，最新在上）。上游 tony1223/better-agent-terminal 的 v2.1.x 紀錄保留在檔案最下方。
 
+## v0.7.4-pre.2（2026-11-03）
+
+版號 0.7.4-pre.2，接續 `v0.7.4-pre.1`。
+
+本版主要修正 Linux AppImage：Ubuntu 24.04 直接執行會崩潰的問題，以及 Linux 版語音輸入無法使用的問題。Windows 與 macOS 的行為沒有改變。
+
+## 修正
+
+- **Ubuntu 24.04 直接執行 AppImage 不再崩潰**（BUG-202，T0799）：Ubuntu 24.04 預設以 AppArmor 限制 user namespace，AppImage 內的 `chrome-sandbox` 又無法是 root setuid，直接執行時會立即結束。現在啟動器偵測到這種情況時，會自動以 `--no-sandbox` 啟動，並在終端機印出一行 `[sandbox] … starting with --no-sandbox (BUG-202)`、除錯日誌也記一行。其他情況（例如 Ubuntu 22.04、已安裝允許 user namespace 的 AppArmor profile、`chrome-sandbox` 已是 root setuid）照常開啟 sandbox。想在 24.04 保留 sandbox 的使用者，可自行評估安裝 AppArmor profile，說明見 `docs/agent-guide/linux-appimage-sandbox.md`。
+- **Linux 版語音輸入可以載入了**（BUG-204，T0800）：語音辨識模組的相依函式庫原本不會從模組自己的目錄載入，Linux 版語音輸入在任何發行版都無法使用。打包時已修正函式庫的搜尋路徑。
+
+## 更新
+
+- 新增 Linux AppImage 啟動驗收（T0797 / T0798）：可在 GitHub Actions 的 Ubuntu 22.04 與 24.04 上，對任一版本的 AppImage 實際啟動、開終端、輸入文字並檢查 sandbox 與語音辨識模組載入。
+
+## 待驗收（請更新到本版後協助確認）
+
+- **BUG-202 / BUG-204（Linux）**：請在 Ubuntu 24.04 桌面直接執行 AppImage，確認能開啟，並試用語音輸入。這兩項已在 GitHub Actions 的 Ubuntu runner 驗收，尚未在真人桌面實機驗證。
+- **Electron 45**（`v0.7.3-pre.7` 起）：請 macOS / Linux 使用者照常使用，有啟動、繪圖、終端顯示或貼上的異常請回報。
+- **BUG-159**：一般權限（非系統管理員）執行 BAT、關閉 BAT MCP 時，兩個 Codex CLI 分頁各自讀到自己的環境。
+
+## 已知事項
+
+- **Linux 語音輸入需要 glibc 2.38 以上（Ubuntu 24.04 起）**：Ubuntu 22.04 等較舊的發行版無法使用語音輸入，錄音結束後會顯示「辨識失敗」，BAT 其他功能不受影響（BUG-203，列為已知限制）。
+- Linux 語音輸入另需系統提供 `libgomp1` 與 `libvulkan1`（一般桌面版預設已安裝；精簡安裝的系統請先 `sudo apt install libgomp1 libvulkan1`）。
+- Ubuntu 24.04 自動關閉 sandbox 時，安全性比開啟 sandbox 時低；這是讓 AppImage 能在預設設定下開啟的取捨。
+- 遠端 profile 視窗（WSL / SSH / Docker）看不到「📨 待送 N」徽章，但通知照樣會被保留。
+- 使用者關掉 claude hooks 的分頁（`disableAllHooks`）BAT 判斷不出是否在等你回答，通知會照舊直接送出。
+- 很短的一輪工作偶爾會多顯示 `↻` 最多 60 秒才變回 `✓`；這段時間 Worker 不會被算進批次關閉。
+- **macOS 不會顯示 BAT 的系統通知**：沒有 Apple 開發者簽章的 app 不能發系統通知（PLAN-060）。BAT 視窗內的提示、⚠️ 與分頁標示不受影響。
+- Linux：dock 圖示上的數字徽章不再顯示。
+
+macOS 仍只提供 Apple Silicon（arm64）版。
+
+**Full Changelog**: https://github.com/gowerlin/better-agent-terminal/compare/v0.7.4-pre.1...v0.7.4-pre.2
+
 ## v0.7.4-pre.1（2026-11-03）
 
 版號 0.7.4-pre.1，接續 `v0.7.3-pre.9`（`0.7.3-pre.N` 到 pre.9 為止，預覽版改走 `0.7.4-pre.N`）。

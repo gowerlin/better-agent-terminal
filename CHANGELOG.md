@@ -4,8 +4,18 @@ All notable changes to Better Agent Terminal are documented in this file.
 
 ## [Unreleased]
 
+## [0.7.4-pre.2] — 2026-11-03
+
+### Fixed
+- Ubuntu 24.04 預設設定（AppArmor 限制 unprivileged user namespace）下直接執行 AppImage 會因 `chrome-sandbox` 不是 root setuid 而崩潰：`afterPack` 把 AppImage 的主程式換成 `/bin/sh` 啟動器（`scripts/appimage-sandbox-launcher.cjs`，Electron 改名 `BetterAgentTerminal.bin`），只在 userns 用不了＋`chrome-sandbox` 非 root setuid＋未帶 `--no-sandbox`＋非 `ELECTRON_RUN_AS_NODE` 時加 `--no-sandbox`，stderr 與 debug log 各記一行 `[sandbox]`；其他情況與 Windows / macOS 不變（BUG-202 / T0799，D244）
+- Linux 打包版語音輸入無法載入（`whisper.node` 找不到同目錄的 `libwhisper.so.1`；上游 `@kutalia/whisper-node-addon` 1.1.0 的 RUNPATH 指向其 CI 建置目錄）：`afterPack` 以 `patchelf --set-rpath '$ORIGIN'` 改寫 whisper 共享物件並讀回檢查（`scripts/linux-whisper-runpath.cjs`），缺 patchelf 打包失敗；三個 Linux 打包 workflow 安裝 patchelf；`verify-packaged-native.js` 加 `whisper-runpath`（BUG-204 / T0800，D245）
+
+### Added
+- `linux-acceptance.yml`（`workflow_dispatch`，`version` 或 `build_run_id`）：在 ubuntu-22.04 / 24.04 對 AppImage 做靜態檢查與 Playwright 啟動驗收（L1 sandbox 開啟、L2 直接執行、L1b `--no-sandbox` 備援、W1 whisper 載入），不發布（T0797 / T0798 / T0799 / T0800，D242 / D243）
+
 ### Known Issues
 - Linux：語音輸入需要 glibc 2.38 以上（Ubuntu 24.04 起），Ubuntu 22.04 等較舊發行版無法使用語音輸入（上游 whisper addon 的 `libggml-base.so` / `libggml-vulkan.so` 需 `GLIBC_2.38`）；另需系統的 `libgomp1` / `libvulkan1`（BUG-203 WONTFIX，D246）
+- Ubuntu 24.04 自動關閉 sandbox 時安全性較低；可自行安裝 AppArmor profile 保留 sandbox（`docs/agent-guide/linux-appimage-sandbox.md`）
 
 ## [0.7.4-pre.1] — 2026-11-03
 
