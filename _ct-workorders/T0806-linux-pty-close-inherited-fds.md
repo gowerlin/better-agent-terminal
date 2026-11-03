@@ -4,7 +4,7 @@ schema_kind: workorder
 id: T0806
 title: "BUG-205：Linux 上 PTY 子程序經 exec 包裝關掉 fd ≥ 3（不再繼承其他分頁的 pty master 與主行程描述元）；一併盤點 child_process 子程序的 fd 外流"
 type: implementation
-status: FIXED
+status: DONE
 repo: better-agent-terminal
 project: maintenance
 priority: P2
@@ -27,7 +27,9 @@ affects_files:
   - "electron/terminal-server/__tests__/*（若有對應測試）"
   - "e2e/linux/*（新增 Linux e2e：隔離實例、兩個 shell 分頁的 fd 檢查）"
   - CLAUDE.md
-  - "docs/agent-guide/pty-process-tree.md 或新增 docs/agent-guide/linux-pty-fd-inheritance.md（並更新 docs/agent-guide/README.md 索引）"
+  - docs/agent-guide/linux-pty-fd-inheritance.md
+  - docs/agent-guide/README.md
+  - "electron/terminal-server/protocol.ts（塔台收單接受：`pty:created` 加選用欄位 `fdGuard`）"
   - _ct-workorders/T0806-linux-pty-close-inherited-fds.md
 renew_count: 0
 workdir: "worktree（BAT `--isolation worktree`，分支 `ct/T0806`）"
