@@ -12,8 +12,11 @@
  * - installChildProcessFdGuard: not Linux → no binding touched; Linux → both libuv entry points
  *   wrapped (positional async form, object sync form), opt-out, fail-open on odd shapes / errors,
  *   uninstall restores
- * - source guards: main.ts installs it before the Terminal Server fork and opts that fork out;
- *   bat-server.mjs installs it before anything spawns; server-entry exports it
+ * - T0816 (PLAN-062 A3): withoutCrashpadClient / runWithoutCrashpadClient drop CRASHDUMP_SIGNAL_FD /
+ *   CRASHPAD_HANDLER_PID and do not keep that fd; nesting and throw restore it
+ * - source guards: main.ts installs it before the Terminal Server fork; the one fork helper
+ *   (forkTerminalServer) is guarded without crashpad client; bat-server.mjs installs it before
+ *   anything spawns; server-entry exports it
  */
 import * as fs from 'fs'
 import * as path from 'path'
@@ -25,12 +28,14 @@ vi.mock('electron', () => {
 
 import {
   CHILD_FD_GUARD_DEFAULT_PATH,
+  CRASHPAD_CLIENT_ENV_KEYS,
   CHILD_FD_GUARD_NAME,
   CHILD_FD_GUARD_SCRIPT,
   guardChildSpawn,
   installChildProcessFdGuard,
   resolveChildExecutable,
   runWithoutChildProcessFdGuard,
+  runWithoutCrashpadClient,
   type ChildFdGuardDeps,
   type ChildSpawnRequest,
 } from '../child-process-fd-guard'
@@ -123,6 +128,29 @@ describe('guardChildSpawn', () => {
     expect(positional(guardChildSpawn(req({ envPairs: [...BASE_ENV, 'CRASHDUMP_SIGNAL_FD=42'] }), deps())).extra).toBe('42')
     expect(positional(guardChildSpawn(req({ envPairs: [...BASE_ENV, 'CRASHDUMP_SIGNAL_FD=2'] }), deps())).extra).toBe('')
     expect(positional(guardChildSpawn(req({ envPairs: [...BASE_ENV, 'CRASHDUMP_SIGNAL_FD=4;x'] }), deps())).extra).toBe('')
+  })
+
+  it('T0816 withoutCrashpadClient: both crashpad env pairs dropped (every occurrence), that fd not kept; the rest unchanged', () => {
+    const env = [...BASE_ENV, 'CRASHDUMP_SIGNAL_FD=42', 'ELECTRON_RUN_AS_NODE=1', 'CRASHPAD_HANDLER_PID=777', 'CRASHDUMP_SIGNAL_FD=43']
+    expect(CRASHPAD_CLIENT_ENV_KEYS).toEqual(['CRASHDUMP_SIGNAL_FD', 'CRASHPAD_HANDLER_PID'])
+    const off = positional(guardChildSpawn(req({ envPairs: env, stdioCount: 5, withoutCrashpadClient: true }), deps()))
+    expect(off.extra).toBe('')
+    expect(off.keep).toBe('5')
+    expect(off.envPairs).toEqual([...BASE_ENV, 'ELECTRON_RUN_AS_NODE=1'])
+    // without the flag: as before (T0807), the fd is kept and the env passed through
+    const on = positional(guardChildSpawn(req({ envPairs: env, stdioCount: 5 }), deps()))
+    expect(on.extra).toBe('43')
+    expect(on.envPairs).toEqual(env)
+    // envPairs undefined: this process's env, filtered the same way
+    const inherited = positional(guardChildSpawn(req({ envPairs: undefined, withoutCrashpadClient: true }), deps({ processEnv: () => ({ PATH: '/usr/bin', CRASHDUMP_SIGNAL_FD: '9', CRASHPAD_HANDLER_PID: '1', A: 'b' }) })))
+    expect(inherited.extra).toBe('')
+    expect(inherited.envPairs.sort()).toEqual(['A=b', 'PATH=/usr/bin'])
+    // with BASH_ENV too
+    const both = positional(guardChildSpawn(req({ envPairs: [...env, 'BASH_ENV=/x'], withoutCrashpadClient: true }), deps()))
+    expect(both.envPairs).toEqual([...BASE_ENV, 'ELECTRON_RUN_AS_NODE=1'])
+    // caller's array untouched; not Linux still never wrapped
+    expect(env).toHaveLength(8)
+    expect(guardChildSpawn(req({ envPairs: env, withoutCrashpadClient: true }), deps({ platform: 'win32' }))).toEqual({ wrapped: false, reason: 'not-linux' })
   })
 
   it('BASH_ENV: not in the wrapper env (bash would source it), passed back as $2 with flag B', () => {
@@ -316,6 +344,34 @@ describe('installChildProcessFdGuard (fake bindings)', () => {
     expect(runWithoutChildProcessFdGuard(() => 7)).toBe(7)
   })
 
+  it('T0816 runWithoutCrashpadClient: async + sync spawns inside it lose the crashpad env and fd; nesting and throw restore it', () => {
+    const b = fakeBindings()
+    install(b)
+    const p = new b.Process()
+    const env = [...ENV_PAIRS, 'ELECTRON_RUN_AS_NODE=1', 'CRASHDUMP_SIGNAL_FD=37', 'CRASHPAD_HANDLER_PID=901']
+    const fork5 = [{ type: 'ignore' }, { type: 'ignore' }, { type: 'ignore' }, { type: 'pipe', ipc: true }, { type: 'fd', fd: 6 }]
+    runWithoutCrashpadClient(() => runWithoutCrashpadClient(() => p.spawn('/home/u/node', ['/home/u/node', 'server.js'], undefined, env, fork5, 0)))
+    const a = b.calls[0].args
+    expect(a[0]).toBe('/bin/bash')
+    expect((a[1] as string[]).slice(7, 9)).toEqual(['5', '']) // keep 0–4, no extra fd
+    expect(a[3]).toEqual([...ENV_PAIRS, 'ELECTRON_RUN_AS_NODE=1'])
+    expect(a[4]).toBe(fork5)
+    runWithoutCrashpadClient(() => b.spawnSync.spawn({ file: '/home/u/node', args: ['/home/u/node'], envPairs: env, stdio: [{}, {}, {}] }))
+    const so = b.calls[1].args[0] as { args: string[]; envPairs: string[] }
+    expect(so.args.slice(7, 9)).toEqual(['3', ''])
+    expect(so.envPairs.some(e => e.startsWith('CRASH'))).toBe(false)
+    expect(() => runWithoutCrashpadClient(() => { throw new Error('boom') })).toThrow('boom')
+    expect(runWithoutCrashpadClient(() => 7)).toBe(7)
+    // outside the scope again: T0807 behaviour (fd kept, env passed)
+    p.spawn('/home/u/node', ['/home/u/node'], undefined, env, fork5, 0)
+    expect((b.calls[2].args[1] as string[]).slice(7, 9)).toEqual(['5', '37'])
+    expect(b.calls[2].args[3]).toEqual(env)
+    // inside runWithoutChildProcessFdGuard the guard stays off entirely
+    runWithoutCrashpadClient(() => runWithoutChildProcessFdGuard(() => p.spawn('/home/u/node', ['/home/u/node'], undefined, env, fork5, 0)))
+    expect(b.calls[3].args[0]).toBe('/home/u/node')
+    expect(b.calls[3].args[3]).toBe(env)
+  })
+
   it('unexpected call shape or a failing check → original call, one log line per kind (fail open)', () => {
     const b = fakeBindings()
     const logs: string[] = []
@@ -359,13 +415,18 @@ describe('where the guard is installed (source guards)', () => {
   const root = path.resolve(__dirname, '..', '..')
   const read = (p: string) => fs.readFileSync(path.join(root, p), 'utf8')
 
-  it('main.ts installs it at module level before the Terminal Server fork, and both forks opt out', () => {
+  it('main.ts installs it at module level before the Terminal Server fork; T0816: one fork, guarded without crashpad client', () => {
     const src = read('electron/main.ts')
     const install = src.indexOf('installChildProcessFdGuard({')
     expect(install).toBeGreaterThan(0)
     expect(install).toBeLessThan(src.indexOf('fork(serverScript'))
-    expect(src.match(/fork\(serverScript/g)).toHaveLength(2)
-    expect(src.match(/runWithoutChildProcessFdGuard\(\(\) => fork\(serverScript/g)).toHaveLength(2)
+    expect(src.match(/fork\(serverScript/g)).toHaveLength(1)
+    expect(src.match(/runWithoutCrashpadClient\(\(\) => fork\(serverScript, \[\], \{\s*detached: true,\s*stdio: plan\.stdio,/g)).toHaveLength(1)
+    expect(src).not.toMatch(/runWithoutChildProcessFdGuard\(/)
+    // startTerminalServer and T0704's reforkTerminalServer both use the helper
+    const body = (name: string) => src.slice(src.indexOf(`function ${name}(`), src.indexOf('\n}\n', src.indexOf(`function ${name}(`)))
+    for (const fn of ['startTerminalServer', 'reforkTerminalServer']) expect(body(fn)).toContain('forkTerminalServer(serverScript, userDataPath)')
+    expect(body('forkTerminalServer')).toContain('planTerminalServerFork(process.platform, () => findAppImageKeepaliveFd(defaultAppImageKeepaliveDeps()))')
   })
 
   it('bat-server.mjs installs it right after loading server-entry, before the login-shell PATH and the server', () => {

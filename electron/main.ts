@@ -7,7 +7,8 @@ import { pathToFileURL } from 'url'
 import * as fs from 'fs/promises'
 import * as fsSync from 'fs'
 import { spawnSync, fork } from 'child_process'
-import { installChildProcessFdGuard, runWithoutChildProcessFdGuard } from './child-process-fd-guard'
+import { installChildProcessFdGuard, runWithoutCrashpadClient } from './child-process-fd-guard'
+import { defaultAppImageKeepaliveDeps, findAppImageKeepaliveFd, planTerminalServerFork } from './appimage-keepalive'
 import { DetachedTerminalOwners, saveDetachedWorkspaceTerminals, saveWindowWorkspaces, WindowRegistry, workspaceTerminals, type WorkspaceSavePayload } from './window-registry'
 import { createRendererFlusher, DETACHED_CLOSE_FLUSH_TIMEOUT_MS, DetachedTeardowns, flushBeforeClose, QUIT_FLUSH_TIMEOUT_MS, type CloseGuard } from './renderer-flush'
 import { openSettingsInWindow, pickSettingsWindow, type OpenSettingsInParentResult } from './detached-open-settings'
@@ -153,7 +154,7 @@ handOffEarlyCrashCapture()
 
 // BUG-206 / BUG-207 / T0807: Linux only — every child_process child of this process keeps only its
 // stdio fds (no Chromium descriptors; no pty master when PtyManager runs in direct mode). Installed
-// before anything below spawns; the Terminal Server fork opts out (runWithoutChildProcessFdGuard).
+// before anything below spawns. T0816: the Terminal Server fork is guarded too (forkTerminalServer).
 installChildProcessFdGuard({ log: line => logger.log(line) })
 
 // GPU disk cache: set dedicated path to avoid "Unable to move the cache" errors on Windows.
@@ -330,6 +331,35 @@ function terminalServerInheritedEnv(): NodeJS.ProcessEnv {
 }
 
 /**
+ * The one Terminal Server fork (startTerminalServer, and T0704's reforkTerminalServer).
+ * T0816 (PLAN-062 option A3, BUG-209), Linux only: the fork goes through the child_process fd guard
+ * without the crashpad client env (runWithoutCrashpadClient), so the server keeps fd 0–3 (IPC) and, from
+ * an AppImage, the keepalive pipe at fd 4: no Chromium descriptor, no crashpad fd, so the crashpad
+ * handler (which holds this process's stdout / stderr) ends with the main process. Windows / macOS:
+ * same stdio and env as before (planTerminalServerFork: no /proc read, no log; the guard is not
+ * installed there, so runWithoutCrashpadClient changes nothing).
+ */
+function forkTerminalServer(serverScript: string, userDataPath: string): import('child_process').ChildProcess {
+  // Read Terminal Server config from settings.json (T0109)
+  const tsSettings = readPersistedSettingsSync()
+  const scrollBufferLines = tsSettings?.terminalServerScrollBufferLines ?? 1000
+  const idleTimeoutMinutes = tsSettings?.terminalServerIdleTimeoutMinutes ?? 30
+
+  const plan = planTerminalServerFork(process.platform, () => findAppImageKeepaliveFd(defaultAppImageKeepaliveDeps()))
+  if (plan.log) logger.log(plan.log)
+  return runWithoutCrashpadClient(() => fork(serverScript, [], {
+    detached: true,
+    stdio: plan.stdio,
+    env: {
+      ...terminalServerInheritedEnv(),
+      BAT_USER_DATA: userDataPath,
+      BAT_SCROLL_BUFFER_LINES: String(scrollBufferLines),
+      BAT_IDLE_TIMEOUT_MS: String(idleTimeoutMinutes * 60000),
+    },
+  }))
+}
+
+/**
  * Fork the Terminal Server as a detached child process.
  * The server manages PTY instances independently and survives BAT restarts.
  * It shuts itself down after 30 minutes of idle (no parent connection).
@@ -409,22 +439,7 @@ async function startTerminalServer(): Promise<void> {
   }
 
   try {
-    // Read Terminal Server config from settings.json (T0109)
-    const tsSettings = readPersistedSettingsSync()
-    const scrollBufferLines = tsSettings?.terminalServerScrollBufferLines ?? 1000
-    const idleTimeoutMinutes = tsSettings?.terminalServerIdleTimeoutMinutes ?? 30
-
-    // T0807: the Terminal Server keeps its inherited fds (PLAN-062 option C, out of scope); its IPC fd 3 is stdio anyway.
-    const child = runWithoutChildProcessFdGuard(() => fork(serverScript, [], {
-      detached: true,
-      stdio: ['ignore', 'ignore', 'ignore', 'ipc'],
-      env: {
-        ...terminalServerInheritedEnv(),
-        BAT_USER_DATA: userDataPath,
-        BAT_SCROLL_BUFFER_LINES: String(scrollBufferLines),
-        BAT_IDLE_TIMEOUT_MS: String(idleTimeoutMinutes * 60000),
-      },
-    }))
+    const child = forkTerminalServer(serverScript, userDataPath)
 
     child.on('error', (err) => {
       logger.error(`[terminal-server] fork error: ${err}`)
@@ -471,21 +486,7 @@ async function reforkTerminalServer(): Promise<import('child_process').ChildProc
   }
 
   try {
-    const tsSettings = readPersistedSettingsSync()
-    const scrollBufferLines = tsSettings?.terminalServerScrollBufferLines ?? 1000
-    const idleTimeoutMinutes = tsSettings?.terminalServerIdleTimeoutMinutes ?? 30
-
-    // T0807: the Terminal Server keeps its inherited fds (PLAN-062 option C, out of scope); its IPC fd 3 is stdio anyway.
-    const child = runWithoutChildProcessFdGuard(() => fork(serverScript, [], {
-      detached: true,
-      stdio: ['ignore', 'ignore', 'ignore', 'ipc'],
-      env: {
-        ...terminalServerInheritedEnv(),
-        BAT_USER_DATA: userDataPath,
-        BAT_SCROLL_BUFFER_LINES: String(scrollBufferLines),
-        BAT_IDLE_TIMEOUT_MS: String(idleTimeoutMinutes * 60000),
-      },
-    }))
+    const child = forkTerminalServer(serverScript, userDataPath)
 
     child.on('error', (err) => {
       logger.error(`[terminal-server] re-fork error: ${err}`)

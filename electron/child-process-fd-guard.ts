@@ -37,10 +37,18 @@
  *    code (CLAUDE.md "Child Process Spawning").
  *
  * Not wrapped: not Linux; no bash; the command does not resolve; it already is a PTY / child fd
- * guard (the `PtyManager` child_process fallback); inside `runWithoutChildProcessFdGuard()` (the
- * Terminal Server fork: PLAN-062 option C, out of scope). Any unexpected binding call shape or an
+ * guard (the `PtyManager` child_process fallback); inside `runWithoutChildProcessFdGuard()` (kept for
+ * tests and reverse controls; no production caller since T0816). Any unexpected binding call shape or an
  * exception in the guard spawns the original command unchanged and logs one line (fail open: a
  * broken guard must not stop BAT from starting git / claude).
+ *
+ * T0816 (PLAN-062 option A3, BUG-209): the Terminal Server fork is guarded too, inside
+ * `runWithoutCrashpadClient()`: that spawn's env loses `CRASHDUMP_SIGNAL_FD` / `CRASHPAD_HANDLER_PID`
+ * (Electron appends them to an `ELECTRON_RUN_AS_NODE` child of `process.execPath`, lib/node/init.ts), so
+ * the guard does not keep that fd either and the server is no crashpad client: the crashpad handler,
+ * which holds the main process's stdout / stderr, no longer outlives the main process with a kept
+ * server. The server keeps only fd 0–3 (IPC) plus the AppImage keepalive at fd 4 (electron/main.ts
+ * `forkTerminalServer`, electron/appimage-keepalive.ts).
  *
  * `guardChildSpawn` / `resolveChildExecutable` are pure (no electron, no fs — the caller passes
  * `fileExists` / `isExecutableFile`). Installed by `electron/main.ts` (Electron main process) and
@@ -93,7 +101,18 @@ export interface ChildSpawnRequest {
   envPairs?: readonly string[]
   /** number of fds the child gets from `stdio` (0 … n-1) */
   stdioCount: number
+  /**
+   * T0816: drop `CRASHPAD_CLIENT_ENV_KEYS` from the child env (only when wrapped), so the fd that
+   * `CRASHDUMP_SIGNAL_FD` named is closed like any other and the child is no crashpad client.
+   */
+  withoutCrashpadClient?: boolean
 }
+
+/**
+ * T0816: the env pairs Electron appends to an `ELECTRON_RUN_AS_NODE` child of `process.execPath` on Linux
+ * (lib/node/init.ts); node_main.cc reads them and registers the child with the crashpad handler.
+ */
+export const CRASHPAD_CLIENT_ENV_KEYS: readonly string[] = ['CRASHDUMP_SIGNAL_FD', 'CRASHPAD_HANDLER_PID']
 
 export interface ChildFdGuardDeps {
   platform: NodeJS.Platform
@@ -163,9 +182,10 @@ export function guardChildSpawn(req: ChildSpawnRequest, deps: ChildFdGuardDeps):
   if (!wrapper) return { wrapped: false, reason: 'no-bash' }
   if (isAlreadyGuarded(req)) return { wrapped: false, reason: 'already-guarded' }
 
-  const pairs: string[] = req.envPairs
+  const allPairs: string[] = req.envPairs
     ? [...req.envPairs]
     : Object.entries(deps.processEnv()).filter((e): e is [string, string] => typeof e[1] === 'string').map(([k, v]) => `${k}=${v}`)
+  const pairs = req.withoutCrashpadClient ? allPairs.filter(p => !CRASHPAD_CLIENT_ENV_KEYS.includes(keyOf(p))) : allPairs
   const childCwd = path.posix.resolve(deps.cwd(), req.cwd || '.')
   const resolved = resolveChildExecutable(req.file, lastValue(pairs, 'PATH'), childCwd, deps.isExecutableFile)
   if (resolved === null) return { wrapped: false, reason: 'not-found' }
@@ -198,10 +218,12 @@ export function guardChildSpawn(req: ChildSpawnRequest, deps: ChildFdGuardDeps):
 // ── installation (patches this process's libuv bindings; Linux only) ──────────────────────────
 
 let optOutDepth = 0
+let noCrashpadDepth = 0
 
 /**
  * Runs `fn` with the guard off for every spawn it makes synchronously (`fork()` / `spawn()` reach
- * libuv before they return). Used only for the Terminal Server fork (PLAN-062 option C).
+ * libuv before they return). No production caller since T0816 (the Terminal Server fork used it,
+ * PLAN-062 option C); tests use it as the unguarded reverse control.
  */
 export function runWithoutChildProcessFdGuard<T>(fn: () => T): T {
   optOutDepth++
@@ -209,6 +231,22 @@ export function runWithoutChildProcessFdGuard<T>(fn: () => T): T {
     return fn()
   } finally {
     optOutDepth--
+  }
+}
+
+/**
+ * T0816 (PLAN-062 option A3): every spawn `fn` makes synchronously is guarded without the crashpad
+ * client env (`ChildSpawnRequest.withoutCrashpadClient`): no `CRASHDUMP_SIGNAL_FD` /
+ * `CRASHPAD_HANDLER_PID`, that fd closed. Nests; restored after a throw. No effect where the guard is
+ * not installed (Windows / macOS) or inside `runWithoutChildProcessFdGuard`. Used only for the
+ * Terminal Server fork (electron/main.ts `forkTerminalServer`).
+ */
+export function runWithoutCrashpadClient<T>(fn: () => T): T {
+  noCrashpadDepth++
+  try {
+    return fn()
+  } finally {
+    noCrashpadDepth--
   }
 }
 
@@ -291,12 +329,13 @@ export function installChildProcessFdGuard(opts: ChildProcessFdGuardInstallOptio
   /** Returns the arguments to call the original binding with (the same array when not wrapped). */
   const guardCall = (kind: 'async' | 'sync', a: unknown[]): unknown[] => {
     if (optOutDepth > 0) return a
+    const withoutCrashpadClient = noCrashpadDepth > 0
     try {
       if (kind === 'async' && typeof a[0] === 'string' && Array.isArray(a[1])) {
         // Node ≥ 24.x: spawn(file, args, cwd, envPairs, stdio, flags, uid, gid)
         const r = guardChildSpawn({
           file: a[0], args: a[1] as string[], cwd: typeof a[2] === 'string' ? a[2] : undefined,
-          envPairs: Array.isArray(a[3]) ? a[3] as string[] : undefined, stdioCount: Array.isArray(a[4]) ? a[4].length : 3,
+          envPairs: Array.isArray(a[3]) ? a[3] as string[] : undefined, stdioCount: Array.isArray(a[4]) ? a[4].length : 3, withoutCrashpadClient,
         }, deps)
         if (!r.wrapped) return a
         const next = [...a]
@@ -310,7 +349,7 @@ export function installChildProcessFdGuard(opts: ChildProcessFdGuardInstallOptio
         // spawn_sync.spawn(options) (and process_wrap's older spawn(options))
         const r = guardChildSpawn({
           file: o.file, args: o.args as string[], cwd: typeof o.cwd === 'string' ? o.cwd : undefined,
-          envPairs: Array.isArray(o.envPairs) ? o.envPairs as string[] : undefined, stdioCount: Array.isArray(o.stdio) ? o.stdio.length : 3,
+          envPairs: Array.isArray(o.envPairs) ? o.envPairs as string[] : undefined, stdioCount: Array.isArray(o.stdio) ? o.stdio.length : 3, withoutCrashpadClient,
         }, deps)
         if (!r.wrapped) return a
         return [{ ...o, file: r.file, args: r.args, envPairs: r.envPairs }, ...a.slice(1)]

@@ -566,7 +566,7 @@ describe('main.ts wiring (T0576 source guard)', () => {
     expect(fn).not.toBeNull()
     const drop = fn![1].indexOf("settleRestoredHelperCapabilities(() => false, 'no surviving Terminal Server')")
     expect(drop).toBeGreaterThan(fn![1].indexOf('pendingRecovery = { port, ptyCount }'))
-    expect(drop).toBeLessThan(fn![1].indexOf('fork(serverScript'))
+    expect(drop).toBeLessThan(fn![1].indexOf('forkTerminalServer(serverScript')) // T0816: the fork moved into forkTerminalServer
   })
 
   it('--close-worker ownership prefers a worker capability over the saved tab', () => {
