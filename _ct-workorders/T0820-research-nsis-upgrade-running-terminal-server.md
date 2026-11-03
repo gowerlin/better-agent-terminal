@@ -4,12 +4,14 @@ schema_kind: workorder
 id: T0820
 title: "研究（PLAN-059 Q4）：NSIS 覆蓋升級時，執行中的 BAT 與 Terminal Server（含其中的 shell）會不會被結束"
 type: research
-status: PENDING
+status: IN_PROGRESS
 repo: better-agent-terminal
 project: maintenance
 priority: P3
 sizing: M
 created_at: "2026-11-04T01:17:22+0800"
+started_at: "2026-11-04T01:18:10+0800"
+updated_at: "2026-11-04T01:18:10+0800"
 depends_on: []
 related:
   - "PLAN-059（子項 D、Q4）；D265；T0740 / T0801（`e2e/manual/nsis-reinstall-acceptance.ps1`，前置條件是 BAT 已關閉）；T0540 / T0704（Terminal Server 程序樹、recovery）；T0578（Recovery 提示）；T0783 / T0797（只 build 不發布、手動驗收 workflow 的前例）"
