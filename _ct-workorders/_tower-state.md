@@ -4,7 +4,7 @@ summary_version: 1
 updated_at: "2026-11-04T02:59:41+08:00"
 session: "2026-11-04 00:39 第一百一十四 session 開工（CT v6.0.0-beta.11）"
 next_ids:
-  workorder: "T0824"
+  workorder: "T0825"
   decision: "D268"
   bug: "BUG-210"
   plan: "PLAN-064"
