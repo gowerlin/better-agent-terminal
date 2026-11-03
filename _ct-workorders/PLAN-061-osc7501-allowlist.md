@@ -3,9 +3,10 @@ schema_version: 1
 schema_kind: plan
 id: PLAN-061
 title: "OSC 7501 狀態回報不限 codex：白名單 `codex` / `claude-code`、放寬解析長度（PLAN-059 子項 B）"
-status: IN_PROGRESS
+status: DONE
 priority: low
 created_at: "2026-11-02T18:24:49+0800"
+completed_at: "2026-11-04T01:09:22+0800"
 links:
   source: "PLAN-059 子項 B；T0787 回報區〈Q2〉〈Q3〉〈建議方向 ③〉；D227"
   related: [PLAN-059, T0787, T0789, T0621, T0717]
@@ -48,3 +49,4 @@ BAT 的 OSC 7501 解析器（`src/lib/codex-terminal-state.ts`）會丟掉 `app�
 - 建議：範圍縮小為「非 Windows 主機的 claude 7501」；回覆放主行程（`PtyManager` 輸出端）；沿用 codex 規則，已是 `hook` 的分頁忽略 7501。待塔台決定後開單。
 - 2026-11-03 21:11 → IN_PROGRESS（D258，使用者指示開始）：T0811（實作，照 D229 / T0789 草案）。
 - 2026-11-03 21:35 T0811 DONE（`f274847c`）：解析器白名單 `codex` / `claude-code`、上限 4096、`id=` 子紀錄不影響分頁；`PtyManager.enqueuePtyOutput` 在非 win32 主機以 `PtyManager.write` 回覆探詢一次（replay / child_process 後援 / win32 不回）；hooks 關閉的分頁 `none` → `osc`。WSL 實機：假程式 19 項全過、真 claude 2.1.316（假 API、不送按鍵）回覆後 `osc` / `agentStarted`，win32 對照 0 狀態；真 claude 的權限對話框 `blocked` 未實測（假程式驗）；codex `t0621` e2e PASS。維持 IN_PROGRESS，待發版後交付版驗收。
+- 2026-11-04 01:09 → **DONE**：交付版驗收 T0818（D263）PASS——WSL Ubuntu 24.04、`v0.7.4-pre.5` AppImage（SHA-256 `c3d51f45…`）、內嵌 claude 2.1.316、本機假 API（0 外連、花費 0）：hooks 關閉的分頁 `none` → `osc`、`agentStarted: true`；**真 claude 權限對話框** → `blocked` / `blockedReason: input` / `source: osc`；允許後由 claude 的 OSC `working` 清除、回到 `idle`；對照組 hook 分頁維持 `hook` / `permission`，7501 不影響。已知（不在範圍）：hook 分頁的 claude 也收到探詢回覆（T0811 記錄的副作用）；AppImage 版 Playwright `app.close()` 保留 server 時不返回（PLAN-062 / T0816 已記錄的限制）。
