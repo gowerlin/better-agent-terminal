@@ -16,15 +16,18 @@
   任何一步 FAIL：停下、寫報告、印出還原 userData 與重新安裝的指令。
   🔴 必須在 BAT 已完全關閉（含 Terminal Server）後，從一般 PowerShell（不是 BAT 分頁）執行。
   -DryRun 只做唯讀檢查（會下載安裝檔到輸出目錄），印出每一步將執行的指令與判讀規則，不改任何東西。
+  -Version 必填（T0801 / D247），-DryRun 也要帶：格式 X.Y.Z 或 X.Y.Z-pre.N（release tag 去掉 v）。
+  不帶或格式不對時，在建立輸出目錄、下載、備份、安裝之前就以 exit 2 結束並印出用法。
 
 .EXAMPLE
-  pwsh -NoProfile -ExecutionPolicy Bypass -File e2e\manual\nsis-reinstall-acceptance.ps1 -DryRun
+  pwsh -NoProfile -ExecutionPolicy Bypass -File e2e\manual\nsis-reinstall-acceptance.ps1 -Version <版號> -DryRun
 .EXAMPLE
-  pwsh -NoProfile -ExecutionPolicy Bypass -File e2e\manual\nsis-reinstall-acceptance.ps1 -InstallerPath "$env:TEMP\bat-nsis-acceptance-20261101-180000\BetterAgentTerminal.Setup.0.7.2-pre.8.exe"
+  pwsh -NoProfile -ExecutionPolicy Bypass -File e2e\manual\nsis-reinstall-acceptance.ps1 -Version <版號> -InstallerPath "$env:TEMP\bat-nsis-acceptance-<YYYYMMDD-HHMMSS>\BetterAgentTerminal.Setup.<版號>.exe"
 #>
 [CmdletBinding()]
 param(
-  [string]$Version = '0.7.2-pre.8',
+  # 必填（T0801）：不用 [Parameter(Mandatory)]，檢查在 param 之後，見「-Version 必填」
+  [string]$Version = '',
   [string]$InstallerPath = '',
   [string]$ExpectedSha256 = '',
   [switch]$DryRun,
@@ -41,6 +44,37 @@ param(
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 try { [Console]::OutputEncoding = [System.Text.Encoding]::UTF8 } catch { }
+
+# ---------------------------------------------------------------- -Version 必填（T0801 / D247）
+# 原本預設 0.7.2-pre.8：漏帶 -Version 會下載並驗收舊版，報告看起來 PASS 卻不是本版。
+# 這段必須在任何動作（建立輸出目錄、下載、備份、安裝）之前。
+# 不用 [Parameter(Mandatory)]：互動執行時 PowerShell 會停下來要求輸入，-NonInteractive 時只有通用的
+# 「缺少必要參數」錯誤，兩者都不會印出用法。這裡自己檢查，任何模式都直接結束（exit 2 = 用法錯誤）。
+$VersionPattern = '^\d+\.\d+\.\d+(-pre\.\d+)?$'
+if ($Version -cnotmatch $VersionPattern) {
+  $self = $(if ($PSCommandPath) { $PSCommandPath } else { 'e2e\manual\nsis-reinstall-acceptance.ps1' })
+  $problem = $(if ([string]::IsNullOrWhiteSpace($Version)) {
+      '缺少 -Version（必填）'
+    } else {
+      "-Version 格式不正確：'$Version'（應為 X.Y.Z 或 X.Y.Z-pre.N，不加 v 前綴）"
+    })
+  $usage = @(
+    "nsis-reinstall-acceptance.ps1: $problem"
+    '沒有做任何事：沒有建立輸出目錄、下載、備份或安裝。'
+    ''
+    '版號 = 要驗收的 GitHub release tag 去掉 v（tag v<版號> → -Version <版號>），每次都要明確帶。'
+    ''
+    '用法（把 <版號> 換成要驗收的版號）：'
+    '  演練（只做唯讀檢查並下載安裝檔）：'
+    "    pwsh -NoProfile -ExecutionPolicy Bypass -File `"$self`" -Version <版號> -DryRun"
+    '  實際執行（重用已下載的安裝檔）：'
+    "    pwsh -NoProfile -ExecutionPolicy Bypass -File `"$self`" -Version <版號> -InstallerPath `"<安裝檔路徑>`""
+    '  實際執行（先下載，需要已登入的 gh）：'
+    "    pwsh -NoProfile -ExecutionPolicy Bypass -File `"$self`" -Version <版號>"
+  )
+  [Console]::Error.WriteLine(($usage -join [Environment]::NewLine))
+  exit 2
+}
 
 # ---------------------------------------------------------------- 常數
 $ProductName = 'BetterAgentTerminal'

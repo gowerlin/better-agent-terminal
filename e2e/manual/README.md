@@ -28,18 +28,20 @@
    ```
 
 3. **開一般 PowerShell**（不要在 BAT 分頁裡開）。BAT 裝在所有使用者（預設 `C:\Program Files\BetterAgentTerminal`）時，要用「以系統管理員身分執行」開啟；腳本不會自動要求提權，權限不足時會在 ⓪ 中止並說明。
-4. **切到 repo 根目錄，先演練一次**（只做唯讀檢查並下載安裝檔，不改任何東西）：
+4. **切到 repo 根目錄，先演練一次**（只做唯讀檢查並下載安裝檔，不改任何東西）。`<版號>` 換成要驗收的版號（GitHub release tag 去掉 `v`，例 tag `v0.7.4-pre.2` → `-Version 0.7.4-pre.2`）：
 
    ```powershell
-   pwsh -NoProfile -ExecutionPolicy Bypass -File e2e\manual\nsis-reinstall-acceptance.ps1 -DryRun
+   pwsh -NoProfile -ExecutionPolicy Bypass -File e2e\manual\nsis-reinstall-acceptance.ps1 -Version <版號> -DryRun
    ```
+
+   🔴 `-Version` 必填（T0801），演練與實際執行都要帶：沒帶或格式不對時，腳本在建立輸出目錄、下載、備份、安裝之前就以 exit `2` 結束並印出用法（T0801 前預設 `0.7.2-pre.8`，漏帶會驗收到舊版）。
 
    沒有 PowerShell 7 時，把 `pwsh` 換成 `powershell`（Windows PowerShell 5.1）。
 
 5. **實際執行**。已經有下載好的安裝檔時（例如演練時下載的），用 `-InstallerPath` 重用，省掉下載：
 
    ```powershell
-   pwsh -NoProfile -ExecutionPolicy Bypass -File e2e\manual\nsis-reinstall-acceptance.ps1 -InstallerPath "<安裝檔路徑>"
+   pwsh -NoProfile -ExecutionPolicy Bypass -File e2e\manual\nsis-reinstall-acceptance.ps1 -Version <版號> -InstallerPath "<安裝檔路徑>"
    ```
 
    不帶 `-InstallerPath` 會先下載（需要已登入的 `gh`）。要一併做 ⑤ 時加 `-LaunchCheck`。
@@ -50,7 +52,7 @@
 
 | 參數 | 說明 |
 |---|---|
-| `-Version` | 要驗的版本，預設 `0.7.2-pre.8`（下載 `v<版號>` 的 `BetterAgentTerminal.Setup.<版號>.exe`） |
+| `-Version` | **必填**（T0801）：要驗的版本，格式 `X.Y.Z` 或 `X.Y.Z-pre.N`（不加 `v`；下載 `v<版號>` 的 `BetterAgentTerminal.Setup.<版號>.exe`）。沒有預設值，不會自動取最新 release；沒帶或格式不對 → exit `2`、印出用法、不做任何事 |
 | `-InstallerPath` | 使用已下載的安裝檔；仍以 `gh release view` 的 digest 驗證 |
 | `-ExpectedSha256` | 沒有 `gh` 時手動提供預期的 SHA-256 |
 | `-DryRun` | 只做唯讀檢查、下載並驗證安裝檔，印出每一步將執行的指令與判讀規則；另外用 ② 的檢查讀一次目前的安裝，確認檢查本身可用 |
@@ -62,7 +64,7 @@
 
 ### 判讀注意
 
-- 結束代碼：`0` = PASS、`PASS-WITH-WARN` 或演練；`1` = 有步驟 FAIL。
+- 結束代碼：`0` = PASS、`PASS-WITH-WARN` 或演練；`1` = 有步驟 FAIL；`2` = 用法錯誤（沒帶 `-Version` 或格式不對，什麼都沒做、沒有報告目錄；T0801）。
 - 解除安裝程式會先把自己複製到 `%TEMP%` 再執行，原本的程序會馬上結束；腳本等到 uninstall 鍵與安裝目錄都消失，才算解除安裝完成，所以 ③ 的耗時包含這段等待。
 - 在 BAT 分頁內執行時，⓪ 會偵測到 BAT 的環境變數：演練只記 WARN，實際模式直接中止。
 - helper `--version` 檢查不會寫入 userData（T0745）：helper 一啟動就 append 一筆到 `bat-scripts.log`，在 BAT 外執行時預設落在 `%APPDATA%\BetterAgentTerminal\Logs\`，會被 ② / ④ 的 userData 比對判成「變更 1 檔」。腳本只在執行 helper 的子程序期間設 `BAT_HELPER_LOG_DIR=<報告目錄>\helper-logs`（`scripts/_bat-logger.mjs` 的第一優先），helper 的紀錄寫在報告目錄的 `helper-logs\bat-scripts.log`。userData 比對規則不變：`Logs\bat-scripts.log` 仍有變更就是 FAIL，代表驗收期間有其他程式寫入（例如 BAT 沒有完全關閉）。

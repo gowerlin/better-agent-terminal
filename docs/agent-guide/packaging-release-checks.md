@@ -58,7 +58,7 @@
   - 本機重現：`npm run test:unit`、`npm run test:legacy`（後者見 CLAUDE.md「Frontend unit tests」節）。Linux 與 Windows 的路徑、時區差異已由 T0684 處理；本機在 Windows 全過不代表 ubuntu 全過，有疑慮時手動 `workflow_dispatch` `tests.yml` 試跑（不會發版）。
   - 🔴 新增 / 改測試步驟只改 `tests.yml`，不要在 `pre-release.yml` / `release.yml` 內另寫一份；要加 `inputs` / `secrets` 時兩個呼叫端一起改。驗證 workflow 用 actionlint（本機沒有時 `go run github.com/rhysd/actionlint/cmd/actionlint@v1.7.7`），它會檢查被呼叫端有沒有 `workflow_call` 與 `needs` 名稱。
 - **Release 驗收必跑 NSIS 完整重裝**：`--dir` mode 和 `zip` smoke 不是 production 等價；release 前必須完整「uninstall → 跑 installer → 啟動 UI → 踩 voice input / terminal 路徑」驗收（BUG-056 盲點記錄；原清單的 sqlite 路徑隨 better-sqlite3 於 T0492 移除，app 本來就沒用它）。
-  - Windows 覆蓋安裝 / 解除安裝 / 乾淨重裝與耗時，用獨立腳本 `e2e/manual/nsis-reinstall-acceptance.ps1`（T0740；關閉 BAT 後在一般 PowerShell 執行，先 `-DryRun`；步驟與判讀見 [e2e/manual/README.md](../../e2e/manual/README.md)）。腳本不涵蓋啟動後的 UI / voice input / terminal 路徑，仍要手動走。
+  - Windows 覆蓋安裝 / 解除安裝 / 乾淨重裝與耗時，用獨立腳本 `e2e/manual/nsis-reinstall-acceptance.ps1`（T0740；關閉 BAT 後在一般 PowerShell 執行，先 `-DryRun`；步驟與判讀見 [e2e/manual/README.md](../../e2e/manual/README.md)）：演練 `pwsh -NoProfile -ExecutionPolicy Bypass -File e2e\manual\nsis-reinstall-acceptance.ps1 -Version <版號> -DryRun`，實際執行 `… -Version <版號> -InstallerPath "<安裝檔路徑>"`。🔴 `-Version` 必填（T0801 / D247），演練也要帶：沒帶或格式不是 `X.Y.Z` / `X.Y.Z-pre.N` 時，腳本在建立輸出目錄、下載、備份、安裝之前就 exit `2` 並印出用法（T0801 前預設 `0.7.2-pre.8`，漏帶會驗收到舊版）。腳本不涵蓋啟動後的 UI / voice input / terminal 路徑，仍要手動走。
 
 # 只 build、不發布的桌面 workflow（T0783，D223）
 
