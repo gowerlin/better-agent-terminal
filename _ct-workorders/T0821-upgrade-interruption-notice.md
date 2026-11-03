@@ -4,14 +4,17 @@ schema_kind: workorder
 id: T0821
 title: "PLAN-063 子項 1＋2：Windows 升級前提示「安裝新版會結束所有終端」、升級後重開時說明上次升級結束了哪些終端"
 type: implementation
-status: IN_PROGRESS
+status: DONE
 repo: better-agent-terminal
 project: maintenance
 priority: P2
 sizing: M
 created_at: "2026-11-04T01:34:49+0800"
 started_at: "2026-11-04T01:37:05+0800"
-updated_at: "2026-11-04T01:37:05+0800"
+updated_at: "2026-11-04T01:53:22+0800"
+completed_at: "2026-11-04T01:53:22+0800"
+session_ids:
+  - "49cd5230-ea56-4640-9ce5-b8b63860e9d1"
 depends_on: []
 related:
   - "PLAN-063；D266；T0820（實測：NSIS 升級以 TerminateProcess 結束 BAT 與 Terminal Server，shell 跟著結束，重開走孤兒清理、無 Recovery 提示）；T0766 / T0767（被中斷的 agent 分頁）；T0642（`claude-sessions.json`）；T0578 / T0704 / T0113（Recovery、server recovery、孤兒清理）；T0563 / T0567 / T0776（Dialog 規則）"
@@ -110,4 +113,95 @@ T0820（PLAN-059 Q4）實測：Windows 的 NSIS 安裝程式在安裝新版時�
 
 ## 回報區
 
-（由 Worker 填寫）
+### 完成狀態
+
+- **狀態**：DONE（子項 1、2 含 agent 分頁清單都完成；真實升級驗收依工單留給下次發版）
+- **完成時間**：2026-11-04T01:52:28+0800
+- **session_id**：49cd5230-ea56-4640-9ce5-b8b63860e9d1
+- **產品 commit**：`710e4179`（`feat: T0821 upgrade interruption notice (PLAN-063 items 1+2)`）
+
+### 落點檢查
+
+- 結果：**PASS**。C-0：`repo` = `better-agent-terminal`，`basename(REPO_ROOT)` = `better-agent-terminal`；C-1 PASS（工單在 REPO_ROOT 下）；C-3：前 5 個可測項目都存在（或祖先存在）→ PASS；C-2：工單無 `branch` 欄位（目前 `main`）。
+- 未設 `CT_HOME`（main repo 執行）；`BAT_WORKSPACE_ID` = `cc0afc4a-57e9-4f41-b2ed-a2d8bac9e36b`（只記錄）；`CT_MODE=yolo`、`CT_INTERACTIVE=0`。
+
+### 結果摘要
+
+**子項 1（Windows 升級前提示）**
+- `UpdateNotification.tsx`：`win32` 時在更新內容下方多一行 `update.windowsInstallEndsTerminals`（三語），判斷唯一實作 `showsWindowsUpgradeWarning(platform)`；macOS / Linux 不顯示。既有標題、版本、changelog、「在 GitHub 上查看」按鈕與連結、`checkForUpdates`、Esc / [X] 不變（樣式用 inline，未改 CSS 檔）。
+- README「方式一：直接下載」下方加 Windows 更新說明（兩句）。
+
+**子項 2（升級後說明）**
+- 新模組 `electron/upgrade-interruption.ts`（不 import electron、路徑由 main 傳入）：
+  - `last-run-version.json`（userData）：`UpgradeInterruptionCheck.begin()` 在 whenReady、`startTerminalServer()` 之前讀上次版本、寫入目前版本（temp＋rename，失敗只記一行）。
+  - 觸發 `detectUpgradeInterruption`：上次版本 ≠ 目前版本 **且** 孤兒清理的 registry PTY 數 N ≥ 1；版本同 / N=0 / 無上次版本 → 不觸發。
+  - 孤兒清理區塊只多一行 `noteOrphanCleanup(registry?.ptys ?? [], claudeSessionPersistence.entries())`（try/catch 包住），清理本身的順序（readRegistry → killOrphanPtyProcesses → Cleaned → clearRegistry → 刪 pid / port）不變，有 source guard。
+  - `finishUpgradeInterruptionCheck()`（main，`startTerminalServer()` 之後、建立視窗之前）判定一次並記一行日誌。
+- 顯示：本機 IPC `terminal-server:query-upgrade-interruption`（第一個問的視窗拿到、之後 null → 只顯示一次）；`App.tsx` 掛載時 pull，**沿用 `ServerStatusToast`**（新 key `app.upgradeInterrupted`，帶 count / from / to）。理由：同位置、同為「Terminal Server 的分頁被重建」語意，T0766 已有「N 個 agent 分頁已中斷，按此查看」一行與點擊開清單，可直接沿用，不新開 Dialog。heartbeat toast 優先；升級說明不自動消失，點一下關閉（有 agent 分頁時同時開清單）。
+- **agent 分頁**（沒有改持久化格式）：`buildUpgradeInterruptedSources` 以 registry 的 terminal id 對 `windows.json` 存檔分頁的 `agentPreset` / `workspaceId` / `launchRole`，加上一個行程 `claude-sessions.json` 的 pending 紀錄（有 UUID session id 或 `--name` → `claude-cli`）→ 既有 `buildInterruptedAgentSnapshot`（新選項 `cause: 'upgrade'`）→ `InterruptedAgentsStore.record(snapshot, 'upgrade')`。session 未知照 T0766（claude `--resume` picker、codex `codex resume` 選單）；恢復全走既有路徑（`startClaudeCliPty` / `resumeCodexCliTab` / main `terminal:resume-interrupted-agent`）。
+  - 記憶體多一個欄位 `InterruptedAgent.cause?: 'upgrade'`（renderer 鏡像同名）；`record(…, 'upgrade')` 送 `reason: 'update'`（對話框不自己開，由 toast 點開）。
+  - 🔸 設計取捨（Worker 自行決定，未問塔台，理由見〈偏差與決策〉D-1）：`cause: 'upgrade'` 的項目**不因 `session-start` 移除**。
+  - 對話框：每一列都是升級造成時改用 `interruptedAgents.upgradeTitle` / `upgradeDesc`；有 recovery 列時維持原文字。
+- 日誌：`[upgrade-interruption] detected: previous=… current=… ended-ptys=N agent-tabs=M`（版本變但未觸發記 `none: …`、版本相同不記）；renderer `[upgrade-interruption] notice shown: …`；不記 session id 全文、指令、權杖。
+
+**文件**：CLAUDE.md 新節「升級結束終端的提示與說明（PLAN-063 / T0821）」（5 點；全檔 73,368 字元）；`docs/agent-guide/upgrade-interruption.md`（T0820 摘要、偵測條件表、顯示、agent 分頁、日誌、已知限制、驗證）；`docs/agent-guide/README.md` 索引一列。
+
+### 修改檔案
+
+- 新增：`electron/upgrade-interruption.ts`、`electron/__tests__/upgrade-interruption.test.ts`、`src/components/__tests__/upgrade-interruption.test.tsx`、`e2e/t0821-upgrade-interruption.spec.ts`、`docs/agent-guide/upgrade-interruption.md`
+- 修改：`electron/main.ts`、`electron/interrupted-agents.ts`、`electron/preload.ts`、`src/App.tsx`、`src/components/UpdateNotification.tsx`、`src/components/ServerStatusToast.tsx`、`src/components/InterruptedAgentsDialog.tsx`、`src/stores/interrupted-agents-store.ts`、`src/locales/{en,zh-TW,zh-CN}.json`、`CLAUDE.md`、`README.md`、`docs/agent-guide/README.md`
+- **範圍外 1 檔**：`src/types/electron.d.ts`（見 D-2）
+
+### 驗證
+
+| 項目 | 結果 |
+|---|---|
+| `npm run typecheck` | **0**（exit 0） |
+| `npm run typecheck:electron` | **0**（exit 0） |
+| `npm run test:unit` | **PASS**：403 files passed / 2 skipped；7087 tests passed / 38 skipped |
+| `npm run test:legacy` | **PASS**：33 files、472 tests，0 failed |
+| `npx vite build` | **PASS** |
+| 新單元 `electron/__tests__/upgrade-interruption.test.ts` | 24 passed（觸發條件 4 種、版本檔讀寫 / 損壞 / 寫入失敗不丟例外、來源判斷、`UpgradeInterruptionCheck` 生命週期與只給一次、upgrade 項目的 session-start 規則、recovery 項目不變、main.ts 孤兒清理順序與接線 source guard） |
+| 新單元 `src/components/__tests__/upgrade-interruption.test.tsx` | 18 passed（三語字串、更新通知 win32 顯示且既有內容 / 按鈕 / 連結不變、darwin / linux 不顯示、notice 解析、toast、對話框標題、App.tsx source guard） |
+| 既有 `interrupted-agents-*`、`pty-manager-interrupted-agents`、`server-status-toast`、`dialog-escape`、`interrupted-agents-dialog` | PASS（含在 unit 全跑內，另單獨跑 9 檔 120 tests 通過） |
+| 突變檢查 | 拿掉版本條件 → 2 測試失敗；拿掉 N 條件 → 2 失敗；win32 判斷改 `true` → 3 失敗；拿掉 session-start 規則 → 1 失敗。四項皆已還原（備份複製回去，`git diff --no-index` 比對相同） |
+| e2e `e2e/t0821-upgrade-interruption.spec.ts`（隔離 runtime、開發版 build） | **2 passed**（59.5 s）。升級組：兩個 shell 分頁 → 關閉保留 Terminal Server → `taskkill /F /PID <server>`（不帶 `/T`）→ 改寫上次版本為 `0.0.1-e2e.1`、寫一筆 claude session 紀錄（不起 claude）→ 重開：log `Cleaned 2 orphan PTY…`、`detected: previous=0.0.1-e2e.1 current=0.7.4-pre.5 ended-ptys=2 agent-tabs=1`，toast「BAT 已升級（v0.0.1-e2e.1 → v0.7.4-pre.5）。安裝新版時結束了 2 個終端…」＋「1 個 agent 分頁已中斷，按此查看」，兩分頁還原，點 toast → 清單 1 列 claude-cli（session `11111111`、`data-cause=upgrade`），reload 後不再顯示、清單仍在；舊 shell pid 都已結束。對照組（不改版本）：無 toast、無 `detected`、清單 0，孤兒清理照舊 |
+| 不回歸 e2e | `t0766-interrupted-agents-recovery`（1）＋`t0578-recovery-no-direct-shell`（recover / fresh 2）：**3 passed** |
+
+### 相關通過案例判定
+
+- 工單無〈相關通過案例〉段落；不回歸以 memory_overrides 列的既有行為核對：孤兒清理順序（source guard）、Recovery（t0578 e2e）、server recovery 被中斷的 agent（t0766 e2e、既有單元）、更新通知既有內容（新單元）皆成立。
+
+### 偏差與決策
+
+- **D-1（設計取捨，Worker 自行決定）**：還原的 claude-cli 分頁會自動開一個新的 claude（`WorkspaceView` 還原流程），它的 `SessionStart` 會觸發既有 `interruptedAgents.remove(id, 'session-start')`，升級列出的 claude 分頁幾秒內就會從清單消失。處置：只對 `cause: 'upgrade'` 的項目忽略 `session-start`（recovery 項目不變，有測試）。恢復路徑本來就會先 kill（`pty-ended`）或 `resumed` / `dismissed`，所以不會殘留；代價是使用者在 shell 分頁手打 `claude --resume` 時項目要手動「略過」。未改持久化格式、未新增元件，屬既有元件的小擴充，故未依 memory_overrides 問塔台；塔台若不同意可改回只做 toast。
+- **D-2（範圍外 1 檔）**：`src/types/electron.d.ts` 不在 `affects_files`，但 preload 新增 `queryUpgradeInterruption` 後 renderer 型別必須同步（否則 typecheck 失敗）；只加 1 個 optional 方法型別與 1 個 type import。
+- **D-3**：toast 不自動消失（升級說明需要時間閱讀），點擊關閉；recovery toast 的 3 秒行為不變。
+
+### 遭遇問題
+
+- 無阻斷。`app.close()` 在 e2e 的「保留 Terminal Server 關閉」路徑兩次超過 20 s 被強制結束（既有 T0575 / T0576 記載的量測現象，與本單無關，結果不受影響）。
+- 觀察（既有行為）：e2e 升級組 reload 後 log 有 `reload detected 2 live PTYs — offering recovery`（T0110 的 View→Reload 路徑），本單未改。
+
+### 已知限制
+
+- 子項 3（NSIS）/ 4（holder）未做；macOS / Linux 升級未研究（偵測在所有平台都跑，提示只在 Windows）。
+- 「版本變＋有孤兒」也可能是版本變更前一次剛好當機 / 手動結束 server；先「結束並停止 Terminal Server」再升級的使用者沒有孤兒 → 不顯示。
+- 只給第一個視窗；縮圖 ⏸ tooltip 仍寫「因 Terminal Server 重啟而中斷」（`TerminalThumbnail.tsx` 不在範圍）；helper 派工 Worker 升級後沒有 workorder / 塔台 id。細節見 docs。
+
+### 給塔台：真實升級驗收的檢查點（下次發版後，pre.N → pre.N+1 兩版都含本功能）
+
+1. 以本機分支 `ct/T0820` 的探測 spec 改寫（安裝檔 `/S /currentuser`），情境 ①（主視窗開著升級）與 ②（關窗保留 server 後升級）重開後：debug log 依序有 `orphan PID … detected` → `Cleaned N orphan PTY…` → `[upgrade-interruption] detected: previous=<pre.N> current=<pre.N+1> ended-ptys=N agent-tabs=M`，renderer 有 `notice shown`。
+2. 畫面：toast（`.server-status-toast[data-message-key="app.upgradeInterrupted"]`）含 N 與兩個版本；reload 後不再出現；`last-run-version.json` = 新版。
+3. 加一個 claude-cli 分頁（可用 T0776 的 stub claude，避免呼叫模型）：清單列出該分頁、`data-cause=upgrade`，新的 claude 開起來後項目仍在。
+4. 對照：「結束並勾選同時停止 Terminal Server」後升級 → 無 toast（`none: … ended-ptys=0`）；同版本重開（工作管理員結束 server）→ 無 toast、不記 `[upgrade-interruption]`。
+5. 更新通知（Windows）出現警告行；macOS / Linux 不出現。
+
+### 互動紀錄
+
+- 無（yolo，未向塔台提問；D-1 自行決定並記錄於上）。
+
+### 後續建議
+
+- 縮圖 ⏸ tooltip 依 `cause` 顯示升級文字（`TerminalThumbnail.tsx`，小單）。
+- PLAN-063 子項 3 / 4 照計畫另開。
