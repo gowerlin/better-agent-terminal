@@ -4,6 +4,23 @@ All notable changes to Better Agent Terminal are documented in this file.
 
 ## [Unreleased]
 
+## [0.7.4-pre.6] — 2026-11-04
+
+### Added
+- Windows：更新通知加一行「安裝新版會結束所有終端分頁（含執行中的指令與 agent）」（三語，`showsWindowsUpgradeWarning`）；README Windows 安裝說明同步（PLAN-063，T0821）
+- 升級後說明：`<userData>/last-run-version.json` 記上次執行版本，版本變且（孤兒清理 N ≥ 1 或安裝程式結束紀錄）時以 `ServerStatusToast` 顯示一次「結束了 N 個終端」，claude / codex 分頁以 `cause: 'upgrade'` 列進「被中斷的 agent 分頁」（`electron/upgrade-interruption.ts`；PLAN-063，T0821 / T0823）
+- 縮圖 ⏸ tooltip 依中斷原因顯示，升級造成的寫「因安裝新版而中斷」（`interruptedAgents.badgeUpgradeTooltip`；T0822）
+- Windows NSIS：`build/installer.nsh` 的 `customCheckAppRunning` 在安裝目錄有 T0823+ 標記檔時先以 `--installer-quit-request` 經 single-instance 請 BAT 正常結束（寫 `installer-quit-record.json`、flush-save、`stopTerminalServerGracefully`、不跳確認），每 500 ms 檢查、最多 15 s，之後回到 electron-builder 範本的 `_CHECK_APP_RUNNING`；沒有主行程時只停保留的 Terminal Server（`electron/installer-quit-request.ts`；PLAN-063，T0823）
+
+### Fixed
+- 拿不到 single-instance lock 的第二個實例在 whenReady 第一個敘述即 return，不再在 `app.quit()` 後跑系統匣、Terminal Server 偵測等啟動步驟（BUG-210，T0825）
+
+### Known Issues
+- 從 `0.7.4-pre.5` 以前升級到本版仍為強制結束（舊版沒有標記檔）；正常結束從本版以後的升級生效
+- 正常結束仍會結束終端分頁裡執行中的指令（ConPTY 由安裝目錄內的 Terminal Server 持有；holder 模型為 PLAN-063 子項 4，IDEA）
+- per-machine 經 UAC 提權的安裝、以其他帳號提權、或 `--runtime=N` 的 BAT：正常結束要求不會送到，照舊強制結束（後兩者先等 15 s）
+- macOS / Linux 升級行為未研究
+
 ## [0.7.4-pre.5] — 2026-11-04
 
 ### Added

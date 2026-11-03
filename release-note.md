@@ -2,6 +2,51 @@
 
 本 fork 各版的更版重點（內容取自 GitHub Releases，最新在上）。上游 tony1223/better-agent-terminal 的 v2.1.x 紀錄保留在檔案最下方。
 
+## v0.7.4-pre.6（2026-11-04）
+
+版號 0.7.4-pre.6，接續 `v0.7.4-pre.5`。
+
+本版重點：Windows 上安裝新版會結束所有終端分頁——現在安裝前會提醒、安裝時先請 BAT 自己存檔並正常結束、升級後重開會說明結束了哪些終端，claude / codex 分頁可一鍵接回。
+
+## 新增
+
+- **Windows：更新通知提醒「安裝新版會結束所有終端分頁」**（PLAN-063，T0821）：BAT 有新版時的通知多一行說明——安裝新版會結束所有終端分頁（含執行中的指令與 agent），請先完成或保存工作。README 的 Windows 安裝說明也補上這段。macOS / Linux 不顯示。
+- **升級後重開時說明上次升級結束了哪些終端**（PLAN-063，T0821 / T0823）：BAT 版本變了、而且上次執行中的終端在升級時被結束，重開後會顯示一次「BAT 已升級（舊版 → 新版）。安裝新版時結束了 N 個終端…」。原本是 claude / codex 的分頁會列進「被中斷的 agent 分頁」清單，可一鍵接回對話（`claude --resume` / `codex resume`）；縮圖上的 ⏸ 也會寫「因安裝新版而中斷」（T0822）。不會自動接回或重跑任何指令。
+- **Windows：安裝新版前先請 BAT 正常結束**（PLAN-063，T0823）：安裝程式偵測到 BAT 在執行時，先請它自己存檔、停止 Terminal Server、正常結束（不跳 BAT 的離開確認），最多等 15 秒；BAT 沒有回應或發生任何錯誤，才照舊由安裝程式強制結束。版面與設定因此不會遺失最後的變更，下次啟動也不會留下需要清理的舊程序。互動安裝仍會先顯示「BetterAgentTerminal 正在執行，點擊 OK 關閉」。
+
+## 修正
+
+- **同時再開一次 BAT 時，第二個程序不再跑啟動流程**（BUG-210，T0825）：BAT 已在執行時再點一次捷徑，第二個程序原本會在結束前跑一段啟動流程（系統匣、Terminal Server 偵測等），若剛好碰上主程式正在結束，可能多開一個 Terminal Server。現在它只把開啟要求交給執行中的 BAT 就立即結束。
+
+## 待驗收（請更新到本版後協助確認）
+
+- **升級提醒與說明（Windows）**：已在 GitHub Actions 的 Windows runner 與隔離實例自動化驗證。請 Windows 使用者確認更新通知有那一行提醒；下次從本版升級到新版後，重開時應看到「結束了 N 個終端」的說明（從 `v0.7.4-pre.5` 升到本版這一次，因為舊版沒有記錄版本，不會顯示）。
+- **安裝前正常結束（Windows）**：已在 Windows runner 驗證「本版執行中再安裝本版」會正常結束、「`v0.7.4-pre.5` 執行中安裝本版」照舊強制結束。真正的效果要從本版升級到下一版時才看得到；屆時請留意 BAT 是否很快自己關閉、重開後版面是否完整。
+- **Claude 面板排隊（所有平台）**：已在安裝版以假 API 自動化驗證。請在 Claude 面板回覆途中再送一則訊息，確認會排隊、回覆完才處理、可以取消；按 Esc 後排隊的訊息會一起取消。
+- **claude OSC 7501（macOS）**：已在 WSL（Ubuntu 24.04）以交付版 AppImage 與真 claude 驗證權限對話框會顯示 ⚠️；macOS 尚未實機驗證。
+- **PLAN-062 / BUG-209（Linux）**：已在 GitHub Actions 的 Ubuntu 22.04 / 24.04 以交付版 AppImage 驗證，尚未在真人桌面實機驗證。
+- **語音輸入可用性檢查（macOS）**：macOS 尚未實機驗證。請 macOS 使用者確認麥克風按鈕照常可按、語音輸入正常。
+- **BUG-202 / BUG-204（Linux）**：請在 Ubuntu 24.04 桌面直接執行 AppImage，確認能開啟，並試用語音輸入（已在 GitHub Actions 驗收，尚未在真人桌面實機驗證）。
+- **Electron 45**（`v0.7.3-pre.7` 起）：請 macOS / Linux 使用者照常使用，有啟動、繪圖、終端顯示或貼上的異常請回報。
+
+## 已知事項
+
+- **從 `v0.7.4-pre.5`（或更早）升到本版，仍會強制結束 BAT 與所有終端**：「先請 BAT 正常結束」只對本版以後的安裝程式裝的 BAT 生效（舊版不認得這個要求）。
+- 即使 BAT 正常結束，**終端分頁裡執行中的指令仍會結束**（它們由 Terminal Server 持有，而 Terminal Server 的程式就在安裝目錄裡）；讓終端撐過升級需要較大的架構調整，目前不做（PLAN-063 子項 4）。
+- 以「所有使用者」安裝並經 UAC 提權時，安裝程式本身不檢查執行中的 BAT，改由舊版解除安裝程式強制結束（electron-builder 的既有行為）；以其他帳號提權或 BAT 以 `--runtime=N` 執行時，正常結束的要求送不到，會等 15 秒後照舊強制結束。
+- macOS / Linux 的升級行為未研究；升級說明的偵測在所有平台都會跑，但安裝前提醒只在 Windows 顯示。
+- Windows：選擇「離開但保留 Terminal Server」時，BAT 主程式的 stdout / stderr 會維持開啟到 Terminal Server 結束（需要原生程式碼才能修，暫不處理）。
+- Linux 的 fd 保護需要 `/bin/bash`（或 `/usr/bin/bash`）；沒有 bash 的系統維持修正前的行為，BAT 會在 debug log 記一行。
+- **Linux 語音輸入需要 glibc 2.38 以上（Ubuntu 24.04 起）**：較舊的發行版無法使用語音輸入，麥克風按鈕會停用並說明原因（BUG-203，列為已知限制）。另需系統提供 `libgomp1` 與 `libvulkan1`。
+- Ubuntu 24.04 自動關閉 sandbox 時，安全性比開啟 sandbox 時低；這是讓 AppImage 能在預設設定下開啟的取捨。
+- Windows 本機上關掉 claude hooks（`disableAllHooks`）的分頁，BAT 仍判斷不出是否在等你回答。
+- Claude 面板：權限或提問卡片顯示時輸入框會隱藏，要先回答卡片才能再輸入。
+- **macOS 不會顯示 BAT 的系統通知**：沒有 Apple 開發者簽章的 app 不能發系統通知（PLAN-060）。BAT 視窗內的提示、⚠️ 與分頁標示不受影響。
+
+macOS 仍只提供 Apple Silicon（arm64）版。
+
+**Full Changelog**: https://github.com/gowerlin/better-agent-terminal/compare/v0.7.4-pre.5...v0.7.4-pre.6
+
 ## v0.7.4-pre.5（2026-11-04）
 
 版號 0.7.4-pre.5，接續 `v0.7.4-pre.4`。
