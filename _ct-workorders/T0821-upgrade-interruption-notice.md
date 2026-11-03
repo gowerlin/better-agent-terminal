@@ -4,12 +4,14 @@ schema_kind: workorder
 id: T0821
 title: "PLAN-063 子項 1＋2：Windows 升級前提示「安裝新版會結束所有終端」、升級後重開時說明上次升級結束了哪些終端"
 type: implementation
-status: PENDING
+status: IN_PROGRESS
 repo: better-agent-terminal
 project: maintenance
 priority: P2
 sizing: M
 created_at: "2026-11-04T01:34:49+0800"
+started_at: "2026-11-04T01:37:05+0800"
+updated_at: "2026-11-04T01:37:05+0800"
 depends_on: []
 related:
   - "PLAN-063；D266；T0820（實測：NSIS 升級以 TerminateProcess 結束 BAT 與 Terminal Server，shell 跟著結束，重開走孤兒清理、無 Recovery 提示）；T0766 / T0767（被中斷的 agent 分頁）；T0642（`claude-sessions.json`）；T0578 / T0704 / T0113（Recovery、server recovery、孤兒清理）；T0563 / T0567 / T0776（Dialog 規則）"
