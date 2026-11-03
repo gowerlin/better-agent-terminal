@@ -325,8 +325,11 @@ describe('source guards', () => {
     expect(main.slice(flag, flag + 1600)).toContain('.finally(() => app.exit(0))')
     // e2e-measured: a second instance's app.quit() still runs whenReady — every request process returns there,
     // with or without the lock (mutation: `installerQuitWithoutApp` → the request process takes the record)
+    // T0825 / BUG-210: merged with the second-instance return (second-instance-startup.test.ts)
     const ready = main.indexOf('app.whenReady().then(async () => {')
-    expect(main.slice(ready, ready + 300)).toContain('if (installerQuitRequestProcess) return')
+    const guard = main.indexOf('if (!gotTheLock || installerQuitRequestProcess) {', ready)
+    expect(guard).toBeGreaterThan(ready)
+    expect(guard).toBeLessThan(main.indexOf('const t0 = Date.now()', ready))
   })
 
   it('main.ts: second-instance listener at load; the whenReady handler opens no window for the request; markReady after it', () => {

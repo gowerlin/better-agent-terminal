@@ -231,6 +231,7 @@ const gotTheLock = app.requestSingleInstanceLock()
 if (!gotTheLock) {
   // Another instance with the same runtime is already running
   // (T0823: an installer's `--installer-quit-request` reaches it as `second-instance` argv)
+  // BUG-210 / T0825: this alone does not stop whenReady — its callback returns at once for this instance.
   app.quit()
 }
 
@@ -1784,9 +1785,17 @@ async function pickFallbackProfileId(excludeProfileId: string): Promise<string |
 }
 
 app.whenReady().then(async () => {
-  // T0823: the installer's request process (second instance, or no BAT window process) — no window,
-  // no record read, no Terminal Server fork
-  if (installerQuitRequestProcess) return
+  // BUG-210 / T0825 (D268): only the instance holding the single-instance lock starts up. A second instance
+  // hands its argv to the running BAT (`second-instance`) and does nothing else, but its `app.quit()` at the
+  // lock check (before ready) does not stop this callback: Electron still emits `ready` (T0823 e2e-measured).
+  // Without the return it built the tray, ran `UpgradeInterruptionCheck.begin()` and `startTerminalServer()`
+  // until it exited — and once the running BAT had quit, that forked a new Terminal Server.
+  // T0823: the installer's request process returns too, with or without the lock — no window, no record read,
+  // no Terminal Server fork (holding the lock it only stops a kept server, see `installerQuitWithoutApp`).
+  if (!gotTheLock || installerQuitRequestProcess) {
+    if (!gotTheLock) logger.log('[startup] second instance: handed off to the running BAT, skipping startup')
+    return
+  }
   const t0 = Date.now()
   // Already initialized by app-paths-bootstrap (T0485) — this only re-applies the settings.
   logger.init(app.getPath('userData'), readLoggingConfigSync())
