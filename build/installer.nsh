@@ -13,13 +13,13 @@
 ; `_CHECK_APP_RUNNING` needs: both are declared here instead.
 ;
 ; What changes for the user (docs/agent-guide/upgrade-interruption.md):
-;   - BAT running, installer not elevated, BAT installed by a T0823+ installer (marker file): same "is
+;   - BAT running, BAT installed by a T0823+ installer (marker file): same "is
 ;     running, OK to close" prompt (silent /S: accepted), then BAT quits normally (saves, stops its
 ;     Terminal Server) instead of being force-ended. If it is still running after
 ;     BAT_INSTALLER_QUIT_TIMEOUT_MS (BAT still starting, a quit dialog already open), the template's
 ;     check runs as before: interactive installs show its prompt a second time, then force-end.
-;   - Elevated installer (per-machine), BAT installed before T0823 (no marker), or BAT not running:
-;     exactly the template's behaviour.
+;   - UAC inner instance of a per-machine install (the template does not call this there), BAT installed
+;     before T0823 (no marker), or BAT not running: exactly the template's behaviour.
 
 !include "getProcessInfo.nsh"
 Var pid
@@ -37,10 +37,11 @@ Var pid
 
 !macro batRequestGracefulQuit
   ${GetProcessInfo} 0 $pid $1 $2 $3 $4
-  ; not when this process is the app itself (the template's guard), not elevated: the request would
-  ; start BetterAgentTerminal.exe as administrator
+  ; not when this process is the app itself (the template's guard). An elevated installer may send it too:
+  ; the request process only hands its argv to the running BAT (or stops a kept Terminal Server) and exits,
+  ; it never opens a window (electron/main.ts returns at the top of whenReady). Not elevated → it would
+  ; never run on machines with UAC off (T0823 CI: GitHub runners are elevated).
   ${If} $3 != "${APP_EXECUTABLE_FILENAME}"
-  ${AndIfNot} ${UAC_IsAdmin}
   ${AndIf} ${FileExists} "$INSTDIR\${APP_EXECUTABLE_FILENAME}"
   ${AndIf} ${FileExists} "$INSTDIR\${BAT_INSTALLER_QUIT_MARKER}"
     !insertmacro FIND_PROCESS "${APP_EXECUTABLE_FILENAME}" $R0

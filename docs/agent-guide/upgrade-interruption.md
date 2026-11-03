@@ -80,9 +80,9 @@ N = 兩份清單依 terminal id 的聯集（紀錄在前）；claude session 以
 |---|---|---|
 | 新版安裝程式（per-user，本專案預設） | install section 開頭、`uninstallOldVersion` 之前（`installSection.nsh`） | 有 |
 | 新版安裝程式，選「所有使用者」→ UAC 提權 | 提權的 inner instance 跑 install section，`${ifNot} ${UAC_IsInnerInstance}` 擋掉 | **沒有**（範本本來也不檢查；之後舊版解除安裝程式以舊版自己的範本強制結束） |
-| 新版安裝程式，本身已以系統管理員執行 | install section（非 inner instance） | 有，但 `${UAC_IsAdmin}` 時本單不送請求（避免以系統管理員身分啟動 BAT），只跑範本原本的檢查 |
+| 新版安裝程式，本身已以系統管理員執行 | install section（非 inner instance） | 有，也送請求：請求行程以系統管理員身分啟動，但只把 argv 交給執行中的 BAT（或停保留的 server）就結束、不開視窗。T0823 原本加了「提權不送」，CI 實測（GitHub runner 關閉 UAC、一律 elevated）一個請求都沒送出，改為不分權限 |
 | 舊版解除安裝程式（覆蓋安裝時新版以 `/S --updated` 執行） | `un.checkAppRunning` | 用的是**舊版**編進去的版本：T0823 前的版本照舊強制結束；T0823 之後的版本有本單的巨集（`--updated` → 不跳提示），但此時 BAT 已被新版安裝程式請走，找不到程序 |
-| 使用者解除安裝（設定 → 應用程式） | `un.checkAppRunning`（靜默時於 `un.onInit`） | 有（同安裝程式；提權時不送請求） |
+| 使用者解除安裝（設定 → 應用程式） | `un.checkAppRunning`（靜默時於 `un.onInit`） | 有（同安裝程式） |
 
 - 覆寫方式：`build/installer.nsh` 經 `build.nsis.include` 放進 header（在範本 `allowOnlyOneInstallerInstance.nsh` 之前）。定義 `customCheckAppRunning` 後範本**不再** `!include "getProcessInfo.nsh"`、不宣告 `Var pid`，所以本檔自己補上；回退是原樣 `!insertmacro _CHECK_APP_RUNNING`（範本的巨集，不是複製）。`IS_POWERSHELL_AVAILABLE` / `FIND_PROCESS` 也是範本的巨集。
 - 升級 electron-builder 時：`electron/__tests__/installer-quit-request.test.ts` 的最後一個測試鎖住 `app-builder-lib` 版本（26.8.1）與上面這些掛勾的原文，版本一變就失敗，提醒依 [packaging-release-checks.md](packaging-release-checks.md)「NSIS：安裝前請 BAT 正常結束」重新核對。
@@ -90,7 +90,7 @@ N = 兩份清單依 terminal id 的聯集（紀錄在前）；claude session 以
 ### 流程
 
 0. 安裝時（`customInstall`，檔案放好之後）：寫 `$INSTDIR\resources\installer-quit-request.supported`（`BAT_INSTALLER_QUIT_MARKER`），代表「裝在這裡的 BAT 認得請求」。T0823 前的安裝沒有這個檔；任何解除安裝（含降版時舊版安裝程式先跑的解除安裝）都 `RMDir /r $INSTDIR`，檔案跟著消失。
-1. 安裝程式（`batRequestGracefulQuit`）：不是 app 本身、未提權、`$INSTDIR\BetterAgentTerminal.exe` 與標記檔都存在，且 `FIND_PROCESS` 找到安裝目錄下的程序 →
+1. 安裝程式（`batRequestGracefulQuit`）：不是 app 本身、`$INSTDIR\BetterAgentTerminal.exe` 與標記檔都存在，且 `FIND_PROCESS` 找到安裝目錄下的程序 →
 2. 不是 `--updated` 時先顯示範本同一句提示（`$(appRunning)`，確定 / 取消；取消 = 結束安裝程式；`/S` 自動確定）。
 3. `Exec "<安裝目錄>\BetterAgentTerminal.exe --installer-quit-request"`，每 `BAT_INSTALLER_QUIT_POLL_MS` = 500 ms 以 `FIND_PROCESS` 檢查，最多 `BAT_INSTALLER_QUIT_TIMEOUT_MS` = 15 s（`GetTickCount` 計時）。
 4. 無論結果，接著跑範本的 `_CHECK_APP_RUNNING`：程序都結束了 → 什麼都不做；還有 → 範本原本的提示 / 強制結束（與 T0823 前相同）。
@@ -115,7 +115,8 @@ N = 兩份清單依 terminal id 的聯集（紀錄在前）；claude session 以
 | `/S` 靜默安裝、BAT（T0823+）在跑 | 直接強制結束 | 直接請 BAT 正常結束 |
 | 裝著的 BAT 是 T0823 前的安裝程式裝的（例 pre.5 → pre.6 這一次） | 強制結束 | 相同（沒有標記檔，不送請求）。若送了，舊版會把參數當成「開新視窗」（舊版的 `second-instance`，`createEntry` 立即存進 windows.json），15 s 後仍被強制結束，重開多一個空視窗——所以用標記擋掉 |
 | BAT 還在啟動、或離開對話框開著 | 強制結束 | 送出請求、等滿 15 s，範本照舊：互動安裝**再顯示一次**提示，然後強制結束 |
-| 提權（所有使用者）安裝 | 強制結束（或 inner instance 不檢查） | 相同 |
+| 「所有使用者」安裝經 UAC 提權 | inner instance 不檢查，之後舊版解除安裝程式強制結束 | 相同 |
+| 以系統管理員執行的安裝程式（含關閉 UAC 的電腦） | 強制結束 | 與一般相同：請 BAT 正常結束。若提權用的是**另一個帳號**的憑證，請求到不了使用者的 BAT（lock 依帳號的 userData），等滿 15 s 後回退 |
 | 只剩保留的 Terminal Server | server 被強制結束、重開走孤兒清理 | 請求行程請 server 正常 shutdown |
 | BAT 以 `--runtime=N` 執行 | 強制結束 | 相同（請求只到預設 runtime 的 lock；逾時後回退） |
 | 重開後的說明 | 版本變＋孤兒 → toast | 版本變＋（孤兒或紀錄）→ 同一則 toast；文字相同 |
@@ -131,7 +132,7 @@ N = 兩份清單依 terminal id 的聯集（紀錄在前）；claude session 以
 - 「只顯示一次」是每個 BAT 行程給第一個視窗；多個主視窗時其他視窗不顯示（清單本身每個視窗照舊只列自己的分頁）。
 - `InterruptedAgentsStore` 只在記憶體（D211 P-5）：升級說明關掉後、BAT 再重開一次，清單就沒了。
 - helper 派工的 Worker：升級後沒有 workorder / 塔台 id（env 不持久化），清單裡排在一般分頁，恢復走 main 的 builder、不帶 workorder。
-- 孤兒清理以 registry 的舊 pid 結束程序：升級到重開之間 pid 被重用會誤殺（T0820 指出的既有風險）。T0823 起正常結束不留孤兒；回退到強制結束時（舊版、逾時、提權）風險照舊。
+- 孤兒清理以 registry 的舊 pid 結束程序：升級到重開之間 pid 被重用會誤殺（T0820 指出的既有風險）。T0823 起正常結束不留孤兒；回退到強制結束時（舊版、逾時、UAC inner instance）風險照舊。
 
 ## 驗證
 

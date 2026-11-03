@@ -375,7 +375,7 @@ describe('source guards', () => {
     expect(mod).not.toMatch(/from 'electron'/)
   })
 
-  it('installer.nsh: same argument, request then the template check, confirmation kept, not elevated', () => {
+  it('installer.nsh: same argument, request then the template check, confirmation kept, elevated too', () => {
     expect(nsh).toContain(`!define BAT_INSTALLER_QUIT_ARG "${INSTALLER_QUIT_REQUEST_ARG}"`)
     expect(nsh).toMatch(/!define BAT_INSTALLER_QUIT_TIMEOUT_MS 15000\b/)
     const macro = nsh.slice(nsh.indexOf('!macro customCheckAppRunning'))
@@ -385,7 +385,8 @@ describe('source guards', () => {
     // what the template skips when customCheckAppRunning is defined, and _CHECK_APP_RUNNING needs
     expect(nsh).toContain('!include "getProcessInfo.nsh"')
     expect(nsh).toMatch(/^Var pid$/m)
-    expect(nsh).toContain('${AndIfNot} ${UAC_IsAdmin}')
+    // T0823 CI: GitHub runners (UAC off) are elevated — an admin guard meant no request at all there
+    expect(nsh).not.toContain('${UAC_IsAdmin}')
     // only a BAT installed by a T0823+ installer is asked (a pre-T0823 BAT would open a window for the argument)
     expect(nsh).toContain('!define BAT_INSTALLER_QUIT_MARKER "resources\\installer-quit-request.supported"')
     expect(nsh).toContain('${AndIf} ${FileExists} "$INSTDIR\\${BAT_INSTALLER_QUIT_MARKER}"')
