@@ -31,7 +31,7 @@ Herdr 在 2026 年 10 月底推出原生桌面版（herdr-app）與獨立運作�
 |---|---|---|---|---|---|
 | A | 送文字前先看目標狀態（`hc send` 遇 blocked 預設不送，`--if idle`，等使用者停手才貼） | `pty:write` 不看目標是否 blocked（`electron/handlers/pty.ts:104`）；Worker `bat-notify --submit` 直接把文字＋Enter 寫進塔台 PTY | 高 | 低 | 先實測（Q1），成立就開 BUG |
 | B | 狀態只由程式自己回報（OSC 7501，Herdr 稱 Program Status Protocol） | 解析器丟掉 `app≠codex`（`src/lib/codex-terminal-state.ts`），其他會送 7501 的程式 `blockedDetection: none` | 中 | 低 | 開工單，先定範圍（Q2、Q3） |
-| C | 父終端一次等所有子終端（`hc wait --children any\|all`） | `terminal:wait` 一次等一個分頁（≤ 45 s） | 中 | 中 | 問 CT 塔台要不要（Q5） |
+| C | 父終端一次等所有子終端（`hc wait --children any\|all`） | `terminal:wait` 一次等一個分頁（≤ 45 s） | 中 | 中 | **不做**（Q5：CT 不需要，D247 / CT D568） |
 | D | 每個終端一個 holder，core 可單獨重啟 | Terminal Server 一個程序持有全部；判死時以同 id 開新 shell（T0704） | 中 | 高 | 先記錄，有需求再評估 |
 | E | 遠端協定走 SSH stdio，遠端不開埠（`hc connect`、`--via`） | 遠端 bat-server 開 wss 埠＋TOFU 憑證 | 低 | 高 | 先記錄，有需求再評估 |
 | F | 可機讀的 API 定義（`hc schema` 輸出 OpenRPC） | 契約寫在 Markdown | 低 | 中 | 暫不做 |
@@ -77,6 +77,7 @@ BAT 已經有的（不需動作）：「做完了但還沒看」（✓ / 淡化 
 
 - PLANNED（D219：登記為主 PLAN，後續再拆子 PLAN 與工單）。
 - 2026-11-02 第一百零六 session：拆分方向第 1 點開研究單 **T0787**（Q1 主、Q2 / Q3 順查；D226）。Q4 未解：`v0.7.3-pre.7` NSIS 重裝驗收的前置條件是 BAT 已關閉，沒有測到執行中的 Terminal Server。
+- 2026-11-03 第一百一十一 session：**Q5 已答，子項 C 不做**。BAT `_handover-2026-11-03-bat-wait-multiple-workers.md` → CT 塔台回覆 BMad-Guide `_ct-workorders/_reply-2026-11-03-bat-wait-multiple-workers.md`（BMad-Guide commit `f2355ac`，CT D568）。CT 不需要拉取式「一次等多個 Worker」，理由：① CT 用推送式，規格明定不輪詢、不開背景監看，只在需要時查「那一個」Worker，現有單分頁 `bat_wait` / `bat_get_state` 足夠；② 對話式塔台的 MCP 長等待會擋住整個回合；③ 漏收已有備援（工單先寫最終狀態、Worker fallback 訊息、T0788 保留通知），紀錄中漏收 0 筆；④ 合併逐張處理，收工前查一次 `bat_list_terminals scope: mine` 即可。CT 會重提的條件：通知真的遺失且工單檔與 fallback 都救不回，或出現沒有對話回合的塔台（headless / 排程）。
 
 ## T0787 結論摘要
 

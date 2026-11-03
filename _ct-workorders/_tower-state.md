@@ -4,21 +4,21 @@ summary_version: 1
 updated_at: "2026-11-03T13:21:51+08:00"
 session: "2026-11-03 13:21 第一百一十一 session 開工（CT v6.0.0-beta.11）"
 next_ids:
-  workorder: "T0801"
-  decision: "D247"
+  workorder: "T0803"
+  decision: "D248"
   bug: "BUG-205"
   plan: "PLAN-062"
 todo:
   - "BUG-159（FIXED）驗收：需非系統管理員環境 ＋ codex"
-  - "驗收腳本 `-Version` 預設值過時（`0.7.2-pre.8`），可開小單改必填"
-  - "PLAN-059：A 完成（BUG-196 CLOSED）；B = PLAN-061（IDEA low，D229）；C 待問 CT（Q5）；Q4 未解"
+  - "T0801（`-Version` 必填）/ T0802（語音可用性事先檢查）並行執行中（D247），完成後同一批發版"
+  - "PLAN-059：A 完成（BUG-196 CLOSED）；B = PLAN-061（IDEA low，D229）；C 不做（Q5，CT D568）；Q4 未解"
   - "PLAN-060（IDEA）：macOS Developer ID 簽章（目前 macOS 不顯示系統通知）"
   - "觀察：t0757 偶發失敗再發生才開 BUG（D218）"
   - "版號線：`0.7.4-pre.N`，已發 pre.1 / pre.2（D236 / D241）"
 ---
 # Tower State — better-agent-terminal
 
-> 🟢 **第一百一十一 session 開工**（2026-11-03 13:21 (UTC+8)，CT v6.0.0-beta.11，Fast Path；塔台 session `b05ebcaa-774b-4e4c-9fdd-448dc83ab281`；`--set-role tower --mode on` exit 0；`bat_whoami` 名稱 `better-agent-terminal · Tower`；安裝版 FileVersion `0.7.4-pre.2`；HEAD `eb20ca4d`、`main` = `origin/main`（fetch 後 0 / 0）、工作區乾淨；熱區 196 張工單皆 DONE；BUG 熱區 Fixed 1（159）/ Closed 66 / WONTFIX 1，與 `_bug-tracker.md` 一致；`bat_list_questions` pending 0）。**`v0.7.4-pre.2` NSIS 完整重裝驗收 PASS-WITH-WARN**（real 模式 12:58:01–12:59:06；AllUsers / HKLM；唯一 WARN = ⓪ 目前安裝版 pre.1，② 實為升級，屬預期；① SHA-256 `c8eef1bc…` ② ③ ④ 全 PASS，三支 helper `--version` = v0.7.4-pre.2、內嵌 claude / codex 存在、userData 130 檔 SHA-256 未變；⑤ SKIPPED）；報告 `%TEMP%\bat-nsis-acceptance-20261103-125801\report.md`；含權杖的 `userdata-backup` 已刪除。
+> 🟢 **第一百一十一 session 開工**（2026-11-03 13:21 (UTC+8)，CT v6.0.0-beta.11，Fast Path；塔台 session `b05ebcaa-774b-4e4c-9fdd-448dc83ab281`；`--set-role tower --mode on` exit 0；`bat_whoami` 名稱 `better-agent-terminal · Tower`；安裝版 FileVersion `0.7.4-pre.2`；HEAD `eb20ca4d`、`main` = `origin/main`（fetch 後 0 / 0）、工作區乾淨；熱區 196 張工單皆 DONE；BUG 熱區 Fixed 1（159）/ Closed 66 / WONTFIX 1，與 `_bug-tracker.md` 一致；`bat_list_questions` pending 0）。**`v0.7.4-pre.2` NSIS 完整重裝驗收 PASS-WITH-WARN**（real 模式 12:58:01–12:59:06；AllUsers / HKLM；唯一 WARN = ⓪ 目前安裝版 pre.1，② 實為升級，屬預期；① SHA-256 `c8eef1bc…` ② ③ ④ 全 PASS，三支 helper `--version` = v0.7.4-pre.2、內嵌 claude / codex 存在、userData 130 檔 SHA-256 未變；⑤ SKIPPED）；報告 `%TEMP%\bat-nsis-acceptance-20261103-125801\report.md`；含權杖的 `userdata-backup` 已刪除。使用者「第 2 項併成同一批、PLAN-059 C 可問 CT」→ Q5 以 `_handover-2026-11-03-bat-wait-multiple-workers.md` ＋跨 session 訊息送 `BMad-Guide · Tower`（收件人經 ListAgents 與 `scope: towers` 雙重確認）→ CT 回覆不需要（CT D568，BMad-Guide `f2355ac`）→ PLAN-059 C 不做；三題設計點由使用者選定 → **D247** → 開 **T0801**（`-Version` 必填）/ **T0802**（語音可用性事先檢查，所有平台子程序、不可用時停用麥克風＋原因提示；授權 push `ct/T0802` 驗證），`affects_files` 不重疊、並行派工。
 >
 > 最後更新:2026-11-03 12:55 (UTC+8) — **第一百一十 session 收工**：T0800 修好 Linux 語音輸入（BUG-204，whisper RUNPATH `$ORIGIN`）；BUG-203（22.04 glibc 2.38）列為已知限制；`v0.7.4-pre.2` 發佈，交付版 linux-acceptance 驗收後 BUG-202 / 204 CLOSED。前次：第一百零九 session 收工（2026-11-03 03:13）。
 >
@@ -108,8 +108,8 @@ todo:
 ### 待辦（依優先序）
 1. ✅ ~~`v0.7.4-pre.2` NSIS 重裝驗收~~ → PASS-WITH-WARN（第一百一十一 session 開工判讀）
 2. 🟡 **BUG-159 驗收**：需非系統管理員環境 ＋ codex
-3. 🟢 驗收腳本 `-Version` 預設值過時（可開小單改必填）；T0800 後續建議（`libgomp1` / `libvulkan1`、麥克風按鈕事先停用）
-4. 🟢 PLAN-059 C（問 CT Q5）；PLAN-060 / 061 IDEA；t0757 偶發失敗再發生才開 BUG（D218）
+3. 🔄 T0801 / T0802 執行中（D247），完成後同一批發版 `0.7.4-pre.3`
+4. 🟢 PLAN-059 C 不做（CT D568）；PLAN-060 / 061 IDEA；t0757 偶發失敗再發生才開 BUG（D218）
 
 ### ⚠️ 鐵則
 - **所有 `gh` 指令必須帶 `-R gowerlin/better-agent-terminal`**（L122）

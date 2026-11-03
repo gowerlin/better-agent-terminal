@@ -1465,6 +1465,17 @@
 - **切分**：W2a 設計語言 + 元件 + 首頁（T0630）→ 預覽通過後 W2b（`/control-tower`、功能、FAQ、回報頁）→ W2c 遠端開發；W3 / W4 不變。
 - **相關**：PLAN-049 / D159 / D160 / T0624 / T0630
 
+### D247 2026-11-03 — 同一批開 T0801（NSIS 驗收腳本 `-Version` 改必填）與 T0802（語音輸入事先檢查可用性，不可用時停用麥克風並提示原因）；PLAN-059 Q5 送 CT 塔台
+
+- **背景**：`v0.7.4-pre.2` NSIS 重裝驗收 PASS-WITH-WARN 後的待辦：① `e2e/manual/nsis-reinstall-acceptance.ps1` 的 `-Version` 預設值停在 `0.7.2-pre.8`，漏帶就會驗到舊版；② T0800 後續建議：Linux 缺 `libgomp1` / `libvulkan1`（或 22.04 glibc 2.35，BUG-203）時語音輸入載入失敗，麥克風按鈕照常可按，錄完音才顯示「辨識失敗」。
+- **決定**（使用者「第 2 項併成同一批」，三題皆由使用者選定）：
+  1. T0801：`-Version` 改必填（塔台決定，與 `_local-rules.md`「`-Version` 必帶」一致）。
+  2. T0802：麥克風按鈕在已知不可用時**停用＋提示原因**（滑過顯示原因與安裝指令，Settings 語音區顯示可用性）；事先檢查**所有平台**都做（使用者選，非塔台推薦的「只限 Linux」），以短命子程序試載、不在主行程載入 whisper、不拖慢啟動；系統相依採**文件＋提示安裝指令**，AppImage 不打包 `libgomp`。檢查失敗或逾時 = 未知，維持現行行為（按鈕可按）。
+  3. 兩張 `affects_files` 不重疊，並行派工；做完同一批發版（`batch-fixes-before-release`）。
+  4. PLAN-059 C 的 Q5 以 `_handover-2026-11-03-bat-wait-multiple-workers.md` ＋跨 session 訊息送 `BMad-Guide · Tower`，等回覆再決定 C 做不做。→ 同日 CT 回覆「不需要」（CT D568，BMad-Guide `f2355ac`）：**PLAN-059 子項 C 不做**；重提條件見 PLAN-059〈狀態〉。
+- **決策者**：使用者（範圍與三個設計點）；塔台（`-Version` 必填、並行派工）。2026-11-03 第一百一十一 session。
+- **相關**：T0801 / T0802 / T0800 / BUG-203 / BUG-204 / PLAN-059 / T0740
+
 ### D246 2026-11-03 — BUG-203（Ubuntu 22.04 語音輸入需 glibc 2.38）列為已知限制，WONTFIX
 
 - **背景**：T0800 修好 BUG-204 後，linux-acceptance `41575592616` 實測 22.04（glibc 2.35）載入 whisper 失敗：上游 `@kutalia/whisper-node-addon` 的 `libggml-base.so` / `libggml-vulkan.so` 需 `GLIBC_2.38`（另 `GLIBCXX_3.4.32`）；24.04 載入成功。修法只有上游以較舊的 glibc 重建或 BAT 自建 whisper。
