@@ -32,3 +32,4 @@ T0768 查證：SDK 0.3.316 的 AsyncIterable prompt 可在同一個 CLI 程序�
 - IDEA（D214：列入後續規劃，本批不做）。
 - 2026-11-03 21:11 → IN_PROGRESS（D258，使用者指示開始）：T0813（研究：設計＋原型量測、分階段實作草案）。
 - 2026-11-03 21:31 T0813 DONE → **D259**：範圍改為方案 D（主回合中送出改為排進同一個 query，不需常駐程序；Esc 一併取消待送；提問卡等待時排隊並提示）＋W1 前置修正；先 T0814（W1）再 T0815（W0）。常駐程序（方案 B）延後，觸發條件見 T0813〈7〉。
+- 2026-11-03 22:25 T0815 DONE（`0b67db03`）：方案 D 完成——主回合中送出以 `streamInput`＋uuid 排進同一個 query，`command_lifecycle` 回執 2 s 判斷送達（無回執 / reject → query 結束後 resume、只送一次）；Esc 先取消待送再 interrupt；卡片等待時提示「請先回答上方問題」；沒有 `msg_lifecycle_v1` 的舊 CLI 維持 T0769 / D214 P-2 舊路徑。假 API e2e ⑦d–⑦f / ⑥b PASS，真實模型 Haiku 5.5 8 輪 US$0.0218 PASS。W1（T0814）＋W0 皆完成，維持 IN_PROGRESS 待發版後交付版驗收；方案 B 依 T0813〈7〉延後。
