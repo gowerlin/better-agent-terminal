@@ -58,7 +58,19 @@
   - 本機重現：`npm run test:unit`、`npm run test:legacy`（後者見 CLAUDE.md「Frontend unit tests」節）。Linux 與 Windows 的路徑、時區差異已由 T0684 處理；本機在 Windows 全過不代表 ubuntu 全過，有疑慮時手動 `workflow_dispatch` `tests.yml` 試跑（不會發版）。
   - 🔴 新增 / 改測試步驟只改 `tests.yml`，不要在 `pre-release.yml` / `release.yml` 內另寫一份；要加 `inputs` / `secrets` 時兩個呼叫端一起改。驗證 workflow 用 actionlint（本機沒有時 `go run github.com/rhysd/actionlint/cmd/actionlint@v1.7.7`），它會檢查被呼叫端有沒有 `workflow_call` 與 `needs` 名稱。
 - **Release 驗收必跑 NSIS 完整重裝**：`--dir` mode 和 `zip` smoke 不是 production 等價；release 前必須完整「uninstall → 跑 installer → 啟動 UI → 踩 voice input / terminal 路徑」驗收（BUG-056 盲點記錄；原清單的 sqlite 路徑隨 better-sqlite3 於 T0492 移除，app 本來就沒用它）。
+  - T0823 起覆蓋安裝時 BAT 會被請求正常結束（見下方「NSIS：安裝前請 BAT 正常結束」）；腳本要求先關閉 BAT，所以不涵蓋這條路徑。
   - Windows 覆蓋安裝 / 解除安裝 / 乾淨重裝與耗時，用獨立腳本 `e2e/manual/nsis-reinstall-acceptance.ps1`（T0740；關閉 BAT 後在一般 PowerShell 執行，先 `-DryRun`；步驟與判讀見 [e2e/manual/README.md](../../e2e/manual/README.md)）：演練 `pwsh -NoProfile -ExecutionPolicy Bypass -File e2e\manual\nsis-reinstall-acceptance.ps1 -Version <版號> -DryRun`，實際執行 `… -Version <版號> -InstallerPath "<安裝檔路徑>"`。🔴 `-Version` 必填（T0801 / D247），演練也要帶：沒帶或格式不是 `X.Y.Z` / `X.Y.Z-pre.N` 時，腳本在建立輸出目錄、下載、備份、安裝之前就 exit `2` 並印出用法（T0801 前預設 `0.7.2-pre.8`，漏帶會驗收到舊版）。腳本不涵蓋啟動後的 UI / voice input / terminal 路徑，仍要手動走。
+
+# NSIS：安裝前請 BAT 正常結束（PLAN-063 子項 3 / T0823）
+
+- `build.nsis.include` = `build/installer.nsh`：electron-builder 把它放進安裝程式與解除安裝程式共用的 header，位置在範本 `templates/nsis/include/allowOnlyOneInstallerInstance.nsh` 之前。它定義 `customCheckAppRunning`：範本的「正在執行」提示 → 啟動 `<安裝目錄>\BetterAgentTerminal.exe --installer-quit-request` → 等安裝目錄下的程序全部結束（最多 15 s）→ 原樣插入範本的 `_CHECK_APP_RUNNING`（強制結束的回退，沒有複製）。行為、使用者看得到的差異、BAT 端：[upgrade-interruption.md](upgrade-interruption.md)「子項 3」。
+- 打包時本檔與 NSIS 一起編譯（electron-builder 帶 `-WX`，警告即失敗）；`build/` 不進 asar，執行期不需要它。T0823 在本機以 `npx electron-builder --win nsis --x64 --publish never` 編過安裝程式與解除安裝程式，`builder-debug.yml` 可看到 header 的 `!include "…\build\installer.nsh"`。
+- 🔴 **升級 electron-builder（`app-builder-lib`）時必查**（`electron/__tests__/installer-quit-request.test.ts` 最後一個測試在版本 ≠ 26.8.1 時失敗，提醒來這裡）：
+  1. `allowOnlyOneInstallerInstance.nsh` 仍有 `!ifmacrodef customCheckAppRunning` → `!insertmacro customCheckAppRunning`，否則仍是 `IS_POWERSHELL_AVAILABLE` ＋ `_CHECK_APP_RUNNING`。
+  2. 定義 `customCheckAppRunning` 時範本仍跳過 `!include "getProcessInfo.nsh"` 與 `Var pid`（`build/installer.nsh` 自己補；範本若改成無條件宣告 `Var pid`，會變成重複宣告、編譯失敗——拿掉本檔那一行）。
+  3. `_CHECK_APP_RUNNING` / `IS_POWERSHELL_AVAILABLE` / `FIND_PROCESS` 仍存在、名稱與參數不變；`$(appRunning)` / `$(appClosing)` 語言字串仍在 `messages.yml`。
+  4. 呼叫時機不變：`installSection.nsh` 在 `${ifNot} ${UAC_IsInnerInstance}` 時插入 `CHECK_APP_RUNNING`（在 `uninstallOldVersion` 之前）；`uninstaller.nsh` 的 `un.checkAppRunning`；舊版解除安裝程式以 `/S --updated` 執行。
+  5. 本機 `npx vite build` 後以上面的指令編一次 NSIS，再以 `desktop-build.yml` 的安裝檔在 Windows runner 實測（T0823 的探測做法見工單回報區），確認 `[installer-quit]` 日誌與 Terminal Server 正常 shutdown；全部核對完才改測試裡的版本號。
 
 # 只 build、不發布的桌面 workflow（T0783，D223）
 
