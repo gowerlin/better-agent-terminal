@@ -15,14 +15,14 @@
 | [dialog-close-and-escape.md](dialog-close-and-escape.md) | Dialog 不因點擊外部關閉、`ModalOverlay`、Esc 統一 | Dialog 不因點擊外部關閉（T0563）、Esc 統一（T0567） |
 | [headless-login-shell-path.md](headless-login-shell-path.md) | headless bat-server 啟動時以登入 shell 取得 PATH（`-l -i` + 隨機標記、detached + 逾時砍程序群組、合併規則、`headlessLoginShellPath` 開關、套用點、影響、實測） | headless server 的登入 shell PATH（PLAN-057 / T0755，D206 / D207） |
 | [helper-query-channels.md](helper-query-channels.md) | helper 唯讀查詢 channel（whoami / list / get-state / read-output / wait） | helper 唯讀查詢 channel（PLAN-047 M1 / T0582） |
-| [linux-ci-acceptance.md](linux-ci-acceptance.md) | GitHub Actions ubuntu-22.04 / 24.04 runner 啟動發佈的 AppImage（`linux-acceptance.yml` 只能手動觸發、FUSE / sandbox 處理、L1 / L2 / L1b 與 PASS / WARN / FAIL 判讀、AppImage 靜態檢查、本機 WSL 實測） | Release（T0797 一行） |
+| [linux-ci-acceptance.md](linux-ci-acceptance.md) | GitHub Actions ubuntu-22.04 / 24.04 runner 啟動發佈的 AppImage（`linux-acceptance.yml` 只能手動觸發、FUSE / sandbox 處理、L1 / L2 / L1b / W1（whisper 載入，T0800）與 PASS / WARN / FAIL 判讀、AppImage 靜態檢查、本機 WSL 實測） | Release（T0797 一行） |
 | [linux-appimage-sandbox.md](linux-appimage-sandbox.md) | Linux AppImage 啟動器：userns 受限且 `chrome-sandbox` 不是 root 4755 時自動加 `--no-sandbox`（注入點查證、判斷條件、stderr / debug log、安全取捨、AppArmor profile 範例、已知限制、驗證清單） | Linux AppImage 的 sandbox 自動降級（T0799 / BUG-202，D244） |
 | [logging.md](logging.md) | 日誌、啟動期 crash capture、`[gpu]`、單一 userData、helper userData、PTY env 組裝點、塔台派工落點 | Logging |
 | [macos-ci-acceptance.md](macos-ci-acceptance.md) | GitHub Actions macOS runner 對發佈 dmg 驗 BUG-128 / 130（`macos-acceptance.yml` 只能手動觸發、可行性表 P1–P5、情境 ①–⑧、與真人 Mac 的差異） | （無；T0778 新增，是否補 CLAUDE.md 小節由塔台決定） |
 | [multi-remote-profiles.md](multi-remote-profiles.md) | 多 remote profile 同時連線、上限、profile index 序列化 | 多 remote profile 同時連線（PLAN-039） |
 | [notify-hold.md](notify-hold.md) | 塔台等使用者回答（權限 / AskUserQuestion / codex 審批）時保留 helper 送來的文字＋Enter、安靜 1 s 後送出（契約 10 點、常數、日誌、待送 N 與取消、已知限制、驗證清單） | 塔台等使用者回答時保留 Worker 通知（T0788 / BUG-196，D227） |
 | [npm12-install-scripts.md](npm12-install-scripts.md) | npm 12 `allowScripts`、手動補跑、本機打包、CI 與 actions / runner 版本 | 本機開發：npm 12 install scripts（T0471 / T0473） |
-| [packaging-release-checks.md](packaging-release-checks.md) | 打包前置檢查、產物檢查、安裝檔瘦身、CI pipeline、Server bundle baseline | Packaging / Release 前置檢查 |
+| [packaging-release-checks.md](packaging-release-checks.md) | 打包前置檢查、產物檢查、安裝檔瘦身、Linux whisper 函式庫搜尋路徑（patchelf `$ORIGIN`，T0800）、CI pipeline、Server bundle baseline | Packaging / Release 前置檢查 |
 | [new-pty-initial-size.md](new-pty-initial-size.md) | 隱藏分頁不 fit 的守門（`canFitTerminalContainer`）、9x5 的來源、initial resize 到期再檢查 active、驗證清單 | 新 PTY 的初始尺寸（T0572 / BUG-145）（T0741 / BUG-180 的部分；T0572 本身仍完整留在 CLAUDE.md） |
 | [pty-process-tree.md](pty-process-tree.md) | 關閉分頁時的程序樹（taskkill / server shutdown / quit） | 關閉分頁時的程序樹（T0540 / PLAN-042） |
 | [recovery-create-hold.md](recovery-create-hold.md) | Recovery 提示期間的 create hold（`pty:create`、helper 派工、`pty:restart`） | Recovery 提示期間的 `pty:create`（T0578 / BUG-146） |
