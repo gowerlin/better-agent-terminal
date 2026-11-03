@@ -10,8 +10,11 @@
  *
  * Detection (`detectUpgradeInterruption`): the version of the previous run (`last-run-version.json`
  * in userData, written at every start) differs from this one **and** this start's orphan cleanup
- * found N ≥ 1 PTYs in the registry. The same version (a crash), no orphan PTY, or no previous
- * version (first run, unreadable file) → nothing, as before T0821. The check runs once per process.
+ * found N ≥ 1 PTYs in the registry — **or** (T0823, PLAN-063 子項 3) the installer asked the previous
+ * BAT to quit normally and it recorded N ≥ 1 ended PTYs (`installer-quit-record.json`, read once:
+ * electron/installer-quit-request.ts); a normal quit leaves no orphan. N = both lists joined by id.
+ * The same version (a crash), no ended PTY, or no previous version (first run, unreadable file) →
+ * nothing, as before T0821. The check runs once per process.
  *
  * What it adds: one notice for the renderer (`terminal-server:query-upgrade-interruption`, given to
  * the first window that asks, then null — shown once) and the agent tabs among the ended PTYs in the
@@ -67,20 +70,33 @@ export interface UpgradeInterruptionInput {
   currentVersion: string
   /** PTYs this start's orphan cleanup found in the registry (0 = no orphan cleanup / empty registry). */
   orphanPtyCount: number
+  /**
+   * T0823: PTYs the installer's quit request ended (`installer-quit-record.json`, written by the BAT
+   * that quit normally; 0 / absent = no record). A normal quit leaves no orphan, so this is the other
+   * way the same notice is reached.
+   */
+  installerQuitPtyCount?: number
 }
 
-/** The upgrade ended N terminals: version changed **and** N ≥ 1 (see the file header). */
+function atLeastOne(count: number | undefined): boolean {
+  return typeof count === 'number' && Number.isInteger(count) && count >= 1
+}
+
+/**
+ * The upgrade ended N terminals: version changed **and** (orphan cleanup N ≥ 1 **or** T0823 installer
+ * quit record N ≥ 1) (see the file header).
+ */
 export function detectUpgradeInterruption(input: UpgradeInterruptionInput): boolean {
   if (input.previousVersion === null) return false
   if (input.previousVersion === input.currentVersion) return false
-  return Number.isInteger(input.orphanPtyCount) && input.orphanPtyCount >= 1
+  return atLeastOne(input.orphanPtyCount) || atLeastOne(input.installerQuitPtyCount)
 }
 
 /** What the renderer shows (`terminal-server:query-upgrade-interruption`). */
 export interface UpgradeInterruptionNotice {
   previousVersion: string
   currentVersion: string
-  /** Terminals the upgrade ended (the orphan cleanup's N). */
+  /** Terminals the upgrade ended (the orphan cleanup's N; T0823: ∪ the installer quit record's, by id). */
   ptyCount: number
   /** Of those, the agent tabs listed in InterruptedAgentsDialog. */
   agentCount: number
@@ -200,6 +216,8 @@ export class UpgradeInterruptionCheck {
   private finished = false
   private orphans: OrphanPtyEntry[] = []
   private claudeSessions: PendingClaudeSession[] = []
+  /** T0823: the installer quit record of the previous process (null = none). */
+  private installerQuit: { ptys: OrphanPtyEntry[]; claudeSessions: PendingClaudeSession[] } | null = null
   private notice: UpgradeInterruptionNotice | null = null
 
   constructor(private readonly opts: UpgradeInterruptionCheckOptions) {}
@@ -221,6 +239,38 @@ export class UpgradeInterruptionCheck {
   }
 
   /**
+   * T0823: the installer quit record (`takeInstallerQuitRecord`, read once at whenReady before the
+   * Terminal Server starts). Only the first one counts; ignored after `finish`.
+   */
+  noteInstallerQuit(record: { ptys: readonly OrphanPtyEntry[]; claudeSessions: readonly PendingClaudeSession[] } | null): void {
+    if (this.finished || this.installerQuit || !record) return
+    this.installerQuit = {
+      ptys: record.ptys.map(entry => ({ id: entry.id, ...(entry.cwd ? { cwd: entry.cwd } : {}) })),
+      claudeSessions: record.claudeSessions.map(session => ({ ...session })),
+    }
+  }
+
+  /**
+   * The ended PTYs: the installer quit record's first, then the orphans it did not list (a Terminal
+   * Server the normal quit could not stop), by id. Claude sessions: the record's (taken while the PTYs
+   * ran) win over the previous process's store.
+   */
+  private endedPtys(): { ptys: OrphanPtyEntry[]; claudeSessions: PendingClaudeSession[] } {
+    const ptys: OrphanPtyEntry[] = []
+    const seen = new Set<string>()
+    for (const entry of [...(this.installerQuit?.ptys ?? []), ...this.orphans]) {
+      if (!entry?.id || seen.has(entry.id)) continue
+      seen.add(entry.id)
+      ptys.push(entry)
+    }
+    const sessions = new Map<string, PendingClaudeSession>()
+    for (const session of [...(this.installerQuit?.claudeSessions ?? []), ...this.claudeSessions]) {
+      if (session?.terminalId && !sessions.has(session.terminalId)) sessions.set(session.terminalId, session)
+    }
+    return { ptys, claudeSessions: [...sessions.values()] }
+  }
+
+  /**
    * Decides once. Returns the agent sources (for InterruptedAgentsStore) when it detected an upgrade
    * interruption, else null. `agentCountOf` turns the sources into the number listed; its `nameOf`
    * gives the `--name=` the previous process recorded for a terminal (claude-sessions.json).
@@ -228,31 +278,41 @@ export class UpgradeInterruptionCheck {
   finish(windows: readonly SavedWindowEntry[], agentCountOf: (sources: InterruptedAgentSource[], nameOf: (terminalId: string) => string | null) => number): InterruptedAgentSource[] | null {
     if (this.finished) return null
     this.finished = true
-    const ptyCount = this.orphans.length
-    const detected = detectUpgradeInterruption({ previousVersion: this.previousVersion, currentVersion: this.opts.currentVersion, orphanPtyCount: ptyCount })
+    const ended = this.endedPtys()
+    const ptyCount = ended.ptys.length
+    const installerQuitPtyCount = this.installerQuit?.ptys.length ?? 0
+    const source = installerQuitPtyCount > 0 ? (this.orphans.length > 0 ? 'installer+orphans' : 'installer') : 'orphans'
+    const detected = detectUpgradeInterruption({
+      previousVersion: this.previousVersion,
+      currentVersion: this.opts.currentVersion,
+      orphanPtyCount: this.orphans.length,
+      installerQuitPtyCount,
+    })
     if (!detected) {
       if (this.previousVersion !== this.opts.currentVersion) {
         this.opts.logger.log(`[upgrade-interruption] none: previous=${this.previousVersion ?? 'unknown'} current=${this.opts.currentVersion} ended-ptys=${ptyCount}`)
       }
       this.claudeSessions = []
+      this.installerQuit = null
       return null
     }
     let sources: InterruptedAgentSource[] = []
     try {
-      sources = buildUpgradeInterruptedSources(this.orphans, windows, this.claudeSessions)
+      sources = buildUpgradeInterruptedSources(ended.ptys, windows, ended.claudeSessions)
     } catch {
       sources = []
     }
     let agentCount = 0
     try {
-      const names = new Map(this.claudeSessions.map(session => [session.terminalId, session.name]))
+      const names = new Map(ended.claudeSessions.map(session => [session.terminalId, session.name]))
       agentCount = agentCountOf(sources, id => names.get(id) ?? null)
     } catch {
       agentCount = 0
     }
     this.notice = { previousVersion: this.previousVersion!, currentVersion: this.opts.currentVersion, ptyCount, agentCount }
     this.claudeSessions = []
-    this.opts.logger.log(`[upgrade-interruption] detected: previous=${this.previousVersion} current=${this.opts.currentVersion} ended-ptys=${ptyCount} agent-tabs=${agentCount}`)
+    this.installerQuit = null
+    this.opts.logger.log(`[upgrade-interruption] detected: previous=${this.previousVersion} current=${this.opts.currentVersion} ended-ptys=${ptyCount} agent-tabs=${agentCount} source=${source}`)
     return sources
   }
 

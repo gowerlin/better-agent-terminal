@@ -17,9 +17,10 @@ import { createBatMcpLaunchArgs, registerBatMcpHandlers, type BatMcpHost } from 
 import { createCodexNoDaemonSupportCheck, createCodexOscVersionCheck } from './codex-osc-version'
 import { createCodexSkillNameResolver } from './ct-install-detect'
 import { createClaudeNameSupportCheck } from './claude-version-check'
-import { CLAUDE_SESSION_STORE_FILE, ClaudeSessionPersistence, claudeSessionNameRecords } from './claude-session-name-record'
+import { CLAUDE_SESSION_STORE_FILE, ClaudeSessionPersistence, claudeSessionNameRecords, readClaudeSessionStore } from './claude-session-name-record'
 import { InterruptedAgentsStore, buildInterruptedAgentSnapshot, resumeInterruptedDispatchAgent } from './interrupted-agents'
 import { LAST_RUN_VERSION_FILE, UpgradeInterruptionCheck } from './upgrade-interruption'
+import { INSTALLER_QUIT_RECORD_FILE, InstallerQuitController, isInstallerQuitRequest, runInstallerQuitWithoutApp, takeInstallerQuitRecord, writeInstallerQuitRecord } from './installer-quit-request'
 import { detectShellFamily } from '../src/utils/shell-quote'
 import { checkDispatchCwd, findWorkspaceAgentSettings, resolveDispatchWorkspaceFromEntries, type DispatchWorkspaceRequest, type DispatchWorkspaceResolution } from './dispatch-workspace'
 import { createTerminalWindowEmit, registerTerminalHandlers } from './handlers/terminal'
@@ -229,7 +230,41 @@ if (process.platform === 'win32') {
 const gotTheLock = app.requestSingleInstanceLock()
 if (!gotTheLock) {
   // Another instance with the same runtime is already running
+  // (T0823: an installer's `--installer-quit-request` reaches it as `second-instance` argv)
   app.quit()
+}
+
+/**
+ * PLAN-063 子項 3 / T0823: started by the NSIS installer with `--installer-quit-request` while no BAT
+ * window process holds the lock — at most a Terminal Server the user kept runs. This process records
+ * that server's PTYs, asks it to shut down (TCP `server:shutdown`), and exits; it never opens a window
+ * (whenReady returns at once, see `installerQuitWithoutApp`). electron/installer-quit-request.ts.
+ */
+const installerQuitRequestProcess = isInstallerQuitRequest(process.argv)
+// T0823 measured: a second instance's app.quit() (above) still lets whenReady run; once the running BAT has
+// quit (released the lock and stopped its Terminal Server) that startup would take the record and fork a new
+// server. So every request process returns from whenReady, with or without the lock.
+const installerQuitWithoutApp = gotTheLock && installerQuitRequestProcess
+if (installerQuitWithoutApp) {
+  const userDataPath = app.getPath('userData')
+  void runInstallerQuitWithoutApp({
+    version: app.getVersion(),
+    serverRunning: () => isServerRunning(userDataPath),
+    registryPtys: () => readRegistry(userDataPath)?.ptys ?? [],
+    storedClaudeSessions: () => {
+      const stored = readClaudeSessionStore(path.join(userDataPath, CLAUDE_SESSION_STORE_FILE))
+      return stored.status === 'ok' ? stored.sessions : []
+    },
+    writeRecord: record => writeInstallerQuitRecord(path.join(userDataPath, INSTALLER_QUIT_RECORD_FILE), record),
+    sendShutdown: async () => {
+      const port = readPortFile(userDataPath)
+      if (!port) return false
+      await sendShutdownToServer(port)
+      return true
+    },
+    waitForServerExit: timeoutMs => waitForTerminalServerExit(userDataPath, timeoutMs),
+    logger,
+  }).finally(() => app.exit(0))
 }
 
 const windowMap = new Map<string, BrowserWindow>() // windowId → BrowserWindow
@@ -1749,6 +1784,9 @@ async function pickFallbackProfileId(excludeProfileId: string): Promise<string |
 }
 
 app.whenReady().then(async () => {
+  // T0823: the installer's request process (second instance, or no BAT window process) — no window,
+  // no record read, no Terminal Server fork
+  if (installerQuitRequestProcess) return
   const t0 = Date.now()
   // Already initialized by app-paths-bootstrap (T0485) — this only re-applies the settings.
   logger.init(app.getPath('userData'), readLoggingConfigSync())
@@ -1861,6 +1899,8 @@ app.whenReady().then(async () => {
     logger,
   })
   upgradeInterruptionCheck.begin()
+  // T0823: the installer asked the previous BAT to quit normally → what it ended (read once, deleted)
+  upgradeInterruptionCheck.noteInstallerQuit(takeInstallerQuitRecord(path.join(app.getPath('userData'), INSTALLER_QUIT_RECORD_FILE), logger))
 
   // Start Terminal Server (PLAN-008 Phase 2) as independent background process
   await startTerminalServer()
@@ -2078,6 +2118,8 @@ app.whenReady().then(async () => {
 
   // Second instance launched — open a new window in existing process
   app.on('second-instance', async (_event, argv) => {
+    // T0823: the installer's quit request — handled by the listener registered at load, no new window
+    if (isInstallerQuitRequest(argv)) return
     // Check if launched with --profile=
     const profileArg2 = argv.find(a => a.startsWith('--profile='))
     const profileId2 = profileArg2 ? profileArg2.split('=')[1] || null : null
@@ -2128,6 +2170,8 @@ app.whenReady().then(async () => {
       createWindow(entry.id)
     }
   })
+  // T0823: windows exist — an installer quit request from now on (or one kept during startup) runs
+  installerQuit.markReady()
 
   // T0384: start keep-alive holders at startup (not lazily on first connect) so
   // the distro — and bat-server via linger — is already up when the user connects.
@@ -2178,6 +2222,33 @@ function runCleanupOnce(): Promise<void> {
 // PLAN-012 / T0144: Quit confirmation dialog state.
 // Prevents recursion when user confirms quit and app.quit() re-triggers before-quit.
 let _quitConfirmed = false
+
+// PLAN-063 子項 3 / T0823: the NSIS installer asked this BAT to quit (`--installer-quit-request` of a
+// second instance). before-quit then skips the confirmation dialog and stops the Terminal Server.
+let installerQuitRequested = false
+const installerQuit = new InstallerQuitController({
+  version: app.getVersion(),
+  isQuitting: () => isAppQuitting,
+  collect: () => {
+    const ids = ptyManager?.listTerminalIds() ?? []
+    const running = new Set(ids)
+    return {
+      ptys: ids.map(id => ({ id, cwd: ptyManager?.getCwd(id) ?? undefined })),
+      claudeSessions: claudeSessionPersistence.entries().filter(session => running.has(session.terminalId)),
+    }
+  },
+  writeRecord: record => writeInstallerQuitRecord(path.join(app.getPath('userData'), INSTALLER_QUIT_RECORD_FILE), record),
+  quit: () => {
+    installerQuitRequested = true
+    app.quit()
+  },
+  logger,
+})
+// Registered at load (not in whenReady) so a request during startup is kept until `markReady`;
+// the whenReady `second-instance` handler ignores the request's argv.
+app.on('second-instance', (_event, argv) => {
+  if (isInstallerQuitRequest(argv)) installerQuit.request()
+})
 
 /**
  * PLAN-012 / T0144: Quit dialog i18n strings (hardcoded in main for now).
@@ -2363,7 +2434,12 @@ app.on('before-quit', async (e) => {
     // the Terminal Server. Defaults: button=Quit, checkbox=unchecked (server
     // stays alive in the background, matching pre-T0144 behavior).
     let shouldStopServer = false
-    try {
+    if (installerQuitRequested) {
+      // T0823: the installer is waiting to replace the files — no dialog, the Terminal Server stops too
+      // (its exe is in the install directory; kept, it would be force-ended and its shells with it)
+      shouldStopServer = true
+      logger.log('[installer-quit] quit without confirmation (stopTerminalServer=true)')
+    } else try {
       const lang = readPersistedSettingsSync()?.language
       const s = getQuitDialogStrings(lang)
       const parent = BrowserWindow.getFocusedWindow() ?? BrowserWindow.getAllWindows()[0]

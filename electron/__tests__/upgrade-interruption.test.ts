@@ -168,7 +168,7 @@ describe('UpgradeInterruptionCheck', () => {
     expect(sources?.map(s => s.terminalId)).toEqual(['a', 'b'])
     expect(c.takeNotice()).toEqual({ previousVersion: '0.7.4-pre.4', currentVersion: '0.7.4-pre.5', ptyCount: 2, agentCount: 1 })
     expect(c.takeNotice()).toBeNull()
-    expect(lines).toEqual(['[upgrade-interruption] detected: previous=0.7.4-pre.4 current=0.7.4-pre.5 ended-ptys=2 agent-tabs=1'])
+    expect(lines).toEqual(['[upgrade-interruption] detected: previous=0.7.4-pre.4 current=0.7.4-pre.5 ended-ptys=2 agent-tabs=1 source=orphans'])
     expect(lines.join('\n')).not.toContain(S1)
     // finish runs once
     expect(c.finish([], count)).toBeNull()
