@@ -6,6 +6,9 @@
  * - `ownsTerminalForCloseRequest`: which window closes a tab on `terminal:close-requested`
  * - source guard: the ✕ confirm condition is unchanged, both ✕ branches go through
  *   closeTerminalNow, and the close-requested handler never cleans a worktree
+ * - T0814 (PLAN-058 W1): the one intended difference — an integrated agent's session is disposed
+ *   (`claude.disposeSession`) where pre-T0535 / pre-T0814 stopped it (`claude.stopSession`); a host
+ *   without the channel (rejects) falls back to stopSession; ⏻ restart keeps stop + start
  */
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
@@ -26,7 +29,7 @@ beforeEach(() => {
     debug: { log: vi.fn() },
     settings: { save: vi.fn(async () => true) },
     pty: { kill: rec('pty.kill') },
-    claude: { stopSession: rec('claude.stopSession'), cleanupWorktree: rec('claude.cleanupWorktree') },
+    claude: { stopSession: rec('claude.stopSession'), disposeSession: rec('claude.disposeSession'), cleanupWorktree: rec('claude.cleanupWorktree') },
     worktree: { remove: rec('worktree.remove') },
     workspace: {
       save: vi.fn(async () => { calls.push('workspace.save'); return true }),
@@ -59,10 +62,15 @@ function preT0535ConfirmClose(id: string, terminal: TerminalInstance | undefined
   return out
 }
 
+/** T0814: the only change to the steps above — stopSession → disposeSession on close. */
+function t0814Close(steps: string[]): string[] {
+  return steps.map(step => step.startsWith('claude.stopSession(') ? step.replace('claude.stopSession(', 'claude.disposeSession(') : step)
+}
+
 // T0718: `claude-code-v2` left this list with the preset (D123); saved V2 tabs load as `claude-code`.
 const PRESETS = [undefined, 'none', 'claude-cli', 'claude-cli-worktree', 'codex-cli', 'claude-code', 'claude-code-worktree', 'codex-agent', 'codex-agent-worktree'] as const
 
-describe('closeTerminalNow = the pre-T0535 ✕ close steps (T0535)', () => {
+describe('closeTerminalNow = the pre-T0535 ✕ close steps, stopSession → disposeSession (T0535 / T0814)', () => {
   for (const preset of PRESETS) {
     for (const worktreePath of [undefined, '/tmp/wt']) {
       for (const cleanWorktree of [false, true]) {
@@ -70,7 +78,7 @@ describe('closeTerminalNow = the pre-T0535 ✕ close steps (T0535)', () => {
           const ws = workspaceStore.addWorkspace('close', '/tmp/close')
           const terminal = workspaceStore.addTerminal(ws.id, preset)
           if (worktreePath) workspaceStore.setTerminalWorktreeInfo(terminal.id, worktreePath, 'branch')
-          const expected = preT0535ConfirmClose(terminal.id, workspaceStore.getState().terminals.find(t => t.id === terminal.id), cleanWorktree)
+          const expected = t0814Close(preT0535ConfirmClose(terminal.id, workspaceStore.getState().terminals.find(t => t.id === terminal.id), cleanWorktree))
 
           const unsubscribe = workspaceStore.subscribe(() => {
             if (!workspaceStore.getState().terminals.some(t => t.id === terminal.id) && !calls.includes('removeTerminal')) calls.push('removeTerminal')
@@ -92,6 +100,31 @@ describe('closeTerminalNow = the pre-T0535 ✕ close steps (T0535)', () => {
     workspaceStore.closeTerminalNow(terminal.id)
     await vi.waitFor(() => expect(calls).toContain('workspace.save'))
     expect(calls).toEqual([`pty.kill(${JSON.stringify(terminal.id)})`, 'workspace.save'])
+  })
+
+  it('T0814: an integrated tab is disposed, never only stopped', async () => {
+    const ws = workspaceStore.addWorkspace('close', '/tmp/close')
+    const terminal = workspaceStore.addTerminal(ws.id, 'claude-code')
+    workspaceStore.closeTerminalNow(terminal.id)
+    await vi.waitFor(() => expect(calls).toContain('workspace.save'))
+    expect(calls).toEqual([`claude.disposeSession(${JSON.stringify(terminal.id)})`, 'workspace.save'])
+  })
+
+  it('T0814: a host without claude:dispose-session (rejects) falls back to stopSession', async () => {
+    const api = (window as unknown as { electronAPI: { claude: Record<string, unknown> } }).electronAPI
+    api.claude.disposeSession = vi.fn((id: string) => {
+      calls.push(`claude.disposeSession(${JSON.stringify(id)})`)
+      return Promise.reject(new Error('No handler for channel: claude:dispose-session'))
+    })
+    const ws = workspaceStore.addWorkspace('close', '/tmp/close')
+    const terminal = workspaceStore.addTerminal(ws.id, 'codex-agent')
+    workspaceStore.closeTerminalNow(terminal.id)
+    await vi.waitFor(() => expect(calls).toContain(`claude.stopSession(${JSON.stringify(terminal.id)})`))
+    await vi.waitFor(() => expect(calls).toContain('workspace.save'))
+    // dispose first; the fallback stop and the save are both async, their order is not fixed
+    expect(calls[0]).toBe(`claude.disposeSession(${JSON.stringify(terminal.id)})`)
+    expect([...calls].sort()).toEqual([`claude.disposeSession(${JSON.stringify(terminal.id)})`, `claude.stopSession(${JSON.stringify(terminal.id)})`, 'workspace.save'].sort())
+    expect(workspaceStore.getState().terminals.some(t => t.id === terminal.id)).toBe(false)
   })
 
   it('an id the store does not hold: kill + save as before (✕ on an unknown id)', async () => {
@@ -136,6 +169,11 @@ describe('source guard: ✕ path and close-requested (T0535)', () => {
     // the stop / worktree calls live only in the store now
     expect(view).not.toContain('window.electronAPI.claude.stopSession(showCloseConfirm)')
     expect(view).not.toContain('window.electronAPI.worktree.remove(')
+  })
+
+  it('T0814: ⏻ restart of an integrated tab keeps stopSession + startSession (no dispose)', () => {
+    expect(view).toMatch(/const handleRestart = useCallback\(async \(id: string\) => \{[\s\S]*?isIntegrated\(terminal\.agentPreset\)\) \{[\s\S]*?await window\.electronAPI\.claude\.stopSession\(id\)\s*await window\.electronAPI\.claude\.startSession\(id, \{/)
+    expect(view).not.toContain('disposeSession')
   })
 
   it('close-requested: ownership check, no confirm, worktree kept', () => {

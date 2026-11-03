@@ -94,6 +94,7 @@ export const PATH_FREE_CHANNELS: ReadonlyMap<string, string> = new Map([
   ['pty:get-buffer', 'id only'],
   ['claude:send-message', 'sessionId + prompt text + images as data: URLs'],
   ['claude:stop-session', 'sessionId only'],
+  ['claude:dispose-session', 'sessionId only (T0814)'],
   ['claude:abort-session', 'sessionId only'],
   ['claude:set-permission-mode', 'sessionId + enum'],
   ['claude:set-codex-sandbox-mode', 'sessionId + enum'],

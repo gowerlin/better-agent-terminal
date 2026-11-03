@@ -328,6 +328,8 @@ interface ElectronAPI {
     startSession: (sessionId: string, options: { cwd: string; prompt?: string; permissionMode?: string; model?: string; effort?: string; useWorktree?: boolean; worktreePath?: string; worktreeBranch?: string; agentPreset?: string; codexSandboxMode?: string; codexApprovalPolicy?: string }) => Promise<void>
     sendMessage: (sessionId: string, prompt: string, images?: string[]) => Promise<void>
     stopSession: (sessionId: string) => Promise<void>
+    /** T0814: closing the tab — end the query, close the CLI process, drop the session. */
+    disposeSession: (sessionId: string) => Promise<boolean | undefined>
     abortSession: (sessionId: string) => Promise<void>
     onMessage: (callback: (sessionId: string, message: unknown) => void) => () => void
     onToolUse: (callback: (sessionId: string, toolCall: unknown) => void) => () => void

@@ -236,6 +236,10 @@ const electronAPI = {
       ipcRenderer.invoke('claude:send-message', sessionId, prompt, images),
     stopSession: (sessionId: string) =>
       ipcRenderer.invoke('claude:stop-session', sessionId),
+    // T0814: closing the tab (closeTerminalNow). A bat-server before T0814 rejects with
+    // `No handler for channel: claude:dispose-session`; the store then falls back to stopSession.
+    disposeSession: (sessionId: string) =>
+      ipcRenderer.invoke('claude:dispose-session', sessionId) as Promise<boolean | undefined>,
     abortSession: (sessionId: string) =>
       ipcRenderer.invoke('claude:abort-session', sessionId),
     onMessage: (callback: (sessionId: string, message: unknown) => void) => {

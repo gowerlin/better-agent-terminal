@@ -226,6 +226,12 @@ export function registerClaudeHandlers(register: HandlerRegistrar, deps: ClaudeH
   })
   register('claude:send-message', (_ctx, sessionId: string, prompt: string, images?: string[]) => getSessionManager(sessionId)?.sendMessage(sessionId, prompt, images))
   register('claude:stop-session', (_ctx, sessionId: string) => getSessionManager(sessionId)?.stopSession(sessionId))
+  // T0814 (PLAN-058 W1): closing the tab — end the query, close() the CLI, drop the session.
+  // The codex manager has no disposeSession: a codex tab closes as before (stopSession).
+  register('claude:dispose-session', (_ctx, sessionId: string) => {
+    if (sessionKinds.get(sessionId) === 'codex') return codex()?.stopSession(sessionId)
+    return deps.getClaudeManager()?.disposeSession(sessionId)
+  })
   register('claude:abort-session', (_ctx, sessionId: string) => getSessionManager(sessionId)?.abortSession(sessionId))
   register('claude:set-permission-mode', (_ctx, sessionId: string, mode: string) => deps.getClaudeManager()?.setPermissionMode(sessionId, mode as PermissionMode))
   // Codex-only controls: not registered on a host without codex (stay HEADLESS_UNSUPPORTED).

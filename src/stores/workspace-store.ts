@@ -653,11 +653,16 @@ class WorkspaceStore {
    * remove the tab, save. ✕ (WorkspaceView `handleCloseTerminal` / `handleConfirmClose`) and
    * main's `terminal:close-requested` (`--close-worker`: no confirm, never cleans a worktree)
    * both close through here.
+   * T0814 (PLAN-058 W1): an integrated agent's session is disposed (query ended, CLI process
+   * closed, session dropped in main) instead of only stopped; a host without
+   * `claude:dispose-session` (bat-server before T0814) rejects and the tab falls back to
+   * stopSession as before. ⏻ restart (WorkspaceView `handleRestart`) keeps stopSession + startSession.
    */
   closeTerminalNow(id: string, { cleanWorktree = false }: { cleanWorktree?: boolean } = {}): void {
     const terminal = this.state.terminals.find(t => t.id === id)
     if (terminal?.agentPreset && isIntegrated(terminal.agentPreset)) {
-      window.electronAPI.claude.stopSession(id)
+      const claude = window.electronAPI.claude
+      void Promise.resolve(claude.disposeSession(id)).catch(() => claude.stopSession(id))
       if (cleanWorktree && (isWorktreeAgent(terminal.agentPreset) || !!terminal.worktreePath)) {
         window.electronAPI.claude.cleanupWorktree(id, true)
       }

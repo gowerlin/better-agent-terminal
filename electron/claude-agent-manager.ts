@@ -160,9 +160,20 @@ export function claudeTodoToolsEnv(env: NodeJS.ProcessEnv = process.env): Record
 // fallback); a system claude keeps the default env so the user can still `claude update` it.
 // T0725: plus `claudeTodoToolsEnv` for both runtimes.
 // The SDK's `options.env` replaces `process.env` rather than merging, so the inherited env is spread
-// in — read at call time, after ELECTRON_RUN_AS_NODE may have been set for the spawn.
-export function sdkSpawnEnv(runtime: Pick<ResolvedRuntime, 'source'>): { env?: Record<string, string | undefined> } {
-  const extra = { ...claudeUpdateGuardEnv(runtime.source), ...claudeTodoToolsEnv(process.env) }
+// in — read at call time.
+// T0814 (PLAN-058 W1): `electronRunAsNode` (the Electron-as-node fallback, `isElectronFallback()`)
+// adds `ELECTRON_RUN_AS_NODE=1` to this spawn env only. It used to be written into the main
+// process's global `process.env` while a query ran, so every other child process started meanwhile
+// (git, gh, terminals …) got it too.
+export function sdkSpawnEnv(
+  runtime: Pick<ResolvedRuntime, 'source'>,
+  { electronRunAsNode = false }: { electronRunAsNode?: boolean } = {},
+): { env?: Record<string, string | undefined> } {
+  const extra: Record<string, string> = {
+    ...claudeUpdateGuardEnv(runtime.source),
+    ...claudeTodoToolsEnv(process.env),
+    ...(electronRunAsNode ? { ELECTRON_RUN_AS_NODE: '1' } : {}),
+  }
   return Object.keys(extra).length > 0 ? { env: { ...process.env, ...extra } } : {}
 }
 
@@ -398,6 +409,59 @@ interface SessionInstance {
    * aborting it.
    */
   mainTurnDone?: boolean
+  /**
+   * T0814 (PLAN-058 W1): what the last ended query read at initialization. `queryInstance` is
+   * cleared when its query ends; account info / slash commands / agents come from the SDK's cached
+   * `initialization` (no request to the CLI), so the panel can still read them until the next query.
+   */
+  lastQueryInit?: QueryInitReads
+}
+
+type AccountInfoResult = Awaited<ReturnType<Query['accountInfo']>>
+type AgentInfoResult = Awaited<ReturnType<Query['supportedAgents']>>
+
+/** T0814: the init data of an ended query (each promise settles; a failed read is null / []). */
+export interface QueryInitReads {
+  accountInfo: Promise<AccountInfoResult | null>
+  supportedCommands: Promise<SlashCommand[]>
+  supportedAgents: Promise<AgentInfoResult>
+}
+
+/**
+ * T0814: read an ended query's init data once (SDK 0.3.316: `accountInfo` / `supportedCommands` /
+ * `supportedAgents` await the query's `initialization`, the CLI process is not asked). Only called
+ * after the query got `system/init`, so `initialization` has settled.
+ */
+export function readQueryInit(instance: Pick<Query, 'accountInfo' | 'supportedCommands' | 'supportedAgents'>): QueryInitReads {
+  const settle = <T, F>(read: () => Promise<T>, fallback: F): Promise<T | F> => {
+    try {
+      return read().catch(() => fallback)
+    } catch {
+      return Promise.resolve(fallback)
+    }
+  }
+  return {
+    accountInfo: settle(() => instance.accountInfo(), null),
+    supportedCommands: settle(() => instance.supportedCommands(), [] as SlashCommand[]),
+    supportedAgents: settle(() => instance.supportedAgents(), [] as AgentInfoResult),
+  }
+}
+
+/**
+ * T0814 (PLAN-058 W1): one `[claude:msg]` line per message was written for the CLI's
+ * `command_lifecycle` frames (several per sent message). They are logged as one debug-level
+ * summary instead (state + first 8 chars of the uuid); every other message type is unchanged.
+ * Both shapes are accepted: `{ type: 'command_lifecycle', uuid, state }` (CLI) and
+ * `{ type: 'system', subtype: 'command_lifecycle', command_uuid, state }`.
+ */
+export function commandLifecycleSummary(message: unknown): string | null {
+  if (!message || typeof message !== 'object') return null
+  const m = message as { type?: unknown; subtype?: unknown; uuid?: unknown; command_uuid?: unknown; state?: unknown }
+  const isLifecycle = m.type === 'command_lifecycle' || (m.type === 'system' && m.subtype === 'command_lifecycle')
+  if (!isLifecycle) return null
+  const rawUuid = typeof m.command_uuid === 'string' ? m.command_uuid : typeof m.uuid === 'string' ? m.uuid : ''
+  const state = typeof m.state === 'string' ? m.state : '?'
+  return `[claude:lifecycle] state=${state} uuid=${rawUuid ? rawUuid.slice(0, 8) : 'none'}`
 }
 
 /**
@@ -963,6 +1027,8 @@ export class ClaudeAgentManager {
     // Declare resumeId outside try so it's accessible in catch for retry logic
     const resumeId = session.sdkSessionId
     const electronFallback = isElectronFallback()
+    // T0814: this run's query, so `finally` clears `session.queryInstance` only when it is still ours
+    let generator: Query | undefined
 
     try {
       const query = await getQuery()
@@ -970,8 +1036,8 @@ export class ClaudeAgentManager {
       const claudeCodePath = resolvedRuntime.path
       const nodeExecutable = getNodeExecutable()
       if (electronFallback) {
-        process.env.ELECTRON_RUN_AS_NODE = '1'
-        logger.log('[Claude] Using Electron binary as Node.js runtime (ELECTRON_RUN_AS_NODE=1)')
+        // T0814: only in the SDK spawn env (`sdkSpawnEnv`), never in the global process.env
+        logger.log('[Claude] Using Electron binary as Node.js runtime (ELECTRON_RUN_AS_NODE=1 in the spawn env)')
       }
       logger.log(`[Claude] runQuery: cwd=${session.cwd}, resumeId=${resumeId || 'none'}, claudeCodePath=${claudeCodePath || 'none'} (source=${resolvedRuntime.source}), nodeExecutable=${nodeExecutable}`)
       const canUseTool: CanUseTool = async (toolName, input, opts) => {
@@ -1107,7 +1173,7 @@ export class ClaudeAgentManager {
         ...(installedPlugins.length > 0 ? { plugins: installedPlugins } satisfies Partial<Options> : {}),
         canUseTool,
         ...(claudeCodePath ? { pathToClaudeCodeExecutable: claudeCodePath } satisfies Partial<Options> : {}),
-        ...(sdkSpawnEnv(resolvedRuntime) satisfies Partial<Options>),
+        ...(sdkSpawnEnv(resolvedRuntime, { electronRunAsNode: electronFallback }) satisfies Partial<Options>),
         // SDK declares `executable` as a runtime name ('bun' | 'deno' | 'node'); BAT passes
         // the full node / Electron path. At runtime the SDK uses it as the spawn command only
         // when the CLI path is a `.js` file and ignores it for the native binary, so passing
@@ -1151,13 +1217,14 @@ export class ClaudeAgentManager {
 
       this.resetQueryUsage(session)
 
-      const generator = query({
+      generator = query({
         prompt: promptArg as Parameters<typeof query>[0]['prompt'],
         options: queryOptions,
       })
 
       // Store the query instance so we can call runtime methods
       session.queryInstance = generator
+      session.lastQueryInit = undefined
 
       for await (const message of generator) {
         // Check abort
@@ -1214,9 +1281,13 @@ export class ClaudeAgentManager {
         this.send('claude:error', sessionId, displayMsg)
       }
     } finally {
-      // Clean up ELECTRON_RUN_AS_NODE to avoid affecting other child processes
-      if (electronFallback) {
-        delete process.env.ELECTRON_RUN_AS_NODE
+      // T0814 (PLAN-058 W1): the query has ended — later setModel / setPermissionMode /
+      // getContextUsage / stopTask must not send control requests to it. Only when it is still
+      // this run's query (a retry, a queued message or disposeSession may already have replaced
+      // or dropped it). The init data it read (account / slash commands / agents) stays readable.
+      if (session && generator && session.queryInstance === generator) {
+        session.queryInstance = undefined
+        session.lastQueryInit = sawInit ? readQueryInit(generator) : undefined
       }
       if (session) {
         session.state.isStreaming = false
@@ -1262,7 +1333,11 @@ export class ClaudeAgentManager {
   private processMessage(sessionId: string, session: SessionInstance, message: any) {
     // Debug: log all message types
     const msgSubtype = (message as { subtype?: string }).subtype
-    if (message.type !== 'stream_event' && message.type !== 'assistant') {
+    const lifecycleSummary = commandLifecycleSummary(message)
+    if (lifecycleSummary) {
+      // T0814: command_lifecycle → one debug-level summary line instead of a `[claude:msg]` line
+      logger.debug(lifecycleSummary)
+    } else if (message.type !== 'stream_event' && message.type !== 'assistant') {
       logger.log(`[claude:msg] type=${message.type} subtype=${msgSubtype || ''} parent_tool_use_id=${(message as { parent_tool_use_id?: string }).parent_tool_use_id || 'none'}`)
     }
     if (message.type === 'rate_limit_event') {
@@ -1750,6 +1825,30 @@ export class ClaudeAgentManager {
     return false
   }
 
+  /**
+   * T0814 (PLAN-058 W1): the tab is closing (✕, `--close-worker`; `closeTerminalNow`). End the
+   * query, terminate its CLI process (`close()`) and drop the session. `stopSession` keeps the
+   * session for the next message — ⏻ restart still uses stop + start. The worktree is not touched
+   * (`cleanupWorktree` is separate and works without the session). A running `runQuery` ends on the
+   * abort; its `finally` starts nothing (the queue is empty) and leaves `queryInstance` alone.
+   */
+  disposeSession(sessionId: string): boolean {
+    const session = this.sessions.get(sessionId)
+    if (!session) return false
+    this.clearMessageQueue(sessionId, session)
+    session.abortController.abort()
+    session.state.isStreaming = false
+    const instance = session.queryInstance
+    session.queryInstance = undefined
+    session.lastQueryInit = undefined
+    try { instance?.close() } catch { /* ignore */ }
+    this.sessions.delete(sessionId)
+    sdkSessionIds.delete(sessionId)
+    clearRuntimeEventHistory(sessionId)
+    logger.log(`[Claude] session disposed sessionId=${sessionId.slice(0, 8)} query=${instance ? 'closed' : 'none'}`)
+    return true
+  }
+
   /** Hard abort — immediately kill the query loop, no graceful interrupt */
   abortSession(sessionId: string): boolean {
     const session = this.sessions.get(sessionId)
@@ -1942,7 +2041,9 @@ export class ClaudeAgentManager {
 
   async getAccountInfo(sessionId: string): Promise<{ email?: string; organization?: string; subscriptionType?: string } | null> {
     const session = this.sessions.get(sessionId)
-    if (!session?.queryInstance) return null
+    if (!session) return null
+    // T0814: after the query ended, its cached init data (no request to the CLI)
+    if (!session.queryInstance) return session.lastQueryInit ? await session.lastQueryInit.accountInfo : null
     try {
       return await session.queryInstance.accountInfo()
     } catch (e) {
@@ -1953,7 +2054,8 @@ export class ClaudeAgentManager {
 
   async getSupportedCommands(sessionId: string): Promise<SlashCommand[]> {
     const session = this.sessions.get(sessionId)
-    if (!session?.queryInstance) return []
+    if (!session) return []
+    if (!session.queryInstance) return session.lastQueryInit ? await session.lastQueryInit.supportedCommands : []
     try {
       return await session.queryInstance.supportedCommands()
     } catch (e) {
@@ -1964,7 +2066,8 @@ export class ClaudeAgentManager {
 
   async getSupportedAgents(sessionId: string): Promise<Array<{ name: string; description: string; model?: string }>> {
     const session = this.sessions.get(sessionId)
-    if (!session?.queryInstance) return []
+    if (!session) return []
+    if (!session.queryInstance) return session.lastQueryInit ? await session.lastQueryInit.supportedAgents : []
     try {
       return await session.queryInstance.supportedAgents()
     } catch (e) {
@@ -2342,6 +2445,7 @@ export class ClaudeAgentManager {
     session.state.isStreaming = false
     try { session.queryInstance?.close() } catch { /* ignore */ }
     session.queryInstance = undefined
+    session.lastQueryInit = undefined
     session.isResting = true
     this.send('claude:message', sessionId, {
       id: `sys-rest-${Date.now()}`,
@@ -2528,7 +2632,10 @@ export class ClaudeAgentManager {
           forkSession: true,
           maxTurns: 1,
           ...(claudeCodePath ? { pathToClaudeCodeExecutable: claudeCodePath } satisfies Partial<Options> : {}),
-          ...(sdkSpawnEnv(resolvedRuntime) satisfies Partial<Options>),
+          // T0814: with the Electron-as-node fallback `executable` is the Electron binary, so the
+          // spawn env carries ELECTRON_RUN_AS_NODE (it is no longer in the global env while a
+          // panel query runs).
+          ...(sdkSpawnEnv(resolvedRuntime, { electronRunAsNode: isElectronFallback() }) satisfies Partial<Options>),
           // Path, not a runtime name: see the `executable` note in the main query options (T0724).
           ...(nodeExecutable !== 'node' ? { executable: nodeExecutable as Options['executable'] } satisfies Partial<Options> : {}),
         } satisfies Options,
