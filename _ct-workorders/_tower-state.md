@@ -1,16 +1,15 @@
 ---
 schema_kind: tower-state
 summary_version: 1
-updated_at: "2026-11-03T13:21:51+08:00"
-session: "2026-11-03 13:21 第一百一十一 session 開工（CT v6.0.0-beta.11）"
+updated_at: "2026-11-03T15:59:45+08:00"
+session: "2026-11-03 15:21 第一百一十二 session 開工（CT v6.0.0-beta.11）"
 next_ids:
-  workorder: "T0803"
-  decision: "D249"
+  workorder: "T0804"
+  decision: "D250"
   bug: "BUG-205"
   plan: "PLAN-062"
 todo:
-  - "BUG-159（FIXED）驗收：需非系統管理員環境 ＋ codex"
-  - "`v0.7.4-pre.3` NSIS 完整重裝驗收（`pwsh -NoProfile -ExecutionPolicy Bypass -File e2e\\manual\\nsis-reinstall-acceptance.ps1 -Version 0.7.4-pre.3`），回來讀 report.md、刪 `userdata-backup`"
+  - "T0803 意外登入 codex 的後續：使用者確認 Windows 瀏覽器授權頁、ChatGPT 帳號已授權裝置是否撤銷；WSL `~/.codex/shell_snapshots/01a1a05f-….sh`（含已失效 BAT 權杖）待裁示刪除"
   - "觀察：語音可用性檢查 macOS 未實機；`unknown(timeout)` 若實機出現可把逾時提到 30 s（T0802 後續建議）"
   - "PLAN-059：A 完成（BUG-196 CLOSED）；B = PLAN-061（IDEA low，D229）；C 不做（Q5，CT D568）；Q4 未解"
   - "PLAN-060（IDEA）：macOS Developer ID 簽章（目前 macOS 不顯示系統通知）"
@@ -19,6 +18,8 @@ todo:
 ---
 # Tower State — better-agent-terminal
 
+> 🟢 **第一百一十二 session 開工**（2026-11-03 15:21 (UTC+8)，CT v6.0.0-beta.11，Fast Path；塔台 session `0e2aee07-5697-4464-b855-0b059fbbde6a`；`--set-role tower --mode on` exit 0；`bat_whoami` 名稱 `better-agent-terminal · Tower`；安裝版 FileVersion `0.7.4-pre.3`；HEAD `c8b16b16`、`main` = `origin/main`（fetch 後 0 / 0）、工作區乾淨；熱區 198 張工單無非終態；BUG 熱區 Fixed 1（159）/ Closed 66 / WONTFIX 1；PLAN DONE 15 / DROPPED 2 / IDEA 8 / PLANNED 1；`bat_list_questions` pending 0）。**`v0.7.4-pre.3` NSIS 完整重裝驗收 PASS-WITH-WARN**（real 模式 15:19:19–15:20:21；AllUsers / HKLM；唯一 WARN = ⓪ 目前安裝版 pre.2，② 實為升級，屬預期；① SHA-256 `2c4382b6…` ② ③ ④ 全 PASS，三支 helper `--version` = v0.7.4-pre.3、內嵌 claude / codex 存在、userData 130 檔 SHA-256 未變；⑤ SKIPPED）；報告 `%TEMP%\bat-nsis-acceptance-20261103-151919\report.md`；含權杖的 `userdata-backup` 已刪除。使用者「推進」→ BUG-159 可在本機 WSL Ubuntu-24.04（uid 1000、codex 0.160.0）以非系統管理員驗收 → **D249** → 開 **T0803**（verification：交付版 AppImage、BAT MCP 關閉、先做對照組；不登入 codex、不改程式）。15:25 派 **T0803**（yolo `--no-interactive`，exit 0，`started: 07:25:19Z`；分頁 `11390c28…`）。**T0803 DONE**（15:58；Worker 回報 commit 含 WSL 帳號名（D176 樣式命中），push 前塔台改寫該行並把本 session 未推的 6 個記帳 commit 以 `reset --soft origin/main` 併成一個；驗收 PASS：交付版 AppImage SHA-256 `4f6bfd63…` 一致，WSL uid 1000、隔離 userData、`batMcpEnabled: false`；對照組不帶 `--no-daemon` 的 codex 由 TUI fork 出共用 daemon 並顯示 daemon 相容性提示 → 成立；「+」選單開的 Codex CLI 分頁 6 / 6（兩工作區、daemon 沒在跑 / 已在跑）cmdline 皆 `codex --no-daemon`、無 `mcp_servers.bat`、連到 daemon 的 socket 0、程序 `BAT_TERMINAL_ID` = 分頁 id；codex 未登入，略過 codex 執行指令取證；🔴 偏差：Worker 對未登入的 codex TUI 送 Enter 觸發「Sign in with ChatGPT」，經 WSL interop 在 Windows 瀏覽器自動授權（15:46），15:53 `codex logout` 還原、`auth.json` 已不存在；codex 另寫入 `shell_snapshots/01a1a05f-….sh`（含第 2 輪隔離 BAT 的已失效權杖，Worker 未刪）、daemon 套件自動更新到 0.166.0；`~/.config/BetterAgentTerminal`、`~/bat-build`、`config.toml` 前後雜湊相同；另觀察 AppImage 版 `app.close()` 不返回）→ **BUG-159 CLOSED**（殘留：Windows 非系統管理員未實測、無 codex 內指令直接證據）；tracker 只動該列與統計，parser 12 / 12；session id 已在 `session_ids`；session 快照已寫；`--close-worker T0803` exit 0。熱區 BUG：Open 0 / Fixed 0 / Closed 67 / WONTFIX 1。
+>
 > 🟢 **第一百一十一 session 開工**（2026-11-03 13:21 (UTC+8)，CT v6.0.0-beta.11，Fast Path；塔台 session `b05ebcaa-774b-4e4c-9fdd-448dc83ab281`；`--set-role tower --mode on` exit 0；`bat_whoami` 名稱 `better-agent-terminal · Tower`；安裝版 FileVersion `0.7.4-pre.2`；HEAD `eb20ca4d`、`main` = `origin/main`（fetch 後 0 / 0）、工作區乾淨；熱區 196 張工單皆 DONE；BUG 熱區 Fixed 1（159）/ Closed 66 / WONTFIX 1，與 `_bug-tracker.md` 一致；`bat_list_questions` pending 0）。**`v0.7.4-pre.2` NSIS 完整重裝驗收 PASS-WITH-WARN**（real 模式 12:58:01–12:59:06；AllUsers / HKLM；唯一 WARN = ⓪ 目前安裝版 pre.1，② 實為升級，屬預期；① SHA-256 `c8eef1bc…` ② ③ ④ 全 PASS，三支 helper `--version` = v0.7.4-pre.2、內嵌 claude / codex 存在、userData 130 檔 SHA-256 未變；⑤ SKIPPED）；報告 `%TEMP%\bat-nsis-acceptance-20261103-125801\report.md`；含權杖的 `userdata-backup` 已刪除。使用者「第 2 項併成同一批、PLAN-059 C 可問 CT」→ Q5 以 `_handover-2026-11-03-bat-wait-multiple-workers.md` ＋跨 session 訊息送 `BMad-Guide · Tower`（收件人經 ListAgents 與 `scope: towers` 雙重確認）→ CT 回覆不需要（CT D568，BMad-Guide `f2355ac`）→ PLAN-059 C 不做；三題設計點由使用者選定 → **D247** → 開 **T0801**（`-Version` 必填）/ **T0802**（語音可用性事先檢查，所有平台子程序、不可用時停用麥克風＋原因提示；授權 push `ct/T0802` 驗證），`affects_files` 不重疊、並行派工（`bf13b1fa`）。13:32 派 **T0801**（yolo `--no-interactive`，exit 0，`started: 05:32:04Z`；分頁 `c9fbc710…`）、**T0802**（同上，`started: 05:32:06Z`；分頁 `5a95ede2…`）。T0801 Q-1（新測試位置）13:35 經 BAT 通道答 A（`scripts/__tests__/`，同步 `affects_files`）。**T0801 DONE**（13:38；`a9b5130a` / `9e9b3244`：`-Version` 無預設、`param` 後第一個動作前檢查 `^\d+\.\d+\.\d+(-pre\.\d+)?$`，不符 → stderr 用法＋exit 2；不用 `[Parameter(Mandatory)]`（互動會停下來問、非互動 exit 1 無用法）；README / packaging-release-checks / `.EXAMPLE` 都帶 `-Version <版號>`；測試 17 個、unit 6843 / 390；🟡 Worker 驗證時因 Git Bash `/tmp` 路徑轉換意外跑了 2 次真 `-DryRun`（下載安裝檔、未安裝），已刪；後續建議：`0.0.0-exp.N` 被擋，暫無需求）；session id 已在 `session_ids`；session 快照已寫；`--close-worker T0801` exit 0；`_local-rules.md` Release 節改「`-Version` 必填」。**T0802 DONE**（14:06；`3a168bc4` / `0a72c340` / `953d5f48` / `67fd975a`：啟動 5 s 後以 `ELECTRON_RUN_AS_NODE` 短命子程序試載 whisper（env 去掉 `BAT_*` / `CT_*` / 權杖類、逾時 15 s），三態 available / unavailable（missing-library / glibc-too-old / load-failed）/ unknown；`unavailable` 時 MicButton 停用＋`title` 原因與安裝指令、`start()` 擋下錄音入口、Settings 可用性＋重新檢查；遠端 / detached 視窗的語音都在本機主行程，不需改 headless；desktop-build `41586110095` 綠、linux-acceptance `41587066026`：22.04 PASS（V1 `unavailable(glibc-too-old)`、按鈕停用）/ 24.04 WARN 只因 BUG-202 降級（V1 `available(probe)`）；typecheck 0 / 0、unit 6899 / 394、legacy 472 / 33、vite build；本機 Windows 實測 `available in 40 ms`；偏離：`asar-runtime-deps.test.mjs` 登記 `DYNAMIC_REQUIRE_SITES` 一列（CLAUDE.md 規定，塔台接受）、README 刪一句過時的「錄音結束後顯示辨識失敗」；CI 分支 `ct/T0802` = `db414abe`（以 `origin/main` 為 parent 重建，24 檔與 `main` 無差異），遠端已刪）；session id 已在 `session_ids`；session 快照已寫；`--close-worker T0802` exit 0。使用者「push、刪 `ct/T0802`」→ 去識別化 9 組 0、金鑰 0（唯一命中是 T0802 回報描述掃描的文字）→ push `eb20ca4d..b7135cad`；本機 `ct/T0802`（`db414abe`）以 `-D` 刪除。使用者「發 0.7.4-pre.3」→ **D248** → push `ae46cead` → `pre-release.yml -f version=0.7.4-pre.3` run `41592891308` 12 job 全綠 → **`v0.7.4-pre.3` 發佈**（07:10:27Z，target `ae46cead`；exe 305 / zip 473 / AppImage 337 / dmg 352 MiB；server-bundle 7 assets）；更版重點已寫入並比對一致（承接〈待驗收〉〈已知事項〉，新增 macOS 語音可用性待驗收；無 codex 變更不寫〈歡迎協助測試〉）；CHANGELOG / release-note / package.json → `0e19891c` push（README 已由 T0802 更新、無 CT 介面變更）；Pages `41594794536` 綠、link-check 1463 / 0、首頁 0.7.4-pre.3。
 >
 > 最後更新:2026-11-03 12:55 (UTC+8) — **第一百一十 session 收工**：T0800 修好 Linux 語音輸入（BUG-204，whisper RUNPATH `$ORIGIN`）；BUG-203（22.04 glibc 2.38）列為已知限制；`v0.7.4-pre.2` 發佈，交付版 linux-acceptance 驗收後 BUG-202 / 204 CLOSED。前次：第一百零九 session 收工（2026-11-03 03:13）。
@@ -108,8 +109,8 @@ todo:
 
 ### 待辦（依優先序）
 1. ✅ ~~`v0.7.4-pre.2` NSIS 重裝驗收~~ → PASS-WITH-WARN（第一百一十一 session 開工判讀）
-2. 🟡 **BUG-159 驗收**：需非系統管理員環境 ＋ codex
-3. 🟡 **`v0.7.4-pre.3` NSIS 重裝驗收**（已發佈，D248）：使用者換版後讀 `%TEMP%\bat-nsis-acceptance-*\report.md`、刪 `userdata-backup`
+2. ✅ ~~BUG-159 驗收~~ → T0803 PASS，CLOSED（第一百一十二 session）；🔴 待使用者確認 T0803 意外 codex 登入的帳號端殘留、裁示 WSL shell 快照刪除
+3. ✅ ~~`v0.7.4-pre.3` NSIS 重裝驗收~~ → PASS-WITH-WARN（第一百一十二 session 開工判讀）
 4. 🟢 PLAN-059 C 不做（CT D568）；PLAN-060 / 061 IDEA；t0757 偶發失敗再發生才開 BUG（D218）
 
 ### ⚠️ 鐵則
@@ -138,7 +139,7 @@ todo:
 | **Fork 上游** | tony1223/better-agent-terminal（另有 `scandnavik` remote；⚠️ gh 預設解析到 upstream，見 L122） |
 | **目前版號** | **0.7.4-pre.2**（package.json + lock；D236 `0.7.4-pre.N` 線） |
 | **最新 release** | `v0.7.4-pre.2`（2026-11-03T04:28:53Z，run `41577071236`，target `93e6fc8d`：BUG-202 AppImage sandbox 自動降級、BUG-204 Linux whisper RUNPATH）；前一 tag `v0.7.4-pre.1`（2026-11-02T16:34:36Z，run `41480278090`，target `f5d9d4f4`）；更早見 `release-note.md` / `CHANGELOG.md` |
-| **目前主軸** | 熱區無進行中工單；BUG-159 待驗收（需非系統管理員環境＋codex） |
+| **目前主軸** | 熱區無進行中工單、無未結 BUG（BUG-159 CLOSED，T0803） |
 | **工單最大編號** | **T0800** DONE（BUG-204 Linux whisper RUNPATH，第一百一十 session） |
 | **BUG 最大編號** | **BUG-204** CLOSED；熱區 Open 0 / Fixing 0 / Fixed 1（159）/ Closed 66 / WONTFIX 1（203）（2026-11-03 12:35） |
 | **PLAN 最大編號** | **PLAN-061** IDEA（非 Windows 的 claude 7501，D229）；PLAN-060 IDEA（macOS 簽章）；PLAN-059 PLANNED；PLAN-029 / 053 / 054 / 055 / 057 DONE |

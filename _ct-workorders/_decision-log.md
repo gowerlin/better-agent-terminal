@@ -1465,6 +1465,13 @@
 - **切分**：W2a 設計語言 + 元件 + 首頁（T0630）→ 預覽通過後 W2b（`/control-tower`、功能、FAQ、回報頁）→ W2c 遠端開發；W3 / W4 不變。
 - **相關**：PLAN-049 / D159 / D160 / T0624 / T0630
 
+### D249 2026-11-03 — BUG-159 改在本機 WSL Ubuntu（非 root）以 `v0.7.4-pre.3` AppImage 驗收（開 T0803）
+
+- **背景**：BUG-159（FIXED，T0651）待「非系統管理員＋codex」環境驗收；本機 Windows 的 UAC 關閉，BAT 一定以系統管理員執行。WSL Ubuntu-24.04 是一般使用者（uid 1000）、codex `0.160.0`（`>= 0.156.0`）、共用 daemon 跑過；Linux 上 `AgentRegistry.isElevated()` 恆為 false，`--no-daemon` 的判斷（`codexNoDaemonDecision`）與平台無關。
+- **決定**（使用者「推進」，塔台依建議執行）：開 T0803（verification，yolo），以交付版 AppImage、隔離 userData、BAT MCP 關閉，先做對照組（不帶 `--no-daemon` 的 codex 會接上 daemon），再驗手動 codex 分頁不接上；不登入 codex、不複製憑證；只驗收、不改程式。PASS → BUG-159 CLOSED（驗證依據：交付版 `0.7.4-pre.3`＋T0803；Windows 非系統管理員未實測，記為殘留）；FAIL → 另開修正單。
+- **決策者**：塔台（使用者授權推進）。2026-11-03 第一百一十二 session。
+- **相關**：BUG-159 / T0651 / T0803 / T0797
+
 ### D248 2026-11-03 — 發 `0.7.4-pre.3`（T0802 語音可用性事先檢查、T0801 驗收腳本 `-Version` 必填）
 
 - **決定**（使用者「發 0.7.4-pre.3」）：D247 這一批完成後發預覽版 `0.7.4-pre.3`（D236 版號線）。本機完整驗證沿用 T0802 @ `67fd975a`（typecheck 0 / 0、unit 6899 / 394、legacy 472 / 33、vite build），之後只動 `_ct-workorders/`；去識別化 9 組 0、金鑰 0。更版重點承接上一版〈待驗收〉〈已知事項〉（L184），新增 macOS 語音可用性檢查待驗收；22.04 語音限制改寫為「按鈕停用並說明原因」。

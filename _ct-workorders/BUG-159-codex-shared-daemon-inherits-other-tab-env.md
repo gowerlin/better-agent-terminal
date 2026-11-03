@@ -3,7 +3,9 @@ schema_version: 1
 schema_kind: bug
 id: BUG-159
 title: "codex 分頁在 BAT MCP 未注入、非系統管理員時接上 codex 共用 daemon，分頁內 helper 讀到其他分頁的 `BAT_*`（通知可能錯投）"
-status: FIXED
+status: CLOSED
+closed_at: "2026-11-03T15:59:45+0800"
+closed_reason: "verified: 交付版 v0.7.4-pre.3 AppImage，WSL Ubuntu 24.04 一般使用者（T0803，D249）"
 fixed_at: "2026-10-18T18:51:34+0800"
 fixed_by: T0651
 fix_commit: "5b1be0f5"
@@ -24,7 +26,7 @@ links:
 |------|------|
 | 嚴重度 | 🟢 low（只在 BAT MCP 關閉 / 不可用、非系統管理員、手動 codex 分頁時發生；預設設定與 helper 派工不受影響） |
 | 可重現 | 條件式；本機 `EnableLUA = 0`，codex 一律 `no_daemon`，無法重現（T0648 三次嘗試皆被 codex 擋下） |
-| **狀態** | ✅ FIXED（T0651 `5b1be0f5`：BAT MCP 沒注入的手動 codex 分頁在 codex `>= 0.156.0` 時加 `--no-daemon`；BAT MCP 有注入與 helper 派工命令列不變；CLAUDE.md「BAT MCP shim」節加不變式、source guard。本機 UAC 關閉無法實測 daemon 行為，待非系統管理員環境驗收） |
+| **狀態** | 🚫 CLOSED（2026-11-03，T0803 驗收 PASS：交付版 `v0.7.4-pre.3` AppImage 在 WSL Ubuntu 24.04 一般使用者、BAT MCP 關閉時，手動 codex 分頁 6 / 6 以 `codex --no-daemon` 啟動、沒有啟動或連上共用 daemon；對照組不帶 `--no-daemon` 的 codex 會啟動並連上 daemon。殘留：Windows 非系統管理員未實測；codex 未登入，沒有「codex 執行的指令看到的 `BAT_TERMINAL_ID`」直接證據，以程序環境與 socket 對端判斷）。原狀態：✅ FIXED（T0651 `5b1be0f5`：BAT MCP 沒注入的手動 codex 分頁在 codex `>= 0.156.0` 時加 `--no-daemon`；BAT MCP 有注入與 helper 派工命令列不變；CLAUDE.md「BAT MCP shim」節加不變式、source guard。本機 UAC 關閉無法實測 daemon 行為，待非系統管理員環境驗收） |
 
 ## 現象（T0648，codex `rust-v0.163.0` 原始碼）
 
