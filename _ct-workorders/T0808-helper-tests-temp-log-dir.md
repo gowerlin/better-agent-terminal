@@ -4,14 +4,14 @@ schema_kind: workorder
 id: T0808
 title: "BUG-208：呼叫 helper 的測試一律把 `BAT_USER_DATA` / `BAT_HELPER_LOG_DIR` 指到暫存目錄，不再寫進真實的 `bat-scripts.log`"
 type: implementation
-status: PENDING
+status: IN_PROGRESS
 repo: better-agent-terminal
 project: maintenance
 priority: P3
 sizing: S
 created_at: "2026-11-03T17:59:11+0800"
-started_at: ""
-updated_at: "2026-11-03T17:59:11+0800"
+started_at: "2026-11-03T18:00:57+0800"
+updated_at: "2026-11-03T18:00:57+0800"
 completed_at: ""
 session_ids: []
 depends_on: []
@@ -23,6 +23,7 @@ affects_files:
   - "scripts/__tests__/helpers/** 或既有共用測試 helper（若新增共用 env 函式）"
   - _ct-workorders/T0808-helper-tests-temp-log-dir.md
 renew_count: 0
+tower_question: open
 workdir: main repo
 worker_question_timeout: 30
 interaction:
@@ -72,3 +73,12 @@ T0806 發現 `scripts/__tests__/server-bundle-helpers.test.mjs` 等測試對 `ba
 ---
 
 ## 回報區
+
+### 待塔台決策
+
+#### Q-1：`electron/__tests__/bat-terminal-wait-started.test.ts` 也有同樣問題（`--help` 用 `run(['--help'], {})`，沒給暫存 log 目錄），要不要在本單一併修？
+- 提問時間：2026-11-03T18:04:21+0800
+- 選項：[A] 同意，本單一併修（只改該檔第 338 行：`--help` 也帶暫存 `BAT_HELPER_LOG_DIR` / `BAT_USER_DATA`，一行測試改動）/ [B] 不改，列為後續（另開單）/ [C] 其他：________
+- Worker 建議：[A]。證據：把 `APPDATA` / `BAT_USER_DATA` 指到偵測目錄跑完整 `npm run test:unit`，偵測目錄收到 5 筆 helper 紀錄，其中 1 筆（`bat-terminal --help`，env 為空）來自這支測試；其餘 4 筆在 `scripts/__tests__`（本單範圍內）。`test:legacy` 0 筆。`electron/__tests__` 其他呼叫 helper 的測試都已帶 `BAT_HELPER_LOG_DIR`。改動只有一行、只動測試，與 T0807 的衝突風險低（T0807 若沒動這支檔就無衝突）。
+- 影響範圍：`electron/__tests__/bat-terminal-wait-started.test.ts`（目前不在 `affects_files`）；本單 source guard 的掃描範圍是否含 `electron/__tests__`
+- 阻塞：否（先修 `scripts/__tests__` 三處；收尾前等答覆）
