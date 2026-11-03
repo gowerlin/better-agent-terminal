@@ -164,16 +164,20 @@ test('T0806 Linux PTY children keep only fd 0–2', async () => {
     async function settledShell(id: string, parent: number): Promise<number> {
       const pid = await until(`shell of ${id}`, () => shellOf(id, parent))
       await until(`${id} exec'd into the shell`, () => cmdline(pid).length > 0 && !cmdline(pid).includes('bat-pty-fd-guard'))
-      // a login profile may hold an fd of its own for a moment; an inherited one never goes away
-      await until(`${id} fds settle`, () => extraFds(pid).length === 0, 8_000).catch(() => { /* judged below */ })
+      // a login profile may hold an fd of its own for a moment; an inherited one never goes away.
+      // T0816: also wait for fd 255 (interactive bash opens it once its startup is done): judging mid-startup
+      // caught a profile's transient fd once (24.04, linux-acceptance run 41661353142, F4)
+      await until(`${id} fds settle`, () => extraFds(pid).length === 0 && fdsOf(pid).some(f => f.fd === 255), 8_000).catch(() => { /* judged below */ })
       return pid
     }
     function judgeShell(label: string, id: string, pid: number, parent: number, ev: string[]): boolean {
       const argv = cmdline(pid)
-      const extra = extraFds(pid)
-      const ptmx = fdsOf(pid).some(f => f.target === '/dev/ptmx')
+      // T0816: one /proc snapshot for the verdict and the evidence (they were read separately)
+      const fds = fdsOf(pid)
+      const extra = fds.filter(f => !ALLOWED_FDS.has(f.fd))
+      const ptmx = fds.some(f => f.target === '/dev/ptmx')
       const logged = new RegExp(`server spawned PTY ${id} \\(pid ${pid}\\) fd-guard=closed`).test(debugLog(userData))
-      ev.push(`${label}: pid ${pid}, parent ${ppidOf(pid)} (Terminal Server ${parent}), argv ${JSON.stringify(argv)}, fds ${describeFds(pid)}, /dev/ptmx: ${ptmx}, log "server spawned PTY ${id} (pid ${pid}) fd-guard=closed": ${logged}`)
+      ev.push(`${label}: pid ${pid}, parent ${ppidOf(pid)} (Terminal Server ${parent}), argv ${JSON.stringify(argv)}, fds ${JSON.stringify(fds.map(f => `${f.fd}=${f.target.replace(os.homedir(), '~')}`))}, /dev/ptmx: ${ptmx}, log "server spawned PTY ${id} (pid ${pid}) fd-guard=closed": ${logged}`)
       return extra.length === 0 && !ptmx && ppidOf(pid) === parent && logged && argv.slice(1).join(' ') === '-l -i' && !argv.includes('-c')
     }
 
