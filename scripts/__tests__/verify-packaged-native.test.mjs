@@ -21,6 +21,7 @@ import { fileURLToPath } from 'node:url'
 import { afterEach, describe, expect, it } from 'vitest'
 
 import { whisperAddonDirCandidates } from '../../electron/whisper-addon-loader'
+import { whisperLinuxFiles } from './_elf-fixture.mjs'
 
 const require = createRequire(import.meta.url)
 const SCRIPT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'verify-packaged-native.js')
@@ -219,7 +220,7 @@ function makeApp(outDir, arch, { omit = [], packed = HEALTHY_PACKED } = {}) {
   return appPath
 }
 
-function makeLinux(outDir, arch, claude, { packed = HEALTHY_PACKED, launcher = true } = {}) {
+function makeLinux(outDir, arch, claude, { packed = HEALTHY_PACKED, launcher = true, whisperRunpath = '$ORIGIN' } = {}) {
   const resources = path.join(outDir, linuxAppOutDirName(arch), 'resources')
   // T0799: the Electron binary, then (like the afterPack hook) the sandbox launcher in its place
   writeFile(path.join(outDir, linuxAppOutDirName(arch), 'BetterAgentTerminal'), elf(ELF_MACHINES[arch]))
@@ -228,6 +229,10 @@ function makeLinux(outDir, arch, claude, { packed = HEALTHY_PACKED, launcher = t
   writeHelperScripts(resources)
   writeHelperVersion(resources)
   if (claude) writeFile(path.join(resources, 'app.asar.unpacked', 'node_modules', '@anthropic-ai', `claude-code-linux-${arch}`, 'claude'), claude)
+  // T0800 / BUG-204: the whisper linux set, RUNPATH as the afterPack hook leaves it ($ORIGIN)
+  for (const [name, buf] of Object.entries(whisperLinuxFiles(whisperRunpath, ELF_MACHINES[arch]))) {
+    writeFile(path.join(resources, 'app.asar.unpacked', 'node_modules', '@kutalia', 'whisper-node-addon', 'dist', `linux-${arch}`, name), buf)
+  }
   writeAsar(resources, packed)
   return resources
 }
@@ -602,6 +607,18 @@ describe('verifyPackagedLinux', () => {
     makeLinux(out2, 'x64', elf(ELF_MACHINES.x64))
     writeFile(path.join(out2, linuxAppOutDirName('x64'), 'BetterAgentTerminal.bin'), elf(ELF_MACHINES.arm64))
     expect(verifyPackagedLinux(out2).archs[0].problems.map((p) => p.details)).toEqual([[expect.stringContaining('expected 0x3e')]])
+  })
+
+  it('whisper libraries without RUNPATH $ORIGIN (afterPack hook did not run) → fail (exit 1, T0800 whisper-runpath)', () => {
+    const out = makeOutDir()
+    makeLinux(out, 'x64', elf(ELF_MACHINES.x64), { whisperRunpath: '/home/runner/work/whisper-node-addon/whisper-node-addon/deps/whisper.cpp/build/Release' })
+    const result = verifyPackagedLinux(out)
+    expect(result.archs[0].problems.map((p) => p.id)).toEqual(['whisper-runpath'])
+    expect(result.archs[0].problems[0].details).toHaveLength(8)
+    const cli = runCli(['--platform', 'linux', '--out', out])
+    expect(cli.code).toBe(1)
+    expect(cli.stderr).toContain('T0800 whisper-runpath')
+    expect(cli.stderr).toContain('expected "$ORIGIN"')
   })
 
   it('no linux-unpacked directory → fail', () => {

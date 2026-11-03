@@ -8,7 +8,8 @@ name: Linux acceptance (manual)
 # (FUSE, libfuse2 installed like Ubuntu's AppImage instructions say) with the Chromium sandbox on; nothing
 # changes sysctls or AppArmor. A sandbox refusal is a result. T0799 / BUG-202: the AppImage's own launcher may
 # start it with --no-sandbox when userns are restricted (24.04); the spec reports that as
-# `sandbox auto-disabled (BUG-202 fallback)` (WARN) and checks whisper loading (W1, INFO, BUG-203).
+# `sandbox auto-disabled (BUG-202 fallback)` (WARN) and checks whisper loading (W1, T0800 / BUG-204: must load
+# where glibc >= 2.38, else WARN; older glibc is recorded only, BUG-203).
 # See docs/agent-guide/linux-ci-acceptance.md and docs/agent-guide/linux-appimage-sandbox.md.
 #
 #   gh workflow run linux-acceptance.yml -R gowerlin/better-agent-terminal -f version=0.7.4-pre.1

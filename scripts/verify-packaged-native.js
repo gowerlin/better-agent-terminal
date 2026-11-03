@@ -22,6 +22,9 @@
  * an ELF for the requested arch. T0799 / BUG-202 `appimage-launcher`: `<executableName>` is the
  * sandbox launcher script (scripts/appimage-sandbox-launcher.cjs, installed by the afterPack hook)
  * and `<executableName>.bin` is an ELF for the requested arch (the Electron binary it execs).
+ * T0800 / BUG-204 `whisper-runpath`: every shared object in the packaged whisper `dist/linux-<arch>/` has
+ * RUNPATH exactly `$ORIGIN` and no DT_RPATH, and every bundled NEEDED (`libwhisper*` / `libggml*`) is a file
+ * there (set by the afterPack hook with patchelf, scripts/linux-whisper-runpath.cjs).
  *
  * win (T0546): the embedded claude `claude-code/bin/claude.exe` in `<out>/win-unpacked` (x64)
  * must exist and be a PE image for the requested arch.
@@ -63,6 +66,7 @@ const { builtinModules } = require('module');
 const path = require('path');
 const { VERSION_MANIFEST_FILE, versionManifestProblems } = require('./version-manifest.cjs');
 const { REAL_BINARY_SUFFIX, isLauncherFile } = require('./appimage-sandbox-launcher.cjs');
+const { whisperDistDir, whisperRunpathProblems } = require('./linux-whisper-runpath.cjs');
 
 const WHISPER_ADDON_PACKAGE = '@kutalia/whisper-node-addon';
 const WHISPER_ADDON_BINARY = 'whisper.node';
@@ -776,6 +780,16 @@ function verifyAppImageLauncher(appOutDir, executableName, expectedMachine) {
   return details.length ? [{ id: 'appimage-launcher', message: 'AppImage sandbox launcher not installed (BUG-202 / T0799)', details }] : [];
 }
 
+/**
+ * T0800 / BUG-204: the packaged whisper `dist/linux-<arch>/` loads its own libraries (RUNPATH `$ORIGIN`, set by
+ * the afterPack hook). Returns the problems (empty = ok).
+ */
+function verifyWhisperRunpath(resourcesPath, arch) {
+  const dir = path.join(whisperDistDir(resourcesPath), `linux-${arch}`);
+  const details = fs.existsSync(dir) ? whisperRunpathProblems(dir) : [`missing: ${dir}`];
+  return details.length ? [{ id: 'whisper-runpath', message: 'whisper addon libraries are not found from their own directory (BUG-204 / T0800)', details }] : [];
+}
+
 /** Linux: the embedded claude in each requested arch's unpacked directory, plus the T0546 layout. */
 function verifyPackagedLinux(outDir, archs = DEFAULT_LINUX_ARCHS) {
   const results = archs.map((arch) => {
@@ -805,6 +819,7 @@ function verifyPackagedLinux(outDir, archs = DEFAULT_LINUX_ARCHS) {
       layout = verifyPackagedLayout(resourcesPath, 'linux', arch);
       problems.push(...layout.problems);
       problems.push(...verifyAppImageLauncher(appOutDir, packagedExecutableName(), expected));
+      problems.push(...verifyWhisperRunpath(resourcesPath, arch));
     }
     return { arch, appOutDir, embeddedClaude: claude, layout, problems, ok: problems.length === 0 };
   });
@@ -929,7 +944,7 @@ function reportMac(result, opts) {
 
 function reportLinux(result, opts) {
   for (const r of result.archs) {
-    if (r.ok) console.log(`[verify-packaged-native] ✅ linux ${r.arch}: embedded claude ${r.embeddedClaude.found} (ELF e_machine 0x${r.embeddedClaude.elfMachine.toString(16)})${describeLayout(r.layout)}, AppImage sandbox launcher installed`);
+    if (r.ok) console.log(`[verify-packaged-native] ✅ linux ${r.arch}: embedded claude ${r.embeddedClaude.found} (ELF e_machine 0x${r.embeddedClaude.elfMachine.toString(16)})${describeLayout(r.layout)}, AppImage sandbox launcher installed, whisper RUNPATH $ORIGIN`);
   }
   if (result.ok) {
     console.log(`[verify-packaged-native] ✅ every linux package passed (${opts.archs.join(', ')})`);
@@ -943,6 +958,7 @@ function reportLinux(result, opts) {
   console.error('[verify-packaged-native] The AppImage for these archs would ship without a working embedded claude (BUG-118) or unslimmed (T0546).');
   console.error('[verify-packaged-native] Check that `electron-builder --linux` ran, @anthropic-ai/claude-code-linux-<arch> is installed, and build.asarUnpack still covers @anthropic-ai/claude-code-*.');
   console.error('[verify-packaged-native] T0799 appimage-launcher: package.json build.afterPack must stay ./scripts/version-manifest.cjs and build.linux.target must include AppImage (the hook installs the launcher only then).');
+  console.error('[verify-packaged-native] T0800 whisper-runpath: the afterPack hook (scripts/linux-whisper-runpath.cjs) sets RUNPATH $ORIGIN with patchelf; check that it ran and that build.asarUnpack still covers @kutalia/whisper-node-addon.');
   printLayoutHints();
   return false;
 }
@@ -1014,6 +1030,7 @@ module.exports = {
   verifyPackagedMac,
   verifyPackagedLinux,
   verifyAppImageLauncher,
+  verifyWhisperRunpath,
   verifyPackagedWin,
   parseArgs,
 };

@@ -11,6 +11,7 @@ import { chmodSync, existsSync, lstatSync, mkdirSync, mkdtempSync, readFileSync,
 import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { makeElfSharedObject, whisperLinuxFiles } from './_elf-fixture.mjs'
 
 const require = createRequire(import.meta.url)
 const here = path.dirname(fileURLToPath(import.meta.url))
@@ -19,6 +20,7 @@ const {
   afterPackAppImageLauncher, installAppImageLauncher, isLauncherFile, isLinuxAppImageBuild, launcherScript,
 } = require('../appimage-sandbox-launcher.cjs')
 const { afterPack } = require('../version-manifest.cjs')
+const { readElfDynamic } = require('../linux-whisper-runpath.cjs')
 
 const EXE = 'BetterAgentTerminal'
 const dirs = []
@@ -101,7 +103,20 @@ describe('isLinuxAppImageBuild / installAppImageLauncher / afterPack', () => {
       mkdirSync(path.join(d, 'resources'))
       writeFileSync(path.join(d, EXE), 'ELF-BYTES')
       const packager = { appInfo: { name: 'better-agent-terminal', version: '0.7.4-pre.1' }, getResourcesDir: (o) => path.join(o, 'resources'), executableName: EXE }
-      await afterPack({ appOutDir: d, packager, electronPlatformName: platform, targets })
+      // T0800: a Linux build also patches the whisper addon (fake patchelf; see linux-whisper-runpath.test.mjs)
+      const whisperDir = path.join(d, 'resources', 'app.asar.unpacked', 'node_modules', '@kutalia', 'whisper-node-addon', 'dist', 'linux-x64')
+      mkdirSync(whisperDir, { recursive: true })
+      for (const [name, buf] of Object.entries(whisperLinuxFiles('/home/runner/build'))) writeFileSync(path.join(whisperDir, name), buf)
+      const patchelfCalls = []
+      const execFileSync = (cmd, args) => {
+        patchelfCalls.push(args[0])
+        if (args[0] === '--version') return 'patchelf 0.18.0\n'
+        const dyn = readElfDynamic(readFileSync(args[2]))
+        writeFileSync(args[2], makeElfSharedObject({ needed: dyn.needed, soname: dyn.soname, runpath: args[1] }))
+        return ''
+      }
+      await afterPack({ appOutDir: d, packager, electronPlatformName: platform, targets }, { execFileSync })
+      expect(patchelfCalls.length > 0).toBe(platform === 'linux')
       expect(existsSync(path.join(d, EXE + REAL_BINARY_SUFFIX))).toBe(installed)
       expect(isLauncherFile(path.join(d, EXE))).toBe(installed)
       expect(existsSync(path.join(d, 'resources', 'package.json'))).toBe(true)

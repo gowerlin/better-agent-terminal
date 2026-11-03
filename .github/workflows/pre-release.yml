@@ -244,6 +244,15 @@ jobs:
         if: matrix.platform == 'mac'
         run: node scripts/verify-packaged-native.js --platform mac --out release --arch arm64
 
+      # BUG-204 / T0800: the afterPack hook sets RUNPATH $ORIGIN on the whisper addon's libraries with
+      # patchelf (scripts/linux-whisper-runpath.cjs) and fails the build when patchelf is missing.
+      - name: Install patchelf (Linux, BUG-204)
+        if: matrix.platform == 'linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends patchelf
+          patchelf --version
+
       - name: Package for Linux
         if: matrix.platform == 'linux'
         run: npx electron-builder --linux --publish never

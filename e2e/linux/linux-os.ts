@@ -66,6 +66,48 @@ export function stripAnsi(s: string): string {
     .replace(/\x1b[@-Z\\-_]/g, '')
 }
 
+// ---------------------------------------------------------------- W1: whisper addon load (T0800 / BUG-204)
+
+/** The upstream `@kutalia/whisper-node-addon` linux-x64 build references GLIBC_2.38 (BUG-203). */
+export const WHISPER_MIN_GLIBC = '2.38'
+
+/** `x.y` from an `ldd --version` first line (`ldd (Ubuntu GLIBC 2.39-0ubuntu8.6) 2.39` → `2.39`); null if none. */
+export function glibcVersionOf(line: string): string | null {
+  const all = line.match(/\d+\.\d+/g)
+  return all ? all[all.length - 1] : null
+}
+
+function versionAtLeast(v: string, min: string): boolean {
+  const [a, b] = [v, min].map(s => s.split('.').map(Number))
+  for (let i = 0; i < Math.max(a.length, b.length); i++) {
+    const d = (a[i] ?? 0) - (b[i] ?? 0)
+    if (d !== 0) return d > 0
+  }
+  return true
+}
+
+export interface WhisperJudgement {
+  result: 'PASS' | 'WARN' | 'INFO'
+  /** true when this system is expected to load the addon (glibc >= WHISPER_MIN_GLIBC, or glibc unknown) */
+  judged: boolean
+  note: string
+}
+
+/**
+ * W1 (T0800): loaded → PASS. Not loaded → WARN where the addon must load (glibc >= 2.38, e.g. Ubuntu 24.04;
+ * also when the glibc version cannot be read, so a judged system is never skipped silently), INFO where the
+ * system glibc is older than the addon needs (22.04, BUG-203: recorded only, never changes the verdict).
+ */
+export function judgeWhisperLoad(loaded: boolean, glibcLine: string): WhisperJudgement {
+  const v = glibcVersionOf(glibcLine)
+  const judged = v === null || versionAtLeast(v, WHISPER_MIN_GLIBC)
+  if (loaded) return { result: 'PASS', judged, note: 'loaded' }
+  if (judged) {
+    return { result: 'WARN', judged, note: `must load here (system glibc ${v ?? 'unknown'} >= ${WHISPER_MIN_GLIBC} or unknown): verdict at least WARN` }
+  }
+  return { result: 'INFO', judged, note: `recorded only: system glibc ${v} < ${WHISPER_MIN_GLIBC} the addon needs (BUG-203)` }
+}
+
 // ---------------------------------------------------------------- system facts
 
 export interface SystemInfo {
