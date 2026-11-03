@@ -3846,3 +3846,12 @@ Codex 那張是外部測試者回報才發現；Claude 那張是使用者隨口�
 - 要改 Chromium 啟動期行為（sandbox、GPU 等）先確認是否早於 main JS；來不及就在啟動前包裝（afterPack 啟動器）
 - 「待回報」沒有指定回報人就是沒人負責：能自動化就改成 CI 可重跑的驗收
 
+## L184
+
+**來源**：第一百一十 session（2026-11-03），`v0.7.4-pre.2` 更版重點
+
+**現象**：第一版更版重點只寫了本版的新內容，漏了〈待驗收〉（BUG-159、Electron 45、本版 FIXED 待實機的 BUG-202 / 204），也沒有承接前一版仍成立的 5 則〈已知事項〉；發佈並 `gh release edit` 後拿上一版全文比對才發現，補寫後重新寫入。
+
+**How to apply**：
+- 起草更版重點前，先 `gh release view v<上一版> -R gowerlin/better-agent-terminal --json body` 取全文，以它為底稿：〈待驗收〉逐項判斷（已驗收的移除、本版新增 FIXED 待驗的加入），〈已知事項〉逐項判斷仍否成立再加上本版的
+- 本版若有 BUG 已靠 CI 驗收結案，但只在 runner 上驗過，仍列進〈待驗收〉請真人桌面確認
