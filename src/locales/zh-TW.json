@@ -934,7 +934,8 @@
       "wslInstallGuide": "安裝 WSL2 指南",
       "wslInstalledRetry": "我已安裝 WSL2，重試",
       "editSshSettings": "修改 SSH 設定",
-      "importServerBundle": "匯入本機 tarball…"
+      "importServerBundle": "匯入本機 tarball…",
+      "wslMirroredRetry": "改用 Mirrored 並重試"
     },
     "shared": {
       "step": {
@@ -1115,6 +1116,14 @@
         "systemdDisabled": {
           "title": "systemd 沒有在執行",
           "body": "{{distro}} 內的 systemd 沒有在執行，而 BAT 伺服器以 systemd 使用者服務執行。請在 /etc/wsl.conf 開啟（`[boot]` `systemd=true`），在 PowerShell 執行 `wsl --terminate {{distro}}` 後重試。"
+        },
+        "connectTestFailedNat": {
+          "title": "連線測試失敗（WSL 為 NAT 模式）",
+          "body": "BAT 連不上剛設定好的 BAT 伺服器。WSL 目前是 NAT 網路模式，Windows 經 localhostForwarding 以 localhost 連到發行版。「改用 Mirrored 並重試」會先詢問，再把 .wslconfig 改成 Mirrored 模式（會備份）、執行 `wsl --shutdown`（會關閉所有執行中的發行版），然後重跑測試。也可以重試、略過這項測試或取消。"
+        },
+        "mirroredFailed": {
+          "title": "無法把 WSL 改成 Mirrored 模式",
+          "body": "原因見下方詳細資訊。已經做的變更（與備份位置）會在精靈結束時列出，不會自動還原。可以重試連線測試、略過或取消。"
         }
       },
       "warning": {
@@ -1210,9 +1219,30 @@
           "header": "WSL 環境的變更",
           "wsl2Convert": "{{distro}} 已轉換成 WSL 2。",
           "file": "{{distro}}：已修改 {{path}}。",
+          "wslconfig": "已修改 {{path}}（WSL 網路模式改成 Mirrored；套用到這個 Windows 使用者的所有 WSL 2 發行版）。",
           "backup": "備份：{{path}}",
           "newFile": "原本沒有這個檔案（沒有備份）。",
           "note": "取消精靈時這些變更也會保留，不會自動還原。"
+        }
+      },
+      "mirrored": {
+        "title": "要把 WSL 改成 Mirrored 網路模式嗎？",
+        "description": "勾選後確認。BAT 會修改 .wslconfig 的一行、關閉 WSL、等 {{distro}} 重新啟動，再重跑連線測試。",
+        "confirm": "改用 Mirrored 並重試",
+        "decline": "維持 NAT",
+        "uninterruptible": "正在把 WSL 改成 Mirrored 模式。`wsl --shutdown` 開始後無法中途停止；若停止精靈，會在關閉完成後才停止。",
+        "item": {
+          "label": "把 WSL 網路模式設成 Mirrored 並重新啟動 WSL",
+          "detail": "在 %USERPROFILE%\\.wslconfig 設定 `[wsl2]` `networkingMode=mirrored`（其他行保留；原檔備份在旁邊，檔名 .wslconfig.bat-backup-<時間>），然後執行 `wsl --shutdown`。這個設定套用到這個 Windows 使用者的所有 WSL 2 發行版。不會自動還原；要改回來時，把備份還原後執行 `wsl --shutdown`。",
+          "detailDeclared": "你的 .wslconfig 已經設定 `networkingMode=mirrored`，但 WSL 仍是 NAT 模式，表示設定還沒生效。不會寫入任何檔案；BAT 只執行 `wsl --shutdown` 讓 WSL 以這個設定重新啟動。"
+        },
+        "hint": {
+          "policy": "不提供改用 Mirrored：Windows 原則（AllowNetworkingModeUserSetting / DefaultNetworkingMode）決定 WSL 的網路模式，而且優先於 .wslconfig。請洽系統管理員，或改用發行版的 IP 位址連線。",
+          "policyUnknown": "不提供改用 Mirrored：BAT 讀不到 WSL 原則設定，無法判斷是否有原則蓋過 .wslconfig。",
+          "declared": "不提供改用 Mirrored：你的 .wslconfig 設定了 `networkingMode={{mode}}`，BAT 不會更改你選的模式。若要改用 Mirrored 請自行修改（之後執行 `wsl --shutdown`）。",
+          "wslconfigUnreadable": "不提供改用 Mirrored：BAT 無法安全讀取你的 .wslconfig，所以不會修改它。",
+          "windowsUnsupported": "不提供改用 Mirrored：這個 Windows 版本不支援 Mirrored 模式（需要 Windows 11 22H2 以上）。",
+          "wslTooOld": "不提供改用 Mirrored：這個 WSL 版本太舊，不支援 Mirrored 模式。請在系統管理員 PowerShell 執行 `wsl --update` 更新。"
         }
       }
     },

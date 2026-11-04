@@ -467,6 +467,8 @@ interface ElectronAPI {
     detectFacts: (distro?: string, options?: { operationId?: string }) => Promise<WslFacts>
     // T0840 (PLAN-043 W3): apply one consented environment fix (wsl-env-apply.ts).
     applyEnvItem: (distro: string, item: WslEnvApplyItemId, options?: { operationId?: string }) => Promise<WslEnvApplyResult>
+    // T0841 (PLAN-043 W4, P-5): `.wslconfig` networkingMode=mirrored + `wsl --shutdown` + verify.
+    applyNetworkMirrored: (distro: string, options?: { operationId?: string }) => Promise<WslEnvApplyResult>
     // T0840: systemd is PID 1 in the distro right now (wsl-systemd-check verification).
     systemdRunning: (distro: string) => Promise<boolean>
     // T0378 (BUG-087 B): absolute $HOME of the distro's default user (e.g. /home/alice).

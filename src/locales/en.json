@@ -935,7 +935,8 @@
       "wslInstallGuide": "WSL2 install guide",
       "wslInstalledRetry": "I've installed WSL2, retry",
       "editSshSettings": "Edit SSH settings",
-      "importServerBundle": "Import local tarball…"
+      "importServerBundle": "Import local tarball…",
+      "wslMirroredRetry": "Switch to Mirrored and retry"
     },
     "shared": {
       "step": {
@@ -1116,6 +1117,14 @@
         "systemdDisabled": {
           "title": "systemd is not running",
           "body": "systemd is not running in {{distro}}, and the BAT server runs as a systemd user service. Turn it on in /etc/wsl.conf (`[boot]` `systemd=true`), run `wsl --terminate {{distro}}` in PowerShell, then retry."
+        },
+        "connectTestFailedNat": {
+          "title": "Connection test failed (WSL is in NAT mode)",
+          "body": "BAT could not reach the BAT server it just set up. WSL runs in NAT networking mode, where Windows reaches the distro on localhost through localhostForwarding. \"Switch to Mirrored and retry\" asks first, then sets Mirrored mode in your .wslconfig (with a backup), runs `wsl --shutdown` (this stops ALL running distros) and runs the test again. You can also retry, skip the test, or cancel."
+        },
+        "mirroredFailed": {
+          "title": "Could not switch WSL to Mirrored mode",
+          "body": "The details below say why. Changes already made (and their backups) are listed when setup ends; they are not undone. Retry the connection test, skip it, or cancel."
         }
       },
       "warning": {
@@ -1211,9 +1220,30 @@
           "header": "WSL environment changes",
           "wsl2Convert": "{{distro}} was converted to WSL 2.",
           "file": "{{distro}}: {{path}} was changed.",
+          "wslconfig": "{{path}} was changed (WSL networking mode set to Mirrored; applies to every WSL 2 distro of this Windows user).",
           "backup": "Backup: {{path}}",
           "newFile": "The file did not exist before (no backup).",
           "note": "These changes are kept even when setup is cancelled; they are not undone automatically."
+        }
+      },
+      "mirrored": {
+        "title": "Switch WSL to Mirrored networking?",
+        "description": "Check the box to confirm. BAT then changes one line in your .wslconfig, shuts WSL down, waits for {{distro}} to start again and retries the connection test.",
+        "confirm": "Switch to Mirrored and retry",
+        "decline": "Keep NAT",
+        "uninterruptible": "Switching WSL to Mirrored mode. `wsl --shutdown` cannot be stopped once it has started; if you stop setup, it stops after the shutdown.",
+        "item": {
+          "label": "Set WSL networking to Mirrored and restart WSL",
+          "detail": "Sets `[wsl2]` `networkingMode=mirrored` in %USERPROFILE%\\.wslconfig (other lines are kept; the old file is backed up next to it as .wslconfig.bat-backup-<time>), then runs `wsl --shutdown`. The setting applies to every WSL 2 distro of this Windows user. Not undone automatically; to go back, restore the backup and run `wsl --shutdown`.",
+          "detailDeclared": "Your .wslconfig already sets `networkingMode=mirrored`, but WSL still runs in NAT mode, so the setting has not taken effect yet. Nothing is written; BAT only runs `wsl --shutdown` so WSL restarts with it."
+        },
+        "hint": {
+          "policy": "Switching to Mirrored is not offered: a Windows policy (AllowNetworkingModeUserSetting / DefaultNetworkingMode) decides the WSL networking mode, and it wins over .wslconfig. Ask your administrator, or connect with the distro's IP address.",
+          "policyUnknown": "Switching to Mirrored is not offered: BAT could not read the WSL policy settings, so it cannot tell whether a policy overrides .wslconfig.",
+          "declared": "Switching to Mirrored is not offered: your .wslconfig sets `networkingMode={{mode}}`, and BAT does not change a mode you chose. Change it yourself if you want Mirrored (then run `wsl --shutdown`).",
+          "wslconfigUnreadable": "Switching to Mirrored is not offered: BAT cannot read your .wslconfig safely, so it will not edit it.",
+          "windowsUnsupported": "Switching to Mirrored is not offered: this Windows version does not support Mirrored mode (requires Windows 11 22H2 or later).",
+          "wslTooOld": "Switching to Mirrored is not offered: this WSL version is too old for Mirrored mode. Update it with `wsl --update` in an administrator PowerShell."
         }
       }
     },

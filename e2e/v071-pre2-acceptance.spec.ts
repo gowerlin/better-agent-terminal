@@ -608,6 +608,25 @@ test.describe('T0663 subject lane (V1 / V2 / V3 / V4)', () => {
 const WSL_TWO = { distros: [{ name: 'Ubuntu-24.04', version: 2, state: 'Running' }, { name: 'Debian', version: 2, state: 'Stopped' }], default: 'Ubuntu-24.04' }
 const WSL_ONE_V1 = { distros: [{ name: 'T0663-Legacy', version: 1, state: 'Stopped' }], default: 'T0663-Legacy' }
 const WSL_ONE_V2 = { distros: [{ name: 'T0663-Stub', version: 2, state: 'Running' }], default: 'T0663-Stub' }
+/**
+ * T0840 / T0841: canned `wsl:detect-facts` answer (shape: WslFacts in
+ * src/components/setup-wizard/wsl-env-plan.ts) for a list with one distro.
+ */
+function wslFactsStub(list: typeof WSL_ONE_V2, sel: { version: 1 | 2; pid1: string; systemdRunning: boolean }): Record<string, unknown> {
+  const d = list.distros[0]
+  return {
+    v: 1, platform: 'win32', windowsBuild: 26100, wslInstalled: true, version: { available: true, wsl: '2.7.14.0' },
+    distros: list.distros, defaultDistro: list.default, running: list.distros.filter(x => x.state === 'Running').map(x => x.name),
+    selected: {
+      name: d.name, version: sel.version, state: d.state, probe: 'ok', user: 'tester', uid: 1000,
+      pid1: sel.pid1, systemdRunning: sel.systemdRunning,
+      wslConf: { status: 'ok', bootSystemd: sel.systemdRunning ? 'true' : 'false', userDefault: null }, linger: true,
+    },
+    policy: { status: 'absent', values: {}, allowWsl: null, allowWsl1: null, allowInboxWsl: null, allowNetworkingModeUserSetting: null, defaultNetworkingMode: null },
+    wslConfig: { status: 'missing', encoding: null, networkingMode: null, instanceIdleTimeout: null },
+    timedOut: false, durationMs: 1,
+  }
+}
 const SSH_HOSTS = ['dev-server', 'build-box']
 const DOCKER_OK = { available: true, version: '28.3.2' }
 /** Stubs that every wizard scenario starts from; scenarios override some. */
@@ -845,36 +864,88 @@ test.describe('T0663 wizard lane (V3 / V4 / V5)', () => {
       `stale step text: ${stale.join(', ') || 'none'}`, `current pickDistro description present ${shellText.includes(zh('wizard.wsl.step.pickDistro.description'))}, writeSystemdUnit label ${shellText.includes(zh('wizard.wsl.step.writeSystemdUnit.label'))}`])
   })
 
-  test('WSL wizard: WSL1-only warning + requires-WSL2 error (stubbed list)', async () => {
+  // T0840 / T0841: since T0840 an only-WSL1 distro is picked and the checklist (plan-wsl-environment)
+  // offers the conversion (unchecked); confirming without it stops with the same requires-WSL2 error.
+  test('WSL wizard: WSL1-only → checklist offers the conversion + requires-WSL2 error (stubbed)', async () => {
     test.setTimeout(120_000)
     const { app, win } = wiz!
-    await installGuard(app, { stubs: { ...BASE_STUBS, 'wsl:list': WSL_ONE_V1 }, real: [] })
+    await installGuard(app, { stubs: { ...BASE_STUBS, 'wsl:list': WSL_ONE_V1, 'wsl:detect-facts': wslFactsStub(WSL_ONE_V1, { version: 1, pid1: 'init', systemdRunning: false }) }, real: [] })
     const shell = await openWizard(win, 'wsl')
+    const consent = shell.locator('[data-testid="wizard-consent"]')
+    await expect(consent).toBeVisible({ timeout: 45_000 })
+    const convert = consent.locator('li[data-item-id="wsl2-convert"]')
+    const convertShown = await convert.count() === 1
+    const convertChecked = convertShown ? await convert.locator('input[type="checkbox"]').isChecked() : null
+    const warningsBefore = await shell.locator('.bat-wizard-warnings p').allInnerTexts()
+    await shot(win, 'v3-wsl1-checklist')
+    await consent.locator('[data-testid="wizard-consent-confirm"]').click()
     const err = await mappedError(shell)
     const warnings = await shell.locator('.bat-wizard-warnings p').allInnerTexts()
-    await shot(win, 'v3-wsl1-warning')
     await closeWizard(win)
     await installGuard(app, { stubs: BASE_STUBS, real: [] })
-    record('V3.wsl1-warning', warnings.includes(zh('wizard.wsl.warning.wsl1Only')), [`warnings ${JSON.stringify(warnings)}`])
+    record('V3.wsl1-convert-offered', convertShown && convertChecked === false && !warnings.includes(zh('wizard.wsl.warning.wsl1Only')), [
+      `wsl2-convert item shown ${convertShown}, checked ${String(convertChecked)} (expected unchecked)`,
+      `warnings ${JSON.stringify([...warningsBefore, ...warnings])} (no wsl1Only warning since T0840)`])
     record('V4.a-wsl-requires-wsl2', err.title === zh('wizard.wsl.error.requiresWsl2.title') && err.body === zh('wizard.wsl.error.requiresWsl2.body'),
       [`mapped error title ${JSON.stringify(err.title)} body ${JSON.stringify(err.body)}`])
   })
 
-  test('WSL wizard: systemd-disabled warning, stopped before any install (stubbed)', async () => {
+  // T0840 / T0841: systemd off → the checklist offers to turn it on (checked); if it is still not PID 1
+  // afterwards, step 5 (wsl-systemd-check) stops with wsl-systemd-disabled — before any install.
+  test('WSL wizard: systemd off → checklist offers it, still off → wsl-systemd-disabled (stubbed)', async () => {
     test.setTimeout(120_000)
     const { app, win } = wiz!
-    // One WSL2 distro is picked automatically; systemd off → warning; resolve-home answers '' so the
-    // install step stops at wsl-home-unresolved before any download / install channel.
-    await installGuard(app, { stubs: { ...BASE_STUBS, 'wsl:list': WSL_ONE_V2, 'wsl:systemd-enabled': false, 'wsl:resolve-home': '' }, real: [] })
+    const distro = WSL_ONE_V2.distros[0].name
+    await installGuard(app, { stubs: {
+      ...BASE_STUBS,
+      'wsl:list': WSL_ONE_V2,
+      'wsl:detect-facts': wslFactsStub(WSL_ONE_V2, { version: 2, pid1: 'init', systemdRunning: false }),
+      // The fix "succeeds" (stubbed, nothing runs) but systemd is still not PID 1.
+      'wsl:apply-env-item': { ok: true, outcome: 'applied', changes: [], terminated: true },
+      'wsl:systemd-running': false,
+    }, real: [] })
     const shell = await openWizard(win, 'wsl')
+    const consent = shell.locator('[data-testid="wizard-consent"]')
+    await expect(consent).toBeVisible({ timeout: 45_000 })
+    const systemd = consent.locator('li[data-item-id="enable-systemd"]')
+    const systemdShown = await systemd.count() === 1
+    const systemdChecked = systemdShown ? await systemd.locator('input[type="checkbox"]').isChecked() : null
+    await shot(win, 'v3-wsl-systemd-checklist')
+    await consent.locator('[data-testid="wizard-consent-confirm"]').click()
     const err = await mappedError(shell)
     const warnings = await shell.locator('.bat-wizard-warnings p').allInnerTexts()
-    await shot(win, 'v3-wsl-systemd-warning')
+    await shot(win, 'v3-wsl-systemd-disabled')
+    await closeWizard(win)
+    const calls = await guardCalls(app)
+    await installGuard(app, { stubs: BASE_STUBS, real: [] })
+    const installTouched = calls.some(c => ['wsl:resolve-home', 'wsl:install-bundle', 'server-bundle:distribute'].includes(c.channel))
+    record('V3.wsl-systemd-offered', systemdShown && systemdChecked === true && !warnings.includes(zh('wizard.wsl.warning.systemdDisabled')), [
+      `enable-systemd item shown ${systemdShown}, checked ${String(systemdChecked)} (expected checked)`,
+      `warnings ${JSON.stringify(warnings)} (no systemdDisabled warning since T0840)`])
+    record('V4.a-wsl-systemd-disabled', err.title === zh('wizard.wsl.error.systemdDisabled.title')
+      && err.body === zh('wizard.wsl.error.systemdDisabled.body').split('{{distro}}').join(distro) && !installTouched, [
+      `mapped error title ${JSON.stringify(err.title)} body ${JSON.stringify(err.body)}`, `install channels called: ${installTouched}`])
+  })
+
+  test('WSL wizard: healthy environment, stopped before any install (stubbed)', async () => {
+    test.setTimeout(120_000)
+    const { app, win } = wiz!
+    // Healthy facts → no checklist; resolve-home answers '' so the install step stops at
+    // wsl-home-unresolved before any download / install channel.
+    await installGuard(app, { stubs: {
+      ...BASE_STUBS,
+      'wsl:list': WSL_ONE_V2,
+      'wsl:detect-facts': wslFactsStub(WSL_ONE_V2, { version: 2, pid1: 'systemd', systemdRunning: true }),
+      'wsl:systemd-running': true,
+      'wsl:resolve-home': '',
+    }, real: [] })
+    const shell = await openWizard(win, 'wsl')
+    const err = await mappedError(shell)
+    const consentShown = await shell.locator('[data-testid="wizard-consent"]').count()
     await closeWizard(win)
     await installGuard(app, { stubs: BASE_STUBS, real: [] })
-    record('V3.wsl-systemd-warning', warnings.includes(zh('wizard.wsl.warning.systemdDisabled')), [`warnings ${JSON.stringify(warnings)}`])
-    record('V4.a-wsl-home-unresolved', err.title === zh('wizard.wsl.error.homeUnresolved.title') && err.body === zh('wizard.wsl.error.homeUnresolved.body'),
-      [`mapped error title ${JSON.stringify(err.title)} body ${JSON.stringify(err.body)}`])
+    record('V4.a-wsl-home-unresolved', err.title === zh('wizard.wsl.error.homeUnresolved.title') && err.body === zh('wizard.wsl.error.homeUnresolved.body') && consentShown === 0,
+      [`mapped error title ${JSON.stringify(err.title)} body ${JSON.stringify(err.body)}`, `checklist shown: ${consentShown}`])
   })
 
   test('SSH wizard: title, host buttons, manual-host input styles, step text', async () => {

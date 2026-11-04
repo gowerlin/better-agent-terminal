@@ -140,8 +140,18 @@ export function WizardConsentChecklist({ request, regionId, onSubmit }: WizardCo
       )}
       <div className="bat-wizard-actions">
         <button className="profile-action-btn primary" type="submit" data-testid="wizard-consent-confirm">
-          {t('wizard.wsl.plan.confirm')}
+          {t(request.confirmKey ?? 'wizard.wsl.plan.confirm', params)}
         </button>
+        {request.declineKey && (
+          <button
+            className="profile-action-btn"
+            type="button"
+            data-testid="wizard-consent-decline"
+            onClick={() => onSubmit([])}
+          >
+            {t(request.declineKey, params)}
+          </button>
+        )}
       </div>
     </form>
   )
@@ -162,9 +172,11 @@ export function WslAppliedChangesBox({ changes }: { changes: WslAppliedChange[] 
         if (change.kind === 'wsl-version') {
           return <p key={key}>{t('wizard.wsl.apply.changes.wsl2Convert', { distro: change.distro })}</p>
         }
+        // T0841: `.wslconfig` is a Windows file of this user, not a distro file.
+        const fileKey = change.item === 'network-mirrored' ? 'wizard.wsl.apply.changes.wslconfig' : 'wizard.wsl.apply.changes.file'
         return (
           <p key={key}>
-            {t('wizard.wsl.apply.changes.file', { distro: change.distro, path: change.path ?? '' })}{' '}
+            {t(fileKey, { distro: change.distro, path: change.path ?? '' })}{' '}
             {change.backupPath
               ? t('wizard.wsl.apply.changes.backup', { path: change.backupPath })
               : t('wizard.wsl.apply.changes.newFile')}

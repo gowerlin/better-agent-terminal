@@ -155,13 +155,27 @@ export type WslEnvApplyErrorCode =
   | 'wsl-systemd-enable-failed'
   | 'wsl-terminate-failed'
   | 'wsl-env-apply-invalid'
+  // T0841 (PLAN-043 W4, P-5): `wsl:apply-network-mirrored`.
+  | 'wsl-network-mode-policy'
+  | 'wsl-network-mode-declared'
+  | 'wsl-wslconfig-write-failed'
+  | 'wsl-shutdown-failed'
+  | 'wsl-network-mode-not-applied'
+
+/**
+ * T0841: the P-5 item (`.wslconfig` `[wsl2] networkingMode=mirrored` + `wsl --shutdown`).
+ * Not a `WslEnvApplyItemId`: it is never in the first plan, only offered after
+ * connect-test failed, and goes through its own IPC `wsl:apply-network-mirrored`.
+ */
+export const WSL_NETWORK_MIRRORED_ITEM_ID = 'network-mirrored'
+export type WslNetworkMirroredItemId = typeof WSL_NETWORK_MIRRORED_ITEM_ID
 
 /** One real change on the machine (never undone automatically, D272). */
 export interface WslEnvChange {
-  item: WslEnvApplyItemId
+  item: WslEnvApplyItemId | WslNetworkMirroredItemId
   /** `wsl-version`: the distro was converted; `file`: a file was written. */
   kind: 'wsl-version' | 'file'
-  /** Linux path of the file written (`file`). */
+  /** Linux path of the file written (`file`); for `network-mirrored` the Windows path of `.wslconfig`. */
   path?: string
   /** Backup of the previous file; null when the file did not exist before. */
   backupPath?: string | null
@@ -309,4 +323,65 @@ export function buildWslEnvPlan(facts: WslFacts): WslEnvPlan {
   }
 
   return { items, notices }
+}
+
+/**
+ * T0841 (PLAN-043 W4, P-5): "Switch to Mirrored and retry" after connect-test
+ * failed. Mirrors `MIRRORED_MIN_WINDOWS_BUILD` in electron/wsl-detect.ts
+ * (Windows 11 22H2, the first build with `networkingMode=mirrored`).
+ */
+export const WSL_MIRRORED_MIN_WINDOWS_BUILD = 22621
+
+export type WslMirroredRetryBlockReason =
+  /** Actual networking mode is not NAT (nothing to switch). */
+  | 'not-nat'
+  /** `AllowNetworkingModeUserSetting=0` or `DefaultNetworkingMode` set: the policy wins over `.wslconfig`. */
+  | 'policy'
+  /** The policy key could not be read: BAT cannot tell whether a policy overrides `.wslconfig`. */
+  | 'policy-unknown'
+  /** The user declared another `networkingMode` in `.wslconfig`: never overwritten. */
+  | 'declared'
+  /** `.wslconfig` cannot be read or parsed: never written (T0831 〈風險〉). */
+  | 'wslconfig-unreadable'
+  /** Windows build < 22621. */
+  | 'windows-unsupported'
+  /** WSL older than 2.0.4 (no Mirrored). */
+  | 'wsl-too-old'
+
+export type WslMirroredRetryOffer =
+  | { offer: true; running: string[]; declaredMirrored: boolean }
+  | { offer: false; reason: WslMirroredRetryBlockReason; hintKey: string | null; params?: Record<string, string> }
+
+const MIRRORED_KEY = 'wizard.wsl.mirrored'
+
+function blocked(
+  reason: WslMirroredRetryBlockReason,
+  hint: string | null,
+  params?: Record<string, string>,
+): WslMirroredRetryOffer {
+  return { offer: false, reason, hintKey: hint === null ? null : `${MIRRORED_KEY}.hint.${hint}`, ...(params ? { params } : {}) }
+}
+
+/**
+ * T0841: offer P-5 only when connect-test failed and the actual mode is NAT
+ * (T0831 P-5), and nothing says the change is pointless or not ours to make:
+ * a WSL networking policy, a non-mirrored `networkingMode` the user declared,
+ * a `.wslconfig` BAT cannot parse, Windows / WSL too old for Mirrored. Those
+ * cases only get a hint (T0831 〈調查結論〉4). `.wslconfig` already saying
+ * mirrored while WSL still runs NAT is offered (nothing to write, the shutdown
+ * applies it). Pure: the step passes `ctx.networkMode` and `wsl.detectFacts`.
+ */
+export function wslMirroredRetryOffer(networkMode: string | null | undefined, facts: WslFacts): WslMirroredRetryOffer {
+  if (networkMode !== 'nat' || facts.platform !== 'win32') return blocked('not-nat', null)
+  const policy = facts.policy
+  if (policy.allowNetworkingModeUserSetting === false || policy.defaultNetworkingMode !== null) return blocked('policy', 'policy')
+  if (policy.status === 'unknown') return blocked('policy-unknown', 'policyUnknown')
+  if (facts.wslConfig.status !== 'ok' && facts.wslConfig.status !== 'missing') return blocked('wslconfig-unreadable', 'wslconfigUnreadable')
+  const declared = facts.wslConfig.networkingMode
+  if (declared !== null && declared !== 'mirrored') return blocked('declared', 'declared', { mode: declared })
+  if (facts.windowsBuild !== null && facts.windowsBuild < WSL_MIRRORED_MIN_WINDOWS_BUILD) {
+    return blocked('windows-unsupported', 'windowsUnsupported')
+  }
+  if (isWslTooOld(facts)) return blocked('wsl-too-old', 'wslTooOld')
+  return { offer: true, running: [...facts.running], declaredMirrored: declared === 'mirrored' }
 }

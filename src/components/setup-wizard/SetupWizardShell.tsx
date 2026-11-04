@@ -26,6 +26,7 @@ import {
 } from './error-mapper'
 import { importServerBundleForRetry } from './server-bundle-import'
 import { WizardConsentChecklist, WslAppliedChangesBox } from './WizardConsentChecklist'
+import { requestWslMirroredRetry } from './steps/wsl/connect-test'
 import { readWslAppliedChanges } from './steps/wsl/apply-wsl-environment'
 import { Stepper } from '../stepper/Stepper'
 import { RemoteToolsEntry } from '../profiles/RemoteToolsEntry'
@@ -238,6 +239,8 @@ function defaultActionLabel(
       return t('wizard.action.editConfig')
     case 'import-server-bundle':
       return t('wizard.action.importServerBundle')
+    case 'wsl-mirrored-retry':
+      return t('wizard.action.wslMirroredRetry')
     default:
       return action.kind
   }
@@ -770,6 +773,13 @@ export function SetupWizardShell({ steps, ctx, onComplete }: SetupWizardShellPro
         } catch (err) {
           console.warn('[SetupWizardShell] custom action failed:', err)
         }
+        return
+      // T0841 (PLAN-043 W4, P-5): connect-test reads the request on its next
+      // run and asks for consent before changing anything (`.wslconfig`,
+      // `wsl --shutdown`); declining just fails the step again.
+      case 'wsl-mirrored-retry':
+        requestWslMirroredRetry(ctx.state)
+        await runner?.retryCurrentStep()
         return
       // T0547 (D146): offline / intranet — import a local tarball, then retry the
       // step (the distributor finds it in the cache, verified by its sidecar).

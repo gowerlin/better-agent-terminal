@@ -8,6 +8,10 @@
  *    then systemd must be PID 1.
  * P-4 (linger) stays where it was (write-systemd-unit → `enableLinger`); P-3
  * (root default user) is a notice only (Phase 3 / W7 creates users).
+ * T0841 (W4) adds P-5, `applyNetworkingMirrored`: `.wslconfig`
+ * `[wsl2] networkingMode=mirrored` (same detect → back up → write → read back
+ * pattern, Windows file) + `wsl --shutdown`, offered only after connect-test
+ * failed under NAT (IPC `wsl:apply-network-mirrored`).
  *
  * Rules (work order T0840, CLAUDE.md Child Process Spawning):
  *  - Every fix is idempotent: re-detect first (already fine → `already`, no
@@ -30,8 +34,17 @@
  */
 import * as childProcess from 'child_process'
 import type { ChildProcessWithoutNullStreams } from 'child_process'
+import { constants as fsConstants, promises as fsPromises } from 'fs'
+import path from 'path'
 import { decodeIniBuffer, encodeIniText, getIniValue, iniBackupPath, setIniValue } from './ini-line-editor'
-import { normalizeTextOutput, parseWslListOutput } from './wsl-detect'
+import {
+  defaultWslConfigPath,
+  normalizeTextOutput,
+  parseWslinfoNetworkingMode,
+  parseWslListOutput,
+  toNetworkMode,
+} from './wsl-detect'
+import { WSL_POLICY_KEY, parseRegQueryValues, policyFactsFromValues } from './wsl-facts'
 import { assertValidDistro } from './wsl-validate'
 
 import type {
@@ -52,6 +65,24 @@ type SpawnLike = (
   options: childProcess.SpawnOptionsWithoutStdio,
 ) => ChildProcessWithoutNullStreams
 
+/** T0841: the Windows-side file operations `.wslconfig` needs (tests replace them). */
+export interface WslConfigFileOps {
+  readFile(filePath: string): Promise<Buffer>
+  writeFile(filePath: string, data: Buffer): Promise<void>
+  /** Must fail when `dest` exists (COPYFILE_EXCL): a backup is never overwritten. */
+  copyFile(src: string, dest: string): Promise<void>
+  rename(from: string, to: string): Promise<void>
+  unlink(filePath: string): Promise<void>
+}
+
+const DEFAULT_FILE_OPS: WslConfigFileOps = {
+  readFile: (filePath) => fsPromises.readFile(filePath),
+  writeFile: (filePath, data) => fsPromises.writeFile(filePath, data),
+  copyFile: (src, dest) => fsPromises.copyFile(src, dest, fsConstants.COPYFILE_EXCL),
+  rename: (from, to) => fsPromises.rename(from, to),
+  unlink: (filePath) => fsPromises.unlink(filePath),
+}
+
 export interface WslEnvApplyDeps {
   execFile?: ExecFileLike
   spawn?: SpawnLike
@@ -59,6 +90,12 @@ export interface WslEnvApplyDeps {
   now?: () => Date
   sleep?: (ms: number) => Promise<void>
   log?: (message: string) => void
+  // T0841 (P-5) seams; production uses the real values.
+  files?: WslConfigFileOps
+  /** `%USERPROFILE%\.wslconfig`, resolved when used (never at import time). */
+  wslConfigPath?: () => string
+  platform?: NodeJS.Platform
+  systemRoot?: () => string
 }
 
 export const WSL_CONF_PATH = '/etc/wsl.conf'
@@ -70,6 +107,11 @@ export const SET_VERSION_TIMEOUT_MS = 60 * 60_000
 const PID1_ATTEMPTS = 4
 const PID1_RETRY_MS = 2_000
 const BACKUP_PATH_PATTERN = /^\/etc\/wsl\.conf\.bat-backup-\d{8}-\d{6}$/
+/** T0841: `wsl --shutdown` stops the VM; it normally takes a few seconds. */
+export const SHUTDOWN_TIMEOUT_MS = 60_000
+/** T0841: after the shutdown, wait for the keep-alive holder to start the distro again (restart backoff 2 s). */
+export const MIRRORED_RUNNING_ATTEMPTS = 20
+const MIRRORED_RUNNING_RETRY_MS = 1_000
 
 /** Read `/etc/wsl.conf` as root; marker line first, then the raw bytes (encoding survives). */
 export const READ_WSL_CONF_SCRIPT = [
@@ -126,6 +168,10 @@ export class WslEnvApplier {
   private readonly now: () => Date
   private readonly sleep: (ms: number) => Promise<void>
   private readonly log: (message: string) => void
+  private readonly files: WslConfigFileOps
+  private readonly wslConfigPath: () => string
+  private readonly platform: NodeJS.Platform
+  private readonly systemRoot: () => string
 
   constructor(deps: WslEnvApplyDeps = {}) {
     this.execFileImpl = deps.execFile ?? childProcess.execFile
@@ -133,6 +179,10 @@ export class WslEnvApplier {
     this.now = deps.now ?? (() => new Date())
     this.sleep = deps.sleep ?? defaultSleep
     this.log = deps.log ?? (() => undefined)
+    this.files = deps.files ?? DEFAULT_FILE_OPS
+    this.wslConfigPath = deps.wslConfigPath ?? defaultWslConfigPath
+    this.platform = deps.platform ?? process.platform
+    this.systemRoot = deps.systemRoot ?? (() => process.env.SystemRoot ?? 'C:\\Windows')
   }
 
   /** Apply one consented item. Never throws: failures come back as `ok: false`. */
@@ -271,6 +321,186 @@ export class WslEnvApplier {
       if (isAbort(error, signal)) return this.fail('wsl-systemd-enable-failed', 'Aborted.', changes, terminated, true)
       const code: WslEnvApplyErrorCode = phase === 'terminate' ? 'wsl-terminate-failed' : 'wsl-systemd-enable-failed'
       return this.fail(code, describeExecError(error), changes, terminated)
+    }
+  }
+
+  /**
+   * T0841 (PLAN-043 W4, P-5): `.wslconfig` `[wsl2] networkingMode=mirrored`,
+   * then `wsl --shutdown`, then wait for the keep-alive holder to start
+   * `distro` again and verify with `wslinfo --networking-mode`.
+   *
+   *  - Re-detect first: a WSL networking policy (`AllowNetworkingModeUserSetting=0`
+   *    / `DefaultNetworkingMode`, or a policy key that cannot be read) or another
+   *    `networkingMode` the user declared → nothing is written, nothing shut down.
+   *  - `.wslconfig` exists → copied to `.wslconfig.bat-backup-<system time>`
+   *    (never overwriting a backup) before the T0838 editor changes that one line;
+   *    the result goes to a temp file renamed over the original, then is read back.
+   *    Already `mirrored` → no write (outcome `already`), the shutdown still runs.
+   *  - `wsl --shutdown` gets no signal: once it started, the VM goes down anyway;
+   *    the wizard marks this part uninterruptible. Abort is honoured before it
+   *    and while waiting afterwards.
+   *  - Nothing is undone (D272); the change and the backup come back in `changes`.
+   * `terminated: true` = `wsl --shutdown` ran (every distro was stopped).
+   */
+  async applyNetworkingMirrored(distro: string, options: { signal?: AbortSignal } = {}): Promise<WslEnvApplyResult> {
+    const startedAt = Date.now()
+    const result = await this.networkingMirrored(distro, options.signal)
+    this.log(
+      `[wsl-env-apply] network-mirrored -> ${result.ok ? result.outcome : `${result.errorCode}${result.aborted ? ' (aborted)' : ''}`}`
+      + ` changes=${result.changes.length} shutdown=${result.terminated} ms=${Date.now() - startedAt}`,
+    )
+    return result
+  }
+
+  private async networkingMirrored(distro: string, signal?: AbortSignal): Promise<WslEnvApplyResult> {
+    const changes: WslEnvChange[] = []
+    let shutdown = false
+    try {
+      assertValidDistro(distro)
+    } catch (error) {
+      return this.fail('wsl-env-apply-invalid', error instanceof Error ? error.message : String(error), changes, false)
+    }
+    if (this.platform !== 'win32') {
+      return this.fail('wsl-env-apply-invalid', '.wslconfig is only used on Windows.', changes, false)
+    }
+    const configPath = this.wslConfigPath()
+    let phase: 'policy' | 'file' | 'shutdown' | 'verify' = 'policy'
+    try {
+      throwIfAborted(signal)
+      const policyBlock = await this.networkingPolicyBlock(signal)
+      if (policyBlock) return this.fail('wsl-network-mode-policy', policyBlock, changes, false)
+
+      phase = 'file'
+      throwIfAborted(signal)
+      let original: Buffer | null
+      try {
+        original = await this.files.readFile(configPath)
+      } catch (error) {
+        const code = (error as NodeJS.ErrnoException).code
+        if (code !== 'ENOENT' && code !== 'ENOTDIR') throw error
+        original = null
+      }
+      let text = ''
+      let encoding: Parameters<typeof encodeIniText>[1] = 'utf8'
+      if (original) {
+        const decoded = decodeIniBuffer(original)
+        if (!decoded.ok) return this.fail('wsl-wslconfig-write-failed', `.wslconfig: ${decoded.message}`, changes, false)
+        text = decoded.text
+        encoding = decoded.encoding
+      }
+      const declared = getIniValue(text, 'wsl2', 'networkingMode')
+      if (!declared.ok) return this.fail('wsl-wslconfig-write-failed', `.wslconfig: ${declared.message}`, changes, false)
+      if (declared.value !== null && toNetworkMode(declared.value) !== 'mirrored') {
+        // T0831 〈風險〉: a mode the user chose is never overwritten.
+        return this.fail(
+          'wsl-network-mode-declared',
+          `.wslconfig already sets [wsl2] networkingMode=${toNetworkMode(declared.value)}; BAT does not change it.`,
+          changes,
+          false,
+        )
+      }
+      // Already mirrored (any case, WSL compares case-insensitively) → nothing to write.
+      const alreadyMirrored = declared.value !== null
+      const edit = alreadyMirrored
+        ? { ok: true as const, changed: false, text }
+        : setIniValue(text, 'wsl2', 'networkingMode', 'mirrored')
+      if (!edit.ok) return this.fail('wsl-wslconfig-write-failed', `.wslconfig: ${edit.message}`, changes, false)
+
+      if (edit.changed) {
+        let backupPath: string | null = null
+        if (original) {
+          backupPath = iniBackupPath(configPath, this.now())
+          throwIfAborted(signal)
+          await this.files.copyFile(configPath, backupPath)
+        }
+        throwIfAborted(signal)
+        const tempPath = `${configPath}.bat-tmp`
+        await this.files.writeFile(tempPath, encodeIniText(edit.text, encoding))
+        try {
+          await this.files.rename(tempPath, configPath)
+        } catch (error) {
+          await this.files.unlink(tempPath).catch(() => undefined)
+          throw error
+        }
+        changes.push({ item: 'network-mirrored', kind: 'file', path: configPath, backupPath })
+        // Verify the write by reading it back.
+        const reread = decodeIniBuffer(await this.files.readFile(configPath))
+        const value = reread.ok ? getIniValue(reread.text, 'wsl2', 'networkingMode') : null
+        if (!value?.ok || value.value === null || toNetworkMode(value.value) !== 'mirrored') {
+          return this.fail('wsl-wslconfig-write-failed', '.wslconfig does not have [wsl2] networkingMode=mirrored after writing it.', changes, false)
+        }
+      }
+
+      phase = 'shutdown'
+      throwIfAborted(signal)
+      // No signal on purpose (see the method comment).
+      await this.exec('wsl', ['--shutdown'], { timeoutMs: SHUTDOWN_TIMEOUT_MS })
+      shutdown = true
+
+      phase = 'verify'
+      // The keep-alive holder restarts after its backoff (2 s) and starts the distro.
+      for (let attempt = 1; attempt <= MIRRORED_RUNNING_ATTEMPTS; attempt += 1) {
+        throwIfAborted(signal)
+        if (await this.distroRunning(distro, signal)) break
+        if (attempt < MIRRORED_RUNNING_ATTEMPTS) await this.sleep(MIRRORED_RUNNING_RETRY_MS)
+      }
+      // Not Running yet is not an error: `wsl -d` below starts it.
+      throwIfAborted(signal)
+      const mode = await this.actualNetworkingMode(distro, signal)
+      if (mode !== 'mirrored') {
+        return this.fail(
+          'wsl-network-mode-not-applied',
+          `WSL is still in ${mode} mode after wsl --shutdown (Mirrored needs Windows 11 22H2 or later and WSL 2.0+).`,
+          changes,
+          shutdown,
+        )
+      }
+      return { ok: true, outcome: edit.changed ? 'applied' : 'already', changes, terminated: shutdown }
+    } catch (error) {
+      if (isAbort(error, signal)) {
+        return this.fail(phase === 'verify' ? 'wsl-network-mode-not-applied' : 'wsl-wslconfig-write-failed', 'Aborted.', changes, shutdown, true)
+      }
+      const code: WslEnvApplyErrorCode = phase === 'policy'
+        ? 'wsl-network-mode-policy'
+        : phase === 'shutdown'
+          ? 'wsl-shutdown-failed'
+          : phase === 'verify' ? 'wsl-network-mode-not-applied' : 'wsl-wslconfig-write-failed'
+      return this.fail(code, describeExecError(error), changes, shutdown)
+    }
+  }
+
+  /** A reason when a WSL networking policy decides the mode (or cannot be read); null = no such policy. */
+  private async networkingPolicyBlock(signal?: AbortSignal): Promise<string | null> {
+    // Absolute System32 path: PATH (e.g. Git Bash) may carry another `reg`.
+    const regExe = path.win32.join(this.systemRoot(), 'System32', 'reg.exe')
+    let stdout: Buffer
+    try {
+      stdout = (await this.exec(regExe, ['query', WSL_POLICY_KEY], { timeoutMs: QUICK_TIMEOUT_MS, signal })).stdout
+    } catch (error) {
+      if (isAbort(error, signal)) throw error
+      // reg.exe exits 1 when the key does not exist (no WSL policy at all).
+      if ((error as { code?: unknown }).code === 1) return null
+      return `The WSL policy key could not be read: ${describeExecError(error)}`
+    }
+    const policy = policyFactsFromValues('present', parseRegQueryValues(normalizeTextOutput(stdout)))
+    if (policy.allowNetworkingModeUserSetting === false) return 'A WSL policy (AllowNetworkingModeUserSetting=0) does not allow changing the networking mode.'
+    if (policy.defaultNetworkingMode !== null) return `A WSL policy sets the networking mode (DefaultNetworkingMode=${policy.defaultNetworkingMode}).`
+    return null
+  }
+
+  private async distroRunning(distro: string, signal?: AbortSignal): Promise<boolean> {
+    const { stdout } = await this.exec('wsl', ['-l', '-v'], { timeoutMs: QUICK_TIMEOUT_MS, signal })
+    const found = parseWslListOutput(stdout).distros.find((d) => d.name.toLowerCase() === distro.toLowerCase())
+    return found?.state === 'Running'
+  }
+
+  private async actualNetworkingMode(distro: string, signal?: AbortSignal): Promise<string> {
+    try {
+      const { stdout } = await this.exec('wsl', ['-d', distro, '--', 'wslinfo', '--networking-mode'], { timeoutMs: QUICK_TIMEOUT_MS, signal })
+      return parseWslinfoNetworkingMode(stdout)
+    } catch (error) {
+      if (isAbort(error, signal)) throw error
+      return 'unknown'
     }
   }
 

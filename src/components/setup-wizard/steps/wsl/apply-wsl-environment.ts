@@ -32,7 +32,8 @@ export function readWslAppliedChanges(state: Record<string, unknown>): WslApplie
   return Array.isArray(value) ? (value as WslAppliedChange[]) : []
 }
 
-function recordChanges(ctx: WizardContext, distro: string, changes: WslEnvChange[]): void {
+/** T0841: also used by connect-test (P-5, `.wslconfig`). */
+export function recordWslAppliedChanges(ctx: WizardContext, distro: string, changes: WslEnvChange[]): void {
   const list = readWslAppliedChanges(ctx.state)
   for (const change of changes) {
     const exists = list.some((c) =>
@@ -76,7 +77,7 @@ export const applyWslEnvironmentStep: WizardStep = {
         if (uninterruptible) ctx.setUninterruptible?.(null)
       }
       // Record first: an aborted or failed item may still have changed something.
-      recordChanges(ctx, distro, result.changes)
+      recordWslAppliedChanges(ctx, distro, result.changes)
       if (result.ok) {
         ctx.logger.info(`WSL environment fix ${id}: ${result.outcome}`)
         continue

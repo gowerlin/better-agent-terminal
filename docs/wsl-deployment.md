@@ -70,7 +70,7 @@ shows its progress; a failed step shows the reason with Retry / Skip / Cancel
 | 6 | `install-server-bundle` | Install BAT server bundle | Gets the server bundle for this BAT version and installs it into `~/.local/bat-server`. Also records the WSL networking mode (see below). |
 | 7 | `write-systemd-unit` | Set up and start the server service | Picks a port, writes `~/.config/systemd/user/bat-server.service`, reloads the user daemon, starts the service, and enables linger (`loginctl enable-linger`, checked as `Linger=yes`). |
 | 8 | `fetch-fingerprint` | Fetch TLS fingerprint | Opens a TLS connection to `127.0.0.1:<port>` and records the certificate's SHA-256 fingerprint from the handshake (up to 5 tries, 1 s apart). There is no HTTP endpoint. |
-| 9 | `connect-test` | Verify remote connection | Connects with the token and the recorded fingerprint, as a saved profile would. |
+| 9 | `connect-test` | Verify remote connection | Connects with the token and the recorded fingerprint, as a saved profile would. Under NAT a failure may offer **Switch to Mirrored and retry** (see [below](#switch-to-mirrored-and-retry-t0841)). |
 | 10 | `write-profile` | Save remote profile | Creates the profile `WSL <distro>`, or updates the existing one (see [Upgrade](#upgrade)). |
 | 11 | `done` | Finalize | Lists the warnings collected along the way, and the environment changes made (see below). |
 
@@ -157,6 +157,51 @@ Mirrored networking is optional. To use it, add this to
 [wsl2]
 networkingMode=mirrored
 ```
+
+#### Switch to Mirrored and retry (T0841)
+
+Only when the connection test (step 9) fails **and** the actual mode is
+`nat`, the wizard checks again (`wsl.detectFacts`; rule
+`wslMirroredRetryOffer`, `src/components/setup-wizard/wsl-env-plan.ts`) and,
+when nothing forbids it, the error screen gets one more action, **Switch to
+Mirrored and retry** (error code `wsl-connect-test-failed-nat`). It is never
+offered, and the screen only adds a hint line, when:
+
+| Case | Why |
+|------|-----|
+| A WSL policy sets `AllowNetworkingModeUserSetting=0` or `DefaultNetworkingMode` (`HKLM\SOFTWARE\Policies\WSL`), or the policy key cannot be read | The policy wins over `.wslconfig`; changing the file would do nothing. |
+| `.wslconfig` already declares another `networkingMode` (`nat`, `none`, `consomme`, an unknown value) | BAT never overwrites a mode the user chose. |
+| `.wslconfig` cannot be read or parsed | BAT never writes a file it cannot parse. |
+| Windows build before 22621, or WSL older than 2.0.4 | Mirrored is not available. |
+
+The action asks first, in a small consent box (same checklist as the
+environment check): one optional item, unchecked by default, tagged
+**This user**, with the warning that `wsl --shutdown` stops **every** distro
+and the list of distros running right now. **Keep NAT** (or confirming with
+the item unchecked) changes nothing and shows the same error again. After
+consent (`wsl:apply-network-mirrored`, `applyNetworkingMirrored` in
+`electron/wsl-env-apply.ts`):
+
+1. Re-checks the policy and `.wslconfig` (a change since the error screen
+   stops here with `wsl-network-mode-policy` / `wsl-network-mode-declared`).
+2. Copies an existing `.wslconfig` to `.wslconfig.bat-backup-<YYYYMMDD-HHMMSS>`
+   (system time, never overwriting a backup), changes only
+   `[wsl2] networkingMode=mirrored` with the line editor (other lines and the
+   encoding are kept; a missing file is created), writes it through a temp
+   file renamed over the original, and reads it back. Already `mirrored` (set
+   but not in effect yet): nothing is written.
+3. Runs `wsl --shutdown` (cannot be stopped once started; the wizard says so
+   while it runs).
+4. Waits up to about 20 s for the keep-alive holder to start the distro
+   again, then verifies with `wslinfo --networking-mode`; still `nat` →
+   `wsl-network-mode-not-applied`.
+5. Runs the connection test again, waiting up to about 30 s for the BAT
+   server to come back with the distro.
+
+Failures in steps 1–4 show **Could not switch WSL to Mirrored mode** with
+retry / skip / cancel. Nothing is undone: the done / cancel screen lists the
+`.wslconfig` change and its backup with the other WSL environment changes. To
+go back, restore the backup and run `wsl --shutdown`.
 
 ### Server data
 
@@ -343,9 +388,12 @@ the WSL server." means the whole range is taken.
 
 ### NAT warning
 
-NAT works for the usual setup; act only if the connection test fails. If
-`.wslconfig` asks for mirrored but it is not in effect, run `wsl --shutdown`
-and run the wizard again.
+NAT works for the usual setup; act only if the connection test fails. Then
+the error screen offers **Switch to Mirrored and retry** unless a policy, your
+own `.wslconfig` setting or the Windows / WSL version rules it out (see
+[Switch to Mirrored and retry](#switch-to-mirrored-and-retry-t0841)). If
+`.wslconfig` asks for mirrored but it is not in effect, the same action only
+runs `wsl --shutdown`; you can also run it yourself and run the wizard again.
 
 ### Permission denied under `~/.local`
 
@@ -388,6 +436,13 @@ or systemd):
   remove it afterwards with `wsl --unregister BAT-T-<n>`.
 - Turning keepalive off on the profile stops the holder `wsl.exe`; the distro
   shuts down after WSL's idle timeout, and the next connection starts it again.
+- Only in a session the user agreed to (it runs `wsl --shutdown`, stopping
+  every distro): with `.wslconfig` set to NAT (keep a copy) and a connection
+  test that fails, **Switch to Mirrored and retry** lists the running distros,
+  writes `.wslconfig.bat-backup-*`, shuts WSL down, the distro comes back
+  through the keep-alive, `wslinfo --networking-mode` reports `mirrored` and
+  the connection test passes; the done screen lists the `.wslconfig` change
+  (T0841).
 
 ## Notes
 

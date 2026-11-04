@@ -3831,6 +3831,22 @@ function registerLocalHandlers() {
       operation.end()
     }
   })
+  // T0841 (PLAN-043 W4, P-5): the user consented to "Switch to Mirrored and retry"
+  // after connect-test failed under NAT. Pin the keep-alive first so the holder
+  // brings the distro back after `wsl --shutdown` (wsl-env-apply.ts waits for it).
+  ipcMain.handle('wsl:apply-network-mirrored', async (_event, distro: string, options?: { operationId?: string }) => {
+    try {
+      wslKeepAlive.pin(distro)
+    } catch (err) {
+      logger.error(`[wizard] apply-network-mirrored keep-alive pin failed: ${err instanceof Error ? err.message : String(err)}`)
+    }
+    const operation = wizardOperations.begin(options?.operationId)
+    try {
+      return await wslEnvApplier.applyNetworkingMirrored(distro, operation.signal ? { signal: operation.signal } : {})
+    } finally {
+      operation.end()
+    }
+  })
   // T0840: wsl-systemd-check verifies systemd is PID 1 (same signal as the plan).
   ipcMain.handle('wsl:systemd-running', (_event, distro: string) => wslDetect.systemdRunning(distro))
   // T0378 (BUG-087 B): absolute $HOME so the systemd unit never contains `~`.

@@ -109,6 +109,10 @@ export interface WizardConsentRequest {
   params?: Record<string, string>
   /** Distros in state Running, listed when an item terminates / shuts down WSL. */
   runningDistros?: string[]
+  /** T0841: label of the confirm button (default `wizard.wsl.plan.confirm`). */
+  confirmKey?: string
+  /** T0841: set → a second button that answers with no item checked (decline). */
+  declineKey?: string
 }
 
 export interface WizardLogger {

@@ -616,6 +616,9 @@ const electronAPI = {
     // T0840 (PLAN-043 W3): apply one consented environment fix (electron/wsl-env-apply.ts).
     applyEnvItem: (distro: string, item: import('../src/components/setup-wizard/wsl-env-plan').WslEnvApplyItemId, options?: { operationId?: string }) =>
       ipcRenderer.invoke('wsl:apply-env-item', distro, item, options) as Promise<import('../src/components/setup-wizard/wsl-env-plan').WslEnvApplyResult>,
+    // T0841 (PLAN-043 W4, P-5): `.wslconfig` networkingMode=mirrored + `wsl --shutdown` + verify (electron/wsl-env-apply.ts).
+    applyNetworkMirrored: (distro: string, options?: { operationId?: string }) =>
+      ipcRenderer.invoke('wsl:apply-network-mirrored', distro, options) as Promise<import('../src/components/setup-wizard/wsl-env-plan').WslEnvApplyResult>,
     // T0840: systemd is PID 1 in the distro right now (wsl-systemd-check verification).
     systemdRunning: (distro: string) => ipcRenderer.invoke('wsl:systemd-running', distro) as Promise<boolean>,
     resolveHome: (distro: string) => ipcRenderer.invoke('wsl:resolve-home', distro) as Promise<string>,

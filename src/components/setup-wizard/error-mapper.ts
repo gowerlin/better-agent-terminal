@@ -74,6 +74,9 @@ export type WizardRecoveryAction =
   | ({ kind: 'custom'; run: () => Promise<void> | void } & WizardRequiredActionLabel)
   // T0547 (D146): pick a local server bundle tarball, then retry the step.
   | ({ kind: 'import-server-bundle' } & WizardActionLabel)
+  // T0841 (PLAN-043 W4, P-5): connect-test failed under NAT — retry the step,
+  // which first asks to switch WSL to Mirrored (consent, `.wslconfig`, `wsl --shutdown`).
+  | ({ kind: 'wsl-mirrored-retry' } & WizardActionLabel)
 
 /**
  * Backwards-compat alias kept so T0331/T0332 callsites compile without
@@ -557,6 +560,33 @@ export const DEFAULT_WIZARD_ERROR_REGISTRY: WizardErrorMatch[] = [
     messageKey: 'wizard.shared.error.profileSaveFailed',
     detailMode: 'hidden-by-default',
     actions: [{ kind: 'cancel' }],
+  },
+  // T0841 (PLAN-043 W4, P-5): before 'connect-test-failed' (stage 1 is first
+  // match). Only thrown when the WSL mode is NAT and Mirrored may be offered
+  // (`wslMirroredRetryOffer`); the extra action asks before changing anything.
+  {
+    id: 'wsl-connect-test-failed-nat',
+    platforms: ['wsl'],
+    stepIds: ['connect-test'],
+    errorCodes: ['wsl-connect-test-failed-nat'],
+    messageKey: 'wizard.wsl.error.connectTestFailedNat',
+    detailMode: 'append-raw',
+    actions: [{ kind: 'wsl-mirrored-retry' }, { kind: 'retry' }, { kind: 'skip' }, { kind: 'cancel' }],
+  },
+  {
+    id: 'wsl-mirrored-retry-failed',
+    platforms: ['wsl'],
+    stepIds: ['connect-test'],
+    errorCodes: [
+      'wsl-network-mode-policy',
+      'wsl-network-mode-declared',
+      'wsl-wslconfig-write-failed',
+      'wsl-shutdown-failed',
+      'wsl-network-mode-not-applied',
+    ],
+    messageKey: 'wizard.wsl.error.mirroredFailed',
+    detailMode: 'append-raw',
+    actions: [{ kind: 'retry' }, { kind: 'skip' }, { kind: 'cancel' }],
   },
   {
     id: 'connect-test-failed',
