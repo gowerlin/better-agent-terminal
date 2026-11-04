@@ -12,6 +12,7 @@
 | [ct-plugin-install.md](ct-plugin-install.md) | CT zip / plugin 安裝判斷：Codex 派工送 `$ct-exec` / `$ct:ct-exec`、`terminal:control-tower-prompt`、ct-config 預設值層與 skill 面板認得 `ct@*` plugin | CT plugin 安裝（T0710） |
 | [ct-tower-overview.md](ct-tower-overview.md) | 指揮塔「總覽」：`_tower-state.md` 摘要契約 v1、`*config` 三層生效值與來源、`ct:read-config-sources`、無狀態工單計數、自動更新 | 指揮塔總覽（T0701，D184） |
 | [detached-workspace.md](detached-workspace.md) | detached 視窗的 registry 合併、所有權、關窗 flush、quit 互動、Settings 入口 | Detached workspace 視窗的持久化（T0453 / T0491） |
+| [docker-remote.md](docker-remote.md) | Docker 遠端 (c′)：基底映像＋bundle volume（D283）、精靈 9 步、`docker run` / 一次性 job 參數不變式、volume 與 ownership、rollback 順序、`execCommand` 只允許 rm、U3（映像內建 server）、重跑＝升級、權杖取得順序（T0849）、選容器（T0851）、日誌、已知限制、驗證（單元、T0743 e2e＋shim、`scripts/docker-acceptance.mjs` / `docker-acceptance.yml`） | Docker 遠端：基底映像＋bundle volume（PLAN-052 / D283） |
 | [dialog-close-and-escape.md](dialog-close-and-escape.md) | Dialog 不因點擊外部關閉、`ModalOverlay`、Esc 統一 | Dialog 不因點擊外部關閉（T0563）、Esc 統一（T0567） |
 | [headless-login-shell-path.md](headless-login-shell-path.md) | headless bat-server 啟動時以登入 shell 取得 PATH（`-l -i` + 隨機標記、detached + 逾時砍程序群組、合併規則、`headlessLoginShellPath` 開關、套用點、影響、實測） | headless server 的登入 shell PATH（PLAN-057 / T0755，D206 / D207） |
 | [helper-query-channels.md](helper-query-channels.md) | helper 唯讀查詢 channel（whoami / list / get-state / read-output / wait） | helper 唯讀查詢 channel（PLAN-047 M1 / T0582） |

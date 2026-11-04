@@ -446,6 +446,16 @@
 - 終端（T0835）：拖放不可達的檔上傳後以引號路徑貼上（`buildTerminalUploadInsertion`，`src/lib/terminal-drop.ts`）；🔴 Ctrl+V 圖片只有 SSH / Docker profile（`imagePasteModeFor`，`src/lib/terminal-paste.ts`）改上傳 PNG 後貼路徑、不送貼圖鍵，本機 / WSL / 舊遠端照舊送鍵；host 清理 `createPtyUploadDisposer`（`electron/remote/headless-entry.ts`，main 與 headless 共用）：`onPtyExit` 後 10 s 該 id 仍不在才 `disposeSession(ptyId)`（⏻ 重啟保留），🔴 不改 PTY 生命週期。
 - 完整規則、檔名清理、上限與錯誤碼、清理、日誌、已知限制、驗證：[docs/agent-guide/remote-file-upload.md](docs/agent-guide/remote-file-upload.md)
 
+## Docker 遠端：基底映像＋bundle volume（PLAN-052 / D283）
+
+- 用途：Docker 精靈「建立新容器」pull 基底映像（預設 `buildpack-deps:bookworm-scm`，可改填；需 glibc ≥ 2.35、`/bin/sh`、`tar`、`gzip`），server bundle 經 distributor（draft 帶 `dockerServerArch`）裝進 volume `bat-server-<name>-bundle`（`/opt/bat`），再以基底映像建立容器；映像自己會啟動 `/opt/bat-server/bin/bat-server`（`bat-server:latest`，U3）時略過安裝。「沿用既有容器」選到 BAT 建立的 (c′) 容器＝升級（同版不動、不同版先問、restart）；重跑更新同容器的 profile（T0850）。
+- 🔴 容器參數唯一實作 `buildBatContainerRunArgs`：只有 `-p 127.0.0.1:<P>:9876`、沒有 `--token`（權杖由 server 寫在 data volume，healthy 後經 `readServerToken` 讀）、`--user 0:0`、`--init`、label `bat.server=1`、`--data-dir /var/lib/bat-server`（0700，cert / token 0600）。
+- 🔴 `docker.execCommand` 只允許 `['rm','-rf',<bundle root>]`，其他一律拒絕、不呼叫 docker；不開放通用 exec。`removeBatVolume` 只刪有 `bat.server=1` 的 volume，精靈只刪本次 `created: true` 的。
+- 🔴 rollback 順序：先移除本次建立的容器 → 再還原 `kept` 的舊 bundle（升級時再 restart）→ 最後刪本次建立的 volume。Shell 的 pull 進度只顯示本次 `operationId` 的事件。日誌只記結果碼 / 數量 / 版本，不記 docker 參數、權杖、憑證、env。
+- 唯一實作：原語 `electron/docker-bundle-volume.ts`（不 import electron、不寫日誌）、權杖 / 既有容器 `electron/docker-lifecycle.ts`、精靈 `src/components/setup-wizard/steps/docker/`（`install-server-bundle.ts` / `start-server.ts` / `pick-container.ts`）。
+- 驗證：單元測試、opt-in e2e `e2e/t0743-docker-wizard.spec.ts`（shim 只放行 BAT 用的子指令與測試前綴的容器 / volume）、真 Docker `scripts/docker-acceptance.mjs`＋`docker-acceptance.yml`（🔴 只 `workflow_dispatch`、唯讀權杖、不傳 secret、不建 tag / release、不放進發版關卡）。
+- 完整流程、不變式、權杖取得順序、選容器、已知限制、驗證清單：[docs/agent-guide/docker-remote.md](docs/agent-guide/docker-remote.md)
+
 ## headless server 的登入 shell PATH（PLAN-057 / T0755，D206 / D207）
 
 - 用途：bat-server 由 systemd / launchd / 容器 ENTRYPOINT 啟動，PATH 沒有 `~/.local/bin`、nvm、Homebrew；啟動時以登入 shell 取一次 PATH 合併進 `process.env.PATH`，讓 server 程序的子程序（Claude 面板 Bash 工具 / MCP、system claude、codex、工具面板伺服器檢視）找得到。

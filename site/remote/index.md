@@ -7,7 +7,7 @@ description: BAT 留在你的電腦，Agent 在 WSL、SSH 主機或 Docker 容�
 const chooseRows = [
   ['WSL', '在 Windows 上想用 Linux 的工具鏈，不想多開一台機器', 'Windows 版 BAT、WSL2 發行版、發行版裡啟用 systemd', '只能從 Windows 版 BAT 設定'],
   ['SSH', '程式碼與執行環境在另一台機器：公司開發機、雲端主機', '能用金鑰登入的 Linux（x64、arm64）或 Apple Silicon macOS 主機', '不支援密碼登入；不支援 Intel Mac 主機'],
-  ['Docker', '想把每個專案的環境隔開、隨時可以重建', 'Docker Desktop 或 Docker Engine，以及自己從原始碼建置的伺服器映像', '映像目前沒有公開發佈；容器是 linux/amd64']
+  ['Docker', '想把每個專案的環境隔開、隨時可以重建', 'Docker Desktop 或 Docker Engine（Linux 容器）', '基底映像需要 glibc 2.35 以上（Alpine 不能用）；x86-64 或 arm64']
 ]
 </script>
 
@@ -25,7 +25,7 @@ BAT 留在你的電腦，Agent 在遠端環境執行。遠端可以是 WSL 發�
 
 <CardTable caption="WSL、SSH、Docker 對照" :columns="['', '適合', '需要', '限制']" :rows="chooseRows" />
 
-拿不定主意時：用 Windows 就從 [WSL](./wsl) 開始；程式碼在另一台機器上，用 [SSH](./ssh)。[Docker](./docker) 目前需要自己建置伺服器映像，適合已經熟悉 Docker 的人。
+拿不定主意時：用 Windows 就從 [WSL](./wsl) 開始；程式碼在另一台機器上，用 [SSH](./ssh)。想把環境隔開、隨時重建，用 [Docker](./docker)：精靈會拉取基底映像，並把伺服器裝進容器的 volume。
 
 ## 設定精靈做了哪些事 {#wizard}
 
@@ -43,13 +43,13 @@ BAT 留在你的電腦，Agent 在遠端環境執行。遠端可以是 WSL 發�
 
 ## 伺服器套件從哪來 {#server-bundle}
 
-WSL 與 SSH 的伺服器套件不包在安裝檔裡。第一次設定時，BAT 從 GitHub 上對應版本的 `server-bundle-v<版號>` 下載，並快取在你的電腦上；之後同一版直接用快取，不再下載。
+WSL、SSH 與 Docker 的伺服器套件不包在安裝檔裡。第一次設定時，BAT 從 GitHub 上對應版本的 `server-bundle-v<版號>` 下載，並快取在你的電腦上；之後同一版直接用快取，不再下載。
 
 - **連不到 GitHub**：精靈會顯示「無法下載 BAT 伺服器套件」，按「匯入本機 tarball…」，選你從別台電腦下載的 `.tar.gz` 與同名的 `.sha256` 檔。步驟見[常見問題](../faq#server-bundle)。
 - **內部鏡像站**：把環境變數 `BAT_SERVER_BUNDLE_BASE_URL` 設成鏡像網址，再重新啟動 BAT。
 - **有哪些版本**：Linux x64、Linux arm64、Apple Silicon macOS，精靈會依遠端的架構挑選。
 
-Docker 不走這條路：伺服器已經包在你建置的映像裡，見 [Docker](./docker#image)。
+Docker 也走這條路：精靈把套件裝進容器的 volume，基底映像本身不用含伺服器，見 [Docker](./docker#image)。
 
 ## 憑證指紋 {#fingerprint}
 
@@ -59,7 +59,7 @@ Docker 不走這條路：伺服器已經包在你建置的映像裡，見 [Docke
 
 1. 先確認是你自己重裝的。不是的話，不要繼續連線，先找出原因。
 2. WSL 與 SSH：對同一個環境再執行一次設定精靈，會更新同一筆設定的指紋與權杖。
-3. Docker：刪掉舊的連線設定，再執行一次設定精靈。
+3. Docker：對同一個容器再執行一次設定精靈（選「沿用既有容器」再選那個容器），會更新同一筆設定。
 
 WSL 與 Docker 的設定還有另一個做法：在「配置」裡按那筆設定的齒輪 **編輯連線**，再按 **重新釘選指紋**，BAT 會連到伺服器，記下它現在的指紋。用之前請注意：
 
@@ -96,7 +96,7 @@ claude、codex、uv、git、gh、rg 與 Node.js 缺的話，可以按「安裝�
 
 ## 升級與移除 {#upgrade-remove}
 
-- **升級**：升級 BAT 之後，對同一個環境再執行一次設定精靈。WSL 與 SSH 會先裝好新版、確認可用才換上去，並更新原本那筆設定；Docker 要先用新版原始碼重新建置映像。
+- **升級**：升級 BAT 之後，對同一個環境再執行一次設定精靈。WSL 與 SSH 會先裝好新版、確認可用才換上去，並更新原本那筆設定；Docker 選「沿用既有容器」再選 BAT 建立的那個容器，精靈會先問你，再換上新版並重新啟動容器。
 - **移除**：在「配置」裡刪除一筆設定，只會刪掉 BAT 這邊的設定，遠端的伺服器還在。BAT 目前沒有一鍵移除遠端伺服器的功能，各環境的移除指令見 [WSL](./wsl#remove)、[SSH](./ssh#remove)、[Docker](./docker#remove)。
 
 ## 在遠端用塔台與 Worker {#tower}

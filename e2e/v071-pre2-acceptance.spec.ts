@@ -824,13 +824,20 @@ test.describe('T0663 wizard lane (V3 / V4 / V5)', () => {
     record('V5.docker-step-text', stale.length === 0 && shellText.includes(zh('wizard.docker.step.pickContainer.description')) && shellText.includes(zh('wizard.docker.step.configureMounts.label')), [
       `stale step text: ${stale.join(', ') || 'none'}`, `current descriptions present: pickContainer ${shellText.includes(zh('wizard.docker.step.pickContainer.description'))}, configureMounts label ${shellText.includes(zh('wizard.docker.step.configureMounts.label'))}`])
 
-    // "Use existing" with no containers → docker-no-containers (stubbed list, nothing is created)
+    // "Use existing" with no containers (stubbed list, nothing is created). T0851: an explanation
+    // with "Create new instead" comes first; the docker-no-containers error is only thrown when that
+    // prompt is answered with something else (headless runs), which the UI cannot do. The prompt
+    // has no dismiss button, so the wizard is closed here.
     await prompt.getByRole('button', { name: zh('wizard.docker.pickContainer.existing.label'), exact: true }).click()
-    const err = await mappedError(shell)
+    await expect(prompt.locator('.bat-wizard-prompt-title')).toHaveText(zh('wizard.docker.pickContainer.none.title'), { timeout: 30_000 })
+    const noneDesc = (await prompt.locator(':scope > .bat-wizard-prompt-description').innerText().catch(() => '')).trim()
+    const noneButtons = await prompt.locator('button.bat-wizard-choice').allInnerTexts()
+    const noneError = await shell.locator('.bat-wizard-mapped-error').count()
     await shot(win, 'v4a-docker-no-containers')
     await closeWizard(win)
-    record('V4.a-docker-no-containers', err.title === zh('wizard.docker.error.noContainers.title') && err.body === zh('wizard.docker.error.noContainers.body'), [
-      `mapped error title ${JSON.stringify(err.title)} body ${JSON.stringify(err.body)}`, `× ${JSON.stringify(closeLabel)}`])
+    record('V4.a-docker-no-containers', noneDesc === zh('wizard.docker.pickContainer.none.empty')
+      && noneButtons.map(b => b.trim()).join('|') === zh('wizard.docker.pickContainer.none.createNew') && noneError === 0, [
+      `T0851 hint: description ${JSON.stringify(noneDesc)}, buttons ${JSON.stringify(noneButtons)}, mapped error boxes ${noneError}`, `× ${JSON.stringify(closeLabel)}`])
   })
 
   test('WSL wizard: title, distro menu, button styles', async () => {
@@ -1025,8 +1032,9 @@ test.describe('T0663 wizard lane (V3 / V4 / V5)', () => {
   })
 
   test('V4 a: error codes not triggered here', async () => {
-    const triggered = ['docker-daemon-down (natural)', 'docker-no-containers', 'wsl-requires-wsl2', 'wsl-home-unresolved', 'permission-denied (real ssh)']
+    const triggered = ['docker-daemon-down (natural)', 'docker no-container hint (T0851)', 'wsl-requires-wsl2', 'wsl-home-unresolved', 'permission-denied (real ssh)']
     const notTriggered = [
+      'docker-no-containers (T0851: the UI shows a hint with "Create new instead" instead; unit tests cover the error)',
       'wizard-precondition-missing', 'wizard-profile-save-failed', 'connect-test-failed', 'server-bundle-install-failed', 'server-bundle-distribute-failed',
       'docker-container-names-exhausted', 'docker-mounts-none', 'docker-mounts-invalid', 'docker-inspect-failed', 'docker-container-not-owned',
       'docker-start-failed', 'docker-health-unavailable', 'docker-container-unhealthy', 'docker-health-timeout', 'wsl-unit-snapshot-failed',

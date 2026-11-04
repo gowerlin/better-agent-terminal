@@ -1,6 +1,6 @@
 # BAT Server Bundle Distribution
 
-> Server bundle = WSL / SSH 設定精靈部署到 remote 的 BAT headless server + helper runtime + `@anthropic-ai/claude-code` CLI 套組（Docker 不用 bundle，server 在 image 裡，見 [Docker Deployment Guide](./docker-deployment.md)）。本文件給 contributor / advanced user / 私有部署管理員看；spec 凝練版見 `_ct-workorders/_spec-server-bundle-distribution.md`。
+> Server bundle = WSL / SSH / Docker 設定精靈部署到 remote 的 BAT headless server + helper runtime + `@anthropic-ai/claude-code` CLI 套組（Docker 自 PLAN-052 / D283 起裝進容器的 bundle volume，見 [Docker Deployment Guide](./docker-deployment.md)）。本文件給 contributor / advanced user / 私有部署管理員看；spec 凝練版見 `_ct-workorders/_spec-server-bundle-distribution.md`。
 
 ## 動機
 
@@ -40,14 +40,14 @@ Root cause：三平台 wizard 的 `install-bundle` step 留 placeholder throw；
 
 ## 匯入本機 tarball（離線 / 內網，T0547）
 
-WSL / SSH wizard 的「安裝 BAT 伺服器套件」下載失敗時（`download-failed` / `no-source-available`），失敗畫面提供 **匯入本機 tarball…**：
+WSL / SSH / Docker wizard 的「安裝 BAT 伺服器套件」下載失敗時（`download-failed` / `no-source-available`），失敗畫面提供 **匯入本機 tarball…**：
 
 1. 從可上網的機器取得 `server-bundle-v<ver>` release 的 `bat-server-<target>-v<ver>.tar.gz` 與同名 `.sha256`（或在 repo 跑 `npm run fetch:baseline -- --host-os … --host-arch …` 抓到 `dist-baseline/`），以任何方式複製過來
 2. 按「匯入本機 tarball…」選 tarball；`.sha256` 在同目錄就自動使用，否則會再請你選
 3. BAT 檢查檔名（白名單 regex：`bat-server-(linux-x64|linux-arm64|darwin-arm64)-v<semver>.tar.gz`）、target 與版號必須等於這次設定需要的值，再邊複製邊算 SHA-256，與 sidecar 相符才放進 cache（`bat-server-bundles/`，與下載後格式相同），然後自動重試該步驟（命中 cache）
 4. 失敗原因（檔名不符、target / 版號不符、缺 `.sha256`、`.sha256` 屬於別的檔、SHA 不符、讀取 / 寫入失敗）以三語顯示，cache 不會留下未驗證的檔案
 
-Docker 不經 distributor（image 內建 `/opt/bat-server`，D096），沒有這個按鈕。
+Docker 自 D283（T0853）起也經 distributor，有同一個按鈕；匯入的 tarball 放進同一個 cache，之後裝進容器的 bundle volume。D096（Docker 不走 distributor）已由 D283 取代；只有基底映像本身內含 server 時（`bat-server:latest`，U3）精靈略過安裝、不呼叫 distributor。
 
 ## Per-host baseline matrix（C-narrow，D092；D146 起安裝檔不再內建）
 
@@ -70,13 +70,13 @@ T0547 前 build 時抓 baseline：`npm run fetch:baseline`（`prebuild` hook 自
 
 ## Architecture detection（三平台統一）
 
-WSL / SSH 的 `install-server-bundle` step 走相同 IPC contract（`electron/remote/arch-detect.ts`），回傳 `RemoteHostArch` 之一（`linux-x64` / `linux-arm64` / `darwin-arm64` / `unsupported-arch`）：
+WSL / SSH / Docker 的 `install-server-bundle` step 走相同 IPC contract（`electron/remote/arch-detect.ts`），回傳 `RemoteHostArch` 之一（`linux-x64` / `linux-arm64` / `darwin-arm64` / `unsupported-arch`）：
 
 | 平台 | 偵測方式 |
 |------|---------|
 | WSL | `execFile('wsl', ['-d', distro, '--', 'uname', '-m'])` → 經 `normalizeArch()` 純函數轉換 |
 | SSH | 重用 `verify-ssh-auth` probe（`uname -sm`）的結果（`profile.sshServerArch`）；Intel Mac（Darwin `x86_64`）→ `arch-detection-failed` |
-| Docker | 精靈不偵測、不走 distributor（D096）：server 在 image 的 `/opt/bat-server`，image 由 `npm run build:docker-image` 建成 `linux/amd64`。`arch-detect.ts` 雖有 `docker exec <container> uname -m` 分支，Docker 精靈不呼叫 |
+| Docker | 精靈先以 `docker:server-arch`（`docker version --format {{.Server.Os}}/{{.Server.Arch}}`，Windows containers 回 `docker-server-not-linux`）取得 daemon 架構，`server-bundle:distribute` 的 docker-linux draft 帶 `dockerServerArch`（只接受 `linux-x64` / `linux-arm64`），`arch-detect.ts` 有值就直接用、不 `docker exec`（容器可能還沒建立或已停止，T0853 Q-1）；沒帶時才走舊的 `docker exec <container> uname -m` 分支。D283 取代 D096 |
 
 `normalizeArch()` 純函數位於 `src/lib/arch-normalize.ts`，純文字轉換無 IO，便於 unit test。
 
@@ -182,7 +182,7 @@ ProfilePanel **沒有**「Upgrade server bundle」按鈕（D098 預告的 UI 未
 ## 相關工單與決策
 
 - **PLAN-031** Server Bundle Distribution（本文件主軸）
-  - **拍板項**：D092 (C-narrow + Mac 雙 tarball；「安裝檔內建 baseline」由 D146 推翻) / D146 (安裝檔不內建 baseline，隨需下載 + 匯入，T0547) / D093 (雙 Release tag namespace) / D094 (Mac 280 MB cap) / D095 (`BAT_SERVER_BUNDLE_BASE_URL`) / D096 (Docker 不走 distributor) / D097 (DGX Spark dogfood) / D098 (v0.5.0 升級 UI)
+  - **拍板項**：D092 (C-narrow + Mac 雙 tarball；「安裝檔內建 baseline」由 D146 推翻) / D146 (安裝檔不內建 baseline，隨需下載 + 匯入，T0547) / D093 (雙 Release tag namespace) / D094 (Mac 280 MB cap) / D095 (`BAT_SERVER_BUNDLE_BASE_URL`) / D096 (Docker 不走 distributor；由 D283 取代：Docker 改走 distributor、bundle 裝進 volume) / D097 (DGX Spark dogfood) / D098 (v0.5.0 升級 UI)
   - **研究**：T0313（7 拍板項輸出）
   - **Spec**：T0314（凝練版，凍結於 `_ct-workorders/_spec-server-bundle-distribution.md`）
   - **實作 + 測試**：T0315-T0323（11 commits）+ T0325（187 unit + integration tests + e2e skeleton）

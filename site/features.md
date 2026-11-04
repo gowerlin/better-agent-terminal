@@ -106,13 +106,13 @@ Claude Code 面板底部的狀態列：模型、Token、快取、費用一眼看
 
 <MediaFigure src="/media/remote-add-menu.png" alt="配置對話框的「+ 更多」選單：容器類有新增 WSL 設定檔與新增 Docker 設定檔，遠端類有新增 SSH 設定檔；下方列著已設定的 WSL、SSH、Docker 三筆遠端。" caption="側欄底部的「配置」：WSL、Docker、SSH 的設定精靈都從「+ 更多」開始。" />
 
-- 設定精靈一路帶你完成：啟動遠端的 BAT 伺服器、核對憑證指紋、驗證連線。WSL 與 SSH 由精靈安裝伺服器套件；Docker 用的是事先建置好的伺服器映像。
+- 設定精靈一路帶你完成：啟動遠端的 BAT 伺服器、核對憑證指紋、驗證連線。伺服器套件由精靈安裝：WSL 與 SSH 裝在遠端主機上，Docker 裝進容器的 volume，基底映像可以用預設的或你自己的。
 - 伺服器套件不包在安裝檔裡：WSL 與 SSH 第一次設定時從 GitHub 下載並快取。連不到 GitHub 時，可以匯入本機檔案（見[常見問題](./faq#server-bundle)）。
 - 在 WSL 與 Docker 視窗附加你電腦上的檔案時，路徑會自動換成遠端看得到的位置（Docker 只限掛載的資料夾）；SSH 視窗不能附加你電腦上的檔案。
 - 可以同時開好幾個遠端環境的視窗，最多 8 個連線。
 - 遠端 AI 工具面板偵測遠端有沒有 claude、codex、Node.js，缺的可以一鍵安裝（Node.js 透過 nvm）。
 
-一步步的設定方式見[遠端開發](./remote/)：[WSL](./remote/wsl)、[SSH](./remote/ssh)、[Docker](./remote/docker)（Docker 目前需要自己建置伺服器映像）。
+一步步的設定方式見[遠端開發](./remote/)：[WSL](./remote/wsl)、[SSH](./remote/ssh)、[Docker](./remote/docker)。
 
 ## 遠端存取 {#remote-access}
 

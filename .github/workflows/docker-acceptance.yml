@@ -1,0 +1,118 @@
+name: Docker acceptance (manual)
+
+# T0854 (PLAN-052 W5, D283): the Docker setup wizard's (c′) path against a real Docker engine on a
+# GitHub-hosted ubuntu-24.04 runner (Docker Engine preinstalled), without the Electron UI.
+# scripts/docker-acceptance.mjs calls the main-process docker functions directly
+# (electron/docker-bundle-volume.ts, electron/docker-lifecycle.ts): pull the base image, install the
+# server bundle <from_version> into BAT's volume, create the container (127.0.0.1 only, no --token),
+# upgrade to <to_version> (previous kept, restart, data unchanged), roll back, abort an install, refuse
+# a musl image, clean up. Both bundles come from the server-bundle-v<version> releases through the
+# distributor's download layer (manifest + SHA-256).
+# workflow_dispatch only and not part of any release workflow. No secrets: the job's GITHUB_TOKEN is
+# read-only and only raises the GitHub download rate limit. Creates no tag, release or package.
+# See docs/agent-guide/docker-remote.md.
+#
+#   gh workflow run docker-acceptance.yml -R gowerlin/better-agent-terminal -f from_version=0.7.4-pre.7 -f to_version=0.7.4-pre.8
+on:
+  workflow_dispatch:
+    inputs:
+      from_version:
+        description: 'Server bundle installed first (release server-bundle-v<version>)'
+        required: true
+        default: '0.7.4-pre.7'
+      to_version:
+        description: 'Server bundle the container is upgraded to (must differ from from_version)'
+        required: true
+        default: '0.7.4-pre.8'
+      base_image:
+        description: 'Base image of the container (the wizard default is buildpack-deps:bookworm-scm)'
+        required: false
+        default: 'buildpack-deps:bookworm-scm'
+
+permissions:
+  contents: read
+
+jobs:
+  docker-acceptance:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      FROM_VERSION: ${{ inputs.from_version }}
+      TO_VERSION: ${{ inputs.to_version }}
+      BASE_IMAGE: ${{ inputs.base_image }}
+    steps:
+      - name: Report directory
+        run: |
+          mkdir -p "$RUNNER_TEMP/report"
+          echo "REPORT_DIR=$RUNNER_TEMP/report" >> "$GITHUB_ENV"
+
+      - name: Checkout code
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+          cache: 'npm'
+
+      - name: Check the inputs
+        run: |
+          for v in "$FROM_VERSION" "$TO_VERSION"; do
+            if ! [[ "$v" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-pre\.[0-9]+)?$ ]]; then
+              echo "::error::invalid version input: $v"
+              exit 1
+            fi
+          done
+          if [ "$FROM_VERSION" = "$TO_VERSION" ]; then
+            echo "::error::from_version and to_version must differ"
+            exit 1
+          fi
+          if ! [[ "$BASE_IMAGE" =~ ^[a-z0-9][a-z0-9._/:@-]{0,254}$ ]]; then
+            echo "::error::invalid base_image input"
+            exit 1
+          fi
+
+      - name: Docker engine
+        run: |
+          docker version --format 'client {{.Client.Version}} / server {{.Server.Version}} {{.Server.Os}}/{{.Server.Arch}}'
+          docker info --format 'storage driver {{.Driver}}; containers {{.Containers}}'
+
+      - name: Install test dependencies (no install scripts)
+        run: npm ci --ignore-scripts
+
+      - name: Run the Docker acceptance
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          npx tsx scripts/docker-acceptance.mjs \
+            --from "$FROM_VERSION" --to "$TO_VERSION" --image "$BASE_IMAGE" \
+            --evidence "$REPORT_DIR/docker-acceptance.json" 2>&1 | tee "$REPORT_DIR/docker-acceptance.txt"
+          exit "${PIPESTATUS[0]}"
+
+      - name: Summary
+        if: always()
+        run: |
+          {
+            echo "## Docker acceptance: bundle ${FROM_VERSION} → ${TO_VERSION} on ${BASE_IMAGE}"
+            echo
+            echo '```'
+            if [ -f "$REPORT_DIR/docker-acceptance.txt" ]; then grep -E '^(PASS|WARN|FAIL|docker-acceptance)' "$REPORT_DIR/docker-acceptance.txt" || true; else echo 'no report'; fi
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Leftovers (diagnostics)
+        if: always()
+        run: |
+          docker ps -a --filter name=bat-acc- --format '{{.Names}} {{.Status}}' || true
+          docker volume ls --filter name=bat-acc- --format '{{.Name}}' || true
+
+      - name: Upload the report
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: docker-acceptance-report
+          path: ${{ env.REPORT_DIR }}
+          if-no-files-found: warn
+          retention-days: 7
