@@ -29,7 +29,8 @@ T0704 修正兩件事：
 
 | 內容 | 位置 |
 |---|---|
-| heartbeat | `PtyManager.startHeartbeat` / `handlePong` / `serverLiveness`（`electron/pty-manager.ts`） |
+| heartbeat | `PtyManager.startHeartbeat` / `handlePong` / `serverLiveness` / `tcpServerPidNow`（`electron/pty-manager.ts`） |
+| 協定 v1（hello / 權杖 / 未知請求，T0857） | client `openHelloConnection` / `HelloReader` / `negotiateProtocol`（`electron/terminal-server/protocol.ts`）；server `acceptTcpConnection` / `handleTcpLine` / `extendIdle`（`electron/terminal-server/server.ts`）；權杖檔 `writeTokenFile` / `readTokenFile` / `removeTokenFile`（`electron/terminal-server/pid-manager.ts`，只用 fs / path：它在 app-paths-bootstrap 的 import 鏈上）、產生與比對 `generateServerToken` / `tokensMatch`（`server.ts`）；主行程呼叫端 `probeServerPtyCount` / `sendShutdownToServer` / `endsUnusableServer` / `shutdownTerminalServerAndWait`（`electron/main.ts`） |
 | recovery | `PtyManager.handleServerDeath(reason)`、`detachServer`、`endReplacedServer` |
 | 訊息分派與 generation | `handleServerMessage(msg, generation)` |
 | 孤兒清理 | `killOrphanPtyProcesses`（`electron/pty-manager.ts`，export；Electron 啟動時的孤兒清理 `startTerminalServer` 也用它） |
@@ -44,10 +45,10 @@ T0704 修正兩件事：
 | IPC `exit`（`setServerProcess` 的 `once('exit')`） | server 程序結束 | 立即 recovery（`reason=ipc-exit`） |
 | TCP `close`（`connectToServer`） | 重連通道關閉 | 立即 recovery（`reason=tcp-close`） |
 | heartbeat tick（每 `HEARTBEAT_INTERVAL_MS` = 10 s） | `now() - lastPongAt > INTERVAL + HEARTBEAT_TIMEOUT_MS`（13 s）→ 這個 tick 算遲到；收到 pong 就歸零 | 未滿 3 個：只計數 |
-| 同上，連續第 3 個遲到 tick 起 | 檢查 `serverLiveness()`：程序活著要同時滿足 `exitCode` / `signalCode` 未設，且 `process.kill(pid, 0)` 成功（EPERM 也算活著）；IPC 看 `connected` | 任一不在 → recovery（`reason=heartbeat`）；兩者都在 → `[heartbeat] late pong:`（第 3、6、9… 個遲到 tick 各記一次），不 recovery |
+| 同上，連續第 3 個遲到 tick 起 | 檢查 `serverLiveness()`：IPC 模式程序活著要同時滿足 `exitCode` / `signalCode` 未設，且 `process.kill(pid, 0)` 成功（EPERM 也算活著），IPC 看 `connected`；TCP 模式（T0857）程序 = pid 檔（沒有時 hello-ok 的 pid）＋ `process.kill(pid, 0)`，通道看 socket | 任一不在 → recovery（`reason=heartbeat`）；兩者都在 → `[heartbeat] late pong:`（第 3、6、9… 個遲到 tick 各記一次），不 recovery |
 
 - 從最後一次 pong 算起，最快約 40 s 判死（例：t=0 收到 pong，t=20、30、40 為遲到 tick）。
-- heartbeat 只在 fork IPC 模式啟動。TCP 重連模式沒有 heartbeat，只靠 TCP `close`（行為與 T0704 前相同）。
+- T0857 起 heartbeat 在 fork IPC 與 TCP 重連模式都會啟動；TCP 模式的程序以 pid 檔判斷、通道看 socket（見「協定 v1」節的〈TCP 模式的存活判斷〉）。T0857 前 TCP 模式沒有 heartbeat，只靠 TCP `close`。
 
 ## recovery 步驟（B）
 
@@ -119,6 +120,128 @@ recovery 以同 id 重建的是 shell，分頁裡原本的 claude / codex 已經
 **codex `resume` 參數查證（內嵌 codex 0.166.0，T0767）**：`codex resume --help`：`Usage: codex resume [OPTIONS] [SESSION_ID] [PROMPT]`，不帶 SESSION_ID 時是選單（`--last` 才直接接最近一個），`--all` 才關掉 cwd 篩選；`resume` 的選項與 `codex` 本身相同（`-c`、`--no-daemon`、`-m`、`-s` …，逐項比對 `--help` 一致），另多 `--last` / `--all` / `--include-non-interactive`。放在子命令之前的選項會傳給 `resume`：`codex -c sandbox_mode=bogus resume` 與 `codex resume -c sandbox_mode=bogus` 都回 ``Error loading config.toml: unknown variant `bogus` ``；`codex --no-daemon resume --remote ws://…` 回 `--no-daemon cannot be used with --remote`（root 的 `--no-daemon` 有併入）。所以 BAT 參數照原位置（`codex` 之後）、`resume` 接在 BAT 參數之後、自訂參數之前（自訂參數在 `resume` 之後同樣有效）。
 
 **日誌**：`[interrupted-agents] interrupted: terminal=<id> agent=<agent> launchedBy=tab|dispatch [workorder=<T####>] session=<前 8 碼>|unknown`、`recovery interrupted <n> agent tab(s); listed <m>`、`recovery interrupted no agent tab (<n> PTY(s) rebuilt as shells)`、`removed: terminal=<id> (resumed|dismissed|pty-ended|session-start)`、`resumed dispatch: … mode=session|picker|none [reason=user-args]`（codex：`session=unknown mode=picker|none`）；renderer `[interrupted-agents] resume terminal=<id> … → ok mode=… | failed <code>`；`[claude-session] <n> interrupted entr(y|ies) of the previous process not restored`。
+
+## 協定 v1：hello、TCP 權杖、不認得的請求（PLAN-065 W1 / T0857，D285 / D286）
+
+升級後新版主行程會常態地連到舊版 server（PLAN-065），所以 server 與主行程之間的 TCP 協定補上版本、握手與認證。協定只做相加，舊欄位的意義不變。
+
+### 必守規則
+
+- 🔴 TCP 連線的第一個請求必須是 `server:hello`（帶權杖）。未認證的第一個請求（含格式錯誤的 JSON、權杖錯）→ 回 `error`（`code: UNAUTHENTICATED`）並關閉 socket，同一次寫入後面的行一律不執行。未認證的連線收不到廣播（`pty:data` / `pty:exit`），也不重設 idle 倒數；`SERVER_HELLO_TIMEOUT_MS` = 10 s 內沒有完成 hello 就關閉；換行前最多 `UNAUTHENTICATED_MAX_BUFFER` = 64 KiB。
+- 🔴 fork IPC 不需要權杖（parent 就是 fork 它的主行程）。
+- 🔴 權杖只在 server 與主行程之間：不寫日誌（server 的 stderr、主行程 logger 都不記）、不進任何 env（server 的 fork env、`buildServerPtyEnv`、`buildPtyEnv`）、不進命令列參數。日誌只記協定版本與結果。
+- 🔴 `server:hello` 與 `server:shutdown` 在每個協定版本都有效：沒有共同版本時，帶對的權杖仍可以 `server:shutdown`（之後的 D5「結束並說明」靠它）。
+- 🔴 對不認得的請求一律回 `error`（`code: UNKNOWN_REQUEST`），不再不回應；之後的新版主行程靠它探測功能。
+- 🔴 新增請求 / 回應只能相加；不改既有欄位的意義，不刪既有請求。改協定時同步改 `TERMINAL_SERVER_PROTOCOL_MAX` 與本節的訊息表。
+
+### 訊息表
+
+| 方向 | 訊息 | 何時 | 說明 |
+|---|---|---|---|
+| 主行程 → server | `server:hello { protocolMin, protocolMax, token }` | TCP 連線的第一個請求（fork IPC 可選、`token` 可空） | `token` = `bat-pty-server.token` 的內容 |
+| server → 主行程 | `server:hello-ok { protocol, batVersion, runtime: { name: 'electron'\|'node', version }, holderDir?, pid }` | hello 成功 | `protocol` = 雙方共同的最高版本；`batVersion` = fork 它的 BAT 版號（env `BAT_TERMINAL_SERVER_BAT_VERSION`，沒有時 `''`）；`holderDir` 留給 W3（目前不送） |
+| server → 主行程 | `error { requestType: 'server:hello', code: 'UNAUTHENTICATED' }` | 權杖錯 / 沒有 | 之後關閉 socket |
+| server → 主行程 | `error { requestType: 'server:hello', code: 'NO_COMMON_PROTOCOL', protocolMin, protocolMax }` | 權杖對、沒有共同版本 | socket 保留，只接受 `server:shutdown` / `server:ping`，其他 → `NOT_ALLOWED` 並關閉 |
+| server → 主行程 | `error { requestType, code: 'UNAUTHENTICATED' }` | 未認證的第一個請求不是 hello | 之後關閉 socket |
+| server → 主行程 | `error { requestType, code: 'UNKNOWN_REQUEST' }` / `'BAD_REQUEST'` | 不認得的請求 / 不是 JSON 物件或欄位錯 | 連線保留 |
+| 主行程 → server | `server:extendIdle { durationMs }` | W4（安裝程式觸發 quit 時，D7） | 本單只提供協定與 server 行為，沒有呼叫端 |
+| server → 主行程 | `server:idle-extended { idleTimeoutMs, configuredIdleTimeoutMs }` / `error ALREADY_EXTENDED` / `BAD_REQUEST` | 回覆 `extendIdle` | 見下 |
+| 既有（protocol 0） | `pty:create` / `pty:write` / `pty:resize` / `pty:kill` / `pty:list` / `pty:getBuffer` / `server:ping` / `server:shutdown` / `server:getConfig` 與其回應 | — | 不變；`error` 多了可選的 `code`（以及 `protocolMin` / `protocolMax`） |
+
+協定版本：protocol 0 = T0857 前的訊息集合（沒有 hello）；本版 server 與主行程都是 1..1（`TERMINAL_SERVER_PROTOCOL_MIN` / `MAX`，`electron/terminal-server/protocol.ts`）。
+
+### hello 的判定（client 端）
+
+client 在第一次寫入同時送 `server:hello` 與 `server:ping`（`helloOpeningLines`）：
+
+| 先收到 | 判定 | 時間 |
+|---|---|---|
+| `server:hello-ok` | protocol = 回傳值（須在自己的範圍內，否則 `incompatible`） | 一個來回 |
+| `server:pong`（之前沒有 hello-ok） | **protocol 0**（T0857 前的 server：不認得 hello、不回應，只回 ping） | 一個來回 |
+| `error`（hello，`UNAUTHENTICATED`） | `unauthenticated` | 一個來回 |
+| `error`（hello，`NO_COMMON_PROTOCOL`） | `incompatible` | 一個來回 |
+| 都沒有，`HELLO_TIMEOUT_MS` = 3 s | `timeout` | 3 s |
+| socket 關閉 / 連不上 | `closed` | — |
+
+- 逾時值 3 s 的理由：舊 server 是在 pong 時判定，不必等逾時；3 s 只涵蓋完全不回應（卡住、不是 Terminal Server）的情況，等於 T0857 前 probe（`pty:list`）與重連（TCP connect）各自的逾時，不讓啟動變慢。
+- hello 期間收到、不屬於 hello 的訊息（舊 server 一連上就廣播 `pty:data`）依到達順序交給呼叫端（`HelloReader.held`），不丟。
+- 唯一實作：`openHelloConnection` / `HelloReader` / `negotiateProtocol` / `shutdownLines`（`electron/terminal-server/protocol.ts`，server 與主行程共用 `negotiateProtocol`）。
+
+### 呼叫端
+
+| 呼叫端 | 做法 | hello 失敗時 |
+|---|---|---|
+| `probeServerPtyCount(port, token)`（`main.ts`，啟動與 View→Reload） | hello → `pty:list` | 回傳 `{ ok: false, reason }`（不再只回 0） |
+| `startTerminalServer` | probe | `unauthenticated` / `incompatible` / `timeout` → 照 Recovery「重新開始」的路徑：`sendShutdownToServer` → `waitForTerminalServerExit`（5 s）→ 刪 pid / port / token 檔 → fork 新 server（`endsUnusableServer`、`shutdownTerminalServerAndWait`）。`closed` → 照舊（靜默重連，失敗走 stale 路徑） |
+| `PtyManager.connectToServer(port, token)`（靜默重連、Recovery「保留」） | hello，成功後同一條 socket 繼續當通道並啟動 heartbeat | 回傳 `{ ok: false, reason }`；`terminal-server:recover` 對 `unauthenticated` / `incompatible` / `timeout` 先走上面的「重新開始」步驟，`closed` 照舊直接開新 server；兩者都在新 server 起來後 `releaseCreates('recovery failed…')`（T0578 不變） |
+| `sendShutdownToServer(port, token)`（Recovery「重新開始」、quit Step B、`runInstallerQuitWithoutApp`） | 一次寫入 `server:hello` + `server:shutdown`，不等回覆 | 舊 server 忽略 hello、照舊 shutdown；權杖錯的 v1 server 不會 shutdown（之後的等待照舊逾時） |
+
+W5（T0861）依 `reason` 走 D5「結束並說明」；本單沒有新的 UI。
+
+### TCP 權杖（D8）
+
+| 項目 | 規則 |
+|---|---|
+| 產生 | server 每次啟動時 `crypto.randomBytes(32)` → base64url（`generateServerToken`）；在 TCP listen 之前寫檔，所以讀到 port 檔的 client 一定讀得到權杖 |
+| 存放 | `<userData>/bat-pty-server.token`（`writeTokenFile`）；POSIX 先以 0600 寫暫存檔再 rename（不會有一瞬間是其他人可讀）；Windows 靠 `%APPDATA%` 使用者資料夾的 ACL（與 `server-token.json` 相同） |
+| 讀取 | 主行程每次連線前讀（`readTokenFile`），沒有檔 → 空權杖（對舊 server 無影響，v1 server 拒絕） |
+| 比對 | `crypto.timingSafeEqual`（`tokensMatch`） |
+| 輪替 | 權杖壽命 = server 壽命：server shutdown / SIGTERM 刪檔，下一個 server 覆寫；主行程在孤兒清理、stale 清理、re-fork、Recovery「重新開始」與「保留失敗」時，與 pid / port 檔一起刪 |
+| 保護範圍 | 擋其他 OS 使用者與讀不到這個使用者 userData 的程序（T0856 Q3：之前任何本機程序都能連上 port 寫入別人的 shell）。同一使用者的程序本來就讀得到 userData，不是防護邊界 |
+
+### 延長 idle（D7）
+
+- `server:extendIdle { durationMs }`：下一次 idle 倒數用 `min(max(durationMs, 設定值), 24 h)`（`MAX_IDLE_EXTENSION_MS`）；只延長一次，已延長時再要求 → `ALREADY_EXTENDED`；任何 client hello 成功（重新連上）→ 恢復設定值；設定值 0（永不結束）→ 維持 0。`server:getConfig` 的 `idleTimeoutMs` 仍回設定值。
+- 唯一實作：`TerminalServer.extendIdle` / `effectiveIdleTimeoutMs`（`electron/terminal-server/server.ts`）。
+
+### TCP 模式的存活判斷（T0856 Q3）
+
+- T0857 前：TCP 模式（BAT 重開後以 TCP 接回，`serverProcess` 為 null）**沒有啟動 heartbeat**，只靠 TCP `close`；`serverLiveness` 只看 fork 的 `serverProcess`，在 TCP 模式一律回「gone / closed」。T0856 Q3 指出若 heartbeat 在 TCP 模式跑起來，就會把活著的 server 判死。
+- T0857：`connectToServer` 成功後也啟動 heartbeat；`serverLiveness` 在 TCP 模式以 pid 檔（`bat-pty-server.pid`，每次檢查時讀；沒有時用 `hello-ok` 的 pid）＋ `process.kill(pid, 0)` 判斷程序，以 socket 是否 destroyed 判斷通道。判死規則與 IPC 相同（連續 3 個遲到 tick 且程序或通道至少一個不在）；TCP `close` 照舊立即 recovery。
+- 判斷唯一實作 `serverLiveness` / `tcpServerPidNow`（`electron/pty-manager.ts`）。
+
+### 兩種版本組合
+
+| 組合 | 預期行為 |
+|---|---|
+| 新主行程 × 舊 server（T0857 前；macOS / Linux 升級後保留的 server、開發模式） | hello 被忽略、ping 回 pong → protocol 0，照今天的訊息集合運作；hello 帶的權杖舊 server 不看。probe、Recovery 提示、保留 / 重新開始、quit 停 server 都與 T0857 前相同；TCP 接回後多了 heartbeat（舊 server 回 pong） |
+| 舊主行程 × 新 server（降版） | 舊主行程的第一個請求（`pty:list`）→ `error` UNAUTHENTICATED ＋ 關閉 → probe 得 0 → 靜默重連（TCP connect 成功）→ `pty:list` 再被拒、TCP close → T0704 立即 recovery（結束新 server 與它的 PTY，自己 fork）。與 D8 預期相同：終端會被結束，不會「以為連上了卻建不出 shell」 |
+| 新主行程 × 新 server | protocol 1 |
+| 新主行程 × 未來的 server（沒有共同版本） | `incompatible` → 以權杖送 `server:shutdown` → 照「重新開始」路徑 |
+
+### 日誌
+
+| 日誌 | 意義 |
+|---|---|
+| `[PtyManager] TCP connected to Terminal Server on port <p> (protocol 1, BAT <版號>, runtime <electron\|node> <版本>, pid <pid>)` | v1 接回 |
+| `[PtyManager] TCP connected to Terminal Server on port <p> (protocol 0 (no hello: a server before T0857))` | 舊 server |
+| `[PtyManager] Terminal Server on port <p>: hello failed (<reason>)`（warn） | `connectToServer` 失敗 |
+| `[terminal-server] existing server on port <p>: hello <reason> — ending it (Recovery fresh-start path)`（warn） | 啟動時遇到不能用的 server |
+| `[terminal-server] recovery failed (hello <reason>) — ending the old server, falling back to new server`（warn） | Recovery「保留」時 hello 失敗 |
+| `[terminal-server] unusable server still running after 5000 ms — starting the new one anyway`（warn） | 結束不能用的 server 逾時 |
+| `[heartbeat] … server process=alive\|gone tcp=connected\|closed — server dead` / `… server process and TCP connection alive — no recovery` | TCP 模式的 heartbeat（IPC 模式的字串不變） |
+| server stderr `[terminal-server] failed to write the token file — TCP clients cannot authenticate` | 權杖檔寫入失敗（不含權杖） |
+
+### 已知限制
+
+- 權杖錯的 v1 server（例：權杖檔被別的程序改掉）無法以 TCP 結束：「重新開始」路徑等滿 5 s 後照舊開新 server，舊 server 留到 idle timeout。
+- 協定 v1 不加密：只在 `127.0.0.1`，權杖以明文 JSON 傳送（與 T0857 前的訊息相同層級）。
+- `holderDir` 欄位保留給 W3；本單的 server 都是 BAT 執行檔以 node 模式執行（`runtime.name: 'electron'`）。
+- 跨平台：macOS / Linux 的「保留 Terminal Server → 重開 → 保留 → 接回」實機不回歸要在 `linux-acceptance` / `macos-acceptance` 手動跑一次（T0856 W1 驗收欄）；本單只有單元測試與 Windows 本機驗證。
+
+### 驗證
+
+- 單元 `electron/__tests__/terminal-server-protocol-v1.test.ts`（真的 `TerminalServer` 在 `127.0.0.1`、暫存 userData；假的舊 server / 不回應的 server；PtyManager 以 mock watchdog）：
+  - 協商（共同版本 / 無共同版本 / 格式錯）、`HelloReader`（pong 先到 = protocol 0、保留期間的訊息）。
+  - hello-ok 欄位；權杖錯 / 沒有 → `unauthenticated`；舊主行程的 `pty:list` 先到 → `error` ＋ 關閉、同一次寫入的 `server:shutdown` 不執行；格式錯 → 關閉；10 s 沒 hello → 關閉；未認證的連線收不到廣播。
+  - 無共同版本 → `NO_COMMON_PROTOCOL`（含 server 範圍），之後只接受 ping / shutdown；帶權杖的 shutdown 會結束 server、權杖檔一起刪。
+  - 不認得的請求（TCP 與 IPC）→ `UNKNOWN_REQUEST`、連線保留。
+  - 權杖檔內容、POSIX 0600、沒有殘留暫存檔；`tokensMatch`。
+  - `extendIdle`：24 h 上限、不低於設定值、只一次、`BAD_REQUEST`、設定 0、倒數用延長值、hello 成功後恢復（被拒的連線不恢復）。
+  - 舊 server → protocol 0（在逾時前判定）、早到的輸出保留並進入分頁輸出；不回應 → `timeout`；沒人聽 → `closed`。
+  - PtyManager TCP 模式：hello 帶權杖、日誌有協定沒有權杖；被拒 → `{ ok: false }` 且沒有通道；**3 個遲到 tick、pid 檔的程序還在 → 不 recovery**、只記 `late pong`；pid 檔的程序不在 → `reason=heartbeat`；沒有 pid 檔 → 用 hello 的 pid；pong 恢復歸零、TCP close 照舊立即 recovery。
+  - 權杖不在 `process.env`、PTY env、server stderr；source guard：`forkTerminalServer` 不提權杖、server 不從 env 讀權杖、`buildPtyEnv` 不讀權杖檔、日誌行不插值權杖變數。
+- 既有不回歸：`terminal-server-pty-env.test.ts`（env 清單多 `BAT_TERMINAL_SERVER_BAT_VERSION`）、`pty-manager-heartbeat-recovery.test.ts`、`recovery-create-hold.test.ts`、`installer-quit-request.test.ts`、`upgrade-interruption.test.ts`、`helper-capability-persist.test.ts` 的 source guard。
 
 ## 日誌
 

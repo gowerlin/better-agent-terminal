@@ -1,10 +1,19 @@
+import * as crypto from 'crypto'
 import * as fs from 'fs'
 import * as net from 'net'
 import { RingBuffer } from './ring-buffer'
-import { writePortFile, removePortFile, removePidFile } from './pid-manager'
+import { writePortFile, removePortFile, removePidFile, writeTokenFile, removeTokenFile } from './pid-manager'
 import { addPtyEntry, removePtyEntry, clearRegistry, writeRegistry } from './pty-registry'
 import { defaultKillTreeDeps, killProcessTree, type KillTreeDeps } from './process-tree'
-import type { ServerRequest, ServerResponse } from './protocol'
+import {
+  MAX_IDLE_EXTENSION_MS,
+  TERMINAL_SERVER_PROTOCOL_MAX,
+  TERMINAL_SERVER_PROTOCOL_MIN,
+  negotiateProtocol,
+  type ServerErrorCode,
+  type ServerRequest,
+  type ServerResponse,
+} from './protocol'
 import { guardPtySpawnFds, type PtyFdGuardDeps } from '../pty-spawn-fd-guard'
 
 // Load @lydell/node-pty at runtime — same pattern as pty-manager.ts
@@ -36,7 +45,15 @@ const DEFAULT_BUFFER_LINES = 1000               // D031 default
  * terminal-server.ts. They are not for the shells, so they are left out of every PTY's env.
  * `BAT_USER_DATA` (also set by the fork) stays: helper scripts in the tab read it.
  */
-export const TERMINAL_SERVER_OWN_ENV_KEYS = ['BAT_IDLE_TIMEOUT_MS', 'BAT_SCROLL_BUFFER_LINES'] as const
+export const TERMINAL_SERVER_OWN_ENV_KEYS = ['BAT_IDLE_TIMEOUT_MS', 'BAT_SCROLL_BUFFER_LINES', 'BAT_TERMINAL_SERVER_BAT_VERSION'] as const
+
+/**
+ * T0857: a TCP connection that has not said a valid `server:hello` within this time is closed.
+ * Clients send the hello in their first write, so this only ends connections that never will.
+ */
+export const SERVER_HELLO_TIMEOUT_MS = 10_000
+/** T0857: an unauthenticated connection may send at most this much before its first newline. */
+export const UNAUTHENTICATED_MAX_BUFFER = 64 * 1024
 
 /**
  * The env a PTY starts with: the server's env without its own settings, then the env the
@@ -64,11 +81,35 @@ export function buildServerPtyEnv(
   return ptyEnv as Record<string, string>
 }
 
+/** T0857 (D8): a new random TCP token (256 bits) for one server life. */
+export function generateServerToken(): string {
+  return crypto.randomBytes(32).toString('base64url')
+}
+
+/** Constant-time comparison of a presented token with the server's. */
+export function tokensMatch(presented: unknown, expected: string): boolean {
+  if (typeof presented !== 'string' || !expected) return false
+  const a = Buffer.from(presented, 'utf8')
+  const b = Buffer.from(expected, 'utf8')
+  return a.length === b.length && crypto.timingSafeEqual(a, b)
+}
+
 /** T0540: injectable for tests (taskkill, platform, process exit). */
 export interface TerminalServerDeps extends KillTreeDeps {
   exit: (code: number) => void
   /** BUG-205 / T0806: Linux PTY children keep only fd 0–2 (electron/pty-spawn-fd-guard.ts). */
   fdGuard: PtyFdGuardDeps
+  /** T0857: what `server:hello-ok` reports (terminal-server.ts reads it from the fork env). */
+  identity: { batVersion: string; holderDir?: string }
+  /** T0857: the TCP token of this server's life (tests pass a fixed one). */
+  generateToken: () => string
+}
+
+/** T0857: a TCP connection before / after its hello. */
+interface TcpConnectionState {
+  /** `client` = authenticated (gets broadcasts, keeps the server from idling); `shutdown-only` = right token, no common protocol */
+  stage: 'pending' | 'client' | 'shutdown-only'
+  helloTimer: ReturnType<typeof setTimeout> | null
 }
 
 /**
@@ -94,6 +135,11 @@ export class TerminalServer {
   private _userDataPath = ''
   private shuttingDown = false
   private readonly deps: TerminalServerDeps
+  // T0857: TCP authentication; '' until startTcpServer (no TCP listener, nothing to authenticate)
+  private token = ''
+  private readonly tcpStates: Map<net.Socket, TcpConnectionState> = new Map()
+  // T0857 (D7): the one pending `server:extendIdle`; cleared when a client says hello again
+  private idleExtensionMs: number | null = null
 
   constructor(
     idleTimeoutMs = DEFAULT_IDLE_TIMEOUT_MS,
@@ -107,6 +153,8 @@ export class TerminalServer {
       execFile: deps.execFile ?? defaultKillTreeDeps.execFile,
       exit: deps.exit ?? ((code) => process.exit(code)),
       fdGuard: deps.fdGuard ?? { platform: process.platform, fileExists: (p) => fs.existsSync(p) },
+      identity: deps.identity ?? { batVersion: '' },
+      generateToken: deps.generateToken ?? generateServerToken,
     }
   }
 
@@ -145,40 +193,17 @@ export class TerminalServer {
     // T0113: Initialize PTY registry with server PID
     writeRegistry({ serverPid: process.pid, ptys: [], updatedAt: new Date().toISOString() }, userDataPath)
 
-    this.tcpServer = net.createServer((socket) => {
-      this.tcpClients.add(socket)
-      this.resetIdleTimer()  // New connection resets idle countdown
+    // T0857 (D8): the token of this server's life, on disk before the port file says where we listen
+    this.token = this.deps.generateToken()
+    if (userDataPath) {
+      try {
+        writeTokenFile(this.token, userDataPath)
+      } catch {
+        process.stderr.write('[terminal-server] failed to write the token file — TCP clients cannot authenticate\n')
+      }
+    }
 
-      let lineBuffer = ''
-      socket.on('data', (chunk) => {
-        lineBuffer += chunk.toString()
-        // JSON-line protocol: one JSON object per newline
-        const lines = lineBuffer.split('\n')
-        lineBuffer = lines.pop()!  // Keep incomplete trailing fragment
-        for (const line of lines) {
-          if (line.trim()) {
-            try {
-              const msg = JSON.parse(line) as ServerRequest
-              this.handleMessage(msg, 'tcp', socket)
-            } catch {
-              // Ignore malformed JSON
-            }
-          }
-        }
-      })
-
-      socket.on('close', () => {
-        this.tcpClients.delete(socket)
-        // Start idle timer only if there are no remaining connections
-        if (this.shouldStartIdle()) {
-          this.startIdleTimer()
-        }
-      })
-
-      socket.on('error', () => {
-        this.tcpClients.delete(socket)
-      })
-    })
+    this.tcpServer = net.createServer((socket) => this.acceptTcpConnection(socket))
 
     this.tcpServer.listen(0, '127.0.0.1', () => {
       const port = (this.tcpServer!.address() as net.AddressInfo).port
@@ -186,6 +211,140 @@ export class TerminalServer {
         writePortFile(port, userDataPath)
       }
     })
+  }
+
+  /**
+   * T0857: a new TCP connection is `pending` — no broadcasts, does not reset the idle countdown —
+   * until its first request, a `server:hello` with this server's token. Anything else first →
+   * `error` (UNAUTHENTICATED) and the socket closes. Before T0857 every connection was a client.
+   */
+  private acceptTcpConnection(socket: net.Socket): void {
+    const state: TcpConnectionState = {
+      stage: 'pending',
+      helloTimer: setTimeout(() => {
+        if (state.stage !== 'client') socket.destroy()
+      }, SERVER_HELLO_TIMEOUT_MS),
+    }
+    this.tcpStates.set(socket, state)
+
+    let lineBuffer = ''
+    socket.on('data', (chunk) => {
+      lineBuffer += chunk.toString()
+      // JSON-line protocol: one JSON object per newline
+      const lines = lineBuffer.split('\n')
+      lineBuffer = lines.pop()!  // Keep incomplete trailing fragment
+      for (const line of lines) {
+        // a refused connection runs none of the lines that came with its first request
+        if (socket.destroyed || !this.tcpStates.has(socket) || this.shuttingDown) return
+        if (!line.trim()) continue
+        let msg: unknown
+        try {
+          msg = JSON.parse(line)
+        } catch {
+          // Malformed JSON: ignored from a client (as before); from a pending connection it ends it
+          if (state.stage === 'client') continue
+          msg = null
+        }
+        this.handleTcpLine(msg, socket, state)
+      }
+      if (state.stage !== 'client' && lineBuffer.length > UNAUTHENTICATED_MAX_BUFFER) socket.destroy()
+    })
+
+    socket.on('close', () => {
+      this.forgetTcpConnection(socket)
+      // Start idle timer only if there are no remaining connections
+      if (this.shouldStartIdle()) {
+        this.startIdleTimer()
+      }
+    })
+
+    socket.on('error', () => {
+      this.forgetTcpConnection(socket)
+    })
+  }
+
+  private forgetTcpConnection(socket: net.Socket): void {
+    const state = this.tcpStates.get(socket)
+    if (state?.helloTimer) clearTimeout(state.helloTimer)
+    this.tcpStates.delete(socket)
+    this.tcpClients.delete(socket)
+  }
+
+  private handleTcpLine(msg: unknown, socket: net.Socket, state: TcpConnectionState): void {
+    const request = isRequestObject(msg) ? msg : null
+    if (state.stage === 'client') {
+      if (request) this.handleMessage(request as ServerRequest, 'tcp', socket)
+      else this.sendToClient(errorResponse('unknown', 'BAD_REQUEST', 'request is not a JSON object'), 'tcp', socket)
+      return
+    }
+    const requestType = typeof request?.type === 'string' ? request.type : 'unknown'
+    if (state.stage === 'shutdown-only') {
+      // no common protocol: the one request every version understands
+      if (requestType === 'server:shutdown') {
+        this.shutdown()
+        return
+      }
+      if (requestType === 'server:ping') {
+        this.sendToClient({ type: 'server:pong' }, 'tcp', socket)
+        return
+      }
+      this.rejectAndClose(socket, errorResponse(requestType, 'NOT_ALLOWED', 'no common protocol: only server:shutdown / server:ping are accepted'))
+      return
+    }
+    // pending: the first request must be a hello with the right token
+    if (requestType !== 'server:hello' || !tokensMatch(request?.token, this.token)) {
+      this.rejectAndClose(socket, errorResponse(requestType, 'UNAUTHENTICATED', 'server:hello with a valid token required'))
+      return
+    }
+    const protocol = negotiateProtocol(
+      { min: TERMINAL_SERVER_PROTOCOL_MIN, max: TERMINAL_SERVER_PROTOCOL_MAX },
+      { min: request?.protocolMin, max: request?.protocolMax },
+    )
+    if (protocol === null) {
+      state.stage = 'shutdown-only'
+      this.sendToClient(this.noCommonProtocol(), 'tcp', socket)
+      return
+    }
+    state.stage = 'client'
+    if (state.helloTimer) {
+      clearTimeout(state.helloTimer)
+      state.helloTimer = null
+    }
+    this.tcpClients.add(socket)
+    this.resetIdleTimer()  // New client resets idle countdown
+    // D7: a client is back — the idle timeout is the configured one again
+    this.idleExtensionMs = null
+    this.sendToClient(this.helloOk(protocol), 'tcp', socket)
+  }
+
+  /** T0857: answer, then close once the answer is written (no further line of that write runs). */
+  private rejectAndClose(socket: net.Socket, msg: ServerResponse): void {
+    this.forgetTcpConnection(socket)
+    if (socket.destroyed) return
+    socket.end(JSON.stringify(msg) + '\n')
+    // end() half-closes; never keep a refused socket around waiting for the peer
+    const timer = setTimeout(() => socket.destroy(), 1000)
+    timer.unref?.()
+  }
+
+  private helloOk(protocol: number): ServerResponse {
+    const { batVersion, holderDir } = this.deps.identity
+    return {
+      type: 'server:hello-ok',
+      protocol,
+      batVersion,
+      runtime: { name: process.versions.electron ? 'electron' : 'node', version: process.version },
+      ...(holderDir ? { holderDir } : {}),
+      pid: process.pid,
+    }
+  }
+
+  private noCommonProtocol(): ServerResponse {
+    return {
+      ...errorResponse('server:hello', 'NO_COMMON_PROTOCOL', 'no common protocol version'),
+      protocolMin: TERMINAL_SERVER_PROTOCOL_MIN,
+      protocolMax: TERMINAL_SERVER_PROTOCOL_MAX,
+    }
   }
 
   /** True when there are no active connections (IPC parent gone + no TCP clients). */
@@ -199,6 +358,10 @@ export class TerminalServer {
   handleMessage(msg: ServerRequest, via: 'ipc' | 'tcp' = 'ipc', socket?: net.Socket): void {
     // T0540: shutdown waits for the process trees to end; nothing new starts meanwhile.
     if (this.shuttingDown) return
+    if (!isRequestObject(msg)) {
+      this.sendToClient(errorResponse('unknown', 'BAD_REQUEST', 'request is not a JSON object'), via, socket)
+      return
+    }
     this.resetIdleTimer()
 
     switch (msg.type) {
@@ -218,7 +381,56 @@ export class TerminalServer {
       case 'server:shutdown':
         this.shutdown()
         break
+      // T0857: the fork IPC parent may say hello too (no token: it forked us); a TCP client
+      // reaching here already did, so a repeated hello only reports the protocol again
+      case 'server:hello': {
+        const protocol = negotiateProtocol(
+          { min: TERMINAL_SERVER_PROTOCOL_MIN, max: TERMINAL_SERVER_PROTOCOL_MAX },
+          { min: msg.protocolMin, max: msg.protocolMax },
+        )
+        this.sendToClient(protocol === null ? this.noCommonProtocol() : this.helloOk(protocol), via, socket)
+        break
+      }
+      case 'server:extendIdle':
+        this.extendIdle(msg, via, socket)
+        break
+      default: {
+        // T0857: before v1 an unknown request got no answer at all
+        const type = (msg as { type?: unknown }).type
+        this.sendToClient(errorResponse(typeof type === 'string' ? type : 'unknown', 'UNKNOWN_REQUEST', 'unknown request'), via, socket)
+      }
     }
+  }
+
+  /**
+   * T0857 (D7, for W4's installer quit): the next idle countdown uses `durationMs` instead of the
+   * configured timeout — at least the configured one, at most MAX_IDLE_EXTENSION_MS (24 h). One
+   * extension at a time (a second → ALREADY_EXTENDED); a client that says hello again restores
+   * the configured timeout. `idleTimeoutMs` 0 (never idle out) stays 0.
+   */
+  private extendIdle(req: Extract<ServerRequest, { type: 'server:extendIdle' }>, via: 'ipc' | 'tcp', socket?: net.Socket): void {
+    if (typeof req.durationMs !== 'number' || !Number.isFinite(req.durationMs) || req.durationMs <= 0) {
+      this.sendToClient(errorResponse('server:extendIdle', 'BAD_REQUEST', 'durationMs must be a positive number'), via, socket)
+      return
+    }
+    if (this.idleTimeoutMs === 0) {
+      this.sendToClient({ type: 'server:idle-extended', idleTimeoutMs: 0, configuredIdleTimeoutMs: 0 }, via, socket)
+      return
+    }
+    if (this.idleExtensionMs !== null) {
+      this.sendToClient(errorResponse('server:extendIdle', 'ALREADY_EXTENDED', 'the idle timeout is already extended'), via, socket)
+      return
+    }
+    this.idleExtensionMs = Math.min(Math.max(Math.round(req.durationMs), this.idleTimeoutMs), MAX_IDLE_EXTENSION_MS)
+    this.sendToClient(
+      { type: 'server:idle-extended', idleTimeoutMs: this.idleExtensionMs, configuredIdleTimeoutMs: this.idleTimeoutMs },
+      via, socket,
+    )
+  }
+
+  /** T0857: the timeout the next idle countdown uses. */
+  get effectiveIdleTimeoutMs(): number {
+    return this.idleExtensionMs ?? this.idleTimeoutMs
   }
 
   // ── PTY handlers ─────────────────────────────────────────────────────────────
@@ -394,7 +606,7 @@ export class TerminalServer {
 
     this.idleTimer = setTimeout(() => {
       this.shutdown()
-    }, this.idleTimeoutMs)
+    }, this.effectiveIdleTimeoutMs)
   }
 
   /** Reset idle countdown — called on every incoming message. */
@@ -420,10 +632,15 @@ export class TerminalServer {
     const ended = Promise.all([...this.ptys].map(([id, entry]) => this.endPty(id, entry)))
     this.ptys.clear()
 
-    // Close all TCP clients and the TCP server
+    // Close all TCP connections (clients and not yet authenticated ones) and the TCP server
+    for (const [conn, state] of this.tcpStates) {
+      if (state.helloTimer) clearTimeout(state.helloTimer)
+      try { conn.destroy() } catch { /* ignore */ }
+    }
     for (const client of this.tcpClients) {
       try { client.destroy() } catch { /* ignore */ }
     }
+    this.tcpStates.clear()
     this.tcpClients.clear()
     if (this.tcpServer) {
       this.tcpServer.close()
@@ -436,9 +653,18 @@ export class TerminalServer {
         try { clearRegistry(this._userDataPath) } catch { /* ignore */ }
         try { removePidFile(this._userDataPath) } catch { /* ignore */ }
         try { removePortFile(this._userDataPath) } catch { /* ignore */ }
+        try { removeTokenFile(this._userDataPath) } catch { /* ignore */ }
       }
 
       this.deps.exit(0)
     })
   }
+}
+
+function isRequestObject(msg: unknown): msg is { type?: unknown; [key: string]: unknown } {
+  return typeof msg === 'object' && msg !== null && !Array.isArray(msg)
+}
+
+function errorResponse(requestType: string, code: ServerErrorCode, message: string): Extract<ServerResponse, { type: 'error' }> {
+  return { type: 'error', requestType, message, code }
 }

@@ -19,7 +19,8 @@
  *
  * No BAT window process but the lock was free (`runInstallerQuitWithoutApp`): the user quit BAT keeping
  * the Terminal Server. The request process then records that server's PTYs (registry) and asks it to
- * shut down (TCP `server:shutdown`), waits for it, and exits; it never opens a window.
+ * shut down (TCP `server:shutdown`, with the server's token since T0857), waits for it, and exits; it
+ * never opens a window.
  *
  * Whatever fails (old BAT that ignores the argument, BAT still starting, a quit already in progress,
  * timeout), the installer falls back to electron-builder's own check after its wait
@@ -268,7 +269,11 @@ export interface InstallerQuitWithoutAppDeps {
   /** The claude sessions the last BAT process stored (`claude-sessions.json` `sessions`), [] when unreadable. */
   storedClaudeSessions(): readonly unknown[]
   writeRecord(record: InstallerQuitRecord): boolean
-  /** TCP `server:shutdown` (main.ts `sendShutdownToServer`); false when there is no port file. */
+  /**
+   * TCP `server:shutdown` (main.ts `sendShutdownToServer`); false when there is no port file.
+   * T0857 (PLAN-065 W1): after a `server:hello` with the server's token (`bat-pty-server.token`) —
+   * a v1 server refuses an unauthenticated request; a server before T0857 ignores the hello.
+   */
   sendShutdown(): Promise<boolean>
   /** Resolves true once the server is gone (main.ts `waitForTerminalServerExit`). */
   waitForServerExit(timeoutMs: number): Promise<boolean>

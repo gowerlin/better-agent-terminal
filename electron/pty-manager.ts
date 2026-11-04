@@ -5,7 +5,8 @@ import { spawn, ChildProcess } from 'child_process'
 import { PTY_LIMIT_REACHED, type CreatePtyOptions, type PtyCreateResult, type PtyReplayBuffer } from '../src/types'
 import { broadcastHub } from './remote/broadcast-hub'
 import { logger } from './logger'
-import type { ServerRequest, ServerResponse } from './terminal-server/protocol'
+import { openHelloConnection, type HelloFailure, type HelloOk, type ServerRequest, type ServerResponse } from './terminal-server/protocol'
+import { readPidFile } from './terminal-server/pid-manager'
 import { readRegistry, clearRegistry } from './terminal-server/pty-registry'
 import { isValidPid, killProcessTree, type KillTreeResult } from './terminal-server/process-tree'
 import { getRuntimeSettingsSnapshot } from './claude-runtime-router'
@@ -198,6 +199,11 @@ export async function killOrphanPtyProcesses(
 
 /** T0704: why `handleServerDeath` ran (logged). */
 export type ServerDeathReason = 'heartbeat' | 'ipc-exit' | 'tcp-close' | 'unspecified'
+
+/** T0857: `PtyManager.connectToServer`; `protocol` 0 = a server before T0857 (no hello). */
+export type ServerConnectResult =
+  | { ok: true; protocol: number; hello: HelloOk | null }
+  | { ok: false; reason: HelloFailure }
 
 /**
  * Host dependencies (PLAN-036 T0389). PtyManager does not import `electron`:
@@ -423,6 +429,8 @@ export class PtyManager implements CloseWorkerPtyManager {
 
   // TCP reconnect channel (T0108)
   private tcpSocket: net.Socket | null = null
+  // T0857: the pid `server:hello-ok` reported (TCP mode liveness falls back to it without a pid file)
+  private tcpServerPid: number | null = null
 
   // Heartbeat watchdog (T0112)
   private heartbeatTimer: ReturnType<typeof setInterval> | null = null
@@ -598,63 +606,74 @@ export class PtyManager implements CloseWorkerPtyManager {
 
   /**
    * Connect to an already-running Terminal Server via TCP (T0108 reconnect path).
-   * Returns true if the connection succeeds within 3 seconds.
+   * T0857 (PLAN-065 W1): the connection starts with `server:hello` + the server's token
+   * (`token`, from bat-pty-server.token; null = none, e.g. a server before v1). A server before v1
+   * answers only the ping → protocol 0, used as before. The result says why it failed:
+   * `unauthenticated` / `incompatible` (main.ts takes the Recovery fresh-start path),
+   * `timeout` (no answer within HELLO_TIMEOUT_MS = 3 s, the connect timeout before T0857),
+   * `closed` (gone / refused). On success the heartbeat runs on the TCP channel too.
    */
-  public connectToServer(port: number): Promise<boolean> {
-    return new Promise((resolve) => {
-      // T0111: Close existing TCP socket before opening a new one to avoid
-      // duplicate message delivery (Terminal Server broadcasts to ALL clients).
-      if (this.tcpSocket && !this.tcpSocket.destroyed) {
-        this.tcpSocket.destroy()
-        this.tcpSocket = null
-      }
+  public async connectToServer(port: number, token: string | null = null): Promise<ServerConnectResult> {
+    // T0111: Close existing TCP socket before opening a new one to avoid
+    // duplicate message delivery (Terminal Server broadcasts to ALL clients).
+    if (this.tcpSocket && !this.tcpSocket.destroyed) {
+      this.tcpSocket.destroy()
+      this.tcpSocket = null
+    }
 
-      const socket = new net.Socket()
+    const conn = await openHelloConnection(port, token, { keepOpen: true })
+    if (!conn.result.ok || !conn.socket) {
+      const reason = conn.result.ok ? 'closed' : conn.result.reason
+      logger.warn(`[PtyManager] Terminal Server on port ${port}: hello failed (${reason})`)
+      return { ok: false, reason }
+    }
+    const { protocol, hello } = conn.result
+    const socket = conn.socket
+    this.tcpSocket = socket
+    this.tcpServerPid = hello && isValidPid(hello.pid) ? hello.pid : null
 
-      socket.setTimeout(3000)
-
-      socket.connect(port, '127.0.0.1', () => {
-        socket.setTimeout(0)
-        this.tcpSocket = socket
-        this.setupTcpListener()
-        logger.log(`[PtyManager] TCP connected to Terminal Server on port ${port}`)
-        resolve(true)
-      })
-
-      socket.on('error', () => {
-        socket.destroy()
-        resolve(false)
-      })
-
-      socket.on('timeout', () => {
-        socket.destroy()
-        resolve(false)
-      })
-
-      socket.on('close', () => {
-        if (this.tcpSocket === socket) {
-          this.tcpSocket = null
-          logger.log('[PtyManager] TCP connection to Terminal Server closed')
-          if (this.isShuttingDown) {
-            // T0150 (BUG-035): intentional shutdown via sendShutdownToServer,
-            // do not mistake for a crash and re-fork an orphan server.
-            logger.log('[PtyManager] TCP close during shutdown — skip re-fork')
-            return
-          }
-          // T0112: Fast-path death detection via TCP close (more immediate than heartbeat)
-          if (!this.isRecovering) {
-            this.handleServerDeath('tcp-close')
-          }
-        }
-      })
+    socket.on('error', () => {
+      socket.destroy()
     })
+
+    socket.on('close', () => {
+      if (this.tcpSocket === socket) {
+        this.tcpSocket = null
+        this.tcpServerPid = null
+        logger.log('[PtyManager] TCP connection to Terminal Server closed')
+        if (this.isShuttingDown) {
+          // T0150 (BUG-035): intentional shutdown via sendShutdownToServer,
+          // do not mistake for a crash and re-fork an orphan server.
+          logger.log('[PtyManager] TCP close during shutdown — skip re-fork')
+          return
+        }
+        // T0112: Fast-path death detection via TCP close (more immediate than heartbeat)
+        if (!this.isRecovering) {
+          this.handleServerDeath('tcp-close')
+        }
+      }
+    })
+
+    this.setupTcpListener(conn.held, conn.tail)
+    // 🔴 the log carries the protocol and what the server said about itself, never the token
+    const about = hello
+      ? `protocol ${protocol}, BAT ${hello.batVersion || 'unknown'}, runtime ${hello.runtime?.name ?? 'unknown'} ${hello.runtime?.version ?? ''}`.trimEnd() + `, pid ${hello.pid}`
+      : `protocol ${protocol} (no hello: a server before T0857)`
+    logger.log(`[PtyManager] TCP connected to Terminal Server on port ${port} (${about})`)
+    // T0857: TCP mode has its own liveness check (serverLiveness), so it gets the heartbeat as well
+    this.startHeartbeat()
+    return { ok: true, protocol, hello }
   }
 
-  /** Set up JSON-line framing on the TCP socket and route messages through handleServerMessage. */
-  private setupTcpListener(): void {
+  /**
+   * Set up JSON-line framing on the TCP socket and route messages through handleServerMessage.
+   * T0857: first the messages that came during the hello (in order), then the rest of the stream.
+   */
+  private setupTcpListener(held: ServerResponse[] = [], tail = ''): void {
     if (!this.tcpSocket) return
     const generation = this.serverGeneration
-    let lineBuffer = ''
+    for (const msg of held) this.handleServerMessage(msg, generation)
+    let lineBuffer = tail
     this.tcpSocket.on('data', (chunk: Buffer) => {
       lineBuffer += chunk.toString()
       const lines = lineBuffer.split('\n')
@@ -1783,6 +1802,8 @@ export class PtyManager implements CloseWorkerPtyManager {
    * that finds the pong late counts a miss; `HEARTBEAT_MAX_MISSES` in a row → liveness check, and
    * only a server whose process or IPC is gone is recovered. A server process that exits recovers
    * at once through its IPC `exit` (`setServerProcess`), not through here.
+   * T0857: also runs on a TCP connection (`connectToServer`); there the process is the one of the
+   * pid file and the channel is the TCP socket (`serverLiveness`), the rule is the same.
    */
   private startHeartbeat(): void {
     this.stopHeartbeat()
@@ -1796,9 +1817,10 @@ export class PtyManager implements CloseWorkerPtyManager {
       if (elapsed > PtyManager.HEARTBEAT_INTERVAL_MS + PtyManager.HEARTBEAT_TIMEOUT_MS) {
         this.missedPongs++
         if (this.missedPongs >= PtyManager.HEARTBEAT_MAX_MISSES) {
-          const { processAlive, ipcConnected } = this.serverLiveness()
-          if (!processAlive || !ipcConnected) {
-            logger.error(`[heartbeat] no pong for ${elapsed}ms (${this.missedPongs} late ticks), server process=${processAlive ? 'alive' : 'gone'} ipc=${ipcConnected ? 'connected' : 'closed'} — server dead`)
+          const { channel, processAlive, channelConnected } = this.serverLiveness()
+          const label = channel === 'tcp' ? 'tcp' : 'ipc'
+          if (!processAlive || !channelConnected) {
+            logger.error(`[heartbeat] no pong for ${elapsed}ms (${this.missedPongs} late ticks), server process=${processAlive ? 'alive' : 'gone'} ${label}=${channelConnected ? 'connected' : 'closed'} — server dead`)
             if (!this.isRecovering) {
               this.handleServerDeath('heartbeat')
             }
@@ -1806,7 +1828,7 @@ export class PtyManager implements CloseWorkerPtyManager {
           }
           // logged at the threshold, then every HEARTBEAT_MAX_MISSES ticks
           if (this.missedPongs % PtyManager.HEARTBEAT_MAX_MISSES === 0) {
-            logger.warn(`[heartbeat] late pong: none for ${elapsed}ms (${this.missedPongs} late ticks), server process and IPC alive — no recovery`)
+            logger.warn(`[heartbeat] late pong: none for ${elapsed}ms (${this.missedPongs} late ticks), server process and ${channel === 'tcp' ? 'TCP connection' : 'IPC'} alive — no recovery`)
           }
         }
       }
@@ -1825,11 +1847,33 @@ export class PtyManager implements CloseWorkerPtyManager {
   /**
    * T0704: is the fork IPC Terminal Server still there — its process (`exitCode` / `signalCode`
    * unset and `process.kill(pid, 0)` succeeds) and its IPC channel (`connected`).
+   * T0857 (T0856 Q3): TCP mode (BAT reopened, `serverProcess` null) — before T0857 this said
+   * "gone / closed" for a live server. The process is the pid file's (`bat-pty-server.pid`, read
+   * now; the hello-ok pid when there is none) under `process.kill(pid, 0)`, the channel the socket.
    */
-  private serverLiveness(): { processAlive: boolean; ipcConnected: boolean } {
+  private serverLiveness(): { channel: 'ipc' | 'tcp' | 'none'; processAlive: boolean; channelConnected: boolean } {
     const server = this.serverProcess
-    if (!server) return { processAlive: false, ipcConnected: false }
-    return { processAlive: this.isServerProcessRunning(server), ipcConnected: server.connected === true }
+    if (server) {
+      return { channel: 'ipc', processAlive: this.isServerProcessRunning(server), channelConnected: server.connected === true }
+    }
+    const socket = this.tcpSocket
+    if (socket) {
+      const pid = this.tcpServerPidNow()
+      return {
+        channel: 'tcp',
+        processAlive: pid !== null && pid !== process.pid && this.watchdog.isProcessAlive(pid),
+        channelConnected: !socket.destroyed,
+      }
+    }
+    return { channel: 'none', processAlive: false, channelConnected: false }
+  }
+
+  /** T0857: the TCP-connected server's pid — the pid file first, then what its hello-ok said. */
+  private tcpServerPidNow(): number | null {
+    let fromFile: number | null = null
+    try { fromFile = this.deps.dataDir ? readPidFile(this.deps.dataDir) : null } catch { fromFile = null }
+    if (isValidPid(fromFile)) return fromFile
+    return isValidPid(this.tcpServerPid) ? this.tcpServerPid : null
   }
 
   private isServerProcessRunning(server: ChildProcess): boolean {
@@ -1893,6 +1937,7 @@ export class PtyManager implements CloseWorkerPtyManager {
         this.tcpSocket.destroy()
         this.tcpSocket = null
       }
+      this.tcpServerPid = null
       // T0576: none of the server's PTYs survives; the rebuild below spawns new ones
       this.notifySurvivingPtys([])
       // T0766 (PLAN-055 B1): which agent tabs this interrupts — 🔴 before clearAll drops their
@@ -2058,6 +2103,7 @@ export class PtyManager implements CloseWorkerPtyManager {
         }
       } catch { /* best-effort */ }
       this.tcpSocket = null
+      this.tcpServerPid = null
       this.serverProcess = null
       this.instances.clear()
       this.replayBuffers.clear()

@@ -26,18 +26,21 @@ describe('buildServerPtyEnv', () => {
     BAT_USER_DATA: '/data/bat',
     BAT_IDLE_TIMEOUT_MS: '1800000',
     BAT_SCROLL_BUFFER_LINES: '1000',
+    BAT_TERMINAL_SERVER_BAT_VERSION: '0.7.5-pre.1',
     ELECTRON_RUN_AS_NODE: '1',
     SHARED: 'server',
   }
 
   it('lists the server settings main.ts forks it with', () => {
-    expect([...TERMINAL_SERVER_OWN_ENV_KEYS].sort()).toEqual(['BAT_IDLE_TIMEOUT_MS', 'BAT_SCROLL_BUFFER_LINES'])
+    // T0857: + the BAT version the server reports in `server:hello-ok`
+    expect([...TERMINAL_SERVER_OWN_ENV_KEYS].sort()).toEqual(['BAT_IDLE_TIMEOUT_MS', 'BAT_SCROLL_BUFFER_LINES', 'BAT_TERMINAL_SERVER_BAT_VERSION'])
   })
 
   it('leaves out the server settings and keeps the rest of the server env', () => {
     const env = buildServerPtyEnv(serverEnv, undefined)
     expect(env).not.toHaveProperty('BAT_IDLE_TIMEOUT_MS')
     expect(env).not.toHaveProperty('BAT_SCROLL_BUFFER_LINES')
+    expect(env).not.toHaveProperty('BAT_TERMINAL_SERVER_BAT_VERSION')
     expect(env).not.toHaveProperty('ELECTRON_RUN_AS_NODE')
     expect(env.PATH).toBe('/usr/bin')
     expect(env.BAT_USER_DATA).toBe('/data/bat')

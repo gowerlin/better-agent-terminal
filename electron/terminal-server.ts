@@ -9,7 +9,7 @@
  *   - Clean up PID file on SIGTERM / shutdown
  */
 import { TerminalServer } from './terminal-server/server'
-import { writePidFile, removePidFile, removePortFile } from './terminal-server/pid-manager'
+import { writePidFile, removePidFile, removePortFile, removeTokenFile } from './terminal-server/pid-manager'
 import type { ServerRequest } from './terminal-server/protocol'
 
 const userDataPath = process.env.BAT_USER_DATA ?? ''
@@ -30,7 +30,9 @@ const scrollBufferLines = process.env.BAT_SCROLL_BUFFER_LINES
 const idleTimeoutMs = process.env.BAT_IDLE_TIMEOUT_MS
   ? parseInt(process.env.BAT_IDLE_TIMEOUT_MS, 10)
   : undefined
-const server = new TerminalServer(idleTimeoutMs, scrollBufferLines)
+// T0857: reported in `server:hello-ok` (left out of every PTY's env, TERMINAL_SERVER_OWN_ENV_KEYS)
+const batVersion = process.env.BAT_TERMINAL_SERVER_BAT_VERSION ?? ''
+const server = new TerminalServer(idleTimeoutMs, scrollBufferLines, { identity: { batVersion } })
 
 // Start TCP server for reconnection after BAT restart (T0108)
 if (userDataPath) {
@@ -52,6 +54,7 @@ process.on('SIGTERM', () => {
   if (userDataPath) {
     try { removePidFile(userDataPath) } catch { /* ignore */ }
     try { removePortFile(userDataPath) } catch { /* ignore */ }
+    try { removeTokenFile(userDataPath) } catch { /* ignore */ }
   }
   server.shutdown()
 })

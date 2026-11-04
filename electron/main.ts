@@ -111,7 +111,8 @@ import { logger, type LogLevel } from './logger'
 import { createGpuStatusLog, decideSkiaGraphite, formatSkiaGraphiteDecision, GPU_BASELINE_FALLBACK_MS, summarizeGpuInfo } from './gpu-status-log'
 import { takeLinuxSandboxStart } from './linux-sandbox-fallback'
 import { describeMigrationReport } from './userdata-migration'
-import { isServerRunning, readPidFile, readPortFile, removePidFile, removePortFile } from './terminal-server/pid-manager'
+import { isServerRunning, readPidFile, readPortFile, readTokenFile, removePidFile, removePortFile, removeTokenFile } from './terminal-server/pid-manager'
+import { createLineParser, openHelloConnection, shutdownLines, type HelloFailure, type ServerResponse } from './terminal-server/protocol'
 import { readRegistry, clearRegistry } from './terminal-server/pty-registry'
 import { agentRegistry } from './agent-runtime/agent-registry'
 import { getWindowsElevation } from './windows-elevation'
@@ -268,7 +269,8 @@ if (installerQuitWithoutApp) {
     sendShutdown: async () => {
       const port = readPortFile(userDataPath)
       if (!port) return false
-      await sendShutdownToServer(port)
+      // T0857: with the token of bat-pty-server.token (a v1 server refuses a shutdown without it)
+      await sendShutdownToServer(port, readTokenFile(userDataPath))
       return true
     },
     waitForServerExit: timeoutMs => waitForTerminalServerExit(userDataPath, timeoutMs),
@@ -288,15 +290,22 @@ let pendingRecovery: { port: number; ptyCount: number } | null = null
 // PLAN-063 / T0821: the first start after an upgrade (version changed + orphan PTYs) — created in whenReady
 let upgradeInterruptionCheck: UpgradeInterruptionCheck | null = null
 
+/** T0857: `probeServerPtyCount`; `protocol` 0 = a server before T0857 (no hello). */
+type ServerProbe = { ok: true; protocol: number; ptyCount: number } | { ok: false; reason: HelloFailure }
+
 /**
  * Probe a running Terminal Server to count how many PTY processes are alive.
  * Opens a temporary TCP connection, sends pty:list, and returns the count.
- * Times out after 3 seconds and returns 0 on failure.
+ * T0857: the connection says hello first (`token` from bat-pty-server.token). A failed hello
+ * is returned as such — `unauthenticated` / `incompatible` / `timeout` (3 s, HELLO_TIMEOUT_MS) /
+ * `closed` — instead of a count of 0. After the hello, no `pty:list` within 3 s = 0 PTYs (as before).
  */
-async function probeServerPtyCount(port: number): Promise<number> {
+async function probeServerPtyCount(port: number, token: string | null): Promise<ServerProbe> {
+  const conn = await openHelloConnection(port, token, { keepOpen: true })
+  if (!conn.result.ok || !conn.socket) return { ok: false, reason: conn.result.ok ? 'closed' : conn.result.reason }
+  const { protocol } = conn.result
+  const socket = conn.socket
   return new Promise((resolve) => {
-    const socket = new net.Socket()
-    let lineBuffer = ''
     let resolved = false
 
     const done = (count: number) => {
@@ -304,51 +313,62 @@ async function probeServerPtyCount(port: number): Promise<number> {
       resolved = true
       clearTimeout(timer)
       socket.destroy()
-      resolve(count)
+      resolve({ ok: true, protocol, ptyCount: count })
     }
 
     const timer = setTimeout(() => done(0), 3000)
 
-    socket.connect(port, '127.0.0.1', () => {
-      socket.write(JSON.stringify({ type: 'pty:list' }) + '\n')
-    })
-
-    socket.on('data', (chunk: Buffer) => {
-      lineBuffer += chunk.toString()
-      const lines = lineBuffer.split('\n')
-      lineBuffer = lines.pop()!
-      for (const line of lines) {
-        if (!line.trim()) continue
-        try {
-          const msg = JSON.parse(line) as { type: string; ptys?: unknown[] }
-          if (msg.type === 'pty:list' && Array.isArray(msg.ptys)) {
-            done(msg.ptys.length)
-          }
-        } catch { /* ignore malformed JSON */ }
-      }
-    })
-
+    const take = (msg: unknown) => {
+      const m = msg as Partial<Extract<ServerResponse, { type: 'pty:list' }>> | null
+      if (m?.type === 'pty:list' && Array.isArray(m.ptys)) done(m.ptys.length)
+    }
+    for (const msg of conn.held) take(msg)
+    const parse = createLineParser(take)
+    if (conn.tail) parse(conn.tail)
+    socket.on('data', parse)
     socket.on('error', () => done(0))
     socket.on('close', () => done(0))
+    socket.write(JSON.stringify({ type: 'pty:list' }) + '\n')
   })
 }
 
 /**
  * Send a server:shutdown command to a running Terminal Server via TCP.
  * Used when the user chooses "fresh start" in the recovery prompt.
+ * T0857: hello (with `token`) + shutdown in one write. A server before T0857 ignores the hello;
+ * a v1 server needs it, and accepts the shutdown even when there is no common protocol.
  */
-async function sendShutdownToServer(port: number): Promise<void> {
+async function sendShutdownToServer(port: number, token: string | null): Promise<void> {
   return new Promise((resolve) => {
     const socket = new net.Socket()
     socket.setTimeout(2000)
     socket.connect(port, '127.0.0.1', () => {
-      socket.write(JSON.stringify({ type: 'server:shutdown' }) + '\n')
+      socket.write(shutdownLines(token))
       socket.setTimeout(500)
     })
     socket.on('close', resolve)
     socket.on('error', resolve)
     socket.on('timeout', () => { socket.destroy(); resolve() })
   })
+}
+
+/**
+ * T0857: a hello result that means the server runs but this BAT cannot use it — the token was
+ * refused, there is no common protocol, or it does not answer. `closed` (gone) is not one of them.
+ */
+function endsUnusableServer(reason: HelloFailure): boolean {
+  return reason === 'unauthenticated' || reason === 'incompatible' || reason === 'timeout'
+}
+
+/**
+ * T0857: the Recovery fresh-start steps for a server found unusable (startTerminalServer /
+ * `terminal-server:recover`): TCP shutdown, then wait for it to exit (the files are removed by the caller).
+ */
+async function shutdownTerminalServerAndWait(port: number, userDataPath: string, token: string | null): Promise<void> {
+  try { await sendShutdownToServer(port, token) } catch { /* server may already be dead */ }
+  if (!(await waitForTerminalServerExit(userDataPath, FRESH_START_SERVER_EXIT_TIMEOUT_MS))) {
+    logger.warn(`[terminal-server] unusable server still running after ${FRESH_START_SERVER_EXIT_TIMEOUT_MS} ms — starting the new one anyway`)
+  }
 }
 
 /** T0578: covers the old server's `endPty` taskkills (3 s each, run in parallel) on a fresh start. */
@@ -402,6 +422,8 @@ function forkTerminalServer(serverScript: string, userDataPath: string): import(
       BAT_USER_DATA: userDataPath,
       BAT_SCROLL_BUFFER_LINES: String(scrollBufferLines),
       BAT_IDLE_TIMEOUT_MS: String(idleTimeoutMinutes * 60000),
+      // T0857: reported in `server:hello-ok`; not in any PTY's env (TERMINAL_SERVER_OWN_ENV_KEYS)
+      BAT_TERMINAL_SERVER_BAT_VERSION: app.getVersion(),
     },
   }))
 }
@@ -442,13 +464,22 @@ async function startTerminalServer(): Promise<void> {
 
     removePidFile(userDataPath)
     removePortFile(userDataPath)
+    removeTokenFile(userDataPath)
   }
 
   if (isServerRunning(userDataPath)) {
     const port = readPortFile(userDataPath)
     if (port) {
       // T0110: Probe PTY count first — if there are live terminals, defer to user
-      const ptyCount = await probeServerPtyCount(port)
+      // T0857: the probe says hello first; a server we cannot use takes the fresh-start path
+      const token = readTokenFile(userDataPath)
+      const probe = await probeServerPtyCount(port, token)
+      const unusable = !probe.ok && endsUnusableServer(probe.reason)
+      if (unusable) {
+        logger.warn(`[terminal-server] existing server on port ${port}: hello ${probe.ok ? '' : probe.reason} — ending it (Recovery fresh-start path)`)
+        await shutdownTerminalServerAndWait(port, userDataPath, token)
+      }
+      const ptyCount = probe.ok ? probe.ptyCount : 0
       if (ptyCount > 0) {
         pendingRecovery = { port, ptyCount }
         logger.log(`[terminal-server] ${ptyCount} live PTYs detected — deferring to user recovery decision`)
@@ -457,9 +488,11 @@ async function startTerminalServer(): Promise<void> {
         return  // Recovery prompt will handle reconnect or fresh-start
       }
       // Server alive but no PTYs — T0108: try silent reconnect
-      if (ptyManager) {
-        const connected = await ptyManager.connectToServer(port)
-        if (connected) {
+      if (unusable) {
+        // T0857: ended above — fall through to the stale-server cleanup and fork a fresh one
+      } else if (ptyManager) {
+        const connected = await ptyManager.connectToServer(port, token)
+        if (connected.ok) {
           logger.log(`[terminal-server] reconnected to existing server on port ${port}`)
           // Request PTY list — handleReplayList will fetch and replay buffers
           ptyManager.sendToServer({ type: 'pty:list' })
@@ -476,6 +509,7 @@ async function startTerminalServer(): Promise<void> {
     // Stale server: clean up files and fall through to fork a fresh one
     removePidFile(userDataPath)
     removePortFile(userDataPath)
+    removeTokenFile(userDataPath)
   }
 
   // T0576: no Terminal Server survived (or the user chose a fresh start) — no earlier PTY runs
@@ -529,6 +563,7 @@ async function reforkTerminalServer(): Promise<import('child_process').ChildProc
   const userDataPath = app.getPath('userData')
   removePidFile(userDataPath)
   removePortFile(userDataPath)
+  removeTokenFile(userDataPath)
 
   const serverScript = path.join(__dirname, 'terminal-server.js')
   if (!fsSync.existsSync(serverScript)) {
@@ -2121,7 +2156,8 @@ app.whenReady().then(async () => {
           const userDataPath = app.getPath('userData')
           const port = readPortFile(userDataPath)
           if (port !== null && isServerRunning(userDataPath)) {
-            const ptyCount = await probeServerPtyCount(port)
+            const probe = await probeServerPtyCount(port, readTokenFile(userDataPath))
+            const ptyCount = probe.ok ? probe.ptyCount : 0
             if (ptyCount > 0) {
               pendingRecovery = { port, ptyCount }
               logger.log(`[terminal-server] reload detected ${ptyCount} live PTYs — offering recovery`)
@@ -2400,7 +2436,7 @@ async function stopTerminalServerGracefully(): Promise<void> {
   try {
     const port = readPortFile(userDataPath)
     if (port) {
-      await sendShutdownToServer(port)
+      await sendShutdownToServer(port, readTokenFile(userDataPath))
 
       // Step C: Wait for pidfile removal (signals graceful shutdown completion)
       const gone = await waitForPidFileRemoval(TIMEOUT_MS)
@@ -4635,18 +4671,27 @@ function registerLocalHandlers() {
       return
     }
 
-    const connected = await ptyManager.connectToServer(port)
-    if (connected) {
+    const userDataPath = app.getPath('userData')
+    const token = readTokenFile(userDataPath)
+    const connected = await ptyManager.connectToServer(port, token)
+    if (connected.ok) {
       logger.log(`[terminal-server] user chose recovery — connected to port ${port}`)
       ptyManager.sendToServer({ type: 'pty:list' })
       // BUG-146: the held creates run once the list registered the surviving ids (created: false)
       ptyManager.releaseCreatesOnReplayList()
     } else {
-      // Server died while prompt was showing — fall back to new server
-      logger.warn('[terminal-server] recovery failed (server died) — falling back to new server')
-      const userDataPath = app.getPath('userData')
+      if (endsUnusableServer(connected.reason)) {
+        // T0857: the server runs but cannot be used (token refused, no common protocol, no answer)
+        // — the fresh-start path (W5 adds the D5 explanation)
+        logger.warn(`[terminal-server] recovery failed (hello ${connected.reason}) — ending the old server, falling back to new server`)
+        await shutdownTerminalServerAndWait(port, userDataPath, token)
+      } else {
+        // Server died while prompt was showing — fall back to new server
+        logger.warn('[terminal-server] recovery failed (server died) — falling back to new server')
+      }
       removePidFile(userDataPath)
       removePortFile(userDataPath)
+      removeTokenFile(userDataPath)
       _terminalServerStarted = false
       try {
         await startTerminalServer()
@@ -4661,10 +4706,10 @@ function registerLocalHandlers() {
     const { port } = pendingRecovery
     pendingRecovery = null
 
-    // Shutdown old server gracefully
-    try { await sendShutdownToServer(port) } catch { /* server may already be dead */ }
-
     const userDataPath = app.getPath('userData')
+    // Shutdown old server gracefully (T0857: with its token)
+    try { await sendShutdownToServer(port, readTokenFile(userDataPath)) } catch { /* server may already be dead */ }
+
     // T0578: the old server closes its sockets at once but removes the pid / port / registry files
     // only after its PTY trees ended (T0540) — wait for that, or it deletes the new server's files
     if (!(await waitForTerminalServerExit(userDataPath, FRESH_START_SERVER_EXIT_TIMEOUT_MS))) {
@@ -4672,6 +4717,7 @@ function registerLocalHandlers() {
     }
     removePidFile(userDataPath)
     removePortFile(userDataPath)
+    removeTokenFile(userDataPath)
 
     _terminalServerStarted = false
     try {
