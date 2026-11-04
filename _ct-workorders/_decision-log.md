@@ -1465,6 +1465,14 @@
 - **切分**：W2a 設計語言 + 元件 + 首頁（T0630）→ 預覽通過後 W2b（`/control-tower`、功能、FAQ、回報頁）→ W2c 遠端開發；W3 / W4 不變。
 - **相關**：PLAN-049 / D159 / D160 / T0624 / T0630
 
+### D284 2026-11-04 — 發 `0.7.4-pre.9`（PLAN-052 Docker 遠端路線，T0849–T0855）
+
+- **決定**（使用者「push＋跑驗收＋發 pre.9」）：push `bf1f367c..095470f7` → GitHub `docker-acceptance.yml` 首跑（run `41809111610`，pre.7 → pre.8 bundle）28 / 28 PASS → 發預覽版 `0.7.4-pre.9`（D236 版號線，接續 `v0.7.4-pre.8`）。內容：T0849（權杖不進命令列、healthy 後讀、錯誤碼、inspect 不回傳 env、timeout）、T0850（重跑更新既有設定）、T0855（legacy 測試期望）、T0851（選容器清單、帶出掛載）、T0852 / T0853（(c′) 基底映像＋bundle volume、重跑即升級）、T0854（文件 / 網站 / e2e / `docker-acceptance.yml`）。push 前去識別化 0 筆。
+- **版號線**：`pre.9` 是 `0.7.4` 線最後一個（不發 `pre.10`）；下一版需先與使用者確認新版號線。
+- **發版後驗收**：Docker Desktop（Windows / macOS）實機走精靈；NSIS 重裝驗收 `-Version 0.7.4-pre.9`。
+- **決策者**：使用者。2026-11-04 第一百一十九 session。
+- **相關**：D236 / D280 / D282 / D283 / PLAN-052
+
 ### D283 2026-11-04 — PLAN-052 採 (c′) 基底映像＋bundle volume；拆 T0849–T0854
 
 - **背景**：T0848 研究（`74f9e837`）：「沿用既有容器讀不到權杖」推論不成立（實測），實際問題是權杖讀取時機 / 錯誤訊息 / `--token` 外露 / 不能選容器 / 重跑新增設定 / 映像未發佈；另發現映像沒有 git、`docker:inspect-container` 回傳整串 env、docker 指令無 timeout。把 bundle 裝進任意既有容器做不到（建立後不能加埠映射）。
