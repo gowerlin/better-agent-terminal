@@ -4,14 +4,14 @@ schema_kind: workorder
 id: T0840
 title: "PLAN-043 W3：精靈「一次同意」清單＋ `plan-wsl-environment` / `apply-wsl-environment`（P-1 WSL2 轉換、P-2 systemd、P-3 預設使用者、P-4 linger）＋ `wsl-systemd-check` 改驗證"
 type: implementation
-status: PENDING
+status: IN_PROGRESS
 repo: better-agent-terminal
 project: maintenance
 priority: P3
 sizing: L
 created_at: "2026-11-04T09:17:09+0800"
-started_at: ""
-updated_at: "2026-11-04T09:17:09+0800"
+started_at: "2026-11-04T12:15:20+0800"
+updated_at: "2026-11-04T12:15:20+0800"
 completed_at: ""
 session_ids: []
 depends_on: [T0839, T0830, T0835]
@@ -34,6 +34,7 @@ affects_files:
 renew_count: 0
 workdir: main repo
 worker_question_timeout: 30
+tower_question: open
 interaction:
   mode_hint: yolo
   interactive: false
@@ -48,7 +49,7 @@ memory_overrides:
 # T0840 — PLAN-043 W3：一次同意＋自動修正
 
 ## 元資料
-- **工單編號**：T0840｜**類型**：implementation｜**狀態**：PENDING｜**建立**：2026-11-04 09:17 (UTC+8)
+- **工單編號**：T0840｜**類型**：implementation｜**狀態**：IN_PROGRESS｜**建立**：2026-11-04 09:17 (UTC+8)
 - **依賴**：T0839、T0830（runner AbortSignal、Shell 中止 UI 同檔）、T0835（同改 locales）
 - **規模**：L｜**降級**：先完成 runner `requestConsent`＋清單 UI＋P-2（systemd），P-1 / P-3 可回 PARTIAL 由塔台另開
 
@@ -74,6 +75,19 @@ memory_overrides:
 ## 回報區
 
 > 以下由 sub-session 填寫，請勿在指揮塔 session 中編輯（唯一例外：`### 待塔台決策` 的 `塔台答覆 Q-n` 行由塔台新增）
+
+### 待塔台決策
+
+#### Q-1：legacy 精靈測試寫死「9 個步驟」，可否改 `tests/` 底下的 WSL 精靈測試與共用 mock？
+- **提問時間**：2026-11-04T12:18:54+0800
+- **背景**：本單在 WSL 流程加 `plan-wsl-environment` / `apply-wsl-environment` 兩步（9 → 11）。`npm run test:legacy` 的 `tests/wsl-wizard-e2e.test.ts:26`、`tests/wizard-runner.test.ts:72,89,116` 斷言 `snapshots.length === 9`；共用 mock `tests/__mocks__/electron-api.ts` 沒有 `wsl.detectFacts` 與新的 apply / systemd 驗證 IPC。`tests/` 不在 `affects_files`。
+- **選項**：
+  - A：放行改這 3 個檔（WSL 步驟數 9 → 11、測試名稱跟著改；mock 補 `detectFacts`（預設回健康環境 → 0 項）、`applyEnvItem`、`systemdRunning`）。Docker 的兩個 `length, 9` 不動。
+  - B：不改 `tests/`，產品端在 IPC 不存在時退回舊行為（plan 當 0 項、systemd 驗證退回 `systemdEnabled`）；但步驟數斷言仍會失敗 → `test:legacy` 不會全過。
+  - 其他
+- **建議**：A。步驟數改變是本單規格的直接結果；mock 只補 IPC、不改既有斷言的意思。
+- **影響**：選 B 則驗收條件「`npm run test:legacy` 全過」無法達成。
+- **是否阻擋後續步驟**：不阻擋實作，只阻擋最後的 `test:legacy` 驗收與 commit。
 
 ### 完成狀態
 
