@@ -3,17 +3,17 @@ schema_version: 1
 schema_kind: bug
 id: BUG-211
 title: "遠端視窗 Claude 面板一次附多張大圖時，送出的 invoke frame 超過 server 32 MiB maxPayload，整條遠端連線以 1009 關閉（T0837 已重現）"
-status: FIXING
+status: FIXED
 severity: medium
 reproducibility: "always（T0837：真 RemoteServer + RemoteClient 測試，frame > 33,554,432 bytes 必定 1009）"
 created_at: "2026-11-04T09:17:09+0800"
-updated_at: "2026-11-04T11:14:45+08:00"
+updated_at: "2026-11-04T11:25:45+0800"
 impact:
   - remote
   - claude-panel
 links:
   discovered_in: "T0828 回報區〈建議方向〉之後「另外發現」"
-  related: [T0828, T0837, PLAN-038, T0436, D272]
+  related: [T0828, T0837, T0842, PLAN-038, T0436, D272, D273]
 ---
 # BUG-211 — 遠端多張大圖超過 32 MiB frame
 
@@ -21,7 +21,7 @@ links:
 |------|------|
 | 嚴重度 | 🟡 medium（T0837 建議維持：整條 profile 連線斷開，同 profile 所有進行中的 invoke 失敗，約 1–2 s 自動重連；使用者的訊息與圖片無聲遺失） |
 | 可重現 | ✅ 必定（T0837 測試重現，`electron/__tests__/bug211-ws-max-payload.test.ts`） |
-| **狀態** | ⏳ FIXING（T0842，方向 A：client 送出前 frame 大小守門＋面板檢查與失敗復原，D273） |
+| **狀態** | 🔧 FIXED（T0842 `bb8cbe1a`，方向 A，D273；待部署驗證：遠端視窗實機附 3 張大圖送出） |
 | 回報者 | 塔台（T0828 研究） |
 
 ## 現象（T0837 已重現）
@@ -62,3 +62,11 @@ T0837 實測（真 `RemoteServer` + 真 `RemoteClient`，loopback wss）：
 
 - 遠端視窗限制圖片合計大小（送出前檢查並提示）
 - 圖片也走 PLAN-038 上傳通道（T0832–T0834）
+
+## 修正（T0842，`bb8cbe1a`，方向 A）
+
+- `electron/remote/ws-limits.ts`：`WS_MAX_PAYLOAD_BYTES`（32 MiB）由 server 與 client 共用；server `maxPayload` 不變。
+- `RemoteClient.invoke`（與 auth frame）送出前算 UTF-8 bytes，超過 → 本機 reject `FRAME_TOO_LARGE: <channel> frame is <n> bytes; the remote connection accepts at most 33554432 bytes`，不送出、連線不斷、其他 invoke 不受影響（`bug211-ws-max-payload.test.ts`：3 × 10 MiB 實測 41,943,230 bytes 本機拒絕，client close codes `[]`）。
+- server `Max payload size exceeded` 日誌補連線識別（`client: <label>` / `helper: <role> <id>` / `unauthenticated`）。
+- Claude / Codex 面板（遠端視窗）：送出前檢查圖片解碼後合計 ≤ 20 MiB（`src/lib/remote-image-budget.ts`），超過 → toast、保留輸入與附圖、不送出；遠端送出失敗 → 系統訊息顯示原因、輸入與附件放回、復原這次送出開始的 `isStreaming`。本機視窗不檢查、行為不變。
+- 未涵蓋：fork 後自動送出的 pending 圖片（`onHistory` 路徑）不做面板檢查，只靠 client 守門（不斷線，但無提示）；方向 B（PLAN-038 上傳通道）仍為長期方案。
