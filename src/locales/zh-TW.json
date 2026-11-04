@@ -1254,11 +1254,11 @@
       "step": {
         "pickContainer": {
           "label": "選擇 Docker 容器模式",
-          "description": "建立新容器來執行 BAT 伺服器，或使用最近建立的既有容器。"
+          "description": "建立新容器來執行 BAT 伺服器，或從你既有的容器中選一個。"
         },
         "configureMounts": {
           "label": "選擇工作資料夾",
-          "description": "選一個本機資料夾分享給容器，在容器內的路徑是 /workspace/<資料夾名稱>。"
+          "description": "選一個本機資料夾分享給容器，在容器內的路徑是 /workspace/<資料夾名稱>。沿用既有容器時，BAT 會列出它已經掛載的資料夾。"
         },
         "installBundle": {
           "label": "確認 BAT 伺服器套件",
@@ -1273,7 +1273,8 @@
         "containerPortExposed": "容器 {{name}} 將 BAT 伺服器埠發布在主機所有網路介面（{{hostIps}}），同網路的其他機器都能連入。此容器建立於 BAT 將 Docker 埠限定綁 127.0.0.1 之前。修正方式：重新執行此精靈並選「建立新的」（新容器只發布在 127.0.0.1），確認不再需要舊容器的資料後，自行以 docker rm -f {{name}} 移除舊容器。BAT 不會修改或刪除它。",
         "containerLegacyImage": "容器 {{name}} 使用的 BAT 伺服器映像建置於 Docker 網路修正之前，伺服器無法透過發布的埠連線。請重新建置映像（npm run build:docker-image）並重新執行此精靈選「建立新的」。BAT 不會修改或刪除舊容器。",
         "existingNeedsBundle": "既有容器 {{name}} 裡必須已經有 /opt/bat-server。",
-        "nameTaken": "Docker 容器 {{taken}} 已經存在，BAT 不會動它，改為建立 {{name}}。"
+        "nameTaken": "Docker 容器 {{taken}} 已經存在，BAT 不會動它，改為建立 {{name}}。",
+        "containerMountsUnusable": "容器 {{name}} 掛載的資料夾不在這台電腦上，請改選要分享的資料夾。"
       },
       "error": {
         "daemonUnavailable": {
@@ -1343,6 +1344,36 @@
         "existing": {
           "label": "沿用既有容器",
           "description": "BAT 啟動既有的容器；復原時不會刪除它。"
+        },
+        "choose": {
+          "title": "選擇既有的容器",
+          "description": "不能使用的容器會列出但無法選擇。停止中的容器由 BAT 啟動，BAT 不會刪除它。"
+        },
+        "container": {
+          "running": "執行中",
+          "stopped": "已停止",
+          "published": "127.0.0.1:{{port}} → 9876",
+          "unpublished": "未發佈 9876",
+          "batCreated": "BAT 建立",
+          "disabled": {
+            "unpublished": "沒有把 BAT 伺服器的連接埠（9876/tcp）發佈到本機，BAT 連不到它。",
+            "portInUse": "把 BAT 伺服器發佈在本機連接埠 {{port}}，這是這個 BAT 自己的遠端伺服器正在使用的連接埠。"
+          }
+        },
+        "none": {
+          "title": "沒有可沿用的容器",
+          "empty": "這台電腦上沒有任何 Docker 容器，請改由 BAT 建立新容器。",
+          "allUnusable": "你的容器都沒有把 BAT 伺服器的連接埠（9876/tcp）發佈到 BAT 能用的本機連接埠。請改由 BAT 建立新容器，或以 -p 127.0.0.1:<連接埠>:9876 重新建立容器。",
+          "createNew": "改用建立新容器"
+        }
+      },
+      "configureMounts": {
+        "fromContainer": {
+          "title": "使用 {{name}} 已經掛載的資料夾？",
+          "description": "容器 {{name}} 已經掛載：{{mounts}}。BAT 用這些對照轉換本機與容器內的路徑。",
+          "use": "使用這些資料夾",
+          "pick": "改選其他資料夾",
+          "pickDescription": "選的資料夾不會掛進既有的容器；BAT 不會修改容器。"
         }
       }
     },

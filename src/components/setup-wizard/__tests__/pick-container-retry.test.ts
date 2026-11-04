@@ -87,7 +87,8 @@ afterEach(() => {
 describe('pick-container: a failed choice is not stored (T0502)', () => {
   it('first run "Use existing" with no containers fails, retry asks again, "Create new" succeeds', async () => {
     installDocker([])
-    const { requestChoice } = choiceQueue(['existing', 'new'])
+    // T0851: "Use existing" with no containers shows a prompt; dismissing it (null) fails as before.
+    const { requestChoice } = choiceQueue(['existing', null, 'new'])
     const ctx = dockerCtx(requestChoice)
     const runner = new WizardRunner([pickContainerStep], ctx)
     const run = runner.run()
@@ -100,7 +101,7 @@ describe('pick-container: a failed choice is not stored (T0502)', () => {
     await runner.retryCurrentStep()
     await run
 
-    expect(requestChoice).toHaveBeenCalledTimes(2)
+    expect(requestChoice).toHaveBeenCalledTimes(3)
     expect(runner.getSnapshots()[0].status).toBe(WizardStepStatus.Succeeded)
     expect(ctx.state.containerMode).toBe('new')
     expect(ctx.state.dockerContainer).toBe('bat-server-dev-box')
@@ -111,7 +112,8 @@ describe('pick-container: a failed choice is not stored (T0502)', () => {
     const taken: ContainerEntry[] = [{ name: 'bat-server-dev-box', state: 'running' }]
     for (let suffix = 2; suffix <= 99; suffix += 1) taken.push({ name: `bat-server-dev-box-${suffix}`, state: 'exited' })
     installDocker(taken)
-    const { requestChoice } = choiceQueue(['new', 'existing'])
+    // T0851: "Use existing" then asks which container.
+    const { requestChoice } = choiceQueue(['new', 'existing', 'bat-server-dev-box'])
     const ctx = dockerCtx(requestChoice)
     const runner = new WizardRunner([pickContainerStep], ctx)
     const run = runner.run()
@@ -124,7 +126,7 @@ describe('pick-container: a failed choice is not stored (T0502)', () => {
     await runner.retryCurrentStep()
     await run
 
-    expect(requestChoice).toHaveBeenCalledTimes(2)
+    expect(requestChoice).toHaveBeenCalledTimes(3)
     expect(ctx.state.containerMode).toBe('existing')
     expect(ctx.state.dockerContainer).toBe('bat-server-dev-box')
   })
@@ -171,7 +173,8 @@ describe('pick-container: rollback ownership after a failed re-run (T0502)', () 
 
   it('jump back -> failed "existing" pick -> retry asks again -> "Create new" keeps its own container name', async () => {
     installDocker([])
-    const { requestChoice } = choiceQueue(['new', 'existing', 'new'])
+    // T0851: null dismisses the "no usable container" prompt.
+    const { requestChoice } = choiceQueue(['new', 'existing', null, 'new'])
     const ctx = dockerCtx(requestChoice)
     const runner = new WizardRunner([pickContainerStep, creatingStartServer()], ctx)
     const run = runner.run()
@@ -182,7 +185,7 @@ describe('pick-container: rollback ownership after a failed re-run (T0502)', () 
     await runner.retryCurrentStep()
     await run
 
-    expect(requestChoice).toHaveBeenCalledTimes(3)
+    expect(requestChoice).toHaveBeenCalledTimes(4)
     expect(ctx.state.containerMode).toBe('new')
     // The name this run created is ours, so it is reused, not renamed.
     expect(ctx.state.dockerContainer).toBe('bat-server-dev-box')

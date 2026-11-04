@@ -80,6 +80,20 @@ type DockerPickServerPortResult =
   | { ok: true; port: number; reusedExistingPort?: boolean }
   | { ok: false; errorCode: 'docker-port-in-use' | 'docker-port-invalid' | 'docker-port-unpublished' | 'docker-inspect-failed'; error: string }
 
+/** T0851: `docker:list-containers` entry (electron/docker-detect.ts `DockerContainerInfo`). */
+interface DockerContainerListEntry {
+  id: string
+  name: string
+  image: string
+  state: string
+  status: string
+  ports?: string
+  createdAt?: string
+  batCreated?: boolean
+  /** Host port of `9876/tcp`; `null` = not published, `undefined` = unknown. */
+  publishedPort?: number | null
+}
+
 /** T0849: `docker:read-server-token` — the token only, never the container's env / command. */
 type DockerReadServerTokenResult =
   | { ok: true; token: string }
@@ -497,13 +511,15 @@ interface ElectronAPI {
   }
   docker: {
     status: () => Promise<{ available: boolean; version?: string; error?: string }>
-    listContainers: () => Promise<Array<{ id: string; name: string; image: string; state: string; status: string }>>
+    // T0851: + Ports / CreatedAt / label `bat.server=1` / published bat-server port (`undefined` = unknown).
+    listContainers: () => Promise<DockerContainerListEntry[]>
     inspectContainer: (name: string) => Promise<{
       id: string
       name: string
       image: string
       state: { status: string; running: boolean; health: string }
-      mounts: Array<{ source: string; destination: string }>
+      /** T0851: `type` = `bind` / `volume` / …; "Use existing" offers the bind mounts. */
+      mounts: Array<{ source: string; destination: string; type: string }>
       ports: string[]
       // T0849: no `env` — a user's container env may hold secrets.
     }>

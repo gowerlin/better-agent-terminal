@@ -385,18 +385,28 @@ function StepDetailPanel({
           )}
           <div className="bat-wizard-actions">
             {activeChoice.options.map((option) => {
+              // T0851: a disabled option is shown with its reason but cannot be picked.
+              const disabledReason = option.disabled && option.disabledReasonKey
+                ? t(option.disabledReasonKey, option.disabledReasonParams ?? {})
+                : ''
+              const describedBy = [
+                option.description ? `${PROMPT_REGION_ID}-option-${option.value}` : '',
+                disabledReason ? `${PROMPT_REGION_ID}-option-${option.value}-disabled` : '',
+              ].filter(Boolean).join(' ')
               const button = (
                 <button
                   key={option.value}
                   className="profile-action-btn bat-wizard-choice"
-                  onClick={() => onChoiceSelect(option.value)}
+                  onClick={() => { if (!option.disabled) onChoiceSelect(option.value) }}
                   type="button"
-                  aria-describedby={option.description ? `${PROMPT_REGION_ID}-option-${option.value}` : undefined}
+                  disabled={option.disabled || undefined}
+                  style={option.disabled ? { opacity: 0.5, cursor: 'not-allowed' } : undefined}
+                  aria-describedby={describedBy || undefined}
                 >
                   {option.labelKey ? t(option.labelKey, option.label) : option.label}
                 </button>
               )
-              if (!option.description) return button
+              if (!option.description && !disabledReason) return button
               // T0660 (BUG-161): the option description sits under its button,
               // outside it, so the button's accessible name stays the label.
               return (
@@ -406,12 +416,22 @@ function StepDetailPanel({
                   style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', maxWidth: 280 }}
                 >
                   {button}
-                  <p
-                    id={`${PROMPT_REGION_ID}-option-${option.value}`}
-                    className="bat-wizard-prompt-description"
-                  >
-                    {option.description}
-                  </p>
+                  {option.description && (
+                    <p
+                      id={`${PROMPT_REGION_ID}-option-${option.value}`}
+                      className="bat-wizard-prompt-description"
+                    >
+                      {option.description}
+                    </p>
+                  )}
+                  {disabledReason && (
+                    <p
+                      id={`${PROMPT_REGION_ID}-option-${option.value}-disabled`}
+                      className="bat-wizard-prompt-description bat-wizard-choice-disabled-reason"
+                    >
+                      {disabledReason}
+                    </p>
+                  )}
                 </div>
               )
             })}

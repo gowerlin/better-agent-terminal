@@ -190,7 +190,8 @@ describe('Docker pick-container asks for the mode again after a jump back (T0500
 
   it('jump back re-asks; switching new -> existing uses an existing container, not the new name', async () => {
     installDocker([{ name: 'user-box', state: 'running' }])
-    const { requestChoice } = choiceQueue(['new', 'existing'])
+    // T0851: "Use existing" then asks which container.
+    const { requestChoice } = choiceQueue(['new', 'existing', 'user-box'])
     const ctx = dockerCtx(requestChoice)
     const runner = new WizardRunner([pickContainerStep, failingStep('start-server')], ctx)
     const run = runner.run()
@@ -200,7 +201,7 @@ describe('Docker pick-container asks for the mode again after a jump back (T0500
     await runner.jumpToStep(0)
     await run
 
-    expect(requestChoice).toHaveBeenCalledTimes(2)
+    expect(requestChoice).toHaveBeenCalledTimes(3)
     expect(ctx.state.containerMode).toBe('existing')
     expect(ctx.state.dockerContainer).toBe('user-box')
     expect(ctx.state.pickContainerEditRequested).toBeUndefined()
@@ -208,7 +209,7 @@ describe('Docker pick-container asks for the mode again after a jump back (T0500
 
   it('switching existing -> new does not adopt the user container name (no "left untouched" warning)', async () => {
     installDocker([{ name: 'user-box', state: 'running' }])
-    const { requestChoice } = choiceQueue(['existing', 'new'])
+    const { requestChoice } = choiceQueue(['existing', 'user-box', 'new'])
     const ctx = dockerCtx(requestChoice)
     const runner = new WizardRunner([pickContainerStep, failingStep('start-server')], ctx)
     const run = runner.run()
@@ -240,7 +241,8 @@ describe('Docker pick-container asks for the mode again after a jump back (T0500
   it('keeps asking on retry until the re-run succeeds', async () => {
     installDocker([])
     // jump back -> "Use existing" with no containers fails -> retry asks again.
-    const { requestChoice } = choiceQueue(['new', 'existing', 'new'])
+    // T0851: null dismisses the "no usable container" prompt.
+    const { requestChoice } = choiceQueue(['new', 'existing', null, 'new'])
     const ctx = dockerCtx(requestChoice)
     const runner = new WizardRunner([pickContainerStep, failingStep('start-server')], ctx)
     const run = runner.run()
@@ -251,7 +253,7 @@ describe('Docker pick-container asks for the mode again after a jump back (T0500
     await runner.retryCurrentStep()
     await run
 
-    expect(requestChoice).toHaveBeenCalledTimes(3)
+    expect(requestChoice).toHaveBeenCalledTimes(4)
     expect(ctx.state.containerMode).toBe('new')
     expect(ctx.state.pickContainerEditRequested).toBeUndefined()
   })

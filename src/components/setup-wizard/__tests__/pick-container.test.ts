@@ -118,31 +118,32 @@ describe('pick-container (T0340 / PLAN-032 Sprint 4)', () => {
     expect(typeof (ctx.state as { dockerContainer?: string }).dockerContainer).toBe('string')
   })
 
-  it('AC-3 #2: user picks "existing" with containers → succeeded + first container chosen', async () => {
+  it('AC-3 #2 (T0851): user picks "existing", then a container from the list → that container', async () => {
     installElectronApi([
       { name: 'first', state: 'running' },
       { name: 'second', state: 'exited' },
     ])
-    let resolveChoice: ((v: string | null) => void) | null = null
-
+    const requests: WizardChoiceRequest[] = []
+    const answers = ['existing', 'second']
     const ctx = makeCtx()
-    ctx.requestChoice = (_req: WizardChoiceRequest) =>
-      new Promise<string | null>((resolve) => {
-        resolveChoice = resolve
-      })
+    ctx.requestChoice = async (req: WizardChoiceRequest) => {
+      requests.push(req)
+      return answers.shift() ?? null
+    }
 
     const states: WizardStepStatus[] = []
     const runner = new WizardRunner([pickContainerStep], ctx, (snaps) => {
       states.push(snaps[0].status)
     })
-    const p = runner.run()
-    await waitForStatus(states, WizardStepStatus.AwaitingInput)
-    resolveChoice!('existing')
-    await p
+    await runner.run()
 
     expect(states[states.length - 1]).toBe(WizardStepStatus.Succeeded)
+    expect(requests.map((req) => req.options.map((option) => option.value))).toEqual([
+      ['new', 'existing'],
+      ['first', 'second'],
+    ])
     expect((ctx.state as { containerMode?: string }).containerMode).toBe('existing')
-    expect((ctx.state as { dockerContainer?: string }).dockerContainer).toBe('first')
+    expect((ctx.state as { dockerContainer?: string }).dockerContainer).toBe('second')
   })
 
   it('Pre-set state.containerMode short-circuits the prompt', async () => {
@@ -186,7 +187,17 @@ describe('pick-container (T0340 / PLAN-032 Sprint 4)', () => {
       }
       tick()
     })
-    resolveChoice!('existing')
+    const answerMode = resolveChoice!
+    answerMode('existing')
+    // T0851: the "no usable container" prompt follows; dismissing it fails as before.
+    await new Promise<void>((resolve) => {
+      const tick = () => {
+        if (resolveChoice !== answerMode) resolve()
+        else setTimeout(tick, 5)
+      }
+      tick()
+    })
+    resolveChoice!(null)
 
     await new Promise<void>((resolve) => {
       const tick = () => {

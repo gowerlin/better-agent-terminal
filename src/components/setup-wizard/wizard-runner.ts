@@ -40,6 +40,14 @@ export interface WizardChoiceOption {
   description?: string
   /** T0502: i18n key for the button text; `label` is the fallback. */
   labelKey?: string
+  /**
+   * T0851: shown but cannot be picked (the Shell disables the button and
+   * shows the reason). Options without it behave as before.
+   */
+  disabled?: boolean
+  /** T0851: i18n key of why the option is disabled, with its values. */
+  disabledReasonKey?: string
+  disabledReasonParams?: Record<string, string>
 }
 
 export interface WizardChoiceRequest {

@@ -1255,11 +1255,11 @@
       "step": {
         "pickContainer": {
           "label": "Choose Docker container mode",
-          "description": "Create a new container for the BAT server, or use your most recent existing container."
+          "description": "Create a new container for the BAT server, or choose one of your existing containers."
         },
         "configureMounts": {
           "label": "Choose workspace folder",
-          "description": "Pick one folder on this computer to share with the container. It appears in the container as /workspace/<folder name>."
+          "description": "Pick one folder on this computer to share with the container. It appears in the container as /workspace/<folder name>. With an existing container, BAT offers the folders it already mounts."
         },
         "installBundle": {
           "label": "Verify BAT server bundle",
@@ -1274,7 +1274,8 @@
         "containerPortExposed": "Container {{name}} publishes the BAT server port on all host interfaces ({{hostIps}}), so other machines on your network can reach it. It was created before BAT bound Docker ports to 127.0.0.1 only. To fix it, run this wizard again with \"Create new\" (the new container is published on 127.0.0.1 only), then remove the old container yourself with docker rm -f {{name}} once you no longer need its data. BAT will not change or delete it.",
         "containerLegacyImage": "Container {{name}} runs a BAT server image built before the Docker networking fix, so the server cannot be reached through the published port. Rebuild the image (npm run build:docker-image) and run this wizard again with \"Create new\". BAT will not change or delete the old container.",
         "existingNeedsBundle": "Existing container {{name}} must already contain /opt/bat-server.",
-        "nameTaken": "Docker container {{taken}} already exists and was left untouched; BAT will create {{name}} instead."
+        "nameTaken": "Docker container {{taken}} already exists and was left untouched; BAT will create {{name}} instead.",
+        "containerMountsUnusable": "The folders container {{name}} mounts are not on this computer, so choose a folder to share instead."
       },
       "error": {
         "daemonUnavailable": {
@@ -1344,6 +1345,36 @@
         "existing": {
           "label": "Use existing",
           "description": "BAT starts an existing container without deleting it on rollback."
+        },
+        "choose": {
+          "title": "Choose an existing container",
+          "description": "Containers that cannot be used are listed but cannot be selected. BAT starts a stopped container and never deletes it."
+        },
+        "container": {
+          "running": "running",
+          "stopped": "stopped",
+          "published": "127.0.0.1:{{port}} → 9876",
+          "unpublished": "9876 not published",
+          "batCreated": "created by BAT",
+          "disabled": {
+            "unpublished": "Does not publish the BAT server port (9876/tcp) on the host, so BAT cannot connect to it.",
+            "portInUse": "Publishes the BAT server on host port {{port}}, which this BAT's own remote server listens on."
+          }
+        },
+        "none": {
+          "title": "No existing container can be used",
+          "empty": "There are no Docker containers on this machine. Let BAT create a new container instead.",
+          "allUnusable": "None of your containers publishes the BAT server port (9876/tcp) on a host port BAT can use. Let BAT create a new container instead, or recreate a container with -p 127.0.0.1:<port>:9876.",
+          "createNew": "Create new instead"
+        }
+      },
+      "configureMounts": {
+        "fromContainer": {
+          "title": "Use the folders {{name}} already mounts?",
+          "description": "Container {{name}} already mounts: {{mounts}}. BAT uses these to translate paths between this computer and the container.",
+          "use": "Use these folders",
+          "pick": "Choose a folder instead",
+          "pickDescription": "The folder you choose is not mounted into the existing container; BAT does not change the container."
         }
       }
     },
