@@ -14,7 +14,7 @@ started_at: ""
 updated_at: "2026-11-04T09:17:09+0800"
 completed_at: ""
 session_ids: []
-depends_on: [T0833]
+depends_on: [T0833, T0842]
 related:
   - "PLAN-038；D272；T0828 回報區（〈調查結論〉1、5，〈建議方向〉送出時上傳，〈建議下一步〉第 3 列）；T0833 的 `src/lib/remote-upload.ts`；T0437"
 affects_files:

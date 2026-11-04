@@ -1,16 +1,16 @@
 ---
 schema_kind: tower-state
 summary_version: 1
-updated_at: "2026-11-04T09:49:23+08:00"
+updated_at: "2026-11-04T11:14:45+08:00"
 session: "2026-11-04 08:36 第一百一十六 session（CT v6.0.0-beta.11）"
 next_ids:
-  workorder: "T0842"
-  decision: "D273"
+  workorder: "T0843"
+  decision: "D274"
   bug: "BUG-212"
   plan: "PLAN-065"
 todo:
-  - "▶ 自動派單已恢復（使用者「恢復派單」；09:27–恢復前暫停）：依 D272 順序，T0832 → T0833 → {T0834 → T0835、T0839} → T0840 → T0841，T0836 在 T0834 / T0835 後"
-  - "BUG-211 已重現（T0837）：建議修正方向 A（RemoteClient 送出前 frame 大小守門＋面板保留輸入與提示），待使用者決定開單"
+  - "▶ 自動派單已恢復（11:14，D273）：T0832、T0842 並行中；之後 T0833 →（T0834 需 T0833＋T0842）→ T0835、T0839（需 T0833）→ T0840 → T0841，T0836 在 T0834 / T0835 後"
+  - "BUG-211 FIXING（T0842，方向 A，D273）"
   - "本批（D271 / D272，做完一起發 `0.7.4-pre.7`＋PLAN-063 真實升級驗收）：DONE T0826 `83f1d5bf`、T0827 `93c6507a`、T0828（研究）、T0829 `841f5e6a`、T0830 `add1b932`、T0831（研究）、T0837（BUG-211 重現 `319c3646`）、T0838 `919a006e`；待做 T0832 → T0833 → T0834 → T0835、T0839（含 T0838 後續）→ T0840 → T0841、T0836（e2e）；PLAN-043 Phase 3（W5–W8）等驗收 VM 再開單"
   - "待實機驗收：T0827 Linux AppImage 缺字型提示（回報區〈待實機驗收〉4 項）；T0830 真 WSL 的 install-bundle 中止（`pkill tar`）與 keep-alive 關閉後閒置關機（`docs/wsl-deployment.md` Real WSL Pre-Flight Checklist）"
   - "T0830 後續候選（未開單）：SSH / Docker 精靈主行程長呼叫接 operation id；`src/components/profiles/types.ts` 補 `wslKeepAlive`；CLAUDE.md 是否補 keep-alive 開關 / 精靈中止的必守規則"
@@ -85,7 +85,7 @@ todo:
 - 歷史 sessions → [_archive/state-snapshots/INDEX.md](_archive/state-snapshots/INDEX.md)（134 entries；最新 `2026-Q4-c.md`）
 
 ### 編號起始
-- **T0842** / **BUG-212** / **PLAN-065** / **D273** / **EXP-WFMINE-002**（其他 TOPIC 從 001） / **L186** / **CT-T023**
+- **T0843** / **BUG-212** / **PLAN-065** / **D274** / **EXP-WFMINE-002**（其他 TOPIC 從 001） / **L186** / **CT-T023**
 
 ---
 
