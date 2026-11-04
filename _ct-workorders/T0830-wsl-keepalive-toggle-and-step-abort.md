@@ -4,14 +4,14 @@ schema_kind: workorder
 id: T0830
 title: "PLAN-043：WSL keep-alive 每個 profile 可關閉（預設開）＋設定精靈每一步可中止"
 type: implementation
-status: PENDING
+status: IN_PROGRESS
 repo: better-agent-terminal
 project: maintenance
 priority: P3
 sizing: M
 created_at: "2026-11-04T08:52:59+0800"
-started_at: ""
-updated_at: "2026-11-04T08:52:59+0800"
+started_at: "2026-11-04T09:21:08+0800"
+updated_at: "2026-11-04T09:27:09+0800"
 completed_at: ""
 session_ids: []
 depends_on: [T0829]
@@ -37,6 +37,7 @@ affects_files:
 renew_count: 0
 workdir: main repo
 worker_question_timeout: 30
+tower_question: open
 interaction:
   mode_hint: yolo
   interactive: false
@@ -54,7 +55,7 @@ memory_overrides:
 
 - **工單編號**：T0830
 - **類型**：implementation
-- **狀態**：PENDING
+- **狀態**：IN_PROGRESS
 - **建立時間**：2026-11-04 08:52 (UTC+8)
 - **依賴**：T0829（同改 `electron/wsl-keepalive.ts` / `main.ts`）
 - **預估規模**：M；Context Window 風險：中
@@ -91,6 +92,19 @@ memory_overrides:
 ## 回報區
 
 > 以下由 sub-session 填寫，請勿在指揮塔 session 中編輯（唯一例外：`### 待塔台決策` 的 `塔台答覆 Q-n` 行由塔台新增）
+
+### 待塔台決策
+
+#### Q-1：B 項「子程序收到中止後終止」需改 `electron/wsl-detect.ts` / `electron/wsl-systemd.ts`（不在 affects_files），要擴大範圍嗎？
+- **提問時間**：2026-11-04 09:27 (UTC+8)
+- **背景**：精靈步驟在 renderer 跑，子程序都在主行程。WSL 精靈的長步驟：`wsl:install-bundle`（`wsl-detect.ts` `installBundle`，execFile timeout 300 s）、`wsl-systemd:start-service`（`wsl-systemd.ts` 輪詢，約 10 s＋每次 probe 15 s）、server bundle 下載（`server-bundle-distributor.ts` 已支援 `signal`，只缺 main.ts handler 接線，在範圍內）、fetch-fingerprint（5 s）。兩個 `execFileBuffered` 目前沒有 `signal` 參數。
+- **選項**：
+  - A. 擴大 affects_files 加入 `electron/wsl-detect.ts`、`electron/wsl-systemd.ts`：`execFileBuffered` 加選用 `signal`（不給 = 行為完全不變），`installBundle` / `startService` 加選用 `{ signal }`；main.ts 以 operation id 登錄 AbortController，新 IPC `wizard:abort-operation` 中止；下載也接上。
+  - B. 不擴大：只做範圍內的部分（runner 層 abort＋輸入步驟中止＋下載中止）；install-bundle / start-service 的子程序照舊等各自 timeout 結束，runner 等該步結束（上限見下）再 rollback，回報寫為已知限制。
+  - 其他。
+- **建議**：A。理由：工單明寫「子程序收到後終止」，最長的就是 install-bundle（300 s）；只多一個選用參數，未帶時行為不變，既有測試守得住。SSH / Docker 精靈的主行程模組（ssh 安裝、docker-lifecycle）不改，只受惠於 runner 層 abort。
+- **影響**：A 多改 2 個檔＋其測試；B 的中止在 install-bundle 期間最久要等到 300 s timeout 才能 rollback（runner 等步驟結束才 rollback，避免 rollback 與還在解壓的 tar 競爭）。
+- **是否阻擋後續步驟**：只阻擋 B 項主行程的 wsl-detect / wsl-systemd 部分；A 項已完成，runner 層 abort 兩案都要做。
 
 ### 完成狀態
 
