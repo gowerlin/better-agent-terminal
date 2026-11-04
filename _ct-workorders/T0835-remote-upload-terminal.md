@@ -27,7 +27,14 @@ affects_files:
   - src/locales/zh-CN.json
   - src/__tests__/
   - src/lib/__tests__/
+  - src/lib/remote-upload.ts
+  - electron/main.ts
+  - electron/remote/headless-entry.ts
+  - electron/pty-manager.ts
+  - electron/__tests__/
+  - electron/remote/__tests__/
   - docs/agent-guide/remote-file-upload.md
+  - CLAUDE.md
   - CHANGELOG.md
 renew_count: 0
 workdir: main repo
@@ -59,7 +66,10 @@ memory_overrides:
 2. Ctrl+V 圖片（SSH / Docker 視窗）：main 讀 client 剪貼簿 PNG → 上傳 → 貼路徑；不再送 Alt+V（該情況下必定失敗）。
 3. 分頁關閉清暫存（PTY id）。
 4. 測試：drop / paste 在 SSH 型視窗走上傳；本機與 WSL 不變。
-5. docs 補終端一節；`CHANGELOG.md` `[Unreleased]` 一條。
+5. docs 補終端一節；`CHANGELOG.md` `[Unreleased]` 一條；`CLAUDE.md`「遠端附件上傳暫存（PLAN-038 / T0832）」節補終端唯一實作一行（維持 3–12 行）。
+6. **塔台補充（2026-11-04 開工前併入）**：
+   - 第 3 點的清理照 T0832 契約 C-8 在 **host 端**做：本機（`electron/main.ts` 模組層 `uploadStaging`）與 headless（`createHeadlessHandlerModules` 的 `uploadStaging`）在 PTY 真正結束（`pty:kill`、程序結束；⏻ 重啟不算）時呼叫 `UploadStaging.disposeSession(ptyId)`。掛勾點選最少侵入的位置（例如既有的 PTY exit 事件），🔴 不改 PTY 生命週期本身的行為；`affects_files` 已預先列入 `electron/main.ts`、`electron/remote/headless-entry.ts`、`electron/pty-manager.ts`，實際用不到的不要改。
+   - T0834 回報〈遭遇問題〉4：`uploadToRemoteHost`（`src/lib/remote-upload.ts`）在 main 回傳非物件（例如 `undefined`）時會丟 TypeError；改成轉為 `TRANSPORT` 失敗、不丟例外，補測試。
 
 ### 驗收條件
 - [ ] `npm run typecheck` = 0、`npm run typecheck:electron` = 0、`npm run test:unit` 全過、`npx vite build` 成功
