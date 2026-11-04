@@ -10,7 +10,7 @@
 |---|---|---|
 | T0832（U1） | host 端暫存模組、4 個 `upload:*` channel、`claude:dispose-session` 清理、契約 | 本文件 |
 | T0833（U2） | client 端上傳驅動（三種來源、依視窗 profile 轉送、stop-and-wait、重試、取消、進度） | 本文件「client 端（T0833）」 |
-| T0834（U3） | Claude / Codex 面板接線 | 待做 |
+| T0834（U3） | Claude / Codex 面板接線（送出時上傳、chip 進度、取消、失敗退回） | 本文件「面板接線（T0834）」 |
 | T0835（U4） | 終端分頁接線、分頁關閉刪暫存 | 待做 |
 
 T0832 完成後使用者看不到任何變化：沒有 caller。失敗一律退回 T0437 的拒絕（D272），不加 Settings 開關。
@@ -163,9 +163,55 @@ const outcome = await uploadToRemoteHost(sessionId /* 面板 sessionId 或終端
 
 ### 已知限制
 
-- `path` 來源只認 `dialog:select-attachments` 的 `files`（非圖片）；面板的圖片仍走 data URL（T0436），拖放的非圖片檔要由 T0834 保留 `File` 物件走 `file` 來源。
+- `path` 來源只認 `dialog:select-attachments` 的 `files`（非圖片）；面板的圖片仍走 data URL（T0436），拖放的非圖片檔由面板保留 `File` 物件走 `file` 來源（T0834）。
 - 剪貼簿圖片在 `prepare` 時讀取並暫存在 main 記憶體（≤ 50 MiB），`run` 結束即釋放；只 prepare 不 run 的由 10 分鐘閒置規則或 `abort(batchId)` 釋放（driver 結束時一定送）。
 - 不續傳：連線中斷 = 該次失敗（host 由 10 分鐘閒置規則清掉部分檔）。
+
+## 面板接線（T0834）
+
+Claude / Codex 面板的檔案附件在**送出時**上傳（不是附加時：附加後又移除的檔不會上傳，也不用追蹤清理）。
+
+### 必守規則
+
+- 🔴 只在 `remote:resolve-client-paths` 的答覆不可達且有 `reason`（`invalid-path` 除外）時上傳；可達的（本機視窗、WSL 同 distro、`/mnt/c`、Docker 掛載內）照舊送 `@<host 路徑>`，不呼叫任何 `upload` API。沒有答覆 / 答覆對不上 / `invalid-path` 照舊拒絕（fail-closed）。
+- 🔴 上傳失敗、超過上限（D272）、舊 bat-server（`SERVER_TOO_OLD`）、斷線 → 該附件退回 T0437 拒絕＋toast（T0437 的句子後面接原因），其餘照送；沒有其他可送的內容時只移除被拒的 chip、不送出（同 T0437）。不加 Settings 開關（D272）。
+- 🔴 上傳完成後才進入既有送出路徑（T0815 排進同一個 query、`queuedNoteKey`、權限卡 / 提問卡、T0842 的失敗復原都不變）；上傳期間主回合可能開始或結束，所以**有上傳時**改讀 `isStreamingRef` / `isInterruptedRef`，沒有上傳時仍用送出當下的 state（行為與 T0834 前相同）。
+- 🔴 圖片不走上傳：照舊 data URL ＋ T0842 的遠端圖片預算 `checkRemoteImageBudget`（在上傳之前檢查）；非圖片附件走上傳，不計入圖片預算。
+- 上傳期間：送出鍵停用（Enter 也不送，`uploadAbortRef` 守門）、輸入框 `readOnly`、不能加附件（拖放 / 貼上 / 對話框都被忽略）、「+」隱藏、圖片的 × 停用；檔案 chip 顯示「上傳中 N%」，chip 的 × 變成「取消上傳」。
+- 取消：chip 的 × 或在輸入框按 Esc（上傳期間 Esc 不清除草稿）→ 整批取消（`AbortController` → driver 送 `upload-client:abort(batchId)`），不送出、輸入與附件保留，toast「已取消上傳」。面板卸載時也取消。
+- 來源：拖放 / macOS Finder 貼上的檔保留 `File`（`AttachedFile.file`）走 `file` 來源（renderer 分塊）；對話框選的檔沒有 `File`，走 `path` 來源（main 已記白名單）。session key = 面板的 `sessionId`（契約 C-5）。
+- 顯示：上傳的檔在本機訊息的附件註記用原檔名；其他檔照舊取 host 路徑最後一段。
+
+### 唯一實作
+
+| 位置 | 內容 |
+|---|---|
+| `src/lib/client-paths.ts` | `resolveAttachmentsForSend`（解析 → 分類 `classifyResolvedPaths` → 一次 `uploadToRemoteHost` → `serverPaths` / `displayNames` / `rejected` / `uploadFailed` / `cancelled`，不丟例外）、`isUploadableReason`、`uploadFailureReason`（code → `claude.uploadError.*`）、`attachmentRefusalText`（toast 文字） |
+| `src/components/ClaudeAgentPanel.tsx` / `CodexAgentPanel.tsx` | `handleSend` 的附件段（`uploadProgress`、`uploadAbortRef`、`cancelUpload`）、`addFileByPath(path, file?)`、chip 進度 / 取消、送出鍵 `disabled`、輸入框 `readOnly` |
+| `src/locales/{en,zh-TW,zh-CN}.json` | `claude.attachmentUploadFailed` / `attachmentUploadCancelled` / `attachmentUploading` / `cancelAttachmentUpload` / `sendDisabledWhileUploading` / `uploadError.*` |
+
+### 原因對照（toast）
+
+| code | 文字（en） |
+|---|---|
+| `TOO_LARGE` | over the 50 MiB per-file limit |
+| `SEND_TOO_LARGE` | over the 100 MiB per-message limit |
+| `TOO_MANY_FILES` | more than 10 files in one message |
+| `QUOTA` / `TOO_MANY` | the upload space for this session on the remote host is full |
+| `NO_SPACE` | the remote host is out of disk space |
+| `SERVER_TOO_OLD` | the BAT server on the remote host is too old to accept uploads; update it |
+| `NOT_CONNECTED` / `TRANSPORT` | the connection to the remote host failed |
+| `SOURCE_ERROR` / `NOT_SELECTED` | the file could not be read |
+| 其他 | error `<code>` |
+
+### 日誌
+
+renderer 經 `debug.log` 記一行 `[attachments] upload: files=<n> ok=<n> failed=<n>[ cancelled][ codes=<code,…>]`，只有數量與錯誤碼，不記檔名 / 路徑（main 端 `[upload-client]` 日誌見上節）。
+
+### 已知限制
+
+- 送出失敗（T0842 復原）後再送一次會重新上傳（新的 `serverPath`）；host 端舊的暫存由 TTL 清除。
+- 同一個面板一次只有一個上傳；上傳在送出鍵按下後、`resolve-client-paths` 回來之前不鎖定（與 T0437 前相同的短暫空窗）。
 
 ## 日誌
 
@@ -197,3 +243,5 @@ const outcome = await uploadToRemoteHost(sessionId /* 面板 sessionId 或終端
 | 已部署 server 的協定層 smoke | `scripts/smoke-remote-headless.mjs` S14（見 T0832 回報區） |
 | client 端（T0833）：main driver 對真 `UploadStaging`（假 invoke）：stop-and-wait / `BUSY`、chunk 逾時重送 1 次（host 已寫入仍冪等）、第二次逾時 / 非逾時錯誤不重試、取消、舊 server、路由（本機 / 斷線 / 途中斷線）、上限、dialog 路徑白名單、剪貼簿、閒置、日誌不含檔名、main / preload 接線 source guard | `electron/__tests__/upload-client.test.ts` |
 | client 端（T0833）：renderer driver（依序、批次 / 單項失敗、致命碼停止、取消、進度、預設 API） | `src/lib/__tests__/remote-upload.test.ts` |
+| 面板（T0834）：分類（可達 / 上傳 / 拒絕、`invalid-path`、fail-closed）、`file` / `path` 來源與順序、進度對應、失敗 / 取消 / 例外、日誌只有數量、原因對照與 toast 文字 | `src/lib/__tests__/client-paths-upload.test.ts` |
+| 面板（T0834）RTL：兩面板 × {全部上傳、單檔超過上限、舊 server 退回、上傳失敗且無其他內容、進度＋送出停用＋取消保留草稿、WSL 可達不上傳}、本機視窗不變（不呼叫 upload、附件註記同 T0834 前） | `src/__tests__/remote-upload-panels.test.tsx`；T0437 的 `attachment-remote-paths.test.tsx` 照舊通過 |

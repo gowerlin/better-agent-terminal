@@ -437,10 +437,12 @@
 
 ## 遠端附件上傳暫存（PLAN-038 / T0832）
 
-- 用途：遠端視窗（SSH、Docker 掛載外、WSL 其他 distro）的本機附件經 WSS invoke 分塊傳到視窗所連的 host，暫存在 `<dataDir>/uploads/<sessionKey>/<uploadId>/<檔名>`，再把 host 路徑放進 prompt（T0828 設計、D272 上限：單檔 50 MiB、單次 100 MiB / 10 檔、每 session 500 MiB）。T0832 只做 host 端；client / 面板 / 終端接線是 T0833–T0835，契約在 T0832 回報區〈介面契約〉（不得單方更改）。失敗一律退回 T0437 拒絕，不加 Settings 開關。
+- 用途：遠端視窗（SSH、Docker 掛載外、WSL 其他 distro）的本機附件經 WSS invoke 分塊傳到視窗所連的 host，暫存在 `<dataDir>/uploads/<sessionKey>/<uploadId>/<檔名>`，再把 host 路徑放進 prompt（T0828 設計、D272 上限：單檔 50 MiB、單次 100 MiB / 10 檔、每 session 500 MiB）。host 端 T0832、client 驅動 T0833、面板 T0834、終端 T0835，契約在 T0832 回報區〈介面契約〉（不得單方更改）。失敗一律退回 T0437 拒絕，不加 Settings 開關。
 - 🔴 `upload:begin` / `chunk` / `finish` / `abort` 不得加進 `HELPER_CHANNEL_ROLES`（helper / PTY 權杖呼叫不到；handler 另以 `ctx.helper` 回 `FORBIDDEN`）；`upload:finish` 的 `serverPath` 列在 `SERVER_PATH_RESULT_CHANNELS`，不得 `toClient`。暫存目錄不加進 `workspace:sync-roots`。
 - 🔴 日誌只記 uploadId、session key 前 8 碼、大小、副檔名、結果；不記檔名與內容。session key 走 `/^[a-zA-Z0-9._-]+$/`；路徑 resolve 後必須在 `<dataDir>/uploads/` 之下；POSIX 目錄 0700、檔案 0600。
 - 唯一實作 `UploadStaging`（`electron/upload-staging.ts`，不 import electron，`getDataDir` 第一次使用才讀）、channel `registerUploadHandlers`（`electron/handlers/uploads.ts`，本機 `main.ts` 與 headless `createHeadlessUploadModule` 共用）；清理：`claude:dispose-session` 經 `onSessionDisposed` 刪該 session、啟動時＋每小時 TTL（完成 24 h、未完成 `.part` 10 分鐘），終端分頁的 PTY id 由 T0835 呼叫 `disposeSession`。
+- client 端（T0833）：唯一實作 `UploadClient`（`electron/upload-client.ts`，main 依視窗 profile 轉送、stop-and-wait、chunk 逾時重送 1 次；路由 `resolveUploadRoute` 與 `bindProxiedHandlersToIpc` 同規則，改一處要同步另一處）與 renderer `uploadToRemoteHost`（`src/lib/remote-upload.ts`）；`path` 來源只認 `dialog:select-attachments` 回給該視窗的檔。
+- 面板（T0834）：送出時上傳，唯一實作 `resolveAttachmentsForSend`（`src/lib/client-paths.ts`），由 Claude / Codex `handleSend` 呼叫；🔴 只有 `resolve-client-paths` 不可達且有 `reason`（`invalid-path` 除外）才上傳，可達的照舊送；上傳完成後才進入既有送出路徑（T0815 / T0842 不變），圖片照舊 data URL ＋ `checkRemoteImageBudget`。拖放的檔保留 `File` 走 `file` 來源、對話框的走 `path`；上傳中送出鍵停用、chip × / Esc 取消（不送出、草稿保留）。
 - 完整規則、檔名清理、上限與錯誤碼、清理、日誌、已知限制、驗證：[docs/agent-guide/remote-file-upload.md](docs/agent-guide/remote-file-upload.md)
 
 ## headless server 的登入 shell PATH（PLAN-057 / T0755，D206 / D207）

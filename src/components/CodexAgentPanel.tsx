@@ -17,7 +17,7 @@ import { VoicePreviewPopover } from './voice/VoicePreviewPopover'
 import { extractInterruptedContinuation } from '../utils/interrupted-prompt'
 import { classifyCodexError } from '../lib/codex-error-classify'
 import { droppedImageKey, pastedDiskFiles, readFileAsDataUrl } from '../lib/image-attachment'
-import { attachmentDisplayNames, resolveAttachmentPaths } from '../lib/client-paths'
+import { attachmentRefusalText, resolveAttachmentsForSend } from '../lib/client-paths'
 import { checkRemoteImageBudget, remoteImageBudgetMessage, remoteSendFailureMessage, restoredAttachments, restoredInputText } from '../lib/remote-image-budget'
 import { useIsRemoteWindow } from '../hooks/useIsRemoteWindow'
 import { CtToast, useCtToast } from './CtToast'
@@ -117,6 +117,8 @@ interface AttachedImage {
 interface AttachedFile {
   path: string
   name: string
+  /** T0834: the dropped / pasted File, uploaded when the host cannot read `path` (dialog files have none). */
+  file?: File
 }
 
 type MessageItem = ClaudeMessage | ClaudeToolCall
@@ -216,6 +218,16 @@ export function CodexAgentPanel({ sessionId, cwd, isActive, workspaceId, onClose
   const [askOtherText, setAskOtherText] = useState<Record<string, string>>({})
   const [attachedImages, setAttachedImages] = useState<AttachedImage[]>([])
   const [attachedFiles, setAttachedFiles] = useState<AttachedFile[]>([])
+  // T0834 (PLAN-038): attachments being uploaded when the message is sent (path → 0–1); null = none.
+  const [uploadProgress, setUploadProgress] = useState<Record<string, number> | null>(null)
+  const uploadAbortRef = useRef<AbortController | null>(null)
+  const isUploading = uploadProgress !== null
+  // An upload can outlast the turn that was running when Send was pressed (read after it only).
+  const isStreamingRef = useRef(isStreaming)
+  isStreamingRef.current = isStreaming
+  const isInterruptedRef = useRef(isInterrupted)
+  isInterruptedRef.current = isInterrupted
+  useEffect(() => () => uploadAbortRef.current?.abort(), [])
   const [isDragOver, setIsDragOver] = useState(false)
   const [gitBranch, setGitBranch] = useState<string | null>(null)
   const [showResumeList, setShowResumeList] = useState(false)
@@ -1478,6 +1490,8 @@ export function CodexAgentPanel({ sessionId, cwd, isActive, workspaceId, onClose
   }, [isActive, setInputValue])
 
   const handleSend = useCallback(async () => {
+    // T0834: Send is disabled while this panel uploads attachments
+    if (uploadAbortRef.current) return
     const trimmed = inputValueRef.current.trim()
     if (!trimmed && attachedImages.length === 0 && attachedFiles.length === 0) return
 
@@ -1781,24 +1795,50 @@ export function CodexAgentPanel({ sessionId, cwd, isActive, workspaceId, onClose
       return
     }
 
-    // T0437 (BUG-105): attachments go out in the agent host's form; files it cannot read are
-    // dropped with a notice (SSH: every local file; WSL / Docker: outside the distro / mounts).
-    const { serverPaths: filePaths, rejected } = await resolveAttachmentPaths(attachedFiles.map(f => f.path))
-    if (rejected.length > 0) {
-      addNoticeToast(t('claude.attachmentNotOnRemoteHost', { files: attachmentDisplayNames(rejected) }), 'warning', 8000)
+    // T0437 (BUG-105): attachments go out in the agent host's form. T0834 (PLAN-038): files the
+    // host cannot read (SSH: every local file; WSL / Docker: outside the distro / mounts) are
+    // uploaded to it first; when that fails they are dropped with a notice, as before.
+    const uploadAbort = new AbortController()
+    const upload = { started: false }
+    const attachments = await resolveAttachmentsForSend(attachedFiles, {
+      sessionKey: sessionId,
+      signal: uploadAbort.signal,
+      onUploadStart: paths => {
+        upload.started = true
+        uploadAbortRef.current = uploadAbort
+        setUploadProgress(Object.fromEntries(paths.map(p => [p, 0])))
+      },
+      onUploadProgress: (path, fraction) => setUploadProgress(prev => (prev ? { ...prev, [path]: fraction } : prev)),
+    })
+    if (upload.started) {
+      if (uploadAbortRef.current === uploadAbort) uploadAbortRef.current = null
+      setUploadProgress(null)
+    }
+    if (attachments.cancelled) {
+      addNoticeToast(t('claude.attachmentUploadCancelled'), 'info', 5000)
+      return
+    }
+    const filePaths = attachments.serverPaths
+    const refusal = attachmentRefusalText(attachments, t)
+    if (refusal) {
+      addNoticeToast(refusal, 'warning', attachments.uploadFailed.length > 0 ? 10000 : 8000)
       if (!trimmed && attachedImages.length === 0 && filePaths.length === 0) {
-        setAttachedFiles(prev => prev.filter(f => !rejected.includes(f.path)))
+        const refused = new Set([...attachments.rejected, ...attachments.uploadFailed.map(f => f.path)])
+        setAttachedFiles(prev => prev.filter(f => !refused.has(f.path)))
         return
       }
     }
+    // T0834: the turn may have started or ended while the files were uploading
+    const streaming = upload.started ? isStreamingRef.current : isStreaming
+    const interrupted = upload.started ? isInterruptedRef.current : isInterrupted
     const imageDataUrls = attachedImages.map(i => i.dataUrl)
     // T0842: what this send clears, so a failed remote send can put it back
     const sentDraft = {
       text: inputValueRef.current,
       images: attachedImages,
       files: attachedFiles,
-      wasStreaming: isStreaming,
-      wasInterrupted: isInterrupted,
+      wasStreaming: streaming,
+      wasInterrupted: interrupted,
       prevTurnMsgId: currentTurnMsgIdRef.current,
     }
     clearInput()
@@ -1806,7 +1846,7 @@ export function CodexAgentPanel({ sessionId, cwd, isActive, workspaceId, onClose
     setAttachedFiles([])
     setPromptSuggestion(null)
     setShowSlashMenu(false)
-    if (!isStreaming || isInterrupted) {
+    if (!streaming || interrupted) {
       setIsStreaming(true)
       setIsInterrupted(false)
       setStreamingText('')
@@ -1824,7 +1864,7 @@ export function CodexAgentPanel({ sessionId, cwd, isActive, workspaceId, onClose
     const imageNote = imageDataUrls.length > 0
       ? `\n[${imageDataUrls.length} image${imageDataUrls.length > 1 ? 's' : ''} attached]`
       : ''
-    const fileNames = filePaths.map(p => p.split('/').pop()).join(', ')
+    const fileNames = attachments.displayNames.join(', ')
     const fileNote = filePaths.length > 0
       ? `\n[${filePaths.length} file${filePaths.length > 1 ? 's' : ''} attached: ${fileNames}]`
       : ''
@@ -1983,6 +2023,13 @@ export function CodexAgentPanel({ sessionId, cwd, isActive, workspaceId, onClose
   }, [setInputValue])
 
   const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
+    // T0834: Esc in the input while attachments upload cancels the upload (instead of clearing the draft)
+    if (e.key === 'Escape' && uploadAbortRef.current) {
+      e.preventDefault()
+      e.stopPropagation()
+      uploadAbortRef.current.abort()
+      return
+    }
     // Slash command menu navigation
     if (showSlashMenu && filteredSlashCommands.length > 0) {
       if (e.key === 'ArrowDown') {
@@ -2357,6 +2404,7 @@ export function CodexAgentPanel({ sessionId, cwd, isActive, workspaceId, onClose
   // T0436 / BUG-108: image attachments arrive as data URLs read on the client (dropped
   // File / main's clipboard / main's dialog), never via the proxied image:read-as-data-url.
   const addImage = useCallback((key: string, dataUrl: string) => {
+    if (uploadAbortRef.current) return // T0834: attachments are locked while they upload
     setAttachedImages(prev => {
       if (prev.length >= MAX_IMAGES) return prev
       if (prev.some(img => img.path === key)) return prev
@@ -2364,16 +2412,18 @@ export function CodexAgentPanel({ sessionId, cwd, isActive, workspaceId, onClose
     })
   }, [])
 
-  const addFileByPath = useCallback((filePath: string) => {
+  // T0834: `file` (drop / Finder paste) is kept so a remote window can upload it; a dialog path has none.
+  const addFileByPath = useCallback((filePath: string, file?: File) => {
+    if (uploadAbortRef.current) return // T0834: attachments are locked while they upload
     setAttachedFiles(prev => {
       if (prev.length >= MAX_FILES) return prev
       if (prev.some(f => f.path === filePath)) return prev
       const name = filePath.split(/[\\/]/).pop() || filePath
-      return [...prev, { path: filePath, name }]
+      return [...prev, file ? { path: filePath, name, file } : { path: filePath, name }]
     })
   }, [])
 
-  // A dropped (or Finder-pasted, T0522) file: images by data URL, other files by path.
+  // A dropped (or Finder-pasted, T0522) file: images by data URL, other files by path (+ the File, T0834).
   const attachFile = useCallback(async (file: File, filePath: string) => {
     if (file.type.startsWith('image/')) {
       try {
@@ -2382,7 +2432,7 @@ export function CodexAgentPanel({ sessionId, cwd, isActive, workspaceId, onClose
         console.error('Failed to read image:', err)
       }
     } else if (filePath) {
-      addFileByPath(filePath)
+      addFileByPath(filePath, file)
     }
   }, [addImage, addFileByPath])
 
@@ -2443,6 +2493,11 @@ export function CodexAgentPanel({ sessionId, cwd, isActive, workspaceId, onClose
 
   const removeFile = useCallback((filePath: string) => {
     setAttachedFiles(prev => prev.filter(f => f.path !== filePath))
+  }, [])
+
+  // T0834: cancels the whole upload of this send; nothing is sent, the draft stays.
+  const cancelUpload = useCallback(() => {
+    uploadAbortRef.current?.abort()
   }, [])
 
   const toggleTool = useCallback((id: string, isThinking?: boolean) => {
@@ -3798,6 +3853,7 @@ export function CodexAgentPanel({ sessionId, cwd, isActive, workspaceId, onClose
                 ? 'Type a message to Codex...'
                 : 'Type a message... (Enter to send, Shift+Tab to switch mode)'}
           disabled={false}
+          readOnly={isUploading}
           rows={1}
         />
         {(attachedImages.length > 0 || attachedFiles.length > 0) && (
@@ -3808,26 +3864,36 @@ export function CodexAgentPanel({ sessionId, cwd, isActive, workspaceId, onClose
                 <button
                   className="claude-attachment-remove"
                   onClick={() => removeImage(img.path)}
+                  disabled={isUploading}
                   title={t('claude.removeImage')}
                 >
                   &times;
                 </button>
               </div>
             ))}
-            {attachedFiles.map(file => (
-              <div key={file.path} className="claude-attachment-file" title={file.path}>
-                <span className="claude-attachment-file-icon">&#128196;</span>
-                <span className="claude-attachment-file-name">{file.name}</span>
-                <button
-                  className="claude-attachment-remove"
-                  onClick={() => removeFile(file.path)}
-                  title={t('claude.removeFile')}
-                >
-                  &times;
-                </button>
-              </div>
-            ))}
-            {(attachedImages.length < MAX_IMAGES || attachedFiles.length < MAX_FILES) && (
+            {attachedFiles.map(file => {
+              const progress = uploadProgress?.[file.path]
+              return (
+                <div key={file.path} className={`claude-attachment-file${progress !== undefined ? ' claude-attachment-uploading' : ''}`} title={file.path}>
+                  <span className="claude-attachment-file-icon">&#128196;</span>
+                  <span className="claude-attachment-file-name">{file.name}</span>
+                  {progress !== undefined && (
+                    <span className="claude-attachment-upload-progress" role="status" style={{ marginLeft: 4, opacity: 0.75, fontVariantNumeric: 'tabular-nums' }}>
+                      {t('claude.attachmentUploading', { percent: Math.floor(progress * 100) })}
+                    </span>
+                  )}
+                  <button
+                    className="claude-attachment-remove"
+                    onClick={isUploading ? cancelUpload : () => removeFile(file.path)}
+                    title={isUploading ? t('claude.cancelAttachmentUpload') : t('claude.removeFile')}
+                    aria-label={isUploading ? t('claude.cancelAttachmentUpload') : t('claude.removeFile')}
+                  >
+                    &times;
+                  </button>
+                </div>
+              )
+            })}
+            {!isUploading && (attachedImages.length < MAX_IMAGES || attachedFiles.length < MAX_FILES) && (
               <button
                 className="claude-add-image-btn"
                 onClick={handleSelectAttachments}
@@ -3946,8 +4012,8 @@ export function CodexAgentPanel({ sessionId, cwd, isActive, workspaceId, onClose
               <button
                 className="claude-send-btn"
                 onClick={handleSend}
-                disabled={false}
-                title={t('claude.sendMessage')}
+                disabled={isUploading}
+                title={isUploading ? t('claude.sendDisabledWhileUploading') : t('claude.sendMessage')}
               >
                 ▶
               </button>
