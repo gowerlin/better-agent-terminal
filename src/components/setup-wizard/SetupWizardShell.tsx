@@ -186,6 +186,8 @@ function resolveMappedErrorForSnapshot(
   targetOS: WizardTargetOS,
 ): WizardMappedError | null {
   if (!snap || snap.status !== WizardStepStatus.Failed) return null
+  // T0830: a step the user aborted is not an error to recover from.
+  if (snap.aborted) return null
   // T0339 / BUG-076: prefer the runner-shipped mappedError (single source of
   // truth). The runner resolves errors with full context (errorCode + message)
   // so the stage-1 exact errorCode match is preserved. Re-resolving here from
@@ -306,8 +308,14 @@ function StepDetailPanel({
       </header>
 
       <div className="bat-wizard-detail-body">
-        {display.status === WizardStepStatus.Running && (
+        {display.status === WizardStepStatus.Running && !display.aborting && (
           <p className="bat-wizard-running">{t('wizard.running')}</p>
+        )}
+        {!isReadOnly && display.aborting && (
+          <p className="bat-wizard-running" role="status" data-testid="wizard-aborting">{t('wizard.abort.aborting')}</p>
+        )}
+        {!isReadOnly && display.aborting && display.abortSlow && (
+          <p className="bat-wizard-running" data-testid="wizard-abort-slow">{t('wizard.abort.slow')}</p>
         )}
         {showMappedError && mappedError && (
           <div className="bat-wizard-mapped-error" role="alert">
@@ -342,7 +350,7 @@ function StepDetailPanel({
         )}
         {!showMappedError && display.status === WizardStepStatus.Failed && display.error && (
           <p className="bat-wizard-error-text" role="alert">
-            {display.error}
+            {display.aborted ? t('wizard.abort.stepAborted') : display.error}
           </p>
         )}
         {display.skipped && (
@@ -654,6 +662,19 @@ export function SetupWizardShell({ steps, ctx, onComplete }: SetupWizardShellPro
     setActiveText(null)
   }
 
+  // T0830 (PLAN-043): stop the running (or waiting) step; the runner aborts it,
+  // waits for it to settle, rolls back and run() rejects with "cancelled".
+  const abortableStep = stepStates.find(
+    (s) => s.status === WizardStepStatus.Running || s.status === WizardStepStatus.AwaitingInput,
+  ) ?? null
+  const handleAbort = () => {
+    choiceResolverRef.current = null
+    textResolverRef.current = null
+    setActiveChoice(null)
+    setActiveText(null)
+    void runnerRef.current?.cancel()
+  }
+
   const handleStepClick = (step: StepDescriptor, _index: number) => {
     // Only completed/skipped steps are clickable (set via clickableSteps).
     setReadOnlyStepId(step.id)
@@ -770,7 +791,8 @@ export function SetupWizardShell({ steps, ctx, onComplete }: SetupWizardShellPro
             ariaLabel={t(`wizard.title.${ctx.targetOS}`, ctx.targetOS)}
             renderFailedActions={(_step, index) => {
               const snap = stepStates[index]
-              if (!snap) return null
+              // T0830: an aborted step has no retry / skip / cancel (the run is over).
+              if (!snap || snap.aborted) return null
               const mapped = resolveMappedErrorForSnapshot(snap, ctx.targetOS)
               const editableTarget = findEditableTarget(index)
               const baseActions: WizardRecoveryAction[] = mapped
@@ -837,6 +859,20 @@ export function SetupWizardShell({ steps, ctx, onComplete }: SetupWizardShellPro
           />
         </div>
       </div>
+
+      {abortableStep && !wizardError && !complete && (
+        <div className="bat-wizard-actions bat-wizard-abort-bar">
+          <button
+            type="button"
+            className="profile-action-btn bat-wizard-action-btn danger"
+            data-testid="wizard-abort"
+            disabled={abortableStep.aborting === true}
+            onClick={handleAbort}
+          >
+            {abortableStep.aborting ? t('wizard.abort.aborting') : t('wizard.abort.button')}
+          </button>
+        </div>
+      )}
 
       {wizardError && (
         <div className="bat-wizard-box bat-wizard-error-box">

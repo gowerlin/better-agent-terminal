@@ -152,7 +152,7 @@ describe('WSL upgrade cancelled after the install (T0554 / BUG-141)', () => {
 
     expect(((await cancelAtFailure(runner, 'fetch-fingerprint')) as Error).message).toBe('Wizard cancelled')
 
-    expect(wsl.installBundle).toHaveBeenCalledWith('Ubuntu-24.04', 'C:\\cache\\bat-server.tar.gz', ROOT, { keepPrevious: true })
+    expect(wsl.installBundle).toHaveBeenCalledWith('Ubuntu-24.04', 'C:\\cache\\bat-server.tar.gz', ROOT, { keepPrevious: true, operationId: expect.any(String) }) // T0830: abortable inside the runner
     expect(wslSystemd.restoreUnit).toHaveBeenCalledWith('Ubuntu-24.04', 'bat-server.service', {
       path: UNIT,
       content: '[Service]\nExecStart="/home/demo/.local/bat-server/bin/bat-server"\n',

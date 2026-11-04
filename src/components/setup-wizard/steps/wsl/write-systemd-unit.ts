@@ -1,5 +1,6 @@
 import i18next from 'i18next'
-import type { WizardContext, WizardStep } from '../../wizard-runner'
+import { throwIfWizardAborted, type WizardContext, type WizardStep } from '../../wizard-runner'
+import { runAbortableOperation } from '../../wizard-abort'
 import { PRECONDITION_MISSING_CODE, wizardError } from '../../error-mapper'
 import { readWslBundleInstall, resolveWslHome, WSL_SERVICE_START_AFTER_RESTORE_KEY } from './install-server-bundle'
 
@@ -207,9 +208,11 @@ export const writeSystemdUnitStep: WizardStep = {
       throw err
     }
 
-    const startResult = await window.electronAPI.wslSystemd.startService(ctx.wslDistro, SERVICE_NAME, {
-      dataDir,
-    })
+    // T0830: abortable (wizard step abort stops the start check in main).
+    const distro = ctx.wslDistro
+    const startResult = await runAbortableOperation(ctx.signal, (operationId) =>
+      window.electronAPI.wslSystemd.startService(distro, SERVICE_NAME, operationId ? { dataDir, operationId } : { dataDir }))
+    throwIfWizardAborted(ctx)
     if (!startResult.ok) {
       // T0337 (BUG-072): structured errorCode so ErrorMapper Stage 1 distinguishes
       // service-start-timeout (recoverable, journalctl hint) from generic

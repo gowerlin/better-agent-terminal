@@ -380,7 +380,12 @@
       "key": "金鑰",
       "notice": "注意",
       "legacyNotice": "沒有設定 targetOS，以舊版模式連線（不轉換路徑）。",
-      "legacyDirectIgnored": "（舊版的直連設定已忽略）"
+      "legacyDirectIgnored": "（舊版的直連設定已忽略）",
+      "keepAlive": "保持執行",
+      "keepAliveLabel": "保持 WSL 執行（keep-alive）",
+      "keepAliveOnHint": "BAT 開著時會讓這個發行版保持執行，連線比較快。",
+      "keepAliveOffHint": "已關閉：WSL 閒置時可能自動關機，下次連線會比較慢。",
+      "keepAliveSaveFailed": "無法儲存保持執行設定。"
     }
   },
   "workspace": {
@@ -863,6 +868,12 @@
     },
     "currentStep": "目前步驟",
     "running": "執行中…",
+    "abort": {
+      "button": "中止設定",
+      "aborting": "正在中止…完成後會復原已完成的步驟。",
+      "slow": "這一步還在結束中，停下後會立刻開始復原。",
+      "stepAborted": "已由使用者中止。"
+    },
     "readonly": {
       "viewing": "正在檢視已完成的步驟（唯讀）",
       "back": "回到目前步驟"

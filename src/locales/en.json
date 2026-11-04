@@ -381,7 +381,12 @@
       "key": "Key",
       "notice": "Notice",
       "legacyNotice": "No targetOS — legacy mode (no path translation).",
-      "legacyDirectIgnored": " (legacy direct setting ignored)"
+      "legacyDirectIgnored": " (legacy direct setting ignored)",
+      "keepAlive": "Keep-alive",
+      "keepAliveLabel": "Keep WSL running",
+      "keepAliveOnHint": "BAT keeps this distro running while BAT is open, so connecting is fast.",
+      "keepAliveOffHint": "Off: WSL may shut the distro down when it is idle, and the next connection takes longer.",
+      "keepAliveSaveFailed": "Could not save the keep-alive setting."
     }
   },
   "workspace": {
@@ -864,6 +869,12 @@
     },
     "currentStep": "Current step",
     "running": "Running…",
+    "abort": {
+      "button": "Stop setup",
+      "aborting": "Stopping… then undoing the steps already done.",
+      "slow": "This step is still finishing; the undo starts as soon as it stops.",
+      "stepAborted": "Stopped by user."
+    },
     "readonly": {
       "viewing": "Viewing completed step (read-only)",
       "back": "Return to current step"

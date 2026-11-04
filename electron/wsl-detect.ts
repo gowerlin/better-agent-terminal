@@ -1,4 +1,5 @@
 import * as childProcess from 'child_process'
+import { randomBytes } from 'crypto'
 import { promises as fsPromises } from 'fs'
 import os from 'os'
 import path from 'path'
@@ -334,6 +335,66 @@ export async function detectNetworkMode(distro: string): Promise<WslNetworkModeI
 // T0552 (BUG-139): extracting the whole bundle can take a while on a cold distro.
 const INSTALL_TIMEOUT_MS = 300_000
 
+/** T0830: installBundle's error text when `options.signal` aborted the install. */
+export const BUNDLE_INSTALL_ABORTED_ERROR = 'Server bundle install aborted'
+// T0830: the stop helper waits this long for the install script to appear, and
+// polls at most this many seconds in total, before giving up (install then runs on).
+const INSTALL_STOP_START_WAIT_S = 5
+const INSTALL_STOP_MAX_POLLS = 20
+const INSTALL_STOP_TIMEOUT_MS = 30_000
+
+/**
+ * T0830 (PLAN-043): stops an aborted install by killing only the `tar` the install
+ * script (found by its `$0` marker, passed as a `[x]yz` pattern so this helper never
+ * matches its own command line) is running. The script then takes its own
+ * "extract failed" path: removes `$dst.bat-new`, leaves `$dst` / `$dst.bat-old`
+ * untouched and exits 1. Once the extract is over (the `mv` swap) nothing is killed and
+ * the install completes; the wizard's rollback undoes it. `wsl.exe` itself is not
+ * killed, so the script is never cut off half-way between its two renames.
+ */
+export const INSTALL_STOP_SCRIPT = [
+  'pat="$1"',
+  'n=0',
+  `while [ "$n" -lt ${INSTALL_STOP_MAX_POLLS} ]; do`,
+  '  pids=$(pgrep -f -- "$pat")',
+  '  if [ -n "$pids" ]; then',
+  '    for p in $pids; do',
+  '      if pkill -TERM -x -P "$p" tar; then echo "BAT_INSTALL_STOP=killed"; exit 0; fi',
+  '    done',
+  `  elif [ "$n" -ge ${INSTALL_STOP_START_WAIT_S} ]; then`,
+  '    echo "BAT_INSTALL_STOP=gone"; exit 0',
+  '  fi',
+  '  sleep 1',
+  '  n=$((n + 1))',
+  'done',
+  'echo "BAT_INSTALL_STOP=timeout"',
+].join('\n')
+
+/** T0830: the `$0` of an abortable install (`bat-wizard-install-<12 hex>`). */
+export function installScriptMarker(randomHex: string): string {
+  if (!/^[0-9a-f]{12}$/.test(randomHex)) throw new Error('Invalid install marker')
+  return `bat-wizard-install-${randomHex}`
+}
+
+/** `[b]at-wizard-install-…`: matches the marker but not this pattern's own text. */
+export function installStopPattern(marker: string): string {
+  return `[${marker[0]}]${marker.slice(1)}`
+}
+
+async function stopAbortedInstall(distro: string, marker: string): Promise<string> {
+  try {
+    const { stdout } = await execFileBuffered(
+      'wsl',
+      ['-d', distro, '--exec', 'sh', '-c', INSTALL_STOP_SCRIPT, 'sh', installStopPattern(marker)],
+      { timeoutMs: INSTALL_STOP_TIMEOUT_MS },
+    )
+    const match = /BAT_INSTALL_STOP=(\w+)/.exec(normalizeTextOutput(stdout))
+    return match ? match[1] : 'unknown'
+  } catch (error) {
+    return `failed: ${error instanceof Error ? error.message : String(error)}`
+  }
+}
+
 /**
  * T0552 (BUG-139): clean overwrite install — the bundle is extracted next to
  * the install root and swapped in, so files an older bundle shipped do not
@@ -347,8 +408,13 @@ export async function installBundle(
   distro: string,
   tarballPath: string,
   installPath: string,
-  options?: { keepPrevious?: boolean },
-): Promise<{ ok: true; previous?: BundleInstallPrevious } | { ok: false; error: string }> {
+  options?: { keepPrevious?: boolean; signal?: AbortSignal; onStop?: (outcome: string) => void },
+): Promise<{ ok: true; previous?: BundleInstallPrevious } | { ok: false; error: string; aborted?: true }> {
+  // T0830 (PLAN-043): with `signal` the script's `$0` is a per-install marker and an
+  // abort runs stopAbortedInstall; without it everything is exactly as before.
+  const signal = options?.signal
+  if (signal?.aborted) return { ok: false, error: BUNDLE_INSTALL_ABORTED_ERROR, aborted: true }
+  let detachAbort: (() => void) | null = null
   try {
     const validatedDistro = validateDistroName(distro)
     const validatedInstallPath = validateInstallPath(installPath)
@@ -356,10 +422,19 @@ export async function installBundle(
     const validatedTarballPath = validateWindowsAbsolutePath(tarballPath)
     const tarballWslPath = winToWsl(validatedTarballPath, validatedDistro)
 
+    const scriptName = signal ? installScriptMarker(randomBytes(6).toString('hex')) : 'sh'
+    if (signal) {
+      const onAbort = () => {
+        void stopAbortedInstall(validatedDistro, scriptName).then((outcome) => options?.onStop?.(outcome))
+      }
+      signal.addEventListener('abort', onAbort, { once: true })
+      detachAbort = () => signal.removeEventListener('abort', onAbort)
+    }
+
     const { stdout } = await execFileBuffered(
       'wsl',
       [
-        '-d', validatedDistro, '--exec', 'sh', '-c', buildWslBundleInstallScript(), 'sh', installRoot, tarballWslPath,
+        '-d', validatedDistro, '--exec', 'sh', '-c', buildWslBundleInstallScript(), scriptName, installRoot, tarballWslPath,
         ...(options?.keepPrevious === true ? ['keep'] : []),
       ],
       { timeoutMs: INSTALL_TIMEOUT_MS },
@@ -368,7 +443,10 @@ export async function installBundle(
     const previous = parseBundleInstallPrevious(normalizeTextOutput(stdout))
     return previous ? { ok: true, previous } : { ok: true }
   } catch (error) {
+    if (signal?.aborted) return { ok: false, error: BUNDLE_INSTALL_ABORTED_ERROR, aborted: true }
     return { ok: false, error: describeScriptFailure(error) }
+  } finally {
+    detachAbort?.()
   }
 }
 

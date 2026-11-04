@@ -128,6 +128,14 @@ export interface WizardContext {
   requestChoice?: (request: WizardChoiceRequest) => Promise<string | null>
   /** T0502: free-text prompt; unset when the UI cannot take typed input. */
   requestText?: (request: WizardTextRequest) => Promise<string | null>
+  /**
+   * T0830 (PLAN-043): set by the runner while a step's preflight / run() is in
+   * progress (unset between steps); aborted by cancel(). Steps pass it to
+   * abortable IPC (`runAbortableOperation`) so main ends the child process, and
+   * stop after an awaited call once it is aborted. requestChoice / requestText
+   * reject with an abort error when it fires.
+   */
+  signal?: AbortSignal
 }
 
 /**
@@ -293,10 +301,59 @@ export interface WizardStepSnapshot {
    * the raw `error` string.
    */
   mappedError?: WizardMappedError
+  /** T0830: cancel() aborted this step and the runner is waiting for it to stop. */
+  aborting?: boolean
+  /** T0830: still stopping after WIZARD_ABORT_SLOW_NOTICE_MS (the UI says so). */
+  abortSlow?: boolean
+  /** T0830: this step was aborted by cancel() (failed / rolled back because of it). */
+  aborted?: boolean
 }
 
 /** run() rejects with this message when the user cancels (the Shell shows `wizard.cancelled`). */
 export const WIZARD_CANCELLED_MESSAGE = 'Wizard cancelled'
+
+/** T0830: the error a step aborted by cancel() ends with (snapshot.error). */
+export const WIZARD_STEP_ABORTED_MESSAGE = 'Wizard step aborted'
+
+/**
+ * T0830: after this long the aborted step is flagged `abortSlow`. The runner
+ * keeps waiting for the step to settle (it never rolls back over a step that is
+ * still running: its child process could still be writing what the rollback
+ * removes); the flag only lets the UI say why it is still waiting.
+ */
+export const WIZARD_ABORT_SLOW_NOTICE_MS = 15_000
+
+/** T0830: what an aborted wait (input prompt, abortable IPC) rejects with. */
+export function wizardAbortError(): Error {
+  const error = new Error(WIZARD_STEP_ABORTED_MESSAGE)
+  error.name = 'AbortError'
+  return error
+}
+
+/** T0830: throw the abort error when `ctx.signal` has fired (steps call it after an await). */
+export function throwIfWizardAborted(ctx: Pick<WizardContext, 'signal'>): void {
+  if (ctx.signal?.aborted) throw wizardAbortError()
+}
+
+/** T0830: `promise`, or a rejection with wizardAbortError() as soon as `signal` aborts. */
+function raceAbort<T>(signal: AbortSignal | undefined, promise: Promise<T>): Promise<T> {
+  if (!signal) return promise
+  if (signal.aborted) return Promise.reject(wizardAbortError())
+  return new Promise<T>((resolve, reject) => {
+    const onAbort = () => reject(wizardAbortError())
+    signal.addEventListener('abort', onAbort, { once: true })
+    promise.then(
+      (value) => {
+        signal.removeEventListener('abort', onAbort)
+        resolve(value)
+      },
+      (error) => {
+        signal.removeEventListener('abort', onAbort)
+        reject(error)
+      },
+    )
+  })
+}
 
 /**
  * T0660 (BUG-161): a recovery warning in the UI language. The step is named
@@ -337,6 +394,10 @@ export class WizardRunner {
   // T0489: set while the jump-back rollback chain runs; retry / skip are ignored.
   private jumpInProgress = false
   private jumpSettled: (() => void) | null = null
+  // T0830: the running step's abort controller (null between steps and while a
+  // failed step waits on a decision) and the timer that flags `abortSlow`.
+  private stepAbort: AbortController | null = null
+  private abortSlowTimer: ReturnType<typeof setTimeout> | null = null
 
   constructor(
     steps: WizardStep[],
@@ -445,12 +506,44 @@ export class WizardRunner {
     await settled
   }
 
+  /**
+   * Cancel the wizard. From a failure screen the failed step and the completed
+   * steps are rolled back (T0426). T0830 (PLAN-043): a step that is running or
+   * waiting for input is aborted: `ctx.signal` fires (abortable IPC ends its
+   * child process in main, a pending prompt rejects), the runner waits for the
+   * step to settle, then rolls back that step and the completed steps in
+   * reverse order and run() rejects with WIZARD_CANCELLED_MESSAGE. Between steps
+   * the loop checks the flag before starting the next one, as before.
+   */
   async cancel(): Promise<void> {
     this.cancelRequested = true
-    if (this.currentStepIndex >= 0 && this.stepSnapshots[this.currentStepIndex].status === WizardStepStatus.Failed) {
+    if (this.currentStepIndex < 0) return
+    const snapshot = this.stepSnapshots[this.currentStepIndex]
+    if (snapshot.status === WizardStepStatus.Failed) {
       const resolveCancel = this.waitForCancel
       this.clearFailureWaiters()
       resolveCancel?.()
+      return
+    }
+    const abort = this.stepAbort
+    if (
+      abort
+      && !abort.signal.aborted
+      && (snapshot.status === WizardStepStatus.Running || snapshot.status === WizardStepStatus.AwaitingInput)
+    ) {
+      const index = this.currentStepIndex
+      snapshot.aborting = true
+      this.ctx.logger.info(`Aborting step ${snapshot.id}`)
+      this.emitProgress()
+      this.abortSlowTimer = setTimeout(() => {
+        this.abortSlowTimer = null
+        const snap = this.stepSnapshots[index]
+        if (!snap?.aborting) return
+        snap.abortSlow = true
+        this.ctx.logger.warn(`Step ${snap.id} is still stopping after ${WIZARD_ABORT_SLOW_NOTICE_MS} ms; rollback waits for it`)
+        this.emitProgress()
+      }, WIZARD_ABORT_SLOW_NOTICE_MS)
+      abort.abort()
     }
   }
 
@@ -478,7 +571,13 @@ export class WizardRunner {
       this.transitionStatus(index, WizardStepStatus.Running)
       snapshot.error = undefined
       snapshot.skipped = false
+      snapshot.aborted = undefined
       this.emitProgress()
+
+      // T0830: a fresh controller per attempt (retry / jump re-runs get their own).
+      const abort = new AbortController()
+      this.stepAbort = abort
+      this.ctx.signal = abort.signal
 
       try {
         // T0332: preflight hook. Run before step.run(). Hard failure
@@ -527,11 +626,17 @@ export class WizardRunner {
         // T0330: input-kind steps get a wrapped requestChoice (T0502: and
         // requestText) so the runner can flip status to AwaitingInput while
         // the prompt is pending and back to Running once resolved.
-        const restoreInputRequests = this.maybeWrapInputRequests(step, index)
+        const restoreInputRequests = this.maybeWrapInputRequests(step, index, abort.signal)
         try {
           await step.run(this.ctx)
         } finally {
           restoreInputRequests()
+          this.endStepAbortScope(abort)
+        }
+        if (abort.signal.aborted) {
+          // T0830: aborted, even though run() still resolved (e.g. an IPC call that
+          // cannot be interrupted finished first): undo it like a cancelled failure.
+          await this.finishAbortedStep(step, index)
         }
         if (!snapshot.skipped) {
           this.transitionStatus(index, WizardStepStatus.Succeeded)
@@ -539,6 +644,12 @@ export class WizardRunner {
         }
         this.emitProgress()
       } catch (error) {
+        this.endStepAbortScope(abort)
+        if (abort.signal.aborted) {
+          // T0830: whatever the step threw after the abort, it was cancelled.
+          if (error instanceof Error && error.message === WIZARD_CANCELLED_MESSAGE) throw error
+          await this.finishAbortedStep(step, index)
+        }
         this.transitionStatus(index, WizardStepStatus.Failed)
         const errorObj = error instanceof Error ? error : new Error(String(error))
         // T0331: resolve raw error into structured mapping. Errors with a
@@ -594,6 +705,36 @@ export class WizardRunner {
       }
     }
     await this.finalizeCompletedSteps()
+  }
+
+  /** T0830: the step settled; cancel() no longer aborts it (a failure waits on a decision). */
+  private endStepAbortScope(abort: AbortController): void {
+    if (this.stepAbort === abort) this.stepAbort = null
+    if (this.ctx.signal === abort.signal) this.ctx.signal = undefined
+  }
+
+  /**
+   * T0830: the step was aborted by cancel() and has now settled. Mark it failed
+   * (aborted), roll it back (it may have got halfway, like a cancel from the
+   * failure screen, T0426), then the completed steps in reverse order, and
+   * reject run() with WIZARD_CANCELLED_MESSAGE.
+   */
+  private async finishAbortedStep(step: WizardStep, index: number): Promise<never> {
+    if (this.abortSlowTimer) clearTimeout(this.abortSlowTimer)
+    this.abortSlowTimer = null
+    const snapshot = this.stepSnapshots[index]
+    snapshot.aborting = false
+    snapshot.abortSlow = false
+    snapshot.aborted = true
+    snapshot.skipped = false
+    snapshot.mappedError = undefined
+    snapshot.error = WIZARD_STEP_ABORTED_MESSAGE
+    this.transitionStatus(index, WizardStepStatus.Failed)
+    this.ctx.logger.info(`Step ${step.id} aborted; rolling back`)
+    this.emitProgress()
+    await this.rollbackFailedStep(step, index)
+    await this.rollbackCompletedSteps()
+    throw new Error(WIZARD_CANCELLED_MESSAGE)
   }
 
   /** T0554: every step finished; run finalize() in step order (best effort). */
@@ -766,16 +907,24 @@ export class WizardRunner {
    * caller MUST invoke (in a finally block) to put the originals back. No-op
    * when the step is not input-kind; an unset request function stays unset.
    */
-  private maybeWrapInputRequests(step: WizardStep, index: number): () => void {
-    if (step.kind !== 'input') return () => undefined
+  private maybeWrapInputRequests(step: WizardStep, index: number, signal?: AbortSignal): () => void {
     const originalChoice = this.ctx.requestChoice
     const originalText = this.ctx.requestText
+    // T0830: every step's prompt rejects when the step is aborted (a prompt the
+    // user never answers used to keep the runner waiting forever after cancel()).
+    // Only input-kind steps also flip the status to AwaitingInput (T0330).
+    const isInput = step.kind === 'input'
+    if (!isInput && !signal) return () => undefined
 
     if (typeof originalChoice === 'function') {
-      this.ctx.requestChoice = (request) => this.awaitInput(index, () => originalChoice(request))
+      this.ctx.requestChoice = isInput
+        ? (request) => this.awaitInput(index, () => raceAbort(signal, originalChoice(request)))
+        : (request) => raceAbort(signal, originalChoice(request))
     }
     if (typeof originalText === 'function') {
-      this.ctx.requestText = (request) => this.awaitInput(index, () => originalText(request))
+      this.ctx.requestText = isInput
+        ? (request) => this.awaitInput(index, () => raceAbort(signal, originalText(request)))
+        : (request) => raceAbort(signal, originalText(request))
     }
 
     return () => {

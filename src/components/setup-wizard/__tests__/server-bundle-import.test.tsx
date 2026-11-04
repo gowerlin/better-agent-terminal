@@ -155,7 +155,7 @@ describe('install-server-bundle download failure → import (T0547)', () => {
 
     fireEvent.click(buttons[0])
 
-    await waitFor(() => expect(installBundle).toHaveBeenCalledWith('Ubuntu-24.04', cacheHit.tarballPath, '/home/u/.local/bat-server', { keepPrevious: true }))
+    await waitFor(() => expect(installBundle).toHaveBeenCalledWith('Ubuntu-24.04', cacheHit.tarballPath, '/home/u/.local/bat-server', { keepPrevious: true, operationId: expect.any(String) })) // T0830
     expect(api.importLocal).toHaveBeenCalledWith({
       arch: 'linux-x64',
       version: VERSION,

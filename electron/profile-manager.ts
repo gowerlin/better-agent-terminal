@@ -51,6 +51,12 @@ export interface ProfileEntry {
   // avoid re-fetching over SSH. Free-form string (raw uname output, e.g.
   // "x86_64", "arm64") — normalization happens at consumption site.
   sshServerArch?: string
+  /**
+   * T0830 (PLAN-043, D271): wsl-linux only. `false` = BAT does not hold a keep-alive
+   * `wsl.exe` for this profile's distro (electron/wsl-keepalive.ts). Missing / `true`
+   * = held (the pre-T0830 behaviour, so existing profiles are unchanged).
+   */
+  wslKeepAlive?: boolean
 }
 
 /**
@@ -679,6 +685,7 @@ export class ProfileManager {
     tunnelLocalPort?: number
     serverHome?: string
     sshServerArch?: string
+    wslKeepAlive?: boolean
   }): Promise<boolean> {
     return withIndexLock(async () => {
       const index = await ensureInitialized()
@@ -703,6 +710,7 @@ export class ProfileManager {
       if (updates.tunnelLocalPort !== undefined) entry.tunnelLocalPort = updates.tunnelLocalPort
       if (updates.serverHome !== undefined) entry.serverHome = updates.serverHome
       if (updates.sshServerArch !== undefined) entry.sshServerArch = updates.sshServerArch
+      if (typeof updates.wslKeepAlive === 'boolean') entry.wslKeepAlive = updates.wslKeepAlive
       entry.updatedAt = Date.now()
       await writeIndex(index)
       return true

@@ -11,6 +11,8 @@
  *   - `sync()`: distros of the persisted WSL profiles (startup + profile edits)
  *   - `pin()`:  the setup wizard, before the profile is written
  * A holder runs while its distro is in either set. Windows only; no-op elsewhere.
+ * T0830: a profile with `wslKeepAlive: false` does not add its distro to the first
+ * set (`keepAliveProfileDistros`); a wizard pin still holds it while the wizard runs.
  *
  * T0829: BAT force-killed (Task Manager, crash, `taskkill /F`, installer) leaves no
  * orphaned holder, because the holder is spawned WITHOUT `detached`: libuv on Windows
@@ -58,6 +60,31 @@ export function holderSpawn(distro: string): { command: string; args: string[]; 
     args: ['-d', distro, '--', 'sleep', 'infinity'],
     options: { windowsHide: true, stdio: 'ignore' },
   }
+}
+
+/** The profile fields keepAliveProfileDistros reads (a subset of ProfileEntry). */
+export interface KeepAliveProfileLike {
+  targetOS?: string
+  wslDistro?: string
+  wslKeepAlive?: boolean
+}
+
+/**
+ * T0830 (PLAN-043, D271): the distros `sync()` should hold, from the persisted profiles.
+ * A wsl-linux profile with a distro counts unless its `wslKeepAlive` is exactly `false`
+ * (missing = on, so profiles written before T0830 keep their holder). When several
+ * profiles use one distro, any profile that keeps it on keeps the distro held.
+ * The single implementation of this rule; main.ts `syncWslKeepAlive` calls it.
+ */
+export function keepAliveProfileDistros(profiles: Iterable<KeepAliveProfileLike>): string[] {
+  const distros = new Set<string>()
+  for (const p of profiles) {
+    if (p.targetOS !== 'wsl-linux') continue
+    if (typeof p.wslDistro !== 'string' || p.wslDistro.length === 0) continue
+    if (p.wslKeepAlive === false) continue
+    distros.add(p.wslDistro)
+  }
+  return [...distros]
 }
 
 interface Holder {

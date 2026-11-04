@@ -142,6 +142,16 @@ fingerprint and token survive an upgrade.
   (`electron/wsl-keepalive.ts`). It also ends when BAT is force-closed
   (Task Manager, a crash, the installer): Windows ends the holder together with
   BAT's main process, so no `wsl.exe` keeps the distro running afterwards.
+- **Turning keepalive off for a profile** (T0830): expand the profile card and
+  clear **Keep WSL running (keep-alive)** in the WSL details. It is on by
+  default, and profiles saved before this setting existed count as on. The
+  change applies at once (the holder stops or starts). With it off, WSL may
+  shut the distro down when it is idle and the next connection takes longer
+  while the distro and the server start again. When several WSL profiles use
+  the same distro, the distro is held while **any** of them has keepalive on.
+  A running setup wizard still holds its distro until it finishes or is
+  cancelled. The setting is the profile's `wslKeepAlive` field (`false` = off;
+  missing = on), read only by `keepAliveProfileDistros`.
 
 ## Upgrade
 
@@ -186,13 +196,46 @@ Cancelling an upgrade leaves the server as it was: same bundle, unit, port,
 certificate and token, running if it was running. Linger stays enabled if the
 wizard enabled it.
 
+### Stopping a running step
+
+While a step runs (or waits for your choice) the wizard shows **Stop setup**
+(T0830). Clicking it, or closing the wizard window, aborts that step:
+
+1. The step's abort signal fires. Steps that start a long child process in
+   BAT's main process pass it on (`wizard:abort-operation`):
+   - **install-server-bundle**, download: the download is cancelled.
+   - **install-server-bundle**, install: only the `tar` the install script is
+     running in the distro is stopped (`pkill -x -P <script> tar`, the script
+     found by a per-install marker). The script then removes
+     `~/.local/bat-server.bat-new` and exits as for a failed extract, so the
+     existing install is untouched. `wsl.exe` itself is not killed, so the
+     script is never cut off between its two renames; if the extract was
+     already over, the install completes and step 3 undoes it.
+   - **write-systemd-unit**, service start: the running `wsl.exe` call is
+     killed and the start check stops at once (`wsl-service-start-aborted`).
+   - A pending choice is withdrawn.
+2. The button shows **Stopping…** until the step has really ended. Steps whose
+   calls cannot be interrupted (for example the 5 s fingerprint fetch) are
+   waited for. After 15 s the wizard says the step is still finishing; it keeps
+   waiting and never rolls back over a step that is still running, because the
+   rollback could race with what the step's process is still writing.
+3. The aborted step is rolled back (it may have got halfway), then the
+   completed steps in reverse order, as for **Cancel** on a failure screen. The
+   wizard then shows *Setup was cancelled*. The aborted step has no Retry / Skip.
+
+If the stop helper cannot run (for example `pgrep` / `pkill` missing in the
+distro), the install runs to its end and is then rolled back; the wait is
+longer but the result is the same. SSH and Docker wizards use the same runner:
+**Stop setup** aborts their prompts and rolls back the same way, but their
+main-process calls are not interrupted (they are waited for).
+
 ## Editing a WSL profile
 
 The profile card shows the name, a **WSL** badge, `host:port` and the
 connection status, with Open, Test connection, Edit connection (⚙), Duplicate,
 rename and Delete buttons. Expanding the card shows the remote tools entry and
-the WSL details: Distro, Service (`systemd (user)`), Server (`host:port`) and
-Target.
+the WSL details: Distro, Service (`systemd (user)`), Server (`host:port`),
+Target and the keepalive switch (see [After setup](#after-setup)).
 
 There is no "re-run wizard" button: to repair or upgrade, run
 **Add WSL Profile** again. To re-pin the fingerprint, use the pin button in the
@@ -291,6 +334,10 @@ or systemd):
 - Running the wizard again on the same distro updates the same profile, keeps
   the port, and deletes `~/.local/bat-server.bat-old` at the end; cancelling it
   midway leaves the previous server running.
+- **Stop setup** during the bundle install and during the service start ends
+  within a few seconds and leaves no `~/.local/bat-server.bat-new` (T0830).
+- Turning keepalive off on the profile stops the holder `wsl.exe`; the distro
+  shuts down after WSL's idle timeout, and the next connection starts it again.
 
 ## Notes
 

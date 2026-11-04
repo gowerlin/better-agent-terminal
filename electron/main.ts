@@ -39,6 +39,7 @@ import { normalizeUsageLimitConfig } from '../src/lib/usage-limit'
 import { bringWindowToFront, planDeletedProfileWindows } from '../src/lib/profile-window-front'
 import { DETACHED_WAITING_MAX_ID, sanitizeDetachedWaitingReport } from '../src/lib/terminal-attention'
 import { trayWindowLabels } from '../src/lib/tray-window-labels'
+import { WizardOperationRegistry } from '../src/components/setup-wizard/wizard-operation-registry'
 import { savedWorkerOwnership, withSavedWorkerOwnership } from './worker-ownership'
 import { registerPtyHandlers } from './handlers/pty'
 import { registerClaudeHandlers } from './handlers/claude'
@@ -128,7 +129,7 @@ import * as dockerLifecycle from './docker-lifecycle'
 import * as dockerValidate from './docker-validate'
 import * as wslDetect from './wsl-detect'
 import * as wslSystemd from './wsl-systemd'
-import { WslKeepAlive } from './wsl-keepalive'
+import { WslKeepAlive, keepAliveProfileDistros } from './wsl-keepalive'
 import { createWslFolderDefaultResolver, wslDistroForFolderDialog } from './wsl-workspace-folder'
 import { fetchTlsFingerprint, type FetchFingerprintResult } from './tls-fingerprint'
 import {
@@ -569,6 +570,8 @@ const profileManager = new ProfileManager()
 // T0384 (BUG-092, D128): one long-lived `wsl.exe` per WSL profile distro so
 // WSL does not idle-stop it (and bat-server with it) while BAT runs.
 const wslKeepAlive = new WslKeepAlive()
+// T0830 (PLAN-043): abortable setup-wizard IPC calls (`operationId` -> AbortSignal).
+const wizardOperations = new WizardOperationRegistry()
 // PLAN-047 / T0575 (D149): each local PTY's helpers authenticate with a capability of their own
 // (`batcap.`, issued in `createElectronPtyDeps().helperEnv`, revoked when the PTY is gone) instead
 // of the server token, which keeps authenticating the remote / QR / mobile clients.
@@ -1532,14 +1535,15 @@ function createWindow(windowId: string, bounds?: { x: number; y: number; width: 
   return win
 }
 
-/** T0384: hold exactly the distros of the persisted WSL profiles (no-op off Windows). */
+/**
+ * T0384: hold exactly the distros of the persisted WSL profiles (no-op off Windows).
+ * T0830: profiles with `wslKeepAlive: false` are left out (`keepAliveProfileDistros`).
+ */
 async function syncWslKeepAlive(reason: string): Promise<void> {
   if (process.platform !== 'win32') return
   try {
     const { profiles } = await profileManager.list()
-    const distros = profiles
-      .filter(p => p.targetOS === 'wsl-linux' && typeof p.wslDistro === 'string' && p.wslDistro.length > 0)
-      .map(p => p.wslDistro as string)
+    const distros = keepAliveProfileDistros(profiles)
     wslKeepAlive.sync(distros)
     logger.log(`[wsl-keepalive] sync (${reason}): ${distros.length ? distros.join(', ') : 'none'}`)
   } catch (err) {
@@ -3439,6 +3443,7 @@ function registerLocalHandlers() {
         version?: string
         baseURL?: string
         githubToken?: string
+        operationId?: string
       },
     ) => {
       let profile: ProfileEntry | null = null
@@ -3538,13 +3543,21 @@ function registerLocalHandlers() {
           evt.sender.send('server-bundle:distribute-progress', event)
         }
       }
-      return distributeServerBundle({
-        profile,
-        version: opts.version,
-        baseURL: opts.baseURL,
-        githubToken: opts.githubToken,
-        onProgress,
-      })
+      // T0830: an `operationId` makes the download abortable (wizard step abort);
+      // without one the call is exactly as before.
+      const operation = wizardOperations.begin(opts.operationId)
+      try {
+        return await distributeServerBundle({
+          profile,
+          version: opts.version,
+          baseURL: opts.baseURL,
+          githubToken: opts.githubToken,
+          onProgress,
+          ...(operation.signal ? { signal: operation.signal } : {}),
+        })
+      } finally {
+        operation.end()
+      }
     },
   )
 
@@ -3622,7 +3635,7 @@ function registerLocalHandlers() {
     void syncWslKeepAlive('profile:duplicate')
     return duplicated
   })
-  ipcMain.handle('profile:update', async (_event, profileId: string, updates: { remoteHost?: string; remotePort?: number; remoteToken?: string; remoteProfileId?: string; remoteFingerprint?: string; targetOS?: 'local' | 'wsl-linux' | 'docker-linux' | 'ssh-linux' | 'ssh-darwin'; wslDistro?: string; dockerContainer?: string; dockerHost?: string; dockerMounts?: Array<{ host: string; container: string }>; sshHost?: string; sshUser?: string; sshPort?: number; sshKeyPath?: string; useSshTunnel?: boolean; tunnelLocalPort?: number; sshServerArch?: string }) => {
+  ipcMain.handle('profile:update', async (_event, profileId: string, updates: { remoteHost?: string; remotePort?: number; remoteToken?: string; remoteProfileId?: string; remoteFingerprint?: string; targetOS?: 'local' | 'wsl-linux' | 'docker-linux' | 'ssh-linux' | 'ssh-darwin'; wslDistro?: string; dockerContainer?: string; dockerHost?: string; dockerMounts?: Array<{ host: string; container: string }>; sshHost?: string; sshUser?: string; sshPort?: number; sshKeyPath?: string; useSshTunnel?: boolean; tunnelLocalPort?: number; sshServerArch?: string; wslKeepAlive?: boolean }) => {
     const previousFingerprint = (await profileManager.getProfile(profileId))?.remoteFingerprint
     const updated = await profileManager.update(profileId, updates)
     void syncWslKeepAlive('profile:update')
@@ -3685,8 +3698,21 @@ function registerLocalHandlers() {
   ipcMain.handle('wsl:resolve-home', (_event, distro: string) => wslDetect.resolveHome(distro))
   // T0554 (BUG-141): `keepPrevious` keeps the replaced install at `<root>.bat-old`
   // until the wizard restores it (cancel) or discards it (finished).
-  ipcMain.handle('wsl:install-bundle', (_event, distro: string, tarballPath: string, installPath: string, options?: { keepPrevious?: boolean }) =>
-    wslDetect.installBundle(distro, tarballPath, installPath, { keepPrevious: options?.keepPrevious === true }))
+  // T0830 (PLAN-043): `operationId` makes the install abortable (the wizard's step abort
+  // stops the Linux-side tar; see wslDetect.installBundle). Without it: unchanged.
+  ipcMain.handle('wsl:install-bundle', async (_event, distro: string, tarballPath: string, installPath: string, options?: { keepPrevious?: boolean; operationId?: string }) => {
+    const operation = wizardOperations.begin(options?.operationId)
+    if (!operation.signal) return wslDetect.installBundle(distro, tarballPath, installPath, { keepPrevious: options?.keepPrevious === true })
+    try {
+      return await wslDetect.installBundle(distro, tarballPath, installPath, {
+        keepPrevious: options?.keepPrevious === true,
+        signal: operation.signal,
+        onStop: (outcome) => logger.log(`[wizard] install-bundle abort: stop=${outcome}`),
+      })
+    } finally {
+      operation.end()
+    }
+  })
   ipcMain.handle('wsl:restore-bundle', (_event, distro: string, installPath: string) =>
     wslDetect.restoreBundle(distro, installPath))
   ipcMain.handle('wsl:discard-previous-bundle', (_event, distro: string, installPath: string) =>
@@ -3771,8 +3797,22 @@ function registerLocalHandlers() {
   ipcMain.handle('wsl-systemd:enable-linger', (_event, distro: string) => wslSystemd.enableLinger(distro))
   // T0382 (BUG-091): only dataDir / timeoutMs cross IPC; the stability window
   // (stableMs / pollMs) stays at its main-side defaults.
-  ipcMain.handle('wsl-systemd:start-service', (_event, distro: string, serviceName: string, options?: { dataDir?: string; timeoutMs?: number }) =>
-    wslSystemd.startService(distro, serviceName, { dataDir: options?.dataDir, timeoutMs: options?.timeoutMs }))
+  // T0830: `operationId` makes the start check abortable (wizard step abort).
+  ipcMain.handle('wsl-systemd:start-service', async (_event, distro: string, serviceName: string, options?: { dataDir?: string; timeoutMs?: number; operationId?: string }) => {
+    const operation = wizardOperations.begin(options?.operationId)
+    if (!operation.signal) return wslSystemd.startService(distro, serviceName, { dataDir: options?.dataDir, timeoutMs: options?.timeoutMs })
+    try {
+      return await wslSystemd.startService(distro, serviceName, { dataDir: options?.dataDir, timeoutMs: options?.timeoutMs, signal: operation.signal })
+    } finally {
+      operation.end()
+    }
+  })
+  // T0830 (PLAN-043): the setup wizard aborts the IPC call it started with this id.
+  ipcMain.handle('wizard:abort-operation', (_event, operationId: unknown) => {
+    const found = wizardOperations.abort(operationId)
+    logger.log(`[wizard] abort-operation: ${found ? 'aborted' : 'not running (remembered)'}`)
+    return { ok: true as const, found }
+  })
   // T0384 (BUG-092): the wizard pins a holder right after writing the unit so
   // the distro survives the fingerprint / connect-test steps; rollback unpins.
   ipcMain.handle('wsl:keep-alive', (_event, distro: string) => {

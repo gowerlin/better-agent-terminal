@@ -42,6 +42,8 @@ interface ProfileRecord {
   sshKeyPath?: string
   useSshTunnel?: boolean
   tunnelLocalPort?: number
+  /** T0830: wsl-linux only; `false` = BAT holds no keep-alive for the distro (missing = on). */
+  wslKeepAlive?: boolean
 }
 
 type RemoteBindInterface = 'localhost' | 'tailscale' | 'all'
@@ -78,7 +80,7 @@ type DockerPickServerPortResult =
 
 type WslStartServiceResult =
   | { ok: true; token: string | null }
-  | { ok: false; error: string; errorCode: 'wsl-port-in-use' | 'wsl-service-start-timeout' | 'wsl-service-start-failed'; token?: string | null }
+  | { ok: false; error: string; errorCode: 'wsl-port-in-use' | 'wsl-service-start-timeout' | 'wsl-service-start-failed' | 'wsl-service-start-aborted'; token?: string | null }
 
 interface RemoteAuthMetadata {
   serverPlatform: 'win32' | 'linux' | 'darwin'
@@ -444,7 +446,7 @@ interface ElectronAPI {
     load: (profileId: string) => Promise<unknown>
     delete: (profileId: string) => Promise<boolean>
     rename: (profileId: string, newName: string) => Promise<boolean>
-    update: (profileId: string, updates: { remoteHost?: string; remotePort?: number; remoteToken?: string; remoteProfileId?: string; remoteFingerprint?: string; targetOS?: ProfileTargetOS; wslDistro?: string; dockerContainer?: string; dockerHost?: string; dockerMounts?: Array<{ host: string; container: string }>; sshHost?: string; sshUser?: string; sshPort?: number; sshKeyPath?: string; useSshTunnel?: boolean; tunnelLocalPort?: number; serverHome?: string }) => Promise<boolean>
+    update: (profileId: string, updates: { remoteHost?: string; remotePort?: number; remoteToken?: string; remoteProfileId?: string; remoteFingerprint?: string; targetOS?: ProfileTargetOS; wslDistro?: string; dockerContainer?: string; dockerHost?: string; dockerMounts?: Array<{ host: string; container: string }>; sshHost?: string; sshUser?: string; sshPort?: number; sshKeyPath?: string; useSshTunnel?: boolean; tunnelLocalPort?: number; serverHome?: string; wslKeepAlive?: boolean }) => Promise<boolean>
     duplicate: (profileId: string, newName: string) => Promise<{ id: string; name: string; createdAt: number; updatedAt: number } | null>
     get: (profileId: string) => Promise<ProfileRecord | null>
     getActiveIds: () => Promise<string[]>
@@ -460,7 +462,7 @@ interface ElectronAPI {
     resolveHome: (distro: string) => Promise<string>
     // T0554 / BUG-141: `keepPrevious` keeps the replaced install at `<root>.bat-old`;
     // `previous` = kept / none (no previous, or not kept) / unmanaged (extracted over a non-BAT root).
-    installBundle: (distro: string, tarballPath: string, installPath: string, options?: { keepPrevious?: boolean }) => Promise<{ ok: true; previous?: 'kept' | 'none' | 'unmanaged' } | { ok: false; error: string }>
+    installBundle: (distro: string, tarballPath: string, installPath: string, options?: { keepPrevious?: boolean; operationId?: string }) => Promise<{ ok: true; previous?: 'kept' | 'none' | 'unmanaged' } | { ok: false; error: string; aborted?: true }>
     uninstallBundle: (distro: string, installPath: string) => Promise<{ ok: true } | { ok: false; error: string }>
     // T0554: put `<root>.bat-old` back (`missing` = nothing kept) / remove it once the wizard finished.
     restoreBundle: (distro: string, installPath: string) => Promise<{ ok: true; outcome: 'restored' | 'missing' } | { ok: false; error: string }>
@@ -501,11 +503,15 @@ interface ElectronAPI {
     // IPC handler lands in a follow-up workorder.
     execCommand: (name: string, command: string[]) => Promise<{ ok: true; stdout?: string } | { ok: false; error: string }>
   }
+  /** T0830 (PLAN-043): abort a setup-wizard IPC call that carried this operationId. */
+  wizard: {
+    abortOperation: (operationId: string) => Promise<{ ok: true; found: boolean }>
+  }
   wslSystemd: {
     writeUnit: (distro: string, unit: { path?: string; content?: string; execStart?: string; description?: string; environment?: Record<string, string> }) => Promise<{ ok: true }>
     enableLinger: (distro: string) => Promise<{ ok: boolean; error?: string }>
     // T0382 / BUG-091 — ok only after the unit stayed active (no auto-restart) for the stability window.
-    startService: (distro: string, serviceName: string, options?: { dataDir?: string; timeoutMs?: number }) => Promise<WslStartServiceResult>
+    startService: (distro: string, serviceName: string, options?: { dataDir?: string; timeoutMs?: number; operationId?: string }) => Promise<WslStartServiceResult>
     removeUnit: (distro: string, serviceName: string, options?: { path?: string }) => Promise<{ ok: true }>
     // T0554 / BUG-141 — previous unit (null = no file) + service state, restored on a cancelled upgrade.
     snapshotUnit: (distro: string, serviceName: string, options: { path: string }) => Promise<{ ok: true; content: string | null; active: boolean; enabled: boolean } | { ok: false; error: string }>
@@ -689,6 +695,8 @@ interface ElectronAPI {
         version?: string
         baseURL?: string
         githubToken?: string
+        /** T0830: abortable via wizard.abortOperation (setup wizard step abort). */
+        operationId?: string
       }) => Promise<
         | {
             ok: true

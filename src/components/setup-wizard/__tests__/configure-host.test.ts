@@ -74,13 +74,16 @@ describe('configure-ssh-host (T0335 / BUG-074)', () => {
     const runner = new WizardRunner([configureSshHostStep], ctx, (snaps) => {
       states.push(snaps[0].status)
     })
-    void runner.run()
+    const run = runner.run()
     await waitForStatus(states, WizardStepStatus.AwaitingInput)
 
     expect(states.includes(WizardStepStatus.AwaitingInput)).toBe(true)
     expect(states.includes(WizardStepStatus.Failed)).toBe(false)
 
+    // T0830: cancel() aborts the pending prompt; run() rejects as cancelled
+    // (before T0830 it waited for an answer that never came).
     await runner.cancel()
+    await expect(run).rejects.toThrow('Wizard cancelled')
   })
 
   it('AC-5 #3: user picks alias -> succeeded + state.sshHost set + profileDraft populated', async () => {

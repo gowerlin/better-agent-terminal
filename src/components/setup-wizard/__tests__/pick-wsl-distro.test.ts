@@ -83,13 +83,16 @@ describe('pick-wsl-distro (T0340 / PLAN-032 Sprint 4)', () => {
     const runner = new WizardRunner([pickWslDistroStep], ctx, (snaps) => {
       states.push(snaps[0].status)
     })
-    void runner.run()
+    const run = runner.run()
     await waitForStatus(states, WizardStepStatus.AwaitingInput)
 
     expect(states.includes(WizardStepStatus.AwaitingInput)).toBe(true)
     expect(states.includes(WizardStepStatus.Failed)).toBe(false)
 
+    // T0830: cancel() aborts the pending prompt; run() rejects as cancelled
+    // (before T0830 it waited for an answer that never came).
     await runner.cancel()
+    await expect(run).rejects.toThrow('Wizard cancelled')
   })
 
   it('AC-2 #3: user picks distro → succeeded + ctx.wslDistro set', async () => {

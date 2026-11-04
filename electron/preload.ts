@@ -574,7 +574,7 @@ const electronAPI = {
     load: (profileId: string) => ipcRenderer.invoke('profile:load', profileId) as Promise<unknown>,
     delete: (profileId: string) => ipcRenderer.invoke('profile:delete', profileId) as Promise<boolean>,
     rename: (profileId: string, newName: string) => ipcRenderer.invoke('profile:rename', profileId, newName) as Promise<boolean>,
-    update: (profileId: string, updates: { remoteHost?: string; remotePort?: number; remoteToken?: string; remoteProfileId?: string; remoteFingerprint?: string; targetOS?: 'local' | 'wsl-linux' | 'docker-linux' | 'ssh-linux' | 'ssh-darwin'; wslDistro?: string; dockerContainer?: string; dockerHost?: string; dockerMounts?: Array<{ host: string; container: string }>; sshHost?: string; sshUser?: string; sshPort?: number; sshKeyPath?: string; useSshTunnel?: boolean; tunnelLocalPort?: number }) => ipcRenderer.invoke('profile:update', profileId, updates) as Promise<boolean>,
+    update: (profileId: string, updates: { remoteHost?: string; remotePort?: number; remoteToken?: string; remoteProfileId?: string; remoteFingerprint?: string; targetOS?: 'local' | 'wsl-linux' | 'docker-linux' | 'ssh-linux' | 'ssh-darwin'; wslDistro?: string; dockerContainer?: string; dockerHost?: string; dockerMounts?: Array<{ host: string; container: string }>; sshHost?: string; sshUser?: string; sshPort?: number; sshKeyPath?: string; useSshTunnel?: boolean; tunnelLocalPort?: number; wslKeepAlive?: boolean }) => ipcRenderer.invoke('profile:update', profileId, updates) as Promise<boolean>,
     duplicate: (profileId: string, newName: string) => ipcRenderer.invoke('profile:duplicate', profileId, newName) as Promise<{ id: string; name: string; createdAt: number; updatedAt: number } | null>,
     get: (profileId: string) => ipcRenderer.invoke('profile:get', profileId) as Promise<{ id: string; name: string; type: 'local' | 'remote'; remoteHost?: string; remotePort?: number; remoteToken?: string; remoteProfileId?: string; remoteFingerprint?: string; createdAt: number; updatedAt: number; targetOS?: 'local' | 'wsl-linux' | 'docker-linux' | 'ssh-linux' | 'ssh-darwin'; wslDistro?: string; dockerContainer?: string; dockerHost?: string; sshHost?: string; sshUser?: string; sshPort?: number; sshKeyPath?: string; useSshTunnel?: boolean; tunnelLocalPort?: number } | null>,
     getActiveIds: () => ipcRenderer.invoke('profile:get-active-ids') as Promise<string[]>,
@@ -593,8 +593,8 @@ const electronAPI = {
     resolveHome: (distro: string) => ipcRenderer.invoke('wsl:resolve-home', distro) as Promise<string>,
     // T0554 / BUG-141: `keepPrevious` keeps the replaced install at `<root>.bat-old`
     // (`previous: 'kept'`) for restoreBundle (cancel) / discardPreviousBundle (finished).
-    installBundle: (distro: string, tarballPath: string, installPath: string, options?: { keepPrevious?: boolean }) =>
-      ipcRenderer.invoke('wsl:install-bundle', distro, tarballPath, installPath, options) as Promise<{ ok: true; previous?: 'kept' | 'none' | 'unmanaged' } | { ok: false; error: string }>,
+    installBundle: (distro: string, tarballPath: string, installPath: string, options?: { keepPrevious?: boolean; operationId?: string }) =>
+      ipcRenderer.invoke('wsl:install-bundle', distro, tarballPath, installPath, options) as Promise<{ ok: true; previous?: 'kept' | 'none' | 'unmanaged' } | { ok: false; error: string; aborted?: true }>,
     uninstallBundle: (distro: string, installPath: string) =>
       ipcRenderer.invoke('wsl:uninstall-bundle', distro, installPath) as Promise<{ ok: true } | { ok: false; error: string }>,
     restoreBundle: (distro: string, installPath: string) =>
@@ -743,13 +743,19 @@ const electronAPI = {
         | { ok: false; error: string }
       >,
   },
+  // T0830 (PLAN-043): abort a setup-wizard IPC call that carried this operationId
+  // (server-bundle:distribute, wsl:install-bundle, wsl-systemd:start-service).
+  wizard: {
+    abortOperation: (operationId: string) =>
+      ipcRenderer.invoke('wizard:abort-operation', operationId) as Promise<{ ok: true; found: boolean }>,
+  },
   wslSystemd: {
     writeUnit: (distro: string, unit: { path?: string; content?: string; execStart?: string; description?: string; environment?: Record<string, string> }) =>
       ipcRenderer.invoke('wsl-systemd:write-unit', distro, unit) as Promise<{ ok: true }>,
     enableLinger: (distro: string) =>
       ipcRenderer.invoke('wsl-systemd:enable-linger', distro) as Promise<{ ok: boolean; error?: string }>,
-    startService: (distro: string, serviceName: string, options?: { dataDir?: string; timeoutMs?: number }) =>
-      ipcRenderer.invoke('wsl-systemd:start-service', distro, serviceName, options) as Promise<{ ok: true; token: string | null } | { ok: false; error: string; errorCode: 'wsl-port-in-use' | 'wsl-service-start-timeout' | 'wsl-service-start-failed'; token?: string | null }>,
+    startService: (distro: string, serviceName: string, options?: { dataDir?: string; timeoutMs?: number; operationId?: string }) =>
+      ipcRenderer.invoke('wsl-systemd:start-service', distro, serviceName, options) as Promise<{ ok: true; token: string | null } | { ok: false; error: string; errorCode: 'wsl-port-in-use' | 'wsl-service-start-timeout' | 'wsl-service-start-failed' | 'wsl-service-start-aborted'; token?: string | null }>,
     removeUnit: (distro: string, serviceName: string, options?: { path?: string }) =>
       ipcRenderer.invoke('wsl-systemd:remove-unit', distro, serviceName, options) as Promise<{ ok: true }>,
     // T0554 / BUG-141: previous unit + service state, restored when an upgrade is cancelled.
@@ -871,6 +877,8 @@ const electronAPI = {
         version?: string
         baseURL?: string
         githubToken?: string
+        /** T0830: abortable via wizard.abortOperation (setup wizard step abort). */
+        operationId?: string
       }) =>
         ipcRenderer.invoke('server-bundle:distribute', opts) as Promise<
           | {

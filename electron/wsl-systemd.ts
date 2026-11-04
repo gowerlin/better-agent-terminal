@@ -61,7 +61,26 @@ function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms))
 }
 
-function execFileBuffered(file: string, args: string[], options?: { timeoutMs?: number }): Promise<ExecResult> {
+/** T0830: like sleep(), but resolves early when `signal` aborts (no signal = sleep()). */
+function sleepUnlessAborted(ms: number, signal?: AbortSignal): Promise<void> {
+  if (!signal) return sleep(ms)
+  if (signal.aborted) return Promise.resolve()
+  return new Promise((resolve) => {
+    const done = () => {
+      clearTimeout(timer)
+      signal.removeEventListener('abort', done)
+      resolve()
+    }
+    const timer = setTimeout(done, ms)
+    signal.addEventListener('abort', done, { once: true })
+  })
+}
+
+/**
+ * T0830 (PLAN-043): `signal` (setup wizard step abort) kills the `wsl.exe` child
+ * through execFile's own `signal` option; without it the options are exactly as before.
+ */
+function execFileBuffered(file: string, args: string[], options?: { timeoutMs?: number; signal?: AbortSignal }): Promise<ExecResult> {
   return new Promise((resolve, reject) => {
     execFileImpl(
       file,
@@ -71,6 +90,7 @@ function execFileBuffered(file: string, args: string[], options?: { timeoutMs?: 
         maxBuffer: 16 * 1024 * 1024,
         windowsHide: true,
         ...(options?.timeoutMs ? { timeout: options.timeoutMs } : {}),
+        ...(options?.signal ? { signal: options.signal } : {}),
       },
       (error: Error | null, stdout: Buffer | string, stderr: Buffer | string) => {
         const out = Buffer.isBuffer(stdout) ? stdout : Buffer.from(stdout ?? '')
@@ -90,11 +110,14 @@ function execFileBuffered(file: string, args: string[], options?: { timeoutMs?: 
 async function runWsl(
   distro: string,
   command: string[],
-  options?: { allowFailure?: boolean; timeoutMs?: number },
+  options?: { allowFailure?: boolean; timeoutMs?: number; signal?: AbortSignal },
 ): Promise<ExecResult> {
   assertValidDistro(distro)
   try {
-    return await execFileBuffered('wsl', ['-d', distro, '--', ...command], { timeoutMs: options?.timeoutMs })
+    return await execFileBuffered('wsl', ['-d', distro, '--', ...command], {
+      timeoutMs: options?.timeoutMs,
+      ...(options?.signal ? { signal: options.signal } : {}),
+    })
   } catch (error) {
     if (options?.allowFailure) {
       const execError = error as Error & { stdout?: Buffer; stderr?: Buffer }
@@ -267,6 +290,11 @@ export type StartServiceErrorCode =
   | 'wsl-port-in-use'
   | 'wsl-service-start-timeout'
   | 'wsl-service-start-failed'
+  /** T0830: the setup wizard aborted the step (startService `signal`). */
+  | 'wsl-service-start-aborted'
+
+/** T0830: startService's error text when `options.signal` aborted (no journal read). */
+export const START_SERVICE_ABORTED_ERROR = 'Service start aborted'
 
 export type StartServiceResult =
   | { ok: true; token: string | null }
@@ -293,18 +321,18 @@ export function parseServiceState(text: string): ServiceState {
   }
 }
 
-async function readServiceState(distro: string, serviceName: string): Promise<ServiceState> {
+async function readServiceState(distro: string, serviceName: string, signal?: AbortSignal): Promise<ServiceState> {
   const result = await runWsl(
     distro,
     ['systemctl', '--user', 'show', serviceName, '-p', 'ActiveState', '-p', 'SubState', '-p', 'NRestarts'],
-    { allowFailure: true, timeoutMs: PROBE_TIMEOUT_MS },
+    { allowFailure: true, timeoutMs: PROBE_TIMEOUT_MS, ...(signal ? { signal } : {}) },
   )
   return parseServiceState(result.stdout.toString('utf8'))
 }
 
 /** Distro clock (epoch seconds), so the journal read only covers this start. */
-async function readDistroEpoch(distro: string): Promise<string | null> {
-  const result = await runWsl(distro, ['date', '+%s'], { allowFailure: true, timeoutMs: PROBE_TIMEOUT_MS })
+async function readDistroEpoch(distro: string, signal?: AbortSignal): Promise<string | null> {
+  const result = await runWsl(distro, ['date', '+%s'], { allowFailure: true, timeoutMs: PROBE_TIMEOUT_MS, ...(signal ? { signal } : {}) })
   const epoch = result.stdout.toString('utf8').trim()
   return /^\d+$/.test(epoch) ? epoch : null
 }
@@ -370,7 +398,7 @@ function describeState(state: ServiceState): string {
 export async function startService(
   distro: string,
   serviceName: string,
-  options?: { dataDir?: string; timeoutMs?: number; stableMs?: number; pollMs?: number },
+  options?: { dataDir?: string; timeoutMs?: number; stableMs?: number; pollMs?: number; signal?: AbortSignal },
 ): Promise<StartServiceResult> {
   assertValidDistro(distro)
   assertValidServiceName(serviceName)
@@ -378,20 +406,30 @@ export async function startService(
   assertValidUnixPath(dataDir, true)
   const stableMs = options?.stableMs ?? STABLE_WINDOW_MS
   const pollMs = options?.pollMs ?? STATUS_POLL_MS
+  // T0830 (PLAN-043): the setup wizard's step abort. The running `wsl.exe` call is
+  // killed, the poll stops and the result is `wsl-service-start-aborted` at once (no
+  // journal read); the unit stays as written, write-systemd-unit's rollback undoes it.
+  // Without a signal every call below is made exactly as before T0830.
+  const signal = options?.signal
+  const callOptions = signal ? { signal } : undefined
+  const aborted = (): StartServiceResult => ({ ok: false, error: START_SERVICE_ABORTED_ERROR, errorCode: 'wsl-service-start-aborted' })
+  if (signal?.aborted) return aborted()
 
   let sinceEpoch: string | null = null
   try {
-    await runWsl(distro, ['systemctl', '--user', 'daemon-reload'])
-    await runWsl(distro, ['systemctl', '--user', 'enable', serviceName])
-    sinceEpoch = await readDistroEpoch(distro)
-    await runWsl(distro, ['systemctl', '--user', 'restart', serviceName])
+    await runWsl(distro, ['systemctl', '--user', 'daemon-reload'], callOptions)
+    await runWsl(distro, ['systemctl', '--user', 'enable', serviceName], callOptions)
+    sinceEpoch = await readDistroEpoch(distro, signal)
+    if (signal?.aborted) return aborted()
+    await runWsl(distro, ['systemctl', '--user', 'restart', serviceName], callOptions)
 
-    let state = await readServiceState(distro, serviceName)
+    let state = await readServiceState(distro, serviceName, signal)
     const baseRestarts = state.nRestarts ?? 0
     const deadline = Date.now() + (options?.timeoutMs ?? STATUS_TIMEOUT_MS)
     let activeSince: number | null = null
 
     for (;;) {
+      if (signal?.aborted) return aborted()
       if (state.nRestarts !== null && state.nRestarts > baseRestarts) {
         return await buildStartFailure(
           distro,
@@ -424,10 +462,12 @@ export async function startService(
           sinceEpoch,
         )
       }
-      await sleep(pollMs)
-      state = await readServiceState(distro, serviceName)
+      await sleepUnlessAborted(pollMs, signal)
+      if (signal?.aborted) return aborted()
+      state = await readServiceState(distro, serviceName, signal)
     }
   } catch (error) {
+    if (signal?.aborted) return aborted()
     return await buildStartFailure(
       distro,
       serviceName,

@@ -1,5 +1,6 @@
 import i18next from 'i18next'
-import type { WizardContext, WizardStep } from '../../wizard-runner'
+import { throwIfWizardAborted, type WizardContext, type WizardStep } from '../../wizard-runner'
+import { runAbortableOperation } from '../../wizard-abort'
 import { PRECONDITION_MISSING_CODE, wizardError } from '../../error-mapper'
 import { distributeFailureError, SERVER_BUNDLE_IMPORT_TARGET_KEY } from '../../server-bundle-import'
 
@@ -145,17 +146,22 @@ export const installServerBundleStep: WizardStep = {
     })
 
     let result: Awaited<ReturnType<typeof window.electronAPI.remote.serverBundle.distribute>>
+    const distro = ctx.wslDistro
     try {
-      result = await window.electronAPI.remote.serverBundle.distribute({
-        draftProfile: {
-          targetOS: 'wsl-linux',
-          wslDistro: ctx.wslDistro,
-        },
-        version,
-      })
+      // T0830: abortable (wizard step abort cancels the download in main).
+      result = await runAbortableOperation(ctx.signal, (operationId) =>
+        window.electronAPI.remote.serverBundle.distribute({
+          draftProfile: {
+            targetOS: 'wsl-linux',
+            wslDistro: distro,
+          },
+          version,
+          ...(operationId ? { operationId } : {}),
+        }))
     } finally {
       unsubscribeProgress()
     }
+    throwIfWizardAborted(ctx)
 
     if (!result.ok) {
       // Distributor already classified the failure (arch-detection-failed,
@@ -169,13 +175,19 @@ export const installServerBundleStep: WizardStep = {
     const tarballPath = result.tarballPath
     ctx.logger.info(`${describeSource(result.source)}: ${tarballPath}`)
 
-    const installResult = await window.electronAPI.wsl.installBundle(ctx.wslDistro, tarballPath, installPath, { keepPrevious: true })
+    // T0830: abortable. An abort stops the Linux-side tar so the install script
+    // removes its staging dir and exits (nothing to undo); when the install had
+    // already finished it is recorded below and the rollback undoes it.
+    const installResult = await runAbortableOperation(ctx.signal, (operationId) =>
+      window.electronAPI.wsl.installBundle(distro, tarballPath, installPath, operationId ? { keepPrevious: true, operationId } : { keepPrevious: true }))
 
     if (!installResult.ok) {
+      throwIfWizardAborted(ctx)
       throw wizardError(installResult.error, 'server-bundle-install-failed')
     }
     const previous = installResult.previous ?? 'none'
-    ctx.state[WSL_BUNDLE_INSTALL_KEY] = { distro: ctx.wslDistro, root: installPath, previous } satisfies WslBundleInstallRecord
+    ctx.state[WSL_BUNDLE_INSTALL_KEY] = { distro, root: installPath, previous } satisfies WslBundleInstallRecord
+    throwIfWizardAborted(ctx)
     if (previous === 'kept') {
       ctx.logger.info(`Replaced the existing BAT server bundle; the previous one is kept until setup finishes (${installPath}.bat-old)`)
     } else if (previous === 'unmanaged') {
