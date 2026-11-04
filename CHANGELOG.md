@@ -4,6 +4,14 @@ All notable changes to Better Agent Terminal are documented in this file.
 
 ## [Unreleased]
 
+## [0.7.4-pre.8] — 2026-11-04
+
+### Fixed
+- 同版重裝 / 取消安裝時終端被安裝程式結束卻沒有說明：`detectUpgradeInterruption` 改為安裝程式結束紀錄的 PTY 數 ≥ 1 時版本相同也觸發（取消安裝與同版重裝在紀錄上無法區分，兩者都提示），同版 toast 用中性文字 `app.upgradeReinstalled`（「安裝程式結束了 BAT（v…）與 N 個終端…」，三語），claude / codex 分頁照樣以 `cause: 'upgrade'` 列進「被中斷的 agent 分頁」；只有孤兒清理（當機重開）仍要求版本不同，沒有上次版本照舊不觸發；版本不同時的 toast 文字不變；`[upgrade-interruption] detected:` 同版時加 ` same-version`（PLAN-063，D278，T0846）
+
+### Changed
+- 「被中斷的 agent 分頁」對話框標題 / 說明與縮圖 ⏸ tooltip（`interruptedAgents.upgradeTitle` / `upgradeDesc` / `badgeUpgradeTooltip`，三語）改成升級、同版重裝、取消安裝都成立的說法（「安裝程式結束的 agent 分頁」「接續被中斷的對話」「被安裝程式中斷」）；key、`cause` 值與恢復流程不變（PLAN-063，D279，T0847）
+
 ## [0.7.4-pre.7] — 2026-11-04
 
 ### Changed

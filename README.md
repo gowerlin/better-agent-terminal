@@ -208,7 +208,7 @@ BAT 與 CT 分工明確：**BAT 提供終端機、分頁與權限這些基礎設
 
 > macOS 首次執行可能會被阻擋 — 前往 **系統設定 > 隱私與安全性**，下滑點選 **仍要打開**。
 
-> ⚠️ **Windows 更新**：安裝新版會結束 BAT 與它的 Terminal Server，所有終端分頁（含執行中的指令與 claude / codex 等 agent）都會跟著結束，請先完成或保存工作再安裝。更新後重開 BAT 時，會提示這次升級結束了幾個終端，原本是 claude / codex 的分頁可從清單恢復對話。
+> ⚠️ **Windows 更新**：安裝新版（或重新安裝同一版）會結束 BAT 與它的 Terminal Server，所有終端分頁（含執行中的指令與 claude / codex 等 agent）都會跟著結束，請先完成或保存工作再安裝。更新後重開 BAT 時，會提示安裝程式結束了幾個終端，原本是 claude / codex 的分頁可從清單恢復對話。
 
 > ⚠️ **Linux / WSL：介面中文或圖示顯示為方框**：Linux 版 BAT 只使用該 Linux 系統（fontconfig）裡的字型，**不會使用 Windows 的字型**，BAT 本身也不附字型。WSL 與精簡安裝的發行版預設沒有中文與 emoji 字型，介面的中文與多數圖示就會變成方框（不是編碼問題，`LANG` 不需要改）。Debian / Ubuntu（含 WSL）請安裝：
 >
