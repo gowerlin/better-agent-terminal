@@ -6,6 +6,7 @@ All notable changes to Better Agent Terminal are documented in this file.
 
 ### Changed
 - 文件：Linux / WSL 執行 AppImage 時，介面中文與圖示顯示為方框的原因（Linux 版只用 Linux 系統字型、不用 Windows 字型）與 Debian / Ubuntu 安裝 `fonts-noto-cjk` / `fonts-noto-color-emoji` 的指令，寫進 README、網站安裝頁與常見問題（T0826）
+- WSL keep-alive：實測確認 BAT 被強制結束（工作管理員 / 當機 / `taskkill /F`）時不會留下孤兒 `wsl.exe`（holder 未設 `detached`，留在 libuv 的 kill-on-close Job Object，主行程結束時兩層 `wsl.exe` 與 distro 內的 `sleep` 約 2 秒內結束），行為不變；holder 啟動參數集中到 `holderSpawn()`，加單元測試、source guard 與可選的實機測試（`BAT_TEST_WSL_DISTRO`）防止日後改成 `detached`。文件：`docs/plan-007-release-checklist.md` 的網路模式檢查改為「NAT 一般可用、連線測試失敗才處理」，與 `docs/wsl-deployment.md` 一致（PLAN-043，T0829）
 
 ### Added
 - Linux：啟動 5 秒後以 `fc-list` 檢查一次中文（`:lang=zh`）與 emoji（U+1F4E8）字型；介面語言是中文而缺中文字型、或缺 emoji 字型時，本機主視窗跳出一次提示（英文在前、介面語言在後），附 `sudo apt update && sudo apt install -y …` 指令、「說明」連到網站 `install#linux-fonts`、可「不再提示」（`linuxFontHintDismissed`）；`fc-list` 不存在 / 逾時 / 失敗時不提示，Windows / macOS 不檢查（`electron/linux-font-check.ts`、`src/components/LinuxFontHint.tsx`；PLAN-064，T0827）

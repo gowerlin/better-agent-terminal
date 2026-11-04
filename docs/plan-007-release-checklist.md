@@ -60,8 +60,10 @@ Target: Windows 11 23H2 or newer + Ubuntu 22.04 (or other supported distro)
 
 - [ ] Confirm `wsl -l -v` shows the target distro as version `2`.
 - [ ] Confirm `/etc/wsl.conf` contains `[boot]` and `systemd=true`.
-- [ ] Confirm `%UserProfile%\.wslconfig` uses `networkingMode=mirrored` (or
-      document NAT mode if you're testing the fallback path).
+- [ ] Record the networking mode (`wslinfo --networking-mode`; wizard step 4
+      shows it). NAT works for the usual setup and mirrored is optional: change
+      `%UserProfile%\.wslconfig` only if the connection test fails (see
+      [NAT warning](./wsl-deployment.md#nat-warning)).
 - [ ] Open **Add WSL Profile** wizard → run all nine steps without rollback.
 - [ ] Confirm `bat-server.service` is active inside WSL
       (`systemctl --user status bat-server.service`).

@@ -4,9 +4,11 @@
  * kill on quit, Windows only. spawn is injected; timers are faked.
  */
 import { EventEmitter } from 'events'
+import { readFileSync } from 'fs'
+import * as path from 'path'
 import type { ChildProcess } from 'child_process'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { WslKeepAlive } from '../wsl-keepalive'
+import { WslKeepAlive, holderSpawn } from '../wsl-keepalive'
 
 class FakeChild extends EventEmitter {
   static nextPid = 1000
@@ -77,6 +79,34 @@ describe('WslKeepAlive (T0384 / BUG-092)', () => {
     expect(calls[0].args).toEqual(['-d', 'Ubuntu-24.04', '--', 'sleep', 'infinity'])
     expect(calls[0].options).toMatchObject({ windowsHide: true, stdio: 'ignore' })
     expect(ka.activeDistros()).toEqual(['Ubuntu-24.04'])
+  })
+
+  // T0829: a force-killed BAT (no quit handlers) leaves no holder only because the holder
+  // stays in libuv's kill-on-close Job Object, i.e. is spawned without `detached`.
+  it('spawns the holder without `detached`, exactly as holderSpawn() defines it (T0829)', () => {
+    const ka = make()
+    ka.sync(['Ubuntu-24.04'])
+    ka.pin('Debian')
+
+    expect(calls).toHaveLength(2)
+    for (const call of calls) {
+      const spec = holderSpawn(call.args[1])
+      expect(call.command).toBe(spec.command)
+      expect(call.args).toEqual(spec.args)
+      expect(call.options).toEqual(spec.options)
+      expect(call.options.detached).toBeUndefined()
+    }
+    expect(holderSpawn('Ubuntu-24.04').options).toEqual({ windowsHide: true, stdio: 'ignore' })
+  })
+
+  it('source guard: wsl-keepalive.ts never sets `detached` (T0829)', () => {
+    const source = readFileSync(path.join(__dirname, '..', 'wsl-keepalive.ts'), 'utf8')
+    const code = source
+      .replace(/\/\*[\s\S]*?\*\//g, '')
+      .split('\n')
+      .map((line) => line.replace(/\/\/.*$/, ''))
+      .join('\n')
+    expect(code).not.toMatch(/\bdetached\b/)
   })
 
   it('never holds the same distro twice (duplicate profiles, repeated sync, pin on top of a profile)', () => {

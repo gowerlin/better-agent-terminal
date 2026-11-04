@@ -11,6 +11,14 @@
  *   - `sync()`: distros of the persisted WSL profiles (startup + profile edits)
  *   - `pin()`:  the setup wizard, before the profile is written
  * A holder runs while its distro is in either set. Windows only; no-op elsewhere.
+ *
+ * T0829: BAT force-killed (Task Manager, crash, `taskkill /F`, installer) leaves no
+ * orphaned holder, because the holder is spawned WITHOUT `detached`: libuv on Windows
+ * puts every non-detached child into its process-wide Job Object with
+ * JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE, so the OS kills `wsl.exe` when BAT's main process
+ * goes away by any route; the inner `C:\Program Files\WSL\wsl.exe` and the distro-side
+ * `sleep` end on their own within ~2 s (measured on Electron 45.2.1, see T0829).
+ * 🔴 Never add `detached: true` to `holderSpawn` (it breaks the job; guarded by tests).
  */
 import * as childProcess from 'child_process'
 import type { ChildProcess, SpawnOptions } from 'child_process'
@@ -38,6 +46,19 @@ export interface WslKeepAliveOptions {
 // the next pin()/sync() (e.g. WSL missing or distro unregistered — no log spam).
 const DEFAULT_BACKOFF_MS = [2_000, 5_000, 15_000, 30_000, 60_000] as const
 const DEFAULT_STABLE_MS = 60_000
+
+/**
+ * The single definition of the holder process. `detached` stays unset on purpose
+ * (T0829): it keeps the holder inside libuv's kill-on-close Job Object, which is what
+ * ends it when BAT is force-killed and its quit handlers never run.
+ */
+export function holderSpawn(distro: string): { command: string; args: string[]; options: SpawnOptions } {
+  return {
+    command: 'wsl.exe',
+    args: ['-d', distro, '--', 'sleep', 'infinity'],
+    options: { windowsHide: true, stdio: 'ignore' },
+  }
+}
 
 interface Holder {
   child: ChildProcess | null
@@ -167,10 +188,8 @@ export class WslKeepAlive {
     holder.restartTimer = null
     let child: ChildProcess
     try {
-      child = this.spawnImpl('wsl.exe', ['-d', distro, '--', 'sleep', 'infinity'], {
-        windowsHide: true,
-        stdio: 'ignore',
-      })
+      const spec = holderSpawn(distro)
+      child = this.spawnImpl(spec.command, spec.args, spec.options)
     } catch (err) {
       this.log.error(`[wsl-keepalive] spawn for ${distro} threw: ${err instanceof Error ? err.message : String(err)}`)
       holder.startedAt = Date.now()

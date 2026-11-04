@@ -139,7 +139,9 @@ fingerprint and token survive an upgrade.
   `wsl.exe -d <distro> -- sleep infinity` per distro that has a WSL profile
   (and for the distro of a running wizard), restarting it with backoff if it
   exits. Deleting the profile stops it. `.wslconfig` is never changed
-  (`electron/wsl-keepalive.ts`).
+  (`electron/wsl-keepalive.ts`). It also ends when BAT is force-closed
+  (Task Manager, a crash, the installer): Windows ends the holder together with
+  BAT's main process, so no `wsl.exe` keeps the distro running afterwards.
 
 ## Upgrade
 
