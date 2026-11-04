@@ -4,12 +4,14 @@ schema_kind: workorder
 id: T0861
 title: "PLAN-065 W5：升級後自動接回 holder（有安裝程式紀錄就不跳 Recovery 提示、toast「已接回 N 個終端」、不相容時結束並說明、0 個 PTY 且版本不同時換新）"
 type: implementation
-status: PENDING
+status: IN_PROGRESS
 repo: better-agent-terminal
 project: PLAN-065
 priority: P2
 sizing: M
 created_at: "2026-11-04T18:28:20+0800"
+started_at: "2026-11-05T07:43:54+0800"
+updated_at: "2026-11-05T07:43:54+0800"
 depends_on: [T0857, T0860]
 related:
   - "PLAN-065；D286（D4 自動接回、D5 不相容時結束並說明、D6 單一 holder＋0 個 PTY 時換新）；T0856 回報區〈調查結論〉Q3 / Q4 與〈建議下一步〉W5；T0578（Recovery 提示）；T0821 / T0846 / T0847（升級說明 toast 與對話框）；T0766 / T0767（被中斷的 agent 分頁）"
@@ -31,6 +33,7 @@ affects_files:
 renew_count: 0
 workdir: main repo
 worker_question_timeout: 30
+tower_question: open
 interaction:
   mode_hint: yolo
   interactive: false
@@ -46,7 +49,7 @@ memory_overrides:
 # T0861 — PLAN-065 W5：升級後自動接回 holder
 
 ## 元資料
-- **工單編號**：T0861｜**類型**：implementation｜**狀態**：PENDING｜**建立**：2026-11-04 18:28 (UTC+8)
+- **工單編號**：T0861｜**類型**：implementation｜**狀態**：IN_PROGRESS｜**建立**：2026-11-04 18:28 (UTC+8)
 - **規模**：M｜**決策**：D286｜**依賴**：T0857（hello）、T0860（schema 2 紀錄）
 
 ## 背景
@@ -80,3 +83,19 @@ T0860 讓升級時 holder 留下並寫紀錄；本單讓新版 BAT 啟動時依�
 ## 回報區
 
 > 以下由 sub-session 填寫，請勿在指揮塔 session 中編輯
+
+### 待塔台決策
+
+#### Q-1：「已接回 N 個終端」toast 需要改 `src/App.tsx` 與 `src/stores/interrupted-agents-store.ts`（不在 affects_files），可以改嗎？
+- 提問時間：2026-11-05T07:52:52+0800
+- 選項：[A] 可以，把這兩個檔加進本單範圍 / [B] 不行，改成別的做法 / [C] 其他：________
+- Worker 建議：[A]。renderer 的通知解析 `parseUpgradeInterruptionNotice`（store）今天只收 `ptyCount ≥ 1`，接回的通知 `ptyCount` 是 0（沒有結束任何終端）會被丟掉；`App.tsx` 傳給 toast 的 `count` 寫死 `ptyCount`。兩處都只是接線（store 多收 `reattachedPtyCount`、App 改用 `ServerStatusToast.tsx` 新的 `upgradeNoticeToastValues`），沒有別的做法能不碰它們。
+- 影響範圍：`src/App.tsx`（2 行）、`src/stores/interrupted-agents-store.ts`（通知型別與解析）；任務 1 / 5 的 renderer toast。
+- 阻塞：否（主行程、測試、文件先做；commit 前需要答覆）
+
+#### Q-2：CLAUDE.md「Recovery 提示期間的 `pty:create`」與「升級結束終端的提示與說明」兩節要不要在本單一併補自動接回 / 換新的必守規則？
+- 提問時間：2026-11-05T07:52:52+0800
+- 選項：[A] 要，本單一併改 CLAUDE.md 這兩節（各加 1–2 行，細節在 docs） / [B] 不要，留給 W6（T0856 規劃 W6 改 CLAUDE.md） / [C] 其他：________
+- Worker 建議：[A]。CLAUDE.md 撰寫規則要求「改功能時兩邊一起更新」，而且這兩節現在寫「W5 改成直接接回」之類的未來式，不改會與程式不符。
+- 影響範圍：`CLAUDE.md`（不在 affects_files）
+- 阻塞：否
