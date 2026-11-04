@@ -4,12 +4,14 @@ schema_kind: workorder
 id: T0849
 title: "Docker 精靈 W1：權杖不進命令列、healthy 後才讀權杖、三段式權杖取得與明確錯誤碼、inspect 不回傳 env、docker 指令補 timeout"
 type: implementation
-status: TODO
+status: IN_PROGRESS
 repo: better-agent-terminal
 project: PLAN-052
 priority: P2
 sizing: M
 created_at: "2026-11-04T15:18:27+0800"
+started_at: "2026-11-04T15:21:20+08:00"
+updated_at: "2026-11-04T15:21:20+08:00"
 depends_on: []
 related:
   - "PLAN-052；D282 / D283；T0848 回報區〈調查結論〉1、3、5 與〈建議下一步〉W1；T0743（Docker 精靈驗收）；BUG-097（`DOCKER_PUBLISH_HOST`）；BUG-111 / T0444（不動使用者容器）"
@@ -39,6 +41,7 @@ interaction:
   mode_hint: yolo
   interactive: false
   intervention_type: fire-and-forget
+tower_question: open
 memory_overrides:
   - "🔴 不改映像來源（W4a / W4b 的範圍）、不改容器選單（W2）、不改寫設定（W3 / T0850 與本單並行，不要碰 `steps/wsl/write-profile.ts`）。"
   - "🔴 埠映射維持 `-p 127.0.0.1:<P>:9876`（`DOCKER_PUBLISH_HOST`，不得放寬）；不動使用者容器（BUG-111：沿用既有容器時不重設權杖、不改容器設定、取消只停回自己啟動的）。"
@@ -49,7 +52,7 @@ memory_overrides:
 # T0849 — Docker 精靈 W1：權杖與安全修正
 
 ## 元資料
-- **工單編號**：T0849｜**類型**：implementation｜**狀態**：TODO｜**建立**：2026-11-04 15:18 (UTC+8)
+- **工單編號**：T0849｜**類型**：implementation｜**狀態**：IN_PROGRESS｜**建立**：2026-11-04 15:18 (UTC+8)
 - **規模**：M｜**決策**：D283（U5：新容器不再帶 `--token`）｜**可並行**：T0850（W3）
 
 ## 背景
@@ -77,5 +80,18 @@ T0848 研究（回報區〈調查結論〉1、3、5，附 `檔案:行`）：「�
 ---
 
 ## 回報區
+
+### 待塔台決策
+
+#### Q-1：權杖改成 healthy 後讀取，affects_files 外有 3 個測試檔必須跟著改，可以改嗎？
+- 提問時間：2026-11-04T15:30:00+0800
+- 背景：精靈改成 healthy 後呼叫新的 `docker.readServerToken`，`startContainer` 不再收 / 回 `token`（任務 1、2）。以下 3 個不在 affects_files 的測試仍 mock 舊行為，現在失敗（不是產品回歸，是行為依工單改變）：
+  - `src/components/setup-wizard/__tests__/wizard-jump-rollback.test.ts`（3 例；mock 缺 `readServerToken`）
+  - `src/components/setup-wizard/__tests__/wizard-rollback-ownership.test.ts`（5 例；mock 缺 `readServerToken`，另有 1 例斷言 T0452「重試沿用 `docker run` 時的 token」，要改成「重試後讀到容器的權杖」）。🔴 這個檔 T0850 正在改，工作樹裡有 T0850 未 commit 的修改。
+  - `tests/__mocks__/electron-api.ts`（legacy harness，`test:legacy` 的 docker 精靈測試 8 處失敗；加 `readServerToken`、拿掉 `startContainer` 的 token）
+- 選項：[A] 三個都改；`wizard-rollback-ownership.test.ts` 只 stage 我自己的 hunk（`git diff` 產 patch → `git apply --cached`，不 commit T0850 的修改；若 T0850 先 commit 就直接 `git commit --only`）/ [B] 只改 jump-rollback 與 legacy mock，`wizard-rollback-ownership.test.ts` 交給 T0850 順手改（T0850 會先紅燈）/ [C] 其他：________
+- Worker 建議：[A]。這三處是本單行為變更的直接後果，留著 `test:unit` / `test:legacy` 就不會全過，達不到驗收；精確 stage 可以避開 T0850 的修改。
+- 影響範圍：上列 3 個測試檔；驗收「`npm run test:unit` 全過」與 `test:legacy`。
+- 阻塞：否（先做 headless-server 測試、docker-flow 測試與其他驗證）；commit 前要等答覆。
 
 （Worker 填寫）
