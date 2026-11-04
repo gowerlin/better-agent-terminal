@@ -4,14 +4,14 @@ schema_kind: workorder
 id: T0846
 title: "同版重裝也提示：有安裝程式結束紀錄時，版本相同也顯示「安裝時結束了 N 個終端」並列出被中斷的 agent 分頁"
 type: implementation
-status: TODO
+status: IN_PROGRESS
 repo: better-agent-terminal
 project: PLAN-063
 priority: P2
 sizing: S
 created_at: "2026-11-04T14:16:11+0800"
-started_at: ""
-updated_at: "2026-11-04T14:16:11+0800"
+started_at: "2026-11-04T14:18:00+0800"
+updated_at: "2026-11-04T14:18:00+0800"
 completed_at: ""
 session_ids: []
 depends_on: []
@@ -33,6 +33,7 @@ affects_files:
 renew_count: 0
 workdir: main repo
 worker_question_timeout: 30
+tower_question: open
 interaction:
   mode_hint: yolo
   interactive: false
@@ -46,7 +47,7 @@ memory_overrides:
 # T0846 — 同版重裝也提示升級結束的終端
 
 ## 元資料
-- **工單編號**：T0846｜**類型**：implementation｜**狀態**：TODO｜**建立**：2026-11-04 14:16 (UTC+8)
+- **工單編號**：T0846｜**類型**：implementation｜**狀態**：IN_PROGRESS｜**建立**：2026-11-04 14:16 (UTC+8)
 - **規模**：S｜**決策**：D278
 
 ## 現象（2026-11-04 14:07 實機，安裝版 pre.7）
@@ -73,3 +74,16 @@ BAT 執行中重裝同版 pre.7：舊行程 `[installer-quit] request received: 
 ## 回報區
 
 > 以下由 sub-session 填寫，請勿在指揮塔 session 中編輯（唯一例外：`### 待塔台決策` 的 `塔台答覆 Q-n` 行由塔台新增）
+
+### 待塔台決策
+
+#### Q-1：`electron/__tests__/installer-quit-request.test.ts:254` 不在 affects_files，可以改嗎？
+- **提問時間**：2026-11-04 14:18 (UTC+8)
+- **問題**：該檔第 249 行的測試 `detect: version changed and (orphans ≥ 1 or record ≥ 1); same version / no previous → never` 第 254 行斷言 `previousVersion: '2', currentVersion: '2', installerQuitPtyCount: 3 → false`，正是本單要改掉的舊規則；改完觸發條件後這個斷言必然失敗，但檔案不在 `affects_files`。
+- **選項**：
+  - A：把該檔加入範圍，只改第 254 行為 `toBe(true)` 並把測試標題改成「same version + record ≥ 1 → detected；same version + orphans only / no previous → never」（另補一行同版＋只有孤兒 → false）。
+  - B：不動該檔，該測試失敗留給塔台另開單（驗收「不回歸」與 `test:unit` 全過將無法達成）。
+  - 其他。
+- **建議**：A。理由：斷言內容是被本單 D278 取代的舊規則，屬本單直接後果；其餘斷言不動。
+- **影響**：決定 commit 是否含該檔與 `test:unit` 是否全過。
+- **是否阻擋後續步驟**：只阻擋最後的 commit 與驗收；其餘修改先進行。
