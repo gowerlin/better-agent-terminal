@@ -379,6 +379,11 @@ function installDocker(containersIn: FakeContainer[]) {
       return { ok: true }
     }),
     execCommand: vi.fn(async () => ({ ok: true as const })),
+    // T0853: these tests cover the pre-(c′) create path, which is now the U3 path:
+    // the image has the BAT server baked in, so install-server-bundle only pulls it.
+    pullImage: vi.fn(async () => ({ ok: true as const, status: 'up-to-date' as const })),
+    onPullProgress: vi.fn(() => () => undefined),
+    imageBakedBundle: vi.fn(async () => ({ ok: true as const, baked: true, reason: 'entrypoint' as const })),
   }
   ;(globalThis as unknown as { window: unknown }).window = { electronAPI: { docker } }
   return { docker, containers }

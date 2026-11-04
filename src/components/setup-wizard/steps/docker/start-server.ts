@@ -9,6 +9,12 @@ import {
   isPortConflictError,
   removeContainerIfCreatedByWizard,
 } from './ownership'
+import { currentDockerImage } from './base-image'
+import {
+  DOCKER_UPGRADE_KEY,
+  dockerBatVolumeNames,
+  readDockerContainerKind,
+} from './install-server-bundle'
 
 // BUG-097 (T0418): engines without HEALTHCHECK --start-interval run the first
 // probe only after the 30s interval (docker/Dockerfile), so the container stays
@@ -94,20 +100,49 @@ export const startDockerServerStep: WizardStep = {
     if (containerMode === 'new') await claimNewContainer(ctx, containerName)
     else await recordExistingContainerState(ctx, containerName)
 
-    const startResult = await window.electronAPI.docker.startContainer(
-      containerName,
-      containerMode === 'new' && !restartOwnContainer
-        ? {
-            createIfMissing: true,
-            image: typeof ctx.state.dockerImage === 'string' ? ctx.state.dockerImage : 'bat-server:latest',
-            mounts: Array.isArray(ctx.state.dockerMounts) ? ctx.state.dockerMounts as Array<{ host: string; container: string }> : [],
-            port,
-            restartPolicy: 'unless-stopped',
-            // T0849 (D283): no token — the server generates its own on first start.
-            dataVolume: `bat-server-${containerName}-data`,
-          }
-        : { port },
-    )
+    const mounts = Array.isArray(ctx.state.dockerMounts) ? ctx.state.dockerMounts as Array<{ host: string; container: string }> : []
+    const createContainer = containerMode === 'new' && !restartOwnContainer
+    // T0853 (D283 (c′)): the bundle is in BAT's volume, so the container runs
+    // on the base image (createBatContainer: 127.0.0.1 only, no --token). An
+    // image with the bundle baked in (U3) is created as before.
+    const onBaseImage = createContainer && readDockerContainerKind(ctx) === 'bundle-volume'
+    // T0853 (Q-3): an installed upgrade restarts a running container; a stopped one is started below.
+    const restartForUpgrade = containerMode === 'existing'
+      && ctx.state[DOCKER_UPGRADE_KEY] === 'installed'
+      && ctx.state[DOCKER_OWNERSHIP_KEYS.containerWasRunningBefore] === true
+    let startResult: Awaited<ReturnType<typeof window.electronAPI.docker.startContainer>>
+    if (onBaseImage) {
+      const volumes = dockerBatVolumeNames(containerName)
+      startResult = await window.electronAPI.docker.createBatContainer(containerName, {
+        image: currentDockerImage(ctx),
+        port,
+        bundleVolume: volumes.bundle,
+        dataVolume: volumes.data,
+        mounts,
+        restartPolicy: 'unless-stopped',
+      })
+    } else if (restartForUpgrade) {
+      startResult = await window.electronAPI.docker.restartContainer(containerName)
+      if (startResult.ok) {
+        ctx.state[DOCKER_OWNERSHIP_KEYS.restartedForUpgrade] = containerName
+        ctx.logger.info(`Restarted Docker container ${containerName} on the new BAT server bundle`)
+      }
+    } else {
+      startResult = await window.electronAPI.docker.startContainer(
+        containerName,
+        createContainer
+          ? {
+              createIfMissing: true,
+              image: currentDockerImage(ctx),
+              mounts,
+              port,
+              restartPolicy: 'unless-stopped',
+              // T0849 (D283): no token — the server generates its own on first start.
+              dataVolume: `bat-server-${containerName}-data`,
+            }
+          : { port },
+      )
+    }
 
     if (!startResult.ok) {
       // T0649 (BUG-156): our container is bound to a host port that turned out

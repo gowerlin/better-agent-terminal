@@ -20,6 +20,12 @@ export const DOCKER_OWNERSHIP_KEYS = {
   containerWasRunningBefore: 'dockerContainerWasRunningBefore',
   /** Whether install-server-bundle put files into the container itself. */
   bundleInstalled: 'dockerBundleInstalledByWizard',
+  /** T0853: name of the bundle volume this run created (`docker volume create`). */
+  bundleVolumeCreated: 'dockerBundleVolumeCreatedByWizard',
+  /** T0853: name of the data volume this run created. */
+  dataVolumeCreated: 'dockerDataVolumeCreatedByWizard',
+  /** T0853: name of the running container start-server restarted for an upgrade. */
+  restartedForUpgrade: 'dockerRestartedForUpgradeByWizard',
 } as const
 
 export function isContainerCreatedByWizard(ctx: WizardContext, name: string): boolean {

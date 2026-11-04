@@ -3544,6 +3544,8 @@ function registerLocalHandlers() {
           targetOS: 'local' | 'wsl-linux' | 'docker-linux' | 'ssh-linux' | 'ssh-darwin'
           wslDistro?: string
           dockerContainer?: string
+          /** T0853 (Q-1): `docker:server-arch` result, for a container that does not exist yet. */
+          dockerServerArch?: string
           dockerHost?: string
           sshHost?: string
           sshUser?: string
@@ -3589,6 +3591,14 @@ function registerLocalHandlers() {
               error: 'draftProfile.dockerContainer missing or invalid',
             }
           }
+          // T0853 (Q-1): optional; only the two linux bundle arches (as `docker:server-arch` returns them).
+          if (draft.dockerServerArch !== undefined && draft.dockerServerArch !== 'linux-x64' && draft.dockerServerArch !== 'linux-arm64') {
+            return {
+              ok: false as const,
+              errorCode: 'arch-detection-failed' as const,
+              error: 'draftProfile.dockerServerArch invalid',
+            }
+          }
         } else if (draft.targetOS === 'ssh-linux' || draft.targetOS === 'ssh-darwin') {
           // T0322 — SSH path requires sshHost + cached sshServerArch (sshUser optional since T0505)
           // (verify-auth step writes ctx.state.sshServerArch from `uname -sm`).
@@ -3629,6 +3639,7 @@ function registerLocalHandlers() {
           targetOS: draft.targetOS,
           wslDistro: draft.wslDistro,
           dockerContainer: draft.dockerContainer,
+          ...(draft.targetOS === 'docker-linux' && draft.dockerServerArch ? { dockerServerArch: draft.dockerServerArch } : {}),
           dockerHost: draft.dockerHost,
           sshHost: draft.sshHost,
           sshUser: draft.sshUser,
@@ -3909,6 +3920,19 @@ function registerLocalHandlers() {
   ipcMain.handle('docker:read-server-cert-fingerprint', async (_event, name: string): Promise<dockerBundleVolume.DockerCertFingerprintResult> => {
     const result = await dockerBundleVolume.readServerCertFingerprint(name)
     if (!result.ok) logger.warn(`[wizard] docker read-server-cert-fingerprint ${result.errorCode}`)
+    return result
+  })
+  // T0853 (Q-2): does the (pulled) image start its own baked-in server? Boolean + reason code only.
+  ipcMain.handle('docker:image-baked-bundle', async (_event, image: string): Promise<dockerBundleVolume.DockerImageBakedBundleResult> => {
+    const result = await dockerBundleVolume.inspectImageBakedBundle(image)
+    if (result.ok) logger.log(`[wizard] docker image-baked-bundle: ${result.baked ? 'baked' : 'not-baked'} reason=${result.reason}`)
+    else logger.warn(`[wizard] docker image-baked-bundle ${result.errorCode}`)
+    return result
+  })
+  // T0853 (Q-3): the server bundle version in a bundle volume (upgrade check).
+  ipcMain.handle('docker:read-bundle-version-in-volume', async (_event, options: { image: string; bundleVolume: string }): Promise<dockerBundleVolume.DockerBundleVersionResult> => {
+    const result = await dockerBundleVolume.readBundleVersionInVolume({ image: options?.image, bundleVolume: options?.bundleVolume })
+    logger.log(`[wizard] docker read-bundle-version-in-volume: ${result.ok ? (result.version ?? 'unknown') : result.errorCode}`)
     return result
   })
   ipcMain.handle('wsl:list', () => wslDetect.list())

@@ -147,6 +147,13 @@ type DockerCompatResult =
 type DockerCertFingerprintResult =
   | { ok: true; fingerprint: string }
   | { ok: false; errorCode: 'docker-cert-unavailable' | 'docker-inspect-failed'; error: string }
+// T0853 (PLAN-052 W4b).
+type DockerImageBakedBundleResult =
+  | { ok: true; baked: boolean; reason: 'entrypoint' | 'cmd' | 'none' }
+  | { ok: false; errorCode: 'docker-image-invalid' | 'docker-image-inspect-failed'; error: string }
+type DockerBundleVersionResult =
+  | { ok: true; version: string | null }
+  | { ok: false; errorCode: DockerBundleJobErrorCode; error: string }
 
 type WslStartServiceResult =
   | { ok: true; token: string | null }
@@ -606,6 +613,10 @@ interface ElectronAPI {
     createBatContainer: (name: string, options: { image: string; port: number; bundleVolume: string; dataVolume: string; mounts?: Array<{ host: string; container: string }>; restartPolicy?: 'unless-stopped' | 'always' | 'no' | 'on-failure' }) => Promise<{ ok: true } | { ok: false; error: string }>
     // T0851 option 6: SHA-256 of the container's server-cert.json certificate (never the cert or key).
     readServerCertFingerprint: (name: string) => Promise<DockerCertFingerprintResult>
+    // T0853 (Q-2): the image's ENTRYPOINT / CMD starts /opt/bat-server/bin/bat-server (U3: skip the install).
+    imageBakedBundle: (image: string) => Promise<DockerImageBakedBundleResult>
+    // T0853 (Q-3): `version` of /opt/bat/server/package.json in the bundle volume (null = unknown).
+    readBundleVersionInVolume: (options: { image: string; bundleVolume: string }) => Promise<DockerBundleVersionResult>
   }
   /** T0830 (PLAN-043): abort a setup-wizard IPC call that carried this operationId. */
   wizard: {
@@ -788,6 +799,8 @@ interface ElectronAPI {
           targetOS: 'local' | 'wsl-linux' | 'docker-linux' | 'ssh-linux' | 'ssh-darwin'
           wslDistro?: string
           dockerContainer?: string
+          /** T0853 (Q-1): `docker.serverArch()` result for a container that does not exist yet (no `docker exec`). */
+          dockerServerArch?: 'linux-x64' | 'linux-arm64'
           dockerHost?: string
           sshHost?: string
           sshUser?: string

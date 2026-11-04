@@ -498,7 +498,8 @@ export const DEFAULT_WIZARD_ERROR_REGISTRY: WizardErrorMatch[] = [
   // the user can import a local tarball (+ .sha256), then the retry hits the cache.
   {
     id: 'server-bundle-unavailable',
-    platforms: ['wsl', 'ssh'],
+    // T0853: the Docker (c′) install uses the same distributor / install script.
+    platforms: ['wsl', 'ssh', 'docker'],
     stepIds: ['install-server-bundle'],
     errorCodes: ['server-bundle-unavailable'],
     messageKey: 'wizard.shared.error.serverBundleUnavailable',
@@ -606,7 +607,8 @@ export const DEFAULT_WIZARD_ERROR_REGISTRY: WizardErrorMatch[] = [
   },
   {
     id: 'server-bundle-install-failed',
-    platforms: ['wsl', 'ssh'],
+    // T0853: the Docker (c′) install uses the same distributor / install script.
+    platforms: ['wsl', 'ssh', 'docker'],
     stepIds: ['install-server-bundle'],
     errorCodes: ['server-bundle-install-failed'],
     messageKey: 'wizard.shared.error.serverBundleInstallFailed',
@@ -615,7 +617,8 @@ export const DEFAULT_WIZARD_ERROR_REGISTRY: WizardErrorMatch[] = [
   },
   {
     id: 'server-bundle-distribute-failed',
-    platforms: ['wsl', 'ssh'],
+    // T0853: the Docker (c′) install uses the same distributor / install script.
+    platforms: ['wsl', 'ssh', 'docker'],
     stepIds: ['install-server-bundle'],
     errorCodes: ['server-bundle-distribute-failed'],
     messageKey: 'wizard.shared.error.serverBundleDistributeFailed',
@@ -723,6 +726,106 @@ export const DEFAULT_WIZARD_ERROR_REGISTRY: WizardErrorMatch[] = [
     stepIds: ['start-server', 'connect-test'],
     errorCodes: [DOCKER_TOKEN_UNAVAILABLE_CODE],
     messageKey: 'wizard.docker.error.tokenUnavailable',
+    detailMode: 'append-raw',
+    actions: [{ kind: 'retry' }, { kind: 'cancel' }],
+  },
+  // T0853 (PLAN-052 W4b, D283 (c′)): base image pull / check, bundle volume install.
+  // Problems with the image itself send the user back to the base image field.
+  {
+    id: 'docker-image-not-usable',
+    platforms: ['docker'],
+    stepIds: ['install-server-bundle'],
+    errorCodes: ['docker-image-invalid', 'docker-image-not-found'],
+    messageKey: 'wizard.docker.error.imageNotFound',
+    detailMode: 'append-raw',
+    actions: [
+      { kind: 'edit-config', labelKey: 'wizard.action.dockerChangeImage', targetStepId: 'pick-container' },
+      { kind: 'retry' },
+      { kind: 'cancel' },
+    ],
+  },
+  {
+    id: 'docker-pull-rate-limited',
+    platforms: ['docker'],
+    stepIds: ['install-server-bundle'],
+    errorCodes: ['docker-pull-rate-limited'],
+    messageKey: 'wizard.docker.error.pullRateLimited',
+    detailMode: 'append-raw',
+    actions: [{ kind: 'retry' }, { kind: 'cancel' }],
+  },
+  {
+    id: 'docker-pull-failed',
+    platforms: ['docker'],
+    stepIds: ['install-server-bundle'],
+    errorCodes: ['docker-pull-failed', 'docker-pull-timeout', 'docker-pull-aborted', 'docker-image-inspect-failed'],
+    messageKey: 'wizard.docker.error.pullFailed',
+    detailMode: 'append-raw',
+    actions: [{ kind: 'retry' }, { kind: 'cancel' }],
+  },
+  {
+    id: 'docker-compat-musl',
+    platforms: ['docker'],
+    stepIds: ['install-server-bundle'],
+    errorCodes: ['docker-compat-musl'],
+    messageKey: 'wizard.docker.error.compatMusl',
+    detailMode: 'hidden-by-default',
+    actions: [
+      { kind: 'edit-config', labelKey: 'wizard.action.dockerChangeImage', targetStepId: 'pick-container' },
+      { kind: 'cancel' },
+    ],
+  },
+  {
+    id: 'docker-compat-glibc-too-old',
+    platforms: ['docker'],
+    stepIds: ['install-server-bundle'],
+    errorCodes: ['docker-compat-glibc-too-old'],
+    messageKey: 'wizard.docker.error.compatGlibcTooOld',
+    detailMode: 'hidden-by-default',
+    actions: [
+      { kind: 'edit-config', labelKey: 'wizard.action.dockerChangeImage', targetStepId: 'pick-container' },
+      { kind: 'cancel' },
+    ],
+  },
+  {
+    id: 'docker-compat-missing-tools',
+    platforms: ['docker'],
+    stepIds: ['install-server-bundle'],
+    errorCodes: ['docker-compat-no-shell', 'docker-compat-missing-tools'],
+    messageKey: 'wizard.docker.error.compatMissingTools',
+    detailMode: 'append-raw',
+    actions: [
+      { kind: 'edit-config', labelKey: 'wizard.action.dockerChangeImage', targetStepId: 'pick-container' },
+      { kind: 'cancel' },
+    ],
+  },
+  {
+    id: 'docker-compat-node-failed',
+    platforms: ['docker'],
+    stepIds: ['install-server-bundle'],
+    errorCodes: ['docker-compat-node-failed', 'docker-compat-bundle-missing', 'docker-compat-probe-failed'],
+    messageKey: 'wizard.docker.error.compatNodeFailed',
+    detailMode: 'append-raw',
+    actions: [
+      { kind: 'edit-config', labelKey: 'wizard.action.dockerChangeImage', targetStepId: 'pick-container' },
+      { kind: 'retry' },
+      { kind: 'cancel' },
+    ],
+  },
+  {
+    id: 'docker-arch-unsupported',
+    platforms: ['docker'],
+    stepIds: ['install-server-bundle'],
+    errorCodes: ['docker-arch-failed', 'docker-arch-unsupported', 'docker-server-not-linux'],
+    messageKey: 'wizard.docker.error.archUnsupported',
+    detailMode: 'append-raw',
+    actions: [{ kind: 'fixed-and-retry' }, { kind: 'cancel' }],
+  },
+  {
+    id: 'docker-volume-failed',
+    platforms: ['docker'],
+    stepIds: ['install-server-bundle'],
+    errorCodes: ['docker-volume-invalid', 'docker-volume-failed', 'docker-volume-not-owned'],
+    messageKey: 'wizard.docker.error.volumeFailed',
     detailMode: 'append-raw',
     actions: [{ kind: 'retry' }, { kind: 'cancel' }],
   },

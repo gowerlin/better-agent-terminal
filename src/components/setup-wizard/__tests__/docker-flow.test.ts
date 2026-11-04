@@ -28,7 +28,8 @@ describe('docker-flow', () => {
     expect(ctx.serverPort).toBeUndefined()
     expect(ctx.state.dockerMounts).toEqual([])
     expect(ctx.state.containerMode).toBe('unknown')
-    expect(ctx.state.dockerImage).toBe('bat-server:latest')
+    // T0853 (D283 U2): the default is a base image; the bundle goes into a volume.
+    expect(ctx.state.dockerImage).toBe('buildpack-deps:bookworm-scm')
     // T0849: no token is seeded — start-server reads it from the container once healthy.
     expect(ctx.remoteToken).toBeUndefined()
     expect(ctx.state.remoteToken).toBeUndefined()

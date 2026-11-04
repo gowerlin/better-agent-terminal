@@ -2,7 +2,9 @@
 //
 // Dispatches `uname -m` over the right channel per profile.targetOS:
 //   wsl-linux    → execFile('wsl', ['-d', distro, '--', 'uname', '-m'])
-//   docker-linux → execFile('docker', ['exec', container, 'uname', '-m'])
+//   docker-linux → execFile('docker', ['exec', container, 'uname', '-m']);
+//                  T0853: a wizard draft's `dockerServerArch` (daemon arch, the
+//                  container does not exist yet) is used as is, without docker exec
 //   ssh-linux    → read profile.sshServerArch (cached by verify-auth, no re-fetch)
 //   ssh-darwin   → same as ssh-linux
 //   local        → not applicable
@@ -140,6 +142,17 @@ export async function detectRemoteArch(profile: ProfileEntry): Promise<DetectArc
       return {
         ok: false,
         error: `Invalid container name "${container}" (must match ${NAME_RE.source}).`,
+        errorCode: 'detect-failed',
+      }
+    }
+    // T0853 (Q-1): the (c′) wizard installs the bundle before it creates the
+    // container, so main's draft carries the daemon arch (`docker:server-arch`).
+    const draftArch = (profile as ProfileEntry & { dockerServerArch?: unknown }).dockerServerArch
+    if (draftArch !== undefined) {
+      if (draftArch === 'linux-x64' || draftArch === 'linux-arm64') return { ok: true, arch: draftArch, rawUname: draftArch }
+      return {
+        ok: false,
+        error: `Invalid Docker server architecture "${String(draftArch)}".`,
         errorCode: 'detect-failed',
       }
     }

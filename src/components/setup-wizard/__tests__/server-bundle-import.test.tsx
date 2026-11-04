@@ -114,8 +114,9 @@ describe('install-server-bundle download failure → import (T0547)', () => {
     expect(corrupted.code).toBe(SERVER_BUNDLE_DISTRIBUTE_FAILED_CODE)
   })
 
-  it('the registry maps it to import / retry / cancel for WSL and SSH only', () => {
-    for (const platform of ['wsl', 'ssh'] as const) {
+  // T0853: the Docker (c′) install goes through the same distributor, so Docker gets the import action too.
+  it('the registry maps it to import / retry / cancel for WSL, SSH and Docker', () => {
+    for (const platform of ['wsl', 'ssh', 'docker'] as const) {
       const mapped = resolveWizardError(
         { platform, stepId: 'install-server-bundle', errorCode: SERVER_BUNDLE_UNAVAILABLE_CODE, error: new Error('[download-failed] x') },
         DEFAULT_WIZARD_ERROR_REGISTRY,
@@ -127,11 +128,11 @@ describe('install-server-bundle download failure → import (T0547)', () => {
       expect(mapped.body).toContain('BAT_SERVER_BUNDLE_BASE_URL')
       expect(mapped.rawError).toBe('[download-failed] x')
     }
-    const docker = resolveWizardError(
-      { platform: 'docker', stepId: 'install-server-bundle', errorCode: SERVER_BUNDLE_UNAVAILABLE_CODE, error: new Error('x') },
+    const local = resolveWizardError(
+      { platform: 'local', stepId: 'install-server-bundle', errorCode: SERVER_BUNDLE_UNAVAILABLE_CODE, error: new Error('x') },
       DEFAULT_WIZARD_ERROR_REGISTRY,
     )
-    expect(docker.matchId).toBeNull()
+    expect(local.matchId).toBeNull()
   })
 
   it('the SSH step throws the same importable error', async () => {

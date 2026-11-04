@@ -1,6 +1,7 @@
 import i18next from 'i18next'
 import type { WizardChoiceOption, WizardContext, WizardStep } from '../../wizard-runner'
 import { wizardError } from '../../error-mapper'
+import { askDockerBaseImage, currentDockerImage } from './base-image'
 import { isContainerCreatedByWizard, removeContainerIfCreatedByWizard } from './ownership'
 
 function slugifyProfileId(name: unknown): string {
@@ -247,9 +248,12 @@ export const pickContainerStep: WizardStep = {
       `bat-server-${slugifyProfileId(ctx.profileDraft.name)}`,
       new Set(containers.map((container) => container.name)),
     )
+    // T0853 task 1: the base image field, asked whenever the mode prompt was
+    // shown (first run, or a jump back); otherwise the stored image is kept.
+    const image = askMode ? await askDockerBaseImage(ctx) : currentDockerImage(ctx)
     if (hasPreviousMode && previousMode !== 'new') forgetMounts(ctx)
     ctx.state.containerMode = mode
-    ctx.state.dockerImage = typeof ctx.state.dockerImage === 'string' && ctx.state.dockerImage ? ctx.state.dockerImage : 'bat-server:latest'
+    ctx.state.dockerImage = image
     ctx.state.dockerContainer = containerName
     delete ctx.state[EDIT_REQUESTED_KEY]
   },

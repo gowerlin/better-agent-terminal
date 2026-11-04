@@ -642,6 +642,12 @@ export function createMockElectronApi(options: MockOptions = {}) {
         operationLog.dockerExecCalls.push({ name, command: [...command] })
         return { ok: true as const }
       },
+      // T0853 (D283 (c′)): install-server-bundle pulls the image first. These
+      // journeys cover the pre-(c′) create path, which is now the U3 path: the
+      // image has the BAT server baked in, so nothing is installed into a volume.
+      pullImage: async () => ({ ok: true as const, status: 'up-to-date' as const }),
+      onPullProgress: () => () => undefined,
+      imageBakedBundle: async () => ({ ok: true as const, baked: true, reason: 'entrypoint' as const }),
     },
     profile: {
       create: async (name: string, config?: Record<string, unknown>) => {

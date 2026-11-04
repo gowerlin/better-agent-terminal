@@ -28,6 +28,7 @@ import { importServerBundleForRetry } from './server-bundle-import'
 import { WizardConsentChecklist, WslAppliedChangesBox } from './WizardConsentChecklist'
 import { requestWslMirroredRetry } from './steps/wsl/connect-test'
 import { readWslAppliedChanges } from './steps/wsl/apply-wsl-environment'
+import { DOCKER_PULL_OPERATION_KEY } from './steps/docker/install-server-bundle'
 import { Stepper } from '../stepper/Stepper'
 import { RemoteToolsEntry } from '../profiles/RemoteToolsEntry'
 import type { StepDescriptor, StepStatus } from '../stepper/types'
@@ -252,6 +253,32 @@ interface ActionNotice {
   text: string
 }
 
+/**
+ * T0853 (PLAN-052 W4b): layer progress of the base image pull. Shows the
+ * `docker:pull-progress` events of the pull the step is running (its
+ * `operationId` is in ctx.state while the pull runs).
+ */
+export function DockerPullProgress({ ctx }: { ctx: WizardContext }) {
+  const { t } = useTranslation()
+  const [progress, setProgress] = useState<{ layers: number; completed: number } | null>(null)
+  useEffect(() => {
+    const subscribe = window.electronAPI?.docker?.onPullProgress
+    if (typeof subscribe !== 'function') return undefined
+    return subscribe((event) => {
+      const operationId = ctx.state[DOCKER_PULL_OPERATION_KEY]
+      if (typeof operationId !== 'string' || event.operationId !== operationId) return
+      setProgress({ layers: event.layers, completed: event.completed })
+    })
+  }, [ctx])
+  if (!progress) return null
+  const image = typeof ctx.state.dockerImage === 'string' ? ctx.state.dockerImage : ''
+  return (
+    <p className="bat-wizard-running" role="status" data-testid="wizard-docker-pull-progress">
+      {t('wizard.docker.pull.progress', { image, completed: progress.completed, layers: progress.layers })}
+    </p>
+  )
+}
+
 interface StepDetailPanelProps {
   active: WizardStepSnapshot | null
   readOnly: WizardStepSnapshot | null
@@ -323,6 +350,10 @@ function StepDetailPanel({
         )}
         {!isReadOnly && display.aborting && (
           <p className="bat-wizard-running" role="status" data-testid="wizard-aborting">{t('wizard.abort.aborting')}</p>
+        )}
+        {!isReadOnly && ctx.targetOS === 'docker-linux' && display.id === 'install-server-bundle'
+          && display.status === WizardStepStatus.Running && !display.aborting && (
+          <DockerPullProgress ctx={ctx} />
         )}
         {/* T0840: the step waits on something an abort cannot stop (wsl --set-version). */}
         {!isReadOnly && display.uninterruptibleKey && (

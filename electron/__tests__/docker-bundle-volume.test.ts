@@ -13,11 +13,17 @@ import { afterEach, beforeAll, describe, expect, it } from 'vitest'
 import { computeFingerprint, generateSelfSignedCert, type CertificateBundle } from '../remote/certificate'
 import { buildSshBundleInstallCommand } from '../server-bundle-install-script'
 import {
+  BAKED_BUNDLE_SERVER_BIN,
   BAT_BUNDLE_ROOT,
   BAT_CONTAINER_DATA_DIR,
   BAT_CONTAINER_HEALTH_CMD,
   DockerPullProgressTracker,
   batVolumeNames,
+  buildBundleVersionScript,
+  classifyImageBakedBundle,
+  inspectImageBakedBundle,
+  parseBundleVersion,
+  readBundleVersionInVolume,
   buildBatContainerRunArgs,
   buildCompatProbeScript,
   buildDockerBundleInstallScript,
@@ -736,5 +742,108 @@ describe('docker-bundle-volume source rules (T0852)', () => {
   it('never passes --token and never widens the publish host', () => {
     expect(source).not.toMatch(/'--token'/)
     expect(source).not.toMatch(/0\.0\.0\.0/)
+  })
+})
+
+// ─── T0853 (PLAN-052 W4b): U3 baked-bundle check, bundle version in the volume ─
+
+describe('inspectImageBakedBundle (T0853 Q-2, U3)', () => {
+  /** docker/Dockerfile ENTRYPOINT / CMD as `docker image inspect` reports them (JSON form). */
+  function dockerfileInstruction(name: 'ENTRYPOINT' | 'CMD'): unknown {
+    const dockerfile = fs.readFileSync(path.join(__dirname, '..', '..', 'docker', 'Dockerfile'), 'utf8')
+    const line = dockerfile.split(/\r?\n/).find((entry) => entry.startsWith(`${name} `))
+    return line ? JSON.parse(line.slice(name.length + 1)) : undefined
+  }
+
+  it('docker/Dockerfile (bat-server:latest) is baked: its ENTRYPOINT starts the baked-in server', () => {
+    const entrypoint = dockerfileInstruction('ENTRYPOINT')
+    expect(Array.isArray(entrypoint)).toBe(true)
+    expect(entrypoint as string[]).toContain(BAKED_BUNDLE_SERVER_BIN)
+    expect(classifyImageBakedBundle({ Entrypoint: entrypoint, Cmd: dockerfileInstruction('CMD') ?? null })).toEqual({ baked: true, reason: 'entrypoint' })
+  })
+
+  it('CMD counts too; a base image or an empty config is not baked', () => {
+    expect(classifyImageBakedBundle({ Entrypoint: null, Cmd: [BAKED_BUNDLE_SERVER_BIN, '--bind-interface', 'all'] })).toEqual({ baked: true, reason: 'cmd' })
+    expect(classifyImageBakedBundle({ Entrypoint: null, Cmd: `${BAKED_BUNDLE_SERVER_BIN} --port 9876` })).toEqual({ baked: true, reason: 'cmd' })
+    expect(classifyImageBakedBundle({ Entrypoint: null, Cmd: ['bash'] })).toEqual({ baked: false, reason: 'none' })
+    expect(classifyImageBakedBundle({ Entrypoint: ['/opt/bat/server/bin/bat-server'], Cmd: null })).toEqual({ baked: false, reason: 'none' })
+    expect(classifyImageBakedBundle(null)).toEqual({ baked: false, reason: 'none' })
+  })
+
+  it('reads `docker image inspect <image>` and returns a boolean and a reason only', async () => {
+    const calls = installExec(() => ({ stdout: JSON.stringify([{ Id: 'sha256:x', Config: { Entrypoint: ['/usr/bin/tini', '--', BAKED_BUNDLE_SERVER_BIN], Cmd: null, Env: ['SECRET=1'] } }]) }))
+    const result = await inspectImageBakedBundle('bat-server:latest')
+    expect(result).toEqual({ ok: true, baked: true, reason: 'entrypoint' })
+    expect(calls).toHaveLength(1)
+    expect(calls[0].file).toBe('docker')
+    expect(calls[0].args).toEqual(['image', 'inspect', 'bat-server:latest'])
+    expect(calls[0].options.timeout).toBeGreaterThan(0)
+  })
+
+  it('the image name plays no part: a base image named bat-server is not baked', async () => {
+    installExec(() => ({ stdout: JSON.stringify([{ Config: { Entrypoint: null, Cmd: ['bash'] } }]) }))
+    expect(await inspectImageBakedBundle('registry.example.com/team/bat-server:1')).toEqual({ ok: true, baked: false, reason: 'none' })
+  })
+
+  it('invalid image -> no docker call; inspect failure / bad JSON -> docker-image-inspect-failed', async () => {
+    const calls = installExec()
+    expect(await inspectImageBakedBundle('-v /:/host')).toMatchObject({ ok: false, errorCode: 'docker-image-invalid' })
+    expect(calls).toHaveLength(0)
+    installExec(() => ({ error: execError('no such image'), stderr: 'Error: No such image: x' }))
+    expect(await inspectImageBakedBundle('x:1')).toMatchObject({ ok: false, errorCode: 'docker-image-inspect-failed' })
+    installExec(() => ({ stdout: 'not json' }))
+    expect(await inspectImageBakedBundle('x:1')).toMatchObject({ ok: false, errorCode: 'docker-image-inspect-failed' })
+  })
+})
+
+describe('readBundleVersionInVolume (T0853 Q-3)', () => {
+  it('parses the marker line; anything odd is null', () => {
+    expect(parseBundleVersion('BAT_BUNDLE_VERSION=0.7.4-pre.8\n')).toBe('0.7.4-pre.8')
+    expect(parseBundleVersion('noise\r\nBAT_BUNDLE_VERSION=0.7.3\r\n')).toBe('0.7.3')
+    expect(parseBundleVersion('BAT_BUNDLE_VERSION=\n')).toBeNull()
+    expect(parseBundleVersion('BAT_BUNDLE_VERSION=1.0; rm -rf /\n')).toBeNull()
+    expect(parseBundleVersion('')).toBeNull()
+  })
+
+  it('runs a one-shot job on the image with the bundle volume read-only, no network', async () => {
+    const calls = installExec(() => ({ stdout: 'BAT_BUNDLE_VERSION=0.7.3-pre.3\n' }))
+    const result = await readBundleVersionInVolume({ image: 'buildpack-deps:bookworm-scm', bundleVolume: 'bat-server-dev-bundle' })
+    expect(result).toEqual({ ok: true, version: '0.7.3-pre.3' })
+    const args = calls[0].args
+    expect(args.slice(0, 2)).toEqual(['run', '--rm'])
+    expect(args).not.toContain('-i')
+    expect(valuesOf(args, '--network')).toEqual(['none'])
+    expect(valuesOf(args, '-v')).toEqual(['bat-server-dev-bundle:/opt/bat:ro'])
+    expect(valuesOf(args, '--entrypoint')).toEqual(['/bin/sh'])
+    expect(args).toContain(buildBundleVersionScript())
+  })
+
+  it('no version file -> version null; job failure / invalid input -> error codes', async () => {
+    installExec(() => ({ stdout: 'BAT_BUNDLE_VERSION=\n' }))
+    expect(await readBundleVersionInVolume({ image: 'debian:12', bundleVolume: 'bat-server-dev-bundle' })).toEqual({ ok: true, version: null })
+    installExec(() => ({ error: execError('boom', 125), stderr: 'docker: error' }))
+    expect(await readBundleVersionInVolume({ image: 'debian:12', bundleVolume: 'bat-server-dev-bundle' })).toMatchObject({ ok: false, errorCode: 'docker-install-failed' })
+    const calls = installExec()
+    expect(await readBundleVersionInVolume({ image: 'debian:12', bundleVolume: '../x' })).toMatchObject({ ok: false, errorCode: 'docker-install-invalid' })
+    expect(calls).toHaveLength(0)
+  })
+
+  const shellAvailable = spawnSync('sh', ['-c', 'echo ok'], { encoding: 'utf8', windowsHide: true }).stdout?.trim() === 'ok'
+  it.skipIf(!shellAvailable)('the version script reads versionManifestContent output under a real sh', () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 't0853-version-'))
+    try {
+      const root = path.join(dir, 'server')
+      fs.mkdirSync(root)
+      // scripts/version-manifest.cjs versionManifestContent format.
+      fs.writeFileSync(path.join(root, 'package.json'), JSON.stringify({ name: 'better-agent-terminal', version: '0.7.4-pre.8' }, null, 2) + '\n')
+      const script = buildBundleVersionScript().split(BAT_BUNDLE_ROOT).join(root.replace(/\\/g, '/'))
+      const run = spawnSync('sh', ['-c', script], { encoding: 'utf8', windowsHide: true })
+      expect(parseBundleVersion(run.stdout)).toBe('0.7.4-pre.8')
+      fs.rmSync(path.join(root, 'package.json'))
+      const missing = spawnSync('sh', ['-c', script], { encoding: 'utf8', windowsHide: true })
+      expect(missing.stdout.trim()).toBe('BAT_BUNDLE_VERSION=')
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true })
+    }
   })
 })

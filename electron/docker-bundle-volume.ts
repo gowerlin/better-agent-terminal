@@ -16,6 +16,8 @@
  *   7. `execContainerCommand`    — the one `docker exec` the wizard's rollback asks for;
  *   8. `readServerCertFingerprint` — SHA-256 of the container's `server-cert.json` (never the cert
  *      or key themselves).
+ *   9. `inspectImageBakedBundle` — T0853 (U3): does the image itself start `/opt/bat-server/bin/bat-server`?
+ *  10. `readBundleVersionInVolume` — T0853: the bundle version in a bundle volume (upgrade check).
  *
  * Rules (T0852 work order):
  * - every child process is `execFile` / `spawn` with an argument array and a time limit; image,
@@ -1029,4 +1031,102 @@ export async function readServerCertFingerprint(name: string): Promise<DockerCer
     return { ok: false, errorCode: 'docker-cert-unavailable', error: `Docker container ${name}: ${certPath} is missing or unreadable.` }
   }
   return { ok: true, fingerprint }
+}
+
+// ─── 9. image with a baked-in bundle (T0853, D283 U3) ─────────────────────
+
+/** Where docker/Dockerfile puts the server (`bat-server:latest`, the advanced path, U3). */
+export const BAKED_BUNDLE_SERVER_BIN = '/opt/bat-server/bin/bat-server'
+
+export type DockerImageBakedBundleResult =
+  /** `reason`: where the baked server was found (`entrypoint` / `cmd`), or `none`. */
+  | { ok: true; baked: boolean; reason: 'entrypoint' | 'cmd' | 'none' }
+  | { ok: false; errorCode: 'docker-image-invalid' | 'docker-image-inspect-failed'; error: string }
+
+function mentionsBakedServer(value: unknown): boolean {
+  const parts = Array.isArray(value) ? value : typeof value === 'string' ? [value] : []
+  return parts.some((part) => typeof part === 'string' && part.includes(BAKED_BUNDLE_SERVER_BIN))
+}
+
+/**
+ * T0853 (Q-2): does the image's own `ENTRYPOINT` or `CMD` start the baked-in
+ * server (`/opt/bat-server/bin/bat-server`, docker/Dockerfile)? Pure; reads the
+ * `Config` of `docker image inspect`. The image name plays no part.
+ */
+export function classifyImageBakedBundle(config: { Entrypoint?: unknown; Cmd?: unknown } | null | undefined): { baked: boolean; reason: 'entrypoint' | 'cmd' | 'none' } {
+  if (mentionsBakedServer(config?.Entrypoint)) return { baked: true, reason: 'entrypoint' }
+  if (mentionsBakedServer(config?.Cmd)) return { baked: true, reason: 'cmd' }
+  return { baked: false, reason: 'none' }
+}
+
+/**
+ * T0853 (Q-2): `docker image inspect <image>` (the wizard calls it after the
+ * pull, so the image is local) → whether it already contains the BAT server
+ * bundle. Returns a boolean and a reason code only.
+ */
+export async function inspectImageBakedBundle(image: string): Promise<DockerImageBakedBundleResult> {
+  const check = validateDockerImageRef(image)
+  if (!check.ok) return { ok: false, errorCode: 'docker-image-invalid', error: check.error }
+  const outcome = await execDocker(['image', 'inspect', image], DETECT_TIMEOUT_MS)
+  if (outcome.error) return { ok: false, errorCode: 'docker-image-inspect-failed', error: outcomeError(outcome) }
+  let config: { Entrypoint?: unknown; Cmd?: unknown } | null = null
+  try {
+    const parsed = JSON.parse(outcome.stdout) as unknown
+    const entry = Array.isArray(parsed) ? parsed[0] as Record<string, unknown> | undefined : undefined
+    config = entry && typeof entry.Config === 'object' ? entry.Config as { Entrypoint?: unknown; Cmd?: unknown } : null
+  } catch {
+    return { ok: false, errorCode: 'docker-image-inspect-failed', error: `No inspect data for image ${image}.` }
+  }
+  return { ok: true, ...classifyImageBakedBundle(config) }
+}
+
+// ─── 10. bundle version in the volume (T0853, Q-3) ────────────────────────
+
+export const BUNDLE_VERSION_MARKER = 'BAT_BUNDLE_VERSION='
+const BUNDLE_VERSION_PATTERN = /^[0-9A-Za-z][0-9A-Za-z.+-]{0,63}$/
+
+/** Job script: the `version` of `/opt/bat/server/package.json` (scripts/build-server-bundle.mjs), one marker line. */
+export function buildBundleVersionScript(): string {
+  return [
+    `f=${BAT_BUNDLE_ROOT}/package.json`,
+    // `  "version": "0.7.4"` → 4th `"`-separated field (versionManifestContent writes one key per line).
+    `if [ -f "$f" ]; then v=$(grep '"version"' "$f" | head -n 1 | cut -d '"' -f 4); echo "${BUNDLE_VERSION_MARKER}$v"; else echo "${BUNDLE_VERSION_MARKER}"; fi`,
+    'exit 0',
+  ].join('\n')
+}
+
+/** Pure: the version from the job's stdout, or `null` (no file, no version, odd value). */
+export function parseBundleVersion(stdout: string): string | null {
+  for (const raw of stdout.split(/\r?\n/)) {
+    if (!raw.startsWith(BUNDLE_VERSION_MARKER)) continue
+    const value = raw.slice(BUNDLE_VERSION_MARKER.length).trim()
+    return BUNDLE_VERSION_PATTERN.test(value) ? value : null
+  }
+  return null
+}
+
+export type DockerBundleVersionResult =
+  /** `version: null` = no readable version (the wizard then treats the bundle as needing an upgrade). */
+  | { ok: true; version: string | null }
+  | { ok: false; errorCode: 'docker-install-invalid' | 'docker-install-failed'; error: string }
+
+/**
+ * T0853 (Q-3): the server bundle version installed in a bundle volume, read by
+ * a one-shot job on the container's image with the volume mounted read-only
+ * (works whether the container runs or not).
+ */
+export async function readBundleVersionInVolume(options: { image: string; bundleVolume: string }): Promise<DockerBundleVersionResult> {
+  let args: string[]
+  try {
+    args = buildBundleJobArgs({
+      image: options.image,
+      volumes: [{ name: options.bundleVolume, target: BAT_BUNDLE_VOLUME_MOUNT, readOnly: true }],
+      script: buildBundleVersionScript(),
+    })
+  } catch (error) {
+    return { ok: false, errorCode: 'docker-install-invalid', error: error instanceof Error ? error.message : String(error) }
+  }
+  const outcome = await execDocker(args, JOB_TIMEOUT_MS)
+  if (outcome.error) return { ok: false, errorCode: 'docker-install-failed', error: outcomeError(outcome) }
+  return { ok: true, version: parseBundleVersion(outcome.stdout) }
 }

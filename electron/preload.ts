@@ -29,6 +29,8 @@ import type {
   DockerBundleJobResult,
   DockerCertFingerprintResult,
   DockerCompatResult,
+  DockerImageBakedBundleResult,
+  DockerBundleVersionResult,
   DockerCreateVolumeResult,
   DockerInstallBundleResult,
   DockerPullProgress,
@@ -737,6 +739,11 @@ const electronAPI = {
       ipcRenderer.invoke('docker:create-bat-container', name, options) as Promise<{ ok: true } | { ok: false; error: string }>,
     readServerCertFingerprint: (name: string) =>
       ipcRenderer.invoke('docker:read-server-cert-fingerprint', name) as Promise<DockerCertFingerprintResult>,
+    // T0853 (PLAN-052 W4b): U3 baked-bundle check and the upgrade's version check.
+    imageBakedBundle: (image: string) =>
+      ipcRenderer.invoke('docker:image-baked-bundle', image) as Promise<DockerImageBakedBundleResult>,
+    readBundleVersionInVolume: (options: { image: string; bundleVolume: string }) =>
+      ipcRenderer.invoke('docker:read-bundle-version-in-volume', options) as Promise<DockerBundleVersionResult>,
   },
   ssh: {
     listHosts: () => ipcRenderer.invoke('ssh:list-hosts') as Promise<string[]>,

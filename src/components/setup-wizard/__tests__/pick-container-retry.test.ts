@@ -105,7 +105,8 @@ describe('pick-container: a failed choice is not stored (T0502)', () => {
     expect(runner.getSnapshots()[0].status).toBe(WizardStepStatus.Succeeded)
     expect(ctx.state.containerMode).toBe('new')
     expect(ctx.state.dockerContainer).toBe('bat-server-dev-box')
-    expect(ctx.state.dockerImage).toBe('bat-server:latest')
+    // T0853 (D283 U2): the default is a base image; the bundle goes into a volume.
+    expect(ctx.state.dockerImage).toBe('buildpack-deps:bookworm-scm')
   })
 
   it('"Create new" with every candidate name taken fails without storing the mode; retry asks again', async () => {

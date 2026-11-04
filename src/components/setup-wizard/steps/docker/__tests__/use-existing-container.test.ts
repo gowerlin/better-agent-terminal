@@ -175,7 +175,8 @@ describe('pick-container "Use existing" picker (T0851)', () => {
     ])
     expect(ctx.state.containerMode).toBe('new')
     expect(ctx.state.dockerContainer).toBe('bat-server-dev-box')
-    expect(ctx.state.dockerImage).toBe('bat-server:latest')
+    // T0853 (D283 U2): the default is a base image; the bundle goes into a volume.
+    expect(ctx.state.dockerImage).toBe('buildpack-deps:bookworm-scm')
   })
 
   it('empty list -> the prompt says there are no containers; dismissing it is docker-no-containers', async () => {

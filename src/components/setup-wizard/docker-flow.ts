@@ -1,6 +1,7 @@
 import type { WizardContext, WizardStep } from './wizard-runner'
 import { configureMountsStep } from './steps/docker/configure-mounts'
 import { installDockerServerBundleStep } from './steps/docker/install-server-bundle'
+import { DEFAULT_DOCKER_BASE_IMAGE } from './steps/docker/base-image'
 import { pickContainerStep } from './steps/docker/pick-container'
 import { startDockerServerStep } from './steps/docker/start-server'
 import { connectTestStep } from './steps/wsl/connect-test'
@@ -9,7 +10,9 @@ import { doneStep } from './steps/wsl/done'
 import { fetchFingerprintStep } from './steps/wsl/fetch-fingerprint'
 import { writeProfileStep } from './steps/wsl/write-profile'
 
-const DEFAULT_IMAGE = 'bat-server:latest'
+// T0853 (D283 U2): a base image; the server bundle goes into a volume. `bat-server:latest` (bundle
+// baked in) can still be typed into the base image field (U3).
+const DEFAULT_IMAGE = DEFAULT_DOCKER_BASE_IMAGE
 
 export function buildDockerWizardSteps(): WizardStep[] {
   return [

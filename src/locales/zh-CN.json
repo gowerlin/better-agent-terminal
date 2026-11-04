@@ -939,7 +939,8 @@
       "wslInstalledRetry": "我已安装 WSL2，重试",
       "editSshSettings": "修改 SSH 设置",
       "importServerBundle": "导入本地 tarball…",
-      "wslMirroredRetry": "改用 Mirrored 并重试"
+      "wslMirroredRetry": "改用 Mirrored 并重试",
+      "dockerChangeImage": "修改基础镜像"
     },
     "shared": {
       "step": {
@@ -1261,8 +1262,8 @@
           "description": "选一个本机文件夹共享给容器，在容器内的路径是 /workspace/<文件夹名称>。使用现有容器时，BAT 会列出它已经挂载的文件夹。"
         },
         "installBundle": {
-          "label": "确认 BAT 服务器套件",
-          "description": "Docker 镜像已内置 BAT 服务器，不需要另外复制。"
+          "label": "安装 BAT 服务器套件",
+          "description": "拉取基础镜像、确认它能运行 BAT 服务器，再把服务器套件装进容器的 volume（镜像已内含 BAT 服务器时跳过安装）。用这种方式创建的容器，重新运行向导就会升级套件。"
         },
         "startServer": {
           "label": "启动 Docker 容器",
@@ -1332,6 +1333,42 @@
         "tokenUnavailable": {
           "title": "无法从容器读取 BAT 服务器令牌",
           "body": "Docker 容器 {{name}} 已在运行，但 BAT 读不到容器内 BAT 服务器的令牌：服务器数据目录里没有 server-token.json，容器的启动命令也没有 --token。请确认容器运行的是 bat-server（BAT 服务器镜像），查看容器日志（`docker logs {{name}}`）后重试。"
+        },
+        "imageNotFound": {
+          "title": "无法拉取基础镜像",
+          "body": "Docker 找不到或无法拉取镜像 {{image}}。请确认名称与 tag（私有 registry 要先 docker login），再修改基础镜像或重试。"
+        },
+        "pullRateLimited": {
+          "title": "已达 Docker Hub 的拉取次数上限",
+          "body": "Docker Hub 拒绝拉取 {{image}}：匿名拉取次数已达上限。请先 docker login、稍后再试，或改用其他 registry 的镜像后重试。"
+        },
+        "pullFailed": {
+          "title": "拉取基础镜像失败",
+          "body": "Docker 无法拉取镜像 {{image}}，下方详细信息是 Docker 的报告。请确认网络后重试。"
+        },
+        "compatMusl": {
+          "title": "基础镜像使用 musl（Alpine）",
+          "body": "镜像 {{image}} 使用 musl libc（例如 Alpine），但 BAT 服务器需要 glibc 2.35 以上。请改用 Debian 或 Ubuntu 系的镜像（Debian 12、Ubuntu 22.04 或更新）。尚未创建任何东西。"
+        },
+        "compatGlibcTooOld": {
+          "title": "基础镜像太旧",
+          "body": "镜像 {{image}} 的 glibc 是 {{glibc}}，但 BAT 服务器需要 glibc 2.35 以上。请改用较新的镜像（Debian 12、Ubuntu 22.04 或更新）。"
+        },
+        "compatMissingTools": {
+          "title": "基础镜像缺少 BAT 需要的工具",
+          "body": "镜像 {{image}} 缺少 /bin/sh、tar 或 gzip，BAT 安装服务器时需要它们。请改用其他镜像，或在你的镜像中加上这些工具。"
+        },
+        "compatNodeFailed": {
+          "title": "BAT 服务器无法在这个镜像上运行",
+          "body": "BAT 服务器套件已安装，但内附的 node 无法在镜像 {{image}} 上运行，错误见下方详细信息。请改用其他基础镜像。"
+        },
+        "archUnsupported": {
+          "title": "Docker 没有运行 BAT 支持的 Linux 容器",
+          "body": "BAT 需要 Docker 运行 x86-64 或 arm64 的 Linux 容器。若 Docker Desktop 设为 Windows 容器，请切换成 Linux 容器后重试。"
+        },
+        "volumeFailed": {
+          "title": "无法准备 Docker volume",
+          "body": "Docker 无法为 BAT 服务器创建或使用 volume {{volume}}，下方详细信息是 Docker 的报告。修正后请重试。"
         }
       },
       "pickContainer": {
@@ -1339,7 +1376,7 @@
         "description": "沿用已有的容器，或让 BAT 创建并管理一个专用的容器。",
         "new": {
           "label": "创建新容器",
-          "description": "BAT 创建一个新容器，并设为 restart=unless-stopped。"
+          "description": "BAT 以你选择的基础镜像创建新容器，把 BAT 服务器装进 volume，并设置 restart=unless-stopped。"
         },
         "existing": {
           "label": "沿用已有容器",
@@ -1375,6 +1412,23 @@
           "pick": "改选其他文件夹",
           "pickDescription": "选的文件夹不会挂进现有容器；BAT 不会修改容器。"
         }
+      },
+      "baseImage": {
+        "title": "新容器的基础镜像",
+        "description": "BAT 会拉取这个镜像，并把 BAT 服务器装进 volume，所以可以用你自己的开发镜像（内部 registry 也可以）。镜像需要 glibc 2.35 以上、/bin/sh、tar 与 gzip；Alpine（musl）镜像不能用。默认镜像内含 git、curl 与 ssh。已内含 BAT 服务器的镜像（例如 bat-server:latest）会直接使用。",
+        "invalid": "请输入 Docker 镜像名称，例如 buildpack-deps:bookworm-scm 或 registry.example.com/team/dev:1.2（名称用小写，可加 tag 或 digest）。"
+      },
+      "pull": {
+        "progress": "正在拉取 {{image}}：{{completed}} / {{layers}} 层"
+      },
+      "upgrade": {
+        "title": "要升级 {{name}} 的 BAT 服务器吗？",
+        "description": "容器 {{name}} 运行的是 BAT 服务器套件 {{from}}，这个 BAT 用的是 {{to}}。升级会替换容器 volume 内的套件并重新启动容器；容器、文件夹、令牌与证书都不变。",
+        "descriptionUnknown": "BAT 无法得知容器 {{name}} 运行的 BAT 服务器套件版本，这个 BAT 用的是 {{to}}。升级会替换容器 volume 内的套件并重新启动容器；容器、文件夹、令牌与证书都不变。",
+        "confirm": "升级并重新启动",
+        "confirmDescription": "重新启动 {{name}} 会结束容器内运行中的终端与 agent。取消向导时会还原原来的套件。",
+        "skip": "暂不升级",
+        "skipDescription": "保留当前的 BAT 服务器并连接。"
       }
     },
     "ssh": {

@@ -940,7 +940,8 @@
       "wslInstalledRetry": "I've installed WSL2, retry",
       "editSshSettings": "Edit SSH settings",
       "importServerBundle": "Import local tarball…",
-      "wslMirroredRetry": "Switch to Mirrored and retry"
+      "wslMirroredRetry": "Switch to Mirrored and retry",
+      "dockerChangeImage": "Change base image"
     },
     "shared": {
       "step": {
@@ -1262,8 +1263,8 @@
           "description": "Pick one folder on this computer to share with the container. It appears in the container as /workspace/<folder name>. With an existing container, BAT offers the folders it already mounts."
         },
         "installBundle": {
-          "label": "Verify BAT server bundle",
-          "description": "The BAT server is already included in the Docker image, so nothing is copied."
+          "label": "Install BAT server bundle",
+          "description": "Pull the base image, check it can run the BAT server, and install the server bundle into the container's volume (an image that already contains the BAT server skips the install). For a container BAT created this way, running the wizard again upgrades the bundle."
         },
         "startServer": {
           "label": "Start Docker container",
@@ -1333,6 +1334,42 @@
         "tokenUnavailable": {
           "title": "Cannot read the BAT server token from the container",
           "body": "Docker container {{name}} is running, but BAT could not read the BAT server token from it: no server-token.json was found in the server data directory, and the container command has no --token. Make sure the container runs bat-server (the BAT server image), check the container log (`docker logs {{name}}`), then retry."
+        },
+        "imageNotFound": {
+          "title": "Cannot pull the base image",
+          "body": "Docker could not find or pull image {{image}}. Check the name and tag (and that you are logged in to a private registry with docker login), then change the base image or retry."
+        },
+        "pullRateLimited": {
+          "title": "Docker Hub pull limit reached",
+          "body": "Docker Hub refused to pull {{image}} because the anonymous pull limit was reached. Log in with docker login, wait a while, or use an image from another registry, then retry."
+        },
+        "pullFailed": {
+          "title": "Could not pull the base image",
+          "body": "Docker could not pull image {{image}}. The details below show what Docker reported. Check the network and retry."
+        },
+        "compatMusl": {
+          "title": "The base image uses musl (Alpine)",
+          "body": "Image {{image}} uses musl libc (for example Alpine), but the BAT server needs glibc 2.35 or newer. Choose a Debian or Ubuntu based image (Debian 12, Ubuntu 22.04 or later). Nothing was created."
+        },
+        "compatGlibcTooOld": {
+          "title": "The base image is too old",
+          "body": "Image {{image}} has glibc {{glibc}}, but the BAT server needs glibc 2.35 or newer. Choose a newer image (Debian 12, Ubuntu 22.04 or later)."
+        },
+        "compatMissingTools": {
+          "title": "The base image is missing tools BAT needs",
+          "body": "Image {{image}} lacks /bin/sh, tar or gzip, which BAT needs to install the BAT server. Choose another image, or add them to yours."
+        },
+        "compatNodeFailed": {
+          "title": "The BAT server does not run on this image",
+          "body": "The BAT server bundle was installed, but its bundled node does not run on image {{image}}. The details below show the error. Choose another base image."
+        },
+        "archUnsupported": {
+          "title": "Docker does not run Linux containers BAT supports",
+          "body": "BAT needs Docker running Linux containers on x86-64 or arm64. If Docker Desktop is set to Windows containers, switch it to Linux containers, then retry."
+        },
+        "volumeFailed": {
+          "title": "Could not prepare the Docker volume",
+          "body": "Docker could not create or use volume {{volume}} for the BAT server. The details below show what Docker reported. Fix the problem, then retry."
         }
       },
       "pickContainer": {
@@ -1340,7 +1377,7 @@
         "description": "Use an existing container or let BAT create and manage a dedicated one.",
         "new": {
           "label": "Create new",
-          "description": "BAT creates a new container with restart=unless-stopped."
+          "description": "BAT creates a new container on the base image you choose, installs the BAT server into a volume, and sets restart=unless-stopped."
         },
         "existing": {
           "label": "Use existing",
@@ -1376,6 +1413,23 @@
           "pick": "Choose a folder instead",
           "pickDescription": "The folder you choose is not mounted into the existing container; BAT does not change the container."
         }
+      },
+      "baseImage": {
+        "title": "Base image for the new container",
+        "description": "BAT pulls this image and installs the BAT server into a volume, so you can use your own development image (an internal registry works too). The image needs glibc 2.35 or newer, /bin/sh, tar and gzip; Alpine (musl) images do not work. The default has git, curl and ssh. An image that already contains the BAT server (for example bat-server:latest) is used as it is.",
+        "invalid": "Enter a Docker image reference such as buildpack-deps:bookworm-scm or registry.example.com/team/dev:1.2 (lower-case name, optional tag or digest)."
+      },
+      "pull": {
+        "progress": "Pulling {{image}}: {{completed}} of {{layers}} layers"
+      },
+      "upgrade": {
+        "title": "Upgrade the BAT server in {{name}}?",
+        "description": "Container {{name}} runs BAT server bundle {{from}}; this BAT uses {{to}}. Upgrading replaces the bundle in the container's volume and restarts the container. The container, its folders, token and certificate stay the same.",
+        "descriptionUnknown": "BAT could not tell which BAT server bundle container {{name}} runs; this BAT uses {{to}}. Upgrading replaces the bundle in the container's volume and restarts the container. The container, its folders, token and certificate stay the same.",
+        "confirm": "Upgrade and restart",
+        "confirmDescription": "Restarting {{name}} ends the terminals and agents running in it. Cancelling the wizard puts the previous bundle back.",
+        "skip": "Not now",
+        "skipDescription": "Keep the current BAT server and connect to it."
       }
     },
     "ssh": {
