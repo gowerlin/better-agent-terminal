@@ -45,3 +45,9 @@ links:
 ## 2026-11-04 → IN_PROGRESS（第一百一十六 session，D271）
 
 - 使用者選「先研究再實作」：開研究單 T0828（上傳通道、暫存目錄與清理、權限、path sandbox、Alt+V 貼圖可行性），研究完再拆實作單。
+
+## 2026-11-04 拆實作單（D272）
+
+- T0828 研究完成（方案 A：WSS invoke 分塊 256 KiB stop-and-wait、暫存 `<dataDir>/uploads/`）。使用者裁決：上限單檔 50 MiB / 單次 100 MiB / 每 session 500 MiB；清理 = 關閉即刪＋ 24 h TTL；送出時上傳；不加 Settings 開關；**終端分頁納入**；本 PLAN 併入 `0.7.4-pre.7`。
+- 實作單：T0832（host 暫存＋`upload:*`＋契約）→ T0833（client 驅動）→ T0834（Claude / Codex 面板）→ T0835（終端拖放與 SSH / Docker Ctrl+V 貼圖）→ T0836（e2e 與實機驗收清單）。
+- 衍生 BUG-211（多張大圖可能超過 32 MiB frame，重現單 T0837）。

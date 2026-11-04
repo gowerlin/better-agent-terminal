@@ -46,3 +46,10 @@ PLAN-035 Phase 1 已修好已安裝環境最常見的問題（網路模式誤判
 ## 2026-11-04 → IN_PROGRESS（第一百一十六 session，D271）
 
 - 使用者選四項全做：T0829（孤兒 `wsl.exe`＋`plan-007-release-checklist.md` NAT 措辭）→ T0830（keep-alive 每個 profile 可關閉、精靈每一步可中止）依序；Phase 2 / 3 先開研究單 T0831（核對 T0380 與現況、設計、拆單），研究完再開實作單。
+
+## 2026-11-04 研究結果與拆單（D272）
+
+- T0829 DONE（`841f5e6a`）：孤兒 `wsl.exe` **實測不存在**（libuv 的 Job Object 已涵蓋未 detached 的子行程），只加回歸防護（不得 `detached`）與文件；範圍 3 的 Job Object 候選結案。
+- T0831 研究完成（方案 B：先 Phase 2、再疊 Phase 3）。使用者裁決：**Phase 2 進 `0.7.4-pre.7`**、Phase 3 後做；Phase 2 可在本機用拋棄式發行版實測，`wsl --shutdown` 先問；取消不還原環境修正（列出已變更與備份）；P-6 `instanceIdleTimeout` 不做；Phase 3 要寫 RunOnce、提供 BAT 專用發行版選項（預設選既有）、「立即重開機」按鈕（再確認＋30 秒）、新使用者密碼在精靈輸入。
+- Phase 2 實作單：T0838 W1（INI 編輯器）→ T0839 W2（facts / plan）→ T0840 W3（一次同意＋P-1–P-4）→ T0841 W4（Mirrored 重試）。
+- Phase 3（W5 提權安裝 `wsl --install --no-distribution`、W6 重開機接續＋RunOnce、W7 發行版安裝＋建立使用者、W8 乾淨 VM 實機驗收）：**尚未開單**，等有驗收 VM（本機未啟用 Hyper-V）再開；設計 SoT = T0831 回報區。
