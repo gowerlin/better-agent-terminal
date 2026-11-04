@@ -213,7 +213,7 @@ W5（T0861）依 `reason` 走 D5「結束並說明」；本單沒有新的 UI。
 
 | 日誌 | 意義 |
 |---|---|
-| `[PtyManager] TCP connected to Terminal Server on port <p> (protocol 1, BAT <版號>, runtime <electron\|node> <版本>, pid <pid>)` | v1 接回 |
+| `[PtyManager] TCP connected to Terminal Server on port <p> (protocol 1, BAT <版號>, runtime <electron\|node> <版本>[, holder <key>], pid <pid>)` | v1 接回；`holder <key>` = server 從 PTY holder 啟動（T0859，只記 key，回報的路徑不是 key 時記 `unrecognised`） |
 | `[PtyManager] TCP connected to Terminal Server on port <p> (protocol 0 (no hello: a server before T0857))` | 舊 server |
 | `[PtyManager] Terminal Server on port <p>: hello failed (<reason>)`（warn） | `connectToServer` 失敗 |
 | `[terminal-server] existing server on port <p>: hello <reason> — ending it (Recovery fresh-start path)`（warn） | 啟動時遇到不能用的 server |
@@ -226,7 +226,7 @@ W5（T0861）依 `reason` 走 D5「結束並說明」；本單沒有新的 UI。
 
 - 權杖錯的 v1 server（例：權杖檔被別的程序改掉）無法以 TCP 結束：「重新開始」路徑等滿 5 s 後照舊開新 server，舊 server 留到 idle timeout。
 - 協定 v1 不加密：只在 `127.0.0.1`，權杖以明文 JSON 傳送（與 T0857 前的訊息相同層級）。
-- `holderDir` 欄位保留給 W3；本單的 server 都是 BAT 執行檔以 node 模式執行（`runtime.name: 'electron'`）。
+- `holderDir`：T0859 起從 PTY holder 啟動的 server 會帶（`runtime.name: 'node'`），見下一節；其他 server 仍是 BAT 執行檔以 node 模式執行（`runtime.name: 'electron'`、沒有 `holderDir`）。
 - 跨平台：macOS / Linux 的「保留 Terminal Server → 重開 → 保留 → 接回」實機不回歸要在 `linux-acceptance` / `macos-acceptance` 手動跑一次（T0856 W1 驗收欄）；本單只有單元測試與 Windows 本機驗證。
 
 ### 驗證
@@ -242,6 +242,60 @@ W5（T0861）依 `reason` 走 D5「結束並說明」；本單沒有新的 UI。
   - PtyManager TCP 模式：hello 帶權杖、日誌有協定沒有權杖；被拒 → `{ ok: false }` 且沒有通道；**3 個遲到 tick、pid 檔的程序還在 → 不 recovery**、只記 `late pong`；pid 檔的程序不在 → `reason=heartbeat`；沒有 pid 檔 → 用 hello 的 pid；pong 恢復歸零、TCP close 照舊立即 recovery。
   - 權杖不在 `process.env`、PTY env、server stderr；source guard：`forkTerminalServer` 不提權杖、server 不從 env 讀權杖、`buildPtyEnv` 不讀權杖檔、日誌行不插值權杖變數。
 - 既有不回歸：`terminal-server-pty-env.test.ts`（env 清單多 `BAT_TERMINAL_SERVER_BAT_VERSION`）、`pty-manager-heartbeat-recovery.test.ts`、`recovery-create-hold.test.ts`、`installer-quit-request.test.ts`、`upgrade-interruption.test.ts`、`helper-capability-persist.test.ts` 的 source guard。
+
+## 從 PTY holder 啟動（PLAN-065 W3 / T0859，D286）
+
+用途：Windows 的 NSIS 升級會結束 `$INSTDIR` 底下的所有程序（`Path.StartsWith('$INSTDIR')`，沒有 PowerShell 時以映像名稱），今天的 Terminal Server（`BetterAgentTerminal.exe` 以 node 模式執行）會跟著被結束（T0856）。T0858 把 holder（官方 `node.exe` 改名 `bat-pty-holder.exe`＋打包內的 `terminal-server.js`＋node-pty＋Node 的 LICENSE）放進安裝檔、由安裝程式複製到安裝目錄外；本節是 BAT 何時、怎麼從那裡啟動 Terminal Server。升級時保留 server（quit / 安裝程式）是 W4（T0860），升級後接回與說明是 W5（T0861）。
+
+### 必守規則
+
+- 🔴 **只有** win32 ＋ 打包版（`app.isPackaged`）＋ NSIS 安裝（有 T0823 的標記 `resources\installer-quit-request.supported`，zip 版與 `build:dir` 沒有）＋ holder 驗證通過，才從 holder 啟動。其他情況（macOS / Linux、`npm run dev`、zip、holder 缺少或不符、任何檢查失敗）`forkTerminalServer` 的參數與行為和 T0859 前逐字相同：`fork(serverScript, [], { detached: true, stdio, env })`（`terminalServerForkOptions`），Linux 的 `runWithoutCrashpadClient` / `planTerminalServerFork`（T0816）不動。非 win32 與開發模式不讀任何 holder 檔案、不記日誌。
+- 🔴 `forkTerminalServer`（`electron/main.ts`）仍是唯一啟動點（首次與 T0704 re-fork 共用）；它變成 async（holder 驗證要讀檔），兩個呼叫端 `await`。啟動時 `startTerminalServer` 在建立視窗之前，re-fork 本來就 await，所以等待期間不會有分頁 create 走 direct。
+- 🔴 從 holder 啟動：執行檔 = `<holder>\bat-pty-holder.exe`、腳本 = `<holder>\terminal-server.js`、`cwd` = holder 目錄（不得沿用主行程的 cwd，否則安裝目錄刪不掉）、env 與 fork 相同但**去掉** `ELECTRON_RUN_AS_NODE`、stdio 相同（含 `ipc`）、`detached`、`windowsHide`。node-pty 從 holder 的 `node_modules` 載入（腳本所在目錄），不從安裝目錄載入 `conpty.node`。
+- 🔴 用 `spawn`（stdio 帶 `ipc`）而不是 `fork`：Electron 的 `child_process.fork` 一律在子程序 env 加 `ELECTRON_RUN_AS_NODE=1`，指定別的 `execPath` 也一樣（T0859 以 Electron 45.2.1 實測）。`spawn` 帶 `ipc` 開的是同一條 IPC 通道（JSON 序列化），PtyManager 的 `setServerProcess`、quit Step A 的 IPC `server:shutdown` 照舊。
+- PTY env 照舊經 `buildServerPtyEnv` / `buildPtyEnv`（server 的 `TERMINAL_SERVER_OWN_ENV_KEYS` 與 BUG-038 的 `ELECTRON_RUN_AS_NODE` 移除不變）；`BAT_USER_DATA`、`BAT_TERMINAL_SERVER_BAT_VERSION`、idle / buffer 設定照樣帶，所以 holder 版的 server 寫同一個 `<userData>` 的 pid / port / token 檔。
+- 驗證失敗只記一行 `[pty-holder]` 並照舊 fork，不提示使用者、不擋啟動。
+
+### 判斷順序（`resolvePtyHolder`，`electron/pty-holder.ts`）
+
+| 順序 | 檢查 | 不通過 → `reason` |
+|---|---|---|
+| 1 | `process.platform === 'win32'` | `not-win32`（不讀檔、不記日誌） |
+| 2 | `app.isPackaged` | `not-packaged`（同上） |
+| 3 | `resources\installer-quit-request.supported` 存在 | `not-nsis-install`（zip / `build:dir`） |
+| 4 | 安裝目錄內 `resources\pty-holder\holder-manifest.json` 可讀 | `no-packaged-manifest` |
+| 5 | 它本身正確：`schema` 1、`exe` / `entry` 名稱、每個檔案項目格式（`/` 分隔、不含 `..`、64 hex）、key = `holderKey(nodeVersion, files)`、有列 exe 與 entry、沒有 `BetterAgentTerminal.exe` | `packaged-manifest-invalid` |
+| 6 | manifest 的 `arch` = `process.arch` | `arch-mismatch` |
+| 7 | 依範圍順序取 holder 根目錄（見下），跳過與安裝目錄互為字串前綴者（`holderRootConflictsWithInstallDir`，不分大小寫、任一方向） | 兩個根目錄都跳過 → `no-holder-root` |
+| 8 | `<根目錄>\<key>` 存在；其中的 `holder-manifest.json` 與安裝目錄那份**位元組相同**；manifest 列的每個檔案都在、大小相同、**重算** SHA-256 相同；沒有 manifest 以外的檔案（例：exe 旁被放了 DLL 會被載入） | 都沒有複本 → `not-installed`；有但不符 → `holder-invalid`（日誌附前 3 個問題） |
+
+- 預期值的來源是**安裝目錄內**的 `resources\pty-holder\holder-manifest.json`（BAT 本身就從安裝目錄執行；per-user 模式下 holder 根目錄是使用者可寫的），所以安裝目錄那份保留（約 90 MiB，見 [packaging docs](packaging-release-checks.md)「Windows PTY holder 打包」）。安裝程式只比對 manifest、不重算檔案雜湊，所以 BAT 每次啟動 server 前都重算（T0859 本機實測 22 檔、約 90 MiB，114 ms；耗時記在日誌）。
+- **範圍順序**（`holderScopeOrder`）：安裝程式依 `$installMode` 決定根目錄，BAT 不讀登錄檔；安裝目錄在 `ProgramW6432` / `ProgramFiles` / `ProgramFiles(x86)` 底下 → 先 per-machine（`%ProgramFiles%\BAT-PtyHolder`），否則先 per-user（`%LOCALAPPDATA%\BAT-PtyHolder`）；第一個不通過時另一個照樣試（自訂安裝目錄）。兩份都要通過同一組檢查，順序只決定兩份相同內容時用哪一份。
+- 規則與 `scripts/pty-holder.cjs`（打包 / 安裝程式端）一致：根目錄名稱、key、前綴衝突、manifest 欄位；`scripts/__tests__/pty-holder.test.mjs` 斷言兩邊對同一組輸入給出相同答案，並以打包程式組出的 holder 驗證 BAT 端接受、竄改後兩邊都拒絕。改任一邊時兩邊一起改。
+
+### hello-ok 與日誌
+
+- server 端（`electron/terminal-server.ts`）：不是 Electron 且腳本旁有 `holder-manifest.json` → `identity.holderDir = __dirname`，`server:hello-ok` 帶 `holderDir`、`runtime: { name: 'node', version }`（T0857 的欄位）。不經 env，所以 PTY 看不到。
+- fork IPC 不送 hello（與 T0857 相同）；主行程在啟動時已記 `[pty-holder]` 那一行。TCP 接回（BAT 重開、升級後）時 `[PtyManager] TCP connected … runtime node v24.x, holder <key>, pid <pid>` 帶出 holder key（`holderKeyOfDir`：只記最後一段且必須符合 key 格式，否則 `unrecognised`，不記回報的路徑）。
+
+| 日誌 | 意義 |
+|---|---|
+| `[pty-holder] Terminal Server from holder <key> (per-user\|per-machine), verified in <ms> ms` | 從 holder 啟動 |
+| `[pty-holder] not used (<reason>)[ <key>] after <ms> ms[: <前 3 個問題>] — forking the Terminal Server as before` | 退回原 fork（只在 win32 打包版出現；問題只含相對路徑與範圍，不含使用者路徑、env、權杖） |
+
+### 已知限制
+
+- 驗證與啟動之間有時間差（TOCTOU）：驗證後、`spawn` 前被換掉的檔案不會被發現。per-user 根目錄的寫入權與 per-user 安裝目錄相同，不增加攻擊面。
+- 每次啟動 server 都重算約 90 MiB 的雜湊（T0859 實測約 0.1 s，慢速磁碟或冷快取會更久）；沒有快取驗證結果。
+- per-user 與 per-machine 兩個根目錄都有同一個 key 時，用的是範圍順序第一個通過的那份；另一範圍留下的目錄由 W4 / W6 處理（T0858 已列）。
+- server 的 stderr 照舊是 `ignore`（與 fork 相同），holder 版的 `conpty_console_list_agent` `AttachConsole failed` 不可見（既有行為，T0858 對照）。
+- 安裝程式實際執行（per-user / per-machine 複製、升級時 holder 不被結束）不在本單驗證範圍：〈待 W6 驗收〉。
+
+### 驗證
+
+- 單元 `electron/__tests__/pty-holder.test.ts`：根目錄、範圍順序、前綴陷阱（安裝目錄名稱加字尾）、`holderKeyOfDir`、`manifestProblems`；`resolvePtyHolder` 以記憶體檔案系統：非 win32 / 開發模式**沒有任何檔案存取**、zip（沒有標記）不看 holder、manifest 缺 / 壞 / key 不符 / arch 不符、根目錄衝突、沒有複本、manifest 複本不同 / 檔案被改（同大小）/ 多出 DLL / 少 LICENSE / 大小不同 → 退回，壞的 per-user 不擋好的 per-machine，檔案存取例外 → 退回；fork 參數：退回時 `toStrictEqual({ detached, stdio, env })` 且 env 是同一個物件，holder 時 execPath / 腳本 / cwd / 沒有 `ELECTRON_RUN_AS_NODE` / 同 stdio；source guard（`main.ts` 只在 win32 打包版查 holder、唯一的 `spawn`、兩個呼叫端 await；`terminal-server.ts` 不從 env 讀；`pty-manager.ts` 不記回報的路徑）。
+- 兩邊規則一致：`scripts/__tests__/pty-holder.test.mjs`「electron/pty-holder.ts and scripts/pty-holder.cjs give the same answers」。
+- e2e `e2e/t0859-pty-holder.spec.ts`（Windows、`BAT_E2E_EXECUTABLE=<release\win-unpacked\BetterAgentTerminal.exe>`，先 `npm run build:dir`；隔離 runtime，`LOCALAPPDATA` 指到暫存目錄，模擬安裝程式複製 holder 並建立標記）：server 的 `ExecutablePath` = holder 的 `bat-pty-holder.exe`、命令列跑 holder 的 `terminal-server.js`、`cmd.exe` 分頁執行命令、TCP hello 回 `runtime node` 與 `holderDir`、日誌有 `[pty-holder] Terminal Server from holder <key> (per-user)`；改一個 holder 檔後重開 → `not used (holder-invalid)`、server 回到 `BetterAgentTerminal.exe`、分頁照常。quit 時 holder 版 server 經 IPC `server:shutdown` 正常結束。
 
 ## 日誌
 

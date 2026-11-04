@@ -30,17 +30,26 @@ function fakeNodeExe(arch = 'x64') {
   return fakePe(PE_MACHINES[arch], `fake-node-${arch}`);
 }
 
-/** Swaps the pin of `arch` for fakeNodeExe(arch); returns the restore function. */
+/** T0859: stands in for Node's 157 KB LICENSE (the pin is swapped together with node.exe). */
+function fakeNodeLicense() {
+  return Buffer.from('Node.js is licensed for use as follows: (fake, T0859 test fixture)\n', 'utf8');
+}
+
+/** Swaps the pin of `arch` (and the Node LICENSE pin) for fakeNodeExe(arch) / fakeNodeLicense(); returns the restore function. */
 function useFakeHolderNode(arch = 'x64') {
   const original = holder.PTY_HOLDER_NODE.binaries[arch];
+  const originalLicense = holder.PTY_HOLDER_NODE.license;
   const exe = fakeNodeExe(arch);
+  const license = fakeNodeLicense();
   holder.PTY_HOLDER_NODE.binaries[arch] = {
     path: original.path,
     size: exe.length,
     sha256: crypto.createHash('sha256').update(exe).digest('hex'),
   };
+  holder.PTY_HOLDER_NODE.license = { size: license.length, sha256: crypto.createHash('sha256').update(license).digest('hex') };
   return () => {
     holder.PTY_HOLDER_NODE.binaries[arch] = original;
+    holder.PTY_HOLDER_NODE.license = originalLicense;
   };
 }
 
@@ -80,11 +89,14 @@ function writeFakeHolder(resources, arch = 'x64') {
   writeFakeAppFiles(resources, arch);
   const exe = path.join(resources, '..', `fake-node-${arch}.exe`);
   write(exe, fakeNodeExe(arch));
-  const result = holder.assemblePtyHolder(resources, arch, exe);
+  const license = path.join(resources, '..', 'fake-node-LICENSE');
+  write(license, fakeNodeLicense());
+  const result = holder.assemblePtyHolder(resources, arch, exe, license);
   fs.rmSync(exe, { force: true });
+  fs.rmSync(license, { force: true });
   return result;
 }
 
 if (process.env.BAT_TEST_FAKE_PTY_HOLDER_NODE === '1') useFakeHolderNode('x64');
 
-module.exports = { PE_MACHINES, fakePe, fakeNodeExe, useFakeHolderNode, writeFakeAppFiles, writeFakeHolder };
+module.exports = { PE_MACHINES, fakePe, fakeNodeExe, fakeNodeLicense, useFakeHolderNode, writeFakeAppFiles, writeFakeHolder };

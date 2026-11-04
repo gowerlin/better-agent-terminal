@@ -421,7 +421,8 @@ describe('where the guard is installed (source guards)', () => {
     expect(install).toBeGreaterThan(0)
     expect(install).toBeLessThan(src.indexOf('fork(serverScript'))
     expect(src.match(/fork\(serverScript/g)).toHaveLength(1)
-    expect(src.match(/runWithoutCrashpadClient\(\(\) => fork\(serverScript, \[\], \{\s*detached: true,\s*stdio: plan\.stdio,/g)).toHaveLength(1)
+    // T0859: the options moved into terminalServerForkOptions (electron/pty-holder.ts: same detached / stdio / env)
+    expect(src.match(/runWithoutCrashpadClient\(\(\) => fork\(serverScript, \[\], terminalServerForkOptions\(plan\.stdio, env\)\)\)/g)).toHaveLength(1)
     expect(src).not.toMatch(/runWithoutChildProcessFdGuard\(/)
     // startTerminalServer and T0704's reforkTerminalServer both use the helper
     const body = (name: string) => src.slice(src.indexOf(`function ${name}(`), src.indexOf('\n}\n', src.indexOf(`function ${name}(`)))

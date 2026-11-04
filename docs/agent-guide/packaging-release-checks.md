@@ -75,29 +75,32 @@
 
 # Windows PTY holder 打包（PLAN-065 W2 / T0858，D286）
 
-用途：PLAN-065 讓持有 ConPTY 的程序（今天的 Terminal Server）從**安裝目錄外**啟動，NSIS 升級時就不會跟著被結束（T0856）。本節只講打包與安裝程式的複製；從 holder 啟動是 W3（T0859），升級時保留 holder 是 W4（T0860）。**T0858 完成後 BAT 的執行期行為不變**：holder 檔案在，但沒有任何程式使用它。
+用途：PLAN-065 讓持有 ConPTY 的程序（今天的 Terminal Server）從**安裝目錄外**啟動，NSIS 升級時就不會跟著被結束（T0856）。本節只講打包與安裝程式的複製；BAT 何時從 holder 啟動 Terminal Server（W3 / T0859）見 [terminal-server-recovery.md](terminal-server-recovery.md)「從 PTY holder 啟動」，升級時保留 holder 是 W4（T0860）。
 
 - **內容**：Windows 安裝檔多一個 `resources\pty-holder\`（`build:dir` 的 `release\win-unpacked\resources\pty-holder\` 同）：
   - `bat-pty-holder.exe`：官方 Node.js `node.exe`（OpenJS Foundation Authenticode 簽章；改名不影響簽章），🔴 不得叫 `BetterAgentTerminal.exe`（沒有 PowerShell 時 NSIS 以映像名稱結束程序，T0856 Q1）。
   - `terminal-server.js`：打包內 `app.asar.unpacked\dist-electron\terminal-server.js` 的同一份。
   - `node_modules\@lydell\node-pty\`：`package.json`、`LICENSE` 與所有 `.js`（含 `conpty_console_list_agent.js`、`worker\conoutSocketWorker.js`；不含 `.d.ts`、README）。
   - `node_modules\@lydell\node-pty-win32-<arch>\`：`package.json`、`conpty.node`、`conpty_console_list.node`（不含約 10 MB 的 `.pdb`）。
+  - `node-LICENSE`（T0859）：Node 的授權檔，與 `node.exe` 同一個版本 tag 的 `LICENSE`（`https://raw.githubusercontent.com/nodejs/node/v<版本>/LICENSE`；dist 目錄只有 `node.exe`，授權檔只在 repo 與 zip 裡）。
   - `holder-manifest.json`：`schema`（1）、`key`、`nodeVersion`、`arch`、`exe`、`entry`、`files`（每個檔案的 `path`（`/` 分隔）、`size`、`sha256`；manifest 自己不列）。不含 BAT 版本或時間：內容相同 ⇒ 位元組相同（安裝程式以此判斷「已是最新」）。🔴 第 3 行固定是 `  "key": "<key>",`（`installer.nsh` 從這行讀 key）。
 - **holder key** = `<Node 版本>-<12 hex>`，12 hex 是「每個檔案依 `path` 排序後的 `path\tsize\tsha256\n`」的 SHA-256 前 12 碼（`holderKey`）。只看內容、不看 BAT 版本：BAT 升版但 Node 與 holder 檔案都沒變時沿用同一個目錄，任何一個檔案變了就是新目錄（D9）。`terminal-server.js` 改了（例如 W1 的協定）也會換 key。
 - **Node 版本**：`24.22.2`（`PTY_HOLDER_NODE`，`scripts/pty-holder.cjs`）。理由：與 Electron 45 內建的 Node 同主版本（Electron 45.2.1 = Node 24.22.1）；node-pty 是 N-API、不綁 Node ABI（T0856 E1），`server.ts` 的測試也跑在 Node 24；取釘選當時 24.x 最新的 LTS 修補版（2026-10-27 發布）。
 - 🔴 **供應鏈**：
   - `node.exe` 的 SHA-256 與大小**寫死在 repo**（`PTY_HOLDER_NODE.binaries`，x64 與 arm64）；建置時**不讀** `SHASUMS256.txt`。只從 `https://nodejs.org/dist/v<版本>/win-<arch>/node.exe` 下載；大小或雜湊不符 → `afterPack` throw、打包失敗。
   - 快取 `node_modules\.cache\bat-pty-holder\`（檔名含釘選雜湊前 16 碼；每次打包都重新驗雜湊，不符就刪掉重下）。離線打包可設 `BAT_PTY_HOLDER_NODE_EXE=<node.exe 路徑>`，一樣要符合釘選雜湊才會用。
+  - Node `LICENSE`（T0859，塔台補充 4）：大小與 SHA-256 同樣**寫死在 repo**（`PTY_HOLDER_NODE.license`，157,609 bytes、`5888dbb9…2ace`，取自 v24.22.2 tag，`github.com/nodejs/node/raw/v24.22.2/LICENSE` 位元組相同）；只從 `raw.githubusercontent.com/nodejs/node/v<版本>/LICENSE` 下載，不符 → 打包失敗；同一個快取目錄（`node-v<版本>-LICENSE-<雜湊前 16 碼>.txt`）；離線打包可設 `BAT_PTY_HOLDER_NODE_LICENSE=<檔案路徑>`（一樣要符合釘選值）。
   - 不新增 npm 依賴、不需要 install script（Node 內建 `fetch` / `crypto`）。
 - **升版步驟**（Node 安全更新時）：
   1. 從 `https://nodejs.org/dist/index.json` 選新版（維持與 Electron 同主版本；Electron 換主版本時一起評估）。
   2. 下載 `https://nodejs.org/dist/v<新版>/SHASUMS256.txt`，取 `win-x64/node.exe` 與 `win-arm64/node.exe` 兩行；再實際下載兩個檔，確認 `sha256sum` 與 SHASUMS 相同、大小相同、`Get-AuthenticodeSignature` 為 `Valid`（`CN=OpenJS Foundation`）。
   3. 改 `PTY_HOLDER_NODE` 的 `version`、兩個 `size` / `sha256`；`scripts/__tests__/pty-holder.test.mjs` 的 URL 斷言跟著改。
+  3a. 下載新 tag 的 `https://raw.githubusercontent.com/nodejs/node/v<新版>/LICENSE`（與 `https://github.com/nodejs/node/raw/v<新版>/LICENSE` 比對位元組相同），改 `PTY_HOLDER_NODE.license` 的 `size` / `sha256` 與測試的釘選值斷言。
   4. `npm run build:dir` → `node scripts/verify-packaged-native.js --platform win --out release --arch x64`；跑一次下方「手動載入」。key 會變，舊目錄由下次安裝清掉。
 - **組裝的位置與時機**：electron-builder `afterPack`（`scripts/version-manifest.cjs` → `afterPackPtyHolder`，`scripts/pty-holder.cjs`），只在 `electronPlatformName === 'win32'`（含 `build:dir`、zip）。先檢查 app 檔案在不在（缺 → 在下載前就失敗），再取得 `node.exe`、複製、寫 manifest，最後以 `ptyHolderProblems` 自檢。`terminal-server.js` 若 `require` 了 `@lydell/node-pty` 以外的非內建套件 → 失敗（要先擴充 holder 內容，不能只出半套）。
   - 🔴 不用 `extraResources` / `build.<platform>.files`（T0546）：`package.json` 的 `build` 沒有任何變更。macOS / Linux 打包時 `afterPackPtyHolder` 直接 return（不下載、不寫檔），產物不變；`verify-packaged-native.js` 在 mac / linux 看到 `resources/pty-holder` 會失敗。
-  - zip target 也會帶 `resources\pty-holder\`（同一個 `appOutDir`）；zip 版沒有安裝程式複製，W3 依設計退回今天的 fork 方式。
-- **打包產物檢查** `pty-holder`（`verify-packaged-native.js --platform win`，`verifyPtyHolder` → `ptyHolderProblems`）：manifest 可解析、`schema` / `nodeVersion` / `arch` / `exe` / `entry` 正確、key 格式且與檔案相符、第 3 行格式；列出的檔案都在且大小 / SHA-256 相符、沒有未列出的檔案；必要檔案都有列；`bat-pty-holder.exe` 的雜湊等於釘選值、是該 arch 的 PE；沒有任何 `BetterAgentTerminal.exe`。三個 workflow 原本就跑這支，不用改 workflow。
+  - zip target 也會帶 `resources\pty-holder\`（同一個 `appOutDir`）；zip 版沒有安裝程式複製、也沒有 T0823 標記，BAT 不找 holder、照今天的方式 fork（T0859）。
+- **打包產物檢查** `pty-holder`（`verify-packaged-native.js --platform win`，`verifyPtyHolder` → `ptyHolderProblems`）：manifest 可解析、`schema` / `nodeVersion` / `arch` / `exe` / `entry` 正確、key 格式且與檔案相符、第 3 行格式；列出的檔案都在且大小 / SHA-256 相符、沒有未列出的檔案；必要檔案都有列（含 `node-LICENSE`，T0859）；`node-LICENSE` 的大小 / 雜湊等於釘選值；`bat-pty-holder.exe` 的雜湊等於釘選值、是該 arch 的 PE；沒有任何 `BetterAgentTerminal.exe`。三個 workflow 原本就跑這支，不用改 workflow。
 - **安裝程式的複製與清理**（`build/installer.nsh` `customInstall` → `batInstallPtyHolder`，T0823 的標記檔照舊先寫）：
   1. 套件裡沒有 `resources\pty-holder\holder-manifest.json` → 什麼都不做。
   2. holder 根目錄（D2）：per-machine（`$installMode == "all"`）`$PROGRAMFILES64\BAT-PtyHolder`（提權的安裝程式寫入，與 Program Files 同等保護）；per-user `$LOCALAPPDATA\BAT-PtyHolder`（不用 Roaming）。名稱不用 `BetterAgentTerminal…`：預設安裝目錄是 `…\BetterAgentTerminal`，而範本比對程序是 `Path.StartsWith('$INSTDIR')`、結尾不帶 `\`，`BetterAgentTerminal PTY Holder` 也會被比中。
@@ -108,14 +111,16 @@
   7. 清理（D9）：根目錄下其他每個目錄，沒有程序在執行才 `RMDir /r`；有或無法判斷就保留。「有程序在執行」= PowerShell `Get-CimInstance Win32_Process` 有 `Path` 以 `<目錄>\` 開頭（`OrdinalIgnoreCase`）的程序（exit 10 = 有、11 = 沒有、其他 = 無法判斷），與範本 `FIND_PROCESS` 同一種查法。🔴 執行中的版本目錄不能刪（mapped 的檔案鎖住、其他檔案卻會被刪掉，holder 之後 fork `conpty_console_list_agent` 會失敗）。
   - 不宣告新的 `Var`（解除安裝程式不會用到，`-WX` 下未使用的變數是錯誤）；用 `$R0`–`$R9` 並 Push / Pop 還原。不結束任何程序。解除安裝時刪 holder 根目錄是 W4（T0860）。
   - per-user 安裝且使用者曾以 per-machine 安裝過（或反過來）時，另一個範圍的根目錄不會被清理（W4 / W6 處理）。
-- **手動載入**（T0858 任務 5 的做法，不碰安裝版）：把 `release\win-unpacked\resources\pty-holder\` 複製到安裝目錄外的暫存目錄，以 `child_process.fork('<dir>\terminal-server.js', [], { execPath: '<dir>\bat-pty-holder.exe', cwd: '<dir>', env: { …, BAT_USER_DATA: '<暫存 userData>' } })`（env 不帶 `ELECTRON_RUN_AS_NODE`）啟動，經 IPC 送 `pty:create`（`cmd.exe`）→ `pty:write` → `pty:exit` → `server:shutdown`。T0858 的結果見工單回報區。
+- **手動載入**（T0858 任務 5 的做法，不碰安裝版）：把 `release\win-unpacked\resources\pty-holder\` 複製到安裝目錄外的暫存目錄，以 `child_process.fork('<dir>\terminal-server.js', [], { execPath: '<dir>\bat-pty-holder.exe', cwd: '<dir>', env: { …, BAT_USER_DATA: '<暫存 userData>' } })`（env 不帶 `ELECTRON_RUN_AS_NODE`）啟動，經 IPC 送 `pty:create`（`cmd.exe`）→ `pty:write` → `pty:exit` → `server:shutdown`。T0858 的結果見工單回報區。T0859 起有完整 BAT 的版本：`BAT_E2E_EXECUTABLE=<release\win-unpacked\BetterAgentTerminal.exe> npx playwright test e2e/t0859-pty-holder.spec.ts`（隔離 runtime、暫存 `LOCALAPPDATA`，見 terminal-server-recovery.md「從 PTY holder 啟動」› 驗證）。
 - **大小**：見下表（T0858 本機量測，`compression: normal`）。
 
 | 項目 | 不含 holder | 含 holder | 差異 |
 |---|---|---|---|
-| `resources\pty-holder\`（未壓縮） | — | 94,423,796 bytes（manifest 列的 21 個檔，`node.exe` 93,922,624；另加 manifest 約 4 KB） | +90.0 MiB |
+| `resources\pty-holder\`（未壓縮） | — | 94,423,796 bytes（manifest 列的 21 個檔，`node.exe` 93,922,624；另加 manifest 約 4 KB）；T0859 加 `node-LICENSE` 後 22 個檔、94,581,593 bytes | +90.0 MiB |
 | NSIS 安裝檔（x64） | 320,251,608 bytes | 341,738,302 bytes | +21,486,694 bytes（+20.5 MiB，+6.7%） |
 | 安裝後磁碟 | — | `$INSTDIR\resources\pty-holder\` 約 90 MiB ＋ holder 根目錄每個 key 約 90 MiB（通常只有 1 份，D9） | 約 +180 MiB |
+
+- **安裝目錄那份為什麼保留**（T0859 塔台裁決）：`$INSTDIR\resources\pty-holder\holder-manifest.json` 是 BAT 決定用不用 holder 時的**預期值來源**（預期 key 與每個檔案的大小 / SHA-256）。per-user 安裝時 holder 根目錄 `%LOCALAPPDATA%\BAT-PtyHolder` 是使用者可寫的，不能拿它自己的 manifest 當預期值；安裝程式也只比對 manifest、不重算雜湊。所以安裝目錄多佔約 90 MiB，換得 BAT 每次啟動 server 前可以逐檔重算比對。
 
 量法：同一份 `release\win-unpacked`，以 `npx electron-builder --win nsis --prepackaged <dir> --publish never` 各編一次（對照組先拿掉 `resources\pty-holder`）。
 

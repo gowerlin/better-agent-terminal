@@ -19,6 +19,7 @@ import { LaunchSuspectWatcher, TerminalBlockedTracker, type BlockedDetection, ty
 import { CodexStateScanner, lastCodexState, PROGRAM_STATUS_PROBE_REPLY } from '../src/lib/codex-terminal-state'
 import type { InterruptedAgentSource } from './interrupted-agents'
 import { describePtyFdGuardSkip, guardPtySpawnFds, type PtyFdGuardDeps, type PtyFdGuardOutcome } from './pty-spawn-fd-guard'
+import { holderKeyOfDir } from './pty-holder'
 
 // Try to import @lydell/node-pty, fall back to child_process if not available
 let pty: typeof import('@lydell/node-pty') | null = null
@@ -656,8 +657,10 @@ export class PtyManager implements CloseWorkerPtyManager {
 
     this.setupTcpListener(conn.held, conn.tail)
     // 🔴 the log carries the protocol and what the server said about itself, never the token
+    // T0859: a server started from a PTY holder also names its holder (the key = the directory name, no path)
     const about = hello
-      ? `protocol ${protocol}, BAT ${hello.batVersion || 'unknown'}, runtime ${hello.runtime?.name ?? 'unknown'} ${hello.runtime?.version ?? ''}`.trimEnd() + `, pid ${hello.pid}`
+      ? `protocol ${protocol}, BAT ${hello.batVersion || 'unknown'}, runtime ${hello.runtime?.name ?? 'unknown'} ${hello.runtime?.version ?? ''}`.trimEnd() +
+        (hello.holderDir ? `, holder ${holderKeyOfDir(hello.holderDir)}` : '') + `, pid ${hello.pid}`
       : `protocol ${protocol} (no hello: a server before T0857)`
     logger.log(`[PtyManager] TCP connected to Terminal Server on port ${port} (${about})`)
     // T0857: TCP mode has its own liveness check (serverLiveness), so it gets the heartbeat as well

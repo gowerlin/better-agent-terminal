@@ -4,7 +4,7 @@
  * The holder is the official Node.js `node.exe` (OpenJS-signed), renamed `bat-pty-holder.exe`, running the same
  * `terminal-server.js` the app ships. The installer copies it out of the install directory (build/installer.nsh
  * `customInstall`) so that a later NSIS upgrade, which ends every process under $INSTDIR, does not end the
- * process holding the ConPTYs (T0856 Q1 / Q2). Nothing starts it yet: W3 (T0859) forks the Terminal Server from it.
+ * process holding the ConPTYs (T0856 Q1 / Q2). W3 (T0859, electron/pty-holder.ts) starts the Terminal Server from it.
  *
  * What this module does:
  *   - pins the Node version and the SHA-256 of each `node.exe` (PTY_HOLDER_NODE); the build downloads it only
@@ -12,7 +12,11 @@
  *   - assembles `<resources>/pty-holder/` in the electron-builder afterPack hook (scripts/version-manifest.cjs),
  *     Windows builds only: `bat-pty-holder.exe`, `terminal-server.js` (the packaged copy), the win32 runtime files
  *     of `@lydell/node-pty`, and `holder-manifest.json` (key, Node version, arch, size + SHA-256 of every file);
- *   - checks a holder directory (scripts/verify-packaged-native.js `pty-holder`; W3 does the same at fork time);
+ *   - pins Node's `LICENSE` (PTY_HOLDER_NODE.license, same version tag as node.exe; T0859) and ships it as
+ *     `node-LICENSE` in the holder;
+ *   - checks a holder directory (scripts/verify-packaged-native.js `pty-holder`; W3, electron/pty-holder.ts, checks a
+ *     copied holder against the packaged manifest at fork time — the rules there must match this file, T0859 parity
+ *     test in scripts/__tests__/pty-holder.test.mjs);
  *   - the holder root rules the installer follows (PTY_HOLDER_ROOT_DIR_NAME, holderRootConflictsWithInstallDir).
  *
  * macOS / Linux builds: afterPackPtyHolder returns at once; nothing is downloaded or written.
@@ -39,10 +43,20 @@ const PTY_HOLDER_NODE = {
     x64: { path: 'win-x64/node.exe', size: 93922624, sha256: '1c331340fa6cac5e4294725959070a143fa0507195a78ad77eed7943f719aac9' },
     arm64: { path: 'win-arm64/node.exe', size: 82156872, sha256: 'e2d6e75a0bfe4c176316d7c732eb8def9d94570c759eaeab335473a015abb7ea' },
   },
+  /**
+   * T0859: Node's `LICENSE` at the same version tag (the dist directory has only node.exe; the license is in the
+   * repo). Downloaded from NODE_LICENSE_BASE_URL/v<version>/LICENSE, checked against these values, never anything else.
+   * Pinned from https://raw.githubusercontent.com/nodejs/node/v24.22.2/LICENSE (same bytes via github.com/…/raw/).
+   */
+  license: { size: 157609, sha256: '5888dbb9a1d2b18f2c3e6c5f6af1b39de658372b402a0577b002777f14c62ace' },
 };
 
-/** The only download origin (nodejs.org official dist). */
+/** The only download origin of node.exe (nodejs.org official dist). */
 const NODE_DIST_BASE_URL = 'https://nodejs.org/dist';
+/** The only download origin of Node's LICENSE (the nodejs/node repo at the release tag, T0859). */
+const NODE_LICENSE_BASE_URL = 'https://raw.githubusercontent.com/nodejs/node';
+/** Node's LICENSE inside the holder (T0859; next to bat-pty-holder.exe, listed in the manifest). */
+const PTY_HOLDER_NODE_LICENSE_FILE = 'node-LICENSE';
 
 /** Name of the holder executable. 🔴 Never `BetterAgentTerminal.exe`: without PowerShell, NSIS ends processes by image name (T0856 Q1). */
 const PTY_HOLDER_EXE_NAME = 'bat-pty-holder.exe';
@@ -89,6 +103,15 @@ function holderNodeCacheName(arch) {
   return `node-v${PTY_HOLDER_NODE.version}-win-${arch}-${binary.sha256.slice(0, 16)}.exe`;
 }
 
+/** https://raw.githubusercontent.com/nodejs/node/v<version>/LICENSE (T0859) */
+function holderNodeLicenseUrl(version = PTY_HOLDER_NODE.version) {
+  return `${NODE_LICENSE_BASE_URL}/v${version}/LICENSE`;
+}
+
+function holderNodeLicenseCacheName() {
+  return `node-v${PTY_HOLDER_NODE.version}-LICENSE-${PTY_HOLDER_NODE.license.sha256.slice(0, 16)}.txt`;
+}
+
 function sha256File(file) {
   return new Promise((resolve, reject) => {
     const hash = crypto.createHash('sha256');
@@ -105,7 +128,15 @@ function sha256FileSync(file) {
 
 /** What is wrong with `file` as the pinned node.exe of `arch` (empty array = ok). */
 async function holderNodeProblems(file, arch) {
-  const binary = holderNodeBinary(arch);
+  return pinnedFileProblems(file, holderNodeBinary(arch));
+}
+
+/** T0859: what is wrong with `file` as the pinned Node LICENSE (empty array = ok). */
+async function holderNodeLicenseProblems(file) {
+  return pinnedFileProblems(file, PTY_HOLDER_NODE.license);
+}
+
+async function pinnedFileProblems(file, binary) {
   let size;
   try {
     size = fs.statSync(file).size;
@@ -140,41 +171,70 @@ async function downloadToFile(url, target, fetchImpl) {
  * `deps`: { cacheDir, overridePath, fetchImpl, log } (tests replace fetch).
  */
 async function ensureHolderNodeExe(arch, deps = {}) {
+  holderNodeBinary(arch); // unknown arch → throws before anything else
+  return ensurePinnedFile({
+    what: `node.exe v${PTY_HOLDER_NODE.version} win-${arch}`,
+    pinned: `the pinned node v${PTY_HOLDER_NODE.version} win-${arch}`,
+    envName: 'BAT_PTY_HOLDER_NODE_EXE',
+    overridePath: deps.overridePath ?? process.env.BAT_PTY_HOLDER_NODE_EXE ?? '',
+    cacheName: holderNodeCacheName(arch),
+    url: holderNodeDownloadUrl(arch),
+    problems: (file) => holderNodeProblems(file, arch),
+  }, deps);
+}
+
+/**
+ * T0859: path of a verified copy of Node's LICENSE (PTY_HOLDER_NODE.license), same order as ensureHolderNodeExe:
+ * `licenseOverridePath` (env BAT_PTY_HOLDER_NODE_LICENSE, offline builds) → cache → download from the nodejs/node repo
+ * at the pinned version tag. Any size / hash mismatch → throws (the build fails).
+ */
+async function ensureHolderNodeLicense(deps = {}) {
+  return ensurePinnedFile({
+    what: `Node v${PTY_HOLDER_NODE.version} LICENSE`,
+    pinned: `the pinned Node v${PTY_HOLDER_NODE.version} LICENSE`,
+    envName: 'BAT_PTY_HOLDER_NODE_LICENSE',
+    overridePath: deps.licenseOverridePath ?? process.env.BAT_PTY_HOLDER_NODE_LICENSE ?? '',
+    cacheName: holderNodeLicenseCacheName(),
+    url: holderNodeLicenseUrl(),
+    problems: holderNodeLicenseProblems,
+  }, deps);
+}
+
+/** Override → cache → download, each checked against the pin (`spec.problems`); shared by node.exe and LICENSE. */
+async function ensurePinnedFile(spec, deps) {
   const log = deps.log || (() => {});
   const fetchImpl = deps.fetchImpl || globalThis.fetch;
-  const overridePath = deps.overridePath ?? process.env.BAT_PTY_HOLDER_NODE_EXE ?? '';
-  if (overridePath) {
-    const problems = await holderNodeProblems(overridePath, arch);
-    if (problems.length) throw new Error(`PTY holder (T0858): BAT_PTY_HOLDER_NODE_EXE=${overridePath} is not the pinned node v${PTY_HOLDER_NODE.version} win-${arch}: ${problems.join('; ')}`);
-    log(`node.exe from BAT_PTY_HOLDER_NODE_EXE (${overridePath}), SHA-256 verified`);
-    return overridePath;
+  if (spec.overridePath) {
+    const problems = await spec.problems(spec.overridePath);
+    if (problems.length) throw new Error(`PTY holder (T0858): ${spec.envName}=${spec.overridePath} is not ${spec.pinned}: ${problems.join('; ')}`);
+    log(`${spec.what} from ${spec.envName} (${spec.overridePath}), SHA-256 verified`);
+    return spec.overridePath;
   }
   const cacheDir = deps.cacheDir || defaultHolderCacheDir();
   fs.mkdirSync(cacheDir, { recursive: true });
-  const cached = path.join(cacheDir, holderNodeCacheName(arch));
+  const cached = path.join(cacheDir, spec.cacheName);
   if (fs.existsSync(cached)) {
-    const problems = await holderNodeProblems(cached, arch);
+    const problems = await spec.problems(cached);
     if (problems.length === 0) {
-      log(`node.exe v${PTY_HOLDER_NODE.version} win-${arch} from cache, SHA-256 verified`);
+      log(`${spec.what} from cache, SHA-256 verified`);
       return cached;
     }
-    log(`cached node.exe does not match the pin (${problems.join('; ')}); downloading again`);
+    log(`cached ${spec.what} does not match the pin (${problems.join('; ')}); downloading again`);
     fs.rmSync(cached, { force: true });
   }
-  if (typeof fetchImpl !== 'function') throw new Error('PTY holder (T0858): fetch is unavailable (Node 18+ required to download node.exe)');
-  const url = holderNodeDownloadUrl(arch);
+  if (typeof fetchImpl !== 'function') throw new Error(`PTY holder (T0858): fetch is unavailable (Node 18+ required to download ${spec.what})`);
   const partial = `${cached}.download-${process.pid}`;
-  log(`downloading ${url}`);
+  log(`downloading ${spec.url}`);
   try {
-    await downloadToFile(url, partial, fetchImpl);
-    const problems = await holderNodeProblems(partial, arch);
-    if (problems.length) throw new Error(`downloaded ${url} does not match the pinned node v${PTY_HOLDER_NODE.version} win-${arch}: ${problems.join('; ')}`);
+    await downloadToFile(spec.url, partial, fetchImpl);
+    const problems = await spec.problems(partial);
+    if (problems.length) throw new Error(`downloaded ${spec.url} does not match ${spec.pinned}: ${problems.join('; ')}`);
     fs.renameSync(partial, cached);
   } catch (err) {
     fs.rmSync(partial, { force: true });
     throw new Error(`PTY holder (T0858): ${err.message}`);
   }
-  log(`node.exe v${PTY_HOLDER_NODE.version} win-${arch} downloaded, SHA-256 verified`);
+  log(`${spec.what} downloaded, SHA-256 verified`);
   return cached;
 }
 
@@ -213,10 +273,10 @@ function isNodePtyRuntimeFile(rel) {
 
 /**
  * The files of a holder directory, `{ rel, src }`, taken from the packaged app (`<resources>/app.asar.unpacked`, the
- * copy BAT itself runs) plus the verified node.exe. Throws when terminal-server.js needs another package than
+ * copy BAT itself runs) plus the verified node.exe and Node LICENSE (T0859). Throws when terminal-server.js needs another package than
  * PTY_HOLDER_EXTERNAL_PACKAGES (a W1 / later change must then extend the holder, not ship it half).
  */
-function holderSourceFiles(resourcesDir, arch, nodeExe) {
+function holderSourceFiles(resourcesDir, arch, nodeExe, nodeLicense) {
   const unpacked = path.join(resourcesDir, 'app.asar.unpacked');
   const entry = path.join(unpacked, 'dist-electron', PTY_HOLDER_ENTRY);
   if (!fs.existsSync(entry)) throw new Error(`PTY holder (T0858): ${entry} missing (build.asarUnpack must keep dist-electron/${PTY_HOLDER_ENTRY})`);
@@ -226,6 +286,7 @@ function holderSourceFiles(resourcesDir, arch, nodeExe) {
 
   const files = [
     { rel: PTY_HOLDER_EXE_NAME, src: nodeExe },
+    { rel: PTY_HOLDER_NODE_LICENSE_FILE, src: nodeLicense },
     { rel: PTY_HOLDER_ENTRY, src: entry },
   ];
   const ptyDir = path.join(unpacked, 'node_modules', NODE_PTY_PACKAGE);
@@ -283,10 +344,10 @@ function serializeHolderManifest(manifest) {
 
 /**
  * Builds `<resourcesDir>/pty-holder/` (replacing an old one) and returns the manifest.
- * `nodeExe` must already be verified (ensureHolderNodeExe).
+ * `nodeExe` / `nodeLicense` must already be verified (ensureHolderNodeExe / ensureHolderNodeLicense).
  */
-function assemblePtyHolder(resourcesDir, arch, nodeExe) {
-  const sources = holderSourceFiles(resourcesDir, arch, nodeExe);
+function assemblePtyHolder(resourcesDir, arch, nodeExe, nodeLicense) {
+  const sources = holderSourceFiles(resourcesDir, arch, nodeExe, nodeLicense);
   const holderDir = path.join(resourcesDir, PTY_HOLDER_RESOURCES_DIR);
   fs.rmSync(holderDir, { recursive: true, force: true });
   const entries = [];
@@ -324,7 +385,8 @@ const PE_MACHINES = { x64: 0x8664, arm64: 0xaa64 };
 /**
  * What is wrong with a holder directory (empty array = ok): manifest missing / unparsable / wrong schema / wrong key
  * format or value, Node version or exe hash other than the pin, a listed file missing or with another size / hash,
- * an unlisted file, an exe named BetterAgentTerminal.exe or not a PE image of `arch`.
+ * an unlisted file, an exe named BetterAgentTerminal.exe or not a PE image of `arch`, Node's LICENSE missing or not the
+ * pinned one (T0859).
  */
 function ptyHolderProblems(holderDir, arch) {
   const manifestPath = path.join(holderDir, PTY_HOLDER_MANIFEST_FILE);
@@ -363,11 +425,15 @@ function ptyHolderProblems(holderDir, arch) {
   for (const rel of fs.existsSync(holderDir) ? walkRelative(holderDir) : []) {
     if (rel !== PTY_HOLDER_MANIFEST_FILE && !listed.has(rel)) problems.push(`not in the manifest: ${rel}`);
   }
-  for (const required of [PTY_HOLDER_EXE_NAME, PTY_HOLDER_ENTRY, `node_modules/${NODE_PTY_PACKAGE}/package.json`, ...NODE_PTY_NATIVE_FILES.map((f) => `node_modules/${NODE_PTY_PACKAGE}-win32-${arch}/${f}`)]) {
+  for (const required of [PTY_HOLDER_EXE_NAME, PTY_HOLDER_NODE_LICENSE_FILE, PTY_HOLDER_ENTRY, `node_modules/${NODE_PTY_PACKAGE}/package.json`, ...NODE_PTY_NATIVE_FILES.map((f) => `node_modules/${NODE_PTY_PACKAGE}-win32-${arch}/${f}`)]) {
     if (!listed.has(required)) problems.push(`manifest does not list ${required}`);
   }
   for (const file of files) {
     if (/(^|\/)betteragentterminal\.exe$/i.test(String(file.path))) problems.push(`${file.path}: the holder must not ship BetterAgentTerminal.exe (NSIS ends it by image name)`);
+  }
+  const license = files.find((f) => f.path === PTY_HOLDER_NODE_LICENSE_FILE);
+  if (license && (license.sha256 !== PTY_HOLDER_NODE.license.sha256 || license.size !== PTY_HOLDER_NODE.license.size)) {
+    problems.push(`${PTY_HOLDER_NODE_LICENSE_FILE}: SHA-256 ${license.sha256} / size ${license.size} is not the pinned Node v${PTY_HOLDER_NODE.version} LICENSE`);
   }
   const exe = files.find((f) => f.path === PTY_HOLDER_EXE_NAME);
   if (exe) {
@@ -412,16 +478,17 @@ function builderArchName(arch) {
 
 /**
  * Part of the electron-builder afterPack hook (scripts/version-manifest.cjs). No-op unless a Windows build.
- * `deps` (tests): { cacheDir, overridePath, fetchImpl, log }.
+ * `deps` (tests): { cacheDir, overridePath, licenseOverridePath, fetchImpl, log }.
  */
 async function afterPackPtyHolder(context, deps = {}) {
   if (!context || context.electronPlatformName !== 'win32') return null;
   const arch = builderArchName(context.arch);
   const log = deps.log || ((line) => console.log(`  • afterPack (T0858): ${line}`));
   const resourcesDir = context.packager.getResourcesDir(context.appOutDir);
-  holderSourceFiles(resourcesDir, arch, PTY_HOLDER_EXE_NAME); // fail before the ~90 MB download when the app files are missing
+  holderSourceFiles(resourcesDir, arch, PTY_HOLDER_EXE_NAME, PTY_HOLDER_NODE_LICENSE_FILE); // fail before the ~90 MB download when the app files are missing
   const nodeExe = await ensureHolderNodeExe(arch, { ...deps, log });
-  const { holderDir, manifest } = assemblePtyHolder(resourcesDir, arch, nodeExe);
+  const nodeLicense = await ensureHolderNodeLicense({ ...deps, log });
+  const { holderDir, manifest } = assemblePtyHolder(resourcesDir, arch, nodeExe, nodeLicense);
   const problems = ptyHolderProblems(holderDir, arch);
   if (problems.length) throw new Error(`afterPack (T0858): PTY holder check failed:\n  ${problems.join('\n  ')}`);
   const total = manifest.files.reduce((sum, f) => sum + f.size, 0);
@@ -432,6 +499,8 @@ async function afterPackPtyHolder(context, deps = {}) {
 module.exports = {
   PTY_HOLDER_NODE,
   NODE_DIST_BASE_URL,
+  NODE_LICENSE_BASE_URL,
+  PTY_HOLDER_NODE_LICENSE_FILE,
   PTY_HOLDER_EXE_NAME,
   PTY_HOLDER_RESOURCES_DIR,
   PTY_HOLDER_MANIFEST_FILE,
@@ -444,7 +513,11 @@ module.exports = {
   holderNodeDownloadUrl,
   holderNodeCacheName,
   holderNodeProblems,
+  holderNodeLicenseUrl,
+  holderNodeLicenseCacheName,
+  holderNodeLicenseProblems,
   ensureHolderNodeExe,
+  ensureHolderNodeLicense,
   defaultHolderCacheDir,
   externalPackagesOf,
   isNodePtyRuntimeFile,

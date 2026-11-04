@@ -6,9 +6,10 @@ import path from 'path'
 import { pathToFileURL } from 'url'
 import * as fs from 'fs/promises'
 import * as fsSync from 'fs'
-import { spawnSync, fork } from 'child_process'
+import { spawnSync, fork, spawn } from 'child_process'
 import { installChildProcessFdGuard, runWithoutCrashpadClient } from './child-process-fd-guard'
 import { defaultAppImageKeepaliveDeps, findAppImageKeepaliveFd, planTerminalServerFork } from './appimage-keepalive'
+import { holderSpawnSpec, ptyHolderLogLine, resolvePtyHolder, terminalServerForkOptions } from './pty-holder'
 import { DetachedTerminalOwners, saveDetachedWorkspaceTerminals, saveWindowWorkspaces, WindowRegistry, workspaceTerminals, type WorkspaceSavePayload } from './window-registry'
 import { createRendererFlusher, DETACHED_CLOSE_FLUSH_TIMEOUT_MS, DetachedTeardowns, flushBeforeClose, QUIT_FLUSH_TIMEOUT_MS, type CloseGuard } from './renderer-flush'
 import { openSettingsInWindow, pickSettingsWindow, type OpenSettingsInParentResult } from './detached-open-settings'
@@ -405,8 +406,13 @@ function terminalServerInheritedEnv(): NodeJS.ProcessEnv {
  * handler (which holds this process's stdout / stderr) ends with the main process. Windows / macOS:
  * same stdio and env as before (planTerminalServerFork: no /proc read, no log; the guard is not
  * installed there, so runWithoutCrashpadClient changes nothing).
+ * PLAN-065 W3 / T0859: a Windows NSIS install whose PTY holder (outside the install directory) passes
+ * every check starts the server from it instead (electron/pty-holder.ts: execPath = holder exe, cwd =
+ * holder directory, no ELECTRON_RUN_AS_NODE, so `spawn` with the same stdio incl. `ipc`); the decision
+ * is one `[pty-holder]` line. 🔴 Every other case — macOS / Linux, dev, zip, holder missing or not
+ * matching — reaches the fork below with the same arguments as before (terminalServerForkOptions).
  */
-function forkTerminalServer(serverScript: string, userDataPath: string): import('child_process').ChildProcess {
+async function forkTerminalServer(serverScript: string, userDataPath: string): Promise<import('child_process').ChildProcess> {
   // Read Terminal Server config from settings.json (T0109)
   const tsSettings = readPersistedSettingsSync()
   const scrollBufferLines = tsSettings?.terminalServerScrollBufferLines ?? 1000
@@ -414,18 +420,31 @@ function forkTerminalServer(serverScript: string, userDataPath: string): import(
 
   const plan = planTerminalServerFork(process.platform, () => findAppImageKeepaliveFd(defaultAppImageKeepaliveDeps()))
   if (plan.log) logger.log(plan.log)
-  return runWithoutCrashpadClient(() => fork(serverScript, [], {
-    detached: true,
-    stdio: plan.stdio,
-    env: {
-      ...terminalServerInheritedEnv(),
-      BAT_USER_DATA: userDataPath,
-      BAT_SCROLL_BUFFER_LINES: String(scrollBufferLines),
-      BAT_IDLE_TIMEOUT_MS: String(idleTimeoutMinutes * 60000),
-      // T0857: reported in `server:hello-ok`; not in any PTY's env (TERMINAL_SERVER_OWN_ENV_KEYS)
-      BAT_TERMINAL_SERVER_BAT_VERSION: app.getVersion(),
-    },
-  }))
+  const env: NodeJS.ProcessEnv = {
+    ...terminalServerInheritedEnv(),
+    BAT_USER_DATA: userDataPath,
+    BAT_SCROLL_BUFFER_LINES: String(scrollBufferLines),
+    BAT_IDLE_TIMEOUT_MS: String(idleTimeoutMinutes * 60000),
+    // T0857: reported in `server:hello-ok`; not in any PTY's env (TERMINAL_SERVER_OWN_ENV_KEYS)
+    BAT_TERMINAL_SERVER_BAT_VERSION: app.getVersion(),
+  }
+  // T0859: win32 packaged only (resolvePtyHolder returns before any file access otherwise, and nothing is logged)
+  if (process.platform === 'win32' && app.isPackaged) {
+    const holder = await resolvePtyHolder({
+      platform: process.platform,
+      isPackaged: app.isPackaged,
+      execPath: process.execPath,
+      resourcesPath: process.resourcesPath,
+      arch: process.arch,
+      env: process.env,
+    })
+    logger.log(ptyHolderLogLine(holder))
+    if (holder.use) {
+      const spec = holderSpawnSpec(holder.holder, plan.stdio, env)
+      return spawn(spec.command, spec.args, spec.options)
+    }
+  }
+  return runWithoutCrashpadClient(() => fork(serverScript, [], terminalServerForkOptions(plan.stdio, env)))
 }
 
 /**
@@ -524,7 +543,7 @@ async function startTerminalServer(): Promise<void> {
   }
 
   try {
-    const child = forkTerminalServer(serverScript, userDataPath)
+    const child = await forkTerminalServer(serverScript, userDataPath)
 
     child.on('error', (err) => {
       logger.error(`[terminal-server] fork error: ${err}`)
@@ -572,7 +591,7 @@ async function reforkTerminalServer(): Promise<import('child_process').ChildProc
   }
 
   try {
-    const child = forkTerminalServer(serverScript, userDataPath)
+    const child = await forkTerminalServer(serverScript, userDataPath)
 
     child.on('error', (err) => {
       logger.error(`[terminal-server] re-fork error: ${err}`)

@@ -8,7 +8,10 @@
  *   - Begin idle-timeout countdown when parent disconnects
  *   - Clean up PID file on SIGTERM / shutdown
  */
+import * as fs from 'fs'
+import * as path from 'path'
 import { TerminalServer } from './terminal-server/server'
+import { PTY_HOLDER_MANIFEST_FILE } from './pty-holder'
 import { writePidFile, removePidFile, removePortFile, removeTokenFile } from './terminal-server/pid-manager'
 import type { ServerRequest } from './terminal-server/protocol'
 
@@ -32,7 +35,19 @@ const idleTimeoutMs = process.env.BAT_IDLE_TIMEOUT_MS
   : undefined
 // T0857: reported in `server:hello-ok` (left out of every PTY's env, TERMINAL_SERVER_OWN_ENV_KEYS)
 const batVersion = process.env.BAT_TERMINAL_SERVER_BAT_VERSION ?? ''
-const server = new TerminalServer(idleTimeoutMs, scrollBufferLines, { identity: { batVersion } })
+// T0859 (PLAN-065 W3): started from a PTY holder (plain Node, this file next to the holder manifest) →
+// hello-ok also says which holder directory holds the PTYs; no env involved, so nothing reaches a PTY
+const holderDir = runningFromPtyHolder() ? __dirname : undefined
+const server = new TerminalServer(idleTimeoutMs, scrollBufferLines, { identity: { batVersion, ...(holderDir ? { holderDir } : {}) } })
+
+function runningFromPtyHolder(): boolean {
+  if (process.versions.electron) return false
+  try {
+    return fs.existsSync(path.join(__dirname, PTY_HOLDER_MANIFEST_FILE))
+  } catch {
+    return false
+  }
+}
 
 // Start TCP server for reconnection after BAT restart (T0108)
 if (userDataPath) {

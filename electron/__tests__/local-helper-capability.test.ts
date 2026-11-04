@@ -528,9 +528,12 @@ describe('main.ts wiring (T0575 source guard)', () => {
 
   it('the Terminal Server is forked without inherited BAT_REMOTE_*', () => {
     // T0816: one fork (forkTerminalServer), used by startTerminalServer and reforkTerminalServer
-    const forks = main.match(/fork\(serverScript, \[\], \{[\s\S]*?env: \{\s*\.\.\.(\w+\(\)|process\.env)/g) ?? []
-    expect(forks).toHaveLength(1)
-    for (const fork of forks) expect(fork).toContain('...terminalServerInheritedEnv()')
+    // T0859: forkTerminalServer builds one env, used by the fork and by the PTY-holder spawn
+    const body = main.slice(main.indexOf('function forkTerminalServer('), main.indexOf('\n}\n', main.indexOf('function forkTerminalServer(')))
+    expect(body).toMatch(/const env: NodeJS\.ProcessEnv = \{\s*\.\.\.terminalServerInheritedEnv\(\),/)
+    expect(body).not.toMatch(/\.\.\.process\.env\b/)
+    expect(body.match(/fork\(serverScript, \[\], terminalServerForkOptions\(plan\.stdio, env\)\)/g)).toHaveLength(1)
+    expect(body.match(/holderSpawnSpec\(holder\.holder, plan\.stdio, env\)/g)).toHaveLength(1)
     expect(main.match(/forkTerminalServer\(serverScript, userDataPath\)/g)).toHaveLength(2)
   })
 })

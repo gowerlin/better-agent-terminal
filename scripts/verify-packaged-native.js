@@ -31,6 +31,7 @@
  * T0858 / PLAN-065 W2 `pty-holder`: `resources/pty-holder/` holds exactly the files its `holder-manifest.json`
  * lists, each with the listed size and SHA-256; the key matches the files; `bat-pty-holder.exe` is the pinned Node
  * `node.exe` (PE of the requested arch), never `BetterAgentTerminal.exe` (scripts/pty-holder.cjs ptyHolderProblems).
+ * T0859: Node's LICENSE (`node-LICENSE`, the pinned size + SHA-256) must be listed and present.
  * mac / linux: `resources/pty-holder` must not exist (the holder is Windows only).
  *
  * Every platform, the installer slimming of T0546 (verifyPackagedLayout):

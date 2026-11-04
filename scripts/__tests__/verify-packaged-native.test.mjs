@@ -14,7 +14,8 @@
 // and a hand-written app.asar (writeAsar; one test checks the reader against @electron/asar).
 
 import { execFileSync } from 'node:child_process'
-import { mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs'
+import { createHash } from 'node:crypto'
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import os from 'node:os'
 import path from 'node:path'
@@ -60,6 +61,7 @@ const { afterPack, versionManifestContent, versionManifestProblems } = require('
 const { installAppImageLauncher } = require('../appimage-sandbox-launcher.cjs')
 const PTY_HOLDER_FIXTURE = path.join(path.dirname(fileURLToPath(import.meta.url)), '_pty-holder-fixture.cjs')
 const { useFakeHolderNode, writeFakeHolder } = require(PTY_HOLDER_FIXTURE)
+const { buildHolderManifest, serializeHolderManifest } = require('../pty-holder.cjs')
 
 // T0858: every fake Windows package carries a holder built around a fake node.exe whose pin is swapped in here
 let restoreHolderNode = () => {}
@@ -760,6 +762,42 @@ describe('verifyPackagedWin (T0546)', () => {
     manifest.exe = 'BetterAgentTerminal.exe'
     writeFileSync(path.join(dir, 'holder-manifest.json'), JSON.stringify(manifest, null, 2) + '\n')
     expect(detail(renamed)).toContain('manifest exe BetterAgentTerminal.exe, expected bat-pty-holder.exe')
+  })
+
+  // T0859: Node's LICENSE ships in the holder (node-LICENSE, the pinned bytes)
+  it('pty-holder: Node LICENSE missing or not the pinned one → fail', () => {
+    const holderDir = (out) => path.join(out, winAppOutDirName('x64'), 'resources', 'pty-holder')
+    const detail = (out) => verifyPackagedWin(out).archs[0].problems.flatMap((p) => (p.id === 'pty-holder' ? p.details : []))
+
+    const ok = makeOutDir()
+    makeWin(ok)
+    expect(existsSync(path.join(holderDir(ok), 'node-LICENSE'))).toBe(true)
+    expect(ids(ok)).toEqual([])
+
+    const removed = makeOutDir()
+    makeWin(removed, { extra: (r) => rmSync(path.join(r, 'pty-holder', 'node-LICENSE')) })
+    expect(ids(removed)).toEqual(['pty-holder'])
+    expect(detail(removed)).toEqual(['missing: node-LICENSE'])
+
+    // unlisted (manifest rebuilt without it, file left alone) and not required any more → both reported
+    const unlisted = makeOutDir()
+    makeWin(unlisted)
+    const dir = holderDir(unlisted)
+    const manifest = JSON.parse(readFileSync(path.join(dir, 'holder-manifest.json'), 'utf8'))
+    const files = manifest.files.filter((f) => f.path !== 'node-LICENSE')
+    writeFileSync(path.join(dir, 'holder-manifest.json'), serializeHolderManifest(buildHolderManifest(files, { arch: 'x64' })))
+    expect(detail(unlisted)).toEqual(expect.arrayContaining(['not in the manifest: node-LICENSE', 'manifest does not list node-LICENSE']))
+
+    // listed with other bytes (a self-consistent manifest that is not the pin)
+    const other = makeOutDir()
+    makeWin(other)
+    const otherDir = holderDir(other)
+    writeFileSync(path.join(otherDir, 'node-LICENSE'), 'not the Node license\n')
+    const m2 = JSON.parse(readFileSync(path.join(otherDir, 'holder-manifest.json'), 'utf8'))
+    const text = 'not the Node license\n'
+    const files2 = m2.files.map((f) => (f.path === 'node-LICENSE' ? { ...f, size: Buffer.byteLength(text), sha256: createHash('sha256').update(text).digest('hex') } : f))
+    writeFileSync(path.join(otherDir, 'holder-manifest.json'), serializeHolderManifest(buildHolderManifest(files2, { arch: 'x64' })))
+    expect(detail(other)).toEqual([expect.stringMatching(/^node-LICENSE: SHA-256 [0-9a-f]{64} \/ size \d+ is not the pinned Node v24\.\d+\.\d+ LICENSE$/)])
   })
 
   it('pty-holder: the real pin (no fake) rejects the fake node.exe', () => {
