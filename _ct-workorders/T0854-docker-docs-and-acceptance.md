@@ -4,12 +4,15 @@ schema_kind: workorder
 id: T0854
 title: "Docker 精靈 W5：文件與網站更新、CLAUDE.md 一節、T0743 e2e 延伸、手動觸發的 docker-acceptance workflow"
 type: implementation
-status: TODO
+status: IN_PROGRESS
 repo: better-agent-terminal
 project: PLAN-052
 priority: P2
 sizing: M
 created_at: "2026-11-04T15:18:27+0800"
+started_at: "2026-11-04T16:50:00+08:00"
+updated_at: "2026-11-04T17:10:13+08:00"
+tower_question: open
 depends_on: [T0853]
 related:
   - "PLAN-052；D283；T0848 回報區〈調查結論〉6 與〈建議下一步〉W5；T0849–T0853；T0743（`e2e/t0743-docker-wizard.spec.ts`、`e2e/real-remote/t0743-docker-shim.go`）；`linux-acceptance.yml`（T0797，手動觸發範本）"
@@ -44,7 +47,7 @@ memory_overrides:
 # T0854 — Docker 精靈 W5：文件、網站與驗收基礎設施
 
 ## 元資料
-- **工單編號**：T0854｜**類型**：implementation｜**狀態**：TODO｜**建立**：2026-11-04 15:18 (UTC+8)
+- **工單編號**：T0854｜**類型**：implementation｜**狀態**：IN_PROGRESS｜**建立**：2026-11-04 15:18 (UTC+8)
 - **規模**：M｜**決策**：D283｜**依賴**：T0853
 
 ## 任務
@@ -70,4 +73,15 @@ memory_overrides:
 
 ## 回報區
 
-（Worker 填寫）
+### 待塔台決策
+
+#### Q-1：網站另兩頁也寫「Docker 要自己建置映像」，要不要一併改？
+- **提問時間**：2026-11-04T17:10:13+0800
+- **問題**：`site/remote/index.md`（對照表第 10 行「自己從原始碼建置的伺服器映像／映像目前沒有公開發佈」、第 28 行、第 52 行「伺服器已經包在你建置的映像裡」、第 62 行「Docker：刪掉舊的連線設定，再執行一次設定精靈」、第 99 行「Docker 要先用新版原始碼重新建置映像」）與 `site/features.md`（第 109 行「Docker 用的是事先建置好的伺服器映像」、第 115 行「Docker 目前需要自己建置伺服器映像」）在 (c′) 之後都不正確，但不在本單 `affects_files`（只有 `site/remote/docker.md`）。
+- **選項**：
+  - A（建議）：一併改這兩頁的上述句子（只改 Docker 相關的句子，約 7 處；連結 `./docker#image` 保留，docker.md 仍有 `{#image}` 錨點指向進階路徑），兩個檔補進 `affects_files`。
+  - B：本單不改，列進〈後續建議〉另開小單。網站在那之前會自相矛盾（docker.md 說不用建置，總覽頁說要）。
+  - 其他。
+- **建議與理由**：A。改動小、都是同一件事的說明，分開改會讓網站有一段時間前後矛盾。
+- **影響**：網站一致性；`affects_files` 多兩個檔。
+- **是否阻擋後續步驟**：否（其他步驟照做；只影響最後要不要改這兩頁）。
