@@ -44,7 +44,8 @@ function isLoopbackHost(host: string | undefined): boolean {
 
 /**
  * T0552 (BUG-138): re-running the wizard against a server that already has a
- * profile (same WSL distro / SSH target and the same server port) updates that
+ * profile (same WSL distro / SSH target and the same server port; T0850: same
+ * Docker container, any port) updates that
  * profile instead of adding a second one. Profiles this run created are never
  * "existing". `listLocal`: this machine's profiles even in a remote window.
  */
@@ -211,6 +212,27 @@ export const writeProfileStep: WizardStep = {
       const dockerMounts = Array.isArray(ctx.state.dockerMounts)
         ? ctx.state.dockerMounts as Array<{ host: string; container: string }>
         : []
+      const dockerUpdates: ProfileUpdates = {
+        targetOS: 'docker-linux',
+        dockerContainer: containerName,
+        dockerMounts,
+        remoteHost: 'localhost',
+        remotePort: port,
+        remoteToken: ctx.remoteToken,
+        remoteFingerprint: fingerprint,
+      }
+      // T0850 (PLAN-052 W3): same container name on this machine. The server
+      // port is not part of the key — a re-created container may pick another
+      // one — so the update writes the new port too.
+      const existingDocker = await findExistingProfiles(ctx, (profile) =>
+        profile.targetOS === 'docker-linux'
+        && profile.dockerContainer === containerName
+        && isLoopbackHost(profile.remoteHost))
+      if (existingDocker.length > 0) {
+        await updateExistingProfiles(ctx, existingDocker, dockerUpdates)
+        return
+      }
+      ctx.updatedProfileId = undefined
       const profile = await window.electronAPI.profile.create(resolveDockerProfileName(ctx.profileDraft.name, containerName), {
         type: 'remote',
         remoteHost: 'localhost',
@@ -220,15 +242,7 @@ export const writeProfileStep: WizardStep = {
       })
       recordCreatedProfile(ctx, profile.id)
 
-      const updated = await window.electronAPI.profile.update(profile.id, {
-        targetOS: 'docker-linux',
-        dockerContainer: containerName,
-        dockerMounts,
-        remoteHost: 'localhost',
-        remotePort: port,
-        remoteToken: ctx.remoteToken,
-        remoteFingerprint: fingerprint,
-      })
+      const updated = await window.electronAPI.profile.update(profile.id, dockerUpdates)
       if (!updated) {
         throw wizardError('Failed to persist Docker profile metadata.', 'wizard-profile-save-failed')
       }

@@ -555,6 +555,7 @@ describe('write-profile rollback deletes every profile this run created (T0444)'
   let created: string[]
   let deleted: string[]
   let profile: {
+    listLocal: ReturnType<typeof vi.fn>
     create: ReturnType<typeof vi.fn>
     update: ReturnType<typeof vi.fn>
     delete: ReturnType<typeof vi.fn>
@@ -565,6 +566,8 @@ describe('write-profile rollback deletes every profile this run created (T0444)'
     deleted = []
     let n = 0
     profile = {
+      // T0850: the Docker branch looks for an existing profile first; none here.
+      listLocal: vi.fn(async () => ({ profiles: [], activeProfileIds: [] })),
       create: vi.fn(async () => {
         n += 1
         const id = `docker-${n}`
@@ -674,5 +677,27 @@ describe('write-profile rollback deletes every profile this run created (T0444)'
   it('nothing created → rollback does nothing', async () => {
     await writeProfileStep.rollback!(profileCtx())
     expect(profile.delete).not.toHaveBeenCalled()
+  })
+
+  it('re-run that updated the existing profile of the same container: rollback restores it and deletes nothing (T0850)', async () => {
+    const existing = {
+      id: 'docker-old', name: 'My container', type: 'remote', targetOS: 'docker-linux', dockerContainer: 'bat-new',
+      dockerMounts: [{ host: 'C:\old', container: '/old' }], remoteHost: 'localhost', remotePort: 9001,
+      remoteToken: 'old-tok', remoteFingerprint: 'OLD', createdAt: 1, updatedAt: 1,
+    }
+    profile.listLocal.mockResolvedValue({ profiles: [existing], activeProfileIds: [] })
+    profile.update.mockResolvedValue(true)
+    const ctx = profileCtx()
+    await writeProfileStep.run(ctx)
+    expect(profile.create).not.toHaveBeenCalled()
+    expect(ctx.updatedProfileId).toBe('docker-old')
+
+    await writeProfileStep.rollback!(ctx)
+    expect(profile.update).toHaveBeenLastCalledWith('docker-old', {
+      targetOS: 'docker-linux', dockerContainer: 'bat-new', dockerMounts: [{ host: 'C:\old', container: '/old' }],
+      remoteHost: 'localhost', remotePort: 9001, remoteToken: 'old-tok', remoteFingerprint: 'OLD',
+    })
+    expect(profile.delete).not.toHaveBeenCalled()
+    expect(ctx.updatedProfileId).toBeUndefined()
   })
 })

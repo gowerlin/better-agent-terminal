@@ -1,5 +1,5 @@
 /**
- * T0552 (BUG-138): re-running the WSL / SSH wizard against a server that
+ * T0552 (BUG-138) / T0850 (Docker): re-running the WSL / SSH / Docker wizard against a server that
  * already has a profile updates that profile instead of adding a second one;
  * rollback puts the overwritten values back and never deletes it.
  */
@@ -17,6 +17,8 @@ type Profile = {
   remoteFingerprint?: string
   targetOS?: string
   wslDistro?: string
+  dockerContainer?: string
+  dockerMounts?: Array<{ host: string; container: string }>
   sshHost?: string
   sshUser?: string
   sshPort?: number
@@ -193,5 +195,98 @@ describe('write-profile, SSH (T0552: same disease — a re-run added a second pr
     await writeProfileStep.run(ctx)
     expect(createMock).not.toHaveBeenCalled()
     expect(ctx.updatedProfileId).toBe('s22')
+  })
+})
+
+function dockerCtx(overrides: Partial<WizardContext> = {}): WizardContext {
+  return {
+    targetOS: 'docker-linux',
+    profileDraft: { name: '' },
+    warnings: [],
+    state: { dockerContainer: 'bat-server-dev', dockerMounts: [{ host: 'D:\work', container: '/work' }] },
+    logger: { info: () => undefined, warn: () => undefined, error: () => undefined },
+    serverPort: 19877,
+    remoteToken: 'token-docker',
+    fingerprint: 'EE:FF',
+    ...overrides,
+  }
+}
+
+describe('write-profile, Docker (T0850 / PLAN-052 W3: a re-run added a second profile)', () => {
+  it('updates the profile of the same container — port, token, fingerprint, mounts — and keeps its name', async () => {
+    profiles.push(remote({
+      id: 'd1', name: 'My dev container', targetOS: 'docker-linux', dockerContainer: 'bat-server-dev',
+      dockerMounts: [{ host: 'C:\old', container: '/old' }], remotePort: 19876, remoteToken: 'old', remoteFingerprint: 'OLD',
+    }))
+    const ctx = dockerCtx()
+    await writeProfileStep.run(ctx)
+
+    expect(createMock).not.toHaveBeenCalled()
+    expect(profiles).toHaveLength(1)
+    expect(profiles[0]).toMatchObject({
+      id: 'd1', name: 'My dev container', targetOS: 'docker-linux', dockerContainer: 'bat-server-dev',
+      dockerMounts: [{ host: 'D:\work', container: '/work' }], remotePort: 19877, remoteToken: 'token-docker', remoteFingerprint: 'EE:FF',
+    })
+    expect(ctx.updatedProfileId).toBe('d1')
+    expect(ctx.createdProfileId).toBeUndefined()
+  })
+
+  it('rollback restores the previous port / token / fingerprint / mounts and keeps the profile', async () => {
+    profiles.push(remote({
+      id: 'd1', targetOS: 'docker-linux', dockerContainer: 'bat-server-dev',
+      dockerMounts: [{ host: 'C:\old', container: '/old' }], remotePort: 19876, remoteToken: 'old', remoteFingerprint: 'OLD',
+    }))
+    const ctx = dockerCtx()
+    await writeProfileStep.run(ctx)
+    await writeProfileStep.rollback!(ctx)
+
+    expect(deleteMock).not.toHaveBeenCalled()
+    expect(profiles).toHaveLength(1)
+    expect(profiles[0]).toMatchObject({
+      id: 'd1', dockerMounts: [{ host: 'C:\old', container: '/old' }], remotePort: 19876, remoteToken: 'old', remoteFingerprint: 'OLD',
+    })
+    expect(ctx.updatedProfileId).toBeUndefined()
+  })
+
+  it('the "-2" container (the name was taken) is another server -> new profile', async () => {
+    profiles.push(remote({ id: 'd1', targetOS: 'docker-linux', dockerContainer: 'bat-server-dev', remotePort: 19877 }))
+    const ctx = dockerCtx({ state: { dockerContainer: 'bat-server-dev-2', dockerMounts: [] } })
+    await writeProfileStep.run(ctx)
+
+    expect(createMock).toHaveBeenCalledTimes(1)
+    expect(profiles).toHaveLength(2)
+    expect(profiles[1]).toMatchObject({ id: 'p-new-1', name: 'Docker bat-server-dev-2', dockerContainer: 'bat-server-dev-2' })
+    expect(ctx.createdProfileId).toBe('p-new-1')
+    expect(ctx.updatedProfileId).toBeUndefined()
+    expect(updateMock.mock.calls.map((call) => call[0])).toEqual(['p-new-1'])
+  })
+
+  it('a non-loopback host, or a WSL / SSH profile, is not matched', async () => {
+    profiles.push(
+      remote({ id: 'far', targetOS: 'docker-linux', dockerContainer: 'bat-server-dev', remotePort: 19877, remoteHost: '10.0.0.5' }),
+      remote({ id: 'wsl', targetOS: 'wsl-linux', wslDistro: 'bat-server-dev', remotePort: 19877 }),
+      remote({ id: 'ssh', targetOS: 'ssh-linux', sshHost: 'bat-server-dev', remotePort: 19877 }),
+    )
+    const ctx = dockerCtx()
+    await writeProfileStep.run(ctx)
+
+    expect(createMock).toHaveBeenCalledTimes(1)
+    expect(updateMock.mock.calls.map((call) => call[0])).toEqual(['p-new-1'])
+    expect(profiles.find((p) => p.id === 'far')?.remoteToken).toBeUndefined()
+    expect(ctx.updatedProfileId).toBeUndefined()
+  })
+
+  it('several profiles of that container: all are updated (same as WSL / SSH), the first is what opens', async () => {
+    profiles.push(
+      remote({ id: 'a', targetOS: 'docker-linux', dockerContainer: 'bat-server-dev', remotePort: 19876 }),
+      remote({ id: 'b', targetOS: 'docker-linux', dockerContainer: 'bat-server-dev', remotePort: 19870, remoteHost: '127.0.0.1' }),
+    )
+    const ctx = dockerCtx()
+    await writeProfileStep.run(ctx)
+
+    expect(createMock).not.toHaveBeenCalled()
+    expect(updateMock.mock.calls.map((call) => call[0])).toEqual(['a', 'b'])
+    expect(profiles.map((p) => p.remotePort)).toEqual([19877, 19877])
+    expect(ctx.updatedProfileId).toBe('a')
   })
 })
