@@ -24,13 +24,15 @@
 
 | 上次版本 | 孤兒清理找到的 PTY | 安裝程式結束紀錄的 PTY（T0823） | 結果 |
 |---|---|---|---|
-| 有，且不同 | ≥ 1 | 任意 | **觸發**：「上次升級結束了 N 個終端」 |
-| 有，且不同 | 任意 | ≥ 1 | **觸發**（正常結束沒有孤兒，靠紀錄） |
-| 與目前相同（當機、工作管理員結束、安裝取消） | 任意 | 任意 | 不觸發（與 T0821 前相同；紀錄照樣刪掉） |
+| 有（不同或相同） | 任意 | ≥ 1 | **觸發**（正常結束沒有孤兒，靠紀錄）。T0846（D278）：版本相同也觸發，用同版文字 |
+| 有，且不同 | ≥ 1 | 0 / 沒有紀錄 | **觸發**：「上次升級結束了 N 個終端」 |
+| 與目前相同（當機、工作管理員結束） | 任意 | 0 / 沒有紀錄 | 不觸發（與 T0821 前相同；空紀錄照樣刪掉） |
 | 有，且不同 | 0 | 0 / 沒有紀錄 | 不觸發，記一行 `none` |
 | 沒有（第一次執行、檔案讀不到 / 內容不對） | 任意 | 任意 | 不觸發 |
 
-N = 兩份清單依 terminal id 的聯集（紀錄在前）；claude session 以紀錄的為準（紀錄是在 PTY 還在跑時取的）。日誌 `detected` 行結尾的 `source=orphans|installer|installer+orphans` 標明來源。
+版本相同＋紀錄 ≥ 1（T0846）有兩種來源：同版重裝（2026-11-04 實機：pre.7 重裝 pre.7，T0846 前沒有提示），以及安裝程式請 BAT 結束後使用者取消安裝。紀錄只有結束時的版本與 PTY，兩者無法區分，**兩者都提示**（終端確實被安裝程式結束了）；同版文字因此寫成兩種情況都成立的說法（見〈說明的顯示〉）。只有孤兒、沒有紀錄（當機）的同版重開照舊不觸發。
+
+N = 兩份清單依 terminal id 的聯集（紀錄在前）；claude session 以紀錄的為準（紀錄是在 PTY 還在跑時取的）。日誌 `detected` 行結尾的 `source=orphans|installer|installer+orphans` 標明來源，版本相同時再加 ` same-version`（T0846）。
 
 - 「上次版本」存在 `<userData>/last-run-version.json`（`{ "schema": 1, "version": "<app.getVersion()>" }`）。`UpgradeInterruptionCheck.begin()` 在 whenReady、`startTerminalServer()` 之前讀舊值、再寫入目前版本（版本相同時不寫）；所以升級前的版本在升級前就已經寫好。寫入走 temp 檔＋rename，失敗只記一行、不丟例外；路徑由 main 傳入（🔴 模組不在 import 期呼叫 `app.getPath`）。
 - N = 孤兒清理讀到的 `bat-pty-registry.json` 的 `ptys.length`（與 `Cleaned N orphan PTY process(es)` 同一個數）。`noteOrphanCleanup` 只記下 registry 的 id / cwd 與上一個行程的 claude session 紀錄（`claudeSessionPersistence.entries()`，此時都還是 pending），不碰程序。只有每個行程第一次孤兒清理算數；`finish` 只執行一次。
@@ -39,10 +41,11 @@ N = 兩份清單依 terminal id 的聯集（紀錄在前）；claude session 以
 ### 說明的顯示
 
 - main：`finishUpgradeInterruptionCheck()`（`electron/main.ts`，`startTerminalServer()` 之後、建立視窗之前）判定一次，結果留在 `UpgradeInterruptionCheck`。IPC `terminal-server:query-upgrade-interruption`（`ipcMain.handle`，🔴 只給本機 renderer，不是 helper / RemoteServer channel）回 `{ previousVersion, currentVersion, ptyCount, agentCount }`，**第一個問的視窗拿到、之後回 null**（只顯示一次；reload 不再出現；版本檔已改成目前版本，下次啟動也不會再觸發）。
-- renderer：`App.tsx` 掛載時 pull（`parseUpgradeInterruptionNotice` 驗證），沿用既有的 `ServerStatusToast`（key `UPGRADE_INTERRUPTED_TOAST_KEY` = `app.upgradeInterrupted`，帶 `count` / `from` / `to`）。
+- renderer：`App.tsx` 掛載時 pull（`parseUpgradeInterruptionNotice` 驗證），沿用既有的 `ServerStatusToast`（key `UPGRADE_INTERRUPTED_TOAST_KEY` = `app.upgradeInterrupted`，帶 `count` / `from` / `to`）。T0846：key 由 `upgradeNoticeToastKey(notice)`（`ServerStatusToast.tsx`）決定，`previousVersion === currentVersion` → `UPGRADE_REINSTALLED_TOAST_KEY` = `app.upgradeReinstalled`（帶 `count` / `version`），notice 形狀不變。
   - 選 `ServerStatusToast` 的理由：同一個位置、同一種「Terminal Server 的分頁被重建」語意；T0766 已在它上面加了「N 個 agent 分頁已中斷，按此查看」一行與點擊開清單，升級說明直接沿用，不新開 Dialog（CLAUDE.md Dialog 規則：不新增 Dialog）。
   - heartbeat toast（T0112）顯示中時優先顯示它，升級說明排在後面；升級說明不自動消失，點一下關閉（有 agent 分頁時同時開清單）。
 - 文字（三語）：「BAT 已升級（v舊 → v新）。安裝新版時結束了 N 個終端，包括其中執行中的指令與 agent；分頁已用新的 shell 重新開啟。」
+- 同版文字（T0846，三語同義）：「安裝程式結束了 BAT（v版本）與 N 個終端，包括其中執行中的指令與 agent；分頁已用新的 shell 重新開啟。」不說「已升級」或「已重新安裝」，取消安裝時也成立。版本不同的文字逐字不變。
 
 ### agent 分頁（沿用「被中斷的 agent 分頁」）
 
@@ -61,9 +64,9 @@ N = 兩份清單依 terminal id 的聯集（紀錄在前）；claude session 以
 
 | 位置 | 內容 |
 |---|---|
-| main，觸發 | `[upgrade-interruption] detected: previous=<舊> current=<新> ended-ptys=<N> agent-tabs=<M> source=<orphans\|installer\|installer+orphans>` |
+| main，觸發 | `[upgrade-interruption] detected: previous=<舊> current=<新> ended-ptys=<N> agent-tabs=<M> source=<orphans\|installer\|installer+orphans>`；版本相同（T0846）結尾加 ` same-version` |
 | main，版本變了但沒觸發 | `[upgrade-interruption] none: previous=<舊或 unknown> current=<新> ended-ptys=<N>` |
-| main，版本相同 | 不記 |
+| main，版本相同且沒觸發 | 不記 |
 | main，版本檔寫不進去 | `[upgrade-interruption] could not write last-run-version.json (version <新>)` |
 | main，清單 | 既有的 `[interrupted-agents] interrupted: terminal=… session=<前 8 碼>`，加 `[interrupted-agents] upgrade interrupted M agent tab(s); listed K` |
 | renderer | `[upgrade-interruption] notice shown: previous=… current=… ended-ptys=N agent-tabs=M` |
@@ -124,7 +127,7 @@ N = 兩份清單依 terminal id 的聯集（紀錄在前）；claude session 以
 ## 已知限制
 
 - **子項 4（holder 模型：讓 ConPTY 持有者撐過升級）未做**，見 PLAN-063。升級仍會結束所有終端；子項 3 只讓結束變成正常結束。
-- macOS / Linux 的升級行為未研究：偵測邏輯在所有平台都會跑（版本變＋有孤兒或紀錄才觸發），但升級前的提示與 NSIS 請求只在 Windows。
+- macOS / Linux 的升級行為未研究：偵測邏輯在所有平台都會跑（有紀錄，或版本變＋有孤兒才觸發），但升級前的提示與 NSIS 請求只在 Windows。
 - 只看「版本變＋（孤兒或紀錄）」：版本變了、上一次結束時剛好有 Terminal Server 被當機 / 手動結束（不是安裝程式）也會被說成升級。反過來，升級前已先「結束並停止 Terminal Server」的使用者沒有孤兒也沒有紀錄，不顯示（也沒有東西被結束）。
 - 第一次升到含 T0823 的版本時（裝著的是 T0823 前的版本）不送請求，照舊強制結束、重開走孤兒清理；之後的升級才是正常結束。
 - 標記只看安裝目錄：使用者自己複製或刪掉 `resources\installer-quit-request.supported` 會讓判斷失準（多送：舊版開一個視窗、15 s 後回退；少送：照舊強制結束）。
@@ -136,7 +139,7 @@ N = 兩份清單依 terminal id 的聯集（紀錄在前）；claude session 以
 
 ## 驗證
 
-- 單元：`electron/__tests__/upgrade-interruption.test.ts`（觸發條件四種、版本檔讀寫失敗、來源判斷、`UpgradeInterruptionCheck` 生命週期與只給一次、`cause: 'upgrade'` 的 session-start 規則、main.ts 孤兒清理順序 source guard）；`src/components/__tests__/upgrade-interruption.test.tsx`（三語字串、更新通知只在 win32 顯示且既有內容不變、toast、對話框標題、App.tsx source guard）。突變：拿掉版本條件 / N 條件 / win32 判斷 / session-start 規則 → 對應測試失敗（T0821 實測）。
+- 單元：`electron/__tests__/upgrade-interruption.test.ts`（觸發條件四種＋T0846 同版＋紀錄 / 同版＋只有孤兒 / 同版＋空紀錄、版本檔讀寫失敗、來源判斷、`UpgradeInterruptionCheck` 生命週期與只給一次、`cause: 'upgrade'` 的 session-start 規則、main.ts 孤兒清理順序 source guard）；`src/components/__tests__/upgrade-interruption.test.tsx`（三語字串、更新通知只在 win32 顯示且既有內容不變、toast（T0846：同版文字、版本不同文字逐字不變）、對話框標題、App.tsx source guard）。突變：拿掉版本條件 / N 條件 / win32 判斷 / session-start 規則 → 對應測試失敗（T0821 實測）。
 - e2e：`e2e/t0821-upgrade-interruption.spec.ts`（Windows、隔離 runtime、需先 `npx vite build`）：開兩個 shell 分頁 → 關閉時保留 Terminal Server → `taskkill /F /PID <server>`（不帶 `/T`，模擬安裝程式）→ 改寫 `last-run-version.json` 為舊版、寫一筆上一個行程的 claude session 紀錄（不啟動 claude、不呼叫模型）→ 重開：toast 含 N=2 與兩個版本、日誌 `detected … ended-ptys=2 agent-tabs=1`、兩個分頁還原、點 toast 開清單（1 列 claude-cli、session 前 8 碼、升級說明）、reload 後不再顯示；對照組（不改版本）：不顯示、沒有 `detected`，孤兒清理照舊。
 - T0823 單元：`electron/__tests__/installer-quit-request.test.ts`（參數辨識、紀錄驗證與只讀一次、`InstallerQuitController` 啟動中保留 / 只處理一次 / 已在 quit 時不處理 / 失敗仍結束、沒有 BAT 主行程時停 server、新版偵測合併規則、main.ts / installer.nsh / package.json source guard、electron-builder 範本掛勾與版本）。突變 11 種（拿掉紀錄條件、啟動中直接執行、請求時不停 server、忽略紀錄、紀錄不刪、忽略進行中的 quit、nsh 不送請求、whenReady 不擋請求行程（兩種寫法）、nsh 不看標記、`customInstall` 不寫標記）→ 對應測試失敗。
 - T0823 e2e：`e2e/t0823-installer-graceful-quit.spec.ts`（Windows、隔離 runtime、需先 `npx vite build`）：兩個 shell 分頁 → 第二個實例帶 `--installer-quit-request` → BAT 在 15 s 內結束（不跳對話框）、`[quit] terminal server stopped (via IPC server:shutdown)`、pid / port / registry 檔已清、shell 已結束、紀錄列 2 個終端 → 改寫上次版本後重開：toast N=2、`detected … source=installer`、紀錄已刪、沒有孤兒清理；對照（不改版本）：不顯示、紀錄已刪；server-only：保留 server 離開後送請求 → 請求行程停掉 server、紀錄 `server-only`。

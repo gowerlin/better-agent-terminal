@@ -18,7 +18,19 @@ export const SERVER_STATUS_TOAST_KEYS = {
  */
 export const UPGRADE_INTERRUPTED_TOAST_KEY = 'app.upgradeInterrupted'
 
-export type ServerStatusToastKey = typeof SERVER_STATUS_TOAST_KEYS[keyof typeof SERVER_STATUS_TOAST_KEYS] | typeof UPGRADE_INTERRUPTED_TOAST_KEY
+/**
+ * T0846 (D278): the same notice when the version did not change (installer quit record,
+ * `previousVersion === currentVersion`): a reinstall of the same version, or an install cancelled
+ * after BAT quit — the record cannot tell them apart, so the text holds for both. Values: `count`, `version`.
+ */
+export const UPGRADE_REINSTALLED_TOAST_KEY = 'app.upgradeReinstalled'
+
+/** T0846: which text an upgrade notice shows — the reinstall one when the version did not change. */
+export function upgradeNoticeToastKey(notice: { previousVersion: string; currentVersion: string }): typeof UPGRADE_INTERRUPTED_TOAST_KEY | typeof UPGRADE_REINSTALLED_TOAST_KEY {
+  return notice.previousVersion === notice.currentVersion ? UPGRADE_REINSTALLED_TOAST_KEY : UPGRADE_INTERRUPTED_TOAST_KEY
+}
+
+export type ServerStatusToastKey = typeof SERVER_STATUS_TOAST_KEYS[keyof typeof SERVER_STATUS_TOAST_KEYS] | typeof UPGRADE_INTERRUPTED_TOAST_KEY | typeof UPGRADE_REINSTALLED_TOAST_KEY
 
 interface ServerStatusToastProps {
   messageKey: ServerStatusToastKey
@@ -36,7 +48,7 @@ interface ServerStatusToastProps {
 
 export function ServerStatusToast({ messageKey, messageValues, onDismiss, interruptedCount = 0, onOpenInterrupted }: ServerStatusToastProps) {
   const { t } = useTranslation()
-  const listsInterrupted = messageKey === SERVER_STATUS_TOAST_KEYS.recovered || messageKey === UPGRADE_INTERRUPTED_TOAST_KEY
+  const listsInterrupted = messageKey === SERVER_STATUS_TOAST_KEYS.recovered || messageKey === UPGRADE_INTERRUPTED_TOAST_KEY || messageKey === UPGRADE_REINSTALLED_TOAST_KEY
   const showInterrupted = listsInterrupted && interruptedCount > 0
   const handleClick = () => {
     if (showInterrupted) onOpenInterrupted?.()

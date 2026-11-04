@@ -22,7 +22,7 @@ import { ResizeHandle } from './components/ResizeHandle'
 import { ProfilePanel } from './components/ProfilePanel'
 import { RecoveryPrompt } from './components/RecoveryPrompt'
 import { LinuxFontHint } from './components/LinuxFontHint'
-import { SERVER_STATUS_TOAST_KEYS, ServerStatusToast, UPGRADE_INTERRUPTED_TOAST_KEY, type ServerStatusToastKey } from './components/ServerStatusToast'
+import { SERVER_STATUS_TOAST_KEYS, ServerStatusToast, upgradeNoticeToastKey, type ServerStatusToastKey } from './components/ServerStatusToast'
 import { InterruptedAgentsController } from './components/InterruptedAgentsDialog'
 import { OPEN_INTERRUPTED_AGENTS_EVENT, parseUpgradeInterruptionNotice, useInterruptedAgents, type UpgradeInterruptionNotice } from './stores/interrupted-agents-store'
 import { CtToast, useCtToast } from './components/CtToast'
@@ -1504,8 +1504,8 @@ export default function App() {
       )}
       {/* PLAN-063 / T0821: after the heartbeat toast (same place); stays until clicked */}
       {!serverStatusToast && upgradeNotice && (
-        <ServerStatusToast messageKey={UPGRADE_INTERRUPTED_TOAST_KEY}
-          messageValues={{ count: upgradeNotice.ptyCount, from: upgradeNotice.previousVersion, to: upgradeNotice.currentVersion }}
+        <ServerStatusToast messageKey={upgradeNoticeToastKey(upgradeNotice)}
+          messageValues={{ count: upgradeNotice.ptyCount, from: upgradeNotice.previousVersion, to: upgradeNotice.currentVersion, version: upgradeNotice.currentVersion }}
           onDismiss={() => setUpgradeNotice(null)}
           interruptedCount={interruptedAgentCount}
           onOpenInterrupted={() => window.dispatchEvent(new CustomEvent(OPEN_INTERRUPTED_AGENTS_EVENT))}

@@ -246,12 +246,13 @@ describe('the next start: upgrade notice from the record (T0821 detection extend
   const record = (ptys: { id: string; cwd?: string }[], sessions = [{ terminalId: 'a', name: 'ws · a', sessionId: S1 }]) =>
     buildInstallerQuitRecord({ version: '0.7.4-pre.5', source: 'running-app', ptys, claudeSessions: sessions })
 
-  it('detect: version changed and (orphans ≥ 1 or record ≥ 1); same version / no previous → never', () => {
+  it('detect: record ≥ 1 → always (T0846: same version too); else version changed and orphans ≥ 1; same version + orphans only / no previous → never', () => {
     expect(detectUpgradeInterruption({ previousVersion: '1', currentVersion: '2', orphanPtyCount: 0, installerQuitPtyCount: 1 })).toBe(true)
     expect(detectUpgradeInterruption({ previousVersion: '1', currentVersion: '2', orphanPtyCount: 1, installerQuitPtyCount: 0 })).toBe(true)
     expect(detectUpgradeInterruption({ previousVersion: '1', currentVersion: '2', orphanPtyCount: 0, installerQuitPtyCount: 0 })).toBe(false)
     expect(detectUpgradeInterruption({ previousVersion: '1', currentVersion: '2', orphanPtyCount: 0 })).toBe(false)
-    expect(detectUpgradeInterruption({ previousVersion: '2', currentVersion: '2', orphanPtyCount: 0, installerQuitPtyCount: 3 })).toBe(false)
+    expect(detectUpgradeInterruption({ previousVersion: '2', currentVersion: '2', orphanPtyCount: 0, installerQuitPtyCount: 3 })).toBe(true)
+    expect(detectUpgradeInterruption({ previousVersion: '2', currentVersion: '2', orphanPtyCount: 3, installerQuitPtyCount: 0 })).toBe(false)
     expect(detectUpgradeInterruption({ previousVersion: null, currentVersion: '2', orphanPtyCount: 0, installerQuitPtyCount: 3 })).toBe(false)
   })
 
@@ -281,14 +282,15 @@ describe('the next start: upgrade notice from the record (T0821 detection extend
     expect(lines.at(-1)).toContain('ended-ptys=3 agent-tabs=1 source=installer+orphans')
   })
 
-  it('same version (the install was cancelled after BAT quit) → nothing; an empty record → nothing', () => {
+  it('same version + record ≥ 1 (T0846: a same-version reinstall or an install cancelled after BAT quit) → notice; an empty record → nothing', () => {
     writeLastRunVersion(file, '0.7.4-pre.6')
     const same = check()
     same.begin()
     same.noteInstallerQuit(record([{ id: 'a' }]))
-    expect(same.finish([], count)).toBeNull()
-    expect(same.takeNotice()).toBeNull()
-    expect(lines).toEqual([])
+    expect(same.finish([], count)?.map(s => s.terminalId)).toEqual(['a'])
+    expect(same.takeNotice()).toMatchObject({ previousVersion: '0.7.4-pre.6', currentVersion: '0.7.4-pre.6', ptyCount: 1 })
+    expect(lines).toEqual(['[upgrade-interruption] detected: previous=0.7.4-pre.6 current=0.7.4-pre.6 ended-ptys=1 agent-tabs=1 source=installer same-version'])
+    lines = []
 
     writeLastRunVersion(file, '0.7.4-pre.5')
     const empty = check()

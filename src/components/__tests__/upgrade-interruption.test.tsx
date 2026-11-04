@@ -1,6 +1,6 @@
 /**
  * PLAN-063 / T0821: the Windows-only line of the update notification (子項 1), the upgrade notice
- * toast and the upgrade text of InterruptedAgentsDialog (子項 2), the renderer's notice parsing,
+ * toast and the upgrade text of InterruptedAgentsDialog (子項 2; T0846: the same-version reinstall text), the renderer's notice parsing,
  * the three locales, and App.tsx source guards.
  */
 import { readFileSync } from 'node:fs'
@@ -12,7 +12,7 @@ import en from '../../locales/en.json'
 import zhTW from '../../locales/zh-TW.json'
 import zhCN from '../../locales/zh-CN.json'
 import { showsWindowsUpgradeWarning, UpdateNotification } from '../UpdateNotification'
-import { SERVER_STATUS_TOAST_KEYS, ServerStatusToast, UPGRADE_INTERRUPTED_TOAST_KEY } from '../ServerStatusToast'
+import { SERVER_STATUS_TOAST_KEYS, ServerStatusToast, UPGRADE_INTERRUPTED_TOAST_KEY, UPGRADE_REINSTALLED_TOAST_KEY, upgradeNoticeToastKey } from '../ServerStatusToast'
 import { InterruptedAgentsDialog, type InterruptedAgentRow } from '../InterruptedAgentsDialog'
 import { allUpgradeInterrupted, parseUpgradeInterruptionNotice, type InterruptedAgentInfo } from '../../stores/interrupted-agents-store'
 
@@ -31,6 +31,12 @@ describe('locales', () => {
     for (const key of ['upgradeInterrupted_one', 'upgradeInterrupted_other']) {
       expect(locale.app[key]).toContain('{{from}}')
       expect(locale.app[key]).toContain('{{to}}')
+    }
+    // T0846: the same-version (reinstall) text
+    for (const key of ['upgradeReinstalled_one', 'upgradeReinstalled_other']) {
+      expect(locale.app[key]).toContain('{{count}}')
+      expect(locale.app[key]).toContain('{{version}}')
+      expect(locale.app[key]).not.toContain('{{from}}')
     }
     expect(locale.interruptedAgents.upgradeTitle).toBeTruthy()
     expect(locale.interruptedAgents.upgradeDesc).toBeTruthy()
@@ -141,6 +147,37 @@ describe('upgrade notice toast (子項 2)', () => {
     expect(onDismiss).toHaveBeenCalledTimes(2)
   })
 
+  it('T0846: which text — reinstall when the versions are equal, the upgrade text otherwise', () => {
+    expect(upgradeNoticeToastKey({ previousVersion: '0.7.4-pre.7', currentVersion: '0.7.4-pre.7' })).toBe(UPGRADE_REINSTALLED_TOAST_KEY)
+    expect(upgradeNoticeToastKey({ previousVersion: '0.7.4-pre.6', currentVersion: '0.7.4-pre.7' })).toBe(UPGRADE_INTERRUPTED_TOAST_KEY)
+  })
+
+  it('T0846: the same-version toast shows N and the one version, in every language; the agent line as the upgrade toast', async () => {
+    const values = { count: 1, from: '0.7.4-pre.7', to: '0.7.4-pre.7', version: '0.7.4-pre.7' }
+    for (const [lng, locale] of LOCALES) {
+      await i18n.changeLanguage(lng)
+      const { unmount } = render(<ServerStatusToast messageKey={UPGRADE_REINSTALLED_TOAST_KEY} messageValues={values} onDismiss={() => {}} interruptedCount={1} />)
+      const toast = document.querySelector('.server-status-toast')!
+      expect(toast).toHaveAttribute('data-message-key', UPGRADE_REINSTALLED_TOAST_KEY)
+      expect(toast.firstChild?.textContent).toBe(locale.app.upgradeReinstalled_one.replace('{{version}}', '0.7.4-pre.7').replace('{{count}}', '1'))
+      expect(toast.textContent).not.toContain('→')
+      expect(toast.textContent).not.toContain('{{')
+      expect(document.querySelector('.server-status-toast-interrupted')).toHaveAttribute('data-interrupted-count', '1')
+      unmount()
+    }
+  })
+
+  it('T0846: a version change keeps the upgrade text word for word', async () => {
+    for (const [lng, locale] of LOCALES) {
+      await i18n.changeLanguage(lng)
+      const notice = { previousVersion: '0.7.4-pre.6', currentVersion: '0.7.4-pre.7' }
+      const { unmount } = render(<ServerStatusToast messageKey={upgradeNoticeToastKey(notice)} messageValues={{ count: 3, from: notice.previousVersion, to: notice.currentVersion, version: notice.currentVersion }} onDismiss={() => {}} />)
+      expect(document.querySelector('.server-status-toast')!.textContent).toBe(
+        locale.app.upgradeInterrupted_other.replace('{{from}}', '0.7.4-pre.6').replace('{{to}}', '0.7.4-pre.7').replace('{{count}}', '3'))
+      unmount()
+    }
+  })
+
   it('the heartbeat toasts are unchanged (no interrupted line on recovering / failed)', () => {
     render(<ServerStatusToast messageKey={SERVER_STATUS_TOAST_KEYS.failed} onDismiss={() => {}} interruptedCount={3} />)
     expect(screen.getByText(i18n.t(SERVER_STATUS_TOAST_KEYS.failed))).toBeInTheDocument()
@@ -184,7 +221,9 @@ describe('App.tsx source guard', () => {
     expect(app).toContain('window.electronAPI.terminalServer.queryUpgradeInterruption?.().then((raw) => {')
     expect(app).toContain('const notice = parseUpgradeInterruptionNotice(raw)')
     expect(app).toContain('{!serverStatusToast && upgradeNotice && (')
-    expect(app).toContain('<ServerStatusToast messageKey={UPGRADE_INTERRUPTED_TOAST_KEY}')
+    // T0846: the key follows the notice (reinstall text when the versions are equal)
+    expect(app).toContain('<ServerStatusToast messageKey={upgradeNoticeToastKey(upgradeNotice)}')
+    expect(app).toContain('version: upgradeNotice.currentVersion')
   })
 
   it('does not log a session id or a command for the notice', () => {

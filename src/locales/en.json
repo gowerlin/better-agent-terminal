@@ -71,6 +71,8 @@
     "terminalServerRecoveredInterrupted_other": "{{count}} agent tabs were interrupted — click to review",
     "upgradeInterrupted_one": "BAT was upgraded (v{{from}} → v{{to}}). Installing the new version ended {{count}} terminal, including the command or agent running in it; the tab was reopened with a new shell.",
     "upgradeInterrupted_other": "BAT was upgraded (v{{from}} → v{{to}}). Installing the new version ended {{count}} terminals, including the commands and agents running in them; the tabs were reopened with new shells.",
+    "upgradeReinstalled_one": "The installer ended BAT (v{{version}}) and {{count}} terminal, including the command or agent running in it; the tab was reopened with a new shell.",
+    "upgradeReinstalled_other": "The installer ended BAT (v{{version}}) and {{count}} terminals, including the commands and agents running in them; the tabs were reopened with new shells.",
     "recoveryPromptTitle": "Previous terminal session detected",
     "recoveryPromptAlive_one": "Terminal Server is still running, with <strong>{{count}}</strong> terminal still alive.",
     "recoveryPromptAlive_other": "Terminal Server is still running, with <strong>{{count}}</strong> terminals still alive.",

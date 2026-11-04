@@ -1,7 +1,8 @@
 // @vitest-environment node
 /**
  * PLAN-063 子項 2 / T0821: the upgrade-interruption check (electron/upgrade-interruption.ts) — the
- * last-run version file, the trigger (version changed + orphan PTYs ≥ 1), the agent sources from the
+ * last-run version file, the trigger (version changed + orphan PTYs ≥ 1; T0846: an installer quit
+ * record ≥ 1 also on the same version), the agent sources from the
  * saved tabs / claude sessions, the once-only notice — the upgrade entries in InterruptedAgentsStore
  * (no session-start removal, no dialog on its own), and source guards on the main.ts wiring
  * (the orphan cleanup's order is unchanged).
@@ -56,8 +57,20 @@ describe('detectUpgradeInterruption', () => {
     expect(detectUpgradeInterruption({ previousVersion: '0.7.4-pre.4', currentVersion: '0.7.4-pre.5', orphanPtyCount: 0 })).toBe(false)
   })
 
+  it('T0846: same version + installer quit record ≥ 1 (a reinstall) → detected (mutation: keep the version condition first)', () => {
+    expect(detectUpgradeInterruption({ previousVersion: '0.7.4-pre.7', currentVersion: '0.7.4-pre.7', orphanPtyCount: 0, installerQuitPtyCount: 1 })).toBe(true)
+    expect(detectUpgradeInterruption({ previousVersion: '0.7.4-pre.7', currentVersion: '0.7.4-pre.7', orphanPtyCount: 2, installerQuitPtyCount: 1 })).toBe(true)
+  })
+
+  it('T0846: same version + orphans only, or a record with 0 PTYs → not detected (a crash)', () => {
+    expect(detectUpgradeInterruption({ previousVersion: '0.7.4-pre.7', currentVersion: '0.7.4-pre.7', orphanPtyCount: 3 })).toBe(false)
+    expect(detectUpgradeInterruption({ previousVersion: '0.7.4-pre.7', currentVersion: '0.7.4-pre.7', orphanPtyCount: 3, installerQuitPtyCount: 0 })).toBe(false)
+    expect(detectUpgradeInterruption({ previousVersion: '0.7.4-pre.7', currentVersion: '0.7.4-pre.7', orphanPtyCount: 0, installerQuitPtyCount: 0 })).toBe(false)
+  })
+
   it('no previous version (first run / unreadable file) → not detected', () => {
     expect(detectUpgradeInterruption({ previousVersion: null, currentVersion: '0.7.4-pre.5', orphanPtyCount: 3 })).toBe(false)
+    expect(detectUpgradeInterruption({ previousVersion: null, currentVersion: '0.7.4-pre.5', orphanPtyCount: 0, installerQuitPtyCount: 3 })).toBe(false)
   })
 })
 
@@ -178,6 +191,30 @@ describe('UpgradeInterruptionCheck', () => {
     writeLastRunVersion(file, '0.7.4-pre.5')
     const c = check()
     c.begin()
+    c.noteOrphanCleanup([{ id: 'a' }], [])
+    expect(c.finish([], count)).toBeNull()
+    expect(c.takeNotice()).toBeNull()
+    expect(lines).toEqual([])
+  })
+
+  it('T0846: same version + installer quit record → notice with equal versions, log marked same-version', () => {
+    writeLastRunVersion(file, '0.7.4-pre.7')
+    const c = check('0.7.4-pre.7')
+    c.begin()
+    c.noteInstallerQuit({ ptys: [{ id: 'a', cwd: '/a' }], claudeSessions: [{ terminalId: 'a', name: 'ws · a', sessionId: S1 }] })
+    c.noteOrphanCleanup([{ id: 'b' }], [])
+    const sources = c.finish([], list => list.filter(s => s.agentPreset).length)
+    expect(sources?.map(s => [s.terminalId, s.agentPreset, s.sessionId])).toEqual([['a', 'claude-cli', S1], ['b', undefined, null]])
+    expect(c.takeNotice()).toEqual({ previousVersion: '0.7.4-pre.7', currentVersion: '0.7.4-pre.7', ptyCount: 2, agentCount: 1 })
+    expect(lines).toEqual(['[upgrade-interruption] detected: previous=0.7.4-pre.7 current=0.7.4-pre.7 ended-ptys=2 agent-tabs=1 source=installer+orphans same-version'])
+    expect(lines.join('\n')).not.toContain(S1)
+  })
+
+  it('T0846: same version + an empty installer quit record + orphans (a crash) → nothing, no log', () => {
+    writeLastRunVersion(file, '0.7.4-pre.7')
+    const c = check('0.7.4-pre.7')
+    c.begin()
+    c.noteInstallerQuit({ ptys: [], claudeSessions: [] })
     c.noteOrphanCleanup([{ id: 'a' }], [])
     expect(c.finish([], count)).toBeNull()
     expect(c.takeNotice()).toBeNull()

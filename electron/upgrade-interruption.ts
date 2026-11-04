@@ -14,7 +14,10 @@
  * BAT to quit normally and it recorded N ≥ 1 ended PTYs (`installer-quit-record.json`, read once:
  * electron/installer-quit-request.ts); a normal quit leaves no orphan. N = both lists joined by id.
  * The same version (a crash), no ended PTY, or no previous version (first run, unreadable file) →
- * nothing, as before T0821. The check runs once per process.
+ * nothing, as before T0821 — except (T0846, D278) an installer quit record with N ≥ 1 PTYs, which
+ * triggers even when the version is the same (a reinstall of the same version; a crash leaves no
+ * record). The notice then has `previousVersion === currentVersion` and the renderer shows its
+ * reinstall text. The check runs once per process.
  *
  * What it adds: one notice for the renderer (`terminal-server:query-upgrade-interruption`, given to
  * the first window that asks, then null — shown once) and the agent tabs among the ended PTYs in the
@@ -83,16 +86,21 @@ function atLeastOne(count: number | undefined): boolean {
 }
 
 /**
- * The upgrade ended N terminals: version changed **and** (orphan cleanup N ≥ 1 **or** T0823 installer
- * quit record N ≥ 1) (see the file header).
+ * The upgrade ended N terminals (see the file header). No previous version → never. T0846: the
+ * installer quit record N ≥ 1 → always, the same version included (a reinstall); otherwise version
+ * changed **and** orphan cleanup N ≥ 1 (the same version with orphans only is a crash).
  */
 export function detectUpgradeInterruption(input: UpgradeInterruptionInput): boolean {
   if (input.previousVersion === null) return false
+  if (atLeastOne(input.installerQuitPtyCount)) return true
   if (input.previousVersion === input.currentVersion) return false
-  return atLeastOne(input.orphanPtyCount) || atLeastOne(input.installerQuitPtyCount)
+  return atLeastOne(input.orphanPtyCount)
 }
 
-/** What the renderer shows (`terminal-server:query-upgrade-interruption`). */
+/**
+ * What the renderer shows (`terminal-server:query-upgrade-interruption`). T0846:
+ * `previousVersion === currentVersion` = a reinstall of the same version (installer quit record).
+ */
 export interface UpgradeInterruptionNotice {
   previousVersion: string
   currentVersion: string
@@ -312,7 +320,8 @@ export class UpgradeInterruptionCheck {
     this.notice = { previousVersion: this.previousVersion!, currentVersion: this.opts.currentVersion, ptyCount, agentCount }
     this.claudeSessions = []
     this.installerQuit = null
-    this.opts.logger.log(`[upgrade-interruption] detected: previous=${this.previousVersion} current=${this.opts.currentVersion} ended-ptys=${ptyCount} agent-tabs=${agentCount} source=${source}`)
+    const sameVersion = this.previousVersion === this.opts.currentVersion ? ' same-version' : ''
+    this.opts.logger.log(`[upgrade-interruption] detected: previous=${this.previousVersion} current=${this.opts.currentVersion} ended-ptys=${ptyCount} agent-tabs=${agentCount} source=${source}${sameVersion}`)
     return sources
   }
 
