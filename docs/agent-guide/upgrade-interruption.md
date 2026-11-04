@@ -1,6 +1,7 @@
-# 升級前提示與升級後說明（PLAN-063 子項 1、2 / T0821；子項 3 / T0823）
+# 升級前提示與升級後說明（PLAN-063 子項 1、2 / T0821；子項 3 / T0823；holder 版 PLAN-065 W4 / T0860）
 
 > 對應 CLAUDE.md「升級結束終端的提示與說明（PLAN-063 / T0821）」節。改這個功能時兩邊一起更新。
+> holder 版（Terminal Server 從安裝目錄外的 PTY holder 執行，T0858 / T0859）的安裝前結束、解除安裝與紀錄 schema 2 見〈holder 版：升級保留 holder、解除安裝停 holder（T0860）〉。
 
 ## 背景（T0820 實測摘要）
 
@@ -86,7 +87,7 @@ N = 兩份清單依 terminal id 的聯集（紀錄在前）；claude session 以
 | 新版安裝程式，選「所有使用者」→ UAC 提權 | 提權的 inner instance 跑 install section，`${ifNot} ${UAC_IsInnerInstance}` 擋掉 | **沒有**（範本本來也不檢查；之後舊版解除安裝程式以舊版自己的範本強制結束） |
 | 新版安裝程式，本身已以系統管理員執行 | install section（非 inner instance） | 有，也送請求：請求行程以系統管理員身分啟動，但只把 argv 交給執行中的 BAT（或停保留的 server）就結束、不開視窗。T0823 原本加了「提權不送」，CI 實測（GitHub runner 關閉 UAC、一律 elevated）一個請求都沒送出，改為不分權限 |
 | 舊版解除安裝程式（覆蓋安裝時新版以 `/S --updated` 執行） | `un.checkAppRunning` | 用的是**舊版**編進去的版本：T0823 前的版本照舊強制結束；T0823 之後的版本有本單的巨集（`--updated` → 不跳提示），但此時 BAT 已被新版安裝程式請走，找不到程序 |
-| 使用者解除安裝（設定 → 應用程式） | `un.checkAppRunning`（靜默時於 `un.onInit`） | 有（同安裝程式） |
+| 使用者解除安裝（設定 → 應用程式） | `un.checkAppRunning`（靜默時於 `un.onInit`） | 有（同安裝程式）。T0860 起送 `--uninstall-quit-request`（見 holder 版一節） |
 
 - 覆寫方式：`build/installer.nsh` 經 `build.nsis.include` 放進 header（在範本 `allowOnlyOneInstallerInstance.nsh` 之前）。定義 `customCheckAppRunning` 後範本**不再** `!include "getProcessInfo.nsh"`、不宣告 `Var pid`，所以本檔自己補上；回退是原樣 `!insertmacro _CHECK_APP_RUNNING`（範本的巨集，不是複製）。`IS_POWERSHELL_AVAILABLE` / `FIND_PROCESS` 也是範本的巨集。
 - 升級 electron-builder 時：`electron/__tests__/installer-quit-request.test.ts` 的最後一個測試鎖住 `app-builder-lib` 版本（26.8.1）與上面這些掛勾的原文，版本一變就失敗，提醒依 [packaging-release-checks.md](packaging-release-checks.md)「NSIS：安裝前請 BAT 正常結束」重新核對。
@@ -125,9 +126,104 @@ N = 兩份清單依 terminal id 的聯集（紀錄在前）；claude session 以
 | BAT 以 `--runtime=N` 執行 | 強制結束 | 相同（請求只到預設 runtime 的 lock；逾時後回退） |
 | 重開後的說明 | 版本變＋孤兒 → toast | 版本變＋（孤兒或紀錄）→ 同一則 toast；文字相同 |
 
+## holder 版：升級保留 holder、解除安裝停 holder（T0860）
+
+PLAN-065 W4（D286 D3 / D7 / D2）。Terminal Server 從安裝目錄外、通過驗證的 PTY holder 執行時（T0858 打包與複製、T0859 啟動），安裝程式觸發的 quit 只結束 BAT 主行程，shell 與 PTY 留在 holder；接回（不跳 Recovery 提示）由 W5（T0861）做。
+
+### 兩條路（🔴 必守）
+
+| 條件 | 行為 |
+|---|---|
+| **有 holder**：目前的 server 是本行程從 holder 啟動的（`forkTerminalServer` 走 `spawn(holderSpawnSpec(...))`），或 hello 說它是 holder（probe / 重連 / Recovery「保留」的 hello，`isKeptHolderHello`：`runtime.name === 'node'` 且 `holderDir` 不在安裝目錄內、也不包含安裝目錄），**而且** quit 時再開一條 TCP hello 仍是 holder | 延長 idle 到 24 h（`server:extendIdle`）→ 結束分頁程序樹中、執行檔在安裝目錄下的程序（D3）→ 寫紀錄 schema 2 → quit，`before-quit` 不停 server |
+| **沒有 holder**：zip / `build:dir`（沒有 T0823 標記）、開發模式、holder 缺少或不符、macOS / Linux、hello 失敗或說不是 holder | 🔴 T0823 原行為逐字不變：同步執行、紀錄 schema 1、`shouldStopServer = true`、`stopTerminalServerGracefully`（Windows 不用 SIGTERM）、不跳確認 |
+| **真的解除安裝**（`--uninstall-quit-request`） | 有沒有 holder 都走 T0823 那條（停 server）；沒有 BAT 主行程時請求行程 `server:shutdown` 後等不到結束 → BAT 自己結束（`forceStopServer`：先 registry 的 PTY 程序樹（T0540 順序），再 `taskkill /F /T` pid 檔的 server，清 pid / port / token / registry） |
+
+- 唯一實作：`electron/installer-quit-request.ts` — `InstallerQuitController`（`serverFromHolder` 為假或沒有 holder deps → `runStopping`，與 T0823 的 `run` 相同）、`runKeepingHolder`、`runInstallerQuitWithoutApp`（`kind` / `keptHolder` / `endAgentProcesses` / `forceStopServer`）、`queryKeptHolder`、`findInstallDirAgentProcesses`、`endInstallDirAgentProcesses`、`buildHolderKeptQuitRecord`。main 只接線：`terminalServerFromHolder`（`forkTerminalServer` 設 true / false、`noteTerminalServerHello` 由 hello 設）、`installerQuitKeepsServer`、`installerQuitHolderDepsWithoutApp`、`forceStopTerminalServer`。
+- idle 延長（D7）：在一條新的 TCP 連線上 hello（帶權杖）→ 確認是 holder → 同一條連線送 `server:extendIdle { durationMs: 86400000 }`，收到 `server:idle-extended` = `extended`，`ALREADY_EXTENDED` = `already-extended`（不算失敗），2 s 內沒回 = `failed`（照樣保留）。🔴 不能在送完 extendIdle 之後再對 server hello（任何 client hello 都會把延長清掉，T0857）。
+
+### 內嵌 agent 的結束（D3）
+
+- 程序清單：PowerShell `Get-CimInstance Win32_Process`（固定腳本，`execFile` ＋陣列參數＋ 8 s timeout，UTF-8 輸出），每行 `pid / 父 pid / 建立時間 / 執行檔路徑`。
+- 根 = registry 每個分頁的 shell pid（`bat-pty-registry.json`）。從根往下找子孫；子程序建立時間早於父程序的不算（父 pid 被重用）。
+- 🔴 只以路徑判斷（`isPathInsideDir`：不分大小寫、`\` / `/`、`<安裝目錄>\` 前綴，`<安裝目錄>-old\…` 不算），不看名稱；根（shell）本身永遠不結束；樹外的程序（BAT 主行程、Claude 面板的 claude、holder 本身）不碰；樹裡不在安裝目錄的程序（claude 的 bash、使用者的指令）不碰。
+- 結束：`process.kill(pid)`（TerminateProcess），等最多 3 s 確認消失。讀不到清單 → 不結束任何程序、記一行，照樣保留 holder（安裝程式等滿 15 s 後回退到範本的處理）。
+- 紀錄只記分頁 id 與被結束的程序數，以及這些分頁的 claude session（`claudeSessionPersistence`；請求行程讀 `claude-sessions.json`）。
+
+### 紀錄 schema 2
+
+```json
+{
+  "schema": 2,
+  "version": "<結束的版本>",
+  "source": "running-app | server-only",
+  "holderKept": true,
+  "holderPid": 4242,
+  "endedPtys": [],
+  "endedAgentProcesses": [{ "terminalId": "<id>", "processes": 1 }],
+  "claudeSessions": [{ "terminalId": "<id>", "name": "<--name>", "sessionId": "<uuid>" }]
+}
+```
+
+- 只在保留 holder 時寫；沒有 holder 時照舊寫 schema 1（不改格式：降版到 T0860 前的版本時，舊版讀得懂）。`takeInstallerQuitRecord` 讀 schema 1 與 2，其他 → `invalid`（刪掉、不用）。
+- 下次啟動（`UpgradeInterruptionCheck.noteInstallerQuit`）：schema 2 的 `endedPtys` 當成紀錄的 PTY（通常 0），`endedAgentProcesses` 的分頁另外列進「被中斷的 agent 分頁」（`cause: 'upgrade'`，沿用 T0766 一鍵接回；不自動 resume、不通知塔台）。偵測多一個條件 `installerQuitAgentTabCount ≥ 1`（只有 schema 2 會給）。notice 多 `holderKept: true`；`ptyCount` 是 0 時 renderer 不顯示「結束了 N 個終端」的 toast（W5 會加「已接回」的文字）。holder 在重開前就不在了（孤兒清理）→ 孤兒照 T0821 規則併入。schema 1 的行為完全不變。
+
+### NSIS（`build/installer.nsh`）
+
+- `batRequestGracefulQuit` 的參數：安裝程式一律 `--installer-quit-request`；解除安裝程式（`!ifdef BUILD_UNINSTALLER`）`${isUpdated}` 為假且安裝目錄有 `resources\uninstall-quit-request.supported` → `--uninstall-quit-request`，否則 `--installer-quit-request`。其餘（提示、等待、回退到 `_CHECK_APP_RUNNING`）不變。
+- `customInstall`：T0823 標記之後、複製 holder 之前，再寫 `resources\uninstall-quit-request.supported`（`BAT_UNINSTALL_QUIT_MARKER`）。
+- `customUnInstall`（範本在刪檔之前插入）：🔴 `${isUpdated}`（升級時舊版的解除安裝）→ 什麼都不做。否則 `batUninstallPtyHolder`：依 `$installMode` 取本次範圍的 holder 根目錄（per-user `$LOCALAPPDATA\BAT-PtyHolder`、per-machine `$PROGRAMFILES64\BAT-PtyHolder`；與 `$INSTDIR` 互為前綴 → 不碰）；根目錄存在才 `Exec <安裝目錄>\BetterAgentTerminal.exe --uninstall-quit-request`，每 500 ms 以 `batPtyHolderInUse` 檢查根目錄與安裝目錄，最多 `BAT_UNINSTALL_QUIT_TIMEOUT_MS` = 20 s；最後根目錄沒有程序在跑才 `RMDir /r`，否則保留並 `DetailPrint`。🔴 NSIS 不強制結束任何程序（T0823 source guard：檔內沒有 `Stop-Process` / `taskkill` / `KILL_PROCESS`）；逾時的強制結束由 BAT 的請求行程做。
+
+### 各情況的動作順序
+
+N = 第一個有 holder 的版本，N+1 = 下一版。
+
+**N → N+1 升級（per-user，BAT 在跑）**
+
+1. N+1 安裝程式 install section：`customCheckAppRunning`（安裝程式版）→ `FIND_PROCESS` 找到 `$INSTDIR` 下的程序 → 提示（`/S` 自動確定）→ `Exec <N 的 exe> --installer-quit-request`。
+2. N 的 BAT（`second-instance` → `InstallerQuitController`）：`serverFromHolder` 真 → hello ＋ extendIdle 24 h → 結束分頁樹中 `$INSTDIR` 下的程序（內嵌 claude / codex、經 BAT exe 跑的 MCP shim）→ 寫 schema 2 → quit（flush-save、存 profile、**不**停 server）。
+3. 安裝程式的等待迴圈看到 `$INSTDIR` 下沒有程序 → 範本 `_CHECK_APP_RUNNING` 什麼都不做。
+4. `uninstallOldVersion`：以 `/S --updated` 執行 **N 的**解除安裝程式 → `un.checkAppRunning`（`${isUpdated}`，找不到程序）→ `customUnInstall`：`${isUpdated}` → 不做 → 範本刪 `$INSTDIR`。
+5. 新檔案放好 → `customInstall`：寫兩個標記、複製 N+1 的 holder（key 相同就略過；其他 key 目錄沒有程序在跑才刪，N 的 holder 在跑 → 保留）。
+6. N+1 第一次啟動：`takeInstallerQuitRecord`（schema 2）→ `startTerminalServer` probe 到 N 的 holder（有 PTY）→ 今天的 Recovery 提示（W5 改成直接接回）→ 被結束 agent 的分頁列進清單。
+
+沒有 BAT 主行程、只剩保留的 holder：步驟 1 只有在 `$INSTDIR` 下有程序（例如 holder 分頁裡的內嵌 claude）時才送請求；請求行程拿到 lock → `runInstallerQuitWithoutApp`（holder → 結束那些程序、寫 schema 2 `server-only`、不停 holder）。沒有任何程序在 `$INSTDIR` 下時不送請求，holder 本來就不會被範本比到。
+
+**真的解除安裝（N，per-user）**
+
+1. `un.onInit` / uninstall section：`un.checkAppRunning` → `customCheckAppRunning`（解除安裝程式版，`${isUpdated}` 假）→ 有 `$INSTDIR` 下的程序 → 提示 → `Exec <exe> --uninstall-quit-request` → BAT `request('uninstall')` → T0823 那條：寫 schema 1、停 server（holder 也停）。
+2. `customUnInstall` → `batUninstallPtyHolder`：根目錄存在 → 再 `Exec --uninstall-quit-request`（這次通常沒有 BAT：請求行程停掉還在跑的 holder，`server:shutdown` 8 s 內沒結束 → `forceStopServer`）→ 等根目錄與 `$INSTDIR` 沒有程序（≤ 20 s）→ 根目錄沒有程序在跑 → `RMDir /r` 根目錄。
+3. 範本刪 `$INSTDIR`（兩個標記檔一起刪）。userData（紀錄、設定）照範本規則保留。
+
+**降級（N+1 → N，或 N → 沒有 holder 的版本）**
+
+- 舊版安裝程式（install section）用**舊版**的 `customCheckAppRunning`：送 `--installer-quit-request`（裝著的 N+1 有 T0823 標記）。N+1 的 BAT 有 holder → 保留 holder（與升級相同）。
+- 接著舊版安裝程式執行**較新的** N+1 解除安裝程式（`/S --updated`）→ `${isUpdated}` → `customUnInstall` 不做，holder 留著。
+- 舊版第一次啟動：有 holder 支援且協定相容 → 接回（W5）；**沒有 holder 支援的舊版**（T0857 前）→ 未認證被關閉 → T0704 recovery → 終端結束（與 T0856 Q4「降級」列相同）。比 N 更舊、沒有 T0823 標記處理的版本不受影響（它不讀紀錄 schema 2：`invalid`，丟掉）。🔸 〈待 W6 驗收〉
+
+### 日誌（只記數量與結果，不記路徑、session id、權杖）
+
+| 位置 | 內容 |
+|---|---|
+| 執行中的 BAT，保留 holder | `[installer-quit] ended <n> agent process(es) under the install directory in <m> tab(s)`、`[installer-quit] request received: Terminal Server runs from the PTY holder (idle <extended\|already-extended\|failed>) — keeping it with <k> terminal(s); recorded <m> tab(s) with ended agent processes, <s> claude session(s) — quitting without confirmation`、`[installer-quit] quit without confirmation (stopTerminalServer=false, PTY holder kept)` |
+| 執行中的 BAT，記憶裡是 holder 但 hello 說不是 | `[installer-quit] the Terminal Server is not a kept PTY holder (<no-port\|hello-failed\|not-a-holder>) — stopping it as before`，之後是 T0823 的行 |
+| 執行中的 BAT，解除安裝 | `[installer-quit] uninstall request — the Terminal Server stops too`，之後是 T0823 的行 |
+| 請求行程，保留 holder | `[installer-quit] no running BAT; Terminal Server runs from the PTY holder (idle …) — keeping it with <k> terminal(s); recorded <m> tab(s) with ended agent processes` |
+| 請求行程，解除安裝逾時 | `[installer-quit] Terminal Server still running after 8000 ms — ended (uninstall)` 或 `… and could not be ended — left to the uninstaller` |
+| 讀不到程序清單 | `[installer-quit] process list unavailable — no agent process ended` |
+| 下次啟動 | `[installer-quit] record found: version=… source=… holder-kept ended-ptys=<n> agent-tabs=<m> claude-sessions=<s>`；`[upgrade-interruption] detected: … holder-kept ended-agent-tabs=<m>` |
+
+### 已知限制（holder 版）
+
+- 只刪**本次安裝範圍**的 holder 根目錄；改過安裝範圍（per-user ↔ per-machine）留下的另一個根目錄不刪（T0858 的範圍規則）。
+- 解除安裝的請求只到預設 runtime 的 userData；`--runtime=N` 的 holder、以另一個帳號提權的解除安裝 → holder 沒被請走 → 根目錄有程序在跑 → 保留（DetailPrint）。
+- per-machine 互動升級時 UAC inner instance 不跑 `CHECK_APP_RUNNING`（T0820）：主行程被舊版解除安裝程式以路徑強制結束、沒有紀錄；holder 不在 `$INSTDIR` 內 → 仍存活，下次啟動走 Recovery 提示。
+- 內嵌 agent 結束後，該分頁的 shell 還在（原本的指令列）；恢復沿用清單，不自動 resume。
+- 程序清單到結束之間的時間差（TOCTOU）：期間新起的程序不會被結束（安裝程式等滿 15 s 後回退）；pid 在這之間被重用的機率極低，且只結束路徑在安裝目錄下的程序。
+- idle 延長只有一次（server 規則）：送完之後任何 client 的 hello 都會清掉延長（例如使用者在升級前又開了 BAT）。
+
 ## 已知限制
 
-- **子項 4（holder 模型：讓 ConPTY 持有者撐過升級）未做**，見 PLAN-063。升級仍會結束所有終端；子項 3 只讓結束變成正常結束。
+- **子項 4（holder 模型）**：PLAN-065 W1–W4（T0857–T0860）已做到「升級保留 holder」，接回（不跳 Recovery 提示、toast「已接回」）由 W5（T0861）做；真實升級驗收在 W6。沒有 holder（zip、開發模式、macOS / Linux、holder 缺少或不符）時升級仍會結束所有終端；子項 3 只讓結束變成正常結束。
 - macOS / Linux 的升級行為未研究：偵測邏輯在所有平台都會跑（有紀錄，或版本變＋有孤兒才觸發），但升級前的提示與 NSIS 請求只在 Windows。
 - 只看「版本變＋（孤兒或紀錄）」：版本變了、上一次結束時剛好有 Terminal Server 被當機 / 手動結束（不是安裝程式）也會被說成升級。反過來，升級前已先「結束並停止 Terminal Server」的使用者沒有孤兒也沒有紀錄，不顯示（也沒有東西被結束）。
 - 第一次升到含 T0823 的版本時（裝著的是 T0823 前的版本）不送請求，照舊強制結束、重開走孤兒清理；之後的升級才是正常結束。
@@ -145,4 +241,7 @@ N = 兩份清單依 terminal id 的聯集（紀錄在前）；claude session 以
 - T0823 單元：`electron/__tests__/installer-quit-request.test.ts`（參數辨識、紀錄驗證與只讀一次、`InstallerQuitController` 啟動中保留 / 只處理一次 / 已在 quit 時不處理 / 失敗仍結束、沒有 BAT 主行程時停 server、新版偵測合併規則、main.ts / installer.nsh / package.json source guard、electron-builder 範本掛勾與版本）。突變 11 種（拿掉紀錄條件、啟動中直接執行、請求時不停 server、忽略紀錄、紀錄不刪、忽略進行中的 quit、nsh 不送請求、whenReady 不擋請求行程（兩種寫法）、nsh 不看標記、`customInstall` 不寫標記）→ 對應測試失敗。
 - T0823 e2e：`e2e/t0823-installer-graceful-quit.spec.ts`（Windows、隔離 runtime、需先 `npx vite build`）：兩個 shell 分頁 → 第二個實例帶 `--installer-quit-request` → BAT 在 15 s 內結束（不跳對話框）、`[quit] terminal server stopped (via IPC server:shutdown)`、pid / port / registry 檔已清、shell 已結束、紀錄列 2 個終端 → 改寫上次版本後重開：toast N=2、`detected … source=installer`、紀錄已刪、沒有孤兒清理；對照（不改版本）：不顯示、紀錄已刪；server-only：保留 server 離開後送請求 → 請求行程停掉 server、紀錄 `server-only`。
 - T0825（BUG-210）：單元 `electron/__tests__/second-instance-startup.test.ts`（whenReady 只有一個、判斷是 callback 第一個敘述且在所有啟動步驟之前、只記交接行並 return、T0823 `installerQuitWithoutApp` 不變）；突變 4 種（判斷只剩請求行程 / 只剩 lock、拿掉 return、log 帶 argv）→ 測試失敗。e2e `e2e/t0825-second-instance-startup.spec.ts`（隔離 runtime、需先 `npx vite build`）：一個 shell 分頁 → 第二個實例（不帶參數 / `--profile=<執行中視窗的 profile>`）約 0.35 s 結束、自己的日誌只有交接行（沒有 `app.whenReady fired`、tray、`[terminal-server]`）、沒有新的 Terminal Server 程序、pid / port 檔不變、執行中 BAT 的 shell 與 server 照跑；執行中的 BAT 照舊開新視窗 / 把該 profile 的視窗帶到前面。對照（拿掉修正）：第二個實例約 2.45 s 才結束，日誌有 `app.whenReady fired`、`system tray created`、`[helper-cap] restored …`、`[terminal-server] 1 live PTYs detected — deferring to user recovery decision`。
+- T0860 單元：`electron/__tests__/installer-quit-holder.test.ts`（`--uninstall-quit-request` 辨識、hello 判斷 holder 與路徑規則、內嵌 agent 判斷（只比路徑、不含 shell、不含樹外、pid 重用）、程序清單解析、結束與日誌只記數量、schema 2 讀寫與 schema 1 不變、controller 兩條路（沒有 holder 時同步、逐字 T0823）與解除安裝、請求行程保留 holder / 解除安裝強制結束、真 TCP 的 `queryKeptHolder`（hello＋extendIdle 24 h、ALREADY_EXTENDED、不是 holder 不送 extendIdle）、下次啟動的 schema 2 偵測、main.ts / installer.nsh / 範本 source guard）。既有的 `installer-quit-request.test.ts`、`second-instance-startup.test.ts`、`upgrade-interruption.test.ts` 不改。
+- T0860 e2e：`e2e/t0860-installer-quit-holder.spec.ts`（Windows、需要打包版 `BAT_E2E_EXECUTABLE`；holder 複製到暫存的 `LOCALAPPDATA`，同 T0859）：① BAT 在跑、cmd 分頁裡跑一個執行檔在安裝目錄下的替身（打包版 exe 以 node 模式執行）→ 升級請求 → BAT 0.7 s 內結束、holder 與 shell 還在、替身已結束、安裝目錄下沒有任何程序、紀錄 schema 2 `running-app`；② 沒有 BAT、經 TCP 在同一分頁再起替身 → 升級請求 → 請求行程結束替身、保留 holder、紀錄 `server-only`；③ 解除安裝請求 → holder 停止、pid / port / token 檔清掉、shell 結束。沒有 holder 的路徑：`e2e/t0823-installer-graceful-quit.spec.ts` 以原始碼版與打包版（`build:dir` 沒有 holder 根目錄與標記）各跑一次。T0860 同時把該 spec 的 control 情境改成 T0846 的同版規則（之前一直期待「不顯示」）。
+- 〈待 W6 驗收〉安裝程式實際執行：N → N+1 升級時 holder 不被結束（含 N 的解除安裝程式 `--updated` 不碰 holder）、真的解除安裝刪掉根目錄（per-user / per-machine）、根目錄有程序在跑時保留、降級。
 - 真實升級（pre.N → pre.N+1 兩版都含本功能）要等下次發版：以 T0820 的探測 spec（本機分支 `ct/T0820`）改寫，情境 ①② 重開後檢查 `[upgrade-interruption] detected` 行與 toast，並確認情境「先結束並停止 Terminal Server 再升級」不顯示。

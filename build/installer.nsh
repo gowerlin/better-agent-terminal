@@ -20,6 +20,17 @@
 ;     check runs as before: interactive installs show its prompt a second time, then force-end.
 ;   - UAC inner instance of a per-machine install (the template does not call this there), BAT installed
 ;     before T0823 (no marker), or BAT not running: exactly the template's behaviour.
+;
+; PLAN-065 W4 / T0860 (PTY holder, D286). The same customCheckAppRunning also runs in the uninstaller
+; (un.checkAppRunning). Version N's uninstaller runs when N+1 upgrades over it (installUtil.nsh, with
+; --updated), and N+1's installer asks the installed N's exe to quit: both are fixed once N is released.
+;   - installer, or uninstaller with ${isUpdated} (an upgrade): --installer-quit-request. A BAT whose Terminal
+;     Server runs from a valid PTY holder (outside $INSTDIR) keeps it; without a holder: T0823 as above.
+;   - uninstaller without ${isUpdated} (a real uninstall): --uninstall-quit-request (when the installed app has
+;     its marker): BAT quits and stops the server, holder or not.
+;   - customUnInstall: a real uninstall only — asks the holder to end (--uninstall-quit-request, also when no
+;     BAT runs), waits, then removes this install scope's holder root when nothing runs from it. An upgrade's
+;     uninstall (${isUpdated}) leaves the holder and its directories alone.
 
 !include "getProcessInfo.nsh"
 Var pid
@@ -34,8 +45,24 @@ Var pid
 ; How long the installer waits for every process under $INSTDIR to end after the request.
 !define BAT_INSTALLER_QUIT_TIMEOUT_MS 15000
 !define BAT_INSTALLER_QUIT_POLL_MS 500
+; T0860: same string as UNINSTALL_QUIT_REQUEST_ARG in electron/installer-quit-request.ts (a real uninstall).
+!define BAT_UNINSTALL_QUIT_ARG "--uninstall-quit-request"
+; Written by customInstall like the T0823 marker: "the BAT installed here understands --uninstall-quit-request".
+; Without it the argument is never sent (an older BAT would take it as "open a new window").
+!define BAT_UNINSTALL_QUIT_MARKER "resources\uninstall-quit-request.supported"
+; How long a real uninstall waits for the holder (and the request process) to end before checking its root.
+!define BAT_UNINSTALL_QUIT_TIMEOUT_MS 20000
 
 !macro batRequestGracefulQuit
+  ; T0860: the argument — the installer's, except in a real uninstall (uninstaller build, not ${isUpdated})
+  Push $R8
+  StrCpy $R8 "${BAT_INSTALLER_QUIT_ARG}"
+  !ifdef BUILD_UNINSTALLER
+    ${IfNot} ${isUpdated}
+    ${AndIf} ${FileExists} "$INSTDIR\${BAT_UNINSTALL_QUIT_MARKER}"
+      StrCpy $R8 "${BAT_UNINSTALL_QUIT_ARG}"
+    ${EndIf}
+  !endif
   ${GetProcessInfo} 0 $pid $1 $2 $3 $4
   ; not when this process is the app itself (the template's guard). An elevated installer may send it too:
   ; the request process only hands its argv to the running BAT (or stops a kept Terminal Server) and exits,
@@ -54,7 +81,7 @@ Var pid
       batGracefulQuitConfirmed:
       DetailPrint "$(appClosing)"
       ClearErrors
-      Exec `"$INSTDIR\${APP_EXECUTABLE_FILENAME}" ${BAT_INSTALLER_QUIT_ARG}`
+      Exec `"$INSTDIR\${APP_EXECUTABLE_FILENAME}" $R8`
       ${IfNot} ${Errors}
         System::Call "kernel32::GetTickCount() i .R6"
         batGracefulQuitWait:
@@ -71,6 +98,7 @@ Var pid
       ${EndIf}
     ${EndIf}
   ${EndIf}
+  Pop $R8
 !macroend
 
 ; PLAN-065 W2 / T0858: copy the Windows PTY holder out of the install directory (D286 D2 / D9).
@@ -279,8 +307,96 @@ Var pid
     FileClose $0
   ${EndIf}
   Pop $0
+  ; T0860: the marker of --uninstall-quit-request, after the T0823 one (which stays exactly as it was)
+  Push $0
+  ClearErrors
+  FileOpen $0 "$INSTDIR\${BAT_UNINSTALL_QUIT_MARKER}" w
+  ${IfNot} ${Errors}
+    FileWrite $0 "T0860: BetterAgentTerminal.exe accepts ${BAT_UNINSTALL_QUIT_ARG}$\r$\n"
+    FileClose $0
+  ${EndIf}
+  Pop $0
   ; T0858: after the T0823 marker, which stays exactly as it was
   !insertmacro batInstallPtyHolder
+!macroend
+
+; PLAN-065 W4 / T0860: a real uninstall ends the PTY holder and removes this install scope's holder root.
+; Root by $installMode, same rule and prefix check as batInstallPtyHolder; the other scope's root is never
+; touched. The holder is asked to end through BAT (--uninstall-quit-request: server:shutdown with its token,
+; and if it does not end, BAT ends its PTY trees and the server process itself). The root is then removed only
+; when no process runs from it (batPtyHolderInUse); in use or cannot be checked → kept, with a DetailPrint.
+!macro batUninstallPtyHolder
+  Push $R0
+  Push $R1
+  Push $R2
+  Push $R3
+  Push $R4
+  ${If} $installMode == "all"
+    StrCpy $R1 "$PROGRAMFILES64\${BAT_PTY_HOLDER_ROOT_NAME}"
+  ${Else}
+    StrCpy $R1 "$LOCALAPPDATA\${BAT_PTY_HOLDER_ROOT_NAME}"
+  ${EndIf}
+  ; root vs $INSTDIR, string prefixes both ways, ignoring case (== is case-insensitive)
+  StrLen $R2 $INSTDIR
+  StrCpy $R3 $R1 $R2
+  StrLen $R2 $R1
+  StrCpy $R4 $INSTDIR $R2
+  ${If} $R3 == $INSTDIR
+  ${OrIf} $R4 == $R1
+    DetailPrint "PTY holder: $R1 overlaps the install directory; left as is"
+    Goto batUninstallPtyHolderDone
+  ${EndIf}
+  ${IfNot} ${FileExists} "$R1\*.*"
+    Goto batUninstallPtyHolderDone
+  ${EndIf}
+
+  ${If} ${FileExists} "$INSTDIR\${APP_EXECUTABLE_FILENAME}"
+  ${AndIf} ${FileExists} "$INSTDIR\${BAT_UNINSTALL_QUIT_MARKER}"
+    ClearErrors
+    Exec `"$INSTDIR\${APP_EXECUTABLE_FILENAME}" ${BAT_UNINSTALL_QUIT_ARG}`
+    ${IfNot} ${Errors}
+      System::Call "kernel32::GetTickCount() i .R2"
+      batUninstallPtyHolderWait:
+        Sleep ${BAT_INSTALLER_QUIT_POLL_MS}
+        ; the holder's root first, then the request process itself (it runs from $INSTDIR)
+        !insertmacro batPtyHolderInUse "$R1" $R0
+        ${If} $R0 == ${BAT_PTY_HOLDER_UNUSED}
+          !insertmacro batPtyHolderInUse "$INSTDIR" $R0
+        ${EndIf}
+        ${If} $R0 != ${BAT_PTY_HOLDER_UNUSED}
+          System::Call "kernel32::GetTickCount() i .R3"
+          IntOp $R3 $R3 - $R2
+          ${If} $R3 < ${BAT_UNINSTALL_QUIT_TIMEOUT_MS}
+            Goto batUninstallPtyHolderWait
+          ${EndIf}
+          DetailPrint "PTY holder: still in use after ${BAT_UNINSTALL_QUIT_TIMEOUT_MS} ms"
+        ${EndIf}
+    ${EndIf}
+  ${EndIf}
+
+  !insertmacro batPtyHolderInUse "$R1" $R0
+  ${If} $R0 == ${BAT_PTY_HOLDER_UNUSED}
+    RMDir /r "$R1"
+    DetailPrint "PTY holder: removed $R1"
+  ${Else}
+    DetailPrint "PTY holder: kept $R1 (in use or cannot be checked: $R0)"
+  ${EndIf}
+
+  batUninstallPtyHolderDone:
+  Pop $R4
+  Pop $R3
+  Pop $R2
+  Pop $R1
+  Pop $R0
+!macroend
+
+; uninstaller.nsh inserts customUnInstall in the uninstall section before the installed files are removed,
+; so $INSTDIR\BetterAgentTerminal.exe still exists. 🔴 ${isUpdated} (an upgrade runs the old uninstaller with
+; --updated) → nothing: the holder keeps the terminals across the upgrade.
+!macro customUnInstall
+  ${IfNot} ${isUpdated}
+    !insertmacro batUninstallPtyHolder
+  ${EndIf}
 !macroend
 
 !macro customCheckAppRunning

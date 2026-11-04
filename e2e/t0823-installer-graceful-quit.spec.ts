@@ -9,9 +9,14 @@
 //            ended, `installer-quit-record.json` lists the two terminals → `last-run-version.json`
 //            rewritten to an older version → relaunch: the T0821 toast names 2 terminals, the log line
 //            has `source=installer`, the record is gone (used once)
-//   control: the same without touching the version → no toast, no `detected`, the record is gone too
+//   control: the same without touching the version → T0846 (D278): the reinstall toast (same-version text,
+//            not the upgrade one), `detected … same-version`, the record is gone too
 //   server-only: BAT quit keeping its Terminal Server → request (the request process holds the lock) →
 //            no window, the server stops (files gone), the record says `server-only`
+//
+// T0860: this is the path WITHOUT a PTY holder — run it on the source build and on a packaged build
+// (BAT_E2E_EXECUTABLE; `build:dir` has no holder root and no T0823 marker, so no holder is used). The holder
+// path is e2e/t0860-installer-quit-holder.spec.ts.
 //
 // Teardown ends only what this test started and removes the runtime userData.
 
@@ -228,9 +233,12 @@ async function scenario(kind: 'upgrade' | 'control' | 'server-only'): Promise<vo
       expect(readDebugLogs(userData2)).toContain(`[upgrade-interruption] detected: previous=${OLD_VERSION} current=${version} ended-ptys=2 agent-tabs=0 source=installer`)
       await win2.screenshot({ path: test.info().outputPath('upgrade-toast.png') })
     } else {
-      await win2.waitForTimeout(6_000)
+      // T0846 (D278): the same version with an installer record ≥ 1 is a reinstall (or a cancelled install) —
+      // shown with the same-version text, never the "upgraded" one (T0860 found this expectation stale)
+      const reinstalled = win2.locator('.server-status-toast[data-message-key="app.upgradeReinstalled"]')
+      await expect(reinstalled).toBeVisible({ timeout: 30_000 })
       await expect(toast).toHaveCount(0)
-      expect(readDebugLogs(userData2)).not.toContain('[upgrade-interruption] detected')
+      expect(readDebugLogs(userData2)).toContain(`[upgrade-interruption] detected: previous=${version} current=${version} ended-ptys=2 agent-tabs=0 source=installer same-version`)
     }
   } finally {
     if (inst) await closeIsolated(inst, log)
@@ -259,7 +267,7 @@ test('upgrade: the request quits BAT normally (server shutdown, no dialog) and t
   await scenario('upgrade')
 })
 
-test('control: same version → no notice, the record is still used once', async () => {
+test('control: same version → the reinstall notice (T0846), the record is still used once', async () => {
   test.setTimeout(240_000)
   await scenario('control')
 })

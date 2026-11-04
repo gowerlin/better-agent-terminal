@@ -6,7 +6,7 @@ import path from 'path'
 import { pathToFileURL } from 'url'
 import * as fs from 'fs/promises'
 import * as fsSync from 'fs'
-import { spawnSync, fork, spawn } from 'child_process'
+import { spawnSync, fork, spawn, execFile as execFileCb } from 'child_process'
 import { installChildProcessFdGuard, runWithoutCrashpadClient } from './child-process-fd-guard'
 import { defaultAppImageKeepaliveDeps, findAppImageKeepaliveFd, planTerminalServerFork } from './appimage-keepalive'
 import { holderSpawnSpec, ptyHolderLogLine, resolvePtyHolder, terminalServerForkOptions } from './pty-holder'
@@ -21,7 +21,7 @@ import { createClaudeNameSupportCheck } from './claude-version-check'
 import { CLAUDE_SESSION_STORE_FILE, ClaudeSessionPersistence, claudeSessionNameRecords, readClaudeSessionStore } from './claude-session-name-record'
 import { InterruptedAgentsStore, buildInterruptedAgentSnapshot, resumeInterruptedDispatchAgent } from './interrupted-agents'
 import { LAST_RUN_VERSION_FILE, UpgradeInterruptionCheck } from './upgrade-interruption'
-import { INSTALLER_QUIT_RECORD_FILE, InstallerQuitController, isInstallerQuitRequest, runInstallerQuitWithoutApp, takeInstallerQuitRecord, writeInstallerQuitRecord } from './installer-quit-request'
+import { INSTALLER_QUIT_RECORD_FILE, InstallerQuitController, defaultEndAgentProcessesDeps, endInstallDirAgentProcesses, isInstallerQuitRequest, isKeptHolderHello, isUninstallQuitRequest, ptyRootsOf, queryKeptHolder, runInstallerQuitWithoutApp, takeInstallerQuitRecord, writeInstallerQuitRecord, type InstallerQuitHolderRecord, type PtyRoot } from './installer-quit-request'
 import { detectShellFamily } from '../src/utils/shell-quote'
 import { checkDispatchCwd, findWorkspaceAgentSettings, resolveDispatchWorkspaceFromEntries, type DispatchWorkspaceRequest, type DispatchWorkspaceResolution } from './dispatch-workspace'
 import { createTerminalWindowEmit, registerTerminalHandlers } from './handlers/terminal'
@@ -113,7 +113,7 @@ import { createGpuStatusLog, decideSkiaGraphite, formatSkiaGraphiteDecision, GPU
 import { takeLinuxSandboxStart } from './linux-sandbox-fallback'
 import { describeMigrationReport } from './userdata-migration'
 import { isServerRunning, readPidFile, readPortFile, readTokenFile, removePidFile, removePortFile, removeTokenFile } from './terminal-server/pid-manager'
-import { createLineParser, openHelloConnection, shutdownLines, type HelloFailure, type ServerResponse } from './terminal-server/protocol'
+import { createLineParser, openHelloConnection, shutdownLines, type HelloFailure, type HelloOk, type ServerResponse } from './terminal-server/protocol'
 import { readRegistry, clearRegistry } from './terminal-server/pty-registry'
 import { agentRegistry } from './agent-runtime/agent-registry'
 import { getWindowsElevation } from './windows-elevation'
@@ -251,7 +251,7 @@ if (!gotTheLock) {
  * that server's PTYs, asks it to shut down (TCP `server:shutdown`), and exits; it never opens a window
  * (whenReady returns at once, see `installerQuitWithoutApp`). electron/installer-quit-request.ts.
  */
-const installerQuitRequestProcess = isInstallerQuitRequest(process.argv)
+const installerQuitRequestProcess = isInstallerQuitRequest(process.argv) || isUninstallQuitRequest(process.argv)
 // T0823 measured: a second instance's app.quit() (above) still lets whenReady run; once the running BAT has
 // quit (released the lock and stopped its Terminal Server) that startup would take the record and fork a new
 // server. So every request process returns from whenReady, with or without the lock.
@@ -276,7 +276,56 @@ if (installerQuitWithoutApp) {
     },
     waitForServerExit: timeoutMs => waitForTerminalServerExit(userDataPath, timeoutMs),
     logger,
+    // T0860: upgrade → keep a PTY holder (24 h idle, end the tabs' agents under the install dir); uninstall → stop it
+    ...installerQuitHolderDepsWithoutApp(userDataPath),
   }).finally(() => app.exit(0))
+}
+
+/**
+ * PLAN-065 W4 / T0860: the request process's holder steps (electron/installer-quit-request.ts). Windows only
+ * (the holder exists only there); `--uninstall-quit-request` = a real uninstall → stop, force if needed.
+ */
+function installerQuitHolderDepsWithoutApp(userDataPath: string) {
+  const kind = isUninstallQuitRequest(process.argv) ? 'uninstall' as const : 'upgrade' as const
+  if (process.platform !== 'win32') return { kind }
+  const installDir = path.dirname(process.execPath)
+  return {
+    kind,
+    writeHolderRecord: (record: InstallerQuitHolderRecord) => writeInstallerQuitRecord(path.join(userDataPath, INSTALLER_QUIT_RECORD_FILE), record),
+    keptHolder: async () => {
+      const found = await queryKeptHolder({ port: readPortFile(userDataPath), token: readTokenFile(userDataPath), installDir })
+      return found.holder ? { pid: found.pid, extension: found.extension } : null
+    },
+    endAgentProcesses: (roots: readonly PtyRoot[]) => endInstallDirAgentProcesses(roots, installDir, defaultEndAgentProcessesDeps(logger)),
+    forceStopServer: () => forceStopTerminalServer(userDataPath),
+  }
+}
+
+/**
+ * T0860, a real uninstall whose Terminal Server did not stop on `server:shutdown`: its PTY trees first (T0540
+ * order, `killOrphanPtyProcesses`), then the server pid from the pid file (`taskkill /F /T`), then its files.
+ */
+async function forceStopTerminalServer(userDataPath: string): Promise<boolean> {
+  const registry = readRegistry(userDataPath)
+  if (registry?.ptys.length) await killOrphanPtyProcesses(registry.ptys.map(entry => entry.pid))
+  const pid = readPidFile(userDataPath)
+  if (pid !== null && isServerRunning(userDataPath)) {
+    await new Promise<void>((resolve) => {
+      try {
+        execFileCb('taskkill', ['/F', '/T', '/PID', String(pid)], { timeout: 5000, windowsHide: true }, () => resolve())
+      } catch {
+        resolve()
+      }
+    })
+  }
+  const gone = await waitForTerminalServerExit(userDataPath, 2000)
+  if (gone) {
+    clearRegistry(userDataPath)
+    removePidFile(userDataPath)
+    removePortFile(userDataPath)
+    removeTokenFile(userDataPath)
+  }
+  return gone
 }
 
 const windowMap = new Map<string, BrowserWindow>() // windowId → BrowserWindow
@@ -290,9 +339,17 @@ let _terminalServerProcess: import('child_process').ChildProcess | null = null
 let pendingRecovery: { port: number; ptyCount: number } | null = null
 // PLAN-063 / T0821: the first start after an upgrade (version changed + orphan PTYs) — created in whenReady
 let upgradeInterruptionCheck: UpgradeInterruptionCheck | null = null
+// PLAN-065 W4 / T0860: the current Terminal Server runs from the PTY holder — forkTerminalServer started it
+// from there, or a hello said so (`isKeptHolderHello`). The installer's quit keeps only such a server.
+let terminalServerFromHolder = false
+
+/** T0860: what a hello (probe / reconnect) said about the server: a kept PTY holder or not. */
+function noteTerminalServerHello(hello: HelloOk | null | undefined): void {
+  terminalServerFromHolder = process.platform === 'win32' && isKeptHolderHello(hello, path.dirname(process.execPath))
+}
 
 /** T0857: `probeServerPtyCount`; `protocol` 0 = a server before T0857 (no hello). */
-type ServerProbe = { ok: true; protocol: number; ptyCount: number } | { ok: false; reason: HelloFailure }
+type ServerProbe = { ok: true; protocol: number; ptyCount: number; hello?: HelloOk | null } | { ok: false; reason: HelloFailure }
 
 /**
  * Probe a running Terminal Server to count how many PTY processes are alive.
@@ -304,7 +361,7 @@ type ServerProbe = { ok: true; protocol: number; ptyCount: number } | { ok: fals
 async function probeServerPtyCount(port: number, token: string | null): Promise<ServerProbe> {
   const conn = await openHelloConnection(port, token, { keepOpen: true })
   if (!conn.result.ok || !conn.socket) return { ok: false, reason: conn.result.ok ? 'closed' : conn.result.reason }
-  const { protocol } = conn.result
+  const { protocol, hello } = conn.result
   const socket = conn.socket
   return new Promise((resolve) => {
     let resolved = false
@@ -314,7 +371,7 @@ async function probeServerPtyCount(port: number, token: string | null): Promise<
       resolved = true
       clearTimeout(timer)
       socket.destroy()
-      resolve({ ok: true, protocol, ptyCount: count })
+      resolve({ ok: true, protocol, ptyCount: count, hello })
     }
 
     const timer = setTimeout(() => done(0), 3000)
@@ -439,11 +496,13 @@ async function forkTerminalServer(serverScript: string, userDataPath: string): P
       env: process.env,
     })
     logger.log(ptyHolderLogLine(holder))
+    terminalServerFromHolder = holder.use // T0860: the installer's quit keeps only a holder-run server
     if (holder.use) {
       const spec = holderSpawnSpec(holder.holder, plan.stdio, env)
       return spawn(spec.command, spec.args, spec.options)
     }
   }
+  terminalServerFromHolder = false // T0860
   return runWithoutCrashpadClient(() => fork(serverScript, [], terminalServerForkOptions(plan.stdio, env)))
 }
 
@@ -493,6 +552,7 @@ async function startTerminalServer(): Promise<void> {
       // T0857: the probe says hello first; a server we cannot use takes the fresh-start path
       const token = readTokenFile(userDataPath)
       const probe = await probeServerPtyCount(port, token)
+      if (probe.ok) noteTerminalServerHello(probe.hello) // T0860
       const unusable = !probe.ok && endsUnusableServer(probe.reason)
       if (unusable) {
         logger.warn(`[terminal-server] existing server on port ${port}: hello ${probe.ok ? '' : probe.reason} — ending it (Recovery fresh-start path)`)
@@ -512,6 +572,7 @@ async function startTerminalServer(): Promise<void> {
       } else if (ptyManager) {
         const connected = await ptyManager.connectToServer(port, token)
         if (connected.ok) {
+          noteTerminalServerHello(connected.hello) // T0860
           logger.log(`[terminal-server] reconnected to existing server on port ${port}`)
           // Request PTY list — handleReplayList will fetch and replay buffers
           ptyManager.sendToServer({ type: 'pty:list' })
@@ -2257,6 +2318,7 @@ app.whenReady().then(async () => {
   app.on('second-instance', async (_event, argv) => {
     // T0823: the installer's quit request — handled by the listener registered at load, no new window
     if (isInstallerQuitRequest(argv)) return
+    if (isUninstallQuitRequest(argv)) return // T0860: the uninstaller's request, same listener
     // Check if launched with --profile=
     const profileArg2 = argv.find(a => a.startsWith('--profile='))
     const profileId2 = profileArg2 ? profileArg2.split('=')[1] || null : null
@@ -2356,6 +2418,8 @@ let _quitConfirmed = false
 // PLAN-063 子項 3 / T0823: the NSIS installer asked this BAT to quit (`--installer-quit-request` of a
 // second instance). before-quit then skips the confirmation dialog and stops the Terminal Server.
 let installerQuitRequested = false
+// T0860: the request kept the PTY holder — before-quit does not stop the Terminal Server
+let installerQuitKeepsServer = false
 const installerQuit = new InstallerQuitController({
   version: app.getVersion(),
   isQuitting: () => isAppQuitting,
@@ -2373,11 +2437,28 @@ const installerQuit = new InstallerQuitController({
     app.quit()
   },
   logger,
+  // PLAN-065 W4 / T0860: an upgrade keeps a Terminal Server that runs from the PTY holder (Windows only)
+  serverFromHolder: () => terminalServerFromHolder,
+  writeHolderRecord: record => writeInstallerQuitRecord(path.join(app.getPath('userData'), INSTALLER_QUIT_RECORD_FILE), record),
+  keptHolder: async () => {
+    const userDataPath = app.getPath('userData')
+    const found = await queryKeptHolder({ port: readPortFile(userDataPath), token: readTokenFile(userDataPath), installDir: path.dirname(process.execPath) })
+    if (!found.holder) logger.log(`[installer-quit] the Terminal Server is not a kept PTY holder (${found.reason}) — stopping it as before`)
+    return found.holder ? { pid: found.pid, extension: found.extension } : null
+  },
+  ptyRoots: () => ptyRootsOf(readRegistry(app.getPath('userData'))?.ptys ?? []),
+  endAgentProcesses: roots => endInstallDirAgentProcesses(roots, path.dirname(process.execPath), defaultEndAgentProcessesDeps(logger)),
+  quitKeepingServer: () => {
+    installerQuitRequested = true
+    installerQuitKeepsServer = true
+    app.quit()
+  },
 })
 // Registered at load (not in whenReady) so a request during startup is kept until `markReady`;
 // the whenReady `second-instance` handler ignores the request's argv.
 app.on('second-instance', (_event, argv) => {
   if (isInstallerQuitRequest(argv)) installerQuit.request()
+  else if (isUninstallQuitRequest(argv)) installerQuit.request('uninstall') // T0860: a real uninstall stops the server
 })
 
 /**
@@ -2568,7 +2649,13 @@ app.on('before-quit', async (e) => {
       // T0823: the installer is waiting to replace the files — no dialog, the Terminal Server stops too
       // (its exe is in the install directory; kept, it would be force-ended and its shells with it)
       shouldStopServer = true
-      logger.log('[installer-quit] quit without confirmation (stopTerminalServer=true)')
+      if (installerQuitKeepsServer) {
+        // T0860: the server runs from the PTY holder outside the install directory — kept (24 h idle)
+        shouldStopServer = false
+        logger.log('[installer-quit] quit without confirmation (stopTerminalServer=false, PTY holder kept)')
+      } else {
+        logger.log('[installer-quit] quit without confirmation (stopTerminalServer=true)')
+      }
     } else try {
       const lang = readPersistedSettingsSync()?.language
       const s = getQuitDialogStrings(lang)
@@ -4739,6 +4826,7 @@ function registerLocalHandlers() {
     const token = readTokenFile(userDataPath)
     const connected = await ptyManager.connectToServer(port, token)
     if (connected.ok) {
+      noteTerminalServerHello(connected.hello) // T0860
       logger.log(`[terminal-server] user chose recovery — connected to port ${port}`)
       ptyManager.sendToServer({ type: 'pty:list' })
       // BUG-146: the held creates run once the list registered the surviving ids (created: false)
