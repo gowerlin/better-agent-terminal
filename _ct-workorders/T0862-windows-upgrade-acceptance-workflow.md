@@ -65,6 +65,11 @@ memory_overrides:
 - T0863（BUG-212）起 `UpdateNotification` 真的會掛載，主行程啟動時查一次 GitHub。`desktop-build.yml` 打出的 `0.0.0-exp.<run>` 一定比 GitHub 上的 release 舊，**更新對話框會出現**並擋住畫面。驗收 spec 啟動 BAT 前要在該 runtime 的 `settings.json` 寫 `checkForUpdates: false`（既有 e2e 的寫法），或明確處理這個對話框。
 - `CLAUDE.md` 一節也補一行「從 PTY holder 啟動」的必守規則（T0859 後續建議 1），連到 `docs/agent-guide/terminal-server-recovery.md`「從 PTY holder 啟動」。
 
+## 塔台補充（開工前，T0860 收單後 2026-11-05 07:36）
+
+- T0864（D288）之後，只寫 `checkForUpdates: false` 不夠：沒有一次性標記時會被當成開。關掉更新對話框要照 T0864 回報區寫明的標記鍵一起寫（既有 5 個 e2e spec 的新寫法）。
+- T0860 回報區〈待 W6 驗收〉列入本單情境（已在情境 1–7 內的對應即可，不在的補進）：① N → N+1 真實升級時 N 的 BAT 保留 holder、安裝程式不跳第二次「正在執行」；② N 的解除安裝程式以 `--updated` 執行時不碰 holder；③ `customInstall` 保留執行中的 N holder 目錄；④ 升級後 holder pid 不變、分頁輸出持續；⑤ 真的解除安裝（per-user；per-machine 能做就做）holder 結束、根目錄被刪，根目錄有程序在跑時保留並有 `DetailPrint`；⑥ 降級（N+1 → N）；⑦ 內嵌 claude 實機：被結束後分頁 shell 回到提示列、清單恢復正常。`e2e/t0860-installer-quit-holder.spec.ts` 可當基礎。
+
 ## 塔台授權
 （派工時由塔台填寫：可否 push 分支、可否觸發 `desktop-build.yml` 兩次與本 workflow。）
 
