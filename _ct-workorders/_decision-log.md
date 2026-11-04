@@ -1465,6 +1465,18 @@
 - **切分**：W2a 設計語言 + 元件 + 首頁（T0630）→ 預覽通過後 W2b（`/control-tower`、功能、FAQ、回報頁）→ W2c 遠端開發；W3 / W4 不變。
 - **相關**：PLAN-049 / D159 / D160 / T0624 / T0630
 
+### D283 2026-11-04 — PLAN-052 採 (c′) 基底映像＋bundle volume；拆 T0849–T0854
+
+- **背景**：T0848 研究（`74f9e837`）：「沿用既有容器讀不到權杖」推論不成立（實測），實際問題是權杖讀取時機 / 錯誤訊息 / `--token` 外露 / 不能選容器 / 重跑新增設定 / 映像未發佈；另發現映像沒有 git、`docker:inspect-container` 回傳整串 env、docker 指令無 timeout。把 bundle 裝進任意既有容器做不到（建立後不能加埠映射）。
+- **決定**（使用者四題皆選建議）：
+  1. U1：映像來源 **(c′)**：精靈 pull 基底映像、server bundle 經既有 distributor 裝進 volume、以基底映像建立容器；不發佈 GHCR 映像或 release tar。
+  2. U2：預設基底映像用含 git / curl / ssh 的官方映像（候選 `buildpack-deps:bookworm-scm`，W4b 確認），可改填自訂映像。
+  3. U3：`docker/Dockerfile` / `bat-server:latest` 保留當進階路徑。
+  4. U4 / U5：容器內 server 以 root 執行並 `--data-dir /var/lib/bat-server`；新容器不再帶 `--token`，權杖只存在 data volume；既有容器不動。
+- **拆單**：T0849 W1 權杖與安全 ∥ T0850 W3 重跑更新設定 → T0851 W2 選容器＋掛載 → T0852 W4a main 原語 → T0853 W4b 精靈步驟 → T0854 W5 文件 / 網站 / e2e / `docker-acceptance.yml`。W2 / W4a 同改 `docker-detect.ts` / `docker-lifecycle.ts`，循序。
+- **決策者**：使用者。2026-11-04 第一百一十九 session。
+- **相關**：D282 / D120 / D146 / D152 / PLAN-052 / PLAN-031 / T0848 / T0743
+
 ### D282 2026-11-04 — PLAN-052（Docker 遠端路線）先研究再拆單（T0848）
 
 - **背景**：PLAN-052 的三個問題（映像未發佈、Use existing 不能選容器、重跑精靈新增設定）2026-11-02 核對仍成立；沒有使用者卡住的回報；與 PLAN-059 子項 E 可能重疊。

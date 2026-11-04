@@ -42,3 +42,4 @@ T0646 依程式碼改寫 `/remote/docker` 時發現，一般使用者走不通 D
 
 - 使用者決定先研究再拆單：研究單 **T0848**（唯讀）。映像來源三種做法（GHCR、release asset tar、把 server bundle 裝進任意容器）交由研究比較後推薦。
 - **不納入** PLAN-059 子項 E（SSH stdio、暫時沙箱），該項維持只記錄。
+- 2026-11-04 15:16 研究 T0848 DONE（`74f9e837`）；15:18（D283）使用者裁決：映像來源 (c′) 基底映像＋bundle volume、預設含 git 的官方映像、保留 `bat-server:latest` 當進階路徑、server 以 root＋`--data-dir /var/lib/bat-server`、新容器不帶 `--token`。拆單：T0849 W1 權杖與安全 ∥ T0850 W3 重跑更新設定 → T0851 W2 選容器＋掛載 → T0852 W4a main 原語 → T0853 W4b 精靈步驟 → T0854 W5 文件 / 網站 / e2e / acceptance workflow。

@@ -1,0 +1,66 @@
+---
+schema_version: 1
+schema_kind: workorder
+id: T0854
+title: "Docker 精靈 W5：文件與網站更新、CLAUDE.md 一節、T0743 e2e 延伸、手動觸發的 docker-acceptance workflow"
+type: implementation
+status: TODO
+repo: better-agent-terminal
+project: PLAN-052
+priority: P2
+sizing: M
+created_at: "2026-11-04T15:18:27+0800"
+depends_on: [T0853]
+related:
+  - "PLAN-052；D283；T0848 回報區〈調查結論〉6 與〈建議下一步〉W5；T0849–T0853；T0743（`e2e/t0743-docker-wizard.spec.ts`、`e2e/real-remote/t0743-docker-shim.go`）；`linux-acceptance.yml`（T0797，手動觸發範本）"
+affects_files:
+  - _ct-workorders/T0854-docker-docs-and-acceptance.md
+  - site/remote/docker.md
+  - docs/docker-deployment.md
+  - docs/server-bundle-distribution.md
+  - docs/agent-guide/multi-remote-profiles.md
+  - docs/agent-guide/docker-remote.md
+  - docs/agent-guide/README.md
+  - CLAUDE.md
+  - e2e/real-remote/t0743-docker-shim.go
+  - e2e/t0743-docker-wizard.spec.ts
+  - scripts/docker-acceptance.mjs
+  - .github/workflows/docker-acceptance.yml
+renew_count: 0
+workdir: main repo
+worker_question_timeout: 30
+interaction:
+  mode_hint: yolo
+  interactive: false
+  intervention_type: context-dependent
+memory_overrides:
+  - "🔴 `docker-acceptance.yml` 只 `workflow_dispatch`、唯讀權杖、不傳 secret、不建 tag / release、不放進 `pre-release.yml` / `release.yml` 的關卡；本單不觸發它（要先 push，由塔台安排）。"
+  - "🔴 T0743 shim 放行新子指令（`pull`、`volume create/rm`、`run --rm -i`、`exec -i`、`version --format`）時，兩道既有防護維持（只允許測試前綴的資源）。"
+  - "🔴 CLAUDE.md 依「CLAUDE.md 撰寫規則（T0595）」：新增一節 3–12 行（用途、必守規則、唯一實作位置、不變式、連到 `docs/agent-guide/docker-remote.md`），細節寫進 docs；`##` 既有標題不改名。網站與文件不寫真名、家目錄路徑（D176）。"
+  - "🔴 yolo：不得問使用者；問題問塔台。不發版、不 push。Git：只 commit 本單範圍（`git add <明確路徑>`）。禁止 `git stash`（含 `git stash list`）/ `git reset` / `git checkout -- <path>` / `git restore`（L138）。"
+---
+
+# T0854 — Docker 精靈 W5：文件、網站與驗收基礎設施
+
+## 元資料
+- **工單編號**：T0854｜**類型**：implementation｜**狀態**：TODO｜**建立**：2026-11-04 15:18 (UTC+8)
+- **規模**：M｜**決策**：D283｜**依賴**：T0853
+
+## 任務
+1. **網站 `site/remote/docker.md`**：拿掉「需要自己建置映像」警告；說明基底映像（預設與需求）、選容器、重跑更新設定 / 升級、離線匯入；`bat-server:latest` 改列為進階路徑。網站 build 通過（Pages 的 link-check 規則）。
+2. **文件**：`docs/docker-deployment.md`、`docs/server-bundle-distribution.md`（Docker 改走 distributor，修正 D096 相關敘述）、`docs/agent-guide/multi-remote-profiles.md` 相關段；新增 `docs/agent-guide/docker-remote.md`（契約、權杖取得順序、`docker run` 參數不變式、日誌、已知限制、驗證清單），並登記到 `docs/agent-guide/README.md` 索引。
+3. **CLAUDE.md** 一節（見 memory_overrides）。
+4. **e2e**：延伸 `e2e/t0743-docker-wizard.spec.ts`（opt-in `BAT_E2E_T0743_DOCKER=1`）：以基底映像建立新容器（含離線匯入 bundle）、選單選第二個容器、沒有 `--token` 的權杖讀取、重跑精靈後 profile 數不變、重跑升級後 bundle 換版而 data 不變、musl 映像被探測擋下。WSL Docker 可用就跑兩次全綠；不可用就列〈待實機驗收〉。
+5. **`docker-acceptance.yml`**（`workflow_dispatch`，比照 `linux-acceptance.yml`）＋ `scripts/docker-acceptance.mjs`：在 `ubuntu-24.04` runner 以 node 層腳本直接呼叫 main 端 docker 函式，對真 docker 跑 (c′) 的建立 / 升級 / 回復；不跑 Electron UI。
+
+### 驗收條件
+- [ ] 網站 build 成功、文件連結有效
+- [ ] `npm run test:unit` 全過、`npm run typecheck:electron` = 0、`npx vite build` 成功（workflow / 腳本若有對應單元測試一併）
+- [ ] e2e 結果或〈待實機驗收〉清單
+- [ ] commit 只含本單範圍
+
+---
+
+## 回報區
+
+（Worker 填寫）
