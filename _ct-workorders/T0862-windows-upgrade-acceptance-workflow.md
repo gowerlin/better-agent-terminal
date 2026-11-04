@@ -60,6 +60,11 @@ memory_overrides:
 3. `e2e/manual/nsis-reinstall-acceptance.ps1` 加 holder 檢查（holder 目錄與 manifest；有開分頁時 pid 不變），沒有 holder 的版本照舊判讀。
 4. 文件：新增 `docs/agent-guide/pty-holder.md`（整體架構、holder 位置、協定 v1 摘要、安裝 / 解除安裝 / 升級 / 降級流程、已知限制、驗證清單），`docs/agent-guide/README.md` 索引；`CLAUDE.md` 新增一節（照撰寫規則：用途、必守規則、唯一實作位置、不變式、連到 docs）。
 
+## 塔台補充（開工前，T0863 收單後 2026-11-04 19:29）
+
+- T0863（BUG-212）起 `UpdateNotification` 真的會掛載，主行程啟動時查一次 GitHub。`desktop-build.yml` 打出的 `0.0.0-exp.<run>` 一定比 GitHub 上的 release 舊，**更新對話框會出現**並擋住畫面。驗收 spec 啟動 BAT 前要在該 runtime 的 `settings.json` 寫 `checkForUpdates: false`（既有 e2e 的寫法），或明確處理這個對話框。
+- `CLAUDE.md` 一節也補一行「從 PTY holder 啟動」的必守規則（T0859 後續建議 1），連到 `docs/agent-guide/terminal-server-recovery.md`「從 PTY holder 啟動」。
+
 ## 塔台授權
 （派工時由塔台填寫：可否 push 分支、可否觸發 `desktop-build.yml` 兩次與本 workflow。）
 

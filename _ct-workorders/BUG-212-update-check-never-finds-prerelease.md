@@ -3,7 +3,7 @@ schema_version: 1
 schema_kind: bug
 id: BUG-212
 title: "啟動時的新版檢查永遠找不到新版：`releases/latest` 排除預覽版（本 fork 全是預覽版 → 404）、版號比對不認得 `-pre.N`；主行程與每個視窗各查一次"
-status: FIXING
+status: FIXED
 severity: medium
 reproducibility: "always（2026-11-04 `gh api repos/gowerlin/better-agent-terminal/releases/latest` → HTTP 404）"
 created_at: "2026-11-04T18:35:08+0800"
@@ -20,7 +20,7 @@ links:
 |------|------|
 | 嚴重度 | 🟡 medium（使用者永遠收不到新版通知；不影響其他功能） |
 | 可重現 | ✅ 必定 |
-| **狀態** | ⏳ FIXING（T0863） |
+| **狀態** | ✅ FIXED（T0863 `ee53eaf5`；待發版後實機驗證：Help › Check for Updates…、啟動檢查、開該版本頁） |
 | 回報者 | 塔台 |
 
 ## 現象（預期 vs 實際）
@@ -39,3 +39,6 @@ links:
 ## 修正
 
 T0863（同時實作使用者要求的檢查更新行為，D287）。
+
+- 2026-11-04 19:29 **FIXED**（`ee53eaf5`）：改查 `/releases`（最多 3 頁）＋semver、只認 `v*`、10 s 逾時、主行程查一次各視窗共用、Help「Check for Updates…」、「包含預覽版」設定（預設開）、開該版本頁。實際 GitHub API：current `0.7.4-pre.8` → 找到 `v0.7.4-pre.9`。
+- T0863 另外發現：`UpdateNotification` 在 T0863 前**從未被掛載**（只有選單項目會出現）；`settings-store.ts` 的 `checkForUpdates` 預設是 `false`（2026-04 `2f0df589`），存過設定的使用者啟動檢查實際是關的 → 待使用者裁決。
