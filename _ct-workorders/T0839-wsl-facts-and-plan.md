@@ -25,6 +25,8 @@ affects_files:
   - electron/main.ts
   - electron/preload.ts
   - src/types/electron.d.ts
+  - src/components/setup-wizard/steps/wsl/install-server-bundle.ts
+  - src/components/setup-wizard/wizard-runner.ts
   - electron/__tests__/
   - src/components/setup-wizard/__tests__/
 renew_count: 0
@@ -52,6 +54,9 @@ memory_overrides:
 3. `src/components/setup-wizard/wsl-env-plan.ts`：facts → items 純函式（item 形狀照 T0831〈調查結論〉2「一次同意」：`id`、`labelKey`、`scope`、`effects`、`required`、`defaultChecked`、`disabledReasonKey?`）。環境都正常 → 0 項。
 4. IPC（本機）＋ preload ＋型別。
 5. 單元測試：各 facts 組合 → 計畫（含 0 項、原則擋、WSL 太舊只提示）。
+6. **T0838 留下的後續**（塔台 2026-11-04 09:30 併入本單，見 T0838 回報區〈遭遇問題〉）：
+   - renderer 型別鏡像補 `consomme`：`electron/preload.ts`、`src/types/electron.d.ts`、`src/components/setup-wizard/steps/wsl/install-server-bundle.ts` 的 `NETWORK_MODES`、`src/components/setup-wizard/wizard-runner.ts` 的對應型別（runtime 行為不變，只補型別）。
+   - `electron/wsl-detect.ts` 既有讀取與 WSL 規則對齊：`parseWslConfigNetworkingMode` 改用 `getIniValue`（重複 key 取**第一個**、只認 `#` 註解、引號內 `#` 不是註解）；`systemdEnabled` 的 `/etc/wsl.conf` 備援改用 `getIniValue('boot','systemd')`（看 section）。行為變化逐項寫進回報區，既有測試若因此改斷言要說明理由。
 
 ### 驗收條件
 - [ ] `npm run typecheck` = 0、`npm run typecheck:electron` = 0、`npm run test:unit` 全過、`npx vite build` 成功
