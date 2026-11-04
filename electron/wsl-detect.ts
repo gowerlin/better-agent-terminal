@@ -24,8 +24,10 @@ export interface WslDistro {
 /**
  * T0383 (BUG-089): values `wslinfo --networking-mode` reports. Anything else,
  * or a failed / missing `wslinfo` (WSL < 2.0.4), is `'unknown'`.
+ * T0838: `consomme` is the current name of `virtioproxy` in Microsoft's
+ * `networkingMode` list; both are recognised (older WSL reports `virtioproxy`).
  */
-export type WslNetworkMode = 'mirrored' | 'nat' | 'virtioproxy' | 'none' | 'unknown'
+export type WslNetworkMode = 'mirrored' | 'nat' | 'virtioproxy' | 'consomme' | 'none' | 'unknown'
 
 export interface WslNetworkModeInfo {
   /** What the running WSL VM actually uses (`wslinfo --networking-mode`). */
@@ -244,7 +246,7 @@ export async function systemdEnabled(distro: string): Promise<boolean> {
   return /^\s*systemd\s*=\s*true\s*$/im.test(confText)
 }
 
-const KNOWN_NETWORK_MODES: ReadonlySet<string> = new Set(['mirrored', 'nat', 'virtioproxy', 'none'])
+const KNOWN_NETWORK_MODES: ReadonlySet<string> = new Set(['mirrored', 'nat', 'virtioproxy', 'consomme', 'none'])
 // Windows 11 22H2 — first build with `networkingMode=mirrored`.
 const MIRRORED_MIN_WINDOWS_BUILD = 22621
 

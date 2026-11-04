@@ -162,6 +162,14 @@ describe('wsl-detect networking mode (T0383 / BUG-089)', () => {
       expect(parseWslinfoNetworkingMode(Buffer.from('none\n'))).toBe('none')
     })
 
+    it('T0838: recognises consomme (the new name of virtioproxy) and keeps virtioproxy', () => {
+      expect(parseWslinfoNetworkingMode(Buffer.from('consomme\n'))).toBe('consomme')
+      expect(parseWslinfoNetworkingMode(utf16('Consomme\r\n'))).toBe('consomme')
+      expect(parseWslinfoNetworkingMode(Buffer.from('virtioproxy\n'))).toBe('virtioproxy')
+      expect(parseWslConfigNetworkingMode('[wsl2]\nnetworkingMode=consomme\n')).toBe('consomme')
+      expect(parseWslConfigNetworkingMode('[wsl2]\nnetworkingMode=VirtioProxy\n')).toBe('virtioproxy')
+    })
+
     it('ignores stray diagnostic lines around the mode', () => {
       expect(parseWslinfoNetworkingMode(Buffer.from('wsl: some notice\nmirrored\n'))).toBe('mirrored')
     })
