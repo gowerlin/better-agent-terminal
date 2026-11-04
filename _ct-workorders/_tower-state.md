@@ -1,17 +1,16 @@
 ---
 schema_kind: tower-state
 summary_version: 1
-updated_at: "2026-11-05T07:01:14+08:00"
+updated_at: "2026-11-05T07:03:26+08:00"
 session: "2026-11-05 07:01 第一百二十一 session（CT v6.0.0-beta.11）"
 next_ids:
-  workorder: "T0864"
-  decision: "D288"
+  workorder: "T0865"
+  decision: "D289"
   bug: "BUG-213"
   plan: "PLAN-066"
 todo:
-  - "⏸ 自動派單暫停（使用者 19:23「T0863 收單後暫停派單」）：T0863 已收單；不派 T0860–T0862，等使用者「恢復派單」"
-  - "待使用者裁決：`checkForUpdates` 預設值（T0863 後續建議 1：`settings-store.ts` 預設 `false`，存過設定的使用者啟動檢查實際關閉）；A 預設改開（只影響新使用者）／B 預設改開＋一次遷移既有 `false`／C 維持"
-  - "本機 23 個 commit 未 push（第一百二十 session）；push 前跑 `.private/` 去識別化與金鑰樣式檢查"
+  - "▶ 派單已恢復（D288）：T0860 IN_PROGRESS（07:03 派，`started:` 23:03:26Z）→ T0864（`checkForUpdates` 預設開＋一次遷移，D288；與 T0860 可能同改 e2e spec，循序）→ T0861 → T0862"
+  - "本機 25 個 commit 未 push；push 前跑 `.private/` 去識別化與金鑰樣式檢查"
   - "✅ `0.7.4-pre.9` 已發佈（D284，run `41809413443` 全綠，publishedAt 2026-11-04T09:55:51Z，target `095470f7`，含 `server-bundle-v0.7.4-pre.9`）；更版重點已改寫；三文件＋版號已更新；Pages run `41811025246` 綠、首頁 pre.9、link-check 0；NSIS 重裝驗收 PASS-WITH-WARN（18:00，WARN = 原安裝版 pre.8，預期；備份已刪）；待：Docker Desktop（Windows / macOS）實機走精靈；🔴 0.7.4 線已用到 pre.9，下一版要先與使用者確認新版號線"
   - "PLAN-052（IN_PROGRESS，D282）：研究 T0848 DONE（`74f9e837`）——推薦 (c′) 基底映像＋bundle volume；「讀不到權杖」推論不成立（實測）；拆單 W1 權杖與安全／W2 選容器＋掛載／W3 重跑更新設定／W4a・W4b (c′)／W5 文件與驗收；D283 使用者裁決 U1–U5 皆照建議 → 實作 T0849 W1 `36a55028` ✅ ∥ T0850 W3 `c0ace27e` ✅（legacy 回歸由 T0855 `3d042497` ✅ 修）→ T0851 W2 `c3bda9ad` ✅ → T0852 W4a `2f0abf4b` ✅ → T0853 W4b `f8af303c` ✅ → T0854 W5 `2a2a1d8e` ✅；本批完成，待：push、GitHub 首跑 `docker-acceptance.yml`、發版、Docker Desktop（Windows / macOS）實機走精靈；後續候選：fetch-fingerprint Docker 分支比對憑證指紋、`scripts/docker-acceptance.mjs` 純函式單元測試 → T0852 W4a → T0853 W4b → T0854 W5（批次做完再一起發版）"
   - "✅ `0.7.4-pre.8` 已發佈並驗收（D280）：PLAN-063 ③ 一鍵接回 PASS（pre.7 → pre.8）、同版重裝中性 toast / 對話框 PASS（T0846 / T0847）、NSIS 完整重裝 PASS（15:00 判讀，備份已刪）；PLAN-063 DONE（D281），holder 模型移到 PLAN-065 IDEA"
@@ -32,7 +31,7 @@ todo:
 ---
 # Tower State — better-agent-terminal
 
-> 🟢 **第一百二十一 session 開工**（2026-11-05 07:01 (UTC+8)，CT v6.0.0-beta.11，Fast Path；塔台 session `0681a600-06a6-44f6-8777-1ed0ae7cdc5a`；`--set-role tower --mode on` exit 0；`bat_whoami` 名稱 `better-agent-terminal · Tower`；安裝版 `0.7.4-pre.9`（FileVersion 與 helper 一致）；HEAD `b5b0d4d2`，領先 `origin/main` 24 個 commit（未 fetch）、工作區乾淨；熱區 259 張工單：DONE 256、PENDING 3（T0860–T0862，⏸ 派單暫停中）；`bat_list_questions` pending 0；熱檔皆 < 400 KB 預算）。第一百二十 session 的開工細節見下方收工快照與 T0856–T0863 工單回報區。
+> 🟢 **第一百二十一 session 開工**（2026-11-05 07:01 (UTC+8)，CT v6.0.0-beta.11，Fast Path；塔台 session `0681a600-06a6-44f6-8777-1ed0ae7cdc5a`；`--set-role tower --mode on` exit 0；`bat_whoami` 名稱 `better-agent-terminal · Tower`；安裝版 `0.7.4-pre.9`（FileVersion 與 helper 一致）；HEAD `b5b0d4d2`，領先 `origin/main` 24 個 commit（未 fetch）、工作區乾淨；熱區 259 張工單：DONE 256、PENDING 3（T0860–T0862，⏸ 派單暫停中）；`bat_list_questions` pending 0；熱檔皆 < 400 KB 預算）。第一百二十 session 的開工細節見下方收工快照與 T0856–T0863 工單回報區。07:02 使用者「B，恢復派單」→ **D288**：`checkForUpdates` 預設改開＋一次遷移既有 `false`，開 **T0864**（排 T0860 之後、T0861 之前）；解除派單暫停。07:03 派 T0860（`--mode yolo --no-interactive`，`started:` 23:03:26Z，分頁 `fb5268c4…`）。
 
 > 最後更新:2026-11-04 19:30 (UTC+8) — **第一百二十 session 收工**：D285 版號線 `0.7.5-pre.N`、PLAN-065 啟動；T0856 研究 → D286 拆 T0857–T0862；T0857 / T0858 / T0859 DONE；D287 檢查新版改版 → T0863 DONE（BUG-212 FIXED）；使用者指示暫停派單。
 >
@@ -80,7 +79,7 @@ todo:
 - **`v0.7.4-pre.3`**（第一百一十一 session）：語音可用性事先檢查（T0802）、驗收腳本 `-Version` 必填（T0801）
 
 ### 待辦（依優先序；完整內容見 frontmatter `todo`）
-1. ⏸ 派單暫停；先問 `checkForUpdates` 預設值（A / B / C），恢復後派 T0860 → T0861 → T0862（PLAN-065，`0.7.5-pre.1` 批次）
+1. ▶ 派單已恢復（D288）：T0860 進行中 → T0864（`checkForUpdates` 預設開＋遷移）→ T0861 → T0862（`0.7.5-pre.1` 批次）
 2. PLAN-058：待使用者手動確認（清單在 T0819 回報區）；PLAN-052：Docker Desktop 實機
 3. MSRC 回報 microsoft/node-pty（使用者自行處理，D255）
 4. 觀察：語音可用性 macOS 未實機（T0802）、t0757 偶發失敗（D218）；PLAN-060 IDEA
