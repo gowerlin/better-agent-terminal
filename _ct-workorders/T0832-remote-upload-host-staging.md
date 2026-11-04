@@ -4,16 +4,17 @@ schema_kind: workorder
 id: T0832
 title: "PLAN-038 U1：host 端上傳暫存與 `upload:*` channel（暫存目錄、檔名、權限、配額、TTL、dispose 清理）＋介面契約"
 type: implementation
-status: PENDING
+status: IN_PROGRESS
 repo: better-agent-terminal
 project: maintenance
 priority: P3
 sizing: M
 created_at: "2026-11-04T09:17:09+0800"
-started_at: ""
-updated_at: "2026-11-04T09:17:09+0800"
+started_at: "2026-11-04T11:15:10+08:00"
+updated_at: "2026-11-04T11:15:10+08:00"
 completed_at: ""
-session_ids: []
+session_ids:
+  - "477aa5a4-9d8e-462d-ac3a-225fdadbaf9f"
 depends_on: [T0830]
 related:
   - "PLAN-038；D272；T0828 回報區（設計 SoT：〈調查結論〉2–5、7，〈建議下一步〉第 1 列）；T0437；T0406；PLAN-036 / D134（helper 權杖）"
@@ -37,6 +38,7 @@ affects_files:
 renew_count: 0
 workdir: main repo
 worker_question_timeout: 30
+tower_question: open
 interaction:
   mode_hint: yolo
   interactive: false
@@ -51,7 +53,7 @@ memory_overrides:
 # T0832 — PLAN-038 U1：host 端上傳暫存
 
 ## 元資料
-- **工單編號**：T0832｜**類型**：implementation｜**狀態**：PENDING｜**建立**：2026-11-04 09:17 (UTC+8)
+- **工單編號**：T0832｜**類型**：implementation｜**狀態**：IN_PROGRESS｜**建立**：2026-11-04 09:17 (UTC+8)
 - **依賴**：T0830（同改 `electron/main.ts`；等它 commit 後派）
 - **規模**：M｜**降級**：先完成暫存模組＋handler＋單元測試，smoke S14 / docs 可最後補，做不完回 PARTIAL
 
@@ -79,6 +81,19 @@ memory_overrides:
 ## 回報區
 
 > 以下由 sub-session 填寫，請勿在指揮塔 session 中編輯（唯一例外：`### 待塔台決策` 的 `塔台答覆 Q-n` 行由塔台新增）
+
+### 待塔台決策
+
+#### Q-1：smoke S14 需要改 `scripts/__tests__/smoke-remote-headless.test.mjs`（不在 `affects_files`），可以改嗎？
+- **提問時間**：2026-11-04T11:25:45+0800
+- **背景**：`scripts/smoke-remote-headless.mjs` 加 S14 後，`CHECKS` 變 14 項；既有的 smoke 單元測試以假 server 斷言「S1–S13 全 PASS、`summarize` = 13/13、`pty:kill` 4 次、狀態表只有 S1–S13」，任何 S14 都會讓它變紅（即使 S14 對舊 server 回 SKIP 也一樣）。該測試檔不在本單 `affects_files`。
+- **選項**：
+  - A. 允許改該測試檔：假 server 加 `upload:*` / `claude:dispose-session` / 未認證連線與 S14 的 shell 回覆，更新 13 → 14 的斷言，並加 S14 的正反案例（舊 server → SKIP）。
+  - B. 不加 S14：smoke 不動，改以已完成的 `electron/remote/__tests__/headless-upload-e2e.test.ts`（in-process 真 headless server：上傳、0700 / 0600、dispose、未認證與 tower / worker 權杖被拒）當驗收，回報區寫明。
+  - C. 其他。
+- **建議**：A。理由：工單任務 5 明文要求 S14，測試檔是 smoke 腳本自己的守門測試，漏列在 `affects_files` 較像疏漏；只改該檔與 S14 相關的部分。另註：S14 在已部署 server 上無法驗「helper 權杖被拒」（helper 腳本沒有可呼叫任意 channel 的入口），這一項只由 vitest e2e 覆蓋。
+- **影響**：只影響驗收項「smoke S14」；其餘（暫存模組、channel、測試、文件）已完成，不受影響。
+- **是否阻擋後續步驟**：只阻擋 S14；B 則可直接收尾。
 
 ### 完成狀態
 
