@@ -57,6 +57,12 @@ memory_overrides:
 2. P-2 `--terminate` 是否足以讓 systemd 生效：在拋棄式發行版實測；不足時依 T0831 設計另列「`wsl --shutdown`」單獨同意項（實測前先問塔台）。
 3. i18n、`docs/wsl-deployment.md`、`CHANGELOG.md` `[Unreleased]`。
 4. 測試：runner `requestConsent`（比照 `wizard-runner.transitions.test.ts`）、checklist RTL、apply 各項（mock）、0 項不回歸、SSH / Docker 精靈不回歸、`npm run test:legacy` 的 WSL 精靈測試。
+5. **T0839 交接**（塔台 2026-11-04 11:58 併入，見 T0839 回報區〈產出摘要〉與〈遭遇問題〉）：
+   - 計畫來源：IPC `wsl:detect-facts` → `buildWslEnvPlan(facts)`（`src/components/setup-wizard/wsl-env-plan.ts`）；item / notice 形狀照該檔，不另寫判斷。
+   - `wizard.wsl.plan.*` 的 i18n 字串**尚未加**（en / zh-TW / zh-CN），本單補齊，並把這些 key 加進 `i18n-completeness.test.ts` 的檢查清單。
+   - 探測會冷啟動 Stopped 的發行版（實測約 7 s）：plan 步驟要顯示進行中狀態、可被 T0830 的中止打斷。
+   - systemd 判斷：facts 用 `/proc/1/comm`，既有 `wsl-systemd-check` 用 `systemctl --user is-system-running`。把 `wsl-systemd-check` 改成驗證時決定是否統一，寫進回報。
+   - P-3（root）、P-7（WSL 太舊）、`AllowWSL=0`、WSL 未安裝只出提示（notice），不出可勾項目。
 
 ### 驗收條件
 - [ ] `npm run typecheck` = 0、`npm run typecheck:electron` = 0、`npm run test:unit` 全過、`npm run test:legacy` 全過、`npx vite build` 成功
