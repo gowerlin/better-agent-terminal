@@ -1465,6 +1465,19 @@
 - **切分**：W2a 設計語言 + 元件 + 首頁（T0630）→ 預覽通過後 W2b（`/control-tower`、功能、FAQ、回報頁）→ W2c 遠端開發；W3 / W4 不變。
 - **相關**：PLAN-049 / D159 / D160 / T0624 / T0630
 
+### D286 2026-11-04 — PLAN-065 採官方 node.exe 當 PTY holder；D1–D9 皆照 T0856 建議；拆 T0857–T0862
+
+- **背景**：T0856 研究（`7cb8a426`）：做得到，規模 L。node-pty 用系統 `conhost.exe`（塔台「自帶 OpenConsole.exe」推論不成立，實測），只要持有 ConPTY 的程序（今天的 Terminal Server）從安裝目錄外啟動、執行檔不叫 `BetterAgentTerminal.exe`，shell 就能撐過 NSIS。限制：內嵌 claude 程序仍會被結束；第一個有 holder 的版本 N 只能在 N → N+1 時保住終端；N 的解除安裝程式與 quit 行為發佈後改不了。另發現 Terminal Server 的 TCP 埠沒有認證（既有風險）。
+- **決定**（使用者四題皆選建議）：
+  1. D1：holder 用官方 `node.exe` 改名 `bat-pty-holder.exe`（OpenJS 簽章、約 90–100 MB；版本與 SHA-256 固定在 repo）。
+  2. D2：依安裝範圍放在安裝目錄外（per-user `%LOCALAPPDATA%`、per-machine `%ProgramFiles%` 由安裝程式寫入）。
+  3. D3：內嵌 claude 程序升級前由 BAT 先結束並記錄，升級後一鍵接回。
+  4. D4：有安裝程式紀錄就自動接回、不跳 Recovery 提示。D5：協定不相容時結束舊 holder 並顯示 PLAN-063 說明。D6：單一 holder，0 個 PTY 且版本不同時換新。
+  5. D7：安裝程式觸發的 quit 把 holder idle timeout 延長到 24 h。D8：協定 v1 一起加 TCP 權杖。D9：holder 根目錄只保留在用的版本加目前版本。
+- **拆單**：T0857 W1 協定 v1 ∥ T0858 W2 holder 打包 → T0859 W3 從 holder 啟動 → T0860 W4 安裝程式整合 → T0861 W5 自動接回 → T0862 W6 真實升級驗收（兩個 desktop-build 版本，情境 1–7 全 PASS 才發 `0.7.5-pre.1`）。
+- **決策者**：使用者。2026-11-04 第一百二十 session。
+- **相關**：D285 / D281 / PLAN-065 / T0856 / T0820 / T0823
+
 ### D285 2026-11-04 — 下一版號線 `0.7.5-pre.N`；PLAN-065 啟動，先研究再拆單（T0856）
 
 - **背景**：`0.7.4-pre.N` 已用到 pre.9（D284）。PLAN-065（Windows 升級不中斷終端的 holder 模型）原為 IDEA，開始條件是「使用者確實需要時再評估」；使用者 18:05 指示「處理 PLAN-065，下一版 0.7.5-pre.1」。
