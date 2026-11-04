@@ -174,7 +174,7 @@ Claude / Codex 面板的檔案附件在**送出時**上傳（不是附加時：�
 ### 必守規則
 
 - 🔴 只在 `remote:resolve-client-paths` 的答覆不可達且有 `reason`（`invalid-path` 除外）時上傳；可達的（本機視窗、WSL 同 distro、`/mnt/c`、Docker 掛載內）照舊送 `@<host 路徑>`，不呼叫任何 `upload` API。沒有答覆 / 答覆對不上 / `invalid-path` 照舊拒絕（fail-closed）。
-- 🔴 上傳失敗、超過上限（D272）、舊 bat-server（`SERVER_TOO_OLD`）、斷線 → 該附件退回 T0437 拒絕＋toast（T0437 的句子後面接原因），其餘照送；沒有其他可送的內容時只移除被拒的 chip、不送出（同 T0437）。不加 Settings 開關（D272）。
+- 🔴 上傳失敗、超過上限（D272）、舊 bat-server（`SERVER_TOO_OLD`）、斷線 → 該附件不附加＋toast（句型見下方〈提示文字〉，T0843），其餘照送；沒有其他可送的內容時只移除被拒的 chip、不送出（同 T0437）。不加 Settings 開關（D272）。
 - 🔴 上傳完成後才進入既有送出路徑（T0815 排進同一個 query、`queuedNoteKey`、權限卡 / 提問卡、T0842 的失敗復原都不變）；上傳期間主回合可能開始或結束，所以**有上傳時**改讀 `isStreamingRef` / `isInterruptedRef`，沒有上傳時仍用送出當下的 state（行為與 T0834 前相同）。
 - 🔴 圖片不走上傳：照舊 data URL ＋ T0842 的遠端圖片預算 `checkRemoteImageBudget`（在上傳之前檢查）；非圖片附件走上傳，不計入圖片預算。
 - 上傳期間：送出鍵停用（Enter 也不送，`uploadAbortRef` 守門）、輸入框 `readOnly`、不能加附件（拖放 / 貼上 / 對話框都被忽略）、「+」隱藏、圖片的 × 停用；檔案 chip 顯示「上傳中 N%」，chip 的 × 變成「取消上傳」。
@@ -188,7 +188,7 @@ Claude / Codex 面板的檔案附件在**送出時**上傳（不是附加時：�
 |---|---|
 | `src/lib/client-paths.ts` | `resolveAttachmentsForSend`（解析 → 分類 `classifyResolvedPaths` → 一次 `uploadToRemoteHost` → `serverPaths` / `displayNames` / `rejected` / `uploadFailed` / `cancelled`，不丟例外）、`isUploadableReason`、`uploadFailureReason`（code → `claude.uploadError.*`）、`attachmentRefusalText`（toast 文字） |
 | `src/components/ClaudeAgentPanel.tsx` / `CodexAgentPanel.tsx` | `handleSend` 的附件段（`uploadProgress`、`uploadAbortRef`、`cancelUpload`）、`addFileByPath(path, file?)`、chip 進度 / 取消、送出鍵 `disabled`、輸入框 `readOnly` |
-| `src/locales/{en,zh-TW,zh-CN}.json` | `claude.attachmentUploadFailed` / `attachmentUploadCancelled` / `attachmentUploading` / `cancelAttachmentUpload` / `sendDisabledWhileUploading` / `uploadError.*` |
+| `src/locales/{en,zh-TW,zh-CN}.json` | `claude.attachmentUploadFailed` / `attachmentListSeparator` / `attachmentSentenceSeparator`（T0843）/ `attachmentUploadCancelled` / `attachmentUploading` / `cancelAttachmentUpload` / `sendDisabledWhileUploading` / `uploadError.*` |
 
 ### 原因對照（toast）
 
@@ -203,6 +203,20 @@ Claude / Codex 面板的檔案附件在**送出時**上傳（不是附加時：�
 | `NOT_CONNECTED` / `TRANSPORT` | the connection to the remote host failed |
 | `SOURCE_ERROR` / `NOT_SELECTED` | the file could not be read |
 | 其他 | error `<code>` |
+
+### 提示文字（T0843）
+
+`attachmentRefusalText`（唯一實作，面板與終端拖放共用）依附件的結果組句，每個檔名只出現一次：
+
+| 情況 | 文字（zh-TW / en） |
+|---|---|
+| 沒有嘗試上傳、只是 T0437 拒絕（本機視窗、`invalid-path`、沒有 `reason`、答覆對不上） | 與 T0437 完全相同：「此檔案不在遠端主機上，未附加：a.txt, b.md」/ "Not on the remote host, not attached: a.txt, b.md" |
+| 有嘗試上傳但失敗 | 每種原因一句、原因在前、同原因的檔合併：「未附加（超過單檔 50 MiB 上限）：a.zip、b.iso」/ "Not attached (over the 50 MiB per-file limit): a.zip, b.iso" |
+| 混合 | T0437 句（只列沒嘗試上傳的檔）在前，再接各原因的句子，以 `claude.attachmentSentenceSeparator`（中文「。」、en ". "）連接：「此檔案不在遠端主機上，未附加：x.txt。未附加（與遠端主機的連線失敗）：a.zip」 |
+
+- 🔴 只改文字組成：哪些檔上傳 / 拒絕、何時顯示、toast 種類（`warning`）與時間（面板：有上傳失敗 10 s、否則 8 s；終端 8 s）、送出與復原行為都不變；取消上傳的 info toast 不變。
+- 原因內的檔名以 `claude.attachmentListSeparator` 分隔（中文「、」、en ", "）；T0437 句維持原本的 ", "（逐字不變）。最後一句不加句號（與 T0437 句一致）。
+- 終端 Ctrl+V 貼圖失敗用 `terminal.imageUploadFailed`（原因已在括號內、沒有檔名），不經這個函式，T0843 未改。
 
 ### 日誌
 
@@ -221,7 +235,7 @@ renderer 經 `debug.log` 記一行 `[attachments] upload: files=<n> ok=<n> faile
 
 - 🔴 只改 host 讀不到的情況。**拖放**：`resolve-client-paths` 不可達且有 `reason`（`invalid-path` 除外）的檔才上傳（與面板同一個 `resolveAttachmentsForSend`）；可達的（本機視窗、WSL 同 distro、`/mnt/c`、Docker 掛載內）照舊貼 host 路徑，不呼叫任何 `upload` API；多檔時依拖放順序貼上。**Ctrl+V 圖片**：只有視窗 profile 是 `remote` 且 `targetOS` 為 `ssh-linux` / `ssh-darwin` / `docker-linux` 時上傳；本機、WSL（CLI 經 interop 讀 Windows 剪貼簿，T0828 §6，Alt+V 照舊、待實機確認）、沒有 `targetOS` 的舊遠端 profile 照舊送 CLI 的貼圖鍵（`imagePasteKey`，T0524）。文字貼上、Ctrl+Shift+V、macOS Finder 複製的檔案路徑都不變。
 - 🔴 上傳的那條路（SSH / Docker 的圖片）不再送貼圖鍵，成功或失敗都不送（在那裡 CLI 讀的是遠端主機的剪貼簿，必定失敗）。
-- 🔴 失敗一律退回提示、不貼任何東西：拖放沿用面板的 `attachmentRefusalText`（T0437 句子＋原因）；圖片是 `terminal.imageUploadFailed`（原因沿用 `claude.uploadError.*`）。不加 Settings 開關（D272）。
+- 🔴 失敗一律退回提示、不貼任何東西：拖放沿用面板的 `attachmentRefusalText`（句型見〈提示文字（T0843）〉）；圖片是 `terminal.imageUploadFailed`（原因沿用 `claude.uploadError.*`）。不加 Settings 開關（D272）。
 - 上傳中：分頁右上角顯示「正在上傳到遠端主機… N%」與「取消」（`.terminal-upload-status`，`role="status"`）。取消 → 整批取消、不貼、提示「已取消上傳」。分頁卸載也取消。同一分頁一次一個上傳：上傳中再拖放 / 貼圖 → 提示 `terminal.uploadBusy`、不處理（文字貼上不受影響）。Esc 不攔截（照舊送進 PTY）。
 - macOS Finder 複製的檔案（`clipboard:read-file-paths`）不上傳：main 只給路徑，而上傳不讀 renderer 拿著的路徑（T0436）；照舊 T0437 拒絕。
 - 🔴 host 端清理（契約 C-8 ②）：`PtyManager` 的 `onPtyExit`（`pty:kill`、程序結束；⏻ 重啟的 kill 也會觸發）→ 等 `PTY_UPLOAD_DISPOSE_GRACE_MS` = 10 s，該 id 仍不在 `PtyManager.isAlive` → `UploadStaging.disposeSession(ptyId)`。重啟（`pty:restart` 同步 kill + create，或 renderer 經 IPC 先 kill 再 create）在 10 s 內會回來，所以保留。不改 PTY 生命週期、`pty-manager.ts` 不知道上傳；Terminal Server recovery 不觸發 `onPtyExit`，不清。BAT / server 在 10 s 內結束 → 由 24 h TTL 清。
@@ -280,8 +294,8 @@ renderer 經 `debug.log` 記一行 `[attachments] upload: files=<n> ok=<n> faile
 | 已部署 server 的協定層 smoke | `scripts/smoke-remote-headless.mjs` S14（見 T0832 回報區） |
 | client 端（T0833）：main driver 對真 `UploadStaging`（假 invoke）：stop-and-wait / `BUSY`、chunk 逾時重送 1 次（host 已寫入仍冪等）、第二次逾時 / 非逾時錯誤不重試、取消、舊 server、路由（本機 / 斷線 / 途中斷線）、上限、dialog 路徑白名單、剪貼簿、閒置、日誌不含檔名、main / preload 接線 source guard | `electron/__tests__/upload-client.test.ts` |
 | client 端（T0833）：renderer driver（依序、批次 / 單項失敗、致命碼停止、取消、進度、預設 API） | `src/lib/__tests__/remote-upload.test.ts` |
-| 面板（T0834）：分類（可達 / 上傳 / 拒絕、`invalid-path`、fail-closed）、`file` / `path` 來源與順序、進度對應、失敗 / 取消 / 例外、日誌只有數量、原因對照與 toast 文字 | `src/lib/__tests__/client-paths-upload.test.ts` |
-| 面板（T0834）RTL：兩面板 × {全部上傳、單檔超過上限、舊 server 退回、上傳失敗且無其他內容、進度＋送出停用＋取消保留草稿、WSL 可達不上傳}、本機視窗不變（不呼叫 upload、附件註記同 T0834 前） | `src/__tests__/remote-upload-panels.test.tsx`；T0437 的 `attachment-remote-paths.test.tsx` 照舊通過 |
-| 終端（T0835）RTL：拖放 SSH 上傳後貼引號路徑、WSL 可達＋其他 distro 混合（順序）、WSL / 本機不上傳、失敗 / main 回 `undefined` 退回提示、進度＋取消、上傳中再拖放；Ctrl+V 圖片 SSH / Docker 上傳不送鍵、本機 / WSL / 舊遠端 profile 照舊送鍵（Windows 與 Linux client）、失敗提示、文字貼上不變；`imagePasteModeFor` 表與快取 | `src/__tests__/terminal-remote-upload.test.tsx`；T0439 / T0522 / T0524 的 `terminal-drop-file-path.test.tsx`、`terminal-paste-shortcuts.test.tsx` 照舊通過 |
+| 面板（T0834）：分類（可達 / 上傳 / 拒絕、`invalid-path`、fail-closed）、`file` / `path` 來源與順序、進度對應、失敗 / 取消 / 例外、日誌只有數量、原因對照與 toast 文字 | `src/lib/__tests__/client-paths-upload.test.ts`；T0843 三語提示文字表格（只上傳失敗各原因、只純拒絕與 T0437 逐字相同、混合、多檔同原因、檔名只出現一次）`src/lib/__tests__/attachment-refusal-text.test.ts` |
+| 面板（T0834）RTL：兩面板 × {全部上傳、單檔超過上限、舊 server 退回、上傳失敗且無其他內容、進度＋送出停用＋取消保留草稿、WSL 可達不上傳}、本機視窗不變（不呼叫 upload、附件註記同 T0834 前） | `src/__tests__/remote-upload-panels.test.tsx`；T0437 的 `attachment-remote-paths.test.tsx` 照舊通過（T0843 起其 mock 的不可達答覆是 `invalid-path`，測的是沒有嘗試上傳的純 T0437 拒絕，斷言逐字不變） |
+| 終端（T0835）RTL：拖放 SSH 上傳後貼引號路徑、WSL 可達＋其他 distro 混合（順序）、WSL / 本機不上傳、失敗 / main 回 `undefined` 退回提示、進度＋取消、上傳中再拖放；Ctrl+V 圖片 SSH / Docker 上傳不送鍵、本機 / WSL / 舊遠端 profile 照舊送鍵（Windows 與 Linux client）、失敗提示、文字貼上不變；`imagePasteModeFor` 表與快取 | `src/__tests__/terminal-remote-upload.test.tsx`；T0439 / T0522 / T0524 的 `terminal-drop-file-path.test.tsx`（T0843 起不可達答覆是 `invalid-path`，同上）、`terminal-paste-shortcuts.test.tsx` 照舊通過 |
 | 終端（T0835）：`uploadToRemoteHost` 對非物件回答（prepare / begin / chunk / finish / run / abort / onProgress）不丟例外 | `src/lib/__tests__/remote-upload-non-object.test.ts` |
 | 終端（T0835）host 清理：寬限期、重複 exit、⏻ 重啟保留、stop、真 `UploadStaging`、main / headless 接線 source guard | `electron/__tests__/pty-upload-dispose.test.ts`；真 headless server 的 `pty:kill` 清 / `pty:restart` 留：`headless-upload-e2e.test.ts` |

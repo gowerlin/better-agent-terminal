@@ -217,9 +217,14 @@ describe('refusal text', () => {
         { path: 'p3', name: 'three.bin', code: 'TOO_LARGE' },
       ],
     }, t)
+    // T0843: the T0437 sentence names only the never-uploaded file; each reason gets its own
+    // sentence that starts with the reason; every file is named once.
     expect(text).toBe(
-      'claude.attachmentNotOnRemoteHost{"files":"bad, one.bin, two.log, three.bin"} '
-      + 'claude.attachmentUploadFailed{"details":"one.bin, three.bin (claude.uploadError.tooLarge{\\"limit\\":50}); two.log (claude.uploadError.connection)"}',
+      'claude.attachmentNotOnRemoteHost{"files":"bad"}'
+      + 'claude.attachmentSentenceSeparator'
+      + 'claude.attachmentUploadFailed{"reason":"claude.uploadError.tooLarge{\\"limit\\":50}","files":"one.binclaude.attachmentListSeparatorthree.bin"}'
+      + 'claude.attachmentSentenceSeparator'
+      + 'claude.attachmentUploadFailed{"reason":"claude.uploadError.connection","files":"two.log"}',
     )
   })
 })

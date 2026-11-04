@@ -297,8 +297,9 @@ describe('TerminalPanel drop in a remote window', () => {
     upload.failWith('QUOTA')
     const { panel } = await renderTerminal('pty-ssh-2')
     await drop(panel, ['C:\\Users\\u\\a.txt'])
-    await waitFor(() => expect(panel.textContent).toContain('Not on the remote host, not attached: a.txt'))
-    expect(panel.textContent).toContain('the upload space for this session on the remote host is full')
+    // T0843: the reason first, the file named once, no T0437 sentence (an upload was tried).
+    await waitFor(() => expect(panel.textContent).toContain('Not attached (the upload space for this session on the remote host is full): a.txt'))
+    expect(panel.textContent).not.toContain('Not on the remote host')
     expect(xtermPaste).not.toHaveBeenCalled()
   })
 
@@ -307,7 +308,9 @@ describe('TerminalPanel drop in a remote window', () => {
     upload.api.prepare.mockResolvedValue(undefined as never)
     const { panel } = await renderTerminal('pty-ssh-3')
     await drop(panel, ['C:\\Users\\u\\a.txt'])
-    await waitFor(() => expect(panel.textContent).toContain('the connection to the remote host failed'))
+    // T0843: uploadable reason + TRANSPORT → the reason first, the file once, verbatim.
+    await waitFor(() => expect(panel.textContent).toContain('Not attached (the connection to the remote host failed): a.txt'))
+    expect(panel.textContent).not.toContain('Not on the remote host')
     expect(xtermPaste).not.toHaveBeenCalled()
   })
 

@@ -290,16 +290,16 @@ export function uploadFailureReason(code: RemoteUploadErrorCode): { key: string;
 type Translate = (key: string, params?: Record<string, string | number>) => string
 
 /**
- * The refusal toast of one send: the T0437 sentence for every attachment that is not sent, then
- * (when an upload was tried) the reasons, grouped by reason. null when nothing was refused.
+ * The refusal toast of one send (T0843). Attachments that were never uploaded (T0437 refusals) get
+ * the T0437 sentence, word for word as before. Attachments whose upload failed get one sentence per
+ * reason that starts with the reason (`claude.attachmentUploadFailed`). Every file is named once.
+ * Sentences are joined with `claude.attachmentSentenceSeparator`. null when nothing was refused.
  */
 export function attachmentRefusalText(resolution: Pick<AttachmentSendResolution, 'rejected' | 'uploadFailed'>, t: Translate): string | null {
-  const names = [
-    ...resolution.rejected.map(p => attachmentDisplayNames([p])),
-    ...resolution.uploadFailed.map(f => f.name),
-  ]
-  if (names.length === 0) return null
-  let text = t('claude.attachmentNotOnRemoteHost', { files: names.join(', ') })
+  const sentences: string[] = []
+  if (resolution.rejected.length > 0) {
+    sentences.push(t('claude.attachmentNotOnRemoteHost', { files: attachmentDisplayNames(resolution.rejected) }))
+  }
   if (resolution.uploadFailed.length > 0) {
     const groups = new Map<string, string[]>()
     for (const f of resolution.uploadFailed) {
@@ -307,8 +307,11 @@ export function attachmentRefusalText(resolution: Pick<AttachmentSendResolution,
       const reasonText = t(reason.key, reason.params)
       groups.set(reasonText, [...(groups.get(reasonText) ?? []), f.name])
     }
-    const details = [...groups].map(([reason, groupNames]) => `${groupNames.join(', ')} (${reason})`).join('; ')
-    text += ' ' + t('claude.attachmentUploadFailed', { details })
+    const listSeparator = t('claude.attachmentListSeparator')
+    for (const [reason, groupNames] of groups) {
+      sentences.push(t('claude.attachmentUploadFailed', { reason, files: groupNames.join(listSeparator) }))
+    }
   }
-  return text
+  if (sentences.length === 0) return null
+  return sentences.join(t('claude.attachmentSentenceSeparator'))
 }

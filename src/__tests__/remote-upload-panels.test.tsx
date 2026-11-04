@@ -202,8 +202,8 @@ describe.each([
     await waitFor(() => expect(sendMessage).toHaveBeenCalledTimes(1))
     expect(sendMessage.mock.calls[0][1]).toBe('@/home/u/.bat/uploads/s/t0/a.txt\n\nlook')
     const text = await toastText(container)
-    expect(text).toContain('Not on the remote host, not attached: big.bin')
-    expect(text).toContain('big.bin (over the 50 MiB per-file limit)')
+    // T0843: the reason first, the file named once, no T0437 sentence (an upload was tried).
+    expect(text.replace(/×$/, '')).toBe('Not attached (over the 50 MiB per-file limit): big.bin')
   })
 
   test('an old bat-server (no upload:*): the T0437 refusal and toast, the text is still sent', async () => {
@@ -216,8 +216,7 @@ describe.each([
     await waitFor(() => expect(sendMessage).toHaveBeenCalledTimes(1))
     expect(sendMessage.mock.calls[0][1]).toBe('look')
     const text = await toastText(container)
-    expect(text).toContain('Not on the remote host, not attached: a.txt')
-    expect(text).toContain('too old to accept uploads')
+    expect(text.replace(/×$/, '')).toBe('Not attached (the BAT server on the remote host is too old to accept uploads; update it): a.txt')
   })
 
   test('upload failed and nothing else to send: nothing is sent, the refused chip is removed', async () => {
@@ -227,7 +226,8 @@ describe.each([
     await dropFiles(container, [{ path: 'C:\\Users\\u\\a.txt' }])
     await typeAndEnter(container, '')
 
-    expect(await toastText(container)).toContain('connection to the remote host failed')
+    // T0843: uploadable reason + connection failure → the reason first, verbatim.
+    expect((await toastText(container)).replace(/×$/, '')).toBe('Not attached (the connection to the remote host failed): a.txt')
     expect(sendMessage).not.toHaveBeenCalled()
     expect(container.querySelectorAll('.claude-attachment-file')).toHaveLength(0)
   })

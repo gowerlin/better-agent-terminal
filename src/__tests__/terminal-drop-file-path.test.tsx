@@ -72,18 +72,24 @@ function permissiveApi(overrides: Record<string, Record<string, unknown>>): unkn
   })
 }
 
-/** WSL-like rules: drives → /mnt, everything else unreachable. */
+/**
+ * WSL-like rules: drives → /mnt, everything else unreachable.
+ * T0843: unreachable answers here are `invalid-path` (not uploadable), so the toasts below are the
+ * pure T0437 refusal where no upload is tried. Uploadable reasons (`outside-wsl-distro`,
+ * `ssh-local-file`) go through the T0835 upload; that path is tested in `terminal-remote-upload.test.tsx`.
+ */
 function wslLike(paths: string[]): ResolvedClientPath[] {
   return paths.map(input => {
     const m = /^([A-Za-z]):\\(.*)$/.exec(input)
     return m
       ? { input, serverPath: `/mnt/${m[1].toLowerCase()}/${m[2].replace(/\\/g, '/')}`, reachable: true }
-      : { input, serverPath: null, reachable: false, reason: 'outside-wsl-distro' as const }
+      : { input, serverPath: null, reachable: false, reason: 'invalid-path' as const }
   })
 }
 const identity = (paths: string[]): ResolvedClientPath[] => paths.map(input => ({ input, serverPath: input, reachable: true }))
+/** SSH window, every path refused without an upload (`invalid-path`, T0843 — see wslLike). */
 const sshLike = (paths: string[]): ResolvedClientPath[] =>
-  paths.map(input => ({ input, serverPath: null, reachable: false, reason: 'ssh-local-file' as const }))
+  paths.map(input => ({ input, serverPath: null, reachable: false, reason: 'invalid-path' as const }))
 
 const getPathForFile = vi.fn<(file: File) => string>()
 const resolveClientPaths = vi.fn(async (paths: string[], _purpose: string) => identity(paths))

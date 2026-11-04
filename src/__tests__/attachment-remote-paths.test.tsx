@@ -34,13 +34,18 @@ function permissiveApi(overrides: Record<string, Record<string, unknown>>): unkn
   })
 }
 
-/** WSL-like rules for the mock: drives → /mnt, everything else unreachable. */
+/**
+ * WSL-like rules for the mock: drives → /mnt, everything else unreachable.
+ * T0843: the unreachable answer is `invalid-path` (not uploadable), so these tests cover the pure
+ * T0437 refusal where no upload is tried. Uploadable reasons (`outside-wsl-distro`, …) go through
+ * the T0834 upload; that path is tested in `remote-upload-panels.test.tsx`.
+ */
 function wslLike(paths: string[]): ResolvedClientPath[] {
   return paths.map(input => {
     const m = /^([A-Za-z]):\\(.*)$/.exec(input)
     return m
       ? { input, serverPath: `/mnt/${m[1].toLowerCase()}/${m[2].replace(/\\/g, '/')}`, reachable: true }
-      : { input, serverPath: null, reachable: false, reason: 'outside-wsl-distro' as const }
+      : { input, serverPath: null, reachable: false, reason: 'invalid-path' as const }
   })
 }
 

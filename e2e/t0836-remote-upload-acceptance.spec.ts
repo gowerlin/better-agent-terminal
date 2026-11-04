@@ -589,6 +589,11 @@ test('① SSH Claude panel: limit, progress + cancel, upload into the prompt (sh
   const uploadsAfterTooBig = (await sshHost.sh(`ls -A "$1" 2>/dev/null | wc -l`, [sshHost.uploads])).trim()
   expect(uploadsAfterTooBig).toBe('0')
   expect.soft(tooBigText.includes(NAME_MARK) || tooBigText.includes('too-big'), 'the toast names the refused file').toBe(true)
+  // T0843: the reason comes first ("未附加（超過單檔 50 MiB 上限）：<file>" / "Not attached (over the 50 MiB
+  // per-file limit): <file>"), the file is named once, no T0437 "not on the remote host" sentence.
+  expect.soft(/^\s*(未附加（|Not attached \()/.test(tooBigText), `the toast starts with the reason: "${tooBigText.slice(0, 80)}"`).toBe(true)
+  expect.soft(tooBigText.split('t0836-too-big-').length - 1, 'the refused file is named once').toBe(1)
+  expect.soft(/不在遠端主機上|不在远程主机上|Not on the remote host/.test(tooBigText), 'no T0437 sentence for a tried upload').toBe(false)
   out.push(`(a) 50 MiB + 1 B → toast "${tooBigText.replace(/t0836-too-big-\S+/, '<file>').slice(0, 140)}", chip removed, no claude:send-message, host uploads/ entries ${uploadsAfterTooBig}`)
   await page.locator('.ct-toast-close').first().click().catch(() => {})
 
