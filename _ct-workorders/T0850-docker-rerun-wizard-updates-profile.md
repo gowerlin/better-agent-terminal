@@ -111,3 +111,6 @@ Docker 分支寫設定一律 `profile.create`（`src/components/setup-wizard/ste
 
 ### 後續建議
 - 實機驗收時可順手跑：同一容器重跑 Docker 精靈兩次 → Profiles 清單只有一筆、名稱保留、可連線。
+
+### 塔台收尾補記（2026-11-04 15:37）
+- 收單後 T0849 發現本單造成 legacy 回歸：`tests/docker-flow-journeys.test.ts` Journey 3 仍期望重建同名容器時 `createdProfileId`（塔台重跑確認失敗）。本單驗收沒有列 `npm run test:legacy`，屬塔台開單疏漏，不是 Worker 違規。產品行為依 D283 設計維持；測試期望由 **T0855** 修正。本單狀態維持 DONE。

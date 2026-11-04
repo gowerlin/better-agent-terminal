@@ -62,7 +62,7 @@ D283：映像來源採 (c′)：精靈 pull 使用者選的基底映像（預設
 
 ### 驗收條件
 - [ ] 上述測試通過；`server-bundle-install-script` 既有 WSL / SSH 斷言不回歸
-- [ ] `npm run typecheck` = 0、`npm run typecheck:electron` = 0、`npm run test:unit` 全過、`npx vite build` 成功
+- [ ] `npm run typecheck` = 0、`npm run typecheck:electron` = 0、`npm run test:unit` 全過、`npm run test:legacy` 全過（發版 Test gate；T0850 漏跑造成 `tests/docker-flow-journeys.test.ts` 回歸，由 T0855 修）、`npx vite build` 成功
 - [ ] 真 Docker 上的建立 / 安裝 / 探測：WSL Docker 可用就實測（拋棄式資源、做完刪除，回報區列指令與結果），否則列〈待實機驗收〉
 - [ ] commit 只含本單範圍
 

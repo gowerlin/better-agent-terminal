@@ -58,7 +58,7 @@ T0852 提供 main 端原語後，精靈改成 (c′)：使用者不必自己建 
 
 ### 驗收條件
 - [ ] 上述測試通過；既有精靈測試不回歸
-- [ ] `npm run typecheck` = 0、`npm run typecheck:electron` = 0、`npm run test:unit` 全過、`npx vite build` 成功
+- [ ] `npm run typecheck` = 0、`npm run typecheck:electron` = 0、`npm run test:unit` 全過、`npm run test:legacy` 全過（發版 Test gate；T0850 漏跑造成 `tests/docker-flow-journeys.test.ts` 回歸，由 T0855 修）、`npx vite build` 成功
 - [ ] 真 Docker 上走一次「建立 → 重跑升級」：WSL Docker 可用就實測（拋棄式資源），否則列〈待實機驗收〉
 - [ ] commit 只含本單範圍
 
