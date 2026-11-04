@@ -4,6 +4,22 @@ All notable changes to Better Agent Terminal are documented in this file.
 
 ## [Unreleased]
 
+## [0.7.4-pre.9] — 2026-11-04
+
+### Added
+- Docker 設定精靈不必自己建置映像：「建立新容器」可填基底映像（預設 `buildpack-deps:bookworm-scm`，含 git），第 4 步依序 pull（層數進度、可中止）→ 判斷映像是否內建 bat-server（`.Config.Entrypoint` / `.Config.Cmd`）→ 相容性探測（glibc ≥ 2.35、`/bin/sh`、`tar`、`gzip`；musl 擋下，不建立任何東西）→ 經既有 distributor 取得 server bundle（下載或「匯入本機 tarball…」，架構以 daemon 為準）→ 裝進 `bat-server-<容器>-bundle` volume；第 5 步以基底映像建立容器（`--init`、root、`--data-dir /var/lib/bat-server`、只綁 `127.0.0.1`、label `bat.server=1`）。只在本機的映像 pull 失敗時改用本機那份；內建 bat-server 的映像（例 `bat-server:latest`）略過安裝（PLAN-052，D283，T0852 / T0853）
+- 重跑 Docker 精靈＝升級：對 (c′) 容器重跑時，volume 內版本相同就不動；不同時先確認（會重啟容器），以 `.bat-new` / `.bat-old` 換版後 restart，取消或失敗還原舊 bundle；容器、掛載、權杖、憑證不變（PLAN-052，T0853）
+- 「沿用既有容器」改為可選清單：顯示映像 · 狀態 · 發佈埠 · BAT 建立；沒有發佈 9876 或埠與 RemoteServer 衝突的容器顯示為停用並附原因；沒有可用容器時提供「改用建立新容器」；選定後從 `docker inspect` 的 bind mount 帶出掛載（Docker Desktop 路徑轉回本機路徑）供確認（`WizardChoiceOption.disabled`；PLAN-052，T0851）
+- `docker-acceptance.yml`（`workflow_dispatch`）＋ `scripts/docker-acceptance.mjs`：在 GitHub `ubuntu-24.04` runner 對真 Docker 跑建立 / 升級 / 回復 / musl 擋下（28 項）；不在發版關卡（PLAN-052，T0854）
+
+### Fixed
+- 重跑 Docker 精靈會多一筆設定：以容器名稱＋loopback 找既有設定並更新（名稱保留），不再新增（PLAN-052，T0850；legacy 測試期望 T0855）
+- 沿用剛啟動的容器時可能拿不到權杖、錯誤看不出原因：權杖改在容器 healthy 之後讀，依序 `server-token.json`（依 `--data-dir` / env 推算路徑）→ 舊容器的 `--token` → 新錯誤碼 `docker-token-unavailable`（三語說明）（PLAN-052，T0849）
+
+### Changed
+- 新建的 Docker 容器不再以 `--token` 帶入權杖（`docker inspect` 看不到），權杖只存在 data volume；既有容器照樣可沿用。`docker:inspect-container` 不再回傳容器 env；所有 docker 呼叫都有 timeout（PLAN-052，T0849）
+- 網站「遠端 › Docker」、遠端總覽、功能頁與 `docs/docker-deployment.md`、`docs/server-bundle-distribution.md` 改為新流程；新增 `docs/agent-guide/docker-remote.md` 與 CLAUDE.md 一節；`bat-server:latest` 改列進階路徑（PLAN-052，T0854）
+
 ## [0.7.4-pre.8] — 2026-11-04
 
 ### Fixed
