@@ -4,11 +4,12 @@ summary_version: 1
 updated_at: "2026-11-04T14:09:26+08:00"
 session: "2026-11-04 14:08 第一百一十八 session（CT v6.0.0-beta.11）"
 next_ids:
-  workorder: "T0846"
-  decision: "D278"
+  workorder: "T0847"
+  decision: "D279"
   bug: "BUG-212"
   plan: "PLAN-065"
 todo:
+  - "T0846（D278）：同版重裝有安裝程式結束紀錄時也提示＋列被中斷的 agent 分頁；併入下一批與 `pre.8` 一起發，發版後同版重裝驗 PLAN-063 ③ 一鍵接回（14:04 那次沒按恢復，未驗）"
   - "✅ `0.7.4-pre.7` 已發佈（D276，run `41779586475` 全綠，publishedAt 2026-11-04T05:44:42Z，target `13150f45`）；更版重點已改寫、三文件＋版號已更新（`bbe82d92`）；Pages run `41781250077` 綠、首頁版號 pre.7、link-check 0 錯誤；PLAN-063 真實升級（D277）①②④⑤ PASS、③ 已列出，待使用者按一次「恢復」確認一鍵接回；待：NSIS 重裝驗收 `-Version 0.7.4-pre.7`"
   - "T0836 e2e 乾淨 HEAD 重跑：併入 T0844"
   - "T0843（D274，使用者「一起修好再發版」）：上傳失敗提示先講原因、檔名只出現一次；排在 T0841 後（同改 locales）"
@@ -26,7 +27,7 @@ todo:
 ---
 # Tower State — better-agent-terminal
 
-> 🟢 **第一百一十八 session 開工**（2026-11-04 14:08 (UTC+8)，CT v6.0.0-beta.11，Fast Path；塔台 session `16bf8f88-e1f5-4d6d-b20c-cd7fe1bdd6df`；`--set-role tower --mode on` exit 0；`bat_whoami` 名稱 `better-agent-terminal · Tower`；安裝版 `0.7.4-pre.7`；HEAD `08f10017`、工作區乾淨；熱區工單皆 DONE、BUG 只剩 BUG-211 FIXED；`bat_list_questions` pending 0）。
+> 🟢 **第一百一十八 session 開工**（2026-11-04 14:08 (UTC+8)，CT v6.0.0-beta.11，Fast Path；塔台 session `16bf8f88-e1f5-4d6d-b20c-cd7fe1bdd6df`；`--set-role tower --mode on` exit 0；`bat_whoami` 名稱 `better-agent-terminal · Tower`；安裝版 `0.7.4-pre.7`；HEAD `08f10017`、工作區乾淨；熱區工單皆 DONE、BUG 只剩 BUG-211 FIXED；`bat_list_questions` pending 0）。14:14 使用者回報同版重裝（pre.7 → pre.7，14:07）後沒有恢復對話框 → 日誌判讀：T0823 路徑 PASS、`detectUpgradeInterruption` 因版本相同不觸發（設計如此）、③ 一鍵接回未驗（`a85cd74e`）。14:16 使用者選 A → D278 開 **T0846**；14:01 那次 NSIS 驗收在前置檢查 FAIL（BAT 執行中，什麼都沒做），pre.7 的 NSIS 驗收仍待做。
 >
 > 🟢 **第一百一十七 session 開工**（2026-11-04 14:04 (UTC+8)，CT v6.0.0-beta.11，Fast Path；塔台 session `0f32e421-6740-42eb-b68b-abe5fc2ac1df`；`--set-role tower --mode on` exit 0；安裝版 `0.7.4-pre.7`（升級 pre.6 → pre.7 後重開）；HEAD `13f74738`、工作區乾淨）。14:05 判讀 PLAN-063 真實升級（D277）：①②④⑤ PASS、③ 對話框列出 2 個 claude 分頁，一鍵接回待使用者確認；結果記在 PLAN-063〈狀態〉。
 >
