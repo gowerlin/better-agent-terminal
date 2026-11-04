@@ -29,6 +29,20 @@ describe('docker-flow', () => {
     expect(ctx.state.dockerMounts).toEqual([])
     expect(ctx.state.containerMode).toBe('unknown')
     expect(ctx.state.dockerImage).toBe('bat-server:latest')
+    // T0849: no token is seeded — start-server reads it from the container once healthy.
+    expect(ctx.remoteToken).toBeUndefined()
+    expect(ctx.state.remoteToken).toBeUndefined()
+  })
+
+  it('T0849: start-server (token read after healthy) runs before the steps that use the token', () => {
+    const ids = buildDockerWizardSteps().map((step) => step.id)
+    expect(ids.indexOf('start-server')).toBeLessThan(ids.indexOf('fetch-fingerprint'))
+    expect(ids.indexOf('start-server')).toBeLessThan(ids.indexOf('connect-test'))
+    expect(ids.indexOf('connect-test')).toBeLessThan(ids.indexOf('write-profile'))
+  })
+
+  it('T0849: start-server is retryable, so docker-token-unavailable offers Retry', () => {
+    expect(buildDockerWizardSteps().find((step) => step.id === 'start-server')?.retryable).toBe(true)
   })
 
   it.each(['pick-container', 'configure-mounts', 'install-server-bundle', 'start-server'])(

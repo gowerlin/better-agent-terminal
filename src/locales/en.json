@@ -1328,6 +1328,10 @@
         "healthTimeout": {
           "title": "The Docker container did not become healthy",
           "body": "Docker container {{name}} did not report healthy within 45 seconds. Check the container log (`docker logs {{name}}`), then retry."
+        },
+        "tokenUnavailable": {
+          "title": "Cannot read the BAT server token from the container",
+          "body": "Docker container {{name}} is running, but BAT could not read the BAT server token from it: no server-token.json was found in the server data directory, and the container command has no --token. Make sure the container runs bat-server (the BAT server image), check the container log (`docker logs {{name}}`), then retry."
         }
       },
       "pickContainer": {

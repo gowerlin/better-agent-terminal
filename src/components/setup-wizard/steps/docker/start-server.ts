@@ -28,7 +28,21 @@ async function waitForHealthy(name: string): Promise<void> {
   throw wizardError(`Timed out waiting for Docker container ${name} to become healthy.`, 'docker-health-timeout', { name })
 }
 
-type DockerExposure = NonNullable<Awaited<ReturnType<typeof window.electronAPI.docker.startContainer>>['exposure']>
+/**
+ * T0849: read the container's bat-server token only once it is healthy — a
+ * first start writes server-token.json while the server starts up. Same path
+ * for "Create new" (the server generated it, D283) and "Use existing"; main
+ * falls back to a legacy `--token` and never re-issues one (BUG-111).
+ */
+async function readServerToken(ctx: WizardContext, name: string): Promise<void> {
+  delete ctx.state.remoteToken
+  ctx.remoteToken = undefined
+  const result = await window.electronAPI.docker.readServerToken(name)
+  if (!result.ok) throw wizardError(result.error, result.errorCode, { name })
+  ctx.remoteToken = result.token
+}
+
+type DockerExposure =NonNullable<Awaited<ReturnType<typeof window.electronAPI.docker.startContainer>>['exposure']>
 
 function pushWarning(ctx: WizardContext, warning: string): void {
   if (!ctx.warnings.includes(warning)) ctx.warnings.push(warning)
@@ -89,7 +103,7 @@ export const startDockerServerStep: WizardStep = {
             mounts: Array.isArray(ctx.state.dockerMounts) ? ctx.state.dockerMounts as Array<{ host: string; container: string }> : [],
             port,
             restartPolicy: 'unless-stopped',
-            token: typeof ctx.state.remoteToken === 'string' ? ctx.state.remoteToken : undefined,
+            // T0849 (D283): no token — the server generates its own on first start.
             dataVolume: `bat-server-${containerName}-data`,
           }
         : { port },
@@ -108,16 +122,12 @@ export const startDockerServerStep: WizardStep = {
           { code: 'docker-port-in-use' },
         )
       }
-      if (containerMode === 'new' && !restartOwnContainer) {
-        // `docker run` only runs when no container of ours holds the name, so
-        // a name conflict means we lost a race: whatever holds it is not ours.
-        if (isNameConflictError(startResult.error)) {
-          delete ctx.state[DOCKER_OWNERSHIP_KEYS.containerCreated]
-        } else if (startResult.token && isContainerCreatedByWizard(ctx, containerName)) {
-          // T0452: the container may exist with this token (created, then
-          // failed to start); a retry `docker start`s it and needs the token.
-          ctx.state.remoteToken = startResult.token
-        }
+      // `docker run` only runs when no container of ours holds the name, so
+      // a name conflict means we lost a race: whatever holds it is not ours.
+      // T0452: otherwise the container may exist (created, then failed to
+      // start); a retry `docker start`s it, and T0849 reads its token then.
+      if (containerMode === 'new' && !restartOwnContainer && isNameConflictError(startResult.error)) {
+        delete ctx.state[DOCKER_OWNERSHIP_KEYS.containerCreated]
       }
       throw wizardError(startResult.error ?? `Failed to start Docker container ${containerName}.`, 'docker-start-failed', {
         name: containerName,
@@ -127,14 +137,10 @@ export const startDockerServerStep: WizardStep = {
     // warning is what tells the user why.
     if (startResult.exposure) warnLegacyContainer(ctx, containerName, startResult.exposure)
 
-    const stateToken = typeof ctx.state.remoteToken === 'string' ? ctx.state.remoteToken : undefined
-    // T0452: our own container serves the `--token` it was created with.
-    // T0493: main may answer `token: null`; keep ctx.remoteToken string | undefined.
-    ctx.remoteToken = (restartOwnContainer ? (stateToken ?? startResult.token) : (startResult.token ?? stateToken)) ?? undefined
-    ctx.state.remoteToken = ctx.remoteToken
     ctx.systemdServiceActive = true
 
     await waitForHealthy(containerName)
+    await readServerToken(ctx, containerName)
   },
   // T0444 (BUG-111): undo only what run() did — remove the container it
   // created, or stop an existing container it started. Anything else
@@ -182,7 +188,7 @@ async function resolveServerPort(ctx: WizardContext, containerName: string, crea
       }
     : { container: containerName })
   if (!result.ok) {
-    throw Object.assign(new Error(result.error), { code: result.errorCode })
+    throw Object.assign(new Error(result.error), { code: result.errorCode, params: { name: containerName } })
   }
   if (result.reusedExistingPort) {
     ctx.logger.info(`Using host port ${result.port} published by Docker container ${containerName}`)

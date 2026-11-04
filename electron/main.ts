@@ -3771,8 +3771,22 @@ function registerLocalHandlers() {
   ipcMain.handle('docker:list-containers', () => dockerDetect.listContainers())
   ipcMain.handle('docker:inspect-container', (_event, name: string) => dockerDetect.inspectContainer(name))
   ipcMain.handle('docker:validate-mounts', (_event, mounts: Array<{ host: string; container: string }>) => dockerValidate.validateMountTable(mounts))
-  ipcMain.handle('docker:start-container', (_event, name: string, options?: { createIfMissing?: boolean; image?: string; mounts?: Array<{ host: string; container: string }>; port?: number; restartPolicy?: string; token?: string; dataVolume?: string }) =>
+  // T0849 (D283): no `token` option — a new container's server makes its own; read it with docker:read-server-token.
+  ipcMain.handle('docker:start-container', (_event, name: string, options?: { createIfMissing?: boolean; image?: string; mounts?: Array<{ host: string; container: string }>; port?: number; restartPolicy?: string; dataVolume?: string }) =>
     dockerLifecycle.startContainer(name, options))
+  // T0849: the container's bat-server token, read once it is healthy (file → legacy `--token` → error).
+  // Only the token goes back to the renderer; the log never carries it.
+  ipcMain.handle('docker:read-server-token', async (_event, name: string): Promise<
+    { ok: true; token: string } | { ok: false; errorCode: dockerLifecycle.DockerReadServerTokenErrorCode; error: string }
+  > => {
+    const result = await dockerLifecycle.readServerToken(name)
+    if (!result.ok) {
+      logger.warn(`[wizard] docker read-server-token ${result.errorCode}: ${result.error}`)
+      return result
+    }
+    logger.log(`[wizard] docker read-server-token: from ${result.source === 'file' ? 'server-token.json' : 'container --token (legacy)'}`)
+    return { ok: true, token: result.token }
+  })
   // T0649 (BUG-156): the container's bat-server port is published on host
   // 127.0.0.1, where the host RemoteServer listens too, so the Docker wizard
   // gets a port picked like the WSL one (same excluded RemoteServer ports).

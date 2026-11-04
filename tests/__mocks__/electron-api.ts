@@ -97,9 +97,10 @@ export function createMockElectronApi(options: MockOptions = {}) {
       mounts?: Array<{ host: string; container: string }>
       port?: number
       restartPolicy?: string
-      token?: string
       dataVolume?: string
     }>,
+    /** T0849: `docker.readServerToken` calls (read once the container is healthy). */
+    dockerReadTokenCalls: [] as string[],
     dockerStopCalls: [] as Array<{ name: string; remove?: boolean }>,
     dockerRemoveCalls: [] as string[],
     dockerRestartCalls: [] as string[],
@@ -556,7 +557,7 @@ export function createMockElectronApi(options: MockOptions = {}) {
           state: { status: container.state, running: container.state === 'running', health: 'healthy' as const },
           mounts: options.dockerRemoteMounts?.map((mount) => ({ source: mount.host, destination: mount.container })) ?? [],
           ports: ['9876/tcp'],
-          env: [],
+          // T0849: no env.
         }
       },
       validateMounts: async () => options.dockerValidateErrors?.length
@@ -570,7 +571,6 @@ export function createMockElectronApi(options: MockOptions = {}) {
           mounts?: Array<{ host: string; container: string }>
           port?: number
           restartPolicy?: string
-          token?: string
           dataVolume?: string
         },
       ) => {
@@ -581,7 +581,6 @@ export function createMockElectronApi(options: MockOptions = {}) {
           mounts: startOptions?.mounts,
           port: startOptions?.port,
           restartPolicy: startOptions?.restartPolicy,
-          token: startOptions?.token,
           dataVolume: startOptions?.dataVolume,
         })
         if (options.dockerStartOk === false) {
@@ -596,6 +595,12 @@ export function createMockElectronApi(options: MockOptions = {}) {
             status: 'Up 1 second',
           })
         }
+        // T0849: no token out of startContainer; see readServerToken.
+        return { ok: true as const }
+      },
+      // T0849: the container's bat-server token, read after it is healthy.
+      readServerToken: async (name: string) => {
+        operationLog.dockerReadTokenCalls.push(name)
         return { ok: true as const, token: remoteToken }
       },
       // T0682 (BUG-168 G4): T0649 resolves the host port before start. A new

@@ -14,6 +14,9 @@ export interface DockerContainerInfo {
   status: string
 }
 
+/** CLAUDE.md: synchronous detect probes time out at 5s (T0849: every docker call here is one). */
+export const DOCKER_DETECT_TIMEOUT_MS = 5_000
+
 let execFileImpl: (...args: any[]) => unknown = childProcess.execFile
 
 export function setExecFileImplForTests(execFile: (...args: any[]) => unknown): void {
@@ -33,6 +36,7 @@ function execDocker(args: string[]): Promise<ExecResult> {
         encoding: 'utf8',
         maxBuffer: 16 * 1024 * 1024,
         windowsHide: true,
+        timeout: DOCKER_DETECT_TIMEOUT_MS,
       },
       (error: Error | null, stdout: string, stderr: string) => {
         if (error) {
@@ -78,7 +82,6 @@ export async function inspectContainer(name: string): Promise<{
   state: { status: string; running: boolean; health: string }
   mounts: Array<{ source: string; destination: string }>
   ports: string[]
-  env: string[]
 }> {
   const validation = validateContainerName(name)
   if (!validation.ok) throw new Error(validation.error)
@@ -102,6 +105,7 @@ export async function inspectContainer(name: string): Promise<{
         }))
       : [],
     ports: Object.keys(entry.NetworkSettings?.Ports ?? {}),
-    env: Array.isArray(entry.Config?.Env) ? entry.Config.Env.map((value: unknown) => String(value)) : [],
+    // T0849: no `Config.Env` — a user's container env may hold secrets, and
+    // the renderer only uses image / state.
   }
 }

@@ -150,6 +150,13 @@ export function wizardError(message: string, code: string, params?: WizardErrorP
  */
 export const PRECONDITION_MISSING_CODE = 'wizard-precondition-missing'
 
+/**
+ * T0849: the container is healthy but its bat-server token could not be read
+ * (no server-token.json in its data dir, no legacy `--token`). Replaces the
+ * generic PRECONDITION_MISSING the Docker flow used to end in.
+ */
+export const DOCKER_TOKEN_UNAVAILABLE_CODE = 'docker-token-unavailable'
+
 /** T0660: the `params` a wizardError carries, if any. */
 export function readWizardErrorParams(error: unknown): WizardErrorParams | undefined {
   const params = (error as { params?: unknown } | null)?.params
@@ -654,7 +661,8 @@ export const DEFAULT_WIZARD_ERROR_REGISTRY: WizardErrorMatch[] = [
   {
     id: 'docker-inspect-failed',
     platforms: ['docker'],
-    stepIds: ['install-server-bundle'],
+    // T0849: start-server too (port pick / token read inspect the container).
+    stepIds: ['install-server-bundle', 'start-server'],
     errorCodes: ['docker-inspect-failed'],
     messageKey: 'wizard.docker.error.inspectFailed',
     detailMode: 'hidden-by-default',
@@ -706,6 +714,16 @@ export const DEFAULT_WIZARD_ERROR_REGISTRY: WizardErrorMatch[] = [
     errorCodes: ['docker-health-timeout'],
     messageKey: 'wizard.docker.error.healthTimeout',
     detailMode: 'hidden-by-default',
+    actions: [{ kind: 'retry' }, { kind: 'cancel' }],
+  },
+  // T0849: healthy container, token not readable (start-server reads it; connect-test is the fallback).
+  {
+    id: 'docker-token-unavailable',
+    platforms: ['docker'],
+    stepIds: ['start-server', 'connect-test'],
+    errorCodes: [DOCKER_TOKEN_UNAVAILABLE_CODE],
+    messageKey: 'wizard.docker.error.tokenUnavailable',
+    detailMode: 'append-raw',
     actions: [{ kind: 'retry' }, { kind: 'cancel' }],
   },
   {

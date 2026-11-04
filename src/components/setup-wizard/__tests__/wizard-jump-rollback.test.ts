@@ -349,18 +349,21 @@ function installDocker(containersIn: FakeContainer[]) {
     inspectContainer: vi.fn(async (name: string) => {
       const c = containers.get(name)
       if (!c) throw new Error(`No such container: ${name}`)
-      return { id: `id-${name}`, name, image: 'bat-server:latest', state: { status: c.running ? 'running' : 'exited', running: c.running, health: 'healthy' }, mounts: [], ports: [], env: [] }
+      // T0849: inspect no longer returns env.
+      return { id: `id-${name}`, name, image: 'bat-server:latest', state: { status: c.running ? 'running' : 'exited', running: c.running, health: 'healthy' }, mounts: [], ports: [] }
     }),
     startContainer: vi.fn(async (name: string, opts?: { createIfMissing?: boolean }) => {
       if (opts?.createIfMissing) {
         if (containers.has(name)) return { ok: false, error: `Conflict. The container name "/${name}" is already in use by container "abc".` }
         containers.set(name, { name, running: true })
-        return { ok: true, token: 'tok' }
+        return { ok: true }
       }
       const c = containers.get(name)
       if (c) c.running = true
-      return { ok: true, token: 'tok' }
+      return { ok: true }
     }),
+    // T0849: the token is read from the container once it is healthy.
+    readServerToken: vi.fn(async () => ({ ok: true, token: 'tok' })),
     // T0649: main picks the host port; an existing container keeps the one it publishes.
     pickServerPort: vi.fn(async (opts?: { container?: string }) =>
       opts?.container ? { ok: true, port: 19876, reusedExistingPort: true } : { ok: true, port: 19876 }),

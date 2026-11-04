@@ -12,6 +12,12 @@ import { afterEach, describe, expect, it } from 'vitest'
 import { FileCertificateProvider, type LoadedCertificateBundle } from '../certificate'
 import { HEADLESS_UNSUPPORTED } from '../headless-channel-status'
 import { createHeadlessServer, type HeadlessServer } from '../headless-entry'
+import { readSecretFile } from '../secrets'
+import {
+  readServerToken,
+  resetExecFileImplForTests as resetDockerExecFileImplForTests,
+  setExecFileImplForTests as setDockerExecFileImplForTests,
+} from '../../docker-lifecycle'
 import {
   connectHeadlessClient,
   makeHeadlessDataDir,
@@ -81,6 +87,39 @@ describe('createHeadlessServer — factory (migrated from tests/headless-server.
 
     const b = await server({ dataDir: dir })
     expect(b.getInfo().tokenHash).toBe(hashA)
+  })
+
+  // T0849: the Docker wizard reads <dataDir>/server-token.json once the container is healthy —
+  // for a container created before D283 (`--token <t>`) as well as for one that made its own.
+  it('start() with opts.token writes server-token.json holding that token (T0849)', async () => {
+    const dir = dataDir('token-flag')
+    const token = 'flag-token-T0849-abcdef'
+    const s = await server({ dataDir: dir, token })
+    await s.start()
+
+    const record = JSON.parse(fs.readFileSync(path.join(dir, 'server-token.json'), 'utf8')) as { encrypted?: boolean; data?: string }
+    expect(record.encrypted).toBe(false)
+    expect(record.data).toBe(token)
+  })
+
+  it('the file a server writes is what the Docker wizard reads back (T0849)', async () => {
+    const dir = dataDir('token-read-back')
+    const s = await server({ dataDir: dir })
+    await s.start()
+    const raw = fs.readFileSync(path.join(dir, 'server-token.json'), 'utf8')
+    const expected = await readSecretFile(path.join(dir, 'server-token.json'))
+    expect(expected).toBeTruthy()
+
+    setDockerExecFileImplForTests((_file: string, args: string[], _options: unknown, callback: (...cbArgs: unknown[]) => void) => {
+      if (args[0] === 'inspect') callback(null, JSON.stringify([{ Config: { Cmd: ['--data-dir', '/var/lib/bat-server'] } }]), '')
+      else if (args[0] === 'exec' && args[3] === '/var/lib/bat-server/server-token.json') callback(null, raw, '')
+      else callback(new Error('unexpected docker call'), '', '')
+    })
+    try {
+      expect(await readServerToken('bat-dev')).toEqual({ ok: true, token: expected, source: 'file' })
+    } finally {
+      resetDockerExecFileImplForTests()
+    }
   })
 
   it('lockfile fail-fast rejects a second instance while the first lock is alive', async () => {

@@ -668,12 +668,17 @@ const electronAPI = {
         state: { status: string; running: boolean; health: string }
         mounts: Array<{ source: string; destination: string }>
         ports: string[]
-        env: string[]
       }>,
     validateMounts: (mounts: Array<{ host: string; container: string }>) =>
       ipcRenderer.invoke('docker:validate-mounts', mounts) as Promise<{ ok: boolean; errors: string[] }>,
-    startContainer: (name: string, options?: { createIfMissing?: boolean; image?: string; mounts?: Array<{ host: string; container: string }>; port?: number; restartPolicy?: string; token?: string; dataVolume?: string }) =>
-      ipcRenderer.invoke('docker:start-container', name, options) as Promise<{ ok: boolean; token?: string | null; error?: string; exposure?: { ok: boolean; exposed: boolean; hostIps: string[]; legacyImage: boolean; error?: string } }>,
+    startContainer: (name: string, options?: { createIfMissing?: boolean; image?: string; mounts?: Array<{ host: string; container: string }>; port?: number; restartPolicy?: string; dataVolume?: string }) =>
+      ipcRenderer.invoke('docker:start-container', name, options) as Promise<{ ok: boolean; error?: string; exposure?: { ok: boolean; exposed: boolean; hostIps: string[]; legacyImage: boolean; error?: string } }>,
+    // T0849: the container's bat-server token, read after it is healthy.
+    readServerToken: (name: string) =>
+      ipcRenderer.invoke('docker:read-server-token', name) as Promise<
+        | { ok: true; token: string }
+        | { ok: false; errorCode: 'docker-token-unavailable' | 'docker-inspect-failed'; error: string }
+      >,
     // T0649 (BUG-156): host port for the container's bat-server; `container` = keep the port it already publishes.
     pickServerPort: (options?: { preferredPort?: number; previousPort?: number; container?: string }) =>
       ipcRenderer.invoke('docker:pick-server-port', options) as Promise<

@@ -1327,6 +1327,10 @@
         "healthTimeout": {
           "title": "Docker 容器没有进入正常状态",
           "body": "Docker 容器 {{name}} 在 45 秒内没有报告 healthy。请查看容器日志（`docker logs {{name}}`）后重试。"
+        },
+        "tokenUnavailable": {
+          "title": "无法从容器读取 BAT 服务器令牌",
+          "body": "Docker 容器 {{name}} 已在运行，但 BAT 读不到容器内 BAT 服务器的令牌：服务器数据目录里没有 server-token.json，容器的启动命令也没有 --token。请确认容器运行的是 bat-server（BAT 服务器镜像），查看容器日志（`docker logs {{name}}`）后重试。"
         }
       },
       "pickContainer": {

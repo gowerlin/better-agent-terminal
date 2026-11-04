@@ -1,6 +1,6 @@
 import i18next from 'i18next'
 import { throwIfWizardAborted, wizardAbortError, type WizardConsentRequest, type WizardContext, type WizardStep } from '../../wizard-runner'
-import { PRECONDITION_MISSING_CODE, wizardError } from '../../error-mapper'
+import { DOCKER_TOKEN_UNAVAILABLE_CODE, PRECONDITION_MISSING_CODE, wizardError } from '../../error-mapper'
 import { runAbortableOperation } from '../../wizard-abort'
 import {
   WSL_NETWORK_MIRRORED_ITEM_ID,
@@ -157,6 +157,11 @@ export const connectTestStep: WizardStep = {
     }
 
     if (!ctx.remoteToken) {
+      // T0849: Docker says why (start-server reads the token from the container); others keep the generic code.
+      if (ctx.targetOS === 'docker-linux') {
+        const name = typeof ctx.state.dockerContainer === 'string' ? ctx.state.dockerContainer : ''
+        throw wizardError(`Remote server token was not available from Docker container ${name}.`, DOCKER_TOKEN_UNAVAILABLE_CODE, { name })
+      }
       throw wizardError('Remote server token was not available after starting the BAT service.', PRECONDITION_MISSING_CODE)
     }
 

@@ -80,6 +80,11 @@ type DockerPickServerPortResult =
   | { ok: true; port: number; reusedExistingPort?: boolean }
   | { ok: false; errorCode: 'docker-port-in-use' | 'docker-port-invalid' | 'docker-port-unpublished' | 'docker-inspect-failed'; error: string }
 
+/** T0849: `docker:read-server-token` — the token only, never the container's env / command. */
+type DockerReadServerTokenResult =
+  | { ok: true; token: string }
+  | { ok: false; errorCode: 'docker-token-unavailable' | 'docker-inspect-failed'; error: string }
+
 type WslStartServiceResult =
   | { ok: true; token: string | null }
   | { ok: false; error: string; errorCode: 'wsl-port-in-use' | 'wsl-service-start-timeout' | 'wsl-service-start-failed' | 'wsl-service-start-aborted'; token?: string | null }
@@ -500,10 +505,13 @@ interface ElectronAPI {
       state: { status: string; running: boolean; health: string }
       mounts: Array<{ source: string; destination: string }>
       ports: string[]
-      env: string[]
+      // T0849: no `env` — a user's container env may hold secrets.
     }>
     validateMounts: (mounts: Array<{ host: string; container: string }>) => Promise<{ ok: boolean; errors: string[] }>
-    startContainer: (name: string, options?: { createIfMissing?: boolean; image?: string; mounts?: Array<{ host: string; container: string }>; port?: number; restartPolicy?: string; token?: string; dataVolume?: string }) => Promise<{ ok: boolean; token?: string | null; error?: string; /** T0427: set when an existing container predates the BUG-097 fix. */ exposure?: { ok: boolean; exposed: boolean; hostIps: string[]; legacyImage: boolean; error?: string } }>
+    // T0849 (D283): no `token` in or out — call readServerToken once the container is healthy.
+    startContainer: (name: string, options?: { createIfMissing?: boolean; image?: string; mounts?: Array<{ host: string; container: string }>; port?: number; restartPolicy?: string; dataVolume?: string }) => Promise<{ ok: boolean; error?: string; /** T0427: set when an existing container predates the BUG-097 fix. */ exposure?: { ok: boolean; exposed: boolean; hostIps: string[]; legacyImage: boolean; error?: string } }>
+    // T0849: server-token.json in the container's data dir → legacy `--token` → `docker-token-unavailable`.
+    readServerToken: (name: string) => Promise<DockerReadServerTokenResult>
     // T0649 / BUG-156 — never returns the host RemoteServer port; `container` keeps the port that container publishes.
     pickServerPort: (options?: { preferredPort?: number; previousPort?: number; container?: string }) => Promise<DockerPickServerPortResult>
     stopContainer: (name: string, options?: { remove?: boolean }) => Promise<{ ok: boolean; error?: string }>
