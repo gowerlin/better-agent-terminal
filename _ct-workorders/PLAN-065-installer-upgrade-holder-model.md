@@ -3,7 +3,7 @@ schema_version: 1
 schema_kind: plan
 id: PLAN-065
 title: "Windows 升級不中斷終端：holder 模型（ConPTY 持有者放安裝目錄外、跨版本接回）"
-status: IDEA
+status: IN_PROGRESS
 priority: low
 created_at: "2026-11-04T15:01:49+0800"
 links:
@@ -30,3 +30,4 @@ PLAN-063 已讓 NSIS 升級前先請 BAT 正常結束、升級後說明結束了
 ## 狀態
 
 - 2026-11-04 15:01（D281）由 PLAN-063 子項 4 移出，IDEA。
+- 2026-11-04 18:10（D285）**→ IN_PROGRESS**：使用者啟動。範圍：Windows only、全部分頁的 PTY 升級後原樣接回；先開唯讀研究單 **T0856** 再拆實作單；`0.7.5-pre.1` 等本批實作做完再發。

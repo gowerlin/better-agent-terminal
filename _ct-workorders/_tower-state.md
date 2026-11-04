@@ -4,8 +4,8 @@ summary_version: 1
 updated_at: "2026-11-04T18:04:47+08:00"
 session: "2026-11-04 18:04 第一百二十 session（CT v6.0.0-beta.11）"
 next_ids:
-  workorder: "T0856"
-  decision: "D285"
+  workorder: "T0857"
+  decision: "D286"
   bug: "BUG-212"
   plan: "PLAN-066"
 todo:
@@ -23,7 +23,8 @@ todo:
   - "觀察：語音可用性檢查 macOS 未實機；`unknown(timeout)` 若實機出現可把逾時提到 30 s（T0802 後續建議）"
   - "PLAN-060（IDEA）：macOS Developer ID 簽章（目前 macOS 不顯示系統通知）"
   - "觀察：t0757 偶發失敗再發生才開 BUG（D218）"
-  - "版號線：`0.7.4-pre.N`，已發 pre.1 – pre.9（D236 / D241 / D248 / D256 / D262 / D269 / D276 / D280 / D284），**已用完**；下一版先與使用者確認新版號線（例 `0.7.5-pre.1`）"
+  - "版號線：`0.7.4-pre.N` 已用完（pre.1 – pre.9）；D285 起 **`0.7.5-pre.N`**，下一版 `0.7.5-pre.1`，等 PLAN-065 本批實作做完再發"
+  - "PLAN-065（IN_PROGRESS，D285）：Windows 升級不中斷全部分頁的 PTY（holder 模型）；研究 T0856（唯讀）→ 使用者裁決 → 拆實作單 → 發 `0.7.5-pre.1`；真實升級實測要到 pre.1 → 下一版"
 ---
 # Tower State — better-agent-terminal
 
