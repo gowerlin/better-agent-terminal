@@ -3,7 +3,7 @@ schema_version: 1
 schema_kind: plan
 id: PLAN-052
 title: "Docker 遠端路線可用性：發佈 `bat-server` 映像或讓精靈把伺服器套件裝進任意容器；「Use existing」可選容器；重跑精靈更新既有設定"
-status: IDEA
+status: IN_PROGRESS
 priority: low
 created_at: "2026-10-18T18:33:43+0800"
 links:
@@ -37,3 +37,8 @@ T0646 依程式碼改寫 `/remote/docker` 時發現，一般使用者走不通 D
 - 待決第 4 點：BUG-156（挑埠）已 CLOSED（T0649 `99abe9a1`；T0743 驗收）。
 - T0743 以 WSL 內的 Docker＋測試專用 `docker.exe` shim 驗收，繞過上述三點；沒有實際使用者卡住的回報。
 - 與 PLAN-059 E（遠端改走 SSH stdio、支援暫時沙箱）可能重疊，日後一起評估。
+
+## 2026-11-04 → IN_PROGRESS（第一百一十九 session，D282）
+
+- 使用者決定先研究再拆單：研究單 **T0848**（唯讀）。映像來源三種做法（GHCR、release asset tar、把 server bundle 裝進任意容器）交由研究比較後推薦。
+- **不納入** PLAN-059 子項 E（SSH stdio、暫時沙箱），該項維持只記錄。
