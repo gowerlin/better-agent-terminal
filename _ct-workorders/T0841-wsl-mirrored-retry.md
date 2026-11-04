@@ -4,16 +4,17 @@ schema_kind: workorder
 id: T0841
 title: "PLAN-043 W4：connect-test 失敗且網路模式是 NAT 時，提供「改用 Mirrored 並重試」（P-5，含原則檢查與 Running 發行版列表）"
 type: implementation
-status: PENDING
+status: IN_PROGRESS
 repo: better-agent-terminal
 project: maintenance
 priority: P3
 sizing: S
 created_at: "2026-11-04T09:17:09+0800"
-started_at: ""
-updated_at: "2026-11-04T09:17:09+0800"
+started_at: "2026-11-04T12:48:05+0800"
+updated_at: "2026-11-04T13:06:08+0800"
 completed_at: ""
 session_ids: []
+tower_question: open
 depends_on: [T0840]
 related:
   - "PLAN-043 Phase 2；D272；T0831 回報區（P-5、〈調查結論〉4、〈建議下一步〉W4）；T0383 / T0653（NAT 一般可用）"
@@ -47,7 +48,7 @@ memory_overrides:
 # T0841 — PLAN-043 W4：改用 Mirrored 並重試
 
 ## 元資料
-- **工單編號**：T0841｜**類型**：implementation｜**狀態**：PENDING｜**建立**：2026-11-04 09:17 (UTC+8)
+- **工單編號**：T0841｜**類型**：implementation｜**狀態**：IN_PROGRESS｜**建立**：2026-11-04 09:17 (UTC+8)
 - **依賴**：T0840｜**規模**：S
 
 ## 任務指令
@@ -69,6 +70,19 @@ memory_overrides:
 ## 回報區
 
 > 以下由 sub-session 填寫，請勿在指揮塔 session 中編輯（唯一例外：`### 待塔台決策` 的 `塔台答覆 Q-n` 行由塔台新增）
+
+### 待塔台決策
+
+#### Q-1：要不要在使用者機器上做實機 `wsl --shutdown` 實測（工單第 4 步）？
+- **提問時間**：2026-11-04T13:06:08+0800
+- **背景**：產品已完成並 commit（`715c30de`），typecheck ×2 = 0、`test:unit` 全過、`test:legacy` 全過、`vite build` 成功、e2e V3 改後 4 項 PASS；單元測試全程 mock，沒有執行過 `--shutdown`。唯讀查到：本機 `%USERPROFILE%\.wslconfig` **已是** `networkingMode=Mirrored`、沒有 `HKLM\SOFTWARE\Policies\WSL`、唯一發行版 `Ubuntu-24.04`（Stopped）、build 28000。所以 P-5 在這台機器不會自然出現；實測必須先把使用者的 `.wslconfig` 暫改成 NAT。
+- **選項**：
+  - A：不做實機實測，列〈待實機驗收〉（附步驟），交使用者在同意的時段做。
+  - B：做。流程：備份 `.wslconfig` → 暫改 `networkingMode=nat` → `wsl --shutdown`（#1）→ 以 `npx tsx` 直接呼叫 `WslEnvApplier.applyNetworkingMirrored('Ubuntu-24.04')`（寫回 mirrored＋備份、`wsl --shutdown`（#2）、等發行版 Running、`wslinfo` 驗證）→ 比對檔案與備份 → 把 `.wslconfig` 還原成原檔（逐位元比對）。共 **2 次 `--shutdown`**，會關閉所有發行版與 BAT 內的 WSL 分頁 / keep-alive；`Ubuntu-24.04` 會被啟動。不經精靈畫面（精靈需要完整的 WSL profile 流程）。
+  - 其他
+- **建議**：A。使用者機器已是 Mirrored，實測要先改壞再改回，且兩次 `--shutdown` 會打斷使用者其他 WSL 工作；邏輯已由 mock 單元測試＋e2e 涵蓋。
+- **影響**：選 B 需約 2–3 分鐘、兩次全機 WSL 關閉；選 A 則實機驗收留給使用者。
+- **是否阻擋後續步驟**：只阻擋第 4 步與收尾；其餘已完成。
 
 ### 完成狀態
 
