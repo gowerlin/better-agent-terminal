@@ -9,7 +9,7 @@ next_ids:
   bug: "BUG-212"
   plan: "PLAN-065"
 todo:
-  - "🚀 發版中 `0.7.4-pre.7`（D276）：run `41779586475`（target `13150f45`）；CI 綠後 gh release edit 更版重點（草稿在塔台 scratchpad）→ CHANGELOG / release-note / README＋package.json 版號 → push → Pages 綠＋link-check → 給使用者 NSIS 重裝驗收指令 → PLAN-063 真實升級驗收"
+  - "✅ `0.7.4-pre.7` 已發佈（D276，run `41779586475` 全綠，publishedAt 2026-11-04T05:44:42Z，target `13150f45`）；更版重點已改寫、三文件＋版號已更新（`bbe82d92`）；Pages run `41781250077` 綠、首頁版號 pre.7、link-check 0 錯誤；待：使用者 NSIS 重裝驗收、PLAN-063 真實升級驗收（pre.6 → pre.7）"
   - "T0836 e2e 乾淨 HEAD 重跑：併入 T0844"
   - "T0843（D274，使用者「一起修好再發版」）：上傳失敗提示先講原因、檔名只出現一次；排在 T0841 後（同改 locales）"
   - "BUG-211 FIXED（T0842 `bb8cbe1a`）：待發版與遠端實機驗證（遠端視窗附 3 張 > 8 MiB 圖 → 提示、不送出、連線不斷；2 張照常）；後續候選：CLAUDE.md / multi-remote-profiles docs 補 `ws-limits.ts` / `FRAME_TOO_LARGE` 一行；fork 後自動送出 pending 圖片的路徑沒有面板檢查（只靠 client 守門）"
