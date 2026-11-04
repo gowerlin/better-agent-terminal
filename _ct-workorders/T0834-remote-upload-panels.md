@@ -29,6 +29,7 @@ affects_files:
   - src/lib/__tests__/
   - src/components/__tests__/
   - docs/agent-guide/remote-file-upload.md
+  - CLAUDE.md
   - CHANGELOG.md
 renew_count: 0
 workdir: main repo
@@ -60,6 +61,10 @@ memory_overrides:
 2. i18n（en / zh-TW / zh-CN）。
 3. RTL：兩面板 × {全可上傳、部分超上限、上傳失敗退回 toast、取消、本機視窗附件不變}。
 4. `CHANGELOG.md` `[Unreleased]` Added：遠端視窗可附加本機檔案（PLAN-038）；docs 補面板一節。
+5. **T0833 留下的後續**（塔台 2026-11-04 11:45 併入，見 T0833 回報區〈遭遇問題〉4、5）：
+   - 面板拖放的非圖片檔目前只留路徑（`getPathForFile`）；需保留 `File` 物件，遠端不可達時走 T0833 的 `file` 來源（renderer 分塊）。對話框選的檔走 `path` 來源（main 已記白名單）。
+   - `CLAUDE.md`「遠端附件上傳暫存（PLAN-038 / T0832）」節補 client 端唯一實作一行（`electron/upload-client.ts` / `src/lib/remote-upload.ts`、面板接線位置），維持 3–12 行。
+6. **與 BUG-211（T0842）合流**：遠端送出前的圖片預算 `checkRemoteImageBudget` 照舊套用在圖片（本單不改圖片走法）；非圖片附件走上傳，不計入圖片預算。送出失敗的復原沿用 T0842 的 `restoredInputText` / `restoredAttachments`。
 
 ### 驗收條件
 - [ ] `npm run typecheck` = 0、`npm run typecheck:electron` = 0、`npm run test:unit` 全過、`npx vite build` 成功
