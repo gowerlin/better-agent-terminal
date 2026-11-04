@@ -1,7 +1,7 @@
 ---
 schema_kind: tower-state
 summary_version: 1
-updated_at: "2026-11-04T09:27:07+08:00"
+updated_at: "2026-11-04T09:49:23+08:00"
 session: "2026-11-04 08:36 第一百一十六 session（CT v6.0.0-beta.11）"
 next_ids:
   workorder: "T0842"
@@ -9,10 +9,11 @@ next_ids:
   bug: "BUG-212"
   plan: "PLAN-065"
 todo:
-  - "⏸ 自動派單暫停（使用者 2026-11-04 09:27「三個 Worker 收單後，暫停自動派單」）：T0830 / T0838 收單後不派任何新工單，等使用者指示恢復"
+  - "⏸ 自動派單暫停中（使用者 2026-11-04 09:27「三個 Worker 收單後，暫停自動派單」；09:49 三張皆已收單，目前無 Worker 執行）：不派任何新工單，等使用者指示恢復。恢復時下一步：T0832（PLAN-038 U1）、T0839（PLAN-043 W2，需 T0833）"
   - "BUG-211 已重現（T0837）：建議修正方向 A（RemoteClient 送出前 frame 大小守門＋面板保留輸入與提示），待使用者決定開單"
-  - "本批（D271 / D272，做完一起發 `0.7.4-pre.7`＋PLAN-063 真實升級驗收）：DONE T0826 `83f1d5bf`、T0827 `93c6507a`、T0828（研究）、T0829 `841f5e6a`、T0831（研究）；待做 T0830 → T0832 → T0833 → T0834 → T0835、T0838 → T0839 → T0840 → T0841、T0836（e2e）、T0837（BUG-211 重現）；PLAN-043 Phase 3（W5–W8）等驗收 VM 再開單"
-  - "待實機驗收：T0827 Linux AppImage 缺字型提示（回報區〈待實機驗收〉4 項）"
+  - "本批（D271 / D272，做完一起發 `0.7.4-pre.7`＋PLAN-063 真實升級驗收）：DONE T0826 `83f1d5bf`、T0827 `93c6507a`、T0828（研究）、T0829 `841f5e6a`、T0830 `add1b932`、T0831（研究）、T0837（BUG-211 重現 `319c3646`）、T0838 `919a006e`；待做 T0832 → T0833 → T0834 → T0835、T0839（含 T0838 後續）→ T0840 → T0841、T0836（e2e）；PLAN-043 Phase 3（W5–W8）等驗收 VM 再開單"
+  - "待實機驗收：T0827 Linux AppImage 缺字型提示（回報區〈待實機驗收〉4 項）；T0830 真 WSL 的 install-bundle 中止（`pkill tar`）與 keep-alive 關閉後閒置關機（`docs/wsl-deployment.md` Real WSL Pre-Flight Checklist）"
+  - "T0830 後續候選（未開單）：SSH / Docker 精靈主行程長呼叫接 operation id；`src/components/profiles/types.ts` 補 `wslKeepAlive`；CLAUDE.md 是否補 keep-alive 開關 / 精靈中止的必守規則"
   - "MSRC 回報 microsoft/node-pty（使用者自行處理，D255）"
   - "PLAN-058：T0814（W1）`fc22e04a`＋T0815（W0）`0b67db03` DONE，T0819 安裝版 pre.5 假 API e2e PASS，待使用者手動確認（清單在 T0819 回報區）；可選後續：卡片等待時讓輸入框可送出（T0815〈遭遇問題〉1，未開單）"
   - "觀察：語音可用性檢查 macOS 未實機；`unknown(timeout)` 若實機出現可把逾時提到 30 s（T0802 後續建議）"
@@ -23,7 +24,7 @@ todo:
 ---
 # Tower State — better-agent-terminal
 
-> 🟢 **第一百一十六 session 開工**（2026-11-04 08:36 (UTC+8)，CT v6.0.0-beta.11，Fast Path；塔台 session `50e83f2b-df2b-4218-972e-8e2f5dc29c81`；`--set-role tower --mode on` exit 0；`bat_whoami` 名稱 `better-agent-terminal · Tower`；安裝版 `0.7.4-pre.6`；HEAD `74902dd2` = `origin/main`、工作區乾淨；熱區 221 張工單皆 DONE、無未結 BUG；`bat_list_questions` pending 0）。08:45 使用者回報 WSL AppImage 介面中文變方框 → 實測缺字型（`fc-list :lang=zh` = 0）→ D270：開 **T0826**（文件）、**PLAN-064**（IDEA）→ `c13ea17d`；08:47 派 T0826（`--mode yolo --no-interactive`，`started:` 00:47:09Z）→ 08:49 DONE，產品 `83f1d5bf`（4 檔 +41 / −2，只文件；site build 通過），收單核對範圍與 README 內容、session id 一致；`--close-worker T0826 --delay-ms 10000` exit 0。08:52 使用者「處理 PLAN-064 038 043」→ 選項對齊 → D271：開 T0827–T0831，三張 PLAN → IN_PROGRESS；08:56 派 T0827 / T0828 / T0831（並行，皆 `started:`）。09:05–09:19 T0828 / T0831（研究）、T0827 `93c6507a`、T0829 `841f5e6a`（孤兒 wsl.exe 實測不存在）DONE，收單核對範圍與 session id，`--close-worker` 皆排程。09:17 使用者裁決 → D272：開 BUG-211、T0832–T0841；09:21 派 T0830 / T0837 / T0838（皆 `started:`）。09:27 T0837 DONE（BUG-211 成立，`319c3646` 重現測試）；使用者指示三個 Worker 收單後暫停自動派單。09:28 T0830 提問 Q-1（step abort 需改 `wsl-detect.ts` / `wsl-systemd.ts`）→ 塔台範圍內裁決選 A（擴大，不給 signal 時行為不變；在 T0838 `919a006e` 之上改、只 add 自己的變更）→ `--answer --choice 1` exit 0。
+> 🟢 **第一百一十六 session 開工**（2026-11-04 08:36 (UTC+8)，CT v6.0.0-beta.11，Fast Path；塔台 session `50e83f2b-df2b-4218-972e-8e2f5dc29c81`；`--set-role tower --mode on` exit 0；`bat_whoami` 名稱 `better-agent-terminal · Tower`；安裝版 `0.7.4-pre.6`；HEAD `74902dd2` = `origin/main`、工作區乾淨；熱區 221 張工單皆 DONE、無未結 BUG；`bat_list_questions` pending 0）。08:45 使用者回報 WSL AppImage 介面中文變方框 → 實測缺字型（`fc-list :lang=zh` = 0）→ D270：開 **T0826**（文件）、**PLAN-064**（IDEA）→ `c13ea17d`；08:47 派 T0826（`--mode yolo --no-interactive`，`started:` 00:47:09Z）→ 08:49 DONE，產品 `83f1d5bf`（4 檔 +41 / −2，只文件；site build 通過），收單核對範圍與 README 內容、session id 一致；`--close-worker T0826 --delay-ms 10000` exit 0。08:52 使用者「處理 PLAN-064 038 043」→ 選項對齊 → D271：開 T0827–T0831，三張 PLAN → IN_PROGRESS；08:56 派 T0827 / T0828 / T0831（並行，皆 `started:`）。09:05–09:19 T0828 / T0831（研究）、T0827 `93c6507a`、T0829 `841f5e6a`（孤兒 wsl.exe 實測不存在）DONE，收單核對範圍與 session id，`--close-worker` 皆排程。09:17 使用者裁決 → D272：開 BUG-211、T0832–T0841；09:21 派 T0830 / T0837 / T0838（皆 `started:`）。09:27 T0837 DONE（BUG-211 成立，`319c3646` 重現測試）；使用者指示三個 Worker 收單後暫停自動派單。09:28 T0830 提問 Q-1（step abort 需改 `wsl-detect.ts` / `wsl-systemd.ts`）→ 塔台範圍內裁決選 A（擴大，不給 signal 時行為不變；在 T0838 `919a006e` 之上改、只 add 自己的變更）→ `--answer --choice 1` exit 0。09:30 T0838 DONE（`919a006e`，後續併入 T0839）。09:49 T0830 DONE（`add1b932`，30 檔 +1828 / −78；typecheck 0 / 0、unit 416 檔、legacy 472 / 33、vite build）；三張皆收單、`--close-worker` 排程 → 自動派單正式暫停。
 >
 > 🟢 **第一百一十五 session 開工**（2026-11-04 03:37 (UTC+8)，CT v6.0.0-beta.11，Fast Path；塔台 session `96f9499a-1ea6-4a55-9722-6c14f0490c85`；`--set-role tower --mode on` exit 0；`bat_whoami` 名稱 `better-agent-terminal · Tower`；安裝版 FileVersion `0.7.4-pre.6`；HEAD `7c645e89`、`main` = `origin/main`（fetch 後 0 / 0）、工作區乾淨；熱區 221 張工單皆 DONE；BUG 熱區 Closed 73 / WONTFIX 1、無未結；PLAN IN_PROGRESS 2 / IDEA 6 / DONE 18 / DROPPED 2；`bat_list_questions` pending 0）。**`v0.7.4-pre.6` NSIS 完整重裝驗收 PASS-WITH-WARN**（real 模式 03:35:58–03:36:58；AllUsers / HKLM；唯一 WARN = ⓪ 目前安裝版 pre.5，② 實為升級，屬預期；① SHA-256 `350b79f0…` ② ③ ④ 全 PASS，三支 helper `--version` = v0.7.4-pre.6、內嵌 claude / codex 存在、userData 130 檔 SHA-256 未變；⑤ SKIPPED；驗收時 BAT 已關閉，T0823 的「安裝前請 BAT 正常結束」路徑未經過，真實升級驗收仍待下一版）；報告 `%TEMP%\bat-nsis-acceptance-20261104-033558\report.md`；含權杖的 `userdata-backup` 已刪除。
 >
