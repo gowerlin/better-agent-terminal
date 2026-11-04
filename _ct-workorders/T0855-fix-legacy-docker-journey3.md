@@ -4,12 +4,17 @@ schema_kind: workorder
 id: T0855
 title: "修正 legacy 測試 `tests/docker-flow-journeys.test.ts` Journey 3：T0850 後同容器重建改為更新既有設定"
 type: implementation
-status: TODO
+status: DONE
 repo: better-agent-terminal
 project: PLAN-052
 priority: P1
 sizing: S
 created_at: "2026-11-04T15:37:06+0800"
+started_at: "2026-11-04T15:38:03+0800"
+updated_at: "2026-11-04T15:40:08+0800"
+completed_at: "2026-11-04T15:40:08+0800"
+session_ids:
+  - "3788c376-1ac5-4391-a73f-65945f15efc8"
 depends_on: [T0849, T0850]
 related:
   - "PLAN-052；D283；T0850（`c0ace27e`）；T0849 回報區〈驗證〉〈後續建議〉；CLAUDE.md「Packaging / Release 前置檢查」Test gate（`test:legacy` 失敗會擋發版）"
@@ -32,7 +37,7 @@ memory_overrides:
 # T0855 — 修正 legacy Docker Journey 3 的期望
 
 ## 元資料
-- **工單編號**：T0855｜**類型**：implementation｜**狀態**：TODO｜**建立**：2026-11-04 15:37 (UTC+8)
+- **工單編號**：T0855｜**類型**：implementation｜**狀態**：DONE｜**建立**：2026-11-04 15:37 (UTC+8)
 - **規模**：S｜**決策**：D283（範圍內跟進）｜**可並行**：T0851
 
 ## 現象
@@ -51,4 +56,47 @@ T0849 回報、塔台 15:36 重跑確認：`npx tsx --test tests/docker-flow-jou
 
 ## 回報區
 
-（Worker 填寫）
+### 完成狀態
+- **狀態**：DONE
+- **session_id**：3788c376-1ac5-4391-a73f-65945f15efc8
+- **產品 commit**：`3d042497`（只含 `tests/docker-flow-journeys.test.ts`）
+
+### 落點檢查
+- **結果**：PASS
+- C-0：`repo` = `better-agent-terminal`，`basename(REPO_ROOT)` = `better-agent-terminal` → PASS
+- C-1：工單在 `REPO_ROOT/_ct-workorders/` 下 → PASS
+- C-3：`tests/docker-flow-journeys.test.ts` 存在 → PASS
+- C-2：工單無 `branch` 欄位，不比對（目前 `main`）
+- `BAT_WORKSPACE_ID`：`cc0afc4a-57e9-4f41-b2ed-a2d8bac9e36b`（只記錄）
+- 不在 worktree（`CT_HOME` 未設）
+
+### 結果摘要
+Journey 3 依 T0850（D283）行為改期望：第二次精靈執行（同容器名稱、loopback）更新既有設定，不新建。改後斷言：
+- `first.createdProfileId` = `docker-rebuild`；`second.createdProfileId` = `undefined`；`second.updatedProfileId` = `docker-rebuild`
+- `operationLog.createdProfileIds` 只有 `['docker-rebuild']`、`harness.profiles.size` = 1（profile 數不變）
+- 該 profile：`name` 保留 `Docker Rebuild`、`dockerContainer` = 原容器名、`dockerMounts` = 新掛載、`remotePort` / `remoteToken` = 第二次執行的值、`remoteFingerprint` = `FP:44:55:66`
+- 原有的 remove / 兩次 start / 第二次 start 用新掛載的斷言保留。測試標題不改。
+
+Journey 1 / 2 各只跑一次精靈，沒有「重跑會新建 profile」的假設，未動。產品程式碼、`tests/__mocks__/electron-api.ts` 均未改。
+
+### 變更檔案
+- `tests/docker-flow-journeys.test.ts`（Journey 3 期望）
+- `_ct-workorders/T0855-fix-legacy-docker-journey3.md`（本工單）
+
+### 驗證
+| 閘門 | 結果 | 證據 |
+|---|---|---|
+| `npx tsx --test tests/docker-flow-journeys.test.ts` | PASS | tests 3、pass 3、fail 0（log 有 `Updated the existing remote profile "Docker Rebuild" instead of creating a new one`） |
+| `npm run test:legacy` | PASS | `legacy tests: files 33 passed, 0 failed / 33 total; tests 472 passed, 0 failed`，exit 0 |
+| `npm run test:unit` | PASS | Test Files 436 passed / 3 skipped（439）；Tests 7795 passed / 40 skipped（7835），exit 0 |
+| commit 範圍 | PASS | `3d042497` 只含 `tests/docker-flow-journeys.test.ts`；工作區另有 `_ct-workorders/T0851-…md` 的修改（他單），未碰 |
+
+### 偏離與遭遇問題
+- 無。
+
+### 互動紀錄
+- （無；yolo，未提問）
+
+### 後續建議
+- 無。T0850 類「改變精靈行為」的工單，驗收可一併列 `npm run test:legacy`（塔台已加 Test gate 提醒，見 `628aaa71`）。
+
