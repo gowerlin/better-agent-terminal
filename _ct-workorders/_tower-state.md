@@ -1,7 +1,7 @@
 ---
 schema_kind: tower-state
 summary_version: 1
-updated_at: "2026-11-04T11:27:06+08:00"
+updated_at: "2026-11-04T11:32:54+08:00"
 session: "2026-11-04 08:36 第一百一十六 session（CT v6.0.0-beta.11）"
 next_ids:
   workorder: "T0843"
@@ -9,10 +9,10 @@ next_ids:
   bug: "BUG-212"
   plan: "PLAN-065"
 todo:
-  - "▶ 自動派單已恢復（11:14，D273）：T0832 執行中；之後 T0833 → T0834 → T0835、T0839（需 T0833）→ T0840 → T0841，T0836 在 T0834 / T0835 後"
+  - "▶ 自動派單已恢復（11:14，D273）：T0833 執行中（11:32 派）；之後 T0834 → T0835、T0839 → T0840 → T0841，T0836 在 T0834 / T0835 後"
   - "BUG-211 FIXED（T0842 `bb8cbe1a`）：待發版與遠端實機驗證（遠端視窗附 3 張 > 8 MiB 圖 → 提示、不送出、連線不斷；2 張照常）；後續候選：CLAUDE.md / multi-remote-profiles docs 補 `ws-limits.ts` / `FRAME_TOO_LARGE` 一行；fork 後自動送出 pending 圖片的路徑沒有面板檢查（只靠 client 守門）"
-  - "本批（D271 / D272，做完一起發 `0.7.4-pre.7`＋PLAN-063 真實升級驗收）：DONE T0826 `83f1d5bf`、T0827 `93c6507a`、T0828（研究）、T0829 `841f5e6a`、T0830 `add1b932`、T0831（研究）、T0837（BUG-211 重現 `319c3646`）、T0838 `919a006e`；待做 T0832 → T0833 → T0834 → T0835、T0839（含 T0838 後續）→ T0840 → T0841、T0836（e2e）；PLAN-043 Phase 3（W5–W8）等驗收 VM 再開單"
-  - "待實機驗收：T0827 Linux AppImage 缺字型提示（回報區〈待實機驗收〉4 項）；T0830 真 WSL 的 install-bundle 中止（`pkill tar`）與 keep-alive 關閉後閒置關機（`docs/wsl-deployment.md` Real WSL Pre-Flight Checklist）"
+  - "本批（D271 / D272，做完一起發 `0.7.4-pre.7`＋PLAN-063 真實升級驗收）：DONE T0826 `83f1d5bf`、T0827 `93c6507a`、T0828（研究）、T0829 `841f5e6a`、T0830 `add1b932`、T0831（研究）、T0837（BUG-211 重現 `319c3646`）、T0838 `919a006e`、T0842 `bb8cbe1a`、T0832 `0382882b`（契約 C-1–C-10）；待做 T0833 → T0834 → T0835、T0839（含 T0838 後續）→ T0840 → T0841、T0836（e2e）；PLAN-043 Phase 3（W5–W8）等驗收 VM 再開單"
+  - "待實機驗收：T0827 Linux AppImage 缺字型提示（回報區〈待實機驗收〉4 項）；T0830 真 WSL 的 install-bundle 中止（`pkill tar`）與 keep-alive 關閉後閒置關機（`docs/wsl-deployment.md` Real WSL Pre-Flight Checklist）；T0832 smoke S14 對已部署 server（發版後 `node scripts/smoke-remote-headless.mjs --target wsl:<distro>`）"
   - "T0830 後續候選（未開單）：SSH / Docker 精靈主行程長呼叫接 operation id；`src/components/profiles/types.ts` 補 `wslKeepAlive`；CLAUDE.md 是否補 keep-alive 開關 / 精靈中止的必守規則"
   - "MSRC 回報 microsoft/node-pty（使用者自行處理，D255）"
   - "PLAN-058：T0814（W1）`fc22e04a`＋T0815（W0）`0b67db03` DONE，T0819 安裝版 pre.5 假 API e2e PASS，待使用者手動確認（清單在 T0819 回報區）；可選後續：卡片等待時讓輸入框可送出（T0815〈遭遇問題〉1，未開單）"
