@@ -58,6 +58,7 @@ D283：映像來源採 (c′)：精靈 pull 使用者選的基底映像（預設
 6. `buildBatContainerRunArgs`：`--init`、`--entrypoint /opt/bat/server/bin/bat-server`、`--health-cmd`（同 `docker/Dockerfile` 的 TLS 探測）、`--restart unless-stopped`、`-p 127.0.0.1:P:9876`、兩個 volume、label `bat.server=1`、`--bind-interface all --port 9876 --data-dir /var/lib/bat-server`，沒有 `--token`。
 7. `docker.execCommand`：目前只在型別宣告、沒有實作（T0848 發現的死碼）→ 補實作或移除並改寫唯一呼叫點。
 8. 確認 `server-cert.json`（含私鑰）與 dataDir 的權限；dataDir 建成 0700。
+8a. （可選，T0851 回報區〈可選項 6〉移來；成本低才做，不做就在回報區寫明）憑證指紋交叉比對：main 端以 `docker exec cat <dataDir>/server-cert.json`（dataDir 推算沿用 T0849 的 `resolveServerTokenPath` 規則）算 SHA-256，回傳指紋（不回傳憑證或私鑰內容）；先確認 `server-cert.json` 的格式。精靈端的比對接線留給 T0853。
 9. 測試：參數組裝（斷言 127.0.0.1、無 `--token`、白名單）、install 指令與 stdin 串流（mock）、探測結果分類、pull 中止。
 
 ### 驗收條件
