@@ -72,6 +72,17 @@ describe('install script text (T0552)', () => {
     expect(script).toContain('case "$dst" in /?*/?*)')
   })
 
+  // T0852 (D283 (c′)): the Docker bundle volume reuses the SSH command with root
+  // /opt/bat/server (electron/docker-bundle-volume.ts); no new parameter, WSL / SSH unchanged.
+  it('T0852 Docker volume root /opt/bat/server is a valid install root for the SSH command', () => {
+    expect(assertBundleInstallRoot('/opt/bat/server')).toBe('/opt/bat/server')
+    const script = buildSshBundleInstallCommand('/opt/bat/server', { keepPrevious: true })
+    expect(script.split('\n').slice(0, 2)).toEqual(["dst='/opt/bat/server'", 'keep=1'])
+    expect(script).toContain('tar xz -C "$target" --strip-components=1')
+    expect(buildSshBundleRestoreCommand('/opt/bat/server').split('\n')[0]).toBe("dst='/opt/bat/server'")
+    expect(buildSshBundleDiscardPreviousCommand('/opt/bat/server').split('\n')[0]).toBe("dst='/opt/bat/server'")
+  })
+
   it('T0554: markers parse; anything else is null', () => {
     expect(parseBundleInstallPrevious('server bundle install: replaced /x\nBAT_BUNDLE_PREVIOUS=kept\n')).toBe('kept')
     expect(parseBundleInstallPrevious('BAT_BUNDLE_PREVIOUS=none\r\n')).toBe('none')

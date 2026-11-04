@@ -129,6 +129,7 @@ import {
 import type { ParseWarning as CtParseWarning } from '../src/utils/ct-frontmatter'
 import * as dockerDetect from './docker-detect'
 import * as dockerLifecycle from './docker-lifecycle'
+import * as dockerBundleVolume from './docker-bundle-volume'
 import * as dockerValidate from './docker-validate'
 import * as wslDetect from './wsl-detect'
 import { detectWslFacts, summarizeWslFacts } from './wsl-facts'
@@ -3816,6 +3817,100 @@ function registerLocalHandlers() {
   ipcMain.handle('docker:restart-container', (_event, name: string) => dockerLifecycle.restartContainer(name))
   ipcMain.handle('docker:get-container-logs', (_event, name: string, options?: { tail?: number; follow?: boolean }) => dockerLifecycle.getContainerLogs(name, options))
   ipcMain.handle('docker:get-container-health', (_event, name: string) => dockerLifecycle.getContainerHealth(name))
+  // T0852 (PLAN-052 W4a, D283 (c′)): base image + server bundle volume primitives
+  // (electron/docker-bundle-volume.ts). The wizard steps that call them are T0853.
+  // Logs carry codes / counts only — never docker arguments, tokens or certificates.
+  // `operationId` (T0830) makes pull / install abortable from the wizard.
+  ipcMain.handle('docker:pull-image', async (evt, image: string, options?: { operationId?: string; timeoutMs?: number }): Promise<dockerBundleVolume.DockerPullResult> => {
+    const operation = wizardOperations.begin(options?.operationId)
+    try {
+      const result = await dockerBundleVolume.pullImage(image, {
+        signal: operation.signal,
+        timeoutMs: options?.timeoutMs,
+        onProgress: (progress) => {
+          if (!evt.sender.isDestroyed()) evt.sender.send('docker:pull-progress', { operationId: options?.operationId, ...progress })
+        },
+      })
+      if (result.ok) logger.log(`[wizard] docker pull-image: ${result.status}`)
+      else logger.warn(`[wizard] docker pull-image ${result.errorCode}`)
+      return result
+    } finally {
+      operation.end()
+    }
+  })
+  ipcMain.handle('docker:server-arch', async (): Promise<dockerBundleVolume.DockerServerArchResult> => {
+    const result = await dockerBundleVolume.dockerServerArch()
+    if (result.ok) logger.log(`[wizard] docker server-arch -> ${result.arch} (${result.rawArch})`)
+    else logger.warn(`[wizard] docker server-arch ${result.errorCode}`)
+    return result
+  })
+  ipcMain.handle('docker:bat-volume-names', (_event, containerName: string): { ok: true; bundle: string; data: string } | { ok: false; error: string } => {
+    try {
+      return { ok: true, ...dockerBundleVolume.batVolumeNames(containerName) }
+    } catch (error) {
+      return { ok: false, error: error instanceof Error ? error.message : String(error) }
+    }
+  })
+  ipcMain.handle('docker:create-volume', async (_event, name: string, role: dockerBundleVolume.BatVolumeRole) => {
+    const result = await dockerBundleVolume.createBatVolume(name, role)
+    if (result.ok) logger.log(`[wizard] docker create-volume (${role}): ${result.created ? 'created' : 'exists'}${result.batLabelled ? '' : ' (no BAT label)'}`)
+    else logger.warn(`[wizard] docker create-volume (${role}) ${result.errorCode}`)
+    return result
+  })
+  ipcMain.handle('docker:remove-volume', async (_event, name: string) => {
+    const result = await dockerBundleVolume.removeBatVolume(name)
+    if (result.ok) logger.log(`[wizard] docker remove-volume: ${result.removed ? 'removed' : 'not found'}`)
+    else logger.warn(`[wizard] docker remove-volume ${result.errorCode}`)
+    return result
+  })
+  ipcMain.handle('docker:install-bundle-into-volume', async (_event, options: { image: string; bundleVolume: string; dataVolume?: string; tarballPath: string; keepPrevious?: boolean; operationId?: string }): Promise<dockerBundleVolume.DockerInstallBundleResult> => {
+    const operation = wizardOperations.begin(options?.operationId)
+    try {
+      const result = await dockerBundleVolume.installBundleIntoVolume({
+        image: options?.image,
+        bundleVolume: options?.bundleVolume,
+        dataVolume: options?.dataVolume,
+        tarballPath: options?.tarballPath,
+        keepPrevious: options?.keepPrevious === true,
+        signal: operation.signal,
+      })
+      if (result.ok) logger.log(`[wizard] docker install-bundle-into-volume: previous=${result.previous}`)
+      else logger.warn(`[wizard] docker install-bundle-into-volume ${result.errorCode}${result.previous ? ` previous=${result.previous}` : ''}`)
+      return result
+    } finally {
+      operation.end()
+    }
+  })
+  ipcMain.handle('docker:restore-bundle-in-volume', async (_event, options: { image: string; bundleVolume: string }) => {
+    const result = await dockerBundleVolume.restoreBundleInVolume({ image: options?.image, bundleVolume: options?.bundleVolume })
+    logger.log(`[wizard] docker restore-bundle-in-volume: ${result.ok ? result.outcome : result.errorCode}`)
+    return result
+  })
+  ipcMain.handle('docker:discard-previous-bundle-in-volume', async (_event, options: { image: string; bundleVolume: string }) => {
+    const result = await dockerBundleVolume.discardPreviousBundleInVolume({ image: options?.image, bundleVolume: options?.bundleVolume })
+    logger.log(`[wizard] docker discard-previous-bundle-in-volume: ${result.ok ? 'ok' : result.errorCode}`)
+    return result
+  })
+  ipcMain.handle('docker:probe-bundle-compat', async (_event, options: { image: string; bundleVolume?: string }): Promise<dockerBundleVolume.DockerCompatResult> => {
+    const result = await dockerBundleVolume.probeBundleCompat({ image: options?.image, bundleVolume: options?.bundleVolume })
+    if (result.ok) logger.log(`[wizard] docker probe-bundle-compat: ok libc=${result.libc}${result.glibcVersion ? ` glibc=${result.glibcVersion}` : ''} node=${result.nodeChecked ? 'checked' : 'skipped'}`)
+    else logger.warn(`[wizard] docker probe-bundle-compat ${result.errorCode}`)
+    return result
+  })
+  ipcMain.handle('docker:create-bat-container', async (_event, name: string, options: { image: string; port: number; bundleVolume: string; dataVolume: string; mounts?: Array<{ host: string; container: string }>; restartPolicy?: 'unless-stopped' | 'always' | 'no' | 'on-failure' }) => {
+    const result = await dockerBundleVolume.createBatContainer(name, options)
+    if (result.ok) logger.log('[wizard] docker create-bat-container: created')
+    else logger.warn('[wizard] docker create-bat-container failed')
+    return result
+  })
+  // T0852: implements the T0289 `docker.execCommand` type; only the install-server-bundle
+  // rollback's `rm -rf <bundle install root>` is allowed (see execContainerCommand).
+  ipcMain.handle('docker:exec-command', (_event, name: string, command: string[]) => dockerBundleVolume.execContainerCommand(name, command))
+  ipcMain.handle('docker:read-server-cert-fingerprint', async (_event, name: string): Promise<dockerBundleVolume.DockerCertFingerprintResult> => {
+    const result = await dockerBundleVolume.readServerCertFingerprint(name)
+    if (!result.ok) logger.warn(`[wizard] docker read-server-cert-fingerprint ${result.errorCode}`)
+    return result
+  })
   ipcMain.handle('wsl:list', () => wslDetect.list())
   ipcMain.handle('wsl:systemd-enabled', (_event, distro: string) => wslDetect.systemdEnabled(distro))
   ipcMain.handle('wsl:detect-network-mode', (_event, distro: string) => wslDetect.detectNetworkMode(distro))

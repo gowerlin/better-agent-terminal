@@ -24,6 +24,18 @@ import type { UsageLimitContinueEvent, UsageLimitStatusEvent } from '../src/lib/
 import type { DetachedWaitingReport, TerminalAttentionEvent, TerminalAttentionSnapshotEntry } from '../src/lib/terminal-attention'
 import type { NotifyHoldChangedEvent } from '../src/types/notify-hold'
 import type { RemoteUploadApi, RemoteUploadProgressEvent, RemoteUploadSourceDescriptor } from '../src/lib/remote-upload'
+import type {
+  BatVolumeRole,
+  DockerBundleJobResult,
+  DockerCertFingerprintResult,
+  DockerCompatResult,
+  DockerCreateVolumeResult,
+  DockerInstallBundleResult,
+  DockerPullProgress,
+  DockerPullResult,
+  DockerRemoveVolumeResult,
+  DockerServerArchResult,
+} from './docker-bundle-volume'
 
 type RendererLogLevel = 'error' | 'warn' | 'info' | 'log' | 'debug'
 
@@ -695,6 +707,36 @@ const electronAPI = {
       ipcRenderer.invoke('docker:get-container-logs', name, options) as Promise<{ ok: boolean; logs?: string; error?: string }>,
     getContainerHealth: (name: string) =>
       ipcRenderer.invoke('docker:get-container-health', name) as Promise<{ ok: boolean; health?: 'healthy' | 'unhealthy' | 'starting' | 'none'; error?: string }>,
+    // T0852: only `['rm', '-rf', <bundle install root>]` (install-server-bundle rollback) is allowed.
+    execCommand: (name: string, command: string[]) =>
+      ipcRenderer.invoke('docker:exec-command', name, command) as Promise<{ ok: true; stdout?: string } | { ok: false; error: string }>,
+    // T0852 (PLAN-052 W4a, D283 (c′)): base image + server bundle volume primitives.
+    pullImage: (image: string, options?: { operationId?: string; timeoutMs?: number }) =>
+      ipcRenderer.invoke('docker:pull-image', image, options) as Promise<DockerPullResult>,
+    onPullProgress: (callback: (event: DockerPullProgress & { operationId?: string }) => void) => {
+      const handler = (_evt: unknown, event: DockerPullProgress & { operationId?: string }) => callback(event)
+      ipcRenderer.on('docker:pull-progress', handler)
+      return () => ipcRenderer.removeListener('docker:pull-progress', handler)
+    },
+    serverArch: () => ipcRenderer.invoke('docker:server-arch') as Promise<DockerServerArchResult>,
+    batVolumeNames: (containerName: string) =>
+      ipcRenderer.invoke('docker:bat-volume-names', containerName) as Promise<{ ok: true; bundle: string; data: string } | { ok: false; error: string }>,
+    createVolume: (name: string, role: BatVolumeRole) =>
+      ipcRenderer.invoke('docker:create-volume', name, role) as Promise<DockerCreateVolumeResult>,
+    removeVolume: (name: string) =>
+      ipcRenderer.invoke('docker:remove-volume', name) as Promise<DockerRemoveVolumeResult>,
+    installBundleIntoVolume: (options: { image: string; bundleVolume: string; dataVolume?: string; tarballPath: string; keepPrevious?: boolean; operationId?: string }) =>
+      ipcRenderer.invoke('docker:install-bundle-into-volume', options) as Promise<DockerInstallBundleResult>,
+    restoreBundleInVolume: (options: { image: string; bundleVolume: string }) =>
+      ipcRenderer.invoke('docker:restore-bundle-in-volume', options) as Promise<DockerBundleJobResult<{ outcome: 'restored' | 'missing' }>>,
+    discardPreviousBundleInVolume: (options: { image: string; bundleVolume: string }) =>
+      ipcRenderer.invoke('docker:discard-previous-bundle-in-volume', options) as Promise<DockerBundleJobResult<Record<never, never>>>,
+    probeBundleCompat: (options: { image: string; bundleVolume?: string }) =>
+      ipcRenderer.invoke('docker:probe-bundle-compat', options) as Promise<DockerCompatResult>,
+    createBatContainer: (name: string, options: { image: string; port: number; bundleVolume: string; dataVolume: string; mounts?: Array<{ host: string; container: string }>; restartPolicy?: 'unless-stopped' | 'always' | 'no' | 'on-failure' }) =>
+      ipcRenderer.invoke('docker:create-bat-container', name, options) as Promise<{ ok: true } | { ok: false; error: string }>,
+    readServerCertFingerprint: (name: string) =>
+      ipcRenderer.invoke('docker:read-server-cert-fingerprint', name) as Promise<DockerCertFingerprintResult>,
   },
   ssh: {
     listHosts: () => ipcRenderer.invoke('ssh:list-hosts') as Promise<string[]>,

@@ -99,6 +99,55 @@ type DockerReadServerTokenResult =
   | { ok: true; token: string }
   | { ok: false; errorCode: 'docker-token-unavailable' | 'docker-inspect-failed'; error: string }
 
+// T0852 (PLAN-052 W4a, D283 (c′)): base image + server bundle volume primitives.
+// Mirrors electron/docker-bundle-volume.ts (keep in sync).
+type DockerServerBundleArch = 'linux-x64' | 'linux-arm64' | 'darwin-arm64'
+interface DockerPullProgressEvent {
+  operationId?: string
+  layers: number
+  completed: number
+}
+type DockerPullResult =
+  | { ok: true; status: 'downloaded' | 'up-to-date' | 'unknown'; digest?: string }
+  | { ok: false; errorCode: 'docker-image-invalid' | 'docker-image-not-found' | 'docker-pull-rate-limited' | 'docker-pull-failed' | 'docker-pull-timeout' | 'docker-pull-aborted'; error: string }
+type DockerServerArchResult =
+  | { ok: true; arch: DockerServerBundleArch; rawArch: string }
+  | { ok: false; errorCode: 'docker-arch-failed' | 'docker-arch-unsupported' | 'docker-server-not-linux'; error: string; rawArch?: string }
+type DockerVolumeErrorCode = 'docker-volume-invalid' | 'docker-volume-failed' | 'docker-volume-not-owned'
+type DockerCreateVolumeResult =
+  /** `created: false` = it existed already; the wizard removes only volumes it created. */
+  | { ok: true; volume: string; created: boolean; batLabelled: boolean }
+  | { ok: false; errorCode: DockerVolumeErrorCode; error: string }
+type DockerRemoveVolumeResult =
+  | { ok: true; volume: string; removed: boolean }
+  | { ok: false; errorCode: DockerVolumeErrorCode; error: string }
+type DockerBundlePrevious = 'kept' | 'none' | 'unmanaged'
+type DockerInstallBundleResult =
+  | { ok: true; installPath: string; previous: DockerBundlePrevious }
+  | { ok: false; errorCode: 'docker-install-invalid' | 'docker-install-failed' | 'docker-install-timeout' | 'docker-install-aborted'; error: string; aborted?: boolean; previous?: DockerBundlePrevious }
+type DockerBundleJobErrorCode = 'docker-install-invalid' | 'docker-install-failed'
+type DockerCompatLibc = 'glibc' | 'musl' | 'unknown'
+type DockerCompatResult =
+  | { ok: true; libc: DockerCompatLibc; glibcVersion?: string; nodeChecked: boolean }
+  | {
+      ok: false
+      errorCode:
+        | 'docker-compat-no-shell'
+        | 'docker-compat-missing-tools'
+        | 'docker-compat-musl'
+        | 'docker-compat-glibc-too-old'
+        | 'docker-compat-bundle-missing'
+        | 'docker-compat-node-failed'
+        | 'docker-compat-probe-failed'
+      error: string
+      libc?: DockerCompatLibc
+      glibcVersion?: string
+      missing?: string[]
+    }
+type DockerCertFingerprintResult =
+  | { ok: true; fingerprint: string }
+  | { ok: false; errorCode: 'docker-cert-unavailable' | 'docker-inspect-failed'; error: string }
+
 type WslStartServiceResult =
   | { ok: true; token: string | null }
   | { ok: false; error: string; errorCode: 'wsl-port-in-use' | 'wsl-service-start-timeout' | 'wsl-service-start-failed' | 'wsl-service-start-aborted'; token?: string | null }
@@ -536,9 +585,27 @@ interface ElectronAPI {
     getContainerLogs: (name: string, options?: { tail?: number; follow?: boolean }) => Promise<{ ok: boolean; logs?: string; error?: string }>
     getContainerHealth: (name: string) => Promise<{ ok: boolean; health?: 'healthy' | 'unhealthy' | 'starting' | 'none'; error?: string }>
     // PLAN-007 T0289 — best-effort rollback for install-server-bundle on
-    // existing containers (RFC C-3). Mocked in cross-deployment tests; real
-    // IPC handler lands in a follow-up workorder.
+    // existing containers (RFC C-3). T0852: implemented as `docker:exec-command`;
+    // only `['rm', '-rf', <bundle install root>]` is allowed, anything else is refused.
     execCommand: (name: string, command: string[]) => Promise<{ ok: true; stdout?: string } | { ok: false; error: string }>
+    // T0852 (PLAN-052 W4a, D283 (c′)) — main-side primitives for the base image + bundle volume container.
+    // `operationId` (T0830) makes pull / install abortable through wizard.abortOperation.
+    pullImage: (image: string, options?: { operationId?: string; timeoutMs?: number }) => Promise<DockerPullResult>
+    onPullProgress: (callback: (event: DockerPullProgressEvent) => void) => () => void
+    serverArch: () => Promise<DockerServerArchResult>
+    batVolumeNames: (containerName: string) => Promise<{ ok: true; bundle: string; data: string } | { ok: false; error: string }>
+    createVolume: (name: string, role: 'bundle' | 'data') => Promise<DockerCreateVolumeResult>
+    // Refuses volumes without the `bat.server=1` label (`docker-volume-not-owned`).
+    removeVolume: (name: string) => Promise<DockerRemoveVolumeResult>
+    installBundleIntoVolume: (options: { image: string; bundleVolume: string; dataVolume?: string; tarballPath: string; keepPrevious?: boolean; operationId?: string }) => Promise<DockerInstallBundleResult>
+    restoreBundleInVolume: (options: { image: string; bundleVolume: string }) => Promise<{ ok: true; outcome: 'restored' | 'missing' } | { ok: false; errorCode: DockerBundleJobErrorCode; error: string }>
+    discardPreviousBundleInVolume: (options: { image: string; bundleVolume: string }) => Promise<{ ok: true } | { ok: false; errorCode: DockerBundleJobErrorCode; error: string }>
+    // Without `bundleVolume`: /bin/sh, tar, gzip, musl / glibc only; with it also `bin/node -e 1`.
+    probeBundleCompat: (options: { image: string; bundleVolume?: string }) => Promise<DockerCompatResult>
+    // 127.0.0.1 only, no `--token`, root + `--data-dir /var/lib/bat-server`, label `bat.server=1`.
+    createBatContainer: (name: string, options: { image: string; port: number; bundleVolume: string; dataVolume: string; mounts?: Array<{ host: string; container: string }>; restartPolicy?: 'unless-stopped' | 'always' | 'no' | 'on-failure' }) => Promise<{ ok: true } | { ok: false; error: string }>
+    // T0851 option 6: SHA-256 of the container's server-cert.json certificate (never the cert or key).
+    readServerCertFingerprint: (name: string) => Promise<DockerCertFingerprintResult>
   }
   /** T0830 (PLAN-043): abort a setup-wizard IPC call that carried this operationId. */
   wizard: {
