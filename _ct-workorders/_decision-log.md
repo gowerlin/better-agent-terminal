@@ -1465,6 +1465,17 @@
 - **切分**：W2a 設計語言 + 元件 + 首頁（T0630）→ 預覽通過後 W2b（`/control-tower`、功能、FAQ、回報頁）→ W2c 遠端開發；W3 / W4 不變。
 - **相關**：PLAN-049 / D159 / D160 / T0624 / T0630
 
+### D270 2026-11-04 — WSL / Linux 介面中文變方框：屬環境缺字型，不開 BUG；文件 T0826、啟動提示 PLAN-064（IDEA）、不自帶字型
+
+- **背景**：使用者在 WSL（Ubuntu 24.04，WSLg）執行 AppImage，介面中文與多數圖示顯示為方框。塔台實測該發行版 `fc-list :lang=zh` = 0、emoji 字型 = 0、未裝 `fonts-noto-cjk`；Linux 版 BAT 只用系統 fontconfig 字型，CSS 未帶 `@font-face`。T0797 在 CI runner 已見過同一現象（`docs/agent-guide/linux-ci-acceptance.md`）。
+- **決定**（使用者「照這樣開單」，採塔台建議）：
+  1. 不開 BUG（非 BAT 缺陷）。
+  2. **T0826**（S，文件）：README、網站安裝頁（與 FAQ）說明 Linux / WSL 需 `fonts-noto-cjk fonts-noto-color-emoji`，附指令。
+  3. **PLAN-064**（IDEA low）：Linux＋中文介面時背景查 `fc-list`，缺字型則一次性提示。
+  4. **不自帶 CJK 字型**：Noto Sans CJK 每字重約 16–20 MB，終端等寬字型另需處理。
+- **決策者**：使用者（開單）；塔台（方案）。2026-11-04 第一百一十六 session。
+- **相關**：T0826 / PLAN-064 / T0797 / T0802
+
 ### D269 2026-11-04 — 發 `0.7.4-pre.6`（PLAN-063 子項 1–3、縮圖 tooltip、BUG-210）
 
 - **決定**（使用者「發 0.7.4-pre.6」）：發預覽版 `0.7.4-pre.6`（D236 版號線）。內容：T0821（Windows 升級前提示、升級後說明）、T0822（縮圖 ⏸ tooltip 依中斷原因）、T0823（NSIS 安裝新版前請 BAT 正常結束，經 T0824 合併）、T0825（BUG-210 第二個實例不跑 whenReady）。發版前驗證沿用 T0825 在 main（含 T0823 合併結果）的完整驗收（typecheck 0 / 0、unit 406 檔 / 7124、legacy 472 / 33、vite build），之後只有塔台改 CLAUDE.md 一句與 `_ct-workorders/**`；verify-native 通過。分支 `ct/T0823`、`ct-merge/T0823` 以 `-d` 刪除（使用者同意）；`ct/T0820` 依 D266 保留。
