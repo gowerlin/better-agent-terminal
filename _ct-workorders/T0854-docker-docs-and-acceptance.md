@@ -4,21 +4,25 @@ schema_kind: workorder
 id: T0854
 title: "Docker 精靈 W5：文件與網站更新、CLAUDE.md 一節、T0743 e2e 延伸、手動觸發的 docker-acceptance workflow"
 type: implementation
-status: IN_PROGRESS
+status: DONE
 repo: better-agent-terminal
 project: PLAN-052
 priority: P2
 sizing: M
 created_at: "2026-11-04T15:18:27+0800"
 started_at: "2026-11-04T16:50:00+08:00"
-updated_at: "2026-11-04T17:10:13+08:00"
-tower_question: open
+updated_at: "2026-11-04T17:31:34+08:00"
+completed_at: "2026-11-04T17:31:34+08:00"
+session_ids:
+  - "5e7dbb80-c818-48ec-80b3-79d5b02d34fd"
 depends_on: [T0853]
 related:
   - "PLAN-052；D283；T0848 回報區〈調查結論〉6 與〈建議下一步〉W5；T0849–T0853；T0743（`e2e/t0743-docker-wizard.spec.ts`、`e2e/real-remote/t0743-docker-shim.go`）；`linux-acceptance.yml`（T0797，手動觸發範本）"
 affects_files:
   - _ct-workorders/T0854-docker-docs-and-acceptance.md
   - site/remote/docker.md
+  - site/remote/index.md
+  - site/features.md
   - docs/docker-deployment.md
   - docs/server-bundle-distribution.md
   - docs/agent-guide/multi-remote-profiles.md
@@ -47,7 +51,7 @@ memory_overrides:
 # T0854 — Docker 精靈 W5：文件、網站與驗收基礎設施
 
 ## 元資料
-- **工單編號**：T0854｜**類型**：implementation｜**狀態**：IN_PROGRESS｜**建立**：2026-11-04 15:18 (UTC+8)
+- **工單編號**：T0854｜**類型**：implementation｜**狀態**：DONE｜**建立**：2026-11-04 15:18 (UTC+8)
 - **規模**：M｜**決策**：D283｜**依賴**：T0853
 
 ## 任務
@@ -85,3 +89,95 @@ memory_overrides:
 - **建議與理由**：A。改動小、都是同一件事的說明，分開改會讓網站有一段時間前後矛盾。
 - **影響**：網站一致性；`affects_files` 多兩個檔。
 - **是否阻擋後續步驟**：否（其他步驟照做；只影響最後要不要改這兩頁）。
+
+### 完成狀態
+- **狀態**：DONE
+- **一句話結論**：網站、文件、CLAUDE.md 都改成 (c′) 後的行為（不用自己建置映像、基底映像、選容器、重跑更新與升級、離線匯入；`bat-server:latest` 改列進階路徑）；新增 `docs/agent-guide/docker-remote.md`；T0743 shim 與 e2e 改成新流程，WSL Docker 連續兩次 8／8 全綠；`scripts/docker-acceptance.mjs`＋`docker-acceptance.yml` 完成，本機經 shim 對真 Docker 跑兩次 28／28 PASS。workflow 本身沒有觸發（要先 push，由塔台安排）。
+- **session_id**：5e7dbb80-c818-48ec-80b3-79d5b02d34fd
+- **產品 commit**：`2a2a1d8e`（docs(docker): T0854 (c') docs and site, CLAUDE.md section, T0743 e2e for base image / upgrade, docker-acceptance workflow (W5)），14 檔 +1573／−422。沒有 push。
+- **落點檢查**：PASS。C-0：`repo` = `better-agent-terminal`，`basename(REPO_ROOT)` = `better-agent-terminal`。C-1：PASS。C-3：`docs/agent-guide/docker-remote.md`、`scripts/docker-acceptance.mjs`、`.github/workflows/docker-acceptance.yml` 是新檔，祖先目錄都存在；其餘條目存在。C-2：工單沒有 `branch`，在 `main`。`CT_HOME` 未設定（不是 worktree）。`BAT_WORKSPACE_ID` = `cc0afc4a-57e9-4f41-b2ed-a2d8bac9e36b`。`CT_MODE` = `yolo`，`CT_INTERACTIVE` = `0`，`BAT_REMOTE_TOKEN` 已設定。
+- **開工時狀態**：`TODO`（不是 `PENDING`），照常改成 `IN_PROGRESS`。
+
+### 實作內容
+| 任務 | 內容 | 檔案 |
+|---|---|---|
+| 1 網站 | 拿掉「需要自己建置映像」警告；新增基底映像（預設與需求、兩次檢查、失敗時什麼都沒建立）、選容器清單（不能用的顯示原因）、連接埠／權杖／資料（兩個 volume，權杖不在參數裡）、離線使用（匯入 tarball、基底映像先準備）、重跑精靈與升級（同版不動、不同版先問、restart 會結束終端與 agent、取消會換回）、移除指令改成兩個 volume；`bat-server:latest` 收進「進階」details。舊錨點 `#image`、`#remove`、`#no-image` 等保留（`#image` 改指基底映像，`remote/index.md` 的連結仍有效） | `site/remote/docker.md` |
+| 1（Q-1） | 對照表、選擇建議、伺服器套件一節（Docker 也走 distributor）、指紋不符時的 Docker 作法、升級說明；功能頁兩句。搜尋 `site/` 全部頁面與 `README.md`（自己建置／build the image yourself／build:docker-image／bat-server:latest／伺服器映像等說法），只有這兩頁需要改；網站沒有其他語言版本，README 沒有不正確的句子 | `site/remote/index.md`、`site/features.md` |
+| 2 文件 | `docker-deployment.md` 整份改寫：基底映像、9 步、兩種模式表（T0849 後的權杖：不帶 `--token`、healthy 後讀，原 `:132` / `:137`；T0851 後從容器帶出 bind mount，原 `:128`）、容器參數、health check、埠、權杖順序、離線、重跑＝升級、rollback 順序、進階路徑、Release 檢查改用 `docker-acceptance.yml` | `docs/docker-deployment.md` |
+| 2 | Docker 改走 distributor：開頭說明、匯入 tarball 一節、架構偵測表（`dockerServerArch`）、拍板項註明 D283 取代 D096 | `docs/server-bundle-distribution.md` |
+| 2 | 多一點：重跑 Docker 精靈更新同容器的 profile（T0850），連到 docker-remote.md | `docs/agent-guide/multi-remote-profiles.md` |
+| 2 | 新檔：用途與 D283、唯一實作位置、9 步、不變式（容器參數、一次性 job、volume / ownership、rollback 順序、execCommand、U3、升級）、權杖取得順序、選容器、日誌、已知限制、驗證清單；登記到索引 | `docs/agent-guide/docker-remote.md`、`docs/agent-guide/README.md` |
+| 3 CLAUDE.md | 新增一節「Docker 遠端：基底映像＋bundle volume（PLAN-052 / D283）」7 行（用途、三條 🔴 規則、唯一實作、驗證、docs 連結）；既有 `##` 標題沒改；檔案 79,703 字元 | `CLAUDE.md` |
+| 4 shim | 放行 `pull`、`image inspect`、`volume inspect/create/rm`、`volume ls --format {{.Name}}`（輸出只留測試 volume）、`run --rm [-i]`（沒有 `--name` 時必須 `--rm`）。兩道既有防護維持並延伸：容器名與 volume 名都要符合測試前綴（volume 可為 `bat-server-<測試容器>-bundle|-data`）。`run` 的 health 旗標補進取值旗標表（否則 `--health-cmd` 的值會被當成映像）。`bat-bundle-job-<hex>` 在 `run --name` 與 `rm -f` 都改名成 `T0743_SHIM_JOB_PREFIX<hex>`。`inspect <容器 id…>`（T0851 的 listContainers）輸出只留測試容器。`inspect` 輸出的 bind mount 來源 `/mnt/<碟>/` 回報成 Docker Desktop 的 `/run/desktop/mnt/host/<碟>/`（見〈偏離〉） | `e2e/real-remote/t0743-docker-shim.go` |
+| 4 e2e | 改寫成新流程：E1 以基底映像建立（下載被擋 → 匯入本機 tarball）、無 `--token`、只有 `127.0.0.1`、權杖從 `server-token.json` 讀；E2 第二個容器 → 「沿用」選清單第二個 → 帶出 bind mount → 同版不動，profile 數不變；E3 把 volume 換回舊版 bundle → 重跑問升級 → restart → 版本換新，容器 id／權杖／指紋／data 內 marker 不變，profile 數不變；E4 alpine 被探測擋下、沒建立容器或 volume；D2–D5 改走容器清單（D2 改驗「不能用的容器顯示為停用＋原因」，D3 / D4 改為在 start-server 讀不到權杖時失敗）；測試期間以 `wsl.exe --exec sleep infinity` 保持發行版不閒置關機 | `e2e/t0743-docker-wizard.spec.ts` |
+| 4 V4.a | 「沿用＋沒有容器」改期望 T0851 的說明提示（標題、空清單說明、只有「改用建立新容器」、沒有錯誤框）；`docker-no-containers` 移到「未觸發」清單並註明原因（提示沒有關閉鈕，UI 走不到該錯誤）。本 spec 沒有實跑（需要已安裝的 build，見〈待實機驗收〉） | `e2e/v071-pre2-acceptance.spec.ts` |
+| 5 腳本 | `npx tsx scripts/docker-acceptance.mjs --from <版號或 tarball> --to <版號或 tarball>`：直接呼叫 `docker-bundle-volume.ts` / `docker-lifecycle.ts` 的函式。A 建立（pull、非內建、探測、volume＋label、安裝、node 探測、版本、建立、healthy、容器形狀、權杖、指紋＝handshake、0700/0600）、B 升級（kept、restart、版本、容器／權杖／指紋／marker 不變、discard）、C 回復（再裝舊版 → restore → 回到新版、data 不變、沒有備份時 restore＝missing、安裝 1 s 後中止不留 `.bat-new`／job）、D musl、Z 清理。版號經 `server-bundle-download.ts`（distributor 的下載層，manifest＋SHA-256，認 `BAT_SERVER_BUNDLE_BASE_URL` / `GITHUB_TOKEN`）。不印權杖（只印長度與 SHA-256 前綴）。exit 0 / 1 / 2 | `scripts/docker-acceptance.mjs` |
+| 5 workflow | `workflow_dispatch` only、`ubuntu-24.04`、`permissions: contents: read`、不傳 secret（只把 job 的唯讀 `GITHUB_TOKEN` 給下載用）、不建 tag／release／package、不在任何發版 workflow 的關卡。輸入 `from_version` / `to_version` / `base_image`（格式檢查）；`npm ci --ignore-scripts` 後跑腳本，結果寫 step summary 與 artifact（7 天） | `.github/workflows/docker-acceptance.yml` |
+
+### 驗證
+| 關卡 | 結果 |
+|---|---|
+| 網站 `npm run build`（`site/`，VitePress 預設遇到站內死連結就失敗） | 成功 |
+| 站內錨點 | dist 內 `faq#server-bundle`、`faq#remote`、`remote/#fingerprint`、`remote/docker#image` / `#remove` / `#offline` / `#modes` / `#upgrade` 都存在。lychee（外部連結檢查）本機沒有安裝，沒跑；它在 `pages.yml` 只警告、不擋部署 |
+| `npm run test:unit` | 442 files passed / 3 skipped；8038 passed / 40 skipped，0 failed |
+| `npm run test:legacy` | 33 / 33 檔、472 tests passed |
+| `npm run typecheck:electron` | 0 |
+| `npm run typecheck` | 0 |
+| `npx vite build` | 成功 |
+| 兩個 e2e spec 的型別（`tsc --strict --noEmit`） | 0 |
+| shim `go vet` / `gofmt -l` | 乾淨 |
+| `node --check scripts/docker-acceptance.mjs`、`parseArgs` / `normalizeFingerprint` 手測 | OK |
+
+workflow 與腳本沒有對應的既有單元測試；本單沒有新增單元測試檔（不在 `affects_files`），腳本的判斷都在對真 Docker 的實跑裡驗過。
+
+### e2e（WSL Ubuntu-24.04，Docker 29.1.3，`BAT_E2E_T0743_DOCKER=1`）
+| 次 | 結果 | 說明 |
+|---|---|---|
+| 1 | E1 產品斷言全過，哨兵失敗 | 使用者自己的容器 StartedAt 變了：WSL 發行版在測試期間閒置關機又開機（`last -x`：17:10、17:12 boot），dockerd 重啟，`unless-stopped` 容器跟著重啟。shim log 對該容器 0 次呼叫，不是測試造成。→ spec 加 keep-alive |
+| 2 | E1 PASS，E2 失敗 | 精靈沒有提出容器的 bind mount：shim 給 WSL engine 的是 `/mnt/c/…`，T0851 只認 Docker Desktop 的路徑 → 精靈正確地改開資料夾挑選。→ shim 在 `inspect` 輸出改回 Docker Desktop 的形式 |
+| 3 | 5 passed，D3 失敗 | 我把 D3 的斷言改嚴了（多了「不 `start`」）；沿用執行中的容器本來就會 `docker start`（no-op，StartedAt 不變的斷言有通過）。→ 改回原斷言 |
+| **4** | **8／8 passed**（3.3 min） | shim 呼叫 187、guard 拒絕 0、使用者容器不變、dockerd 沒重啟 |
+| **5** | **8／8 passed**（3.3 min） | 同上；與第 4 次相同程式碼 |
+
+第 5 次的證據摘錄：
+- E1：`docker run -d --name bat-server-profile --init --user 0:0 --restart unless-stopped --label bat.server=1 --entrypoint /opt/bat/server/bin/bat-server …`；一次性 job 4 個（探測／版本／安裝）都 exit 0；權杖讀取 exit 0；含 `--token` 的參數 0 個；profile `remotePort` 9878、權杖長度 43、指紋＝TLS handshake。
+- E2：清單順序 `["bat-server-profile-2","bat-server-profile"]`（說明「buildpack-deps:bookworm-scm · 執行中 · 127.0.0.1:9879 → 9876 · BAT 建立」）；Docker profile 2 → 2；`bat-server-profile` 容器 id 與 StartedAt 不變、權杖不變。
+- E3：版本 `0.7.3-pre.3 → 0.7.4-pre.8`；`restart→0`；容器 id 相同、StartedAt 變了；權杖相同；marker 保留；`/opt/bat` 只剩 `server`；profile 2 → 2、指紋相同。
+- E4：`run -d` / `volume create` 0 次；`bat-server-profile-3` 與它的 volume 都不存在。
+- 清理：本次建立的容器、volume、`bat-e2e-t0743-server:local`、本次 pull 的 `buildpack-deps:bookworm-scm` / `alpine:3.20` 都已刪除；最後 WSL 上只剩使用者原有的容器與它的 volume。
+
+### 真 Docker 驗收腳本（本機經 shim，WSL Docker 29.1.3）
+參數：`--from <使用者 cache 的 bat-server-linux-x64-v0.7.3-pre.3.tar.gz> --to 0.7.4-pre.8`（下載）。
+- 第 1 次：28／28 PASS，但發現兩個問題：shim 拒絕 `volume ls`，殘留檢查拿到空字串而誤判通過；shim 拒絕 `rmi`，映像沒刪掉卻只顯示「kept」。→ 腳本改成列不出就 exit 2 / FAIL、`rmi` 失敗印出 Docker 的訊息；shim 放行過濾後的 `volume ls`。
+- 第 2 次（修正後）：**28／28 PASS**（A1–A13、B1–B5、C1–C5、D1、Z1）。`rmi` 經 shim 仍被拒（BAT 不用 `rmi`，刻意不放行），腳本照實印出「NOT removed (T0743 shim guard …)」；兩個映像我事後手動刪除。CI 上是原生 docker，不受影響。
+- GitHub 上的 `docker-acceptance.yml` 沒有跑（要先 push）。
+
+### 待實機驗收
+- `docker-acceptance.yml` 在 GitHub `ubuntu-24.04` runner 上第一次執行（push 後由塔台觸發）。
+- `e2e/v071-pre2-acceptance.spec.ts` V4.a 的新期望沒有實跑（該 spec 跑已安裝的 build）；下次重跑 v071 驗收時確認。
+- Docker Desktop（Windows / macOS）真機：shim 只模擬了 Docker Desktop 的掛載路徑形式。
+
+### 偏離與已知限制
+- **範圍擴大（塔台 Q-1 裁決 A）**：`site/remote/index.md`、`site/features.md` 補進 `affects_files` 並修改。
+- **shim 改寫 inspect 輸出**：bind mount 來源 `/mnt/<碟>/…` 回報成 `/run/desktop/mnt/host/<碟>/…`，是測試環境對 Docker Desktop on Windows 實際回報形式的模擬，讓 E2 驗到 T0851 的帶出掛載路徑。
+- **spec 的 keep-alive**：測試期間多一個 `wsl.exe -d <distro> --exec sleep infinity`，結束時 kill；不改任何設定（與 BAT T0830 持有 distro 的方式相同）。
+- **E1 的 pull 兩次**：第一次安裝因下載被擋而失敗，匯入後重試整個第 4 步，pull 再跑一次（映像已在本機）。這是精靈既有的重試行為，沒改。
+- **U3（`bat-server:latest`）沒有 e2e**：需要使用者本機的建置映像；T0853 G1 已實測，單元測試涵蓋。
+- **意外建立的目錄**：第一次重建 shim 時，Go 把 Git Bash 的 `/tmp/…` 解讀成 `D:\tmp\…`，產生 `D:\tmp\t0854\docker.exe`。已刪除該檔與 `t0854` 目錄；`D:\tmp` 本身留著（空目錄，無法確定是否原本就存在，刪除被安全檢查擋下），請使用者確認後自行處理。
+- 沒有做：憑證指紋比對接進精靈（T0853 已註明由塔台另行評估）。
+
+### 遭遇問題
+- Git Bash heredoc 會把 `\\` 吃成 `\`，用 Python 套用含跳脫字元的替換時兩次失敗（一次 assert 擋下沒寫入、一次寫進真換行），都改用 Edit 修正，最終內容已檢查。含引號的 heredoc 讓 Bash 工具解析失敗，回報區改用 Edit 寫入。
+- e2e 第 1–3 次失敗的原因與處理見〈e2e〉表。
+
+### 互動紀錄
+- [17:10] Q-1 經 BAT 通道送出（`q-9b669f0f-4be26c21d5a647ca`，`--ask --submit`）。
+- [17:11] Q-1: 網站另兩頁要不要一併改？ → A（塔台）: 採 A，兩檔補進 affects_files；另對整個 `site/` 與 `README.md` 搜一次 (c′) 後不正確的 Docker 說法一起改（只改 Docker 句子），網站 build 與 link-check 照驗收條件跑 → Action: 改 `site/remote/index.md` 6 處、`site/features.md` 2 處；搜尋後其他頁與 README 沒有需要改的句子；`tower_question` 刪除。
+
+### 後續建議
+- 塔台 push 後觸發一次：`gh workflow run docker-acceptance.yml -R gowerlin/better-agent-terminal -f from_version=0.7.4-pre.7 -f to_version=0.7.4-pre.8`（第一次在 GitHub runner 上跑，可能要依 runner 實況調整）。
+- Docker Desktop（Windows / macOS）真機走一次精靈：基底映像建立、沿用帶出掛載、重跑升級。
+- 可選：`scripts/docker-acceptance.mjs` 的純函式（`parseArgs`、`normalizeFingerprint`）補一個 `scripts/__tests__/` 單元測試。
+
+### 回報時間
+- 2026-11-04T17:29:16+0800
