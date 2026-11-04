@@ -56,6 +56,16 @@ T0823 讓安裝程式先請 BAT 正常結束，結束時連 Terminal Server 一�
 6. 測試：兩條路、`isUpdated` 分支（source guard）、內嵌 claude 判斷（只比路徑）、紀錄 schema 1 / 2、`--uninstall-quit-request`。T0823 的 e2e 擴成有 holder 與沒有 holder 兩種，做不到的列〈待 W6 驗收〉。
 7. 文件：`docs/agent-guide/upgrade-interruption.md` 補 holder 版流程；`CLAUDE.md`「升級結束終端的提示與說明」節補必守規則（`isUpdated` 分支、兩條路）。
 
+## 塔台補充（開工前，T0859 收單後 2026-11-04 19:15）
+
+先讀 T0857、T0858、T0859 回報區。要點：
+
+1. **判斷 server 是否從 holder 執行**：T0859 的 `resolvePtyHolder`（`electron/pty-holder.ts`）決定；`forkTerminalServer` 有效時以 `spawn(holderSpawnSpec(...))` 啟動（不是 `fork`：Electron 主行程的 `fork` 一定會加 `ELECTRON_RUN_AS_NODE=1`）。TCP 接回時 `hello-ok.runtime.name === 'node'`＋`holderDir` 代表 holder 版 server。主行程要記住「目前的 server 是不是 holder 版」，quit 時依此選路徑；不要只看檔案存在。
+2. **延長 idle**：T0857 的 `server:extendIdle { durationMs: 86400000 }` 已可用，在 quit 前、主行程仍連著 server 時送（IPC 或 TCP 皆可）；回 `ALREADY_EXTENDED` 不算失敗。
+3. **安裝程式比對**：holder 的路徑是 `<根目錄>\<key>\bat-pty-holder.exe`，映像名稱不是 `BetterAgentTerminal.exe`，範本的 `_CHECK_APP_RUNNING` 不會比到它。zip / `build:dir` 沒有 T0823 標記，T0859 不用 holder，走 T0823 原路徑。
+4. **解除安裝清理**：刪 holder 根目錄前，先請 holder 正常結束，再以 T0858 的 `batPtyHolderInUse` 確認沒有程序在跑；仍有程序 → 保留並記下（不強制刪）。
+5. holder 版 server 的 stderr 照舊是 `ignore`；需要診斷資訊時以主行程日誌為準。
+
 ### 驗收條件
 - [ ] 上述測試通過；T0823 / T0825 / T0846 相關測試不回歸
 - [ ] `npm run typecheck` = 0、`npm run typecheck:electron` = 0、`npm run test:unit` 全過、`npm run test:legacy` 全過、`npx vite build` 成功
