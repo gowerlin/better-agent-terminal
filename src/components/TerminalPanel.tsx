@@ -12,9 +12,9 @@ import { workspaceStore } from '../stores/workspace-store'
 import { settingsStore } from '../stores/settings-store'
 import { dispatchSyntheticEnterKeydown } from '../utils/terminal-keyboard-event'
 import { PtyOutputReplayer, registerPtyNoticeSink, registerPtyReplaySink, registerPtySizeSyncSink } from '../lib/pty-replay'
-import { buildTerminalDropInsertion, dataTransferHasFiles, droppedFilePaths, terminalShellFamily } from '../lib/terminal-drop'
-import { imagePasteKey, isMacCommandPaste, readTerminalClipboard } from '../lib/terminal-paste'
-import { attachmentDisplayNames } from '../lib/client-paths'
+import { buildTerminalDropInsertion, buildTerminalDropText, buildTerminalUploadInsertion, dataTransferHasFiles, droppedFiles, terminalShellFamily } from '../lib/terminal-drop'
+import { imagePasteKey, isMacCommandPaste, readTerminalClipboard, terminalImagePasteMode, uploadClipboardImage } from '../lib/terminal-paste'
+import { attachmentDisplayNames, attachmentRefusalText, uploadFailureReason, type SendAttachment } from '../lib/client-paths'
 import { forcesTerminalSelection, isMouseTrackingDecset, isMouseTrackingOn, MouseReportSelectionKeeper, shouldCloseTerminalContextMenuOnKey, shouldShowTerminalContextMenu } from '../lib/terminal-context-menu'
 import { ALT_SCREEN_EXIT, MOUSE_TRACKING_RESET, MouseReportEchoDetector } from '../lib/mouse-tracking-reset'
 import { mouseReportEncoding, planWheelReports, shouldSendWheelReports, WheelLineAccumulator } from '../lib/terminal-wheel-reports'
@@ -219,12 +219,25 @@ export const TerminalPanel = memo(function TerminalPanel({ terminalId, isActive 
     if (!dataTransferHasFiles(e.dataTransfer)) return
     e.preventDefault()
     e.stopPropagation()
-    const paths = droppedFilePaths(e.dataTransfer)
-    if (paths.length === 0) return
-    await insertFilePaths(paths)
+    const files = droppedFiles(e.dataTransfer)
+    if (files.length === 0) return
+    await insertDroppedFiles(files)
   }
 
-  // Shared by file drop and the macOS Finder-copy paste (T0522): quoted paths, no Enter.
+  // Typed at the prompt, no Enter. paste() honours bracketed paste mode, so TUIs (claude CLI)
+  // see a paste, not keystrokes.
+  const typeIntoTerminal = (text: string) => {
+    const terminal = terminalRef.current
+    if (terminal) {
+      terminal.paste(text)
+      terminal.focus()
+    } else {
+      window.electronAPI.pty.write(terminalId, text)
+    }
+  }
+
+  // The macOS Finder-copy paste (T0522): quoted paths, no Enter. Not uploaded (T0835): main gave
+  // only paths, and an upload never reads a path the renderer holds (T0436).
   const insertFilePaths = async (paths: string[]) => {
     const shell = await terminalShellFamily(terminalId)
     const { text, rejected } = await buildTerminalDropInsertion(paths, shell)
@@ -232,14 +245,101 @@ export const TerminalPanel = memo(function TerminalPanel({ terminalId, isActive 
       addNoticeToast(t('claude.attachmentNotOnRemoteHost', { files: attachmentDisplayNames(rejected) }), 'warning', 8000)
     }
     if (!text) return
-    const terminal = terminalRef.current
-    if (terminal) {
-      // paste() honours bracketed paste mode, so TUIs (claude CLI) see a paste, not keystrokes.
-      terminal.paste(text)
-      terminal.focus()
-    } else {
-      window.electronAPI.pty.write(terminalId, text)
+    typeIntoTerminal(text)
+  }
+
+  // PLAN-038 U4 (T0835): an upload to the window's host (drop the host cannot read, SSH / Docker
+  // image paste). One at a time per tab; the overlay shows the progress and cancels it.
+  const [upload, setUpload] = useState<{ percent: number } | null>(null)
+  const uploadAbortRef = useRef<AbortController | null>(null)
+  useEffect(() => () => uploadAbortRef.current?.abort(), [])
+
+  const uploadBusy = (): boolean => {
+    if (!uploadAbortRef.current) return false
+    addNoticeToast(t('terminal.uploadBusy'), 'info', 5000)
+    return true
+  }
+
+  const finishUpload = (controller: AbortController) => {
+    if (uploadAbortRef.current !== controller) return
+    uploadAbortRef.current = null
+    setUpload(null)
+  }
+
+  const cancelUpload = () => {
+    uploadAbortRef.current?.abort()
+    setTimeout(() => terminalRef.current?.focus(), 0)
+  }
+
+  // File drop (T0439): quoted paths, no Enter. Reachable paths as before; the ones the host cannot
+  // read are uploaded first (T0835), the rest refused with the T0437 toast.
+  const insertDroppedFiles = async (files: SendAttachment[]) => {
+    if (uploadBusy()) return
+    const shell = await terminalShellFamily(terminalId)
+    const controller = new AbortController()
+    const fractions = new Map<string, number>()
+    let started = false
+    try {
+      const { text, resolution } = await buildTerminalUploadInsertion(files, shell, terminalId, {
+        signal: controller.signal,
+        onUploadStart: paths => {
+          // Two drops resolved at once: the later one owns the overlay; the earlier one still finishes.
+          uploadAbortRef.current = controller
+          started = true
+          for (const p of paths) fractions.set(p, 0)
+          setUpload({ percent: 0 })
+        },
+        onUploadProgress: (path, fraction) => {
+          fractions.set(path, fraction)
+          const values = [...fractions.values()]
+          const percent = Math.round((values.reduce((sum, v) => sum + v, 0) / Math.max(1, values.length)) * 100)
+          if (uploadAbortRef.current === controller) setUpload({ percent })
+        },
+      })
+      if (resolution.cancelled) {
+        addNoticeToast(t('terminal.uploadCancelled'), 'info', 5000)
+        return
+      }
+      const refusal = attachmentRefusalText(resolution, t)
+      if (refusal) addNoticeToast(refusal, 'warning', 8000)
+      if (text) typeIntoTerminal(text)
+    } finally {
+      if (started) finishUpload(controller)
     }
+  }
+
+  // T0835: SSH / Docker window — the clipboard image is uploaded and its host path typed (the CLI's
+  // paste key would read the remote host's clipboard). No key is sent, whatever the outcome.
+  const pasteClipboardImageAsPath = async () => {
+    if (uploadBusy()) return
+    const controller = new AbortController()
+    uploadAbortRef.current = controller
+    setUpload({ percent: 0 })
+    let result: Awaited<ReturnType<typeof uploadClipboardImage>>
+    try {
+      result = await uploadClipboardImage(terminalId, {
+        signal: controller.signal,
+        onProgress: p => {
+          if (uploadAbortRef.current === controller) setUpload({ percent: p.size > 0 ? Math.round((p.received / p.size) * 100) : 100 })
+        },
+      })
+    } finally {
+      finishUpload(controller)
+    }
+    const { cancelled, item } = result
+    // No file names or paths in the log (T0832 日誌規則).
+    dlog(`[terminal-paste] image upload terminal=${terminalId}: ${cancelled ? 'cancelled' : item.ok ? `ok size=${item.size}` : `failed code=${item.code}`}`)
+    if (cancelled) {
+      addNoticeToast(t('terminal.uploadCancelled'), 'info', 5000)
+      return
+    }
+    if (!item.ok) {
+      const reason = uploadFailureReason(item.code)
+      addNoticeToast(t('terminal.imageUploadFailed', { reason: t(reason.key, reason.params) }), 'warning', 8000)
+      return
+    }
+    const shell = await terminalShellFamily(terminalId)
+    typeIntoTerminal(buildTerminalDropText([item.serverPath], shell))
   }
 
   // Ctrl+V / macOS Command+V / context-menu Paste (T0522, T0524): Finder-copied items are typed
@@ -251,7 +351,11 @@ export const TerminalPanel = memo(function TerminalPanel({ terminalId, isActive 
     if (content.kind === 'paths') {
       await insertFilePaths(content.paths)
     } else if (content.kind === 'image') {
-      window.electronAPI.pty.write(terminalId, imagePasteKey(window.electronAPI.platform))
+      if (await terminalImagePasteMode(dlog) === 'upload') {
+        await pasteClipboardImageAsPath()
+      } else {
+        window.electronAPI.pty.write(terminalId, imagePasteKey(window.electronAPI.platform))
+      }
     } else {
       await handlePasteText(content.text)
     }
@@ -1152,6 +1256,23 @@ export const TerminalPanel = memo(function TerminalPanel({ terminalId, isActive 
           )}
         </div>,
         document.body
+      )}
+      {upload && (
+        <div
+          className="terminal-upload-status"
+          role="status"
+          style={{
+            position: 'absolute', top: 8, right: 8, zIndex: 20, display: 'flex', alignItems: 'center', gap: 8,
+            padding: '4px 8px', borderRadius: 4, fontSize: 12,
+            background: 'var(--bg-secondary, #2d2d2d)', color: 'var(--text-primary, #e0e0e0)',
+            border: '1px solid var(--border-color, #444)',
+          }}
+        >
+          <span>{t('terminal.uploading', { percent: upload.percent })}</span>
+          <button type="button" onClick={cancelUpload} aria-label={t('terminal.cancelUpload')} title={t('terminal.cancelUpload')}>
+            {t('terminal.cancelUploadShort')}
+          </button>
+        </div>
       )}
       <CtToast messages={noticeToasts} onDismiss={dismissNoticeToast} />
     </div>

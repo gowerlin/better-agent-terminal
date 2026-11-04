@@ -85,7 +85,7 @@ import { registerHandler, invokeHandler } from './remote/handler-registry'
 import { broadcastHub } from './remote/broadcast-hub'
 import { PROXIED_CHANNELS } from './remote/protocol'
 import { ALWAYS_LOCAL_CHANNELS } from './remote/headless-channel-status'
-import { isHeadlessScrubbedEnvKey } from './remote/headless-entry'
+import { createPtyUploadDisposer, isHeadlessScrubbedEnvKey } from './remote/headless-entry'
 import { RemoteServer } from './remote/remote-server'
 import {
   buildLocalHelperEnv,
@@ -1074,6 +1074,7 @@ function createElectronPtyDeps(): PtyManagerDeps {
       towerQuestionHandlers?.terminalEnded(id) // T0607: questions it asked / was asked → cancelled
       interruptedAgents.remove(id, 'pty-ended') // T0766: closed / restarted / resumed tab
       claudeSessionPersistence.persist() // T0642: its claude session is no longer stored
+      ptyUploadDisposer.onPtyExit(id) // T0835: its staged uploads (after the restart grace)
     },
     // PLAN-055 B1 / T0766: the tabs the recovery interrupts — taken before it clears their session ids
     onAgentsInterrupted: (sources) => {
@@ -2590,6 +2591,11 @@ app.on('activate', async () => {
  * T0835: a terminal tab's PTY id is a session key too (`uploadStaging.disposeSession(ptyId)`).
  */
 const uploadStaging = new UploadStaging({ getDataDir: () => app.getPath('userData') })
+/** T0835 (T0832 契約 C-8 ②): a tab's uploads go when its PTY really ends — not on a ⏻ restart. */
+const ptyUploadDisposer = createPtyUploadDisposer({
+  getStaging: () => uploadStaging,
+  isPtyAlive: id => ptyManager?.isAlive(id) ?? false,
+})
 
 /**
  * PLAN-038 U2 / T0833: a remote window uploads its attachments to the host it is bound to

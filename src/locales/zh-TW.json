@@ -468,7 +468,13 @@
     "statusIdle": "終端閒置",
     "statusPending": "等待操作",
     "emptyWorkspace": "這個工作區目前沒有終端。",
-    "addTerminal": "新增終端"
+    "addTerminal": "新增終端",
+    "uploading": "正在上傳到遠端主機… {{percent}}%",
+    "cancelUpload": "取消上傳（不會輸入任何內容）",
+    "cancelUploadShort": "取消",
+    "uploadCancelled": "已取消上傳，沒有輸入任何內容。",
+    "uploadBusy": "這個終端還有一個上傳到遠端主機的工作在進行中，請等它完成或取消後再試。",
+    "imageUploadFailed": "剪貼簿的圖片沒有貼上：上傳到遠端主機失敗（{{reason}}）。"
   },
   "dialogs": {
     "closeCodeAgent": "關閉 Code Agent？",

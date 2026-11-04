@@ -9,15 +9,18 @@
  *   - an unauthenticated socket and a helper capability (tower / worker PTY token) are refused,
  *     nothing is staged
  *   - logs never carry the file name
+ *   - T0835: a terminal tab's uploads (session key = PTY id) go with `pty:kill`, not with a ⏻ restart
  */
 import { createHash } from 'crypto'
 import * as fs from 'fs'
+import * as os from 'os'
 import * as path from 'path'
 import type { TLSSocket } from 'tls'
 import WebSocket from 'ws'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { logger } from '../../logger'
 import { HelperCapabilityRegistry } from '../helper-capability'
+import { PTY_UPLOAD_DISPOSE_GRACE_MS } from '../headless-entry'
 import { UPLOAD_LIMITS } from '../../upload-staging'
 import { connectHeadlessClient, startHeadlessHarness, type HeadlessHarness } from './helpers/headless-harness'
 
@@ -135,5 +138,34 @@ describe('upload:* over a real headless server (T0832)', () => {
       await helper.close()
     }
     expect(fs.existsSync(path.join(harness.dataDir, 'uploads', 't0832-helper'))).toBe(false)
+  })
+})
+
+describe('terminal tab uploads follow the PTY (T0835, 契約 C-8 ②)', () => {
+  const SHELL = process.platform === 'win32'
+    ? (process.env.ComSpec || 'C:\Windows\System32\cmd.exe')
+    : (fs.existsSync('/bin/bash') ? '/bin/bash' : '/bin/sh')
+  const CWD = os.tmpdir()
+
+  it('pty:kill removes the PTY id session after the grace; a ⏻ pty:restart keeps it', { timeout: 60_000 }, async () => {
+    const killed = `t0835-kill-${process.pid}`
+    const restarted = `t0835-restart-${process.pid}`
+    for (const id of [killed, restarted]) {
+      expect(await harness.invoke('pty:create', { id, cwd: CWD, type: 'terminal', shell: SHELL })).toEqual({ ok: true, created: true })
+    }
+    const killedPath = await stage(killed, 'a.png', Buffer.from('png of the killed tab'))
+    const restartedPath = await stage(restarted, 'b.png', Buffer.from('png of the restarted tab'))
+
+    expect(await harness.invoke('pty:kill', killed)).toBe(true)
+    expect(await harness.invoke('pty:restart', restarted, CWD, SHELL)).toBe(true)
+    // still there inside the grace (a renderer's kill → create relaunch has the time to come back)
+    expect(fs.existsSync(killedPath)).toBe(true)
+
+    await expect.poll(() => fs.existsSync(path.join(harness.dataDir, 'uploads', killed)), {
+      timeout: PTY_UPLOAD_DISPOSE_GRACE_MS + 10_000,
+      interval: 200,
+    }).toBe(false)
+    expect(fs.existsSync(restartedPath)).toBe(true)
+    expect(await harness.invoke('pty:kill', restarted)).toBe(true)
   })
 })

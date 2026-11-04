@@ -19,7 +19,17 @@
  *
  * Priority: copied files → paths (a Finder copy of an image file also carries the file icon as
  * an image, which must not win), then image → key, then text.
+ *
+ * PLAN-038 U4 (T0835): in an SSH or Docker window the CLI runs on the remote host and reads
+ * *that* host's clipboard (no X / Wayland there), and the key is chosen by this machine's
+ * platform, so the key always fails. There an image is uploaded instead: main reads this
+ * machine's clipboard PNG (T0833 `clipboard-image` source), uploads it to the window's host
+ * (session key = the tab's PTY id) and its host path is typed, quoted, like a drop. Every other
+ * window — local, WSL (whose CLI reads the Windows clipboard, T0828 §6), a legacy remote profile
+ * without `targetOS` — keeps the key (`terminalImagePasteMode`). Text and copied files are unchanged.
  */
+
+import { uploadToRemoteHost, type RemoteUploadItemResult, type RemoteUploadOptions } from './remote-upload'
 
 export type ElectronPlatform = 'win32' | 'darwin' | 'linux'
 
@@ -41,6 +51,64 @@ export function isMacCommandPaste(event: PasteKeyEvent, platform: ElectronPlatfo
 /** Key the claude CLI binds to `chat:imagePaste`: Alt+V on Windows, Ctrl+V elsewhere. */
 export function imagePasteKey(platform: ElectronPlatform | undefined): string {
   return platform === 'win32' ? '\x1bv' : '\x16'
+}
+
+/** T0835: what a clipboard image does in this window: the CLI's paste key, or upload + type the path. */
+export type TerminalImagePasteMode = 'key' | 'upload'
+
+/** Profile `targetOS` values whose CLI cannot read this machine's clipboard (T0828 §6). */
+const UPLOAD_IMAGE_TARGETS: ReadonlySet<string> = new Set(['ssh-linux', 'ssh-darwin', 'docker-linux'])
+
+/** T0835: SSH / Docker remote profile → upload; anything else (local, WSL, legacy remote, unknown) → key. */
+export function imagePasteModeFor(profile: { type?: string; targetOS?: string } | null | undefined): TerminalImagePasteMode {
+  return profile?.type === 'remote' && !!profile.targetOS && UPLOAD_IMAGE_TARGETS.has(profile.targetOS) ? 'upload' : 'key'
+}
+
+let imagePasteModeCache: TerminalImagePasteMode | null = null
+
+/**
+ * T0835: the image-paste mode of this window, from its profile binding (`app:get-window-profile`;
+ * a detached workspace window reports its parent's, T0446) and the LOCAL profile list, so it does
+ * not depend on the connection. The binding does not change while the window is open: the first
+ * answer is cached. Any failure → `key` (the behavior before T0835), not cached.
+ */
+export async function terminalImagePasteMode(log: Log = () => {}): Promise<TerminalImagePasteMode> {
+  if (imagePasteModeCache) return imagePasteModeCache
+  try {
+    const profileId = await window.electronAPI.app.getWindowProfile()
+    if (!profileId) return (imagePasteModeCache = 'key')
+    const { profiles } = await window.electronAPI.profile.listLocal()
+    return (imagePasteModeCache = imagePasteModeFor(profiles.find(p => p.id === profileId)))
+  } catch (err) {
+    log('[terminal-paste] window profile lookup failed, keeping the image-paste key', err instanceof Error ? err.message : String(err))
+    return 'key'
+  }
+}
+
+/** Test-only: forget the cached mode. */
+export function resetTerminalImagePasteModeCache(): void {
+  imagePasteModeCache = null
+}
+
+/**
+ * T0835: uploads this machine's clipboard image to the window's host (session key = the tab's
+ * PTY id). Never throws; the result carries `serverPath` or the failure code.
+ */
+export async function uploadClipboardImage(
+  terminalId: string,
+  options: Pick<RemoteUploadOptions, 'signal' | 'onProgress' | 'api'> & { upload?: typeof uploadToRemoteHost } = {},
+): Promise<{ cancelled: boolean; item: RemoteUploadItemResult }> {
+  const { upload = uploadToRemoteHost, ...uploadOptions } = options
+  try {
+    const outcome = await upload(terminalId, [{ kind: 'clipboard-image' }], uploadOptions)
+    const item = outcome.items[0]
+    if (!item || (item.ok && (typeof item.serverPath !== 'string' || !item.serverPath))) {
+      return { cancelled: outcome.cancelled, item: { ok: false, code: 'TRANSPORT', message: 'no host path in the result' } }
+    }
+    return { cancelled: outcome.cancelled, item }
+  } catch (err) {
+    return { cancelled: false, item: { ok: false, code: 'TRANSPORT', message: err instanceof Error ? err.message : String(err) } }
+  }
 }
 
 export type TerminalClipboardContent =

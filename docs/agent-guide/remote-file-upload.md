@@ -11,7 +11,7 @@
 | T0832（U1） | host 端暫存模組、4 個 `upload:*` channel、`claude:dispose-session` 清理、契約 | 本文件 |
 | T0833（U2） | client 端上傳驅動（三種來源、依視窗 profile 轉送、stop-and-wait、重試、取消、進度） | 本文件「client 端（T0833）」 |
 | T0834（U3） | Claude / Codex 面板接線（送出時上傳、chip 進度、取消、失敗退回） | 本文件「面板接線（T0834）」 |
-| T0835（U4） | 終端分頁接線、分頁關閉刪暫存 | 待做 |
+| T0835（U4） | 終端分頁接線（拖放、SSH / Docker 的 Ctrl+V 貼圖）、分頁關閉刪暫存 | 本文件「終端接線（T0835）」 |
 
 T0832 完成後使用者看不到任何變化：沒有 caller。失敗一律退回 T0437 的拒絕（D272），不加 Settings 開關。
 
@@ -71,7 +71,7 @@ T0832 完成後使用者看不到任何變化：沒有 caller。失敗一律退�
 | 時機 | 動作 |
 |---|---|
 | `claude:dispose-session(sessionId)`（面板關閉，Claude 與 Codex 都會） | 刪 `<uploads>/<sessionId>/`，中止該 session 進行中的上傳 |
-| 終端分頁關閉（T0835） | T0835 在 host 的 PTY 真正結束（`pty:kill` / 結束，不含 ⏻ 重啟）時呼叫 `uploadStaging.disposeSession(ptyId)`（本機：`electron/main.ts` 的 `uploadStaging`；headless：`createHeadlessHandlerModules({ upload: { onStaging } })` 交出的實例） |
+| 終端分頁關閉（T0835） | host 的 PTY 真正結束（`pty:kill` / 程序結束，不含 ⏻ 重啟）後 10 s，該 PTY id 沒有再執行 → `disposeSession(ptyId)`（`createPtyUploadDisposer`，見「終端接線（T0835）」） |
 | 啟動時＋每小時（`startSweeper`） | 刪最後寫入超過 24 h 的上傳；刪還有 `.part`、超過 10 分鐘、且不屬於進行中上傳的目錄（前一個行程留下的）；刪空的 session 目錄 |
 | 進行中上傳 10 分鐘沒有新 chunk | `begin` 與 sweep 時中止並刪除 |
 
@@ -213,6 +213,43 @@ renderer 經 `debug.log` 記一行 `[attachments] upload: files=<n> ok=<n> faile
 - 送出失敗（T0842 復原）後再送一次會重新上傳（新的 `serverPath`）；host 端舊的暫存由 TTL 清除。
 - 同一個面板一次只有一個上傳；上傳在送出鍵按下後、`resolve-client-paths` 回來之前不鎖定（與 T0437 前相同的短暫空窗）。
 
+## 終端接線（T0835）
+
+終端分頁的兩個入口在 host 讀不到時改成「上傳 → 以引號路徑貼上」，路徑引號規則與 T0439 拖放相同（`buildTerminalDropText` / `quoteArgForShell`），只貼文字、不送 Enter。session key = 分頁的 PTY id（契約 C-5）。
+
+### 必守規則
+
+- 🔴 只改 host 讀不到的情況。**拖放**：`resolve-client-paths` 不可達且有 `reason`（`invalid-path` 除外）的檔才上傳（與面板同一個 `resolveAttachmentsForSend`）；可達的（本機視窗、WSL 同 distro、`/mnt/c`、Docker 掛載內）照舊貼 host 路徑，不呼叫任何 `upload` API；多檔時依拖放順序貼上。**Ctrl+V 圖片**：只有視窗 profile 是 `remote` 且 `targetOS` 為 `ssh-linux` / `ssh-darwin` / `docker-linux` 時上傳；本機、WSL（CLI 經 interop 讀 Windows 剪貼簿，T0828 §6，Alt+V 照舊、待實機確認）、沒有 `targetOS` 的舊遠端 profile 照舊送 CLI 的貼圖鍵（`imagePasteKey`，T0524）。文字貼上、Ctrl+Shift+V、macOS Finder 複製的檔案路徑都不變。
+- 🔴 上傳的那條路（SSH / Docker 的圖片）不再送貼圖鍵，成功或失敗都不送（在那裡 CLI 讀的是遠端主機的剪貼簿，必定失敗）。
+- 🔴 失敗一律退回提示、不貼任何東西：拖放沿用面板的 `attachmentRefusalText`（T0437 句子＋原因）；圖片是 `terminal.imageUploadFailed`（原因沿用 `claude.uploadError.*`）。不加 Settings 開關（D272）。
+- 上傳中：分頁右上角顯示「正在上傳到遠端主機… N%」與「取消」（`.terminal-upload-status`，`role="status"`）。取消 → 整批取消、不貼、提示「已取消上傳」。分頁卸載也取消。同一分頁一次一個上傳：上傳中再拖放 / 貼圖 → 提示 `terminal.uploadBusy`、不處理（文字貼上不受影響）。Esc 不攔截（照舊送進 PTY）。
+- macOS Finder 複製的檔案（`clipboard:read-file-paths`）不上傳：main 只給路徑，而上傳不讀 renderer 拿著的路徑（T0436）；照舊 T0437 拒絕。
+- 🔴 host 端清理（契約 C-8 ②）：`PtyManager` 的 `onPtyExit`（`pty:kill`、程序結束；⏻ 重啟的 kill 也會觸發）→ 等 `PTY_UPLOAD_DISPOSE_GRACE_MS` = 10 s，該 id 仍不在 `PtyManager.isAlive` → `UploadStaging.disposeSession(ptyId)`。重啟（`pty:restart` 同步 kill + create，或 renderer 經 IPC 先 kill 再 create）在 10 s 內會回來，所以保留。不改 PTY 生命週期、`pty-manager.ts` 不知道上傳；Terminal Server recovery 不觸發 `onPtyExit`，不清。BAT / server 在 10 s 內結束 → 由 24 h TTL 清。
+
+### 唯一實作
+
+| 位置 | 內容 |
+|---|---|
+| `src/lib/terminal-drop.ts` | `droppedFiles`（路徑＋`File`）、`buildTerminalUploadInsertion`（`resolveAttachmentsForSend` → 引號文字＋`resolution`；取消時文字為空） |
+| `src/lib/terminal-paste.ts` | `imagePasteModeFor`（profile → `key` / `upload`）、`terminalImagePasteMode`（`app:get-window-profile` ＋ `profile:list-local`，成功時快取、失敗回 `key` 不快取）、`uploadClipboardImage`（`clipboard-image` 來源） |
+| `src/components/TerminalPanel.tsx` | `insertDroppedFiles`、`pasteClipboardImageAsPath`、`typeIntoTerminal`、上傳狀態列 / `cancelUpload`（`uploadAbortRef`）；`insertFilePaths`（Finder 貼上）不變 |
+| `electron/remote/headless-entry.ts` | `createPtyUploadDisposer` / `PTY_UPLOAD_DISPOSE_GRACE_MS`；`createHeadlessHandlerModules` 的 `onPtyExit` 接上，server 停止時停計時器 |
+| `electron/main.ts` | 模組層 `ptyUploadDisposer`（`uploadStaging` + `ptyManager.isAlive`），`createElectronPtyDeps` 的 `onPtyExit` 呼叫 |
+| `src/lib/remote-upload.ts` | `uploadToRemoteHost`：main 的回答不是結果物件（`undefined` 等）→ `TRANSPORT`，不丟例外（T0834 遭遇問題 4） |
+| `src/locales/{en,zh-TW,zh-CN}.json` | `terminal.uploading` / `cancelUpload` / `cancelUploadShort` / `uploadCancelled` / `uploadBusy` / `imageUploadFailed` |
+
+### 日誌
+
+- renderer：拖放沿用 `[attachments] upload: files=<n> ok=<n> failed=<n>…`；貼圖 `[terminal-paste] image upload terminal=<id>: ok size=<n> | failed code=<code> | cancelled`。不記檔名 / 路徑。
+- host：`disposeSession` 自己的 `[upload] dispose session=<前 8 碼> result=ok`（沒有暫存時不記）。
+
+### 已知限制
+
+- 貼上的是 host 路徑文字；claude CLI 是否把它轉成圖片附件（2.1.316 有 `/\.(png|jpe?g|gif|webp)$/i` 的判斷）未實機確認（T0828 §6 推論）；codex 收到的是路徑文字。
+- 剪貼簿圖片的檔名由 main 產生（`clipboardImageName`）；同一分頁多次貼圖各自一個目錄。
+- 分頁的 PTY 自己結束（shell `exit`）後再 ⏻ 重啟：結束時已清掉，重啟後的分頁沒有舊暫存。
+- WSL 的 Alt+V 與 SSH 的 Ctrl+V 貼圖未在實機驗證（PLAN-038 U5）。
+
 ## 日誌
 
 `[upload] begin|finish|abort|expire|dispose|sweep|chunk|remove …`，例：
@@ -245,3 +282,6 @@ renderer 經 `debug.log` 記一行 `[attachments] upload: files=<n> ok=<n> faile
 | client 端（T0833）：renderer driver（依序、批次 / 單項失敗、致命碼停止、取消、進度、預設 API） | `src/lib/__tests__/remote-upload.test.ts` |
 | 面板（T0834）：分類（可達 / 上傳 / 拒絕、`invalid-path`、fail-closed）、`file` / `path` 來源與順序、進度對應、失敗 / 取消 / 例外、日誌只有數量、原因對照與 toast 文字 | `src/lib/__tests__/client-paths-upload.test.ts` |
 | 面板（T0834）RTL：兩面板 × {全部上傳、單檔超過上限、舊 server 退回、上傳失敗且無其他內容、進度＋送出停用＋取消保留草稿、WSL 可達不上傳}、本機視窗不變（不呼叫 upload、附件註記同 T0834 前） | `src/__tests__/remote-upload-panels.test.tsx`；T0437 的 `attachment-remote-paths.test.tsx` 照舊通過 |
+| 終端（T0835）RTL：拖放 SSH 上傳後貼引號路徑、WSL 可達＋其他 distro 混合（順序）、WSL / 本機不上傳、失敗 / main 回 `undefined` 退回提示、進度＋取消、上傳中再拖放；Ctrl+V 圖片 SSH / Docker 上傳不送鍵、本機 / WSL / 舊遠端 profile 照舊送鍵（Windows 與 Linux client）、失敗提示、文字貼上不變；`imagePasteModeFor` 表與快取 | `src/__tests__/terminal-remote-upload.test.tsx`；T0439 / T0522 / T0524 的 `terminal-drop-file-path.test.tsx`、`terminal-paste-shortcuts.test.tsx` 照舊通過 |
+| 終端（T0835）：`uploadToRemoteHost` 對非物件回答（prepare / begin / chunk / finish / run / abort / onProgress）不丟例外 | `src/lib/__tests__/remote-upload-non-object.test.ts` |
+| 終端（T0835）host 清理：寬限期、重複 exit、⏻ 重啟保留、stop、真 `UploadStaging`、main / headless 接線 source guard | `electron/__tests__/pty-upload-dispose.test.ts`；真 headless server 的 `pty:kill` 清 / `pty:restart` 留：`headless-upload-e2e.test.ts` |

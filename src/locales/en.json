@@ -469,7 +469,13 @@
     "statusIdle": "Terminal idle",
     "statusPending": "Waiting for action",
     "emptyWorkspace": "This workspace has no terminals.",
-    "addTerminal": "Add Terminal"
+    "addTerminal": "Add Terminal",
+    "uploading": "Uploading to the remote host… {{percent}}%",
+    "cancelUpload": "Cancel the upload (nothing is typed)",
+    "cancelUploadShort": "Cancel",
+    "uploadCancelled": "Upload cancelled. Nothing was typed.",
+    "uploadBusy": "An upload to the remote host is still running in this terminal. Wait for it or cancel it, then try again.",
+    "imageUploadFailed": "The clipboard image was not pasted: uploading it to the remote host failed ({{reason}})."
   },
   "dialogs": {
     "closeCodeAgent": "Close Code Agent?",

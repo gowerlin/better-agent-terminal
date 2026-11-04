@@ -468,7 +468,13 @@
     "statusIdle": "终端空闲",
     "statusPending": "等待操作",
     "emptyWorkspace": "这个工作区目前没有终端。",
-    "addTerminal": "新增终端"
+    "addTerminal": "新增终端",
+    "uploading": "正在上传到远程主机… {{percent}}%",
+    "cancelUpload": "取消上传（不会输入任何内容）",
+    "cancelUploadShort": "取消",
+    "uploadCancelled": "已取消上传，没有输入任何内容。",
+    "uploadBusy": "这个终端还有一个上传到远程主机的任务正在进行，请等它完成或取消后再试。",
+    "imageUploadFailed": "剪贴板中的图片没有粘贴：上传到远程主机失败（{{reason}}）。"
   },
   "dialogs": {
     "closeCodeAgent": "关闭 Code Agent？",

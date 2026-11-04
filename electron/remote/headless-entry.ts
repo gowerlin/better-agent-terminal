@@ -979,6 +979,57 @@ export function createHeadlessUploadModule(opts: { onStaging?: (staging: UploadS
 }
 
 /**
+ * PLAN-038 U4 / T0835: how long after a PTY is gone its staged uploads are removed, unless the
+ * same id is running again by then (⏻ restart = kill + create with the same id, also a renderer's
+ * `pty:kill` → `pty:create` relaunch over IPC).
+ */
+export const PTY_UPLOAD_DISPOSE_GRACE_MS = 10_000
+
+export interface PtyUploadDisposer {
+  /** Called from `onPtyExit` (may come twice for one PTY: kill, then its exit). */
+  onPtyExit(id: string): void
+  /** Stops the pending timers (nothing is removed; the TTL sweep covers it). */
+  stop(): void
+}
+
+/**
+ * PLAN-038 U4 / T0835 (T0832 契約 C-8 ②): a terminal tab's PTY id is its upload session key;
+ * when the PTY really ends (`pty:kill`, its process exits) its uploads go with it. `onPtyExit`
+ * also fires for the kill of a ⏻ restart, so the removal waits `graceMs` and is skipped when
+ * the id is alive again. Electron main and headless share it; it never changes the PTY's own
+ * lifecycle, and a failing / missing staging is a no-op (the 24 h TTL sweep still applies).
+ */
+export function createPtyUploadDisposer(opts: {
+  getStaging: () => UploadStaging | null
+  isPtyAlive: (id: string) => boolean
+  graceMs?: number
+}): PtyUploadDisposer {
+  const graceMs = opts.graceMs ?? PTY_UPLOAD_DISPOSE_GRACE_MS
+  const timers = new Map<string, ReturnType<typeof setTimeout>>()
+  return {
+    onPtyExit(id) {
+      if (typeof id !== 'string' || !id || timers.has(id)) return
+      const timer = setTimeout(() => {
+        timers.delete(id)
+        try {
+          if (opts.isPtyAlive(id)) return // restarted under the same id
+          const staging = opts.getStaging()
+          if (staging) void staging.disposeSession(id).catch(() => undefined)
+        } catch {
+          // the PTY's own exit handling must never see this
+        }
+      }, graceMs)
+      ;(timer as { unref?: () => void }).unref?.()
+      timers.set(id, timer)
+    },
+    stop() {
+      for (const timer of timers.values()) clearTimeout(timer)
+      timers.clear()
+    },
+  }
+}
+
+/**
  * T0701: `ct:read-config-sources` on headless — the Control Tower config layers in the
  * server user's home (`host.homeDir` = `os.homedir()`), never the client's.
  */
@@ -1023,6 +1074,11 @@ export function createHeadlessHandlerModules(opts: {
   const toolsCache = createHeadlessRemoteToolsCache(opts.remoteTools)
   // T0832: the upload module's staging (the claude module's dispose removes a session's uploads)
   let uploadStaging: UploadStaging | null = null
+  // T0835: a terminal tab's uploads go when its PTY really ends (not on a ⏻ restart)
+  const ptyUploads = createPtyUploadDisposer({
+    getStaging: () => uploadStaging,
+    isPtyAlive: id => ptyManager?.isAlive(id) ?? false,
+  })
   const ptyModule = createHeadlessPtyModule({
     helperDir: path.join(opts.installRoot ?? defaultHeadlessInstallRoot(), 'scripts'),
     ...opts.pty,
@@ -1033,6 +1089,7 @@ export function createHeadlessHandlerModules(opts: {
     onPtyExit: id => {
       opts.pty?.onPtyExit?.(id)
       for (const listener of [...ptyExitListeners]) listener(id)
+      ptyUploads.onPtyExit(id) // T0835
     },
     onBlockedChange: id => {
       opts.pty?.onBlockedChange?.(id)
@@ -1084,6 +1141,7 @@ export function createHeadlessHandlerModules(opts: {
         opts.upload?.onStaging?.(staging)
       },
     }),
+    () => () => ptyUploads.stop(), // T0835: pending PTY-upload removals stop with the server
   ]
 }
 

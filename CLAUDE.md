@@ -443,6 +443,7 @@
 - 唯一實作 `UploadStaging`（`electron/upload-staging.ts`，不 import electron，`getDataDir` 第一次使用才讀）、channel `registerUploadHandlers`（`electron/handlers/uploads.ts`，本機 `main.ts` 與 headless `createHeadlessUploadModule` 共用）；清理：`claude:dispose-session` 經 `onSessionDisposed` 刪該 session、啟動時＋每小時 TTL（完成 24 h、未完成 `.part` 10 分鐘），終端分頁的 PTY id 由 T0835 呼叫 `disposeSession`。
 - client 端（T0833）：唯一實作 `UploadClient`（`electron/upload-client.ts`，main 依視窗 profile 轉送、stop-and-wait、chunk 逾時重送 1 次；路由 `resolveUploadRoute` 與 `bindProxiedHandlersToIpc` 同規則，改一處要同步另一處）與 renderer `uploadToRemoteHost`（`src/lib/remote-upload.ts`）；`path` 來源只認 `dialog:select-attachments` 回給該視窗的檔。
 - 面板（T0834）：送出時上傳，唯一實作 `resolveAttachmentsForSend`（`src/lib/client-paths.ts`），由 Claude / Codex `handleSend` 呼叫；🔴 只有 `resolve-client-paths` 不可達且有 `reason`（`invalid-path` 除外）才上傳，可達的照舊送；上傳完成後才進入既有送出路徑（T0815 / T0842 不變），圖片照舊 data URL ＋ `checkRemoteImageBudget`。拖放的檔保留 `File` 走 `file` 來源、對話框的走 `path`；上傳中送出鍵停用、chip × / Esc 取消（不送出、草稿保留）。
+- 終端（T0835）：拖放不可達的檔上傳後以引號路徑貼上（`buildTerminalUploadInsertion`，`src/lib/terminal-drop.ts`）；🔴 Ctrl+V 圖片只有 SSH / Docker profile（`imagePasteModeFor`，`src/lib/terminal-paste.ts`）改上傳 PNG 後貼路徑、不送貼圖鍵，本機 / WSL / 舊遠端照舊送鍵；host 清理 `createPtyUploadDisposer`（`electron/remote/headless-entry.ts`，main 與 headless 共用）：`onPtyExit` 後 10 s 該 id 仍不在才 `disposeSession(ptyId)`（⏻ 重啟保留），🔴 不改 PTY 生命週期。
 - 完整規則、檔名清理、上限與錯誤碼、清理、日誌、已知限制、驗證：[docs/agent-guide/remote-file-upload.md](docs/agent-guide/remote-file-upload.md)
 
 ## headless server 的登入 shell PATH（PLAN-057 / T0755，D206 / D207）

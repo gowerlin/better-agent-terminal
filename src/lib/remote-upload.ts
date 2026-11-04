@@ -199,8 +199,33 @@ function errorMessage(error: unknown): string {
 }
 
 /**
+ * T0835: what main answered, as a result — an answer that is not an object with a boolean `ok`
+ * (`undefined` from a stub or an old preload, a string, …) is a `TRANSPORT` failure, never a throw.
+ */
+function asResult<T extends { ok: boolean }>(value: unknown, what: string): T | RemoteUploadFailure {
+  if (typeof value === 'object' && value !== null && typeof (value as { ok?: unknown }).ok === 'boolean') {
+    const result = value as T | RemoteUploadFailure
+    if (result.ok === false && typeof (result as RemoteUploadFailure).code !== 'string') {
+      return { ok: false, code: 'TRANSPORT', message: `main answered ${what} with a failure without a code` }
+    }
+    return result
+  }
+  return { ok: false, code: 'TRANSPORT', message: `main answered ${what} without a result` }
+}
+
+/** `api.abort` without ever throwing (a stub may return a non-promise or throw synchronously). */
+function abortQuietly(api: RemoteUploadApi, id: string): void {
+  try {
+    void Promise.resolve(api.abort(id)).catch(() => undefined)
+  } catch {
+    // nothing to release
+  }
+}
+
+/**
  * Uploads `sources` to the host the calling window is bound to, one file after another (never in
- * parallel), and returns one result per source. Never throws: IPC errors become `TRANSPORT`.
+ * parallel), and returns one result per source. Never throws: IPC errors, and answers from main
+ * that are not results (e.g. `undefined`, T0835), become `TRANSPORT`.
  * `sessionKey`: the panel's sessionId, or the terminal tab's PTY id (T0832 契約 C-5).
  */
 export async function uploadToRemoteHost(
@@ -221,13 +246,16 @@ export async function uploadToRemoteHost(
 
   let prepared: RemoteUploadPrepareResult
   try {
-    prepared = await api.prepare(sessionKey, sources.map(toDescriptor))
+    prepared = asResult<RemoteUploadPrepareResult>(await api.prepare(sessionKey, sources.map(toDescriptor)), 'prepare')
   } catch (error) {
     return all('TRANSPORT', errorMessage(error))
   }
   if (!prepared.ok) return all(prepared.code, prepared.message)
+  if (!Array.isArray(prepared.items) || typeof prepared.batchId !== 'string') {
+    return all('TRANSPORT', 'main answered prepare without a batch')
+  }
   const batchId = prepared.batchId
-  const items = prepared.items
+  const items = prepared.items.map((item): RemoteUploadPreparedItem => asResult<RemoteUploadPreparedItem>(item, 'prepare'))
 
   const results: RemoteUploadItemResult[] = sources.map((_, i) => {
     const item = items[i]
@@ -239,20 +267,26 @@ export async function uploadToRemoteHost(
   let batchDone = 0
   let current: { index: number; transferId: string; size: number } | null = null
 
-  const unsubscribe = api.onProgress(event => {
-    if (event.batchId !== batchId || !current || event.transferId !== current.transferId) return
-    options.onProgress?.({
-      index: current.index,
-      received: event.received,
-      size: event.size,
-      batchReceived: batchDone + event.received,
-      batchSize,
+  let unsubscribe: () => void = () => {}
+  try {
+    const off = api.onProgress(event => {
+      if (!event || event.batchId !== batchId || !current || event.transferId !== current.transferId) return
+      options.onProgress?.({
+        index: current.index,
+        received: event.received,
+        size: event.size,
+        batchReceived: batchDone + event.received,
+        batchSize,
+      })
     })
-  })
+    if (typeof off === 'function') unsubscribe = off
+  } catch {
+    // no progress events; the upload itself still runs
+  }
   let cancelled = false
   const onAbort = () => {
     cancelled = true
-    void api.abort(batchId).catch(() => undefined)
+    abortQuietly(api, batchId)
   }
   options.signal?.addEventListener('abort', onAbort, { once: true })
 
@@ -276,7 +310,7 @@ export async function uploadToRemoteHost(
       try {
         result = source.kind === 'file'
           ? await sendFile(api, item.transferId, source.file, () => cancelled || !!options.signal?.aborted)
-          : await api.run(item.transferId)
+          : asResult<RemoteUploadFinishResult>(await api.run(item.transferId), 'run')
       } catch (error) {
         result = { ok: false, code: 'TRANSPORT', message: errorMessage(error) }
       }
@@ -287,7 +321,7 @@ export async function uploadToRemoteHost(
         continue
       }
       // Main drops a transfer on its own failure; abort covers the cases it never saw (a throw here).
-      void api.abort(item.transferId).catch(() => undefined)
+      abortQuietly(api, item.transferId)
       const code: RemoteUploadErrorCode = cancelled || options.signal?.aborted ? 'CANCELLED' : result.code
       if (code === 'CANCELLED') cancelled = true
       results[i] = failure(code, result.message, item.name)
@@ -295,9 +329,13 @@ export async function uploadToRemoteHost(
     }
   } finally {
     options.signal?.removeEventListener('abort', onAbort)
-    unsubscribe()
+    try {
+      unsubscribe()
+    } catch {
+      // already gone
+    }
     // Releases what is left of the batch in main (prepared, never started). Idempotent.
-    void api.abort(batchId).catch(() => undefined)
+    abortQuietly(api, batchId)
   }
   return { ok: results.every(r => r.ok), cancelled, items: results }
 }
@@ -309,7 +347,7 @@ async function sendFile(
   file: Blob,
   isCancelled: () => boolean,
 ): Promise<RemoteUploadFinishResult> {
-  const begun = await api.begin(transferId)
+  const begun = asResult<RemoteUploadBeginResult>(await api.begin(transferId), 'begin')
   if (!begun.ok) return begun
   const chunkBytes = Math.max(1, Math.min(begun.chunkBytes, REMOTE_UPLOAD_LIMITS.chunkBytes))
   let offset = 0
@@ -322,7 +360,7 @@ async function sendFile(
       return { ok: false, code: 'SOURCE_ERROR', message: `could not read the file: ${errorMessage(error)}` }
     }
     if (bytes.byteLength === 0) return { ok: false, code: 'SOURCE_ERROR', message: 'the file got shorter while it was read' }
-    const sent = await api.chunk(transferId, offset, bytes)
+    const sent = asResult<RemoteUploadChunkResult>(await api.chunk(transferId, offset, bytes), 'chunk')
     if (!sent.ok) return sent
     if (sent.received !== offset + bytes.byteLength) {
       return { ok: false, code: 'TRANSPORT', message: `host confirmed ${sent.received} bytes, expected ${offset + bytes.byteLength}` }
@@ -330,5 +368,5 @@ async function sendFile(
     offset = sent.received
   }
   if (isCancelled()) return { ok: false, code: 'CANCELLED', message: 'cancelled' }
-  return api.finish(transferId)
+  return asResult<RemoteUploadFinishResult>(await api.finish(transferId), 'finish')
 }

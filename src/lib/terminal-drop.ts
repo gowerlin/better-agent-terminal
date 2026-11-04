@@ -7,7 +7,20 @@
  */
 import { settingsStore } from '../stores/settings-store'
 import { detectShellFamily, quoteArgForShell, type ShellFamily } from '../utils/shell-quote'
-import { resolveAttachmentPaths, type AttachmentPathResolution } from './client-paths'
+import {
+  resolveAttachmentPaths,
+  resolveAttachmentsForSend,
+  type AttachmentPathResolution,
+  type AttachmentSendOptions,
+  type AttachmentSendResolution,
+  type SendAttachment,
+} from './client-paths'
+
+// PLAN-038 U4 (T0835): a dropped file the host cannot read (SSH, Docker outside the mounts,
+// another WSL distro) is uploaded to the host first (`resolveAttachmentsForSend` → T0833
+// `uploadToRemoteHost`, session key = the tab's PTY id, T0832 契約 C-5) and its host path is typed
+// instead, with the same quoting. A reachable path (local window, same distro, `/mnt/c`, inside a
+// mount) is typed exactly as before; an upload that fails falls back to the T0437 toast.
 
 /** The shell path each terminal was spawned with (as passed to `pty:create` / `pty:restart`). */
 const terminalShells = new Map<string, string>()
@@ -62,16 +75,53 @@ export async function buildTerminalDropInsertion(
   return { text: buildTerminalDropText(serverPaths, shell), rejected }
 }
 
+export interface TerminalUploadInsertion {
+  /** What to type at the prompt ('' when nothing is reachable or uploaded, or on cancel). */
+  text: string
+  /** The attachment resolution (refusals, upload failures, cancel) for the toast. */
+  resolution: AttachmentSendResolution
+}
+
+export type TerminalUploadOptions = Pick<AttachmentSendOptions, 'signal' | 'onUploadStart' | 'onUploadProgress' | 'upload'> & {
+  /** Test seam; defaults to `resolveAttachmentsForSend`. */
+  resolve?: typeof resolveAttachmentsForSend
+}
+
+/**
+ * T0835: dropped files → the text to type. Reachable ones keep their host path, unreachable ones
+ * with a reason are uploaded (session key `terminalId`), the rest are refused; nothing is typed
+ * when the user cancels the upload. Paths are quoted for `shell` and keep the drop order. Never throws.
+ */
+export async function buildTerminalUploadInsertion(
+  files: readonly SendAttachment[],
+  shell: ShellFamily,
+  terminalId: string,
+  options: TerminalUploadOptions = {},
+): Promise<TerminalUploadInsertion> {
+  const { resolve = resolveAttachmentsForSend, ...sendOptions } = options
+  const resolution = await resolve(files, { ...sendOptions, sessionKey: terminalId })
+  if (resolution.cancelled) return { text: '', resolution }
+  return { text: buildTerminalDropText(resolution.serverPaths, shell), resolution }
+}
+
 export function dataTransferHasFiles(dataTransfer: DataTransfer | null | undefined): boolean {
   return !!dataTransfer && Array.from(dataTransfer.types ?? []).includes('Files')
 }
 
 /** Local paths of the dropped files (Electron `webUtils.getPathForFile`, T0435); '' entries skipped. */
 export function droppedFilePaths(dataTransfer: DataTransfer): string[] {
-  const paths: string[] = []
+  return droppedFiles(dataTransfer).map(f => f.path)
+}
+
+/**
+ * T0835: the dropped files with their local path and the `File` itself (an upload reads the
+ * `File`, never the path, T0436); entries without a path are skipped, as in `droppedFilePaths`.
+ */
+export function droppedFiles(dataTransfer: DataTransfer): SendAttachment[] {
+  const files: SendAttachment[] = []
   for (const file of Array.from(dataTransfer.files ?? [])) {
     const path = window.electronAPI.shell.getPathForFile(file)
-    if (path) paths.push(path)
+    if (path) files.push({ path, name: file.name || path.split(/[\\/]/).pop() || path, file })
   }
-  return paths
+  return files
 }
