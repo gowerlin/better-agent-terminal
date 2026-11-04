@@ -42,6 +42,17 @@ describe('locales', () => {
     expect(locale.interruptedAgents.upgradeDesc).toBeTruthy()
   })
 
+  // T0847 / D279: since T0846 a same-version reinstall or a cancelled install also lists agent tabs with
+  // `cause: 'upgrade'`, so the dialog title / description and the ⏸ tooltip must not claim a new version.
+  it.each(LOCALES)('%s: the interrupted-agents installer text does not mention a new version or an upgrade', (_lng, locale) => {
+    for (const key of ['upgradeTitle', 'upgradeDesc', 'badgeUpgradeTooltip']) {
+      const text = locale.interruptedAgents[key]
+      expect(text).toBeTruthy()
+      expect(text).not.toMatch(/new version|upgrade/i)
+      for (const word of ['新版', '升級', '升级']) expect(text).not.toContain(word)
+    }
+  })
+
   it('each language has its own text', () => {
     const texts = LOCALES.map(([, locale]) => locale.update.windowsInstallEndsTerminals)
     expect(new Set(texts).size).toBe(3)

@@ -57,7 +57,8 @@ N = 兩份清單依 terminal id 的聯集（紀錄在前）；claude session 以
 - 與 recovery 的差異（只對 `cause: 'upgrade'` 的項目）：
   - `record(…, 'upgrade')` 送 `reason: 'update'`：對話框不自己開（視窗此時還不存在，renderer 以既有的 pull 取得清單），由升級說明 toast 點開。
   - 🔴 `session-start` 不移除項目：還原的 claude-cli 分頁會自己開一個新的 claude（`WorkspaceView` 還原流程），它的 `SessionStart` 不是 resume。其餘移除時機不變（恢復時先 kill → `pty-ended`、main 的 `resumed`、略過 `dismissed`、關分頁 / ⏻ → `pty-ended`）。
-  - 對話框（`InterruptedAgentsDialog`）在每一列都是升級造成時改用 `interruptedAgents.upgradeTitle` / `upgradeDesc`（說明 claude / codex 分頁可能已經開了新的 agent，按「恢復」會結束它、接續升級前的對話）；有 recovery 列時維持原標題與說明。
+  - 對話框（`InterruptedAgentsDialog`）在每一列都是升級造成時改用 `interruptedAgents.upgradeTitle` / `upgradeDesc`（說明 claude / codex 分頁可能已經開了新的 agent，按「恢復」會結束它、接續被中斷的對話）；有 recovery 列時維持原標題與說明。縮圖 ⏸ 的 tooltip 用 `interruptedAgents.badgeUpgradeTooltip`（T0822）。
+  - 文字（T0847 / D279）：T0846 起同版重裝、取消安裝也會列進來，所以這三個字串用不提版本的單一說法（zh-TW 標題「安裝程式結束的 agent 分頁」、說明「安裝程式執行時結束了這些分頁的 agent。…接續被中斷的對話…」、tooltip「這個分頁的 agent 被安裝程式中斷，按此查看」），不依版本分支；三語都不含「新版 / 升級」（en：`new version` / `upgrade`），`upgrade-interruption.test.tsx` 守住。key 名稱與 `cause: 'upgrade'` 不變；toast（`app.upgradeInterrupted` / `upgradeReinstalled`）照舊依版本分兩種。
 - 🔴 恢復沿用 T0766 / T0767：claude-cli 分頁 `startClaudeCliPty` ＋ `claudeResumeArgs`（session 未知 → `--resume` picker），codex-cli 分頁 `resumeCodexCliTab` ＋ `codexResumeArgs`（codex 自己的 resume 選單），其他經 main `terminal:resume-interrupted-agent`。不自動 resume、不自動重跑指令、不通知塔台。
 
 ### 日誌
