@@ -73,6 +73,7 @@ T0860 讓升級時 holder 留下並寫紀錄；本單讓新版 BAT 啟動時依�
 3. 🔴 被 T0860 結束的內嵌 agent 分頁：接回後那些分頁的 shell 是同一個（被保留的）PTY。確認 T0766 / T0767 的恢復路徑（`startClaudeCliPty` 先 kill、`resumeCodexCliTab`）與保留的 PTY 不衝突：恢復時不得把被接回的 shell 當成已結束而重建出第二個 shell，也不得殺掉使用者還在用的 shell 以外的東西；寫明實際行為並加測試。
 4. e2e：`e2e/t0860-installer-quit-holder.spec.ts` 可當基礎（打包版＋暫存 `LOCALAPPDATA` 的 holder）。本單改到偵測規則，`e2e/t0821-upgrade-interruption.spec.ts` 與 `e2e/t0823-installer-graceful-quit.spec.ts` 列為必跑（T0860 發現 t0823 的 control 情境自 T0846 起過時，已由 T0860 修正）。
 5. `electron/main.ts` 與 T0864 無重疊（T0864 不改 `main.ts`）；但 T0864 會改 `e2e/t0821-*` / `t0823-*`（只加設定標記）。本單排在 T0864 之後，開工前先 `git log -3 -- e2e/` 確認在它之後。
+6. T0864（`7a07cfca`，D288）之後，e2e 要關掉更新檢查必須同時寫 `checkForUpdates: false` 與 `checkForUpdatesMigrated: true`（只寫 `false` 會被當成開，重開 app 時會連 GitHub）。本單新增或修改的 e2e 若會重開同一個 runtime，照這個寫法。
 
 ---
 
