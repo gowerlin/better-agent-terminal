@@ -4,14 +4,14 @@ schema_kind: workorder
 id: T0843
 title: "遠端附件上傳失敗的提示文字：先講真正原因、每個檔名只出現一次（T0836 發現）"
 type: implementation
-status: PENDING
+status: IN_PROGRESS
 repo: better-agent-terminal
 project: maintenance
 priority: P3
 sizing: S
 created_at: "2026-11-04T12:38:10+0800"
-started_at: ""
-updated_at: "2026-11-04T12:38:10+0800"
+started_at: "2026-11-04T13:09:33+0800"
+updated_at: "2026-11-04T13:09:33+0800"
 completed_at: ""
 session_ids: []
 depends_on: [T0841]
@@ -31,6 +31,7 @@ affects_files:
 renew_count: 0
 workdir: main repo
 worker_question_timeout: 30
+tower_question: open
 interaction:
   mode_hint: yolo
   interactive: false
@@ -44,7 +45,7 @@ memory_overrides:
 # T0843 — 上傳失敗提示文字
 
 ## 元資料
-- **工單編號**：T0843｜**類型**：implementation｜**狀態**：PENDING｜**建立**：2026-11-04 12:38 (UTC+8)
+- **工單編號**：T0843｜**類型**：implementation｜**狀態**：IN_PROGRESS｜**建立**：2026-11-04 12:38 (UTC+8)
 - **依賴**：T0841（T0840 / T0841 都改 locales，排在它們後面）｜**規模**：S
 
 ## 任務指令
@@ -73,6 +74,16 @@ memory_overrides:
 ## 回報區
 
 > 以下由 sub-session 填寫，請勿在指揮塔 session 中編輯（唯一例外：`### 待塔台決策` 的 `塔台答覆 Q-n` 行由塔台新增）
+
+### 待塔台決策
+
+#### Q-1：`attachment-remote-paths.test.tsx`／`terminal-drop-file-path.test.tsx` 的 4 個「T0437 斷言」其實走了上傳（stub 回 undefined → TRANSPORT），要怎麼處理？
+- 提問時間：2026-11-04T13:12:27+0800
+- 背景：工單 memory_overrides 說這兩類測試是「沒嘗試上傳、純 T0437 拒絕」、斷言不改。實際上它們的 mock 回 `reason: 'outside-wsl-distro'`／`'ssh-local-file'`（T0834 起屬可上傳），`permissiveApi` 的 upload stub 回 undefined → `TRANSPORT`，所以是「上傳失敗（連線）」的情況。舊文字以 T0437 句開頭、`toContain` 剛好過；新文字是「Not attached (the connection to the remote host failed): doc.pdf」，4 個斷言（`attachment-remote-paths` Claude／Codex 各 1、`terminal-drop-file-path` 2）失敗。真正純 T0437（本機視窗、`invalid-path`、無 reason）文字不變，已有單元測試逐字驗證。
+- 選項：[A] 這 4 個測試的 mock 改用不可上傳的 reason（拿掉 `reason` 或 `invalid-path`），讓它們真的測純 T0437，斷言字串一字不改 / [B] 不動 mock，斷言改成新文字（「上傳失敗：連線」），測試加註說明 stub 走了上傳 / [C] 其他：________
+- Worker 建議：[A]，因為這兩個檔原本就是 T0437／T0439 的測試，意圖是「不可達 → 拒絕 toast」，改 mock 後斷言維持逐字不變、符合 override；`outside-wsl-distro`／`ssh-local-file` 走上傳的路徑已由 `remote-upload-panels.test.tsx`、`terminal-remote-upload.test.tsx` 涵蓋。
+- 影響範圍：`src/__tests__/attachment-remote-paths.test.tsx`、`src/__tests__/terminal-drop-file-path.test.tsx`（只改測試，產品碼不受影響）；驗收條件「test:unit 全過」
+- 阻塞：否（先做 docs、e2e、typecheck、build；只有 test:unit 全過與 commit 要等答覆）
 
 ### 完成狀態
 
