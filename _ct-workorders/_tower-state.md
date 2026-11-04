@@ -1,7 +1,7 @@
 ---
 schema_kind: tower-state
 summary_version: 1
-updated_at: "2026-11-04T12:38:10+08:00"
+updated_at: "2026-11-04T12:47:43+08:00"
 session: "2026-11-04 08:36 第一百一十六 session（CT v6.0.0-beta.11）"
 next_ids:
   workorder: "T0844"
@@ -9,12 +9,12 @@ next_ids:
   bug: "BUG-212"
   plan: "PLAN-065"
 todo:
-  - "▶ 自動派單已恢復（11:14，D273）：T0840（WSL W3）執行中（Q-1 已答）；T0841 在 T0840 後；全部完成後準備發 `0.7.4-pre.7`（發版前再確認）"
+  - "▶ 自動派單已恢復（11:14，D273）：T0841 執行中（12:47 派）→ T0843；全部完成後準備發 `0.7.4-pre.7`（發版前再確認）"
   - "T0840 commit 後重跑 T0836 e2e 取乾淨證據（T0836 的 build 含 T0840 未提交改動）：`npx vite build` 後 `$env:BAT_E2E_T0836='1'; npx playwright test e2e/t0836-remote-upload-acceptance.spec.ts`（需 WSL Ubuntu-24.04 執行中）"
   - "T0843（D274，使用者「一起修好再發版」）：上傳失敗提示先講原因、檔名只出現一次；排在 T0841 後（同改 locales）"
   - "BUG-211 FIXED（T0842 `bb8cbe1a`）：待發版與遠端實機驗證（遠端視窗附 3 張 > 8 MiB 圖 → 提示、不送出、連線不斷；2 張照常）；後續候選：CLAUDE.md / multi-remote-profiles docs 補 `ws-limits.ts` / `FRAME_TOO_LARGE` 一行；fork 後自動送出 pending 圖片的路徑沒有面板檢查（只靠 client 守門）"
-  - "本批（D271 / D272，做完一起發 `0.7.4-pre.7`＋PLAN-063 真實升級驗收）：DONE T0826 `83f1d5bf`、T0827 `93c6507a`、T0828（研究）、T0829 `841f5e6a`、T0830 `add1b932`、T0831（研究）、T0837（BUG-211 重現 `319c3646`）、T0838 `919a006e`、T0842 `bb8cbe1a`、T0832 `0382882b`（契約 C-1–C-10）、T0833 `8f8c4579`、T0839 `aaf5201b`、T0834 `61cd028c`、T0835 `64dbb3f4`、T0836 `d99eac4c`（e2e 12 項 PASS）；待做 T0840 → T0841 → T0843；PLAN-043 Phase 3（W5–W8）等驗收 VM 再開單"
-  - "待實機驗收：T0827 Linux AppImage 缺字型提示（回報區〈待實機驗收〉4 項）；T0830 真 WSL 的 install-bundle 中止（`pkill tar`）與 keep-alive 關閉後閒置關機（`docs/wsl-deployment.md` Real WSL Pre-Flight Checklist）；T0832 smoke S14 對已部署 server（發版後 `node scripts/smoke-remote-headless.mjs --target wsl:<distro>`）；PLAN-038 實機 6 項（T0836 回報區〈待實機驗收〉：SSH claude 貼圖認成圖片、codex 收路徑、WSL Alt+V、WSL 其他 distro、macOS Finder 提示、真實拖放＋agent 讀檔）"
+  - "本批（D271 / D272，做完一起發 `0.7.4-pre.7`＋PLAN-063 真實升級驗收）：DONE T0826 `83f1d5bf`、T0827 `93c6507a`、T0828（研究）、T0829 `841f5e6a`、T0830 `add1b932`、T0831（研究）、T0837（BUG-211 重現 `319c3646`）、T0838 `919a006e`、T0842 `bb8cbe1a`、T0832 `0382882b`（契約 C-1–C-10）、T0833 `8f8c4579`、T0839 `aaf5201b`、T0834 `61cd028c`、T0835 `64dbb3f4`、T0836 `d99eac4c`（e2e 12 項 PASS）、T0840 `790aacf9`（拋棄式發行版實測 PASS、已 unregister）；待做 T0841 → T0843；PLAN-043 Phase 3（W5–W8）等驗收 VM 再開單"
+  - "待實機驗收：T0827 Linux AppImage 缺字型提示（回報區〈待實機驗收〉4 項）；T0830 真 WSL 的 install-bundle 中止（`pkill tar`）與 keep-alive 關閉後閒置關機（`docs/wsl-deployment.md` Real WSL Pre-Flight Checklist）；T0832 smoke S14 對已部署 server（發版後 `node scripts/smoke-remote-headless.mjs --target wsl:<distro>`）；PLAN-038 實機 6 項（T0836 回報區〈待實機驗收〉：SSH claude 貼圖認成圖片、codex 收路徑、WSL Alt+V、WSL 其他 distro、macOS Finder 提示、真實拖放＋agent 讀檔）；T0840 精靈在真的 BAT 視窗對拋棄式發行版從頭跑一次（清單→套用→完成畫面），之後 W8 / 實機時一併"
   - "T0830 後續候選（未開單）：SSH / Docker 精靈主行程長呼叫接 operation id；`src/components/profiles/types.ts` 補 `wslKeepAlive`；CLAUDE.md 是否補 keep-alive 開關 / 精靈中止的必守規則"
   - "MSRC 回報 microsoft/node-pty（使用者自行處理，D255）"
   - "PLAN-058：T0814（W1）`fc22e04a`＋T0815（W0）`0b67db03` DONE，T0819 安裝版 pre.5 假 API e2e PASS，待使用者手動確認（清單在 T0819 回報區）；可選後續：卡片等待時讓輸入框可送出（T0815〈遭遇問題〉1，未開單）"

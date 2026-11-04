@@ -25,6 +25,10 @@ affects_files:
   - src/locales/zh-TW.json
   - src/locales/zh-CN.json
   - electron/__tests__/
+  - electron/main.ts
+  - electron/preload.ts
+  - src/types/electron.d.ts
+  - e2e/v071-pre2-acceptance.spec.ts
   - docs/wsl-deployment.md
   - CHANGELOG.md
 renew_count: 0
@@ -51,6 +55,10 @@ memory_overrides:
 2. connect-test 錯誤畫面加動作「改用 Mirrored 並重試」→ 小型同意框 → 備份並寫 `.wslconfig` `[wsl2] networkingMode=mirrored` → `wsl --shutdown` → 等 keep-alive 拉起 → 重跑 connect-test。
 3. 測試（mock）：條件判斷（nat / 原則 / 使用者已宣告）、同意框內容、寫入與備份、shutdown 後重跑。i18n、docs、`CHANGELOG.md`。
 4. 實機 `--shutdown` 實測：先問塔台；未獲同意就列〈待實機驗收〉。
+5. **塔台補充（開工前併入，來自 T0840 回報〈遭遇問題〉）**：
+   - `e2e/v071-pre2-acceptance.spec.ts`（約 848–877 行）V3 兩項仍斷言舊行為（`wsl1Only` 警告、`systemdDisabled` 警告）；依 T0840 後的新行為更新斷言（只有 WSL1 → 清單提議轉換；systemd 沒開 → 清單提議開啟、沒開成則第 5 步 `wsl-systemd-disabled`）。只改斷言，不必在本單執行整份驗收 spec；能跑就跑並附輸出。
+   - 沿用 T0840 的模組：`.wslconfig` 寫入走 `electron/wsl-env-apply.ts`（`WslEnvApplier`）的同一套「先偵測 → 備份 → stdin / 檔案寫入 → 讀回驗證」，同意框沿用 `WizardConsentChecklist.tsx` 的樣式與範圍標籤，不另寫一套。
+   - 塔台裁決（不改）：`wsl --set-version` 維持「無法中止」標示（T0840 實測 2.7.14 結束 client 會中斷轉換且發行版完好，但大型發行版中途打斷的安全性未驗證，維持保守）。
 
 ### 驗收條件
 - [ ] `npm run typecheck` = 0、`npm run typecheck:electron` = 0、`npm run test:unit` 全過、`npx vite build` 成功
