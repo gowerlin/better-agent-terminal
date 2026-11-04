@@ -31,6 +31,7 @@ import {
   tomlString,
   userArgsAttachBatMcp,
   type BatMcpHost,
+  type BatMcpServerCommand,
 } from '../bat-mcp-launch'
 import { createHeadlessBatMcpHost } from '../remote/headless-entry'
 import { createAgentPromptCommandBuilder, type AgentCommandSettings } from '../terminal-command-handlers'
@@ -75,6 +76,23 @@ function host(overrides: Partial<BatMcpHost> = {}, settings: Record<string, unkn
 const configFile = () => path.join(dataDir, 'bat-mcp', 'claude.json')
 const shim = () => path.join(helperDir, 'bat-mcp.mjs')
 
+/**
+ * The `--mcp-config` file holds no env block, no token value, no `BAT_REMOTE_*` (CLAUDE.md「BAT MCP shim」).
+ * T0845: the word check runs only after the temp root is masked out — the paths in `args` sit under a
+ * `mkdtemp` directory whose random suffix (e.g. `17ENVT`) matched /env/i on its own. The token value is
+ * checked on the unmasked content.
+ */
+function expectNoSecretsInMcpConfig(content: string, tempRoot: string): void {
+  expect(content).not.toContain(TOKEN)
+  const parsed = JSON.parse(content)
+  expect(Object.keys(parsed)).toEqual(['mcpServers'])
+  expect(Object.keys(parsed.mcpServers)).toEqual(['bat'])
+  expect(Object.keys(parsed.mcpServers.bat).sort()).toEqual(['args', 'command', 'type'])
+  // the paths appear JSON-escaped in the file (`\` → `\\` on Windows)
+  const masked = content.split(JSON.stringify(tempRoot).slice(1, -1)).join('<tmp>')
+  expect(masked).not.toMatch(/env|token|BAT_REMOTE/i)
+}
+
 describe('buildBatMcpLaunchArgs', () => {
   it('claude: --mcp-config=<userData>/bat-mcp/claude.json, the file holds command / args only', () => {
     const r = buildBatMcpLaunchArgs(host(), { agentId: 'claude-cli', shellFamily: 'pwsh' })
@@ -83,13 +101,42 @@ describe('buildBatMcpLaunchArgs', () => {
     expect(r).toEqual({ injected: true, kind: 'claude', args: `'--mcp-config=${configFile()}'`, mcp: true, hooks: false, hooksReason: `bat-hook.mjs not found in ${helperDir}`, nameReason: 'no-name' })
     const content = fs.readFileSync(configFile(), 'utf8')
     expect(JSON.parse(content)).toEqual({ mcpServers: { bat: { type: 'stdio', command: 'node', args: [shim()] } } })
-    expect(content).not.toContain(TOKEN)
-    expect(content).not.toMatch(/env|token|BAT_REMOTE/i)
+    expectNoSecretsInMcpConfig(content, dir)
     // claude-cli-worktree too; the file is rewritten only when it changes
     const mtime = fs.statSync(configFile()).mtimeMs
     expect(buildBatMcpLaunchArgs(host(), { agentId: 'claude-cli-worktree', shellFamily: 'posix' })).toMatchObject({ injected: true, kind: 'claude' })
     expect(fs.statSync(configFile()).mtimeMs).toBe(mtime)
     expect(fs.readdirSync(path.join(dataDir, 'bat-mcp'))).toEqual(['claude.json'])
+  })
+
+  it('T0845: a temp path that spells env / token / BAT_REMOTE does not trip the check; an env block or a token does', () => {
+    // a temp root that always hits the old raw /env|token|BAT_REMOTE/i check
+    const hitRoot = fs.mkdtempSync(path.join(dir, 't0845-17ENVT-token-BAT_REMOTE-'))
+    const hitHelper = path.join(hitRoot, 'scripts')
+    const hitData = path.join(hitRoot, 'userData')
+    fs.mkdirSync(hitHelper, { recursive: true })
+    fs.writeFileSync(path.join(hitHelper, 'bat-mcp.mjs'), '// shim\n')
+    const h = host({ dataDir: () => hitData, helperDir: () => hitHelper })
+    expect(buildBatMcpLaunchArgs(h, { agentId: 'claude-cli', shellFamily: 'pwsh' })).toMatchObject({ injected: true, kind: 'claude' })
+    const content = fs.readFileSync(path.join(hitData, 'bat-mcp', 'claude.json'), 'utf8')
+    expect(JSON.parse(content)).toEqual({ mcpServers: { bat: { type: 'stdio', command: 'node', args: [path.join(hitHelper, 'bat-mcp.mjs')] } } })
+    expect(content).toMatch(/env|token|BAT_REMOTE/i) // the old check would have failed here
+    expectNoSecretsInMcpConfig(content, hitRoot)
+
+    // counter-examples: the same file with something it must never hold still fails
+    const bat = JSON.parse(content).mcpServers.bat
+    const variant = (server: BatMcpServerCommand) => claudeMcpConfigContent(server)
+    const bad: Array<[string, string]> = [
+      ['env block with the token', `${JSON.stringify({ mcpServers: { bat: { ...bat, env: { BAT_REMOTE_TOKEN: TOKEN } } } }, null, 2)}\n`],
+      ['empty env block', `${JSON.stringify({ mcpServers: { bat: { ...bat, env: {} } } }, null, 2)}\n`],
+      ['token value in args', variant({ command: bat.command, args: [...bat.args, TOKEN] })],
+      ['token-named arg', variant({ command: bat.command, args: [...bat.args, '--token=x'] })],
+      ['BAT_REMOTE_* in args', variant({ command: bat.command, args: [...bat.args, 'BAT_REMOTE_PORT=1'] })],
+      ['env word in command', variant({ command: 'env', args: bat.args })],
+    ]
+    for (const [label, text] of bad) {
+      expect(() => expectNoSecretsInMcpConfig(text, hitRoot), label).toThrow()
+    }
   })
 
   it('claude: the =form never takes the next word (variadic --mcp-config)', () => {
