@@ -1,6 +1,6 @@
 ---
 title: 常見問題
-description: 使用 Better Agent Terminal 時常遇到的狀況與處理方式：除錯日誌、Claude CLI 版本太舊、右鍵選單、macOS 版本、遠端伺服器套件、重開時的恢復提示。
+description: 使用 Better Agent Terminal 時常遇到的狀況與處理方式：除錯日誌、Claude CLI 版本太舊、右鍵選單、macOS 版本、Linux / WSL 中文變方框、遠端伺服器套件、重開時的恢復提示。
 ---
 
 # 常見問題
@@ -14,6 +14,12 @@ description: 使用 Better Agent Terminal 時常遇到的狀況與處理方式�
 BAT 內附 Claude Code、Codex、終端機元件與語音辨識，這些都是跟 CPU 架構綁在一起的程式。目前打包 macOS 版的建置環境只有 Apple Silicon 機器，打出來的 Intel 版裡，這些元件其實還是 Apple Silicon 版本，在 Intel Mac 上無法執行。
 
 因此從 v0.6.0-pre.3 起只提供 Apple Silicon（arm64）版，需要 macOS 12（Monterey）以上。
+
+### Linux / WSL 上介面的中文或圖示變成方框？ {#linux-cjk-font}
+
+Linux 版 BAT 只使用該 Linux 系統裡的字型，不會使用 Windows 的字型，BAT 本身也不附字型。WSL 與精簡安裝的發行版預設沒有中文與 emoji 字型，所以介面的中文與多數圖示會變成方框；這不是編碼問題。
+
+Debian / Ubuntu（含 WSL）執行 `sudo apt install -y fonts-noto-cjk fonts-noto-color-emoji`，裝完完全關閉 BAT 再重開即可。完整步驟與確認方式見[安裝 › Linux / WSL：中文與 emoji 字型](./install#linux-fonts)。
 
 ## 使用中 {#using}
 

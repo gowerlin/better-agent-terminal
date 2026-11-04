@@ -4,6 +4,9 @@ All notable changes to Better Agent Terminal are documented in this file.
 
 ## [Unreleased]
 
+### Changed
+- 文件：Linux / WSL 執行 AppImage 時，介面中文與圖示顯示為方框的原因（Linux 版只用 Linux 系統字型、不用 Windows 字型）與 Debian / Ubuntu 安裝 `fonts-noto-cjk` / `fonts-noto-color-emoji` 的指令，寫進 README、網站安裝頁與常見問題（T0826）
+
 ## [0.7.4-pre.6] — 2026-11-04
 
 ### Added

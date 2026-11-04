@@ -1,5 +1,5 @@
 ---
-description: 下載 Better Agent Terminal 的 Windows、macOS（Apple Silicon）、Linux 安裝檔，或從原始碼建置；資料目錄的位置、從舊版升級、除錯日誌，以及語音輸入的麥克風權限。
+description: 下載 Better Agent Terminal 的 Windows、macOS（Apple Silicon）、Linux 安裝檔，Linux / WSL 的中文與 emoji 字型，或從原始碼建置；資料目錄的位置、從舊版升級、除錯日誌，以及語音輸入的麥克風權限。
 ---
 
 # 安裝
@@ -26,6 +26,27 @@ Linux 的 AppImage 下載後先加上執行權限：
 chmod +x BetterAgentTerminal-*.AppImage
 ./BetterAgentTerminal-*.AppImage
 ```
+
+### Linux / WSL：中文與 emoji 字型 {#linux-fonts}
+
+::: warning 介面中文或圖示顯示為方框
+Linux 版 BAT 只使用該 Linux 系統（fontconfig）裡的字型，**不會使用 Windows 的字型**，BAT 本身也不附字型。WSL 與精簡安裝的發行版預設沒有中文與 emoji 字型，介面上的中文與多數圖示就會變成方框。這不是編碼問題，`LANG` 不需要改。
+:::
+
+Debian / Ubuntu（含 WSL）安裝中文與 emoji 字型：
+
+```bash
+sudo apt update
+sudo apt install -y fonts-noto-cjk fonts-noto-color-emoji
+```
+
+裝完後完全關閉 BAT 再重新開啟。可以用下面的指令確認，結果大於 0 就表示系統已有中文字型：
+
+```bash
+fc-list :lang=zh | wc -l
+```
+
+終端分頁內的中文（例如 agent 的中文回覆）也會一併正常。其他發行版請安裝 Noto CJK 與 Noto Color Emoji 字型（套件名稱依發行版而不同）。
 
 ### Agent CLI
 
