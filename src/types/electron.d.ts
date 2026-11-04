@@ -1,4 +1,5 @@
 import type { CreatePtyOptions, CtWorktreeInfo, PtyCreateResult, PtyReplayBuffer } from './index'
+import type { WslFacts } from '../components/setup-wizard/wsl-env-plan'
 import type {
   WhisperModelSize,
   VoiceGpuStatus,
@@ -56,7 +57,8 @@ interface WslDistroRecord {
 }
 
 // T0383 / BUG-089 — mirrors `WslNetworkModeInfo` in electron/wsl-detect.ts.
-type WslNetworkModeValue = 'mirrored' | 'nat' | 'virtioproxy' | 'none' | 'unknown'
+// T0839: `consomme` = current name of `virtioproxy` (T0838).
+type WslNetworkModeValue = 'mirrored' | 'nat' | 'virtioproxy' | 'consomme' | 'none' | 'unknown'
 interface WslNetworkModeInfo {
   actual: WslNetworkModeValue
   declared: WslNetworkModeValue | null
@@ -460,6 +462,8 @@ interface ElectronAPI {
     systemdEnabled: (distro: string) => Promise<boolean>
     // T0383 / BUG-089: `wslinfo --networking-mode` (actual) + `.wslconfig` (declared).
     detectNetworkMode: (distro: string) => Promise<WslNetworkModeInfo>
+    // T0839 (PLAN-043 W2): read-only WSL facts (version, distros, selected distro, policy, .wslconfig).
+    detectFacts: (distro?: string) => Promise<WslFacts>
     // T0378 (BUG-087 B): absolute $HOME of the distro's default user (e.g. /home/alice).
     resolveHome: (distro: string) => Promise<string>
     // T0554 / BUG-141: `keepPrevious` keeps the replaced install at `<root>.bat-old`;

@@ -131,6 +131,7 @@ import * as dockerDetect from './docker-detect'
 import * as dockerLifecycle from './docker-lifecycle'
 import * as dockerValidate from './docker-validate'
 import * as wslDetect from './wsl-detect'
+import { detectWslFacts, summarizeWslFacts } from './wsl-facts'
 import * as wslSystemd from './wsl-systemd'
 import { WslKeepAlive, keepAliveProfileDistros } from './wsl-keepalive'
 import { createWslFolderDefaultResolver, wslDistroForFolderDialog } from './wsl-workspace-folder'
@@ -3795,6 +3796,12 @@ function registerLocalHandlers() {
   ipcMain.handle('wsl:list', () => wslDetect.list())
   ipcMain.handle('wsl:systemd-enabled', (_event, distro: string) => wslDetect.systemdEnabled(distro))
   ipcMain.handle('wsl:detect-network-mode', (_event, distro: string) => wslDetect.detectNetworkMode(distro))
+  // T0839 (PLAN-043 W2): read-only environment facts for the WSL fix plan (local only; W3 wires it into the wizard).
+  ipcMain.handle('wsl:detect-facts', async (_event, distro?: string) => {
+    const facts = await detectWslFacts(typeof distro === 'string' ? { distro } : {})
+    logger.log(`[wizard] wsl detect-facts ${summarizeWslFacts(facts)}`)
+    return facts
+  })
   // T0378 (BUG-087 B): absolute $HOME so the systemd unit never contains `~`.
   ipcMain.handle('wsl:resolve-home', (_event, distro: string) => wslDetect.resolveHome(distro))
   // T0554 (BUG-141): `keepPrevious` keeps the replaced install at `<root>.bat-old`

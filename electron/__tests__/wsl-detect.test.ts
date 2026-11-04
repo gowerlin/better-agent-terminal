@@ -204,10 +204,21 @@ describe('wsl-detect networking mode (T0383 / BUG-089)', () => {
       expect(parseWslConfigNetworkingMode('[wsl2]\n; networkingMode=mirrored\n')).toBeNull()
     })
 
-    it('strips quotes, lets the last entry win and maps unknown values to unknown', () => {
+    // T0839: was "the last entry wins" (T0383). WSL itself takes the FIRST occurrence and
+    // ignores later duplicates (configfile.cpp, T0838), so the reader now does the same.
+    it('strips quotes, lets the FIRST entry win (WSL rule, T0839) and maps unknown values to unknown', () => {
       expect(parseWslConfigNetworkingMode('[wsl2]\nnetworkingMode="mirrored"\n')).toBe('mirrored')
-      expect(parseWslConfigNetworkingMode('[wsl2]\nnetworkingMode=nat\nnetworkingMode=mirrored\n')).toBe('mirrored')
+      expect(parseWslConfigNetworkingMode('[wsl2]\nnetworkingMode=nat\nnetworkingMode=mirrored\n')).toBe('nat')
       expect(parseWslConfigNetworkingMode('[wsl2]\nnetworkingMode=bridged\n')).toBe('unknown')
+    })
+
+    it('T0839: follows WSL rules via getIniValue (repeated section, quoted #, unparsable file)', () => {
+      // A repeated [wsl2] block is the same section: the first key still wins.
+      expect(parseWslConfigNetworkingMode('[wsl2]\nnetworkingMode=mirrored\n[experimental]\nx=1\n[wsl2]\nnetworkingMode=nat\n')).toBe('mirrored')
+      // `#` inside quotes is part of the value (the old reader cut it as a comment).
+      expect(parseWslConfigNetworkingMode('[wsl2]\nnetworkingMode="mirrored#x"\n')).toBe('unknown')
+      // A file the INI parser cannot read: declared state is unknown (was: read past the bad line).
+      expect(parseWslConfigNetworkingMode('[wsl2]\nnot a key value line\nnetworkingMode=mirrored\n')).toBe('unknown')
     })
 
     it('tolerates a UTF-8 BOM', () => {
@@ -334,6 +345,28 @@ describe('wsl-detect — carried over from tests/wsl-detect.test.ts (T0681)', ()
       return { ok: false, code: 1 }
     })
     await expect(systemdEnabled('Ubuntu')).resolves.toBe(true)
+  })
+
+  it('T0839: systemdEnabled() fallback reads [boot] systemd with WSL INI rules (section-aware)', async () => {
+    const conf = (text: string) => installExec((args) => {
+      if (key(args) === '-d Ubuntu -- systemctl --user is-system-running') return { ok: false, code: 1, stdout: 'offline\n' }
+      if (key(args) === '-d Ubuntu -- cat /etc/wsl.conf') return { ok: true, stdout: text }
+      return { ok: false, code: 1 }
+    })
+    // Outside [boot]: the old regex ignored sections and said true.
+    conf('[user]\nsystemd=true\n')
+    await expect(systemdEnabled('Ubuntu')).resolves.toBe(false)
+    // Trailing comment and quotes are accepted now (the old regex said false).
+    conf('[boot]\nsystemd = true # enable\n')
+    await expect(systemdEnabled('Ubuntu')).resolves.toBe(true)
+    conf('[Boot]\r\nSystemd="TRUE"\r\n')
+    await expect(systemdEnabled('Ubuntu')).resolves.toBe(true)
+    // First occurrence wins.
+    conf('[boot]\nsystemd=false\nsystemd=true\n')
+    await expect(systemdEnabled('Ubuntu')).resolves.toBe(false)
+    // Missing file (cat fails, empty stdout).
+    conf('')
+    await expect(systemdEnabled('Ubuntu')).resolves.toBe(false)
   })
 
   it('validateDistroName() rejects shell metacharacters', () => {

@@ -601,11 +601,14 @@ const electronAPI = {
     list: () => ipcRenderer.invoke('wsl:list') as Promise<{ distros: { name: string; version: 1 | 2; state: 'Running' | 'Stopped' }[]; default: string | null }>,
     systemdEnabled: (distro: string) => ipcRenderer.invoke('wsl:systemd-enabled', distro) as Promise<boolean>,
     // T0383 / BUG-089: actual (`wslinfo`) + declared (`.wslconfig`) networking mode.
+    // T0839: `consomme` = current name of `virtioproxy` (T0838).
     detectNetworkMode: (distro: string) => ipcRenderer.invoke('wsl:detect-network-mode', distro) as Promise<{
-      actual: 'mirrored' | 'nat' | 'virtioproxy' | 'none' | 'unknown'
-      declared: 'mirrored' | 'nat' | 'virtioproxy' | 'none' | 'unknown' | null
+      actual: 'mirrored' | 'nat' | 'virtioproxy' | 'consomme' | 'none' | 'unknown'
+      declared: 'mirrored' | 'nat' | 'virtioproxy' | 'consomme' | 'none' | 'unknown' | null
       mirroredSupported: boolean | null
     }>,
+    // T0839 (PLAN-043 W2): read-only facts for buildWslEnvPlan (src/components/setup-wizard/wsl-env-plan.ts).
+    detectFacts: (distro?: string) => ipcRenderer.invoke('wsl:detect-facts', distro) as Promise<import('../src/components/setup-wizard/wsl-env-plan').WslFacts>,
     resolveHome: (distro: string) => ipcRenderer.invoke('wsl:resolve-home', distro) as Promise<string>,
     // T0554 / BUG-141: `keepPrevious` keeps the replaced install at `<root>.bat-old`
     // (`previous: 'kept'`) for restoreBundle (cancel) / discardPreviousBundle (finished).

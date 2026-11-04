@@ -4,6 +4,7 @@ import { promises as fsPromises } from 'fs'
 import os from 'os'
 import path from 'path'
 import { winToWsl } from '../src/utils/wsl-path'
+import { getIniValue } from './ini-line-editor'
 import { assertValidDistro, assertValidUnixPath } from './wsl-validate'
 import {
   assertBundleInstallRoot,
@@ -39,7 +40,7 @@ export interface WslNetworkModeInfo {
   mirroredSupported: boolean | null
 }
 
-interface ExecResult {
+export interface ExecResult {
   stdout: Buffer
   stderr: Buffer
 }
@@ -60,7 +61,8 @@ const PROBE_TIMEOUT_MS = 15_000
 // it can be written verbatim into the systemd unit (systemd never expands `~`).
 const HOME_PATH_PATTERN = /^\/[A-Za-z0-9._/-]*$/
 
-function execFileBuffered(file: string, args: string[], options?: { timeoutMs?: number }): Promise<ExecResult> {
+/** T0839: also used by `wsl-facts.ts`, so tests inject one execFile for both. */
+export function execFileBuffered(file: string, args: string[], options?: { timeoutMs?: number }): Promise<ExecResult> {
   return new Promise((resolve, reject) => {
     execFileImpl(
       file,
@@ -91,7 +93,7 @@ function decodeUtf16leOutput(buffer: Buffer): string {
   return text.charCodeAt(0) === 0xfeff ? text.slice(1) : text
 }
 
-function normalizeTextOutput(buffer: Buffer): string {
+export function normalizeTextOutput(buffer: Buffer): string {
   const hasUtf16Bom = buffer.length >= 2 && buffer[0] === 0xff && buffer[1] === 0xfe
   const looksUtf16 = hasUtf16Bom || buffer.some((byte, index) => index % 2 === 1 && byte === 0)
   if (looksUtf16) {
@@ -243,15 +245,24 @@ export async function systemdEnabled(distro: string): Promise<boolean> {
   }
 
   const confResult = await runWsl(validatedDistro, ['cat', '/etc/wsl.conf'], { allowFailure: true })
-  const confText = normalizeTextOutput(confResult.stdout)
-  return /^\s*systemd\s*=\s*true\s*$/im.test(confText)
+  return wslConfDeclaresSystemd(normalizeTextOutput(confResult.stdout))
+}
+
+/**
+ * T0839: `/etc/wsl.conf` `[boot] systemd` read the way WSL does (T0838
+ * `getIniValue`: section-aware, first occurrence wins, `#` comments, quotes).
+ * A file the parser cannot read counts as "not declared".
+ */
+export function wslConfDeclaresSystemd(text: string): boolean {
+  const result = getIniValue(text, 'boot', 'systemd')
+  return result.ok && result.value !== null && result.value.toLowerCase() === 'true'
 }
 
 const KNOWN_NETWORK_MODES: ReadonlySet<string> = new Set(['mirrored', 'nat', 'virtioproxy', 'consomme', 'none'])
 // Windows 11 22H2 — first build with `networkingMode=mirrored`.
 const MIRRORED_MIN_WINDOWS_BUILD = 22621
 
-function toNetworkMode(value: string): WslNetworkMode {
+export function toNetworkMode(value: string): WslNetworkMode {
   const lower = value.trim().toLowerCase()
   return KNOWN_NETWORK_MODES.has(lower) ? (lower as WslNetworkMode) : 'unknown'
 }
@@ -268,30 +279,21 @@ export function parseWslinfoNetworkingMode(buffer: Buffer): WslNetworkMode {
 }
 
 /**
- * T0383: `.wslconfig` `[wsl2] networkingMode`. INI: section names, keys and
- * values are case-insensitive, `#` / `;` start comments. Returns null when the
- * key is not declared; an unrecognised value is `'unknown'` (WSL falls back to NAT).
+ * T0383: `.wslconfig` `[wsl2] networkingMode`. Returns null when the key is not
+ * declared; an unrecognised value is `'unknown'` (WSL falls back to NAT).
+ * T0839: read with the T0838 `getIniValue`, i.e. WSL's own rules — the FIRST
+ * occurrence wins, only `#` / `;` lines and unquoted `#` tails are comments, a
+ * `#` inside quotes is part of the value. A file the parser cannot read (broken
+ * header, line without `=`, `\` continuation) is `'unknown'`: declared state
+ * cannot be determined.
  */
 export function parseWslConfigNetworkingMode(text: string): WslNetworkMode | null {
-  let section = ''
-  let declared: WslNetworkMode | null = null
-  for (const rawLine of text.replace(/^\uFEFF/, '').split(/\r?\n/)) {
-    const line = rawLine.replace(/[#;].*$/, '').trim()
-    if (!line) continue
-    const header = line.match(/^\[([^\]]*)\]$/)
-    if (header) {
-      section = header[1].trim().toLowerCase()
-      continue
-    }
-    if (section !== 'wsl2') continue
-    const entry = line.match(/^([^=]+)=(.*)$/)
-    if (!entry || entry[1].trim().toLowerCase() !== 'networkingmode') continue
-    declared = toNetworkMode(entry[2].trim().replace(/^(["'])(.*)\1$/, '$2'))
-  }
-  return declared
+  const result = getIniValue(text, 'wsl2', 'networkingMode')
+  if (!result.ok) return 'unknown'
+  return result.value === null ? null : toNetworkMode(result.value)
 }
 
-function defaultWslConfigPath(): string {
+export function defaultWslConfigPath(): string {
   return path.join(process.env.USERPROFILE || os.homedir(), '.wslconfig')
 }
 

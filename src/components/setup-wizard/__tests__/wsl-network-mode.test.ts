@@ -91,6 +91,8 @@ describe('selectNetworkModeWarning() (T0383 / BUG-089)', () => {
   it('other modes are flagged as unverified with the mode name', () => {
     expect(selectNetworkModeWarning(info('virtioproxy'))).toEqual({ key: 'wizard.wsl.warning.networkUnverified', params: { mode: 'virtioproxy' } })
     expect(selectNetworkModeWarning(info('none', 'mirrored', true))).toEqual({ key: 'wizard.wsl.warning.networkUnverified', params: { mode: 'none' } })
+    // T0839: `consomme` (new name of virtioproxy, T0838) is in the renderer type mirror too.
+    expect(selectNetworkModeWarning(info('consomme'))).toEqual({ key: 'wizard.wsl.warning.networkUnverified', params: { mode: 'consomme' } })
   })
 
   it('every warning key exists in en / zh-TW / zh-CN', () => {

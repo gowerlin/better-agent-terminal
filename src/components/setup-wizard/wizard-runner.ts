@@ -82,7 +82,7 @@ export interface WizardContext {
   preflightCache?: WizardPreflightCache
   state: Record<string, unknown>
   /** T0383 (BUG-089): actual WSL networking mode from `wslinfo --networking-mode`. */
-  networkMode?: 'mirrored' | 'nat' | 'virtioproxy' | 'none' | 'unknown'
+  networkMode?: 'mirrored' | 'nat' | 'virtioproxy' | 'consomme' | 'none' | 'unknown'
   availableDistros?: Array<{ name: string; version: 1 | 2; state: 'Running' | 'Stopped' }>
   wslDistro?: string
   wslSystemdEnabled?: boolean

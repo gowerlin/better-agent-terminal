@@ -9,7 +9,8 @@ const INSTALL_SUBDIR = '.local/bat-server'
 type WslNetworkModeInfo = Awaited<ReturnType<typeof window.electronAPI.wsl.detectNetworkMode>>
 type WslNetworkMode = WslNetworkModeInfo['actual']
 
-const NETWORK_MODES: readonly WslNetworkMode[] = ['mirrored', 'nat', 'virtioproxy', 'none', 'unknown']
+// T0839: `consomme` = current name of `virtioproxy` (T0838).
+const NETWORK_MODES: readonly WslNetworkMode[] = ['mirrored', 'nat', 'virtioproxy', 'consomme', 'none', 'unknown']
 
 function isNetworkMode(value: unknown): value is WslNetworkMode {
   return typeof value === 'string' && (NETWORK_MODES as readonly string[]).includes(value)
@@ -28,7 +29,7 @@ export interface NetworkModeWarning {
  *  - nat + declared mirrored: setting not applied — restart needed, or Windows
  *    too old for Mirrored; say which when the host build tells us, else both
  *  - nat: informational — localhost works via localhostForwarding
- *  - none / virtioproxy: not verified with BAT
+ *  - none / virtioproxy / consomme: not verified with BAT
  */
 export function selectNetworkModeWarning(info: WslNetworkModeInfo): NetworkModeWarning | null {
   switch (info.actual) {
