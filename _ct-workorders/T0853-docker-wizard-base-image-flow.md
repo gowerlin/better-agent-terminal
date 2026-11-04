@@ -49,6 +49,9 @@ memory_overrides:
 T0852 提供 main 端原語後，精靈改成 (c′)：使用者不必自己建 `bat-server:latest`。設計見 T0848 回報區〈建議方向〉1。
 
 ## 任務
+
+> 先讀 T0852 回報區〈實作內容〉的 IPC 清單與〈後續建議（給 T0853 / T0854）〉的接線順序（第 4 步 / 第 5 步 / 取消 / 完成 / rollback、`docker:pull-progress` 依 `operationId` 過濾、`createBatContainer` 不帶 `--pull never` 要先 pull）。可選：第 5 步以 `docker:read-server-cert-fingerprint` 與 handshake 指紋比對（T0852 8a 已做原語，實測兩者相同）；做了就在不一致時中止並給明確錯誤，不做就在回報區寫明。
+
 1. **基底映像欄位**：建立新容器時顯示，預設 U2 的映像，可改填自訂映像（含內部 registry）；欄位說明寫需求（glibc ≥ 2.35、`/bin/sh`、`tar`、`gzip`；Alpine 不行）。
 2. **第 4 步改成真正安裝**：distributor 取得 bundle（依 `docker:server-arch` 選架構）→ pull 基底映像（顯示進度、可取消）→ 相容性探測 → 裝進 bundle volume。探測失敗給明確錯誤（三語），不建立容器。
 3. **第 5 步以基底映像建立**：經 `buildBatContainerRunArgs`；之後 healthy → 讀權杖（T0849 的路徑）→ 指紋 → 連線測試 → 寫設定（T0850 的更新邏輯）。
