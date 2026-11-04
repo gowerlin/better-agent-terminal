@@ -1,15 +1,15 @@
 ---
 schema_kind: tower-state
 summary_version: 1
-updated_at: "2026-11-04T13:45:56+08:00"
+updated_at: "2026-11-04T13:58:46+08:00"
 session: "2026-11-04 08:36 第一百一十六 session（CT v6.0.0-beta.11）"
 next_ids:
   workorder: "T0846"
-  decision: "D277"
+  decision: "D278"
   bug: "BUG-212"
   plan: "PLAN-065"
 todo:
-  - "✅ `0.7.4-pre.7` 已發佈（D276，run `41779586475` 全綠，publishedAt 2026-11-04T05:44:42Z，target `13150f45`）；更版重點已改寫、三文件＋版號已更新（`bbe82d92`）；Pages run `41781250077` 綠、首頁版號 pre.7、link-check 0 錯誤；待：使用者 NSIS 重裝驗收、PLAN-063 真實升級驗收（pre.6 → pre.7）"
+  - "✅ `0.7.4-pre.7` 已發佈（D276，run `41779586475` 全綠，publishedAt 2026-11-04T05:44:42Z，target `13150f45`）；更版重點已改寫、三文件＋版號已更新（`bbe82d92`）；Pages run `41781250077` 綠、首頁版號 pre.7、link-check 0 錯誤；待：使用者在 BAT 執行中直接升級 pre.6 → pre.7（D277，PLAN-063 真實驗收）→ 再跑 NSIS 重裝驗收 `-Version 0.7.4-pre.7`"
   - "T0836 e2e 乾淨 HEAD 重跑：併入 T0844"
   - "T0843（D274，使用者「一起修好再發版」）：上傳失敗提示先講原因、檔名只出現一次；排在 T0841 後（同改 locales）"
   - "BUG-211 FIXED（T0842 `bb8cbe1a`）：待發版與遠端實機驗證（遠端視窗附 3 張 > 8 MiB 圖 → 提示、不送出、連線不斷；2 張照常）；後續候選：CLAUDE.md / multi-remote-profiles docs 補 `ws-limits.ts` / `FRAME_TOO_LARGE` 一行；fork 後自動送出 pending 圖片的路徑沒有面板檢查（只靠 client 守門）"
@@ -30,9 +30,9 @@ todo:
 >
 > 🟢 **第一百一十五 session 開工**（2026-11-04 03:37 (UTC+8)，CT v6.0.0-beta.11，Fast Path；塔台 session `96f9499a-1ea6-4a55-9722-6c14f0490c85`；`--set-role tower --mode on` exit 0；`bat_whoami` 名稱 `better-agent-terminal · Tower`；安裝版 FileVersion `0.7.4-pre.6`；HEAD `7c645e89`、`main` = `origin/main`（fetch 後 0 / 0）、工作區乾淨；熱區 221 張工單皆 DONE；BUG 熱區 Closed 73 / WONTFIX 1、無未結；PLAN IN_PROGRESS 2 / IDEA 6 / DONE 18 / DROPPED 2；`bat_list_questions` pending 0）。**`v0.7.4-pre.6` NSIS 完整重裝驗收 PASS-WITH-WARN**（real 模式 03:35:58–03:36:58；AllUsers / HKLM；唯一 WARN = ⓪ 目前安裝版 pre.5，② 實為升級，屬預期；① SHA-256 `350b79f0…` ② ③ ④ 全 PASS，三支 helper `--version` = v0.7.4-pre.6、內嵌 claude / codex 存在、userData 130 檔 SHA-256 未變；⑤ SKIPPED；驗收時 BAT 已關閉，T0823 的「安裝前請 BAT 正常結束」路徑未經過，真實升級驗收仍待下一版）；報告 `%TEMP%\bat-nsis-acceptance-20261104-033558\report.md`；含權杖的 `userdata-backup` 已刪除。
 >
-> 最後更新:2026-11-04 03:42 (UTC+8) — **第一百一十五 session 收工**：`v0.7.4-pre.6` NSIS 重裝驗收 PASS-WITH-WARN；`*archive --state` 把第一百零九～一百一十四 session 移到 `_archive/state-snapshots/2026-Q4-c.md`（狀態檔 81 KB → 21 KB）。
+> 最後更新:2026-11-04 13:58 (UTC+8) — **第一百一十六 session**：本批 T0826–T0845 全部 DONE、`v0.7.4-pre.7` 發佈（D276）；使用者選 A 在本機 BAT 執行中直接升級到 pre.7 做 PLAN-063 真實驗收（D277），本 session 會隨升級結束。
 >
-> **下次起手**:熱區無進行中工單、無未結 BUG。① PLAN-058 等使用者手動確認（T0819 回報區 5 步）；② PLAN-063 真實升級驗收等下一版（`ct/T0820` 探測 spec 改寫重跑，D266）；③ MSRC（使用者自行處理）。
+> **下次起手**:熱區無進行中工單；BUG-211 FIXED（待遠端實機）。① **判讀 PLAN-063 真實升級**（D277 判讀 ①–⑤：問使用者安裝時 BAT 是否自己關、重開 toast、被中斷的 agent 分頁、debug log `[installer-quit]` / `[upgrade-interruption]`、無孤兒程序）；② 使用者跑 NSIS 重裝驗收 `-Version 0.7.4-pre.7` 後讀 `%TEMP%\bat-nsis-acceptance-*\report.md` 並刪 `userdata-backup`；③ 待實機驗收清單（frontmatter todo）；④ PLAN-058 手動確認、MSRC。
 
 ---
 
@@ -87,7 +87,7 @@ todo:
 - 歷史 sessions → [_archive/state-snapshots/INDEX.md](_archive/state-snapshots/INDEX.md)（134 entries；最新 `2026-Q4-c.md`）
 
 ### 編號起始
-- **T0846** / **BUG-212** / **PLAN-065** / **D277** / **EXP-WFMINE-002**（其他 TOPIC 從 001） / **L186** / **CT-T023**
+- **T0846** / **BUG-212** / **PLAN-065** / **D278** / **EXP-WFMINE-002**（其他 TOPIC 從 001） / **L186** / **CT-T023**
 
 ---
 
