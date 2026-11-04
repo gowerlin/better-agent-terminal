@@ -51,7 +51,7 @@ T0823 讓安裝程式先請 BAT 正常結束，結束時連 Terminal Server 一�
 1. `InstallerQuitController`：server 從有效 holder 執行時 `shouldStopServer = false`；送 T0857 的延長 idle 請求（D7：24 h）；結束前處理內嵌 claude（D3）並寫紀錄。
 2. `runInstallerQuitWithoutApp`：holder 版不停 holder。
 3. 新參數 `--uninstall-quit-request`（與 `--installer-quit-request` 分開）：請 holder 正常結束；第二個實例的規則照 T0823 / T0825（whenReady 開頭 return）。
-4. `build/installer.nsh`：`customCheckAppRunning` 在 `un.` 環境依 `${isUpdated}` 選參數；新增 `customUnInstall`（非 `--updated` → 停 holder、刪 holder 根目錄）。T0823 的標記檔邏輯照舊（舊版沒有標記就不送請求）；新請求也要有對應的標記檔，讓舊版不會把新參數當成開新視窗。
+4. `build/installer.nsh`：`customCheckAppRunning` 在 `un.` 環境依 `${isUpdated}` 選參數；新增 `customUnInstall`（非 `--updated` → 停 holder、刪 holder 根目錄）。holder 根目錄規則以 T0858 為準（`BAT-PtyHolder`，per-user `$LOCALAPPDATA`、per-machine `$PROGRAMFILES64`；前綴衝突時不碰；見 `docs/agent-guide/packaging-release-checks.md`「Windows PTY holder 打包」）。只刪**本次安裝範圍**的根目錄；另一個範圍留下的根目錄不刪（回報區寫明已知限制）。T0823 的標記檔邏輯照舊（舊版沒有標記就不送請求）；新請求也要有對應的標記檔，讓舊版不會把新參數當成開新視窗。
 5. `installer-quit-record.json` schema 2：`holderKept`、holder pid、`endedPtys`、`endedAgentProcesses`；`takeInstallerQuitRecord` 讀 schema 1 與 2。`detectUpgradeInterruption` 依 schema 2 調整觸發（接回成功時的 toast 文字由 W5 做；本單只確保資料正確、schema 1 行為不變）。
 6. 測試：兩條路、`isUpdated` 分支（source guard）、內嵌 claude 判斷（只比路徑）、紀錄 schema 1 / 2、`--uninstall-quit-request`。T0823 的 e2e 擴成有 holder 與沒有 holder 兩種，做不到的列〈待 W6 驗收〉。
 7. 文件：`docs/agent-guide/upgrade-interruption.md` 補 holder 版流程；`CLAUDE.md`「升級結束終端的提示與說明」節補必守規則（`isUpdated` 分支、兩條路）。

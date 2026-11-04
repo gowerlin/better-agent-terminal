@@ -22,6 +22,11 @@ affects_files:
   - electron/__tests__/
   - e2e/
   - docs/agent-guide/terminal-server-recovery.md
+  - scripts/pty-holder.cjs
+  - scripts/__tests__/pty-holder.test.mjs
+  - scripts/__tests__/verify-packaged-native.test.mjs
+  - scripts/verify-packaged-native.js
+  - docs/agent-guide/packaging-release-checks.md
 renew_count: 0
 workdir: main repo
 worker_question_timeout: 30
@@ -54,8 +59,19 @@ T0858 把 holder 放到安裝目錄外；本單讓 Windows 打包版的 Terminal
 5. e2e（隔離 runtime、Windows）：以 T0858 打包出來的 holder（或測試用 holder 目錄）啟動 BAT，確認 Terminal Server 的 `ExecutablePath` 在 holder 根目錄、可建分頁並執行命令；做不到就寫明原因並列〈待 W6 驗收〉。
 6. 文件：`docs/agent-guide/terminal-server-recovery.md` 補「從 holder 啟動」的條件與退回規則。
 
+## 塔台補充（開工前，T0858 收單後 2026-11-04 18:53）
+
+T0858 已 DONE（`aa59902e`）。先讀 T0858 回報區與 `docs/agent-guide/packaging-release-checks.md`「Windows PTY holder 打包」，再開始。要點與塔台裁決：
+
+1. **holder 規則以 T0858 為準**：根目錄 `BAT-PtyHolder`（per-user `%LOCALAPPDATA%`、per-machine `%ProgramFiles%`）、key = `<Node 版本>-<12 hex>`、manifest 格式、前綴衝突規則 `holderRootConflictsWithInstallDir`（任一方是另一方的字串前綴、不分大小寫 → 不用 holder）。`electron/pty-holder.ts` 與 `scripts/pty-holder.cjs` 的規則必須一致：移植常數或抽共用模組擇一，並加一個測試確保兩邊不會走樣。
+2. **驗證要重算雜湊**：安裝程式只比對 manifest、不重算檔案雜湊，所以 BAT 決定用 holder 前要以 `ptyHolderProblems` 等效的檢查逐檔驗大小與 SHA-256，並確認 holder 目錄的 key 與安裝目錄內 `resources\pty-holder\holder-manifest.json` 的 key 相同（安裝目錄那份是預期值的來源）。驗證耗時記一行 debug log。
+3. **磁碟（塔台裁決）**：安裝目錄內的 `resources\pty-holder\` **保留**（它是預期 key 與 manifest 的來源，per-user 模式下 holder 目錄是使用者可寫的）；docs 寫明約多 90 MiB 的原因。
+4. **Node 授權（塔台裁決）**：holder 目錄要附 Node 的 `LICENSE`。在 `scripts/pty-holder.cjs` 以固定版本 tag 下載 Node repo 的 `LICENSE`（與 `node.exe` 同一個版本 tag），SHA-256 與大小固定寫在 repo、不符就建置失敗；列進 manifest；`verify-packaged-native.js` 的 `pty-holder` 檢查要求它存在。
+5. 任務 5 的 `AttachConsole failed` stderr 是既有行為（today 的 runtime 也一樣，T0858 對照），不在本單處理。
+
 ### 驗收條件
 - [ ] 上述測試通過；T0704 / T0816 / T0540 相關測試不回歸
+- [ ] 補充 1–4 完成（`pty-holder.test.mjs` / `verify-packaged-native.test.mjs` 涵蓋 LICENSE 與兩邊規則一致）
 - [ ] `npm run typecheck` = 0、`npm run typecheck:electron` = 0、`npm run test:unit` 全過、`npm run test:legacy` 全過、`npx vite build` 成功
 - [ ] commit 只含本單範圍
 
