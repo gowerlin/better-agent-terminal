@@ -167,6 +167,11 @@ export const PATH_FREE_CHANNELS: ReadonlyMap<string, string> = new Map([
   ['terminal:control-tower-prompt', 'T0710: { agent, skill, workorder, customEnv? } (customEnv is the tab env, already host form like terminal:create-with-command); result is prompt text'],
   ['terminal:attention-snapshot', 'T0749: tab ids only; result is state fields (no path)'],
   ['remote:resolve-client-paths', 'ALWAYS_LOCAL (never proxied); client paths are the input, the handler applies the window translator itself'],
+  // PLAN-038 U1 / T0832 (electron/handlers/uploads.ts)
+  ['upload:begin', 'T0832: session key + file name (a basename, cleaned by the host) + size; no client path'],
+  ['upload:chunk', 'T0832: upload id + offset + base64 bytes'],
+  ['upload:finish', 'T0832: upload id + sha256 (result serverPath stays server-side, see SERVER_PATH_RESULT_CHANNELS)'],
+  ['upload:abort', 'T0832: upload id only'],
 ])
 
 /** Server -> Client channels whose results contain absolute paths to rewrite. */
@@ -196,6 +201,7 @@ export const SERVER_PATH_RESULT_CHANNELS: ReadonlyMap<string, string> = new Map(
   ['claude:get-worktree-status', 'only diff is read; worktreePath matches the claude:worktree-info event, which stays server form because the panel embeds it in prompts sent to the remote agent'],
   ['worktree:create', 'worktreePath is persisted next to claude:worktree-info (server form) and only flows back into pty:create / worktree:rehydrate / git:*, whose toServer is a no-op on server paths'],
   ['worktree:status', 'unused by the renderer; same form as worktree:create'],
+  ['upload:finish', 'T0832: serverPath is the staged file on the host, put into the prompt to the agent running there (never toClient)'],
 ])
 
 export function translateInvokeArgs(

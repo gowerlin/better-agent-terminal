@@ -5,7 +5,9 @@
 // T0406 — S12 fs sandbox / workspace:sync-roots
 // T0434 — S13 remote Tower helper env / helper capability path
 // T0654 — S13 raw command probe after T0579 (a tower may call terminal:create-with-command)
+// T0832 — S14 host upload staging (upload:*, claude:dispose-session, unauthenticated socket)
 
+import { createHash } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -16,8 +18,17 @@ import { PROXIED_CHANNELS, PROXIED_EVENTS } from '../../electron/remote/protocol
 import { HEADLESS_UNSUPPORTED } from '../../electron/remote/headless-channel-status'
 import { buildHeadlessHelperEnv } from '../../electron/remote/headless-entry'
 import { HelperCapabilityRegistry, authorizeHelperInvoke } from '../../electron/remote/helper-capability'
+import { UPLOAD_LIMITS } from '../../electron/upload-staging'
 import {
   CHECKS,
+  NOT_AUTHENTICATED,
+  SMOKE_UPLOAD_CHUNK_BYTES,
+  SMOKE_UPLOAD_NAME,
+  buildUploadGoneProbe,
+  buildUploadStatProbe,
+  checkUploadAnswers,
+  smokeUploadContent,
+  uploadServerPathRx,
   HELPER_CAPABILITY_LENGTHS,
   REMOTE_TOWER_ENV_KEYS,
   S13_PROBE_AGENT,
@@ -451,8 +462,31 @@ function s13Reply(id, data, { helperEnv, helperRaw, helperAgent }, s13, ptys) {
   return null
 }
 
-function createFakeServer({ legacyCreate = false, acceptWrongFingerprint = false, rejectCreate = false, firstKillFails = false, probeAnswers = false, probeHangs = false, preClaude = false, preRemoteTools = false, preGit = false, preFs = false, serverEnv = 'native', helperEnv = 'full', helperRaw = 'current', helperAgent = 'false' } = {}) {
+/**
+ * T0832 S14: the stat / existence probes of the staged file in the S14 PTY.
+ *   uploadModes: modes the fake `stat` reports ('600:700' by default)
+ */
+function s14Reply(data, s14, { uploadModes }) {
+  const line = data.trim()
+  const statProbe = /^p='([^']+)'; printf '%s:%s:%s:%s\\n' (\S+)-s14 /.exec(line)
+  if (statProbe) {
+    const staged = [...s14.staged.values()].find((entry) => entry.path === statProbe[1])
+    if (!staged) return `stat: cannot statx '${statProbe[1]}': No such file or directory`
+    return `${statProbe[2]}-s14:${uploadModes}:${createHash('sha256').update(staged.data).digest('hex')}`
+  }
+  const goneProbe = /^p='([^']+)'; .* echo (\S+)-s14-gone-\$\(\(1\+1\)\); fi$/.exec(line)
+  if (goneProbe) {
+    const key = goneProbe[1].split('/uploads/')[1]?.split('/')[0]
+    return s14.staged.has(key) ? `${goneProbe[2]}-s14-kept-3` : `${goneProbe[2]}-s14-gone-2`
+  }
+  return null
+}
+
+function createFakeServer({ legacyCreate = false, acceptWrongFingerprint = false, rejectCreate = false, firstKillFails = false, probeAnswers = false, probeHangs = false, preClaude = false, preRemoteTools = false, preGit = false, preFs = false, serverEnv = 'native', helperEnv = 'full', helperRaw = 'current', helperAgent = 'false', preUpload = false, uploadModes = '600:700', disposeKeeps = false, unauthAccepted = false } = {}) {
   const ptys = new Map()
+  // T0832: S14 uploads in progress / staged per session key, disposed keys, unauthenticated invokes
+  const s14 = { uploads: new Map(), staged: new Map(), disposed: [], unauthInvokes: [] }
+  let nextUpload = 0
   // T0434: S13 probe counters + every pty:write payload (the server token must never be typed)
   const s13 = { envProbes: 0, rawRuns: 0, agentRuns: 0 }
   const writes = []
@@ -484,7 +518,7 @@ function createFakeServer({ legacyCreate = false, acceptWrongFingerprint = false
       const pty = ptys.get(id)
       if (!pty) return { ok: false, reason: 'pty-not-found' }
       writes.push(data)
-      const helperReply = s13Reply(id, data, { helperEnv, helperRaw, helperAgent }, s13, ptys)
+      const helperReply = s13Reply(id, data, { helperEnv, helperRaw, helperAgent }, s13, ptys) ?? s14Reply(data, s14, { uploadModes })
       if (helperReply !== null) {
         setTimeout(() => emit('pty:output', id, `${data}\r\n${helperReply}\r\n$ `), 1)
         return { ok: true }
@@ -543,11 +577,43 @@ function createFakeServer({ legacyCreate = false, acceptWrongFingerprint = false
         return p === `${FAKE_FS_DIR}/smoke.txt` ? { content: `${s12.nonce}-s12\n` } : { error: 'Failed to read file' }
       },
     }),
+    // T0832: electron/upload-staging.ts in miniature (no files: the S14 shell probes read s14.staged)
+    'claude:dispose-session': (key) => {
+      s14.disposed.push(key)
+      if (!disposeKeeps) s14.staged.delete(key)
+      return false
+    },
+    ...(preUpload ? {} : {
+      'upload:begin': (key, name, size) => {
+        const uploadId = String(nextUpload++).padStart(16, '0')
+        s14.uploads.set(uploadId, { key, name, size, chunks: [] })
+        return { ok: true, uploadId, chunkBytes: UPLOAD_LIMITS.chunkBytes }
+      },
+      'upload:chunk': (uploadId, offset, base64) => {
+        const upload = s14.uploads.get(uploadId)
+        if (!upload) return { ok: false, code: 'NOT_FOUND', message: 'unknown upload id' }
+        const received = upload.chunks.reduce((n, c) => n + c.length, 0)
+        if (offset !== received) return { ok: false, code: 'BAD_OFFSET', message: `offset ${offset} ≠ received ${received}` }
+        upload.chunks.push(Buffer.from(base64, 'base64'))
+        return { ok: true, received: received + upload.chunks.at(-1).length }
+      },
+      'upload:finish': (uploadId, sha256) => {
+        const upload = s14.uploads.get(uploadId)
+        const data = Buffer.concat(upload.chunks)
+        if (createHash('sha256').update(data).digest('hex') !== sha256) return { ok: false, code: 'HASH_MISMATCH', message: 'x' }
+        s14.uploads.delete(uploadId)
+        const serverPath = `/home/u/.local/share/bat-server/uploads/${upload.key}/${uploadId}/${upload.name}`
+        s14.staged.set(upload.key, { path: serverPath, data })
+        return { ok: true, serverPath, size: data.length }
+      },
+      'upload:abort': (uploadId) => ({ ok: true, aborted: s14.uploads.delete(uploadId) }),
+    }),
   }
 
   class FakeClient {
-    constructor({ fingerprint }) {
+    constructor({ fingerprint, skipAuth = false }) {
       this.fingerprint = fingerprint
+      this.skipAuth = skipAuth
       this.listeners = new Set()
       this.isOpen = false
       this.authSent = false
@@ -559,6 +625,10 @@ function createFakeServer({ legacyCreate = false, acceptWrongFingerprint = false
         throw Object.assign(new Error('fingerprint-mismatch: test'), { code: 'fingerprint-mismatch' })
       }
       this.isOpen = true
+      if (this.skipAuth) {
+        log.push('connect-unauthenticated')
+        return null
+      }
       this.authSent = true
       clients.add(this)
       log.push('connect')
@@ -571,6 +641,11 @@ function createFakeServer({ legacyCreate = false, acceptWrongFingerprint = false
     }
     async invoke(channel, ...args) {
       if (!this.isOpen) throw new Error('not connected')
+      if (this.skipAuth && !unauthAccepted) {
+        s14.unauthInvokes.push(channel)
+        this.isOpen = false // the server closes the socket after `Not authenticated`
+        throw Object.assign(new Error('Not authenticated'), { remote: true })
+      }
       log.push(channel)
       if (channel === UNSUPPORTED_PROBE_CHANNEL) {
         probeArgs.push(args)
@@ -588,29 +663,29 @@ function createFakeServer({ legacyCreate = false, acceptWrongFingerprint = false
   }
 
   const conn = { url: 'wss://fake:1', token: FAKE_TOKEN, fingerprint: FP, cwd: '/home/u' }
-  const createClient = (overrides = {}) => new FakeClient({ fingerprint: overrides.fingerprint ?? FP })
-  return { conn, createClient, ptys, log, handlers, probeArgs, invokeTimeouts, s11, s12, s13, writes }
+  const createClient = (overrides = {}) => new FakeClient({ fingerprint: overrides.fingerprint ?? FP, skipAuth: overrides.skipAuth })
+  return { conn, createClient, ptys, log, handlers, probeArgs, invokeTimeouts, s11, s12, s13, s14, writes }
 }
 
 describe('runSmoke (fake server)', () => {
-  it('passes S1-S13 and leaves no smoke PTY behind', async () => {
+  it('passes S1-S14 and leaves no smoke PTY behind', async () => {
     const fake = createFakeServer()
     const report = await runSmoke(fake.conn, { createClient: fake.createClient, timeoutMs: 500 })
     expect(report.checks.map((c) => `${c.id}:${c.status}`)).toEqual(CHECKS.map(([id]) => `${id}:PASS`))
     expect(report.cleanup).toMatchObject({ leftover: false, killedInCleanup: false })
     expect(report.ptyId).toMatch(/^smoke-\d{14}-[0-9a-f]{6}$/)
     expect(fake.ptys.size).toBe(0)
-    expect(fake.log.filter((c) => c === 'pty:kill')).toHaveLength(4) // S7 + S11's, S12's and S13's own PTYs
+    expect(fake.log.filter((c) => c === 'pty:kill')).toHaveLength(5) // S7 + S11's, S12's, S13's and S14's own PTYs
     // S6 really reconnected: two successful connects before the probe.
     expect(fake.log.filter((c) => c === 'connect').length).toBeGreaterThanOrEqual(2)
-    expect(summarize(report)).toEqual({ ok: true, passed: 13, warned: 0, tooOld: 0, total: 13 })
+    expect(summarize(report)).toEqual({ ok: true, passed: 14, warned: 0, tooOld: 0, total: 14 })
     expect(fake.probeArgs).toEqual([['smoke-probe', 'read-only']])
     // S10 waits for the 20 s login-view probe, not the 500 ms default
     expect(fake.invokeTimeouts).toEqual([['remote-tools:detect', REMOTE_TOOLS_DETECT_TIMEOUT_MS], ['github:check-cli', GITHUB_CHECK_CLI_TIMEOUT_MS]])
     expect(report.checks.find((c) => c.id === 'S10').evidence).toMatch(/schema v1; ubuntu 24\.04 x86_64 pkg=apt .*git=ok@2\.43\.0/)
   })
 
-  it('passes S1-S13 against a server before T0403 (pty:create answers a bare boolean)', async () => {
+  it('passes S1-S14 against a server before T0403 (pty:create answers a bare boolean)', async () => {
     const fake = createFakeServer({ legacyCreate: true })
     const report = await runSmoke(fake.conn, { createClient: fake.createClient, timeoutMs: 500 })
     expect(report.checks.map((c) => `${c.id}:${c.status}`)).toEqual(CHECKS.map(([id]) => `${id}:PASS`))
@@ -640,7 +715,7 @@ describe('runSmoke (fake server)', () => {
     const fake = createFakeServer({ rejectCreate: true })
     const report = await runSmoke(fake.conn, { createClient: fake.createClient, timeoutMs: 150 })
     const status = Object.fromEntries(report.checks.map((c) => [c.id, c.status]))
-    expect(status).toEqual({ S1: 'PASS', S2: 'PASS', S3: 'FAIL', S4: 'SKIP', S5: 'SKIP', S6: 'SKIP', S7: 'SKIP', S8: 'PASS', S9: 'PASS', S10: 'PASS', S11: 'FAIL', S12: 'FAIL', S13: 'FAIL' })
+    expect(status).toEqual({ S1: 'PASS', S2: 'PASS', S3: 'FAIL', S4: 'SKIP', S5: 'SKIP', S6: 'SKIP', S7: 'SKIP', S8: 'PASS', S9: 'PASS', S10: 'PASS', S11: 'FAIL', S12: 'FAIL', S13: 'FAIL', S14: 'FAIL' })
     expect(report.cleanup).toMatchObject({ leftover: false, killedInCleanup: false })
     expect(fake.log).not.toContain('pty:kill')
   })
@@ -652,7 +727,7 @@ describe('runSmoke (fake server)', () => {
     expect(s1.status).toBe('WARN')
     expect(s1.evidence).toMatch(/env=native but target is wsl/)
     expect(report.checks.filter((c) => c.id !== 'S1').every((c) => c.status === 'PASS')).toBe(true)
-    expect(summarize(report)).toEqual({ ok: true, passed: 12, warned: 1, tooOld: 0, total: 13 })
+    expect(summarize(report)).toEqual({ ok: true, passed: 13, warned: 1, tooOld: 0, total: 14 })
   })
 
   it('T0404: S1 passes with env=wsl on a WSL target; non-WSL targets never WARN on env', async () => {
@@ -732,7 +807,7 @@ describe('runSmoke (fake server)', () => {
     const s11 = report.checks.find((c) => c.id === 'S11')
     expect(s11.status).toBe('FAIL')
     expect(s11.evidence).toMatch(/No handler for channel: github:check-cli — server predates T0405/)
-    expect(fake.log.filter((c) => c === 'pty:create')).toHaveLength(4) // S3 + S5 + S12 + S13 only
+    expect(fake.log.filter((c) => c === 'pty:create')).toHaveLength(5) // S3 + S5 + S12 + S13 + S14 only
     expect(report.checks.filter((c) => c.id !== 'S11').every((c) => c.status === 'PASS')).toBe(true)
     expect(summarize(report).ok).toBe(false)
   })
@@ -775,7 +850,7 @@ describe('runSmoke (fake server)', () => {
     const s12 = report.checks.find((c) => c.id === 'S12')
     expect(s12.status).toBe('FAIL')
     expect(s12.evidence).toMatch(/No handler for channel: fs:stat — server predates T0406/)
-    expect(fake.log.filter((c) => c === 'pty:create')).toHaveLength(4) // S3 + S5 + S11 + S13 only
+    expect(fake.log.filter((c) => c === 'pty:create')).toHaveLength(5) // S3 + S5 + S11 + S13 + S14 only
     expect(report.checks.filter((c) => c.id !== 'S12').every((c) => c.status === 'PASS')).toBe(true)
     expect(summarize(report).ok).toBe(false)
   })
@@ -840,9 +915,91 @@ describe('runSmoke (fake server)', () => {
     expect(s13).toMatchObject({ status: 'SKIP', reason: SERVER_TOO_OLD })
     expect(s13.evidence).toMatch(/no helper env \(BAT_\* = BAT_SESSION,BAT_TERMINAL_ID,BAT_WORKSPACE_ID\): server predates T0433/)
     expect(report.checks.filter((c) => c.id !== 'S13').every((c) => c.status === 'PASS')).toBe(true)
-    expect(summarize(report)).toEqual({ ok: true, passed: 12, warned: 0, tooOld: 1, total: 13 })
+    expect(summarize(report)).toEqual({ ok: true, passed: 13, warned: 0, tooOld: 1, total: 14 })
     expect(fake.s13).toEqual({ envProbes: 1, rawRuns: 0, agentRuns: 0 })
     expect(fake.ptys.size).toBe(0)
+  })
+
+  it('S14 stages a 2-chunk file under its own session key, checks it in its own PTY, disposes it and is refused unauthenticated', async () => {
+    const fake = createFakeServer()
+    const report = await runSmoke(fake.conn, { createClient: fake.createClient, timeoutMs: 500 })
+    const s14 = report.checks.find((c) => c.id === 'S14')
+    expect(s14.status, s14.evidence).toBe('PASS')
+    const key = `${report.ptyId}-upload`
+    expect(s14.evidence).toContain(`/uploads/${key}/`)
+    expect(s14.evidence).toContain('wrong offset → BAD_OFFSET; 0600 file / 0700 dir, sha256 matches')
+    expect(s14.evidence).toContain(`unauthenticated socket → ${NOT_AUTHENTICATED}`)
+    expect(fake.s14.staged.size).toBe(0)
+    expect(fake.s14.disposed).toEqual([key])
+    expect(fake.s14.unauthInvokes).toEqual(['upload:begin'])
+    expect(fake.log.filter((c) => c === 'upload:chunk')).toHaveLength(3) // 2 chunks + the wrong-offset probe
+    expect(fake.ptys.size).toBe(0)
+    expect(report.cleanup.evidence).toContain(`pty:write(${report.ptyId}-upload)`)
+    expect(report.cleanup.leftover).toBe(false)
+  })
+
+  it('S14 is a tolerated SKIP against a server before T0832: nothing staged, no PTY, no dispose', async () => {
+    const fake = createFakeServer({ preUpload: true })
+    const report = await runSmoke(fake.conn, { createClient: fake.createClient, timeoutMs: 500 })
+    const s14 = report.checks.find((c) => c.id === 'S14')
+    expect(s14).toMatchObject({ status: 'SKIP', reason: SERVER_TOO_OLD })
+    expect(s14.evidence).toMatch(/No handler for channel: upload:begin — server predates T0832/)
+    expect(report.checks.filter((c) => c.id !== 'S14').every((c) => c.status === 'PASS')).toBe(true)
+    expect(summarize(report)).toEqual({ ok: true, passed: 13, warned: 0, tooOld: 1, total: 14 })
+    expect(fake.s14.disposed).toEqual([])
+    expect(fake.log.filter((c) => c === 'pty:create')).toHaveLength(5) // S3 + S5 + S11 + S12 + S13
+  })
+
+  it('S14 fails on wrong modes, a dispose that keeps the files, or an accepted unauthenticated socket — and still cleans up', async () => {
+    const cases = [
+      [{ uploadModes: '644:755' }, /file mode 644 \(expected 600\); dir mode 755 \(expected 700\)/],
+      [{ disposeKeeps: true }, /session dir still there after claude:dispose-session/],
+      [{ unauthAccepted: true }, /unauthenticated upload:begin → accepted/],
+    ]
+    for (const [opts, rx] of cases) {
+      const fake = createFakeServer(opts)
+      const report = await runSmoke(fake.conn, { createClient: fake.createClient, timeoutMs: 500 })
+      const s14 = report.checks.find((c) => c.id === 'S14')
+      expect(s14.status, JSON.stringify(opts)).toBe('FAIL')
+      expect(s14.evidence).toMatch(rx)
+      expect(fake.ptys.size).toBe(0)
+      if (opts.unauthAccepted) expect(fake.s14.disposed).toEqual([`${report.ptyId}-upload`, `${report.ptyId}-upload-unauth`])
+    }
+  })
+
+  it('S14 helpers: chunk size mirrors UPLOAD_LIMITS, content is 2 chunks, path rx and probes', () => {
+    expect(SMOKE_UPLOAD_CHUNK_BYTES).toBe(UPLOAD_LIMITS.chunkBytes)
+    const data = smokeUploadContent('ab12')
+    expect(data.length).toBe(SMOKE_UPLOAD_CHUNK_BYTES + 64)
+    expect(data.subarray(0, 9).toString()).toBe('ab12-s14\n')
+    const rx = uploadServerPathRx('smoke-1-upload')
+    expect(rx.test(`/home/u/.local/share/bat-server/uploads/smoke-1-upload/0123456789abcdef/${SMOKE_UPLOAD_NAME}`)).toBe(true)
+    expect(rx.test(`/home/u/uploads/smoke-1-upload/0123456789abcdef/${SMOKE_UPLOAD_NAME}'; rm -rf ~`)).toBe(false)
+    expect(rx.test(`/home/u/uploads/other/0123456789abcdef/${SMOKE_UPLOAD_NAME}`)).toBe(false)
+    expect(buildUploadStatProbe('ab12', '/x/f')).toBe(`p='/x/f'; printf '%s:%s:%s:%s\\n' ab12-s14 "$(stat -c %a "$p")" "$(stat -c %a "\${p%/*}")" "$(sha256sum "$p" | cut -c1-64)"`)
+    // the echoed command line never matches the markers, only the executed output does
+    expect(new RegExp('ab12-s14:(\\d+):(\\d+):([0-9a-f]{64})').test(buildUploadStatProbe('ab12', '/x/f'))).toBe(false)
+    expect(/ab12-s14-(gone-2|kept-3)/.test(buildUploadGoneProbe('ab12', '/x/f'))).toBe(false)
+  })
+
+  it('checkUploadAnswers names every problem', () => {
+    const base = {
+      sessionKey: 's-upload',
+      size: 10,
+      sha256: 'a'.repeat(64),
+      chunks: [{ ok: true, received: 5 }, { ok: true, received: 10 }],
+      badOffset: { ok: false, code: 'BAD_OFFSET' },
+      finish: { ok: true, size: 10, serverPath: `/d/uploads/s-upload/0123456789abcdef/${SMOKE_UPLOAD_NAME}` },
+      stat: { fileMode: '600', dirMode: '700', sha256: 'a'.repeat(64) },
+      gone: true,
+      unauth: NOT_AUTHENTICATED,
+    }
+    expect(checkUploadAnswers(base).ok).toBe(true)
+    expect(checkUploadAnswers({ ...base, chunks: [{ ok: true, received: 10 }] }).evidence).toMatch(/expected 2 ok/)
+    expect(checkUploadAnswers({ ...base, badOffset: { ok: true, received: 10 } }).evidence).toMatch(/expected BAD_OFFSET/)
+    expect(checkUploadAnswers({ ...base, finish: { ok: true, size: 10, serverPath: 'C:\\x' } }).evidence).toMatch(/expected a server path/)
+    expect(checkUploadAnswers({ ...base, stat: null }).evidence).toMatch(/no stat probe/)
+    expect(checkUploadAnswers({ ...base, stat: { ...base.stat, sha256: 'b'.repeat(64) } }).evidence).toMatch(/sha256 on the server differs/)
   })
 
   it('a SKIP for a failed prerequisite still fails the run; only server-too-old is tolerated', () => {

@@ -435,6 +435,14 @@
 - 開啟已存在的 profile 視窗一律經 `bringWindowToFront`（`src/lib/profile-window-front.ts`，隱藏的要 `show()`；T0750 / BUG-183）；`profile:delete` 成功後經 `closeWindowsOfDeletedProfile` 關閉該 profile 的視窗（BUG-184），見 docs。
 - 完整生命週期、失敗對話框、e2e 與實機驗收：[docs/agent-guide/multi-remote-profiles.md](docs/agent-guide/multi-remote-profiles.md)
 
+## 遠端附件上傳暫存（PLAN-038 / T0832）
+
+- 用途：遠端視窗（SSH、Docker 掛載外、WSL 其他 distro）的本機附件經 WSS invoke 分塊傳到視窗所連的 host，暫存在 `<dataDir>/uploads/<sessionKey>/<uploadId>/<檔名>`，再把 host 路徑放進 prompt（T0828 設計、D272 上限：單檔 50 MiB、單次 100 MiB / 10 檔、每 session 500 MiB）。T0832 只做 host 端；client / 面板 / 終端接線是 T0833–T0835，契約在 T0832 回報區〈介面契約〉（不得單方更改）。失敗一律退回 T0437 拒絕，不加 Settings 開關。
+- 🔴 `upload:begin` / `chunk` / `finish` / `abort` 不得加進 `HELPER_CHANNEL_ROLES`（helper / PTY 權杖呼叫不到；handler 另以 `ctx.helper` 回 `FORBIDDEN`）；`upload:finish` 的 `serverPath` 列在 `SERVER_PATH_RESULT_CHANNELS`，不得 `toClient`。暫存目錄不加進 `workspace:sync-roots`。
+- 🔴 日誌只記 uploadId、session key 前 8 碼、大小、副檔名、結果；不記檔名與內容。session key 走 `/^[a-zA-Z0-9._-]+$/`；路徑 resolve 後必須在 `<dataDir>/uploads/` 之下；POSIX 目錄 0700、檔案 0600。
+- 唯一實作 `UploadStaging`（`electron/upload-staging.ts`，不 import electron，`getDataDir` 第一次使用才讀）、channel `registerUploadHandlers`（`electron/handlers/uploads.ts`，本機 `main.ts` 與 headless `createHeadlessUploadModule` 共用）；清理：`claude:dispose-session` 經 `onSessionDisposed` 刪該 session、啟動時＋每小時 TTL（完成 24 h、未完成 `.part` 10 分鐘），終端分頁的 PTY id 由 T0835 呼叫 `disposeSession`。
+- 完整規則、檔名清理、上限與錯誤碼、清理、日誌、已知限制、驗證：[docs/agent-guide/remote-file-upload.md](docs/agent-guide/remote-file-upload.md)
+
 ## headless server 的登入 shell PATH（PLAN-057 / T0755，D206 / D207）
 
 - 用途：bat-server 由 systemd / launchd / 容器 ENTRYPOINT 啟動，PATH 沒有 `~/.local/bin`、nvm、Homebrew；啟動時以登入 shell 取一次 PATH 合併進 `process.env.PATH`，讓 server 程序的子程序（Claude 面板 Bash 工具 / MCP、system claude、codex、工具面板伺服器檢視）找得到。

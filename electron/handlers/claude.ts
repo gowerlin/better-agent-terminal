@@ -111,6 +111,12 @@ export interface ClaudeHandlerDeps extends Pick<HostDeps, 'emit' | 'homeDir'> {
   messageArchiveDir?: string
   /** T0710: env for the `ct@*` plugin lookup (`CLAUDE_CONFIG_DIR` / `CLAUDE_CODE_PLUGIN_CACHE_DIR`). Default `process.env`. */
   env?: EnvLike
+  /**
+   * PLAN-038 U1 / T0832: files staged for this session (electron/upload-staging.ts) are removed
+   * when `claude:dispose-session` closes it. Called once the dispose has been started (the
+   * handler's return value is unchanged), never awaited; the staging never throws.
+   */
+  onSessionDisposed?: (sessionId: string) => void
 }
 
 export function registerClaudeHandlers(register: HandlerRegistrar, deps: ClaudeHandlerDeps): void {
@@ -229,8 +235,13 @@ export function registerClaudeHandlers(register: HandlerRegistrar, deps: ClaudeH
   // T0814 (PLAN-058 W1): closing the tab — end the query, close() the CLI, drop the session.
   // The codex manager has no disposeSession: a codex tab closes as before (stopSession).
   register('claude:dispose-session', (_ctx, sessionId: string) => {
-    if (sessionKinds.get(sessionId) === 'codex') return codex()?.stopSession(sessionId)
-    return deps.getClaudeManager()?.disposeSession(sessionId)
+    try {
+      if (sessionKinds.get(sessionId) === 'codex') return codex()?.stopSession(sessionId)
+      return deps.getClaudeManager()?.disposeSession(sessionId)
+    } finally {
+      // T0832: the panel is gone for good — drop its staged uploads (Claude and Codex alike)
+      if (typeof sessionId === 'string') deps.onSessionDisposed?.(sessionId)
+    }
   })
   register('claude:abort-session', (_ctx, sessionId: string) => getSessionManager(sessionId)?.abortSession(sessionId))
   register('claude:set-permission-mode', (_ctx, sessionId: string, mode: string) => deps.getClaudeManager()?.setPermissionMode(sessionId, mode as PermissionMode))

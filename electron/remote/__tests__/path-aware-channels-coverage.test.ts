@@ -222,6 +222,8 @@ describe('T0416 result translation (WSL translator)', () => {
       'agent:bat-mcp-launch-args': "'--mcp-config=/home/x/.local/share/bat-server/bat-mcp/claude.json'",
       // T0701: shown in the overview as the server's file locations
       'ct:read-config-sources': { homeDir: '/home/x', global: { status: 'missing', tried: ['/home/x/.claude/control-tower-data/config.yaml'] }, defaults: { status: 'found', path: '/home/x/.claude/skills/control-tower/references/tower-config.md', content: '' } },
+      // T0832: the staged file, put into the prompt to the agent on the remote host
+      'upload:finish': { ok: true, serverPath: '/home/x/.local/share/bat-server/uploads/s1/0123456789abcdef/a.png', size: 1 },
     }
     expect(Object.keys(results).sort()).toEqual(Array.from(SERVER_PATH_RESULT_CHANNELS.keys()).sort())
     for (const [channel, result] of Object.entries(results)) {

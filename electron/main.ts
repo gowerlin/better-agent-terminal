@@ -46,6 +46,8 @@ import { registerClaudeHandlers } from './handlers/claude'
 import { registerGitHandlers } from './handlers/git'
 import { registerFsHandlers } from './handlers/fs'
 import { registerCtConfigHandlers } from './handlers/ct-config'
+import { registerUploadHandlers } from './handlers/uploads'
+import { UploadStaging } from './upload-staging'
 import { detectRemoteToolsForProfile, registerRemoteToolsHandlers, runRemoteToolsDetect } from './handlers/remote-tools'
 import { createRemoteToolInstallIpc, PendingRemoteToolInstalls } from '../src/lib/remote-tools/install-request'
 import type { WorkspaceAgentLaunchFields } from '../src/lib/agent-launch-settings'
@@ -1872,6 +1874,8 @@ app.whenReady().then(async () => {
   // (off Linux the handlers answer unknown(not-linux) and nothing is scheduled)
   registerLinuxFontCheckHandlers(getAllWindows)
   startLinuxFontCheck()
+  // PLAN-038 U1 / T0832: staged uploads under <userData>/uploads — TTL sweep now and every hour
+  uploadStaging.startSweeper()
 
   // Create system tray icon
   try {
@@ -2578,6 +2582,13 @@ app.on('activate', async () => {
 
 // ── Proxied handler registration (callable by both IPC and remote server) ──
 
+/**
+ * PLAN-038 U1 / T0832: files client windows stage on this host (`upload:*`, electron/upload-staging.ts).
+ * userData is read on first use, never at import (CLAUDE.md Logging rule ②); swept from app.whenReady.
+ * T0835: a terminal tab's PTY id is a session key too (`uploadStaging.disposeSession(ptyId)`).
+ */
+const uploadStaging = new UploadStaging({ getDataDir: () => app.getPath('userData') })
+
 function registerProxiedHandlers() {
   const MESSAGE_ARCHIVE_DIR = path.join(app.getPath('userData'), 'message-archives')
 
@@ -2812,7 +2823,13 @@ function registerProxiedHandlers() {
     getCodexManager: () => codexManager,
     sessionKinds: sessionManagerMap,
     messageArchiveDir: MESSAGE_ARCHIVE_DIR,
+    // T0832: a closed panel's staged uploads go with it
+    onSessionDisposed: sessionId => { void uploadStaging.disposeSession(sessionId) },
   })
+
+  // upload:* — shared with headless bat-server (PLAN-038 U1 / T0832, electron/handlers/uploads.ts).
+  // Local window: <userData>/uploads; a remote client of this BAT stages here the same way.
+  registerUploadHandlers(registerHandler, { getStaging: () => uploadStaging })
 
   // remote-tools:* — shared with headless bat-server (PLAN-037 T0411, electron/handlers/remote-tools.ts).
   // Local window on macOS / Linux: this machine's toolchain; Windows: host-platform.

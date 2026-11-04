@@ -15,6 +15,8 @@ import {
   type RemoteToolsHandlerDeps,
 } from '../handlers/remote-tools'
 import { registerTerminalHandlers } from '../handlers/terminal'
+import { registerUploadHandlers } from '../handlers/uploads'
+import { UploadStaging } from '../upload-staging'
 import { createBatMcpLaunchArgs, defaultClaudeSettingsFiles, registerBatMcpHandlers, type BatMcpHost } from '../bat-mcp-launch'
 import { createCodexNoDaemonSupportCheck, createCodexOscVersionCheck } from '../codex-osc-version'
 import { createCodexSkillNameResolver } from '../ct-install-detect'
@@ -466,7 +468,11 @@ export function resolveHeadlessEmbeddedLayout(
  * and a codex preset is rejected with CODEX_UNSUPPORTED_MESSAGE. No message
  * archive (ALWAYS_LOCAL_CHANNELS — the client answers it).
  */
-export function createHeadlessClaudeModule(opts: { installRoot?: string } = {}): HandlerModule {
+export function createHeadlessClaudeModule(opts: {
+  installRoot?: string
+  /** T0832: a disposed panel session's staged uploads are removed (electron/upload-staging.ts). */
+  onSessionDisposed?: (sessionId: string) => void
+} = {}): HandlerModule {
   return (register, host) => {
     const installRoot = opts.installRoot ?? defaultHeadlessInstallRoot()
     configureRuntimeRouter({
@@ -478,6 +484,7 @@ export function createHeadlessClaudeModule(opts: { installRoot?: string } = {}):
       emit: host.emit,
       homeDir: host.homeDir,
       getClaudeManager: () => manager,
+      onSessionDisposed: opts.onSessionDisposed,
     })
     return () => {
       manager.killAll()
@@ -956,6 +963,22 @@ export function createHeadlessFsModule(opts: { onRoots?: (roots: SyncedWorkspace
 }
 
 /**
+ * PLAN-038 U1 / T0832: `upload:*` on headless — one `UploadStaging` per server under
+ * `<dataDir>/uploads`, swept at registration (= server start) and every hour; the disposer stops
+ * the timer (staged files stay for the next start's sweep). `onStaging` hands the instance over
+ * (the claude module's dispose hook; T0835's terminal-tab cleanup).
+ */
+export function createHeadlessUploadModule(opts: { onStaging?: (staging: UploadStaging) => void } = {}): HandlerModule {
+  return (register, host) => {
+    const staging = new UploadStaging({ getDataDir: () => host.dataDir })
+    registerUploadHandlers(register, { getStaging: () => staging })
+    opts.onStaging?.(staging)
+    const stop = staging.startSweeper()
+    return stop
+  }
+}
+
+/**
  * T0701: `ct:read-config-sources` on headless — the Control Tower config layers in the
  * server user's home (`host.homeDir` = `os.homedir()`), never the client's.
  */
@@ -981,6 +1004,8 @@ export function createHeadlessHandlerModules(opts: {
   remoteTools?: HeadlessRemoteToolsOverrides
   git?: HeadlessGitOverrides
   fs?: Parameters<typeof createHeadlessFsModule>[0]
+  /** T0832: receives the server's upload staging. */
+  upload?: Parameters<typeof createHeadlessUploadModule>[0]
   terminal?: {
     countRemoteReceivers?: (ctx: HandlerContext) => number
     isWorkerOf?: (terminalId: string, towerId: string) => boolean
@@ -996,6 +1021,8 @@ export function createHeadlessHandlerModules(opts: {
   // T0609: the attention push hears of `blocked` changes
   const blockedChangeListeners = new Set<(id: string) => void>()
   const toolsCache = createHeadlessRemoteToolsCache(opts.remoteTools)
+  // T0832: the upload module's staging (the claude module's dispose removes a session's uploads)
+  let uploadStaging: UploadStaging | null = null
   const ptyModule = createHeadlessPtyModule({
     helperDir: path.join(opts.installRoot ?? defaultHeadlessInstallRoot(), 'scripts'),
     ...opts.pty,
@@ -1021,7 +1048,10 @@ export function createHeadlessHandlerModules(opts: {
   })
   return [
     ptyModule, // T0390
-    createHeadlessClaudeModule({ installRoot: opts.installRoot }), // T0401
+    createHeadlessClaudeModule({ // T0401
+      installRoot: opts.installRoot,
+      onSessionDisposed: sessionId => { void uploadStaging?.disposeSession(sessionId) }, // T0832
+    }),
     createHeadlessTerminalModule({ // T0431
       getPtyManager: () => ptyManager,
       countRemoteReceivers: opts.terminal?.countRemoteReceivers,
@@ -1048,6 +1078,12 @@ export function createHeadlessHandlerModules(opts: {
     createHeadlessGitModule(opts.git), // T0405
     createHeadlessFsModule(opts.fs), // T0406
     createHeadlessCtConfigModule(), // T0701
+    createHeadlessUploadModule({ // T0832
+      onStaging: staging => {
+        uploadStaging = staging
+        opts.upload?.onStaging?.(staging)
+      },
+    }),
   ]
 }
 

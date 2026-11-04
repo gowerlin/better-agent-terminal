@@ -6,8 +6,9 @@
  * pinning + token auth), walks the PTY lifecycle (S1-S8), the login-free
  * claude:* runtime channels (S9, T0401), the remote toolchain probe
  * (S10, T0411), the git / github / worktree channels (S11, T0405), the
- * fs sandbox fed by workspace:sync-roots (S12, T0406) and the remote Tower
- * helper env + helper capability path (S13, T0434).
+ * fs sandbox fed by workspace:sync-roots (S12, T0406), the remote Tower
+ * helper env + helper capability path (S13, T0434) and the host upload staging
+ * (S14, T0832).
  *
  *   node scripts/smoke-remote-headless.mjs --target wsl:Ubuntu-24.04
  *   node scripts/smoke-remote-headless.mjs --target wsl:Ubuntu-24.04 --json
@@ -41,6 +42,10 @@
  *     agent no server registers (T0450+: Forbidden agent-not-allowed; before:
  *     authorized, nothing created) — no terminal or agent is ever started by a
  *     probe on the server;
+ *   - S14 stages one file under its own session key (`<smoke PTY id>-upload`) and
+ *     removes it again with claude:dispose-session (an unknown panel session: only the
+ *     staging goes); the unauthenticated probe is a second socket that never sends an
+ *     auth frame (the server answers `Not authenticated`, which is not a failed auth);
  *   - never sends a wrong token: the server bans an IP after 5 failed auths and
  *     the user's own BAT client connects from the same loopback address. The
  *     negative check uses a wrong FINGERPRINT, which is rejected client-side
@@ -106,7 +111,24 @@ export const SMOKE_CHANNELS = Object.freeze({
   FS_READDIR: 'fs:readdir',
   FS_READ_FILE: 'fs:readFile',
   FS_STAT: 'fs:stat',
+  // T0832: host upload staging (S14) — one file under the smoke's own session key, disposed again
+  UPLOAD_BEGIN: 'upload:begin',
+  UPLOAD_CHUNK: 'upload:chunk',
+  UPLOAD_FINISH: 'upload:finish',
+  UPLOAD_ABORT: 'upload:abort',
+  CLAUDE_DISPOSE_SESSION: 'claude:dispose-session',
 })
+
+/** S14 (T0832): name of the staged file, and the raw chunk size of `UPLOAD_LIMITS.chunkBytes` (electron/upload-staging.ts). */
+export const SMOKE_UPLOAD_NAME = 'bat-smoke-upload.txt'
+export const SMOKE_UPLOAD_CHUNK_BYTES = 256 * 1024
+/** S14: what the server answers an invoke on a socket that never authenticated (remote-server.ts). */
+export const NOT_AUTHENTICATED = 'Not authenticated'
+
+/** S14: two chunks — one full chunk plus 64 bytes — of `<nonce>-s14\n` repeated. */
+export function smokeUploadContent(nonce) {
+  return Buffer.alloc(SMOKE_UPLOAD_CHUNK_BYTES + 64, `${nonce}-s14\n`)
+}
 
 /** S11 (T0405): template of the temp repo the smoke creates on the server — and the only path it removes. */
 export const SMOKE_GIT_REPO_TEMPLATE = '/tmp/bat-smoke-git.XXXXXX'
@@ -473,8 +495,10 @@ export function resolveUrlTarget(target, { readFile = readFileSync } = {}) {
 // ---------------------------------------------------------------------------
 
 export class SmokeClient {
-  constructor({ url, token, fingerprint, timeoutMs = DEFAULT_TIMEOUT_MS, label = 'BAT smoke (T0396)', WebSocketImpl = WebSocket }) {
+  constructor({ url, token, fingerprint, timeoutMs = DEFAULT_TIMEOUT_MS, label = 'BAT smoke (T0396)', WebSocketImpl = WebSocket, skipAuth = false }) {
     this.url = url
+    // T0832 S14: connect (pinned) but never send the auth frame
+    this.skipAuth = skipAuth
     this.token = token
     this.expectedFingerprint = normalizeFingerprint(fingerprint)
     this.timeoutMs = timeoutMs
@@ -544,6 +568,10 @@ export class SmokeClient {
 
       ws.on('open', () => {
         if (settled) return
+        if (this.skipAuth) {
+          settle(null, null)
+          return
+        }
         this.authSent = true
         ws.send(JSON.stringify(buildAuthFrame(this.nextId(), this.token, this.label)))
       })
@@ -714,6 +742,7 @@ export const CHECKS = Object.freeze([
   ['S11', 'github:check-cli answers; git / git-scaffold / worktree channels read a temp repo'],
   ['S12', 'fs:* denied before workspace:sync-roots; temp dir readable after it, / rejected, /etc still denied'],
   ['S13', 'remote Tower tab: BAT_* helper env, no server token; bat-terminal reaches the server with its capability'],
+  ['S14', 'upload:* stages a 2-chunk file (0700 / 0600, sha256); claude:dispose-session removes it; unauthenticated socket refused'],
 ])
 
 export function makeSmokeId(now = new Date(), rand = randomBytes(3).toString('hex')) {
@@ -995,13 +1024,61 @@ export function checkHelperProbeAnswers({ raw, agent }) {
     : { ok: false, evidence: [...problems, ...notes].join('; ') }
 }
 
+/** S14 (T0832): the staged file's server path is safe to type into a shell and has the staging layout. */
+export function uploadServerPathRx(sessionKey) {
+  const key = sessionKey.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  return new RegExp(`^/[A-Za-z0-9._/-]+/uploads/${key}/[0-9a-f]{16}/${SMOKE_UPLOAD_NAME.replace(/\./g, '\\.')}$`)
+}
+
+/** S14: shell line printing `<nonce>-s14:<file mode>:<dir mode>:<sha256>` of the staged file. */
+export function buildUploadStatProbe(nonce, serverPath) {
+  return `p='${serverPath}'; printf '%s:%s:%s:%s\\n' ${nonce}-s14 "$(stat -c %a "$p")" "$(stat -c %a "\${p%/*}")" "$(sha256sum "$p" | cut -c1-64)"`
+}
+
+/** S14: shell line waiting ≤ 3 s for the session dir to go, then printing `-s14-gone-2` or `-s14-kept-3`. */
+export function buildUploadGoneProbe(nonce, serverPath) {
+  return `p='${serverPath}'; s="\${p%/*/*}"; for i in 1 2 3 4 5 6 7 8 9 10; do test -e "$s" || break; sleep 0.3; done; if test -e "$s"; then echo ${nonce}-s14-kept-$((2+1)); else echo ${nonce}-s14-gone-$((1+1)); fi`
+}
+
+/**
+ * S14 (T0832): judge the upload answers. `chunks` = the `upload:chunk` answers in order,
+ * `badOffset` = a chunk sent at a wrong offset, `stat` = the shell probe of the staged file,
+ * `gone` = whether the session dir disappeared after claude:dispose-session, `unauth` = the
+ * error text an unauthenticated socket got (or `accepted`).
+ */
+export function checkUploadAnswers({ sessionKey, size, sha256, chunks, badOffset, finish, stat, gone, unauth }) {
+  const problems = []
+  const lastReceived = chunks.at(-1)?.received
+  if (chunks.length !== 2 || chunks.some((c) => !c || c.ok !== true) || lastReceived !== size) {
+    problems.push(`chunks → ${JSON.stringify(chunks).slice(0, 160)} (expected 2 ok, received ${size})`)
+  }
+  if (!badOffset || badOffset.ok !== false || badOffset.code !== 'BAD_OFFSET') problems.push(`wrong offset → ${JSON.stringify(badOffset)} (expected BAD_OFFSET)`)
+  if (!finish || finish.ok !== true || finish.size !== size || !uploadServerPathRx(sessionKey).test(String(finish.serverPath))) {
+    problems.push(`finish → ${JSON.stringify(finish)?.slice(0, 200)} (expected a server path under uploads/${sessionKey}/)`)
+  }
+  if (!stat) {
+    problems.push('no stat probe of the staged file')
+  } else {
+    if (stat.fileMode !== '600') problems.push(`file mode ${stat.fileMode} (expected 600)`)
+    if (stat.dirMode !== '700') problems.push(`dir mode ${stat.dirMode} (expected 700)`)
+    if (stat.sha256 !== sha256) problems.push('sha256 on the server differs from the uploaded bytes')
+  }
+  if (gone !== true) problems.push('session dir still there after claude:dispose-session')
+  if (unauth !== NOT_AUTHENTICATED) problems.push(`unauthenticated upload:begin → ${unauth} (expected ${NOT_AUTHENTICATED})`)
+  if (problems.length > 0) return { ok: false, evidence: problems.join('; ') }
+  return {
+    ok: true,
+    evidence: `staged ${size} B in 2 chunks at ${finish.serverPath}; wrong offset → BAD_OFFSET; 0600 file / 0700 dir, sha256 matches; claude:dispose-session removed the session dir; unauthenticated socket → ${NOT_AUTHENTICATED} (helper-capability refusal: vitest headless-upload-e2e only)`,
+  }
+}
+
 function excerpt(text, max = 160) {
   const flat = String(text).replace(/\r/g, '').replace(/\n+/g, '⏎').trim()
   return flat.length > max ? `…${flat.slice(flat.length - max)}` : flat
 }
 
 /**
- * Runs S1-S13 against one server. `deps.createClient` lets tests inject a fake;
+ * Runs S1-S14 against one server. `deps.createClient` lets tests inject a fake;
  * everything else talks to the real server.
  */
 export async function runSmoke(conn, { timeoutMs = DEFAULT_TIMEOUT_MS, cwd, createClient, log = () => {} } = {}) {
@@ -1039,6 +1116,8 @@ export async function runSmoke(conn, { timeoutMs = DEFAULT_TIMEOUT_MS, cwd, crea
   const towerPty = { id: `${ptyId}-tower`, created: false, killed: false }
   // Terminals the S13 probes must NOT create; killed in cleanup if they ever exist.
   const s13Strays = []
+  // S14's own PTY (stat / existence probes of the staged file); killed in S14, re-checked in cleanup.
+  const uploadPty = { id: `${ptyId}-upload`, created: false, killed: false }
 
   try {
     // ── S1 ──
@@ -1431,6 +1510,92 @@ export async function runSmoke(conn, { timeoutMs = DEFAULT_TIMEOUT_MS, cwd, crea
       if (tooOld) set('S13', 'SKIP', outcome.evidence, SERVER_TOO_OLD)
       else set('S13', outcome.ok ? 'PASS' : 'FAIL', outcome.evidence)
     }
+
+    // ── S14 ──
+    {
+      let outcome = null
+      let tooOld = false
+      const sessionKey = uploadPty.id
+      const unauthKey = `${sessionKey}-unauth`
+      let staged = false
+      let disposed = false
+      let unauthAccepted = false
+      try {
+        if (!client?.isOpen) throw new Error('no live connection for the upload probes')
+        const data = smokeUploadContent(nonce)
+        const digest = createHash('sha256').update(data).digest('hex')
+        // First call doubles as the version probe: a server before T0832 answers `No handler`.
+        const begin = await client.invoke(SMOKE_CHANNELS.UPLOAD_BEGIN, sessionKey, SMOKE_UPLOAD_NAME, data.length)
+        if (!begin || begin.ok !== true || typeof begin.uploadId !== 'string') throw new Error(`upload:begin returned ${JSON.stringify(begin)}`)
+        staged = true
+        const chunkBytes = Number.isInteger(begin.chunkBytes) && begin.chunkBytes > 0 ? Math.min(begin.chunkBytes, SMOKE_UPLOAD_CHUNK_BYTES) : SMOKE_UPLOAD_CHUNK_BYTES
+        const chunks = []
+        for (let offset = 0; offset < data.length; offset += chunkBytes) {
+          chunks.push(await client.invoke(SMOKE_CHANNELS.UPLOAD_CHUNK, begin.uploadId, offset, data.subarray(offset, offset + chunkBytes).toString('base64')))
+        }
+        const badOffset = await client.invoke(SMOKE_CHANNELS.UPLOAD_CHUNK, begin.uploadId, 1, 'AAAA')
+        const finish = await client.invoke(SMOKE_CHANNELS.UPLOAD_FINISH, begin.uploadId, digest)
+        // An unauthenticated socket (pinned, no auth frame) must be refused.
+        let unauth
+        const raw = make({ skipAuth: true })
+        try {
+          await raw.connect()
+          await raw.invoke(SMOKE_CHANNELS.UPLOAD_BEGIN, unauthKey, SMOKE_UPLOAD_NAME, 1)
+          unauth = 'accepted'
+          unauthAccepted = true
+        } catch (error) {
+          unauth = error instanceof Error ? error.message : String(error)
+        } finally {
+          await raw.close().catch(() => undefined)
+        }
+        let stat = null
+        let gone = false
+        const serverPath = finish && finish.ok === true ? finish.serverPath : null
+        if (typeof serverPath === 'string' && uploadServerPathRx(sessionKey).test(serverPath)) {
+          ownIds.add(uploadPty.id)
+          const offset = tracker.mark(uploadPty.id)
+          const result = await client.invoke(SMOKE_CHANNELS.PTY_CREATE, { id: uploadPty.id, cwd: ptyCwd, type: 'terminal', ...(shellPath ? { shell: shellPath } : {}) })
+          if (!ptyCreateOutcome(result).ok) throw new Error(`pty:create(${uploadPty.id}) returned ${JSON.stringify(result)}`)
+          uploadPty.created = true
+          await tracker.waitFor(() => tracker.since(uploadPty.id, offset).length > 0 || undefined, timeoutMs, `first pty:output of ${uploadPty.id}`)
+          const statMatch = await runCmdIn(uploadPty.id, buildUploadStatProbe(nonce, serverPath), new RegExp(`${nonce}-s14:(\\d+):(\\d+):([0-9a-f]{64})`))
+          stat = { fileMode: statMatch[1], dirMode: statMatch[2], sha256: statMatch[3] }
+          await client.invoke(SMOKE_CHANNELS.CLAUDE_DISPOSE_SESSION, sessionKey)
+          disposed = true
+          const goneMatch = await runCmdIn(uploadPty.id, buildUploadGoneProbe(nonce, serverPath), new RegExp(`${nonce}-s14-(gone-2|kept-3)`))
+          gone = goneMatch[1] === 'gone-2'
+        }
+        outcome = checkUploadAnswers({ sessionKey, size: data.length, sha256: digest, chunks, badOffset, finish, stat, gone, unauth })
+      } catch (error) {
+        if (error.remote && UNSUPPORTED_ERROR_RX.test(error.message)) {
+          tooOld = true
+          outcome = { ok: false, evidence: `${error.message} — server predates T0832 (upload:* not online)` }
+        } else {
+          outcome = { ok: false, evidence: `${error.timeout ? 'TIMEOUT: ' : ''}${error.message}` }
+        }
+      }
+      if (staged || uploadPty.created || unauthAccepted) {
+        try {
+          if (!client?.isOpen) {
+            client = make()
+            attach(client)
+            await client.connect()
+          }
+          // Only the smoke's own session keys; an unknown panel session id disposes nothing else.
+          if (staged && !disposed) await client.invoke(SMOKE_CHANNELS.CLAUDE_DISPOSE_SESSION, sessionKey)
+          if (unauthAccepted) await client.invoke(SMOKE_CHANNELS.CLAUDE_DISPOSE_SESSION, unauthKey)
+          if (uploadPty.created) {
+            await client.invoke(SMOKE_CHANNELS.PTY_KILL, uploadPty.id)
+            uploadPty.killed = true
+          }
+        } catch (error) {
+          outcome = { ok: false, evidence: `${outcome.evidence}; S14 cleanup failed: ${error.message}` }
+          tooOld = false
+        }
+      }
+      if (tooOld) set('S14', 'SKIP', outcome.evidence, SERVER_TOO_OLD)
+      else set('S14', outcome.ok ? 'PASS' : 'FAIL', outcome.evidence)
+    }
   } finally {
     // Kill our PTY on every path, then confirm it is gone (own id only).
     if (created) {
@@ -1492,7 +1657,8 @@ export async function runSmoke(conn, { timeoutMs = DEFAULT_TIMEOUT_MS, cwd, crea
       }
     }
     // T0434: S13's Tower PTY (S13 kills it; only re-checked here) and stray probe terminals.
-    for (const extra of [towerPty.created ? towerPty : null, ...s13Strays.map((id) => ({ id, killed: false }))]) {
+    // T0832: S14's PTY likewise.
+    for (const extra of [towerPty.created ? towerPty : null, uploadPty.created ? uploadPty : null, ...s13Strays.map((id) => ({ id, killed: false }))]) {
       if (!extra) continue
       try {
         if (!client?.isOpen) {

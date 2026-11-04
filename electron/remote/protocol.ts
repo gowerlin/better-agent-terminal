@@ -94,6 +94,9 @@ export const PROXIED_CHANNELS = new Set([
   // T0437 (BUG-105): client paths → the window's host form; ALWAYS_LOCAL (answered by this
   // machine's main with the window's PathTranslator), listed here only for the IPC binding.
   'remote:resolve-client-paths',
+  // PLAN-038 U1 / T0832: a client window stages a local file on the host it is bound to
+  // (electron/handlers/uploads.ts); never in HELPER_CHANNEL_ROLES; an older bat-server has no handler
+  'upload:begin', 'upload:chunk', 'upload:finish', 'upload:abort',
 ])
 
 /**

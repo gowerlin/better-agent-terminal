@@ -29,6 +29,7 @@
 | [pty-process-tree.md](pty-process-tree.md) | 關閉分頁時的程序樹（taskkill / server shutdown / quit） | 關閉分頁時的程序樹（T0540 / PLAN-042） |
 | [recovery-create-hold.md](recovery-create-hold.md) | Recovery 提示期間的 create hold（`pty:create`、helper 派工、`pty:restart`） | Recovery 提示期間的 `pty:create`（T0578 / BUG-146） |
 | [release.md](release.md) | 正式版 / 預覽版 workflow、prerelease 標記與下游發佈、Server bundle tag 線 | Release |
+| [remote-file-upload.md](remote-file-upload.md) | 遠端附件上傳暫存：host 端 `<dataDir>/uploads/` 暫存（位置、檔名清理、0700 / 0600、上限與錯誤碼、清理三層）、`upload:*` 四個 channel（stop-and-wait、重送冪等、sha256）、權限與日誌規則、驗證 | 遠端附件上傳暫存（PLAN-038 / T0832） |
 | [remote-security.md](remote-security.md) | Remote TLS / fingerprint / bind / token、SSH target、SSH / WSL bundle 安裝與 rollback | Remote 資安（PLAN-018 T0182） |
 | [remote-tower-notify.md](remote-tower-notify.md) | 遠端與本機 PTY 範圍權杖、權限表、跨重開保留、helper frame id 規則 | 遠端 Tower 通知（PLAN-036 K） |
 | [terminal-context-menu.md](terminal-context-menu.md) | 終端右鍵選單與滑鼠追蹤、Esc、Shift + 拖曳選取 | 終端分頁右鍵選單與滑鼠追蹤（T0568 / BUG-142） |
