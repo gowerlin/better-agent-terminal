@@ -48,6 +48,7 @@ import { registerFsHandlers } from './handlers/fs'
 import { registerCtConfigHandlers } from './handlers/ct-config'
 import { registerUploadHandlers } from './handlers/uploads'
 import { UploadStaging } from './upload-staging'
+import { UPLOAD_CLIENT_PROGRESS_CHANNEL, UploadClient, UploadNotConnectedError, type UploadClientRoute } from './upload-client'
 import { detectRemoteToolsForProfile, registerRemoteToolsHandlers, runRemoteToolsDetect } from './handlers/remote-tools'
 import { createRemoteToolInstallIpc, PendingRemoteToolInstalls } from '../src/lib/remote-tools/install-request'
 import type { WorkspaceAgentLaunchFields } from '../src/lib/agent-launch-settings'
@@ -2589,6 +2590,71 @@ app.on('activate', async () => {
  */
 const uploadStaging = new UploadStaging({ getDataDir: () => app.getPath('userData') })
 
+/**
+ * PLAN-038 U2 / T0833: a remote window uploads its attachments to the host it is bound to
+ * (electron/upload-client.ts; `upload-client:*` local IPC in registerLocalHandlers). The window's
+ * route mirrors bindProxiedHandlersToIpc: its own profile's live connection, or refused — never
+ * this machine. Senders are kept here only to answer the route / push progress.
+ */
+const uploadSenders = new Map<number, Electron.WebContents>()
+
+async function resolveUploadRoute(senderId: number): Promise<UploadClientRoute> {
+  const sender = uploadSenders.get(senderId)
+  if (!sender || sender.isDestroyed()) return { kind: 'refuse', profileId: '', reason: 'window-closed' }
+  const windowId = getWindowIdByWebContents(sender)
+  let senderIsRemote = false
+  let senderProfileId: string | null = null
+  if (windowId) {
+    const entry = await windowRegistry.getEntry(windowId)
+    if (entry?.profileId) {
+      senderProfileId = entry.profileId
+      const profile = await profileManager.getProfile(entry.profileId)
+      senderIsRemote = profile?.type === 'remote'
+    }
+  } else {
+    // A detached workspace window uploads as its parent window's profile (fail-closed, T0446).
+    const detachedWorkspaceId = getDetachedWorkspaceIdByWebContents(sender)
+    if (detachedWorkspaceId !== null) {
+      const binding = await resolveDetachedBinding(detachedWorkspaceId)
+      const boundProfileId = senderBindingProfileId(binding)
+      const profile = boundProfileId ? await profileManager.getProfile(boundProfileId).catch(() => null) : null
+      ;({ senderIsRemote, senderProfileId } = detachedSenderRouteIdentity(binding, profile ? profile.type : null))
+    }
+  }
+  const conn = senderProfileId ? remoteConnections.connectionState(senderProfileId) : null
+  const route = planProfileProxiedInvokeRoute({ senderIsRemote, senderProfileId, conn })
+  if (route.kind === 'local') return { kind: 'local' }
+  if (route.kind === 'remote' && senderProfileId && liveRemoteClient(senderProfileId)) return { kind: 'remote', profileId: senderProfileId }
+  return { kind: 'refuse', profileId: route.kind === 'refuse' ? route.profileId : senderProfileId ?? '', reason: route.kind === 'refuse' ? route.reason : 'no-client' }
+}
+
+const uploadClient = new UploadClient({
+  resolveRoute: resolveUploadRoute,
+  invoke: (profileId, channel, args, timeoutMs) => {
+    const client = liveRemoteClient(profileId)
+    if (!client) return Promise.reject(new UploadNotConnectedError(`profile ${profileId} has no live connection`))
+    return client.invoke(channel, args, timeoutMs)
+  },
+  readClipboardPng: () => readClipboardPng(clipboard),
+  emitProgress: (senderId, event) => {
+    const sender = uploadSenders.get(senderId)
+    if (sender && !sender.isDestroyed()) sender.send(UPLOAD_CLIENT_PROGRESS_CHANNEL, event)
+  },
+})
+
+/** Remembers the sender for routing / progress; its transfers are cancelled when it goes away. */
+function trackUploadSender(sender: Electron.WebContents): number {
+  const id = sender.id
+  if (!uploadSenders.has(id)) {
+    uploadSenders.set(id, sender)
+    sender.once('destroyed', () => {
+      uploadSenders.delete(id)
+      void uploadClient.disposeSender(id)
+    })
+  }
+  return id
+}
+
 function registerProxiedHandlers() {
   const MESSAGE_ARCHIVE_DIR = path.join(app.getPath('userData'), 'message-archives')
 
@@ -3114,8 +3180,26 @@ function registerLocalHandlers() {
       defaultPath: app.getPath('home'),
       properties: ['openFile', 'multiSelections'],
     })
-    return readSelectedAttachments(result.canceled ? [] : result.filePaths)
+    const selection = await readSelectedAttachments(result.canceled ? [] : result.filePaths)
+    // T0833: the only paths `upload-client:prepare` accepts as `path` sources for this window.
+    if (selection.files.length > 0) uploadClient.noteSelectedPaths(trackUploadSender(event.sender), selection.files)
+    return selection
   })
+
+  // PLAN-038 U2 / T0833: client upload driver (electron/upload-client.ts). Local only on purpose
+  // (not PROXIED_CHANNELS): main routes each call to the window's own profile connection.
+  ipcMain.handle('upload-client:prepare', (event, sessionKey: unknown, sources: unknown) =>
+    uploadClient.prepare(trackUploadSender(event.sender), sessionKey, sources))
+  ipcMain.handle('upload-client:begin', (event, transferId: unknown) =>
+    uploadClient.begin(trackUploadSender(event.sender), transferId))
+  ipcMain.handle('upload-client:chunk', (event, transferId: unknown, offset: unknown, data: unknown) =>
+    uploadClient.chunk(trackUploadSender(event.sender), transferId, offset, data))
+  ipcMain.handle('upload-client:finish', (event, transferId: unknown) =>
+    uploadClient.finish(trackUploadSender(event.sender), transferId))
+  ipcMain.handle('upload-client:run', (event, transferId: unknown) =>
+    uploadClient.run(trackUploadSender(event.sender), transferId))
+  ipcMain.handle('upload-client:abort', (event, id: unknown) =>
+    uploadClient.abort(trackUploadSender(event.sender), id))
 
   ipcMain.handle('dialog:confirm', async (event, message: string, title?: string) => {
     const parentWin = BrowserWindow.fromWebContents(event.sender)

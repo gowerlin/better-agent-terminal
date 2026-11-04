@@ -9,7 +9,7 @@
 | 工單 | 範圍 | 狀態 |
 |---|---|---|
 | T0832（U1） | host 端暫存模組、4 個 `upload:*` channel、`claude:dispose-session` 清理、契約 | 本文件 |
-| T0833（U2） | client 端上傳驅動（三種來源、依視窗 profile 轉送、stop-and-wait、重試、取消、進度） | 待做 |
+| T0833（U2） | client 端上傳驅動（三種來源、依視窗 profile 轉送、stop-and-wait、重試、取消、進度） | 本文件「client 端（T0833）」 |
 | T0834（U3） | Claude / Codex 面板接線 | 待做 |
 | T0835（U4） | 終端分頁接線、分頁關閉刪暫存 | 待做 |
 
@@ -84,6 +84,89 @@ T0832 完成後使用者看不到任何變化：沒有 caller。失敗一律退�
 - 同一個 upload 的 chunk / finish / abort 在 host 端排隊執行；sha256 邊收邊算，`finish` 不重讀檔。
 - 舊 bat-server 沒有 handler → invoke 失敗 `No handler for channel: upload:begin`，client 退回 T0437 拒絕。
 
+## client 端（T0833）
+
+T0833 完成後使用者仍看不到變化：caller 是 T0834（面板）與 T0835（終端）。
+
+### 必守規則
+
+- 🔴 main 不讀 renderer 自己給的路徑（T0436）。三種來源：`file` = renderer 手上的 `File` / `Blob`，由 renderer `slice()` 成 256 KiB 交給 main；`path` = main 自己從 `dialog:select-attachments` 回給**同一個視窗**的路徑（`UploadClient.noteSelectedPaths`，其他路徑一律 `NOT_SELECTED`、不 stat、不讀）；`clipboard-image` = main 自己讀剪貼簿 PNG（`readClipboardPng`）。
+- 🔴 `upload-client:*` 是本機 `ipcMain.handle`，**不在** `PROXIED_CHANNELS`、不在 `HELPER_CHANNEL_ROLES`。main 依呼叫視窗綁定的 profile 轉送到**該 profile 自己的** live `RemoteClient`（路由規則與 `bindProxiedHandlersToIpc` 相同：`resolveUploadRoute`，detached 視窗用父視窗的 profile）；本機視窗 → `NOT_REMOTE`（不上傳，照舊附加路徑），遠端視窗沒有 live 連線 → `NOT_CONNECTED`。🔴 絕不 fallback 本機、不借用別的 profile 的連線。
+- 🔴 stop-and-wait：每個 transfer 一次只有一個 call 在途（第二個 → `BUSY`），一次送出的多檔依序上傳（renderer driver）。只有 chunk 的 invoke **逾時**（`Remote invoke timeout:`）重送同一塊 1 次（同 offset、同 base64）；其他錯誤、第二次逾時、host 拒絕 → 該檔失敗並 `upload:abort`（best effort）。`begin` / `finish` 不重試（重送 `begin` 會在 host 多開一個上傳）。
+- 🔴 sha256 由 main 對**實際送出且 host 已確認**的位元組邊送邊算（重送不重算）。
+- 🔴 日誌 `[upload-client] …` 只記 transfer / upload id、session key 前 8 碼、大小、副檔名、結果；不記檔名、路徑、內容（契約 C-10）。
+
+### 唯一實作
+
+| 位置 | 內容 |
+|---|---|
+| `electron/upload-client.ts` | `UploadClient`（`prepare` / `begin` / `chunk` / `finish` / `run` / `abort` / `disposeSender` / `expireIdle` / `noteSelectedPaths`）、`classifyInvokeError`、`UPLOAD_CLIENT_TIMEOUTS`；不 import electron（main 經 `UploadClientDeps` 注入路由、invoke、剪貼簿、進度推送） |
+| `electron/main.ts` | 模組層 `uploadClient`、`resolveUploadRoute`、`trackUploadSender`（視窗 `destroyed` → `disposeSender`）；`registerLocalHandlers` 的 6 個 `ipcMain.handle('upload-client:…')`；`dialog:select-attachments` 記下回傳的 `files` |
+| `electron/preload.ts` / `src/types/electron.d.ts` | `window.electronAPI.upload`（`RemoteUploadApi`） |
+| `src/lib/remote-upload.ts` | renderer driver `uploadToRemoteHost(sessionKey, sources, { onProgress, signal })`、型別、`REMOTE_UPLOAD_LIMITS`（`UPLOAD_LIMITS` 的鏡像，parity 測試守住）、`stopsRemainingUploads` |
+
+### IPC（本機）
+
+| channel | 參數 | 回傳 | 用於 |
+|---|---|---|---|
+| `upload-client:prepare` | `(sessionKey, sources: RemoteUploadSourceDescriptor[])` | `{ ok, batchId, items: [{ ok, transferId, kind, name, size } \| failure] }` 或 failure | 全部來源；不連網 |
+| `upload-client:begin` | `(transferId)` | `{ ok, chunkBytes }` | `file` |
+| `upload-client:chunk` | `(transferId, offset, data: Uint8Array)` | `{ ok, received }` | `file` |
+| `upload-client:finish` | `(transferId)` | `{ ok, serverPath, size }` | `file` |
+| `upload-client:run` | `(transferId)` | `{ ok, serverPath, size }` | `path` / `clipboard-image`（main 讀檔並跑完 begin → chunks → finish） |
+| `upload-client:abort` | `(transferId \| batchId)` | `{ ok: true, aborted: n }`（冪等） | 取消 |
+| `upload-client:progress`（main → renderer 事件） | `{ batchId, transferId, received, size }` | — | host 每確認一塊推一次 |
+
+失敗一律 `{ ok: false, code, message }`，不丟例外（`message` 只供日誌）。transfer 綁呼叫的視窗：別的視窗的 id → `NOT_FOUND`。
+
+### renderer driver（給 T0834 / T0835）
+
+```ts
+import { uploadToRemoteHost } from '../lib/remote-upload'
+
+const outcome = await uploadToRemoteHost(sessionId /* 面板 sessionId 或終端 PTY id */, [
+  { kind: 'file', file },              // 拖放的 File
+  { kind: 'path', path },              // dialog:select-attachments 回傳的 files[i]
+  { kind: 'clipboard-image' },         // 終端 Ctrl+V 的圖片
+], { onProgress, signal })
+// outcome.items[i]: { ok: true, name, serverPath, size } | { ok: false, code, message, name? }
+```
+
+- 不丟例外；IPC 失敗 → `TRANSPORT`。結果順序與 `sources` 相同；`name` 是原檔名（面板顯示用），`serverPath` 原樣放進 prompt（契約 C-7，自己加引號）。
+- 一檔失敗不影響下一檔；`stopsRemainingUploads(code)` 為真（`NOT_REMOTE` / `NOT_CONNECTED` / `SERVER_TOO_OLD` / `TRANSPORT` / `CANCELLED` / `FORBIDDEN`）時其餘的檔不再嘗試、回同一個 code。
+- `signal` abort → 送 `upload-client:abort(batchId)`，在途的那一塊回來後結束，未完成的項目 `CANCELLED`、`outcome.cancelled = true`。
+- 任何 `ok: false` → 該附件退回 T0437 拒絕＋toast（D272）。`NOT_REMOTE` 表示本機視窗，照舊直接附加路徑。
+
+### 上限（client 端，D272 / 契約 C-9）
+
+| 上限 | 檢查 | 結果 |
+|---|---|---|
+| 一次送出 > 10 檔 | `prepare` | 整批 `TOO_MANY_FILES`，不上傳 |
+| 一次送出合計 > 100 MiB（只算可上傳的項目） | `prepare` | 整批 `SEND_TOO_LARGE`，不上傳 |
+| 單檔 > 50 MiB | `prepare` | 該項 `TOO_LARGE`，其他照傳 |
+| 一個視窗同時持有 > 20 個 transfer | `prepare` | 整批 `TOO_MANY` |
+| transfer 10 分鐘沒有 call（renderer 中途消失） | 下一次 `prepare` | 取消並 `upload:abort` |
+
+### client 端錯誤碼（host 的碼見上方「上限」與 T0832 契約 C-3，原樣轉回）
+
+| code | 何時 |
+|---|---|
+| `NOT_REMOTE` | 本機視窗 |
+| `NOT_CONNECTED` | 遠端視窗沒有自己 profile 的 live 連線（prepare 時或途中斷線） |
+| `SERVER_TOO_OLD` | host 回 `No handler for channel: upload:…`（T0832 前的 bat-server） |
+| `TRANSPORT` | 其他 invoke 失敗 / 逾時（chunk 已重送 1 次）、host 回傳形狀不對 |
+| `CANCELLED` | 取消 |
+| `BUSY` | 同一 transfer 已有 call 在途 |
+| `NOT_SELECTED` | `path` 不是 main 從附件對話框回給這個視窗的 |
+| `SOURCE_ERROR` | 檔案不存在 / 不是一般檔 / 上傳中變短、剪貼簿沒有圖片 |
+| `SEND_TOO_LARGE` / `TOO_MANY_FILES` | 見上表 |
+
+### 已知限制
+
+- `path` 來源只認 `dialog:select-attachments` 的 `files`（非圖片）；面板的圖片仍走 data URL（T0436），拖放的非圖片檔要由 T0834 保留 `File` 物件走 `file` 來源。
+- 剪貼簿圖片在 `prepare` 時讀取並暫存在 main 記憶體（≤ 50 MiB），`run` 結束即釋放；只 prepare 不 run 的由 10 分鐘閒置規則或 `abort(batchId)` 釋放（driver 結束時一定送）。
+- 不續傳：連線中斷 = 該次失敗（host 由 10 分鐘閒置規則清掉部分檔）。
+
 ## 日誌
 
 `[upload] begin|finish|abort|expire|dispose|sweep|chunk|remove …`，例：
@@ -112,3 +195,5 @@ T0832 完成後使用者看不到任何變化：沒有 caller。失敗一律退�
 | 真 headless server（in-process、WSS）：上傳、權限、dispose、未認證與 tower / worker 權杖被拒 | `electron/remote/__tests__/headless-upload-e2e.test.ts` |
 | channel 守門 | `headless-parity.test.ts`、`path-aware-channels-coverage.test.ts`、`proxied-channels-binding.test.ts`、`headless-electron-free.test.ts` |
 | 已部署 server 的協定層 smoke | `scripts/smoke-remote-headless.mjs` S14（見 T0832 回報區） |
+| client 端（T0833）：main driver 對真 `UploadStaging`（假 invoke）：stop-and-wait / `BUSY`、chunk 逾時重送 1 次（host 已寫入仍冪等）、第二次逾時 / 非逾時錯誤不重試、取消、舊 server、路由（本機 / 斷線 / 途中斷線）、上限、dialog 路徑白名單、剪貼簿、閒置、日誌不含檔名、main / preload 接線 source guard | `electron/__tests__/upload-client.test.ts` |
+| client 端（T0833）：renderer driver（依序、批次 / 單項失敗、致命碼停止、取消、進度、預設 API） | `src/lib/__tests__/remote-upload.test.ts` |

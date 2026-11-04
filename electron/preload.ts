@@ -23,6 +23,7 @@ import type { TerminalRoleChangeInfo } from '../src/lib/tower-terminal-title'
 import type { UsageLimitContinueEvent, UsageLimitStatusEvent } from '../src/lib/usage-limit'
 import type { DetachedWaitingReport, TerminalAttentionEvent, TerminalAttentionSnapshotEntry } from '../src/lib/terminal-attention'
 import type { NotifyHoldChangedEvent } from '../src/types/notify-hold'
+import type { RemoteUploadApi, RemoteUploadProgressEvent, RemoteUploadSourceDescriptor } from '../src/lib/remote-upload'
 
 type RendererLogLevel = 'error' | 'warn' | 'info' | 'log' | 'debug'
 
@@ -230,6 +231,21 @@ const electronAPI = {
     readFilePaths: () => ipcRenderer.invoke('clipboard:read-file-paths') as Promise<string[]>,
     writeImage: (filePath: string) => ipcRenderer.invoke('clipboard:writeImage', filePath),
   },
+  // PLAN-038 U2 / T0833: upload a remote window's attachments to its host (electron/upload-client.ts;
+  // renderer driver src/lib/remote-upload.ts). Local main only; main routes to the window's profile.
+  upload: {
+    prepare: (sessionKey: string, sources: RemoteUploadSourceDescriptor[]) => ipcRenderer.invoke('upload-client:prepare', sessionKey, sources),
+    begin: (transferId: string) => ipcRenderer.invoke('upload-client:begin', transferId),
+    chunk: (transferId: string, offset: number, data: Uint8Array) => ipcRenderer.invoke('upload-client:chunk', transferId, offset, data),
+    finish: (transferId: string) => ipcRenderer.invoke('upload-client:finish', transferId),
+    run: (transferId: string) => ipcRenderer.invoke('upload-client:run', transferId),
+    abort: (id: string) => ipcRenderer.invoke('upload-client:abort', id),
+    onProgress: (callback: (event: RemoteUploadProgressEvent) => void) => {
+      const handler = (_event: Electron.IpcRendererEvent, progress: RemoteUploadProgressEvent) => callback(progress)
+      ipcRenderer.on('upload-client:progress', handler)
+      return () => ipcRenderer.removeListener('upload-client:progress', handler)
+    },
+  } satisfies RemoteUploadApi,
   claude: {
     startSession: (sessionId: string, options: { cwd: string; prompt?: string; permissionMode?: string; model?: string; effort?: string; useWorktree?: boolean; worktreePath?: string; worktreeBranch?: string; autoCompactWindow?: number; agentPreset?: string; codexSandboxMode?: string; codexApprovalPolicy?: string }) =>
       ipcRenderer.invoke('claude:start-session', sessionId, options),

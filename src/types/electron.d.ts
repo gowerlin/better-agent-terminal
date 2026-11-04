@@ -193,6 +193,8 @@ interface ElectronAPI {
     readFilePaths: () => Promise<string[]>
     writeImage: (filePath: string) => Promise<boolean>
   }
+  /** PLAN-038 U2 / T0833: upload a remote window's attachments to its host; use `uploadToRemoteHost` (src/lib/remote-upload.ts). */
+  upload: import('../lib/remote-upload').RemoteUploadApi
   app: {
     openNewInstance: (profileId: string) => Promise<{ alreadyOpen: boolean; windowId?: string; windowIds?: string[]; error?: string; broughtToFront?: import('../lib/profile-window-front').BringToFrontResult }>
     getLaunchProfile: () => Promise<string | null>
