@@ -88,6 +88,8 @@
 - 在同一個 BAT 視窗中跨 **WSL / Docker / SSH (Linux/macOS)** 環境驅動 AI Agent
 - 統一 setup wizard：安裝 server bundle → 啟動服務 → TLS fingerprint pinning → 連線驗證
 - 跨環境 path translator 自動轉換 chat context 附件路徑（Windows ↔ Linux ↔ macOS）
+- 遠端讀不到的本機檔案（SSH、Docker 掛載外、WSL 其他發行版）在送出或拖進終端時自動上傳到遠端主機再帶入路徑；SSH / Docker 視窗的 Ctrl+V 貼圖同樣先上傳（單檔 50 MiB、一次 100 MiB；遠端 bat-server 需 `v0.7.4-pre.7` 以上）
+- WSL 設定精靈會檢查環境並在一次確認後自動修正（開啟 systemd、WSL 1 轉 WSL 2；NAT 下連線失敗可改用 Mirrored 並重試），每一步都可中止；每個 WSL profile 可關閉 keep-alive
 - 可同時開啟多個遠端 profile 的視窗（最多 8 個連線）
 - 遠端 AI 工具面板：偵測並一鍵安裝遠端的 claude / codex / Node.js（nvm）等工具
 - 詳見 [Remote Dev Overview](docs/remote-dev-overview.md)
@@ -215,7 +217,7 @@ BAT 與 CT 分工明確：**BAT 提供終端機、分頁與權限這些基礎設
 > sudo apt install -y fonts-noto-cjk fonts-noto-color-emoji
 > ```
 >
-> 裝完後完全關閉 BAT 再重新開啟；可用 `fc-list :lang=zh | wc -l` 確認結果大於 0。終端分頁內的中文（例如 agent 的中文回覆）也會一併正常。其他發行版請安裝 Noto CJK 與 Noto Color Emoji 字型（套件名稱依發行版而不同）。
+> 裝完後完全關閉 BAT 再重新開啟；可用 `fc-list :lang=zh | wc -l` 確認結果大於 0。終端分頁內的中文（例如 agent 的中文回覆）也會一併正常。其他發行版請安裝 Noto CJK 與 Noto Color Emoji 字型（套件名稱依發行版而不同）。`v0.7.4-pre.7` 起，BAT 啟動時偵測到缺字型會跳出一次提示（英文在前），附上安裝指令。
 
 ### 方式二：從原始碼建置
 

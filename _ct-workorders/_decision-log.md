@@ -1465,6 +1465,14 @@
 - **切分**：W2a 設計語言 + 元件 + 首頁（T0630）→ 預覽通過後 W2b（`/control-tower`、功能、FAQ、回報頁）→ W2c 遠端開發；W3 / W4 不變。
 - **相關**：PLAN-049 / D159 / D160 / T0624 / T0630
 
+### D276 2026-11-04 — 發 `0.7.4-pre.7`；去識別化以修正 commit 處理、不改寫歷史
+
+- **決定**（使用者「push 並發 pre.7」）：發預覽版 `0.7.4-pre.7`（D236 版號線）。內容：T0826–T0845（PLAN-064 缺字型提示、PLAN-043 Phase 2＋keep-alive 開關＋精靈中止、PLAN-038 遠端附件上傳、BUG-211、T0843 提示文字、T0845 測試偶發失敗）。發版前整批驗證 T0844 PASS。
+- **去識別化**：push 前掃描命中 WSL 帳號名與家目錄路徑（T0826 / T0831 / T0837 / T0838 測試假資料 / T0839），追蹤檔以 `13150f45` 修正（重掃 0 筆）；這些字串仍在 5 個 commit 的歷史中。使用者選「修正 commit 後直接 push」：內容與作者欄、GitHub 帳號同等級已公開，改寫 64 個 commit 會讓本批紀錄的 SHA 全部失效。
+- **執行**：push `74902dd2..13150f45`；`gh workflow run pre-release.yml -R gowerlin/better-agent-terminal -f version=0.7.4-pre.7` → run `41779586475`（target `13150f45`）。
+- **決策者**：使用者（發版、去識別化處理方式）；塔台（內容）。2026-11-04 第一百一十六 session。
+- **相關**：D271–D275 / D269 / PLAN-063（真實升級驗收 pre.6 → pre.7）
+
 ### D275 2026-11-04 — pre.7 整批驗證（T0844）PASS；發版前先修測試偶發失敗（T0845），CHANGELOG 補 T0843 併入發版整理
 
 - **背景**：T0844 在 HEAD `47f80317` 上 1–7 全 PASS（typecheck 0 / 0、unit、legacy 472 / 33、vite build、verify native / helpers、T0836 e2e 3 passed、T0841 V3 e2e 4 passed），環境前後一致。發現：① `bat-mcp-launch.test.ts` 暫存目錄隨機後綴含 `ENV` 時誤判（既有，非本批引入；CI tests job 碰到會擋發版）；② CHANGELOG `[Unreleased]` 沒有 T0843。
