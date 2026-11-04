@@ -3,9 +3,10 @@ schema_version: 1
 schema_kind: plan
 id: PLAN-063
 title: "Windows NSIS 升級會結束所有終端：升級前提示、升級後說明（holder 模型維持 IDEA）"
-status: IN_PROGRESS
+status: DONE
 priority: medium
 created_at: "2026-11-04T01:34:49+0800"
+completed_at: "2026-11-04T15:01:49+0800"
 links:
   source: "T0820 回報區（PLAN-059 Q4）；D266"
   related: [PLAN-059, T0820, T0766, T0767, T0504, T0704, T0578]
@@ -24,7 +25,7 @@ T0820（PLAN-059 Q4）以 GitHub Actions Windows runner 實測（run `4168387054
 | 1 | 升級前提示：Windows 上的更新通知（與 README / 安裝說明）告知「安裝新版會結束所有終端分頁與 agent，請先完成工作」 | S | ✅ T0821 `710e4179`（待發版） |
 | 2 | 升級後說明：啟動時偵測「版本與上次執行不同＋走了孤兒清理」→ 提示上次升級結束了 N 個終端；claude / codex 分頁盡量沿用 T0766 / T0767 的「被中斷的 agent 分頁」對話框與一鍵 resume | M | ✅ T0821 `710e4179`（待發版；真實升級驗收待兩版都含本功能） |
 | 3 | 正常結束代替 TerminateProcess：NSIS `customCheckAppRunning` 先請 BAT 正常 quit（flush-save、server shutdown、清 pid 檔），逾時才強制 | M | T0823（D267） |
-| 4 | holder 模型（ConPTY 持有者放安裝目錄外、跨版本接回）——PLAN-059 子項 D | L | IDEA：使用者確實需要「升級不中斷長任務」時再評估 |
+| 4 | holder 模型（ConPTY 持有者放安裝目錄外、跨版本接回）——PLAN-059 子項 D | L | 移到 PLAN-065（IDEA，D281） |
 
 ## 相關
 
@@ -48,3 +49,4 @@ T0820（PLAN-059 Q4）以 GitHub Actions Windows runner 實測（run `4168387054
 - 2026-11-04 14:30（D279）T0847 DONE（`511df465`）：被中斷的 agent 分頁標題 / 說明 / ⏸ tooltip 三語改中性（「安裝程式結束的 agent 分頁」等），與 T0846 同批待發 `pre.8`。
 - 2026-11-04 14:53 **真實升級 pre.7 → pre.8（BAT 執行中，D280）**：舊行程 06:51:14.35Z `[installer-quit] request received: recorded 2 terminal(s), 2 claude session(s)`，請求行程 `second instance: handed off`；新行程 06:51:30Z `record found … ptys=2 claude-sessions=2`、`[upgrade-interruption] detected: previous=0.7.4-pre.7 current=0.7.4-pre.8 ended-ptys=2 agent-tabs=2 source=installer`、`listed 2`、`notice shown`。**③ 一鍵接回 PASS**：06:51:52Z 兩個 claude 分頁 `resume … → ok mode=session`，塔台分頁接回原 session `16bf8f88`（對話內容延續，`bat_whoami` session id 相同；塔台角色重開後需重新 `--set-role`，屬預期，不持久化）。PLAN-063 子項 1–3 真實驗收全部 PASS。尚未實機：同版重裝的中性 toast（T0846，需再裝一次 pre.8）。
 - 2026-11-04 15:00 **同版重裝 pre.8 → pre.8（BAT 執行中）PASS**：使用者回報 OK，截圖（14:54）toast 為中性文字「安裝程式結束了 BAT（v0.7.4-pre.8）與 2 個終端，包括其中執行中的指令與 agent；分頁已用新的 shell 重新開啟。2 個 agent 分頁已中斷，按此查看」（T0846）；對話框中性文字（T0847）使用者確認 OK。接著 `v0.7.4-pre.8` NSIS 完整重裝驗收 **PASS**（14:55:26–14:56:02，AllUsers / HKLM；⓪–④ 全 PASS、⑤ SKIPPED；SHA-256 `d0c25b9c…`；userData 131 檔未變；報告 `%TEMP%\bat-nsis-acceptance-20261104-145526\report.md`，含權杖的 `userdata-backup` 已刪除）。子項 1–3 已無待驗項目；子項 4（holder）仍 IDEA。
+- 2026-11-04 15:01（D281）**PLAN-063 DONE**：子項 1–3 交付並實機驗收全部 PASS（`v0.7.4-pre.6`–`pre.8`）；子項 4 holder 模型移到 **PLAN-065**（IDEA）；探測分支 `ct/T0820`（`e46ab405`，遠端已刪）本機刪除。

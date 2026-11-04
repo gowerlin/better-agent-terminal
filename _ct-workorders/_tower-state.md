@@ -5,11 +5,11 @@ updated_at: "2026-11-04T15:00:19+08:00"
 session: "2026-11-04 14:56 第一百一十九 session（CT v6.0.0-beta.11）"
 next_ids:
   workorder: "T0848"
-  decision: "D280"
+  decision: "D282"
   bug: "BUG-212"
-  plan: "PLAN-065"
+  plan: "PLAN-066"
 todo:
-  - "✅ `0.7.4-pre.8` 已發佈並驗收（D280）：PLAN-063 ③ 一鍵接回 PASS（pre.7 → pre.8）、同版重裝中性 toast / 對話框 PASS（T0846 / T0847）、NSIS 完整重裝 PASS（15:00 判讀，備份已刪）；PLAN-063 子項 1–3 無待驗，子項 4 holder IDEA"
+  - "✅ `0.7.4-pre.8` 已發佈並驗收（D280）：PLAN-063 ③ 一鍵接回 PASS（pre.7 → pre.8）、同版重裝中性 toast / 對話框 PASS（T0846 / T0847）、NSIS 完整重裝 PASS（15:00 判讀，備份已刪）；PLAN-063 DONE（D281），holder 模型移到 PLAN-065 IDEA"
   - "T0836 e2e 乾淨 HEAD 重跑：併入 T0844"
   - "T0843（D274，使用者「一起修好再發版」）：上傳失敗提示先講原因、檔名只出現一次；排在 T0841 後（同改 locales）"
   - "BUG-211 FIXED（T0842 `bb8cbe1a`）：待發版與遠端實機驗證（遠端視窗附 3 張 > 8 MiB 圖 → 提示、不送出、連線不斷；2 張照常）；後續候選：CLAUDE.md / multi-remote-profiles docs 補 `ws-limits.ts` / `FRAME_TOO_LARGE` 一行；fork 後自動送出 pending 圖片的路徑沒有面板檢查（只靠 client 守門）"
@@ -19,14 +19,13 @@ todo:
   - "MSRC 回報 microsoft/node-pty（使用者自行處理，D255）"
   - "PLAN-058：T0814（W1）`fc22e04a`＋T0815（W0）`0b67db03` DONE，T0819 安裝版 pre.5 假 API e2e PASS，待使用者手動確認（清單在 T0819 回報區）；可選後續：卡片等待時讓輸入框可送出（T0815〈遭遇問題〉1，未開單）"
   - "觀察：語音可用性檢查 macOS 未實機；`unknown(timeout)` 若實機出現可把逾時提到 30 s（T0802 後續建議）"
-  - "PLAN-063（IN_PROGRESS）：子項 1＋2 T0821 `710e4179` DONE；tooltip T0822 `05117326` DONE；子項 3 T0823 合併 main `83597e8e`（T0824）；BUG-210 FIXED（T0825 `bfde0beb`）；這批已隨 `v0.7.4-pre.6` 發佈（D267 / D269）；真實升級驗收（pre.6 → 下一版，BAT 執行中升級）待下一版；4 holder IDEA；本機分支 `ct/T0820`（探測 spec＋暫時 workflow）保留到本 PLAN 用完，下次發版後改寫重跑做真實升級驗收（D266）"
   - "PLAN-060（IDEA）：macOS Developer ID 簽章（目前 macOS 不顯示系統通知）"
   - "觀察：t0757 偶發失敗再發生才開 BUG（D218）"
   - "版號線：`0.7.4-pre.N`，已發 pre.1 – pre.8（D236 / D241 / D248 / D256 / D262 / D269 / D276 / D280）；pre.N 最多到 9"
 ---
 # Tower State — better-agent-terminal
 
-> 🟢 **第一百一十九 session 開工**（2026-11-04 14:56 (UTC+8)，CT v6.0.0-beta.11，Fast Path；塔台 session `56c3cb03-27db-482d-847b-8b7c5ee3f73c`；`--set-role tower --mode on` exit 0；`bat_whoami` 名稱 `better-agent-terminal · Tower`；安裝版 `0.7.4-pre.8`；HEAD `dc25fc4a` = `origin/main`、工作區乾淨；熱區 243 張工單皆終態；BUG 只剩 BUG-211 FIXED；PLAN IN_PROGRESS 5（038 / 043 / 058 / 063 / 064）/ IDEA 4；`bat_list_questions` pending 0；熱檔皆在 400 KB 預算內）。15:00 使用者回報同版重裝 pre.8 → pre.8 OK（截圖為 T0846 中性 toast）、NSIS 重裝驗收已跑 → 讀 `%TEMP%\bat-nsis-acceptance-20261104-145526\report.md`：**PASS**（⓪–④ PASS、⑤ SKIPPED，同版覆蓋）；`userdata-backup` 已刪除；結果記在 PLAN-063〈狀態〉。
+> 🟢 **第一百一十九 session 開工**（2026-11-04 14:56 (UTC+8)，CT v6.0.0-beta.11，Fast Path；塔台 session `56c3cb03-27db-482d-847b-8b7c5ee3f73c`；`--set-role tower --mode on` exit 0；`bat_whoami` 名稱 `better-agent-terminal · Tower`；安裝版 `0.7.4-pre.8`；HEAD `dc25fc4a` = `origin/main`、工作區乾淨；熱區 243 張工單皆終態；BUG 只剩 BUG-211 FIXED；PLAN IN_PROGRESS 5（038 / 043 / 058 / 063 / 064）/ IDEA 4；`bat_list_questions` pending 0；熱檔皆在 400 KB 預算內）。15:00 使用者回報同版重裝 pre.8 → pre.8 OK（截圖為 T0846 中性 toast）、NSIS 重裝驗收已跑 → 讀 `%TEMP%\bat-nsis-acceptance-20261104-145526\report.md`：**PASS**（⓪–④ PASS、⑤ SKIPPED，同版覆蓋）；`userdata-backup` 已刪除；結果記在 PLAN-063〈狀態〉。15:01 使用者選 A＋push → D281：PLAN-063 DONE、開 PLAN-065（IDEA，holder 模型）、刪本機分支 `ct/T0820`（`e46ab405`，遠端已刪）。
 >
 > 🟢 **第一百一十八 session 開工**（2026-11-04 14:08 (UTC+8)，CT v6.0.0-beta.11，Fast Path；塔台 session `16bf8f88-e1f5-4d6d-b20c-cd7fe1bdd6df`；`--set-role tower --mode on` exit 0；`bat_whoami` 名稱 `better-agent-terminal · Tower`；安裝版 `0.7.4-pre.7`；HEAD `08f10017`、工作區乾淨；熱區工單皆 DONE、BUG 只剩 BUG-211 FIXED；`bat_list_questions` pending 0）。14:14 使用者回報同版重裝（pre.7 → pre.7，14:07）後沒有恢復對話框 → 日誌判讀：T0823 路徑 PASS、`detectUpgradeInterruption` 因版本相同不觸發（設計如此）、③ 一鍵接回未驗（`a85cd74e`）。14:16 使用者選 A → D278 開 **T0846**；14:01 那次 NSIS 驗收在前置檢查 FAIL（BAT 執行中，什麼都沒做），pre.7 的 NSIS 驗收仍待做。14:17 push `13f74738..bc7f6ccd`（push 前去識別化命中 1 處專案名，在未推送的 `08f10017` 內以 fixup 改成代稱，歷史不含原名）；派 T0846（`--mode yolo --no-interactive`，`started:` 06:17:53Z，分頁 `7147b060…`）。14:19 T0846 提問 Q-1（`installer-quit-request.test.ts:254` 寫死舊規則「同版＋紀錄 → false」、不在 affects_files）→ 塔台範圍內裁決選 A（只改該斷言與標題、補同版＋只有孤兒 → false）→ `--answer --choice 1` exit 0。14:21 Q-2（T0823 的「取消安裝＋同版＋紀錄 → 不提示」案例與同版重裝無法區分）→ 塔台範圍內裁決選 A（照 D278 觸發、改該斷言；同版文字改中性「安裝程式結束了 BAT（v…）與 N 個終端…」，取消安裝也成立）→ `--answer --choice 1` exit 0。14:24 T0846 DONE（`9e966f98`，11 檔 +139 / −31；typecheck 0 / 0、unit 435 檔 / 7740、vite build）；收單核對 commit 範圍、session id `e57c7b18` 一致；`--close-worker T0846 --delay-ms 10000` exit 0。後續候選：`InterruptedAgentsDialog` 的「升級結束的 agent 分頁」標題 / 說明在同版重裝時字面不精確→ 14:26 使用者「併進發 pre.8 的同一批。要開」→ D279 開 **T0847**（三語文字改中性）。14:27 派 T0847（`--mode yolo --no-interactive`，`started:` 06:27:33Z，分頁 `ce523ea2…`）。14:30 T0847 DONE（`511df465`，5 檔 +22 / −10；typecheck 0、unit 435 檔 / 7743、vite build）；收單核對 commit 範圍、session id `c8c629fb` 一致；`--close-worker T0847 --delay-ms 10000` exit 0。14:31 使用者「發 0.7.4-pre.8」→ D280 → pre-release run `41786124213`（target `3902f36c`）success，publishedAt 2026-11-04T06:46:18Z，4 個安裝檔＋`server-bundle-v0.7.4-pre.8`；更版重點已改寫；三文件＋版號更新（`33d2a570`，push `3902f36c..48216f2d`）；Pages run `41787999864` 綠、首頁版號 pre.8、link-check 0 錯誤。14:51 使用者在 BAT 執行中安裝 pre.8（實為 pre.7 → pre.8 升級）→ 重開按恢復，本塔台 session `16bf8f88` 一鍵接回 → 14:53 日誌判讀：PLAN-063 ①②④ 再 PASS、**③ 一鍵接回 PASS**（兩個分頁 `mode=session`）；`--set-role tower --mode on` 重新宣告 exit 0。
 >
