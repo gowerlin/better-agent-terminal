@@ -368,7 +368,8 @@ export interface AppSettings {
   promptClientPathHint?: boolean;  // 遠端視窗 Claude prompt 含本機路徑時提示（T0440，預設 true；僅提示、不改內容）
   minimizeToTray?: boolean;  // 關閉視窗時最小化到系統匣（預設 false = 直接關閉）
   enableDevTools?: boolean;  // 允許在正式版中按 F12 開啟 DevTools（預設 false）
-  checkForUpdates?: boolean;  // 是否自動檢查版本更新（預設 true）
+  checkForUpdates?: boolean;  // 是否自動檢查版本更新（預設 true）；T0863：只關啟動時那一次，Help 手動檢查不受影響
+  includePrereleaseUpdates?: boolean;  // T0863：檢查更新是否包含預覽版（pre / beta / rc；預設 true，D287）
   vscodeEditorType?: 'code' | 'code-insiders';  // VS Code 執行檔類型（預設 code）
   vscodePath?: string;           // VS Code 自訂完整路徑（空白 = 用 'code'）
   vscodeInsidersPath?: string;   // VS Code Insiders 自訂完整路徑（空白 = 用 'code-insiders'）

@@ -36,6 +36,7 @@ const defaultSettings: AppSettings = {
   defaultModel: 'claude-opus-4-6',
   minimizeToTray: true,
   checkForUpdates: false,
+  includePrereleaseUpdates: true, // T0863 (D287): the fork only publishes pre-releases
   loggingEnabled: true,
   logLevel: 'debug',
   terminalServerScrollBufferLines: 1000,
@@ -327,6 +328,12 @@ class SettingsStore {
 
   setCheckForUpdates(enabled: boolean): void {
     this.settings = { ...this.settings, checkForUpdates: enabled }
+    this.notify()
+    this.save()
+  }
+
+  setIncludePrereleaseUpdates(enabled: boolean): void {
+    this.settings = { ...this.settings, includePrereleaseUpdates: enabled }
     this.notify()
     this.save()
   }

@@ -119,7 +119,9 @@
     "showDockBadge": "Dock 圖示顯示待處理數量",
     "showDockBadgeHint": "有待處理的動作（權限請求、使用者問題）時，在 Dock 圖示上顯示數字徽章。",
     "checkForUpdates": "自動檢查版本更新",
-    "checkForUpdatesHint": "定期檢查 GitHub 是否有新版本，有更新時顯示通知。",
+    "checkForUpdatesHint": "BAT 啟動時檢查一次 GitHub 是否有新版本，有新版時顯示通知。不會下載或安裝。隨時可用 Help › Check for Updates… 檢查。",
+    "includePrereleaseUpdates": "包含預覽版（pre / beta / rc）",
+    "includePrereleaseUpdatesHint": "預覽版也通知。關閉後只通知正式版。啟動時的檢查與 Help › Check for Updates… 都適用。",
     "notifyOnComplete": "Agent 完成時發送系統通知",
     "notifyOnCompleteHint": "Agent 完成任務時發送系統通知。",
     "notifySound": "播放通知音效",
@@ -551,7 +553,11 @@
     "newVersion": "新版本：{{version}}",
     "whatsNew": "更新內容：",
     "viewOnGithub": "在 GitHub 上查看",
-    "windowsInstallEndsTerminals": "安裝新版會結束所有終端分頁，包括執行中的指令與 agent（claude、codex）。請先完成或保存工作。"
+    "windowsInstallEndsTerminals": "安裝新版會結束所有終端分頁，包括執行中的指令與 agent（claude、codex）。請先完成或保存工作。",
+    "upToDateTitle": "沒有新版本",
+    "upToDate": "已是最新版 v{{version}}。",
+    "checkFailedTitle": "無法檢查更新",
+    "checkFailed": "無法向 GitHub 檢查新版本：{{reason}}"
   },
   "envVars": {
     "title": "環境變數",

@@ -233,8 +233,14 @@ const electronAPI = {
     restart: () => ipcRenderer.invoke('app:restart') as Promise<boolean>,
     setDockBadge: (count: number) => ipcRenderer.invoke('app:set-dock-badge', count),
   },
+  // T0863 / BUG-212 (D287): main checks GitHub (once at startup, or Help › Check for Updates…); windows never do.
   update: {
-    check: () => ipcRenderer.invoke('update:check'),
+    claimStartupResult: () => ipcRenderer.invoke('update:claim-startup-result'),
+    onManualResult: (callback: (outcome: unknown) => void) => {
+      const handler = (_event: Electron.IpcRendererEvent, outcome: unknown) => callback(outcome)
+      ipcRenderer.on('update:manual-result', handler)
+      return () => ipcRenderer.removeListener('update:manual-result', handler)
+    },
     getVersion: () => ipcRenderer.invoke('update:get-version')
   },
   clipboard: {

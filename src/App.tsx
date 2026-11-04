@@ -22,6 +22,7 @@ import { ResizeHandle } from './components/ResizeHandle'
 import { ProfilePanel } from './components/ProfilePanel'
 import { RecoveryPrompt } from './components/RecoveryPrompt'
 import { LinuxFontHint } from './components/LinuxFontHint'
+import { UpdateNotification } from './components/UpdateNotification'
 import { SERVER_STATUS_TOAST_KEYS, ServerStatusToast, upgradeNoticeToastKey, type ServerStatusToastKey } from './components/ServerStatusToast'
 import { InterruptedAgentsController } from './components/InterruptedAgentsDialog'
 import { OPEN_INTERRUPTED_AGENTS_EVENT, parseUpgradeInterruptionNotice, useInterruptedAgents, type UpgradeInterruptionNotice } from './stores/interrupted-agents-store'
@@ -1131,6 +1132,8 @@ export default function App() {
         <DetachedWaitingReporter workspace={ws} />
         {/* PLAN-055 B1 / T0766: this window's tabs interrupted by a Terminal Server recovery */}
         <InterruptedAgentsController />
+        {/* T0863: Help › Check for Updates… results for this window; the startup dialog goes to a main window */}
+        <UpdateNotification claimStartup={false} />
         {appNotification && (
           <AppNotificationDialog message={appNotification} onClose={() => setAppNotification(null)} />
         )}
@@ -1513,6 +1516,8 @@ export default function App() {
       )}
       {/* PLAN-064 / T0827: Linux without Chinese / emoji fonts — local main window only, once per start */}
       <LinuxFontHint enabled={profileReady && !detachedWorkspaceId && !windowBoundToRemote && !isRemoteConnected} />
+      {/* T0863 / BUG-212 (D287): main checks once at startup and hands a newer version to one window; Help results */}
+      <UpdateNotification />
       {/* PLAN-055 B1 / T0766: tabs of a workspace shown in a detached window are listed there */}
       <InterruptedAgentsController excludeWorkspaceIds={detachedIds} />
       {notifyToasts.length > 0 && (

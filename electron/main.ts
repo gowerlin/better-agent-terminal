@@ -77,7 +77,7 @@ import { PtyManager, createWindowBroadcastEmit, killOrphanPtyProcesses, type Pty
 import { configureRuntimeRouter, getRuntimeSettingsSnapshot, resolveClaudeRuntime } from './claude-runtime-router'
 import { ClaudeAgentManager, createElectronClaudeEmit, createElectronNotifier, type ClaudeAgentManagerDeps } from './claude-agent-manager'
 import { CodexAgentManager } from './codex-agent-manager'
-import { checkForUpdates, UpdateCheckResult } from './update-checker'
+import { checkForUpdates, parseUpdateSettings, StartupUpdateCheck, type UpdateCheckOutcome, type UpdateCheckResult, type UpdateSettings } from './update-checker'
 import { clipboardImageToDataUrl, readClipboardPng, readSelectedAttachments } from './image-attachments'
 import { readClipboardFilePaths } from './clipboard-file-paths'
 import { snippetDb, CreateSnippetInput } from './snippet-db'
@@ -625,7 +625,53 @@ let notifyHold: NotifyHoldController | null = null
 let claudeManager: ClaudeAgentManager | null = null
 let codexManager: CodexAgentManager | null = null
 const sessionManagerMap = new Map<string, 'claude' | 'codex'>()
+// T0863 / BUG-212 (D287): the newest known update (startup or Help check) — the menu's "Update Available" item.
 let updateCheckResult: UpdateCheckResult | null = null
+// T0863: checked once per BAT start by main; windows claim the result (update:claim-startup-result).
+const startupUpdateCheck = new StartupUpdateCheck()
+let manualUpdateCheck: Promise<UpdateCheckOutcome> | null = null
+
+/** T0863: `checkForUpdates` / `includePrereleaseUpdates`, read from settings.json each time (missing → on). */
+function readUpdateSettings(): UpdateSettings {
+  try {
+    return parseUpdateSettings(fsSync.readFileSync(path.join(app.getPath('userData'), 'settings.json'), 'utf-8'))
+  } catch {
+    return parseUpdateSettings(null)
+  }
+}
+
+/** T0863: one line per check — versions and the result only, never a release body. */
+function logUpdateOutcome(kind: 'startup' | 'manual', outcome: UpdateCheckOutcome, includePrerelease: boolean): void {
+  const pre = `includePrerelease=${includePrerelease}`
+  if (outcome.status === 'error') logger.warn(`[update-check] ${kind}: failed current=${outcome.currentVersion} ${pre} reason=${outcome.reason}`)
+  else logger.log(`[update-check] ${kind}: ${outcome.status} current=${outcome.result.currentVersion} latest=${outcome.result.latestRelease?.tagName ?? 'none'} ${pre}`)
+}
+
+function noteUpdateOutcome(outcome: UpdateCheckOutcome): void {
+  if (outcome.status !== 'update') return
+  updateCheckResult = outcome.result
+  buildMenu()
+}
+
+/**
+ * T0863: Help › Check for Updates… — ignores `checkForUpdates`; the result goes to the window that asked
+ * (`update:manual-result`). A click while a check runs reuses it.
+ */
+function runManualUpdateCheck(target: BrowserWindow | null): void {
+  if (!manualUpdateCheck) {
+    const { includePrereleaseUpdates } = readUpdateSettings()
+    manualUpdateCheck = checkForUpdates({ currentVersion: app.getVersion(), includePrerelease: includePrereleaseUpdates })
+      .then(outcome => {
+        logUpdateOutcome('manual', outcome, includePrereleaseUpdates)
+        noteUpdateOutcome(outcome)
+        return outcome
+      })
+      .finally(() => { manualUpdateCheck = null })
+  }
+  void manualUpdateCheck.then(outcome => {
+    if (target && !target.isDestroyed()) target.webContents.send('update:manual-result', outcome)
+  })
+}
 const profileManager = new ProfileManager()
 // T0384 (BUG-092, D128): one long-lived `wsl.exe` per WSL profile distro so
 // WSL does not idle-stop it (and bat-server with it) while BAT runs.
@@ -1352,6 +1398,12 @@ function buildMenu() {
         },
         { type: 'separator' },
         {
+          // T0863 (D287): the menu is English, like the other items
+          label: 'Check for Updates…',
+          click: (_item, win) => runManualUpdateCheck((win instanceof BrowserWindow ? win : null) ?? BrowserWindow.getFocusedWindow() ?? [...windowMap.values()][0] ?? null)
+        },
+        { type: 'separator' },
+        {
           label: 'About',
           click: () => {
             const focusedWin = BrowserWindow.getFocusedWindow() || [...windowMap.values()][0]
@@ -1385,14 +1437,15 @@ A terminal aggregator with multi-workspace support and Claude Agent integration.
     }
   ]
 
-  // Add Update menu item if update is available
+  // Add Update menu item if update is available (T0863: opens that release's page, not /releases)
   if (updateCheckResult?.hasUpdate && updateCheckResult.latestRelease) {
+    const release = updateCheckResult.latestRelease
     template.push({
       label: '🎉 Update Available!',
       submenu: [
         {
-          label: `View ${updateCheckResult.latestRelease.tagName} on GitHub`,
-          click: () => shell.openExternal(`${GITHUB_REPO_URL}/releases`)
+          label: `View ${release.tagName} on GitHub`,
+          click: () => shell.openExternal(release.htmlUrl)
         }
       ]
     })
@@ -2269,28 +2322,21 @@ app.whenReady().then(async () => {
     }
   })
 
-  // Check for updates after startup (if enabled in settings)
-  setTimeout(async () => {
-    try {
-      // Read settings to check if update checking is enabled (default: true)
-      let updateEnabled = true
-      try {
-        const configPath = path.join(app.getPath('userData'), 'settings.json')
-        const data = fsSync.readFileSync(configPath, 'utf-8')
-        const parsed = JSON.parse(data)
-        if (parsed.checkForUpdates === false) updateEnabled = false
-      } catch { /* settings file doesn't exist or is invalid */ }
-
-      if (!updateEnabled) return
-
-      updateCheckResult = await checkForUpdates()
-      if (updateCheckResult.hasUpdate) {
-        // Rebuild menu to show update option
-        buildMenu()
-      }
-    } catch (error) {
-      logger.error('Failed to check for updates:', error)
+  // T0863 / BUG-212 (D287): check for updates once, 2 s after startup (if enabled in settings); no
+  // periodic check, nothing downloaded or installed. Windows claim the result (update:claim-startup-result).
+  setTimeout(() => {
+    const { checkForUpdates: enabled, includePrereleaseUpdates } = readUpdateSettings()
+    if (!enabled) {
+      logger.log('[update-check] startup: off (checkForUpdates: false)')
+      startupUpdateCheck.skip()
+      return
     }
+    void startupUpdateCheck.run(() => checkForUpdates({ currentVersion: app.getVersion(), includePrerelease: includePrereleaseUpdates }))
+      .then(outcome => {
+        if (!outcome) return
+        logUpdateOutcome('startup', outcome, includePrereleaseUpdates)
+        noteUpdateOutcome(outcome)
+      })
   }, 2000)
 })
 
@@ -3337,10 +3383,9 @@ function registerLocalHandlers() {
     })
   })
 
-  ipcMain.handle('update:check', async () => {
-    try { return await checkForUpdates() }
-    catch (error) { logger.error('Failed to check for updates:', error); return { hasUpdate: false, currentVersion: app.getVersion(), latestRelease: null } }
-  })
+  // T0863: the startup check's result — the first window to ask gets a newer version, the others null
+  // (one dialog per BAT start); null when checkForUpdates is off now. Windows never call GitHub themselves.
+  ipcMain.handle('update:claim-startup-result', () => startupUpdateCheck.claim(() => readUpdateSettings().checkForUpdates))
   ipcMain.handle('update:get-version', () => app.getVersion())
 
   // T0784 (Electron 44+): main's clipboard is W3C-style (`read()` / `write()` + ClipboardItem,

@@ -718,6 +718,18 @@ export function SettingsPanel({ onClose, targetOS }: SettingsPanelProps) {
               </label>
               <p className="settings-hint">{t('settings.checkForUpdatesHint')}</p>
             </div>
+            {/* T0863 (D287): startup check and Help › Check for Updates… both follow it */}
+            <div className="settings-group checkbox-group">
+              <label>
+                <input
+                  type="checkbox"
+                  checked={settings.includePrereleaseUpdates !== false}
+                  onChange={e => settingsStore.setIncludePrereleaseUpdates(e.target.checked)}
+                />
+                {t('settings.includePrereleaseUpdates')}
+              </label>
+              <p className="settings-hint">{t('settings.includePrereleaseUpdatesHint')}</p>
+            </div>
             <div className="settings-group checkbox-group">
               <label>
                 <input

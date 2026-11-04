@@ -112,7 +112,9 @@
     "defaultEffort": "Default Effort Level",
     "defaultEffortHint": "Effort level used for new Agent sessions. Higher effort = more thorough but slower.",
     "checkForUpdates": "Check for updates automatically",
-    "checkForUpdatesHint": "Periodically check GitHub for new releases and show a notification when an update is available.",
+    "checkForUpdatesHint": "Check GitHub once when BAT starts and show a notification when a newer version is available. Nothing is downloaded or installed. Help › Check for Updates… checks at any time.",
+    "includePrereleaseUpdates": "Include pre-releases (pre / beta / rc)",
+    "includePrereleaseUpdatesHint": "Also tell me about pre-release versions. Turn off to hear only about normal releases. Applies to the startup check and Help › Check for Updates….",
     "notifications": "Notifications",
     "windowBehavior": "Window Behavior",
     "minimizeToTray": "Minimize to system tray on close",
@@ -552,7 +554,11 @@
     "newVersion": "New: {{version}}",
     "whatsNew": "What's New:",
     "viewOnGithub": "View on GitHub",
-    "windowsInstallEndsTerminals": "Installing the new version ends every terminal tab, including running commands and agents (claude, codex). Finish or save your work first."
+    "windowsInstallEndsTerminals": "Installing the new version ends every terminal tab, including running commands and agents (claude, codex). Finish or save your work first.",
+    "upToDateTitle": "No Update Available",
+    "upToDate": "You have the latest version, v{{version}}.",
+    "checkFailedTitle": "Could Not Check for Updates",
+    "checkFailed": "Could not check GitHub for a new version: {{reason}}"
   },
   "envVars": {
     "title": "Environment Variables",

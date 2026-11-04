@@ -79,12 +79,15 @@ describe('UpdateNotification — Windows upgrade warning (子項 1)', () => {
     ;(window as unknown as { electronAPI: unknown }).electronAPI = {
       platform,
       settings: { load: vi.fn().mockResolvedValue(null) },
+      // T0863: the startup result comes from main (claimStartupResult); the dialog opens that release's page
       update: {
-        check: vi.fn().mockResolvedValue({
+        claimStartupResult: vi.fn().mockResolvedValue({
           hasUpdate: true,
           currentVersion: '0.7.4-pre.5',
-          latestRelease: { version: '0.7.4-pre.6', tagName: 'v0.7.4-pre.6', htmlUrl: 'https://example.invalid', downloadUrl: null, body: '- fix\n- feat', publishedAt: '' },
+          includePrerelease: true,
+          latestRelease: { version: '0.7.4-pre.6', tagName: 'v0.7.4-pre.6', htmlUrl: 'https://github.com/gowerlin/better-agent-terminal/releases/tag/v0.7.4-pre.6', body: '- fix\n- feat', publishedAt: '', prerelease: true },
         }),
+        onManualResult: vi.fn().mockReturnValue(() => {}),
       },
       shell: { openExternal },
     }
@@ -100,7 +103,7 @@ describe('UpdateNotification — Windows upgrade warning (子項 1)', () => {
     expect(screen.getByText(i18n.t('update.newVersion', { version: 'v0.7.4-pre.6' }))).toBeInTheDocument()
     expect(screen.getByRole('note')).toHaveTextContent(i18n.t('update.windowsInstallEndsTerminals'))
     fireEvent.click(screen.getByText(i18n.t('update.viewOnGithub')))
-    expect(openExternal).toHaveBeenCalledWith('https://github.com/gowerlin/better-agent-terminal/releases')
+    expect(openExternal).toHaveBeenCalledWith('https://github.com/gowerlin/better-agent-terminal/releases/tag/v0.7.4-pre.6')
   })
 
   it.each(['darwin', 'linux'])('%s: no warning, the notification as before', async (platform) => {

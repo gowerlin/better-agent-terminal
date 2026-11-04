@@ -2,19 +2,38 @@ import { useState, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 import { ModalOverlay } from './common/ModalOverlay'
 
-interface ReleaseInfo {
+/** Mirrors `ReleaseInfo` in electron/update-checker.ts (T0863). */
+export interface ReleaseInfo {
   version: string
   tagName: string
+  /** That release's page (`html_url`), not the `/releases` overview. */
   htmlUrl: string
-  downloadUrl: string | null
   body: string
   publishedAt: string
+  prerelease: boolean
 }
 
-interface UpdateCheckResult {
+/** Mirrors `UpdateCheckResult` in electron/update-checker.ts (T0863). */
+export interface UpdateCheckResult {
   hasUpdate: boolean
   currentVersion: string
   latestRelease: ReleaseInfo | null
+  includePrerelease: boolean
+}
+
+/** Mirrors `UpdateCheckOutcome` in electron/update-checker.ts (T0863). */
+export type UpdateCheckOutcome =
+  | { status: 'update'; result: UpdateCheckResult }
+  | { status: 'latest'; result: UpdateCheckResult }
+  | { status: 'error'; currentVersion: string; reason: string }
+
+/** Only https pages of the fork's releases are opened (main builds them; this is a second check). */
+const RELEASE_PAGE_PREFIX = 'https://github.com/gowerlin/better-agent-terminal/releases/'
+
+export function releasePageToOpen(release: ReleaseInfo): string {
+  return release.htmlUrl.startsWith(RELEASE_PAGE_PREFIX)
+    ? release.htmlUrl
+    : `${RELEASE_PAGE_PREFIX}tag/${encodeURIComponent(release.tagName)}`
 }
 
 /**
@@ -26,48 +45,80 @@ export function showsWindowsUpgradeWarning(platform: string | undefined): boolea
   return platform === 'win32'
 }
 
-export function UpdateNotification() {
+type Notice = { kind: 'latest'; version: string } | { kind: 'error'; reason: string }
+
+/**
+ * T0863 / BUG-212 (D287): main checks GitHub — once at startup, or on Help › Check for Updates… — and
+ * this window only shows results; it never calls GitHub.
+ *
+ * - `claimStartup`: ask main for the startup result; main hands a newer version to one window per start.
+ * - Help results for this window: newer → the update dialog; up to date / failed → a small dialog.
+ * - "View on GitHub" opens that release's page.
+ */
+export function UpdateNotification({ claimStartup = true }: Readonly<{ claimStartup?: boolean }>) {
   const { t } = useTranslation()
   const [updateInfo, setUpdateInfo] = useState<UpdateCheckResult | null>(null)
-  const [dismissed, setDismissed] = useState(false)
-  const [checking, setChecking] = useState(true)
+  const [notice, setNotice] = useState<Notice | null>(null)
 
   useEffect(() => {
-    const checkUpdate = async () => {
-      try {
-        // Respect user setting to disable update checks (settings.load returns serialized JSON)
-        const raw = await window.electronAPI.settings.load()
-        if (raw) {
-          try {
-            const parsed = JSON.parse(raw) as { checkForUpdates?: boolean }
-            if (parsed.checkForUpdates === false) {
-              setChecking(false)
-              return
-            }
-          } catch { /* ignore malformed settings */ }
-        }
-        const result = await window.electronAPI.update.check()
-        setUpdateInfo(result as UpdateCheckResult | null)
-      } catch (error) {
-        console.error('Failed to check for updates:', error)
-      } finally {
-        setChecking(false)
-      }
-    }
+    const api = window.electronAPI?.update
+    if (!claimStartup || !api?.claimStartupResult) return
+    let alive = true
+    api.claimStartupResult()
+      .then(result => { if (alive && result?.hasUpdate && result.latestRelease) setUpdateInfo(result) })
+      .catch(() => { /* older main */ })
+    return () => { alive = false }
+  }, [claimStartup])
 
-    // Check for updates after a short delay to not block startup
-    const timer = setTimeout(checkUpdate, 2000)
-    return () => clearTimeout(timer)
+  useEffect(() => {
+    const api = window.electronAPI?.update
+    if (!api?.onManualResult) return
+    return api.onManualResult(outcome => {
+      if (outcome.status === 'update' && outcome.result.latestRelease) {
+        setNotice(null)
+        setUpdateInfo(outcome.result)
+      } else if (outcome.status === 'latest') {
+        setUpdateInfo(null)
+        setNotice({ kind: 'latest', version: outcome.result.currentVersion })
+      } else if (outcome.status === 'error') {
+        setUpdateInfo(null)
+        setNotice({ kind: 'error', reason: outcome.reason })
+      }
+    })
   }, [])
 
-  if (checking || !updateInfo?.hasUpdate || dismissed || !updateInfo.latestRelease) {
+  if (notice) {
+    const title = notice.kind === 'latest' ? t('update.upToDateTitle') : t('update.checkFailedTitle')
+    const message = notice.kind === 'latest'
+      ? t('update.upToDate', { version: notice.version })
+      : t('update.checkFailed', { reason: notice.reason })
+    return (
+      <ModalOverlay className="update-notification-overlay" onEscape={() => setNotice(null)}>
+        <div className="update-notification update-check-notice" role="dialog" aria-label={title}>
+          <div className="update-header">
+            <h3>{title}</h3>
+            <button className="close-btn" aria-label={t('common.close')} onClick={() => setNotice(null)}>×</button>
+          </div>
+          <div className="update-content">
+            <p style={{ margin: 0, lineHeight: 1.5 }}>{message}</p>
+          </div>
+          <div className="update-actions">
+            <button className="btn-primary" onClick={() => setNotice(null)}>{t('common.ok')}</button>
+          </div>
+        </div>
+      </ModalOverlay>
+    )
+  }
+
+  if (!updateInfo?.hasUpdate || !updateInfo.latestRelease) {
     return null
   }
 
   const { latestRelease, currentVersion } = updateInfo
+  const dismiss = () => setUpdateInfo(null)
 
   const handleViewRelease = () => {
-    window.electronAPI.shell.openExternal('https://github.com/gowerlin/better-agent-terminal/releases')
+    window.electronAPI.shell.openExternal(releasePageToOpen(latestRelease))
   }
 
   // Parse changelog - extract first few lines
@@ -78,11 +129,11 @@ export function UpdateNotification() {
     .join('\n')
 
   return (
-    <ModalOverlay className="update-notification-overlay" onEscape={() => setDismissed(true)}>
+    <ModalOverlay className="update-notification-overlay" onEscape={dismiss}>
       <div className="update-notification">
         <div className="update-header">
           <h3>{t('update.newVersionAvailable')}</h3>
-          <button className="close-btn" onClick={() => setDismissed(true)}>×</button>
+          <button className="close-btn" aria-label={t('common.close')} onClick={dismiss}>×</button>
         </div>
 
         <div className="update-content">

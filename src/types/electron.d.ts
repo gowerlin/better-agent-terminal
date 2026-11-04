@@ -15,6 +15,7 @@ import type { ClientPathPurpose, ResolvedClientPath } from '../lib/client-paths'
 import type { DetachedWaitingReport } from '../lib/terminal-attention'
 import type { InterruptedAgentInfo, InterruptedAgentsEvent, ResumeInterruptedAgentResult, UpgradeInterruptionNotice } from '../stores/interrupted-agents-store'
 import type { RemoteProfileConnectionSnapshot } from '../components/profiles/remote-status'
+import type { UpdateCheckOutcome, UpdateCheckResult } from '../components/UpdateNotification'
 
 // Shared profile record shape (mirrors preload.ts + profile-manager.ts surface).
 // PLAN-007 T0268: targetOS schema (kept in sync with electron/profile-manager.ts)
@@ -284,7 +285,10 @@ interface ElectronAPI {
     setDockBadge: (count: number) => Promise<void>
   }
   update: {
-    check: () => Promise<unknown>
+    /** T0863: the startup check's newer version, for the first window that asks; otherwise null. */
+    claimStartupResult: () => Promise<UpdateCheckResult | null>
+    /** T0863: Help › Check for Updates… results for this window. */
+    onManualResult: (callback: (outcome: UpdateCheckOutcome) => void) => () => void
     getVersion: () => Promise<string>
   }
   /** PLAN-037 T0411 — remote AI toolchain detection (RemoteToolsReport schema v1). */
