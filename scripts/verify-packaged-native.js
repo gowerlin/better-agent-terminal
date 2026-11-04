@@ -28,6 +28,10 @@
  *
  * win (T0546): the embedded claude `claude-code/bin/claude.exe` in `<out>/win-unpacked` (x64)
  * must exist and be a PE image for the requested arch.
+ * T0858 / PLAN-065 W2 `pty-holder`: `resources/pty-holder/` holds exactly the files its `holder-manifest.json`
+ * lists, each with the listed size and SHA-256; the key matches the files; `bat-pty-holder.exe` is the pinned Node
+ * `node.exe` (PE of the requested arch), never `BetterAgentTerminal.exe` (scripts/pty-holder.cjs ptyHolderProblems).
+ * mac / linux: `resources/pty-holder` must not exist (the holder is Windows only).
  *
  * Every platform, the installer slimming of T0546 (verifyPackagedLayout):
  *   - C1  Windows: no second claude (`claude-code-win32-<arch>/claude.exe`); the router only
@@ -67,6 +71,7 @@ const path = require('path');
 const { VERSION_MANIFEST_FILE, versionManifestProblems } = require('./version-manifest.cjs');
 const { REAL_BINARY_SUFFIX, isLauncherFile } = require('./appimage-sandbox-launcher.cjs');
 const { whisperDistDir, whisperRunpathProblems } = require('./linux-whisper-runpath.cjs');
+const { PTY_HOLDER_RESOURCES_DIR, ptyHolderProblems } = require('./pty-holder.cjs');
 
 const WHISPER_ADDON_PACKAGE = '@kutalia/whisper-node-addon';
 const WHISPER_ADDON_BINARY = 'whisper.node';
@@ -596,6 +601,11 @@ function verifyPackagedLayout(resourcesPath, platform, arch, { helperScripts, ex
   const helperVersion = verifyHelperVersion(resourcesPath, expectedVersion ?? asarAppVersion(asar));
   problems.push(...helperVersion.problems);
 
+  // T0858: the PTY holder is Windows only (verifyPtyHolder checks it there)
+  if (platform !== 'win32' && fs.existsSync(path.join(resourcesPath, PTY_HOLDER_RESOURCES_DIR))) {
+    problems.push({ id: 'pty-holder', message: `resources/${PTY_HOLDER_RESOURCES_DIR} packaged for ${platform} (T0858: Windows only)`, details: [path.join(resourcesPath, PTY_HOLDER_RESOURCES_DIR)] });
+  }
+
   return { problems, runtime, baselines: baselines ?? [], helperScripts: helpers.present, helperVersion };
 }
 
@@ -826,7 +836,17 @@ function verifyPackagedLinux(outDir, archs = DEFAULT_LINUX_ARCHS) {
   return { ok: results.every((r) => r.ok), archs: results };
 }
 
-/** Windows (T0546): the embedded claude (PE of the requested arch), plus the T0546 layout. */
+/**
+ * T0858 / PLAN-065 W2: `<resources>/pty-holder/` matches its manifest and pins (scripts/pty-holder.cjs).
+ * Returns the problems (empty = ok).
+ */
+function verifyPtyHolder(resourcesPath, arch) {
+  const dir = path.join(resourcesPath, PTY_HOLDER_RESOURCES_DIR);
+  const details = fs.existsSync(dir) ? ptyHolderProblems(dir, arch) : [`missing: ${dir} (the afterPack hook did not assemble it)`];
+  return details.length ? [{ id: 'pty-holder', message: 'Windows PTY holder is missing or does not match its manifest (T0858 / PLAN-065 W2)', details }] : [];
+}
+
+/** Windows (T0546): the embedded claude (PE of the requested arch), plus the T0546 layout and the T0858 PTY holder. */
 function verifyPackagedWin(outDir, archs = DEFAULT_WIN_ARCHS) {
   const results = archs.map((arch) => {
     const appOutDir = path.join(outDir, winAppOutDirName(arch));
@@ -857,6 +877,7 @@ function verifyPackagedWin(outDir, archs = DEFAULT_WIN_ARCHS) {
       }
       layout = verifyPackagedLayout(resourcesPath, 'win32', arch);
       problems.push(...layout.problems);
+      problems.push(...verifyPtyHolder(resourcesPath, arch));
     }
     return { arch, appOutDir, embeddedClaude: claude, peMachine: machine, layout, problems, ok: problems.length === 0 };
   });
@@ -965,7 +986,7 @@ function reportLinux(result, opts) {
 
 function reportWin(result, opts) {
   for (const r of result.archs) {
-    if (r.ok) console.log(`[verify-packaged-native] ✅ win ${r.arch}: embedded claude ${r.embeddedClaude.found} (PE machine 0x${r.peMachine.toString(16)})${describeLayout(r.layout)}`);
+    if (r.ok) console.log(`[verify-packaged-native] ✅ win ${r.arch}: embedded claude ${r.embeddedClaude.found} (PE machine 0x${r.peMachine.toString(16)})${describeLayout(r.layout)}, PTY holder matches its manifest`);
   }
   if (result.ok) {
     console.log(`[verify-packaged-native] ✅ every windows package passed (${opts.archs.join(', ')})`);
@@ -978,6 +999,7 @@ function reportWin(result, opts) {
   console.error('');
   console.error('[verify-packaged-native] The Windows installer for these archs would ship without a working embedded claude (BUG-052) or unslimmed (T0546).');
   console.error('[verify-packaged-native] Check that `electron-builder --win` ran and @anthropic-ai/claude-code/bin/claude.exe is the native binary, not the npm stub (T0472).');
+  console.error('[verify-packaged-native] T0858 pty-holder: package.json build.afterPack must stay ./scripts/version-manifest.cjs (it assembles resources/pty-holder with scripts/pty-holder.cjs); a node.exe hash mismatch means PTY_HOLDER_NODE was changed without its pins.');
   printLayoutHints();
   return false;
 }
@@ -1031,6 +1053,7 @@ module.exports = {
   verifyPackagedLinux,
   verifyAppImageLauncher,
   verifyWhisperRunpath,
+  verifyPtyHolder,
   verifyPackagedWin,
   parseArgs,
 };

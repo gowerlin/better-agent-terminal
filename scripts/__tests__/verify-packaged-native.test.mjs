@@ -6,6 +6,8 @@
 // T0547 (D146) — no resources/bat-server-baseline at all on any platform.
 // T0689 — resources/scripts holds exactly the runtime helpers (serverBundleHelperScripts) on every platform.
 // T0691 / BUG-169 — resources/package.json = { name, version } of the packaged app (the helpers' version) on every platform.
+// T0858 / PLAN-065 W2 — Windows `resources/pty-holder` matches its manifest and the pinned node.exe (a fake PE swapped in
+// by scripts/__tests__/_pty-holder-fixture.cjs, also preloaded into the CLI runs); mac / linux ship none.
 //
 // Fake electron-builder output trees (release/mac-arm64/*.app, release/linux-unpacked,
 // release/win-unpacked) are built in a temp dir with hand-written Mach-O / ELF / PE headers
@@ -18,7 +20,7 @@ import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest'
 
 import { whisperAddonDirCandidates } from '../../electron/whisper-addon-loader'
 import { whisperLinuxFiles } from './_elf-fixture.mjs'
@@ -56,6 +58,13 @@ const {
 const nativeModules = require('../verify-native-modules.js')
 const { afterPack, versionManifestContent, versionManifestProblems } = require('../version-manifest.cjs')
 const { installAppImageLauncher } = require('../appimage-sandbox-launcher.cjs')
+const PTY_HOLDER_FIXTURE = path.join(path.dirname(fileURLToPath(import.meta.url)), '_pty-holder-fixture.cjs')
+const { useFakeHolderNode, writeFakeHolder } = require(PTY_HOLDER_FIXTURE)
+
+// T0858: every fake Windows package carries a holder built around a fake node.exe whose pin is swapped in here
+let restoreHolderNode = () => {}
+beforeAll(() => { restoreHolderNode = useFakeHolderNode('x64') })
+afterAll(() => restoreHolderNode())
 
 const APP = 'BetterAgentTerminal.app'
 const dirs = []
@@ -237,10 +246,11 @@ function makeLinux(outDir, arch, claude, { packed = HEALTHY_PACKED, launcher = t
   return resources
 }
 
-function makeWin(outDir, { claude = pe(PE_MACHINES.x64), packed = HEALTHY_PACKED, extra = () => {} } = {}) {
+function makeWin(outDir, { claude = pe(PE_MACHINES.x64), packed = HEALTHY_PACKED, extra = () => {}, holder = true } = {}) {
   const resources = path.join(outDir, winAppOutDirName('x64'), 'resources')
   const anthropic = path.join(resources, 'app.asar.unpacked', 'node_modules', '@anthropic-ai')
   writeRuntimePackages(resources, 'win32', 'x64')
+  if (holder) writeFakeHolder(resources, 'x64')
   writeHelperScripts(resources)
   writeHelperVersion(resources)
   if (claude) writeFile(path.join(anthropic, 'claude-code', 'bin', 'claude.exe'), claude)
@@ -253,7 +263,9 @@ function makeWin(outDir, { claude = pe(PE_MACHINES.x64), packed = HEALTHY_PACKED
 
 function runCli(args) {
   try {
-    const stdout = execFileSync(process.execPath, [SCRIPT, ...args], { encoding: 'utf8', stdio: 'pipe', timeout: 30000 })
+    // T0858: the CLI sees the same fake node.exe pin as the in-process checks (fixture preload, tests only)
+    const env = { ...process.env, BAT_TEST_FAKE_PTY_HOLDER_NODE: '1' }
+    const stdout = execFileSync(process.execPath, ['--require', PTY_HOLDER_FIXTURE, SCRIPT, ...args], { encoding: 'utf8', stdio: 'pipe', timeout: 30000, env })
     return { code: 0, stdout, stderr: '' }
   } catch (err) {
     return { code: err.status, stdout: String(err.stdout), stderr: String(err.stderr) }
@@ -716,6 +728,58 @@ describe('verifyPackagedWin (T0546)', () => {
 
   it('no win-unpacked directory → fail', () => {
     expect(ids(makeOutDir())).toEqual(['app-out-dir'])
+  })
+
+  // T0858 / PLAN-065 W2
+  it('pty-holder: missing → fail (exit 1)', () => {
+    const out = makeOutDir()
+    makeWin(out, { holder: false })
+    expect(ids(out)).toEqual(['pty-holder'])
+    const cli = runCli(['--platform', 'win', '--out', out])
+    expect(cli.code).toBe(1)
+    expect(cli.stderr).toContain('T0858 pty-holder')
+  })
+
+  it('pty-holder: a changed file, an unlisted file, a renamed exe → fail', () => {
+    const holderDir = (out) => path.join(out, winAppOutDirName('x64'), 'resources', 'pty-holder')
+    const detail = (out) => verifyPackagedWin(out).archs[0].problems.flatMap((p) => (p.id === 'pty-holder' ? p.details : []))
+
+    const changed = makeOutDir()
+    makeWin(changed, { extra: (r) => writeFileSync(path.join(r, 'pty-holder', 'terminal-server.js'), '// tampered\n') })
+    expect(ids(changed)).toEqual(['pty-holder'])
+    expect(detail(changed).some((d) => d.startsWith('terminal-server.js: size') || d.startsWith('terminal-server.js: SHA-256'))).toBe(true)
+
+    const extraFile = makeOutDir()
+    makeWin(extraFile, { extra: (r) => writeFile(path.join(r, 'pty-holder', 'node_modules', 'x', 'y.js'), '') })
+    expect(detail(extraFile)).toEqual(['not in the manifest: node_modules/x/y.js'])
+
+    const renamed = makeOutDir()
+    makeWin(renamed)
+    const dir = holderDir(renamed)
+    const manifest = JSON.parse(readFileSync(path.join(dir, 'holder-manifest.json'), 'utf8'))
+    manifest.exe = 'BetterAgentTerminal.exe'
+    writeFileSync(path.join(dir, 'holder-manifest.json'), JSON.stringify(manifest, null, 2) + '\n')
+    expect(detail(renamed)).toContain('manifest exe BetterAgentTerminal.exe, expected bat-pty-holder.exe')
+  })
+
+  it('pty-holder: the real pin (no fake) rejects the fake node.exe', () => {
+    const out = makeOutDir()
+    makeWin(out)
+    restoreHolderNode()
+    try {
+      const details = verifyPackagedWin(out).archs[0].problems.flatMap((p) => p.details)
+      expect(details.some((d) => d.includes('is not the pinned node.exe v24.'))).toBe(true)
+    } finally {
+      restoreHolderNode = useFakeHolderNode('x64')
+    }
+  })
+
+  it('pty-holder: mac / linux packages must not carry one', () => {
+    const out = makeOutDir()
+    const resources = makeLinux(out, 'x64', elf(ELF_MACHINES.x64))
+    expect(verifyPackagedLinux(out).ok).toBe(true)
+    writeFile(path.join(resources, 'pty-holder', 'holder-manifest.json'), '{}')
+    expect(verifyPackagedLinux(out).archs[0].problems.map((p) => p.id)).toEqual(['pty-holder'])
   })
 
   it('reads PE headers', () => {

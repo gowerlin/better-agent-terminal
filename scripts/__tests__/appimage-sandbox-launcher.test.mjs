@@ -115,7 +115,11 @@ describe('isLinuxAppImageBuild / installAppImageLauncher / afterPack', () => {
         writeFileSync(args[2], makeElfSharedObject({ needed: dyn.needed, soname: dyn.soname, runpath: args[1] }))
         return ''
       }
-      await afterPack({ appOutDir: d, packager, electronPlatformName: platform, targets }, { execFileSync })
+      // T0858: the Windows PTY holder step (scripts/pty-holder.cjs) is stubbed here; pty-holder.test.mjs covers it
+      const holderCalls = []
+      const afterPackPtyHolder = async (context) => { holderCalls.push(context.electronPlatformName) }
+      await afterPack({ appOutDir: d, packager, electronPlatformName: platform, targets }, { execFileSync, afterPackPtyHolder })
+      expect(holderCalls).toEqual([platform])
       expect(patchelfCalls.length > 0).toBe(platform === 'linux')
       expect(existsSync(path.join(d, EXE + REAL_BINARY_SUFFIX))).toBe(installed)
       expect(isLauncherFile(path.join(d, EXE))).toBe(installed)

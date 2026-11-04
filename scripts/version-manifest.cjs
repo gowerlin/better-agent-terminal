@@ -21,6 +21,7 @@ const fs = require('fs');
 const path = require('path');
 const { afterPackAppImageLauncher } = require('./appimage-sandbox-launcher.cjs');
 const { afterPackWhisperRunpath } = require('./linux-whisper-runpath.cjs');
+const { afterPackPtyHolder } = require('./pty-holder.cjs');
 
 const VERSION_MANIFEST_FILE = 'package.json';
 const VERSION_MANIFEST_KEYS = ['name', 'version'];
@@ -66,6 +67,9 @@ function writeVersionManifest(resourcesDir, name, version) {
  * that step is a no-op unless the build is Linux with an AppImage target.
  * Linux builds (any target) also set RUNPATH $ORIGIN on the packaged whisper addon's libraries with patchelf
  * (BUG-204 / T0800, scripts/linux-whisper-runpath.cjs); a Linux build host without patchelf fails here.
+ * Windows builds assemble `resources/pty-holder/` (PLAN-065 W2 / T0858, scripts/pty-holder.cjs): the pinned Node
+ * `node.exe` is downloaded from nodejs.org (or taken from the verified cache) — a hash mismatch fails the build.
+ * macOS / Linux builds skip that step entirely.
  * `deps` is for tests only (electron-builder passes just the context).
  */
 async function afterPack(context, deps = {}) {
@@ -76,6 +80,7 @@ async function afterPack(context, deps = {}) {
   console.log(`  • afterPack (T0691): wrote ${target} (${name} ${version})`);
   afterPackWhisperRunpath(context, deps);
   afterPackAppImageLauncher(context);
+  await (deps.afterPackPtyHolder || afterPackPtyHolder)(context, deps);
 }
 
 module.exports = {
