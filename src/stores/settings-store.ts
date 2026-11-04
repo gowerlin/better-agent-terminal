@@ -3,6 +3,7 @@ import type { AgentPresetId } from '../types/agent-presets'
 import { FONT_OPTIONS, COLOR_PRESETS, AGENT_COMMAND_OPTIONS, STATUSLINE_ITEMS, DEFAULT_CLAUDE_RUNTIME_SETTINGS } from '../types'
 import { clampUsageLimitDelayMinutes } from '../lib/usage-limit'
 import { migrateSettingsAgentFields } from '../lib/retired-agent-presets'
+import { resolveCheckForUpdates } from '../lib/check-for-updates-migration'
 
 type Listener = () => void
 
@@ -35,7 +36,10 @@ const defaultSettings: AppSettings = {
   allowBypassPermissions: true,
   defaultModel: 'claude-opus-4-6',
   minimizeToTray: true,
-  checkForUpdates: false,
+  // T0864 (D288): on by default; the marker means "already migrated", so the first save of a new
+  // install keeps a later user-chosen false (`resolveCheckForUpdates`).
+  checkForUpdates: true,
+  checkForUpdatesMigrated: true,
   includePrereleaseUpdates: true, // T0863 (D287): the fork only publishes pre-releases
   loggingEnabled: true,
   logLevel: 'debug',
@@ -507,11 +511,48 @@ class SettingsStore {
         // T0718 / D123: a retired preset in `defaultAgent` / `agentCustomArgs` → its replacement.
         // In memory only (written on the next Settings save); main / headless readers apply the
         // same migration at lookup time (`agent-launch-settings`).
-        this.settings = migrateSettingsAgentFields({ ...defaultSettings, ...parsed })
+        // T0864 (D288): `checkForUpdates` through the rule main uses too (`resolveCheckForUpdates`):
+        // without the marker it is on and settings.json is written back once (below).
+        const updates = resolveCheckForUpdates(parsed)
+        this.settings = migrateSettingsAgentFields({
+          ...defaultSettings,
+          ...parsed,
+          checkForUpdates: updates.checkForUpdates,
+          checkForUpdatesMigrated: true,
+        })
         this.notify()
+        if (updates.needsWrite) await this.writeCheckForUpdatesMigration()
       } catch (e) {
         console.error('Failed to parse settings:', e)
       }
+    }
+  }
+
+  /**
+   * T0864 (D288): writes the migrated `checkForUpdates: true` + marker once, through the normal `save()`,
+   * right after this window loaded settings.json without the marker. Only a local, non-detached window
+   * writes: a detached workspace window never starts a settings write (CLAUDE.md "Detached workspace
+   * 視窗的持久化"), and a window connected to a remote profile loaded the remote host's settings, not
+   * this machine's. Those keep the migrated value in memory only. Once the marker is in the file no
+   * window writes again. Logs the result only, never the file.
+   */
+  private async writeCheckForUpdatesMigration(): Promise<void> {
+    const api = window.electronAPI
+    const log = (message: string) => api.debug?.log(message)
+    try {
+      if (api.workspace?.getDetachedId?.()) {
+        log('[update-check] settings migration: not written (detached window)')
+        return
+      }
+      const status = await api.remote?.clientStatus?.()
+      if (status?.connected) {
+        log('[update-check] settings migration: not written (remote window)')
+        return
+      }
+      await this.save()
+      log('[update-check] settings migrated: checkForUpdates on (written once)')
+    } catch (e) {
+      log(`[update-check] settings migration: write failed: ${e instanceof Error ? e.message : String(e)}`)
     }
   }
 }

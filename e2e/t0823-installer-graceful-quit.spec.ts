@@ -119,7 +119,7 @@ async function seed(inst: IsolatedInstance, folder: string): Promise<void> {
   await expect.poll(async () => (await win.evaluate(async () => (window as AnyApi).electronAPI.workspace.load())) !== null, { timeout: 30_000 }).toBe(true)
   const loaded = await win.evaluate(async () => (window as AnyApi).electronAPI.settings.load())
   const settings = typeof loaded === 'string' && loaded ? JSON.parse(loaded) : (loaded ?? {})
-  await win.evaluate(async (data) => (window as AnyApi).electronAPI.settings.save(data), JSON.stringify({ ...settings, checkForUpdates: false }))
+  await win.evaluate(async (data) => (window as AnyApi).electronAPI.settings.save(data), JSON.stringify({ ...settings, checkForUpdates: false, checkForUpdatesMigrated: true }))
   const data = {
     workspaces: [{ id: WS, name: 'T0823', folderPath: folder, createdAt: Date.now() }],
     activeWorkspaceId: WS,

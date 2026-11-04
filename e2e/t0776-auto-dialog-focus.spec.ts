@@ -150,7 +150,9 @@ test('a dialog that opens by itself takes the focus: the first Esc closes it, th
     await win.evaluate(async (data) => (window as AnyApi).electronAPI.settings.save(data), JSON.stringify({
       ...settings,
       claudeRuntime: { mode: 'system', customPath: stubExe, fallbackToEmbedded: false },
+      // T0864: with the migration marker, or the next load turns checkForUpdates back on
       checkForUpdates: false,
+      checkForUpdatesMigrated: true,
     }))
     const seed = {
       workspaces: [{ id: WS, name: 'T0776', folderPath: folder, createdAt: Date.now() }],

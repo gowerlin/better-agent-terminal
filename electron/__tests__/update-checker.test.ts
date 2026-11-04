@@ -192,10 +192,23 @@ describe('parseUpdateSettings', () => {
     }
   })
 
-  it('only an explicit false turns one off', () => {
-    expect(parseUpdateSettings('{"checkForUpdates":false}')).toEqual({ checkForUpdates: false, includePrereleaseUpdates: true })
+  it('only an explicit false turns one off (checkForUpdates: with the T0864 marker)', () => {
+    expect(parseUpdateSettings('{"checkForUpdates":false,"checkForUpdatesMigrated":true}')).toEqual({ checkForUpdates: false, includePrereleaseUpdates: true })
     expect(parseUpdateSettings('{"includePrereleaseUpdates":false}')).toEqual({ checkForUpdates: true, includePrereleaseUpdates: false })
     expect(parseUpdateSettings('{"checkForUpdates":"no","includePrereleaseUpdates":0}')).toEqual({ checkForUpdates: true, includePrereleaseUpdates: true })
+  })
+
+  it('T0864 (D288): a false without the marker is on (first start after the upgrade checks); main only reads', () => {
+    expect(parseUpdateSettings('{"checkForUpdates":false}')).toEqual({ checkForUpdates: true, includePrereleaseUpdates: true })
+    expect(parseUpdateSettings('{"checkForUpdates":false,"checkForUpdatesMigrated":false}')).toEqual({ checkForUpdates: true, includePrereleaseUpdates: true })
+    expect(parseUpdateSettings('{"checkForUpdates":true}')).toEqual({ checkForUpdates: true, includePrereleaseUpdates: true })
+    expect(parseUpdateSettings('{"checkForUpdates":true,"checkForUpdatesMigrated":true}')).toEqual({ checkForUpdates: true, includePrereleaseUpdates: true })
+    expect(parseUpdateSettings('{"checkForUpdatesMigrated":true}')).toEqual({ checkForUpdates: true, includePrereleaseUpdates: true })
+    // includePrereleaseUpdates is not part of the migration
+    expect(parseUpdateSettings('{"checkForUpdates":false,"includePrereleaseUpdates":false}')).toEqual({ checkForUpdates: true, includePrereleaseUpdates: false })
+    const checker = readFileSync(join(__dirname, '..', 'update-checker.ts'), 'utf8')
+    expect(checker).toContain("import { resolveCheckForUpdates } from '../src/lib/check-for-updates-migration'")
+    expect(checker).not.toMatch(/writeFile|fs\./)
   })
 })
 

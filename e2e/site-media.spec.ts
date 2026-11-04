@@ -358,7 +358,7 @@ async function seed(win: Page): Promise<void> {
     const api = (window as AnyApi).electronAPI
     const raw = await api.settings.load()
     const s = raw ? JSON.parse(raw) : {}
-    Object.assign(s, { language: 'zh-TW', shell: 'cmd', createDefaultAgentTerminal: false, checkForUpdates: false, defaultAgent: 'demo-agent' })
+    Object.assign(s, { language: 'zh-TW', shell: 'cmd', createDefaultAgentTerminal: false, checkForUpdates: false, checkForUpdatesMigrated: true, defaultAgent: 'demo-agent' })
     await api.settings.save(JSON.stringify(s))
   })
   expect(await win.evaluate((def) => (window as AnyApi).electronAPI.agent.registerCustomCli(def), AGENT)).toBeTruthy()

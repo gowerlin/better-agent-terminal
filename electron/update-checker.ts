@@ -1,4 +1,5 @@
 import https from 'https'
+import { resolveCheckForUpdates } from '../src/lib/check-for-updates-migration'
 
 /**
  * T0863 / BUG-212 (D287): checking GitHub for a newer BAT. Only checks: nothing is downloaded or installed.
@@ -234,7 +235,11 @@ export async function checkForUpdates(options: CheckForUpdatesOptions): Promise<
 // settings
 
 export interface UpdateSettings {
-  /** Startup check only; Help › Check for Updates… ignores it. Missing → true. */
+  /**
+   * Startup check only; Help › Check for Updates… ignores it. T0864 (D288): `resolveCheckForUpdates` —
+   * without the `checkForUpdatesMigrated` marker it is on whatever the file says (the renderer writes the
+   * migration back; main never writes settings.json); with the marker only an explicit false is off.
+   */
   checkForUpdates: boolean
   /** Missing → true (the fork only publishes pre-releases, D287). */
   includePrereleaseUpdates: boolean
@@ -247,7 +252,7 @@ export function parseUpdateSettings(raw: string | null | undefined): UpdateSetti
   try {
     const parsed = JSON.parse(raw) as Record<string, unknown> | null
     if (parsed && typeof parsed === 'object') {
-      if (parsed.checkForUpdates === false) settings.checkForUpdates = false
+      settings.checkForUpdates = resolveCheckForUpdates(parsed).checkForUpdates
       if (parsed.includePrereleaseUpdates === false) settings.includePrereleaseUpdates = false
     }
   } catch { /* malformed settings: defaults */ }
