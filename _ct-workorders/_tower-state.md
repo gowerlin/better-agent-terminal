@@ -1,7 +1,7 @@
 ---
 schema_kind: tower-state
 summary_version: 1
-updated_at: "2026-11-04T11:58:55+08:00"
+updated_at: "2026-11-04T12:15:00+08:00"
 session: "2026-11-04 08:36 第一百一十六 session（CT v6.0.0-beta.11）"
 next_ids:
   workorder: "T0843"
@@ -9,9 +9,9 @@ next_ids:
   bug: "BUG-212"
   plan: "PLAN-065"
 todo:
-  - "▶ 自動派單已恢復（11:14，D273）：T0835 執行中（11:58 派）；之後 T0836（e2e，需 T0834 / T0835）與 T0840（需 T0835）→ T0841"
+  - "▶ 自動派單已恢復（11:14，D273）：T0836（e2e）與 T0840（WSL W3）並行中（12:15 派）；T0841 在 T0840 後；全部完成後準備發 `0.7.4-pre.7`（發版前再確認）"
   - "BUG-211 FIXED（T0842 `bb8cbe1a`）：待發版與遠端實機驗證（遠端視窗附 3 張 > 8 MiB 圖 → 提示、不送出、連線不斷；2 張照常）；後續候選：CLAUDE.md / multi-remote-profiles docs 補 `ws-limits.ts` / `FRAME_TOO_LARGE` 一行；fork 後自動送出 pending 圖片的路徑沒有面板檢查（只靠 client 守門）"
-  - "本批（D271 / D272，做完一起發 `0.7.4-pre.7`＋PLAN-063 真實升級驗收）：DONE T0826 `83f1d5bf`、T0827 `93c6507a`、T0828（研究）、T0829 `841f5e6a`、T0830 `add1b932`、T0831（研究）、T0837（BUG-211 重現 `319c3646`）、T0838 `919a006e`、T0842 `bb8cbe1a`、T0832 `0382882b`（契約 C-1–C-10）、T0833 `8f8c4579`、T0839 `aaf5201b`、T0834 `61cd028c`；待做 T0835、T0840 → T0841、T0836（e2e）；PLAN-043 Phase 3（W5–W8）等驗收 VM 再開單"
+  - "本批（D271 / D272，做完一起發 `0.7.4-pre.7`＋PLAN-063 真實升級驗收）：DONE T0826 `83f1d5bf`、T0827 `93c6507a`、T0828（研究）、T0829 `841f5e6a`、T0830 `add1b932`、T0831（研究）、T0837（BUG-211 重現 `319c3646`）、T0838 `919a006e`、T0842 `bb8cbe1a`、T0832 `0382882b`（契約 C-1–C-10）、T0833 `8f8c4579`、T0839 `aaf5201b`、T0834 `61cd028c`、T0835 `64dbb3f4`；待做 T0840 → T0841、T0836（e2e）；PLAN-043 Phase 3（W5–W8）等驗收 VM 再開單"
   - "待實機驗收：T0827 Linux AppImage 缺字型提示（回報區〈待實機驗收〉4 項）；T0830 真 WSL 的 install-bundle 中止（`pkill tar`）與 keep-alive 關閉後閒置關機（`docs/wsl-deployment.md` Real WSL Pre-Flight Checklist）；T0832 smoke S14 對已部署 server（發版後 `node scripts/smoke-remote-headless.mjs --target wsl:<distro>`）"
   - "T0830 後續候選（未開單）：SSH / Docker 精靈主行程長呼叫接 operation id；`src/components/profiles/types.ts` 補 `wslKeepAlive`；CLAUDE.md 是否補 keep-alive 開關 / 精靈中止的必守規則"
   - "MSRC 回報 microsoft/node-pty（使用者自行處理，D255）"
