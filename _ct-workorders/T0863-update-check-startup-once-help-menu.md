@@ -10,7 +10,7 @@ project: maintenance
 priority: P2
 sizing: M
 created_at: "2026-11-04T18:35:08+0800"
-depends_on: [T0857]
+depends_on: [T0857, T0859]
 related:
   - "BUG-212；D287；T0821（更新通知的 Windows 升級提示 `showsWindowsUpgradeWarning`）；T0563 / T0567 / T0776（Dialog 規則）"
 affects_files:
@@ -49,7 +49,7 @@ memory_overrides:
 
 ## 元資料
 - **工單編號**：T0863｜**類型**：implementation｜**狀態**：PENDING｜**建立**：2026-11-04 18:35 (UTC+8)
-- **規模**：M｜**決策**：D287｜**依賴**：T0857（同改 `electron/main.ts`；可與 T0858 並行）
+- **規模**：M｜**決策**：D287｜**依賴**：T0857、T0859（同改 `electron/main.ts`，同一個 checkout 不並行；塔台 18:54 調整）
 
 ## 背景
 使用者要求（D287）：自動檢查新版只在程式開啟時做一次、不做定時檢查、只檢查不自動安裝；Help 功能表加「檢查更新」；有新版時可打開該版本的 GitHub Release 頁；Settings 可選是否包含預覽版（pre / beta / rc）。

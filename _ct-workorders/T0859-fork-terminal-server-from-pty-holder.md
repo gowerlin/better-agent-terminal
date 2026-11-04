@@ -67,7 +67,8 @@ T0858 已 DONE（`aa59902e`）。先讀 T0858 回報區與 `docs/agent-guide/pac
 2. **驗證要重算雜湊**：安裝程式只比對 manifest、不重算檔案雜湊，所以 BAT 決定用 holder 前要以 `ptyHolderProblems` 等效的檢查逐檔驗大小與 SHA-256，並確認 holder 目錄的 key 與安裝目錄內 `resources\pty-holder\holder-manifest.json` 的 key 相同（安裝目錄那份是預期值的來源）。驗證耗時記一行 debug log。
 3. **磁碟（塔台裁決）**：安裝目錄內的 `resources\pty-holder\` **保留**（它是預期 key 與 manifest 的來源，per-user 模式下 holder 目錄是使用者可寫的）；docs 寫明約多 90 MiB 的原因。
 4. **Node 授權（塔台裁決）**：holder 目錄要附 Node 的 `LICENSE`。在 `scripts/pty-holder.cjs` 以固定版本 tag 下載 Node repo 的 `LICENSE`（與 `node.exe` 同一個版本 tag），SHA-256 與大小固定寫在 repo、不符就建置失敗；列進 manifest；`verify-packaged-native.js` 的 `pty-holder` 檢查要求它存在。
-5. 任務 5 的 `AttachConsole failed` stderr 是既有行為（today 的 runtime 也一樣，T0858 對照），不在本單處理。
+5. **T0857 已 DONE（`db562330`）**：`hello-ok` 的 `runtime: { name: 'electron' | 'node', version }` 與 `holderDir?` 已在型別裡，server 端從 `identity` 帶入即可（任務 3）；fork env 新增 `BAT_TERMINAL_SERVER_BAT_VERSION`（已在 `TERMINAL_SERVER_OWN_ENV_KEYS`），從 holder fork 時同樣要帶；TCP 權杖由 server 自己寫 `<userData>/bat-pty-server.token`，holder 版的 server 要拿得到同一個 userData（`BAT_USER_DATA`）。先讀 T0857 回報區〈實作摘要〉。
+6. 任務 5 的 `AttachConsole failed` stderr 是既有行為（today 的 runtime 也一樣，T0858 對照），不在本單處理。
 
 ### 驗收條件
 - [ ] 上述測試通過；T0704 / T0816 / T0540 相關測試不回歸
