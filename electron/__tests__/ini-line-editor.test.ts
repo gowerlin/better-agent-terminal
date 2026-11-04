@@ -18,10 +18,10 @@ function ok<T extends { ok: boolean }>(result: T): Extract<T, { ok: true }> {
 describe('T0838 ini-line-editor', () => {
   describe('setIniValue() — replace in place', () => {
     it('changes only the value of the target line (LF)', () => {
-      const text = '# my distro\n[boot]\nsystemd=false\ncommand = echo hi\n\n[user]\ndefault=gower\n'
+      const text = '# my distro\n[boot]\nsystemd=false\ncommand = echo hi\n\n[user]\ndefault=tester\n'
       const result = ok(setIniValue(text, 'boot', 'systemd', 'true'))
       expect(result).toMatchObject({ changed: true, action: 'replaced', line: 3, ignoredDuplicateLines: [] })
-      expect(result.text).toBe('# my distro\n[boot]\nsystemd=true\ncommand = echo hi\n\n[user]\ndefault=gower\n')
+      expect(result.text).toBe('# my distro\n[boot]\nsystemd=true\ncommand = echo hi\n\n[user]\ndefault=tester\n')
     })
 
     it('keeps CRLF line endings and a file without a final newline', () => {
@@ -106,18 +106,18 @@ describe('T0838 ini-line-editor', () => {
 
   describe('setIniValue() — adding', () => {
     it('adds a missing key after the last key of the section (before trailing comments / next header)', () => {
-      const text = '[boot]\nsystemd=false\n\n# user settings\n[user]\ndefault=gower\n'
-      const result = ok(setIniValue(text, 'user', 'default', 'gower'))
+      const text = '[boot]\nsystemd=false\n\n# user settings\n[user]\ndefault=tester\n'
+      const result = ok(setIniValue(text, 'user', 'default', 'tester'))
       expect(result.changed).toBe(false)
       const added = ok(setIniValue(text, 'boot', 'command', 'date'))
       expect(added).toMatchObject({ action: 'added-key', line: 3 })
-      expect(added.text).toBe('[boot]\nsystemd=false\ncommand=date\n\n# user settings\n[user]\ndefault=gower\n')
+      expect(added.text).toBe('[boot]\nsystemd=false\ncommand=date\n\n# user settings\n[user]\ndefault=tester\n')
     })
 
     it('adds right after the header when the section has no keys, copying CRLF', () => {
-      const text = '[boot]\r\n# nothing yet\r\n[user]\r\ndefault=gower\r\n'
+      const text = '[boot]\r\n# nothing yet\r\n[user]\r\ndefault=tester\r\n'
       expect(ok(setIniValue(text, 'boot', 'systemd', 'true')).text).toBe(
-        '[boot]\r\nsystemd=true\r\n# nothing yet\r\n[user]\r\ndefault=gower\r\n',
+        '[boot]\r\nsystemd=true\r\n# nothing yet\r\n[user]\r\ndefault=tester\r\n',
       )
     })
 
@@ -182,7 +182,7 @@ describe('T0838 ini-line-editor', () => {
     })
 
     it('rejects a \\ line continuation anywhere (it could swallow the next header)', () => {
-      expect(setIniValue('[boot]\ncommand=echo \\\n[user]\ndefault=root\n', 'user', 'default', 'gower')).toMatchObject({
+      expect(setIniValue('[boot]\ncommand=echo \\\n[user]\ndefault=root\n', 'user', 'default', 'tester')).toMatchObject({
         ok: false,
         reason: 'line-continuation',
         line: 2,

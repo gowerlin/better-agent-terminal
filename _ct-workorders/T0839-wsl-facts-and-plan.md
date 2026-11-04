@@ -136,7 +136,7 @@ memory_overrides:
 | 單元測試 | PASS：新檔 `electron/__tests__/wsl-facts.test.ts`（24 個案例）、`src/components/setup-wizard/__tests__/wsl-env-plan.test.ts`（21 個案例：0 項、P-1 / P-2 / P-3 / P-4 / P-7、原則擋、WSL 未安裝、探測失敗、wsl.conf 解析不了、P-5 / P-6 不出現）；`npm run test:unit` 427 個檔通過 / 3 skipped，7499 個測試通過 / 40 skipped，0 失敗 |
 | 型別 | PASS：`npm run typecheck` = 0、`npm run typecheck:electron` = 0 |
 | build | PASS：`npx vite build` 成功 |
-| 本機唯讀實測 | PASS（2026-11-04 11:54–11:55，`npx tsx` 呼叫 `detectWslFacts()`＋`buildWslEnvPlan`）：`installed=true version=2.7.14.0 build=28000 distros=1 running=0 policy=absent wslconfig=ok selected=v2/ok/uid=1000/pid1=systemd/wslconf=ok/linger=true timedOut=false ms=6938`。發行版 `Ubuntu-24.04`（WSL2，列表當下是 Stopped）、預設使用者 `gower` uid 1000、`/etc/wsl.conf` `[boot] systemd=true` / `[user] default=gower`、linger 已開；`.wslconfig` UTF-8、`networkingMode=mirrored`、沒有 `instanceIdleTimeout`；沒有 WSL 原則鍵。**計畫 = `{"items":[],"notices":[]}`**（環境正常 → 0 項）。只跑了 `wsl --version`、`wsl -l -v`、`reg.exe query`、發行版內的固定探測腳本 |
+| 本機唯讀實測 | PASS（2026-11-04 11:54–11:55，`npx tsx` 呼叫 `detectWslFacts()`＋`buildWslEnvPlan`）：`installed=true version=2.7.14.0 build=28000 distros=1 running=0 policy=absent wslconfig=ok selected=v2/ok/uid=1000/pid1=systemd/wslconf=ok/linger=true timedOut=false ms=6938`。發行版 `Ubuntu-24.04`（WSL2，列表當下是 Stopped）、預設使用者 `<使用者>` uid 1000、`/etc/wsl.conf` `[boot] systemd=true` / `[user] default=<使用者>`、linger 已開；`.wslconfig` UTF-8、`networkingMode=mirrored`、沒有 `instanceIdleTimeout`；沒有 WSL 原則鍵。**計畫 = `{"items":[],"notices":[]}`**（環境正常 → 0 項）。只跑了 `wsl --version`、`wsl -l -v`、`reg.exe query`、發行版內的固定探測腳本 |
 | runtime / 精靈 | 不適用（本單沒有接進精靈，W3 才接） |
 
 ### 互動紀錄

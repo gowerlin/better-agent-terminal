@@ -130,7 +130,7 @@ sudo apt install -y fonts-noto-cjk fonts-noto-color-emoji
 - [x] README 與 site/install 都有原因說明與可直接複製的指令，並寫明「Linux 版只用 Linux 系統字型、不用 Windows 字型」
 - [x] 沒改任何程式碼、設定或字型檔（diff 只有 4 份文件與工單）
 - [x] 網站建置：`npm --prefix site run build`（vitepress 1.6.4）→ `build complete in 2.75s.`；產出的 `install.html` 有 `id="linux-fonts"`，`faq.html` 有 `id="linux-cjk-font"` 與 `href="./install#linux-fonts"`（寫法與該檔既有的 `./contribute` 連結一致）。`site/.vitepress/dist` 被 git 忽略，沒有進 commit。
-- [x] 去識別化：新增內容的 `+` 行掃 `/home/`、`C:\Users`、`Gower` 都沒有符合；新增內容沒有任何範例路徑。
+- [x] 去識別化：新增內容的 `+` 行掃 `/home/`、`C:\Users`、使用者名稱 都沒有符合；新增內容沒有任何範例路徑。
 - [x] commit 只含 `affects_files`（`83f1d5bf` 改 4 個檔，工單另外 commit）
 - 預期產出 5：README「與 BMad Control Tower 協作」章節沒動（README 只有第 211 行開始的一個 hunk，在「快速開始」內）。
 

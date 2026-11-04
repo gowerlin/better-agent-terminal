@@ -97,7 +97,7 @@ memory_overrides:
 
 #### 0. 本機環境（唯讀查詢，2026-11-04 08:57–09:00）
 
-- WSL **2.7.14.0**（T0380 時 2.7.13.0）、核心 6.18.33.2-2；Windows 10.0.28000.3365；唯一發行版 `Ubuntu-24.04`（VERSION 2，Running，預設）；發行版 `/etc/wsl.conf` = `[boot] systemd=true` + `[user] default=gower`；`systemctl is-system-running` = `running`。
+- WSL **2.7.14.0**（T0380 時 2.7.13.0）、核心 6.18.33.2-2；Windows 10.0.28000.3365；唯一發行版 `Ubuntu-24.04`（VERSION 2，Running，預設）；發行版 `/etc/wsl.conf` = `[boot] systemd=true` + `[user] default=<使用者>`；`systemctl is-system-running` = `running`。
 - `VirtualMachinePlatform` / `Microsoft-Windows-Subsystem-Linux` InstallState=1（啟用）；`HypervisorPlatform`、`Microsoft-Hyper-V-All`、`Containers-DisposableClientVM`（Windows Sandbox）= 2（未啟用）；CBS `RebootPending` 不存在；`HKLM\SOFTWARE\Policies\WSL` 不存在（沒有 WSL 原則）。
 - `wsl --help`（exit **255**，T0380 已記，仍不能拿來偵測）列出的 `--install` 選項：`[Distro]`、`--enable-wsl1`、`--from-file`、`--location`、`--name`、`--no-distribution`、`--no-launch`/`-n`、`--version`、`--web-download`；另有 `--manage <Distro> --set-default-user <Username>`、`--update`。**官方文件列的 `--inbox` 不在 2.7.14 的 help 內**（⇒ 不採用）。
 - `wslinfo` 只有 `--networking-mode`、`--msal-proxy-path`、`--vm-id`、`--version`、`-n`。

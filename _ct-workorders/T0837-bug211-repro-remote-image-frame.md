@@ -72,7 +72,7 @@ memory_overrides:
   - 本工單
   - 產品程式碼：未改。
 - **驗證**：
-  - `npx vitest run electron/__tests__/bug211-ws-max-payload.test.ts --reporter=verbose` → 4 passed（3.25 s；輸出全文 `C:/Users/Gower/AppData/Local/Temp/claude/D--ForgejoGit--Gower-Labs-BMad-Guide-better-agent-terminal-better-agent-terminal/49872d68-9bc5-4a10-95ce-e3ecd9cc97c9/scratchpad/t0837-run.txt`）
+  - `npx vitest run electron/__tests__/bug211-ws-max-payload.test.ts --reporter=verbose` → 4 passed（3.25 s；輸出全文 `<使用者資料夾>/AppData/Local/Temp/claude/D--ForgejoGit--Gower-Labs-BMad-Guide-better-agent-terminal-better-agent-terminal/49872d68-9bc5-4a10-95ce-e3ecd9cc97c9/scratchpad/t0837-run.txt`）
   - `npm run typecheck:electron` → exit 0（`tsconfig.node.json` include `electron/**/*.ts`，含新測試）
   - 未碰本機 BAT 安裝版 / Terminal Server，未連任何真實遠端主機（全部 loopback、temp 憑證目錄）
 - **Commit**：產品 `319c3646`（只含測試檔）；工單＋BUG-211 另一個 commit（見 git log）。未 push。
