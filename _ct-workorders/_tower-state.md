@@ -1,15 +1,15 @@
 ---
 schema_kind: tower-state
 summary_version: 1
-updated_at: "2026-11-04T08:49:14+08:00"
+updated_at: "2026-11-04T08:52:59+08:00"
 session: "2026-11-04 08:36 第一百一十六 session（CT v6.0.0-beta.11）"
 next_ids:
-  workorder: "T0827"
-  decision: "D271"
+  workorder: "T0832"
+  decision: "D272"
   bug: "BUG-211"
   plan: "PLAN-065"
 todo:
-  - "T0826 DONE（`83f1d5bf`，README / 網站 install＋faq / CHANGELOG 加 Linux / WSL 中文與 emoji 字型說明，D270），隨下一版發佈；PLAN-064（IDEA）啟動時缺字型提示"
+  - "本批（D271，做完一起發 `0.7.4-pre.7`＋PLAN-063 真實升級驗收）：T0826 DONE（`83f1d5bf`）；T0827（PLAN-064 缺字型提示）、T0828（PLAN-038 研究）、T0831（PLAN-043 Phase 2 / 3 研究）並行；T0829（孤兒 wsl.exe＋NAT 措辭）等 T0827；T0830（keep-alive 開關＋精靈 step abort）等 T0829；兩張研究單完成後再拆實作單"
   - "MSRC 回報 microsoft/node-pty（使用者自行處理，D255）"
   - "PLAN-058：T0814（W1）`fc22e04a`＋T0815（W0）`0b67db03` DONE，T0819 安裝版 pre.5 假 API e2e PASS，待使用者手動確認（清單在 T0819 回報區）；可選後續：卡片等待時讓輸入框可送出（T0815〈遭遇問題〉1，未開單）"
   - "觀察：語音可用性檢查 macOS 未實機；`unknown(timeout)` 若實機出現可把逾時提到 30 s（T0802 後續建議）"
@@ -20,7 +20,7 @@ todo:
 ---
 # Tower State — better-agent-terminal
 
-> 🟢 **第一百一十六 session 開工**（2026-11-04 08:36 (UTC+8)，CT v6.0.0-beta.11，Fast Path；塔台 session `50e83f2b-df2b-4218-972e-8e2f5dc29c81`；`--set-role tower --mode on` exit 0；`bat_whoami` 名稱 `better-agent-terminal · Tower`；安裝版 `0.7.4-pre.6`；HEAD `74902dd2` = `origin/main`、工作區乾淨；熱區 221 張工單皆 DONE、無未結 BUG；`bat_list_questions` pending 0）。08:45 使用者回報 WSL AppImage 介面中文變方框 → 實測缺字型（`fc-list :lang=zh` = 0）→ D270：開 **T0826**（文件）、**PLAN-064**（IDEA）→ `c13ea17d`；08:47 派 T0826（`--mode yolo --no-interactive`，`started:` 00:47:09Z）→ 08:49 DONE，產品 `83f1d5bf`（4 檔 +41 / −2，只文件；site build 通過），收單核對範圍與 README 內容、session id 一致；`--close-worker T0826 --delay-ms 10000` exit 0。
+> 🟢 **第一百一十六 session 開工**（2026-11-04 08:36 (UTC+8)，CT v6.0.0-beta.11，Fast Path；塔台 session `50e83f2b-df2b-4218-972e-8e2f5dc29c81`；`--set-role tower --mode on` exit 0；`bat_whoami` 名稱 `better-agent-terminal · Tower`；安裝版 `0.7.4-pre.6`；HEAD `74902dd2` = `origin/main`、工作區乾淨；熱區 221 張工單皆 DONE、無未結 BUG；`bat_list_questions` pending 0）。08:45 使用者回報 WSL AppImage 介面中文變方框 → 實測缺字型（`fc-list :lang=zh` = 0）→ D270：開 **T0826**（文件）、**PLAN-064**（IDEA）→ `c13ea17d`；08:47 派 T0826（`--mode yolo --no-interactive`，`started:` 00:47:09Z）→ 08:49 DONE，產品 `83f1d5bf`（4 檔 +41 / −2，只文件；site build 通過），收單核對範圍與 README 內容、session id 一致；`--close-worker T0826 --delay-ms 10000` exit 0。08:52 使用者「處理 PLAN-064 038 043」→ 選項對齊 → D271：開 T0827–T0831，三張 PLAN → IN_PROGRESS。
 >
 > 🟢 **第一百一十五 session 開工**（2026-11-04 03:37 (UTC+8)，CT v6.0.0-beta.11，Fast Path；塔台 session `96f9499a-1ea6-4a55-9722-6c14f0490c85`；`--set-role tower --mode on` exit 0；`bat_whoami` 名稱 `better-agent-terminal · Tower`；安裝版 FileVersion `0.7.4-pre.6`；HEAD `7c645e89`、`main` = `origin/main`（fetch 後 0 / 0）、工作區乾淨；熱區 221 張工單皆 DONE；BUG 熱區 Closed 73 / WONTFIX 1、無未結；PLAN IN_PROGRESS 2 / IDEA 6 / DONE 18 / DROPPED 2；`bat_list_questions` pending 0）。**`v0.7.4-pre.6` NSIS 完整重裝驗收 PASS-WITH-WARN**（real 模式 03:35:58–03:36:58；AllUsers / HKLM；唯一 WARN = ⓪ 目前安裝版 pre.5，② 實為升級，屬預期；① SHA-256 `350b79f0…` ② ③ ④ 全 PASS，三支 helper `--version` = v0.7.4-pre.6、內嵌 claude / codex 存在、userData 130 檔 SHA-256 未變；⑤ SKIPPED；驗收時 BAT 已關閉，T0823 的「安裝前請 BAT 正常結束」路徑未經過，真實升級驗收仍待下一版）；報告 `%TEMP%\bat-nsis-acceptance-20261104-033558\report.md`；含權杖的 `userdata-backup` 已刪除。
 >
@@ -81,7 +81,7 @@ todo:
 - 歷史 sessions → [_archive/state-snapshots/INDEX.md](_archive/state-snapshots/INDEX.md)（134 entries；最新 `2026-Q4-c.md`）
 
 ### 編號起始
-- **T0827** / **BUG-211** / **PLAN-065** / **D271** / **EXP-WFMINE-002**（其他 TOPIC 從 001） / **L186** / **CT-T023**
+- **T0832** / **BUG-211** / **PLAN-065** / **D272** / **EXP-WFMINE-002**（其他 TOPIC 從 001） / **L186** / **CT-T023**
 
 ---
 

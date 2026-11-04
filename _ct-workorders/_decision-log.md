@@ -1465,6 +1465,17 @@
 - **切分**：W2a 設計語言 + 元件 + 首頁（T0630）→ 預覽通過後 W2b（`/control-tower`、功能、FAQ、回報頁）→ W2c 遠端開發；W3 / W4 不變。
 - **相關**：PLAN-049 / D159 / D160 / T0624 / T0630
 
+### D271 2026-11-04 — 處理 PLAN-064 / 038 / 043：開 T0827–T0831，做完一起發 `0.7.4-pre.7`
+
+- **決定**（使用者「處理 PLAN-064 038 043」，選項式對齊）：
+  1. **PLAN-064** 完整提示 → **T0827**（M，main）：Linux＋中文介面、`fc-list` 查無中文字型時一次性提示（英文在前、附指令、可不再提示）；`unknown` 不提示、非 Linux 不變、不自帶字型。
+  2. **PLAN-038** 先研究再實作 → **T0828**（研究，唯讀）：上傳通道、暫存目錄與清理、權限、path sandbox、Alt+V 貼圖可行性與拆單。
+  3. **PLAN-043** 四項全做：**T0829**（S，孤兒 `wsl.exe`＋`plan-007-release-checklist.md` NAT 措辭；不加原生依賴，必要時先問塔台）→ **T0830**（M，keep-alive 每個 profile 可關閉、預設開；精靈每一步可中止；不做 lazy）；Phase 2 / 3 牽涉提權 / `wsl --install` / 重開機，塔台判定先研究 → **T0831**（研究，唯讀），研究完再開實作單。
+  4. 派工順序：T0827、T0828、T0831 並行（研究單只寫自己的工單檔）；T0829 等 T0827（同改 `electron/main.ts`），T0830 等 T0829（同改 `wsl-keepalive.ts`）。
+  5. 這批（含 T0826）完成後一起發 `0.7.4-pre.7`，順便做 PLAN-063 真實升級驗收（pre.6 → pre.7）；發版前再確認。
+- **決策者**：使用者（範圍、發版）；塔台（拆單、Phase 2 / 3 先研究、keep-alive 選 per-profile 開關、派工順序）。2026-11-04 第一百一十六 session。
+- **相關**：D270 / D266 / PLAN-064 / PLAN-038 / PLAN-043 / PLAN-063 / T0380
+
 ### D270 2026-11-04 — WSL / Linux 介面中文變方框：屬環境缺字型，不開 BUG；文件 T0826、啟動提示 PLAN-064（IDEA）、不自帶字型
 
 - **背景**：使用者在 WSL（Ubuntu 24.04，WSLg）執行 AppImage，介面中文與多數圖示顯示為方框。塔台實測該發行版 `fc-list :lang=zh` = 0、emoji 字型 = 0、未裝 `fonts-noto-cjk`；Linux 版 BAT 只用系統 fontconfig 字型，CSS 未帶 `@font-face`。T0797 在 CI runner 已見過同一現象（`docs/agent-guide/linux-ci-acceptance.md`）。

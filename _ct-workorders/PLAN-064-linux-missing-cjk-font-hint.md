@@ -3,7 +3,7 @@ schema_version: 1
 schema_kind: plan
 id: PLAN-064
 title: "Linux：介面語言是中文而系統沒有中文字型時，啟動提示一次並附安裝指令"
-status: IDEA
+status: IN_PROGRESS
 priority: low
 created_at: "2026-11-04T08:45:47+0800"
 links:
@@ -33,3 +33,4 @@ links:
 ## 狀態
 
 - IDEA（D270）。
+- 2026-11-04 08:52 → IN_PROGRESS：使用者選「完整提示」，開 T0827（D271）。

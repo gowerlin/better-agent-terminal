@@ -3,10 +3,10 @@ schema_version: 1
 schema_kind: plan
 id: PLAN-043
 title: WSL 環境自動化 Phase 2 / 3（由 PLAN-035 移出）：已安裝環境自動修正、從零安裝與重開機接續
-status: IDEA
+status: IN_PROGRESS
 priority: low
 created_at: "2026-10-16T02:27:40+0800"
-updated_at: "2026-11-02T14:04:38+0800"
+updated_at: "2026-11-04T08:52:59+0800"
 links:
   related: [PLAN-035, T0380, D127, D128]
 ---
@@ -19,7 +19,7 @@ links:
 |------|------|
 | PLAN 編號 | PLAN-043 |
 | 優先級 | 🟢 Low |
-| 狀態 | 💡 IDEA |
+| 狀態 | 🔄 IN_PROGRESS |
 | 來源 | PLAN-035 結案（2026-10-16，使用者決定 Phase 0–1 結案、Phase 2 / 3 轉新 IDEA） |
 
 ## 動機
@@ -42,3 +42,7 @@ PLAN-035 Phase 1 已修好已安裝環境最常見的問題（網路模式誤判
 - 候選「孤兒 `wsl.exe`（Job Object）」：沒做（`electron/` 無 Job Object）。
 - 候選「keep-alive per-profile / lazy」「runner step abort」：grep 未見相關改動，未深查。
 - 候選「文件措辭對齊『NAT 不需強制改』」：大致完成。`docs/wsl-deployment.md` 已改為「NAT 一般可用，連線測試失敗才處理」（T0653，`9dd30ef0`）。**剩 `docs/plan-007-release-checklist.md` 第 63 行**仍寫「確認 `.wslconfig` 用 `networkingMode=mirrored`（或測 fallback 時記錄 NAT）」：使用者 2026-11-02 決定先記著，下次有 WSL 相關工單時一併改，不單獨開單。
+
+## 2026-11-04 → IN_PROGRESS（第一百一十六 session，D271）
+
+- 使用者選四項全做：T0829（孤兒 `wsl.exe`＋`plan-007-release-checklist.md` NAT 措辭）→ T0830（keep-alive 每個 profile 可關閉、精靈每一步可中止）依序；Phase 2 / 3 先開研究單 T0831（核對 T0380 與現況、設計、拆單），研究完再開實作單。
