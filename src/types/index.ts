@@ -388,6 +388,8 @@ export interface AppSettings {
   batMcpEnabled?: boolean;                   // 預設 true（只有 false 才關閉）
   // PLAN-057 / T0755（D206）：headless bat-server 啟動時以登入 shell 取得 PATH（electron/remote/headless-login-path.ts 讀 <dataDir>/settings.json，啟動時讀一次）
   headlessLoginShellPath?: boolean;          // 預設 true（只有 false 才關閉）；只在遠端視窗（Linux / macOS 主機）顯示
+  // PLAN-064 / T0827：Linux 缺中文 / emoji 字型提示的「不再提示」（src/components/LinuxFontHint.tsx）
+  linuxFontHintDismissed?: boolean;          // 預設 false
 }
 
 // ============================================

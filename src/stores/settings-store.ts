@@ -383,6 +383,13 @@ class SettingsStore {
     this.save()
   }
 
+  // PLAN-064 / T0827: "don't show again" of the Linux missing-font hint
+  setLinuxFontHintDismissed(dismissed: boolean): void {
+    this.settings = { ...this.settings, linuxFontHintDismissed: dismissed }
+    this.notify()
+    this.save()
+  }
+
   setUsageLimitContinueText(text: string): void {
     this.settings = { ...this.settings, usageLimitContinueText: text }
     this.notify()

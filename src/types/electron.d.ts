@@ -803,6 +803,13 @@ interface ElectronAPI {
       callback: (availability: import('../lib/voice-availability').VoiceAvailability) => void
     ) => () => void
   }
+  /** PLAN-064 / T0827 — Linux fontconfig check (src/lib/linux-font-hint.ts); off Linux always `unknown(not-linux)`. */
+  fontCheck?: {
+    get: () => Promise<import('../lib/linux-font-hint').LinuxFontCheck>
+    /** True for the first window that asks (one hint per BAT start). */
+    claimHint: () => Promise<boolean>
+    onChanged: (callback: (result: import('../lib/linux-font-hint').LinuxFontCheck) => void) => () => void
+  }
   fs: {
     readdir: (dirPath: string) => Promise<import('./file').FileEntry[]>
     readFile: (filePath: string) => Promise<{ content?: string; error?: string; size?: number }>

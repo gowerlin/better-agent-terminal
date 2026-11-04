@@ -116,6 +116,7 @@ import { buildExecutableConfirmDialog, EXECUTABLE_CONFIRM_OPEN_INDEX, handleOpen
 import type { CustomCliDefinition } from './agent-runtime/types'
 import { registerVoiceHandlers } from './voice-handler'
 import { startVoiceAvailabilityCheck } from './voice-availability'
+import { registerLinuxFontCheckHandlers, startLinuxFontCheck } from './linux-font-check'
 import {
   logDrift as ctDriftLog,
   readRecentDrift as ctDriftReadRecent,
@@ -1863,6 +1864,10 @@ app.whenReady().then(async () => {
   registerVoiceHandlers(getAllWindows)
   // T0802 / D247: whisper availability, once, in a child process, a few seconds after ready (not at startup)
   startVoiceAvailabilityCheck()
+  // PLAN-064 / T0827: Linux only — fc-list for Chinese / emoji fonts, once, a few seconds after ready
+  // (off Linux the handlers answer unknown(not-linux) and nothing is scheduled)
+  registerLinuxFontCheckHandlers(getAllWindows)
+  startLinuxFontCheck()
 
   // Create system tray icon
   try {

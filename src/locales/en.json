@@ -1565,5 +1565,17 @@
       "recheck": "Check again",
       "checking": "Checking…"
     }
+  },
+  "linuxFontHint": {
+    "title": "Fonts are missing",
+    "cjk": "This system has no Chinese font, so Chinese text in BAT shows as boxes.",
+    "emoji": "This system has no emoji font, so BAT's icons show as boxes.",
+    "install": "Install the fonts (Debian / Ubuntu; package names differ on other distributions):",
+    "restart": "After installing, quit BAT completely and start it again.",
+    "details": "Details",
+    "copy": "Copy",
+    "copied": "Copied",
+    "dontShowAgain": "Don't show again",
+    "close": "Close"
   }
 }

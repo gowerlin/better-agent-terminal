@@ -16,6 +16,7 @@ import type {
 } from '../src/types/voice'
 import { VOICE_IPC_CHANNELS } from '../src/types/voice-ipc'
 import type { VoiceAvailability } from '../src/lib/voice-availability'
+import { LINUX_FONT_CHECK_IPC, type LinuxFontCheck } from '../src/lib/linux-font-hint'
 import type { RemoteToolInstallKind, RemoteToolInstallRequest, RemoteToolInstallRequestResult, RemoteToolId, RemoteToolsDetectResult } from '../src/types/remote-tools'
 import type { ClientPathPurpose, ResolvedClientPath } from '../src/lib/client-paths'
 import type { TerminalRoleChangeInfo } from '../src/lib/tower-terminal-title'
@@ -1068,6 +1069,16 @@ const electronAPI = {
       const handler = (_event: Electron.IpcRendererEvent, availability: VoiceAvailability) => callback(availability)
       ipcRenderer.on(VOICE_IPC_CHANNELS.availabilityChanged, handler)
       return () => ipcRenderer.removeListener(VOICE_IPC_CHANNELS.availabilityChanged, handler)
+    },
+  },
+  // PLAN-064 / T0827: Linux fontconfig check (Chinese / emoji fonts), local main process only
+  fontCheck: {
+    get: () => ipcRenderer.invoke(LINUX_FONT_CHECK_IPC.get) as Promise<LinuxFontCheck>,
+    claimHint: () => ipcRenderer.invoke(LINUX_FONT_CHECK_IPC.claimHint) as Promise<boolean>,
+    onChanged: (callback: (result: LinuxFontCheck) => void) => {
+      const handler = (_event: Electron.IpcRendererEvent, result: LinuxFontCheck) => callback(result)
+      ipcRenderer.on(LINUX_FONT_CHECK_IPC.changed, handler)
+      return () => ipcRenderer.removeListener(LINUX_FONT_CHECK_IPC.changed, handler)
     },
   },
   terminalServer: {

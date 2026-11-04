@@ -309,6 +309,15 @@
 - 唯一實作：純函式 `src/lib/voice-availability.ts`（原因代碼、提示文字）、主行程 `electron/voice-availability.ts`（`createVoiceAvailability` / IPC `voice:getAvailability` / `voice:recheckAvailability` / `voice:availabilityChanged`）、renderer `src/lib/voice-availability-store.ts`、`MicButton.tsx`、`useVoiceRecording.ts` `start()`、`VoiceAvailabilityStatus.tsx`；字串 `voiceAvailability.*`。linux-acceptance V1：22.04 `unavailable(glibc-too-old)`、24.04 `available`。
 - 完整規則、原因代碼表、UI 行為、日誌、遠端查證、已知限制、驗證清單：[docs/agent-guide/voice-availability.md](docs/agent-guide/voice-availability.md)
 
+## Linux 缺中文字型的啟動提示（PLAN-064 / T0827）
+
+- 用途：Linux 版只用系統 fontconfig 字型，WSL / 精簡發行版沒有中文與 emoji 字型時介面是方框（D270）。啟動 5 s 後以 `fc-list :lang=zh family` / `fc-list :charset=1f4e8 family` 各查一次（emoji 不用 U+1F600：DejaVu Sans 涵蓋該區會誤判），結果只在記憶體；本機主視窗以 Dialog 提示一次，英文在前、介面語言在後，附 `sudo apt update && sudo apt install -y fonts-noto-cjk fonts-noto-color-emoji`（只列缺的）與網站 `install#linux-fonts`，可「不再提示」（`linuxFontHintDismissed`）。
+- 🔴 只有 Linux 檢查與提示；Windows / macOS 的 IPC 回 `unknown(not-linux)`，不排程、不 spawn、不記日誌。不自帶字型、不改 CSS `font-family` / xterm 字型（D270），不擋任何功能。
+- 🔴 `execFile` ＋陣列參數＋ 5 s timeout、不經 shell；`fc-list` 不存在 / 逾時 / exit ≠ 0 / 輸出無法解析（任一查詢）→ `unknown`，絕不提示。只在 `app.whenReady` 裡、`startVoiceAvailabilityCheck()` 之後註冊與排程，import 期不做事。
+- 🔴 顯示條件：缺中文只在介面語言是中文時列、缺 emoji 不限語言；只本機主視窗（不含 detached、remote profile 視窗），主行程 `claimHint()` 每次啟動只給一個視窗；Dialog 經 `ModalOverlay`＋[X]＋`onEscape`。
+- 唯一實作：純函式 `src/lib/linux-font-hint.ts`（查詢、解析、`linuxFontHintItems`、指令）、主行程 `electron/linux-font-check.ts`（IPC `font-check:get` / `claim-hint` / `changed`，本機 `ipcMain.handle`）、元件 `src/components/LinuxFontHint.tsx`（App.tsx 接線）；日誌 `[font-check] …` 只記結果、原因、face 數、耗時，不記字型清單。
+- 完整判斷表、顯示條件、日誌、WSL 實測、已知限制、驗證清單：[docs/agent-guide/linux-cjk-font-hint.md](docs/agent-guide/linux-cjk-font-hint.md)
+
 ## 本機開發：npm 12 install scripts（T0471 / T0473）
 
 - npm 12 預設擋相依套件的 install scripts（`npm ci` 仍 exit 0，只在結尾警告）。`package.json` `allowScripts` 以 name-only entry 放行 `esbuild`、`sharp`、`@anthropic-ai/claude-code`。`electron` 於 T0784 移除（D223）：Electron 42 起它沒有 install script，binary 在第一次 `require('electron')` 時下載（見「Electron Runtime」）。

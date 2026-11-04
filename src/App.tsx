@@ -21,6 +21,7 @@ import { WorkspaceEnvDialog } from './components/WorkspaceEnvDialog'
 import { ResizeHandle } from './components/ResizeHandle'
 import { ProfilePanel } from './components/ProfilePanel'
 import { RecoveryPrompt } from './components/RecoveryPrompt'
+import { LinuxFontHint } from './components/LinuxFontHint'
 import { SERVER_STATUS_TOAST_KEYS, ServerStatusToast, UPGRADE_INTERRUPTED_TOAST_KEY, type ServerStatusToastKey } from './components/ServerStatusToast'
 import { InterruptedAgentsController } from './components/InterruptedAgentsDialog'
 import { OPEN_INTERRUPTED_AGENTS_EVENT, parseUpgradeInterruptionNotice, useInterruptedAgents, type UpgradeInterruptionNotice } from './stores/interrupted-agents-store'
@@ -136,6 +137,8 @@ export default function App() {
   // T0393: remote profile this window is served by (null = local window). Its
   // targetOS decides the shell list; a WSL distro enables the /mnt/<drive> hint.
   const [windowRemoteTarget, setWindowRemoteTarget] = useState<{ targetOS?: string; wslDistro?: string } | null>(null)
+  // PLAN-064 / T0827: this window is bound to a remote profile (connected or not) → no Linux font hint here
+  const [windowBoundToRemote, setWindowBoundToRemote] = useState(false)
   const [appNotification, setAppNotification] = useState<string | null>(null)
   const [recoveryInfo, setRecoveryInfo] = useState<{ ptyCount: number } | null>(null)
   const [serverStatusToast, setServerStatusToast] = useState<ServerStatusToastKey | null>(null)
@@ -589,6 +592,7 @@ export default function App() {
           }
         }
 
+        if (active?.type === 'remote') setWindowBoundToRemote(true)
         if (active?.type === 'remote' && active.remoteHost && active.remoteToken) {
           // Try connecting to remote. T0419 (BUG-096): pass the pinned fingerprint;
           // main also pins with the bound profile and reuses its verified client.
@@ -1507,6 +1511,8 @@ export default function App() {
           onOpenInterrupted={() => window.dispatchEvent(new CustomEvent(OPEN_INTERRUPTED_AGENTS_EVENT))}
         />
       )}
+      {/* PLAN-064 / T0827: Linux without Chinese / emoji fonts — local main window only, once per start */}
+      <LinuxFontHint enabled={profileReady && !detachedWorkspaceId && !windowBoundToRemote && !isRemoteConnected} />
       {/* PLAN-055 B1 / T0766: tabs of a workspace shown in a detached window are listed there */}
       <InterruptedAgentsController excludeWorkspaceIds={detachedIds} />
       {notifyToasts.length > 0 && (

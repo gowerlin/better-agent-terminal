@@ -7,6 +7,9 @@ All notable changes to Better Agent Terminal are documented in this file.
 ### Changed
 - 文件：Linux / WSL 執行 AppImage 時，介面中文與圖示顯示為方框的原因（Linux 版只用 Linux 系統字型、不用 Windows 字型）與 Debian / Ubuntu 安裝 `fonts-noto-cjk` / `fonts-noto-color-emoji` 的指令，寫進 README、網站安裝頁與常見問題（T0826）
 
+### Added
+- Linux：啟動 5 秒後以 `fc-list` 檢查一次中文（`:lang=zh`）與 emoji（U+1F4E8）字型；介面語言是中文而缺中文字型、或缺 emoji 字型時，本機主視窗跳出一次提示（英文在前、介面語言在後），附 `sudo apt update && sudo apt install -y …` 指令、「說明」連到網站 `install#linux-fonts`、可「不再提示」（`linuxFontHintDismissed`）；`fc-list` 不存在 / 逾時 / 失敗時不提示，Windows / macOS 不檢查（`electron/linux-font-check.ts`、`src/components/LinuxFontHint.tsx`；PLAN-064，T0827）
+
 ## [0.7.4-pre.6] — 2026-11-04
 
 ### Added

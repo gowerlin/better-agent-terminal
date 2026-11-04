@@ -1564,5 +1564,17 @@
       "recheck": "重新检查",
       "checking": "检查中…"
     }
+  },
+  "linuxFontHint": {
+    "title": "缺少字体",
+    "cjk": "这个系统没有中文字体，BAT 的中文会显示成方框。",
+    "emoji": "这个系统没有 emoji 字体，BAT 的图标会显示成方框。",
+    "install": "请安装字体（Debian / Ubuntu 命令，其他发行版的软件包名称可能不同）：",
+    "restart": "装好后请完全关闭 BAT 再重新打开。",
+    "details": "说明",
+    "copy": "复制",
+    "copied": "已复制",
+    "dontShowAgain": "不再提示",
+    "close": "关闭"
   }
 }

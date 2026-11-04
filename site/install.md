@@ -48,6 +48,8 @@ fc-list :lang=zh | wc -l
 
 終端分頁內的中文（例如 agent 的中文回覆）也會一併正常。其他發行版請安裝 Noto CJK 與 Noto Color Emoji 字型（套件名稱依發行版而不同）。
 
+BAT 啟動幾秒後會自己檢查一次：介面語言是中文而系統沒有中文字型，或系統沒有 emoji 字型時，會跳出一次提示（英文在前、中文在後），附上面的安裝指令；可以選「不再提示」。
+
 ### Agent CLI
 
 BAT 本身是終端機與 Agent 的整合介面。要使用 Gemini CLI、GitHub Copilot CLI、Codex CLI 等 Agent，請先依各工具的說明安裝並完成登入；也可以在設定中把任何 CLI 工具加成自訂 Agent。
