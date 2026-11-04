@@ -1037,7 +1037,7 @@
         },
         "systemdCheck": {
           "label": "Check systemd availability",
-          "description": "Check that systemd is enabled in the distro. The BAT server runs as a systemd service; without it a later step fails."
+          "description": "Verify that systemd is running in the distro. The BAT server runs as a systemd user service."
         },
         "installBundle": {
           "label": "Install BAT server bundle",
@@ -1046,6 +1046,14 @@
         "writeSystemdUnit": {
           "label": "Set up and start the server service",
           "description": "Pick a free port, register the BAT server as a user service that starts automatically, and start it."
+        },
+        "planEnv": {
+          "label": "Check the WSL environment",
+          "description": "Check WSL and the selected distro (WSL version, systemd, default user). This may start a stopped distro and take a few seconds. If something needs fixing, the list is shown once for your approval."
+        },
+        "applyEnv": {
+          "label": "Apply WSL environment fixes",
+          "description": "Apply the fixes you approved. Files are backed up before they are changed. Nothing is needed when the environment is already fine."
         }
       },
       "error": {
@@ -1088,6 +1096,26 @@
         "serviceStartFailed": {
           "title": "The BAT service did not start",
           "body": "systemd could not start the BAT server service in the WSL distro. The details below show the error; for the service log run `journalctl --user -u bat-server.service -n 50` in the distro. Fix it, then retry."
+        },
+        "policyBlocked": {
+          "title": "WSL is turned off by policy",
+          "body": "A Windows policy (AllowWSL=0) turns WSL off on this machine, so BAT cannot set it up. Ask your administrator, then retry."
+        },
+        "envRequiredDeclined": {
+          "title": "A required change was not approved",
+          "body": "Setup cannot continue without: {{items}}. Choose again to approve it, or cancel."
+        },
+        "envItemUnavailable": {
+          "title": "A required change cannot be applied automatically",
+          "body": "{{items}}: {{reason}}"
+        },
+        "envApplyFailed": {
+          "title": "A WSL environment fix failed",
+          "body": "BAT could not finish fixing the environment of {{distro}}. The details below show which step failed. Retry, or skip it (the server may then not start or connect). Changes already made are listed when setup ends."
+        },
+        "systemdDisabled": {
+          "title": "systemd is not running",
+          "body": "systemd is not running in {{distro}}, and the BAT server runs as a systemd user service. Turn it on in /etc/wsl.conf (`[boot]` `systemd=true`), run `wsl --terminate {{distro}}` in PowerShell, then retry."
         }
       },
       "warning": {
@@ -1108,6 +1136,84 @@
         "state": {
           "Running": "Running",
           "Stopped": "Stopped"
+        }
+      },
+      "plan": {
+        "title": "Fix the WSL environment for {{distro}}",
+        "description": "BAT found settings to change before it can install the server. Check what may be changed, then confirm once. Changes are not undone if you cancel later; backups are kept.",
+        "confirm": "Apply selected changes and continue",
+        "requiredMissing": "A required item is not selected. Setup cannot continue without it; confirming stops here with an explanation.",
+        "summaryTerminate": "The selected changes stop {{distro}}: every program running in it ends (including WSL shells in other BAT tabs and the server keep-alive, which restarts by itself).",
+        "summaryShutdownAll": "The selected changes shut down WSL: every running distro stops.",
+        "runningDistros": "Distros running now: {{list}}.",
+        "runningNone": "No distro is running right now.",
+        "scope": {
+          "machine": "Whole machine",
+          "distro": "This distro",
+          "user": "This user"
+        },
+        "tag": {
+          "required": "Required",
+          "optional": "Optional",
+          "fixed": "Automatic"
+        },
+        "effect": {
+          "elevation": "Needs administrator permission.",
+          "reboot": "May need a Windows restart.",
+          "shutdownAllDistros": "Shuts down every WSL distro.",
+          "terminateDistro": "Stops {{distro}} (programs in it end).",
+          "longRunning": "Can take a long time and cannot be stopped midway."
+        },
+        "item": {
+          "wsl2Convert": {
+            "label": "Convert {{distro}} to WSL 2",
+            "detail": "BAT needs WSL 2. Runs `wsl --set-version {{distro}} 2`. Large distros can take a long time, and Microsoft recommends a backup first (`wsl --export`). It can be converted back with `wsl --set-version {{distro}} 1`. If you do not want to convert it, go back and pick or install another distro."
+          },
+          "enableSystemd": {
+            "label": "Turn on systemd in {{distro}}",
+            "detail": "Sets `[boot] systemd=true` in /etc/wsl.conf (other lines are kept; the old file is backed up next to it), then restarts the distro with `wsl --terminate {{distro}}`."
+          },
+          "enableLinger": {
+            "label": "Keep the BAT server running after you log out (linger)",
+            "detail": "Done automatically when the server service is set up (`loginctl enable-linger`)."
+          }
+        },
+        "reason": {
+          "wslTooOld": "This WSL version is too old for systemd. Update WSL (`wsl --update` in an administrator PowerShell), then retry.",
+          "wslConfUnparsable": "BAT cannot read /etc/wsl.conf safely, so it will not edit it. Fix the file (or add `[boot]` `systemd=true` yourself), then retry.",
+          "wslConfUnreadable": "/etc/wsl.conf cannot be read. Check its permissions, then retry."
+        },
+        "notice": {
+          "policyWslDisabled": "WSL is turned off by a Windows policy (AllowWSL=0).",
+          "wslNotInstalled": "WSL is not installed.",
+          "wslTooOld": "WSL {{version}} is older than {{minimum}}; systemd and network detection may not work. Update it with `wsl --update` in an administrator PowerShell.",
+          "distroProbeFailed": "Could not inspect {{distro}} (systemd, default user). Later steps check again.",
+          "defaultUserRoot": "The default user of {{distro}} is root. The BAT server would run as root; consider creating a normal user and making it the default (`wsl --manage {{distro}} --set-default-user <user>`)."
+        },
+        "warning": {
+          "optionalSkipped": "Not applied (not selected): {{item}}"
+        },
+        "action": {
+          "chooseAgain": "Choose again"
+        }
+      },
+      "apply": {
+        "uninterruptible": {
+          "convert": "Converting to WSL 2. This cannot be stopped midway; if you stop setup, it stops once the conversion finishes."
+        },
+        "action": {
+          "skipMayFail": "Skip (the connection may fail)"
+        },
+        "warning": {
+          "optionalFailed": "Could not apply {{item}}: {{error}}"
+        },
+        "changes": {
+          "header": "WSL environment changes",
+          "wsl2Convert": "{{distro}} was converted to WSL 2.",
+          "file": "{{distro}}: {{path}} was changed.",
+          "backup": "Backup: {{path}}",
+          "newFile": "The file did not exist before (no backup).",
+          "note": "These changes are kept even when setup is cancelled; they are not undone automatically."
         }
       }
     },

@@ -68,6 +68,8 @@ const WSLCONF_BEGIN = Buffer.from('BAT_WSLCONF_BEGIN\n')
 export interface DetectWslFactsOptions {
   /** Distro to inspect; default = WSL's default distro. Whitelisted before use. */
   distro?: string
+  /** T0840: setup wizard step abort; ends the running probe's child process. */
+  signal?: AbortSignal
   // Test seams (production uses the real values).
   platform?: NodeJS.Platform
   release?: string
@@ -79,12 +81,14 @@ export interface DetectWslFactsOptions {
 interface Budget {
   remaining(): number
   timedOut: boolean
+  signal?: AbortSignal
 }
 
-function makeBudget(now: () => number, total: number): Budget {
+function makeBudget(now: () => number, total: number, signal?: AbortSignal): Budget {
   const end = now() + total
   return {
     timedOut: false,
+    ...(signal ? { signal } : {}),
     remaining() {
       return end - now()
     },
@@ -95,12 +99,16 @@ type Probe = { ok: true; stdout: Buffer } | { ok: false; code: unknown; stdout: 
 
 async function probe(budget: Budget, file: string, args: string[]): Promise<Probe> {
   const left = budget.remaining()
+  if (budget.signal?.aborted) return { ok: false, code: 'ABORT_ERR', stdout: Buffer.alloc(0), skipped: true }
   if (left < MIN_PROBE_MS) {
     budget.timedOut = true
     return { ok: false, code: 'budget', stdout: Buffer.alloc(0), skipped: true }
   }
   try {
-    const { stdout } = await execFileBuffered(file, args, { timeoutMs: Math.floor(left) })
+    const { stdout } = await execFileBuffered(file, args, {
+      timeoutMs: Math.floor(left),
+      ...(budget.signal ? { signal: budget.signal } : {}),
+    })
     return { ok: true, stdout }
   } catch (error) {
     const err = error as Error & { code?: unknown; killed?: boolean; signal?: unknown; stdout?: Buffer }
@@ -283,7 +291,7 @@ export async function detectWslFacts(options: DetectWslFactsOptions = {}): Promi
   const platform = options.platform ?? process.platform
   // Validate before any spawn (CLAUDE.md Child Process Spawning).
   const requested = options.distro === undefined ? undefined : validateDistroName(options.distro)
-  const budget = makeBudget(now, WSL_FACTS_BUDGET_MS)
+  const budget = makeBudget(now, WSL_FACTS_BUDGET_MS, options.signal)
 
   const base = {
     v: 1 as const,

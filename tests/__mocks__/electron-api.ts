@@ -169,6 +169,44 @@ export function createMockElectronApi(options: MockOptions = {}) {
     wsl: {
       list: async () => ({ distros, default: defaultDistro }),
       systemdEnabled: async () => options.systemdEnabled ?? true,
+      // T0840 (PLAN-043 W3): wsl-systemd-check verifies systemd is PID 1.
+      systemdRunning: async () => options.systemdEnabled ?? true,
+      // T0840: plan-wsl-environment facts. Default = a healthy environment, so
+      // buildWslEnvPlan gives 0 items and the wizard looks as before T0840.
+      detectFacts: async (distro?: string) => {
+        const name = distro ?? defaultDistro ?? distros[0]?.name ?? null
+        const listed = distros.find((d) => d.name === name)
+        const systemd = options.systemdEnabled ?? true
+        return {
+          v: 1 as const,
+          platform: 'win32',
+          windowsBuild: 26100,
+          wslInstalled: true,
+          version: { available: true, wsl: '2.7.14.0' },
+          distros,
+          defaultDistro,
+          running: distros.filter((d) => d.state === 'Running').map((d) => d.name),
+          selected: name && listed
+            ? {
+                name,
+                version: listed.version,
+                state: listed.state,
+                probe: 'ok' as const,
+                user: 'test',
+                uid: 1000,
+                pid1: systemd ? 'systemd' : 'init',
+                systemdRunning: systemd,
+                wslConf: { status: 'ok' as const, bootSystemd: systemd ? 'true' : null, userDefault: 'test' },
+                linger: true,
+              }
+            : null,
+          policy: { status: 'absent' as const, values: {}, allowWsl: null, allowWsl1: null, allowInboxWsl: null, allowNetworkingModeUserSetting: null, defaultNetworkingMode: null },
+          wslConfig: { status: 'missing' as const, encoding: null, networkingMode: null, instanceIdleTimeout: null },
+          timedOut: false,
+          durationMs: 1,
+        }
+      },
+      applyEnvItem: async () => ({ ok: true as const, outcome: 'already' as const, changes: [], terminated: false }),
       // T0383 (BUG-089): { actual, declared, mirroredSupported } shape.
       detectNetworkMode: async () => ({ actual: options.networkMode ?? 'mirrored', declared: null, mirroredSupported: true }),
       // T0682 (BUG-168 G4): T0378 resolves the distro user's absolute $HOME.

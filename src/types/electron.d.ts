@@ -1,5 +1,5 @@
 import type { CreatePtyOptions, CtWorktreeInfo, PtyCreateResult, PtyReplayBuffer } from './index'
-import type { WslFacts } from '../components/setup-wizard/wsl-env-plan'
+import type { WslEnvApplyItemId, WslEnvApplyResult, WslFacts } from '../components/setup-wizard/wsl-env-plan'
 import type {
   WhisperModelSize,
   VoiceGpuStatus,
@@ -463,7 +463,12 @@ interface ElectronAPI {
     // T0383 / BUG-089: `wslinfo --networking-mode` (actual) + `.wslconfig` (declared).
     detectNetworkMode: (distro: string) => Promise<WslNetworkModeInfo>
     // T0839 (PLAN-043 W2): read-only WSL facts (version, distros, selected distro, policy, .wslconfig).
-    detectFacts: (distro?: string) => Promise<WslFacts>
+    // T0840: `operationId` makes the probe abortable (setup wizard step abort).
+    detectFacts: (distro?: string, options?: { operationId?: string }) => Promise<WslFacts>
+    // T0840 (PLAN-043 W3): apply one consented environment fix (wsl-env-apply.ts).
+    applyEnvItem: (distro: string, item: WslEnvApplyItemId, options?: { operationId?: string }) => Promise<WslEnvApplyResult>
+    // T0840: systemd is PID 1 in the distro right now (wsl-systemd-check verification).
+    systemdRunning: (distro: string) => Promise<boolean>
     // T0378 (BUG-087 B): absolute $HOME of the distro's default user (e.g. /home/alice).
     resolveHome: (distro: string) => Promise<string>
     // T0554 / BUG-141: `keepPrevious` keeps the replaced install at `<root>.bat-old`;

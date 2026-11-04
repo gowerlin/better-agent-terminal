@@ -8,6 +8,8 @@
  *
  * Scope: action labels only (D108 — framework hook only, no copy work).
  */
+import { readFileSync } from 'fs'
+import path from 'path'
 import { describe, expect, it } from 'vitest'
 import en from '../../locales/en.json'
 import zhTW from '../../locales/zh-TW.json'
@@ -355,5 +357,98 @@ describe('wizard step errors / thumbnail menu i18n completeness (T0660)', () => 
       expect(value).toContain('{{step}}')
       expect(value).toContain('{{error}}')
     }
+  })
+})
+
+// T0840 (PLAN-043 W3): the WSL environment plan (T0839 `wsl-env-plan.ts` keys,
+// `wizard.wsl.plan.*`), the apply step / changes box (`wizard.wsl.apply.*`), the
+// two new steps and the new error entries ship in all three locales.
+const T0840_KEYS = [
+  'wizard.wsl.step.planEnv.label',
+  'wizard.wsl.step.planEnv.description',
+  'wizard.wsl.step.applyEnv.label',
+  'wizard.wsl.step.applyEnv.description',
+  'wizard.wsl.step.systemdCheck.description',
+  'wizard.wsl.plan.title',
+  'wizard.wsl.plan.confirm',
+  'wizard.wsl.plan.requiredMissing',
+  'wizard.wsl.plan.summaryTerminate',
+  'wizard.wsl.plan.summaryShutdownAll',
+  'wizard.wsl.plan.runningDistros',
+  'wizard.wsl.plan.runningNone',
+  'wizard.wsl.plan.scope.machine',
+  'wizard.wsl.plan.scope.distro',
+  'wizard.wsl.plan.scope.user',
+  'wizard.wsl.plan.tag.required',
+  'wizard.wsl.plan.tag.optional',
+  'wizard.wsl.plan.tag.fixed',
+  'wizard.wsl.plan.effect.elevation',
+  'wizard.wsl.plan.effect.reboot',
+  'wizard.wsl.plan.effect.shutdownAllDistros',
+  'wizard.wsl.plan.effect.terminateDistro',
+  'wizard.wsl.plan.effect.longRunning',
+  'wizard.wsl.plan.warning.optionalSkipped',
+  'wizard.wsl.plan.action.chooseAgain',
+  'wizard.wsl.apply.uninterruptible.convert',
+  'wizard.wsl.apply.action.skipMayFail',
+  'wizard.wsl.apply.warning.optionalFailed',
+  'wizard.wsl.apply.changes.header',
+  'wizard.wsl.apply.changes.wsl2Convert',
+  'wizard.wsl.apply.changes.file',
+  'wizard.wsl.apply.changes.backup',
+  'wizard.wsl.apply.changes.newFile',
+  'wizard.wsl.apply.changes.note',
+  'wizard.wsl.error.policyBlocked.title',
+  'wizard.wsl.error.envRequiredDeclined.title',
+  'wizard.wsl.error.envItemUnavailable.title',
+  'wizard.wsl.error.envApplyFailed.title',
+  'wizard.wsl.error.systemdDisabled.title',
+] as const
+
+const T0840_ROOTS = ['wizard.wsl.plan', 'wizard.wsl.apply', 'wizard.wsl.step'] as const
+
+/** Every `${KEY}.<path>` literal in wsl-env-plan.ts (KEY = 'wizard.wsl.plan'). */
+function wslEnvPlanKeys(): string[] {
+  const source = readFileSync(path.join(__dirname, '..', '..', 'components', 'setup-wizard', 'wsl-env-plan.ts'), 'utf8')
+  return [...source.matchAll(/`\$\{KEY\}\.([A-Za-z0-9.]+)`/g)].map((m) => `wizard.wsl.plan.${m[1]}`)
+}
+
+describe('WSL environment plan / apply i18n completeness (T0840)', () => {
+  it('finds the plan keys in wsl-env-plan.ts', () => {
+    expect(wslEnvPlanKeys().length).toBeGreaterThanOrEqual(10)
+  })
+
+  it.each([
+    ['en', en],
+    ['zh-TW', zhTW],
+    ['zh-CN', zhCN],
+  ] as const)('%s contains every key (incl. every key wsl-env-plan.ts emits)', (_name, locale) => {
+    for (const key of [...T0840_KEYS, ...wslEnvPlanKeys()]) {
+      const value = getNested(locale, key)
+      expect(value, `missing "${key}"`).toBeTypeOf('string')
+      expect((value as string).trim().length).toBeGreaterThan(0)
+    }
+  })
+
+  it.each([
+    ['zh-TW', zhTW],
+    ['zh-CN', zhCN],
+  ] as const)('%s ships the same key sets as en under each T0840 root, translated', (_name, locale) => {
+    for (const root of T0840_ROOTS) {
+      expect(flattenKeys(getNested(locale, root), root).sort()).toEqual(flattenKeys(getNested(en, root), root).sort())
+    }
+    expect(getNested(locale, 'wizard.wsl.plan.confirm')).not.toBe(getNested(en, 'wizard.wsl.plan.confirm'))
+  })
+
+  it.each([
+    ['en', en],
+    ['zh-TW', zhTW],
+    ['zh-CN', zhCN],
+  ] as const)('%s keeps the interpolation placeholders', (_name, locale) => {
+    expect(getNested(locale, 'wizard.wsl.plan.item.enableSystemd.label')).toContain('{{distro}}')
+    expect(getNested(locale, 'wizard.wsl.plan.notice.wslTooOld')).toContain('{{version}}')
+    expect(getNested(locale, 'wizard.wsl.plan.notice.wslTooOld')).toContain('{{minimum}}')
+    expect(getNested(locale, 'wizard.wsl.plan.runningDistros')).toContain('{{list}}')
+    expect(getNested(locale, 'wizard.wsl.apply.changes.backup')).toContain('{{path}}')
   })
 })

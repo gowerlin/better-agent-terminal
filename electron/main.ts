@@ -132,6 +132,7 @@ import * as dockerLifecycle from './docker-lifecycle'
 import * as dockerValidate from './docker-validate'
 import * as wslDetect from './wsl-detect'
 import { detectWslFacts, summarizeWslFacts } from './wsl-facts'
+import { WslEnvApplier } from './wsl-env-apply'
 import * as wslSystemd from './wsl-systemd'
 import { WslKeepAlive, keepAliveProfileDistros } from './wsl-keepalive'
 import { createWslFolderDefaultResolver, wslDistroForFolderDialog } from './wsl-workspace-folder'
@@ -576,6 +577,8 @@ const profileManager = new ProfileManager()
 const wslKeepAlive = new WslKeepAlive()
 // T0830 (PLAN-043): abortable setup-wizard IPC calls (`operationId` -> AbortSignal).
 const wizardOperations = new WizardOperationRegistry()
+// T0840: setup wizard WSL environment fixes (lazy: nothing runs at import time).
+const wslEnvApplier = new WslEnvApplier({ log: (message) => logger.log(`[wizard] ${message}`) })
 // PLAN-047 / T0575 (D149): each local PTY's helpers authenticate with a capability of their own
 // (`batcap.`, issued in `createElectronPtyDeps().helperEnv`, revoked when the PTY is gone) instead
 // of the server token, which keeps authenticating the remote / QR / mobile clients.
@@ -3803,11 +3806,33 @@ function registerLocalHandlers() {
   ipcMain.handle('wsl:systemd-enabled', (_event, distro: string) => wslDetect.systemdEnabled(distro))
   ipcMain.handle('wsl:detect-network-mode', (_event, distro: string) => wslDetect.detectNetworkMode(distro))
   // T0839 (PLAN-043 W2): read-only environment facts for the WSL fix plan (local only; W3 wires it into the wizard).
-  ipcMain.handle('wsl:detect-facts', async (_event, distro?: string) => {
-    const facts = await detectWslFacts(typeof distro === 'string' ? { distro } : {})
-    logger.log(`[wizard] wsl detect-facts ${summarizeWslFacts(facts)}`)
-    return facts
+  // T0840 (PLAN-043 W3): the wizard's plan-wsl-environment step calls it with an
+  // `operationId` (abortable: the in-distro probe can cold-start a Stopped distro).
+  ipcMain.handle('wsl:detect-facts', async (_event, distro?: string, options?: { operationId?: string }) => {
+    const operation = wizardOperations.begin(options?.operationId)
+    try {
+      const facts = await detectWslFacts({
+        ...(typeof distro === 'string' ? { distro } : {}),
+        ...(operation.signal ? { signal: operation.signal } : {}),
+      })
+      logger.log(`[wizard] wsl detect-facts ${summarizeWslFacts(facts)}${operation.signal?.aborted ? ' (aborted)' : ''}`)
+      return facts
+    } finally {
+      operation.end()
+    }
   })
+  // T0840 (PLAN-043 W3): apply one fix the user consented to (wsl-env-apply.ts:
+  // re-detect, back up, write over stdin, terminate, verify). Logs item / outcome only.
+  ipcMain.handle('wsl:apply-env-item', async (_event, distro: string, item: unknown, options?: { operationId?: string }) => {
+    const operation = wizardOperations.begin(options?.operationId)
+    try {
+      return await wslEnvApplier.apply(distro, item, operation.signal ? { signal: operation.signal } : {})
+    } finally {
+      operation.end()
+    }
+  })
+  // T0840: wsl-systemd-check verifies systemd is PID 1 (same signal as the plan).
+  ipcMain.handle('wsl:systemd-running', (_event, distro: string) => wslDetect.systemdRunning(distro))
   // T0378 (BUG-087 B): absolute $HOME so the systemd unit never contains `~`.
   ipcMain.handle('wsl:resolve-home', (_event, distro: string) => wslDetect.resolveHome(distro))
   // T0554 (BUG-141): `keepPrevious` keeps the replaced install at `<root>.bat-old`

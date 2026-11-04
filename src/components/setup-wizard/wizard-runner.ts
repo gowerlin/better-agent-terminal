@@ -68,6 +68,49 @@ export interface WizardTextRequest {
   validate?: (value: string) => string | null
 }
 
+/**
+ * T0840 (PLAN-043 W3): one item of a consent checklist ("detect → list →
+ * consent once", T0831). Same shape as `WslEnvPlanItem` (wsl-env-plan.ts).
+ */
+export interface WizardConsentItem {
+  id: string
+  labelKey: string
+  detailKey?: string
+  params?: Record<string, string>
+  /** `machine` / `distro` / `user`: what the change touches (shown as a tag). */
+  scope: 'machine' | 'distro' | 'user'
+  effects: Array<'elevation' | 'reboot' | 'shutdown-all-distros' | 'terminate-distro' | 'long-running'>
+  required: boolean
+  defaultChecked: boolean
+  /** Always applied (no checkbox); listed so the user knows. */
+  fixed?: boolean
+  /** Set → cannot be checked; the key says why. */
+  disabledReasonKey?: string
+}
+
+export interface WizardConsentNotice {
+  messageKey: string
+  params?: Record<string, string>
+  severity: 'info' | 'warning' | 'blocking'
+}
+
+/**
+ * T0840: a checklist the user confirms once. Resolves with the checked item
+ * ids (fixed items included), or `null` when the user declines (the step
+ * decides what that means). The step still validates what it gets back.
+ */
+export interface WizardConsentRequest {
+  stepId: string
+  titleKey: string
+  descriptionKey?: string
+  items: WizardConsentItem[]
+  notices?: WizardConsentNotice[]
+  /** i18n values for title / description / summary (e.g. `{ distro }`). */
+  params?: Record<string, string>
+  /** Distros in state Running, listed when an item terminates / shuts down WSL. */
+  runningDistros?: string[]
+}
+
 export interface WizardLogger {
   info(message: string): void
   warn(message: string): void
@@ -128,6 +171,15 @@ export interface WizardContext {
   requestChoice?: (request: WizardChoiceRequest) => Promise<string | null>
   /** T0502: free-text prompt; unset when the UI cannot take typed input. */
   requestText?: (request: WizardTextRequest) => Promise<string | null>
+  /** T0840: consent checklist; unset when the UI cannot show one. */
+  requestConsent?: (request: WizardConsentRequest) => Promise<string[] | null>
+  /**
+   * T0840: set by the runner while a step runs (unset between steps). A step
+   * calls it with an i18n key while it waits on something an abort cannot stop
+   * (e.g. `wsl --set-version`), and with `null` when that is over; the UI says
+   * the step stops only once it finishes. cancel() still aborts the signal.
+   */
+  setUninterruptible?: (reasonKey: string | null) => void
   /**
    * T0830 (PLAN-043): set by the runner while a step's preflight / run() is in
    * progress (unset between steps); aborted by cancel(). Steps pass it to
@@ -307,6 +359,8 @@ export interface WizardStepSnapshot {
   abortSlow?: boolean
   /** T0830: this step was aborted by cancel() (failed / rolled back because of it). */
   aborted?: boolean
+  /** T0840: i18n key — the step is waiting on something an abort cannot stop. */
+  uninterruptibleKey?: string
 }
 
 /** run() rejects with this message when the user cancels (the Shell shows `wizard.cancelled`). */
@@ -578,6 +632,14 @@ export class WizardRunner {
       const abort = new AbortController()
       this.stepAbort = abort
       this.ctx.signal = abort.signal
+      // T0840: this attempt's "cannot be interrupted" marker.
+      this.ctx.setUninterruptible = (reasonKey) => {
+        if (this.stepAbort !== abort) return
+        const next = reasonKey ?? undefined
+        if (snapshot.uninterruptibleKey === next) return
+        snapshot.uninterruptibleKey = next
+        this.emitProgress()
+      }
 
       try {
         // T0332: preflight hook. Run before step.run(). Hard failure
@@ -709,7 +771,13 @@ export class WizardRunner {
 
   /** T0830: the step settled; cancel() no longer aborts it (a failure waits on a decision). */
   private endStepAbortScope(abort: AbortController): void {
-    if (this.stepAbort === abort) this.stepAbort = null
+    if (this.stepAbort === abort) {
+      this.stepAbort = null
+      // T0840: the marker belongs to this attempt only.
+      this.ctx.setUninterruptible = undefined
+      const snapshot = this.stepSnapshots[this.currentStepIndex]
+      if (snapshot?.uninterruptibleKey) snapshot.uninterruptibleKey = undefined
+    }
     if (this.ctx.signal === abort.signal) this.ctx.signal = undefined
   }
 
@@ -910,6 +978,7 @@ export class WizardRunner {
   private maybeWrapInputRequests(step: WizardStep, index: number, signal?: AbortSignal): () => void {
     const originalChoice = this.ctx.requestChoice
     const originalText = this.ctx.requestText
+    const originalConsent = this.ctx.requestConsent
     // T0830: every step's prompt rejects when the step is aborted (a prompt the
     // user never answers used to keep the runner waiting forever after cancel()).
     // Only input-kind steps also flip the status to AwaitingInput (T0330).
@@ -926,10 +995,17 @@ export class WizardRunner {
         ? (request) => this.awaitInput(index, () => raceAbort(signal, originalText(request)))
         : (request) => raceAbort(signal, originalText(request))
     }
+    // T0840: the consent checklist is wrapped exactly like requestChoice.
+    if (typeof originalConsent === 'function') {
+      this.ctx.requestConsent = isInput
+        ? (request) => this.awaitInput(index, () => raceAbort(signal, originalConsent(request)))
+        : (request) => raceAbort(signal, originalConsent(request))
+    }
 
     return () => {
       this.ctx.requestChoice = originalChoice
       this.ctx.requestText = originalText
+      this.ctx.requestConsent = originalConsent
     }
   }
 

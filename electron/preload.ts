@@ -608,7 +608,16 @@ const electronAPI = {
       mirroredSupported: boolean | null
     }>,
     // T0839 (PLAN-043 W2): read-only facts for buildWslEnvPlan (src/components/setup-wizard/wsl-env-plan.ts).
-    detectFacts: (distro?: string) => ipcRenderer.invoke('wsl:detect-facts', distro) as Promise<import('../src/components/setup-wizard/wsl-env-plan').WslFacts>,
+    // T0840: `operationId` makes it abortable (setup wizard step abort); without it the call is as before.
+    detectFacts: (distro?: string, options?: { operationId?: string }) =>
+      (options === undefined
+        ? ipcRenderer.invoke('wsl:detect-facts', distro)
+        : ipcRenderer.invoke('wsl:detect-facts', distro, options)) as Promise<import('../src/components/setup-wizard/wsl-env-plan').WslFacts>,
+    // T0840 (PLAN-043 W3): apply one consented environment fix (electron/wsl-env-apply.ts).
+    applyEnvItem: (distro: string, item: import('../src/components/setup-wizard/wsl-env-plan').WslEnvApplyItemId, options?: { operationId?: string }) =>
+      ipcRenderer.invoke('wsl:apply-env-item', distro, item, options) as Promise<import('../src/components/setup-wizard/wsl-env-plan').WslEnvApplyResult>,
+    // T0840: systemd is PID 1 in the distro right now (wsl-systemd-check verification).
+    systemdRunning: (distro: string) => ipcRenderer.invoke('wsl:systemd-running', distro) as Promise<boolean>,
     resolveHome: (distro: string) => ipcRenderer.invoke('wsl:resolve-home', distro) as Promise<string>,
     // T0554 / BUG-141: `keepPrevious` keeps the replaced install at `<root>.bat-old`
     // (`previous: 'kept'`) for restoreBundle (cancel) / discardPreviousBundle (finished).

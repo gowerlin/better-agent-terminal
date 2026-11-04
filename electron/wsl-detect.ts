@@ -61,8 +61,12 @@ const PROBE_TIMEOUT_MS = 15_000
 // it can be written verbatim into the systemd unit (systemd never expands `~`).
 const HOME_PATH_PATTERN = /^\/[A-Za-z0-9._/-]*$/
 
-/** T0839: also used by `wsl-facts.ts`, so tests inject one execFile for both. */
-export function execFileBuffered(file: string, args: string[], options?: { timeoutMs?: number }): Promise<ExecResult> {
+/**
+ * T0839: also used by `wsl-facts.ts`, so tests inject one execFile for both.
+ * T0840: `signal` (setup wizard step abort) ends the child through execFile's
+ * own `signal` option; without it the options are exactly as before.
+ */
+export function execFileBuffered(file: string, args: string[], options?: { timeoutMs?: number; signal?: AbortSignal }): Promise<ExecResult> {
   return new Promise((resolve, reject) => {
     execFileImpl(
       file,
@@ -72,6 +76,7 @@ export function execFileBuffered(file: string, args: string[], options?: { timeo
         maxBuffer: 16 * 1024 * 1024,
         windowsHide: true,
         ...(options?.timeoutMs ? { timeout: options.timeoutMs } : {}),
+        ...(options?.signal ? { signal: options.signal } : {}),
       },
       (error: Error | null, stdout: Buffer | string, stderr: Buffer | string) => {
         const out = Buffer.isBuffer(stdout) ? stdout : Buffer.from(stdout ?? '')
@@ -246,6 +251,20 @@ export async function systemdEnabled(distro: string): Promise<boolean> {
 
   const confResult = await runWsl(validatedDistro, ['cat', '/etc/wsl.conf'], { allowFailure: true })
   return wslConfDeclaresSystemd(normalizeTextOutput(confResult.stdout))
+}
+
+/**
+ * T0840 (PLAN-043 W3): is systemd PID 1 in the distro right now? Same signal
+ * the fix plan uses (`wsl-facts.ts` reads `/proc/1/comm`), so the wizard's
+ * `wsl-systemd-check` verifies exactly what `apply-wsl-environment` fixed.
+ * `running` and `degraded` both have systemd as PID 1. Unlike
+ * `systemdEnabled`, a `[boot] systemd=true` that has not taken effect yet
+ * (distro not restarted) is NOT running. Fixed command, no interpolated input.
+ */
+export async function systemdRunning(distro: string): Promise<boolean> {
+  const validatedDistro = validateDistroName(distro)
+  const result = await runWsl(validatedDistro, ['cat', '/proc/1/comm'], { allowFailure: true, timeoutMs: PROBE_TIMEOUT_MS })
+  return normalizeTextOutput(result.stdout) === 'systemd'
 }
 
 /**

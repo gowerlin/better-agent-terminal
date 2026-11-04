@@ -12,7 +12,7 @@ afterEach(() => {
   resetFetchFingerprintImplForTests()
 })
 
-test('WSL e2e happy path completes all 9 steps with mocked IPC', async () => {
+test('WSL e2e happy path completes all 11 steps with mocked IPC', async () => {
   const harness = createMockElectronApi()
   installMockWindow(harness.electronAPI)
   setFetchFingerprintImplForTests(async () => 'FP:AA:BB:CC')
@@ -23,7 +23,8 @@ test('WSL e2e happy path completes all 9 steps with mocked IPC', async () => {
   await runner.run()
 
   const snapshots = runner.getSnapshots()
-  assert.equal(snapshots.length, 9)
+  // T0840: + plan-wsl-environment / apply-wsl-environment (0 items here).
+  assert.equal(snapshots.length, 11)
   assert.ok(snapshots.every((snapshot) => snapshot.status === WizardStepStatus.Succeeded))
   assert.equal(ctx.createdProfileId, 'ubuntu-dev')
   assert.equal(ctx.networkMode, 'mirrored')

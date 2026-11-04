@@ -1036,7 +1036,7 @@
         },
         "systemdCheck": {
           "label": "检查 systemd 是否启用",
-          "description": "确认发行版已启用 systemd。BAT 服务器以 systemd 服务运行，未启用时后面的步骤会失败。"
+          "description": "确认发行版内的 systemd 正在运行。BAT 服务器以 systemd 用户服务运行。"
         },
         "installBundle": {
           "label": "安装 BAT 服务器套件",
@@ -1045,6 +1045,14 @@
         "writeSystemdUnit": {
           "label": "配置并启动服务器服务",
           "description": "挑选可用的端口，把 BAT 服务器注册为会自动启动的用户服务，并启动它。"
+        },
+        "planEnv": {
+          "label": "检查 WSL 环境",
+          "description": "检查 WSL 与选定的发行版（WSL 版本、systemd、默认用户）。可能会启动已停止的发行版，需要几秒钟。需要修正时会列出清单，让你一次确认。"
+        },
+        "applyEnv": {
+          "label": "应用 WSL 环境修正",
+          "description": "应用你同意的修正。修改文件前会先备份。环境已经正常时不需要做任何事。"
         }
       },
       "error": {
@@ -1087,6 +1095,26 @@
         "serviceStartFailed": {
           "title": "BAT 服务没有启动",
           "body": "systemd 无法在 WSL 发行版内启动 BAT 服务器服务。下方详细信息是错误内容；服务日志可在发行版内运行 `journalctl --user -u bat-server.service -n 50` 查看。处理后再重试。"
+        },
+        "policyBlocked": {
+          "title": "WSL 已被策略关闭",
+          "body": "Windows 策略（AllowWSL=0）在这台电脑上关闭了 WSL，BAT 无法设置。请联系管理员后重试。"
+        },
+        "envRequiredDeclined": {
+          "title": "有必要的变更没有同意",
+          "body": "少了以下项目向导无法继续：{{items}}。请重新选择并勾选，或取消向导。"
+        },
+        "envItemUnavailable": {
+          "title": "有必要的变更无法自动应用",
+          "body": "{{items}}：{{reason}}"
+        },
+        "envApplyFailed": {
+          "title": "WSL 环境修正失败",
+          "body": "BAT 无法完成 {{distro}} 的环境修正，下方详细信息会说明是哪一步失败。可以重试，或跳过（之后服务器可能无法启动或连接）。已经做的变更会在向导结束时列出。"
+        },
+        "systemdDisabled": {
+          "title": "systemd 没有在运行",
+          "body": "{{distro}} 内的 systemd 没有在运行，而 BAT 服务器以 systemd 用户服务运行。请在 /etc/wsl.conf 开启（`[boot]` `systemd=true`），在 PowerShell 运行 `wsl --terminate {{distro}}` 后重试。"
         }
       },
       "warning": {
@@ -1107,6 +1135,84 @@
         "state": {
           "Running": "运行中",
           "Stopped": "已停止"
+        }
+      },
+      "plan": {
+        "title": "修正 {{distro}} 的 WSL 环境",
+        "description": "BAT 发现安装服务器前需要调整的设置。请确认可以变更的项目后一次确认。之后取消向导也不会还原这些变更，备份会保留。",
+        "confirm": "应用勾选的变更并继续",
+        "requiredMissing": "有必要项目没有勾选。少了它向导无法继续；按确认会停在这一步并说明原因。",
+        "summaryTerminate": "勾选的变更会停止 {{distro}}：其中所有程序都会结束（包括其他 BAT 标签页里的 WSL shell，以及服务器的常驻进程，常驻进程会自动重新启动）。",
+        "summaryShutdownAll": "勾选的变更会关闭 WSL：所有运行中的发行版都会停止。",
+        "runningDistros": "当前运行中的发行版：{{list}}。",
+        "runningNone": "当前没有运行中的发行版。",
+        "scope": {
+          "machine": "整机",
+          "distro": "此发行版",
+          "user": "此用户"
+        },
+        "tag": {
+          "required": "必要",
+          "optional": "可选",
+          "fixed": "自动"
+        },
+        "effect": {
+          "elevation": "需要管理员权限。",
+          "reboot": "可能需要重新启动 Windows。",
+          "shutdownAllDistros": "会关闭所有 WSL 发行版。",
+          "terminateDistro": "会停止 {{distro}}（其中的程序会结束）。",
+          "longRunning": "可能需要很久，而且中途无法停止。"
+        },
+        "item": {
+          "wsl2Convert": {
+            "label": "把 {{distro}} 转换成 WSL 2",
+            "detail": "BAT 需要 WSL 2。会运行 `wsl --set-version {{distro}} 2`。大型发行版可能需要很久，微软建议先备份（`wsl --export`）。之后可用 `wsl --set-version {{distro}} 1` 转回。不想转换的话，请回上一步改选或另装发行版。"
+          },
+          "enableSystemd": {
+            "label": "在 {{distro}} 开启 systemd",
+            "detail": "在 /etc/wsl.conf 设置 `[boot] systemd=true`（其他行保持不变，旧文件备份在同一个目录），再以 `wsl --terminate {{distro}}` 重新启动发行版。"
+          },
+          "enableLinger": {
+            "label": "注销后仍让 BAT 服务器继续运行（linger）",
+            "detail": "设置服务器服务时会自动处理（`loginctl enable-linger`）。"
+          }
+        },
+        "reason": {
+          "wslTooOld": "这个 WSL 版本太旧，无法使用 systemd。请在管理员 PowerShell 运行 `wsl --update` 更新 WSL 后重试。",
+          "wslConfUnparsable": "BAT 无法安全地解析 /etc/wsl.conf，因此不会修改它。请修正该文件（或自行加入 `[boot]` `systemd=true`）后重试。",
+          "wslConfUnreadable": "无法读取 /etc/wsl.conf。请检查它的权限后重试。"
+        },
+        "notice": {
+          "policyWslDisabled": "WSL 已被 Windows 策略关闭（AllowWSL=0）。",
+          "wslNotInstalled": "尚未安装 WSL。",
+          "wslTooOld": "WSL {{version}} 比 {{minimum}} 旧，systemd 与网络检测可能无法工作。请在管理员 PowerShell 运行 `wsl --update` 更新。",
+          "distroProbeFailed": "无法检查 {{distro}}（systemd、默认用户）。后面的步骤会再检查一次。",
+          "defaultUserRoot": "{{distro}} 的默认用户是 root，BAT 服务器会以 root 运行。建议创建普通用户并设为默认（`wsl --manage {{distro}} --set-default-user <用户>`）。"
+        },
+        "warning": {
+          "optionalSkipped": "未应用（没有勾选）：{{item}}"
+        },
+        "action": {
+          "chooseAgain": "重新选择"
+        }
+      },
+      "apply": {
+        "uninterruptible": {
+          "convert": "正在转换成 WSL 2。转换中途无法停止；如果你停止向导，会在转换完成后才停止。"
+        },
+        "action": {
+          "skipMayFail": "跳过（之后可能无法连接）"
+        },
+        "warning": {
+          "optionalFailed": "无法应用 {{item}}：{{error}}"
+        },
+        "changes": {
+          "header": "WSL 环境的变更",
+          "wsl2Convert": "{{distro}} 已转换成 WSL 2。",
+          "file": "{{distro}}：已修改 {{path}}。",
+          "backup": "备份：{{path}}",
+          "newFile": "原本没有这个文件（没有备份）。",
+          "note": "取消向导时这些变更也会保留，不会自动还原。"
         }
       }
     },

@@ -11,30 +11,33 @@ verify the result before a release.
 
 - BAT running on Windows, not inside WSL. The wizard refuses to run on other
   platforms (`wsl-not-on-windows`). There is no Windows version check.
-- WSL2 with at least one WSL2 distro. WSL1 distros are filtered out of the
-  distro list.
+- WSL2 with at least one distro. When WSL2 distros exist only those are
+  listed; when there are only WSL1 distros the wizard offers to convert the
+  chosen one (see [Environment check and fixes](#environment-check-and-fixes)).
 - Any distro whose name matches `^[A-Za-z0-9._-]+$`
   (`electron/wsl-validate.ts`). It does not have to be Ubuntu or Debian.
-- **systemd enabled inside the distro. This is required**: the server runs as a
-  systemd user service, and without it the wizard cannot read the server
-  token, so it fails at **Save remote profile** and rolls back (see
+- **systemd running inside the distro. This is required**: the server runs as a
+  systemd user service. The wizard offers to turn it on (see
+  [Environment check and fixes](#environment-check-and-fixes)); without it the
+  wizard stops at **Check systemd availability** (see
   [systemd not enabled](#systemd-not-enabled)).
 - `tar` and `sh` in the distro. The wizard does not check for them up front;
   a missing tool shows up as an extract failure.
 - Network access to GitHub for the first setup of each BAT version, or a local
   tarball to import (see [Server bundle source](#server-bundle-source)).
 
-Enable systemd in `/etc/wsl.conf` inside the distro:
+To enable systemd yourself instead, set it in `/etc/wsl.conf` inside the distro:
 
 ```ini
 [boot]
 systemd=true
 ```
 
-Then restart WSL from PowerShell:
+Then restart the distro from PowerShell (T0840 measured on WSL 2.7.14 that
+`--terminate` is enough; `wsl --shutdown` also works but stops every distro):
 
 ```powershell
-wsl --shutdown
+wsl --terminate <distro>
 ```
 
 No distro yet:
@@ -43,7 +46,7 @@ No distro yet:
 wsl --install -d Ubuntu-24.04
 ```
 
-Only a WSL1 distro:
+Only a WSL1 distro (the wizard can also do this for you):
 
 ```powershell
 wsl --set-version <distro> 2
@@ -52,7 +55,7 @@ wsl --set-version <distro> 2
 ## Installation
 
 Open the sidebar **Profiles** panel, click **+ More ▾**, and pick
-**Add WSL Profile** under **Container**. The wizard runs nine steps. Each step
+**Add WSL Profile** under **Container**. The wizard runs eleven steps. Each step
 shows its progress; a failed step shows the reason with Retry / Skip / Cancel
 (some errors offer a recovery button instead, listed under
 [Troubleshooting](#troubleshooting)).
@@ -60,17 +63,52 @@ shows its progress; a failed step shows the reason with Retry / Skip / Cancel
 | # | Step id | Label | What it does |
 |---|---------|-------|--------------|
 | 1 | `detect-env` | Detect target environment | Checks that BAT runs on Windows and that `wsl.exe` can list distros. |
-| 2 | `pick-wsl-distro` | Select WSL distro | Keeps WSL2 distros only. Picks automatically when exactly one exists; otherwise asks you to choose (defaulting to the WSL default distro when it is WSL2). This is the only choice in the wizard. |
-| 3 | `wsl-systemd-check` | Check systemd availability | `systemctl --user is-system-running`, or `systemd=true` in `/etc/wsl.conf`. Without systemd it only records a warning; the wizard then fails at step 8. |
-| 4 | `install-server-bundle` | Install BAT server bundle | Gets the server bundle for this BAT version and installs it into `~/.local/bat-server`. Also records the WSL networking mode (see below). |
-| 5 | `write-systemd-unit` | Set up and start the server service | Picks a port, writes `~/.config/systemd/user/bat-server.service`, reloads the user daemon, starts the service, and enables linger (`loginctl enable-linger`, checked as `Linger=yes`). |
-| 6 | `fetch-fingerprint` | Fetch TLS fingerprint | Opens a TLS connection to `127.0.0.1:<port>` and records the certificate's SHA-256 fingerprint from the handshake (up to 5 tries, 1 s apart). There is no HTTP endpoint. |
-| 7 | `connect-test` | Verify remote connection | Connects with the token and the recorded fingerprint, as a saved profile would. |
-| 8 | `write-profile` | Save remote profile | Creates the profile `WSL <distro>`, or updates the existing one (see [Upgrade](#upgrade)). |
-| 9 | `done` | Finalize | Lists the warnings collected along the way. |
+| 2 | `pick-wsl-distro` | Select WSL distro | Lists WSL2 distros (only when there are none, the WSL1 ones). Picks automatically when exactly one exists; otherwise asks you to choose (defaulting to the WSL default distro when it is listed). |
+| 3 | `plan-wsl-environment` | Check the WSL environment | Collects the WSL facts (version, distros, systemd, default user, policy; may start a stopped distro, a few seconds) and, only when something needs fixing, shows the checklist once (see [Environment check and fixes](#environment-check-and-fixes)). A healthy environment shows nothing. |
+| 4 | `apply-wsl-environment` | Apply WSL environment fixes | Applies what you approved. Nothing to do on a healthy environment. |
+| 5 | `wsl-systemd-check` | Check systemd availability | Verifies that systemd is PID 1 in the distro (`/proc/1/comm`). Fails with *systemd is not running* otherwise (T0840; it used to warn and fail at **Save remote profile**). |
+| 6 | `install-server-bundle` | Install BAT server bundle | Gets the server bundle for this BAT version and installs it into `~/.local/bat-server`. Also records the WSL networking mode (see below). |
+| 7 | `write-systemd-unit` | Set up and start the server service | Picks a port, writes `~/.config/systemd/user/bat-server.service`, reloads the user daemon, starts the service, and enables linger (`loginctl enable-linger`, checked as `Linger=yes`). |
+| 8 | `fetch-fingerprint` | Fetch TLS fingerprint | Opens a TLS connection to `127.0.0.1:<port>` and records the certificate's SHA-256 fingerprint from the handshake (up to 5 tries, 1 s apart). There is no HTTP endpoint. |
+| 9 | `connect-test` | Verify remote connection | Connects with the token and the recorded fingerprint, as a saved profile would. |
+| 10 | `write-profile` | Save remote profile | Creates the profile `WSL <distro>`, or updates the existing one (see [Upgrade](#upgrade)). |
+| 11 | `done` | Finalize | Lists the warnings collected along the way, and the environment changes made (see below). |
 
 When the wizard finishes it shows the remote AI tools check (see
 [Remote tools](./remote-dev-overview.md#remote-tools-nodejs-via-nvm-t0555)).
+
+### Environment check and fixes
+
+PLAN-043 W3 (T0840): *detect → list → consent once → apply*. The facts come
+from `wsl:detect-facts` (`electron/wsl-facts.ts`, read-only); what is needed is
+decided only by `buildWslEnvPlan` (`src/components/setup-wizard/wsl-env-plan.ts`);
+the fixes are applied by `electron/wsl-env-apply.ts`.
+
+| Item | When it is listed | What BAT does | Scope / side effects | Default |
+|------|-------------------|---------------|----------------------|---------|
+| Convert to WSL 2 | The chosen distro is WSL1 (only when no WSL2 distro exists) | `wsl --set-version <distro> 2`, then checks `wsl -l -v` | This distro; the distro stops while it converts; can take long and **cannot be stopped midway** (the wizard shows so and waits) | Required, unchecked |
+| Turn on systemd | systemd is not PID 1 (WSL2) / not declared (WSL1) | Reads `/etc/wsl.conf` as root, changes only `[boot] systemd=true` (other lines, comments and encoding kept), copies the old file to `/etc/wsl.conf.bat-backup-<YYYYMMDD-HHMMSS>` first, writes the new content over stdin, reads it back, then `wsl --terminate <distro>` and waits for systemd to be PID 1 | This distro; every program in it ends (WSL shells in other BAT tabs too; the keep-alive restarts by itself) | Required, checked |
+| Keep the server running after logout (linger) | Listed only when the checklist is shown anyway | Nothing new: step 7 enables it as before | This user | Automatic (no checkbox) |
+
+- A healthy environment (the usual case) gives **no items**: no checklist, and
+  steps 3 and 4 finish at once.
+- Shown as warnings only, no item: default user is root, WSL older than 2.0.4.
+  WSL turned off by policy (`AllowWSL=0`) stops the wizard.
+- When the checklist has an item that stops the distro, a line above the
+  confirm button lists the distros running now.
+- A required item left unchecked stops at step 3 with an explanation
+  (**Choose again** / **Cancel**); leaving *Convert to WSL 2* unchecked gives
+  the same *WSL2 is required* error as before. An item BAT cannot apply (for
+  example an `/etc/wsl.conf` it cannot parse) cannot be checked and says why.
+- A failed fix offers **Retry**, **Skip (the connection may fail)** and
+  **Cancel**. Each fix checks again first (already fine → nothing is changed)
+  and is judged by the real state afterwards, not by exit codes.
+- **Nothing is undone** when you cancel later (D272): the done and cancel
+  screens list *WSL environment changes* with the backup location. To undo
+  systemd, copy the backup back over `/etc/wsl.conf` and run
+  `wsl --terminate <distro>`; to undo the conversion, `wsl --set-version <distro> 1`.
+- Networking mode is not in this list: it is only suggested when the
+  connection test fails (see [Networking mode](#networking-mode)).
 
 ### Server bundle source
 
@@ -191,6 +229,9 @@ in reverse order (best effort):
   back; on a first install, removes `~/.local/bat-server`; if the directory was
   not a BAT install, deletes nothing.
 - **fetch-fingerprint** / **connect-test**: read-only, nothing to undo.
+- **apply-wsl-environment** / **plan-wsl-environment**: only forget what was
+  approved. The environment fixes themselves are kept (see
+  [Environment check and fixes](#environment-check-and-fixes)).
 
 Cancelling an upgrade leaves the server as it was: same bundle, unit, port,
 certificate and token, running if it was running. Linger stays enabled if the
@@ -213,6 +254,11 @@ While a step runs (or waits for your choice) the wizard shows **Stop setup**
      already over, the install completes and step 3 undoes it.
    - **write-systemd-unit**, service start: the running `wsl.exe` call is
      killed and the start check stops at once (`wsl-service-start-aborted`).
+   - **plan-wsl-environment**: the environment probe is killed; an open
+     checklist is withdrawn.
+   - **apply-wsl-environment**: reads, writes and `wsl --terminate` are
+     killed. `wsl --set-version` cannot be: the conversion runs in the WSL
+     service, so the step says it stops once the conversion finishes and waits.
    - A pending choice is withdrawn.
 2. The button shows **Stopping…** until the step has really ended. Steps whose
    calls cannot be interrupted (for example the 5 s fingerprint fetch) are
@@ -267,17 +313,16 @@ delete the files you no longer need.
 ### WSL2 not found / no distro
 
 The wizard shows that WSL2 or a distro is missing. Install it, then click the
-retry button on the error. Only WSL1 distros: convert one with
-`wsl --set-version <distro> 2`.
+retry button on the error. Only WSL1 distros: approve *Convert to WSL 2* in the
+checklist, or convert one yourself with `wsl --set-version <distro> 2`.
 
 ### systemd not enabled
 
-Step 3 only warns that systemd is off and mentions a manual `wsl exec` start
-command, but that fallback cannot finish: without the service there is no
-token, so step 8 fails ("Remote token missing …") and the wizard rolls back
-(`steps/wsl/write-profile.ts`). The manual command is never offered. Enable systemd (see
-[Prerequisites](#prerequisites)), run `wsl --shutdown`, and run the wizard
-again.
+The checklist offers *Turn on systemd*. If that fix was skipped or failed,
+step 5 stops with *systemd is not running* (T0840; before, it only warned and
+the wizard failed at **Save remote profile** because the fallback start has no
+token). Enable systemd yourself (see [Prerequisites](#prerequisites)), run
+`wsl --terminate <distro>`, and click **Already fixed, retry**.
 
 ### Could not enable systemd lingering automatically
 
@@ -323,7 +368,7 @@ or systemd):
 
 - `wsl -l -v` shows the target distro as version `2`.
 - systemd is enabled in the distro.
-- The wizard completes all nine steps without rollback, starting with an empty
+- The wizard completes all eleven steps without rollback, starting with an empty
   bundle cache (download path) and once with **Import local tarball…**.
 - `systemctl --user status bat-server.service` is active; its
   `BAT_SERVER_PORT` is in 9877–9976 and differs from BAT's own remote server
@@ -336,6 +381,11 @@ or systemd):
   midway leaves the previous server running.
 - **Stop setup** during the bundle install and during the service start ends
   within a few seconds and leaves no `~/.local/bat-server.bat-new` (T0830).
+- On a healthy distro no checklist appears (T0840). On a disposable distro
+  (`wsl --import BAT-T-<n> <dir> <rootfs> --version 1`, never your own distro)
+  the checklist offers the WSL 2 conversion and systemd, the fixes apply, the
+  backup `/etc/wsl.conf.bat-backup-*` exists, and the done screen lists them;
+  remove it afterwards with `wsl --unregister BAT-T-<n>`.
 - Turning keepalive off on the profile stops the holder `wsl.exe`; the distro
   shuts down after WSL's idle timeout, and the next connection starts it again.
 

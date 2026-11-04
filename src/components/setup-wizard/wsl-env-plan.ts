@@ -143,6 +143,42 @@ export interface WslEnvPlan {
   notices: WslEnvNotice[]
 }
 
+/**
+ * T0840 (PLAN-043 W3): items `apply-wsl-environment` applies through IPC
+ * `wsl:apply-env-item` (`electron/wsl-env-apply.ts`). `enable-linger` is not
+ * one of them: write-systemd-unit keeps doing it (T0378).
+ */
+export type WslEnvApplyItemId = 'wsl2-convert' | 'enable-systemd'
+
+export type WslEnvApplyErrorCode =
+  | 'wsl-set-version-failed'
+  | 'wsl-systemd-enable-failed'
+  | 'wsl-terminate-failed'
+  | 'wsl-env-apply-invalid'
+
+/** One real change on the machine (never undone automatically, D272). */
+export interface WslEnvChange {
+  item: WslEnvApplyItemId
+  /** `wsl-version`: the distro was converted; `file`: a file was written. */
+  kind: 'wsl-version' | 'file'
+  /** Linux path of the file written (`file`). */
+  path?: string
+  /** Backup of the previous file; null when the file did not exist before. */
+  backupPath?: string | null
+}
+
+export type WslEnvApplyResult =
+  | { ok: true; outcome: 'applied' | 'already'; changes: WslEnvChange[]; terminated: boolean }
+  | {
+      ok: false
+      errorCode: WslEnvApplyErrorCode
+      error: string
+      /** What was changed before the failure / abort (still not undone). */
+      changes: WslEnvChange[]
+      terminated: boolean
+      aborted?: true
+    }
+
 /** `wslinfo` and reliable systemd support start at WSL 2.0.4 (T0831 P-7). */
 export const WSL_MIN_RECOMMENDED_VERSION = '2.0.4'
 

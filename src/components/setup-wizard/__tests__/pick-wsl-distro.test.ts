@@ -5,8 +5,9 @@
  *   - >1 v2 distro → ctx.requestChoice → snapshot transitions through
  *     awaiting-input → succeeded after user picks
  *   - 1 v2 distro → auto-pick, no awaiting-input
- *   - 0 distros / no v2 → terminal failed (env preflight, not pre-submit
+ *   - 0 distros → terminal failed (env preflight, not pre-submit
  *     input validation; spec § 2 allows terminal throw "when possible")
+ *   - T0840: no v2 → a v1 distro is picked; plan-wsl-environment offers the conversion
  */
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { pickWslDistroStep } from '../steps/wsl/pick-wsl-distro'
@@ -167,28 +168,44 @@ describe('pick-wsl-distro (T0340 / PLAN-032 Sprint 4)', () => {
     await runner.cancel()
   })
 
-  it('AC-2 #4: only WSL1 distros → terminal failed with v2 hint', async () => {
+  // T0840 (PLAN-043 W3, P-1): only WSL1 distros no longer fail here — the
+  // distro is picked and plan-wsl-environment offers the WSL 2 conversion
+  // (unchecked there -> wsl-requires-wsl2, see step-error-i18n.test.tsx).
+  it('AC-2 #4 (T0840): only one WSL1 distro → auto-picked, no awaiting-input', async () => {
     installElectronApi([{ name: 'LegacyDistro', version: 1, state: 'Running' }])
     const ctx = makeCtx()
+    const states: WizardStepStatus[] = []
+    const runner = new WizardRunner([pickWslDistroStep], ctx, (snaps) => states.push(snaps[0].status))
+    await runner.run()
+    expect(ctx.wslDistro).toBe('LegacyDistro')
+    expect(states).not.toContain(WizardStepStatus.AwaitingInput)
+    expect(states.at(-1)).toBe(WizardStepStatus.Succeeded)
+  })
 
-    const snapshots: Array<{ status: WizardStepStatus; error?: string }> = []
-    const runner = new WizardRunner([pickWslDistroStep], ctx, (snaps) => {
-      snapshots.push({ status: snaps[0].status, error: snaps[0].error })
+  it('T0840: several WSL1 distros and no WSL2 → asks among the WSL1 distros', async () => {
+    installElectronApi([
+      { name: 'OldA', version: 1, state: 'Stopped' },
+      { name: 'OldB', version: 1, state: 'Running' },
+    ], 'OldB')
+    const requestChoice = vi.fn(async (request: WizardChoiceRequest) => {
+      expect(request.options.map((o) => o.value)).toEqual(['OldA', 'OldB'])
+      return 'OldA'
     })
-    const p = runner.run()
-    p.catch(() => undefined)
-    await new Promise<void>((resolve) => {
-      const tick = () => {
-        if (snapshots.some((s) => s.status === WizardStepStatus.Failed)) resolve()
-        else setTimeout(tick, 5)
-      }
-      tick()
-    })
+    const ctx = makeCtx({ requestChoice })
+    await new WizardRunner([pickWslDistroStep], ctx).run()
+    expect(requestChoice).toHaveBeenCalledTimes(1)
+    expect(ctx.wslDistro).toBe('OldA')
+  })
 
-    const failed = snapshots.find((s) => s.status === WizardStepStatus.Failed)
-    expect(failed!.error).toMatch(/WSL2/)
-    expect(snapshots.some((s) => s.status === WizardStepStatus.AwaitingInput)).toBe(false)
-
-    await runner.cancel()
+  it('T0840: mixed WSL1 / WSL2 → only WSL2 distros are offered (unchanged)', async () => {
+    installElectronApi([
+      { name: 'Old', version: 1, state: 'Running' },
+      { name: 'New', version: 2, state: 'Stopped' },
+    ])
+    const requestChoice = vi.fn()
+    const ctx = makeCtx({ requestChoice })
+    await new WizardRunner([pickWslDistroStep], ctx).run()
+    expect(requestChoice).not.toHaveBeenCalled()
+    expect(ctx.wslDistro).toBe('New')
   })
 })

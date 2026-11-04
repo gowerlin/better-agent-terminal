@@ -1,12 +1,12 @@
 import i18next from 'i18next'
 import type { WizardStep } from '../../wizard-runner'
-import { wizardError } from '../../error-mapper'
 
 export const pickWslDistroStep: WizardStep = {
   id: 'pick-wsl-distro',
   title: 'Select WSL distro',
   appliesTo: ['wsl-linux'],
-  // T0330 (PLAN-032 Sprint 2): when multiple WSL2 distros exist this step
+  // T0330 (PLAN-032 Sprint 2): when multiple WSL2 distros (T0840: or, with no
+  // WSL2 distro, multiple WSL1 distros) exist this step
   // calls ctx.requestChoice — runner flips to awaiting-input while waiting.
   kind: 'input',
   retryable: true,
@@ -19,41 +19,39 @@ export const pickWslDistroStep: WizardStep = {
     ctx.availableDistros = result.distros
 
     const v2Distros = result.distros.filter((distro) => distro.version === 2)
-    if (v2Distros.length === 0) {
-      if (result.distros.length === 0) {
-        // T0378 (BUG-086): WSL itself is installed (wsl-detect returns an empty
-        // list instead of throwing) — map to the dedicated no-distro guidance.
-        const err = new Error(
-          'No WSL distros found. Run `wsl --install -d Ubuntu-24.04` first (see `wsl --list --online` for other distros).',
-        ) as Error & { code?: string }
-        err.code = 'wsl-no-distro'
-        throw err
-      }
-      const warning = i18next.t('wizard.wsl.warning.wsl1Only')
-      if (!ctx.warnings.includes(warning)) {
-        ctx.warnings.push(warning)
-      }
-      throw wizardError('BAT requires WSL2. Upgrade an existing distro to version 2 and retry.', 'wsl-requires-wsl2')
+    if (result.distros.length === 0) {
+      // T0378 (BUG-086): WSL itself is installed (wsl-detect returns an empty
+      // list instead of throwing) — map to the dedicated no-distro guidance.
+      const err = new Error(
+        'No WSL distros found. Run `wsl --install -d Ubuntu-24.04` first (see `wsl --list --online` for other distros).',
+      ) as Error & { code?: string }
+      err.code = 'wsl-no-distro'
+      throw err
     }
+    // T0840 (PLAN-043 W3, P-1): with WSL 2 distros only those are offered, as
+    // before. With only WSL 1 distros one of them is picked and
+    // plan-wsl-environment offers to convert it to WSL 2 (left unchecked there
+    // -> `wsl-requires-wsl2`, the error this step used to throw).
+    const candidates = v2Distros.length > 0 ? v2Distros : result.distros
 
     // T0378: the cached $HOME belongs to the previously picked distro.
     ctx.wslHome = undefined
 
-    if (v2Distros.length === 1) {
-      ctx.wslDistro = v2Distros[0].name
+    if (candidates.length === 1) {
+      ctx.wslDistro = candidates[0].name
       return
     }
 
-    const defaultChoice = result.default && v2Distros.some((distro) => distro.name === result.default)
+    const defaultChoice = result.default && candidates.some((distro) => distro.name === result.default)
       ? result.default
-      : v2Distros[0].name
+      : candidates[0].name
 
     const selected = ctx.requestChoice
       ? await ctx.requestChoice({
           stepId: 'pick-wsl-distro',
           title: i18next.t('wizard.wsl.pickDistro.title'),
           description: i18next.t('wizard.wsl.pickDistro.description'),
-          options: v2Distros.map((distro) => ({
+          options: candidates.map((distro) => ({
             value: distro.name,
             label: distro.name,
             description: i18next.t('wizard.wsl.pickDistro.optionDescription', {

@@ -6,6 +6,7 @@ import {
   WizardRunner,
   WizardStepStatus,
   type WizardChoiceRequest,
+  type WizardConsentRequest,
   type WizardContext,
   type WizardStep,
   type WizardStepSnapshot,
@@ -24,6 +25,8 @@ import {
   type WizardRecoveryAction,
 } from './error-mapper'
 import { importServerBundleForRetry } from './server-bundle-import'
+import { WizardConsentChecklist, WslAppliedChangesBox } from './WizardConsentChecklist'
+import { readWslAppliedChanges } from './steps/wsl/apply-wsl-environment'
 import { Stepper } from '../stepper/Stepper'
 import { RemoteToolsEntry } from '../profiles/RemoteToolsEntry'
 import type { StepDescriptor, StepStatus } from '../stepper/types'
@@ -253,6 +256,8 @@ interface StepDetailPanelProps {
   onChoiceSelect: (value: string | null) => void
   activeText: WizardTextRequest | null
   onTextSubmit: (value: string | null) => void
+  activeConsent: WizardConsentRequest | null
+  onConsentSubmit: (checkedIds: string[]) => void
   onBackToCurrent: () => void
   ctx: WizardContext
   mappedError: WizardMappedError | null
@@ -266,6 +271,8 @@ function StepDetailPanel({
   onChoiceSelect,
   activeText,
   onTextSubmit,
+  activeConsent,
+  onConsentSubmit,
   onBackToCurrent,
   ctx,
   mappedError,
@@ -313,6 +320,10 @@ function StepDetailPanel({
         )}
         {!isReadOnly && display.aborting && (
           <p className="bat-wizard-running" role="status" data-testid="wizard-aborting">{t('wizard.abort.aborting')}</p>
+        )}
+        {/* T0840: the step waits on something an abort cannot stop (wsl --set-version). */}
+        {!isReadOnly && display.uninterruptibleKey && (
+          <p className="bat-wizard-running" data-testid="wizard-uninterruptible">{t(display.uninterruptibleKey)}</p>
         )}
         {!isReadOnly && display.aborting && display.abortSlow && (
           <p className="bat-wizard-running" data-testid="wizard-abort-slow">{t('wizard.abort.slow')}</p>
@@ -416,6 +427,15 @@ function StepDetailPanel({
 
       {!isReadOnly && activeText && (
         <TextPrompt key={activeText.stepId} request={activeText} onSubmit={onTextSubmit} />
+      )}
+
+      {!isReadOnly && activeConsent && (
+        <WizardConsentChecklist
+          key={activeConsent.stepId}
+          request={activeConsent}
+          regionId={PROMPT_REGION_ID}
+          onSubmit={onConsentSubmit}
+        />
       )}
 
       {isReadOnly && (
@@ -550,6 +570,7 @@ export function SetupWizardShell({ steps, ctx, onComplete }: SetupWizardShellPro
   const [stepStates, setStepStates] = useState<WizardStepSnapshot[]>([])
   const [activeChoice, setActiveChoice] = useState<WizardChoiceRequest | null>(null)
   const [activeText, setActiveText] = useState<WizardTextRequest | null>(null)
+  const [activeConsent, setActiveConsent] = useState<WizardConsentRequest | null>(null)
   // T0660: the rejection itself; describeWizardError renders it in the UI language.
   const [wizardFailure, setWizardFailure] = useState<{ error: unknown } | null>(null)
   const [complete, setComplete] = useState(false)
@@ -559,6 +580,7 @@ export function SetupWizardShell({ steps, ctx, onComplete }: SetupWizardShellPro
   const importBusyRef = useRef(false)
   const choiceResolverRef = useRef<((value: string | null) => void) | null>(null)
   const textResolverRef = useRef<((value: string | null) => void) | null>(null)
+  const consentResolverRef = useRef<((value: string[] | null) => void) | null>(null)
   const runnerRef = useRef<WizardRunner | null>(null)
 
   useEffect(() => {
@@ -572,6 +594,11 @@ export function SetupWizardShell({ steps, ctx, onComplete }: SetupWizardShellPro
       requestText: (request) => new Promise<string | null>((resolve) => {
         textResolverRef.current = resolve
         setActiveText(request)
+      }),
+      // T0840 (PLAN-043 W3): the WSL environment checklist ("consent once").
+      requestConsent: (request) => new Promise<string[] | null>((resolve) => {
+        consentResolverRef.current = resolve
+        setActiveConsent(request)
       }),
     }
 
@@ -662,6 +689,12 @@ export function SetupWizardShell({ steps, ctx, onComplete }: SetupWizardShellPro
     setActiveText(null)
   }
 
+  const handleConsentSubmit = (checkedIds: string[]) => {
+    consentResolverRef.current?.(checkedIds)
+    consentResolverRef.current = null
+    setActiveConsent(null)
+  }
+
   // T0830 (PLAN-043): stop the running (or waiting) step; the runner aborts it,
   // waits for it to settle, rolls back and run() rejects with "cancelled".
   const abortableStep = stepStates.find(
@@ -670,8 +703,10 @@ export function SetupWizardShell({ steps, ctx, onComplete }: SetupWizardShellPro
   const handleAbort = () => {
     choiceResolverRef.current = null
     textResolverRef.current = null
+    consentResolverRef.current = null
     setActiveChoice(null)
     setActiveText(null)
+    setActiveConsent(null)
     void runnerRef.current?.cancel()
   }
 
@@ -852,6 +887,8 @@ export function SetupWizardShell({ steps, ctx, onComplete }: SetupWizardShellPro
             onChoiceSelect={handleChoiceSelect}
             activeText={activeText}
             onTextSubmit={handleTextSubmit}
+            activeConsent={activeConsent}
+            onConsentSubmit={handleConsentSubmit}
             onBackToCurrent={handleBackToCurrent}
             ctx={ctx}
             mappedError={activeMappedError}
@@ -889,6 +926,9 @@ export function SetupWizardShell({ steps, ctx, onComplete }: SetupWizardShellPro
           {t('wizard.progress.complete')}
         </div>
       )}
+
+      {/* T0840 (D272): WSL environment fixes are kept on done / cancel; list them with the backups. */}
+      {(complete || wizardError) && <WslAppliedChangesBox changes={readWslAppliedChanges(ctx.state)} />}
 
       {/* T0413 (PLAN-037 F): remote AI toolchain check for the profile just created. */}
       {complete && !wizardError && createdProfileId && (

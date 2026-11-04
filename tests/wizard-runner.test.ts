@@ -69,7 +69,7 @@ test('WizardRunner rolls back completed steps in reverse order', async () => {
   assert.equal(snapshots[2].status, WizardStepStatus.Failed)
 })
 
-test('WSL wizard happy path completes all 9 steps and accumulates context', async () => {
+test('WSL wizard happy path completes all 11 steps and accumulates context', async () => {
   setFetchFingerprintImplForTests(async () => 'FP:AA:BB:CC')
 
   // T0682 (BUG-168 G4): the shared mock tracks the current IPC; the inline
@@ -86,7 +86,8 @@ test('WSL wizard happy path completes all 9 steps and accumulates context', asyn
   await runner.run()
 
   const snapshots = runner.getSnapshots()
-  assert.equal(snapshots.length, 9)
+  // T0840: + plan-wsl-environment / apply-wsl-environment (0 items here).
+  assert.equal(snapshots.length, 11)
   assert.ok(snapshots.every((snapshot) => snapshot.status === WizardStepStatus.Succeeded))
   assert.equal(ctx.wslDistro, 'Ubuntu')
   // T0378 (BUG-087 B): systemd never expands `~`, so the install path is
@@ -113,7 +114,7 @@ test('buildWslWizardSteps() integrates with WizardRunner end-to-end', async () =
   const runner = createTestWizardRunner(buildWslWizardSteps(), ctx)
   await runner.run()
 
-  assert.equal(runner.getSnapshots().length, 9)
+  assert.equal(runner.getSnapshots().length, 11)
   assert.equal(ctx.networkMode, 'mirrored')
   assert.equal(ctx.createdProfileId, 'ubuntu-dev')
 

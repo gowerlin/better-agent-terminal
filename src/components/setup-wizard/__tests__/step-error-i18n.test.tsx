@@ -23,6 +23,8 @@ import { pickContainerStep } from '../steps/docker/pick-container'
 import { startServerStep } from '../steps/ssh/start-server'
 import { verifySshAuthStep } from '../steps/ssh/verify-auth'
 import { pickWslDistroStep } from '../steps/wsl/pick-wsl-distro'
+import { planWslEnvironmentStep } from '../steps/wsl/plan-wsl-environment'
+import type { WslFacts } from '../wsl-env-plan'
 import { wslSystemdCheckStep } from '../steps/wsl/wsl-systemd-check'
 
 function makeCtx(overrides: Partial<WizardContext> = {}): WizardContext {
@@ -38,6 +40,22 @@ function makeCtx(overrides: Partial<WizardContext> = {}): WizardContext {
 
 function installElectronApi(api: Record<string, unknown>) {
   ;(window as unknown as { electronAPI: unknown }).electronAPI = api
+}
+
+/** T0840: facts of a WSL 1 distro whose /etc/wsl.conf already declares systemd. */
+function wsl1Facts(name: string): WslFacts {
+  return {
+    v: 1, platform: 'win32', windowsBuild: 26100, wslInstalled: true,
+    version: { available: true, wsl: '2.7.14.0' },
+    distros: [{ name, version: 1, state: 'Stopped' }], defaultDistro: name, running: [],
+    selected: {
+      name, version: 1, state: 'Stopped', probe: 'ok', user: 'u', uid: 1000, pid1: 'init', systemdRunning: false,
+      wslConf: { status: 'ok', bootSystemd: 'true', userDefault: null }, linger: true,
+    },
+    policy: { status: 'absent', values: {}, allowWsl: null, allowWsl1: null, allowInboxWsl: null, allowNetworkingModeUserSetting: null, defaultNetworkingMode: null },
+    wslConfig: { status: 'missing', encoding: null, networkingMode: null, instanceIdleTimeout: null },
+    timedOut: false, durationMs: 1,
+  }
 }
 
 async function thrown(run: () => Promise<unknown>): Promise<Error & { code?: string }> {
@@ -96,6 +114,15 @@ const STEP_CODES: Array<[WizardErrorPlatform, string, string]> = [
   ['wsl', 'detect-env', 'wsl-not-on-windows'],
   ['wsl', 'detect-env', 'wsl-not-installed'],
   ['wsl', 'pick-wsl-distro', 'wsl-requires-wsl2'],
+  // T0840 (PLAN-043 W3)
+  ['wsl', 'plan-wsl-environment', 'wsl-requires-wsl2'],
+  ['wsl', 'plan-wsl-environment', 'wsl-policy-blocked'],
+  ['wsl', 'plan-wsl-environment', 'wsl-env-required-declined'],
+  ['wsl', 'plan-wsl-environment', 'wsl-env-item-unavailable'],
+  ['wsl', 'apply-wsl-environment', 'wsl-set-version-failed'],
+  ['wsl', 'apply-wsl-environment', 'wsl-systemd-enable-failed'],
+  ['wsl', 'apply-wsl-environment', 'wsl-terminate-failed'],
+  ['wsl', 'wsl-systemd-check', 'wsl-systemd-disabled'],
   ['wsl', 'install-server-bundle', 'wsl-home-unresolved'],
   ['wsl', 'write-systemd-unit', 'wsl-unit-snapshot-failed'],
   ['wsl', 'write-systemd-unit', 'wsl-unit-write-failed'],
@@ -157,9 +184,16 @@ describe('steps throw coded errors with unchanged English messages (T0660)', () 
     expect(error.code).toBe(PRECONDITION_MISSING_CODE)
   })
 
-  it('pick-wsl-distro with only WSL 1 distros: wsl-requires-wsl2', async () => {
+  // T0840 (P-1): the distro picker now accepts a WSL 1 distro; the same error
+  // (same English message and code) comes from plan-wsl-environment when the
+  // WSL 2 conversion is left unchecked.
+  it('only WSL 1 distros: picked, and plan-wsl-environment without the conversion -> wsl-requires-wsl2', async () => {
     installElectronApi({ wsl: { list: vi.fn().mockResolvedValue({ distros: [{ name: 'Old', version: 1, state: 'Stopped' }] }) } })
-    const error = await thrown(() => pickWslDistroStep.run(makeCtx()))
+    const ctx = makeCtx()
+    await pickWslDistroStep.run(ctx)
+    expect(ctx.wslDistro).toBe('Old')
+    installElectronApi({ wsl: { detectFacts: vi.fn().mockResolvedValue(wsl1Facts('Old')) } })
+    const error = await thrown(() => planWslEnvironmentStep.run(makeCtx({ wslDistro: 'Old', requestConsent: async () => [] })))
     expect(error.message).toBe('BAT requires WSL2. Upgrade an existing distro to version 2 and retry.')
     expect(error.code).toBe('wsl-requires-wsl2')
   })
