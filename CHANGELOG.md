@@ -13,6 +13,9 @@ All notable changes to Better Agent Terminal are documented in this file.
 - 設定精靈每一步可中止：步驟執行中或等待選擇時顯示「中止設定」，按下（或關閉精靈視窗）後顯示「正在中止…」，等該步真正結束後 rollback 該步與已完成的步驟，最後顯示「設定已取消」。WSL 精靈的長步驟會終止主行程的子程序：server bundle 下載取消、bundle 安裝只停止 distro 內安裝腳本的 `tar`（腳本自行清掉 `.bat-new`，不會停在兩次改名之間）、服務啟動檢查立即停止；等待中的選擇會撤回；無法中斷的呼叫照舊等它結束（15 秒後提示仍在結束中，不會在步驟還在跑時 rollback）。SSH / Docker 精靈共用 runner：提示可中止、rollback 相同，主行程呼叫不中斷（`wizard:abort-operation`、`WizardOperationRegistry`；PLAN-043，T0830）
 - Linux：啟動 5 秒後以 `fc-list` 檢查一次中文（`:lang=zh`）與 emoji（U+1F4E8）字型；介面語言是中文而缺中文字型、或缺 emoji 字型時，本機主視窗跳出一次提示（英文在前、介面語言在後），附 `sudo apt update && sudo apt install -y …` 指令、「說明」連到網站 `install#linux-fonts`、可「不再提示」（`linuxFontHintDismissed`）；`fc-list` 不存在 / 逾時 / 失敗時不提示，Windows / macOS 不檢查（`electron/linux-font-check.ts`、`src/components/LinuxFontHint.tsx`；PLAN-064，T0827）
 
+### Fixed
+- 遠端視窗一次附多張大圖片送出時整條遠端連線斷開（BUG-211）：Claude / Codex 面板把所有圖片放進同一個 WebSocket frame，超過 bat-server 的 32 MiB 上限時 server 以 1009 關閉連線，同一 profile 所有進行中的請求一起失敗、訊息與圖片無聲遺失、面板停在「執行中」。現在 ① `RemoteClient` 送出前檢查每個 frame 的大小，超過上限就在本機拒絕（`FRAME_TOO_LARGE`），不送出、連線不斷；② 遠端視窗送出前檢查圖片合計，超過 20 MiB 時提示並保留輸入與附圖、不送出；③ 遠端送出失敗（frame 太大、連線中斷、逾時）時顯示原因、把訊息與附件放回輸入框、結束這次送出開始的「執行中」。本機視窗的送出與圖片上限不變；server 的上限不變（`Max payload size exceeded` 日誌改為標出是哪個 client）。上限常數共用 `electron/remote/ws-limits.ts`，面板檢查在 `src/lib/remote-image-budget.ts`（T0842）
+
 ## [0.7.4-pre.6] — 2026-11-04
 
 ### Added

@@ -9,6 +9,7 @@ import { invokeHandler } from './handler-registry'
 import { logger as defaultLogger } from '../logger'
 import { broadcastHub } from './broadcast-hub'
 import { PROXIED_EVENTS, type AuthResultMetadata, type AuthServerEnv, type RemoteFrame } from './protocol'
+import { WS_MAX_PAYLOAD_BYTES } from './ws-limits'
 import {
   FileCertificateProvider,
   type CertificateProvider,
@@ -123,7 +124,6 @@ const TOKEN_FILENAME = 'server-token.json'
 export const AUTH_FAIL_WINDOW_MS = 60_000
 export const AUTH_FAIL_THRESHOLD = 5
 export const AUTH_BAN_DURATION_MS = 10 * 60_000
-const WS_MAX_PAYLOAD_BYTES = 32 * 1024 * 1024
 export const HEARTBEAT_INTERVAL_MS = 30_000
 /**
  * T0455: heartbeats in a row a client may leave unanswered before it is terminated. More
@@ -532,6 +532,15 @@ export class RemoteServer {
     }))
   }
 
+  /** T0842: who a socket belongs to, for log lines (no token, no address). */
+  private describeConnection(ws: WebSocket): string {
+    const client = this.clients.get(ws)
+    if (client) return `client: ${client.label}`
+    const helper = this.helpers.get(ws)
+    if (helper) return `helper: ${helper.role} ${helper.terminalId}`
+    return 'unauthenticated'
+  }
+
   private tokenPath(): string {
     return path.join(this.configDir, TOKEN_FILENAME)
   }
@@ -794,7 +803,9 @@ export class RemoteServer {
       })
 
       ws.on('error', (err) => {
-        this.log.error('[RemoteServer] WebSocket error:', err.message)
+        // T0842 (BUG-211): name the connection (an oversized frame used to log no client at all:
+        // dropClient below runs before 'close', which then finds nothing to name).
+        this.log.error('[RemoteServer] WebSocket error:', err.message, `(${this.describeConnection(ws)})`)
         this.dropHelper(ws)
         this.dropClient(ws)
         this.notifyClientCount()

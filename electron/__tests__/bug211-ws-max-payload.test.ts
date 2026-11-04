@@ -1,16 +1,19 @@
 // @vitest-environment node
 /**
- * T0837 (BUG-211 reproduction): a remote window's Claude panel sends every attached image as a
- * data URL inside ONE `claude:send-message` invoke frame (T0436). The RemoteServer accepts at most
- * `WS_MAX_PAYLOAD_BYTES` = 32 MiB per message (`electron/remote/remote-server.ts`). This file runs a
- * real RemoteServer (wss on loopback, file certificate in a temp dir) and a real RemoteClient and
- * records what happens on each side of that limit. Reproduction only: no product code changes.
+ * T0837 (BUG-211 reproduction) / T0842 (fix): a remote window's Claude panel sends every attached
+ * image as a data URL inside ONE `claude:send-message` invoke frame (T0436). The RemoteServer
+ * accepts at most `WS_MAX_PAYLOAD_BYTES` = 32 MiB per message (`electron/remote/ws-limits.ts`).
+ * This file runs a real RemoteServer (wss on loopback, file certificate in a temp dir) and a real
+ * RemoteClient and records what happens on each side of that limit.
  *
- *   - raw ws: a frame of exactly 32 MiB reaches the handler; 32 MiB + 1 byte closes the socket 1009
+ *   - raw ws (server behaviour, unchanged): a frame of exactly 32 MiB reaches the handler;
+ *     32 MiB + 1 byte closes the socket 1009 (the server log now names the client, T0842)
  *   - RemoteClient: 2 images of 10 MiB (~28 MB frame) go through
- *   - RemoteClient: 3 images of 10 MiB (~42 MB frame) close the whole connection with 1009; every
- *     in-flight invoke of that client rejects `Connection closed`; the client reconnects by itself;
- *     a second client (another profile) is not affected
+ *   - RemoteClient: 3 images of 10 MiB (~42 MB frame): T0837 measured a 1009 close of the whole
+ *     connection; since T0842 the client rejects the call locally with `FRAME_TOO_LARGE`, sends
+ *     nothing, and the connection and every other in-flight invoke are unaffected
+ *   - the panels' remote image budget (`src/lib/remote-image-budget.ts`, 20 MiB) fits one frame
+ *     even with a long CJK prompt
  */
 import * as fs from 'fs'
 import * as os from 'os'
@@ -21,18 +24,21 @@ import { RemoteServer } from '../remote/remote-server'
 import { RemoteClient } from '../remote/remote-client'
 import { registerHandler } from '../remote/handler-registry'
 import type { RemoteFrame } from '../remote/protocol'
+import { WS_MAX_PAYLOAD_BYTES } from '../remote/ws-limits'
+import { REMOTE_IMAGE_BUDGET_BYTES, checkRemoteImageBudget } from '../../src/lib/remote-image-budget'
 
 const TOKEN = 'b'.repeat(32)
 const MiB = 1024 * 1024
-/** Mirrors `WS_MAX_PAYLOAD_BYTES` (not exported) in electron/remote/remote-server.ts. */
-const SERVER_MAX_PAYLOAD = 32 * MiB
+const SERVER_MAX_PAYLOAD = WS_MAX_PAYLOAD_BYTES
 /** Mirrors `MAX_ATTACHMENT_IMAGE_BYTES` (src/lib/image-attachment.ts) / `MAX_IMAGE_SIZE` (path-guard). */
 const PANEL_MAX_IMAGE_BYTES = 10 * MiB
 const DATA_URL_PREFIX = 'data:image/png;base64,'
 
 /** A data URL the size FileReader.readAsDataURL produces for an image of `rawBytes` bytes. */
 function fakeImageDataUrl(rawBytes: number): string {
-  return DATA_URL_PREFIX + 'A'.repeat(4 * Math.ceil(rawBytes / 3))
+  // T0842: with real base64 padding, so the decoded size is exactly `rawBytes` (same length as before)
+  const padding = (3 - (rawBytes % 3)) % 3
+  return DATA_URL_PREFIX + 'A'.repeat(4 * Math.ceil(rawBytes / 3) - padding) + '='.repeat(padding)
 }
 
 /** The byte length of the invoke frame RemoteClient.invoke sends for `claude:send-message`. */
@@ -155,6 +161,23 @@ describe('T0837 / BUG-211 — frame size arithmetic', () => {
     expect(maxRawSingle).toBeGreaterThan(24 * MiB - 256)
     expect(maxRawSingle).toBeLessThan(24 * MiB)
   })
+
+  it('T0842: the shared limit is 32 MiB; images within the panel budget fit one frame with a long CJK prompt', () => {
+    expect(WS_MAX_PAYLOAD_BYTES).toBe(32 * MiB)
+    // the worst split for base64 padding: several images summing to just under the budget
+    const within = [
+      fakeImageDataUrl(10 * MiB),
+      fakeImageDataUrl(REMOTE_IMAGE_BUDGET_BYTES - 10 * MiB - 4 * 1024),
+      fakeImageDataUrl(1024), fakeImageDataUrl(1024), fakeImageDataUrl(1024),
+    ]
+    expect(checkRemoteImageBudget(within, true)).toBeNull()
+    const longPrompt = '請看這些截圖並說明差異。\n'.repeat(40_000) // ~1.6 MB UTF-8, JSON-escaped newlines
+    expect(sendMessageFrameBytes(within, longPrompt)).toBeLessThan(SERVER_MAX_PAYLOAD)
+    // two images at the panel's per-image cap pass the budget; three do not
+    const tenMiB = fakeImageDataUrl(PANEL_MAX_IMAGE_BYTES)
+    expect(checkRemoteImageBudget([tenMiB, tenMiB], true)).toBeNull()
+    expect(checkRemoteImageBudget([tenMiB, tenMiB, tenMiB], true)).not.toBeNull()
+  })
 })
 
 describe('T0837 / BUG-211 — real RemoteServer', () => {
@@ -174,6 +197,8 @@ describe('T0837 / BUG-211 — real RemoteServer', () => {
     expect(over.frames.find(f => f.id === 'inv-over')).toBeUndefined()
     expect(sendMessageCalls).toHaveLength(1) // the handler never saw the oversized frame
     expect(s.logs.some(l => l.includes('Max payload size exceeded'))).toBe(true)
+    // T0842: the log line names the connection
+    expect(s.logs.some(l => l.includes('Max payload size exceeded') && l.includes('(client: T0837 raw)'))).toBe(true)
     // the other connection is still open
     expect(ok.ws.readyState).toBe(WebSocket.OPEN)
   }, 60_000)
@@ -188,7 +213,7 @@ describe('T0837 / BUG-211 — real RemoteServer', () => {
     expect(closeCodes).toEqual([])
   }, 60_000)
 
-  it('RemoteClient: 3 × 10 MiB images close the whole connection (1009), fail every in-flight invoke, then reconnect', async () => {
+  it('T0842: RemoteClient rejects 3 × 10 MiB images locally (FRAME_TOO_LARGE); the connection and other invokes are unaffected', async () => {
     const s = await startServer()
     const victim = await connectClient(s, 'T0837 profile-A')
     const bystander = await connectClient(s, 'T0837 profile-B')
@@ -199,33 +224,37 @@ describe('T0837 / BUG-211 — real RemoteServer', () => {
     await vi.waitFor(() => expect(releaseSlow).not.toBeNull(), { timeout: 5_000, interval: 10 })
 
     const img = fakeImageDataUrl(PANEL_MAX_IMAGE_BYTES)
-    const sent = victim.client.invoke('claude:send-message', ['sess-1', 'three images', [img, img, img]])
-    const [sentResult, slowResult] = await Promise.allSettled([sent, slow])
-    console.info(`[T0837] send-message: ${sentResult.status} ${sentResult.status === 'rejected' ? (sentResult.reason as Error).message : ''}; ` +
-      `in-flight invoke: ${slowResult.status} ${slowResult.status === 'rejected' ? (slowResult.reason as Error).message : ''}; ` +
-      `client close codes=${JSON.stringify(victim.closeCodes)}; server client counts=${JSON.stringify(s.counts)}`)
-    expect(sentResult.status).toBe('rejected')
-    expect((sentResult as PromiseRejectedResult).reason.message).toBe('Connection closed')
-    expect(slowResult.status).toBe('rejected')
-    expect((slowResult as PromiseRejectedResult).reason.message).toBe('Connection closed')
-    expect(victim.closeCodes).toEqual([1009])
+    const expectedBytes = sendMessageFrameBytes([img, img, img], 'three images', 'x')
+    const err = await victim.client.invoke('claude:send-message', ['sess-1', 'three images', [img, img, img]])
+      .then(() => null, (e: unknown) => e as Error & { code?: string; bytes?: number; limit?: number })
+    expect(err).not.toBeNull()
+    expect(err!.message).toMatch(/^FRAME_TOO_LARGE: claude:send-message frame is \d+ bytes; the remote connection accepts at most 33554432 bytes$/)
+    expect(err!.code).toBe('FRAME_TOO_LARGE')
+    expect(err!.limit).toBe(SERVER_MAX_PAYLOAD)
+    // the real frame id is a few characters longer than 'x'
+    expect(Math.abs((err!.bytes ?? 0) - expectedBytes)).toBeLessThan(64)
+    console.info(`[T0842] send-message rejected locally: ${err!.message}; client close codes=${JSON.stringify(victim.closeCodes)}`)
+
+    // nothing reached the server, the connection stays up, nothing reconnects
     expect(sendMessageCalls).toHaveLength(0)
-    expect(victim.client.isConnected).toBe(false)
-    expect(victim.client.isReconnecting).toBe(true)
+    expect(victim.closeCodes).toEqual([])
+    expect(victim.client.isConnected).toBe(true)
+    expect(victim.client.isReconnecting).toBe(false)
+    expect(s.server.getClientCount()).toBe(2)
+    expect(s.counts).toEqual([1, 2]) // the two connects only: nobody left
+    expect(s.logs.some(l => l.includes('Max payload size exceeded'))).toBe(false)
+
+    // the in-flight invoke of the same client still completes, and new ones work
+    releaseSlow?.()
+    await expect(slow).resolves.toBe('slow-done')
+    await expect(victim.client.invoke('test:t0837-ping', [])).resolves.toBe('pong')
+    await expect(victim.client.invoke('claude:send-message', ['sess-1', 'two images', [img, img]])).resolves.toBe(true)
+    expect(sendMessageCalls).toEqual([{ sessionId: 'sess-1', prompt: 'two images', imageCount: 2, imageChars: 2 * img.length }])
 
     // The other profile's connection is untouched.
     expect(bystander.client.isConnected).toBe(true)
     await expect(bystander.client.invoke('test:t0837-ping', [])).resolves.toBe('pong')
     expect(bystander.closeCodes).toEqual([])
-
-    // The victim reconnects on its own (backoff 1–2 s) and works again for small frames.
-    await expect.poll(() => victim.client.isConnected, { timeout: 10_000, interval: 50 }).toBe(true)
-    await expect(victim.client.invoke('test:t0837-ping', [])).resolves.toBe('pong')
-    await expect(victim.client.invoke('claude:send-message', ['sess-1', 'after reconnect', [fakeImageDataUrl(1024)]])).resolves.toBe(true)
-    expect(s.server.getClientCount()).toBe(2)
-    expect(s.counts).toContain(1) // the server saw the victim leave
-    console.info(`[T0837] after reconnect: server client counts=${JSON.stringify(s.counts)}; ` +
-      `server log: ${s.logs.filter(l => /payload|disconnected|authenticated/i.test(l)).join(' | ')}`)
-    releaseSlow?.()
+    expect(victim.closeCodes).toEqual([])
   }, 90_000)
 })

@@ -20,6 +20,7 @@ import { classifyClaudeError } from '../lib/claude-error-classify'
 import { backgroundAgentResultLabel, isBackgroundAgentCall } from '../lib/agent-task-label'
 import { EMPTY_TASK_LIST, isTaskListToolName, replayTaskList, taskListProgress, type ClaudeTaskList } from '../lib/claude-task-list'
 import { remoteUnsupportedMessage } from '../lib/remote-unsupported'
+import { checkRemoteImageBudget, remoteImageBudgetMessage, remoteSendFailureMessage, restoredAttachments, restoredInputText } from '../lib/remote-image-budget'
 import { buildSnippetContextPrompt, type SnippetForContext } from '../lib/snippet-context'
 import { droppedImageKey, pastedDiskFiles, readFileAsDataUrl } from '../lib/image-attachment'
 import { attachmentDisplayNames, resolveAttachmentPaths } from '../lib/client-paths'
@@ -1524,6 +1525,14 @@ export function ClaudeAgentPanel({ sessionId, cwd, isActive, workspaceId, isRemo
       return
     }
 
+    // T0842 (BUG-211): a remote window sends every image in one WebSocket frame; over the budget →
+    // tell the user and keep the input and attachments (nothing is cleared, nothing is sent).
+    const imageBudget = checkRemoteImageBudget(attachedImages.map(i => i.dataUrl), isRemoteWindow)
+    if (imageBudget) {
+      addNoticeToast(remoteImageBudgetMessage(imageBudget, t), 'warning', 10000)
+      return
+    }
+
     // T0437 (BUG-105): attachments go out in the agent host's form; files it cannot read are
     // dropped with a notice (SSH: every local file; WSL / Docker: outside the distro / mounts).
     const { serverPaths: filePaths, rejected } = await resolveAttachmentPaths(attachedFiles.map(f => f.path))
@@ -1546,6 +1555,15 @@ export function ClaudeAgentPanel({ sessionId, cwd, isActive, workspaceId, isRemo
       })
     }
     const imageDataUrls = attachedImages.map(i => i.dataUrl)
+    // T0842: what this send clears, so a failed remote send can put it back
+    const sentDraft = {
+      text: inputValueRef.current,
+      images: attachedImages,
+      files: attachedFiles,
+      wasStreaming: isStreaming,
+      wasInterrupted: isInterrupted,
+      prevTurnMsgId: currentTurnMsgIdRef.current,
+    }
     clearInput()
     setAttachedImages([])
     setAttachedFiles([])
@@ -1592,8 +1610,33 @@ export function ClaudeAgentPanel({ sessionId, cwd, isActive, workspaceId, isRemo
     }
 
     await window.electronAPI.claude.sendMessage(sessionId, promptToSend, imageDataUrls.length > 0 ? imageDataUrls : undefined)
-      .catch(showRemoteUnsupported)
-  }, [isStreaming, isInterrupted, sessionId, attachedImages, attachedFiles, clearInput, t, addNoticeToast, isRemoteWindow])
+      .catch((err: unknown) => {
+        // A local window, or a remote "no handler": unchanged (T0401).
+        if (!isRemoteWindow || remoteUnsupportedMessage(err, t)) {
+          showRemoteUnsupported(err)
+          return
+        }
+        // T0842 (BUG-211): a remote send failed (FRAME_TOO_LARGE, connection closed, timeout, …) →
+        // say so, put the draft back and undo the "running" state this send started.
+        window.electronAPI.debug.log(`[Claude:${sessionId.slice(0, 8)}] remote send failed: ${err instanceof Error ? err.message : String(err)}`)
+        setInputValue(restoredInputText(sentDraft.text, inputValueRef.current))
+        setAttachedImages(prev => restoredAttachments(sentDraft.images, prev, MAX_IMAGES))
+        setAttachedFiles(prev => restoredAttachments(sentDraft.files, prev, MAX_FILES))
+        queuedTurnMsgIdsRef.current = queuedTurnMsgIdsRef.current.filter(id => id !== userMsgId)
+        if (currentTurnMsgIdRef.current === userMsgId) currentTurnMsgIdRef.current = sentDraft.prevTurnMsgId
+        if (!sentDraft.wasStreaming || sentDraft.wasInterrupted) {
+          setIsStreaming(sentDraft.wasStreaming)
+          setIsInterrupted(sentDraft.wasInterrupted)
+        }
+        setMessages(prev => [...prev, {
+          id: `remote-send-failed-${Date.now()}`,
+          sessionId,
+          role: 'system' as const,
+          content: remoteSendFailureMessage(err, t),
+          timestamp: Date.now(),
+        }])
+      })
+  }, [isStreaming, isInterrupted, sessionId, attachedImages, attachedFiles, clearInput, setInputValue, t, addNoticeToast, isRemoteWindow])
 
   const disablePromptPathHint = useCallback(() => {
     settingsStore.setPromptClientPathHint(false)

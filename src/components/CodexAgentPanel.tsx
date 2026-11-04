@@ -18,6 +18,8 @@ import { extractInterruptedContinuation } from '../utils/interrupted-prompt'
 import { classifyCodexError } from '../lib/codex-error-classify'
 import { droppedImageKey, pastedDiskFiles, readFileAsDataUrl } from '../lib/image-attachment'
 import { attachmentDisplayNames, resolveAttachmentPaths } from '../lib/client-paths'
+import { checkRemoteImageBudget, remoteImageBudgetMessage, remoteSendFailureMessage, restoredAttachments, restoredInputText } from '../lib/remote-image-budget'
+import { useIsRemoteWindow } from '../hooks/useIsRemoteWindow'
 import { CtToast, useCtToast } from './CtToast'
 import { buildSnippetContextPrompt, type SnippetForContext } from '../lib/snippet-context'
 import { getModelPricing, type ModelPricing } from '../lib/model-pricing'
@@ -143,6 +145,7 @@ export function CodexAgentPanel({ sessionId, cwd, isActive, workspaceId, onClose
   const { t } = useTranslation()
   const { messages: noticeToasts, addToast: addNoticeToast, dismissToast: dismissNoticeToast } = useCtToast()
   const isRemoteConnectedRef = useRef(!!isRemoteConnected)
+  const isRemoteWindow = useIsRemoteWindow()
   const terminal = workspaceStore.getState().terminals.find(t => t.id === sessionId)
   const isCodexSession = true
   const isWorktreeSession = terminal?.agentPreset === 'claude-code-worktree' || terminal?.agentPreset === 'codex-agent-worktree' || !!terminal?.worktreePath
@@ -1770,6 +1773,14 @@ export function CodexAgentPanel({ sessionId, cwd, isActive, workspaceId, onClose
       }
     }
 
+    // T0842 (BUG-211): a remote window sends every image in one WebSocket frame; over the budget →
+    // tell the user and keep the input and attachments (nothing is cleared, nothing is sent).
+    const imageBudget = checkRemoteImageBudget(attachedImages.map(i => i.dataUrl), isRemoteWindow)
+    if (imageBudget) {
+      addNoticeToast(remoteImageBudgetMessage(imageBudget, t), 'warning', 10000)
+      return
+    }
+
     // T0437 (BUG-105): attachments go out in the agent host's form; files it cannot read are
     // dropped with a notice (SSH: every local file; WSL / Docker: outside the distro / mounts).
     const { serverPaths: filePaths, rejected } = await resolveAttachmentPaths(attachedFiles.map(f => f.path))
@@ -1781,6 +1792,15 @@ export function CodexAgentPanel({ sessionId, cwd, isActive, workspaceId, onClose
       }
     }
     const imageDataUrls = attachedImages.map(i => i.dataUrl)
+    // T0842: what this send clears, so a failed remote send can put it back
+    const sentDraft = {
+      text: inputValueRef.current,
+      images: attachedImages,
+      files: attachedFiles,
+      wasStreaming: isStreaming,
+      wasInterrupted: isInterrupted,
+      prevTurnMsgId: currentTurnMsgIdRef.current,
+    }
     clearInput()
     setAttachedImages([])
     setAttachedFiles([])
@@ -1822,7 +1842,28 @@ export function CodexAgentPanel({ sessionId, cwd, isActive, workspaceId, onClose
     }
 
     await window.electronAPI.claude.sendMessage(sessionId, promptToSend, imageDataUrls.length > 0 ? imageDataUrls : undefined)
-  }, [isStreaming, sessionId, attachedImages, attachedFiles, clearInput, t, addNoticeToast])
+      .catch((err: unknown) => {
+        if (!isRemoteWindow) throw err // a local window: unchanged
+        // T0842 (BUG-211): a remote send failed (FRAME_TOO_LARGE, connection closed, timeout, …) →
+        // say so, put the draft back and undo the "running" state this send started.
+        window.electronAPI.debug.log(`[Codex:${sessionId.slice(0, 8)}] remote send failed: ${err instanceof Error ? err.message : String(err)}`)
+        setInputValue(restoredInputText(sentDraft.text, inputValueRef.current))
+        setAttachedImages(prev => restoredAttachments(sentDraft.images, prev, MAX_IMAGES))
+        setAttachedFiles(prev => restoredAttachments(sentDraft.files, prev, MAX_FILES))
+        if (currentTurnMsgIdRef.current === userMsgId) currentTurnMsgIdRef.current = sentDraft.prevTurnMsgId
+        if (!sentDraft.wasStreaming || sentDraft.wasInterrupted) {
+          setIsStreaming(sentDraft.wasStreaming)
+          setIsInterrupted(sentDraft.wasInterrupted)
+        }
+        setMessages(prev => [...prev, {
+          id: `remote-send-failed-${Date.now()}`,
+          sessionId,
+          role: 'system' as const,
+          content: remoteSendFailureMessage(err, t),
+          timestamp: Date.now(),
+        }])
+      })
+  }, [isStreaming, sessionId, attachedImages, attachedFiles, clearInput, setInputValue, t, addNoticeToast, isRemoteWindow])
 
   const handleInterrupt = useCallback(() => {
     if (!isStreaming) return

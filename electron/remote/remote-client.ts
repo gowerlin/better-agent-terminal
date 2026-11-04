@@ -9,6 +9,7 @@ import {
   translateInvokeArgs,
   translateRemoteEventArgs,
 } from './path-aware-channels'
+import { encodeFrameWithinLimit } from './ws-limits'
 import { createTranslator, IdentityTranslator, type PathTranslator } from './path-translator'
 import { SshTunnel } from './ssh-tunnel'
 import { logger } from '../logger'
@@ -463,7 +464,15 @@ export class RemoteClient {
           token: this.token,
           args: [this.label]
         }
-        this.ws!.send(JSON.stringify(authFrame))
+        // T0842: the auth frame is small (token + profile label); checked like every other frame.
+        const encodedAuth = encodeFrameWithinLimit(authFrame)
+        if (!encodedAuth.ok) {
+          logger.error(`[RemoteClient] ${encodedAuth.error.message}`)
+          this.ws?.close()
+          settle({ ok: false, error: encodedAuth.error.message, errorCode: 'network' })
+          return
+        }
+        this.ws!.send(encodedAuth.data)
       })
 
       this.ws.on('message', (raw) => {
@@ -676,6 +685,15 @@ export class RemoteClient {
     const translatedArgs = translateInvokeArgs(channel, args, translator)
     const frame: RemoteFrame = { type: 'invoke', id, channel, args: translatedArgs }
 
+    // T0842 (BUG-211): the server closes the whole connection (1009) on a frame over
+    // WS_MAX_PAYLOAD_BYTES, failing every other in-flight invoke of this profile. Reject this call
+    // locally instead: nothing is sent and the connection stays up.
+    const encoded = encodeFrameWithinLimit(frame)
+    if (!encoded.ok) {
+      logger.warn(`[RemoteClient] invoke not sent: ${encoded.error.message}`)
+      return Promise.reject(encoded.error)
+    }
+
     return new Promise((resolve, reject) => {
       const timer = setTimeout(() => {
         this.pending.delete(id)
@@ -689,7 +707,7 @@ export class RemoteClient {
         reject,
         timer,
       })
-      this.ws!.send(JSON.stringify(frame))
+      this.ws!.send(encoded.data)
     })
   }
 
