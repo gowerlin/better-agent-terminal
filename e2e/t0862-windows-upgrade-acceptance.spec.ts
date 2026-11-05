@@ -338,6 +338,11 @@ async function seedTabs(bat: Bat, tabs: string[]): Promise<void> {
   await bat.win.waitForLoadState('domcontentloaded')
   for (const id of tabs) await expect.poll(() => registryPid(id), { timeout: 60_000 }).not.toBeNull()
   await bat.win.waitForTimeout(2_000)
+  // a default tab the first (empty) load may have created is not part of the scenario
+  for (const p of registry().filter(x => !tabs.includes(x.id))) {
+    note(`seed: ended an extra PTY ${p.id} the first load created`)
+    await bat.win.evaluate((id) => (window as AnyApi).electronAPI.pty.kill(id), p.id).catch(() => undefined)
+  }
 }
 
 /** Collects one tab's output in the window. */
@@ -575,9 +580,20 @@ async function upgradeScenario(opts: {
     bat = before.bat
     const root = ROOT(opts.scope)
     const stale = path.join(root, 'stale-t0862')
+    const inUse = path.join(root, 'inuse-t0862')
     if (opts.staleDir) {
+      // D9 both ways: a directory no process runs from is removed; one a process runs from is kept. A and B of the
+      // same commit usually share the holder key (content hash), so the running key directory itself is "up to
+      // date" and never a removal candidate: the second planted directory exercises the "kept, in use" branch.
       fs.mkdirSync(stale, { recursive: true })
       fs.writeFileSync(path.join(stale, 'placeholder.txt'), 'T0862: a directory no process runs from — customInstall removes it (D9)')
+      fs.mkdirSync(inUse, { recursive: true })
+      fs.copyFileSync(path.join(path.dirname(before.roles.holderExe!), 'bat-pty-holder.exe'), path.join(inUse, 'bat-pty-holder.exe'))
+      const child = spawn(path.join(inUse, 'bat-pty-holder.exe'), ['-e', 'setInterval(function(){},1000)'], { detached: true, stdio: 'ignore', windowsHide: true })
+      child.unref()
+      blocker = child.pid ?? null
+      await new Promise(r => setTimeout(r, 1500))
+      check('first: a process runs from the planted in-use directory', await aliveAs(blocker, 'bat-pty-holder.exe'), blocker)
     }
     const logsBefore = logFiles()
 
@@ -600,7 +616,16 @@ async function upgradeScenario(opts: {
     const dirs = holderDirs(root)
     evidence['holder dirs after install'] = dirs
     check('after install: the running holder directory is intact (an --updated uninstall and customInstall left it)', !!before.key && dirs.some(d => d.name === before.key && d.manifest && d.exe), { key: before.key, dirs })
-    if (opts.staleDir) check('after install: the unused stale directory was removed by customInstall (D9)', !fs.existsSync(stale), dirs)
+    const secondKey = readJson(path.join(app!.dir, 'resources', 'pty-holder', 'holder-manifest.json'))?.key ?? null
+    evidence['holder keys'] = { first: before.key, second: secondKey, same: before.key === secondKey }
+    note(`holder key of ${opts.first[1]}: ${before.key}; of ${opts.second[1]}: ${secondKey} (${before.key === secondKey ? 'same — customInstall left the running one as "up to date"' : 'different — customInstall copied the new key next to the running one'})`)
+    if (secondKey && secondKey !== before.key) check('after install: the second version\'s holder key directory was copied', dirs.some(d => d.name === secondKey && d.manifest && d.exe), dirs)
+    if (opts.staleDir) {
+      check('after install: the unused stale directory was removed by customInstall (D9)', !fs.existsSync(stale), dirs)
+      check('after install: the directory a process runs from was kept by customInstall (D9)', fs.existsSync(path.join(inUse, 'bat-pty-holder.exe')), dirs)
+      if (blocker && isAlive(blocker)) await run('taskkill', ['/T', '/F', '/PID', String(blocker)]).catch(() => '')
+      blocker = null
+    }
 
     bat = await relaunchReattached(app!.exe, before, opts.toastKey, opts.first[1], opts.second[1], 'relaunch', logsBefore)
     if (opts.agent) {

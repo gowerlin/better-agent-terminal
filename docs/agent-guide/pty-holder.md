@@ -93,7 +93,7 @@ gh workflow run windows-upgrade-acceptance.yml -R gowerlin/better-agent-terminal
 
 | # | 情境 | 主要判準 |
 |---|---|---|
-| 1 | per-user A → B（`/S /currentuser`） | BAT 在 15 s 內結束、holder / shell / ping / conhost 存活、安裝目錄沒有程序、schema 2、跑著的 key 目錄保留、放進去的 stale 目錄被刪（D9）；重開：沒有 Recovery 提示、`app.upgradeReattached`（vA → vB）、同 holder / shell pid、ping 輸出持續 |
+| 1 | per-user A → B（`/S /currentuser`） | BAT 在 15 s 內結束、holder / shell / ping / conhost 存活、安裝目錄沒有程序、schema 2、跑著的 key 目錄保留、放進根目錄的兩個目錄：沒有程序在跑的被刪、有程序在跑的保留（D9；A、B 同 commit 時 key 通常相同，記錄兩個 key）；重開：沒有 Recovery 提示、`app.upgradeReattached`（vA → vB）、同 holder / shell pid、ping 輸出持續 |
 | 2 | per-machine A → B（`/S /allusers`）＋真的解除安裝 | 同 1（根目錄在 `%ProgramFiles%`）；解除安裝時另有程序從根目錄執行 → holder 結束、根目錄保留、userData 保留。runner 已提權，UAC inner instance 的路徑不在範圍 |
 | 3 | 同版重裝 B → B | 接回、`app.upgradeReattachedSameVersion` |
 | 4 | 降級 B → A | 接回、`app.upgradeReattached`（vB → vA） |
