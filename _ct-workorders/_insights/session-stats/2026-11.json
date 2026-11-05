@@ -1,5 +1,5 @@
 {
- "generated_at": "2026-11-05T10:25:21+08:00",
+ "generated_at": "2026-11-05T10:40:50+08:00",
  "generator": {
   "script": "ct-session-stats.py",
   "version": "0.2.0"
@@ -50,13 +50,13 @@
    "output": 32232
   },
   "2026-11-05": {
-   "api_requests": 53,
-   "cache_read": 10906959,
-   "cache_write": 197442,
-   "cache_write_1h": 197442,
+   "api_requests": 71,
+   "cache_read": 14918225,
+   "cache_write": 220816,
+   "cache_write_1h": 220816,
    "cache_write_5m": 0,
-   "input": 108,
-   "output": 42779
+   "input": 146,
+   "output": 59715
   }
  },
  "workorders": [
@@ -7885,6 +7885,94 @@
     "2.1.316"
    ],
    "workorder": "T0866"
+  },
+  {
+   "agents_invoked": {},
+   "attribution": {
+    "conflict": false,
+    "source": "frontmatter",
+    "sources": {
+     "frontmatter": 1
+    }
+   },
+   "by_mcp_server": {
+    "bat": 2
+   },
+   "by_tool": {
+    "Bash": 43,
+    "Edit": 10,
+    "Grep": 1,
+    "Read": 7,
+    "ToolSearch": 1,
+    "mcp__bat__bat_wait_question": 2
+   },
+   "counts": {
+    "api_requests": 58,
+    "failures": 0,
+    "same_file_read_ge3": 2,
+    "subagent_files": 0,
+    "tool_calls": 64
+   },
+   "end": "2026-11-05T02:40:38Z",
+   "est_usd": 4.2056,
+   "failures_by_tool": {},
+   "renews": 0,
+   "sessions": 1,
+   "skills_invoked": {
+    "ct-exec": 1
+   },
+   "start": "2026-11-05T02:26:15Z",
+   "stuck": {
+    "max_consecutive_failures": 0,
+    "max_failures_in_10_calls": 0,
+    "near_repeat_fail_pairs_j50": 0,
+    "repeat_fail_groups_norm": 0
+   },
+   "stuck_signal": false,
+   "subagent_tokens": {
+    "cache_read": 0,
+    "cache_write": 0,
+    "cache_write_1h": 0,
+    "cache_write_5m": 0,
+    "input": 0,
+    "output": 0
+   },
+   "tokens": {
+    "cache_read": 10669783,
+    "cache_write": 176652,
+    "cache_write_1h": 176652,
+    "cache_write_5m": 0,
+    "input": 120,
+    "output": 32897
+   },
+   "top_tools": [
+    [
+     "Bash",
+     43
+    ],
+    [
+     "Edit",
+     10
+    ],
+    [
+     "Read",
+     7
+    ],
+    [
+     "mcp__bat__bat_wait_question",
+     2
+    ],
+    [
+     "Grep",
+     1
+    ]
+   ],
+   "type": "implementation",
+   "unpriced_tokens": 0,
+   "versions": [
+    "2.1.316"
+   ],
+   "workorder": "T0867"
   }
  ]
 }
