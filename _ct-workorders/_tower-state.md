@@ -1,7 +1,7 @@
 ---
 schema_kind: tower-state
 summary_version: 1
-updated_at: "2026-11-05T11:00:30+08:00"
+updated_at: "2026-11-05T11:03:00+08:00"
 session: "2026-11-05 07:01 第一百二十一 session（CT v6.0.0-beta.11）"
 next_ids:
   workorder: "T0868"
@@ -81,7 +81,7 @@ todo:
 - **`v0.7.4-pre.3`**（第一百一十一 session）：語音可用性事先檢查（T0802）、驗收腳本 `-Version` 必填（T0801）
 
 ### 待辦（依優先序；完整內容見 frontmatter `todo`）
-1. ▶ PLAN-065 W1–W6 全 DONE（T0862 情境 1–9 PASS）→ D290 / D291 先修 BUG-213：T0865 查證 DONE → T0866 DONE（W6 PASS）→ T0867 DONE（tests.yml 綠）→ ✅ `0.7.5-pre.1` 已發佈（run `41956896040` 全綠，publishedAt 2026-11-05T02:58:21Z，target `e7461b37`，含 `server-bundle-v0.7.5-pre.1`）；更版重點已改寫；三文件＋版號已更新；待：Pages 綠燈與 link-check、使用者 NSIS 重裝驗收、pre.1 → 下一版的真實升級保留
+1. ▶ PLAN-065 W1–W6 全 DONE（T0862 情境 1–9 PASS）→ D290 / D291 先修 BUG-213：T0865 查證 DONE → T0866 DONE（W6 PASS）→ T0867 DONE（tests.yml 綠）→ ✅ `0.7.5-pre.1` 已發佈（run `41956896040` 全綠，publishedAt 2026-11-05T02:58:21Z，target `e7461b37`，含 `server-bundle-v0.7.5-pre.1`）；更版重點已改寫；三文件＋版號已更新；Pages run `41958846733` 綠、首頁 pre.1、link-check 1515 / 0 errors；待：使用者 NSIS 重裝驗收、pre.1 → 下一版的真實升級保留
 2. PLAN-058：待使用者手動確認（清單在 T0819 回報區）；PLAN-052：Docker Desktop 實機
 3. MSRC 回報 microsoft/node-pty（使用者自行處理，D255）
 4. 觀察：語音可用性 macOS 未實機（T0802）、t0757 偶發失敗（D218）；PLAN-060 IDEA
