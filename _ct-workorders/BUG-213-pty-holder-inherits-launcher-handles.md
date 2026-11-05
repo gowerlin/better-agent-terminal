@@ -3,11 +3,11 @@ schema_version: 1
 schema_kind: bug
 id: BUG-213
 title: "Windows PTY holder 繼承 BAT 主行程可繼承的 handle：BAT 由帶 pipe 的呼叫端啟動時，升級後保留的 holder 讓呼叫端一直等不到 `close`"
-status: FIXING
+status: FIXED
 severity: low
 reproducibility: "always（帶 pipe 啟動 BAT 時；T0862 run `41942234283` 實測 Playwright `ElectronApplication.close()` 卡到 30 分鐘逾時）"
 created_at: "2026-11-05T09:33:33+08:00"
-updated_at: "2026-11-05T09:40:53+0800"
+updated_at: "2026-11-05T10:23:07+0800"
 impact:
   - pty-holder
   - windows
@@ -21,7 +21,7 @@ links:
 |------|------|
 | 嚴重度 | 🟢 low（從檔案總管 / 開始功能表啟動沒有 pipe，不受影響） |
 | 可重現 | ✅ 帶 pipe 啟動時必定 |
-| **狀態** | ⏳ FIXING（T0865 查證 → D291 選 N-API addon → T0866 修正＋重跑 W6） |
+| **狀態** | ✅ FIXED（T0866 `c19aaa72`；W6 run `41954101041` 情境 1–9 PASS，等發版後驗收） |
 | 回報者 | 塔台（T0862 Worker 發現） |
 
 ## 現象（預期 vs 實際）
@@ -47,3 +47,10 @@ links:
   - 對照：父程序換成純 Node（同樣的 `spawn` 選項）→ 1.6 s 收到 `close`。Node 啟動時會呼叫 libuv `uv_disable_stdio_inheritance()`（把繼承來的標準 handle 與 CRT fd 設為不可繼承），Electron 主行程沒有。
 - **原因**：Windows 上 libuv `uv_spawn` 以 `CreateProcessW(bInheritHandles = TRUE)` 建立子程序（`ipc` 與 stdio 要靠繼承傳過去），沒有用 `PROC_THREAD_ATTRIBUTE_HANDLE_LIST`；所以 Electron 主行程裡所有可繼承的 handle（包含從呼叫端繼承來、仍是可繼承的 pipe）都會傳給子程序。
 - **修正需要原生程式碼**：要讓 holder 不帶走這些 handle，只能在 BAT 主行程把它們設為不可繼承（`SetHandleInformation(h, HANDLE_FLAG_INHERIT, 0)`），或用 handle list 建立子程序。Node / Electron 的 JS API 都沒有這兩種能力（`child_process` 沒有對應選項；關掉 fd 0–2 再開 NUL 會讓 `GetStdHandle` 指向已關閉的 handle，也讓呼叫端收不到 BAT 的輸出，不可靠）。⇒ T0865 依停止條件回報 PARTIAL，選項見 T0865 回報區。
+
+## 修正（T0866，2026-11-05）
+
+- **commit**：`c19aaa72`（修正＋測試＋建置 / 打包接線）、`6f986206` / `ccbad4c9`（文件）。
+- **作法**（D291 選項 A）：N-API addon `native/win-stdio-inherit`（只用 kernel32 `GetStdHandle` / `GetStartupInfoW` 的 `lpReserved2` / `GetHandleInformation` / `SetHandleInformation`）；`forkTerminalServer` 的 holder `spawn` 與 `fork` 都包在 `terminalServerStdioGuard.run`（`electron/win-stdio-inherit.ts`）：同步設為不可繼承 → 啟動 → `finally` 只還原原本可繼承的；addon 不在 → 照舊啟動（fail open）。macOS / Linux 不載入。
+- **建置 / 打包**：`npm run build:native-win`（devDependency `node-gyp` 13.1.0，沒有 install script、不提交 `.node`）；三個打 Windows 的 workflow 在打包前建；afterPack 放到 `resources\native\`；`verify-native-modules.js`（win32）與 `verify-packaged-native.js`（`win-stdio-inherit`，含 `ELECTRON_RUN_AS_NODE` 載入）檢查。
+- **驗證**：開發機修正前 / 後對照（holder `spawn` 與 `fork`：修正前 8 s 內沒有 `close`、修正後 1.6 s 與 `exit` 同時）；desktop-build `41952687778` / `41952701482` 的 Windows `verify-packaged-native` 綠（addon loads）；W6 `41954101041` 情境 1–9 全 PASS，情境 1 以 pipe 啟動 A：BAT 結束後呼叫端 5 ms 內拿到 `close`、holder 仍在跑，日誌 `[stdio-inherit] Terminal Server started without 5 inherited handle(s); 5 restored`。
