@@ -80,6 +80,14 @@ memory_overrides:
 ## 塔台授權
 （派工時由塔台填寫：可否 push 分支、可否觸發 `desktop-build.yml` 兩次與本 workflow。）
 
+**使用者 2026-11-05 08:10 全部授權（D289）**：
+- 塔台已 push `main`（`b203f56b..18325d1c`，push 前去識別化與金鑰檢查 0 筆）。
+- ✅ 可 push 到 `origin main`：本單的 workflow、spec、文件與修正（`gh workflow run` 手動觸發需要 workflow 檔在預設分支上）。每次 push 前跑 `_local-rules.md`「公開 repo 去識別化」的金鑰樣式檢查（`sk-ant-`、`ghp_`、`github_pat_`、`AKIA`、`AIza`、`PRIVATE KEY`、真的 `batcap.` 權杖）與家目錄路徑檢查，結果寫進回報區。不得 force-push。
+- ✅ 可觸發 `desktop-build.yml`（產出 A、B 兩個版本）與 `windows-upgrade-acceptance.yml`；失敗可修正後重跑，**各上限 5 次**，超過就停下來問塔台。
+- 🔴 所有 `gh` 指令帶 `-R gowerlin/better-agent-terminal`（L122）。不建 tag、不建 GitHub Release、不跑 `pre-release.yml` / `release.yml`、不部署 Pages、不動 repo 設定或 secret。
+- 🔴 不得在本機安裝任何安裝檔、不碰本機 BAT 安裝版與它的 Terminal Server（情境全在 GitHub runner 上跑）。
+- 情境 1–7 全 PASS 才算 DONE；有情境做不到或 FAIL → PARTIAL，寫明哪個情境、run id、證據，不要為了過關改產品行為（產品修正要另開單，先問塔台）。
+
 ### 驗收條件
 - [ ] 情境 1–7 全部 PASS（附 run id 與 summary）
 - [ ] `npm run typecheck` = 0、`npm run typecheck:electron` = 0、`npm run test:unit` 全過、`npm run test:legacy` 全過、`npx vite build` 成功

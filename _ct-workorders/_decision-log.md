@@ -1465,6 +1465,14 @@
 - **切分**：W2a 設計語言 + 元件 + 首頁（T0630）→ 預覽通過後 W2b（`/control-tower`、功能、FAQ、回報頁）→ W2c 遠端開發；W3 / W4 不變。
 - **相關**：PLAN-049 / D159 / D160 / T0624 / T0630
 
+### D289 2026-11-05 — T0862（PLAN-065 W6）全部授權：push `main`、Worker 可 push 到 `main` 並觸發 `desktop-build.yml` ×2 與新驗收 workflow
+
+- **背景**：T0861 DONE 後只剩 T0862 真實升級驗收；第一個有 holder 的版本的解除安裝程式與 quit 行為發佈後改不了，必須先用兩個 `desktop-build` 版本在 GitHub Windows runner 跑過升級。本機領先 `origin/main` 38 個 commit。
+- **選項**：全部授權／只 push 現有 commit（Worker 不 push、不觸發）／先不 push。
+- **決定**：**全部授權**（使用者 2026-11-05 08:10）。塔台 push 前跑 `.private/` 去識別化與金鑰樣式檢查（0 筆）後 push `main`（`b203f56b..18325d1c`）。Worker 可 push 到 `main`（新 workflow 要在預設分支才能手動觸發）、觸發 `desktop-build.yml` 與 `windows-upgrade-acceptance.yml`，失敗修正後重跑各上限 5 次；不建 tag / Release、不發版、不 force-push、不碰本機安裝版。
+- **決策者**：使用者（重跑上限與限制條件為塔台）。2026-11-05 第一百二十一 session。
+- **相關**：T0862 / PLAN-065 / D286 / D288
+
 ### D288 2026-11-05 — `checkForUpdates` 預設改開＋一次遷移既有 `false`（T0864）；恢復自動派單
 
 - **背景**：T0863 後續建議 1：`src/stores/settings-store.ts` 的 `checkForUpdates` 預設 `false`（2026-04 `2f0df589`），renderer 存設定時整份寫回 `settings.json`，所以存過任何設定的使用者啟動檢查實際是關的；D287「啟動時檢查一次」對多數既有使用者不會發生。已發佈版本的檢查本來就找不到新版（BUG-212），檔案裡的 `false` 分不出是不是使用者自己選的。
