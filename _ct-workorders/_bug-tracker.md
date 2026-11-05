@@ -32,7 +32,7 @@ breakdown:
 
 | ID | 標題 | 嚴重度 | 建立時間 | 連結 |
 |----|------|--------|---------|------|
-| BUG-213 | Windows PTY holder 繼承 BAT 主行程可繼承的 handle：帶 pipe 啟動 BAT 時，升級後保留的 holder 讓呼叫端等不到 `close`（T0862 發現；後續，不擋 `0.7.5-pre.1`） | 🟢 Low | 2026-11-05 | [BUG-213](BUG-213-pty-holder-inherits-launcher-handles.md) |
+| BUG-213 | Windows PTY holder 繼承 BAT 主行程可繼承的 handle：帶 pipe 啟動 BAT 時，升級後保留的 holder 讓呼叫端等不到 `close`（T0862 發現；D290 先修再發 → T0865） | 🟢 Low | 2026-11-05 | [BUG-213](BUG-213-pty-holder-inherits-launcher-handles.md) |
 
 ## ⏳ 修復中 (FIXING)
 

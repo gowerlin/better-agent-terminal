@@ -1465,6 +1465,14 @@
 - **切分**：W2a 設計語言 + 元件 + 首頁（T0630）→ 預覽通過後 W2b（`/control-tower`、功能、FAQ、回報頁）→ W2c 遠端開發；W3 / W4 不變。
 - **相關**：PLAN-049 / D159 / D160 / T0624 / T0630
 
+### D290 2026-11-05 — 先修 BUG-213（PTY holder 繼承啟動者的 handle）再發 `0.7.5-pre.1`；T0865 沿用 D289 的 push／觸發授權重跑 W6
+
+- **背景**：T0862 DONE（run `41947695334` 情境 1–9 全 PASS）已達發版條件。Worker 發現 holder 會繼承 BAT 主行程從啟動者拿到的可繼承 handle，帶 pipe 啟動 BAT 時，升級後保留的 holder 讓呼叫端等不到 `close`（開 BUG-213，low）。
+- **選項**：現在發 pre.1、BUG-213 後續（塔台推薦）／先修 BUG-213 再發／先不發。
+- **決定**：**先修 BUG-213 再發**（使用者 2026-11-05 09:35）。開 T0865：只改 Windows holder 啟動；需要原生模組、改協定或安裝程式、或沒有可靠作法 → PARTIAL 回報選項。修完重跑 W6（push `main`、`desktop-build.yml` ×2、`windows-upgrade-acceptance.yml`，各上限 5 次，其他限制同 D289），情境 1–9 全 PASS 後才發 `0.7.5-pre.1`。
+- **決策者**：使用者（範圍與停止條件為塔台）。2026-11-05 第一百二十一 session。
+- **相關**：BUG-213 / T0865 / T0862 / D289 / PLAN-065
+
 ### D289 2026-11-05 — T0862（PLAN-065 W6）全部授權：push `main`、Worker 可 push 到 `main` 並觸發 `desktop-build.yml` ×2 與新驗收 workflow
 
 - **背景**：T0861 DONE 後只剩 T0862 真實升級驗收；第一個有 holder 的版本的解除安裝程式與 quit 行為發佈後改不了，必須先用兩個 `desktop-build` 版本在 GitHub Windows runner 跑過升級。本機領先 `origin/main` 38 個 commit。
