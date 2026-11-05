@@ -1,7 +1,7 @@
 ---
 schema_kind: tower-state
 summary_version: 1
-updated_at: "2026-11-05T11:25:05+08:00"
+updated_at: "2026-11-05T11:30:30+08:00"
 session: "2026-11-05 11:23 第一百二十三 session（CT v6.0.0-rc.1）"
 next_ids:
   workorder: "T0870"
@@ -9,7 +9,7 @@ next_ids:
   bug: "BUG-214"
   plan: "PLAN-066"
 todo:
-  - "▶ `0.7.5-pre.1` NSIS 驗收第二次（11:22 `bat-nsis-acceptance-20261105-112218`）：⓪–③ PASS（③ 新規則容許日誌輪替、holder 根目錄已移除），④ 只有「userData 未被改動」FAIL：仍以 ⓪ 快照為基準，重算 ③ 已容許的同一組 2 檔（T0868 規格缺口）；備份已刪 → D293、開 T0869（④ 改以 ③ 結束時快照為基準）；T0869 完成後請使用者第三次重跑"
+  - "▶ `0.7.5-pre.1` NSIS 驗收第二次（11:22 `bat-nsis-acceptance-20261105-112218`）：⓪–③ PASS（③ 新規則容許日誌輪替、holder 根目錄已移除），④ 只有「userData 未被改動」FAIL：仍以 ⓪ 快照為基準，重算 ③ 已容許的同一組 2 檔（T0868 規格缺口）；備份已刪 → D293、開 T0869（④ 改以 ③ 結束時快照為基準）→ 11:30 T0869 DONE（`6269139c`）；待使用者第三次重跑"
   - "（前次）`0.7.5-pre.1` NSIS 重裝驗收 FAIL（11:03 `bat-nsis-acceptance-20261105-110355`）：⓪ WARN（原安裝版 pre.9，預期）、① ② PASS（含 holder 目錄）、③ 只有「userData 未被改動」FAIL：新增 `Logs\\debug-20261105-110422.log`、刪除最舊的 `debug-20261104-140843.log`。原因：真的解除安裝時 `customUnInstall` 一律啟動 `--uninstall-quit-request`（T0860 設計）→ 請求程序 `logger.init` 建檔並輪替；驗收腳本規則未隨 T0860 更新；腳本停在 ③（④ 之後未跑）。備份已刪（差異只有日誌，不需還原）。11:09 使用者選「改驗收腳本後重跑」→ D292、開 T0868 → 11:20 T0868 DONE（`f92b561f`）；待使用者重跑驗收"
   - "▶ 派單已恢復（D288）：T0860 DONE（`44982662`）→ T0864 DONE（`7a07cfca`）→ T0861 DONE（`9e8b26f0`）→ T0862 DONE（09:32，run `41947695334` 情境 1–9 全 PASS；產品 `5efee3bc` / `d450044d` / `c72247e5` / `3d8139ea`，已 push `main` 到 `db774daf`）→ D290 使用者「先修 BUG-213 再發」→ T0865 DONE（09:42 查證：修正需原生程式碼，PARTIAL → 收尾改 DONE）→ D291 使用者選 N-API addon → T0866 DONE（10:23，`c19aaa72` N-API addon，W6 `41954101041` 情境 1–9 PASS）→ T0867 DONE（10:40，f685ff21，tests.yml 41956226940 綠；修 `terminal-server-protocol-v1.test.ts` E 組 Linux 計時競爭，否則 Test gate 擋發版）→ 情境 1–9 全 PASS 後發 `0.7.5-pre.1`（更版重點〈已知事項〉寫：降級到 `0.7.4-pre.9` 會結束所有終端且沒有說明；per-machine 未提權互動升級未驗，發版後手動驗收）"
   - "BUG-213 FIXED（T0866 `c19aaa72`，待發版後驗收）：Windows PTY holder 繼承 BAT 主行程可繼承的 handle，帶 pipe 啟動 BAT 時保留的 holder 讓呼叫端等不到 `close`（T0862 發現）；修時要重跑 W6"
@@ -35,7 +35,7 @@ todo:
 ---
 # Tower State — better-agent-terminal
 
-> 🟢 **第一百二十三 session 開工**（2026-11-05 11:23 (UTC+8)，CT v6.0.0-rc.1，Fast Path；塔台 session `a62808cc-aaee-476c-9919-314a7d0f311c`；`--set-role tower --mode on` exit 0；`bat_whoami` 名稱 `better-agent-terminal · Tower`；安裝版 `0.7.5-pre.1`；HEAD `021b44fc`，領先 `origin/main` 5 個 commit（未 fetch）、工作區乾淨；熱區 264 張工單全 DONE；`bat_list_questions` pending 0）。判讀 11:22 NSIS 驗收第二次 → FAIL（只有 ④ userData：④ 仍以 ⓪ 快照為基準，重算 ③ 已容許的日誌新增 / 輪替 2 檔；產品正常）；含權杖備份已刪。塔台在 D292 範圍內代決 **D293**、開 **T0869**。
+> 🟢 **第一百二十三 session 開工**（2026-11-05 11:23 (UTC+8)，CT v6.0.0-rc.1，Fast Path；塔台 session `a62808cc-aaee-476c-9919-314a7d0f311c`；`--set-role tower --mode on` exit 0；`bat_whoami` 名稱 `better-agent-terminal · Tower`；安裝版 `0.7.5-pre.1`；HEAD `021b44fc`，領先 `origin/main` 5 個 commit（未 fetch）、工作區乾淨；熱區 264 張工單全 DONE；`bat_list_questions` pending 0）。判讀 11:22 NSIS 驗收第二次 → FAIL（只有 ④ userData：④ 仍以 ⓪ 快照為基準，重算 ③ 已容許的日誌新增 / 輪替 2 檔；產品正常）；含權杖備份已刪。塔台在 D292 範圍內代決 **D293**、開 **T0869**；11:25 派 T0869（`--mode yolo --no-interactive`，`started:` 03:25:26Z，分頁 `a28b0918…`）。11:30 T0869 DONE（產品 `6269139c`，3 檔皆在範圍內；`Test-InstalledState` 加 `$SnapshotBaseline`，③ 判 PASS / WARN 時保存判讀用快照為 `$snapshot3`，④ 以它為基準、取不到退回 ⓪ 並加 Note，規則仍完全相同才 PASS；新測試 `nsis-reinstall-acceptance-step4-baseline.test.mjs`；unit 8355 passed / 456 files；`-DryRun` DRYRUN；無提問）。收單核對 session id `73501548` 一致、快照已寫、`--close-worker T0869 --delay-ms 10000` exit 0。→ 請使用者第三次重跑 NSIS 驗收。
 >
 > 🟢 **第一百二十二 session 開工**（2026-11-05 11:06 (UTC+8)，CT v6.0.0-rc.1，Fast Path；塔台 session `e3a82973-f7e8-4983-bc7a-1112b6197bb6`；`--set-role tower --mode on` exit 0；`bat_whoami` 名稱 `better-agent-terminal · Tower`；安裝版 `0.7.5-pre.1`（FileVersion 與 helper 一致）；HEAD `7735ff9d` = `origin/main`（未 fetch）、工作區乾淨；熱區 263 張工單全 DONE；`bat_list_questions` pending 0）。11:08 判讀 pre.1 NSIS 重裝驗收 → **FAIL**（③ 解除安裝後 `Logs\` 多 1 刪 1，起因 T0860 `--uninstall-quit-request` 請求程序的日誌輪替，產品行為符合設計、驗收腳本規則過時）；含權杖備份已刪。11:09 使用者選「改驗收腳本後重跑」→ **D292**、開 **T0868**。11:11 派 T0868（`--mode yolo --no-interactive`，`started:` 03:11:43Z，分頁 `3c51b3d2…`）。11:20 T0868 DONE（產品 `f92b561f`，4 檔皆在範圍內；③ 新增 `Get-UninstallUserDataVerdict`：只容許 `BetterAgentTerminal\Logs\debug-*.log` 新增 ≤ 1、刪除 ≤ 1 且為 ⓪ 時修改時間最舊（⓪ 另記 mtime，對齊 `logger.ts`），⓪ 沒有 mtime → WARN，其他差異 FAIL；③ holder 改依 `$holderVersion3` / `$holderRun3`；新測試 21 項；unit 8345 passed / 455 files；`-DryRun` exit 0；無提問）。收單核對 session id `46464a1e` 一致、快照已寫、`--close-worker T0868 --delay-ms 10000` exit 0。→ 請使用者重跑 NSIS 驗收。
 
