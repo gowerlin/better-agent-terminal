@@ -20,7 +20,7 @@ import * as net from 'net'
 import * as os from 'os'
 import * as path from 'path'
 import type { ChildProcess } from 'child_process'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi, type MockInstance } from 'vitest'
 
 vi.mock('electron', () => {
   throw new Error('pty-manager must not import electron (PLAN-036 T0389)')
@@ -437,6 +437,8 @@ type FakeMode = 'v1' | 'legacy' | 'silent'
 /** A Terminal Server stand-in: v1 (hello-ok), legacy (before T0857: ignores hello, broadcasts at once), silent. */
 class FakeTcpServer {
   autoPong = true
+  /** T0867: pongs written so far (the E tests wait until the manager has handled each one). */
+  pongsWritten = 0
   readonly received: ServerRequest[] = []
   readonly sockets = new Set<net.Socket>()
   private server: net.Server
@@ -454,7 +456,7 @@ class FakeTcpServer {
         if (msg.type === 'server:hello' && mode === 'v1') {
           this.write(socket, { type: 'server:hello-ok', protocol: 1, batVersion: '0.7.5', runtime: { name: 'node', version: 'v24.0.0' }, pid: this.pid })
         }
-        if (msg.type === 'server:ping' && this.autoPong) this.write(socket, { type: 'server:pong' })
+        if (msg.type === 'server:ping' && this.autoPong) { this.pongsWritten++; this.write(socket, { type: 'server:pong' }) }
         if (msg.type === 'pty:list') this.write(socket, { type: 'pty:list', ptys: [] })
       }))
     })
@@ -515,13 +517,34 @@ describe('E: PtyManager in TCP mode', () => {
   const logged = (text: string) => logs.some(l => l.includes(text))
   const statuses = () => emit.mock.calls.filter(([c]) => c === 'terminal-server:status').map(([, s]) => s)
 
-  /** Advance the heartbeat interval and the fake monotonic clock together, then let the socket I/O run. */
+  let sendSpy: MockInstance<(msg: ServerRequest) => void>
+  let pongSpy: MockInstance<() => void>
+  /** the ping openHelloConnection sends with the hello (not through sendToServer) */
+  const OPENING_PINGS = helloOpeningLines(TOKEN).trim().split('\n').filter(l => JSON.parse(l).type === 'server:ping').length
+  const heartbeatPingsSent = () => sendSpy.mock.calls.filter(([m]) => m.type === 'server:ping').length
+  const pingsReceived = () => fake.received.filter(m => m.type === 'server:ping').length
+
+  /**
+   * T0867: wait (real setTimeout, not the faked setInterval) until every ping the heartbeat sent has
+   * reached the fake server and every pong the fake server wrote has been handled by the manager.
+   * Before T0867 a fixed `flush(20)` after all the ticks: on the Linux CI runner the socket I/O was
+   * not done by then (2 of 12 pings received, the pong not yet handled).
+   */
+  async function settle() {
+    await until(() => pingsReceived() === OPENING_PINGS + heartbeatPingsSent() && pongSpy.mock.calls.length === fake.pongsWritten)
+  }
+
+  /**
+   * Advance the heartbeat interval and the fake monotonic clock together, one second at a time;
+   * after each step the socket I/O it started is settled, so each ping (and its pong) lands before
+   * the next tick, as it would 10 s apart in real time.
+   */
   async function advance(ms: number) {
     for (let left = ms; left > 0; left -= 1000) {
       mono += Math.min(1000, left)
       vi.advanceTimersByTime(Math.min(1000, left))
+      await settle()
     }
-    await flush(20)
   }
 
   beforeEach(async () => {
@@ -542,6 +565,9 @@ describe('E: PtyManager in TCP mode', () => {
     }
     emit = vi.fn<PtyManagerDeps['emit']>()
     manager = new PtyManager({ emit, dataDir, serverWatchdog: watchdog })
+    // T0867: count what the heartbeat sends and what reaches handlePong (both call through)
+    sendSpy = vi.spyOn(manager, 'sendToServer')
+    pongSpy = vi.spyOn(manager as unknown as { handlePong(): void }, 'handlePong')
     refork = vi.fn(async () => null)
     manager.onRequestNewServer = refork
     fake = new FakeTcpServer('v1')
@@ -577,7 +603,7 @@ describe('E: PtyManager in TCP mode', () => {
       expect(logged('protocol 0 (no hello: a server before T0857)')).toBe(true)
       // the held pty:data went through the normal output path (batched → ring buffer)
       const internals = manager as unknown as { replayBuffers: Map<string, { total: number }> ; outputBatches?: unknown }
-      await vi.waitUntil(() => (internals.replayBuffers.get('old')?.total ?? 0) > 0 || emit.mock.calls.some(([c, id]) => c === 'pty:output' && id === 'old'), { timeout: 2000 })
+      await until(() => (internals.replayBuffers.get('old')?.total ?? 0) > 0 || emit.mock.calls.some(([c, id]) => c === 'pty:output' && id === 'old'), 2000)
     } finally {
       manager.beginShutdown()
       await legacy.close()
@@ -622,7 +648,7 @@ describe('E: PtyManager in TCP mode', () => {
     expect(statuses()).toEqual([])
     alive.delete(4343)
     await advance(INTERVAL)
-    await vi.waitUntil(() => statuses().includes('failed'), { timeout: 2000 })
+    await until(() => statuses().includes('failed'), 2000)
     expect(logged('server process=gone tcp=connected — server dead')).toBe(true)
     expect(logged('attempting recovery... (reason=heartbeat)')).toBe(true)
     expect(refork).toHaveBeenCalledTimes(1)
@@ -635,7 +661,7 @@ describe('E: PtyManager in TCP mode', () => {
     expect(refork).not.toHaveBeenCalled() // 4242 (hello-ok) is alive
     alive.delete(4242)
     await advance(INTERVAL)
-    await vi.waitUntil(() => refork.mock.calls.length === 1, { timeout: 2000 })
+    await until(() => refork.mock.calls.length === 1, 2000)
   })
 
   it('a pong ends the late run; the TCP close still recovers at once', async () => {
@@ -647,7 +673,7 @@ describe('E: PtyManager in TCP mode', () => {
     await advance(INTERVAL)
     expect(logged('[heartbeat] late pong arrived after')).toBe(true)
     fake.dropAll()
-    await vi.waitUntil(() => refork.mock.calls.length === 1, { timeout: 2000 })
+    await until(() => refork.mock.calls.length === 1, 2000)
     expect(logged('attempting recovery... (reason=tcp-close)')).toBe(true)
   })
 })
