@@ -1465,6 +1465,13 @@
 - **切分**：W2a 設計語言 + 元件 + 首頁（T0630）→ 預覽通過後 W2b（`/control-tower`、功能、FAQ、回報頁）→ W2c 遠端開發；W3 / W4 不變。
 - **相關**：PLAN-049 / D159 / D160 / T0624 / T0630
 
+### D293 2026-11-05 — NSIS 重裝驗收重跑 ④ FAIL 判為 T0868 規格缺口：④ 改以 ③ 結束時的快照為基準，再重跑
+
+- **背景**：11:22 使用者重跑 `nsis-reinstall-acceptance.ps1 -Version 0.7.5-pre.1`（原安裝 pre.1，AllUsers）：⓪ ① ② PASS；③ PASS（新規則容許 debug log 新增 `debug-20261105-112244.log` ＋輪替刪除最舊 `debug-20261104-140749.log`；holder 依 ② 版本檢查、根目錄已移除）；④ 乾淨重裝只有「userData 未被改動」FAIL，差異正是 ③ 已容許的同一組 2 檔。原因：④ 仍與 ⓪ 快照比對，把 ③ 的預期差異再算一次。T0868 的 memory_overrides「② / ④ 的 userData 規則不變」是塔台寫的規格缺口。
+- **決定**：塔台在 D292 範圍內代決（使用者已選「改驗收腳本後重跑」）：③ 結束（PASS / WARN）後重取 userData 快照，④ 以該快照為基準、規則仍是「完全相同才 PASS」；②、③ 的規則不變；不改產品、不發新版。開 T0869，完成後請使用者再重跑。本次備份差異只有日誌，已刪除、不需還原。
+- **決策者**：塔台（D292 範圍內）。2026-11-05 第一百二十二 session。
+- **相關**：T0869 / T0868 / D292 / T0860
+
 ### D292 2026-11-05 — `0.7.5-pre.1` NSIS 重裝驗收 ③ FAIL 判為腳本規則過時：改驗收腳本後重跑，不改產品
 
 - **背景**：11:03 使用者跑 `nsis-reinstall-acceptance.ps1 -Version 0.7.5-pre.1`（原安裝 `0.7.4-pre.9`）：① ② PASS，③ 只有「userData 保留且未被改動」FAIL——解除安裝期間 `Logs\` 新增一份 debug log、輪替刪除最舊一份。真的解除安裝時 `customUnInstall` 一律啟動 `--uninstall-quit-request` 停 holder（T0860 設計），請求程序 `logger.init` 建檔並輪替。另發現 ③ 的 holder 檢查只看 ⓪ 的版本（pre.9 沒有 holder），這次沒驗到 holder 停止與根目錄刪除。
