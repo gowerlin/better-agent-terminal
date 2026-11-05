@@ -4,7 +4,10 @@ schema_kind: workorder
 id: T0867
 title: "修 `terminal-server-protocol-v1.test.ts` E 組在 Linux runner（`tests.yml`，ubuntu-24.04）必定失敗的計時競爭——`0.7.5-pre.1` 的 Test gate 前置"
 type: implementation
-status: PENDING
+status: IN_PROGRESS
+started_at: "2026-11-05T10:26:24+0800"
+updated_at: "2026-11-05T10:33:04+0800"
+tower_question: open
 repo: better-agent-terminal
 project: PLAN-065
 priority: P1
@@ -33,7 +36,7 @@ memory_overrides:
 # T0867 — protocol v1 測試 E 組的 Linux 計時競爭
 
 ## 元資料
-- **工單編號**：T0867｜**類型**：implementation｜**狀態**：PENDING｜**建立**：2026-11-05 10:25 (UTC+8)
+- **工單編號**：T0867｜**類型**：implementation｜**狀態**：IN_PROGRESS｜**建立**：2026-11-05 10:25 (UTC+8)
 - **規模**：S｜**依賴**：T0866
 
 ## 背景
@@ -54,3 +57,17 @@ T0866 的兩次 desktop-build（`41952687778`、`41952701482`）`tests` job 都�
 ## 回報區
 
 > 以下由 sub-session 填寫，請勿在指揮塔 session 中編輯
+
+### 待塔台決策
+
+#### Q-1：push 範圍內塔台的未推 commit `2a16acde` 命中去識別化樣式，要怎麼處理才能 push？
+- **提問時間**：2026-11-05 10:33 (UTC+8)
+- **狀況**：本單要 push `origin/main`（`origin/main..HEAD` = `2a16acde`、`e7c802c0`、`74251312`、`c0dfaa27`）才能在 Linux 跑 `tests.yml`。push 前掃描（`.private/` 對照表樣式＋金鑰樣式，對象是這 4 個 commit 的新增行與 commit 訊息）命中 1 行：`2a16acde`（T0866 回報區「push 前掃描」那一行）把兩個去識別化檢查詞原文寫出來（`.private/` 對照表第六節的工作區代號＝專案D、與帳號小寫單字）；同一行另外兩個樣式（客戶名的一個樣式、外掛殘留標籤）也是原文寫出，金鑰前綴則是樣式本身。origin 上目前沒有這兩個詞。其他樣式（客戶名、家目錄路徑、真的權杖）0 筆。Worker 的 commit `c0dfaa27`（只改測試檔）沒有命中。
+- **選項**：
+  - A. 塔台自己改寫未 push 的 `2a16acde`（把那一行改成「依 `.private/` 的檢查樣式」），完成後在本單答覆，Worker 再掃一次並 push。
+  - B. 授權 Worker 改寫 `origin/main..HEAD` 的歷史：把 T0866 那一行改成「依 `.private/` 的檢查樣式」，以 fixup commit＋非互動 `GIT_SEQUENCE_EDITOR=: git rebase -i --autosquash origin/main` 併進 `2a16acde`（4 個未推 commit 的 hash 都會變；不 force-push，因為都還沒推）。
+  - C. 判定可接受（只是樣式名稱、沒寫出對應對象），照原樣 push。
+  - 其他。
+- **建議**：B（或 A）。公開 repo 一旦 push 就無法收回（D176：「有命中先處理再 push」）；這 4 個 commit 都還沒推，現在改寫歷史沒有成本。B 由 Worker 一次做完，比 A 少一次往返；但這動到 T0866 工單檔與塔台的 commit，超出本單 `affects_files` 與 L138（禁止 `git reset` 等），所以需要塔台明確授權。
+- **影響**：不 push 就無法完成驗收（`tests.yml` 綠）。
+- **是否阻擋後續步驟**：是（push 與 `tests.yml` 都卡在這裡；本機修正與 `npm run test:unit` 已完成）。
