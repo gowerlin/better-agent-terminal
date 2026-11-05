@@ -511,7 +511,7 @@ async function forget(bat: Bat | undefined): Promise<void> {
 
 function checkRecord(expectAgentTab: boolean, holderPid: number | null, label: string): void {
   const record = readJson(path.join(USER_DATA, RECORD))
-  evidence[`${label} record`] = record ? { schema: record.schema, source: record.source, holderKept: record.holderKept, holderPidMatches: record.holderPid === holderPid, endedPtys: record.endedPtys?.length, endedAgentProcesses: record.endedAgentProcesses } : null
+  evidence[`${label} record`] = record ? { schema: record.schema, source: record.source, holderKept: record.holderKept, holderPidMatches: record.holderPid === holderPid, endedPtys: record.endedPtys?.length, endedAgentProcesses: record.endedAgentProcesses, claudeSessionTabs: (record.claudeSessions ?? []).map((c: AnyApi) => c?.terminalId) } : null
   const ok = !!record && record.schema === 2 && record.holderKept === true && record.holderPid === holderPid
     && (expectAgentTab ? JSON.stringify(record.endedAgentProcesses) === JSON.stringify([{ terminalId: AGENT_TAB, processes: 1 }]) : (record.endedAgentProcesses ?? []).length === 0)
   check(`${label}: installer quit record is schema 2, holderKept, holderPid = the holder${expectAgentTab ? ', the agent tab with 1 ended process' : ''}`, ok, evidence[`${label} record`])
@@ -536,6 +536,15 @@ async function setUp(installer: string, version: string, scope: 'currentuser' | 
     await seedTabs(bat, tabs)
     if (tabs.includes(PING_TAB)) await write(bat.win, PING_TAB, 'ping -t 127.0.0.1\r')
     if (tabs.includes(AGENT_TAB)) {
+      // The tab is a helper-dispatched claude Worker as BAT sees one: no agentPreset, but the claude SessionStart hook
+      // reported a session (T0642). Only tabs known to be agents are listed as interrupted (T0766 wasRunningAgent),
+      // and a claude-cli tab would launch the real claude (L185). So the tab reports SessionStart itself through the
+      // installed bat-hook.mjs with a made-up session id (the JSON claude would pipe in); no claude runs.
+      const logs0 = logFiles()
+      const sessionId = crypto.randomUUID()
+      await write(bat.win, AGENT_TAB, `echo {"hook_event_name":"SessionStart","session_id":"${sessionId}"}| node "%BAT_HELPER_DIR%\\bat-hook.mjs" session-start\r`)
+      await expect.poll(() => logSince(logs0.slice(0, -1)).includes(`[agent-start] terminal=${AGENT_TAB} → started (hook session-start)`), { timeout: 30_000 }).toBe(true)
+      check(`${label}: the agent tab reported SessionStart (helper-dispatched claude Worker shape)`, true)
       // L185: the stand-in for the embedded claude is the installed exe run as node with a timer — it runs from the
       // install directory like the embedded claude / codex; nothing logs in or calls a model.
       await write(bat.win, AGENT_TAB, `set ELECTRON_RUN_AS_NODE=1&& "${app!.exe}" -e "setInterval(function(){},1000)"\r`)
