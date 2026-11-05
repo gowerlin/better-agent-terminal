@@ -1,0 +1,215 @@
+name: Windows upgrade acceptance (manual)
+
+# T0862 (PLAN-065 W6, D286): real NSIS upgrades / downgrades / uninstalls with the Windows PTY holder, on
+# GitHub-hosted windows-latest runners. Inputs are two desktop-build.yml runs of the same branch (A and B; their
+# 0.0.0-exp.<run> versions differ) and, for scenario 5, the current release without a holder. One job per scenario,
+# each on a fresh runner: e2e/t0862-windows-upgrade-acceptance.spec.ts installs, starts BAT with its default
+# runtime (the installer's quit request only reaches that one), runs a cmd tab with `ping -t` and checks what keeps
+# running, the reattach after the upgrade, the toast, the holder directories. Scenarios: 1 per-user A → B,
+# 2 per-machine A → B + per-machine uninstall, 3 same-version B → B, 4 downgrade B → A, 5 downgrade B → old release,
+# 6 per-user uninstall, 7 A → B with an embedded-agent stand-in, 8 (D6) idle holder replaced, 9 (D5) token mismatch.
+#
+# 🔴 workflow_dispatch only and not part of any release workflow. No secrets: downloads use this job's read-only
+# GITHUB_TOKEN. No tag, no GitHub Release, no server-bundle-v*, no Pages. L185: no real claude / codex, no login,
+# no model call (scenario 7 runs the installed exe as node with a timer).
+# See docs/agent-guide/pty-holder.md.
+#
+#   gh workflow run desktop-build.yml -R gowerlin/better-agent-terminal -f ref=main          # twice → A, B
+#   gh workflow run windows-upgrade-acceptance.yml -R gowerlin/better-agent-terminal -f build_run_a=<run A> -f build_run_b=<run B>
+on:
+  workflow_dispatch:
+    inputs:
+      build_run_a:
+        description: 'desktop-build.yml run id of version A (the older install)'
+        required: true
+      build_run_b:
+        description: 'desktop-build.yml run id of version B (the newer install); its version must differ from A'
+        required: true
+      old_version:
+        description: 'Scenario 5: the release without a PTY holder to downgrade to (tag v<version>)'
+        required: false
+        default: '0.7.4-pre.9'
+      scenarios:
+        description: 'all, or a comma list of 1–9'
+        required: false
+        default: 'all'
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  prepare:
+    runs-on: ubuntu-24.04
+    outputs:
+      scenarios: ${{ steps.matrix.outputs.scenarios }}
+    steps:
+      - name: Check the inputs and the two desktop-build runs
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_A: ${{ inputs.build_run_a }}
+          RUN_B: ${{ inputs.build_run_b }}
+          OLD_VERSION: ${{ inputs.old_version }}
+          SCENARIOS: ${{ inputs.scenarios }}
+        run: |
+          set -euo pipefail
+          for id in "$RUN_A" "$RUN_B"; do
+            if ! [[ "$id" =~ ^[0-9]+$ ]]; then echo "::error::invalid run id: $id"; exit 1; fi
+          done
+          if [ "$RUN_A" = "$RUN_B" ]; then echo "::error::build_run_a and build_run_b are the same run"; exit 1; fi
+          if ! [[ "$OLD_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-pre\.[0-9]+)?$ ]]; then echo "::error::invalid old_version: $OLD_VERSION"; exit 1; fi
+          if ! [[ "$SCENARIOS" =~ ^(all|[1-9](,[1-9])*)$ ]]; then echo "::error::invalid scenarios: $SCENARIOS"; exit 1; fi
+          echo "### Windows upgrade acceptance — inputs" >> "$GITHUB_STEP_SUMMARY"
+          for label in A B; do
+            if [ "$label" = A ]; then id="$RUN_A"; else id="$RUN_B"; fi
+            wf=$(gh run view "$id" -R gowerlin/better-agent-terminal --json workflowName --jq .workflowName)
+            if [ "$wf" != "Desktop build (no release)" ]; then echo "::error::run $id is not a desktop-build.yml run (workflow: $wf)"; exit 1; fi
+            n=$(gh api "repos/gowerlin/better-agent-terminal/actions/runs/$id/artifacts" --jq '[.artifacts[] | select(.name == "desktop-win" and .expired == false)] | length')
+            if [ "$n" != "1" ]; then echo "::error::run $id has no (unexpired) desktop-win artifact"; exit 1; fi
+            gh run view "$id" -R gowerlin/better-agent-terminal --json headBranch,headSha,createdAt,conclusion \
+              --jq "\"- $label: run $id, \(.headBranch) \(.headSha[0:8]), \(.createdAt), conclusion \(.conclusion)\"" >> "$GITHUB_STEP_SUMMARY"
+          done
+          echo "- old release (scenario 5): v$OLD_VERSION" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Scenario matrix
+        id: matrix
+        env:
+          SCENARIOS: ${{ inputs.scenarios }}
+        run: |
+          set -euo pipefail
+          if [ "$SCENARIOS" = all ]; then list="1,2,3,4,5,6,7,8,9"; else list="$SCENARIOS"; fi
+          json=$(printf '%s' "$list" | tr ',' '\n' | sort -un | jq -R . | jq -cs .)
+          echo "scenarios=$json" >> "$GITHUB_OUTPUT"
+          echo "scenarios: $json"
+
+  acceptance:
+    needs: prepare
+    strategy:
+      fail-fast: false
+      matrix:
+        scenario: ${{ fromJSON(needs.prepare.outputs.scenarios) }}
+    runs-on: windows-latest
+    timeout-minutes: 60
+    name: scenario ${{ matrix.scenario }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+          cache: 'npm'
+
+      # Each artifact must match the SHA256SUMS.txt its desktop-build run wrote next to it.
+      - name: Download installers A and B and check their SHA-256 digests
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_A: ${{ inputs.build_run_a }}
+          RUN_B: ${{ inputs.build_run_b }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $versions = @{}
+          foreach ($pair in @(@('A', $env:RUN_A), @('B', $env:RUN_B))) {
+            $label = $pair[0]; $id = $pair[1]
+            $dir = Join-Path $env:RUNNER_TEMP "build-$label"
+            New-Item -ItemType Directory -Force $dir | Out-Null
+            gh run download $id -R gowerlin/better-agent-terminal -n desktop-win -D $dir
+            if ($LASTEXITCODE -ne 0) { throw "download of run $id failed" }
+            $info = Get-Content (Join-Path $dir 'BUILD-INFO.txt')
+            $info
+            $version = (($info | Where-Object { $_ -match '^version: ' }) -replace '^version: ', '').Trim()
+            if ($version -notmatch '^[0-9]+\.[0-9]+\.[0-9]+-[0-9A-Za-z.-]+$') { throw "run ${id}: no version in BUILD-INFO.txt" }
+            $setup = @(Get-ChildItem $dir -Filter '*Setup*.exe')
+            if ($setup.Count -ne 1) { throw "run ${id}: expected exactly one *Setup*.exe, found $($setup.Count)" }
+            $expected = $null
+            foreach ($line in Get-Content (Join-Path $dir 'SHA256SUMS.txt')) {
+              if ($line -match '^([0-9a-f]{64}) [ *](.+)$' -and $Matches[2] -eq $setup[0].Name) { $expected = $Matches[1] }
+            }
+            $actual = (Get-FileHash -Algorithm SHA256 $setup[0].FullName).Hash.ToLower()
+            "${label}: $($setup[0].Name) version=$version build=$expected downloaded=$actual"
+            if (-not $expected -or $expected -ne $actual) { throw "run ${id}: SHA-256 digest mismatch (or the installer is missing from SHA256SUMS.txt)" }
+            $versions[$label] = $version
+            "T0862_INSTALLER_$label=$($setup[0].FullName)" | Out-File -Append -Encoding utf8 $env:GITHUB_ENV
+            "T0862_VERSION_$label=$version" | Out-File -Append -Encoding utf8 $env:GITHUB_ENV
+          }
+          if ($versions['A'] -eq $versions['B']) { throw "A and B have the same version ($($versions['A'])): scenarios 1, 2, 4, 7–9 need two versions" }
+          "T0862_REPORT_DIR=$(Join-Path $env:RUNNER_TEMP 'report')" | Out-File -Append -Encoding utf8 $env:GITHUB_ENV
+
+      - name: Download the old release installer (scenario 5)
+        if: matrix.scenario == 5
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          OLD_VERSION: ${{ inputs.old_version }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $dir = Join-Path $env:RUNNER_TEMP 'build-old'
+          New-Item -ItemType Directory -Force $dir | Out-Null
+          $name = "BetterAgentTerminal.Setup.$($env:OLD_VERSION).exe"
+          gh release download "v$($env:OLD_VERSION)" -R gowerlin/better-agent-terminal -p $name -D $dir
+          if ($LASTEXITCODE -ne 0) { throw "download failed: $name" }
+          $expected = gh release view "v$($env:OLD_VERSION)" -R gowerlin/better-agent-terminal --json assets --jq ".assets[] | select(.name == `"$name`") | .digest"
+          $actual = 'sha256:' + (Get-FileHash -Algorithm SHA256 (Join-Path $dir $name)).Hash.ToLower()
+          "$name release=$expected downloaded=$actual"
+          if (-not $expected -or $expected -ne $actual) { throw "digest mismatch: $name" }
+          "T0862_INSTALLER_OLD=$(Join-Path $dir $name)" | Out-File -Append -Encoding utf8 $env:GITHUB_ENV
+          "T0862_VERSION_OLD=$($env:OLD_VERSION)" | Out-File -Append -Encoding utf8 $env:GITHUB_ENV
+
+      - name: Runner context
+        shell: pwsh
+        run: |
+          "OS: $([Environment]::OSVersion.VersionString)"
+          "PowerShell 5.1 Get-CimInstance: $(powershell.exe -NoProfile -Command 'if (Get-Command Get-CimInstance -ErrorAction SilentlyContinue) { 0 } else { 1 }')"
+          "elevated: $(([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator))"
+          "BetterAgentTerminal already installed: $(@(Get-ItemProperty 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*','HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*' -ErrorAction SilentlyContinue | ? { $_.DisplayName -like 'BetterAgentTerminal*' }).Count)"
+
+      - name: Install test dependencies (no install scripts)
+        run: npm ci --ignore-scripts
+
+      - name: Acceptance (Playwright)
+        env:
+          T0862_ACCEPTANCE: '1'
+          T0862_SCENARIO: ${{ matrix.scenario }}
+        run: npx playwright test e2e/t0862-windows-upgrade-acceptance.spec.ts --reporter=list
+
+      - name: Report
+        if: always()
+        shell: pwsh
+        run: |
+          $f = Join-Path $env:T0862_REPORT_DIR "report-${{ matrix.scenario }}.md"
+          if (Test-Path $f) {
+            Get-Content $f -Raw
+            Get-Content $f -Raw | Out-File -Append -Encoding utf8 $env:GITHUB_STEP_SUMMARY
+          } else {
+            "not written: report-${{ matrix.scenario }}.md" | Tee-Object -Append -FilePath $env:GITHUB_STEP_SUMMARY
+          }
+
+      # The spec copies only Logs/debug-*.log (sanitized) out of userData; the names below are the userData files
+      # that hold keys or tokens, in case one ever lands here, plus a content scan.
+      - name: Remove secret-looking files from the artifacts
+        if: always()
+        shell: bash
+        run: |
+          for d in "$T0862_REPORT_DIR" e2e-results; do
+            [ -d "$d" ] || continue
+            find "$d" -type f \( -name 'server-token.json' -o -name 'server-cert.json' -o -name 'helper-capabilities.json' -o -name 'claude-sessions.json' -o -name 'bat-pty-server.token' \) -print -delete
+            grep -rlE 'batcap\.[A-Za-z0-9_-]{8,}|ghp_|github_pat_|ghs_[A-Za-z0-9]{20,}|sk-ant-|-----BEGIN [A-Z ]*PRIVATE KEY' "$d" | while read -r f; do
+              echo "::warning::removed $f (secret-like pattern)"
+              rm -f "$f"
+            done || true
+          done
+
+      - name: Upload report, screenshots and debug logs
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: windows-upgrade-acceptance-${{ inputs.build_run_a }}-${{ inputs.build_run_b }}-s${{ matrix.scenario }}-attempt${{ github.run_attempt }}
+          path: |
+            ${{ runner.temp }}/report
+            e2e-results
+          retention-days: 7
+          if-no-files-found: warn

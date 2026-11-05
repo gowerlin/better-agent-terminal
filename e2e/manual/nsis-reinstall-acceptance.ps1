@@ -342,6 +342,11 @@ function Get-UserDataSnapshot([string[]]$Dirs) {
 }
 
 function Compare-Snapshot([hashtable]$Before, [hashtable]$After) {
+  if ($script:IgnoreServerFiles) {
+    # T0862：⓪ 有執行中的 PTY holder 時，它（Terminal Server）自己會改寫 pid / port / token / registry，③ 解除安裝也會停掉它並清這些檔
+    $Before = Select-WithoutServerFiles $Before
+    $After = Select-WithoutServerFiles $After
+  }
   $added = @($After.Keys | Where-Object { -not $Before.ContainsKey($_) } | Sort-Object)
   $removed = @($Before.Keys | Where-Object { -not $After.ContainsKey($_) } | Sort-Object)
   $changed = @($Before.Keys | Where-Object { $After.ContainsKey($_) -and $After[$_] -ne $Before[$_] } | Sort-Object)
@@ -353,6 +358,71 @@ function Get-ShortcutPaths([string]$InstallScope) {
     return @{ desktop = (Join-Path $env:PUBLIC "Desktop\$ProductName.lnk"); startMenu = (Join-Path $env:ProgramData "Microsoft\Windows\Start Menu\Programs\$ProductName.lnk") }
   }
   return @{ desktop = (Join-Path ([Environment]::GetFolderPath('Desktop')) "$ProductName.lnk"); startMenu = (Join-Path $env:APPDATA "Microsoft\Windows\Start Menu\Programs\$ProductName.lnk") }
+}
+
+# ---------------------------------------------------------------- PTY holder（T0862 / PLAN-065，docs/agent-guide/pty-holder.md）
+# 安裝目錄有 resources\pty-holder\holder-manifest.json 的版本才檢查；沒有的版本（PLAN-065 前）照舊判讀、只記一行。
+$ServerFileNames = @('bat-pty-server.pid', 'bat-pty-server.port', 'bat-pty-server.token', 'bat-pty-registry.json')
+$script:IgnoreServerFiles = $false
+function Select-WithoutServerFiles([hashtable]$Map) {
+  $out = @{}
+  foreach ($k in $Map.Keys) { if ($ServerFileNames -notcontains (Split-Path -Leaf $k)) { $out[$k] = $Map[$k] } }
+  return $out
+}
+
+function Get-HolderRoot([string]$InstallScope) {
+  # 與 build/installer.nsh 相同：per-machine $PROGRAMFILES64\BAT-PtyHolder、per-user $LOCALAPPDATA\BAT-PtyHolder
+  if ($InstallScope -eq 'AllUsers') { return (Join-Path $(if ($env:ProgramW6432) { $env:ProgramW6432 } else { $env:ProgramFiles }) 'BAT-PtyHolder') }
+  return (Join-Path $env:LOCALAPPDATA 'BAT-PtyHolder')
+}
+
+function Get-PackagedHolderManifest([string]$Dir) {
+  $m = Join-Path $Dir 'resources\pty-holder\holder-manifest.json'
+  if (Test-Path -LiteralPath $m) { return $m }
+  return $null
+}
+
+function Test-HolderRootOverlap([string]$Root, [string]$Dir) {
+  # 安裝程式的規則：互為字串前綴（不分大小寫、任一方向、不加 \）→ 不複製、不清理
+  $r = $Root.TrimEnd('\'); $d = $Dir.TrimEnd('\')
+  return ($r.StartsWith($d, [StringComparison]::OrdinalIgnoreCase) -or $d.StartsWith($r, [StringComparison]::OrdinalIgnoreCase))
+}
+
+function Get-HolderProcesses([string]$Root) {
+  # 執行檔在 holder 根目錄下的程序（holder 本身）與它的子程序（分頁的 shell、conhost）；只記名稱與 PID
+  $list = New-Object System.Collections.ArrayList
+  if (-not $Root -or -not (Test-Path -LiteralPath $Root)) { return $list.ToArray() }
+  $prefix = $Root.TrimEnd('\') + '\'
+  $all = @(Get-CimInstance Win32_Process)
+  foreach ($h in $all) {
+    $exe = Get-Prop $h 'ExecutablePath'
+    if (-not ($exe -and $exe.StartsWith($prefix, [StringComparison]::OrdinalIgnoreCase))) { continue }
+    $children = @($all | Where-Object { $_.ParentProcessId -eq $h.ProcessId } | ForEach-Object { [ordered]@{ name = $_.Name; pid = $_.ProcessId } })
+    [void]$list.Add([ordered]@{ name = $h.Name; pid = $h.ProcessId; dir = (Split-Path -Leaf (Split-Path -Parent $exe)); children = $children })
+  }
+  return $list.ToArray()
+}
+
+function Test-HolderState($Step, [string]$InstallScope, [string]$Dir) {
+  $m = Get-PackagedHolderManifest $Dir
+  if (-not $m) { Add-Note $Step 'PTY holder：此版本沒有 resources\pty-holder（PLAN-065 前的版本），略過 holder 檢查'; return }
+  $key = "$((Get-Content -LiteralPath $m -Raw | ConvertFrom-Json).key)"
+  $root = Get-HolderRoot $InstallScope
+  if (Test-HolderRootOverlap $root $Dir) {
+    Add-Note $Step "PTY holder：根目錄 $root 與安裝目錄互為前綴，安裝程式不複製（BAT 改用原本的 Terminal Server）"
+    return
+  }
+  $copy = Join-Path $root "$key\holder-manifest.json"
+  $same = (Test-Path -LiteralPath $copy) -and ((Get-FileHash -LiteralPath $copy -Algorithm SHA256).Hash -eq (Get-FileHash -LiteralPath $m -Algorithm SHA256).Hash)
+  Add-Check $Step "PTY holder 目錄（$key）" $(if ($same) { 'PASS' } else { 'FAIL' }) "$root\$key\holder-manifest.json 與安裝目錄那份位元組相同" $(if (Test-Path -LiteralPath $copy) { $(if ($same) { '相同' } else { '不同' }) } else { '不存在' }) 'customInstall 把 holder 複製到安裝目錄外（T0858）'
+  $exeOk = Test-Path -LiteralPath (Join-Path $root "$key\bat-pty-holder.exe")
+  Add-Check $Step 'PTY holder 執行檔' $(if ($exeOk) { 'PASS' } else { 'FAIL' }) "$key\bat-pty-holder.exe 存在" $(if ($exeOk) { '存在' } else { '不存在' }) ''
+  $inUse = @(Get-HolderProcesses $root)
+  foreach ($d in @(Get-ChildItem -LiteralPath $root -Directory -ErrorAction SilentlyContinue | Where-Object { $_.Name -ne $key })) {
+    $running = @($inUse | Where-Object { $_.dir -eq $d.Name })
+    if ($running.Count -gt 0) { Add-Note $Step "PTY holder：其他目錄 $($d.Name) 有程序在跑（$($running.Count) 個），保留（D9）" }
+    else { Add-Check $Step "PTY holder 其他目錄 $($d.Name)" 'WARN' '沒有程序在跑的其他目錄已被刪除' '仍存在' 'customInstall 刪除根目錄下沒有程序在跑的其他目錄（D9）' }
+  }
 }
 
 function Find-NodeForHelpers([string]$Dir) {
@@ -436,6 +506,8 @@ function Test-InstalledState($Step, [string]$InstallScope, [string]$Dir, [hashta
   $running = @(Get-RelatedProcesses $Dir)
   Add-Check $Step '安裝後沒有自動啟動 BAT' $(if ($running.Count -eq 0) { 'PASS' } else { 'WARN' }) '0' "$($running.Count)" '靜默安裝不帶 --force-run 不會啟動'
 
+  Test-HolderState $Step $InstallScope $Dir
+
   if ($null -ne $SnapshotBefore) {
     $diff = Compare-Snapshot $SnapshotBefore (Get-UserDataSnapshot (Get-UserDataDirs))
     Add-Check $Step 'userData 未被改動' $(if ($diff.same) { 'PASS' } else { 'FAIL' }) '與 ⓪ 的 SHA-256 快照相同' "新增 $($diff.added.Count) / 刪除 $($diff.removed.Count) / 變更 $($diff.changed.Count)" '逐檔 SHA-256 + 大小'
@@ -516,6 +588,25 @@ if ($null -eq $inst) {
     } else {
       Complete-Step $s0
       Stop-Acceptance "仍有 $($procs.Count) 個程序從安裝目錄執行（$byName）。請完全關閉 BAT（含 Terminal Server）後重跑，或加 -StopRunning"
+    }
+  }
+}
+
+# T0862：PTY holder。holder 不在安裝目錄內，上面的檢查看不到它；BAT 關閉時選了保留 Terminal Server 的話它還在跑（含分頁的 shell）。
+$holderVersion0 = $false
+$holderRun0 = @()
+if ($null -ne $inst) {
+  $holderVersion0 = [bool](Get-PackagedHolderManifest $inst.installDir)
+  $holderRoot0 = Get-HolderRoot $inst.scope
+  if (-not $holderVersion0) {
+    Add-Note $s0 'PTY holder：目前安裝的版本沒有 holder，holder 檢查只記錄、不判讀'
+  } else {
+    $holderRun0 = @(Get-HolderProcesses $holderRoot0)
+    Add-Note $s0 "PTY holder 根目錄：$holderRoot0（$(@(Get-ChildItem -LiteralPath $holderRoot0 -Directory -ErrorAction SilentlyContinue).Count) 個目錄）"
+    foreach ($h in $holderRun0) { Add-Note $s0 "執行中的 PTY holder：$($h.name) PID=$($h.pid)（$($h.dir)），子程序 $(($h.children | ForEach-Object { "$($_.name) $($_.pid)" }) -join ', ')" }
+    if ($holderRun0.Count -gt 0) {
+      $script:IgnoreServerFiles = $true
+      Add-Note $s0 '有執行中的 PTY holder（保留的 Terminal Server 與分頁）：② 覆蓋安裝後檢查這些 PID 不變；③ 真的解除安裝會結束它們並刪除 holder 根目錄（T0860）；userData 比對不含 Terminal Server 自己的 pid / port / token / registry 檔'
     }
   }
 }
@@ -641,6 +732,19 @@ if ($DryRun) {
 } else {
   Test-InstalledState $s2 $installScope $installDir $snapshot0 $desktop0
 }
+if ($holderRun0.Count -gt 0) {
+  # T0862：holder 在安裝目錄外，覆蓋安裝不結束它；分頁的 shell（holder 的子程序）PID 也不變
+  $pidRule = '覆蓋安裝不結束安裝目錄外的 PTY holder 與它的分頁（T0860 / T0861）'
+  if ($DryRun) { Add-Note $s2 "安裝後檢查：執行中的 PTY holder 與子程序 PID 不變（$($holderRun0.Count) 個 holder）" }
+  else {
+    $alive = @(Get-CimInstance Win32_Process | ForEach-Object { $_.ProcessId })
+    foreach ($h in $holderRun0) {
+      $ids = @($h.pid) + @($h.children | Where-Object { $_.name -notmatch '^conhost\.exe$' } | ForEach-Object { $_.pid })
+      $gone = @($ids | Where-Object { $alive -notcontains $_ })
+      Add-Check $s2 "PTY holder PID $($h.pid) 與分頁 shell PID 不變" $(if ($gone.Count -eq 0) { 'PASS' } else { 'FAIL' }) "$($ids.Count) 個 PID 仍在" "結束 $($gone.Count) 個：$($gone -join ', ')" $pidRule
+    }
+  }
+}
 Complete-Step $s2
 if (-not $DryRun -and $s2.result -eq 'FAIL') { Stop-Acceptance '覆蓋安裝檢查失敗' }
 
@@ -676,6 +780,20 @@ else {
     $sc = Get-ShortcutPaths $installScope
     foreach ($k in @('desktop', 'startMenu')) {
       Add-Check $s3 "捷徑已移除（$k）" $(if (-not (Test-Path -LiteralPath $sc[$k])) { 'PASS' } else { 'FAIL' }) '不存在' $(if (Test-Path -LiteralPath $sc[$k]) { '仍存在' } else { '不存在' }) $sc[$k]
+    }
+    if ($holderVersion0) {
+      # T0862：真的解除安裝停 holder（--uninstall-quit-request）並刪除本範圍的 holder 根目錄；根目錄有程序在跑時保留（DetailPrint，/S 看不到）
+      $root = Get-HolderRoot $installScope
+      if (Test-HolderRootOverlap $root $installDir) { Add-Note $s3 "PTY holder：根目錄 $root 與安裝目錄互為前綴，安裝程式不碰" }
+      else {
+        $stillRun = @(Get-HolderProcesses $root)
+        foreach ($h in $holderRun0) {
+          Add-Check $s3 "PTY holder PID $($h.pid) 已結束" $(if (-not (Get-Process -Id $h.pid -ErrorAction SilentlyContinue)) { 'PASS' } else { 'FAIL' }) '已結束' '仍在執行' '真的解除安裝一律停 holder（T0860）'
+        }
+        $rootLeft = Test-Path -LiteralPath $root
+        Add-Check $s3 'PTY holder 根目錄已移除' $(if (-not $rootLeft) { 'PASS' } elseif ($stillRun.Count -gt 0) { 'WARN' } else { 'FAIL' }) "$root 不存在" $(if (-not $rootLeft) { '不存在' } else { "仍存在，$($stillRun.Count) 個程序從它執行" }) '沒有程序在跑才刪；有程序在跑時保留（不是 FAIL）'
+        foreach ($h in $stillRun) { Add-Note $s3 "仍從 holder 根目錄執行：$($h.name) PID=$($h.pid)（$($h.dir)）" }
+      }
     }
     if ($null -ne $snapshot0) {
       $diff = Compare-Snapshot $snapshot0 (Get-UserDataSnapshot (Get-UserDataDirs))

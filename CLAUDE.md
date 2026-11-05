@@ -233,6 +233,14 @@
 - 升級後（PLAN-065 W5 / T0861，D286 D4–D6）：條件全成立 → 自動接回（見「Recovery 提示期間的 `pty:create`」節），notice 多 `reattachedPtyCount`，toast `app.upgradeReattached` / `app.upgradeReattachedSameVersion`（`upgradeNoticeToastKey` / `upgradeNoticeToastValues`）；hello 失敗的 server（`endUnusableTerminalServer`：shutdown，Windows 仍在跑 → `forceStopTerminalServer`）的 registry PTY 是新的偵測來源 `noteIncompatibleServer`（版本不同或有 holder 紀錄才觸發）；收到清單且 0 個 PTY、hello 版本 ≠ 目前版本 → 換新（`shouldReplaceIdleServer`）。🔴 不自動 resume、不通知塔台；`ptyCount ≥ 1` 的既有 notice 不變。見 docs「holder 版：升級後自動接回…」。
 - 完整條件、日誌、已知限制、驗證清單：[docs/agent-guide/upgrade-interruption.md](docs/agent-guide/upgrade-interruption.md)
 
+## Windows PTY holder（PLAN-065 / T0862，D286）
+
+- 用途：持有 ConPTY 的 Terminal Server 從**安裝目錄外**（per-user `%LOCALAPPDATA%\BAT-PtyHolder\<key>`、per-machine `%ProgramFiles%\BAT-PtyHolder\<key>`）執行，NSIS 升級只結束 BAT 主行程，shell 與長命令留在 holder，新版直接接回。總覽（架構、協定 v1 摘要、安裝 / 升級 / 降級 / 解除安裝的動作順序、已知限制、驗證清單）：[docs/agent-guide/pty-holder.md](docs/agent-guide/pty-holder.md)。
+- 🔴 從 PTY holder 啟動：只有 win32 ＋打包版＋ NSIS 安裝（`resources\installer-quit-request.supported`）＋ `resolvePtyHolder`（`electron/pty-holder.ts`）驗證通過；其他情況 `forkTerminalServer`（`electron/main.ts`，唯一啟動點）逐字照舊 fork。holder 用 `spawn`（stdio 帶 `ipc`）、`cwd` = holder 目錄，不得改用 `fork`（Electron 一律加 `ELECTRON_RUN_AS_NODE`）。見 [docs](docs/agent-guide/terminal-server-recovery.md)「從 PTY holder 啟動」。
+- 🔴 holder 不得叫 `BetterAgentTerminal.exe`、不得在 `$INSTDIR` 內；有程序在跑的 holder 目錄不得刪（`build/installer.nsh` `batPtyHolderInUse`）；NSIS 不強制結束程序。升級（含 `--updated` 的舊版解除安裝）不停 holder，真的解除安裝一律停；權杖不寫日誌、不進 env / 命令列。
+- 唯一實作：打包 / 複製 `scripts/pty-holder.cjs`＋`build/installer.nsh`（T0858）、協定 `electron/terminal-server/protocol.ts`（T0857）、升級 quit `electron/installer-quit-request.ts`（T0860）、接回 / 不相容 / 換新 `decideHolderReattach` 等（`electron/upgrade-interruption.ts`、`main.ts` `startTerminalServer`，T0861）。
+- 🔴 版本 N 的解除安裝程式與 quit 行為在 N 發佈後就改不了：改上述任一處、或發第一個有 holder 的版本前，跑 W6 真實升級驗收 `windows-upgrade-acceptance.yml`（`e2e/t0862-windows-upgrade-acceptance.spec.ts`，只在 GitHub Windows runner 執行，以預設 runtime 跑真的安裝程式；🔴 不得在開發機執行）；發佈後的手動驗收 `e2e/manual/nsis-reinstall-acceptance.ps1` 也檢查 holder。
+
 ## Child Process Spawning
 
 新增涉及 child_process 的程式碼（特別是 IPC handler / wizard step / shell 互動）：
