@@ -255,6 +255,7 @@ W5（T0861）依 `reason` 走 D5「結束並說明」；本單沒有新的 UI。
 - 🔴 用 `spawn`（stdio 帶 `ipc`）而不是 `fork`：Electron 的 `child_process.fork` 一律在子程序 env 加 `ELECTRON_RUN_AS_NODE=1`，指定別的 `execPath` 也一樣（T0859 以 Electron 45.2.1 實測）。`spawn` 帶 `ipc` 開的是同一條 IPC 通道（JSON 序列化），PtyManager 的 `setServerProcess`、quit Step A 的 IPC `server:shutdown` 照舊。
 - PTY env 照舊經 `buildServerPtyEnv` / `buildPtyEnv`（server 的 `TERMINAL_SERVER_OWN_ENV_KEYS` 與 BUG-038 的 `ELECTRON_RUN_AS_NODE` 移除不變）；`BAT_USER_DATA`、`BAT_TERMINAL_SERVER_BAT_VERSION`、idle / buffer 設定照樣帶，所以 holder 版的 server 寫同一個 `<userData>` 的 pid / port / token 檔。
 - 驗證失敗只記一行 `[pty-holder]` 並照舊 fork，不提示使用者、不擋啟動。
+- 🔴 Windows 上 holder 的 `spawn` 與沒有 holder 的 `fork` 都包在 `terminalServerStdioGuard.run(() => …)`（BUG-213 / T0866）：同步地把 BAT 從呼叫端繼承來的標準 / CRT handle 設為不可繼承、啟動、`finally` 還原；addon 不在 → 照舊啟動。參數本身不變。見 [pty-holder.md](pty-holder.md)「stdio 繼承」。
 - 整體架構、安裝 / 升級 / 降級 / 解除安裝的動作順序與 W6 真實升級驗收：[pty-holder.md](pty-holder.md)（T0862）。
 - 從 holder 啟動的 server 變成不可用（hello `unauthenticated` / `incompatible` / `timeout`，例如降級後協定不同、權杖檔不符）時，下次啟動照 T0861 D5 結束它：`server:shutdown` 後等 5 s，🔴 Windows 上仍在跑 → `forceStopTerminalServer` 先結束 registry 的 PTY 程序樹、再 `taskkill /F /T` server、清 pid / port / token / registry 檔（日誌 `unusable server ended with its PTY trees (taskkill): gone|still running`）；macOS / Linux 只記一行並照樣啟動新的。見 [upgrade-interruption.md](upgrade-interruption.md)「不相容（D5）」。
 

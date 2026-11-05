@@ -24,6 +24,7 @@ Terminal Server 是 `BetterAgentTerminal.exe` 以 node 模式執行，所以每�
 | 安裝程式 | `build/installer.nsh` | `customCheckAppRunning`（請 BAT 正常結束）、`customInstall`（標記、複製 holder、清理沒在用的 key）、`customUnInstall`（真的解除安裝才停 holder、刪根目錄） | T0823 / T0858 / T0860 |
 | 升級時的 quit | `electron/installer-quit-request.ts` | 有 holder：延長 idle 24 h、結束分頁樹中安裝目錄下的程序（內嵌 claude / codex）、寫紀錄 schema 2、不停 server | T0860 |
 | 升級後接回 | `startTerminalServer`（`electron/main.ts`）＋`decideHolderReattach`（`electron/upgrade-interruption.ts`） | 條件全成立 → 不跳 Recovery 提示、走「保留」同一段程式；toast「已接回 N 個終端」；不相容 → 結束並說明；0 個 PTY 的舊版 → 換新 | T0861 |
+| stdio 繼承 addon | 原始碼 `native/win-stdio-inherit/`；打包 `$INSTDIR\resources\native\bat_win_stdio_inherit.node` | Terminal Server 啟動前後把 BAT 從呼叫端繼承來的標準 / CRT handle 暫設為不可繼承（下節） | T0866 |
 
 ## 必守規則（摘要，原文在各 docs）
 
@@ -33,6 +34,24 @@ Terminal Server 是 `BetterAgentTerminal.exe` 以 node 模式執行，所以每�
 - 🔴 權杖不寫日誌、不進任何 env 與命令列；協定只做相加，`server:hello` / `server:shutdown` 每版都有效。
 - 🔴 升級（安裝程式或 `--updated` 的舊版解除安裝程式）不停 holder；真的解除安裝（`--uninstall-quit-request`）一律停。版本 N 的解除安裝程式與 quit 行為在 N 發佈後就改不了，所以第一個有 holder 的版本發佈前必跑 W6 驗收（下面〈驗證清單〉）。
 - 🔴 接回前不 spawn direct shell（BUG-146 / T0578 的 hold 規則不變）；不自動 resume、不通知塔台。
+- 🔴 Windows 上 Terminal Server 的兩種啟動（holder `spawn`、沒有 holder 的 `fork`）都經 `terminalServerStdioGuard.run`（BUG-213 / T0866，下節）：同步地「設為不可繼承 → 啟動 → `finally` 還原」，只還原原本可繼承的 handle；addon 不在 / 載入失敗 → 照舊啟動（fail open）。macOS / Linux 不載入 addon。
+
+## stdio 繼承（BUG-213 / T0866，D291）
+
+- **問題**（T0865）：Windows 的 libuv 以 `CreateProcessW(bInheritHandles = TRUE)` 起子程序，父程序所有可繼承的 handle 都會傳下去。Node 啟動時呼叫 `uv_disable_stdio_inheritance()`；Electron 45.2.1 的主行程沒有。所以帶 pipe 啟動 BAT（終端、IDE task、腳本、Playwright `_electron.launch` 的 4 個 pipe）時，Terminal Server 拿到呼叫端的 pipe；BAT 結束後保留 server（升級、Recovery「保留」）→ 呼叫端一直等不到 `close`。holder 與沒有 holder 的 fork 路徑都一樣（T0859 前就有）。
+- **修正**：小型 N-API addon（`native/win-stdio-inherit/src/win_stdio_inherit.c`，只用 kernel32 的 `GetStdHandle` / `GetStartupInfoW`（`lpReserved2` 的 CRT fd 表）/ `GetHandleInformation` / `SetHandleInformation`，與 libuv `uv_disable_stdio_inheritance` 同一組 handle）：`disable()` 把可繼承的設為不可繼承、回傳改了哪些；`restore(handles)` 只還原這些。不關閉、不複製、不換掉任何 handle（`GetStdHandle` 與 CRT 照舊）。
+- **接線**：唯一實作 `createWinStdioInheritGuard`（`electron/win-stdio-inherit.ts`，純函式、不 import electron），`forkTerminalServer` 在模組層建一個 `terminalServerStdioGuard`，兩種啟動都包在 `run(() => …)` 裡（中間沒有 await）。addon 在第一次 win32 啟動時才找：打包版 `<resources>\native\`、開發模式 `native/win-stdio-inherit/build/Release/`。🔴 BAT 其他子程序（git、claude、codex、direct PTY、helper）的繼承行為不變（啟動後立刻還原）；holder 的 pid 關係、`ipc`、env、cwd、`detached`、`windowsHide`、協定、接回判斷、安裝程式、升級 quit 都不變。
+- **日誌**（win32，每次啟動一行，只記數量與原因代碼，不記 handle 值）：`[stdio-inherit] Terminal Server started without <N> inherited handle(s); <N> restored`；fail open：`[stdio-inherit] addon unavailable (not-found|load-failed|bad-exports): Terminal Server started with the inherited handles as before (BUG-213)`、`disable failed (disable-failed)`、`disable returned an unexpected result (bad-result)`、`restore failed (restore-failed) for <N> handle(s)`。
+- **實測**（T0866，開發機、repo 內 Electron 45.2.1，scratchpad 腳本，不跑安裝檔）：呼叫端以 Playwright 的 stdio `['ignore','pipe','pipe','pipe','pipe']` 啟動 Electron，主行程以 holder 的選項 `spawn`（或 `fork`）一個 20 s 的子程序後 1.5 s 結束：
+
+  | 啟動方式 | addon | 呼叫端 `exit` | 呼叫端 `close` |
+  |---|---|---|---|
+  | holder 路徑 `spawn` | 沒有（修正前） | 1611 ms | ❌ 8 s 內沒有 |
+  | holder 路徑 `spawn` | 有（`disable` 5 個、還原 5 個） | 1605 ms | ✅ 1605 ms |
+  | 沒有 holder 的 `fork` | 沒有（修正前） | 1603 ms | ❌ 8 s 內沒有 |
+  | 沒有 holder 的 `fork` | 有（5 / 5） | 1599 ms | ✅ 1599 ms |
+
+- 建置、打包與檢查：[packaging-release-checks.md](packaging-release-checks.md)「Windows stdio 繼承 addon」。
 
 ## 協定 v1 摘要（T0857）
 
@@ -68,12 +87,13 @@ N = 第一個有 holder 的版本，N+1 = 下一版。完整步驟與日誌見 [
 - holder 驗證每次啟動重算約 90 MiB 雜湊（T0859 實測約 0.1 s）；驗證與 `spawn` 之間有 TOCTOU。
 - 升級 quit 的 idle 延長只一次：使用者在升級前又開 BAT 會清掉延長。
 - macOS / Linux 沒有 holder（升級方式不同，未研究）；zip 版、`build:dir`、開發模式不用 holder。
+- stdio 繼承（BUG-213）：只處理 BAT 從呼叫端繼承來的標準 handle 與 CRT fd 表；BAT 主行程自己開、而且設成可繼承的其他 handle 不在範圍（目前沒有）。addon 只建 win32-x64（Windows 只出 x64）；開發模式沒跑 `npm run build:native-win` → fail open（照 T0866 前的行為）。T0866 前發佈的版本照舊有這個問題。
 
 ## 驗證清單
 
 | 層 | 內容 |
 |---|---|
-| 單元 | `electron/__tests__/pty-holder.test.ts`、`scripts/__tests__/pty-holder.test.mjs`（兩邊規則一致）、`electron/__tests__/installer-quit-holder.test.ts`、`electron/__tests__/holder-reattach.test.ts`、`terminal-server` 協定測試（見各 docs「驗證」） |
+| 單元 | `electron/__tests__/win-stdio-inherit.test.ts`（T0866：win32 才接線、fail open、`finally` 還原、只還原 `disable` 回報的 handle、兩種啟動都經 guard 的 source guard、真 addon 往返）、`scripts/__tests__/win-stdio-inherit.test.mjs`、`electron/__tests__/pty-holder.test.ts`、`scripts/__tests__/pty-holder.test.mjs`（兩邊規則一致）、`electron/__tests__/installer-quit-holder.test.ts`、`electron/__tests__/holder-reattach.test.ts`、`terminal-server` 協定測試（見各 docs「驗證」） |
 | e2e（本機打包版，`npm run build:dir`，不跑安裝程式） | `e2e/t0859-pty-holder.spec.ts`、`e2e/t0860-installer-quit-holder.spec.ts`、`e2e/t0861-holder-reattach.spec.ts` |
 | 真實安裝程式（W6 / T0862） | `.github/workflows/windows-upgrade-acceptance.yml` ＋ `e2e/t0862-windows-upgrade-acceptance.spec.ts`（下節） |
 | 發佈後手動 | `e2e/manual/nsis-reinstall-acceptance.ps1 -Version <版號>`：有 holder 的版本另查 holder 目錄與 manifest、執行中 holder 與分頁 shell 的 PID 在覆蓋安裝後不變、真的解除安裝後 holder 結束與根目錄刪除；沒有 holder 的版本照舊判讀 |
@@ -93,7 +113,7 @@ gh workflow run windows-upgrade-acceptance.yml -R gowerlin/better-agent-terminal
 
 | # | 情境 | 主要判準 |
 |---|---|---|
-| 1 | per-user A → B（`/S /currentuser`） | BAT 在 15 s 內結束、holder / shell / ping / conhost 存活、安裝目錄沒有程序、schema 2、跑著的 key 目錄保留、放進根目錄的兩個目錄：沒有程序在跑的被刪、有程序在跑的保留（D9；A、B 同 commit 時 key 通常相同，記錄兩個 key）；重開：沒有 Recovery 提示、`app.upgradeReattached`（vA → vB）、同 holder / shell pid、ping 輸出持續 |
+| 1 | per-user A → B（`/S /currentuser`）；A 以 pipe 啟動（T0866） | 呼叫端在 BAT 結束後 30 s 內拿到 `close`、holder 仍在跑，A 的日誌有 `[stdio-inherit] … without <N ≥ 4> inherited handle(s); <N> restored`（BUG-213）；BAT 在 15 s 內結束、holder / shell / ping / conhost 存活、安裝目錄沒有程序、schema 2、跑著的 key 目錄保留、放進根目錄的兩個目錄：沒有程序在跑的被刪、有程序在跑的保留（D9；A、B 同 commit 時 key 通常相同，記錄兩個 key）；重開：沒有 Recovery 提示、`app.upgradeReattached`（vA → vB）、同 holder / shell pid、ping 輸出持續 |
 | 2 | per-machine A → B（`/S /allusers`）＋真的解除安裝 | 同 1（根目錄在 `%ProgramFiles%`）；解除安裝時另有程序從根目錄執行 → holder 結束、根目錄保留、userData 保留。runner 已提權，UAC inner instance 的路徑不在範圍 |
 | 3 | 同版重裝 B → B | 接回、`app.upgradeReattachedSameVersion` |
 | 4 | 降級 B → A | 接回、`app.upgradeReattached`（vB → vA） |

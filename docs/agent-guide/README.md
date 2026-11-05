@@ -25,9 +25,9 @@
 | [multi-remote-profiles.md](multi-remote-profiles.md) | 多 remote profile 同時連線、上限、profile index 序列化 | 多 remote profile 同時連線（PLAN-039） |
 | [notify-hold.md](notify-hold.md) | 塔台等使用者回答（權限 / AskUserQuestion / codex 審批）時保留 helper 送來的文字＋Enter、安靜 1 s 後送出（契約 10 點、常數、日誌、待送 N 與取消、已知限制、驗證清單） | 塔台等使用者回答時保留 Worker 通知（T0788 / BUG-196，D227） |
 | [npm12-install-scripts.md](npm12-install-scripts.md) | npm 12 `allowScripts`、手動補跑、本機打包、CI 與 actions / runner 版本 | 本機開發：npm 12 install scripts（T0471 / T0473） |
-| [packaging-release-checks.md](packaging-release-checks.md) | 打包前置檢查、產物檢查、安裝檔瘦身、Linux whisper 函式庫搜尋路徑（patchelf `$ORIGIN`，T0800）、CI pipeline、Server bundle baseline | Packaging / Release 前置檢查 |
+| [packaging-release-checks.md](packaging-release-checks.md) | 打包前置檢查、產物檢查、安裝檔瘦身、Linux whisper 函式庫搜尋路徑（patchelf `$ORIGIN`，T0800）、Windows stdio 繼承 addon 的建置 / 打包 / 檢查（T0866）、CI pipeline、Server bundle baseline | Packaging / Release 前置檢查 |
 | [new-pty-initial-size.md](new-pty-initial-size.md) | 隱藏分頁不 fit 的守門（`canFitTerminalContainer`）、9x5 的來源、initial resize 到期再檢查 active、驗證清單 | 新 PTY 的初始尺寸（T0572 / BUG-145）（T0741 / BUG-180 的部分；T0572 本身仍完整留在 CLAUDE.md） |
-| [pty-holder.md](pty-holder.md) | Windows PTY holder 總覽（PLAN-065）：架構與元件表、holder 位置、協定 v1 摘要、安裝 / 升級 / 同版重裝 / 降級 / 解除安裝 / 不相容 / 換新的動作順序、已知限制、驗證清單（含 W6 真實升級驗收 `windows-upgrade-acceptance.yml` 情境 1–9 與 `nsis-reinstall-acceptance.ps1` 的 holder 檢查）；細節連到 terminal-server-recovery / packaging-release-checks / upgrade-interruption | Windows PTY holder（PLAN-065 / T0862） |
+| [pty-holder.md](pty-holder.md) | Windows PTY holder 總覽（PLAN-065）：架構與元件表、holder 位置、協定 v1 摘要、stdio 繼承 addon（BUG-213 / T0866：規則、日誌、修正前後實測）、安裝 / 升級 / 同版重裝 / 降級 / 解除安裝 / 不相容 / 換新的動作順序、已知限制、驗證清單（含 W6 真實升級驗收 `windows-upgrade-acceptance.yml` 情境 1–9 與 `nsis-reinstall-acceptance.ps1` 的 holder 檢查）；細節連到 terminal-server-recovery / packaging-release-checks / upgrade-interruption | Windows PTY holder（PLAN-065 / T0862） |
 | [pty-process-tree.md](pty-process-tree.md) | 關閉分頁時的程序樹（taskkill / server shutdown / quit） | 關閉分頁時的程序樹（T0540 / PLAN-042） |
 | [recovery-create-hold.md](recovery-create-hold.md) | Recovery 提示期間的 create hold（`pty:create`、helper 派工、`pty:restart`） | Recovery 提示期間的 `pty:create`（T0578 / BUG-146） |
 | [release.md](release.md) | 正式版 / 預覽版 workflow、prerelease 標記與下游發佈、Server bundle tag 線 | Release |
