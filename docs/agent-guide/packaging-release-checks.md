@@ -135,7 +135,7 @@
 - **打包前檢查**：`verify-native-modules.js`（`verifyWinStdioInheritAddon`）在 win32 host 要求上述建置存在且是 host arch 的 PE；macOS / Linux 不看。
 - **打包產物檢查** `win-stdio-inherit`（`verify-packaged-native.js --platform win`，`verifyWinStdioInherit`）：`resources\native\bat_win_stdio_inherit.node` 存在、是該 arch 的 PE；CLI 在 Windows host 另以打包的 `BetterAgentTerminal.exe`＋`ELECTRON_RUN_AS_NODE=1`（30 s timeout）載入並呼叫 `disable()` / `restore()`（`--skip-load-check` 只給測試的假產物）。mac / linux 產物裡出現它 → 失敗。
 - **動態載入登記**：`electron/win-stdio-inherit.ts` 的 `process.dlopen` 登記在 `scripts/__tests__/asar-runtime-deps.test.mjs` 的 `DYNAMIC_REQUIRE_SITES`（不載入任何 npm 套件，清單為空）。
-- **大小**：`bat_win_stdio_inherit.node` 約 735 KiB（T0866 本機，靜態 CRT）。
+- **大小**：`bat_win_stdio_inherit.node` 110,592 bytes（T0866，desktop-build run `41952687778` 的 Windows runner、Node 24 headers）；本機以 Node 26 headers 建出約 735 KiB（headers 帶 PGO 選項，MSVC 忽略並警告 D9002 / LNK4044），兩者都能載入。
 
 # 只 build、不發布的桌面 workflow（T0783，D223）
 
