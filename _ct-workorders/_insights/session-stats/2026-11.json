@@ -1,5 +1,5 @@
 {
- "generated_at": "2026-11-05T07:43:35+08:00",
+ "generated_at": "2026-11-05T08:09:21+08:00",
  "generator": {
   "script": "ct-session-stats.py",
   "version": "0.1.0"
@@ -41,13 +41,22 @@
    "output": 143870
   },
   "2026-11-04": {
-   "api_requests": 46,
-   "cache_read": 8940867,
-   "cache_write": 199127,
-   "cache_write_1h": 199127,
+   "api_requests": 57,
+   "cache_read": 11622514,
+   "cache_write": 212807,
+   "cache_write_1h": 212807,
    "cache_write_5m": 0,
-   "input": 102,
-   "output": 25514
+   "input": 124,
+   "output": 32232
+  },
+  "2026-11-05": {
+   "api_requests": 1,
+   "cache_read": 250688,
+   "cache_write": 8,
+   "cache_write_1h": 8,
+   "cache_write_5m": 0,
+   "input": 4,
+   "output": 220
   }
  },
  "workorders": [
@@ -7462,6 +7471,94 @@
     "2.1.316"
    ],
    "workorder": "T0860"
+  },
+  {
+   "attribution": {
+    "conflict": false,
+    "source": "frontmatter",
+    "sources": {
+     "frontmatter": 1
+    }
+   },
+   "by_mcp_server": {
+    "bat": 2
+   },
+   "by_tool": {
+    "Bash": 78,
+    "Edit": 47,
+    "PowerShell": 1,
+    "Read": 16,
+    "ToolSearch": 2,
+    "Write": 5,
+    "mcp__bat__bat_wait_question": 2
+   },
+   "counts": {
+    "api_requests": 115,
+    "failures": 1,
+    "same_file_read_ge3": 2,
+    "subagent_files": 0,
+    "tool_calls": 151
+   },
+   "end": "2026-11-05T00:08:58Z",
+   "est_usd": 12.3455,
+   "failures_by_tool": {
+    "Bash": 1
+   },
+   "renews": 0,
+   "sessions": 1,
+   "skills_invoked": {},
+   "start": "2026-11-04T23:43:50Z",
+   "stuck": {
+    "max_consecutive_failures": 1,
+    "max_failures_in_10_calls": 1,
+    "near_repeat_fail_pairs_j50": 0,
+    "repeat_fail_groups_norm": 0
+   },
+   "stuck_signal": false,
+   "subagent_tokens": {
+    "cache_read": 0,
+    "cache_write": 0,
+    "cache_write_1h": 0,
+    "cache_write_5m": 0,
+    "input": 0,
+    "output": 0
+   },
+   "tokens": {
+    "cache_read": 35038457,
+    "cache_write": 382120,
+    "cache_write_1h": 382120,
+    "cache_write_5m": 0,
+    "input": 238,
+    "output": 113995
+   },
+   "top_tools": [
+    [
+     "Bash",
+     78
+    ],
+    [
+     "Edit",
+     47
+    ],
+    [
+     "Read",
+     16
+    ],
+    [
+     "Write",
+     5
+    ],
+    [
+     "ToolSearch",
+     2
+    ]
+   ],
+   "type": "implementation",
+   "unpriced_tokens": 0,
+   "versions": [
+    "2.1.316"
+   ],
+   "workorder": "T0861"
   },
   {
    "attribution": {

@@ -20,6 +20,7 @@ affects_files:
   - e2e/manual/nsis-reinstall-acceptance.ps1
   - docs/agent-guide/pty-holder.md
   - docs/agent-guide/README.md
+  - docs/agent-guide/terminal-server-recovery.md
   - CLAUDE.md
 renew_count: 0
 workdir: main repo
@@ -69,6 +70,12 @@ memory_overrides:
 
 - T0864（D288）之後，只寫 `checkForUpdates: false` 不夠：沒有一次性標記時會被當成開。關掉更新對話框要照 T0864 回報區寫明的標記鍵一起寫（既有 5 個 e2e spec 的新寫法）。
 - T0860 回報區〈待 W6 驗收〉列入本單情境（已在情境 1–7 內的對應即可，不在的補進）：① N → N+1 真實升級時 N 的 BAT 保留 holder、安裝程式不跳第二次「正在執行」；② N 的解除安裝程式以 `--updated` 執行時不碰 holder；③ `customInstall` 保留執行中的 N holder 目錄；④ 升級後 holder pid 不變、分頁輸出持續；⑤ 真的解除安裝（per-user；per-machine 能做就做）holder 結束、根目錄被刪，根目錄有程序在跑時保留並有 `DetailPrint`；⑥ 降級（N+1 → N）；⑦ 內嵌 claude 實機：被結束後分頁 shell 回到提示列、清單恢復正常。`e2e/t0860-installer-quit-holder.spec.ts` 可當基礎。
+
+## 塔台補充（開工前，T0861 收單後 2026-11-05 08:09）
+
+- T0861（`9e8b26f0`）〈待 W6 驗收〉列入本單情境：① 版本不同的 N → N+1 自動接回與 `app.upgradeReattached` 文字（T0861 e2e 只驗到同版的 `app.upgradeReattachedSameVersion`；A → B 兩個 exp build 版號不同，正好驗這個）；② D5 不相容實機（降級到協定不同的版本 = 情境 5、權杖不符能做就做）：舊 holder 與 PTY 樹被結束、顯示「升級結束了 N 個終端」、agent 分頁進清單；③ D6：holder 存活但 0 個 PTY 且版本較舊 → 換新（重開後 holder pid 改變、版本 = 新版）；④ per-machine（情境 2）若 UAC 強制結束而沒有紀錄 → Recovery 提示照舊出現，寫明實際結果。
+- T0861 e2e `e2e/t0861-holder-reattach.spec.ts` 也可當基礎（接回後無 Recovery 提示、同 holder pid / 同 shell pid、只有一個 shell）。
+- 範圍追加 `docs/agent-guide/terminal-server-recovery.md`：補「從 PTY holder 啟動」一節要連到的內容，並補一句 Windows 上 D5 會強制結束仍在跑的不可用 server（日誌 `unusable server ended with its PTY trees (taskkill): …`，T0861 後續建議）。
 
 ## 塔台授權
 （派工時由塔台填寫：可否 push 分支、可否觸發 `desktop-build.yml` 兩次與本 workflow。）
