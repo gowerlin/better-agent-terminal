@@ -353,6 +353,76 @@ function Compare-Snapshot([hashtable]$Before, [hashtable]$After) {
   return [pscustomobject]@{ added = $added; removed = $removed; changed = $changed; same = ($added.Count + $removed.Count + $changed.Count -eq 0) }
 }
 
+# T0868 / D292：③ 真的解除安裝時，customUnInstall（batUninstallPtyHolder）啟動 $INSTDIR\BetterAgentTerminal.exe
+# --uninstall-quit-request（T0860，沒有 BAT 在跑也送，用來停 holder）。請求程序的 logger.init 建立一份 debug log，
+# 並依「保留最近 10 個」（electron/logger.ts cleanupOldLogs，依修改時間）刪掉最舊的一份。這是設計行為，由腳本容許。
+# 容許範圍只有 ③、只有 BetterAgentTerminal\Logs\debug-*.log（不含子目錄、其他 userData 目錄）：新增 ≤ 1 份、
+# 因輪替刪除 ≤ 1 份且是 ⓪ 時修改時間最舊的那份。其他任何差異（Logs 內其他檔、bat-scripts*.log、settings、權杖檔、
+# debug log 內容變更）仍是 FAIL。② / ④ 不用這個函式，規則不變。
+$UninstallUserDataRule = 'T0868 / D292：只容許 BetterAgentTerminal\Logs\debug-*.log 新增 ≤ 1 份、因輪替刪除 ≤ 1 份且是 ⓪ 時修改時間最舊的那份（解除安裝程式啟動 --uninstall-quit-request，logger.init 建檔並只保留最近 10 個，T0860）；其他任何差異 FAIL；⓪ 沒有被刪那份的修改時間、無法確認是最舊 → WARN'
+function Get-UninstallUserDataVerdict {
+  param(
+    [string[]]$Added = @(),
+    [string[]]$Removed = @(),
+    [string[]]$Changed = @(),
+    # ⓪ 時的 debug log 修改時間（key 與 userData 快照相同的相對路徑，值 = LastWriteTimeUtc.Ticks），見 Get-DebugLogTimes
+    [hashtable]$LogTimes0 = $null,
+    [string]$LogDirRel = 'BetterAgentTerminal\Logs\'
+  )
+  $Added = @($Added | Where-Object { $_ }); $Removed = @($Removed | Where-Object { $_ }); $Changed = @($Changed | Where-Object { $_ })
+  $re = '^' + [regex]::Escape($LogDirRel) + 'debug-[^\\]*\.log$'
+  $notes = New-Object System.Collections.ArrayList
+  $actual = "新增 $($Added.Count) / 刪除 $($Removed.Count) / 變更 $($Changed.Count)"
+  if ($Added.Count + $Removed.Count + $Changed.Count -eq 0) { return [pscustomobject]@{ result = 'PASS'; actual = $actual; notes = @() } }
+
+  $addedLogs = @($Added | Where-Object { $_ -match $re })
+  $removedLogs = @($Removed | Where-Object { $_ -match $re })
+  # debug log 被改內容也不在容許範圍（請求程序只建新檔、刪最舊的）
+  $outside = @(@($Changed) + @($Added | Where-Object { $_ -notmatch $re }) + @($Removed | Where-Object { $_ -notmatch $re }))
+  foreach ($x in $outside) { [void]$notes.Add("userData 差異（超出容許範圍）：$x") }
+  $result = 'PASS'
+  if ($outside.Count -gt 0) { $result = 'FAIL' }
+  if ($addedLogs.Count -gt 1) { $result = 'FAIL'; [void]$notes.Add("debug log 新增 $($addedLogs.Count) 份（容許 ≤ 1）：$($addedLogs -join ', ')") }
+  if ($removedLogs.Count -gt 1) { $result = 'FAIL'; [void]$notes.Add("debug log 刪除 $($removedLogs.Count) 份（容許 ≤ 1）：$($removedLogs -join ', ')") }
+  if ($removedLogs.Count -eq 1 -and $addedLogs.Count -eq 0) { $result = 'FAIL'; [void]$notes.Add("debug log 刪除但沒有新增，不是輪替：$($removedLogs[0])") }
+  if ($result -eq 'FAIL') {
+    foreach ($x in @($addedLogs + $removedLogs)) { [void]$notes.Add("userData 差異：$x") }
+    return [pscustomobject]@{ result = 'FAIL'; actual = $actual; notes = $notes.ToArray() }
+  }
+
+  foreach ($x in $addedLogs) { [void]$notes.Add("debug log 新增：$x — 解除安裝程式啟動 --uninstall-quit-request（T0860），屬預期") }
+  if ($removedLogs.Count -eq 1) {
+    $r = $removedLogs[0]
+    $logs0 = @()
+    if ($null -ne $LogTimes0) { $logs0 = @($LogTimes0.Keys | Where-Object { $_ -match $re }) }
+    if ($null -eq $LogTimes0 -or -not $LogTimes0.ContainsKey($r)) {
+      $result = 'WARN'
+      [void]$notes.Add("debug log 刪除：$r — ⓪ 沒有這份的修改時間，無法確認是最舊的那份（不放寬為 PASS）")
+    } else {
+      $oldest = @($logs0 | Sort-Object { [int64]$LogTimes0[$_] }, { $_ }) | Select-Object -First 1
+      if ([int64]$LogTimes0[$r] -le [int64]$LogTimes0[$oldest]) {
+        [void]$notes.Add("debug log 輪替刪除：$r — ⓪ 時 $($logs0.Count) 份中修改時間最舊的一份（保留最近 10 個，electron/logger.ts），屬預期")
+      } else {
+        $result = 'FAIL'
+        [void]$notes.Add("debug log 刪除：$r — 不是 ⓪ 時修改時間最舊的那份（最舊：$oldest），不是輪替")
+      }
+    }
+  }
+  return [pscustomobject]@{ result = $result; actual = $actual; notes = $notes.ToArray() }
+}
+
+function Get-DebugLogTimes([string[]]$Dirs) {
+  # ⓪ 時各 userData 目錄 Logs\ 下（不含子目錄）debug-*.log 的修改時間；檔名規則同 electron/logger.ts（debug- 開頭、.log 結尾）
+  $map = @{}
+  foreach ($d in $Dirs) {
+    $logs = Join-Path $d 'Logs'
+    foreach ($f in @(Get-ChildItem -LiteralPath $logs -File -Force -ErrorAction SilentlyContinue | Where-Object { $_.Name -match '^debug-.*\.log$' })) {
+      $map["$(Split-Path -Leaf $d)\Logs\$($f.Name)"] = $f.LastWriteTimeUtc.Ticks
+    }
+  }
+  return $map
+}
+
 function Get-ShortcutPaths([string]$InstallScope) {
   if ($InstallScope -eq 'AllUsers') {
     return @{ desktop = (Join-Path $env:PUBLIC "Desktop\$ProductName.lnk"); startMenu = (Join-Path $env:ProgramData "Microsoft\Windows\Start Menu\Programs\$ProductName.lnk") }
@@ -614,6 +684,7 @@ if ($null -ne $inst) {
 $udDirs = @(Get-UserDataDirs)
 $Report.userDataDirs = $udDirs
 $snapshot0 = $null
+$script:DebugLogTimes0 = $null
 foreach ($d in $udDirs) {
   $files = @(Get-ChildItem -LiteralPath $d -Recurse -File -Force -ErrorAction SilentlyContinue)
   Add-Note $s0 ("userData：{0}（{1} 檔，{2:N1} MiB）" -f $d, $files.Count, (($files | Measure-Object Length -Sum).Sum / 1MB))
@@ -634,6 +705,8 @@ if (-not $DryRun) {
   $Report.backupDir = $BackupDir
   Add-Note $s0 "userData 備份：$BackupDir（含 server-token.json 等權杖檔，驗收結束後請刪除）"
   $snapshot0 = Get-UserDataSnapshot $udDirs
+  # T0868：③ 判斷被輪替刪除的 debug log 是不是最舊的那份（快照只有大小與雜湊）
+  $script:DebugLogTimes0 = Get-DebugLogTimes $udDirs
   $unreadable = @($snapshot0.Values | Where-Object { $_ -like '*:unreadable' }).Count
   Add-Check $s0 'userData SHA-256 快照' $(if ($unreadable -eq 0) { 'PASS' } else { 'WARN' }) '全部可讀' "$($snapshot0.Count) 檔，無法讀取 $unreadable" '無法讀取通常代表檔案仍被開著（BAT 未完全關閉）'
 }
@@ -750,6 +823,25 @@ if (-not $DryRun -and $s2.result -eq 'FAIL') { Stop-Acceptance '覆蓋安裝檢�
 
 # ================================================================ ③ 解除安裝
 $s3 = New-Step '③' '解除安裝（靜默）'
+# T0868：holder 檢查依解除安裝前的版本（實際模式 = ② 裝上的版本），不依 ⓪ 時安裝的版本：
+# ⓪ 是沒有 holder 的舊版、② 裝上有 holder 的版本時，③ 正是要驗 holder 結束與根目錄刪除的路徑。來源與 ② 的 Test-HolderState 相同。
+$holderVersion3 = [bool](Get-PackagedHolderManifest $installDir)
+$holderRoot3 = Get-HolderRoot $installScope
+$holderRun3 = @()
+$versionSource3 = $(if ($DryRun) { '演練讀目前安裝的版本，實際模式讀 ② 裝上的版本' } else { '② 裝上的版本' })
+if (-not $holderVersion3) {
+  Add-Note $s3 "PTY holder（依解除安裝前的版本：$versionSource3）：沒有 resources\pty-holder，略過 holder 檢查"
+} elseif (Test-HolderRootOverlap $holderRoot3 $installDir) {
+  Add-Note $s3 "PTY holder（依解除安裝前的版本：$versionSource3）：有 holder；根目錄 $holderRoot3 與安裝目錄互為前綴，安裝程式不碰"
+} else {
+  $holderRun3 = @(Get-HolderProcesses $holderRoot3)
+  Add-Note $s3 "PTY holder（依解除安裝前的版本：$versionSource3）：有 holder；根目錄 $holderRoot3，執行中的 holder $($holderRun3.Count) 個"
+  foreach ($h in $holderRun3) { Add-Note $s3 "解除安裝前執行中的 PTY holder：$($h.name) PID=$($h.pid)（$($h.dir)），子程序 $(($h.children | ForEach-Object { "$($_.name) $($_.pid)" }) -join ', ')" }
+  # 解除安裝會停 holder 並清 Terminal Server 自己的 pid / port / token / registry 檔，③ / ④ 的 userData 比對不含它們（同 ⓪ 有 holder 時）
+  if ($holderRun3.Count -gt 0) { $script:IgnoreServerFiles = $true }
+}
+$uninstallMarker3 = Test-Path -LiteralPath (Join-Path $installDir 'resources\uninstall-quit-request.supported')
+Add-Note $s3 "解除安裝前的版本（$versionSource3）$(if ($uninstallMarker3) { '有' } else { '沒有' }) resources\uninstall-quit-request.supported（有 = 解除安裝程式會啟動 --uninstall-quit-request，T0860）"
 $cur = $inst
 if (-not $DryRun) { $cur = @(Find-Installations | Where-Object { $_.scope -eq $installScope }) | Select-Object -First 1 }
 $uninstallExe = $null; $uninstallArgs = ''
@@ -781,13 +873,14 @@ else {
     foreach ($k in @('desktop', 'startMenu')) {
       Add-Check $s3 "捷徑已移除（$k）" $(if (-not (Test-Path -LiteralPath $sc[$k])) { 'PASS' } else { 'FAIL' }) '不存在' $(if (Test-Path -LiteralPath $sc[$k]) { '仍存在' } else { '不存在' }) $sc[$k]
     }
-    if ($holderVersion0) {
+    if ($holderVersion3) {
       # T0862：真的解除安裝停 holder（--uninstall-quit-request）並刪除本範圍的 holder 根目錄；根目錄有程序在跑時保留（DetailPrint，/S 看不到）
-      $root = Get-HolderRoot $installScope
+      # T0868：依解除安裝前（② 裝上）的版本與當時執行中的 holder（$holderRun3），見本步驟開頭
+      $root = $holderRoot3
       if (Test-HolderRootOverlap $root $installDir) { Add-Note $s3 "PTY holder：根目錄 $root 與安裝目錄互為前綴，安裝程式不碰" }
       else {
         $stillRun = @(Get-HolderProcesses $root)
-        foreach ($h in $holderRun0) {
+        foreach ($h in $holderRun3) {
           Add-Check $s3 "PTY holder PID $($h.pid) 已結束" $(if (-not (Get-Process -Id $h.pid -ErrorAction SilentlyContinue)) { 'PASS' } else { 'FAIL' }) '已結束' '仍在執行' '真的解除安裝一律停 holder（T0860）'
         }
         $rootLeft = Test-Path -LiteralPath $root
@@ -797,11 +890,26 @@ else {
     }
     if ($null -ne $snapshot0) {
       $diff = Compare-Snapshot $snapshot0 (Get-UserDataSnapshot (Get-UserDataDirs))
-      Add-Check $s3 'userData 保留且未被改動' $(if ($diff.same) { 'PASS' } else { 'FAIL' }) '與 ⓪ 的 SHA-256 快照相同' "新增 $($diff.added.Count) / 刪除 $($diff.removed.Count) / 變更 $($diff.changed.Count)" ''
-      foreach ($x in ($diff.added + $diff.removed + $diff.changed | Select-Object -First 30)) { Add-Note $s3 "userData 差異：$x" }
+      # T0868 / D292：只有 ③ 容許 --uninstall-quit-request 造成的 debug log 新增 / 輪替（Get-UninstallUserDataVerdict）
+      $verdict = Get-UninstallUserDataVerdict -Added $diff.added -Removed $diff.removed -Changed $diff.changed -LogTimes0 $script:DebugLogTimes0 -LogDirRel "$ProductName\Logs\"
+      Add-Check $s3 'userData 保留且未被改動' $verdict.result '與 ⓪ 的 SHA-256 快照相同（只容許 debug log 新增 / 輪替）' $verdict.actual $UninstallUserDataRule
+      foreach ($n in @($verdict.notes | Select-Object -First 30)) { Add-Note $s3 $n }
     }
   } else {
-    Add-Note $s3 '解除安裝後檢查：uninstall 鍵與 Software\<GUID> 已移除、安裝目錄沒有檔案、該範圍的桌面 / 開始功能表捷徑已移除、userData SHA-256 快照不變'
+    Add-Note $s3 '解除安裝後檢查：uninstall 鍵與 Software\<GUID> 已移除、安裝目錄沒有檔案、該範圍的桌面 / 開始功能表捷徑已移除、userData 與 ⓪ 的 SHA-256 快照比對'
+    Add-Note $s3 "userData 判讀（只有 ③）：$UninstallUserDataRule"
+    $logTimesDry = Get-DebugLogTimes $udDirs
+    $mainLogs = @($logTimesDry.Keys | Where-Object { $_ -like "$ProductName\Logs\*" } | Sort-Object { [int64]$logTimesDry[$_] }, { $_ })
+    if ($mainLogs.Count -gt 0) {
+      # logger.init 先清理（刪掉「現有份數 − 10」份最舊的）再建新檔，所以平常是 11 份，③ 新增 1 份、刪 1 份
+      $expectDel = [math]::Max(0, $mainLogs.Count - 10)
+      Add-Note $s3 "(dry-run) 目前 $ProductName\Logs 有 $($mainLogs.Count) 份 debug-*.log，修改時間最舊 $(Split-Path -Leaf $mainLogs[0])；實際模式 ⓪ 另記這些修改時間。--uninstall-quit-request 先刪「現有份數 − 10」份最舊的再建 1 份：以目前份數預期 ③ 新增 1 份、刪除 $expectDel 份$(if ($expectDel -gt 1) { '（> 1 份超出容許範圍，③ 會判 FAIL）' })"
+    } else {
+      Add-Note $s3 "(dry-run) 目前 $ProductName\Logs 沒有 debug-*.log"
+    }
+    if ($holderVersion3 -and -not (Test-HolderRootOverlap $holderRoot3 $installDir)) {
+      Add-Note $s3 "解除安裝後檢查（PTY holder，依解除安裝前的版本）：解除安裝前執行中的 holder（$($holderRun3.Count) 個）已結束、$holderRoot3 已移除（有程序在跑時保留 = WARN）"
+    }
   }
 }
 Complete-Step $s3

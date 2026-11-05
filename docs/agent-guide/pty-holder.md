@@ -96,7 +96,7 @@ N = 第一個有 holder 的版本，N+1 = 下一版。完整步驟與日誌見 [
 | 單元 | `electron/__tests__/win-stdio-inherit.test.ts`（T0866：win32 才接線、fail open、`finally` 還原、只還原 `disable` 回報的 handle、兩種啟動都經 guard 的 source guard、真 addon 往返）、`scripts/__tests__/win-stdio-inherit.test.mjs`、`electron/__tests__/pty-holder.test.ts`、`scripts/__tests__/pty-holder.test.mjs`（兩邊規則一致）、`electron/__tests__/installer-quit-holder.test.ts`、`electron/__tests__/holder-reattach.test.ts`、`terminal-server` 協定測試（見各 docs「驗證」） |
 | e2e（本機打包版，`npm run build:dir`，不跑安裝程式） | `e2e/t0859-pty-holder.spec.ts`、`e2e/t0860-installer-quit-holder.spec.ts`、`e2e/t0861-holder-reattach.spec.ts` |
 | 真實安裝程式（W6 / T0862） | `.github/workflows/windows-upgrade-acceptance.yml` ＋ `e2e/t0862-windows-upgrade-acceptance.spec.ts`（下節） |
-| 發佈後手動 | `e2e/manual/nsis-reinstall-acceptance.ps1 -Version <版號>`：有 holder 的版本另查 holder 目錄與 manifest、執行中 holder 與分頁 shell 的 PID 在覆蓋安裝後不變、真的解除安裝後 holder 結束與根目錄刪除；沒有 holder 的版本照舊判讀 |
+| 發佈後手動 | `e2e/manual/nsis-reinstall-acceptance.ps1 -Version <版號>`：有 holder 的版本另查 holder 目錄與 manifest、執行中 holder 與分頁 shell 的 PID 在覆蓋安裝後不變、真的解除安裝後 holder 結束與根目錄刪除（依解除安裝前、② 裝上的版本判斷，T0868）；③ 的 userData 比對容許 `--uninstall-quit-request` 造成的 `Logs\debug-*.log` 新增 / 輪替（D292，見 [e2e/manual/README.md](../../e2e/manual/README.md)）；沒有 holder 的版本照舊判讀 |
 
 ### W6：Windows 真實升級驗收（T0862）
 

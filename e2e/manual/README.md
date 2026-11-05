@@ -11,7 +11,7 @@
 | ⓪ 前置檢查 | 從 uninstall 鍵判斷安裝範圍（HKLM = 所有使用者、HKCU = 目前使用者）、安裝路徑與版本；列出從安裝目錄執行的程序，有就中止；備份 `%APPDATA%\BetterAgentTerminal*` 並對每個檔案取 SHA-256 快照 |
 | ① 安裝檔 | `gh release download v<版號>`，以 GitHub 計算的 asset digest（sha256）與大小驗證（release 沒有上傳 `latest.yml`），另記錄 sha512 |
 | ② 覆蓋安裝 | 同版本靜默安裝（`/S /allusers` 或 `/currentuser`，`/D=<原路徑>`），計時；檢查 uninstall 鍵版本、主程式版本、`resources/package.json`、3 個 helper `--version`、內嵌 claude / codex、捷徑、userData 沒有變動 |
-| ③ 解除安裝 | 靜默解除安裝，計時；檢查 uninstall 鍵、安裝目錄、捷徑都已移除，userData 保留且沒有變動 |
+| ③ 解除安裝 | 靜默解除安裝，計時；檢查 uninstall 鍵、安裝目錄、捷徑都已移除，userData 保留且沒有變動（只容許 debug log 新增 / 輪替，見下方「判讀注意」）；解除安裝前（② 裝上）的版本有 PTY holder 時，另查當時執行中的 holder 已結束、holder 根目錄已移除 |
 | ④ 乾淨重裝 | 參數與檢查同 ② |
 | ⑤ 啟動檢查（選做） | 加 `-LaunchCheck`：啟動 BAT 10 秒後關閉，檢查新的 debug log 沒有 `uncaughtException` / `unhandledRejection`（BAT 會還原上次的工作區與分頁） |
 | ⑥ 報告 | `%TEMP%\bat-nsis-acceptance-<YYYYMMDD-HHMMSS>\report.md` 與 `report.json` |
@@ -68,4 +68,6 @@
 - 解除安裝程式會先把自己複製到 `%TEMP%` 再執行，原本的程序會馬上結束；腳本等到 uninstall 鍵與安裝目錄都消失，才算解除安裝完成，所以 ③ 的耗時包含這段等待。
 - 在 BAT 分頁內執行時，⓪ 會偵測到 BAT 的環境變數：演練只記 WARN，實際模式直接中止。
 - helper `--version` 檢查不會寫入 userData（T0745）：helper 一啟動就 append 一筆到 `bat-scripts.log`，在 BAT 外執行時預設落在 `%APPDATA%\BetterAgentTerminal\Logs\`，會被 ② / ④ 的 userData 比對判成「變更 1 檔」。腳本只在執行 helper 的子程序期間設 `BAT_HELPER_LOG_DIR=<報告目錄>\helper-logs`（`scripts/_bat-logger.mjs` 的第一優先），helper 的紀錄寫在報告目錄的 `helper-logs\bat-scripts.log`。userData 比對規則不變：`Logs\bat-scripts.log` 仍有變更就是 FAIL，代表驗收期間有其他程式寫入（例如 BAT 沒有完全關閉）。
+- ③ 的 userData 比對容許 debug log 新增 / 輪替（T0868 / D292）：真的解除安裝時，解除安裝程式啟動 `BetterAgentTerminal.exe --uninstall-quit-request`（T0860，沒有 BAT 在跑也會送，用來停 holder），這個程序建立一份 debug log，並依「保留最近 10 個」刪掉修改時間最舊的一份。只有 ③、只有 `BetterAgentTerminal\Logs\debug-*.log`（不含子目錄與其他 userData 目錄）、新增 ≤ 1 份、因輪替刪除 ≤ 1 份且是 ⓪ 時修改時間最舊的那份才判 PASS，報告逐檔加說明；⓪ 沒有被刪那份的修改時間時判 WARN。其他任何差異（`Logs` 內其他檔、`bat-scripts*.log`、settings、權杖檔、debug log 內容變更）仍判 FAIL。② / ④ 的規則不變。
+- ③ 的 PTY holder 檢查依解除安裝前的版本（實際模式 = ② 裝上的版本），不是 ⓪ 時的版本：⓪ 是沒有 holder 的舊版、② 裝上有 holder 的版本時，③ 照樣檢查（T0868）。
 - `-Version` 與目前安裝的版本相同時，② 才是真正的同版本覆蓋，⓪「目前安裝版本」為 PASS；版本不同時 ⓪ 記 WARN，② 實際上是升級或降級。例如已裝 0.7.2-pre.9 時重跑，帶 `-Version 0.7.2-pre.9`（可用 `-InstallerPath` 重用上次下載的安裝檔）。
