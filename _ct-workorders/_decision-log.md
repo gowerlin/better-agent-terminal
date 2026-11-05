@@ -1465,6 +1465,14 @@
 - **切分**：W2a 設計語言 + 元件 + 首頁（T0630）→ 預覽通過後 W2b（`/control-tower`、功能、FAQ、回報頁）→ W2c 遠端開發；W3 / W4 不變。
 - **相關**：PLAN-049 / D159 / D160 / T0624 / T0630
 
+### D291 2026-11-05 — BUG-213 以 Windows N-API addon 修（T0865 選項 A）再發 `0.7.5-pre.1`；建置政策由塔台定
+
+- **背景**：T0865 查證（PARTIAL，依停止條件）：Electron 主行程不像 Node 會呼叫 `uv_disable_stdio_inheritance()`，Windows libuv 以 `bInheritHandles = TRUE` 起子程序，BAT 從呼叫端繼承來的 pipe 全部傳給 Terminal Server（holder `spawn` 與舊 `fork` 都一樣，不是 holder 帶進來的回歸）；JS 層沒有可靠作法。
+- **選項**：列已知限制先發 pre.1（塔台推薦）／加 N-API addon 修好再發／先不決定。
+- **決定**：**加 N-API addon 修好再發**（使用者 2026-11-05 09:43）。塔台定的範圍與政策：只 win32-x64；只在 `forkTerminalServer` 的 spawn / fork 前後暫時設為不可繼承、之後還原（其他子程序行為不變）；fail open；原始碼進 repo、不提交預編 `.node`、不新增帶 install script 的相依、不改 `allowScripts`、不用 koffi / FFI，以明確 npm script 在 CI Windows job 打包前建置；W6 重跑授權同 D289。開 T0866；T0865 改 `DONE`（收尾補記），BUG-213 → FIXING。
+- **決策者**：使用者（作法 A）；建置 / 打包政策與範圍為塔台。2026-11-05 第一百二十一 session。
+- **相關**：BUG-213 / T0865 / T0866 / D290 / D289 / PLAN-065
+
 ### D290 2026-11-05 — 先修 BUG-213（PTY holder 繼承啟動者的 handle）再發 `0.7.5-pre.1`；T0865 沿用 D289 的 push／觸發授權重跑 W6
 
 - **背景**：T0862 DONE（run `41947695334` 情境 1–9 全 PASS）已達發版條件。Worker 發現 holder 會繼承 BAT 主行程從啟動者拿到的可繼承 handle，帶 pipe 啟動 BAT 時，升級後保留的 holder 讓呼叫端等不到 `close`（開 BUG-213，low）。

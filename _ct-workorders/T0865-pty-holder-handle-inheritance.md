@@ -4,14 +4,14 @@ schema_kind: workorder
 id: T0865
 title: "BUG-213：Windows PTY holder 不繼承 BAT 主行程從啟動者拿到的 handle（帶 pipe 啟動 BAT 時，保留的 holder 不再讓呼叫端等不到 `close`）＋重跑 W6"
 type: implementation
-status: PARTIAL
+status: DONE
 repo: better-agent-terminal
 project: PLAN-065
 priority: P2
 sizing: M
 created_at: "2026-11-05T09:35:13+0800"
 started_at: "2026-11-05T09:38:58+0800"
-updated_at: "2026-11-05T09:42:07+0800"
+updated_at: "2026-11-05T09:43:34+08:00"
 completed_at: "2026-11-05T09:42:07+0800"
 session_ids:
   - "b6dcbaaa-3547-4d3f-85b4-3d3adb07c3bb"
@@ -149,3 +149,8 @@ JS 層查過的作法都不可行：
 ### 後續建議
 1. 塔台在 D / A 之間做決定（見〈選項與代價〉）。選 D：開一張小單補 `pty-holder.md`「已知限制」（含「T0859 前的 fork 路徑一樣」）並把 BUG-213 改成延後；選 A：另開工單，包含原生模組的建置 / 打包決策與 W6 重跑。
 2. 不論選哪個，T0862 spec 的繞法（以 `stdio: 'ignore'` ＋ CDP 啟動）維持不變。
+
+### 塔台收尾補記（2026-11-05 09:43）
+
+- 收單核對：只有工單與 BUG-213 兩檔（`c730d91e`），沒有產品變更；session id `b6dcbaaa` 與 BAT 一致；快照已寫；`--close-worker T0865 --delay-ms 10000` exit 0。
+- 依停止條件回報 PARTIAL 是對的。使用者選選項 **A**（N-API addon 修好再發，D291）→ 修正、建置 / 打包接線、W6 重跑由 **T0866** 完成；本單查證已完成、不需再做 → 改 `DONE`（R-G003）。
