@@ -1,10 +1,10 @@
 {
- "generated_at": "2026-11-05T08:09:21+08:00",
+ "generated_at": "2026-11-05T09:33:33+08:00",
  "generator": {
   "script": "ct-session-stats.py",
-  "version": "0.1.0"
+  "version": "0.2.0"
  },
- "schema": "ct-session-stats-snapshot/0.1",
+ "schema": "ct-session-stats-snapshot/0.2",
  "source": {
   "agent": "claude-code",
   "claude_code_versions": [
@@ -50,13 +50,13 @@
    "output": 32232
   },
   "2026-11-05": {
-   "api_requests": 1,
-   "cache_read": 250688,
-   "cache_write": 8,
-   "cache_write_1h": 8,
+   "api_requests": 23,
+   "cache_read": 5613787,
+   "cache_write": 135071,
+   "cache_write_1h": 135071,
    "cache_write_5m": 0,
-   "input": 4,
-   "output": 220
+   "input": 48,
+   "output": 13576
   }
  },
  "workorders": [
@@ -7559,6 +7559,95 @@
     "2.1.316"
    ],
    "workorder": "T0861"
+  },
+  {
+   "agents_invoked": {},
+   "attribution": {
+    "conflict": false,
+    "source": "frontmatter",
+    "sources": {
+     "frontmatter": 1
+    }
+   },
+   "by_mcp_server": {},
+   "by_tool": {
+    "Bash": 113,
+    "Edit": 17,
+    "Grep": 1,
+    "PowerShell": 1,
+    "Read": 4,
+    "ScheduleWakeup": 4,
+    "Write": 3
+   },
+   "counts": {
+    "api_requests": 137,
+    "failures": 1,
+    "same_file_read_ge3": 1,
+    "subagent_files": 0,
+    "tool_calls": 143
+   },
+   "end": "2026-11-05T01:33:08Z",
+   "est_usd": 15.1784,
+   "failures_by_tool": {
+    "PowerShell": 1
+   },
+   "renews": 0,
+   "sessions": 1,
+   "skills_invoked": {
+    "ct-exec": 1
+   },
+   "start": "2026-11-05T00:11:57Z",
+   "stuck": {
+    "max_consecutive_failures": 1,
+    "max_failures_in_10_calls": 1,
+    "near_repeat_fail_pairs_j50": 0,
+    "repeat_fail_groups_norm": 0
+   },
+   "stuck_signal": false,
+   "subagent_tokens": {
+    "cache_read": 0,
+    "cache_write": 0,
+    "cache_write_1h": 0,
+    "cache_write_5m": 0,
+    "input": 0,
+    "output": 0
+   },
+   "tokens": {
+    "cache_read": 45717613,
+    "cache_write": 410204,
+    "cache_write_1h": 410204,
+    "cache_write_5m": 0,
+    "input": 288,
+    "output": 137603
+   },
+   "top_tools": [
+    [
+     "Bash",
+     113
+    ],
+    [
+     "Edit",
+     17
+    ],
+    [
+     "Read",
+     4
+    ],
+    [
+     "ScheduleWakeup",
+     4
+    ],
+    [
+     "Write",
+     3
+    ]
+   ],
+   "type": "implementation",
+   "unpriced_tokens": 0,
+   "versions": [
+    "2.1.316"
+   ],
+   "workorder": "T0862"
   },
   {
    "attribution": {
