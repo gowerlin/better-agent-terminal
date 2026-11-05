@@ -1465,6 +1465,14 @@
 - **切分**：W2a 設計語言 + 元件 + 首頁（T0630）→ 預覽通過後 W2b（`/control-tower`、功能、FAQ、回報頁）→ W2c 遠端開發；W3 / W4 不變。
 - **相關**：PLAN-049 / D159 / D160 / T0624 / T0630
 
+### D292 2026-11-05 — `0.7.5-pre.1` NSIS 重裝驗收 ③ FAIL 判為腳本規則過時：改驗收腳本後重跑，不改產品
+
+- **背景**：11:03 使用者跑 `nsis-reinstall-acceptance.ps1 -Version 0.7.5-pre.1`（原安裝 `0.7.4-pre.9`）：① ② PASS，③ 只有「userData 保留且未被改動」FAIL——解除安裝期間 `Logs\` 新增一份 debug log、輪替刪除最舊一份。真的解除安裝時 `customUnInstall` 一律啟動 `--uninstall-quit-request` 停 holder（T0860 設計），請求程序 `logger.init` 建檔並輪替。另發現 ③ 的 holder 檢查只看 ⓪ 的版本（pre.9 沒有 holder），這次沒驗到 holder 停止與根目錄刪除。
+- **選項**：改驗收腳本後重跑（塔台推薦）／改產品讓請求程序不寫日誌（要等下一版，pre.1 的解除安裝程式改不了，且失去診斷日誌）／接受現況判 PASS-WITH-WARN（之後每次驗收都會停在 ③）。
+- **決定**：**改驗收腳本後重跑**（使用者 2026-11-05 11:09）。容許只限 ③、只限 `Logs\debug-*.log` 的 1 新增 / 1 輪替刪除；③ 的 holder 檢查改依 ② 裝上的版本。不改產品、不發新版。開 T0868。
+- **決策者**：使用者；容許範圍為塔台。2026-11-05 第一百二十二 session。
+- **相關**：T0868 / T0860 / T0862 / T0740 / PLAN-065
+
 ### D291 2026-11-05 — BUG-213 以 Windows N-API addon 修（T0865 選項 A）再發 `0.7.5-pre.1`；建置政策由塔台定
 
 - **背景**：T0865 查證（PARTIAL，依停止條件）：Electron 主行程不像 Node 會呼叫 `uv_disable_stdio_inheritance()`，Windows libuv 以 `bInheritHandles = TRUE` 起子程序，BAT 從呼叫端繼承來的 pipe 全部傳給 Terminal Server（holder `spawn` 與舊 `fork` 都一樣，不是 holder 帶進來的回歸）；JS 層沒有可靠作法。
