@@ -32,7 +32,7 @@
 // Every check is recorded (soft) and the test fails at the end when any check failed, so one run gives the whole
 // picture. Nothing reads or records a token value, env value or user name (paths are reported as <user>).
 
-import { _electron as electron, test, expect, type ElectronApplication, type Page } from '@playwright/test'
+import { chromium, test, expect, type Browser, type Page } from '@playwright/test'
 import { spawn } from 'node:child_process'
 import crypto from 'node:crypto'
 import fs from 'node:fs'
@@ -291,7 +291,7 @@ async function uninstall(app: { uninstall: string; exe: string }, watchPid?: num
 
 // ── BAT ─────────────────────────────────────────────────────────────────────────────────────────────────────
 
-interface Bat { app: ElectronApplication; win: Page; mainPid: number; version: string }
+interface Bat { browser: Browser; win: Page; mainPid: number; version: string }
 
 function writeSettings(): void {
   fs.mkdirSync(USER_DATA, { recursive: true })
@@ -302,19 +302,42 @@ function writeSettings(): void {
   fs.writeFileSync(file, JSON.stringify({ ...current, language: 'en', shell: 'cmd', createDefaultAgentTerminal: false, checkForUpdates: false, checkForUpdatesMigrated: true }, null, 2))
 }
 
+// BAT is started with our own spawn (stdio 'ignore') and driven over CDP, not with _electron.launch: Playwright waits
+// for the launched process's 'close' event, which needs every handle of its stdio pipes closed — and the PTY holder
+// BAT starts (and keeps across the upgrade) inherits those inheritable handles from BAT's main process, so
+// ElectronApplication.close() never returned after the installer ended BAT (run 41942234283, all scenarios but 6).
+// A user starts BAT from Explorer / the Start menu, without pipes.
 async function launch(exe: string, label: string): Promise<Bat> {
   writeSettings()
+  const cdpPort = await freePort()
   const env = isolatedEnv(await freePort())
-  const app = await electron.launch({ executablePath: exe.replace(/\\/g, '/'), args: [], env, timeout: 120_000 })
-  const userData = await app.evaluate(({ app: a }) => a.getPath('userData'))
-  expect(userData.toLowerCase(), 'default userData').toBe(USER_DATA.toLowerCase())
-  const win = await app.firstWindow({ timeout: 120_000 })
-  await expect.poll(() => win.url(), { timeout: 60_000 }).not.toMatch(/^(about:blank)?$/)
+  const child = spawn(exe, [`--remote-debugging-port=${cdpPort}`], { env, stdio: 'ignore', detached: true })
+  child.unref()
+  const mainPid = child.pid ?? 0
+  expect(mainPid, `${label}: BAT started`).toBeGreaterThan(0)
+  const end = Date.now() + 120_000
+  let browser: Browser | undefined
+  while (!browser) {
+    try {
+      browser = await chromium.connectOverCDP(`http://127.0.0.1:${cdpPort}`, { timeout: 10_000 })
+    } catch (err) {
+      if (Date.now() > end || !isAlive(mainPid)) throw new Error(`${label}: no CDP endpoint (BAT alive ${isAlive(mainPid)}): ${String(err).slice(0, 200)}`)
+      await new Promise(r => setTimeout(r, 1000))
+    }
+  }
+  let win: Page | undefined
+  while (!win) {
+    win = browser.contexts().flatMap(c => c.pages()).find(p => !/^(about:|devtools:|chrome)/.test(p.url()) && p.url() !== '')
+    if (!win) {
+      if (Date.now() > end) throw new Error(`${label}: no BAT window`)
+      await new Promise(r => setTimeout(r, 500))
+    }
+  }
   await win.waitForLoadState('domcontentloaded')
-  const mainPid = await app.evaluate(() => process.pid)
-  const version = await app.evaluate(({ app: a }) => a.getVersion())
+  await expect.poll(() => win!.evaluate(() => typeof (window as AnyApi).electronAPI?.update?.getVersion).catch(() => 'reloading'), { timeout: 60_000 }).toBe('function')
+  const version = String(await win.evaluate(() => (window as AnyApi).electronAPI.update.getVersion()))
   log(`launched ${label}: version ${version}, main pid ${mainPid}`)
-  return { app, win, mainPid, version }
+  return { browser, win, mainPid, version }
 }
 
 async function shot(win: Page | undefined, name: string): Promise<void> {
@@ -464,29 +487,26 @@ async function checkShellAnswers(win: Page, tab: string, label: string, stopPing
   check(`${label}: ${tab} answers a command (\`echo ${marker}\`)`, ok)
 }
 
-/** Quit answering the confirmation with "quit + stop Terminal Server" (end of a scenario). */
-async function quitStopping(bat: Bat | undefined): Promise<void> {
-  if (!bat) return
-  try {
-    await bat.app.evaluate(({ dialog }) => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      ;(dialog as any).showMessageBox = async () => ({ response: 1, checkboxChecked: true })
-    })
-  } catch { /* already gone */ }
+async function disconnect(bat: Bat): Promise<void> {
   let timer: NodeJS.Timeout | undefined
   await Promise.race([
-    bat.app.close().catch(() => undefined),
-    new Promise(resolve => { timer = setTimeout(resolve, 20_000) }),
+    bat.browser.close().catch(() => undefined),
+    new Promise(resolve => { timer = setTimeout(resolve, 5_000) }),
   ])
   clearTimeout(timer)
+}
+
+/** End of a scenario: the runner is discarded afterwards, so BAT's process tree is just ended. */
+async function quitStopping(bat: Bat | undefined): Promise<void> {
+  if (!bat) return
+  await disconnect(bat)
   if (isAlive(bat.mainPid)) await run('taskkill', ['/T', '/F', '/PID', String(bat.mainPid)]).catch(() => '')
 }
 
-/** Playwright's handle of a BAT the installer ended. */
+/** The CDP connection to a BAT the installer ended. */
 async function forget(bat: Bat | undefined): Promise<void> {
   if (!bat) return
-  try { bat.app.process().kill() } catch { /* gone */ }
-  await bat.app.close().catch(() => undefined)
+  await disconnect(bat)
 }
 
 function checkRecord(expectAgentTab: boolean, holderPid: number | null, label: string): void {
