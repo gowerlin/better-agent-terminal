@@ -523,7 +523,8 @@ function Get-HelperLogLineCount {
   return @(Get-Content -LiteralPath $f -ErrorAction SilentlyContinue).Count
 }
 
-function Test-InstalledState($Step, [string]$InstallScope, [string]$Dir, [hashtable]$SnapshotBefore, [bool]$DesktopExpected) {
+# $SnapshotBaseline：快照基準的說明（T0869 / D293）。② 用 ⓪ 的快照、④ 用 ③ 結束時的快照；規則都是完全相同才 PASS。
+function Test-InstalledState($Step, [string]$InstallScope, [string]$Dir, [hashtable]$SnapshotBefore, [bool]$DesktopExpected, [string]$SnapshotBaseline = '⓪ 的') {
   $inst = @(Find-Installations | Where-Object { $_.scope -eq $InstallScope })
   $rule = 'uninstall 鍵在 ⓪ 判定的 hive、DisplayVersion = 版本'
   if ($inst.Count -eq 1) {
@@ -580,7 +581,7 @@ function Test-InstalledState($Step, [string]$InstallScope, [string]$Dir, [hashta
 
   if ($null -ne $SnapshotBefore) {
     $diff = Compare-Snapshot $SnapshotBefore (Get-UserDataSnapshot (Get-UserDataDirs))
-    Add-Check $Step 'userData 未被改動' $(if ($diff.same) { 'PASS' } else { 'FAIL' }) '與 ⓪ 的 SHA-256 快照相同' "新增 $($diff.added.Count) / 刪除 $($diff.removed.Count) / 變更 $($diff.changed.Count)" '逐檔 SHA-256 + 大小'
+    Add-Check $Step 'userData 未被改動' $(if ($diff.same) { 'PASS' } else { 'FAIL' }) "與 $SnapshotBaseline SHA-256 快照相同" "新增 $($diff.added.Count) / 刪除 $($diff.removed.Count) / 變更 $($diff.changed.Count)" "逐檔 SHA-256 + 大小；基準 = $SnapshotBaseline 快照；任何差異 FAIL"
     foreach ($x in ($diff.added + $diff.removed + $diff.changed | Select-Object -First 30)) { Add-Note $Step "userData 差異：$x" }
   }
 }
@@ -691,7 +692,7 @@ foreach ($d in $udDirs) {
 }
 if ($udDirs.Count -eq 0) { Add-Check $s0 'userData 存在' 'WARN' "%APPDATA%\$ProductName*" '找不到' '沒有 userData 時無法驗證「解除安裝保留 userData」' }
 foreach ($d in $udDirs) { Add-Command $s0 "robocopy `"$d`" `"$(Join-Path $BackupDir (Split-Path -Leaf $d))`" /E /COPY:DAT /R:1 /W:1 /NFL /NDL /NJH /NJS" }
-Add-Note $s0 '判讀：robocopy exit < 8 且備份檔數 = 來源檔數；之後對 userData 逐檔取 SHA-256 快照，②③④ 後比對'
+Add-Note $s0 '判讀：robocopy exit < 8 且備份檔數 = 來源檔數；之後對 userData 逐檔取 SHA-256 快照，② ③ 後與它比對；④ 與 ③ 結束時的快照比對（T0869）'
 if (-not $DryRun) {
   if (@($s0.checks | Where-Object { $_.result -eq 'FAIL' }).Count -gt 0) { Complete-Step $s0; Stop-Acceptance '前置檢查未通過' }
   New-Item -ItemType Directory -Force -Path $BackupDir | Out-Null
@@ -800,10 +801,10 @@ $s2 = New-Step '②' '覆蓋安裝（同版本）'
 Add-Note $s2 "安裝範圍依據：⓪ 的 uninstall 鍵在 $($inst.hive) → $installScope；路徑依據：$($inst.installDirSource)"
 Invoke-Installer $s2 $InstallerPath $installArgs
 if ($DryRun) {
-  Add-Note $s2 '安裝後檢查：uninstall 鍵 DisplayVersion、InstallLocation、主程式 FileVersion、resources/package.json、3 個 helper --version、內嵌 claude / codex、捷徑、沒有自動啟動、userData SHA-256 快照不變'
+  Add-Note $s2 '安裝後檢查：uninstall 鍵 DisplayVersion、InstallLocation、主程式 FileVersion、resources/package.json、3 個 helper --version、內嵌 claude / codex、捷徑、沒有自動啟動、userData 與 ⓪ 的 SHA-256 快照相同'
   Add-Note $s2 "helper --version 執行時子程序帶 BAT_HELPER_LOG_DIR=$HelperLogDir，helper 的 bat-scripts.log 寫到報告目錄，不寫入 userData（T0745；④ 相同）"
 } else {
-  Test-InstalledState $s2 $installScope $installDir $snapshot0 $desktop0
+  Test-InstalledState $s2 $installScope $installDir $snapshot0 $desktop0 '⓪ 的'
 }
 if ($holderRun0.Count -gt 0) {
   # T0862：holder 在安裝目錄外，覆蓋安裝不結束它；分頁的 shell（holder 的子程序）PID 也不變
@@ -823,6 +824,8 @@ if (-not $DryRun -and $s2.result -eq 'FAIL') { Stop-Acceptance '覆蓋安裝檢�
 
 # ================================================================ ③ 解除安裝
 $s3 = New-Step '③' '解除安裝（靜默）'
+# T0869 / D293：③ 的 userData 判讀為 PASS / WARN 時保存判讀用的那份快照，④ 以它為基準（不重算 ③ 已容許的差異）
+$snapshot3 = $null
 # T0868：holder 檢查依解除安裝前的版本（實際模式 = ② 裝上的版本），不依 ⓪ 時安裝的版本：
 # ⓪ 是沒有 holder 的舊版、② 裝上有 holder 的版本時，③ 正是要驗 holder 結束與根目錄刪除的路徑。來源與 ② 的 Test-HolderState 相同。
 $holderVersion3 = [bool](Get-PackagedHolderManifest $installDir)
@@ -889,14 +892,20 @@ else {
       }
     }
     if ($null -ne $snapshot0) {
-      $diff = Compare-Snapshot $snapshot0 (Get-UserDataSnapshot (Get-UserDataDirs))
+      $snapshotAfter3 = Get-UserDataSnapshot (Get-UserDataDirs)
+      $diff = Compare-Snapshot $snapshot0 $snapshotAfter3
       # T0868 / D292：只有 ③ 容許 --uninstall-quit-request 造成的 debug log 新增 / 輪替（Get-UninstallUserDataVerdict）
       $verdict = Get-UninstallUserDataVerdict -Added $diff.added -Removed $diff.removed -Changed $diff.changed -LogTimes0 $script:DebugLogTimes0 -LogDirRel "$ProductName\Logs\"
       Add-Check $s3 'userData 保留且未被改動' $verdict.result '與 ⓪ 的 SHA-256 快照相同（只容許 debug log 新增 / 輪替）' $verdict.actual $UninstallUserDataRule
       foreach ($n in @($verdict.notes | Select-Object -First 30)) { Add-Note $s3 $n }
+      if ($verdict.result -eq 'PASS' -or $verdict.result -eq 'WARN') {
+        $snapshot3 = $snapshotAfter3
+        $unreadable3 = @($snapshot3.Values | Where-Object { $_ -like '*:unreadable' }).Count
+        Add-Note $s3 "保存 ③ 結束時的 userData 快照（$($snapshot3.Count) 檔，無法讀取 $unreadable3）：④ 以它為基準，完全相同才 PASS（T0869）"
+      }
     }
   } else {
-    Add-Note $s3 '解除安裝後檢查：uninstall 鍵與 Software\<GUID> 已移除、安裝目錄沒有檔案、該範圍的桌面 / 開始功能表捷徑已移除、userData 與 ⓪ 的 SHA-256 快照比對'
+    Add-Note $s3 '解除安裝後檢查：uninstall 鍵與 Software\<GUID> 已移除、安裝目錄沒有檔案、該範圍的桌面 / 開始功能表捷徑已移除、userData 與 ⓪ 的 SHA-256 快照比對（判讀 PASS / WARN 時保存這份快照，作為 ④ 的基準，T0869）'
     Add-Note $s3 "userData 判讀（只有 ③）：$UninstallUserDataRule"
     $logTimesDry = Get-DebugLogTimes $udDirs
     $mainLogs = @($logTimesDry.Keys | Where-Object { $_ -like "$ProductName\Logs\*" } | Sort-Object { [int64]$logTimesDry[$_] }, { $_ })
@@ -919,8 +928,19 @@ if (-not $DryRun -and $s3.result -eq 'FAIL') { Stop-Acceptance '解除安裝檢�
 $s4 = New-Step '④' '乾淨重裝'
 Add-Note $s4 '參數與 ② 相同（沒有既有安裝紀錄時，範圍只由 /allusers | /currentuser 決定，路徑只由 /D= 決定）'
 Invoke-Installer $s4 $InstallerPath $installArgs
-if ($DryRun) { Add-Note $s4 '安裝後檢查同 ②（桌面捷徑預期存在）' }
-else { Test-InstalledState $s4 $installScope $installDir $snapshot0 $true }
+if ($DryRun) {
+  Add-Note $s4 '安裝後檢查同 ②（桌面捷徑預期存在）；userData 基準 = ③ 結束時的 SHA-256 快照（③ 的 userData 判讀為 PASS / WARN 時保存；取不到時退回 ⓪ 的快照並加 Note），完全相同才 PASS（T0869 / D293）'
+} else {
+  # T0869 / D293：④ 以 ③ 結束時的快照為基準；③ 已容許的 debug log 新增 / 輪替不再算一次，④ 期間的任何差異仍 FAIL
+  $snapshot4Base = $snapshot3
+  $snapshot4Label = '③ 結束時的'
+  if ($null -eq $snapshot4Base) {
+    $snapshot4Base = $snapshot0
+    $snapshot4Label = '⓪ 的'
+    if ($null -ne $snapshot0) { Add-Note $s4 '取不到 ③ 結束時的 userData 快照（③ 沒有跑到 userData 比對），改以 ⓪ 的快照為基準' }
+  }
+  Test-InstalledState $s4 $installScope $installDir $snapshot4Base $true $snapshot4Label
+}
 Complete-Step $s4
 if (-not $DryRun -and $s4.result -eq 'FAIL') { Stop-Acceptance '乾淨重裝檢查失敗' }
 
