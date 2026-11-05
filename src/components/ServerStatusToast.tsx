@@ -25,12 +25,42 @@ export const UPGRADE_INTERRUPTED_TOAST_KEY = 'app.upgradeInterrupted'
  */
 export const UPGRADE_REINSTALLED_TOAST_KEY = 'app.upgradeReinstalled'
 
-/** T0846: which text an upgrade notice shows — the reinstall one when the version did not change. */
-export function upgradeNoticeToastKey(notice: { previousVersion: string; currentVersion: string }): typeof UPGRADE_INTERRUPTED_TOAST_KEY | typeof UPGRADE_REINSTALLED_TOAST_KEY {
-  return notice.previousVersion === notice.currentVersion ? UPGRADE_REINSTALLED_TOAST_KEY : UPGRADE_INTERRUPTED_TOAST_KEY
+/**
+ * PLAN-065 W5 / T0861 (D4): main reconnected to the PTY holder the installer kept, without the Recovery prompt
+ * (`reattachedPtyCount` ≥ 1). Values: `count` (the terminals still running), `from`, `to`. The same-version text
+ * (`…SameVersion`, value `version`) stays neutral like T0846's: a reinstall and a cancelled install look alike.
+ */
+export const UPGRADE_REATTACHED_TOAST_KEY = 'app.upgradeReattached'
+export const UPGRADE_REATTACHED_SAME_VERSION_TOAST_KEY = 'app.upgradeReattachedSameVersion'
+
+type UpgradeNoticeToastKey = typeof UPGRADE_INTERRUPTED_TOAST_KEY | typeof UPGRADE_REINSTALLED_TOAST_KEY | typeof UPGRADE_REATTACHED_TOAST_KEY | typeof UPGRADE_REATTACHED_SAME_VERSION_TOAST_KEY
+
+interface UpgradeNoticeFields {
+  previousVersion: string
+  currentVersion: string
+  ptyCount: number
+  reattachedPtyCount?: number
 }
 
-export type ServerStatusToastKey = typeof SERVER_STATUS_TOAST_KEYS[keyof typeof SERVER_STATUS_TOAST_KEYS] | typeof UPGRADE_INTERRUPTED_TOAST_KEY | typeof UPGRADE_REINSTALLED_TOAST_KEY
+/**
+ * T0846: which text an upgrade notice shows — the reinstall one when the version did not change.
+ * T0861: reconnected terminals (`reattachedPtyCount` ≥ 1) → the "reconnected" text (same split by version).
+ */
+export function upgradeNoticeToastKey(notice: Omit<UpgradeNoticeFields, 'ptyCount'> & { ptyCount?: number }): UpgradeNoticeToastKey {
+  const sameVersion = notice.previousVersion === notice.currentVersion
+  if ((notice.reattachedPtyCount ?? 0) > 0) return sameVersion ? UPGRADE_REATTACHED_SAME_VERSION_TOAST_KEY : UPGRADE_REATTACHED_TOAST_KEY
+  return sameVersion ? UPGRADE_REINSTALLED_TOAST_KEY : UPGRADE_INTERRUPTED_TOAST_KEY
+}
+
+/** T0821 / T0861: the interpolation values of `upgradeNoticeToastKey(notice)` (`count` = ended or reconnected). */
+export function upgradeNoticeToastValues(notice: UpgradeNoticeFields): Record<string, string | number> {
+  const reattached = notice.reattachedPtyCount ?? 0
+  return { count: reattached > 0 ? reattached : notice.ptyCount, from: notice.previousVersion, to: notice.currentVersion, version: notice.currentVersion }
+}
+
+const UPGRADE_NOTICE_TOAST_KEYS: readonly string[] = [UPGRADE_INTERRUPTED_TOAST_KEY, UPGRADE_REINSTALLED_TOAST_KEY, UPGRADE_REATTACHED_TOAST_KEY, UPGRADE_REATTACHED_SAME_VERSION_TOAST_KEY]
+
+export type ServerStatusToastKey = typeof SERVER_STATUS_TOAST_KEYS[keyof typeof SERVER_STATUS_TOAST_KEYS] | UpgradeNoticeToastKey
 
 interface ServerStatusToastProps {
   messageKey: ServerStatusToastKey
@@ -48,7 +78,7 @@ interface ServerStatusToastProps {
 
 export function ServerStatusToast({ messageKey, messageValues, onDismiss, interruptedCount = 0, onOpenInterrupted }: ServerStatusToastProps) {
   const { t } = useTranslation()
-  const listsInterrupted = messageKey === SERVER_STATUS_TOAST_KEYS.recovered || messageKey === UPGRADE_INTERRUPTED_TOAST_KEY || messageKey === UPGRADE_REINSTALLED_TOAST_KEY
+  const listsInterrupted = messageKey === SERVER_STATUS_TOAST_KEYS.recovered || UPGRADE_NOTICE_TOAST_KEYS.includes(messageKey)
   const showInterrupted = listsInterrupted && interruptedCount > 0
   const handleClick = () => {
     if (showInterrupted) onOpenInterrupted?.()

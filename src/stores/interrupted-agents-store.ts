@@ -43,16 +43,29 @@ export interface UpgradeInterruptionNotice {
   ptyCount: number
   /** Of those, the agent tabs listed in InterruptedAgentsDialog. */
   agentCount: number
+  /**
+   * T0861 (D4): main reconnected to the PTY holder the installer kept, without the Recovery prompt — the
+   * terminals still running (≥ 1). The toast then says "reconnected N terminals" (`upgradeNoticeToastKey`).
+   */
+  reattachedPtyCount?: number
 }
 
-/** T0821: a notice main sent, as far as the renderer trusts it (null = nothing to show). */
+function positiveInt(value: unknown): number {
+  return typeof value === 'number' && Number.isInteger(value) && value > 0 ? value : 0
+}
+
+/**
+ * T0821: a notice main sent, as far as the renderer trusts it (null = nothing to show): ended terminals
+ * (`ptyCount` ≥ 1) or, T0861, reconnected ones (`reattachedPtyCount` ≥ 1).
+ */
 export function parseUpgradeInterruptionNotice(raw: unknown): UpgradeInterruptionNotice | null {
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null
-  const { previousVersion, currentVersion, ptyCount, agentCount } = raw as Record<string, unknown>
+  const { previousVersion, currentVersion, ptyCount, agentCount, reattachedPtyCount } = raw as Record<string, unknown>
   if (typeof previousVersion !== 'string' || typeof currentVersion !== 'string') return null
-  if (typeof ptyCount !== 'number' || !Number.isInteger(ptyCount) || ptyCount < 1) return null
-  const agents = typeof agentCount === 'number' && Number.isInteger(agentCount) && agentCount > 0 ? agentCount : 0
-  return { previousVersion, currentVersion, ptyCount, agentCount: agents }
+  const ended = positiveInt(ptyCount)
+  const reattached = positiveInt(reattachedPtyCount)
+  if (ended < 1 && reattached < 1) return null
+  return { previousVersion, currentVersion, ptyCount: ended, agentCount: positiveInt(agentCount), ...(reattached > 0 ? { reattachedPtyCount: reattached } : {}) }
 }
 
 /** Every listed entry was ended by an upgrade (InterruptedAgentsDialog's title / text). */

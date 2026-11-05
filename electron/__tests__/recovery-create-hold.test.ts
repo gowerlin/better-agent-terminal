@@ -201,8 +201,14 @@ describe('main.ts wiring (source guard)', () => {
 
   it('recover releases on the PTY list; a failed recover releases after the new server', () => {
     const block = section("ipcMain.on('terminal-server:recover'", "ipcMain.on('terminal-server:fresh-start'")
-    expect(block.match(/releaseCreatesOnReplayList\(\)/g)).toHaveLength(2)
+    // the IPC-still-connected branch, then (T0861) the connect shared with the PTY holder reattach
+    expect(block.match(/releaseCreatesOnReplayList\(\)/g)).toHaveLength(1)
     expect(block.indexOf("ptyManager.sendToServer({ type: 'pty:list' })")).toBeLessThan(block.indexOf('releaseCreatesOnReplayList()'))
+    expect(block).toContain("if (await reconnectKeptTerminalServer(port, userDataPath, 'user chose recovery')) return")
+    const shared = section('async function reconnectKeptTerminalServer(', '\n}\n')
+    expect(shared.indexOf('if (connected.ok) {')).toBeLessThan(shared.indexOf("ptyManager.sendToServer({ type: 'pty:list' })"))
+    expect(shared.indexOf("ptyManager.sendToServer({ type: 'pty:list' })")).toBeLessThan(shared.indexOf('ptyManager.releaseCreatesOnReplayList()'))
+    expect(shared.match(/releaseCreates\(/g)).toBeNull() // only the caller releases after a failure (new server first)
     expect(block.indexOf('await startTerminalServer()')).toBeLessThan(block.indexOf("releaseCreates('recovery failed"))
     expect(block).toMatch(/finally \{\s*ptyManager\?\.releaseCreates\('recovery failed/)
   })

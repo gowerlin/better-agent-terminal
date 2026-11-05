@@ -20,7 +20,7 @@ import { createCodexSkillNameResolver } from './ct-install-detect'
 import { createClaudeNameSupportCheck } from './claude-version-check'
 import { CLAUDE_SESSION_STORE_FILE, ClaudeSessionPersistence, claudeSessionNameRecords, readClaudeSessionStore } from './claude-session-name-record'
 import { InterruptedAgentsStore, buildInterruptedAgentSnapshot, resumeInterruptedDispatchAgent } from './interrupted-agents'
-import { LAST_RUN_VERSION_FILE, UpgradeInterruptionCheck } from './upgrade-interruption'
+import { LAST_RUN_VERSION_FILE, UpgradeInterruptionCheck, decideHolderReattach, shouldReplaceIdleServer } from './upgrade-interruption'
 import { INSTALLER_QUIT_RECORD_FILE, InstallerQuitController, defaultEndAgentProcessesDeps, endInstallDirAgentProcesses, isInstallerQuitRequest, isKeptHolderHello, isUninstallQuitRequest, ptyRootsOf, queryKeptHolder, runInstallerQuitWithoutApp, takeInstallerQuitRecord, writeInstallerQuitRecord, type InstallerQuitHolderRecord, type PtyRoot } from './installer-quit-request'
 import { detectShellFamily } from '../src/utils/shell-quote'
 import { checkDispatchCwd, findWorkspaceAgentSettings, resolveDispatchWorkspaceFromEntries, type DispatchWorkspaceRequest, type DispatchWorkspaceResolution } from './dispatch-workspace'
@@ -342,6 +342,8 @@ let upgradeInterruptionCheck: UpgradeInterruptionCheck | null = null
 // PLAN-065 W4 / T0860: the current Terminal Server runs from the PTY holder — forkTerminalServer started it
 // from there, or a hello said so (`isKeptHolderHello`). The installer's quit keeps only such a server.
 let terminalServerFromHolder = false
+// PLAN-065 W5 / T0861 (D4): startTerminalServer reconnected to the kept holder without the Recovery prompt
+let terminalServerReattachedAtStartup = false
 
 /** T0860: what a hello (probe / reconnect) said about the server: a kept PTY holder or not. */
 function noteTerminalServerHello(hello: HelloOk | null | undefined): void {
@@ -349,7 +351,8 @@ function noteTerminalServerHello(hello: HelloOk | null | undefined): void {
 }
 
 /** T0857: `probeServerPtyCount`; `protocol` 0 = a server before T0857 (no hello). */
-type ServerProbe = { ok: true; protocol: number; ptyCount: number; hello?: HelloOk | null } | { ok: false; reason: HelloFailure }
+// T0861: `listed` = the server answered `pty:list` (false: no answer within 3 s, so the count 0 is a guess)
+type ServerProbe = { ok: true; protocol: number; ptyCount: number; listed: boolean; hello?: HelloOk | null } | { ok: false; reason: HelloFailure }
 
 /**
  * Probe a running Terminal Server to count how many PTY processes are alive.
@@ -366,19 +369,19 @@ async function probeServerPtyCount(port: number, token: string | null): Promise<
   return new Promise((resolve) => {
     let resolved = false
 
-    const done = (count: number) => {
+    const done = (count: number, listed = false) => {
       if (resolved) return
       resolved = true
       clearTimeout(timer)
       socket.destroy()
-      resolve({ ok: true, protocol, ptyCount: count, hello })
+      resolve({ ok: true, protocol, ptyCount: count, listed, hello })
     }
 
     const timer = setTimeout(() => done(0), 3000)
 
     const take = (msg: unknown) => {
       const m = msg as Partial<Extract<ServerResponse, { type: 'pty:list' }>> | null
-      if (m?.type === 'pty:list' && Array.isArray(m.ptys)) done(m.ptys.length)
+      if (m?.type === 'pty:list' && Array.isArray(m.ptys)) done(m.ptys.length, true)
     }
     for (const msg of conn.held) take(msg)
     const parse = createLineParser(take)
@@ -422,11 +425,71 @@ function endsUnusableServer(reason: HelloFailure): boolean {
  * T0857: the Recovery fresh-start steps for a server found unusable (startTerminalServer /
  * `terminal-server:recover`): TCP shutdown, then wait for it to exit (the files are removed by the caller).
  */
-async function shutdownTerminalServerAndWait(port: number, userDataPath: string, token: string | null): Promise<void> {
+async function shutdownTerminalServerAndWait(port: number, userDataPath: string, token: string | null, what: 'unusable' | 'replaced' = 'unusable'): Promise<boolean> {
   try { await sendShutdownToServer(port, token) } catch { /* server may already be dead */ }
   if (!(await waitForTerminalServerExit(userDataPath, FRESH_START_SERVER_EXIT_TIMEOUT_MS))) {
-    logger.warn(`[terminal-server] unusable server still running after ${FRESH_START_SERVER_EXIT_TIMEOUT_MS} ms — starting the new one anyway`)
+    logger.warn(`[terminal-server] ${what} server still running after ${FRESH_START_SERVER_EXIT_TIMEOUT_MS} ms — starting the new one anyway`)
+    return false
   }
+  return true
+}
+
+/**
+ * T0861 (D5 / D6): ends a running Terminal Server — `server:shutdown` (its PTY trees end with it, T0540) and wait;
+ * on Windows a server still running after that is ended the T0860 way (`forceStopTerminalServer`: the registry's
+ * PTY trees first, then the server). Elsewhere it is left running, as before T0861. True once it is gone.
+ */
+async function endTerminalServer(port: number, userDataPath: string, token: string | null, what: 'unusable' | 'replaced' = 'unusable'): Promise<boolean> {
+  if (await shutdownTerminalServerAndWait(port, userDataPath, token, what)) return true
+  if (process.platform !== 'win32') return false
+  const gone = await forceStopTerminalServer(userDataPath)
+  logger.warn(`[terminal-server] ${what} server ended with its PTY trees (taskkill): ${gone ? 'gone' : 'still running'}`)
+  return gone
+}
+
+/**
+ * T0857 / T0861 (D5): a Terminal Server this BAT cannot use (hello refused, no common protocol, no answer) is
+ * ended (`endTerminalServer`). Its registry (read before the shutdown removes it) goes to the upgrade check as
+ * ended PTYs (`noteIncompatibleServer`: the PLAN-063 notice and the agent tabs' one-click resume); ignored once
+ * the check finished (a Recovery prompt answered later).
+ */
+async function endUnusableTerminalServer(port: number, userDataPath: string, token: string | null): Promise<void> {
+  const registry = readRegistry(userDataPath)
+  const sessions = claudeSessionPersistence.entries()
+  const gone = await endTerminalServer(port, userDataPath, token)
+  if (!gone) return
+  try {
+    upgradeInterruptionCheck?.noteIncompatibleServer(registry?.ptys ?? [], sessions)
+  } catch { /* never in the way of the fresh start */ }
+}
+
+/**
+ * T0110 Recovery "keep", shared by `terminal-server:recover` and T0861's reattach to the kept PTY holder (D4):
+ * connect (hello with the token), `pty:list`, and release the held creates once the list registered the surviving
+ * ids (BUG-146: their creates answer `created: false`). False = not connected (the server died, or it runs but
+ * cannot be used and was ended): the caller starts a new server, then releases the held creates.
+ */
+async function reconnectKeptTerminalServer(port: number, userDataPath: string, label: string): Promise<boolean> {
+  if (!ptyManager) return false
+  const token = readTokenFile(userDataPath)
+  const connected = await ptyManager.connectToServer(port, token)
+  if (connected.ok) {
+    noteTerminalServerHello(connected.hello) // T0860
+    logger.log(`[terminal-server] ${label} — connected to port ${port}`)
+    ptyManager.sendToServer({ type: 'pty:list' })
+    // BUG-146: the held creates run once the list registered the surviving ids (created: false)
+    ptyManager.releaseCreatesOnReplayList()
+    return true
+  }
+  if (endsUnusableServer(connected.reason)) {
+    // T0857: the server runs but cannot be used (token refused, no common protocol, no answer)
+    logger.warn(`[terminal-server] ${label} failed (hello ${connected.reason}) — ending the old server, falling back to new server`)
+    await endUnusableTerminalServer(port, userDataPath, token)
+  } else {
+    // Server died while prompt was showing — fall back to new server
+    logger.warn(`[terminal-server] ${label} failed (server died) — falling back to new server`)
+  }
+  return false
 }
 
 /** T0578: covers the old server's `endPty` taskkills (3 s each, run in parallel) on a fresh start. */
@@ -556,10 +619,42 @@ async function startTerminalServer(): Promise<void> {
       const unusable = !probe.ok && endsUnusableServer(probe.reason)
       if (unusable) {
         logger.warn(`[terminal-server] existing server on port ${port}: hello ${probe.ok ? '' : probe.reason} — ending it (Recovery fresh-start path)`)
-        await shutdownTerminalServerAndWait(port, userDataPath, token)
+        // T0861 (D5): its PTYs end with it — the PLAN-063 notice names them (upgrade check)
+        await endUnusableTerminalServer(port, userDataPath, token)
       }
       const ptyCount = probe.ok ? probe.ptyCount : 0
       if (ptyCount > 0) {
+        // PLAN-065 W5 / T0861 (D4): the PTY holder the previous BAT's installer quit kept → reconnect without the
+        // Recovery prompt, the same code as its "keep" (creates held until the PTY list registered the live ids)
+        const reattach = decideHolderReattach({
+          keptHolder: upgradeInterruptionCheck?.keptHolder() ?? null,
+          pidFilePid: readPidFile(userDataPath),
+          hello: probe.ok ? probe.hello ?? null : null,
+          ptyCount,
+        })
+        if (reattach.auto) {
+          logger.log(`[terminal-server] ${ptyCount} live PTYs on the PTY holder the installer kept — reconnecting without the Recovery prompt`)
+          ptyManager?.holdCreates('PTY holder reattach')
+          if (await reconnectKeptTerminalServer(port, userDataPath, 'PTY holder reattach')) {
+            terminalServerReattachedAtStartup = true
+            upgradeInterruptionCheck?.noteHolderReattached(ptyCount, probe.ok ? probe.hello?.batVersion ?? '' : '')
+            return
+          }
+          // Not connected: the Recovery "keep" failure path — a new server, then the held creates go to it
+          removePidFile(userDataPath)
+          removePortFile(userDataPath)
+          removeTokenFile(userDataPath)
+          _terminalServerStarted = false
+          try {
+            await startTerminalServer() // the server is gone or ended: forks a new one
+          } finally {
+            ptyManager?.releaseCreates('PTY holder reattach failed: new Terminal Server')
+          }
+          return
+        }
+        if (reattach.reason !== 'no-record') {
+          logger.log(`[terminal-server] the installer kept a PTY holder, but ${reattach.reason} — showing the Recovery prompt`)
+        }
         pendingRecovery = { port, ptyCount }
         logger.log(`[terminal-server] ${ptyCount} live PTYs detected — deferring to user recovery decision`)
         // BUG-146 / T0578: no direct shell for the restored tabs before the answer
@@ -567,8 +662,15 @@ async function startTerminalServer(): Promise<void> {
         return  // Recovery prompt will handle reconnect or fresh-start
       }
       // Server alive but no PTYs — T0108: try silent reconnect
+      // T0861 (D6): unless it listed 0 PTYs and runs another BAT version — then this version's replaces it
+      const serverVersion = probe.ok ? probe.hello?.batVersion : undefined
+      const replace = probe.ok && shouldReplaceIdleServer({ listed: probe.listed, ptyCount: probe.ptyCount, serverVersion, currentVersion: app.getVersion() })
       if (unusable) {
         // T0857: ended above — fall through to the stale-server cleanup and fork a fresh one
+      } else if (replace) {
+        logger.log(`[terminal-server] existing server on port ${port} has no PTYs and runs v${serverVersion} (this is v${app.getVersion()}) — replacing it`)
+        await endTerminalServer(port, userDataPath, token, 'replaced')
+        // fall through to the stale-server cleanup and fork this version's
       } else if (ptyManager) {
         const connected = await ptyManager.connectToServer(port, token)
         if (connected.ok) {
@@ -2279,13 +2381,18 @@ app.whenReady().then(async () => {
       win.webContents.on('dom-ready', () => {
         logger.log(`[startup] dom-ready: +${Date.now() - t0}ms from whenReady`)
       })
+      let firstLoad = true // T0861
       win.webContents.on('did-finish-load', async () => {
         logger.log(`[startup] did-finish-load: +${Date.now() - t0}ms from whenReady`)
+        // T0861 (D4): the first load after the automatic reattach to the kept PTY holder — its PTYs are already
+        // attached, so no re-probe (it would offer the Recovery prompt for them). Later loads (View→Reload) as before.
+        const reattachedLoad = firstLoad && terminalServerReattachedAtStartup
+        firstLoad = false
         // T0110/T0111: Notify renderer if there are live PTYs to recover.
         // pendingRecovery is set by startTerminalServer() on initial startup.
         // On View→Reload the main process stays alive but pendingRecovery is null,
         // so we re-probe the server to catch PTYs created before the reload.
-        if (!pendingRecovery) {
+        if (!pendingRecovery && !reattachedLoad) {
           const userDataPath = app.getPath('userData')
           const port = readPortFile(userDataPath)
           if (port !== null && isServerRunning(userDataPath)) {
@@ -4823,33 +4930,18 @@ function registerLocalHandlers() {
     }
 
     const userDataPath = app.getPath('userData')
-    const token = readTokenFile(userDataPath)
-    const connected = await ptyManager.connectToServer(port, token)
-    if (connected.ok) {
-      noteTerminalServerHello(connected.hello) // T0860
-      logger.log(`[terminal-server] user chose recovery — connected to port ${port}`)
-      ptyManager.sendToServer({ type: 'pty:list' })
-      // BUG-146: the held creates run once the list registered the surviving ids (created: false)
-      ptyManager.releaseCreatesOnReplayList()
-    } else {
-      if (endsUnusableServer(connected.reason)) {
-        // T0857: the server runs but cannot be used (token refused, no common protocol, no answer)
-        // — the fresh-start path (W5 adds the D5 explanation)
-        logger.warn(`[terminal-server] recovery failed (hello ${connected.reason}) — ending the old server, falling back to new server`)
-        await shutdownTerminalServerAndWait(port, userDataPath, token)
-      } else {
-        // Server died while prompt was showing — fall back to new server
-        logger.warn('[terminal-server] recovery failed (server died) — falling back to new server')
-      }
-      removePidFile(userDataPath)
-      removePortFile(userDataPath)
-      removeTokenFile(userDataPath)
-      _terminalServerStarted = false
-      try {
-        await startTerminalServer()
-      } finally {
-        ptyManager?.releaseCreates('recovery failed: new Terminal Server')
-      }
+    // T0861: the same code as the automatic reattach to a kept PTY holder (reconnectKeptTerminalServer)
+    if (await reconnectKeptTerminalServer(port, userDataPath, 'user chose recovery')) return
+    // Not connected (died, or unusable and ended): the fresh-start path. The D5 notice is decided at startup
+    // (finishUpgradeInterruptionCheck), so a server ended here after the prompt gets none — as before T0861.
+    removePidFile(userDataPath)
+    removePortFile(userDataPath)
+    removeTokenFile(userDataPath)
+    _terminalServerStarted = false
+    try {
+      await startTerminalServer()
+    } finally {
+      ptyManager?.releaseCreates('recovery failed: new Terminal Server')
     }
   })
 

@@ -1,7 +1,7 @@
-# 升級前提示與升級後說明（PLAN-063 子項 1、2 / T0821；子項 3 / T0823；holder 版 PLAN-065 W4 / T0860）
+# 升級前提示與升級後說明（PLAN-063 子項 1、2 / T0821；子項 3 / T0823；holder 版 PLAN-065 W4 / T0860、W5 / T0861）
 
 > 對應 CLAUDE.md「升級結束終端的提示與說明（PLAN-063 / T0821）」節。改這個功能時兩邊一起更新。
-> holder 版（Terminal Server 從安裝目錄外的 PTY holder 執行，T0858 / T0859）的安裝前結束、解除安裝與紀錄 schema 2 見〈holder 版：升級保留 holder、解除安裝停 holder（T0860）〉。
+> holder 版（Terminal Server 從安裝目錄外的 PTY holder 執行，T0858 / T0859）的安裝前結束、解除安裝與紀錄 schema 2 見〈holder 版：升級保留 holder、解除安裝停 holder（T0860）〉；下次啟動的自動接回、不相容與換新見〈holder 版：升級後自動接回…（T0861）〉。
 
 ## 背景（T0820 實測摘要）
 
@@ -128,7 +128,7 @@ N = 兩份清單依 terminal id 的聯集（紀錄在前）；claude session 以
 
 ## holder 版：升級保留 holder、解除安裝停 holder（T0860）
 
-PLAN-065 W4（D286 D3 / D7 / D2）。Terminal Server 從安裝目錄外、通過驗證的 PTY holder 執行時（T0858 打包與複製、T0859 啟動），安裝程式觸發的 quit 只結束 BAT 主行程，shell 與 PTY 留在 holder；接回（不跳 Recovery 提示）由 W5（T0861）做。
+PLAN-065 W4（D286 D3 / D7 / D2）。Terminal Server 從安裝目錄外、通過驗證的 PTY holder 執行時（T0858 打包與複製、T0859 啟動），安裝程式觸發的 quit 只結束 BAT 主行程，shell 與 PTY 留在 holder；下次啟動直接接回（不跳 Recovery 提示）見〈holder 版：升級後自動接回…（T0861）〉。
 
 ### 兩條路（🔴 必守）
 
@@ -165,7 +165,7 @@ PLAN-065 W4（D286 D3 / D7 / D2）。Terminal Server 從安裝目錄外、通過
 ```
 
 - 只在保留 holder 時寫；沒有 holder 時照舊寫 schema 1（不改格式：降版到 T0860 前的版本時，舊版讀得懂）。`takeInstallerQuitRecord` 讀 schema 1 與 2，其他 → `invalid`（刪掉、不用）。
-- 下次啟動（`UpgradeInterruptionCheck.noteInstallerQuit`）：schema 2 的 `endedPtys` 當成紀錄的 PTY（通常 0），`endedAgentProcesses` 的分頁另外列進「被中斷的 agent 分頁」（`cause: 'upgrade'`，沿用 T0766 一鍵接回；不自動 resume、不通知塔台）。偵測多一個條件 `installerQuitAgentTabCount ≥ 1`（只有 schema 2 會給）。notice 多 `holderKept: true`；`ptyCount` 是 0 時 renderer 不顯示「結束了 N 個終端」的 toast（W5 會加「已接回」的文字）。holder 在重開前就不在了（孤兒清理）→ 孤兒照 T0821 規則併入。schema 1 的行為完全不變。
+- 下次啟動（`UpgradeInterruptionCheck.noteInstallerQuit`）：schema 2 的 `endedPtys` 當成紀錄的 PTY（通常 0），`endedAgentProcesses` 的分頁另外列進「被中斷的 agent 分頁」（`cause: 'upgrade'`，沿用 T0766 一鍵接回；不自動 resume、不通知塔台）。偵測多一個條件 `installerQuitAgentTabCount ≥ 1`（只有 schema 2 會給）。notice 多 `holderKept: true`；`ptyCount` 是 0 時 renderer 不顯示「結束了 N 個終端」的 toast（T0861：接回時改顯示「已接回 N 個終端」，見下一節）。holder 在重開前就不在了（孤兒清理）→ 孤兒照 T0821 規則併入。schema 1 的行為完全不變。
 
 ### NSIS（`build/installer.nsh`）
 
@@ -184,7 +184,7 @@ N = 第一個有 holder 的版本，N+1 = 下一版。
 3. 安裝程式的等待迴圈看到 `$INSTDIR` 下沒有程序 → 範本 `_CHECK_APP_RUNNING` 什麼都不做。
 4. `uninstallOldVersion`：以 `/S --updated` 執行 **N 的**解除安裝程式 → `un.checkAppRunning`（`${isUpdated}`，找不到程序）→ `customUnInstall`：`${isUpdated}` → 不做 → 範本刪 `$INSTDIR`。
 5. 新檔案放好 → `customInstall`：寫兩個標記、複製 N+1 的 holder（key 相同就略過；其他 key 目錄沒有程序在跑才刪，N 的 holder 在跑 → 保留）。
-6. N+1 第一次啟動：`takeInstallerQuitRecord`（schema 2）→ `startTerminalServer` probe 到 N 的 holder（有 PTY）→ 今天的 Recovery 提示（W5 改成直接接回）→ 被結束 agent 的分頁列進清單。
+6. N+1 第一次啟動：`takeInstallerQuitRecord`（schema 2）→ `startTerminalServer` probe 到 N 的 holder（有 PTY）→ 紀錄的 holder pid 與 pid 檔、hello 相符 → 直接接回、不跳 Recovery 提示（T0861）→ 被結束 agent 的分頁列進清單。
 
 沒有 BAT 主行程、只剩保留的 holder：步驟 1 只有在 `$INSTDIR` 下有程序（例如 holder 分頁裡的內嵌 claude）時才送請求；請求行程拿到 lock → `runInstallerQuitWithoutApp`（holder → 結束那些程序、寫 schema 2 `server-only`、不停 holder）。沒有任何程序在 `$INSTDIR` 下時不送請求，holder 本來就不會被範本比到。
 
@@ -198,7 +198,7 @@ N = 第一個有 holder 的版本，N+1 = 下一版。
 
 - 舊版安裝程式（install section）用**舊版**的 `customCheckAppRunning`：送 `--installer-quit-request`（裝著的 N+1 有 T0823 標記）。N+1 的 BAT 有 holder → 保留 holder（與升級相同）。
 - 接著舊版安裝程式執行**較新的** N+1 解除安裝程式（`/S --updated`）→ `${isUpdated}` → `customUnInstall` 不做，holder 留著。
-- 舊版第一次啟動：有 holder 支援且協定相容 → 接回（W5）；**沒有 holder 支援的舊版**（T0857 前）→ 未認證被關閉 → T0704 recovery → 終端結束（與 T0856 Q4「降級」列相同）。比 N 更舊、沒有 T0823 標記處理的版本不受影響（它不讀紀錄 schema 2：`invalid`，丟掉）。🔸 〈待 W6 驗收〉
+- 舊版第一次啟動：有 holder 支援且協定相容 → 接回（T0861；不相容 → 結束並說明）；**沒有 holder 支援的舊版**（T0857 前）→ 未認證被關閉 → T0704 recovery → 終端結束（與 T0856 Q4「降級」列相同）。比 N 更舊、沒有 T0823 標記處理的版本不受影響（它不讀紀錄 schema 2：`invalid`，丟掉）。🔸 〈待 W6 驗收〉
 
 ### 日誌（只記數量與結果，不記路徑、session id、權杖）
 
@@ -221,9 +221,73 @@ N = 第一個有 holder 的版本，N+1 = 下一版。
 - 程序清單到結束之間的時間差（TOCTOU）：期間新起的程序不會被結束（安裝程式等滿 15 s 後回退）；pid 在這之間被重用的機率極低，且只結束路徑在安裝目錄下的程序。
 - idle 延長只有一次（server 規則）：送完之後任何 client 的 hello 都會清掉延長（例如使用者在升級前又開了 BAT）。
 
+## holder 版：升級後自動接回、不相容時結束並說明、0 個 PTY 時換新（T0861）
+
+PLAN-065 W5（D286 D4 / D5 / D6）。全部在 `startTerminalServer`（`electron/main.ts`）的「server 還在跑」那一段；判斷是 `electron/upgrade-interruption.ts` 的純函式。
+
+### 自動接回（D4）
+
+🔴 **全部**成立才不跳 Recovery 提示（唯一實作 `decideHolderReattach`）：
+
+| 條件 | 來源 | 不成立時（`reason`，記一行後走 Recovery 提示） |
+|---|---|---|
+| 有 schema 2 安裝程式紀錄（`holderKept`） | `UpgradeInterruptionCheck.keptHolder()`（`noteInstallerQuit` 記下的紀錄） | `no-record`（不記行：使用者自己關窗保留、per-machine UAC 強制結束主行程、schema 1、沒有紀錄） |
+| 紀錄有 holder pid | 紀錄的 `holderPid` | `no-holder-pid` |
+| 紀錄的 pid = pid 檔的 pid | `readPidFile` | `pid-file-mismatch` |
+| hello 協商成功（不是 protocol 0） | probe 的 `server:hello-ok` | `no-hello` |
+| hello 回報的 pid = 紀錄的 pid | `hello.pid` | `hello-pid-mismatch` |
+| ≥ 1 個存活的 PTY | probe 的 `pty:list` | `no-ptys`（走下面的 0 個 PTY 規則） |
+
+- 接回 = Recovery「保留」的同一段程式（`reconnectKeptTerminalServer`，`terminal-server:recover` 也呼叫它）：先 `holdCreates('PTY holder reattach')` → `connectToServer`（hello 帶權杖）→ `pty:list` → `releaseCreatesOnReplayList()`。🔴 BUG-146 / T0580 規則不變：清單註冊存活 id 之前不放行，存活 id 的 create 回 `created: false`（不 spawn、不簽權杖、不重送 agent 啟動指令），helper 派工在 hold 中照舊最多等 2 s、逾時 `RECOVERY_PENDING`。
+- 連不上（server 剛好死了，或 hello 失敗 → 照下面 D5 結束）→ 與「保留」失敗相同：刪 pid / port / token 檔 → `startTerminalServer()` → `finally releaseCreates('PTY holder reattach failed: new Terminal Server')`。
+- 接回成功：`terminalServerReattachedAtStartup = true`，第一個視窗**第一次** `did-finish-load` 不 re-probe（否則 View→Reload 用的 re-probe 會把已接上的 PTY 當成待恢復而跳提示）；之後的 reload 照舊。`noteHolderReattached(N, holder 的 batVersion)` → notice 多 `reattachedPtyCount: N`。
+- hello 會清掉 T0860 的 24 h idle 延長（server 規則），接回後 idle 回到設定值。
+- 新分頁仍由舊 holder 建立（D6 單一 holder），直到它沒有 PTY、下次啟動換新。
+
+### 說明（toast）
+
+- notice：`reattachedPtyCount` ≥ 1 時，即使沒有結束任何終端（`ptyCount` 0）也會給；`previousVersion` 取 `last-run-version.json`，讀不到時用紀錄的 `version`（兩者都沒有 → 不給 notice，只記一行）。renderer `parseUpgradeInterruptionNotice` 收 `ptyCount ≥ 1` **或** `reattachedPtyCount ≥ 1`；`ptyCount ≥ 1` 的既有 notice 形狀與行為不變。
+- 文字：`upgradeNoticeToastKey` → 有 `reattachedPtyCount` 時 `app.upgradeReattached`（版本不同：「BAT 已升級（v舊 → v新）。安裝期間 N 個終端持續執行，已重新接回。」）/ `app.upgradeReattachedSameVersion`（版本相同，T0846 的中性說法：「安裝程式結束了 BAT（v版本）。N 個終端持續執行，已重新接回。」）；值由 `upgradeNoticeToastValues`（`count` = 接回數）。三語都有。
+- 被 T0860 結束的內嵌 agent（紀錄的 `endedAgentProcesses`）照 T0860 列進「被中斷的 agent 分頁」（`cause: 'upgrade'`），toast 多「N 個 agent 分頁已中斷，按此查看」一行。
+
+### 恢復被接回分頁的 agent（實際行為）
+
+- 接回後那些分頁的 shell 是同一個（被保留的）PTY：還原的分頁 `pty:create` 回 `created: false`，claude-cli 分頁不重送啟動指令（T0403），分頁停在 shell 提示字元。
+- 按「恢復」：claude-cli 分頁 `pty.kill(id)` → `startClaudeCliPty(…, { sessionId })`；codex-cli 分頁 `restartOrCreatePty`（⏻ 路徑）→ `codex resume`。在 Terminal Server 模式下 `kill` 送 `pty:kill`、本機立即移除該 id，server 端 `killPty` 同步刪除項目並以 T0540 順序結束**該分頁的** shell 與它的程序樹，接著的 `pty:create` 在 holder 上建**一個**新 shell（`created: true`）。⇒ 不會把被接回的 shell 當成已結束而另起第二個 shell；結束的只有被恢復那個分頁自己的 shell 樹（與 ⏻ 相同），其他分頁與 holder 不受影響。
+- helper 派工的 Worker（沒有 `agentPreset`）走 main `terminal:resume-interrupted-agent`：分頁還在跑（`isRunning`）→ 把 resume 指令寫進**同一個** shell，不 kill、不建新 PTY。
+- 驗證：`electron/__tests__/holder-reattach.test.ts`「resuming an agent tab on a kept shell」。
+
+### 不相容（D5）
+
+- probe 或接回的 hello 回 `unauthenticated` / `incompatible` / `timeout`（`endsUnusableServer`）→ `endUnusableTerminalServer`：先讀 registry（shutdown 會刪），`endTerminalServer`：`server:shutdown`（v1 server 沒有共同協定也接受）→ 等 5 s；🔴 Windows 上仍在跑 → `forceStopTerminalServer`（T0860：registry 的 PTY 程序樹先、再 `taskkill /F /T` server、清檔），macOS / Linux 照 T0857 前的行為（記一行、照樣啟動新的）。結束了才把 registry 的 PTY 交給 `noteIncompatibleServer`。
+- 偵測：`detectUpgradeInterruption` 的 `incompatibleServerPtyCount ≥ 1` 且（版本不同 **或** 有 holder 紀錄）→ 觸發，N 與孤兒 / 紀錄的 PTY 依 id 聯集，日誌 `source=…incompatible`；agent 分頁照 T0821 列進清單、一鍵恢復，不自動 resume、不通知塔台。版本相同、沒有紀錄 → 不觸發（不是升級）。
+- Recovery 提示回答之後才發現不相容（`terminal-server:recover` 走到 hello 失敗）：照樣結束舊 server、啟動新的，但 notice 已在啟動時決定 → 不顯示說明（與 T0861 前相同）。
+
+### 0 個 PTY 且版本不同 → 換新（D6）
+
+- `shouldReplaceIdleServer`：probe **收到** `pty:list` 且 0 個（3 s 內沒回清單 = 數量不確定 → 照舊重連）、hello 的 `batVersion` 是合法版號且 ≠ `app.getVersion()` → `endTerminalServer` 後走既有的清檔＋ fork（本版的 server / holder）。版本未知（沒有 hello、server 沒被告知版本 `''`）或相同 → 照舊靜默重連（T0108）。
+- 有 PTY 時不換（新分頁仍由舊 holder 建立）。規則不分平台（macOS / Linux 的 0 個 PTY 舊版 server 也會被換掉；有 PTY 時的 Recovery 提示照舊）。
+
+### 日誌（只記數量與結果）
+
+| 情況 | 內容 |
+|---|---|
+| 自動接回 | `[terminal-server] N live PTYs on the PTY holder the installer kept — reconnecting without the Recovery prompt`、`[BUG-146] pty:create held (PTY holder reattach)`、`[terminal-server] PTY holder reattach — connected to port <p>`；`[upgrade-interruption] reattached: previous=… current=…[ same-version] reattached-ptys=N holder-version=…`（有被結束的 agent 時是 `detected: … holder-kept ended-agent-tabs=M reattached-ptys=N holder-version=…`） |
+| 有紀錄但不接回 | `[terminal-server] the installer kept a PTY holder, but <reason> — showing the Recovery prompt` |
+| 接回失敗 | `[terminal-server] PTY holder reattach failed (hello <r> \| server died) — …`、`[BUG-146] pty:create released (PTY holder reattach failed: new Terminal Server)` |
+| 不相容 | 既有 `existing server on port <p>: hello <r> — ending it`；仍在跑時既有的 `unusable server still running after 5000 ms — starting the new one anyway`，Windows 再 `unusable server ended with its PTY trees (taskkill): gone\|still running`；`[upgrade-interruption] detected: … source=incompatible` |
+| 換新 | `[terminal-server] existing server on port <p> has no PTYs and runs v<舊> (this is v<新>) — replacing it`；結束不了時同上（`replaced server …`） |
+| renderer | `[upgrade-interruption] notice shown: … reattached-ptys=N` |
+
+### 驗證
+
+- 單元：`electron/__tests__/holder-reattach.test.ts`（條件表逐列、`shouldReplaceIdleServer` 逐列、notice：接回 / 接回＋被結束的 agent / 同版 / 版本檔缺少時用紀錄版本 / finish 之後忽略、不相容來源（版本不同、同版＋紀錄、同版無紀錄）、hold 在清單前不放行、恢復被接回分頁 = 一個 `pty:kill` 再一個 `pty:create`、main.ts source guard（決策在 Recovery 提示前、hold → 共用保留 → 記下 → return、失敗 finally 放行、D5 先讀 registry、D6 分支、第一次載入不 re-probe））；`src/components/__tests__/upgrade-reattached-toast.test.tsx`（三語、parse、key / 值、toast 逐字、agent 列）。`recovery-create-hold.test.ts` 的 recover source guard 改為檢查共用函式（順序不變）。
+- e2e：`e2e/t0861-holder-reattach.spec.ts`（Windows、打包版 `BAT_E2E_EXECUTABLE`，同 T0860 的暫存 holder）：cmd 分頁 → 升級請求 → 重開：沒有 Recovery 提示、`reattachedSameVersion` toast、同一個 holder pid 與 shell pid、輸入到達同一個 shell 且輸出回來；對照：紀錄的 holder pid 改錯 → 重開跳 Recovery 提示、「保留」後同一個 shell。
+- 〈待 W6 驗收〉真實 N → N+1 升級後的接回與 toast 文字（版本不同）、不相容（降級到協定不同的版本）、per-machine 範圍（UAC 強制結束 → 沒有紀錄 → Recovery 提示）、0 個 PTY 的舊版 holder 換新。
+
 ## 已知限制
 
-- **子項 4（holder 模型）**：PLAN-065 W1–W4（T0857–T0860）已做到「升級保留 holder」，接回（不跳 Recovery 提示、toast「已接回」）由 W5（T0861）做；真實升級驗收在 W6。沒有 holder（zip、開發模式、macOS / Linux、holder 缺少或不符）時升級仍會結束所有終端；子項 3 只讓結束變成正常結束。
+- **子項 4（holder 模型）**：PLAN-065 W1–W4（T0857–T0860）已做到「升級保留 holder」，W5（T0861）接回（不跳 Recovery 提示、toast「已接回」）；真實升級驗收在 W6。沒有 holder（zip、開發模式、macOS / Linux、holder 缺少或不符）時升級仍會結束所有終端；子項 3 只讓結束變成正常結束。
 - macOS / Linux 的升級行為未研究：偵測邏輯在所有平台都會跑（有紀錄，或版本變＋有孤兒才觸發），但升級前的提示與 NSIS 請求只在 Windows。
 - 只看「版本變＋（孤兒或紀錄）」：版本變了、上一次結束時剛好有 Terminal Server 被當機 / 手動結束（不是安裝程式）也會被說成升級。反過來，升級前已先「結束並停止 Terminal Server」的使用者沒有孤兒也沒有紀錄，不顯示（也沒有東西被結束）。
 - 第一次升到含 T0823 的版本時（裝著的是 T0823 前的版本）不送請求，照舊強制結束、重開走孤兒清理；之後的升級才是正常結束。

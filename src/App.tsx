@@ -23,7 +23,7 @@ import { ProfilePanel } from './components/ProfilePanel'
 import { RecoveryPrompt } from './components/RecoveryPrompt'
 import { LinuxFontHint } from './components/LinuxFontHint'
 import { UpdateNotification } from './components/UpdateNotification'
-import { SERVER_STATUS_TOAST_KEYS, ServerStatusToast, upgradeNoticeToastKey, type ServerStatusToastKey } from './components/ServerStatusToast'
+import { SERVER_STATUS_TOAST_KEYS, ServerStatusToast, upgradeNoticeToastKey, upgradeNoticeToastValues, type ServerStatusToastKey } from './components/ServerStatusToast'
 import { InterruptedAgentsController } from './components/InterruptedAgentsDialog'
 import { OPEN_INTERRUPTED_AGENTS_EVENT, parseUpgradeInterruptionNotice, useInterruptedAgents, type UpgradeInterruptionNotice } from './stores/interrupted-agents-store'
 import { CtToast, useCtToast } from './components/CtToast'
@@ -726,7 +726,7 @@ export default function App() {
     window.electronAPI.terminalServer.queryUpgradeInterruption?.().then((raw) => {
       const notice = parseUpgradeInterruptionNotice(raw)
       if (!notice) return
-      window.electronAPI?.debug?.log(`[upgrade-interruption] notice shown: previous=${notice.previousVersion} current=${notice.currentVersion} ended-ptys=${notice.ptyCount} agent-tabs=${notice.agentCount}`)
+      window.electronAPI?.debug?.log(`[upgrade-interruption] notice shown: previous=${notice.previousVersion} current=${notice.currentVersion} ended-ptys=${notice.ptyCount} agent-tabs=${notice.agentCount}${notice.reattachedPtyCount ? ` reattached-ptys=${notice.reattachedPtyCount}` : ''}`)
       setUpgradeNotice(notice)
     }).catch(() => { /* older main */ })
 
@@ -1508,7 +1508,7 @@ export default function App() {
       {/* PLAN-063 / T0821: after the heartbeat toast (same place); stays until clicked */}
       {!serverStatusToast && upgradeNotice && (
         <ServerStatusToast messageKey={upgradeNoticeToastKey(upgradeNotice)}
-          messageValues={{ count: upgradeNotice.ptyCount, from: upgradeNotice.previousVersion, to: upgradeNotice.currentVersion, version: upgradeNotice.currentVersion }}
+          messageValues={upgradeNoticeToastValues(upgradeNotice)}
           onDismiss={() => setUpgradeNotice(null)}
           interruptedCount={interruptedAgentCount}
           onOpenInterrupted={() => window.dispatchEvent(new CustomEvent(OPEN_INTERRUPTED_AGENTS_EVENT))}

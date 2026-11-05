@@ -21,6 +21,12 @@
  * T0860 (PLAN-065 W4): a schema 2 record (the quit kept the PTY holder) names its ended PTYs `endedPtys`
  * (normally none) and the tabs whose embedded agent it ended (`endedAgentProcesses`): those tabs are listed as
  * agent sources too and count like the record's PTYs; the notice then has `holderKept: true`. Schema 1 as above.
+ * T0861 (PLAN-065 W5, D286 D4 / D5 / D6): main reconnects to the kept holder without the Recovery prompt when
+ * `decideHolderReattach` says so, and tells this check (`noteHolderReattached`): the notice then carries
+ * `reattachedPtyCount` (the renderer's "reconnected N terminals" toast) even when nothing was ended. A Terminal
+ * Server this BAT cannot use (hello refused / no common protocol / no answer, T0857) that main ended is another
+ * source of ended PTYs (`noteIncompatibleServer`, N = its registry's PTYs): detected when the version changed or
+ * a holder-keeping record exists. `shouldReplaceIdleServer` is main's D6 rule (0 PTYs, another version → replace).
  *
  * What it adds: one notice for the renderer (`terminal-server:query-upgrade-interruption`, given to
  * the first window that asks, then null — shown once) and the agent tabs among the ended PTYs in the
@@ -87,6 +93,14 @@ export interface UpgradeInterruptionInput {
    * Their shells still run in the holder; the agents are listed with `cause: 'upgrade'`. 0 / absent = none.
    */
   installerQuitAgentTabCount?: number
+  /**
+   * T0861 (D5): PTYs of a Terminal Server main found unusable (T0857 hello failure) and ended — its registry's
+   * entries. Counts when the version changed or `holderKept` (a holder-keeping record exists); the same version
+   * without one is not an upgrade (only logged). 0 / absent = none.
+   */
+  incompatibleServerPtyCount?: number
+  /** T0861: the previous BAT's installer quit kept the PTY holder (schema 2 record). */
+  holderKept?: boolean
 }
 
 function atLeastOne(count: number | undefined): boolean {
@@ -103,6 +117,8 @@ export function detectUpgradeInterruption(input: UpgradeInterruptionInput): bool
   if (atLeastOne(input.installerQuitPtyCount)) return true
   // T0860: same rule as the record's PTYs (the installer quit ended them; a crash leaves no record)
   if (atLeastOne(input.installerQuitAgentTabCount)) return true
+  // T0861 (D5): the installer kept a holder this BAT could not use, or an upgrade met one
+  if (atLeastOne(input.incompatibleServerPtyCount) && (input.holderKept === true || input.previousVersion !== input.currentVersion)) return true
   if (input.previousVersion === input.currentVersion) return false
   return atLeastOne(input.orphanPtyCount)
 }
@@ -124,6 +140,55 @@ export interface UpgradeInterruptionNotice {
    * agent tabs whose embedded agent it ended are in `agentCount`. W5 (T0861) words the toast for it.
    */
   holderKept?: true
+  /**
+   * T0861 (D4): main reconnected to the kept PTY holder without the Recovery prompt — the terminals it found
+   * running (≥ 1). The renderer shows "reconnected N terminals" instead of "ended N terminals".
+   */
+  reattachedPtyCount?: number
+}
+
+/** T0861: why main does (or does not) reconnect to a Terminal Server without the Recovery prompt. */
+export type HolderReattachDecision =
+  | { auto: true }
+  | { auto: false; reason: 'no-record' | 'no-holder-pid' | 'pid-file-mismatch' | 'no-hello' | 'hello-pid-mismatch' | 'no-ptys' }
+
+export interface HolderReattachInput {
+  /** `UpgradeInterruptionCheck.keptHolder()`: the schema 2 record's holder (null = no holder-keeping record). */
+  keptHolder: { pid: number | null } | null
+  /** `bat-pty-server.pid` now. */
+  pidFilePid: number | null
+  /** The probe's `server:hello-ok` (null = no hello: a server before T0857, protocol 0). */
+  hello: { pid?: unknown } | null
+  /** Live PTYs the probe listed. */
+  ptyCount: number
+}
+
+/**
+ * T0861 (D4): reconnect without the Recovery prompt only when **all** hold — a schema 2 installer quit record
+ * (`holderKept`), its holder pid equal to the pid file's, a negotiated hello whose pid is that pid too, and ≥ 1
+ * live PTY. Anything else (the user kept the server at quit, a per-machine upgrade that forced BAT closed, no
+ * record) → the Recovery prompt as before (T0578).
+ */
+export function decideHolderReattach(input: HolderReattachInput): HolderReattachDecision {
+  if (!input.keptHolder) return { auto: false, reason: 'no-record' }
+  const pid = input.keptHolder.pid
+  if (typeof pid !== 'number' || !Number.isInteger(pid) || pid <= 0) return { auto: false, reason: 'no-holder-pid' }
+  if (input.pidFilePid !== pid) return { auto: false, reason: 'pid-file-mismatch' }
+  if (!input.hello) return { auto: false, reason: 'no-hello' }
+  if (input.hello.pid !== pid) return { auto: false, reason: 'hello-pid-mismatch' }
+  if (!atLeastOne(input.ptyCount)) return { auto: false, reason: 'no-ptys' }
+  return { auto: true }
+}
+
+/**
+ * T0861 (D6): a Terminal Server that listed 0 PTYs and reports another BAT version → main shuts it down and
+ * starts this version's. An unknown version (no hello, or a server that was not told: '') → keep it (silent
+ * reconnect, T0108). `listed` false (no `pty:list` answer, so 0 is a guess) → keep it.
+ */
+export function shouldReplaceIdleServer(input: { listed: boolean; ptyCount: number; serverVersion: unknown; currentVersion: string }): boolean {
+  if (!input.listed || input.ptyCount !== 0) return false
+  const version = input.serverVersion
+  return typeof version === 'string' && VERSION_PATTERN.test(version) && version !== input.currentVersion
 }
 
 /** One PTY the orphan cleanup found (`PtyRegistryEntry` subset). */
@@ -226,9 +291,13 @@ export function buildUpgradeInterruptedSources(
  * structurally): schema 1 `ptys`; T0860 schema 2 `holderKept` + `endedPtys` + `endedAgentProcesses`.
  */
 export interface InstallerQuitNoteInput {
+  /** The quitting BAT's version (T0861: the notice's `previousVersion` when last-run-version.json is missing). */
+  version?: string
   ptys?: readonly OrphanPtyEntry[]
   claudeSessions: readonly PendingClaudeSession[]
   holderKept?: boolean
+  /** T0861: the holder's pid at the quit (schema 2); compared with the pid file before reconnecting. */
+  holderPid?: number | null
   endedPtys?: readonly OrphanPtyEntry[]
   endedAgentProcesses?: readonly { terminalId: string }[]
 }
@@ -253,7 +322,11 @@ export class UpgradeInterruptionCheck {
   private orphans: OrphanPtyEntry[] = []
   private claudeSessions: PendingClaudeSession[] = []
   /** T0823: the installer quit record of the previous process (null = none). T0860: schema 2 adds the rest. */
-  private installerQuit: { ptys: OrphanPtyEntry[]; claudeSessions: PendingClaudeSession[]; holderKept: boolean; agentTabs: OrphanPtyEntry[] } | null = null
+  private installerQuit: { ptys: OrphanPtyEntry[]; claudeSessions: PendingClaudeSession[]; holderKept: boolean; holderPid: number | null; version: string | null; agentTabs: OrphanPtyEntry[] } | null = null
+  /** T0861: the PTYs of an unusable Terminal Server main ended (its registry), and the claude sessions then. */
+  private incompatible: { ptys: OrphanPtyEntry[]; claudeSessions: PendingClaudeSession[] } | null = null
+  /** T0861: main reconnected to the kept holder without the Recovery prompt (live PTYs, the holder's BAT version). */
+  private reattached: { ptyCount: number; holderVersion: string } | null = null
   private notice: UpgradeInterruptionNotice | null = null
 
   constructor(private readonly opts: UpgradeInterruptionCheckOptions) {}
@@ -283,12 +356,41 @@ export class UpgradeInterruptionCheck {
     // T0860: schema 2 (`holderKept`) names the ended PTYs `endedPtys` and adds the tabs whose agent it ended
     const holderKept = record.holderKept === true
     const ptys = (holderKept ? record.endedPtys : record.ptys) ?? []
+    const holderPid = holderKept && typeof record.holderPid === 'number' && Number.isInteger(record.holderPid) && record.holderPid > 0 ? record.holderPid : null
     this.installerQuit = {
       ptys: ptys.map(entry => ({ id: entry.id, ...(entry.cwd ? { cwd: entry.cwd } : {}) })),
       claudeSessions: record.claudeSessions.map(session => ({ ...session })),
       holderKept,
+      holderPid,
+      version: typeof record.version === 'string' && VERSION_PATTERN.test(record.version) ? record.version : null,
       agentTabs: holderKept ? (record.endedAgentProcesses ?? []).map(entry => ({ id: entry.terminalId })) : [],
     }
+  }
+
+  /**
+   * T0861: the holder the previous BAT's installer quit kept (schema 2 record; `pid` null = not recorded), or
+   * null without such a record. `decideHolderReattach` reads it; valid until `finish`.
+   */
+  keptHolder(): { pid: number | null } | null {
+    return this.installerQuit?.holderKept ? { pid: this.installerQuit.holderPid } : null
+  }
+
+  /**
+   * T0861 (D5): main ended a Terminal Server it could not use (T0857 hello failure) — the PTYs of its registry
+   * (read before the shutdown) and the claude sessions then. Only the first one counts; ignored after `finish`.
+   */
+  noteIncompatibleServer(ptys: readonly OrphanPtyEntry[], claudeSessions: readonly PendingClaudeSession[]): void {
+    if (this.finished || this.incompatible || ptys.length === 0) return
+    this.incompatible = {
+      ptys: ptys.map(entry => ({ id: entry.id, ...(entry.cwd ? { cwd: entry.cwd } : {}) })),
+      claudeSessions: claudeSessions.map(session => ({ ...session })),
+    }
+  }
+
+  /** T0861 (D4): main reconnected to the kept holder without the Recovery prompt. Ignored after `finish`. */
+  noteHolderReattached(ptyCount: number, holderVersion: string): void {
+    if (this.finished || this.reattached || !atLeastOne(ptyCount)) return
+    this.reattached = { ptyCount, holderVersion: VERSION_PATTERN.test(holderVersion) ? holderVersion : 'unknown' }
   }
 
   /**
@@ -299,13 +401,13 @@ export class UpgradeInterruptionCheck {
   private endedPtys(): { ptys: OrphanPtyEntry[]; claudeSessions: PendingClaudeSession[] } {
     const ptys: OrphanPtyEntry[] = []
     const seen = new Set<string>()
-    for (const entry of [...(this.installerQuit?.ptys ?? []), ...this.orphans]) {
+    for (const entry of [...(this.installerQuit?.ptys ?? []), ...this.orphans, ...(this.incompatible?.ptys ?? [])]) {
       if (!entry?.id || seen.has(entry.id)) continue
       seen.add(entry.id)
       ptys.push(entry)
     }
     const sessions = new Map<string, PendingClaudeSession>()
-    for (const session of [...(this.installerQuit?.claudeSessions ?? []), ...this.claudeSessions]) {
+    for (const session of [...(this.installerQuit?.claudeSessions ?? []), ...this.claudeSessions, ...(this.incompatible?.claudeSessions ?? [])]) {
       if (session?.terminalId && !sessions.has(session.terminalId)) sessions.set(session.terminalId, session)
     }
     return { ptys, claudeSessions: [...sessions.values()] }
@@ -325,42 +427,68 @@ export class UpgradeInterruptionCheck {
     // T0860: the tabs whose agent the holder-keeping quit ended (their shells were not ended)
     const holderKept = this.installerQuit?.holderKept === true
     const agentTabs = (this.installerQuit?.agentTabs ?? []).filter(tab => !ended.ptys.some(entry => entry.id === tab.id))
-    const source = (installerQuitPtyCount > 0 || agentTabs.length > 0) ? (this.orphans.length > 0 ? 'installer+orphans' : 'installer') : 'orphans'
+    const incompatibleCount = this.incompatible?.ptys.length ?? 0
+    const fromInstaller = installerQuitPtyCount > 0 || agentTabs.length > 0
+    const source = [fromInstaller ? 'installer' : '', this.orphans.length > 0 ? 'orphans' : '', incompatibleCount > 0 ? 'incompatible' : ''].filter(Boolean).join('+') || 'orphans'
     const detected = detectUpgradeInterruption({
       previousVersion: this.previousVersion,
       currentVersion: this.opts.currentVersion,
       orphanPtyCount: this.orphans.length,
       installerQuitPtyCount,
-      ...(holderKept ? { installerQuitAgentTabCount: agentTabs.length } : {}),
+      ...(holderKept ? { installerQuitAgentTabCount: agentTabs.length, holderKept: true } : {}),
+      ...(incompatibleCount > 0 ? { incompatibleServerPtyCount: incompatibleCount } : {}),
     })
-    if (!detected) {
-      if (this.previousVersion !== this.opts.currentVersion) {
+    // T0861: the version the reattach notice names — last-run-version.json, else the record's (the quitting BAT)
+    const reattachPrevious = this.previousVersion ?? this.installerQuit?.version ?? null
+    // (detected implies a previous version, so a detected start always keeps its reattach count)
+    const reattached = reattachPrevious !== null ? this.reattached : null
+    if (!detected && !reattached) {
+      if (this.reattached) {
+        this.opts.logger.log(`[upgrade-interruption] reattached: previous=unknown current=${this.opts.currentVersion} reattached-ptys=${this.reattached.ptyCount} holder-version=${this.reattached.holderVersion} (no notice)`)
+      } else if (this.previousVersion !== this.opts.currentVersion) {
         this.opts.logger.log(`[upgrade-interruption] none: previous=${this.previousVersion ?? 'unknown'} current=${this.opts.currentVersion} ended-ptys=${ptyCount}`)
       }
       this.claudeSessions = []
       this.installerQuit = null
+      this.incompatible = null
       return null
     }
+    const previousVersion = reattachPrevious!
     let sources: InterruptedAgentSource[] = []
-    try {
-      sources = buildUpgradeInterruptedSources([...ended.ptys, ...agentTabs], windows, ended.claudeSessions)
-    } catch {
-      sources = []
-    }
     let agentCount = 0
-    try {
-      const names = new Map(ended.claudeSessions.map(session => [session.terminalId, session.name]))
-      agentCount = agentCountOf(sources, id => names.get(id) ?? null)
-    } catch {
-      agentCount = 0
+    if (detected) {
+      try {
+        sources = buildUpgradeInterruptedSources([...ended.ptys, ...agentTabs], windows, ended.claudeSessions)
+      } catch {
+        sources = []
+      }
+      try {
+        const names = new Map(ended.claudeSessions.map(session => [session.terminalId, session.name]))
+        agentCount = agentCountOf(sources, id => names.get(id) ?? null)
+      } catch {
+        agentCount = 0
+      }
     }
-    this.notice = { previousVersion: this.previousVersion!, currentVersion: this.opts.currentVersion, ptyCount, agentCount, ...(holderKept ? { holderKept: true as const } : {}) }
+    this.notice = {
+      previousVersion,
+      currentVersion: this.opts.currentVersion,
+      ptyCount: detected ? ptyCount : 0,
+      agentCount,
+      ...(holderKept ? { holderKept: true as const } : {}),
+      ...(reattached ? { reattachedPtyCount: reattached.ptyCount } : {}),
+    }
     this.claudeSessions = []
     this.installerQuit = null
-    const sameVersion = this.previousVersion === this.opts.currentVersion ? ' same-version' : ''
+    this.incompatible = null
+    const sameVersion = previousVersion === this.opts.currentVersion ? ' same-version' : ''
     const kept = holderKept ? ` holder-kept ended-agent-tabs=${agentTabs.length}` : ''
-    this.opts.logger.log(`[upgrade-interruption] detected: previous=${this.previousVersion} current=${this.opts.currentVersion} ended-ptys=${ptyCount} agent-tabs=${agentCount} source=${source}${sameVersion}${kept}`)
-    return sources
+    const back = reattached ? ` reattached-ptys=${reattached.ptyCount} holder-version=${reattached.holderVersion}` : ''
+    if (detected) {
+      this.opts.logger.log(`[upgrade-interruption] detected: previous=${previousVersion} current=${this.opts.currentVersion} ended-ptys=${ptyCount} agent-tabs=${agentCount} source=${source}${sameVersion}${kept}${back}`)
+    } else {
+      this.opts.logger.log(`[upgrade-interruption] reattached: previous=${previousVersion} current=${this.opts.currentVersion}${sameVersion}${back}`)
+    }
+    return detected ? sources : null
   }
 
   /** The notice for the first window that asks; null afterwards (shown once). */

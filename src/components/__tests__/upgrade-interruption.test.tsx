@@ -237,7 +237,8 @@ describe('App.tsx source guard', () => {
     expect(app).toContain('{!serverStatusToast && upgradeNotice && (')
     // T0846: the key follows the notice (reinstall text when the versions are equal)
     expect(app).toContain('<ServerStatusToast messageKey={upgradeNoticeToastKey(upgradeNotice)}')
-    expect(app).toContain('version: upgradeNotice.currentVersion')
+    // T0861: the values (count / from / to / version) come from upgradeNoticeToastValues (ServerStatusToast.tsx)
+    expect(app).toContain('messageValues={upgradeNoticeToastValues(upgradeNotice)}')
   })
 
   it('does not log a session id or a command for the notice', () => {
