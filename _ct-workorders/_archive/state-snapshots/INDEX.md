@@ -1,9 +1,9 @@
 # State Snapshot INDEX
 
-> Last archived: 2026-11-04 (Session 120 收工後 `*archive --state` — Session 115 – 119 → 2026-Q4-c.md)
-> Hot path retains: session 120 開工條目＋收工快照 + Quick Recovery / 基本資訊 / 進度快照 / 環境快照 / YOLO 歷程
+> Last archived: 2026-11-05 (Session 124 收工後 `*archive --state` — Session 120 – 123 → 2026-Q4-c.md)
+> Hot path retains: session 124 開工條目＋收工快照 + Quick Recovery / 基本資訊 / 進度快照 / 環境快照 / YOLO 歷程
 > Archive root: `_ct-workorders/_archive/state-snapshots/`
-> Total archived entries: 139 (27 in Q2-a / 31 in Q2-b / 5 in Q2-c / 2 in Q3 / 27 in Q4-a / 36 in Q4-b / 11 in Q4-c)
+> Total archived entries: 143 (27 in Q2-a / 31 in Q2-b / 5 in Q2-c / 2 in Q3 / 27 in Q4-a / 36 in Q4-b / 15 in Q4-c)
 
 | # | Session | Date | File | Summary |
 |---|---------|------|------|---------|
@@ -146,3 +146,7 @@
 | 137 | 第一百一十七 session | 2026-11-04 | 2026-Q4-c.md | 第一百一十七 session, 2026-11-04 14:04 開工, PLAN-063 真實升級判讀（D277） |
 | 138 | 第一百一十八 session | 2026-11-04 | 2026-Q4-c.md | 第一百一十八 session, 2026-11-04 14:08 開工, T0846-T0847, D278-D280, PLAN-063 ③ PASS, 0.7.4-pre.8 |
 | 139 | 第一百一十九 session | 2026-11-04 | 2026-Q4-c.md | 第一百一十九 session, 2026-11-04 14:56 開工, T0848-T0855, D281-D284, PLAN-052, 0.7.4-pre.9 |
+| 140 | 第一百二十 session | 2026-11-04 | 2026-Q4-c.md | 第一百二十 session, 2026-11-04 18:04-19:30, T0856-T0863, D285-D287, PLAN-065 W1-W3, BUG-212 |
+| 141 | 第一百二十一 session | 2026-11-05 | 2026-Q4-c.md | 第一百二十一 session, 2026-11-05 07:01 開工, T0860-T0867, D288-D291, BUG-213, 0.7.5-pre.1 |
+| 142 | 第一百二十二 session | 2026-11-05 | 2026-Q4-c.md | 第一百二十二 session, 2026-11-05 11:06 開工, NSIS 驗收 FAIL 判讀, D292, T0868 |
+| 143 | 第一百二十三 session | 2026-11-05 | 2026-Q4-c.md | 第一百二十三 session, 2026-11-05 11:23 開工, NSIS 驗收 ④ FAIL 判讀, D293, T0869 |

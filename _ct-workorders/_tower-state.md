@@ -1,7 +1,7 @@
 ---
 schema_kind: tower-state
 summary_version: 1
-updated_at: "2026-11-05T11:33:23+08:00"
+updated_at: "2026-11-05T11:58:29+08:00"
 session: "2026-11-05 11:32 第一百二十四 session（CT v6.0.0-rc.1）"
 next_ids:
   workorder: "T0870"
@@ -9,91 +9,63 @@ next_ids:
   bug: "BUG-214"
   plan: "PLAN-066"
 todo:
-  - "✅ `0.7.5-pre.1` NSIS 重裝驗收第三次 **PASS**（11:31 `bat-nsis-acceptance-20261105-113131`，real 模式）：⓪–④ 全 PASS（③ 日誌新增 1 / 輪替 1 屬預期、holder 根目錄已移除；④ 以 ③ 結束時快照為基準 0 差異）；⑤ 未帶 -LaunchCheck；含權杖備份已刪（11:33）。T0868 / T0869 驗收腳本修正實測生效"
-  - "（前次，已解決）`0.7.5-pre.1` NSIS 驗收第二次（11:22）④ FAIL → D293 / T0869 修正"
-  - "（前前次，已解決）`0.7.5-pre.1` NSIS 重裝驗收 FAIL（11:03 `bat-nsis-acceptance-20261105-110355`）：⓪ WARN（原安裝版 pre.9，預期）、① ② PASS（含 holder 目錄）、③ 只有「userData 未被改動」FAIL：新增 `Logs\\debug-20261105-110422.log`、刪除最舊的 `debug-20261104-140843.log`。原因：真的解除安裝時 `customUnInstall` 一律啟動 `--uninstall-quit-request`（T0860 設計）→ 請求程序 `logger.init` 建檔並輪替；驗收腳本規則未隨 T0860 更新；腳本停在 ③（④ 之後未跑）。備份已刪（差異只有日誌，不需還原）。11:09 使用者選「改驗收腳本後重跑」→ D292、開 T0868 → 11:20 T0868 DONE（`f92b561f`）；待使用者重跑驗收"
-  - "▶ 派單已恢復（D288）：T0860 DONE（`44982662`）→ T0864 DONE（`7a07cfca`）→ T0861 DONE（`9e8b26f0`）→ T0862 DONE（09:32，run `41947695334` 情境 1–9 全 PASS；產品 `5efee3bc` / `d450044d` / `c72247e5` / `3d8139ea`，已 push `main` 到 `db774daf`）→ D290 使用者「先修 BUG-213 再發」→ T0865 DONE（09:42 查證：修正需原生程式碼，PARTIAL → 收尾改 DONE）→ D291 使用者選 N-API addon → T0866 DONE（10:23，`c19aaa72` N-API addon，W6 `41954101041` 情境 1–9 PASS）→ T0867 DONE（10:40，f685ff21，tests.yml 41956226940 綠；修 `terminal-server-protocol-v1.test.ts` E 組 Linux 計時競爭，否則 Test gate 擋發版）→ 情境 1–9 全 PASS 後發 `0.7.5-pre.1`（更版重點〈已知事項〉寫：降級到 `0.7.4-pre.9` 會結束所有終端且沒有說明；per-machine 未提權互動升級未驗，發版後手動驗收）"
-  - "BUG-213 FIXED（T0866 `c19aaa72`，待發版後驗收）：Windows PTY holder 繼承 BAT 主行程可繼承的 handle，帶 pipe 啟動 BAT 時保留的 holder 讓呼叫端等不到 `close`（T0862 發現）；修時要重跑 W6"
-  - "T0864 後續候選（未開單）：`e2e/fixtures/electron-isolation.ts` `launchIsolated` 統一預寫 `settings.json`（`checkForUpdates: false`＋`checkForUpdatesMigrated: true`），讓所有 e2e 都不連 GitHub（目前只有經 UI 存過設定再重開的流程會檢查）"
-  - "T0860〈待 W6 驗收〉併入 T0862：N → N+1 真實升級保留 holder、`--updated` 解除安裝不碰 holder、真的解除安裝（per-user / per-machine）刪根目錄、降級、內嵌 claude 實機"
-  - "✅ `0.7.4-pre.9` 已發佈（D284，run `41809413443` 全綠，publishedAt 2026-11-04T09:55:51Z，target `095470f7`，含 `server-bundle-v0.7.4-pre.9`）；更版重點已改寫；三文件＋版號已更新；Pages run `41811025246` 綠、首頁 pre.9、link-check 0；NSIS 重裝驗收 PASS-WITH-WARN（18:00，WARN = 原安裝版 pre.8，預期；備份已刪）；待：Docker Desktop（Windows / macOS）實機走精靈；🔴 0.7.4 線已用到 pre.9，下一版要先與使用者確認新版號線"
-  - "PLAN-052（IN_PROGRESS，D282）：研究 T0848 DONE（`74f9e837`）——推薦 (c′) 基底映像＋bundle volume；「讀不到權杖」推論不成立（實測）；拆單 W1 權杖與安全／W2 選容器＋掛載／W3 重跑更新設定／W4a・W4b (c′)／W5 文件與驗收；D283 使用者裁決 U1–U5 皆照建議 → 實作 T0849 W1 `36a55028` ✅ ∥ T0850 W3 `c0ace27e` ✅（legacy 回歸由 T0855 `3d042497` ✅ 修）→ T0851 W2 `c3bda9ad` ✅ → T0852 W4a `2f0abf4b` ✅ → T0853 W4b `f8af303c` ✅ → T0854 W5 `2a2a1d8e` ✅；本批完成，待：push、GitHub 首跑 `docker-acceptance.yml`、發版、Docker Desktop（Windows / macOS）實機走精靈；後續候選：fetch-fingerprint Docker 分支比對憑證指紋、`scripts/docker-acceptance.mjs` 純函式單元測試 → T0852 W4a → T0853 W4b → T0854 W5（批次做完再一起發版）"
-  - "✅ `0.7.4-pre.8` 已發佈並驗收（D280）：PLAN-063 ③ 一鍵接回 PASS（pre.7 → pre.8）、同版重裝中性 toast / 對話框 PASS（T0846 / T0847）、NSIS 完整重裝 PASS（15:00 判讀，備份已刪）；PLAN-063 DONE（D281），holder 模型移到 PLAN-065 IDEA"
-  - "T0836 e2e 乾淨 HEAD 重跑：併入 T0844"
-  - "T0843（D274，使用者「一起修好再發版」）：上傳失敗提示先講原因、檔名只出現一次；排在 T0841 後（同改 locales）"
-  - "BUG-211 FIXED（T0842 `bb8cbe1a`）：待發版與遠端實機驗證（遠端視窗附 3 張 > 8 MiB 圖 → 提示、不送出、連線不斷；2 張照常）；後續候選：CLAUDE.md / multi-remote-profiles docs 補 `ws-limits.ts` / `FRAME_TOO_LARGE` 一行；fork 後自動送出 pending 圖片的路徑沒有面板檢查（只靠 client 守門）"
-  - "本批（D271 / D272，做完一起發 `0.7.4-pre.7`＋PLAN-063 真實升級驗收）：DONE T0826 `83f1d5bf`、T0827 `93c6507a`、T0828（研究）、T0829 `841f5e6a`、T0830 `add1b932`、T0831（研究）、T0837（BUG-211 重現 `319c3646`）、T0838 `919a006e`、T0842 `bb8cbe1a`、T0832 `0382882b`（契約 C-1–C-10）、T0833 `8f8c4579`、T0839 `aaf5201b`、T0834 `61cd028c`、T0835 `64dbb3f4`、T0836 `d99eac4c`（e2e 12 項 PASS）、T0840 `790aacf9`（拋棄式發行版實測 PASS、已 unregister）、T0841 `715c30de`、T0843 `ab391de9`、T0844（驗證 PASS）、T0845 `e0e9e6b7`；待做：發版確認；PLAN-043 Phase 3（W5–W8）等驗收 VM 再開單"
-  - "待實機驗收：T0827 Linux AppImage 缺字型提示（回報區〈待實機驗收〉4 項）；T0830 真 WSL 的 install-bundle 中止（`pkill tar`）與 keep-alive 關閉後閒置關機（`docs/wsl-deployment.md` Real WSL Pre-Flight Checklist）；~~T0832 smoke S14 對已部署 server~~（✅ 2026-11-05 11:54 `wsl:Ubuntu-24.04` bundle `0.7.5-pre.1` 14/14 PASS）；PLAN-038 實機 6 項（T0836 回報區〈待實機驗收〉：SSH claude 貼圖認成圖片、codex 收路徑、WSL Alt+V、WSL 其他 distro、macOS Finder 提示、真實拖放＋agent 讀檔）；T0840 精靈在真的 BAT 視窗對拋棄式發行版從頭跑一次（清單→套用→完成畫面），之後 W8 / 實機時一併；T0841「改用 Mirrored 並重試」實機（兩次 `wsl --shutdown`，步驟在 T0841 回報區〈待實機驗收〉）"
-  - "T0830 後續候選（未開單）：SSH / Docker 精靈主行程長呼叫接 operation id；`src/components/profiles/types.ts` 補 `wslKeepAlive`；CLAUDE.md 是否補 keep-alive 開關 / 精靈中止的必守規則"
+  - "✅ `0.7.5-pre.1` 發佈後驗收全 PASS（第一百二十四 session）：NSIS 重裝（11:31 `bat-nsis-acceptance-20261105-113131`，備份已刪）、linux-acceptance `41962694457`（22.04 / 24.04 各 4 passed）、macos-acceptance `41962698832`、docker-acceptance `41962703643`（pre.9 → pre.1）、WSL smoke `wsl:Ubuntu-24.04` 14/14（server `0.7.5-pre.1`，含 T0832 S14）"
+  - "下一版前（PLAN-065 IN_PROGRESS 的最後一哩）：從 `0.7.5-pre.1` 升到下一版的真實使用者升級保留分頁；per-machine 未提權互動升級（UAC）手動驗收；降級到 `0.7.4-pre.9` 會結束所有終端且沒有說明（已寫在更版重點〈已知事項〉）"
+  - "BUG-211 / 212 / 213 FIXED，已隨 `0.7.5-pre.1` 發佈，待實機驗證後 CLOSED：BUG-211 遠端視窗附 3 張 > 8 MiB 圖 → 提示、不送出、連線不斷（2 張照常）；BUG-212 Help「Check for Updates…」與啟動檢查找得到預覽版（需下一版才能實測找到新版）；BUG-213 帶 pipe 啟動 BAT 時保留的 holder 不讓呼叫端卡住"
+  - "PLAN-052（IN_PROGRESS）：待 Docker Desktop（Windows / macOS）實機走精靈；後續候選（未開單）：fetch-fingerprint Docker 分支比對憑證指紋、`scripts/docker-acceptance.mjs` 純函式單元測試"
+  - "PLAN-058：T0819 安裝版 pre.5 假 API e2e PASS，待使用者手動確認（清單在 T0819 回報區）；可選後續：卡片等待時讓輸入框可送出（T0815〈遭遇問題〉1，未開單）"
+  - "待實機驗收：T0827 Linux AppImage 缺字型提示（回報區〈待實機驗收〉4 項）；T0830 真 WSL 的 install-bundle 中止與 keep-alive 關閉後閒置關機；PLAN-038 實機 6 項（T0836 回報區〈待實機驗收〉）；T0840 精靈在真的 BAT 視窗對拋棄式發行版從頭跑一次；T0841「改用 Mirrored 並重試」實機"
+  - "候選（未開單）：T0864 後續 `e2e/fixtures/electron-isolation.ts` `launchIsolated` 統一預寫 `settings.json`（不連 GitHub）；T0867 後續 `terminal-server-protocol-v1.test.ts` B 組 line 214 同寫法改 `until()`；T0830 後續（SSH / Docker 精靈長呼叫接 operation id、`types.ts` 補 `wslKeepAlive`、CLAUDE.md keep-alive 規則）；BUG-211 後續（docs 補 `ws-limits.ts` / `FRAME_TOO_LARGE`、fork 後 pending 圖片路徑沒有面板檢查）"
   - "MSRC 回報 microsoft/node-pty（使用者自行處理，D255）"
-  - "PLAN-058：T0814（W1）`fc22e04a`＋T0815（W0）`0b67db03` DONE，T0819 安裝版 pre.5 假 API e2e PASS，待使用者手動確認（清單在 T0819 回報區）；可選後續：卡片等待時讓輸入框可送出（T0815〈遭遇問題〉1，未開單）"
-  - "觀察：語音可用性檢查 macOS 未實機；`unknown(timeout)` 若實機出現可把逾時提到 30 s（T0802 後續建議）"
-  - "PLAN-060（IDEA）：macOS Developer ID 簽章（目前 macOS 不顯示系統通知）"
-  - "觀察：t0757 偶發失敗再發生才開 BUG（D218）"
-  - "✅ T0863 DONE（`ee53eaf5`，D287）→ BUG-212 FIXED：檢查新版啟動一次、Help「Check for Updates…」、「包含預覽版」（預設開）、開該版本 Release 頁；待發版後實機驗證；併入 `0.7.5-pre.1`"
-  - "版號線：`0.7.4-pre.N` 已用完（pre.1 – pre.9）；D285 起 **`0.7.5-pre.N`**，下一版 `0.7.5-pre.1`，等 PLAN-065 本批實作做完再發"
-  - "PLAN-065（IN_PROGRESS，D285 / D286）：Windows 升級不中斷全部分頁的 PTY（holder＝官方 node.exe）；研究 T0856 DONE `7cb8a426` → 實作 T0857 W1 `db562330` ✅ ∥ T0858 W2 `aa59902e` ✅ → T0859 W3 `517541b5` ✅ → T0860 W4 `44982662` ✅ → （T0864 插隊）→ T0861 W5 `9e8b26f0` ✅ → T0862 W6 真實升級驗收（需授權 push＋觸發 desktop-build ×2；情境 1–7 全 PASS 才發 `0.7.5-pre.1`）；真實的使用者升級保留要到 pre.1 → 下一版"
+  - "觀察：語音可用性檢查 macOS 未實機（`unknown(timeout)` 出現可把逾時提到 30 s，T0802）；t0757 偶發失敗再發生才開 BUG（D218）；PLAN-060（IDEA）macOS Developer ID 簽章"
+  - "版號線：D285 起 `0.7.5-pre.N`，pre.1 已發佈，下一版 `0.7.5-pre.2`（`-pre.N` 最多到 pre.9）"
 ---
 # Tower State — better-agent-terminal
 
 > 🟢 **第一百二十四 session 開工**（2026-11-05 11:32 (UTC+8)，CT v6.0.0-rc.1，Fast Path；塔台 session `4383de43-387c-4326-a169-c3cb291e5803`；`--set-role tower --mode on` exit 0；`bat_whoami` 名稱 `better-agent-terminal · Tower`；安裝版 `0.7.5-pre.1`；HEAD `c77a1abd`，領先 `origin/main` 9 個 commit（未 fetch）、工作區乾淨；熱區 265 張工單全 DONE；`bat_list_questions` pending 0）。判讀 11:31 NSIS 驗收第三次（real）→ **PASS**（⓪–④ 全 PASS；③ debug log 新增 1 / 輪替 1 屬預期；④ 以 ③ 結束時快照為基準 0 差異）；含權杖 `userdata-backup` 已刪（11:33）。`0.7.5-pre.1` 發版後 NSIS 驗收完成。11:36 使用者選跑全部可自動化驗收（對 `0.7.5-pre.1`）→ ✅ `linux-acceptance` `41962694457`（22.04 / 24.04 各 4 passed）、✅ `macos-acceptance` `41962698832`（1 passed）、✅ `docker-acceptance` `41962703643`（from `0.7.4-pre.9` → to `0.7.5-pre.1`）全綠；WSL smoke `wsl:Ubuntu-24.04` 13 PASS / 1 SKIP（S14：WSL server bundle 仍 `0.7.3-pre.3`，早於 T0832；待使用者經精靈升級 WSL server 後重跑）→ 11:54 使用者已升級 WSL server 到 `0.7.5-pre.1`，重跑 **14/14 PASS**（S14 兩塊 262,208 B、目錄 0700 / 檔案 0600、sha256 相符、錯誤 offset → `BAD_OFFSET`、`claude:dispose-session` 清掉、未認證 socket 被拒；smoke PTY 皆已清除）。
 
-> 🟢 **第一百二十三 session 開工**（2026-11-05 11:23 (UTC+8)，CT v6.0.0-rc.1，Fast Path；塔台 session `a62808cc-aaee-476c-9919-314a7d0f311c`；`--set-role tower --mode on` exit 0；`bat_whoami` 名稱 `better-agent-terminal · Tower`；安裝版 `0.7.5-pre.1`；HEAD `021b44fc`，領先 `origin/main` 5 個 commit（未 fetch）、工作區乾淨；熱區 264 張工單全 DONE；`bat_list_questions` pending 0）。判讀 11:22 NSIS 驗收第二次 → FAIL（只有 ④ userData：④ 仍以 ⓪ 快照為基準，重算 ③ 已容許的日誌新增 / 輪替 2 檔；產品正常）；含權杖備份已刪。塔台在 D292 範圍內代決 **D293**、開 **T0869**；11:25 派 T0869（`--mode yolo --no-interactive`，`started:` 03:25:26Z，分頁 `a28b0918…`）。11:30 T0869 DONE（產品 `6269139c`，3 檔皆在範圍內；`Test-InstalledState` 加 `$SnapshotBaseline`，③ 判 PASS / WARN 時保存判讀用快照為 `$snapshot3`，④ 以它為基準、取不到退回 ⓪ 並加 Note，規則仍完全相同才 PASS；新測試 `nsis-reinstall-acceptance-step4-baseline.test.mjs`；unit 8355 passed / 456 files；`-DryRun` DRYRUN；無提問）。收單核對 session id `73501548` 一致、快照已寫、`--close-worker T0869 --delay-ms 10000` exit 0。→ 請使用者第三次重跑 NSIS 驗收。
+> 最後更新:2026-11-05 11:58 (UTC+8) — **第一百二十四 session 收工**：`0.7.5-pre.1` 發佈後驗收全部 PASS（NSIS 重裝、linux / macos / docker acceptance、WSL smoke 14/14）；push 到 `79af45dd`；`*archive --state`。
 >
-> 🟢 **第一百二十二 session 開工**（2026-11-05 11:06 (UTC+8)，CT v6.0.0-rc.1，Fast Path；塔台 session `e3a82973-f7e8-4983-bc7a-1112b6197bb6`；`--set-role tower --mode on` exit 0；`bat_whoami` 名稱 `better-agent-terminal · Tower`；安裝版 `0.7.5-pre.1`（FileVersion 與 helper 一致）；HEAD `7735ff9d` = `origin/main`（未 fetch）、工作區乾淨；熱區 263 張工單全 DONE；`bat_list_questions` pending 0）。11:08 判讀 pre.1 NSIS 重裝驗收 → **FAIL**（③ 解除安裝後 `Logs\` 多 1 刪 1，起因 T0860 `--uninstall-quit-request` 請求程序的日誌輪替，產品行為符合設計、驗收腳本規則過時）；含權杖備份已刪。11:09 使用者選「改驗收腳本後重跑」→ **D292**、開 **T0868**。11:11 派 T0868（`--mode yolo --no-interactive`，`started:` 03:11:43Z，分頁 `3c51b3d2…`）。11:20 T0868 DONE（產品 `f92b561f`，4 檔皆在範圍內；③ 新增 `Get-UninstallUserDataVerdict`：只容許 `BetterAgentTerminal\Logs\debug-*.log` 新增 ≤ 1、刪除 ≤ 1 且為 ⓪ 時修改時間最舊（⓪ 另記 mtime，對齊 `logger.ts`），⓪ 沒有 mtime → WARN，其他差異 FAIL；③ holder 改依 `$holderVersion3` / `$holderRun3`；新測試 21 項；unit 8345 passed / 455 files；`-DryRun` exit 0；無提問）。收單核對 session id `46464a1e` 一致、快照已寫、`--close-worker T0868 --delay-ms 10000` exit 0。→ 請使用者重跑 NSIS 驗收。
-
-> 🟢 **第一百二十一 session 開工**（2026-11-05 07:01 (UTC+8)，CT v6.0.0-beta.11，Fast Path；塔台 session `0681a600-06a6-44f6-8777-1ed0ae7cdc5a`；`--set-role tower --mode on` exit 0；`bat_whoami` 名稱 `better-agent-terminal · Tower`；安裝版 `0.7.4-pre.9`（FileVersion 與 helper 一致）；HEAD `b5b0d4d2`，領先 `origin/main` 24 個 commit（未 fetch）、工作區乾淨；熱區 259 張工單：DONE 256、PENDING 3（T0860–T0862，⏸ 派單暫停中）；`bat_list_questions` pending 0；熱檔皆 < 400 KB 預算）。第一百二十 session 的開工細節見下方收工快照與 T0856–T0863 工單回報區。07:02 使用者「B，恢復派單」→ **D288**：`checkForUpdates` 預設改開＋一次遷移既有 `false`，開 **T0864**（排 T0860 之後、T0861 之前）；解除派單暫停。07:03 派 T0860（`--mode yolo --no-interactive`，`started:` 23:03:26Z，分頁 `fb5268c4…`）。07:35 T0860 DONE（產品 `44982662`，9 檔皆在範圍內；holder 版升級只結束主行程＋idle 24 h＋結束安裝目錄下的程序並寫 schema 2、`--uninstall-quit-request`、`customUnInstall`；沒有 holder 走 T0823 原路徑；e2e 打包版＋真 holder 3 場景 PASS、NSIS 只編譯 PASS；unit 8224、legacy 472 / 33、typecheck 0 / 0；無提問）。偏離 2 項接受：強制結束改由請求行程以 pid 做（T0823 guard 禁 nsh 強制結束）、`t0823` e2e control 情境依 T0846 規則更新（自 T0846 起過時）。收單核對 commit 範圍、session id `fcc0b9cc` 與 BAT 一致；session 快照已寫；`--close-worker T0860 --delay-ms 10000` exit 0。後續建議寫進 T0861〈塔台補充（開工前）〉；〈待 W6 驗收〉併入 T0862。07:36 派 T0864（`started:` 23:36:34Z，分頁 `ccedc7a9…`）。07:42 T0864 DONE（產品 `7a07cfca`，12 檔皆在範圍內；純函式 `resolveCheckForUpdates`（`src/lib/check-for-updates-migration.ts`）、標記 `checkForUpdatesMigrated: true`、只有本機非 detached / 非 remote 視窗寫回一次、`main.ts` 未動、5 個 e2e spec 補標記；unit 8241、legacy 472 / 33、typecheck 0 / 0；無提問）。收單核對 session id `3800d91d` 一致；session 快照已寫；`--close-worker T0864 --delay-ms 10000` exit 0。T0861 補充第 6 點（e2e 標記寫法）。07:43 派 T0861（`started:` 23:43:49Z，分頁 `7978af06…`）。07:53 [提問] T0861 Q-1 / Q-2（BAT 通道）→ 塔台範圍內代決皆 A，`--answer --choice 1` exit 0 ×2：Q-1 `src/App.tsx`、`src/stores/interrupted-agents-store.ts` 加進範圍（只接線，既有 ptyCount ≥ 1 行為不變）；Q-2 本單一併改 CLAUDE.md 兩節（各 1–2 行，≤ 100k 字元，「從 PTY holder 啟動」仍給 T0862）。08:08 T0861 DONE（產品 `9e8b26f0`，16 檔 = 範圍內＋核准追加 3 檔；`decideHolderReattach` 自動接回不跳 Recovery 提示、`reconnectKeptTerminalServer` 與「保留」共用、接回後第一次載入不 re-probe；D5 `endUnusableTerminalServer`＋說明；D6 `shouldReplaceIdleServer`（不限平台，0 個 PTY 才換）；toast 三語；恢復 agent 分頁 = 一 kill 一 create、不會有第二個 shell；e2e 打包版接回 PASS；unit 8285、legacy 472 / 33、typecheck 0 / 0；CLAUDE.md 82,204 字元）。收單核對 session id `00e2a99b` 一致；session 快照已寫；`--close-worker T0861 --delay-ms 10000` exit 0。〈待 W6 驗收〉4 項與 docs 建議寫進 T0862〈塔台補充〉（範圍追加 `docs/agent-guide/terminal-server-recovery.md`）。08:10 使用者 T0862「全部授權」→ **D289**；去識別化（`.private/` 檢查樣式）與金鑰樣式掃 38 個 commit 的新增內容與 commit 訊息 0 筆 → push `main`（`b203f56b..18325d1c`）；T0862〈塔台授權〉填寫。08:11 派 T0862（`started:` 00:11:56Z，分頁 `d67c59c8…`）。09:32 T0862 DONE：desktop-build A `41940986956`（`0.0.0-exp.10`）/ B `41941001576`（`0.0.0-exp.11`）、`windows-upgrade-acceptance.yml` 4 次（`41942234283` Playwright close 卡住 → 改 spawn＋CDP；`41946714979` 情境 7 預期寫錯；`41947695334` attempt 1 安裝程式 runner 偶發崩潰、attempt 2 只重跑情境 7）→ 情境 1–7＋D6（8）＋D5（9）全 PASS；沒改產品程式；unit 8285、legacy 472、typecheck 0 / 0；CLAUDE.md 83,545 字元；push 4 次皆掃描 0 筆、無 force。收單核對 run 綠燈（head `3d8139ea`）、session id `ed13b88e` 一致；快照已寫；`--close-worker T0862 --delay-ms 10000` exit 0。後續建議 2 → 開 BUG-213（low）；建議 1 / 3 寫進 pre.1 更版重點與發版後手動驗收。09:35 問使用者發版 → 選「先修 BUG-213 再發」→ **D290**、開 T0865；09:36 派 T0865（`started:` 01:36:10Z，分頁 `2e4f36fd…`）。09:42 T0865 PARTIAL（依停止條件）：Electron 主行程不呼叫 `uv_disable_stdio_inheritance()`，呼叫端 4 個 pipe 全傳給 Terminal Server，舊 `fork` 路徑也一樣（不是 holder 的回歸）；修正需原生程式碼；收單核對 session id `b6dcbaaa` 一致、快照已寫、`--close-worker` exit 0。09:43 使用者選「加 N-API addon 修好再發」→ **D291**（建置政策塔台定：只 win32-x64、只在 Terminal Server 啟動前後切換並還原、fail open、原始碼進 repo 不提交 `.node`、不新增 install script 相依、不用 FFI）→ T0865 收尾改 DONE、BUG-213 → FIXING、開 T0866；09:44 派 T0866（`started:` 01:44:58Z，分頁 `03934341…`）。10:23 T0866 DONE：addon `native/win-stdio-inherit/`（N-API，只 win32-x64，`disable` / `restore` 5 個 handle）、`electron/win-stdio-inherit.ts` guard 包住 `forkTerminalServer` 的 spawn 與 fork、afterPack 複製到 `resources\native\`、`build:native-win`＋devDependency `node-gyp` 13.1.0（lock 變動全是 dev）；修正前後對照：pipe 啟動時呼叫端 8 s 等不到 → 1.6 s 拿到 `close`；desktop-build `41952687778` / `41952701482` build 全綠（Windows `verify-packaged-native` 載入 addon ✅），但 `tests` job 失敗在 T0857 的 `terminal-server-protocol-v1.test.ts` E 組（Linux 計時，本機 Windows 過）；W6 `41954101041` 情境 1–9 PASS；unit 8324、legacy 472、typecheck 0 / 0；CLAUDE.md 84,305；push 掃描 0 筆。收單核對 session id `b21e8033` 一致、快照已寫、`--close-worker` exit 0；BUG-213 → FIXED。後續建議 1（Test gate 會擋 pre.1）→ 塔台代決開 T0867；10:26 派 T0867（started 02:26:14Z，分頁 de4fa195…）。10:33 [提問] T0867 Q-1（BAT 通道）：未推的 T0866 回報 commit 把去識別化檢查詞原文寫進追蹤檔（push 前掃描命中）→ 塔台範圍內代決 A：以 plumbing（暫用 index＋commit-tree＋update-ref，無 rebase / reset / stash）改寫 origin/main..main 5 個未推 commit 的那一行（2a16acde→9bbd18fe … e3131c70→05104f8b），重掃 0 筆；--answer --choice 1 exit 0（10:35）。教訓：回報區寫掃描結果時只寫「依 .private 第 N 節樣式」，不寫檢查詞原文。10:40 T0867 DONE：E 組每個 heartbeat 步驟後以 until() 等 ping / pong 的 socket I/O 落地（取代固定 flush(20)），vi.waitUntil 改 until()，斷言不變；Linux tests.yml 41956226940 綠（unit 455 檔、legacy 472）；本機 unit 8324、typecheck:electron 0；push ccbad4c9..3f2de5bc 掃描 0 筆。收單核對 session id 4e988704 一致、快照已寫、--close-worker exit 0。後續建議（B 組 line 214 同寫法）不擋發版，記待辦。→ 依 D290 / D291 發 0.7.5-pre.1。10:42 push `3f2de5bc..e7461b37`（掃描 0 筆）→ 觸發 `pre-release.yml` run `41956896040` → 10:58 全綠、發佈 → `gh release edit` 更版重點（〈已知事項〉含降級到 pre.9 會結束終端、per-machine UAC 互動更新未驗）→ CHANGELOG / release-note / README（Windows 更新說明改寫）＋ package.json 版號。
-
-> 最後更新:2026-11-04 19:30 (UTC+8) — **第一百二十 session 收工**：D285 版號線 `0.7.5-pre.N`、PLAN-065 啟動；T0856 研究 → D286 拆 T0857–T0862；T0857 / T0858 / T0859 DONE；D287 檢查新版改版 → T0863 DONE（BUG-212 FIXED）；使用者指示暫停派單。
->
-> **下次起手**:⏸ **自動派單暫停中**（使用者說「恢復派單」才派）。① 先問使用者 **`checkForUpdates` 預設值**（T0863 後續建議 1：`settings-store.ts` 預設 `false`，存過設定的使用者啟動檢查實際是關的；選項 A 預設改開只影響新使用者／B 預設改開＋一次遷移既有 `false`／C 維持）；② 恢復後派 **T0860**（W4，開工前補充已寫）→ T0861 → T0862（T0862 需授權 push＋觸發 `desktop-build.yml` ×2＋新驗收 workflow；同時安排 `linux-acceptance` / `macos-acceptance` 跑「保留 server → 重開 → 接回」，T0857 後續）；③ 本機 **23 個 commit 未 push**（push 前跑 `.private/` 去識別化與金鑰樣式檢查）；④ `_tower-state.md` 45 KB 超軟警告 → 建議 `*archive --state`。
+> **下次起手**:熱區工單全 DONE、無派工中工單。① 下一版前：從 `0.7.5-pre.1` 升到下一版的真實升級保留分頁（PLAN-065 最後一哩）、per-machine 未提權互動升級（UAC）手動驗收；② BUG-211 / 212 / 213 已隨 pre.1 發佈，待實機驗證後 CLOSED；③ 候選未開單（frontmatter `todo`）可批次開單。
 
 ---
 
-## 🛏 本 Session 收工快照 (第一百二十 session, 2026-11-04 18:04 - 2026-11-04 19:30, ~1h26m)
+## 🛏 本 Session 收工快照 (第一百二十四 session, 2026-11-05 11:32 - 2026-11-05 11:58)
 
-### 主軸：pre.9 NSIS 驗收 → PLAN-065 研究與 W1–W3 → 檢查新版改版（BUG-212）
+### 主軸：`0.7.5-pre.1` 發佈後驗收
 
 #### 時間線（時間取自系統 / git）
 
-1. **18:04** Fast Path；`--set-role tower --mode on` exit 0；安裝版 `0.7.4-pre.9`；讀 pre.9 NSIS 驗收 PASS-WITH-WARN（WARN = 原安裝版 pre.8）、刪 `userdata-backup` → `93b8055e`
-2. **18:05–18:12** 使用者「處理 PLAN-065，下一版 0.7.5-pre.1」→ D285（版號線 `0.7.5-pre.N`、Windows only、全部分頁、先研究）→ 開並派 T0856
-3. **18:25** T0856 DONE（`7cb8a426`）：做得到、規模 L；node-pty 用系統 conhost → 18:28 使用者 D1–D9 皆照建議 → D286 開 T0857–T0862 → 18:31 派 T0857 ∥ T0858
-4. **18:33–18:36** 使用者要求檢查新版只在啟動時一次＋Help 檢查＋開 Release 頁 → 核對發現 `releases/latest` 404 → BUG-212、D287、開 T0863
-5. **18:52 / 18:53** T0858 DONE（`aa59902e`）、T0857 DONE（`db562330`）；後續建議併入 T0859 / T0860；T0859 與 T0863 同改 `main.ts` → 循序 → 18:54 派 T0859
-6. **19:14** T0859 DONE（`517541b5`）→ T0860 補充 → 19:15 派 T0863
-7. **19:23** 使用者「T0863 收單後暫停派單」
-8. **19:27** T0863 DONE（`ee53eaf5`）→ BUG-212 FIXED；T0862 補 exp 版號更新對話框注意事項 → `426f24a2`
-9. **19:30** 收工（未 push）
+1. **11:32** Fast Path；`--set-role tower --mode on` exit 0；判讀 11:31 NSIS 驗收第三次（real）PASS；刪含權杖備份 → `1406e7b3`
+2. **11:36** 使用者選跑全部可自動化驗收 → 觸發 linux `41962694457` / macos `41962698832` / docker `41962703643`（pre.9 → pre.1）；WSL smoke 13 PASS / 1 SKIP（S14：server `0.7.3-pre.3`）
+3. **11:50** 三個 CI 全綠（linux 22.04 / 24.04 各 4 passed、macos 1 passed、docker success）→ `88adafff`
+4. **11:54** 使用者經精靈升級 WSL server 到 `0.7.5-pre.1` → smoke 14/14 PASS（T0832 S14 驗收完成）→ `79af45dd`
+5. push 前掃描（`.private/` 檢查樣式＋金鑰樣式，12 commit 新增內容與訊息）0 筆 → push `7735ff9d..79af45dd`
+6. **11:58** `*archive --state`（第一百二十 – 一百二十三 session → `2026-Q4-c.md`，INDEX 140 – 143）→ 收工
 
 ### 本輪戰績
-- 工單 DONE 5：T0856（研究）、T0857、T0858、T0859、T0863；開單 8（T0856–T0863）；未派 3（T0860–T0862）
-- 決策 D285 / D286 / D287；BUG-212 開單 → FIXED；PLAN-065 IDEA → IN_PROGRESS
-- 驗證基線（T0863 @ `ee53eaf5`）：unit 8186 passed / 447 files、legacy 472 / 33、typecheck 0 / 0、vite build
-- 結構化提問 0；`worker_auto_close` 回收 5 次；全部 `--wait-started` 皆 `started:`
+- 工單 0（無派工）；決策 0；驗收 PASS 5（NSIS 重裝、linux、macos、docker、WSL smoke）
+- 結構化提問 0；`worker_auto_close` 0
 
 ### 編號起始（下 session）
-- **T0864** / **BUG-213** / **PLAN-066** / **D288** / **L186** / **CT-T023**
+- **T0870** / **BUG-214** / **PLAN-066** / **D294** / **L186** / **CT-T023**
 
 ---
 
 ## 🌅 起手式（Quick Recovery）
 
-> 最後更新：2026-11-04 19:30 UTC+8（第一百二十 session 收工）
+> 最後更新：2026-11-05 11:58 UTC+8（第一百二十四 session 收工）
 
 ### 近期完成
-- **PLAN-065 W1–W3**（第一百二十 session）：T0857 協定 v1（hello＋TCP 權杖）、T0858 Windows PTY holder 打包（Node 24.22.2）、T0859 從 holder 啟動；T0863 檢查新版改版（BUG-212 FIXED）；皆未發版（等 `0.7.5-pre.1` 批次）
-- **`v0.7.4-pre.7` – `pre.9` 發佈**（第一百一十六 – 一百一十九 session）：PLAN-038 上傳、PLAN-063 升級說明與真實升級 PASS、PLAN-052 Docker (c′)；pre.9 NSIS 驗收 PASS-WITH-WARN
-- **`v0.7.4-pre.6` 發佈**（第一百一十四 session，run `41701904056`，target `4b726a86`）：PLAN-063 子項 1–3（T0821 / T0822 / T0823）、BUG-210（T0825）；NSIS 重裝驗收 PASS-WITH-WARN（第一百一十五 session）
-- **`v0.7.4-pre.5`**（第一百一十三 session）：PLAN-058 W0 / W1（T0815 / T0814）、Terminal Server fork（T0816，BUG-209）
-- **`v0.7.4-pre.4`**（第一百一十二 session）：Linux PTY / child_process 子程序 fd 繼承（T0806 / T0807，BUG-205 – 207）
-- **`v0.7.4-pre.3`**（第一百一十一 session）：語音可用性事先檢查（T0802）、驗收腳本 `-Version` 必填（T0801）
+- **`v0.7.5-pre.1` 發佈＋驗收全 PASS**（第一百二十一 – 一百二十四 session）：PLAN-065 W1–W6（Windows PTY holder，升級不中斷終端）、BUG-212 檢查新版、BUG-213 holder handle 繼承（N-API addon）；NSIS 驗收腳本 T0868 / T0869；NSIS 重裝 / linux / macos / docker / WSL smoke 全 PASS
+- **`v0.7.4-pre.7` – `pre.9`**（第一百一十六 – 一百一十九 session）：PLAN-038 上傳、PLAN-063 升級說明與真實升級、PLAN-052 Docker (c′)
+- **`v0.7.4-pre.6`**（第一百一十四 session）：PLAN-063 子項 1–3、BUG-210
 
 ### 待辦（依優先序；完整內容見 frontmatter `todo`）
-1. ▶ PLAN-065 W1–W6 全 DONE（T0862 情境 1–9 PASS）→ D290 / D291 先修 BUG-213：T0865 查證 DONE → T0866 DONE（W6 PASS）→ T0867 DONE（tests.yml 綠）→ ✅ `0.7.5-pre.1` 已發佈（run `41956896040` 全綠，publishedAt 2026-11-05T02:58:21Z，target `e7461b37`，含 `server-bundle-v0.7.5-pre.1`）；更版重點已改寫；三文件＋版號已更新；Pages run `41958846733` 綠、首頁 pre.1、link-check 1515 / 0 errors；待：使用者 NSIS 重裝驗收、pre.1 → 下一版的真實升級保留
-2. PLAN-058：待使用者手動確認（清單在 T0819 回報區）；PLAN-052：Docker Desktop 實機
-3. MSRC 回報 microsoft/node-pty（使用者自行處理，D255）
-4. 觀察：語音可用性 macOS 未實機（T0802）、t0757 偶發失敗（D218）；PLAN-060 IDEA
+1. 下一版前：pre.1 → 下一版真實升級保留分頁、per-machine UAC 互動升級手動驗收；BUG-211 / 212 / 213 實機驗證
+2. PLAN-052：Docker Desktop（Windows / macOS）實機走精靈；PLAN-058：使用者手動確認（T0819 回報區）
+3. 候選未開單：T0864 `launchIsolated` 預寫設定、T0867 B 組同寫法、T0830 / PLAN-052 後續
+4. MSRC（使用者自行處理，D255）；觀察項（語音 macOS、t0757）；PLAN-060 IDEA
 
 ### ⚠️ 鐵則
 - **所有 `gh` 指令必須帶 `-R gowerlin/better-agent-terminal`**（L122）
@@ -102,16 +74,17 @@ todo:
 - 改 `_bug-tracker.md` / `_backlog.md` 不用全檔 `sed`，改完跑 parser 測試（L179）
 
 ### 快速連結
-- Bug Tracker → [_bug-tracker.md](_bug-tracker.md)（熱區：Open 0 / Fixing 0 / Fixed 2（BUG-211 / 212）/ Closed 73 / WONTFIX 1）｜ Backlog → [_backlog.md](_backlog.md)
-- Decision Log → [_decision-log.md](_decision-log.md)（最大 D287）｜ Learnings → [_learnings.md](_learnings.md)（最大 L185）
+- Bug Tracker → [_bug-tracker.md](_bug-tracker.md)（熱區：Open 0 / Fixing 0 / Fixed 3（BUG-211 / 212 / 213）/ Closed 73 / WONTFIX 1）｜ Backlog → [_backlog.md](_backlog.md)
+- Decision Log → [_decision-log.md](_decision-log.md)（最大 D293）｜ Learnings → [_learnings.md](_learnings.md)（最大 L185）
 - 研究報告 Artifact「Herdr 對照 BAT」→ https://claude.ai/artifact/Ybj66gYLkMHZE8xUyyDiEy（私人）
 - 網站 → https://gowerlin.github.io/better-agent-terminal/｜ 素材 spec → `e2e/site-media.spec.ts`（`BAT_SITE_MEDIA=1`，輸出 `e2e-media/`）
-- 歷史 sessions → [_archive/state-snapshots/INDEX.md](_archive/state-snapshots/INDEX.md)（134 entries；最新 `2026-Q4-c.md`）
+- 歷史 sessions → [_archive/state-snapshots/INDEX.md](_archive/state-snapshots/INDEX.md)（143 entries；最新 `2026-Q4-c.md`）
 
 ### 編號起始
-- **T0864** / **BUG-213** / **PLAN-066** / **D288** / **EXP-WFMINE-002**（其他 TOPIC 從 001） / **L186** / **CT-T023**
+- **T0870** / **BUG-214** / **PLAN-066** / **D294** / **EXP-WFMINE-002**（其他 TOPIC 從 001） / **L186** / **CT-T023**
 
 ---
+
 
 ## 📦 基本資訊
 
@@ -119,16 +92,16 @@ todo:
 |------|------|
 | **專案** | better-agent-terminal |
 | **Fork 上游** | tony1223/better-agent-terminal（另有 `scandnavik` remote；⚠️ gh 預設解析到 upstream，見 L122） |
-| **目前版號** | **0.7.4-pre.9**（package.json + lock）；下一版 **`0.7.5-pre.1`**（D285 `0.7.5-pre.N` 線） |
-| **最新 release** | `v0.7.4-pre.9`（2026-11-04T09:55:51Z，run `41809413443`，target `095470f7`：PLAN-052 Docker 遠端路線）；前一 tag `v0.7.4-pre.8`；更早見 `release-note.md` / `CHANGELOG.md` |
-| **目前主軸** | PLAN-065（Windows 升級不中斷終端）W1–W3 DONE、W4–W6 未派（⏸ 派單暫停）；T0863 檢查新版 DONE；`0.7.5-pre.1` 等本批 |
-| **工單最大編號** | **T0863** DONE（檢查新版，BUG-212；第一百二十 session）；T0860–T0862 PENDING |
-| **BUG 最大編號** | **BUG-212** FIXED；熱區 Open 0 / Fixing 0 / Fixed 2 / Closed 73 / WONTFIX 1 |
+| **目前版號** | **0.7.5-pre.1**（package.json + lock）；下一版 **`0.7.5-pre.2`**（D285 `0.7.5-pre.N` 線） |
+| **最新 release** | `v0.7.5-pre.1`（2026-11-05T02:58:21Z，run `41956896040`，target `e7461b37`：PLAN-065 Windows PTY holder、BUG-212 / 213）；前一 tag `v0.7.4-pre.9`；更早見 `release-note.md` / `CHANGELOG.md` |
+| **目前主軸** | `0.7.5-pre.1` 發佈後驗收全 PASS；PLAN-065 等 pre.1 → 下一版真實升級保留；無派工中工單 |
+| **工單最大編號** | **T0869** DONE（NSIS 驗收 ④ 基準，第一百二十三 session）；熱區 265 張全 DONE |
+| **BUG 最大編號** | **BUG-213** FIXED；熱區 Open 0 / Fixing 0 / Fixed 3 / Closed 73 / WONTFIX 1 |
 | **PLAN 最大編號** | **PLAN-065** IN_PROGRESS；IN_PROGRESS 6（038 / 043 / 052 / 058 / 064 / 065）；IDEA 3 |
-| **決策最大編號** | **D287**（檢查新版改版，第一百二十 session） |
+| **決策最大編號** | **D293**（NSIS 驗收 ④ 基準，第一百二十三 session） |
 | **EXP 最大編號** | **EXP-WFMINE-001**（📊 CONCLUDED 2026-10-20）；EXP-GPUWHIS-001（CONCLUDED，已歸檔） |
-| **塔台版本** | Control Tower **v6.0.0-beta.11**（第一百零九 session 起） |
-| **unit test 基線** | **8186 passed / 447 files**（T0863 Worker 回報 @ `ee53eaf5`）；typecheck 0 / 0、vite build、legacy 472 / 33 |
+| **塔台版本** | Control Tower **v6.0.0-rc.1**（第一百二十二 session 起） |
+| **unit test 基線** | **8355 passed / 456 files**（T0869 Worker 回報 @ `6269139c`）；typecheck 0 / 0、legacy 472 |
 | **舊值** | 瘦身前的長版本見 [`_archive/state-snapshots/2026-Q4-b.md`](_archive/state-snapshots/2026-Q4-b.md)〈基本資訊舊值〉 |
 
 ---
