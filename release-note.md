@@ -2,6 +2,46 @@
 
 本 fork 各版的更版重點（內容取自 GitHub Releases，最新在上）。上游 tony1223/better-agent-terminal 的 v2.1.x 紀錄保留在檔案最下方。
 
+## v0.7.5-pre.1（2026-11-05）
+
+版號 0.7.5-pre.1，接續 `v0.7.4-pre.9`。
+
+本版重點：Windows 安裝版更新時，終端分頁不再被結束。持有終端的程式改由安裝目錄外的 PTY holder 執行，安裝程式只結束 BAT 主程式；分頁裡的 shell 與執行中的指令留在原地，新版開啟後自動接回。**這項保護從本版開始生效：從 `0.7.4-pre.9` 或更早的版本更新到本版，終端仍會被結束（舊版沒有 holder）；從本版再更新到之後的版本，終端才會保留。**
+
+## 新增
+
+- **Windows 更新不再結束終端分頁**（PLAN-065）：用 `.exe` 安裝版更新、重新安裝同一版或降級到有 holder 的版本時，分頁裡的 shell 與執行中的長指令（例如建置、`ping -t`）在安裝期間持續執行；重開 BAT 不跳 Recovery 提示，直接接回，並顯示「升級期間 N 個終端持續執行並已接回」。
+- **分頁裡從安裝目錄執行的程式**（例如 BAT 內嵌的 claude）會在更新前由 BAT 先結束（安裝程式不用等），分頁本身與 shell 保留；這些分頁列進「被中斷的 agent 分頁」，可一鍵恢復對話（PLAN-065）。
+- **Help ›「Check for Updates…」**：隨時手動檢查新版；啟動時也會自動檢查一次。新增「包含預覽版」選項（預設開）；有新版時可直接開啟該版本的 Release 頁（BUG-212）。
+
+## 修正
+
+- **新版檢查永遠找不到新版**：先前只查詢正式版（本 fork 全是預覽版，所以查不到），也不認得 `-pre.N` 版號；現在預覽版也會通知（BUG-212）。
+- **從終端、IDE 或腳本帶 pipe 啟動 BAT 時，BAT 結束後呼叫端一直等不到結束**：Terminal Server 啟動時不再繼承 BAT 從呼叫端拿到的 handle（BUG-213）。從檔案總管、開始功能表或捷徑啟動本來就不受影響。
+
+## 更新
+
+- **啟動時檢查新版預設開啟**：以前存過任何設定的使用者，這個選項實際上是關的；更新到本版後會改成開一次，之後你在 Settings 關掉就照你的設定。
+- 解除安裝時會結束 PTY holder 並刪除它的目錄（`%LOCALAPPDATA%\BAT-PtyHolder` 或 `%ProgramFiles%\BAT-PtyHolder`），使用者資料保留；holder 目錄有程式還在執行時保留不刪。
+- Terminal Server 的連線改為需要權杖驗證（只有本機 BAT 讀得到），不認得的請求一律拒絕。
+
+## 待驗收（請更新到本版後協助確認）
+
+- **下一次更新時終端是否保留**：裝好本版後開幾個分頁（可以跑一個長指令），之後更新到下一版，確認分頁的 shell 與指令仍在、重開後顯示「已接回」。
+- **新版檢查**：Help ›「Check for Updates…」能找到 GitHub 上的最新預覽版；下一版發佈後啟動 BAT 會出現更新通知。
+- 先前版本仍待確認的項目（Docker Desktop 精靈、同版重裝的說明與一鍵接回、遠端附件上傳的 SSH / Docker 實機、WSL「改用 Mirrored 並重試」、Linux 缺字型提示、Claude 面板排隊送出）照舊歡迎回報。
+
+## 已知事項
+
+- 只有 Windows 的 `.exe` 安裝版有這項保護；`.zip` 免安裝版、macOS、Linux 的行為不變。
+- 從本版降級到 `0.7.4-pre.9` 或更早的版本，所有終端會被結束，而且重開後沒有說明。
+- 「為所有使用者安裝」（per-machine）在一般權限下互動更新（會跳 UAC）的情況尚未在實機驗證；若終端沒有保留，重開時會照舊出現 Recovery 提示。
+- 自動化驗收已在 GitHub Windows runner 用真的安裝程式跑過：per-user / per-machine 更新、同版重裝、降級、解除安裝、分頁裡有內嵌 agent。
+
+macOS 仍只提供 Apple Silicon（arm64）版。
+
+**Full Changelog**: https://github.com/gowerlin/better-agent-terminal/compare/v0.7.4-pre.9...v0.7.5-pre.1
+
 ## v0.7.4-pre.9（2026-11-04）
 
 版號 0.7.4-pre.9，接續 `v0.7.4-pre.8`。

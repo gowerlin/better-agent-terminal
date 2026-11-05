@@ -4,6 +4,25 @@ All notable changes to Better Agent Terminal are documented in this file.
 
 ## [Unreleased]
 
+## [0.7.5-pre.1] — 2026-11-05
+
+### Added
+- Windows 更新不再結束終端分頁（PLAN-065，D286）：NSIS 安裝版的 Terminal Server 改由安裝目錄外的 PTY holder（官方 node.exe 改名 `bat-pty-holder.exe`，per-user `%LOCALAPPDATA%\BAT-PtyHolder\<key>`、per-machine `%ProgramFiles%\BAT-PtyHolder\<key>`）執行（T0858、T0859）；Terminal Server 協定 v1：TCP 連線先送帶權杖的 `server:hello`，不認得的請求回 `error`（T0857）
+- 升級時 BAT 只結束主行程、保留 holder（`server:extendIdle` 24 h），結束分頁程序樹中從安裝目錄執行的程序並寫 schema 2 紀錄；`--uninstall-quit-request` 真的解除安裝時停 holder、刪本次範圍的 holder 根目錄（有程序在跑時保留）（T0860）
+- 升級後自動接回：紀錄、pid、hello 協商都成立時不跳 Recovery 提示，toast「已接回 N 個終端」；hello 失敗的舊 server 連同 PTY 樹結束並說明；holder 0 個 PTY 且版本較舊時換新（T0861）
+- Help ›「Check for Updates…」、啟動時檢查一次、「包含預覽版」（預設開）、開啟該版本 Release 頁（T0863，BUG-212）
+- `windows-upgrade-acceptance.yml`（`workflow_dispatch`）＋ `e2e/t0862-windows-upgrade-acceptance.spec.ts`：在 GitHub Windows runner 以兩個 desktop-build 版本跑真的安裝程式（per-user / per-machine 升級、同版重裝、降級、降到沒有 holder 的版本、解除安裝、內嵌 agent 替身、D5 / D6），9 個情境全 PASS；`e2e/manual/nsis-reinstall-acceptance.ps1` 加 holder 檢查（T0862）
+
+### Fixed
+- 新版檢查永遠找不到新版：`releases/latest` 排除預覽版、版號比對不認得 `-pre.N`（T0863，BUG-212）
+- 帶 pipe 啟動 BAT 時，保留的 Terminal Server 讓呼叫端等不到 `close`：Windows N-API addon（`native/win-stdio-inherit/`）在 `forkTerminalServer` 的 spawn / fork 前後把繼承來的 stdio handle 暫時設為不可繼承，失敗時照舊啟動（T0865 查證、T0866，BUG-213）
+- `terminal-server-protocol-v1.test.ts` E 組在 Linux runner 的計時競爭（T0867）
+
+### Changed
+- `checkForUpdates` 預設開，既有存成 `false` 的設定一次遷移為開（標記 `checkForUpdatesMigrated`）（T0864，D288）
+- 新增 devDependency `node-gyp` 13.1.0，Windows 打包前以 `npm run build:native-win` 建置 addon，`verify-native-modules.js` / `verify-packaged-native.js` 檢查（T0866）
+- 文件：新增 `docs/agent-guide/pty-holder.md` 與 CLAUDE.md「Windows PTY holder」節；README 的 Windows 更新說明改寫
+
 ## [0.7.4-pre.9] — 2026-11-04
 
 ### Added
