@@ -1,5 +1,6 @@
 // T0472 — verify-native-modules.js: embedded claude must be the native binary (not the
 // npm placeholder stub). T0492 removed better-sqlite3 and its .node check.
+// T0866 / BUG-213 — win32 hosts also need the stdio-inheritance addon (native/win-stdio-inherit) built.
 //
 // Fake node_modules trees are built in a temp dir. Executables are faked with their
 // magic bytes only: the check reads the head of the file, never runs it.
@@ -22,8 +23,11 @@ const {
   classifyEmbeddedClaude,
   executableFormat,
   verifyEmbeddedRuntime,
+  verifyWinStdioInheritAddon,
   whisperAddonDirCandidates,
 } = require(SCRIPT)
+const WIN_STDIO_INHERIT = path.join(path.dirname(SCRIPT), 'win-stdio-inherit.cjs')
+const { builtAddonPath } = require(WIN_STDIO_INHERIT)
 
 // Shape of @anthropic-ai/claude-code 2.1.289 / 2.1.296 / 2.1.300 / 2.1.306 / 2.1.316's bin/claude.exe placeholder (500 bytes upstream).
 const STUB = [
@@ -202,13 +206,56 @@ describe('verifyEmbeddedRuntime', () => {
   })
 })
 
+/** A minimal PE header: 'MZ', e_lfanew = 0x40, 'PE  ', Machine. */
+function fakePe(machine) {
+  const buf = Buffer.alloc(0x200)
+  buf.write('MZ', 0, 'latin1')
+  buf.writeUInt32LE(0x40, 0x3c)
+  buf.writeUInt32BE(0x50450000, 0x40)
+  buf.writeUInt16LE(machine, 0x44)
+  return buf
+}
+
+describe('verifyWinStdioInheritAddon (T0866 / BUG-213)', () => {
+  it('macOS / Linux: not required, nothing read', () => {
+    const root = makeRoot()
+    const read = () => { throw new Error('read on a non-win32 host') }
+    for (const [platform, arch] of [['darwin', 'arm64'], ['linux', 'x64'], ['linux', 'arm64']]) {
+      expect(verifyWinStdioInheritAddon(root, platform, arch, read)).toEqual({ required: false, problems: [] })
+    }
+  })
+
+  it('win32-x64: the node-gyp build must exist and be an x64 PE', () => {
+    const root = makeRoot()
+    const missing = verifyWinStdioInheritAddon(root, 'win32', 'x64')
+    expect(missing.required).toBe(true)
+    expect(missing.problems).toEqual([`missing: ${builtAddonPath(root)}`])
+
+    const file = builtAddonPath(root)
+    mkdirSync(path.dirname(file), { recursive: true })
+    writeFileSync(file, fakePe(0xaa64))
+    expect(verifyWinStdioInheritAddon(root, 'win32', 'x64').problems[0]).toContain('PE machine 0xaa64, expected 0x8664')
+    writeFileSync(file, 'not a PE')
+    expect(verifyWinStdioInheritAddon(root, 'win32', 'x64').problems[0]).toContain('not a PE image')
+    writeFileSync(file, fakePe(0x8664))
+    expect(verifyWinStdioInheritAddon(root, 'win32', 'x64')).toEqual({ required: true, file, problems: [] })
+  })
+
+  it('win32 on another arch: blocked (only x64 is built)', () => {
+    expect(verifyWinStdioInheritAddon(makeRoot(), 'win32', 'arm64').problems[0]).toContain('built for win32-x64 only')
+  })
+})
+
 describe('CLI on a fake project tree', () => {
   // The script resolves the project root from its own location, so it is copied into
   // <root>/scripts/ and run there.
-  function makeProject({ claude }) {
+  function makeProject({ claude, stdioAddon = true }) {
     const root = makeRoot()
     mkdirSync(path.join(root, 'scripts'))
     copyFileSync(SCRIPT, path.join(root, 'scripts', 'verify-native-modules.js'))
+    copyFileSync(WIN_STDIO_INHERIT, path.join(root, 'scripts', 'win-stdio-inherit.cjs'))
+    // T0866: win32 hosts look for the stdio-inheritance addon build
+    if (stdioAddon && process.platform === 'win32') writeFile(root, path.relative(root, builtAddonPath(root)).split(path.sep).join('/'), fakePe(0x8664))
     for (const mod of ['@kutalia/whisper-node-addon', '@lydell/node-pty']) {
       writeFile(root, `node_modules/${mod}/package.json`, '{}')
     }
@@ -241,6 +288,13 @@ describe('CLI on a fake project tree', () => {
     expect(stdout).toContain('All 2 required native modules present')
     expect(stdout).toContain('embedded claude: native')
     expect(stdout).not.toContain('sqlite')
+  })
+
+  it.runIf(process.platform === 'win32' && process.arch === 'x64')('win32: exits 1 without the stdio-inheritance addon build (T0866)', () => {
+    const { code, stderr } = runCli(makeProject({ claude: fakeExecutable(hostFormat), stdioAddon: false }))
+    expect(code).toBe(1)
+    expect(stderr).toContain('stdio-inheritance addon (native/win-stdio-inherit) is not built')
+    expect(stderr).toContain('npm run build:native-win')
   })
 
   it.runIf(desktopHost)('exits 1 on the stub with an actionable message', () => {

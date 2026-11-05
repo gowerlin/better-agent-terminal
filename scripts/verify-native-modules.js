@@ -19,6 +19,10 @@
  * placeholder stub that @anthropic-ai/claude-code publishes. (T0492 removed the
  * unused better-sqlite3 dependency and with it the `.node` check T0472 added.)
  *
+ * BUG-213 / T0866: Windows hosts also need the stdio-inheritance addon built by `npm run build:native-win`
+ * (native/win-stdio-inherit → build/Release/bat_win_stdio_inherit.node, a PE of the host arch); macOS / Linux do not
+ * look for it (verifyWinStdioInheritAddon).
+ *
  * Run locally via `npm run build`, `npm run build:release`, or directly:
  *   node scripts/verify-native-modules.js
  *
@@ -28,6 +32,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const { ADDON_ARCHS: WIN_STDIO_INHERIT_ARCHS, builtAddonPath: winStdioInheritBuiltPath } = require('./win-stdio-inherit.cjs');
 
 // Packages whose absence has historically broken production installers.
 // Keep this list tight — only modules that (a) are in `build.asarUnpack` and
@@ -178,6 +183,45 @@ function verifyEmbeddedRuntime(projectRoot, platform, arch) {
   return { host, problems, blocking: problems.length > 0 && EMBEDDED_RUNTIME_REQUIRED_HOSTS.includes(host) };
 }
 
+/** PE COFF Machine of a file header (IMAGE_FILE_MACHINE_AMD64 0x8664 / ARM64 0xaa64); null when not a PE image. */
+function peMachineOf(head) {
+  if (!head || head.length < 0x40 || head[0] !== 0x4d || head[1] !== 0x5a) return null;
+  const peOffset = head.readUInt32LE(0x3c);
+  if (peOffset + 6 > head.length || head.readUInt32BE(peOffset) !== 0x50450000) return null;
+  return head.readUInt16LE(peOffset + 4);
+}
+
+const PE_MACHINE_OF_ARCH = { x64: 0x8664, arm64: 0xaa64 };
+
+/**
+ * BUG-213 / T0866: the Windows stdio-inheritance addon. Not win32 → not required (no problems, nothing read).
+ * win32: the node-gyp build must exist and be a PE of the host arch (only x64 is built, scripts/win-stdio-inherit.cjs).
+ */
+function verifyWinStdioInheritAddon(projectRoot, platform, arch, readHead = (file) => {
+  const fd = fs.openSync(file, 'r');
+  try {
+    const buf = Buffer.alloc(4096);
+    return buf.subarray(0, fs.readSync(fd, buf, 0, buf.length, 0));
+  } finally {
+    fs.closeSync(fd);
+  }
+}) {
+  if (platform !== 'win32') return { required: false, problems: [] };
+  const file = winStdioInheritBuiltPath(projectRoot);
+  const problems = [];
+  if (!WIN_STDIO_INHERIT_ARCHS.includes(arch)) {
+    problems.push(`host win32-${arch}: the addon is built for win32-${WIN_STDIO_INHERIT_ARCHS.join(', win32-')} only`);
+  } else if (!fs.existsSync(file)) {
+    problems.push(`missing: ${file}`);
+  } else {
+    const machine = peMachineOf(readHead(file));
+    if (machine !== PE_MACHINE_OF_ARCH[arch]) {
+      problems.push(`${file}: ${machine === null ? 'not a PE image' : `PE machine 0x${machine.toString(16)}`}, expected 0x${PE_MACHINE_OF_ARCH[arch].toString(16)} for ${arch}`);
+    }
+  }
+  return { required: true, file, problems };
+}
+
 function main() {
   const projectRoot = path.join(__dirname, '..');
   const missing = [];
@@ -254,9 +298,22 @@ function main() {
     console.warn(`[verify-native-modules] ⚠️ ${problem.summary} (${problem.details.join('; ')}); not a desktop package host, not fatal.`);
   }
 
+  // Windows stdio-inheritance addon (BUG-213 / T0866)
+  const stdioAddon = verifyWinStdioInheritAddon(projectRoot, process.platform, process.arch);
+  if (stdioAddon.problems.length > 0) {
+    console.error('');
+    console.error('[verify-native-modules] ❌ Windows stdio-inheritance addon (native/win-stdio-inherit) is not built');
+    for (const line of stdioAddon.problems) console.error(`      ${line}`);
+    console.error('[verify-native-modules] An installer built now would start the Terminal Server with the inherited handles of its caller (BUG-213).');
+    console.error('[verify-native-modules] Fix (repo root): npm run build:native-win   (needs MSVC "Desktop development with C++" and Python)');
+    console.error('');
+    process.exit(1);
+  }
+
   const whisperNote = found ? `, whisper binary: ${path.relative(projectRoot, found)}` : '';
   const runtimeNote = runtime.problems.length === 0 ? ', embedded claude: native' : '';
-  console.log(`[verify-native-modules] ✅ All ${REQUIRED_NATIVE_MODULES.length} required native modules present${whisperNote}${runtimeNote}`);
+  const stdioAddonNote = stdioAddon.required ? `, stdio-inheritance addon: ${path.relative(projectRoot, stdioAddon.file)}` : '';
+  console.log(`[verify-native-modules] ✅ All ${REQUIRED_NATIVE_MODULES.length} required native modules present${whisperNote}${runtimeNote}${stdioAddonNote}`);
 }
 
 module.exports = {
@@ -267,6 +324,7 @@ module.exports = {
   classifyEmbeddedClaude,
   executableFormat,
   verifyEmbeddedRuntime,
+  verifyWinStdioInheritAddon,
 };
 
 // Runs on `node scripts/verify-native-modules.js` and on `require()` from

@@ -8,6 +8,8 @@
 // T0691 / BUG-169 — resources/package.json = { name, version } of the packaged app (the helpers' version) on every platform.
 // T0858 / PLAN-065 W2 — Windows `resources/pty-holder` matches its manifest and the pinned node.exe (a fake PE swapped in
 // by scripts/__tests__/_pty-holder-fixture.cjs, also preloaded into the CLI runs); mac / linux ship none.
+// T0866 / BUG-213 — Windows `resources/native/bat_win_stdio_inherit.node` (PE of the arch; the load check runs only from the CLI
+// and is mocked here: the fake packages have no executable, the win CLI runs pass --skip-load-check); mac / linux ship none.
 //
 // Fake electron-builder output trees (release/mac-arm64/*.app, release/linux-unpacked,
 // release/win-unpacked) are built in a temp dir with hand-written Mach-O / ELF / PE headers
@@ -54,8 +56,11 @@ const {
   verifyPackagedLinux,
   verifyPackagedMac,
   verifyPackagedWin,
+  verifyWinStdioInherit,
+  WIN_STDIO_INHERIT_LOAD_SCRIPT,
   winAppOutDirName,
 } = require(SCRIPT)
+const winStdioInherit = require('../win-stdio-inherit.cjs')
 const nativeModules = require('../verify-native-modules.js')
 const { afterPack, versionManifestContent, versionManifestProblems } = require('../version-manifest.cjs')
 const { installAppImageLauncher } = require('../appimage-sandbox-launcher.cjs')
@@ -248,11 +253,12 @@ function makeLinux(outDir, arch, claude, { packed = HEALTHY_PACKED, launcher = t
   return resources
 }
 
-function makeWin(outDir, { claude = pe(PE_MACHINES.x64), packed = HEALTHY_PACKED, extra = () => {}, holder = true } = {}) {
+function makeWin(outDir, { claude = pe(PE_MACHINES.x64), packed = HEALTHY_PACKED, extra = () => {}, holder = true, stdioAddon = pe(PE_MACHINES.x64) } = {}) {
   const resources = path.join(outDir, winAppOutDirName('x64'), 'resources')
   const anthropic = path.join(resources, 'app.asar.unpacked', 'node_modules', '@anthropic-ai')
   writeRuntimePackages(resources, 'win32', 'x64')
   if (holder) writeFakeHolder(resources, 'x64')
+  if (stdioAddon) writeFile(winStdioInherit.packagedAddonPath(resources), stdioAddon)
   writeHelperScripts(resources)
   writeHelperVersion(resources)
   if (claude) writeFile(path.join(anthropic, 'claude-code', 'bin', 'claude.exe'), claude)
@@ -534,6 +540,14 @@ describe('verifyPackagedMac', () => {
 })
 
 describe('verifyPackagedLinux', () => {
+  it('a Windows stdio-inheritance addon in the AppImage → fail (T0866: Windows only)', () => {
+    const out = makeOutDir()
+    const resources = makeLinux(out, 'x64', elf(ELF_MACHINES.x64))
+    expect(verifyPackagedLinux(out).ok).toBe(true)
+    writeFile(winStdioInherit.packagedAddonPath(resources), pe(PE_MACHINES.x64))
+    expect(verifyPackagedLinux(out).archs[0].problems.map((p) => p.id)).toEqual(['win-stdio-inherit'])
+  })
+
   it('any server bundle baseline in the AppImage → fail (D146 / T0547)', () => {
     const out = makeOutDir()
     const resources = makeLinux(out, 'x64', elf(ELF_MACHINES.x64))
@@ -699,7 +713,7 @@ describe('verifyPackagedWin (T0546)', () => {
     expect(result.archs[0].layout.baselines).toEqual([])
     expect(result.archs[0].layout.helperScripts).toEqual(runtimeHelperScripts())
     expect(winAppOutDirName('arm64')).toBe('win-arm64-unpacked')
-    const cli = runCli(['--platform', 'win', '--out', out])
+    const cli = runCli(['--platform', 'win', '--out', out, '--skip-load-check'])
     expect(cli.code).toBe(0)
     expect(cli.stdout).toContain('every windows package passed (x64)')
   })
@@ -717,7 +731,7 @@ describe('verifyPackagedWin (T0546)', () => {
 
     const out2 = makeOutDir()
     makeWin(out2, { claude: Buffer.from('#!/usr/bin/env node\nconsole.error("claude native binary not installed.")\n') })
-    const cli = runCli(['--platform', 'win', '--out', out2])
+    const cli = runCli(['--platform', 'win', '--out', out2, '--skip-load-check'])
     expect(cli.code).toBe(1)
     expect(cli.stderr).toContain('not a PE image')
   })
@@ -732,12 +746,48 @@ describe('verifyPackagedWin (T0546)', () => {
     expect(ids(makeOutDir())).toEqual(['app-out-dir'])
   })
 
+  // T0866 / BUG-213
+  it('win-stdio-inherit: missing or another arch → fail (exit 1 with the build hint)', () => {
+    const out = makeOutDir()
+    makeWin(out, { stdioAddon: null })
+    expect(ids(out)).toEqual(['win-stdio-inherit'])
+    expect(verifyPackagedWin(out).archs[0].problems[0].details[0]).toContain('npm run build:native-win')
+    const cli = runCli(['--platform', 'win', '--out', out, '--skip-load-check'])
+    expect(cli.code).toBe(1)
+    expect(cli.stderr).toContain('T0866 win-stdio-inherit')
+
+    const out2 = makeOutDir()
+    makeWin(out2, { stdioAddon: pe(PE_MACHINES.arm64) })
+    expect(verifyPackagedWin(out2).archs[0].problems[0].details[0]).toContain('PE machine 0xaa64, expected 0x8664')
+  })
+
+  it('win-stdio-inherit: the load check runs the packaged exe as Node with the addon path, only when asked and on a Windows host', () => {
+    const out = makeOutDir()
+    const resources = makeWin(out)
+    const appOutDir = path.dirname(resources)
+    const calls = []
+    const ok = (command, args) => { calls.push({ command, args }); return '{"ok":true,"disabled":0,"restored":0}\n' }
+    expect(verifyWinStdioInherit(appOutDir, resources, 'x64', { hostPlatform: 'win32', run: ok })).toEqual({ problems: [], loaded: false }) // loadCheck off
+    expect(calls).toEqual([])
+    expect(verifyWinStdioInherit(appOutDir, resources, 'x64', { loadCheck: true, hostPlatform: 'linux', run: ok })).toEqual({ problems: [], loaded: false })
+    expect(calls).toEqual([])
+    expect(verifyWinStdioInherit(appOutDir, resources, 'x64', { loadCheck: true, hostPlatform: 'win32', run: ok })).toEqual({ problems: [], loaded: true })
+    expect(calls).toEqual([{ command: path.join(appOutDir, 'BetterAgentTerminal.exe'), args: ['-e', WIN_STDIO_INHERIT_LOAD_SCRIPT, winStdioInherit.packagedAddonPath(resources)] }])
+
+    const failed = verifyWinStdioInherit(appOutDir, resources, 'x64', { loadCheck: true, hostPlatform: 'win32', run: () => { const e = new Error('Command failed'); e.stderr = 'Error: The specified module could not be found.'; throw e } })
+    expect(failed.loaded).toBe(false)
+    expect(failed.problems[0].id).toBe('win-stdio-inherit')
+    expect(failed.problems[0].details[0]).toContain('could not be found')
+    const wrong = verifyWinStdioInherit(appOutDir, resources, 'x64', { loadCheck: true, hostPlatform: 'win32', run: () => '{"ok":false}' })
+    expect(wrong.problems[0].details[0]).toContain('load check printed')
+  })
+
   // T0858 / PLAN-065 W2
   it('pty-holder: missing → fail (exit 1)', () => {
     const out = makeOutDir()
     makeWin(out, { holder: false })
     expect(ids(out)).toEqual(['pty-holder'])
-    const cli = runCli(['--platform', 'win', '--out', out])
+    const cli = runCli(['--platform', 'win', '--out', out, '--skip-load-check'])
     expect(cli.code).toBe(1)
     expect(cli.stderr).toContain('T0858 pty-holder')
   })
@@ -896,7 +946,7 @@ describe('verifyPackagedWin (T0546)', () => {
     } })
     expect(ids(out)).toEqual(['helper-scripts'])
     expect(verifyPackagedWin(out).archs[0].problems[0].details).toEqual(['extra: bat-server.mjs', 'extra: hooks/pre-commit', 'extra: run-legacy-tests.mjs'])
-    const cli = runCli(['--platform', 'win', '--out', out])
+    const cli = runCli(['--platform', 'win', '--out', out, '--skip-load-check'])
     expect(cli.code).toBe(1)
     expect(cli.stderr).toContain('extra: run-legacy-tests.mjs')
   })
@@ -952,7 +1002,7 @@ describe.each([
     platform: 'win',
     build: (out, opts) => makeWin(out, opts),
     checked: (out) => verifyPackagedWin(out).archs[0],
-    cli: ['--platform', 'win'],
+    cli: ['--platform', 'win', '--skip-load-check'],
   },
 ])('helper-version on $platform (T0691)', ({ build, checked, cli }) => {
   const manifestPath = (resources) => path.join(resources, 'package.json')

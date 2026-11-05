@@ -16,7 +16,9 @@
 // Scenarios (every one: shell + `ping -t` pids before / after, conhost, holder path, Recovery prompt, output after
 // reattach, toast text, holder directories):
 //   1 per-user A → B (/S /currentuser): holder kept, reattach, app.upgradeReattached; a stale key directory under the
-//     holder root is removed by B's customInstall, the running one kept.
+//     holder root is removed by B's customInstall, the running one kept. T0866 / BUG-213: A is started with pipes (the
+//     stdio Playwright's _electron.launch uses) and the caller must get 'close' after the installer ends BAT, while the
+//     holder keeps running — the holder no longer inherits the caller's pipes.
 //   2 per-machine A → B (/S /allusers), then a real per-machine uninstall while a process runs from the holder root
 //     → the root is kept (the "in use" branch). The runner is elevated: no UAC inner instance (recorded).
 //   3 same-version reinstall B → B: reattach, app.upgradeReattachedSameVersion.
@@ -291,7 +293,9 @@ async function uninstall(app: { uninstall: string; exe: string }, watchPid?: num
 
 // ── BAT ─────────────────────────────────────────────────────────────────────────────────────────────────────
 
-interface Bat { browser: Browser; win: Page; mainPid: number; version: string }
+/** T0866: when started with pipes, when the caller saw the process 'exit' and the pipes 'close' (Date.now()). */
+interface PipeEvents { exitAt: number | null; closeAt: number | null; handles: number }
+interface Bat { browser: Browser; win: Page; mainPid: number; version: string; pipes?: PipeEvents }
 
 function writeSettings(): void {
   fs.mkdirSync(USER_DATA, { recursive: true })
@@ -302,16 +306,26 @@ function writeSettings(): void {
   fs.writeFileSync(file, JSON.stringify({ ...current, language: 'en', shell: 'cmd', createDefaultAgentTerminal: false, checkForUpdates: false, checkForUpdatesMigrated: true }, null, 2))
 }
 
-// BAT is started with our own spawn (stdio 'ignore') and driven over CDP, not with _electron.launch: Playwright waits
-// for the launched process's 'close' event, which needs every handle of its stdio pipes closed — and the PTY holder
-// BAT starts (and keeps across the upgrade) inherits those inheritable handles from BAT's main process, so
+// BAT is started with our own spawn and driven over CDP, not with _electron.launch: Playwright waits for the launched
+// process's 'close' event, which needs every handle of its stdio pipes closed — and before T0866 the PTY holder BAT
+// starts (and keeps across the upgrade) inherited those handles from BAT's main process (BUG-213), so
 // ElectronApplication.close() never returned after the installer ended BAT (run 41942234283, all scenarios but 6).
-// A user starts BAT from Explorer / the Start menu, without pipes.
-async function launch(exe: string, label: string): Promise<Bat> {
+// The scenarios start BAT with stdio 'ignore' (as from Explorer / the Start menu); `pipes: true` (scenario 1's first
+// launch, T0866) uses Playwright's stdio — ['ignore', 'pipe', 'pipe', 'pipe', 'pipe'] — and records 'exit' / 'close'.
+const PIPE_STDIO = ['ignore', 'pipe', 'pipe', 'pipe', 'pipe'] as const
+async function launch(exe: string, label: string, opts: { pipes?: boolean } = {}): Promise<Bat> {
   writeSettings()
   const cdpPort = await freePort()
   const env = isolatedEnv(await freePort())
-  const child = spawn(exe, [`--remote-debugging-port=${cdpPort}`], { env, stdio: 'ignore', detached: true })
+  const child = spawn(exe, [`--remote-debugging-port=${cdpPort}`], { env, stdio: opts.pipes ? [...PIPE_STDIO] : 'ignore', detached: true })
+  let pipes: PipeEvents | undefined
+  if (opts.pipes) {
+    const events: PipeEvents = { exitAt: null, closeAt: null, handles: PIPE_STDIO.filter(s => s === 'pipe').length }
+    pipes = events
+    for (const stream of child.stdio) (stream as { resume?: () => void } | null)?.resume?.() // drained, never read into the report
+    child.on('exit', () => { events.exitAt = Date.now() })
+    child.on('close', () => { events.closeAt = Date.now() })
+  }
   child.unref()
   const mainPid = child.pid ?? 0
   expect(mainPid, `${label}: BAT started`).toBeGreaterThan(0)
@@ -336,8 +350,8 @@ async function launch(exe: string, label: string): Promise<Bat> {
   await win.waitForLoadState('domcontentloaded')
   await expect.poll(() => win!.evaluate(() => typeof (window as AnyApi).electronAPI?.update?.getVersion).catch(() => 'reloading'), { timeout: 60_000 }).toBe('function')
   const version = String(await win.evaluate(() => (window as AnyApi).electronAPI.update.getVersion()))
-  log(`launched ${label}: version ${version}, main pid ${mainPid}`)
-  return { browser, win, mainPid, version }
+  log(`launched ${label}: version ${version}, main pid ${mainPid}${pipes ? `, with ${pipes.handles} pipes` : ''}`)
+  return { browser, win, mainPid, version, pipes }
 }
 
 async function shot(win: Page | undefined, name: string): Promise<void> {
@@ -509,6 +523,22 @@ async function forget(bat: Bat | undefined): Promise<void> {
   await disconnect(bat)
 }
 
+/**
+ * T0866 / BUG-213: the caller that started BAT with pipes gets 'close' soon after BAT's 'exit' although the holder
+ * (kept by the installer) still runs, and BAT logged that it started the Terminal Server without the inherited
+ * handles (the four pipes at least). Before T0866 'close' never came (run 41942234283).
+ */
+async function checkPipeClose(pipes: PipeEvents, holder: number | null): Promise<void> {
+  const end = Date.now() + 30_000
+  while (pipes.closeAt === null && Date.now() < end) await new Promise(r => setTimeout(r, 250))
+  const holderAlive = await aliveAs(holder, 'bat-pty-holder.exe')
+  const detail = { exitToCloseMs: pipes.exitAt !== null && pipes.closeAt !== null ? pipes.closeAt - pipes.exitAt : null, exited: pipes.exitAt !== null, closed: pipes.closeAt !== null, holderAlive, pipes: pipes.handles }
+  evidence['after install: pipe launch'] = detail
+  check("after install: the caller that started BAT with pipes got 'close' within 30 s while the holder still runs (BUG-213)", pipes.exitAt !== null && pipes.closeAt !== null && holderAlive, detail)
+  const m = /\[stdio-inherit\] Terminal Server started without (\d+) inherited handle\(s\); (\d+) restored/.exec(logSince())
+  check('first BAT log: the Terminal Server started without the inherited pipes (>= 4 handles, all restored)', !!m && Number(m[1]) >= pipes.handles && m[1] === m[2], m ? m[0] : 'no [stdio-inherit] line')
+}
+
 function checkRecord(expectAgentTab: boolean, holderPid: number | null, label: string): void {
   const record = readJson(path.join(USER_DATA, RECORD))
   evidence[`${label} record`] = record ? { schema: record.schema, source: record.source, holderKept: record.holderKept, holderPidMatches: record.holderPid === holderPid, endedPtys: record.endedPtys?.length, endedAgentProcesses: record.endedAgentProcesses, claudeSessionTabs: (record.claudeSessions ?? []).map((c: AnyApi) => c?.terminalId) } : null
@@ -524,13 +554,13 @@ const ROOT = (scope: 'currentuser' | 'allusers') => scope === 'allusers' ? ROOT_
 interface Before { bat: Bat; roles: Roles; tabs: string[]; appDir: string; key: string | null }
 
 /** Install `installer`, start BAT, seed the tabs, start ping (and the agent stand-in). */
-async function setUp(installer: string, version: string, scope: 'currentuser' | 'allusers', label: string, tabs: string[]): Promise<Before> {
+async function setUp(installer: string, version: string, scope: 'currentuser' | 'allusers', label: string, tabs: string[], launchOpts: { pipes?: boolean } = {}): Promise<Before> {
   const r = await install(installer, scope, label)
   check(`install ${label} (${version}, /${scope}) exit 0`, r.exitCode === 0, r)
   const app = await installed()
   check(`install ${label}: uninstall entry ${version} in ${scope === 'allusers' ? 'HKLM' : 'HKCU'}`, !!app && app.version === version && app.hive === (scope === 'allusers' ? 'HKLM' : 'HKCU'), app ? { version: app.version, hive: app.hive, dir: app.dir } : null)
   expect(app, 'installed app').not.toBeNull()
-  const bat = await launch(app!.exe, label)
+  const bat = await launch(app!.exe, label, launchOpts)
   check(`${label}: BAT runs ${version}`, bat.version === version, bat.version)
   if (tabs.length) {
     await seedTabs(bat, tabs)
@@ -600,13 +630,16 @@ async function upgradeScenario(opts: {
   agent?: boolean
   staleDir?: boolean
   thenUninstallWithBlocker?: boolean
+  /** T0866 / BUG-213: start the first BAT with pipes and check the caller gets 'close' after the installer */
+  pipeLaunch?: boolean
 }): Promise<void> {
   const tabs = opts.agent ? [PING_TAB, AGENT_TAB] : [PING_TAB]
   let bat: Bat | undefined
   let blocker: number | null = null
   try {
-    const before = await setUp(opts.first[0], opts.first[1], opts.scope, 'first', tabs)
+    const before = await setUp(opts.first[0], opts.first[1], opts.scope, 'first', tabs, { pipes: opts.pipeLaunch })
     bat = before.bat
+    const pipes = bat.pipes
     const root = ROOT(opts.scope)
     const stale = path.join(root, 'stale-t0862')
     const inUse = path.join(root, 'inuse-t0862')
@@ -636,6 +669,7 @@ async function upgradeScenario(opts: {
     evidence['second: installed exe FileVersion'] = await fileVersion(app!.exe)
     await checkKept(before.roles, 'after install')
     await checkNoInstallDirProcess(app!.dir, 'after install')
+    if (pipes) await checkPipeClose(pipes, before.roles.holder)
     if (opts.agent) {
       check('after install: the agent stand-in was ended', !(await aliveAs(before.roles.agent, 'BetterAgentTerminal.exe')), before.roles.agent)
       check('first BAT log: ended 1 agent process in 1 tab', logSince().includes('[installer-quit] ended 1 agent process(es) under the install directory in 1 tab(s)'))
@@ -841,7 +875,7 @@ async function scenario9(): Promise<void> {
 }
 
 const TITLES: Record<string, string> = {
-  1: 'per-user upgrade A → B',
+  1: 'per-user upgrade A → B (first BAT started with pipes, BUG-213)',
   2: 'per-machine upgrade A → B, then per-machine uninstall with the holder root in use',
   3: 'same-version reinstall B → B',
   4: 'downgrade B → A',
@@ -863,7 +897,7 @@ test(`T0862 scenario ${SCENARIO}: ${TITLES[SCENARIO] ?? '?'}`, async () => {
   let error: unknown
   try {
     switch (SCENARIO) {
-      case '1': await upgradeScenario({ title: TITLES[1], first: [INSTALLER_A, VA], second: [INSTALLER_B, VB], scope: 'currentuser', toastKey: 'app.upgradeReattached', staleDir: true }); break
+      case '1': await upgradeScenario({ title: TITLES[1], first: [INSTALLER_A, VA], second: [INSTALLER_B, VB], scope: 'currentuser', toastKey: 'app.upgradeReattached', staleDir: true, pipeLaunch: true }); break
       case '2':
         note(`runner elevated: ${elevated} — /allusers runs without a UAC inner instance, so the inner-instance path (no installer quit, no record → Recovery prompt) is not exercised here`)
         await upgradeScenario({ title: TITLES[2], first: [INSTALLER_A, VA], second: [INSTALLER_B, VB], scope: 'allusers', toastKey: 'app.upgradeReattached', thenUninstallWithBlocker: true })

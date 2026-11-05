@@ -67,6 +67,9 @@ const DYNAMIC_REQUIRE_SITES = {
   // T0802: VOICE_PROBE_SCRIPT runs in a child (ELECTRON_RUN_AS_NODE) and requires the addon path that
   // locateWhisperAddon resolved (same package as above); process.dlopen probes system libraries only
   'electron/voice-availability.ts': ['@kutalia/whisper-node-addon'],
+  // T0866 / BUG-213: process.dlopen of the stdio-inheritance addon at <resources>/native/ (afterPack copy) or the
+  // node-gyp build in development — no npm package (verify-packaged-native checks it as win-stdio-inherit)
+  'electron/win-stdio-inherit.ts': [],
 }
 
 const DYNAMIC_SITE_PATTERNS = [

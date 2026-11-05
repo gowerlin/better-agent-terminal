@@ -22,6 +22,7 @@ const path = require('path');
 const { afterPackAppImageLauncher } = require('./appimage-sandbox-launcher.cjs');
 const { afterPackWhisperRunpath } = require('./linux-whisper-runpath.cjs');
 const { afterPackPtyHolder } = require('./pty-holder.cjs');
+const { afterPackWinStdioInherit } = require('./win-stdio-inherit.cjs');
 
 const VERSION_MANIFEST_FILE = 'package.json';
 const VERSION_MANIFEST_KEYS = ['name', 'version'];
@@ -70,6 +71,8 @@ function writeVersionManifest(resourcesDir, name, version) {
  * Windows builds assemble `resources/pty-holder/` (PLAN-065 W2 / T0858, scripts/pty-holder.cjs): the pinned Node
  * `node.exe` is downloaded from nodejs.org (or taken from the verified cache) — a hash mismatch fails the build.
  * macOS / Linux builds skip that step entirely.
+ * Windows builds also get `resources/native/bat_win_stdio_inherit.node` (BUG-213 / T0866, scripts/win-stdio-inherit.cjs),
+ * built beforehand by `npm run build:native-win`; a missing build fails the package. macOS / Linux skip it.
  * `deps` is for tests only (electron-builder passes just the context).
  */
 async function afterPack(context, deps = {}) {
@@ -81,6 +84,7 @@ async function afterPack(context, deps = {}) {
   afterPackWhisperRunpath(context, deps);
   afterPackAppImageLauncher(context);
   await (deps.afterPackPtyHolder || afterPackPtyHolder)(context, deps);
+  (deps.afterPackWinStdioInherit || afterPackWinStdioInherit)(context, deps);
 }
 
 module.exports = {

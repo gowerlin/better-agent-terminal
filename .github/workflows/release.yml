@@ -175,6 +175,13 @@ jobs:
       - name: Rebuild native modules for Electron
         run: npx --yes @electron/rebuild
 
+      # BUG-213 / T0866: the Windows stdio-inheritance addon (native/win-stdio-inherit, node-gyp + MSVC, no install
+      # script). verify-native-modules.js (also run by build-version.js) requires it on Windows; the afterPack hook
+      # copies it to resources/native/. macOS / Linux have nothing to build.
+      - name: Build Windows stdio-inheritance addon (BUG-213)
+        if: matrix.platform == 'win'
+        run: npm run build:native-win
+
       - name: Update version and build
         env:
           VERSION: ${{ needs.prepare.outputs.tag }}

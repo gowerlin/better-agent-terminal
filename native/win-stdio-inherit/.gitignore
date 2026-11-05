@@ -1,0 +1,2 @@
+# BUG-213 / T0866: node-gyp output of `npm run build:native-win`; never committed (D291: no prebuilt .node)
+build/

@@ -570,8 +570,9 @@ describe('source guards (T0860)', () => {
     const set = fork.indexOf('terminalServerFromHolder = holder.use')
     expect(set).toBeGreaterThan(fork.indexOf('const holder = await resolvePtyHolder('))
     expect(set).toBeLessThan(fork.indexOf('if (holder.use) {'))
-    expect(fork.indexOf('terminalServerFromHolder = false')).toBeGreaterThan(fork.indexOf('return spawn(spec.command'))
-    expect(fork.indexOf('terminalServerFromHolder = false')).toBeLessThan(fork.indexOf('return runWithoutCrashpadClient('))
+    // T0866: both starts are wrapped in terminalServerStdioGuard.run (electron/__tests__/win-stdio-inherit.test.ts)
+    expect(fork.indexOf('terminalServerFromHolder = false')).toBeGreaterThan(fork.indexOf('spawn(spec.command'))
+    expect(fork.indexOf('terminalServerFromHolder = false')).toBeLessThan(fork.indexOf('runWithoutCrashpadClient('))
     expect(main.match(/terminalServerFromHolder = /g)?.length).toBe(4) // the let, holder.use, false, noteTerminalServerHello
     expect(main.match(/noteTerminalServerHello\(/g)?.length).toBe(4) // the definition + probe, reconnect, recover
     expect(main).toContain("terminalServerFromHolder = process.platform === 'win32' && isKeptHolderHello(hello, path.dirname(process.execPath))")

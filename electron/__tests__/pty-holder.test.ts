@@ -303,8 +303,9 @@ describe('source guards', () => {
   it('main.ts: the holder is only looked at for a win32 packaged app; the fallback fork keeps the T0816 guard', () => {
     expect(fork).toMatch(/if \(process\.platform === 'win32' && app\.isPackaged\) \{\s*const holder = await resolvePtyHolder\(/)
     expect(fork).toContain('logger.log(ptyHolderLogLine(holder))')
-    expect(fork).toMatch(/if \(holder\.use\) \{\s*const spec = holderSpawnSpec\(holder\.holder, plan\.stdio, env\)\s*return spawn\(spec\.command, spec\.args, spec\.options\)/)
-    expect(fork).toMatch(/return runWithoutCrashpadClient\(\(\) => fork\(serverScript, \[\], terminalServerForkOptions\(plan\.stdio, env\)\)\)\s*$/)
+    // T0866: both starts run inside terminalServerStdioGuard.run (electron/__tests__/win-stdio-inherit.test.ts)
+    expect(fork).toMatch(/if \(holder\.use\) \{\s*const spec = holderSpawnSpec\(holder\.holder, plan\.stdio, env\)\s*return terminalServerStdioGuard\.run\(\(\) => spawn\(spec\.command, spec\.args, spec\.options\)\)/)
+    expect(fork).toMatch(/return terminalServerStdioGuard\.run\(\(\) => runWithoutCrashpadClient\(\(\) => fork\(serverScript, \[\], terminalServerForkOptions\(plan\.stdio, env\)\)\)\)\s*$/)
     // the env is built once, before either start, and carries T0857's version
     expect(fork.indexOf('BAT_TERMINAL_SERVER_BAT_VERSION: app.getVersion()')).toBeLessThan(fork.indexOf('resolvePtyHolder('))
     // one spawn of a Terminal Server, from the holder spec only

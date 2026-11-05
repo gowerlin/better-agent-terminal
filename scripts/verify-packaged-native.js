@@ -33,6 +33,10 @@
  * `node.exe` (PE of the requested arch), never `BetterAgentTerminal.exe` (scripts/pty-holder.cjs ptyHolderProblems).
  * T0859: Node's LICENSE (`node-LICENSE`, the pinned size + SHA-256) must be listed and present.
  * mac / linux: `resources/pty-holder` must not exist (the holder is Windows only).
+ * T0866 / BUG-213 `win-stdio-inherit`: `resources/native/bat_win_stdio_inherit.node` (copied by the afterPack hook,
+ * scripts/win-stdio-inherit.cjs) exists, is a PE of the requested arch and — on a Windows host — loads in the packaged
+ * executable under ELECTRON_RUN_AS_NODE with working disable() / restore(). mac / linux: `resources/native/` of it must
+ * not exist.
  *
  * Every platform, the installer slimming of T0546 (verifyPackagedLayout):
  *   - C1  Windows: no second claude (`claude-code-win32-<arch>/claude.exe`); the router only
@@ -59,11 +63,13 @@
  *   --out       electron-builder output directory (default: <repo>/release, = build.directories.output)
  *   --arch      comma-separated archs to require (default: mac arm64 = build.mac.target arch (D136);
  *               linux x64 = the AppImage the CI linux job builds; win x64)
+ *   --skip-load-check  win: skip the T0866 addon load check (the tests' fake packages have no executable)
  *
  * Exit 0 when every check passes; exit 1 otherwise, listing what was checked.
  * A missing `.app` / unpacked directory for an arch is a failure, not a skip.
  *
- * Only reads file headers and the app.asar index — nothing found in the package is executed.
+ * Only reads file headers and the app.asar index — nothing found in the package is executed, except the T0866
+ * `win-stdio-inherit` load check (the packaged exe as Node, ELECTRON_RUN_AS_NODE=1, 30 s timeout, Windows host only).
  */
 
 const fs = require('fs');
@@ -73,6 +79,8 @@ const { VERSION_MANIFEST_FILE, versionManifestProblems } = require('./version-ma
 const { REAL_BINARY_SUFFIX, isLauncherFile } = require('./appimage-sandbox-launcher.cjs');
 const { whisperDistDir, whisperRunpathProblems } = require('./linux-whisper-runpath.cjs');
 const { PTY_HOLDER_RESOURCES_DIR, ptyHolderProblems } = require('./pty-holder.cjs');
+const { execFileSync } = require('child_process');
+const { ADDON_RESOURCES_DIR: WIN_STDIO_INHERIT_RESOURCES_DIR, packagedAddonPath: winStdioInheritPackagedPath } = require('./win-stdio-inherit.cjs');
 
 const WHISPER_ADDON_PACKAGE = '@kutalia/whisper-node-addon';
 const WHISPER_ADDON_BINARY = 'whisper.node';
@@ -607,6 +615,11 @@ function verifyPackagedLayout(resourcesPath, platform, arch, { helperScripts, ex
     problems.push({ id: 'pty-holder', message: `resources/${PTY_HOLDER_RESOURCES_DIR} packaged for ${platform} (T0858: Windows only)`, details: [path.join(resourcesPath, PTY_HOLDER_RESOURCES_DIR)] });
   }
 
+  // T0866: the stdio-inheritance addon is Windows only (verifyWinStdioInherit checks it there)
+  if (platform !== 'win32' && fs.existsSync(winStdioInheritPackagedPath(resourcesPath))) {
+    problems.push({ id: 'win-stdio-inherit', message: `resources/${WIN_STDIO_INHERIT_RESOURCES_DIR} stdio-inheritance addon packaged for ${platform} (T0866: Windows only)`, details: [winStdioInheritPackagedPath(resourcesPath)] });
+  }
+
   return { problems, runtime, baselines: baselines ?? [], helperScripts: helpers.present, helperVersion };
 }
 
@@ -847,8 +860,58 @@ function verifyPtyHolder(resourcesPath, arch) {
   return details.length ? [{ id: 'pty-holder', message: 'Windows PTY holder is missing or does not match its manifest (T0858 / PLAN-065 W2)', details }] : [];
 }
 
+// Loaded by the packaged exe as Node: both functions must work (this check runs under Node, which disabled stdio
+// inheritance at startup, so disable() usually returns []); prints one JSON line.
+const WIN_STDIO_INHERIT_LOAD_SCRIPT = [
+  'const m = { exports: {} }',
+  'process.dlopen(m, process.argv[1])',
+  'const saved = m.exports.disable()',
+  "if (!Array.isArray(saved) || saved.some((h) => typeof h !== 'bigint')) throw new Error('disable() did not return a BigInt array')",
+  'const restored = m.exports.restore(saved)',
+  'process.stdout.write(JSON.stringify({ ok: restored === saved.length, disabled: saved.length, restored }))',
+].join('\n');
+
+/**
+ * T0866 / BUG-213: `<resources>/native/bat_win_stdio_inherit.node` is a PE of `arch` and (Windows host) loads in the
+ * packaged executable. The load check runs only with `loadCheck` (the CLI sets it; library callers such as the tests do
+ * not, so they execute nothing). `run` is for tests (default: execFileSync of `<appOutDir>/<executableName>.exe`).
+ */
+function verifyWinStdioInherit(appOutDir, resourcesPath, arch, { loadCheck = false, hostPlatform = process.platform, run } = {}) {
+  const file = winStdioInheritPackagedPath(resourcesPath);
+  const fail = (details) => [{ id: 'win-stdio-inherit', message: 'Windows stdio-inheritance addon is missing or does not load (T0866 / BUG-213)', details }];
+  if (!fs.existsSync(file)) return { problems: fail([`missing: ${file} (the afterPack hook copies native/win-stdio-inherit/build/Release; run \`npm run build:native-win\` before packaging)`]), loaded: false };
+  const machine = peMachine(readHeader(file));
+  if (machine !== PE_MACHINES[arch]) {
+    return { problems: fail([`${file}: ${machine === null ? 'not a PE image' : `PE machine 0x${machine.toString(16)}`}, expected 0x${(PE_MACHINES[arch] ?? 0).toString(16)} for ${arch}`]), loaded: false };
+  }
+  if (!loadCheck || hostPlatform !== 'win32') return { problems: [], loaded: false };
+  const exe = path.join(appOutDir, `${packagedExecutableName()}.exe`);
+  const exec = run || ((command, args) => execFileSync(command, args, {
+    env: { ...process.env, ELECTRON_RUN_AS_NODE: '1' },
+    timeout: 30_000,
+    windowsHide: true,
+    encoding: 'utf8',
+    stdio: ['ignore', 'pipe', 'pipe'],
+  }));
+  let out;
+  try {
+    out = String(exec(exe, ['-e', WIN_STDIO_INHERIT_LOAD_SCRIPT, file]));
+  } catch (err) {
+    const stderr = err && err.stderr ? String(err.stderr).trim().split(/\r?\n/).slice(-3).join(' | ') : '';
+    return { problems: fail([`${exe} (ELECTRON_RUN_AS_NODE) could not load ${file}: ${err && err.message ? err.message.split('\n')[0] : err}${stderr ? ` — ${stderr}` : ''}`]), loaded: false };
+  }
+  let result = null;
+  try {
+    result = JSON.parse(out.trim().split(/\r?\n/).pop());
+  } catch {
+    result = null;
+  }
+  if (!result || result.ok !== true) return { problems: fail([`load check printed ${JSON.stringify(out.trim().slice(0, 200))}`]), loaded: false };
+  return { problems: [], loaded: true };
+}
+
 /** Windows (T0546): the embedded claude (PE of the requested arch), plus the T0546 layout and the T0858 PTY holder. */
-function verifyPackagedWin(outDir, archs = DEFAULT_WIN_ARCHS) {
+function verifyPackagedWin(outDir, archs = DEFAULT_WIN_ARCHS, { stdioInheritLoadCheck = false } = {}) {
   const results = archs.map((arch) => {
     const appOutDir = path.join(outDir, winAppOutDirName(arch));
     const resourcesPath = path.join(appOutDir, 'resources');
@@ -857,6 +920,7 @@ function verifyPackagedWin(outDir, archs = DEFAULT_WIN_ARCHS) {
     let claude = null;
     let machine = null;
     let layout = null;
+    let stdioInherit = null;
     if (!fs.existsSync(resourcesPath)) {
       problems.push({ id: 'app-out-dir', message: `no unpacked app found in ${appOutDir}`, details: [`looked for: ${resourcesPath}`] });
     } else {
@@ -879,14 +943,17 @@ function verifyPackagedWin(outDir, archs = DEFAULT_WIN_ARCHS) {
       layout = verifyPackagedLayout(resourcesPath, 'win32', arch);
       problems.push(...layout.problems);
       problems.push(...verifyPtyHolder(resourcesPath, arch));
+      stdioInherit = verifyWinStdioInherit(appOutDir, resourcesPath, arch, { loadCheck: stdioInheritLoadCheck });
+      problems.push(...stdioInherit.problems);
     }
-    return { arch, appOutDir, embeddedClaude: claude, peMachine: machine, layout, problems, ok: problems.length === 0 };
+    return { arch, appOutDir, embeddedClaude: claude, peMachine: machine, layout, stdioInherit, problems, ok: problems.length === 0 };
   });
   return { ok: results.every((r) => r.ok), archs: results };
 }
 
 function parseArgs(argv) {
   const opts = { platform: 'mac', outDir: path.join(__dirname, '..', 'release'), archs: null };
+  let skipLoadCheck = false;
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i];
     if (arg === '--out' && argv[i + 1]) {
@@ -894,6 +961,8 @@ function parseArgs(argv) {
     } else if (arg === '--arch' && argv[i + 1]) {
       opts.archs = argv[++i].split(',').map((s) => s.trim()).filter(Boolean);
       if (opts.archs.length === 0) throw new Error('--arch needs at least one arch');
+    } else if (arg === '--skip-load-check') {
+      skipLoadCheck = true; // T0866: the tests' fake packages have no executable to run
     } else if (arg === '--platform' && argv[i + 1]) {
       opts.platform = argv[++i];
       if (!PLATFORMS.includes(opts.platform)) throw new Error(`--platform must be one of ${PLATFORMS.join(', ')}`);
@@ -904,6 +973,7 @@ function parseArgs(argv) {
   if (opts.archs === null) {
     opts.archs = opts.platform === 'linux' ? DEFAULT_LINUX_ARCHS : opts.platform === 'win' ? DEFAULT_WIN_ARCHS : DEFAULT_MAC_ARCHS;
   }
+  if (skipLoadCheck) opts.skipLoadCheck = true;
   return opts;
 }
 
@@ -987,7 +1057,7 @@ function reportLinux(result, opts) {
 
 function reportWin(result, opts) {
   for (const r of result.archs) {
-    if (r.ok) console.log(`[verify-packaged-native] ✅ win ${r.arch}: embedded claude ${r.embeddedClaude.found} (PE machine 0x${r.peMachine.toString(16)})${describeLayout(r.layout)}, PTY holder matches its manifest`);
+    if (r.ok) console.log(`[verify-packaged-native] ✅ win ${r.arch}: embedded claude ${r.embeddedClaude.found} (PE machine 0x${r.peMachine.toString(16)})${describeLayout(r.layout)}, PTY holder matches its manifest, stdio-inheritance addon ${r.stdioInherit && r.stdioInherit.loaded ? 'loads' : 'present (load not checked on this host)'}`);
   }
   if (result.ok) {
     console.log(`[verify-packaged-native] ✅ every windows package passed (${opts.archs.join(', ')})`);
@@ -1001,6 +1071,7 @@ function reportWin(result, opts) {
   console.error('[verify-packaged-native] The Windows installer for these archs would ship without a working embedded claude (BUG-052) or unslimmed (T0546).');
   console.error('[verify-packaged-native] Check that `electron-builder --win` ran and @anthropic-ai/claude-code/bin/claude.exe is the native binary, not the npm stub (T0472).');
   console.error('[verify-packaged-native] T0858 pty-holder: package.json build.afterPack must stay ./scripts/version-manifest.cjs (it assembles resources/pty-holder with scripts/pty-holder.cjs); a node.exe hash mismatch means PTY_HOLDER_NODE was changed without its pins.');
+  console.error('[verify-packaged-native] T0866 win-stdio-inherit: run `npm run build:native-win` before electron-builder (the afterPack hook copies native/win-stdio-inherit/build/Release/bat_win_stdio_inherit.node to resources/native).');
   printLayoutHints();
   return false;
 }
@@ -1017,7 +1088,7 @@ function main() {
 
   let ok;
   if (opts.platform === 'linux') ok = reportLinux(verifyPackagedLinux(opts.outDir, opts.archs), opts);
-  else if (opts.platform === 'win') ok = reportWin(verifyPackagedWin(opts.outDir, opts.archs), opts);
+  else if (opts.platform === 'win') ok = reportWin(verifyPackagedWin(opts.outDir, opts.archs, { stdioInheritLoadCheck: !opts.skipLoadCheck }), opts);
   else ok = reportMac(verifyPackagedMac(opts.outDir, opts.archs), opts);
   if (!ok) process.exit(1);
 }
@@ -1055,6 +1126,8 @@ module.exports = {
   verifyAppImageLauncher,
   verifyWhisperRunpath,
   verifyPtyHolder,
+  verifyWinStdioInherit,
+  WIN_STDIO_INHERIT_LOAD_SCRIPT,
   verifyPackagedWin,
   parseArgs,
 };

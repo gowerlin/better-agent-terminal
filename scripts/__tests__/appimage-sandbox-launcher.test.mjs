@@ -118,8 +118,12 @@ describe('isLinuxAppImageBuild / installAppImageLauncher / afterPack', () => {
       // T0858: the Windows PTY holder step (scripts/pty-holder.cjs) is stubbed here; pty-holder.test.mjs covers it
       const holderCalls = []
       const afterPackPtyHolder = async (context) => { holderCalls.push(context.electronPlatformName) }
-      await afterPack({ appOutDir: d, packager, electronPlatformName: platform, targets }, { execFileSync, afterPackPtyHolder })
+      // T0866: the Windows stdio-inheritance addon step (scripts/win-stdio-inherit.cjs) is stubbed too; verify-packaged-native.test.mjs covers it
+      const stdioCalls = []
+      const afterPackWinStdioInherit = (context) => { stdioCalls.push(context.electronPlatformName) }
+      await afterPack({ appOutDir: d, packager, electronPlatformName: platform, targets }, { execFileSync, afterPackPtyHolder, afterPackWinStdioInherit })
       expect(holderCalls).toEqual([platform])
+      expect(stdioCalls).toEqual([platform])
       expect(patchelfCalls.length > 0).toBe(platform === 'linux')
       expect(existsSync(path.join(d, EXE + REAL_BINARY_SUFFIX))).toBe(installed)
       expect(isLauncherFile(path.join(d, EXE))).toBe(installed)

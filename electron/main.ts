@@ -10,6 +10,7 @@ import { spawnSync, fork, spawn, execFile as execFileCb } from 'child_process'
 import { installChildProcessFdGuard, runWithoutCrashpadClient } from './child-process-fd-guard'
 import { defaultAppImageKeepaliveDeps, findAppImageKeepaliveFd, planTerminalServerFork } from './appimage-keepalive'
 import { holderSpawnSpec, ptyHolderLogLine, resolvePtyHolder, terminalServerForkOptions } from './pty-holder'
+import { createWinStdioInheritGuard, winStdioInheritAddonCandidates } from './win-stdio-inherit'
 import { DetachedTerminalOwners, saveDetachedWorkspaceTerminals, saveWindowWorkspaces, WindowRegistry, workspaceTerminals, type WorkspaceSavePayload } from './window-registry'
 import { createRendererFlusher, DETACHED_CLOSE_FLUSH_TIMEOUT_MS, DetachedTeardowns, flushBeforeClose, QUIT_FLUSH_TIMEOUT_MS, type CloseGuard } from './renderer-flush'
 import { openSettingsInWindow, pickSettingsWindow, type OpenSettingsInParentResult } from './detached-open-settings'
@@ -519,6 +520,17 @@ function terminalServerInheritedEnv(): NodeJS.ProcessEnv {
 }
 
 /**
+ * BUG-213 / T0866 (D291), win32 only: the Terminal Server start (both branches of forkTerminalServer) runs with the
+ * handles BAT inherited from its caller made non-inheritable, restored right after (electron/win-stdio-inherit.ts;
+ * the addon is looked up on the first start; macOS / Linux: start() as is). Fail open: no addon → start as before.
+ */
+const terminalServerStdioGuard = createWinStdioInheritGuard({
+  platform: process.platform,
+  candidates: () => winStdioInheritAddonCandidates({ isPackaged: app.isPackaged, resourcesPath: process.resourcesPath, appPath: app.getAppPath() }),
+  log: (line) => logger.log(line),
+})
+
+/**
  * The one Terminal Server fork (startTerminalServer, and T0704's reforkTerminalServer).
  * T0816 (PLAN-062 option A3, BUG-209), Linux only: the fork goes through the child_process fd guard
  * without the crashpad client env (runWithoutCrashpadClient), so the server keeps fd 0–3 (IPC) and, from
@@ -562,11 +574,11 @@ async function forkTerminalServer(serverScript: string, userDataPath: string): P
     terminalServerFromHolder = holder.use // T0860: the installer's quit keeps only a holder-run server
     if (holder.use) {
       const spec = holderSpawnSpec(holder.holder, plan.stdio, env)
-      return spawn(spec.command, spec.args, spec.options)
+      return terminalServerStdioGuard.run(() => spawn(spec.command, spec.args, spec.options))
     }
   }
   terminalServerFromHolder = false // T0860
-  return runWithoutCrashpadClient(() => fork(serverScript, [], terminalServerForkOptions(plan.stdio, env)))
+  return terminalServerStdioGuard.run(() => runWithoutCrashpadClient(() => fork(serverScript, [], terminalServerForkOptions(plan.stdio, env))))
 }
 
 /**
