@@ -1,5 +1,5 @@
 {
- "generated_at": "2026-11-16T20:24:59+08:00",
+ "generated_at": "2026-11-17T07:18:16+08:00",
  "generator": {
   "script": "ct-session-stats.py",
   "version": "0.2.0"
@@ -60,13 +60,13 @@
    "output": 59715
   },
   "2026-11-16": {
-   "api_requests": 62,
-   "cache_read": 12269638,
-   "cache_write": 209658,
-   "cache_write_1h": 209658,
+   "api_requests": 102,
+   "cache_read": 20582672,
+   "cache_write": 473927,
+   "cache_write_1h": 473927,
    "cache_write_5m": 0,
-   "input": 132,
-   "output": 31759
+   "input": 222,
+   "output": 56526
   }
  },
  "workorders": [
@@ -8242,6 +8242,88 @@
     "2.1.322"
    ],
    "workorder": "T0870"
+  },
+  {
+   "agents_invoked": {},
+   "attribution": {
+    "conflict": false,
+    "source": "frontmatter",
+    "sources": {
+     "frontmatter": 1
+    }
+   },
+   "by_mcp_server": {},
+   "by_tool": {
+    "Bash": 58,
+    "Edit": 6,
+    "Read": 9,
+    "Write": 2
+   },
+   "counts": {
+    "api_requests": 68,
+    "failures": 2,
+    "same_file_read_ge3": 0,
+    "subagent_files": 0,
+    "tool_calls": 75
+   },
+   "end": "2026-11-16T23:18:02Z",
+   "est_usd": 5.7778,
+   "failures_by_tool": {
+    "Bash": 2
+   },
+   "renews": 0,
+   "sessions": 1,
+   "skills_invoked": {
+    "ct-exec": 1
+   },
+   "start": "2026-11-16T22:51:12Z",
+   "stuck": {
+    "max_consecutive_failures": 1,
+    "max_failures_in_10_calls": 1,
+    "near_repeat_fail_pairs_j50": 0,
+    "repeat_fail_groups_norm": 0
+   },
+   "stuck_signal": false,
+   "subagent_tokens": {
+    "cache_read": 0,
+    "cache_write": 0,
+    "cache_write_1h": 0,
+    "cache_write_5m": 0,
+    "input": 0,
+    "output": 0
+   },
+   "tokens": {
+    "cache_read": 14427628,
+    "cache_write": 236940,
+    "cache_write_1h": 236940,
+    "cache_write_5m": 0,
+    "input": 142,
+    "output": 49810
+   },
+   "top_tools": [
+    [
+     "Bash",
+     58
+    ],
+    [
+     "Read",
+     9
+    ],
+    [
+     "Edit",
+     6
+    ],
+    [
+     "Write",
+     2
+    ]
+   ],
+   "type": "implementation",
+   "unpriced_tokens": 0,
+   "versions": [
+    "2.1.322"
+   ],
+   "workorder": "T0871"
   }
  ]
 }
