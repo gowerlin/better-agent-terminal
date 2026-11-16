@@ -4,9 +4,10 @@ schema_kind: workorder
 id: T0870
 title: "BAT 網站套用 vitepress-portal-layout v1.0.0：主內容加寬、左右功能表收合、向量圖放大（BMad-Guide HANDOVER）"
 type: implementation
-status: PENDING
+status: IN_PROGRESS
 created_at: "2026-11-16T19:41:27+0800"
-updated_at: "2026-11-16T19:41:27+0800"
+started_at: "2026-11-16T19:42:55+0800"
+updated_at: "2026-11-16T19:42:55+0800"
 repo: better-agent-terminal
 project: PLAN-049
 priority: P2
@@ -39,7 +40,7 @@ memory_overrides:
 # T0870 — BAT 網站套用 vitepress-portal-layout v1.0.0（加寬、左右收合、向量圖放大）
 
 ## 元資料
-- **工單編號**：T0870｜**類型**：implementation｜**狀態**：PENDING｜**建立**：2026-11-16 19:41 (UTC+8)
+- **工單編號**：T0870｜**類型**：implementation｜**狀態**：IN_PROGRESS｜**建立**：2026-11-16 19:41 (UTC+8)
 - **規模**：M｜**依賴**：無｜**決策**：D294｜**來源**：BMad-Guide 塔台 HANDOVER（跨專案）
 
 ## 背景
@@ -80,6 +81,24 @@ BMad-Guide 塔台把 VitePress 版型 skill `vitepress-portal-layout` v1.0.0 交
 ## 收尾
 - 回報後塔台請使用者本機看過（`cd site && npm run dev` 或 preview）再決定 push（會觸發 Pages 部署）；push 後確認 Pages 綠燈與 `link-check`。
 - 塔台更新 `_reply-2026-11-16-portal-layout-skill-bat.md` 並通知 BMad-Guide 塔台（含〈skill 回饋〉）。
+
+## 塔台補充（執行中 #1）
+
+**時間**：2026-11-16T20:04:25+0800
+**補充內容**：
+> BMad-Guide 塔台跨 session 訊息（本段寫入前收到）（MMP Portal 套用時發現，對方 T0501）：skill v1.0.0 已知缺陷——
+> 1. **沒有側欄的文件頁不會加寬**：`layout.css` 只覆寫有側欄的版面，`.VPDoc:not(.has-sidebar)`（容器 992px、內容 752px）不受影響；`layout-check` 也沒檢查這種頁面，所以會判定通過。對方會在 skill **v1.0.1** 修正並加檢查。
+> 2. `--shot-page` 對不到頁面時不會警告：路徑寫成 dist 裡的 `.html` 形式，或同時給 `--pages`。
+> 3. 只有點陣圖的頁面不會產生 zoom 截圖（不是失敗）。
+
+**新指示**：
+> - 🔴 **不要**在 BAT 站自己補 CSS 讓無側欄頁加寬（v1.0.1 出來後整包覆蓋 portal-layout 檔案即可）。若已經補了，拿掉。
+> - 回報區〈後續〉列出 BAT 站上屬於「無側欄文件頁」的頁面（沒有就寫沒有），標「待 skill v1.0.1」；這些頁 layout-check 通過不代表已加寬，回報時不要寫成已加寬。
+> - 截圖用 `--shot-page` 時照第 2 點的寫法，並確認截圖檔真的產生。
+> - 〈skill 回饋〉不用再報這三項（對方已知）。
+
+**範圍與驗收**：無變更（`affects_files` 不變；驗收條件不變，「失敗 0」仍適用，無側欄頁的未加寬不算本單失敗）
+**已完成部分**：不影響；只有「若已為無側欄頁補 CSS」那部分要拿掉
 
 ---
 
