@@ -1,6 +1,7 @@
 <template>
-  <!-- Worker 問塔台的流程：塔台代答或轉給你；提問通道用不了時改走工單 -->
-  <figure class="question-flow" aria-label="Worker 問塔台的流程">
+  <!-- Worker 問塔台的流程：塔台代答或轉給你；提問通道用不了時改走工單。
+       靜態 HTML 圖，portal-layout v1.1.1 會加放大鈕（T0871）；data-pl-zoom-reserve="off"：按鈕疊在第一個方框右上角的空白，不另留 44px，版面高度不變 -->
+  <figure class="question-flow" aria-label="Worker 問塔台的流程" data-pl-zoom-reserve="off">
     <ol class="qf-main">
       <li class="qf-box is-worker">
         <p class="qf-who">Codex CLI · Worker · T1025</p>

@@ -2,6 +2,7 @@
 // /remote/ 的示意圖：BAT 視窗留在你的電腦，Agent 在遠端環境執行，中間是一條加密連線。
 // 沿用 ContractFlow 的雷達線條（同心圓 + 十字線），跟著頁面深淺色。這裡沒有塔台，所以不用紫色（錨點 A1）。
 // 桌面是左右排，窄螢幕改上下排（兩張 SVG 擇一顯示，共用同一段文字說明）。靜態，不做動畫。
+// 根元素的 data-pl-zoom-reserve="off"（T0871）：圖置中、比內容欄窄，放大鈕疊在右上角的空白，不另留 44px，版面高度不變。
 const TARGETS = [
   { name: 'WSL 發行版', what: '同一台 Windows 裡的 Linux' },
   { name: 'SSH 主機', what: '另一台 Linux 或 macOS' },
@@ -15,7 +16,7 @@ const TALL_Y = [300, 386, 472]
 </script>
 
 <template>
-  <figure class="remote-bridge">
+  <figure class="remote-bridge" data-pl-zoom-reserve="off">
     <svg viewBox="0 0 680 330" class="rb-svg is-wide" aria-hidden="true">
       <circle v-for="r in RINGS" :key="r" cx="120" cy="140" :r="r" class="rb-ring" :class="{ 'is-outer': r === RINGS[0] }" />
       <line :x1="120 - RINGS[0]" y1="140" :x2="120 + RINGS[0]" y2="140" class="rb-ring" />

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 // /why「只自動化外殼」：外圈是每張工單都一樣的五步（交給塔台與 BAT），內圈是每次不同的內容（留給判斷）。
 // 沿用 ContractFlow 的雷達線條語彙，跟著頁面深淺色；不用紫色（外圈不是單一塔台動作）。靜態，不做動畫。
+// 根元素的 data-pl-zoom-reserve="off"（T0871）：圖置中、比內容欄窄，放大鈕疊在右上角的空白，不另留 44px，版面高度不變。
 const CX = 200
 const CY = 176
 const R = 118
@@ -38,7 +39,7 @@ const ARROWS = STEPS.map((s) => {
 </script>
 
 <template>
-  <figure class="shell-loop">
+  <figure class="shell-loop" data-pl-zoom-reserve="off">
     <svg viewBox="0 0 400 340" class="sl-svg" aria-hidden="true">
       <circle :cx="CX" :cy="CY" :r="R" class="sl-ring" />
       <path v-for="t in ARROWS" :key="t" d="M-5 -5 L5 0 L-5 5 z" :transform="t" class="sl-arrow" />

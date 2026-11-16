@@ -24,7 +24,7 @@ import TicketLife from './components/TicketLife.vue'
 import TicketStates from './components/TicketStates.vue'
 import TourDay from './components/TourDay.vue'
 import TowerDemo from './components/TowerDemo.vue'
-// vitepress-portal-layout v1.0.0（BMad-Guide 的 skill，T0870）：主內容加寬、左右功能表收合、圖的放大檢視。
+// vitepress-portal-layout v1.1.1（BMad-Guide 的 skill，T0870 套用、T0871 升級）：主內容加寬、左右功能表收合、圖的放大檢視。
 // portal-layout/ 底下的檔案保持 skill 原樣，升版時整包覆蓋；BAT 站的調整寫在 custom.css 與這個檔案。
 // 第 4 項（時間軸）不套用。
 import LayoutToggles from './portal-layout/components/LayoutToggles.vue'
@@ -47,7 +47,8 @@ export default {
   Layout: () => h(DefaultTheme.Layout, null, {
     // 寬螢幕的左側選單、右側本頁目錄收合鈕（doc-top 只在文件頁出現）
     'doc-top': () => h(LayoutToggles, { labels: LAYOUT_TOGGLE_LABELS }),
-    // 圖的放大檢視：替文中的圖加「放大檢視」按鈕；不要放大的元件在 <figure> 加 data-no-zoom
+    // 圖的放大檢視：替文中的圖加「放大檢視」按鈕（v1.1.0 起沒有 SVG／圖片的 <figure> 也會放大）；
+    // 不要放大的元件（互動元件）在根元素加 data-no-zoom
     'layout-bottom': () => h(FigureZoom)
   }),
   enhanceApp({ app }) {

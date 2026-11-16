@@ -3867,26 +3867,9 @@
   display: inline-block;
 }
 
-/* ---------- portal-layout（vitepress-portal-layout v1.0.0，T0870）的站點調整 ---------- */
-
-/*
- * 放大檢視：skill 在 SVG 宿主上方留 44px 放按鈕（給撐滿寬度的 Mermaid）。
- * BAT 的三張示意圖都置中、比內容欄窄，右上角是空白，按鈕直接疊在角落；不留這段空間，版面高度與套用前相同。
+/* ---------- portal-layout（vitepress-portal-layout v1.1.1，T0870／T0871）的站點調整 ----------
+ * 目前沒有 CSS 規則：
+ * - 首頁（layout: home）≥ 1440 的導覽列與頁尾由 skill 內建維持 1440px（--pl-home-layout-max-width），T0870 的還原規則已拿掉。
+ * - 三張置中示意圖（ContractFlow、RemoteBridge、ShellLoop）不留按鈕空間：寫在元件根元素的 data-pl-zoom-reserve="off"。
+ * - 不要放大的元件在根元素加 data-no-zoom（StoryIllo、TowerDemo）。
  */
-.contract-flow,
-.remote-bridge,
-.shell-loop {
-  --pl-zoom-reserve: 0px;
-}
-
-/*
- * 首頁（layout: home）維持原本的版面：skill 在 ≥ 1440 把 --vp-layout-max-width 改成 100vw，
- * 沒有側欄的導覽列與頁尾也會跟著撐到視窗邊緣。這兩處把變數設回 VitePress 預設的 1440px。
- * BAT 站的文件頁都有側欄，所以只影響首頁與 404 頁。
- */
-@media (min-width: 1440px) {
-  .VPNavBar:not(.has-sidebar),
-  .VPFooter {
-    --vp-layout-max-width: 1440px;
-  }
-}

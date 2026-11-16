@@ -2,6 +2,7 @@
 // /cases R1：BAT 定契約 → 委派 → Control Tower 照契約 → 版本對照表。
 // 沿用 Hero 雷達的線條語彙（同心圓 + 十字線 + 塔台圓點），但跟著頁面維持淺色。
 // 紫色只給塔台發出的東西（錨點 A1）：兩個塔台的圓點與「委派單」那一段。靜態，不做動畫。
+// 根元素的 data-pl-zoom-reserve="off"（T0871）：圖置中、比內容欄窄，放大鈕疊在右上角的空白，不另留 44px，版面高度不變。
 const SCOPES = [
   { cy: 50, name: 'BAT 的塔台', what: '先把介面定成契約' },
   { cy: 330, name: 'Control Tower 的塔台', what: '照契約更新流程' }
@@ -10,7 +11,7 @@ const RINGS = [42, 28, 14]
 </script>
 
 <template>
-  <figure class="contract-flow">
+  <figure class="contract-flow" data-pl-zoom-reserve="off">
     <svg viewBox="0 0 300 512" class="cf-svg" aria-hidden="true">
       <defs>
         <marker id="cf-arrow-signal" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
