@@ -3,7 +3,7 @@ schema_version: 1
 schema_kind: index
 id: _backlog
 index_kind: plans
-generated_at: "2026-11-04T15:06:25+0800"
+generated_at: "2026-11-16T19:14:52+0800"
 generator: control-tower-sync
 source_globs:
   - _ct-workorders/PLAN-*.md
@@ -12,9 +12,9 @@ exclude_globs:
   - _ct-workorders/examples/**
 total: 30
 breakdown:
-  IDEA: 4
+  IDEA: 3
   PLANNED: 0
-  IN_PROGRESS: 5
+  IN_PROGRESS: 6
   DONE: 19
   DROPPED: 2
 ---
