@@ -1,7 +1,7 @@
 ---
 schema_kind: tower-state
 summary_version: 1
-updated_at: "2026-11-16T20:24:41+08:00"
+updated_at: "2026-11-17T04:11:56+08:00"
 session: "2026-11-16 19:14 第一百二十五 session（CT v6.0.0）"
 next_ids:
   workorder: "T0871"
@@ -9,7 +9,7 @@ next_ids:
   bug: "BUG-214"
   plan: "PLAN-066"
 todo:
-  - "✅ T0870 DONE 並上線（`338a8f78`；20:27 使用者指示 push `80d6b90f..e668ac12`，push 前去識別化＋金鑰掃描 0 筆；Pages run `43866827100` build / deploy / link-check 全 success、lychee Errors 0；網站 `/control-tower` 已含 `pl-layout`）：BAT 網站套用 `vitepress-portal-layout` v1.0.0 前三項；BMad-Guide D751：skill 改出 **v1.1.0**（對方 T0502，含 BAT 回饋 4＋1 項、HTML 圖放大），收到升級通知後開單：整包覆蓋 `site/.vitepress/theme/portal-layout/`、移除 `custom.css` 底部把首頁導覽列／頁尾還原成 1440px 的那段、重跑 layout-check（可用 `--figure-test all`、整頁截圖）"
+  - "✅ T0870 DONE 並上線（`338a8f78`；20:27 使用者指示 push `80d6b90f..e668ac12`，push 前去識別化＋金鑰掃描 0 筆；Pages run `43866827100` build / deploy / link-check 全 success、lychee Errors 0；網站 `/control-tower` 已含 `pl-layout`）：BAT 網站套用 `vitepress-portal-layout` v1.0.0 前三項；BMad-Guide D751：skill 已出 v1.1.0（對方 T0502，含 BAT 回饋 4＋1 項、HTML 圖放大），但套到 CT／MMP 時又發現 6 項缺陷（`data-pl-zoom` 在 `<ol>`／`<ul>` 上時按鈕插成最後一個子元素、站點宿主 `padding: 0` 蓋掉按鈕保留空間），對方 D756 改修成 **v1.1.1**（對方 T0505）→ **不升 v1.1.0**，BAT 目前的 v1.0.0 不受影響；收到 v1.1.1 升級通知後開單從 v1.0.0 直接升 v1.1.1：整包覆蓋 `site/.vitepress/theme/portal-layout/`、移除 `custom.css` 底部把首頁導覽列／頁尾還原成 1440px 的那段、重跑 layout-check（可用 `--figure-test all`、整頁截圖）"
   - "✅ `0.7.5-pre.1` 發佈後驗收全 PASS（第一百二十四 session）：NSIS 重裝（11:31 `bat-nsis-acceptance-20261105-113131`，備份已刪）、linux-acceptance `41962694457`（22.04 / 24.04 各 4 passed）、macos-acceptance `41962698832`、docker-acceptance `41962703643`（pre.9 → pre.1）、WSL smoke `wsl:Ubuntu-24.04` 14/14（server `0.7.5-pre.1`，含 T0832 S14）"
   - "下一版前（PLAN-065 IN_PROGRESS 的最後一哩）：從 `0.7.5-pre.1` 升到下一版的真實使用者升級保留分頁；per-machine 未提權互動升級（UAC）手動驗收；降級到 `0.7.4-pre.9` 會結束所有終端且沒有說明（已寫在更版重點〈已知事項〉）"
   - "BUG-211 / 212 / 213 FIXED，已隨 `0.7.5-pre.1` 發佈，待實機驗證後 CLOSED：BUG-211 遠端視窗附 3 張 > 8 MiB 圖 → 提示、不送出、連線不斷（2 張照常）；BUG-212 Help「Check for Updates…」與啟動檢查找得到預覽版（需下一版才能實測找到新版）；BUG-213 帶 pipe 啟動 BAT 時保留的 holder 不讓呼叫端卡住"
