@@ -1465,6 +1465,13 @@
 - **切分**：W2a 設計語言 + 元件 + 首頁（T0630）→ 預覽通過後 W2b（`/control-tower`、功能、FAQ、回報頁）→ W2c 遠端開發；W3 / W4 不變。
 - **相關**：PLAN-049 / D159 / D160 / T0624 / T0630
 
+### D295 2026-11-17 — 受理 BMad-Guide HANDOVER：BAT 網站 `vitepress-portal-layout` 從 v1.0.0 直接升 v1.1.1，開 T0871
+
+- **背景**：BMad-Guide 塔台以跨 session 訊息送 HANDOVER（對方 `_handover-2026-11-17-portal-layout-skill-v111-bat.md`，commit `e6c6a8a`；對方 D756：v1.1.0 套到 CT／MMP 時又發現缺陷，先修成 v1.1.1 再通知 BAT）。塔台核對來源：skill 目錄最後 commit `0e3e056`、zip SHA-256 `D53E1988…EB31F` 與 HANDOVER 相同。v1.0.0 → v1.1.1 有差異的是 `layout.css`、`figure-zoom.css`、`figure-zoom.ts`；新增 HTML 圖放大（沒有 SVG／圖片的 `<figure>` 自動長出按鈕）、按鈕改接在宿主後面、首頁導覽列 1440 改由 skill 內建（BAT T0870 回饋第 1 點）。
+- **決定**：受理。整包覆蓋 `site/.vitepress/theme/portal-layout/`（Timeline 兩檔照舊不複製），移除 T0870 在 `custom.css` 加的首頁導覽列／頁尾 1440 還原，依 skill `apply-guide.md` § 10 檢查清單盤點元件與 CSS（互動元件 `data-no-zoom`、`.x + p`／`:last-child` 選宿主的規則），用 v1.1.1 `layout-check.mjs` 全站驗證（`--figure-test all` 背景執行、`--collapse all`、`--full-page`）。驗收：寬度與升級前相同、按鈕數 = 應有數、`hostIssues` 0。只改 `site/`，不改 skill 本體，不 push（部署由使用者決定）。開 T0871。
+- **決策者**：塔台（HANDOVER 範圍內；T0870 收尾時已記「收到升級通知後開單」）。2026-11-17 第一百二十五 session。
+- **相關**：T0871 / T0870 / D294 / `_reply-2026-11-17-portal-layout-skill-v111-bat.md` / PLAN-049
+
 ### D294 2026-11-16 — 受理 BMad-Guide HANDOVER：BAT 網站套用 `vitepress-portal-layout` v1.0.0 前三項（加寬、左右收合、圖放大），開 T0870
 
 - **背景**：19:40 BMad-Guide 塔台以跨 session 訊息送 HANDOVER（對方 `_handover-2026-11-16-portal-layout-skill-bat.md`，commit `afb33f1`，對方 D747／D748：BAT Portal 由 BAT 塔台自己改）。塔台確認 `site/` 是 VitePress `1.6.4`（skill 驗證版本）、沒有 CSP、主題沒有自訂 `Layout`（只有 `enhanceApp` 註冊 23 個元件）；5 個元件內含 inline SVG，另有 `MediaFigure`（影片 / 圖）。
