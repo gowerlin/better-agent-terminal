@@ -1,14 +1,15 @@
 ---
 schema_kind: tower-state
 summary_version: 1
-updated_at: "2026-11-16T19:14:52+08:00"
+updated_at: "2026-11-16T19:42:50+08:00"
 session: "2026-11-16 19:14 第一百二十五 session（CT v6.0.0）"
 next_ids:
-  workorder: "T0870"
-  decision: "D294"
+  workorder: "T0871"
+  decision: "D295"
   bug: "BUG-214"
   plan: "PLAN-066"
 todo:
+  - "🔄 T0870（D294，BMad-Guide HANDOVER）：BAT 網站套用 `vitepress-portal-layout` v1.0.0 前三項，19:42 yolo 派工 `started:`；收單後請使用者本機看過再決定 push（觸發 Pages），並更新 `_reply-2026-11-16-portal-layout-skill-bat.md`、通知 `BMad-Guide · Tower`"
   - "✅ `0.7.5-pre.1` 發佈後驗收全 PASS（第一百二十四 session）：NSIS 重裝（11:31 `bat-nsis-acceptance-20261105-113131`，備份已刪）、linux-acceptance `41962694457`（22.04 / 24.04 各 4 passed）、macos-acceptance `41962698832`、docker-acceptance `41962703643`（pre.9 → pre.1）、WSL smoke `wsl:Ubuntu-24.04` 14/14（server `0.7.5-pre.1`，含 T0832 S14）"
   - "下一版前（PLAN-065 IN_PROGRESS 的最後一哩）：從 `0.7.5-pre.1` 升到下一版的真實使用者升級保留分頁；per-machine 未提權互動升級（UAC）手動驗收；降級到 `0.7.4-pre.9` 會結束所有終端且沒有說明（已寫在更版重點〈已知事項〉）"
   - "BUG-211 / 212 / 213 FIXED，已隨 `0.7.5-pre.1` 發佈，待實機驗證後 CLOSED：BUG-211 遠端視窗附 3 張 > 8 MiB 圖 → 提示、不送出、連線不斷（2 張照常）；BUG-212 Help「Check for Updates…」與啟動檢查找得到預覽版（需下一版才能實測找到新版）；BUG-213 帶 pipe 啟動 BAT 時保留的 holder 不讓呼叫端卡住"
