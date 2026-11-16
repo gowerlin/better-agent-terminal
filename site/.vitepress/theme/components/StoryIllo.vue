@@ -16,6 +16,7 @@ export type StoryIlloKind =
 </script>
 
 <script setup lang="ts">
+// 根元素的 data-no-zoom（T0870）：插圖由 HTML 與 SVG 片段組成、底色是終端深色，放大檢視只會複製其中的 SVG 片段
 defineProps<{ kind: StoryIlloKind }>()
 
 const LABELS: Record<StoryIlloKind, string> = {
@@ -44,7 +45,7 @@ const LABELS: Record<StoryIlloKind, string> = {
 </script>
 
 <template>
-  <figure class="story-illo" :class="`is-${kind}`" role="img" :aria-label="LABELS[kind]">
+  <figure class="story-illo" :class="`is-${kind}`" role="img" :aria-label="LABELS[kind]" data-no-zoom>
     <template v-if="kind === 'long-chat'">
       <div class="si-col" aria-hidden="true">
         <p class="si-caption">一個對話</p>

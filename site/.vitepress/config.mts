@@ -1,5 +1,6 @@
 import { defineConfigWithTheme, type DefaultTheme, type HeadConfig } from 'vitepress'
 import { getLatestRelease, REPO, type LatestRelease } from './latest-release.mjs'
+import { layoutHeadScript } from './theme/portal-layout/layout-state'
 
 export interface ThemeConfig extends DefaultTheme.Config {
   latestRelease: LatestRelease
@@ -59,7 +60,9 @@ export default async () => {
       ['meta', { property: 'og:image:height', content: '630' }],
       ['meta', { property: 'og:image:alt', content: 'Better Agent Terminal：一個塔台，指揮整隊 AI Agent' }],
       ['meta', { name: 'twitter:card', content: 'summary_large_image' }],
-      ['meta', { name: 'twitter:image', content: `${SITE_URL}og-card.png` }]
+      ['meta', { name: 'twitter:image', content: `${SITE_URL}og-card.png` }],
+      // 版面收合狀態（portal-layout）：首屏繪製前依 localStorage 套用到 <html>，重新整理不會先展開再收合
+      ['script', {}, layoutHeadScript]
     ],
 
     // 每頁的分享標題 / 說明取自頁面 frontmatter（沒寫就用站名與站點說明，同 <title> / <meta name="description">）

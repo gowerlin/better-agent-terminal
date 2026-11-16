@@ -1,4 +1,5 @@
 <script setup lang="ts">
+// 根元素的 data-no-zoom（T0870）：動畫與可點擊的分頁，放大檢視只能複製靜態 SVG，不加放大鈕
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 
 type WorkerId = 'T1024' | 'T1025' | 'T1026'
@@ -202,7 +203,7 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <figure ref="root" class="tower-demo" aria-labelledby="tower-demo-desc">
+  <figure ref="root" class="tower-demo" aria-labelledby="tower-demo-desc" data-no-zoom>
     <figcaption id="tower-demo-desc" class="sr-only">
       BAT 視窗示意：分頁列有塔台分頁「Claude CLI · Tower」與三個 Worker 分頁（T1024、T1025、T1026）。
       雷達幕的圓心是塔台，三個光點是 Worker。塔台派工後分頁出現；T1025 提問時標「?」在等塔台答覆，

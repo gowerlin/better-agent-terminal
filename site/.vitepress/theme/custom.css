@@ -3391,11 +3391,15 @@
 
 .cf-svg {
   display: block;
-  width: 100%;
   max-width: 300px;
-  height: auto;
   margin: 0 auto;
   font-family: var(--bat-font-sans);
+}
+
+/* 寬高只在頁面上的 figure 裡設：放大檢視複製出去的 SVG 靠 width／height 屬性縮放，CSS 寬高會蓋掉屬性（T0870） */
+.contract-flow > .cf-svg {
+  width: 100%;
+  height: auto;
 }
 
 .cf-ring {
@@ -3520,10 +3524,14 @@
 
 .rb-svg {
   display: block;
-  width: 100%;
-  height: auto;
   margin: 0 auto;
   font-family: var(--bat-font-sans);
+}
+
+/* 寬高只在頁面上的 figure 裡設（放大檢視靠 SVG 的 width／height 屬性縮放，T0870） */
+.remote-bridge > .rb-svg {
+  width: 100%;
+  height: auto;
 }
 
 .rb-svg.is-wide {
@@ -3791,11 +3799,15 @@
   margin: 28px 0;
 }
 
+.shell-loop > .sl-svg {
+  width: 100%;
+  height: auto;
+}
+
+/* 寬高寫在上面那條（只在頁面上的 figure 裡）：放大檢視靠 SVG 的 width／height 屬性縮放（T0870） */
 .sl-svg {
   display: block;
-  width: 100%;
   max-width: 400px;
-  height: auto;
   margin: 0 auto;
   font-family: var(--bat-font-sans);
 }
@@ -3853,4 +3865,28 @@
 
 .sl-caption span {
   display: inline-block;
+}
+
+/* ---------- portal-layout（vitepress-portal-layout v1.0.0，T0870）的站點調整 ---------- */
+
+/*
+ * 放大檢視：skill 在 SVG 宿主上方留 44px 放按鈕（給撐滿寬度的 Mermaid）。
+ * BAT 的三張示意圖都置中、比內容欄窄，右上角是空白，按鈕直接疊在角落；不留這段空間，版面高度與套用前相同。
+ */
+.contract-flow,
+.remote-bridge,
+.shell-loop {
+  --pl-zoom-reserve: 0px;
+}
+
+/*
+ * 首頁（layout: home）維持原本的版面：skill 在 ≥ 1440 把 --vp-layout-max-width 改成 100vw，
+ * 沒有側欄的導覽列與頁尾也會跟著撐到視窗邊緣。這兩處把變數設回 VitePress 預設的 1440px。
+ * BAT 站的文件頁都有側欄，所以只影響首頁與 404 頁。
+ */
+@media (min-width: 1440px) {
+  .VPNavBar:not(.has-sidebar),
+  .VPFooter {
+    --vp-layout-max-width: 1440px;
+  }
 }
