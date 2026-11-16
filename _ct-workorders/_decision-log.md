@@ -1465,6 +1465,13 @@
 - **切分**：W2a 設計語言 + 元件 + 首頁（T0630）→ 預覽通過後 W2b（`/control-tower`、功能、FAQ、回報頁）→ W2c 遠端開發；W3 / W4 不變。
 - **相關**：PLAN-049 / D159 / D160 / T0624 / T0630
 
+### D294 2026-11-16 — 受理 BMad-Guide HANDOVER：BAT 網站套用 `vitepress-portal-layout` v1.0.0 前三項（加寬、左右收合、圖放大），開 T0870
+
+- **背景**：19:40 BMad-Guide 塔台以跨 session 訊息送 HANDOVER（對方 `_handover-2026-11-16-portal-layout-skill-bat.md`，commit `afb33f1`，對方 D747／D748：BAT Portal 由 BAT 塔台自己改）。塔台確認 `site/` 是 VitePress `1.6.4`（skill 驗證版本）、沒有 CSP、主題沒有自訂 `Layout`（只有 `enhanceApp` 註冊 23 個元件）；5 個元件內含 inline SVG，另有 `MediaFigure`（影片 / 圖）。
+- **決定**：受理。只套用前三項（主內容加寬、左右功能表收合、向量圖放大），Timeline 不套用；skill 檔案複製進 `site/.vitepress/theme/`，不改 skill 本體，skill 缺陷回報給 BMad-Guide 塔台。互動式 SVG 元件（動畫、可點擊、樣式靠外層選擇器）放大後若不正確，由 Worker 逐一判斷加 `data-no-zoom` 或改把樣式掛在 `<svg>` 上，判斷結果列表回報。只改 `site/`，不 push（push 會觸發 Pages 部署 = 對外發佈，由使用者決定）。開 T0870。
+- **決策者**：塔台（HANDOVER 範圍內；修法由 BAT 塔台決定）。2026-11-16 第一百二十五 session。
+- **相關**：T0870 / `_reply-2026-11-16-portal-layout-skill-bat.md` / PLAN-049 / D160
+
 ### D293 2026-11-05 — NSIS 重裝驗收重跑 ④ FAIL 判為 T0868 規格缺口：④ 改以 ③ 結束時的快照為基準，再重跑
 
 - **背景**：11:22 使用者重跑 `nsis-reinstall-acceptance.ps1 -Version 0.7.5-pre.1`（原安裝 pre.1，AllUsers）：⓪ ① ② PASS；③ PASS（新規則容許 debug log 新增 `debug-20261105-112244.log` ＋輪替刪除最舊 `debug-20261104-140749.log`；holder 依 ② 版本檢查、根目錄已移除）；④ 乾淨重裝只有「userData 未被改動」FAIL，差異正是 ③ 已容許的同一組 2 檔。原因：④ 仍與 ⓪ 快照比對，把 ③ 的預期差異再算一次。T0868 的 memory_overrides「② / ④ 的 userData 規則不變」是塔台寫的規格缺口。
