@@ -1465,6 +1465,13 @@
 - **切分**：W2a 設計語言 + 元件 + 首頁（T0630）→ 預覽通過後 W2b（`/control-tower`、功能、FAQ、回報頁）→ W2c 遠端開發；W3 / W4 不變。
 - **相關**：PLAN-049 / D159 / D160 / T0624 / T0630
 
+### D302 2026-11-17 — 修 portal-layout v1.1.6 報出的兩處超出（960 導覽列、390 /releases），開 T0881
+
+- **背景**：BMad-Guide 告知 v1.1.6（站點檔與 v1.1.5 相同，只改 `layout-check.mjs`）新增「導覽列超出視窗」「內文超出主內容欄」檢查，預期 BAT 會報 960 寬導覽列「…」超出 39px（T0880 實測有捲軸時 52.8px，線上 v1.1.2 相同）與 390 寬 `/releases` 一行超出 5.2px。使用者指示開單。
+- **決定**：塔台定修法。導覽列依序：① 導覽列 `nav` 的「與 Control Tower 協作」改成「Control Tower」（側欄與下拉項目不改）；② 不夠再以 `custom.css` 只在需要的寬度範圍縮小項目間距。不隱藏項目、不改連結、不用 `overflow-x: hidden` 藏起來。`/releases` 以 `custom.css` 最小範圍處理斷行，不改 `release-note.md`（歷史紀錄）。`portal-layout/` 不動；驗證改用 v1.1.6 腳本，baseline 差異只能出現在這兩處。不 push，部署由使用者決定。
+- **決策者**：使用者（開單）＋塔台（修法）。2026-11-17 第一百二十五 session。
+- **相關**：T0881 / T0880 / D301 / PLAN-049
+
 ### D301 2026-11-17 — 受理 BMad-Guide HANDOVER：BAT 網站 portal-layout v1.1.2 → v1.1.5，開 T0880
 
 - **背景**：BMad-Guide 塔台 15:01 HANDOVER（`_handover-2026-11-17-portal-layout-skill-v115-bat.md`）：v1.1.5 讓有側欄的頁、≥ 960 時側欄上方的網站名稱水平置中（使用者看 BAT Portal 時的建議，對方 D778），圖片宿主放大按鈕改對齊圖片右上角；v1.1.3／v1.1.4 只改驗證腳本與文件。塔台核對 skill commit `8698c16`、zip SHA-256 與 HANDOVER 相同，BAT 站只有 `layout.css`、`figure-zoom.ts` 不同（head script／CSP 雜湊不必重算）。
