@@ -1465,6 +1465,14 @@
 - **切分**：W2a 設計語言 + 元件 + 首頁（T0630）→ 預覽通過後 W2b（`/control-tower`、功能、FAQ、回報頁）→ W2c 遠端開發；W3 / W4 不變。
 - **相關**：PLAN-049 / D159 / D160 / T0624 / T0630
 
+### D299 2026-11-17 — mermaid 12 的 elkjs 不打包（建置時換成空殼），開 T0878
+
+- **背景**：T0876 把 mermaid 升到 12.3.0（`layout: 'dagre'`、`look: 'classic'` 維持 11 外觀）。mermaid 12 內建 ELK layout，新依賴 `elkjs` 0.12.1（`EPL-2.0 OR GPL-3.0-or-later`）被 vite 打成 lazy chunk（1.51 MB）隨安裝檔散布；BAT 設 dagre，執行時不會載入。BAT 是 MIT，目前沒有第三方授權聲明檔。
+- **選項**：① 建置時把 elkjs 換成空殼、不打包；② 接受並新增第三方授權聲明；③ 退回 mermaid 11。
+- **決定**：① 不打包（使用者選擇，塔台建議）。行為與 mermaid 11 相同（11 也沒有 ELK）；圖裡寫 `layout: elk`／`flowchart-elk` 時退回 dagre 或顯示 mermaid 自己的錯誤，不得讓預覽壞掉。加守門測試確保 `dist` 不含 elkjs；順便移除已無作用的 `overrides.langium`（T0876 確認 lock 中沒有 langium）。開 T0878，排在 T0877 之後。
+- **決策者**：使用者。2026-11-17 第一百二十五 session。
+- **相關**：T0876 / T0878 / D298
+
 ### D298 2026-11-17 — T0873 後續 4 項全部開單（T0874–T0877），依序派工
 
 - **背景**：T0873 收單後列了 4 項候選；使用者指示「由塔台評估，全部開單」。
