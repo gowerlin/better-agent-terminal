@@ -2,6 +2,37 @@
 
 本 fork 各版的更版重點（內容取自 GitHub Releases，最新在上）。上游 tony1223/better-agent-terminal 的 v2.1.x 紀錄保留在檔案最下方。
 
+## v0.7.5-pre.2（2026-11-17）
+
+版號 0.7.5-pre.2，接續 `v0.7.5-pre.1`。
+
+本版重點：相依套件的安全性更新（`npm audit` 51 項 → 6 項，critical 與 high 全部清零），Markdown 預覽的 mermaid 升到 12。**這是第一次從有 PTY holder 的版本（`0.7.5-pre.1`）更新**：Windows 安裝版從 `0.7.5-pre.1` 更新到本版時，終端分頁應該保留並自動接回，歡迎協助確認（見〈待驗收〉）。
+
+### 更新
+
+- **相依套件安全性更新**：critical 4 項、high 27 項全部修掉，剩下 6 項 moderate 都在建置工具（electron-builder）裡，只在打包時執行、不會進安裝檔，原因已記錄在開發文件。
+- **Windows 安裝程式改用 electron-builder 26.18.0**：安裝檔內部的壓縮方式不同；更新、重新安裝、降級、解除安裝已在 GitHub Windows runner 用真的安裝程式驗證過。
+- **Markdown 預覽的 mermaid 升到 12**：圖的外觀維持原本的樣式（排版方式、顏色不變），部分圖的節點會略寬；語法錯誤的圖會多列出實際的解析錯誤。
+- **圖指定 ELK 排版時改用預設排版**：BAT 沒有內建 mermaid 的 ELK 排版，圖裡寫 `layout: elk` 時改用預設排版畫出來，並在圖下方顯示一行說明（以前會顯示錯誤圖）。
+
+### 待驗收（請更新到本版後協助確認）
+
+- **更新時終端是否保留**（第一次實際驗證）：在 `0.7.5-pre.1` 開幾個分頁（可以跑一個長指令，例如 `ping -t`），用 `.exe` 安裝檔更新到本版，確認分頁的 shell 與指令仍在、重開後顯示「已接回」。
+- **新版通知**：仍在 `0.7.5-pre.1` 的人，啟動 BAT 或 Help ›「Check for Updates…」應該會通知有本版（BUG-212）。
+- **帶 pipe 啟動 BAT**：從終端或腳本以 pipe 啟動 BAT，BAT 結束後呼叫端能正常結束（BUG-213）。
+- **遠端視窗附大圖**：遠端視窗一次附 3 張超過 8 MiB 的圖時出現提示、不送出、連線不斷（BUG-211）。
+- 先前版本仍待確認的項目（「為所有使用者安裝」在一般權限下更新、Docker Desktop 精靈、遠端附件上傳的 SSH / Docker 實機、WSL「改用 Mirrored 並重試」、Linux 缺字型提示、Claude 面板排隊送出）照舊歡迎回報。
+
+### 已知事項
+
+- **Git Graph 面板**：它執行的 git 不再讀取 BAT 啟動環境中的 `GIT_*`、`EDITOR`、`PAGER` 等環境變數（simple-git 4 的安全限制）。一般使用不受影響；若你靠 `GIT_DIR`、`GIT_CONFIG_*` 等變數讓 Git Graph 讀到不同的 repo 或設定，結果會不同。其他 git 功能（終端、worktree）不受影響。
+- 從本版降級到 `0.7.4-pre.9` 或更早的版本，所有終端會被結束，而且重開後沒有說明。
+- 只有 Windows 的 `.exe` 安裝版有更新時保留終端的保護；`.zip` 免安裝版、macOS、Linux 的行為不變。
+
+macOS 仍只提供 Apple Silicon（arm64）版。
+
+**Full Changelog**: https://github.com/gowerlin/better-agent-terminal/compare/v0.7.5-pre.1...v0.7.5-pre.2
+
 ## v0.7.5-pre.1（2026-11-05）
 
 版號 0.7.5-pre.1，接續 `v0.7.4-pre.9`。

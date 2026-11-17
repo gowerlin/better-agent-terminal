@@ -4,6 +4,21 @@ All notable changes to Better Agent Terminal are documented in this file.
 
 ## [Unreleased]
 
+## [0.7.5-pre.2] — 2026-11-17
+
+### Added
+- `verify-packaged-native` 新增 `foreign-platform-package`：安裝包內出現目標以外平台／架構的平台套件（`@anthropic-ai/claude-code-*`、`claude-agent-sdk-*`、`@lydell/node-pty-*`、`@openai/codex-*` 與 codex vendor triple）即失敗（T0877，D298）
+- Markdown 預覽：mermaid 圖指定 ELK 排版（front matter `config.layout`、`%%{init}%%` 的 `layout`，值 `elk`／`elk.*`）時改用 dagre 渲染並在圖下方顯示說明；純函式 `applyMermaidElkFallback`（`src/lib/mermaid-elk-fallback.ts`）、三語字串 `sidebar.mermaidElkFallback`（T0879，D300）
+
+### Changed
+- 相依套件安全性更新：`npm audit` 51 → 6（critical 4 → 0、high 27 → 0）；electron-builder 26.8.1 → 26.18.0（NSIS 範本比對語意不變，內層 7z 改 BCJ）、vite 7.3.8、vitest 4.1.12、simple-git 4.1.0（Git Graph 的 git 子程序不再繼承 `GIT_*`／EDITOR／PAGER 等 env）、uuid 14.0.3（移除 `@types/uuid`）、sharp 0.35.5；`desktop-build.yml` 三平台與 `windows-upgrade-acceptance.yml` 9 情境全過（T0873，D297）
+- `allowScripts` 移除 `sharp`（0.35 起沒有 install script）（T0874，D298）
+- 剩餘 6 項 moderate（electron-builder 工具鏈的 `minimatch`）列為已接受的 audit 例外，理由與重新檢查時機寫在 `docs/agent-guide/packaging-release-checks.md`（T0875，D298）
+- mermaid 11.17.2 → 12.3.0，`initialize` 加 `layout: 'dagre'`、`look: 'classic'` 維持原外觀；katex 0.18.10（T0876，D298）
+- 不打包 mermaid 12 的 `elkjs`（`EPL-2.0 OR GPL-3.0-or-later`）：`vite.config.ts` alias 到 `src/lib/elkjs-stub.ts`，守門測試 `scripts/__tests__/no-elkjs-in-dist.test.mjs`；移除已無作用的 `overrides.langium`（T0878，D299）
+- NSIS 重裝驗收腳本：步驟 3 容許 `--uninstall-quit-request` 的 debug log 輪替並依步驟 2 安裝的版本檢查 holder（T0868）；步驟 4 以步驟 3 結束時的 userData 快照為基準（T0869，D293）
+- 網站套用 `vitepress-portal-layout` v1.1.2：寬螢幕加寬、左右功能表收合、圖放大（T0870／T0871／T0872，D294–D296）
+
 ## [0.7.5-pre.1] — 2026-11-05
 
 ### Added
