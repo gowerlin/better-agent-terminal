@@ -1,5 +1,5 @@
 {
- "generated_at": "2026-11-17T10:45:44+08:00",
+ "generated_at": "2026-11-17T10:57:47+08:00",
  "generator": {
   "script": "ct-session-stats.py",
   "version": "0.2.0"
@@ -69,13 +69,13 @@
    "output": 64161
   },
   "2026-11-17": {
-   "api_requests": 61,
-   "cache_read": 14421129,
-   "cache_write": 251622,
-   "cache_write_1h": 251622,
+   "api_requests": 67,
+   "cache_read": 16191317,
+   "cache_write": 264664,
+   "cache_write_1h": 264664,
    "cache_write_5m": 0,
-   "input": 144,
-   "output": 53435
+   "input": 156,
+   "output": 58061
   }
  },
  "workorders": [
@@ -8676,6 +8676,96 @@
     "2.1.322"
    ],
    "workorder": "T0875"
+  },
+  {
+   "agents_invoked": {},
+   "attribution": {
+    "conflict": false,
+    "source": "frontmatter",
+    "sources": {
+     "frontmatter": 1
+    }
+   },
+   "by_mcp_server": {},
+   "by_tool": {
+    "Bash": 46,
+    "Edit": 2,
+    "Grep": 2,
+    "Monitor": 1,
+    "PowerShell": 1,
+    "Read": 4,
+    "ToolSearch": 1,
+    "Write": 6
+   },
+   "counts": {
+    "api_requests": 61,
+    "failures": 2,
+    "same_file_read_ge3": 0,
+    "subagent_files": 0,
+    "tool_calls": 63
+   },
+   "end": "2026-11-17T02:57:27Z",
+   "est_usd": 5.2076,
+   "failures_by_tool": {
+    "Bash": 2
+   },
+   "renews": 0,
+   "sessions": 1,
+   "skills_invoked": {
+    "ct-exec": 1
+   },
+   "start": "2026-11-17T02:45:56Z",
+   "stuck": {
+    "max_consecutive_failures": 1,
+    "max_failures_in_10_calls": 2,
+    "near_repeat_fail_pairs_j50": 0,
+    "repeat_fail_groups_norm": 0
+   },
+   "stuck_signal": false,
+   "subagent_tokens": {
+    "cache_read": 0,
+    "cache_write": 0,
+    "cache_write_1h": 0,
+    "cache_write_5m": 0,
+    "input": 0,
+    "output": 0
+   },
+   "tokens": {
+    "cache_read": 12430683,
+    "cache_write": 218911,
+    "cache_write_1h": 218911,
+    "cache_write_5m": 0,
+    "input": 132,
+    "output": 48483
+   },
+   "top_tools": [
+    [
+     "Bash",
+     46
+    ],
+    [
+     "Write",
+     6
+    ],
+    [
+     "Read",
+     4
+    ],
+    [
+     "Edit",
+     2
+    ],
+    [
+     "Grep",
+     2
+    ]
+   ],
+   "type": "implementation",
+   "unpriced_tokens": 0,
+   "versions": [
+    "2.1.322"
+   ],
+   "workorder": "T0876"
   }
  ]
 }
