@@ -1,7 +1,7 @@
 ---
 schema_kind: tower-state
 summary_version: 1
-updated_at: "2026-11-17T13:16:05+08:00"
+updated_at: "2026-11-17T13:37:00+08:00"
 session: "2026-11-16 19:14 第一百二十五 session（CT v6.0.0）"
 next_ids:
   workorder: "T0880"
@@ -16,9 +16,9 @@ todo:
   - "✅ T0871 DONE 並上線（D295，產品 commit `5a7e2478`；使用者指示 push `e668ac12..f045d057`，push 前去識別化＋金鑰掃描 0 筆；Pages run `43978301961` build / deploy / link-check 全 success、lychee Errors 0；網站 `/control-tower` 已含 `data-pl-zoom-reserve`；BMad-Guide D762 已收單，3 項回饋延到 skill v1.1.2，屆時對方再通知升級；07:18 塔台收單：9 檔皆在 `site/.vitepress/theme/`、6 檔與 skill v1.1.1 雜湊一致、Timeline 未複製；Worker 分頁已排程關閉）：BAT 網站 `vitepress-portal-layout` v1.0.0 → v1.1.1，全站 15 頁 layout-check 全通過、`hostIssues` 0、按鈕 14 → 15（`QuestionFlow`）、120 組版面量測與升級前相同；回覆 `_reply-2026-11-17-portal-layout-skill-v111-bat.md` 已改 DONE（skill 回饋 1＋2 項資訊）並通知 `BMad-Guide · Tower`。待使用者決定 push（觸發 Pages），push 後確認 build / deploy / link-check"
   - "✅ T0870 DONE 並上線（`338a8f78`；20:27 使用者指示 push `80d6b90f..e668ac12`，push 前去識別化＋金鑰掃描 0 筆；Pages run `43866827100` build / deploy / link-check 全 success、lychee Errors 0；網站 `/control-tower` 已含 `pl-layout`）：BAT 網站套用 `vitepress-portal-layout` v1.0.0 前三項；BMad-Guide D751：skill 已出 v1.1.0（對方 T0502，含 BAT 回饋 4＋1 項、HTML 圖放大），但套到 CT／MMP 時又發現 6 項缺陷（`data-pl-zoom` 在 `<ol>`／`<ul>` 上時按鈕插成最後一個子元素、站點宿主 `padding: 0` 蓋掉按鈕保留空間），對方 D756 改修成 **v1.1.1**（對方 T0505）→ **不升 v1.1.0**，BAT 目前的 v1.0.0 不受影響；收到 v1.1.1 升級通知後開單從 v1.0.0 直接升 v1.1.1：整包覆蓋 `site/.vitepress/theme/portal-layout/`、移除 `custom.css` 底部把首頁導覽列／頁尾還原成 1440px 的那段、重跑 layout-check（可用 `--figure-test all`、整頁截圖）"
   - "✅ `0.7.5-pre.1` 發佈後驗收全 PASS（第一百二十四 session）：NSIS 重裝（11:31 `bat-nsis-acceptance-20261105-113131`，備份已刪）、linux-acceptance `41962694457`（22.04 / 24.04 各 4 passed）、macos-acceptance `41962698832`、docker-acceptance `41962703643`（pre.9 → pre.1）、WSL smoke `wsl:Ubuntu-24.04` 14/14（server `0.7.5-pre.1`，含 T0832 S14）"
-  - "🚀 `v0.7.5-pre.2` 已發佈（2026-11-17 13:13，使用者指示「push, 發版」；Pre-Release run `44020596683` 全 success、4 個安裝檔＋`server-bundle-v0.7.5-pre.2`；更版重點已寫；CHANGELOG / release-note / package.json 同步 `1e4b0c8d`，README 無需更新；Pages `44022793648` 全 success、lychee 0、首頁版號 pre.2）。⏳ 待使用者跑 NSIS 重裝驗收 `-Version 0.7.5-pre.2`"
-  - "PLAN-065 最後一哩（現在可驗）：從 `0.7.5-pre.1` 升到 `0.7.5-pre.2`的真實使用者升級保留分頁；per-machine 未提權互動升級（UAC）手動驗收；降級到 `0.7.4-pre.9` 會結束所有終端且沒有說明（已寫在更版重點〈已知事項〉）"
-  - "BUG-211 / 212 / 213 FIXED，已隨 `0.7.5-pre.1` 發佈，待實機驗證後 CLOSED：BUG-211 遠端視窗附 3 張 > 8 MiB 圖 → 提示、不送出、連線不斷（2 張照常）；BUG-212 Help「Check for Updates…」與啟動檢查找得到預覽版（需下一版才能實測找到新版）；BUG-213 帶 pipe 啟動 BAT 時保留的 holder 不讓呼叫端卡住"
+  - "🚀 `v0.7.5-pre.2` 已發佈（2026-11-17 13:13，使用者指示「push, 發版」；Pre-Release run `44020596683` 全 success、4 個安裝檔＋`server-bundle-v0.7.5-pre.2`；更版重點已寫；CHANGELOG / release-note / package.json 同步 `1e4b0c8d`，README 無需更新；Pages `44022793648` 全 success、lychee 0、首頁版號 pre.2）。發佈後驗收（13:2x–13:37）：✅ 使用者實機 `.exe` 從 pre.1 更新到 pre.2 **終端保留並接回**（PLAN-065 真實升級首驗 PASS）、✅ 新版通知（BUG-212）；✅ linux-acceptance `44023853174`（22.04 / 24.04）、macos-acceptance `44023858121`、docker-acceptance `44023862820`（pre.1 → pre.2）全 success；✅ WSL smoke `wsl:Ubuntu-24.04` 14/14（WSL server 仍是 `0.7.5-pre.1`）；✅ e2e `t0836`（真 SSH / Docker）3 passed。⏳ NSIS 重裝驗收 `-Version 0.7.5-pre.2` 尚未跑（使用者直接以 `.exe` 安裝）"
+  - "PLAN-065 剩餘：per-machine 未提權互動升級（UAC）手動驗收（無法自動化）；降級到 `0.7.4-pre.9` 會結束所有終端且沒有說明（已寫在更版重點〈已知事項〉）"
+  - "✅ BUG-211 / 212 / 213 CLOSED（2026-11-17 13:25，交付版 `v0.7.5-pre.2`）：BUG-212 使用者實機收到新版通知；BUG-213 W6 `44002198241` 情境 1 pipe 啟動 PASS；BUG-211 e2e `t0836` ①(d) PASS。`_bug-tracker.md` FIXED 0 / CLOSED 76，parser 測試 65 passed"
   - "PLAN-052（IN_PROGRESS）：待 Docker Desktop（Windows / macOS）實機走精靈；後續候選（未開單）：fetch-fingerprint Docker 分支比對憑證指紋、`scripts/docker-acceptance.mjs` 純函式單元測試"
   - "PLAN-058：T0819 安裝版 pre.5 假 API e2e PASS，待使用者手動確認（清單在 T0819 回報區）；可選後續：卡片等待時讓輸入框可送出（T0815〈遭遇問題〉1，未開單）"
   - "待實機驗收：T0827 Linux AppImage 缺字型提示（回報區〈待實機驗收〉4 項）；T0830 真 WSL 的 install-bundle 中止與 keep-alive 關閉後閒置關機；PLAN-038 實機 6 項（T0836 回報區〈待實機驗收〉）；T0840 精靈在真的 BAT 視窗對拋棄式發行版從頭跑一次；T0841「改用 Mirrored 並重試」實機"

@@ -3,11 +3,12 @@ schema_version: 1
 schema_kind: bug
 id: BUG-211
 title: "遠端視窗 Claude 面板一次附多張大圖時，送出的 invoke frame 超過 server 32 MiB maxPayload，整條遠端連線以 1009 關閉（T0837 已重現）"
-status: FIXED
+status: CLOSED
+closed_reason: "交付版 v0.7.5-pre.2（修正自 v0.7.4-pre.7 起隨版）；2026-11-17 e2e t0836（真 SSH＋Docker 遠端、本 repo 同版程式碼）①(d) PASS：3 × 9 MiB 圖 → 預算提示、不送出、輸入與附圖保留、連線不斷；移除 1 張 → 2 張送達主機、沒有 FRAME_TOO_LARGE、連線不斷"
 severity: medium
 reproducibility: "always（T0837：真 RemoteServer + RemoteClient 測試，frame > 33,554,432 bytes 必定 1009）"
 created_at: "2026-11-04T09:17:09+0800"
-updated_at: "2026-11-04T11:25:45+0800"
+updated_at: "2026-11-17T13:25:48+0800"
 impact:
   - remote
   - claude-panel
@@ -21,7 +22,7 @@ links:
 |------|------|
 | 嚴重度 | 🟡 medium（T0837 建議維持：整條 profile 連線斷開，同 profile 所有進行中的 invoke 失敗，約 1–2 s 自動重連；使用者的訊息與圖片無聲遺失） |
 | 可重現 | ✅ 必定（T0837 測試重現，`electron/__tests__/bug211-ws-max-payload.test.ts`） |
-| **狀態** | 🔧 FIXED（T0842 `bb8cbe1a`，方向 A，D273；待部署驗證：遠端視窗實機附 3 張大圖送出） |
+| **狀態** | 🚫 CLOSED（2026-11-17：交付版 `v0.7.5-pre.2`＋e2e `t0836` 真 SSH / Docker 遠端 ①(d) PASS；T0842 `bb8cbe1a`，方向 A，D273） |
 | 回報者 | 塔台（T0828 研究） |
 
 ## 現象（T0837 已重現）

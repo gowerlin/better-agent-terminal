@@ -3,11 +3,12 @@ schema_version: 1
 schema_kind: bug
 id: BUG-213
 title: "Windows PTY holder 繼承 BAT 主行程可繼承的 handle：BAT 由帶 pipe 的呼叫端啟動時，升級後保留的 holder 讓呼叫端一直等不到 `close`"
-status: FIXED
+status: CLOSED
+closed_reason: "交付版 v0.7.5-pre.1 / pre.2；W6 windows-upgrade-acceptance run 44002198241（2026-11-17，T0873 後的 main，holder／stdio 程式與 pre.2 相同）情境 1 以 pipe 啟動真安裝版：BAT 結束後呼叫端 3 ms 內拿到 close、holder 仍在跑，日誌 [stdio-inherit] 5 個 handle 不繼承並還原"
 severity: low
 reproducibility: "always（帶 pipe 啟動 BAT 時；T0862 run `41942234283` 實測 Playwright `ElectronApplication.close()` 卡到 30 分鐘逾時）"
 created_at: "2026-11-05T09:33:33+08:00"
-updated_at: "2026-11-05T10:23:07+0800"
+updated_at: "2026-11-17T13:25:48+0800"
 impact:
   - pty-holder
   - windows
@@ -21,7 +22,7 @@ links:
 |------|------|
 | 嚴重度 | 🟢 low（從檔案總管 / 開始功能表啟動沒有 pipe，不受影響） |
 | 可重現 | ✅ 帶 pipe 啟動時必定 |
-| **狀態** | ✅ FIXED（T0866 `c19aaa72`；W6 run `41954101041` 情境 1–9 PASS，等發版後驗收） |
+| **狀態** | 🚫 CLOSED（2026-11-17：交付版 `v0.7.5-pre.2`；W6 run `44002198241` 情境 1 pipe 啟動 PASS；T0866 `c19aaa72`） |
 | 回報者 | 塔台（T0862 Worker 發現） |
 
 ## 現象（預期 vs 實際）

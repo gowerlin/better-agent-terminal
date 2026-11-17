@@ -3,11 +3,12 @@ schema_version: 1
 schema_kind: bug
 id: BUG-212
 title: "啟動時的新版檢查永遠找不到新版：`releases/latest` 排除預覽版（本 fork 全是預覽版 → 404）、版號比對不認得 `-pre.N`；主行程與每個視窗各查一次"
-status: FIXED
+status: CLOSED
+closed_reason: "交付版 v0.7.5-pre.1 → v0.7.5-pre.2：2026-11-17 使用者實機確認裝 pre.1 的 BAT 收到 pre.2 的新版通知"
 severity: medium
 reproducibility: "always（2026-11-04 `gh api repos/gowerlin/better-agent-terminal/releases/latest` → HTTP 404）"
 created_at: "2026-11-04T18:35:08+0800"
-updated_at: "2026-11-04T18:35:08+0800"
+updated_at: "2026-11-17T13:25:48+0800"
 impact:
   - update-check
 links:
@@ -20,7 +21,7 @@ links:
 |------|------|
 | 嚴重度 | 🟡 medium（使用者永遠收不到新版通知；不影響其他功能） |
 | 可重現 | ✅ 必定 |
-| **狀態** | ✅ FIXED（T0863 `ee53eaf5`；待發版後實機驗證：Help › Check for Updates…、啟動檢查、開該版本頁） |
+| **狀態** | 🚫 CLOSED（2026-11-17：使用者實機，pre.1 收到 pre.2 新版通知；T0863 `ee53eaf5`） |
 | 回報者 | 塔台 |
 
 ## 現象（預期 vs 實際）
