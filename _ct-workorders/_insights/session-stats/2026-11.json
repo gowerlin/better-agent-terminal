@@ -1,5 +1,5 @@
 {
- "generated_at": "2026-11-17T12:08:31+08:00",
+ "generated_at": "2026-11-17T19:18:22+08:00",
  "generator": {
   "script": "ct-session-stats.py",
   "version": "0.2.0"
@@ -69,13 +69,13 @@
    "output": 64161
   },
   "2026-11-17": {
-   "api_requests": 100,
-   "cache_read": 27050965,
-   "cache_write": 309823,
-   "cache_write_1h": 309823,
+   "api_requests": 232,
+   "cache_read": 63210483,
+   "cache_write": 795082,
+   "cache_write_1h": 795082,
    "cache_write_5m": 0,
-   "input": 230,
-   "output": 80727
+   "input": 534,
+   "output": 160189
   }
  },
  "workorders": [
@@ -9017,6 +9017,202 @@
     "2.1.322"
    ],
    "workorder": "T0879"
+  },
+  {
+   "agents_invoked": {},
+   "attribution": {
+    "conflict": false,
+    "source": "frontmatter",
+    "sources": {
+     "frontmatter": 1
+    }
+   },
+   "by_mcp_server": {
+    "chrome-live": 10
+   },
+   "by_tool": {
+    "Bash": 43,
+    "Edit": 2,
+    "Monitor": 2,
+    "PowerShell": 1,
+    "Read": 7,
+    "TaskStop": 2,
+    "ToolSearch": 2,
+    "mcp__chrome-live__close_page": 2,
+    "mcp__chrome-live__emulate": 2,
+    "mcp__chrome-live__evaluate_script": 3,
+    "mcp__chrome-live__new_page": 2,
+    "mcp__chrome-live__take_screenshot": 1
+   },
+   "counts": {
+    "api_requests": 57,
+    "failures": 1,
+    "same_file_read_ge3": 0,
+    "subagent_files": 0,
+    "tool_calls": 69
+   },
+   "end": "2026-11-17T07:37:42Z",
+   "est_usd": 4.4784,
+   "failures_by_tool": {
+    "mcp__chrome-live__evaluate_script": 1
+   },
+   "renews": 0,
+   "sessions": 1,
+   "skills_invoked": {
+    "ct-exec": 1
+   },
+   "start": "2026-11-17T07:03:46Z",
+   "stuck": {
+    "max_consecutive_failures": 1,
+    "max_failures_in_10_calls": 1,
+    "near_repeat_fail_pairs_j50": 0,
+    "repeat_fail_groups_norm": 0
+   },
+   "stuck_signal": false,
+   "subagent_tokens": {
+    "cache_read": 0,
+    "cache_write": 0,
+    "cache_write_1h": 0,
+    "cache_write_5m": 0,
+    "input": 0,
+    "output": 0
+   },
+   "tokens": {
+    "cache_read": 11111633,
+    "cache_write": 212181,
+    "cache_write_1h": 212181,
+    "cache_write_5m": 0,
+    "input": 120,
+    "output": 27908
+   },
+   "top_tools": [
+    [
+     "Bash",
+     43
+    ],
+    [
+     "Read",
+     7
+    ],
+    [
+     "mcp__chrome-live__evaluate_script",
+     3
+    ],
+    [
+     "Edit",
+     2
+    ],
+    [
+     "Monitor",
+     2
+    ]
+   ],
+   "type": "implementation",
+   "unpriced_tokens": 0,
+   "versions": [
+    "2.1.322"
+   ],
+   "workorder": "T0880"
+  },
+  {
+   "agents_invoked": {},
+   "attribution": {
+    "conflict": false,
+    "source": "frontmatter",
+    "sources": {
+     "frontmatter": 1
+    }
+   },
+   "by_mcp_server": {
+    "bat": 1,
+    "chrome-live": 33
+   },
+   "by_tool": {
+    "Bash": 44,
+    "Edit": 4,
+    "PowerShell": 1,
+    "Read": 3,
+    "TaskStop": 2,
+    "ToolSearch": 4,
+    "Write": 1,
+    "mcp__bat__bat_wait_question": 1,
+    "mcp__chrome-live__close_page": 1,
+    "mcp__chrome-live__emulate": 4,
+    "mcp__chrome-live__evaluate_script": 20,
+    "mcp__chrome-live__navigate_page": 5,
+    "mcp__chrome-live__new_page": 1,
+    "mcp__chrome-live__take_screenshot": 2
+   },
+   "counts": {
+    "api_requests": 80,
+    "failures": 2,
+    "same_file_read_ge3": 0,
+    "subagent_files": 0,
+    "tool_calls": 93
+   },
+   "end": "2026-11-17T08:55:47Z",
+   "est_usd": 5.8461,
+   "failures_by_tool": {
+    "Bash": 1,
+    "mcp__chrome-live__evaluate_script": 1
+   },
+   "renews": 0,
+   "sessions": 1,
+   "skills_invoked": {
+    "ct-exec": 1
+   },
+   "start": "2026-11-17T08:23:36Z",
+   "stuck": {
+    "max_consecutive_failures": 1,
+    "max_failures_in_10_calls": 2,
+    "near_repeat_fail_pairs_j50": 0,
+    "repeat_fail_groups_norm": 0
+   },
+   "stuck_signal": false,
+   "subagent_tokens": {
+    "cache_read": 0,
+    "cache_write": 0,
+    "cache_write_1h": 0,
+    "cache_write_5m": 0,
+    "input": 0,
+    "output": 0
+   },
+   "tokens": {
+    "cache_read": 15782718,
+    "cache_write": 212247,
+    "cache_write_1h": 212247,
+    "cache_write_5m": 0,
+    "input": 172,
+    "output": 49546
+   },
+   "top_tools": [
+    [
+     "Bash",
+     44
+    ],
+    [
+     "mcp__chrome-live__evaluate_script",
+     20
+    ],
+    [
+     "mcp__chrome-live__navigate_page",
+     5
+    ],
+    [
+     "Edit",
+     4
+    ],
+    [
+     "ToolSearch",
+     4
+    ]
+   ],
+   "type": "implementation",
+   "unpriced_tokens": 0,
+   "versions": [
+    "2.1.322"
+   ],
+   "workorder": "T0881"
   }
  ]
 }

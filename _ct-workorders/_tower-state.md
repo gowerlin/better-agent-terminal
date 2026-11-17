@@ -1,7 +1,7 @@
 ---
 schema_kind: tower-state
 summary_version: 1
-updated_at: "2026-11-17T19:12:46+08:00"
+updated_at: "2026-11-17T19:18:22+08:00"
 session: "2026-11-16 19:14 第一百二十五 session（CT v6.0.0）"
 next_ids:
   workorder: "T0882"
@@ -32,68 +32,70 @@ todo:
 ---
 # Tower State — better-agent-terminal
 
+> 🛏 **第一百二十五 session 收工**（2026-11-17 19:18 (UTC+8)）。
+
 > 🟢 **第一百二十五 session 開工**（2026-11-16 19:14 (UTC+8)，CT v6.0.0（正式版，取代 rc.1），Full Scan（環境快照 15 天）；塔台 session `9c595b59-ab26-4c21-be62-168daeffcda1`；`--set-role tower --mode on` exit 0；`bat_whoami` 名稱 `better-agent-terminal · Tower`；安裝版 `0.7.5-pre.1`；HEAD `80d6b90f` = `origin/main`（fetch 後 0 / 0）、工作區乾淨；熱區 265 張工單全 DONE；`bat_list_questions` pending 0）。`*sync`：`_bug-tracker.md` 與 77 張 BUG 檔一致；`_backlog.md` frontmatter `breakdown` 落後（IDEA 4 → 3、IN_PROGRESS 5 → 6，PLAN-065 改 IN_PROGRESS 時未同步），本文表格正確，只修 frontmatter。⚠️ 主 checkout `node_modules` 只剩 26 個套件（2026-11-06 被動過，vite / vitest / react 都不在），parser 測試（L179）無法執行，待使用者決定是否 `npm ci`。→ 2026-11-17 09:15 使用者指示 `npm ci`：exit 0、844 套件（Node v26.13.1 / npm 12.2.2；`electron-winstaller` install script 被 `allowScripts` 擋屬預期；audit 51 項未處理）；parser 測試 `npx vitest run src/types/__tests__` 5 檔 65 passed。
 
 > 🟢 **第一百二十四 session 開工**（2026-11-05 11:32 (UTC+8)，CT v6.0.0-rc.1，Fast Path；塔台 session `4383de43-387c-4326-a169-c3cb291e5803`；`--set-role tower --mode on` exit 0；`bat_whoami` 名稱 `better-agent-terminal · Tower`；安裝版 `0.7.5-pre.1`；HEAD `c77a1abd`，領先 `origin/main` 9 個 commit（未 fetch）、工作區乾淨；熱區 265 張工單全 DONE；`bat_list_questions` pending 0）。判讀 11:31 NSIS 驗收第三次（real）→ **PASS**（⓪–④ 全 PASS；③ debug log 新增 1 / 輪替 1 屬預期；④ 以 ③ 結束時快照為基準 0 差異）；含權杖 `userdata-backup` 已刪（11:33）。`0.7.5-pre.1` 發版後 NSIS 驗收完成。11:36 使用者選跑全部可自動化驗收（對 `0.7.5-pre.1`）→ ✅ `linux-acceptance` `41962694457`（22.04 / 24.04 各 4 passed）、✅ `macos-acceptance` `41962698832`（1 passed）、✅ `docker-acceptance` `41962703643`（from `0.7.4-pre.9` → to `0.7.5-pre.1`）全綠；WSL smoke `wsl:Ubuntu-24.04` 13 PASS / 1 SKIP（S14：WSL server bundle 仍 `0.7.3-pre.3`，早於 T0832；待使用者經精靈升級 WSL server 後重跑）→ 11:54 使用者已升級 WSL server 到 `0.7.5-pre.1`，重跑 **14/14 PASS**（S14 兩塊 262,208 B、目錄 0700 / 檔案 0600、sha256 相符、錯誤 offset → `BAD_OFFSET`、`claude:dispose-session` 清掉、未認證 socket 被拒；smoke PTY 皆已清除）。
 
-> 最後更新:2026-11-05 11:58 (UTC+8) — **第一百二十四 session 收工**：`0.7.5-pre.1` 發佈後驗收全部 PASS（NSIS 重裝、linux / macos / docker acceptance、WSL smoke 14/14）；push 到 `79af45dd`；`*archive --state`。
+> 最後更新:2026-11-17 19:18 (UTC+8) — **第一百二十五 session 收工**：`v0.7.5-pre.2` 發佈（PLAN-065 真實升級首驗 PASS、BUG-211 / 212 / 213 CLOSED）；npm audit 51 → 6（T0873–T0879）；BAT 網站 portal-layout v1.0.0 → v1.1.5 並修 960 導覽列（T0870–T0872、T0880、T0881，皆已上線）；`origin/main` 在 `f7269bff`，本地另有未 push 的塔台紀錄 commit（含本收工）。
 >
-> **下次起手**:熱區工單全 DONE、無派工中工單。① 下一版前：從 `0.7.5-pre.1` 升到下一版的真實升級保留分頁（PLAN-065 最後一哩）、per-machine 未提權互動升級（UAC）手動驗收；② BUG-211 / 212 / 213 已隨 pre.1 發佈，待實機驗證後 CLOSED；③ 候選未開單（frontmatter `todo`）可批次開單。
+> **下次起手**:熱區工單全 DONE、無派工中工單。① `0.7.5-pre.2` NSIS 重裝驗收尚未跑（`-Version 0.7.5-pre.2`）；② PLAN-065 剩 per-machine UAC 互動升級手動驗收；③ 未 push 的塔台紀錄 commit 待下次 push；④ 候選未開單（frontmatter `todo`）可批次開單。
 
 ---
 
-## 🛏 本 Session 收工快照 (第一百二十四 session, 2026-11-05 11:32 - 2026-11-05 11:58)
+## 🛏 本 Session 收工快照 (第一百二十五 session, 2026-11-16 19:14 - 2026-11-17 19:18)
 
-### 主軸：`0.7.5-pre.1` 發佈後驗收
+### 主軸：`v0.7.5-pre.2` 發佈、相依套件升級、BAT 網站版型
 
-#### 時間線（時間取自系統 / git）
+#### 重點（時間取自系統 / git；詳見 frontmatter `todo` 與各工單）
 
-1. **11:32** Fast Path；`--set-role tower --mode on` exit 0；判讀 11:31 NSIS 驗收第三次（real）PASS；刪含權杖備份 → `1406e7b3`
-2. **11:36** 使用者選跑全部可自動化驗收 → 觸發 linux `41962694457` / macos `41962698832` / docker `41962703643`（pre.9 → pre.1）；WSL smoke 13 PASS / 1 SKIP（S14：server `0.7.3-pre.3`）
-3. **11:50** 三個 CI 全綠（linux 22.04 / 24.04 各 4 passed、macos 1 passed、docker success）→ `88adafff`
-4. **11:54** 使用者經精靈升級 WSL server 到 `0.7.5-pre.1` → smoke 14/14 PASS（T0832 S14 驗收完成）→ `79af45dd`
-5. push 前掃描（`.private/` 檢查樣式＋金鑰樣式，12 commit 新增內容與訊息）0 筆 → push `7735ff9d..79af45dd`
-6. **11:58** `*archive --state`（第一百二十 – 一百二十三 session → `2026-Q4-c.md`，INDEX 140 – 143）→ 收工
+1. **網站版型**（BMad-Guide HANDOVER）：T0870 v1.0.0 → T0871 v1.1.1 → T0872 v1.1.2 → T0880 v1.1.5（網站名稱置中；使用者以 chrome-live 指出線上未置中＝尚未 push，push 後確認中心 136）→ T0881 修 v1.1.6 新檢查報出的 960 導覽列超出（Q-1=C：`/releases` 390 是行尾標點擠壓的字框誤判，對方 v1.1.7 已改列警告）。v1.1.3 / v1.1.6 / v1.1.7 站點檔不變、不必部署
+2. **相依套件**：`npm ci` → T0873 升級（electron-builder 26.18.0 等，audit 51 → 8）→ T0874–T0878（`allowScripts` 拿掉 sharp、minimatch 列例外、mermaid 12、`foreign-platform-package` 檢查、elkjs 不打包 D299）→ T0879 ELK 排版改用 dagre＋說明
+3. **發版 `v0.7.5-pre.2`**（13:13）：CI 全綠、更版重點與 CHANGELOG / release-note 同步；使用者實機 pre.1 → pre.2 終端保留並接回、新版通知 OK；linux / macos / docker acceptance、WSL smoke 14/14、e2e t0836 PASS → BUG-211 / 212 / 213 CLOSED
+4. 每次 push 前跑 `.private/` 檢查樣式＋金鑰樣式皆 0 筆
 
 ### 本輪戰績
-- 工單 0（無派工）；決策 0；驗收 PASS 5（NSIS 重裝、linux、macos、docker、WSL smoke）
-- 結構化提問 0；`worker_auto_close` 0
+- 工單 12（T0870–T0881，全 DONE）；決策 D294–D302；BUG CLOSED 3；發版 1（`v0.7.5-pre.2`）
+- 結構化提問 1（T0881 Q-1 `--answer`）；`worker_auto_close` 12；跨塔台：BMad-Guide HANDOVER 4 份＋告知 3 則，回饋 3 輪
 
 ### 編號起始（下 session）
-- **T0870** / **BUG-214** / **PLAN-066** / **D294** / **L186** / **CT-T023**
+- **T0882** / **BUG-214** / **PLAN-066** / **D303** / **L186** / **CT-T023**
 
 ---
 
 ## 🌅 起手式（Quick Recovery）
 
-> 最後更新：2026-11-05 11:58 UTC+8（第一百二十四 session 收工）
+> 最後更新：2026-11-17 19:18 UTC+8（第一百二十五 session 收工）
 
 ### 近期完成
-- **`v0.7.5-pre.1` 發佈＋驗收全 PASS**（第一百二十一 – 一百二十四 session）：PLAN-065 W1–W6（Windows PTY holder，升級不中斷終端）、BUG-212 檢查新版、BUG-213 holder handle 繼承（N-API addon）；NSIS 驗收腳本 T0868 / T0869；NSIS 重裝 / linux / macos / docker / WSL smoke 全 PASS
-- **`v0.7.4-pre.7` – `pre.9`**（第一百一十六 – 一百一十九 session）：PLAN-038 上傳、PLAN-063 升級說明與真實升級、PLAN-052 Docker (c′)
-- **`v0.7.4-pre.6`**（第一百一十四 session）：PLAN-063 子項 1–3、BUG-210
+- **`v0.7.5-pre.2` 發佈＋驗收**（第一百二十五 session）：npm audit 修補、mermaid 12（elkjs 不打包）、打包檢查擋別平台套件；PLAN-065 真實升級首驗 PASS；BUG-211 / 212 / 213 CLOSED
+- **BAT 網站 portal-layout v1.1.5**＋960 導覽列修正（T0870–T0872、T0880、T0881，已上線）
+- **`v0.7.5-pre.1`**（第一百二十一 – 一百二十四 session）：PLAN-065 W1–W6（Windows PTY holder）
 
 ### 待辦（依優先序；完整內容見 frontmatter `todo`）
-1. 下一版前：pre.1 → 下一版真實升級保留分頁、per-machine UAC 互動升級手動驗收；BUG-211 / 212 / 213 實機驗證
-2. PLAN-052：Docker Desktop（Windows / macOS）實機走精靈；PLAN-058：使用者手動確認（T0819 回報區）
-3. 候選未開單：T0864 `launchIsolated` 預寫設定、T0867 B 組同寫法、T0830 / PLAN-052 後續
-4. MSRC（使用者自行處理，D255）；觀察項（語音 macOS、t0757）；PLAN-060 IDEA
+1. `0.7.5-pre.2` NSIS 重裝驗收（`pwsh -NoProfile -ExecutionPolicy Bypass -File e2e\manual\nsis-reinstall-acceptance.ps1 -Version 0.7.5-pre.2`，跑完讀報告並刪含權杖備份）；PLAN-065 per-machine UAC 互動升級手動驗收
+2. push 本地未推的塔台紀錄 commit（`e674cfdb` 起，含收工）
+3. PLAN-052：Docker Desktop 實機走精靈；PLAN-058：使用者手動確認（T0819 回報區）
+4. 候選未開單：T0864 `launchIsolated` 預寫設定、T0867 B 組同寫法、T0830 / PLAN-052 / BUG-211 後續
+5. MSRC（使用者自行處理，D255）；觀察項（語音 macOS、t0757）；PLAN-060 IDEA
 
 ### ⚠️ 鐵則
 - **所有 `gh` 指令必須帶 `-R gowerlin/better-agent-terminal`**（L122）
 - 版本驗證用 diff / 雜湊，不用 grep（L127）；每次發版：`gh release edit --notes-file` 更版重點 → 更新 `CHANGELOG.md` / `release-note.md` / `README.md` 並 push → Pages 綠燈、首頁版號、`link-check`，才回報已發佈（L150）
 - 公開 repo（D176）：工單 / commit / BUG 不寫真名、客戶名、家目錄路徑；push 前跑 `.private/` 的檢查樣式
 - 改 `_bug-tracker.md` / `_backlog.md` 不用全檔 `sed`，改完跑 parser 測試（L179）
+- 網站驗證用最新 portal-layout `layout-check.mjs`（目前 v1.1.7）；網站改動 push 才會上線，使用者看線上站時先確認是否已部署
 
 ### 快速連結
-- Bug Tracker → [_bug-tracker.md](_bug-tracker.md)（熱區：Open 0 / Fixing 0 / Fixed 3（BUG-211 / 212 / 213）/ Closed 73 / WONTFIX 1）｜ Backlog → [_backlog.md](_backlog.md)
-- Decision Log → [_decision-log.md](_decision-log.md)（最大 D293）｜ Learnings → [_learnings.md](_learnings.md)（最大 L185）
+- Bug Tracker → [_bug-tracker.md](_bug-tracker.md)（熱區：Open 0 / Fixing 0 / Fixed 0 / Closed 76 / WONTFIX 1）｜ Backlog → [_backlog.md](_backlog.md)
+- Decision Log → [_decision-log.md](_decision-log.md)（最大 D302）｜ Learnings → [_learnings.md](_learnings.md)（最大 L185）
 - 研究報告 Artifact「Herdr 對照 BAT」→ https://claude.ai/artifact/Ybj66gYLkMHZE8xUyyDiEy（私人）
 - 網站 → https://gowerlin.github.io/better-agent-terminal/｜ 素材 spec → `e2e/site-media.spec.ts`（`BAT_SITE_MEDIA=1`，輸出 `e2e-media/`）
 - 歷史 sessions → [_archive/state-snapshots/INDEX.md](_archive/state-snapshots/INDEX.md)（143 entries；最新 `2026-Q4-c.md`）
 
 ### 編號起始
-- **T0870** / **BUG-214** / **PLAN-066** / **D294** / **EXP-WFMINE-002**（其他 TOPIC 從 001） / **L186** / **CT-T023**
+- **T0882** / **BUG-214** / **PLAN-066** / **D303** / **EXP-WFMINE-002**（其他 TOPIC 從 001） / **L186** / **CT-T023**
 
 ---
 
