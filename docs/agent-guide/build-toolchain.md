@@ -10,6 +10,18 @@
 - `vite.config.ts` 目前未用 vite 7 移除的 API（`splitVendorChunkPlugin`、`transformIndexHtml` 舊 hook 格式、`resolve.conditions` custom、Sass）；若日後新增構建設定請留意這些被移除的 API。
 - 下次升級目標：vite 8（等 `vite-plugin-electron@1.0.0` GA 脫離 beta，預估 6-12 個月後）。相關研究見 T0162、決策見 D052/D053。
 
+## mermaid：不打包 elkjs（T0878 / D299）
+
+- **原因**：mermaid 12 內建 ELK layout，依賴 `elkjs` 0.12.x（`EPL-2.0 OR GPL-3.0-or-later`，約 1.5 MB）。vite 會把它打成 lazy chunk `dist/assets/elk-*.js`，隨 `app.asar` 與安裝檔散布。BAT 以 `layout: 'dagre'` 渲染（`src/components/FileTreeMarkdown.tsx`），執行時用不到 ELK，所以不散布它（D299）。
+- **替換點**：mermaid 12.3.0 的 `node_modules/mermaid/dist/chunks/mermaid.core/elk-*.mjs` 以 `import ELK from "elkjs/lib/elk.bundled.js"` 匯入（該檔第 32 行附近；`chunk-*.mjs` 的 `elkLayoutLoaders` 以 `import("./elk-….mjs")` lazy 載入它）。`vite.config.ts` 的 `resolve.alias` 把所有 `elkjs` specifier（`/^elkjs(?:\/.*)?$/`）換成 `src/lib/elkjs-stub.ts`。以套件路徑比對，不依賴 mermaid chunk 的雜湊檔名；不改 `node_modules`、不 patch mermaid。
+- **空殼行為**：`ELK` 類別的 `layout()` 等方法回傳 rejected Promise（訊息 `ELK_NOT_BUNDLED_MESSAGE`）。圖裡寫 `layout: elk`（front matter）時，mermaid 在該圖畫錯誤圖（「Syntax error in text」＋版本），同頁其他圖照常渲染，沒有未處理的例外。`flowchart-elk` 在 BAT 設定下本來就以 dagre 排版（有無空殼結果相同）。其他 7 種圖與 T0876 最終的 SVG 逐字相同（class 圖的邊框控制點每次渲染本來就隨機）。
+- **大小**：`dist/assets` JS 總和 7,274,042 → 5,796,971 bytes；`elk-*.js` 1,513,070 → 36,121 bytes（只剩 mermaid 自己的 ELK renderer＋空殼）。
+- **守門測試** `scripts/__tests__/no-elkjs-in-dist.test.mjs`：
+  1. `vite.config.ts` 有 alias 這一行、空殼的 `layout()` 會 reject；
+  2. 已安裝的 mermaid 只以 `MERMAID_ELKJS_SPECIFIERS`（目前 `elkjs/lib/elk.bundled.js`）匯入 elkjs；
+  3. 有 `dist/assets` 時（`npx vite build` 後），沒有 JS 含 elkjs 的特徵字串（`org.eclipse.elk`、`Eclipse Public License`），每個 `elk-*.js` < 200 KB 且含空殼訊息；沒有 build 時跳過這項。
+- 🔴 **升 mermaid 時**：跑上面的測試。匯入 specifier 改了（例如改用 `elkjs/lib/elk-api.js`、或把 elkjs 內嵌進 mermaid 自己的 chunk）→ 測試失敗；確認 alias 仍涵蓋新的匯入、空殼的 API 與新呼叫方式相容（mermaid 只呼叫 `new ELK()` 與 `layout()`），再更新 `MERMAID_ELKJS_SPECIFIERS`。也要確認 mermaid 對 layout 失敗仍是「該圖顯示錯誤圖、其他圖照常」。
+
 # electron-builder 26 migration notes
 
 - **mac.notarize 格式變更**：v26 將 `mac.notarize` 從物件（`{ teamId }`）改為 boolean，認證資訊統一從環境變數讀取。目前 `package.json` 設為 `notarize: true`。

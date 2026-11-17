@@ -112,9 +112,15 @@ export default defineConfig({
     renderer()
   ],
   resolve: {
-    alias: {
-      '@': path.resolve(__dirname, './src')
-    }
+    alias: [
+      { find: '@', replacement: path.resolve(__dirname, './src') },
+      // T0878 / D299: do not bundle elkjs (`EPL-2.0 OR GPL-3.0-or-later`, ~1.5 MB). mermaid 12's lazy ELK
+      // layout renderer imports `elkjs/lib/elk.bundled.js`; every `elkjs` specifier resolves to a stub whose
+      // layout() rejects, so a diagram that asks for `layout: elk` / `flowchart-elk` gets mermaid's error
+      // diagram and the rest of the preview renders (BAT itself uses `layout: 'dagre'`). Guarded by
+      // scripts/__tests__/no-elkjs-in-dist.test.mjs; see docs/agent-guide/build-toolchain.md.
+      { find: /^elkjs(?:\/.*)?$/, replacement: path.resolve(__dirname, './src/lib/elkjs-stub.ts') },
+    ]
   },
   build: {
     rollupOptions: {
