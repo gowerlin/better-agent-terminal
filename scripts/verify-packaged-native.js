@@ -50,6 +50,9 @@
  *         `dependencies` closure of each (packed only when it is in the production dependency
  *         tree: package.json dependencies, not peerDependencies — T0719 / BUG-176)
  *   - C5  the whisper addon's `dist/` only holds `js/` and this platform's directories
+ *   - T0877 `foreign-platform-package` (D298): no package named `…-<platform>-<arch>[-<libc>]`, codex
+ *         `vendor/<triple>/` or `prebuilds/<platform>-<arch>/` for another platform / arch (foreignPlatformEntries;
+ *         e.g. a linux claude-code package left in a Windows host's node_modules)
  *   - T0689 `resources/scripts` (the packaged BAT_HELPER_DIR) holds exactly the runtime helpers
  *         (`serverBundleHelperScripts` in scripts/build-server-bundle.mjs): none missing, nothing extra
  *   - T0691 `resources/package.json` (where the helpers read `--version` / BAT MCP `serverInfo.version`,
@@ -276,6 +279,101 @@ function isCrossArchAllowed(relPath, baselineArch) {
   const distDir = relPath.slice(prefix.length).split('/')[0];
   const match = /^(mac|darwin)-(.+)$/.exec(distDir);
   return match !== null && match[2] !== baselineArch;
+}
+
+// ---------------------------------------------------------------------------
+// T0877 / D298 `foreign-platform-package`: packages and directories built for another platform / arch.
+//
+// T0873 put `@lydell/node-pty-linux-x64` and `@anthropic-ai/claude-code-linux-x64` into a Windows host's
+// node_modules (to build a linux server bundle); the next `build:dir` shipped the linux claude (328 MB) in
+// the Windows app.asar.unpacked and every other check passed (C1 only looks at `claude-code-win32-*`).
+// Judgement list — the single place that decides what "carries a platform / arch" (docs table:
+// docs/agent-guide/packaging-release-checks.md「foreign-platform-package」):
+//   1. a package whose name ends in `-<platform>-<arch>[-<libc>]` (npm's optional platform package
+//      convention). Inventory 2026-11 (package-lock.json `os` / `cpu` of the packages `build.files`
+//      keeps): `@anthropic-ai/claude-code-*`, `@anthropic-ai/claude-agent-sdk-*` (also C2a),
+//      `@lydell/node-pty-*`, `@openai/codex-*` (npm aliases of `@openai/codex@<ver>-<platform>-<arch>`).
+//      The name lists below also hold npm's other common values so a future platform package is recognised.
+//   2. `@openai/codex*/vendor/<rust target triple>/` — the codex binary directory
+//      (CODEX_TARGET_TRIPLES = codexTargetTriple() in electron/codex-agent-manager.ts).
+//   3. `prebuilds/<platform>-<arch>[+<arch>…]/` (node-gyp-build layout; nothing packaged uses it
+//      today — the T0546-era @lydell/node-pty did).
+//   The whisper addon's `dist/<platform>-<arch>/` is C5 (`whisper-platforms`, allowedWhisperDistDirs), not here.
+// Allowed: the target platform and arch, any libc (`-musl` is the same platform / arch: the runtime router
+// picks it on musl hosts, BUG-118). Names that do not parse as platform + arch are not judged.
+// ---------------------------------------------------------------------------
+
+/** Node `process.platform` values used in platform package / prebuild names. */
+const PACKAGE_PLATFORMS = ['win32', 'darwin', 'linux', 'freebsd', 'openbsd', 'netbsd', 'sunos', 'aix', 'android', 'openharmony'];
+/** Node `process.arch` values used in platform package / prebuild names. */
+const PACKAGE_ARCHS = ['x64', 'arm64', 'ia32', 'arm', 'ppc64', 's390x', 'riscv64', 'loong64', 'mips64el'];
+/** Optional trailing libc / toolchain qualifier (`-musl`, `-gnu`, `-msvc`); it never makes a package foreign. */
+const PACKAGE_LIBCS = ['musl', 'glibc', 'gnu', 'gnueabihf', 'musleabihf', 'eabi', 'msvc'];
+
+/**
+ * Rust target triple of each `@openai/codex-<platform>-<arch>/vendor/<triple>/` directory. Same table as
+ * `codexTargetTriple()` in electron/codex-agent-manager.ts (scripts/__tests__/verify-packaged-foreign-platform.test.mjs
+ * asserts parity).
+ */
+const CODEX_TARGET_TRIPLES = {
+  'linux-x64': 'x86_64-unknown-linux-musl',
+  'linux-arm64': 'aarch64-unknown-linux-musl',
+  'darwin-x64': 'x86_64-apple-darwin',
+  'darwin-arm64': 'aarch64-apple-darwin',
+  'win32-x64': 'x86_64-pc-windows-msvc',
+  'win32-arm64': 'aarch64-pc-windows-msvc',
+};
+
+const PLATFORM_PACKAGE_NAME = new RegExp(
+  `(?:^|[-/])(${PACKAGE_PLATFORMS.join('|')})-(${PACKAGE_ARCHS.join('|')})(?:-(?:${PACKAGE_LIBCS.join('|')}))?$`,
+);
+const PREBUILD_DIR = new RegExp(`^(${PACKAGE_PLATFORMS.join('|')})-((?:${PACKAGE_ARCHS.join('|')})(?:\\+(?:${PACKAGE_ARCHS.join('|')}))*)$`);
+
+/** `{ platform, arch }` a package name targets, or null when it is not a platform package (rule 1). */
+function platformPackageTarget(name) {
+  const match = PLATFORM_PACKAGE_NAME.exec(name);
+  return match ? { platform: match[1], arch: match[2] } : null;
+}
+
+/**
+ * Packages and directories in `files` (packaged paths, '/'-separated, relative to the asar root — app.asar
+ * and app.asar.unpacked merged) built for a platform / arch other than `platform` (Node name) / `arch`.
+ * Returns [{ path, target }] — `path` is the package or directory prefix, `target` e.g. `linux-x64`; sorted, unique.
+ */
+function foreignPlatformEntries(files, platform, arch) {
+  const found = new Map();
+  const add = (prefix, target) => {
+    if (!found.has(prefix)) found.set(prefix, target);
+  };
+  // the trailing '/' is a lookahead so `…/a/node_modules/b/` still matches the nested package
+  const packageDir = /(?:^|\/)node_modules\/((?:@[^/]+\/)?[^/@][^/]*)(?=\/)/g;
+  for (const file of files) {
+    // rule 1: every package on the path (nested node_modules included)
+    for (const match of file.matchAll(packageDir)) {
+      const target = platformPackageTarget(match[1]);
+      if (target && (target.platform !== platform || target.arch !== arch)) {
+        add(file.slice(0, match.index + match[0].length).replace(/^\//, ''), `${target.platform}-${target.arch}`);
+      }
+    }
+    // rule 2: codex vendor/<triple>/
+    const vendor = /(?:^|\/)node_modules\/@openai\/codex(?:-[^/]+)?\/vendor\/([^/]+)\//.exec(file);
+    if (vendor) {
+      const target = Object.keys(CODEX_TARGET_TRIPLES).find((key) => CODEX_TARGET_TRIPLES[key] === vendor[1]);
+      if (target && target !== `${platform}-${arch}`) add(file.slice(0, vendor.index + vendor[0].length - 1).replace(/^\//, ''), target);
+    }
+    // rule 3: prebuilds/<platform>-<arch>[+<arch>…]/
+    const prebuild = /(?:^|\/)prebuilds\/([^/]+)\//.exec(file);
+    const prebuildTarget = prebuild ? PREBUILD_DIR.exec(prebuild[1]) : null;
+    if (prebuildTarget && (prebuildTarget[1] !== platform || !prebuildTarget[2].split('+').includes(arch))) {
+      add(file.slice(0, prebuild.index + prebuild[0].length - 1).replace(/^\//, ''), prebuild[1]);
+    }
+  }
+  // list the outermost entry only (a foreign package's own vendor / prebuilds dirs add nothing)
+  const prefixes = [...found.keys()];
+  return [...found]
+    .filter(([p]) => !prefixes.some((other) => other !== p && p.startsWith(`${other}/`)))
+    .map(([p, target]) => ({ path: p, target }))
+    .sort((a, b) => a.path.localeCompare(b.path));
 }
 
 // ---------------------------------------------------------------------------
@@ -572,6 +670,18 @@ function verifyPackagedLayout(resourcesPath, platform, arch, { helperScripts, ex
     .filter((dir) => !allowed.includes(dir)))];
   if (strayDirs.length > 0) {
     problems.push({ id: 'whisper-platforms', message: `whisper dist/ ships other platforms' builds (T0546 C5; allowed: ${allowed.join(', ')})`, details: strayDirs.map((d) => whisperPrefix + d) });
+  }
+
+  // T0877 / D298: no package / directory built for another platform or arch
+  const foreignPlatform = foreignPlatformEntries(files, platform, arch);
+  if (foreignPlatform.length > 0) {
+    problems.push({
+      id: 'foreign-platform-package',
+      message: `${foreignPlatform.length} package(s) / director(ies) built for another platform or arch packaged (target ${platform}-${arch}; T0877). `
+        + 'Usually another platform\'s optional dependency left in the build host\'s node_modules (e.g. installed by hand to build a server bundle): '
+        + 'remove it from node_modules (or run npm ci) and package again',
+      details: foreignPlatform.map((entry) => `${entry.target}: ${entry.path}`),
+    });
   }
 
   // D146 / T0547: no server bundle baseline at all (was T0546 C3: D092 targets only)
@@ -999,6 +1109,7 @@ function printLayoutHints() {
   console.error('[verify-packaged-native] T0546 sdk-binary / duplicate-claude / whisper-platforms: an exclusion in package.json build.files was lost. T0547 server-bundle-baseline: remove the bat-server-baseline extraResources entry (D146).');
   console.error('[verify-packaged-native] T0689 helper-scripts: package.json build.extraResources (from: scripts) filter must list exactly serverBundleHelperScripts; run `npm run verify:helpers`.');
   console.error('[verify-packaged-native] T0691 helper-version: package.json build.afterPack must stay ./scripts/version-manifest.cjs (it writes resources/package.json = { name, version } of the packaged app).');
+  console.error('[verify-packaged-native] T0877 foreign-platform-package: another platform / arch package is in the build host\'s node_modules (e.g. installed by hand for a server bundle); delete it (or `npm ci`) and package again — never add it to package-lock.json.');
   console.error('');
 }
 
@@ -1112,6 +1223,11 @@ module.exports = {
   elfMachine,
   peMachine,
   isCrossArchAllowed,
+  PACKAGE_PLATFORMS,
+  PACKAGE_ARCHS,
+  CODEX_TARGET_TRIPLES,
+  platformPackageTarget,
+  foreignPlatformEntries,
   readAsar,
   asarFiles,
   readAsarFile,

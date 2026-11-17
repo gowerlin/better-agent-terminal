@@ -10,6 +10,8 @@
 // by scripts/__tests__/_pty-holder-fixture.cjs, also preloaded into the CLI runs); mac / linux ship none.
 // T0866 / BUG-213 — Windows `resources/native/bat_win_stdio_inherit.node` (PE of the arch; the load check runs only from the CLI
 // and is mocked here: the fake packages have no executable, the win CLI runs pass --skip-load-check); mac / linux ship none.
+// T0877 / D298 — no package / directory built for another platform or arch (foreign-platform-package; pure rules in
+// verify-packaged-foreign-platform.test.mjs).
 //
 // Fake electron-builder output trees (release/mac-arm64/*.app, release/linux-unpacked,
 // release/win-unpacked) are built in a temp dir with hand-written Mach-O / ELF / PE headers
@@ -380,7 +382,8 @@ describe('verifyPackagedMac', () => {
 
     const result = verifyPackagedMac(out)
     expect(result.ok).toBe(false)
-    expect(problemIds(result, 'arm64')).toEqual(['foreign-arch'])
+    // T0877: the darwin-x64 package (and its prebuilds dir) is also flagged by name
+    expect(problemIds(result, 'arm64')).toEqual(['foreign-arch', 'foreign-platform-package'])
     expect(result.archs[0].apps[0].foreign.map((f) => f.path)).toEqual([intruder])
 
     const cli = runCli(['--out', out, '--arch', 'arm64'])
@@ -1055,6 +1058,69 @@ describe.each([
     build(out, { packed: { ...HEALTHY_PACKED, 'package.json': '{"main":"dist-electron/main.js"}' } })
     expect(checked(out).problems).toEqual([])
     expect(checked(out).layout.helperVersion.expectedVersion).toBeNull()
+  })
+})
+
+// T0877 / D298: the healthy fixtures above (win x64 / linux x64 / mac arm64, each with its own platform packages)
+// already pass with the new check; these mix in another platform's package. Pure rules: verify-packaged-foreign-platform.test.mjs.
+describe('foreign-platform-package (T0877)', () => {
+  const nm = (resources, ...segments) => path.join(resources, 'app.asar.unpacked', 'node_modules', ...segments)
+  const foreignProblem = (problems) => problems.find((p) => p.id === 'foreign-platform-package')
+
+  it('win x64 with the T0873 leftovers (linux node-pty + linux claude) → fail (exit 1) naming both packages', () => {
+    const out = makeOutDir()
+    makeWin(out, {
+      extra: (r) => {
+        writeFile(nm(r, '@anthropic-ai', 'claude-code-linux-x64', 'claude'), elf(ELF_MACHINES.x64))
+        writeFile(nm(r, '@lydell', 'node-pty-linux-x64', 'pty.node'), elf(ELF_MACHINES.x64))
+      },
+    })
+    const result = verifyPackagedWin(out)
+    expect(result.ok).toBe(false)
+    expect(result.archs[0].problems.map((p) => p.id)).toEqual(['foreign-platform-package'])
+    expect(foreignProblem(result.archs[0].problems).details).toEqual([
+      'linux-x64: node_modules/@anthropic-ai/claude-code-linux-x64',
+      'linux-x64: node_modules/@lydell/node-pty-linux-x64',
+    ])
+    const cli = runCli(['--platform', 'win', '--out', out, '--skip-load-check'])
+    expect(cli.code).toBe(1)
+    expect(cli.stderr).toContain('built for another platform or arch packaged (target win32-x64; T0877)')
+    expect(cli.stderr).toContain('linux-x64: node_modules/@anthropic-ai/claude-code-linux-x64')
+    expect(cli.stderr).toContain('T0877 foreign-platform-package')
+  })
+
+  it('win x64 with the arm64 claude package or another codex vendor triple → fail', () => {
+    const out = makeOutDir()
+    makeWin(out, {
+      extra: (r) => {
+        writeFile(nm(r, '@anthropic-ai', 'claude-code-win32-arm64', 'package.json'), '{}')
+        writeFile(nm(r, '@openai', 'codex-win32-x64', 'vendor', 'aarch64-pc-windows-msvc', 'bin', 'codex.exe'), pe(PE_MACHINES.arm64))
+      },
+    })
+    expect(foreignProblem(verifyPackagedWin(out).archs[0].problems).details).toEqual([
+      'win32-arm64: node_modules/@anthropic-ai/claude-code-win32-arm64',
+      'win32-arm64: node_modules/@openai/codex-win32-x64/vendor/aarch64-pc-windows-msvc',
+    ])
+  })
+
+  it('linux x64 with a darwin codex package packed in app.asar → fail; the musl claude package is allowed', () => {
+    const out = makeOutDir()
+    const resources = makeLinux(out, 'x64', elf(ELF_MACHINES.x64), {
+      packed: { ...HEALTHY_PACKED, 'node_modules/@openai/codex-darwin-arm64/package.json': '{}' },
+    })
+    writeFile(nm(resources, '@anthropic-ai', 'claude-code-linux-x64-musl', 'claude'), elf(ELF_MACHINES.x64))
+    const result = verifyPackagedLinux(out)
+    expect(result.ok).toBe(false)
+    expect(foreignProblem(result.archs[0].problems).details).toEqual(['darwin-arm64: node_modules/@openai/codex-darwin-arm64'])
+  })
+
+  it('mac arm64 with a win32 node-pty package (no Mach-O inside) → fail by name alone', () => {
+    const out = makeOutDir()
+    const app = makeApp(out, 'arm64')
+    writeFile(unpacked(app, 'node_modules', '@lydell', 'node-pty-win32-x64', 'conpty.node'), pe(PE_MACHINES.x64))
+    const result = verifyPackagedMac(out)
+    expect(problemIds(result, 'arm64')).toEqual(['foreign-platform-package'])
+    expect(foreignProblem(result.archs[0].apps[0].problems).details).toEqual(['win32-x64: node_modules/@lydell/node-pty-win32-x64'])
   })
 })
 
