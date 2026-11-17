@@ -92,7 +92,7 @@ describe('package.json wiring (D291: an npm script, no install script)', () => {
       expect(s.indexOf('npm run build:native-win')).toBeLessThan(s.indexOf('verify-native-modules.js'))
     }
     expect(pkg.scripts.postinstall).not.toMatch(/node-gyp|build-native|win-stdio/)
-    expect(pkg.allowScripts).toEqual({ esbuild: true, sharp: true, '@anthropic-ai/claude-code': true })
+    expect(pkg.allowScripts).toEqual({ esbuild: true, '@anthropic-ai/claude-code': true })
     expect(pkg.devDependencies['node-gyp']).toMatch(/^\d+\.\d+\.\d+$/)
     expect(pkg.dependencies?.['node-gyp']).toBeUndefined()
     expect(pkg.build.afterPack).toBe('./scripts/version-manifest.cjs')

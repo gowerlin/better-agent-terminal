@@ -205,7 +205,6 @@
   },
   "allowScripts": {
     "esbuild": true,
-    "sharp": true,
     "@anthropic-ai/claude-code": true
   }
 }

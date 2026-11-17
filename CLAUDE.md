@@ -333,7 +333,7 @@
 
 ## 本機開發：npm 12 install scripts（T0471 / T0473）
 
-- npm 12 預設擋相依套件的 install scripts（`npm ci` 仍 exit 0，只在結尾警告）。`package.json` `allowScripts` 以 name-only entry 放行 `esbuild`、`sharp`、`@anthropic-ai/claude-code`。`electron` 於 T0784 移除（D223）：Electron 42 起它沒有 install script，binary 在第一次 `require('electron')` 時下載（見「Electron Runtime」）。
+- npm 12 預設擋相依套件的 install scripts（`npm ci` 仍 exit 0，只在結尾警告）。`package.json` `allowScripts` 以 name-only entry 放行 `esbuild`、`@anthropic-ai/claude-code`。`electron` 於 T0784 移除（D223）：Electron 42 起它沒有 install script，binary 在第一次 `require('electron')` 時下載（見「Electron Runtime」）；`sharp` 於 T0874 移除（D298）：0.35 起沒有 install script。
 - `electron-winstaller` 與 `fsevents` 刻意不列入、也不寫 `false`（npm 11 / CI 會遵守 `false` 而跳過它們的 script，改變 CI 行為）；`npm ci` 結尾列出它們屬預期。
 - **`allowScripts` 是政策**：新增帶 install script 的相依時，放行或拒絕需塔台決策；不要用 `npm install-scripts approve --all` 或 `--dangerously-allow-all-scripts` 一次放行。
 - 日後要加回 postinstall rebuild 時直接執行 `@electron/rebuild` 的 `cli.js`，不經 `npm rebuild`。
