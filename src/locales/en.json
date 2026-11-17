@@ -265,6 +265,7 @@
     "copyPath": "Copy Path",
     "copyRemotePath": "Copy Remote Path",
     "openOnGithub": "Open on GitHub",
+    "mermaidElkFallback": "This diagram asks for the ELK layout, which BAT does not include. It is shown with the default layout.",
     "setGroup": "Set Group...",
     "setColor": "Set Color",
     "clearColor": "Clear color",

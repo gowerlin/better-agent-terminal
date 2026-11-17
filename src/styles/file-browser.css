@@ -695,6 +695,14 @@
   height: auto;
 }
 
+/* T0879: note under a diagram whose ELK layout was replaced with dagre */
+.file-preview-markdown .mermaid-elk-note {
+  margin: -0.25em 0 0.5em;
+  color: var(--text-secondary);
+  font-size: 12px;
+  text-align: center;
+}
+
 .file-preview-markdown .mermaid-error {
   border: 1px dashed #e74c3c;
   border-radius: 4px;

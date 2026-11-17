@@ -1,7 +1,9 @@
 import { useEffect, useRef } from 'react'
+import { useTranslation } from 'react-i18next'
 import hljs from 'highlight.js/lib/core'
 import { marked } from 'marked'
 import DOMPurify from 'dompurify'
+import { applyMermaidElkFallback } from '../lib/mermaid-elk-fallback'
 
 // Markdown rendering using marked + DOMPurify (sanitized) + highlight.js, with mermaid post-processing.
 // Extracted from FileTree.tsx (PLAN-023 階段 3).
@@ -13,9 +15,19 @@ marked.setOptions({
 
 const renderer = new marked.Renderer()
 
+// data-* attributes pass DOMPurify by default (ALLOW_DATA_ATTR), so the sanitize config is unchanged.
+const ELK_FALLBACK_ATTR = 'data-mermaid-elk-fallback'
+const ELK_NOTE_CLASS = 'mermaid-elk-note'
+
 renderer.code = function ({ text, lang }: { text: string; lang?: string }) {
   // Mermaid blocks: render as div with class "mermaid" for post-render processing
   if (lang === 'mermaid') {
+    // T0879 / D300: BAT does not ship elkjs (T0878), so an ELK layout request is rewritten to
+    // dagre and marked for a note. Diagrams without one produce exactly the same HTML as before.
+    const fallback = applyMermaidElkFallback(text)
+    if (fallback.usedElk) {
+      return `<div class="mermaid" ${ELK_FALLBACK_ATTR}="true">${fallback.text}</div>`
+    }
     return `<div class="mermaid">${text}</div>`
   }
   let highlighted: string
@@ -75,9 +87,26 @@ async function getMermaid() {
   return mermaidInstance
 }
 
-async function renderMermaidBlocks(container: HTMLElement) {
+// One line under a diagram whose ELK layout was replaced (T0879). Text only, via textContent.
+function addElkFallbackNotes(container: HTMLElement, note: string) {
+  container.querySelectorAll(`.mermaid[${ELK_FALLBACK_ATTR}]`).forEach(div => {
+    const next = div.nextElementSibling
+    if (next?.classList.contains(ELK_NOTE_CLASS)) {
+      next.textContent = note
+      return
+    }
+    const p = document.createElement('p')
+    p.className = ELK_NOTE_CLASS
+    p.textContent = note
+    div.after(p)
+  })
+}
+
+async function renderMermaidBlocks(container: HTMLElement, elkNote: string) {
   const mermaidDivs = container.querySelectorAll('.mermaid')
   if (mermaidDivs.length === 0) return
+
+  addElkFallbackNotes(container, elkNote)
 
   const mermaid = await getMermaid()
   mermaidDivs.forEach((div, i) => {
@@ -96,14 +125,27 @@ async function renderMermaidBlocks(container: HTMLElement) {
 
 export function MarkdownPreview({ content }: Readonly<{ content: string }>) {
   const containerRef = useRef<HTMLDivElement>(null)
+  const { t } = useTranslation()
+  const elkNote = t('sidebar.mermaidElkFallback')
+  const elkNoteRef = useRef(elkNote)
+  elkNoteRef.current = elkNote
   // Sanitized via DOMPurify in renderMarkdown — safe to inject.
   const html = renderMarkdown(content)
 
   useEffect(() => {
     if (containerRef.current) {
-      renderMermaidBlocks(containerRef.current)
+      renderMermaidBlocks(containerRef.current, elkNoteRef.current)
     }
   }, [html])
+
+  // Language change: update the notes in place without re-running mermaid.
+  useEffect(() => {
+    if (containerRef.current) {
+      containerRef.current.querySelectorAll(`.${ELK_NOTE_CLASS}`).forEach(n => {
+        n.textContent = elkNote
+      })
+    }
+  }, [elkNote])
 
   return (
     <div

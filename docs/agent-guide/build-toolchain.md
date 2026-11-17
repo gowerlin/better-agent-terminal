@@ -21,6 +21,7 @@
   2. 已安裝的 mermaid 只以 `MERMAID_ELKJS_SPECIFIERS`（目前 `elkjs/lib/elk.bundled.js`）匯入 elkjs；
   3. 有 `dist/assets` 時（`npx vite build` 後），沒有 JS 含 elkjs 的特徵字串（`org.eclipse.elk`、`Eclipse Public License`），每個 `elk-*.js` < 200 KB 且含空殼訊息；沒有 build 時跳過這項。
 - 🔴 **升 mermaid 時**：跑上面的測試。匯入 specifier 改了（例如改用 `elkjs/lib/elk-api.js`、或把 elkjs 內嵌進 mermaid 自己的 chunk）→ 測試失敗；確認 alias 仍涵蓋新的匯入、空殼的 API 與新呼叫方式相容（mermaid 只呼叫 `new ELK()` 與 `layout()`），再更新 `MERMAID_ELKJS_SPECIFIERS`。也要確認 mermaid 對 layout 失敗仍是「該圖顯示錯誤圖、其他圖照常」。
+- **圖指定 ELK 時改用 dagre 並顯示說明（T0879 / D300）**：Markdown 預覽渲染前以 `applyMermaidElkFallback`（`src/lib/mermaid-elk-fallback.ts`）把 front matter `config.layout` 或 `%%{init|initialize: …}%%` 頂層 `layout` 的 `elk` / `elk.*` 改成 `dagre`，圖下方顯示一行說明（`sidebar.mermaidElkFallback`）；只改傳給 mermaid 的文字，認不出的寫法照原文渲染（上述錯誤圖），升 mermaid 時一併確認 layout 的設定來源沒變（`src/lib/__tests__/mermaid-elk-fallback.test.ts`）。
 
 # electron-builder 26 migration notes
 

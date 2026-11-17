@@ -264,6 +264,7 @@
     "copyPath": "複製路徑",
     "copyRemotePath": "複製遠端路徑",
     "openOnGithub": "在 GitHub 上開啟",
+    "mermaidElkFallback": "這張圖指定 ELK 排版，BAT 沒有內建 ELK，已改用預設排版顯示。",
     "setGroup": "設定群組...",
     "setColor": "設定顏色",
     "clearColor": "清除顏色",
