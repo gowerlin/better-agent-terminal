@@ -22,7 +22,7 @@ import { createHeadlessGitBinaryResolver } from '../headless-entry'
 import { HEADLESS_UNSUPPORTED } from '../headless-channel-status'
 import { PROXIED_CHANNELS } from '../protocol'
 import { startHeadlessHarness, type HeadlessHarness } from './helpers/headless-harness'
-import { SIMPLE_GIT_UNSAFE_ENV_KEYS } from '../../git/git-ipc'
+import { isSimpleGitGuardedEnvKey } from '../../git/git-ipc'
 
 const { worktreeGitEnvs, scaffoldEnvs } = vi.hoisted(() => ({
   worktreeGitEnvs: [] as Array<NodeJS.ProcessEnv | undefined>,
@@ -43,16 +43,17 @@ vi.mock('child_process', async importOriginal => {
 
 vi.mock('simple-git', async importOriginal => {
   const real = await importOriginal<typeof import('simple-git')>()
-  const wrapped = ((...args: Parameters<typeof real.default>) => {
-    const git = real.default(...args)
+  // T0873: simple-git 4 has no default export, only the named `simpleGit`
+  const wrapped = ((...args: Parameters<typeof real.simpleGit>) => {
+    const git = real.simpleGit(...args)
     const env = git.env.bind(git) as (...a: unknown[]) => typeof git
     git.env = ((...a: unknown[]) => {
       scaffoldEnvs.push(a[0])
       return env(...a)
     }) as typeof git.env
     return git
-  }) as typeof real.default
-  return { ...real, default: wrapped, simpleGit: wrapped }
+  }) as typeof real.simpleGit
+  return { ...real, simpleGit: wrapped }
 })
 
 const FAKE_GH = path.join(os.tmpdir(), 'bat-t0405-fake', 'gh')
@@ -232,7 +233,7 @@ describe('worktree:* / git-scaffold:* child env on headless (T0429)', { timeout:
     expect(scaffoldEnvs).toHaveLength(3)
     for (const env of scaffoldEnvs as Array<Record<string, string>>) {
       expect(batKeys(env)).toEqual([])
-      expect(Object.keys(env).filter(k => SIMPLE_GIT_UNSAFE_ENV_KEYS.has(k.toLowerCase()))).toEqual([])
+      expect(Object.keys(env).filter(isSimpleGitGuardedEnvKey)).toEqual([])
       expect(Object.keys(env).some(k => k.toUpperCase() === 'PATH')).toBe(true)
     }
   })

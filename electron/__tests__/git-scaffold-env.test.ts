@@ -15,28 +15,29 @@ import * as fs from 'fs'
 import * as os from 'os'
 import * as path from 'path'
 import { parseEnv } from '@simple-git/argv-parser'
-import realSimpleGit from 'simple-git'
+import { simpleGit as realSimpleGit } from 'simple-git'
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
-import { registerGitScaffoldHandlers, SIMPLE_GIT_UNSAFE_ENV_KEYS, stripSimpleGitUnsafeEnv } from '../git/git-ipc'
+import { isSimpleGitGuardedEnvKey, registerGitScaffoldHandlers, SIMPLE_GIT_UNSAFE_ENV_KEYS, stripSimpleGitUnsafeEnv } from '../git/git-ipc'
 import type { HandlerRegistrar } from '../handlers/types'
 
 const { envCalls } = vi.hoisted(() => ({ envCalls: [] as unknown[] }))
 
 vi.mock('simple-git', async importOriginal => {
   const real = await importOriginal<typeof import('simple-git')>()
-  const wrapped = ((...args: Parameters<typeof real.default>) => {
-    const git = real.default(...args)
+  // T0873: simple-git 4 has no default export, only the named `simpleGit`
+  const wrapped = ((...args: Parameters<typeof real.simpleGit>) => {
+    const git = real.simpleGit(...args)
     const env = git.env.bind(git) as (...a: unknown[]) => typeof git
     git.env = ((...a: unknown[]) => {
       envCalls.push(a[0])
       return env(...a)
     }) as typeof git.env
     return git
-  }) as typeof real.default
-  return { ...real, default: wrapped, simpleGit: wrapped }
+  }) as typeof real.simpleGit
+  return { ...real, simpleGit: wrapped }
 })
 
-/** Every key simple-git 3.36.0 refuses in an env, as a server shell might export it. */
+/** Keys simple-git refuses in an env (3.36.0 list + VISUAL / GIT_CONFIG_PARAMETERS from 4.1.0), as a server shell might export them. */
 const UNSAFE_SERVER_ENV: Record<string, string> = {
   EDITOR: 'vim',
   PAGER: 'less',
@@ -58,6 +59,8 @@ const UNSAFE_SERVER_ENV: Record<string, string> = {
   GIT_CONFIG_KEY_0: 'core.pager',
   GIT_CONFIG_VALUE_0: 'less',
   PREFIX: '/usr/local',
+  VISUAL: 'vim',
+  GIT_CONFIG_PARAMETERS: "'core.pager=less'",
 }
 
 type Handler = (ctx: unknown, ...args: unknown[]) => unknown
@@ -96,19 +99,23 @@ describe('SIMPLE_GIT_UNSAFE_ENV_KEYS / stripSimpleGitUnsafeEnv (T0429)', () => {
     }
   })
 
-  it('a stripped server env passes the simple-git check; PATH / HOME / GIT_DIR / BAT_* are left alone', () => {
+  // T0873: simple-git 4 guards every GIT_* key (removed when inherited, refused when given through .env()),
+  // so GIT_DIR and the GIT_CONFIG_KEY_n / VALUE_n pairs are dropped too.
+  it('a stripped server env passes the simple-git check; PATH / HOME / BAT_* are left alone, every GIT_* is dropped', () => {
     const env = { ...UNSAFE_SERVER_ENV, Editor: 'nano', PATH: '/usr/bin', HOME: '/home/u', GIT_DIR: '.git', BAT_X: '1', UNDEF: undefined }
     expect(parseEnv(env).vulnerabilities.length).toBeGreaterThan(0)
     const stripped = stripSimpleGitUnsafeEnv(env)
-    expect(parseEnv(stripped).vulnerabilities).toEqual([])
+    // 4.x also reports HOME at level `recommended` (a value other than the inherited one): enforced only with
+    // `unsafe.recommended` / `strict`, both off (and headless passes the inherited HOME). `default` is what throws.
+    expect(parseEnv(stripped).vulnerabilities.filter(v => v.level === 'default')).toEqual([])
     expect(stripped).toEqual({
-      PATH: '/usr/bin', HOME: '/home/u', GIT_DIR: '.git', BAT_X: '1',
-      GIT_CONFIG_KEY_0: 'core.pager', GIT_CONFIG_VALUE_0: 'less', // inert without GIT_CONFIG_COUNT
+      PATH: '/usr/bin', HOME: '/home/u', BAT_X: '1',
     })
+    expect(Object.keys(stripped).some(isSimpleGitGuardedEnvKey)).toBe(false)
   })
 
   it('the trap is real: an unstripped env with EDITOR makes simple-git throw', async () => {
-    await expect(realSimpleGit(repo).env({ ...process.env, EDITOR: 'vim' }).raw(['log', '-1'])).rejects.toThrow(/EDITOR.*not permitted/)
+    await expect(realSimpleGit(repo).env({ ...process.env, EDITOR: 'vim' }).raw(['log', '-1'])).rejects.toThrow(/EDITOR/)
   })
 })
 
@@ -134,7 +141,7 @@ describe('git-scaffold:* child env (T0429)', { timeout: 30_000 }, () => {
     expect(reads).toBe(3) // read per call, not frozen at registration
     expect(envCalls).toHaveLength(3)
     for (const env of envCalls as Array<Record<string, string>>) {
-      expect(Object.keys(env).filter(k => SIMPLE_GIT_UNSAFE_ENV_KEYS.has(k.toLowerCase()))).toEqual([])
+      expect(Object.keys(env).filter(isSimpleGitGuardedEnvKey)).toEqual([])
       expect(Object.keys(env).some(k => k.toUpperCase() === 'PATH')).toBe(true)
     }
   })

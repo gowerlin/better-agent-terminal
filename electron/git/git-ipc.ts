@@ -14,7 +14,8 @@
  * logic here that belongs to graph / indexing / operations phases.
  */
 
-import simpleGit, { type SimpleGit, type SimpleGitOptions } from 'simple-git'
+// simple-git 4 (T0873) has no default export any more: the named `simpleGit` only.
+import { simpleGit, type SimpleGit, type SimpleGitOptions } from 'simple-git'
 import { logger } from '../logger'
 import type { HandlerRegistrar } from '../handlers/types'
 
@@ -64,19 +65,16 @@ export interface GitScaffoldDeps {
    * T0429: env for the git children, read per call. Headless passes the server env
    * minus `BAT_*`; the keys simple-git refuses are dropped here
    * (`stripSimpleGitUnsafeEnv`). Omitted or undefined (Electron) ⇒ `.env()` is never
-   * called and git inherits `process.env` unchanged.
+   * called and git gets `process.env` minus the keys simple-git 4 itself removes
+   * (see `isSimpleGitGuardedEnvKey`).
    */
   getEnv?: () => NodeJS.ProcessEnv | undefined
 }
 
 /**
- * T0429: env keys simple-git's `blockUnsafeOperationsPlugin` rejects when they
- * appear in an env given through `.env()` (`Use of "EDITOR" is not permitted without
- * enabling allowUnsafeEditor`). Mirrors the `y` map of
- * `@simple-git/argv-parser` 1.1.1 `dist/index.cjs` (simple-git 3.36.0), matched like
- * its `parseEnv`: key lowercased and trimmed. Dropping `git_config_count` also
- * disarms its `GIT_CONFIG_KEY_n` / `GIT_CONFIG_VALUE_n` config check (git ignores
- * those keys without the count). 🔴 Do not turn on the `unsafe` options instead.
+ * T0429 / T0873: env keys simple-git guards (`@simple-git/argv-parser` 3.0.0 `K` map,
+ * simple-git 4.1.0). Matched like its `parseEnv`: key lowercased and trimmed.
+ * 🔴 Do not turn on the `unsafe` / `allowEnvironment` options instead.
  */
 export const SIMPLE_GIT_UNSAFE_ENV_KEYS: ReadonlySet<string> = new Set([
   'editor',
@@ -84,6 +82,7 @@ export const SIMPLE_GIT_UNSAFE_ENV_KEYS: ReadonlySet<string> = new Set([
   'git_config_global',
   'git_config_system',
   'git_config_count',
+  'git_config_parameters',
   'git_config',
   'git_editor',
   'git_exec_path',
@@ -97,13 +96,25 @@ export const SIMPLE_GIT_UNSAFE_ENV_KEYS: ReadonlySet<string> = new Set([
   'pager',
   'prefix',
   'ssh_askpass',
+  'visual',
 ])
 
-/** `env` without the keys simple-git refuses (and without undefined values). */
+/**
+ * T0873: simple-git 4's environment guard (`isGuardedEnvKey`): every `GIT_*` key plus
+ * `SIMPLE_GIT_UNSAFE_ENV_KEYS`. On each spawn it removes such keys inherited from
+ * `process.env`, and throws when one is passed through `.env()` without an
+ * `allowEnvironment` entry, so the headless env must not carry any of them.
+ */
+export function isSimpleGitGuardedEnvKey(key: string): boolean {
+  const k = key.toLowerCase().trim()
+  return k.startsWith('git_') || SIMPLE_GIT_UNSAFE_ENV_KEYS.has(k)
+}
+
+/** `env` without the keys simple-git guards (and without undefined values). */
 export function stripSimpleGitUnsafeEnv(env: NodeJS.ProcessEnv): Record<string, string> {
   const out: Record<string, string> = {}
   for (const [key, value] of Object.entries(env)) {
-    if (value === undefined || SIMPLE_GIT_UNSAFE_ENV_KEYS.has(key.toLowerCase().trim())) continue
+    if (value === undefined || isSimpleGitGuardedEnvKey(key)) continue
     out[key] = value
   }
   return out
