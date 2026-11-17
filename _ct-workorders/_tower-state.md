@@ -1,7 +1,7 @@
 ---
 schema_kind: tower-state
 summary_version: 1
-updated_at: "2026-11-17T10:21:21+08:00"
+updated_at: "2026-11-17T10:25:26+08:00"
 session: "2026-11-16 19:14 第一百二十五 session（CT v6.0.0）"
 next_ids:
   workorder: "T0874"
@@ -9,7 +9,7 @@ next_ids:
   bug: "BUG-214"
   plan: "PLAN-066"
 todo:
-  - "✅ T0873 DONE（D297，commit `d215ae93`／`e74cf969`／`69d872ad`／`103239ff`，**未 push**；10:00 塔台收單：`npm audit` 51 → 8（critical 0、high 0、moderate 6、low 2），塔台重跑確認；本機 linux 平台套件已清除、工作區乾淨）：electron-builder 26.8.1 → 26.18.0（NSIS 範本本機比對語意不變，內層 7z 改 BCJ）、vite 7.3.8、vitest 4.1.12、simple-git 4.1.0（Git Graph 的 git 子程序不再繼承 `GIT_*`／EDITOR／PAGER 等 env）、uuid 14.0.3（移除 `@types/uuid`）、sharp 0.35.5；每步關卡不比基準差。🔴 **發版前**：`desktop-build.yml` ×2（A／B）＋ `windows-upgrade-acceptance.yml`（W6），並確認 mac／linux 用 26.18.0 能打包"
+  - "✅ T0873 DONE（D297，commit `d215ae93`／`e74cf969`／`69d872ad`／`103239ff`，**未 push**；10:00 塔台收單：`npm audit` 51 → 8（critical 0、high 0、moderate 6、low 2），塔台重跑確認；本機 linux 平台套件已清除、工作區乾淨）：electron-builder 26.8.1 → 26.18.0（NSIS 範本本機比對語意不變，內層 7z 改 BCJ）、vite 7.3.8、vitest 4.1.12、simple-git 4.1.0（Git Graph 的 git 子程序不再繼承 `GIT_*`／EDITOR／PAGER 等 env）、uuid 14.0.3（移除 `@types/uuid`）、sharp 0.35.5；每步關卡不比基準差。使用者指示 push（`102e8e6e..ca32474b`，去識別化＋金鑰掃描 0 筆）並跑驗收，全部 success：`tests.yml` `44000160722`、`desktop-build.yml` A `44000165503`／B `44000211651`（win／linux／mac 三平台皆打得出來）、`windows-upgrade-acceptance.yml` `44002198241`（情境 1–9 全過）"
   - "候選（T0873 建議，未開單）：`allowScripts` 的 `sharp` 項目（0.35 起無 install script）去留；`minimatch@9` overrides（moderate，electron-builder 工具鏈）；mermaid 12（katex low）；`verify-packaged-native` 擋 Windows 包內出現其他平台的 `claude-code-*`"
   - "ℹ️ BMad-Guide 告知 `vitepress-portal-layout` v1.1.3（commit `348884f`）：站點檔與 v1.1.2 逐位元組相同，BAT 不必改、不必部署；只改 `layout-check.mjs` 與文件（收 T0872 回饋 3 項）。下次網站驗證改用 v1.1.3 的 `layout-check.mjs`；用 v1.1.2 存的 baseline 比對時，`<figure>` 包 `<img>` 的頁應有按鈕數會少 1 → 重存 baseline 或加 `--baseline-warn`"
   - "✅ T0872 DONE 並上線（D296，產品 commit `ff8841f1`；使用者指示 push `f045d057..102e8e6e`，push 前去識別化＋金鑰掃描 0 筆；Pages run `43993612220` build / deploy / link-check 全 success、lychee Errors 0；09:09 塔台收單：只動 `figure-zoom.ts`＋`index.ts` 註解、6 檔與 v1.1.2 雜湊一致；Worker 分頁已排程關閉）：baseline 比對展開／收合各 120 組差異 0、全站通過、`hostIssues` 0、`missing` 0；開啟倍率除了預期的 `QuestionFlow` 390（100% → 99.2%），另有 1920 寬 11 張截圖 65.7% → 65.3%（v1.1.2 文件化行為，塔台判定可接受）；回覆 `_reply-2026-11-17-portal-layout-skill-v112-bat.md` 已改 DONE（回饋 3 項資訊）並通知 `BMad-Guide · Tower`；對方 D768 已收單、同意 1920 截圖判定，回饋併入下次改版，屆時再通知"
