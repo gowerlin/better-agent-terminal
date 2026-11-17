@@ -1465,6 +1465,13 @@
 - **切分**：W2a 設計語言 + 元件 + 首頁（T0630）→ 預覽通過後 W2b（`/control-tower`、功能、FAQ、回報頁）→ W2c 遠端開發；W3 / W4 不變。
 - **相關**：PLAN-049 / D159 / D160 / T0624 / T0630
 
+### D301 2026-11-17 — 受理 BMad-Guide HANDOVER：BAT 網站 portal-layout v1.1.2 → v1.1.5，開 T0880
+
+- **背景**：BMad-Guide 塔台 15:01 HANDOVER（`_handover-2026-11-17-portal-layout-skill-v115-bat.md`）：v1.1.5 讓有側欄的頁、≥ 960 時側欄上方的網站名稱水平置中（使用者看 BAT Portal 時的建議，對方 D778），圖片宿主放大按鈕改對齊圖片右上角；v1.1.3／v1.1.4 只改驗證腳本與文件。塔台核對 skill commit `8698c16`、zip SHA-256 與 HANDOVER 相同，BAT 站只有 `layout.css`、`figure-zoom.ts` 不同（head script／CSP 雜湊不必重算）。
+- **決定**：受理，開 T0880（同 T0872 範圍：整包覆蓋 `portal-layout/`、`index.ts` 只改註解）；照 HANDOVER 存三組 baseline 再比對，另做 960 導覽列目視與 `pl-layout-check-*` 殘留清理。站名若被截斷不改站點設定，交塔台決定。不 push，部署時間由使用者決定。
+- **決策者**：塔台（跨專案 HANDOVER 範圍內）。2026-11-17 第一百二十五 session。
+- **相關**：T0880 / T0872 / D296 / PLAN-049
+
 ### D300 2026-11-17 — 圖指定 ELK 排版時改用預設排版並顯示說明，開 T0879
 
 - **背景**：T0878 後，Markdown 預覽中圖寫 `layout: elk`（含 `elk.*`）會顯示 mermaid 通用的「Syntax error in text」錯誤圖，使用者看不出原因。使用者指示把這個候選開單。
