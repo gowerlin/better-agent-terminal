@@ -59,6 +59,9 @@ async function getMermaid() {
     mermaidInstance = (await import('mermaid')).default
     mermaidInstance.initialize({
       startOnLoad: false,
+      // mermaid 12 defaults to the ELK layout and the `neo` look; keep the mermaid 11 appearance (T0876).
+      layout: 'dagre',
+      look: 'classic',
       theme: 'dark',
       themeVariables: {
         darkMode: true,
