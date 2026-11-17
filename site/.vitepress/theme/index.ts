@@ -24,7 +24,7 @@ import TicketLife from './components/TicketLife.vue'
 import TicketStates from './components/TicketStates.vue'
 import TourDay from './components/TourDay.vue'
 import TowerDemo from './components/TowerDemo.vue'
-// vitepress-portal-layout v1.1.5（BMad-Guide 的 skill，T0870 套用、T0871／T0872／T0880 升級）：主內容加寬、左右功能表收合、圖的放大檢視。
+// vitepress-portal-layout v1.1.6（BMad-Guide 的 skill，T0870 套用、T0871／T0872／T0880 升級；T0881 升 v1.1.6：站點檔與 v1.1.5 相同，只升驗證腳本）：主內容加寬、左右功能表收合、圖的放大檢視。
 // portal-layout/ 底下的檔案保持 skill 原樣，升版時整包覆蓋；BAT 站的調整寫在 custom.css 與這個檔案。
 // 第 4 項（時間軸）不套用。
 import LayoutToggles from './portal-layout/components/LayoutToggles.vue'

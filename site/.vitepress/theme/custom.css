@@ -133,6 +133,20 @@
   }
 }
 
+/* ---------- 導覽列：960 寬附近縮小選單項目左右間距（T0881） ----------
+   960～1279 時導覽列從側欄寬（272px）之後才開始排，選單右緣（含「…」extra navigation）在 x 949.5。
+   視窗 960 有垂直捲軸時可用寬只有 945，「…」超出 4.5px、看不到也點不到（layout-check v1.1.6「導覽列超出視窗」）。
+   六個選單項目左右各少 1px（12 → 11px）共省 12px：945 時右緣 937.5、960（無捲軸）時 940。
+   作用寬度 960～979.98：視窗寬減捲軸寬 < 949.5 的範圍，留到捲軸 30px；980 以上即使有捲軸也放得下，維持預設 12px。
+   「…」按鈕、搜尋框、外觀切換不動。 */
+@media (min-width: 960px) and (max-width: 979.98px) {
+  .VPNavBar .VPNavBarMenu .VPNavBarMenuLink,
+  .VPNavBar .VPNavBarMenu .VPFlyout .button {
+    padding-left: 11px;
+    padding-right: 11px;
+  }
+}
+
 /* ---------- 首頁共用 ---------- */
 
 .home {

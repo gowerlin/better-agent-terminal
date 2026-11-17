@@ -95,7 +95,7 @@ export default async () => {
         { text: '功能', link: '/features' },
         { text: '遠端開發', link: '/remote/' },
         {
-          text: '與 Control Tower 協作',
+          text: 'Control Tower',
           items: [
             { text: '把腦力留給判斷', link: '/why' },
             { text: '分工與流程', link: '/control-tower' },
