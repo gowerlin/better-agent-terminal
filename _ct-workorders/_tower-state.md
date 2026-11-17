@@ -1,7 +1,7 @@
 ---
 schema_kind: tower-state
 summary_version: 1
-updated_at: "2026-11-17T09:13:04+08:00"
+updated_at: "2026-11-17T09:15:27+08:00"
 session: "2026-11-16 19:14 第一百二十五 session（CT v6.0.0）"
 next_ids:
   workorder: "T0873"
@@ -25,7 +25,7 @@ todo:
 ---
 # Tower State — better-agent-terminal
 
-> 🟢 **第一百二十五 session 開工**（2026-11-16 19:14 (UTC+8)，CT v6.0.0（正式版，取代 rc.1），Full Scan（環境快照 15 天）；塔台 session `9c595b59-ab26-4c21-be62-168daeffcda1`；`--set-role tower --mode on` exit 0；`bat_whoami` 名稱 `better-agent-terminal · Tower`；安裝版 `0.7.5-pre.1`；HEAD `80d6b90f` = `origin/main`（fetch 後 0 / 0）、工作區乾淨；熱區 265 張工單全 DONE；`bat_list_questions` pending 0）。`*sync`：`_bug-tracker.md` 與 77 張 BUG 檔一致；`_backlog.md` frontmatter `breakdown` 落後（IDEA 4 → 3、IN_PROGRESS 5 → 6，PLAN-065 改 IN_PROGRESS 時未同步），本文表格正確，只修 frontmatter。⚠️ 主 checkout `node_modules` 只剩 26 個套件（2026-11-06 被動過，vite / vitest / react 都不在），parser 測試（L179）無法執行，待使用者決定是否 `npm ci`。
+> 🟢 **第一百二十五 session 開工**（2026-11-16 19:14 (UTC+8)，CT v6.0.0（正式版，取代 rc.1），Full Scan（環境快照 15 天）；塔台 session `9c595b59-ab26-4c21-be62-168daeffcda1`；`--set-role tower --mode on` exit 0；`bat_whoami` 名稱 `better-agent-terminal · Tower`；安裝版 `0.7.5-pre.1`；HEAD `80d6b90f` = `origin/main`（fetch 後 0 / 0）、工作區乾淨；熱區 265 張工單全 DONE；`bat_list_questions` pending 0）。`*sync`：`_bug-tracker.md` 與 77 張 BUG 檔一致；`_backlog.md` frontmatter `breakdown` 落後（IDEA 4 → 3、IN_PROGRESS 5 → 6，PLAN-065 改 IN_PROGRESS 時未同步），本文表格正確，只修 frontmatter。⚠️ 主 checkout `node_modules` 只剩 26 個套件（2026-11-06 被動過，vite / vitest / react 都不在），parser 測試（L179）無法執行，待使用者決定是否 `npm ci`。→ 2026-11-17 09:15 使用者指示 `npm ci`：exit 0、844 套件（Node v26.13.1 / npm 12.2.2；`electron-winstaller` install script 被 `allowScripts` 擋屬預期；audit 51 項未處理）；parser 測試 `npx vitest run src/types/__tests__` 5 檔 65 passed。
 
 > 🟢 **第一百二十四 session 開工**（2026-11-05 11:32 (UTC+8)，CT v6.0.0-rc.1，Fast Path；塔台 session `4383de43-387c-4326-a169-c3cb291e5803`；`--set-role tower --mode on` exit 0；`bat_whoami` 名稱 `better-agent-terminal · Tower`；安裝版 `0.7.5-pre.1`；HEAD `c77a1abd`，領先 `origin/main` 9 個 commit（未 fetch）、工作區乾淨；熱區 265 張工單全 DONE；`bat_list_questions` pending 0）。判讀 11:31 NSIS 驗收第三次（real）→ **PASS**（⓪–④ 全 PASS；③ debug log 新增 1 / 輪替 1 屬預期；④ 以 ③ 結束時快照為基準 0 差異）；含權杖 `userdata-backup` 已刪（11:33）。`0.7.5-pre.1` 發版後 NSIS 驗收完成。11:36 使用者選跑全部可自動化驗收（對 `0.7.5-pre.1`）→ ✅ `linux-acceptance` `41962694457`（22.04 / 24.04 各 4 passed）、✅ `macos-acceptance` `41962698832`（1 passed）、✅ `docker-acceptance` `41962703643`（from `0.7.4-pre.9` → to `0.7.5-pre.1`）全綠；WSL smoke `wsl:Ubuntu-24.04` 13 PASS / 1 SKIP（S14：WSL server bundle 仍 `0.7.3-pre.3`，早於 T0832；待使用者經精靈升級 WSL server 後重跑）→ 11:54 使用者已升級 WSL server 到 `0.7.5-pre.1`，重跑 **14/14 PASS**（S14 兩塊 262,208 B、目錄 0700 / 檔案 0600、sha256 相符、錯誤 offset → `BAD_OFFSET`、`claude:dispose-session` 清掉、未認證 socket 被拒；smoke PTY 皆已清除）。
 
