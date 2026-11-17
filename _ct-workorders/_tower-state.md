@@ -1,16 +1,16 @@
 ---
 schema_kind: tower-state
 summary_version: 1
-updated_at: "2026-11-17T10:25:26+08:00"
+updated_at: "2026-11-17T10:27:04+08:00"
 session: "2026-11-16 19:14 第一百二十五 session（CT v6.0.0）"
 next_ids:
-  workorder: "T0874"
-  decision: "D298"
+  workorder: "T0878"
+  decision: "D299"
   bug: "BUG-214"
   plan: "PLAN-066"
 todo:
   - "✅ T0873 DONE（D297，commit `d215ae93`／`e74cf969`／`69d872ad`／`103239ff`，**未 push**；10:00 塔台收單：`npm audit` 51 → 8（critical 0、high 0、moderate 6、low 2），塔台重跑確認；本機 linux 平台套件已清除、工作區乾淨）：electron-builder 26.8.1 → 26.18.0（NSIS 範本本機比對語意不變，內層 7z 改 BCJ）、vite 7.3.8、vitest 4.1.12、simple-git 4.1.0（Git Graph 的 git 子程序不再繼承 `GIT_*`／EDITOR／PAGER 等 env）、uuid 14.0.3（移除 `@types/uuid`）、sharp 0.35.5；每步關卡不比基準差。使用者指示 push（`102e8e6e..ca32474b`，去識別化＋金鑰掃描 0 筆）並跑驗收，全部 success：`tests.yml` `44000160722`、`desktop-build.yml` A `44000165503`／B `44000211651`（win／linux／mac 三平台皆打得出來）、`windows-upgrade-acceptance.yml` `44002198241`（情境 1–9 全過）"
-  - "候選（T0873 建議，未開單）：`allowScripts` 的 `sharp` 項目（0.35 起無 install script）去留；`minimatch@9` overrides（moderate，electron-builder 工具鏈）；mermaid 12（katex low）；`verify-packaged-native` 擋 Windows 包內出現其他平台的 `claude-code-*`"
+  - "🔄 T0873 後續 4 張（D298，同一個 checkout 依序派工，全部完成後一次 push＋視需要 `desktop-build.yml`）：T0874 `allowScripts` 拿掉 `sharp`（派工中）→ T0875 `minimatch@9`（moderate ×6）修或列例外 → T0876 mermaid 12（katex low ×2）→ T0877 `verify-packaged-native` 擋別平台的平台套件"
   - "ℹ️ BMad-Guide 告知 `vitepress-portal-layout` v1.1.3（commit `348884f`）：站點檔與 v1.1.2 逐位元組相同，BAT 不必改、不必部署；只改 `layout-check.mjs` 與文件（收 T0872 回饋 3 項）。下次網站驗證改用 v1.1.3 的 `layout-check.mjs`；用 v1.1.2 存的 baseline 比對時，`<figure>` 包 `<img>` 的頁應有按鈕數會少 1 → 重存 baseline 或加 `--baseline-warn`"
   - "✅ T0872 DONE 並上線（D296，產品 commit `ff8841f1`；使用者指示 push `f045d057..102e8e6e`，push 前去識別化＋金鑰掃描 0 筆；Pages run `43993612220` build / deploy / link-check 全 success、lychee Errors 0；09:09 塔台收單：只動 `figure-zoom.ts`＋`index.ts` 註解、6 檔與 v1.1.2 雜湊一致；Worker 分頁已排程關閉）：baseline 比對展開／收合各 120 組差異 0、全站通過、`hostIssues` 0、`missing` 0；開啟倍率除了預期的 `QuestionFlow` 390（100% → 99.2%），另有 1920 寬 11 張截圖 65.7% → 65.3%（v1.1.2 文件化行為，塔台判定可接受）；回覆 `_reply-2026-11-17-portal-layout-skill-v112-bat.md` 已改 DONE（回饋 3 項資訊）並通知 `BMad-Guide · Tower`；對方 D768 已收單、同意 1920 截圖判定，回饋併入下次改版，屆時再通知"
   - "✅ T0871 DONE 並上線（D295，產品 commit `5a7e2478`；使用者指示 push `e668ac12..f045d057`，push 前去識別化＋金鑰掃描 0 筆；Pages run `43978301961` build / deploy / link-check 全 success、lychee Errors 0；網站 `/control-tower` 已含 `data-pl-zoom-reserve`；BMad-Guide D762 已收單，3 項回饋延到 skill v1.1.2，屆時對方再通知升級；07:18 塔台收單：9 檔皆在 `site/.vitepress/theme/`、6 檔與 skill v1.1.1 雜湊一致、Timeline 未複製；Worker 分頁已排程關閉）：BAT 網站 `vitepress-portal-layout` v1.0.0 → v1.1.1，全站 15 頁 layout-check 全通過、`hostIssues` 0、按鈕 14 → 15（`QuestionFlow`）、120 組版面量測與升級前相同；回覆 `_reply-2026-11-17-portal-layout-skill-v111-bat.md` 已改 DONE（skill 回饋 1＋2 項資訊）並通知 `BMad-Guide · Tower`。待使用者決定 push（觸發 Pages），push 後確認 build / deploy / link-check"

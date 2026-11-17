@@ -1465,6 +1465,18 @@
 - **切分**：W2a 設計語言 + 元件 + 首頁（T0630）→ 預覽通過後 W2b（`/control-tower`、功能、FAQ、回報頁）→ W2c 遠端開發；W3 / W4 不變。
 - **相關**：PLAN-049 / D159 / D160 / T0624 / T0630
 
+### D298 2026-11-17 — T0873 後續 4 項全部開單（T0874–T0877），依序派工
+
+- **背景**：T0873 收單後列了 4 項候選；使用者指示「由塔台評估，全部開單」。
+- **塔台評估**：
+  1. `allowScripts` 的 `sharp`（T0874）：0.35 起沒有 install script，項目已無作用；留著無害但會讓政策清單與實際不符，日後 `sharp` 若又加 install script 會被默默放行。→ 拿掉，同步 CLAUDE.md／docs；順便核對另外兩項（`esbuild`、`@anthropic-ai/claude-code`）仍有 install script。S。
+  2. `minimatch@9`（moderate ×6，T0875）：只經 `electron-builder` 26.18.0 → `@electron/universal@2.0.3`，只在 mac universal 打包時用到，本專案 mac 只打 arm64（D057／D136），實際不會執行；修法要跨 major（`overrides` 或換 `@electron/universal` 3.x）。→ 開單評估：能以範圍限定的 `overrides` 修而不改變打包結果就修；否則記成已接受的例外並寫明理由。mac 打包需 CI 驗證（塔台另派 `desktop-build.yml`）。
+  3. mermaid 12（katex low ×2，T0876）：只有 `FileTreeMarkdown.tsx` 動態 import。→ 開單評估 12.x 的破壞性變更，關卡＋實際渲染驗證全過才升，否則不升並寫理由。
+  4. `verify-packaged-native` 擋不住別平台的平台套件（T0877）：T0873 實際發生過 Windows 包被打進 linux `claude`（328 MB）而檢查通過。→ 加檢查：任一平台的安裝包出現其他平台／架構的 `@anthropic-ai/claude-code-*`、`@lydell/node-pty-*` 等平台套件即失敗；`build.files` 是否同時收緊由 Worker 評估（不得用 `build.<platform>.files`）。
+- **派工順序**：四張都會用到根目錄 `node_modules`／`dist-electron`，T0874–T0876 都改 `package.json`／lock，同一個 checkout 不能並行 → 依序 T0874 → T0875 → T0876 → T0877（`depends_on` 串起來），前一張收單後再派下一張。全部完成後一次 push，並視需要跑一輪 `desktop-build.yml`（批次驗證）。
+- **決策者**：使用者（全部開單）＋塔台（評估、順序）。2026-11-17 第一百二十五 session。
+- **相關**：T0873 / T0874 / T0875 / T0876 / T0877 / D297
+
 ### D297 2026-11-17 — npm audit 51 項：評估並升級不會破壞的套件，開 T0873
 
 - **背景**：09:15 使用者指示 `npm ci` 後，`npm audit` 回報 51 項（critical 4、high 27、moderate 17、low 3）。塔台摘要：多數可在現有版本範圍內修（`fixAvailable` 非 major）；需要大版本的只有 `simple-git` 3 → 4（critical，direct）、`sharp` 0.34 → 0.35（high，devDependency，只供 `generate-icons`）、`uuid` 9 → 14（moderate，direct）。`electron-builder` 也在清單內（high），會影響 NSIS 安裝程式。使用者指示：「評估，升級套件若未破壞則升級」。
