@@ -413,8 +413,9 @@ describe('source guards', () => {
     const tpl = fs.readFileSync(path.join(lib, 'templates', 'nsis', 'include', 'allowOnlyOneInstallerInstance.nsh'), 'utf8')
     const section = fs.readFileSync(path.join(lib, 'templates', 'nsis', 'installSection.nsh'), 'utf8')
     const uninstaller = fs.readFileSync(path.join(lib, 'templates', 'nsis', 'uninstaller.nsh'), 'utf8')
-    // written against 26.8.1: another version → re-check docs/agent-guide/packaging-release-checks.md「NSIS：安裝前請 BAT 正常結束」, then update this line
-    expect(version, 'app-builder-lib changed: re-check build/installer.nsh against its NSIS templates').toBe('26.8.1')
+    // written against 26.8.1, re-checked against 26.18.0 (T0873: template diff + local NSIS compile; runner check = W6 before release).
+    // Another version → re-check docs/agent-guide/packaging-release-checks.md「NSIS：安裝前請 BAT 正常結束」, then update this line
+    expect(version, 'app-builder-lib changed: re-check build/installer.nsh against its NSIS templates').toBe('26.18.0')
     expect(tpl).toMatch(/!ifmacrondef customCheckAppRunning\s+!include "getProcessInfo.nsh"\s+Var pid\s+!endif/)
     expect(tpl).toMatch(/!ifmacrodef customCheckAppRunning\s+!insertmacro customCheckAppRunning\s+!else\s+!insertmacro IS_POWERSHELL_AVAILABLE\s+!insertmacro _CHECK_APP_RUNNING/)
     for (const name of ['IS_POWERSHELL_AVAILABLE', 'FIND_PROCESS _FILE _RETURN', '_CHECK_APP_RUNNING']) expect(tpl).toContain(`!macro ${name}`)

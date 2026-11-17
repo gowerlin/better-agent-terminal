@@ -79,7 +79,7 @@ N = 兩份清單依 terminal id 的聯集（紀錄在前）；claude session 以
 
 升級仍會結束所有終端（子項 4 才處理），但結束方式從 TerminateProcess 改成 BAT 自己的完整結束：存檔（T0504 flush-save）、Terminal Server 跑 shutdown（T0540：先程序樹再 shell，pid / port / registry 檔清掉），下次啟動不再走孤兒清理（沒有 pid 被重用而誤殺的風險）。
 
-### electron-builder 的呼叫時機（26.8.1 實讀範本）
+### electron-builder 的呼叫時機（26.8.1 實讀範本；26.18.0 重核不變，T0873）
 
 | 誰 | 何時 | 有沒有呼叫 `customCheckAppRunning` |
 |---|---|---|
@@ -90,7 +90,7 @@ N = 兩份清單依 terminal id 的聯集（紀錄在前）；claude session 以
 | 使用者解除安裝（設定 → 應用程式） | `un.checkAppRunning`（靜默時於 `un.onInit`） | 有（同安裝程式）。T0860 起送 `--uninstall-quit-request`（見 holder 版一節） |
 
 - 覆寫方式：`build/installer.nsh` 經 `build.nsis.include` 放進 header（在範本 `allowOnlyOneInstallerInstance.nsh` 之前）。定義 `customCheckAppRunning` 後範本**不再** `!include "getProcessInfo.nsh"`、不宣告 `Var pid`，所以本檔自己補上；回退是原樣 `!insertmacro _CHECK_APP_RUNNING`（範本的巨集，不是複製）。`IS_POWERSHELL_AVAILABLE` / `FIND_PROCESS` 也是範本的巨集。
-- 升級 electron-builder 時：`electron/__tests__/installer-quit-request.test.ts` 的最後一個測試鎖住 `app-builder-lib` 版本（26.8.1）與上面這些掛勾的原文，版本一變就失敗，提醒依 [packaging-release-checks.md](packaging-release-checks.md)「NSIS：安裝前請 BAT 正常結束」重新核對。
+- 升級 electron-builder 時：`electron/__tests__/installer-quit-request.test.ts` 的最後一個測試鎖住 `app-builder-lib` 版本（26.18.0，T0873 前 26.8.1）與上面這些掛勾的原文，版本一變就失敗，提醒依 [packaging-release-checks.md](packaging-release-checks.md)「NSIS：安裝前請 BAT 正常結束」重新核對。
 
 ### 流程
 

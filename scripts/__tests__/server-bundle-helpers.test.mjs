@@ -231,7 +231,7 @@ describe('verify-helper-bundle.js server bundle check (T0433)', () => {
       // app-builder-lib's own decision. The package index has to load first: NsisTarget.js on
       // its own hits a circular import (LinuxPackager extends an undefined PlatformPackager).
       await import('app-builder-lib')
-      const { NsisTarget } = await import('app-builder-lib/out/targets/nsis/NsisTarget.js')
+      const { NsisTarget, createAppPackageArchiveOptions } = await import('app-builder-lib/out/targets/nsis/NsisTarget.js')
       const { compute7zCompressArgs } = await import('app-builder-lib/out/targets/archive.js')
       const { configureDifferentialAwareArchiveOptions } = await import('app-builder-lib/out/targets/differentialUpdateInfoBuilder.js')
       const isAware = Object.getOwnPropertyDescriptor(NsisTarget.prototype, 'isBuildDifferentialAware').get
@@ -242,9 +242,14 @@ describe('verify-helper-bundle.js server bundle check (T0433)', () => {
       // upstream shape so an electron-builder upgrade that changes it fails here.
       const buildAppPackage = NsisTarget.prototype.buildAppPackage.toString()
       expect(buildAppPackage).toMatch(/isBuildDifferentialAware\s*\?\s*\(0, differentialUpdateInfoBuilder_1\.configureDifferentialAwareArchiveOptions\)\(archiveOptions\)\s*:\s*archiveOptions/)
-      expect(buildAppPackage).toMatch(/const format = !isBuildDifferentialAware && options\.useZip \? "zip" : "7z"/)
+      // T0873 (electron-builder 26.18.0): the payload format moved to the isZipPayload getter, and the
+      // archive options to createAppPackageArchiveOptions (installTimeDecodable → -mf=BCJ, upstream #9983).
+      expect(buildAppPackage).toMatch(/const format = this\.isZipPayload \? "zip" : "7z"/)
       expect(pkg.build.nsis.useZip).toBeUndefined()
-      const archiveOptions = { withoutDir: true, compression: pkg.build.win.compression }
+      const isZipPayload = Object.getOwnPropertyDescriptor(NsisTarget.prototype, 'isZipPayload').get
+      expect(isZipPayload.call({ isWebInstaller: false, isBuildDifferentialAware: false, options: pkg.build.nsis })).toBe(false)
+      expect(buildAppPackage).toMatch(/const archiveOptions = createAppPackageArchiveOptions\(packager\.compression, /)
+      const archiveOptions = createAppPackageArchiveOptions(pkg.build.win.compression, null, null)
       const args = compute7zCompressArgs('7z', archiveOptions)
       expect(args).toContain('-mx=9')
       expect(args).not.toContain('-ms=off')

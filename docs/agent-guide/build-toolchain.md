@@ -2,7 +2,7 @@
 
 > 從 CLAUDE.md「Build Toolchain」節搬出（T0595）。本檔為該節完整原文；CLAUDE.md 該節保留用途、必守規則、唯一實作位置與本檔連結。
 
-- Vite 7.x（2026-04-18 PLAN-003 Group B / T0163 升級，原 vite 5.4.21 → 7.3.2，清除 esbuild SSRF 與 vite path traversal 2 個 moderate CVE）。
+- Vite 7.x（2026-04-18 PLAN-003 Group B / T0163 升級，原 vite 5.4.21 → 7.3.2，清除 esbuild SSRF 與 vite path traversal 2 個 moderate CVE）。T0873（npm audit，2026-11-17）lock 內升到 vite 7.3.8（esbuild 0.28.2）、vitest / `@vitest/ui` 4.1.12（`package.json` 範圍改 `^4.1.12`），仍是同一主版本。
 - Plugin 組合：
   - `@vitejs/plugin-react` ^5.0.0（實裝 5.2.0）
   - `vite-plugin-electron` ^0.29.1（stable，官方宣告支援 vite 7/8）
