@@ -342,6 +342,7 @@
 ## Build Toolchain
 
 - Vite 7.x + `@vitejs/plugin-react` ^5、`vite-plugin-electron` ^0.29.1、`vite-plugin-electron-renderer` ^0.14.6；新增構建設定時留意 vite 7 移除的 API。下次升級 vite 8 等 `vite-plugin-electron@1.0.0` GA。
+- mermaid 12 的 `elkjs`（`EPL-2.0 OR GPL-3.0-or-later`）不打包（T0878 / D299）：`vite.config.ts` 以 `resolve.alias` 把 `elkjs` 換成 `src/lib/elkjs-stub.ts`，圖裡寫 `layout: elk` 會顯示 mermaid 的錯誤圖。🔴 升 mermaid 必跑 `scripts/__tests__/no-elkjs-in-dist.test.mjs`（需先 `npx vite build`）。
 - 完整說明：[docs/agent-guide/build-toolchain.md](docs/agent-guide/build-toolchain.md)
 
 ### electron-builder 26 migration notes

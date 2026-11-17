@@ -1,5 +1,5 @@
 {
- "generated_at": "2026-11-17T11:09:43+08:00",
+ "generated_at": "2026-11-17T11:22:26+08:00",
  "generator": {
   "script": "ct-session-stats.py",
   "version": "0.2.0"
@@ -69,13 +69,13 @@
    "output": 64161
   },
   "2026-11-17": {
-   "api_requests": 76,
-   "cache_read": 18996106,
-   "cache_write": 280093,
-   "cache_write_1h": 280093,
+   "api_requests": 81,
+   "cache_read": 20614053,
+   "cache_write": 289183,
+   "cache_write_1h": 289183,
    "cache_write_5m": 0,
-   "input": 176,
-   "output": 65727
+   "input": 186,
+   "output": 68986
   }
  },
  "workorders": [
@@ -8853,6 +8853,88 @@
     "2.1.322"
    ],
    "workorder": "T0877"
+  },
+  {
+   "agents_invoked": {},
+   "attribution": {
+    "conflict": false,
+    "source": "frontmatter",
+    "sources": {
+     "frontmatter": 1
+    }
+   },
+   "by_mcp_server": {},
+   "by_tool": {
+    "Bash": 52,
+    "Edit": 7,
+    "Read": 2,
+    "Write": 4
+   },
+   "counts": {
+    "api_requests": 60,
+    "failures": 1,
+    "same_file_read_ge3": 0,
+    "subagent_files": 0,
+    "tool_calls": 65
+   },
+   "end": "2026-11-17T03:22:09Z",
+   "est_usd": 4.6086,
+   "failures_by_tool": {
+    "Bash": 1
+   },
+   "renews": 0,
+   "sessions": 1,
+   "skills_invoked": {
+    "ct-exec": 1
+   },
+   "start": "2026-11-17T03:09:54Z",
+   "stuck": {
+    "max_consecutive_failures": 1,
+    "max_failures_in_10_calls": 1,
+    "near_repeat_fail_pairs_j50": 0,
+    "repeat_fail_groups_norm": 0
+   },
+   "stuck_signal": false,
+   "subagent_tokens": {
+    "cache_read": 0,
+    "cache_write": 0,
+    "cache_write_1h": 0,
+    "cache_write_5m": 0,
+    "input": 0,
+    "output": 0
+   },
+   "tokens": {
+    "cache_read": 11031426,
+    "cache_write": 190491,
+    "cache_write_1h": 190491,
+    "cache_write_5m": 0,
+    "input": 122,
+    "output": 43893
+   },
+   "top_tools": [
+    [
+     "Bash",
+     52
+    ],
+    [
+     "Edit",
+     7
+    ],
+    [
+     "Write",
+     4
+    ],
+    [
+     "Read",
+     2
+    ]
+   ],
+   "type": "implementation",
+   "unpriced_tokens": 0,
+   "versions": [
+    "2.1.322"
+   ],
+   "workorder": "T0878"
   }
  ]
 }
