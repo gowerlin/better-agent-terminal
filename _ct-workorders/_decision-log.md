@@ -1465,6 +1465,13 @@
 - **切分**：W2a 設計語言 + 元件 + 首頁（T0630）→ 預覽通過後 W2b（`/control-tower`、功能、FAQ、回報頁）→ W2c 遠端開發；W3 / W4 不變。
 - **相關**：PLAN-049 / D159 / D160 / T0624 / T0630
 
+### D297 2026-11-17 — npm audit 51 項：評估並升級不會破壞的套件，開 T0873
+
+- **背景**：09:15 使用者指示 `npm ci` 後，`npm audit` 回報 51 項（critical 4、high 27、moderate 17、low 3）。塔台摘要：多數可在現有版本範圍內修（`fixAvailable` 非 major）；需要大版本的只有 `simple-git` 3 → 4（critical，direct）、`sharp` 0.34 → 0.35（high，devDependency，只供 `generate-icons`）、`uuid` 9 → 14（moderate，direct）。`electron-builder` 也在清單內（high），會影響 NSIS 安裝程式。使用者指示：「評估，升級套件若未破壞則升級」。
+- **決定**：開 T0873 由 Worker 執行。先記錄升級前各關卡結果當基準；第一步只做不跨 major 的 `npm audit fix`（不加 `--force`）；三個 major 逐一評估用法，關卡全過才升，否則不升並寫明理由。關卡：兩個 typecheck = 0、`test:unit`、`test:legacy`、`npx vite build`、`verify:helpers`、server bundle 建置與檢查、`asar-runtime-deps` 測試、Windows `build:dir` 與 `verify-packaged-native`。`electron-builder` 版本若改變，依 packaging docs〈NSIS：安裝前請 BAT 正常結束〉檢查範本；發版前必跑 W6 `windows-upgrade-acceptance.yml`（由塔台與使用者安排，不在本單執行）。新增帶 install script 的相依時停下問塔台（`allowScripts` 是政策）。不 push、不發版。
+- **決策者**：使用者（升級原則）＋塔台（關卡與範圍）。2026-11-17 第一百二十五 session。
+- **相關**：T0873
+
 ### D296 2026-11-17 — 受理 BMad-Guide HANDOVER：BAT 網站 `vitepress-portal-layout` 從 v1.1.1 升 v1.1.2，開 T0872
 
 - **背景**：BMad-Guide 塔台以跨 session 訊息送 HANDOVER（對方 `_handover-2026-11-17-portal-layout-skill-v112-bat.md`，commit `593f13c`；對方 D762／D763：收 BAT T0871 的 3 項回饋）。塔台核對：skill 目錄 commit `eee355b`、zip SHA-256 `8644F035…AE8B` 與 HANDOVER 相同；BAT 站 `portal-layout/` 6 檔與 v1.1.2 比對只有 `figure-zoom.ts` 不同（與 HANDOVER 一致）。
