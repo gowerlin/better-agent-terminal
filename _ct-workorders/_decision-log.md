@@ -1465,6 +1465,13 @@
 - **切分**：W2a 設計語言 + 元件 + 首頁（T0630）→ 預覽通過後 W2b（`/control-tower`、功能、FAQ、回報頁）→ W2c 遠端開發；W3 / W4 不變。
 - **相關**：PLAN-049 / D159 / D160 / T0624 / T0630
 
+### D296 2026-11-17 — 受理 BMad-Guide HANDOVER：BAT 網站 `vitepress-portal-layout` 從 v1.1.1 升 v1.1.2，開 T0872
+
+- **背景**：BMad-Guide 塔台以跨 session 訊息送 HANDOVER（對方 `_handover-2026-11-17-portal-layout-skill-v112-bat.md`，commit `593f13c`；對方 D762／D763：收 BAT T0871 的 3 項回饋）。塔台核對：skill 目錄 commit `eee355b`、zip SHA-256 `8644F035…AE8B` 與 HANDOVER 相同；BAT 站 `portal-layout/` 6 檔與 v1.1.2 比對只有 `figure-zoom.ts` 不同（與 HANDOVER 一致）。
+- **決定**：受理。整包覆蓋 `portal-layout/`（Timeline 不複製），站點其他檔只允許改 `index.ts` 註解版號；升級前在 v1.1.1 建置的複本上 `--save-baseline`，升級後同參數 `--layout-test --figure-test all --baseline` 比對。驗收：baseline 差異 0（零星頁高差異先單頁重量）、`steps.open` 只有 `QuestionFlow` 390 改變、`hostIssues` 0、`missing` 0。只改 `site/`，不改 skill 本體，不 push（部署由使用者決定）。開 T0872。
+- **決策者**：塔台（HANDOVER 範圍內，同 D294／D295）。2026-11-17 第一百二十五 session。
+- **相關**：T0872 / T0871 / D295 / `_reply-2026-11-17-portal-layout-skill-v112-bat.md` / PLAN-049
+
 ### D295 2026-11-17 — 受理 BMad-Guide HANDOVER：BAT 網站 `vitepress-portal-layout` 從 v1.0.0 直接升 v1.1.1，開 T0871
 
 - **背景**：BMad-Guide 塔台以跨 session 訊息送 HANDOVER（對方 `_handover-2026-11-17-portal-layout-skill-v111-bat.md`，commit `e6c6a8a`；對方 D756：v1.1.0 套到 CT／MMP 時又發現缺陷，先修成 v1.1.1 再通知 BAT）。塔台核對來源：skill 目錄最後 commit `0e3e056`、zip SHA-256 `D53E1988…EB31F` 與 HANDOVER 相同。v1.0.0 → v1.1.1 有差異的是 `layout.css`、`figure-zoom.css`、`figure-zoom.ts`；新增 HTML 圖放大（沒有 SVG／圖片的 `<figure>` 自動長出按鈕）、按鈕改接在宿主後面、首頁導覽列 1440 改由 skill 內建（BAT T0870 回饋第 1 點）。
