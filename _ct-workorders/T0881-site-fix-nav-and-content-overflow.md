@@ -4,9 +4,11 @@ schema_kind: workorder
 id: T0881
 title: "BAT 網站：960 寬導覽列超出視窗、390 寬 /releases 一行超出主內容欄（portal-layout v1.1.6 新檢查）"
 type: implementation
-status: PENDING
+status: IN_PROGRESS
 created_at: "2026-11-17T16:22:37+0800"
-updated_at: "2026-11-17T16:22:37+0800"
+started_at: "2026-11-17T16:23:41+0800"
+updated_at: "2026-11-17T16:30:27+0800"
+tower_question: open
 repo: better-agent-terminal
 project: PLAN-049
 priority: P3
@@ -37,7 +39,7 @@ memory_overrides:
 # T0881 — BAT 網站：960 寬導覽列超出視窗、390 寬 /releases 一行超出主內容欄
 
 ## 元資料
-- **工單編號**：T0881｜**類型**：implementation｜**狀態**：PENDING｜**建立**：2026-11-17 16:22 (UTC+8)
+- **工單編號**：T0881｜**類型**：implementation｜**狀態**：IN_PROGRESS｜**建立**：2026-11-17 16:22 (UTC+8)
 - **規模**：S｜**依賴**：T0880（DONE，已上線）｜**決策**：D302｜**來源**：portal-layout v1.1.6 新檢查（BMad-Guide 告知）
 
 ## 背景
@@ -77,6 +79,20 @@ memory_overrides:
 ## 回報區
 
 > 以下由 sub-session 填寫，請勿在指揮塔 session 中編輯
+
+### 待塔台決策
+
+#### Q-1：/releases 390 寬的「超出」是 Chrome 行尾標點擠壓造成的量測值，墨跡在欄內；要用哪種修法？
+- **提問時間**：2026-11-17T16:30:27+0800
+- **查到的原因**（chrome-live，390 寬、無捲軸、欄右緣 366）：那個 `<strong>` 在**同一行**內，`text-spacing-trim` 是預設 `normal`（含 allow-end：行尾的全形收尾標點放不下時，以半寬算來決定換行）。Chrome 用半寬判定「」」放得下，但字框仍是全寬 16px（355～371.2），所以量到 371.2 − 366 = 5.2px。截圖確認「」」的墨跡在左半（≤ 363），**實際沒有壓到欄外**。斷行機會是有的（Agent 前的空白），`overflow-wrap: anywhere` 改不了結果（換行器認為放得下）。
+- **選項**：
+  - A. `custom.css` 加 `.vp-doc li > strong:first-child { text-spacing-trim: space-all; }`：這行「Agent」」改到第二行，檢查 0。代價：關掉這類粗體引言裡相鄰標點的擠壓，`/releases` 其他 5～6 個粗體引言字距變寬（每個寬度都有，例「Claude 面板排隊（所有平台）」）；960 寬有 1 個清單項目多 1 行（會出現在窄寬組 baseline 的 `/releases` 960 頁高差異）；其他 13 頁 390／960／1366／1920／2560 都不變。
+  - B. 範圍更廣的 `.vp-doc li` 或 `.vp-doc` 設 `space-all`：390 `/releases` 頁高 +560／+2800px、其他頁也變，不建議。
+  - C. 不改 CSS，記為 layout-check 誤判（量字框、沒扣掉行尾擠壓的半格），寫進〈skill 回饋〉：主要組 390 `/releases` 深淺各 1 項「內文超出主內容欄」，主要組 exit 1；驗收該項改為「已知、塔台接受」。
+  - 其他。
+- **建議**：C（站點實際沒有超出；A 會改到 6 個本來正常的粗體引言與 960 頁高，不符合「只影響本來會超出的情況」）。若塔台要 layout-check 全綠，選 A。
+- **影響**：只影響任務 3 與主要組 layout-check 的結果；導覽列（任務 2）照常進行。
+- **是否阻擋後續**：阻擋任務 3 與最後的 baseline 比對；任務 1、2、5 先做。
 
 ### 完成狀態
 
