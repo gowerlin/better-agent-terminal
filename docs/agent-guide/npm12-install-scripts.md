@@ -16,7 +16,7 @@
   |---|---|---|
   | `electron` | 無（Electron 42 起；T0784） | 不必補跑：第一次 `require('electron')` 自動下載；`--ignore-scripts` 的 CI 或要預先下載時執行 `node node_modules/electron/install.js`（= `install-electron` bin，T0784 實測 45.2.1 可用） |
   | `esbuild` | `postinstall: node install.js` | `node node_modules/esbuild/install.js` |
-  | `sharp` | `install: node install/check.js \|\| npm run build` | `node node_modules/sharp/install/check.js` |
+  | `sharp` | 無（0.35 起；T0873 升 0.35.5，lock 的 `hasInstallScript` 已拿掉，平台 binary 由 `@img/sharp-<平台>` optional 套件提供）；0.34 以前為 `install: node install/check.js \|\| npm run build` | 不必補跑。`allowScripts` 的 `sharp` 項目因此沒有作用，是否移除屬政策、待塔台決策（T0873 未改） |
   | `@anthropic-ai/claude-code` | `postinstall: node install.cjs` | `node node_modules/@anthropic-ai/claude-code/install.cjs`（把 `@anthropic-ai/claude-code-win32-x64` 的 binary 放到 `bin/claude.exe`）；驗證 `node_modules/@anthropic-ai/claude-code/bin/claude.exe --version` = `package.json` 鎖定的版本（T0717 起 `2.1.316 (Claude Code)`） |
 
 - **lock 的 `peer` 旗標**（T0782）：lock 裡標 `peer: true` 的套件不打包（例：Agent SDK 的 peer `@anthropic-ai/sdk`、`@modelcontextprotocol/sdk` 與其 express / hono 閉包）。打包集合由 electron-builder 的 `npm list --omit dev` 加 `dependencies` 邊決定，`scripts/__tests__/asar-runtime-deps.test.mjs` 也只走 `dependencies` / `optionalDependencies` 邊，兩者都不讀 `peer` 旗標。完整重算（`npm install --package-lock-only`，npm 11.19 與 12 結果逐位元相同）若只翻轉 `peer` 旗標，可以直接接受；有 `version` / `resolved` / `integrity` 變更就照一般改相依處理。T0782 已完整重算一次（`7f9d4eeb`）；之後又出現只有 `peer` 的翻轉，代表 lock 又被部分更新過。
