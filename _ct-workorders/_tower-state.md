@@ -1,8 +1,8 @@
 ---
 schema_kind: tower-state
 summary_version: 1
-updated_at: "2026-11-17T19:18:22+08:00"
-session: "2026-11-16 19:14 第一百二十五 session（CT v6.0.0）"
+updated_at: "2026-11-20T16:32:29+08:00"
+session: "2026-11-20 16:32 第一百二十六 session（CT v6.0.0）"
 next_ids:
   workorder: "T0882"
   decision: "D303"
@@ -31,6 +31,8 @@ todo:
   - "版號線：D285 起 `0.7.5-pre.N`，pre.2 已發佈（2026-11-17），下一版 `0.7.5-pre.3`（`-pre.N` 最多到 pre.9）"
 ---
 # Tower State — better-agent-terminal
+
+> 🟢 **第一百二十六 session 開工**（2026-11-20 16:32 (UTC+8)，CT v6.0.0，Fast Path（環境快照 4 天）；塔台 session `a0bddf3a-fc9c-4c02-a740-d4ff15d8f83f`；`--set-role tower --mode on` exit 0；`bat_whoami` 名稱 `better-agent-terminal · Tower`；helper `v0.7.5-pre.2`（安裝版已是 pre.2）；HEAD `bd42106e`，fetch 後領先 `origin/main` 3 個塔台紀錄 commit / 落後 0、工作區乾淨；熱區 277 張工單全 DONE；`bat_list_questions` pending 0；熱檔皆在 400 KB 預算內；上次收工後 BUG / PLAN 檔無變動，索引不需重建）。
 
 > 🛏 **第一百二十五 session 收工**（2026-11-17 19:18 (UTC+8)）。
 
