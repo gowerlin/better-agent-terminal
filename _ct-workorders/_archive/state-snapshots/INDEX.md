@@ -1,6 +1,6 @@
 # State Snapshot INDEX
 
-> Last archived: 2026-11-05 (Session 124 收工後 `*archive --state` — Session 120 – 123 → 2026-Q4-c.md)
+> Last archived: 2026-11-20（Session 126 收工 — Session 124、125 → 2026-Q4-c.md）
 > Hot path retains: session 124 開工條目＋收工快照 + Quick Recovery / 基本資訊 / 進度快照 / 環境快照 / YOLO 歷程
 > Archive root: `_ct-workorders/_archive/state-snapshots/`
 > Total archived entries: 143 (27 in Q2-a / 31 in Q2-b / 5 in Q2-c / 2 in Q3 / 27 in Q4-a / 36 in Q4-b / 15 in Q4-c)
@@ -150,3 +150,5 @@
 | 141 | 第一百二十一 session | 2026-11-05 | 2026-Q4-c.md | 第一百二十一 session, 2026-11-05 07:01 開工, T0860-T0867, D288-D291, BUG-213, 0.7.5-pre.1 |
 | 142 | 第一百二十二 session | 2026-11-05 | 2026-Q4-c.md | 第一百二十二 session, 2026-11-05 11:06 開工, NSIS 驗收 FAIL 判讀, D292, T0868 |
 | 143 | 第一百二十三 session | 2026-11-05 | 2026-Q4-c.md | 第一百二十三 session, 2026-11-05 11:23 開工, NSIS 驗收 ④ FAIL 判讀, D293, T0869 |
+| 144 | 第一百二十四 session | 2026-11-05 | 2026-Q4-c.md | 第一百二十四 session, 2026-11-05 11:32 開工, NSIS 驗收 PASS, 0.7.5-pre.1 全平台驗收 PASS |
+| 145 | 第一百二十五 session | 2026-11-16 | 2026-Q4-c.md | 第一百二十五 session, 2026-11-16 19:14-11-17 19:18, T0870-T0881, D294-D302, 0.7.5-pre.2 |
