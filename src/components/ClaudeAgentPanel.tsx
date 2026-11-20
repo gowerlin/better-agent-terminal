@@ -20,7 +20,7 @@ import { classifyClaudeError } from '../lib/claude-error-classify'
 import { backgroundAgentResultLabel, isBackgroundAgentCall } from '../lib/agent-task-label'
 import { EMPTY_TASK_LIST, isTaskListToolName, replayTaskList, taskListProgress, type ClaudeTaskList } from '../lib/claude-task-list'
 import { remoteUnsupportedMessage } from '../lib/remote-unsupported'
-import { checkRemoteImageBudget, remoteImageBudgetMessage, remoteSendFailureMessage, restoredAttachments, restoredInputText } from '../lib/remote-image-budget'
+import { checkRemoteImageBudget, forkPendingBlockedLog, planForkPendingSend, remoteImageBudgetMessage, remoteSendFailureMessage, restoredAttachments, restoredInputText } from '../lib/remote-image-budget'
 import { buildSnippetContextPrompt, type SnippetForContext } from '../lib/snippet-context'
 import { droppedImageKey, pastedDiskFiles, readFileAsDataUrl } from '../lib/image-attachment'
 import { attachmentRefusalText, resolveAttachmentsForSend } from '../lib/client-paths'
@@ -279,6 +279,9 @@ export function ClaudeAgentPanel({ sessionId, cwd, isActive, workspaceId, isRemo
   const [cliCommandWarning, setCliCommandWarning] = useState<string | null>(null)
   // T0440 (BUG-105): client-form paths typed into a prompt of a remote window — pointed out, never rewritten
   const isRemoteWindow = useIsRemoteWindow()
+  // T0884: the history listener is registered once per session; it reads the latest values here.
+  const forkBudgetRef = useRef({ isRemoteWindow, t })
+  forkBudgetRef.current = { isRemoteWindow, t }
   const [promptPathHint, setPromptPathHint] = useState<PromptPathHintItem[] | null>(null)
   const promptPathHintSeqRef = useRef(0)
   const archivedCountRef = useRef(0)
@@ -995,6 +998,17 @@ export function ClaudeAgentPanel({ sessionId, cwd, isActive, workspaceId, isRemo
           const prompt = t.pendingPrompt || ''
           const images = t.pendingImages
           workspaceStore.setTerminalPendingPrompt(sessionId, '')
+          // T0884 (BUG-211): a remote window with fork images over the budget → not sent; the same
+          // notice as a normal send, history loaded, prompt and images back in the input.
+          const forkPlan = planForkPendingSend(images, forkBudgetRef.current.isRemoteWindow)
+          if (forkPlan.action === 'restore') {
+            window.electronAPI?.debug?.log(forkPendingBlockedLog(forkPlan))
+            setMessages(historyItems)
+            addNoticeToast(remoteImageBudgetMessage(forkPlan.exceeded, forkBudgetRef.current.t), 'warning', 10000)
+            setInputValue(restoredInputText(prompt, inputValueRef.current))
+            setAttachedImages(prev => restoredAttachments(forkPlan.attachments, prev, MAX_IMAGES))
+            return
+          }
           window.electronAPI?.debug?.log(`${tag} onHistory AUTO-SENDING pending prompt: "${prompt}" images=${images?.length ?? 0}`)
           // Set history + user message together so it doesn't get overwritten
           setMessages([...historyItems, {

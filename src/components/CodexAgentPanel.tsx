@@ -18,7 +18,7 @@ import { extractInterruptedContinuation } from '../utils/interrupted-prompt'
 import { classifyCodexError } from '../lib/codex-error-classify'
 import { droppedImageKey, pastedDiskFiles, readFileAsDataUrl } from '../lib/image-attachment'
 import { attachmentRefusalText, resolveAttachmentsForSend } from '../lib/client-paths'
-import { checkRemoteImageBudget, remoteImageBudgetMessage, remoteSendFailureMessage, restoredAttachments, restoredInputText } from '../lib/remote-image-budget'
+import { checkRemoteImageBudget, forkPendingBlockedLog, planForkPendingSend, remoteImageBudgetMessage, remoteSendFailureMessage, restoredAttachments, restoredInputText } from '../lib/remote-image-budget'
 import { useIsRemoteWindow } from '../hooks/useIsRemoteWindow'
 import { CtToast, useCtToast } from './CtToast'
 import { buildSnippetContextPrompt, type SnippetForContext } from '../lib/snippet-context'
@@ -148,6 +148,9 @@ export function CodexAgentPanel({ sessionId, cwd, isActive, workspaceId, onClose
   const { messages: noticeToasts, addToast: addNoticeToast, dismissToast: dismissNoticeToast } = useCtToast()
   const isRemoteConnectedRef = useRef(!!isRemoteConnected)
   const isRemoteWindow = useIsRemoteWindow()
+  // T0884: the history listener is registered once per session; it reads the latest values here.
+  const forkBudgetRef = useRef({ isRemoteWindow, t })
+  forkBudgetRef.current = { isRemoteWindow, t }
   const terminal = workspaceStore.getState().terminals.find(t => t.id === sessionId)
   const isCodexSession = true
   const isWorktreeSession = terminal?.agentPreset === 'claude-code-worktree' || terminal?.agentPreset === 'codex-agent-worktree' || !!terminal?.worktreePath
@@ -1034,6 +1037,18 @@ export function CodexAgentPanel({ sessionId, cwd, isActive, workspaceId, onClose
           const prompt = t.pendingPrompt || ''
           const images = t.pendingImages
           workspaceStore.setTerminalPendingPrompt(sessionId, '')
+          // T0884 (BUG-211): a remote window with fork images over the budget → not sent; the same
+          // notice as a normal send, history loaded, prompt and images back in the input.
+          const forkPlan = planForkPendingSend(images, forkBudgetRef.current.isRemoteWindow)
+          if (forkPlan.action === 'restore') {
+            window.electronAPI?.debug?.log(forkPendingBlockedLog(forkPlan))
+            setMessages(historyItems)
+            scrollToBottomAfterRender()
+            addNoticeToast(remoteImageBudgetMessage(forkPlan.exceeded, forkBudgetRef.current.t), 'warning', 10000)
+            setInputValue(restoredInputText(prompt, inputValueRef.current))
+            setAttachedImages(prev => restoredAttachments(forkPlan.attachments, prev, MAX_IMAGES))
+            return
+          }
           window.electronAPI?.debug?.log(`${tag} onHistory AUTO-SENDING pending prompt: "${prompt}" images=${images?.length ?? 0}`)
           // Set history + user message together so it doesn't get overwritten
           setMessages([

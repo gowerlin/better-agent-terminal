@@ -4,7 +4,9 @@ import {
   checkRemoteImageBudget,
   classifyRemoteSendFailure,
   dataUrlDecodedBytes,
+  forkPendingBlockedLog,
   formatMiB,
+  planForkPendingSend,
   remoteImageBudgetMessage,
   remoteSendFailureMessage,
   restoredAttachments,
@@ -72,5 +74,26 @@ describe('remote-image-budget', () => {
     expect(restoredAttachments([a, b], [], 5)).toEqual([a, b])
     expect(restoredAttachments([a, b], [b, c], 5)).toEqual([a, b, c])
     expect(restoredAttachments([a, b], [c], 2)).toEqual([a, b])
+  })
+
+  it('T0884: fork pending images are sent unless a remote window is over the budget', () => {
+    const ten = dataUrl(10 * MiB)
+    // within the budget (exactly 20 MiB), local window, no images: sent as before
+    expect(planForkPendingSend([ten, ten], true)).toEqual({ action: 'send' })
+    expect(planForkPendingSend([ten, ten, ten], false)).toEqual({ action: 'send' })
+    expect(planForkPendingSend(undefined, true)).toEqual({ action: 'send' })
+    expect(planForkPendingSend([], true)).toEqual({ action: 'send' })
+    // over the budget in a remote window: restore, with the same figures as a normal send's notice
+    const over = [ten, ten, dataUrl(1)]
+    const plan = planForkPendingSend(over, true)
+    expect(plan).toEqual({
+      action: 'restore',
+      exceeded: { totalBytes: 20 * MiB + 1, limitBytes: 20 * MiB },
+      attachments: over.map((dataUrl, i) => ({ path: `fork-pending:${i}`, dataUrl })),
+    })
+    if (plan.action !== 'restore') throw new Error('unreachable')
+    expect(remoteImageBudgetMessage(plan.exceeded, t)).toBe('claude.remoteImagesTooLarge {"size":"20.0","limit":"20.0"}')
+    // the log line has counts only
+    expect(forkPendingBlockedLog(plan)).toBe(`[remote-image-budget] fork pending images blocked count=3 bytes=${20 * MiB + 1}`)
   })
 })

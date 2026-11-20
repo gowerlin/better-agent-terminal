@@ -58,6 +58,31 @@ export function checkRemoteImageBudget(
   return totalBytes > limitBytes ? { totalBytes, limitBytes } : null
 }
 
+/**
+ * T0884 (BUG-211 follow-up): what a forked panel does with the prompt and images the fork left for
+ * it (`pendingPrompt` / `pendingImages`) once its history has loaded.
+ *
+ * - `send`: send them as before (a local window, no images, or images within the budget).
+ * - `restore`: a remote window and images over the budget → do not send; show the same notice as
+ *   a normal send (`remoteImageBudgetMessage`) and put the prompt and these attachments back into
+ *   the input, so the user can remove images and send it themselves. Keys are `fork-pending:<n>`.
+ */
+export type ForkPendingSendPlan =
+  | { action: 'send' }
+  | { action: 'restore'; exceeded: RemoteImageBudgetExceeded; attachments: { path: string; dataUrl: string }[] }
+
+export function planForkPendingSend(pendingImages: readonly string[] | undefined, isRemoteWindow: boolean): ForkPendingSendPlan {
+  const images = pendingImages ?? []
+  const exceeded = checkRemoteImageBudget(images, isRemoteWindow)
+  if (!exceeded) return { action: 'send' }
+  return { action: 'restore', exceeded, attachments: images.map((dataUrl, i) => ({ path: `fork-pending:${i}`, dataUrl })) }
+}
+
+/** The debug-log line for a blocked fork auto-send: counts and bytes only, never text or image data. */
+export function forkPendingBlockedLog(plan: Extract<ForkPendingSendPlan, { action: 'restore' }>): string {
+  return `[remote-image-budget] fork pending images blocked count=${plan.attachments.length} bytes=${plan.exceeded.totalBytes}`
+}
+
 /** `12.3` (MiB, one decimal). */
 export function formatMiB(bytes: number): string {
   return (bytes / MiB).toFixed(1)
