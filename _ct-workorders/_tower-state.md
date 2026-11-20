@@ -1,7 +1,7 @@
 ---
 schema_kind: tower-state
 summary_version: 1
-updated_at: "2026-11-20T16:32:29+08:00"
+updated_at: "2026-11-20T16:33:55+08:00"
 session: "2026-11-20 16:32 第一百二十六 session（CT v6.0.0）"
 next_ids:
   workorder: "T0882"
@@ -19,7 +19,7 @@ todo:
   - "✅ T0871 DONE 並上線（D295，產品 commit `5a7e2478`；使用者指示 push `e668ac12..f045d057`，push 前去識別化＋金鑰掃描 0 筆；Pages run `43978301961` build / deploy / link-check 全 success、lychee Errors 0；網站 `/control-tower` 已含 `data-pl-zoom-reserve`；BMad-Guide D762 已收單，3 項回饋延到 skill v1.1.2，屆時對方再通知升級；07:18 塔台收單：9 檔皆在 `site/.vitepress/theme/`、6 檔與 skill v1.1.1 雜湊一致、Timeline 未複製；Worker 分頁已排程關閉）：BAT 網站 `vitepress-portal-layout` v1.0.0 → v1.1.1，全站 15 頁 layout-check 全通過、`hostIssues` 0、按鈕 14 → 15（`QuestionFlow`）、120 組版面量測與升級前相同；回覆 `_reply-2026-11-17-portal-layout-skill-v111-bat.md` 已改 DONE（skill 回饋 1＋2 項資訊）並通知 `BMad-Guide · Tower`。使用者看線上站名未置中（線上仍是 v1.1.2）→ 指示 push `dfdfddf6..dd907a5f`（去識別化＋金鑰掃描 0 筆）；Pages run `44045970987` build / deploy / link-check 全 success；chrome-live 確認線上 1707 寬站名中心 136 = 格中心（已上線）"
   - "✅ T0870 DONE 並上線（`338a8f78`；20:27 使用者指示 push `80d6b90f..e668ac12`，push 前去識別化＋金鑰掃描 0 筆；Pages run `43866827100` build / deploy / link-check 全 success、lychee Errors 0；網站 `/control-tower` 已含 `pl-layout`）：BAT 網站套用 `vitepress-portal-layout` v1.0.0 前三項；BMad-Guide D751：skill 已出 v1.1.0（對方 T0502，含 BAT 回饋 4＋1 項、HTML 圖放大），但套到 CT／MMP 時又發現 6 項缺陷（`data-pl-zoom` 在 `<ol>`／`<ul>` 上時按鈕插成最後一個子元素、站點宿主 `padding: 0` 蓋掉按鈕保留空間），對方 D756 改修成 **v1.1.1**（對方 T0505）→ **不升 v1.1.0**，BAT 目前的 v1.0.0 不受影響；收到 v1.1.1 升級通知後開單從 v1.0.0 直接升 v1.1.1：整包覆蓋 `site/.vitepress/theme/portal-layout/`、移除 `custom.css` 底部把首頁導覽列／頁尾還原成 1440px 的那段、重跑 layout-check（可用 `--figure-test all`、整頁截圖）"
   - "✅ `0.7.5-pre.1` 發佈後驗收全 PASS（第一百二十四 session）：NSIS 重裝（11:31 `bat-nsis-acceptance-20261105-113131`，備份已刪）、linux-acceptance `41962694457`（22.04 / 24.04 各 4 passed）、macos-acceptance `41962698832`、docker-acceptance `41962703643`（pre.9 → pre.1）、WSL smoke `wsl:Ubuntu-24.04` 14/14（server `0.7.5-pre.1`，含 T0832 S14）"
-  - "🚀 `v0.7.5-pre.2` 已發佈（2026-11-17 13:13，使用者指示「push, 發版」；Pre-Release run `44020596683` 全 success、4 個安裝檔＋`server-bundle-v0.7.5-pre.2`；更版重點已寫；CHANGELOG / release-note / package.json 同步 `1e4b0c8d`，README 無需更新；Pages `44022793648` 全 success、lychee 0、首頁版號 pre.2）。發佈後驗收（13:2x–13:37）：✅ 使用者實機 `.exe` 從 pre.1 更新到 pre.2 **終端保留並接回**（PLAN-065 真實升級首驗 PASS）、✅ 新版通知（BUG-212）；✅ linux-acceptance `44023853174`（22.04 / 24.04）、macos-acceptance `44023858121`、docker-acceptance `44023862820`（pre.1 → pre.2）全 success；✅ WSL smoke `wsl:Ubuntu-24.04` 14/14（WSL server 仍是 `0.7.5-pre.1`）；✅ e2e `t0836`（真 SSH / Docker）3 passed。⏳ NSIS 重裝驗收 `-Version 0.7.5-pre.2` 尚未跑（使用者直接以 `.exe` 安裝）"
+  - "🚀 `v0.7.5-pre.2` 已發佈（2026-11-17 13:13，使用者指示「push, 發版」；Pre-Release run `44020596683` 全 success、4 個安裝檔＋`server-bundle-v0.7.5-pre.2`；更版重點已寫；CHANGELOG / release-note / package.json 同步 `1e4b0c8d`，README 無需更新；Pages `44022793648` 全 success、lychee 0、首頁版號 pre.2）。發佈後驗收（13:2x–13:37）：✅ 使用者實機 `.exe` 從 pre.1 更新到 pre.2 **終端保留並接回**（PLAN-065 真實升級首驗 PASS）、✅ 新版通知（BUG-212）；✅ linux-acceptance `44023853174`（22.04 / 24.04）、macos-acceptance `44023858121`、docker-acceptance `44023862820`（pre.1 → pre.2）全 success；✅ WSL smoke `wsl:Ubuntu-24.04` 14/14（WSL server 仍是 `0.7.5-pre.1`）；✅ e2e `t0836`（真 SSH / Docker）3 passed。✅ NSIS 重裝驗收 PASS（2026-11-20 16:11–16:13 real，`bat-nsis-acceptance-20261120-161155`，AllUsers；⓪–④ 全 PASS、⑤ 未帶 `-LaunchCheck` 略過；③ debug log 新增 1／輪替 1 屬預期；④ 與 ③ 快照 0 差異；PTY holder 目錄裝上／解除時移除皆正確；含權杖 `userdata-backup` 已於 16:33 刪除）"
   - "PLAN-065 剩餘：per-machine 未提權互動升級（UAC）手動驗收（無法自動化）；降級到 `0.7.4-pre.9` 會結束所有終端且沒有說明（已寫在更版重點〈已知事項〉）"
   - "✅ BUG-211 / 212 / 213 CLOSED（2026-11-17 13:25，交付版 `v0.7.5-pre.2`）：BUG-212 使用者實機收到新版通知；BUG-213 W6 `44002198241` 情境 1 pipe 啟動 PASS；BUG-211 e2e `t0836` ①(d) PASS。`_bug-tracker.md` FIXED 0 / CLOSED 76，parser 測試 65 passed"
   - "PLAN-052（IN_PROGRESS）：待 Docker Desktop（Windows / macOS）實機走精靈；後續候選（未開單）：fetch-fingerprint Docker 分支比對憑證指紋、`scripts/docker-acceptance.mjs` 純函式單元測試"
@@ -42,7 +42,7 @@ todo:
 
 > 最後更新:2026-11-17 19:18 (UTC+8) — **第一百二十五 session 收工**：`v0.7.5-pre.2` 發佈（PLAN-065 真實升級首驗 PASS、BUG-211 / 212 / 213 CLOSED）；npm audit 51 → 6（T0873–T0879）；BAT 網站 portal-layout v1.0.0 → v1.1.5 並修 960 導覽列（T0870–T0872、T0880、T0881，皆已上線）；`origin/main` 在 `f7269bff`，本地另有未 push 的塔台紀錄 commit（含本收工）。
 >
-> **下次起手**:熱區工單全 DONE、無派工中工單。① `0.7.5-pre.2` NSIS 重裝驗收尚未跑（`-Version 0.7.5-pre.2`）；② PLAN-065 剩 per-machine UAC 互動升級手動驗收；③ 未 push 的塔台紀錄 commit 待下次 push；④ 候選未開單（frontmatter `todo`）可批次開單。
+> **下次起手**:熱區工單全 DONE、無派工中工單。① ~~`0.7.5-pre.2` NSIS 重裝驗收~~ ✅ 2026-11-20 PASS；② PLAN-065 剩 per-machine UAC 互動升級手動驗收；③ 未 push 的塔台紀錄 commit 待下次 push；④ 候選未開單（frontmatter `todo`）可批次開單。
 
 ---
 
@@ -76,7 +76,7 @@ todo:
 - **`v0.7.5-pre.1`**（第一百二十一 – 一百二十四 session）：PLAN-065 W1–W6（Windows PTY holder）
 
 ### 待辦（依優先序；完整內容見 frontmatter `todo`）
-1. `0.7.5-pre.2` NSIS 重裝驗收（`pwsh -NoProfile -ExecutionPolicy Bypass -File e2e\manual\nsis-reinstall-acceptance.ps1 -Version 0.7.5-pre.2`，跑完讀報告並刪含權杖備份）；PLAN-065 per-machine UAC 互動升級手動驗收
+1. PLAN-065 per-machine UAC 互動升級手動驗收（`0.7.5-pre.2` NSIS 重裝驗收已於 2026-11-20 PASS）
 2. push 本地未推的塔台紀錄 commit（`e674cfdb` 起，含收工）
 3. PLAN-052：Docker Desktop 實機走精靈；PLAN-058：使用者手動確認（T0819 回報區）
 4. 候選未開單：T0864 `launchIsolated` 預寫設定、T0867 B 組同寫法、T0830 / PLAN-052 / BUG-211 後續
