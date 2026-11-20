@@ -56,6 +56,26 @@ async function until(check: () => boolean, timeoutMs = 3000): Promise<void> {
   }
 }
 
+// Captured at module load, before any test fakes them (T0882).
+const realSetTimeout = globalThis.setTimeout
+const realClearTimeout = globalThis.clearTimeout
+
+/**
+ * T0882: resolves on the next `event` of `emitter` (event-driven, no polling), rejects after `timeoutMs` on
+ * the real clock. Usable while setTimeout is faked: `vi.waitFor` / `vi.waitUntil` advance faked timers on
+ * every poll (CLAUDE.md "Frontend unit tests", T0508), and `until()` sleeps with the faked setTimeout.
+ */
+function nextEvent(emitter: NodeJS.EventEmitter, event: string, timeoutMs = 2000): Promise<void> {
+  return new Promise<void>((resolve, reject) => {
+    const onEvent = () => { realClearTimeout(timer); resolve() }
+    const timer = realSetTimeout(() => {
+      emitter.off(event, onEvent)
+      reject(new Error(`nextEvent: no '${event}' within ${timeoutMs} ms`))
+    }, timeoutMs)
+    emitter.once(event, onEvent)
+  })
+}
+
 /** A raw client: what it received, and whether the server closed it. */
 function rawClient(port: number) {
   const socket = new net.Socket()
@@ -209,9 +229,15 @@ describe('B: a real TerminalServer over TCP', () => {
     expect(SERVER_HELLO_TIMEOUT_MS).toBe(10_000)
     vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
     try {
+      const internals = server as unknown as { tcpServer: net.Server; tcpStates: Map<unknown, unknown> }
+      // T0882: the server's own 'connection' listener (acceptTcpConnection: tcpStates + the hello timer)
+      // was added first, so it has run when this one fires. Was a vi.waitUntil, which advanced the faked
+      // setTimeout on every poll (T0508).
+      const accepted = nextEvent(internals.tcpServer, 'connection')
       const c = rawClient(port)
       await c.ready
-      await vi.waitUntil(() => (server as unknown as { tcpStates: Map<unknown, unknown> }).tcpStates.size === 1, { timeout: 2000 })
+      await accepted
+      expect(internals.tcpStates.size).toBe(1)
       vi.advanceTimersByTime(SERVER_HELLO_TIMEOUT_MS)
       vi.useRealTimers()
       await until(() => c.closed)
