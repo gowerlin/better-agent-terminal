@@ -9,9 +9,7 @@ import i18n from '../../../i18n'
 import { WslDetails } from '../details/WslDetails'
 import type { ProfileEntry } from '../types'
 
-type WslProfile = ProfileEntry & { wslKeepAlive?: boolean }
-
-function profile(overrides: Partial<WslProfile> = {}): WslProfile {
+function profile(overrides: Partial<ProfileEntry> = {}): ProfileEntry {
   return {
     id: 'wsl-1',
     name: 'Ubuntu',

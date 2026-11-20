@@ -25,6 +25,8 @@ export interface ProfileEntry {
   sshKeyPath?: string
   useSshTunnel?: boolean
   tunnelLocalPort?: number
+  /** T0830 (PLAN-043, D271): wsl-linux only; `false` = BAT holds no keep-alive for the distro (missing = on). */
+  wslKeepAlive?: boolean
 }
 
 // T0513 (BUG-123): 'disconnected' = connection failed (red); 'connecting' = connecting / reconnecting (yellow).

@@ -7,9 +7,7 @@ import type { ProfileEntry } from '../types'
  * T0830 (PLAN-043, D271): `wslKeepAlive` is read off the persisted profile entry
  * (electron/profile-manager.ts). Missing = on, the pre-T0830 behaviour.
  */
-type WslProfileEntry = ProfileEntry & { wslKeepAlive?: boolean }
-
-export function WslDetails({ profile }: { profile: WslProfileEntry }) {
+export function WslDetails({ profile }: { profile: ProfileEntry }) {
   const { t } = useTranslation()
   const persisted = profile.wslKeepAlive !== false
   const [keepAlive, setKeepAlive] = useState(persisted)

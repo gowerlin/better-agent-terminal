@@ -447,7 +447,9 @@
 - 寬限 / 上限常數（`IDLE_GRACE_MS` = 15 s、`MAX_CONCURRENT_REMOTE_PROFILES` = 8 等）皆無注入點，測試不得為縮短等待改產品常數；第 9 個 profile 被拒，不擠掉既有連線。
 - profile index 序列化（T0509）：`profiles/index.json` 讀改寫一律經 `withIndexLock()`（`electron/profile-manager.ts`）。🔴 鎖內程式碼不得呼叫 `ProfileManager` 公開方法（佇列不可重入，會等自己）；新增方法時建立邏輯用 `addProfileEntry()`。
 - 開啟已存在的 profile 視窗一律經 `bringWindowToFront`（`src/lib/profile-window-front.ts`，隱藏的要 `show()`；T0750 / BUG-183）；`profile:delete` 成功後經 `closeWindowsOfDeletedProfile` 關閉該 profile 的視窗（BUG-184），見 docs。
-- 完整生命週期、失敗對話框、e2e 與實機驗收：[docs/agent-guide/multi-remote-profiles.md](docs/agent-guide/multi-remote-profiles.md)
+- WSL keep-alive 開關（T0830）：要持有的 distro 唯一由 `keepAliveProfileDistros`（`electron/wsl-keepalive.ts`）決定（`wslKeepAlive === false` 才不持有）；精靈的 `pin()` 與開關無關。
+- 精靈步驟中止（T0830）：runner 層 `cancel()` → `ctx.signal`（`wizard-runner.ts`），主行程子程序經 `WizardOperationRegistry` / `wizard:abort-operation`（handler 沒收到 `operationId` = 原呼叫）；🔴 步驟真正結束後才 rollback，不在步驟仍在跑時 rollback。
+- 完整生命週期、失敗對話框、keep-alive 與精靈中止、e2e 與實機驗收：[docs/agent-guide/multi-remote-profiles.md](docs/agent-guide/multi-remote-profiles.md)
 
 ## 遠端附件上傳暫存（PLAN-038 / T0832）
 
