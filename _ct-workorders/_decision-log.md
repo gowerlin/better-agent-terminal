@@ -1465,6 +1465,13 @@
 - **切分**：W2a 設計語言 + 元件 + 首頁（T0630）→ 預覽通過後 W2b（`/control-tower`、功能、FAQ、回報頁）→ W2c 遠端開發；W3 / W4 不變。
 - **相關**：PLAN-049 / D159 / D160 / T0624 / T0630
 
+### D303 2026-11-20 — 候選後續項目：可自動化測試的 3 張開單（T0882–T0884），需人工驗收的暫不安排
+
+- **背景**：塔台列出 10 項未開單候選（T0864 / T0867 / T0830 / BUG-211 / PLAN-052 / PLAN-058 的後續），建議先開三張小單，C / H / I 留到 PLAN-052 實機精靈時、J 待使用者決定。
+- **決定**：使用者同意建議並限定「只開可自動化測試的，需人工驗收的暫不安排」。開 T0882（A＋B：`launchIsolated` 預寫 `settings.json` 關閉檢查新版、protocol v1 測試 B 組改 `until()`）、T0883（D＋E＋F：`ProfileEntry` 補 `wslKeepAlive`、WSL keep-alive／精靈中止與 `ws-limits` / `FRAME_TOO_LARGE` 文件）、T0884（G：fork 後自動送出的待送圖片在遠端視窗做面板預算檢查並提示）。三張驗收都只靠單元測試 / typecheck / build，不排實機驗收。同一 checkout 依序派工（同 D298），全部完成後再問使用者是否 push。C（SSH / Docker 長呼叫接 operation id）、H（Docker fingerprint）、I（docker-acceptance 單元測試）、J（卡片等待時可送出）不開單。
+- **決策者**：使用者（範圍）＋塔台（分組、驗收方式）。2026-11-20 第一百二十六 session。
+- **相關**：T0882 / T0883 / T0884 / T0864 / T0867 / T0830 / BUG-211 / D298
+
 ### D302 2026-11-17 — 修 portal-layout v1.1.6 報出的兩處超出（960 導覽列、390 /releases），開 T0881
 
 - **背景**：BMad-Guide 告知 v1.1.6（站點檔與 v1.1.5 相同，只改 `layout-check.mjs`）新增「導覽列超出視窗」「內文超出主內容欄」檢查，預期 BAT 會報 960 寬導覽列「…」超出 39px（T0880 實測有捲軸時 52.8px，線上 v1.1.2 相同）與 390 寬 `/releases` 一行超出 5.2px。使用者指示開單。
