@@ -70,4 +70,4 @@ T0837 實測（真 `RemoteServer` + 真 `RemoteClient`，loopback wss）：
 - `RemoteClient.invoke`（與 auth frame）送出前算 UTF-8 bytes，超過 → 本機 reject `FRAME_TOO_LARGE: <channel> frame is <n> bytes; the remote connection accepts at most 33554432 bytes`，不送出、連線不斷、其他 invoke 不受影響（`bug211-ws-max-payload.test.ts`：3 × 10 MiB 實測 41,943,230 bytes 本機拒絕，client close codes `[]`）。
 - server `Max payload size exceeded` 日誌補連線識別（`client: <label>` / `helper: <role> <id>` / `unauthenticated`）。
 - Claude / Codex 面板（遠端視窗）：送出前檢查圖片解碼後合計 ≤ 20 MiB（`src/lib/remote-image-budget.ts`），超過 → toast、保留輸入與附圖、不送出；遠端送出失敗 → 系統訊息顯示原因、輸入與附件放回、復原這次送出開始的 `isStreaming`。本機視窗不檢查、行為不變。
-- 未涵蓋：fork 後自動送出的 pending 圖片（`onHistory` 路徑）不做面板檢查，只靠 client 守門（不斷線，但無提示）；方向 B（PLAN-038 上傳通道）仍為長期方案。
+- 未涵蓋：fork 後自動送出的 pending 圖片（`onHistory` 路徑）不做面板檢查，只靠 client 守門（不斷線，但無提示）；方向 B（PLAN-038 上傳通道）仍為長期方案。（2026-11-20 T0884 補上：遠端視窗 fork 自動送出前做面板預算檢查，超過則提示並放回輸入與附圖，commit `cf0b0809`）
