@@ -66,6 +66,8 @@ function write(file, content) {
 function writeFakeAppFiles(resources, arch = 'x64', { serverSource } = {}) {
   const unpacked = path.join(resources, 'app.asar.unpacked');
   write(path.join(unpacked, 'dist-electron', 'terminal-server.js'), serverSource ?? '"use strict";\nconst net = require("net");\nconst fs = require("node:fs");\nconst pty = require("@lydell/node-pty");\nconst x = require("./terminal-server/protocol");\n');
+  // T0887: the shared conout Worker terminal-server.js loads on Windows (build.asarUnpack keeps it next to the entry)
+  write(path.join(unpacked, 'dist-electron', 'shared-conout-worker.cjs'), '"use strict";\nconst { parentPort } = require("node:worker_threads");\n');
   const pty = path.join(unpacked, 'node_modules', '@lydell', 'node-pty');
   write(path.join(pty, 'package.json'), '{"name":"@lydell/node-pty","main":"./index.js"}\n');
   write(path.join(pty, 'LICENSE'), 'MIT\n');

@@ -300,6 +300,92 @@ W5（T0861）依 `reason` 走 D5「結束並說明」；本單沒有新的 UI。
 - 兩邊規則一致：`scripts/__tests__/pty-holder.test.mjs`「electron/pty-holder.ts and scripts/pty-holder.cjs give the same answers」。
 - e2e `e2e/t0859-pty-holder.spec.ts`（Windows、`BAT_E2E_EXECUTABLE=<release\win-unpacked\BetterAgentTerminal.exe>`，先 `npm run build:dir`；隔離 runtime，`LOCALAPPDATA` 指到暫存目錄，模擬安裝程式複製 holder 並建立標記）：server 的 `ExecutablePath` = holder 的 `bat-pty-holder.exe`、命令列跑 holder 的 `terminal-server.js`、`cmd.exe` 分頁執行命令、TCP hello 回 `runtime node` 與 `holderDir`、日誌有 `[pty-holder] Terminal Server from holder <key> (per-user)`；改一個 holder 檔後重開 → `not used (holder-invalid)`、server 回到 `BetterAgentTerminal.exe`、分頁照常。quit 時 holder 版 server 經 IPC `server:shutdown` 正常結束。
 
+## Windows：共用 conout Worker（PLAN-066 / T0887，D307 / D308）
+
+### 用途
+
+`@lydell/node-pty` 1.1.0 在 Windows 替每個 PTY 開一個 `worker_threads` Worker（`ConoutConnection`，`windowsConoutConnection.js`），
+專門把 ConPTY 的輸出管線轉送到主執行緒的 socket。每個 Worker 約 14 MB，Terminal Server 持有 10 個 PTY 約 170 MB（T0886 實測）。
+T0887 讓整個 Terminal Server 共用一個 Worker：第一個 PTY 建立時啟動、最後一個 PTY 的轉送關閉後結束。
+
+這個 Worker 存在的原因（防死結）不變：`ClosePseudoConsole` 會等輸出管線排空，所以讀輸出的不能是主執行緒
+（[microsoft/node-pty#375](https://github.com/microsoft/node-pty/issues/375)、[microsoft/terminal#1810](https://github.com/microsoft/terminal/issues/1810)）。
+共用之後讀輸出的仍是 Worker，只是一個 Worker 服務所有 PTY。
+
+### 必守規則
+
+- 🔴 只有 Terminal Server 安裝（`server.ts` `createPty` 第一次 spawn 前的 `ensureSharedConout()`，每個程序一次）。direct 模式（`pty-manager.ts`，Electron 主行程）不套用（D308 Q-B）。
+- 🔴 非 win32：`installSharedConout` 直接回 `skipped:not-win32`，不讀任何檔、不 require Worker 腳本、不記日誌。
+- 🔴 版本守門：node-pty 必須是 `1.1.0`（`package.json` 精確釘版 `"1.1.0"`）；`windowsPtyAgent.js` 仍以 `new windowsConoutConnection_1.ConoutConnection(` 從模組 exports 取類別；`ConoutConnection` 的 `onReady` getter、`dispose`、`connectSocket` 都在；Worker 腳本存在。任一不符 → `skipped:<原因>`，node-pty 逐字照舊（每個 PTY 一個 Worker）。
+- 🔴 不得改成主執行緒讀 conout（T0886 做法 (c)，舊版 Windows 會死結，另案）。
+- 🔴 不自動重建 Worker（本單決定）：Worker `error` / 非預期 `exit` 各記一行；受影響的 PTY 失去輸出，與 node-pty 自己的 Worker 當掉時相同（`_outSocket` 斷線，走 node-pty 原本的錯誤路徑）；下一個新建的 PTY 會啟動新 Worker。理由：重建接不回已斷的轉送（ConPTY 的輸出管線在 Worker 死時一起斷了，那段輸出已遺失），自動重建只會掩蓋問題；Worker 只做 socket 轉送、每個轉送的錯誤只影響自己，T0886 的吞吐 / kill 實測沒有當掉過。
+- 不改 node_modules、不 fork node-pty（D308）。
+
+### 唯一實作位置
+
+| 內容 | 位置 |
+|---|---|
+| 安裝與替換類別 | `installSharedConout` / `SharedConoutConnection`（`electron/terminal-server/shared-conout.ts`，不 import electron、import 期不做事） |
+| Worker | `electron/terminal-server/shared-conout-worker.cjs`（`open` / `close` 訊息，每個 PTY 一個轉送：連 conout 管線、在 `<pipe>-worker` 聽、把輸出 pipe 給主執行緒的 socket；`getWorkerPipeName` 直接寫成 `name + '-worker'`） |
+| 安裝點 | `ensureSharedConout`（`electron/terminal-server/server.ts`） |
+| 建置 | `vite.config.ts` terminal-server 項的 `sharedConoutWorkerAsset()`：原樣輸出 `dist-electron/shared-conout-worker.cjs`；`package.json` `build.asarUnpack` 有這個檔（Worker 讀真實檔案，`unpackedScriptPath` 優先用 `app.asar.unpacked`） |
+| PTY holder | `scripts/pty-holder.cjs`：`holderSourceFiles` 把 Worker 複製到 holder 根目錄（與 `terminal-server.js` 同層），`ptyHolderProblems` 要求 manifest 列出它；holder 內容因此改變，合併後要跑 W6（[pty-holder.md](pty-holder.md)） |
+| 打包檢查 | `scripts/verify-packaged-native.js` `DIST_ELECTRON_ENTRIES`（所有平台的 app.asar 都要有這個檔）＋ Windows `pty-holder` |
+
+### 生命週期
+
+1. 第一個 `new ConoutConnection(pipe)` → 啟動 Worker，送 `{ type: 'open', id, conoutPipeName }`；之後的 PTY 共用同一個 Worker。
+2. Worker 連上 conout 管線、`<pipe>-worker` 開始聽 → 回 `ready`；主執行緒照 node-pty 原本的流程 `connectSocket(_outSocket)`。
+3. `dispose()`（node-pty 在 `kill()` 時呼叫）→ 等 `FLUSH_DATA_INTERVAL`（1 s，與 node-pty 相同）讓輸出排空，再送 `close`。
+4. Worker 關掉該轉送、回 `closed`；沒有其他轉送 → 主執行緒 `terminate()` Worker；之後的新 PTY 再啟動新的。
+
+node-pty 1.1.0 的 PTY 自然結束而沒有呼叫 `kill()` 時不會 `dispose`（[microsoft/node-pty#887](https://github.com/microsoft/node-pty/issues/887)）：
+現況是那個 PTY 的 Worker（約 14 MB）一直留著，共用版是那個轉送（幾個 socket）留在共用 Worker 裡。Terminal Server 的 `handlePtyExit` 不呼叫 `kill()`，行為與 T0887 前相同（本單不改）。
+
+### 日誌
+
+Terminal Server 的 stderr（與其他 `[terminal-server]` 行同一管道；目前 fork / holder 的 stdio 是 `ignore`，主行程看不到）：
+
+| 日誌 | 意義 |
+|---|---|
+| `[shared-conout] installed` | 已替換（win32，第一次 spawn 前） |
+| `[shared-conout] skipped:<原因>` | 沒替換，照舊：`version-<版號>`、`agent-shape`、`shape`、`worker-missing`、`load-failed` |
+| `[shared-conout] worker error (<code 或 name>); <N> PTY(s) lose their output` | Worker 發生錯誤 |
+| `[shared-conout] worker exited unexpectedly (code <n>); <N> PTY(s) lose their output, the next PTY starts a new worker` | Worker 非預期結束（本模組自己結束 Worker 時不記） |
+
+不記 PTY 輸出、管線名稱、env。
+
+### 量測（T0887）
+
+BAT 原始碼建置（`npx vite build`，Terminal Server = electron 當 node）、隔離 runtime / userData，N 個閒置 pwsh 分頁全部出現提示後等 10 s，
+讀 Terminal Server 自己的 Private Bytes；每格 3 次取中位數（Windows 11 build 28000，2026-11-23；原始列在
+`experiments/node-pty-worker/results/bat-memory.csv`，spec 在同目錄的 `bat-memory/`）：
+
+| 分頁 | base（v0.8.x）Terminal Server | 共用 Worker | base 執行緒 | 共用執行緒 | base 框架合計 | 共用框架合計 |
+|---|---|---|---|---|---|---|
+| 1 | 37.3 MB | 37.1 MB | 18 | 18 | 372.2 MB | 376.3 MB |
+| 5 | 96.1 MB | 38.1 MB | 26 | 22 | 510.7 MB | 462.1 MB |
+| 10 | 164.6 MB | 38.8 MB | 37 | 27 | 655.5 MB | 528.3 MB |
+
+10 分頁省 125.8 MB（Terminal Server −76%）；每多一個分頁約 +0.2 MB（base 約 +14 MB）。框架合計 = Electron 主行程樹中 shell 以外的程序。
+所有分頁出現提示的時間兩者相同（中位數 base 1052 / 1038 / 1232 ms、共用 986 / 1134 / 1147 ms）。
+
+T0886 探針（只持有 PTY，沒有 Terminal Server 的協定與 ring buffer）：10 PTY 持有者 node.exe 178.1 → 39.3 MB、electron 當 node 162.2 → 37.1 MB；吞吐（10 PTY 各 50 萬行）stock 2248 ms / CPU 2.3 s、共用 2199 ms / 1.9 s。原始資料在分支 `ct/T0886` 的 `experiments/node-pty-worker/`。
+
+### 已知限制
+
+- 共用 Worker 當掉會讓所有分頁失去輸出（原本只影響一個）。不自動重建（理由見〈必守規則〉）；只有 stderr 一行，主行程目前看不到（要看得到需在協定加欄位，另案）。
+- 升 node-pty 時版本守門會自動停用替換：功能不壞，記憶體回到每個 PTY 一個 Worker。升版時重新驗證並更新 `SHARED_CONOUT_NODE_PTY_VERSION`。
+- 只在 Windows 11 build 28000 實測；防死結設計與 node-pty 相同，不依賴 Windows 版本。
+
+### 驗證
+
+- 單元 `electron/__tests__/shared-conout.test.ts`：非 win32 不讀任何檔；版本 / 類別 / agent 形狀不符、Worker 缺、套件讀不到 → `skipped` 且 export 不變；重複安裝；假 Worker 的生命週期（3 個 PTY 1 個 Worker、`ready` 依 id、`<pipe>-worker`、1 s 排空、最後一個關閉後 `terminate`、下一個 PTY 新 Worker、錯誤與非預期結束各一行且不含管線名稱）；真 Worker 腳本轉送管線（所有平台）；Windows 子程序跑真 node-pty 1.1.0（`installed`、3 個 PTY 各 3000 行完整依序、全程 1 個 Worker、`exit 7`、大量輸出中 kill 不 hang、最後一個 PTY 後 Worker 結束、事件迴圈自己結束）；source guard（只有 `server.ts` 安裝、在 `pty.spawn(` 之前；`pty-manager.ts` 沒有）。
+- holder：`scripts/__tests__/pty-holder.test.mjs`（holder 帶 Worker、與打包的同一份、app 缺 Worker → 建置失敗、manifest 沒列 → 問題）。
+- e2e（Windows，`npx vite build` 後）：`t0572-new-pty-initial-size`、`t0578-recovery-no-direct-shell`、`t0704-heartbeat-recovery`；打包版（`npm run build:dir`）：`t0859-pty-holder`、`t0861-holder-reattach`。
+- 記憶體：`experiments/node-pty-worker/bat-memory/`（T0885 `bat-baseline.spec.ts` 的閒置部分，`T0887_LABEL=base|shared`）。
+- 合併後：W6 `windows-upgrade-acceptance.yml`（holder 內容改變）。
+
 ## 日誌
 
 | 日誌 | 意義 |

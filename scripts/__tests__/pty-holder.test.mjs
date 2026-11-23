@@ -35,6 +35,7 @@ const {
   holderNodeLicenseUrl,
   externalPackagesOf,
   holderSourceFiles,
+  PTY_HOLDER_SHARED_CONOUT_WORKER,
   holderKey,
   buildHolderManifest,
   serializeHolderManifest,
@@ -227,6 +228,7 @@ describe('holder directory and manifest', () => {
       'node_modules/@lydell/node-pty/index.js',
       'node_modules/@lydell/node-pty/package.json',
       'node_modules/@lydell/node-pty/worker/conoutSocketWorker.js',
+      'shared-conout-worker.cjs',
       'terminal-server.js',
     ])
     expect(ptyHolderProblems(holderDir, 'x64')).toEqual([])
@@ -299,6 +301,24 @@ describe('holder directory and manifest', () => {
     expect(ptyHolderProblems(path.join(tmp(), 'none'), 'x64')[0]).toMatch(/holder-manifest\.json: missing$/)
   })
 
+  it('T0887: carries the shared conout Worker (same bytes as the packaged copy); missing in the app → the build fails; required in the manifest', () => {
+    const resources = path.join(tmp(), 'resources')
+    const { holderDir } = writeFakeHolder(resources, 'x64')
+    expect(PTY_HOLDER_SHARED_CONOUT_WORKER).toBe('shared-conout-worker.cjs')
+    expect(readFileSync(path.join(holderDir, PTY_HOLDER_SHARED_CONOUT_WORKER))).toEqual(readFileSync(path.join(resources, 'app.asar.unpacked', 'dist-electron', PTY_HOLDER_SHARED_CONOUT_WORKER)))
+
+    rmSync(path.join(holderDir, PTY_HOLDER_SHARED_CONOUT_WORKER))
+    expect(ptyHolderProblems(holderDir, 'x64')).toEqual([`missing: ${PTY_HOLDER_SHARED_CONOUT_WORKER}`])
+    const m = JSON.parse(readFileSync(path.join(holderDir, PTY_HOLDER_MANIFEST_FILE), 'utf8'))
+    writeFileSync(path.join(holderDir, PTY_HOLDER_MANIFEST_FILE), serializeHolderManifest(buildHolderManifest(m.files.filter((f) => f.path !== PTY_HOLDER_SHARED_CONOUT_WORKER), { arch: 'x64' })))
+    expect(ptyHolderProblems(holderDir, 'x64')).toEqual([`manifest does not list ${PTY_HOLDER_SHARED_CONOUT_WORKER}`])
+
+    const other = path.join(tmp(), 'resources')
+    writeFakeAppFiles(other, 'x64')
+    rmSync(path.join(other, 'app.asar.unpacked', 'dist-electron', PTY_HOLDER_SHARED_CONOUT_WORKER))
+    expect(() => holderSourceFiles(other, 'x64', 'node.exe', 'node-LICENSE')).toThrow(/shared-conout-worker\.cjs missing \(build\.asarUnpack must keep/)
+  })
+
   it('terminal-server.js requiring a package the holder does not carry → the build fails', () => {
     const resources = path.join(tmp(), 'resources')
     writeFakeAppFiles(resources, 'x64', { serverSource: 'require("@lydell/node-pty");require("ws")' })
@@ -340,7 +360,7 @@ describe('afterPackPtyHolder', () => {
     expect(result.holderDir).toBe(path.join(out, 'resources', 'pty-holder'))
     expect(ptyHolderProblems(result.holderDir, 'x64')).toEqual([])
     expect(readFileSync(path.join(result.holderDir, 'node-LICENSE'))).toEqual(fakeNodeLicense())
-    expect(logs.at(-1)).toMatch(/^PTY holder 24\.\d+\.\d+-[0-9a-f]{12} in resources[\\/]pty-holder \(11 files, \d+ bytes\)$/)
+    expect(logs.at(-1)).toMatch(/^PTY holder 24\.\d+\.\d+-[0-9a-f]{12} in resources[\\/]pty-holder \(12 files, \d+ bytes\)$/)
   })
 
   it('win32 without the app files: fails before downloading', async () => {
