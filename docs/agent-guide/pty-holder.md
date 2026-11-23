@@ -17,7 +17,7 @@ Terminal Server 是 `BetterAgentTerminal.exe` 以 node 模式執行，所以每�
 
 | 元件 | 位置 | 說明 | 工單 |
 |---|---|---|---|
-| holder 套件 | `$INSTDIR\resources\pty-holder\` | 官方 Node.js `node.exe` 改名 `bat-pty-holder.exe`（OpenJS 簽章）、打包的 `terminal-server.js` 與它在 Windows 啟動的共用 conout Worker `shared-conout-worker.cjs`（T0887）、node-pty 的 win32 檔、Node `LICENSE`、`holder-manifest.json`（每檔 `path` / `size` / `sha256`）。安裝目錄這份是 BAT 驗證時的**預期值**，所以保留 | T0858 / T0859 |
+| holder 套件 | `$INSTDIR\resources\pty-holder\` | 官方 Node.js `node.exe` 改名 `bat-pty-holder.exe`（OpenJS 簽章）、打包的 `terminal-server.js` 與它在 Windows 啟動的共用 conout Worker `shared-conout-worker.cjs`（T0887；T0889 改為批次轉送，這兩個檔改了 `<key>` 就跟著變，例：`24.22.2-f2630bed1fc5` → `24.22.2-7a21c053bf76`，合併後發版前要跑 W6）、node-pty 的 win32 檔、Node `LICENSE`、`holder-manifest.json`（每檔 `path` / `size` / `sha256`）。安裝目錄這份是 BAT 驗證時的**預期值**，所以保留 | T0858 / T0859 |
 | holder 根目錄 | per-user `%LOCALAPPDATA%\BAT-PtyHolder\<key>`；per-machine `%ProgramFiles%\BAT-PtyHolder\<key>` | 安裝程式 `customInstall` 依 `$installMode` 複製；`<key>` = `<Node 版本>-<12 hex>`（內容雜湊），內容不變的升級不複製 | T0858 |
 | Terminal Server | holder 的 `bat-pty-holder.exe terminal-server.js`，`cwd` = holder 目錄 | 主行程 `forkTerminalServer` 驗證通過才從 holder 啟動（win32 ＋打包版＋ NSIS 安裝＋重算雜湊相符），否則照舊 fork | T0859 |
 | 協定 v1 | TCP：第一個請求 `server:hello`（權杖 `<userData>/bat-pty-server.token`） | 版本協商、未認證關閉、`server:extendIdle`、不認得的請求回 `error` | T0857 |
