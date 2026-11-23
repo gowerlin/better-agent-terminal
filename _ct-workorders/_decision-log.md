@@ -1465,6 +1465,13 @@
 - **切分**：W2a 設計語言 + 元件 + 首頁（T0630）→ 預覽通過後 W2b（`/control-tower`、功能、FAQ、回報頁）→ W2c 遠端開發；W3 / W4 不變。
 - **相關**：PLAN-049 / D159 / D160 / T0624 / T0630
 
+### D306 2026-11-23 — T0885 收單：不建議整體改寫（Tauri / 全原生），局部改寫待使用者裁決
+
+- **背景**：T0885 DONE（主線回報 `9365675a`；分支 `ct/T0885` `dc2d3ed2`，只有 `experiments/rust-eval/` 34 檔、無建置產物；worktree 乾淨；`.bat-rust-poc/` 已刪；報告頁 https://claude.ai/artifact/LYTj1aGEZKq2bu6SMm6ZqT）。Windows 實測：10 分頁框架 Private BAT 654 MB／最小 Electron 572／最小 Tauri 457；啟動相同；Tauri 吞吐 CPU 約 3 倍。Tauri 省下的記憶體幾乎都來自 Rust 持有 PTY（`@lydell/node-pty` 在 Windows 每個 PTY 一個 Worker，約 14 MB；Rust 持有 10 PTY 2.5 MB vs Node 約 170 MB），WebView2 本身沒省。Claude Agent SDK 沒有 Rust 版，任何改寫都要附 Node。
+- **塔台判定**：結論有實測支撐、可決策，收單 DONE。Worker 回收帶 `--worktree keep`；分支不合併、不 push，保留當紀錄（建議）。PLAN-066 維持 IN_PROGRESS，等使用者回答 Q1（分頁數與是否實際卡過，決定是否做局部改寫 1–4 項）、Q5（接受 Tauri / 全原生不做）與分支處置。
+- **決策者**：塔台（收單）；待裁決事項交使用者。2026-11-23 第一百二十七 session。
+- **相關**：T0885 / PLAN-066 / D304 / D305 / PLAN-065 / T0857
+
 ### D305 2026-11-23 — T0885 改用 worktree 隔離重新派工，實驗不進主線
 
 - **背景**：T0885 第一次以非隔離派工（15:14），Worker 在主線 commit 開工紀錄 `0cca0327`，並在 repo 外建 `.bat-rust-poc/`。使用者指示「請用 worktree 實驗，勿直接改主線分支」。塔台 `--close-worker --delay-ms 0` 因分頁持續輸出 60 s 後被 BAT 取消（設計如此，不強制關閉），由使用者手動關閉分頁。
