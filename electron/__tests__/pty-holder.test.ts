@@ -23,9 +23,11 @@ import {
   holderScopeOrder,
   holderSpawnSpec,
   manifestProblems,
+  TERMINAL_SERVER_WIN32_MAX_SEMI_SPACE_MB,
   ptyHolderLogLine,
   resolvePtyHolder,
   terminalServerForkOptions,
+  terminalServerV8Flags,
   type PtyHolderFile,
   type PtyHolderFsDeps,
   type PtyHolderInput,
@@ -270,11 +272,33 @@ describe('fork parameters', () => {
   const stdio = ['ignore', 'ignore', 'ignore', 'ipc'] as const
   const env = { PATH: 'C:\\Windows', BAT_USER_DATA: 'C:\\ud', BAT_TERMINAL_SERVER_BAT_VERSION: '0.7.4', ELECTRON_RUN_AS_NODE: '1' }
 
-  it('🔴 fallback (macOS / Linux / dev / zip / no valid holder): exactly { detached, stdio, env } as before T0859', () => {
-    const opts = terminalServerForkOptions([...stdio], env)
-    expect(opts).toStrictEqual({ detached: true, stdio: [...stdio], env })
-    expect(opts.env).toBe(env) // the same object, nothing removed or added
-    expect(Object.keys(opts).sort()).toEqual(['detached', 'env', 'stdio'])
+  it('🔴 fallback on macOS / Linux: exactly { detached, stdio, env } as before T0859 (no execArgv key)', () => {
+    for (const platform of ['darwin', 'linux'] as const) {
+      const opts = terminalServerForkOptions([...stdio], env, platform, ['--inspect'])
+      expect(opts).toStrictEqual({ detached: true, stdio: [...stdio], env })
+      expect(opts.env).toBe(env) // the same object, nothing removed or added
+      expect(Object.keys(opts).sort()).toEqual(['detached', 'env', 'stdio'])
+    }
+  })
+
+  it('T0890: win32 fork (dev / zip / no valid holder) = the T0859 options + execArgv = what fork used before + the V8 flag', () => {
+    const opts = terminalServerForkOptions([...stdio], env, 'win32', [])
+    expect(opts).toStrictEqual({ detached: true, stdio: [...stdio], env, execArgv: ['--max-semi-space-size=1'] })
+    expect(opts.env).toBe(env) // env untouched: the flag is never in NODE_OPTIONS or any env
+    expect(terminalServerForkOptions([...stdio], env, 'win32', ['--inspect=0']).execArgv).toEqual(['--inspect=0', '--max-semi-space-size=1'])
+    // defaults: the running platform and process.execArgv (fork's own default when execArgv is not given)
+    const here = terminalServerForkOptions([...stdio], env)
+    if (process.platform === 'win32') expect(here.execArgv).toEqual([...process.execArgv, '--max-semi-space-size=1'])
+    else expect(here).toStrictEqual({ detached: true, stdio: [...stdio], env })
+  })
+
+  it('T0890: one flag constant, win32 only, never in an env', () => {
+    expect(TERMINAL_SERVER_WIN32_MAX_SEMI_SPACE_MB).toBe(1)
+    expect(terminalServerV8Flags('win32')).toEqual([`--max-semi-space-size=${TERMINAL_SERVER_WIN32_MAX_SEMI_SPACE_MB}`])
+    for (const platform of ['darwin', 'linux', 'freebsd'] as const) expect(terminalServerV8Flags(platform)).toEqual([])
+    const src = fs.readFileSync(path.join(__dirname, '..', 'pty-holder.ts'), 'utf8')
+    expect(src.match(/--max-semi-space-size=/g)).toHaveLength(1) // spelled in one place only
+    expect(src).not.toMatch(/NODE_OPTIONS\s*[:=]/)
   })
 
   it('holder: execPath = holder exe, script in the holder, cwd = holder directory, no ELECTRON_RUN_AS_NODE, same stdio', () => {
@@ -282,7 +306,9 @@ describe('fork parameters', () => {
     const holder: ValidPtyHolder = { key: '24.22.2-57c3b8bd7d7a', scope: 'per-user', dir, exePath: `${dir}\\bat-pty-holder.exe`, entryPath: `${dir}\\terminal-server.js` }
     const spec = holderSpawnSpec(holder, [...stdio], env)
     expect(spec.command).toBe(`${dir}\\bat-pty-holder.exe`)
-    expect(spec.args).toEqual([`${dir}\\terminal-server.js`])
+    // T0890: the V8 flag comes before the script (a start argument, not env)
+    expect(spec.args).toEqual(['--max-semi-space-size=1', `${dir}\\terminal-server.js`])
+    expect(JSON.stringify(spec.options.env)).not.toContain('semi-space')
     expect(spec.options).toStrictEqual({
       detached: true,
       stdio: [...stdio],
