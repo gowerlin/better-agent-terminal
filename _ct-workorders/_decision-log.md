@@ -1465,6 +1465,15 @@
 - **切分**：W2a 設計語言 + 元件 + 首頁（T0630）→ 預覽通過後 W2b（`/control-tower`、功能、FAQ、回報頁）→ W2c 遠端開發；W3 / W4 不變。
 - **相關**：PLAN-049 / D159 / D160 / T0624 / T0630
 
+### D311 2026-11-23 — T0888 收單：`v0.8.x` 回歸全過，量測 2 項未達條件（F1 開關反覆 +17–23 MB、F2 大量輸出慢 24.4%），發 `v0.8.0-pre.1` 前交使用者裁示
+
+- **背景**：使用者實機試用 `0.0.0-exp.18` 期間指示「開工單做自動測試與量測」→ T0888（yolo、worktree，對象 N＝exp.18 zip、O＝`v0.7.5-pre.2` zip、H＝`build:dir`＋暫存 holder）。22:00 Worker 回報 DONE。
+- **結果**：A typecheck ×2 = 0、build OK、unit 8433 passed / 0 failed（第 1 次全量 8 檔 RemoteServer hook 逾時，單獨與第 2 次全量通過 → flake）。B 工單指定的 9 個 e2e（N）＋ t0861 / t0860（H）全過；t0859 第 2 段因本機已裝 per-machine holder 而前提不成立（F6，環境）；其他 81 檔 72 passed / 7 failed，失敗皆為既有（`detached-workspace`、`navigation-guard`，O 同樣失敗）或 spec 寫死原始碼路徑（t0584 / t0590 / t0592 / t0600，原始碼建置重跑通過）。C：C1 10 分頁 N 35.4 / H 42.4 / O 159.1 MB、每分頁 +0.15 / +0.17 / +12.9；C2②、C3、C5、C6（30 分鐘 N +3.0、H +4.5）、C7 全部達標。
+- **未達條件**：F1 共用 Worker 存活時反覆開關分頁 N 300 次 +17.1 MB（第 225 次後持平約 56 MB）、H 100 次 +22.5 MB（O −10.3）；F2 10 分頁 × 20k 行同時輸出 N 5814.5 ms vs O 4674 ms（+24.4%，門檻 20%；H +17.4%；兩輪順序對調一致，輸出完整）。觀察：F3 大量輸出後 Private Bytes 不回落（O 也有）、F4 自然結束分頁的 conhost 留到 server 結束（既有，node-pty#887 同類）。
+- **塔台處置**：收單（session_ids 已有、快照已寫、`--close-worker --worktree keep` exit 0）；`ct/T0888` `fd466fb3` 只新增測試與量測檔，`behind 0`、worktree 乾淨 → fast-forward 合進本機 `v0.8.x`（`a05a9c79..fd466fb3`），未 push。Worker 執行中曾從使用者已裝的 per-machine holder 目錄啟動過一個測試用程序（PID 已隨測試結束，未改檔、使用者 server 不受影響）→ 記錄，不另處置。
+- **待決**：F1 / F2 是先開 BUG＋修正單再發 `v0.8.0-pre.1`，或列已知限制直接發 → 交使用者裁示（發版屬對外動作）。
+- **相關**：PLAN-066 / D307–D310 / T0887 / T0888
+
 ### D310 2026-11-23 — `v0.8.x` push、兩次 desktop-build、W6 升級驗收全數通過
 
 - **背景**：使用者授權「全部進行」（push `v0.8.x` 與 main 塔台紀錄 → desktop-build ×2 → W6）。push 前去識別化＋金鑰掃描 0 筆；main `06c3b884..ad561f6a`、`v0.8.x` 新分支（`a05a9c79`）。
