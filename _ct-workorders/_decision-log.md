@@ -1473,7 +1473,7 @@
   2. 塔台代決（breakpoint C，依 T0886 建議）：Q-B direct 模式（`pty-manager.ts`）本單不套用；Q-C 主執行緒讀 conout（再省約 15 MB，需在 24H2 以前 Windows 驗證死結防護）先不做；`experiments/node-pty-worker/` 留在分支當紀錄、不合併。
   3. 以 `v0.8.x` 為 base 的做法：塔台先 `git branch ct/T0887 v0.8.x`，BAT 隔離派工在「分支在、worktree 不在」時於既有分支建 worktree（base = fork point `06c3b884`）。完成後以 fast-forward 合進 `v0.8.x`。
   4. holder 內容會改變（PLAN-065）：合併後、`desktop-build.yml` 前先跑 W6 `windows-upgrade-acceptance.yml`（需 push `v0.8.x`，屆時取得使用者授權）。
-- **事件**：T0886 量測腳本（沿用 T0885 的 `tree-usage.ps1`）以 `ParentProcessId` 找子程序，PID 重用時在 17:29 左右以 `taskkill /T /F` 結束了 8 個無關的 shell 類程序（無法查出是哪些）；Worker 已修正腳本（子程序建立時間須晚於父程序、只結束探針之後建立的程序、一次一個）。T0887 的 memory_overrides 要求沿用修正後規則並記錄每次結束的 PID。已請使用者確認當時有沒有程序不見。T0885 同一支腳本的樹統計可能有同樣誤算（推論；T0887 會以修正後腳本重量 BAT 基線）。
+- **事件**：T0886 量測腳本（沿用 T0885 的 `tree-usage.ps1`）以 `ParentProcessId` 找子程序，PID 重用時在 17:29 左右以 `taskkill /T /F` 結束了 8 個無關的 shell 類程序（無法查出是哪些）；Worker 已修正腳本（子程序建立時間須晚於父程序、只結束探針之後建立的程序、一次一個）。T0887 的 memory_overrides 要求沿用修正後規則並記錄每次結束的 PID。已請使用者確認當時有沒有程序不見 → 使用者：當時只有另一個專案的塔台在工作；`bat_list_terminals scope=towers` 確認該塔台分頁仍存活（idle）→ 不再追查。T0885 同一支腳本的樹統計可能有同樣誤算（推論；T0887 會以修正後腳本重量 BAT 基線）。
 - **決策者**：塔台（收單、代決 Q-B / Q-C）；方向依使用者 D307。2026-11-23 第一百二十七 session。
 - **相關**：PLAN-066 / T0886 / T0887 / D307
 
