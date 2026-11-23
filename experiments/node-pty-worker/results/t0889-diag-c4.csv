@@ -1,0 +1,5 @@
+"Label","Scenario","Run","Step","Tabs","TsPid","TsPrivMB","TsWsMB","TsThreads","TsChildren","Value","Note","At"
+"src-before-elu","C4","1","flood-done","10","39420","165.2","201.6","27","20 (conhostx10 pwshx10)","5734","ms to all DONE; idle 38.5 MB; peak 256.5 MB (21 samples); last-200 gaps 0; output events 3529","2026-11-23T22:36:45+08:00"
+"src-after1","C4","1","flood-done","10","42732","50.9","86.2","27","20 (conhostx10 pwshx10)","2133","ms to all DONE; idle 38.5 MB; peak 51 MB (8 samples); last-200 gaps 0; output events 1235","2026-11-23T22:38:32+08:00"
+"src-after1","C4","2","flood-done","10","36632","54","89.3","27","20 (conhostx10 pwshx10)","2409","ms to all DONE; idle 40.9 MB; peak 54 MB (9 samples); last-200 gaps 0; output events 1405","2026-11-23T22:38:54+08:00"
+"src-after1","C4","3","flood-done","10","44616","53.6","89.2","27","20 (conhostx10 pwshx10)","2121","ms to all DONE; idle 41.2 MB; peak 53.5 MB (7 samples); last-200 gaps 0; output events 1243","2026-11-23T22:39:14+08:00"

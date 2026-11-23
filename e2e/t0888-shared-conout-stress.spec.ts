@@ -5,10 +5,14 @@
 //   $env:BAT_E2E_EXECUTABLE = '<extracted zip or release\win-unpacked>\BetterAgentTerminal.exe'
 //   $env:BAT_T0888_LABEL = 'N'            # N / O / H … (CSV label only)
 //   $env:BAT_T0888_HOLDER = '1'           # H only: Terminal Server from the PTY holder (as e2e/t0859-pty-holder.spec.ts)
-//   $env:BAT_T0888_SCENARIOS = 'C1,C4'    # optional, default all
+//   $env:BAT_T0888_SCENARIOS = 'C1,C4'    # optional, default all (C8 is opt-in: not in the default list)
+//   $env:BAT_T0888_RESULT_PREFIX = 't0889' # optional, results file prefix (default t0888)
 //   npx playwright test e2e/t0888-shared-conout-stress.spec.ts
 //
-// Skipped without BAT_T0888_STRESS=1, on anything but win32, and without BAT_E2E_EXECUTABLE.
+// T0889: `$env:BAT_T0888_SOURCE = '1'` (instead of BAT_E2E_EXECUTABLE) runs the source build (`npx vite build`,
+// node_modules electron.exe; not with BAT_T0888_HOLDER). C8 measures the echo latency of one interactive tab.
+//
+// Skipped without BAT_T0888_STRESS=1, on anything but win32, and without BAT_E2E_EXECUTABLE or BAT_T0888_SOURCE=1.
 //
 // Isolation (e2e/fixtures/electron-isolation.ts): every launch has its own --runtime userData, Terminal Server and
 // remote port; the installed BAT, its Terminal Server and the real %LOCALAPPDATA%\BAT-PtyHolder are never touched.
@@ -52,6 +56,10 @@ type AnyApi = any
 const log = testLogger('t0888')
 const LABEL = process.env.BAT_T0888_LABEL || 'unlabelled'
 const HOLDER = process.env.BAT_T0888_HOLDER === '1'
+/** T0889: the source build (dist-electron + node_modules electron.exe) instead of a packaged executable */
+const SOURCE = process.env.BAT_T0888_SOURCE === '1' && !E2E_EXECUTABLE
+const SOURCE_ELECTRON = path.join(REPO_ROOT, 'node_modules', 'electron', 'dist', 'electron.exe')
+const RESULT_PREFIX = /^[a-z0-9-]+$/.test(process.env.BAT_T0888_RESULT_PREFIX ?? '') ? process.env.BAT_T0888_RESULT_PREFIX! : 't0888'
 const SCENARIOS = new Set((process.env.BAT_T0888_SCENARIOS || 'C1,C2,C3,C4,C5,C6,C7').split(',').map(s => s.trim().toUpperCase()).filter(Boolean))
 const C6_MINUTES = Number(process.env.BAT_T0888_C6_MINUTES || 30)
 const RUNS = Number(process.env.BAT_T0888_RUNS || 3)
@@ -66,7 +74,8 @@ const MARKER = 'installer-quit-request.supported'
 
 test.skip(process.env.BAT_T0888_STRESS !== '1', 'opt-in: set BAT_T0888_STRESS=1')
 test.skip(process.platform !== 'win32', 'Windows only (the shared conout Worker is a Windows feature)')
-test.skip(!E2E_EXECUTABLE, 'needs BAT_E2E_EXECUTABLE=<…\\BetterAgentTerminal.exe> (packaged build under test)')
+test.skip(!E2E_EXECUTABLE && !SOURCE, 'needs BAT_E2E_EXECUTABLE=<…\\BetterAgentTerminal.exe> (packaged build under test) or BAT_T0888_SOURCE=1')
+test.skip(SOURCE && HOLDER, 'the holder needs a packaged build (BAT_E2E_EXECUTABLE)')
 
 // ───────────────────────── results ─────────────────────────
 
@@ -81,7 +90,7 @@ function nowIso(): string {
 }
 
 function appendRow(scenario: string, row: Row): void {
-  const file = path.join(RESULTS, `t0888-${scenario.toLowerCase()}.csv`)
+  const file = path.join(RESULTS, `${RESULT_PREFIX}-${scenario.toLowerCase()}.csv`)
   fs.mkdirSync(RESULTS, { recursive: true })
   if (!fs.existsSync(file)) fs.writeFileSync(file, COLS.map(c => `"${c}"`).join(',') + '\n')
   const full: Row = { Label: LABEL, Scenario: scenario, At: nowIso(), ...row }
@@ -162,7 +171,8 @@ async function endOwnTerminalServer(pid: number, temp: string, why: string): Pro
   const info = await processInfo(pid)
   const exe = (info?.ExecutablePath ?? '').toLowerCase()
   const cmd = (info?.CommandLine ?? '').toLowerCase()
-  const ours = (exe === E2E_EXECUTABLE.toLowerCase() || (temp && exe.startsWith(temp.toLowerCase()))) && cmd.includes('terminal-server.js')
+  const underTest = SOURCE ? SOURCE_ELECTRON.toLowerCase() : E2E_EXECUTABLE.toLowerCase()
+  const ours = (exe === underTest || (temp && exe.startsWith(temp.toLowerCase()))) && cmd.includes('terminal-server.js')
   if (!ours) { log(`pid ${pid} not ended (${why}): not this test's Terminal Server (${path.basename(exe)})`); return false }
   await run('taskkill', ['/F', '/PID', String(pid)]).catch(() => '')
   log(`ended pid ${pid} ${path.basename(exe)} (${why})`)
@@ -201,12 +211,14 @@ async function open(target: Target, name: string): Promise<Session> {
   const folder = fs.mkdtempSync(path.join(target.temp, 'cwd-'))
   await inst.win.evaluate((tail) => {
     const w = window as AnyApi
-    w.__t0888 = { out: {}, len: {}, exit: {} }
+    w.__t0888 = { out: {}, len: {}, chunks: {}, exit: {} }
     w.electronAPI.pty.onOutput((id: string, data: string) => {
       const s = w.__t0888
       const cur = (s.out[id] ?? '') + data
       s.out[id] = cur.length > tail ? cur.slice(cur.length - tail) : cur
       s.len[id] = (s.len[id] ?? 0) + data.length
+      s.chunks[id] = (s.chunks[id] ?? 0) + 1 // T0889: output events reaching the renderer
+      if (s.hook) s.hook(id) // C8: echo latency probe
     })
     w.electronAPI.pty.onExit((id: string, code: number) => { w.__t0888.exit[id] = code })
   }, TAIL)
@@ -448,6 +460,7 @@ test('C4: 10 tabs print 20,000 lines each at once', async () => {
       const idle = await sample3(pid)
       const tag = crypto.randomBytes(4).toString('hex')
       for (const id of ten) await resetOut(s, id)
+      const chunks0 = await s.win.evaluate(() => Object.values((window as AnyApi).__t0888.chunks as Record<string, number>).reduce((a, b) => a + b, 0))
       const { result: ms, peakMB, samples } = await withPeak(pid, async () => {
         const t0 = Date.now()
         await Promise.all(ten.map(id => write(s!, id, floodCmd(LINES, tag))))
@@ -460,9 +473,10 @@ test('C4: 10 tabs print 20,000 lines each at once', async () => {
         expect([...pending], 'tabs without the completion marker').toEqual([])
         return Date.now() - t0
       })
+      const chunks = await s.win.evaluate(() => Object.values((window as AnyApi).__t0888.chunks as Record<string, number>).reduce((a, b) => a + b, 0)) - chunks0
       const gaps: string[] = []
       for (const id of ten) { const c = seqCheck(await tail(s, id), LINES, 200); if (!c.ok) gaps.push(`${id}: last ${c.got.length} = ${c.got.slice(0, 3).join(',')}…${c.got.slice(-3).join(',')}`) }
-      appendRow('C4', { Run: run, Step: 'flood-done', ...rowOf(await sample3(pid), 10), Value: ms, Note: `ms to all DONE; idle ${idle.privMB} MB; peak ${peakMB} MB (${samples} samples); last-200 gaps ${gaps.length}` })
+      appendRow('C4', { Run: run, Step: 'flood-done', ...rowOf(await sample3(pid), 10), Value: ms, Note: `ms to all DONE; idle ${idle.privMB} MB; peak ${peakMB} MB (${samples} samples); last-200 gaps ${gaps.length}; output events ${chunks}` })
       log(`verdict C4 ${LABEL} run ${run}: ${ms} ms, peak ${peakMB} MB, last-200 sequence gaps in ${gaps.length} tab(s) ${gaps.join(' | ')}`)
       expect(gaps, 'last 200 SEQ numbers continuous in every tab').toEqual([])
       await checkUsable(s, ten)
@@ -598,5 +612,67 @@ test('C7: Terminal Server recovery with 10 tabs', async () => {
     await checkUsable(s, ten)
   } finally {
     await close(target, s)
+  }
+})
+
+/** T0889: echo latency = time from one keystroke written in the renderer until that tab's next output arrives there. */
+async function echoLatencies(s: Session, id: string, keys: number): Promise<number[]> {
+  const lat = await s.win.evaluate(async ({ id, keys }) => {
+    const w = window as AnyApi
+    const out: number[] = []
+    for (let i = 0; i < keys; i++) {
+      const t0 = performance.now()
+      const got = new Promise<number>((resolve) => {
+        const timer = setTimeout(() => { w.__t0888.hook = null; resolve(-1) }, 5000)
+        w.__t0888.hook = (tid: string) => { if (tid === id) { clearTimeout(timer); w.__t0888.hook = null; resolve(performance.now() - t0) } }
+      })
+      w.electronAPI.pty.write(id, 'x')
+      out.push(await got)
+      await new Promise(r => setTimeout(r, 60))
+    }
+    return out
+  }, { id, keys })
+  await write(s, id, '\x03') // drop the typed x's
+  await s.win.waitForTimeout(500)
+  return lat
+}
+
+function latencyRow(lat: number[]): { value: number; note: string } {
+  const ok = lat.filter(v => v >= 0).sort((a, b) => a - b)
+  const pct = (q: number) => ok.length ? Math.round(ok[Math.min(ok.length - 1, Math.floor(q * ok.length))] * 10) / 10 : -1
+  return { value: ok.length ? Math.round(median(ok) * 10) / 10 : -1, note: `echo ms median; p95 ${pct(0.95)} max ${ok.length ? Math.round(ok[ok.length - 1] * 10) / 10 : -1}; n ${ok.length}; timeouts ${lat.length - ok.length}` }
+}
+
+test('C8: echo latency of one interactive tab (idle, and while 9 tabs flood)', async () => {
+  test.skip(!SCENARIOS.has('C8'))
+  test.setTimeout(RUNS * 600_000)
+  const KEYS = 40
+  for (let run = 1; run <= RUNS; run++) {
+    let s: Session | undefined
+    try {
+      s = await open(target, `t0888-c8-r${run}`)
+      const pid = await serverPid(s)
+      await describeServer(s, pid)
+      const ten = ids('c8', 10)
+      await openTabs(s, ten)
+      await s.win.waitForTimeout(SETTLE_MS)
+      const probe = ten[0]
+      const others = ten.slice(1)
+      const idle = latencyRow(await echoLatencies(s, probe, KEYS))
+      appendRow('C8', { Run: run, Step: 'echo-idle', ...rowOf(await sampleProc(pid), 10), Value: idle.value, Note: idle.note })
+      const tag = crypto.randomBytes(4).toString('hex')
+      for (const id of others) await resetOut(s, id)
+      await Promise.all(others.map(id => write(s!, id, floodCmd(200_000, tag))))
+      await expect.poll(async () => { let n = 0; for (const id of others) if (/SEQ\d+/.test(await tail(s!, id))) n++; return n }, { timeout: 30_000 }).toBe(others.length)
+      const flood = latencyRow(await echoLatencies(s, probe, KEYS))
+      const stillFlooding = await (async () => { let n = 0; for (const id of others) if (!stripAnsi(await tail(s!, id)).includes(`DONE_${tag}_2`)) n++; return n })()
+      appendRow('C8', { Run: run, Step: 'echo-during-flood', ...rowOf(await sampleProc(pid), 10), Value: flood.value, Note: `${flood.note}; tabs still flooding at the end ${stillFlooding}/${others.length}` })
+      log(`verdict C8 ${LABEL} run ${run}: echo idle ${idle.value} ms (${idle.note}); during flood ${flood.value} ms (${flood.note}); still flooding ${stillFlooding}`)
+      for (const id of others) await write(s, id, '\x03')
+      await waitPrompts(s, others, 120_000)
+      await checkUsable(s, ten)
+    } finally {
+      await close(target, s)
+    }
   }
 })
