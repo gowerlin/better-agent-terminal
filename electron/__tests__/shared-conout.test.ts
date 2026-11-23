@@ -5,7 +5,8 @@
 // - SharedConoutConnection lifecycle with a fake Worker: one Worker for many PTYs, `ready` routed by id, `<pipe>-worker`,
 //   1 s drain before `close`, Worker ended after the last relay closes and started again for the next PTY, logs on error /
 //   unexpected exit (never PTY output);
-// - the real Worker script relays a pipe (all platforms: named pipe on Windows, unix socket elsewhere);
+// - the real Worker script relays a pipe (all platforms: named pipe on Windows, unix socket elsewhere); T0889: raw bytes in
+//   batches (byte-exact, fewer pieces, no delay after a quiet moment), back-pressure, conout end, close releases the relay;
 // - Windows only, real node-pty 1.1.0 in a child process (so the vitest process never runs a patched node-pty):
 //   `installed`, 3 PTYs with complete, in-order output, exactly 1 Worker, `exit 7` → 7, kill during heavy output does not
 //   hang, the Worker ends after the last PTY and the event loop ends by itself;
@@ -265,6 +266,117 @@ describe('the real Worker script relays a pipe', () => {
       conout.close()
     }
   }, 20000)
+})
+
+// T0889 (BUG-215): the relay forwards raw bytes in batches — same bytes, same order, far fewer pieces; the first piece
+// after a quiet moment goes at once; back-pressure and the conout end are passed on; `close` releases the relay.
+describe('T0889: the real Worker script batches raw bytes', () => {
+  const pipeName = (tag: string) => process.platform === 'win32'
+    ? `\\\\.\\pipe\\bat-t0889-${tag}-${process.pid}-${Date.now()}`
+    : path.join(tmp(), `${tag}.sock`)
+
+  /** conout stand-in + Worker + connected client; `conout` resolves to the Worker's connection on the conout side. */
+  async function relay(tag: string) {
+    const name = pipeName(tag)
+    let conoutSide!: net.Socket
+    const conoutConnected = new Promise<net.Socket>((resolve) => {
+      const server = net.createServer((s) => { conoutSide = s; resolve(s) })
+      server.listen(name)
+      cleanups.push(() => server.close())
+    })
+    await new Promise<void>((r) => setTimeout(r, 20))
+    const worker = new Worker(WORKER_SCRIPT)
+    cleanups.push(() => { void worker.terminate() })
+    const messages: WorkerMessage[] = []
+    worker.on('message', (m: WorkerMessage) => messages.push(m))
+    const waitFor = (pred: (m: WorkerMessage) => boolean) => new Promise<void>((resolve) => {
+      const check = () => { if (messages.some(pred)) resolve(); else setTimeout(check, 5) }
+      check()
+    })
+    worker.postMessage({ type: 'open', id: 1, conoutPipeName: name })
+    await conoutConnected
+    await waitFor((m) => m.type === 'ready' && m.id === 1)
+    const client = net.connect(`${name}-worker`)
+    cleanups.push(() => client.destroy())
+    await new Promise<void>((r) => client.once('connect', () => r()))
+    const chunks: Buffer[] = []
+    client.on('data', (d: Buffer) => chunks.push(d))
+    return { name, worker, client, chunks, conout: () => conoutSide, waitFor }
+  }
+
+  const cleanups: Array<() => void> = []
+  afterEach(() => { for (const c of cleanups.splice(0).reverse()) { try { c() } catch { /* already gone */ } } })
+
+  it('300 tiny writes (with a UTF-8 character split across two of them) arrive byte-exact in far fewer pieces', async () => {
+    const r = await relay('burst')
+    const zh = Buffer.from('中文', 'utf8')
+    const pieces: Buffer[] = []
+    for (let i = 0; i < 300; i++) pieces.push(Buffer.from(`SEQ${i}\r\n`))
+    pieces.splice(150, 0, zh.subarray(0, 2), zh.subarray(2))
+    for (const p of pieces) r.conout().write(p)
+    const want = Buffer.concat(pieces)
+    await vi.waitFor(() => expect(Buffer.concat(r.chunks).length).toBe(want.length), { timeout: 10_000, interval: 10 })
+    expect(Buffer.concat(r.chunks).equals(want)).toBe(true)
+    expect(r.chunks.length).toBeLessThan(pieces.length / 10)
+  }, 20_000)
+
+  it('after a quiet moment the next piece is sent at once (an echo is not held back)', async () => {
+    const r = await relay('quiet')
+    for (const text of ['a', 'b', 'c']) {
+      await new Promise((res) => setTimeout(res, 50))
+      const before = r.chunks.length
+      const t0 = performance.now()
+      r.conout().write(text)
+      await vi.waitFor(() => expect(r.chunks.length).toBe(before + 1), { timeout: 2_000, interval: 1 })
+      expect(r.chunks[before].toString()).toBe(text)
+      expect(performance.now() - t0).toBeLessThan(500)
+    }
+  }, 20_000)
+
+  it('back-pressure: a client that does not read pauses the relay; nothing is lost once it reads again', async () => {
+    const r = await relay('pressure')
+    r.client.pause()
+    const block = Buffer.alloc(64 * 1024, 0x61)
+    const total = 128
+    let written = 0
+    let waiting = false
+    const pump = (): void => {
+      while (written < total && !waiting) {
+        written++
+        if (!r.conout().write(block)) { waiting = true; r.conout().once('drain', () => { waiting = false; pump() }) }
+      }
+    }
+    pump()
+    await new Promise((res) => setTimeout(res, 500))
+    expect(written).toBeLessThan(total) // the conout side is held back while the client does not read
+    r.client.resume()
+    await vi.waitFor(() => expect(Buffer.concat(r.chunks).length).toBe(total * block.length), { timeout: 20_000, interval: 20 })
+  }, 30_000)
+
+  it('the conout end reaches the client after the pending bytes', async () => {
+    const r = await relay('end')
+    const ended = new Promise<void>((res) => r.client.once('end', () => res()))
+    r.conout().write('last words')
+    r.conout().end()
+    await ended
+    expect(Buffer.concat(r.chunks).toString()).toBe('last words')
+  }, 20_000)
+
+  it('close: closed is posted, the conout connection and the client are closed, <pipe>-worker no longer listens', async () => {
+    const r = await relay('close')
+    const conoutClosed = new Promise<void>((res) => r.conout().once('close', () => res()))
+    const clientClosed = new Promise<void>((res) => r.client.once('close', () => res()))
+    r.worker.postMessage({ type: 'close', id: 1 })
+    await r.waitFor((m) => m.type === 'closed' && m.id === 1)
+    await conoutClosed
+    await clientClosed
+    const err = await new Promise<NodeJS.ErrnoException | null>((res) => {
+      const c = net.connect(`${r.name}-worker`)
+      c.once('connect', () => { c.destroy(); res(null) })
+      c.once('error', (e) => res(e as NodeJS.ErrnoException))
+    })
+    expect(err?.code).toMatch(/ENOENT|ECONNREFUSED/)
+  }, 20_000)
 })
 
 // The child runs real node-pty 1.1.0 with the replacement installed, prints one JSON line per event on stdout, and is
