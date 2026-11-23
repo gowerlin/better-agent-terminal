@@ -13,24 +13,28 @@ created_at: "2026-11-23T15:13:04+0800"
 started_at: "2026-11-23T15:15:12+08:00"
 updated_at: "2026-11-23T15:15:12+08:00"
 completed_at: ""
-session_ids: []
+session_ids:
+  - "d8a7f5d6-964a-4507-b769-4dc2ac065dfc"
 depends_on: []
 related:
   - "PLAN-066；D304；PLAN-059（Herdr 對照，Rust 實作的終端工具，研究報告 Artifact「Herdr 對照 BAT」）；PLAN-065（Windows PTY holder，T0856 研究）；PLAN-053（Electron 45 升級）"
 affects_files:
   - _ct-workorders/T0885-research-rust-rewrite-evaluation.md
+  - experiments/rust-eval/**
 renew_count: 0
-workdir: main repo
+isolation: worktree
+workdir: worktree ct/T0885
 worker_question_timeout: 30
 interaction:
   mode_hint: yolo
   interactive: false
   intervention_type: context-dependent
 memory_overrides:
-  - "🔴 研究工單：repo 內只改本工單檔，不改產品程式、不在 repo 內建任何檔案、不開分支、不 push。可讀程式與 `node_modules`、跑唯讀指令、`npx vite build`、既有單元測試與既有 e2e fixture。"
-  - "🔴 PoC 一律放在 repo 外：`<主 checkout 上層>/.bat-rust-poc/`（與 `.bat-worktrees` 同層），不 commit。可為 PoC 下載 npm 套件與 cargo crate（本機已有 cargo / rustc 1.99.1）。量完刪除 `node_modules/`、`target/` 等建置產物，保留原始碼與量測腳本以便重現；回報區寫明位置與重現步驟。"
+  - "🔴 worktree 隔離（使用者 2026-11-23 指示「用 worktree 實驗，勿直接改主線分支」，D305）：所有實驗在 BAT 建立的 worktree（分支 `ct/T0885`）進行，依 ct-exec § Worktree Isolation。主 checkout 只能寫本工單檔（`git -C \"$CT_HOME\" commit --only _ct-workorders/<本檔>`）；主 checkout 的產品檔、其他檔一律不改，不切分支、不 merge / rebase、不 push。"
+  - "🔴 研究工單：不改產品程式（`src/`、`electron/`、`scripts/`、設定檔等，worktree 內也不改）。可讀程式、跑唯讀指令；量現行 BAT 基線需要的 `npm ci`、`npx vite build`、既有單元測試與 e2e fixture 都在 worktree 內跑（BAT 不幫 worktree 裝依賴）。"
+  - "🔴 PoC 放在 worktree 內的 `experiments/rust-eval/`（`electron-min/`、`tauri-min/`、選做 `rust-pty-probe/`、量測腳本），commit 到分支 `ct/T0885` 以便重現；該目錄放自己的 `.gitignore` 擋 `node_modules/`、`target/`、`dist/` 等建置產物，不得 commit 建置產物或下載的 binary。可為 PoC 下載 npm 套件與 cargo crate（本機已有 cargo / rustc 1.99.1）。收單前 `git -C \"$CT_WORKTREE\" status --porcelain` 必須為空。分支是否合回主線由使用者另行決定，本單不合併。"
   - "🔴 不碰本機 BAT 安裝版與使用者正在用的 BAT：`C:\\Program Files\\BetterAgentTerminal` 只能列檔、讀大小與版本資訊；不得啟動、結束、重裝它或它的 Terminal Server。量測現行 BAT 基線時用 repo 建置＋隔離 userData（既有 e2e fixture `launchIsolated` 等），不得用使用者的 userData；查詢執行中程序只用唯讀指令（`Get-Process` / `Get-CimInstance Win32_Process`），回報不記命令列中的權杖或環境變數值。"
-  - "🔴 yolo：不得問使用者；問題依 ct-exec § Questions For Tower 問塔台（研究型提問上限依 `research_max_questions`）。Git：只 commit 本工單檔（`git add <明確路徑>`，不用 `-A` / `.`）。禁止 `git stash`（含 `git stash list`）/ `git reset` / `git checkout -- <path>` / `git restore`（L138）。"
+  - "🔴 yolo：不得問使用者；問題依 ct-exec § Questions For Tower 問塔台（研究型提問上限依 `research_max_questions`）。Git：主 checkout 只 commit 本工單檔；worktree 只 commit `experiments/rust-eval/` 下的檔（`git add <明確路徑>`，不用 `-A` / `.`）。禁止 `git stash`（含 `git stash list`）/ `git reset` / `git checkout -- <path>` / `git restore`（L138）。"
   - "公開 repo（D176）：回報區與報告頁不寫真名、客戶名、家目錄路徑（寫 `<使用者資料夾>`）。"
   - "外部資料（其他專案的記憶體 / 效能數字、Tauri / WebView2 文件）只引用官方或可查證來源並附連結；實測與推論、外部數字分開標示。"
 ---
@@ -90,7 +94,7 @@ memory_overrides:
 
 ## PoC 規格
 
-- 位置：`<主 checkout 上層>/.bat-rust-poc/`（repo 外、不 commit）。平台：本機 Windows；macOS / Linux 以推論＋外部資料補充並標示。
+- 位置：worktree 內的 `experiments/rust-eval/`，commit 到分支 `ct/T0885`（建置產物以該目錄的 `.gitignore` 擋掉，不合回主線）。平台：本機 Windows；macOS / Linux 以推論＋外部資料補充並標示。
 - 做兩個**同規格**的最小原型，公平比較框架本身的開銷：
   - **A. 最小 Electron**：一個視窗、xterm.js、`node-pty`（或 `@lydell/node-pty`）起 shell、可開多個分頁。
   - **B. 最小 Tauri 2**：一個視窗、xterm.js、Rust 端 `portable-pty` 起 shell、可開多個分頁，輸出經 Tauri event / channel 送到前端。
@@ -116,6 +120,16 @@ memory_overrides:
   - 〈PoC 量測〉：原始數字表、方法、限制、重現步驟。
   - 〈建議下一步〉：若建議做，拆成 PLAN / 工單（範圍、規模、依賴、驗收方式）；另列需要使用者裁決的問題。
 - 長文報告頁：依 `longform-report` skill 做成私人 Artifact（結論摘要在前、比較表、PoC 數字、風險、待裁決事項、參考連結），URL 寫在回報區。報告頁同樣遵守去識別化。
+
+## 塔台補充（執行中 #1）
+
+**時間**：2026-11-23 15:17 (UTC+8)
+**補充內容**：
+> 使用者指示「請用 worktree 實驗，勿直接改主線分支」（D305）。第一次派工（15:14，非隔離，session `d8a7f5d6…`）在主線 commit 開工紀錄 `0cca0327`，並在 repo 外建了 `<主 checkout 上層>/.bat-rust-poc/`（`electron-poc/`、`tauri-poc/`、`frontend/`、`holder-probe/`、`measure/`，含建置產物約 1.6 GB）。塔台 `--close-worker` 因分頁持續輸出被取消，由使用者手動關閉分頁；塔台確認沒有殘留的 PoC 程序。
+
+**新指示**：
+> 本單改為 `isolation: worktree` 重新派工：PoC 與所有實驗放在 worktree `experiments/rust-eval/`、commit 到分支 `ct/T0885`；主 checkout 只寫本工單檔。規則以 frontmatter `memory_overrides` 為準。
+> 可沿用 `.bat-rust-poc/` 的**原始碼與量測腳本**：只複製原始檔（不含 `node_modules/`、`target/`、`dist/`、`*.csv` 等產物）到 `experiments/rust-eval/` 後檢查、修正路徑；舊的量測結果（例 `measure/smoke.csv`）一律重新量，不得沿用。搬完後刪除整個 `.bat-rust-poc/`，在回報區註明。
 
 ---
 

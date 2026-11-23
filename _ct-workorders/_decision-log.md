@@ -1465,6 +1465,16 @@
 - **切分**：W2a 設計語言 + 元件 + 首頁（T0630）→ 預覽通過後 W2b（`/control-tower`、功能、FAQ、回報頁）→ W2c 遠端開發；W3 / W4 不變。
 - **相關**：PLAN-049 / D159 / D160 / T0624 / T0630
 
+### D305 2026-11-23 — T0885 改用 worktree 隔離重新派工，實驗不進主線
+
+- **背景**：T0885 第一次以非隔離派工（15:14），Worker 在主線 commit 開工紀錄 `0cca0327`，並在 repo 外建 `.bat-rust-poc/`。使用者指示「請用 worktree 實驗，勿直接改主線分支」。塔台 `--close-worker --delay-ms 0` 因分頁持續輸出 60 s 後被 BAT 取消（設計如此，不強制關閉），由使用者手動關閉分頁。
+- **決定**：
+  1. T0885 加 `isolation: worktree`，以 `--isolation worktree` 重新派工（分支 `ct/T0885`）。PoC 與量測腳本放 worktree 的 `experiments/rust-eval/` 並 commit 到該分支（建置產物以 `.gitignore` 擋），本單不合回主線，日後是否合併由使用者決定。
+  2. 主線只有工單檔的進度與回報 commit（CT worktree 規則：工單寫回主 checkout），產品檔與實驗檔不進主線。
+  3. 可沿用 `.bat-rust-poc/` 的原始碼與量測腳本（不含產物、量測結果重量），搬完刪除該目錄。
+- **決策者**：使用者（隔離）／塔台（PoC 位置、沿用舊原始碼）。2026-11-23 第一百二十七 session。
+- **相關**：T0885 / PLAN-066 / D304
+
 ### D304 2026-11-23 — 開 PLAN-066 評估 BAT 改用 Rust 改寫，先派研究單 T0885（三條路線＋PoC）
 
 - **背景**：使用者 `*plan`：「近來有很多 Open Source 都改用 Rust 重寫，請評估 BAT 改用 Rust 改寫有何優缺點，效能、記憶體、維護性」。需盤點整個 BAT，屬研究型工作，塔台不自行做程式碼分析。
