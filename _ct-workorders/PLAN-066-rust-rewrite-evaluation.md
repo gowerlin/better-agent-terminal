@@ -47,3 +47,4 @@ links:
 - 2026-11-23 16:20（D307）：使用者接受**不做整體改寫**（Tauri / 全原生）；`ct/T0885` 保留不合併。照建議順序在 **`v0.8.x` 分支**做局部改進（main 不動）：① 研究 Node 端省 Worker（**T0886**）→ Node 端修正，或 ② 設計 → ③ Rust Terminal Server → ④ 驗收。發版：先 `desktop-build.yml` 只 build 給使用者實機試，驗過再發 `v0.8.0-pre.1`。
 - 2026-11-23 17:39（D308）：T0886 DONE。Node 端共用一個 conout Worker 後，10 PTY 持有者 178 → 39 MB，行為與現況相同；**不做 Rust Terminal Server**（第 2–4 項不開，T0887 未達標再評估）。開實作單 **T0887**（Windows Terminal Server 共用 conout Worker，分支 `ct/T0887` 從 `v0.8.x` 建立）；direct 模式與主執行緒讀 conout 先不做。
 - 2026-11-23 18:10（D309）：T0887 DONE，10 分頁 Terminal Server 164.6 → 38.8 MB（框架 655.5 → 528.3 MB），fast-forward 合進 `v0.8.x`（`a05a9c79`）。待使用者授權 push `v0.8.x` → W6 → `desktop-build.yml` 試用 → `v0.8.0-pre.1`。
+- 2026-11-23 20:18（D310）：使用者授權後 push `v0.8.x`；desktop-build A / B success（A 的 Linux 卡在 patchelf，取消後只重跑 Linux 通過）；W6 升級驗收 scenario 1–9 全 success。待使用者實機試用，再另取授權發 `v0.8.0-pre.1`。

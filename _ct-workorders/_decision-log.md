@@ -1465,6 +1465,14 @@
 - **切分**：W2a 設計語言 + 元件 + 首頁（T0630）→ 預覽通過後 W2b（`/control-tower`、功能、FAQ、回報頁）→ W2c 遠端開發；W3 / W4 不變。
 - **相關**：PLAN-049 / D159 / D160 / T0624 / T0630
 
+### D310 2026-11-23 — `v0.8.x` push、兩次 desktop-build、W6 升級驗收全數通過
+
+- **背景**：使用者授權「全部進行」（push `v0.8.x` 與 main 塔台紀錄 → desktop-build ×2 → W6）。push 前去識別化＋金鑰掃描 0 筆；main `06c3b884..ad561f6a`、`v0.8.x` 新分支（`a05a9c79`）。
+- **desktop-build**（`-f ref=v0.8.x`）：B `45153872079` success；A `45153853348` 的 Linux job 卡在「Install patchelf」約 2 h（B 同步驟數秒，判為 runner 套件來源問題、與程式無關）→ 塔台取消 A，`gh run rerun --failed` 只重跑 Linux，attempt 2 success；A 的 `desktop-win` / `desktop-mac` / `desktop-linux` artifact 齊全（保留 7 天）。
+- **W6**：`windows-upgrade-acceptance.yml` run `45171775169`（`--ref v0.8.x`，A→B，scenarios all、old_version 預設）：prepare＋scenario 1–9 全部 success（20:10 → 20:17）。holder 內容改變（`shared-conout-worker.cjs`、key 改變）的升級路徑通過。
+- **決定**：A / B 安裝檔交使用者實機試用；實機驗過後再另取授權發 `v0.8.0-pre.1`（先查 0.7.5 預覽版使用者的新版通知行為、`-f version=` 不可留空）。
+- **相關**：PLAN-066 / D307 / D309 / T0887
+
 ### D309 2026-11-23 — T0887 收單：共用 conout Worker 達標，fast-forward 合進 `v0.8.x`
 
 - **背景**：T0887 DONE（主線回報 `34cd237a`；分支 `ct/T0887` 一個 commit `a05a9c79`，20 檔皆在 `affects_files` 內，worktree 乾淨，merge-base = `06c3b884`）。BAT 原始碼建置 10 分頁 Terminal Server 164.6 → **38.8 MB**（框架 655.5 → 528.3 MB），打包版 41.2 MB；`test:unit` 8434 passed、兩個 typecheck 0、e2e T0572 / T0578 / T0704 / T0859（打包版 holder）/ T0861 通過；holder 內容改變（多 `shared-conout-worker.cjs`、key 改變）。塔台重跑 `shared-conout.test.ts`＋`pty-holder.test.mjs` 56 passed、`typecheck:electron` 0。
