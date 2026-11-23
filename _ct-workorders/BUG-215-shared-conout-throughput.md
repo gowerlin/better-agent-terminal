@@ -3,11 +3,13 @@ schema_version: 1
 schema_kind: bug
 id: BUG-215
 title: "Windows Terminal Server（共用 conout Worker，`v0.8.x`）：10 個分頁同時大量輸出，完成時間比 `0.7.5-pre.2` 慢 24.4%"
-status: FIXED
+status: CLOSED
+closed_at: "2026-11-24T03:41:19+08:00"
+closed_reason: "交付版 `v0.8.0-pre.1`（D315；W6 `45243806927` 全過、NSIS 重裝驗收 PASS）＋T0889 測試環境實測 C4 −50.1%；使用者裁示結案"
 severity: low
 reproducibility: "always（T0888 C4：N 6 次、O 6 次，兩輪順序對調結論一致）"
 created_at: "2026-11-23T22:04:16+08:00"
-updated_at: "2026-11-24T03:26:27+08:00"
+updated_at: "2026-11-24T03:41:19+08:00"
 impact:
   - terminal-server
   - windows
@@ -22,7 +24,7 @@ links:
 |------|------|
 | 嚴重度 | 🟢 low（輸出完整、沒有遺漏；10 × 20,000 行約慢 1.1 s；峰值記憶體反而比 `0.7.5` 低約 90 MB） |
 | 可重現 | ✅ 必定（T0888 C4） |
-| **狀態** | ✅ FIXED（T0889 `b1014226`，已合併 `v0.8.x`，已隨 `v0.8.0-pre.1` 發佈，待實機驗收） |
+| **狀態** | 🚫 CLOSED（T0889 `b1014226`；交付版 `v0.8.0-pre.1`；2026-11-24 使用者裁示結案） |
 | 回報者 | 塔台（T0888 Worker 量測） |
 | 影響版本 | 只有 `v0.8.x`（T0887 `a05a9c79` 起）；已發佈版本不受影響 |
 
@@ -49,3 +51,4 @@ links:
 - 量測：C4 完成時間中位數 N 2390.5 ms（相對 O −50.1%）、H 2154 ms（−55.0%），峰值 51–72 MB（O 345–354 MB）；C8 閒置回顯不變、9 分頁大量輸出時中位數 31 → 16 ms。數據 `experiments/node-pty-worker/results/t0889-c4.csv`、`t0889-c8.csv`。
 - 驗收：發 `v0.8.0-pre.1`（發版前 W6）後 → CLOSED。
 - 2026-11-24 03:24：隨 `v0.8.0-pre.1` 發佈（D315；W6 `45243806927` 全過）。更版重點〈待驗收〉請使用者確認多分頁大量輸出完整、不亂序；確認後 → CLOSED。
+- 2026-11-24 03:41：🚫 CLOSED。驗證依據：交付版 `v0.8.0-pre.1`（D315；W6 `45243806927` 全過、NSIS 重裝驗收 PASS）＋T0889 測試環境實測 C4 −50.1%；使用者裁示結案（第一百二十九 session）。
