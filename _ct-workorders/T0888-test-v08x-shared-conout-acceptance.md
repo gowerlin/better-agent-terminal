@@ -4,14 +4,14 @@ schema_kind: workorder
 id: T0888
 title: "測試：`v0.8.x`（共用 conout Worker）自動回歸測試與壓力／記憶體量測，對照 `0.7.5-pre.2`（PLAN-066）"
 type: implementation
-status: TODO
+status: IN_PROGRESS
 repo: better-agent-terminal
 project: maintenance
 priority: P1
 sizing: L
 created_at: "2026-11-23T20:37:03+08:00"
-started_at: ""
-updated_at: "2026-11-23T20:37:03+08:00"
+started_at: "2026-11-23T20:38:31+08:00"
+updated_at: "2026-11-23T20:38:31+08:00"
 completed_at: ""
 session_ids: []
 depends_on: [T0887]
@@ -46,7 +46,7 @@ memory_overrides:
 
 - **工單編號**：T0888
 - **任務名稱**：`v0.8.x`（`0.0.0-exp.18`）自動回歸測試與壓力／記憶體量測，對照 `0.7.5-pre.2`
-- **狀態**：TODO
+- **狀態**：IN_PROGRESS
 - **類型**：implementation（測試與量測，不改產品程式碼）
 - **互動模式**：enabled（yolo：問塔台）
 - **intervention_type**：context-dependent
@@ -119,6 +119,10 @@ T0887 讓 Windows Terminal Server 整個程序共用一個 node-pty conout Worke
 - 修任何產品程式碼（含 node-pty#887 的 `dispose`）、改既有 spec / fixture。
 - 在本機安裝 / 解除安裝 BAT、跑 NSIS 安裝檔、跑 W6、觸發任何 workflow、push、合併、發版。
 - macOS / Linux 量測（共用 Worker 只在 Windows 啟用）。
+
+## 塔台補充（執行中 #1）
+
+- 2026-11-23 20:38 派工：BAT 回報 `base: 06c3b884…`，那是 `ct/T0888` 與 `main` 的共同祖先，`CT_WORKTREE_BASE` 也會是這個值，**屬預期、不是錯誤**。塔台已確認 worktree `HEAD` = `merge-base HEAD v0.8.x` = `a05a9c79`。開工檢查以 memory_overrides 的 `merge-base HEAD v0.8.x` 為準；回報區的 `base_sha` 寫 `a05a9c79…`。
 
 ---
 
