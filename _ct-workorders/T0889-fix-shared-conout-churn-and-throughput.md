@@ -4,13 +4,14 @@ schema_kind: workorder
 id: T0889
 title: "修正：共用 conout Worker 反覆開關分頁的記憶體增加（BUG-214）與多分頁大量輸出的吞吐量（BUG-215），在 `v0.8.x` 分支"
 type: implementation
-status: PENDING
+status: IN_PROGRESS
 repo: better-agent-terminal
 project: maintenance
 priority: P1
 sizing: L
 created_at: "2026-11-23T22:04:16+08:00"
-updated_at: "2026-11-23T22:04:16+08:00"
+updated_at: "2026-11-23T22:06:05+08:00"
+started_at: "2026-11-23T22:06:05+08:00"
 depends_on: [T0887, T0888]
 related:
   - "PLAN-066；BUG-214 / BUG-215；D309 / D311 / D312；T0887（實作，回報區〈遭遇問題〉2 node-pty#887）；T0888（量測 spec `e2e/t0888-shared-conout-stress.spec.ts`、`experiments/node-pty-worker/acceptance/`、`results/t0888-*.csv`，〈發現〉F1–F4）；T0886（修正版程序清理規則）；T0859 / T0861（holder）"
@@ -49,7 +50,7 @@ memory_overrides:
 
 - **工單編號**：T0889
 - **任務名稱**：共用 conout Worker 的兩項量測未達條件，查原因並修正
-- **狀態**：PENDING
+- **狀態**：IN_PROGRESS
 - **類型**：implementation
 - **互動模式**：enabled（yolo：問塔台）
 - **intervention_type**：context-dependent
