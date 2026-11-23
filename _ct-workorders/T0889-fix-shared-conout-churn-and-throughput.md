@@ -4,13 +4,13 @@ schema_kind: workorder
 id: T0889
 title: "修正：共用 conout Worker 反覆開關分頁的記憶體增加（BUG-214）與多分頁大量輸出的吞吐量（BUG-215），在 `v0.8.x` 分支"
 type: implementation
-status: PARTIAL
+status: DONE
 repo: better-agent-terminal
 project: maintenance
 priority: P1
 sizing: L
 created_at: "2026-11-23T22:04:16+08:00"
-updated_at: "2026-11-24T00:53:37+08:00"
+updated_at: "2026-11-24T00:55:03+08:00"
 completed_at: "2026-11-24T00:53:37+08:00"
 session_ids:
   - "db49c006-7c6f-4b04-9e66-98d62991fec2"
@@ -53,7 +53,7 @@ memory_overrides:
 
 - **工單編號**：T0889
 - **任務名稱**：共用 conout Worker 的兩項量測未達條件，查原因並修正
-- **狀態**：PARTIAL
+- **狀態**：DONE（Worker 回報 PARTIAL，塔台收尾，見文末）
 - **類型**：implementation
 - **互動模式**：enabled（yolo：問塔台）
 - **intervention_type**：context-dependent
@@ -261,3 +261,10 @@ T0887 讓 Windows Terminal Server 整個程序共用一個 node-pty 1.1.0 conout
 2. 合併 `ct/T0889` 後、發版前跑 W6（holder key 已變）。
 3. direct 模式（`pty-manager.ts`）也有同一個 conin socket 殘留（node-pty 行為），本單依範圍沒改；若要一併處理需另開工單。
 4. F4（自然結束的 conhost／轉送／conin 留到 server 結束）維持既有；若要處理，需先決定「shell 結束時是否結束仍附著主控台的程序」。
+
+## 塔台收尾補記
+
+- 2026-11-24 00:55 (UTC+8)：收單核對 PASS（4 個 commit `b1014226` / `0da88470` / `4dd229c7` / `c552ff73` 都在 `affects_files` 內、worktree 乾淨、去識別掃描無命中）。`ct/T0889` 以 fast-forward 合併進 `v0.8.x`（`fd466fb3..c552ff73`），worktree 保留。
+- BUG-215 → FIXED（`b1014226`，待發版驗收）。BUG-214：每連線殘留（conin socket）已修（`0da88470`）；剩下的 heap／runtime 高水位，使用者裁示開評估單 **T0890**（〈可選方案〉A：Windows Terminal Server 與 holder 以 `--max-semi-space-size` 啟動），BUG-214 維持 FIXING（D313）。本單其餘不需再做 → 改 DONE。
+- `shared-conout-worker.cjs` 已改（holder key `24.22.2-7a21c053bf76`）→ 發版前跑 W6；T0890 完成後一起跑。
+- 〈建議下一步〉3（direct 模式 conin 殘留）、4（F4）：維持既有、本批不做。

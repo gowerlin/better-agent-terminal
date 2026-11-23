@@ -1465,6 +1465,18 @@
 - **切分**：W2a 設計語言 + 元件 + 首頁（T0630）→ 預覽通過後 W2b（`/control-tower`、功能、FAQ、回報頁）→ W2c 遠端開發；W3 / W4 不變。
 - **相關**：PLAN-049 / D159 / D160 / T0624 / T0630
 
+### D313 2026-11-24 — T0889 收單（PARTIAL → 塔台收尾 DONE）：BUG-215 FIXED；BUG-214 剩 V8 高水位，使用者裁示開評估單 T0890
+
+- **背景**：T0889 Worker 回報 PARTIAL（2026-11-24 00:53）。BUG-215：瓶頸是 ConPTY 每段約 10 字元、每段一則訊息；共用 Worker 改原始位元組 4 ms／256 KiB 批次轉送（`b1014226`）→ C4 相對 O −50.1%（H −55.0%）、峰值 51–72 MB，C8 閒置回顯不變、大量輸出時改善。BUG-214：修掉 node-pty conin socket 每連線殘留（`0da88470`），其餘查證為 V8／runtime 高水位（強制 GC 診斷版 +0.3 MB），C2① N +7.8～+16.4、H +45.1 MB 仍 > 5 MB；C2② 7 次有 3 次 > 5 MB（同一高水位波動）。不回歸 C1／C3／C5／C6（H）／C7、9 個 e2e、t0861／t0860 全過；unit 8447 passed。`shared-conout-worker.cjs` 已改 → holder key `24.22.2-7a21c053bf76`。
+- **收單核對**：4 個 commit 都在 `affects_files`、worktree 乾淨、去識別掃描 0 筆；`ct/T0889` fast-forward 合進 `v0.8.x`（`fd466fb3..c552ff73`，未 push），worktree 保留。
+- **決定**：
+  1. 塔台提供兩案（再開評估單〔推薦〕／列為已知限制直接發版），使用者選「再開一張評估單」。
+  2. 開 T0890（implementation、yolo、worktree，塔台從 `v0.8.x` `c552ff73` 預建 `ct/T0890`）：Windows Terminal Server 兩條啟動路徑（holder spawn、沒有 holder 的 fork）帶 `--max-semi-space-size`（只限啟動參數、不得進 env；macOS／Linux 不變）；量 C1–C8 修改前後，確認 holder key 與 T0861 接回不受影響。吞吐量或回顯變差就不採用。
+  3. BUG-215 → FIXED（待 `v0.8.0-pre.1` 驗收）；BUG-214 維持 FIXING（T0890）。T0889 改 DONE（〈塔台收尾補記〉）。
+  4. T0890 完成、合進 `v0.8.x` 後：push＋desktop-build＋W6（須另取使用者授權）→ 發 `v0.8.0-pre.1`。T0890 後 C2① 仍 > 5 MB 時交使用者裁示是否列為已知限制。
+  5. 不做（本批）：direct 模式的 conin 殘留、F4、`pty:create` 改送 env 差異、執行期強制 GC。
+- **相關**：PLAN-066 / D311 / D312 / BUG-214 / BUG-215 / T0889 / T0890
+
 ### D312 2026-11-23 — 使用者裁示「先修再發」：開 BUG-214 / BUG-215，派 T0889 修正後才發 `v0.8.0-pre.1`
 
 - **背景**：D311 的待決事項。塔台提供 4 個選項（先修再發／列已知限制先發／只修 F1／先不動），使用者選「先修再發」（推薦）。
