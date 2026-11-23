@@ -11,10 +11,11 @@ priority: P1
 sizing: L
 created_at: "2026-11-23T15:13:04+0800"
 started_at: "2026-11-23T15:15:12+08:00"
-updated_at: "2026-11-23T15:15:12+08:00"
+updated_at: "2026-11-23T15:24:56+08:00"
 completed_at: ""
 session_ids:
   - "d8a7f5d6-964a-4507-b769-4dc2ac065dfc"
+  - "7d09b103-324d-4e65-84de-7254e30f3c6b"
 depends_on: []
 related:
   - "PLAN-066；D304；PLAN-059（Herdr 對照，Rust 實作的終端工具，研究報告 Artifact「Herdr 對照 BAT」）；PLAN-065（Windows PTY holder，T0856 研究）；PLAN-053（Electron 45 升級）"
@@ -140,6 +141,9 @@ memory_overrides:
 ### 完成狀態
 
 ### 互動紀錄
+
+- [15:24] 第二次派工（worktree 隔離，session `7d09b103…`）開工：工單已是 `IN_PROGRESS`（第一次派工 15:15 開工），保留原 `started_at`，視為續做。落點檢查：C-0 `repo` = `better-agent-terminal`，`basename "$CT_HOME"` = `better-agent-terminal` → PASS；C-1 工單在 `$CT_HOME/_ct-workorders/` 下 → PASS；C-3 `experiments/rust-eval/**` 含萬用字元、另一項是工單本身 → 不適用；C-2 frontmatter 無 `branch` 欄位。`CT_HOME` 已設定、`CT_WORKTREE_BRANCH` = `ct/T0885`、`CT_WORKTREE_BASE` = `cbec5f7fa18ba5170a9a6d41d5346ffce20457b3`、`BAT_WORKSPACE_ID` = `cc0afc4a-57e9-4f41-b2ed-a2d8bac9e36b`、`CT_MODE` = `yolo`、`CT_INTERACTIVE` = `0`、`BAT_REMOTE_TOKEN` 已設定。
+- [15:24] 📥 開工時已讀到〈塔台補充（執行中 #1）〉（屬開工基線）：改在 worktree 做、沿用 `.bat-rust-poc/` 原始碼並重新量測、搬完刪除 `.bat-rust-poc/`。
 
 ### 調查結論
 
