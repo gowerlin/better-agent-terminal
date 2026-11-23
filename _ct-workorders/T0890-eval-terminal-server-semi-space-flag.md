@@ -4,13 +4,14 @@ schema_kind: workorder
 id: T0890
 title: "評估：Windows Terminal Server 與 PTY holder 以較小的 V8 新生代（`--max-semi-space-size`）啟動，降低反覆開關分頁的記憶體高水位（BUG-214），在 `v0.8.x` 分支"
 type: implementation
-status: PENDING
+status: IN_PROGRESS
 repo: better-agent-terminal
 project: maintenance
 priority: P1
 sizing: M
 created_at: "2026-11-24T00:55:03+08:00"
-updated_at: "2026-11-24T00:55:03+08:00"
+started_at: "2026-11-24T00:57:12+08:00"
+updated_at: "2026-11-24T00:57:12+08:00"
 depends_on: [T0889]
 related:
   - "PLAN-066；BUG-214；D312 / D313；T0889（回報區〈原因判斷與證據〉〈可選方案〉A、`experiments/node-pty-worker/churn-repro/ts-churn.mjs`、`results/t0889-*.csv`）；T0888（量測 spec `e2e/t0888-shared-conout-stress.spec.ts`）；T0886（程序清理規則）；T0859 / T0861（holder 啟動與升級後接回）"
@@ -49,7 +50,7 @@ memory_overrides:
 
 - **工單編號**：T0890
 - **任務名稱**：評估並（條件成立時）採用 `--max-semi-space-size`，降低反覆開關分頁的記憶體高水位
-- **狀態**：PENDING
+- **狀態**：IN_PROGRESS
 - **類型**：implementation
 - **互動模式**：enabled（yolo：問塔台）
 - **intervention_type**：context-dependent
