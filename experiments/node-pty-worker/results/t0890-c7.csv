@@ -1,0 +1,5 @@
+"Label","Scenario","Run","Step","Tabs","TsPid","TsPrivMB","TsWsMB","TsThreads","TsChildren","Value","Note","At"
+"N1","C7","","before-kill","10","38096","38.8","75.4","25","20 (conhostx10 pwshx10)","","fork","2026-11-24T02:07:09+08:00"
+"N1","C7","","after-recovery","10","41868","38.5","103.3","25","20 (conhostx10 pwshx10)","","fork; old shells alive 0/10","2026-11-24T02:07:23+08:00"
+"H1","C7","","before-kill","10","4652","39.6","59.4","20","20 (conhostx10 pwshx10)","","holder","2026-11-24T02:10:44+08:00"
+"H1","C7","","after-recovery","10","41392","39.4","59.1","20","20 (conhostx10 pwshx10)","","holder; old shells alive 0/10","2026-11-24T02:10:58+08:00"

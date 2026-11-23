@@ -248,7 +248,9 @@ async function describeServer(s: Session, pid: number): Promise<string> {
   const info = await processInfo(pid)
   const exe = info?.ExecutablePath ?? ''
   const kind = /bat-pty-holder\.exe$/i.test(exe) ? 'holder' : 'fork'
-  log(`Terminal Server pid ${pid}: ${kind} (${path.basename(exe)})`)
+  // T0890: the V8 start flag only (never the rest of the command line, which holds paths)
+  const v8Flag = (info?.CommandLine ?? '').match(/--max-semi-space-size=\d+/)?.[0] ?? 'no semi-space flag'
+  log(`Terminal Server pid ${pid}: ${kind} (${path.basename(exe)}) ${v8Flag}`)
   return kind
 }
 
