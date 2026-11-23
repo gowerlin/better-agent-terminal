@@ -4,14 +4,14 @@ schema_kind: workorder
 id: T0887
 title: "實作：Windows Terminal Server 改用整個程序共用一個 node-pty conout Worker（PLAN-066，T0886 做法 (a')），在 `v0.8.x` 分支"
 type: implementation
-status: PENDING
+status: IN_PROGRESS
 repo: better-agent-terminal
 project: maintenance
 priority: P1
 sizing: M
 created_at: "2026-11-23T17:39:35+08:00"
-started_at: ""
-updated_at: "2026-11-23T17:39:35+08:00"
+started_at: "2026-11-23T17:41:24+08:00"
+updated_at: "2026-11-23T17:41:24+08:00"
 completed_at: ""
 session_ids: []
 depends_on: [T0886]
@@ -56,7 +56,7 @@ memory_overrides:
 
 - **工單編號**：T0887
 - **任務名稱**：Windows Terminal Server 改用整個程序共用一個 node-pty conout Worker
-- **狀態**：PENDING
+- **狀態**：IN_PROGRESS
 - **類型**：implementation
 - **互動模式**：enabled（yolo：問塔台）
 - **intervention_type**：context-dependent
