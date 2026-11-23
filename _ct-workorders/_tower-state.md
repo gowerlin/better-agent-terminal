@@ -1,15 +1,15 @@
 ---
 schema_kind: tower-state
 summary_version: 1
-updated_at: "2026-11-24T03:26:27+08:00"
-session: "2026-11-23 20:33 第一百二十八 session（CT v6.0.0）"
+updated_at: "2026-11-24T03:38:17+08:00"
+session: "2026-11-24 03:37 第一百二十九 session（CT v6.0.0）"
 next_ids:
   workorder: "T0891"
   decision: "D316"
   bug: "BUG-216"
   plan: "PLAN-067"
 todo:
-  - "🚀 **`v0.8.0-pre.1` 已發佈**（D315，2026-11-24 03:24，從 `v0.8.x` `d14fac4c`；desktop-build `45241040944`、W6 `45243806927`（exp.18 → 新建置）scenario 1–9、Pre-Release `45244996161` 全 success；更版重點已寫；`package.json` 版號在 `v0.8.x` `bcb4bbe0`、main 只更新 CHANGELOG / release-note，README 無需更新）。**待做**：使用者 NSIS 重裝驗收（`-Version 0.8.0-pre.1`）→ 讀 report、刪 `userdata-backup`；發佈後驗收（linux / macos / docker acceptance、WSL smoke）視需要另取授權；BUG-215 待實機驗收後 CLOSED；`v0.8.x` 何時併回 main 待決定"
+  - "🚀 **`v0.8.0-pre.1` 已發佈**（D315，2026-11-24 03:24，從 `v0.8.x` `d14fac4c`；desktop-build `45241040944`、W6 `45243806927`（exp.18 → 新建置）scenario 1–9、Pre-Release `45244996161` 全 success；更版重點已寫；`package.json` 版號在 `v0.8.x` `bcb4bbe0`、main 只更新 CHANGELOG / release-note，README 無需更新）。✅ NSIS 重裝驗收 PASS（2026-11-24 03:35–03:36 real，`bat-nsis-acceptance-20261124-033551`，AllUsers，從 `0.0.0-exp.18` 升級；⓪ WARN 只因前版 ≠ 本版（預期）、①–④ PASS、⑤ 略過；③ debug log 新增 1／輪替 1 屬預期；PTY holder `24.22.2-7a21c053bf76` 裝上／解除時移除皆正確；含權杖 `userdata-backup` 03:38 已刪）。**待做**：發佈後驗收（linux / macos / docker acceptance、WSL smoke）視需要另取授權；BUG-215 待實機驗收後 CLOSED；`v0.8.x` 何時併回 main 待決定"
   - "✅ **T0890** DONE（Worker 回報 PARTIAL，塔台收尾；D314，02:39 收單；session 快照已寫、Worker 分頁已排程回收、worktree 保留；`ct/T0890` fast-forward 合進本機 `v0.8.x` `c552ff73..d14fac4c`）：Windows Terminal Server 帶 `--max-semi-space-size=1`，C2① N +17.2 → +9.5、H +45.6 → +14.9 MB，C2② 達標，C4 / C8 不變，holder key 不變、接回舊 holder 實測正常。BUG-214 CLOSED（延後：已知限制）。後續候選（未開單）：`pty:create` 只送 env 差異（`pty-manager.ts`＋Terminal Server 協定）可再降 C2①；direct 模式的 conin socket 殘留；F4（自然結束的 conhost 留到 server 結束）"
   - "✅ **T0889** DONE（Worker 回報 PARTIAL，塔台收尾；D313，00:54 收單；session 快照已寫、Worker 分頁已排程回收、worktree 保留；`ct/T0889` fast-forward 合進本機 `v0.8.x` `fd466fb3..c552ff73`，**未 push**）。BUG-215 FIXED（`b1014226` 原始位元組批次轉送：C4 相對 O −50.1%、峰值 51–72 MB）；BUG-214 修掉 conin socket 每連線殘留（`0da88470`），其餘為 V8 高水位（C2① N +7.8～+16.4、H +45.1 MB）→ 使用者選開評估單 T0890。`shared-conout-worker.cjs` 已改（holder key `24.22.2-7a21c053bf76`）→ 發版前必跑 W6"
   - "✅ **T0888** DONE（D311，22:01 收單；session 快照已寫、Worker 分頁已排程回收、worktree 保留；`ct/T0888` `fd466fb3` 只有新 spec `e2e/t0888-shared-conout-stress.spec.ts`＋`experiments/node-pty-worker/acceptance|results/**`，已 fast-forward 合進本機 `v0.8.x`，**未 push**（origin/v0.8.x 落後 1））。結果：A typecheck ×2 = 0、build OK、unit 8433 passed / 0 failed（第 1 次 8 檔逾時 flake）；B 指定回歸 e2e 全過（t0859 第 2 段因本機已裝 per-machine holder 前提不成立，F6）、其他 81 檔 72 passed / 7 failed（全為既有或 spec 只適用原始碼建置，F5）；C1 10 分頁 N 35.4 / H 42.4 / O 159.1 MB，每分頁 +0.15 / +0.17 / +12.9 ✅；C2② ✅、C3 ✅、C5 ✅、C6 30 分鐘 N +3.0 / H +4.5 ✅、C7 ✅。❌ **F1**：共用 Worker 存活時反覆開關分頁 +17–23 MB 後持平（O −10）；❌ **F2**：10 分頁同時大量輸出 N 比 O 慢 24.4%（門檻 20%，H +17.4%）。F3（大量輸出後不回落，O 也有）、F4（自然結束的分頁 conhost 留到 server 結束，既有）。D312 使用者裁示「先修再發」→ BUG-214（F1）／BUG-215（F2）FIXING，修正單 T0889"
@@ -38,6 +38,8 @@ todo:
   - "版號線：D315 起 `0.8.0-pre.N`（從 `v0.8.x` 分支發），pre.1 已發佈（2026-11-24），下一版 `0.8.0-pre.2`（`-pre.N` 最多到 pre.9）；`0.7.5` 線最後是 pre.2"
 ---
 # Tower State — better-agent-terminal
+
+> 🟢 **第一百二十九 session 開工**（2026-11-24 03:37 (UTC+8)，CT v6.0.0，環境快照已逾 7 天 → 只重掃 git / BAT / 計數 / 大小（Full Scan 精簡版）；塔台 session `13362cf3-7ad3-4d52-a5c9-19757ca9fc0b`；分頁 `3a9b5550…`；`--set-role tower --mode on` exit 0；`bat_whoami` 名稱 `better-agent-terminal · Tower`；**BAT 安裝版 `0.8.0-pre.1`**（exe FileVersion 與 helper 同版）；`bat-pty-holder` 1 個（PID 19424，WS 68.9 MB / Private 43.0 MB）；HEAD `97d02625` = `origin/main`、`v0.8.x` = `origin/v0.8.x` @ `bcb4bbe0`、工作區乾淨；熱區 286 張工單全 DONE；`bat_list_questions` pending 0；NSIS 重裝驗收 PASS（見 frontmatter `todo`））。
 
 > 🟢 **第一百二十八 session 開工**（2026-11-23 20:33 (UTC+8)，CT v6.0.0，Fast Path（環境快照 7 天 1 小時，只更新 BAT 相關列）；塔台 session `4c359bb4-9dc1-46d6-ac12-0dd71f3e7d43`；分頁 `3a9b5550…`；`--set-role tower --mode on` exit 0；`bat_whoami` 名稱 `better-agent-terminal · Tower`；**BAT 安裝版 `0.0.0-exp.18`**（使用者已裝 desktop-build B，helper 同版）；`bat-pty-holder` 1 個（PID 27336，WS 69.3 MB / Private 42.2 MB）；HEAD `92f3ba0a`，fetch 後領先 `origin/main` 2 / 落後 0、工作區乾淨；`v0.8.x` = `origin/v0.8.x` @ `a05a9c79`；熱區 283 張工單全 DONE；`bat_list_questions` pending 0）。
 
@@ -192,28 +194,28 @@ todo:
 ---
 
 ## 🔍 環境快照
-> 最後掃描:2026-11-16 19:14 (UTC+8) 第一百二十五 session **Full Scan**（前次 2026-11-01 01:24 第九十九 session，已 15 天）
+> 最後掃描:2026-11-24 03:37 (UTC+8) 第一百二十九 session **Full Scan 精簡版**（git / BAT / 計數 / 大小；CI 與 node_modules 沿用前次）；前次 Full Scan 2026-11-16 19:14 第一百二十五 session
 
 | 偵測項 | 狀態 | 備註 |
 |--------|------|------|
-| 終端環境 | BAT | `BAT_SESSION=1`, workspace `cc0afc4a-57e9-4f41-b2ed-a2d8bac9e36b`, terminal `508fced6…`；無 `BAT_TOWER_TERMINAL_ID` |
+| 終端環境 | BAT | `BAT_SESSION=1`, workspace `cc0afc4a-57e9-4f41-b2ed-a2d8bac9e36b`, terminal `3a9b5550…`；無 `BAT_TOWER_TERMINAL_ID` |
 | BAT 派發 | ✅ | 五項 dispatch env 齊備（PowerShell 只列名稱確認）；另有 `BAT_USER_DATA` |
-| BAT 安裝版 | ⚠️ `0.0.0-exp.18`（試用 build） | 2026-11-23 20:33 更新：exe FileVersion 與 `bat-terminal.mjs --version` 皆 `0.0.0-exp.18`（desktop-build B，`v0.8.x` @ `a05a9c79`）；`--set-role tower --mode on` exit 0；分頁 `3a9b5550…` |
+| BAT 安裝版 | ✅ `0.8.0-pre.1` | exe FileVersion 與 `bat-terminal.mjs --version` 皆 `0.8.0-pre.1`（2026-11-24 NSIS 重裝驗收時安裝）；`--set-role tower --mode on` exit 0 |
 | BAT_HELPER_DIR | ✅ | `C:\Program Files\BetterAgentTerminal\resources\scripts` |
-| BAT debug log | ✅ | `%APPDATA%\BetterAgentTerminal\Logs\debug-20261116-182951.log`（最新） |
+| BAT debug log | ✅ | `%APPDATA%\BetterAgentTerminal\Logs\debug-20261124-033706.log`（最新） |
 | 平台 | Windows 11 | PowerShell 主，Bash tool 並存；node `v26.13.1` / npm `12.2.2` |
 | node_modules | ⚠️ 不完整 | 主 checkout 只剩 26 個套件（2026-11-06 變動）；vite / vitest / react 不在 → 本機測試 / build 前需 `npm ci` |
 | gh CLI | ✅ | **必須帶 `-R gowerlin/better-agent-terminal`**（L122） |
 | git remote | 3 個 | `origin`=gowerlin / `upstream`=tony1223 / `scandnavik` |
-| git 同步 | ✅ | `main` = `origin/main` @ `80d6b90f`（fetch 後 0 / 0）；另有 worktree `../.ct-integration/better-agent-terminal`（detached `83597e8e`，2026-11-04）；無 stash |
-| 最新 CI / release | ✅ | Pre-Release 2026-11-05 02:42Z success → `v0.7.5-pre.1`；Pages 03:00Z success；linux / macos / docker acceptance 03:36Z success |
+| git 同步 | ✅ | `main` = `origin/main` @ `97d02625`、`v0.8.x` = `origin/v0.8.x` @ `bcb4bbe0`（fetch 後皆 0 / 0）；worktree：`.bat-worktrees/…/T0885`–`T0890`（保留）、`../.ct-integration/better-agent-terminal`（detached `83597e8e`）；無 stash |
+| 最新 CI / release | ✅ | Pre-Release `45244996161` success → `v0.8.0-pre.1`（2026-11-24 03:24 (UTC+8)） |
 | GitHub open issues | 0 | |
 | Control Tower skills | ✅ v6.0.0 | 正式版（前次 session 為 v6.0.0-rc.1） |
-| 熱區單據 | **T:265 / BUG:77 / PLAN:30 / EXP:1** | BUG：FIXED 3 / CLOSED 73 / WONTFIX 1（與 `_bug-tracker.md` 一致）；PLAN：IN_PROGRESS 6 / IDEA 3 / DONE 19 / DROPPED 2 |
+| 熱區單據 | **T:286 / BUG:79 / PLAN:31 / EXP:1** | BUG：FIXED 1（BUG-215）/ CLOSED 77 / WONTFIX 1（與 `_bug-tracker.md` 一致）；PLAN：IN_PROGRESS 7（含 PLAN-066） |
 | 非終態工單 | 無 | |
-| 最大編號 | **T0869 / BUG-213 / PLAN-065 / D293 / L185 / CT-T022** | 下張：T0870 / BUG-214 / PLAN-066 / D294 / L186 / CT-T023 |
+| 最大編號 | **T0890 / BUG-215 / PLAN-066 / D315** | 下張：T0891 / BUG-216 / PLAN-067 / D316 |
 | unit test / typecheck | 未重跑 | 最近：8355 passed / 456 files、typecheck 0 / 0（T0869 @ `6269139c`） |
-| 檔案大小 | ✅ 皆 < 400 KB | `_tower-state.md` 24,932；`_decision-log.md` 357,676（接近 400 KB 預算）；`_learnings.md` 224,244；`_bug-tracker.md` 31,410；`_backlog.md` 10,920 |
+| 檔案大小 | ⚠️ | `_tower-state.md` 約 46 KB（> 30 KB 軟警告）；`_decision-log.md` 391,191（400 KB 預算的 95.5%）；`_learnings.md` 224,244；`_bug-tracker.md` 32,824；`_backlog.md` 11,321 |
 | 設定來源 | project | `_tower-config.yaml`（auto-session **on**，`yolo_max_retries: 1`，`auto_commit: on`，`worker_auto_close: done`，`worker_close_delay: 10`） |
 
 > **Drift / 注意事項**:
