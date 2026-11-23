@@ -98,6 +98,37 @@ export function unpackedScriptPath(file: string, exists: (p: string) => boolean 
   return unpacked !== file && exists(unpacked) ? unpacked : file
 }
 
+export type EndedPtyInputResult = 'released' | `skipped:${string}`
+
+/**
+ * T0889 (BUG-214): node-pty 1.1.0 never destroys a Windows PTY's conin socket (`WindowsPtyAgent.inSocket`, a write-only
+ * `net.Socket` over the conin pipe handle): neither `kill()` nor the exit path touches it, so every tab the Terminal
+ * Server closed left one active handle and one open conin handle behind until the server ended (T0889 measured 500
+ * after C2; the same in the per-PTY Worker build). Call this only after the exit of a PTY that BAT itself ended
+ * (kill / restart / shutdown): its process tree is gone and `Terminal._close()` already made `write` a no-op, so the
+ * socket can no longer be used. Not for a PTY that exited by itself (F4: closing conin could end its conhost while
+ * other console processes still use it). Not win32, or not node-pty's Windows shape → skipped, nothing touched.
+ */
+export function releaseEndedPtyInput(proc: unknown, platform: NodeJS.Platform = process.platform): EndedPtyInputResult {
+  if (platform !== 'win32') return 'skipped:not-win32'
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let socket: any
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    socket = (proc as any)?._agent?.inSocket
+  } catch {
+    return 'skipped:shape'
+  }
+  if (!socket || typeof socket.destroy !== 'function') return 'skipped:shape'
+  if (socket.destroyed === true) return 'skipped:already'
+  try {
+    socket.destroy()
+  } catch {
+    return 'skipped:destroy-failed'
+  }
+  return 'released'
+}
+
 /**
  * Replaces node-pty's `ConoutConnection` with the shared-Worker version. `nodePtyDir` is the package directory of
  * `@lydell/node-pty` (or a function returning it, called only on win32). Call once, before the first spawn; calling

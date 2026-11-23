@@ -16,7 +16,7 @@ import {
   type ServerResponse,
 } from './protocol'
 import { guardPtySpawnFds, type PtyFdGuardDeps } from '../pty-spawn-fd-guard'
-import { installSharedConout, type SharedConoutResult } from './shared-conout'
+import { installSharedConout, releaseEndedPtyInput, type SharedConoutResult } from './shared-conout'
 
 // Load @lydell/node-pty at runtime — same pattern as pty-manager.ts
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -532,6 +532,10 @@ export class TerminalServer {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private handlePtyExit(id: string, proc: any, exitCode: number): void {
     const current = this.ptys.get(id)
+    // T0889 (BUG-214): a PTY BAT ended itself (kill / restart / shutdown: no longer the entry for this id) releases
+    // its conin socket, which node-pty 1.1.0 never destroys. A PTY that exited by itself is left as before (F4).
+    // After this callback, so node-pty's own exit handling (`_close()`) has run first.
+    if (this.deps.platform === 'win32' && current?.pty !== proc) setImmediate(() => releaseEndedPtyInput(proc, this.deps.platform))
     if (current && current.pty !== proc) {
       process.stderr.write(`[terminal-server] stale exit ignored id=${id} (replaced by a newer PTY)\n`)
       return
