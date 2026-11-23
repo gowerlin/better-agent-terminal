@@ -249,9 +249,9 @@ W5（T0861）依 `reason` 走 D5「結束並說明」；本單沒有新的 UI。
 
 ### 必守規則
 
-- 🔴 **只有** win32 ＋ 打包版（`app.isPackaged`）＋ NSIS 安裝（有 T0823 的標記 `resources\installer-quit-request.supported`，zip 版與 `build:dir` 沒有）＋ holder 驗證通過，才從 holder 啟動。其他情況（macOS / Linux、`npm run dev`、zip、holder 缺少或不符、任何檢查失敗）`forkTerminalServer` 的參數與行為和 T0859 前逐字相同：`fork(serverScript, [], { detached: true, stdio, env })`（`terminalServerForkOptions`），Linux 的 `runWithoutCrashpadClient` / `planTerminalServerFork`（T0816）不動。非 win32 與開發模式不讀任何 holder 檔案、不記日誌。
+- 🔴 **只有** win32 ＋ 打包版（`app.isPackaged`）＋ NSIS 安裝（有 T0823 的標記 `resources\installer-quit-request.supported`，zip 版與 `build:dir` 沒有）＋ holder 驗證通過，才從 holder 啟動。其他情況（macOS / Linux、`npm run dev`、zip、holder 缺少或不符、任何檢查失敗）`forkTerminalServer` 的參數與行為和 T0859 前逐字相同：`fork(serverScript, [], { detached: true, stdio, env })`（`terminalServerForkOptions`）；唯一例外是 Windows 多帶 V8 啟動旗標（T0890，`execArgv` = `process.execArgv` ＋ `--max-semi-space-size=1`，見〈Terminal Server 的 V8 新生代上限〉），macOS / Linux 逐字不變。Linux 的 `runWithoutCrashpadClient` / `planTerminalServerFork`（T0816）不動。非 win32 與開發模式不讀任何 holder 檔案、不記日誌。
 - 🔴 `forkTerminalServer`（`electron/main.ts`）仍是唯一啟動點（首次與 T0704 re-fork 共用）；它變成 async（holder 驗證要讀檔），兩個呼叫端 `await`。啟動時 `startTerminalServer` 在建立視窗之前，re-fork 本來就 await，所以等待期間不會有分頁 create 走 direct。
-- 🔴 從 holder 啟動：執行檔 = `<holder>\bat-pty-holder.exe`、腳本 = `<holder>\terminal-server.js`、`cwd` = holder 目錄（不得沿用主行程的 cwd，否則安裝目錄刪不掉）、env 與 fork 相同但**去掉** `ELECTRON_RUN_AS_NODE`、stdio 相同（含 `ipc`）、`detached`、`windowsHide`。node-pty 從 holder 的 `node_modules` 載入（腳本所在目錄），不從安裝目錄載入 `conpty.node`。
+- 🔴 從 holder 啟動：執行檔 = `<holder>\bat-pty-holder.exe`、參數 = V8 旗標（T0890，`--max-semi-space-size=1`）＋腳本 `<holder>\terminal-server.js`、`cwd` = holder 目錄（不得沿用主行程的 cwd，否則安裝目錄刪不掉）、env 與 fork 相同但**去掉** `ELECTRON_RUN_AS_NODE`、stdio 相同（含 `ipc`）、`detached`、`windowsHide`。node-pty 從 holder 的 `node_modules` 載入（腳本所在目錄），不從安裝目錄載入 `conpty.node`。
 - 🔴 用 `spawn`（stdio 帶 `ipc`）而不是 `fork`：Electron 的 `child_process.fork` 一律在子程序 env 加 `ELECTRON_RUN_AS_NODE=1`，指定別的 `execPath` 也一樣（T0859 以 Electron 45.2.1 實測）。`spawn` 帶 `ipc` 開的是同一條 IPC 通道（JSON 序列化），PtyManager 的 `setServerProcess`、quit Step A 的 IPC `server:shutdown` 照舊。
 - PTY env 照舊經 `buildServerPtyEnv` / `buildPtyEnv`（server 的 `TERMINAL_SERVER_OWN_ENV_KEYS` 與 BUG-038 的 `ELECTRON_RUN_AS_NODE` 移除不變）；`BAT_USER_DATA`、`BAT_TERMINAL_SERVER_BAT_VERSION`、idle / buffer 設定照樣帶，所以 holder 版的 server 寫同一個 `<userData>` 的 pid / port / token 檔。
 - 驗證失敗只記一行 `[pty-holder]` 並照舊 fork，不提示使用者、不擋啟動。
@@ -395,13 +395,35 @@ T0888 spec `e2e/t0888-shared-conout-stress.spec.ts`（T0889 加了原始碼建�
 
 C3（20 分頁自然結束）、C7（recovery，舊 shell 0 存活、10 分頁 < 45 MB）三者都通過；C6（H，10 分頁每 5 s 一行、30 分鐘）+2.7 MB。C2 見〈已知限制〉。
 
+### Terminal Server 的 V8 新生代上限（T0890 / BUG-214，D313）
+
+- 🔴 Windows 上 Terminal Server 的兩條啟動路徑都帶 V8 啟動旗標 `--max-semi-space-size=1`（MB）：沒有 holder 的 `fork` 放在 `execArgv`（= 原本 fork 預設的 `process.execArgv` ＋旗標），holder 的 `spawn` 放在腳本之前（`bat-pty-holder.exe --max-semi-space-size=1 <holder>\terminal-server.js`）。T0704 的 re-fork 走同一個 `forkTerminalServer`，也帶（T0890 C7 實測 re-fork 出的 server 有旗標）。
+- 🔴 只放啟動參數，不得放進 `NODE_OPTIONS` 或任何 env：server 的 env 會疊進每個 PTY（`buildServerPtyEnv`），放 env 會傳給分頁裡的每個 node 程式。執行期 `v8.setFlagsFromString` 無效（T0889），一定要是啟動參數。
+- 🔴 macOS / Linux：`terminalServerForkOptions` 回傳的物件與 T0859 相同（沒有 `execArgv` 鍵），沒有量過，不得套用。
+- 唯一實作：常數 `TERMINAL_SERVER_WIN32_MAX_SEMI_SPACE_MB`、`terminalServerV8Flags(platform)`（`electron/pty-holder.ts`），由 `terminalServerForkOptions` 與 `holderSpawnSpec` 共用；`main.ts` 的呼叫不變。單元測試 `electron/__tests__/pty-holder.test.ts`（Windows 兩條路徑都帶、macOS / Linux 與修改前相同、旗標不在 env、只拼寫一次）。
+- holder：旗標不在 holder 的檔案裡，holder key 不變（T0890 修改前後的 `holder-manifest.json` 逐位元組相同，`24.22.2-7a21c053bf76`）。升級後接回（T0861 `decideHolderReattach`）只看 pid 與 hello，不看啟動參數：舊版沒有旗標的 holder 照樣被新版接回、不重啟（T0890 一次性跨版本實測：修改前的建置以 holder 開 cmd 分頁、送升級請求，修改後的建置以同一個 runtime 重開 → 不跳 Recovery 提示、同一個 holder 與 shell、輸入送得到；被接回的 holder 仍沒有旗標，到它結束為止）。
+- 值選 `1`：不經 app 直接驅動 holder 的 Terminal Server（`ts-churn.mjs --holder --env-only`，300 次，各 2 次）：預設 +44.4／+44.3 MB、`1` +12.8／+12.5 MB、`2` +14.8／+14.5 MB；`1` 的 C4／C8 沒有變慢（下表），沒有理由用較大的值。
+
+量測（T0888 spec，同一台機器，2026-11-24，同機有使用者的 BAT 在跑）。標籤：O = `v0.7.5-pre.2`、N0 / H0 = 修改前 `c552ff73` 的原始碼建置／`build:dir`＋holder、N1 / H1 = T0890。原始列在 `experiments/node-pty-worker/results/t0890-*.csv`。
+
+| 情境 | N0（修改前） | N1（T0890） | H0（修改前） | H1（T0890） |
+|---|---|---|---|---|
+| C2① 300 次（3 次中位數；範圍） | +17.2 MB（9.0–17.6） | **+9.5 MB**（8.3–10.4） | +45.6 MB（44.7–46.0） | **+14.9 MB**（14.7–15.5） |
+| C2② 20 輪全關再開（3 次中位數；範圍） | +11.5 MB（9.6–11.8） | +1.8 MB（1.2–2.3） | +12.5 MB（12.2–13.7） | +2.8 MB（2.5–3.2） |
+| C4 完成時間中位數（N 6 次兩輪對調、H 3 次；O 6 次 4560 ms） | 2124 ms | 2123.5 ms（相對 O −53.4%） | 2201 ms | 2131 ms（−53.3%） |
+| C4 峰值 Private Bytes | 50–54 MB | 47–51 MB | 71–72 MB | 52–53 MB |
+| C8 閒置回顯中位數／p95（3 次） | 30.8–31.2／32.2–33.6 ms | 30.8–31.1／32.2–33.8 ms | 30.8–31.2／32.1–32.5 ms | 30.9–31.3／32.3–33.7 ms |
+| C8 另 9 分頁大量輸出時中位數／p95 | 16／16.6–17.1 ms | 16／16.9–17.1 ms | 16／16.3–17.4 ms | 16–16.1／16.9–17.3 ms |
+
+T0890 的其他情境（各 1 次，條件同 T0888）：C1 10 分頁 N1 34.9 MB／H1 41.1 MB、10 → 30 分頁每分頁 +0.16／+0.08 MB；C3 N1 43 → 37.9 → 39.9 MB、H1 41 → 41.5 → 42.6 MB；C5 關閉最長 186／199 ms、全關後 32.4／40.5 MB（T0889 H 81.8 MB）；C7 舊 shell 0 存活、38.8 → 38.5／39.6 → 39.4 MB；C6（H1，30 分鐘）+1.9 MB。
+
 ### 已知限制
 
-- **開關分頁的記憶體高水位（BUG-214，T0889 調查，待塔台裁示）**：保持 10 個分頁、另一個分頁開關 300 次，Terminal Server Private Bytes 增加約 8–17 MB（原始碼建置）、約 45 MB（holder），之後持平或階梯式停住。T0889 的判斷與證據：
+- **開關分頁的記憶體高水位（BUG-214）**：保持 10 個分頁、另一個分頁開關 300 次，Terminal Server Private Bytes 增加。T0890 起 Windows 以 `--max-semi-space-size=1` 啟動（見上一節），中位數由 +17.2 → +9.5 MB（原始碼建置）、+45.6 → +14.9 MB（holder），仍高於 T0888 的 ≤ 5 MB 條件；20 輪全關再開（C2②）降到 +1.8／+2.8 MB。剩下的增加在老生代與 V8／原生層保留的記憶體（T0889：holder 每 10 s 強制 GC 仍 +38.1 MB），新生代上限管不到；觸發因素之一是 app 每次 `pty:create` 帶完整 env（未改）。以下是 T0889 的判斷與證據（數字為未加旗標時）：
   - 不是 BAT 的每連線狀態：修改後主執行緒的 socket 數全程 20 個（修改前每關一個分頁多一個，C2 後 500 個；已由 `releaseEndedPtyInput` 修掉），共用 Worker 的 heap 與 handle 數固定。
   - Electron node（原始碼建置）：主執行緒每 10 s 強制 GC 時 C2① 只 +0.3～+0.8 MB；不 GC 時新生代提交量 2 → 13.5 MB（使用 0.5 MB），老生代 +3～6 MB，屬 V8 heap 高水位。
   - 觸發的是 app 每次 `pty:create` 帶的完整 env（`experiments/node-pty-worker/churn-repro/ts-churn.mjs`：只帶 env +17.2 MB、只有 userData +5.0 MB、都不帶 +3.3 MB）；O 的 Terminal Server 在同一情境 +27.8 MB，是既有行為。T0888 在 app 中量到 O −10.3 MB，是每個 PTY 一個 Worker 的大幅波動蓋掉了它。
-  - holder（官方 Node）：同情境 +45.0 MB，每 10 s 強制 GC 仍 +38.1 MB（JS heap GC 後約 8 MB，增加在 V8／原生層保留的記憶體）；Terminal Server 以 `--max-semi-space-size=1` 啟動時 +12.7 MB（Electron node app-like 情境 +16.5 → +7.6 MB）。這個旗標要改 `main.ts` 的 fork 與 holder 的啟動參數，吞吐量影響未量，未採用。
+  - holder（官方 Node）：同情境 +45.0 MB，每 10 s 強制 GC 仍 +38.1 MB（JS heap GC 後約 8 MB，增加在 V8／原生層保留的記憶體）；Terminal Server 以 `--max-semi-space-size=1` 啟動時 +12.7 MB（Electron node app-like 情境 +16.5 → +7.6 MB）。T0890 採用（C4／C8 沒有變慢）。
   - 因此 C2① 的波動很大（同一份程式：+7.8 / +16.4 / +10.1 MB；C2② 也有 +0.7 ～ +14.2 MB，取樣落在兩次 GC 之間時偏高）。
 - 共用 Worker 當掉會讓所有分頁失去輸出（原本只影響一個）。不自動重建（理由見〈必守規則〉）；只有 stderr 一行，主行程目前看不到（要看得到需在協定加欄位，另案）。
 - 升 node-pty 時版本守門會自動停用替換：功能不壞，記憶體回到每個 PTY 一個 Worker。升版時重新驗證並更新 `SHARED_CONOUT_NODE_PTY_VERSION`。

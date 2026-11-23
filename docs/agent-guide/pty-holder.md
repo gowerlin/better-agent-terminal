@@ -19,7 +19,7 @@ Terminal Server 是 `BetterAgentTerminal.exe` 以 node 模式執行，所以每�
 |---|---|---|---|
 | holder 套件 | `$INSTDIR\resources\pty-holder\` | 官方 Node.js `node.exe` 改名 `bat-pty-holder.exe`（OpenJS 簽章）、打包的 `terminal-server.js` 與它在 Windows 啟動的共用 conout Worker `shared-conout-worker.cjs`（T0887；T0889 改為批次轉送，這兩個檔改了 `<key>` 就跟著變，例：`24.22.2-f2630bed1fc5` → `24.22.2-7a21c053bf76`，合併後發版前要跑 W6）、node-pty 的 win32 檔、Node `LICENSE`、`holder-manifest.json`（每檔 `path` / `size` / `sha256`）。安裝目錄這份是 BAT 驗證時的**預期值**，所以保留 | T0858 / T0859 |
 | holder 根目錄 | per-user `%LOCALAPPDATA%\BAT-PtyHolder\<key>`；per-machine `%ProgramFiles%\BAT-PtyHolder\<key>` | 安裝程式 `customInstall` 依 `$installMode` 複製；`<key>` = `<Node 版本>-<12 hex>`（內容雜湊），內容不變的升級不複製 | T0858 |
-| Terminal Server | holder 的 `bat-pty-holder.exe terminal-server.js`，`cwd` = holder 目錄 | 主行程 `forkTerminalServer` 驗證通過才從 holder 啟動（win32 ＋打包版＋ NSIS 安裝＋重算雜湊相符），否則照舊 fork | T0859 |
+| Terminal Server | holder 的 `bat-pty-holder.exe --max-semi-space-size=1 terminal-server.js`，`cwd` = holder 目錄 | 主行程 `forkTerminalServer` 驗證通過才從 holder 啟動（win32 ＋打包版＋ NSIS 安裝＋重算雜湊相符），否則照舊 fork（Windows 的 fork 同樣帶這個 V8 旗標，T0890） | T0859 / T0890 |
 | 協定 v1 | TCP：第一個請求 `server:hello`（權杖 `<userData>/bat-pty-server.token`） | 版本協商、未認證關閉、`server:extendIdle`、不認得的請求回 `error` | T0857 |
 | 安裝程式 | `build/installer.nsh` | `customCheckAppRunning`（請 BAT 正常結束）、`customInstall`（標記、複製 holder、清理沒在用的 key）、`customUnInstall`（真的解除安裝才停 holder、刪根目錄） | T0823 / T0858 / T0860 |
 | 升級時的 quit | `electron/installer-quit-request.ts` | 有 holder：延長 idle 24 h、結束分頁樹中安裝目錄下的程序（內嵌 claude / codex）、寫紀錄 schema 2、不停 server | T0860 |
@@ -28,7 +28,8 @@ Terminal Server 是 `BetterAgentTerminal.exe` 以 node 模式執行，所以每�
 
 ## 必守規則（摘要，原文在各 docs）
 
-- 🔴 只有 win32 ＋打包版＋ NSIS 安裝（`resources\installer-quit-request.supported`）＋ holder 驗證通過才從 holder 啟動；其他情況 `forkTerminalServer` 逐字照舊。`forkTerminalServer` 是唯一啟動點，用 `spawn`（帶 `ipc`）、不得用 `fork`（Electron 的 fork 一律加 `ELECTRON_RUN_AS_NODE`）。
+- 🔴 只有 win32 ＋打包版＋ NSIS 安裝（`resources\installer-quit-request.supported`）＋ holder 驗證通過才從 holder 啟動；其他情況 `forkTerminalServer` 逐字照舊（例外：Windows 的 fork 多帶 V8 旗標，T0890，見下一點）。`forkTerminalServer` 是唯一啟動點，用 `spawn`（帶 `ipc`）、不得用 `fork`（Electron 的 fork 一律加 `ELECTRON_RUN_AS_NODE`）。
+- 🔴 啟動參數（T0890 / BUG-214）：holder 的 `spawn` 在腳本之前帶 V8 旗標 `--max-semi-space-size=1`（`terminalServerV8Flags`，`electron/pty-holder.ts`，與沒有 holder 的 Windows fork 共用同一個常數）；只放啟動參數，不得放進 `NODE_OPTIONS` 或任何 env（server 的 env 疊進每個 PTY）。旗標不在 holder 檔案裡 → holder key 不變；接回只看 pid 與 hello → 舊版沒有旗標的 holder 照樣被接回、不重啟，到它結束前都沒有旗標。量測與理由見 [terminal-server-recovery.md](terminal-server-recovery.md)「Terminal Server 的 V8 新生代上限」。
 - 🔴 holder 不得叫 `BetterAgentTerminal.exe`、不得放在 `$INSTDIR` 內、根目錄與 `$INSTDIR` 互為字串前綴時不複製也不使用。
 - 🔴 有程序在執行的 holder 目錄不得刪除（安裝程式 D9 清理、解除安裝都先查 `Win32_Process.Path`）；NSIS 不強制結束任何程序。
 - 🔴 權杖不寫日誌、不進任何 env 與命令列；協定只做相加，`server:hello` / `server:shutdown` 每版都有效。
@@ -85,6 +86,7 @@ N = 第一個有 holder 的版本，N+1 = 下一版。完整步驟與日誌見 [
 - 只刪**本次安裝範圍**的 holder 根目錄；改過範圍（per-user ↔ per-machine）留下的另一個不刪。`--runtime=N` 的 holder 收不到解除安裝請求（只送預設 runtime）→ 根目錄有程序在跑 → 保留。
 - 降級到沒有 holder 的版本：終端結束（與升級前的 T0820 行為相同）；holder 是否留下、是否被舊版的孤兒清理結束，以 W6 情境 5 的實測為準（T0862 回報區）。
 - holder 驗證每次啟動重算約 90 MiB 雜湊（T0859 實測約 0.1 s）；驗證與 `spawn` 之間有 TOCTOU。
+- 升級時被接回的舊 holder 維持它啟動時的參數：T0890 前啟動的 holder 沒有 `--max-semi-space-size`，開關分頁的記憶體增加照舊（約 +45 MB / 300 次），要等它結束（解除安裝、idle 逾時或重新開始）後新版才以旗標啟動。
 - 升級 quit 的 idle 延長只一次：使用者在升級前又開 BAT 會清掉延長。
 - macOS / Linux 沒有 holder（升級方式不同，未研究）；zip 版、`build:dir`、開發模式不用 holder。
 - stdio 繼承（BUG-213）：只處理 BAT 從呼叫端繼承來的標準 handle 與 CRT fd 表；BAT 主行程自己開、而且設成可繼承的其他 handle 不在範圍（目前沒有）。addon 只建 win32-x64（Windows 只出 x64）；開發模式沒跑 `npm run build:native-win` → fail open（照 T0866 前的行為）。T0866 前發佈的版本照舊有這個問題。
