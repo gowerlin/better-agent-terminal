@@ -3,17 +3,19 @@ schema_version: 1
 schema_kind: bug
 id: BUG-214
 title: "Windows Terminal Server（共用 conout Worker，`v0.8.x`）：共用 Worker 存活時反覆開關分頁，Private Bytes 增加 17–23 MB 後才持平"
-status: FIXING
+status: CLOSED
+closed_at: "2026-11-24T02:40:13+08:00"
+closed_reason: "deferred：T0889 / T0890 修正後剩 V8 高水位（C2① N +9.5、H +14.9 MB），使用者裁示列為已知限制（D314）"
 severity: low
 reproducibility: "always（T0888 C2①：N 300 次 +17.1 MB、H 100 次 +22.5 MB；`v0.7.5-pre.2` 同情境 −10.3 MB）"
 created_at: "2026-11-23T22:04:16+08:00"
-updated_at: "2026-11-24T00:55:03+08:00"
+updated_at: "2026-11-24T02:40:13+08:00"
 impact:
   - terminal-server
   - windows
 links:
   discovered_in: "T0888 回報區〈發現〉F1（F4 同類）"
-  related: [T0887, T0888, T0889, T0890, PLAN-066, D309, D311, D312, D313]
+  related: [T0887, T0888, T0889, T0890, PLAN-066, D309, D311, D312, D313, D314]
 ---
 # BUG-214 — 共用 conout Worker：反覆開關分頁的記憶體增加
 
@@ -21,7 +23,7 @@ links:
 |------|------|
 | 嚴重度 | 🟢 low（有上限、之後持平；10 分頁總量仍遠低於 `0.7.5`：約 56 MB 對 159 MB） |
 | 可重現 | ✅ 必定（T0888 C2①） |
-| **狀態** | ⏳ FIXING（T0889 部分修正；評估單 T0890，D313） |
+| **狀態** | 🚫 CLOSED（延後：已知限制，D314；T0889 `0da88470`、T0890 `eba19e83` 已改善） |
 | 回報者 | 塔台（T0888 Worker 量測） |
 | 影響版本 | 只有 `v0.8.x`（T0887 `a05a9c79` 起）；已發佈版本不受影響 |
 
@@ -49,3 +51,9 @@ links:
 - **每連線殘留（已修）**：node-pty 1.1.0 的 conin 寫入 socket 在 `kill()` 與 exit 路徑都不 destroy，Terminal Server 主執行緒的 socket handle 每關一個 PTY 多一個（C2 後 20 → 480–500）；original 也有。修法：BAT 自己結束的 PTY 在 exit 後 destroy conin socket（`0da88470`，已合併 `v0.8.x`）。修改後 socket 數全程 20。
 - **其餘是 V8／runtime 高水位，不是每連線累積**：每 10 s 強制 GC 的診斷版 C2① 只 +0.3 MB；新生代提交量 2 → 13.5 MB（使用 0.5 MB）。修改後 C2① N +7.8～+16.4 MB、H +45.1 MB（holder 是官方 Node，強制 GC 仍 +38.1 MB）；C2② 7 次有 3 次 > 5 MB（同一高水位的取樣波動）。不經 app 重現：每次 `pty:create` 帶完整 env 是觸發因素，O 的 Terminal Server 同情境 +27.8 MB。
 - **下一步**：使用者裁示開評估單 T0890（Windows Terminal Server 與 holder 以 `--max-semi-space-size` 啟動；不經 app 重現 holder +45.0 → +12.7 MB）。T0890 後仍 > 5 MB 時由使用者裁示是否列為已知限制。
+
+## T0890 結果與結案（2026-11-24 02:40，D314）
+
+- T0890：Windows 上 Terminal Server（holder `spawn` 與沒有 holder 的 `fork`）以 `--max-semi-space-size=1` 啟動（`eba19e83`，唯一實作 `terminalServerV8Flags`，只在啟動參數、不進 env；macOS / Linux 不變），已合併 `v0.8.x`（`d14fac4c`）。
+- C2① 300 次（3 次中位數）：N +17.2 → **+9.5 MB**、H +45.6 → **+14.9 MB**（仍 > 5 MB）；C2② N +11.5 → +1.8、H +12.5 → +2.8 MB（達標）。C4 相對 O −53%、C8 不變、C1／C3／C5／C6／C7 達標；holder key 不變、升級後接回舊 holder（沒有旗標）實測正常。
+- **結案（延後）**：使用者裁示剩下的增加列為已知限制（有上限、持平，總量仍遠低於 `0.7.5`）。剩下的觸發因素是 app 每次 `pty:create` 送完整 env；要再降需改成只送差異（`pty-manager.ts` 與 Terminal Server 協定），要做時重開。已知限制已寫入 `docs/agent-guide/terminal-server-recovery.md`、`pty-holder.md`。

@@ -1465,6 +1465,16 @@
 - **切分**：W2a 設計語言 + 元件 + 首頁（T0630）→ 預覽通過後 W2b（`/control-tower`、功能、FAQ、回報頁）→ W2c 遠端開發；W3 / W4 不變。
 - **相關**：PLAN-049 / D159 / D160 / T0624 / T0630
 
+### D314 2026-11-24 — T0890 收單（PARTIAL → 塔台收尾 DONE）：採用 `--max-semi-space-size=1`，BUG-214 剩餘列為已知限制，進入發版驗收
+
+- **背景**：T0890 Worker 回報 PARTIAL（02:37）。Windows 上 Terminal Server 兩條啟動路徑帶 `--max-semi-space-size=1`（`eba19e83`，`terminalServerV8Flags`，只在啟動參數；macOS／Linux 不變）。C2① 300 次中位數 N +17.2 → +9.5、H +45.6 → +14.9 MB（仍 > 5 MB）；C2② N +1.8／H +2.8 MB（修改前 > 10，現已達標）；C4 相對 O −53%、C8 不變、C1／C3／C5／C6／C7 達標、9 個 e2e 與 t0861／t0860 通過、unit 8449 passed。值比較 `1` +12.5～12.8、`2` +14.5～14.8、預設 +44 MB。holder key 不變（`24.22.2-7a21c053bf76`），新版接回舊 holder（沒有旗標）跨版本實測正常。
+- **收單核對**：3 個 commit 都在 `affects_files`、worktree 乾淨、去識別掃描 0 筆；`ct/T0890` fast-forward 合進 `v0.8.x`（`c552ff73..d14fac4c`），worktree 保留。
+- **決定**：
+  1. 塔台提供三案（列已知限制並進入發版驗收〔推薦〕／列已知限制先不 push／再開單改成只送 env 差異），使用者選「列已知限制，進入發版驗收」。
+  2. BUG-214 → CLOSED（`deferred`，已知限制已寫入 `terminal-server-recovery.md`、`pty-holder.md`）；後續候選「`pty:create` 只送 env 差異（`pty-manager.ts`＋協定）」記在塔台待辦，要做時重開。T0890 改 DONE。
+  3. 使用者授權：push `v0.8.x`（`d14fac4c`）與 main 塔台紀錄（push 前去識別化＋金鑰掃描）→ desktop-build（`-f ref=v0.8.x`）→ W6。W6 的 A 用 D310 的 B（`45153872079`，`0.0.0-exp.18`、舊 holder key `f2630bed1fc5`、沒有旗標），B 用這次新建置：驗證從使用者目前裝的版本升級到新 holder key＋新啟動參數。發 `v0.8.0-pre.1` 前再問使用者。
+- **相關**：PLAN-066 / D310 / D313 / BUG-214 / BUG-215 / T0889 / T0890
+
 ### D313 2026-11-24 — T0889 收單（PARTIAL → 塔台收尾 DONE）：BUG-215 FIXED；BUG-214 剩 V8 高水位，使用者裁示開評估單 T0890
 
 - **背景**：T0889 Worker 回報 PARTIAL（2026-11-24 00:53）。BUG-215：瓶頸是 ConPTY 每段約 10 字元、每段一則訊息；共用 Worker 改原始位元組 4 ms／256 KiB 批次轉送（`b1014226`）→ C4 相對 O −50.1%（H −55.0%）、峰值 51–72 MB，C8 閒置回顯不變、大量輸出時改善。BUG-214：修掉 node-pty conin socket 每連線殘留（`0da88470`），其餘查證為 V8／runtime 高水位（強制 GC 診斷版 +0.3 MB），C2① N +7.8～+16.4、H +45.1 MB 仍 > 5 MB；C2② 7 次有 3 次 > 5 MB（同一高水位波動）。不回歸 C1／C3／C5／C6（H）／C7、9 個 e2e、t0861／t0860 全過；unit 8447 passed。`shared-conout-worker.cjs` 已改 → holder key `24.22.2-7a21c053bf76`。

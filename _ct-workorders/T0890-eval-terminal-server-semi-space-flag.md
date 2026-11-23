@@ -4,14 +4,14 @@ schema_kind: workorder
 id: T0890
 title: "評估：Windows Terminal Server 與 PTY holder 以較小的 V8 新生代（`--max-semi-space-size`）啟動，降低反覆開關分頁的記憶體高水位（BUG-214），在 `v0.8.x` 分支"
 type: implementation
-status: PARTIAL
+status: DONE
 repo: better-agent-terminal
 project: maintenance
 priority: P1
 sizing: M
 created_at: "2026-11-24T00:55:03+08:00"
 started_at: "2026-11-24T00:57:12+08:00"
-updated_at: "2026-11-24T02:38:35+08:00"
+updated_at: "2026-11-24T02:40:13+08:00"
 completed_at: "2026-11-24T02:38:35+08:00"
 session_ids:
   - "647575bc-a643-42bd-b851-ce46a90d9364"
@@ -53,7 +53,7 @@ memory_overrides:
 
 - **工單編號**：T0890
 - **任務名稱**：評估並（條件成立時）採用 `--max-semi-space-size`，降低反覆開關分頁的記憶體高水位
-- **狀態**：PARTIAL
+- **狀態**：DONE（Worker 回報 PARTIAL，塔台收尾，見文末）
 - **類型**：implementation
 - **互動模式**：enabled（yolo：問塔台）
 - **intervention_type**：context-dependent
@@ -224,3 +224,9 @@ C8 單一分頁回顯延遲（40 次；再讓另 9 個分頁各印 200,000 行�
 1. 塔台裁示 C2① 仍 > 5 MB：Worker 建議以已知限制發版（holder 300 次開關 +45 → +15 MB、20 輪全關再開已 ≤ 5 MB，C4／C8 不變）。剩下的增加在老生代與 V8／原生層，要再降需處理觸發因素（app 每次 `pty:create` 送完整 env，T0889〈可選方案〉另一項，牽涉 `pty-manager.ts` 與協定）。
 2. 合併 `ct/T0890` 後、發版前跑 W6（holder key 未變，但 holder 的啟動參數變了；升級後接回已在本機跨版本實測）。
 3. 已裝 T0890 前版本的使用者：升級時被接回的舊 holder 沒有旗標，要等它結束後才生效（已寫進 `pty-holder.md`〈已知限制〉）。
+
+## 塔台收尾補記
+
+- 2026-11-24 02:40 (UTC+8)：收單核對 PASS（3 個 commit `eba19e83` / `46b4d085` / `d14fac4c` 都在 `affects_files` 內、worktree 乾淨、去識別掃描無命中）。`ct/T0890` 以 fast-forward 合併進 `v0.8.x`（`c552ff73..d14fac4c`），worktree 保留。
+- 使用者裁示（D314）：C2① 剩下的增加（N +9.5、H +14.9 MB）列為已知限制，BUG-214 改 CLOSED（延後）；要再降需改 `pty:create` 只送 env 差異（`pty-manager.ts` 與協定），列在塔台待辦，要做時重開。本單不需再做 → 改 DONE。
+- 下一步：push `v0.8.x` 與 main 紀錄 → desktop-build → W6（holder 啟動參數已變）→ 發 `v0.8.0-pre.1` 前再問使用者。
