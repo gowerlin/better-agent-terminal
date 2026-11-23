@@ -4,14 +4,14 @@ schema_kind: workorder
 id: T0885
 title: "研究：BAT 改用 Rust 改寫的評估（Tauri / 全原生 Rust GUI / 局部改寫）：效能、記憶體、維護性，含最小 Tauri 與 Electron PoC 實測"
 type: research
-status: PENDING
+status: IN_PROGRESS
 repo: better-agent-terminal
 project: maintenance
 priority: P1
 sizing: L
 created_at: "2026-11-23T15:13:04+0800"
-started_at: ""
-updated_at: "2026-11-23T15:13:04+0800"
+started_at: "2026-11-23T15:15:12+08:00"
+updated_at: "2026-11-23T15:15:12+08:00"
 completed_at: ""
 session_ids: []
 depends_on: []
@@ -41,7 +41,7 @@ memory_overrides:
 
 - **工單編號**：T0885
 - **任務名稱**：研究：BAT 改用 Rust 改寫（Tauri / 全原生 / 局部改寫）的效能、記憶體、維護性
-- **狀態**：PENDING
+- **狀態**：IN_PROGRESS
 - **類型**：research
 - **互動模式**：enabled（yolo：問塔台）
 - **intervention_type**：context-dependent
