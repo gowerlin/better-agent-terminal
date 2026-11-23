@@ -1,15 +1,15 @@
 ---
 schema_kind: tower-state
 summary_version: 1
-updated_at: "2026-11-24T02:40:13+08:00"
+updated_at: "2026-11-24T03:26:27+08:00"
 session: "2026-11-23 20:33 第一百二十八 session（CT v6.0.0）"
 next_ids:
   workorder: "T0891"
-  decision: "D315"
+  decision: "D316"
   bug: "BUG-216"
   plan: "PLAN-067"
 todo:
-  - "🔄 **`v0.8.0-pre.1` 發版驗收**（D314，02:40 使用者授權）：push `v0.8.x`（`d14fac4c`，含 T0887 / T0888 / T0889 / T0890）與 main 塔台紀錄（push 前去識別化＋金鑰掃描）→ desktop-build（`-f ref=v0.8.x`）→ W6（A = D310 的 B `45153872079` `0.0.0-exp.18`，artifact 保留到 2026-11-30；B = 新建置）→ 全過後**再問使用者**才發 `v0.8.0-pre.1`（先查 0.7.5 預覽版使用者的新版通知行為、`-f version=0.8.0-pre.1` 不可留空；BUG-215 FIXED 隨版驗收）"
+  - "🚀 **`v0.8.0-pre.1` 已發佈**（D315，2026-11-24 03:24，從 `v0.8.x` `d14fac4c`；desktop-build `45241040944`、W6 `45243806927`（exp.18 → 新建置）scenario 1–9、Pre-Release `45244996161` 全 success；更版重點已寫；`package.json` 版號在 `v0.8.x` `bcb4bbe0`、main 只更新 CHANGELOG / release-note，README 無需更新）。**待做**：使用者 NSIS 重裝驗收（`-Version 0.8.0-pre.1`）→ 讀 report、刪 `userdata-backup`；發佈後驗收（linux / macos / docker acceptance、WSL smoke）視需要另取授權；BUG-215 待實機驗收後 CLOSED；`v0.8.x` 何時併回 main 待決定"
   - "✅ **T0890** DONE（Worker 回報 PARTIAL，塔台收尾；D314，02:39 收單；session 快照已寫、Worker 分頁已排程回收、worktree 保留；`ct/T0890` fast-forward 合進本機 `v0.8.x` `c552ff73..d14fac4c`）：Windows Terminal Server 帶 `--max-semi-space-size=1`，C2① N +17.2 → +9.5、H +45.6 → +14.9 MB，C2② 達標，C4 / C8 不變，holder key 不變、接回舊 holder 實測正常。BUG-214 CLOSED（延後：已知限制）。後續候選（未開單）：`pty:create` 只送 env 差異（`pty-manager.ts`＋Terminal Server 協定）可再降 C2①；direct 模式的 conin socket 殘留；F4（自然結束的 conhost 留到 server 結束）"
   - "✅ **T0889** DONE（Worker 回報 PARTIAL，塔台收尾；D313，00:54 收單；session 快照已寫、Worker 分頁已排程回收、worktree 保留；`ct/T0889` fast-forward 合進本機 `v0.8.x` `fd466fb3..c552ff73`，**未 push**）。BUG-215 FIXED（`b1014226` 原始位元組批次轉送：C4 相對 O −50.1%、峰值 51–72 MB）；BUG-214 修掉 conin socket 每連線殘留（`0da88470`），其餘為 V8 高水位（C2① N +7.8～+16.4、H +45.1 MB）→ 使用者選開評估單 T0890。`shared-conout-worker.cjs` 已改（holder key `24.22.2-7a21c053bf76`）→ 發版前必跑 W6"
   - "✅ **T0888** DONE（D311，22:01 收單；session 快照已寫、Worker 分頁已排程回收、worktree 保留；`ct/T0888` `fd466fb3` 只有新 spec `e2e/t0888-shared-conout-stress.spec.ts`＋`experiments/node-pty-worker/acceptance|results/**`，已 fast-forward 合進本機 `v0.8.x`，**未 push**（origin/v0.8.x 落後 1））。結果：A typecheck ×2 = 0、build OK、unit 8433 passed / 0 failed（第 1 次 8 檔逾時 flake）；B 指定回歸 e2e 全過（t0859 第 2 段因本機已裝 per-machine holder 前提不成立，F6）、其他 81 檔 72 passed / 7 failed（全為既有或 spec 只適用原始碼建置，F5）；C1 10 分頁 N 35.4 / H 42.4 / O 159.1 MB，每分頁 +0.15 / +0.17 / +12.9 ✅；C2② ✅、C3 ✅、C5 ✅、C6 30 分鐘 N +3.0 / H +4.5 ✅、C7 ✅。❌ **F1**：共用 Worker 存活時反覆開關分頁 +17–23 MB 後持平（O −10）；❌ **F2**：10 分頁同時大量輸出 N 比 O 慢 24.4%（門檻 20%，H +17.4%）。F3（大量輸出後不回落，O 也有）、F4（自然結束的分頁 conhost 留到 server 結束，既有）。D312 使用者裁示「先修再發」→ BUG-214（F1）／BUG-215（F2）FIXING，修正單 T0889"
@@ -35,7 +35,7 @@ todo:
   - "候選（未開單，D303 暫不安排）：T0830 後續 SSH / Docker 精靈長呼叫接 operation id；PLAN-052 fetch-fingerprint Docker 分支、docker-acceptance 純函式測試；PLAN-058 卡片等待時可送出（2026-11-20 使用者：先記著、不開單。只涉 Claude Agent 面板（SDK），不影響 Claude CLI 分頁；要做時的建議：輸入框預設收合＋「補充說明」按鈕展開、輸入框有焦點時停用卡片快捷鍵（權限卡在 window 監聽 1/2/3、y/n、Enter、方向鍵）、送出走 T0815 排隊路徑；需實機操作確認）"
   - "MSRC 回報 microsoft/node-pty（使用者自行處理，D255）"
   - "觀察：語音可用性檢查 macOS 未實機（`unknown(timeout)` 出現可把逾時提到 30 s，T0802）；t0757 偶發失敗再發生才開 BUG（D218）；PLAN-060（IDEA）macOS Developer ID 簽章"
-  - "版號線：D285 起 `0.7.5-pre.N`，pre.2 已發佈（2026-11-17），下一版 `0.7.5-pre.3`（`-pre.N` 最多到 pre.9）"
+  - "版號線：D315 起 `0.8.0-pre.N`（從 `v0.8.x` 分支發），pre.1 已發佈（2026-11-24），下一版 `0.8.0-pre.2`（`-pre.N` 最多到 pre.9）；`0.7.5` 線最後是 pre.2"
 ---
 # Tower State — better-agent-terminal
 

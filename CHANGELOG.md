@@ -4,6 +4,20 @@ All notable changes to Better Agent Terminal are documented in this file.
 
 ## [Unreleased]
 
+## [0.8.0-pre.1] — 2026-11-24
+
+### Changed
+- Windows Terminal Server 的所有 PTY 共用一個 node-pty conout Worker（取代每個 PTY 一個 Worker）：10 分頁 Terminal Server 約 159 MB → 35–42 MB，每多一個分頁 +0.15–0.17 MB；唯一實作 `electron/terminal-server/shared-conout.ts`、`shared-conout-worker.cjs`（T0886 研究、T0887 實作、T0888 回歸與量測，PLAN-066，D307–D311）
+- 共用 conout Worker 以原始位元組 4 ms／256 KiB 批次轉送：10 分頁 × 20,000 行完成時間相對 `0.7.5-pre.2` −50%、峰值約 50–70 MB，閒置回顯延遲不變（T0889，BUG-215）
+- Windows 上 Terminal Server（holder `spawn` 與沒有 holder 的 `fork`）以 `--max-semi-space-size=1` 啟動（`terminalServerV8Flags`，只在啟動參數、不進 env；macOS／Linux 不變），反覆開關分頁的記憶體高水位降低（holder 300 次 +45 → +15 MB）；holder key 不變（T0890，BUG-214，D313／D314）
+
+### Fixed
+- Terminal Server 結束的 PTY 釋放 node-pty 的 conin socket（每關一個分頁殘留一個 socket handle）（T0889，BUG-214）
+- 遠端視窗 fork 對話自動送出待送訊息前檢查附圖預算，超過時不送、提示並放回輸入（T0884）
+
+### Known limitations
+- 反覆開關分頁後 Terminal Server 多保留約 10–15 MB 後持平（V8 高水位，BUG-214 延後）；從 `0.7.5-pre.x` 升級後接回的舊 holder 沿用舊行為，BAT 完全關閉重開後才改用共用 Worker
+
 ## [0.7.5-pre.2] — 2026-11-17
 
 ### Added

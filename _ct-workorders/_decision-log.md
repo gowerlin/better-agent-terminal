@@ -1465,6 +1465,15 @@
 - **切分**：W2a 設計語言 + 元件 + 首頁（T0630）→ 預覽通過後 W2b（`/control-tower`、功能、FAQ、回報頁）→ W2c 遠端開發；W3 / W4 不變。
 - **相關**：PLAN-049 / D159 / D160 / T0624 / T0630
 
+### D315 2026-11-24 — W6 通過，發佈 `v0.8.0-pre.1`（從 `v0.8.x` 分支）
+
+- **背景**：使用者指示「W6 過了就發 pre.1」。desktop-build `45241040944`（`v0.8.x` `d14fac4c`）三平台＋typecheck＋tests 全 success；W6 `45243806927`（A = `45153872079` `0.0.0-exp.18`、舊 holder key `f2630bed1fc5`；B = 新建置，holder key `7a21c053bf76`＋`--max-semi-space-size=1`）scenario 1–9 全 success。
+- **發佈**：`gh workflow run pre-release.yml --ref v0.8.x -f version=0.8.0-pre.1`，run `45244996161` 全 success（typecheck、tests、server-bundle ×3、三平台 build、release）；`v0.8.0-pre.1` prerelease（target `d14fac4c`，4 個安裝檔）＋`server-bundle-v0.8.0-pre.1`；更版重點已以 `gh release edit` 寫入。
+- **新版通知**：`update-checker.ts` 讀 `/releases`（含預覽版），「包含預覽版」預設開 → `0.7.5-pre.x` 使用者會收到 `0.8.0-pre.1` 通知；關掉的不會。
+- **版號與文件**：`package.json` / lock 版號改在 `v0.8.x`（`bcb4bbe0`）；main 的程式仍是 0.7.5 線，main 只更新 `CHANGELOG.md` / `release-note.md`（README 無需更新）。版號線改為 `0.8.0-pre.N`（下一版 pre.2）；`v0.8.x` 何時併回 main 待之後決定。
+- **待驗收**：BUG-215 FIXED 隨版發佈（待實機）；更版重點〈待驗收〉列記憶體、大量輸出、從 `0.7.5-pre.2` 更新保留終端、新版通知。NSIS 重裝驗收待使用者執行。
+- **相關**：PLAN-066 / D307 / D310 / D313 / D314 / BUG-214 / BUG-215
+
 ### D314 2026-11-24 — T0890 收單（PARTIAL → 塔台收尾 DONE）：採用 `--max-semi-space-size=1`，BUG-214 剩餘列為已知限制，進入發版驗收
 
 - **背景**：T0890 Worker 回報 PARTIAL（02:37）。Windows 上 Terminal Server 兩條啟動路徑帶 `--max-semi-space-size=1`（`eba19e83`，`terminalServerV8Flags`，只在啟動參數；macOS／Linux 不變）。C2① 300 次中位數 N +17.2 → +9.5、H +45.6 → +14.9 MB（仍 > 5 MB）；C2② N +1.8／H +2.8 MB（修改前 > 10，現已達標）；C4 相對 O −53%、C8 不變、C1／C3／C5／C6／C7 達標、9 個 e2e 與 t0861／t0860 通過、unit 8449 passed。值比較 `1` +12.5～12.8、`2` +14.5～14.8、預設 +44 MB。holder key 不變（`24.22.2-7a21c053bf76`），新版接回舊 holder（沒有旗標）跨版本實測正常。
