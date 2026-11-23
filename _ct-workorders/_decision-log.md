@@ -1465,6 +1465,18 @@
 - **切分**：W2a 設計語言 + 元件 + 首頁（T0630）→ 預覽通過後 W2b（`/control-tower`、功能、FAQ、回報頁）→ W2c 遠端開發；W3 / W4 不變。
 - **相關**：PLAN-049 / D159 / D160 / T0624 / T0630
 
+### D307 2026-11-23 — 不做整體改寫；PLAN-066 照建議順序在 `v0.8.x` 分支做，先 build 驗過再發預覽版
+
+- **背景**：T0885 收單後（D306）待使用者裁決 Q1 / Q5 / 分支處置。
+- **決定**（使用者「接受不做整體改寫，分支保留，push 塔台紀錄；依建議修改出 v0.8.x 分支預覽測試版」＋兩題選項）：
+  1. Q5：接受 **Tauri / 全原生不做**。重新評估條件（T0885）：Linux CJK 輸入法問題修好（tauri#11412 或 wry#1724 發佈）**且**有官方 Rust Agent SDK。
+  2. 分支 `ct/T0885` 與其 worktree 保留在本機當紀錄，不合併、不 push。
+  3. 範圍照建議順序：① 研究 Node 端省掉 node-pty 每個 PTY 的 Worker（T0886）→ 能省就做 Node 端修正；省不掉才 ② Rust Terminal Server 設計 → ③ 實作（Windows 打包版、開關預設關、Node holder 當退路）→ ④ 驗收。
+  4. 產品改動一律在 `v0.8.x` 分支（由 main 分出），**main 不動**（main 只有塔台紀錄）；各工單照 D305 用 worktree 隔離，完成後合進 `v0.8.x` 而非 main。
+  5. 發版形式：先以 `desktop-build.yml -f ref=v0.8.x` 只 build（artifact，不建 tag / Release）供使用者實機試；驗過再從分支發 `v0.8.0-pre.1` GitHub 預覽版（屆時另取授權，並先確認 0.7.5 預覽版使用者會不會收到新版通知）。版號線 `0.8.x` 由使用者決定（重大改版升 minor）。
+- **決策者**：使用者。2026-11-23 第一百二十七 session。
+- **相關**：PLAN-066 / T0885 / T0886 / D304 / D305 / D306
+
 ### D306 2026-11-23 — T0885 收單：不建議整體改寫（Tauri / 全原生），局部改寫待使用者裁決
 
 - **背景**：T0885 DONE（主線回報 `9365675a`；分支 `ct/T0885` `dc2d3ed2`，只有 `experiments/rust-eval/` 34 檔、無建置產物；worktree 乾淨；`.bat-rust-poc/` 已刪；報告頁 https://claude.ai/artifact/LYTj1aGEZKq2bu6SMm6ZqT）。Windows 實測：10 分頁框架 Private BAT 654 MB／最小 Electron 572／最小 Tauri 457；啟動相同；Tauri 吞吐 CPU 約 3 倍。Tauri 省下的記憶體幾乎都來自 Rust 持有 PTY（`@lydell/node-pty` 在 Windows 每個 PTY 一個 Worker，約 14 MB；Rust 持有 10 PTY 2.5 MB vs Node 約 170 MB），WebView2 本身沒省。Claude Agent SDK 沒有 Rust 版，任何改寫都要附 Node。

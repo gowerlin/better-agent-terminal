@@ -44,3 +44,4 @@ links:
 - 2026-11-23 15:13（D304）建立並 **IN_PROGRESS**：使用者 `*plan` 開單並決定範圍（三條路線、加 PoC、🔴 High、工單回報＋長文報告頁）；派研究單 T0885。
 - 2026-11-23 15:17（D305）：使用者指示改用 worktree 實驗，T0885 以 `--isolation worktree` 重派（分支 `ct/T0885`）。
 - 2026-11-23 15:59（D306）：T0885 DONE。結論：**不建議 Tauri / 全原生改寫**（記憶體大頭是 shell 與 Chromium，換語言動不到；Windows WebView2 也是 Chromium；Claude Agent SDK 沒有 Rust 版；Linux CJK 輸入法退步；規模 XL）。唯一明顯收益在 PTY 持有（Node 每個 PTY 約 14 MB → Rust 約 0.15 MB），可局部改寫 Terminal Server／PTY holder（10 分頁約 −160 MB，規模 M）；建議先研究 Node 端能否省掉每個 PTY 的 Worker。報告頁 https://claude.ai/artifact/LYTj1aGEZKq2bu6SMm6ZqT。待使用者裁決 Q1 / Q5 / 分支處置。
+- 2026-11-23 16:20（D307）：使用者接受**不做整體改寫**（Tauri / 全原生）；`ct/T0885` 保留不合併。照建議順序在 **`v0.8.x` 分支**做局部改進（main 不動）：① 研究 Node 端省 Worker（**T0886**）→ Node 端修正，或 ② 設計 → ③ Rust Terminal Server → ④ 驗收。發版：先 `desktop-build.yml` 只 build 給使用者實機試，驗過再發 `v0.8.0-pre.1`。
