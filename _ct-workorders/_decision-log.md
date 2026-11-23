@@ -1465,6 +1465,16 @@
 - **切分**：W2a 設計語言 + 元件 + 首頁（T0630）→ 預覽通過後 W2b（`/control-tower`、功能、FAQ、回報頁）→ W2c 遠端開發；W3 / W4 不變。
 - **相關**：PLAN-049 / D159 / D160 / T0624 / T0630
 
+### D309 2026-11-23 — T0887 收單：共用 conout Worker 達標，fast-forward 合進 `v0.8.x`
+
+- **背景**：T0887 DONE（主線回報 `34cd237a`；分支 `ct/T0887` 一個 commit `a05a9c79`，20 檔皆在 `affects_files` 內，worktree 乾淨，merge-base = `06c3b884`）。BAT 原始碼建置 10 分頁 Terminal Server 164.6 → **38.8 MB**（框架 655.5 → 528.3 MB），打包版 41.2 MB；`test:unit` 8434 passed、兩個 typecheck 0、e2e T0572 / T0578 / T0704 / T0859（打包版 holder）/ T0861 通過；holder 內容改變（多 `shared-conout-worker.cjs`、key 改變）。塔台重跑 `shared-conout.test.ts`＋`pty-holder.test.mjs` 56 passed、`typecheck:electron` 0。
+- **決定**：
+  1. 收單 DONE，`--worktree keep`；`git fetch . ct/T0887:v0.8.x`（fast-forward）→ `v0.8.x` = `a05a9c79`。PLAN-066 第 2–4 項（Rust）確定不開。
+  2. Worker 建議的兩個另案暫不開（塔台判斷）：① Terminal Server 自然結束的 PTY 也 `dispose`（node-pty#887；共用版之後每個只留幾個 socket，價值低且碰 T0540 順序）；② `[shared-conout]` 結果經協定給主行程記錄（目前只在 server stderr）。列為候選。
+  3. 下一步需使用者授權：push `v0.8.x` → W6 `windows-upgrade-acceptance.yml`（`--ref v0.8.x`）→ `desktop-build.yml -f ref=v0.8.x`。
+- **決策者**：塔台。2026-11-23 第一百二十七 session。
+- **相關**：PLAN-066 / T0887 / D307 / D308
+
 ### D308 2026-11-23 — T0886 收單：Node 端共用 conout Worker 達標，不做 Rust Terminal Server；開 T0887（base `v0.8.x`）
 
 - **背景**：T0886 DONE（主線回報 `aebaaba1`；分支 `ct/T0886` `8c9e23a8` 只有 `experiments/node-pty-worker/` 33 檔，worktree 乾淨）。Windows 實測持有 10 PTY：現況 178 MB → 共用一個 conout Worker 39 MB（electron 當 node 37 MB）→ 主執行緒讀 conout 24 MB；Rust 2.5 MB。行為檢查（輸出、kill、自然結束、resize、殘留、吞吐）全部與現況相同。Linux / macOS 沒有每 PTY Worker，問題只在 Windows。
