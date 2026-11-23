@@ -1,8 +1,8 @@
 ---
 schema_kind: tower-state
 summary_version: 1
-updated_at: "2026-11-23T20:21:09+08:00"
-session: "2026-11-23 15:07 第一百二十七 session（CT v6.0.0）"
+updated_at: "2026-11-23T20:34:08+08:00"
+session: "2026-11-23 20:33 第一百二十八 session（CT v6.0.0）"
 next_ids:
   workorder: "T0888"
   decision: "D311"
@@ -34,6 +34,8 @@ todo:
   - "版號線：D285 起 `0.7.5-pre.N`，pre.2 已發佈（2026-11-17），下一版 `0.7.5-pre.3`（`-pre.N` 最多到 pre.9）"
 ---
 # Tower State — better-agent-terminal
+
+> 🟢 **第一百二十八 session 開工**（2026-11-23 20:33 (UTC+8)，CT v6.0.0，Fast Path（環境快照 7 天 1 小時，只更新 BAT 相關列）；塔台 session `4c359bb4-9dc1-46d6-ac12-0dd71f3e7d43`；分頁 `3a9b5550…`；`--set-role tower --mode on` exit 0；`bat_whoami` 名稱 `better-agent-terminal · Tower`；**BAT 安裝版 `0.0.0-exp.18`**（使用者已裝 desktop-build B，helper 同版）；`bat-pty-holder` 1 個（PID 27336，WS 69.3 MB / Private 42.2 MB）；HEAD `92f3ba0a`，fetch 後領先 `origin/main` 2 / 落後 0、工作區乾淨；`v0.8.x` = `origin/v0.8.x` @ `a05a9c79`；熱區 283 張工單全 DONE；`bat_list_questions` pending 0）。
 
 > 🟢 **第一百二十七 session 開工**（2026-11-23 15:07 (UTC+8)，CT v6.0.0，Fast Path（環境快照 7 天內）；塔台 session `f36f7d59-56b4-4906-9f06-8b1c6ef468a1`；`--set-role tower --mode on` exit 0；`bat_whoami` 名稱 `better-agent-terminal · Tower`；helper `v0.7.5-pre.2`；HEAD `1dcb6360`，fetch 後領先 `origin/main` 1（第一百二十六 session 收工 commit）/ 落後 0、工作區乾淨；熱區 280 張工單全 DONE；`bat_list_questions` pending 0；熱檔皆在 400 KB 預算內；上次收工後 BUG / PLAN 檔無變動，索引不需重建）。
 
@@ -192,7 +194,7 @@ todo:
 |--------|------|------|
 | 終端環境 | BAT | `BAT_SESSION=1`, workspace `cc0afc4a-57e9-4f41-b2ed-a2d8bac9e36b`, terminal `508fced6…`；無 `BAT_TOWER_TERMINAL_ID` |
 | BAT 派發 | ✅ | 五項 dispatch env 齊備（PowerShell 只列名稱確認）；另有 `BAT_USER_DATA` |
-| BAT 安裝版 | ✅ `0.7.5-pre.1` | exe FileVersion `0.7.5-pre.1`；`bat-terminal.mjs --version` → `v0.7.5-pre.1`；`--set-role tower --mode on` exit 0；`bat_whoami` 名稱 `better-agent-terminal · Tower` |
+| BAT 安裝版 | ⚠️ `0.0.0-exp.18`（試用 build） | 2026-11-23 20:33 更新：exe FileVersion 與 `bat-terminal.mjs --version` 皆 `0.0.0-exp.18`（desktop-build B，`v0.8.x` @ `a05a9c79`）；`--set-role tower --mode on` exit 0；分頁 `3a9b5550…` |
 | BAT_HELPER_DIR | ✅ | `C:\Program Files\BetterAgentTerminal\resources\scripts` |
 | BAT debug log | ✅ | `%APPDATA%\BetterAgentTerminal\Logs\debug-20261116-182951.log`（最新） |
 | 平台 | Windows 11 | PowerShell 主，Bash tool 並存；node `v26.13.1` / npm `12.2.2` |
