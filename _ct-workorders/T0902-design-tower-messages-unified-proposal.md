@@ -4,14 +4,14 @@ schema_kind: workorder
 id: T0902
 title: "設計（PLAN-068 / GitHub #24 ＋ #23）：塔台訊息不被淹沒、不被擠走、不混進草稿 —— BAT ＋ CT 一次到位的整合提案（右側欄分頁、強制版本對齊）"
 type: research
-status: DONE
+status: PENDING
 repo: better-agent-terminal
 project: PLAN-068
 priority: P2
 sizing: M
 created_at: "2026-11-25T03:19:48+08:00"
 started_at: "2026-11-25T03:20:41+08:00"
-updated_at: "2026-11-25T03:28:30+08:00"
+updated_at: "2026-11-25T03:44:05+08:00"
 completed_at: "2026-11-25T03:28:30+08:00"
 depends_on: [T0901]
 related:
@@ -20,7 +20,7 @@ related:
   - "T0788 / T0607 / T0701 / T0735 / T0762 / T0590 / T0600 / T0621（D158）"
 affects_files:
   - _ct-workorders/T0902-design-tower-messages-unified-proposal.md
-renew_count: 0
+renew_count: 1
 session_ids:
   - "d4f61385-641e-4e1d-8d36-2918581210a8"
 互動模式: disabled
@@ -94,6 +94,32 @@ memory_overrides:
 - 與既有「指揮塔總覽」（T0701）的關係：右側欄分頁是取代、延伸、還是並存？避免兩處各顯示一半。
 - 若需要 CT 提供新的結構化欄位（例：待驗收、使用者待辦），一併放進〈契約 v2 草案〉並遵守強制版本對齊；欄位大小與 `_tower-state.md` 大小預算一起評估。
 - 版面示意（ASCII）要呈現多種清單同時存在時的樣子。
+
+## 塔台補充（Renew #1）
+
+**時間**：2026-11-25T03:44:05+08:00
+
+**補充內容**：使用者 2026-11-25 核定第一版提案（D328），裁示如下：
+
+> - **分頁名稱**：「待辦」（id `inbox`）。
+> - **R10**：W1–W8 同一個 BAT 版本一起發，與 CT 6.1.0 預發行同步（先完成的單合進 `v0.8.x` 但不發佈）。
+> - **R9 改為「全部綁版本」**：版本關卡不只管待辦分頁，**B0（通知不搶捲動）、#23 草稿保護、B 閱讀保護也要契約 v2 雙方相符才啟用**（第一版 R9 建議的「保護不綁版本」不採用）。
+> - **R1 採主案**（`Stop` hook 送 `last_assistant_message`、host 只保留已宣告塔台的、其他丟棄），**並且要設計「BAT＋CT 的使用者怎麼註冊 hook」**：這個功能不是只有我們自己用，其他 BAT＋CT 使用者的 claude 可能沒有 BAT 注入的 hooks。
+
+**新指示**（只改 / 補下列幾節，其餘第一版內容保留；回報區以「第二版」標示更動處，第一版被取代的段落用刪除線或註明「第二版取代」）：
+
+1. **R9 全部綁版本的設計**：
+   - 保護（B0 / `draft` / `reading` / 原子送出）以「哪個塔台分頁、哪個契約版本」為單位啟用：BAT 怎麼知道某個塔台分頁的 CT 是契約 v2？建議評估 CT 在 `--set-role tower` 時帶 `--bat-contract 2`（或等效參數）由 BAT 記在該 PTY，對照 `_tower-state.md` `bat_contract`；兩者不一致或缺少時的判定。
+   - 不符時保護全部不啟用：塔台分頁 / 待辦分頁 / 縮圖怎麼提示（不得無聲），使用者看到什麼。
+   - 舊 CT＋新 BAT、新 CT＋舊 BAT 的完整行為表（取代第一版 §6）。
+   - 同步調整契約 v2 §3.1、R2 / R3 / R9、拆單 W1 / W2 / W4（版本閘門要先於保護生效）。
+2. **R1 hook 註冊設計（BAT＋CT 使用者）**：
+   - 盤點 BAT 現行注入（`buildBatMcpLaunchArgs` 的 `--settings=<dataDir>/bat-mcp/claude-settings.json`，只對 claude-cli 分頁）**涵蓋不到**的情況：使用者自訂參數已有 `--settings`（CT 規則禁止，但仍可能發生）、`disableAllHooks` / `allowManagedHooksOnly`、system runtime 太舊、使用者在一般 shell 分頁手打 `claude` 開塔台、遠端 profile、Claude 面板（SDK）塔台、其他終端（非 BAT）跑的塔台（BAT 讀不到，說明即可）。
+   - 每種情況：BAT 怎麼偵測（例：塔台分頁 `blockedDetection: none`、`claudeSessionId: null`、`claudeHooksDisabledBy`）、怎麼提示（待辦分頁 / 塔台縮圖 / 開工時 CT 面板），使用者要做什麼。
+   - 評估「讓使用者自己註冊」的方式：(a) 維持 BAT 自動注入＋偵測提示；(b) BAT 提供一鍵寫入使用者 / 專案層 `.claude/settings.json` 的 hook 項目（需同意、可移除、寫哪一層、與使用者既有 hooks 合併、`disableAllHooks` 時不寫）；(c) 以 Claude Code **plugin** 形式發佈 BAT hooks（例 `bat-hooks@<marketplace>`；比照 CT 以 plugin 發佈），使用者 `/plugin install`；(d) 其他。比較安全性（hook 是會執行的程式碼、路徑要指向哪個 BAT 安裝）、多 BAT 版本 / 遠端 / 解除安裝的清理、與 T0590「不得影響 claude」規則的一致性。給推薦方案。
+   - CT 端要配合的事（例：開工時檢查並提示、`ct-help` / Portal 說明、README 協作章節）。
+   - 同步更新拆單（可能新增一張 hook 註冊單）與待實機清單。
+3. 其他第一版內容不必重做；若因上述修改而連帶需要改的地方，一併更新並註明。
 
 ---
 
