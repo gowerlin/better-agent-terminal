@@ -10,6 +10,7 @@
 
 | ID | 日期 | 標題 | 相關工單 |
 |----|------|------|---------|
+| D325 | 2026-11-25 | pre.2 CI 第一次 unit test 失敗（BUG-219）：重跑過了照常發 pre.2，BUG-219 由 T0900 查根因；重跑仍失敗則停發版先修 | BUG-219 / T0900 |
 | D324 | 2026-11-25 | 發佈 `0.8.0-pre.2`（從 `v0.8.x` `7063e45e`：T0891 / T0893–T0898）；刪除已合併的 8 個工作分支 | T0891 / T0893–T0899 |
 | D323 | 2026-11-25 | 開 PLAN-067 每週日誌清查：塔台開工時 `last_review_at` ≥ 7 天就提示（只提示、不自動派工），清查工單以 T0892 為範本；規則寫進 `_local-rules.md` | PLAN-067 / T0892 |
 | D322 | 2026-11-25 | 開 BUG-218（完整 test:unit 首輪 headless e2e `beforeAll` 逾時）＋ T0898；T0897 / T0898 等 T0896 後從新 `v0.8.x` 並行，完成後一張合併工單併入並做 pre.2 最後聯合驗證 | BUG-218 / T0898 / T0897 |
@@ -254,6 +255,14 @@
   4. PLAN-001 保持延後（🟢 Low，等 plugin 1.0 穩定）
 - **Success criteria**（EXP→CONCLUDED）：npm install 無錯 / 所有 native modules rebuild 成功 / dev+build:dir 可跑 / 手動 smoke test 8 項通過
 - **最大風險**：`whisper-node-addon@1.0.2` 對 Electron 41（Node 24）的 NODE_MODULE_VERSION 相容性未知，允許 Worker 遇此決策點主動問塔台
+
+---
+
+### D325 2026-11-25 02:48 — pre.2 CI 失敗的處置（BUG-219）
+
+- **背景**：run `45460440287` 第一次嘗試 `tests / unit-tests`（ubuntu-24.04）只有 `shared-conout.test.ts`「the real Worker script relays a pipe」逾時 20 s；pre.1 CI 同檔 1.0 s 全過；本批沒改相關檔；共用 conout 只在 win32 生效。
+- **決定**（使用者「依建議」）：02:37 `gh run rerun --failed`；重跑通過 → pre.2 照常發佈（build / release 隨重跑繼續），BUG-219 由 T0900（隔離派工，WSL Ubuntu-24.04 重現、找根因、不靠拉長 timeout）處理，修正進下一版；重跑仍失敗 → 停止發版，先修 BUG-219 再發。
+- **相關**：D324 / BUG-219 / T0900
 
 ---
 
