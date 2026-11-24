@@ -40,3 +40,4 @@ related: [BUG-217, T0892, T0894, D318, T0701]
 ## 受理紀錄
 
 - 2026-11-25：CT 塔台（BMad-Guide · Tower）跨 session 回覆受理，本地工單 T0549，於 CT 6.0.1 修正（BMad-Guide `_reply-2026-11-25-ct-tower-state-frontmatter-backslash.md`、commit `1050dac`、決策 D851）。三項建議全部採納；BAT 面板契約 v1 不變、BAT 端不必改。已經寫壞的檔要等該工作區塔台換上 6.0.1 後才修正，所以 BAT BUG-217 / T0894 仍需要。CT 發布 6.0.1 後會再通知一次。
+- 2026-11-25：CT 塔台通知已完成：CT 6.0.1 已發佈（GitHub Release `ct-v6.0.1`、marketplace ct / ct-guide 6.0.1、Portal `/deep/principles/files-as-truth#yaml-strings`），回覆檔改 DONE（BMad-Guide commit `1db7223`、決策 D856）。規則唯一權威：`control-tower/references/memory-protocol.md`〈YAML frontmatter 字串寫法與寫入後自檢〉；檢查腳本 `control-tower/scripts/check-frontmatter.py`（標準函式庫、`-r` 含子目錄、exit 0 / 1 / 2）。BAT 面板契約 v1 不變。
