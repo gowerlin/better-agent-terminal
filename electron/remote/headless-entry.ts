@@ -28,6 +28,7 @@ import { NotifyHoldController } from '../notify-hold'
 import { registerTerminalQueryHandlers } from '../terminal-query-handlers'
 import { registerTowerQuestionHandlers } from '../tower-questions'
 import { registerAttentionSnapshotHandler, TerminalAttentionNotifier } from '../terminal-attention'
+import { registerTowerCardHandlers, TowerCardStore } from '../tower-cards'
 import { registerWorktreeStatusHandler } from '../worktree-status-handlers'
 import { mirrorToBatScripts } from './remote-logger'
 import { rotateBatScriptsLog } from '../bat-scripts-log-rotation'
@@ -472,6 +473,8 @@ export function createHeadlessClaudeModule(opts: {
   installRoot?: string
   /** T0832: a disposed panel session's staged uploads are removed (electron/upload-staging.ts). */
   onSessionDisposed?: (sessionId: string) => void
+  /** PLAN-068 W3 / T0905: a panel session's turn result (the Tower turn cards' panel source). */
+  onTurnResult?: (sessionId: string, text: string) => void
 } = {}): HandlerModule {
   return (register, host) => {
     const installRoot = opts.installRoot ?? defaultHeadlessInstallRoot()
@@ -480,6 +483,7 @@ export function createHeadlessClaudeModule(opts: {
       getEmbeddedLayout: () => resolveHeadlessEmbeddedLayout(installRoot),
     })
     const manager = new ClaudeAgentManager(host)
+    if (opts.onTurnResult) manager.setTurnResultListener(opts.onTurnResult) // T0905
     registerClaudeHandlers(register, {
       emit: host.emit,
       homeDir: host.homeDir,
@@ -676,6 +680,8 @@ export function createHeadlessTerminalQueryModule(opts: {
   onPtyExit?: (listener: (id: string) => void) => () => void
   /** T0609: subscribes to the PTYs whose hook `blocked` changed; returns the unsubscribe. */
   onBlockedChange?: (listener: (id: string) => void) => () => void
+  /** PLAN-068 W3 / T0905: receives this server's Tower turn card store (the claude module's panel source). */
+  onTowerCards?: (store: TowerCardStore | null) => void
 }): HandlerModule {
   return (register, host) => {
     // T0609 (BUG-153): a tab waits for the user / its Tower's answer → the connected clients
@@ -705,7 +711,23 @@ export function createHeadlessTerminalQueryModule(opts: {
       logger: defaultLogger,
     })
     const unsubscribeBlocked = opts.onBlockedChange?.(id => notifier.refresh(id))
-    const unsubscribeExit = opts.onPtyExit?.(id => towerQuestions.terminalEnded(id))
+    // PLAN-068 W3 / T0905 (D328 R1′): the Tower turn cards of this server's tabs — same module as
+    // Electron main; memory only, masked; `tower-cards:*` for the client windows (never a helper channel)
+    const towerCards = new TowerCardStore({
+      getTerminalRole: id => opts.getPtyManager()?.getTerminalRole(id),
+      getTowerContract: id => opts.getPtyManager()?.getTowerContract(id),
+      isAlive: id => opts.getPtyManager()?.isAlive(id) ?? false,
+      getSessionId: id => opts.getPtyManager()?.getClaudeSessionId(id) ?? null,
+      ...(opts.knownSecrets ? { knownSecrets: opts.knownSecrets } : {}),
+      emit: (channel, payload) => host.emit(channel, payload),
+      logger: defaultLogger,
+    })
+    registerTowerCardHandlers({ registerHandler: register, getStore: () => towerCards, logger: defaultLogger })
+    opts.onTowerCards?.(towerCards)
+    const unsubscribeExit = opts.onPtyExit?.(id => {
+      towerQuestions.terminalEnded(id)
+      towerCards.terminalEnded(id) // T0905: exit / kill, so ⏻ restart too
+    })
     const queries = registerTerminalQueryHandlers({
       registerHandler: register,
       getPtyManager: opts.getPtyManager,
@@ -729,6 +751,7 @@ export function createHeadlessTerminalQueryModule(opts: {
       getPtyManager: opts.getPtyManager,
       logger: defaultLogger,
       mirrorToBatScripts,
+      onStop: (terminalId, report) => { towerCards.offerHookStop(terminalId, report) }, // T0905
     })
     registerWorktreeStatusHandler({
       registerHandler: register,
@@ -748,6 +771,8 @@ export function createHeadlessTerminalQueryModule(opts: {
       towerQuestions.dispose()
       queries.dispose()
       notifier.dispose()
+      opts.onTowerCards?.(null)
+      towerCards.dispose() // T0905
     }
   }
 }
@@ -1074,6 +1099,8 @@ export function createHeadlessHandlerModules(opts: {
   const toolsCache = createHeadlessRemoteToolsCache(opts.remoteTools)
   // T0832: the upload module's staging (the claude module's dispose removes a session's uploads)
   let uploadStaging: UploadStaging | null = null
+  // T0905: the query module's Tower turn card store (the claude module's panel turns go into it)
+  let towerCards: TowerCardStore | null = null
   // T0835: a terminal tab's uploads go when its PTY really ends (not on a ⏻ restart)
   const ptyUploads = createPtyUploadDisposer({
     getStaging: () => uploadStaging,
@@ -1107,7 +1134,11 @@ export function createHeadlessHandlerModules(opts: {
     ptyModule, // T0390
     createHeadlessClaudeModule({ // T0401
       installRoot: opts.installRoot,
-      onSessionDisposed: sessionId => { void uploadStaging?.disposeSession(sessionId) }, // T0832
+      onSessionDisposed: sessionId => {
+        void uploadStaging?.disposeSession(sessionId) // T0832
+        towerCards?.terminalEnded(sessionId, 'panel session disposed') // T0905
+      },
+      onTurnResult: (sessionId, text) => { towerCards?.offerPanelMessage(sessionId, text) }, // T0905
     }),
     createHeadlessTerminalModule({ // T0431
       getPtyManager: () => ptyManager,
@@ -1130,6 +1161,7 @@ export function createHeadlessHandlerModules(opts: {
         blockedChangeListeners.add(listener)
         return () => { blockedChangeListeners.delete(listener) }
       },
+      onTowerCards: store => { towerCards = store }, // T0905
     }),
     createHeadlessRemoteToolsModule(opts.remoteTools, toolsCache), // T0411
     createHeadlessGitModule(opts.git), // T0405

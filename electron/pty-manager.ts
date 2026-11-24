@@ -15,7 +15,7 @@ import { resolvePtyLocaleEnv } from './pty-locale-env'
 import { isTerminalAutoReply, normalizeWorkorderId, type CloseWorkerPtyManager } from './close-worker'
 import type { CtMode } from './ct-mode'
 import type { CtWorktreeRecord } from './ct-worktree'
-import { LaunchSuspectWatcher, TerminalBlockedTracker, type BlockedDetection, type BlockedState, type HookReportEvent, type HookReportResult } from './terminal-blocked-state'
+import { LaunchSuspectWatcher, TerminalBlockedTracker, type BlockedDetection, type BlockedState, type HookOrigin, type HookReportEvent, type HookReportResult } from './terminal-blocked-state'
 import { CodexStateScanner, lastCodexState, PROGRAM_STATUS_PROBE_REPLY } from '../src/lib/codex-terminal-state'
 import type { InterruptedAgentSource } from './interrupted-agents'
 import { describePtyFdGuardSkip, guardPtySpawnFds, type PtyFdGuardDeps, type PtyFdGuardOutcome } from './pty-spawn-fd-guard'
@@ -1228,6 +1228,21 @@ export class PtyManager implements CloseWorkerPtyManager {
   reportHookEvent(id: string, event: HookReportEvent, toolName?: string, sessionId?: string, agentId?: string, at?: bigint): { result: HookReportResult; state: BlockedState | null } | null {
     if (!this.instances.has(id)) return null
     return this.blockedTracker.report(id, event, toolName, sessionId, agentId, at)
+  }
+
+  /**
+   * PLAN-068 W3 / T0905 (T0902 §7.4): whether a hook report of running PTY `id` from `origin` is applied
+   * (false = a `plugin` report after an `injected` one; `TerminalBlockedTracker.acceptHookOrigin`).
+   * A PTY that does not run here: false (the handler answers NOT_FOUND first).
+   */
+  acceptHookOrigin(id: string, origin?: HookOrigin, set?: number): boolean {
+    if (!this.instances.has(id)) return false
+    return this.blockedTracker.acceptHookOrigin(id, origin, set)
+  }
+
+  /** T0905: the latest hook set version running PTY `id` reported, or null. */
+  getHookSet(id: string): number | null {
+    return this.instances.has(id) ? this.blockedTracker.getHookSet(id) : null
   }
 
   /** What running PTY `id` is blocked on, or null (not blocked / not running). */

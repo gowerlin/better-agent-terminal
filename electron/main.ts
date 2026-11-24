@@ -32,6 +32,7 @@ import { registerWorktreeStatusHandler } from './worktree-status-handlers'
 import { registerReportHookHandler } from './terminal-blocked-state'
 import { registerTowerQuestionHandlers, type TowerQuestionHandlers } from './tower-questions'
 import { registerAttentionSnapshotHandler, TerminalAttentionNotifier } from './terminal-attention'
+import { registerTowerCardHandlers, TowerCardStore } from './tower-cards'
 import { mirrorToBatScripts } from './remote/remote-logger'
 import { rotateBatScriptsLog } from './bat-scripts-log-rotation'
 import { CtWorktreeService } from './ct-worktree'
@@ -791,6 +792,8 @@ let terminalQueryHandlers: TerminalQueryHandlers | null = null
 let towerQuestionHandlers: TowerQuestionHandlers | null = null
 // T0609 (BUG-153): `terminal:attention-changed` (a tab waits for the user / its Tower's answer)
 let terminalAttention: TerminalAttentionNotifier | null = null
+// PLAN-068 W3 / T0905: the Tower turn cards (registerProxiedHandlers builds it; memory only)
+let towerCards: TowerCardStore | null = null
 // PLAN-047 W1 / T0583: `--isolation worktree` dispatch + `--close-worker --worktree` cleanup (plain git).
 const ctWorktreeService = new CtWorktreeService()
 // PLAN-044 / T0566: usage-limit detection + automatic continue (registerProxiedHandlers builds it).
@@ -1354,6 +1357,7 @@ function createElectronPtyDeps(): PtyManagerDeps {
       interruptedAgents.remove(id, 'pty-ended') // T0766: closed / restarted / resumed tab
       claudeSessionPersistence.persist() // T0642: its claude session is no longer stored
       ptyUploadDisposer.onPtyExit(id) // T0835: its staged uploads (after the restart grace)
+      towerCards?.terminalEnded(id) // T0905: its turn cards (exit / kill, so ⏻ restart too)
     },
     // PLAN-055 B1 / T0766: the tabs the recovery interrupts — taken before it clears their session ids
     onAgentsInterrupted: (sources) => {
@@ -1374,6 +1378,7 @@ function createElectronPtyDeps(): PtyManagerDeps {
       towerQuestionHandlers?.serverRecovered()
       claudeSessionPersistence.persist()
       notifyHold?.onServerRecovery() // T0788: every held notification is dropped
+      towerCards?.serverRecovered() // T0905: every PTY tab's turn cards
     },
     // T0642: a SessionStart hook sent a (new) session id
     // T0766: a listed interrupted tab whose claude started again (resumed) leaves the list
@@ -1664,7 +1669,11 @@ function createWindow(windowId: string, bounds?: { x: number; y: number; width: 
   if (!ptyManager) {
     ptyManager = new PtyManager(createElectronPtyDeps())
   }
-  if (!claudeManager) claudeManager = new ClaudeAgentManager(createElectronClaudeDeps())
+  if (!claudeManager) {
+    claudeManager = new ClaudeAgentManager(createElectronClaudeDeps())
+    // PLAN-068 W3 / T0905: a panel Tower's turn → a card (the store keeps it only for a panel Tower)
+    claudeManager.setTurnResultListener((sessionId, text) => { towerCards?.offerPanelMessage(sessionId, text) })
+  }
   if (!codexManager) codexManager = new CodexAgentManager(getAllWindows)
 
   const urlParam = `?windowId=${encodeURIComponent(windowId)}`
@@ -3078,6 +3087,18 @@ function registerProxiedHandlers() {
     isAlive: id => ptyManager?.isAlive(id) ?? false,
     logger,
   })
+  // PLAN-068 W3 / T0905 (D328 R1′): the Tower turn cards — kept only for a contract-2 Tower tab,
+  // masked, memory only; `tower-cards:*` for the windows (never a helper channel). Same module as headless.
+  towerCards = new TowerCardStore({
+    getTerminalRole: id => ptyManager?.getTerminalRole(id),
+    getTowerContract: id => ptyManager?.getTowerContract(id),
+    isAlive: id => ptyManager?.isAlive(id) ?? false,
+    getSessionId: id => ptyManager?.getClaudeSessionId(id) ?? null,
+    knownSecrets: () => [remoteServer.currentToken],
+    emit: terminalEmit,
+    logger,
+  })
+  registerTowerCardHandlers({ registerHandler, getStore: () => towerCards, logger })
   // PLAN-047 M1 / T0582: read-only helper queries (same module as headless). The caller is its
   // capability (`localHelperCapabilities`); titles and the workspace of a PTY the Terminal Server
   // kept come from the saved tabs; the server token is masked out of read-output literally.
@@ -3124,6 +3145,7 @@ function registerProxiedHandlers() {
     getPtyManager: () => ptyManager,
     logger,
     mirrorToBatScripts,
+    onStop: (terminalId, report) => { towerCards?.offerHookStop(terminalId, report) }, // T0905
   })
 
   // PLAN-047 M1 / T0584: `agent:bat-mcp-launch-args` (proxied: a remote window asks its server)
@@ -3213,7 +3235,10 @@ function registerProxiedHandlers() {
     sessionKinds: sessionManagerMap,
     messageArchiveDir: MESSAGE_ARCHIVE_DIR,
     // T0832: a closed panel's staged uploads go with it
-    onSessionDisposed: sessionId => { void uploadStaging.disposeSession(sessionId) },
+    onSessionDisposed: sessionId => {
+      void uploadStaging.disposeSession(sessionId)
+      towerCards?.terminalEnded(sessionId, 'panel session disposed') // T0905: a panel Tower's cards
+    },
   })
 
   // upload:* — shared with headless bat-server (PLAN-038 U1 / T0832, electron/handlers/uploads.ts).

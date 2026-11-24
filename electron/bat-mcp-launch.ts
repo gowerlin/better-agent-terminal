@@ -166,6 +166,15 @@ export const BAT_CLAUDE_HOOKS: ReadonlyArray<{ hookEvent: string; matcher?: stri
   { hookEvent: 'SessionStart', event: 'session-start', async: true },
 ]
 
+/**
+ * PLAN-068 W3 / T0905 (T0902 §7.6): the version of the hook set above. Every report of
+ * `scripts/bat-hook.mjs` carries it (`set`, the script's own `BAT_HOOK_SET` — the two must be equal,
+ * `scripts/__tests__/bat-hook.test.mjs` guards it). 2 = the `Stop` hook sends claude's
+ * `last_assistant_message` (the Tower turn cards, electron/tower-cards.ts). Raise it with every change
+ * to the events or to what they send; W9's `bat-hooks` plugin compares its event list with it.
+ */
+export const BAT_HOOK_SET = 2
+
 /** T0600: a claude settings file that can turn BAT's hooks off; `managed` = the machine's policy file. */
 export interface ClaudeSettingsFile {
   file: string

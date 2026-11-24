@@ -27,10 +27,19 @@
 // HOOK_DEADLINE_MS. It sends the event name, (permission prompts only) the tool name, (T0642,
 // SessionStart only) the session id when it is a UUID and (T0657, permission prompts / tool batches
 // only) the subagent id — never tool_input / tool_response / tool_calls, `source`,
-// `transcript_path`, `cwd`, an elicitation's content / action, a prompt, a message or a token. Outside BAT (no BAT_REMOTE_*) it exits at once.
+// `transcript_path`, `cwd`, an elicitation's content / action, a prompt, a message (T0905: except
+// the `Stop` hook's `last_assistant_message`, below) or a token. Outside BAT (no BAT_REMOTE_*) it exits at once.
 //
 // T0790 / BUG-197: + `at`, a time value only — when this process started (`hookStartedAt`), so BAT can
 // tell a report that arrived late (claude runs every hook as its own process) from a newer one.
+//
+// PLAN-068 W3 / T0905 (D328 R1′): `stop` also sends claude's `last_assistant_message` (only that
+// event reads the field; cut to `LAST_MESSAGE_MAX_BYTES` UTF-8 bytes before sending, `messageTruncated`
+// when cut) for the Tower turn cards. BAT keeps it only for a Tower tab that declared BAT ↔ CT
+// contract 2 and drops it for every other tab (electron/tower-cards.ts); this script never logs it
+// (the log has its length only). A `stop` report also carries `origin` (`injected`: BAT's `--settings`
+// hooks; W9's `bat-hooks` plugin sends `plugin`; BAT reads an absent one as `injected`, so every other
+// report is sent exactly as before) and `set` (`BAT_HOOK_SET`, the hook set version).
 //
 // Zero external dependencies — Node.js 18+ built-in modules only.
 
@@ -69,6 +78,29 @@ const TOOL_NAME_PATTERN = /^[A-Za-z0-9_.:-]{1,128}$/
 /** T0657: claude's subagent id (`agent_id`, absent on the main thread); same rule as a tool name. */
 export const AGENT_ID_PATTERN = TOOL_NAME_PATTERN
 /**
+ * PLAN-068 W3 / T0905: the version of BAT's hook set — equal to `BAT_HOOK_SET` of
+ * electron/bat-mcp-launch.ts (beside `BAT_CLAUDE_HOOKS`; a test guards it). 2 = `stop` sends the last
+ * assistant message.
+ */
+export const BAT_HOOK_SET = 2
+/** T0905: where a report comes from — BAT's injected `--settings` hooks (this script run by them). */
+export const HOOK_ORIGIN_INJECTED = 'injected'
+/** T0905 (D328 R1′): the last assistant message is cut to this many UTF-8 bytes before it is sent. */
+export const LAST_MESSAGE_MAX_BYTES = 16 * 1024
+
+/**
+ * T0905: `text` cut to at most `maxBytes` UTF-8 bytes on a character boundary →
+ * `{ text, truncated }`. Never throws.
+ */
+export function truncateUtf8(text, maxBytes = LAST_MESSAGE_MAX_BYTES) {
+  const buf = Buffer.from(text, 'utf8')
+  if (buf.length <= maxBytes) return { text, truncated: false }
+  let end = maxBytes
+  // a continuation byte (10xxxxxx) at the cut: back off to the start of that character
+  while (end > 0 && (buf[end] & 0xc0) === 0x80) end--
+  return { text: buf.subarray(0, end).toString('utf8'), truncated: true }
+}
+/**
  * T0657: the first field of claude's hook JSON that is never needed; only what comes before it is
  * read (claude puts `session_id` … `agent_id` … `hook_event_name` / `tool_name` first, then the
  * tool's input / the batch, which can be megabytes).
@@ -104,6 +136,8 @@ export function hookStartedAt(hrtime = () => process.hrtime.bigint(), uptime = (
  * T0657: + `agentId` (a valid `agent_id`) of `permission-request` / `post-tool-batch`. A
  * `post-tool-batch` is reported only from a readable PostToolBatch input with no / a valid
  * `agent_id`: one that cannot be told apart must not clear the main thread's prompt.
+ * T0905: `stop` + `lastAssistantMessage` (a non-blank `last_assistant_message`, cut to
+ * `LAST_MESSAGE_MAX_BYTES`) and `messageTruncated: true` when it was cut; no other event reads it.
  */
 export function hookReport(event, input) {
   if (!HOOK_EVENTS.includes(event)) return null
@@ -124,6 +158,10 @@ export function hookReport(event, input) {
   }
   if (event === 'session-start' && typeof fields.session_id === 'string' && SESSION_ID_PATTERN.test(fields.session_id)) {
     return { event, sessionId: fields.session_id }
+  }
+  if (event === 'stop' && typeof fields.last_assistant_message === 'string' && fields.last_assistant_message.trim() !== '') {
+    const cut = truncateUtf8(fields.last_assistant_message)
+    return { event, lastAssistantMessage: cut.text, ...(cut.truncated ? { messageTruncated: true } : {}) }
   }
   return { event }
 }
@@ -189,15 +227,21 @@ export function readHookInput(stream = process.stdin, timeoutMs = STDIN_TIMEOUT_
 }
 
 /**
- * One report. `{ result, code?, sessionId?, agentId?, durationMs }` (`sessionId`: the one sent, for
- * the log's first 8 characters; T0657: `agentId`, the one sent), never throws. `connection` / `env` for tests.
+ * One report. `{ result, code?, sessionId?, agentId?, messageBytes?, durationMs }` (`sessionId`: the one sent, for
+ * the log's first 8 characters; T0657: `agentId`, the one sent; T0905: `messageBytes`, the UTF-8 length of
+ * the last assistant message sent — the log's only trace of it), never throws. `connection` / `env` for tests.
  * T0790: `at` (`hookStartedAt()`, main passes it) goes into the report as is; absent = not sent.
+ * T0905: `origin` / `set` (main passes `HOOK_ORIGIN_INJECTED` / `BAT_HOOK_SET`) likewise.
  */
-export async function reportHook(event, input, { env = process.env, connection, at } = {}) {
+export async function reportHook(event, input, { env = process.env, connection, at, origin, set } = {}) {
   const startedAt = Date.now()
   const report = hookReport(event, input)
   if (!report) return { result: 'skipped', durationMs: Date.now() - startedAt }
-  const sent = { ...(report.sessionId ? { sessionId: report.sessionId } : {}), ...(report.agentId ? { agentId: report.agentId } : {}) }
+  const sent = {
+    ...(report.sessionId ? { sessionId: report.sessionId } : {}),
+    ...(report.agentId ? { agentId: report.agentId } : {}),
+    ...(typeof report.lastAssistantMessage === 'string' ? { messageBytes: Buffer.byteLength(report.lastAssistantMessage, 'utf8') } : {}),
+  }
   if (!env.BAT_REMOTE_PORT || !env.BAT_REMOTE_TOKEN) return { result: 'not-in-bat', ...sent, durationMs: Date.now() - startedAt }
   const conn = connection ?? new BatConnection({
     port: env.BAT_REMOTE_PORT,
@@ -206,7 +250,12 @@ export async function reportHook(event, input, { env = process.env, connection, 
     clientName: 'bat-hook',
   })
   try {
-    const outcome = await conn.invoke('terminal:report-hook', [typeof at === 'string' ? { ...report, at } : report], INVOKE_TIMEOUT_MS)
+    const extra = {
+      ...(typeof at === 'string' ? { at } : {}),
+      ...(typeof origin === 'string' ? { origin } : {}),
+      ...(Number.isSafeInteger(set) ? { set } : {}),
+    }
+    const outcome = await conn.invoke('terminal:report-hook', [{ ...report, ...extra }], INVOKE_TIMEOUT_MS)
     if (!outcome.ok) return { result: 'failed', code: outcome.code, ...sent, durationMs: Date.now() - startedAt }
     const value = outcome.result
     if (value && typeof value === 'object' && value.ok === false) {
@@ -237,7 +286,9 @@ async function main() {
   if (!process.env.BAT_REMOTE_PORT || !process.env.BAT_REMOTE_TOKEN) process.exit(0)
   const stopField = Object.hasOwn(HOOK_INPUT_STOP_FIELDS, event) ? HOOK_INPUT_STOP_FIELDS[event] : undefined
   const input = await readHookInput(process.stdin, STDIN_TIMEOUT_MS, stopField)
-  const outcome = await reportHook(event, input, { at: hookStartedAt() })
+  // T0905: `origin` / `set` ride on `stop` only — every other report stays as it was (BAT reads an
+  // absent origin as `injected`, T0902 §7.4)
+  const outcome = await reportHook(event, input, { at: hookStartedAt(), ...(event === 'stop' ? { origin: HOOK_ORIGIN_INJECTED, set: BAT_HOOK_SET } : {}) })
   if (outcome.result !== 'skipped') {
     logEvent('bat-hook', 'report-hook', {
       // `hook`, not `event`: the log record's own `event` is 'report-hook'
@@ -248,6 +299,8 @@ async function main() {
       ...(outcome.sessionId ? { session: outcome.sessionId.slice(0, 8) } : {}),
       // T0657: a subagent id is not a secret
       ...(outcome.agentId ? { agent: outcome.agentId } : {}),
+      // T0905: the length of the last assistant message sent, never its text
+      ...(outcome.messageBytes !== undefined ? { messageBytes: outcome.messageBytes } : {}),
       durationMs: outcome.durationMs,
       terminalId: process.env.BAT_TERMINAL_ID ?? null,
     })

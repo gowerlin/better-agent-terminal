@@ -106,6 +106,14 @@
  * Without `at` on either side it ends the turn as before. The blocked state is judged by T0790's rule
  * on its own. codex's OSC (one ordered output stream) and the quiet fallback have no such disorder.
  *
+ * PLAN-068 W3 / T0905 (T0902 §7.4, D328 R1′): a report may carry `origin` (`injected` = BAT's
+ * `--settings` hooks, the default when absent; `plugin` = W9's `bat-hooks` plugin) and `set` (the hook
+ * set version, `BAT_HOOK_SET`). Both may run for one claude: once PTY `id` reported from `injected`,
+ * its `plugin` reports are dropped (`acceptHookOrigin`, logged once per PTY; the handler answers
+ * `result: 'duplicate'`). Same lifetime as `agentStarted`. A `stop` may carry `lastAssistantMessage`
+ * (+ `messageTruncated`): the handler hands it to `onStop` (the Tower turn cards, electron/tower-cards.ts)
+ * and never logs, mirrors or answers it — the tracker never sees it.
+ *
  * 🔴 No `electron` import here (PtyManager and headless use it).
  */
 import type { CodexTerminalState } from '../src/lib/codex-terminal-state'
@@ -236,6 +244,28 @@ export const BLOCKED_DETECTION_MAX = 512
 /** An `unchanged` report is mirrored to bat-scripts.log at most this often per terminal. */
 export const REPORT_HOOK_UNCHANGED_LOG_INTERVAL_MS = 5_000
 
+/** T0905 (T0902 §7.4): where a hook report comes from. Absent = `injected`. */
+export type HookOrigin = 'injected' | 'plugin'
+export const HOOK_ORIGINS: readonly HookOrigin[] = ['injected', 'plugin']
+/** T0905: the largest hook set version accepted (`set`; anything else is ignored). */
+export const HOOK_SET_MAX = 1000
+/**
+ * T0905 (D328 R1′): the most of a `stop` report's `lastAssistantMessage` the handler passes on, in
+ * UTF-16 code units — a backstop only (the hook cuts it to 16 KiB UTF-8 bytes; the card store cuts it
+ * again by bytes). Longer → not passed on at all (a malformed report).
+ */
+export const REPORT_HOOK_MESSAGE_MAX_CHARS = 64 * 1024
+
+/** T0905: `origin` of a report → a known origin, or undefined (absent / unknown = `injected`). */
+export function parseHookOrigin(value: unknown): HookOrigin | undefined {
+  return typeof value === 'string' && (HOOK_ORIGINS as readonly string[]).includes(value) ? value as HookOrigin : undefined
+}
+
+/** T0905: `set` of a report → a whole number 1…`HOOK_SET_MAX`, or undefined. */
+export function parseHookSet(value: unknown): number | undefined {
+  return typeof value === 'number' && Number.isSafeInteger(value) && value >= 1 && value <= HOOK_SET_MAX ? value : undefined
+}
+
 // T0757: the mouse reports xterm writes while a program tracks the mouse (same shapes as
 // TERMINAL_AUTO_REPLY_SEQUENCES in electron/close-worker.ts): SGR `ESC [ < b ; x ; y M|m`,
 // urxvt `ESC [ b+32 ; x ; y M`, X10 / normal `ESC [ M <b+32><x+32><y+32>`.
@@ -341,6 +371,11 @@ export class TerminalBlockedTracker {
    * (absent = none carried one).
    */
   private readonly turns = new Map<string, { since: number; timer: unknown; startedAt?: bigint }>()
+  /**
+   * T0905: running PTY id → whether an `injected` report arrived (from then on `plugin` reports are
+   * dropped), whether a dropped `plugin` report was logged, and the latest hook `set` reported.
+   */
+  private readonly hookOrigins = new Map<string, { injected: boolean; droppedLogged: boolean; set?: number }>()
 
   constructor(
     private readonly logger?: BlockedTrackerLogger,
@@ -467,6 +502,35 @@ export class TerminalBlockedTracker {
   }
 
   /**
+   * T0905 (T0902 §7.4): whether a report of running PTY `id` from `origin` (absent = `injected`) is
+   * applied. False = a `plugin` report after an `injected` one of the same PTY (both hook sets run for
+   * one claude; the injected one is kept). `set` (absent = unknown) is remembered as the PTY's latest.
+   */
+  acceptHookOrigin(id: string, origin?: HookOrigin, set?: number): boolean {
+    let entry = this.hookOrigins.get(id)
+    if (!entry) {
+      entry = { injected: false, droppedLogged: false }
+      this.hookOrigins.set(id, entry)
+    }
+    const fromPlugin = origin === 'plugin'
+    if (fromPlugin && entry.injected) {
+      if (!entry.droppedLogged) {
+        entry.droppedLogged = true
+        this.logger?.log(`[hooks] terminal=${id} plugin reports dropped (the injected hooks report for this PTY)`)
+      }
+      return false
+    }
+    if (!fromPlugin) entry.injected = true
+    if (set !== undefined) entry.set = set
+    return true
+  }
+
+  /** T0905: the latest hook set version PTY `id` reported, or null. */
+  getHookSet(id: string): number | null {
+    return this.hookOrigins.get(id)?.set ?? null
+  }
+
+  /**
    * T0621: codex's OSC 7501 `state` of running PTY `id` (the caller checks it is running). Logs
    * `[codex-state] terminal=<id> → <state>` on a change, `[agent-start] … → started (osc <state>)`,
    * `[blocked] … → blocked reason=input (osc)` / `→ cleared (osc <state>)`.
@@ -531,6 +595,7 @@ export class TerminalBlockedTracker {
     this.started.clear() // T0600
     this.codexStates.clear() // T0621
     this.sessionIds.clear() // T0642
+    this.hookOrigins.clear() // T0905
   }
 
   /** T0600: ms epoch of PTY `id`'s first `session-start`, or null. */
@@ -562,6 +627,7 @@ export class TerminalBlockedTracker {
     this.started.delete(id)
     this.codexStates.delete(id)
     this.sessionIds.delete(id)
+    this.hookOrigins.delete(id) // T0905
     this.endTurn(id, 'the PTY ended') // T0694
   }
 
@@ -683,6 +749,7 @@ export class TerminalBlockedTracker {
     this.started.clear()
     this.codexStates.clear()
     this.sessionIds.clear()
+    this.hookOrigins.clear() // T0905
   }
 }
 
@@ -749,6 +816,16 @@ export class LaunchSuspectWatcher {
 export interface ReportHookPtyManager {
   isAlive(id: string): boolean
   reportHookEvent(id: string, event: HookReportEvent, toolName?: string, sessionId?: string, agentId?: string, at?: bigint): { result: HookReportResult; state: BlockedState | null } | null
+  /** T0905: `PtyManager.acceptHookOrigin` (absent: every report is applied, as before T0905). */
+  acceptHookOrigin?(id: string, origin?: HookOrigin, set?: number): boolean
+}
+
+/** T0905 (D328 R1′): what `onStop` gets of an applied `stop` report — never logged by the handler. */
+export interface StopReport {
+  /** claude's last assistant message (`last_assistant_message`, cut by the hook); absent = none sent. */
+  message?: { text: string; truncated: boolean }
+  /** The hook set version the report carried (absent = unknown). */
+  set?: number
 }
 
 export interface ReportHookDeps {
@@ -756,6 +833,12 @@ export interface ReportHookDeps {
   getPtyManager(): ReportHookPtyManager | null
   logger: { log(...args: unknown[]): void }
   mirrorToBatScripts?(event: string, payload: Record<string, unknown>): void
+  /**
+   * T0905 (D328 R1′): an applied `stop` report of the caller's PTY (after the tracker). The Tower turn
+   * cards (`TowerCardStore.offerHookStop`, electron/tower-cards.ts) keep the message only for a
+   * contract-2 Tower. A throwing listener is logged; the answer is unchanged.
+   */
+  onStop?(terminalId: string, report: StopReport): void
   /** Tests. Default `Date.now`. */
   now?(): number
 }
@@ -778,6 +861,11 @@ export type ReportHookFailure = { ok: false; code: 'INVALID_ARGS' | 'NOT_FOUND';
  * (and answers `post-tool-batch` INVALID_ARGS; the hook still exits 0).
  * T0790: `at` (`HOOK_AT_PATTERN`) — when the hook's process started; malformed → ignored, no error. A BAT
  * before T0790 ignores the field like any unknown one. Never answered, mirrored or logged as a value.
+ * T0905: `origin` (`HOOK_ORIGINS`, else `injected`) / `set` (`parseHookSet`, else unknown) — a
+ * `plugin` report after an `injected` one of the same PTY answers `{ ok: true, terminalId, result:
+ * 'duplicate' }` and changes nothing. A `stop`'s `lastAssistantMessage` (a string ≤
+ * `REPORT_HOOK_MESSAGE_MAX_CHARS`; anything else is ignored, no error) and `messageTruncated` go to
+ * `onStop` only. A BAT before T0905 ignores all of them like any unknown field.
  * Every report is O(1); transitions are logged by the tracker, an `unchanged` report is mirrored to
  * bat-scripts.log at most once per `REPORT_HOOK_UNCHANGED_LOG_INTERVAL_MS` per terminal.
  */
@@ -836,10 +924,32 @@ export function registerReportHookHandler(deps: ReportHookDeps): void {
     }
     // T0790: when the hook's process started; malformed → ignored, no error (as without it)
     const at = parseHookAt(opts.at)
+    // T0905: which hook set sent it; malformed → ignored, no error
+    const origin = parseHookOrigin(opts.origin)
+    const set = parseHookSet(opts.set)
     const pm = deps.getPtyManager()
-    const outcome = pm && pm.isAlive(caller) ? pm.reportHookEvent(caller, event as HookReportEvent, toolName, sessionId, agentId, at) : null
+    if (!pm || !pm.isAlive(caller)) return fail(caller, event, 'NOT_FOUND')
+    if (pm.acceptHookOrigin && !pm.acceptHookOrigin(caller, origin, set)) {
+      mirror(caller, event, 'duplicate')
+      return { ok: true, terminalId: caller, result: 'duplicate' }
+    }
+    const outcome = pm.reportHookEvent(caller, event as HookReportEvent, toolName, sessionId, agentId, at)
     if (!outcome) return fail(caller, event, 'NOT_FOUND')
     mirror(caller, event, outcome.result, sessionId, agentId)
+    if (event === 'stop' && deps.onStop) {
+      // T0905: the message goes on to the card store only (never logged / mirrored / answered here)
+      const text = typeof opts.lastAssistantMessage === 'string' && opts.lastAssistantMessage.length <= REPORT_HOOK_MESSAGE_MAX_CHARS
+        ? opts.lastAssistantMessage
+        : undefined
+      try {
+        deps.onStop(caller, {
+          ...(text !== undefined ? { message: { text, truncated: opts.messageTruncated === true } } : {}),
+          ...(set !== undefined ? { set } : {}),
+        })
+      } catch (e) {
+        deps.logger.log(`[tower-cards] onStop failed terminal=${caller}: ${e instanceof Error ? e.message : String(e)}`)
+      }
+    }
     return {
       ok: true,
       terminalId: caller,

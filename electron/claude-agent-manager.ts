@@ -631,6 +631,8 @@ export class ClaudeAgentManager {
   private sessions: Map<string, SessionInstance> = new Map()
   private deps: ClaudeAgentManagerDeps
   private healthCheckTimer: ReturnType<typeof setInterval> | null = null
+  /** PLAN-068 W3 / T0905: the Tower turn cards' panel source (`setTurnResultListener`). */
+  private turnResultListener: ((sessionId: string, text: string) => void) | null = null
 
   constructor(deps: ClaudeAgentManagerDeps) {
     this.deps = deps
@@ -663,6 +665,25 @@ export class ClaudeAgentManager {
 
   private send(channel: string, ...args: unknown[]) {
     this.deps.emit(channel, ...args)
+  }
+
+  /**
+   * PLAN-068 W3 / T0905 (T0902 §2.3 / §4): called with a panel session's last assistant message — the
+   * SDK `result` text of a `success` result — once per result (the Tower turn cards,
+   * `TowerCardStore.offerPanelMessage`, electron/tower-cards.ts, decide whether the panel is a Tower).
+   * null removes it. A throwing listener is logged (no text) and changes nothing else.
+   */
+  setTurnResultListener(listener: ((sessionId: string, text: string) => void) | null): void {
+    this.turnResultListener = listener
+  }
+
+  private notifyTurnResult(sessionId: string, subtype: string, text: unknown): void {
+    if (!this.turnResultListener || subtype !== 'success' || typeof text !== 'string' || text.trim() === '') return
+    try {
+      this.turnResultListener(sessionId, text)
+    } catch (e) {
+      logger.warn(`[tower-cards] panel turn result listener failed session=${sessionId.slice(0, 8)}: ${e instanceof Error ? e.message : String(e)}`)
+    }
   }
 
   /**
@@ -2150,6 +2171,7 @@ export class ClaudeAgentManager {
       })
 
       this.sendCompletionNotification(session, resultMsg.result)
+      this.notifyTurnResult(sessionId, resultMsg.subtype, resultMsg.result) // T0905
     }
   }
 
