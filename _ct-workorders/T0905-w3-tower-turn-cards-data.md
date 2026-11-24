@@ -4,13 +4,14 @@ schema_kind: workorder
 id: T0905
 title: "PLAN-068 W3（在 `v0.8.x`）：塔台回合訊息卡的資料層 —— `Stop` hook 送 `last_assistant_message`、host 記憶體卡片 store（只收契約 v2 塔台、遮罩、上限、生命週期）、proxied 讀取＋事件、重連對帳、Claude 面板塔台來源"
 type: implementation
-status: PENDING
+status: IN_PROGRESS
 repo: better-agent-terminal
 project: PLAN-068
 priority: P1
 sizing: M
 created_at: "2026-11-25T05:12:00+08:00"
-updated_at: "2026-11-25T05:12:00+08:00"
+started_at: "2026-11-25T05:12:20+08:00"
+updated_at: "2026-11-25T05:12:20+08:00"
 target_version: "0.8.x（與 CT 6.1.0 同日發佈）"
 depends_on: [T0903]
 related:
