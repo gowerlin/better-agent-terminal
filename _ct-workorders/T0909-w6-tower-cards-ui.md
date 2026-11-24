@@ -40,6 +40,7 @@ affects_files:
   - CLAUDE.md
   - docs/agent-guide/
 renew_count: 0
+tower_question: open
 isolation: worktree
 workdir: "worktree ct/T0909（塔台已預先從 `v0.8.x` `677860a4` 建立分支 `ct/T0909`）"
 worker_question_timeout: 30
@@ -78,6 +79,20 @@ W3（T0905）已把契約 v2 塔台每回合的最後訊息存在 host 記憶體
 ## 回報區
 
 > 以下由 sub-session 填寫，請勿在指揮塔 session 中編輯（唯一例外：`### 待塔台決策` 的 `塔台答覆 Q-n` 行由塔台新增）
+
+### 待塔台決策
+
+#### Q-1：哪些 Claude Agent 面板算「面板塔台」（呼叫 `setPanelTower(id, true)`），待辦「💬 塔台訊息」怎麼顯示它們的卡片？
+- **提問時間**：2026-11-25T06:02:02+0800
+- **背景**：本單 ⑤ 要以 `stateFileContractStatus`（狀態檔 `bat_contract`）決定後呼叫 `setPanelTower`，但規格（T0902 §6′、W3 / W4 回報）只定了「怎麼判版本」，沒定「哪一個面板是塔台」：面板沒有 `--set-role`，BAT 看不出面板裡跑的是不是 CT 塔台。W5（T0908 ⑤ 回答送進面板）也要同一個定義，兩單最好一致。
+- **選項**：
+  - A（建議）：工作區 `_tower-state.md` `bat_contract` = 2（`stateFileContractStatus` = `match`）**且這個工作區沒有已宣告的塔台分頁**時，該工作區所有 Claude Agent 面板分頁（`agentPreset` = `claude-code`，不含 codex 面板）都是面板塔台；有已宣告塔台分頁、或狀態檔不是 2 → `setPanelTower(id, false)`（W3 會清空該面板的卡片）。待辦的「💬 塔台訊息」：選中的是已宣告塔台 → 只顯示它的卡片；沒有已宣告塔台（判定 `source: state`）→ 合併顯示這個工作區所有面板塔台的卡片，每張標出來源分頁標題。不改 W4 的塔台選擇器。
+  - B：同 A，但不管有沒有已宣告塔台，狀態檔 = 2 的工作區所有 Claude 面板都算（同時有 CLI 塔台與面板時，面板卡片也收）；「💬」只在沒有已宣告塔台時顯示面板卡片。
+  - C：明確標記：面板加一個「以塔台使用此面板」開關（持久化，類似 T0644 `launchRole`），只有標記的面板才是面板塔台。精準，但多 UI、多存檔欄位，超出本單規格。
+  - 其他
+- **建議與理由**：A。不新增 UI / 存檔欄位；「有 CLI 塔台時面板不是塔台」避免使用者在塔台工作區開的旁支 Claude 面板也產生「塔台訊息」；卡片只在 host 記憶體、受同樣的遮罩與上限，誤把一般面板當塔台的代價只是多幾張卡片。已知限制：判定要讀該工作區的 `_tower-state.md`，只有讀過（作用中 / detached）的工作區才判得出，從未開過的工作區的面板在開到它之前不收卡片。
+- **影響**：決定 `setPanelTower` 的呼叫條件、待辦「💬」區的資料來源與 W5 回答路徑的目標定義；選 C 要多做 UI＋持久化。
+- **是否阻擋後續步驟**：只擋 ⑤ 與「💬」區對面板塔台的顯示；其他項目（App 接線、卡片區、加亮、codex 說明、G7、縮圖）先做。
 
 ### 完成狀態
 - **session_id**：
