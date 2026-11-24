@@ -4,13 +4,14 @@ schema_kind: workorder
 id: T0912
 title: "PLAN-068 W7（在 `v0.8.x`）：文件整理 —— `docs/agent-guide/tower-inbox.md` 過去式與交叉引用收斂、CLAUDE.md 各新節精簡、網站說明頁（待辦分頁、塔台分頁建議設定、`bat-hooks`）、README 協作章節與版本對照表、CHANGELOG `[Unreleased]`"
 type: documentation
-status: PENDING
+status: IN_PROGRESS
 repo: better-agent-terminal
 project: PLAN-068
 priority: P2
 sizing: M
 created_at: "2026-11-25T06:40:09+08:00"
-updated_at: "2026-11-25T06:40:09+08:00"
+started_at: "2026-11-25T06:41:19+08:00"
+updated_at: "2026-11-25T06:41:19+08:00"
 target_version: "0.8.x（與 CT 6.1.0 同日發佈）"
 depends_on: [T0911]
 related:
