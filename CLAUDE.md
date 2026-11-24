@@ -434,6 +434,15 @@
 - 唯一實作 `NotifyHoldController`（`electron/notify-hold.ts`，不 import electron，本機與 headless 共用）；`pty.ts` / `terminal.ts` 只接線，不改 `TerminalBlockedTracker` 的判斷。縮圖「📨 待送 N」與取消：`src/stores/notify-hold-store.ts`、`TerminalThumbnail.tsx`，IPC `terminal:notify-hold-list` / `-cancel` 是本機 `ipcMain.handle`（🔴 不是 helper channel；遠端視窗看不到清單）。
 - 完整契約、常數、日誌、已知限制、驗證清單（e2e `e2e/t0787-notify-into-blocked-tower.spec.ts`）：[docs/agent-guide/notify-hold.md](docs/agent-guide/notify-hold.md)
 
+## 塔台回合訊息卡（PLAN-068 W3 / T0905）
+
+- 用途：契約 v2 塔台分頁每回合一張卡片（該回合最後一則助理訊息），供待辦分頁「💬 塔台訊息」（W6）。來源：claude-cli 塔台的 `Stop` hook `last_assistant_message`（`bat-hook.mjs stop` 截到 16 KiB，另帶 `origin` / `set`，`BAT_HOOK_SET` = 2 寫在 `BAT_CLAUDE_HOOKS` 旁）；Claude 面板塔台的 query `result`（`ClaudeAgentManager.setTurnResultListener`，面板是否塔台由 `setPanelTower` 決定，W4 接線）。
+- 🔴 只留 `towerContractStatus === 'match'` 的分頁，其他收到即丟、不存內容；收件即 `redactTerminalSecrets`、單張 16 KiB、每分頁 30 張＋釘選 10 張、已讀 / 釘選在 host；PTY 結束（含 ⏻）/ Terminal Server recovery 清空；只在記憶體；日誌只記 terminal id / 長度 / 張數。
+- 🔴 hook 規則（T0590）不變；只有 `stop` 多帶欄位，其他事件的回報逐字不變（沒有 `origin` = `injected`）；同一 PTY 收過 `injected` 後 `plugin` 回報回 `duplicate`（§7.4）。
+- 🔴 `tower-cards:list` / `mark-read` / `pin` / `clear`（proxied）與事件 `tower-cards:changed`（只有數字）不得加進 `HELPER_CHANNEL_ROLES`，handler 另拒 `ctx.helper`。
+- 唯一實作 `electron/tower-cards.ts`（`TowerCardStore`、`registerTowerCardHandlers`，不 import electron，本機與 headless 共用）、`ReportHookDeps.onStop`（`electron/terminal-blocked-state.ts`）、renderer `src/stores/tower-cards-store.ts`（`createTowerCardsSync`，W6 接到 App）。
+- 完整規則、channel 形狀、claude 最低版號、驗證清單：[docs/agent-guide/tower-inbox.md](docs/agent-guide/tower-inbox.md)
+
 ## Claude 分頁的 session 名稱（PLAN-050 / T0641，D167）
 
 - 用途：claude-cli 分頁啟動時加 `claude --name=<名稱>`，讓 CT 從 ListAgents 分得出 BAT 的塔台與 Worker。格式唯一實作 `claudeSessionName`（`src/lib/claude-session-name.ts`，main / renderer 共用）：Worker `<ws> · Worker · <T####>`、Tower `<ws> · Tower`（「以塔台開啟 Claude」，T0644）、其他 `<ws> · <短 ID>`；`<ws>` = 工作區 `alias || name` 清理後 ≤ 60 字、整個名稱 ≤ 200 字（從 `<ws>` 截斷）、空 → `BAT`。

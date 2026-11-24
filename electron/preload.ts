@@ -23,6 +23,7 @@ import type { TerminalRoleChangeInfo } from '../src/lib/tower-terminal-title'
 import type { UsageLimitContinueEvent, UsageLimitStatusEvent } from '../src/lib/usage-limit'
 import type { DetachedWaitingReport, TerminalAttentionEvent, TerminalAttentionSnapshotEntry } from '../src/lib/terminal-attention'
 import type { NotifyHoldChangedEvent } from '../src/types/notify-hold'
+import type { TowerCardsChangedEvent, TowerCardsListResult, TowerCardsOpResult } from '../src/types/tower-cards'
 import type { RemoteUploadApi, RemoteUploadProgressEvent, RemoteUploadSourceDescriptor } from '../src/lib/remote-upload'
 import type {
   BatVolumeRole,
@@ -1217,6 +1218,23 @@ const electronAPI = {
   // a bat-server before T0701 rejects with `No handler for channel: ct:read-config-sources`.
   ctConfig: {
     readSources: () => ipcRenderer.invoke('ct:read-config-sources') as Promise<CtConfigSources>,
+  },
+  // PLAN-068 W3 / T0905 — the Tower turn cards of the window's tabs, kept by the host that runs them
+  // (proxied `tower-cards:*`; a bat-server before T0905 rejects with `No handler for channel`).
+  towerCards: {
+    list: (terminalIds?: string[]) =>
+      ipcRenderer.invoke('tower-cards:list', terminalIds ? { terminalIds } : {}) as Promise<TowerCardsListResult>,
+    markRead: (terminalId: string, cardIds?: string[]) =>
+      ipcRenderer.invoke('tower-cards:mark-read', cardIds ? { terminalId, cardIds } : { terminalId }) as Promise<TowerCardsOpResult>,
+    pin: (terminalId: string, cardId: string, pinned: boolean) =>
+      ipcRenderer.invoke('tower-cards:pin', { terminalId, cardId, pinned }) as Promise<TowerCardsOpResult>,
+    clear: (terminalId: string, opts?: { cardIds?: string[]; includePinned?: boolean }) =>
+      ipcRenderer.invoke('tower-cards:clear', { terminalId, ...(opts ?? {}) }) as Promise<TowerCardsOpResult>,
+    onChanged: (callback: (info: TowerCardsChangedEvent) => void) => {
+      const handler = (_event: Electron.IpcRendererEvent, info: TowerCardsChangedEvent) => callback(info)
+      ipcRenderer.on('tower-cards:changed', handler)
+      return () => ipcRenderer.removeListener('tower-cards:changed', handler)
+    },
   },
   // T0710 — the CT prompt of the panel's one-click dispatch (`$ct-exec` / `$ct:ct-exec` for Codex),
   // decided and quoted by the host the window is bound to; a bat-server before T0710 rejects with

@@ -956,6 +956,9 @@ interface ElectronAPI {
   ctConfig: {
     readSources: () => Promise<import('./ct-config-sources').CtConfigSources>
   }
+  // PLAN-068 W3 / T0905 — the Tower turn cards of the window's tabs, kept by the host that runs them
+  // (proxied `tower-cards:*`; rejects with `No handler for channel` on an older bat-server).
+  towerCards: import('./tower-cards').TowerCardsApi
   // T0710 — the CT prompt of the panel's one-click dispatch, decided and quoted by the window's host
   // (proxied `terminal:control-tower-prompt`; rejects with `No handler for channel` on an older bat-server).
   ctDispatch: {

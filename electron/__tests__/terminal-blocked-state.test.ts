@@ -1438,6 +1438,28 @@ describe('scripts/bat-hook.mjs ↔ RemoteServer + capabilities', { timeout: 30_0
     expect(manager.isAgentTurnActive('hk-turn')).toBe(false)
     manager.kill('hk-turn')
   })
+
+  // PLAN-068 W3 / T0905 (D328 R1′): kept last — `received` then holds the message, which the earlier
+  // tests check is never in what crosses the wire.
+  it('T0905: Stop sends last_assistant_message (cut to 16 KiB) + origin / set; exit 0, stdout empty, within the deadline; the log has its length only', async () => {
+    const message = `T0905-SECRET-TURN ${'塔'.repeat(6000)}` // > 16 KiB of UTF-8
+    const input = { session_id: 's', hook_event_name: 'Stop', stop_hook_active: false, transcript_path: '/SECRET/t.jsonl', last_assistant_message: message }
+    const run = await runHook('stop', JSON.stringify(input), hookEnv('hk-worker'))
+    expect(run).toMatchObject({ code: 0, stdout: '' })
+    expect(run.ms).toBeLessThan(2_000)
+    const [sent] = received.at(-1) as [Record<string, unknown>]
+    expect(Object.keys(sent).sort()).toEqual(['at', 'event', 'lastAssistantMessage', 'messageTruncated', 'origin', 'set'])
+    expect(sent).toMatchObject({ event: 'stop', at: AT, origin: 'injected', set: 2, messageTruncated: true })
+    const text = String(sent.lastAssistantMessage)
+    expect(text.startsWith('T0905-SECRET-TURN ')).toBe(true)
+    expect(Buffer.byteLength(text, 'utf8')).toBeLessThanOrEqual(16 * 1024)
+    expect(text).not.toContain('�')
+    expect(JSON.stringify(sent)).not.toMatch(/transcript|\/SECRET\//)
+    const log = fs.readFileSync(path.join(logDir, 'bat-scripts.log'), 'utf8')
+    expect(log.trim().split('\n').map(l => JSON.parse(l) as Record<string, unknown>).filter(e => e.script === 'bat-hook').at(-1))
+      .toMatchObject({ hook: 'stop', terminalId: 'hk-worker', messageBytes: Buffer.byteLength(text, 'utf8') })
+    expect(log).not.toContain('T0905-SECRET-TURN')
+  })
 })
 
 // ── T0600 (D154): agentStarted ──

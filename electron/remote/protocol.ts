@@ -97,6 +97,9 @@ export const PROXIED_CHANNELS = new Set([
   // PLAN-038 U1 / T0832: a client window stages a local file on the host it is bound to
   // (electron/handlers/uploads.ts); never in HELPER_CHANNEL_ROLES; an older bat-server has no handler
   'upload:begin', 'upload:chunk', 'upload:finish', 'upload:abort',
+  // PLAN-068 W3 / T0905: the Tower turn cards of the window's tabs on the host that runs them
+  // (electron/tower-cards.ts); never in HELPER_CHANNEL_ROLES; an older bat-server has no handler
+  'tower-cards:list', 'tower-cards:mark-read', 'tower-cards:pin', 'tower-cards:clear',
 ])
 
 /**
@@ -137,4 +140,7 @@ export const PROXIED_EVENTS = new Set([
   // T0609 (BUG-153): a remote tab waits for the user (claude hook) / for its Tower's answer — the
   // client windows mark its Worker badge (electron/terminal-attention.ts, src/App.tsx)
   'terminal:attention-changed',
+  // PLAN-068 W3 / T0905: a remote Tower tab's turn cards changed — the client windows refetch them
+  // with `tower-cards:list` (electron/tower-cards.ts; counts and a revision only, never a card's text)
+  'tower-cards:changed',
 ])
