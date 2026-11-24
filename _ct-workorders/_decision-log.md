@@ -10,6 +10,7 @@
 
 | ID | 日期 | 標題 | 相關工單 |
 |----|------|------|---------|
+| D324 | 2026-11-25 | 發佈 `0.8.0-pre.2`（從 `v0.8.x` `7063e45e`：T0891 / T0893–T0898）；刪除已合併的 8 個工作分支 | T0891 / T0893–T0899 |
 | D323 | 2026-11-25 | 開 PLAN-067 每週日誌清查：塔台開工時 `last_review_at` ≥ 7 天就提示（只提示、不自動派工），清查工單以 T0892 為範本；規則寫進 `_local-rules.md` | PLAN-067 / T0892 |
 | D322 | 2026-11-25 | 開 BUG-218（完整 test:unit 首輪 headless e2e `beforeAll` 逾時）＋ T0898；T0897 / T0898 等 T0896 後從新 `v0.8.x` 並行，完成後一張合併工單併入並做 pre.2 最後聯合驗證 | BUG-218 / T0898 / T0897 |
 | D321 | 2026-11-25 | T0891 候選 1、2（claude 花費上限句型、t0592 穩定化）併成一張 T0897，等 T0896 合併後從新 `v0.8.x` 開分支，完成後塔台直接合併 | T0897 / T0896 / T0891 |
@@ -253,6 +254,14 @@
   4. PLAN-001 保持延後（🟢 Low，等 plugin 1.0 穩定）
 - **Success criteria**（EXP→CONCLUDED）：npm install 無錯 / 所有 native modules rebuild 成功 / dev+build:dir 可跑 / 手動 smoke test 8 項通過
 - **最大風險**：`whisper-node-addon@1.0.2` 對 Electron 41（Node 24）的 NODE_MODULE_VERSION 相容性未知，允許 Worker 遇此決策點主動問塔台
+
+---
+
+### D324 2026-11-25 01:48 — 發佈 `0.8.0-pre.2`
+
+- **背景**：T0899 合併後 `v0.8.x` = `7063e45e`（`v0.8.0-pre.1..v0.8.x` 14 commits）：內嵌 claude-code 2.1.331 / agent-sdk 0.3.331 / codex 0.172.0（T0891）、BUG-216（T0893 / T0895）、BUG-217（T0894）、BUG-218（T0898）、claude 花費上限句型與 t0592 穩定化（T0897）；最後聯合驗證全綠（test:unit 第一次即綠）。
+- **決定**（使用者選「push 並發 pre.2」「刪除」）：push 前跑 `.private/` 去識別樣式（main 與 `v0.8.x` 皆 0）與金鑰樣式（6 處皆為既有測試假權杖，`origin` 上相同，本批未新增）；push `main` 與 `v0.8.x`，`gh workflow run pre-release.yml -R gowerlin/better-agent-terminal --ref v0.8.x -f version=0.8.0-pre.2`；CI 綠後寫更版重點、同步 CHANGELOG / release-note / README、Pages 與 link-check，並附 NSIS 重裝驗收指令。W6 不需要（本批沒改 holder / installer / quit 相關程式）。已合併分支 `ct/T0891`、`ct/T0893`–`ct/T0895`、`ct/T0897`、`ct/T0898`、`ct-merge/T0896`、`ct-merge/T0899` 以 `git branch -d` 刪除（`ct/T0885`、`ct/T0886` 保留）。
+- **相關**：D315 / D317–D323
 
 ---
 

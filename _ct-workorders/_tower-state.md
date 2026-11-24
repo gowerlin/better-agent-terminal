@@ -5,7 +5,7 @@ updated_at: "2026-11-25T00:39:07+08:00"
 session: "2026-11-25 00:28 第一百三十 session（CT v6.0.0）"
 next_ids:
   workorder: "T0900"
-  decision: "D324"
+  decision: "D325"
   bug: "BUG-219"
   plan: "PLAN-068"
 todo:
