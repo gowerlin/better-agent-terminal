@@ -22,8 +22,9 @@ import type { TFunction } from 'i18next'
 import { useTranslation } from 'react-i18next'
 import { workspaceStore } from '../stores/workspace-store'
 import { getDetachedWaiting, getMissedWait, getTerminalAttention, useTerminalAttentionVersion } from '../stores/terminal-attention-store'
-import { detachedWaitingReport, detachedWaitingWorkspaces, mergeWaitingSummary, waitingClickTarget, waitingMarkKind, waitingSummary, type WaitingMarkKind, type WaitingSummary, type WaitingTab, type WaitingWorkspace, type WaitingWorkspaceSource } from '../lib/terminal-attention'
+import { detachedReportAwaiting, detachedWaitingReport, detachedWaitingWorkspaces, mergeWaitingSummary, waitingClickTarget, waitingMarkKind, waitingSummary, type WaitingMarkKind, type WaitingSummary, type WaitingTab, type WaitingWorkspace, type WaitingWorkspaceSource } from '../lib/terminal-attention'
 import { missedWaitTooltip, waitingForUserTooltip } from './TerminalThumbnail'
+import { useInboxAwaitingCount } from './inbox/useInboxModel'
 
 /**
  * The summary over `workspaces`, re-rendered on any attention or terminal list change.
@@ -156,7 +157,16 @@ export function focusWaitingTab(workspaceId: string, tab: Pick<WaitingTab, 'id'>
 export function DetachedWorkspaceWaitingRows({ workspaces }: { workspaces: readonly WaitingWorkspaceSource[] }) {
   const { t } = useTranslation()
   const summary = useWaitingSummary([], workspaces)
-  if (summary.workspaces.length === 0) return null
+  // PLAN-068 W5 / T0908: a detached workspace whose report carries only ⏸N gets a row too
+  const awaitingOnly = workspaces.filter(ws =>
+    detachedReportAwaiting(getDetachedWaiting(ws.id)) > 0 && !summary.workspaces.some(entry => entry.workspaceId === ws.id))
+  if (summary.workspaces.length === 0 && awaitingOnly.length === 0) return null
+  const awaitingBadge = (workspaceId: string) => {
+    const count = detachedReportAwaiting(getDetachedWaiting(workspaceId))
+    return count > 0
+      ? <span className="inbox-awaiting-badge" data-inbox-awaiting-count={count} title={t('inbox.awaitingBadge', { count })}>{`⏸${count}`}</span>
+      : null
+  }
   return (
     <div className="detached-waiting-list">
       {summary.workspaces.map(entry => {
@@ -186,11 +196,22 @@ export function DetachedWorkspaceWaitingRows({ workspaces }: { workspaces: reado
                 >
                   {kind === 'waiting' ? waitingMark(entry.tabs.length) : '⚠️'}
                 </span>
+                {awaitingBadge(entry.workspaceId)}
               </div>
             </div>
           </div>
         )
       })}
+      {awaitingOnly.map(ws => (
+        <div key={ws.id} className="workspace-item detached-waiting-item" data-detached-workspace={ws.id}>
+          <div className="workspace-item-content">
+            <div className="workspace-item-info">
+              <span className="workspace-alias">{`↗ ${t('sidebar.detachedWorkspaceName', { name: ws.alias || ws.name })}`}</span>
+            </div>
+            <div className="workspace-item-actions">{awaitingBadge(ws.id)}</div>
+          </div>
+        </div>
+      ))}
     </div>
   )
 }
@@ -213,7 +234,10 @@ export function focusDetachedWaitingTab(workspaceId: string, tab: Pick<WaitingTa
  */
 export function DetachedWaitingReporter({ workspace }: { workspace: WaitingWorkspaceSource }) {
   const summary = useWaitingSummary([workspace])
-  const key = JSON.stringify(detachedWaitingReport(summary.workspaces[0]))
+  // PLAN-068 W5 / T0908: + ⏸N (the workspace's pending decisions) for the parent's list
+  const folderPath = workspaceStore.getState().workspaces.find(ws => ws.id === workspace.id)?.folderPath
+  const awaiting = useInboxAwaitingCount(workspace.id, folderPath)
+  const key = JSON.stringify(detachedWaitingReport(summary.workspaces[0], awaiting))
   const lastSent = useRef<string | null>(null)
   useEffect(() => {
     if (lastSent.current === key) return

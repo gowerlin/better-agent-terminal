@@ -431,7 +431,7 @@
 - 🔴 保留時回 `{ ok: true, held: true }`：bat-notify / bat-terminal 的 exit code 與 stdout 不變（不加 `--report-hold`）；第 9 筆回 `held-full`（exit 1；`--ask` 先取消題目），配對的 Enter 併入不佔名額；🔴 不設逾時（D228：丟棄會無聲遺失、照送會重現 BUG-196），只在送出、使用者取消、PTY 結束 / ⏻ / recovery 時離開佇列；不持久化。常數 `NOTIFY_HOLD_*` 集中在同檔（CT 確認中，改值只改常數）。
 - 🔴 helper 的 submit Enter（renderer `dispatchEnter`，`terminal:keypress`）寫 `{ auto: true }`：不算使用者輸入（不清 ⚠️、不更新 `lastUserInputAt`、不取消用量限制等待）；焦點行為不變（`restoreFocus` 只給 T0566）。
 - 🔴 日誌 `[notify-hold] held|sent|cancelled|dropped …` 只記 id / reason / 長度，不記文字；「待送 N」清單（`src/types/notify-hold.ts`）也不含文字。
-- 唯一實作 `NotifyHoldController`（`electron/notify-hold.ts`，不 import electron，本機與 headless 共用）；`pty.ts` / `terminal.ts` 只接線，不改 `TerminalBlockedTracker` 的判斷。縮圖「📨 待送 N」與取消：`src/stores/notify-hold-store.ts`、`TerminalThumbnail.tsx`，IPC `terminal:notify-hold-list` / `-cancel` 是本機 `ipcMain.handle`（🔴 不是 helper channel；遠端視窗看不到清單）。
+- 唯一實作 `NotifyHoldController`（`electron/notify-hold.ts`，不 import electron，本機與 headless 共用）；`pty.ts` / `terminal.ts` 只接線，不改 `TerminalBlockedTracker` 的判斷。縮圖「📨 待送 N」與取消：`src/stores/notify-hold-store.ts`、`TerminalThumbnail.tsx`，IPC `terminal:notify-hold-list` / `-cancel` / `-send-now` 與事件 `-changed` / `-reminder`（T0908 起 proxied：共用 handler `registerNotifyHoldHandlers`，遠端視窗看得到 bat-server 的清單；🔴 不是 helper channel，handler 另拒 `ctx.helper`）。
 - 契約 2 塔台（PLAN-068 W1＋W2 / T0904）：同一個 controller 另以 `draft`（S1 `trackDraft`，`src/lib/tower-input-draft.ts`；不設上限、5 分鐘提醒、「立即送出」）、`reading`（proxied `terminal:reading-state`，renderer `TowerReadingTracker`；最長 60 s、不擋回答）保留，helper 文字到 Enter 之間暫存使用者輸入（原子送出），submit Enter 走 `terminal.input('\r', false)`（B0，`src/lib/tower-submit-enter.ts`）。🔴 只在 `towerContractStatus` `match` 時；其他分頁、T0566 與上列 T0788 規則逐字不變（`notify-hold.test.ts` 不改）；「立即送出」不越過 prompt reason。見 [docs](docs/agent-guide/tower-inbox.md)。
 - 完整契約、常數、日誌、已知限制、驗證清單（e2e `e2e/t0787-notify-into-blocked-tower.spec.ts`）：[docs/agent-guide/notify-hold.md](docs/agent-guide/notify-hold.md)
 
@@ -511,6 +511,13 @@
 - 🔴 唯讀、不新增 channel：讀檔走指揮塔同一套 `fs:*`（`InboxDataSource`，App 的作用中工作區與 detached 視窗各一個）；`_ct-workorders/` 的監看一律經 `acquireDirWatch`（`src/stores/ct-dir-watch.ts`，主行程 watcher 沒有計數，不要直接 `fs.watch` / `fs.unwatch` 這個目錄）。
 - 唯一實作：判定與資料整理 `src/lib/inbox-model.ts`（`inboxVerdict`、面板塔台用的 `stateFileContractStatus`）、`bat_contract` 解析 `parseTowerState` / `towerStateBatContract`、畫面 `src/components/InboxPanel.tsx`；舊 docking 存檔經 `normalizeDockingConfig` 補預設。
 - 完整判定表、區塊、跨分頁開啟、已知限制、驗證清單：[docs/agent-guide/tower-inbox.md](docs/agent-guide/tower-inbox.md)
+
+## 待辦分頁的契約 v2 清單與回答（PLAN-068 W5 / T0908）
+
+- 用途：顯示 CT 6.1.0 寫的 `awaiting_user` / `user_actions` / `reminders`（＋工單 `waiting_user`），從待辦分頁回答一行 `U-n：<代號或自由文字>` / `A-n：完成` / `A-n：失敗 <說明>`；塔台縮圖與工作區列表 `⏸N`。
+- 🔴 只在 §6′ 相符時運作（W4 `inboxVerdict`）；解析錯誤只略過該筆並計數；`command` 只有「複製」，BAT 永遠不執行；日誌只記 id / 長度 / 筆數，不記 `summary` / `options` / 回答。
+- 🔴 回答 IPC `tower-inbox:answer { terminalId, text }`（proxied，`registerTowerInboxAnswerHandler`，`electron/notify-hold.ts`）不得加進 `HELPER_CHANNEL_ROLES`、handler 另拒 `ctx.helper`；只收單行 ≤ 1,000 字、`^[UA]-\d+[：:]` 開頭（`checkInboxAnswer`），交 `enqueueAnswer`（受 prompt / `draft` 擋、不受 `reading` 擋）。目標：已宣告契約 2 的塔台分頁（剛好一個直送、多個讓使用者選）；沒有已宣告塔台時才送面板塔台（T0909 `workspaceHasPanelTowers` / `panelTowerTerminalIds`），經視窗事件進面板自己的送出路徑，面板輸入框有字時拒絕。
+- 唯一實作：解析 / 時間 / 回答格式 `src/lib/tower-inbox.ts`（`+0800` 與 `+08:00` 都收）、`parseTowerStateInbox`（`ct-tower-overview.ts`）、目標 `inboxAnswerTargets`（`inbox-model.ts`）、送出 `src/lib/inbox-answer.ts`、畫面 `src/components/inbox/InboxLists.tsx` / `InboxAwaitingBadge.tsx`；細節見 [docs](docs/agent-guide/tower-inbox.md)「契約 v2 清單與回答（W5）」。
 
 ## CT plugin 安裝（T0710）
 

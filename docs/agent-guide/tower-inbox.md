@@ -10,8 +10,9 @@
 > | 右側欄「待辦」分頁 | W4 / T0906 | 「右側欄「待辦」分頁（PLAN-068 W4 / T0906）」 |
 > | 通知保護 | W1＋W2 / T0904 | 「塔台等使用者回答時保留 Worker 通知（T0788 / BUG-196，D227）」 |
 > | 回合訊息卡：資料層 | W3 / T0905 | 「塔台回合訊息卡（PLAN-068 W3 / T0905）」（本節是該小節的完整內容） |
+> | 契約 v2 清單與回答 | W5 / T0908 | 「待辦分頁的契約 v2 清單與回答（PLAN-068 W5 / T0908）」 |
 >
-> 改這些功能時兩邊一起更新。待你決定 / 待你執行 / 到期提醒的 CT 欄位與回答 UI（W5）、回合訊息卡 UI（W6）、hook 註冊（W9）完成時各自補節。
+> 改這些功能時兩邊一起更新。回合訊息卡 UI（W6）、hook 註冊（W9）完成時各自補節。
 
 ## 版本判定（R9′ / §6′）
 
@@ -96,9 +97,9 @@ W4 做分頁骨架、版本判定（上一節「工作區層」）與 BAT 既有
 
 | 區塊 | W4 內容 | 之後 |
 |---|---|---|
-| ⏸ 待你決定 | 空（「（無）」） | W5：`awaiting_user` |
-| 🙋 待你執行 | `_bug-tracker.md` 的 `FIXED` / `VERIFY`（不含封存），「開啟」→ 指揮塔 Bugs 頁 | W5：`user_actions` |
-| ⏰ 到期提醒 | 空 | W5：`reminders` |
+| ⏸ 待你決定 | 空（「（無）」） | W5（T0908）：`awaiting_user`，見「契約 v2 清單與回答」節 |
+| 🙋 待你執行 | `_bug-tracker.md` 的 `FIXED` / `VERIFY`（不含封存），「開啟」→ 指揮塔 Bugs 頁 | W5（T0908）：`user_actions` 排在前面 |
+| ⏰ 到期提醒 | 空 | W5（T0908）：`reminders` |
 | 👷 Worker 等你 | 這個工作區的分頁：⚠️ 等使用者（`waitingForUser`，最久的在前）、📨 待送（T0788 `notify-hold-store`，原因見「通知保護」節的〈「📨 待送」與「立即送出」〉）、⏸ 被中斷（T0766）；`?` / `✓` / `↻` 不列。⚠️ / 📨 →「切到分頁」，⏸ →「恢復…」（開被中斷對話框） | — |
 | 💬 塔台訊息 | 空 | W6：回合訊息卡（資料層見「回合訊息卡：資料層」節，W3） |
 | 📋 塔台待辦 | CT `todo` 全部；超過 160 字或多行的項目摺疊成第一行，可展開；預設摺疊 | — |
@@ -117,7 +118,7 @@ W4 做分頁骨架、版本判定（上一節「工作區層」）與 BAT 既有
 
 - 遠端工作區：`InboxDataSource` 用的 `fs:*` 都是既有 proxied channel，讀視窗綁定的 host；`fs:changed` 照既有路徑回來。沒有新增 channel。
 - detached 視窗：自己掛一個 `InboxDataSource`（自己的工作區），分頁在 `WorkspaceView` 的分頁列。
-- 已宣告塔台、Worker 等你都來自 renderer 既有 store（每個視窗都有）；📨 待送在遠端視窗看不到（T0788 既有限制）。
+- 已宣告塔台、Worker 等你都來自 renderer 既有 store（每個視窗都有）；📨 待送在遠端視窗 T0908 起看得到（`terminal:notify-hold-*` proxied，見「契約 v2 清單與回答」節）。
 
 ### 已知限制
 
@@ -211,7 +212,7 @@ host：`setReading(id, reporter, reading)`，`reporter` = `conn:<connectionId>` 
 
 ### 已知限制
 
-- 遠端 profile 視窗：保留與 `draft` / `reading` 在 bat-server 上照樣生效（`terminal:reading-state` 是 proxied channel），但「📨 待送」清單、「立即送出」、5 分鐘提醒只在本機視窗（T0788 的既有限制：`terminal:notify-hold-*` 沒有加進 `PROXIED_CHANNELS` / `PROXIED_EVENTS`）。遠端使用者的草稿保留在送出 / Ctrl+C 後自然放行，但看不到原因。要支援需另開工單。
+- 遠端 profile 視窗：保留與 `draft` / `reading` 在 bat-server 上照樣生效（`terminal:reading-state` 是 proxied channel）；「📨 待送」清單、原因、「立即送出」、5 分鐘提醒 T0908 起也在遠端視窗（`terminal:notify-hold-*` 已 proxied，見「契約 v2 清單與回答」節）。舊 bat-server 照舊看不到。
 - fullscreen claude：BAT 看不到 claude 內部捲動，只看滾輪 / PageUp 事件（停手 10 s 放行）。
 - S1 是推估（見上表）；codex 的 Ctrl+C / Enter / Shift+Enter 行為待實機（T0902 T-5）。
 - `reading` 60 s 是從「閱讀開始擋住這個佇列」起算，到時再加安靜 1 s。
@@ -299,3 +300,91 @@ host：`setReading(id, reporter, reading)`，`reporter` = `conn:<connectionId>` 
 
 - 單元：`electron/__tests__/tower-cards.test.ts`（store、handlers、不在 helper 範圍）、`electron/__tests__/tower-cards-report-hook.test.ts`（report-hook 新欄位、origin 去重、onStop）、`electron/__tests__/tower-cards-panel-source.test.ts`（面板來源）、`scripts/__tests__/bat-hook-last-message.test.mjs`（hook 端、`BAT_HOOK_SET` 相等、整支腳本 exit 0 / stdout 空）、`electron/__tests__/terminal-blocked-state.test.ts`「T0905: Stop sends last_assistant_message …」（真腳本經 RemoteServer）、`src/stores/__tests__/tower-cards-store.test.ts`。
 - headless：`electron/remote/__tests__/headless-tower-cards-e2e.test.ts`（真 headless＋node-pty：塔台 PTY 內宣告契約 2 並回報、Worker 與未宣告契約的塔台被丟、塔台自己的權杖呼叫 `tower-cards:*` 被拒、視窗 list / mark-read、PTY 結束清空、事件不含文字）。
+
+## 契約 v2 清單與回答（W5 / T0908）
+
+只在「工作區層」判定相符時顯示與運作（R9′）；不符時待辦分頁仍只有選擇器與提示（W4）。
+
+### 解析（T0902 §3.3）
+
+唯一實作 `parseTowerInboxLists`（`src/lib/tower-inbox.ts`，純函式、不 import electron / DOM），檔案層 `parseTowerStateInbox`（`src/lib/ct-tower-overview.ts`，與 `parseTowerState` 同樣要求 `schema_kind: tower-state`＋`summary_version ≥ 1`）。
+
+| 欄位 | 必填 / 規則 | 錯誤時 |
+|---|---|---|
+| `awaiting_user[].id` | `^U-\d+$` | 該筆略過並計數 |
+| `awaiting_user[].summary` | 非空字串 | 略過並計數 |
+| `awaiting_user[].options[]` | 每項 `<代號> <說明>`，代號 `^[A-Za-z0-9]{1,3}$`，同筆不重複（不分大小寫：CT 以不分大小寫、唯一命中解析） | 該筆改自由回答（顯示一行說明），不略過 |
+| `awaiting_user[].workorder` / `kind` / `source` / `created_at` | 選填，照原字串顯示；`source` 已知全名顯示短標籤（`inbox.source.*`，三語系），未知照原字串 | 欄位忽略 |
+| `user_actions[].id` / `title` | `^A-\d+$`；非空、≤ 120 字 | 略過並計數 |
+| `user_actions[].command` | 選填，≤ 300 字，只有「複製」 | 超過 / 非字串 → 不顯示指令（該筆保留） |
+| `user_actions[].kind` | `verify` / `run` / `manual` 有標籤，其他照原字串 | — |
+| `reminders[].id` / `title` / `due_at` | `^[a-z0-9-]{1,40}$`；非空；可解析的日期或日期時間 | 略過並計數 |
+| `next_ids.user` / `next_ids.action` | `^U-\d+$` / `^A-\d+$` | 忽略 |
+| 工單 frontmatter `waiting_user` | `^U-\d+$`（`parseWorkOrder` 的 `waitingUser`） | 不顯示 ⏸ |
+| 重複 id | 第二筆起 | 略過並計數 |
+| 其他未知鍵 | — | 忽略 |
+
+- 時間（`parseCtTime`）：`+08:00`、`+0800`、`Z`、沒有時區（本地）、只有日期（本地午夜）都接受；解析不了照原字串顯示（`formatCtTime`）。
+- 排序：待你決定 / 待你執行依 `created_at` 舊 → 新（解析不了的排最後，維持檔案順序）；提醒依 `due_at`。
+- `> 50` 筆只畫前 50＋「另有 N 筆」（`INBOX_LIST_RENDER_MAX`）。
+- `user_inbox`：專案 `_ct-workorders/_tower-config.yaml`，其次全域層（既有 proxied `ct:read-config-sources`，每次掛載與 ↻ 讀一次）；`off` / `false` / `no` → 待你決定 / 待你執行顯示「已關閉」說明、不列 CT 項目；待驗收 BUG、Worker 等你、塔台訊息照常（`effectiveUserInbox`）。
+
+### 畫面
+
+| 區塊 | 內容 | 動作 |
+|---|---|---|
+| ⏸ 待你決定 | id、工單、`source` 短標籤、`kind`、`summary`、時間；工單 `waiting_user` 對應時「⏸ T#### 暫停中」（只看未結工單） | 選項 radio＋「送出」→ `U-n：<代號>`（代號照 CT 原樣）；自由回答欄（Enter 或「送出」）→ `U-n：<文字>`（換行改空白） |
+| 🙋 待你執行 | CT `user_actions`（在前）＋W4 的待驗收 BUG | 「複製指令」（`navigator.clipboard.writeText`，🔴 BAT 永遠不執行）、「完成」→ `A-n：完成`、「失敗…」＋說明 → `A-n：失敗 <說明>` |
+| ⏰ 到期提醒 | `due_at` 已到或 7 天內（`dueReminders`）；逾期 N 天 / 今天到期 / N 天後到期＋上次 `last_at` | — |
+| 最近已結 | 從檔案消失的 `U-n` / `A-n`（`nextRecentlyClosed`，記憶體、每資料夾 10 筆、只本次啟動）；摺疊 | — |
+
+- 分頁標題數字 = Worker 等你＋待驗收 BUG＋待你決定＋待你執行＋到期提醒（`inboxActionCount`）；不符時 `!`。
+- 每筆下方顯示送出結果：已送出 / 已排入待送佇列（📨）/ 面板有草稿 / 面板未開啟 / 沒有可送的塔台 / 沒送出（原因代碼）。
+
+### 回答路徑
+
+| 目標 | 怎麼送 | 保護 |
+|---|---|---|
+| 已宣告契約 2 的塔台分頁 | renderer `sendInboxAnswer`（`src/lib/inbox-answer.ts`）→ IPC `tower-inbox:answer { terminalId, text }`（本機 `ipcMain`；遠端視窗 proxied 到 bat-server）→ `registerTowerInboxAnswerHandler`（`electron/notify-hold.ts`）→ `NotifyHoldController.enqueueAnswer` | prompt（T0788 reason）與 `draft` 擋、`reading` 不擋；Enter 算使用者輸入（W2） |
+| 面板塔台（Claude Agent 面板） | 視窗事件 `PANEL_TOWER_ANSWER_EVENT`（`bat:panel-tower-answer`）→ 掛載中的 `ClaudeAgentPanel`（`sessionId` = 分頁 id）把這一行放進輸入框、走面板自己的 `handleSend`（回合進行中 → T0815 排隊） | 面板輸入框有字或附件、上傳中 → 回 `draft`，什麼都不動 |
+
+- 目標選擇（`inboxAnswerTargets`，`src/lib/inbox-model.ts`；T0908 塔台補充 #1 / #2）：工作區有已宣告塔台分頁 → 只考慮其中宣告契約 2 的（不送面板）；沒有 → 面板塔台（T0909 的 `workspaceHasPanelTowers` / `panelTowerTerminalIds` / `CLAUDE_PANEL_PRESETS`，同檔同名同簽章）。剛好一個 → 直接送；多個 → 該筆下方出現選擇列；零個 → 「沒有可送的塔台」。
+- host 檢查（`checkInboxAnswer`）：字串、非空、單行（無 `\r` / `\n`）、≤ 1,000 字、`^[UA]-\d+[：:]` 開頭且後面有字；不符 → `invalid`。renderer 先檢查一次。
+- 🔴 `tower-inbox:answer` 不在 `HELPER_CHANNEL_ROLES`，handler 另拒 `ctx.helper`（`FORBIDDEN`）：塔台與 Worker 的 PTY 權杖都不能冒充使用者作答。
+- 回傳 `TowerInboxAnswerResult`（`src/types/notify-hold.ts`）：`{ ok: true, held, holdId }` / `{ ok: false, reason: 'invalid' | 'pty-not-found' | 'not-contract-tower' | 'held-full' | 'FORBIDDEN' | 'INVALID_ARGS' | 'unavailable' }`；舊 bat-server 沒有 handler → renderer 顯示 `unsupported`。
+
+### 「📨 待送」在遠端視窗（T0904 建議後續 1）
+
+`terminal:notify-hold-list` / `-cancel` / `-send-now` 改由共用的 `registerNotifyHoldHandlers`（`electron/notify-hold.ts`）在 Electron main 與 headless 都註冊，加進 `PROXIED_CHANNELS`；事件 `terminal:notify-hold-changed` / `-reminder` 加進 `PROXIED_EVENTS`（headless 的 controller 以 `host.emit` 送出；main 改送所有視窗＋broadcastHub）。回應形狀與 T0788 相同（陣列 / 數字）；helper 權杖呼叫回 `[]` / `0`。renderer `notify-hold-store` 不必改：遠端視窗的呼叫自動路由到它的 bat-server。
+
+### `⏸N`
+
+- 塔台縮圖（契約 2 塔台）與工作區列表每列：`useInboxAwaitingCount(workspaceId, folder)`（`src/components/inbox/useInboxModel.ts`）= 該工作區判定相符時的 `awaiting_user` 筆數，否則不顯示；點擊開啟待辦分頁（`InboxAwaitingBadge`）。
+- 資料：作用中工作區用完整的 `InboxDataSource`；其他有契約 2 塔台分頁的工作區由 `InboxStateSources` 只讀 `_tower-state.md`（`setInboxStateOnly`，同一套 `fs:*` 與共用監看）。
+- detached 視窗：`DetachedWaitingReporter` 的回報多 `awaiting`（`detachedWaitingReport(entry, awaiting)`；`sanitizeDetachedWaitingReport` 只收 1 … 9999 的整數）；主視窗的 `DetachedWorkspaceWaitingRows` 在 ⚠️ 旁顯示 `⏸N`，只有 `⏸N` 的 detached 工作區也有一列（點擊不切換，見已知限制）。`awaiting` 不算進 ⚠️ 總數。
+
+### 日誌
+
+```
+[tower-inbox] answer terminal=<id> id=U-3 len=<n> → held|sending|<reason>      ← host
+[tower-inbox] answer rejected terminal=<id> check=<代碼> len=<n>
+[tower-inbox] answer refused: helper capability terminal=<id>
+[tower-inbox] answer terminal|panel=<id> id=U-3 len=<n> → sent|held|draft|not-mounted|failed (<reason>)   ← renderer
+[notify-hold] terminal:notify-hold-list refused: helper capability terminal=<id>
+[detached-waiting] workspace=<id> waiting=<n> missed=<n> awaiting=<n> → …
+```
+
+🔴 不記 `summary` / `options` / `title` / `command` / 回答文字。
+
+### 已知限制
+
+- `⏸N` 對「沒有已宣告塔台、只靠狀態檔」的非作用中工作區不顯示（不為了徽章讀每個工作區的檔案）；切到該工作區後才有。
+- 只有 `⏸N` 的 detached 工作區列，點擊不會帶出 detached 視窗（沒有可切的分頁）；到該視窗的待辦分頁回答。
+- 面板塔台的回答只在面板掛載的視窗送得出（`not-mounted` 時請先開該分頁）；面板草稿保護是「拒絕並提示」，不是排隊。
+- 「最近已結」只在記憶體，且只記兩次讀檔都成功時消失的項目。
+- 送出的是一行純文字，CT 端解析與移除（含決策日誌）由 CT 6.1.0 負責；BAT 不確認 CT 是否收到。
+
+### 驗證
+
+- 單元：`src/lib/__tests__/tower-inbox.test.ts`（時間兩種時區、選項規則、型別表逐項錯誤隔離、提醒視窗、回答格式與 host 檢查、`waiting_user`、`parseTowerStateInbox`、`effectiveUserInbox`、T0909 面板塔台函式、目標選擇、最近已結、標題數字）；`electron/__tests__/tower-inbox-answer.test.ts`（權杖拒絕、參數 / 格式、契約 2 限定、prompt / draft 擋、reading 不擋、日誌不含文字、`notify-hold-*` 共用 handler、proxied 且不在 `HELPER_CHANNEL_ROLES`）；`src/components/__tests__/inbox-w5.test.tsx`（三區畫面與送出、複製不送出、兩個塔台選擇、面板塔台與草稿、`user_inbox: off`、不符時不顯示、`⏸N`、detached `awaiting`、三語系、面板 source guard）。
+- 待實機：真 claude / codex 塔台收到回答後 CT 6.1.0 的解析與移除（W8）；遠端（WSL）塔台的回答與「📨 待送」（T0902 T-7）。

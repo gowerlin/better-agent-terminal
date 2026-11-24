@@ -38,7 +38,7 @@ import { DOCKABLE_PANELS, DEFAULT_DOCKING_CONFIG, normalizeDockingConfig } from 
 import { AppNotificationDialog } from './components/AppNotificationDialog'
 import { DetachedWaitingReporter, WaitingTotalBadge } from './components/WorkspaceWaitingBadge'
 import { InboxPanel, InboxTabBadge } from './components/InboxPanel'
-import { InboxDataSource } from './components/inbox/InboxDataSource'
+import { InboxDataSource, InboxStateSources } from './components/inbox/InboxDataSource'
 import { OPEN_DOCK_PANEL_EVENT } from './stores/inbox-store'
 
 // Lazy-loaded panel components for sidebar docking
@@ -1211,6 +1211,8 @@ export default function App() {
   return (
     <div className="app">
       <InboxDataSource folder={activeFolderPath} />
+      {/* PLAN-068 W5 / T0908: the other workspaces with a contract-2 Tower — `_tower-state.md` only (⏸N) */}
+      <InboxStateSources activeFolder={activeFolderPath} excludeIds={detachedIds} />
       {/* Left sidebar collapsed bar — always rendered, hidden when expanded */}
       <div className="left-sidebar-collapsed" style={{ display: panelSettings.sidebar.collapsed ? undefined : 'none' }}>
         <button className="left-sidebar-collapsed-btn" onClick={() => { setLeftPanelTab('workspaces'); handleSidebarCollapse(); }} title={t('sidebar.expandSidebar')}>

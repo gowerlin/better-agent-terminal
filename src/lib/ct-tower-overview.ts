@@ -13,6 +13,7 @@
 import yaml from 'js-yaml'
 import { extractFrontmatterBlock } from '../utils/ct-frontmatter'
 import type { WorkOrderStatus } from '../types/control-tower'
+import { parseTowerInboxLists, type TowerInboxLists } from './tower-inbox'
 
 // ─── Tower state summary ────────────────────────────────────────────────────
 
@@ -152,6 +153,42 @@ export function parseTowerState(content: string): TowerStateParse {
  */
 export function towerStateBatContract(parsed: TowerStateParse | null | undefined): number | null {
   return parsed?.kind === 'summary' && typeof parsed.summary.batContract === 'number' ? parsed.summary.batContract : null
+}
+
+/**
+ * PLAN-068 W5 / T0908: the contract v2 lists of a `_tower-state.md` (`parseTowerInboxLists`,
+ * src/lib/tower-inbox.ts). Same acceptance as `parseTowerState` (a `tower-state` frontmatter with
+ * `summary_version` ≥ 1); anything else → null. Never throws.
+ */
+export function parseTowerStateInbox(content: string): TowerInboxLists | null {
+  const text = content.charCodeAt(0) === 0xfeff ? content.slice(1) : content
+  const { raw } = extractFrontmatterBlock(text)
+  if (raw == null) return null
+  let data: unknown
+  try {
+    data = yaml.load(raw, { schema: yaml.CORE_SCHEMA })
+  } catch {
+    return null
+  }
+  if (data == null || typeof data !== 'object' || Array.isArray(data)) return null
+  const fm = data as Record<string, unknown>
+  const version = fm.summary_version
+  if (fm.schema_kind !== 'tower-state' || typeof version !== 'number' || !Number.isInteger(version) || version < 1) return null
+  return parseTowerInboxLists(fm)
+}
+
+/**
+ * T0908: CT's `user_inbox` (T0902 §6′: `off` = CT writes neither `awaiting_user` nor `user_actions`).
+ * Values of the config layers (`parseTowerConfigYaml`), highest first; the first one set decides.
+ * `off` / `false` / `no` → off; anything else, or nothing set → on.
+ */
+export function effectiveUserInbox(...layers: Array<ReadonlyMap<string, string> | null | undefined>): 'on' | 'off' {
+  for (const layer of layers) {
+    const value = layer?.get('user_inbox')
+    if (value === undefined) continue
+    return /^(off|false|no)$/i.test(value.trim()) ? 'off' : 'on'
+  }
+  return 'on'
 }
 
 /** What was last logged about one workspace's `_tower-state.md` summary error (memory only). */

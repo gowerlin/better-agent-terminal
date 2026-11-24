@@ -2,8 +2,9 @@
  * PLAN-068 W4 / T0906: the right sidebar「待辦」(Inbox) tab — skeleton and version gate (T0902 §1 / §6′).
  *
  * Fixed sections: ⏸ 待你決定 · 🙋 待你執行 · ⏰ 到期提醒 · 👷 Worker 等你 · 💬 塔台訊息 · 📋 塔台待辦 · 📊 counts.
- * W4 fills what BAT already has (pending-verify BUGs in 🙋, Worker waits, CT `todo`, counts); the CT
- * contract v2 lists (W5) and turn cards (W6) are empty sections with the same interface.
+ * W4 fills what BAT already has (pending-verify BUGs in 🙋, Worker waits, CT `todo`, counts); W5
+ * (T0908) the CT contract v2 lists and the answers (src/components/inbox/InboxLists.tsx); turn cards
+ * (W6) are an empty section with the same interface.
  *
  * 🔴 Gated as a whole (D328 R9′, T0906 Q-2): unless the selected Tower matches (§6′), only the Tower
  * picker and the hint (P-1 / P-2 / P-3) are shown. Read-only: data comes from `InboxDataSource` (the
@@ -14,6 +15,7 @@ import { useTranslation } from 'react-i18next'
 import { useInboxModel } from './inbox/useInboxModel'
 import { InboxSection } from './inbox/InboxSection'
 import { loadInboxFiles } from './inbox/InboxDataSource'
+import { ActionList, AwaitingList, RecentlyClosedList, ReminderList } from './inbox/InboxLists'
 import { requestControlTowerTab, setInboxFiles, setSelectedInboxTower } from '../stores/inbox-store'
 import { workspaceStore } from '../stores/workspace-store'
 import { OPEN_INTERRUPTED_AGENTS_EVENT } from '../stores/interrupted-agents-store'
@@ -72,7 +74,7 @@ export function InboxPanel({ workspaceId, workspaceFolderPath }: Readonly<InboxP
     if (!workspaceFolderPath) return
     const folder = workspaceFolderPath
     void window.electronAPI.fs.resetWatch?.(`${folder}/_ct-workorders`)?.catch?.(() => false)
-    void loadInboxFiles(folder).then(next => setInboxFiles(folder, next))
+    void loadInboxFiles(folder, { reloadGlobal: true }).then(next => setInboxFiles(folder, next))
   }, [workspaceFolderPath])
 
   if (!workspaceId || !workspaceFolderPath) {
@@ -131,6 +133,16 @@ export function InboxPanel({ workspaceId, workspaceFolderPath }: Readonly<InboxP
     )
   }
 
+  // T0908: `user_inbox: off` → CT writes neither list; the two sections say so (§6′)
+  const inboxOff = model.userInbox === 'off'
+  const awaiting = inboxOff ? [] : model.awaiting
+  const actions = inboxOff ? [] : model.actions
+
+  // §3.3: malformed items are skipped and counted (shown even when nothing else is listed)
+  const skippedLine = (count: number) => count > 0
+    ? <div className="inbox-muted" data-inbox-skipped={count}>{t('inbox.skipped', { count })}</div>
+    : null
+
   const workerLine = (item: WorkerWaitItem) => {
     switch (item.kind) {
       case 'waiting':
@@ -146,9 +158,15 @@ export function InboxPanel({ workspaceId, workspaceFolderPath }: Readonly<InboxP
     <div className="inbox-panel">
       {header}
       <div className="inbox-body">
-        <InboxSection id="decide" title={t('inbox.section.decide')} count={0} folded={folded.decide} onToggle={toggle} />
+        {inboxOff && <div className="inbox-muted inbox-off" data-inbox-off="">{t('inbox.userInboxOff')}</div>}
 
-        <InboxSection id="act" title={t('inbox.section.act')} count={model.pendingBugs.length} folded={folded.act} onToggle={toggle}>
+        <InboxSection id="decide" title={t('inbox.section.decide')} count={awaiting.length} folded={folded.decide} onToggle={toggle}>
+          <AwaitingList items={awaiting} skipped={model.skipped.awaiting} targets={model.answerTargets} />
+        </InboxSection>
+        {!inboxOff && awaiting.length === 0 && skippedLine(model.skipped.awaiting)}
+
+        <InboxSection id="act" title={t('inbox.section.act')} count={actions.length + model.pendingBugs.length} folded={folded.act} onToggle={toggle}>
+          {actions.length > 0 && <ActionList items={actions} skipped={model.skipped.actions} targets={model.answerTargets} />}
           <ul className="inbox-list">
             {model.pendingBugs.map(bug => (
               <li key={bug.id} className="inbox-item" data-inbox-bug={bug.id}>
@@ -162,7 +180,14 @@ export function InboxPanel({ workspaceId, workspaceFolderPath }: Readonly<InboxP
           </ul>
         </InboxSection>
 
-        <InboxSection id="remind" title={t('inbox.section.remind')} count={0} folded={folded.remind} onToggle={toggle} />
+        {!inboxOff && actions.length === 0 && skippedLine(model.skipped.actions)}
+
+        <RecentlyClosedList items={model.recentlyClosed} />
+
+        <InboxSection id="remind" title={t('inbox.section.remind')} count={model.reminders.length} folded={folded.remind} onToggle={toggle}>
+          <ReminderList items={model.reminders} skipped={model.skipped.reminders} />
+        </InboxSection>
+        {model.reminders.length === 0 && skippedLine(model.skipped.reminders)}
 
         <InboxSection id="workers" title={t('inbox.section.workers')} count={model.workerItems.length} folded={folded.workers} onToggle={toggle}>
           <ul className="inbox-list">

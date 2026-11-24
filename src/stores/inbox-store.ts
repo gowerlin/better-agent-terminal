@@ -15,6 +15,8 @@ import type { BugEntry } from '../types/bug-tracker'
 import type { BacklogEntry } from '../types/backlog'
 import type { WorkOrderStatus } from '../types/control-tower'
 import type { TowerStateParse } from '../lib/ct-tower-overview'
+import type { TowerInboxLists } from '../lib/tower-inbox'
+import { nextRecentlyClosed, type RecentlyClosed } from '../lib/inbox-model'
 
 /** `_tower-state.md` as the loader read it. */
 export type InboxStateLoad =
@@ -32,6 +34,15 @@ export interface InboxFiles {
   orderStatuses: WorkOrderStatus[]
   /** Files that exist but could not be read (relative names), shown as a muted line. */
   readErrors: string[]
+  /**
+   * PLAN-068 W5 / T0908: the contract v2 lists of `_tower-state.md` (`awaiting_user` / `user_actions`
+   * / `reminders`); null / absent = no usable summary.
+   */
+  lists?: TowerInboxLists | null
+  /** T0908: open work orders whose frontmatter `waiting_user` names a pending decision. */
+  waitingOrders?: Array<{ orderId: string; userId: string }>
+  /** T0908: CT `user_inbox` (project `_tower-config.yaml`, then the global layer); absent = `on`. */
+  userInbox?: 'on' | 'off'
 }
 
 export const EMPTY_INBOX_FILES: InboxFiles = Object.freeze({
@@ -46,6 +57,13 @@ export const EMPTY_INBOX_FILES: InboxFiles = Object.freeze({
 type Listener = () => void
 
 const files = new Map<string, InboxFiles>()
+/** T0908: per folder, the last items that left `awaiting_user` / `user_actions` (newest first, ≤ 10). */
+const recentlyClosed = new Map<string, RecentlyClosed[]>()
+/**
+ * T0908: per folder, only `_tower-state.md` (`bat_contract` + lists) of a workspace that is not the one
+ * a window shows — the workspace list's `⏸N` (`InboxStateSource`).
+ */
+const stateOnly = new Map<string, { batContract: number | null; lists: TowerInboxLists | null }>()
 const selectedTowers = new Map<string, string>()
 const listeners = new Set<Listener>()
 let version = 0
@@ -61,8 +79,50 @@ function subscribe(listener: Listener): () => void {
 }
 
 export function setInboxFiles(folder: string, next: InboxFiles): void {
+  const prev = files.get(folder)
+  // T0908: an item gone from a list that was read both times is closed (CT removes it on the answer)
+  if (prev?.lists && next.lists) {
+    const closed = nextRecentlyClosed(recentlyClosed.get(folder) ?? [], prev.lists, next.lists, Date.now())
+    if (closed !== recentlyClosed.get(folder)) recentlyClosed.set(folder, closed)
+  }
   files.set(folder, next)
   notify()
+}
+
+const NO_CLOSED: readonly RecentlyClosed[] = Object.freeze([])
+
+/** T0908: the recently closed items of `folder` (memory only, this run). */
+export function getRecentlyClosed(folder: string | null | undefined): readonly RecentlyClosed[] {
+  return (folder && recentlyClosed.get(folder)) || NO_CLOSED
+}
+
+export function useRecentlyClosed(folder: string | null | undefined): readonly RecentlyClosed[] {
+  return useSyncExternalStore(subscribe, () => getRecentlyClosed(folder), () => NO_CLOSED)
+}
+
+/** T0908: `_tower-state.md` only, for a workspace no window shows (null clears it). */
+export function setInboxStateOnly(folder: string, value: { batContract: number | null; lists: TowerInboxLists | null } | null): void {
+  if (value === null) {
+    if (stateOnly.delete(folder)) notify()
+    return
+  }
+  stateOnly.set(folder, value)
+  notify()
+}
+
+/**
+ * T0908: `bat_contract` and the lists of `folder` — the full copy when a window loads it, else the
+ * state-only copy; null = nothing read.
+ */
+export function getInboxStateLists(folder: string | null | undefined): { batContract: number | null; lists: TowerInboxLists | null } | null {
+  if (!folder) return null
+  const full = files.get(folder)
+  if (full && full.hasCtDir !== null) {
+    const parsed = full.state?.status === 'loaded' ? full.state.parsed : null
+    const batContract = parsed?.kind === 'summary' && typeof parsed.summary.batContract === 'number' ? parsed.summary.batContract : null
+    return { batContract, lists: full.lists ?? null }
+  }
+  return stateOnly.get(folder) ?? null
 }
 
 export function getInboxFiles(folder: string | null | undefined): InboxFiles {
@@ -125,6 +185,8 @@ export function takeControlTowerTabRequest(): ControlTowerTabRequest | null {
 /** Tests only. */
 export function resetInboxStore(): void {
   files.clear()
+  recentlyClosed.clear()
+  stateOnly.clear()
   selectedTowers.clear()
   pendingControlTowerTab = null
   notify()

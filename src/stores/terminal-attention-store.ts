@@ -264,7 +264,8 @@ export function createReconnectAttentionReconciler(deps: ReconnectAttentionDeps)
  */
 export function setDetachedWaiting(workspaceId: string, report: DetachedWaitingReport | null): void {
   if (typeof workspaceId !== 'string' || !workspaceId) return
-  if (isEmptyDetachedWaitingReport(report)) {
+  // T0908: a report with only ⏸N (`awaiting`) is kept too (the workspace list shows it)
+  if (isEmptyDetachedWaitingReport(report) && !(report?.awaiting && report.awaiting > 0)) {
     if (detachedWaiting.delete(workspaceId)) notify()
     return
   }

@@ -17,6 +17,8 @@ import { missedWaitToShow, waitingForUser, workerAttention, type MissedWait, typ
 import { appendPreviewInput, outputPreview, textPreview } from '../lib/thumbnail-preview'
 import { cancelNotifyHold, sendNowNotifyHold, useNotifyHold, useNotifyHoldReason } from '../stores/notify-hold-store'
 import { towerContractBadge, towerContractHint, useTowerContract } from '../stores/tower-contract-store'
+import { InboxAwaitingBadge } from './inbox/InboxAwaitingBadge'
+import { workspaceStore } from '../stores/workspace-store'
 import { NOTIFY_HOLD_SKIPPABLE_REASONS, type NotifyHoldItem, type NotifyHoldReason } from '../types/notify-hold'
 
 /** PLAN-044 / T0566: `15:05`-style local clock time of an epoch. */
@@ -396,6 +398,13 @@ export const TerminalThumbnail = memo(function TerminalThumbnail({ terminal, isA
             >
               📨 {t('notifyHold.badge', { count: heldNotifications.length })}
             </span>
+          )}
+          {towerContract?.status === 'match' && (
+            // PLAN-068 W5 / T0908: ⏸N — the workspace's pending decisions (only on a contract-2 Tower)
+            <InboxAwaitingBadge
+              workspaceId={terminal.workspaceId}
+              folderPath={workspaceStore.getState().workspaces.find(ws => ws.id === terminal.workspaceId)?.folderPath}
+            />
           )}
           {contractBadge && contractHint && (
             <span

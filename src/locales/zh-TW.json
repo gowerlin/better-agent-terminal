@@ -1796,6 +1796,54 @@
       "bugs": "BUG 未結 {{count}}",
       "plans": "PLAN 進行中 {{count}}",
       "orders": "工單 {{count}}"
+    },
+    "userInboxOff": "這個專案的塔台已關閉待辦寫入（user_inbox: off）：待你決定與待你執行不會有 CT 寫的項目。待驗收 BUG、Worker 等你與塔台訊息照常。",
+    "skipped": "有 {{count}} 筆格式不符，已略過。",
+    "more": "另有 {{count}} 筆（只顯示前 50 筆）。",
+    "paused": "⏸ {{orders}} 暫停中",
+    "recentlyClosed": "最近已結（{{count}}）",
+    "awaitingBadge": "待你決定 {{count}} 件（塔台的待辦分頁）",
+    "source": {
+      "breakpoint-A": "斷點 A",
+      "breakpoint-B-1": "斷點 B-1",
+      "breakpoint-B-2": "斷點 B-2",
+      "breakpoint-C": "斷點 C",
+      "breakpoint-E": "斷點 E",
+      "worker-question": "Worker 提問",
+      "tower-question": "塔台提問"
+    },
+    "actionKind": {
+      "verify": "驗收",
+      "run": "執行",
+      "manual": "手動"
+    },
+    "answer": {
+      "send": "送出",
+      "sending": "送出中…",
+      "sent": "已送出到塔台。",
+      "held": "已排入塔台的待送佇列（📨）：塔台在等你回答對話框或輸入框有你的文字，處理後自動送出。",
+      "draft": "Claude 面板的輸入框有未送出的文字或附件：請先送出或清除，再按一次。",
+      "not-mounted": "找不到這個 Claude 面板：請先在這個視窗開啟該分頁，再按一次。",
+      "no-target": "這個工作區沒有可接收回答的塔台（需要已宣告契約 v2 的塔台分頁，或面板塔台）。也可以直接在塔台輸入這一行。",
+      "failed": "沒有送出（{{reason}}）。",
+      "chooseTarget": "送到哪個塔台？",
+      "panelTarget": "{{title}}（Claude 面板）",
+      "optionsInvalid": "選項格式不是「代號 說明」，請自由回答。",
+      "freePlaceholder": "回答（一行）"
+    },
+    "action": {
+      "copy": "複製指令",
+      "copied": "已複製",
+      "commandNote": "BAT 不會執行這個指令，請自己在適當的地方執行。",
+      "done": "完成",
+      "failed": "失敗…",
+      "failedPlaceholder": "失敗說明（一行，可留空）"
+    },
+    "remind": {
+      "overdue": "逾期 {{count}} 天",
+      "today": "今天到期",
+      "dueIn": "{{count}} 天後到期",
+      "last": "（上次 {{at}}）"
     }
   },
   "towerContract": {

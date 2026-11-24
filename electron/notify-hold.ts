@@ -55,6 +55,11 @@
  *     their Enter is the user's input (`userInput` on the keypress → the window writes `{ submit }`).
  *   - the T0788 reasons hold every tab, as before; 8 items per tab and no expiry still apply.
  *
+ * PLAN-068 W5 / T0908: the windows' channels are registered here for both hosts and proxied
+ * (`registerNotifyHoldHandlers`: `terminal:notify-hold-list` / `-cancel` / `-send-now`;
+ * `registerTowerInboxAnswerHandler`: `tower-inbox:answer`), so a remote window sees and drives its
+ * bat-server's queue. 🔴 None of them is a helper channel.
+ *
  * Only reads `TerminalBlockedTracker` (through PtyManager); never changes how it decides.
  * Details: docs/agent-guide/notify-hold.md, docs/agent-guide/tower-inbox.md.
  *
@@ -65,8 +70,10 @@ import type {
   NotifyHoldItem,
   NotifyHoldReason,
   NotifyHoldReminderEvent,
+  TowerInboxAnswerResult,
 } from '../src/types/notify-hold'
 import { towerContractStatus } from '../src/lib/tower-contract'
+import { checkInboxAnswer, INBOX_ANSWER_PREFIX } from '../src/lib/tower-inbox'
 import { NO_DRAFT, trackDraft, type DraftState } from '../src/lib/tower-input-draft'
 import type { BlockedDetection, BlockedState } from './terminal-blocked-state'
 import type { HandlerContext } from './remote/handler-registry'
@@ -879,4 +886,82 @@ export class NotifyHoldController {
 
 function workorderOf(source: unknown): string | undefined {
   return typeof source === 'string' && WORKORDER_PATTERN.test(source) ? source : undefined
+}
+
+// ─── PLAN-068 W5 / T0908: the windows' channels (Electron main and headless alike; proxied) ───
+
+type RegisterHandler = (channel: string, handler: (ctx: HandlerContext, ...args: unknown[]) => unknown) => void
+
+export const TOWER_INBOX_ANSWER_CHANNEL = 'tower-inbox:answer'
+
+/**
+ * T0908 (T0902 §2.4 / §5, R7): `tower-inbox:answer { terminalId, text }` — the Inbox tab's answer
+ * line into a contract-2 Tower tab, through `enqueueAnswer` (held by a prompt / `draft`, not by
+ * `reading`; its Enter is the user's input). Local window: Electron main; remote window: proxied to
+ * the bat-server running the tab. 🔴 Not in `HELPER_CHANNEL_ROLES`, and a helper capability is refused
+ * here too (`FORBIDDEN`): no agent can answer for the user. The text must pass `checkInboxAnswer`
+ * (one line, ≤ 1,000 chars, `^[UA]-\d+[：:]` + text). Logs ids and lengths only, never the text.
+ */
+export function registerTowerInboxAnswerHandler(opts: {
+  registerHandler: RegisterHandler
+  getNotifyHold: () => Pick<NotifyHoldController, 'enqueueAnswer'> | null
+  logger: { log(message: string): void }
+}): void {
+  // literal channel name: the IPC binding guard scans for it (proxied-channels-binding.test.ts)
+  opts.registerHandler('tower-inbox:answer', (ctx: HandlerContext, raw?: unknown): TowerInboxAnswerResult => {
+    if (ctx?.helper) {
+      opts.logger.log(`[tower-inbox] answer refused: helper capability terminal=${ctx.helper.terminalId}`)
+      return { ok: false, reason: 'FORBIDDEN' }
+    }
+    const args = raw && typeof raw === 'object' && !Array.isArray(raw) ? raw as Record<string, unknown> : null
+    const terminalId = args?.terminalId
+    if (!args || typeof terminalId !== 'string' || !terminalId || terminalId.length > 256) return { ok: false, reason: 'INVALID_ARGS' }
+    const check = checkInboxAnswer(args.text)
+    if (check !== 'ok') {
+      opts.logger.log(`[tower-inbox] answer rejected terminal=${terminalId} check=${check} len=${typeof args.text === 'string' ? args.text.length : 0}`)
+      return { ok: false, reason: 'invalid' }
+    }
+    const text = args.text as string
+    const controller = opts.getNotifyHold()
+    if (!controller) return { ok: false, reason: 'unavailable' }
+    const result = controller.enqueueAnswer(terminalId, text, { connectionId: ctx?.connectionId ?? null })
+    const id = INBOX_ANSWER_PREFIX.exec(text)?.[0].slice(0, -1) ?? '?'
+    opts.logger.log(`[tower-inbox] answer terminal=${terminalId} id=${id} len=${text.length} → ${result.ok ? (result.held ? 'held' : 'sending') : result.reason}`)
+    return result
+  })
+}
+
+/**
+ * T0908 (T0904 follow-up 1): `terminal:notify-hold-list` / `-cancel` / `-send-now` — the windows'
+ * "📨 待送" list, cancel and「立即送出」. Registered on both hosts (was Electron-local IPC until T0908),
+ * so a remote profile window reaches its bat-server's queue; the events `terminal:notify-hold-changed`
+ * / `-reminder` go to the connected clients too (PROXIED_EVENTS). Answers keep their T0788 shapes (a
+ * list / a number). 🔴 Not in `HELPER_CHANNEL_ROLES`; a helper capability gets `[]` / `0`.
+ */
+export function registerNotifyHoldHandlers(opts: {
+  registerHandler: RegisterHandler
+  getNotifyHold: () => Pick<NotifyHoldController, 'list' | 'cancel' | 'sendNow'> | null
+  logger: { log(message: string): void }
+}): void {
+  const refused = (ctx: HandlerContext, channel: string): boolean => {
+    if (!ctx?.helper) return false
+    opts.logger.log(`[notify-hold] ${channel} refused: helper capability terminal=${ctx.helper.terminalId}`)
+    return true
+  }
+  opts.registerHandler('terminal:notify-hold-list', (ctx: HandlerContext) => {
+    if (refused(ctx, 'terminal:notify-hold-list')) return []
+    return opts.getNotifyHold()?.list() ?? []
+  })
+  opts.registerHandler('terminal:notify-hold-cancel', (ctx: HandlerContext, terminalId?: unknown, holdId?: unknown) => {
+    if (refused(ctx, 'terminal:notify-hold-cancel')) return 0
+    const controller = opts.getNotifyHold()
+    if (typeof terminalId !== 'string' || !controller) return 0
+    return controller.cancel(terminalId, typeof holdId === 'string' ? holdId : undefined)
+  })
+  opts.registerHandler('terminal:notify-hold-send-now', (ctx: HandlerContext, terminalId?: unknown, holdId?: unknown) => {
+    if (refused(ctx, 'terminal:notify-hold-send-now')) return 0
+    const controller = opts.getNotifyHold()
+    if (typeof terminalId !== 'string' || !controller) return 0
+    return controller.sendNow(terminalId, typeof holdId === 'string' ? holdId : undefined)
+  })
 }
