@@ -15,9 +15,15 @@ export interface InboxSectionProps {
   folded: boolean
   onToggle: (id: InboxSectionId) => void
   children?: ReactNode
+  /** W6 / T0909: text instead of `(count)` (e.g.「3 未讀」). */
+  countLabel?: string
+  /** W6 / T0909: buttons beside the title (not inside the fold toggle). */
+  actions?: ReactNode
+  /** W6 / T0909: a line shown under the title even when the section is empty (codex / G7 notes). */
+  note?: ReactNode
 }
 
-export function InboxSection({ id, title, count, folded, onToggle, children }: InboxSectionProps) {
+export function InboxSection({ id, title, count, folded, onToggle, children, countLabel, actions, note }: InboxSectionProps) {
   const { t } = useTranslation()
   if (count === 0) {
     return (
@@ -25,20 +31,25 @@ export function InboxSection({ id, title, count, folded, onToggle, children }: I
         <div className="inbox-section-title">
           <span>{title}</span> <span className="inbox-section-none">{t('inbox.none')}</span>
         </div>
+        {note}
       </section>
     )
   }
   return (
     <section className={`inbox-section${folded ? ' folded' : ''}`} data-inbox-section={id}>
-      <button
-        type="button"
-        className="inbox-section-title inbox-section-toggle"
-        aria-expanded={!folded}
-        onClick={() => onToggle(id)}
-      >
-        <span>{title}</span> <span className="inbox-section-count">({count})</span>
-        <span className="inbox-section-caret">{folded ? '▸' : '▾'}</span>
-      </button>
+      <div className="inbox-section-head">
+        <button
+          type="button"
+          className="inbox-section-title inbox-section-toggle"
+          aria-expanded={!folded}
+          onClick={() => onToggle(id)}
+        >
+          <span>{title}</span> <span className="inbox-section-count">{countLabel ?? `(${count})`}</span>
+          <span className="inbox-section-caret">{folded ? '▸' : '▾'}</span>
+        </button>
+        {actions && <span className="inbox-section-actions">{actions}</span>}
+      </div>
+      {note}
       {!folded && <div className="inbox-section-body">{children}</div>}
     </section>
   )

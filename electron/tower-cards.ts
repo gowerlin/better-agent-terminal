@@ -29,7 +29,8 @@
  * - Logs (`[tower-cards] …`) carry the terminal id, lengths and counts — never a message.
  *
  * Channels (`registerTowerCardHandlers`, Electron main and headless alike; proxied): `tower-cards:list`,
- * `tower-cards:mark-read`, `tower-cards:pin`, `tower-cards:clear`; event `tower-cards:changed`.
+ * `tower-cards:mark-read`, `tower-cards:pin`, `tower-cards:clear`, `tower-cards:set-panel-tower` (W6 /
+ * T0909: the window's panel Tower decision); event `tower-cards:changed`.
  * 🔴 None of them is in `HELPER_CHANNEL_ROLES`, and each handler also refuses a helper capability
  * (`FORBIDDEN`): an agent can neither read the cards nor mark / pin / clear them.
  *
@@ -470,5 +471,19 @@ export function registerTowerCardHandlers(opts: {
       cardIds = normalized
     }
     return opts.getStore()?.clear(args.terminalId, { ...(cardIds ? { cardIds } : {}), ...(args.includePinned === true ? { includePinned: true } : {}) }) ?? { ok: true, changed: 0 }
+  })
+
+  // PLAN-068 W6 / T0909 (T0909 Q-1 A): the window says whether Claude Agent panel `terminalId` is a
+  // panel Tower (`panelTowerTerminalIds`, src/lib/inbox-model.ts: the workspace's `_tower-state.md`
+  // `bat_contract` is 2 and it has no declared Tower tab). `changed` = 1 when the state flipped.
+  opts.registerHandler('tower-cards:set-panel-tower', (ctx: HandlerContext, raw?: unknown): TowerCardsOpResult => {
+    if (refuse(ctx, 'tower-cards:set-panel-tower')) return failure('FORBIDDEN')
+    const args = argsObject(raw)
+    if (!args || !validId(args.terminalId) || typeof args.tower !== 'boolean') return failure('INVALID_ARGS')
+    const store = opts.getStore()
+    if (!store) return { ok: true, changed: 0 }
+    const was = store.isPanelTower(args.terminalId)
+    store.setPanelTower(args.terminalId, args.tower)
+    return { ok: true, changed: was === store.isPanelTower(args.terminalId) ? 0 : 1 }
   })
 }

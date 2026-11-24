@@ -10,8 +10,9 @@
 > | 右側欄「待辦」分頁 | W4 / T0906 | 「右側欄「待辦」分頁（PLAN-068 W4 / T0906）」 |
 > | 通知保護 | W1＋W2 / T0904 | 「塔台等使用者回答時保留 Worker 通知（T0788 / BUG-196，D227）」 |
 > | 回合訊息卡：資料層 | W3 / T0905 | 「塔台回合訊息卡（PLAN-068 W3 / T0905）」（本節是該小節的完整內容） |
+> | 回合訊息卡：UI 與面板塔台 | W6 / T0909 | 「塔台回合訊息卡 UI（PLAN-068 W6 / T0909）」（本節是該小節的完整內容） |
 >
-> 改這些功能時兩邊一起更新。待你決定 / 待你執行 / 到期提醒的 CT 欄位與回答 UI（W5）、回合訊息卡 UI（W6）、hook 註冊（W9）完成時各自補節。
+> 改這些功能時兩邊一起更新。待你決定 / 待你執行 / 到期提醒的 CT 欄位與回答 UI（W5）、hook 註冊（W9）完成時各自補節。
 
 ## 版本判定（R9′ / §6′）
 
@@ -21,6 +22,7 @@
 
 - 唯一實作 `towerContractStatus(role, towerContract) === 'match'`（`src/lib/tower-contract.ts`，W0 / T0903）。主行程讀 `PtyManager.getTerminalRole` / `getTowerContract`，renderer 讀 `tower-contract-store`（`terminal:role-changed` 的 `towerContract`）。
 - Claude Agent 面板塔台沒有 helper 權杖、不能 `--set-role`，改以 `_tower-state.md` 的 `bat_contract` 判定：`stateFileContractStatus`（`src/lib/inbox-model.ts`，W4）；回合訊息卡由呼叫端以 `setPanelTower` 宣告（見「回合訊息卡：資料層」節）。
+- **哪些面板算面板塔台**（T0909 Q-1，塔台答覆 A；W5 的面板回答路徑用同一個定義）：工作區的 `_tower-state.md` `bat_contract` = 2、**而且**這個工作區沒有任何已宣告（`--set-role tower`，不論契約）的塔台分頁時，這個工作區所有 Claude Agent 面板分頁（`agentPreset` = `claude-code` / `claude-code-worktree`，`CLAUDE_PANEL_PRESETS`；codex 面板不算）都是面板塔台；有已宣告塔台分頁、狀態檔不是 2、或讀不到 / 還沒讀過狀態檔時一律不是。唯一實作 `workspaceHasPanelTowers` / `panelTowerTerminalIds`（`src/lib/inbox-model.ts`）。
 
 | 分頁 | B0（W1） | `draft` / `reading` / 原子送出 / 回答（W2） | 回合訊息卡（W3） | T0788 對話框保留 |
 |---|---|---|---|---|
@@ -100,7 +102,7 @@ W4 做分頁骨架、版本判定（上一節「工作區層」）與 BAT 既有
 | 🙋 待你執行 | `_bug-tracker.md` 的 `FIXED` / `VERIFY`（不含封存），「開啟」→ 指揮塔 Bugs 頁 | W5：`user_actions` |
 | ⏰ 到期提醒 | 空 | W5：`reminders` |
 | 👷 Worker 等你 | 這個工作區的分頁：⚠️ 等使用者（`waitingForUser`，最久的在前）、📨 待送（T0788 `notify-hold-store`，原因見「通知保護」節的〈「📨 待送」與「立即送出」〉）、⏸ 被中斷（T0766）；`?` / `✓` / `↻` 不列。⚠️ / 📨 →「切到分頁」，⏸ →「恢復…」（開被中斷對話框） | — |
-| 💬 塔台訊息 | 空 | W6：回合訊息卡（資料層見「回合訊息卡：資料層」節，W3） |
+| 💬 塔台訊息 | 空 | W6：回合訊息卡（見「回合訊息卡：UI 與面板塔台」節；資料層 W3） |
 | 📋 塔台待辦 | CT `todo` 全部；超過 160 字或多行的項目摺疊成第一行，可展開；預設摺疊 | — |
 | 📊 數量列 | BUG 未結（`OPEN` / `FIXING`）· PLAN 進行中（`IN_PROGRESS`）· 工單（`workOrderPhase` = open），各自連到指揮塔的 Bugs / Backlog / 工單頁 | — |
 
@@ -254,7 +256,7 @@ host：`setReading(id, reporter, reading)`，`reporter` = `conn:<connectionId>` 
 | 規則 | 內容 |
 |---|---|
 | 誰的訊息會留下 | 只有 `towerContractStatus(role, towerContract) === 'match'`（已宣告塔台＋`--bat-contract 2`）。其他分頁（Worker、一般 claude、沒宣告契約或契約不是 2 的塔台）收到即丟，不存內容；每個分頁只記一行 `dropped: not a contract-2 Tower (length=<n>…)`。判定在收件當下做：塔台之後改宣告，已有的卡片留到 PTY 結束，新的不收 |
-| 面板塔台 | 面板沒有 `--set-role`，由呼叫端 `setPanelTower(id, true)` 宣告（§6′：面板以 `_tower-state.md` 的 `bat_contract` 判定，renderer 讀檔，判定函式是 W4 的 `stateFileContractStatus`）。**目前沒有任何地方呼叫它**（接線在 W6），所以面板目前不產生卡片；`setPanelTower(id, false)` 清掉該面板的卡片 |
+| 面板塔台 | 面板沒有 `--set-role`，由呼叫端 `setPanelTower(id, true)` 宣告（§6′：面板以 `_tower-state.md` 的 `bat_contract` 判定，renderer 讀檔）。W6 起由視窗經 `tower-cards:set-panel-tower` 呼叫（定義見「版本判定」節，接線見「回合訊息卡：UI 與面板塔台」節）；`setPanelTower(id, false)` 清掉該面板的卡片 |
 | 遮罩 | 收件即 `redactTerminalSecrets`（含 server token 字面值），日誌只記遮罩次數 |
 | 大小 | 遮罩後再截到 `TOWER_CARD_MAX_BYTES` = 16 KiB（UTF-8），`truncated` = hook 截過或 host 截過 |
 | 上限 | 每個分頁最近 `TOWER_CARDS_MAX` = 30 張未釘選（超過丟最舊的）；釘選另計，最多 `TOWER_CARDS_PINNED_MAX` = 10 張（第 11 張 → `PIN_LIMIT`）；取消釘選後算回 30 張內（可能擠掉最舊的未釘選卡） |
@@ -282,7 +284,7 @@ host：`setReading(id, reporter, reading)`，`reporter` = `conn:<connectionId>` 
 
 - `createTowerCardsSync({ api, terminalIds, onPtyExit?, onClientStatusChanged?, log? }).start()`：開始時抓一次視窗的分頁；`tower-cards:changed` 的 `revision` 比副本新 → 重抓該分頁；`pty:exit` 丟副本；遠端「未連線 → 已連線」時以 `tower-cards:list` 對帳（強制取代，比照 T0749），抓失敗保留原狀。
 - 讀取：`useTowerCards(id)`、`getTowerCards(id)`、`towerCardsUnread(id)`。已讀 / 釘選 / 清除直接呼叫 `window.electronAPI.towerCards`，結果由 host 的事件帶回，store 不自己改卡片。
-- 🔴 目前沒有接到 `App.tsx`（T0905 不在範圍）：W6 在 App 呼叫一次 `createTowerCardsSync(...).start()`；卡片區仍以分頁的契約狀態（`tower-contract-store`）決定要不要顯示。
+- W6（T0909）起 `App.tsx` 呼叫一次 `createTowerCardsSync(...).start()`（每個視窗各自一份）；卡片區與縮圖仍以分頁的契約狀態（`tower-contract-store`）或面板塔台判定決定要不要顯示。
 
 ### claude 版本（G7）
 
@@ -292,10 +294,72 @@ host：`setReading(id, reporter, reading)`，`reporter` = `conn:<connectionId>` 
 ### 已知限制
 
 - 卡片只在 host 記憶體，BAT 重開或 bat-server 重啟後沒有（T0902 §3，不重建 transcript）。
-- 面板塔台：判定函式 `stateFileContractStatus` 已由 W4 提供，`setPanelTower` 的呼叫端接線在 W6；W3 只提供介面與測試。
+- 面板塔台：W3 只提供介面與測試；呼叫端在 W6（`PanelTowerSync`）。
 - 實際訊息大小、多段文字 / 工具呼叫回合的內容未實測（T0902 待實機 T-4）；注入＋plugin 並存的去重未實機（T-10，plugin 由 W9 提供）。
 
 ### 驗證
 
 - 單元：`electron/__tests__/tower-cards.test.ts`（store、handlers、不在 helper 範圍）、`electron/__tests__/tower-cards-report-hook.test.ts`（report-hook 新欄位、origin 去重、onStop）、`electron/__tests__/tower-cards-panel-source.test.ts`（面板來源）、`scripts/__tests__/bat-hook-last-message.test.mjs`（hook 端、`BAT_HOOK_SET` 相等、整支腳本 exit 0 / stdout 空）、`electron/__tests__/terminal-blocked-state.test.ts`「T0905: Stop sends last_assistant_message …」（真腳本經 RemoteServer）、`src/stores/__tests__/tower-cards-store.test.ts`。
 - headless：`electron/remote/__tests__/headless-tower-cards-e2e.test.ts`（真 headless＋node-pty：塔台 PTY 內宣告契約 2 並回報、Worker 與未宣告契約的塔台被丟、塔台自己的權杖呼叫 `tower-cards:*` 被拒、視窗 list / mark-read、PTY 結束清空、事件不含文字）。
+
+## 回合訊息卡：UI 與面板塔台（W6 / T0909）
+
+只在「版本判定」節判定相符時運作：待辦分頁整個綁版本（不符時「💬」區不出現），縮圖 `💬N` 只算相符的塔台分頁與面板塔台。資料層見上一節（W3）。
+
+### 必守規則
+
+- 🔴 卡片內容一律純文字：只以 React 文字節點顯示，不以 HTML / Markdown 解譯（不得用 `dangerouslySetInnerHTML`）。
+- 🔴 未讀數只顯示在「💬」區標題與塔台縮圖 `💬N`，**不算進**待辦分頁標題的數字（`inboxActionCount` 不變；T0902 §1：僅告知不催人）；也不進工作區列表。
+- `⏸ 待你決定：` / `🙋 待你執行：` 開頭的行（前面可有空白、`- ` / `* ` / `> ` / `1. `；半形冒號也算）加亮，**只是提示**，不解析成資料（待你決定 / 待你執行的資料只來自 W5 的 frontmatter）。
+- 🔴 W3 的規則不變：只收契約 2 塔台、遮罩、上限、生命週期、只在記憶體；`tower-cards:*`（含 W6 新增的 `tower-cards:set-panel-tower`）都不在 `HELPER_CHANNEL_ROLES`，handler 另拒 `ctx.helper`。日誌不記卡片內容。
+
+### 唯一實作位置
+
+| 內容 | 位置 |
+|---|---|
+| 顯示用純函式（排序、加亮、預覽、摺疊、合併來源、codex 判斷、G7、縮圖數字） | `src/lib/tower-card-view.ts` |
+| 面板塔台定義 | `src/lib/inbox-model.ts`：`CLAUDE_PANEL_PRESETS`、`workspaceHasPanelTowers`、`panelTowerTerminalIds`（W5 共用） |
+| 面板塔台同步 | `src/stores/panel-tower-store.ts`（`createPanelTowerSync`、`isPanelTowerHere`）、`src/components/inbox/PanelTowerSync.tsx`（`decidePanelTowers`；App 的主視窗與 detached 視窗各掛一個） |
+| 「💬」區 | `src/components/inbox/TowerCardsSection.tsx`（`InboxPanel` 依選中的塔台給來源）；`InboxSection` 多 `countLabel` / `actions` / `note` |
+| 縮圖 `💬N` | `src/components/TerminalThumbnail.tsx`（點擊 → `requestOpenInbox`） |
+| 卡片同步接線 | `src/App.tsx`：`createTowerCardsSync(...).start()`（每個視窗一次） |
+| channel | `electron/tower-cards.ts` `registerTowerCardHandlers` 的 `tower-cards:set-panel-tower`；`PROXIED_CHANNELS`（`electron/remote/protocol.ts`）、`path-aware-channels.ts`、preload `towerCards.setPanelTower` |
+| agent（codex 判斷用） | `tower-contract-store` 的 entry 多 `agent`（`terminal:role-changed` 的 `agent`，否則 `ptyAgent`） |
+
+### 「💬」區顯示哪些卡片
+
+| 選中的塔台 | 來源 |
+|---|---|
+| 已宣告的塔台分頁（相符） | 只有它的卡片 |
+| 已宣告的 codex 塔台（`agent` / `ptyAgent` / 分頁 preset 以 `codex` 開頭） | 沒有卡片，固定一行說明（T0902 §4，三語系 `inbox.cards.codexNote`） |
+| 沒有已宣告塔台（以狀態檔判定相符） | 這個工作區所有面板塔台的卡片合併，每張標出來源分頁標題 |
+
+- 排序：釘選的在最上面，各自新 → 舊。
+- 卡片收合時：● 未讀、📌、時間（`HH:MM`，host 時鐘）、第一行預覽（120 字），下方列出加亮行；展開 = 已讀（`tower-cards:mark-read` 該張），顯示全文，超過 24 行或 2,400 字先顯示開頭＋「顯示全部」。host 截斷過（`truncated`）的卡片顯示「（內容過長，已截斷）」。
+- 📌 釘選 / 取消釘選；第 11 張時 host 回 `PIN_LIMIT`，區內顯示「最多只能釘選 10 張」。
+- 區標題：有未讀時「N 未讀」，否則「N 張」；按鈕「全部已讀」（每個來源 `mark-read` 全部）、「清除」（每個來源 `clear`，只清未釘選）。沒有卡片時區塊只留「（無）」一行。
+- G7：選中的塔台送過沒有訊息的 `stop`（`stopsWithoutMessage > 0`）而且沒有任何卡片 → 「claude 版本太舊（需要 2.1.47 以上）」一行（`inbox.cards.claudeTooOld`，三語系）；有卡片後消失。
+
+### 面板塔台的判定與同步
+
+- 定義見「版本判定」節（T0909 Q-1 A）。`PanelTowerSync` 對視窗自己的工作區（主視窗：未分離的工作區；detached 視窗：它自己的；歸屬沿用 `ownsTerminalForCloseRequest`）逐一判定，輸入是 `inbox-store` 的狀態檔（`InboxDataSource` 讀過的）與 `tower-contract-store` 的已宣告塔台；工作區、狀態檔、塔台宣告任一改變就重新判定。
+- `createPanelTowerSync`：每個面板第一次出現時送一次（true 或 false，讓重新載入的視窗把 host 留著的舊判定改正），之後只送改變；遠端視窗「未連線 → 已連線」時全部重送（重啟的 bat-server 已忘記）；送失敗（舊 host 沒有這個 channel、斷線）每個 id 只記一行，下次改變或重連再送。
+- host 收到 false 會清掉該面板的卡片（W3 `setPanelTower`）；面板 session dispose 照 W3 清空。
+- 日誌：`[tower-cards] panel Tower id=<id> → <true|false>`、`… not sent (<錯誤>)`。只有 id 與布林。
+
+### 遠端與 detached
+
+- 每個視窗（主視窗、detached、遠端 profile 視窗）各自 `createTowerCardsSync().start()`，讀自己綁定的 host；`tower-cards:set-panel-tower` 是 proxied channel，遠端視窗送到該 profile 的 bat-server（面板塔台在遠端 host 上的面板也收卡片）。
+- 縮圖 `💬N` 在顯示該分頁的視窗；點擊打開待辦分頁（`requestOpenInbox`）。
+
+### 已知限制
+
+- 面板塔台要讀過該工作區的 `_tower-state.md` 才判得出：只有作用中（或 detached 視窗自己的）工作區會讀；從沒開過的工作區，它的面板在切到該工作區之前不收卡片（T0909 Q-1 A 的限制，塔台已確認）。切走後狀態檔不再監看，判定沿用最後一次讀到的內容。
+- 塔台改宣告後（例如不帶 `--bat-contract` 重新 `--set-role`），host 留著的舊卡片直到 PTY 結束才清；UI 依目前判定不顯示（待辦分頁停用、縮圖不出 `💬N`）。
+- 卡片的實際內容與大小（多段文字、工具呼叫回合）未實機（T0902 待實機 T-4）；codex 塔台與 claude 太舊的畫面在真實塔台上未實機。
+
+### 驗證
+
+- 單元：`src/lib/__tests__/tower-card-view.test.ts`（加亮、預覽、摺疊、排序、合併、G7、codex、縮圖數字、面板塔台定義每一列）、`src/stores/__tests__/panel-tower-store.test.ts`（第一次送出、只送改變、忘記、重連重送、失敗只記一次、`decidePanelTowers`）、`electron/__tests__/tower-cards.test.ts`「T0909: set-panel-tower …」（helper 拒絕、開 / 關、關閉清卡、參數錯誤）。
+- 畫面：`src/components/__tests__/inbox-tower-cards.test.tsx`（排序與未讀、展開 = 已讀、釘選上限、全部已讀 / 清除、純文字（HTML 不解譯）、加亮、摺疊與截斷標記、codex 說明（preset 與 `--agent`）、G7、版本不符時沒有區塊、面板塔台合併與來源標籤、待辦標題數字不含未讀、縮圖 `💬N` 只給相符塔台與面板塔台）。
+- 實機：交 W8 整合驗收（隔離實例）。

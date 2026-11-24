@@ -3,7 +3,8 @@
  *
  * Fixed sections: ⏸ 待你決定 · 🙋 待你執行 · ⏰ 到期提醒 · 👷 Worker 等你 · 💬 塔台訊息 · 📋 塔台待辦 · 📊 counts.
  * W4 fills what BAT already has (pending-verify BUGs in 🙋, Worker waits, CT `todo`, counts); the CT
- * contract v2 lists (W5) and turn cards (W6) are empty sections with the same interface.
+ * contract v2 lists (W5) are empty sections with the same interface; 💬 shows the turn cards (W6 /
+ * T0909, `TowerCardsSection`).
  *
  * 🔴 Gated as a whole (D328 R9′, T0906 Q-2): unless the selected Tower matches (§6′), only the Tower
  * picker and the hint (P-1 / P-2 / P-3) are shown. Read-only: data comes from `InboxDataSource` (the
@@ -13,6 +14,7 @@ import { useCallback, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useInboxModel } from './inbox/useInboxModel'
 import { InboxSection } from './inbox/InboxSection'
+import { TowerCardsSection, type TowerCardsSource } from './inbox/TowerCardsSection'
 import { loadInboxFiles } from './inbox/InboxDataSource'
 import { requestControlTowerTab, setInboxFiles, setSelectedInboxTower } from '../stores/inbox-store'
 import { workspaceStore } from '../stores/workspace-store'
@@ -22,12 +24,16 @@ import {
   foldTodo,
   inboxGateCode,
   inboxGateHint,
+  panelTowerTerminalIds,
   parseFoldedSections,
   showsTowerPicker,
   type InboxSectionId,
   type WorkerWaitItem,
 } from '../lib/inbox-model'
 import { BAT_CONTRACT_VERSION } from '../lib/tower-contract'
+import { towerStateBatContract } from '../lib/ct-tower-overview'
+import { isCodexTower } from '../lib/tower-card-view'
+import { getTowerContract } from '../stores/tower-contract-store'
 import '../styles/inbox.css'
 
 interface InboxPanelProps {
@@ -131,6 +137,19 @@ export function InboxPanel({ workspaceId, workspaceFolderPath }: Readonly<InboxP
     )
   }
 
+  // W6 / T0909: whose turn cards「💬」shows — the selected declared Tower, or (none declared, judged
+  // by the state file) the workspace's panel Towers merged (T0909 Q-1 A, `panelTowerTerminalIds`)
+  const workspaceTerminals = workspaceStore.getState().terminals.filter(tm => tm.workspaceId === workspaceId)
+  const towerTab = tower ? workspaceTerminals.find(tm => tm.id === tower.id) : undefined
+  const cardSources: TowerCardsSource[] = tower
+    ? [{ terminalId: tower.id, title: tower.title }]
+    : panelTowerTerminalIds(
+      workspaceTerminals,
+      model.files.state?.status === 'loaded' ? towerStateBatContract(model.files.state.parsed) : null,
+      towers.length,
+    ).map(id => ({ terminalId: id, title: workspaceTerminals.find(tm => tm.id === id)?.title ?? id }))
+  const codexTower = !!tower && isCodexTower({ agent: getTowerContract(tower.id)?.agent, agentPreset: towerTab?.agentPreset })
+
   const workerLine = (item: WorkerWaitItem) => {
     switch (item.kind) {
       case 'waiting':
@@ -181,7 +200,7 @@ export function InboxPanel({ workspaceId, workspaceFolderPath }: Readonly<InboxP
           </ul>
         </InboxSection>
 
-        <InboxSection id="messages" title={t('inbox.section.messages')} count={0} folded={folded.messages} onToggle={toggle} />
+        <TowerCardsSection sources={cardSources} codex={codexTower} folded={folded.messages} onToggle={toggle} />
 
         <InboxSection id="todo" title={t('inbox.section.todo')} count={model.todo.length} folded={folded.todo} onToggle={toggle}>
           <ol className="inbox-todo">

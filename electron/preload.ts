@@ -1244,6 +1244,9 @@ const electronAPI = {
       ipcRenderer.invoke('tower-cards:pin', { terminalId, cardId, pinned }) as Promise<TowerCardsOpResult>,
     clear: (terminalId: string, opts?: { cardIds?: string[]; includePinned?: boolean }) =>
       ipcRenderer.invoke('tower-cards:clear', { terminalId, ...(opts ?? {}) }) as Promise<TowerCardsOpResult>,
+    // PLAN-068 W6 / T0909: whether Claude panel `terminalId` is a panel Tower (the window decides)
+    setPanelTower: (terminalId: string, tower: boolean) =>
+      ipcRenderer.invoke('tower-cards:set-panel-tower', { terminalId, tower }) as Promise<TowerCardsOpResult>,
     onChanged: (callback: (info: TowerCardsChangedEvent) => void) => {
       const handler = (_event: Electron.IpcRendererEvent, info: TowerCardsChangedEvent) => callback(info)
       ipcRenderer.on('tower-cards:changed', handler)

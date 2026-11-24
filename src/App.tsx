@@ -39,6 +39,8 @@ import { AppNotificationDialog } from './components/AppNotificationDialog'
 import { DetachedWaitingReporter, WaitingTotalBadge } from './components/WorkspaceWaitingBadge'
 import { InboxPanel, InboxTabBadge } from './components/InboxPanel'
 import { InboxDataSource } from './components/inbox/InboxDataSource'
+import { PanelTowerSync } from './components/inbox/PanelTowerSync'
+import { createTowerCardsSync } from './stores/tower-cards-store'
 import { OPEN_DOCK_PANEL_EVENT } from './stores/inbox-store'
 
 // Lazy-loaded panel components for sidebar docking
@@ -874,6 +876,22 @@ export default function App() {
     }
   }, [])
 
+  // PLAN-068 W6 / T0909 (T0902 §5): the Tower turn cards of this window's tabs, kept by the host that
+  // runs them (Electron main, or a remote window's bat-server). One sync per window (main, detached and
+  // remote profile windows each run their own App): `tower-cards:changed` → refetch that tab; a
+  // reconnect refetches everything; `pty:exit` drops the tab's copy. Display only, like attention.
+  useEffect(() => {
+    const api = window.electronAPI.towerCards
+    if (!api) return
+    return createTowerCardsSync({
+      api,
+      terminalIds: () => workspaceStore.getState().terminals.map(tm => tm.id),
+      onPtyExit: (callback) => window.electronAPI.pty.onExit(callback),
+      onClientStatusChanged: (callback) => window.electronAPI.remote.onClientStatusChanged(callback),
+      log: (message) => window.electronAPI.debug.log(message),
+    }).start()
+  }, [])
+
   // T0761 (D200 ⑥ / D212): main window — the waiting summaries its detached windows send (shown as
   // a row per detached workspace). Detached window — a click on that row selects one of its tabs.
   useEffect(() => {
@@ -1177,6 +1195,8 @@ export default function App() {
         <DetachedWaitingReporter workspace={ws} />
         {/* PLAN-068 W4 / T0906: the Inbox tab's CT files for this window's workspace */}
         <InboxDataSource folder={ws.folderPath} />
+        {/* PLAN-068 W6 / T0909: this window's Claude panels → panel Tower or not (T0909 Q-1 A) */}
+        <PanelTowerSync detachedWorkspaceId={detachedWorkspaceId} detachedIds={detachedIds} />
         {/* PLAN-055 B1 / T0766: this window's tabs interrupted by a Terminal Server recovery */}
         <InterruptedAgentsController />
         {/* T0863: Help › Check for Updates… results for this window; the startup dialog goes to a main window */}
@@ -1211,6 +1231,8 @@ export default function App() {
   return (
     <div className="app">
       <InboxDataSource folder={activeFolderPath} />
+      {/* PLAN-068 W6 / T0909: this window's Claude panels → panel Tower or not (T0909 Q-1 A) */}
+      <PanelTowerSync detachedWorkspaceId={detachedWorkspaceId} detachedIds={detachedIds} />
       {/* Left sidebar collapsed bar — always rendered, hidden when expanded */}
       <div className="left-sidebar-collapsed" style={{ display: panelSettings.sidebar.collapsed ? undefined : 'none' }}>
         <button className="left-sidebar-collapsed-btn" onClick={() => { setLeftPanelTab('workspaces'); handleSidebarCollapse(); }} title={t('sidebar.expandSidebar')}>

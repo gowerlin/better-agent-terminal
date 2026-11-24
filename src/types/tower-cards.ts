@@ -68,6 +68,11 @@ export interface TowerCardsApi {
   pin(terminalId: string, cardId: string, pinned: boolean): Promise<TowerCardsOpResult>
   /** No `cardIds` = every unpinned card (every card with `includePinned`). */
   clear(terminalId: string, opts?: { cardIds?: string[]; includePinned?: boolean }): Promise<TowerCardsOpResult>
+  /**
+   * PLAN-068 W6 / T0909: Claude Agent panel `terminalId` is (not) a panel Tower — the window's decision
+   * (`panelTowerTerminalIds`, src/lib/inbox-model.ts); false clears its cards on the host.
+   */
+  setPanelTower(terminalId: string, tower: boolean): Promise<TowerCardsOpResult>
   onChanged(callback: (info: TowerCardsChangedEvent) => void): () => void
 }
 

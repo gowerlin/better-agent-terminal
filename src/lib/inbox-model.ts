@@ -35,6 +35,35 @@ export function stateFileContractStatus(batContract: number | null | undefined):
   return batContract === BAT_CONTRACT_VERSION ? 'match' : 'bat-outdated'
 }
 
+// ─── Panel Tower (W6 / T0909 Q-1 A; W5 uses the same definition) ───────────
+
+/** Claude Agent panel presets (the SDK panel; a codex panel is never a panel Tower). */
+export const CLAUDE_PANEL_PRESETS: readonly string[] = ['claude-code', 'claude-code-worktree']
+
+/**
+ * T0909 Q-1 (Tower answer A): whether a workspace's Claude Agent panels are panel Towers — its
+ * `_tower-state.md` `bat_contract` is `BAT_CONTRACT_VERSION` (`stateFileContractStatus` = match) **and**
+ * it has no declared Tower tab (`--set-role tower`, any contract). A missing / unreadable / unread
+ * state file (`stateContract` null / undefined) is not a match → false.
+ */
+export function workspaceHasPanelTowers(stateContract: number | null | undefined, declaredTowerCount: number): boolean {
+  return declaredTowerCount === 0 && stateFileContractStatus(stateContract) === 'match'
+}
+
+/**
+ * The panel Towers of one workspace (T0909 Q-1 A): every Claude Agent panel tab of it
+ * (`CLAUDE_PANEL_PRESETS`) when `workspaceHasPanelTowers`, else none. Tab order.
+ * The window calls `setPanelTower(id, true)` for these and `false` for its other Claude panels.
+ */
+export function panelTowerTerminalIds(
+  terminals: readonly { id: string; agentPreset?: string | null }[],
+  stateContract: number | null | undefined,
+  declaredTowerCount: number,
+): string[] {
+  if (!workspaceHasPanelTowers(stateContract, declaredTowerCount)) return []
+  return terminals.filter(t => typeof t.agentPreset === 'string' && CLAUDE_PANEL_PRESETS.includes(t.agentPreset)).map(t => t.id)
+}
+
 /** A declared Tower tab of the workspace (an entry of the tower-contract store). */
 export interface InboxTower {
   id: string

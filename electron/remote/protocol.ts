@@ -104,6 +104,8 @@ export const PROXIED_CHANNELS = new Set([
   // PLAN-068 W3 / T0905: the Tower turn cards of the window's tabs on the host that runs them
   // (electron/tower-cards.ts); never in HELPER_CHANNEL_ROLES; an older bat-server has no handler
   'tower-cards:list', 'tower-cards:mark-read', 'tower-cards:pin', 'tower-cards:clear',
+  // PLAN-068 W6 / T0909: the window's "this Claude panel is a panel Tower" decision (same rules)
+  'tower-cards:set-panel-tower',
 ])
 
 /**

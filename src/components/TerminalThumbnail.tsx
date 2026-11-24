@@ -17,6 +17,10 @@ import { missedWaitToShow, waitingForUser, workerAttention, type MissedWait, typ
 import { appendPreviewInput, outputPreview, textPreview } from '../lib/thumbnail-preview'
 import { cancelNotifyHold, sendNowNotifyHold, useNotifyHold, useNotifyHoldReason } from '../stores/notify-hold-store'
 import { towerContractBadge, towerContractHint, useTowerContract } from '../stores/tower-contract-store'
+import { useTowerCards } from '../stores/tower-cards-store'
+import { isPanelTowerHere, usePanelTowerVersion } from '../stores/panel-tower-store'
+import { requestOpenInbox } from '../stores/inbox-store'
+import { towerCardsBadgeCount } from '../lib/tower-card-view'
 import { NOTIFY_HOLD_SKIPPABLE_REASONS, type NotifyHoldItem, type NotifyHoldReason } from '../types/notify-hold'
 
 /** PLAN-044 / T0566: `15:05`-style local clock time of an epoch. */
@@ -285,6 +289,11 @@ export const TerminalThumbnail = memo(function TerminalThumbnail({ terminal, isA
   const towerContract = useTowerContract(terminal.id)
   const contractBadge = towerContractBadge(towerContract)
   const contractHint = towerContractHint(towerContract)
+  // PLAN-068 W6 / T0909 (T0902 §1): unread turn cards — only on the thumbnail (never the Inbox title
+  // number); counted only while the tab is a matching Tower or a panel Tower (§6′)
+  const towerCards = useTowerCards(terminal.id)
+  usePanelTowerVersion()
+  const cardsUnread = towerCardsBadgeCount(towerCards?.unread ?? 0, towerContract?.status === 'match' || isPanelTowerHere(terminal.id))
   const [holdMenu, setHoldMenu] = useState<{ x: number; y: number } | null>(null)
   const { pos: holdPos, menuRef: holdRef } = useMenuPosition(holdMenu)
   const [ctxMenu, setCtxMenu] = useState<{ x: number; y: number } | null>(null)
@@ -395,6 +404,20 @@ export const TerminalThumbnail = memo(function TerminalThumbnail({ terminal, isA
               }}
             >
               📨 {t('notifyHold.badge', { count: heldNotifications.length })}
+            </span>
+          )}
+          {cardsUnread > 0 && (
+            <span
+              className="tower-cards-badge"
+              title={t('inbox.cardsBadgeTooltip', { count: cardsUnread })}
+              data-tower-cards-unread={cardsUnread}
+              style={{ cursor: 'pointer', flexShrink: 0, fontSize: '0.85em', padding: '0 4px', borderRadius: 4, background: 'var(--bg-tertiary, rgba(128,128,128,0.25))' }}
+              onClick={(e) => {
+                e.stopPropagation()
+                requestOpenInbox()
+              }}
+            >
+              💬{cardsUnread}
             </span>
           )}
           {contractBadge && contractHint && (
