@@ -191,8 +191,8 @@ describe('terminal:list scope=towers (T0643)', () => {
     const answer = h.call('terminal:list', h.asHelper('twA'), { scope: 'towers' })
     expect(answer).toMatchObject({ ok: true, scope: 'towers' })
     expect(rowsOf(answer)).toEqual([
-      { id: 'twA', workspaceId: 'ws-a', workspaceName: 'Alpha', claudeSessionName: 'Alpha · Tower', state: expect.any(String), alive: true, self: true },
-      { id: 'twB', workspaceId: 'ws-b', workspaceName: 'Beta', claudeSessionName: 'Beta · twB', state: expect.any(String), alive: true, self: false },
+      { id: 'twA', workspaceId: 'ws-a', workspaceName: 'Alpha', claudeSessionName: 'Alpha · Tower', state: expect.any(String), alive: true, self: true, towerContract: null },
+      { id: 'twB', workspaceId: 'ws-b', workspaceName: 'Beta', claudeSessionName: 'Beta · twB', state: expect.any(String), alive: true, self: false, towerContract: null },
     ])
     // the other declared tower sees the same two, itself marked
     expect(rowsOf(h.call('terminal:list', h.asHelper('twB'), { scope: 'towers' })).map(r => [r.id, r.self])).toEqual([['twA', false], ['twB', true]])
@@ -204,7 +204,7 @@ describe('terminal:list scope=towers (T0643)', () => {
     expect(h.manager.getClaudeSessionId('twB')).toBe(SID)
     const rows = rowsOf(h.call('terminal:list', h.asHelper('twA'), { scope: 'towers' }))
     for (const row of rows) {
-      expect(Object.keys(row).sort()).toEqual(['alive', 'claudeSessionName', 'id', 'self', 'state', 'workspaceId', 'workspaceName'])
+      expect(Object.keys(row).sort()).toEqual(['alive', 'claudeSessionName', 'id', 'self', 'state', 'towerContract', 'workspaceId', 'workspaceName']) // T0903: + towerContract (metadata)
     }
     const text = JSON.stringify(rows)
     expect(text).not.toContain(SID)
@@ -295,5 +295,36 @@ describe('wiring (T0643 source guards)', () => {
     expect(main).toContain('getWorkspaceName: workspaceId => workspaceNameFromRegistry(windowRegistry.getCachedEntries(), workspaceId)')
     const headless = fs.readFileSync(path.join(ROOT, 'electron', 'remote', 'headless-entry.ts'), 'utf8')
     expect(headless).not.toContain('getWorkspaceName')
+  })
+})
+
+describe('towerContract in the query answers (PLAN-068 W0 / T0903)', () => {
+  it('whoami / get-state / list (mine, workspace, towers) carry towerContract: number | null', () => {
+    const h = setup()
+    h.manager.setTerminalRole('twA', 'tower', 'yolo', 2)
+    h.manager.setTerminalRole('twB', 'tower', 'ask', 3)
+    expect(h.call('terminal:whoami', h.asHelper('twA'), {})).toMatchObject({ ok: true, terminalId: 'twA', towerContract: 2 })
+    expect(h.call('terminal:whoami', h.asHelper('wkA'), {})).toMatchObject({ ok: true, terminalId: 'wkA', towerContract: null })
+    expect(h.call('terminal:get-state', h.asHelper('twA'), {})).toMatchObject({ ok: true, terminalId: 'twA', towerContract: 2 })
+    // a Worker may read its tower's metadata
+    expect(h.call('terminal:get-state', h.asHelper('wkA'), { terminalId: 'twA' })).toMatchObject({ ok: true, towerContract: 2 })
+    expect(h.call('terminal:get-state', h.asHelper('wkA'), {})).toMatchObject({ ok: true, towerContract: null })
+
+    const towers = rowsOf(h.call('terminal:list', h.asHelper('twA'), { scope: 'towers' }))
+    expect(towers.map(r => [r.id, r.towerContract])).toEqual([['twA', 2], ['twB', 3]])
+    const mine = rowsOf(h.call('terminal:list', h.asHelper('twA'), {}))
+    expect(Object.fromEntries(mine.map(r => [r.id, r.towerContract]))).toEqual({ twA: 2, wkA: null })
+    const workspace = rowsOf(h.call('terminal:list', h.asHelper('twA'), { scope: 'workspace' }))
+    expect(Object.fromEntries(workspace.map(r => [r.id, r.towerContract]))).toEqual({ twA: 2, wkA: null, shA: null })
+  })
+
+  it('a --set-role without --bat-contract clears it (null in the answers); an exited tower answers null', () => {
+    const h = setup()
+    h.manager.setTerminalRole('twA', 'tower', 'yolo', 2)
+    h.manager.setTerminalRole('twA', 'tower', 'yolo')
+    expect(h.call('terminal:whoami', h.asHelper('twA'), {})).toMatchObject({ towerContract: null })
+    // twC (declared, then killed) is only an exited record now
+    const all = rowsOf(h.call('terminal:list', { windowId: null, connectionId: 'server' }, {}))
+    expect(all.find(r => r.id === 'twC')).toMatchObject({ alive: false, towerContract: null })
   })
 })

@@ -443,6 +443,13 @@ export function registerTerminalQueryHandlers(deps: TerminalQueryDeps): Terminal
     return { claudeSessionName, claudeSessionId }
   }
 
+  /**
+   * PLAN-068 W0 / T0903: the BAT ↔ CT contract running Tower PTY `id` declared
+   * (`--set-role --bat-contract`); null = not declared, not a Tower, or the PTY ended.
+   */
+  const towerContractOf = (pm: TerminalQueryPtyManager, id: string): number | null =>
+    pm.getTerminalInfo(id)?.towerContract ?? null
+
   const savedTab = (id: string): SavedTabInfo | undefined => {
     try {
       return deps.savedTabs?.().get(id)
@@ -527,6 +534,7 @@ export function registerTerminalQueryHandlers(deps: TerminalQueryDeps): Terminal
       ...(info.agentPreset && info.agentPreset !== 'none' ? { agent: info.agentPreset } : {}),
       ...(info.cwd ? { cwd: info.cwd } : {}),
       ...claudeSessionOf(pm, target), // T0642
+      towerContract: towerContractOf(pm, target), // T0903
     }
   })
 
@@ -561,6 +569,7 @@ export function registerTerminalQueryHandlers(deps: TerminalQueryDeps): Terminal
           state: state.state,
           alive: true,
           self: caller?.terminalId === id,
+          towerContract: towerContractOf(pm, id), // T0903: metadata, like the rest of the row
         }]
       })
       audit(channel, ctx, `scope=${listScope}`, `ok count=${towers.length}`)
@@ -598,6 +607,7 @@ export function registerTerminalQueryHandlers(deps: TerminalQueryDeps): Terminal
         agentStarted: state.agentStarted,
         pendingQuestions: state.pendingQuestions, // T0607
         ...claudeSessionOf(pm, id), // T0642
+        towerContract: towerContractOf(pm, id), // T0903
         alive: info !== null,
       }]
     })
@@ -614,7 +624,7 @@ export function registerTerminalQueryHandlers(deps: TerminalQueryDeps): Terminal
     const state = stateOf(resolved.pm, resolved.target)
     if (!state) return fail(channel, ctx, resolved.target, 'NOT_FOUND')
     audit(channel, ctx, resolved.target, `ok state=${state.state}${state.blockedReason ? ` reason=${state.blockedReason}` : ''}`)
-    return { ok: true, terminalId: resolved.target, ...state, ...claudeSessionOf(resolved.pm, resolved.target) }
+    return { ok: true, terminalId: resolved.target, ...state, ...claudeSessionOf(resolved.pm, resolved.target), towerContract: towerContractOf(resolved.pm, resolved.target) }
   })
 
   registerHandler('terminal:read-output', (ctx: HandlerContext, raw?: unknown) => {

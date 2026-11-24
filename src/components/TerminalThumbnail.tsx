@@ -16,6 +16,7 @@ import { OPEN_INTERRUPTED_AGENTS_EVENT, useInterruptedAgent } from '../stores/in
 import { missedWaitToShow, waitingForUser, workerAttention, type MissedWait, type WaitingForUser, type WorkerAttention } from '../lib/terminal-attention'
 import { appendPreviewInput, outputPreview, textPreview } from '../lib/thumbnail-preview'
 import { cancelNotifyHold, useNotifyHold } from '../stores/notify-hold-store'
+import { towerContractBadge, towerContractHint, useTowerContract } from '../stores/tower-contract-store'
 import type { NotifyHoldItem } from '../types/notify-hold'
 
 /** PLAN-044 / T0566: `15:05`-style local clock time of an epoch. */
@@ -269,6 +270,10 @@ export const TerminalThumbnail = memo(function TerminalThumbnail({ terminal, isA
     : undefined
   // T0788 / BUG-196: Worker notifications main holds while this tab waits for the user (memory only)
   const heldNotifications = useNotifyHold(terminal.id)
+  // PLAN-068 W0 / T0903 (T0902 §6′): a Tower whose BAT ↔ CT contract does not match (memory only)
+  const towerContract = useTowerContract(terminal.id)
+  const contractBadge = towerContractBadge(towerContract)
+  const contractHint = towerContractHint(towerContract)
   const [holdMenu, setHoldMenu] = useState<{ x: number; y: number } | null>(null)
   const { pos: holdPos, menuRef: holdRef } = useMenuPosition(holdMenu)
   const [ctxMenu, setCtxMenu] = useState<{ x: number; y: number } | null>(null)
@@ -376,6 +381,16 @@ export const TerminalThumbnail = memo(function TerminalThumbnail({ terminal, isA
               }}
             >
               📨 {t('notifyHold.badge', { count: heldNotifications.length })}
+            </span>
+          )}
+          {contractBadge && contractHint && (
+            <span
+              className={`tower-contract-badge ${towerContract!.status}`}
+              title={t(contractHint.key, contractHint.values)}
+              data-tower-contract={towerContract!.status}
+              style={{ flexShrink: 0, fontSize: '0.8em', fontWeight: 600, padding: '0 4px', borderRadius: 4, color: 'var(--warning-color, #e8a838)', border: '1px solid currentColor' }}
+            >
+              {contractBadge}
             </span>
           )}
           {usageLimit && (

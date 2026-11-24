@@ -19,6 +19,15 @@
  * `agent` is a display-name hint only: normalized like `--agent` (`normalizeAgentAlias`) and
  * dropped when the agent registry does not know it — never a reason to refuse.
  *
+ * PLAN-068 W0 / T0903 (R11, BAT ↔ CT contract v2): `batContract` (optional, a whole number ≥ 1, from
+ * `--bat-contract <n>`) is the contract the Tower speaks. Main records it on the PTY
+ * (`PtyManager.setTerminalRole`'s 4th argument, read with `getTowerContract`) — every call
+ * overwrites it and a call without `batContract` clears it — and answers
+ * `towerContract` (the value recorded) + `batContract` (`BAT_CONTRACT_VERSION`, the highest this BAT
+ * supports) only when the request carried it, so a call without it answers exactly as before.
+ * A value that is not a whole number ≥ 1 → INVALID_ARGS. `terminal:role-changed` always carries
+ * `towerContract` (null = not declared) so the renderer can show the §6′ badge / hint.
+ *
  * Headless bat-server registers the same handler (electron/handlers/terminal.ts); its helper
  * capability lets a tower set its own terminal only (electron/remote/helper-capability.ts).
  *
@@ -27,6 +36,7 @@
 import { agentRegistry } from './agent-runtime/agent-registry'
 import { normalizeAgentAlias } from './terminal-command-handlers'
 import { normalizeCtMode, type CtMode } from './ct-mode'
+import { BAT_CONTRACT_VERSION, parseBatContract } from '../src/lib/tower-contract'
 
 export const SET_ROLE_CHANNEL = 'terminal:set-role'
 export const ROLE_CHANGED_CHANNEL = 'terminal:role-changed'
@@ -38,7 +48,7 @@ export type TerminalRole = typeof TERMINAL_ROLES[number]
 export type SetRoleErrorCode = 'INVALID_ARGS' | 'NOT_FOUND'
 
 export type SetRoleResult =
-  | { ok: true; terminalId: string; role: TerminalRole; mode?: CtMode }
+  | { ok: true; terminalId: string; role: TerminalRole; mode?: CtMode; towerContract?: number; batContract?: number }
   | { ok: false; code: SetRoleErrorCode }
 
 /** `terminal:role-changed` payload. */
@@ -54,6 +64,8 @@ export interface TerminalRoleChange {
   agentName?: string
   /** T0565: the Tower's recorded CT mode (renderer ignores it; titles do not change). */
   mode?: CtMode
+  /** T0903: the BAT ↔ CT contract the Tower declared with this call (null = not declared). */
+  towerContract: number | null
 }
 
 /** Terminal ids are uuids / hex; same whitelist as other external ids. */
@@ -64,10 +76,15 @@ export interface SetRolePtyManager {
   isAlive(id: string): boolean
   /** T0525: the `agentPreset` PTY `id` was created with. */
   getAgentPreset?(id: string): string | undefined
-  /** T0565: record the declared role / mode (`mode` undefined keeps the recorded one). */
-  setTerminalRole?(id: string, role: TerminalRole, mode?: CtMode): boolean
+  /**
+   * T0565: record the declared role / mode (`mode` undefined keeps the recorded one).
+   * T0903: `towerContract` is always overwritten (undefined = not declared).
+   */
+  setTerminalRole?(id: string, role: TerminalRole, mode?: CtMode, towerContract?: number): boolean
   /** T0565: the mode now recorded for a Tower PTY. */
   getTowerMode?(id: string): CtMode | undefined
+  /** T0903: the contract now recorded for a Tower PTY. */
+  getTowerContract?(id: string): number | undefined
 }
 
 export interface SetTerminalRoleDeps {
@@ -127,15 +144,24 @@ export function setTerminalRole(args: unknown, deps: SetTerminalRoleDeps): SetRo
     if (!normalized) return refuse('INVALID_ARGS', `mode=${String(opts.mode)}`)
     mode = normalized
   }
+  // T0903: undefined / null = the call did not declare a contract (an older CT, or a CT that went back)
+  const contractGiven = opts.batContract !== undefined && opts.batContract !== null
+  let towerContract: number | undefined
+  if (contractGiven) {
+    const parsed = parseBatContract(opts.batContract)
+    if (parsed === null) return refuse('INVALID_ARGS', `batContract=${String(opts.batContract).slice(0, 32)}`)
+    towerContract = parsed
+  }
 
   const ptyManager = deps.getPtyManager()
   if (!ptyManager || !ptyManager.isAlive(terminalId)) return refuse('NOT_FOUND', `id=${terminalId} role=${role}`)
 
-  ptyManager.setTerminalRole?.(terminalId, role, mode)
+  ptyManager.setTerminalRole?.(terminalId, role, mode, towerContract)
   // Test doubles without the recorder echo the request.
   const recordedMode = ptyManager.getTowerMode ? ptyManager.getTowerMode(terminalId) : mode
+  const recordedContract = ptyManager.getTowerContract ? ptyManager.getTowerContract(terminalId) : towerContract
 
-  const change: TerminalRoleChange = { id: terminalId, role }
+  const change: TerminalRoleChange = { id: terminalId, role, towerContract: recordedContract ?? null }
   const ptyAgent = ptyManager.getAgentPreset?.(terminalId)
   if (ptyAgent && ptyAgent !== 'none') {
     change.ptyAgent = ptyAgent
@@ -158,15 +184,23 @@ export function setTerminalRole(args: unknown, deps: SetTerminalRoleDeps): SetRo
   if (recordedMode) change.mode = recordedMode
 
   const windows = deps.emit(ROLE_CHANGED_CHANNEL, change)
-  deps.logger.log(`[set-role] id=${terminalId} role=${role} mode=${recordedMode ?? 'none'}${mode ? '' : ' (no --mode)'} ptyAgent=${change.ptyAgent ?? 'none'} agent=${change.agent ?? 'none'}${hintNote} → sent${typeof windows === 'number' ? ` windows=${windows}` : ''}`)
+  deps.logger.log(`[set-role] id=${terminalId} role=${role} mode=${recordedMode ?? 'none'}${mode ? '' : ' (no --mode)'} contract=${recordedContract ?? 'none'} ptyAgent=${change.ptyAgent ?? 'none'} agent=${change.agent ?? 'none'}${hintNote} → sent${typeof windows === 'number' ? ` windows=${windows}` : ''}`)
   deps.mirrorToBatScripts?.('set-role', {
     result: 'OK',
     terminalId,
     role,
     ...(recordedMode ? { mode: recordedMode } : {}),
+    ...(recordedContract !== undefined ? { towerContract: recordedContract } : {}),
     ...(change.ptyAgent ? { ptyAgent: change.ptyAgent } : {}),
     ...(change.agent ? { agent: change.agent } : {}),
     ...(hintNote ? { ignoredAgent: hint } : {}),
   })
-  return { ok: true, terminalId, role, ...(recordedMode ? { mode: recordedMode } : {}) }
+  return {
+    ok: true,
+    terminalId,
+    role,
+    ...(recordedMode ? { mode: recordedMode } : {}),
+    // T0903: only for a call that declared a contract — an older CT's call is answered as before
+    ...(contractGiven && recordedContract !== undefined ? { towerContract: recordedContract, batContract: BAT_CONTRACT_VERSION } : {}),
+  }
 }

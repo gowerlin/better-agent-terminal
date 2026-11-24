@@ -37,7 +37,7 @@ describe('setTerminalRole (T0562)', () => {
     const { deps, emitted } = setup({ tower: 'claude-cli' })
     expect(setTerminalRole({ terminalId: 'tower', role: 'tower', agent: 'codex' }, deps)).toEqual({ ok: true, terminalId: 'tower', role: 'tower' })
     expect(emitted).toEqual([['terminal:role-changed', {
-      id: 'tower', role: 'tower', ptyAgent: 'claude-cli', ptyAgentName: 'Claude CLI', agent: 'codex-cli', agentName: 'Codex CLI',
+      id: 'tower', role: 'tower', ptyAgent: 'claude-cli', ptyAgentName: 'Claude CLI', agent: 'codex-cli', agentName: 'Codex CLI', towerContract: null,
     }]])
     expect(deps.mirrorToBatScripts).toHaveBeenCalledWith('set-role', expect.objectContaining({ result: 'OK', terminalId: 'tower', ptyAgent: 'claude-cli', agent: 'codex-cli' }))
   })
@@ -45,7 +45,7 @@ describe('setTerminalRole (T0562)', () => {
   it('role / terminal id are trimmed; role is case-insensitive', () => {
     const { deps, emitted } = setup({ tower: undefined })
     expect(setTerminalRole({ terminalId: ' tower ', role: ' Tower ' }, deps)).toEqual({ ok: true, terminalId: 'tower', role: 'tower' })
-    expect(emitted).toEqual([['terminal:role-changed', { id: 'tower', role: 'tower' }]])
+    expect(emitted).toEqual([['terminal:role-changed', { id: 'tower', role: 'tower', towerContract: null }]])
   })
 
   it('a custom CLI PTY carries its registry name; agent preset none is no agent', () => {
@@ -53,8 +53,8 @@ describe('setTerminalRole (T0562)', () => {
     setTerminalRole({ terminalId: 'a', role: 'tower' }, deps)
     setTerminalRole({ terminalId: 'b', role: 'tower', agent: 'none' }, deps)
     expect(emitted.map(([, p]) => p)).toEqual([
-      { id: 'a', role: 'tower', ptyAgent: 'my-cli', ptyAgentName: 'My CLI' },
-      { id: 'b', role: 'tower' },
+      { id: 'a', role: 'tower', ptyAgent: 'my-cli', ptyAgentName: 'My CLI', towerContract: null },
+      { id: 'b', role: 'tower', towerContract: null },
     ])
   })
 
@@ -63,7 +63,7 @@ describe('setTerminalRole (T0562)', () => {
     expect(setTerminalRole({ terminalId: 't', role: 'tower', agent: 'no-such-agent' }, deps)).toMatchObject({ ok: true })
     expect(setTerminalRole({ terminalId: 't', role: 'tower', agent: 'default' }, deps)).toMatchObject({ ok: true })
     expect(setTerminalRole({ terminalId: 't', role: 'tower', agent: '' }, deps)).toMatchObject({ ok: true })
-    expect(emitted.map(([, p]) => p)).toEqual([{ id: 't', role: 'tower' }, { id: 't', role: 'tower' }, { id: 't', role: 'tower' }])
+    expect(emitted.map(([, p]) => p)).toEqual([{ id: 't', role: 'tower', towerContract: null }, { id: 't', role: 'tower', towerContract: null }, { id: 't', role: 'tower', towerContract: null }])
     expect(deps.mirrorToBatScripts).toHaveBeenCalledWith('set-role', expect.objectContaining({ ignoredAgent: 'no-such-agent' }))
   })
 
@@ -96,7 +96,7 @@ describe('setTerminalRole (T0562)', () => {
     const { deps, emitted } = setup(null)
     deps.getPtyManager = () => ({ isAlive: () => true })
     expect(setTerminalRole({ terminalId: 't', role: 'tower', agent: 'claude' }, deps)).toMatchObject({ ok: true })
-    expect(emitted[0][1]).toEqual({ id: 't', role: 'tower', agent: 'claude-cli', agentName: 'Claude CLI' })
+    expect(emitted[0][1]).toEqual({ id: 't', role: 'tower', agent: 'claude-cli', agentName: 'Claude CLI', towerContract: null })
   })
 
   it('normalizeTerminalRole', () => {

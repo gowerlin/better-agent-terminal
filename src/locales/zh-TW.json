@@ -1746,6 +1746,10 @@
       "posixShell": "{{shell}} 不是 POSIX shell，安裝分頁改用 {{fallback}}。"
     }
   },
+  "towerContract": {
+    "ctOutdated": "這個塔台的 Control Tower 沒有宣告 BAT ↔ CT 契約 v{{supported}}，所以通知保護（不搶捲動、不混進草稿、閱讀時延後）、回合訊息卡與待辦清單都停用。請升級到 BMad Control Tower 6.1.0 以上，再重新開啟塔台。對話框保護（等你回答時不送通知）不受影響。",
+    "batOutdated": "這個塔台使用 BAT ↔ CT 契約 v{{requested}}，這版 BAT 只支援 v{{supported}}。請升級 Better Agent Terminal。在升級前，通知保護、回合訊息卡與待辦清單都停用。"
+  },
   "notifyHold": {
     "badge": "待送 {{count}}",
     "badgeTooltip": "待送通知 {{count}}：這個分頁在等你回答，Worker 的通知先保留，答完後自動送出。按此查看",
