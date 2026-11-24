@@ -4,7 +4,7 @@ summary_version: 1
 updated_at: "2026-11-25T03:05:00+08:00"
 session: "2026-11-25 00:28 第一百三十 session（CT v6.0.0）"
 next_ids:
-  workorder: "T0912"
+  workorder: "T0914"
   decision: "D335"
   bug: "BUG-220"
   plan: "PLAN-069"
@@ -63,7 +63,8 @@ todo:
 > [提問] 06:0x T0910 Q-1 / Q-2（`--answer` exit 0 ×2）：Q-1 A（提示元件放 `src/components/inbox/`，`InboxPanel.tsx` 只加兩行）；Q-2 A（新事件 `terminal:hooks-status`，`preload.ts` 只加 `onHooksStatus`，不進 helper 權杖）；`affects_files` 補兩檔。
 > 06:14 T0909（W6）收單 DONE：`ct/T0909` `efd6b3da`（卡片同步接 App、「💬 塔台訊息」區（純文字、展開即已讀、釘選上限、全部已讀 / 清除）、加亮行、codex 說明、G7 提示、縮圖 `💬N`、面板塔台 `PanelTowerSync` ＋ proxied `tower-cards:set-panel-tower`；判定純函式 `workspaceHasPanelTowers` / `panelTowerTerminalIds` / `CLAUDE_PANEL_PRESETS`（含 `claude-code-worktree`）；test:unit 第一次即綠 8,820）。session 快照已寫；`--close-worker T0909 --worktree keep` exit 0。最終函式名以〈塔台補充（執行中 #2）〉轉給 T0908。待 T0908 / T0910 完成後合併工單。
 > 06:24 T0908（W5）收單 DONE：`ct/T0908` `ba4fe096`（`src/lib/tower-inbox.ts` 解析三欄位＋`waiting_user`＋時區兩格式＋`source` 短標籤；待辦三區、最近已結、分頁數字、`InboxAwaitingBadge` `⏸N`（含 detached）；`tower-inbox:answer`（本機 / proxied、不在 helper 權杖、格式檢查）→ `enqueueAnswer`；面板塔台回答（輸入框有字時拒絕並提示）；`terminal:notify-hold-*` 遠端 proxied；面板塔台判定逐字複製 T0909 版本；`user_inbox` 讀 CT 設定專案→全域；head test:unit 第一次即綠 8,826）。session 快照已寫；`--close-worker T0908 --worktree keep` exit 0。註：Worker 回報 CLAUDE.md「131,771 字元」疑為 bytes（T0907 實測 90,776 字元），W7 再量。
-> 06:29 T0910（W9）收單 DONE：`ct/T0910` `a8eb8236`（43 檔；`claude-hooks-status.ts` 啟動代號、`--set-role --bat-contract` 的 `hooks:` 行（最多等 2 s；helper 等 8 s）、`hooksStatus` 查詢 / MCP、`terminal:hooks-status` 推送、`🪝✕` 與待辦提示、`.claude-plugin/marketplace.json`＋`plugins/bat-hooks`（launcher、不進安裝檔）、`--hook-list` / `plugin-outdated`、session-start 帶 origin / set、(d1) `--plugin-dir` 建議不採用、README 協作章節；head test:unit 第一次即綠 8,842）。session 快照已寫；`--close-worker T0910 --worktree keep` exit 0。開合併工單 T0911（T0909 → T0908 → T0910，base `677860a4`）。
+> 06:29 T0910（W9）收單 DONE：`ct/T0910` `a8eb8236`（43 檔；`claude-hooks-status.ts` 啟動代號、`--set-role --bat-contract` 的 `hooks:` 行（最多等 2 s；helper 等 8 s）、`hooksStatus` 查詢 / MCP、`terminal:hooks-status` 推送、`🪝✕` 與待辦提示、`.claude-plugin/marketplace.json`＋`plugins/bat-hooks`（launcher、不進安裝檔）、`--hook-list` / `plugin-outdated`、session-start 帶 origin / set、(d1) `--plugin-dir` 建議不採用、README 協作章節；head test:unit 第一次即綠 8,842）。session 快照已寫；`--close-worker T0910 --worktree keep` exit 0。開合併工單 T0911（T0909 → T0908 → T0910，base `677860a4`）。06:30 派出。
+> 06:39 T0911 收單 DONE：三次 `--no-ff` 衝突全兩邊保留、無行為矛盾；第一次 test:unit 即綠 8,944、legacy 472、e2e t0904；CLAUDE.md 94,967 字元 / 136,162 bytes；範圍外檔案無；SHA 比對 PASS → **`v0.8.x` ff `677860a4..17c84662`（本機，W0–W6＋W9 完成）**；worktree T0908–T0910 移除、已合併分支刪除。06:40 開 W7 = T0912（文件）、W8 = T0913（整合驗收）平行。
 >
 > 🛏 **第一百二十九 session 收工**（2026-11-24 03:50 (UTC+8)）。
 

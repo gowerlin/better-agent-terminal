@@ -1,5 +1,5 @@
 {
- "generated_at": "2026-11-25T06:29:59+08:00",
+ "generated_at": "2026-11-25T06:40:00+08:00",
  "generator": {
   "script": "ct-session-stats.py",
   "version": "0.2.0"
@@ -88,13 +88,13 @@
    "output": 41063
   },
   "2026-11-24": {
-   "api_requests": 306,
-   "cache_read": 150852622,
-   "cache_write": 743454,
-   "cache_write_1h": 743454,
+   "api_requests": 340,
+   "cache_read": 179574760,
+   "cache_write": 808282,
+   "cache_write_1h": 808282,
    "cache_write_5m": 0,
-   "input": 686,
-   "output": 311412
+   "input": 764,
+   "output": 349252
   }
  },
  "workorders": [
@@ -11476,6 +11476,91 @@
     "2.1.329"
    ],
    "workorder": "T0910"
+  },
+  {
+   "agents_invoked": {},
+   "attribution": {
+    "conflict": false,
+    "source": "frontmatter",
+    "sources": {
+     "frontmatter": 1
+    }
+   },
+   "by_mcp_server": {},
+   "by_tool": {
+    "Bash": 54,
+    "Edit": 2,
+    "Read": 3,
+    "ToolSearch": 1,
+    "Write": 7
+   },
+   "counts": {
+    "api_requests": 65,
+    "failures": 0,
+    "same_file_read_ge3": 0,
+    "subagent_files": 0,
+    "tool_calls": 67
+   },
+   "end": "2026-11-24T22:39:28Z",
+   "est_usd": 5.4973,
+   "failures_by_tool": {},
+   "renews": 0,
+   "sessions": 1,
+   "skills_invoked": {
+    "ct-exec": 1
+   },
+   "start": "2026-11-24T22:30:37Z",
+   "stuck": {
+    "max_consecutive_failures": 0,
+    "max_failures_in_10_calls": 0,
+    "near_repeat_fail_pairs_j50": 0,
+    "repeat_fail_groups_norm": 0
+   },
+   "stuck_signal": false,
+   "subagent_tokens": {
+    "cache_read": 0,
+    "cache_write": 0,
+    "cache_write_1h": 0,
+    "cache_write_5m": 0,
+    "input": 0,
+    "output": 0
+   },
+   "tokens": {
+    "cache_read": 14471294,
+    "cache_write": 239632,
+    "cache_write_1h": 239632,
+    "cache_write_5m": 0,
+    "input": 136,
+    "output": 34272
+   },
+   "top_tools": [
+    [
+     "Bash",
+     54
+    ],
+    [
+     "Write",
+     7
+    ],
+    [
+     "Read",
+     3
+    ],
+    [
+     "Edit",
+     2
+    ],
+    [
+     "ToolSearch",
+     1
+    ]
+   ],
+   "type": "chore",
+   "unpriced_tokens": 0,
+   "versions": [
+    "2.1.329"
+   ],
+   "workorder": "T0911"
   }
  ]
 }
