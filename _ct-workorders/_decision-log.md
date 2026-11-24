@@ -10,6 +10,7 @@
 
 | ID | 日期 | 標題 | 相關工單 |
 |----|------|------|---------|
+| D333 | 2026-11-25 | T0903（W0）PARTIAL→DONE 並直接合併 `v0.8.x` `d6b9ce86`；開 T0904（W1＋W2 合併，同改 `TerminalPanel.tsx`）、T0905（W3）、T0906（W4）三張平行 | T0903–T0906 |
 | D332 | 2026-11-25 | CT 核定契約 v2（CT D868）→ 開 PLAN-068 W0 = T0903（版本閘門，最先）；W1–W4 等 W0 合併後從新 `v0.8.x` 平行開；裁定 `--set-role` 不帶參數時不輸出 `bat-contract:` 行（以 R11 為準） | T0903 / PLAN-068 |
 | D331 | 2026-11-25 | NSIS 重裝驗收不再每版做：`0.8.0-pre.2` 不跑；只有改到安裝路徑的版本才提醒與給指令，其他版本使用者自行以 .exe 安裝 | — |
 | D330 | 2026-11-25 | 回覆 CT v2 確認：時區兩種都接受、最低版號先佔位、維持 BAT（W0–W9）與 CT 6.1.0 同日發佈、C-3 由 CT 另案 | PLAN-068 |
@@ -262,6 +263,15 @@
   4. PLAN-001 保持延後（🟢 Low，等 plugin 1.0 穩定）
 - **Success criteria**（EXP→CONCLUDED）：npm install 無錯 / 所有 native modules rebuild 成功 / dev+build:dir 可跑 / 手動 smoke test 8 項通過
 - **最大風險**：`whisper-node-addon@1.0.2` 對 Electron 41（Node 24）的 NODE_MODULE_VERSION 相容性未知，允許 Worker 遇此決策點主動問塔台
+
+---
+
+### D333 2026-11-25 05:12 — W0 收單合併；W1–W4 開成三張平行
+
+- **W0（T0903）**：回報 PARTIAL，唯一未達「`test:unit` 第一次即綠」——新增 `towerContract` 欄位後既有 `toEqual` 斷言未同步（commit 前沒全量跑），只改斷言、最終 head 全綠；塔台接受、改 DONE（R-G003）。29 檔皆在範圍、`v0.8.x` 未前進 → 模式 ① 直接合併：`ct-merge/T0903` `d6b9ce86` → `v0.8.x` ff `fda8a4b4..d6b9ce86`（本機）。
+- **W1–W4**：W1（B0）與 W2（保留佇列）都改 `TerminalPanel.tsx`，平行必定衝突 → 合成 T0904；W3 = T0905（卡片資料層）；W4 = T0906（待辦分頁骨架與版本判定）。三張從 `v0.8.x` `d6b9ce86` 隔離派工、平行；共用檔（`preload.ts`、proxied 清單、locales、docs）只做增量，衝突由合併工單處理（overlap WARN 已知）。工單加入「每次產品 commit 前先完整跑 `test:unit`」（T0903 教訓）。T0903〈遭遇問題〉2（`path-aware-channels.ts` 說明字串）併入 T0904。
+- **後續**：W9 等 W0＋W3；W5 等 W2＋W4；W6 等 W3＋W4；W7 / W8 最後；全部合進 `v0.8.x` 不發佈，與 CT 6.1.0 同日發佈。
+- **相關**：D329–D332 / T0902
 
 ---
 

@@ -4,13 +4,13 @@ schema_kind: workorder
 id: T0903
 title: "PLAN-068 W0（在 `v0.8.x`）：BAT ↔ CT 契約 v2 版本閘門 —— `--set-role --bat-contract`、`PtyInstance.towerContract`、查詢欄位、`role-changed`、renderer store、縮圖徽章 `CT↑` / `BAT↑` 與 P-1 / P-2 提示"
 type: implementation
-status: PARTIAL
+status: DONE
 repo: better-agent-terminal
 project: PLAN-068
 priority: P1
 sizing: M
 created_at: "2026-11-25T04:53:03+08:00"
-updated_at: "2026-11-25T05:09:02+08:00"
+updated_at: "2026-11-25T05:09:21+08:00"
 completed_at: "2026-11-25T05:09:02+08:00"
 started_at: "2026-11-25T04:54:27+08:00"
 target_version: "0.8.x（與 CT 6.1.0 同日發佈，版號定版時決定）"
@@ -204,3 +204,10 @@ CT 6.1.0 開工順序（契約 C-1）：先在 `_tower-state.md` 寫 `bat_contra
 
 ### 回報時間
 2026-11-25T05:07:54+08:00
+
+## 塔台收尾補記
+
+- 2026-11-25T05:09:21+08:00：PARTIAL → **DONE**（R-G003 第 2 點）。唯一未達的「`test:unit` 第一次即綠」：失敗原因是本單新增 `towerContract` 欄位後既有 `toEqual` 斷言沒同步（commit 前沒先全量跑），屬本單自身疏漏、不是 BUG-218 類的不穩定；修正只改斷言，最終 `4866e607` 完整驗證全綠。塔台接受。
+- 收單核對 PASS：29 檔皆在 `affects_files`、worktree 乾淨、`v0.8.x` 未前進 → 模式 ① 直接合併 `ct-merge/T0903` `d6b9ce86`（parent1 `fda8a4b4` / parent2 `4866e607`），`v0.8.x` ff `fda8a4b4..d6b9ce86`（本機，未 push）。
+- 〈遭遇問題〉2（`path-aware-channels.ts` 說明字串）併入 W1（T0904）。
+- 給後續工單的教訓：改回應形狀時，commit 前先完整跑一次 `test:unit`（W1–W9 工單寫進 memory_overrides）。
