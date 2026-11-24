@@ -1,5 +1,5 @@
 {
- "generated_at": "2026-11-25T03:29:03+08:00",
+ "generated_at": "2026-11-25T03:54:07+08:00",
  "generator": {
   "script": "ct-session-stats.py",
   "version": "0.2.0"
@@ -88,13 +88,13 @@
    "output": 41063
   },
   "2026-11-24": {
-   "api_requests": 236,
-   "cache_read": 99543848,
-   "cache_write": 599965,
-   "cache_write_1h": 599965,
+   "api_requests": 251,
+   "cache_read": 109610170,
+   "cache_write": 634550,
+   "cache_write_1h": 634550,
    "cache_write_5m": 0,
-   "input": 526,
-   "output": 221791
+   "input": 560,
+   "output": 237156
   }
  },
  "workorders": [
@@ -10699,36 +10699,38 @@
     "conflict": false,
     "source": "frontmatter",
     "sources": {
-     "frontmatter": 1
+     "frontmatter": 2
     }
    },
    "by_mcp_server": {},
    "by_tool": {
-    "Bash": 39,
-    "Edit": 2,
-    "Grep": 7,
-    "Read": 7,
+    "Bash": 66,
+    "Edit": 14,
+    "Grep": 8,
+    "Read": 12,
     "Write": 1
    },
    "counts": {
-    "api_requests": 49,
-    "failures": 0,
-    "same_file_read_ge3": 0,
+    "api_requests": 86,
+    "failures": 1,
+    "same_file_read_ge3": 1,
     "subagent_files": 0,
-    "tool_calls": 56
+    "tool_calls": 101
    },
-   "end": "2026-11-24T19:28:53Z",
-   "est_usd": 5.1522,
-   "failures_by_tool": {},
-   "renews": 0,
-   "sessions": 1,
+   "end": "2026-11-24T19:53:57Z",
+   "est_usd": 9.5774,
+   "failures_by_tool": {
+    "Bash": 1
+   },
+   "renews": 1,
+   "sessions": 2,
    "skills_invoked": {
-    "ct-exec": 1
+    "ct-exec": 2
    },
    "start": "2026-11-24T19:20:39Z",
    "stuck": {
-    "max_consecutive_failures": 0,
-    "max_failures_in_10_calls": 0,
+    "max_consecutive_failures": 1,
+    "max_failures_in_10_calls": 1,
     "near_repeat_fail_pairs_j50": 0,
     "repeat_fail_groups_norm": 0
    },
@@ -10742,29 +10744,29 @@
     "output": 0
    },
    "tokens": {
-    "cache_read": 11010299,
-    "cache_write": 248217,
-    "cache_write_1h": 248217,
+    "cache_read": 18710588,
+    "cache_write": 471732,
+    "cache_write_1h": 471732,
     "cache_write_5m": 0,
-    "input": 100,
-    "output": 48202
+    "input": 176,
+    "output": 103038
    },
    "top_tools": [
     [
      "Bash",
-     39
-    ],
-    [
-     "Grep",
-     7
-    ],
-    [
-     "Read",
-     7
+     66
     ],
     [
      "Edit",
-     2
+     14
+    ],
+    [
+     "Read",
+     12
+    ],
+    [
+     "Grep",
+     8
     ],
     [
      "Write",
