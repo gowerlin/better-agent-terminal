@@ -4,13 +4,15 @@ schema_kind: workorder
 id: T0897
 title: "（在 `v0.8.x`）① claude 花費上限句型（`channel's monthly spend limit`、`usage credit limit` 等）讓 `usage-limit.ts` 辨識；② e2e t0592 `lacking \"shell\"` 情境穩定化"
 type: implementation
-status: PENDING
+status: IN_PROGRESS
 repo: better-agent-terminal
 project: maintenance
 priority: P3
 sizing: S
 created_at: "2026-11-25T01:06:57+08:00"
-updated_at: "2026-11-25T01:06:57+08:00"
+updated_at: "2026-11-25T01:15:25+08:00"
+started_at: "2026-11-25T01:15:25+08:00"
+tower_question: open
 target_version: "0.8.0-pre.2"
 depends_on: [T0896]
 related:
@@ -68,6 +70,31 @@ T0891（內嵌 claude 2.1.331 / codex 0.172.0 追版）回報的兩個候選，�
 ## 回報區
 
 > 以下由 sub-session 填寫，請勿在指揮塔 session 中編輯（唯一例外：`### 待塔台決策` 的 `塔台答覆 Q-n` 行由塔台新增）
+
+### 待塔台決策
+
+> 依據：內嵌 claude 2.1.331 的限額訊息組字函式 `ui()`（`q(e,n)` = `` `You've hit your ${e}${n}` ``）與 CLI 自己的限額訊息前綴表 `Pxi`。下列三句分類不明確，依 `memory_overrides` 第 3 條提問；其餘新句型分類明確，先照建議實作（見〈產出摘要〉）。
+
+#### Q-1：`You've hit your usage limit · contact your admin to increase it`（`bL()` 用量配額模式、非帳單管理者時的句子；目前 BAT 不認）要不要認、歸哪一類？
+- 提問時間：2026-11-25T01:18:35+0800
+- 選項：[A] 不加（維持現狀，回報區記錄）/ [B] 歸 `claude-blocked` → `non-timed` 提示 / [C] 歸 `claude-limit`（`usage`、沒有重置時間 → `cli-unavailable` 提示） / [D] 其他：________
+- Worker 建議：[B]。句子沒有重置時間、要求找管理者調高，是配額上限，`non-timed`（「重置不會解除」）最貼切；只有帶這段後綴的句子會新增辨識，既有的 `You've hit your usage limit`（無後綴，目前歸 `claude-limit` / `usage`）不變。
+- 影響範圍：`src/lib/usage-limit.ts` `CLAUDE_BLOCKED_RE`、`src/lib/__tests__/usage-limit.test.ts`、`docs/agent-guide/usage-limit-continue.md`
+- 阻塞：否（其他句型與 ② 先做；收單前等答覆）
+
+#### Q-2：`Usage is paused for your organization. For help, please contact support.`（`dailyCapPaused`，組織每日上限暫停；目前 BAT 不認）要不要認？
+- 提問時間：2026-11-25T01:18:35+0800
+- 選項：[A] 不加（回報區記錄）/ [B] 歸 `claude-blocked` → `non-timed` 提示 / [C] 其他：________
+- Worker 建議：[A]。這是「每日」上限暫停，`non-timed` 的提示文字「花費上限或額度不足：重置不會解除」可能不正確（隔天可能自行恢復），句子也沒有重置時間可排程；不認＝現狀。
+- 影響範圍：同 Q-1
+- 阻塞：否
+
+#### Q-3：`usage credit limit` 在 2.1.331 只出現在警告（`Approaching usage credit limit`、`You've used N% of your usage credit limit`、`You're close to your usage credit limit`）、fast mode 提示（`Fast mode disabled · usage credit limit reached`）與管理者申請文字，沒有任何 `You've hit your usage credit limit` 停止句（`ui()` 的 `overage` 類型落到 `You've hit your usage limit`）。工單列為「至少」要認，要不要仍防禦性加入？
+- 提問時間：2026-11-25T01:18:35+0800
+- 選項：[A] 不加（只認 CLI 實際會印的停止句，回報區附證據）/ [B] 防禦性加 `You've hit your usage credit limit` 歸 `claude-blocked` → `non-timed` / [C] 其他：________
+- Worker 建議：[A]。CLI 不會印這句，加了也測不到真實來源；警告句既有測試明定「不是停止」，不能認。
+- 影響範圍：同 Q-1
+- 阻塞：否
 
 ### 完成狀態
 - **session_id**：
