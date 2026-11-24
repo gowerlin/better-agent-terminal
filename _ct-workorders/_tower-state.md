@@ -4,10 +4,10 @@ summary_version: 1
 updated_at: "2026-11-25T03:05:00+08:00"
 session: "2026-11-25 00:28 第一百三十 session（CT v6.0.0）"
 next_ids:
-  workorder: "T0901"
-  decision: "D326"
+  workorder: "T0902"
+  decision: "D327"
   bug: "BUG-220"
-  plan: "PLAN-068"
+  plan: "PLAN-069"
 todo:
   - "PLAN-067 每週日誌清查：塔台開工時讀 PLAN-067 `last_review_at`，≥ 7 天就在面板提示（只提示、不自動派工；規則見 `_local-rules.md`〈每週日誌清查〉）。下次到期 2026-12-02"
   - "🚀 `v0.8.0-pre.2` 已發佈（D324，2026-11-25 03:02，從 `v0.8.x` `7063e45e`；pre.1 D315 2026-11-24，NSIS 重裝驗收 PASS）；**pre.2 NSIS 重裝驗收待使用者執行**。待做：發佈後驗收（linux / macos / docker acceptance、WSL smoke）視需要另取授權；`v0.8.x` 併回 main：使用者裁示等 `v0.8.0-pre.1` 實際使用一段時間再併，併回後 PLAN-066 → DONE（main 的 `package.json` 仍是 `0.7.5-pre.2`，`v0.8.x` 是 `0.8.0-pre.1`）"
@@ -48,6 +48,8 @@ todo:
 > 02:4x D325（使用者「依建議」）→ T0900 派出；attempt 2 `tests / unit-tests` success，Linux / macOS build success，Windows build 進行中。
 > 02:59 T0900 收單 DONE：根因 = 測試競態（`await closed` 後才掛 client `'close'` listener，Linux unix socket 上 client 常先 close；WSL 重現約 22%），只改測試（`6b907f6b`，+5 / −1，timeout 不變），WSL 連續 60 次 0 失敗、Windows test:unit 第一次即綠 8513。模式 ① 直接合併：`ct-merge/T0900` `86b3fc67`（parent1 `7063e45e` / parent2 `6b907f6b`）→ **本機 `v0.8.x` ff `7063e45e..86b3fc67`（等 pre.2 release 建好後才 push，該提交隨下一版發佈）**；BUG-219 FIXED；分支 `ct/T0900` / `ct-merge/T0900` 已刪；worktree 中繼資料已移除，空目錄被 Worker 分頁佔用待分頁關閉後刪；session 快照已寫；`--close-worker T0900` exit 0。
 > 03:02 **`v0.8.0-pre.2` 發佈**：run `45460440287` attempt 2 全 success（tests、typecheck、server-bundle ×3、三平台 build、release）；prerelease target `7063e45e`、4 個安裝檔；`server-bundle-v0.8.0-pre.2`（7 個附件）。更版重點已 `gh release edit`。CHANGELOG / release-note 加 pre.2 段（main，README 不需改）；`v0.8.x` 本機 `86b3fc67`（T0900）→ `fda8a4b4`（package version 0.8.0-pre.2）。
+> 03:05 push `main` `70b21395..85613f0e`、`v0.8.x` `7063e45e..fda8a4b4`（去識別掃描 0）；Pages run `45466482052` build / deploy / link-check success，首頁 `0.8.0-pre.2`；link-check 50 筆皆 github.com `HTTP/2 protocol error`（含快取重複），連結本身有效，前一次 run 0 筆 → 暫時性，未開單（候選：lychee 對 github.com 改 HTTP/1.1 或加重試）。**pre.2 發佈完成，待使用者跑 NSIS 重裝驗收**。
+> 03:06 GitHub #24 → D326 開 PLAN-068、T0901（BAT 研究）、HANDOVER 給 CT（討論）。
 >
 > 🛏 **第一百二十九 session 收工**（2026-11-24 03:50 (UTC+8)）。
 

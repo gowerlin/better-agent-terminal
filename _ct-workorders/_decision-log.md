@@ -10,6 +10,7 @@
 
 | ID | 日期 | 標題 | 相關工單 |
 |----|------|------|---------|
+| D326 | 2026-11-25 | GitHub #24（塔台訊息被淹沒）：開 PLAN-068，BAT 研究單 T0901＋給 CT 的討論 HANDOVER 並行；契約定案前雙方不實作 | PLAN-068 / T0901 |
 | D325 | 2026-11-25 | pre.2 CI 第一次 unit test 失敗（BUG-219）：重跑過了照常發 pre.2，BUG-219 由 T0900 查根因；重跑仍失敗則停發版先修 | BUG-219 / T0900 |
 | D324 | 2026-11-25 | 發佈 `0.8.0-pre.2`（從 `v0.8.x` `7063e45e`：T0891 / T0893–T0898）；刪除已合併的 8 個工作分支 | T0891 / T0893–T0899 |
 | D323 | 2026-11-25 | 開 PLAN-067 每週日誌清查：塔台開工時 `last_review_at` ≥ 7 天就提示（只提示、不自動派工），清查工單以 T0892 為範本；規則寫進 `_local-rules.md` | PLAN-067 / T0892 |
@@ -255,6 +256,14 @@
   4. PLAN-001 保持延後（🟢 Low，等 plugin 1.0 穩定）
 - **Success criteria**（EXP→CONCLUDED）：npm install 無錯 / 所有 native modules rebuild 成功 / dev+build:dir 可跑 / 手動 smoke test 8 項通過
 - **最大風險**：`whisper-node-addon@1.0.2` 對 Electron 41（Node 24）的 NODE_MODULE_VERSION 相容性未知，允許 Worker 遇此決策點主動問塔台
+
+---
+
+### D326 2026-11-25 03:06 — GitHub #24：塔台訊息不被淹沒（PLAN-068）
+
+- **背景**：issue #24：CT yolo 多 Worker 連續回報時，塔台給使用者的總結與提問被後續回合淹沒、讀到一半被擠走；T0788 只保護 AskUserQuestion 類等待，文字提問時塔台已 `idle`。使用者要求研究、與 CT 塔台協作討論更佳解法，考慮 MultiView / SubView 等讓每則訊息獨立的顯示方式、可 review 的清單、清單維護或只留最後幾筆。
+- **決定**：開 PLAN-068（IN_PROGRESS）。BAT 端研究單 T0901（唯讀，現況盤點、A 收件匣 / B 閱讀保護 / C 回合訊息卡 / D 分割檢視比較、保留策略、回答路徑、Claude Code 捲動行為查證、BAT ↔ CT 契約草案）；同時以 HANDOVER `_handover-2026-11-25-tower-user-inbox-issue24.md` 請 CT 塔台討論 CT 端（結構化寫入、只暫停單張工單、待決 / 僅告知、保留、回答格式、公開 repo 隱私）。兩邊結論對齊、契約定案前都不實作；CT 答覆到時以〈塔台補充〉轉給 T0901。
+- **相關**：T0788 / T0607 / T0701 / issue #23
 
 ---
 
