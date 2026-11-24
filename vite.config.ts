@@ -45,6 +45,9 @@ export default defineConfig({
     environment: 'jsdom',
     globals: true,
     setupFiles: ['./vitest.setup.ts'],
+    // T0898 / BUG-218: fetch the Electron binary once before the workers start (Electron 42+
+    // downloads it on the first require('electron'), synchronously, in every worker at once).
+    globalSetup: ['./electron/__tests__/helpers/electron-binary-global-setup.ts'],
     include: [
       'src/**/*.test.{ts,tsx}',
       'src/**/__tests__/**/*.{ts,tsx}',

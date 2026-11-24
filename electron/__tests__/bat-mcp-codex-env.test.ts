@@ -194,8 +194,15 @@ describe.skipIf(!CODEX)('bundled codex forwards env_vars to the stdio MCP server
     const server = path.join(dir, 'fake-bat-mcp.mjs')
     fs.writeFileSync(server, FAKE_MCP_SERVER)
     const out = path.join(dir, `env-${withEnvVars ? 'b' : 'a'}.json`)
-    const overrides = codexMcpOverrides({ command: process.execPath, args: [server, out] })
-      .filter(value => withEnvVars || !value.includes('.env_vars='))
+    const overrides = [
+      ...codexMcpOverrides({ command: process.execPath, args: [server, out] })
+        .filter(value => withEnvVars || !value.includes('.env_vars=')),
+      // T0898: without this, app-server starts `git ls-remote https://github.com/openai/plugins.git`
+      // (curated plugin sync) with its cwd in this CODEX_HOME; killing codex leaves that git running,
+      // so the temp dir stayed locked 0.8–7.7 s alone and over the 21 s rmSync retries under load
+      // (EPERM in afterEach). The MCP servers start the same way; it also keeps the test off the network.
+      'features.plugins=false',
+    ]
     const env: NodeJS.ProcessEnv = {
       ...process.env,
       CODEX_HOME: codexHome,
