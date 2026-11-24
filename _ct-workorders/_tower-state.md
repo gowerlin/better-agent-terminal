@@ -61,6 +61,7 @@ todo:
 > 05:57 T0907 收單 DONE：衝突全以兩邊保留解掉、驗收第一次即綠（test:unit 8,776、e2e t0904 ×2）→ **`v0.8.x` ff `eaa8b238..677860a4`（本機，W0–W4 完成）**；worktree T0903–T0906 移除、已合併分支刪除；CLAUDE.md 90,776 字元。05:58 D334 開 T0908（W5）/ T0909（W6）/ T0910（W9）平行（皆 exit 0、`started:`）。
 > [提問] 06:0x T0909 Q-1（`--answer` exit 0）：面板塔台 = 狀態檔 `bat_contract == 2` 且工作區沒有已宣告塔台分頁時，該工作區所有 Claude Agent 面板；「💬」有已宣告塔台時只顯示它的卡片、沒有時合併面板卡片並標來源。同一定義以〈塔台補充（執行中 #1）〉轉給 T0908（回答目標與共用純函式）。
 > [提問] 06:0x T0910 Q-1 / Q-2（`--answer` exit 0 ×2）：Q-1 A（提示元件放 `src/components/inbox/`，`InboxPanel.tsx` 只加兩行）；Q-2 A（新事件 `terminal:hooks-status`，`preload.ts` 只加 `onHooksStatus`，不進 helper 權杖）；`affects_files` 補兩檔。
+> 06:14 T0909（W6）收單 DONE：`ct/T0909` `efd6b3da`（卡片同步接 App、「💬 塔台訊息」區（純文字、展開即已讀、釘選上限、全部已讀 / 清除）、加亮行、codex 說明、G7 提示、縮圖 `💬N`、面板塔台 `PanelTowerSync` ＋ proxied `tower-cards:set-panel-tower`；判定純函式 `workspaceHasPanelTowers` / `panelTowerTerminalIds` / `CLAUDE_PANEL_PRESETS`（含 `claude-code-worktree`）；test:unit 第一次即綠 8,820）。session 快照已寫；`--close-worker T0909 --worktree keep` exit 0。最終函式名以〈塔台補充（執行中 #2）〉轉給 T0908。待 T0908 / T0910 完成後合併工單。
 >
 > 🛏 **第一百二十九 session 收工**（2026-11-24 03:50 (UTC+8)）。
 
