@@ -27,6 +27,7 @@ import { SERVER_STATUS_TOAST_KEYS, ServerStatusToast, upgradeNoticeToastKey, upg
 import { InterruptedAgentsController } from './components/InterruptedAgentsDialog'
 import { OPEN_INTERRUPTED_AGENTS_EVENT, parseUpgradeInterruptionNotice, useInterruptedAgents, type UpgradeInterruptionNotice } from './stores/interrupted-agents-store'
 import { CtToast, useCtToast } from './components/CtToast'
+import { applyTowerContract, claimTowerContractHint, clearTowerContract, towerContractHint } from './stores/tower-contract-store'
 import { useRuntimeToasts } from './hooks/useRuntimeToasts'
 import { useRemoteToolInstall } from './hooks/useRemoteToolInstall'
 import { resolveControlTowerAgentRuntime, resolveControlTowerWorkOrderCommand } from './utils/control-tower-launch'
@@ -787,6 +788,26 @@ export default function App() {
       window.electronAPI.debug.log(`[set-role] id=${info.id} role=${info.role} → ${result}${title ? ` title="${title}"` : ''}${detachedWorkspaceId ? ' (detached window)' : ''}`)
     })
   }, [detachedWorkspaceId, detachedIds])
+
+  // PLAN-068 W0 / T0903 (T0902 §6′): the BAT ↔ CT contract the Tower declared with that --set-role.
+  // Every window keeps it for its thumbnails (badge CT↑ / BAT↑); the window holding the tab shows the
+  // P-1 / P-2 hint once per tab. The PTY ending clears it (main forgets it too).
+  useEffect(() => {
+    const unsubRole = window.electronAPI.pty.onRoleChanged((info) => {
+      const entry = applyTowerContract(info)
+      const terminal = workspaceStore.getState().terminals.find(tm => tm.id === info.id)
+      if (!terminal || !ownsTerminalForCloseRequest(terminal, detachedWorkspaceId, detachedIds)) return
+      window.electronAPI.debug.log(`[tower-contract] id=${info.id} contract=${entry?.towerContract ?? 'none'} status=${entry?.status ?? 'not-tower'}`)
+      if (!claimTowerContractHint(info.id, entry)) return
+      const hint = towerContractHint(entry)
+      if (hint) addRuntimeToast(`${terminal.title}: ${t(hint.key, hint.values)}`, 'warning', 20000)
+    })
+    const unsubExit = window.electronAPI.pty.onExit((id) => clearTowerContract(id))
+    return () => {
+      unsubRole()
+      unsubExit()
+    }
+  }, [detachedWorkspaceId, detachedIds, addRuntimeToast, t])
 
   // PLAN-044 / T0566 (D148): a tab's usage-limit hint, and the automatic continue once the limit
   // reset (+ delay) is due. Only the window holding the tab acts (same rule as --close-worker), so

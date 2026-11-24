@@ -417,3 +417,138 @@ describe('bat-terminal --set-role --mode (T0565)', () => {
     }, 20000)
   })
 })
+
+/**
+ * PLAN-068 W0 / T0903 (R11, BAT ↔ CT contract v2): `--set-role tower --bat-contract <n>`.
+ * - sent as `batContract` (a whole number ≥ 1); BAT answers `towerContract` (recorded) + `batContract`
+ *   (the highest it supports) → `  bat-contract: 2` / `  bat-contract: 2 (requested <n>: unsupported)`
+ * - 🔴 a call without it: request, stdout, stderr and exit code exactly as before (no bat-contract line,
+ *   even if a BAT answered with contract fields)
+ * - a BAT whose main does not know `batContract` (answer without it) → no line, exit 0
+ * - not a whole number ≥ 1, no value, or without --set-role → exit 1, set-role: USAGE, nothing sent
+ */
+describe('bat-terminal --set-role --bat-contract (T0903)', () => {
+  const contractCases: Array<[string, number, number, string]> = [
+    ['2', 2, 2, '  bat-contract: 2'],
+    [' 02 ', 2, 2, '  bat-contract: 2'],
+    ['1', 1, 1, '  bat-contract: 2'],
+    ['3', 3, 3, '  bat-contract: 2 (requested 3: unsupported)'],
+    ['10', 10, 10, '  bat-contract: 2 (requested 10: unsupported)'],
+  ]
+  for (const [given, sent, recorded, line] of contractCases) {
+    it(`--bat-contract '${given}' → sent ${sent}, exit 0, "${line.trim()}"`, async () => {
+      const remote = await startMockRemote({ result: { ok: true, terminalId: TOWER_ID, role: 'tower', towerContract: recorded, batContract: 2 } })
+      try {
+        const r = await run(['--set-role', 'tower', '--bat-contract', given], { ...remote.env, BAT_TERMINAL_ID: TOWER_ID })
+        expect(r.code, r.stderr).toBe(0)
+        expect(r.stderr).toBe('')
+        expect(r.stdout.trim().split(/\r?\n/)).toEqual([`✓ Tower role set: ${TOWER_ID}`, line])
+        expect(remote.invokes[0].args).toEqual([{ terminalId: TOWER_ID, role: 'tower', batContract: sent }])
+        expect(helperEvents(remote.dir, 'set-role').at(-1)).toMatchObject({ batContract: 2, recordedContract: recorded, result: 'OK' })
+      } finally {
+        await remote.close()
+      }
+    }, 20000)
+  }
+
+  it('with --mode: ✓, mode, then bat-contract; --bat-contract may come first', async () => {
+    const remote = await startMockRemote({ result: { ok: true, terminalId: TOWER_ID, role: 'tower', mode: 'yolo', towerContract: 2, batContract: 2 } })
+    try {
+      const r = await run(['--bat-contract', '2', '--set-role', 'tower', '--mode', 'yolo'], { ...remote.env, BAT_TERMINAL_ID: TOWER_ID })
+      expect(r.code, r.stderr).toBe(0)
+      expect(r.stdout.trim().split(/\r?\n/)).toEqual([`✓ Tower role set: ${TOWER_ID}`, '  mode: yolo', '  bat-contract: 2'])
+      expect(remote.invokes[0].args).toEqual([{ terminalId: TOWER_ID, role: 'tower', mode: 'yolo', batContract: 2 }])
+    } finally {
+      await remote.close()
+    }
+  }, 20000)
+
+  it('a BAT whose main does not record the contract (no batContract in the answer) → no bat-contract line, exit 0', async () => {
+    const remote = await startMockRemote({ result: { ok: true, terminalId: TOWER_ID, role: 'tower', mode: 'yolo' } })
+    try {
+      const r = await run(['--set-role', 'tower', '--bat-contract', '2', '--mode', 'yolo'], { ...remote.env, BAT_TERMINAL_ID: TOWER_ID })
+      expect(r.code, r.stderr).toBe(0)
+      expect(r.stdout.trim().split(/\r?\n/)).toEqual([`✓ Tower role set: ${TOWER_ID}`, '  mode: yolo'])
+      expect(r.stdout).not.toContain('bat-contract')
+    } finally {
+      await remote.close()
+    }
+  }, 20000)
+
+  it('🔴 a call without --bat-contract: request / stdout / stderr / exit exactly as before, even if BAT answers contract fields', async () => {
+    const remote = await startMockRemote({ result: { ok: true, terminalId: TOWER_ID, role: 'tower', mode: 'yolo', towerContract: 2, batContract: 2 } })
+    try {
+      const r = await run(['--set-role', 'tower', '--mode', 'yolo', '--agent', 'claude'], { ...remote.env, BAT_TERMINAL_ID: TOWER_ID })
+      expect({ code: r.code, stdout: r.stdout, stderr: r.stderr }).toEqual({
+        code: 0,
+        stdout: `✓ Tower role set: ${TOWER_ID}\n  mode: yolo\n`,
+        stderr: '',
+      })
+      expect(remote.invokes[0].args).toEqual([{ terminalId: TOWER_ID, role: 'tower', agent: 'claude', mode: 'yolo' }])
+      const event = helperEvents(remote.dir, 'set-role').at(-1)
+      expect(event).not.toHaveProperty('batContract')
+      expect(event).not.toHaveProperty('recordedContract')
+    } finally {
+      await remote.close()
+    }
+  }, 20000)
+
+  it('NOT_FOUND with --bat-contract → exit 3, no bat-contract line (unchanged exit codes)', async () => {
+    const remote = await startMockRemote({ result: { ok: false, code: 'NOT_FOUND' } })
+    try {
+      const r = await run(['--set-role', 'tower', '--bat-contract', '2'], { ...remote.env, BAT_TERMINAL_ID: TOWER_ID })
+      expect(r.code).toBe(3)
+      expect(r.stderr).toContain('set-role: NOT_FOUND')
+      expect(r.stdout).not.toContain('bat-contract')
+    } finally {
+      await remote.close()
+    }
+  }, 20000)
+
+  it('INVALID_ARGS from BAT → exit 1 (unchanged)', async () => {
+    const remote = await startMockRemote({ result: { ok: false, code: 'INVALID_ARGS' } })
+    try {
+      const r = await run(['--set-role', 'tower', '--bat-contract', '2'], { ...remote.env, BAT_TERMINAL_ID: TOWER_ID })
+      expect(r.code).toBe(1)
+      expect(r.stderr).toContain('set-role: INVALID_ARGS')
+    } finally {
+      await remote.close()
+    }
+  }, 20000)
+
+  describe('usage errors (nothing sent)', () => {
+    const dir = join(tmpdir(), `bat-set-role-contract-usage-${process.pid}-${Date.now()}`)
+    tempDirs.push(dir)
+    const env = { BAT_REMOTE_PORT: '1', BAT_REMOTE_TOKEN: 'x', BAT_HELPER_LOG_DIR: join(dir, 'Logs'), BAT_USER_DATA: dir, BAT_TERMINAL_ID: TOWER_ID }
+    const ROLE = ['--set-role', 'tower']
+    const cases: Array<[string, string[], string]> = [
+      ['not a number', [...ROLE, '--bat-contract', 'two'], "Invalid --bat-contract value: 'two' (expected a whole number >= 1)"],
+      ['zero', [...ROLE, '--bat-contract', '0'], "Invalid --bat-contract value: '0'"],
+      ['negative', [...ROLE, '--bat-contract', '-1'], "Invalid --bat-contract value: '-1'"],
+      ['a fraction', [...ROLE, '--bat-contract', '2.5'], "Invalid --bat-contract value: '2.5'"],
+      ['blank', [...ROLE, '--bat-contract', '  '], "Invalid --bat-contract value: '  '"],
+      ['too large', [...ROLE, '--bat-contract', '99999999999999999999'], "Invalid --bat-contract value: '99999999999999999999'"],
+      ['missing value', [...ROLE, '--bat-contract'], '--bat-contract requires a contract version argument'],
+      ['without --set-role', ['--bat-contract', '2'], '--bat-contract is only valid with --set-role'],
+      ['without --set-role, with a command', ['--bat-contract', '2', 'echo', 'hi'], '--bat-contract is only valid with --set-role'],
+      ['without --set-role, with --close-worker', ['--close-worker', 'T0535', '--notify-id', 't', '--bat-contract', '2'], '--bat-contract is only valid with --set-role'],
+    ]
+    for (const [name, args, message] of cases) {
+      it(`${name} → exit 1, set-role: USAGE`, async () => {
+        const r = await run(args, env)
+        expect(r.code).toBe(1)
+        expect(r.stderr).toContain(message)
+        expect(r.stderr).toContain('set-role: USAGE')
+        expect(r.stderr).not.toContain('Cannot connect')
+        expect(r.stdout).not.toContain('Terminal created')
+      }, 20000)
+    }
+
+    it('--help documents --bat-contract; the --set-role synopsis line is unchanged', async () => {
+      const r = await run(['--help'], env)
+      expect(r.code).toBe(0)
+      expect(r.stdout).toContain('--bat-contract <n>     With --set-role (T0903): the BAT <-> CT contract the Tower speaks')
+      expect(r.stdout).toContain('bat-terminal.mjs --set-role tower [--mode yolo|ask|off|on] [--terminal-id <id>] [--agent <id>]')
+    })
+  })
+})

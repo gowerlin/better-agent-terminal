@@ -89,6 +89,13 @@ interface PtyInstance {
    */
   role?: 'tower'
   towerMode?: CtMode
+  /**
+   * PLAN-068 W0 / T0903: the BAT ↔ CT contract the Tower declared with that `--set-role`
+   * (`--bat-contract <n>`, src/lib/tower-contract.ts). Same life as `role`: kept by `restart` and the
+   * Terminal Server recovery, gone with the PTY; every `--set-role` overwrites it, one without
+   * `--bat-contract` clears it (undefined = not declared). Not saved.
+   */
+  towerContract?: number
 }
 
 /**
@@ -105,6 +112,8 @@ export interface PtyTerminalInfo {
   agentPreset?: string
   role?: 'tower'
   towerMode?: CtMode
+  /** PLAN-068 W0 / T0903: the contract a Tower declared (`--bat-contract`; absent = none). */
+  towerContract?: number
   yolo: boolean
 }
 
@@ -113,7 +122,7 @@ export interface PtyTerminalInfo {
  * `terminal:read-output` can still read its last output. At most `EXITED_PTY_RECORD_MAX`, for
  * `EXITED_PTY_RECORD_TTL_MS`; a running PTY with the same id (restart, re-create) wins.
  */
-export interface ExitedPtyRecord extends Omit<PtyTerminalInfo, 'yolo' | 'role' | 'towerMode'> {
+export interface ExitedPtyRecord extends Omit<PtyTerminalInfo, 'yolo' | 'role' | 'towerMode' | 'towerContract'> {
   exitedAt: number
   /** Unknown for a kill until the process's own exit arrives (it may never). */
   exitCode?: number
@@ -1082,12 +1091,16 @@ export class PtyManager implements CloseWorkerPtyManager {
   /**
    * T0565 / D148: record the role PTY `id` declared (`terminal:set-role`). `mode` undefined keeps
    * the recorded mode (CT passes it every time, so there is no "clear"). false = no such PTY.
+   * PLAN-068 W0 / T0903: `towerContract` is the `--bat-contract` of this call — unlike `mode` it is
+   * always overwritten: undefined clears it (a `--set-role` without `--bat-contract` = not declared).
    */
-  setTerminalRole(id: string, role: 'tower', mode?: CtMode): boolean {
+  setTerminalRole(id: string, role: 'tower', mode?: CtMode, towerContract?: number): boolean {
     const instance = this.instances.get(id)
     if (!instance) return false
     instance.role = role
     if (mode) instance.towerMode = mode
+    if (towerContract !== undefined) instance.towerContract = towerContract
+    else delete instance.towerContract
     return true
   }
 
@@ -1100,6 +1113,16 @@ export class PtyManager implements CloseWorkerPtyManager {
   getTowerMode(id: string): CtMode | undefined {
     const instance = this.instances.get(id)
     return instance?.role === 'tower' ? instance.towerMode : undefined
+  }
+
+  /**
+   * PLAN-068 W0 / T0903: the BAT ↔ CT contract a Tower PTY declared (`--set-role --bat-contract`);
+   * undefined = not a Tower, or it declared none. The one getter W1 / W2 / W3 ask
+   * (`towerContractStatus`, src/lib/tower-contract.ts, decides what the value means).
+   */
+  getTowerContract(id: string): number | undefined {
+    const instance = this.instances.get(id)
+    return instance?.role === 'tower' ? instance.towerContract : undefined
   }
 
   /**
@@ -1140,6 +1163,7 @@ export class PtyManager implements CloseWorkerPtyManager {
       ...(instance.agentPreset ? { agentPreset: instance.agentPreset } : {}),
       ...(instance.role ? { role: instance.role } : {}),
       ...(instance.role === 'tower' && instance.towerMode ? { towerMode: instance.towerMode } : {}),
+      ...(instance.role === 'tower' && instance.towerContract !== undefined ? { towerContract: instance.towerContract } : {}),
       yolo: this.isYoloTerminal(id),
     }
   }
@@ -1768,13 +1792,14 @@ export class PtyManager implements CloseWorkerPtyManager {
    * workspace / global env vars and a Worker's `BAT_TOWER_TERMINAL_ID` / `CT_MODE` / `CT_INTERACTIVE`.
    * T0535: + its `workorder`, so `--close-worker` still finds a restarted Worker.
    * T0565: + the declared role / Tower mode, so a restarted yolo Tower stays one.
+   * T0903: + the declared BAT ↔ CT contract (`towerContract`).
    */
   restart(id: string, cwd: string, shell?: string): boolean {
     const instance = this.instances.get(id)
     if (instance) {
       const type = instance.type
       const customEnv = instance.customEnv ? { ...instance.customEnv } : undefined
-      const { workspaceId, agentPreset, workorder, worktree, role, towerMode } = instance
+      const { workspaceId, agentPreset, workorder, worktree, role, towerMode, towerContract } = instance
       this.kill(id)
       const ok = this.create({
         id, cwd, type, shell,
@@ -1784,7 +1809,7 @@ export class PtyManager implements CloseWorkerPtyManager {
         ...(workorder ? { workorder } : {}),
         ...(worktree ? { worktree } : {}),
       })
-      if (ok && role) this.setTerminalRole(id, role, towerMode)
+      if (ok && role) this.setTerminalRole(id, role, towerMode, towerContract)
       return ok
     }
     return false

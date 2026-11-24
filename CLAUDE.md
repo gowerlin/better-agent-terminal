@@ -108,6 +108,7 @@
 - 主行程 `terminal:set-role`（`electron/terminal-role.ts` `setTerminalRole`，本機與 headless 共用）把 `role` / `towerMode` 記在 `PtyInstance` 並送 `terminal:role-changed`；主行程不判斷標題。
 - yolo 判定唯一實作 `PtyManager.isYoloTerminal(id)`：塔台宣告優先，否則看 `customEnv.CT_MODE`。不持久化。
 - 標題唯一實作 `src/lib/tower-terminal-title.ts`（`<Agent 顯示名> · Tower`），只在 `isDefaultTerminalTitle` 為真時套用（使用者命名優先）。🔴 BAT 程式碼替分頁命名一律用 `workspaceStore.setAutoTitle`；`renameTerminal` 專指使用者改名（`MainPanel` 雙擊），會清掉 `autoTitle`（`workspace-store.towerRole.test.ts` source guard）。
+- BAT ↔ CT 契約 v2 版本閘門（PLAN-068 W0 / T0903，R11）：`--set-role tower --bat-contract <n>`（整數 ≥ 1，否則 / 沒有 `--set-role` → exit 1 USAGE）→ stdout 多 `  bat-contract: 2`（請求 > 2 → `  bat-contract: 2 (requested <n>: unsupported)`），值記在 `PtyInstance.towerContract`（每次 `--set-role` 覆寫、不帶即清除；⏻ / recovery 保留、PTY 結束消失、不持久化），查詢 / `role-changed` 多 `towerContract: number | null`，縮圖 `CT↑` / `BAT↑`＋P-1 / P-2 toast（每分頁一次）。🔴 不帶 `--bat-contract` 的舊呼叫，請求 / stdout / stderr / exit code 逐字不變。判定唯一實作 `src/lib/tower-contract.ts`（`towerContractStatus`），host getter `PtyManager.getTowerContract`，renderer `src/stores/tower-contract-store.ts`；T0788 的對話框保護不綁版本。
 - 完整契約、預設標題清單、遠端行為、驗證清單：[docs/agent-guide/tower-tab-title.md](docs/agent-guide/tower-tab-title.md)
 
 ## 用量限制自動繼續（PLAN-044 / T0566，D148）

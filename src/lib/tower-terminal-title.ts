@@ -44,6 +44,14 @@ export interface TerminalRoleChangeInfo {
   /** The caller's `--agent` hint (a registry id). */
   agent?: string
   agentName?: string
+  /** T0565: the Tower's recorded CT mode (titles ignore it). */
+  mode?: string
+  /**
+   * PLAN-068 W0 / T0903: the BAT ↔ CT contract the Tower declared with this `--set-role`
+   * (`--bat-contract`; null = not declared). Absent from an older main = not declared.
+   * src/stores/tower-contract-store.ts reads it; titles ignore it.
+   */
+  towerContract?: number | null
 }
 
 export interface TowerTitleInput {

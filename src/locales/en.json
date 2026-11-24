@@ -1747,6 +1747,10 @@
       "posixShell": "The install tab uses {{fallback}} because {{shell}} is not a POSIX shell."
     }
   },
+  "towerContract": {
+    "ctOutdated": "This Tower's Control Tower did not declare BAT ↔ CT contract v{{supported}}, so notification protection (no scroll jump, not mixed into your draft, held while you read), turn message cards and the inbox list are off. Update to BMad Control Tower 6.1.0 or later, then reopen the Tower. Dialog protection (no notifications while it waits for your answer) is not affected.",
+    "batOutdated": "This Tower uses BAT ↔ CT contract v{{requested}}; this BAT supports only v{{supported}}. Update Better Agent Terminal. Until then, notification protection, turn message cards and the inbox list are off."
+  },
   "notifyHold": {
     "badge": "Held {{count}}",
     "badgeTooltip": "{{count}} held notification(s): this tab waits for your answer, so Worker notifications are held and sent once you answer. Click to review",
