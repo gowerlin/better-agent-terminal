@@ -256,10 +256,14 @@ describe('the real Worker script relays a pipe', () => {
       client.setEncoding('utf8')
       let got = ''
       await new Promise<void>((resolve) => client.on('data', (d) => { got += d; if (got === 'hello world') resolve() }))
+      // T0900 (BUG-219): listen for the client's close before asking for it. The Worker closes the client socket before it
+      // posts `closed`, so on Linux (unix socket) the client often emits 'close' before the `closed` message is handled;
+      // a listener attached after `await closed` then waits forever.
+      const clientClosed = new Promise<void>((resolve) => client.once('close', () => resolve()))
       const closed = next((m) => m.type === 'closed' && m.id === 1)
       worker.postMessage({ type: 'close', id: 1 })
       await closed
-      await new Promise<void>((resolve) => client.on('close', () => resolve()))
+      await clientClosed
       expect(messages.some((m) => m.type === 'ready' && m.id === 9)).toBe(false)
     } finally {
       await worker.terminate()
