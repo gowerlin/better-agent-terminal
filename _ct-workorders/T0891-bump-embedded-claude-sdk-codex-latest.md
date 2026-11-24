@@ -4,13 +4,14 @@ schema_kind: workorder
 id: T0891
 title: "內嵌 Claude / Codex 追最新（在 `v0.8.x`）：@anthropic-ai/claude-code 2.1.316 → 2.1.331、@anthropic-ai/claude-agent-sdk 0.3.316 → 0.3.331、@openai/codex-sdk / @openai/codex 0.166.0 → 0.172.0，核對 BAT 整合點"
 type: implementation
-status: PENDING
+status: IN_PROGRESS
 repo: better-agent-terminal
 project: maintenance
 priority: P2
 sizing: M
 created_at: "2026-11-25T00:30:23+08:00"
-updated_at: "2026-11-25T00:30:23+08:00"
+started_at: "2026-11-25T00:32:45+08:00"
+updated_at: "2026-11-25T00:32:45+08:00"
 target_version: "0.8.0-pre.2"
 depends_on: []
 related:
