@@ -49,7 +49,7 @@ CT 已回覆（BMad-Guide `_reply-2026-11-02-bat-notify-hold-contract.md`，CT D
 
 - 唯一實作：`NotifyHoldController`（`electron/notify-hold.ts`）—— 保留佇列、合併、上限、送出排程（不設逾時，D228）。不 import electron，Electron main 與 headless 共用，deps 注入比照 `close-worker.ts` / `usage-limit-continue.ts`。只讀 `TerminalBlockedTracker`（經 PtyManager 的 `getBlockedState` / `getBlockedDetection`），不改它的判斷規則（T0590 / T0757 / T0621）。
 - 接線：`pty:write`（`interceptWrite`；使用者輸入 → `onUserInput`）、`terminal:keypress`（`interceptKeypress`）只接線。
-- Electron main（`electron/main.ts`）：`registerProxiedHandlers` 建立；PtyManager deps 的 `onBlockedChange` / `onPtyExit` / `onServerRecovery` 轉給它；保留的 Enter 經 `terminalEmit('terminal:keypress', …)`（所有視窗 + broadcastHub，同原路徑）；「待送 N」的事件 `terminal:notify-hold-changed` 只送本機視窗；renderer IPC `terminal:notify-hold-list` / `terminal:notify-hold-cancel` 是 `ipcMain.handle`（🔴 不是 RemoteServer / helper channel）。
+- Electron main（`electron/main.ts`）：`registerProxiedHandlers` 建立；PtyManager deps 的 `onBlockedChange` / `onPtyExit` / `onServerRecovery` 轉給它；保留的 Enter 經 `terminalEmit('terminal:keypress', …)`（所有視窗 + broadcastHub，同原路徑）；「待送 N」的事件 `terminal:notify-hold-changed` 送所有視窗＋broadcastHub；`terminal:notify-hold-list` / `-cancel` / `-send-now` 由共用的 `registerNotifyHoldHandlers` 註冊（T0908 起 proxied，headless 也註冊；🔴 不是 helper channel，handler 另拒 `ctx.helper`）。
 - headless（`electron/remote/headless-entry.ts`）：`createHeadlessPtyModule` 建立，`onNotifyHold` 交給 terminal module 的 `terminal:keypress`；保留的 Enter 經 `host.emit`，沒有 client（`countRemoteReceivers` = 0）→ 丟棄並記 `dropped … (no-receiver)`。
 - renderer：`src/stores/notify-hold-store.ts`（`useNotifyHold` / `cancelNotifyHold`，第一次使用時訂閱並拉一次清單）、`src/components/TerminalThumbnail.tsx`（`.notify-hold-badge` 與 `.notify-hold-menu` popover，點外部關閉）、i18n `notifyHold.*`（三語系）。共用型別 `src/types/notify-hold.ts`（不含文字）。
 
@@ -73,7 +73,7 @@ CT 已回覆（BMad-Guide `_reply-2026-11-02-bat-notify-hold-contract.md`，CT D
 
 - `blockedDetection: none`（使用者關掉 hooks、非 claude / codex 分頁）照舊直接送出，Enter 仍可能作答對話框：BAT 無法判斷。
 - 保留以 `TerminalBlockedTracker` 的狀態為準。T0788 e2e 量到一次（60 次裡 1 次，假模型回得極快）：claude 的 hook 回報亂序，`permission-request` 先到、`user-prompt-submit` 後到，把 `blocked` 清掉，對話框其實還在 → 那次通知不會被保留（`--submit` 時 Enter 仍會作答）。這是 hook 回報的既有競態（BUG-197）。**T0790 已修**：hook 回報帶程序啟動時間 `at`，晚到、發生得比 `blocked` 早的清除事件不再清除（[blocked-state.md](blocked-state.md)「晚到的清除回報」）；e2e 拿掉 T0788 的「偵測到 `RACE` 就重跑」，改成直接斷言通知前 `blocked` 仍在，另記被保留的晚到回報（`lateReports`）。殘留：`at` 是 hook 的 node 程序啟動時間，兩個事件間隔小於 shell + node 啟動時間的差異時仍可能判斷錯（量不到發生率）。
-- 遠端 profile 視窗：保留在 bat-server 上照樣生效，但「待送 N」與取消只在本機視窗（`terminal:notify-hold-*` 是 Electron 的本機 IPC，沒有加進 `PROXIED_CHANNELS` / `PROXIED_EVENTS`）。遠端視窗看不到待送清單；要支援需另開工單（protocol / path-aware 分類，D227 範圍外）。
+- ~~遠端 profile 視窗看不到待送清單~~：T0908（PLAN-068 W5）起 `terminal:notify-hold-*` 已加進 `PROXIED_CHANNELS` / `PROXIED_EVENTS`，遠端視窗看得到 bat-server 的「待送 N」、原因、取消、「立即送出」與 5 分鐘提醒。舊 bat-server 沒有 handler → 遠端視窗照舊看不到（不報錯）。
 - 送出時塔台若正在工作中（使用者答完後 claude 繼續原回合），文字會打進 claude 的輸入框、Enter 讓 claude 排隊 —— 與修正前塔台忙碌時收到通知相同。
 - 文字送出後、Enter 送出前（250 ms）塔台若又進入 blocked：Enter 留著等下次答完，但已送出的文字可能被新對話框吞掉（與修正前同一個競態，窗口縮到 250 ms）。
 - CT 看不到「通知被保留、塔台還沒看到」（第 10 點未加 `--report-hold`）。

@@ -106,6 +106,11 @@ export const PROXIED_CHANNELS = new Set([
   'tower-cards:list', 'tower-cards:mark-read', 'tower-cards:pin', 'tower-cards:clear',
   // PLAN-068 W6 / T0909: the window's "this Claude panel is a panel Tower" decision (same rules)
   'tower-cards:set-panel-tower',
+  // PLAN-068 W5 / T0908: the Inbox answer into a contract-2 Tower tab, and the "📨 待送" list / cancel /
+  // 立即送出 of the window's tabs on the host that runs them (electron/notify-hold.ts); never in
+  // HELPER_CHANNEL_ROLES; an older bat-server has no handler (the window shows nothing / a refusal)
+  'tower-inbox:answer',
+  'terminal:notify-hold-list', 'terminal:notify-hold-cancel', 'terminal:notify-hold-send-now',
 ])
 
 /**
@@ -149,4 +154,7 @@ export const PROXIED_EVENTS = new Set([
   // PLAN-068 W3 / T0905: a remote Tower tab's turn cards changed — the client windows refetch them
   // with `tower-cards:list` (electron/tower-cards.ts; counts and a revision only, never a card's text)
   'tower-cards:changed',
+  // PLAN-068 W5 / T0908: a remote tab's held notifications changed / waited 5 minutes for a draft
+  // (electron/notify-hold.ts; ids, counts, times and a reason enum, never a text)
+  'terminal:notify-hold-changed', 'terminal:notify-hold-reminder',
 ])

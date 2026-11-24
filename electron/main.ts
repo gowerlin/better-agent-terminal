@@ -37,7 +37,7 @@ import { mirrorToBatScripts } from './remote/remote-logger'
 import { rotateBatScriptsLog } from './bat-scripts-log-rotation'
 import { CtWorktreeService } from './ct-worktree'
 import { UsageLimitContinueScheduler } from './usage-limit-continue'
-import { NOTIFY_HOLD_CHANGED_CHANNEL, NOTIFY_HOLD_REMINDER_CHANNEL, NotifyHoldController } from './notify-hold'
+import { NOTIFY_HOLD_CHANGED_CHANNEL, NOTIFY_HOLD_REMINDER_CHANNEL, NotifyHoldController, registerNotifyHoldHandlers, registerTowerInboxAnswerHandler } from './notify-hold'
 import { normalizeUsageLimitConfig } from '../src/lib/usage-limit'
 import { bringWindowToFront, planDeletedProfileWindows } from '../src/lib/profile-window-front'
 import { DETACHED_WAITING_MAX_ID, sanitizeDetachedWaitingReport } from '../src/lib/terminal-attention'
@@ -3002,22 +3002,25 @@ function registerProxiedHandlers() {
   const terminalEmit = createTerminalWindowEmit(() => BrowserWindow.getAllWindows(), (channel, payload) => broadcastHub.broadcast(channel, payload))
 
   // T0788 / BUG-196: a helper's text + Enter into a tab that waits for the user is held, then sent
-  // (the Enter as the same `terminal:keypress` event). "N held" goes to this BAT's own windows only
-  // (renderer IPC `terminal:notify-hold-list` / `-cancel`, local; a remote window's tabs: headless).
-  const localWindowEmit = createTerminalWindowEmit(() => BrowserWindow.getAllWindows(), () => {})
+  // (the Enter as the same `terminal:keypress` event). "N held" goes to every window + broadcastHub
+  // (PLAN-068 W5 / T0908: `terminal:notify-hold-*` are proxied; a remote window's tabs: its bat-server).
   notifyHold = new NotifyHoldController({
     getPtyManager: () => ptyManager,
     emitKeypress: (payload) => {
       terminalEmit('terminal:keypress', payload)
       return true
     },
-    emitChanged: (event) => { localWindowEmit(NOTIFY_HOLD_CHANGED_CHANNEL, event) },
+    emitChanged: (event) => { terminalEmit(NOTIFY_HOLD_CHANGED_CHANNEL, event) },
     // PLAN-068 W2 / T0904: a notification waited 5 min for the user's draft — the window holding the
     // tab shows a system notification (src/components/TerminalPanel.tsx)
-    emitReminder: (event) => { localWindowEmit(NOTIFY_HOLD_REMINDER_CHANNEL, event) },
+    emitReminder: (event) => { terminalEmit(NOTIFY_HOLD_REMINDER_CHANNEL, event) },
     logger,
     mirrorToBatScripts,
   })
+  // PLAN-068 W5 / T0908: the windows' "📨 待送" list / cancel /「立即送出」and the Inbox answers —
+  // same handlers as headless, proxied (a remote window's call goes to its bat-server). Never helper channels.
+  registerNotifyHoldHandlers({ registerHandler, getNotifyHold: () => notifyHold, logger })
+  registerTowerInboxAnswerHandler({ registerHandler, getNotifyHold: () => notifyHold, logger })
 
   // PTY + settings:get-shell-path — shared with headless bat-server (PLAN-036 T0390)
   registerPtyHandlers(registerHandler, {
@@ -4799,7 +4802,7 @@ function registerLocalHandlers() {
     const parentWin = parentWindowId ? windowMap.get(parentWindowId) : undefined
     const sent = !!parentWin && !parentWin.isDestroyed()
     if (sent) parentWin.webContents.send('workspace:detached-waiting-changed', workspaceId, clean)
-    logger.log(`[detached-waiting] workspace=${workspaceId} waiting=${clean.tabs.length} missed=${clean.missed.length} → ${sent ? `parent ${parentWindowId}` : 'no parent window'}`)
+    logger.log(`[detached-waiting] workspace=${workspaceId} waiting=${clean.tabs.length} missed=${clean.missed.length}${clean.awaiting ? ` awaiting=${clean.awaiting}` : ''} → ${sent ? `parent ${parentWindowId}` : 'no parent window'}`)
   })
 
   // T0761: a click on that row — the detached window comes to the front (hidden / minimized too,
@@ -4919,18 +4922,9 @@ function registerLocalHandlers() {
     return ptyManager.getLastOutput(targetId, lines)
   })
 
-  // T0788 / BUG-196: the notifications held for this BAT's tabs — pull (a window mounted after the
-  // event) and cancel (one / all). 🔴 Renderer IPC only: never a RemoteServer / helper channel.
-  ipcMain.handle('terminal:notify-hold-list', () => notifyHold?.list() ?? [])
-  // PLAN-068 W2 / T0904:「立即送出」— `draft` / `reading` stop holding them (a prompt still does)
-  ipcMain.handle('terminal:notify-hold-send-now', (_event, terminalId: unknown, holdId?: unknown) => {
-    if (typeof terminalId !== 'string' || !notifyHold) return 0
-    return notifyHold.sendNow(terminalId, typeof holdId === 'string' ? holdId : undefined)
-  })
-  ipcMain.handle('terminal:notify-hold-cancel', (_event, terminalId: unknown, holdId?: unknown) => {
-    if (typeof terminalId !== 'string' || !notifyHold) return 0
-    return notifyHold.cancel(terminalId, typeof holdId === 'string' ? holdId : undefined)
-  })
+  // T0788 / BUG-196: the notifications held for this BAT's tabs — pull / cancel /「立即送出」(T0904).
+  // PLAN-068 W5 / T0908: registered with the shared handlers (`registerNotifyHoldHandlers`, below the
+  // controller) and proxied, so a remote window reaches its bat-server's queue. 🔴 Never a helper channel.
 
   // PLAN-055 B1 / T0766: the interrupted agent tabs — pull (a window mounted after the event),
   // dismiss (略過), and resume a helper-dispatched claude Worker. 🔴 Renderer IPC only: never a

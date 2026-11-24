@@ -22,7 +22,7 @@ import type { ClientPathPurpose, ResolvedClientPath } from '../src/lib/client-pa
 import type { TerminalRoleChangeInfo } from '../src/lib/tower-terminal-title'
 import type { UsageLimitContinueEvent, UsageLimitStatusEvent } from '../src/lib/usage-limit'
 import type { DetachedWaitingReport, TerminalAttentionEvent, TerminalAttentionSnapshotEntry } from '../src/lib/terminal-attention'
-import type { NotifyHoldChangedEvent, NotifyHoldReminderEvent } from '../src/types/notify-hold'
+import type { NotifyHoldChangedEvent, NotifyHoldReminderEvent, TowerInboxAnswerResult } from '../src/types/notify-hold'
 import type { TowerCardsChangedEvent, TowerCardsListResult, TowerCardsOpResult } from '../src/types/tower-cards'
 import type { RemoteUploadApi, RemoteUploadProgressEvent, RemoteUploadSourceDescriptor } from '../src/lib/remote-upload'
 import type {
@@ -1252,6 +1252,13 @@ const electronAPI = {
       ipcRenderer.on('tower-cards:changed', handler)
       return () => ipcRenderer.removeListener('tower-cards:changed', handler)
     },
+  },
+  // PLAN-068 W5 / T0908 — the Inbox answer line into a contract-2 Tower tab (`U-n：…` / `A-n：…`),
+  // queued by the host that runs the tab (proxied `tower-inbox:answer`; a bat-server before T0908
+  // rejects with `No handler for channel`).
+  towerInbox: {
+    answer: (terminalId: string, text: string) =>
+      ipcRenderer.invoke('tower-inbox:answer', { terminalId, text }) as Promise<TowerInboxAnswerResult>,
   },
   // T0710 — the CT prompt of the panel's one-click dispatch (`$ct-exec` / `$ct:ct-exec` for Codex),
   // decided and quoted by the host the window is bound to; a bat-server before T0710 rejects with

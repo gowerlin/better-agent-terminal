@@ -1815,7 +1815,55 @@
       "codexNote": "codex 塔台没有回合消息卡：BAT 不读取 codex 的对话内容（D158）。待你决定与待你执行不受影响。",
       "claudeTooOld": "这个塔台的 claude 在回合结束时没有发送最后消息，所以没有回合消息卡：claude 版本太旧（需要 {{version}} 以上）。请升级 system claude，或在 Settings › Claude Runtime 改用内嵌的 claude。"
     },
-    "cardsBadgeTooltip": "塔台消息 {{count}} 条未读（在待办分页查看）"
+    "cardsBadgeTooltip": "塔台消息 {{count}} 条未读（在待办分页查看）",
+    "userInboxOff": "这个项目的塔台已关闭待办写入（user_inbox: off）：待你决定与待你执行不会有 CT 写的项目。待验收 BUG、Worker 等你与塔台消息照常。",
+    "skipped": "有 {{count}} 笔格式不符，已略过。",
+    "more": "另有 {{count}} 笔（只显示前 50 笔）。",
+    "paused": "⏸ {{orders}} 暂停中",
+    "recentlyClosed": "最近已结（{{count}}）",
+    "awaitingBadge": "待你决定 {{count}} 件（塔台的待办页签）",
+    "source": {
+      "breakpoint-A": "断点 A",
+      "breakpoint-B-1": "断点 B-1",
+      "breakpoint-B-2": "断点 B-2",
+      "breakpoint-C": "断点 C",
+      "breakpoint-E": "断点 E",
+      "worker-question": "Worker 提问",
+      "tower-question": "塔台提问"
+    },
+    "actionKind": {
+      "verify": "验收",
+      "run": "执行",
+      "manual": "手动"
+    },
+    "answer": {
+      "send": "发送",
+      "sending": "发送中…",
+      "sent": "已发送到塔台。",
+      "held": "已排入塔台的待送队列（📨）：塔台在等你回答对话框或输入框有你的文字，处理后自动发送。",
+      "draft": "Claude 面板的输入框有未发送的文字或附件：请先发送或清除，再按一次。",
+      "not-mounted": "找不到这个 Claude 面板：请先在这个窗口打开该页签，再按一次。",
+      "no-target": "这个工作区没有可接收回答的塔台（需要已声明契约 v2 的塔台页签，或面板塔台）。也可以直接在塔台输入这一行。",
+      "failed": "没有发送（{{reason}}）。",
+      "chooseTarget": "发送到哪个塔台？",
+      "panelTarget": "{{title}}（Claude 面板）",
+      "optionsInvalid": "选项格式不是「代号 说明」，请自由回答。",
+      "freePlaceholder": "回答（一行）"
+    },
+    "action": {
+      "copy": "复制命令",
+      "copied": "已复制",
+      "commandNote": "BAT 不会执行这个命令，请自己在适当的地方执行。",
+      "done": "完成",
+      "failed": "失败…",
+      "failedPlaceholder": "失败说明（一行，可留空）"
+    },
+    "remind": {
+      "overdue": "逾期 {{count}} 天",
+      "today": "今天到期",
+      "dueIn": "{{count}} 天后到期",
+      "last": "（上次 {{at}}）"
+    }
   },
   "towerContract": {
     "ctOutdated": "这个塔台的 Control Tower 没有声明 BAT ↔ CT 契约 v{{supported}}，所以通知保护（不抢滚动、不混进草稿、阅读时延后）、回合消息卡与待办清单都已停用。请升级到 BMad Control Tower 6.1.0 以上，再重新打开塔台。对话框保护（等你回答时不发送通知）不受影响。",

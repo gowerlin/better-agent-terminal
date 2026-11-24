@@ -21,6 +21,8 @@ import { useTowerCards } from '../stores/tower-cards-store'
 import { isPanelTowerHere, usePanelTowerVersion } from '../stores/panel-tower-store'
 import { requestOpenInbox } from '../stores/inbox-store'
 import { towerCardsBadgeCount } from '../lib/tower-card-view'
+import { InboxAwaitingBadge } from './inbox/InboxAwaitingBadge'
+import { workspaceStore } from '../stores/workspace-store'
 import { NOTIFY_HOLD_SKIPPABLE_REASONS, type NotifyHoldItem, type NotifyHoldReason } from '../types/notify-hold'
 
 /** PLAN-044 / T0566: `15:05`-style local clock time of an epoch. */
@@ -405,6 +407,13 @@ export const TerminalThumbnail = memo(function TerminalThumbnail({ terminal, isA
             >
               📨 {t('notifyHold.badge', { count: heldNotifications.length })}
             </span>
+          )}
+          {towerContract?.status === 'match' && (
+            // PLAN-068 W5 / T0908: ⏸N — the workspace's pending decisions (only on a contract-2 Tower)
+            <InboxAwaitingBadge
+              workspaceId={terminal.workspaceId}
+              folderPath={workspaceStore.getState().workspaces.find(ws => ws.id === terminal.workspaceId)?.folderPath}
+            />
           )}
           {cardsUnread > 0 && (
             <span

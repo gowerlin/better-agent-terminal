@@ -1816,7 +1816,55 @@
       "codexNote": "A codex Tower has no turn cards: BAT does not read codex conversations (D158). Decisions and actions for you are not affected.",
       "claudeTooOld": "This Tower's claude sends no last message when a turn ends, so there are no turn cards: its claude is too old (needs {{version}} or later). Upgrade the system claude, or switch to the embedded claude in Settings › Claude Runtime."
     },
-    "cardsBadgeTooltip": "{{count}} unread Tower messages (see the Inbox tab)"
+    "cardsBadgeTooltip": "{{count}} unread Tower messages (see the Inbox tab)",
+    "userInboxOff": "This project's Tower does not write the inbox (user_inbox: off): no CT items in Waiting for you / For you to do. BUGs to accept, Workers waiting and Tower messages are unaffected.",
+    "skipped": "{{count}} malformed item(s) skipped.",
+    "more": "{{count}} more (only the first 50 are shown).",
+    "paused": "⏸ {{orders}} paused",
+    "recentlyClosed": "Recently closed ({{count}})",
+    "awaitingBadge": "{{count}} decision(s) waiting for you (Tower inbox)",
+    "source": {
+      "breakpoint-A": "Breakpoint A",
+      "breakpoint-B-1": "Breakpoint B-1",
+      "breakpoint-B-2": "Breakpoint B-2",
+      "breakpoint-C": "Breakpoint C",
+      "breakpoint-E": "Breakpoint E",
+      "worker-question": "Worker question",
+      "tower-question": "Tower question"
+    },
+    "actionKind": {
+      "verify": "Verify",
+      "run": "Run",
+      "manual": "Manual"
+    },
+    "answer": {
+      "send": "Send",
+      "sending": "Sending…",
+      "sent": "Sent to the Tower.",
+      "held": "Queued for the Tower (📨): it waits for a dialog answer or you have text in its input box; it goes out once that is done.",
+      "draft": "The Claude panel has unsent text or attachments: send or clear them, then try again.",
+      "not-mounted": "That Claude panel is not open in this window: open its tab, then try again.",
+      "no-target": "No Tower in this workspace can take the answer (a Tower tab that declared contract v2, or a panel Tower). You can also type the line into the Tower yourself.",
+      "failed": "Not sent ({{reason}}).",
+      "chooseTarget": "Send to which Tower?",
+      "panelTarget": "{{title}} (Claude panel)",
+      "optionsInvalid": "The options are not \"<code> <text>\"; answer freely.",
+      "freePlaceholder": "Answer (one line)"
+    },
+    "action": {
+      "copy": "Copy command",
+      "copied": "Copied",
+      "commandNote": "BAT never runs this command; run it yourself where it belongs.",
+      "done": "Done",
+      "failed": "Failed…",
+      "failedPlaceholder": "What failed (one line, optional)"
+    },
+    "remind": {
+      "overdue": "{{count}} day(s) overdue",
+      "today": "due today",
+      "dueIn": "due in {{count}} day(s)",
+      "last": "(last {{at}})"
+    }
   },
   "towerContract": {
     "ctOutdated": "This Tower's Control Tower did not declare BAT ↔ CT contract v{{supported}}, so notification protection (no scroll jump, not mixed into your draft, held while you read), turn message cards and the inbox list are off. Update to BMad Control Tower 6.1.0 or later, then reopen the Tower. Dialog protection (no notifications while it waits for your answer) is not affected.",

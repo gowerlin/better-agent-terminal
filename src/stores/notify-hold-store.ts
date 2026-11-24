@@ -4,8 +4,9 @@
  * pulls `terminal:notify-hold-list` once. The tab thumbnail shows "N held" (`useNotifyHold`) and
  * cancels one or all (`cancelNotifyHold`). In memory only; never the text (D155-style: who, when).
  *
- * Local IPC: a remote profile window's tabs are held on the bat-server, which has no list — they
- * show nothing here (docs/agent-guide/notify-hold.md「已知限制」).
+ * PLAN-068 W5 / T0908: `terminal:notify-hold-*` are proxied — a remote profile window's calls go to
+ * its bat-server and its events come from there, so its tabs show their "📨 待送" too (an older
+ * bat-server has no handler: nothing is shown, as before).
  */
 import { useSyncExternalStore } from 'react'
 import type { NotifyHoldChangedEvent, NotifyHoldItem, NotifyHoldReason } from '../types/notify-hold'

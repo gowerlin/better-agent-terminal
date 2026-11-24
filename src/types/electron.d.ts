@@ -966,6 +966,11 @@ interface ElectronAPI {
   // PLAN-068 W3 / T0905 — the Tower turn cards of the window's tabs, kept by the host that runs them
   // (proxied `tower-cards:*`; rejects with `No handler for channel` on an older bat-server).
   towerCards: import('./tower-cards').TowerCardsApi
+  // PLAN-068 W5 / T0908 — the Inbox answer into a contract-2 Tower tab (proxied `tower-inbox:answer`;
+  // rejects with `No handler for channel` on a bat-server before T0908).
+  towerInbox: {
+    answer: (terminalId: string, text: string) => Promise<import('./notify-hold').TowerInboxAnswerResult>
+  }
   // T0710 — the CT prompt of the panel's one-click dispatch, decided and quoted by the window's host
   // (proxied `terminal:control-tower-prompt`; rejects with `No handler for channel` on an older bat-server).
   ctDispatch: {

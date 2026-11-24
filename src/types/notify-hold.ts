@@ -55,3 +55,14 @@ export interface NotifyHoldReminderEvent {
   heldSince: number
   reason: 'draft'
 }
+
+/**
+ * PLAN-068 W5 / T0908: what `tower-inbox:answer` answers (electron/notify-hold.ts
+ * `registerTowerInboxAnswerHandler`). `held` = it waits in the tab's queue (why: the tab's
+ * `terminal:notify-hold-changed` reason). `FORBIDDEN` = a helper capability called it; `INVALID_ARGS`
+ * = not `{ terminalId, text }`; `invalid` = not one line of ≤ 1,000 chars starting `U-n：` / `A-n：`;
+ * `unavailable` = this host has no controller.
+ */
+export type TowerInboxAnswerResult =
+  | { ok: true; held: boolean; holdId: string }
+  | { ok: false; reason: 'invalid' | 'pty-not-found' | 'not-contract-tower' | 'held-full' | 'FORBIDDEN' | 'INVALID_ARGS' | 'unavailable' }

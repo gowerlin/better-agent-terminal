@@ -49,6 +49,11 @@ export interface WorkOrder {
   contextRisk?: string   // 高 / 中 / 低
   targetSubproject?: string
   isArchived?: boolean   // true for orders loaded from _archive/workorders/
+  /**
+   * PLAN-068 W5 / T0908: frontmatter `waiting_user` (`^U-\d+$`, BAT ↔ CT contract v2) — the decision
+   * this work order waits for. Set only when present and well-formed.
+   */
+  waitingUser?: string
   /** PLAN-034: which parser path produced this record. */
   parseSource?: ParseSource
   /** PLAN-034: non-fatal parser warnings (missing/invalid frontmatter, drift, unknown status). */
@@ -69,6 +74,11 @@ const VALID_FRONTMATTER_STATUSES = new Set<WorkOrderStatus>([
  */
 const FRONTMATTER_STATUS_ALIASES: Readonly<Record<string, WorkOrderStatus>> = {
   TODO: 'PENDING',
+}
+
+/** T0908: `{ waitingUser }` for a well-formed `waiting_user` (`^U-\d+$`), else nothing (§3.3). */
+function waitingUserField(value: unknown): { waitingUser?: string } {
+  return typeof value === 'string' && /^U-\d+$/.test(value.trim()) ? { waitingUser: value.trim() } : {}
 }
 
 /** Upper-cased frontmatter status with aliases resolved (`todo` → `PENDING`). */
@@ -134,6 +144,7 @@ export function parseWorkOrder(filename: string, content: string): WorkOrder {
         targetSubproject: fm.project,
         parseSource: 'frontmatter',
         parseWarnings: warnings.length > 0 ? warnings : undefined,
+        ...waitingUserField((fm as { waiting_user?: unknown }).waiting_user),
       }
     }
 

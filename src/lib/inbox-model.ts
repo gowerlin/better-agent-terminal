@@ -243,11 +243,68 @@ export function workerWaitItems(terminals: readonly { id: string; title: string 
 }
 
 /**
- * The number on the tab title: things that need your hands. W4 can count Worker waits and BUGs to
- * accept; W5 adds the CT lists (待你決定 / 待你執行 / 到期提醒). Turn cards never count (§1).
+ * The number on the tab title: things that need your hands. W4 counts Worker waits and BUGs to
+ * accept; W5 (T0908) adds the CT lists (待你決定 / 待你執行 / 到期提醒). Turn cards never count (§1).
  */
-export function inboxActionCount(parts: { workerItems: number; pendingBugs: number }): number {
-  return parts.workerItems + parts.pendingBugs
+export function inboxActionCount(parts: { workerItems: number; pendingBugs: number; awaiting?: number; actions?: number; reminders?: number }): number {
+  return parts.workerItems + parts.pendingBugs + (parts.awaiting ?? 0) + (parts.actions ?? 0) + (parts.reminders ?? 0)
+}
+
+// ─── W5 / T0908: panel Towers, answer targets, recently closed ─────────────
+
+/** Where an answer line can go: a contract-2 Tower tab (PTY) or a panel Tower (Claude Agent panel). */
+export interface InboxAnswerTarget {
+  kind: 'tab' | 'panel'
+  id: string
+  title: string
+}
+
+/**
+ * The answer targets of a workspace (§2.4, T0908 addenda #1 / #2): with declared Tower tabs, only
+ * those that declared contract 2 (never a panel); without any, the panel Towers (`panels` = the
+ * workspace's tabs filtered by `CLAUDE_PANEL_PRESETS`; `workspaceHasPanelTowers`, T0909). `auto` = the one target
+ * when there is exactly one (sent directly); otherwise the user picks (none → nothing to send to).
+ */
+export function inboxAnswerTargets(
+  towers: readonly InboxTower[],
+  panels: readonly { id: string; title: string }[],
+  stateBatContract: number | null | undefined,
+): { targets: InboxAnswerTarget[]; auto: InboxAnswerTarget | null } {
+  const targets: InboxAnswerTarget[] = towers.length > 0
+    ? towers.filter(tower => tower.towerContract === BAT_CONTRACT_VERSION).map(tower => ({ kind: 'tab' as const, id: tower.id, title: tower.title }))
+    : workspaceHasPanelTowers(stateBatContract, 0) ? panels.map(panel => ({ kind: 'panel' as const, id: panel.id, title: panel.title })) : []
+  return { targets, auto: targets.length === 1 ? targets[0] : null }
+}
+
+/** One item that left `awaiting_user` / `user_actions` (§2.1「最近已結」; memory only). */
+export interface RecentlyClosed {
+  id: string
+  /** Its last `summary` / `title`. */
+  text: string
+  closedAt: number
+}
+
+export const RECENTLY_CLOSED_MAX = 10
+
+/**
+ * The recently closed list after a reload: items of `before` missing from `after` go first (newest
+ * first), at most `RECENTLY_CLOSED_MAX`. An id that comes back is taken off. Returns `prev` itself
+ * when nothing changed.
+ */
+export function nextRecentlyClosed(
+  prev: readonly RecentlyClosed[],
+  before: { awaiting: readonly { id: string; summary: string }[]; actions: readonly { id: string; title: string }[] },
+  after: { awaiting: readonly { id: string }[]; actions: readonly { id: string }[] },
+  now: number,
+): RecentlyClosed[] {
+  const open = new Set([...after.awaiting.map(item => item.id), ...after.actions.map(item => item.id)])
+  const gone: RecentlyClosed[] = [
+    ...before.awaiting.filter(item => !open.has(item.id)).map(item => ({ id: item.id, text: item.summary, closedAt: now })),
+    ...before.actions.filter(item => !open.has(item.id)).map(item => ({ id: item.id, text: item.title, closedAt: now })),
+  ]
+  const kept = prev.filter(item => !open.has(item.id) && !gone.some(g => g.id === item.id))
+  if (gone.length === 0 && kept.length === prev.length) return prev as RecentlyClosed[]
+  return [...gone, ...kept].slice(0, RECENTLY_CLOSED_MAX)
 }
 
 /** Text after the tab name: `!` when the selected Tower does not match, the count when > 0, else none. */

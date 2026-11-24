@@ -442,7 +442,15 @@ export interface DetachedWaitingReport {
   tabs: WaitingTab[]
   /** Earliest wait first. `startedAt` is the detached window's clock (same machine as its parent). */
   missed: MissedTab[]
+  /**
+   * PLAN-068 W5 / T0908: the workspace's pending decisions (`⏸N`, `awaiting_user` of its Tower inbox
+   * on a contract match); absent = 0. Not part of the waiting summary (no ⚠️, no total).
+   */
+  awaiting?: number
 }
+
+/** T0908: the largest `awaiting` a report keeps (anything else → absent). */
+export const DETACHED_AWAITING_MAX = 9999
 
 /** T0761: a report carries at most this many tabs per list (one workspace's tabs). */
 export const DETACHED_WAITING_MAX_TABS = 64
@@ -451,8 +459,15 @@ export const DETACHED_WAITING_MAX_ID = 200
 export const DETACHED_WAITING_MAX_TITLE = 200
 
 /** T0761: what the detached window sends for its workspace's summary entry (none = empty). */
-export function detachedWaitingReport(entry: Pick<WaitingWorkspace, 'tabs' | 'missed'> | null | undefined): DetachedWaitingReport {
-  return { tabs: entry ? [...entry.tabs] : [], missed: entry ? [...entry.missed] : [] }
+export function detachedWaitingReport(entry: Pick<WaitingWorkspace, 'tabs' | 'missed'> | null | undefined, awaiting = 0): DetachedWaitingReport {
+  const report: DetachedWaitingReport = { tabs: entry ? [...entry.tabs] : [], missed: entry ? [...entry.missed] : [] }
+  if (Number.isInteger(awaiting) && awaiting > 0) report.awaiting = Math.min(awaiting, DETACHED_AWAITING_MAX)
+  return report
+}
+
+/** T0908: the `⏸N` a report carries (0 = none). */
+export function detachedReportAwaiting(report: DetachedWaitingReport | null | undefined): number {
+  return report?.awaiting ?? 0
 }
 
 /** T0761: a report is empty = the parent shows nothing for the workspace. */
@@ -493,7 +508,10 @@ export function sanitizeDetachedWaitingReport(value: unknown): DetachedWaitingRe
     const startedAt = base ? finiteOrNull((item as Record<string, unknown>).startedAt) : null
     if (base && startedAt !== null) missed.push({ ...base, startedAt })
   }
-  return { tabs: tabs.sort(compareWaitingTabs), missed: missed.sort((a, b) => a.startedAt - b.startedAt) }
+  const clean: DetachedWaitingReport = { tabs: tabs.sort(compareWaitingTabs), missed: missed.sort((a, b) => a.startedAt - b.startedAt) }
+  // T0908: ⏸N, a whole number 1 … DETACHED_AWAITING_MAX only
+  if (typeof raw.awaiting === 'number' && Number.isInteger(raw.awaiting) && raw.awaiting > 0 && raw.awaiting <= DETACHED_AWAITING_MAX) clean.awaiting = raw.awaiting
+  return clean
 }
 
 /**
