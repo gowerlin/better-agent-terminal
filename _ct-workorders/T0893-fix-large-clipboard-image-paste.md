@@ -4,14 +4,17 @@ schema_kind: workorder
 id: T0893
 title: "修正 BUG-216（在 `v0.8.x`）：大型剪貼簿圖片的 Ctrl+V —— 不先讀整張圖就判斷上限、退回路徑失敗時提示使用者、錯誤日誌記原因"
 type: implementation
-status: IN_PROGRESS
+status: FIXED
 repo: better-agent-terminal
 project: maintenance
 priority: P2
 sizing: S
 created_at: "2026-11-25T00:39:51+08:00"
-updated_at: "2026-11-25T00:41:37+08:00"
+updated_at: "2026-11-25T00:54:19+08:00"
 started_at: "2026-11-25T00:41:37+08:00"
+completed_at: "2026-11-25T00:54:19+08:00"
+session_ids:
+  - "ac8686b3-163d-49a9-aaf7-5f0003ee23c6"
 target_version: "0.8.0-pre.2"
 depends_on: []
 related:
@@ -28,11 +31,12 @@ affects_files:
   - src/lib/__tests__/terminal-paste*.test.ts
   - src/locales/
   - src/types/electron.d.ts
+  - src/components/TerminalPanel.tsx
+  - src/__tests__/terminal-remote-upload.test.tsx
 renew_count: 0
 isolation: worktree
 workdir: worktree ct/T0893（塔台已預先從 `v0.8.x` 建立分支 `ct/T0893`，`bcb4bbe0`）
 worker_question_timeout: 30
-tower_question: open
 interaction:
   mode_hint: yolo
   interactive: false
@@ -73,6 +77,7 @@ T0892 在 `v0.8.0-pre.1` 日誌看到（詳見 `_ct-workorders/BUG-216-large-cli
 - [ ] 退回路徑兩步都失敗時有使用者看得到的提示
 - [ ] 錯誤日誌含 `name` / `message`，不含內容
 - [ ] 小圖、文字、遠端上傳、面板附件行為不變（附 consumer 清單與判定）
+- [ ] （塔台答覆 Q-1–Q-3，2026-11-25 00:4x）新增本機 IPC `clipboard:has-image`（只看格式、不讀資料；不進 `PROXIED_CHANNELS`、不是 helper channel）；面板路徑的原始大小早退門檻是 2 × 上限（20 MiB），10–20 MiB 照舊解碼後再比；`TerminalPanel.tsx` 三處 catch 與讀不到剪貼簿的 toast
 - [ ] `test:unit` 全綠、`vite build` exit 0、兩個 typecheck = 0
 - [ ] 隔離分支證據
 
@@ -117,22 +122,101 @@ T0892 在 `v0.8.0-pre.1` 日誌看到（詳見 `_ct-workorders/BUG-216-large-cli
 - 阻塞：是（② 與 ③ 的 TerminalPanel 部分）
 
 ### 完成狀態
-- **session_id**：
+- **狀態**：FIXED（BUG-216 三點已修、單元測試涵蓋；實機只量了 Electron 主行程的剪貼簿讀取成本，沒有用 BAT 本體實測 Ctrl+V，待塔台 / 使用者驗收）
+- **session_id**：ac8686b3-163d-49a9-aaf7-5f0003ee23c6
+- **落點檢查**：PASS。C-0 `repo` = `better-agent-terminal`，`basename "$CT_HOME"` = `better-agent-terminal`；C-1 工單在 `$CT_HOME/_ct-workorders/` 下；C-3 `affects_files` 全部存在；`BAT_WORKSPACE_ID` = `cc0afc4a-57e9-4f41-b2ed-a2d8bac9e36b`（只記錄）。`CT_HOME` 已設、`CT_WORKTREE_BRANCH` = `ct/T0893`。
+- **merge-base**：`git merge-base HEAD v0.8.x` = `bcb4bbe0e2f300832bfa3bbfbfbebcc46f1f23a4`，與工單要求相符。
 
 ### 產出摘要
 
+**① 大圖不再整張讀進主行程**
+- 新增本機 IPC `clipboard:has-image`（`hasClipboardImage`，`electron/image-attachments.ts`）：只看 `clipboard.read()` 列出的 MIME 類型（含 `image/png` → true），不呼叫 `getType`，圖片資料完全不讀。註冊在 `registerLocalHandlers` 的 `ipcMain.handle`（與旁邊的 clipboard channel 一樣），不在 `PROXIED_CHANNELS`、`ALWAYS_LOCAL_CHANNELS`、`PATH_ARG_SCHEMA`、`HELPER_CHANNEL_ROLES`、handler registry（測試守住）。日誌 `[clipboard] has-image types=[…] image=yes|no` 只記 MIME 類型名稱。
+- 終端 Ctrl+V / Command+V / 右鍵貼上的「有沒有圖」改用 `window.electronAPI.clipboard.hasImage()`（`src/lib/terminal-paste.ts`），失敗照舊退回 `navigator.clipboard.read()`。
+- `clipboard:read-image-data-url`（面板附件）：`readClipboardPng(clipboard, { refuseAboveBytes })` 在 `getType` 後先看 `Blob.size`，> `CLIPBOARD_IMAGE_EARLY_REFUSE_BYTES`（= 2 × `MAX_IMAGE_SIZE` = 20 MiB，Q-2 答覆）直接丟同格式的 `Image too large (<n> > 10485760 bytes)`，不 `arrayBuffer`、不解碼 / 重新編碼。10–20 MiB 照舊解碼、重新編碼後比 10 MiB。常數與理由寫在程式註解。
+- `readClipboardPng` 仍是唯一的讀取實作，選項預設不給；`clipboard:saveImage` 與 `upload-client` 不給選項，行為不變。
+
+**② 退回路徑都失敗時的提示**
+- `readTerminalClipboard` 最後一步 `readText()` 失敗時改丟 `TerminalClipboardReadError`（訊息只含錯誤的 name / message）。
+- `TerminalPanel.tsx` 新增 `reportPasteFailure`：Ctrl+V、Command+V、右鍵貼上三處 catch 都經它；錯誤是 `TerminalClipboardReadError` 時 `addNoticeToast(t('terminal.clipboardReadFailed'), 'warning', 8000)`（沿用既有 toast，沒有新 Dialog）。其他失敗（例如 PTY 寫入）只記日誌、不跳這個提示。
+- 新字串 `terminal.clipboardReadFailed`（en / zh-TW / zh-CN 三個語系都補）：「沒有貼上任何內容：讀不到剪貼簿。請重新複製後再試。」
+
+**③ 錯誤日誌記原因**
+- `describePasteError(err)`（`src/lib/terminal-paste.ts`）只回 `name: message`（DOMException 也看得到，例如 `NotAllowedError: Read permission denied.`）。`terminal-paste.ts` 的三個 log 與 `TerminalPanel.tsx` 的三處 catch 都改用它；不記剪貼簿內容、路徑、圖片資料（測試斷言 debug log 的參數裡沒有物件）。
+
+**量測**（隔離：只用 worktree 的 `node_modules/electron/dist/electron.exe`（45.2.1）跑一支量測腳本，不是 BAT、沒有啟動任何 BAT 實例、沒碰使用者的 BAT / userData / Terminal Server / `bat-pty-holder`；`--user-data-dir` 指向暫存目錄。每個流程各一個新程序，Peak WS 取 `app.getAppMetrics()` 的 Browser 程序；事件迴圈延遲用 5 ms 計時器量最大間隔。測試圖是腳本產生的雜訊 PNG，量完已刪，剪貼簿已還原為空字串（`Get-Clipboard` 長度 0）。）
+
+| 剪貼簿 | 流程 | 耗時 | Peak WS（前 → 後） | 事件迴圈最大延遲 |
+|---|---|---|---|---|
+| 36.1 MB PNG（Electron 寫入） | 修正前（`read` → `getType` → `arrayBuffer` → 解碼 → `toPNG`） | 790 ms | 65 → 356 MiB | 770 ms |
+| | 修正後 面板 `read-image-data-url`（`Blob.size` 早退） | 124 ms | 65 → 249 MiB | 104 ms |
+| | 修正後 終端 `has-image`（只看 types） | 0.7 ms | 65 → 65 MiB | 11 ms |
+| 36.1 MB 點陣圖（.NET `Clipboard.SetImage`） | 修正前 | 965 ms | 68 → 371 MiB | 773 ms |
+| | 修正後 面板 | 299 ms | 65 → 262 MiB | 96 ms |
+| | 修正後 終端 | 0.8 ms | 65 → 65 MiB | 12 ms |
+| 50.3 MB PNG（Electron 寫入） | 修正前 | 1,099 ms | 68 → 471 MiB | 1,064 ms |
+| | 修正後 面板 | 174 ms | 65 → 322 MiB | 139 ms |
+| | 修正後 終端 | 1.9 ms | 65 → 65 MiB | 11 ms |
+| 50.3 MB 點陣圖 | 修正前 | 1,674 ms | 65 → 484 MiB | 1,388 ms |
+| | 修正後 面板 | 415 ms | 65 → 338 MiB | 144 ms |
+| | 修正後 終端 | 0.8 ms | 68 → 68 MiB | 15 ms |
+
+- 「修正後 面板」剩下的成本是 `getType`：Electron 在這一步把資料讀進主行程（點陣圖剪貼簿還要先編成 PNG），`Blob.size` 要等它回來才拿得到；W3C clipboard API 沒有不讀資料就取大小的方法。終端路徑完全不付這個成本。
+- 修正前的數字比 T0892 實機（Peak 671 MB、約 3 s）低：雜訊圖 4000×3000 / 4800×3480，解碼後的點陣圖較小；實機的圖像素較多、BAT 主行程本身也有基準用量。比例上，終端路徑從「整張讀＋解碼＋編碼」變成不讀。
+
+**consumer 清單與判定**
+| consumer | 經過 | 修正後 | 判定 |
+|---|---|---|---|
+| 終端 Ctrl+V / Command+V / 右鍵貼上（`TerminalPanel.tsx` `pasteClipboard` → `readTerminalClipboard`） | 修正前 `clipboard:read-image-data-url`；修正後 `clipboard:has-image` | 有圖 → 本機 / WSL / 舊遠端送貼圖鍵、SSH / Docker 上傳貼路徑（`imagePasteModeFor` 不變）；沒圖 → 貼文字；複製的檔案仍優先 | 小圖、文字、檔案結果不變。> 10 MiB 的圖：修正前 main 拒絕 → `navigator.clipboard.read()` 判定有圖 → 送鍵 / 上傳；修正後 main 直接判定有圖 → 同樣結果（`navigator` 也失敗時，修正前退成貼文字，修正後送鍵 / 上傳） |
+| Claude 面板貼圖（`ClaudeAgentPanel.tsx:2372`）、Codex 面板貼圖（`CodexAgentPanel.tsx:2471`） | `clipboard:read-image-data-url` | ≤ 20 MiB 照舊解碼、重新編碼、比 10 MiB；> 20 MiB 早退，錯誤文字同格式（面板照舊 `console.error`、不加附件） | 小於上限的圖結果不變；10 MiB 邊界附近不變（門檻 20 MiB）；面板程式沒改 |
+| 遠端上傳 `clipboard-image`（`upload-client.ts:285`，main `readClipboardPng: () => readClipboardPng(clipboard)`） | `readClipboardPng`（不給選項） | 不變（50 MiB `TOO_LARGE` 照舊在讀完後判斷） | 不變（不在本單範圍，見〈建議後續〉） |
+| PromptBox `clipboard:saveImage` | `readClipboardImage()`（不給選項） | 不變 | 不變 |
+| `clipboard:read-file-paths`、`clipboard:writeImage` | — | 沒改 | 不變 |
+
+既有 IPC 名稱、參數、回傳形狀都沒改；`[clipboard] read-image` 日誌只多了早退時的 `png=refused size=<n>`（大小數字，沒有內容）。
+
+**改動檔案**（worktree `ct/T0893`，commit `43d290c9`）
+- `electron/image-attachments.ts`：`CLIPBOARD_IMAGE_EARLY_REFUSE_BYTES`、`ReadClipboardPngOptions`、`readClipboardPng` 第二參數、`hasClipboardImage`
+- `electron/main.ts`：`read-image-data-url` 帶早退門檻、新增 `clipboard:has-image`
+- `electron/preload.ts`、`src/types/electron.d.ts`：`clipboard.hasImage`
+- `src/lib/terminal-paste.ts`：改用 `hasImage`、`describePasteError`、`TerminalClipboardReadError`
+- `src/components/TerminalPanel.tsx`：`reportPasteFailure`（三處 catch）
+- `src/locales/{en,zh-TW,zh-CN}.json`：`terminal.clipboardReadFailed`
+- 測試：`electron/__tests__/image-attachments.test.ts`（早退不呼叫 `arrayBuffer`、門檻 2×、無選項照讀、`hasClipboardImage` 不呼叫 `getType`、channel 本機 / 非 helper / preload）、`src/__tests__/terminal-paste-shortcuts.test.tsx`（大圖只問 `hasImage`、不呼叫 `readImageDataUrl`；兩步都失敗有提示且日誌含 name / message、沒有物件；右鍵貼上同提示；非剪貼簿錯誤不提示；`describePasteError`）、`src/__tests__/terminal-remote-upload.test.tsx`（只改 mock）
+
+**驗證**（在 `validated_sha` 上執行）
+- `npm ci`：exit 0
+- `npm run test:unit`：exit 0，Test Files 463 passed | 3 skipped (466)，Tests 8466 passed | 42 skipped (8508)
+- `npx vite build`：exit 0
+- `npm run typecheck`：0 錯誤（exit 0）；`npm run typecheck:electron`：0 錯誤（exit 0）
+
+**文件補充建議（給塔台合併後補，本單沒改 docs / CLAUDE.md）**
+- CLAUDE.md「Electron Runtime」main 行程 clipboard 那點，在「讀圖唯一實作 `readClipboardPng`」後加：「T0893 / BUG-216：終端 Ctrl+V 判斷有沒有圖用本機 IPC `clipboard:has-image`（`hasClipboardImage`，只看 `clipboard.read()` 的 MIME 類型、不呼叫 `getType`）；`clipboard:read-image-data-url` 以 `readClipboardPng(…, { refuseAboveBytes: CLIPBOARD_IMAGE_EARLY_REFUSE_BYTES })`（2 × 10 MiB）在解碼前早退，10–20 MiB 照舊重新編碼後比 10 MiB。」
+- CLAUDE.md「遠端附件上傳暫存」終端那點可加一句：「終端貼上的錯誤日誌經 `describePasteError`（只記 name / message），讀不到剪貼簿時顯示 `terminal.clipboardReadFailed`。」
+
+**建議後續**
+- `upload-client.ts` 的 `clipboard-image`（SSH / Docker 終端貼圖、50 MiB 上限）仍是讀完整張才比 `TOO_LARGE`；可比照 `refuseAboveBytes`（例如給 `UPLOAD_LIMITS.maxFileBytes`）早退，但錯誤碼要維持 `TOO_LARGE`，需另開工單。
+
 ### 互動紀錄
+- [00:44] Q-1：終端判斷有沒有圖是否改新 IPC（連帶改 `terminal-remote-upload.test.tsx` mock）→ A（塔台，BAT 通道 00:45:59）：A，`clipboard:has-image` 本機、不進 `PROXIED_CHANNELS` / `HELPER_CHANNEL_ROLES`、日誌只記 MIME 類型，測試檔已加進 `affects_files` → Action：照做。
+- [00:44] Q-2：面板路徑是否以原始大小早退 → A（塔台）：A，但門檻 2 × 上限（20 MiB），10–20 MiB 照舊解碼後比，附 36 / 50 MB 量測、`upload-client.ts` 不改 → Action：`CLIPBOARD_IMAGE_EARLY_REFUSE_BYTES` = 2 × `MAX_IMAGE_SIZE`，量測見上表。
+- [00:44] Q-3：`TerminalPanel.tsx` 進範圍 → A（塔台）：A，只限三處 catch 與 toast，`terminal.clipboardReadFailed` 所有語系都補 → Action：照做。
+- 答覆經 BAT 通道（`bat_wait_question` 三題皆 `answered`），工單內沒有 `塔台答覆 Q-n` 行；塔台已在 frontmatter `affects_files` 與〈驗收〉補上答覆內容。
 
 ### Renew 歷程
 無
 
 ### 遭遇問題
+- 驗證第一次在 commit 前的工作樹跑（同樣內容）；為了讓 `validated_sha` 等於 `head_sha`，commit 後在 `43d290c9` 上整組重跑一次，結果相同。
+- 開工時把 `started_at` 先手打了一個時間，隨即以系統時間（`2026-11-25T00:41:37+08:00`）更正。
+- 提示文字原本寫「或改用右鍵選單的『貼上』」，但右鍵貼上走同一條讀取路徑，已刪掉這句。
 
 ### 隔離分支證據
 - branch：`ct/T0893`
-- base_sha：
-- validated_sha：
-- head_sha：
-- validated_sha ≠ head_sha 的說明：
+- base_sha：`06c3b8843caf4f34bbec6117b0de443b7a3fdbf9`（`CT_WORKTREE_BASE`；與 `v0.8.x` 的 merge-base 是 `bcb4bbe0e2f300832bfa3bbfbfbebcc46f1f23a4`，工單已說明這是預期）
+- validated_sha：`43d290c97f75c406b440bc86b3d1942976096e68`
+- head_sha：`43d290c97f75c406b440bc86b3d1942976096e68`
+- validated_sha ≠ head_sha 的說明：相同，不適用
+- 收單前 `git -C "$CT_WORKTREE" status --porcelain`：空
 
 ### 回報時間
+2026-11-25T00:53:13+0800
