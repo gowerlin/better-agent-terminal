@@ -29,7 +29,7 @@ const {
 const WIN_STDIO_INHERIT = path.join(path.dirname(SCRIPT), 'win-stdio-inherit.cjs')
 const { builtAddonPath } = require(WIN_STDIO_INHERIT)
 
-// Shape of @anthropic-ai/claude-code 2.1.289 / 2.1.296 / 2.1.300 / 2.1.306 / 2.1.316's bin/claude.exe placeholder (500 bytes upstream).
+// Shape of @anthropic-ai/claude-code 2.1.289 / 2.1.296 / 2.1.300 / 2.1.306 / 2.1.316 / 2.1.331's bin/claude.exe placeholder (500 bytes upstream).
 const STUB = [
   `echo "Error: ${CLAUDE_STUB_MARKER}." >&2`,
   'echo "" >&2',

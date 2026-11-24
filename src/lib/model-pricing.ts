@@ -21,6 +21,8 @@ export const MODEL_PRICING: Record<string, ModelPricing> = {
   // Claude 5 — T0368 §4 (pricing page, 2026-10-04). Opus 5.5 / Fable 5.1 cache read is 0.05x / 0.025x.
   // T0483 (pricing page, 2026-10-13): Sonnet 5.5 cache read is now 0.05x too (was 0.1x).
   'opus-5-5':  P(4, 20, { cacheReadMultiplier: 0.05 }),
+  // T0891 (pricing page, 2026-11-25): Fable 5.2 $8 / $40, cache read 0.025x ($0.20), writes $10 / $16.
+  'fable-5-2': P(8, 40, { cacheReadMultiplier: 0.025 }),
   'fable-5-1': P(10, 50, { cacheReadMultiplier: 0.025 }),
   'sonnet-5-5': P(2, 10, { cacheReadMultiplier: 0.05 }),
   // Haiku 5.5 is priced by prompt length: a request whose prompt (all input tokens, cache reads
@@ -47,6 +49,7 @@ export function getModelPricing(model: string, opts?: { promptTokens?: number })
   if (model.includes('opus-5-5')) return MODEL_PRICING['opus-5-5']
   if (model.includes('opus-5')) return MODEL_PRICING['opus-5']
   if (model.includes('opus-4-8')) return MODEL_PRICING['opus-4-8']
+  if (model.includes('fable-5-2')) return MODEL_PRICING['fable-5-2']
   if (model.includes('fable-5-1')) return MODEL_PRICING['fable-5-1']
   if (model.includes('fable-5')) return MODEL_PRICING['fable-5']
   if (model.includes('sonnet-5-5')) return MODEL_PRICING['sonnet-5-5']

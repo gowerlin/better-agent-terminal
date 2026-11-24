@@ -31,6 +31,8 @@ import { broadcastHub } from './remote/broadcast-hub'
 // BAT built-in curated model list (always available, shown first)
 const BAT_BUILTIN_MODELS: Array<{ value: string; displayName: string; description: string }> = [
   { value: 'claude-opus-5-5',   displayName: 'Opus 5.5 (1M)',   description: 'claude-opus-5-5 · 1M context' },
+  // T0891: Fable 5.2 (CLI 2.1.321+, the CLI's `fable` alias); Fable 5.1 stays selectable.
+  { value: 'claude-fable-5-2',  displayName: 'Fable 5.2 (1M)',  description: 'claude-fable-5-2 · 1M context' },
   { value: 'claude-fable-5-1',  displayName: 'Fable 5.1 (1M)',  description: 'claude-fable-5-1 · 1M context' },
   { value: 'claude-sonnet-5-5', displayName: 'Sonnet 5.5 (1M)', description: 'claude-sonnet-5-5 · 1M context' },
   { value: 'claude-haiku-5-5',  displayName: 'Haiku 5.5 (1M)',  description: 'claude-haiku-5-5 · 1M context' },
@@ -47,8 +49,10 @@ const BAT_BUILTIN_MODELS: Array<{ value: string; displayName: string; descriptio
 // `modelUsage` reports the real values. Source: platform.claude.com/docs/en/models/overview
 // (read 2026-10-13) — Opus 5.5 / Fable 5.1 / Sonnet 5.5 / Haiku 5.5 are all 1M context, 128K max
 // output (synchronous Messages API). Models not listed there keep the pre-T0484 estimate.
+// T0891 (same page, read 2026-11-25): Fable 5.2 is 1M context, 128K max output too.
 const MODEL_LIMITS: Array<{ match: string; contextWindow: number; maxOutputTokens: number }> = [
   { match: 'opus-5-5',   contextWindow: 1_000_000, maxOutputTokens: 128_000 },
+  { match: 'fable-5-2',  contextWindow: 1_000_000, maxOutputTokens: 128_000 },
   { match: 'fable-5-1',  contextWindow: 1_000_000, maxOutputTokens: 128_000 },
   { match: 'sonnet-5-5', contextWindow: 1_000_000, maxOutputTokens: 128_000 },
   { match: 'haiku-5-5',  contextWindow: 1_000_000, maxOutputTokens: 128_000 },

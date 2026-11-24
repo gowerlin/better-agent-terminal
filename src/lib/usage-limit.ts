@@ -9,7 +9,8 @@
  *   - claude CLI 2.1.300: `You've hit your <session|weekly|Opus|Sonnet|Fable|usage> limit · resets 3pm (Asia/Taipei)`
  *     (2.1.312+ calls the 5-hour window `5-hour limit` instead of `session limit`; both are read, T0717)
  *     (`· progress saved` may follow), non-timed `monthly spend limit` / `team's shared budget` /
- *     `out of usage credits` / `org is out of usage` / `seat type …`; the CLI's own auto-continue
+ *     `out of usage credits` / `org is out of usage` / `seat type …` (2.1.326+ says `team's pooled
+ *     group budget · resets …` instead of `team's shared budget`; both are read, T0891); the CLI's own auto-continue
  *     (2.1.234+) prints `… continuing automatically at 3pm …`, `Automatic continue stopped|cancelled …`,
  *     `Usage limit available again · continuing now` / `Usage limit reset · continuing automatically`
  *     (2.1.316: `· Continuing automatically`; either case is read, T0717)
@@ -21,7 +22,8 @@
  *   - codex-cli 0.160.0 / 0.162.1: `You've hit your usage limit[ for <model>]. … Try again at 3:05 PM.`
  *     (`try again later.` without a time), non-timed `Your workspace is out of credits` /
  *     `You hit your spend cap` / `Usage limit reached. You've reached your usage limit` /
- *     `You're out of credits.`
+ *     `You're out of credits.`; codex-cli 0.172.0 adds the API spend limit error
+ *     `Your API <key|project|organization> has reached its spend limit.` (non-timed, T0891)
  *
  * Only a whole sentence at the start of a line counts (a TUI prefix such as `■ ` / `⎿ ` / `> ` is
  * allowed; a quote, backtick or any letter before it is not), and the bottom-most recognised line
@@ -129,7 +131,7 @@ const CLAUDE_LIMIT_RE = new RegExp(
   'u',
 )
 const CLAUDE_BLOCKED_RE = new RegExp(
-  `${PREFIX}(?:You${APOS}ve hit your (?:monthly spend limit|team${APOS}s shared budget)|You${APOS}re out of usage credits|Your org is out of usage|Your seat type doesn${APOS}t include usage credits)`,
+  `${PREFIX}(?:You${APOS}ve hit your (?:monthly spend limit|team${APOS}s shared budget|team${APOS}s pooled group budget)|You${APOS}re out of usage credits|Your org is out of usage|Your seat type doesn${APOS}t include usage credits)`,
   'u',
 )
 const CLAUDE_AUTO_RE = new RegExp(`${PREFIX}(?:Usage limit reached(?: again)?\\s*${DOT}\\s*)?continuing automatically(?: at (.+?))?(?:\\s*${DOT}.*)?$`, 'iu')
@@ -142,7 +144,7 @@ const CLAUDE_STALE_PRESS_RE = new RegExp(`${PREFIX}Press enter to continue\\b`, 
 
 const CODEX_LIMIT_RE = new RegExp(`${PREFIX}You${APOS}ve hit your usage limit(?: for (.+?))?\\.(?:\\s|$)`, 'u')
 const CODEX_BLOCKED_RE = new RegExp(
-  `${PREFIX}(?:Your workspace is out of credits|You hit your spend cap|Usage limit reached\\. You${APOS}ve reached your usage limit|You${APOS}re out of credits\\.)`,
+  `${PREFIX}(?:Your workspace is out of credits|You hit your spend cap|Usage limit reached\\. You${APOS}ve reached your usage limit|You${APOS}re out of credits\\.|Your API (?:key|project|organization) has reached its spend limit\\b)`,
   'u',
 )
 const CODEX_TRY_AT_RE = /\btry again at (.+?)\.(?:\s|$)/i

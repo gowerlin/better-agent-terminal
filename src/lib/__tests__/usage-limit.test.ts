@@ -67,6 +67,9 @@ describe('claude limit sentences', () => {
   it.each([
     "You've hit your monthly spend limit · raise it at claude.ai/settings",
     "You've hit your team's shared budget",
+    // T0891: CLI 2.1.326+ wording (with the budget's reset time), from the 2.1.331 binary
+    "You've hit your team's pooled group budget · resets Dec 1 · ask your admin to raise it at claude.ai/admin",
+    "You’ve hit your team’s pooled group budget",
     "You're out of usage credits · buy more at claude.ai",
     'Your org is out of usage · contact your admin',
     "Your seat type doesn't include usage credits",
@@ -234,8 +237,17 @@ describe('codex limit sentences', () => {
     'You hit your spend cap. Raise it in settings.',
     "Usage limit reached. You've reached your usage limit. Increase your limits to continue using codex.",
     "You're out of credits.",
+    // T0891: codex-cli 0.172.0 API spend limit error (#62329), from the 0.172.0 binary
+    '■ Your API key has reached its spend limit.',
+    'Your API project has reached its spend limit.',
+    'Your API organization has reached its spend limit.',
   ])('non-timed: %s', (line) => {
     expect(decide([line])).toMatchObject({ action: 'hint', agent: 'codex', hint: 'non-timed' })
+  })
+
+  it('T0891: the new sentences quoted mid-line → none', () => {
+    expect(decide(['• codex prints Your API key has reached its spend limit. when the key is capped'])).toMatchObject({ action: 'none' })
+    expect(classify(["The CLI says You've hit your team's pooled group budget when the pool is empty"])).toEqual({ kind: 'none' })
   })
 
   it('quoted in a reply, mid-line → none', () => {

@@ -79,6 +79,8 @@ describe('getModelPricing — Claude 5 (T0368 §4)', () => {
     ['claude-opus-5-5', price(4, 20, 0.2, 5, 8)],
     ['claude-opus-5-5[1m]', price(4, 20, 0.2, 5, 8)],
     ['claude-fable-5-1', price(10, 50, 0.25, 12.5, 20)],
+    // T0891: Fable 5.2, pricing page 2026-11-25 ($8 / $40, cache hit $0.20, writes $10 / $16)
+    ['claude-fable-5-2', price(8, 40, 0.2, 10, 16)],
     // T0483: Sonnet 5.5 cache read dropped to $0.10 (0.05x), pricing page 2026-10-13
     ['claude-sonnet-5-5', price(2, 10, 0.1, 2.5, 4)],
     // T0483: Haiku 5.5, prompts up to 100,000 tokens
@@ -96,6 +98,7 @@ describe('getModelPricing — Claude 5 (T0368 §4)', () => {
   it('point releases are not shadowed by their base model', () => {
     expect(getModelPricing('claude-opus-5-5')!.input).toBe(4)
     expect(getModelPricing('claude-opus-5')!.input).toBe(5)
+    expect(getModelPricing('claude-fable-5-2')!.input).toBe(8)
     expect(getModelPricing('claude-fable-5-1')!.cacheRead).toBeCloseTo(0.25, 10)
     expect(getModelPricing('claude-fable-5')!.cacheRead).toBeCloseTo(1, 10)
   })
