@@ -64,6 +64,7 @@ const integrationRows = [
   ['一眼看出誰在等誰', '縮圖 ⚠️ 在等你、? 在等塔台答覆、✓ 已回報；只有 ✓ 會被「關閉已回報的 Worker 分頁」一起關'],
   ['撞到用量限制', 'yolo 的 Codex 分頁在解鎖後自動續行，Claude CLI 自己會續行（設定預設關閉）'],
   ['看工單進度', '側欄的工單看板與 Sprint 進度，一鍵開始或補完一張工單'],
+  ['集中看要你處理的事', '右側欄「待辦」分頁：待你決定、待你執行、到期提醒、塔台回合訊息卡，一鍵回答塔台（需要 Control Tower 6.1.0）'],
   ['在遠端用', 'WSL、SSH、Docker 視窗裡的塔台與 Worker，用同一套介面']
 ]
 </script>
@@ -299,6 +300,8 @@ Claude Code 與 Codex 都能當塔台，也都能當 Worker；本機與遠端用
 介面本身是 BAT 安裝目錄裡的兩支 helper 腳本（派工、回收與查詢用 `bat-terminal.mjs`，回報與提問用 `bat-notify.mjs`），加上前面提到的唯讀 MCP 工具。參數、結束代碼與環境變數寫在 GitHub 上的 [agent guide](https://github.com/gowerlin/better-agent-terminal/tree/main/docs/agent-guide)。
 
 新功能需要 BAT 與 Control Tower 的版本都到位；任一邊較舊時，該功能不啟用，其餘流程照舊。各功能需要的最低版本見[版本對照](./compatibility)。
+
+待辦分頁、塔台分頁建議的 claude 設定與選用的 `bat-hooks` plugin，見[待辦分頁與塔台設定](./tower-inbox)。
 
 ## 常見問題 {#faq}
 

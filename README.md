@@ -126,7 +126,8 @@ BAT 與 CT 分工明確：**BAT 提供終端機、分頁與權限這些基礎設
 
 ```
 塔台分頁（/control-tower）
-  ├─ 宣告自己是塔台 ── bat-terminal.mjs --set-role tower --mode <m>   → 分頁標題「Agent · Tower」
+  ├─ 宣告自己是塔台 ── bat-terminal.mjs --set-role tower --mode <m> [--bat-contract 2]
+  │                     → 分頁標題「Agent · Tower」；CT 6.1.0 帶 --bat-contract 2 時啟用待辦分頁
   ├─ 派工 ─────────── bat-terminal.mjs --skill ct-exec --workorder T#### --notify-id … --workspace …
   │                     （選用 --isolation worktree：在獨立 git worktree 執行）
   │        ↓
@@ -156,11 +157,32 @@ BAT 與 CT 分工明確：**BAT 提供終端機、分頁與權限這些基礎設
 | 跨 session 辨識塔台 / Worker | BAT 開的 Claude CLI 分頁啟動即帶 session 名稱（Worker「工作區 · Worker · T####」、其他「工作區 · 短 ID」；縮圖列「+」選單「以塔台開啟 Claude」→「工作區 · Tower」），顯示在 Claude Code 的跨 session 清單（ListAgents）；`bat_whoami` / `bat_list_terminals` / `bat_get_state` 回 `claudeSessionName` / `claudeSessionId`；已宣告的塔台以 `bat_list_terminals scope=towers` 列出同一台 BAT 所有工作區的塔台 | 跨專案傳訊時找到對方塔台、不把 Worker 當成塔台 |
 | Worker 縮圖狀態 | 縮圖 ⚠️ 等使用者（Claude CLI 的 hook 與 Codex 的 `input`）/ `?` 等塔台答覆 / `✓` 已回報 / `↻` 回報後又在執行（例如塔台 Renew 後）；只有 `✓` 計入「關閉已回報的 Worker 分頁」。⚠️ 也出現在非 Worker 分頁（含塔台）與工作區列表，錯過的改灰色保留到看過（`0.7.2-pre.8` 起） | 不需改（舊 CT 的「T#### 提問」也顯示 `?`） |
 | 用量限制自動繼續 | yolo 分頁撞到 5 小時限制後自動續行（設定預設關閉） | 塔台以 `--mode yolo` 宣告後適用 |
+| 待辦分頁（契約 v2） | `--set-role tower --bat-contract 2`（stdout 多 `  bat-contract: 2` 與 `  hooks: …`）；右側欄「待辦」分頁讀 `_tower-state.md` 的 `awaiting_user` / `user_actions` / `reminders`，回答時對塔台送一行 `U-n：…` / `A-n：完成`；塔台回合訊息卡；送通知不搶捲動、不混進你打到一半的字 | CT 6.1.0 宣告契約、寫入清單、解析回答（見下方〈待辦分頁〉） |
 | 工單看板與總覽 | 側欄塔台面板：總覽（塔台狀態、設定的生效值與來源）、看板、Sprint 進度、一鍵 `ct-exec` / `ct-done` | 讀取 `_ct-workorders/`；總覽的下一個編號與待辦讀 `_tower-state.md` 開頭的摘要（`schema_kind: tower-state`、`summary_version: 1`）；單檔上限 512 KB，超過時該頁顯示「無法讀取」（`>= 0.7.1-pre.9`） |
 | CT 的安裝方式（zip / plugin） | Codex Worker 的派工字串依分頁 `CODEX_HOME` 的實際安裝決定：有手動安裝 → `$ct-exec`，只有啟用中的 `ct@*` plugin → `$ct:ct-exec`，判斷不了 → `$ct-exec`（helper 派工與一鍵派工共用；遠端由遠端主機判斷）；總覽「預設」層與 Claude CLI 面板的 skill 清單認得 plugin；兩種都裝時總覽提示實際生效的是 zip 那份 | 派工命令不變（仍只傳 `--skill ct-exec`），前綴由 BAT 決定 |
 | 遠端 | WSL / SSH / Docker 視窗裡的塔台與 Worker 用同一套 helper（`"${BAT_HELPER_NODE:-node}"`） | 遠端需另裝 CT skill |
 
-完整契約（參數、exit code、環境變數、日誌）見 [docs/agent-guide/](docs/agent-guide/README.md) 的「Worker 分頁回收」「塔台分頁標題」「遠端 Tower 通知」「worktree 隔離派工」「worktree 狀態查詢」「helper 唯讀查詢 channel」「BAT MCP shim」「blocked 狀態偵測」「Worker 啟動確認」「Worker 問塔台」「Claude 分頁的 session 名稱」「CT plugin 安裝」各篇（[CLAUDE.md](CLAUDE.md) 只留摘要）。
+完整契約（參數、exit code、環境變數、日誌）見 [docs/agent-guide/](docs/agent-guide/README.md) 的「Worker 分頁回收」「塔台分頁標題」「遠端 Tower 通知」「worktree 隔離派工」「worktree 狀態查詢」「helper 唯讀查詢 channel」「BAT MCP shim」「blocked 狀態偵測」「Worker 啟動確認」「Worker 問塔台」「Claude 分頁的 session 名稱」「CT plugin 安裝」「塔台待辦與訊息」各篇（[CLAUDE.md](CLAUDE.md) 只留摘要）。
+
+### 待辦分頁（BAT ↔ CT 契約 v2）
+
+塔台要你決定的事、要你親手做的事，不再只是一段會被捲走的對話。右側欄的「待辦」分頁（預設在「塔台」分頁左邊）把它們集中成一份清單，依序是：
+
+| 區塊 | 內容 | 你可以 |
+|---|---|---|
+| ⏸ 待你決定 | 塔台寫進 `_tower-state.md` 的待決事項（`awaiting_user`） | 點選項或自由回答 → 送出一行 `U-3：B` 給塔台 |
+| 🙋 待你執行 | 要你親手做的事（`user_actions`）與待驗收的 BUG | 「複製指令」（BAT 永遠不替你執行）、「完成」、「失敗…」→ `A-2：完成` / `A-2：失敗 <說明>` |
+| ⏰ 到期提醒 | 已到期或 7 天內到期的提醒（`reminders`） | — |
+| 👷 Worker 等你 | 停在權限確認 / 提問的分頁、有待送通知或被中斷的分頁 | 切到分頁、恢復 |
+| 💬 塔台訊息 | 塔台每回合最後一則訊息一張卡片（只在 BAT 記憶體） | 展開（= 已讀）、📌 釘選、全部已讀、清除 |
+| 📋 塔台待辦 / 📊 數量 | CT `todo`、BUG / PLAN / 工單數量 | 連到指揮塔 |
+
+- 回答就是對塔台分頁送一行純文字，和你自己在塔台輸入完全相同；塔台正在等你回答對話框、或輸入框有你打到一半的字時，回答先排進「📨 待送」，處理完再送。
+- 契約 v2 的塔台另有通知保護：Worker 的通知送進塔台時畫面不捲動、選取不清、焦點不跳；你在打字時通知不會混進去；你往上捲或選取時延後，停手 10 秒送出（最長 60 秒）。
+- 塔台縮圖多 `⏸N`（待你決定）與 `💬N`（未讀訊息）；工作區列表也顯示 `⏸N`。
+- **兩邊都要到版本**（見下方〈版本對照〉）：塔台以 CT 6.1.0 開工時宣告 `--bat-contract 2`。任一邊太舊時待辦分頁只顯示需要升級哪一邊，通知保護、回合訊息卡與清單都停用，其他功能照舊；「等你回答對話框時不送通知」（`0.7.3-pre.8` 起）不受影響。
+- Codex 塔台沒有回合訊息卡（BAT 不讀 codex 的對話內容），其他區塊照常。Claude Agent 面板當塔台時，工作區沒有已宣告的塔台分頁且 `_tower-state.md` 是契約 v2 就算數。
+- 塔台分頁建議用 claude `/tui fullscreen`，並在 `/config` 關掉 Auto-scroll（往上捲時不被拉回底部）；fullscreen 下的 `/focus` 只顯示你的輸入、摘要與回應，每回合的總結比較好找。BAT 不會替你改 claude 的設定。說明見網站的[待辦分頁與塔台設定](https://gowerlin.github.io/better-agent-terminal/tower-inbox)。
 
 ### BAT hooks 與 `bat-hooks` plugin（選用）
 
@@ -207,10 +229,11 @@ BAT 開的 Claude CLI 分頁（縮圖列「+」選單的 Claude CLI、「以塔�
 | Worker 縮圖 ⚠️ / `?` / `✓` / `↻` | `>= 0.7.0-pre.7`（提問答覆後恢復「執行中」：`>= 0.7.0-pre.8`；Codex 分頁 ⚠️：`>= 0.7.0-pre.9`；回報後又在執行 `↻`：`>= 0.7.1-pre.6`） | 不需要 |
 | 「等待你回應」⚠️ 擴及所有 agent 分頁（含塔台），並顯示在工作區列表、「工作區」頁籤標題與收合側欄；錯過的提示改灰色保留到看過 | `>= 0.7.2-pre.8`（遠端 bat-server 重啟後依伺服器現況更正：`>= 0.7.3-pre.1`，遠端 server 也要升級；用滑鼠回答也清除、已分離視窗的工作區與 Claude Agent 面板也提示：`>= 0.7.3-pre.4`；點別的分頁讓 BAT 回到前景時保留原分頁的灰色提示：`>= 0.7.3-pre.5`） | 不需要（只用既有的 hook / OSC 等待狀態） |
 | Terminal Server 意外重啟後列出被中斷的 agent 分頁（含塔台派工的 Worker），claude 分頁一鍵 `--resume`、codex 分頁開 `codex resume` 選單 | `>= 0.7.3-pre.4` | 不需要（恢復後 Worker 不會自動繼續；塔台可用 `bat_get_state` 的 `agentStarted` 判斷） |
-| 塔台等你回答（權限對話框、AskUserQuestion、codex 審批）時保留 Worker 通知，答完再送；縮圖「📨 待送 N」可取消 | `>= 0.7.3-pre.8`（遠端 bat-server 也要升級；遠端 profile 視窗不顯示「待送 N」） | 不需要（helper 參數、exit code、輸出不變；滿 8 筆時 `--ask` 照舊先取消題目再 exit 1） |
+| 塔台等你回答（權限對話框、AskUserQuestion、codex 審批）時保留 Worker 通知，答完再送；縮圖「📨 待送 N」可取消 | `>= 0.7.3-pre.8`（遠端 bat-server 也要升級；遠端 profile 視窗的「待送 N」：待定，同待辦分頁） | 不需要（helper 參數、exit code、輸出不變；滿 8 筆時 `--ask` 照舊先取消題目再 exit 1） |
 | 重派同一張工單前回收舊 Worker 分頁（避免回收時 `AMBIGUOUS`） | `>= 0.6.1-pre.4`（沿用 `--close-worker`） | `>= v5.12.0`（舊 CT 重派後舊分頁要手動關） |
 | 指揮塔總覽：塔台狀態、設定生效值與來源、沒有 `sprint-status.yaml` 也能用 | `>= 0.7.1-pre.7` | 不需要；下一個編號與待辦需 CT 寫入 `_tower-state.md` 摘要：`>= v6.0.0-pre.1`（預覽版；舊 CT 只顯示最後更新與進行中工單） |
 | CT 以 plugin 安裝（`ct@control-tower`）時 Codex Worker 派工、面板認得 plugin、兩種都裝的提示 | `>= 0.7.2-pre.1` | CT `>= v5.14.0` 提供 plugin；更舊的 BAT 搭配 Codex 請用 zip 手動安裝 |
+| 待辦分頁（BAT ↔ CT 契約 v2：⏸ 待你決定、🙋 待你執行、⏰ 到期提醒、💬 回合訊息卡、塔台通知保護）；兩邊都要到版本，任一邊太舊時待辦分頁顯示需要的版本並停用 | 待定 | `>= v6.1.0`（舊 CT 不宣告 `--bat-contract`，待辦分頁提示升級 CT，其餘照舊） |
 | `bat-hooks` plugin（選用；手打 `claude`、自訂 `--settings`、關掉 BAT MCP 時才需要）與 `--set-role` 的 `hooks:` 行 | 待定（同待辦分頁）；plugin `1.0.0` | `hooks:` 行：CT `>= v6.1.0` 解析（舊 CT 不帶 `--bat-contract`，不會出現這行） |
 
 <!-- #endregion compatibility -->
