@@ -4,7 +4,7 @@ summary_version: 1
 updated_at: "2026-11-25T03:05:00+08:00"
 session: "2026-11-25 00:28 第一百三十 session（CT v6.0.0）"
 next_ids:
-  workorder: "T0907"
+  workorder: "T0908"
   decision: "D334"
   bug: "BUG-220"
   plan: "PLAN-069"
@@ -57,6 +57,7 @@ todo:
 > [提問] 05:2x T0906 Q-1 / Q-2（`--answer` exit 0 ×2）：Q-1 A（`WorkspaceView.tsx` 最小增量進範圍）；Q-2 B＋條件（依 R9′ 全綁：不符時整個待辦分頁只留選擇器與提示；R6 只在契約相符時生效，不符時總覽照舊顯示 `todo`，避免回歸；無塔台以狀態檔判定）。
 > 05:34 T0906（W4）收單 DONE：`ct/T0906` `3d469fbb`（26 檔，head 第一次 test:unit 即綠 8,627、legacy 472、build / typecheck 0 / 0；附帶修正 `fs:watch` 同路徑多監看互相關閉 → `acquireDirWatch`）；模式 ① 合併 `ct-merge/T0906` `eaa8b238` → **`v0.8.x` ff `d6b9ce86..eaa8b238`（本機）**；session 快照已寫；`--close-worker T0906 --worktree remove` exit 0。T0904 / T0905 合併時將不符直接合併判準（`v0.8.x` 已含 W4 產品檔）→ 兩張完成後一張合併工單。
 > 05:36 T0905（W3）收單 DONE：`ct/T0905` `1a468665`（24 檔；`stop` 送 `last_assistant_message` ≤ 16 KiB＋`origin` / `set`（其他事件逐字不變）、`electron/tower-cards.ts` host store（只收 v2 塔台、遮罩、30 / 10 / 16 KiB、生命週期、10 s 內 session＋雜湊去重）、`tower-cards:*` proxied（不在 helper 權杖範圍）、面板來源介面、renderer store；最低 claude `2.1.47`）；第 3 次 test:unit 全綠 8,633（前兩次負載型失敗：`shared-conout` kill-under-load watchdog、`terminal-gpu-crash-redraw`，單獨重跑皆過，觀察）。試合併 `v0.8.x`：只有 `docs/agent-guide/tower-inbox.md` add/add 衝突（T0906 也建立）。session 快照已寫；`--close-worker T0905 --worktree keep` exit 0。待 T0904 後合併工單。
+> 05:44 T0904（W1＋W2）收單 DONE：`ct/T0904` `45020cf1`（30 檔；head 第一次 test:unit 即綠 8,677；B0 真 xterm 驗證、假 TUI e2e 重現 #23 並驗證修正（未宣告塔台照舊重現、契約 2 草稿單獨送出、250 ms 窗口兩情況、閱讀保留 61 s）；回答來源 `enqueueAnswer` 介面留 W5）。建議後續：遠端視窗看不到「📨 待送」/ 原因 / 立即送出 / 5 分鐘提醒（`terminal:notify-hold-*` 未 proxied，T0788 既有限制）→ 併入 W5。session 快照已寫；`--close-worker T0904 --worktree keep` exit 0。開合併工單 T0907（模式 ②，base `eaa8b238`，預期衝突：tower-inbox.md、notify-hold-store、README、preload、path-aware-channels）。
 >
 > 🛏 **第一百二十九 session 收工**（2026-11-24 03:50 (UTC+8)）。
 
