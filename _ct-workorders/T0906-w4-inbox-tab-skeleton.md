@@ -10,8 +10,9 @@ project: PLAN-068
 priority: P1
 sizing: M
 created_at: "2026-11-25T05:12:00+08:00"
-updated_at: "2026-11-25T05:12:23+08:00"
+updated_at: "2026-11-25T05:14:36+08:00"
 started_at: "2026-11-25T05:12:23+08:00"
+tower_question: open
 target_version: "0.8.x（與 CT 6.1.0 同日發佈）"
 depends_on: [T0903]
 related:
@@ -78,7 +79,29 @@ PLAN-068 整合設計（T0902，雙方核定）：右側欄新分頁「待辦」
 
 > 以下由 sub-session 填寫，請勿在指揮塔 session 中編輯（唯一例外：`### 待塔台決策` 的 `塔台答覆 Q-n` 行由塔台新增）
 
-### 完成狀態
+### 待塔台決策
+
+#### Q-1：`inbox` 停靠到「主區」與 detached 視窗需要改 `src/components/WorkspaceView.tsx`（不在 `affects_files`），可以加入嗎？
+- **提問時間**：2026-11-25T05:14:36+08:00
+- **背景**：`DockablePanel` 加 `inbox` 後，右側欄的右鍵選單本來就有「移到主區」；主區的分頁列與內容由 `WorkspaceView.tsx` 畫（`WorkspaceTab` / `PinnedContentType` 型別、`renderTabContent` 的 switch）。detached 視窗沒有側欄，只畫 `WorkspaceView`，它的分頁清單是寫死的（`['terminal','files','git',…,'control-tower']`）。不改這個檔：停到主區時分頁按鈕會出現但內容空白；detached 視窗沒有待辦分頁（工單 ⑧ 要求 detached 沿用指揮塔管線）。
+- **選項**：
+  - A：把 `src/components/WorkspaceView.tsx` 加進本單範圍，只做最小增量：型別加 `inbox`、`loadWorkspaceTab` 認得 `inbox`、寫死清單在 `control-tower` 前加 `inbox`、`renderTabContent` 加一個 `case 'inbox'`。其他行為不變。
+  - B：不改 `WorkspaceView`；`inbox` 的右鍵選單不提供「移到主區」，detached 視窗暫時沒有待辦分頁（記為已知限制，交後續 W 單）。
+  - 其他
+- **建議**：A。理由：改動只是照既有 `control-tower` 的寫法多一個值，風險低；B 會讓 detached 視窗缺這個功能、要再開單補，也要在 App.tsx 為單一分頁加特例。
+- **影響**：A 多改一個檔（約 10 行）＋測試；B 要在 App.tsx 的停靠選單為 `inbox` 加特例並寫已知限制。
+- **是否阻擋後續步驟**：只阻擋「主區 / detached」這一塊；其餘先做。
+
+#### Q-2：§6′ 不符（P-1 / P-2 / P-3）時，BAT 既有資料區（Worker 等你、待驗收 BUG、📋 塔台待辦 `todo`、📊 數量列）要不要一起停用？工作區沒有已宣告塔台時怎麼判定？
+- **提問時間**：2026-11-25T05:14:36+08:00
+- **背景**：工單 ④ 寫「檔案類清單在不符時停用並顯示 P-1 / P-2 / P-3」；T0902 §6′ 把「檔案類清單」寫成（待你決定、待你執行、到期提醒），但 §5 又把 todo / BUG / PLAN 也算檔案類；P-1 文字是「…回合訊息卡與待辦清單都停用」。另外工作區可能沒有任何已宣告塔台（例如塔台還沒開、或塔台是 Claude 面板）。
+- **選項**：
+  - A：停用＋提示只套在 CT 契約 v2 的三區（⏸ 待你決定、🙋 待你執行的 CT 部分、⏰ 到期提醒；本單這三區是 W5 的占位，停用時改顯示 P-x 文字）；BAT 既有資料區（👷 Worker 等你、🙋 裡的待驗收 BUG、📋 todo、📊 數量列）不論版本都顯示。分頁標題在不符時照工單顯示 `!`。工作區沒有已宣告塔台 → 以狀態檔 `bat_contract` 判定（同「面板塔台」的純函式）：`2` 相符、缺 / `1` 停用並顯示「狀態檔是契約 v1，需要 CT 6.1.0」、`> 2` 停用並顯示 P-2。
+  - B：不符時整個分頁只留塔台選擇器與提示（BAT 既有資料區也停用）；沒有塔台時同 A 的狀態檔判定。
+  - 其他
+- **建議**：A。理由：BAT 既有資料區的內容今天在指揮塔 / 縮圖就看得到、不依賴 CT 新欄位，停用它們不保護任何東西；R6 把總覽的 `todo` 改成「到待辦分頁查看」，若 B 停用 todo，舊 CT 使用者在 BAT 裡就完全看不到完整 `todo`（總覽也只剩連結），等於回歸。
+- **影響**：A / B 只差條件式顯示；選錯要改畫面與畫面測試。
+- **是否阻擋後續步驟**：阻擋版本判定的畫面與測試；資料讀取與區塊骨架先做。
 - **session_id**：
 
 ### 產出摘要
