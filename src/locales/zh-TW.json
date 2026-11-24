@@ -483,7 +483,8 @@
     "cancelUploadShort": "取消",
     "uploadCancelled": "已取消上傳，沒有輸入任何內容。",
     "uploadBusy": "這個終端還有一個上傳到遠端主機的工作在進行中，請等它完成或取消後再試。",
-    "imageUploadFailed": "剪貼簿的圖片沒有貼上：上傳到遠端主機失敗（{{reason}}）。"
+    "imageUploadFailed": "剪貼簿的圖片沒有貼上：上傳到遠端主機失敗（{{reason}}）。",
+    "clipboardReadFailed": "沒有貼上任何內容：讀不到剪貼簿。請重新複製後再試。"
   },
   "dialogs": {
     "closeCodeAgent": "關閉 Code Agent？",

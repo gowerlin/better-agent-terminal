@@ -13,7 +13,7 @@ import { settingsStore } from '../stores/settings-store'
 import { dispatchSyntheticEnterKeydown } from '../utils/terminal-keyboard-event'
 import { PtyOutputReplayer, registerPtyNoticeSink, registerPtyReplaySink, registerPtySizeSyncSink } from '../lib/pty-replay'
 import { buildTerminalDropInsertion, buildTerminalDropText, buildTerminalUploadInsertion, dataTransferHasFiles, droppedFiles, terminalShellFamily } from '../lib/terminal-drop'
-import { imagePasteKey, isMacCommandPaste, readTerminalClipboard, terminalImagePasteMode, uploadClipboardImage } from '../lib/terminal-paste'
+import { describePasteError, imagePasteKey, isMacCommandPaste, isTerminalClipboardReadError, readTerminalClipboard, terminalImagePasteMode, uploadClipboardImage } from '../lib/terminal-paste'
 import { attachmentDisplayNames, attachmentRefusalText, uploadFailureReason, type SendAttachment } from '../lib/client-paths'
 import { forcesTerminalSelection, isMouseTrackingDecset, isMouseTrackingOn, MouseReportSelectionKeeper, shouldCloseTerminalContextMenuOnKey, shouldShowTerminalContextMenu } from '../lib/terminal-context-menu'
 import { ALT_SCREEN_EXIT, MOUSE_TRACKING_RESET, MouseReportEchoDetector } from '../lib/mouse-tracking-reset'
@@ -361,6 +361,13 @@ export const TerminalPanel = memo(function TerminalPanel({ terminalId, isActive 
     }
   }
 
+  // T0893 / BUG-216: a failed paste is logged as `name: message` (a DOMException used to be logged as
+  // `{}`); when the clipboard could not be read at all, the tab says so instead of silently doing nothing.
+  const reportPasteFailure = (label: string, err: unknown) => {
+    dlog(label, describePasteError(err))
+    if (isTerminalClipboardReadError(err)) addNoticeToast(t('terminal.clipboardReadFailed'), 'warning', 8000)
+  }
+
   // Handle context menu actions
   const handleCopy = () => {
     if (contextMenu?.selectionText) {
@@ -374,7 +381,7 @@ export const TerminalPanel = memo(function TerminalPanel({ terminalId, isActive 
     try {
       await pasteClipboard('context-menu Paste')
     } catch (err) {
-      dlog('Failed to read clipboard for context-menu paste', err)
+      reportPasteFailure('Failed to read clipboard for context-menu paste', err)
     } finally {
       setContextMenu(null)
       // Restore focus after menu unmount so keyboard input keeps working.
@@ -884,14 +891,14 @@ export const TerminalPanel = memo(function TerminalPanel({ terminalId, isActive 
       if (isMacCommandPaste(event, window.electronAPI.platform)) {
         event.preventDefault()
         suppressNativePasteUntil = performance.now() + 1000
-        pasteClipboard('Command+V').catch(err => dlog('[terminal-paste] Command+V paste failed', err))
+        pasteClipboard('Command+V').catch(err => reportPasteFailure('[terminal-paste] Command+V paste failed', err))
         return false
       }
       // Ctrl+V for paste (standard shortcut). An image on the clipboard sends the claude CLI's
       // image-paste key instead (T0524: Alt+V on Windows, Ctrl+V on macOS / Linux).
       if (event.ctrlKey && !event.shiftKey && event.key === 'v') {
         event.preventDefault()
-        pasteClipboard('Ctrl+V').catch(err => dlog('[terminal-paste] Ctrl+V paste failed', err))
+        pasteClipboard('Ctrl+V').catch(err => reportPasteFailure('[terminal-paste] Ctrl+V paste failed', err))
         return false
       }
       // Ctrl+C for copy when there's a selection
