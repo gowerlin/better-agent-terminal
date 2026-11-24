@@ -4,7 +4,7 @@ summary_version: 1
 updated_at: "2026-11-25T03:05:00+08:00"
 session: "2026-11-25 00:28 第一百三十 session（CT v6.0.0）"
 next_ids:
-  workorder: "T0914"
+  workorder: "T0915"
   decision: "D335"
   bug: "BUG-220"
   plan: "PLAN-069"
@@ -66,6 +66,7 @@ todo:
 > 06:29 T0910（W9）收單 DONE：`ct/T0910` `a8eb8236`（43 檔；`claude-hooks-status.ts` 啟動代號、`--set-role --bat-contract` 的 `hooks:` 行（最多等 2 s；helper 等 8 s）、`hooksStatus` 查詢 / MCP、`terminal:hooks-status` 推送、`🪝✕` 與待辦提示、`.claude-plugin/marketplace.json`＋`plugins/bat-hooks`（launcher、不進安裝檔）、`--hook-list` / `plugin-outdated`、session-start 帶 origin / set、(d1) `--plugin-dir` 建議不採用、README 協作章節；head test:unit 第一次即綠 8,842）。session 快照已寫；`--close-worker T0910 --worktree keep` exit 0。開合併工單 T0911（T0909 → T0908 → T0910，base `677860a4`）。06:30 派出。
 > 06:39 T0911 收單 DONE：三次 `--no-ff` 衝突全兩邊保留、無行為矛盾；第一次 test:unit 即綠 8,944、legacy 472、e2e t0904；CLAUDE.md 94,967 字元 / 136,162 bytes；範圍外檔案無；SHA 比對 PASS → **`v0.8.x` ff `677860a4..17c84662`（本機，W0–W6＋W9 完成）**；worktree T0908–T0910 移除、已合併分支刪除。06:40 開 W7 = T0912（文件）、W8 = T0913（整合驗收）平行（06:41 派出）。
 > 06:51 T0912（W7）收單 DONE：`ct/T0912` `fa658599`（9 檔，只文件：`tower-inbox.md` 現況化與交叉引用收斂、CLAUDE.md PLAN-068 各節精簡（W6 節併入 W3「塔台回合訊息卡」，其餘標題不變）→ 93,427 字元、網站新頁 `site/tower-inbox.md`＋導覽兩行、README 協作章節＋版本對照表「待定」×3、CHANGELOG `[Unreleased]`；vitepress build 成功、195 相對連結 0 壞、test:unit 第一次即綠）。模式 ① 合併 `ct-merge/T0912` `e6f18bf0` → **`v0.8.x` ff `17c84662..e6f18bf0`（本機）**；session 快照已寫；`--close-worker T0912 --worktree remove` exit 0。定版時要填：README 版本對照表三處「待定」。T0902 的「塔台分頁第一次宣告時待辦分頁顯示一次建議」未實作，文件寫成建議（觀察）。
+> 07:01 T0913（W8）收單 DONE：`ct/T0913` `a00b1b4a`（只加測試：`e2e/t0913-tower-inbox-integration.spec.ts`、`e2e/fixtures/helper-job-runner.mjs`、`headless-tower-inbox-e2e.test.ts`）；①–⑥ 全過（版本組合表每格、清單→回答→保留佇列、卡片、`--set-role` 兩行與 `🪝✕`、headless 遠端與權杖拒絕、舊 helper 輸出逐字不變）；**沒有產品缺陷**；e2e ×2、test:unit 第一次即綠 8,950、legacy、build、typecheck；〈待實機清單〉M-U1–U8 / M-C1–C7 / M-R1–R2。建議：M-C6（新 CT＋舊 BAT 降級）交 CT 確認；docs「實機交 W8」改指向 e2e（小改，可併入發版準備）。session 快照已寫；`--close-worker T0913 --worktree keep` exit 0。試合併無衝突 → 開合併工單 T0914（模式 ②，base `e6f18bf0`）。
 >
 > 🛏 **第一百二十九 session 收工**（2026-11-24 03:50 (UTC+8)）。
 
