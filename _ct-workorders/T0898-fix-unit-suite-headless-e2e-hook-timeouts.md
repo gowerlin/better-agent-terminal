@@ -30,7 +30,7 @@ affects_files:
   - vitest.setup.ts
 renew_count: 0
 isolation: worktree
-workdir: "worktree ct/T0898（塔台在 T0896 合併進 `v0.8.x` 後從新的 `v0.8.x` 建立分支，派工時填入 base）"
+workdir: "worktree ct/T0898（塔台 2026-11-25 01:14 從 `v0.8.x` `7094b993` 建立分支）"
 worker_question_timeout: 30
 interaction:
   mode_hint: yolo
@@ -60,6 +60,10 @@ memory_overrides:
 - [ ] 沒有改產品程式；`test:legacy` 全綠、兩個 typecheck = 0、`vite build` exit 0
 - [ ] 隔離分支證據
 
+
+## 派工補記
+
+- 2026-11-25T01:14:52+08:00：T0896 已合併進 `v0.8.x`；`ct/T0898` 從 `v0.8.x` = `7094b993b67313db8f3c6b058a33f483896ec5b4` 建立。`memory_overrides` 第 1 條的 merge-base 檢查值 = `7094b993b67313db8f3c6b058a33f483896ec5b4`。
 ---
 
 ## 回報區

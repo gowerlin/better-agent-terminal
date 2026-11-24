@@ -36,6 +36,8 @@ todo:
 > 01:05 T0895 收單 DONE：`ct/T0895` `c6565a96`（5 檔皆在 `affects_files`、worktree 乾淨、test:unit 8473 passed（第二次）、build / typecheck 0 / 0；門檻 65,536,000 bytes、只有 `ClipboardImageTooLargeError` → `TOO_LARGE`）；session 快照已寫；`--close-worker T0895 --worktree keep` exit 0。`merge-tree` 三組都無衝突 → 開合併工單 T0896（模式 ②，整合 worktree，base `v0.8.x` `2b49e5a5`，併 `ct/T0895` + `ct/T0891`＋文件補充＋完整驗收）。觀察：完整 test:unit 首輪 headless / RemoteServer e2e `beforeAll` 逾時已在 T0891 / T0894 / T0895 三張出現（重跑皆過）→ 候選 BUG（CI Test gate 可能偶發擋發版）。
 > 01:06 派出 T0896（exit 0、`started:`）。使用者：T0891 候選 1、2「也安排」→ D321 開 T0897（PENDING，等 T0896 ff 後從新 `v0.8.x` 建 `ct/T0897` 再派）。
 > 01:08 使用者：headless e2e 逾時候選「也安排」→ D322 開 BUG-218（FIXING）＋ T0898（PENDING）；T0897 / T0898 等 T0896 ff 後並行派工，完成後再一張合併工單＋ pre.2 最後聯合驗證。
+> 01:11 D323 開 PLAN-067（每週日誌清查，開工逾期 ≥ 7 天提示；`_local-rules.md` 新規則；下次到期 2026-12-02）。
+> 01:14 T0896 收單 DONE（模式 ②）：`ct-merge/T0896` 兩次 `--no-ff` 無衝突（`7bedb686` T0895、`9115aa7b` T0891）＋文件 `7094b993`；完整驗收全綠（test:unit 第 2 次 8490 passed（第 1 次 7 檔逾時 = BUG-218）、legacy 472、build / typecheck 0 / 0、verify-native / helpers、內嵌 claude 2.1.331 / codex 0.172.0、e2e t0621 / t0592 一次過）；範圍外檔案無；SHA 比對 1–4 PASS → yolo 自動 **`v0.8.x` ff `2b49e5a5..7094b993`**；整合 worktree detach；worktree `T0891` / `T0893` / `T0894` / `T0895` 移除（分支保留待使用者同意刪）；session 快照已寫；`--close-worker T0896` exit 0。建 `ct/T0897` / `ct/T0898` @ `7094b993`。
 >
 > 🛏 **第一百二十九 session 收工**（2026-11-24 03:50 (UTC+8)）。
 

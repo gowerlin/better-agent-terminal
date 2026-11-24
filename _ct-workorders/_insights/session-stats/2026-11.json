@@ -1,5 +1,5 @@
 {
- "generated_at": "2026-11-25T01:05:46+08:00",
+ "generated_at": "2026-11-25T01:14:52+08:00",
  "generator": {
   "script": "ct-session-stats.py",
   "version": "0.2.0"
@@ -88,13 +88,13 @@
    "output": 41063
   },
   "2026-11-24": {
-   "api_requests": 35,
-   "cache_read": 7090384,
-   "cache_write": 228345,
-   "cache_write_1h": 228345,
+   "api_requests": 120,
+   "cache_read": 37010754,
+   "cache_write": 400940,
+   "cache_write_1h": 400940,
    "cache_write_5m": 0,
-   "input": 76,
-   "output": 26644
+   "input": 270,
+   "output": 119421
   }
  },
  "workorders": [
@@ -10186,6 +10186,93 @@
     "2.1.329"
    ],
    "workorder": "T0895"
+  },
+  {
+   "agents_invoked": {},
+   "attribution": {
+    "conflict": false,
+    "source": "frontmatter",
+    "sources": {
+     "frontmatter": 1
+    }
+   },
+   "by_mcp_server": {},
+   "by_tool": {
+    "Bash": 19,
+    "Edit": 5,
+    "Grep": 1,
+    "Monitor": 5,
+    "PowerShell": 12,
+    "Read": 2,
+    "TaskStop": 2
+   },
+   "counts": {
+    "api_requests": 45,
+    "failures": 0,
+    "same_file_read_ge3": 0,
+    "subagent_files": 0,
+    "tool_calls": 46
+   },
+   "end": "2026-11-24T17:14:09Z",
+   "est_usd": 3.1496,
+   "failures_by_tool": {},
+   "renews": 0,
+   "sessions": 1,
+   "skills_invoked": {
+    "ct-exec": 1
+   },
+   "start": "2026-11-24T17:06:58Z",
+   "stuck": {
+    "max_consecutive_failures": 0,
+    "max_failures_in_10_calls": 0,
+    "near_repeat_fail_pairs_j50": 0,
+    "repeat_fail_groups_norm": 0
+   },
+   "stuck_signal": false,
+   "subagent_tokens": {
+    "cache_read": 0,
+    "cache_write": 0,
+    "cache_write_1h": 0,
+    "cache_write_5m": 0,
+    "input": 0,
+    "output": 0
+   },
+   "tokens": {
+    "cache_read": 7502120,
+    "cache_write": 154762,
+    "cache_write_1h": 154762,
+    "cache_write_5m": 0,
+    "input": 94,
+    "output": 20533
+   },
+   "top_tools": [
+    [
+     "Bash",
+     19
+    ],
+    [
+     "PowerShell",
+     12
+    ],
+    [
+     "Edit",
+     5
+    ],
+    [
+     "Monitor",
+     5
+    ],
+    [
+     "Read",
+     2
+    ]
+   ],
+   "type": "chore",
+   "unpriced_tokens": 0,
+   "versions": [
+    "2.1.329"
+   ],
+   "workorder": "T0896"
   }
  ]
 }

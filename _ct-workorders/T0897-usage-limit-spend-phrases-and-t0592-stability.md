@@ -25,7 +25,7 @@ affects_files:
   - docs/agent-guide/bat-mcp-shim.md
 renew_count: 0
 isolation: worktree
-workdir: "worktree ct/T0897（塔台在 T0896 合併進 `v0.8.x` 後從新的 `v0.8.x` 建立分支，派工時填入 base）"
+workdir: "worktree ct/T0897（塔台 2026-11-25 01:14 從 `v0.8.x` `7094b993` 建立分支）"
 worker_question_timeout: 30
 interaction:
   mode_hint: yolo
@@ -59,6 +59,10 @@ T0891（內嵌 claude 2.1.331 / codex 0.172.0 追版）回報的兩個候選，�
 - [ ] `test:unit` 全綠、`vite build` exit 0、兩個 typecheck = 0
 - [ ] 隔離分支證據
 
+
+## 派工補記
+
+- 2026-11-25T01:14:52+08:00：T0896 已合併進 `v0.8.x`；`ct/T0897` 從 `v0.8.x` = `7094b993b67313db8f3c6b058a33f483896ec5b4` 建立。`memory_overrides` 第 1 條的 merge-base 檢查值 = `7094b993b67313db8f3c6b058a33f483896ec5b4`。
 ---
 
 ## 回報區
