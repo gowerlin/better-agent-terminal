@@ -1,12 +1,12 @@
 ---
 schema_kind: tower-state
 summary_version: 1
-updated_at: "2026-11-25T00:28:40+08:00"
+updated_at: "2026-11-25T00:39:07+08:00"
 session: "2026-11-25 00:28 第一百三十 session（CT v6.0.0）"
 next_ids:
   workorder: "T0893"
   decision: "D318"
-  bug: "BUG-216"
+  bug: "BUG-218"
   plan: "PLAN-067"
 todo:
   - "🚀 `v0.8.0-pre.1` 已發佈（D315，2026-11-24 03:24，從 `v0.8.x`）並通過 NSIS 重裝驗收（2026-11-24 03:35，PASS-WITH-WARN，WARN 只因從 `0.0.0-exp.18` 升級；含權杖備份已刪）。待做：發佈後驗收（linux / macos / docker acceptance、WSL smoke）視需要另取授權；`v0.8.x` 併回 main：使用者裁示等 `v0.8.0-pre.1` 實際使用一段時間再併，併回後 PLAN-066 → DONE（main 的 `package.json` 仍是 `0.7.5-pre.2`，`v0.8.x` 是 `0.8.0-pre.1`）"
@@ -24,7 +24,8 @@ todo:
 # Tower State — better-agent-terminal
 
 > 🟢 **第一百三十 session 開工**（2026-11-25 00:28 (UTC+8)，CT v6.0.0，Fast Path（環境快照 2026-11-24，未逾 7 天）；塔台 session `93faa440-07bb-4923-8807-c9d1835ee287`；分頁 `3a9b5550…`；`--set-role tower --mode on` exit 0；`bat_whoami` 名稱 `better-agent-terminal · Tower`；BAT helper `0.8.0-pre.1`；`main` = `origin/main` @ `94147ecb`、`v0.8.x` = `origin/v0.8.x` @ `bcb4bbe0`、工作區乾淨、無 stash；worktree 只剩 `T0885` 與 `.ct-integration`；熱區 T:286 / BUG:79 / PLAN:31 / EXP:1；`bat_list_questions` pending 0）。
-> 00:31 D317：開 T0891（內嵌 claude-code 2.1.331 / agent-sdk 0.3.331 / codex 0.172.0 追版，`ct/T0891` 從 `v0.8.x` `bcb4bbe0`，隔離派工）與 T0892（`v0.8.0-pre.1` 日誌與記憶體唯讀檢查），並行派工。
+> 00:31 D317：開 T0891（內嵌 claude-code 2.1.331 / agent-sdk 0.3.331 / codex 0.172.0 追版，`ct/T0891` 從 `v0.8.x` `bcb4bbe0`，隔離派工）與 T0892（`v0.8.0-pre.1` 日誌與記憶體唯讀檢查），並行派工。00:32 派出：T0891 `--mode yolo --no-interactive --isolation worktree` exit 0、`started: 2026-11-24T16:32:21Z`（worktree `.bat-worktrees/…/T0891`、branch `ct/T0891`、BAT 印 base `06c3b884` = 與 main 的共同祖先，預期）；T0892 exit 0、`started: 2026-11-24T16:32:23Z`。
+> 00:38 T0892 收單 DONE（`b803e1a1`）：日誌與記憶體**沒有 `v0.8.x` 回歸**（無 recovery / heartbeat 判死 / crash dump；holder、`--max-semi-space-size=1` 生效；holder 8 分頁 Private 82–85 MB、14 h 峰值 WS 117 MB）；開 BUG-216（大型剪貼簿圖片 Ctrl+V）、BUG-217（ct-overview YAML 錯誤日誌重複含原文），皆 low、既有程式；session 快照已寫；`--close-worker T0892` exit 0。
 >
 > 🛏 **第一百二十九 session 收工**（2026-11-24 03:50 (UTC+8)）。
 

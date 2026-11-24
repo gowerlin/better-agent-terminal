@@ -1,5 +1,5 @@
 {
- "generated_at": "2026-11-24T02:38:57+08:00",
+ "generated_at": "2026-11-25T00:38:08+08:00",
  "generator": {
   "script": "ct-session-stats.py",
   "version": "0.2.0"
@@ -86,6 +86,15 @@
    "cache_write_5m": 0,
    "input": 170,
    "output": 41063
+  },
+  "2026-11-24": {
+   "api_requests": 35,
+   "cache_read": 7090384,
+   "cache_write": 228345,
+   "cache_write_1h": 228345,
+   "cache_write_5m": 0,
+   "input": 76,
+   "output": 26644
   }
  },
  "workorders": [
@@ -9741,6 +9750,94 @@
     "2.1.329"
    ],
    "workorder": "T0890"
+  },
+  {
+   "agents_invoked": {},
+   "attribution": {
+    "conflict": false,
+    "source": "frontmatter",
+    "sources": {
+     "frontmatter": 1
+    }
+   },
+   "by_mcp_server": {
+    "bat": 1
+   },
+   "by_tool": {
+    "Bash": 39,
+    "Edit": 1,
+    "PowerShell": 6,
+    "Read": 1,
+    "ToolSearch": 1,
+    "mcp__bat__bat_list_terminals": 1
+   },
+   "counts": {
+    "api_requests": 49,
+    "failures": 0,
+    "same_file_read_ge3": 0,
+    "subagent_files": 0,
+    "tool_calls": 49
+   },
+   "end": "2026-11-24T16:37:47Z",
+   "est_usd": 3.8124,
+   "failures_by_tool": {},
+   "renews": 0,
+   "sessions": 1,
+   "skills_invoked": {
+    "ct-exec": 1
+   },
+   "start": "2026-11-24T16:32:24Z",
+   "stuck": {
+    "max_consecutive_failures": 0,
+    "max_failures_in_10_calls": 0,
+    "near_repeat_fail_pairs_j50": 0,
+    "repeat_fail_groups_norm": 0
+   },
+   "stuck_signal": false,
+   "subagent_tokens": {
+    "cache_read": 0,
+    "cache_write": 0,
+    "cache_write_1h": 0,
+    "cache_write_5m": 0,
+    "input": 0,
+    "output": 0
+   },
+   "tokens": {
+    "cache_read": 8692385,
+    "cache_write": 181091,
+    "cache_write_1h": 181091,
+    "cache_write_5m": 0,
+    "input": 100,
+    "output": 31241
+   },
+   "top_tools": [
+    [
+     "Bash",
+     39
+    ],
+    [
+     "PowerShell",
+     6
+    ],
+    [
+     "Edit",
+     1
+    ],
+    [
+     "Read",
+     1
+    ],
+    [
+     "ToolSearch",
+     1
+    ]
+   ],
+   "type": "research",
+   "unpriced_tokens": 0,
+   "versions": [
+    "2.1.329"
+   ],
+   "workorder": "T0892"
   }
  ]
 }
