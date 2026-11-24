@@ -3,8 +3,8 @@ schema_version: 1
 schema_kind: cross-tower-handover
 from: better-agent-terminal
 to: BMad-Guide
-status: DRAFT
-local_workorder: ""
+status: ACKNOWLEDGED
+local_workorder: "BMad-Guide T0549"
 created_at: "2026-11-25T00:42:15+08:00"
 related: [BUG-217, T0892, T0894, D318, T0701]
 ---
@@ -36,3 +36,7 @@ related: [BUG-217, T0892, T0894, D318, T0701]
 ## 回覆方式
 
 請在 BMad-Guide 寫 `_reply-2026-11-25-ct-tower-state-frontmatter-backslash.md`（受理請填 `local_workorder`），由使用者轉交或以跨 session 訊息通知 `better-agent-terminal · Tower`。
+
+## 受理紀錄
+
+- 2026-11-25：CT 塔台（BMad-Guide · Tower）跨 session 回覆受理，本地工單 T0549，於 CT 6.0.1 修正（BMad-Guide `_reply-2026-11-25-ct-tower-state-frontmatter-backslash.md`、commit `1050dac`、決策 D851）。三項建議全部採納；BAT 面板契約 v1 不變、BAT 端不必改。已經寫壞的檔要等該工作區塔台換上 6.0.1 後才修正，所以 BAT BUG-217 / T0894 仍需要。CT 發布 6.0.1 後會再通知一次。
