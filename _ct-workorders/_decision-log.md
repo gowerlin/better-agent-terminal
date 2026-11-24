@@ -10,6 +10,7 @@
 
 | ID | 日期 | 標題 | 相關工單 |
 |----|------|------|---------|
+| D318 | 2026-11-25 | BUG-216 / BUG-217 一起修、放進 `0.8.0-pre.2`：T0893 / T0894 在 `v0.8.x` 隔離派工，與 T0891 並行（不碰 CLAUDE.md / docs / lock，文件由塔台合併後補） | T0893 / T0894 / BUG-216 / BUG-217 |
 | D317 | 2026-11-25 | 內嵌 Claude CLI / Agent SDK / Codex 一張工單追 latest（T0891，在 `v0.8.x`）；另開唯讀日誌檢查 T0892，兩張並行 | T0891 / T0892 |
 | D316 | 2026-11-24 | 決策日誌收斂：D001～D185 搬到 `_archive/decisions/_decision-log-D001-D185.md`（🔴 / 危害相關 9 筆留在熱檔） | — |
 | D129 | 2026-10-04 | PLAN-036 headless 功能 handler 層：共用註冊模組 + DI（Electron main 與 headless 同一份 `registerXxxHandlers`）；fs sandbox 由 client 推送 workspace roots（fail-closed）；遠端 Agent 沿用遠端 settings 的 runtime router；P0 先開 T0388-T0391，T0388+T0391 立即平行、T0389 等 T0387、T0390 接 T0388+T0389；P1-P3 待 P0 實機後開；PLAN-036 P0 優先於 PLAN-035 Phase 2 | PLAN-036 / T0386 / T0388-T0391 |
@@ -247,6 +248,15 @@
   4. PLAN-001 保持延後（🟢 Low，等 plugin 1.0 穩定）
 - **Success criteria**（EXP→CONCLUDED）：npm install 無錯 / 所有 native modules rebuild 成功 / dev+build:dir 可跑 / 手動 smoke test 8 項通過
 - **最大風險**：`whisper-node-addon@1.0.2` 對 Electron 41（Node 24）的 NODE_MODULE_VERSION 相容性未知，允許 Worker 遇此決策點主動問塔台
+
+---
+
+### D318 2026-11-25 00:40 — BUG-216 / BUG-217 一起修，放進 `0.8.0-pre.2`
+
+- **背景**：T0892 在 `v0.8.0-pre.1` 日誌找到兩個既有問題（非 `v0.8.x` 回歸），開 BUG-216（大型剪貼簿圖片 Ctrl+V）、BUG-217（指揮塔總覽 YAML 錯誤日誌重複且含原文）。
+- **決定**（使用者「好，BUG-216 和 BUG-217 一起修，放進 pre.2」）：各開一張工單 T0893 / T0894，塔台預先從 `v0.8.x`（`bcb4bbe0`）建 `ct/T0893`、`ct/T0894`，`--isolation worktree` 派工，與 T0891 並行。為避免合併衝突，T0893 / T0894 不改 CLAUDE.md、`docs/agent-guide/`、`package*.json`（T0891 在改），要補的文件寫在回報區由塔台合併後補。BUG → FIXING。
+- **合併順序**：三張都從同一個 base 開，依完成順序合進 `v0.8.x`（照 `merge-workorder.md` 判準）。
+- **相關**：D307 / D317 / T0892
 
 ---
 

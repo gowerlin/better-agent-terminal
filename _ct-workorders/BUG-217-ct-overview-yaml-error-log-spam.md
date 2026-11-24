@@ -3,7 +3,7 @@ schema_version: 1
 schema_kind: bug
 id: BUG-217
 title: "指揮塔總覽：`_tower-state.md` frontmatter YAML 解析失敗時每次重載都記一次，且附多行原文摘錄（把該工作區塔台狀態內容寫進 debug log）"
-status: OPEN
+status: FIXING
 severity: low
 reproducibility: "observed（`v0.8.0-pre.1` 實機 2026-11-24 16:11–20:25 (UTC+8) 347 次，合計 2,776 行 / 222 KB）"
 created_at: "2026-11-25T00:38:23+08:00"
@@ -22,7 +22,7 @@ links:
 |------|------|
 | 嚴重度 | 🟢 low（只是日誌；但會把其他工作區的塔台狀態內容寫進 debug log） |
 | 可重現 | 觀察到（T0892）；frontmatter 雙引號字串含未跳脫的反斜線（Windows 路徑）即可觸發 |
-| **狀態** | 📂 OPEN |
+| **狀態** | 🔧 FIXING |
 | 回報者 | 塔台（T0892 日誌檢查） |
 | 影響版本 | 既有程式（T0701 起，`ControlTowerPanel.tsx` 約 506 行），不是 `v0.8.x` 回歸 |
 
