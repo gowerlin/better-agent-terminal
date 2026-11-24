@@ -4,7 +4,7 @@ summary_version: 1
 updated_at: "2026-11-25T00:39:07+08:00"
 session: "2026-11-25 00:28 第一百三十 session（CT v6.0.0）"
 next_ids:
-  workorder: "T0899"
+  workorder: "T0900"
   decision: "D324"
   bug: "BUG-219"
   plan: "PLAN-068"
@@ -41,6 +41,7 @@ todo:
 > [提問] 01:1x T0897 Q-1–Q-3（`--answer` exit 0 ×3，塔台範圍內裁決，皆同 Worker 建議）：Q-1 B（`usage limit · contact your admin to increase it` → claude-blocked / non-timed）；Q-2 A（`Usage is paused for your organization` 不加，每日上限可能隔天恢復，列觀察）；Q-3 A（`usage credit limit` 停止句 CLI 不會印，不加）。
 > 01:3x CT 通知 HANDOVER 完成（CT 6.0.1 發佈，D856），handover 補紀錄 `ae367650`；以 `check-frontmatter.py` 掃熱區 479 檔：0 個跳脫問題，34 檔只是沒有 frontmatter（舊 spec / 報告）。
 > 01:36 T0898 收單 DONE：`ct/T0898` `98bd9e96`（4 檔：`vite.config.ts` `test.globalSetup`、新 globalSetup 與其測試、`bat-mcp-codex-env.test.ts`；worktree 乾淨、`v0.8.x` 未前進）。根因：Electron 42+ 第一次 `require('electron')` 同步下載 binary，11 檔同時下載各 22–25 s；另修 codex 0.172 `app-server` 的 `git ls-remote` 造成 `EPERM`（`-c features.plugins=false`）。全新狀態 3 次第一次 test:unit 全綠（8495）、legacy 472、build 產物 97 檔 sha256 不變。BUG-218 FIXED；session 快照已寫；`--close-worker T0898 --worktree keep` exit 0。待合併工單補 CLAUDE.md「Frontend unit tests」一句（T0898 回報區）。
+> 01:38 T0897 收單 DONE：`ct/T0897` `c9f98ba9`（5 檔皆在 `affects_files`、worktree 乾淨）。① 新增 claude 花費 / 額度停止句（channel / individual / org monthly spend & usage limit、`usage limit · contact your admin…`、seat type、allocation disabled、group $0、service disabled、out of extra usage → non-timed；計時句尾 `· out of usage credits`），既有句型不變；② t0592 根因：假 codex 清理 `CODEX_HOME` 最多約 21 s 仍佔前景，預填文字被延後 → 改等塔台 pwsh 自寫的標記，人為延遲 25 s 重現並驗證修正；連續 5 次全綠。session 快照已寫；`--close-worker T0897 --worktree keep` exit 0。觀察（未開單）：t0592 會寫進使用者 PSReadLine 歷程；`Usage is paused for your organization`（每日暫停）未認。→ 開合併工單 T0899（模式 ②，併 `ct/T0898` + `ct/T0897`、補 CLAUDE.md、pre.2 最後聯合驗證）。
 >
 > 🛏 **第一百二十九 session 收工**（2026-11-24 03:50 (UTC+8)）。
 
