@@ -4,13 +4,14 @@ schema_kind: workorder
 id: T0893
 title: "修正 BUG-216（在 `v0.8.x`）：大型剪貼簿圖片的 Ctrl+V —— 不先讀整張圖就判斷上限、退回路徑失敗時提示使用者、錯誤日誌記原因"
 type: implementation
-status: PENDING
+status: IN_PROGRESS
 repo: better-agent-terminal
 project: maintenance
 priority: P2
 sizing: S
 created_at: "2026-11-25T00:39:51+08:00"
-updated_at: "2026-11-25T00:39:51+08:00"
+updated_at: "2026-11-25T00:41:37+08:00"
+started_at: "2026-11-25T00:41:37+08:00"
 target_version: "0.8.0-pre.2"
 depends_on: []
 related:
@@ -31,6 +32,7 @@ renew_count: 0
 isolation: worktree
 workdir: worktree ct/T0893（塔台已預先從 `v0.8.x` 建立分支 `ct/T0893`，`bcb4bbe0`）
 worker_question_timeout: 30
+tower_question: open
 interaction:
   mode_hint: yolo
   interactive: false
@@ -79,6 +81,40 @@ T0892 在 `v0.8.0-pre.1` 日誌看到（詳見 `_ct-workorders/BUG-216-large-cli
 ## 回報區
 
 > 以下由 sub-session 填寫，請勿在指揮塔 session 中編輯（唯一例外：`### 待塔台決策` 的 `塔台答覆 Q-n` 行由塔台新增）
+
+### 待塔台決策
+
+> 量測（隔離：只用 worktree 的 `node_modules/electron/dist/electron.exe` 跑一支自寫的量測腳本，不是 BAT、不碰任何 BAT 實例；`--user-data-dir` 指向暫存目錄）。
+> 剪貼簿放 36.1 MB 雜訊 PNG（4000×3000），每步驟各一個新程序，主行程 Peak WS / 事件迴圈最大延遲：
+>
+> | 流程 | 耗時 | Peak WS（前 → 後） | 事件迴圈最大延遲 |
+> |---|---|---|---|
+> | 現行（`read()` → `getType` → `arrayBuffer` → `nativeImage` 解碼 → `toPNG`） | 790 ms（點陣圖剪貼簿 965 ms） | 65 → 356 MiB（點陣圖 371） | 770 ms |
+> | 只到 `getType` 取 `blob.size` 早退 | 124 ms（點陣圖 299 ms） | 65 → 249 MiB（點陣圖 262） | 104 ms |
+> | 只看 `read()` 的格式清單（`types`） | 0.7–0.9 ms | 65 → 65 MiB | 11 ms（= 計時器解析度） |
+>
+> 結論：`clipboard.read()` 只列格式、不讀資料；`getType` 才把資料讀進主行程（點陣圖剪貼簿還要在這一步編成 PNG），解碼＋重新編碼是最大的成本。
+
+#### Q-1：終端 Ctrl+V 判斷「有沒有圖」要不要改成新的 IPC（只看格式清單），連帶要改 `src/__tests__/terminal-remote-upload.test.tsx` 的 mock？
+- 提問時間：2026-11-25T00:44:43+0800
+- 選項：[A] 新增 local-only IPC `clipboard:has-image`（main `clipboard.read()` 的 `types` 含 `image/png` → true，不呼叫 `getType`；preload / `electron.d.ts` 各加一行），`terminal-paste.ts` 的 `clipboardHasImage` 改用它；失敗時照舊退回 `navigator.clipboard.read()`。`terminal-remote-upload.test.tsx`（不在 `affects_files`）的 `clipboard` mock 要多一個 `hasImage`（約 3 行），否則它的 SSH / Docker 貼圖案例會因判斷不到圖而失敗 / [B] 不新增 IPC：終端照舊呼叫 `clipboard:read-image-data-url`，只靠 Q-2 的早退（每次約 124–299 ms、Peak +180 MiB），不動該測試檔 / [C] 其他
+- Worker 建議：[A]。終端本來只需要「有沒有圖」，現在為了這個判斷每次把整張圖讀進主行程、解碼、重新編碼、轉 base64 再丟掉；[A] 讓終端完全不讀圖（量測 < 1 ms、不增加記憶體）。行為：超過 10 MiB 的圖改由 main 直接判定「有圖」→ 送貼圖鍵 / SSH・Docker 走上傳，與修正前「main 拒絕 → `navigator.clipboard.read()` 判定有圖」的結果相同，只是不再經過拒絕與退回。既有 channel 不變。
+- 影響範圍：`electron/main.ts`、`electron/image-attachments.ts`、`electron/preload.ts`、`src/types/electron.d.ts`、`src/lib/terminal-paste.ts`、測試；新增範圍：`src/__tests__/terminal-remote-upload.test.tsx`（只改 mock）
+- 阻塞：是（終端判斷的實作）
+
+#### Q-2：`clipboard:read-image-data-url`（Claude / Codex 面板貼圖附件）要不要也在解碼前以剪貼簿 PNG 的原始大小早退？
+- 提問時間：2026-11-25T00:44:43+0800
+- 選項：[A] 要：`getType` 後先看 `blob.size`，大於 10 MiB 直接丟同樣格式的 `Image too large (<n> > 10485760 bytes)`，不讀 `arrayBuffer`、不解碼 / 編碼（量測 790→124 ms、Peak 356→249 MiB）；上限值不變，但比的是「剪貼簿 PNG 的位元組數」而非「主行程重新編碼後的位元組數」 / [B] 不要：面板路徑維持現狀（大圖仍約 0.8–1 s 才拒絕），只修終端 / [C] 其他
+- Worker 建議：[A]。差異只在 10 MiB 附近的邊界：原始 > 10 MiB 但重新編碼後 ≤ 10 MiB 的圖，修正前會貼上、修正後會被拒絕（反之亦然的情況不受影響，因為通過早退的圖照舊重新編碼後再比一次）。量測兩者差距很小：Windows 點陣圖剪貼簿由 Chromium 自己編 PNG，差 0.08%（36,142,010 vs 36,114,249）；T0892 日誌的實例差 4.6%（50,913,361 vs 48,563,050）。小於上限的圖結果完全不變。`upload-client.ts`（50 MiB 上限、`TOO_LARGE` 錯誤碼）不在本單範圍，不改。
+- 影響範圍：`electron/main.ts`、`electron/image-attachments.ts`、`electron/__tests__/image-attachments.test.ts`；面板程式不改
+- 阻塞：否（先做 Q-3 以外不受影響的部分）
+
+#### Q-3：同意把 `src/components/TerminalPanel.tsx` 加進範圍嗎？
+- 提問時間：2026-11-25T00:44:43+0800
+- 選項：[A] 同意：② 的提示與 ③ 的 catch 日誌都在 `TerminalPanel.tsx`（Ctrl+V / Command+V / 右鍵貼上的 `.catch(err => dlog(…, err))` 與 `handlePaste` 的 catch 都記成 `{}`；提示要用它既有的 `addNoticeToast`），改法：`terminal-paste.ts` 匯出 `describePasteError(err)`（只回 `name: message`）與「讀不到剪貼簿」的錯誤類型，`TerminalPanel.tsx` 三處 catch 改記 `describePasteError(err)`，讀不到剪貼簿時 `addNoticeToast(t('terminal.clipboardReadFailed'), 'warning', 8000)`；測試放在範圍內的 `terminal-paste-shortcuts.test.tsx` / `src/lib/__tests__/terminal-paste*.test.ts` / [B] 不同意：只改 `terminal-paste.ts` 內部的日誌，② 的提示另開工單 / [C] 其他
+- Worker 建議：[A]。`readTerminalClipboard` 沒有 UI，提示只能由呼叫它的 `TerminalPanel.tsx` 顯示；不改它，② 與 ③ 的 `Ctrl+V paste failed {}` 都做不到。改動限於上述三處 catch 與一個 toast，不動貼上流程本身。
+- 影響範圍：新增範圍 `src/components/TerminalPanel.tsx`
+- 阻塞：是（② 與 ③ 的 TerminalPanel 部分）
 
 ### 完成狀態
 - **session_id**：
