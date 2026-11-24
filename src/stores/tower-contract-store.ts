@@ -20,6 +20,11 @@ export interface TowerContractEntry {
   /** The contract the Tower declared (null = none). */
   towerContract: number | null
   status: Exclude<TowerContractStatus, 'not-tower'>
+  /**
+   * PLAN-068 W6 / T0909: the Tower's agent as the payload names it (`agent` hint, else `ptyAgent`);
+   * absent = unknown. Only used to tell a codex Tower (no turn cards, T0902 §4).
+   */
+  agent?: string
 }
 
 type Listener = () => void
@@ -38,7 +43,7 @@ function notify(): void {
  * Applies one `terminal:role-changed` payload; returns the tab's entry (null = not a Tower, nothing
  * recorded). A missing / invalid `towerContract` (an older main) counts as not declared.
  */
-export function applyTowerContract(info: { id?: unknown; role?: unknown; towerContract?: unknown } | null | undefined): TowerContractEntry | null {
+export function applyTowerContract(info: { id?: unknown; role?: unknown; towerContract?: unknown; agent?: unknown; ptyAgent?: unknown } | null | undefined): TowerContractEntry | null {
   if (!info || typeof info.id !== 'string' || !info.id) return null
   const id = info.id
   const towerContract = parseBatContract(info.towerContract)
@@ -48,8 +53,9 @@ export function applyTowerContract(info: { id?: unknown; role?: unknown; towerCo
     return null
   }
   const prev = entries.get(id)
-  if (prev && prev.status === status && prev.towerContract === towerContract) return prev
-  const entry: TowerContractEntry = { towerContract, status }
+  const agent = typeof info.agent === 'string' && info.agent ? info.agent : typeof info.ptyAgent === 'string' && info.ptyAgent ? info.ptyAgent : undefined
+  if (prev && prev.status === status && prev.towerContract === towerContract && prev.agent === agent) return prev
+  const entry: TowerContractEntry = agent ? { towerContract, status, agent } : { towerContract, status }
   entries.set(id, entry)
   notify()
   return entry

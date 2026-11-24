@@ -272,9 +272,9 @@ describe('tower-cards:* handlers', () => {
   const local: HandlerContext = { windowId: 'w1' }
   const helper: HandlerContext = { windowId: null, connectionId: 'c1', helper: { terminalId: 'tower', role: 'tower' } }
 
-  it('registers the four channels; all proxied; the event is proxied; none is a helper channel', () => {
+  it('registers the channels (T0909 adds set-panel-tower); all proxied; the event is proxied; none is a helper channel', () => {
     const { map } = handlers(null)
-    const channels = ['tower-cards:list', 'tower-cards:mark-read', 'tower-cards:pin', 'tower-cards:clear']
+    const channels = ['tower-cards:list', 'tower-cards:mark-read', 'tower-cards:pin', 'tower-cards:clear', 'tower-cards:set-panel-tower']
     expect([...map.keys()]).toEqual(channels)
     for (const channel of channels) {
       expect(PROXIED_CHANNELS.has(channel)).toBe(true)
@@ -315,6 +315,24 @@ describe('tower-cards:* handlers', () => {
     expect(call('tower-cards:mark-read', local, {})).toEqual({ ok: false, code: 'INVALID_ARGS' })
     expect(call('tower-cards:pin', local, { terminalId: 'tower', cardId, pinned: 'yes' })).toEqual({ ok: false, code: 'INVALID_ARGS' })
     expect(call('tower-cards:clear', local, { terminalId: 'tower', includePinned: 1 })).toEqual({ ok: false, code: 'INVALID_ARGS' })
+  })
+
+  it('T0909: set-panel-tower — a window turns a panel Tower on / off (off clears its cards); a helper is refused', () => {
+    const t = setup()
+    const { call, logs } = handlers(t.store)
+    expect(call('tower-cards:set-panel-tower', helper, { terminalId: 'panel-9', tower: true })).toEqual({ ok: false, code: 'FORBIDDEN' })
+    expect(t.store.isPanelTower('panel-9')).toBe(false)
+    expect(logs.some(line => line.includes('tower-cards:set-panel-tower refused'))).toBe(true)
+    expect(call('tower-cards:set-panel-tower', local, { terminalId: 'panel-9', tower: true })).toEqual({ ok: true, changed: 1 })
+    expect(call('tower-cards:set-panel-tower', local, { terminalId: 'panel-9', tower: true })).toEqual({ ok: true, changed: 0 })
+    expect(t.store.offerPanelMessage('panel-9', 'PANEL-TURN')).toBe('added')
+    expect(call('tower-cards:set-panel-tower', local, { terminalId: 'panel-9', tower: false })).toEqual({ ok: true, changed: 1 })
+    expect(t.entry('panel-9').cards).toEqual([])
+    expect(t.store.offerPanelMessage('panel-9', 'again')).toBe('not-tower')
+    expect(call('tower-cards:set-panel-tower', local, { terminalId: 'panel-9', tower: 'yes' })).toEqual({ ok: false, code: 'INVALID_ARGS' })
+    expect(call('tower-cards:set-panel-tower', local, { tower: true })).toEqual({ ok: false, code: 'INVALID_ARGS' })
+    expect(call('tower-cards:set-panel-tower', local, 'x')).toEqual({ ok: false, code: 'INVALID_ARGS' })
+    expect(handlers(null).call('tower-cards:set-panel-tower', local, { terminalId: 'a', tower: true })).toEqual({ ok: true, changed: 0 })
   })
 
   it('no store yet: empty answers, no throw', () => {

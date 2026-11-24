@@ -1797,7 +1797,26 @@
       "bugs": "Open BUGs {{count}}",
       "plans": "PLANs in progress {{count}}",
       "orders": "Work orders {{count}}"
-    }
+    },
+    "cards": {
+      "unread": "{{count}} unread",
+      "total": "{{count}} cards",
+      "markAllRead": "Mark all read",
+      "clear": "Clear",
+      "clearTooltip": "Clear the unpinned cards (pinned ones stay)",
+      "pin": "Pin",
+      "unpin": "Unpin",
+      "pinLimit": "At most {{limit}} cards can be pinned. Unpin another card first.",
+      "truncated": "(too long, cut)",
+      "showAll": "Show all",
+      "showLess": "Show less",
+      "unreadMark": "Unread",
+      "source": "From {{title}}",
+      "opFailed": "Failed: {{code}}",
+      "codexNote": "A codex Tower has no turn cards: BAT does not read codex conversations (D158). Decisions and actions for you are not affected.",
+      "claudeTooOld": "This Tower's claude sends no last message when a turn ends, so there are no turn cards: its claude is too old (needs {{version}} or later). Upgrade the system claude, or switch to the embedded claude in Settings › Claude Runtime."
+    },
+    "cardsBadgeTooltip": "{{count}} unread Tower messages (see the Inbox tab)"
   },
   "towerContract": {
     "ctOutdated": "This Tower's Control Tower did not declare BAT ↔ CT contract v{{supported}}, so notification protection (no scroll jump, not mixed into your draft, held while you read), turn message cards and the inbox list are off. Update to BMad Control Tower 6.1.0 or later, then reopen the Tower. Dialog protection (no notifications while it waits for your answer) is not affected.",

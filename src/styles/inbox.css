@@ -207,3 +207,148 @@
 .inbox-tab-badge.mismatch {
   background: #e5a50a;
 }
+
+/* PLAN-068 W6 / T0909: the section head holds the fold toggle and the section's buttons side by side */
+.inbox-section-head {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+
+.inbox-section-head .inbox-section-title {
+  flex: 1;
+  min-width: 0;
+}
+
+.inbox-section-actions {
+  display: flex;
+  gap: 6px;
+  padding-right: 10px;
+  flex-shrink: 0;
+}
+
+/* PLAN-068 W6 / T0909:「💬 塔台訊息」turn cards (plain text only) */
+.tower-cards-note,
+.tower-cards-message {
+  padding: 0 12px 6px;
+  line-height: 1.5;
+}
+
+.tower-cards {
+  list-style: none;
+  margin: 0;
+  padding: 0 0 4px;
+}
+
+.tower-card {
+  border-top: 1px solid var(--border-color);
+  padding: 2px 0;
+}
+
+.tower-card-head {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+
+.tower-card-toggle {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  flex: 1;
+  min-width: 0;
+  padding: 4px 6px 4px 12px;
+  font-size: 12px;
+  text-align: left;
+  color: var(--text-primary);
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+
+.tower-card-toggle:hover {
+  background: var(--hover-bg);
+}
+
+.tower-card-unread {
+  width: 0.8em;
+  flex-shrink: 0;
+  color: var(--accent-color, #3b82f6);
+}
+
+.tower-card-time {
+  flex-shrink: 0;
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+.tower-card.unread .tower-card-preview {
+  font-weight: 600;
+}
+
+.tower-card-source {
+  flex-shrink: 0;
+  max-width: 35%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  padding: 0 4px;
+  font-size: 11px;
+}
+
+.tower-card-preview {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tower-card-pin {
+  flex-shrink: 0;
+  background: none;
+  border: none;
+  cursor: pointer;
+  opacity: 0.35;
+  padding: 2px 8px;
+  font-size: 12px;
+}
+
+.tower-card-pin:hover,
+.tower-card-pin.active {
+  opacity: 1;
+}
+
+.tower-card-body {
+  padding: 2px 12px 6px 30px;
+}
+
+.tower-card-line {
+  white-space: pre-wrap;
+  word-break: break-word;
+  line-height: 1.5;
+}
+
+.tower-card > .tower-card-line {
+  padding: 0 12px 2px 30px;
+}
+
+.tower-card-line.highlight {
+  background: rgba(229, 165, 10, 0.18);
+  border-left: 2px solid #e5a50a;
+  padding-left: 4px;
+  font-weight: 600;
+}
+
+.tower-card > .tower-card-line.highlight {
+  margin-left: 26px;
+  padding-left: 4px;
+}
+
+.tower-card-truncated {
+  padding: 0 12px 4px 30px;
+  color: var(--text-secondary);
+  font-size: 11px;
+}

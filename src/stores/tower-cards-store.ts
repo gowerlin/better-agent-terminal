@@ -67,6 +67,11 @@ export function useTowerCards(terminalId: string | null | undefined): TowerCards
   return terminalId ? getTowerCards(terminalId) : null
 }
 
+/** React (W6 / T0909): re-renders when any tab's cards change (the Inbox merges several tabs). */
+export function useTowerCardsVersion(): number {
+  return useSyncExternalStore(subscribeTowerCards, () => version, () => version)
+}
+
 function isEntry(value: unknown): value is TowerCardsEntry {
   if (!value || typeof value !== 'object') return false
   const e = value as Partial<TowerCardsEntry>

@@ -1796,7 +1796,26 @@
       "bugs": "BUG 未結 {{count}}",
       "plans": "PLAN 進行中 {{count}}",
       "orders": "工單 {{count}}"
-    }
+    },
+    "cards": {
+      "unread": "{{count}} 未讀",
+      "total": "{{count}} 張",
+      "markAllRead": "全部已讀",
+      "clear": "清除",
+      "clearTooltip": "清除未釘選的卡片（釘選的保留）",
+      "pin": "釘選",
+      "unpin": "取消釘選",
+      "pinLimit": "最多只能釘選 {{limit}} 張，請先取消其他卡片的釘選。",
+      "truncated": "（內容過長，已截斷）",
+      "showAll": "顯示全部",
+      "showLess": "收合",
+      "unreadMark": "未讀",
+      "source": "來自 {{title}}",
+      "opFailed": "操作失敗：{{code}}",
+      "codexNote": "codex 塔台沒有回合訊息卡：BAT 不讀取 codex 的對話內容（D158）。待你決定與待你執行不受影響。",
+      "claudeTooOld": "這個塔台的 claude 回合結束時沒有送出最後訊息，所以沒有回合訊息卡：claude 版本太舊（需要 {{version}} 以上）。請升級 system claude，或在 Settings › Claude Runtime 改用內嵌的 claude。"
+    },
+    "cardsBadgeTooltip": "塔台訊息 {{count}} 則未讀（在待辦分頁查看）"
   },
   "towerContract": {
     "ctOutdated": "這個塔台的 Control Tower 沒有宣告 BAT ↔ CT 契約 v{{supported}}，所以通知保護（不搶捲動、不混進草稿、閱讀時延後）、回合訊息卡與待辦清單都停用。請升級到 BMad Control Tower 6.1.0 以上，再重新開啟塔台。對話框保護（等你回答時不送通知）不受影響。",

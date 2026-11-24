@@ -172,6 +172,7 @@ export const PATH_FREE_CHANNELS: ReadonlyMap<string, string> = new Map([
   ['tower-cards:mark-read', 'T0905: tab id + card ids'],
   ['tower-cards:pin', 'T0905: tab id + card id + boolean'],
   ['tower-cards:clear', 'T0905: tab id + card ids + boolean'],
+  ['tower-cards:set-panel-tower', 'T0909: panel tab id + boolean'],
   ['remote:resolve-client-paths', 'ALWAYS_LOCAL (never proxied); client paths are the input, the handler applies the window translator itself'],
   // PLAN-038 U1 / T0832 (electron/handlers/uploads.ts)
   ['upload:begin', 'T0832: session key + file name (a basename, cleaned by the host) + size; no client path'],

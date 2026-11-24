@@ -437,12 +437,20 @@
 
 ## 塔台回合訊息卡（PLAN-068 W3 / T0905）
 
-- 用途：契約 v2 塔台分頁每回合一張卡片（該回合最後一則助理訊息），供待辦分頁「💬 塔台訊息」（W6）。來源：claude-cli 塔台的 `Stop` hook `last_assistant_message`（`bat-hook.mjs stop` 截到 16 KiB，另帶 `origin` / `set`，`BAT_HOOK_SET` = 2 寫在 `BAT_CLAUDE_HOOKS` 旁）；Claude 面板塔台的 query `result`（`ClaudeAgentManager.setTurnResultListener`，面板是否塔台由 `setPanelTower` 決定，W4 接線）。
+- 用途：契約 v2 塔台分頁每回合一張卡片（該回合最後一則助理訊息），供待辦分頁「💬 塔台訊息」（W6）。來源：claude-cli 塔台的 `Stop` hook `last_assistant_message`（`bat-hook.mjs stop` 截到 16 KiB，另帶 `origin` / `set`，`BAT_HOOK_SET` = 2 寫在 `BAT_CLAUDE_HOOKS` 旁）；Claude 面板塔台的 query `result`（`ClaudeAgentManager.setTurnResultListener`，面板是否塔台由 `setPanelTower` 決定，W6 接線，見下一節）。
 - 🔴 只留 `towerContractStatus === 'match'` 的分頁，其他收到即丟、不存內容；收件即 `redactTerminalSecrets`、單張 16 KiB、每分頁 30 張＋釘選 10 張、已讀 / 釘選在 host；PTY 結束（含 ⏻）/ Terminal Server recovery 清空；只在記憶體；日誌只記 terminal id / 長度 / 張數。
 - 🔴 hook 規則（T0590）不變；只有 `stop` 多帶欄位，其他事件的回報逐字不變（沒有 `origin` = `injected`）；同一 PTY 收過 `injected` 後 `plugin` 回報回 `duplicate`（§7.4）。
 - 🔴 `tower-cards:list` / `mark-read` / `pin` / `clear`（proxied）與事件 `tower-cards:changed`（只有數字）不得加進 `HELPER_CHANNEL_ROLES`，handler 另拒 `ctx.helper`。
 - 唯一實作 `electron/tower-cards.ts`（`TowerCardStore`、`registerTowerCardHandlers`，不 import electron，本機與 headless 共用）、`ReportHookDeps.onStop`（`electron/terminal-blocked-state.ts`）、renderer `src/stores/tower-cards-store.ts`（`createTowerCardsSync`，W6 接到 App）。
 - 完整規則、channel 形狀、claude 最低版號、驗證清單：[docs/agent-guide/tower-inbox.md](docs/agent-guide/tower-inbox.md)
+
+## 塔台回合訊息卡 UI（PLAN-068 W6 / T0909）
+
+- 用途：待辦分頁「💬 塔台訊息」區顯示 W3 的卡片（新 → 舊、釘選置頂、● 未讀、展開 = 已讀、📌、全部已讀、清除未釘選、長文摺疊、截斷標記）；`⏸ 待你決定：` / `🙋 待你執行：` 開頭的行加亮（只是提示，不解析）；codex 塔台固定一行說明；`stopsWithoutMessage > 0` 且沒有卡片 → 「claude 太舊（需 2.1.47）」；縮圖 `💬N`。每個視窗在 `App.tsx` 呼叫一次 `createTowerCardsSync().start()`。
+- 🔴 卡片內容只以 React 文字節點顯示（不以 HTML 解譯）；未讀數不算進待辦分頁標題數字（只在區標題與縮圖）；全部綁版本（待辦分頁整個綁 §6′，縮圖只算相符的塔台分頁與面板塔台）。
+- 面板塔台（T0909 Q-1 A，W5 共用）：工作區 `_tower-state.md` `bat_contract` = 2 且沒有已宣告塔台分頁 → 該工作區所有 Claude Agent 面板（`claude-code` / `claude-code-worktree`）都是；唯一實作 `panelTowerTerminalIds` / `workspaceHasPanelTowers`（`src/lib/inbox-model.ts`），視窗經 `PanelTowerSync` → `createPanelTowerSync`（`src/stores/panel-tower-store.ts`）→ proxied `tower-cards:set-panel-tower`（🔴 不進 `HELPER_CHANNEL_ROLES`，handler 拒 `ctx.helper`）。
+- 唯一實作：顯示用純函式 `src/lib/tower-card-view.ts`、區塊 `src/components/inbox/TowerCardsSection.tsx`、縮圖 `TerminalThumbnail.tsx`。
+- 完整規則、來源表、已知限制、驗證清單：[docs/agent-guide/tower-inbox.md](docs/agent-guide/tower-inbox.md)「回合訊息卡：UI 與面板塔台」
 
 ## Claude 分頁的 session 名稱（PLAN-050 / T0641，D167）
 
