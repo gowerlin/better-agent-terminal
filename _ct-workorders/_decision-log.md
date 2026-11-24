@@ -10,6 +10,7 @@
 
 | ID | 日期 | 標題 | 相關工單 |
 |----|------|------|---------|
+| D331 | 2026-11-25 | NSIS 重裝驗收不再每版做：`0.8.0-pre.2` 不跑；只有改到安裝路徑的版本才提醒與給指令，其他版本使用者自行以 .exe 安裝 | — |
 | D330 | 2026-11-25 | 回覆 CT v2 確認：時區兩種都接受、最低版號先佔位、維持 BAT（W0–W9）與 CT 6.1.0 同日發佈、C-3 由 CT 另案 | PLAN-068 |
 | D329 | 2026-11-25 | T0902 第二版定案：R12 採 `bat-hooks` plugin、R13 維持、R11 / §6′ / §7 / W0–W9 定案；送 CT 確認契約 v2 | T0902 / PLAN-068 |
 | D328 | 2026-11-25 | T0902 第一版核定：分頁名「待辦」、W1–W8 同版發、R9 改全部綁契約 v2、R1 採 hook 送 host 過濾並補「BAT＋CT 使用者 hook 註冊」設計 → T0902 Renew #1 | T0902 / PLAN-068 |
@@ -260,6 +261,15 @@
   4. PLAN-001 保持延後（🟢 Low，等 plugin 1.0 穩定）
 - **Success criteria**（EXP→CONCLUDED）：npm install 無錯 / 所有 native modules rebuild 成功 / dev+build:dir 可跑 / 手動 smoke test 8 項通過
 - **最大風險**：`whisper-node-addon@1.0.2` 對 Electron 41（Node 24）的 NODE_MODULE_VERSION 相容性未知，允許 Worker 遇此決策點主動問塔台
+
+---
+
+### D331 2026-11-25 — NSIS 重裝驗收改為「需要時才做」
+
+- **背景**：`_local-rules.md`（2026-11-03 使用者指示）要求每次發佈都提醒並給 NSIS 重裝驗收指令。`0.8.0-pre.2` 發佈後塔台照例提醒。
+- **使用者裁示**：「NSIS 驗收不跑，之後版本再測，若無必要也不用每版測試，自行 .exe 安裝即可」。
+- **決定**：`0.8.0-pre.2` 不跑 NSIS 重裝驗收。`_local-rules.md` 改為：只有改到安裝路徑（`build/installer.nsh`、electron-builder / NSIS 範本、PTY holder、`electron/installer-quit-request.ts`、`electron/upgrade-interruption.ts`，或 CLAUDE.md 標明要跑 W6 / NSIS 驗收處）的版本才提醒並給指令；其他版本的發佈回報寫一行「本版不需要，直接以 .exe 安裝」。專案記憶同步更新。發版前的 W6（`windows-upgrade-acceptance.yml`，CI 上跑）規則不變。
+- **相關**：D324 / L150
 
 ---
 
