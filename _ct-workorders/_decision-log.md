@@ -10,6 +10,7 @@
 
 | ID | 日期 | 標題 | 相關工單 |
 |----|------|------|---------|
+| D320 | 2026-11-25 | 遠端上傳 `clipboard-image` 早退開 T0895（從 `ct/T0893` 開分支、門檻 1.25 × 50 MiB、錯誤碼維持 `TOO_LARGE`）；合併工單改併 `ct/T0895`（含 T0893）＋ `ct/T0891` | T0895 / T0893 / BUG-216 |
 | D319 | 2026-11-25 | `ct/T0893` 不直接合併（`v0.8.x` 已因 T0894 前進且含產品檔）：等 T0891 完成，派一張合併工單（模式 ②）把 `ct/T0893`、`ct/T0891` `--no-ff` 併進 `v0.8.x`、補三張工單的文件、跑完整驗收 | T0893 / T0891 / T0894 |
 | D318 | 2026-11-25 | BUG-216 / BUG-217 一起修、放進 `0.8.0-pre.2`：T0893 / T0894 在 `v0.8.x` 隔離派工，與 T0891 並行（不碰 CLAUDE.md / docs / lock，文件由塔台合併後補） | T0893 / T0894 / BUG-216 / BUG-217 |
 | D317 | 2026-11-25 | 內嵌 Claude CLI / Agent SDK / Codex 一張工單追 latest（T0891，在 `v0.8.x`）；另開唯讀日誌檢查 T0892，兩張並行 | T0891 / T0892 |
@@ -249,6 +250,15 @@
   4. PLAN-001 保持延後（🟢 Low，等 plugin 1.0 穩定）
 - **Success criteria**（EXP→CONCLUDED）：npm install 無錯 / 所有 native modules rebuild 成功 / dev+build:dir 可跑 / 手動 smoke test 8 項通過
 - **最大風險**：`whisper-node-addon@1.0.2` 對 Electron 41（Node 24）的 NODE_MODULE_VERSION 相容性未知，允許 Worker 遇此決策點主動問塔台
+
+---
+
+### D320 2026-11-25 00:57 — 安排遠端上傳 `clipboard-image` 早退（T0895）
+
+- **背景**：T0893 回報區〈建議後續〉：SSH / Docker 終端貼圖的 `upload-client.ts` `clipboard-image` 仍讀完整張才比 50 MiB。塔台列為候選，使用者指示「安排」。
+- **決定**：開 T0895，分支 `ct/T0895` 從 `ct/T0893`（`43d290c9`）開出，沿用 `refuseAboveBytes`；門檻 `UPLOAD_LIMITS.maxFileBytes` × 1.25（T0893 實測原始與重新編碼差距 ≤ 4.6%，留餘裕讓 50 MiB 邊界結果不變）；錯誤碼維持 `TOO_LARGE`。
+- **合併計畫修正（D319）**：合併工單改為依序 `--no-ff` 併 `ct/T0895`（已含 T0893）與 `ct/T0891`；T0895 完成前不派合併工單。
+- **相關**：BUG-216 / T0893 / D319
 
 ---
 

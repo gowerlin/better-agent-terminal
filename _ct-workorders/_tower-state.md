@@ -4,8 +4,8 @@ summary_version: 1
 updated_at: "2026-11-25T00:39:07+08:00"
 session: "2026-11-25 00:28 第一百三十 session（CT v6.0.0）"
 next_ids:
-  workorder: "T0895"
-  decision: "D320"
+  workorder: "T0896"
+  decision: "D321"
   bug: "BUG-218"
   plan: "PLAN-067"
 todo:
@@ -30,7 +30,7 @@ todo:
 > [提問] 00:4x T0893 Q-1–Q-3（`--answer` exit 0 ×3，塔台在範圍內直接裁決）：Q-1 A 新增本機 IPC `clipboard:has-image`；Q-2 A 改門檻 2 × 上限（20 MiB）以免改變 10 MiB 邊界結果；Q-3 A `TerminalPanel.tsx` 進範圍。`affects_files` 加 `TerminalPanel.tsx`、`terminal-remote-upload.test.tsx`。
 > 00:44 CT 受理 HANDOVER（BMad-Guide T0549 / D851，CT 6.0.1 修正），handover → ACKNOWLEDGED（`2801a1f9`）。
 > 00:49 T0894 收單 DONE：`ct/T0894` `2b49e5a5`（4 檔皆在 `affects_files`、worktree 乾淨、test:unit 8454 passed、vite build / typecheck 0 / 0）→ `v0.8.x` fast-forward `bcb4bbe0..2b49e5a5`；BUG-217 FIXED；session 快照已寫；`--close-worker T0894 --worktree keep` exit 0。**待補**：`docs/agent-guide/ct-tower-overview.md` 第 56 行（文字在 T0894 回報區），T0891 合併後由塔台補。觀察：首輪 test:unit 4 個 headless e2e 檔 `beforeAll` 逾時、重跑全綠。
-> 00:54 T0893 收單（Worker 寫 FIXED → 塔台改 DONE，L177）：`ct/T0893` `43d290c9`（12 檔皆在 `affects_files`、worktree 乾淨、test:unit 8466 passed、build / typecheck 0 / 0、`merge-tree` 對 `v0.8.x` 無衝突）；BUG-216 FIXED；session 快照已寫；`--close-worker T0893 --worktree keep` exit 0。D319：等 T0891 後派一張合併工單（模式 ②）併 `ct/T0893` + `ct/T0891`、補文件、完整驗收。候選（未開單）：`upload-client.ts` `clipboard-image` 早退（T0893〈建議後續〉）。
+> 00:54 T0893 收單（Worker 寫 FIXED → 塔台改 DONE，L177）：`ct/T0893` `43d290c9`（12 檔皆在 `affects_files`、worktree 乾淨、test:unit 8466 passed、build / typecheck 0 / 0、`merge-tree` 對 `v0.8.x` 無衝突）；BUG-216 FIXED；session 快照已寫；`--close-worker T0893 --worktree keep` exit 0。D319：等 T0891 後派一張合併工單（模式 ②）併 `ct/T0893` + `ct/T0891`、補文件、完整驗收。候選：`upload-client.ts` `clipboard-image` 早退（T0893〈建議後續〉）→ 00:57 使用者「安排」→ D320 開 T0895（`ct/T0895` 從 `ct/T0893` `43d290c9`），合併工單改併 `ct/T0895` + `ct/T0891`。
 >
 > 🛏 **第一百二十九 session 收工**（2026-11-24 03:50 (UTC+8)）。
 
