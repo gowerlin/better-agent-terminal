@@ -4,8 +4,8 @@ summary_version: 1
 updated_at: "2026-11-25T03:05:00+08:00"
 session: "2026-11-25 00:28 第一百三十 session（CT v6.0.0）"
 next_ids:
-  workorder: "T0903"
-  decision: "D332"
+  workorder: "T0904"
+  decision: "D333"
   bug: "BUG-220"
   plan: "PLAN-069"
 todo:
@@ -53,7 +53,7 @@ todo:
 > 03:11 CT 回覆立場草案（BMad-Guide `1d2692f`、CT D866，DRAFT）→ 以〈塔台補充（執行中 #1）〉轉給 T0901；HANDOVER 補回覆紀錄（`f656d375`）。
 > 03:16 T0901 收單 DONE（`8c0782f7`，唯讀研究）：Phase 1 只改 BAT（B0 送通知不搶捲動、B 閱讀保護＋ #23 草稿保護、C 回合訊息卡、文件提示），Phase 2 採 CT `awaiting_user`＋面板回答欄（本機 IPC）；CT 三點：(a) 合總覽讀法、(b) claude 可行 / codex 暫不可行、(c) 可行但走本機 IPC；1″ 選項代號格式待 CT 決定。session 快照已寫；`--close-worker T0901` exit 0。使用者補充：顯示放既有右側欄（程式碼片段 / Skills / Agents）新增分頁。使用者裁示（D327）：不分階段、強制版本對齊、一次到位提案；先不回覆 CT；#23 重新評估 → 03:19 開設計單 T0902。03:22 使用者補充右側欄連同 TODO / 長期追蹤清單 → T0902〈塔台補充（執行中 #1）〉。
 > 03:29 T0902 收單 DONE（`99b3048d`）：#23 現行仍會發生（另：type-ahead 與 250 ms 雙向窗口）；整合設計 = 右側欄新分頁「待辦」（待你決定 / 待你執行 / 到期提醒 / Worker 等你 / 塔台訊息卡 / 塔台待辦 / 數量連結）、保留佇列擴充（`draft` 無上限、`reading` 60 s、原子送出、B0 改 `terminal.input('\r', false)`）、回答走本機 / proxied IPC；契約 v2（`bat_contract: 2`、`ct_version`、`awaiting_user`、`user_actions`、`reminders`、`next_ids.user/action`，`--set-role` 回 `bat-contract:`）；規則修改 R1–R10、拆單 W1–W8、待實機 T-1–T-7。session 快照已寫；`--close-worker T0902` exit 0。03:44 使用者核定（D328）：「待辦」、W1–W8 同版、R9 全綁版本、R1 主案＋補 hook 註冊設計 → T0902 Renew #1（03:44 重派，exit 0、`started:`）。03:48 使用者補充：CT 也以 hook 修正 Bash 過長，註冊設計一併涵蓋 CT hooks → T0902〈塔台補充（執行中 #2）〉。
-> 03:54 T0902 第二版收單 DONE（`0827bd36`）：§6′ 以塔台分頁 `--bat-contract 2` 宣告判定（狀態檔只管檔案類清單；T0788 既有保留不綁版本，屬不回歸）＋ P-1/P-2/P-3 提示＋完整版本組合表；§7 hook 註冊：13 種缺口與代號、推薦 (a) 自動注入＋(c) `bat-hooks` Claude Code plugin（BAT repo marketplace），不採 (b) 寫使用者設定；CT 的 Bash 長度防護目前只在本機使用者層（非 CT 產品），建議 CT 以自己的 plugin 發佈；拆單新增 W0（版本閘門，最先）與 W9（hook 註冊）。session 快照已寫；`--close-worker T0902` exit 0。04:44 使用者定案（D329）：R12 採 `bat-hooks` plugin、R13 維持、其餘定案 → HANDOVER〈BAT 定案立場〉送 CT。04:4x CT 回覆 v2 確認（`cb7f098` / CT D867，DRAFT）；04:47 D330 回覆（時區兩種都接受、版號佔位、同日發佈、C-3 CT 另案）。**等 CT 使用者核定（ACCEPTED）後開 W0–W9**。
+> 03:54 T0902 第二版收單 DONE（`0827bd36`）：§6′ 以塔台分頁 `--bat-contract 2` 宣告判定（狀態檔只管檔案類清單；T0788 既有保留不綁版本，屬不回歸）＋ P-1/P-2/P-3 提示＋完整版本組合表；§7 hook 註冊：13 種缺口與代號、推薦 (a) 自動注入＋(c) `bat-hooks` Claude Code plugin（BAT repo marketplace），不採 (b) 寫使用者設定；CT 的 Bash 長度防護目前只在本機使用者層（非 CT 產品），建議 CT 以自己的 plugin 發佈；拆單新增 W0（版本閘門，最先）與 W9（hook 註冊）。session 快照已寫；`--close-worker T0902` exit 0。04:44 使用者定案（D329）：R12 採 `bat-hooks` plugin、R13 維持、其餘定案 → HANDOVER〈BAT 定案立場〉送 CT。04:4x CT 回覆 v2 確認（`cb7f098` / CT D867，DRAFT）；04:47 D330 回覆（時區兩種都接受、版號佔位、同日發佈、C-3 CT 另案）。04:5x CT 核定契約 v2（CT D868）→ D332 開 W0 = T0903。
 >
 > 🛏 **第一百二十九 session 收工**（2026-11-24 03:50 (UTC+8)）。
 

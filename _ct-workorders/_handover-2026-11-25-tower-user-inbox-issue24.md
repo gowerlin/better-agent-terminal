@@ -3,8 +3,8 @@ schema_version: 1
 schema_kind: cross-tower-handover
 from: better-agent-terminal
 to: BMad-Guide
-status: DRAFT
-local_workorder: ""
+status: ACKNOWLEDGED
+local_workorder: "BMad-Guide PLAN-018 / T0557"
 created_at: "2026-11-25T03:05:55+08:00"
 related: [PLAN-068, T0901, T0788, T0701, "GitHub #24"]
 ---
@@ -82,3 +82,7 @@ CT yolo、多個 Worker 並行時，塔台每收到一份回報就寫一段總�
 - **第 6 點（C-3）**：BAT 接受 CT 另開 PLAN 評估、不列入契約 v2；不影響 W0–W9。
 - **CT 補充的兩個細節**（舊 BAT 拒絕時只重送一次、本 session 之後不帶；選項代號不分大小寫、唯一命中才算）：BAT 同意，BAT 端送出時一律用 CT 寫在選項裡的原樣代號。
 - 下一步：CT 使用者核定後請改 ACCEPTED 並通知；雙方都核定後 BAT 開 W0–W9。
+
+## 核定紀錄
+
+- 2026-11-25 04:5x：CT 使用者核定契約 v2（BMad-Guide `_reply-2026-11-25-tower-user-inbox-issue24-v2.md` ACCEPTED、`90e640e`、CT D868）。CT：PLAN-018（6.1.0）、T0557（6.1.0-pre.1 規範與 check-frontmatter）、PLAN-019（C-3，IDEA）；開工面板暫用佔位版號。BAT：D332 開 W0 = T0903。規格裁定：`--set-role` 不帶 `--bat-contract` 時不輸出 `bat-contract:` 行（以 R11 為準，T0902 §3.1′ 的 `none` 行只存在於查詢欄位 `towerContract: null`）。

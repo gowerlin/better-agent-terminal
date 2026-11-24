@@ -10,6 +10,7 @@
 
 | ID | 日期 | 標題 | 相關工單 |
 |----|------|------|---------|
+| D332 | 2026-11-25 | CT 核定契約 v2（CT D868）→ 開 PLAN-068 W0 = T0903（版本閘門，最先）；W1–W4 等 W0 合併後從新 `v0.8.x` 平行開；裁定 `--set-role` 不帶參數時不輸出 `bat-contract:` 行（以 R11 為準） | T0903 / PLAN-068 |
 | D331 | 2026-11-25 | NSIS 重裝驗收不再每版做：`0.8.0-pre.2` 不跑；只有改到安裝路徑的版本才提醒與給指令，其他版本使用者自行以 .exe 安裝 | — |
 | D330 | 2026-11-25 | 回覆 CT v2 確認：時區兩種都接受、最低版號先佔位、維持 BAT（W0–W9）與 CT 6.1.0 同日發佈、C-3 由 CT 另案 | PLAN-068 |
 | D329 | 2026-11-25 | T0902 第二版定案：R12 採 `bat-hooks` plugin、R13 維持、R11 / §6′ / §7 / W0–W9 定案；送 CT 確認契約 v2 | T0902 / PLAN-068 |
@@ -261,6 +262,15 @@
   4. PLAN-001 保持延後（🟢 Low，等 plugin 1.0 穩定）
 - **Success criteria**（EXP→CONCLUDED）：npm install 無錯 / 所有 native modules rebuild 成功 / dev+build:dir 可跑 / 手動 smoke test 8 項通過
 - **最大風險**：`whisper-node-addon@1.0.2` 對 Electron 41（Node 24）的 NODE_MODULE_VERSION 相容性未知，允許 Worker 遇此決策點主動問塔台
+
+---
+
+### D332 2026-11-25 04:53 — 契約 v2 雙方核定，開 W0（T0903）
+
+- **背景**：CT 使用者核定 BAT ↔ CT 契約 v2（BMad-Guide `_reply-2026-11-25-tower-user-inbox-issue24-v2.md` ACCEPTED、`90e640e`、CT D868）；CT 開 PLAN-018（CT 6.1.0）、T0557（6.1.0-pre.1 規範與 check-frontmatter），C-3 另開 CT PLAN-019（IDEA）；CT 開工面板暫用佔位「需要 BAT 0.8.x 以上（確切版號待 BAT 發佈）」，請 BAT 定版後告知版號、有測試版時通知 CT 跑 T-8 與降級驗證。
+- **決定**：依 D329 開 W0 = T0903（`ct/T0903` 從 `v0.8.x` `fda8a4b4`，隔離派工）。W1–W4 等 T0903 合併後從新的 `v0.8.x` 平行開；W9 等 W0＋W3；W5 等 W2＋W4；W6 等 W3＋W4；W7 / W8 最後；全部合進 `v0.8.x` 但不發佈，與 CT 6.1.0 同日發佈（D330）。
+- **規格裁定**：T0902 §3.1′ 寫「不帶參數時輸出 `bat-contract: none`」與 R11「舊呼叫輸出逐字不變」衝突 → 以 R11 為準：不帶 `--bat-contract` 的 `--set-role` 不輸出該行（只清除 `towerContract`）。回覆 CT 時一併說明。
+- **相關**：D326–D331 / T0902
 
 ---
 
