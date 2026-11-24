@@ -44,6 +44,16 @@ export interface PtyHandlerDeps {
    * the user's input restarts its quiet wait. Absent: written at once (before T0788).
    */
   notifyHold?: Pick<NotifyHoldController, 'interceptWrite' | 'onUserInput'>
+    & Partial<Pick<NotifyHoldController, 'holdUserWrite' | 'afterSubmitWrite' | 'setReading'>>
+}
+
+/**
+ * PLAN-068 W2 / T0904: who reports `terminal:reading-state` — one value per window / client, so two
+ * windows on one tab do not overwrite each other (electron/notify-hold.ts `setReading`).
+ */
+export function readingReporterOf(ctx: HandlerContext): string {
+  if (ctx.connectionId) return `conn:${ctx.connectionId}`
+  return ctx.windowId ? `win:${ctx.windowId}` : 'local'
 }
 
 /**
@@ -108,25 +118,44 @@ export function registerPtyHandlers(register: HandlerRegistrar, deps: PtyHandler
   // T0566 (PLAN-044): `{ auto: true }` marks BAT's own automatic write (the usage-limit continue
   // text and its Enter) — never the user's input, so it cancels neither a `--close-worker` delay
   // nor the usage-limit wait. A server before T0566 ignores the extra argument.
+  // PLAN-068 W2 / T0904: `{ submit: true }` marks the Enter of an inbox answer — the user's input
+  // (unlike `auto`), and like `auto` it is the Enter a notification's atomic window waits for.
   register('pty:write', (ctx, id: string, data: string, opts?: unknown) => {
     const manager = deps.getPtyManager()
     if (!manager) return { ok: false, reason: 'manager-not-ready' }
     const auto = !!opts && typeof opts === 'object' && (opts as { auto?: unknown }).auto === true
+    const submit = !!opts && typeof opts === 'object' && (opts as { submit?: unknown }).submit === true
     // T0788 / BUG-196: a helper's write into a tab that waits for the user is held, not written
-    // (`{ ok: true, held: true }`; bat-notify only checks `ok === false`, so its exit code is unchanged)
+    // (`{ ok: true, held: true }`; bat-notify only checks `ok === false`, so its exit code is unchanged).
+    // T0904: a contract-2 Tower's helper write is written by the controller (its result is returned).
     const held = deps.notifyHold?.interceptWrite(ctx, id, data)
     if (held) return held
     const fromUser = !auto && (deps.isUserInput ? deps.isUserInput(ctx) : !ctx.connectionId)
     if (fromUser && !isTerminalAutoReply(data)) {
       manager.noteUserInput(id)
       deps.onUserInput?.(id)
-      deps.notifyHold?.onUserInput(id)
+      deps.notifyHold?.onUserInput(id, data)
     } else if (fromUser && hasMouseButtonPress(data)) {
       // T0757 / BUG-188 (D209): a click answers a prompt like a key does — clears the hook `blocked`
       // only; still not user input for `--close-worker` / the usage-limit wait (T0551 unchanged)
       manager.noteMousePress(id)
     }
-    return manager.writeWithResult(id, data)
+    // T0904: between a notification's text and its Enter the user's input waits (written after it)
+    if (!ctx.helper && deps.notifyHold?.holdUserWrite?.(id, data, { submit: auto || submit })) return { ok: true }
+    const result = manager.writeWithResult(id, data)
+    if (auto || submit) deps.notifyHold?.afterSubmitWrite?.(id, data)
+    return result
+  })
+  // PLAN-068 W2 / T0904 (T0902 §5): the window of a contract-2 Tower tab says whether the user reads
+  // it (`{ terminalId, reading }`, a boolean only); a helper never may (not in HELPER_CHANNEL_ROLES).
+  register('terminal:reading-state', (ctx, args: unknown) => {
+    if (ctx.helper) return { ok: false, reason: 'forbidden' }
+    const terminalId = (args as { terminalId?: unknown } | null)?.terminalId
+    const reading = (args as { reading?: unknown } | null)?.reading
+    if (typeof terminalId !== 'string' || !terminalId || typeof reading !== 'boolean') return { ok: false, reason: 'invalid-args' }
+    if (!deps.notifyHold?.setReading) return { ok: false, reason: 'unsupported' }
+    deps.notifyHold.setReading(terminalId, readingReporterOf(ctx), reading)
+    return { ok: true }
   })
   register('pty:resize', (_ctx, id: string, cols: number, rows: number) => {
     logger.log(`[resize] pty:resize id=${id} cols=${cols} rows=${rows}`)

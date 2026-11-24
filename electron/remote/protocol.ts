@@ -91,6 +91,10 @@ export const PROXIED_CHANNELS = new Set([
   // T0749 (BUG-182): the attention of the window's tabs on the host now (electron/terminal-attention.ts);
   // a remote window asks after reconnecting; an older bat-server has no handler
   'terminal:attention-snapshot',
+  // PLAN-068 W2 / T0904: a contract-2 Tower tab's window says whether the user reads it (a boolean);
+  // the host running the tab holds Worker notifications meanwhile (electron/handlers/pty.ts);
+  // never in HELPER_CHANNEL_ROLES; an older bat-server has no handler (the renderer ignores the error)
+  'terminal:reading-state',
   // T0437 (BUG-105): client paths → the window's host form; ALWAYS_LOCAL (answered by this
   // machine's main with the window's PathTranslator), listed here only for the IPC binding.
   'remote:resolve-client-paths',

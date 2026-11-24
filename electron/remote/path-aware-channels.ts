@@ -166,6 +166,7 @@ export const PATH_FREE_CHANNELS: ReadonlyMap<string, string> = new Map([
   ['ct:read-config-sources', 'T0701: no args (reads fixed files in the server home)'],
   ['terminal:control-tower-prompt', 'T0710: { agent, skill, workorder, customEnv? } (customEnv is the tab env, already host form like terminal:create-with-command); result is prompt text'],
   ['terminal:attention-snapshot', 'T0749: tab ids only; result is state fields (no path)'],
+  ['terminal:reading-state', 'T0904: { terminalId, reading } (terminal id + boolean only)'],
   ['remote:resolve-client-paths', 'ALWAYS_LOCAL (never proxied); client paths are the input, the handler applies the window translator itself'],
   // PLAN-038 U1 / T0832 (electron/handlers/uploads.ts)
   ['upload:begin', 'T0832: session key + file name (a basename, cleaned by the host) + size; no client path'],
@@ -354,7 +355,7 @@ export const PATH_FREE_EVENTS: ReadonlyMap<string, string> = new Map([
   ['terminal:notified', '{ targetId, message, source, questionId? } (terminal ids + message text; T0613: question id, never its text)'],
   ['terminal:keypress', '{ targetId, key, code, keyCode, source, reason, traceId } (terminal ids + key enum)'],
   ['terminal:close-requested', '{ id } (terminal id only; PLAN-041 / T0536)'],
-  ['terminal:role-changed', '{ id, role, ptyAgent?, ptyAgentName?, agent?, agentName? } (terminal id + role / agent ids and names; T0562)'],
+  ['terminal:role-changed', '{ id, role, mode?, towerContract, ptyAgent?, ptyAgentName?, agent?, agentName? } (terminal id + role / CT mode enum / contract number / agent ids and names; T0562, T0565, T0903)'],
   ['terminal:usage-limit-status', '{ id, status } (terminal id + limit state / reset time text; T0566)'],
   ['terminal:usage-limit-continue', '{ id, action, text?, agent, traceId } (terminal id + the Settings continue text; T0566)'],
   ['terminal:attention-changed', '{ id, blockedReason?, blockedSince?, pendingQuestions, questionsSince? } (terminal id + state enum / times / count, never question text; T0609)'],

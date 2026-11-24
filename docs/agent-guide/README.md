@@ -23,7 +23,7 @@
 | [logging.md](logging.md) | 日誌、啟動期 crash capture、`[gpu]`、單一 userData、helper userData、PTY env 組裝點、塔台派工落點 | Logging |
 | [macos-ci-acceptance.md](macos-ci-acceptance.md) | GitHub Actions macOS runner 對發佈 dmg 驗 BUG-128 / 130（`macos-acceptance.yml` 只能手動觸發、可行性表 P1–P5、情境 ①–⑧、與真人 Mac 的差異） | （無；T0778 新增，是否補 CLAUDE.md 小節由塔台決定） |
 | [multi-remote-profiles.md](multi-remote-profiles.md) | 多 remote profile 同時連線、上限、profile index 序列化 | 多 remote profile 同時連線（PLAN-039） |
-| [notify-hold.md](notify-hold.md) | 塔台等使用者回答（權限 / AskUserQuestion / codex 審批）時保留 helper 送來的文字＋Enter、安靜 1 s 後送出（契約 10 點、常數、日誌、待送 N 與取消、已知限制、驗證清單） | 塔台等使用者回答時保留 Worker 通知（T0788 / BUG-196，D227） |
+| [notify-hold.md](notify-hold.md) | 塔台等使用者回答（權限 / AskUserQuestion / codex 審批）時保留 helper 送來的文字＋Enter、安靜 1 s 後送出（契約 10 點、常數、日誌、待送 N 與取消、已知限制、驗證清單）；契約 2 塔台的 `draft` / `reading` / 原子送出見 tower-inbox.md | 塔台等使用者回答時保留 Worker 通知（T0788 / BUG-196，D227） |
 | [npm12-install-scripts.md](npm12-install-scripts.md) | npm 12 `allowScripts`、手動補跑、本機打包、CI 與 actions / runner 版本 | 本機開發：npm 12 install scripts（T0471 / T0473） |
 | [packaging-release-checks.md](packaging-release-checks.md) | 打包前置檢查、產物檢查、安裝檔瘦身、Linux whisper 函式庫搜尋路徑（patchelf `$ORIGIN`，T0800）、Windows stdio 繼承 addon 的建置 / 打包 / 檢查（T0866）、CI pipeline、Server bundle baseline | Packaging / Release 前置檢查 |
 | [new-pty-initial-size.md](new-pty-initial-size.md) | 隱藏分頁不 fit 的守門（`canFitTerminalContainer`）、9x5 的來源、initial resize 到期再檢查 active、驗證清單 | 新 PTY 的初始尺寸（T0572 / BUG-145）（T0741 / BUG-180 的部分；T0572 本身仍完整留在 CLAUDE.md） |
@@ -40,6 +40,7 @@
 | [terminal-wheel-reports.md](terminal-wheel-reports.md) | Codex 分頁在 alt screen + 滑鼠追蹤時依累積行數送多個滾輪回報 | Codex 分頁的滾輪回報（T0698 / BUG-165） |
 | [thumbnail-preview.md](thumbnail-preview.md) | 終端縮圖預覽：T0667 上限、游標換列當成換行 / 原地更新 / 清畫面重新開始、stripAnsi 完整 CSI 語法、ConPTY 對照 | 終端縮圖預覽（T0667 / T0714，BUG-175） |
 | [tower-questions.md](tower-questions.md) | Worker 問塔台（`question:*` channel、記憶體 store、`blocked` / `tower`、`pendingQuestions`） | Worker 問塔台（PLAN-048 / T0607） |
+| [tower-inbox.md](tower-inbox.md) | PLAN-068 塔台訊息與待辦：版本閘門（只對契約 2 塔台）、W1 B0（通知的 Enter 不捲動 / 不清選取 / 不搶焦點）、W2 保留佇列擴充（`draft` S1 草稿判斷、`reading` 閱讀信號與 60 s 上限、原子送出的 250 ms 窗口、回答項目介面、「立即送出」、5 分鐘提醒）、日誌、已知限制、驗證（單元＋假 TUI e2e） | 塔台等使用者回答時保留 Worker 通知（T0788 / BUG-196，D227）、塔台分頁標題（T0562，D147） |
 | [tower-tab-title.md](tower-tab-title.md) | `--set-role tower`、yolo 判定、Tower 標題、BAT ↔ CT 契約 v2 版本閘門（`--bat-contract`、`towerContract`、`CT↑` / `BAT↑`，T0903） | 塔台分頁標題（T0562，D147） |
 | [upgrade-interruption.md](upgrade-interruption.md) | Windows 更新通知的「安裝會結束所有終端」提示；升級後第一次啟動以「上次版本 ≠ 目前版本＋孤兒清理 N ≥ 1」判定、toast 說明 N 個終端被結束（只顯示一次）、agent 分頁列進「被中斷的 agent 分頁」（`cause: 'upgrade'`）；T0820 實測摘要、日誌、已知限制、驗證清單 | 升級結束終端的提示與說明（PLAN-063 / T0821） |
 | [usage-limit-continue.md](usage-limit-continue.md) | 用量限制自動繼續（codex 送文字、claude 只提示 / 只送 Enter） | 用量限制自動繼續（PLAN-044 / T0566，D148） |
