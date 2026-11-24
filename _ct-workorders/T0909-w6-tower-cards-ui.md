@@ -4,13 +4,14 @@ schema_kind: workorder
 id: T0909
 title: "PLAN-068 W6（在 `v0.8.x`）：塔台回合訊息卡 UI —— 待辦分頁「💬 塔台訊息」區（未讀 / 已讀 / 釘選 / 全部已讀 / 清除）、`⏸ 待你決定：` 行加亮、codex 說明行、縮圖 `💬N`、`createTowerCardsSync().start()` 接 `App.tsx`、Claude 面板塔台 `setPanelTower` 接線、claude 太舊提示"
 type: implementation
-status: PENDING
+status: IN_PROGRESS
 repo: better-agent-terminal
 project: PLAN-068
 priority: P1
 sizing: M
 created_at: "2026-11-25T05:58:05+08:00"
-updated_at: "2026-11-25T05:58:05+08:00"
+started_at: "2026-11-25T05:59:58+08:00"
+updated_at: "2026-11-25T05:59:58+08:00"
 target_version: "0.8.x（與 CT 6.1.0 同日發佈）"
 depends_on: [T0905, T0906]
 related:
