@@ -18,7 +18,7 @@ import * as path from 'path'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { registerFsHandlers } from '../handlers/fs'
 import type { SharedHandler } from '../handlers/types'
-import { CLIPBOARD_IMAGE_EARLY_REFUSE_BYTES, CLIPBOARD_IMAGE_TYPE, clipboardImageToDataUrl, hasClipboardImage, readClipboardPng, readSelectedAttachments } from '../image-attachments'
+import { CLIPBOARD_IMAGE_EARLY_REFUSE_BYTES, CLIPBOARD_IMAGE_TYPE, ClipboardImageTooLargeError, clipboardImageToDataUrl, hasClipboardImage, readClipboardPng, readSelectedAttachments } from '../image-attachments'
 import { HELPER_CHANNEL_ROLES } from '../remote/helper-capability'
 import { MAX_IMAGE_SIZE, createPathAllowlist } from '../path-guard'
 import { ALWAYS_LOCAL_CHANNELS } from '../remote/headless-channel-status'
@@ -142,13 +142,33 @@ describe('electron/image-attachments', () => {
     expect(arrayBuffer).not.toHaveBeenCalled()
   })
 
+  it('T0895: the early refusal is a ClipboardImageTooLargeError carrying the clipboard size (message unchanged)', async () => {
+    const big = 70 * 1024 * 1024
+    const { clipboard, arrayBuffer } = sizedItem(big)
+    const error = await readClipboardPng(clipboard, { refuseAboveBytes: CLIPBOARD_IMAGE_EARLY_REFUSE_BYTES }).catch(e => e)
+    expect(error).toBeInstanceOf(ClipboardImageTooLargeError)
+    expect(error).toBeInstanceOf(Error)
+    expect(error.size).toBe(big)
+    expect(error.message).toBe(`Image too large (${big} > ${MAX_IMAGE_SIZE} bytes)`)
+    expect(arrayBuffer).not.toHaveBeenCalled()
+    // clipboardImageToDataUrl's re-encoded check keeps its plain Error.
+    let reEncoded: unknown
+    try {
+      clipboardImageToDataUrl({ isEmpty: () => false, toPNG: () => Buffer.alloc(MAX_IMAGE_SIZE + 1) })
+    } catch (e) {
+      reEncoded = e
+    }
+    expect(reEncoded).toBeInstanceOf(Error)
+    expect(reEncoded).not.toBeInstanceOf(ClipboardImageTooLargeError)
+  })
+
   it('T0893: at / under the threshold, and without the option, the bytes are read as before', async () => {
     for (const size of [CLIPBOARD_IMAGE_EARLY_REFUSE_BYTES, MAX_IMAGE_SIZE + 1, 10]) {
       const { clipboard, arrayBuffer } = sizedItem(size)
       await expect(readClipboardPng(clipboard, { refuseAboveBytes: CLIPBOARD_IMAGE_EARLY_REFUSE_BYTES })).resolves.toBeInstanceOf(Buffer)
       expect(arrayBuffer).toHaveBeenCalledTimes(1)
     }
-    // upload-client / clipboard:saveImage pass no option: no early refusal, whatever the size.
+    // clipboard:saveImage passes no option: no early refusal, whatever the size.
     const { clipboard, arrayBuffer } = sizedItem(60 * 1024 * 1024)
     await expect(readClipboardPng(clipboard)).resolves.toBeInstanceOf(Buffer)
     expect(arrayBuffer).toHaveBeenCalledTimes(1)
@@ -220,11 +240,12 @@ describe('local-only channels (no proxy, no handler registry, no renderer path)'
     expect(body).toMatch(/ipcMain\.handle\('clipboard:has-image', \(\) => hasClipboardImage\(clipboard\)\)/)
   })
 
-  it('T0893: read-image-data-url refuses early at CLIPBOARD_IMAGE_EARLY_REFUSE_BYTES; saveImage / upload-client keep no option', () => {
+  it('T0893: read-image-data-url refuses early at CLIPBOARD_IMAGE_EARLY_REFUSE_BYTES; saveImage keeps no option; T0895: upload-client passes its own', () => {
     const body = registerLocalHandlersBody()
     expect(body).toContain("ipcMain.handle('clipboard:read-image-data-url', () => readClipboardImage({ refuseAboveBytes: CLIPBOARD_IMAGE_EARLY_REFUSE_BYTES }).then(clipboardImageToDataUrl))")
     expect(body).toMatch(/const image = await readClipboardImage\(\)\r?\n/)
-    expect(mainSource).toContain('readClipboardPng: () => readClipboardPng(clipboard),')
+    // T0895: the options upload-client passes (CLIPBOARD_UPLOAD_EARLY_REFUSE_BYTES) reach readClipboardPng.
+    expect(mainSource).toContain('readClipboardPng: options => readClipboardPng(clipboard, options),')
   })
 
   it('T0893: clipboard:has-image is not a helper channel', () => {

@@ -23,6 +23,9 @@
  * (`clipboard:has-image`, MIME types only) instead of fetching the whole image, and
  * `clipboard:read-image-data-url` refuses a huge clipboard PNG before copying / decoding it
  * (`CLIPBOARD_IMAGE_EARLY_REFUSE_BYTES`).
+ *
+ * T0895: the remote upload's `clipboard-image` source (electron/upload-client.ts) refuses early too,
+ * at its own threshold (1.25 × the 50 MiB upload cap); the refusal is a `ClipboardImageTooLargeError`.
  */
 import * as fs from 'fs/promises'
 import * as path from 'path'
@@ -73,14 +76,29 @@ export const CLIPBOARD_IMAGE_EARLY_REFUSE_BYTES = 2 * MAX_IMAGE_SIZE
 
 export interface ReadClipboardPngOptions {
   /**
-   * Throw `Image too large (<n> > MAX_IMAGE_SIZE bytes)` when the clipboard PNG is larger than this,
-   * before its bytes are copied out. Omitted (upload-client, clipboard:saveImage) → no early refusal.
+   * Throw `ClipboardImageTooLargeError` (`Image too large (<n> > MAX_IMAGE_SIZE bytes)`) when the
+   * clipboard PNG is larger than this, before its bytes are copied out. Omitted (clipboard:saveImage)
+   * → no early refusal. upload-client passes its own threshold (T0895, `CLIPBOARD_UPLOAD_EARLY_REFUSE_BYTES`).
    */
   refuseAboveBytes?: number
 }
 
 function imageTooLarge(size: number): Error {
   return new Error(`Image too large (${size} > ${MAX_IMAGE_SIZE} bytes)`)
+}
+
+/**
+ * T0895: what `readClipboardPng` throws when `refuseAboveBytes` refuses the image. Same message as
+ * before (`Image too large (<n> > MAX_IMAGE_SIZE bytes)`, the panel shows it unchanged); the class and
+ * `size` (the clipboard's own PNG byte count) let upload-client map it to `TOO_LARGE` without matching text.
+ */
+export class ClipboardImageTooLargeError extends Error {
+  readonly size: number
+  constructor(size: number) {
+    super(imageTooLarge(size).message)
+    this.name = 'ClipboardImageTooLargeError'
+    this.size = size
+  }
 }
 
 /**
@@ -110,7 +128,7 @@ export async function readClipboardPng(clipboard: ClipboardItemReader, options: 
   }
   const pngLog = refusedSize !== null ? `refused size=${refusedSize}` : png ? png.length : 'none'
   logger.debug(`[clipboard] read-image types=${JSON.stringify(clipboardItemTypes(items))} png=${pngLog}`)
-  if (refusedSize !== null) throw imageTooLarge(refusedSize)
+  if (refusedSize !== null) throw new ClipboardImageTooLargeError(refusedSize)
   return png && png.length > 0 ? png : null
 }
 

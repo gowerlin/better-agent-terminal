@@ -28,6 +28,7 @@
 import { createHash, randomBytes, type Hash } from 'crypto'
 import * as fs from 'fs/promises'
 import * as path from 'path'
+import { ClipboardImageTooLargeError, type ReadClipboardPngOptions } from './image-attachments'
 import { logger } from './logger'
 import { UPLOAD_LIMITS, UPLOAD_TTL, isValidSessionKey, logExtension, sanitizeUploadName } from './upload-staging'
 import type {
@@ -60,6 +61,20 @@ export const MAX_SELECTED_PATHS_PER_SENDER = 200
 /** Longest `file` source name accepted from the renderer (the host sanitizes it further). */
 export const MAX_SOURCE_NAME_CHARS = 1024
 
+/**
+ * T0895 (BUG-216 follow-up): a `clipboard-image` source whose clipboard PNG is larger than this is
+ * refused as `TOO_LARGE` BEFORE its bytes are copied into main or decoded / re-encoded
+ * (`readClipboardPng(…, { refuseAboveBytes })`, T0893; a 36 MB PNG blocked the event loop ~770 ms and
+ * pushed Peak WS 65 → 356 MiB when read in full).
+ *
+ * The 50 MiB cap (`UPLOAD_LIMITS.maxFileBytes`, unchanged) is still checked on the bytes
+ * `readClipboardPng` returns, which can differ from the clipboard's own PNG size (T0893 measured at
+ * most 4.6% apart). 1.25 × the cap leaves 25% margin so every result near the 50 MiB boundary stays
+ * the same: 50 MiB – this threshold on the clipboard is still read in full and compared with 50 MiB
+ * exactly as before; only above it is the read skipped (Tower ruling, T0895).
+ */
+export const CLIPBOARD_UPLOAD_EARLY_REFUSE_BYTES = Math.floor(UPLOAD_LIMITS.maxFileBytes * 1.25)
+
 export type UploadClientRoute =
   | { kind: 'remote'; profileId: string }
   | { kind: 'local' }
@@ -80,8 +95,12 @@ export interface UploadClientDeps {
   resolveRoute: (senderId: number) => Promise<UploadClientRoute>
   /** Invoke on that profile's own live client; throw `UploadNotConnectedError` when there is none. */
   invoke: (profileId: string, channel: string, args: unknown[], timeoutMs: number) => Promise<unknown>
-  /** This machine's clipboard image as PNG, or null. */
-  readClipboardPng: () => Promise<Buffer | null>
+  /**
+   * This machine's clipboard image as PNG, or null (`readClipboardPng` in electron/image-attachments.ts).
+   * Called with `{ refuseAboveBytes: CLIPBOARD_UPLOAD_EARLY_REFUSE_BYTES }`; throws
+   * `ClipboardImageTooLargeError` when that refuses the image (→ `TOO_LARGE`).
+   */
+  readClipboardPng: (options?: ReadClipboardPngOptions) => Promise<Buffer | null>
   /** Pushes a progress event to the window (no-op when it is gone). */
   emitProgress: (senderId: number, event: RemoteUploadProgressEvent) => void
   stat?: (filePath: string) => Promise<{ isFile: boolean; size: number }>
@@ -282,8 +301,10 @@ export class UploadClient {
     if (s.kind === 'clipboard-image') {
       let png: Buffer | null
       try {
-        png = await this.deps.readClipboardPng()
+        png = await this.deps.readClipboardPng({ refuseAboveBytes: CLIPBOARD_UPLOAD_EARLY_REFUSE_BYTES })
       } catch (error) {
+        // T0895: refused on the clipboard's own size, before reading → same code and message as below.
+        if (error instanceof ClipboardImageTooLargeError) return fail('TOO_LARGE', `image is larger than ${UPLOAD_LIMITS.maxFileBytes} bytes`)
         return fail('SOURCE_ERROR', `cannot read the clipboard: ${errorMessage(error)}`)
       }
       if (!png || png.length === 0) return fail('SOURCE_ERROR', 'the clipboard has no image')

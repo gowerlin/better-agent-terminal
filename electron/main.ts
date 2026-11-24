@@ -2953,7 +2953,9 @@ const uploadClient = new UploadClient({
     if (!client) return Promise.reject(new UploadNotConnectedError(`profile ${profileId} has no live connection`))
     return client.invoke(channel, args, timeoutMs)
   },
-  readClipboardPng: () => readClipboardPng(clipboard),
+  // T0895: upload-client passes `refuseAboveBytes` (CLIPBOARD_UPLOAD_EARLY_REFUSE_BYTES) — a huge
+  // clipboard image is refused before it is copied out (→ TOO_LARGE).
+  readClipboardPng: options => readClipboardPng(clipboard, options),
   emitProgress: (senderId, event) => {
     const sender = uploadSenders.get(senderId)
     if (sender && !sender.isDestroyed()) sender.send(UPLOAD_CLIENT_PROGRESS_CHANNEL, event)
