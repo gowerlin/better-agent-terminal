@@ -10,6 +10,7 @@
 
 | ID | 日期 | 標題 | 相關工單 |
 |----|------|------|---------|
+| D334 | 2026-11-25 | T0907 合併 W1–W3（`v0.8.x` `eaa8b238..677860a4`）；開 W5 = T0908、W6 = T0909、W9 = T0910 三張平行；遠端「📨 待送」proxied 併入 W5 | T0907–T0910 |
 | D333 | 2026-11-25 | T0903（W0）PARTIAL→DONE 並直接合併 `v0.8.x` `d6b9ce86`；開 T0904（W1＋W2 合併，同改 `TerminalPanel.tsx`）、T0905（W3）、T0906（W4）三張平行 | T0903–T0906 |
 | D332 | 2026-11-25 | CT 核定契約 v2（CT D868）→ 開 PLAN-068 W0 = T0903（版本閘門，最先）；W1–W4 等 W0 合併後從新 `v0.8.x` 平行開；裁定 `--set-role` 不帶參數時不輸出 `bat-contract:` 行（以 R11 為準） | T0903 / PLAN-068 |
 | D331 | 2026-11-25 | NSIS 重裝驗收不再每版做：`0.8.0-pre.2` 不跑；只有改到安裝路徑的版本才提醒與給指令，其他版本使用者自行以 .exe 安裝 | — |
@@ -263,6 +264,15 @@
   4. PLAN-001 保持延後（🟢 Low，等 plugin 1.0 穩定）
 - **Success criteria**（EXP→CONCLUDED）：npm install 無錯 / 所有 native modules rebuild 成功 / dev+build:dir 可跑 / 手動 smoke test 8 項通過
 - **最大風險**：`whisper-node-addon@1.0.2` 對 Electron 41（Node 24）的 NODE_MODULE_VERSION 相容性未知，允許 Worker 遇此決策點主動問塔台
+
+---
+
+### D334 2026-11-25 05:58 — W1–W4 整合完成，開 W5 / W6 / W9
+
+- **T0907**（合併 T0904＋T0905，模式 ②）：5 個衝突檔以「兩邊都保留」解掉、`tower-inbox.md` 整合成一份；完整驗收第一次即綠（test:unit 8,776、legacy 472、e2e t0904 ×2、headless tower-cards 4 / 4）；範圍外檔案無；SHA 比對 PASS → yolo 自動 ff `v0.8.x` `eaa8b238..677860a4`（本機）。CLAUDE.md 實測 90,776 字元（T0904 的 126,809 是 bytes）。
+- **清理**：worktree T0903–T0906 移除；已合併分支 `ct/T0903`–`ct/T0906`、`ct-merge/T0903` / `T0906` / `T0907` 以 `git branch -d` 刪除（延續 D324 使用者「已合併分支刪除」的裁示；SHA 皆在 `v0.8.x` 歷史內）。
+- **W5 / W6 / W9**：依賴都已滿足（W5 需 W2＋W4、W6 需 W3＋W4、W9 需 W0＋W3）→ T0908（W5，含 T0904 建議的 `terminal:notify-hold-*` 遠端 proxied）、T0909（W6）、T0910（W9）從 `v0.8.x` `677860a4` 平行隔離派工；三張會在 `InboxPanel` / `TerminalThumbnail` / locales 有增量衝突，由合併工單整合。之後 W7（文件）、W8（整合驗收）。
+- **相關**：D332 / D333 / T0902
 
 ---
 
