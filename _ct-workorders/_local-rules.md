@@ -540,6 +540,16 @@ CI 會用 `VERSION` env 覆寫（`scripts/build-version.js` 優先序：env > gi
 
 ---
 
+## 每週日誌清查（PLAN-067，D323，2026-11-25）
+
+> 使用者指示：「安排定時檢查，每周清查一次，檢查 log，發現問題與改善計畫，每次進入塔台若超過一周就提示」。
+
+- **開工檢查**：塔台開工時讀 `PLAN-067-weekly-log-review.md` frontmatter 的 `last_review_at` 與 `review_interval_days`（7）。距今（以系統時間計算，R-G001）≥ 7 天 → 開工面板加一行 `⏰ 日誌清查已 N 天未做（上次 <日期>，<工單>）—— 要開這週的清查工單嗎？`；未滿 7 天不顯示。PLAN-067 不是 IN_PROGRESS（例如已 DROPPED）就不檢查。
+- **只提示、不自動派工**：使用者同意才開清查工單（研究型，以 T0892 為範本，細節見 PLAN-067〈清查工單〉）；使用者略過則本 session 不再提示，`last_review_at` 不動。
+- **收單**：照 PLAN-067〈收單後〉更新 `last_review_at` / `last_review_workorder` 與〈清查紀錄〉，依〈改善計畫〉開 BUG / PLAN 交使用者裁示。
+
+---
+
 ## 公開 repo 去識別化（D176，2026-10-21）
 
 > 本 repo 在 GitHub 公開，`_ct-workorders/` 也公開（網站有連結）。工單、決策、學習、狀態快照、CHANGELOG、更版重點與網站都適用。

@@ -10,6 +10,7 @@
 
 | ID | 日期 | 標題 | 相關工單 |
 |----|------|------|---------|
+| D323 | 2026-11-25 | 開 PLAN-067 每週日誌清查：塔台開工時 `last_review_at` ≥ 7 天就提示（只提示、不自動派工），清查工單以 T0892 為範本；規則寫進 `_local-rules.md` | PLAN-067 / T0892 |
 | D322 | 2026-11-25 | 開 BUG-218（完整 test:unit 首輪 headless e2e `beforeAll` 逾時）＋ T0898；T0897 / T0898 等 T0896 後從新 `v0.8.x` 並行，完成後一張合併工單併入並做 pre.2 最後聯合驗證 | BUG-218 / T0898 / T0897 |
 | D321 | 2026-11-25 | T0891 候選 1、2（claude 花費上限句型、t0592 穩定化）併成一張 T0897，等 T0896 合併後從新 `v0.8.x` 開分支，完成後塔台直接合併 | T0897 / T0896 / T0891 |
 | D320 | 2026-11-25 | 遠端上傳 `clipboard-image` 早退開 T0895（從 `ct/T0893` 開分支、門檻 1.25 × 50 MiB、錯誤碼維持 `TOO_LARGE`）；合併工單改併 `ct/T0895`（含 T0893）＋ `ct/T0891` | T0895 / T0893 / BUG-216 |
@@ -252,6 +253,15 @@
   4. PLAN-001 保持延後（🟢 Low，等 plugin 1.0 穩定）
 - **Success criteria**（EXP→CONCLUDED）：npm install 無錯 / 所有 native modules rebuild 成功 / dev+build:dir 可跑 / 手動 smoke test 8 項通過
 - **最大風險**：`whisper-node-addon@1.0.2` 對 Electron 41（Node 24）的 NODE_MODULE_VERSION 相容性未知，允許 Worker 遇此決策點主動問塔台
+
+---
+
+### D323 2026-11-25 01:11 — PLAN-067 每週日誌清查
+
+- **背景**：T0892 第一次日誌檢查就找到 BUG-216、BUG-217 與 CT frontmatter 問題。使用者 `*plan`：「安排定時檢查，每周清查一次，檢查 log，發現問題與改善計畫，每次進入塔台若超過一周就提示」。
+- **決定**：開 PLAN-067（IN_PROGRESS，常態運作）。上次清查時間記在 PLAN-067 frontmatter `last_review_at`（首次 = T0892 完成時間 2026-11-25 00:37）；`_local-rules.md` 新增〈每週日誌清查（PLAN-067）〉：塔台開工時距今 ≥ 7 天就在面板提示，**只提示、不自動派工**；清查工單是研究型、以 T0892 為範本（日誌、crash dump、記憶體取樣，可選 CI 失敗紀錄），回報〈改善計畫〉後由塔台開 BUG / PLAN 交使用者裁示，再更新 `last_review_at`。
+- **不採用**：Windows 工作排程器或雲端排程自動跑——日誌在本機、需要 Claude 判讀、結論要塔台接手，以塔台開工檢查最簡單可靠；`_tower-state.md` frontmatter 不加欄位（BAT 面板讀取契約 v1）。
+- **相關**：T0892 / BUG-216 / BUG-217 / BUG-218
 
 ---
 
