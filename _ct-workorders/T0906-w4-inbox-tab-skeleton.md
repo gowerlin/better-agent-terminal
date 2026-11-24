@@ -4,14 +4,17 @@ schema_kind: workorder
 id: T0906
 title: "PLAN-068 W4（在 `v0.8.x`）：右側欄「待辦」分頁骨架與版本判定 —— `DockablePanel` `inbox`、分區版面、`bat_contract` 解析、§6′ 判定表（分頁宣告 × 狀態檔）、P-3、分頁標題數字 / `!`、BAT 既有資料區（CT `todo` 全部、待驗收 BUG、BUG / PLAN / 工單數量、Worker 等你）、總覽 `todo` 改連結（R6）"
 type: implementation
-status: IN_PROGRESS
+status: DONE
 repo: better-agent-terminal
 project: PLAN-068
 priority: P1
 sizing: M
 created_at: "2026-11-25T05:12:00+08:00"
-updated_at: "2026-11-25T05:15:40+08:00"
+updated_at: "2026-11-25T05:34:16+08:00"
 started_at: "2026-11-25T05:12:23+08:00"
+completed_at: "2026-11-25T05:34:16+08:00"
+session_ids:
+  - "d22e83e9-46ef-4b03-978d-6fff2a2fe9a1"
 target_version: "0.8.x（與 CT 6.1.0 同日發佈）"
 depends_on: [T0903]
 related:
@@ -103,25 +106,97 @@ PLAN-068 整合設計（T0902，雙方核定）：右側欄新分頁「待辦」
 - **建議**：A。理由：BAT 既有資料區的內容今天在指揮塔 / 縮圖就看得到、不依賴 CT 新欄位，停用它們不保護任何東西；R6 把總覽的 `todo` 改成「到待辦分頁查看」，若 B 停用 todo，舊 CT 使用者在 BAT 裡就完全看不到完整 `todo`（總覽也只剩連結），等於回歸。
 - **影響**：A / B 只差條件式顯示；選錯要改畫面與畫面測試。
 - **是否阻擋後續步驟**：阻擋版本判定的畫面與測試；資料讀取與區塊骨架先做。
-- **session_id**：
+
+### 完成狀態
+- **狀態**：`DONE` —— 驗收七項全部完成，驗證關卡在 head `3d469fbb` 上第一次完整執行即全綠。
+- **session_id**：d22e83e9-46ef-4b03-978d-6fff2a2fe9a1
+- **落點檢查**：PASS。C-0 `repo` = `better-agent-terminal`，`basename "$CT_HOME"` = `better-agent-terminal`；C-1 工單在 `$CT_HOME/_ct-workorders/`；C-3 `affects_files` 的祖先都在（新檔在既有目錄下）；C-2 沒有 `branch` 欄位。`CT_HOME` 已設定、`CT_WORKTREE_BRANCH` = `ct/T0906`；`git merge-base HEAD v0.8.x` = `d6b9ce86e30129a1ea8c29d1f5fe5b8e078454c8`，與工單相符。`BAT_WORKSPACE_ID` = `cc0afc4a-57e9-4f41-b2ed-a2d8bac9e36b`（只記錄）。
+- **環境**：`CT_MODE=yolo`、`CT_INTERACTIVE=0`；BAT helper env 齊全（`BAT_REMOTE_TOKEN` 已設定）。
 
 ### 產出摘要
+
+**塔台答覆落實的規則（Q-2，依塔台要求寫明）**
+- §6′ 不符（P-1 / P-2 / P-3）時，整個待辦分頁只留塔台選擇器與提示，BAT 既有資料區（Worker 等你、待驗收 BUG、`todo`、數量列）也不顯示；分頁標題顯示 `!`。
+- R6 只在選中的塔台契約相符時生效：此時總覽的 `todo` 改成「N 則 → 在待辦分頁查看」；不符、`ControlTowerPanel` 沒拿到 `workspaceId`、或狀態檔沒讀到時，總覽照舊列出 `todo`（T0701 原行為）。
+- 工作區沒有已宣告塔台：以狀態檔 `bat_contract` 判定 —— `2` 可用、缺 / `1` → P-1（狀態檔版本的文字 `inbox.gate.stateV1`）、`> 2` → P-2。沒有已宣告塔台也沒有 `_ct-workorders/` 時顯示「這個工作區沒有 Control Tower」，標題不出 `!`（不算版本不符）。
+- 讀檔完成前不判定、不出 `!`（避免開窗時閃一下 P-3）。
+
+**① 分頁與停靠**
+- `DockablePanel` 新增 `inbox`（`workspace.inbox`：待辦 / Inbox / 待办），預設右側，排在 `control-tower` 前（右側欄：程式碼片段 │ Skills │ Agents │ 待辦 │ 塔台）；其他面板的相對順序與預設位置不變。收合列圖示 📥。
+- 舊 docking 存檔：`loadDockingConfig` 改呼叫 `normalizeDockingConfig`（`src/types/index.ts`，邏輯與原本逐字相同，只抽出來可測）→ 沒有 `inbox` 鍵就補預設，其他鍵照存檔。
+- 主區 / detached（Q-1 A）：`WorkspaceView.tsx` 型別、`loadWorkspaceTab`、兩處寫死清單（`control-tower` 前）、`case 'inbox'`；另把 `workspaceId` 傳給 `ControlTowerPanel`（一行，R6 在主區 / detached 也要知道工作區；沒傳時照舊列 `todo`）。`InboxPanel` 在 `WorkspaceView` 用靜態 import（App 已經靜態載入，lazy 會觸發 vite 的「同時靜態與動態 import」警告）。
+
+**② 版面**：固定順序 ⏸ 待你決定 → 🙋 待你執行 → ⏰ 到期提醒 → 👷 Worker 等你 → 💬 塔台訊息 → 📋 塔台待辦 → 📊 數量列（`INBOX_SECTIONS`）。有內容的區塊可摺疊，狀態存 localStorage `bat-inbox-folded-sections`（try/catch；`todo` 預設摺疊）；空區塊只留一行「⏸ 待你決定（無）」。W5 / W6 的區塊（待你決定、到期提醒、塔台訊息）以同一個 `InboxSection` 介面＋空狀態呈現，沒有占位文字（測試斷言）。
+
+**③ 塔台選擇器**：同工作區 > 1 個已宣告塔台（`tower-contract-store` 有紀錄的分頁）才出現下拉；選擇只在記憶體（`inbox-store`，依工作區 id），選中的分頁不再是塔台時改看第一個。
+
+**④ 版本判定**
+- `parseTowerState` 多 `batContract`（整數 ≥ 1 才採用；缺 / 字串 / 小數 / ≤ 0 / 陣列 / 布林 = v1、欄位不出現）；不升 `summary_version`、未知鍵照舊忽略、YAML 錯誤照舊隔離（T0701 / T0894 的既有測試全綠）。`towerStateBatContract` 取值。
+- §6′ 判定 `inboxVerdict`（`src/lib/inbox-model.ts`）：2×2 相符、2×缺/1 P-3、2×>2 P-2、未宣告/1×任何 P-1、>2×任何 P-2、沒有塔台以狀態檔判定。P-1 / P-2 沿用 W0 的 `towerContract.*` 文字，P-3 與狀態檔版 P-1 新增 `inbox.gate.*`（三語系）。
+- 標題：側欄（左 / 右）分頁名後的 `InboxTabBadge`：相符時 = Worker 等你項目數＋待驗收 BUG 數（0 不顯示），不符時 `!`；主區分頁列不顯示（Q-1 只做最小增量）。
+
+**⑤ BAT 既有資料區（相符時）**
+- 🙋 待你執行：`_bug-tracker.md` 的 `FIXED` / `VERIFY`（不含封存），「開啟」→ 指揮塔 Bugs 頁。
+- 👷 Worker 等你：這個工作區的分頁 ⚠️（`waitingForUser`，最久的在前）、📨 待送（`notify-hold-store`）、⏸ 被中斷（`interrupted-agents-store`）；`?` / `✓` / `↻`（等塔台）不列。⚠️ / 📨 →「切到分頁」，⏸ →「恢復…」（開既有的被中斷對話框）。
+- 📋 塔台待辦：CT `todo` 全部，超過 160 字或多行的摺疊成第一行、可展開。
+- 📊 數量列：BUG 未結（`OPEN` / `FIXING`）· PLAN 進行中（`IN_PROGRESS`）· 工單（`workOrderPhase` = open），各連到指揮塔 Bugs / Backlog / 工單頁。
+- 跨分頁開啟：`requestControlTowerTab` / `requestOpenInbox`（`inbox-store`）發 window 事件，App 依停靠位置切換（detached 走 `workspace-switch-tab`）；指揮塔面板還沒掛載時，掛載時取走請求。
+
+**⑥ R6**：`TowerOverview` 新 prop `todoInInbox` / `onOpenInbox`；判斷在 `ControlTowerPanel`（`useInboxVerdict`，與待辦分頁同一個判定）。總覽其他區塊（狀態、`next_ids`、`*config`、sprint、進行中工單）與唯讀、契約 v1、「最後更新」比對都沒改。
+
+**⑦ 純函式**：`stateFileContractStatus(batContract)`（面板塔台 / 沒有宣告分頁時以狀態檔判定），`inboxVerdict`、`pickInboxTower` 等都在 `src/lib/inbox-model.ts`，不 import electron / DOM，W3 / W5 可直接用。
+
+**⑧ 遠端 / detached**：`InboxDataSource`（`src/components/inbox/InboxDataSource.tsx`）只用既有 `fs:readdir` / `fs:readFile` / `fs:stat` / `fs:watch` / `fs:changed`（遠端 proxied），沒有新增 channel；App 對作用中工作區、detached 視窗對自己的工作區各掛一個。
+
+**附帶修正（防回歸）**：主行程的 `fs:watch` 一個路徑只有一個 watcher、`fs:unwatch` 不計數 → 指揮塔與待辦資料來源同時看 `_ct-workorders/` 會互相關掉自動更新。新增 `acquireDirWatch`（`src/stores/ct-dir-watch.ts`，同一視窗內計數），`ControlTowerPanel` 的 `_ct-workorders/` 監看改經它（`_bmad-output/`、`.git` 監看不變）。
+
+**文件**：CLAUDE.md 新節「右側欄「待辦」分頁（PLAN-068 W4 / T0906）」（5 行，其他節標題未改；89,112 字元 < 100k）；新檔 `docs/agent-guide/tower-inbox.md`（判定表、區塊、跨分頁開啟、遠端、已知限制、驗證清單）；`docs/agent-guide/README.md` 索引；`ct-tower-overview.md` 補 `bat_contract`、R6、共用監看。
+
+**變更檔案**（產品 commit `3d469fbb`）
+- 新增：`src/lib/inbox-model.ts`、`src/components/InboxPanel.tsx`、`src/components/inbox/{InboxDataSource.tsx,InboxSection.tsx,useInboxModel.ts}`、`src/stores/{inbox-store.ts,ct-dir-watch.ts}`、`src/styles/inbox.css`、`docs/agent-guide/tower-inbox.md`
+- 修改：`src/types/index.ts`、`src/App.tsx`、`src/components/{ControlTowerPanel,TowerOverview,WorkspaceView}.tsx`、`src/lib/ct-tower-overview.ts`、`src/stores/{tower-contract-store,notify-hold-store}.ts`（各加一個 version hook）、`src/locales/{en,zh-TW,zh-CN}.json`、`CLAUDE.md`、`docs/agent-guide/{README,ct-tower-overview}.md`
+- 新測試：`src/lib/__tests__/inbox-model.test.ts`（17）、`src/lib/__tests__/ct-tower-overview-bat-contract.test.ts`（4）、`src/components/__tests__/inbox-panel.test.tsx`（24）
+
+**驗證**（皆在 head `3d469fbb`，工作樹乾淨）
+- `npm ci`：exit 0
+- `npm run test:unit`：PASS，469 files passed、3 skipped；8,627 tests passed、42 skipped。commit 前也完整跑過兩次（第一次在文件與 `WorkspaceView` 靜態 import 修改之前：8,622 passed / 47 skipped；第二次在 commit 內容上：8,627 passed / 42 skipped；總數都是 8,669，差在環境相關的 skip），三次都全綠、沒有失敗過。
+- `npm run test:legacy`：PASS，33 / 33 files、472 tests、0 failed
+- `npx vite build`：exit 0（5 個既有的「同時靜態與動態 import」警告，都與本單無關）
+- `npm run typecheck`：0；`npm run typecheck:electron`：0
+- `npm run verify:helpers`：不適用（沒有動 helper）
+- e2e：沒有跑、沒有新增（沒有啟動任何 BAT 實例，沒碰安裝版）；畫面以 jsdom 元件測試驗證，實機看畫面交 W8。
+
+**各驗收項目**
+- `inbox` 分頁、三語系、舊 docking 存檔、分區 / 摺疊 / 空狀態 / 選擇器：PASS
+- `bat_contract` 解析與 §6′ 每一列的畫面（P-1 / P-2 / P-3、標題 `!`）：PASS（`inbox-panel.test.tsx` 每列一個畫面測試＋`inbox-model.test.ts` 判定表）
+- BAT 既有資料區：PASS
+- R6：PASS（`TowerOverview` 相符 / 不符，`ControlTowerPanel` 宣告 v2 塔台＋狀態檔 2 → 連結、未宣告 → 照舊列出、沒有 `workspaceId` → 照舊列出）
+- 面板塔台判定純函式：PASS（`stateFileContractStatus`）
+- 遠端 / detached 沿用既有管線：PASS（程式審查＋資料來源測試；遠端實機未驗）
+- 驗證關卡、文件、隔離分支證據：PASS
 
 ### 互動紀錄
 - [05:12] 開工：落點檢查、`git merge-base HEAD v0.8.x` = `d6b9ce86…` 相符；背景 `npm ci`。
 - [05:14] Q-1: `WorkspaceView.tsx` 不在 `affects_files` → A（塔台，BAT 通道 `q-dee2b97e-dbc5b64ce4b68bee`）：加入本單、只做最小增量 → Action: 型別、寫死清單、`case 'inbox'`。
 - [05:14] Q-2: 不符時 BAT 既有資料區是否停用、沒有塔台怎麼判定 → B（塔台，`q-dee2b97e-6d883ae615b76b2f`）：不符時整個分頁只留選擇器與提示；R6 只在選中塔台相符時生效（不符時總覽照舊顯示 `todo`）；沒有已宣告塔台 → 狀態檔 `2` 可用 / 缺或 `1` P-1 / `> 2` P-2；標題不符 `!` → Action: 照辦，補 R6 相符 / 不符兩種的總覽測試。
+- [05:31] 產品 commit `3d469fbb`（commit 前完整 `test:unit` 全綠）；[05:33] 在 head 上重跑 typecheck ×2、vite build、`test:unit`、`test:legacy` 全綠。
 
 ### Renew 歷程
 無
 
 ### 遭遇問題
+- 無阻斷問題。
+- 我在 05:14 寫入〈待塔台決策〉時誤刪了 `### 完成狀態` 標題（與其下的 `session_id` 行），收尾時補回；塔台在中間看到的工單少了這個標題。
+- 以 heredoc 執行含 `\u{…}` 的 Python 編輯腳本時反斜線被收掉（R-G005 第 1 / 3 點），沒有寫入任何檔案；改用 Write 寫腳本檔再執行。
+- 已知限制（寫進 `docs/agent-guide/tower-inbox.md`）：`_ct-workorders/` 在開啟後才建立不會自動開始監看（同指揮塔，按 ↻）；目錄監看計數只在同一視窗內（另一個 detached 視窗 unwatch 同路徑仍會關掉主行程 watcher，T0906 之前就有）；已宣告塔台只在記憶體（W0 限制）；待辦與指揮塔各讀一次工單檔。
+- 待實機（交 W8）：右側欄實際畫面與寬度、遠端（WSL / SSH / Docker）工作區的讀檔與監看、detached 視窗的待辦分頁。
 
 ### 隔離分支證據
 - branch：`ct/T0906`
-- base_sha：
-- validated_sha：
-- head_sha：
-- validated_sha ≠ head_sha 的說明：
+- base_sha：`06c3b8843caf4f34bbec6117b0de443b7a3fdbf9`（`CT_WORKTREE_BASE`，與 `main` 的共同祖先，屬工單所述預期）；`git merge-base HEAD v0.8.x` = `d6b9ce86e30129a1ea8c29d1f5fe5b8e078454c8`
+- validated_sha：`3d469fbb0e3c5dafeb42e095f3eb413585fae4cf`
+- head_sha：`3d469fbb0e3c5dafeb42e095f3eb413585fae4cf`
+- validated_sha ≠ head_sha 的說明：兩者相同（產品 commit 後在 head 上重跑全部關卡）。
 
 ### 回報時間
+2026-11-25T05:33:07+08:00
