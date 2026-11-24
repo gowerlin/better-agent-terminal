@@ -4,15 +4,15 @@ schema_kind: workorder
 id: T0902
 title: "設計（PLAN-068 / GitHub #24 ＋ #23）：塔台訊息不被淹沒、不被擠走、不混進草稿 —— BAT ＋ CT 一次到位的整合提案（右側欄分頁、強制版本對齊）"
 type: research
-status: PENDING
+status: DONE
 repo: better-agent-terminal
 project: PLAN-068
 priority: P2
 sizing: M
 created_at: "2026-11-25T03:19:48+08:00"
 started_at: "2026-11-25T03:20:41+08:00"
-updated_at: "2026-11-25T03:44:05+08:00"
-completed_at: "2026-11-25T03:28:30+08:00"
+updated_at: "2026-11-25T03:53:34+08:00"
+completed_at: "2026-11-25T03:53:34+08:00"
 depends_on: [T0901]
 related:
   - "PLAN-068；T0901（研究，回報區全部沿用為輸入）；GitHub #24、#23（`gh issue view 23|24 -R gowerlin/better-agent-terminal`，唯讀）；D327（使用者 2026-11-25 裁示）"
@@ -23,6 +23,7 @@ affects_files:
 renew_count: 1
 session_ids:
   - "d4f61385-641e-4e1d-8d36-2918581210a8"
+  - "88f06443-44d0-4628-88b0-f67539f1fe42"
 互動模式: disabled
 worker_question_timeout: 30
 interaction:
@@ -121,6 +122,18 @@ memory_overrides:
    - 同步更新拆單（可能新增一張 hook 註冊單）與待實機清單。
 3. 其他第一版內容不必重做；若因上述修改而連帶需要改的地方，一併更新並註明。
 
+## 塔台補充（執行中 #2）
+
+**時間**：2026-11-25T03:48:24+08:00
+
+使用者補充：**CT 最近也用 hook 修正「Bash 指令太長被截斷」的問題（使用者全域規則 R-G005 提到「Bash 指令字元數＋單引號數×3 ≥ 7,500 會被截斷（hook 會擋）」），hook 註冊設計要一併考慮 CT 的 hook**。
+
+**新指示**（併入 Renew #1 第 2 點的 hook 註冊設計）：
+
+- 唯讀找出 CT 的 hook：可能在 CT 安裝位置（`~/.claude/skills/control-tower/`、CT plugin 的 `hooks/` 或 `hooks.json`）、使用者 / 專案 `.claude/settings*.json` 的 `hooks` 鍵、或 CT 原始碼 repo（`D:\ForgejoGit\@Gower_Labs\BMad-Guide\`，唯讀、不得寫入）。只記事件名稱、matcher、腳本位置與用途，不記 settings 檔裡其他設定值或任何 env 值。
+- 設計要涵蓋「BAT 的 hooks ＋ CT 的 hooks」一起註冊：兩者是否用同一種註冊方式（例：同一個 plugin marketplace、各自 plugin、或 BAT 注入時一併帶入 CT 的 hook）、兩邊的 hook 會不會衝突或重複觸發（同一事件多個 hook 的執行順序與 1.8 s 時限、CT 的 PreToolUse 擋指令 vs BAT 的 PreToolUse 只回報）、`--settings` 注入與使用者自己註冊的 hooks 是否會合併或互相蓋掉、`disableAllHooks` 時兩者都失效怎麼提示。
+- 推薦方案要說明 BAT＋CT 使用者實際的安裝 / 升級 / 移除步驟（使用者看得懂的幾步），以及兩邊版本對齊（契約 v2）怎麼包含 hook 的版本。
+
 ---
 
 ## 回報區
@@ -128,17 +141,19 @@ memory_overrides:
 > 以下由 sub-session 填寫，請勿在指揮塔 session 中編輯（唯一例外：`### 待塔台決策` 的 `塔台答覆 Q-n` 行由塔台新增）
 
 ### 完成狀態
-- **狀態**：DONE（設計研究；五項驗收產出齊全，未改產品程式）
-- **session_id**：d4f61385-641e-4e1d-8d36-2918581210a8
+- **狀態**：DONE（設計研究；五項驗收產出齊全，未改產品程式）。第二版（Renew #1）：R9 全部綁版本的設計（§6′、§3.1′），以及 BAT＋CT 的 hook 註冊設計（§7），含塔台補充執行中 #2 的 CT hooks；拆單新增 W0、W9；待實機新增 T-8–T-12
+- **session_id**：88f06443-44d0-4628-88b0-f67539f1fe42（第二版）；第一版 d4f61385-641e-4e1d-8d36-2918581210a8
 - **落點檢查**：PASS。C-0 `repo` = `better-agent-terminal`，`basename(REPO_ROOT)` = `better-agent-terminal`（主 checkout，`CT_HOME` 未設）；C-1 工單在 REPO_ROOT 之下；C-3 `affects_files` 只有本工單 → not applicable；C-2 無 `branch` 欄位（HEAD = `main`）。`BAT_WORKSPACE_ID` = `cc0afc4a-57e9-4f41-b2ed-a2d8bac9e36b`（只記錄）。
 - **環境**：`CT_MODE=yolo`、`CT_INTERACTIVE=0`；BAT helper env 齊全（`BAT_REMOTE_TOKEN` 已設定）。
 - **證據分道**：原始碼 / 文件 / 二進位字串的靜態查證。claude **2.1.331** 二進位以 `npm pack @anthropic-ai/claude-code-win32-x64@2.1.331` 取到 scratchpad（主 checkout 與安裝版 `0.8.0-pre.2` 的內嵌 claude 都還是 2.1.316；2.1.331 只在 `v0.8.x` 的 `package.json`）。沒有 build、沒有啟動任何 BAT 實例、沒有開 claude / codex 回合；需要實機的項目列在〈待實機清單〉。
-- **commit**：只有本工單檔（`git commit --only`），不 push。scratchpad 的 claude 二進位與字串腳本收尾刪除。
+- **commit**：只有本工單檔（`git commit --only`），不 push。scratchpad 的 claude 二進位與字串腳本收尾刪除。第二版也一樣：只靜態讀原始碼與 CT repo（唯讀），沒有寫 scratchpad 檔，也沒有執行任何實例。
 
 ### 互動紀錄
 - [03:20] 開工；yolo。設計取捨都在工單範圍內，以「建議＋替代方案」寫進〈需放寬或修改的既有規則〉交塔台與使用者裁示，未向塔台提問。
 - [03:22 後] 📥 塔台補充（執行中 #1）於〈跨 session 通知（額外節點）〉讀到 → 右側欄分頁改為「多種長期追蹤清單」的資訊架構：盤點 `todo` / `next_ids`、`_bug-tracker.md`、`_backlog.md`、非終態工單、待驗收、PLAN-067 定期事項、Worker attention 的現有資料；與指揮塔總覽（T0701）的分工；CT 新結構化欄位（`user_actions`、`reminders`）併入契約 v2 與大小預算；版面示意改為多區塊同時存在。
 - [03:25] 填回報前節點檢查〈塔台補充〉：沒有新段落。
+- [03:45] Renew #1（第二版，新 session）：讀〈塔台補充（Renew #1）〉→ 只改 / 補 R9（全部綁版本）與 R1（hook 註冊），其餘第一版保留；工單改回 `IN_PROGRESS`。唯讀查證 `electron/bat-mcp-launch.ts`（`buildBatMcpLaunchArgs`、`claudeHooksDisabledBy`、Settings 關閉時 hooks 一起不注入）、`electron/terminal-blocked-state.ts`（任何被接受的回報都把分頁設為 `hook`）、`scripts/bat-hook.mjs`、`scripts/bat-terminal.mjs`（未知參數 exit 1）、Claude 面板 session 沒有 `BAT_*` env。
+- [03:48] 📥 塔台補充（執行中 #2）於〈跨 session 通知（額外節點）〉讀到 → hook 註冊設計納入 CT 的 hooks。唯讀查到：Bash 長度防護是 BMad-Guide T0552 寫在使用者層的 `PreToolUse`（`Bash`）hook，CT 6.0.2 產品與 CT plugin 都沒有 hooks；只記事件、matcher、位置與用途，沒有讀取其他設定值。新增 §7.0、§7.4–§7.7（各自發佈、互動與重複觸發、安裝 / 升級 / 移除步驟、hook 版本與契約）。
 
 ### 調查結論
 
@@ -207,7 +222,7 @@ T0901 的結論以 2.1.331 二進位重新查證，**全部仍成立**：
 
 #### §1 使用者看到什麼
 
-**右側欄新分頁「待辦」**（id `inbox`，英文 `Inbox`；名稱交使用者決定，其他候選：「塔台」「需要你」。建議「待辦」：內容不只塔台訊息，還有 BUG 驗收、定期事項、Worker 等你）。分頁標題的數字 = 需要你動手的件數（待你決定＋待你執行＋到期提醒＋Worker 等你）；回合訊息卡的未讀數另外顯示在該區標題，不算進分頁數字（僅告知不該催人）。
+**右側欄新分頁「待辦」**（id `inbox`，英文 `Inbox`；第二版：D328 已定名「待辦」。~~名稱交使用者決定，其他候選：「塔台」「需要你」。~~ 建議「待辦」的理由：內容不只塔台訊息，還有 BUG 驗收、定期事項、Worker 等你）。分頁標題的數字 = 需要你動手的件數（待你決定＋待你執行＋到期提醒＋Worker 等你）；回合訊息卡的未讀數另外顯示在該區標題，不算進分頁數字（僅告知不該催人）。
 
 ```
 ┌ 程式碼片段 │ Skills │ Agents │ 待辦 (5) │ » ┐
@@ -318,9 +333,9 @@ T0901 預設值沿用不改（30 / 10 / 16 KiB / 最近已結 10 筆），理由
 - **回答**：proxied `tower-inbox:answer` 送到 bat-server，由該 host 的 `NotifyHoldController` 送出。
 - **detached 視窗**：dock 是每個視窗自己的；detached 視窗的待辦分頁只看自己的工作區，資料來源相同（檔案監看、host 記憶體的卡片）。主視窗工作區列表的 `⏸N` 經既有 `DetachedWaitingReporter` 路徑多帶一個數字。
 
-#### §6 版本不符時（強制版本對齊）
+#### §6 版本不符時（強制版本對齊）—— **第二版取代**，見下方〈第二版（Renew #1，D328）〉§6′
 
-分頁整體只有「契約相符」與「停用＋說明」兩種狀態；沒有部分運作。BAT 獨有的修正（B0、#23 草稿保護、B 閱讀保護）是 BAT 自己輸入路徑的問題，與 CT 契約無關，**不受此閘門影響**（見 R9，交使用者確認）。
+~~分頁整體只有「契約相符」與「停用＋說明」兩種狀態；沒有部分運作。BAT 獨有的修正（B0、#23 草稿保護、B 閱讀保護）是 BAT 自己輸入路徑的問題，與 CT 契約無關，**不受此閘門影響**（見 R9，交使用者確認）。~~（第二版：D328 裁示 R9 全部綁版本；下表也由 §6′ 的完整行為表取代）
 
 | 情況 | BAT 待辦分頁 | CT 塔台 |
 |---|---|---|
@@ -333,7 +348,7 @@ T0901 預設值沿用不改（30 / 10 / 16 KiB / 最近已結 10 筆），理由
 
 ### BAT ↔ CT 契約 v2 草案
 
-**§3.1 版本欄位與偵測**
+**§3.1 版本欄位與偵測**（第二版：BAT 端改以「每個塔台分頁的宣告」為準，新增 `--bat-contract`，見〈第二版〉§3.1′；本表仍有效，只多一列）
 
 | 方向 | 機制 | 型別 / 必填 |
 |---|---|---|
@@ -422,18 +437,18 @@ reminders:
 
 | # | 既有規則 | 修改 | 理由 | 風險 / 緩解 |
 |---|---|---|---|---|
-| R1 | T0590 / T0600：hook 不送 payload 內容 | `bat-hook.mjs stop` 多送 `last_assistant_message`（讀 stdin 上限 64 KiB、送出前截到 16 KiB）；host 只保留已宣告塔台分頁的，其他收到即丟、不記內容 | 卡片唯一不依賴 claude 內部格式的來源（官方描述就是為了「不必解析 transcript」） | 每個 claude 分頁的最後訊息都會經過本機 RemoteServer（權杖保護、不落地）。替代：hook 先問 host「要不要內容」再送第二次（多一次往返，佔 1.8 s 時限），資料更少但較慢 —— 建議採主案（host 過濾） |
-| R2 | T0788：只在 hook / OSC `blocked` 時保留 | 新 reason `draft`（無上限）、`reading`（60 s 上限）；所有 helper 通知經 controller 原子送出；回答也進同一佇列 | #23、#24 問題 2 | 誤判 `draft` 會延後派工 → 「立即送出」＋5 分鐘系統通知。`reading` 的上限與 D228「不設逾時」不同，理由見 §2.4 |
-| R3 | T0788 第 9 點 / T0566：helper Enter 經合成 keydown＋`terminal.focus()` | 改 `terminal.input('\r', false)`（仍 `{ auto: true }`） | B0：不捲動、不清選取、不搶焦點 | 升級 xterm 時要重驗 Enter 位元組（加真 xterm 測試守住）；T0566 用量限制路徑可一起改或維持，實作單決定 |
+| R1（第二版：D328 採主案，補 R1′） | T0590 / T0600：hook 不送 payload 內容 | `bat-hook.mjs stop` 多送 `last_assistant_message`（讀 stdin 上限 64 KiB、送出前截到 16 KiB）；host 只保留已宣告塔台分頁的，其他收到即丟、不記內容 | 卡片唯一不依賴 claude 內部格式的來源（官方描述就是為了「不必解析 transcript」） | 每個 claude 分頁的最後訊息都會經過本機 RemoteServer（權杖保護、不落地）。替代：hook 先問 host「要不要內容」再送第二次（多一次往返，佔 1.8 s 時限），資料更少但較慢 —— 建議採主案（host 過濾） |
+| R2（第二版：補 R2′） | T0788：只在 hook / OSC `blocked` 時保留 | 新 reason `draft`（無上限）、`reading`（60 s 上限）；所有 helper 通知經 controller 原子送出；回答也進同一佇列 | #23、#24 問題 2 | 誤判 `draft` 會延後派工 → 「立即送出」＋5 分鐘系統通知。`reading` 的上限與 D228「不設逾時」不同，理由見 §2.4 |
+| R3（第二版：補 R3′） | T0788 第 9 點 / T0566：helper Enter 經合成 keydown＋`terminal.focus()` | 改 `terminal.input('\r', false)`（仍 `{ auto: true }`） | B0：不捲動、不清選取、不搶焦點 | 升級 xterm 時要重驗 Enter 位元組（加真 xterm 測試守住）；T0566 用量限制路徑可一起改或維持，實作單決定 |
 | R4 | D158：不注入 codex hooks / `-c notify`、不解碼 OSC 7501 `msg` | **維持**；codex 塔台卡片區顯示說明 | 見 §4 | 使用者若要 codex 卡片需另行研究 |
 | R5 | BAT MCP 全唯讀（D155 / D156） | **維持**；不採用 claude channels | §1 信號表 S5 | 長期研究項 |
 | R6 | T0701 / D184 總覽：顯示 `todo` 前 5 則 | 總覽的 `todo` 區改為「N 則 → 在待辦分頁查看」，完整清單只在待辦分頁 | 避免兩處各顯示一半（塔台補充 #1） | 總覽仍唯讀、其他區塊（狀態、`*config`、sprint、`next_ids`）不變 |
 | R7 | 新 channel 歸屬 | `tower-inbox:answer`、`tower-cards:list` / `:changed`、`terminal:reading-state` 都是 renderer IPC / proxied，🔴 不進 `HELPER_CHANNEL_ROLES` | agent 不能冒充使用者作答或讀卡片 | — |
 | R8 | 指揮塔與新分頁的關係 | **並存**：待辦 = 需要人的事（行動）；指揮塔 = 專案資料瀏覽（完整清單、設定、決策）。BUG / PLAN / 工單在待辦只有數量＋連結 | 塔台補充 #1 | — |
-| R9 | 強制版本對齊的範圍 | 閘門只管待辦分頁；B0 / #23 / B 不受 CT 版本影響 | 它們修的是 BAT 自己的輸入路徑，與契約無關；讓 bug fix 等 CT 升版沒有好處 | 若使用者要求連保護也綁版本，改為同一個開關（不建議） |
+| ~~R9~~ | ~~強制版本對齊的範圍~~ | ~~閘門只管待辦分頁；B0 / #23 / B 不受 CT 版本影響~~ | ~~它們修的是 BAT 自己的輸入路徑，與契約無關；讓 bug fix 等 CT 升版沒有好處~~ | **第二版取代**（D328：全部綁版本），見 §6′ 與 R9′ |
 | R10 | 發佈 | BAT 一個版本一起發 W1–W8（使用者裁示 1：不拆 BAT 先做、CT 後做），與 CT 6.1.0 預發行同步；README 對照表同步 | 使用者裁示 | W1 / W2 若實作完成早於 CT，可在 `v0.8.x` 先合但不發佈，或由使用者裁示先發（不建議改變裁示） |
 
-#### 實作拆單建議
+#### 實作拆單建議 —— 第一版；W1 / W2 / W3 / W4 的依賴與範圍由〈第二版〉的拆單表更新（新增 W0、W9）
 
 | 單 | 範圍 | 依賴 | 驗收重點 | 規模 |
 |---|---|---|---|---|
@@ -471,14 +486,233 @@ reminders:
 | T-6 | claude channels 在使用者帳號是否可用（長期研究用） | 需登入、可能需組織設定 | 不在本案實作範圍，只記錄可用性 |
 | T-7 | 遠端（WSL）塔台的 `draft` / `reading` / 回答 | 需遠端環境 | W8 之後由使用者在 WSL profile 驗 |
 
+### 第二版（Renew #1，D328；含塔台補充執行中 #2）
+
+> 使用者核定第一版並裁示：分頁名稱 **「待辦」（id `inbox`）**；R10 W0–W9 同一個 BAT 版本發佈、與 CT 6.1.0 預發行同步；**R9 全部綁版本**；R1 採主案並設計 hook 註冊。下列各節取代或補充第一版的對應段落（第一版被取代處已加刪除線或「第二版取代」）。§1–§5 的其他內容不變。
+
+#### §6′ 契約版本閘門：全部綁版本（取代第一版 §6）
+
+**判定單位：每個塔台分頁。** 保護（B0、`draft`、`reading`、原子送出）與回合訊息卡都作用在「某個塔台分頁的 PTY」上，所以版本也以分頁為單位判定。待辦分頁的檔案類清單（待你決定、待你執行、到期提醒）以專案的 `_tower-state.md` 為單位判定。
+
+**兩個信號**
+
+| 信號 | 誰寫 | BAT 記在哪 | 生命週期 |
+|---|---|---|---|
+| **分頁宣告** `towerContract` | 該分頁裡執行中的 CT：`bat-terminal.mjs --set-role tower --bat-contract 2 [--mode …]` | host 的 `PtyInstance`（與 `role` / `towerMode` 同處，T0562） | 與 `role` 相同：⏻ 重啟、Terminal Server recovery 保留，PTY 關閉消失。**每次 `--set-role` 都覆寫**，不帶 `--bat-contract` 的 `--set-role` 會把它清成「未宣告」（CT 降版後重新開工時立即生效）。不持久化 |
+| **狀態檔** `bat_contract` | CT 寫在 `_tower-state.md` frontmatter | renderer 讀檔（既有指揮塔讀取管線） | 檔案 |
+
+**為什麼保護看分頁宣告、不看狀態檔**：保護在 host（`NotifyHoldController`，本機主行程或 bat-server）同步判斷，需要每個 PTY 一個即時的值；狀態檔屬於工作區資料夾，由 renderer 讀，一個專案可能同時有多個塔台（或塔台開在別的資料夾），而且 CT 寫檔可能落後。若改成「兩者都等於 2 才啟用」，每次 CT 開工到第一次寫檔之間保護會關閉，#23 正好可能在這段時間發生，而且 host 還要讀專案檔（遠端要另開 channel）。**不建議**這種嚴格的 AND。
+
+**CT 6.1.0 開工順序（契約要求）**：① 若 `_tower-state.md` 沒有 `bat_contract: 2` 就先寫入 → ② `--set-role tower --bat-contract 2` → ③ 讀輸出的 `bat-contract:` / `hooks:` 行（§3.1′）。照這個順序，「分頁宣告 2、狀態檔還是 v1」只會在異常時出現（檔案被還原、塔台開在別的資料夾）。
+
+**每個塔台分頁的判定**
+
+| 分頁宣告 | `_tower-state.md` `bat_contract` | 判定 | 保護（B0 / `draft` / `reading` / 原子送出） | 回合訊息卡 | 待辦分頁的檔案類清單 |
+|---|---|---|---|---|---|
+| 2 | 2 | 相符 | 啟用 | 啟用 | 啟用 |
+| 2 | 缺 / 1 | 狀態檔落後 | 啟用（雙方程式都是 v2） | 啟用 | **停用**＋提示 P-3 |
+| 2 | > 2 | 不符（資料比 BAT 新） | 停用 | 停用 | 停用＋提示 P-2 |
+| 未宣告（舊 CT，或 6.1.0 以前的 `--set-role`） | 任何 | 不符（CT 太舊） | **停用** | 停用 | 停用＋提示 P-1 |
+| > 2（未來的 CT） | 任何 | 不符（BAT 太舊） | 停用 | 停用 | 停用＋提示 P-2 |
+| 不是已宣告的塔台 | — | 不適用 | 與現在相同（沒有新保護） | — | — |
+
+🔴 **不回歸**：T0788 的保留（`permission` / `question` / `elicitation` / `input`）是既有行為，**不綁版本**，所有分頁照舊。綁版本的只有本提案新增的功能。這不是「部分運作」：它是已發佈的保護，拿掉就是回歸。
+
+**提示（不得無聲）**
+
+| 代號 | 出現位置 | 文字（草案） |
+|---|---|---|
+| P-1 CT 太舊 | 塔台縮圖徽章 `CT↑`（tooltip 同文字）、待辦分頁該塔台的標頭、塔台分頁第一次宣告時的 toast（每個分頁一次） | 「這個塔台的 Control Tower 沒有宣告 BAT ↔ CT 契約 v2，所以通知保護（不搶捲動、不混進草稿、閱讀時延後）、回合訊息卡與待辦清單都停用。請升級到 BMad Control Tower 6.1.0 以上，再重新開啟塔台。對話框保護（等你回答時不送通知）不受影響。」 |
+| P-2 BAT 太舊 | 同上，徽章 `BAT↑` | 「這個塔台使用 BAT ↔ CT 契約 v<N>，這版 BAT 只支援 v2。請升級 Better Agent Terminal。在升級前，通知保護、回合訊息卡與待辦清單都停用。」 |
+| P-3 狀態檔落後 | 待辦分頁的檔案類區塊（保護與卡片照常，不出徽章） | 「塔台分頁已宣告契約 v2，但這個工作區的 `_tower-state.md` 還是 v1。CT 6.1.0 開工時會先寫入；如果一直看到這行，請確認這個工作區的資料夾就是塔台所在的專案，或在塔台執行 `*sync`。」 |
+
+待辦分頁標題的數字在選中的塔台不符時改成 `!`。不另外在通知送出當下跳出提示（例如「這則通知可能混進你的草稿」）：那需要在停用的狀態下照樣跑偵測，等於部分運作。
+
+**各版本組合的完整行為（取代第一版 §6 表）**
+
+| 組合 | BAT 畫面 | CT 行為 | 新保護 / 卡片 | T0788 |
+|---|---|---|---|---|
+| BAT v2 ＋ CT 6.1.0 | 全部可用 | 照開工順序宣告；正常寫入 v2 欄位 | 啟用 | 照舊 |
+| BAT v2 ＋ CT ≤ 6.0.x | 待辦分頁停用＋P-1；縮圖 `CT↑` | 不知道 v2，照舊 | 停用（行為與今天相同） | 照舊 |
+| BAT v2 ＋ CT 契約 v3（未來） | 停用＋P-2；縮圖 `BAT↑` | `--set-role` 回 `bat-contract: 2 (requested 3: unsupported)` → 開工提示「BAT 太舊」 | 停用 | 照舊 |
+| BAT 舊 ＋ CT 6.1.0 | 沒有待辦分頁（舊版本來就沒有） | `--bat-contract` 被舊 helper 拒絕（`Unknown option '--bat-contract'`、exit 1、沒有設定角色）→ **不帶此參數重送 `--set-role`**（保留標題與模式這些 v1 功能）→ 開工面板一行：「⚠️ 這版 BAT 不支援 BAT ↔ CT 契約 v2（需要 BAT ≥ `<版號>`）：待辦分頁、通知保護、回合訊息卡不可用；待決事項仍會列在每次回覆的結尾。」照常寫 v2 欄位 | 不適用 | 照舊 |
+| BAT 舊 ＋ CT 舊 | 今天的行為 | 今天的行為 | — | 照舊 |
+| CT 6.1.0 在 BAT 以外的終端 | BAT 讀不到這個分頁；只要在 BAT 裡開同一個專案，待辦分頁的檔案類清單照狀態檔判定 | 沒有 `BAT_*` env → 不呼叫 `--set-role`；寫 v2 欄位、回覆結尾照列 | — | — |
+| Claude 面板塔台（BAT v2） | 面板 session 沒有 helper 權杖，無法 `--set-role`：面板塔台**以狀態檔 `bat_contract` 判定**；卡片來自面板訊息、回答送進面板；保護不適用（面板收不到 bat-notify） | 沒有 `BAT_*` env → 當成非 BAT 終端 | 卡片依狀態檔 | 不適用 |
+| `user_inbox: off`（契約相符） | 待你決定 / 待你執行區塊顯示「已關閉」說明；保護、卡片、Worker 區照常（它們不來自 CT 寫的欄位） | 不寫 `awaiting_user` / `user_actions` | 啟用 | 照舊 |
+
+#### §3.1′ 契約 v2 的 BAT 端欄位（第二版補充）
+
+| 項目 | 形狀 | 說明 |
+|---|---|---|
+| `--set-role tower --bat-contract <n>` | 整數 ≥ 1 | 新參數（改 T0562 契約、CT-T013，屬「只增加」；見 R11）。沒有 `--set-role` 時使用 → 用法錯誤 exit 1 |
+| `--set-role` stdout | `  bat-contract: 2`（接受）／`  bat-contract: 2 (requested <n>: unsupported)`（CT 比 BAT 新）／不帶參數時 `  bat-contract: none` | exit code 不變（0 / 3 / 1）；CT 要解析時允許開頭空白（同 ct-exec 讀 helper 輸出的規則） |
+| `--set-role` stdout（claude 塔台） | `  hooks: ok (<來源>, set <n>)`／`  hooks: none (<代號>)`／codex `  hooks: n/a (codex)` | 見 §7.2；只在宣告 `--bat-contract` 時輸出，避免改變舊呼叫的輸出 |
+| `terminal:whoami` / `get-state` / `list`（含 `scope: 'towers'`） | `towerContract: number \| null`、`hooksStatus: { state: 'ok' \| 'none' \| 'n/a', reason?: string, origin?: 'injected' \| 'plugin', set?: number } \| null` | 只有 metadata，`towers` scope 可以回；不含權杖與內容 |
+| `terminal:role-changed`（main → renderer） | 加 `towerContract` | renderer 依此決定 B0 走哪條路、要不要回報 `reading`、顯示徽章 |
+
+#### R 表的第二版修訂
+
+| # | 修訂 |
+|---|---|
+| **R1′** | 採主案（D328）：`bat-hook.mjs stop` 送 `last_assistant_message`（只在 `stop` 事件讀這個欄位；stdin 沿用 `STDIN_MAX_BYTES` 256 KiB，送出前截到 16 KiB）。host 只在「已宣告塔台＋`towerContract == 2`」時保留，其他分頁收到即丟、不記內容、日誌只記長度。新增 `origin`（`injected` / `plugin`，見 §7.3）與 `set`（hook 組版本）欄位。「先問 host 再送」的替代方案不採用 |
+| **R2′** | `draft` / `reading` / 原子送出 / 回答進佇列：只對 `towerContract == 2` 的塔台分頁生效（`NotifyHoldController.holdReason` 先檢查 `ptyManager.getTowerContract(id)`）。T0788 的 reason 對所有分頁照舊 |
+| **R3′** | B0（`terminal.input('\r', false)`）只用在 `towerContract == 2` 的分頁；其他分頁（含非塔台分頁收到的 bat-notify）維持合成 keydown 路徑，T0566 不變 |
+| **R9′** | 全部綁版本（D328）：判定單位與表格見 §6′。既有 T0788 保留不綁 |
+| **R11（新）** | 改 T0562 `--set-role` 契約（CT-T013 依它撰寫，不得單方更改）：新增 `--bat-contract`、stdout 新增 `bat-contract:` / `hooks:` 兩行。只增加；舊 CT 不帶參數時輸出逐字不變。需要 CT 端在同一個契約版本中確認 |
+| **R12（新）** | hook 新的註冊途徑：BAT 以 Claude Code plugin `bat-hooks` 發佈（§7.3），launcher 執行「該分頁所屬 BAT」的 `bat-hook.mjs`（路徑來自 PTY env `BAT_HELPER_DIR`）。T0590 的規則（exit 0、stdout 不輸出、時限內結束、任何失敗靜默）同樣適用於 launcher。新的信任點：以 env 指定的路徑執行程式碼，見 §7.3 安全性 |
+| **R13（新）** | 既有行為：Settings「BAT MCP」關閉時連 hooks 一起不注入（`buildBatMcpLaunchArgs` `turned off in Settings`）。**建議維持**，只把原因顯示出來（§7.2 代號 `settings-off`）；替代方案是把 hooks 拆成獨立開關，等於改 D152 的設定結構，不建議放進本案 |
+| **R10′** | 發佈：W0–W9 同一個 BAT 版本，與 CT 6.1.0 預發行同步；先完成的單合進 `v0.8.x`、不發佈（D328） |
+
+#### §7 hook 註冊設計：BAT＋CT 使用者（Renew #1 第 2 點、塔台補充執行中 #2）
+
+**7.0 現在有哪些 hook**（唯讀查證，只記事件 / matcher / 位置 / 用途）
+
+| 擁有者 | 事件（matcher） | 位置 | 用途 | 怎麼註冊 |
+|---|---|---|---|---|
+| BAT | `PermissionRequest`；`PreToolUse`（`AskUserQuestion`）；`Notification`（`elicitation_dialog\|elicitation_url_dialog`、`elicitation_response`）；`PostToolUse`（`AskUserQuestion`）；`ElicitationResult`；`PostToolBatch`；`UserPromptSubmit`；`Stop`；`SessionStart`（`BAT_CLAUDE_HOOKS`，`electron/bat-mcp-launch.ts`） | `<helperDir>/bat-hook.mjs`，每個 hook 一律 exit 0、stdout 不輸出 | 回報 `blocked` / 回合 / 啟動 / session id 給該分頁的 BAT；本案加 `Stop` 的最後訊息 | BAT 啟動 claude-cli 分頁時注入 `--settings=<dataDir>/bat-mcp/claude-settings.json`（只有 `hooks` 鍵） |
+| 使用者層（BMad-Guide T0552 / D855 建立，**不是** CT 產品發佈的內容） | `PreToolUse`（`Bash`） | `<使用者資料夾>/.claude/hooks/bash-length-guard.py`，直譯器以絕對路徑指定 | 指令「字元數＋單引號數 ×3 ≥ 7,500」時 exit 2 擋下並在 stderr 說明（R-G005）；任何錯誤 fail-open | 手寫在 `<使用者資料夾>/.claude/settings.json` `hooks.PreToolUse` |
+| 使用者層（其他，與 CT / BAT 無關） | `PreToolUse`（`Read`）、`UserPromptSubmit`（`*`） | `<使用者資料夾>/.claude/hooks/sonar-secrets/…` | 秘密掃描 | 同上 |
+| CT 產品 | 無：CT 6.0.2 原始碼（`BMad-Control-Tower-v6.0.2/`：`skills/`、`adapters/`、`docs/`）沒有 `hooks/`、`hooks.json` 或 `.claude-plugin/`；CT plugin（`ct@control-tower`）目前只有 skills。本機 Claude Code 沒有安裝 `ct@…` plugin（CT 以 skill 安裝） | — | — | — |
+
+⇒ 「CT 的 hook」目前只存在本機使用者層，其他 BAT＋CT 使用者都沒有。要讓它成為 CT 的功能，必須由 CT 隨 CT 的 plugin 發佈。
+
+**7.1 BAT 自動注入涵蓋不到的情況**
+
+| # | 情況 | 現在的 BAT | BAT 怎麼偵測 | 使用者要做什麼 |
+|---|---|---|---|---|
+| G1 | BAT 開的 claude-cli 分頁（「以塔台開啟 Claude」、helper 派工）、BAT MCP 開啟、helper 端點正常 | ✅ 注入 | 啟動決定記錄為 `hook`，第一次回報即確認 | 無 |
+| G2 | Settings「BAT MCP」關閉 | ❌ hooks 與 MCP 一起不注入 | 啟動決定原因 `settings-off` | 打開 Settings，或安裝 `bat-hooks` plugin |
+| G3 | 自訂參數已有 `--settings`（CT 規則禁止，但仍可能發生） | ❌ 不注入（`userArgsPassClaudeSettings`） | `user-settings-arg` | 從自訂參數拿掉 `--settings`，或安裝 plugin（plugin 的 hooks 與 `--settings` 並存） |
+| G4 | managed 或使用者設定檔 `disableAllHooks: true` | 有注入，但記為 `none`（`claudeHooksDisabledBy`） | `claude-hooks-disabled` | 這是使用者自己的設定；要用就拿掉。plugin 一樣被關掉，沒有別的路 |
+| G5 | managed 設定 `allowManagedHooksOnly: true` | 同上 | `managed-hooks-only` | 只有管理者能加 managed hooks；否則不可用 |
+| G6 | 專案層 `.claude/settings*.json` 的 `disableAllHooks`（啟動時 BAT 看不到） | 有注入、記為 `hook`，但一直沒有回報 | 宣告塔台時沒有任何 hook 回報（`claudeSessionId: null`）→ `no-report` | 檢查專案的 `.claude/settings*.json` |
+| G7 | system runtime 的 claude 太舊 | hooks 有，但 `Stop` 沒有 `last_assistant_message` | v2 塔台的 `stop` 回報沒有該欄位 → 卡片區顯示原因 | 升級 system claude，或改用內嵌（最低版號由 W3 以 `npm pack` 逐版查出） |
+| G8 | 一般 shell 分頁手打 `claude` 開塔台 | ❌ 沒有注入（raw shell）；PTY 仍有 `BAT_*` env | 這個分頁沒有 claude 啟動決定紀錄 → `not-launched-by-bat` | 改用「以塔台開啟 Claude」，或安裝 plugin |
+| G9 | 遠端 profile（WSL / SSH / Docker）：BAT 開的 claude-cli 分頁 | ✅ 注入（headless 共用 `buildBatMcpLaunchArgs`、bundled node、遠端 dataDir、遠端的設定檔檢查） | 同 G1–G5 | 同 G1–G5 |
+| G10 | 遠端手打 `claude` | ❌ | `not-launched-by-bat` | 在**遠端主機**的 claude 安裝 plugin（plugin 裝在哪台就只在哪台生效）；遠端沒有系統 node 時 plugin 的指令跑不起來（見 7.3 限制） |
+| G11 | Claude 面板（SDK）塔台 | 不需要 hooks：卡片直接取面板訊息，保護不適用 | `hooks: n/a` | 無 |
+| G12 | BAT 以外的終端 | BAT 讀不到；plugin 在那裡沒有 `BAT_*` env → 立即結束 | 無（CT 端看到沒有 `BAT_*` env） | 說明即可：待辦分頁的檔案類清單仍可在 BAT 開同一專案時看到；卡片與保護不可用 |
+| G13 | helper 端點沒在聽 / `bat-hook.mjs` 不見 / 安裝路徑含 `'` | ❌ | `no-endpoint` / `script-missing` / `unrepresentable-path` | 重開 BAT / 重新安裝 / 改安裝路徑（BAT 自己的問題） |
+
+**7.2 偵測與提示**
+
+- host 為每個 claude 分頁記錄 hooks 的啟動決定與原因代號（目前只記 `blockedDetection`，原因只在日誌；改為與 `claudeSessionNameRecords` 同樣的 per-terminal 紀錄）。沒有紀錄 = 不是 BAT 開的 claude（G8 / G10）。
+- `--set-role tower --bat-contract 2` 時：claude 塔台若還沒有任何 hook 回報，最多等 2 s（`SessionStart` 是 async，可能晚於 CT 的開工指令），然後輸出 `hooks:` 行；codex → `n/a (codex)`。同一份資訊放進 `hooksStatus`（§3.1′）。
+- 缺 hooks 時**失去**：T0788 對話框保留、回合訊息卡、`agentStarted` / session id。**仍有**：`draft` / B0 / `reading`（不需要 hooks）、檔案類清單。
+- 提示位置：CT 開工面板一行；待辦分頁該塔台標頭一行＋「怎麼修」說明頁連結；塔台縮圖徽章 `🪝✕`（tooltip 同文字）。
+
+| 代號 | 提示文字（草案，前綴「這個塔台沒有 BAT hooks：回合訊息卡與對話框保護不可用。」） |
+|---|---|
+| `settings-off` | 「原因：Settings › BAT MCP 已關閉。打開它並重開塔台，或安裝 `bat-hooks` plugin。」 |
+| `user-settings-arg` | 「原因：這個 agent 的自訂參數已有 `--settings`。拿掉它，或安裝 `bat-hooks` plugin。」 |
+| `claude-hooks-disabled` | 「原因：claude 設定檔 `<檔名>` 設了 `disableAllHooks`。這是你的設定；要使用請拿掉。」 |
+| `managed-hooks-only` | 「原因：組織的 managed 設定只允許 managed hooks。請洽管理者。」 |
+| `no-report` | 「原因：claude 啟動後沒有任何 hook 回報，可能是專案的 `.claude/settings*.json` 關了 hooks。」 |
+| `not-launched-by-bat` | 「原因：這個 claude 不是 BAT 開的（在 shell 手打）。改用「以塔台開啟 Claude」，或安裝 `bat-hooks` plugin。」 |
+| `plugin-outdated` | 「`bat-hooks` plugin 的事件清單比這版 BAT 舊，請執行 `claude plugin update bat-hooks@better-agent-terminal`。」（狀態是 ok，但缺少的事件不會回報） |
+| `no-endpoint` / `script-missing` / `unrepresentable-path` | 「BAT 的 helper 異常，請重開 BAT；仍然如此請重新安裝。」 |
+
+**7.3 讓使用者自己註冊：方案比較**
+
+| | (a) 維持自動注入＋偵測提示 | (b) BAT 一鍵寫入使用者 / 專案 `.claude/settings.json` | (c) Claude Code plugin `bat-hooks` | (d1) BAT 改注入 `--plugin-dir` | (d2) BAT 注入時一併帶入 CT 的 hooks |
+|---|---|---|---|---|---|
+| 補到的缺口 | G1、G9 | G2、G3、G8（只限寫入的那台） | G2、G3、G8、G10（裝在哪台補哪台） | G3（與使用者 `--settings` 並存） | 只在 BAT 開的分頁有 CT hooks |
+| 安全性 | 只執行 BAT 自己的檔案；不改使用者設定 | BAT 改使用者的 claude 設定檔（違反 §2.5「BAT 不改 claude 設定」）；hook 寫死安裝目錄的絕對路徑 | 使用者以 claude 自己的 `/plugin install` 同意與信任流程安裝；plugin 只有一個小 launcher（可審閱），不含權杖；launcher 以 env `BAT_HELPER_DIR` 指定的路徑執行程式碼（與 PATH 同等的信任：能改 env 的人本來就能控制這個行程），並檢查絕對路徑、檔名固定為 `bat-hook.mjs`、`BAT_REMOTE_PORT` / `BAT_REMOTE_TOKEN` / `BAT_TERMINAL_ID` 都存在 | 同 (a) | BAT 要知道 CT 的檔案位置與版本 |
+| 多 BAT 版本 / 遠端 | 自動正確 | 寫死某一個安裝；遠端每台要寫 | 每次都執行**該分頁所屬 BAT** 的 `bat-hook.mjs`（遠端分頁執行遠端 bat-server 的那份），程式版本永遠與 BAT 一致；只有 plugin 的事件清單可能落後 → `plugin-outdated` | 自動正確 | BAT 版本與 CT 版本綁在一起 |
+| 解除安裝 | 無殘留 | BAT 解除安裝後 hook 指向不存在的檔：每個 claude session（含 BAT 以外）每個事件都出錯 → **違反 T0590「不得影響 claude」** | `claude plugin uninstall`；BAT 先解除安裝時沒有 `BAT_*` env → launcher 立即結束，不會出錯 | 無殘留 | — |
+| 與 T0590 一致 | ✅ | ❌（懸空路徑） | ✅（launcher 照同樣規則） | ✅ | ⚠️ CT hooks 會擋指令（exit 2），不符合「BAT hooks 不改變 claude 行為」 |
+| 成本 | 已有；加原因紀錄與提示 | 中（合併 JSON、還原、遠端） | 中：BAT repo 新增 marketplace（`.claude-plugin/marketplace.json`）與 plugin（`hooks/hooks.json`＋launcher） | 小，但 `--plugin-dir` 在內嵌 2.1.331 的行為與「同名 plugin 也從 marketplace 安裝時」的衝突要查證 | — |
+| 結論 | **採用（主要途徑）** | **不採用** | **採用（給 G2 / G3 / G8 / G10 的使用者）** | W9 查證後再決定，只當 G3 的備援 | **不採用**：CT 的 hooks 由 CT 自己發佈（下一點） |
+
+**推薦：(a)＋(c)，BAT 與 CT 各自發佈自己的 hooks。**
+
+- **BAT hooks**：BAT 開的分頁照舊自動注入；需要的人再裝 `bat-hooks@better-agent-terminal`（marketplace 在 BAT 的公開 repo）。
+- **CT hooks**：CT 把 Bash 長度防護（以及日後其他 hook）放進 CT 自己的 plugin `ct@control-tower` 的 `hooks/hooks.json`，用 `${CLAUDE_PLUGIN_ROOT}` 指向 plugin 內的腳本，不寫死使用者路徑。理由：
+  - 這個防護在任何終端都有用，不只在 BAT 裡。
+  - 它屬於 CT 的行為：它會擋指令，而 BAT 的 hooks 依規則不能改變 claude 的行為。
+  - 版本跟著 CT 走。
+  - 以 zip 安裝 CT 的使用者沒有 plugin hooks，由 CT 決定要不要提供手動註冊說明（CT 端事項）。
+- **不用同一個 plugin**：一起發佈會讓兩邊版本綁死，而且 CT 有不在 BAT 裡的使用者。**同一個 marketplace 也不必要**：BAT 的 marketplace 在 BAT repo，CT 的在 CT repo，兩者各自獨立。
+
+**7.4 BAT 與 CT 的 hooks 會不會互相影響**（依 Claude Code 文件的 hook 規則；2.1.331 的實際行為列為待實機 T-10）
+
+| 問題 | 結論 |
+|---|---|
+| `--settings` 注入會不會蓋掉使用者自己的 hooks | 不會：hooks 依來源（managed、使用者、專案、本機、`--settings`、plugin）合併後一起執行。`--settings` 只是多一個設定層。反過來，使用者的 hooks 也不會讓 BAT 的 hooks 失效 |
+| 同一事件有多個 hook | 符合 matcher 的 hooks 平行執行，各自套用自己的 `timeout`。BAT 的 1.8 s 是腳本自己的上限，與 CT guard 的 timeout 10 s 互不影響；完全相同的指令字串只執行一次 |
+| `PreToolUse`：CT 擋指令 vs BAT 只回報 | matcher 不同（CT `Bash`、BAT `AskUserQuestion`），同一次工具呼叫只會觸發其中一個。即使未來同一個 matcher：任一 hook 擋下（exit 2 / deny）就擋下該工具，BAT 的 hook 永遠 exit 0、不輸出，不會放行或擋下任何東西。被 CT 擋下的 Bash 不會出現權限對話框，BAT 也就不會進入 `blocked`，不需要另外處理 |
+| BAT 注入＋`bat-hooks` plugin 同時存在 | 兩者指令不同，會各跑一次 → 每個事件回報兩次。處理：launcher 在回報加 `origin: 'plugin'`（注入的預設為 `injected`）；host 對同一個 PTY 一旦收過 `injected` 的回報，就丟棄 `plugin` 的回報（只記一次日誌）。在那之前，狀態類事件重複套用沒有副作用（idempotent）；卡片以 session id＋內容雜湊去重 |
+| `disableAllHooks` / `allowManagedHooksOnly` | BAT 與 CT（plugin）的 hooks **一起失效**。BAT 以 G4 / G5 / G6 的代號提示 BAT 的部分；CT 的 Bash 長度防護失效由 CT 開工檢查提示（CT 端事項 C-3），兩邊文字都寫明「這是你自己的設定」 |
+| 目前手寫在使用者層的 `bash-length-guard.py` | CT 改由 plugin 發佈後，使用者層那一項要移除。若不移除，兩份指令字串不同，會各跑一次，兩者都擋，只是訊息重複。移除步驟寫進 CT 的升級說明 |
+
+**7.5 使用者的安裝 / 升級 / 移除步驟（BAT＋CT 使用者）**
+
+安裝：
+1. 安裝 BAT（≥ 契約 v2 版本）。
+2. 安裝 CT 6.1.0：`claude plugin marketplace add <CT marketplace>` → `claude plugin install ct@control-tower`（CT 的 hooks 隨 plugin 一起來）。
+3. 用「以塔台開啟 Claude」開塔台 → BAT hooks 自動帶入，不用再做任何事。
+4. **只有**在 shell 手打 `claude`、自訂參數用了 `--settings`、或關掉 BAT MCP 時：`claude plugin marketplace add gowerlin/better-agent-terminal` → `claude plugin install bat-hooks@better-agent-terminal`。遠端主機要在**遠端**的 claude 執行這兩行。
+5. 開工時 CT 會顯示 `hooks:` 狀態；不是 `ok` 就照提示處理。
+
+升級：
+- 升級 BAT：不用動 hooks（注入檔每次重寫；plugin 執行的是新版 BAT 的腳本）。新版 BAT 新增 hook 事件時，若 plugin 太舊，會出現 `plugin-outdated` 提示 → `claude plugin update bat-hooks@better-agent-terminal`。
+- 升級 CT：`claude plugin update ct@control-tower`。從手寫 hook 改用 plugin 的使用者，照 CT 說明移除 `settings.json` 裡舊的那一項。
+
+移除：
+- `claude plugin uninstall bat-hooks@better-agent-terminal`、`claude plugin uninstall ct@control-tower`。
+- 只解除安裝 BAT 時，plugin 會變成什麼都不做，不會報錯；建議一併解除安裝 plugin。BAT 的解除安裝程式不動 claude 的設定。
+
+**7.6 版本對齊怎麼包含 hooks**
+
+- **BAT hook 組版本** `BAT_HOOK_SET`（整數，寫在 `bat-hook.mjs`／`BAT_CLAUDE_HOOKS` 旁）：契約 v2 要求 `set ≥ 2`（含 `Stop` 的最後訊息）。程式碼一定是該分頁 BAT 自己的那份，所以實際只需比對 plugin 的事件清單版本：plugin 的 launcher 帶 `--hook-list <n>`，BAT 比對後在 `hooks:` 行回報 `plugin-outdated`。
+- **CT hooks 不進 BAT ↔ CT 契約**：BAT 不讀、不依賴 CT 的 hooks。它們的版本就是 CT plugin 的版本，由 CT 自己的開工檢查處理。
+- **README 版本對照表**（§3.5）新增一列：「`bat-hooks` plugin（選用；手打 claude、自訂 `--settings`、關掉 BAT MCP 時才需要）—— BAT 最低版號同待辦分頁；plugin `1.0.0`」。
+
+**7.7 CT 端要配合的事（補進第一版「CT 端要做的事」）**
+
+- C-1 開工順序（§6′）：寫 `bat_contract` → `--set-role tower --bat-contract 2` → 舊 BAT 拒絕時不帶參數重送並提示。
+- C-2 解析 `bat-contract:` / `hooks:` 兩行；`hooks: none` 時依代號顯示一行（文字沿用 §7.2，CT 可改寫但意思不變）。
+- C-3 CT 自己的 hooks：把 Bash 長度防護放進 `ct@control-tower` 的 `hooks/hooks.json`（`${CLAUDE_PLUGIN_ROOT}`、fail-open、不依賴使用者的 python 路徑，直譯器的選擇由 CT 決定）；開工檢查 `disableAllHooks`，提示防護失效；寫明 zip 安裝的使用者怎麼手動註冊；升級說明含「移除使用者層舊項目」。
+- C-4 `ct-help` / Portal「與 BAT 協作」頁：兩種 hooks 的用途、什麼時候需要 `bat-hooks` plugin、7.5 的步驟。
+- C-5 README 協作章節與版本對照表同步（§3.5＋7.6）。
+- C-6 CT 不替使用者安裝 plugin、不改 claude 設定。
+
+#### 第二版拆單（取代第一版拆單表的依賴欄；W1–W8 範圍不變處不重寫）
+
+| 單 | 範圍（第二版變更） | 依賴 | 驗收重點（新增） | 規模 |
+|---|---|---|---|---|
+| **W0（新，最先）** 契約版本閘門 | `bat-terminal.mjs` `--bat-contract`；`terminal:set-role` 參數與 `PtyInstance.towerContract`（生命週期同 `role`）；stdout `bat-contract:` 行；`whoami` / `get-state` / `list` 的 `towerContract`；`terminal:role-changed` 帶 `towerContract`；renderer store；縮圖徽章 `CT↑` / `BAT↑` 與 P-1 / P-2 toast | — | 舊呼叫（不帶參數）輸出逐字不變；覆寫 / 清除規則；⏻ 與 recovery 保留；舊 helper 拒絕未知參數的行為不變 | S–M |
+| W1 B0 | 只對 `towerContract == 2` 的分頁改用 `terminal.input('\r', false)` | **W0** | v1 / 未宣告分頁仍走合成 keydown（測試守住） | S |
+| W2 保留佇列 | `draft` / `reading` / 原子送出 / 回答只對 v2 塔台；T0788 reason 對所有分頁不變 | **W0** | v1 塔台在有草稿時行為與今天相同；T0788 既有測試全綠 | M |
+| W3 卡片資料 | R1′：`stop` 送最後訊息；`origin` / `set` 欄位；host 只保留 v2 塔台；`plugin` / `injected` 去重；查出 `last_assistant_message` 的最低 claude 版號 | **W0** | 非 v2 塔台不保存；重複回報只產生一張卡 | M |
+| W4 待辦分頁骨架 | §6′ 判定表（分頁宣告 × 狀態檔）、P-1 / P-2 / P-3、分頁標題 `!` | **W0** | 判定表每一列都有畫面測試 | M |
+| W5 / W6 / W7 / W8 | 範圍同第一版；W7 文件加 §7.5 步驟與 `bat-hooks` 說明；W8 加入版本組合與 hooks 缺口的驗收 | 同第一版＋W9 | — | 同第一版 |
+| **W9（新）** hook 註冊 | host 記錄 hooks 啟動決定與原因代號；`--set-role` 的 `hooks:` 行（等待 2 s）與 `hooksStatus`；提示（CT 面板文字由 CT 做）與徽章 `🪝✕`；BAT repo 的 marketplace＋`bat-hooks` plugin（`hooks.json`＋launcher，T0590 規則）；`--hook-list` / `plugin-outdated`；評估 (d1) `--plugin-dir`；`verify-*` 打包檢查不受影響（plugin 不進安裝檔） | W0、W3 | launcher：沒有 `BAT_*` env 時立即 exit 0 且無輸出；路徑檢查；Windows 上 Git Bash 與 PowerShell 都能執行；與注入並存時只算一次 | M |
+
+可平行：W0 先做；W0 完成後 W1、W2、W3、W4 平行；W9 等 W0＋W3；W5 等 W2＋W4；W6 等 W3＋W4；W7、W8 最後。
+
+#### 第二版新增的待實機項目
+
+| # | 項目 | 為什麼隔離環境做不到 | 怎麼驗 |
+|---|---|---|---|
+| T-8 | 舊 CT（6.0.x）＋新 BAT：保護全部停用、徽章與 P-1 文字；CT 升級後重新開工即啟用 | 需要使用者的 CT 安裝與真實塔台 | 安裝版塔台照兩種 CT 版本各開一次 |
+| T-9 | `bat-hooks` plugin 在 Windows 的 claude 上：hook 經 Git Bash 與經 PowerShell 時，`${CLAUDE_PLUGIN_ROOT}` 的展開與 `node` 的解析 | 需登入的 claude 與 plugin 安裝 | 兩種 shell 環境各裝一次 plugin，手打 `claude` 開塔台，看 `hooks:` 行 |
+| T-10 | 注入＋plugin 並存時的去重；`--settings` 與使用者 / plugin hooks 合併；CT guard 與 BAT hook 同時存在時互不影響（2.1.331） | 需真實回合 | 三種 hook 都在時跑一個含 Bash 長指令與權限對話框的回合 |
+| T-11 | 專案層 `disableAllHooks` → `no-report` 提示 | 需登入的 claude | 在測試專案設定後開塔台 |
+| T-12 | 遠端（WSL）手打 claude＋plugin，及遠端沒有系統 node 的情況 | 需遠端環境 | WSL profile 驗 |
+
 ### Renew 歷程
-無
+- Renew #1（03:45–03:53）：使用者核定第一版（D328）。R9 改為全部綁版本：判定單位是塔台分頁的 `--bat-contract` 宣告，狀態檔只決定檔案類清單；不符時以 P-1 / P-2 / P-3 提示，並列出各版本組合的完整行為；既有 T0788 保留不綁版本。R1 採主案，並完成 hook 註冊設計：盤點 13 種涵蓋缺口與偵測代號，推薦 (a) 自動注入＋(c) `bat-hooks` plugin，不採用 (b) 寫入使用者設定。依塔台補充（執行中 #2），CT 的 hooks 由 CT 以自己的 plugin 發佈，不與 BAT 的 hooks 綁在一起。拆單新增 W0 與 W9。
 
 ### 遭遇問題
 - 無阻斷問題。
 - 主 checkout 與安裝版的內嵌 claude 仍是 2.1.316（2.1.331 只在 `v0.8.x`）：為了照工單以 2.1.331 重新確認，以 `npm pack` 取公開套件到 scratchpad 做唯讀字串查證，收尾刪除。
 - #23 沒有在隔離實例重現（理由見〈調查結論〉§1），列為待實機 T-1；W2 的 e2e 建議用假 TUI（行編輯器腳本）在隔離實例重現與驗證，不需登入 claude。
-- 決策點都以「建議＋替代」寫在 R1–R10，未向塔台提問；其中 R9（版本閘門不套用在 B0 / #23 / B）與 R10（發佈節奏）直接關係到使用者裁示 1、2 的解讀，請塔台優先確認。
+- 決策點都以「建議＋替代」寫在 R1–R10，未向塔台提問；其中 R9（版本閘門不套用在 B0 / #23 / B）與 R10（發佈節奏）直接關係到使用者裁示 1、2 的解讀，請塔台優先確認。（第二版：D328 已裁示，見 R9′ / R10′）
+- 第二版沒有阻斷問題。待塔台與使用者裁示：R11（改 `--set-role` 契約，需要 CT 同版確認）、R12（`bat-hooks` plugin：一條新的發佈途徑，也多一個信任點）、R13（Settings「BAT MCP」關閉時 hooks 也關閉，建議維持）、§7.3 (d1) `--plugin-dir`（W9 查證後再決定）、§7.7 C-3（CT 以自己的 plugin 發佈 Bash 長度防護，由 CT 決定）。
+- §7.4 的 hook 合併 / 平行 / 去重規則依 Claude Code 文件撰寫，2.1.331 的實際行為沒有實測（不能開回合），列為 T-10。
+- Renew #1 開工時，`updated_at` 一度寫入手打的值，隨即改成系統時間（R-G001）。commit 中的是系統時間。
 
 ### 回報時間
-2026-11-25T03:28:30+08:00
+2026-11-25T03:28:30+08:00（第一版）；2026-11-25T03:53:34+08:00（第二版，Renew #1）
