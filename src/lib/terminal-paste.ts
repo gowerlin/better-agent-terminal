@@ -17,6 +17,11 @@
  * `navigator.clipboard.read()` threw. The image check now asks main first
  * (`clipboard:read-image-data-url`, T0436) and logs every fallback.
  *
+ * T0893 (BUG-216): main answers from the clipboard's MIME types (`clipboard:has-image`) instead of
+ * fetching the image (a 36–51 MB clipboard PNG used to block main's event loop ~1–3 s just to be
+ * refused). Errors are logged as `name: message` (`describePasteError`); when the text read fails
+ * too, the tab shows a notice (`TerminalClipboardReadError` → `terminal.clipboardReadFailed`).
+ *
  * Priority: copied files → paths (a Finder copy of an image file also carries the file icon as
  * an image, which must not win), then image → key, then text.
  *
@@ -125,15 +130,45 @@ export interface TerminalClipboardReaders {
 type Log = (...args: unknown[]) => void
 
 /**
- * Whether this machine's clipboard holds an image. main decides (`readImage()` is not empty);
- * should that call fail (IPC error, image over the attachment size cap) the renderer's Async
- * Clipboard types are the fallback.
+ * T0893 / BUG-216: a paste error as `name: message` for the log. Passed as-is, a DOMException (what
+ * the Async Clipboard API rejects with) is serialized as `{}`. Only the error's own name and message —
+ * never clipboard contents, paths or image data.
+ */
+export function describePasteError(err: unknown): string {
+  if (err && typeof err === 'object') {
+    const { name, message } = err as { name?: unknown; message?: unknown }
+    const n = typeof name === 'string' && name ? name : 'Error'
+    return typeof message === 'string' && message ? `${n}: ${message}` : n
+  }
+  return String(err)
+}
+
+/**
+ * T0893 / BUG-216: the clipboard could not be read at all (the text read, the last step, failed), so
+ * the paste did nothing. The terminal shows `terminal.clipboardReadFailed` for it.
+ */
+export class TerminalClipboardReadError extends Error {
+  constructor(cause: unknown) {
+    super(`clipboard text read failed (${describePasteError(cause)})`)
+    this.name = 'TerminalClipboardReadError'
+  }
+}
+
+export function isTerminalClipboardReadError(err: unknown): err is TerminalClipboardReadError {
+  return err instanceof TerminalClipboardReadError
+}
+
+/**
+ * Whether this machine's clipboard holds an image. main decides from the clipboard's MIME types
+ * (`clipboard:has-image`, T0893: the image is not read — it used to be fetched, decoded and
+ * re-encoded through `clipboard:read-image-data-url` just for this yes / no); should that call fail
+ * the renderer's Async Clipboard types are the fallback.
  */
 async function clipboardHasImage(log: Log): Promise<boolean> {
   try {
-    return (await window.electronAPI.clipboard.readImageDataUrl()) !== null
+    return (await window.electronAPI.clipboard.hasImage()) === true
   } catch (err) {
-    log('[terminal-paste] clipboard:read-image-data-url failed, checking navigator.clipboard.read()', err)
+    log('[terminal-paste] clipboard:has-image failed, checking navigator.clipboard.read()', describePasteError(err))
   }
   const items = await navigator.clipboard.read()
   return items.some(item => item.types.some(type => type.startsWith('image/')))
@@ -149,7 +184,8 @@ function defaultReaders(log: Log): TerminalClipboardReaders {
 
 /**
  * What a terminal paste should do: type the copied items' paths, send the image-paste key, or
- * paste the text. A failing path / image check is logged and degrades to the next step.
+ * paste the text. A failing path / image check is logged and degrades to the next step; a failing
+ * text read (nothing left to fall back to) rejects with `TerminalClipboardReadError` (T0893).
  */
 export async function readTerminalClipboard(
   readers?: TerminalClipboardReaders,
@@ -160,12 +196,18 @@ export async function readTerminalClipboard(
     const paths = await r.readFilePaths()
     if (Array.isArray(paths) && paths.length > 0) return { kind: 'paths', paths }
   } catch (err) {
-    log('[terminal-paste] clipboard:read-file-paths failed, checking for an image', err)
+    log('[terminal-paste] clipboard:read-file-paths failed, checking for an image', describePasteError(err))
   }
   try {
     if (await r.hasImage()) return { kind: 'image' }
   } catch (err) {
-    log('[terminal-paste] clipboard image check failed, pasting text', err)
+    log('[terminal-paste] clipboard image check failed, pasting text', describePasteError(err))
   }
-  return { kind: 'text', text: await r.readText() }
+  let text: string
+  try {
+    text = await r.readText()
+  } catch (err) {
+    throw new TerminalClipboardReadError(err)
+  }
+  return { kind: 'text', text }
 }

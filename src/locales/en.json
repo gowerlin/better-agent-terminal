@@ -484,7 +484,8 @@
     "cancelUploadShort": "Cancel",
     "uploadCancelled": "Upload cancelled. Nothing was typed.",
     "uploadBusy": "An upload to the remote host is still running in this terminal. Wait for it or cancel it, then try again.",
-    "imageUploadFailed": "The clipboard image was not pasted: uploading it to the remote host failed ({{reason}})."
+    "imageUploadFailed": "The clipboard image was not pasted: uploading it to the remote host failed ({{reason}}).",
+    "clipboardReadFailed": "Nothing was pasted: the clipboard could not be read. Copy again and retry."
   },
   "dialogs": {
     "closeCodeAgent": "Close Code Agent?",

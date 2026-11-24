@@ -267,6 +267,8 @@ interface ElectronAPI {
     saveImage: () => Promise<string | null>
     /** T0436: clipboard image as a data URL; null when the clipboard holds no image. */
     readImageDataUrl: () => Promise<string | null>
+    /** T0893 / BUG-216: whether the clipboard offers an image (`image/png`), from its MIME types only — the image is not read. */
+    hasImage: () => Promise<boolean>
     /** T0522: absolute paths of file / folder items on the clipboard (macOS Finder copy); [] otherwise. */
     readFilePaths: () => Promise<string[]>
     writeImage: (filePath: string) => Promise<boolean>

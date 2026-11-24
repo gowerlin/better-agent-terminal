@@ -79,7 +79,7 @@ import { configureRuntimeRouter, getRuntimeSettingsSnapshot, resolveClaudeRuntim
 import { ClaudeAgentManager, createElectronClaudeEmit, createElectronNotifier, type ClaudeAgentManagerDeps } from './claude-agent-manager'
 import { CodexAgentManager } from './codex-agent-manager'
 import { checkForUpdates, parseUpdateSettings, StartupUpdateCheck, type UpdateCheckOutcome, type UpdateCheckResult, type UpdateSettings } from './update-checker'
-import { clipboardImageToDataUrl, readClipboardPng, readSelectedAttachments } from './image-attachments'
+import { CLIPBOARD_IMAGE_EARLY_REFUSE_BYTES, clipboardImageToDataUrl, hasClipboardImage, readClipboardPng, readSelectedAttachments, type ReadClipboardPngOptions } from './image-attachments'
 import { readClipboardFilePaths } from './clipboard-file-paths'
 import { snippetDb, CreateSnippetInput } from './snippet-db'
 import { ProfileManager, type ProfileEntry, type ProfileSnapshot } from './profile-manager'
@@ -2953,7 +2953,9 @@ const uploadClient = new UploadClient({
     if (!client) return Promise.reject(new UploadNotConnectedError(`profile ${profileId} has no live connection`))
     return client.invoke(channel, args, timeoutMs)
   },
-  readClipboardPng: () => readClipboardPng(clipboard),
+  // T0895: upload-client passes `refuseAboveBytes` (CLIPBOARD_UPLOAD_EARLY_REFUSE_BYTES) — a huge
+  // clipboard image is refused before it is copied out (→ TOO_LARGE).
+  readClipboardPng: options => readClipboardPng(clipboard, options),
   emitProgress: (senderId, event) => {
     const sender = uploadSenders.get(senderId)
     if (sender && !sender.isDestroyed()) sender.send(UPLOAD_CLIENT_PROGRESS_CHANNEL, event)
@@ -3597,8 +3599,8 @@ function registerLocalHandlers() {
   // T0784 (Electron 44+): main's clipboard is W3C-style (`read()` / `write()` + ClipboardItem,
   // Promise-based); readImage / writeImage are gone. Channel names, arguments and return
   // shapes are unchanged. Reading: readClipboardPng (electron/image-attachments.ts).
-  const readClipboardImage = async (): Promise<Electron.NativeImage> => {
-    const png = await readClipboardPng(clipboard)
+  const readClipboardImage = async (options?: ReadClipboardPngOptions): Promise<Electron.NativeImage> => {
+    const png = await readClipboardPng(clipboard, options)
     return png ? nativeImage.createFromBuffer(png) : nativeImage.createEmpty()
   }
   ipcMain.handle('clipboard:saveImage', async () => {
@@ -3612,7 +3614,12 @@ function registerLocalHandlers() {
   // T0436 / BUG-108: panel paste attachments take the image straight from this machine's
   // clipboard (no temp file, no proxied image:read-as-data-url). clipboard:saveImage stays
   // for PromptBox, which needs a file path for the terminal agent.
-  ipcMain.handle('clipboard:read-image-data-url', () => readClipboardImage().then(clipboardImageToDataUrl))
+  // T0893 / BUG-216: a clipboard PNG over 2 × the 10 MiB cap is refused before it is copied out,
+  // decoded and re-encoded (same `Image too large` error); smaller ones are unchanged.
+  ipcMain.handle('clipboard:read-image-data-url', () => readClipboardImage({ refuseAboveBytes: CLIPBOARD_IMAGE_EARLY_REFUSE_BYTES }).then(clipboardImageToDataUrl))
+  // T0893 / BUG-216: the terminal's Ctrl+V only needs to know whether there is an image — MIME types
+  // only, the image is never fetched. Local-only like the channels around it (not proxied, not a helper channel).
+  ipcMain.handle('clipboard:has-image', () => hasClipboardImage(clipboard))
   // T0522 / BUG-128: Finder-copied items as paths for Command+V in a terminal (macOS; [] elsewhere).
   ipcMain.handle('clipboard:read-file-paths', () => readClipboardFilePaths(clipboard, process.platform))
   ipcMain.handle('clipboard:writeImage', async (_event, filePath: string) => {

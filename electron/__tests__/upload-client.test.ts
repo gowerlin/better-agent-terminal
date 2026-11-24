@@ -11,8 +11,11 @@ import { createHash } from 'crypto'
 import * as fs from 'fs'
 import * as os from 'os'
 import * as path from 'path'
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import type { ClipboardItemReader } from '../clipboard-file-paths'
+import { readClipboardPng, type ReadClipboardPngOptions } from '../image-attachments'
 import {
+  CLIPBOARD_UPLOAD_EARLY_REFUSE_BYTES,
   MAX_TRANSFERS_PER_SENDER,
   UPLOAD_CLIENT_PROGRESS_CHANNEL,
   UploadClient,
@@ -566,6 +569,110 @@ describe('clipboard source (read by main)', () => {
     const out = await uploadToRemoteHost(KEY, [{ kind: 'clipboard-image' }], { api: apiFor(h) })
     expect(out.items[0]).toMatchObject({ ok: false, code: 'SOURCE_ERROR' })
     expect(h.calls).toEqual([])
+  })
+})
+
+// T0895 (BUG-216 follow-up): the clipboard-image source refuses a huge clipboard PNG on its own size,
+// before reading it. Wired to the real readClipboardPng (electron/image-attachments.ts) the way main does
+// (`options => readClipboardPng(clipboard, options)`), over a fake clipboard whose Blob reports a size
+// and whose arrayBuffer() (the read of the bytes into main) is a spy returning `readBytes` bytes.
+describe('T0895: clipboard-image early refusal (CLIPBOARD_UPLOAD_EARLY_REFUSE_BYTES)', () => {
+  const MAX = UPLOAD_LIMITS.maxFileBytes
+  const TOO_LARGE_MESSAGE = `image is larger than ${MAX} bytes`
+
+  function fakeClipboard(size: number, readBytes = size) {
+    const arrayBuffer = vi.fn(async () => (readBytes <= 4096 ? new Uint8Array(bytes(readBytes)) : new Uint8Array(readBytes)).buffer)
+    const blob = { size, type: 'image/png', arrayBuffer } as unknown as Blob
+    const item = { types: ['image/png'], getType: vi.fn(async () => blob) }
+    return { clipboard: { read: vi.fn(async () => [item]) }, arrayBuffer }
+  }
+
+  function harnessOn(clipboard: ClipboardItemReader) {
+    const seen: Array<ReadClipboardPngOptions | undefined> = []
+    const h = makeHarness({
+      readClipboardPng: options => {
+        seen.push(options)
+        return readClipboardPng(clipboard, options)
+      },
+    })
+    return { h, seen }
+  }
+
+  it('threshold is 1.25 × the 50 MiB cap (cap itself unchanged)', () => {
+    expect(MAX).toBe(50 * 1024 * 1024)
+    expect(CLIPBOARD_UPLOAD_EARLY_REFUSE_BYTES).toBe(Math.floor(MAX * 1.25))
+    expect(CLIPBOARD_UPLOAD_EARLY_REFUSE_BYTES).toBe(65_536_000)
+  })
+
+  it('over the threshold → TOO_LARGE (same shape and message), the bytes are never read, nothing uploaded', async () => {
+    const size = CLIPBOARD_UPLOAD_EARLY_REFUSE_BYTES + 1
+    const { clipboard, arrayBuffer } = fakeClipboard(size)
+    const { h, seen } = harnessOn(clipboard)
+    const prep = await h.client.prepare(SENDER, KEY, [{ kind: 'clipboard-image' }])
+    if (!prep.ok) throw new Error('prepare')
+    expect(prep.items[0]).toEqual({ ok: false, code: 'TOO_LARGE', message: TOO_LARGE_MESSAGE })
+    expect(arrayBuffer).not.toHaveBeenCalled()
+    expect(seen).toEqual([{ refuseAboveBytes: CLIPBOARD_UPLOAD_EARLY_REFUSE_BYTES }])
+    expect(h.calls).toEqual([])
+    expect(h.client.transferCount).toBe(0)
+    // Same result through the renderer driver; logs carry no file name.
+    const out = await uploadToRemoteHost(KEY, [{ kind: 'clipboard-image' }], { api: apiFor(h) })
+    expect(out.items[0]).toMatchObject({ ok: false, code: 'TOO_LARGE' })
+    expect(arrayBuffer).not.toHaveBeenCalled()
+    expect(h.calls).toEqual([])
+  })
+
+  it('a refusal at 70 MiB is TOO_LARGE, not SOURCE_ERROR (the thrown "Image too large" is mapped)', async () => {
+    const { clipboard } = fakeClipboard(70 * 1024 * 1024)
+    const { h } = harnessOn(clipboard)
+    const prep = await h.client.prepare(SENDER, KEY, [{ kind: 'clipboard-image' }])
+    if (!prep.ok) throw new Error('prepare')
+    expect(prep.items[0]).toMatchObject({ ok: false, code: 'TOO_LARGE', message: TOO_LARGE_MESSAGE })
+  })
+
+  it('a plain read error still → SOURCE_ERROR (only ClipboardImageTooLargeError maps to TOO_LARGE)', async () => {
+    const h = makeHarness({ readClipboardPng: async () => { throw new Error('Image too large (1 > 2 bytes)') } })
+    const prep = await h.client.prepare(SENDER, KEY, [{ kind: 'clipboard-image' }])
+    if (!prep.ok) throw new Error('prepare')
+    expect(prep.items[0]).toMatchObject({ ok: false, code: 'SOURCE_ERROR' })
+  })
+
+  it('50 MiB – threshold on the clipboard: read in full, then compared with 50 MiB as before', async () => {
+    // At the threshold, bytes read over the cap → TOO_LARGE after reading (as before T0895).
+    const atThreshold = fakeClipboard(CLIPBOARD_UPLOAD_EARLY_REFUSE_BYTES)
+    const a = harnessOn(atThreshold.clipboard)
+    const prepA = await a.h.client.prepare(SENDER, KEY, [{ kind: 'clipboard-image' }])
+    if (!prepA.ok) throw new Error('prepare')
+    expect(atThreshold.arrayBuffer).toHaveBeenCalledTimes(1)
+    expect(prepA.items[0]).toEqual({ ok: false, code: 'TOO_LARGE', message: TOO_LARGE_MESSAGE })
+
+    // Just over the cap on the clipboard, bytes read ≤ the cap → accepted with the bytes' size.
+    const nearCap = fakeClipboard(MAX + 1, MAX)
+    const b = harnessOn(nearCap.clipboard)
+    const prepB = await b.h.client.prepare(SENDER, KEY, [{ kind: 'clipboard-image' }])
+    if (!prepB.ok) throw new Error('prepare')
+    expect(nearCap.arrayBuffer).toHaveBeenCalledTimes(1)
+    expect(prepB.items[0]).toMatchObject({ ok: true, kind: 'clipboard-image', size: MAX })
+
+    // Bytes read one over the cap → TOO_LARGE (same check as before).
+    const overCap = fakeClipboard(MAX + 1)
+    const c = harnessOn(overCap.clipboard)
+    const prepC = await c.h.client.prepare(SENDER, KEY, [{ kind: 'clipboard-image' }])
+    if (!prepC.ok) throw new Error('prepare')
+    expect(overCap.arrayBuffer).toHaveBeenCalledTimes(1)
+    expect(prepC.items[0]).toEqual({ ok: false, code: 'TOO_LARGE', message: TOO_LARGE_MESSAGE })
+  })
+
+  it('a small clipboard image uploads as before', async () => {
+    const { clipboard, arrayBuffer } = fakeClipboard(3000)
+    const { h, seen } = harnessOn(clipboard)
+    const out = await uploadToRemoteHost(KEY, [{ kind: 'clipboard-image' }], { api: apiFor(h) })
+    const item = out.items[0]
+    if (!item.ok) throw new Error(item.code)
+    expect(arrayBuffer).toHaveBeenCalledTimes(1)
+    expect(seen).toEqual([{ refuseAboveBytes: CLIPBOARD_UPLOAD_EARLY_REFUSE_BYTES }])
+    expect(item.name).toMatch(/^clipboard-\d{8}-\d{6}\.png$/)
+    expect(fs.readFileSync(item.serverPath).equals(bytes(3000))).toBe(true)
   })
 })
 

@@ -18,13 +18,14 @@ import * as path from 'path'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { registerFsHandlers } from '../handlers/fs'
 import type { SharedHandler } from '../handlers/types'
-import { CLIPBOARD_IMAGE_TYPE, clipboardImageToDataUrl, readClipboardPng, readSelectedAttachments } from '../image-attachments'
+import { CLIPBOARD_IMAGE_EARLY_REFUSE_BYTES, CLIPBOARD_IMAGE_TYPE, ClipboardImageTooLargeError, clipboardImageToDataUrl, hasClipboardImage, readClipboardPng, readSelectedAttachments } from '../image-attachments'
+import { HELPER_CHANNEL_ROLES } from '../remote/helper-capability'
 import { MAX_IMAGE_SIZE, createPathAllowlist } from '../path-guard'
 import { ALWAYS_LOCAL_CHANNELS } from '../remote/headless-channel-status'
 import { PATH_ARG_SCHEMA } from '../remote/path-aware-channels'
 import { PROXIED_CHANNELS } from '../remote/protocol'
 
-const NEW_CHANNELS = ['dialog:select-attachments', 'clipboard:read-image-data-url']
+const NEW_CHANNELS = ['dialog:select-attachments', 'clipboard:read-image-data-url', 'clipboard:has-image']
 const ELECTRON_DIR = path.resolve(__dirname, '..')
 const SRC_DIR = path.resolve(ELECTRON_DIR, '..', 'src')
 const read = (...p: string[]) => fs.readFileSync(path.join(...p), 'utf8')
@@ -120,6 +121,84 @@ describe('electron/image-attachments', () => {
     expect(clipboard.items[0].getType).not.toHaveBeenCalled()
   })
 
+  // T0893 / BUG-216: a fake Blob whose bytes are never materialised — arrayBuffer() is a spy.
+  const sizedItem = (size: number) => {
+    const arrayBuffer = vi.fn(async () => new Uint8Array(Math.min(size, 16)).buffer)
+    const blob = { size, type: CLIPBOARD_IMAGE_TYPE, arrayBuffer } as unknown as Blob
+    const item = { types: [CLIPBOARD_IMAGE_TYPE], getType: vi.fn(async () => blob) }
+    return { clipboard: { read: vi.fn(async () => [item]) }, item, arrayBuffer }
+  }
+
+  it('T0893: early-refusal threshold is 2 × MAX_IMAGE_SIZE (10–20 MiB still re-encoded and compared as before)', () => {
+    expect(MAX_IMAGE_SIZE).toBe(10 * 1024 * 1024)
+    expect(CLIPBOARD_IMAGE_EARLY_REFUSE_BYTES).toBe(2 * MAX_IMAGE_SIZE)
+  })
+
+  it('T0893: readClipboardPng refuses a PNG over refuseAboveBytes without reading its bytes (same error text)', async () => {
+    const big = 48_563_050
+    const { clipboard, arrayBuffer } = sizedItem(big)
+    await expect(readClipboardPng(clipboard, { refuseAboveBytes: CLIPBOARD_IMAGE_EARLY_REFUSE_BYTES }))
+      .rejects.toThrow(`Image too large (${big} > ${MAX_IMAGE_SIZE} bytes)`)
+    expect(arrayBuffer).not.toHaveBeenCalled()
+  })
+
+  it('T0895: the early refusal is a ClipboardImageTooLargeError carrying the clipboard size (message unchanged)', async () => {
+    const big = 70 * 1024 * 1024
+    const { clipboard, arrayBuffer } = sizedItem(big)
+    const error = await readClipboardPng(clipboard, { refuseAboveBytes: CLIPBOARD_IMAGE_EARLY_REFUSE_BYTES }).catch(e => e)
+    expect(error).toBeInstanceOf(ClipboardImageTooLargeError)
+    expect(error).toBeInstanceOf(Error)
+    expect(error.size).toBe(big)
+    expect(error.message).toBe(`Image too large (${big} > ${MAX_IMAGE_SIZE} bytes)`)
+    expect(arrayBuffer).not.toHaveBeenCalled()
+    // clipboardImageToDataUrl's re-encoded check keeps its plain Error.
+    let reEncoded: unknown
+    try {
+      clipboardImageToDataUrl({ isEmpty: () => false, toPNG: () => Buffer.alloc(MAX_IMAGE_SIZE + 1) })
+    } catch (e) {
+      reEncoded = e
+    }
+    expect(reEncoded).toBeInstanceOf(Error)
+    expect(reEncoded).not.toBeInstanceOf(ClipboardImageTooLargeError)
+  })
+
+  it('T0893: at / under the threshold, and without the option, the bytes are read as before', async () => {
+    for (const size of [CLIPBOARD_IMAGE_EARLY_REFUSE_BYTES, MAX_IMAGE_SIZE + 1, 10]) {
+      const { clipboard, arrayBuffer } = sizedItem(size)
+      await expect(readClipboardPng(clipboard, { refuseAboveBytes: CLIPBOARD_IMAGE_EARLY_REFUSE_BYTES })).resolves.toBeInstanceOf(Buffer)
+      expect(arrayBuffer).toHaveBeenCalledTimes(1)
+    }
+    // clipboard:saveImage passes no option: no early refusal, whatever the size.
+    const { clipboard, arrayBuffer } = sizedItem(60 * 1024 * 1024)
+    await expect(readClipboardPng(clipboard)).resolves.toBeInstanceOf(Buffer)
+    expect(arrayBuffer).toHaveBeenCalledTimes(1)
+  })
+
+  it('T0893: an early refusal still rejects only for a real image (text-only / vanished → null)', async () => {
+    const opts = { refuseAboveBytes: CLIPBOARD_IMAGE_EARLY_REFUSE_BYTES }
+    await expect(readClipboardPng(clipboardWith([{ 'text/plain': new Blob(['hi']) }]), opts)).resolves.toBeNull()
+    const vanished = { types: ['image/png'], getType: vi.fn(async () => { throw new Error('gone') }) }
+    await expect(readClipboardPng({ read: async () => [vanished] }, opts)).resolves.toBeNull()
+  })
+
+  it('T0893: hasClipboardImage answers from MIME types only — getType (the image bytes) is never called', async () => {
+    const withImage = clipboardWith([{ 'text/plain': new Blob(['x']) }, { 'image/png': new Blob(['png']) }])
+    await expect(hasClipboardImage(withImage)).resolves.toBe(true)
+    for (const item of withImage.items) expect(item.getType).not.toHaveBeenCalled()
+    const { clipboard, item, arrayBuffer } = sizedItem(50_913_361)
+    await expect(hasClipboardImage(clipboard)).resolves.toBe(true)
+    expect(item.getType).not.toHaveBeenCalled()
+    expect(arrayBuffer).not.toHaveBeenCalled()
+    await expect(hasClipboardImage(clipboardWith([{ 'text/plain': new Blob(['hi']) }]))).resolves.toBe(false)
+    await expect(hasClipboardImage(clipboardWith([]))).resolves.toBe(false)
+    // Same type readClipboardPng reads: other image types do not count.
+    await expect(hasClipboardImage(clipboardWith([{ 'image/jpeg': new Blob(['j']) }]))).resolves.toBe(false)
+  })
+
+  it('T0893: a read() failure propagates (the renderer falls back to navigator.clipboard.read())', async () => {
+    await expect(hasClipboardImage({ read: async () => { throw new Error('clipboard busy') } })).rejects.toThrow('clipboard busy')
+  })
+
   it('readSelectedAttachments: images read locally (outside any workspace), files by path, unreadable skipped', async () => {
     const result = await readSelectedAttachments([
       path.join(tmp, 'pic.png'),
@@ -158,13 +237,26 @@ describe('local-only channels (no proxy, no handler registry, no renderer path)'
     const body = registerLocalHandlersBody()
     expect(body).toMatch(/ipcMain\.handle\('dialog:select-attachments', async \(event\) =>/)
     expect(body).toMatch(/ipcMain\.handle\('clipboard:read-image-data-url', \(\) =>/)
+    expect(body).toMatch(/ipcMain\.handle\('clipboard:has-image', \(\) => hasClipboardImage\(clipboard\)\)/)
+  })
+
+  it('T0893: read-image-data-url refuses early at CLIPBOARD_IMAGE_EARLY_REFUSE_BYTES; saveImage keeps no option; T0895: upload-client passes its own', () => {
+    const body = registerLocalHandlersBody()
+    expect(body).toContain("ipcMain.handle('clipboard:read-image-data-url', () => readClipboardImage({ refuseAboveBytes: CLIPBOARD_IMAGE_EARLY_REFUSE_BYTES }).then(clipboardImageToDataUrl))")
+    expect(body).toMatch(/const image = await readClipboardImage\(\)\r?\n/)
+    // T0895: the options upload-client passes (CLIPBOARD_UPLOAD_EARLY_REFUSE_BYTES) reach readClipboardPng.
+    expect(mainSource).toContain('readClipboardPng: options => readClipboardPng(clipboard, options),')
+  })
+
+  it('T0893: clipboard:has-image is not a helper channel', () => {
+    expect(Object.prototype.hasOwnProperty.call(HELPER_CHANNEL_ROLES, 'clipboard:has-image')).toBe(false)
   })
 
   it('T0784: main uses the Electron 44+ clipboard API (no readImage / writeImage / read(format))', () => {
     const body = registerLocalHandlersBody()
     expect(mainSource).not.toMatch(/clipboard\.(readImage|writeImage|readHTML|readBuffer|availableFormats)\(/)
     expect(mainSource).not.toMatch(/clipboard\.read\(['"`]/)
-    expect(body).toContain('const png = await readClipboardPng(clipboard)')
+    expect(body).toContain('const png = await readClipboardPng(clipboard, options)')
     expect(body).toContain("await clipboard.write([new ClipboardItem({ 'image/png': new Blob([new Uint8Array(image.toPNG())], { type: 'image/png' }) })])")
   })
 
@@ -189,6 +281,7 @@ describe('local-only channels (no proxy, no handler registry, no renderer path)'
   it('preload invokes them without arguments', () => {
     expect(preloadSource).toContain("ipcRenderer.invoke('dialog:select-attachments') as")
     expect(preloadSource).toContain("ipcRenderer.invoke('clipboard:read-image-data-url') as")
+    expect(preloadSource).toContain("ipcRenderer.invoke('clipboard:has-image') as Promise<boolean>")
   })
 
   it('Claude / Codex panels no longer read attachments by path', () => {
