@@ -4,13 +4,14 @@ schema_kind: workorder
 id: T0914
 title: "合併 T0913（W8 整合驗收的測試）→ `v0.8.x`（已含 T0912 文件），跑完整驗收"
 type: chore
-status: PENDING
+status: IN_PROGRESS
 repo: better-agent-terminal
 project: PLAN-068
 priority: P1
 sizing: S
 created_at: "2026-11-25T07:01:19+08:00"
-updated_at: "2026-11-25T07:01:19+08:00"
+started_at: "2026-11-25T07:01:52+08:00"
+updated_at: "2026-11-25T07:01:52+08:00"
 target_version: "0.8.x（與 CT 6.1.0 同日發佈）"
 kind: merge
 merges:
