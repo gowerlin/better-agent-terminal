@@ -3,11 +3,11 @@ schema_version: 1
 schema_kind: bug
 id: BUG-216
 title: "終端 Ctrl+V 遇到大型剪貼簿圖片（數十 MB PNG）：主行程先讀出整張圖才比 10 MiB 上限，事件迴圈卡約 3 s；退回路徑兩步都失敗時 Ctrl+V 無聲失效；錯誤記成 `{}`"
-status: FIXING
+status: FIXED
 severity: low
 reproducibility: "observed（`v0.8.0-pre.1` 實機 3 次：2026-11-24 16:43:15、17:49:40、17:49:44 (UTC+8)；剪貼簿 PNG 50.9 MB / 36.5 MB）"
 created_at: "2026-11-25T00:38:23+08:00"
-updated_at: "2026-11-25T00:38:23+08:00"
+updated_at: "2026-11-25T00:54:50+08:00"
 impact:
   - terminal
   - clipboard
@@ -22,7 +22,7 @@ links:
 |------|------|
 | 嚴重度 | 🟢 low（只在剪貼簿有數十 MB 的圖時發生；不會當掉，記憶體會回落） |
 | 可重現 | 觀察到 3 次（T0892），未刻意重現 |
-| **狀態** | 🔧 FIXING |
+| **狀態** | ✅ FIXED（T0893 `43d290c9`，分支 `ct/T0893`，待合併工單併進 `v0.8.x`、`0.8.0-pre.2` 發佈後在 BAT 實機驗收 Ctrl+V） |
 | 回報者 | 塔台（T0892 日誌檢查） |
 | 影響版本 | 既有程式（`v0.8.x` 沒改相關檔案），不是 `v0.8.x` 回歸 |
 

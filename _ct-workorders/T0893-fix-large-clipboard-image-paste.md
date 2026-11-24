@@ -4,13 +4,13 @@ schema_kind: workorder
 id: T0893
 title: "修正 BUG-216（在 `v0.8.x`）：大型剪貼簿圖片的 Ctrl+V —— 不先讀整張圖就判斷上限、退回路徑失敗時提示使用者、錯誤日誌記原因"
 type: implementation
-status: FIXED
+status: DONE
 repo: better-agent-terminal
 project: maintenance
 priority: P2
 sizing: S
 created_at: "2026-11-25T00:39:51+08:00"
-updated_at: "2026-11-25T00:54:19+08:00"
+updated_at: "2026-11-25T00:54:50+08:00"
 started_at: "2026-11-25T00:41:37+08:00"
 completed_at: "2026-11-25T00:54:19+08:00"
 session_ids:
@@ -220,3 +220,10 @@ T0892 在 `v0.8.0-pre.1` 日誌看到（詳見 `_ct-workorders/BUG-216-large-cli
 
 ### 回報時間
 2026-11-25T00:53:13+0800
+
+## 塔台收尾補記
+
+- 2026-11-25T00:54:50+08:00：工單狀態 FIXED → **DONE**（L177：工單用 DONE，FIXED 是 BUG 的狀態）。驗收條件全部達成；Worker 寫的「待實機驗收」屬 BUG-216 的發佈後驗收，記在 BUG 單，不影響本單。
+- 收單核對 PASS：`ct/T0893` `43d290c9` = `validated_sha`；`bcb4bbe0..43d290c9` 12 個檔案都在 `affects_files`（含塔台答覆加入的兩個）；worktree 乾淨；`git merge-tree --write-tree v0.8.x ct/T0893` 無衝突。
+- 合併：`v0.8.x` 已因 T0894（`2b49e5a5`）前進且含產品檔，不符直接合併判準第 1 條 → 不 fast-forward；等 T0891 完成後由合併工單（模式 ②）一起 `--no-ff` 合進 `v0.8.x` 並跑完整驗收（D319）。
+- 文件補充（〈文件補充建議〉兩點）與 `upload-client.ts` 早退（〈建議後續〉）：前者併入合併工單，後者記候選、未開單。

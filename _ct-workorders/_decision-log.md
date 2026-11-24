@@ -10,6 +10,7 @@
 
 | ID | 日期 | 標題 | 相關工單 |
 |----|------|------|---------|
+| D319 | 2026-11-25 | `ct/T0893` 不直接合併（`v0.8.x` 已因 T0894 前進且含產品檔）：等 T0891 完成，派一張合併工單（模式 ②）把 `ct/T0893`、`ct/T0891` `--no-ff` 併進 `v0.8.x`、補三張工單的文件、跑完整驗收 | T0893 / T0891 / T0894 |
 | D318 | 2026-11-25 | BUG-216 / BUG-217 一起修、放進 `0.8.0-pre.2`：T0893 / T0894 在 `v0.8.x` 隔離派工，與 T0891 並行（不碰 CLAUDE.md / docs / lock，文件由塔台合併後補） | T0893 / T0894 / BUG-216 / BUG-217 |
 | D317 | 2026-11-25 | 內嵌 Claude CLI / Agent SDK / Codex 一張工單追 latest（T0891，在 `v0.8.x`）；另開唯讀日誌檢查 T0892，兩張並行 | T0891 / T0892 |
 | D316 | 2026-11-24 | 決策日誌收斂：D001～D185 搬到 `_archive/decisions/_decision-log-D001-D185.md`（🔴 / 危害相關 9 筆留在熱檔） | — |
@@ -248,6 +249,15 @@
   4. PLAN-001 保持延後（🟢 Low，等 plugin 1.0 穩定）
 - **Success criteria**（EXP→CONCLUDED）：npm install 無錯 / 所有 native modules rebuild 成功 / dev+build:dir 可跑 / 手動 smoke test 8 項通過
 - **最大風險**：`whisper-node-addon@1.0.2` 對 Electron 41（Node 24）的 NODE_MODULE_VERSION 相容性未知，允許 Worker 遇此決策點主動問塔台
+
+---
+
+### D319 2026-11-25 00:54 — T0893 / T0891 以合併工單併進 `v0.8.x`
+
+- **背景**：T0894 已 fast-forward 進 `v0.8.x`（`2b49e5a5`）。`ct/T0893`（`43d290c9`）與 T0891 都從 `bcb4bbe0` 開出，`v0.8.x` 已多了產品檔，不符 `merge-workorder.md` § 塔台直接合併判準 第 1 條（只容許 `_ct-workorders/**` 前進）。`git merge-tree --write-tree v0.8.x ct/T0893` 無衝突。
+- **決定**：不逐張派合併單；等 T0891 完成，派**一張**合併工單（模式 ②，整合 worktree `.ct-integration/better-agent-terminal`）：依序 `--no-ff` 合併 `ct/T0893`、`ct/T0891` 進以 `v0.8.x` 為 base 的合併分支，補 T0893 / T0894 回報區的文件文字（CLAUDE.md、`docs/agent-guide/ct-tower-overview.md`），跑一次完整驗收（`test:unit`、`test:legacy`、`vite build`、兩個 typecheck、codex e2e t0592 / t0621）；全綠且無範圍外檔案 → 塔台 `--ff-only` 更新 `v0.8.x`。一次驗收涵蓋三張工單的合併結果，也是 `0.8.0-pre.2` 發版前的聯合驗證。
+- **附註**：T0894 當時以 fast-forward 直接更新 `v0.8.x`（`behind == 0`，沿用 T0889 的做法），沒有經整合 worktree `--no-ff`；結果等價，之後的 `v0.8.x` 合併照 `merge-workorder.md`。
+- **相關**：D307 / D318 / `merge-workorder.md`
 
 ---
 
