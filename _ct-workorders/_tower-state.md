@@ -39,6 +39,8 @@ todo:
 > 01:11 D323 開 PLAN-067（每週日誌清查，開工逾期 ≥ 7 天提示；`_local-rules.md` 新規則；下次到期 2026-12-02）。
 > 01:14 T0896 收單 DONE（模式 ②）：`ct-merge/T0896` 兩次 `--no-ff` 無衝突（`7bedb686` T0895、`9115aa7b` T0891）＋文件 `7094b993`；完整驗收全綠（test:unit 第 2 次 8490 passed（第 1 次 7 檔逾時 = BUG-218）、legacy 472、build / typecheck 0 / 0、verify-native / helpers、內嵌 claude 2.1.331 / codex 0.172.0、e2e t0621 / t0592 一次過）；範圍外檔案無；SHA 比對 1–4 PASS → yolo 自動 **`v0.8.x` ff `2b49e5a5..7094b993`**；整合 worktree detach；worktree `T0891` / `T0893` / `T0894` / `T0895` 移除（分支保留待使用者同意刪）；session 快照已寫；`--close-worker T0896` exit 0。建 `ct/T0897` / `ct/T0898` @ `7094b993`。01:15 派出 T0897 / T0898（皆 exit 0、`started:`）。
 > [提問] 01:1x T0897 Q-1–Q-3（`--answer` exit 0 ×3，塔台範圍內裁決，皆同 Worker 建議）：Q-1 B（`usage limit · contact your admin to increase it` → claude-blocked / non-timed）；Q-2 A（`Usage is paused for your organization` 不加，每日上限可能隔天恢復，列觀察）；Q-3 A（`usage credit limit` 停止句 CLI 不會印，不加）。
+> 01:3x CT 通知 HANDOVER 完成（CT 6.0.1 發佈，D856），handover 補紀錄 `ae367650`；以 `check-frontmatter.py` 掃熱區 479 檔：0 個跳脫問題，34 檔只是沒有 frontmatter（舊 spec / 報告）。
+> 01:36 T0898 收單 DONE：`ct/T0898` `98bd9e96`（4 檔：`vite.config.ts` `test.globalSetup`、新 globalSetup 與其測試、`bat-mcp-codex-env.test.ts`；worktree 乾淨、`v0.8.x` 未前進）。根因：Electron 42+ 第一次 `require('electron')` 同步下載 binary，11 檔同時下載各 22–25 s；另修 codex 0.172 `app-server` 的 `git ls-remote` 造成 `EPERM`（`-c features.plugins=false`）。全新狀態 3 次第一次 test:unit 全綠（8495）、legacy 472、build 產物 97 檔 sha256 不變。BUG-218 FIXED；session 快照已寫；`--close-worker T0898 --worktree keep` exit 0。待合併工單補 CLAUDE.md「Frontend unit tests」一句（T0898 回報區）。
 >
 > 🛏 **第一百二十九 session 收工**（2026-11-24 03:50 (UTC+8)）。
 
