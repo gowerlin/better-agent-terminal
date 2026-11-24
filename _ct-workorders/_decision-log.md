@@ -10,6 +10,7 @@
 
 | ID | 日期 | 標題 | 相關工單 |
 |----|------|------|---------|
+| D335 | 2026-11-25 | PLAN-068 實作完成（W0–W9 合併進 `v0.8.x` `d637350b`）；BAT 版號定為 `0.8.0-pre.3`（README 對照表填入）；push 並以 `desktop-build.yml` 出測試版給使用者與 CT 實機驗收，正式發佈與 CT 6.1.0 同日 | PLAN-068 / T0903–T0914 |
 | D334 | 2026-11-25 | T0907 合併 W1–W3（`v0.8.x` `eaa8b238..677860a4`）；開 W5 = T0908、W6 = T0909、W9 = T0910 三張平行；遠端「📨 待送」proxied 併入 W5 | T0907–T0910 |
 | D333 | 2026-11-25 | T0903（W0）PARTIAL→DONE 並直接合併 `v0.8.x` `d6b9ce86`；開 T0904（W1＋W2 合併，同改 `TerminalPanel.tsx`）、T0905（W3）、T0906（W4）三張平行 | T0903–T0906 |
 | D332 | 2026-11-25 | CT 核定契約 v2（CT D868）→ 開 PLAN-068 W0 = T0903（版本閘門，最先）；W1–W4 等 W0 合併後從新 `v0.8.x` 平行開；裁定 `--set-role` 不帶參數時不輸出 `bat-contract:` 行（以 R11 為準） | T0903 / PLAN-068 |
@@ -264,6 +265,15 @@
   4. PLAN-001 保持延後（🟢 Low，等 plugin 1.0 穩定）
 - **Success criteria**（EXP→CONCLUDED）：npm install 無錯 / 所有 native modules rebuild 成功 / dev+build:dir 可跑 / 手動 smoke test 8 項通過
 - **最大風險**：`whisper-node-addon@1.0.2` 對 Electron 41（Node 24）的 NODE_MODULE_VERSION 相容性未知，允許 Worker 遇此決策點主動問塔台
+
+---
+
+### D335 2026-11-25 07:12 — PLAN-068 實作完成，版號 `0.8.0-pre.3`，出測試版
+
+- **進度**：W0（T0903）、W1＋W2（T0904）、W3（T0905）、W4（T0906）、W5（T0908）、W6（T0909）、W9（T0910）、W7 文件（T0912）、W8 整合驗收（T0913，無產品缺陷）全部合併進 `v0.8.x`（合併工單 T0907 / T0911 / T0914）；README 版本對照表三處「待定」填 `>= 0.8.0-pre.3`（塔台直接改文件，`d637350b`）。
+- **使用者裁示**：版號 `0.8.0-pre.3`（延續 D315 的 `0.8.0-pre.N` 線；同版也含 T0900 / BUG-219 測試修正）；push 並出測試版給使用者與 CT 實機驗收。
+- **決定**：去識別 / 金鑰掃描後 push `main` 與 `v0.8.x`，`gh workflow run desktop-build.yml -R gowerlin/better-agent-terminal -f ref=v0.8.x`（只 build、不發佈，artifact 7 天）；完成後通知 CT：實際最低版號 `0.8.0-pre.3`、測試版下載位置、T0913〈待實機清單〉M-C1–C7（M-C6 新 CT＋舊 BAT 降級請 CT 確認其處理）。使用者自己的實機項目 M-U1–U8、遠端 M-R1–R2。正式 `0.8.0-pre.3` 預覽版與 CT 6.1.0 同日發佈（D330）。
+- **相關**：D326–D334 / T0913
 
 ---
 

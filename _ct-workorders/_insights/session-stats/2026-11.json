@@ -1,5 +1,5 @@
 {
- "generated_at": "2026-11-25T07:01:18+08:00",
+ "generated_at": "2026-11-25T07:11:52+08:00",
  "generator": {
   "script": "ct-session-stats.py",
   "version": "0.2.0"
@@ -88,13 +88,13 @@
    "output": 41063
   },
   "2026-11-24": {
-   "api_requests": 340,
-   "cache_read": 179574760,
-   "cache_write": 808282,
-   "cache_write_1h": 808282,
+   "api_requests": 354,
+   "cache_read": 192179185,
+   "cache_write": 849479,
+   "cache_write_1h": 849479,
    "cache_write_5m": 0,
-   "input": 764,
-   "output": 349252
+   "input": 794,
+   "output": 372119
   }
  },
  "workorders": [
@@ -11732,6 +11732,92 @@
     "2.1.329"
    ],
    "workorder": "T0913"
+  },
+  {
+   "agents_invoked": {},
+   "attribution": {
+    "conflict": false,
+    "source": "frontmatter",
+    "sources": {
+     "frontmatter": 1
+    }
+   },
+   "by_mcp_server": {},
+   "by_tool": {
+    "Bash": 22,
+    "Edit": 3,
+    "Grep": 1,
+    "PowerShell": 2,
+    "Read": 2,
+    "ToolSearch": 1
+   },
+   "counts": {
+    "api_requests": 31,
+    "failures": 0,
+    "same_file_read_ge3": 0,
+    "subagent_files": 0,
+    "tool_calls": 31
+   },
+   "end": "2026-11-24T23:07:05Z",
+   "est_usd": 2.4459,
+   "failures_by_tool": {},
+   "renews": 0,
+   "sessions": 1,
+   "skills_invoked": {
+    "ct-exec": 1
+   },
+   "start": "2026-11-24T23:01:49Z",
+   "stuck": {
+    "max_consecutive_failures": 0,
+    "max_failures_in_10_calls": 0,
+    "near_repeat_fail_pairs_j50": 0,
+    "repeat_fail_groups_norm": 0
+   },
+   "stuck_signal": false,
+   "subagent_tokens": {
+    "cache_read": 0,
+    "cache_write": 0,
+    "cache_write_1h": 0,
+    "cache_write_5m": 0,
+    "input": 0,
+    "output": 0
+   },
+   "tokens": {
+    "cache_read": 5077494,
+    "cache_write": 148196,
+    "cache_write_1h": 148196,
+    "cache_write_5m": 0,
+    "input": 70,
+    "output": 12230
+   },
+   "top_tools": [
+    [
+     "Bash",
+     22
+    ],
+    [
+     "Edit",
+     3
+    ],
+    [
+     "PowerShell",
+     2
+    ],
+    [
+     "Read",
+     2
+    ],
+    [
+     "Grep",
+     1
+    ]
+   ],
+   "type": "chore",
+   "unpriced_tokens": 0,
+   "versions": [
+    "2.1.329"
+   ],
+   "workorder": "T0914"
   }
  ]
 }
