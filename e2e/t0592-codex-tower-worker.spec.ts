@@ -26,7 +26,11 @@
 //      / `[bat-mcp] dispatch agent=codex-cli … injected` without claude hooks
 //   4. codex `command/exec` children see BAT_REMOTE_PORT / BAT_REMOTE_TOKEN / BAT_TERMINAL_ID /
 //      BAT_TOWER_TERMINAL_ID / BAT_HELPER_DIR (names only, never the token value), and the
-//      Worker's `bat-notify --submit` through codex reaches the Tower (pre-fill in its PTY)
+//      Worker's `bat-notify --submit` through codex reaches the Tower (pre-fill in its PTY).
+//      T0897: the Worker sends it once the Tower's pwsh wrote its own marker after `codex …`
+//      returned (pwsh back in the foreground), not when the fake codex's result file appears: a
+//      fake codex still alive after its result file (cleanup retries on locked files) held the
+//      pre-fill back past the 20 s check (the intermittent failure T0891 saw)
 //   5. (in 1 and 2) T0590 leaves codex alone: blockedDetection none
 //
 // Skipped when the bundled codex is absent. Run it whenever the bundled codex is upgraded.
@@ -195,8 +199,10 @@ const call = (method, params) => new Promise(resolve => {
   child.kill()
   await exited
   results.push({ kind: 'codex-stderr', openaiHost: /api\\.openai\\.com|chatgpt\\.com\\/backend-api\\/codex/.test(stderr), errorLines: stderr.split('\\n').filter(l => /ERROR/.test(l)).map(l => l.replace(/\\x1b\\[[0-9;]*m/g, '').slice(0, 300)) })
-  write(sub(spec.out), results)
+  // T0897: clean up first, so the result file is the last thing written before this process exits
+  // (the rmSync retries alone can take ~21 s while the just-killed codex's files stay locked)
   try { fs.rmSync(home, { recursive: true, force: true, maxRetries: 20, retryDelay: 100 }) } catch {}
+  write(sub(spec.out), results)
 })()
 `
 
@@ -248,6 +254,8 @@ async function scenario(label: string, shellSetting: string | undefined): Promis
   const workerSpec = slash(path.join(tmp, 'worker-spec.json'))
   const towerSpec = slash(path.join(tmp, 'tower-spec.json'))
   const towerOut = slash(path.join(tmp, 'tower-result.json'))
+  /** Written by the Tower tab's pwsh itself once its `codex …` command returned (T0897). */
+  const towerPrompt = slash(path.join(tmp, 'tower-prompt.txt'))
   fs.writeFileSync(envProbe, ENV_PROBE)
   fs.writeFileSync(helperRun, HELPER_RUN)
   fs.writeFileSync(path.join(tmp, 'fake-codex.cjs'), FAKE_CODEX({ codex: CODEX!, tmp: slash(tmp), workerSpec }))
@@ -275,8 +283,11 @@ async function scenario(label: string, shellSetting: string | undefined): Promis
       { kind: 'tool', name: 'bat_get_state' },
       { kind: 'exec', argv: [envProbe] },
       { kind: 'exec', argv: [envProbe, 'net'] },
-      // the Tower's codex session must be over (its pwsh back at the prompt) before the pre-fill
-      { kind: 'waitFile', file: towerOut, timeoutMs: 120_000 },
+      // the Tower's codex session must be over (its pwsh back at the prompt) before the pre-fill.
+      // T0897: wait for the marker the Tower's pwsh writes after `codex …` returned, not for the
+      // fake codex's result file — while that process is still alive in the foreground, the pre-fill
+      // only reaches pwsh (and the tab's screen) once it exits, which could outlast the 20 s below
+      { kind: 'waitFile', file: towerPrompt, timeoutMs: 120_000 },
       { kind: 'sleep', ms: 2_000 },
       { kind: 'exec', sandbox: full, argv: [helperRun, 'bat-notify.mjs', '--source', WORKORDER, '--target', '$BAT_TOWER_TERMINAL_ID', '--submit', NOTIFY_TEXT] },
     ],
@@ -326,7 +337,7 @@ async function scenario(label: string, shellSetting: string | undefined): Promis
     const mcpArgs = await win.evaluate((extra) => (window as AnyApi).electronAPI.agent.batMcpLaunchArgs('codex-cli', 'pwsh', extra), WORKSPACE_CODEX_ARGS) as string
     log(`codex MCP args (pwsh): ${mcpArgs}`)
     expect(mcpArgs).toContain('mcp_servers.bat.env_vars=')
-    await typeIn(win, TOWER, `$env:T0592_SPEC='${towerSpec}'; codex ${mcpArgs} ${WORKSPACE_CODEX_ARGS}`)
+    await typeIn(win, TOWER, `$env:T0592_SPEC='${towerSpec}'; codex ${mcpArgs} ${WORKSPACE_CODEX_ARGS}; Set-Content -LiteralPath '${towerPrompt}' -Value done`)
     await expect.poll(() => fs.existsSync(towerOut), { timeout: 150_000 }).toBe(true)
     const tower = readJson<Step[]>(towerOut)!
     log(`tower: ${redact(tower).slice(0, 6000)}`)
@@ -381,10 +392,23 @@ async function scenario(label: string, shellSetting: string | undefined): Promis
     expect(notify.result?.exitCode, redact(notify)).toBe(0)
     expect(JSON.parse(notify.result!.stdout!).stderr).not.toContain('Forbidden')
     expect(workerSteps.at(-1)).toMatchObject({ kind: 'codex-stderr', openaiHost: false })
-    await expect.poll(async () => {
+    try {
+      await expect.poll(async () => {
+        const buffer = await win.evaluate((id) => (window as AnyApi).electronAPI.pty.getBuffer(id), TOWER)
+        return stripAnsi((buffer as { data?: string } | null)?.data ?? '')
+      }, { timeout: 20_000 }).toContain(NOTIFY_TEXT)
+    } catch (error) {
       const buffer = await win.evaluate((id) => (window as AnyApi).electronAPI.pty.getBuffer(id), TOWER)
-      return stripAnsi((buffer as { data?: string } | null)?.data ?? '')
-    }, { timeout: 20_000 }).toContain(NOTIFY_TEXT)
+      const raw = (buffer as { data?: string } | null)?.data ?? ''
+      log(`tower tab output (stripped tail): ${stripAnsi(raw).slice(-3000)}`)
+      log(`tower tab output (raw tail): ${JSON.stringify(raw.slice(-3000))}`)
+      for (const id of [TOWER, worker!]) {
+        const progressFile = path.join(tmp, `progress-${id}.log`)
+        log(`progress ${id}: ${fs.existsSync(progressFile) ? fs.readFileSync(progressFile, 'utf8') : '(none)'}`)
+      }
+      log(`notify: ${redact(notify)}`)
+      throw error
+    }
 
     // ── 3. the dispatch command BAT built for `--agent codex`, as the Worker's shell parsed it ──
     const workerArgv = readJson<string[]>(path.join(tmp, `argv-${worker}.json`))!

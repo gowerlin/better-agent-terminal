@@ -78,6 +78,51 @@ describe('claude limit sentences', () => {
     expect(decide([line])).toMatchObject({ action: 'hint', agent: 'claude', hint: 'non-timed' })
   })
 
+  // T0897: the rest of the spend / credit stops of the 2.1.331 binary (`ui()` and the CLI's own
+  // prefix table `Pxi` / `hal`), present since 2.1.316
+  it.each([
+    "You've hit your channel's monthly spend limit · an org owner or channel manager can raise it in the channel's Claude settings",
+    "You’ve hit your channel’s monthly spend limit · an org owner or channel manager can raise it in the channel’s Claude settings · your 5-hour limit resets 3pm (Asia/Taipei)",
+    "You've hit your channel's monthly spend limit. Switch to another model to continue.",
+    "You've hit your channel's monthly usage limit · an org owner or channel manager can raise it in the channel's Claude settings · resets Dec 1, 9am (Asia/Taipei)",
+    "You've hit your individual spend limit · ask your admin to raise it at https://claude.ai/admin-settings/usage",
+    "You've hit your individual usage limit · resets Dec 1, 9am (Asia/Taipei)",
+    "You've hit your org's monthly spend limit · visit https://claude.ai/admin-settings/usage to raise it · your weekly limit resets Oct 20, 3pm (Asia/Taipei)",
+    "You’ve hit your org’s monthly usage limit",
+    // Q-1: the usage-allocation mode (no reset time, admin raises it)
+    "You've hit your usage limit · contact your admin to increase it",
+    "  ⎿  You’ve hit your usage limit · contact your admin to increase it",
+    "Your seat type doesn't include usage",
+    "Your seat type doesn’t include extra usage",
+    "Your usage allocation has been disabled by your admin · ask your admin for a higher limit",
+    "Your group's usage limit is set to $0 · run /usage-credits to ask your admin for a higher limit",
+    'This service is disabled for your org',
+    "You're out of extra usage",
+  ])('non-timed (T0897): %s', (line) => {
+    expect(classify([line, ...CLAUDE_PROMPT])).toMatchObject({ kind: 'claude-blocked', line: 0 })
+    expect(decide([line, ...CLAUDE_PROMPT])).toMatchObject({ action: 'hint', agent: 'claude', hint: 'non-timed' })
+  })
+
+  it('T0897: a timed limit ending in · out of usage credits keeps its limit kind and reset', () => {
+    const session = classify(["  ⎿  You've hit your 5-hour limit · resets 4pm (Asia/Taipei) · progress saved · out of usage credits", ...CLAUDE_PROMPT])
+    expect(session).toMatchObject({ kind: 'claude-limit', limit: 'session', resetText: '4pm (Asia/Taipei)' })
+    expect((session as { resetsAt: number }).resetsAt).toBe(Date.UTC(2026, 9, 16, 8, 0))
+    expect(decide(["You’ve hit your 5-hour limit · resets 4pm (Asia/Taipei) · out of usage credits"])).toMatchObject({ action: 'hint', hint: 'cli-unavailable' })
+    expect(decide(["You've hit your Fable limit · resets Oct 20, 3pm (Asia/Taipei) · out of usage credits"])).toMatchObject({ action: 'hint', hint: 'weekly' })
+  })
+
+  it('T0897: unchanged — the plain usage limit, the daily pause (Q-2), usage credit limit warnings (Q-3), quoting', () => {
+    expect(classify(["You've hit your usage limit"])).toMatchObject({ kind: 'claude-limit', limit: 'usage', resetsAt: null })
+    expect(classify(['Usage is paused for your organization. For help, please contact support.'])).toEqual({ kind: 'none' })
+    expect(classify(['Approaching usage credit limit'])).toEqual({ kind: 'none' })
+    expect(classify(["You've used 90% of your usage credit limit"])).toEqual({ kind: 'none' })
+    expect(classify(["You're close to your usage credit limit"])).toEqual({ kind: 'none' })
+    expect(classify(['Fast mode disabled · usage credit limit reached'])).toEqual({ kind: 'none' })
+    expect(classify(["The CLI says You've hit your channel's monthly spend limit when the channel cap is used up"])).toEqual({ kind: 'none' })
+    expect(classify(["`You've hit your usage limit · contact your admin to increase it`"])).toEqual({ kind: 'none' })
+    expect(classify(['"Your seat type doesn\'t include usage" is what a seat without credits sees'])).toEqual({ kind: 'none' })
+  })
+
   it.each([
     "You've used 90% of your session limit · resets 3pm (Asia/Taipei)",
     'Approaching weekly limit',
