@@ -39,6 +39,7 @@
 | [terminal-server-recovery.md](terminal-server-recovery.md) | Terminal Server 存活判定（單調時鐘 heartbeat、連續 3 次、程序 + IPC 確認）與 recovery（切斷 / 結束舊 server、generation、孤兒先殺樹） | Terminal Server 存活判定與 recovery（T0704 / BUG-171） |
 | [terminal-wheel-reports.md](terminal-wheel-reports.md) | Codex 分頁在 alt screen + 滑鼠追蹤時依累積行數送多個滾輪回報 | Codex 分頁的滾輪回報（T0698 / BUG-165） |
 | [thumbnail-preview.md](thumbnail-preview.md) | 終端縮圖預覽：T0667 上限、游標換列當成換行 / 原地更新 / 清畫面重新開始、stripAnsi 完整 CSI 語法、ConPTY 對照 | 終端縮圖預覽（T0667 / T0714，BUG-175） |
+| [tower-inbox.md](tower-inbox.md) | 右側欄「待辦」分頁（PLAN-068）：§6′ 版本判定（分頁宣告 × `_tower-state.md` `bat_contract`）、P-1 / P-2 / P-3、標題數字 / `!`、固定區塊、BAT 既有資料區、塔台選擇器、R6、共用目錄監看、遠端 / detached（T0906） | 右側欄「待辦」分頁（PLAN-068 W4 / T0906） |
 | [tower-questions.md](tower-questions.md) | Worker 問塔台（`question:*` channel、記憶體 store、`blocked` / `tower`、`pendingQuestions`） | Worker 問塔台（PLAN-048 / T0607） |
 | [tower-tab-title.md](tower-tab-title.md) | `--set-role tower`、yolo 判定、Tower 標題、BAT ↔ CT 契約 v2 版本閘門（`--bat-contract`、`towerContract`、`CT↑` / `BAT↑`，T0903） | 塔台分頁標題（T0562，D147） |
 | [upgrade-interruption.md](upgrade-interruption.md) | Windows 更新通知的「安裝會結束所有終端」提示；升級後第一次啟動以「上次版本 ≠ 目前版本＋孤兒清理 N ≥ 1」判定、toast 說明 N 個終端被結束（只顯示一次）、agent 分頁列進「被中斷的 agent 分頁」（`cause: 'upgrade'`）；T0820 實測摘要、日誌、已知限制、驗證清單 | 升級結束終端的提示與說明（PLAN-063 / T0821） |

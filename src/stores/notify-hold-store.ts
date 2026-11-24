@@ -16,8 +16,10 @@ const EMPTY: readonly NotifyHoldItem[] = Object.freeze([])
 const held = new Map<string, readonly NotifyHoldItem[]>()
 const listeners = new Set<Listener>()
 let wired = false
+let version = 0
 
 function notify(): void {
+  version++
   for (const listener of listeners) listener()
 }
 
@@ -62,6 +64,11 @@ function subscribe(listener: Listener): () => void {
 
 export function useNotifyHold(id: string): readonly NotifyHoldItem[] {
   return useSyncExternalStore(subscribe, () => getNotifyHold(id), () => EMPTY)
+}
+
+/** T0906: re-renders on any tab's change (the Inbox「Worker 等你」lists every tab of a workspace). */
+export function useNotifyHoldVersion(): number {
+  return useSyncExternalStore(subscribe, () => version, () => 0)
 }
 
 /** Cancels one held notification of tab `id` (`holdId`), or all of them. */

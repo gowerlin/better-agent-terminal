@@ -24,6 +24,12 @@ export interface TowerStateSummary {
   nextIds: Array<{ key: string; value: string }>
   /** `todo`, all items (the view shows the first `TOWER_STATE_TODO_LIMIT`). */
   todo: string[]
+  /**
+   * PLAN-068 W4 / T0906 (T0902 §3.3 / §6′): `bat_contract`, the BAT ↔ CT contract the CT writing this
+   * file speaks. Set only for a whole number ≥ 1; absent (missing, not an integer) = contract v1.
+   * Not tied to `summary_version` (that stays the overview's format).
+   */
+  batContract?: number
 }
 
 export const TOWER_STATE_TODO_LIMIT = 5
@@ -133,7 +139,19 @@ export function parseTowerState(content: string): TowerStateParse {
       if (shown != null && shown.trim() !== '') summary.todo.push(shown)
     }
   }
+  const batContract = fm.bat_contract
+  if (typeof batContract === 'number' && Number.isSafeInteger(batContract) && batContract >= 1) {
+    summary.batContract = batContract
+  }
   return { kind: 'summary', summary }
+}
+
+/**
+ * PLAN-068 W4 / T0906: the `bat_contract` a loaded `_tower-state.md` declares; null = contract v1
+ * (no usable summary, field missing or not a whole number ≥ 1).
+ */
+export function towerStateBatContract(parsed: TowerStateParse | null | undefined): number | null {
+  return parsed?.kind === 'summary' && typeof parsed.summary.batContract === 'number' ? parsed.summary.batContract : null
 }
 
 /** What was last logged about one workspace's `_tower-state.md` summary error (memory only). */

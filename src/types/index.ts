@@ -502,10 +502,12 @@ export const STATUSLINE_ITEMS: StatuslineItemDef[] = [
 
 // Docking system types
 export type DockZone = 'left' | 'main' | 'right'
-export type DockablePanel = 'files' | 'git' | 'git-graph' | 'github' | 'snippets' | 'skills' | 'agents' | 'control-tower'
+// PLAN-068 W4 / T0906: `inbox` = the「待辦」tab, right sidebar by default, before `control-tower`
+// (T0902 §1). A saved docking config without it gets the default (`loadDockingConfig`).
+export type DockablePanel = 'files' | 'git' | 'git-graph' | 'github' | 'snippets' | 'skills' | 'agents' | 'inbox' | 'control-tower'
 export type DockingConfig = Record<DockablePanel, DockZone>
 
-export const DOCKABLE_PANELS: DockablePanel[] = ['files', 'git', 'git-graph', 'github', 'snippets', 'skills', 'agents', 'control-tower']
+export const DOCKABLE_PANELS: DockablePanel[] = ['files', 'git', 'git-graph', 'github', 'snippets', 'skills', 'agents', 'inbox', 'control-tower']
 
 export const DEFAULT_DOCKING_CONFIG: DockingConfig = {
   files: 'main',
@@ -515,5 +517,21 @@ export const DEFAULT_DOCKING_CONFIG: DockingConfig = {
   snippets: 'right',
   skills: 'right',
   agents: 'right',
+  inbox: 'right',
   'control-tower': 'right',
+}
+
+/**
+ * A saved docking config (parsed JSON, any shape) → a full config: every panel the save does not
+ * place in a known zone keeps its default — a save from before a panel existed (T0906: `inbox`)
+ * needs no migration. Used by App's `loadDockingConfig`.
+ */
+export function normalizeDockingConfig(saved: unknown): DockingConfig {
+  const config = { ...DEFAULT_DOCKING_CONFIG }
+  if (!saved || typeof saved !== 'object') return config
+  for (const panel of DOCKABLE_PANELS) {
+    const zone = (saved as Record<string, unknown>)[panel]
+    if (zone === 'left' || zone === 'main' || zone === 'right') config[panel] = zone
+  }
+  return config
 }

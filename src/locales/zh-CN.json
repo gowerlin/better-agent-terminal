@@ -406,6 +406,7 @@
     "snippets": "代码片段",
     "skills": "Skills",
     "agents": "Agents",
+    "inbox": "待办",
     "control-tower": "塔台",
     "maximizePanel": "最大化面板",
     "restoreLayout": "还原版面布局",
@@ -849,6 +850,7 @@
       "nextIds": "下一个编号",
       "todo": "待办",
       "todoMore": "还有 {{count}} 条，请打开文件查看",
+      "todoInInbox": "{{count}} 条 → 在待办标签页查看",
       "fileMtime": "（文件修改时间）",
       "noSummary": "塔台状态文件没有机器可读摘要，待办与编号请打开文件查看。",
       "openOrders": "进行中工单（{{count}}）",
@@ -1744,6 +1746,56 @@
       "reopenTabs": "已打开的其他终端标签页需重新打开，才能看到 ~/.local/bin。",
       "reopenTabsNvm": "已打开的终端标签页要重新打开，才会加载 nvm。",
       "posixShell": "{{shell}} 不是 POSIX shell，安装标签页改用 {{fallback}}。"
+    }
+  },
+  "inbox": {
+    "tower": "塔台：",
+    "towerPicker": "待办标签页显示的塔台",
+    "noTower": "没有已声明的塔台标签页（以 _tower-state.md 判定）",
+    "contractOk": "契约 v{{version}} ✓",
+    "refresh": "重新读取",
+    "loading": "读取中…",
+    "noWorkspace": "打开工作区后才有待办。",
+    "notDetected": "这个工作区没有 Control Tower：找不到 _ct-workorders/，也没有已声明的塔台标签页。",
+    "stateMissing": "找不到 _ct-workorders/_tower-state.md。",
+    "stateError": "_tower-state.md 无法读取：{{error}}",
+    "none": "（无）",
+    "open": "打开",
+    "bugPending": "{{id}} 待验收（{{status}}）",
+    "todoMore": "展开",
+    "todoLess": "收起",
+    "readErrors": "无法读取：{{files}}",
+    "badgeMismatch": "选中的塔台与 BAT ↔ CT 契约 v2 不符，请打开待办标签页查看说明",
+    "badgeCount": "{{count}} 件需要你处理",
+    "gate": {
+      "stateV1": "这个工作区没有已声明的塔台标签页，而 _tower-state.md 是 BAT ↔ CT 契约 v1（没有 bat_contract: {{supported}}），所以待办标签页已停用。请升级到 BMad Control Tower 6.1.0 以上并打开塔台。",
+      "stateBehind": "塔台标签页已声明契约 v{{supported}}，但这个工作区的 _tower-state.md 还是 v1。CT 6.1.0 开工时会先写入；如果一直看到这行，请确认这个工作区的文件夹就是塔台所在的项目，或在塔台执行 *sync。"
+    },
+    "section": {
+      "decide": "⏸ 待你决定",
+      "act": "🙋 待你执行",
+      "remind": "⏰ 到期提醒",
+      "workers": "👷 Worker 等你",
+      "messages": "💬 塔台消息",
+      "todo": "📋 塔台待办"
+    },
+    "worker": {
+      "waiting": "⚠️ {{title}}：等你回应（{{reason}}）",
+      "held": "📨 {{title}}：待发送 {{count}} 条通知",
+      "interrupted": "⏸ {{title}}：被中断（{{agent}}）",
+      "goTo": "切到标签页",
+      "resume": "恢复…",
+      "reason": {
+        "permission": "权限确认",
+        "question": "回答问题",
+        "elicitation": "MCP 输入",
+        "input": "codex 等待输入"
+      }
+    },
+    "counts": {
+      "bugs": "BUG 未结 {{count}}",
+      "plans": "PLAN 进行中 {{count}}",
+      "orders": "工单 {{count}}"
     }
   },
   "towerContract": {

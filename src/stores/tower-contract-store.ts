@@ -27,8 +27,10 @@ type Listener = () => void
 const entries = new Map<string, TowerContractEntry>()
 const hinted = new Set<string>()
 const listeners = new Set<Listener>()
+let version = 0
 
 function notify(): void {
+  version++
   for (const listener of listeners) listener()
 }
 
@@ -95,6 +97,11 @@ function subscribe(listener: Listener): () => void {
 
 export function useTowerContract(id: string): TowerContractEntry | null {
   return useSyncExternalStore(subscribe, () => getTowerContract(id), () => null)
+}
+
+/** T0906: re-renders on any tab's change (the Inbox lists the declared Towers of a workspace). */
+export function useTowerContractVersion(): number {
+  return useSyncExternalStore(subscribe, () => version, () => 0)
 }
 
 /** Tests only. */

@@ -34,9 +34,12 @@ import { resolveControlTowerAgentRuntime, resolveControlTowerWorkOrderCommand } 
 import { isWslWindowsDrivePath, winToWsl } from './utils/wsl-path'
 import { isRemoteNotConnectedError, loadNowOrWhenRemoteConnected, REMOTE_LIMIT_ERROR_CODE, remoteConnectFailureNotice, subscribeRemoteWindowStatus } from './lib/remote-not-connected'
 import type { AppState, EnvVariable, TerminalInstance, DockablePanel, DockZone, DockingConfig } from './types'
-import { DOCKABLE_PANELS, DEFAULT_DOCKING_CONFIG } from './types'
+import { DOCKABLE_PANELS, DEFAULT_DOCKING_CONFIG, normalizeDockingConfig } from './types'
 import { AppNotificationDialog } from './components/AppNotificationDialog'
 import { DetachedWaitingReporter, WaitingTotalBadge } from './components/WorkspaceWaitingBadge'
+import { InboxPanel, InboxTabBadge } from './components/InboxPanel'
+import { InboxDataSource } from './components/inbox/InboxDataSource'
+import { OPEN_DOCK_PANEL_EVENT } from './stores/inbox-store'
 
 // Lazy-loaded panel components for sidebar docking
 const LazyFileTree = lazy(() => import('./components/FileTree').then(m => ({ default: m.FileTree })))
@@ -51,16 +54,7 @@ const DOCKING_CONFIG_KEY = 'better-terminal-docking-config'
 function loadDockingConfig(): DockingConfig {
   try {
     const saved = localStorage.getItem(DOCKING_CONFIG_KEY)
-    if (saved) {
-      const parsed = JSON.parse(saved)
-      const config = { ...DEFAULT_DOCKING_CONFIG }
-      for (const panel of DOCKABLE_PANELS) {
-        if (parsed[panel] === 'left' || parsed[panel] === 'main' || parsed[panel] === 'right') {
-          config[panel] = parsed[panel]
-        }
-      }
-      return config
-    }
+    if (saved) return normalizeDockingConfig(JSON.parse(saved))
   } catch { /* ignore */ }
   return { ...DEFAULT_DOCKING_CONFIG }
 }
@@ -809,6 +803,33 @@ export default function App() {
     }
   }, [detachedWorkspaceId, detachedIds, addRuntimeToast, t])
 
+  // PLAN-068 W4 / T0906: "open this panel" from another one (Inbox → Control Tower Bugs, overview →
+  // Inbox). Shown wherever it is docked; a detached window shows every panel as a workspace tab.
+  useEffect(() => {
+    const onOpen = (e: Event) => {
+      const panel = (e as CustomEvent<{ panel?: unknown }>).detail?.panel
+      if (typeof panel !== 'string' || !DOCKABLE_PANELS.includes(panel as DockablePanel)) return
+      const dockable = panel as DockablePanel
+      const zone = detachedWorkspaceId ? 'main' : dockingConfig[dockable]
+      if (zone === 'right') {
+        handleRightPanelTabChange(dockable)
+      } else if (zone === 'left') {
+        setLeftPanelTab(dockable)
+        setMountedLeftPanels(prev => prev.has(dockable) ? prev : new Set([...prev, dockable]))
+        setPanelSettings(prev => {
+          if (!prev.sidebar.collapsed) return prev
+          const updated = { ...prev, sidebar: { ...prev.sidebar, collapsed: false } }
+          savePanelSettings(updated)
+          return updated
+        })
+      } else {
+        window.dispatchEvent(new CustomEvent('workspace-switch-tab', { detail: { tab: dockable } }))
+      }
+    }
+    window.addEventListener(OPEN_DOCK_PANEL_EVENT, onOpen)
+    return () => window.removeEventListener(OPEN_DOCK_PANEL_EVENT, onOpen)
+  }, [detachedWorkspaceId, dockingConfig, handleRightPanelTabChange])
+
   // PLAN-044 / T0566 (D148): a tab's usage-limit hint, and the automatic continue once the limit
   // reset (+ delay) is due. Only the window holding the tab acts (same rule as --close-worker), so
   // a detached window and its main window never both type into one tab.
@@ -1052,10 +1073,13 @@ export default function App() {
           isVisible={true}
           activeSessionId={state.focusedTerminalId ?? null}
         />
+      case 'inbox':
+        return <InboxPanel workspaceId={activeWorkspace.id} workspaceFolderPath={activeWorkspace.folderPath} />
       case 'control-tower':
         return <LazyControlTowerPanel
           isVisible={true}
           workspaceFolderPath={activeWorkspace.folderPath}
+          workspaceId={activeWorkspace.id}
           onExecWorkOrder={async (workOrderId: string) => {
             const terminal = workspaceStore.addTerminal(activeWorkspace.id)
             const settings = settingsStore.getSettings()
@@ -1151,6 +1175,8 @@ export default function App() {
         </main>
         {/* T0761 (D212): this workspace's ⚠️ summary → the parent window's list */}
         <DetachedWaitingReporter workspace={ws} />
+        {/* PLAN-068 W4 / T0906: the Inbox tab's CT files for this window's workspace */}
+        <InboxDataSource folder={ws.folderPath} />
         {/* PLAN-055 B1 / T0766: this window's tabs interrupted by a Terminal Server recovery */}
         <InterruptedAgentsController />
         {/* T0863: Help › Check for Updates… results for this window; the startup dialog goes to a main window */}
@@ -1179,9 +1205,12 @@ export default function App() {
   const archivedWorkspaces = nonDetachedWorkspaces.filter(w => w.archived)
   // T0761 (D212): still hidden from the list; a row shows only while its window reports a wait
   const detachedListWorkspaces = state.workspaces.filter(w => detachedIds.has(w.id) && !w.archived)
+  // PLAN-068 W4 / T0906: the Inbox tab (and its title badge) follow the active workspace
+  const activeFolderPath = state.workspaces.find(w => w.id === state.activeWorkspaceId)?.folderPath ?? null
 
   return (
     <div className="app">
+      <InboxDataSource folder={activeFolderPath} />
       {/* Left sidebar collapsed bar — always rendered, hidden when expanded */}
       <div className="left-sidebar-collapsed" style={{ display: panelSettings.sidebar.collapsed ? undefined : 'none' }}>
         <button className="left-sidebar-collapsed-btn" onClick={() => { setLeftPanelTab('workspaces'); handleSidebarCollapse(); }} title={t('sidebar.expandSidebar')}>
@@ -1202,7 +1231,7 @@ export default function App() {
             setMountedLeftPanels(prev => prev.has(panel) ? prev : new Set([...prev, panel]))
             handleSidebarCollapse()
           }} title={t(`workspace.${panel}`)}>
-            {panel === 'files' ? '\u{1F4C1}' : panel === 'git' ? '\u{1F500}' : panel === 'git-graph' ? '\u{1F4C8}' : panel === 'github' ? '\u{1F310}' : panel === 'snippets' ? '\u{1F4DD}' : panel === 'skills' ? '\u{26A1}' : panel === 'control-tower' ? '\u{1F5FC}' : '\u{1F916}'}
+            {panel === 'files' ? '\u{1F4C1}' : panel === 'git' ? '\u{1F500}' : panel === 'git-graph' ? '\u{1F4C8}' : panel === 'github' ? '\u{1F310}' : panel === 'snippets' ? '\u{1F4DD}' : panel === 'skills' ? '\u{26A1}' : panel === 'control-tower' ? '\u{1F5FC}' : panel === 'inbox' ? '\u{1F4E5}' : '\u{1F916}'}
           </button>
         ))}
       </div>
@@ -1231,6 +1260,7 @@ export default function App() {
                   }}
                 >
                   {t(`workspace.${panel}`)}
+                  {panel === 'inbox' && <InboxTabBadge workspaceId={state.activeWorkspaceId} workspaceFolderPath={activeFolderPath} />}
                 </button>
               ))}
               <button className="left-sidebar-collapse" onClick={handleSidebarCollapse} title={t('sidebar.collapseSidebar')}>&laquo;</button>
@@ -1382,7 +1412,7 @@ export default function App() {
           <div className="right-sidebar-collapsed" style={{ display: panelSettings.snippetSidebar.collapsed && !previewMarkdownPath ? undefined : 'none' }}>
             {rightDockedPanels.map(panel => (
               <button key={panel} className="right-sidebar-collapsed-btn" onClick={() => handleRightPanelTabChange(panel)} title={t(`workspace.${panel}`)}>
-                {panel === 'snippets' ? '\u{1F4DD}' : panel === 'skills' ? '\u{26A1}' : panel === 'agents' ? '\u{1F916}' : panel === 'files' ? '\u{1F4C1}' : panel === 'git' ? '\u{1F500}' : panel === 'git-graph' ? '\u{1F4C8}' : panel === 'control-tower' ? '\u{1F5FC}' : '\u{1F310}'}
+                {panel === 'snippets' ? '\u{1F4DD}' : panel === 'skills' ? '\u{26A1}' : panel === 'agents' ? '\u{1F916}' : panel === 'files' ? '\u{1F4C1}' : panel === 'git' ? '\u{1F500}' : panel === 'git-graph' ? '\u{1F4C8}' : panel === 'control-tower' ? '\u{1F5FC}' : panel === 'inbox' ? '\u{1F4E5}' : '\u{1F310}'}
               </button>
             ))}
           </div>
@@ -1404,6 +1434,7 @@ export default function App() {
                       }}
                     >
                       {t(`workspace.${panel}`)}
+                      {panel === 'inbox' && <InboxTabBadge workspaceId={state.activeWorkspaceId} workspaceFolderPath={activeFolderPath} />}
                     </button>
                   ))}
                   <button className="right-sidebar-collapse" onClick={handleSnippetCollapse} title={t('snippets.collapsePanel')}>&raquo;</button>

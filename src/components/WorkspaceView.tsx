@@ -33,6 +33,9 @@ import { BATCH_CLOSE_RECENT_OUTPUT_MS, isRecentlyPrinting } from '../lib/termina
 // BUG-048: eager-load pending reveal bus so the listener registers before FileTree lazy-mounts
 import '../state/fileTreeRevealBus'
 import { ModalOverlay } from './common/ModalOverlay'
+// PLAN-068 W4 / T0906: the「待辦」tab when docked to the main zone, and in a detached window
+// (static: App already loads it eagerly for the sidebar and the title badge)
+import { InboxPanel } from './InboxPanel'
 
 // Lazy load heavy components (xterm.js, Claude SDK, etc.)
 const MainPanel = lazy(() => import('./MainPanel').then(m => ({ default: m.MainPanel })))
@@ -45,13 +48,13 @@ const SkillsPanel = lazy(() => import('./SkillsPanel').then(m => ({ default: m.S
 const AgentsPanel = lazy(() => import('./AgentsPanel').then(m => ({ default: m.AgentsPanel })))
 const ControlTowerPanel = lazy(() => import('./ControlTowerPanel').then(m => ({ default: m.ControlTowerPanel })))
 
-type WorkspaceTab = 'terminal' | 'files' | 'git' | 'git-graph' | 'github' | 'snippets' | 'skills' | 'agents' | 'control-tower'
+type WorkspaceTab = 'terminal' | 'files' | 'git' | 'git-graph' | 'github' | 'snippets' | 'skills' | 'agents' | 'inbox' | 'control-tower'
 const TAB_KEY = 'better-terminal-workspace-tab'
 
 function loadWorkspaceTab(): WorkspaceTab {
   try {
     const saved = localStorage.getItem(TAB_KEY)
-    if (saved === 'terminal' || saved === 'files' || saved === 'git' || saved === 'git-graph' || saved === 'github' || saved === 'snippets' || saved === 'skills' || saved === 'agents' || saved === 'control-tower') return saved
+    if (saved === 'terminal' || saved === 'files' || saved === 'git' || saved === 'git-graph' || saved === 'github' || saved === 'snippets' || saved === 'skills' || saved === 'agents' || saved === 'inbox' || saved === 'control-tower') return saved
   } catch { /* ignore */ }
   return 'terminal'
 }
@@ -93,7 +96,7 @@ const DEFAULT_SPLIT_RATIO = 0.5
 const MIN_SPLIT_RATIO = 0.2
 const MAX_SPLIT_RATIO = 0.8
 
-type PinnedContentType = 'terminal' | 'files' | 'git' | 'git-graph' | 'github' | 'snippets' | 'skills' | 'agents' | 'control-tower'
+type PinnedContentType = 'terminal' | 'files' | 'git' | 'git-graph' | 'github' | 'snippets' | 'skills' | 'agents' | 'inbox' | 'control-tower'
 
 interface PinnedPane {
   type: PinnedContentType
@@ -272,8 +275,8 @@ export function WorkspaceView({ workspace, terminals, focusedTerminalId, isActiv
     const TABS: WorkspaceTab[] = dockedPanels
       ? ['terminal', ...dockedPanels.filter(p => p !== 'github' || hasGithubRemote)] as WorkspaceTab[]
       : hasGithubRemote
-        ? ['terminal', 'files', 'git', 'github', 'snippets', 'skills', 'agents', 'control-tower']
-        : ['terminal', 'files', 'git', 'snippets', 'skills', 'agents', 'control-tower']
+        ? ['terminal', 'files', 'git', 'github', 'snippets', 'skills', 'agents', 'inbox', 'control-tower']
+        : ['terminal', 'files', 'git', 'snippets', 'skills', 'agents', 'inbox', 'control-tower']
 
     const handleCycleTab = (e: Event) => {
       const { direction } = (e as CustomEvent).detail as { direction: number }
@@ -1277,12 +1280,19 @@ export function WorkspaceView({ workspace, terminals, focusedTerminalId, isActiv
             />
           </div>
         )
+      case 'inbox':
+        return (
+          <div className="workspace-tab-content">
+            <InboxPanel workspaceId={workspace.id} workspaceFolderPath={workspace.folderPath} />
+          </div>
+        )
       case 'control-tower':
         return (
           <div className="workspace-tab-content">
             <ControlTowerPanel
               isVisible={true}
               workspaceFolderPath={workspace.folderPath}
+              workspaceId={workspace.id}
               onExecWorkOrder={handleExecWorkOrder}
               onDoneWorkOrder={handleDoneWorkOrder}
             />
@@ -1312,7 +1322,7 @@ export function WorkspaceView({ workspace, terminals, focusedTerminalId, isActiv
       <div className="workspace-tab-bar">
         {(dockedPanels
           ? ['terminal', ...dockedPanels.filter(p => p !== 'github' || hasGithubRemote)] as PinnedContentType[]
-          : ['terminal', 'files', 'git', ...(hasGithubRemote ? ['github'] : []), 'snippets', 'skills', 'agents', 'control-tower'] as PinnedContentType[]
+          : ['terminal', 'files', 'git', ...(hasGithubRemote ? ['github'] : []), 'snippets', 'skills', 'agents', 'inbox', 'control-tower'] as PinnedContentType[]
         ).map(tab => (
           <button
             key={tab}

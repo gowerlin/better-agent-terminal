@@ -1,0 +1,245 @@
+/**
+ * PLAN-068 W4 / T0906: the right sidebar「待辦」(Inbox) tab — skeleton and version gate (T0902 §1 / §6′).
+ *
+ * Fixed sections: ⏸ 待你決定 · 🙋 待你執行 · ⏰ 到期提醒 · 👷 Worker 等你 · 💬 塔台訊息 · 📋 塔台待辦 · 📊 counts.
+ * W4 fills what BAT already has (pending-verify BUGs in 🙋, Worker waits, CT `todo`, counts); the CT
+ * contract v2 lists (W5) and turn cards (W6) are empty sections with the same interface.
+ *
+ * 🔴 Gated as a whole (D328 R9′, T0906 Q-2): unless the selected Tower matches (§6′), only the Tower
+ * picker and the hint (P-1 / P-2 / P-3) are shown. Read-only: data comes from `InboxDataSource` (the
+ * Control Tower panel's pipeline) and the existing renderer stores; nothing is written anywhere.
+ */
+import { useCallback, useState } from 'react'
+import { useTranslation } from 'react-i18next'
+import { useInboxModel } from './inbox/useInboxModel'
+import { InboxSection } from './inbox/InboxSection'
+import { loadInboxFiles } from './inbox/InboxDataSource'
+import { requestControlTowerTab, setInboxFiles, setSelectedInboxTower } from '../stores/inbox-store'
+import { workspaceStore } from '../stores/workspace-store'
+import { OPEN_INTERRUPTED_AGENTS_EVENT } from '../stores/interrupted-agents-store'
+import {
+  INBOX_FOLDED_STORAGE_KEY,
+  foldTodo,
+  inboxGateCode,
+  inboxGateHint,
+  parseFoldedSections,
+  showsTowerPicker,
+  type InboxSectionId,
+  type WorkerWaitItem,
+} from '../lib/inbox-model'
+import { BAT_CONTRACT_VERSION } from '../lib/tower-contract'
+import '../styles/inbox.css'
+
+interface InboxPanelProps {
+  workspaceId: string | null
+  workspaceFolderPath: string | null
+}
+
+function loadFolded(): Record<InboxSectionId, boolean> {
+  try {
+    return parseFoldedSections(localStorage.getItem(INBOX_FOLDED_STORAGE_KEY))
+  } catch {
+    return parseFoldedSections(null)
+  }
+}
+
+function saveFolded(folded: Record<InboxSectionId, boolean>): void {
+  try {
+    localStorage.setItem(INBOX_FOLDED_STORAGE_KEY, JSON.stringify(folded))
+  } catch { /* a preference only */ }
+}
+
+function focusTerminal(id: string): void {
+  workspaceStore.setFocusedTerminal(id)
+  window.dispatchEvent(new CustomEvent('workspace-switch-tab', { detail: { tab: 'terminal' } }))
+}
+
+export function InboxPanel({ workspaceId, workspaceFolderPath }: Readonly<InboxPanelProps>) {
+  const { t } = useTranslation()
+  const model = useInboxModel(workspaceId, workspaceFolderPath)
+  const [folded, setFolded] = useState(loadFolded)
+  const [openTodos, setOpenTodos] = useState<Set<number>>(() => new Set())
+
+  const toggle = useCallback((id: InboxSectionId) => {
+    setFolded(prev => {
+      const next = { ...prev, [id]: !prev[id] }
+      saveFolded(next)
+      return next
+    })
+  }, [])
+
+  const refresh = useCallback(() => {
+    if (!workspaceFolderPath) return
+    const folder = workspaceFolderPath
+    void window.electronAPI.fs.resetWatch?.(`${folder}/_ct-workorders`)?.catch?.(() => false)
+    void loadInboxFiles(folder).then(next => setInboxFiles(folder, next))
+  }, [workspaceFolderPath])
+
+  if (!workspaceId || !workspaceFolderPath) {
+    return <div className="inbox-panel"><div className="inbox-muted">{t('inbox.noWorkspace')}</div></div>
+  }
+
+  const { towers, tower, verdict } = model
+  const gate = inboxGateHint(verdict)
+  const code = inboxGateCode(verdict)
+
+  const header = (
+    <div className="inbox-header">
+      <span className="inbox-header-label">{t('inbox.tower')}</span>
+      {showsTowerPicker(towers) ? (
+        <select
+          className="inbox-tower-picker"
+          aria-label={t('inbox.towerPicker')}
+          value={tower?.id ?? ''}
+          onChange={e => setSelectedInboxTower(workspaceId, e.target.value || null)}
+        >
+          {towers.map(item => <option key={item.id} value={item.id}>{item.title}</option>)}
+        </select>
+      ) : (
+        <span className="inbox-tower-name" title={tower?.title}>{tower ? tower.title : t('inbox.noTower')}</span>
+      )}
+      <span className={`inbox-contract inbox-contract-${verdict.kind}`} data-inbox-verdict={verdict.kind}>
+        {verdict.kind === 'match' ? t('inbox.contractOk', { version: BAT_CONTRACT_VERSION }) : `⚠️ ${code}`}
+      </span>
+      <button className="ct-refresh-btn inbox-refresh" onClick={refresh} title={t('inbox.refresh')}>↻</button>
+    </div>
+  )
+
+  if (model.loading) {
+    return <div className="inbox-panel">{header}<div className="inbox-muted">{t('inbox.loading')}</div></div>
+  }
+  if (!model.applies) {
+    return <div className="inbox-panel">{header}<div className="inbox-muted" data-inbox-empty="no-ct">{t('inbox.notDetected')}</div></div>
+  }
+
+  const stateNote = model.files.state?.status === 'missing'
+    ? t('inbox.stateMissing')
+    : model.files.state?.status === 'error'
+      ? t('inbox.stateError', { error: model.files.state.error })
+      : null
+
+  if (gate) {
+    return (
+      <div className="inbox-panel">
+        {header}
+        <div className="inbox-gate" data-inbox-gate={code ?? ''}>
+          <div className="inbox-gate-code">{code}</div>
+          <p>{t(gate.key, gate.values)}</p>
+          {stateNote && <p className="inbox-muted">{stateNote}</p>}
+        </div>
+      </div>
+    )
+  }
+
+  const workerLine = (item: WorkerWaitItem) => {
+    switch (item.kind) {
+      case 'waiting':
+        return t('inbox.worker.waiting', { title: item.title, reason: t(`inbox.worker.reason.${item.reason}`) })
+      case 'held':
+        return t('inbox.worker.held', { title: item.title, count: item.count })
+      case 'interrupted':
+        return t('inbox.worker.interrupted', { title: item.title, agent: item.agent })
+    }
+  }
+
+  return (
+    <div className="inbox-panel">
+      {header}
+      <div className="inbox-body">
+        <InboxSection id="decide" title={t('inbox.section.decide')} count={0} folded={folded.decide} onToggle={toggle} />
+
+        <InboxSection id="act" title={t('inbox.section.act')} count={model.pendingBugs.length} folded={folded.act} onToggle={toggle}>
+          <ul className="inbox-list">
+            {model.pendingBugs.map(bug => (
+              <li key={bug.id} className="inbox-item" data-inbox-bug={bug.id}>
+                <span className="inbox-item-source">BUG</span>
+                <span className="inbox-item-text" title={bug.title}>
+                  {t('inbox.bugPending', { id: bug.id, status: bug.status })} {bug.title}
+                </span>
+                <button className="inbox-link" onClick={() => requestControlTowerTab('bugs')}>{t('inbox.open')}</button>
+              </li>
+            ))}
+          </ul>
+        </InboxSection>
+
+        <InboxSection id="remind" title={t('inbox.section.remind')} count={0} folded={folded.remind} onToggle={toggle} />
+
+        <InboxSection id="workers" title={t('inbox.section.workers')} count={model.workerItems.length} folded={folded.workers} onToggle={toggle}>
+          <ul className="inbox-list">
+            {model.workerItems.map(item => (
+              <li key={`${item.kind}:${item.terminalId}`} className="inbox-item" data-inbox-worker={item.kind}>
+                <span className="inbox-item-text">{workerLine(item)}</span>
+                {item.kind === 'interrupted' ? (
+                  <button className="inbox-link" onClick={() => window.dispatchEvent(new CustomEvent(OPEN_INTERRUPTED_AGENTS_EVENT))}>
+                    {t('inbox.worker.resume')}
+                  </button>
+                ) : (
+                  <button className="inbox-link" onClick={() => focusTerminal(item.terminalId)}>{t('inbox.worker.goTo')}</button>
+                )}
+              </li>
+            ))}
+          </ul>
+        </InboxSection>
+
+        <InboxSection id="messages" title={t('inbox.section.messages')} count={0} folded={folded.messages} onToggle={toggle} />
+
+        <InboxSection id="todo" title={t('inbox.section.todo')} count={model.todo.length} folded={folded.todo} onToggle={toggle}>
+          <ol className="inbox-todo">
+            {model.todo.map((text, i) => {
+              const { short, folded: long } = foldTodo(text)
+              const open = openTodos.has(i)
+              return (
+                <li key={i} className="inbox-todo-item">
+                  <span className="inbox-todo-text">{long && !open ? short : text}</span>
+                  {long && (
+                    <button
+                      className="inbox-link"
+                      onClick={() => setOpenTodos(prev => {
+                        const next = new Set(prev)
+                        if (next.has(i)) next.delete(i)
+                        else next.add(i)
+                        return next
+                      })}
+                    >
+                      {open ? t('inbox.todoLess') : t('inbox.todoMore')}
+                    </button>
+                  )}
+                </li>
+              )
+            })}
+          </ol>
+        </InboxSection>
+
+        <div className="inbox-counts" data-inbox-section="counts">
+          <span>📊</span>
+          <button className="inbox-link" onClick={() => requestControlTowerTab('bugs')}>{t('inbox.counts.bugs', { count: model.counts.openBugs })}</button>
+          <span>·</span>
+          <button className="inbox-link" onClick={() => requestControlTowerTab('backlog')}>{t('inbox.counts.plans', { count: model.counts.plansInProgress })}</button>
+          <span>·</span>
+          <button className="inbox-link" onClick={() => requestControlTowerTab('orders')}>{t('inbox.counts.orders', { count: model.counts.openOrders })}</button>
+        </div>
+
+        {model.files.readErrors.length > 0 && (
+          <div className="inbox-muted inbox-read-errors">{t('inbox.readErrors', { files: model.files.readErrors.join(', ') })}</div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+/** The text after the tab name: `!` (version mismatch) or the count; nothing when there is nothing. */
+export function InboxTabBadge({ workspaceId, workspaceFolderPath }: Readonly<InboxPanelProps>) {
+  const { t } = useTranslation()
+  const { badge, verdict } = useInboxModel(workspaceId, workspaceFolderPath)
+  if (!badge) return null
+  const mismatch = verdict.kind !== 'match'
+  return (
+    <span
+      className={`inbox-tab-badge${mismatch ? ' mismatch' : ''}`}
+      data-inbox-badge={badge}
+      title={mismatch ? t('inbox.badgeMismatch') : t('inbox.badgeCount', { count: Number(badge) })}
+    >
+      {badge}
+    </span>
+  )
+}
