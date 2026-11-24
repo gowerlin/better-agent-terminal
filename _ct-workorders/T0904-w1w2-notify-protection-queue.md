@@ -4,13 +4,14 @@ schema_kind: workorder
 id: T0904
 title: "PLAN-068 W1＋W2（在 `v0.8.x`）：送通知的保護 —— B0 通知不搶捲動 / 選取 / 焦點、#23 草稿保護（`draft`）、B 閱讀保護（`reading`）、文字＋Enter 原子送出、回答進同一佇列的基礎；只對契約 v2 塔台"
 type: implementation
-status: PENDING
+status: IN_PROGRESS
 repo: better-agent-terminal
 project: PLAN-068
 priority: P1
 sizing: M
 created_at: "2026-11-25T05:12:00+08:00"
-updated_at: "2026-11-25T05:12:00+08:00"
+updated_at: "2026-11-25T05:11:53+08:00"
+started_at: "2026-11-25T05:11:53+08:00"
 target_version: "0.8.x（與 CT 6.1.0 同日發佈）"
 depends_on: [T0903]
 related:
