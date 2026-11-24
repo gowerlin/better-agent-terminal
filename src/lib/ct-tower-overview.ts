@@ -46,6 +46,37 @@ export function extractLastUpdatedLine(content: string): string | null {
   return null
 }
 
+/** Longest reason text kept from an error that is not a js-yaml `YAMLException`. */
+const ERROR_REASON_MAX_CHARS = 120
+
+/**
+ * T0894 (BUG-217): one line for a YAML load error — js-yaml's `reason` plus the 1-based line and
+ * column of its `mark`. 🔴 Never the `message`'s snippet (it quotes the file's lines) or any other
+ * file content: the result goes to the debug log. `lineOffset` = lines of the file before the parsed
+ * text (1 for a frontmatter block: the opening `---`), so the line is the file's.
+ */
+export function describeYamlError(err: unknown, lineOffset = 0): string {
+  const e = err as { reason?: unknown; mark?: { line?: unknown; column?: unknown } } | null
+  if (e && typeof e === 'object' && typeof e.reason === 'string') {
+    const line = e.mark?.line
+    const column = e.mark?.column
+    const at = typeof line === 'number' && typeof column === 'number'
+      ? ` at line ${line + 1 + lineOffset}, column ${column + 1}`
+      : ''
+    return `YAML parse error: ${e.reason.split(/\r?\n/)[0].slice(0, ERROR_REASON_MAX_CHARS)}${at}`
+  }
+  const message = err instanceof Error ? err.message : String(err)
+  return `YAML parse error: ${message.split(/\r?\n/)[0].slice(0, ERROR_REASON_MAX_CHARS)}`
+}
+
+/** A frontmatter value named in a summary error: short scalars as JSON, anything else by type only. */
+function valueForError(value: unknown): string {
+  if (value === undefined) return 'undefined'
+  if (value === null || typeof value === 'number' || typeof value === 'boolean') return JSON.stringify(value)
+  if (typeof value === 'string' && value.length <= 40) return JSON.stringify(value)
+  return `a ${Array.isArray(value) ? 'list' : typeof value === 'object' ? 'map' : typeof value}`
+}
+
 function scalarText(value: unknown): string | null {
   if (value == null) return null
   if (typeof value === 'string') return value
@@ -74,15 +105,15 @@ export function parseTowerState(content: string): TowerStateParse {
   try {
     data = yaml.load(raw, { schema: yaml.CORE_SCHEMA })
   } catch (err) {
-    return noSummary(`YAML parse error: ${err instanceof Error ? err.message : String(err)}`)
+    return noSummary(describeYamlError(err, 1))
   }
   if (data == null || typeof data !== 'object' || Array.isArray(data)) return noSummary('frontmatter is not a map')
 
   const fm = data as Record<string, unknown>
-  if (fm.schema_kind !== 'tower-state') return noSummary(`schema_kind is ${JSON.stringify(fm.schema_kind)}, not "tower-state"`)
+  if (fm.schema_kind !== 'tower-state') return noSummary(`schema_kind is ${valueForError(fm.schema_kind)}, not "tower-state"`)
   const version = fm.summary_version
   if (typeof version !== 'number' || !Number.isInteger(version) || version < 1) {
-    return noSummary(`summary_version ${JSON.stringify(version)} is not an integer ≥ 1`)
+    return noSummary(`summary_version ${valueForError(version)} is not an integer ≥ 1`)
   }
 
   const summary: TowerStateSummary = { summaryVersion: version, nextIds: [], todo: [] }
@@ -103,6 +134,42 @@ export function parseTowerState(content: string): TowerStateParse {
     }
   }
   return { kind: 'summary', summary }
+}
+
+/** What was last logged about one workspace's `_tower-state.md` summary error (memory only). */
+export interface SummaryErrorLogState {
+  error: string
+  contentHash: string
+}
+
+/** FNV-1a 32-bit over UTF-16 code units, as 8 hex digits — only to notice a changed file. */
+export function contentHash(content: string): string {
+  let hash = 0x811c9dc5
+  for (let i = 0; i < content.length; i++) {
+    hash ^= content.charCodeAt(i)
+    hash = Math.imul(hash, 0x01000193)
+  }
+  return (hash >>> 0).toString(16).padStart(8, '0')
+}
+
+/**
+ * T0894 (BUG-217): whether a reload of `_tower-state.md` logs its summary error. The same error
+ * on the same content is logged once (the `_ct-workorders/` watcher reloads on every change in the
+ * directory); a changed error or changed content logs again, and the first reload without an
+ * error after a logged one logs that it cleared. Lines name the file only, never its content or path.
+ */
+export function towerStateSummaryLog(
+  prev: SummaryErrorLogState | null,
+  content: string,
+  parsed: TowerStateParse,
+): { next: SummaryErrorLogState | null; line: string | null } {
+  const error = parsed.kind === 'no-summary' ? parsed.summaryError : undefined
+  if (!error) {
+    return { next: null, line: prev ? '[ct-overview] _tower-state.md summary error cleared' : null }
+  }
+  const hash = contentHash(content)
+  if (prev && prev.error === error && prev.contentHash === hash) return { next: prev, line: null }
+  return { next: { error, contentHash: hash }, line: `[ct-overview] _tower-state.md summary ignored: ${error}` }
 }
 
 // ─── *config layers ─────────────────────────────────────────────────────────

@@ -172,6 +172,43 @@ describe('TowerOverview — tower state (R1)', () => {
     expect(log).toHaveBeenCalledWith(expect.stringMatching(/^\[ct-overview\] _tower-state\.md summary ignored: YAML parse error/))
   })
 
+  it('T0894 (BUG-217): an unescaped backslash is logged once, on one line, without the file content', async () => {
+    // `\U` in a double-quoted YAML string expects 8 hex digits → js-yaml throws with a snippet
+    const broken = (note: string) =>
+      `---\nschema_kind: tower-state\nsummary_version: 1\nnote: "C:\\Users\\demo\\${note}"\n---\n最後更新：X\n`
+    const { disk, log, touch } = setup({ [`${CT}/_tower-state.md`]: broken('a') }, async () => sourcesWith(null, null))
+    await openOverview()
+    const ctLines = () => log.mock.calls.map(c => String(c[0])).filter(l => l.startsWith('[ct-overview] _tower-state.md'))
+
+    expect(screen.getByText('X')).toBeTruthy() // the screen is unchanged: no summary, last-updated line
+    expect(screen.getByText(ov.noSummary)).toBeTruthy()
+    for (let i = 0; i < 3; i++) await touch() // the watcher reloads on every change in the directory
+    expect(ctLines()).toEqual([
+      '[ct-overview] _tower-state.md summary ignored: YAML parse error: expected hexadecimal character at line 4, column 12',
+    ])
+    for (const line of ctLines()) {
+      expect(line).not.toContain('\n')
+      expect(line).not.toContain('demo')
+      expect(line).not.toContain('schema_kind')
+      expect(line).not.toContain(CT)
+    }
+
+    disk.set(`${CT}/_tower-state.md`, broken('b')) // same error, changed content → logged again
+    await touch()
+    await touch()
+    expect(ctLines()).toHaveLength(2)
+
+    disk.set(`${CT}/_tower-state.md`, SUMMARY) // fixed → one line saying so, then the summary shows
+    await touch()
+    await touch()
+    expect(ctLines()).toEqual([
+      expect.stringContaining('summary ignored'),
+      expect.stringContaining('summary ignored'),
+      '[ct-overview] _tower-state.md summary error cleared',
+    ])
+    expect(screen.getByText('S92')).toBeTruthy()
+  })
+
   it('no _tower-state.md', async () => {
     setup({ [`${CT}/T0001-x.md`]: workOrder('T0001', 'DONE') }, async () => sourcesWith(null, null))
     await openOverview()

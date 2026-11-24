@@ -27,7 +27,7 @@ import { type BmadWorkflow, buildBmadWorkflow, PHASE_DEFINITIONS } from '../type
 import { type BmadEpic, parseEpicsFile, buildSprintStoryMap } from '../types/bmad-epic'
 import { BmadEpicsView } from './BmadEpicsView'
 import { TowerOverview, type TowerStateLoad, type ProjectConfigLoad, type ConfigSourcesLoad } from './TowerOverview'
-import { parseTowerState } from '../lib/ct-tower-overview'
+import { parseTowerState, towerStateSummaryLog, type SummaryErrorLogState } from '../lib/ct-tower-overview'
 import { unsupportedRemoteChannel } from '../lib/remote-unsupported'
 
 type CtTab = 'sprint' | 'orders' | 'kanban' | 'workflow' | 'bugs' | 'backlog' | 'decisions'
@@ -193,6 +193,8 @@ export function ControlTowerPanel({ isVisible, workspaceFolderPath, onExecWorkOr
   const orderLoadSeqRef = useRef(0)
   const appliedOrderLoadSeqRef = useRef(0)
   const sprintStatusRef = useRef<SprintStatus | null>(null)
+  // T0894 (BUG-217): last logged `_tower-state.md` summary error per `_ct-workorders/` dir (memory only)
+  const summaryErrorLogRef = useRef(new Map<string, SummaryErrorLogState>())
   const { messages: toastMessages, addToast, dismissToast } = useCtToast()
   const toastMessagesRef = useRef(toastMessages)
   toastMessagesRef.current = toastMessages
@@ -502,9 +504,11 @@ export function ControlTowerPanel({ isVisible, workspaceFolderPath, onExecWorkOr
     let nextState: TowerStateLoad
     if (stateResult.content != null) {
       const parsed = parseTowerState(stateResult.content)
-      if (parsed.kind === 'no-summary' && parsed.summaryError) {
-        window.electronAPI.debug.log(`[ct-overview] _tower-state.md summary ignored: ${parsed.summaryError}`)
-      }
+      const logged = summaryErrorLogRef.current
+      const { next, line } = towerStateSummaryLog(logged.get(ctDirPath) ?? null, stateResult.content, parsed)
+      if (next) logged.set(ctDirPath, next)
+      else logged.delete(ctDirPath)
+      if (line) window.electronAPI.debug.log(line)
       let mtime: string | null = null
       if (parsed.kind === 'no-summary' && !parsed.lastUpdated) {
         const stat = await window.electronAPI.fs.stat(statePath).catch(() => null)
