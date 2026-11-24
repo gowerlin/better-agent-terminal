@@ -4,13 +4,14 @@ schema_kind: workorder
 id: T0910
 title: "PLAN-068 W9（在 `v0.8.x`）：hook 註冊 —— host 記錄 hooks 啟動決定與原因代號、`--set-role` 的 `hooks:` 行（等 2 s）與 `hooksStatus`、提示與徽章 `🪝✕`、BAT repo 的 marketplace＋`bat-hooks` Claude Code plugin（launcher）、`--hook-list` / `plugin-outdated`、評估 `--plugin-dir`"
 type: implementation
-status: PENDING
+status: IN_PROGRESS
 repo: better-agent-terminal
 project: PLAN-068
 priority: P1
 sizing: M
 created_at: "2026-11-25T05:58:05+08:00"
-updated_at: "2026-11-25T05:58:05+08:00"
+updated_at: "2026-11-25T06:00:01+08:00"
+started_at: "2026-11-25T06:00:01+08:00"
 target_version: "0.8.x（與 CT 6.1.0 同日發佈）"
 depends_on: [T0903, T0905]
 related:
@@ -45,6 +46,7 @@ affects_files:
   - docs/agent-guide/
   - README.md
 renew_count: 0
+tower_question: open
 isolation: worktree
 workdir: "worktree ct/T0910（塔台已預先從 `v0.8.x` `677860a4` 建立分支 `ct/T0910`）"
 worker_question_timeout: 30
@@ -85,6 +87,30 @@ memory_overrides:
 ## 回報區
 
 > 以下由 sub-session 填寫，請勿在指揮塔 session 中編輯（唯一例外：`### 待塔台決策` 的 `塔台答覆 Q-n` 行由塔台新增）
+
+### 待塔台決策
+
+#### Q-1：待辦分頁的 hooks 提示一行要畫在 `src/components/InboxPanel.tsx`（不在 `affects_files`），可以改嗎？
+- **提問時間**：2026-11-25T06:04:31+08:00
+- **背景**：範圍 ④ 要在「待辦分頁該塔台標頭一行＋說明連結」。標頭在 `InboxPanel.tsx` 的 `header` 裡，`affects_files` 只有 `src/components/inbox/`。T0908（W5）/ T0909（W6）平行時也會改 `InboxPanel.tsx`。
+- **選項**：
+  - A（建議）：元件與判斷全放在 `src/components/inbox/InboxHooksHint.tsx`（新檔）＋ `src/lib/`，`InboxPanel.tsx` 只加 1 行 import＋1 行 `<InboxHooksHint terminalId={tower?.id} />`（放在 `{header}` 之後、相符時才出現），合併衝突最小。
+  - B：不動 `InboxPanel.tsx`，本單只做元件，接線留給合併工單或 W7。
+  - 其他。
+- **建議與理由**：A。只加兩行、位置在 `header` 後，與 W5 / W6 改的區段（各 section）不重疊；B 會讓驗收項「待辦分頁提示」在本單無法驗證。
+- **影響**：選 B 時本單的待辦分頁提示只有元件與單元測試，畫面接線待後續。
+- **是否阻擋後續步驟**：否（先做其他部分，最後接線）。
+
+#### Q-2：renderer 需要一個新的推送事件 `terminal:hooks-status`，要改 `electron/preload.ts`（不在 `affects_files`），可以改嗎？
+- **提問時間**：2026-11-25T06:04:31+08:00
+- **背景**：徽章 `🪝✕` 與待辦提示要知道每個塔台分頁的 `hooksStatus`，而且它會在 `--set-role` 之後改變（第一個 hook 回報到達、`no-report` → `ok`）。`terminal:role-changed` 只在 `--set-role` 時送一次；renderer 不能呼叫 helper 查詢 channel。打算由 `PtyManager` 在「已宣告契約的塔台」的 `hooksStatus` 改變時廣播 `terminal:hooks-status { id, hooksStatus }`（只有狀態與代號，無內容），遠端視窗經 `PROXIED_EVENTS`（`electron/remote/`，在範圍內）轉送。renderer 端要在 `preload.ts` 的 `pty` 下加 `onHooksStatus`（約 5 行），`src/types/electron.d.ts` 補型別（在範圍內）。不需要改 `main.ts`（`PtyManager` 的 `emit` 已轉給視窗與 broadcastHub），store 自己訂閱，不改 `App.tsx`。
+- **選項**：
+  - A（建議）：照上述加新事件，`preload.ts` 只加 `onHooksStatus` 一段（工單 memory_overrides 已把 `preload.ts` 列為「只做本單需要的增量」的共用檔）。
+  - B：不加新事件，改把 `hooksStatus` 塞進既有 `terminal:role-changed` 重送（`PtyManager` 不知道該事件的完整欄位，要改 `handlers/terminal.ts` / `main.ts`，範圍更大，且重送 role-changed 會重跑標題邏輯）。
+  - 其他。
+- **建議與理由**：A。增量最小、語意清楚，與 `tower-cards:changed` 同一種做法。
+- **影響**：選 B 需要動 `electron/handlers/terminal.ts`（也不在範圍內）。
+- **是否阻擋後續步驟**：否（先做 host 端與 helper，最後做 renderer）。
 
 ### 完成狀態
 - **session_id**：
