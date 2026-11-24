@@ -10,6 +10,7 @@
 
 | ID | 日期 | 標題 | 相關工單 |
 |----|------|------|---------|
+| D317 | 2026-11-25 | 內嵌 Claude CLI / Agent SDK / Codex 一張工單追 latest（T0891，在 `v0.8.x`）；另開唯讀日誌檢查 T0892，兩張並行 | T0891 / T0892 |
 | D316 | 2026-11-24 | 決策日誌收斂：D001～D185 搬到 `_archive/decisions/_decision-log-D001-D185.md`（🔴 / 危害相關 9 筆留在熱檔） | — |
 | D129 | 2026-10-04 | PLAN-036 headless 功能 handler 層：共用註冊模組 + DI（Electron main 與 headless 同一份 `registerXxxHandlers`）；fs sandbox 由 client 推送 workspace roots（fail-closed）；遠端 Agent 沿用遠端 settings 的 runtime router；P0 先開 T0388-T0391，T0388+T0391 立即平行、T0389 等 T0387、T0390 接 T0388+T0389；P1-P3 待 P0 實機後開；PLAN-036 P0 優先於 PLAN-035 Phase 2 | PLAN-036 / T0386 / T0388-T0391 |
 | D128 | 2026-10-04 | PLAN-035 Phase 1 依 T0380 拆 4 張串行實作單：T0381 指紋改 TLS 握手 + timeout（BUG-090，三精靈共用）→ T0382 WSL 埠探測避開主機 RemoteServer + startService 穩定性（BUG-091）→ T0383 `wslinfo` 判網路模式（BUG-089）→ T0384 BAT 持有 `wsl.exe` 保活（BUG-092）；網路模式改為選用、預設不勾；保活不改全機 `instanceIdleTimeout` | T0380-T0384 / BUG-089~092 / PLAN-035 |
@@ -246,6 +247,15 @@
   4. PLAN-001 保持延後（🟢 Low，等 plugin 1.0 穩定）
 - **Success criteria**（EXP→CONCLUDED）：npm install 無錯 / 所有 native modules rebuild 成功 / dev+build:dir 可跑 / 手動 smoke test 8 項通過
 - **最大風險**：`whisper-node-addon@1.0.2` 對 Electron 41（Node 24）的 NODE_MODULE_VERSION 相容性未知，允許 Worker 遇此決策點主動問塔台
+
+---
+
+### D317 2026-11-25 00:31 — 內嵌 Claude / Codex 追 latest（T0891）＋ `v0.8.0-pre.1` 日誌檢查（T0892）
+
+- **背景**：使用者要求檢查內嵌 claude / codex SDK 是否需要更新。塔台 00:29 `npm view`：claude-code 2.1.316 → latest 2.1.331（stable 2.1.325）、claude-agent-sdk 0.3.316 → 0.3.331、codex-sdk / codex 0.166.0 → 0.172.0，三者都落後。
+- **決定 1**（使用者選項）：開**一張**工單 T0891 一起追三個系列（只改一次 `package-lock.json`），照 D191 追 latest；依 D307 在 `v0.8.x`：塔台預先建分支 `ct/T0891`（base `bcb4bbe0`）、`--isolation worktree` 派工，收單後 fast-forward 合併進 `v0.8.x`，隨 `0.8.0-pre.2` 發佈。
+- **決定 2**（使用者追加：pre.1 實際使用觀察時也檢查 0.8.x 的 log）：塔台不讀原始日誌，開唯讀研究單 T0892（只寫自己的工單檔、不碰執行中的 BAT），與 T0891 並行（`affects_files` 無重疊）。
+- **相關**：D191 / D307 / D315 / T0717 / T0718 / PLAN-066
 
 ---
 

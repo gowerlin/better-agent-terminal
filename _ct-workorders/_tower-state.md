@@ -1,11 +1,11 @@
 ---
 schema_kind: tower-state
 summary_version: 1
-updated_at: "2026-11-24T03:50:13+08:00"
-session: "2026-11-24 03:37 第一百二十九 session（CT v6.0.0）"
+updated_at: "2026-11-25T00:28:40+08:00"
+session: "2026-11-25 00:28 第一百三十 session（CT v6.0.0）"
 next_ids:
-  workorder: "T0891"
-  decision: "D317"
+  workorder: "T0893"
+  decision: "D318"
   bug: "BUG-216"
   plan: "PLAN-067"
 todo:
@@ -23,6 +23,9 @@ todo:
 ---
 # Tower State — better-agent-terminal
 
+> 🟢 **第一百三十 session 開工**（2026-11-25 00:28 (UTC+8)，CT v6.0.0，Fast Path（環境快照 2026-11-24，未逾 7 天）；塔台 session `93faa440-07bb-4923-8807-c9d1835ee287`；分頁 `3a9b5550…`；`--set-role tower --mode on` exit 0；`bat_whoami` 名稱 `better-agent-terminal · Tower`；BAT helper `0.8.0-pre.1`；`main` = `origin/main` @ `94147ecb`、`v0.8.x` = `origin/v0.8.x` @ `bcb4bbe0`、工作區乾淨、無 stash；worktree 只剩 `T0885` 與 `.ct-integration`；熱區 T:286 / BUG:79 / PLAN:31 / EXP:1；`bat_list_questions` pending 0）。
+> 00:31 D317：開 T0891（內嵌 claude-code 2.1.331 / agent-sdk 0.3.331 / codex 0.172.0 追版，`ct/T0891` 從 `v0.8.x` `bcb4bbe0`，隔離派工）與 T0892（`v0.8.0-pre.1` 日誌與記憶體唯讀檢查），並行派工。
+>
 > 🛏 **第一百二十九 session 收工**（2026-11-24 03:50 (UTC+8)）。
 
 > 🟢 **第一百二十九 session 開工**（2026-11-24 03:37 (UTC+8)，CT v6.0.0，環境快照已逾 7 天 → 只重掃 git / BAT / 計數 / 大小（Full Scan 精簡版）；塔台 session `13362cf3-7ad3-4d52-a5c9-19757ca9fc0b`；分頁 `3a9b5550…`；`--set-role tower --mode on` exit 0；`bat_whoami` 名稱 `better-agent-terminal · Tower`；**BAT 安裝版 `0.8.0-pre.1`**（exe FileVersion 與 helper 同版）；`bat-pty-holder` 1 個（PID 19424，WS 68.9 MB / Private 43.0 MB）；HEAD `97d02625` = `origin/main`、`v0.8.x` = `origin/v0.8.x` @ `bcb4bbe0`、工作區乾淨；熱區 286 張工單全 DONE；`bat_list_questions` pending 0；NSIS 重裝驗收 PASS（見 frontmatter `todo`））。
