@@ -4,14 +4,15 @@ schema_kind: workorder
 id: T0905
 title: "PLAN-068 W3（在 `v0.8.x`）：塔台回合訊息卡的資料層 —— `Stop` hook 送 `last_assistant_message`、host 記憶體卡片 store（只收契約 v2 塔台、遮罩、上限、生命週期）、proxied 讀取＋事件、重連對帳、Claude 面板塔台來源"
 type: implementation
-status: IN_PROGRESS
+status: DONE
 repo: better-agent-terminal
 project: PLAN-068
 priority: P1
 sizing: M
 created_at: "2026-11-25T05:12:00+08:00"
 started_at: "2026-11-25T05:12:20+08:00"
-updated_at: "2026-11-25T05:12:20+08:00"
+updated_at: "2026-11-25T05:36:07+08:00"
+completed_at: "2026-11-25T05:36:07+08:00"
 target_version: "0.8.x（與 CT 6.1.0 同日發佈）"
 depends_on: [T0903]
 related:
@@ -39,6 +40,8 @@ affects_files:
   - CLAUDE.md
   - docs/agent-guide/
 renew_count: 0
+session_ids:
+  - "bffdc206-438c-487c-b360-f0bb5b970ade"
 isolation: worktree
 workdir: "worktree ct/T0905（塔台已預先從 `v0.8.x` `d6b9ce86` 建立分支 `ct/T0905`）"
 worker_question_timeout: 30
@@ -65,12 +68,12 @@ PLAN-068 的整合設計（T0902，雙方核定）在右側欄「待辦」分頁
 
 ## 驗收
 
-- [ ] `stop` 送最後訊息＋`origin` / `set`；T0590 規則不回歸（既有 hook 測試全綠）
-- [ ] host store：只收 v2 塔台、遮罩、上限 30 / 10 / 16 KiB、生命週期、去重；日誌不含內容
-- [ ] proxied 讀取＋事件＋操作、重連對帳；不在 helper 權杖範圍
-- [ ] Claude 面板塔台來源介面
-- [ ] `last_assistant_message` 最低 claude 版號（docs）
-- [ ] 驗證關卡、文件、隔離分支證據
+- [x] `stop` 送最後訊息＋`origin` / `set`；T0590 規則不回歸（既有 hook 測試全綠）
+- [x] host store：只收 v2 塔台、遮罩、上限 30 / 10 / 16 KiB、生命週期、去重；日誌不含內容
+- [x] proxied 讀取＋事件＋操作、重連對帳；不在 helper 權杖範圍
+- [x] Claude 面板塔台來源介面
+- [x] `last_assistant_message` 最低 claude 版號（docs）
+- [x] 驗證關卡、文件、隔離分支證據
 
 ---
 
@@ -79,22 +82,80 @@ PLAN-068 的整合設計（T0902，雙方核定）在右側欄「待辦」分頁
 > 以下由 sub-session 填寫，請勿在指揮塔 session 中編輯（唯一例外：`### 待塔台決策` 的 `塔台答覆 Q-n` 行由塔台新增）
 
 ### 完成狀態
-- **session_id**：
+- **狀態**：DONE（W3 資料層全部完成；需要真實 claude 回合的項目列為待實機 T-4 / T-10）
+- **session_id**：bffdc206-438c-487c-b360-f0bb5b970ade
+- **落點檢查**：PASS。C-0 `repo` = `better-agent-terminal`、`basename "$CT_HOME"` = `better-agent-terminal`；C-1 工單在 `$CT_HOME/_ct-workorders/`；C-3 `affects_files` 祖先皆存在；C-2 無 `branch` 欄位。`CT_HOME` 已設定、`CT_WORKTREE_BRANCH` = `ct/T0905`、`BAT_WORKSPACE_ID` = `cc0afc4a-57e9-4f41-b2ed-a2d8bac9e36b`（只記錄）。`git merge-base HEAD v0.8.x` = `d6b9ce86e30129a1ea8c29d1f5fe5b8e078454c8`（含 W0 T0903），符合工單要求
+- **產品 commit**：`1a468665`（`feat(T0905): PLAN-068 W3 Tower turn cards data layer`），24 檔、+2202 / −13
 
 ### 產出摘要
 
+**① hook（`scripts/bat-hook.mjs`、`electron/bat-mcp-launch.ts`）**
+- `stop` 讀 `last_assistant_message`（只有這個事件讀；非字串 / 空白不送），送出前以 `truncateUtf8` 截到 16 KiB UTF-8（切在字元邊界，截過帶 `messageTruncated: true`）；stdin 沿用 256 KiB 上限（超過照舊只回報 `stop`）。
+- `stop` 另帶 `origin: 'injected'`、`set: BAT_HOOK_SET`（= 2）。`BAT_HOOK_SET` 寫在 `BAT_CLAUDE_HOOKS` 旁（`bat-mcp-launch.ts`），腳本內同名常數由測試守住相等。
+- 🔴 T0590 規則不變：exit 0、stdout 空、1.8 s、靜默失敗、`at` 不變；bat-scripts.log 只多 `messageBytes`。**其他事件的回報逐字不變**（見〈互動紀錄〉05:24 的判斷）。
+
+**② host store（新檔 `electron/tower-cards.ts`，不 import electron，本機與 headless 共用）**
+- 只留 `towerContractStatus(role, towerContract) === 'match'` 的分頁；其他收到即丟、不存內容，每分頁只記一行（長度）。收件即 `redactTerminalSecrets`（含 server token），再截 16 KiB；每分頁 30 張未釘選＋釘選另計 10 張（第 11 張 → `PIN_LIMIT`）；未讀 / 已讀 / 釘選在 host；PTY 結束（exit / kill，含 ⏻）/ Terminal Server recovery 清空；不寫檔；日誌只記 terminal id / bytes / 張數 / 遮罩次數。
+- 契約 v2 塔台送來沒有訊息的 `stop` 計 `stopsWithoutMessage`（G7：W6 可據此提示 claude 太舊）。
+
+**③ 去重（§7.4）**
+- `terminal:report-hook` 解析 `origin` / `set`（格式不對就忽略）；`TerminalBlockedTracker.acceptHookOrigin`：同一 PTY 收過 `injected` 後，`plugin` 回報回 `{ ok: true, terminalId, result: 'duplicate' }`、不套用（每 PTY 只記一行），PTY 結束 / recovery 時清除；沒有 `origin` = `injected`。
+- 卡片以 session id（`getClaudeSessionId`）＋內容 SHA-256 去重，限 10 s 視窗內（`TOWER_CARDS_DEDUPE_WINDOW_MS`），見〈遭遇問題〉的實作判斷。
+
+**④ proxied channel ＋ 事件 ＋ 對帳**
+- `tower-cards:list` / `mark-read` / `pin` / `clear`（`PROXIED_CHANNELS`、`path-aware-channels` 歸為不轉換路徑）、事件 `tower-cards:changed`（`PROXIED_EVENTS`；只有 `{ terminalId, revision, unread, total }`）。🔴 都不在 `HELPER_CHANNEL_ROLES`，handler 另以 `ctx.helper` 回 `FORBIDDEN`（測試＋headless e2e 驗證塔台自己的 PTY 權杖被拒）。
+- preload `window.electronAPI.towerCards`、`src/types/electron.d.ts`、型別 `src/types/tower-cards.ts`。
+- 重連對帳：renderer `createTowerCardsSync().onStatus`（「未連線 → 已連線」以 `tower-cards:list` 強制取代，比照 T0749）。`revision` 為 host 全域遞增，沒有卡片的分頁回目前值，視窗據此丟掉副本。
+
+**⑤ Claude 面板塔台來源**
+- `ClaudeAgentManager.setTurnResultListener`：`success` result 的 `result` 文字每個 result 一次 → `TowerCardStore.offerPanelMessage`；面板是否塔台由 `setPanelTower(id, bool)` 決定（**介面已留，T0905 不呼叫**，判定接線屬 W4：§6′ 面板以 `_tower-state.md` `bat_contract` 判定，renderer 讀檔）。面板 session dispose 清空該面板卡片。Electron main 與 headless（`createHeadlessClaudeModule` `onTurnResult`）都接上。
+
+**⑥ renderer `src/stores/tower-cards-store.ts`（只資料）**
+- `createTowerCardsSync({ api, terminalIds, onPtyExit?, onClientStatusChanged?, log? }).start()`、`useTowerCards` / `getTowerCards` / `towerCardsUnread`、`applyTowerCardsEntries`（舊 revision 略過、`force` 對帳）。**未接到 `App.tsx`**（不在 affects_files）：W6 在 App 呼叫一次 `start()`。
+
+**⑦ claude 最低版號（G7）**
+- `Stop` hook 輸入的 `last_assistant_message` 最早在 **claude `2.1.47`**（`2.1.45` 沒有；`2.1.46` 未發佈）。`npm pack` 二分查（`cli.js` 版查 `cli.js`、原生二進位版查 `@anthropic-ai/claude-code-linux-x64` 執行檔），只讀字串不執行，scratchpad 已刪除。比對完整識別字：較舊版本有不相干的遙測欄位 `last_assistant_message_id`（`1.0.64` 起），第一次比對因此誤判為 1.0.64，改用「後面不接 `_`」後確認 2.1.47 的 schema（`Stop` / `SubagentStop` 的 `last_assistant_message: string().optional()`）。寫入 `docs/agent-guide/tower-inbox.md`。
+
+**文件**：CLAUDE.md 新節「塔台回合訊息卡（PLAN-068 W3 / T0905）」（6 行，CLAUDE.md 由 88,213 字增為89,388 字 < 100k；既有標題未改）；新檔 `docs/agent-guide/tower-inbox.md`（W3 段落）＋ `docs/agent-guide/README.md` 索引一列。
+
+**驗證關卡（全部在 `1a468665` 的內容上執行）**
+- `npm ci`：exit 0。
+- `npm run test:unit`：最後一次完整執行 **472 files passed / 3 skipped；8633 tests passed / 42 skipped，exit 0**。前兩次完整執行各有與本單無關的負載型失敗（見〈遭遇問題〉），第三次全綠。
+- `npm run test:legacy`：exit 0，files 33 passed / 0 failed；tests 472 passed / 0 failed。
+- `npx vite build`：exit 0。
+- `npm run typecheck` = 0、`npm run typecheck:electron` = 0。
+- `npm run verify:helpers`：exit 0（6 個 runtime helper，與 server bundle 同組）。
+- 新測試：`electron/__tests__/tower-cards.test.ts`（19）、`tower-cards-report-hook.test.ts`（9）、`tower-cards-panel-source.test.ts`（3）、`scripts/__tests__/bat-hook-last-message.test.mjs`（含整支腳本 exit 0 / stdout 空）、`terminal-blocked-state.test.ts` 新增「T0905: Stop sends last_assistant_message …」（真腳本經 RemoteServer：欄位、16 KiB、日誌只有 `messageBytes`）、`src/stores/__tests__/tower-cards-store.test.ts`（7）、headless `electron/remote/__tests__/headless-tower-cards-e2e.test.ts`（4；真 headless＋node-pty：塔台 PTY 內 `--bat-contract 2` 後回報 → 視窗 list 到 1 張；Worker 與未宣告契約的塔台被丟；塔台權杖呼叫 `tower-cards:*` 被拒；mark-read；PTY 結束清空；事件不含文字）。
+- e2e（Playwright）：未執行，本單沒有 UI；未啟動任何 BAT 實例、未碰安裝版 / userData / Terminal Server / holder；未開任何 claude / codex 回合。
+
+**待實機（對應 T0902 待實機清單）**
+- T-4：真實回合的 `last_assistant_message` 大小、多段文字 / 工具呼叫回合的內容（本單以 2.1.47 原始碼確認：最後一則助理訊息的文字區塊以空白串接後 trim）。
+- T-10：注入＋plugin 並存的去重（plugin 由 W9 提供；本單以單元測試覆蓋規則）。
+
+**不回歸**：非塔台分頁與版本不符時 hook 行為與回報內容不變（只有 `stop` 多帶的欄位在 host 被丟）；`claudeSessionId` / `agentStarted` / blocked 判定不變（既有 `terminal-blocked-state.test.ts` 53 項＋ `bat-hook.test.mjs` 全綠）；BAT MCP 未改（全唯讀）；T0788 保留未動。
+
 ### 互動紀錄
+- [05:12] 開工：讀 `_local-rules.md`、CLAUDE.md、T0902 回報區（第一版＋第二版）；merge-base 確認符合；無塔台補充段落。
+- [05:24] 實作判斷（範圍內，yolo 自行決定）：第一版讓每個回報都帶 `origin` / `set`，既有 `terminal-blocked-state.test.ts` 9 項以 `toEqual` 比對真腳本送出的 frame 而失敗。依 T0902 §7.4「注入的預設為 `injected`」與工單 ① 字面（`stop` 多送 `origin` / `set`），改為只有 `stop` 帶這兩個欄位，其他事件逐字不變 → 既有測試不必改、全綠。影響：W9 若要在 `stop` 以前取得 `set`（例如 `--set-role` 的 `hooks:` 行），需自行讓 `session-start` 也帶 `set`。
+- [05:28] `last_assistant_message` 版號：第一次比對命中遙測欄位 `last_assistant_message_id`（誤判 1.0.64），改為完整識別字後得 2.1.47，並印出 2.1.47 的 schema 片段確認。
 
 ### Renew 歷程
 無
 
 ### 遭遇問題
+- **`npm run test:unit` 前兩次完整執行有負載型失敗（與本單無關）**：第 1 次 `electron/__tests__/shared-conout.test.ts`「kill under load … event loop ends by itself」watchdog（當時我同時跑 `vite build`）；第 2 次同一項＋ `src/__tests__/terminal-gpu-crash-redraw.test.tsx` 兩項（`Test timed out in 5000ms`、長度 4 ≠ 2）。兩檔都不 import 本單任何模組，各自單獨執行皆全綠（23 / 9 passed），第 3 次完整執行全綠。推測與平行 W 工單（T0904 / T0906）同時在本機跑測試的負載有關；若合併工單遇到，建議單獨重跑這兩檔。
+- **去重的時間視窗（實作判斷，未問塔台）**：T0902 §7.4 只寫「session id＋內容雜湊去重」。若不設時間範圍，同一 session 中兩回合講了一樣的話（例如「完成」）會被吃掉第二張；因此只在 10 s 內去重（注入與 plugin 對同一個 `Stop` 的回報幾乎同時到）。數值在 `TOWER_CARDS_DEDUPE_WINDOW_MS`，要調只改常數。
+- **塔台改宣告後的既有卡片**：判定在收件當下做；塔台之後重新 `--set-role` 不帶 `--bat-contract`，已收的卡片留到 PTY 結束（新的不收）。UI（W6）本來就以分頁契約狀態決定是否顯示，需要的話 W6 / W4 可呼叫 `clear`。
+- **與 W4 / W6 / W9 的介面（交塔台的合併工單與後續工單）**：`setPanelTower` 無呼叫者（W4）；`createTowerCardsSync().start()` 未接 `App.tsx`（W6）；`plugin` origin 由 W9 的 launcher 帶、`getHookSet` 供 W9 的 `hooksStatus`。
+- **共用檔增量**（平行工單合併時注意）：`electron/preload.ts`（新 `towerCards` 命名空間）、`src/types/electron.d.ts`（一行）、`electron/remote/protocol.ts` / `path-aware-channels.ts`（各加在清單尾端）、`electron/main.ts` / `headless-entry.ts`、CLAUDE.md（新節放在「塔台等使用者回答時保留 Worker 通知」之後）、新檔 `docs/agent-guide/tower-inbox.md`（T0904 / T0906 若也建立同名檔需合併）。
+- R-G005：前段有幾次以 heredoc 寫 Python 修補腳本（內容無反斜線、長度遠低於上限），之後改用 Write 寫檔再執行。
 
 ### 隔離分支證據
 - branch：`ct/T0905`
-- base_sha：
-- validated_sha：
-- head_sha：
-- validated_sha ≠ head_sha 的說明：
+- base_sha：`06c3b8843caf4f34bbec6117b0de443b7a3fdbf9`（`CT_WORKTREE_BASE`，與 main 的共同祖先；實際分支點 `d6b9ce86e30129a1ea8c29d1f5fe5b8e078454c8` = `v0.8.x`，工單已說明屬預期）
+- validated_sha：`1a4686653bbc380815bbadc5df5abe9ae188b823`（驗證在未提交的工作樹上執行，內容與此 commit 完全相同；commit 後工作樹乾淨、未再修改）
+- head_sha：`1a4686653bbc380815bbadc5df5abe9ae188b823`
+- validated_sha ≠ head_sha 的說明：相同，不適用
 
 ### 回報時間
+2026-11-25T05:35:12+08:00
