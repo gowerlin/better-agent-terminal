@@ -407,6 +407,7 @@
     "snippets": "Snippets",
     "skills": "Skills",
     "agents": "Agents",
+    "inbox": "Inbox",
     "control-tower": "Tower",
     "maximizePanel": "Maximize Panel",
     "restoreLayout": "Restore Layout",
@@ -850,6 +851,7 @@
       "nextIds": "Next IDs",
       "todo": "To-do",
       "todoMore": "{{count}} more in the file",
+      "todoInInbox": "{{count}} items → see the Inbox tab",
       "fileMtime": "(file modified time)",
       "noSummary": "The tower state file has no machine-readable summary; open the file for to-dos and next IDs.",
       "openOrders": "Open work orders ({{count}})",
@@ -1745,6 +1747,56 @@
       "reopenTabs": "Terminal tabs that were already open must be reopened to see ~/.local/bin.",
       "reopenTabsNvm": "Terminal tabs that were already open must be reopened to load nvm.",
       "posixShell": "The install tab uses {{fallback}} because {{shell}} is not a POSIX shell."
+    }
+  },
+  "inbox": {
+    "tower": "Tower:",
+    "towerPicker": "Tower shown in the Inbox",
+    "noTower": "no declared Tower tab (judged by _tower-state.md)",
+    "contractOk": "contract v{{version}} ✓",
+    "refresh": "Reload",
+    "loading": "Loading…",
+    "noWorkspace": "Open a workspace to see its Inbox.",
+    "notDetected": "No Control Tower here: this workspace has no _ct-workorders/ folder and no declared Tower tab.",
+    "stateMissing": "_ct-workorders/_tower-state.md was not found.",
+    "stateError": "_tower-state.md could not be read: {{error}}",
+    "none": "(none)",
+    "open": "Open",
+    "bugPending": "{{id}} to accept ({{status}})",
+    "todoMore": "More",
+    "todoLess": "Less",
+    "readErrors": "Could not read: {{files}}",
+    "badgeMismatch": "The selected Tower does not match BAT ↔ CT contract v2 — open the Inbox for details",
+    "badgeCount": "{{count}} things need you",
+    "gate": {
+      "stateV1": "This workspace has no declared Tower tab, and its _tower-state.md is BAT ↔ CT contract v1 (no bat_contract: {{supported}}), so the Inbox is off. Update to BMad Control Tower 6.1.0 or later and open the Tower.",
+      "stateBehind": "The Tower tab declared contract v{{supported}}, but this workspace's _tower-state.md is still v1. CT 6.1.0 writes it first when it starts; if you keep seeing this line, check that this workspace's folder is the Tower's project, or run *sync in the Tower."
+    },
+    "section": {
+      "decide": "⏸ Needs your decision",
+      "act": "🙋 For you to do",
+      "remind": "⏰ Due reminders",
+      "workers": "👷 Workers waiting for you",
+      "messages": "💬 Tower messages",
+      "todo": "📋 Tower to-do"
+    },
+    "worker": {
+      "waiting": "⚠️ {{title}}: waits for you ({{reason}})",
+      "held": "📨 {{title}}: {{count}} notification(s) held",
+      "interrupted": "⏸ {{title}}: interrupted ({{agent}})",
+      "goTo": "Go to tab",
+      "resume": "Resume…",
+      "reason": {
+        "permission": "permission",
+        "question": "question",
+        "elicitation": "MCP input",
+        "input": "codex input"
+      }
+    },
+    "counts": {
+      "bugs": "Open BUGs {{count}}",
+      "plans": "PLANs in progress {{count}}",
+      "orders": "Work orders {{count}}"
     }
   },
   "towerContract": {

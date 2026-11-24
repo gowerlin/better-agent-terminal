@@ -55,6 +55,8 @@ todo:                                     # 選填，字串陣列，顯示前 5 
 - 允許 UTF-8 BOM 與 CRLF。
 - YAML 解析失敗或不符條件 → 當作沒有摘要，不丟例外。renderer 日誌記一行 `[ct-overview] _tower-state.md summary ignored: <原因>`：YAML 錯誤只寫 js-yaml 的 reason 與檔案行列（`YAML parse error: <reason> at line L, column C`，`describeYamlError`），🔴 不寫 js-yaml 的原文片段、檔案內容與路徑；`schema_kind` / `summary_version` 的值只在是短純量（字串 ≤ 40 字）時寫出，其他只寫型別。同一工作區的同一錯誤＋同一內容（FNV-1a 雜湊）只記一次，`_ct-workorders/` watcher 再觸發也不重記；內容或錯誤改變才再記，記過錯誤後恢復時記一行 `… summary error cleared`。去重狀態只在記憶體（`towerStateSummaryLog`，`src/lib/ct-tower-overview.ts`；T0894 / BUG-217）。
 - CT 慣例：`next_ids` 是「下一個可用編號」，`todo` 一律字串。
+- `bat_contract`（PLAN-068 W4 / T0906，BAT ↔ CT 契約 v2）：整數 ≥ 1 才採用（`TowerStateSummary.batContract`），缺少 / 非整數 / 小於 1 = 契約 v1；`towerStateBatContract` 取值。不升 `summary_version`、總覽不顯示這個欄位；用途是右側欄「待辦」分頁的版本判定，見 [tower-inbox.md](tower-inbox.md)。
+- `todo` 的顯示（R6，T0906）：待辦分頁對這個工作區啟用（§6′ 相符）時，總覽的 `todo` 只顯示「N 則 → 在待辦分頁查看」，完整清單在待辦分頁；不相符、沒有傳 `workspaceId`、或狀態檔沒讀到時，照舊顯示前 5 則。判斷在 `ControlTowerPanel`（`useInboxVerdict`），`TowerOverview` 的 `todoInInbox` prop 只決定畫法。
 
 ### 沒有摘要時
 
@@ -119,6 +121,8 @@ todo:                                     # 選填，字串陣列，顯示前 5 
 | global config、已安裝 CT 的 `tower-config.md`（`_ct-workorders/` 外） | 總覽變成可見時（切到總覽分頁、面板顯示、切換工作區）與 ↻ 重新整理。不另外監看、不輪詢、不監看整個 `~/.claude/` |
 
 切換工作區時清空上一個工作區的總覽資料；非同步讀取結果屬於已離開的工作區時丟棄（`isStale`，同 BUG-127）。
+
+`_ct-workorders/` 的監看自 T0906 起經 `acquireDirWatch`（`src/stores/ct-dir-watch.ts`）：同一視窗內指揮塔與待辦分頁的資料來源共用一個 `fs:watch`，最後一個使用者離開才 `fs:unwatch`（主行程的 watcher 沒有計數，兩邊各自 unwatch 會互相關掉自動更新）。`_bmad-output/` 與 `.git` 的監看不變。
 
 ## 遠端工作區（WSL / SSH / Docker）
 

@@ -494,6 +494,14 @@
 - 自動更新：`_ct-workorders/` 內的來源跟既有 `fs.watch` 的 `reloadAll`；`_ct-workorders/` 外的兩層在總覽變成可見與按 ↻ 時重讀，不另外監看、不輪詢。
 - 完整契約、合併規則、分類表、遠端行為、已知限制、驗證清單：[docs/agent-guide/ct-tower-overview.md](docs/agent-guide/ct-tower-overview.md)
 
+## 右側欄「待辦」分頁（PLAN-068 W4 / T0906）
+
+- 用途：右側欄新分頁「待辦」（`DockablePanel` `inbox`，預設右側、在指揮塔前）集中顯示需要使用者處理的事；W4 是骨架、§6′ 版本判定與 BAT 既有資料區（待驗收 BUG、Worker 等你、CT `todo`、BUG / PLAN / 工單數量），CT 契約 v2 清單在 W5、回合訊息卡在 W6。
+- 🔴 全部綁版本（D328 R9′）：選中的塔台（分頁宣告 × `_tower-state.md` `bat_contract`）不相符時整個分頁只留塔台選擇器與 P-1 / P-2 / P-3，標題 `!`；沒有已宣告塔台時以狀態檔判定。🔴 R6：總覽的 `todo` 只在相符時改成「到待辦分頁查看」，不符時照舊列出。
+- 🔴 唯讀、不新增 channel：讀檔走指揮塔同一套 `fs:*`（`InboxDataSource`，App 的作用中工作區與 detached 視窗各一個）；`_ct-workorders/` 的監看一律經 `acquireDirWatch`（`src/stores/ct-dir-watch.ts`，主行程 watcher 沒有計數，不要直接 `fs.watch` / `fs.unwatch` 這個目錄）。
+- 唯一實作：判定與資料整理 `src/lib/inbox-model.ts`（`inboxVerdict`、面板塔台用的 `stateFileContractStatus`）、`bat_contract` 解析 `parseTowerState` / `towerStateBatContract`、畫面 `src/components/InboxPanel.tsx`；舊 docking 存檔經 `normalizeDockingConfig` 補預設。
+- 完整判定表、區塊、跨分頁開啟、已知限制、驗證清單：[docs/agent-guide/tower-inbox.md](docs/agent-guide/tower-inbox.md)
+
 ## CT plugin 安裝（T0710）
 
 - 用途：CT 5.14.0 起可用 zip 或 plugin（`ct@<marketplace>`）安裝；Codex 只裝 plugin 時 skill 名稱是 `ct:ct-exec`，`$ct-exec` 不注入 SKILL.md 且不報錯。BAT 依 agent 所在主機的安裝方式送 `$ct-exec` / `$ct:ct-exec`；ct-config 預設值層與 skill 面板 / `*` 補全認得 plugin。Claude 端字串不變（`/ct-exec`），`bat-terminal.mjs --skill` 白名單不變。
