@@ -101,6 +101,12 @@ const electronAPI = {
       ipcRenderer.on('terminal:role-changed', handler)
       return () => ipcRenderer.removeListener('terminal:role-changed', handler)
     },
+    // PLAN-068 W9 / T0910: a contract-2 Tower's BAT hooks status changed (codes only)
+    onHooksStatus: (callback: (info: { id: string; hooksStatus: unknown }) => void) => {
+      const handler = (_event: Electron.IpcRendererEvent, info: { id: string; hooksStatus: unknown }) => callback(info)
+      ipcRenderer.on('terminal:hooks-status', handler)
+      return () => ipcRenderer.removeListener('terminal:hooks-status', handler)
+    },
     // PLAN-044 / T0566: a tab's usage-limit state changed (hint / scheduled / cleared)
     onUsageLimitStatus: (callback: (info: UsageLimitStatusEvent) => void) => {
       const handler = (_event: Electron.IpcRendererEvent, info: UsageLimitStatusEvent) => callback(info)

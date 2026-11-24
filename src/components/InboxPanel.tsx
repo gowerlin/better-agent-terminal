@@ -13,6 +13,7 @@ import { useCallback, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useInboxModel } from './inbox/useInboxModel'
 import { InboxSection } from './inbox/InboxSection'
+import { InboxHooksHint } from './inbox/InboxHooksHint'
 import { loadInboxFiles } from './inbox/InboxDataSource'
 import { requestControlTowerTab, setInboxFiles, setSelectedInboxTower } from '../stores/inbox-store'
 import { workspaceStore } from '../stores/workspace-store'
@@ -145,6 +146,7 @@ export function InboxPanel({ workspaceId, workspaceFolderPath }: Readonly<InboxP
   return (
     <div className="inbox-panel">
       {header}
+      <InboxHooksHint terminalId={tower?.id} />
       <div className="inbox-body">
         <InboxSection id="decide" title={t('inbox.section.decide')} count={0} folded={folded.decide} onToggle={toggle} />
 

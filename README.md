@@ -162,6 +162,28 @@ BAT 與 CT 分工明確：**BAT 提供終端機、分頁與權限這些基礎設
 
 完整契約（參數、exit code、環境變數、日誌）見 [docs/agent-guide/](docs/agent-guide/README.md) 的「Worker 分頁回收」「塔台分頁標題」「遠端 Tower 通知」「worktree 隔離派工」「worktree 狀態查詢」「helper 唯讀查詢 channel」「BAT MCP shim」「blocked 狀態偵測」「Worker 啟動確認」「Worker 問塔台」「Claude 分頁的 session 名稱」「CT plugin 安裝」各篇（[CLAUDE.md](CLAUDE.md) 只留摘要）。
 
+### BAT hooks 與 `bat-hooks` plugin（選用）
+
+BAT 開的 Claude CLI 分頁（縮圖列「+」選單的 Claude CLI、「以塔台開啟 Claude」、塔台派工的 Worker）會自動帶入 BAT 的 claude hooks，不用做任何事。BAT 靠這些 hooks 知道分頁在等你回答（權限、提問、MCP 表單）、回合開始與結束、claude 已啟動；契約 v2 的塔台另靠它們做「塔台回合訊息卡」與「等你回答時不送通知」的保護。
+
+下列情況 BAT 帶不進 hooks，塔台開工時 `--set-role` 會印 `  hooks: none (<原因>)`，契約 v2 的塔台縮圖出現 `🪝✕`、待辦分頁標頭多一行說明：
+
+- 在一般 shell 分頁手打 `claude`（`not-launched-by-bat`），含遠端（WSL / SSH / Docker）手打
+- 這個 agent 的自訂參數已有 `--settings`（`user-settings-arg`）
+- Settings › 進階 › BAT MCP 已關閉（`settings-off`；hooks 跟著 BAT MCP 一起關）
+
+這時可以安裝 BAT 的 Claude Code plugin `bat-hooks`。它只有一個小 launcher：在 BAT 分頁裡執行**該分頁所屬 BAT** 的 `bat-hook.mjs`（路徑取自分頁環境變數 `BAT_HELPER_DIR`，檔名固定），所以程式永遠與 BAT 同版；不在 BAT 裡（沒有 `BAT_*` 環境變數）就立即結束、什麼都不做。plugin 不含權杖，BAT 不會替你安裝、也不會改 claude 的設定。需要 `node` 在 PATH 上。
+
+- **安裝**（在要用的那台主機的 claude 執行；遠端主機要在遠端執行）：
+  ```
+  claude plugin marketplace add gowerlin/better-agent-terminal
+  claude plugin install bat-hooks@better-agent-terminal
+  ```
+- **升級**：BAT 升級不用動 plugin。新版 BAT 增加 hook 事件而 plugin 較舊時，`hooks:` 行會出現 `plugin-outdated`，執行 `claude plugin update bat-hooks@better-agent-terminal`。
+- **移除**：`claude plugin uninstall bat-hooks@better-agent-terminal`。只解除安裝 BAT 時 plugin 會變成什麼都不做、不會報錯，建議一併移除。
+- BAT 自動帶入的 hooks 與 plugin 同時存在時，以自動帶入的為準，每個事件只算一次。
+- claude 自己的設定關掉 hooks（`disableAllHooks`、managed 的 `allowManagedHooksOnly`，或專案 `.claude/settings*.json` 關掉時的 `no-report`）時 plugin 一樣不會執行，請依提示處理自己的設定。
+
 ### 版本對照
 
 <!-- #region compatibility -->
@@ -189,6 +211,7 @@ BAT 與 CT 分工明確：**BAT 提供終端機、分頁與權限這些基礎設
 | 重派同一張工單前回收舊 Worker 分頁（避免回收時 `AMBIGUOUS`） | `>= 0.6.1-pre.4`（沿用 `--close-worker`） | `>= v5.12.0`（舊 CT 重派後舊分頁要手動關） |
 | 指揮塔總覽：塔台狀態、設定生效值與來源、沒有 `sprint-status.yaml` 也能用 | `>= 0.7.1-pre.7` | 不需要；下一個編號與待辦需 CT 寫入 `_tower-state.md` 摘要：`>= v6.0.0-pre.1`（預覽版；舊 CT 只顯示最後更新與進行中工單） |
 | CT 以 plugin 安裝（`ct@control-tower`）時 Codex Worker 派工、面板認得 plugin、兩種都裝的提示 | `>= 0.7.2-pre.1` | CT `>= v5.14.0` 提供 plugin；更舊的 BAT 搭配 Codex 請用 zip 手動安裝 |
+| `bat-hooks` plugin（選用；手打 `claude`、自訂 `--settings`、關掉 BAT MCP 時才需要）與 `--set-role` 的 `hooks:` 行 | 待定（同待辦分頁）；plugin `1.0.0` | `hooks:` 行：CT `>= v6.1.0` 解析（舊 CT 不帶 `--bat-contract`，不會出現這行） |
 
 <!-- #endregion compatibility -->
 

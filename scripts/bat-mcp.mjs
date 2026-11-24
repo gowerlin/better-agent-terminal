@@ -98,7 +98,7 @@ export const TOOLS = [
     name: 'bat_whoami',
     channel: 'terminal:whoami',
     title: 'Who am I (BAT tab)',
-    description: 'This BAT tab: terminal id, workspace, role (tower / worker / shell), the tower that dispatched it, work order, yolo, agent, cwd. claudeSessionName = the claude session name BAT gave the tab (--name, null = none); claudeSessionId = its claude session id from the SessionStart hook (null = not known, which does not mean there is no session). towerContract = the BAT <-> CT contract a tower declared with --set-role --bat-contract (null = not declared, or not a tower).',
+    description: 'This BAT tab: terminal id, workspace, role (tower / worker / shell), the tower that dispatched it, work order, yolo, agent, cwd. claudeSessionName = the claude session name BAT gave the tab (--name, null = none); claudeSessionId = its claude session id from the SessionStart hook (null = not known, which does not mean there is no session). towerContract = the BAT <-> CT contract a tower declared with --set-role --bat-contract (null = not declared, or not a tower). hooksStatus = whether its claude reports the BAT hooks: ok (origin injected / plugin, set = hook set version, reason plugin-outdated = the event list of the bat-hooks plugin is older than this BAT), none (reason = why not: settings-off, user-settings-arg, claude-hooks-disabled, managed-hooks-only, no-report, not-launched-by-bat, no-endpoint, script-missing, unrepresentable-path), n/a (codex), null = not an agent / tower tab or exited.',
     inputSchema: { type: 'object', properties: {}, additionalProperties: false },
     keys: [],
     timeoutMs: INVOKE_TIMEOUT_MS,
@@ -107,7 +107,7 @@ export const TOOLS = [
     name: 'bat_list_terminals',
     channel: 'terminal:list',
     title: 'List BAT terminals',
-    description: 'Terminals this tab may see: scope "mine" (default) = itself, its Workers (a tower) or its tower (a worker); "workspace" (declared towers only) adds the other tabs of the workspace, metadata only. Each row has claudeSessionName / claudeSessionId as bat_get_state. "towers" (declared towers only) = the running declared towers of this BAT in every workspace, itself too (self=true), each with id / workspaceId / workspaceName / claudeSessionName / state / towerContract only; their state and output stay out of scope. An older BAT answers INVALID_ARGS to "towers".',
+    description: 'Terminals this tab may see: scope "mine" (default) = itself, its Workers (a tower) or its tower (a worker); "workspace" (declared towers only) adds the other tabs of the workspace, metadata only. Each row has claudeSessionName / claudeSessionId as bat_get_state. "towers" (declared towers only) = the running declared towers of this BAT in every workspace, itself too (self=true), each with id / workspaceId / workspaceName / claudeSessionName / state / towerContract / hooksStatus only; their state and output stay out of scope. Every row has hooksStatus as bat_get_state. An older BAT answers INVALID_ARGS to "towers".',
     inputSchema: {
       type: 'object',
       properties: { scope: { type: 'string', enum: ['mine', 'workspace', 'towers'] } },
@@ -120,7 +120,7 @@ export const TOOLS = [
     name: 'bat_get_state',
     channel: 'terminal:get-state',
     title: 'Terminal state',
-    description: 'State of a terminal: working (printed within 5 s) / idle / blocked (a claude tab waits for the user: blockedReason permission / question / elicitation; a codex tab: input = waits for the user, an approval or a question; tower = a Worker waits for its tower to answer a question, any agent) / exited, last output time, idle ms, exit code. blockedDetection = how this tab reports a prompt: hook (claude hooks), osc (codex >= 0.163.0 state sequence), none = it cannot, so idle does not rule out a prompt (tower still shows). pendingQuestions = its questions waiting for an answer. agentStarted: true = its agent has started (agentStartedAt, ms), false = not confirmed yet, null = cannot tell (blockedDetection none, e.g. an older codex). claudeSessionName = the claude session name BAT gave the tab (--name, null = none); claudeSessionId = its claude session id from the SessionStart hook (null = not known, which does not mean there is no session). towerContract = the BAT <-> CT contract a tower declared (--set-role --bat-contract; null = not declared, or not a tower).',
+    description: 'State of a terminal: working (printed within 5 s) / idle / blocked (a claude tab waits for the user: blockedReason permission / question / elicitation; a codex tab: input = waits for the user, an approval or a question; tower = a Worker waits for its tower to answer a question, any agent) / exited, last output time, idle ms, exit code. blockedDetection = how this tab reports a prompt: hook (claude hooks), osc (codex >= 0.163.0 state sequence), none = it cannot, so idle does not rule out a prompt (tower still shows). pendingQuestions = its questions waiting for an answer. agentStarted: true = its agent has started (agentStartedAt, ms), false = not confirmed yet, null = cannot tell (blockedDetection none, e.g. an older codex). claudeSessionName = the claude session name BAT gave the tab (--name, null = none); claudeSessionId = its claude session id from the SessionStart hook (null = not known, which does not mean there is no session). towerContract = the BAT <-> CT contract a tower declared (--set-role --bat-contract; null = not declared, or not a tower). hooksStatus = whether its claude reports the BAT hooks: ok (origin injected / plugin, set = hook set version, reason plugin-outdated = the event list of the bat-hooks plugin is older than this BAT), none (reason = why not: settings-off, user-settings-arg, claude-hooks-disabled, managed-hooks-only, no-report, not-launched-by-bat, no-endpoint, script-missing, unrepresentable-path), n/a (codex), null = not an agent / tower tab or exited.',
     inputSchema: { type: 'object', properties: { terminalId: TERMINAL_ID }, additionalProperties: false },
     keys: ['terminalId'],
     timeoutMs: INVOKE_TIMEOUT_MS,
@@ -244,6 +244,19 @@ function agentStartedText(data) {
   return data.agentStarted === true ? ', agent started' : data.agentStarted === false ? ', agent not started yet' : ''
 }
 
+/**
+ * PLAN-068 W9 / T0910: `hooks=ok (injected, set 2)` / `hooks=none (<code>)` / `hooks=n/a (codex)`; null when
+ * there is no (valid) status. The same grammar as the `--set-role` `hooks:` line.
+ */
+function hooksText(status) {
+  if (!status || typeof status !== 'object') return null
+  if (status.state === 'ok' && typeof status.origin === 'string' && Number.isSafeInteger(status.set)) {
+    return `hooks=ok (${status.origin}, set ${status.set}${status.reason === 'plugin-outdated' ? ', plugin-outdated' : ''})`
+  }
+  if ((status.state === 'none' || status.state === 'n/a') && typeof status.reason === 'string') return `hooks=${status.state} (${status.reason})`
+  return null
+}
+
 /** T0608: the first 60 characters of a question, on one line. */
 function questionPreview(text) {
   const flat = String(text ?? '').replace(/\s+/g, ' ').trim()
@@ -261,17 +274,19 @@ export function summarize(toolName, data) {
       if (data.agent) parts.push(`agent=${data.agent}`)
       if (data.claudeSessionName) parts.push(`session="${data.claudeSessionName}"`) // T0642
       if (typeof data.towerContract === 'number') parts.push(`bat-contract=${data.towerContract}`) // T0903
+      const hooks = hooksText(data.hooksStatus) // T0910
+      if (hooks) parts.push(hooks)
       return parts.join(' ')
     }
     case 'bat_list_terminals': {
       const terminals = Array.isArray(data.terminals) ? data.terminals : []
       const items = data.scope === 'towers' // T0643
-        ? terminals.map(t => `${t.id} (${[t.self ? 'self' : null, t.workspaceName ? `workspace="${t.workspaceName}"` : null, t.claudeSessionName ? `session="${t.claudeSessionName}"` : null, typeof t.towerContract === 'number' ? `bat-contract=${t.towerContract}` : null, stateText(t)].filter(Boolean).join(', ')})`)
+        ? terminals.map(t => `${t.id} (${[t.self ? 'self' : null, t.workspaceName ? `workspace="${t.workspaceName}"` : null, t.claudeSessionName ? `session="${t.claudeSessionName}"` : null, typeof t.towerContract === 'number' ? `bat-contract=${t.towerContract}` : null, hooksText(t.hooksStatus), stateText(t)].filter(Boolean).join(', ')})`)
         : terminals.map(t => `${t.id} (${[t.role, t.workorder, stateText(t)].filter(Boolean).join(', ')})`)
       return `${plural(terminals.length, 'terminal')} (scope=${data.scope})${items.length ? `: ${items.join('; ')}` : ''}`
     }
     case 'bat_get_state':
-      return `${data.terminalId}: ${stateText(data)}${typeof data.idleMs === 'number' ? `, idle ${data.idleMs} ms` : ''}${data.exitCode !== undefined && data.exitCode !== null ? `, exit code ${data.exitCode}` : ''}${agentStartedText(data)}`
+      return `${data.terminalId}: ${stateText(data)}${typeof data.idleMs === 'number' ? `, idle ${data.idleMs} ms` : ''}${data.exitCode !== undefined && data.exitCode !== null ? `, exit code ${data.exitCode}` : ''}${agentStartedText(data)}${hooksText(data.hooksStatus) ? `, ${hooksText(data.hooksStatus)}` : ''}`
     case 'bat_read_output': {
       const lines = Array.isArray(data.lines) ? data.lines : []
       const flags = [

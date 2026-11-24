@@ -135,8 +135,11 @@ describe('setTerminalRole records the BAT ↔ CT contract (T0903)', () => {
     const m = makeManager()
     m.create({ id: 'tw', ...TAB })
     const { deps, emitted } = roleDeps(m)
+    // T0910: a hook already reported → the answer carries hooksStatus at once (no 2 s wait)
+    expect(m.acceptHookOrigin('tw', undefined, 2)).toBe(true)
     expect(setTerminalRole({ terminalId: 'tw', role: 'tower', mode: 'yolo', batContract: given }, deps)).toEqual({
       ok: true, terminalId: 'tw', role: 'tower', mode: 'yolo', towerContract: recorded, batContract: 2,
+      hooksStatus: { state: 'ok', origin: 'injected', set: 2 },
     })
     expect(m.getTowerContract('tw')).toBe(recorded)
     expect(m.getTerminalInfo('tw')).toMatchObject({ role: 'tower', towerContract: recorded })
@@ -160,6 +163,7 @@ describe('setTerminalRole records the BAT ↔ CT contract (T0903)', () => {
     const m = makeManager()
     m.create({ id: 'tw', ...TAB })
     const { deps, emitted } = roleDeps(m)
+    m.acceptHookOrigin('tw', undefined, 2) // T0910: no 2 s wait in this test
     setTerminalRole({ terminalId: 'tw', role: 'tower', mode: 'yolo', batContract: 2 }, deps)
     expect(m.getTowerContract('tw')).toBe(2)
     setTerminalRole({ terminalId: 'tw', role: 'tower', mode: 'yolo', batContract: 3 }, deps)

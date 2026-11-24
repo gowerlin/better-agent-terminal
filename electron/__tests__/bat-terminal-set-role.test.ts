@@ -23,6 +23,7 @@ import { join, resolve } from 'node:path'
 import tls from 'node:tls'
 import selfsigned from 'selfsigned'
 import { afterAll, describe, expect, it } from 'vitest'
+import { HOOKS_NONE_REASONS, hooksStatusLine, type HooksStatus } from '../claude-hooks-status'
 
 const repoRoot = resolve(__dirname, '..', '..')
 const helper = join(repoRoot, 'scripts', 'bat-terminal.mjs')
@@ -74,7 +75,7 @@ interface MockRemote {
 }
 
 /** `reply`: the invoke-result fields of the invoke; null = never answer. */
-async function startMockRemote(reply: Record<string, unknown> | null): Promise<MockRemote> {
+async function startMockRemote(reply: Record<string, unknown> | null, replyDelayMs = 20): Promise<MockRemote> {
   const pems = await selfsigned.generate([{ name: 'commonName', value: '127.0.0.1' }], {
     keySize: 2048, algorithm: 'sha256',
     extensions: [{ name: 'subjectAltName', altNames: [{ type: 7, ip: '127.0.0.1' }] }],
@@ -120,7 +121,7 @@ async function startMockRemote(reply: Record<string, unknown> | null): Promise<M
         } else if (msg.type === 'invoke') {
           invokes.push({ id: msg.id, channel: msg.channel ?? '', args: msg.args ?? [] })
           if (reply === null) continue
-          setTimeout(() => { if (!socket.destroyed) socket.write(wsFrame({ type: 'invoke-result', id: msg.id, ...reply })) }, 20)
+          setTimeout(() => { if (!socket.destroyed) socket.write(wsFrame({ type: 'invoke-result', id: msg.id, ...reply })) }, replyDelayMs)
         }
       }
     })
@@ -551,4 +552,86 @@ describe('bat-terminal --set-role --bat-contract (T0903)', () => {
       expect(r.stdout).toContain('bat-terminal.mjs --set-role tower [--mode yolo|ask|off|on] [--terminal-id <id>] [--agent <id>]')
     })
   })
+})
+
+/**
+ * PLAN-068 W9 / T0910 (T0902 §3.1′ / §7.2, PLAN-068〈契約細節補充〉): the `hooks:` line after the
+ * bat-contract line — only for a call with --bat-contract, only when BAT answered a valid `hooksStatus`.
+ * The text is the one `hooksStatusLine` (electron/claude-hooks-status.ts) makes, compared here.
+ */
+describe('bat-terminal --set-role --bat-contract: hooks line (T0910)', () => {
+  const statuses: Array<[string, HooksStatus]> = [
+    ['injected', { state: 'ok', origin: 'injected', set: 2 }],
+    ['plugin', { state: 'ok', origin: 'plugin', set: 2 }],
+    ['plugin-outdated', { state: 'ok', origin: 'plugin', set: 1, reason: 'plugin-outdated' }],
+    ...HOOKS_NONE_REASONS.map((reason): [string, HooksStatus] => [`none ${reason}`, { state: 'none', reason }]),
+    ['codex', { state: 'n/a', reason: 'codex' }],
+  ]
+  for (const [label, status] of statuses) {
+    it(`${label} → "${hooksStatusLine(status).trim()}" after the bat-contract line`, async () => {
+      const remote = await startMockRemote({ result: { ok: true, terminalId: TOWER_ID, role: 'tower', mode: 'yolo', towerContract: 2, batContract: 2, hooksStatus: status } })
+      try {
+        const r = await run(['--set-role', 'tower', '--bat-contract', '2', '--mode', 'yolo'], { ...remote.env, BAT_TERMINAL_ID: TOWER_ID })
+        expect(r.code).toBe(0)
+        expect(r.stdout.trim().split(/\r?\n/)).toEqual([`✓ Tower role set: ${TOWER_ID}`, '  mode: yolo', '  bat-contract: 2', hooksStatusLine(status)])
+        expect(helperEvents(remote.dir, 'set-role').at(-1)).toMatchObject({ result: 'OK', hooks: hooksStatusLine(status).trim().slice('hooks: '.length) })
+      } finally {
+        await remote.close()
+      }
+    }, 20000)
+  }
+
+  it('the literal grammar CT parses', () => {
+    expect(hooksStatusLine({ state: 'ok', origin: 'injected', set: 2 })).toBe('  hooks: ok (injected, set 2)')
+    expect(hooksStatusLine({ state: 'ok', origin: 'plugin', set: 1, reason: 'plugin-outdated' })).toBe('  hooks: ok (plugin, set 1, plugin-outdated)')
+    expect(hooksStatusLine({ state: 'none', reason: 'settings-off' })).toBe('  hooks: none (settings-off)')
+    expect(hooksStatusLine({ state: 'n/a', reason: 'codex' })).toBe('  hooks: n/a (codex)')
+  })
+
+  it('a BAT answering no / null / malformed hooksStatus → no hooks line, exit 0', async () => {
+    for (const hooksStatus of [undefined, null, { state: 'ok', origin: 'x', set: 2 }, { state: 'none', reason: 'nope' }, { state: 'ok', origin: 'injected' }]) {
+      const remote = await startMockRemote({ result: { ok: true, terminalId: TOWER_ID, role: 'tower', towerContract: 2, batContract: 2, ...(hooksStatus !== undefined ? { hooksStatus } : {}) } })
+      try {
+        const r = await run(['--set-role', 'tower', '--bat-contract', '2'], { ...remote.env, BAT_TERMINAL_ID: TOWER_ID })
+        expect(r.code).toBe(0)
+        expect(r.stdout.trim().split(/\r?\n/)).toEqual([`✓ Tower role set: ${TOWER_ID}`, '  bat-contract: 2'])
+      } finally {
+        await remote.close()
+      }
+    }
+  }, 60000)
+
+  it('🔴 a call without --bat-contract never prints a hooks line, even if BAT answers one', async () => {
+    const remote = await startMockRemote({ result: { ok: true, terminalId: TOWER_ID, role: 'tower', mode: 'yolo', hooksStatus: { state: 'none', reason: 'no-report' } } })
+    try {
+      const r = await run(['--set-role', 'tower', '--mode', 'yolo'], { ...remote.env, BAT_TERMINAL_ID: TOWER_ID })
+      expect(r.code).toBe(0)
+      expect(r.stdout.trim().split(/\r?\n/)).toEqual([`✓ Tower role set: ${TOWER_ID}`, '  mode: yolo'])
+      expect(helperEvents(remote.dir, 'set-role').at(-1)).not.toHaveProperty('hooks')
+    } finally {
+      await remote.close()
+    }
+  }, 20000)
+
+  it('a call with --bat-contract waits past 3 s for BAT (BAT may wait 2 s for the first hook report)', async () => {
+    const remote = await startMockRemote({ result: { ok: true, terminalId: TOWER_ID, role: 'tower', towerContract: 2, batContract: 2, hooksStatus: { state: 'none', reason: 'no-report' } } }, 3500)
+    try {
+      const r = await run(['--set-role', 'tower', '--bat-contract', '2'], { ...remote.env, BAT_TERMINAL_ID: TOWER_ID })
+      expect(r.code).toBe(0)
+      expect(r.stdout).toContain('  hooks: none (no-report)')
+    } finally {
+      await remote.close()
+    }
+  }, 30000)
+
+  it('--help documents the hooks line', async () => {
+    const remote = await startMockRemote(null)
+    try {
+      const r = await run(['--help'], remote.env)
+      expect(r.code).toBe(0)
+      expect(r.stdout).toContain('T0910: then a line on BAT\'s claude hooks of the tab')
+    } finally {
+      await remote.close()
+    }
+  }, 20000)
 })

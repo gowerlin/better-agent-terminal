@@ -1,0 +1,9 @@
+{
+  "name": "bat-hooks",
+  "version": "1.0.0",
+  "description": "Better Agent Terminal (BAT) hooks: report permission prompts, questions, turns and the session start of this claude to the BAT tab it runs in, so BAT can protect the tab and show the Tower turn cards. Runs the hook script of that BAT ($BAT_HELPER_DIR/bat-hook.mjs); does nothing outside BAT.",
+  "license": "MIT",
+  "homepage": "https://github.com/gowerlin/better-agent-terminal",
+  "repository": "https://github.com/gowerlin/better-agent-terminal",
+  "keywords": ["better-agent-terminal", "bat", "hooks", "control-tower"]
+}

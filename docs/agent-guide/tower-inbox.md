@@ -10,8 +10,9 @@
 > | 右側欄「待辦」分頁 | W4 / T0906 | 「右側欄「待辦」分頁（PLAN-068 W4 / T0906）」 |
 > | 通知保護 | W1＋W2 / T0904 | 「塔台等使用者回答時保留 Worker 通知（T0788 / BUG-196，D227）」 |
 > | 回合訊息卡：資料層 | W3 / T0905 | 「塔台回合訊息卡（PLAN-068 W3 / T0905）」（本節是該小節的完整內容） |
+> | hook 註冊 | W9 / T0910 | 「BAT hooks 狀態與 `bat-hooks` plugin（PLAN-068 W9 / T0910）」（本節是該小節的完整內容） |
 >
-> 改這些功能時兩邊一起更新。待你決定 / 待你執行 / 到期提醒的 CT 欄位與回答 UI（W5）、回合訊息卡 UI（W6）、hook 註冊（W9）完成時各自補節。
+> 改這些功能時兩邊一起更新。待你決定 / 待你執行 / 到期提醒的 CT 欄位與回答 UI（W5）、回合訊息卡 UI（W6）完成時各自補節。
 
 ## 版本判定（R9′ / §6′）
 
@@ -240,7 +241,7 @@ host：`setReading(id, reporter, reading)`，`reporter` = `conn:<connectionId>` 
 
 - 只有 `stop` 事件讀 `last_assistant_message`；非字串或空白 → 不送。stdin 沿用 `STDIN_MAX_BYTES`（256 KiB），超過整個輸入讀不到，照舊只回報 `stop`（不帶訊息）。
 - 送出前截到 `LAST_MESSAGE_MAX_BYTES` = 16 KiB（UTF-8 位元組，切在字元邊界，`truncateUtf8`），截過就帶 `messageTruncated: true`。
-- `stop` 回報另帶 `origin: 'injected'` 與 `set: BAT_HOOK_SET`（= 2；`electron/bat-mcp-launch.ts` 的 `BAT_HOOK_SET` 寫在 `BAT_CLAUDE_HOOKS` 旁，兩處由 `scripts/__tests__/bat-hook-last-message.test.mjs` 守住相等）。其他事件的回報**逐字不變**（host 把沒有 `origin` 的回報當成 `injected`，T0902 §7.4）。
+- `stop` 回報另帶 `origin: 'injected'` 與 `set: BAT_HOOK_SET`（= 2；`electron/bat-mcp-launch.ts` 的 `BAT_HOOK_SET` 寫在 `BAT_CLAUDE_HOOKS` 旁，兩處由 `scripts/__tests__/bat-hook-last-message.test.mjs` 守住相等）。其他事件的回報**逐字不變**（host 把沒有 `origin` 的回報當成 `injected`，T0902 §7.4）。W9 / T0910 起 `session-start` 也帶這兩個欄位、plugin 的回報每個事件都帶，見「hook 註冊」節。
 - 🔴 T0590 規則不變：一律 exit 0、stdout 不輸出、總時限 1.8 s、任何失敗靜默；`at`（T0790）規則不變。bat-scripts.log 只多 `messageBytes`（長度），不記訊息。
 
 ### host 端：`terminal:report-hook`
@@ -299,3 +300,96 @@ host：`setReading(id, reporter, reading)`，`reporter` = `conn:<connectionId>` 
 
 - 單元：`electron/__tests__/tower-cards.test.ts`（store、handlers、不在 helper 範圍）、`electron/__tests__/tower-cards-report-hook.test.ts`（report-hook 新欄位、origin 去重、onStop）、`electron/__tests__/tower-cards-panel-source.test.ts`（面板來源）、`scripts/__tests__/bat-hook-last-message.test.mjs`（hook 端、`BAT_HOOK_SET` 相等、整支腳本 exit 0 / stdout 空）、`electron/__tests__/terminal-blocked-state.test.ts`「T0905: Stop sends last_assistant_message …」（真腳本經 RemoteServer）、`src/stores/__tests__/tower-cards-store.test.ts`。
 - headless：`electron/remote/__tests__/headless-tower-cards-e2e.test.ts`（真 headless＋node-pty：塔台 PTY 內宣告契約 2 並回報、Worker 與未宣告契約的塔台被丟、塔台自己的權杖呼叫 `tower-cards:*` 被拒、視窗 list / mark-read、PTY 結束清空、事件不含文字）。
+
+## hook 註冊（W9 / T0910）
+
+> 規格：T0902〈第二版〉§3.1′（`hooks:` 行、`hooksStatus`）、§7（7.0–7.7）、R12 / R13；`hooks:` 行文法另見 PLAN-068〈契約細節補充〉（已告知 CT，CT 6.1.0 依此解析）。
+
+- **用途**：讓塔台與 CT 知道「這個 claude 有沒有在回報 BAT 的 hooks、沒有的話為什麼」。BAT 開的 claude-cli 分頁照舊自動注入（`--settings=`，T0590）；注入不到的情況（手打 `claude`、自訂 `--settings`、Settings › BAT MCP 關閉、遠端手打）由使用者自選安裝 Claude Code plugin `bat-hooks`（BAT repo 的 marketplace）補上。
+- **唯一實作**：判定 `computeHooksStatus` 與每分頁紀錄 `ClaudeHooksRecords` / `claudeHooksRecords`（`electron/claude-hooks-status.ts`，不 import electron）；形狀、代號、`hooks:` 行 `hooksStatusLine`、renderer 提示 `src/lib/hooks-status.ts`；啟動決定 → 代號 `hooksLaunchReasonOf` / `hooksLaunchRecordOf`（`electron/bat-mcp-launch.ts`，`createBatMcpLaunchArgs` 寫入）；查詢 `PtyManager.getHooksStatus` / `waitForHookReport` / `noteTowerAgentHint`、推送 `refreshHooksStatus`；`--set-role` 等待 `setTerminalRole`（`electron/terminal-role.ts`）；helper 輸出 `hooksLine`（`scripts/bat-terminal.mjs`）；plugin `.claude-plugin/marketplace.json`、`plugins/bat-hooks/`。
+
+### 啟動決定與原因代號（§7.1 / §7.2）
+
+每次 BAT 決定一個有 terminal id 的 claude / codex 分頁怎麼啟動（`agent:bat-mcp-launch-args`、helper 派工），`createBatMcpLaunchArgs` 依 terminal id 記一筆（`claudeHooksRecords`，比照 `claudeSessionNameRecords`；512 筆上限、同 id 重啟覆寫、其他 agent 清掉）。🔴 只記錄，命令列與 T0905 前逐字相同。
+
+| 代號 | 何時（啟動時決定，claude） | 對應 T0902 §7.1 |
+|---|---|---|
+| （無，注入成功） | hooks 注入且 claude 自己的設定沒關 | G1 / G9 |
+| `settings-off` | Settings › BAT MCP 關閉（R13：hooks 跟著不注入，只顯示原因） | G2 |
+| `user-settings-arg` | 自訂參數已有 `--settings` | G3 |
+| `claude-hooks-disabled` | managed / 使用者 `settings.json` 的 `disableAllHooks: true`（照樣注入） | G4 |
+| `managed-hooks-only` | managed 的 `allowManagedHooksOnly: true`（照樣注入） | G5 |
+| `no-endpoint` | RemoteServer 沒在聽（分頁沒有 helper 端點） | G13 |
+| `script-missing` | `bat-hook.mjs` 不在 helper 目錄，或 hook 設定檔寫不進去 | G13 |
+| `unrepresentable-path` | 路徑含 `'` 等，hook 指令寫不成 bash / PowerShell 都能跑的字串 | G13 |
+
+詢問時才決定的兩個：`no-report`（有紀錄且注入了，但這個 PTY 還沒有任何 hook 回報；G6，例如專案 `.claude/settings*.json` 關掉 hooks。claude-cli preset 的分頁沒有紀錄時也算這個：BAT 重開、Terminal Server 保留的 PTY）、`not-launched-by-bat`（沒有紀錄、不是 claude-cli preset，而且是塔台或 `--agent` 說是 claude；G8 / G10）。
+
+### `hooksStatus`（§3.1′）
+
+`{ state: 'ok', origin: 'injected' | 'plugin', set, reason?: 'plugin-outdated' } | { state: 'none', reason } | { state: 'n/a', reason: 'codex' } | null`，判定順序（`computeHooksStatus`）：
+
+1. 這個 PTY 有任何 hook 回報被套用（`TerminalBlockedTracker.getHookOriginInfo`）→ `ok`。有 `injected` 就是 `injected`（`set` = 回報帶的，沒帶 = 這版 BAT 的 `BAT_HOOK_SET`）；只有 `plugin` → `plugin`、`set` = plugin 帶的 `--hook-list`（沒帶 = 1），比 `BAT_HOOK_SET` 小 → `reason: 'plugin-outdated'`。🔴 並存時以 injected 為準、不出 `plugin-outdated`。
+2. 啟動紀錄是 codex、preset `codex-cli`、或 `--set-role --agent` 是 codex → `n/a (codex)`。
+3. 有啟動紀錄 → 它的代號，沒有代號 → `no-report`。
+4. 沒有紀錄：preset 是 claude-cli → `no-report`；塔台或 hint 是 claude → `not-launched-by-bat`；其他 → `null`。
+
+- 查詢：`terminal:whoami`、`terminal:list` 每列（含 `scope: 'towers'`）、`terminal:get-state` 都多 `hooksStatus`（結束的分頁 `null`）；BAT MCP 的 `bat_whoami` / `bat_get_state` / `bat_list_terminals` 原樣帶出，摘要加 `hooks=…`（全唯讀）。🔴 只有代號與數字，不含路徑、設定檔名、內容或權杖。
+- `--agent` hint：每次 `--set-role` 都覆寫（`noteTowerAgentHint`，沒帶就清除），只用來判斷 codex / claude。
+
+### `--set-role` 的 `hooks:` 行（§7.2）
+
+- 🔴 只在 `--set-role tower --bat-contract <n>`、而且 BAT 回了合法 `hooksStatus` 時輸出，位置在 `bat-contract:` 行之後；不帶 `--bat-contract` 的舊呼叫請求 / 輸出 / exit code 逐字不變（`setTerminalRole` 照舊同步回答、不帶 `hooksStatus`）。
+- 文法（🔴 不得更改）：`  hooks: ok (<injected|plugin>, set <n>)`、`  hooks: ok (plugin, set <n>, plugin-outdated)`、`  hooks: none (<代號>)`、`  hooks: n/a (codex)`。
+- 等待：宣告契約時若狀態是 `none`（還沒有任何回報、不是 codex），主行程最多等 `HOOKS_STATUS_WAIT_MS` = 2 s（`waitForHookReport`：第一個回報被套用、PTY 結束或逾時就結束），再回答。helper 對帶 `--bat-contract` 的呼叫等回答 8 s（其他照舊 3 s）。日誌 `[set-role] id=<id> hooks=<狀態>[ (waited <ms> ms[, no report])]`。
+- `session-start` 回報從 W9 起也帶 `origin: injected` / `set`（`reportOrigin`，`scripts/bat-hook.mjs`），所以第一個 `Stop` 之前就有 `set`；其他注入事件的回報不變。
+
+### 推送：`terminal:hooks-status`（main → 視窗，proxied）
+
+- `PtyManager.refreshHooksStatus`：只對「已宣告塔台＋有 `towerContract`」的分頁，在狀態改變時送 `{ id, hooksStatus }`（`--set-role`、回報被套用、⏻ 重啟 / PTY 結束、Terminal Server recovery）。遠端視窗經 `PROXIED_EVENTS` 收到；`path-aware-channels.ts` 歸為不轉換。renderer 以 `pty.onHooksStatus`（`electron/preload.ts`）訂閱。
+- 🔴 這個事件與相關 channel 都不在 `HELPER_CHANNEL_ROLES`（只是 main → 視窗的事件）。
+- renderer：`src/stores/hooks-status-store.ts`（第一次被讀時自己訂閱一次；`pty:exit` 清掉；不改 `App.tsx`）。
+
+### 提示（只對契約 v2 塔台，R9′）
+
+- 縮圖徽章 `🪝✕`（`TerminalThumbnail.tsx`）：分頁的 `towerContractStatus` 是 `match` 且 `hooksStatus.state === 'none'`；tooltip = 前綴「這個塔台沒有 BAT hooks：回合訊息卡與對話框保護不可用。」＋代號的說明（三語系 `hooksStatus.*`；`no-endpoint` / `script-missing` / `unrepresentable-path` 共用「BAT 的 helper 異常…」）。`ok`、`n/a`、`plugin-outdated`、契約不符的塔台都不出徽章。
+- 待辦分頁：相符時在標頭下方一行（`src/components/inbox/InboxHooksHint.tsx`，`InboxPanel.tsx` 只多 import 與一行），內容同 tooltip＋「怎麼修」連結（README「BAT hooks 與 `bat-hooks` plugin（選用）」節）；`plugin-outdated` 顯示更新提示（不加「沒有 hooks」前綴）。
+- CT 開工面板的文字由 CT 自己做（§7.7 C-2）。
+
+### `bat-hooks` plugin（§7.3，R12）
+
+| 檔案 | 內容 |
+|---|---|
+| `.claude-plugin/marketplace.json` | marketplace `better-agent-terminal`，一個 plugin：`bat-hooks`（`./plugins/bat-hooks`，`1.0.0`） |
+| `plugins/bat-hooks/.claude-plugin/plugin.json` | 名稱、版本、說明；hooks 由預設位置 `hooks/hooks.json` 載入，沒有指令 / MCP / agent |
+| `plugins/bat-hooks/hooks/hooks.json` | 與 `BAT_CLAUDE_HOOKS` 同樣的事件、matcher、`async`、`timeout: 5`；每個指令 `node "${CLAUDE_PLUGIN_ROOT}/scripts/bat-hooks-launcher.mjs" <event>`（同一字串給 bash 與 PowerShell） |
+| `plugins/bat-hooks/scripts/bat-hooks-launcher.mjs` | launcher（零依賴） |
+
+launcher 規則（🔴）：
+
+- 只在 `BAT_REMOTE_PORT` / `BAT_REMOTE_TOKEN` / `BAT_TERMINAL_ID` 都有、`BAT_HELPER_DIR` 是絕對路徑（無 NUL）、`<BAT_HELPER_DIR>/bat-hook.mjs` 是存在的檔案、事件在白名單時才執行；否則立即 exit 0、無輸出。不接受其他路徑、參數或檔名。
+- 執行**該分頁所屬 BAT** 的 `bat-hook.mjs <event> --hook-list <PLUGIN_HOOK_LIST>`：預設在同一個 node 程序內載入（省一次啟動），`BAT_HELPER_NODE` 是存在的絕對路徑且不是目前的 node 時改用它（stdin 轉給它、stdout / stderr 丟掉）。
+- T0590 規則同樣適用：一律 exit 0、stdout / stderr 不輸出、`LAUNCHER_DEADLINE_MS` = 2.5 s 內結束（`bat-hook.mjs` 自己 1.8 s）、任何失敗靜默。
+- `bat-hook.mjs` 看到 `--hook-list <n>` → 每個事件都帶 `origin: 'plugin'`、`set: n`（缺 origin 會被當成 injected，之後的 plugin 回報會被丟掉，所以 plugin 一律帶；T0905 §7.4）。
+- **信任模型**：路徑來自 claude 程序的環境變數（BAT 設在 PTY）；能改這個 env 的人本來就能控制這個程序要跑什麼（與 PATH 同等）。plugin 本身不含權杖，由使用者以 claude 自己的 `/plugin install` 流程同意安裝；BAT 不替使用者安裝、不改 claude 設定、BAT 的解除安裝程式不動 claude 設定。
+- 🔴 plugin 不進安裝檔：`build.files` / `extraResources` / `asarUnpack` 不動（`scripts/__tests__/bat-hooks-plugin.test.mjs` 守住），`verify-*` 不受影響。
+- 改 `BAT_CLAUDE_HOOKS` 時：`BAT_HOOK_SET`、`plugins/bat-hooks/hooks/hooks.json`、launcher 的 `PLUGIN_HOOK_LIST` 與 plugin / marketplace 版本一起升（同一測試比對）。
+
+### (d1) BAT 注入 `--plugin-dir` 的評估（只評估、未實作）
+
+- 內嵌 claude `2.1.331` 有 `--plugin-dir <path>`（「Load a plugin from a directory or .zip for this session only」，可重複；另有 `--plugin-dir-no-mcp`）。執行檔字串顯示同名 plugin 也從 marketplace 安裝時，claude 會區分「`--plugin-dir` copy」與已安裝的那份（「This --plugin-dir copy did not load …」、`synced-plugin-shadowed` 等），實際以哪份為準、兩份 hooks 會不會都跑，沒有真實 session 無法確認。
+- 結論：**不建議採用**。它只補 G3（自訂 `--settings`），而 G3 已有 `user-settings-arg` 提示＋`bat-hooks` plugin；要注入就得把 plugin 打進安裝檔（違反本單「plugin 不進安裝檔」），而且注入的 plugin 回報會標成 `plugin`、與使用者自己裝的同名 plugin 衝突，`hooks:` 行的判讀也會變複雜。若日後要做，先以真實 session 驗證同名衝突（併入待實機 T-10）。
+
+### 已知限制
+
+- plugin 需要 `node` 在 PATH 上（hooks.json 的指令無法同時在 bash 與 PowerShell 用 `${BAT_HELPER_NODE:-node}`）；裝了 plugin 的主機沒有系統 node 時（遠端主機常見；在 BAT 以外的終端也一樣），指令跑不起來，claude 會把它當成 hook 錯誤（非阻擋），這是 launcher 管不到的唯一情況（T0902 §7.1 G10、待實機 T-12）；README 安裝步驟已寫明需要 `node`。
+- `${CLAUDE_PLUGIN_ROOT}` 在 Windows 經 Git Bash 與經 PowerShell 的展開未實機（T-9）。
+- 注入＋plugin 並存的實際去重、`--settings` 與使用者 / plugin hooks 的合併未實機（T-10）；專案層 `disableAllHooks` → `no-report` 未實機（T-11）。
+- BAT 重開後（記憶體清空）claude-cli 分頁在下一個 hook 回報前顯示 `no-report`；renderer 重新載入後要等下一次狀態改變才有徽章（與 `tower-contract-store` 相同）。
+- 比 W9 舊的 BAT 搭配 plugin：舊 `bat-hook.mjs` 不認得 `--hook-list`，回報當成 injected，功能照舊、只是不會區分來源。
+
+### 驗證
+
+- 單元：`electron/__tests__/claude-hooks-status.test.ts`（判定表、`hooks:` 行、紀錄、啟動代號、PtyManager 狀態 / 等待 / 推送、`setTerminalRole` 2 s 等待與舊呼叫不變）、`electron/__tests__/bat-terminal-set-role.test.ts`「hooks line (T0910)」（真 helper：每種狀態的行、舊呼叫沒有這行、3.5 s 回答仍等得到）、`scripts/__tests__/bat-hooks-plugin.test.mjs`（manifest、hooks.json ↔ `BAT_CLAUDE_HOOKS`、launcher 規則、不進安裝檔、`reportOrigin`）、`electron/__tests__/terminal-blocked-state.test.ts`「T0910: the bat-hooks plugin launcher …」（真 launcher → 真 `bat-hook.mjs` → RemoteServer）、`scripts/__tests__/bat-mcp.test.mjs`「T0910: hooksStatus」、`src/components/__tests__/hooks-status-hint.test.tsx`、`src/components/__tests__/inbox-panel.test.tsx`「T0910 …」。
+- headless：`electron/remote/__tests__/headless-set-role-e2e.test.ts`（真 headless：`--bat-contract` 呼叫多 `hooks: none (not-launched-by-bat)`）、`headless-terminal-query-e2e.test.ts`（`scope: towers` 每列帶 `hooksStatus`）。
+- 待實機：T0902 T-9（Windows Git Bash / PowerShell）、T-10（並存去重）、T-11（專案 `disableAllHooks`）、T-12（WSL 手打 claude＋plugin、沒有系統 node）。

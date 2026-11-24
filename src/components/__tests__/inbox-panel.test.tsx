@@ -24,6 +24,7 @@ import { TowerOverview } from '../TowerOverview'
 import { ControlTowerPanel } from '../ControlTowerPanel'
 import { workspaceStore } from '../../stores/workspace-store'
 import { applyTowerContract, resetTowerContractStore } from '../../stores/tower-contract-store'
+import { applyHooksStatus, resetHooksStatusStore } from '../../stores/hooks-status-store'
 import { resetTerminalAttention, setTerminalAttention } from '../../stores/terminal-attention-store'
 import { applyNotifyHold, resetNotifyHoldStore } from '../../stores/notify-hold-store'
 import { resetInterruptedAgentsStoreForTests, setInterruptedAgents } from '../../stores/interrupted-agents-store'
@@ -116,6 +117,7 @@ afterEach(() => {
   act(() => {
     workspaceStore.removeWorkspace(ws.id)
     resetTowerContractStore()
+    resetHooksStatusStore() // T0910
     resetTerminalAttention()
     resetNotifyHoldStore()
     resetInterruptedAgentsStoreForTests()
@@ -164,6 +166,22 @@ describe('§6′ screens', () => {
     }
     expect(document.body.textContent).not.toMatch(/後續版本|later version/)
     expect(badge()).toBe('2') // two BUGs to accept, no Worker waits
+  })
+
+  it('T0910: Tower 2 × state 2 without BAT hooks → one hooks line under the header; a mismatch shows none', () => {
+    const t = tower('Claude CLI · Tower', 2)
+    act(() => {
+      setInboxFiles(WS_DIR, files(`bat_contract: 2${String.fromCharCode(10)}`))
+      applyHooksStatus({ id: t.id, hooksStatus: { state: 'none', reason: 'not-launched-by-bat' } })
+    })
+    renderPanel()
+    expect(document.querySelector('[data-inbox-hooks]')?.getAttribute('data-inbox-hooks')).toBe('not-launched-by-bat')
+    expect(document.querySelector('.inbox-header')?.nextElementSibling?.getAttribute('data-inbox-hooks')).toBe('not-launched-by-bat')
+    cleanup()
+    act(() => { applyTowerContract({ id: t.id, role: 'tower', towerContract: undefined }) })
+    renderPanel()
+    expect(gate()).toBe('P-1')
+    expect(document.querySelector('[data-inbox-hooks]')).toBeNull()
   })
 
   it('Tower 2 × state v1: P-3 only, `!` on the title, no BAT data', () => {

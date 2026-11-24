@@ -147,4 +147,7 @@ export const PROXIED_EVENTS = new Set([
   // PLAN-068 W3 / T0905: a remote Tower tab's turn cards changed — the client windows refetch them
   // with `tower-cards:list` (electron/tower-cards.ts; counts and a revision only, never a card's text)
   'tower-cards:changed',
+  // PLAN-068 W9 / T0910: a remote contract-2 Tower's hooks status changed — the client windows show
+  // the 🪝✕ badge / the Inbox hint (electron/claude-hooks-status.ts; state / reason / origin / set only)
+  'terminal:hooks-status',
 ])

@@ -114,6 +114,10 @@
  * (+ `messageTruncated`): the handler hands it to `onStop` (the Tower turn cards, electron/tower-cards.ts)
  * and never logs, mirrors or answers it — the tracker never sees it.
  *
+ * PLAN-068 W9 / T0910: `acceptHookOrigin` also keeps whether a `plugin` report was applied and the latest
+ * `set` per origin (a plugin's `set` is its `--hook-list`); `getHookOriginInfo` hands them to
+ * `hooksStatus` (electron/claude-hooks-status.ts). Same lifetime; the dedupe rule is unchanged.
+ *
  * 🔴 No `electron` import here (PtyManager and headless use it).
  */
 import type { CodexTerminalState } from '../src/lib/codex-terminal-state'
@@ -375,7 +379,7 @@ export class TerminalBlockedTracker {
    * T0905: running PTY id → whether an `injected` report arrived (from then on `plugin` reports are
    * dropped), whether a dropped `plugin` report was logged, and the latest hook `set` reported.
    */
-  private readonly hookOrigins = new Map<string, { injected: boolean; droppedLogged: boolean; set?: number }>()
+  private readonly hookOrigins = new Map<string, { injected: boolean; droppedLogged: boolean; set?: number; plugin?: boolean; injectedSet?: number; pluginSet?: number }>()
 
   constructor(
     private readonly logger?: BlockedTrackerLogger,
@@ -521,13 +525,34 @@ export class TerminalBlockedTracker {
       return false
     }
     if (!fromPlugin) entry.injected = true
-    if (set !== undefined) entry.set = set
+    else entry.plugin = true // T0910
+    if (set !== undefined) {
+      entry.set = set
+      // T0910: per origin — a plugin report's `set` is its `--hook-list` (the plugin's event list)
+      if (fromPlugin) entry.pluginSet = set
+      else entry.injectedSet = set
+    }
     return true
   }
 
   /** T0905: the latest hook set version PTY `id` reported, or null. */
   getHookSet(id: string): number | null {
     return this.hookOrigins.get(id)?.set ?? null
+  }
+
+  /**
+   * PLAN-068 W9 / T0910: which origins of PTY `id` had a report applied and the latest `set` of each
+   * (`hooksStatus`, electron/claude-hooks-status.ts); null = none applied since the PTY started.
+   */
+  getHookOriginInfo(id: string): { injected: boolean; plugin: boolean; injectedSet?: number; pluginSet?: number } | null {
+    const entry = this.hookOrigins.get(id)
+    if (!entry || (!entry.injected && !entry.plugin)) return null
+    return {
+      injected: entry.injected,
+      plugin: entry.plugin === true,
+      ...(entry.injectedSet !== undefined ? { injectedSet: entry.injectedSet } : {}),
+      ...(entry.pluginSet !== undefined ? { pluginSet: entry.pluginSet } : {}),
+    }
   }
 
   /**

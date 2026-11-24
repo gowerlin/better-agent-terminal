@@ -17,6 +17,8 @@ import { missedWaitToShow, waitingForUser, workerAttention, type MissedWait, typ
 import { appendPreviewInput, outputPreview, textPreview } from '../lib/thumbnail-preview'
 import { cancelNotifyHold, sendNowNotifyHold, useNotifyHold, useNotifyHoldReason } from '../stores/notify-hold-store'
 import { towerContractBadge, towerContractHint, useTowerContract } from '../stores/tower-contract-store'
+import { useHooksStatus } from '../stores/hooks-status-store'
+import { hooksStatusHint, showsHooksBadge } from '../lib/hooks-status'
 import { NOTIFY_HOLD_SKIPPABLE_REASONS, type NotifyHoldItem, type NotifyHoldReason } from '../types/notify-hold'
 
 /** PLAN-044 / T0566: `15:05`-style local clock time of an epoch. */
@@ -285,6 +287,9 @@ export const TerminalThumbnail = memo(function TerminalThumbnail({ terminal, isA
   const towerContract = useTowerContract(terminal.id)
   const contractBadge = towerContractBadge(towerContract)
   const contractHint = towerContractHint(towerContract)
+  // PLAN-068 W9 / T0910 (T0902 §7.2): a contract-2 Tower without BAT hooks (R9′: only when it matches)
+  const hooksStatus = useHooksStatus(terminal.id)
+  const hooksHint = towerContract?.status === 'match' && showsHooksBadge(hooksStatus) ? hooksStatusHint(hooksStatus) : null
   const [holdMenu, setHoldMenu] = useState<{ x: number; y: number } | null>(null)
   const { pos: holdPos, menuRef: holdRef } = useMenuPosition(holdMenu)
   const [ctxMenu, setCtxMenu] = useState<{ x: number; y: number } | null>(null)
@@ -405,6 +410,16 @@ export const TerminalThumbnail = memo(function TerminalThumbnail({ terminal, isA
               style={{ flexShrink: 0, fontSize: '0.8em', fontWeight: 600, padding: '0 4px', borderRadius: 4, color: 'var(--warning-color, #e8a838)', border: '1px solid currentColor' }}
             >
               {contractBadge}
+            </span>
+          )}
+          {hooksHint && hooksStatus?.state === 'none' && (
+            <span
+              className="tower-hooks-badge"
+              title={`${t('hooksStatus.prefix')}${t(hooksHint.key)}`}
+              data-hooks-status={hooksStatus.reason}
+              style={{ flexShrink: 0, fontSize: '0.8em', fontWeight: 600, padding: '0 4px', borderRadius: 4, color: 'var(--warning-color, #e8a838)', border: '1px solid currentColor' }}
+            >
+              🪝✕
             </span>
           )}
           {usageLimit && (

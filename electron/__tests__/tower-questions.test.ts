@@ -637,6 +637,7 @@ describe('query state: blocked / tower and pendingQuestions (C-7)', () => {
       claudeSessionName: null, // T0642
       claudeSessionId: null,
       towerContract: null, // T0903
+      hooksStatus: null, // T0910
     })
     const rows = h.call('terminal:list', h.asHelper('tw')).terminals as Result[]
     expect(rows.find(t => t.id === 'wk')).toMatchObject({ state: 'blocked', blockedReason: 'tower', pendingQuestions: 3 })

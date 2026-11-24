@@ -365,6 +365,7 @@ export const PATH_FREE_EVENTS: ReadonlyMap<string, string> = new Map([
   ['terminal:usage-limit-continue', '{ id, action, text?, agent, traceId } (terminal id + the Settings continue text; T0566)'],
   ['terminal:attention-changed', '{ id, blockedReason?, blockedSince?, pendingQuestions, questionsSince? } (terminal id + state enum / times / count, never question text; T0609)'],
   ['tower-cards:changed', '{ terminalId, revision, unread, total } (terminal id + counts, never a card text; T0905)'],
+  ['terminal:hooks-status', '{ id, hooksStatus: { state, reason?, origin?, set? } | null } (terminal id + state / reason code enums / set number, never a path or content; T0910)'],
 ])
 
 export function translateRemoteEventArgs(

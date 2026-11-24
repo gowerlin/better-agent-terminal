@@ -166,13 +166,14 @@ describe('remote Tower --set-role through the real helper (T0562)', () => {
   it('T0903: --bat-contract 2 / 3 → recorded on the headless PtyManager (answer line + event); no --bat-contract clears it, output as before', async () => {
     const v2 = await helperIn(tower, ['--set-role', 'tower', '--bat-contract', '2', '--mode', 'yolo'])
     expect(v2.code, v2.stderr).toBe(0)
-    expect(v2.stdout.trim().split(/\r?\n/)).toEqual([`✓ Tower role set: ${tower}`, '  mode: yolo', '  bat-contract: 2'])
+    // T0910: + the hooks line (a shell Tower BAT did not launch claude in; BAT waited 2 s for a report)
+    expect(v2.stdout.trim().split(/\r?\n/)).toEqual([`✓ Tower role set: ${tower}`, '  mode: yolo', '  bat-contract: 2', '  hooks: none (not-launched-by-bat)'])
     await vi.waitFor(() => expect(roleEvents(tower).at(-1)?.args[0]).toMatchObject({ id: tower, mode: 'yolo', towerContract: 2 }), { timeout: 10_000, interval: 50 })
     expect(await bat.invoke('terminal:whoami', { terminalId: tower })).toMatchObject({ ok: true, towerContract: 2 })
 
     const v3 = await helperIn(tower, ['--set-role', 'tower', '--bat-contract', '3'])
     expect(v3.code, v3.stderr).toBe(0)
-    expect(v3.stdout.trim().split(/\r?\n/)).toEqual([`✓ Tower role set: ${tower}`, '  mode: yolo', '  bat-contract: 2 (requested 3: unsupported)'])
+    expect(v3.stdout.trim().split(/\r?\n/)).toEqual([`✓ Tower role set: ${tower}`, '  mode: yolo', '  bat-contract: 2 (requested 3: unsupported)', '  hooks: none (not-launched-by-bat)'])
     expect(await bat.invoke('terminal:whoami', { terminalId: tower })).toMatchObject({ ok: true, towerContract: 3 })
 
     const old = await helperIn(tower, ['--set-role', 'tower', '--mode', 'ask'])

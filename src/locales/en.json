@@ -1803,6 +1803,20 @@
     "ctOutdated": "This Tower's Control Tower did not declare BAT ↔ CT contract v{{supported}}, so notification protection (no scroll jump, not mixed into your draft, held while you read), turn message cards and the inbox list are off. Update to BMad Control Tower 6.1.0 or later, then reopen the Tower. Dialog protection (no notifications while it waits for your answer) is not affected.",
     "batOutdated": "This Tower uses BAT ↔ CT contract v{{requested}}; this BAT supports only v{{supported}}. Update Better Agent Terminal. Until then, notification protection, turn message cards and the inbox list are off."
   },
+  "hooksStatus": {
+    "prefix": "This Tower has no BAT hooks: turn cards and the dialog protection are unavailable. ",
+    "help": "How to fix",
+    "reason": {
+      "settings-off": "Reason: Settings › BAT MCP is turned off. Turn it on and reopen the Tower, or install the bat-hooks plugin.",
+      "user-settings-arg": "Reason: this agent's custom arguments already pass --settings. Remove it, or install the bat-hooks plugin.",
+      "claude-hooks-disabled": "Reason: a claude settings file (managed or the user's settings.json) sets disableAllHooks. This is your own setting; remove it to use the hooks.",
+      "managed-hooks-only": "Reason: your organization's managed settings allow managed hooks only. Ask your administrator.",
+      "no-report": "Reason: claude started but no hook reported; the project's .claude/settings*.json may turn hooks off.",
+      "not-launched-by-bat": "Reason: BAT did not start this claude (typed in a shell). Use \"Open Claude as Tower\", or install the bat-hooks plugin.",
+      "plugin-outdated": "The bat-hooks plugin has an older event list than this BAT. Run claude plugin update bat-hooks@better-agent-terminal (missing events are not reported).",
+      "helper": "BAT's helper is broken. Restart BAT; if it persists, reinstall BAT."
+    }
+  },
   "notifyHold": {
     "badge": "Held {{count}}",
     "badgeTooltip": "{{count}} held notification(s): this tab waits for your answer, so Worker notifications are held and sent once you answer. Click to review",

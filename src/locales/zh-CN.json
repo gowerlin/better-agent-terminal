@@ -1802,6 +1802,20 @@
     "ctOutdated": "这个塔台的 Control Tower 没有声明 BAT ↔ CT 契约 v{{supported}}，所以通知保护（不抢滚动、不混进草稿、阅读时延后）、回合消息卡与待办清单都已停用。请升级到 BMad Control Tower 6.1.0 以上，再重新打开塔台。对话框保护（等你回答时不发送通知）不受影响。",
     "batOutdated": "这个塔台使用 BAT ↔ CT 契约 v{{requested}}，这版 BAT 只支持 v{{supported}}。请升级 Better Agent Terminal。在升级前，通知保护、回合消息卡与待办清单都已停用。"
   },
+  "hooksStatus": {
+    "prefix": "这个塔台没有 BAT hooks：回合消息卡与对话框保护不可用。",
+    "help": "怎么修",
+    "reason": {
+      "settings-off": "原因：Settings › BAT MCP 已关闭。打开它并重开塔台，或安装 bat-hooks plugin。",
+      "user-settings-arg": "原因：这个 agent 的自定义参数已有 --settings。去掉它，或安装 bat-hooks plugin。",
+      "claude-hooks-disabled": "原因：claude 的配置文件（managed 或用户层的 settings.json）设了 disableAllHooks。这是你的设置；要使用请去掉。",
+      "managed-hooks-only": "原因：组织的 managed 设置只允许 managed hooks。请联系管理员。",
+      "no-report": "原因：claude 启动后没有任何 hook 回报，可能是项目的 .claude/settings*.json 关了 hooks。",
+      "not-launched-by-bat": "原因：这个 claude 不是 BAT 开的（在 shell 手动输入）。改用「以塔台开启 Claude」，或安装 bat-hooks plugin。",
+      "plugin-outdated": "bat-hooks plugin 的事件列表比这版 BAT 旧，请执行 claude plugin update bat-hooks@better-agent-terminal（缺少的事件不会回报）。",
+      "helper": "BAT 的 helper 异常，请重开 BAT；仍然如此请重新安装。"
+    }
+  },
   "notifyHold": {
     "badge": "待发 {{count}}",
     "badgeTooltip": "待发通知 {{count}}：这个标签页在等你回答，Worker 的通知先保留，答完后自动发送。点击查看",

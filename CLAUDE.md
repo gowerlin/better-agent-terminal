@@ -444,6 +444,15 @@
 - 唯一實作 `electron/tower-cards.ts`（`TowerCardStore`、`registerTowerCardHandlers`，不 import electron，本機與 headless 共用）、`ReportHookDeps.onStop`（`electron/terminal-blocked-state.ts`）、renderer `src/stores/tower-cards-store.ts`（`createTowerCardsSync`，W6 接到 App）。
 - 完整規則、channel 形狀、claude 最低版號、驗證清單：[docs/agent-guide/tower-inbox.md](docs/agent-guide/tower-inbox.md)
 
+## BAT hooks 狀態與 `bat-hooks` plugin（PLAN-068 W9 / T0910）
+
+- 用途：每個 claude / codex 分頁記錄 hooks 的啟動決定與原因代號（`settings-off` / `user-settings-arg` / `claude-hooks-disabled` / `managed-hooks-only` / `no-endpoint` / `script-missing` / `unrepresentable-path`；詢問時另有 `no-report` / `not-launched-by-bat`），合成 `hooksStatus`（`ok` + `injected|plugin` + `set`［+ `plugin-outdated`］/ `none` + 代號 / `n/a (codex)`）：`whoami` / `list`（含 `towers`）/ `get-state` 與 BAT MCP 帶出；契約 v2 塔台縮圖 `🪝✕`、待辦分頁標頭一行。使用者另可裝 BAT repo marketplace 的 Claude Code plugin `bat-hooks`（手打 `claude`、自訂 `--settings`、BAT MCP 關閉時）。
+- 🔴 `--set-role` 的 `hooks:` 行（CT 6.1.0 解析，文法不得更改）：只在帶 `--bat-contract` 時、`bat-contract:` 行之後輸出 `  hooks: ok (<injected|plugin>, set <n>[, plugin-outdated])` / `  hooks: none (<代號>)` / `  hooks: n/a (codex)`；狀態是 `none` 時主行程最多等 `HOOKS_STATUS_WAIT_MS` = 2 s 的第一個回報。不帶 `--bat-contract` 的舊呼叫同步回答、輸出逐字不變。並存時以 injected 為準、不出 `plugin-outdated`。
+- 🔴 不變：`buildBatMcpLaunchArgs` 的命令列（只多記錄）、R13（Settings 關閉 hooks 也不注入）、W3 去重、T0590 hook 規則；注入的 `bat-hook.mjs` 只有 `stop` / `session-start` 帶 `origin` / `set`。推送 `terminal:hooks-status`（只給已宣告契約的塔台、狀態改變時）與相關 channel 都不進 `HELPER_CHANNEL_ROLES`。
+- 🔴 plugin launcher（`plugins/bat-hooks/scripts/bat-hooks-launcher.mjs`）只執行 `<絕對 BAT_HELPER_DIR>/bat-hook.mjs`，三個 `BAT_*` 都在才跑，否則立即 exit 0 無輸出；T0590 規則同樣適用。plugin 不進安裝檔（`build.files` / `extraResources` 不動）。改 `BAT_CLAUDE_HOOKS` 時 `BAT_HOOK_SET`、`hooks.json`、`PLUGIN_HOOK_LIST` 一起升。BAT 不替使用者安裝 plugin、不改 claude 設定。
+- 唯一實作：`electron/claude-hooks-status.ts`（`computeHooksStatus`、`claudeHooksRecords`）、`src/lib/hooks-status.ts`（形狀、代號、`hooksStatusLine`、提示）、`hooksLaunchRecordOf`（`electron/bat-mcp-launch.ts`）、`PtyManager.getHooksStatus` / `waitForHookReport` / `refreshHooksStatus`、`setTerminalRole`、`hooksLine`（`scripts/bat-terminal.mjs`）、`src/stores/hooks-status-store.ts`、`src/components/inbox/InboxHooksHint.tsx`。
+- 完整規則、代號表、判定順序、plugin 信任模型、(d1) `--plugin-dir` 評估、已知限制、驗證清單：[docs/agent-guide/tower-inbox.md](docs/agent-guide/tower-inbox.md)「hook 註冊」
+
 ## Claude 分頁的 session 名稱（PLAN-050 / T0641，D167）
 
 - 用途：claude-cli 分頁啟動時加 `claude --name=<名稱>`，讓 CT 從 ListAgents 分得出 BAT 的塔台與 Worker。格式唯一實作 `claudeSessionName`（`src/lib/claude-session-name.ts`，main / renderer 共用）：Worker `<ws> · Worker · <T####>`、Tower `<ws> · Tower`（「以塔台開啟 Claude」，T0644）、其他 `<ws> · <短 ID>`；`<ws>` = 工作區 `alias || name` 清理後 ≤ 60 字、整個名稱 ≤ 200 字（從 `<ws>` 截斷）、空 → `BAT`。

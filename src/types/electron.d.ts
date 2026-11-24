@@ -199,6 +199,8 @@ interface ElectronAPI {
     onCloseRequested: (callback: (info: { id: string }) => void) => () => void
     /** T0562: `terminal:role-changed` — tab `id` declared its role (`bat-terminal.mjs --set-role tower`). */
     onRoleChanged: (callback: (info: import('../lib/tower-terminal-title').TerminalRoleChangeInfo) => void) => () => void
+    /** PLAN-068 W9 / T0910: `terminal:hooks-status` — contract-2 Tower `id`'s BAT hooks status (`parseHooksStatus`). */
+    onHooksStatus?: (callback: (info: { id: string; hooksStatus: unknown }) => void) => () => void
     /** PLAN-044 / T0566: `terminal:usage-limit-status` — tab `id`'s usage-limit hint changed (null = cleared). */
     onUsageLimitStatus: (callback: (info: import('../lib/usage-limit').UsageLimitStatusEvent) => void) => () => void
     /** T0609 (BUG-153): `terminal:attention-changed` — tab `id` waits for the user / its Tower's answer (empty = no longer). */

@@ -446,3 +446,27 @@ describe('PLAN-068 W0 / T0903: towerContract', () => {
     expect(towers.structuredContent.terminals.map(t => t.towerContract)).toEqual([2, null])
   })
 })
+
+describe('PLAN-068 W9 / T0910: hooksStatus', () => {
+  it('whoami / get-state / list describe hooksStatus; structuredContent carries it; summaries name it (codes only)', async () => {
+    for (const name of ['bat_whoami', 'bat_get_state', 'bat_list_terminals']) {
+      expect(TOOLS.find(t => t.name === name).description).toContain('hooksStatus')
+    }
+    const { call } = setup({
+      'terminal:whoami': { ok: true, result: { ok: true, terminalId: 't1', role: 'tower', yolo: true, towerContract: 2, hooksStatus: { state: 'ok', origin: 'injected', set: 2 } } },
+      'terminal:get-state': { ok: true, result: { ok: true, terminalId: 't1', state: 'idle', hooksStatus: { state: 'none', reason: 'no-report' } } },
+      'terminal:list': { ok: true, result: { ok: true, scope: 'towers', terminals: [
+        { id: 't1', workspaceId: 'ws-a', workspaceName: null, claudeSessionName: null, state: 'idle', alive: true, self: true, towerContract: 2, hooksStatus: { state: 'ok', origin: 'plugin', set: 1, reason: 'plugin-outdated' } },
+        { id: 't2', workspaceId: 'ws-b', workspaceName: null, claudeSessionName: null, state: 'working', alive: true, self: false, towerContract: 2, hooksStatus: { state: 'n/a', reason: 'codex' } },
+        { id: 't3', workspaceId: 'ws-b', workspaceName: null, claudeSessionName: null, state: 'idle', alive: true, self: false, towerContract: null, hooksStatus: null },
+      ] } },
+    })
+    const who = (await call('bat_whoami')).result
+    expect(who.content[0].text).toBe('terminal t1 role=tower yolo bat-contract=2 hooks=ok (injected, set 2)')
+    expect(who.structuredContent).toMatchObject({ hooksStatus: { state: 'ok', origin: 'injected', set: 2 } })
+    const state = (await call('bat_get_state')).result
+    expect(state.content[0].text).toBe('t1: idle, hooks=none (no-report)')
+    const towers = (await call('bat_list_terminals', { scope: 'towers' })).result
+    expect(towers.content[0].text).toBe('3 terminals (scope=towers): t1 (self, bat-contract=2, hooks=ok (plugin, set 1, plugin-outdated), idle); t2 (bat-contract=2, hooks=n/a (codex), working); t3 (idle)')
+  })
+})
