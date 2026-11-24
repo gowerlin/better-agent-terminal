@@ -7,7 +7,7 @@ status: FIXED
 severity: low
 reproducibility: "frequent（2026-11-25 三張工單的 worktree 都遇到：T0894 4 檔、T0891 6 檔、T0895 6 檔；都是第一次完整執行）"
 created_at: "2026-11-25T01:08:06+08:00"
-updated_at: "2026-11-25T01:36:42+08:00"
+updated_at: "2026-11-25T01:45:54+08:00"
 impact:
   - tests
   - ci
@@ -21,7 +21,7 @@ links:
 |------|------|
 | 嚴重度 | 🟢 low（只影響測試；但 CI Test gate（T0686）失敗會擋 build / 發版） |
 | 可重現 | 常見：三個 worktree 的第一次完整 `test:unit` 都出現 |
-| **狀態** | ✅ FIXED（T0898 `98bd9e96`，分支 `ct/T0898`；待合併進 `v0.8.x`、pre.2 CI Test gate 驗收） |
+| **狀態** | ✅ FIXED（T0898 `98bd9e96`，T0899 合併進 `v0.8.x` `7063e45e`（整合 worktree 全新 binary 狀態第一次 test:unit 即綠）；待 pre.2 CI Test gate 驗收） |
 | 回報者 | 塔台（T0891 / T0894 / T0895 Worker 回報彙整） |
 | 影響版本 | `v0.8.x` 測試套件（是否 `v0.8.x` 才出現未查） |
 
