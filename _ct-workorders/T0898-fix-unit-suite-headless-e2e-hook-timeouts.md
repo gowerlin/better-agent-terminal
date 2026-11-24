@@ -4,13 +4,14 @@ schema_kind: workorder
 id: T0898
 title: "修正 BUG-218（在 `v0.8.x`）：完整 `test:unit` 第一次執行時 headless / RemoteServer e2e 測試檔 `beforeAll` 逾時 —— 查根因並讓整套一次就綠"
 type: implementation
-status: PENDING
+status: IN_PROGRESS
 repo: better-agent-terminal
 project: maintenance
 priority: P2
 sizing: M
 created_at: "2026-11-25T01:08:06+08:00"
-updated_at: "2026-11-25T01:08:06+08:00"
+updated_at: "2026-11-25T01:15:28+08:00"
+started_at: "2026-11-25T01:15:28+08:00"
 target_version: "0.8.0-pre.2"
 depends_on: [T0896]
 related:
