@@ -4,13 +4,14 @@ schema_kind: workorder
 id: T0906
 title: "PLAN-068 W4（在 `v0.8.x`）：右側欄「待辦」分頁骨架與版本判定 —— `DockablePanel` `inbox`、分區版面、`bat_contract` 解析、§6′ 判定表（分頁宣告 × 狀態檔）、P-3、分頁標題數字 / `!`、BAT 既有資料區（CT `todo` 全部、待驗收 BUG、BUG / PLAN / 工單數量、Worker 等你）、總覽 `todo` 改連結（R6）"
 type: implementation
-status: PENDING
+status: IN_PROGRESS
 repo: better-agent-terminal
 project: PLAN-068
 priority: P1
 sizing: M
 created_at: "2026-11-25T05:12:00+08:00"
-updated_at: "2026-11-25T05:12:00+08:00"
+updated_at: "2026-11-25T05:12:23+08:00"
+started_at: "2026-11-25T05:12:23+08:00"
 target_version: "0.8.x（與 CT 6.1.0 同日發佈）"
 depends_on: [T0903]
 related:
