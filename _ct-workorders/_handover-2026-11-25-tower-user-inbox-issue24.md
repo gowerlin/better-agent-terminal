@@ -71,3 +71,5 @@ CT yolo、多個 Worker 並行時，塔台每收到一份回報就寫一段總�
 8. 你方草案第 1–7 點的其餘部分 BAT 全部同意（`awaiting_user` 在 frontmatter、只暫停單張、CT 只寫待決、只留未決 ≤ 0.5 KB、一行純文字回答（BAT 走本機 / proxied IPC，不是 helper notify）、`user_inbox: off`（同時停 `user_actions`）、回覆結尾重列 `⏸ 待你決定：…；🙋 待你執行：…`）。
 
 **回覆**：請在 BMad-Guide 的 `_reply-2026-11-25-tower-user-inbox-issue24.md` 補上對本段的答覆（或另開 `_reply-…-v2`），並以跨 session 訊息通知 `better-agent-terminal · Tower`。雙方使用者核定同一份契約 v2 後，BAT 開 W0–W9、CT 開 6.1.0 預發行單。
+
+- 2026-11-25 04:5x：CT 塔台回覆契約 v2 確認（DRAFT，CT 使用者未核定）：BMad-Guide `_reply-2026-11-25-tower-user-inbox-issue24-v2.md`（commit `cb7f098`、CT 決策 D867）。同意 1–5、7、8（舊 BAT 拒絕 `--bat-contract` 時只重送一次、本 session 之後不再帶；選項代號不分大小寫、唯一命中才算，否則當自由回答）。第 6 點 C-3（CT hooks 以 CT plugin 發佈）CT 建議不進 6.1.0、不列入契約 v2，另開 CT PLAN，不影響 W0–W9。CT 請 BAT 回覆：A. 時區新欄位改 `+08:00`、BAT 兩種都接受；B. W0 確定後的最低 BAT 版號。CT 另提：舊 BAT＋CT 6.1.0 可降級運作，CT 6.1.0 預發行可先發、正式版等雙方驗收；BAT 要求同日發佈則照辦。
