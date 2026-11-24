@@ -4,6 +4,30 @@ All notable changes to Better Agent Terminal are documented in this file.
 
 ## [Unreleased]
 
+## [0.8.0-pre.2] — 2026-11-25
+
+### Added
+- Claude Fable 5.2（`claude-fable-5-2`，1M context、128K output）：`BAT_BUILTIN_MODELS`、`MODEL_LIMITS`、計價 `fable-5-2`（$8 / $40，cache read 0.025x；排在 `fable-5` 之前）（T0891）
+- 本機 IPC `clipboard:has-image`（`hasClipboardImage`：只看 `clipboard.read()` 的 MIME 類型、不讀資料；不經遠端轉送、不是 helper channel），終端 Ctrl+V / Command+V / 右鍵貼上改用它判斷有沒有圖（T0893，BUG-216）
+- 終端貼上讀不到剪貼簿時顯示提示（`terminal.clipboardReadFailed`，三語系）；貼上錯誤日誌經 `describePasteError` 只記 `name: message`（T0893，BUG-216）
+- `usage-limit.ts` 新增 claude 花費 / 額度停止句（`team's pooled group budget`、channel / individual / org 的每月 spend / usage limit、`usage limit · contact your admin to increase it`、seat type 不含用量、allocation disabled、group 上限 $0、service disabled、out of extra usage → `non-timed`；計時句尾 `· out of usage credits`）與 codex 0.172 的 API spend limit 句型（T0891、T0897）
+- vitest `test.globalSetup`（`electron/__tests__/helpers/electron-binary-global-setup.ts`）：worker 開始前補一次 Electron binary（T0898，BUG-218）
+
+### Changed
+- 內嵌 `@anthropic-ai/claude-code` 2.1.316 → 2.1.331、`@anthropic-ai/claude-agent-sdk` 0.3.316 → 0.3.331、`@openai/codex-sdk` / `@openai/codex` 0.166.0 → 0.172.0（含全部平台子套件；BAT 整合點核對無變動）（T0891）
+- `clipboard:read-image-data-url`（Claude / Codex 面板貼圖）在解碼前以剪貼簿原始大小早退（> 2 × 10 MiB），10–20 MiB 照舊重新編碼後比 10 MiB（T0893，BUG-216）
+- 遠端上傳 `clipboard-image`（SSH / Docker 終端貼圖）原始大小 > 50 MiB × 1.25 時不讀資料直接 `TOO_LARGE`（`ClipboardImageTooLargeError`），錯誤碼與訊息不變（T0895，BUG-216）
+- 指揮塔總覽的 `_tower-state.md` 摘要解析錯誤只記一行（reason＋行列），同一錯誤＋內容只記一次，不再記 js-yaml 原文摘錄（`describeYamlError` / `towerStateSummaryLog`）（T0894，BUG-217）
+- e2e t0592 改等塔台 pwsh 自寫的標記再送通知，假 codex 先清理再寫結果檔（T0897）；`bat-mcp-codex-env.test.ts` 的 codex 加 `-c features.plugins=false`（T0898）
+
+### Fixed
+- 剪貼簿有數十 MB 圖片時終端 Ctrl+V 讓主行程卡住 1–3 s、記憶體暫時衝高（T0893 / T0895，BUG-216）
+- 完整 `test:unit` 第一次執行時 RemoteServer / headless e2e 測試檔 `beforeAll` 逾時（Electron 42+ 首次 `require('electron')` 同步下載 binary）（T0898，BUG-218）
+
+### Known limitations
+- `Usage is paused for your organization`（組織每日上限暫停）不顯示限額提示（T0897）
+- CI（ubuntu-24.04）`shared-conout.test.ts` 真 Worker 測試曾逾時一次，調查中（BUG-219，T0900）；共用 conout 只在 Windows 生效
+
 ## [0.8.0-pre.1] — 2026-11-24
 
 ### Changed

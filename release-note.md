@@ -2,6 +2,51 @@
 
 本 fork 各版的更版重點（內容取自 GitHub Releases，最新在上）。上游 tony1223/better-agent-terminal 的 v2.1.x 紀錄保留在檔案最下方。
 
+## v0.8.0-pre.2（2026-11-25）
+
+版號 0.8.0-pre.2，接續 `v0.8.0-pre.1`。
+
+本版重點：內嵌的 Claude CLI、Claude Agent SDK 與 Codex 更新到最新版（新增 Claude Fable 5.2 模型）；剪貼簿有很大的圖片時按 Ctrl+V 不再讓 BAT 卡住；認得更多 Claude 花費 / 額度上限的訊息。
+
+### 更新
+
+- **內嵌 Claude CLI 2.1.331、Claude Agent SDK 0.3.331、Codex 0.172.0**（原本 2.1.316 / 0.3.316 / 0.166.0）。BAT 與它們的整合點（MCP、狀態偵測、啟動確認、分頁名稱、Codex 的 `-c` 設定與 `--no-daemon`）都已核對沒有變動。
+- **新增模型 Claude Fable 5.2**：Claude 面板的模型清單多了 `Fable 5.2 (1M)`，用量與費用依官方價目（每百萬 token 輸入 $8 / 輸出 $40）計算；CLI 的 `fable` 別名現在指向 Fable 5.2。
+
+### 修正
+
+- **剪貼簿有大型圖片時按 Ctrl+V 卡住**（BUG-216）：終端判斷剪貼簿有沒有圖時不再讀出整張圖（以前幾十 MB 的圖會讓 BAT 卡住 1–3 秒、記憶體暫時衝高）；Claude / Codex 面板貼圖時超過 20 MB 的圖會直接拒絕，不先解碼；SSH / Docker 遠端視窗的終端貼圖超過約 62.5 MB 會直接拒絕。10 MB / 50 MB 上限與小圖的行為都不變。
+- **讀不到剪貼簿時 Ctrl+V 沒有任何反應**（BUG-216）：現在會顯示「沒有貼上任何內容：讀不到剪貼簿」的提示。
+- **認得更多 Claude 限額訊息**：團隊共用額度、頻道 / 個人 / 組織的每月花費或用量上限、「請管理員調高」、席位不含用量、配額被停用等訊息，BAT 現在都會顯示限額提示（以前沒有提示）；Codex 0.172 新增的「API 花費上限」訊息也一樣。
+- **指揮塔總覽的日誌**（BUG-217）：某個工作區的塔台狀態檔格式錯誤時，日誌只記一行原因、同一個錯誤只記一次，不再重複寫入大量內容。
+
+### 待驗收（請更新到本版後協助確認）
+
+- **大型圖片 Ctrl+V**：複製一張很大的截圖（例如 4K 以上），在終端分頁按 Ctrl+V，BAT 不應卡住；在 Claude / Codex 面板貼上時，超過上限的圖應該出現提示。
+- **Claude Fable 5.2**：Claude 面板選 `Fable 5.2 (1M)` 能正常對話，用量面板的費用以 $8 / $40 計算。
+- **Codex 面板**：Codex 0.169 起，在不受信任的專案資料夾裡，Codex 不會載入專案層的設定與專案 MCP；若你依賴專案層的 `.codex/config.toml`，請留意 Codex 是否出現相關警告。
+- 先前版本仍待確認的項目（Windows 終端記憶體與大量輸出、從 `0.7.5-pre.2` 更新時終端保留、「為所有使用者安裝」在一般權限下更新、Docker Desktop 精靈、遠端附件上傳的 SSH / Docker 實機、WSL「改用 Mirrored 並重試」、Linux 缺字型提示、Claude 面板排隊送出）照舊歡迎回報。
+
+### 歡迎協助測試
+
+本版內嵌的 Codex 升到 0.172.0。如果你使用 Codex CLI，歡迎幫忙跑一次塔台 / Worker 流程並回報：
+
+1. 在 BAT 開一個 Codex CLI 分頁，呼叫 MCP tool `bat_whoami`，看 `role` 與 `agent` 是否正確。
+2. 由塔台派一張小工單給 Codex Worker。
+3. 確認 Worker 完成後通知回到塔台、Worker 分頁被自動回收。
+
+結果（成功或失敗都歡迎）請到 GitHub issue 回報，附上 BAT 版本（`0.8.0-pre.2`）與 `codex --version`。
+
+### 已知事項
+
+- `Usage is paused for your organization`（組織每日上限暫停）這則訊息目前不顯示限額提示（可能隔天自動恢復，避免提示錯誤）。
+- 本版沒有改動終端與 Terminal Server，`0.8.0-pre.1` 的已知事項照舊：從 `0.7.5-pre.x` 更新後要完全關閉 BAT 重開一次才省到記憶體；反覆開關分頁後 Terminal Server 會多保留約 10–15 MB 後持平；降級到 `0.7.4-pre.9` 或更早會結束所有終端且沒有說明。
+- Claude Fable 5.2 對 CLI 版本的最低要求沒有公開資料；Settings 改用系統 claude 時，若系統 claude 早於 2.1.321，選 Fable 5.2 可能出現版本過舊的錯誤（BAT 會顯示升級提示）。
+
+macOS 仍只提供 Apple Silicon（arm64）版。
+
+**Full Changelog**: https://github.com/gowerlin/better-agent-terminal/compare/v0.8.0-pre.1...v0.8.0-pre.2
+
 ## v0.8.0-pre.1（2026-11-24）
 
 版號 0.8.0-pre.1，接續 `v0.7.5-pre.2`。

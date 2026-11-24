@@ -1,7 +1,7 @@
 ---
 schema_kind: tower-state
 summary_version: 1
-updated_at: "2026-11-25T00:39:07+08:00"
+updated_at: "2026-11-25T03:05:00+08:00"
 session: "2026-11-25 00:28 第一百三十 session（CT v6.0.0）"
 next_ids:
   workorder: "T0901"
@@ -10,7 +10,7 @@ next_ids:
   plan: "PLAN-068"
 todo:
   - "PLAN-067 每週日誌清查：塔台開工時讀 PLAN-067 `last_review_at`，≥ 7 天就在面板提示（只提示、不自動派工；規則見 `_local-rules.md`〈每週日誌清查〉）。下次到期 2026-12-02"
-  - "🚀 `v0.8.0-pre.1` 已發佈（D315，2026-11-24 03:24，從 `v0.8.x`）並通過 NSIS 重裝驗收（2026-11-24 03:35，PASS-WITH-WARN，WARN 只因從 `0.0.0-exp.18` 升級；含權杖備份已刪）。待做：發佈後驗收（linux / macos / docker acceptance、WSL smoke）視需要另取授權；`v0.8.x` 併回 main：使用者裁示等 `v0.8.0-pre.1` 實際使用一段時間再併，併回後 PLAN-066 → DONE（main 的 `package.json` 仍是 `0.7.5-pre.2`，`v0.8.x` 是 `0.8.0-pre.1`）"
+  - "🚀 `v0.8.0-pre.2` 已發佈（D324，2026-11-25 03:02，從 `v0.8.x` `7063e45e`；pre.1 D315 2026-11-24，NSIS 重裝驗收 PASS）；**pre.2 NSIS 重裝驗收待使用者執行**。待做：發佈後驗收（linux / macos / docker acceptance、WSL smoke）視需要另取授權；`v0.8.x` 併回 main：使用者裁示等 `v0.8.0-pre.1` 實際使用一段時間再併，併回後 PLAN-066 → DONE（main 的 `package.json` 仍是 `0.7.5-pre.2`，`v0.8.x` 是 `0.8.0-pre.1`）"
   - "PLAN-066 後續候選（未開單）：`pty:create` 只送 env 差異（`pty-manager.ts`＋Terminal Server 協定）可再降 C2①；direct 模式的 conin socket 殘留；F4（自然結束的 conhost 留到 server 結束）。分支：`ct/T0885`（Rust 評估，D307 保留不合併，worktree 保留）、`ct/T0886`（node-pty Worker 研究，未併入 `v0.8.x`，worktree 已移除）"
   - "PLAN-065 剩餘：per-machine 未提權互動升級（UAC）手動驗收（無法自動化）；降級到 `0.7.4-pre.9` 會結束所有終端且沒有說明（已寫在更版重點〈已知事項〉）"
   - "PLAN-052（IN_PROGRESS）：待 Docker Desktop（Windows / macOS）實機走精靈；後續候選（未開單）：fetch-fingerprint Docker 分支比對憑證指紋、`scripts/docker-acceptance.mjs` 純函式單元測試"
@@ -19,7 +19,7 @@ todo:
   - "候選（未開單，D303 暫不安排）：T0830 後續 SSH / Docker 精靈長呼叫接 operation id；PLAN-052 fetch-fingerprint Docker 分支、docker-acceptance 純函式測試；PLAN-058 卡片等待時可送出（2026-11-20 使用者：先記著、不開單。只涉 Claude Agent 面板（SDK），不影響 Claude CLI 分頁；要做時的建議：輸入框預設收合＋「補充說明」按鈕展開、輸入框有焦點時停用卡片快捷鍵（權限卡在 window 監聽 1/2/3、y/n、Enter、方向鍵）、送出走 T0815 排隊路徑；需實機操作確認）"
   - "MSRC 回報 microsoft/node-pty（使用者自行處理，D255）"
   - "觀察：語音可用性檢查 macOS 未實機（`unknown(timeout)` 出現可把逾時提到 30 s，T0802）；t0757 偶發失敗再發生才開 BUG（D218）；PLAN-060（IDEA）macOS Developer ID 簽章"
-  - "版號線：D315 起 `0.8.0-pre.N`（從 `v0.8.x` 分支發），pre.1 已發佈（2026-11-24），下一版 `0.8.0-pre.2`（`-pre.N` 最多到 pre.9）；`0.7.5` 線最後是 pre.2"
+  - "版號線：D315 起 `0.8.0-pre.N`（從 `v0.8.x` 分支發），pre.2 已發佈（2026-11-25），下一版 `0.8.0-pre.3`（`v0.8.x` 已含 T0900 修正）（`-pre.N` 最多到 pre.9）；`0.7.5` 線最後是 pre.2"
   - "候選（未開單）：`_decision-log.md` 索引表只到 D129（D130–D315 沒有索引列，BAT 決策清單看不到），需重建索引（D316 記錄）"
 ---
 # Tower State — better-agent-terminal
@@ -47,6 +47,7 @@ todo:
 > 02:36 第一次嘗試 **failure**：`tests / unit-tests`（ubuntu-24.04）1 檔失敗——`shared-conout.test.ts`「the real Worker script relays a pipe」逾時 20 s（pre.1 CI 同檔 1.0 s 全過；本批未改）；build / release skipped（沒有發出任何 release）。開 BUG-219（OPEN low；共用 conout 只在 win32 生效，Linux 使用者不受影響）。02:37 `gh run rerun --failed` 確認是否可重現。
 > 02:4x D325（使用者「依建議」）→ T0900 派出；attempt 2 `tests / unit-tests` success，Linux / macOS build success，Windows build 進行中。
 > 02:59 T0900 收單 DONE：根因 = 測試競態（`await closed` 後才掛 client `'close'` listener，Linux unix socket 上 client 常先 close；WSL 重現約 22%），只改測試（`6b907f6b`，+5 / −1，timeout 不變），WSL 連續 60 次 0 失敗、Windows test:unit 第一次即綠 8513。模式 ① 直接合併：`ct-merge/T0900` `86b3fc67`（parent1 `7063e45e` / parent2 `6b907f6b`）→ **本機 `v0.8.x` ff `7063e45e..86b3fc67`（等 pre.2 release 建好後才 push，該提交隨下一版發佈）**；BUG-219 FIXED；分支 `ct/T0900` / `ct-merge/T0900` 已刪；worktree 中繼資料已移除，空目錄被 Worker 分頁佔用待分頁關閉後刪；session 快照已寫；`--close-worker T0900` exit 0。
+> 03:02 **`v0.8.0-pre.2` 發佈**：run `45460440287` attempt 2 全 success（tests、typecheck、server-bundle ×3、三平台 build、release）；prerelease target `7063e45e`、4 個安裝檔；`server-bundle-v0.8.0-pre.2`（7 個附件）。更版重點已 `gh release edit`。CHANGELOG / release-note 加 pre.2 段（main，README 不需改）；`v0.8.x` 本機 `86b3fc67`（T0900）→ `fda8a4b4`（package version 0.8.0-pre.2）。
 >
 > 🛏 **第一百二十九 session 收工**（2026-11-24 03:50 (UTC+8)）。
 
