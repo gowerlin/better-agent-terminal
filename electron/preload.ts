@@ -22,7 +22,7 @@ import type { ClientPathPurpose, ResolvedClientPath } from '../src/lib/client-pa
 import type { TerminalRoleChangeInfo } from '../src/lib/tower-terminal-title'
 import type { UsageLimitContinueEvent, UsageLimitStatusEvent } from '../src/lib/usage-limit'
 import type { DetachedWaitingReport, TerminalAttentionEvent, TerminalAttentionSnapshotEntry } from '../src/lib/terminal-attention'
-import type { NotifyHoldChangedEvent } from '../src/types/notify-hold'
+import type { NotifyHoldChangedEvent, NotifyHoldReminderEvent } from '../src/types/notify-hold'
 import type { RemoteUploadApi, RemoteUploadProgressEvent, RemoteUploadSourceDescriptor } from '../src/lib/remote-upload'
 import type {
   BatVolumeRole,
@@ -47,7 +47,8 @@ const electronAPI = {
     create: (options: CreatePtyOptions) => ipcRenderer.invoke('pty:create', options),
     getBuffer: (id: string) => ipcRenderer.invoke('pty:get-buffer', id),
     // T0566: `{ auto: true }` = BAT's own automatic write (usage-limit continue), not the user's input
-    write: (id: string, data: string, opts?: { auto?: boolean }) =>
+    // T0904: `{ submit: true }` = the Enter of an inbox answer (the user's input; closes the atomic window)
+    write: (id: string, data: string, opts?: { auto?: boolean; submit?: boolean }) =>
       opts ? ipcRenderer.invoke('pty:write', id, data, opts) : ipcRenderer.invoke('pty:write', id, data),
     resize: (id: string, cols: number, rows: number) => ipcRenderer.invoke('pty:resize', id, cols, rows),
     kill: (id: string) => ipcRenderer.invoke('pty:kill', id),
@@ -82,8 +83,8 @@ const electronAPI = {
       ipcRenderer.on('terminal:notified', handler)
       return () => ipcRenderer.removeListener('terminal:notified', handler)
     },
-    onTerminalKeypress: (callback: (info: { targetId: string; key: string; code?: string; keyCode?: number; source?: string; reason?: string; traceId?: string }) => void) => {
-      const handler = (_event: Electron.IpcRendererEvent, info: { targetId: string; key: string; code?: string; keyCode?: number; source?: string; reason?: string; traceId?: string }) => callback(info)
+    onTerminalKeypress: (callback: (info: { targetId: string; key: string; code?: string; keyCode?: number; source?: string; reason?: string; traceId?: string; userInput?: boolean }) => void) => {
+      const handler = (_event: Electron.IpcRendererEvent, info: { targetId: string; key: string; code?: string; keyCode?: number; source?: string; reason?: string; traceId?: string; userInput?: boolean }) => callback(info)
       ipcRenderer.on('terminal:keypress', handler)
       return () => ipcRenderer.removeListener('terminal:keypress', handler)
     },
@@ -127,7 +128,20 @@ const electronAPI = {
       const handler = (_event: Electron.IpcRendererEvent, info: NotifyHoldChangedEvent) => callback(info)
       ipcRenderer.on('terminal:notify-hold-changed', handler)
       return () => ipcRenderer.removeListener('terminal:notify-hold-changed', handler)
-    }
+    },
+    // PLAN-068 W2 / T0904:「立即送出」(local IPC, like cancel); the draft reminder; the reading signal
+    notifyHoldSendNow: (terminalId: string, holdId?: string) =>
+      (holdId === undefined
+        ? ipcRenderer.invoke('terminal:notify-hold-send-now', terminalId)
+        : ipcRenderer.invoke('terminal:notify-hold-send-now', terminalId, holdId)) as Promise<number>,
+    onNotifyHoldReminder: (callback: (info: NotifyHoldReminderEvent) => void) => {
+      const handler = (_event: Electron.IpcRendererEvent, info: NotifyHoldReminderEvent) => callback(info)
+      ipcRenderer.on('terminal:notify-hold-reminder', handler)
+      return () => ipcRenderer.removeListener('terminal:notify-hold-reminder', handler)
+    },
+    // proxied: the host running the tab holds Worker notifications while the user reads it
+    setReadingState: (terminalId: string, reading: boolean) =>
+      ipcRenderer.invoke('terminal:reading-state', { terminalId, reading }) as Promise<{ ok: boolean; reason?: string }>,
   },
   workspace: {
     save: (data: string) => ipcRenderer.invoke('workspace:save', data),

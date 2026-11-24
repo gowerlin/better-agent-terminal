@@ -39,6 +39,12 @@ submit 的 Enter 由塔台分頁的 xterm 產生（`dispatchEnter` → xterm `on
 
 CT 已回覆（BMad-Guide `_reply-2026-11-02-bat-notify-hold-contract.md`，CT D543 / BAT D228）：同意預設保留、上限 8 筆、第 9 / 10 點；兩種逾時方案都不採用（見第 5 點）。日後改值只改常數（與本檔、CLAUDE.md 對應小節）。
 
+## 契約 2 的塔台（PLAN-068 W1＋W2 / T0904）
+
+宣告 BAT ↔ CT 契約 2 的塔台分頁（`towerContractStatus` `match`）另有三種保留：`draft`（輸入框有使用者還沒送出的文字，不設上限、5 分鐘提醒一次、「立即送出」）、`reading`（使用者在閱讀，最長 60 s，不擋回答）、原子送出（helper 文字到它的 Enter 之間，使用者輸入由 host 暫存後補寫），且 submit Enter 改走 `terminal.input('\r', false)`（B0）。上表 10 點對所有分頁照舊；版本不符或非塔台的分頁行為與 T0904 前相同。完整規則見 [tower-inbox.md](tower-inbox.md)。
+
+常數（同檔）：`NOTIFY_HOLD_READING_MAX_MS` 60 s、`NOTIFY_HOLD_DRAFT_REMIND_MS` 5 分鐘、`NOTIFY_HOLD_ATOMIC_MAX_MS` 1 s、`NOTIFY_HOLD_ANSWER_MAX_CHARS` 1,000。
+
 ## 實作位置
 
 - 唯一實作：`NotifyHoldController`（`electron/notify-hold.ts`）—— 保留佇列、合併、上限、送出排程（不設逾時，D228）。不 import electron，Electron main 與 headless 共用，deps 注入比照 `close-worker.ts` / `usage-limit-continue.ts`。只讀 `TerminalBlockedTracker`（經 PtyManager 的 `getBlockedState` / `getBlockedDetection`），不改它的判斷規則（T0590 / T0757 / T0621）。

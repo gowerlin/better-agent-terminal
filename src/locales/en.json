@@ -1813,7 +1813,16 @@
     "partsText": "text only",
     "partsEnter": "Enter only",
     "cancel": "Cancel",
-    "cancelAll": "Cancel all"
+    "cancelAll": "Cancel all",
+    "reasonDraft": "You are typing: the Tower's input box holds text you have not sent, so notifications wait. They go out 1 s after you send it (Enter) or clear it (Ctrl+C).",
+    "reasonReading": "You are reading: notifications wait until you stop for 10 s (60 s at most).",
+    "reasonPrompt": "Waiting for your answer to a prompt: sent once you answer and 1 s passes quietly.",
+    "reasonQueued": "Queued behind the previous one.",
+    "answerSource": "Your answer",
+    "sendNow": "Send now",
+    "sendNowTooltip": "Stop waiting for your draft or your reading and send them in order now (with a draft, the notification is appended to your text and sent with it). A prompt still holds them.",
+    "reminderTitle": "{{count}} notification(s) for the Tower waited 5 minutes",
+    "reminderBody": "{{title}}: the Tower's input box holds text you have not sent, so Worker notifications wait. They go out once you send or clear it, or use “Send now” in “📨 Held”."
   },
   "interruptedAgents": {
     "title": "Agent tabs interrupted by the Terminal Server recovery",

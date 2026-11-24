@@ -181,7 +181,7 @@ interface ElectronAPI {
     /** T0403: replay buffer; rejects with `No handler` on a remote server before T0403. */
     getBuffer: (id: string) => Promise<PtyReplayBuffer | null>
     /** T0566: `opts.auto` = BAT's own automatic write (not the user's input; a server before T0566 ignores it). */
-    write: (id: string, data: string, opts?: { auto?: boolean }) => Promise<void>
+    write: (id: string, data: string, opts?: { auto?: boolean; submit?: boolean }) => Promise<void>
     resize: (id: string, cols: number, rows: number) => Promise<void>
     kill: (id: string) => Promise<boolean>
     restart: (id: string, cwd: string, shell?: string) => Promise<boolean>
@@ -193,7 +193,8 @@ interface ElectronAPI {
     onExit: (callback: (id: string, exitCode: number) => void) => () => void
     onCreatedExternally: (callback: (info: { id: string; cwd: string; command?: string; agent?: string; agentName?: string; workspaceId?: string; towerTerminalId?: string; workorder?: string; ctWorktree?: CtWorktreeInfo; workspaceResolved?: boolean; remote?: boolean; dispatchedByHelper?: boolean }) => void) => () => void
     onTerminalNotified: (callback: (info: { targetId: string; message: string; source?: string; questionId?: string }) => void) => () => void
-    onTerminalKeypress: (callback: (info: { targetId: string; key: string; code?: string; keyCode?: number; source?: string; reason?: string; traceId?: string }) => void) => () => void
+    /** T0904: `userInput` = the Enter of an inbox answer (written `{ submit: true }`, the user's input). */
+    onTerminalKeypress: (callback: (info: { targetId: string; key: string; code?: string; keyCode?: number; source?: string; reason?: string; traceId?: string; userInput?: boolean }) => void) => () => void
     /** PLAN-041 / T0535: `terminal:close-requested` — main asks the window holding tab `id` to close it. */
     onCloseRequested: (callback: (info: { id: string }) => void) => () => void
     /** T0562: `terminal:role-changed` — tab `id` declared its role (`bat-terminal.mjs --set-role tower`). */
@@ -210,6 +211,12 @@ interface ElectronAPI {
     notifyHoldCancel: (terminalId: string, holdId?: string) => Promise<number>
     /** T0788: `terminal:notify-hold-changed` — tab `terminalId`'s held notifications now (empty = none). */
     onNotifyHoldChanged: (callback: (info: import('./notify-hold').NotifyHoldChangedEvent) => void) => () => void
+    /** PLAN-068 W2 / T0904:「立即送出」— `draft` / `reading` stop holding tab `terminalId`'s items (up to `holdId`). */
+    notifyHoldSendNow?: (terminalId: string, holdId?: string) => Promise<number>
+    /** T0904: `terminal:notify-hold-reminder` — a notification waited 5 min for the user's draft. */
+    onNotifyHoldReminder?: (callback: (info: import('./notify-hold').NotifyHoldReminderEvent) => void) => () => void
+    /** T0904: proxied `terminal:reading-state` — the user reads tab `terminalId` (a contract-2 Tower). */
+    setReadingState?: (terminalId: string, reading: boolean) => Promise<{ ok: boolean; reason?: string }>
   }
   workspace: {
     save: (data: string) => Promise<boolean>

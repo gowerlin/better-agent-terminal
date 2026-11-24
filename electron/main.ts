@@ -36,7 +36,7 @@ import { mirrorToBatScripts } from './remote/remote-logger'
 import { rotateBatScriptsLog } from './bat-scripts-log-rotation'
 import { CtWorktreeService } from './ct-worktree'
 import { UsageLimitContinueScheduler } from './usage-limit-continue'
-import { NOTIFY_HOLD_CHANGED_CHANNEL, NotifyHoldController } from './notify-hold'
+import { NOTIFY_HOLD_CHANGED_CHANNEL, NOTIFY_HOLD_REMINDER_CHANNEL, NotifyHoldController } from './notify-hold'
 import { normalizeUsageLimitConfig } from '../src/lib/usage-limit'
 import { bringWindowToFront, planDeletedProfileWindows } from '../src/lib/profile-window-front'
 import { DETACHED_WAITING_MAX_ID, sanitizeDetachedWaitingReport } from '../src/lib/terminal-attention'
@@ -3003,6 +3003,9 @@ function registerProxiedHandlers() {
       return true
     },
     emitChanged: (event) => { localWindowEmit(NOTIFY_HOLD_CHANGED_CHANNEL, event) },
+    // PLAN-068 W2 / T0904: a notification waited 5 min for the user's draft — the window holding the
+    // tab shows a system notification (src/components/TerminalPanel.tsx)
+    emitReminder: (event) => { localWindowEmit(NOTIFY_HOLD_REMINDER_CHANNEL, event) },
     logger,
     mirrorToBatScripts,
   })
@@ -4894,6 +4897,11 @@ function registerLocalHandlers() {
   // T0788 / BUG-196: the notifications held for this BAT's tabs — pull (a window mounted after the
   // event) and cancel (one / all). 🔴 Renderer IPC only: never a RemoteServer / helper channel.
   ipcMain.handle('terminal:notify-hold-list', () => notifyHold?.list() ?? [])
+  // PLAN-068 W2 / T0904:「立即送出」— `draft` / `reading` stop holding them (a prompt still does)
+  ipcMain.handle('terminal:notify-hold-send-now', (_event, terminalId: unknown, holdId?: unknown) => {
+    if (typeof terminalId !== 'string' || !notifyHold) return 0
+    return notifyHold.sendNow(terminalId, typeof holdId === 'string' ? holdId : undefined)
+  })
   ipcMain.handle('terminal:notify-hold-cancel', (_event, terminalId: unknown, holdId?: unknown) => {
     if (typeof terminalId !== 'string' || !notifyHold) return 0
     return notifyHold.cancel(terminalId, typeof holdId === 'string' ? holdId : undefined)

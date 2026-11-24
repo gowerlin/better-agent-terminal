@@ -15,9 +15,9 @@ import { useMissedWait, useTerminalAttention, useWorkerResumed } from '../stores
 import { OPEN_INTERRUPTED_AGENTS_EVENT, useInterruptedAgent } from '../stores/interrupted-agents-store'
 import { missedWaitToShow, waitingForUser, workerAttention, type MissedWait, type WaitingForUser, type WorkerAttention } from '../lib/terminal-attention'
 import { appendPreviewInput, outputPreview, textPreview } from '../lib/thumbnail-preview'
-import { cancelNotifyHold, useNotifyHold } from '../stores/notify-hold-store'
+import { cancelNotifyHold, sendNowNotifyHold, useNotifyHold, useNotifyHoldReason } from '../stores/notify-hold-store'
 import { towerContractBadge, towerContractHint, useTowerContract } from '../stores/tower-contract-store'
-import type { NotifyHoldItem } from '../types/notify-hold'
+import { NOTIFY_HOLD_SKIPPABLE_REASONS, type NotifyHoldItem, type NotifyHoldReason } from '../types/notify-hold'
 
 /** PLAN-044 / T0566: `15:05`-style local clock time of an epoch. */
 function clockTime(epoch: number | null): string {
@@ -49,6 +49,14 @@ function usageLimitTooltip(t: (key: string, options?: Record<string, unknown>) =
 function notifyHoldParts(t: (key: string, options?: Record<string, unknown>) => string, item: NotifyHoldItem): string {
   if (item.hasText && item.hasEnter) return t('notifyHold.partsTextEnter')
   return item.hasEnter ? t('notifyHold.partsEnter') : t('notifyHold.partsText')
+}
+
+/** PLAN-068 W2 / T0904: why a contract-2 Tower's notifications wait (locale keys `notifyHold.reason*`). */
+export function notifyHoldReasonKey(reason: NotifyHoldReason): string {
+  if (reason === 'draft') return 'notifyHold.reasonDraft'
+  if (reason === 'reading') return 'notifyHold.reasonReading'
+  if (reason === 'queued') return 'notifyHold.reasonQueued'
+  return 'notifyHold.reasonPrompt'
 }
 
 /** T0609 (BUG-153): the second tooltip line of a Worker badge (locale keys `workerTabs.*`). */
@@ -270,6 +278,9 @@ export const TerminalThumbnail = memo(function TerminalThumbnail({ terminal, isA
     : undefined
   // T0788 / BUG-196: Worker notifications main holds while this tab waits for the user (memory only)
   const heldNotifications = useNotifyHold(terminal.id)
+  // PLAN-068 W2 / T0904: why they wait (contract-2 Towers only) and whether「立即送出」may skip it
+  const holdReason = useNotifyHoldReason(terminal.id)
+  const canSendNow = holdReason !== null && NOTIFY_HOLD_SKIPPABLE_REASONS.includes(holdReason)
   // PLAN-068 W0 / T0903 (T0902 §6′): a Tower whose BAT ↔ CT contract does not match (memory only)
   const towerContract = useTowerContract(terminal.id)
   const contractBadge = towerContractBadge(towerContract)
@@ -371,8 +382,11 @@ export const TerminalThumbnail = memo(function TerminalThumbnail({ terminal, isA
           {heldNotifications.length > 0 && (
             <span
               className="notify-hold-badge"
-              title={t('notifyHold.badgeTooltip', { count: heldNotifications.length })}
+              title={holdReason
+                ? `${t('notifyHold.title', { count: heldNotifications.length })}\n${t(notifyHoldReasonKey(holdReason))}`
+                : t('notifyHold.badgeTooltip', { count: heldNotifications.length })}
               data-notify-hold={heldNotifications.length}
+              data-notify-hold-reason={holdReason ?? undefined}
               style={{ cursor: 'pointer', flexShrink: 0, fontSize: '0.85em', padding: '0 4px', borderRadius: 4, background: 'var(--bg-tertiary, rgba(128,128,128,0.25))' }}
               onClick={(e) => {
                 e.stopPropagation()
@@ -423,6 +437,11 @@ export const TerminalThumbnail = memo(function TerminalThumbnail({ terminal, isA
           onClick={e => e.stopPropagation()}
         >
           <div style={{ padding: '6px 10px', fontWeight: 600 }}>{t('notifyHold.title', { count: heldNotifications.length })}</div>
+          {holdReason && (
+            <div className="notify-hold-reason" data-reason={holdReason} style={{ padding: '0 10px 6px', fontSize: '0.9em', whiteSpace: 'normal' }}>
+              {t(notifyHoldReasonKey(holdReason))}
+            </div>
+          )}
           <div style={{ padding: '0 10px 6px', fontSize: '0.85em', opacity: 0.8, whiteSpace: 'normal' }}>{t('notifyHold.desc')}</div>
           {heldNotifications.map(item => (
             <div
@@ -432,7 +451,9 @@ export const TerminalThumbnail = memo(function TerminalThumbnail({ terminal, isA
               style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '2px 10px' }}
             >
               <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                {item.workorder || t('notifyHold.source', { id: item.sourceTerminalId ? item.sourceTerminalId.slice(0, 8) : '?' })}
+                {item.kind === 'answer'
+                  ? t('notifyHold.answerSource')
+                  : item.workorder || t('notifyHold.source', { id: item.sourceTerminalId ? item.sourceTerminalId.slice(0, 8) : '?' })}
                 {' · '}{clockTime(item.heldAt)}{' · '}{notifyHoldParts(t, item)}
               </span>
               <button
@@ -445,6 +466,16 @@ export const TerminalThumbnail = memo(function TerminalThumbnail({ terminal, isA
               </button>
             </div>
           ))}
+          {canSendNow && (
+            <button
+              className="context-menu-item"
+              data-action="send-held-notifications-now"
+              title={t('notifyHold.sendNowTooltip')}
+              onClick={() => { void sendNowNotifyHold(terminal.id); setHoldMenu(null) }}
+            >
+              ➤ {t('notifyHold.sendNow')}
+            </button>
+          )}
           <button
             className="context-menu-item"
             data-action="cancel-all-held-notifications"
