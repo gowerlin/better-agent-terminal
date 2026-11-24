@@ -50,7 +50,7 @@ T0891（內嵌 claude 2.1.331 / codex 0.172.0 追版）回報的兩個候選，�
 1. **claude 花費上限句型**：`You've hit your channel's monthly spend limit`、`usage credit limit` 等句型從 2.1.316 就存在，`src/lib/usage-limit.ts` 一直不認，撞到時 BAT 不會顯示限額提示。
 2. **e2e t0592 不穩**：`lacking "shell"` 情境 6 次失敗 2 次；codex 升版必跑這份 spec（CLAUDE.md「BAT MCP shim」），不穩會讓之後每次追版都要重跑判讀。
 
-本單等 T0896（合併 T0891 / T0893 / T0895 進 `v0.8.x`）完成後，從新的 `v0.8.x` 開分支（`usage-limit.ts` 在 T0891 有改動），完成後由塔台直接合併，隨 `0.8.0-pre.2` 發佈。
+本單等 T0896（合併 T0891 / T0893 / T0895 進 `v0.8.x`）完成後，從新的 `v0.8.x` 開分支（`usage-limit.ts` 在 T0891 有改動），與 T0898（BUG-218）並行；兩張完成後由一張合併工單一起併進 `v0.8.x` 並做發版前最後一次完整驗收（D322，取代 D321 的「塔台直接合併」），隨 `0.8.0-pre.2` 發佈。
 
 ## 驗收
 
