@@ -4,7 +4,7 @@ summary_version: 1
 updated_at: "2026-11-25T00:39:07+08:00"
 session: "2026-11-25 00:28 第一百三十 session（CT v6.0.0）"
 next_ids:
-  workorder: "T0896"
+  workorder: "T0897"
   decision: "D321"
   bug: "BUG-218"
   plan: "PLAN-067"
@@ -32,6 +32,7 @@ todo:
 > 00:49 T0894 收單 DONE：`ct/T0894` `2b49e5a5`（4 檔皆在 `affects_files`、worktree 乾淨、test:unit 8454 passed、vite build / typecheck 0 / 0）→ `v0.8.x` fast-forward `bcb4bbe0..2b49e5a5`；BUG-217 FIXED；session 快照已寫；`--close-worker T0894 --worktree keep` exit 0。**待補**：`docs/agent-guide/ct-tower-overview.md` 第 56 行（文字在 T0894 回報區），T0891 合併後由塔台補。觀察：首輪 test:unit 4 個 headless e2e 檔 `beforeAll` 逾時、重跑全綠。
 > 00:54 T0893 收單（Worker 寫 FIXED → 塔台改 DONE，L177）：`ct/T0893` `43d290c9`（12 檔皆在 `affects_files`、worktree 乾淨、test:unit 8466 passed、build / typecheck 0 / 0、`merge-tree` 對 `v0.8.x` 無衝突）；BUG-216 FIXED；session 快照已寫；`--close-worker T0893 --worktree keep` exit 0。D319：等 T0891 後派一張合併工單（模式 ②）併 `ct/T0893` + `ct/T0891`、補文件、完整驗收。候選：`upload-client.ts` `clipboard-image` 早退（T0893〈建議後續〉）→ 00:57 使用者「安排」→ D320 開 T0895（`ct/T0895` 從 `ct/T0893` `43d290c9`），合併工單改併 `ct/T0895` + `ct/T0891`。00:58 派出 T0895（exit 0、`started:`）。
 > 01:00 T0891 收單 DONE：`ct/T0891` head `ef14afb7`（validated `36a23b7d`，差的只有 `bat-mcp-shim.md` 一句）；claude-code **2.1.331** / agent-sdk **0.3.331** / codex **0.172.0**；純追加 3 項（Fable 5.2 模型＋計價 $8/$40、claude `team's pooled group budget` 句型、codex API spend limit 句型）；19 檔皆在 `affects_files`、worktree 乾淨；test:unit 8459 / legacy 472 / build / typecheck 0 / 0 / verify:helpers / e2e t0621 綠、t0592 有一情境 2/6 間歇失敗（最後連 3 次全綠）；`merge-tree` 對 `v0.8.x` 與 `ct/T0893` 都無衝突；session 快照已寫；`--close-worker T0891 --worktree keep` exit 0。候選（未開單）：t0592 `lacking "shell"` 情境穩定化（tower pwsh `-NoProfile` / 延長等待）；claude `channel's monthly spend limit` / `usage credit limit` 句型（2.1.316 起就有、BAT 不認）；Fable 5.2 服務端最低 CLI 版本未知（`HEALTHY_MIN` 維持 2.1.280）。
+> 01:05 T0895 收單 DONE：`ct/T0895` `c6565a96`（5 檔皆在 `affects_files`、worktree 乾淨、test:unit 8473 passed（第二次）、build / typecheck 0 / 0；門檻 65,536,000 bytes、只有 `ClipboardImageTooLargeError` → `TOO_LARGE`）；session 快照已寫；`--close-worker T0895 --worktree keep` exit 0。`merge-tree` 三組都無衝突 → 開合併工單 T0896（模式 ②，整合 worktree，base `v0.8.x` `2b49e5a5`，併 `ct/T0895` + `ct/T0891`＋文件補充＋完整驗收）。觀察：完整 test:unit 首輪 headless / RemoteServer e2e `beforeAll` 逾時已在 T0891 / T0894 / T0895 三張出現（重跑皆過）→ 候選 BUG（CI Test gate 可能偶發擋發版）。
 >
 > 🛏 **第一百二十九 session 收工**（2026-11-24 03:50 (UTC+8)）。
 
