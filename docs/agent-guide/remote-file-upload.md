@@ -147,6 +147,8 @@ const outcome = await uploadToRemoteHost(sessionId /* 面板 sessionId 或終端
 | 一個視窗同時持有 > 20 個 transfer | `prepare` | 整批 `TOO_MANY` |
 | transfer 10 分鐘沒有 call（renderer 中途消失） | 下一次 `prepare` | 取消並 `upload:abort` |
 
+`clipboard-image` 來源（T0895，BUG-216 後續）：main 以 `readClipboardPng(clipboard, { refuseAboveBytes: CLIPBOARD_UPLOAD_EARLY_REFUSE_BYTES })` 讀剪貼簿；原始 PNG 大於 65,536,000 bytes（50 MiB × 1.25）時不把資料讀進 main、不解碼，回 `TOO_LARGE`（訊息與讀完後超過 50 MiB 相同：`image is larger than 52428800 bytes`）。50 MiB～門檻之間照舊讀完、以讀回的位元組數比 50 MiB（T0893 實測原始與讀回差距 ≤ 4.6%，25% 餘裕讓邊界附近結果不變）。只有 `ClipboardImageTooLargeError` 對應 `TOO_LARGE`，其他讀取錯誤仍 `SOURCE_ERROR`。
+
 ### client 端錯誤碼（host 的碼見上方「上限」與 T0832 契約 C-3，原樣轉回）
 
 | code | 何時 |

@@ -53,7 +53,7 @@ todo:                                     # 選填，字串陣列，顯示前 5 
 - 未知鍵忽略；欄位缺少就不顯示那一項；`next_ids` 只收純量值（物件略過），`todo` 只收純量項目（空字串與物件略過）。
 - YAML 以 `CORE_SCHEMA` 解析：不把未加引號的時間轉成 Date，`updated_at` 照原文顯示。
 - 允許 UTF-8 BOM 與 CRLF。
-- YAML 解析失敗或不符條件 → 當作沒有摘要，renderer 日誌記 `[ct-overview] _tower-state.md summary ignored: <原因>`，不丟例外。
+- YAML 解析失敗或不符條件 → 當作沒有摘要，不丟例外。renderer 日誌記一行 `[ct-overview] _tower-state.md summary ignored: <原因>`：YAML 錯誤只寫 js-yaml 的 reason 與檔案行列（`YAML parse error: <reason> at line L, column C`，`describeYamlError`），🔴 不寫 js-yaml 的原文片段、檔案內容與路徑；`schema_kind` / `summary_version` 的值只在是短純量（字串 ≤ 40 字）時寫出，其他只寫型別。同一工作區的同一錯誤＋同一內容（FNV-1a 雜湊）只記一次，`_ct-workorders/` watcher 再觸發也不重記；內容或錯誤改變才再記，記過錯誤後恢復時記一行 `… summary error cleared`。去重狀態只在記憶體（`towerStateSummaryLog`，`src/lib/ct-tower-overview.ts`；T0894 / BUG-217）。
 - CT 慣例：`next_ids` 是「下一個可用編號」，`todo` 一律字串。
 
 ### 沒有摘要時
