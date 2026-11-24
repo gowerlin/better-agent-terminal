@@ -10,9 +10,8 @@ project: PLAN-068
 priority: P1
 sizing: M
 created_at: "2026-11-25T05:12:00+08:00"
-updated_at: "2026-11-25T05:14:36+08:00"
+updated_at: "2026-11-25T05:15:40+08:00"
 started_at: "2026-11-25T05:12:23+08:00"
-tower_question: open
 target_version: "0.8.x（與 CT 6.1.0 同日發佈）"
 depends_on: [T0903]
 related:
@@ -26,6 +25,7 @@ affects_files:
   - src/components/InboxPanel.tsx
   - src/components/inbox/
   - src/components/ControlTowerPanel.tsx
+  - src/components/WorkspaceView.tsx
   - src/components/TowerOverview.tsx
   - src/components/__tests__/
   - src/lib/ct-tower-overview.ts
@@ -69,6 +69,7 @@ PLAN-068 整合設計（T0902，雙方核定）：右側欄新分頁「待辦」
 - [ ] `bat_contract` 解析與 §6′ 判定表每一列的畫面（P-1 / P-2 / P-3、標題 `!`）
 - [ ] BAT 既有資料區：`todo` 全部、待驗收 BUG、數量列、Worker 等你
 - [ ] R6 總覽 `todo` 改連結；總覽其他部分不變
+- [ ] （塔台答覆 Q-1 / Q-2，2026-11-25）`WorkspaceView.tsx` 最小增量（`inbox` 可停靠主區 / detached）；§6′ 不符時整個待辦分頁只留選擇器與提示（含 BAT 既有資料區）；R6 只在選中塔台契約相符時生效，不符時總覽照舊顯示 `todo`；沒有已宣告塔台時以狀態檔 `bat_contract` 判定
 - [ ] 面板塔台判定純函式
 - [ ] 遠端 / detached 沿用既有管線
 - [ ] 驗證關卡、文件、隔離分支證據
@@ -107,6 +108,9 @@ PLAN-068 整合設計（T0902，雙方核定）：右側欄新分頁「待辦」
 ### 產出摘要
 
 ### 互動紀錄
+- [05:12] 開工：落點檢查、`git merge-base HEAD v0.8.x` = `d6b9ce86…` 相符；背景 `npm ci`。
+- [05:14] Q-1: `WorkspaceView.tsx` 不在 `affects_files` → A（塔台，BAT 通道 `q-dee2b97e-dbc5b64ce4b68bee`）：加入本單、只做最小增量 → Action: 型別、寫死清單、`case 'inbox'`。
+- [05:14] Q-2: 不符時 BAT 既有資料區是否停用、沒有塔台怎麼判定 → B（塔台，`q-dee2b97e-6d883ae615b76b2f`）：不符時整個分頁只留選擇器與提示；R6 只在選中塔台相符時生效（不符時總覽照舊顯示 `todo`）；沒有已宣告塔台 → 狀態檔 `2` 可用 / 缺或 `1` P-1 / `> 2` P-2；標題不符 `!` → Action: 照辦，補 R6 相符 / 不符兩種的總覽測試。
 
 ### Renew 歷程
 無
