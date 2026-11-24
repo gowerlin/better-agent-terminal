@@ -23,6 +23,8 @@ import { requestOpenInbox } from '../stores/inbox-store'
 import { towerCardsBadgeCount } from '../lib/tower-card-view'
 import { InboxAwaitingBadge } from './inbox/InboxAwaitingBadge'
 import { workspaceStore } from '../stores/workspace-store'
+import { useHooksStatus } from '../stores/hooks-status-store'
+import { hooksStatusHint, showsHooksBadge } from '../lib/hooks-status'
 import { NOTIFY_HOLD_SKIPPABLE_REASONS, type NotifyHoldItem, type NotifyHoldReason } from '../types/notify-hold'
 
 /** PLAN-044 / T0566: `15:05`-style local clock time of an epoch. */
@@ -296,6 +298,10 @@ export const TerminalThumbnail = memo(function TerminalThumbnail({ terminal, isA
   const towerCards = useTowerCards(terminal.id)
   usePanelTowerVersion()
   const cardsUnread = towerCardsBadgeCount(towerCards?.unread ?? 0, towerContract?.status === 'match' || isPanelTowerHere(terminal.id))
+
+  // PLAN-068 W9 / T0910 (T0902 §7.2): a contract-2 Tower without BAT hooks (R9′: only when it matches)
+  const hooksStatus = useHooksStatus(terminal.id)
+  const hooksHint = towerContract?.status === 'match' && showsHooksBadge(hooksStatus) ? hooksStatusHint(hooksStatus) : null
   const [holdMenu, setHoldMenu] = useState<{ x: number; y: number } | null>(null)
   const { pos: holdPos, menuRef: holdRef } = useMenuPosition(holdMenu)
   const [ctxMenu, setCtxMenu] = useState<{ x: number; y: number } | null>(null)
@@ -437,6 +443,16 @@ export const TerminalThumbnail = memo(function TerminalThumbnail({ terminal, isA
               style={{ flexShrink: 0, fontSize: '0.8em', fontWeight: 600, padding: '0 4px', borderRadius: 4, color: 'var(--warning-color, #e8a838)', border: '1px solid currentColor' }}
             >
               {contractBadge}
+            </span>
+          )}
+          {hooksHint && hooksStatus?.state === 'none' && (
+            <span
+              className="tower-hooks-badge"
+              title={`${t('hooksStatus.prefix')}${t(hooksHint.key)}`}
+              data-hooks-status={hooksStatus.reason}
+              style={{ flexShrink: 0, fontSize: '0.8em', fontWeight: 600, padding: '0 4px', borderRadius: 4, color: 'var(--warning-color, #e8a838)', border: '1px solid currentColor' }}
+            >
+              🪝✕
             </span>
           )}
           {usageLimit && (

@@ -373,6 +373,7 @@ export const PATH_FREE_EVENTS: ReadonlyMap<string, string> = new Map([
   ['tower-cards:changed', '{ terminalId, revision, unread, total } (terminal id + counts, never a card text; T0905)'],
   ['terminal:notify-hold-changed', '{ terminalId, items, reason? } (terminal / hold ids, work order ids, times, flags; never a text; T0788 / T0904 / T0908)'],
   ['terminal:notify-hold-reminder', '{ terminalId, count, heldSince, reason } (terminal id + counts / time; T0904 / T0908)'],
+  ['terminal:hooks-status', '{ id, hooksStatus: { state, reason?, origin?, set? } | null } (terminal id + state / reason code enums / set number, never a path or content; T0910)'],
 ])
 
 export function translateRemoteEventArgs(

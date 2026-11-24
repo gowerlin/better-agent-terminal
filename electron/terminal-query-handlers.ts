@@ -47,6 +47,9 @@
  * 🔴 never the session id, cwd, output, tower mode, work order or questions. get-state /
  * read-output / wait of those tabs stay NOT_OWNER. A BAT before T0643 answers INVALID_ARGS
  * (`message: 'scope'`).
+ * PLAN-068 W9 / T0910 (T0902 §3.1′): `terminal:whoami`, every `terminal:list` row (`towers` too) and
+ * `terminal:get-state` carry `hooksStatus` (`{ state: 'ok' | 'none' | 'n/a', reason?, origin?, set? } |
+ * null`, electron/claude-hooks-status.ts; null for an exited tab) — codes only, never a path or content.
  *
  * Output: the PTY's raw replay buffer (`pty:get-buffer`'s, or the tail kept at exit) → plain text
  * (`plainTextFromOutput`, T0566) → `redactTerminalSecrets` (src/lib/terminal-output-redaction.ts)
@@ -67,6 +70,7 @@ import type { ExitedPtyRecord, PtyTerminalInfo } from './pty-manager'
 import type { BlockedDetection, BlockedReason, BlockedState } from './terminal-blocked-state'
 import type { HandlerContext } from './remote/handler-registry'
 import type { QuestionSummary } from './tower-questions'
+import type { HooksStatus } from './claude-hooks-status'
 import {
   authorizeHelperListScope,
   authorizeHelperQueryTarget,
@@ -121,6 +125,8 @@ export interface TerminalQueryPtyManager {
   getAgentStartedAt?(id: string): number | null
   /** T0642: the session id running PTY `id`'s claude last sent, or null. Absent ⇒ never. */
   getClaudeSessionId?(id: string): string | null
+  /** PLAN-068 W9 / T0910: `PtyManager.getHooksStatus` (running PTYs only). Absent ⇒ null. */
+  getHooksStatus?(id: string): HooksStatus | null
 }
 
 /** Electron: what the window registry saved for a tab (title, workspace, its tower). */
@@ -450,6 +456,19 @@ export function registerTerminalQueryHandlers(deps: TerminalQueryDeps): Terminal
   const towerContractOf = (pm: TerminalQueryPtyManager, id: string): number | null =>
     pm.getTerminalInfo(id)?.towerContract ?? null
 
+  /**
+   * PLAN-068 W9 / T0910 (§3.1′): whether running PTY `id`'s claude reports BAT's hooks (metadata
+   * only: state / reason code / origin / set); null = not running or not an agent / Tower tab.
+   */
+  const hooksStatusOf = (pm: TerminalQueryPtyManager, id: string): HooksStatus | null => {
+    if (!pm.getTerminalInfo(id)) return null
+    try {
+      return pm.getHooksStatus?.(id) ?? null
+    } catch {
+      return null
+    }
+  }
+
   const savedTab = (id: string): SavedTabInfo | undefined => {
     try {
       return deps.savedTabs?.().get(id)
@@ -535,6 +554,7 @@ export function registerTerminalQueryHandlers(deps: TerminalQueryDeps): Terminal
       ...(info.cwd ? { cwd: info.cwd } : {}),
       ...claudeSessionOf(pm, target), // T0642
       towerContract: towerContractOf(pm, target), // T0903
+      hooksStatus: hooksStatusOf(pm, target), // T0910
     }
   })
 
@@ -570,6 +590,7 @@ export function registerTerminalQueryHandlers(deps: TerminalQueryDeps): Terminal
           alive: true,
           self: caller?.terminalId === id,
           towerContract: towerContractOf(pm, id), // T0903: metadata, like the rest of the row
+          hooksStatus: hooksStatusOf(pm, id), // T0910: metadata (codes), like the rest of the row
         }]
       })
       audit(channel, ctx, `scope=${listScope}`, `ok count=${towers.length}`)
@@ -608,6 +629,7 @@ export function registerTerminalQueryHandlers(deps: TerminalQueryDeps): Terminal
         pendingQuestions: state.pendingQuestions, // T0607
         ...claudeSessionOf(pm, id), // T0642
         towerContract: towerContractOf(pm, id), // T0903
+        hooksStatus: hooksStatusOf(pm, id), // T0910
         alive: info !== null,
       }]
     })
@@ -624,7 +646,7 @@ export function registerTerminalQueryHandlers(deps: TerminalQueryDeps): Terminal
     const state = stateOf(resolved.pm, resolved.target)
     if (!state) return fail(channel, ctx, resolved.target, 'NOT_FOUND')
     audit(channel, ctx, resolved.target, `ok state=${state.state}${state.blockedReason ? ` reason=${state.blockedReason}` : ''}`)
-    return { ok: true, terminalId: resolved.target, ...state, ...claudeSessionOf(resolved.pm, resolved.target), towerContract: towerContractOf(resolved.pm, resolved.target) }
+    return { ok: true, terminalId: resolved.target, ...state, ...claudeSessionOf(resolved.pm, resolved.target), towerContract: towerContractOf(resolved.pm, resolved.target), hooksStatus: hooksStatusOf(resolved.pm, resolved.target) }
   })
 
   registerHandler('terminal:read-output', (ctx: HandlerContext, raw?: unknown) => {

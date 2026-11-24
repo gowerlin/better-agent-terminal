@@ -200,7 +200,7 @@ describe('helper query channels from inside headless PTYs (T0582)', () => {
     // T0643: the only declared tower of this server; headless has no workspace names
     expect(towers).toMatchObject({ ok: true, scope: 'towers' })
     expect(towers?.terminals).toEqual([
-      { id: tower, workspaceId: WORKSPACE, workspaceName: null, claudeSessionName: null, state: expect.any(String), alive: true, self: true, towerContract: null },
+      { id: tower, workspaceId: WORKSPACE, workspaceName: null, claudeSessionName: null, state: expect.any(String), alive: true, self: true, towerContract: null, hooksStatus: { state: 'none', reason: 'not-launched-by-bat' } }, // T0910
     ])
     // the Worker's capability went with its PTY
     expect(registry.isWorkerOf(worker, tower)).toBe(false)

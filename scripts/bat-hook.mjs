@@ -41,6 +41,12 @@
 // hooks; W9's `bat-hooks` plugin sends `plugin`; BAT reads an absent one as `injected`, so every other
 // report is sent exactly as before) and `set` (`BAT_HOOK_SET`, the hook set version).
 //
+// PLAN-068 W9 / T0910 (T0902 §7.3 / §7.6): `session-start` carries `origin` / `set` too (the `--set-role`
+// `hooks:` line wants the set before the first `Stop`). The `bat-hooks` Claude Code plugin
+// (plugins/bat-hooks/) runs this script through its launcher with `<event> --hook-list <n>`: every
+// report of that run says `origin: plugin` and `set: <n>` (the plugin's event list version; BAT compares
+// it with its own `BAT_HOOK_SET` → `plugin-outdated`). Every rule above applies to it unchanged.
+//
 // Zero external dependencies — Node.js 18+ built-in modules only.
 
 import { realpathSync } from 'fs'
@@ -85,6 +91,29 @@ export const AGENT_ID_PATTERN = TOOL_NAME_PATTERN
 export const BAT_HOOK_SET = 2
 /** T0905: where a report comes from — BAT's injected `--settings` hooks (this script run by them). */
 export const HOOK_ORIGIN_INJECTED = 'injected'
+/** PLAN-068 W9 / T0910: … or the `bat-hooks` Claude Code plugin's launcher (`--hook-list <n>`). */
+export const HOOK_ORIGIN_PLUGIN = 'plugin'
+/** T0910: the largest `--hook-list` accepted (the host's `HOOK_SET_MAX`). */
+export const HOOK_LIST_MAX = 1000
+/** T0910: events whose injected report carries `origin` / `set` (T0905: `stop`; T0910: + `session-start`). */
+export const ORIGIN_REPORT_EVENTS = ['stop', 'session-start']
+
+/**
+ * T0910: `origin` / `set` of one run, from the arguments after the event. The `bat-hooks` plugin's
+ * launcher passes `--hook-list <n>` (its own event list version): `plugin` + `set: n` on **every** event
+ * (an absent origin reads as `injected` and would drop the plugin's later reports, T0905 §7.4); a
+ * malformed `<n>` → `plugin` without `set`. BAT's injected hooks pass nothing: `injected` + `BAT_HOOK_SET`
+ * on `ORIGIN_REPORT_EVENTS` only — every other injected report is sent exactly as before T0910.
+ */
+export function reportOrigin(event, args = []) {
+  const at = args.indexOf('--hook-list')
+  if (at !== -1) {
+    const raw = args[at + 1]
+    const n = typeof raw === 'string' && /^[0-9]{1,4}$/.test(raw) ? Number(raw) : NaN
+    return Number.isSafeInteger(n) && n >= 1 && n <= HOOK_LIST_MAX ? { origin: HOOK_ORIGIN_PLUGIN, set: n } : { origin: HOOK_ORIGIN_PLUGIN }
+  }
+  return ORIGIN_REPORT_EVENTS.includes(event) ? { origin: HOOK_ORIGIN_INJECTED, set: BAT_HOOK_SET } : {}
+}
 /** T0905 (D328 R1′): the last assistant message is cut to this many UTF-8 bytes before it is sent. */
 export const LAST_MESSAGE_MAX_BYTES = 16 * 1024
 
@@ -286,9 +315,11 @@ async function main() {
   if (!process.env.BAT_REMOTE_PORT || !process.env.BAT_REMOTE_TOKEN) process.exit(0)
   const stopField = Object.hasOwn(HOOK_INPUT_STOP_FIELDS, event) ? HOOK_INPUT_STOP_FIELDS[event] : undefined
   const input = await readHookInput(process.stdin, STDIN_TIMEOUT_MS, stopField)
-  // T0905: `origin` / `set` ride on `stop` only — every other report stays as it was (BAT reads an
-  // absent origin as `injected`, T0902 §7.4)
-  const outcome = await reportHook(event, input, { at: hookStartedAt(), ...(event === 'stop' ? { origin: HOOK_ORIGIN_INJECTED, set: BAT_HOOK_SET } : {}) })
+  // T0905: `origin` / `set` ride on `stop` (T0910: + `session-start`, so `--set-role` sees the set
+  // before the first `Stop`); every other injected report stays as it was (BAT reads an absent origin
+  // as `injected`, T0902 §7.4). T0910: the plugin's launcher (`--hook-list <n>`) sends them on every event.
+  const origin = reportOrigin(event, process.argv.slice(3))
+  const outcome = await reportHook(event, input, { at: hookStartedAt(), ...origin })
   if (outcome.result !== 'skipped') {
     logEvent('bat-hook', 'report-hook', {
       // `hook`, not `event`: the log record's own `event` is 'report-hook'
@@ -301,6 +332,8 @@ async function main() {
       ...(outcome.agentId ? { agent: outcome.agentId } : {}),
       // T0905: the length of the last assistant message sent, never its text
       ...(outcome.messageBytes !== undefined ? { messageBytes: outcome.messageBytes } : {}),
+      // T0910: the plugin's reports say so (an injected one logs as before)
+      ...(origin.origin === HOOK_ORIGIN_PLUGIN ? { origin: HOOK_ORIGIN_PLUGIN, ...(origin.set ? { hookList: origin.set } : {}) } : {}),
       durationMs: outcome.durationMs,
       terminalId: process.env.BAT_TERMINAL_ID ?? null,
     })

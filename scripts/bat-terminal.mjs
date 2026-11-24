@@ -189,6 +189,10 @@ Give a tab a role (T0562):
                          unsupported)" for a newer one. Without it the recorded contract is
                          cleared (not declared) and no bat-contract line is printed. A helper
                          that does not know it exits 1 with "Unknown option '--bat-contract'".
+                         T0910: then a line on BAT's claude hooks of the tab: "  hooks: ok
+                         (<injected|plugin>, set <n>[, plugin-outdated])", "  hooks: none
+                         (<code>)" or "  hooks: n/a (codex)" (BAT waits up to 2 s for the first
+                         hook report); a BAT without it prints no hooks line.
   --terminal-id <id>     The tab to set (default: $BAT_TERMINAL_ID, i.e. this tab)
   --agent <id>           With --set-role: only a hint for the agent name (claude / codex / an
                          agent id); the tab's own agent wins
@@ -1614,6 +1618,29 @@ function batContractLine(result) {
     : `  bat-contract: ${supported}`
 }
 
+/** T0910: how long a `--set-role --bat-contract` call waits for BAT's answer (BAT itself waits ≤ 2 s). */
+const SET_ROLE_CONTRACT_TIMEOUT_MS = 8000
+
+const HOOKS_NONE_REASONS = ['settings-off', 'user-settings-arg', 'claude-hooks-disabled', 'managed-hooks-only', 'no-report', 'not-launched-by-bat', 'no-endpoint', 'script-missing', 'unrepresentable-path']
+
+/**
+ * PLAN-068 W9 / T0910: the `hooks:` line of a `hooksStatus` (contract §3.1′ / PLAN-068〈契約細節補充〉,
+ * CT 6.1.0 parses it — 🔴 do not change): `  hooks: ok (<injected|plugin>, set <n>[, plugin-outdated])` /
+ * `  hooks: none (<code>)` / `  hooks: n/a (codex)`; null = no (valid) status. Copy of
+ * `hooksStatusLine` (src/lib/hooks-status.ts; electron/__tests__/bat-terminal-set-role.test.ts runs both).
+ */
+function hooksLine(status) {
+  if (!status || typeof status !== 'object') return null
+  if (status.state === 'ok') {
+    if ((status.origin !== 'injected' && status.origin !== 'plugin') || !Number.isSafeInteger(status.set) || status.set < 1) return null
+    const outdated = status.origin === 'plugin' && status.reason === 'plugin-outdated'
+    return `  hooks: ok (${status.origin}, set ${status.set}${outdated ? ', plugin-outdated' : ''})`
+  }
+  if (status.state === 'none' && HOOKS_NONE_REASONS.includes(status.reason)) return `  hooks: none (${status.reason})`
+  if (status.state === 'n/a' && status.reason === 'codex') return '  hooks: n/a (codex)'
+  return null
+}
+
 /**
  * T0562 / D147: `terminal:set-role { terminalId, role, agent?, mode? }` (T0565: `mode`). Success is
  * decided by the exit code (CT treats any non-0 as "not supported / not set" and goes on);
@@ -1636,10 +1663,12 @@ async function runSetRole(ws) {
 
   const invokeId = makeId()
   ws.send(JSON.stringify({ type: 'invoke', id: invokeId, channel: 'terminal:set-role', args: [request] }))
-  logEvent('bat-terminal', 'await-invoke-response', { timeoutMs: 3000, channel: 'terminal:set-role' })
+  // T0910: a call with --bat-contract may wait up to 2 s in BAT for the Tower's first hook report
+  const setRoleTimeoutMs = roleContract !== null ? SET_ROLE_CONTRACT_TIMEOUT_MS : 3000
+  logEvent('bat-terminal', 'await-invoke-response', { timeoutMs: setRoleTimeoutMs, channel: 'terminal:set-role' })
   let resp
   try {
-    resp = await waitForMessage(ws, invokeId)
+    resp = await waitForMessage(ws, invokeId, setRoleTimeoutMs)
   } catch (err) {
     const msg = err?.message || String(err)
     console.error(`Error: Invoke response timeout: ${msg}`)
@@ -1667,9 +1696,14 @@ async function runSetRole(ws) {
     // contract (no batContract in the answer) prints none, so CT sees "no contract v2"
     const line = roleContract !== null ? batContractLine(result) : null
     if (line) console.log(line)
+    // PLAN-068 W9 / T0910 (§3.1′ / §7.2): after the bat-contract line, only for a call with
+    // --bat-contract that BAT answered with a hooksStatus (an older BAT answers none: no line)
+    const hooks = line ? hooksLine(result.hooksStatus) : null
+    if (hooks) console.log(hooks)
     return finish(0, 'OK', {
       ...(typeof result.mode === 'string' && result.mode ? { recordedMode: result.mode } : {}),
       ...(line ? { recordedContract: result.towerContract, batContract: result.batContract } : {}),
+      ...(hooks ? { hooks: hooks.trim().slice('hooks: '.length) } : {}),
     })
   }
   const code = result && typeof result === 'object' && typeof result.code === 'string' ? result.code : 'ERROR'

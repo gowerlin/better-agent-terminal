@@ -191,8 +191,8 @@ describe('terminal:list scope=towers (T0643)', () => {
     const answer = h.call('terminal:list', h.asHelper('twA'), { scope: 'towers' })
     expect(answer).toMatchObject({ ok: true, scope: 'towers' })
     expect(rowsOf(answer)).toEqual([
-      { id: 'twA', workspaceId: 'ws-a', workspaceName: 'Alpha', claudeSessionName: 'Alpha · Tower', state: expect.any(String), alive: true, self: true, towerContract: null },
-      { id: 'twB', workspaceId: 'ws-b', workspaceName: 'Beta', claudeSessionName: 'Beta · twB', state: expect.any(String), alive: true, self: false, towerContract: null },
+      { id: 'twA', workspaceId: 'ws-a', workspaceName: 'Alpha', claudeSessionName: 'Alpha · Tower', state: expect.any(String), alive: true, self: true, towerContract: null, hooksStatus: expect.anything() },
+      { id: 'twB', workspaceId: 'ws-b', workspaceName: 'Beta', claudeSessionName: 'Beta · twB', state: expect.any(String), alive: true, self: false, towerContract: null, hooksStatus: { state: 'none', reason: 'not-launched-by-bat' } }, // T0910
     ])
     // the other declared tower sees the same two, itself marked
     expect(rowsOf(h.call('terminal:list', h.asHelper('twB'), { scope: 'towers' })).map(r => [r.id, r.self])).toEqual([['twA', false], ['twB', true]])
@@ -204,7 +204,7 @@ describe('terminal:list scope=towers (T0643)', () => {
     expect(h.manager.getClaudeSessionId('twB')).toBe(SID)
     const rows = rowsOf(h.call('terminal:list', h.asHelper('twA'), { scope: 'towers' }))
     for (const row of rows) {
-      expect(Object.keys(row).sort()).toEqual(['alive', 'claudeSessionName', 'id', 'self', 'state', 'towerContract', 'workspaceId', 'workspaceName']) // T0903: + towerContract (metadata)
+      expect(Object.keys(row).sort()).toEqual(['alive', 'claudeSessionName', 'hooksStatus', 'id', 'self', 'state', 'towerContract', 'workspaceId', 'workspaceName']) // T0903: + towerContract; T0910: + hooksStatus (metadata)
     }
     const text = JSON.stringify(rows)
     expect(text).not.toContain(SID)

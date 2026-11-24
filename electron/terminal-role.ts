@@ -28,6 +28,13 @@
  * A value that is not a whole number ≥ 1 → INVALID_ARGS. `terminal:role-changed` always carries
  * `towerContract` (null = not declared) so the renderer can show the §6′ badge / hint.
  *
+ * PLAN-068 W9 / T0910 (T0902 §3.1′ / §7.2): a call that declared a contract also answers `hooksStatus`
+ * (`PtyManager.getHooksStatus`, electron/claude-hooks-status.ts), from which the helper prints the
+ * `hooks:` line. Without any hook report yet (and not codex) the answer waits up to
+ * `HOOKS_STATUS_WAIT_MS` (2 s) for the first one. `--agent` is also noted as the tab's agent hint
+ * (`noteTowerAgentHint`: a codex Tower BAT did not launch answers `n/a (codex)`). A call without
+ * `batContract` answers synchronously and exactly as before.
+ *
  * Headless bat-server registers the same handler (electron/handlers/terminal.ts); its helper
  * capability lets a tower set its own terminal only (electron/remote/helper-capability.ts).
  *
@@ -37,6 +44,7 @@ import { agentRegistry } from './agent-runtime/agent-registry'
 import { normalizeAgentAlias } from './terminal-command-handlers'
 import { normalizeCtMode, type CtMode } from './ct-mode'
 import { BAT_CONTRACT_VERSION, parseBatContract } from '../src/lib/tower-contract'
+import { HOOKS_STATUS_WAIT_MS, hooksAgentKindOf, hooksStatusNeedsWait, type HooksAgentKind, type HooksStatus } from './claude-hooks-status'
 
 export const SET_ROLE_CHANNEL = 'terminal:set-role'
 export const ROLE_CHANGED_CHANNEL = 'terminal:role-changed'
@@ -48,7 +56,7 @@ export type TerminalRole = typeof TERMINAL_ROLES[number]
 export type SetRoleErrorCode = 'INVALID_ARGS' | 'NOT_FOUND'
 
 export type SetRoleResult =
-  | { ok: true; terminalId: string; role: TerminalRole; mode?: CtMode; towerContract?: number; batContract?: number }
+  | { ok: true; terminalId: string; role: TerminalRole; mode?: CtMode; towerContract?: number; batContract?: number; hooksStatus?: HooksStatus | null }
   | { ok: false; code: SetRoleErrorCode }
 
 /** `terminal:role-changed` payload. */
@@ -85,6 +93,12 @@ export interface SetRolePtyManager {
   getTowerMode?(id: string): CtMode | undefined
   /** T0903: the contract now recorded for a Tower PTY. */
   getTowerContract?(id: string): number | undefined
+  /** PLAN-068 W9 / T0910: `PtyManager.getHooksStatus`. Absent (test doubles) ⇒ no `hooksStatus` in the answer. */
+  getHooksStatus?(id: string): HooksStatus | null
+  /** T0910: `PtyManager.waitForHookReport` (the §7.2 wait). Absent ⇒ no wait. */
+  waitForHookReport?(id: string, timeoutMs: number): Promise<boolean>
+  /** T0910: `PtyManager.noteTowerAgentHint` (the `--agent` hint, every call overwrites). */
+  noteTowerAgentHint?(id: string, kind: HooksAgentKind | null): void
 }
 
 export interface SetTerminalRoleDeps {
@@ -121,7 +135,11 @@ function registryAgentName(agentId: string): string | undefined {
   }
 }
 
-export function setTerminalRole(args: unknown, deps: SetTerminalRoleDeps): SetRoleResult {
+/**
+ * T0910: a Promise only for a `--bat-contract` call that waits for the first hook report (§7.2);
+ * every other call (an older CT's included) answers synchronously, exactly as before.
+ */
+export function setTerminalRole(args: unknown, deps: SetTerminalRoleDeps): SetRoleResult | Promise<SetRoleResult> {
   const isKnown = deps.isKnownAgent ?? registryHasAgent
   const nameOf = deps.agentName ?? registryAgentName
   const opts = args && typeof args === 'object' && !Array.isArray(args) ? args as Record<string, unknown> : null
@@ -156,6 +174,17 @@ export function setTerminalRole(args: unknown, deps: SetTerminalRoleDeps): SetRo
   const ptyManager = deps.getPtyManager()
   if (!ptyManager || !ptyManager.isAlive(terminalId)) return refuse('NOT_FOUND', `id=${terminalId} role=${role}`)
 
+  const hint = typeof opts.agent === 'string' ? opts.agent.trim().slice(0, AGENT_HINT_MAX) : ''
+  let hintAgent: string | undefined
+  let hintNote = ''
+  if (hint && hint !== 'default') {
+    const agent = normalizeAgentAlias(hint, isKnown)
+    if (isKnown(agent) && agent !== 'none') hintAgent = agent
+    else hintNote = ` (--agent ${hint} unknown, ignored)`
+  }
+  // T0910: before the role (which re-reads the hooks status); every call overwrites it
+  ptyManager.noteTowerAgentHint?.(terminalId, hooksAgentKindOf(hintAgent))
+
   ptyManager.setTerminalRole?.(terminalId, role, mode, towerContract)
   // Test doubles without the recorder echo the request.
   const recordedMode = ptyManager.getTowerMode ? ptyManager.getTowerMode(terminalId) : mode
@@ -168,17 +197,10 @@ export function setTerminalRole(args: unknown, deps: SetTerminalRoleDeps): SetRo
     const name = nameOf(ptyAgent)
     if (name) change.ptyAgentName = name
   }
-  const hint = typeof opts.agent === 'string' ? opts.agent.trim().slice(0, AGENT_HINT_MAX) : ''
-  let hintNote = ''
-  if (hint && hint !== 'default') {
-    const agent = normalizeAgentAlias(hint, isKnown)
-    if (isKnown(agent) && agent !== 'none') {
-      change.agent = agent
-      const name = nameOf(agent)
-      if (name) change.agentName = name
-    } else {
-      hintNote = ` (--agent ${hint} unknown, ignored)`
-    }
+  if (hintAgent) {
+    change.agent = hintAgent
+    const name = nameOf(hintAgent)
+    if (name) change.agentName = name
   }
 
   if (recordedMode) change.mode = recordedMode
@@ -195,7 +217,7 @@ export function setTerminalRole(args: unknown, deps: SetTerminalRoleDeps): SetRo
     ...(change.agent ? { agent: change.agent } : {}),
     ...(hintNote ? { ignoredAgent: hint } : {}),
   })
-  return {
+  const answer: SetRoleResult = {
     ok: true,
     terminalId,
     role,
@@ -203,4 +225,29 @@ export function setTerminalRole(args: unknown, deps: SetTerminalRoleDeps): SetRo
     // T0903: only for a call that declared a contract — an older CT's call is answered as before
     ...(contractGiven && recordedContract !== undefined ? { towerContract: recordedContract, batContract: BAT_CONTRACT_VERSION } : {}),
   }
+  // PLAN-068 W9 / T0910 (§3.1′ / §7.2): + `hooksStatus`, only for a call that declared a contract (the
+  // `hooks:` line); without a report yet (and not codex) the answer waits up to HOOKS_STATUS_WAIT_MS
+  // for one — claude's `SessionStart` is async and may come after CT's first command.
+  if (!contractGiven || recordedContract === undefined || !ptyManager.getHooksStatus) return answer
+  const getStatus = ptyManager.getHooksStatus.bind(ptyManager)
+  const withStatus = (waited: string): SetRoleResult => {
+    let hooksStatus: HooksStatus | null = null
+    try { hooksStatus = getStatus(terminalId) } catch { /* reported as null */ }
+    deps.logger.log(`[set-role] id=${terminalId} hooks=${describeHooksStatus(hooksStatus)}${waited}`)
+    return { ...answer, hooksStatus }
+  }
+  let initial: HooksStatus | null = null
+  try { initial = getStatus(terminalId) } catch { /* below */ }
+  if (!hooksStatusNeedsWait(initial) || !ptyManager.waitForHookReport) return withStatus('')
+  const startedAt = Date.now()
+  return ptyManager.waitForHookReport(terminalId, HOOKS_STATUS_WAIT_MS)
+    .catch(() => false)
+    .then(reported => withStatus(` (waited ${Date.now() - startedAt} ms${reported ? '' : ', no report'})`))
+}
+
+/** T0910: a status for the log (codes only). */
+function describeHooksStatus(status: HooksStatus | null): string {
+  if (!status) return 'null'
+  if (status.state === 'ok') return `ok (${status.origin}, set ${status.set}${status.reason ? `, ${status.reason}` : ''})`
+  return `${status.state} (${status.reason})`
 }

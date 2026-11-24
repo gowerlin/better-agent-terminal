@@ -157,4 +157,7 @@ export const PROXIED_EVENTS = new Set([
   // PLAN-068 W5 / T0908: a remote tab's held notifications changed / waited 5 minutes for a draft
   // (electron/notify-hold.ts; ids, counts, times and a reason enum, never a text)
   'terminal:notify-hold-changed', 'terminal:notify-hold-reminder',
+  // PLAN-068 W9 / T0910: a remote contract-2 Tower's hooks status changed — the client windows show
+  // the 🪝✕ badge / the Inbox hint (electron/claude-hooks-status.ts; state / reason / origin / set only)
+  'terminal:hooks-status',
 ])

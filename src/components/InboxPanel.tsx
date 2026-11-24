@@ -15,6 +15,7 @@ import { useTranslation } from 'react-i18next'
 import { useInboxModel } from './inbox/useInboxModel'
 import { InboxSection } from './inbox/InboxSection'
 import { TowerCardsSection, type TowerCardsSource } from './inbox/TowerCardsSection'
+import { InboxHooksHint } from './inbox/InboxHooksHint'
 import { loadInboxFiles } from './inbox/InboxDataSource'
 import { ActionList, AwaitingList, RecentlyClosedList, ReminderList } from './inbox/InboxLists'
 import { requestControlTowerTab, setInboxFiles, setSelectedInboxTower } from '../stores/inbox-store'
@@ -175,6 +176,7 @@ export function InboxPanel({ workspaceId, workspaceFolderPath }: Readonly<InboxP
   return (
     <div className="inbox-panel">
       {header}
+      <InboxHooksHint terminalId={tower?.id} />
       <div className="inbox-body">
         {inboxOff && <div className="inbox-muted inbox-off" data-inbox-off="">{t('inbox.userInboxOff')}</div>}
 
