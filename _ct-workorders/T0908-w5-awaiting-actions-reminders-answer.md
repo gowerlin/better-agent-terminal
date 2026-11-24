@@ -4,13 +4,16 @@ schema_kind: workorder
 id: T0908
 title: "PLAN-068 W5（在 `v0.8.x`）：契約 v2 清單與回答 —— `awaiting_user` / `user_actions` / `reminders` / 工單 `waiting_user` 解析與待辦分頁三區、縮圖 / 工作區列表 `⏸N`、回答 IPC `tower-inbox:answer`（本機 / proxied）、Claude 面板塔台回答路徑、`terminal:notify-hold-*` 遠端 proxied"
 type: implementation
-status: PENDING
+status: IN_PROGRESS
 repo: better-agent-terminal
 project: PLAN-068
 priority: P1
 sizing: L
 created_at: "2026-11-25T05:58:05+08:00"
-updated_at: "2026-11-25T05:58:05+08:00"
+started_at: "2026-11-25T05:59:55+08:00"
+updated_at: "2026-11-25T05:59:55+08:00"
+session_ids:
+  - "2992dc78-5c20-4bdb-a42e-cd3c46765ebf"
 target_version: "0.8.x（與 CT 6.1.0 同日發佈）"
 depends_on: [T0904, T0906]
 related:
