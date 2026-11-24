@@ -38,6 +38,8 @@ affects_files:
   - src/stores/
   - src/components/TerminalThumbnail.tsx
   - src/components/inbox/
+  - src/components/InboxPanel.tsx
+  - electron/preload.ts
   - src/components/__tests__/
   - src/locales/
   - src/types/
@@ -46,7 +48,6 @@ affects_files:
   - docs/agent-guide/
   - README.md
 renew_count: 0
-tower_question: open
 isolation: worktree
 workdir: "worktree ct/T0910（塔台已預先從 `v0.8.x` `677860a4` 建立分支 `ct/T0910`）"
 worker_question_timeout: 30
@@ -118,6 +119,8 @@ memory_overrides:
 ### 產出摘要
 
 ### 互動紀錄
+- [06:04] Q-1（BAT 通道，`--ask --no-pty-write`）: `InboxPanel.tsx` 不在範圍，可否只加 import＋一行元件 → A（塔台）: A，已補進 affects_files，只做這兩行、不調整其他排版 → Action: 元件放 `src/components/inbox/`，`InboxPanel.tsx` 只加兩行
+- [06:04] Q-2（BAT 通道，`--ask --submit`）: 新推送事件 `terminal:hooks-status` 需改 `preload.ts` → A（塔台）: A，已補進 affects_files；不塞進 `terminal:role-changed`；事件與相關 channel 不進 `HELPER_CHANNEL_ROLES` → Action: `PtyManager` 廣播＋`PROXIED_EVENTS`，`preload.ts` 只加 `pty.onHooksStatus`
 
 ### Renew 歷程
 無
