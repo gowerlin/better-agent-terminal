@@ -10,6 +10,7 @@
 
 | ID | 日期 | 標題 | 相關工單 |
 |----|------|------|---------|
+| D329 | 2026-11-25 | T0902 第二版定案：R12 採 `bat-hooks` plugin、R13 維持、R11 / §6′ / §7 / W0–W9 定案；送 CT 確認契約 v2 | T0902 / PLAN-068 |
 | D328 | 2026-11-25 | T0902 第一版核定：分頁名「待辦」、W1–W8 同版發、R9 改全部綁契約 v2、R1 採 hook 送 host 過濾並補「BAT＋CT 使用者 hook 註冊」設計 → T0902 Renew #1 | T0902 / PLAN-068 |
 | D327 | 2026-11-25 | #24 不分階段：A / B0 / B / #23 草稿保護 / C / 回答路徑一起設計，強制 BAT↔CT 版本對齊、顯示放右側欄新分頁；先不回覆 CT；#23 重新評估；開設計單 T0902 | PLAN-068 / T0902 |
 | D326 | 2026-11-25 | GitHub #24（塔台訊息被淹沒）：開 PLAN-068，BAT 研究單 T0901＋給 CT 的討論 HANDOVER 並行；契約定案前雙方不實作 | PLAN-068 / T0901 |
@@ -258,6 +259,15 @@
   4. PLAN-001 保持延後（🟢 Low，等 plugin 1.0 穩定）
 - **Success criteria**（EXP→CONCLUDED）：npm install 無錯 / 所有 native modules rebuild 成功 / dev+build:dir 可跑 / 手動 smoke test 8 項通過
 - **最大風險**：`whisper-node-addon@1.0.2` 對 Electron 41（Node 24）的 NODE_MODULE_VERSION 相容性未知，允許 Worker 遇此決策點主動問塔台
+
+---
+
+### D329 2026-11-25 04:44 — PLAN-068 設計定案，送 CT 確認契約 v2
+
+- **背景**：T0902 第二版（`0827bd36`）完成：§6′ 以塔台分頁 `--bat-contract 2` 判定的全綁版本閘門、§7 hook 註冊（13 種缺口、自動注入＋`bat-hooks` plugin）、R11–R13、W0–W9。
+- **使用者裁示**：R12 採用 `bat-hooks` Claude Code plugin（BAT 公開 repo 加 marketplace）；R13 維持（BAT MCP 關閉時 hooks 一起不注入，只顯示原因）；其餘定案，送 CT。
+- **決定**：HANDOVER 加〈BAT 定案立場〉（契約 v2 欄位、選項代號格式、R11 `--set-role` 契約變更、CT 開工順序、`hooks:` 行、CT hooks 改由 CT plugin 發佈的建議、C-4–C-6），以跨 session 訊息送 `BMad-Guide · Tower`。雙方使用者核定同一份契約 v2 後，BAT 開 W0–W9（W0 最先）、CT 開 6.1.0 預發行；W0–W9 同一個 BAT 版本發佈。
+- **相關**：D326–D328 / T0901 / T0902
 
 ---
 
