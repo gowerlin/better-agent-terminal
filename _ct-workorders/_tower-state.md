@@ -4,8 +4,8 @@ summary_version: 1
 updated_at: "2026-11-25T03:05:00+08:00"
 session: "2026-11-25 00:28 第一百三十 session（CT v6.0.0）"
 next_ids:
-  workorder: "T0902"
-  decision: "D327"
+  workorder: "T0903"
+  decision: "D328"
   bug: "BUG-220"
   plan: "PLAN-069"
 todo:
@@ -51,7 +51,7 @@ todo:
 > 03:05 push `main` `70b21395..85613f0e`、`v0.8.x` `7063e45e..fda8a4b4`（去識別掃描 0）；Pages run `45466482052` build / deploy / link-check success，首頁 `0.8.0-pre.2`；link-check 50 筆皆 github.com `HTTP/2 protocol error`（含快取重複），連結本身有效，前一次 run 0 筆 → 暫時性，未開單（候選：lychee 對 github.com 改 HTTP/1.1 或加重試）。**pre.2 發佈完成，待使用者跑 NSIS 重裝驗收**。
 > 03:06 GitHub #24 → D326 開 PLAN-068、T0901（BAT 研究）、HANDOVER 給 CT（討論）。03:08 派出 T0901。
 > 03:11 CT 回覆立場草案（BMad-Guide `1d2692f`、CT D866，DRAFT）→ 以〈塔台補充（執行中 #1）〉轉給 T0901；HANDOVER 補回覆紀錄（`f656d375`）。
-> 03:16 T0901 收單 DONE（`8c0782f7`，唯讀研究）：Phase 1 只改 BAT（B0 送通知不搶捲動、B 閱讀保護＋ #23 草稿保護、C 回合訊息卡、文件提示），Phase 2 採 CT `awaiting_user`＋面板回答欄（本機 IPC）；CT 三點：(a) 合總覽讀法、(b) claude 可行 / codex 暫不可行、(c) 可行但走本機 IPC；1″ 選項代號格式待 CT 決定。session 快照已寫；`--close-worker T0901` exit 0。使用者補充：顯示放既有右側欄（程式碼片段 / Skills / Agents）新增分頁。**待使用者裁示 Phase 1 範圍與回覆 CT 的內容**。
+> 03:16 T0901 收單 DONE（`8c0782f7`，唯讀研究）：Phase 1 只改 BAT（B0 送通知不搶捲動、B 閱讀保護＋ #23 草稿保護、C 回合訊息卡、文件提示），Phase 2 採 CT `awaiting_user`＋面板回答欄（本機 IPC）；CT 三點：(a) 合總覽讀法、(b) claude 可行 / codex 暫不可行、(c) 可行但走本機 IPC；1″ 選項代號格式待 CT 決定。session 快照已寫；`--close-worker T0901` exit 0。使用者補充：顯示放既有右側欄（程式碼片段 / Skills / Agents）新增分頁。使用者裁示（D327）：不分階段、強制版本對齊、一次到位提案；先不回覆 CT；#23 重新評估 → 03:19 開設計單 T0902。
 >
 > 🛏 **第一百二十九 session 收工**（2026-11-24 03:50 (UTC+8)）。
 
