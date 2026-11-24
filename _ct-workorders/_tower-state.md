@@ -60,6 +60,7 @@ todo:
 > 05:44 T0904（W1＋W2）收單 DONE：`ct/T0904` `45020cf1`（30 檔；head 第一次 test:unit 即綠 8,677；B0 真 xterm 驗證、假 TUI e2e 重現 #23 並驗證修正（未宣告塔台照舊重現、契約 2 草稿單獨送出、250 ms 窗口兩情況、閱讀保留 61 s）；回答來源 `enqueueAnswer` 介面留 W5）。建議後續：遠端視窗看不到「📨 待送」/ 原因 / 立即送出 / 5 分鐘提醒（`terminal:notify-hold-*` 未 proxied，T0788 既有限制）→ 併入 W5。session 快照已寫；`--close-worker T0904 --worktree keep` exit 0。開合併工單 T0907（模式 ②，base `eaa8b238`，預期衝突：tower-inbox.md、notify-hold-store、README、preload、path-aware-channels）。
 > 05:57 T0907 收單 DONE：衝突全以兩邊保留解掉、驗收第一次即綠（test:unit 8,776、e2e t0904 ×2）→ **`v0.8.x` ff `eaa8b238..677860a4`（本機，W0–W4 完成）**；worktree T0903–T0906 移除、已合併分支刪除；CLAUDE.md 90,776 字元。05:58 D334 開 T0908（W5）/ T0909（W6）/ T0910（W9）平行（皆 exit 0、`started:`）。
 > [提問] 06:0x T0909 Q-1（`--answer` exit 0）：面板塔台 = 狀態檔 `bat_contract == 2` 且工作區沒有已宣告塔台分頁時，該工作區所有 Claude Agent 面板；「💬」有已宣告塔台時只顯示它的卡片、沒有時合併面板卡片並標來源。同一定義以〈塔台補充（執行中 #1）〉轉給 T0908（回答目標與共用純函式）。
+> [提問] 06:0x T0910 Q-1 / Q-2（`--answer` exit 0 ×2）：Q-1 A（提示元件放 `src/components/inbox/`，`InboxPanel.tsx` 只加兩行）；Q-2 A（新事件 `terminal:hooks-status`，`preload.ts` 只加 `onHooksStatus`，不進 helper 權杖）；`affects_files` 補兩檔。
 >
 > 🛏 **第一百二十九 session 收工**（2026-11-24 03:50 (UTC+8)）。
 
