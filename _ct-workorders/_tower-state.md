@@ -6,7 +6,7 @@ session: "2026-11-25 00:28 第一百三十 session（CT v6.0.0）"
 next_ids:
   workorder: "T0900"
   decision: "D325"
-  bug: "BUG-219"
+  bug: "BUG-220"
   plan: "PLAN-068"
 todo:
   - "PLAN-067 每週日誌清查：塔台開工時讀 PLAN-067 `last_review_at`，≥ 7 天就在面板提示（只提示、不自動派工；規則見 `_local-rules.md`〈每週日誌清查〉）。下次到期 2026-12-02"
@@ -43,6 +43,8 @@ todo:
 > 01:36 T0898 收單 DONE：`ct/T0898` `98bd9e96`（4 檔：`vite.config.ts` `test.globalSetup`、新 globalSetup 與其測試、`bat-mcp-codex-env.test.ts`；worktree 乾淨、`v0.8.x` 未前進）。根因：Electron 42+ 第一次 `require('electron')` 同步下載 binary，11 檔同時下載各 22–25 s；另修 codex 0.172 `app-server` 的 `git ls-remote` 造成 `EPERM`（`-c features.plugins=false`）。全新狀態 3 次第一次 test:unit 全綠（8495）、legacy 472、build 產物 97 檔 sha256 不變。BUG-218 FIXED；session 快照已寫；`--close-worker T0898 --worktree keep` exit 0。待合併工單補 CLAUDE.md「Frontend unit tests」一句（T0898 回報區）。
 > 01:38 T0897 收單 DONE：`ct/T0897` `c9f98ba9`（5 檔皆在 `affects_files`、worktree 乾淨）。① 新增 claude 花費 / 額度停止句（channel / individual / org monthly spend & usage limit、`usage limit · contact your admin…`、seat type、allocation disabled、group $0、service disabled、out of extra usage → non-timed；計時句尾 `· out of usage credits`），既有句型不變；② t0592 根因：假 codex 清理 `CODEX_HOME` 最多約 21 s 仍佔前景，預填文字被延後 → 改等塔台 pwsh 自寫的標記，人為延遲 25 s 重現並驗證修正；連續 5 次全綠。session 快照已寫；`--close-worker T0897 --worktree keep` exit 0。觀察（未開單）：t0592 會寫進使用者 PSReadLine 歷程；`Usage is paused for your organization`（每日暫停）未認。→ 開合併工單 T0899（模式 ②，併 `ct/T0898` + `ct/T0897`、補 CLAUDE.md、pre.2 最後聯合驗證）。01:39 派出（exit 0、`started:`）。
 > 01:45 T0899 收單 DONE：`cdd534a2`（T0898）、`1c74b6a2`（T0897）、文件 `7063e45e`；完整驗收全綠，**test:unit 第一次即綠**（全新 binary 狀態，8514 passed / 63 s）、legacy 472、build / typecheck 0 / 0、verify-native / helpers、內嵌 claude 2.1.331 / codex 0.172.0、t0592 ×2、t0621 綠；範圍外檔案無；SHA 比對 PASS → **`v0.8.x` ff `7094b993..7063e45e`**（本機，未 push；`origin/v0.8.x` 仍 `bcb4bbe0`）；worktree T0897 / T0898 移除；session 快照已寫；`--close-worker T0899` exit 0。`v0.8.0-pre.1..v0.8.x` 14 commits，**pre.2 內容就緒，待使用者授權 push 與發版**。候選（未開單）：t0592 寫入使用者 PSReadLine 歷程、`Usage is paused for your organization` 未認、t0621 `BAT_E2E_CODEX` 路徑分隔符比對。待使用者同意刪除的分支：`ct/T0891`、`ct/T0893`–`ct/T0898`、`ct-merge/T0896`、`ct-merge/T0899`。
+> 01:48 D324：使用者授權「push 並發 pre.2」「刪除」→ 8 個已合併分支 `git branch -d`；去識別 / 金鑰掃描 PASS（金鑰樣式 6 處為既有測試假權杖）；push `main` `94147ecb..70b21395`、`v0.8.x` `bcb4bbe0..7063e45e`；`gh workflow run pre-release.yml --ref v0.8.x -f version=0.8.0-pre.2` → run `45460440287`（`7063e45e`）。
+> 02:36 第一次嘗試 **failure**：`tests / unit-tests`（ubuntu-24.04）1 檔失敗——`shared-conout.test.ts`「the real Worker script relays a pipe」逾時 20 s（pre.1 CI 同檔 1.0 s 全過；本批未改）；build / release skipped（沒有發出任何 release）。開 BUG-219（OPEN low；共用 conout 只在 win32 生效，Linux 使用者不受影響）。02:37 `gh run rerun --failed` 確認是否可重現。
 >
 > 🛏 **第一百二十九 session 收工**（2026-11-24 03:50 (UTC+8)）。
 
