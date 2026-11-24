@@ -386,6 +386,7 @@ describe('query handlers: osc / input (T0621)', () => {
       agentStartedAt: startedAt,
       claudeSessionName: null, // T0642: codex
       claudeSessionId: null,
+      towerContract: null, // T0903
     })
     const list = h.call('terminal:list', h.asHelper('tw')) as { terminals: Array<Record<string, unknown>> }
     expect(list.terminals.find(t => t.id === 'wk')).toMatchObject({ state: 'blocked', blockedReason: 'input', blockedDetection: 'osc', agentStarted: true })

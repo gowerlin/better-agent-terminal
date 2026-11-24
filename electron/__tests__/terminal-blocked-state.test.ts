@@ -841,6 +841,7 @@ describe('query handlers: blocked (T0590)', () => {
       pendingQuestions: 0, // T0607
       claudeSessionName: null, // T0642
       claudeSessionId: null,
+      towerContract: null, // T0903
     })
     // the worker itself, and its tower's metadata view
     expect(h.call('terminal:get-state', h.asHelper('wk'))).toMatchObject({ state: 'blocked' })
