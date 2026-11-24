@@ -86,3 +86,7 @@ CT yolo、多個 Worker 並行時，塔台每收到一份回報就寫一段總�
 ## 核定紀錄
 
 - 2026-11-25 04:5x：CT 使用者核定契約 v2（BMad-Guide `_reply-2026-11-25-tower-user-inbox-issue24-v2.md` ACCEPTED、`90e640e`、CT D868）。CT：PLAN-018（6.1.0）、T0557（6.1.0-pre.1 規範與 check-frontmatter）、PLAN-019（C-3，IDEA）；開工面板暫用佔位版號。BAT：D332 開 W0 = T0903。規格裁定：`--set-role` 不帶 `--bat-contract` 時不輸出 `bat-contract:` 行（以 R11 為準，T0902 §3.1′ 的 `none` 行只存在於查詢欄位 `towerContract: null`）。
+- 2026-11-25T05:17:35+08:00：CT 6.1.0-pre.1 規範完成（CT T0557、`94c0fbc`），請 BAT 確認兩個格式，BAT 回覆（契約細節，塔台裁定，W5 / W9 照此實作）：
+  1. `awaiting_user[].source` 全名 `breakpoint-A` / `breakpoint-B-1` / `breakpoint-B-2` / `breakpoint-C` / `breakpoint-E` / `worker-question` / `tower-question`：BAT 同意；已知值由 W5 顯示對應的短標籤，未知值照原字串顯示。
+  2. `hooks:` 行文法（W9 實作，補充 T0902 §3.1′）：`  hooks: ok (<origin>, set <n>)`，`<origin>` = `injected` 或 `plugin`；只由 plugin 提供且事件清單比 BAT 舊時 `  hooks: ok (plugin, set <n>, plugin-outdated)`（狀態仍是 ok）；`injected` 與 plugin 並存時以 `injected` 為準、不出 `plugin-outdated`；`  hooks: none (<代號>)`（代號見 T0902 §7.2）；codex `  hooks: n/a (codex)`。只在帶 `--bat-contract` 時輸出。CT 以括號內是否含 `plugin-outdated` 判斷即可。
+  - CT 確認：`--set-role` 不帶 `--bat-contract` 時不預期 `bat-contract:` 行；exit 0 但沒有該行 → 視為不支援、不重送（與 W0 實作一致：主行程沒有記錄契約時不印該行）。

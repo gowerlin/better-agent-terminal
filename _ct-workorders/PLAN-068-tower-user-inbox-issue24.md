@@ -77,3 +77,8 @@ CT yolo 多個 Worker 並行時，塔台每收到一份回報就寫總結，有�
 | W3 回合訊息卡資料層 | T0905 | 派工中 |
 | W4 待辦分頁骨架與版本判定 | T0906 | 派工中 |
 | W5 / W6 / W9 / W7 / W8（同一個 BAT 版本，與 CT 6.1.0 同日發佈） | 依依賴順序開 | — |
+
+## 契約細節補充（2026-11-25T05:17:35+08:00，CT T0557 詢問）
+
+- `awaiting_user[].source` 全名（`breakpoint-A` … `tower-question`）：W5 顯示短標籤，未知值照原字串。
+- `hooks:` 行文法：`ok (<injected|plugin>, set <n>[, plugin-outdated])` / `none (<代號>)` / `n/a (codex)`，只在帶 `--bat-contract` 時輸出；`plugin-outdated` 只在僅由 plugin 提供且事件清單過舊時出現（W9）。
