@@ -4,13 +4,14 @@ schema_kind: workorder
 id: T0913
 title: "PLAN-068 W8（在 `v0.8.x`）：整合驗收 —— 隔離實例 e2e 走完整流程（假 TUI 塔台＋ Worker `bat-notify --submit`、契約 v2 版本組合、待辦分頁回答、回合訊息卡、`hooks:` 行、headless 遠端路徑），並產出給使用者 / CT 的待實機清單"
 type: verification
-status: PENDING
+status: IN_PROGRESS
 repo: better-agent-terminal
 project: PLAN-068
 priority: P1
 sizing: M
 created_at: "2026-11-25T06:40:09+08:00"
-updated_at: "2026-11-25T06:40:09+08:00"
+started_at: "2026-11-25T06:41:22+08:00"
+updated_at: "2026-11-25T06:41:22+08:00"
 target_version: "0.8.x（與 CT 6.1.0 同日發佈）"
 depends_on: [T0911]
 related:
