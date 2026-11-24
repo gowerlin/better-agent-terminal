@@ -4,6 +4,24 @@ All notable changes to Better Agent Terminal are documented in this file.
 
 ## [Unreleased]
 
+### Added
+- 右側欄「待辦」分頁（PLAN-068，GitHub #24）：把塔台要你處理的事集中成一份清單，依序是 ⏸ 待你決定、🙋 待你執行、⏰ 到期提醒、👷 Worker 等你、💬 塔台訊息、📋 塔台待辦、📊 BUG / PLAN / 工單數量；同一工作區有多個塔台時可選要看哪一個；可移到左側欄或主區（T0906 W4）
+- 待辦分頁讀 Control Tower 6.1.0 寫在 `_tower-state.md` 的待決事項、要你親手做的事與提醒，按鈕直接回答塔台（送一行 `U-3：B`、`A-2：完成`、`A-2：失敗 <說明>`，與手打相同）；「複製指令」只複製、BAT 永遠不執行；塔台縮圖與工作區列表顯示 `⏸N`；Claude Agent 面板當塔台時也能回答（T0908 W5）
+- 塔台回合訊息卡：契約 v2 塔台每回合最後一則訊息一張卡片，未讀 / 已讀、📌 釘選（最多 10 張）、全部已讀、清除，`⏸ 待你決定：` / `🙋 待你執行：` 開頭的行加亮；縮圖 `💬N`；卡片只在 BAT 記憶體、內容先遮罩；Codex 塔台與 claude 2.1.47 以前的版本顯示說明（T0905 W3、T0909 W6）
+- BAT ↔ CT 契約 v2 版本閘門：`bat-terminal.mjs --set-role tower --bat-contract 2`，stdout 多 `  bat-contract: 2`；任一邊太舊時縮圖 `CT↑` / `BAT↑`、提示需要升級哪一邊，PLAN-068 的功能全部停用、其他照舊（T0903 W0）
+- BAT hooks 狀態：`bat_whoami` / `bat_list_terminals` / `bat_get_state` 多 `hooksStatus`，`--set-role … --bat-contract` 多一行 `  hooks: ok|none|n/a (…)`；契約 v2 塔台沒有 hooks 時縮圖 `🪝✕`、待辦分頁標頭一行說明與修法（T0910 W9）
+- 選用的 Claude Code plugin `bat-hooks`（`claude plugin install bat-hooks@better-agent-terminal`）：在 shell 手打 `claude`、自訂 `--settings` 或關掉 BAT MCP 時補上 BAT 的 hooks；只執行該分頁所屬 BAT 的 hook 腳本、不含權杖、不進安裝檔（T0910 W9）
+- 網站新頁「待辦分頁與塔台設定」（各區塊、怎麼回答、版本需求、塔台分頁建議的 claude 設定、`bat-hooks` 安裝 / 升級 / 移除）；README 協作章節新增〈待辦分頁〉與版本對照列（T0912 W7）
+
+### Changed
+- 契約 v2 塔台收到 Worker 通知時畫面不捲動、選取不清、焦點不跳到塔台分頁（T0904 W1）
+- 契約 v2 塔台：你往上捲、選取或用滾輪時通知延後，停手 10 秒送出、最長 60 秒；「📨 待送」選單顯示保留原因並可「立即送出」，保留滿 5 分鐘提醒一次（T0904 W2）
+- 遠端 profile 視窗也顯示「📨 待送 N」、可取消與立即送出（遠端 bat-server 也要升級）（T0908 W5）
+- 指揮塔總覽的待辦在待辦分頁啟用時改成「N 則 → 在待辦分頁查看」，版本不符時照舊列出（T0906 W4）
+
+### Fixed
+- 塔台輸入框有你打到一半的字時，Worker 的通知會混進去一起送出（GitHub #23）：契約 v2 塔台改為先排進「📨 待送」，等你送出或清掉再送（T0904 W2）
+
 ## [0.7.5-pre.2] — 2026-11-17
 
 ### Added
