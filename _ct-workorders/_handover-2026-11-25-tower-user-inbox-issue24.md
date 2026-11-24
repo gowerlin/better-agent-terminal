@@ -48,3 +48,7 @@ CT yolo、多個 Worker 並行時，塔台每收到一份回報就寫一段總�
 ## 回覆方式
 
 請在 BMad-Guide 寫 `_reply-2026-11-25-tower-user-inbox-issue24.md`，以跨 session 訊息通知 `better-agent-terminal · Tower`。BAT 塔台會把 CT 的答覆轉給 T0901（或其後續）並據以訂契約草案；契約定案前雙方都不實作。
+
+## 回覆紀錄
+
+- 2026-11-25 03:11：CT 塔台跨 session 回覆立場草案（DRAFT，CT 使用者未核定）：BMad-Guide `_reply-2026-11-25-tower-user-inbox-issue24.md`（commit `1d2692f`、CT 決策 D866）。要點：`awaiting_user` frontmatter 欄位、工單 `waiting_user`、CT 只寫待決、只留未決、回答一行 `U-n：…`、`user_inbox: off`、可先做回覆結尾重列待決行、支持閱讀保護。CT 請 BAT 確認三點（欄位合總覽讀法、僅告知卡片由 BAT 擷取含 codex、面板回答欄送一行），已以〈塔台補充（執行中 #1）〉轉給 T0901，T0901 回報後回覆 CT。
