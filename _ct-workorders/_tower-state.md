@@ -49,7 +49,9 @@ todo:
 > 02:59 T0900 收單 DONE：根因 = 測試競態（`await closed` 後才掛 client `'close'` listener，Linux unix socket 上 client 常先 close；WSL 重現約 22%），只改測試（`6b907f6b`，+5 / −1，timeout 不變），WSL 連續 60 次 0 失敗、Windows test:unit 第一次即綠 8513。模式 ① 直接合併：`ct-merge/T0900` `86b3fc67`（parent1 `7063e45e` / parent2 `6b907f6b`）→ **本機 `v0.8.x` ff `7063e45e..86b3fc67`（等 pre.2 release 建好後才 push，該提交隨下一版發佈）**；BUG-219 FIXED；分支 `ct/T0900` / `ct-merge/T0900` 已刪；worktree 中繼資料已移除，空目錄被 Worker 分頁佔用待分頁關閉後刪；session 快照已寫；`--close-worker T0900` exit 0。
 > 03:02 **`v0.8.0-pre.2` 發佈**：run `45460440287` attempt 2 全 success（tests、typecheck、server-bundle ×3、三平台 build、release）；prerelease target `7063e45e`、4 個安裝檔；`server-bundle-v0.8.0-pre.2`（7 個附件）。更版重點已 `gh release edit`。CHANGELOG / release-note 加 pre.2 段（main，README 不需改）；`v0.8.x` 本機 `86b3fc67`（T0900）→ `fda8a4b4`（package version 0.8.0-pre.2）。
 > 03:05 push `main` `70b21395..85613f0e`、`v0.8.x` `7063e45e..fda8a4b4`（去識別掃描 0）；Pages run `45466482052` build / deploy / link-check success，首頁 `0.8.0-pre.2`；link-check 50 筆皆 github.com `HTTP/2 protocol error`（含快取重複），連結本身有效，前一次 run 0 筆 → 暫時性，未開單（候選：lychee 對 github.com 改 HTTP/1.1 或加重試）。**pre.2 發佈完成，待使用者跑 NSIS 重裝驗收**。
-> 03:06 GitHub #24 → D326 開 PLAN-068、T0901（BAT 研究）、HANDOVER 給 CT（討論）。
+> 03:06 GitHub #24 → D326 開 PLAN-068、T0901（BAT 研究）、HANDOVER 給 CT（討論）。03:08 派出 T0901。
+> 03:11 CT 回覆立場草案（BMad-Guide `1d2692f`、CT D866，DRAFT）→ 以〈塔台補充（執行中 #1）〉轉給 T0901；HANDOVER 補回覆紀錄（`f656d375`）。
+> 03:16 T0901 收單 DONE（`8c0782f7`，唯讀研究）：Phase 1 只改 BAT（B0 送通知不搶捲動、B 閱讀保護＋ #23 草稿保護、C 回合訊息卡、文件提示），Phase 2 採 CT `awaiting_user`＋面板回答欄（本機 IPC）；CT 三點：(a) 合總覽讀法、(b) claude 可行 / codex 暫不可行、(c) 可行但走本機 IPC；1″ 選項代號格式待 CT 決定。session 快照已寫；`--close-worker T0901` exit 0。使用者補充：顯示放既有右側欄（程式碼片段 / Skills / Agents）新增分頁。**待使用者裁示 Phase 1 範圍與回覆 CT 的內容**。
 >
 > 🛏 **第一百二十九 session 收工**（2026-11-24 03:50 (UTC+8)）。
 

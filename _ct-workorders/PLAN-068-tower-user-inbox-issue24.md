@@ -48,6 +48,18 @@ CT yolo 多個 Worker 並行時，塔台每收到一份回報就寫總結，有�
 | C. 回合訊息卡 / 訊息歷程 | BAT（可能不需 CT） | BAT 以 claude hooks（例 `Stop` 的 transcript）擷取塔台每回合的最後訊息，做成獨立卡片清單（類 MultiView / SubView），可釘選、標已讀 |
 | D. 分割 / 子檢視 | BAT | 把某則訊息釘到側欄或分割窗格，主終端繼續捲動不影響閱讀 |
 
+## T0901 研究結論（2026-11-25 03:15）
+
+- 問題 2（讀到一半被擠走）有一部分是 **BAT 自己造成**：helper 通知的 submit Enter 走 xterm 使用者輸入路徑，`scrollOnUserInput` 會把往上捲的畫面拉回底部、清掉選取，並 `terminal.focus()`（待實機）。claude fullscreen 的 Auto-scroll（預設開）也會在空輸入框被打字時拉回底部。
+- 推薦分階段：
+  - **Phase 1（只改 BAT）**：B0 送通知不搶捲動 / 選取；B 閱讀保護＋ #23 草稿保護（`NotifyHoldController` 新 reason `reading` / `draft`）；C 回合訊息卡（claude `Stop` hook 的 `last_assistant_message`，只收已宣告塔台、只在記憶體、每塔台最近 30 張＋釘選 10 張；需改 T0590「hook 不送內容」規則；codex 塔台暫不支援）；文件提示（fullscreen、關 Auto-scroll、`/focus`）。
+  - **Phase 2（需 CT 6.1.0）**：A 採 CT 草案 `awaiting_user`，BAT 沿用總覽管線顯示「待你決定」清單；面板回答欄走本機 IPC（不是 helper channel），進 `NotifyHoldController` 佇列。
+- CT 草案逐點表態與 (a)(b)(c) 回答見 T0901〈BAT ↔ CT 契約草案〉；只有 1″ 選項代號格式要 CT 決定（BAT 傾向「`<代號> <說明>`」）。
+
+## 使用者補充（2026-11-25 03:16）
+
+- **顯示位置用既有的右側欄**：BAT 右側欄已有「程式碼片段 / Skills / Agents / »」分頁，可在這裡加一個「塔台訊息」（或「塔台」）分頁，放 C 的回合訊息卡與 A 的「待你決定」清單，不另開分割窗格（取代 T0901 示意圖裡的獨立側欄）。
+
 ## 拆單
 
 | 項 | 工單 | 狀態 |
