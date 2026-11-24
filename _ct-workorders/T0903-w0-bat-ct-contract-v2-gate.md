@@ -4,13 +4,14 @@ schema_kind: workorder
 id: T0903
 title: "PLAN-068 W0（在 `v0.8.x`）：BAT ↔ CT 契約 v2 版本閘門 —— `--set-role --bat-contract`、`PtyInstance.towerContract`、查詢欄位、`role-changed`、renderer store、縮圖徽章 `CT↑` / `BAT↑` 與 P-1 / P-2 提示"
 type: implementation
-status: PENDING
+status: IN_PROGRESS
 repo: better-agent-terminal
 project: PLAN-068
 priority: P1
 sizing: M
 created_at: "2026-11-25T04:53:03+08:00"
-updated_at: "2026-11-25T04:53:03+08:00"
+updated_at: "2026-11-25T04:54:27+08:00"
+started_at: "2026-11-25T04:54:27+08:00"
 target_version: "0.8.x（與 CT 6.1.0 同日發佈，版號定版時決定）"
 depends_on: [T0902]
 related:
