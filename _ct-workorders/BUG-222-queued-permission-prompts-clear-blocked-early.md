@@ -3,11 +3,11 @@ schema_version: 1
 schema_kind: bug
 id: BUG-222
 title: "claude 同一回合排隊多個權限詢問（「2 of 3」）時，使用者回答第一個後 `blocked` 就被清除：縮圖 ⚠️ 消失、通知保護失效，Worker 通知的 Enter 可能替使用者回答排隊中的詢問"
-status: FIXING
+status: FIXED
 severity: high
 reproducibility: "observed（T0915 S2 M-C5，claude 2.1.331，同回合 3 個 Read 權限詢問）"
 created_at: "2026-11-25T12:19:45+08:00"
-updated_at: "2026-11-25T12:19:45+08:00"
+updated_at: "2026-11-25T12:45:57+08:00"
 impact:
   - blocked-state
   - notify-hold
@@ -22,7 +22,7 @@ links:
 |------|------|
 | 嚴重度 | 🔴 high（與 BUG-196 同類：Worker 通知的 Enter 可能替使用者作答） |
 | 可重現 | 觀察到（需要 claude 在同一回合平行送出多個需要權限的工具呼叫） |
-| **狀態** | ⏳ FIXING（T0918） |
+| **狀態** | ✅ FIXED（T0918 `8d36b036`，分支 `ct/T0918`，合併工單 T0919；新測試版重驗排隊權限詢問後 CLOSED） |
 | 回報者 | T0915（PLAN-068 實機驗收自動化） |
 | 影響版本 | 推定 T0590 起（不是 `v0.8.x` 新增的回歸；PLAN-068 的通知保護也依賴這個狀態） |
 
@@ -38,3 +38,4 @@ links:
 ## 處置
 
 - 2026-11-25 12:19 D337：開單並派 T0918（先查清楚 claude 這種情況送哪些 hook 事件，再修；不得改壞 T0590 / T0757 / T0790 / T0791 已驗收的行為）。
+- 2026-11-25 12:45：FIXED（T0918 `8d36b036`）。查證：claude 2.1.331 的 `PermissionRequest` hook 沒有 `tool_use_id`，回答時不送任何 hook；能對應結束的只有該批的 `PostToolBatch`。修法（不改 hook、不加 payload）：`TerminalBlockedTracker` 記每個 `permission-request`，未結束 ≥ 2 個時使用者輸入 / 滑鼠不清除（仍算使用者輸入），由該批 `post-tool-batch`、`stop`、`user-prompt-submit`、PTY 結束、recovery 清除；只有 1 個時行為與修正前完全相同。已知限制：回答完後若有長時間工具，⚠️ 與通知保留維持到工具執行完；以 Esc / 無回饋 No 拒絕會中斷回合且無 hook，維持到下一個 prompt。`test:unit` 第一次即綠 8965、`test:legacy` 472、e2e t0787 2 passed。
