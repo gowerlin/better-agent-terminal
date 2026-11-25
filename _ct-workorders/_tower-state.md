@@ -3,14 +3,14 @@ schema_kind: tower-state
 summary_version: 1
 bat_contract: 2
 ct_version: "6.1.1"
-updated_at: "2026-11-25T18:43:11+0800"
+updated_at: "2026-11-25T18:47:54+0800"
 session: "2026-11-25 16:05 第一百三十一 session（CT v6.1.1）"
 next_ids:
   workorder: "T0922"
   decision: "D343"
   bug: "BUG-223"
   plan: "PLAN-069"
-  user: "U-3"
+  user: "U-4"
   action: "A-4"
 todo:
   - "🚀 `v0.8.0-pre.3` 已發佈（D339，2026-11-25 14:44，從 `v0.8.x` `5e541975`：PLAN-068 待辦分頁＋BUG-220–222；CT 6.1.0 同日發佈）；pre.2 D324、pre.1 D315。D331：只有改到安裝路徑的版本才做 NSIS 重裝驗收。待做：`v0.8.x` 併回 main（使用者裁示等 0.8 線實際使用一段時間再併，併回後 PLAN-066 → DONE；main 的 `package.json` 仍是 `0.7.5-pre.2`，`v0.8.x` 是 `0.8.0-pre.3`）；發佈後驗收（linux / macos / docker acceptance、WSL smoke）視需要另取授權"
@@ -24,6 +24,14 @@ todo:
   - "觀察：語音可用性檢查 macOS 未實機（`unknown(timeout)` 出現可把逾時提到 30 s，T0802）；t0757 偶發失敗再發生才開 BUG（D218）；PLAN-060（IDEA）macOS Developer ID 簽章"
   - "版號線：D315 起 `0.8.0-pre.N`（從 `v0.8.x` 分支發），pre.2 已發佈（2026-11-25），`0.8.0-pre.3` 已發佈（2026-11-25 14:44，PLAN-068 待辦分頁＋BUG-220–222，D339；CT 6.1.0 同日發佈），下一版 `0.8.0-pre.4`（`-pre.N` 最多到 pre.9）；`0.7.5` 線最後是 pre.2"
   - "候選（未開單）：`_decision-log.md` 索引表只到 D129（D130–D315 沒有索引列，BAT 決策清單看不到），需重建索引（D316 記錄）"
+awaiting_user:
+  - id: "U-3"
+    workorder: "T0921"
+    kind: "decision"
+    source: "breakpoint-E"
+    summary: "T0921 合併前確認：ct-merge/T0921 @ 8c173c2c 要 ff 到 main 嗎（驗收全綠、無範圍外檔案）"
+    options: ["A 執行 git merge --ff-only", "B 暫不合併（分支與整合 worktree 保留）", "C 手動接手"]
+    created_at: "2026-11-25T18:47:54+08:00"
 user_actions:
   - id: "A-1"
     title: "PLAN-068 待辦分頁實機驗收 M-U1–U8、M-R1–R2（用 0.8.0-pre.3；清單見 T0913 回報區〈待實機清單〉）"
@@ -44,7 +52,7 @@ reminders:
 ---
 # Tower State — better-agent-terminal
 
-> 🟢 **第一百三十一 session 開工**（2026-11-25 16:05 (UTC+8)，CT v6.1.1，Fast Path；塔台 session `43c82f3f-de60-4c70-b5fb-f190e8698511`；`main` = `origin/main` @ `7deb824c`、`v0.8.x` = `origin/v0.8.x` @ `4ce779ee`、工作區乾淨、無 stash；worktree 剩 `T0885` 與 `.ct-integration`；熱區 T:316 / BUG:86 / PLAN:33 / EXP:1）。frontmatter 升契約 v2（`bat_contract: 2`、`ct_version`）；`todo` 兩項搬家：PLAN-068 實機驗收 → `user_actions` A-1、PLAN-067 → `reminders`。開工核對（R-G003）：T0916／T0918 frontmatter 仍 `FIXED`（BUG-220／222 已於 D338 CLOSED）→ 塔台收尾改 `DONE`；BUG-216–219 仍 `FIXED`（已隨 pre.2／pre.3 交付）→ 結案方式交使用者（U-1）。 16:11 U-1 → A（D340）：BUG-218／219 CLOSED（pre.2 run `45460440287`／pre.3 run `45560094561` `tests / unit-tests` 綠）；BUG-216／217 維持 FIXED → `user_actions` A-2／A-3；`_bug-tracker.md` FIXED 2 / CLOSED 83，parser 測試 65 passed。 16:30 `A-3：完成`（經 BAT 待辦分頁）→ D341 BUG-217 CLOSED（安裝版 `0.8.0-pre.3`；本次日誌沒有 `[ct-overview]` 行，無反證，依回報結案）；tracker FIXED 1 / CLOSED 84。 17:08 外部測試者回報：從 GitHub main「Download ZIP」打包 macOS，結果是舊程式（main `package.json` `0.7.5-pre.2`，但 `CHANGELOG.md`／`release-note.md` 已寫 pre.3）。原因：D307 起產品程式只在 `v0.8.x`，main 只有塔台紀錄與發版文件（main 領先 174 個 commit 幾乎都是 `_ct-workorders/`，`v0.8.x` 領先 54；`merge-tree` 試合併有衝突）。已給使用者回覆稿（用 Release 的 dmg 或 `v0.8.0-pre.3` 的 Source code）；防範方式交使用者（U-2）。 18:42 U-2 → B（D342）：現在把 `v0.8.x` 併回 `main` → 開 T0921（合併工單模式 ②，整合 worktree，只有 `CHANGELOG.md` 衝突；不 push、ff 經斷點 E）。`base_main_sha` `5699a2aa`。18:43 派出 T0921（`--mode on`，非隔離，exit 0、`started: 2026-11-25T10:43:05Z`）。
+> 🟢 **第一百三十一 session 開工**（2026-11-25 16:05 (UTC+8)，CT v6.1.1，Fast Path；塔台 session `43c82f3f-de60-4c70-b5fb-f190e8698511`；`main` = `origin/main` @ `7deb824c`、`v0.8.x` = `origin/v0.8.x` @ `4ce779ee`、工作區乾淨、無 stash；worktree 剩 `T0885` 與 `.ct-integration`；熱區 T:316 / BUG:86 / PLAN:33 / EXP:1）。frontmatter 升契約 v2（`bat_contract: 2`、`ct_version`）；`todo` 兩項搬家：PLAN-068 實機驗收 → `user_actions` A-1、PLAN-067 → `reminders`。開工核對（R-G003）：T0916／T0918 frontmatter 仍 `FIXED`（BUG-220／222 已於 D338 CLOSED）→ 塔台收尾改 `DONE`；BUG-216–219 仍 `FIXED`（已隨 pre.2／pre.3 交付）→ 結案方式交使用者（U-1）。 16:11 U-1 → A（D340）：BUG-218／219 CLOSED（pre.2 run `45460440287`／pre.3 run `45560094561` `tests / unit-tests` 綠）；BUG-216／217 維持 FIXED → `user_actions` A-2／A-3；`_bug-tracker.md` FIXED 2 / CLOSED 83，parser 測試 65 passed。 16:30 `A-3：完成`（經 BAT 待辦分頁）→ D341 BUG-217 CLOSED（安裝版 `0.8.0-pre.3`；本次日誌沒有 `[ct-overview]` 行，無反證，依回報結案）；tracker FIXED 1 / CLOSED 84。 17:08 外部測試者回報：從 GitHub main「Download ZIP」打包 macOS，結果是舊程式（main `package.json` `0.7.5-pre.2`，但 `CHANGELOG.md`／`release-note.md` 已寫 pre.3）。原因：D307 起產品程式只在 `v0.8.x`，main 只有塔台紀錄與發版文件（main 領先 174 個 commit 幾乎都是 `_ct-workorders/`，`v0.8.x` 領先 54；`merge-tree` 試合併有衝突）。已給使用者回覆稿（用 Release 的 dmg 或 `v0.8.0-pre.3` 的 Source code）；防範方式交使用者（U-2）。 18:42 U-2 → B（D342）：現在把 `v0.8.x` 併回 `main` → 開 T0921（合併工單模式 ②，整合 worktree，只有 `CHANGELOG.md` 衝突；不 push、ff 經斷點 E）。`base_main_sha` `5699a2aa`。18:43 派出 T0921（`--mode on`，非隔離，exit 0、`started: 2026-11-25T10:43:05Z`）。 18:46 T0921 收單 DONE（模式 ②）：merge `f9375c2c`（parent1 `5699a2aa` = base、parent2 `4ce779ee` = `v0.8.x`）；`CHANGELOG.md` 採 `main` 版（兩邊 `[0.8.0-pre.3]` 逐字相同，`main` 多 pre.2／pre.1 段）；樹比對對 `4ce779ee` 只差 `CHANGELOG.md`、`release-note.md`、`_ct-workorders/**`；typecheck 0 / 0、vite build、test:unit 第一次即綠 9001、verify:helpers、網站建置 exit 0（新頁 `site/tower-inbox.md`）；範圍外檔案無。session id 已在、session 快照已寫；`--close-worker T0921 --delay-ms 10000` exit 0。SHA 比對 ①–③ PASS；⑤ main 只多 `_ct-workorders/**` → 整合分支 `--no-ff` 併 main → `8c173c2c`（main 為祖先）。18:47 斷點 E（非 yolo）→ U-3。
 >
 > 🛏 **第一百三十 session 收工**（2026-11-25 15:25 (UTC+8)）。
 
