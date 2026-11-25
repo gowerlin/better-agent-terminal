@@ -10,6 +10,7 @@
 
 | ID | 日期 | 標題 | 相關工單 |
 |----|------|------|---------|
+| D361 | 2026-11-26 | T0928 補跑收單 DONE（R-1～R-4 BAT 端 0 FAIL；BUG-224 實機 7 / 7）；BUG-224 CLOSED；模式 ① `ct-merge/T0928` `50477ac7` → U-13；通知 CT 判定 | T0928 / BUG-224 / PLAN-069 |
 | D360 | 2026-11-25 | U-12 → A：`main` ff 到 `a65c0958`（BUG-224 修正併入）；去識別 / 金鑰 0 → push `main`；`desktop-build` 打包 `0.8.0-exp.2` 供 CT 6.2.0-pre.2 補跑 | T0927 / BUG-224 / PLAN-069 |
 | D359 | 2026-11-25 | T0927 收單 DONE（merge `9843fa9e`，BUG-224 修正，無衝突、驗收全綠）；斷點 E → U-12（含 push＋打包 exp.2） | T0927 / T0926 / BUG-224 |
 | D358 | 2026-11-25 | T0926 收單 DONE（`2781c81e`）；BUG-224 → FIXED；合併判準 1 不成立 → 合併工單 T0927（模式 ②）；實機併入 `0.8.0-exp.2` 補跑 | T0926 / T0927 / BUG-224 |
@@ -292,6 +293,14 @@
 - **最大風險**：`whisper-node-addon@1.0.2` 對 Electron 41（Node 24）的 NODE_MODULE_VERSION 相容性未知，允許 Worker 遇此決策點主動問塔台
 
 ---
+
+### D361 2026-11-26 00:25 — T0928 補跑收單、BUG-224 CLOSED（U-13 待決）
+
+- **收單**：T0928 DONE（session `e4be1e08`，23:41–00:24）。前置：`checklist-rerun.md` 雜湊相符、已登入、`claude-config` 換到 6.2.0-pre.2（`install-622` exit 0）、`0.8.0-exp.2` zip 雜湊相符（`BUILD-INFO` `56ca6e66`）。S5 / S6 兩個隔離 runtime；R-1～R-4 BAT 端 9 列 PASS、0 FAIL、0 未觸發，CT 端判定欄留空；結果在 `ACC/results-rerun/`。使用者層 1,191 檔雜湊不變、程序 0 殘留。給 CT 的觀察 5 點（選單項目、`state-after` 內文表格殘留 U-1、Esc 後提醒、`on-change` 重列時機、BUG-224 放棄回覆措辭）。
+- **BUG-224 CLOSED**：`0.8.0-exp.2` 實機 7 回快速 Esc 0 次卡在 `question`，6 回命中晚到時序並 `kept cleared`，反例照常（R-G003：已在測試環境實測）。
+- **其他觀察**：💬 卡片摘要以程式碼區塊開頭時只顯示「```」→ 記 `todo` 候選，未開單。隔離實例 claude 帳號週用量 85%。
+- **合併**：模式 ① 判準 PASS（`main` 自 base `50b7cb5c` 起只多 `_ct-workorders/**`、validated = head、範圍內、無衝突、乾淨）→ `ct-merge/T0928` `50477ac7`（parent1 `d68c6cf6` = base、parent2 `798760b8`）。斷點 E → U-13。
+- **相關**：T0928 / BUG-224 / PLAN-069
 
 ### D360 2026-11-25 23:23 — ff、push、打包 `0.8.0-exp.2`（U-12）
 
