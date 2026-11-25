@@ -8,6 +8,8 @@
  *   - `awaiting_user[].source` full names → short labels (PLAN-068〈契約細節補充〉)
  *   - the one-line answers BAT sends (`U-n：<代號或自由文字>` / `A-n：完成` / `A-n：失敗 <說明>`)
  *     and the host's check of them (`tower-inbox:answer`)
+ *   - PLAN-069 / T0922 (CT 6.2.0): `inbox_features` (`parseInboxFeatures`), `awaiting_user[].recommended`
+ *     (`matchRecommended`), the 放棄 / 略過 lines incl. batches (`dismissAnswerText`, `checkInboxAnswer`)
  *
  * Error isolation (§3.3): a list that is not a list is ignored; one bad item (a required field
  * missing / malformed, a duplicate id) is skipped and counted, the others stay; an optional field
@@ -135,6 +137,12 @@ export interface AwaitingItem {
   options: AwaitingOption[] | null
   /** `options` was given but could not be used as buttons. */
   optionsInvalid: boolean
+  /**
+   * PLAN-069 / T0922: the code (as written in `options`) of the recommended option — CT 6.2.0
+   * `recommended`, matched case-insensitively. Absent when the key is missing / not a string, matches
+   * no option, or there are no usable options (free answer). 🔴 Never an error, never skips the item.
+   */
+  recommended?: string
   createdAt?: string
 }
 
@@ -166,6 +174,8 @@ export interface TowerInboxLists {
   skipped: { awaiting: number; actions: number; reminders: number }
   /** Which of the three keys the file has (a missing key ≠ an empty list). */
   present: { awaiting: boolean; actions: boolean; reminders: boolean }
+  /** PLAN-069 / T0922: the known `inbox_features` values (`parseInboxFeatures`). */
+  features: InboxFeature[]
   nextUser?: string
   nextAction?: string
 }
@@ -176,7 +186,44 @@ export const EMPTY_TOWER_INBOX_LISTS: TowerInboxLists = Object.freeze({
   reminders: [],
   skipped: { awaiting: 0, actions: 0, reminders: 0 },
   present: { awaiting: false, actions: false, reminders: false },
+  features: [],
 }) as TowerInboxLists
+
+// ─── Capability flags (PLAN-069 / T0922, CT 6.2.0 `inbox_features`) ─────────
+
+/**
+ * `inbox_features` values BAT knows. `dismiss` = the Tower reads 放棄 / 略過 and the batch lines →
+ * BAT shows the dismiss / skip / batch controls; `recommended` = the Tower writes
+ * `awaiting_user[].recommended` (informational: the mark follows that field itself).
+ */
+export const INBOX_FEATURES = ['recommended', 'dismiss'] as const
+export type InboxFeature = typeof INBOX_FEATURES[number]
+
+/**
+ * `_tower-state.md` `inbox_features`: a string array; not an array / missing → `[]` (= CT 6.1.x);
+ * values BAT does not know (e.g. `future-value`) and non-strings are ignored; no duplicates.
+ */
+export function parseInboxFeatures(raw: unknown): InboxFeature[] {
+  if (!Array.isArray(raw)) return []
+  const features: InboxFeature[] = []
+  for (const value of raw) {
+    if (typeof value !== 'string') continue
+    const known = (INBOX_FEATURES as readonly string[]).find(feature => feature === value.trim()) as InboxFeature | undefined
+    if (known && !features.includes(known)) features.push(known)
+  }
+  return features
+}
+
+/**
+ * `awaiting_user[].recommended` against the item's options: the option's code as CT wrote it when the
+ * value matches one code case-insensitively; undefined otherwise (no options, not a string, no match).
+ */
+export function matchRecommended(raw: unknown, options: readonly AwaitingOption[] | null): string | undefined {
+  if (typeof raw !== 'string' || !options || options.length === 0) return undefined
+  const key = raw.trim().toLowerCase()
+  if (key === '') return undefined
+  return options.find(option => option.code.toLowerCase() === key)?.code
+}
 
 function text(value: unknown): string | undefined {
   if (typeof value === 'string') return value.trim() === '' ? undefined : value
@@ -251,6 +298,8 @@ export function parseTowerInboxLists(frontmatter: unknown): TowerInboxLists {
       ids.add(id)
       const { options, invalid } = parseAwaitingOptions(item.options)
       const entry: AwaitingItem = { id, summary, options, optionsInvalid: invalid }
+      const recommended = matchRecommended(item.recommended, options)
+      if (recommended) entry.recommended = recommended
       const workorder = text(item.workorder)
       if (workorder) entry.workorder = workorder
       const kind = text(item.kind)
@@ -313,6 +362,7 @@ export function parseTowerInboxLists(frontmatter: unknown): TowerInboxLists {
     reminders: stableSort(reminders, item => item.due),
     skipped,
     present,
+    features: parseInboxFeatures(fm.inbox_features),
   }
   const nextIds = asRecord(fm.next_ids)
   if (nextIds) {
@@ -361,17 +411,56 @@ export const INBOX_ANSWER_MAX_CHARS = 1_000
 /** Only these lines may be typed into a Tower through `tower-inbox:answer` (no free input channel). */
 export const INBOX_ANSWER_PREFIX = /^[UA]-\d+[：:]/
 
-export type InboxAnswerCheck = 'ok' | 'not-string' | 'empty' | 'multiline' | 'too-long' | 'bad-prefix'
+/**
+ * PLAN-069 / T0922: a batch line's prefix — two or more `[UA]-\d+` separated by `、` / `,` / `，`
+ * (spaces around them ignored), then the colon. Batch lines are for 放棄 / 略過 only (CT 6.2.0).
+ */
+export const INBOX_BATCH_PREFIX = /^[UA]-\d+(?:\s*[、,，]\s*[UA]-\d+)+\s*[：:]/
+/**
+ * The first word after the colon (leading spaces dropped) is 放棄 / 略過 when it is followed by the end
+ * of the line, a space (half- or full-width) or `，` `,` `。` `；` `;` (CT 6.2.0 memory-protocol.md).
+ */
+const DISMISS_WORD = /^(?:放棄|略過)(?=$|[\s　，,。；;])/
 
-/** The host's check of an answer line (`tower-inbox:answer`): one line, ≤ 1,000 chars, `^[UA]-\d+[：:]` + text. */
+export type InboxAnswerCheck = 'ok' | 'not-string' | 'empty' | 'multiline' | 'too-long' | 'bad-prefix' | 'bad-batch'
+
+/** Whether the text after an answer's colon starts with the word 放棄 / 略過 (CT's rule). */
+export function isDismissAnswer(afterColon: string): boolean {
+  return DISMISS_WORD.test(afterColon.replace(/^[\s　]+/, ''))
+}
+
+/**
+ * The host's check of an answer line (`tower-inbox:answer`): one line, ≤ 1,000 chars, and either
+ * `^[UA]-\d+[：:]` + text (unchanged since T0908), or (PLAN-069) a batch prefix `INBOX_BATCH_PREFIX`
+ * whose first word after the colon is 放棄 / 略過 — any other multi-id line is `bad-batch`; wildcards
+ * and ranges (`U-*`, `U-1～U-5`) match neither (`bad-prefix`).
+ */
 export function checkInboxAnswer(value: unknown): InboxAnswerCheck {
   if (typeof value !== 'string') return 'not-string'
   if (value.length === 0) return 'empty'
   if (/[\r\n]/.test(value)) return 'multiline'
   if (value.length > INBOX_ANSWER_MAX_CHARS) return 'too-long'
   const m = INBOX_ANSWER_PREFIX.exec(value)
-  if (!m || value.slice(m[0].length).trim() === '') return 'bad-prefix'
-  return 'ok'
+  if (m) return value.slice(m[0].length).trim() === '' ? 'bad-prefix' : 'ok'
+  const batch = INBOX_BATCH_PREFIX.exec(value)
+  if (!batch) return 'bad-prefix'
+  return isDismissAnswer(value.slice(batch[0].length)) ? 'ok' : 'bad-batch'
+}
+
+/** The `U-n` / `A-n` ids an answer line starts with (one, or a batch's list); [] when none. For logs. */
+export function inboxAnswerIds(value: string): string[] {
+  const m = INBOX_ANSWER_PREFIX.exec(value) ?? INBOX_BATCH_PREFIX.exec(value)
+  return m ? (m[0].match(/[UA]-\d+/g) ?? []) : []
+}
+
+/**
+ * A log fragment for an answer line: `id=U-3` (one id, the T0908 form), `id=U-1 ids=3` for a batch,
+ * `id=?` when none. 🔴 ids and counts only, never the text.
+ */
+export function inboxAnswerLogIds(value: string): string {
+  const ids = inboxAnswerIds(value)
+  if (ids.length === 0) return 'id=?'
+  return ids.length === 1 ? `id=${ids[0]}` : `id=${ids[0]} ids=${ids.length}`
 }
 
 /** Line breaks and tabs in a free text → spaces (the answer is one line). */
@@ -389,4 +478,17 @@ export function actionAnswerText(id: string, result: 'done' | 'failed', note?: s
   if (result === 'done') return `${id}：完成`
   const detail = note ? oneLine(note) : ''
   return detail ? `${id}：失敗 ${detail}` : `${id}：失敗`
+}
+
+/**
+ * PLAN-069 / T0922: `U-1：放棄[ <文字>]` / `U-1、U-3：放棄[ <文字>]` (待你決定) and `A-2：略過[ <文字>]` /
+ * `A-2、A-3：略過[ <文字>]` (待你執行). Ids are joined with `、`, the colon is full-width, the optional
+ * text becomes one line. 🔴 Explicit ids only (the caller expands「全部」to the listed ids when it sends).
+ * Empty `ids` → null.
+ */
+export function dismissAnswerText(ids: readonly string[], kind: 'awaiting' | 'action', note?: string): string | null {
+  if (ids.length === 0) return null
+  const word = kind === 'awaiting' ? '放棄' : '略過'
+  const detail = note ? oneLine(note) : ''
+  return `${ids.join('、')}：${word}${detail ? ` ${detail}` : ''}`
 }

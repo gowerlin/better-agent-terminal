@@ -1864,6 +1864,23 @@
       "today": "due today",
       "dueIn": "due in {{count}} day(s)",
       "last": "(last {{at}})"
+    },
+    "recommended": "Recommended",
+    "dismiss": {
+      "dismiss": "Dismiss…",
+      "skip": "Skip…",
+      "dismissNote": "Reason or new direction (one line, optional)",
+      "skipNote": "Reason (one line, optional)",
+      "sendDismiss": "Send dismiss",
+      "sendSkip": "Send skip",
+      "check": "Select {{id}}",
+      "dismissChecked": "Dismiss selected ({{count}})",
+      "skipChecked": "Skip selected ({{count}})",
+      "dismissAll": "Dismiss all",
+      "skipAll": "Skip all",
+      "confirmDismiss": "Dismiss {{ids}}? None of the options is applied; paused work orders stay paused.",
+      "confirmSkip": "Skip {{ids}}? They are recorded as not verified (skipped by you), not as failed.",
+      "confirm": "Send"
     }
   },
   "towerContract": {

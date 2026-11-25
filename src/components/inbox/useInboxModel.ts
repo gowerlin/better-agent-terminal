@@ -11,7 +11,7 @@ import { getNotifyHold, useNotifyHoldVersion } from '../../stores/notify-hold-st
 import { getInterruptedAgent, useInterruptedAgentsVersion } from '../../stores/interrupted-agents-store'
 import { getInboxStateLists, useInboxFiles, useInboxStoreVersion, useRecentlyClosed, useSelectedInboxTower, type InboxFiles } from '../../stores/inbox-store'
 import { towerStateBatContract } from '../../lib/ct-tower-overview'
-import { dueReminders, type AwaitingItem, type DueReminder, type UserAction } from '../../lib/tower-inbox'
+import { dueReminders, type AwaitingItem, type DueReminder, type InboxFeature, type UserAction } from '../../lib/tower-inbox'
 import {
   inboxAnswerTargets,
   panelTowerTerminalIds,
@@ -83,6 +83,8 @@ export interface InboxModel extends InboxVerdictModel {
   reminders: DueReminder[]
   /** T0908: items skipped as malformed, per list. */
   skipped: { awaiting: number; actions: number; reminders: number }
+  /** PLAN-069 / T0922: the known CT `inbox_features` (`dismiss` → the 放棄 / 略過 controls). */
+  features: InboxFeature[]
   /** T0908: CT `user_inbox` (off = CT writes neither list). */
   userInbox: 'on' | 'off'
   /** T0908: items that left the lists this run (newest first, ≤ 10). */
@@ -130,6 +132,7 @@ export function useInboxModel(workspaceId: string | null | undefined, folder: st
   const actions = lists?.actions ?? []
   const reminders = dueReminders(lists?.reminders ?? [], Date.now())
   const skipped = lists?.skipped ?? { awaiting: 0, actions: 0, reminders: 0 }
+  const features = lists?.features ?? []
   const recentlyClosed = useRecentlyClosed(folder)
   // panel Towers: T0909's definition (`panelTowerTerminalIds`, same file as the verdict)
   const panelIds = new Set(panelTowerTerminalIds(terminals, stateContract, verdictModel.towers.length))
@@ -145,7 +148,7 @@ export function useInboxModel(workspaceId: string | null | undefined, folder: st
   const badge = !loading && applies ? inboxTabBadge(verdictModel.verdict, actionCount) : null
   return {
     ...verdictModel, files, loading, applies, workerItems, pendingBugs, counts, todo,
-    awaiting, actions, reminders, skipped, userInbox, recentlyClosed, answerTargets, actionCount, badge,
+    awaiting, actions, reminders, skipped, features, userInbox, recentlyClosed, answerTargets, actionCount, badge,
   }
 }
 

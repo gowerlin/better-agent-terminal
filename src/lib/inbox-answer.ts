@@ -11,7 +11,7 @@
  *
  * 🔴 Logs ids, lengths and results only, never the line.
  */
-import { checkInboxAnswer } from './tower-inbox'
+import { checkInboxAnswer, inboxAnswerLogIds } from './tower-inbox'
 import type { InboxAnswerTarget } from './inbox-model'
 
 /** Window event a Claude Agent panel (its `sessionId` = the tab id) answers synchronously. */
@@ -38,8 +38,9 @@ function log(message: string): void {
   try { window.electronAPI?.debug?.log?.(message) } catch { /* logging only */ }
 }
 
+/** `id=U-3`, or `id=U-1 ids=3` for a PLAN-069 batch line (ids and counts only). */
 function answerId(text: string): string {
-  return /^[UA]-\d+/.exec(text)?.[0] ?? '?'
+  return inboxAnswerLogIds(text)
 }
 
 /** Sends `text` to a Claude Agent panel Tower in this window. */
@@ -48,7 +49,7 @@ export function sendPanelTowerAnswer(sessionId: string, text: string): InboxAnsw
   const detail: PanelTowerAnswerDetail = { sessionId, text, respond: (r) => { if (result === null) result = r } }
   window.dispatchEvent(new CustomEvent<PanelTowerAnswerDetail>(PANEL_TOWER_ANSWER_EVENT, { detail }))
   const outcome: InboxAnswerOutcome = result === 'sent' ? { status: 'sent' } : result === 'draft' ? { status: 'draft' } : { status: 'not-mounted' }
-  log(`[tower-inbox] answer panel=${sessionId} id=${answerId(text)} len=${text.length} → ${outcome.status}`)
+  log(`[tower-inbox] answer panel=${sessionId} ${answerId(text)} len=${text.length} → ${outcome.status}`)
   return outcome
 }
 
@@ -64,11 +65,11 @@ export async function sendInboxAnswer(target: InboxAnswerTarget, text: string): 
     const outcome: InboxAnswerOutcome = result?.ok
       ? (result.held ? { status: 'held' } : { status: 'sent' })
       : { status: 'failed', reason: result?.reason ?? 'unknown' }
-    log(`[tower-inbox] answer terminal=${target.id} id=${answerId(text)} len=${text.length} → ${outcome.status}${outcome.status === 'failed' ? ` (${outcome.reason})` : ''}`)
+    log(`[tower-inbox] answer terminal=${target.id} ${answerId(text)} len=${text.length} → ${outcome.status}${outcome.status === 'failed' ? ` (${outcome.reason})` : ''}`)
     return outcome
   } catch (err) {
     const reason = err instanceof Error && /No handler/i.test(err.message) ? 'unsupported' : 'error'
-    log(`[tower-inbox] answer terminal=${target.id} id=${answerId(text)} len=${text.length} → failed (${reason})`)
+    log(`[tower-inbox] answer terminal=${target.id} ${answerId(text)} len=${text.length} → failed (${reason})`)
     return { status: 'failed', reason }
   }
 }

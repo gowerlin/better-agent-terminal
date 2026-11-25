@@ -450,6 +450,36 @@
 .inbox-answer-draft {
   color: var(--warning-color, #d29922);
 }
+/* PLAN-069 / T0922: 推薦 mark, 放棄 / 略過 controls (only with inbox_features `dismiss`) */
+.inbox-option-recommended {
+  font-size: 11px;
+  padding: 0 4px;
+  border-radius: 3px;
+  border: 1px solid var(--accent-color, #4a9eff);
+  color: var(--accent-color, #4a9eff);
+  white-space: nowrap;
+}
+.inbox-check {
+  margin: 0;
+  cursor: pointer;
+}
+.inbox-dismiss-btn {
+  color: var(--text-secondary);
+}
+.inbox-dismiss-toolbar {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 2px 8px 4px;
+}
+.inbox-dismiss-confirm {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 4px 6px;
+  border: 1px solid var(--border-color);
+  border-radius: 3px;
+}
 .inbox-recent {
   margin: 4px 8px;
   color: var(--text-secondary);

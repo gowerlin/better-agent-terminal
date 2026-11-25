@@ -73,7 +73,7 @@ import type {
   TowerInboxAnswerResult,
 } from '../src/types/notify-hold'
 import { towerContractStatus } from '../src/lib/tower-contract'
-import { checkInboxAnswer, INBOX_ANSWER_PREFIX } from '../src/lib/tower-inbox'
+import { checkInboxAnswer, inboxAnswerLogIds } from '../src/lib/tower-inbox'
 import { NO_DRAFT, trackDraft, type DraftState } from '../src/lib/tower-input-draft'
 import type { BlockedDetection, BlockedState } from './terminal-blocked-state'
 import type { HandlerContext } from './remote/handler-registry'
@@ -925,8 +925,8 @@ export function registerTowerInboxAnswerHandler(opts: {
     const controller = opts.getNotifyHold()
     if (!controller) return { ok: false, reason: 'unavailable' }
     const result = controller.enqueueAnswer(terminalId, text, { connectionId: ctx?.connectionId ?? null })
-    const id = INBOX_ANSWER_PREFIX.exec(text)?.[0].slice(0, -1) ?? '?'
-    opts.logger.log(`[tower-inbox] answer terminal=${terminalId} id=${id} len=${text.length} → ${result.ok ? (result.held ? 'held' : 'sending') : result.reason}`)
+    // PLAN-069 / T0922: a batch line logs its first id and the id count (`id=U-1 ids=3`); one id as before
+    opts.logger.log(`[tower-inbox] answer terminal=${terminalId} ${inboxAnswerLogIds(text)} len=${text.length} → ${result.ok ? (result.held ? 'held' : 'sending') : result.reason}`)
     return result
   })
 }

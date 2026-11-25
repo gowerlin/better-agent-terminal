@@ -11,6 +11,15 @@
  * sent by `sendInboxAnswer` to the workspace's Tower (`answerTargets`: exactly one → sent; several →
  * the user picks; none → nothing to send to). Read-only otherwise: nothing here writes a CT file.
  * 🔴 Logs (in src/lib/inbox-answer.ts) carry ids and lengths only.
+ *
+ * PLAN-069 / T0922 (CT 6.2.0):
+ *   - `recommended` → a「推薦」mark on that option, selected by default until the user picks one
+ *     (CT's order kept, the「（推薦）」in the text kept); shown whenever the field matches
+ *   - `dismiss` (only when `inbox_features` lists it; otherwise nothing below is drawn): per row
+ *    「放棄…」/「略過…」with an optional one-line note (`U-n：放棄[ 文字]` / `A-n：略過[ 文字]`), a check
+ *     box per row, and per list「放棄勾選（N）」/「全部放棄」(「略過…」) with one note and an in-page
+ *     confirmation listing the ids. 🔴「全部」is expanded when sent to the ids listed then; one line
+ *     per list (`U-1、U-3：放棄 …`), never a wildcard or a range.
  */
 import { useState, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -19,6 +28,7 @@ import {
   actionAnswerText,
   awaitingAnswerText,
   awaitingSourceLabelKey,
+  dismissAnswerText,
   formatCtTime,
   userActionKindLabelKey,
   type AwaitingItem,
@@ -91,6 +101,160 @@ function TargetChooser({ targets, onChoose }: { targets: InboxAnswerTarget[]; on
   )
 }
 
+type DismissKind = 'awaiting' | 'action'
+
+/** The key the batch toolbar's status / target chooser is kept under (never a `U-n` / `A-n`). */
+const BATCH_KEY = '__batch__'
+
+/**
+ * PLAN-069: a row's「放棄…」/「略過…」: opens an optional one-line note with send / cancel (in the
+ * page, no `window.confirm`), sends `U-n：放棄[ 文字]` / `A-n：略過[ 文字]`.
+ */
+function DismissControl({ id, kind, busy, onAnswer }: {
+  id: string
+  kind: DismissKind
+  busy: boolean
+  onAnswer: (text: string) => Promise<boolean>
+}) {
+  const { t } = useTranslation()
+  const [open, setOpen] = useState(false)
+  const [note, setNote] = useState('')
+  const send = async () => {
+    const text = dismissAnswerText([id], kind, note)
+    if (text && await onAnswer(text)) {
+      setOpen(false)
+      setNote('')
+    }
+  }
+  const noteLabel = t(kind === 'awaiting' ? 'inbox.dismiss.dismissNote' : 'inbox.dismiss.skipNote')
+  return (
+    <>
+      <button className="inbox-btn inbox-dismiss-btn" disabled={busy} data-inbox-dismiss={id} aria-expanded={open} onClick={() => setOpen(v => !v)}>
+        {t(kind === 'awaiting' ? 'inbox.dismiss.dismiss' : 'inbox.dismiss.skip')}
+      </button>
+      {open && (
+        <div className="inbox-free inbox-dismiss-form" data-inbox-dismiss-form={id}>
+          <input
+            className="inbox-free-input"
+            type="text"
+            maxLength={900}
+            value={note}
+            placeholder={noteLabel}
+            aria-label={noteLabel}
+            data-inbox-dismiss-note={id}
+            onChange={e => setNote(e.target.value)}
+            onKeyDown={e => { if (e.key === 'Enter' && !e.nativeEvent.isComposing) void send() }}
+          />
+          <button className="inbox-btn primary" disabled={busy} data-inbox-dismiss-send={id} onClick={() => void send()}>
+            {t(kind === 'awaiting' ? 'inbox.dismiss.sendDismiss' : 'inbox.dismiss.sendSkip')}
+          </button>
+          <button className="inbox-btn" data-inbox-dismiss-cancel={id} onClick={() => { setOpen(false); setNote('') }}>
+            {t('common.cancel')}
+          </button>
+        </div>
+      )}
+    </>
+  )
+}
+
+/** PLAN-069: a row's check box for the batch toolbar. */
+function DismissCheck({ id, checked, onCheck }: { id: string; checked: boolean; onCheck: (id: string, checked: boolean) => void }) {
+  const { t } = useTranslation()
+  return (
+    <input
+      type="checkbox"
+      className="inbox-check"
+      checked={checked}
+      data-inbox-check={id}
+      aria-label={t('inbox.dismiss.check', { id })}
+      onChange={e => onCheck(id, e.target.checked)}
+    />
+  )
+}
+
+/**
+ * PLAN-069: the list's「放棄勾選（N）」/「全部放棄」(「略過…」) toolbar: one optional note, an in-page
+ * confirmation listing the ids, then one line for the list. 🔴 The ids are taken when sent: the checked
+ * ones still listed, or (「全部」) every id listed then — never a wildcard or a range.
+ */
+function DismissToolbar({ kind, listedIds, checked, busy, onSend, status, chooser }: {
+  kind: DismissKind
+  listedIds: readonly string[]
+  checked: ReadonlySet<string>
+  busy: boolean
+  onSend: (text: string) => Promise<boolean>
+  status: Status | undefined
+  chooser: ReactNode
+}) {
+  const { t } = useTranslation()
+  const [mode, setMode] = useState<'checked' | 'all' | null>(null)
+  const [note, setNote] = useState('')
+  const checkedIds = listedIds.filter(id => checked.has(id))
+  const idsOf = (which: 'checked' | 'all') => (which === 'all' ? [...listedIds] : checkedIds)
+  const awaiting = kind === 'awaiting'
+  const send = async () => {
+    if (!mode) return
+    const text = dismissAnswerText(idsOf(mode), kind, note)
+    if (!text) { setMode(null); return }
+    if (await onSend(text)) {
+      setMode(null)
+      setNote('')
+    }
+  }
+  const noteLabel = t(awaiting ? 'inbox.dismiss.dismissNote' : 'inbox.dismiss.skipNote')
+  const shown = mode ? idsOf(mode) : []
+  return (
+    <div className="inbox-dismiss-toolbar" data-inbox-dismiss-toolbar={kind}>
+      <div className="inbox-actions-row">
+        <button className="inbox-btn" disabled={busy || checkedIds.length === 0} data-inbox-dismiss-checked={kind} onClick={() => setMode('checked')}>
+          {t(awaiting ? 'inbox.dismiss.dismissChecked' : 'inbox.dismiss.skipChecked', { count: checkedIds.length })}
+        </button>
+        <button className="inbox-btn" disabled={busy || listedIds.length === 0} data-inbox-dismiss-all={kind} onClick={() => setMode('all')}>
+          {t(awaiting ? 'inbox.dismiss.dismissAll' : 'inbox.dismiss.skipAll')}
+        </button>
+      </div>
+      {mode && (
+        <div className="inbox-dismiss-confirm" data-inbox-dismiss-confirm={shown.join(',')}>
+          <div>{t(awaiting ? 'inbox.dismiss.confirmDismiss' : 'inbox.dismiss.confirmSkip', { ids: shown.join('、') })}</div>
+          <div className="inbox-free">
+            <input
+              className="inbox-free-input"
+              type="text"
+              maxLength={900}
+              value={note}
+              placeholder={noteLabel}
+              aria-label={noteLabel}
+              data-inbox-dismiss-batch-note={kind}
+              onChange={e => setNote(e.target.value)}
+            />
+            <button className="inbox-btn primary" disabled={busy || shown.length === 0} data-inbox-dismiss-batch-send={kind} onClick={() => void send()}>
+              {t('inbox.dismiss.confirm')}
+            </button>
+            <button className="inbox-btn" data-inbox-dismiss-batch-cancel={kind} onClick={() => { setMode(null); setNote('') }}>
+              {t('common.cancel')}
+            </button>
+          </div>
+        </div>
+      )}
+      {chooser}
+      <StatusLine status={status} />
+    </div>
+  )
+}
+
+/** PLAN-069: the batch check boxes of one list (ids no longer listed are simply not sent). */
+function useChecked() {
+  const [checked, setChecked] = useState<Set<string>>(() => new Set())
+  const onCheck = (id: string, on: boolean) => setChecked(prev => {
+    const next = new Set(prev)
+    if (on) next.add(id)
+    else next.delete(id)
+    return next
+  })
+  const clear = () => setChecked(new Set())
+  return { checked, onCheck, clear }
+}
+
 /** "另有 N 筆" below a list cut at `INBOX_LIST_RENDER_MAX` (§3). */
 function MoreLine({ total }: { total: number }) {
   const { t } = useTranslation()
@@ -104,14 +268,20 @@ function SkippedLine({ count }: { count: number }) {
   return <div className="inbox-muted" data-inbox-skipped={count}>{t('inbox.skipped', { count })}</div>
 }
 
-function AwaitingRow({ item, onAnswer, status, chooser }: {
+function AwaitingRow({ item, onAnswer, status, chooser, dismiss, checked, onCheck }: {
   item: AwaitingItem & { waitingOrders: string[] }
   onAnswer: (text: string) => Promise<boolean>
   status: Status | undefined
   chooser: ReactNode
+  /** PLAN-069: `inbox_features` lists `dismiss` → check box + 放棄…. */
+  dismiss: boolean
+  checked: boolean
+  onCheck: (id: string, checked: boolean) => void
 }) {
   const { t } = useTranslation()
   const [choice, setChoice] = useState<string | null>(null)
+  // PLAN-069: the recommended option is selected until the user picks one
+  const selected = choice ?? item.recommended ?? null
   const [free, setFree] = useState('')
   const sourceKey = awaitingSourceLabelKey(item.source)
   const busy = status?.status === 'sending'
@@ -125,6 +295,7 @@ function AwaitingRow({ item, onAnswer, status, chooser }: {
   return (
     <li className="inbox-item inbox-entry" data-inbox-awaiting={item.id}>
       <div className="inbox-entry-head">
+        {dismiss && <DismissCheck id={item.id} checked={checked} onCheck={onCheck} />}
         <span className="inbox-item-id">{item.id}</span>
         {item.workorder && <span className="inbox-item-source">{item.workorder}</span>}
         {item.source && <span className="inbox-item-tag" title={item.source}>{sourceKey ? t(sourceKey) : item.source}</span>}
@@ -138,13 +309,16 @@ function AwaitingRow({ item, onAnswer, status, chooser }: {
               <input
                 type="radio"
                 name={`inbox-${item.id}`}
-                checked={choice === option.code}
+                checked={selected === option.code}
                 onChange={() => setChoice(option.code)}
               />
               <span className="inbox-option-code">{option.code}</span> {option.label}
+              {item.recommended === option.code && (
+                <span className="inbox-option-recommended" data-inbox-recommended={option.code}>{t('inbox.recommended')}</span>
+              )}
             </label>
           ))}
-          <button className="inbox-btn primary" disabled={!choice || busy} onClick={() => { if (choice) void submit(choice) }}>
+          <button className="inbox-btn primary" disabled={!selected || busy} onClick={() => { if (selected) void submit(selected) }}>
             {t('inbox.answer.send')}
           </button>
         </div>
@@ -166,6 +340,11 @@ function AwaitingRow({ item, onAnswer, status, chooser }: {
           </button>
         </div>
       )}
+      {dismiss && (
+        <div className="inbox-actions-row">
+          <DismissControl id={item.id} kind="awaiting" busy={busy} onAnswer={onAnswer} />
+        </div>
+      )}
       {item.waitingOrders.length > 0 && (
         <div className="inbox-paused" data-inbox-paused={item.waitingOrders.join(',')}>
           {t('inbox.paused', { orders: item.waitingOrders.join(', ') })}
@@ -178,11 +357,15 @@ function AwaitingRow({ item, onAnswer, status, chooser }: {
   )
 }
 
-function ActionRow({ item, onAnswer, status, chooser }: {
+function ActionRow({ item, onAnswer, status, chooser, dismiss, checked, onCheck }: {
   item: UserAction
   onAnswer: (text: string) => Promise<boolean>
   status: Status | undefined
   chooser: ReactNode
+  /** PLAN-069: `inbox_features` lists `dismiss` → check box + 略過…. */
+  dismiss: boolean
+  checked: boolean
+  onCheck: (id: string, checked: boolean) => void
 }) {
   const { t } = useTranslation()
   const [failing, setFailing] = useState(false)
@@ -201,6 +384,7 @@ function ActionRow({ item, onAnswer, status, chooser }: {
   return (
     <li className="inbox-item inbox-entry" data-inbox-action={item.id}>
       <div className="inbox-entry-head">
+        {dismiss && <DismissCheck id={item.id} checked={checked} onCheck={onCheck} />}
         <span className="inbox-item-id">{item.id}</span>
         {item.ref && <span className="inbox-item-source">{item.ref}</span>}
         {item.kind && <span className="inbox-item-tag" title={item.kind}>{kindKey ? t(kindKey) : item.kind}</span>}
@@ -219,6 +403,7 @@ function ActionRow({ item, onAnswer, status, chooser }: {
           {t('inbox.action.done')}
         </button>
         <button className="inbox-btn" disabled={busy} onClick={() => setFailing(v => !v)}>{t('inbox.action.failed')}</button>
+        {dismiss && <DismissControl id={item.id} kind="action" busy={busy} onAnswer={onAnswer} />}
       </div>
       {failing && (
         <div className="inbox-free">
@@ -254,18 +439,41 @@ function ActionRow({ item, onAnswer, status, chooser }: {
 }
 
 /** The `⏸ 待你決定` list. */
-export function AwaitingList({ items, skipped, targets }: { items: Array<AwaitingItem & { waitingOrders: string[] }>; skipped: number; targets: Targets }) {
+export function AwaitingList({ items, skipped, targets, dismiss = false }: {
+  items: Array<AwaitingItem & { waitingOrders: string[] }>
+  skipped: number
+  targets: Targets
+  /** PLAN-069: `inbox_features` lists `dismiss`. */
+  dismiss?: boolean
+}) {
   const sender = useAnswerSender(targets)
+  const batch = useChecked()
+  const listed = items.slice(0, INBOX_LIST_RENDER_MAX)
+  const chooserFor = (key: string) => sender.pending?.itemId === key ? <TargetChooser targets={targets.targets} onChoose={sender.choose} /> : null
   return (
     <>
+      {dismiss && listed.length > 0 && (
+        <DismissToolbar
+          kind="awaiting"
+          listedIds={listed.map(item => item.id)}
+          checked={batch.checked}
+          busy={sender.statuses[BATCH_KEY]?.status === 'sending'}
+          onSend={async text => { const ok = await sender.send(BATCH_KEY, text); if (ok) batch.clear(); return ok }}
+          status={sender.statuses[BATCH_KEY]}
+          chooser={chooserFor(BATCH_KEY)}
+        />
+      )}
       <ul className="inbox-list">
-        {items.slice(0, INBOX_LIST_RENDER_MAX).map(item => (
+        {listed.map(item => (
           <AwaitingRow
             key={item.id}
             item={item}
             status={sender.statuses[item.id]}
             onAnswer={text => sender.send(item.id, text)}
-            chooser={sender.pending?.itemId === item.id ? <TargetChooser targets={targets.targets} onChoose={sender.choose} /> : null}
+            chooser={chooserFor(item.id)}
+            dismiss={dismiss}
+            checked={batch.checked.has(item.id)}
+            onCheck={batch.onCheck}
           />
         ))}
       </ul>
@@ -276,18 +484,41 @@ export function AwaitingList({ items, skipped, targets }: { items: Array<Awaitin
 }
 
 /** The `user_actions` part of `🙋 待你執行`. */
-export function ActionList({ items, skipped, targets }: { items: UserAction[]; skipped: number; targets: Targets }) {
+export function ActionList({ items, skipped, targets, dismiss = false }: {
+  items: UserAction[]
+  skipped: number
+  targets: Targets
+  /** PLAN-069: `inbox_features` lists `dismiss`. */
+  dismiss?: boolean
+}) {
   const sender = useAnswerSender(targets)
+  const batch = useChecked()
+  const listed = items.slice(0, INBOX_LIST_RENDER_MAX)
+  const chooserFor = (key: string) => sender.pending?.itemId === key ? <TargetChooser targets={targets.targets} onChoose={sender.choose} /> : null
   return (
     <>
+      {dismiss && listed.length > 0 && (
+        <DismissToolbar
+          kind="action"
+          listedIds={listed.map(item => item.id)}
+          checked={batch.checked}
+          busy={sender.statuses[BATCH_KEY]?.status === 'sending'}
+          onSend={async text => { const ok = await sender.send(BATCH_KEY, text); if (ok) batch.clear(); return ok }}
+          status={sender.statuses[BATCH_KEY]}
+          chooser={chooserFor(BATCH_KEY)}
+        />
+      )}
       <ul className="inbox-list">
-        {items.slice(0, INBOX_LIST_RENDER_MAX).map(item => (
+        {listed.map(item => (
           <ActionRow
             key={item.id}
             item={item}
             status={sender.statuses[item.id]}
             onAnswer={text => sender.send(item.id, text)}
-            chooser={sender.pending?.itemId === item.id ? <TargetChooser targets={targets.targets} onChoose={sender.choose} /> : null}
+            chooser={chooserFor(item.id)}
+            dismiss={dismiss}
+            checked={batch.checked.has(item.id)}
+            onCheck={batch.onCheck}
           />
         ))}
       </ul>
