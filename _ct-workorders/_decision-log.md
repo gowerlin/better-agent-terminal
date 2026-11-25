@@ -10,6 +10,7 @@
 
 | ID | 日期 | 標題 | 相關工單 |
 |----|------|------|---------|
+| D349 | 2026-11-25 | U-6 → A：`main` ff 到 `728c3197`（T0922 併入）；T0922 worktree 移除、分支保留；驗收方式 → U-7 | T0922 / PLAN-069 |
 | D348 | 2026-11-25 | T0922 收單 DONE（`0675d9fd`，PLAN-069 BAT 端）；模式 ① 整合分支 `ct-merge/T0922` → `9bbd42fa`；斷點 E → U-6 | T0922 / PLAN-069 |
 | D347 | 2026-11-25 | PLAN-069 補充需求 R6：塔台暫停時可改用 Claude Code 原生選單（CT 新設定鍵，與 `user_inbox` 獨立），併入 CT 6.2.0；BAT 不需改 | PLAN-069 |
 | D346 | 2026-11-25 | 開 PLAN-069（PLANNED medium）：待辦分頁推薦項（撰寫慣例＋契約欄位）與放棄 / 批次放棄（兩區、勾選＋全部、放棄後停下等新方向）；HANDOVER 給 CT 塔台協商契約 | PLAN-069 / PLAN-068 |
@@ -280,6 +281,14 @@
 - **最大風險**：`whisper-node-addon@1.0.2` 對 Electron 41（Node 24）的 NODE_MODULE_VERSION 相容性未知，允許 Worker 遇此決策點主動問塔台
 
 ---
+
+### D349 2026-11-25 21:14 — `main` ff 到 `728c3197`（U-6）
+
+- **使用者裁示**：U-6：A（原生選單）。
+- **合併**：整合分支 `ct-merge/T0922` 再 `--no-ff` 併入 `main` 的記帳 commit（`77a682ee`，`main` 只多 `_ct-workorders/**`）→ `728c3197`；`git merge --ff-only ct-merge/T0922` → `main` = `728c3197`（SHA 比對 ④ PASS）。整合 worktree `switch --detach`。
+- **清理**：`--close-worker T0922 --worktree remove` exit 3（NOT_FOUND，分頁已於收單時關閉）→ 手動 `git worktree remove`（worktree 乾淨，未加 `--force`）。分支 `ct/T0922`、`ct-merge/T0922` 保留到使用者同意刪除。
+- **未做**：push（本機 `main` 領先 `origin/main`）；雙方實機驗收用哪個 BAT → U-7。
+- **相關**：T0922 / PLAN-069
 
 ### D348 2026-11-25 21:13 — T0922 收單、模式 ① 合併到整合分支（U-6 待決）
 
