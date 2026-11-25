@@ -4,14 +4,15 @@ schema_kind: workorder
 id: T0924
 title: "BUG-223：`verify-packaged-native.test.mjs`〈reads an app.asar written by @electron/asar〉偶發讀到全 NUL —— 查根因並修，讓 CI Test gate 不再偶發失敗"
 type: bugfix
-status: FIXED
+status: DONE
+waiting_user: "U-9"
 repo: better-agent-terminal
 project: BUG-223
 priority: P2
 sizing: S
 created_at: "2026-11-25T21:38:19+08:00"
 started_at: "2026-11-25T21:39:31+08:00"
-updated_at: "2026-11-25T21:51:22+08:00"
+updated_at: "2026-11-25T21:52:23+08:00"
 completed_at: "2026-11-25T21:51:22+08:00"
 session_ids:
   - "8be0b064-f8a6-4f6b-921b-e3bb96cc4edc"
@@ -126,3 +127,11 @@ PLAN-069 驗收版打包（desktop-build run `45621864786`，`main` `402c9648`�
 
 ### 回報時間
 - 2026-11-25T21:51:22+08:00
+
+---
+
+## 塔台收尾補記（2026-11-25T21:52:23+08:00）
+
+- 工單狀態 `FIXED` → `DONE`（L177：工單用 DONE，`FIXED` 是 BUG 狀態）；BUG-223 → FIXED（修正 `1eb8f5ee`），等合併後下一次 CI `tests` 綠燈再 CLOSED（D352）。
+- 收單核對：head = validated = `1eb8f5ee`，只改 `scripts/__tests__/verify-packaged-native.test.mjs`（範圍內），`verify-packaged-native.js` 未改；`--close-worker T0924 --delay-ms 10000 --worktree keep` exit 0。模式 ① 整合分支 `ct-merge/T0924` → `6dcb62ca`（parent1 `16dafed2` = base、parent2 `1eb8f5ee`），斷點 E → U-9。
+- 〈遭遇問題〉的後續建議（`readAsarFile` 不檢查 `readSync` 位元組數）記在塔台 `todo`，未開單。
