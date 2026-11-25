@@ -10,6 +10,7 @@
 
 | ID | 日期 | 標題 | 相關工單 |
 |----|------|------|---------|
+| D340 | 2026-11-25 | U-1 → A：BUG-218／219 以 pre.2／pre.3 CI `tests / unit-tests` 綠燈結案（CLOSED）；BUG-216／217 維持 FIXED，列待使用者實機驗收（A-2／A-3） | BUG-216–219 |
 | D339 | 2026-11-25 | 發佈 `0.8.0-pre.3`（從 `v0.8.x` `5e541975`：PLAN-068＋BUG-220–222），使用者核定；誤發的測試 artifact 使用者自行刪除（本 session 無法代為確認刪除） | PLAN-068 |
 | D338 | 2026-11-25 | T0920 補驗 PASS → BUG-220／221／222 CLOSED；縮圖 📨 `reading` 提示文字補上全螢幕往上捲規則（塔台直接改三語系字串，`v0.8.x` `5e541975`）；PLAN-068 驗收完成，待使用者確認發佈 `0.8.0-pre.3` | PLAN-068 / T0920 |
 | D337 | 2026-11-25 | T0915 收單：BAT 端 3 項發現開 BUG-220（待辦分頁讀不到新建 `_ct-workorders/`）／BUG-221（全螢幕塔台閱讀保護只 10 s）／BUG-222（排隊權限詢問提早清 blocked），平行派 T0916／T0917／T0918 修正後補驗再發 pre.3；`ct/T0915` ff 進 `v0.8.x` | PLAN-068 / T0915–T0918 |
@@ -271,6 +272,13 @@
 - **最大風險**：`whisper-node-addon@1.0.2` 對 Electron 41（Node 24）的 NODE_MODULE_VERSION 相容性未知，允許 Worker 遇此決策點主動問塔台
 
 ---
+
+### D340 2026-11-25 16:11 — BUG-216–219 結案方式（U-1）
+
+- **背景**：第一百三十一 session 開工核對（R-G003）發現 BUG-216–219 仍 FIXED，修正已隨 `v0.8.0-pre.2`／`pre.3` 交付；塔台發 U-1（`tower-question`）。
+- **使用者裁示**：「A：218 和 219 以 CI 綠燈為證據結案」。
+- **執行**：BUG-218 → CLOSED（pre.2 run `45460440287`、pre.3 run `45560094561` 的 `tests / unit-tests` 皆綠）；BUG-219 → CLOSED（T0900 修正在 pre.3 `5e541975`，run `45560094561` `tests / unit-tests`（ubuntu-24.04）綠，`gh run view` 確認）；`_bug-tracker.md` 移列＋統計（FIXED 2 / CLOSED 83），重複列檢查 0、`src/types/__tests__` 65 passed（L179）。
+- **BUG-216／217**：使用者看得到的行為，維持 FIXED，寫進 `user_actions` A-2（大型剪貼簿圖片 Ctrl+V）／A-3（指揮塔總覽 YAML 錯誤日誌只記一次）。U-1 移除。
 
 ### D339 2026-11-25 14:23 — 發佈 `0.8.0-pre.3`
 

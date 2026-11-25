@@ -3,11 +3,13 @@ schema_version: 1
 schema_kind: bug
 id: BUG-219
 title: "CI（ubuntu-24.04）`shared-conout.test.ts`「the real Worker script relays a pipe」逾時 20 s，Test gate 擋下 `0.8.0-pre.2` 發版"
-status: FIXED
+status: CLOSED
 severity: low
 reproducibility: "observed once（`pre-release.yml` run `45460440287` 第一次嘗試，2026-11-25 02:36 (UTC+8)，`v0.8.x` `7063e45e`）；pre.1 run `45244996161` 同一檔 23 個測試共 1.0 s 通過"
 created_at: "2026-11-25T02:37:54+08:00"
-updated_at: "2026-11-25T02:59:15+08:00"
+updated_at: "2026-11-25T16:11:32+08:00"
+closed_at: "2026-11-25T16:11:32+08:00"
+closed_reason: "修正 T0900 隨 `v0.8.0-pre.3` 交付；pre.3 CI run `45560094561`（`5e541975`）`tests / unit-tests`（ubuntu-24.04）綠；使用者裁示以 CI 為證據結案（D340）"
 impact:
   - tests
   - ci
@@ -22,7 +24,7 @@ links:
 |------|------|
 | 嚴重度 | 🟢 low（共用 conout Worker 只在 win32 生效，Linux / macOS 使用者不受影響；但 CI Test gate 失敗會擋發版） |
 | 可重現 | 觀察到 1 次；重跑結果見下方 |
-| **狀態** | ✅ FIXED（T0900 `6b907f6b`，合併進 `v0.8.x` `86b3fc67`；下一次 Linux CI `tests / unit-tests` 綠燈後 CLOSED） |
+| **狀態** | 🚫 CLOSED（修正 T0900 隨 `v0.8.0-pre.3` 交付；pre.3 CI run `45560094561`（`5e541975`）`tests / unit-tests`（ubuntu-24.04）綠；使用者裁示以 CI 為證據結案（D340）。原記錄：T0900 `6b907f6b`，合併進 `v0.8.x` `86b3fc67`；下一次 Linux CI `tests / unit-tests` 綠燈後 CLOSED） |
 | 回報者 | 塔台（`0.8.0-pre.2` 發版 CI） |
 | 影響版本 | `v0.8.x`（T0887 起的測試）；本批（T0891 / T0893–T0898）沒有改這個檔或 `shared-conout*` |
 
