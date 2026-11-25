@@ -4,11 +4,11 @@ summary_version: 1
 bat_contract: 2
 ct_version: "6.2.0"
 inbox_features: ["recommended", "dismiss"]
-updated_at: "2026-11-26T01:17:04+0800"
+updated_at: "2026-11-26T01:23:20+0800"
 session: "2026-11-26 01:16 第一百三十三 session（CT v6.2.0）"
 next_ids:
   workorder: "T0929"
-  decision: "D366"
+  decision: "D367"
   bug: "BUG-225"
   plan: "PLAN-070"
   user: "U-15"
@@ -27,7 +27,6 @@ todo:
   - "觀察：語音可用性檢查 macOS 未實機（`unknown(timeout)` 出現可把逾時提到 30 s，T0802）；t0757 偶發失敗再發生才開 BUG（D218）；PLAN-060（IDEA）macOS Developer ID 簽章"
   - "版號線：D315 起 `0.8.0-pre.N`（D344 起從 `main` 發），`0.8.0-pre.4` 已發佈（2026-11-26 00:59，PLAN-069＋BUG-223 / 224，D364；CT 6.2.0 同日），下一版 `0.8.0-pre.5`（`-pre.N` 最多到 pre.9）"
   - "分支清理（待使用者同意，`git branch -d`）：`ct/T0922`、`ct/T0923`、`ct/T0924`、`ct/T0926`、`ct/T0928`、`ct-merge/T0921`、`ct-merge/T0922`、`ct-merge/T0924`、`ct-merge/T0925`、`ct-merge/T0927`、`ct-merge/T0928`（皆已併入 `main`）；`ct/T0885` 與其 worktree 依 D307 保留"
-  - "候選（未開單）：`_decision-log.md` 索引表只到 D129（D130–D315 沒有索引列，BAT 決策清單看不到），需重建索引（D316 記錄）"
 reminders:
   - id: "weekly-log-review"
     title: "每週日誌清查（PLAN-067；到期時塔台開工會提示，只提示不派工）"
@@ -88,7 +87,7 @@ reminders:
 ### 待辦（依優先序；完整內容見 frontmatter `todo`）
 1. 下一版 `0.8.0-pre.5` 從 `main` 發；分支清理（`ct/T0922`–`T0928`、`ct-merge/T0921`–`T0928`）待使用者同意
 2. PLAN-065 per-machine UAC 互動升級手動驗收；PLAN-052 Docker Desktop 實機精靈；PLAN-058 手動確認；其他待實機項
-3. 候選（未開單）：💬 卡片摘要「```」、`readAsarFile` 讀不足判失敗、PLAN-066 後續、決策日誌索引重建
+3. 候選（未開單）：💬 卡片摘要「```」、`readAsarFile` 讀不足判失敗、PLAN-066 後續
 4. PLAN-067 週清查 2026-12-02 到期（`reminders`）
 
 ### ⚠️ 鐵則
@@ -108,7 +107,7 @@ reminders:
 - 歷史 sessions → [_archive/state-snapshots/INDEX.md](_archive/state-snapshots/INDEX.md)（152 entries；最新 `2026-Q4-c.md`）
 
 ### 編號起始
-- **T0929** / **BUG-225** / **PLAN-070** / **D366** / **U-15** / **A-4** / **EXP-WFMINE-002**（其他 TOPIC 從 001） / **L186** / **CT-T023**
+- **T0929** / **BUG-225** / **PLAN-070** / **D367** / **U-15** / **A-4** / **EXP-WFMINE-002**（其他 TOPIC 從 001） / **L186** / **CT-T023**
 
 ---
 

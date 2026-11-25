@@ -2,7 +2,7 @@
 
 > 記錄所有影響專案方向的重要決策。
 > 建立時間：2026-04-12 (UTC+8)（T0062 遷移產出，從 _tower-state.md 提取）
-> 最後更新：2026-10-04 23:58 (UTC+8)（第五十三 session 新增 D129）
+> 最後更新：2026-11-26 01:22 (UTC+8)（第一百三十三 session D366：索引表重建）
 
 ---
 
@@ -10,6 +10,7 @@
 
 | ID | 日期 | 標題 | 相關工單 |
 |----|------|------|---------|
+| D366 | 2026-11-26 | 決策日誌索引表重建：補 188 筆缺漏列（131 → 320 列），既有列原文保留、整表倒序 | D316 |
 | D365 | 2026-11-26 | `v0.8.0-pre.4` 發佈完成：文件 push、Pages `45660551506` 綠、首頁版號、link-check 1 個預期 404（CT `ct-v6.2.0` 未發佈） | PLAN-069 |
 | D364 | 2026-11-26 | `v0.8.0-pre.4` 發佈（run `45656560078` 全綠）；更版重點、CHANGELOG / release-note / README / `package.json`；BUG-223 CLOSED、PLAN-069 DONE | PLAN-069 / BUG-223 / BUG-224 |
 | D363 | 2026-11-26 | U-14 → A：發 `0.8.0-pre.4`（從 `main`；PLAN-069、BUG-224、BUG-223），與 CT 6.2.0 同日（CT D900），BAT 先上線 | PLAN-069 / BUG-223 / BUG-224 |
@@ -60,6 +61,192 @@
 | D318 | 2026-11-25 | BUG-216 / BUG-217 一起修、放進 `0.8.0-pre.2`：T0893 / T0894 在 `v0.8.x` 隔離派工，與 T0891 並行（不碰 CLAUDE.md / docs / lock，文件由塔台合併後補） | T0893 / T0894 / BUG-216 / BUG-217 |
 | D317 | 2026-11-25 | 內嵌 Claude CLI / Agent SDK / Codex 一張工單追 latest（T0891，在 `v0.8.x`）；另開唯讀日誌檢查 T0892，兩張並行 | T0891 / T0892 |
 | D316 | 2026-11-24 | 決策日誌收斂：D001～D185 搬到 `_archive/decisions/_decision-log-D001-D185.md`（🔴 / 危害相關 9 筆留在熱檔） | — |
+| D315 | 2026-11-24 | W6 通過，發佈 `v0.8.0-pre.1`（從 `v0.8.x` 分支） | PLAN-066 / D307 / D310 / D313 / D314 / BUG-214 / BUG-215 |
+| D314 | 2026-11-24 | T0890 收單（PARTIAL → 塔台收尾 DONE）：採用 `--max-semi-space-size=1`，BUG-214 剩餘列為已知限制，進入發版驗收 | PLAN-066 / D310 / D313 / BUG-214 / BUG-215 / T0889 / T0890 |
+| D313 | 2026-11-24 | T0889 收單（PARTIAL → 塔台收尾 DONE）：BUG-215 FIXED；BUG-214 剩 V8 高水位，使用者裁示開評估單 T0890 | PLAN-066 / D311 / D312 / BUG-214 / BUG-215 / T0889 / T0890 |
+| D312 | 2026-11-23 | 使用者裁示「先修再發」：開 BUG-214 / BUG-215，派 T0889 修正後才發 `v0.8.0-pre.1` | PLAN-066 / D311 / BUG-214 / BUG-215 / T0888 / T0889 |
+| D311 | 2026-11-23 | T0888 收單：`v0.8.x` 回歸全過，量測 2 項未達條件（F1 開關反覆 +17–23 MB、F2 大量輸出慢 24.4%），發 `v0.8.0-pre.1` 前交使用者裁示 | PLAN-066 / D307–D310 / T0887 / T0888 |
+| D310 | 2026-11-23 | `v0.8.x` push、兩次 desktop-build、W6 升級驗收全數通過 | PLAN-066 / D307 / D309 / T0887 |
+| D309 | 2026-11-23 | T0887 收單：共用 conout Worker 達標，fast-forward 合進 `v0.8.x` | PLAN-066 / T0887 / D307 / D308 |
+| D308 | 2026-11-23 | T0886 收單：Node 端共用 conout Worker 達標，不做 Rust Terminal Server；開 T0887（base `v0.8.x`） | PLAN-066 / T0886 / T0887 / D307 |
+| D307 | 2026-11-23 | 不做整體改寫；PLAN-066 照建議順序在 `v0.8.x` 分支做，先 build 驗過再發預覽版 | PLAN-066 / T0885 / T0886 / D304 / D305 / D306 |
+| D306 | 2026-11-23 | T0885 收單：不建議整體改寫（Tauri / 全原生），局部改寫待使用者裁決 | T0885 / PLAN-066 / D304 / D305 / PLAN-065 / T0857 |
+| D305 | 2026-11-23 | T0885 改用 worktree 隔離重新派工，實驗不進主線 | T0885 / PLAN-066 / D304 |
+| D304 | 2026-11-23 | 開 PLAN-066 評估 BAT 改用 Rust 改寫，先派研究單 T0885（三條路線＋PoC） | PLAN-066 / T0885 / PLAN-059 / PLAN-065 |
+| D303 | 2026-11-20 | 候選後續項目：可自動化測試的 3 張開單（T0882–T0884），需人工驗收的暫不安排 | T0882 / T0883 / T0884 / T0864 / T0867 / T0830 / BUG-211 / D298 |
+| D302 | 2026-11-17 | 修 portal-layout v1.1.6 報出的兩處超出（960 導覽列、390 /releases），開 T0881 | T0881 / T0880 / D301 / PLAN-049 |
+| D301 | 2026-11-17 | 受理 BMad-Guide HANDOVER：BAT 網站 portal-layout v1.1.2 → v1.1.5，開 T0880 | T0880 / T0872 / D296 / PLAN-049 |
+| D300 | 2026-11-17 | 圖指定 ELK 排版時改用預設排版並顯示說明，開 T0879 | T0879 / T0878 / D299 |
+| D299 | 2026-11-17 | mermaid 12 的 elkjs 不打包（建置時換成空殼），開 T0878 | T0876 / T0878 / D298 |
+| D298 | 2026-11-17 | T0873 後續 4 項全部開單（T0874–T0877），依序派工 | T0873 / T0874 / T0875 / T0876 / T0877 / D297 |
+| D297 | 2026-11-17 | npm audit 51 項：評估並升級不會破壞的套件，開 T0873 | T0873 |
+| D296 | 2026-11-17 | 受理 BMad-Guide HANDOVER：BAT 網站 `vitepress-portal-layout` 從 v1.1.1 升 v1.1.2，開 T0872 | T0872 / T0871 / D295 / `_reply-2026-11-17-portal-layout-skill-v112-bat.md` / PLAN-049 |
+| D295 | 2026-11-17 | 受理 BMad-Guide HANDOVER：BAT 網站 `vitepress-portal-layout` 從 v1.0.0 直接升 v1.1.1，開 T0871 | T0871 / T0870 / D294 / `_reply-2026-11-17-portal-layout-skill-v111-bat.md` / PLAN-049 |
+| D294 | 2026-11-16 | 受理 BMad-Guide HANDOVER：BAT 網站套用 `vitepress-portal-layout` v1.0.0 前三項（加寬、左右收合、圖放大），開 T0870 | T0870 / `_reply-2026-11-16-portal-layout-skill-bat.md` / PLAN-049 / D160 |
+| D293 | 2026-11-05 | NSIS 重裝驗收重跑 ④ FAIL 判為 T0868 規格缺口：④ 改以 ③ 結束時的快照為基準，再重跑 | T0869 / T0868 / D292 / T0860 |
+| D292 | 2026-11-05 | `0.7.5-pre.1` NSIS 重裝驗收 ③ FAIL 判為腳本規則過時：改驗收腳本後重跑，不改產品 | T0868 / T0860 / T0862 / T0740 / PLAN-065 |
+| D291 | 2026-11-05 | BUG-213 以 Windows N-API addon 修（T0865 選項 A）再發 `0.7.5-pre.1`；建置政策由塔台定 | BUG-213 / T0865 / T0866 / D290 / D289 / PLAN-065 |
+| D290 | 2026-11-05 | 先修 BUG-213（PTY holder 繼承啟動者的 handle）再發 `0.7.5-pre.1`；T0865 沿用 D289 的 push／觸發授權重跑 W6 | BUG-213 / T0865 / T0862 / D289 / PLAN-065 |
+| D289 | 2026-11-05 | T0862（PLAN-065 W6）全部授權：push `main`、Worker 可 push 到 `main` 並觸發 `desktop-build.yml` ×2 與新驗收 workflow | T0862 / PLAN-065 / D286 / D288 |
+| D288 | 2026-11-05 | `checkForUpdates` 預設改開＋一次遷移既有 `false`（T0864）；恢復自動派單 | T0863 / D287 / BUG-212 / T0860 / T0864 |
+| D287 | 2026-11-04 | 檢查新版改為啟動一次＋Help 手動檢查＋「包含預覽版」設定；併修 BUG-212（T0863） | BUG-212 / T0863 / D285 / D286 |
+| D286 | 2026-11-04 | PLAN-065 採官方 node.exe 當 PTY holder；D1–D9 皆照 T0856 建議；拆 T0857–T0862 | D285 / D281 / PLAN-065 / T0856 / T0820 / T0823 |
+| D285 | 2026-11-04 | 下一版號線 `0.7.5-pre.N`；PLAN-065 啟動，先研究再拆單（T0856） | D281 / D284 / D236 / PLAN-065 / PLAN-063 / T0820 / T0823 / T0856 |
+| D284 | 2026-11-04 | 發 `0.7.4-pre.9`（PLAN-052 Docker 遠端路線，T0849–T0855） | D236 / D280 / D282 / D283 / PLAN-052 |
+| D283 | 2026-11-04 | PLAN-052 採 (c′) 基底映像＋bundle volume；拆 T0849–T0854 | D282 / D120 / D146 / D152 / PLAN-052 / PLAN-031 / T0848 / T0743 |
+| D282 | 2026-11-04 | PLAN-052（Docker 遠端路線）先研究再拆單（T0848） | PLAN-052 / PLAN-059 / T0646 / T0743 / T0828 / D271 |
+| D281 | 2026-11-04 | PLAN-063 結案 DONE；holder 模型移到 PLAN-065（IDEA）；刪本機分支 `ct/T0820` | D266 / D267 / D277 / D278 / D279 / D280 / PLAN-063 / PLAN-065 / T0820 |
+| D280 | 2026-11-04 | 發 `0.7.4-pre.8`（T0846 / T0847） | D236 / D276 / D278 / D279 / PLAN-063 |
+| D279 | 2026-11-04 | 被中斷的 agent 分頁的「升級」字樣改中性（T0847），與 T0846 同批發 `pre.8` | D278 / T0846 / T0821 / T0822 / PLAN-063 |
+| D278 | 2026-11-04 | 同版重裝也提示：有安裝程式結束紀錄（終端數 ≥ 1）時不要求版本不同（T0846） | D266 / D277 / PLAN-063 / T0821 / T0823 / T0846 |
+| D277 | 2026-11-04 | PLAN-063 真實升級驗收採 A：使用者在本機 BAT 執行中直接安裝 pre.7 | D266 / D269 / D276 / PLAN-063 / T0821 / T0823 |
+| D276 | 2026-11-04 | 發 `0.7.4-pre.7`；去識別化以修正 commit 處理、不改寫歷史 | D271–D275 / D269 / PLAN-063（真實升級驗收 pre.6 → pre.7） |
+| D275 | 2026-11-04 | pre.7 整批驗證（T0844）PASS；發版前先修測試偶發失敗（T0845），CHANGELOG 補 T0843 併入發版整理 | D271–D274 / T0844 / T0845 / T0843 |
+| D274 | 2026-11-04 | T0836 的提示文字觀察開 T0843，併入 `0.7.4-pre.7` 再發版 | D272 / D273 / T0836 / T0834 / T0835 / PLAN-038 |
+| D273 | 2026-11-04 | 恢復自動派單；BUG-211 修正（方向 A）開 T0842 併入 `0.7.4-pre.7` | D272 / BUG-211 / T0837 / T0842 / T0834 |
+| D272 | 2026-11-04 | PLAN-038 / 043 研究後裁決：PLAN-038 全部與 PLAN-043 Phase 2 併入 `0.7.4-pre.7`，Phase 3 等驗收 VM；開 BUG-211 | D271 / PLAN-038 / PLAN-043 / BUG-211 / T0828 / T0831 |
+| D271 | 2026-11-04 | 處理 PLAN-064 / 038 / 043：開 T0827–T0831，做完一起發 `0.7.4-pre.7` | D270 / D266 / PLAN-064 / PLAN-038 / PLAN-043 / PLAN-063 / T0380 |
+| D270 | 2026-11-04 | WSL / Linux 介面中文變方框：屬環境缺字型，不開 BUG；文件 T0826、啟動提示 PLAN-064（IDEA）、不自帶字型 | T0826 / PLAN-064 / T0797 / T0802 |
+| D269 | 2026-11-04 | 發 `0.7.4-pre.6`（PLAN-063 子項 1–3、縮圖 tooltip、BUG-210） | D262 / D266 / D267 / D268 / PLAN-063 / BUG-210 |
+| D268 | 2026-11-04 | T0823 合併（T0824，模式 ②）後 ff main；開 BUG-210 併入 `0.7.4-pre.6` 這批（T0825） | D031 / D267 / T0823 / T0824 / BUG-210 / PLAN-063 |
+| D267 | 2026-11-04 | 縮圖 tooltip（T0822）＋PLAN-063 子項 3 正常結束路徑（T0823）與 T0821 湊成一批後發 `0.7.4-pre.6` | D266 / T0820 / T0821 / PLAN-063 |
+| D266 | 2026-11-04 | PLAN-059 DONE；NSIS 升級中斷終端 → 開 PLAN-063，先做升級前提示＋升級後說明（T0821） | D219 / D265 / T0820 / T0766 / T0767 / PLAN-059 / PLAN-063 |
+| D265 | 2026-11-04 | PLAN-059 收尾路線：研究單 T0820 答 Q4，之後 PLAN-059 → DONE | D219 / D226 / D247 / T0740 / T0801 / PLAN-059 |
+| D264 | 2026-11-04 | PLAN-051（跨塔台傳訊通道）維持 IDEA | D149 / D167 / D169 / T0647 / PLAN-050 / PLAN-051 |
+| D263 | 2026-11-04 | PLAN-061 / 058 交付版驗收各開一張驗收工單（T0818 / T0819） | D229 / D259 / D262 / T0803 / T0811 / T0814 / T0815 / PLAN-058 / PLAN-061 |
+| D262 | 2026-11-04 | 發 `0.7.4-pre.5`（PLAN-061 / 058 / 062、BUG-209） | D256 / D258 / D259 / D260 / D261 |
+| D261 | 2026-11-04 | T0816 以模式 ② 合併（T0817），使用者確認斷點 E 後 ff；BUG-209 FIXED | D031 / D254 / D260 / T0816 / T0817 / PLAN-062 / BUG-209 |
+| D260 | 2026-11-03 | PLAN-062 實作 Linux 方案 A3（T0816，worktree 隔離並行）；開 BUG-209 併入同單 | D251 / D253 / D258 / T0804 / T0805 / T0807 / T0812 / PLAN-062 / BUG-209 |
+| D259 | 2026-11-03 | PLAN-058 改走方案 D：主回合中送出改為排隊（改變 D214 P-2）；先 W1 前置修正（T0814）再 W0（T0815）；常駐程序（方案 B）延後 | D214 / D258 / T0768 / T0769 / T0813 / PLAN-058 |
+| D258 | 2026-11-03 | 開始 PLAN-061 / 062 / 058：061 照 D229 草案實作（T0811），062 / 058 先研究（T0812 / T0813） | D214 / D229 / D251 / T0768 / T0789 / T0804 / T0805 / PLAN-058 / 061 / 062 |
+| D257 | 2026-11-03 | BUG-205 依交付版 linux-acceptance 結案；t0807 spec 改成相容 AppImage 後重跑驗 BUG-206 / 207（T0810） | D252 / D253 / D256 / T0806 / T0807 / T0798（`--ref` 分支 CI 驗證先例）/ BUG-205 / 206 / 207 |
+| D256 | 2026-11-03 | 發 `0.7.4-pre.4`（BUG-205 / 206 / 207 Linux fd 外流修正、BUG-208） | D252 / D253 / D255 / T0806 / T0807 / T0808 / T0809 |
+| D255 | 2026-11-03 | 上游 node-pty 的 fd 外流缺陷由使用者自行送 MSRC；揭露時序疏失記錄 | BUG-205 / 206 / T0805 / T0806 / T0807 / D252 / D253 |
+| D254 | 2026-11-03 | T0806 模式 ① 合併紀錄補記；T0807 改派模式 ② 合併工單 T0809 | T0806 / T0807 / T0808 / T0809 / D252 / D253 |
+| D253 | 2026-11-03 | BUG-206 / 207 / 208 與 BUG-205 同批修完再發 `0.7.4-pre.4`（開 T0807 / T0808 並行） | BUG-205 / 206 / 207 / 208 / T0806 / T0807 / T0808 / D252 |
+| D252 | 2026-11-03 | BUG-205 以方案 A 現在修（開 T0806，worktree 隔離）；修正發版前不公開；child_process 子程序的 fd 外流由修正單一併查證 | BUG-205 / T0805 / T0806 / PLAN-062 / T0575 / D149 / T0788 |
+| D251 | 2026-11-03 | T0804 兩項觀察：開 T0805 查證 PTY shell 繼承 Terminal Server 描述元；stdio EOF 等待記為 PLAN-062（IDEA） | T0804 / T0805 / PLAN-062 / L185 |
+| D250 | 2026-11-03 | 開 T0804 查證 AppImage 版 `app.close()` 不返回（T0803 觀察） | T0803 / T0804 / T0797 / T0144 / T0540 |
+| D249 | 2026-11-03 | BUG-159 改在本機 WSL Ubuntu（非 root）以 `v0.7.4-pre.3` AppImage 驗收（開 T0803） | BUG-159 / T0651 / T0803 / T0797 |
+| D248 | 2026-11-03 | 發 `0.7.4-pre.3`（T0802 語音可用性事先檢查、T0801 驗收腳本 `-Version` 必填） | D247 / T0801 / T0802 / D236 / D246 |
+| D247 | 2026-11-03 | 同一批開 T0801（NSIS 驗收腳本 `-Version` 改必填）與 T0802（語音輸入事先檢查可用性，不可用時停用麥克風並提示原因）；PLAN-059 Q5 送 CT 塔台 | T0801 / T0802 / T0800 / BUG-203 / BUG-204 / PLAN-059 / T0740 |
+| D246 | 2026-11-03 | BUG-203（Ubuntu 22.04 語音輸入需 glibc 2.38）列為已知限制，WONTFIX | BUG-203 / BUG-204 / T0800 / D245 |
+| D245 | 2026-11-03 | 先修 BUG-204（開 T0800）：查證後在打包時讓 whisper 相依函式庫從同目錄解析，不用 `LD_LIBRARY_PATH`；授權 push `ct/T0800` 驗證 | BUG-204 / BUG-203 / BUG-202 / T0800 / T0799 / D244 |
+| D244 | 2026-11-03 | BUG-202 採「偵測後自動加 `--no-sandbox`」；BUG-203 實測併入 T0799 | BUG-202 / BUG-203 / T0799 / T0797 / T0798 / D242 / D243 |
+| D243 | 2026-11-03 | `linux-acceptance.yml` 首跑在靜態檢查中斷，開 T0798 修正；授權 Worker push `ct/T0798` 分支在 GitHub 上迭代 | T0798 / T0797 / D242 |
+| D242 | 2026-11-03 | Linux AppImage 驗收改由 CI 啟動驗收（T0797，`linux-acceptance.yml`） | T0797 / T0784 / T0781 / PLAN-053 / D224 |
+| D241 | 2026-11-03 | 發 `0.7.4-pre.1`（BUG-199 / 200 / 201 測試修正） | D236 / D240 / BUG-199 / BUG-200 / BUG-201 / T0793 / T0794 / T0795 |
+| D240 | 2026-11-03 | BUG-196 實機驗收：以 AskUserQuestion 對話框代替權限對話框（T0796 空工單） | BUG-196 / T0796 / T0788 / D233 |
+| D239 | 2026-11-03 | 移除 lean-ctx 外掛殘留 `.kiro/steering/lean-ctx.md`（CT ADVISORY） | R-G004 / CT D549 / CT T0406 |
+| D238 | 2026-11-03 | BUG-201 現在修（T0795） | T0795 / BUG-201 / D237 / T0794 |
+| D237 | 2026-11-03 | T0794 收單：BUG-200 FIXED（待 CI）；接受 `beforeAll` 30 s 偏離；開 BUG-201 | T0794 / BUG-200 / BUG-201 / D236 |
+| D236 | 2026-11-02 | 下一版號線 `0.7.4-pre.N`；BUG-200 現在修（T0794） | T0794 / BUG-200 / D235 / D204 / T0793 |
+| D235 | 2026-11-02 | T0792 / T0793 收單：BUG-197 / 198 CLOSED；BUG-199 維持 FIXED；開 BUG-200 不立即派工 | T0792 / T0793 / BUG-197 / BUG-198 / BUG-199 / BUG-200 / D234 / D233 |
+| D234 | 2026-11-02 | 並行開 T0792（安裝版 pre.9 驗收 BUG-197 / 198）與 T0793（BUG-199）；本版不需 CT 配合改版 | T0792 / T0793 / BUG-197 / BUG-198 / BUG-199 / D233 / T0786 / T0791 |
+| D233 | 2026-11-02 | 發 `0.7.3-pre.9`（BUG-198）；四張待驗收 BUG 依塔台建議排序 | BUG-159 / BUG-196 / BUG-197 / BUG-198 / T0791 / D232 / D204 |
+| D232 | 2026-11-02 | 開 T0791 修 BUG-198（晚到的 `stop` 結束新回合） | BUG-198 / T0791 / T0790 / BUG-197 / T0694 / D180 / D231 |
+| D231 | 2026-11-02 | 開 BUG-198（low）不擋 `0.7.3-pre.8`；授權塔台一路完成 pre.8 發版 | BUG-196 / BUG-197 / BUG-198 / T0788 / T0790 / D230 |
+| D230 | 2026-11-02 | 先修 BUG-197（T0790）再與 BUG-196 一起發 `0.7.3-pre.8` | BUG-197 / BUG-196 / T0788 / T0790 / D228 |
+| D229 | 2026-11-02 | T0789 結論：PLAN-061 縮小為「非 Windows 主機上關掉 hooks 的 claude 分頁」，維持 IDEA（low），等觸發條件再開單 | PLAN-061 / PLAN-059 / T0789 / T0787 / T0621 / T0788 |
+| D228 | 2026-11-02 | 採納 CT 回覆（CT D543）：通知保留期間不設逾時；`--ask --submit` 遇 `held-full` 照現行路徑先取消題目再 exit 1；T0788 Renew #1 | BUG-196 / T0788 / D227 / CT D543 / CT T0399 |
+| D227 | 2026-11-02 | BUG-196 開修正單 T0788（契約暫定值先做、同時送 CT 確認）；並行開研究單 T0789（回覆 claude 的 OSC 7501 探詢）與子 PLAN-061（B 白名單） | BUG-196 / T0787 / T0788 / T0789 / PLAN-059 / PLAN-061 / T0769 / T0716 |
+| D226 | 2026-11-02 | PLAN-059 第一步開研究單 T0787（Q1 主、Q2 / Q3 順查），隔離實例＋假模型，不改產品程式 | PLAN-059 / D219 / T0787 / T0769 / T0716 |
+| D225 | 2026-11-02 | 先派 T0785（safeStorage async）與 T0786（BUG-195 測試逾時），兩張完成後一起發 `0.7.3-pre.7` | PLAN-053 / PLAN-060 / BUG-195 / T0785 / T0786 / T0784 / D224 |
+| D224 | 2026-11-02 | T0784（Electron 45）以模式 ① 合回 main；macOS 未簽章不顯示系統通知先接受，簽章另開 PLAN-060 | PLAN-053 / PLAN-060 / T0784 / T0783 / T0781 / T0785 / D223 |
+| D223 | 2026-11-02 | Electron 主升級目標 45：T0783 只 build 的三平台 workflow → T0784 worktree 隔離試做 → T0785 safeStorage async；`allowScripts.electron` 移除 | PLAN-053 / T0781 / T0783 / T0784 / T0785 / T0779 / T0669 / D222 |
+| D222 | 2026-11-02 | PLAN-053 主升級先開研究單 T0781；接受 npm 12 lock `peer` 旗標（T0782）；T0782 完成、聯合驗證綠後發 `0.7.3-pre.6` | PLAN-053 / T0779 / T0781 / T0782 / T0780 / D221 / D218 |
+| D221 | 2026-11-02 | 其餘 PLAN 狀態核對：PLAN-053 調 high 並先升 Electron 41.10.7（T0779）；PLAN-029 R3 刪除 `git-poc`（T0780）；其他維持 IDEA | PLAN-053 / PLAN-029 / PLAN-015 / PLAN-038 / PLAN-043 / PLAN-051 / PLAN-052 / T0779 / T0780 / T0668 / T0309 / T0154 |
+| D220 | 2026-11-02 | PLAN-054 結案 DONE；B6 等 CT 定義 workflow 欄位與契約後另開新 PLAN | PLAN-054 / T0687 / T0673 / EXP-WFMINE-001 / D179 |
+| D219 | 2026-11-02 | Herdr 對照研究登記為主 PLAN-059；子 PLAN 與工單之後再拆 | PLAN-059 |
+| D218 | 2026-11-02 | mac 的 BUG 可用 GitHub Actions macOS runner 對交付版實測結案（T0778）；t0757 偶發失敗再發生才開 BUG | BUG-128 / BUG-130 / T0778 / T0777 / T0522 / T0524 / T0775 / L178 |
+| D217 | 2026-11-02 | BUG-194（自動開啟的對話框第一次 Esc 關不掉）開 T0776 與 T0774 同批；這批（T0774 → T0776 → T0775）完成後發 `0.7.3-pre.5` | BUG-194 / BUG-193 / T0773 / T0774 / T0775 / T0776 / T0567 / D216 |
+| D216 | 2026-11-02 | T0770 兩個觀察：取回焦點的點擊清掉淡化 ⚠️ 開 BUG-193 修正（T0774）；e2e 關 focus emulation（T0775），排在 T0774 之後 | BUG-193 / T0770 / T0774 / T0775 / D203 / D215 |
+| D215 | 2026-11-02 | `v0.7.3-pre.4` 驗收改自動化：開 T0770–T0773 對安裝版跑，真實模型全批上限 US$1.00 | T0770 / T0771 / T0772 / T0773 / BUG-188 / BUG-189 / BUG-190 / BUG-191 / BUG-192 / PLAN-055 / D209–D214 / T0510 |
+| D214 | 2026-11-02 | BUG-192 採 T0768 方案 C（注入同一個 query＋排隊退路）；P-1–P-4 全採建議；開 T0769、PLAN-058 | BUG-192 / T0768 / T0769 / PLAN-058 / T0759 / D213 |
+| D213 | 2026-11-02 | BUG-192（背景子代理執行中送新訊息會殺掉它）排進本批：先研究（T0768），再依結果開實作單 | BUG-192 / T0768 / T0759 / BUG-190 / D210 |
+| D212 | 2026-11-02 | T0761 Q-1：detached 視窗的工作區 ⚠️ 採 A（主視窗列表在有等待時多一列提示） | T0761 / D200 / D201 / D202 / D203 / T0735 |
+| D211 | 2026-11-02 | PLAN-055 全採 T0765 建議（P-1–P-8），B1 / B2 排進本批（T0766 / T0767），與 `0.7.3-pre.4` 一起發 | PLAN-055 / T0765 / T0766 / T0767 / BUG-171 / T0704 / D210 |
+| D210 | 2026-11-02 | 後續候選全部排進本批（T0758–T0765），完成後一起發 `0.7.3-pre.4`；遠端 SSH 驗收用 WSL 內臨時 sshd | BUG-188–191 / T0757–T0765 / D200 / D201 / T0739 / T0730 / T0742 / T0747 / T0748 / PLAN-055 |
+| D209 | 2026-11-02 | 鍵盤或滑鼠回答，⚠️ 的結果要一致：回答後清除（BUG-188 / T0757，先查證再精準修） | BUG-188 / T0757 / D200 / D203 / T0590 / T0594 / T0597 / T0620 / T0657 |
+| D208 | 2026-11-02 | BUG-187（Node.js recipe 缺 `libatomic1`）開單修正（T0756），與 PLAN-057 一起發 `0.7.3-pre.3` | BUG-187 / T0756 / BUG-186 / T0753 / PLAN-057 / T0755 |
+| D207 | 2026-11-02 | PLAN-057 依 T0754 草案實作（T0755）：不加環境變數覆蓋、不過濾 `/mnt`、接受分頁 PATH 重複 | PLAN-057 / T0754 / T0755 / D206 |
+| D206 | 2026-11-02 | bat-server 啟動時取登入 shell PATH：開 PLAN-057，先量測再實作，預設開、可關 | PLAN-057 / T0754 / T0753 / BUG-186 |
+| D205 | 2026-11-01 | 匣選單同名標籤依序加 `(2)`、`(3)`；BUG-185 與標籤修正完成後與 T0750 一起發版 | T0750 / T0751 / T0752 / BUG-183 / BUG-184 / BUG-185 / D204 |
+| D204 | 2026-11-01 | 預覽版換到 `0.7.3-pre.N` 版號線 | D151 / T0749 / BUG-182 |
+| D203 | 2026-11-01 | 「等待使用者」提示保留到使用者看過該分頁（T0735 補充） | T0735 / D200 / D202 |
+| D202 | 2026-11-01 | 「等待使用者」⚠️ 的三個顯示位置（T0735 補充，使用者截圖指定） | T0735 / D200 / D201 |
+| D201 | 2026-11-01 | T0735 Q-1：detached 視窗的工作區 ⚠️ 不在本單做（D200 ⑥ 延後） | T0735 / D200 / T0453 / T0491 |
+| D200 | 2026-11-01 | 工作區列表顯示「等待使用者」⚠️（T0735）；`agentProgressSummaries` 維持開啟 | T0735 / T0609 / T0694 / T0734 / D199 |
+| D199 | 2026-11-01 | Claude 面板 prompt suggestion 維持開啟、補 docs；另研究 `agentProgressSummaries` 成本（T0734） | T0733 / T0734 / T0729 / BUG-177 |
+| D198 | 2026-11-01 | BUG-179 `bat-scripts.log` 輪替規格（塔台依使用者授權訂定）＋查 Claude 面板 turn 後多出的請求（研究單） | BUG-179 / T0731 / T0729 / T0192 / T0193 / T0590 |
+| D197 | 2026-11-01 | BMad-Guide ADVISORY（Worker session 對應與用量彙總）照 T0731 建議回覆 | T0731 / D167 / T0642 / BUG-179 / D198 |
+| D196 | 2026-11-01 | 安裝檔大小：Windows exe 關閉 NSIS 差分打包（T0726）＋放寬 D146 上限為每平台 ≤ 384 MiB、可攜 zip ≤ 512 MiB | T0720 / T0726 / D146 / D094 / T0546 / T0547 / T0548 / T0717 |
+| D195 | 2026-11-01 | Claude 面板開啟 todo / task 工具並做累積式工作清單 UI（T0725）；T0721 的 R1 / R3 併成 T0724（塔台依研究建議） | T0721 / T0724 / T0725 / T0718 / D148 / D191 |
+| D194 | 2026-11-01 | 安裝檔大小先研究（T0720）再決定是否放寬 D146；pre.5 後續候選研究（T0721）同時進行；「Claude Agent V1」改名「Claude Agent」直接實作（T0722） | D146 / D123 / D191 / T0717 / T0718 / T0720 / T0721 / T0722 |
+| D193 | 2026-11-01 | `0.7.2-pre.5` CI 打包失敗（BUG-176）：開 T0719 補回 ajv 並加本機守門，修好後同版號重發（塔台代決） | BUG-176 / T0718 / T0719 / T0546 / D191 |
+| D192 | 2026-11-01 | T0717 Q-1 / Q-2 皆在本單補（塔台代決）：claude 新限額句型、codex OSC 7501 `done` / `error` → `idle` | T0717 / D148 / D158 / T0621 / T0692 / T0694 |
+| D191 | 2026-11-01 | 內嵌 claude / codex 全部追最新：CLI 2.1.316 + codex 0.166.0（T0717），Agent SDK 升 0.3.316 並執行 D123 Phase 2（T0718） | D122 / D123 / T0368 / T0690 / T0697 / T0717 / T0718 |
+| D190 | 2026-11-01 | `bat-notify.mjs --ask --no-pty-write` 列為正式契約（T0716：文件＋守門測試＋兩個小修）；Q-B2 / Q-B4 目前不做 | T0715 / T0716 / BMad-Guide HANDOVER / CT D492–D494 / PLAN-048 |
+| D189 | 2026-10-30 | PLAN-056（GitHub #21 多 repo 塔台工單可見性）不改程式，DROPPED；照 CT 推薦的目錄配置回覆 #21 | PLAN-056 / GitHub #21 / CT D463 / BMad-Guide T0368 |
+| D188 | 2026-10-30 | `0.7.2-pre.1` 批次：T0710 + T0711（兩種安裝並存提示）+ T0712（單元測試相容 Node 26），T0711 / T0712 並行 | T0710 / T0711 / T0712 / D187 |
+| D187 | 2026-10-30 | 下一版預覽版改走 `0.7.2-pre.1` 版號線 | D168（0.7.1 線）/ D151 / T0710 / `_reply-2026-10-30-ct-plugin-install-detection.md` |
+| D186 | 2026-10-25 | BUG-171 修正：A + B 合成 T0704（P1）現在派；toast i18n 與 server env 洩漏另開 T0705 平行；C 另開 PLAN-055 | BUG-171 / T0703 / T0704 / T0705 / PLAN-055 / T0112 / T0540 |
+| D185 | 2026-10-25 | T0701 收單；後續兩項開 T0702，完成後與 T0701 一起發 `v0.7.1-pre.7` | T0701 / T0702 / D184 / L174 |
+| D184 | 2026-10-25 | 受理 CT 塔台請求「指揮塔總覽顯示塔台狀態與 `*config`」（→ T0701）：混合做法，config 由 BAT 讀檔、狀態摘要由 BAT 訂格式請 CT 寫入 | T0701 / D183 / CT D338 |
+| D183 | 2026-10-25 | 受理 CT 塔台 HANDOVER「CT 正式公開」（→ T0700）；D182 / D159 改寫：BAT 站可寫 CT 已公開與取得方式（連 CT Portal 安裝頁），細節只留在 Portal | D182 / D159 / D161 / D165 / D166 / D173 / T0699 / T0700 / PLAN-049 |
+| D182 | 2026-10-23 | 受理 CT 塔台 HANDOVER「CT Portal 互連」（P1–P3 → T0699）；D159 改寫：BAT 站可連 CT Portal，CT skill 仍不開源 | D159 / D161 / D165 / D166 / D173 / T0699 / PLAN-049 |
+| D181 | 2026-10-22 | `v0.7.1-pre.6` 發版批次：T0691 / T0692 / T0694 加內嵌 codex 追版（T0697），聯合驗證後發 | T0698 / BUG-165 / T0670 / T0697 / T0690 / T0691 / T0692 / T0694 / BUG-169 / L173 / D153 / D179 |
+| D180 | 2026-10-22 | Renew 後 Worker 分頁的 ✓：採 T0693 方案 a + d1 + d2（BAT 內部，不改 CT）；旁支 e 開 BUG-170 之後再排 | T0693 / T0694 / BUG-170 / T0538 / T0609 / T0613 / T0590 / T0621 / PLAN-041 |
+| D179 | 2026-10-21 | `v0.7.1-pre.5` 發版前先開一批小單（B4 文件、SSH 錯誤字首與 `@` 測試、安裝檔只收執行期 helper），收齊並聯合驗證後再發 | PLAN-054 / T0685 / T0686 / BUG-058 / T0433 / D177 / T0541 / BUG-169 |
+| D178 | 2026-10-21 | T0684 Q-1／Q-2：檢查 Windows 路徑的地方明確用 `path.win32`（塔台代決） | T0684 / D177 / BUG-168 / T0683 |
+| D177 | 2026-10-21 | BUG-168 修正：G1～G4 全做、舊測試往 vitest 收斂；CI 分兩步（先 test:unit 試跑再擋版，修完再加 test:legacy） | BUG-168 / T0679 / T0680 / T0681 / T0682 / T0683 / BUG-167 |
+| D176 | 2026-10-21 | 公開 repo 去識別化：移除 claude-mem 記憶檔、客戶與測試者名稱改代稱、家目錄路徑改寫；不改寫 git 歷史（T0676） | T0674 / T0676 / D165 / D173 |
+| D175 | 2026-10-21 | 網站新頁「把腦力留給判斷」（`/why`）：以認知負荷說明 BAT + CT 的設計初衷；範圍完整版（T0674） | PLAN-049（DONE，D172）/ D159 / D161 / D164 / D165 / D166 / D170 / D173 / EXP-WFMINE-001 / T0674 |
+| D174 | 2026-10-19 | T0672 Q-1：F2 新選單項目允許更新 t0571 e2e 的選單清單斷言（塔台代決） | T0672 / BUG-166 / BUG-142 / T0571 |
+| D173 | 2026-10-19 | 網站示意可用真實工單目錄名 `_ct-workorders/`（放寬 D159 / D165 的 grep 規則一項） | D159 / D165 / T0630 / T0634 / `3262b416` |
+| D172 | 2026-10-18 | PLAN-049 結案（DONE）：手動素材改為使用者拍好後另開工單 | PLAN-049 / D159 / D160 / D161 / D166 / D170 / T0656 / T0665 |
+| D171 | 2026-10-18 | PLAN-047 結案（DONE）：M2 / M3 不在本單續做 | PLAN-047 / D149 / D150 / D152 / D155 / D156 / D158 / D169 / PLAN-048 / PLAN-050 / PLAN-051 / T0664 |
+| D170 | 2026-10-18 | PLAN-049 網站：CT 演進史以「網站版摘要」加在 `/control-tower-tour` 下方（等 BMad-Guide T0175 完成再開單） | PLAN-049 / D159 / D165 / D166 / `_handover-2026-10-18-ct-evolution-doc-update`（BMad-Guide T0175、D073） |
+| D169 | 2026-10-18 | PLAN-051 跨塔台傳訊維持 IDEA；開 codex 共用 daemon 環境變數繼承探針 | PLAN-051 / T0647 / T0648 / PLAN-050 / D149 / D155 / T0377（BUG-085） |
+| D168 | 2026-10-18 | 下一個預覽版號線 `0.7.1-pre.1` | D151 / D167 / PLAN-050 / BUG-155 |
+| D167 | 2026-10-18 | PLAN-050 Claude 分頁的 session 識別：R2 採 (a)+(b)；hook 回報 sessionId（改 T0600）；放寬 D149 加 `scope: 'towers'`；`--name` 不加 Settings 開關 | PLAN-050 / T0640 / D149 / T0600 / T0590 / D144 / T0562 / T0582 / T0584 |
+| D166 | 2026-10-18 | PLAN-049 網站：CT 不開源但可「概念加細節」介紹；新開「Control Tower 功能導覽」頁 | PLAN-049 / D159 / D165 / T0634 / T0635 / T0636 |
+| D165 | 2026-10-18 | PLAN-049 網站 v2 加入 CT 進階能力與案例：首頁「越用越懂你的專案」一段、`/control-tower` 三節、新頁 `/cases` | PLAN-049 / D159 / D161 / D164 / T0633 / T0630 |
+| D164 | 2026-10-18 | PLAN-049 網站 v2 視覺方向：A「進場雷達」為主 + C「一個早上」的故事時間軸；全站一套字體（A） | PLAN-049 / D161 / D162 / T0632 / T0630 |
+| D163 | 2026-10-18 | CT v5.7.1 / v5.7.2 × BAT 0.7.0-pre.8 代跑實機驗收結案（T0625–T0629）；pre.9 延後到網站改版與驗收告一段落 | D057（BMad-Guide）/ D157 / D158 / CT-T020 / T0625–T0629 |
+| D162 | 2026-10-18 | PLAN-049 網站 v2：加入 `frontend-design`、`theme-factory`，先以 Design System + Design 畫布定視覺方向再實作；`frontend-design` 由工單授權安裝 | PLAN-049 / D161 / T0630 / T0631 / T0632 |
+| D161 | 2026-10-18 | PLAN-049 網站 v2：以「AI 協作開發的卡關時刻 vs BAT + CT 解法」故事為首頁主軸；主標「一個塔台，指揮整隊 AI Agent」 | PLAN-049 / D159 / D160 / T0624 / T0630 |
+| D160 | 2026-10-18 | PLAN-049 技術與部署（塔台依 D159 授權決定）：VitePress 1.6.4 於 `site/`、Actions `pages.yml`、發版同步併入三文件 commit | PLAN-049 / T0622 / D159 |
+| D159 | 2026-10-18 | PLAN-049 網站：專案站 `gowerlin.github.io/better-agent-terminal`；CT 只介紹概念與 BAT 整合點 | PLAN-049 / T0622 / `_local-rules.md`「發佈後同步 repo 文件」 |
+| D158 | 2026-10-18 | PLAN-047 M1b-2：codex 以 OSC 7501 回報 `blocked` 與啟動；新增 `blockedDetection: osc`、`blockedReason: input` | PLAN-047 / T0619 / T0621 / T0590 / T0600 / T0607 / D153 |
+| D157 | 2026-10-18 | CT v5.7.0 × BAT 0.7.0-pre.8 實機驗收由 BAT 塔台統一執行（5 張探針），結果以回函交 BMad-Guide | PLAN-048 / BUG-154 / CT-T019 / T0614–T0618 / D156 |
+| D156 | 2026-10-18 | PLAN-048 契約：採用 T0606 全部 12 項推薦；實作切 A（主行程）/ B（helper + MCP，worktree 隔離）並行，C（e2e）合併後 | PLAN-048 / D155 / T0606 / T0590 / CT-T019 |
+| D155 | 2026-10-18 | PLAN-048 Worker 問塔台通道：先研究再實作；答覆走 helper CLI；待答問題只存記憶體；等待中為 `blocked` / `tower` | PLAN-048 / T0606 / T0582 / T0584 / T0590 / T0600 / CT-T017 |
+| D154 | 2026-10-18 | 塔台派出的 Worker 分頁不搶焦點；Worker 啟動確認以 claude `SessionStart` hook 為信號、helper 可選擇等待 | BUG-151 / T0598 / BUG-135（T0532 `addExternalTerminal` 在 active 工作區取得焦點）/ PLAN-047 / CT-T017 |
+| D153 | 2026-10-18 | codex CLI × Tower / Worker 整合測試分兩層：A 層自動化 e2e（不呼叫模型）開工單，B 層實機探針只在 codex 升版 / 發版前手動跑 | BUG-148 / T0584 / T0586 / T0590 / PLAN-047 |
+| D152 | 2026-10-17 | PLAN-047 第二批：M1（唯讀 channel → shim）與 W1（worktree 隔離派工 → 唯讀狀態）並行；worktree 依賴由 Worker 自己安裝 | D149 / D150 / PLAN-047 / T0574 / T0581 |
+| D151 | 2026-10-17 | 下一版為 `v0.7.0-pre.1`（重大改版）；預覽版號不再進入兩位數 `-pre.N` | D143 / D149 / T0575 / T0576 / T0577 / T0578 / T0579 |
+| D150 | 2026-10-17 | 合併工單由 AI 判斷執行：機械合併 / 衝突解決 / 等價移植三種模式，main 一律 `--ff-only` | PLAN-047 / T0574 / D149 / CT-T015（待開） |
+| D149 | 2026-10-17 | PLAN-047 採路線 [A]：先 A1（本機範圍權杖）+ A2（跨重開持久化，同版發佈）+ T（測試解耦），MCP 走 stdio shim、合併走工單 | PLAN-047 / T0574 / T0575 / T0576 / T0577 / PLAN-036 K / D134 |
+| D148 | 2026-10-16 | PLAN-044 範圍改定：claude 信任 CLI 內建自動繼續、BAT 只提示（休眠後補 Enter）；Codex 由 BAT 自動輸入；預設關；塔台以 `--set-role tower --mode <m>` 宣告模式（pre.6 前擴充 T0562 契約） | PLAN-044 / T0564 / T0565 / T0566 / T0562 / CT-T013 / D147 / T0551 |
+| D147 | 2026-10-16 | 塔台分頁標題：`/control-tower` 啟動後 BAT 分頁改為 `<Agent 顯示名> · Tower`；BAT 提供 helper `--set-role tower`，CT 啟動時呼叫 | T0562 / CT-T013 / T0553 / T0538 / PLAN-036 K |
+| D146 | 2026-10-16 | 安裝檔瘦身：第一階段直接做（T0546）；第二階段推翻 D092「安裝檔內建 server bundle baseline」改隨需下載 + 匯入本機 tarball + 較強壓縮（T0547）；codex 繼續內建；D094 改為每平台上限 | T0544 / T0546 / T0547 / D092 / D094 / D120 / PLAN-031 / L130 |
+| D145 | 2026-10-15 | `--close-worker` 改為「等分頁安靜再關」：收單時仍有輸出不再拒絕（BUSY），延遲到期後最多再等 60 秒（PLAN-041 實機驗收） | PLAN-041 / D144 / T0535 / T0536 / T0542 / T0543 / T0545 |
+| D144 | 2026-10-15 | 收單後自動回收 Worker 分頁：開關與延遲放 CT `*config`，BAT 只提供能力與安全檢查（PLAN-041） | PLAN-041 / PLAN-042 / T0534 / T0535 / T0536 / T0537 / T0538 / CT-T011 |
+| D143 | 2026-10-15 | 預覽版改走 `0.6.1-pre.N` 版號線；pre.11 照發，T0532 隨 `v0.6.1-pre.1` 發佈 | BUG-134 / BUG-135 / T0531 / T0532 / L150 |
+| D142 | 2026-10-14 | PLAN-040 擴大為「工作區層級 Agent ＋ 啟動參數」，現在開工（T0529）；以 preset 為單位覆寫全域、detached 只讀、helper `--agent` 派工套用生效參數 | PLAN-040 / T0529 / D140 / T0128 / T0523 / T0527 |
+| D141 | 2026-10-14 | BUG-129 外部測試者A 情境判定 #11 → 開 BUG-132；先做 cwd 一致性檢查（T0527，T0526 建議 [B]），PID 鏈根治入 backlog | BUG-129 / BUG-132 / T0523 / T0526 / T0527 / PLAN-040 / D140 |
+| D140 | 2026-10-14 | `--agent default` 維持現有語意（落點工作區 defaultAgent → Settings defaultAgent → claude-code）；T0521-T0525 批次發 v0.6.0-pre.8 | BUG-129 / T0523 / D139（整批修完再發版） |
+| D139 | 2026-10-13 | 已知問題一次開單（T0484-T0493），分波並行，整批完成並聯合複驗後才發 v0.6.0-pre.5 | T0483 / T0479 / T0464 / BUG-113 / BUG-114 / BUG-115 / BUG-061 / T0454 / L146 |
+| D138 | 2026-10-13 | BUG-119 userData 統一：採 T0479 推薦 (a)+(c)+(b)，統一到 `BetterAgentTerminal[-runtime-<N>]/`，拆 A / B / C 三張 | BUG-119 / T0478 / T0479 / T0480 / T0481 / T0482 |
+| D137 | 2026-10-13 | fork 的 release.yml 下游發佈（Homebrew tap / Chocolatey）改為 opt-in、預設關閉；README 移除指向上游套件的安裝方式；`DESKTOP_PACKAGE_HOSTS` 移除 `darwin-x64` | T0475 / T0476 / D136 / BUG-117 |
+| D136 | 2026-10-13 | v0.6.0-pre.3 範圍：BUG-116 + BUG-118 一併修、BUG-117 採 B3 停發 Intel Mac（x64）dmg | BUG-116 / BUG-117 / BUG-118 / T0468 / T0470 / T0474 / T0475 / D057 |
+| D135 | 2026-10-05 | PLAN-039 多 remote profile 同時連線：拆單與時程（T0459 研究結論） | PLAN-039 / T0459 / BUG-110 / D134 |
+| D134 | 2026-10-05 | 第五十五 session YOLO 排程：遠端收尾小單 + SSH / Docker 安全 BUG + 兩張設計研究 | PLAN-036 P3（J / K）、T0386 建議清單 J / K、BUG-096-100 / 106、L141 |
+| D133 | 2026-10-05 | PLAN-037 拆單與波次（T0407 研究結論） | PLAN-037 / T0407 / D131 / D130 / PLAN-036 |
+| D132 | 2026-10-05 | `claude:auth-status` 在 exit≠0 時仍解析 stdout | T0401 / T0402 / PLAN-036 / D130 |
+| D131 | 2026-10-05 | 遠端 AI 工具套件：檢查＋一鍵安裝（PLAN-037） | PLAN-037 / T0407 / PLAN-036 / PLAN-035 / D130 |
+| D130 | 2026-10-05 | PLAN-036 P0 自動驗收結案與 P1 開工排程 | PLAN-036 / D129 / T0396 / T0397 / BUG-095 / BUG-101 / BUG-102（T0398）/ BUG-103 |
 | D129 | 2026-10-04 | PLAN-036 headless 功能 handler 層：共用註冊模組 + DI（Electron main 與 headless 同一份 `registerXxxHandlers`）；fs sandbox 由 client 推送 workspace roots（fail-closed）；遠端 Agent 沿用遠端 settings 的 runtime router；P0 先開 T0388-T0391，T0388+T0391 立即平行、T0389 等 T0387、T0390 接 T0388+T0389；P1-P3 待 P0 實機後開；PLAN-036 P0 優先於 PLAN-035 Phase 2 | PLAN-036 / T0386 / T0388-T0391 |
 | D128 | 2026-10-04 | PLAN-035 Phase 1 依 T0380 拆 4 張串行實作單：T0381 指紋改 TLS 握手 + timeout（BUG-090，三精靈共用）→ T0382 WSL 埠探測避開主機 RemoteServer + startService 穩定性（BUG-091）→ T0383 `wslinfo` 判網路模式（BUG-089）→ T0384 BAT 持有 `wsl.exe` 保活（BUG-092）；網路模式改為選用、預設不勾；保活不改全機 `instanceIdleTimeout` | T0380-T0384 / BUG-089~092 / PLAN-035 |
 | D127 | 2026-10-04 | WSL 環境全自動化立 PLAN-035，研究先行（T0380）；同意模型為「偵測 → 列清單 → 一次同意」；WSL 未安裝時全自動安裝含重開機後接續；BUG-089 網路模式誤判併入研究 | PLAN-035 / T0380 / BUG-089 |
@@ -82,66 +269,68 @@
 | D110 | 2026-04-27 | T0330-D1：transition rules 加 `failed → running`（spec 寫 retry 走 `failed → pending`，但 runner 實際 retry 直接 continue loop 寫 Running，重排 loop 結構超出本票範圍且無 user 可見差異） | T0330 / PLAN-032 |
 | D090 | 2026-04-26 | Renderer 嚴禁 import Node builtin（含 `node:*` 與裸 `fs/path/...`）— BUG-069 根因，採 Spike A IPC 遷移 + ESLint `no-restricted-imports` 守衛防復發 | BUG-069 / T0303 / T0304 / PLAN-029 |
 | D089 | 2026-04-26 | PLAN-007 全案閉環 — 23 張藍圖工單全 DONE，session 31 一氣呵成 10 工單 121 min wall，GP099 連 10 次下界 → 強烈建議 `*evolve` 重校準 | PLAN-007 / T0282-T0291 |
-| D001-D012 | 2026-04-11 早期 | Phase 1 前置決策（詳見歸檔） | T0001-T0012 |
-| D013 | 2026-04-11 | 技術債 Backlog + 派發 T0004/T0005 半平行 | T0004/T0005 |
-| D014 | 2026-04-11 | T0005 PARTIAL 接受，runtime 驗證延後到 T0009 | T0005 |
-| D015 | 2026-04-11 | Phase 1 驗收第一個 bug，派發 T0013 hotfix | T0013 |
-| D016 | 2026-04-11 | T0013 PARTIAL 接受，runtime 驗證延後 | T0013 |
-| D017 | 2026-04-11 | BAT agent orchestration 研究記入 Backlog | PLAN-007 |
-| D018 | 2026-04-12 | 先修 Redraw 再調查 BUG-012（診斷工具優先） | T0035/T0036 |
-| D019 | 2026-04-12 | T0035 v1 修復（禁用 viewport scroll）無效 | T0035 |
-| D020 | 2026-04-12 | BUG-012 根因確認：上游 TUI 問題，workaround 策略 | T0041 |
-| D021 | 2026-04-12 | T0041 附帶改進保留（canvas addon + CLAUDE_CODE_NO_FLICKER=1） | T0041 |
-| D022 | 2026-04-12 | BUG-007 關閉：上游行為，Claude Code CLI 輸出 | — |
-| D023 | 2026-04-12 | BUG-013 新增：Tab 切換畫面全黑，100% 重現，High | T0047 |
-| D024 | 2026-04-12 | BUG-014/015 新增：xterm v6 副作用 | T0047 |
-| D025 | 2026-04-12 | 修復策略：revert xterm v5 + ErrorBoundary 保護網 | T0047 |
-| D026 | 2026-04-12 | 版號管理：fork 從 1.0.0 開始，package.json 管理 | T0055 |
-| D027 | 2026-04-12 | 上游追蹤：upstream tony1223，fork gowerlin，lastSyncCommit 079810025 | T0055 |
-| D028 | 2026-04-12 | 採用 T0061 文件拆分架構（BUG/PLAN/Decision 獨立單據） | T0061/T0062 |
-| D029 | 2026-04-12 | BUG 狀態流新增 🧪 VERIFY 中間態（code fix 完成但 runtime 尚未驗收） | T0065 |
-| D047 | 2026-04-18 | PLAN-001/005 升級可行性研究派發（統籌研究 + 禁互動） | T0159 |
-| D048 | 2026-04-18 | T0159 結論採行：新開 PLAN-016 + EXP-ELECTRON41-001 立即試做 | PLAN-016/EXP-ELECTRON41-001 |
-| D049 | 2026-04-18 | EXP-ELECTRON41-001 CONCLUDED → 派 T0160 合併 + BUG-038 + T0161 修復 + Phase 3 暫緩 | T0160/T0161/BUG-038 |
-| D050 | 2026-04-18 | Electron 41 升級未生效到 runtime + VSCode self-lock 發現 | T0160/T0161/BUG-038 |
-| D051 | 2026-04-18 | Electron 41 升級 + BUG-038 runtime 驗收全通過，閉環完成 | T0160/T0161/BUG-038 |
-| D052 | 2026-04-18 | PLAN-003 混合分組策略：Group A 暫緩 + Group B 升 vite + Group C WONTFIX | T0162/PLAN-003/PLAN-005 |
-| D053 | 2026-04-18 | T0162 Phase 2 結論採路徑 A（vite 7 stable），派 T0163 實作 | T0162/T0163/PLAN-003 |
-| D054 | 2026-04-18 | T0163 DONE 閉環 + PLAN-005 啟動（EXP worktree 模式，承接 Group A） | T0163/EXP-BUILDER26-001/PLAN-005/PLAN-003 |
-| D055 | 2026-04-18 | PLAN-005 / PLAN-003 全案閉環（electron-builder 26 升級 CONCLUDED + Group A 關閉） | EXP-BUILDER26-001/PLAN-005/PLAN-003 |
-| D056 | 2026-04-18 | PLAN-016 全案閉環（Electron 28.3.3 → 41.2.1，三 Phase 全部完成） | PLAN-016/EXP-ELECTRON41-001/T0160/T0161/PLAN-005 |
-| D057 | 2026-04-18 | mac 打包採雙 arch dmg，放棄 universal（CI Pre-Release 5 次 run 後修正） | EXP-BUILDER26-001 |
-| D058 | 2026-04-18 | Upstream v2.1.42+ 同步採方案 [A]：T0165 Phase 1 cherry-pick + PLAN-018 Phase 2 獨立 | T0164/T0165/PLAN-018 |
-| D059 | 2026-04-18 | PLAN-020 yolo 模式插隊啟動，PLAN-018 冷凍作為驗證場景 | PLAN-020/T0167/PLAN-018 |
-| D060 | 2026-04-18 | yolo 下一張工單資訊來源採 Q2.A（研究工單 D 區段） | PLAN-020/T0167 |
-| D061 | 2026-04-18 | CT-T002 閉環 + v4.2.0 tag，對方塔台已吸收 yolo 功能 | CT-T002/PLAN-020 |
-| D062 | 2026-04-18 | Worker 無狀態原則：所有 runtime context 由塔台派單 explicit 傳遞 | BUG-040/BUG-041/T0176+ |
-| D063 | 2026-04-19 | BUG-050 階段 1 smoke 通過 → FIXING → VERIFY,觀察 YOLO log 再決策階段 2 | BUG-050/T0215/PLAN-024 |
-| D064 | 2026-04-19 | BUG-050 階段 2 暫緩:2 樣本 + 真實 YOLO 工作流驗證零異常,保持 VERIFY 待真實問題觸發 | BUG-050/PLAN-024/T0216/T0217 |
-| D065 | 2026-04-19 | PLAN-021 UX 簡化:移除 Test 按鈕(error path 已提供回饋),新增停止伺服器前連線數警告 | PLAN-021/T0218/T0219 |
-| D066 | 2026-04-19 | BUG-047 驗收失敗處理:派研究工單 T0220 而非直接修復 | BUG-047/T0220 |
-| D067 | 2026-04-19 | T0221 YOLO 回報策略:code-only 必回 PARTIAL 觸發斷點 A | T0221/T0223 |
-| D068 | 2026-04-19 | BUG-051 範圍判定:派研究工單深查 consumer + 跨平台 | BUG-051/T0222 |
-| D069 | 2026-04-19 | BUG-051 與 BUG-047 關係:不算翻案,獨立編號 | BUG-047/BUG-051 |
-| D070 | 2026-04-19 | T0222 附加發現處理:BUG-052 獨立 + T0223 合併修 | BUG-052/T0222/T0223 |
-| D071 | 2026-04-20 | PLAN-021 dev smoke 驗收暫緩,UX 另案 | PLAN-021/T0218/T0219 |
-| D072 | 2026-04-20 | archive_days 7 → 2 歸檔門檻調整 | _tower-config.yaml / *archive |
-| D073 | 2026-04-20 | PLAN-022 結案,Step 3 TOFU fallback 不做 | PLAN-022 / T0217 |
-| D074 | 2026-04-22 | BAT 塔台接手 Phase 1-4 派發(T0099-T0106)| PLAN-028 / CT-T010 / T0098 |
-| D075 | 2026-04-23 | GPU Whisper 技術方向由雙軌翻轉為 Vulkan-first | T0236 / PLAN-004 / EXP-GPUWHIS-001 |
-| D076 | 2026-04-23 | T-A PoC PARTIAL 接受 — 硬體瓶頸非套件缺陷,繼續推進 T-B/C/D 合入主線 | T0237 / EXP-GPUWHIS-001 |
-| D077 | 2026-04-23 | EXP-GPUWHIS-001 T-D 合入主線 — Option 1 Squash merge + 刪除 worktree | T0240 / EXP-GPUWHIS-001 |
-| D078 | 2026-04-23 | BUG-056 NSIS 打包版啟動崩潰（regression from `cb65614`）— 暫停 T0241 版號 bump，派研究工單定位根因 | BUG-056 / T0241 / cb65614 / EXP-GPUWHIS-001 |
-| D079 | 2026-04-23 | T0241 結論吸收 — BUG-056 根因為 main repo 缺 `npm install`；修復拆 T0242（npm install + NSIS 雙 path 驗收）+ T0243（build fail-fast + CI `npm ci`）| T0241 / T0242 / T0243 / BUG-056 |
-| D080 | 2026-04-23 | BUG-056 CLOSED — T0242 zero-diff fix via `npm install` + 雙 path 驗收全綠，VERIFY 決策 [1] 直接 CLOSED | BUG-056 / T0242 / `e46932e` |
-| D081 | 2026-04-23 | BUG-057 OPEN（第二 regression from `cb65614`）— 語音辨識繁中翻英，走 T0244 研究路線（A/A/A），T0243 延下 session | BUG-057 / T0244 / `cb65614` / T0243 |
-| D082 | 2026-04-23 | T0244 結論吸收 — H2 確認：`@kutalia/whisper-node-addon` default `translate: true`（舊套件 false），派 T0245 單行 fix（加 `translate: false`）+ dev mode 驗收 | T0244 / T0245 / BUG-057 / `526b7c1` |
-| D083 | 2026-04-23 | BUG-057 CLOSED — T0245 單行 fix `translate: false` 閉環,使用者雙情境(zh+auto)runtime 驗收通過,session 22 收工條件達成 | BUG-057 / T0245 / `b2124b5` |
-| D084 | 2026-04-23 | BUG-058 OPEN(session 24) — packaged BAT 缺 `_bat-*.mjs` helper scripts,Q3.A 拆鏈:T0246 研究 → T0247 修復 → T0248 預防 → T0249 v0.3.1 release prep | BUG-058 / T0246 / T0247 / T0248 / T0249 |
-| D085 | 2026-04-24 | BUG-058 CLOSED — v0.3.1 GitHub Actions release(commits `a460d8b` filter fix + `a73a965` `1009154` 預防 + `eca8ab6` `02d8bb2` release),NSIS installer 實測 `$BAT_HELPER_DIR` 含 4 個 `.mjs`,使用者驗收通過 | BUG-058 / T0247 / T0248 / T0249 / `b0b8128` |
-| D086 | 2026-04-25 | BUG-059 OPEN + BUG-055 REOPEN(session 25) — packaged embedded `claude.exe` auto-update 失敗(觀測 `.old.<ts>` 殘留 + binary missing),T0250 反組譯研究 + cross-ref BUG-055 同根因疑慮 | BUG-059 / BUG-055 / T0250 |
-| D087 | 2026-04-25 | T0250 結論吸收 — 根因確認:embedded claude auto-update orphans binary 到 npm prefix(不在 BAT 路徑);採方案 A 在所有 BAT spawn 路徑無條件注入 `DISABLE_AUTOUPDATER=1`,派 T0251 單檔多點修改 | T0250 / T0251 / `2d5db28` |
 | D088 | 2026-04-25 | BUG-059 + BUG-055 一同 CLOSED — T0251 commit `426d6fc` runtime 驗收通過(AC1-5 全綠,使用者實機確認無 `.old.*` 殘留 + `claude --version` 不觸發 update),BUG-055 連帶閉環(同根因) | BUG-059 / BUG-055 / T0251 / `426d6fc` |
+| D087 | 2026-04-25 | T0250 結論吸收 — 根因確認:embedded claude auto-update orphans binary 到 npm prefix(不在 BAT 路徑);採方案 A 在所有 BAT spawn 路徑無條件注入 `DISABLE_AUTOUPDATER=1`,派 T0251 單檔多點修改 | T0250 / T0251 / `2d5db28` |
+| D086 | 2026-04-25 | BUG-059 OPEN + BUG-055 REOPEN(session 25) — packaged embedded `claude.exe` auto-update 失敗(觀測 `.old.<ts>` 殘留 + binary missing),T0250 反組譯研究 + cross-ref BUG-055 同根因疑慮 | BUG-059 / BUG-055 / T0250 |
+| D085 | 2026-04-24 | BUG-058 CLOSED — v0.3.1 GitHub Actions release(commits `a460d8b` filter fix + `a73a965` `1009154` 預防 + `eca8ab6` `02d8bb2` release),NSIS installer 實測 `$BAT_HELPER_DIR` 含 4 個 `.mjs`,使用者驗收通過 | BUG-058 / T0247 / T0248 / T0249 / `b0b8128` |
+| D084 | 2026-04-23 | BUG-058 OPEN(session 24) — packaged BAT 缺 `_bat-*.mjs` helper scripts,Q3.A 拆鏈:T0246 研究 → T0247 修復 → T0248 預防 → T0249 v0.3.1 release prep | BUG-058 / T0246 / T0247 / T0248 / T0249 |
+| D083 | 2026-04-23 | BUG-057 CLOSED — T0245 單行 fix `translate: false` 閉環,使用者雙情境(zh+auto)runtime 驗收通過,session 22 收工條件達成 | BUG-057 / T0245 / `b2124b5` |
+| D082 | 2026-04-23 | T0244 結論吸收 — H2 確認：`@kutalia/whisper-node-addon` default `translate: true`（舊套件 false），派 T0245 單行 fix（加 `translate: false`）+ dev mode 驗收 | T0244 / T0245 / BUG-057 / `526b7c1` |
+| D081 | 2026-04-23 | BUG-057 OPEN（第二 regression from `cb65614`）— 語音辨識繁中翻英，走 T0244 研究路線（A/A/A），T0243 延下 session | BUG-057 / T0244 / `cb65614` / T0243 |
+| D080 | 2026-04-23 | BUG-056 CLOSED — T0242 zero-diff fix via `npm install` + 雙 path 驗收全綠，VERIFY 決策 [1] 直接 CLOSED | BUG-056 / T0242 / `e46932e` |
+| D079 | 2026-04-23 | T0241 結論吸收 — BUG-056 根因為 main repo 缺 `npm install`；修復拆 T0242（npm install + NSIS 雙 path 驗收）+ T0243（build fail-fast + CI `npm ci`）| T0241 / T0242 / T0243 / BUG-056 |
+| D078 | 2026-04-23 | BUG-056 NSIS 打包版啟動崩潰（regression from `cb65614`）— 暫停 T0241 版號 bump，派研究工單定位根因 | BUG-056 / T0241 / cb65614 / EXP-GPUWHIS-001 |
+| D077 | 2026-04-23 | EXP-GPUWHIS-001 T-D 合入主線 — Option 1 Squash merge + 刪除 worktree | T0240 / EXP-GPUWHIS-001 |
+| D076 | 2026-04-23 | T-A PoC PARTIAL 接受 — 硬體瓶頸非套件缺陷,繼續推進 T-B/C/D 合入主線 | T0237 / EXP-GPUWHIS-001 |
+| D075 | 2026-04-23 | GPU Whisper 技術方向由雙軌翻轉為 Vulkan-first | T0236 / PLAN-004 / EXP-GPUWHIS-001 |
+| D074 | 2026-04-22 | BAT 塔台接手 Phase 1-4 派發(T0099-T0106)| PLAN-028 / CT-T010 / T0098 |
+| D073 | 2026-04-20 | PLAN-022 結案,Step 3 TOFU fallback 不做 | PLAN-022 / T0217 |
+| D072 | 2026-04-20 | archive_days 7 → 2 歸檔門檻調整 | _tower-config.yaml / *archive |
+| D071 | 2026-04-20 | PLAN-021 dev smoke 驗收暫緩,UX 另案 | PLAN-021/T0218/T0219 |
+| D070 | 2026-04-19 | T0222 附加發現處理:BUG-052 獨立 + T0223 合併修 | BUG-052/T0222/T0223 |
+| D069 | 2026-04-19 | BUG-051 與 BUG-047 關係:不算翻案,獨立編號 | BUG-047/BUG-051 |
+| D068 | 2026-04-19 | BUG-051 範圍判定:派研究工單深查 consumer + 跨平台 | BUG-051/T0222 |
+| D067 | 2026-04-19 | T0221 YOLO 回報策略:code-only 必回 PARTIAL 觸發斷點 A | T0221/T0223 |
+| D066 | 2026-04-19 | BUG-047 驗收失敗處理:派研究工單 T0220 而非直接修復 | BUG-047/T0220 |
+| D065 | 2026-04-19 | PLAN-021 UX 簡化:移除 Test 按鈕(error path 已提供回饋),新增停止伺服器前連線數警告 | PLAN-021/T0218/T0219 |
+| D064 | 2026-04-19 | BUG-050 階段 2 暫緩:2 樣本 + 真實 YOLO 工作流驗證零異常,保持 VERIFY 待真實問題觸發 | BUG-050/PLAN-024/T0216/T0217 |
+| D063 | 2026-04-19 | BUG-050 階段 1 smoke 通過 → FIXING → VERIFY,觀察 YOLO log 再決策階段 2 | BUG-050/T0215/PLAN-024 |
+| D062 | 2026-04-18 | Worker 無狀態原則：所有 runtime context 由塔台派單 explicit 傳遞 | BUG-040/BUG-041/T0176+ |
+| D061 | 2026-04-18 | CT-T002 閉環 + v4.2.0 tag，對方塔台已吸收 yolo 功能 | CT-T002/PLAN-020 |
+| D060 | 2026-04-18 | yolo 下一張工單資訊來源採 Q2.A（研究工單 D 區段） | PLAN-020/T0167 |
+| D059 | 2026-04-18 | PLAN-020 yolo 模式插隊啟動，PLAN-018 冷凍作為驗證場景 | PLAN-020/T0167/PLAN-018 |
+| D058 | 2026-04-18 | Upstream v2.1.42+ 同步採方案 [A]：T0165 Phase 1 cherry-pick + PLAN-018 Phase 2 獨立 | T0164/T0165/PLAN-018 |
+| D057 | 2026-04-18 | mac 打包採雙 arch dmg，放棄 universal（CI Pre-Release 5 次 run 後修正） | EXP-BUILDER26-001 |
+| D056 | 2026-04-18 | PLAN-016 全案閉環（Electron 28.3.3 → 41.2.1，三 Phase 全部完成） | PLAN-016/EXP-ELECTRON41-001/T0160/T0161/PLAN-005 |
+| D055 | 2026-04-18 | PLAN-005 / PLAN-003 全案閉環（electron-builder 26 升級 CONCLUDED + Group A 關閉） | EXP-BUILDER26-001/PLAN-005/PLAN-003 |
+| D054 | 2026-04-18 | T0163 DONE 閉環 + PLAN-005 啟動（EXP worktree 模式，承接 Group A） | T0163/EXP-BUILDER26-001/PLAN-005/PLAN-003 |
+| D053 | 2026-04-18 | T0162 Phase 2 結論採路徑 A（vite 7 stable），派 T0163 實作 | T0162/T0163/PLAN-003 |
+| D052 | 2026-04-18 | PLAN-003 混合分組策略：Group A 暫緩 + Group B 升 vite + Group C WONTFIX | T0162/PLAN-003/PLAN-005 |
+| D051 | 2026-04-18 | Electron 41 升級 + BUG-038 runtime 驗收全通過，閉環完成 | T0160/T0161/BUG-038 |
+| D050 | 2026-04-18 | Electron 41 升級未生效到 runtime + VSCode self-lock 發現 | T0160/T0161/BUG-038 |
+| D049 | 2026-04-18 | EXP-ELECTRON41-001 CONCLUDED → 派 T0160 合併 + BUG-038 + T0161 修復 + Phase 3 暫緩 | T0160/T0161/BUG-038 |
+| D048 | 2026-04-18 | T0159 結論採行：新開 PLAN-016 + EXP-ELECTRON41-001 立即試做 | PLAN-016/EXP-ELECTRON41-001 |
+| D047 | 2026-04-18 | PLAN-001/005 升級可行性研究派發（統籌研究 + 禁互動） | T0159 |
+| D031 | 2026-04-13 | PLAN-008 Phase 2 可配置參數 | T0109（Config 實作 + Settings UI） |
+| D030 | 2026-04-13 | 索引架構改革 | T0102 / T0103 |
+| D029 | 2026-04-12 | BUG 狀態流新增 🧪 VERIFY 中間態（code fix 完成但 runtime 尚未驗收） | T0065 |
+| D028 | 2026-04-12 | 採用 T0061 文件拆分架構（BUG/PLAN/Decision 獨立單據） | T0061/T0062 |
+| D027 | 2026-04-12 | 上游追蹤：upstream tony1223，fork gowerlin，lastSyncCommit 079810025 | T0055 |
+| D026 | 2026-04-12 | 版號管理：fork 從 1.0.0 開始，package.json 管理 | T0055 |
+| D025 | 2026-04-12 | 修復策略：revert xterm v5 + ErrorBoundary 保護網 | T0047 |
+| D024 | 2026-04-12 | BUG-014/015 新增：xterm v6 副作用 | T0047 |
+| D023 | 2026-04-12 | BUG-013 新增：Tab 切換畫面全黑，100% 重現，High | T0047 |
+| D022 | 2026-04-12 | BUG-007 關閉：上游行為，Claude Code CLI 輸出 | — |
+| D021 | 2026-04-12 | T0041 附帶改進保留（canvas addon + CLAUDE_CODE_NO_FLICKER=1） | T0041 |
+| D020 | 2026-04-12 | BUG-012 根因確認：上游 TUI 問題，workaround 策略 | T0041 |
+| D019 | 2026-04-12 | T0035 v1 修復（禁用 viewport scroll）無效 | T0035 |
+| D018 | 2026-04-12 | 先修 Redraw 再調查 BUG-012（診斷工具優先） | T0035/T0036 |
+| D017 | 2026-04-11 | BAT agent orchestration 研究記入 Backlog | PLAN-007 |
+| D016 | 2026-04-11 | T0013 PARTIAL 接受，runtime 驗證延後 | T0013 |
+| D015 | 2026-04-11 | Phase 1 驗收第一個 bug，派發 T0013 hotfix | T0013 |
+| D014 | 2026-04-11 | T0005 PARTIAL 接受，runtime 驗證延後到 T0009 | T0005 |
+| D013 | 2026-04-11 | 技術債 Backlog + 派發 T0004/T0005 半平行 | T0004/T0005 |
+| D001-D012 | 2026-04-11 早期 | Phase 1 前置決策（詳見歸檔） | T0001-T0012 |
 
 ---
 
@@ -297,6 +486,16 @@
 - **最大風險**：`whisper-node-addon@1.0.2` 對 Electron 41（Node 24）的 NODE_MODULE_VERSION 相容性未知，允許 Worker 遇此決策點主動問塔台
 
 ---
+
+### D366 2026-11-26 01:22 — 決策日誌索引表重建（補 188 筆缺漏列）
+
+- **背景**：D316 收斂後發現索引表只有 132 列（D316–D365 與部分 D001–D129），D134 / D135 / D138、D186–D315 與部分封存決策沒有索引列，BAT 決策清單看不到（`todo` 候選）。
+- **選項**：
+  - [A] 塔台直接以腳本補列：保留既有索引列原文，缺漏列由熱檔與封存檔的詳細紀錄標題（日期、標題）與「相關」行產生，整表依編號倒序
+  - [B] 開工單給 Worker 做
+- **決定**：選 A，理由：只改塔台私有狀態檔的索引表、不改任何詳細紀錄，屬小變動；使用者指示「決策日誌索引重建」。
+- **影響**：索引 131 → 319 列（另保留 `D001-D012` 合併列，放最後）；`_decision-log.md` 259,226 → 約 294 KB（400 KB 預算內）。保留 D110–D118 共 9 列：只有索引、沒有任何詳細紀錄（既有狀況，不刪資訊）。D002–D012（合併列）、D032–D046、D091–D109 沒有任何紀錄，不補（不猜）。
+- **相關工單**：D316
 
 ### D365 2026-11-26 01:05 — `v0.8.0-pre.4` 發佈完成（L150 收尾）
 
