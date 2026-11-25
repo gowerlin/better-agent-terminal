@@ -3,7 +3,7 @@ schema_kind: tower-state
 summary_version: 1
 bat_contract: 2
 ct_version: "6.1.1"
-updated_at: "2026-11-25T20:33:13+0800"
+updated_at: "2026-11-25T20:36:52+0800"
 session: "2026-11-25 20:19 第一百三十二 session（CT v6.1.1）"
 next_ids:
   workorder: "T0922"
@@ -13,7 +13,7 @@ next_ids:
   user: "U-6"
   action: "A-4"
 todo:
-  - "PLAN-069（PLANNED，D346）：待辦分頁推薦項＋放棄 / 批次放棄；等 CT 塔台回覆交辦稿 `_handover-2026-11-25-inbox-recommended-dismiss.md`（契約草案 C-1–C-5）後開 BAT 實作工單；BAT 塔台寫提問時推薦項排第一、說明加「（推薦）」（R1）"
+  - "PLAN-069（PLANNED，D346）：待辦分頁推薦項＋放棄 / 批次放棄；CT 已受理（CT D886，CT T0566 寫 6.2.0-pre.1 規範；契約維持 2 ＋ `inbox_features`）→ 等 CT 傳規範位置與範例狀態檔後開 BAT 實作工單，`0.8.0-pre.4` 與 CT 6.2.0 同日發佈；BAT 塔台寫提問時推薦項排第一、說明加「（推薦）」（R1）"
   - "🚀 `v0.8.0-pre.3` 已發佈（D339，2026-11-25 14:44）；`v0.8.x` 已經 T0921 併回 `main` 並 push（D343 / D345）。D331：只有改到安裝路徑的版本才做 NSIS 重裝驗收。發佈後驗收（linux / macos / docker acceptance、WSL smoke）視需要另取授權"
   - "PLAN-066（DONE）後續候選（未開單）：`pty:create` 只送 env 差異（`pty-manager.ts`＋Terminal Server 協定）可再降 C2①；direct 模式的 conin socket 殘留；F4（自然結束的 conhost 留到 server 結束）。分支：`ct/T0885`（Rust 評估，D307 保留不合併，worktree 保留）、`ct/T0886`（node-pty Worker 研究，未併入 `v0.8.x`，worktree 已移除）"
   - "PLAN-065 剩餘：per-machine 未提權互動升級（UAC）手動驗收（無法自動化）；降級到 `0.7.4-pre.9` 會結束所有終端且沒有說明（已寫在更版重點〈已知事項〉）"

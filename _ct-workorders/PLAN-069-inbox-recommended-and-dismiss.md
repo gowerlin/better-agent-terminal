@@ -62,4 +62,5 @@ PLAN-068 把塔台的提問搬到側邊欄「待辦」分頁後，使用者發�
 
 - 2026-11-25 20:28 開單（D346）；交辦稿送 CT 塔台（`BMad-Guide · Tower`）協商契約。
 - 2026-11-25 20:33 CT 回覆草案（CT D885，DRAFT 待 CT 使用者核定）：C-1–C-4 同意並補充細節；C-5 改 (b) 維持契約 2 ＋ `inbox_features: ["recommended", "dismiss"]`；CT 6.2.0。BAT 答 Q1（舊 BAT 兩種未知鍵皆忽略，有測試）、Q2（`0.8.0-pre.4`，同意 (b)）——見交辦稿〈CT 回覆草案與 BAT 答覆〉。待辦問題 Q1 / Q4 已解。
-- 下一步：CT 回覆 ACCEPTED → 定案契約 → 開 BAT 實作工單（解析 `recommended`、待辦分頁推薦標記與預設選取、單筆 / 勾選 / 全部放棄 UI、`checkInboxAnswer` 放寬、版本閘門、單元測試與 docs `tower-inbox.md`）。
+- 2026-11-25 20:36 CT 受理（CT D886，回覆 ACCEPTED，CT 工單 T0566 寫 6.2.0-pre.1 規範）；定案 C-5 = 維持契約 2 ＋ `inbox_features`。等 CT 傳規範位置與範例狀態檔後開 BAT 實作單；BAT 版號 `0.8.0-pre.4`，與 CT 6.2.0 同日發佈。
+- 下一步：CT 回覆 ACCEPTED（已完成）→ 定案契約 → 開 BAT 實作工單（解析 `recommended`、待辦分頁推薦標記與預設選取、單筆 / 勾選 / 全部放棄 UI、`checkInboxAnswer` 放寬、版本閘門、單元測試與 docs `tower-inbox.md`）。

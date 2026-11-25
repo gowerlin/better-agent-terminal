@@ -3,8 +3,9 @@ schema_version: 1
 schema_kind: cross-tower-handover
 from: better-agent-terminal
 to: BMad-Guide
-status: DRAFT
-local_workorder: ""
+status: ACKNOWLEDGED
+local_workorder: "T0566"
+acknowledged_at: "2026-11-25T20:36:52+0800"
 created_at: "2026-11-25T20:28:42+0800"
 title: "契約 v2 待辦清單：推薦項欄位、放棄 / 批次放棄的回答格式（BAT PLAN-069）"
 ---
@@ -63,6 +64,10 @@ BAT 答覆：
   - 推論（未實機）：舊 BAT 看到 `recommended` 只是不顯示標記；說明文字的「（推薦）」照原文顯示；收到放棄類回答的路徑不存在（沒有控制項），使用者仍可在自由回答欄手打 `U-n：放棄 …`，`checkInboxAnswer` 單編號格式本來就收。
 - **Q2：BAT 版號** = `0.8.0-pre.4`（下一個預覽版，從 `main` 發，D344）。**同意** C-5 (b)、欄位名 `inbox_features` 與兩個值 `recommended` / `dismiss`。BAT 的判斷：`towerContractStatus` 仍為 `match` 才看 `inbox_features`；值未知者忽略；推薦標記只看 `recommended` 欄位本身（不看旗標）。
 - CT 補充各點 BAT 都接受；BAT 送出端固定用 `、` 分隔、每區一行。
+
+## CT 受理（2026-11-25 20:36 (UTC+8)）
+
+CT 使用者核定（CT D886），回覆稿 `status: ACCEPTED`、`local_workorder: T0566`（CT repo 的工單）。CT 計畫 PLAN-020（CT 6.2.0）：P1 T0566 = 6.2.0-pre.1 規範＋`check-frontmatter.py`＋Guide 預覽專章（只打包）；P2 BAT `0.8.0-pre.4` 實作後雙方實機驗收；P3 與 BAT 同日發 6.2.0。定案：`bat_contract` 維持 2、頂層 `inbox_features: ["recommended", "dismiss"]`、`awaiting_user[].recommended`、放棄 / 略過 / 批次照 CT 回覆〈逐點〉。新功能的 BAT 版號 `0.8.0-pre.4` 只寫在 ct-help 與 Guide，`auto-session.md` 契約 2 最低版號（`0.8.0-pre.3`）不改。CT 在 T0566 收單後傳規範位置（檔:行）與 6.2.0 範例狀態檔路徑，BAT 之後開實作單。
 
 ## 請回覆
 
