@@ -159,8 +159,21 @@ node e2e/manual/ct-accept-act.mjs inbox s1                                   # �
 - `wait`：讀 host 的 `pty.attentionSnapshot`（claude hook 的 `busy` / `blockedReason`），`question` = AskUserQuestion 選單開著；權限詢問 exit `3`、逾時 `5`。需要分頁的 BAT hooks 正常。
 - 指令與 exit code 見檔頭註解。
 
+T0928（CT 6.2.0-pre.2 補跑）加了選單操作與 BUG-224 的實機驗證：
+
+```powershell
+node e2e/manual/ct-accept-act.mjs menu s5 <id>                 # 目前選單的編號選項與反白項（JSON）
+node e2e/manual/ct-accept-act.mjs pick s5 <id> last            # 移到最後一個選項（內建「Type something.」之前）再 Enter
+node e2e/manual/ct-accept-act.mjs pick s5 <id> A               # 移到文字以 A 開頭的選項再 Enter
+node e2e/manual/ct-accept-act.mjs other s5 <id> '放棄 改天再說'  # 移到內建的自由輸入列，逐鍵輸入後 Enter
+node e2e/manual/ct-accept-act.mjs fastesc s5 <id> 300          # 等選單：偵測到 question 後一畫出選單就送 Esc，印出時間差
+```
+
+- `pick` / `other` 從畫面讀選單（`❯ 1. …` 的編號列），移動後重讀畫面確認反白項才按 Enter；找不到選項 exit `1`。
+- `fastesc`：每 20 ms 讀一次 attention，`question` 出現後每 10 ms 讀畫面，看到選單底部提示就以該分頁自己的鍵盤輸入（`terminal.input('\x1b', true)`，與按 Esc 走同一條 `onData` 路徑）送 Esc；輸出 `menuDrawnAfterQuestionMs` / `escAfterMenuMs` 等時間差。用來重現 BUG-224 的時序（選單出現後 < 0.2 s 按 Esc）。
+
 ### 已知限制
 
-- AskUserQuestion 選單出現後立刻按 Esc（約 0.1 秒內）時，較晚到的 `PermissionRequest` hook 會在「使用者輸入清除」之後把分頁設回 `question`，直到下一次按鍵（T0923 回報區 BUG 建議）；驅動選單時先等幾秒再按 Esc。
+- AskUserQuestion 選單出現後立刻按 Esc（約 0.1 秒內）時，較晚到的 `PermissionRequest` hook 會在「使用者輸入清除」之後把分頁設回 `question`，直到下一次按鍵（T0923 回報區 BUG 建議，BUG-224）。`0.8.0-exp.2` 起已修（T0926）；測更早的版本時，驅動選單先等幾秒再按 Esc。
 - claude 2.1.331 的塔台是全螢幕畫面（alt screen）：xterm 沒有 scrollback，捲動由 claude 自己處理；畫面文字只能從 PTY 擷取（TUI 重繪，閃爍的符號會洗掉尾端），判斷內容請以對話紀錄為準。
 - 權限詢問：以 BAT 縮圖 `.attention-badge.blocked[data-blocked-reason=permission]` 判斷；claude 一次排隊多個權限詢問時只有第一個有 hook 事件（T0915 回報區），需另看對話紀錄中沒有結果的工具呼叫。
