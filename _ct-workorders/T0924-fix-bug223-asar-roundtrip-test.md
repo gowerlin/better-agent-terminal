@@ -5,7 +5,6 @@ id: T0924
 title: "BUG-223：`verify-packaged-native.test.mjs`〈reads an app.asar written by @electron/asar〉偶發讀到全 NUL —— 查根因並修，讓 CI Test gate 不再偶發失敗"
 type: bugfix
 status: DONE
-waiting_user: "U-9"
 repo: better-agent-terminal
 project: BUG-223
 priority: P2
