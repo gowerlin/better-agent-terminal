@@ -23,6 +23,7 @@ import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, 
 import { createRequire } from 'node:module'
 import os from 'node:os'
 import path from 'node:path'
+import { finished } from 'node:stream/promises'
 import { fileURLToPath } from 'node:url'
 
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest'
@@ -977,7 +978,11 @@ describe('verifyPackagedWin (T0546)', () => {
     writeFile(path.join(src, 'node_modules', 'ws', 'package.json'), '{"name":"ws"}')
     writeFile(path.join(src, 'native', 'addon.node'), 'binary')
     const dest = path.join(makeOutDir(), 'app.asar')
-    await asar.createPackageWithOptions(src, dest, { unpack: '*.node' })
+    // BUG-223 / T0924: @electron/asar 3.4.1 resolves with the value of `out.end()` (lib/disk.js
+    // writeFileListToStream), i.e. the archive's write stream, without waiting for it: the last packed
+    // file may still be unwritten, and reading it then gives NUL bytes. Wait until the stream is done.
+    const out = await asar.createPackageWithOptions(src, dest, { unpack: '*.node' })
+    if (out && typeof out.on === 'function') await finished(out)
 
     const archive = readAsar(dest)
     expect(asarFiles(archive).sort()).toEqual(['dist-electron/main.js', 'native/addon.node', 'node_modules/ws/package.json'])
