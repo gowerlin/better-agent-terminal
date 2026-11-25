@@ -10,6 +10,7 @@
 
 | ID | 日期 | 標題 | 相關工單 |
 |----|------|------|---------|
+| D336 | 2026-11-25 | PLAN-068 實機驗收 M-C1–M-C7 自動化：BAT 主導執行（T0915，Playwright 驅動 zip 測試版與 `0.8.0-pre.1` zip）、CT 負責 checklist／測試環境（CT T0561）／CT 端判定；測試塔台用獨立 `CLAUDE_CONFIG_DIR`，不切使用者層 | PLAN-068 / T0915 |
 | D335 | 2026-11-25 | PLAN-068 實作完成（W0–W9 合併進 `v0.8.x` `d637350b`）；BAT 版號定為 `0.8.0-pre.3`（README 對照表填入）；push 並以 `desktop-build.yml` 出測試版給使用者與 CT 實機驗收，正式發佈與 CT 6.1.0 同日 | PLAN-068 / T0903–T0914 |
 | D334 | 2026-11-25 | T0907 合併 W1–W3（`v0.8.x` `eaa8b238..677860a4`）；開 W5 = T0908、W6 = T0909、W9 = T0910 三張平行；遠端「📨 待送」proxied 併入 W5 | T0907–T0910 |
 | D333 | 2026-11-25 | T0903（W0）PARTIAL→DONE 並直接合併 `v0.8.x` `d6b9ce86`；開 T0904（W1＋W2 合併，同改 `TerminalPanel.tsx`）、T0905（W3）、T0906（W4）三張平行 | T0903–T0906 |
@@ -265,6 +266,15 @@
   4. PLAN-001 保持延後（🟢 Low，等 plugin 1.0 穩定）
 - **Success criteria**（EXP→CONCLUDED）：npm install 無錯 / 所有 native modules rebuild 成功 / dev+build:dir 可跑 / 手動 smoke test 8 項通過
 - **最大風險**：`whisper-node-addon@1.0.2` 對 Electron 41（Node 24）的 NODE_MODULE_VERSION 相容性未知，允許 Worker 遇此決策點主動問塔台
+
+---
+
+### D336 2026-11-25 10:07 — 實機驗收 M-C1–M-C7 改自動化，BAT 主導
+
+- **起因**：使用者要求 CT 那組實機項目在隔離的免安裝測試版上自動測試；CT 提議 BAT 主導執行（要驅動的動作都在 BAT 內部，BAT 有 `launchIsolated`＋`BAT_E2E_EXECUTABLE` 可驅動打包版）。
+- **決定**：BAT 開 T0915（Worker 寫 `e2e/manual/` 驅動腳本並執行）；CT 開 T0561（測試 config 目錄 `ct610-accept/claude-config` 裝 CT 6.0.2、全域 CLAUDE.md、CT guard；`ct-swap.py` 換版指令；checklist 定稿）並做 CT 端判定。測試塔台與其 Worker 經主行程 env 用獨立 `CLAUDE_CONFIG_DIR`（移除繼承的 `CLAUDECODE` / `CLAUDE_CODE_*`），使用者層一直是 CT 6.0.2，現有塔台不需凍結期。M-C6 用 GitHub Release 的 `0.8.0-pre.1` zip 在另一個隔離 runtime 跑，不驅動 NSIS 安裝版（holder 路徑）。模型觸發不了的項目最多試 3 次，回報「未觸發」。
+- **使用者裁示**：開單，checklist 定稿後派工；使用者在測試目錄登入一次（不複製憑證）；接受數十萬 token 的用量。
+- **相關**：D335 / T0913 / T0915 / CT T0561
 
 ---
 
