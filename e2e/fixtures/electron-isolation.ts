@@ -86,16 +86,28 @@ export async function freePort(): Promise<number> {
 }
 
 /**
+ * T0915: extra inherited variables to leave out, opt-in (`launchIsolated` `opts.dropEnv`). A string
+ * matches a name case-insensitively, a RegExp is tested against the name. Absent = nothing extra dropped.
+ */
+export type EnvDropRule = string | RegExp
+
+function isDropped(key: string, drop: readonly EnvDropRule[]): boolean {
+  return drop.some(rule => typeof rule === 'string' ? rule.toLowerCase() === key.toLowerCase() : rule.test(key))
+}
+
+/**
  * `extra` (T0467) overrides inherited variables; a key matching an inherited one
  * case-insensitively (Windows `Path` vs `PATH`) replaces it instead of duplicating it.
+ * `drop` (T0915) leaves out further inherited variables (see `EnvDropRule`); `extra` still applies.
  */
-export function isolatedEnv(remotePort: number, extra: Record<string, string> = {}): Record<string, string> {
+export function isolatedEnv(remotePort: number, extra: Record<string, string> = {}, drop: readonly EnvDropRule[] = []): Record<string, string> {
   const env: Record<string, string> = {}
   for (const [key, value] of Object.entries(process.env)) {
     if (value === undefined) continue
     // Inherited BAT_* (tower terminal id, remote port/token, workspace id, …)
     // belong to the BAT this test runs inside — never hand them to the app.
     if (key.startsWith('BAT_') || key.startsWith('CT_') || key === 'ELECTRON_RUN_AS_NODE') continue
+    if (drop.length > 0 && isDropped(key, drop)) continue
     env[key] = value
   }
   for (const [key, value] of Object.entries(extra)) {
@@ -194,6 +206,9 @@ function seedNoUpdateCheckSettings(runtimeId: string, env: Record<string, string
  * (the app then starts without settings.json, as before T0882): use it in a spec that tests the update
  * check. An existing settings.json (from `beforeLaunch` or a relaunch with `runtimeId`) and a runtime with
  * a legacy `better-agent-terminal-runtime-<id>` directory are never written to, see `seedNoUpdateCheckSettings`.
+ * `opts.dropEnv` (T0915): inherited variables to leave out besides BAT_* / CT_* / ELECTRON_RUN_AS_NODE, e.g. the
+ * driving Claude Code session's `CLAUDECODE` / `CLAUDE_CODE_*` so a claude started inside the app is not a nested
+ * session (see `isolatedEnv`). Absent: the env is built exactly as before.
  */
 export async function launchIsolated(
   name: string,
@@ -203,6 +218,7 @@ export async function launchIsolated(
     beforeLaunch?: (runtimeId: string) => void | Promise<void>
     runtimeId?: string
     allowUpdateCheck?: boolean
+    dropEnv?: readonly EnvDropRule[]
   } = {},
 ): Promise<IsolatedInstance> {
   if (!/^[a-zA-Z0-9._-]+$/.test(name)) throw new Error(`invalid runtime name: ${name}`)
@@ -210,7 +226,7 @@ export async function launchIsolated(
   const runtimeId = opts.runtimeId ?? `e2e-${name}-${Date.now()}`
   await opts.beforeLaunch?.(runtimeId)
   const remotePort = await freePort()
-  const env = isolatedEnv(remotePort, opts.env)
+  const env = isolatedEnv(remotePort, opts.env, opts.dropEnv)
   const seed = seedNoUpdateCheckSettings(runtimeId, env, opts.allowUpdateCheck !== true)
   /** Removes the runtime directory this launch created for the seed (only that one, guarded). */
   const dropSeededDir = () => {
