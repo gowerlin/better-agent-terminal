@@ -7,7 +7,7 @@ status: FIXED
 severity: high
 reproducibility: "observed（T0915 S2 M-C5，claude 2.1.331，同回合 3 個 Read 權限詢問）"
 created_at: "2026-11-25T12:19:45+08:00"
-updated_at: "2026-11-25T12:45:57+08:00"
+updated_at: "2026-11-25T13:02:50+08:00"
 impact:
   - blocked-state
   - notify-hold
@@ -22,7 +22,7 @@ links:
 |------|------|
 | 嚴重度 | 🔴 high（與 BUG-196 同類：Worker 通知的 Enter 可能替使用者作答） |
 | 可重現 | 觀察到（需要 claude 在同一回合平行送出多個需要權限的工具呼叫） |
-| **狀態** | ✅ FIXED（T0918 `8d36b036`，分支 `ct/T0918`，合併工單 T0919；新測試版重驗排隊權限詢問後 CLOSED） |
+| **狀態** | ✅ FIXED（T0918 `8d36b036`，經 T0919 合併進 `v0.8.x` `6d7b4cd3`；新測試版重驗排隊權限詢問後 CLOSED） |
 | 回報者 | T0915（PLAN-068 實機驗收自動化） |
 | 影響版本 | 推定 T0590 起（不是 `v0.8.x` 新增的回歸；PLAN-068 的通知保護也依賴這個狀態） |
 

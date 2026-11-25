@@ -7,7 +7,7 @@ status: FIXED
 severity: medium
 reproducibility: "always（T0915 S2，claude 2.1.331 alt screen）"
 created_at: "2026-11-25T12:19:45+08:00"
-updated_at: "2026-11-25T12:39:10+08:00"
+updated_at: "2026-11-25T13:02:50+08:00"
 impact:
   - tower-inbox
   - notify-hold
@@ -21,7 +21,7 @@ links:
 |------|------|
 | 嚴重度 | 🟡 medium（#23 的「閱讀時被拉回底部」在 claude 塔台上仍會發生） |
 | 可重現 | 每次（T0915 S2） |
-| **狀態** | ✅ FIXED（T0917 `91c49360`，分支 `ct/T0917`，待合併工單併進 `v0.8.x`；新測試版重驗 M-C2-b 後 CLOSED） |
+| **狀態** | ✅ FIXED（T0917 `91c49360`，經 T0919 合併進 `v0.8.x` `6d7b4cd3`；新測試版重驗 M-C2-b 後 CLOSED） |
 | 回報者 | T0915（PLAN-068 實機驗收自動化） |
 | 影響版本 | `v0.8.x`（PLAN-068 W2 / T0904 起） |
 
