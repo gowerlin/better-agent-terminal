@@ -57,6 +57,18 @@ PLAN-068（契約 v2、待辦分頁、通知保護、回合訊息卡、bat-hooks
 - [ ] 使用者層 `~/.claude` 無變更、安裝版 BAT 未被碰、程序清理
 - [ ] build、兩個 typecheck；改 fixture 時既有 e2e 不回歸
 
+## 塔台補充（派工前，2026-11-25T10:15:02+08:00；CT T0561 完成通知）
+
+1. **checklist 定稿**：`ACCEPT/checklist.md`（SHA-256 開頭 `54119d74`，塔台已核對；開工時再比對一次，不符就停下問塔台）。分三個情境：**S1** = M-C7、**S2** = M-C1–M-C5、**S3** = M-C6（`0.8.0-pre.1` zip）；每項有 BAT 端預期、CT 端預期（附 V610 檔案與行號）與兩個判定欄。🔴 只填 BAT 端判定欄；CT 端判定欄留空。`checklist-manual.md` 是手動版，不用。情境資料夾用 `runs/S1` / `runs/S2` / `runs/S3`（取代前文的 `M-C7` / `M-C1-C5` / `M-C6` 名稱）。
+2. **測試 config**：`ACCEPT/claude-config` 已有 CT 6.0.2 的 9 個 skill、全域 CLAUDE.md、CT guard（`hooks/bash-length-guard.py`，`settings.json` 只有這一個 hook）；沒有憑證、沒有權限設定。🔴 不得把使用者層的任何設定（含 permissions）複製進去。
+3. **換版（S1 中途）**：照 checklist § 1.4 逐字執行，工作目錄 `ACCEPT`：
+   `C:/Users/Gower/.local/bin/python.exe -X utf8 -I -B C:/Users/Gower/AppData/Local/ct610-accept/ct-swap.py install-610 --target C:/Users/Gower/AppData/Local/ct610-accept/claude-config/skills --work-dir C:/Users/Gower/AppData/Local/ct610-accept/_swap`
+   exit `0` 成功（最後兩行「結論：9 個 skill 都是 6.1.0-pre.1」「完成。請開新的 Claude Code session…」）、`1` 失敗（目標自動回原狀）、`2` 參數錯誤。🔴 一定帶 `--target`（不帶 = 改使用者層，絕對禁止）。換版後一律開新的 claude 分頁（已開的 session 不會重新載入 skill）。非 0 → 該情境停止、回報原文、問塔台。
+4. **權限**：測試 config 沒有 permissions，claude 會逐次詢問。用 BAT 自己的啟動參數處理：測試工作區的工作區層級 Agent 啟動參數（PLAN-040，`Workspace.agentCustomArgs`；同時套用到 BAT 開的 claude-cli 塔台分頁與該工作區的 helper 派工）設 `--dangerously-skip-permissions`（只限這個隔離 runtime 的測試工作區）。🔴 M-C5 需要塔台停在預設權限模式才會出現權限對話框：該項另開一個不帶此參數的塔台分頁（例如暫時把工作區的 claude-code 參數設成空字串＝覆蓋全域、不加參數），跑完再改回；在回報區寫明實際做法。
+5. 每份新的 `runs/S*` 第一次開 claude 可能出現「信任此資料夾」提示：由腳本確認信任（只限 `runs/S*`）。
+6. checklist 不依賴 `CLAUDECODE` / `CLAUDE_CODE_*`；session id 那一行、方法論顯示 `none` 都不列入判定。
+7. **登入**：開工前提 ② 的 `.credentials.json` 在本段寫入時尚不存在；塔台會在 CT 通知使用者登入完成後才派工，開工仍照前提條件檢查。
+
 ---
 
 ## 回報區
