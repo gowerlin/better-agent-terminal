@@ -11,6 +11,9 @@
 //   ④ contract 2, `reading`: the xterm scrolled up (the real renderer signal) → the notification waits
 //      ~60 s at most; it goes out while the user still reads, and the viewport does not move (B0)
 //   ⑤ contract 2, `reading` released: scrolled back down → sent after the 10 s linger + 1 s quiet
+//   ⑥ T0917 / BUG-221: fullscreen (alt screen + SGR mouse tracking, as claude): real wheel events up,
+//      stopped 15 s → still held (no 10 s release); a key sends it after the 1 s quiet. ⑥b: wheeled back
+//      down as far → the 10 s linger + 1 s quiet
 //
 // The Worker is dispatched for real (`bat-terminal.mjs --notify-id <tower>`, the test's server token, as
 // e2e/t0787): its PTY holds a worker capability bound to the Tower; its agent (a custom CLI,
@@ -70,6 +73,28 @@ async function viewport(win: Page, id: string): Promise<{ viewportY: number; bas
     const b = found.term.buffer.active
     return { viewportY: b.viewportY, baseY: b.baseY }
   }, { id, src: XTERM_OF })
+}
+
+/** T0917: `normal` / `alternate` — the tab's active xterm buffer. */
+async function bufferType(win: Page, id: string): Promise<string | null> {
+  return win.evaluate(({ id, src }) => {
+    // eslint-disable-next-line no-new-func
+    const found = (new Function(`return (${src})`)())(id)
+    return found ? found.term.buffer.active.type : null
+  }, { id, src: XTERM_OF })
+}
+
+/** T0917: the tab's xterm on screen (for real mouse wheel events over it). */
+async function xtermBox(win: Page, id: string): Promise<{ x: number; y: number; width: number; height: number }> {
+  const box = await win.evaluate(({ id, src }) => {
+    // eslint-disable-next-line no-new-func
+    const found = (new Function(`return (${src})`)())(id)
+    if (!found) return null
+    const r = (found.el as HTMLElement).getBoundingClientRect()
+    return { x: r.x, y: r.y, width: r.width, height: r.height }
+  }, { id, src: XTERM_OF })
+  if (!box || box.width <= 0 || box.height <= 0) throw new Error('the xterm is not on screen')
+  return box
 }
 
 async function scrollTower(win: Page, id: string, lines: number | 'bottom'): Promise<void> {
@@ -274,8 +299,75 @@ test('T0904: Worker notifications into a contract-2 Tower — #23 draft, the 250
     expect(sent5 - releasedAt, '⑤ the 10 s linger').toBeGreaterThanOrEqual(9_000)
     expect(sent5 - releasedAt, '⑤ linger + quiet').toBeLessThan(16_000)
 
+    // ⑥ T0917 / BUG-221: fullscreen (the alt screen + SGR mouse tracking, as claude 2.1.331). Real wheel
+    // events up, stopped 15 s → the notification is still held; a key (→, not typing: S1) sends it.
+    const altState = (): { alt: boolean; wheelUp: number; wheelDown: number } | null => {
+      try {
+        return JSON.parse(fs.readFileSync(path.join(tuiDir, 'alt.json'), 'utf8'))
+      } catch {
+        return null
+      }
+    }
+    const towerLog = (from: number) => debugLog().slice(from).split('\n').filter(l => l.includes(`terminal=${TOWER}`)).join('\n')
+    await write(TOWER, '\x1d')
+    await expect.poll(async () => (await bufferType(win, TOWER)), { timeout: 10_000, message: '⑥ fullscreen on' }).toBe('alternate')
+    await win.waitForTimeout(1_000)
+    const box = await xtermBox(win, TOWER)
+    await win.mouse.move(box.x + box.width / 2, box.y + box.height / 2)
+    const wheel = async (deltaY: number, times: number) => {
+      for (let i = 0; i < times; i++) {
+        await win.mouse.wheel(0, deltaY)
+        await win.waitForTimeout(100)
+      }
+    }
+    mark = debugLog().length
+    await wheel(-200, 3)
+    await expect.poll(() => altState()?.wheelUp ?? 0, { timeout: 10_000, message: '⑥ the TUI got wheel-up reports' }).toBeGreaterThan(0)
+    await expect.poll(() => towerLog(mark).includes('alt scrolled-up=true'), { timeout: 10_000, message: '⑥ alt scrolled up' }).toBe(true)
+    expect(towerLog(mark)).toContain('[tower-reading] terminal=' + TOWER + ' reading=true')
+    await win.waitForTimeout(15_000)
+    expect(towerLog(mark), '⑥ still reading 15 s after the last wheel').not.toContain('reading=false')
+    const before6 = lines().length
+    const r6 = await notify('T0904 seven')
+    expect(r6.code).toBe(0)
+    await win.waitForTimeout(5_000)
+    expect(lines().length, '⑥ held ~20 s after the last wheel').toBe(before6)
+    expect(debugLog().slice(mark)).toMatch(new RegExp(`\\[notify-hold\\] held terminal=${TOWER} source=${W} .*reason=reading part=text`))
+    await win.evaluate(({ id, src }) => {
+      // eslint-disable-next-line no-new-func
+      (new Function(`return (${src})`)())(id)?.term.focus()
+    }, { id: TOWER, src: XTERM_OF })
+    const keyAt = Date.now()
+    await win.keyboard.press('ArrowRight')
+    await expect.poll(() => lines().slice(before6), { timeout: 15_000, message: '⑥ sent after the key' }).toEqual(['T0904 seven'])
+    const sent6 = submitted().filter(s => s.line !== undefined)[before6].at
+    expect(towerLog(mark)).toContain('alt scrolled-up=false cause=key')
+    expect(sent6 - keyAt, '⑥ the key released it (quiet 1 s, no 10 s linger)').toBeLessThan(5_000)
+
+    // ⑥b fullscreen, scrolled back down as far as up → the 10 s linger + 1 s quiet
+    await win.waitForTimeout(2_000)
+    mark = debugLog().length
+    await wheel(-200, 3)
+    await expect.poll(() => towerLog(mark).includes('alt scrolled-up=true'), { timeout: 10_000 }).toBe(true)
+    const before6b = lines().length
+    const r6b = await notify('T0904 eight')
+    expect(r6b.code).toBe(0)
+    await win.waitForTimeout(3_000)
+    expect(lines().length).toBe(before6b)
+    const wheelStart = Date.now()
+    await wheel(200, 3)
+    const backAt = Date.now() // the linger runs from the last wheel (each `mouse.wheel` waits for its event)
+    await expect.poll(() => towerLog(mark).includes('alt scrolled-up=false cause=scrolled-back'), { timeout: 10_000, message: '⑥b scrolled back' }).toBe(true)
+    await expect.poll(() => lines().slice(before6b), { timeout: 30_000, message: '⑥b sent after the linger' }).toEqual(['T0904 eight'])
+    const sent6b = submitted().filter(s => s.line !== undefined)[before6b].at
+    results.altScreen = { afterKeyMs: sent6 - keyAt, afterScrollBackMs: sent6b - backAt, wheelDownMs: backAt - wheelStart, tui: altState() }
+    expect(sent6b - backAt, '⑥b the 10 s linger').toBeGreaterThanOrEqual(9_000)
+    expect(sent6b - backAt, '⑥b linger + quiet').toBeLessThan(16_000)
+    await write(TOWER, '\x1d') // fullscreen off
+    await expect.poll(async () => (await bufferType(win, TOWER)), { timeout: 10_000 }).toBe('normal')
+
     // logs: never the text
-    expect(debugLog()).not.toMatch(/\[notify-hold\][^\n]*(T0904 (one|two|three|four|five|six)|draft-(one|two))/)
+    expect(debugLog()).not.toMatch(/\[notify-hold\][^\n]*(T0904 (one|two|three|four|five|six|seven|eight)|draft-(one|two))/)
     expect(debugLog()).not.toMatch(/batcap\.[A-Za-z0-9_-]{16,}/)
     log(`results ${JSON.stringify(results)}`)
   } finally {

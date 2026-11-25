@@ -25,7 +25,7 @@ import { registerUsageLimitSender } from '../stores/usage-limit-store'
 import { USAGE_LIMIT_ENTER_DELAY_MS, USAGE_LIMIT_SCREEN_LINES, usageLimitRecheckFailure } from '../lib/usage-limit'
 import { getTowerContract, useTowerContract } from '../stores/tower-contract-store'
 import { submitEnterWithoutFocus, towerSubmitEnterPath } from '../lib/tower-submit-enter'
-import { TowerReadingTracker } from '../lib/tower-reading-state'
+import { TowerReadingTracker, isModifierOnlyKey, wheelRows } from '../lib/tower-reading-state'
 import '@xterm/xterm/css/xterm.css'
 
 const dlog = (...args: unknown[]) => window.electronAPI?.debug?.log(...args)
@@ -682,13 +682,20 @@ export const TerminalPanel = memo(function TerminalPanel({ terminalId, isActive 
     // PLAN-068 W2 / T0904 (T0902 §2.4 `reading`): a contract-2 Tower tab tells its host whether the user
     // reads it — scrolled up in the normal buffer, a selection, or a wheel / PageUp in the last 10 s —
     // so a Worker notification waits instead of moving the screen (60 s at most, decided by the host).
+    // T0917 / BUG-221: in the alt buffer (claude / codex fullscreen) scrolling up keeps it reading until a
+    // key, a click, the tab hidden, scrolling back down as far, or a buffer switch (TowerReadingTracker).
+    // Only observed here: the wheel and keys still reach xterm / the PTY unchanged (T0698, T0672).
     const readingTracker = new TowerReadingTracker({
       report: (reading) => {
         dlog(`[tower-reading] terminal=${terminalId} reading=${reading}`)
         window.electronAPI.pty.setReadingState?.(terminalId, reading)?.catch(() => { /* an older host: no handler */ })
       },
+      onAltScroll: ({ active, cause }) => {
+        dlog(`[tower-reading] terminal=${terminalId} alt scrolled-up=${active}${cause ? ` cause=${cause}` : ''}`)
+      },
     })
     readingTrackerRef.current = readingTracker
+    readingTracker.setAltBuffer(terminal.buffer.active.type === 'alternate')
     readingTracker.setEnabled(getTowerContract(terminalId)?.status === 'match')
     const updateReading = () => {
       const buffer = terminal.buffer.active
@@ -696,17 +703,35 @@ export const TerminalPanel = memo(function TerminalPanel({ terminalId, isActive 
     }
     const readingScrollDisposable = terminal.onScroll(updateReading)
     noteReadingSelection = updateReading
-    const noteReadingWheel = () => {
+    /** Rendered row height in CSS px (xterm's own unit for pixel wheels); 0 = unknown → wheelRows' default. */
+    const readingRowHeight = () => {
+      const screen = terminal.element?.querySelector('.xterm-screen') as HTMLElement | null
+      return screen && terminal.rows > 0 ? screen.clientHeight / terminal.rows : 0
+    }
+    const noteReadingWheel = (e: WheelEvent) => {
       readingTracker.noteActivity()
+      if (terminal.buffer.active.type === 'alternate') readingTracker.noteAltScroll(wheelRows(e, readingRowHeight(), terminal.rows))
       setTimeout(updateReading, 0)
     }
     const noteReadingKey = (e: KeyboardEvent) => {
-      if (e.key !== 'PageUp') return
-      readingTracker.noteActivity()
-      setTimeout(updateReading, 0)
+      if (e.key === 'PageUp') {
+        readingTracker.noteActivity()
+        if (terminal.buffer.active.type === 'alternate') readingTracker.noteAltScroll(-terminal.rows)
+        setTimeout(updateReading, 0)
+        return
+      }
+      if (e.key === 'PageDown') {
+        if (terminal.buffer.active.type === 'alternate') readingTracker.noteAltScroll(terminal.rows)
+        return
+      }
+      // T0917: any other key typed into the tab (not a modifier alone) ends the alt "scrolled up" state
+      if (isModifierOnlyKey(e.key)) return
+      readingTracker.endAltScroll('key')
     }
+    const noteReadingClick = () => { readingTracker.endAltScroll('click') }
     containerRef.current.addEventListener('wheel', noteReadingWheel, { capture: true, passive: true })
     containerRef.current.addEventListener('keydown', noteReadingKey, { capture: true })
+    containerRef.current.addEventListener('mousedown', noteReadingClick, { capture: true })
 
     // BUG-166 / T0672: a program that tracked the mouse ended without turning tracking off (codex
     // killed by a signal), so the shell types every report into its command line. Tracking is
@@ -730,6 +755,7 @@ export const TerminalPanel = memo(function TerminalPanel({ terminalId, isActive 
     const bufferChangeDisposable = terminal.buffer.onBufferChange((activeBuffer) => {
       const isAlt = activeBuffer === terminal.buffer.alternate
       selectionKeeper.forget('buffer switch')
+      readingTrackerRef.current?.setAltBuffer(isAlt)
       setAltBufferActive(isAlt)
       altBufferRef.current = isAlt
       workspaceStore.setTerminalAltBuffer(terminalId, isAlt)
@@ -1287,6 +1313,7 @@ export const TerminalPanel = memo(function TerminalPanel({ terminalId, isActive 
       readingTrackerRef.current = null
       containerRef.current?.removeEventListener('wheel', noteReadingWheel, { capture: true })
       containerRef.current?.removeEventListener('keydown', noteReadingKey, { capture: true })
+      containerRef.current?.removeEventListener('mousedown', noteReadingClick, { capture: true })
       document.removeEventListener('mouseup', endSelectionDrag, { capture: true })
       document.removeEventListener('mousemove', dropStaleSelectionDrag, { capture: true })
       decorationManagerRef.current?.dispose()
@@ -1312,6 +1339,12 @@ export const TerminalPanel = memo(function TerminalPanel({ terminalId, isActive 
   useEffect(() => {
     readingTrackerRef.current?.setEnabled(isContractTower)
   }, [isContractTower])
+
+  // T0917 / BUG-221: a hidden tab is not being read — it ends the alt-buffer "scrolled up" state (focus
+  // moving to another window or panel does not: the tab is still on screen)
+  useEffect(() => {
+    if (!isActive) readingTrackerRef.current?.endAltScroll('inactive')
+  }, [isActive])
 
   // PLAN-068 W2 / T0904: a Worker notification waited 5 min for the user's draft in this tab — this
   // window holds the tab (TerminalPanel is mounted in one window only), so it shows the system

@@ -432,7 +432,7 @@
 - 🔴 helper 的 submit Enter（renderer `dispatchEnter`，`terminal:keypress`）寫 `{ auto: true }`：不算使用者輸入（不清 ⚠️、不更新 `lastUserInputAt`、不取消用量限制等待）；焦點行為不變（`restoreFocus` 只給 T0566）。
 - 🔴 日誌 `[notify-hold] held|sent|cancelled|dropped …` 只記 id / reason / 長度，不記文字；「待送 N」清單（`src/types/notify-hold.ts`）也不含文字。
 - 唯一實作 `NotifyHoldController`（`electron/notify-hold.ts`，不 import electron，本機與 headless 共用）；`pty.ts` / `terminal.ts` 只接線，不改 `TerminalBlockedTracker` 的判斷。縮圖「📨 待送 N」與取消：`src/stores/notify-hold-store.ts`、`TerminalThumbnail.tsx`，IPC `terminal:notify-hold-list` / `-cancel` / `-send-now` 與事件 `-changed` / `-reminder`（T0908 起 proxied：共用 handler `registerNotifyHoldHandlers`，遠端視窗看得到 bat-server 的清單；🔴 不是 helper channel，handler 另拒 `ctx.helper`）。
-- 契約 2 塔台（PLAN-068 W1＋W2 / T0904）：同一個 controller 另以 `draft`（`trackDraft`，`src/lib/tower-input-draft.ts`）、`reading`（`TowerReadingTracker`，最長 60 s、不擋回答）保留、原子送出，submit Enter 走 `terminal.input('\r', false)`（B0，`src/lib/tower-submit-enter.ts`）。🔴 只在 `towerContractStatus` `match` 時；其他分頁、T0566 與上列規則逐字不變（`notify-hold.test.ts` 不改）；「立即送出」不越過 prompt reason。見 [docs](docs/agent-guide/tower-inbox.md)「通知保護」。
+- 契約 2 塔台（PLAN-068 W1＋W2 / T0904）：同一個 controller 另以 `draft`（`trackDraft`，`src/lib/tower-input-draft.ts`）、`reading`（`TowerReadingTracker`，最長 60 s、不擋回答；alt buffer 往上捲後維持到按鍵 / 點擊 / 分頁切走 / 捲回，T0917 / BUG-221，normal buffer 不變）保留、原子送出，submit Enter 走 `terminal.input('\r', false)`（B0，`src/lib/tower-submit-enter.ts`）。🔴 只在 `towerContractStatus` `match` 時；其他分頁、T0566 與上列規則逐字不變（`notify-hold.test.ts` 不改）；「立即送出」不越過 prompt reason。見 [docs](docs/agent-guide/tower-inbox.md)「通知保護」。
 - 完整契約、常數、日誌、已知限制、驗證清單（e2e `e2e/t0787-notify-into-blocked-tower.spec.ts`）：[docs/agent-guide/notify-hold.md](docs/agent-guide/notify-hold.md)
 
 ## 塔台回合訊息卡（PLAN-068 W3 / T0905）
