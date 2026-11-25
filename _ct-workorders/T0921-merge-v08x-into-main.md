@@ -30,7 +30,6 @@ affects_files:
   - _ct-workorders/T0921-merge-v08x-into-main.md
   - CHANGELOG.md
 renew_count: 0
-waiting_user: "U-3"
 worker_question_timeout: 30
 interaction:
   mode_hint: on

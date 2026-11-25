@@ -3,9 +3,10 @@ schema_version: 1
 schema_kind: plan
 id: PLAN-066
 title: "評估 BAT 改用 Rust 改寫：Tauri、全原生 Rust GUI、局部改寫三條路線的效能、記憶體、維護性比較（含小型 PoC）"
-status: IN_PROGRESS
+status: DONE
 priority: high
 created_at: "2026-11-23T15:13:04+0800"
+completed_at: "2026-11-25T18:53:19+0800"
 links:
   source: "使用者 2026-11-23 第一百二十七 session `*plan`；D304"
   related: [T0885, PLAN-059, PLAN-065, PLAN-053]
@@ -16,7 +17,7 @@ links:
 ## 元資料
 
 - **標題**：評估 BAT 改用 Rust 改寫（Tauri / 全原生 / 局部改寫）
-- **狀態**：IN_PROGRESS
+- **狀態**：DONE
 - **優先級**：🔴 High
 - **類型**：架構調整
 - **建立時間**：2026-11-23 15:13 (UTC+8)
@@ -48,3 +49,4 @@ links:
 - 2026-11-23 17:39（D308）：T0886 DONE。Node 端共用一個 conout Worker 後，10 PTY 持有者 178 → 39 MB，行為與現況相同；**不做 Rust Terminal Server**（第 2–4 項不開，T0887 未達標再評估）。開實作單 **T0887**（Windows Terminal Server 共用 conout Worker，分支 `ct/T0887` 從 `v0.8.x` 建立）；direct 模式與主執行緒讀 conout 先不做。
 - 2026-11-23 18:10（D309）：T0887 DONE，10 分頁 Terminal Server 164.6 → 38.8 MB（框架 655.5 → 528.3 MB），fast-forward 合進 `v0.8.x`（`a05a9c79`）。待使用者授權 push `v0.8.x` → W6 → `desktop-build.yml` 試用 → `v0.8.0-pre.1`。
 - 2026-11-23 20:18（D310）：使用者授權後 push `v0.8.x`；desktop-build A / B success（A 的 Linux 卡在 patchelf，取消後只重跑 Linux 通過）；W6 升級驗收 scenario 1–9 全 success。待使用者實機試用，再另取授權發 `v0.8.0-pre.1`。
+- 2026-11-25 18:53（D343）：**DONE**。`v0.8.x`（`0.8.0-pre.3`，含共用 conout Worker T0886–T0890）經合併工單 T0921 併回 `main`（merge `f9375c2c`，ff 後 `main` `f967f9db`；D342 使用者裁示提前併回）。不做整體改寫（D307）的結論不變；後續候選（`pty:create` 只送 env 差異、direct 模式 conin socket 殘留、F4）仍未開單，列在塔台 `todo`。

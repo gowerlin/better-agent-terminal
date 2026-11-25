@@ -10,6 +10,7 @@
 
 | ID | 日期 | 標題 | 相關工單 |
 |----|------|------|---------|
+| D343 | 2026-11-25 | U-3 → A：T0921 ff `main` → `f967f9db`（`v0.8.x` 併回，`package.json` `0.8.0-pre.3`）；PLAN-066 DONE；push 與之後的分支用法另問（U-4 / U-5） | T0921 / PLAN-066 |
 | D342 | 2026-11-25 | U-2 → B：現在把 `v0.8.x` 併回 `main`（取代「等 0.8 線用一段時間再併」）；開合併工單 T0921（模式 ②，只有 `CHANGELOG.md` 衝突） | T0921 / PLAN-066 |
 | D341 | 2026-11-25 | A-3 完成 → BUG-217 CLOSED（`v0.8.0-pre.3` 安裝版使用者實機驗收） | BUG-217 |
 | D340 | 2026-11-25 | U-1 → A：BUG-218／219 以 pre.2／pre.3 CI `tests / unit-tests` 綠燈結案（CLOSED）；BUG-216／217 維持 FIXED，列待使用者實機驗收（A-2／A-3） | BUG-216–219 |
@@ -274,6 +275,13 @@
 - **最大風險**：`whisper-node-addon@1.0.2` 對 Electron 41（Node 24）的 NODE_MODULE_VERSION 相容性未知，允許 Worker 遇此決策點主動問塔台
 
 ---
+
+### D343 2026-11-25 18:53 — 合併前確認通過，`main` ff 到 `f967f9db`（U-3）
+
+- **使用者裁示**：「U-3：A」。
+- **收單 SHA 比對**：① `base_main_sha` `5699a2aa` = 派工當下 `main`；② 被合併的 `v0.8.x` = `4ce779ee`（pre.3 CI 已驗）；③ merge `f9375c2c` parent1 `5699a2aa`／parent2 `4ce779ee`；⑤ 期間 `main` 只多 `_ct-workorders/**` → 整合分支兩次 `--no-ff` 併 `main`（`8c173c2c`、`f967f9db`），合併結果對 `4ce779ee` 只差 `CHANGELOG.md`、`release-note.md`、`_ct-workorders/**`；`git merge --ff-only ct-merge/T0921` → ④ `main` = `f967f9db` PASS。整合 worktree `switch --detach`；分支 `ct-merge/T0921`、`v0.8.x` 保留。
+- **PLAN-066 → DONE**（`_backlog.md` IN_PROGRESS 8 / DONE 20，parser 測試 65 passed）。後續候選仍在 `todo`。
+- **未做**：push（本機 `main` 領先 `origin/main` 67 個 commit，推送後 GitHub「Download ZIP」才是 0.8 程式、Pages 部署新頁）→ U-5；之後產品改動用哪條分支 → U-4。
 
 ### D342 2026-11-25 18:42 — `v0.8.x` 併回 `main`（U-2）
 
