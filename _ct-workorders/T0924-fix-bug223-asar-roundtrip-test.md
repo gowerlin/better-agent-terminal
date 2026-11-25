@@ -4,13 +4,14 @@ schema_kind: workorder
 id: T0924
 title: "BUG-223：`verify-packaged-native.test.mjs`〈reads an app.asar written by @electron/asar〉偶發讀到全 NUL —— 查根因並修，讓 CI Test gate 不再偶發失敗"
 type: bugfix
-status: PENDING
+status: IN_PROGRESS
 repo: better-agent-terminal
 project: BUG-223
 priority: P2
 sizing: S
 created_at: "2026-11-25T21:38:19+08:00"
-updated_at: "2026-11-25T21:38:19+08:00"
+started_at: "2026-11-25T21:39:31+08:00"
+updated_at: "2026-11-25T21:39:31+08:00"
 target_version: "0.8.0-pre.4"
 depends_on: []
 related:
