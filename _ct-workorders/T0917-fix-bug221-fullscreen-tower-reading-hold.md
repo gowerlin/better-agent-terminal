@@ -4,13 +4,14 @@ schema_kind: workorder
 id: T0917
 title: "修 BUG-221：claude 全螢幕（alt screen）塔台往上捲之後維持閱讀保護，不在停手 10 秒後就放行 Worker 通知"
 type: bugfix
-status: TODO
+status: IN_PROGRESS
 repo: better-agent-terminal
 project: PLAN-068
 priority: P1
 sizing: M
 created_at: "2026-11-25T12:19:45+08:00"
-updated_at: "2026-11-25T12:19:45+08:00"
+updated_at: "2026-11-25T12:22:31+08:00"
+started_at: "2026-11-25T12:22:31+08:00"
 target_version: "0.8.0-pre.3（與 CT 6.1.0 同日發佈）"
 depends_on: [T0915]
 related:
