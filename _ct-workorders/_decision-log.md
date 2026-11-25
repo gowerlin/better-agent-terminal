@@ -10,6 +10,7 @@
 
 | ID | 日期 | 標題 | 相關工單 |
 |----|------|------|---------|
+| D363 | 2026-11-26 | U-14 → A：發 `0.8.0-pre.4`（從 `main`；PLAN-069、BUG-224、BUG-223），與 CT 6.2.0 同日（CT D900），BAT 先上線 | PLAN-069 / BUG-223 / BUG-224 |
 | D362 | 2026-11-26 | U-13 → A：`main` ff 到 `8e6a1325`（T0928 驗收驅動併入）；T0928 worktree 移除、分支保留 | T0928 |
 | D361 | 2026-11-26 | T0928 補跑收單 DONE（R-1～R-4 BAT 端 0 FAIL；BUG-224 實機 7 / 7）；BUG-224 CLOSED；模式 ① `ct-merge/T0928` `50477ac7` → U-13；通知 CT 判定 | T0928 / BUG-224 / PLAN-069 |
 | D360 | 2026-11-25 | U-12 → A：`main` ff 到 `a65c0958`（BUG-224 修正併入）；去識別 / 金鑰 0 → push `main`；`desktop-build` 打包 `0.8.0-exp.2` 供 CT 6.2.0-pre.2 補跑 | T0927 / BUG-224 / PLAN-069 |
@@ -294,6 +295,14 @@
 - **最大風險**：`whisper-node-addon@1.0.2` 對 Electron 41（Node 24）的 NODE_MODULE_VERSION 相容性未知，允許 Worker 遇此決策點主動問塔台
 
 ---
+
+### D363 2026-11-26 00:40 — 發 `0.8.0-pre.4`（U-14）
+
+- **背景**：PLAN-069 驗收全數通過（BAT T0923 / T0928 0 FAIL；CT T0568 / T0570 判定，補跑 14 列全 PASS）；BUG-224 CLOSED、BUG-223 FIXED（待發版 Test gate）。
+- **使用者裁示**：U-14：A（原生選單）。
+- **流程**：去識別 / 金鑰掃描 → push `main` → `gh workflow run pre-release.yml -R gowerlin/better-agent-terminal -f version=0.8.0-pre.4`（D344 從 `main`）→ CI 綠 → `gh release edit --notes-file`（L150）→ `CHANGELOG.md` / `release-note.md` / `README.md`（「與 BMad Control Tower 協作」版本對照：推薦標記與放棄 BAT `0.8.0-pre.4` ＋ CT 6.2.0）＋ `package.json` 版號同步 → push → Pages 綠、首頁版號、`link-check`。NSIS 重裝驗收：本版不需要（未改安裝程式路徑，D331）。
+- **CT**：D900 同日發 6.2.0，BAT 先上線、CT 再推公開站（同 6.1.0）。
+- **相關**：PLAN-069 / BUG-223 / BUG-224 / T0922 / T0924 / T0926
 
 ### D362 2026-11-26 00:26 — `main` ff 到 `8e6a1325`（U-13）
 
