@@ -3,11 +3,11 @@ schema_version: 1
 schema_kind: bug
 id: BUG-220
 title: "待辦分頁不會自動讀到新建立的 `_ct-workorders/`：新專案第一次開契約 2 塔台後，仍顯示「找不到 _ct-workorders/_tower-state.md」，要手動按 ↻"
-status: FIXING
+status: FIXED
 severity: medium
 reproducibility: "always（T0915 S1、S2 都重現）"
 created_at: "2026-11-25T12:19:45+08:00"
-updated_at: "2026-11-25T12:19:45+08:00"
+updated_at: "2026-11-25T12:33:29+08:00"
 impact:
   - tower-inbox
   - ux
@@ -21,7 +21,7 @@ links:
 |------|------|
 | 嚴重度 | 🟡 medium（第一次使用的專案一定遇到；按 ↻ 可繞過） |
 | 可重現 | 每次（T0915 S1、S2） |
-| **狀態** | ⏳ FIXING（T0916） |
+| **狀態** | ✅ FIXED（T0916 `d81fdc4c`，ff 進 `v0.8.x`；待新測試版實機驗收後 CLOSED） |
 | 回報者 | T0915（PLAN-068 實機驗收自動化） |
 | 影響版本 | `v0.8.x`（PLAN-068 W4 待辦分頁起） |
 
@@ -47,3 +47,4 @@ links:
 ## 處置
 
 - 2026-11-25 12:19 D337：開單並派 T0916 修正。
+- 2026-11-25 12:33：FIXED（T0916 `d81fdc4c`）。根因確認：`fs:watch` 對不存在的目錄回 `false`、`acquireDirWatch` 不重試；另實測 Windows 刪除被遞迴監看的目錄時 watcher 無限噴 `rename`、不送 `fs:changed`。修法：`fs:watch` 選用 `{ recreate: true }`（只有 `acquireDirWatch` 帶）：不存在時監看最近的上層目錄（事件驅動）、出現後換成遞迴 watcher；刪除 / 換掉時送一次 `fs:changed` 後回到等待。舊 bat-server 忽略參數＝修正前行為。`test:unit` 第一次即綠 8965。`ct/T0916` ff `v0.8.x` `4f7484bc..d81fdc4c`。
