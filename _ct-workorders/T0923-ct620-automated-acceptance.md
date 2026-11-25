@@ -4,13 +4,14 @@ schema_kind: workorder
 id: T0923
 title: "PLAN-069 實機驗收自動化：以 zip 測試版 BAT `0.8.0-exp.1` 與舊版 `0.8.0-pre.3` / `0.8.0-pre.1` zip，在隔離 `CLAUDE_CONFIG_DIR` 跑真的 claude＋CT 塔台，完成 CT checklist M-1–M-15 的 BAT 端執行與判定"
 type: verification
-status: PENDING
+status: IN_PROGRESS
 repo: better-agent-terminal
 project: PLAN-069
 priority: P1
 sizing: L
 created_at: "2026-11-25T21:31:16+08:00"
-updated_at: "2026-11-25T21:31:16+08:00"
+started_at: "2026-11-25T21:36:49+08:00"
+updated_at: "2026-11-25T21:36:49+08:00"
 target_version: "0.8.0-pre.4（與 CT 6.2.0 同日發佈）"
 depends_on: [T0922]
 related:
