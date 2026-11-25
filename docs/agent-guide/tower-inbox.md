@@ -159,7 +159,7 @@
 |---|---|---|---|---|
 | `permission` / `question` / `elicitation` / `input`（T0788） | hook / OSC `blocked` | 離開 blocked ＋安靜 1 s | 不設（D228） | helper 通知、回答；所有分頁 |
 | `draft` | S1：最後一次 Enter / Ctrl+C 之後有其他使用者輸入 | 使用者 Enter / Ctrl+C ＋安靜 1 s；或「立即送出」 | 不設；保留滿 5 分鐘發一次系統通知 | helper 通知、回答 |
-| `reading` | renderer 回報（proxied `terminal:reading-state`） | 回報 `false`（renderer 已含停手 10 s）＋安靜 1 s | 每個佇列 60 s（`NOTIFY_HOLD_READING_MAX_MS`），到時照送 | 只擋 helper 通知；🔴 不擋回答 |
+| `reading` | renderer 回報（proxied `terminal:reading-state`） | 回報 `false`（renderer 已含停手 10 s；alt buffer 往上捲改等按鍵 / 點擊 / 捲回，見〈閱讀信號〉）＋安靜 1 s | 每個佇列 60 s（`NOTIFY_HOLD_READING_MAX_MS`），到時照送 | 只擋 helper 通知；🔴 不擋回答 |
 | `queued` | 前面還有保留項目，或原子窗口開著 | 前一則送完 | — | — |
 
 保留時 helper 照舊拿到 `{ ok: true, held: true }`；`held-full`（8 筆）、不設逾時、PTY 結束 / ⏻ / recovery 丟棄都與 T0788 相同。
@@ -179,6 +179,24 @@
 #### 閱讀信號（`src/lib/tower-reading-state.ts` `TowerReadingTracker`）
 
 renderer 只對契約 2 塔台分頁啟用（`TerminalPanel.tsx`）：normal buffer `viewportY < baseY`、有選取（`onScroll` / `onSelectionChange`）、或滾輪 / PageUp / Shift+PageUp（container capture listener）→ 閱讀中；最後一個信號結束後再維持 `TOWER_READING_LINGER_MS` = 10 s。只在值改變時呼叫 `pty.setReadingState(terminalId, reading)`；停用（契約改變、分頁卸載）時若回報過 `true` 先送一次 `false`。
+
+**全螢幕（alt buffer）往上捲（T0917 / BUG-221，D337）**：claude / codex 全螢幕時捲動由程式自己處理，BAT 看不到位置。alt buffer 中往上捲（滾輪向上、PageUp、Shift+PageUp）之後維持「閱讀中」，不受 10 s 限制，直到：
+
+| 結束條件 | 之後 |
+|---|---|
+| 該分頁的鍵盤輸入（container `keydown`，PageUp / PageDown 與單獨的修飾鍵除外；`isModifierOnlyKey`） | 直接結束（最後一次滾輪 / PageUp 後的 10 s 仍照舊算） |
+| 在終端內點擊（container `mousedown`，任何按鍵） | 同上 |
+| 分頁不再是 active（`isActive` 變 false） | 同上 |
+| 捲回：向下累計 ≥ 向上累計（滾輪向下、PageDown） | 開始 10 s linger |
+| alt buffer 切回 normal（或反向切換） | 直接結束 |
+| 主行程 `reading` 60 s 上限 | 照送（🔴 60 s 與主行程規則、常數不變） |
+
+- 判斷唯一實作 `TowerReadingTracker` 的 `setAltBuffer` / `noteAltScroll` / `endAltScroll`（`src/lib/tower-reading-state.ts`）；`TerminalPanel.tsx` 只接線，listener 只觀察（passive、不 `preventDefault` / `stopPropagation`），滾輪回報與按鍵照舊由 xterm 送進 PTY（T0698、T0672 不受影響）。🔴 normal buffer 的判斷（`viewportY < baseY`、選取、滾輪＋10 s linger）完全不變：`noteAltScroll` 在 normal buffer 不做事。
+- 「捲回」是近似值：滾輪量依 xterm 5.5 的換算（`wheelRows`：像素 ÷ 列高、行數照用、頁數 × rows；Shift / Ctrl 滾輪不算），PageUp / PageDown 各算 `rows` 列；程式實際捲多少（claude 每個滾輪回報捲幾行）BAT 不知道。滑鼠滾輪（每格固定量、上下對稱）時估計與程式一致；觸控板上下的事件大小不同時可能有誤差：捲回了但沒判斷出來 → 由按鍵、點擊、切分頁或 60 s 上限結束（多保留）；還沒捲到底就判斷成捲回（例：往上是很多小事件、往下是少數大事件，程式每個回報捲固定行數）→ 回到停手 10 s 放行（T0917 前的行為）。
+- 選「分頁不再 active」而不是「失去焦點」：閱讀時焦點常移到別的視窗或右側欄（複製、查資料），畫面仍在眼前；分頁被切走才代表沒在看。
+- 鍵盤用 `keydown` 而不是 `onData`：`onData` 也帶 xterm 的滑鼠 / 滾輪回報、終端自動回應與 focus 回報。代價：被 BAT 快捷鍵吃掉、沒送進 PTY 的按鍵也會結束（只會提早回到既有規則）。
+- 日誌：`[tower-reading] terminal=<id> alt scrolled-up=true` / `alt scrolled-up=false cause=key|click|inactive|scrolled-back|buffer-switch|disabled`（renderer，不記內容）。
+- 驗證：`src/lib/__tests__/tower-reading-state.test.ts`（alt 區塊）、`src/__tests__/tower-reading-wiring.test.ts`（接線 source guard）、e2e `e2e/t0904-tower-notify-protection.spec.ts` ⑥ / ⑥b（假 TUI 以 Ctrl+] 進 alt screen＋SGR 滑鼠追蹤）。
 
 host：`setReading(id, reporter, reading)`，`reporter` = `conn:<connectionId>` / `win:<windowId>`（`readingReporterOf`，`electron/handlers/pty.ts`），任一 reporter 為 `true` 即閱讀中；PTY 結束清除。
 
@@ -219,7 +237,7 @@ host：`setReading(id, reporter, reading)`，`reporter` = `conn:<connectionId>` 
 ### 已知限制
 
 - 遠端 profile 視窗：保留與 `draft` / `reading` 在 bat-server 上照樣生效（`terminal:reading-state` 是 proxied channel）；「📨 待送」清單、原因、「立即送出」、5 分鐘提醒也在遠端視窗（見「契約 v2 清單與回答」節〈「📨 待送」在遠端視窗〉），bat-server 比 T0908 舊時看不到。
-- fullscreen claude：BAT 看不到 claude 內部捲動，只看滾輪 / PageUp 事件（停手 10 s 放行）。
+- fullscreen claude：BAT 看不到 claude 內部捲動，只看滾輪 / PageUp 事件。T0917（BUG-221）起 alt buffer 往上捲後維持閱讀中，到按鍵 / 點擊 / 分頁切走 / 捲回（近似）/ 60 s 上限；「捲回」以滾輪量累計判斷，claude 實際捲多少 BAT 不知道（見〈閱讀信號〉）。
 - S1 是推估（見上表）；codex 的 Ctrl+C / Enter / Shift+Enter 行為待實機（T0902 T-5）。
 - `reading` 60 s 是從「閱讀開始擋住這個佇列」起算，到時再加安靜 1 s。
 - 原子窗口暫存最多 1 s：helper 的 Enter 晚於 1 s 抵達（極慢的遠端連線）時，使用者輸入先補寫，退回今天的行為。
@@ -227,7 +245,7 @@ host：`setReading(id, reporter, reading)`，`reporter` = `conn:<connectionId>` 
 ### 驗證
 
 - 單元：`src/lib/__tests__/tower-input-draft.test.ts`、`tower-reading-state.test.ts`、`tower-submit-enter.test.ts`（真 xterm＋TerminalPanel source guard）；`electron/__tests__/notify-hold-contract-tower.test.ts`（版本閘門、draft、reading、原子送出、回答、立即送出、提醒、日誌）、`notify-hold-contract-handlers.test.ts`（共用 handler＋真 PtyManager）；`src/components/__tests__/notify-hold-reason-menu.test.tsx`（原因、立即送出、三語系）。T0788 既有 `notify-hold.test.ts` / `notify-hold-ask-held-full.test.ts` 不改、全綠。
-- e2e（隔離實例，假 TUI，不需登入）：`e2e/t0904-tower-notify-protection.spec.ts`（`e2e/fixtures/fake-line-editor.mjs`、`notify-job-runner.mjs`）：① 未宣告塔台 #23 重現、② 契約 2 草稿分開送出、③ 窗口內打字 / Enter、④ 閱讀 60 s 上限＋viewport 不動（B0）、⑤ 停手 10 s 放行。需先 `npx vite build`。
+- e2e（隔離實例，假 TUI，不需登入）：`e2e/t0904-tower-notify-protection.spec.ts`（`e2e/fixtures/fake-line-editor.mjs`、`notify-job-runner.mjs`）：① 未宣告塔台 #23 重現、② 契約 2 草稿分開送出、③ 窗口內打字 / Enter、④ 閱讀 60 s 上限＋viewport 不動（B0）、⑤ 停手 10 s 放行、⑥ 全螢幕（alt screen＋滑鼠追蹤）往上捲停 15 s 仍保留、按鍵後送出，⑥b 捲回後 10 s 放行（T0917）。需先 `npx vite build`。
 - 待實機（T0902）：T-1 / T-2（真 claude 塔台的 #23 與捲動）、T-3（fullscreen＋Auto-scroll）、T-5（codex 輸入框）、T-7（WSL 塔台的 `draft` / `reading`）、T-8（舊 CT＋新 BAT 保護停用）。
 
 ## 回合訊息卡：資料層（W3 / T0905）
