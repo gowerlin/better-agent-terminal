@@ -10,6 +10,7 @@
 
 | ID | 日期 | 標題 | 相關工單 |
 |----|------|------|---------|
+| D358 | 2026-11-25 | T0926 收單 DONE（`2781c81e`）；BUG-224 → FIXED；合併判準 1 不成立 → 合併工單 T0927（模式 ②）；實機併入 `0.8.0-exp.2` 補跑 | T0926 / T0927 / BUG-224 |
 | D357 | 2026-11-25 | U-11 → A：`main` ff 到 `b21a5a61`（T0923 驗收腳本經 T0925 併入）；T0923 worktree 移除、分支保留 | T0925 / T0923 |
 | D356 | 2026-11-25 | T0925 收單 DONE（merge `16cf8451`，T0923 驗收腳本，無衝突、驗收全綠）；斷點 E → U-11 | T0925 / T0923 |
 | D355 | 2026-11-25 | U-10 → A：BUG-224（極快 Esc 後晚到的設定類 hook）`0.8.0-pre.4` 前修 → FIXING，修正單 T0926；同日發佈延到 T0926 合併後 | BUG-224 / T0926 |
@@ -289,6 +290,13 @@
 - **最大風險**：`whisper-node-addon@1.0.2` 對 Electron 41（Node 24）的 NODE_MODULE_VERSION 相容性未知，允許 Worker 遇此決策點主動問塔台
 
 ---
+
+### D358 2026-11-25 23:15 — T0926 收單、BUG-224 FIXED、合併工單 T0927
+
+- **收單**：T0926 DONE（session `920f795c`）。`2781c81e`：`electron/terminal-blocked-state.ts`、新測試 `blocked-late-question-hook.test.ts`（14 個；突變判斷後 9 個失敗）、`docs/agent-guide/blocked-state.md`〈晚到的設定（T0926 / BUG-224）〉、CLAUDE.md 一點（94,849 字元）。做法：使用者輸入 / 滑鼠清除 `question` 時若同一提示只回報了一個 hook，記下「已回答的提示」；之後第一個設定類回報若是同一提示的另一個 hook（正序直接吸收、反序以兩個 hook 的 `at` 比）且在 `ANSWERED_QUESTION_LATE_HOOK_MS` = 5 s 內（單調時鐘）就不設回；新提示先到 `ask-user-question` → 照常 `blocked`；權限詢問不適用。`bat-hook.mjs`、`pty-manager.ts` 未改。既有 T0590 / T0790 / T0791 / T0918 / T0757 測試未改全過；test:unit head 9046 passed / 498 files、legacy 472 / 33、build、typecheck 0 / 0。
+- **BUG-224 → FIXED**；實機（T0926〈待實機〉）併入 `0.8.0-exp.2` 補跑後 CLOSED。
+- **合併**：判準 1 不成立（base `4e562519` 起 `main` 多了 T0925 的 `e2e/manual/` 2 檔）→ 合併工單 T0927（模式 ②，`merge-tree` 無衝突、檔案不重疊）。
+- **相關**：T0926 / T0927 / BUG-224
 
 ### D357 2026-11-25 23:08 — `main` ff 到 `b21a5a61`（U-11）
 
