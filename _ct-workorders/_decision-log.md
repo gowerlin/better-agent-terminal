@@ -10,6 +10,7 @@
 
 | ID | 日期 | 標題 | 相關工單 |
 |----|------|------|---------|
+| D354 | 2026-11-25 | T0923 收單 DONE（M-1～M-15 BAT 端 0 FAIL、M-15c 未觸發）；開 BUG-224 → U-10；合併判準 1 不成立 → 合併工單 T0925（模式 ②）；通知 CT 做 CT 端判定 | T0923 / T0925 / BUG-224 / PLAN-069 |
 | D353 | 2026-11-25 | U-9 → A：`main` ff 到 `68faa1d3`（T0924 併入）；T0924 worktree 移除、分支保留 | T0924 / BUG-223 |
 | D352 | 2026-11-25 | T0924 收單 DONE（`1eb8f5ee`，測試等 `@electron/asar` 寫入完成）；BUG-223 → FIXED；模式 ① `ct-merge/T0924` → `6dcb62ca`；斷點 E → U-9 | T0924 / BUG-223 |
 | D351 | 2026-11-25 | U-8 → A：BUG-223（CI asar 往返測試偶發全 NUL）`0.8.0-pre.4` 前修 → FIXING，修正單 T0924（與 T0923 平行） | BUG-223 / T0924 |
@@ -285,6 +286,15 @@
 - **最大風險**：`whisper-node-addon@1.0.2` 對 Electron 41（Node 24）的 NODE_MODULE_VERSION 相容性未知，允許 Worker 遇此決策點主動問塔台
 
 ---
+
+### D354 2026-11-25 23:02 — T0923 驗收收單、BUG-224、合併工單 T0925
+
+- **收單**：T0923 DONE（session `7740ddf5`，21:36–23:00）。CT checklist M-1～M-15 BAT 端：全部 PASS，M-15c（Codex 塔台）未觸發（沒有隔離 `CODEX_HOME` / Codex 登入，依工單不要求使用者操作）。三個 zip 雜湊皆相符；五個隔離 runtime；使用者層 `~/.claude` / `~/.codex` 1,191 檔前後雜湊相同；程序 0 殘留；`ACC/results/` 15 份結果與截圖，CT 端判定欄留空。產品變更：只新增 `e2e/manual/ct-accept-act.mjs` 與 README（`3d7ae5d2`），vite build、typecheck 0 / 0。
+- **偏離**：M-10 舊 BAT `0.8.0-pre.3` 待辦分頁有選項的待決沒有自由回答欄，改以 renderer IPC 送 `U-2：放棄`（同一條 host 路徑），請 CT 確認是否接受。
+- **給 CT 的觀察**：M-2a 的 U-1 是 `tower-question`（非 `breakpoint-A`）；3 個選項的選單沒有「放棄（停下等新方向）」（規範 :318 寫 ≤ 3 項要加）；Esc 關選單後回合結束、沒有回覆與重列行；M-3 / M-5 第二輪塔台改用文字提問。
+- **BUG-224**（OPEN medium）：選單出現約 0.1 s 內按 Esc，晚到的 `PermissionRequest` hook 把 `blocked: question` 設回，塔台卡住約 3 分鐘到下次打字 → U-10（發版前修與否）。
+- **合併**：判準 1 不成立（自 base `7b23aa55` 起 `main` 多了 T0924 的 `scripts/__tests__/verify-packaged-native.test.mjs`，不只 `_ct-workorders/**`）→ 依 `merge-workorder.md` 派合併工單 T0925（模式 ②，`merge-tree` 無衝突）。
+- **相關**：T0923 / T0925 / BUG-224 / PLAN-069
 
 ### D353 2026-11-25 21:53 — `main` ff 到 `68faa1d3`（U-9）
 
