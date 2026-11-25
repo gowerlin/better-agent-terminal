@@ -10,6 +10,7 @@
 
 | ID | 日期 | 標題 | 相關工單 |
 |----|------|------|---------|
+| D352 | 2026-11-25 | T0924 收單 DONE（`1eb8f5ee`，測試等 `@electron/asar` 寫入完成）；BUG-223 → FIXED；模式 ① `ct-merge/T0924` → `6dcb62ca`；斷點 E → U-9 | T0924 / BUG-223 |
 | D351 | 2026-11-25 | U-8 → A：BUG-223（CI asar 往返測試偶發全 NUL）`0.8.0-pre.4` 前修 → FIXING，修正單 T0924（與 T0923 平行） | BUG-223 / T0924 |
 | D350 | 2026-11-25 | U-7 → A：push `main` `7f5c7ebc..402c9648`（去識別 / 金鑰 0）；`desktop-build.yml` `45621864786`（`0.8.0-exp.1`，只打包不發佈）供 PLAN-069 雙方實機驗收 | T0922 / PLAN-069 |
 | D349 | 2026-11-25 | U-6 → A：`main` ff 到 `728c3197`（T0922 併入）；T0922 worktree 移除、分支保留；驗收方式 → U-7 | T0922 / PLAN-069 |
@@ -283,6 +284,14 @@
 - **最大風險**：`whisper-node-addon@1.0.2` 對 Electron 41（Node 24）的 NODE_MODULE_VERSION 相容性未知，允許 Worker 遇此決策點主動問塔台
 
 ---
+
+### D352 2026-11-25 21:52 — T0924 收單、BUG-223 FIXED、合併到整合分支（U-9 待決）
+
+- **收單**：T0924（session `8be0b064`）回報 `FIXED` → 塔台改 `DONE`（L177）。根因在測試：`@electron/asar` 3.4.1 `createPackageWithOptions` 回傳 `out.end()` 的寫入串流，不等資料寫完；最後一個打包進 asar 的 `ws/package.json` 在 runner 負載高時還沒寫入就被讀 → 13 個 NUL。修正 `1eb8f5ee`：測試 `await finished(out)` 再讀，斷言不變，`verify-packaged-native.js` 未改。證據：慢寫入對照修正前 20/20 失敗、修正後 30/30 通過；整檔 120/120；test:unit head 第一次 9037 passed / 497 files；legacy 472 / 33；build、typecheck 0 / 0。
+- **BUG-223 → FIXED**；合併後下一次 CI `tests` 綠燈（desktop-build 或 pre-release Test gate）→ CLOSED。
+- **後續候選**（未開單，記 `todo`）：`readAsarFile` 讀不足位元組時判失敗。
+- **合併**：模式 ① 判準 PASS（`main` 只多 `_ct-workorders/**`、validated = head、範圍內、無衝突、乾淨）→ `ct-merge/T0924` `6dcb62ca`（parent1 `16dafed2` = base、parent2 `1eb8f5ee`；產品樹 = head）。斷點 E → U-9。
+- **相關**：T0924 / BUG-223
 
 ### D351 2026-11-25 21:38 — BUG-223 發版前修（U-8）
 
