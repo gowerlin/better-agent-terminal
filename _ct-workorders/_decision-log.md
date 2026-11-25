@@ -10,6 +10,7 @@
 
 | ID | 日期 | 標題 | 相關工單 |
 |----|------|------|---------|
+| D364 | 2026-11-26 | `v0.8.0-pre.4` 發佈（run `45656560078` 全綠）；更版重點、CHANGELOG / release-note / README / `package.json`；BUG-223 CLOSED、PLAN-069 DONE | PLAN-069 / BUG-223 / BUG-224 |
 | D363 | 2026-11-26 | U-14 → A：發 `0.8.0-pre.4`（從 `main`；PLAN-069、BUG-224、BUG-223），與 CT 6.2.0 同日（CT D900），BAT 先上線 | PLAN-069 / BUG-223 / BUG-224 |
 | D362 | 2026-11-26 | U-13 → A：`main` ff 到 `8e6a1325`（T0928 驗收驅動併入）；T0928 worktree 移除、分支保留 | T0928 |
 | D361 | 2026-11-26 | T0928 補跑收單 DONE（R-1～R-4 BAT 端 0 FAIL；BUG-224 實機 7 / 7）；BUG-224 CLOSED；模式 ① `ct-merge/T0928` `50477ac7` → U-13；通知 CT 判定 | T0928 / BUG-224 / PLAN-069 |
@@ -295,6 +296,15 @@
 - **最大風險**：`whisper-node-addon@1.0.2` 對 Electron 41（Node 24）的 NODE_MODULE_VERSION 相容性未知，允許 Worker 遇此決策點主動問塔台
 
 ---
+
+### D364 2026-11-26 01:01 — `v0.8.0-pre.4` 發佈
+
+- **CI**：Pre-Release run `45656560078`（`main` `be40bb8f`）全綠：typecheck、`tests / unit-tests`、server-bundle ×3、manifest、build ×3、release。`v0.8.0-pre.4` 2026-11-25T16:59:56Z（Pre-release、4 assets）、`server-bundle-v0.8.0-pre.4` 17:00:28Z。
+- **更版重點**：`gh release edit v0.8.0-pre.4 --notes-file`（新增：推薦標記、放棄 / 略過、批次放棄；修正：BUG-224、BUG-223；版本需求、待驗收、已知事項含 💬 卡片 ``` 摘要；NSIS 重裝驗收本版不需要）。
+- **文件**：`CHANGELOG.md` `[0.8.0-pre.4] — 2026-11-26`（日期以 UTC+8；publishedAt UTC 為 11-25）、`release-note.md`、`README.md`（版本對照新增一列、〈待辦分頁〉新增一段）、`package.json` / lock `0.8.0-pre.4`。
+- **結案**：BUG-223 CLOSED（交付版 Test gate 綠）→ 熱區未結 BUG 0；PLAN-069 DONE（`_backlog.md` IN_PROGRESS 7 / DONE 22）。
+- **待**：push 文件 → Pages 綠、首頁版號、`link-check`（CT 6.2.0 Release 連結在 CT 發佈前會 404）；通知 CT 塔台推公開站。
+- **相關**：PLAN-069 / BUG-223 / BUG-224
 
 ### D363 2026-11-26 00:40 — 發 `0.8.0-pre.4`（U-14）
 

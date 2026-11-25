@@ -3,7 +3,7 @@ schema_version: 1
 schema_kind: index
 id: _backlog
 index_kind: plans
-generated_at: "2026-11-25T20:57:34+08:00"
+generated_at: "2026-11-26T01:01:47+08:00"
 generator: control-tower-sync
 source_globs:
   - _ct-workorders/PLAN-*.md
@@ -14,18 +14,18 @@ total: 34
 breakdown:
   IDEA: 3
   PLANNED: 0
-  IN_PROGRESS: 8
-  DONE: 21
+  IN_PROGRESS: 7
+  DONE: 22
   DROPPED: 2
 ---
 
 # Backlog
 
 > ⚠️ 此文件由 `*sync` 自動生成，請勿手動編輯。
-> 最後同步：2026-11-25 20:57 (UTC+8) — PLAN-069 → IN_PROGRESS（CT 6.2.0-pre.1 規範完成，實作 T0922）。前次 2026-11-25 20:28 (UTC+8) — 開 PLAN-069（PLANNED medium，待辦分頁推薦項與放棄 / 批次放棄，HANDOVER 給 CT，D346）。前次 2026-11-25 18:55 (UTC+8) — PLAN-068 DONE（使用者實機驗收完成，D345）。前次 2026-11-25 18:53 (UTC+8) — PLAN-066 DONE（`v0.8.x` 經 T0921 併回 main，D343）。前次 2026-11-25 03:05 (UTC+8) — 開 PLAN-068（IN_PROGRESS medium，GitHub #24 塔台訊息不被淹沒，T0901 ＋ CT HANDOVER，D326）。前次 2026-11-25 01:11 (UTC+8) — 開 PLAN-067（IN_PROGRESS medium，每週日誌清查＋塔台開工逾期提示，D323）。前次 2026-11-23 15:13 (UTC+8) — 開 PLAN-066（IN_PROGRESS high，評估 Rust 改寫，研究 T0885，D304）。前次 2026-11-04 15:06 (UTC+8) — PLAN-052 → IN_PROGRESS（研究 T0848，D282）。前次 2026-11-04 15:01 (UTC+8) — PLAN-063 DONE（`v0.7.4-pre.8` 驗收 PASS）；開 PLAN-065（IDEA low，holder 模型，由 PLAN-063 子項 4 移出，D281）。前次 2026-11-04 08:52 (UTC+8) — PLAN-038 / 043 / 064 → IN_PROGRESS（T0827–T0831，D271）。前次 2026-11-04 08:45 (UTC+8) — 開 PLAN-064（IDEA low，Linux 缺中文字型時的啟動提示，D270）；PLAN-063 列描述改為已隨 `v0.7.4-pre.6` 發佈。前次 2026-11-04 01:53 (UTC+8) — PLAN-063 → IN_PROGRESS（T0821 `710e4179` 子項 1＋2 DONE，待發版）。前次 2026-11-04 01:34 (UTC+8) — PLAN-059 DONE（Q4 由 T0820 回答，D266）；開 PLAN-063（PLANNED medium，NSIS 升級中斷終端的緩解，T0821）。前次 2026-11-04 01:09 (UTC+8) — PLAN-061 DONE（交付版 `v0.7.4-pre.5` AppImage WSL 驗收 T0818 PASS）。前次 2026-11-04 00:56 (UTC+8) — PLAN-062 DONE（交付版 `v0.7.4-pre.5` linux-acceptance `41676550640` K1–K5 PASS）。前次 2026-11-03 21:11 (UTC+8) — PLAN-058 / 061 / 062 → IN_PROGRESS（D258：T0811 實作、T0812 / T0813 研究）。前次 2026-11-03 16:27 (UTC+8) — 開 PLAN-062（IDEA low，T0804 觀察，D251）。前次 2026-11-02 19:05 (UTC+8) — PLAN-061 依 T0789 結論縮小範圍、改 low，維持 IDEA（D229）。前次 2026-11-02 18:24 (UTC+8) — 開 PLAN-061（IDEA，PLAN-059 子項 B，OSC 7501 白名單，D227；前置 T0789）。前次 2026-11-02 17:10 (UTC+8) — PLAN-053 DONE（T0785 safeStorage async 完成）。前次 2026-11-02 16:56 (UTC+8) — 開 PLAN-060（IDEA，macOS 簽章，D224）；PLAN-053 的 Electron 45 已合回 main（T0784，`9f2ed99c`）。前次 2026-11-02 14:46 (UTC+8) — PLAN-053 IN_PROGRESS（目標 Electron 45，T0783 / T0784 / T0785，D223）。前次 2026-11-02 14:16 (UTC+8) — PLAN-029 DONE（T0780 刪除 `git-poc`，`16a3a326`）。前次 2026-11-02 14:07 (UTC+8) — PLAN-053 調 high（開 T0779）；PLAN-029 開 T0780（R3 刪除 `git-poc`）；PLAN-015 / 038 / 043 / 051 / 052 核對後維持 IDEA（D221）。前次 2026-11-02 14:00 (UTC+8) — PLAN-054 DONE（B4 / B8 已交付；B6 等 CT 契約另開新 PLAN，D220）。前次 2026-11-02 13:23 (UTC+8) — 開 PLAN-059（PLANNED，主 PLAN，D219）。前次 2026-11-02 05:26 (UTC+8) — PLAN-055 DONE（交付版 `v0.7.3-pre.4` 安裝版自動化實測 T0773，D215）。前次 2026-11-02 04:59 (UTC+8) — 第一百零四 session 塔台重啟（三）`*sync`：區段與 23 張 PLAN 檔一致，只修正 frontmatter 統計（total 22 → 23、DONE 10 → 11）；PLAN-055 B1（T0766）/ B2（T0767）皆 DONE、已隨 `v0.7.3-pre.4` 發佈，維持 IN_PROGRESS 等實機驗收。前次 2026-11-02 03:49 (UTC+8) — PLAN-055 IN_PROGRESS（T0766 B1 DONE，T0767 B2 進行中）；開 PLAN-058（IDEA，D214）；PLAN-057 DONE
+> 最後同步：2026-11-26 01:01 (UTC+8) — PLAN-069 DONE（`v0.8.0-pre.4` 發佈，D364）。前次 2026-11-25 20:57 (UTC+8) — PLAN-069 → IN_PROGRESS（CT 6.2.0-pre.1 規範完成，實作 T0922）。前次 2026-11-25 20:28 (UTC+8) — 開 PLAN-069（PLANNED medium，待辦分頁推薦項與放棄 / 批次放棄，HANDOVER 給 CT，D346）。前次 2026-11-25 18:55 (UTC+8) — PLAN-068 DONE（使用者實機驗收完成，D345）。前次 2026-11-25 18:53 (UTC+8) — PLAN-066 DONE（`v0.8.x` 經 T0921 併回 main，D343）。前次 2026-11-25 03:05 (UTC+8) — 開 PLAN-068（IN_PROGRESS medium，GitHub #24 塔台訊息不被淹沒，T0901 ＋ CT HANDOVER，D326）。前次 2026-11-25 01:11 (UTC+8) — 開 PLAN-067（IN_PROGRESS medium，每週日誌清查＋塔台開工逾期提示，D323）。前次 2026-11-23 15:13 (UTC+8) — 開 PLAN-066（IN_PROGRESS high，評估 Rust 改寫，研究 T0885，D304）。前次 2026-11-04 15:06 (UTC+8) — PLAN-052 → IN_PROGRESS（研究 T0848，D282）。前次 2026-11-04 15:01 (UTC+8) — PLAN-063 DONE（`v0.7.4-pre.8` 驗收 PASS）；開 PLAN-065（IDEA low，holder 模型，由 PLAN-063 子項 4 移出，D281）。前次 2026-11-04 08:52 (UTC+8) — PLAN-038 / 043 / 064 → IN_PROGRESS（T0827–T0831，D271）。前次 2026-11-04 08:45 (UTC+8) — 開 PLAN-064（IDEA low，Linux 缺中文字型時的啟動提示，D270）；PLAN-063 列描述改為已隨 `v0.7.4-pre.6` 發佈。前次 2026-11-04 01:53 (UTC+8) — PLAN-063 → IN_PROGRESS（T0821 `710e4179` 子項 1＋2 DONE，待發版）。前次 2026-11-04 01:34 (UTC+8) — PLAN-059 DONE（Q4 由 T0820 回答，D266）；開 PLAN-063（PLANNED medium，NSIS 升級中斷終端的緩解，T0821）。前次 2026-11-04 01:09 (UTC+8) — PLAN-061 DONE（交付版 `v0.7.4-pre.5` AppImage WSL 驗收 T0818 PASS）。前次 2026-11-04 00:56 (UTC+8) — PLAN-062 DONE（交付版 `v0.7.4-pre.5` linux-acceptance `41676550640` K1–K5 PASS）。前次 2026-11-03 21:11 (UTC+8) — PLAN-058 / 061 / 062 → IN_PROGRESS（D258：T0811 實作、T0812 / T0813 研究）。前次 2026-11-03 16:27 (UTC+8) — 開 PLAN-062（IDEA low，T0804 觀察，D251）。前次 2026-11-02 19:05 (UTC+8) — PLAN-061 依 T0789 結論縮小範圍、改 low，維持 IDEA（D229）。前次 2026-11-02 18:24 (UTC+8) — 開 PLAN-061（IDEA，PLAN-059 子項 B，OSC 7501 白名單，D227；前置 T0789）。前次 2026-11-02 17:10 (UTC+8) — PLAN-053 DONE（T0785 safeStorage async 完成）。前次 2026-11-02 16:56 (UTC+8) — 開 PLAN-060（IDEA，macOS 簽章，D224）；PLAN-053 的 Electron 45 已合回 main（T0784，`9f2ed99c`）。前次 2026-11-02 14:46 (UTC+8) — PLAN-053 IN_PROGRESS（目標 Electron 45，T0783 / T0784 / T0785，D223）。前次 2026-11-02 14:16 (UTC+8) — PLAN-029 DONE（T0780 刪除 `git-poc`，`16a3a326`）。前次 2026-11-02 14:07 (UTC+8) — PLAN-053 調 high（開 T0779）；PLAN-029 開 T0780（R3 刪除 `git-poc`）；PLAN-015 / 038 / 043 / 051 / 052 核對後維持 IDEA（D221）。前次 2026-11-02 14:00 (UTC+8) — PLAN-054 DONE（B4 / B8 已交付；B6 等 CT 契約另開新 PLAN，D220）。前次 2026-11-02 13:23 (UTC+8) — 開 PLAN-059（PLANNED，主 PLAN，D219）。前次 2026-11-02 05:26 (UTC+8) — PLAN-055 DONE（交付版 `v0.7.3-pre.4` 安裝版自動化實測 T0773，D215）。前次 2026-11-02 04:59 (UTC+8) — 第一百零四 session 塔台重啟（三）`*sync`：區段與 23 張 PLAN 檔一致，只修正 frontmatter 統計（total 22 → 23、DONE 10 → 11）；PLAN-055 B1（T0766）/ B2（T0767）皆 DONE、已隨 `v0.7.3-pre.4` 發佈，維持 IN_PROGRESS 等實機驗收。前次 2026-11-02 03:49 (UTC+8) — PLAN-055 IN_PROGRESS（T0766 B1 DONE，T0767 B2 進行中）；開 PLAN-058（IDEA，D214）；PLAN-057 DONE
 
 ## 統計
-- 💡 Ideas: 3 | 📋 Planned: 0 | 🔄 In Progress: 8 | ✅ Done: 21 | 🚫 Dropped: 2
+- 💡 Ideas: 3 | 📋 Planned: 0 | 🔄 In Progress: 7 | ✅ Done: 22 | 🚫 Dropped: 2
 
 ## Active
 
@@ -41,12 +41,12 @@ breakdown:
 | PLAN-064 | Linux：介面語言是中文而系統沒有中文字型時，啟動提示一次並附安裝指令（文件 T0826 DONE；實作 T0827，D270 / D271） | 🟢 low | 🔄 IN_PROGRESS | [PLAN-064](PLAN-064-linux-missing-cjk-font-hint.md) |
 | PLAN-065 | Windows 升級不中斷終端：holder 模型（ConPTY 持有者放安裝目錄外、跨版本接回；由 PLAN-063 子項 4 移出，D281）；Windows only、全部分頁，先研究 T0856（D285） | 🟢 low | 🔄 IN_PROGRESS | [PLAN-065](PLAN-065-installer-upgrade-holder-model.md) |
 | PLAN-067 | 每週日誌清查：每週檢查 BAT 日誌、程序記憶體與測試穩定度，提出問題與改善計畫；塔台開工時超過一週沒清查就提示（首次 T0892，D323） | 🟡 medium | 🔄 IN_PROGRESS | [PLAN-067](PLAN-067-weekly-log-review.md) |
-| PLAN-069 | 待辦分頁：待你決定標示推薦項（撰寫慣例＋契約欄位）；待你決定 / 待你執行可放棄（單筆、勾選批次、一鍵全部），放棄後塔台停下等新方向；HANDOVER 給 CT 協商契約（D346）；CT 6.2.0-pre.1 規範完成，實作 T0922 | 🟡 medium | 🔄 IN_PROGRESS | [PLAN-069](PLAN-069-inbox-recommended-and-dismiss.md) |
 
 ## Completed
 
 | ID | 標題 | 完成時間 | 連結 |
 |----|------|---------|------|
+| PLAN-069 | 待辦分頁推薦標記與放棄 / 略過 / 批次放棄（`inbox_features`、`recommended`，CT 6.2.0）；T0922 實作、T0923 / T0928 驗收、BUG-223 / 224 修正；DONE：`v0.8.0-pre.4` 發佈（D364） | 2026-11-26 | [PLAN-069](PLAN-069-inbox-recommended-and-dismiss.md) |
 | PLAN-068 | 塔台給使用者的總結與提問不被淹沒（GitHub #24）：每則訊息獨立、可回顧的清單（收件匣 / 訊息卡 / 分割檢視）與保留策略；BAT 研究 T0901＋ CT HANDOVER（D326）；DONE：`v0.8.0-pre.3` 發佈＋使用者實機驗收（D345） | 2026-11-25 | [PLAN-068](PLAN-068-tower-user-inbox-issue24.md) |
 | PLAN-066 | 評估 BAT 改用 Rust 改寫：Tauri、全原生 Rust GUI、局部改寫三條路線的效能、記憶體、維護性比較（含最小 Tauri / Electron PoC）；先研究 T0885（D304）；DONE：`v0.8.x` 經 T0921 併回 main（D342 / D343） | 2026-11-25 | [PLAN-066](PLAN-066-rust-rewrite-evaluation.md) |
 | PLAN-063 | Windows NSIS 升級會結束所有終端：升級前提示、升級後說明、安裝前請 BAT 正常結束、同版重裝也提示（T0821 / T0822 / T0823 / T0825 / T0846 / T0847；`v0.7.4-pre.8` 真實升級與 NSIS 驗收 PASS；holder 模型移到 PLAN-065，D281） | 2026-11-04 | [PLAN-063](PLAN-063-upgrade-interrupts-terminals-mitigation.md) |

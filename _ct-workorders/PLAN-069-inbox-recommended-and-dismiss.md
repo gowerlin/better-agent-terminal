@@ -3,10 +3,11 @@ schema_version: 1
 schema_kind: plan
 id: PLAN-069
 title: "待辦分頁：待你決定標示推薦項；待你決定／待你執行可放棄（單筆、勾選批次、一鍵全部），放棄後塔台停下等新方向；BAT 與 CT 契約協作"
-status: IN_PROGRESS
+status: DONE
 priority: medium
 created_at: "2026-11-25T20:28:42+08:00"
-updated_at: "2026-11-25T20:57:34+08:00"
+updated_at: "2026-11-26T01:01:47+08:00"
+completed_at: "2026-11-26T01:01:47+08:00"
 links:
   source: "使用者 2026-11-25 第一百三十二 session；D346"
   related: [PLAN-068, T0908, T0906, "_handover-2026-11-25-inbox-recommended-dismiss.md"]
@@ -17,7 +18,7 @@ links:
 ## 元資料
 
 - **標題**：待辦分頁標示推薦項；待你決定 / 待你執行可放棄（單筆、批次、全部）
-- **狀態**：IN_PROGRESS（實作 T0922，2026-11-25 20:57）
+- **狀態**：DONE（`v0.8.0-pre.4` 發佈，2026-11-26 01:00；CT 6.2.0 同日）
 - **優先級**：🟡 Medium
 - **類型**：功能（BAT ↔ CT 契約）
 - **建立時間**：2026-11-25 20:28 (UTC+8)
@@ -71,4 +72,5 @@ PLAN-068 把塔台的提問搬到側邊欄「待辦」分頁後，使用者發�
 - 2026-11-25 21:20 T0922 DONE、併入 `main`（`728c3197`，D348 / D349）並 push；驗收版 `desktop-build` `45621864786`（`0.8.0-exp.1`，D350）。CT 決定 P2 比照 6.1.0（CT D890）：BAT 主導自動化（zip＋隔離 runtime＋隔離 `CLAUDE_CONFIG_DIR`），CT T0567 準備 checklist 與環境；情境 S1–S4。等 CT 通知後開 BAT 驗收單。
 - 2026-11-25 23:15 BAT 驗收 T0923 DONE（M-1～M-15 BAT 端 0 FAIL，D354）；T0924（BUG-223）、T0925（併 T0923 腳本）已併入 `main` `b21a5a61`；BUG-224 修正 T0926 進行中（D355）。CT 端判定（CT D896）：44 判定 PASS 41 / FAIL 1（M-12-3，CT 規範）/ 未觸發 2；BAT 不需修改。CT 出 6.2.0-pre.2（規範修正＋`pending_reminder`）後，BAT 以 `0.8.0-exp.2` 跑 `checklist-rerun.md`（約 4 回合）。
 - 2026-11-26 00:34 補跑 T0928（`0.8.0-exp.2` × 6.2.0-pre.2）BAT 端 0 FAIL、BUG-224 實機 PASS → CLOSED（D361）；CT 補跑判定（CT T0570 / D899）14 列全 PASS，CT 6.2.0 驗收全部通過。待：BAT `0.8.0-pre.4` 發版（U-14）與 CT 6.2.0 同日發佈；發版完成後 PLAN-069 → DONE。
+- 2026-11-26 01:01 DONE：`v0.8.0-pre.4` 發佈（Pre-Release run `45656560078`，`be40bb8f`，D364）；CT 6.2.0 同日（BAT 先上線）。
 - 下一步：CT 回覆 ACCEPTED（已完成）→ 定案契約 → 開 BAT 實作工單（解析 `recommended`、待辦分頁推薦標記與預設選取、單筆 / 勾選 / 全部放棄 UI、`checkInboxAnswer` 放寬、版本閘門、單元測試與 docs `tower-inbox.md`）。
