@@ -10,6 +10,7 @@
 
 | ID | 日期 | 標題 | 相關工單 |
 |----|------|------|---------|
+| D360 | 2026-11-25 | U-12 → A：`main` ff 到 `a65c0958`（BUG-224 修正併入）；去識別 / 金鑰 0 → push `main`；`desktop-build` 打包 `0.8.0-exp.2` 供 CT 6.2.0-pre.2 補跑 | T0927 / BUG-224 / PLAN-069 |
 | D359 | 2026-11-25 | T0927 收單 DONE（merge `9843fa9e`，BUG-224 修正，無衝突、驗收全綠）；斷點 E → U-12（含 push＋打包 exp.2） | T0927 / T0926 / BUG-224 |
 | D358 | 2026-11-25 | T0926 收單 DONE（`2781c81e`）；BUG-224 → FIXED；合併判準 1 不成立 → 合併工單 T0927（模式 ②）；實機併入 `0.8.0-exp.2` 補跑 | T0926 / T0927 / BUG-224 |
 | D357 | 2026-11-25 | U-11 → A：`main` ff 到 `b21a5a61`（T0923 驗收腳本經 T0925 併入）；T0923 worktree 移除、分支保留 | T0925 / T0923 |
@@ -291,6 +292,14 @@
 - **最大風險**：`whisper-node-addon@1.0.2` 對 Electron 41（Node 24）的 NODE_MODULE_VERSION 相容性未知，允許 Worker 遇此決策點主動問塔台
 
 ---
+
+### D360 2026-11-25 23:23 — ff、push、打包 `0.8.0-exp.2`（U-12）
+
+- **使用者裁示**：U-12：A（原生選單）。
+- **合併**：`ct-merge/T0927` 再 `--no-ff` 併入 `main` 記帳（`d2edc3f6`）→ `a65c0958`；`git merge --ff-only ct-merge/T0927` → `main` = `a65c0958`（④ PASS）；整合 worktree detach；T0926 worktree 手動移除（乾淨），分支 `ct/T0926`、`ct-merge/T0927` 保留。
+- **push 前檢查**（D176）：`.private/` 9 條樣式 0、家目錄固定字串 0、`origin/main..main` 新增行金鑰樣式 0。
+- **push / 打包**：push `main`；`desktop-build.yml` `ref` = push 後 HEAD、`version=0.8.0-exp.2`（只打包、不建 tag / Release）。run id 記在 `_tower-state.md`。
+- **相關**：T0927 / BUG-224 / PLAN-069
 
 ### D359 2026-11-25 23:22 — T0927 收單（U-12 待決）
 

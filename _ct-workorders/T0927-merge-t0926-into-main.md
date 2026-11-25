@@ -5,7 +5,6 @@ id: T0927
 title: "合併 `ct/T0926`（BUG-224：極快 Esc 後晚到的 hook 不再把 `blocked: question` 設回）→ `main`"
 type: chore
 status: DONE
-waiting_user: "U-12"
 started_at: "2026-11-25T23:16:51+0800"
 updated_at: "2026-11-25T23:19:10+0800"
 completed_at: "2026-11-25T23:19:10+0800"
