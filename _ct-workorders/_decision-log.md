@@ -10,6 +10,7 @@
 
 | ID | 日期 | 標題 | 相關工單 |
 |----|------|------|---------|
+| D345 | 2026-11-25 | U-5 → A：push `main` `7deb824c..2cac17e5`（去識別 0、金鑰樣式只有既有測試假字串）；A-1 完成 → PLAN-068 DONE；A-2 完成 → BUG-216 CLOSED（熱區 BUG 未結 0） | PLAN-068 / BUG-216 / T0921 |
 | D344 | 2026-11-25 | U-4 → A：產品改動與發版回到 `main`（取代 D307 的 `v0.8.x` 分流）；`v0.8.x` 保留不再使用 | PLAN-066 |
 | D343 | 2026-11-25 | U-3 → A：T0921 ff `main` → `f967f9db`（`v0.8.x` 併回，`package.json` `0.8.0-pre.3`）；PLAN-066 DONE；push 與之後的分支用法另問（U-4 / U-5） | T0921 / PLAN-066 |
 | D342 | 2026-11-25 | U-2 → B：現在把 `v0.8.x` 併回 `main`（取代「等 0.8 線用一段時間再併」）；開合併工單 T0921（模式 ②，只有 `CHANGELOG.md` 衝突） | T0921 / PLAN-066 |
@@ -276,6 +277,12 @@
 - **最大風險**：`whisper-node-addon@1.0.2` 對 Electron 41（Node 24）的 NODE_MODULE_VERSION 相容性未知，允許 Worker 遇此決策點主動問塔台
 
 ---
+
+### D345 2026-11-25 18:55 — push `main`；PLAN-068、BUG-216 結案（U-5、A-1、A-2）
+
+- **U-5：A**：push 前依 `.private/` 對照表 9 條檢查樣式掃追蹤檔，全部 0 筆；金鑰樣式掃 `origin/main..main` 新增行，只有 `tower-cards.test.ts` 遮罩測試的假 `sk-ant-` 字串 2 處（D335 已記，早已在 `origin/v0.8.x` 公開；相對 `origin/v0.8.x` 新增 0）→ `git push origin main` `7deb824c..2cac17e5`。Pages run `45599547166` 觸發（`site/**`、`README.md`、`release-note.md` 有變）。
+- **A-1：完成**：PLAN-068 → DONE（W0–W9＋pre.3 發佈＋T0915 / T0920 驗收＋CT M-C PASS＋使用者 M-U1–U8、M-R1–R2）；`_backlog.md` IN_PROGRESS 7 / DONE 21。GitHub issue #23 / #24 要不要回覆、關閉由使用者決定。
+- **A-2：完成**：BUG-216 → CLOSED（安裝版 `0.8.0-pre.3` 實機）；`_bug-tracker.md` FIXED 0 / CLOSED 85，熱區未結 BUG 0。重複列 0、parser 測試 65 passed（L179）。
 
 ### D344 2026-11-25 18:54 — 產品改動回到 `main`（U-4）
 

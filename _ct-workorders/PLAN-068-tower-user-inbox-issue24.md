@@ -3,10 +3,11 @@ schema_version: 1
 schema_kind: plan
 id: PLAN-068
 title: "塔台給使用者的總結與提問不被淹沒（GitHub #24）：每則訊息獨立、可回顧的清單（收件匣 / 訊息卡 / 分割檢視），含清單維護與保留策略；BAT 與 CT 協作"
-status: IN_PROGRESS
+status: DONE
 priority: medium
 created_at: "2026-11-25T03:05:55+08:00"
-updated_at: "2026-11-25T04:44:02+08:00"
+updated_at: "2026-11-25T18:55:48+08:00"
+completed_at: "2026-11-25T18:55:48+08:00"
 links:
   source: "GitHub issue #24（2026-11-21）；使用者 2026-11-25 第一百三十 session；D326"
   related: [T0901, T0788, T0607, T0701, T0735, "issue #23"]
@@ -17,7 +18,7 @@ links:
 ## 元資料
 
 - **標題**：塔台給使用者的總結 / 提問獨立保存、可回顧（GitHub #24）
-- **狀態**：IN_PROGRESS（研究中：BAT 端 T0901、CT 端 HANDOVER）
+- **狀態**：DONE
 - **優先級**：🟡 Medium
 - **類型**：功能（BAT UI ＋ BAT ↔ CT 契約）
 - **建立時間**：2026-11-25 03:05 (UTC+8)
@@ -97,3 +98,9 @@ CT yolo 多個 Worker 並行時，塔台每收到一份回報就寫總結，有�
 
 - `awaiting_user[].source` 全名（`breakpoint-A` … `tower-question`）：W5 顯示短標籤，未知值照原字串。
 - `hooks:` 行文法：`ok (<injected|plugin>, set <n>[, plugin-outdated])` / `none (<代號>)` / `n/a (codex)`，只在帶 `--bat-contract` 時輸出；`plugin-outdated` 只在僅由 plugin 提供且事件清單過舊時出現（W9）。
+
+## 結案（2026-11-25 18:55，D345）
+
+- W0–W9 全部完成並隨 `v0.8.0-pre.3` 發佈（D339，CT 6.1.0 同日）；T0915 自動驗收、T0920 補驗（BUG-220–222 CLOSED，D338）；CT 端 M-C1–M-C7 PASS（CT D878）。
+- 使用者實機驗收 T0913〈待實機清單〉M-U1–U8、M-R1–R2 完成（`A-1：完成`，安裝版 `0.8.0-pre.3`）。
+- 程式已隨 T0921 併回 `main`（D343）。GitHub issue #23 / #24 是否回覆與關閉由使用者決定（塔台不代為操作）。
