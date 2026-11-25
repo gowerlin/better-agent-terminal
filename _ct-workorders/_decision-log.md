@@ -10,6 +10,7 @@
 
 | ID | 日期 | 標題 | 相關工單 |
 |----|------|------|---------|
+| D365 | 2026-11-26 | `v0.8.0-pre.4` 發佈完成：文件 push、Pages `45660551506` 綠、首頁版號、link-check 1 個預期 404（CT `ct-v6.2.0` 未發佈） | PLAN-069 |
 | D364 | 2026-11-26 | `v0.8.0-pre.4` 發佈（run `45656560078` 全綠）；更版重點、CHANGELOG / release-note / README / `package.json`；BUG-223 CLOSED、PLAN-069 DONE | PLAN-069 / BUG-223 / BUG-224 |
 | D363 | 2026-11-26 | U-14 → A：發 `0.8.0-pre.4`（從 `main`；PLAN-069、BUG-224、BUG-223），與 CT 6.2.0 同日（CT D900），BAT 先上線 | PLAN-069 / BUG-223 / BUG-224 |
 | D362 | 2026-11-26 | U-13 → A：`main` ff 到 `8e6a1325`（T0928 驗收驅動併入）；T0928 worktree 移除、分支保留 | T0928 |
@@ -296,6 +297,14 @@
 - **最大風險**：`whisper-node-addon@1.0.2` 對 Electron 41（Node 24）的 NODE_MODULE_VERSION 相容性未知，允許 Worker 遇此決策點主動問塔台
 
 ---
+
+### D365 2026-11-26 01:05 — `v0.8.0-pre.4` 發佈完成（L150 收尾）
+
+- push `main` `be40bb8f..337d024f`（文件＋記帳，去識別 / 金鑰 0）。Pages run `45660551506`：build、link-check、deploy 皆 success；首頁顯示 `0.8.0-pre.4`。
+- link-check：1642 個，Successful 1641、Errors 1 = `https://github.com/gowerlin/Control-Tower/releases/tag/ct-v6.2.0`（404，CT 6.2.0 尚未發佈；同日發佈、BAT 先上線的預期結果，CT 發佈後下一次 Pages 自然消失，不開單）。
+- NSIS 重裝驗收：本版不需要（未改安裝程式路徑，D331）。
+- 已通知 CT 塔台推 6.2.0 公開站。
+- **相關**：PLAN-069
 
 ### D364 2026-11-26 01:01 — `v0.8.0-pre.4` 發佈
 
