@@ -16,7 +16,7 @@ merges:
   - "v0.8.x"
 merge_mode: conflict
 integration_worktree: 'D:/ForgejoGit/@Gower_Labs/BMad-Guide/better-agent-terminal/.ct-integration/better-agent-terminal'
-base_main_sha: <派工前塔台填入>
+base_main_sha: 5699a2aad61ce172c83e39b7b4d21f814757c9a2
 merge_target: main
 depends_on: []
 related:
