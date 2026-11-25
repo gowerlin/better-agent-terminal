@@ -10,6 +10,7 @@
 
 | ID | 日期 | 標題 | 相關工單 |
 |----|------|------|---------|
+| D350 | 2026-11-25 | U-7 → A：push `main` `7f5c7ebc..402c9648`（去識別 / 金鑰 0）；`desktop-build.yml` `45621864786`（`0.8.0-exp.1`，只打包不發佈）供 PLAN-069 雙方實機驗收 | T0922 / PLAN-069 |
 | D349 | 2026-11-25 | U-6 → A：`main` ff 到 `728c3197`（T0922 併入）；T0922 worktree 移除、分支保留；驗收方式 → U-7 | T0922 / PLAN-069 |
 | D348 | 2026-11-25 | T0922 收單 DONE（`0675d9fd`，PLAN-069 BAT 端）；模式 ① 整合分支 `ct-merge/T0922` → `9bbd42fa`；斷點 E → U-6 | T0922 / PLAN-069 |
 | D347 | 2026-11-25 | PLAN-069 補充需求 R6：塔台暫停時可改用 Claude Code 原生選單（CT 新設定鍵，與 `user_inbox` 獨立），併入 CT 6.2.0；BAT 不需改 | PLAN-069 |
@@ -281,6 +282,15 @@
 - **最大風險**：`whisper-node-addon@1.0.2` 對 Electron 41（Node 24）的 NODE_MODULE_VERSION 相容性未知，允許 Worker 遇此決策點主動問塔台
 
 ---
+
+### D350 2026-11-25 21:16 — 驗收用只打包的 BAT（U-7）
+
+- **使用者裁示**：U-7：A（原生選單與終端回覆皆為 A）。
+- **push 前檢查**（D176）：`.private/` 對照表 9 條檢查樣式對追蹤檔 0 筆（家目錄路徑另以固定字串複查 0）；`origin/main..main` 新增行的金鑰樣式 0。
+- **push**：`git push origin main` `7f5c7ebc..402c9648`。Pages run `45621849988` 隨之觸發（`site/tower-inbox.md` 的〈推薦選項與放棄〉在發版前先上線，頁面寫的是新版行為）。
+- **打包**：`gh workflow run desktop-build.yml -R gowerlin/better-agent-terminal -f ref=402c9648… -f version=0.8.0-exp.1` → run `45621864786`（不建 tag / Release，artifact 7 天）。`0.8.0-exp.1` 在 semver 上低於 `0.8.0-pre.4`，之後可正常升級。
+- **下一步**：打包完成 → 使用者安裝 → 通知 CT 塔台安排 M-1–M-15；通過後同日發 `0.8.0-pre.4` 與 CT 6.2.0。
+- **相關**：T0922 / PLAN-069
 
 ### D349 2026-11-25 21:14 — `main` ff 到 `728c3197`（U-6）
 
