@@ -69,6 +69,18 @@ BAT 答覆：
 
 CT 使用者核定（CT D886），回覆稿 `status: ACCEPTED`、`local_workorder: T0566`（CT repo 的工單）。CT 計畫 PLAN-020（CT 6.2.0）：P1 T0566 = 6.2.0-pre.1 規範＋`check-frontmatter.py`＋Guide 預覽專章（只打包）；P2 BAT `0.8.0-pre.4` 實作後雙方實機驗收；P3 與 BAT 同日發 6.2.0。定案：`bat_contract` 維持 2、頂層 `inbox_features: ["recommended", "dismiss"]`、`awaiting_user[].recommended`、放棄 / 略過 / 批次照 CT 回覆〈逐點〉。新功能的 BAT 版號 `0.8.0-pre.4` 只寫在 ct-help 與 Guide，`auto-session.md` 契約 2 最低版號（`0.8.0-pre.3`）不改。CT 在 T0566 收單後傳規範位置（檔:行）與 6.2.0 範例狀態檔路徑，BAT 之後開實作單。
 
+## 補充需求 R6：暫停時可改用 Claude Code 原生選單（2026-11-25 20:45 (UTC+8)，D347）
+
+- **背景**：使用者問 `user_inbox: off` 是否就回到 6.0.x 行為。查證：`user_inbox: off` 只停寫 `awaiting_user` / `user_actions`（`memory-protocol.md` § 契約 v2 欄位 › `user_inbox: off`），終端的提問形式不變。需求對齊的當場提問依 `interactive-prompts` 用原生選單（`AskUserQuestion`，方向鍵 / 滑鼠可選、有推薦項與自由輸入）；但 6.1.0 起塔台的**暫停**（斷點 A / B-1 / B-2 / C / E、合併前確認、Worker 提問升級、`tower-question`）一律是純文字範本「請回覆 U-n：A／B／C」（`yolo-mode.md` 第 286、310、348、384、532、1017、1147 行），沒有開關。部分使用者不習慣打字回答，想回到終端內鍵盤 / 滑鼠點選。
+- **使用者裁示**：當作 PLAN-069 的補充需求，併入 CT 6.2.0。
+- **BAT 提案（修法由 CT 決定）**：
+  - 新增設定鍵（名稱由 CT 定，例 `pause_prompt: native | text`），與 `user_inbox` 獨立（可只關側邊欄、也可只換提問方式）。
+  - `native`：暫停時以原生選單提問（推薦項排第一並標推薦、最後一項自由輸入、選項與 `awaiting_user[].options` 同一組代號），**同一次寫入仍照寫 `U-n`**（`user_inbox: on` 時），BAT 待辦分頁同步顯示；使用者在終端選單或 BAT 待辦分頁任一處回答都算數，終端回答後塔台照常移除該筆（BAT 分頁隨之消失）。原生選單上也提供放棄（R3）的出口，例如一個「放棄（停下等新方向）」選項，或以自由輸入「放棄 …」表達。
+  - `text`：維持 6.1.x 文字範本。
+  - 預設值由 CT 決定；BAT 傾向 `native`（最接近使用者原本習慣，側邊欄照樣保留）。
+  - 非 Claude Code（codex 塔台）沒有原生選單 → 一律 `text`。
+- **BAT 端影響**：不需要改。原生選單開著時塔台分頁是 `blocked`（`question`），Worker 通知由 BAT 通知保護（T0788 / BUG-196）保留到回答後才送，不會替使用者作答；BAT 待辦分頁送出的 `U-n：…` 也走同一個保留路徑（`enqueueAnswer` 受 prompt reason 擋），等選單關閉後才送進塔台——此時該 `U-n` 若已在終端答過，CT 依既有規則「編號不存在或已結 → 回一行說明」處理。請 CT 確認這個雙處回答的競態可接受。
+
 ## 請回覆
 
 回覆稿請寫在 CT repo 的 `_ct-workorders/_reply-2026-11-25-inbox-recommended-dismiss.md`，並以跨 session 訊息通知 `better-agent-terminal · Tower`（或由使用者轉交）。

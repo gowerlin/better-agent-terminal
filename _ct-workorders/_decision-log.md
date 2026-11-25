@@ -10,6 +10,7 @@
 
 | ID | 日期 | 標題 | 相關工單 |
 |----|------|------|---------|
+| D347 | 2026-11-25 | PLAN-069 補充需求 R6：塔台暫停時可改用 Claude Code 原生選單（CT 新設定鍵，與 `user_inbox` 獨立），併入 CT 6.2.0；BAT 不需改 | PLAN-069 |
 | D346 | 2026-11-25 | 開 PLAN-069（PLANNED medium）：待辦分頁推薦項（撰寫慣例＋契約欄位）與放棄 / 批次放棄（兩區、勾選＋全部、放棄後停下等新方向）；HANDOVER 給 CT 塔台協商契約 | PLAN-069 / PLAN-068 |
 | D345 | 2026-11-25 | U-5 → A：push `main` `7deb824c..2cac17e5`（去識別 0、金鑰樣式只有既有測試假字串）；A-1 完成 → PLAN-068 DONE；A-2 完成 → BUG-216 CLOSED（熱區 BUG 未結 0） | PLAN-068 / BUG-216 / T0921 |
 | D344 | 2026-11-25 | U-4 → A：產品改動與發版回到 `main`（取代 D307 的 `v0.8.x` 分流）；`v0.8.x` 保留不再使用 | PLAN-066 |
@@ -278,6 +279,13 @@
 - **最大風險**：`whisper-node-addon@1.0.2` 對 Electron 41（Node 24）的 NODE_MODULE_VERSION 相容性未知，允許 Worker 遇此決策點主動問塔台
 
 ---
+
+### D347 2026-11-25 20:45 — PLAN-069 補充需求 R6：暫停時可改用原生選單
+
+- **背景**：使用者問 `user_inbox: off` 是否回到 6.0.x、能否回到 Claude Code 原生問題選單。查證：`user_inbox: off` 只停寫 `awaiting_user` / `user_actions`，問題仍在終端；需求對齊提問依 `interactive-prompts` 用原生選單，但 6.1.0 起的暫停訊息一律是文字範本「請回覆 U-n：…」（CT `yolo-mode.md`），沒有開關。
+- **使用者裁示**：當作 PLAN-069 的補充需求，傳給 CT 塔台併入 6.2.0。
+- **決定**：交辦稿加〈補充需求 R6〉（提案：新設定鍵例 `pause_prompt: native | text`，與 `user_inbox` 獨立；`native` 仍照寫 `U-n`，終端 / BAT 任一處回答都算數；codex 塔台一律 `text`；預設值由 CT 定，BAT 傾向 `native`）；跨 session 通知 CT 塔台。BAT 不需改（通知保護 T0788 已涵蓋選單開著時的 Worker 通知與待辦分頁回答）。
+- **相關**：PLAN-069 / T0788 / T0908
 
 ### D346 2026-11-25 20:28 — 開 PLAN-069：待辦分頁的推薦項與放棄
 
