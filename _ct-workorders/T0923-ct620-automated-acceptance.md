@@ -59,6 +59,11 @@ PLAN-069（推薦項、放棄 / 略過 / 批次、`inbox_features`）的 BAT 端
 - [ ] 使用者層 `~/.claude` / `~/.codex` 無變更、安裝版 BAT 未被碰、程序清理
 - [ ] build、兩個 typecheck；改 fixture 時既有 e2e 不回歸
 
+## 塔台補充（派工前，2026-11-25T21:32:42+08:00；CT D892 登入完成通知）
+
+1. 使用者已在 `ACC/claude-config` 登入（CT 只確認 `.credentials.json` 存在、未讀內容）。登入後 `claude-config/` 多了 `.claude.json`、`backups/`、`cache/`、`plugins/`、`sessions/`：🔴 這些含帳號資料，不得打包、複製或摘錄到結果檔、截圖、回報區或 repo；需要比對設定變化時只記檔名與雜湊。
+2. 測試版 `0.8.0-exp.1` 的 artifact 以 `desktop-build` run `45621864786` 完成後為準（`desktop-win`）；該 run 的 `tests` job（不擋打包）失敗由塔台另行追查，不影響本單。
+
 ---
 
 ## 回報區
