@@ -69,4 +69,5 @@ PLAN-068 把塔台的提問搬到側邊欄「待辦」分頁後，使用者發�
 - 2026-11-25 20:49 CT 使用者核定 R6（CT D888，U-2：A），照草案；CT T0566 以〈塔台補充（執行中 #1）〉併入 R6（AC-8）→ 6.2.0-pre.1 一次包含推薦項、放棄 / 略過、`inbox_features`、R6。
 - 2026-11-25 20:57 CT 6.2.0-pre.1 規範完成（CT T0566 收單，CT D889，CT commit `7ea750f`）→ 開 BAT 實作單 T0922（隔離 worktree，base `main`），PLAN-069 → IN_PROGRESS。BAT 做好後通知 CT 安排雙方驗收（CT T0566〈給塔台〉第 3 點 M-1–M-15），通過後同日發佈 BAT `0.8.0-pre.4` 與 CT 6.2.0。
 - 2026-11-25 21:20 T0922 DONE、併入 `main`（`728c3197`，D348 / D349）並 push；驗收版 `desktop-build` `45621864786`（`0.8.0-exp.1`，D350）。CT 決定 P2 比照 6.1.0（CT D890）：BAT 主導自動化（zip＋隔離 runtime＋隔離 `CLAUDE_CONFIG_DIR`），CT T0567 準備 checklist 與環境；情境 S1–S4。等 CT 通知後開 BAT 驗收單。
+- 2026-11-25 23:15 BAT 驗收 T0923 DONE（M-1～M-15 BAT 端 0 FAIL，D354）；T0924（BUG-223）、T0925（併 T0923 腳本）已併入 `main` `b21a5a61`；BUG-224 修正 T0926 進行中（D355）。CT 端判定（CT D896）：44 判定 PASS 41 / FAIL 1（M-12-3，CT 規範）/ 未觸發 2；BAT 不需修改。CT 出 6.2.0-pre.2（規範修正＋`pending_reminder`）後，BAT 以 `0.8.0-exp.2` 跑 `checklist-rerun.md`（約 4 回合）。
 - 下一步：CT 回覆 ACCEPTED（已完成）→ 定案契約 → 開 BAT 實作工單（解析 `recommended`、待辦分頁推薦標記與預設選取、單筆 / 勾選 / 全部放棄 UI、`checkInboxAnswer` 放寬、版本閘門、單元測試與 docs `tower-inbox.md`）。
