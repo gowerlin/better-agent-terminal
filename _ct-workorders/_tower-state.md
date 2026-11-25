@@ -3,7 +3,7 @@ schema_kind: tower-state
 summary_version: 1
 bat_contract: 2
 ct_version: "6.1.1"
-updated_at: "2026-11-26T01:12:40+0800"
+updated_at: "2026-11-26T01:13:48+0800"
 session: "2026-11-25 20:19 第一百三十二 session（CT v6.1.1）"
 next_ids:
   workorder: "T0929"
@@ -16,7 +16,6 @@ todo:
   - "候選（未開單，T0928 觀察）：待辦分頁「💬 塔台訊息」卡片在訊息以程式碼區塊開頭時摘要只顯示「```」（`ct620-accept/results-rerun/` S5 `00b-inbox-startup.png`，未查證），屬顯示細節"
   - "候選（未開單，T0924 建議）：`scripts/verify-packaged-native.js` `readAsarFile` 不檢查 `fs.readSync` 回傳位元組數，截斷的 app.asar 會被讀成 NUL 而不報錯；改成讀不足判失敗（檢查變嚴）"
   - "🚀 `v0.8.0-pre.4` 已發佈（D364，2026-11-26 00:59，Pre-Release `45656560078`，`be40bb8f`）：PLAN-069 DONE、BUG-223 / 224 CLOSED；CT 6.2.0 同日（BAT 先上線、CT 再推公開站，CT T0572）。下一版 `0.8.0-pre.5`"
-  - "🚀 `v0.8.0-pre.3` 已發佈（D339，2026-11-25 14:44）；`v0.8.x` 已經 T0921 併回 `main` 並 push（D343 / D345）。D331：只有改到安裝路徑的版本才做 NSIS 重裝驗收。發佈後驗收（linux / macos / docker acceptance、WSL smoke）視需要另取授權"
   - "PLAN-066（DONE）後續候選（未開單）：`pty:create` 只送 env 差異（`pty-manager.ts`＋Terminal Server 協定）可再降 C2①；direct 模式的 conin socket 殘留；F4（自然結束的 conhost 留到 server 結束）。分支：`ct/T0885`（Rust 評估，D307 保留不合併，worktree 保留）、`ct/T0886`（node-pty Worker 研究，未併入 `v0.8.x`，worktree 已移除）"
   - "PLAN-065 剩餘：per-machine 未提權互動升級（UAC）手動驗收（無法自動化）；降級到 `0.7.4-pre.9` 會結束所有終端且沒有說明（已寫在更版重點〈已知事項〉）"
   - "PLAN-052（IN_PROGRESS）：待 Docker Desktop（Windows / macOS）實機走精靈；後續候選（未開單）：fetch-fingerprint Docker 分支比對憑證指紋、`scripts/docker-acceptance.mjs` 純函式單元測試"
@@ -25,7 +24,8 @@ todo:
   - "候選（未開單，D303 暫不安排）：T0830 後續 SSH / Docker 精靈長呼叫接 operation id；PLAN-052 fetch-fingerprint Docker 分支、docker-acceptance 純函式測試；PLAN-058 卡片等待時可送出（2026-11-20 使用者：先記著、不開單。只涉 Claude Agent 面板（SDK），不影響 Claude CLI 分頁；要做時的建議：輸入框預設收合＋「補充說明」按鈕展開、輸入框有焦點時停用卡片快捷鍵（權限卡在 window 監聽 1/2/3、y/n、Enter、方向鍵）、送出走 T0815 排隊路徑；需實機操作確認）"
   - "MSRC 回報 microsoft/node-pty（使用者自行處理，D255）"
   - "觀察：語音可用性檢查 macOS 未實機（`unknown(timeout)` 出現可把逾時提到 30 s，T0802）；t0757 偶發失敗再發生才開 BUG（D218）；PLAN-060（IDEA）macOS Developer ID 簽章"
-  - "版號線：D315 起 `0.8.0-pre.N`（D344 起從 `main` 發；pre.1–pre.3 從 `v0.8.x` 發），pre.2 已發佈（2026-11-25），`0.8.0-pre.3` 已發佈（2026-11-25 14:44，PLAN-068 待辦分頁＋BUG-220–222，D339；CT 6.1.0 同日發佈），下一版 `0.8.0-pre.4`（`-pre.N` 最多到 pre.9）；`0.7.5` 線最後是 pre.2"
+  - "版號線：D315 起 `0.8.0-pre.N`（D344 起從 `main` 發），`0.8.0-pre.4` 已發佈（2026-11-26 00:59，PLAN-069＋BUG-223 / 224，D364；CT 6.2.0 同日），下一版 `0.8.0-pre.5`（`-pre.N` 最多到 pre.9）"
+  - "分支清理（待使用者同意，`git branch -d`）：`ct/T0922`、`ct/T0923`、`ct/T0924`、`ct/T0926`、`ct/T0928`、`ct-merge/T0921`、`ct-merge/T0922`、`ct-merge/T0924`、`ct-merge/T0925`、`ct-merge/T0927`、`ct-merge/T0928`（皆已併入 `main`）；`ct/T0885` 與其 worktree 依 D307 保留"
   - "候選（未開單）：`_decision-log.md` 索引表只到 D129（D130–D315 沒有索引列，BAT 決策清單看不到），需重建索引（D316 記錄）"
 reminders:
   - id: "weekly-log-review"
@@ -36,57 +36,56 @@ reminders:
 ---
 # Tower State — better-agent-terminal
 
-> 🟢 **第一百三十二 session 開工**（2026-11-25 20:19 (UTC+8)，CT v6.1.1，Fast Path；塔台 session `5af58859-9dbd-47ab-8770-3e8ad396b11e`；`main` = `origin/main` @ `7f5c7ebc`（fetch 後 0 / 0）、工作區乾淨、無 stash；worktree 剩 `T0885` 與 `.ct-integration`；`--set-role tower --bat-contract 2 --mode on` exit 0 → `bat-contract: 2`、`hooks: ok (injected, set 2)`；BAT helper `0.8.0-pre.3`；熱區 T:317（非終態 0）/ BUG:86（CLOSED 85 / WONTFIX 1）/ PLAN:33（IN_PROGRESS 7）/ EXP:1，與索引一致；PLAN-067 週清查未到期（2026-12-02））。 20:28 使用者問待辦分頁是否保留推薦項與自由輸入（自由回答在、推薦項不在）→ 裁示推薦項慣例＋契約欄位都要，另加放棄 / 批次放棄（兩區、勾選＋全部、放棄後停下等新方向）→ D346 開 PLAN-069（PLANNED），HANDOVER 給 CT 塔台協商契約。 20:33 CT 回覆草案（CT D885，待 CT 使用者核定）：同意 C-1–C-4，C-5 改維持契約 2 ＋ `inbox_features`；BAT 已答 Q1（舊 BAT 忽略未知鍵）/ Q2（`0.8.0-pre.4`、同意），等 ACCEPTED。 20:36 CT 受理（CT D886、CT T0566）。 20:45 使用者問 `user_inbox: off` 與原生選單 → D347 補充需求 R6（暫停時可改用原生選單的 CT 設定鍵），通知 CT 併入 6.2.0。 20:47 CT R6 草案（CT D887 待核定）：沿用 `interactive-prompts` 擴及暫停，BAT 無異議。 20:49 CT 核定 R6（CT D888），併入 CT T0566（6.2.0-pre.1）；等 T0566 收單後的規範位置與範例狀態檔，再開 BAT T0922。 20:57 CT T0566 收單（CT D889，規範 CT `7ea750f`）→ 開 T0922（PLAN-069 → IN_PROGRESS），隔離派工。 20:59 派出 T0922（`--mode on --isolation worktree`，exit 0、`started: 2026-11-25T12:59:16.685Z`；分頁 `35af16c3…`，worktree `.bat-worktrees/better-agent-terminal/T0922`、分支 `ct/T0922`、base `a2c219ab`）。 21:13 T0922 收單 DONE（D348）：產品 commit `0675d9fd`（17 檔，皆在 `affects_files` 內，`_ct-workorders/**` 未動）；test:unit 9037 passed / 497 files、test:legacy 472 / 33、vite build、typecheck 0 / 0；session id 已在；session 快照略過（本 session 未跑 `*insights sessions`）；`--close-worker T0922 --delay-ms 10000 --worktree keep` exit 0。模式 ① 判準 5 條 PASS（main 只多 `_ct-workorders/**`、validated = head、範圍外 0、`merge-tree` 無衝突、worktree 與主 checkout 乾淨）→ 整合分支 `ct-merge/T0922` `--no-ff` → `9bbd42fa`（parent1 `a4f7fcd6` = base、parent2 `0675d9fd`；產品樹 = head）。斷點 E（非 yolo）→ U-6。 21:14 U-6 → A（D349）：整合分支再併 `main` 記帳 commit（`728c3197`）→ `main` ff 到 `728c3197`（④ PASS）；整合 worktree detach；`--close-worker … --worktree remove` exit 3（分頁已關）→ 手動 `git worktree remove`（乾淨）；分支 `ct/T0922`、`ct-merge/T0922` 保留。驗收用哪個 BAT → U-7。 21:16 U-7 → A（D350）：去識別 9 條樣式 0、金鑰樣式 0 → push `main` `7f5c7ebc..402c9648`；`desktop-build.yml` run `45621864786`（ref `402c9648`、版號 `0.8.0-exp.1`，只打包不發佈）；Pages run `45621849988` 同時觸發（`site/tower-inbox.md` 新段先上線）。 21:17 CT 問 exp.1 是否覆蓋安裝版 → 答：用 zip＋`launchIsolated` 隔離 runtime，不碰安裝版 `0.8.0-pre.3`。 21:20 CT 決定 P2 比照 6.1.0（CT D890）：CT T0567 準備 `ct620-accept/`（claude-config、`ct-swap.py`、checklist M-1–M-15），情境 S1（exp.1×6.2.0-pre.1）/ S2（pre.3×6.2.0-pre.1）/ S3（exp.1×6.1.1）/ S4（M-15：pre.1 zip、`interactive-prompts: off`、Codex）；三個 BAT zip 由 BAT 負責。T0567 收單＋使用者在 claude-config 登入後，CT 通知 → 開 BAT 驗收單 T0923。 21:31 CT T0567 收單（CT D891，checklist SHA-256 `d7546b35…`）→ 寫好 T0923（隔離 worktree、per-dispatch yolo 照 T0915 前例），等 CT 通知使用者已登入測試 config ＋ desktop-build `45621864786` 完成後派工。 21:32 CT 通知使用者已登入（CT D892）→ T0923 補〈塔台補充（派工前）〉（帳號檔不得複製）。 21:36 desktop-build `45621864786` 完成：四個 build 全綠、`tests` job 1 失敗（`verify-packaged-native.test.mjs` asar 往返讀到全 NUL，與 T0922 無關）→ 開 BUG-223（OPEN low）→ U-8。21:36 派出 T0923（`--mode yolo --no-interactive --isolation worktree`，exit 0、`started: 2026-11-25T13:36:44.974Z`；分頁 `5be5d859…`，worktree `.bat-worktrees/better-agent-terminal/T0923`、base `7b23aa55`）。 21:38 U-8 → A（D351）：BUG-223 → FIXING，開 T0924（隔離，與 T0923 無檔案重疊），派工。 21:39 派出 T0924（yolo，`started: 2026-11-25T13:39:26.210Z`，base `beb44842`）。 21:52 T0924 收單（D352）：Worker 填 `FIXED` → 塔台改 `DONE`；`1eb8f5ee` 只改測試檔（等 `@electron/asar` 寫入串流 `finished`，斷言不變），120/120、test:unit 9037、legacy 472、build、typecheck 0 / 0；BUG-223 → FIXED；`--close-worker T0924 … --worktree keep` exit 0；模式 ① `ct-merge/T0924` → `6dcb62ca`（parent1 `16dafed2`、parent2 `1eb8f5ee`）→ 斷點 E U-9。 21:53 U-9 → A（D353）：整合分支再併 `main` 記帳 commit → `68faa1d3`，`main` ff 到 `68faa1d3`（④ PASS）；整合 worktree detach；T0924 worktree 手動移除（乾淨）；分支保留。T0923 驗收仍在跑。 23:02 T0923 收單 DONE（D354）：M-1～M-15 BAT 端 0 FAIL、M-15c 未觸發（無 Codex 環境）；M-10 清單步驟與舊 BAT UI 不符，改經 IPC 送 `U-2：放棄`（待 CT 確認）；新增 `e2e/manual/ct-accept-act.mjs`（`3d7ae5d2`）；使用者層 1,191 檔雜湊不變、程序 0 殘留。發現 → 開 BUG-224（OPEN medium）→ U-10。`--close-worker T0923 … --worktree keep` exit 0。合併：判準 1 不成立（`main` 多了 T0924 的測試檔）→ 依規則派合併工單 T0925（模式 ②）。 23:03 派出 T0925（`--mode on`，非隔離，`started: 2026-11-25T15:03:49.890Z`）；通知 CT 做 CT 端判定（含 M-10 偏離與 4 點觀察）。 23:04 U-10 → A（D355）：BUG-224 → FIXING，開 T0926（隔離、yolo），pre.4 / CT 6.2.0 同日發佈延到 T0926 合併後。 23:05 派出 T0926（`started: 2026-11-25T15:05:36.149Z`，base `4e562519`）；CT T0568 做 CT 端判定（CT D895）。 23:07 T0925 收單 DONE（D356）：merge `16cf8451`（parent1 `230dade2` = base、parent2 `3d7ae5d2` = T0923 validated），無衝突、樹比對只有 `e2e/manual/` 2 檔、test:unit 9038、legacy 472、build、typecheck 0 / 0；`--close-worker T0925` exit 0 → 斷點 E U-11。 23:08 U-11 → A（D357）：整合分支再併 `main` 記帳 → `b21a5a61`，`main` ff 到 `b21a5a61`（④ PASS）；整合 worktree detach；T0923 `--close-worker … --worktree remove` exit 3 → 手動移除（乾淨）；分支保留。進行中：T0926（BUG-224）、CT T0568。 23:15 CT 端判定完成（CT T0568 / D896）：44 判定 PASS 41 / FAIL 1（M-12-3，3 選項選單沒加「放棄」，CT 規範歧義）/ 未觸發 2（M-12-4b、M-15c）；M-10 偏離接受；4 點觀察屬實（1 = checklist 錯，2–4 = CT 規範），BAT 不需修改。CT T0569 出 6.2.0-pre.2（規範 R1–R6、新設定 `pending_reminder`、`checklist-rerun.md`）→ 收單後 BAT 用 `0.8.0-exp.2`（含 BUG-224 修正）跑補跑（約 4 回合；驅動要加「選單選最後一項」「在『其他』輸入文字」）。 23:15 T0926 收單 DONE（D358）：`2781c81e`（4 檔，範圍內），同一 AskUserQuestion 晚到的第二個 hook 在回答後 5 s 內不設回；14 新測試、既有不改、test:unit 9046、legacy 472、build、typecheck 0 / 0；BUG-224 → FIXED；`--close-worker T0926 … --worktree keep` exit 0。合併判準 1 不成立（`main` 多了 T0925 的 `e2e/manual/`）→ 合併工單 T0927（模式 ②，無衝突）。 23:16 派出 T0927（`--mode on`）。 23:22 T0927 收單 DONE（D359）：merge `9843fa9e`（parent1 `5d891249` = base、parent2 `2781c81e` = T0926 validated），樹比對 4 檔、範圍外 0、test:unit 9052 / 498、legacy 472、build、typecheck 0 / 0；`--close-worker T0927` exit 0 → 斷點 E U-12（含 push＋打包 exp.2）。 23:23 U-12 → A（D360）：`main` ff 到 `a65c0958`（④ PASS）；整合 worktree detach；T0926 worktree 手動移除（乾淨）；分支保留；去識別 9 條＋家目錄固定字串 0、金鑰 0 → push `main`，`desktop-build` 打包 `0.8.0-exp.2`。 23:24 push `main` `402c9648..56ca6e66`；`desktop-build` run `45644734317`（`0.8.0-exp.2`，ref `56ca6e66`）。 23:34 CT 6.2.0-pre.2 完成（CT T0569 / D897，`checklist-rerun.md` SHA-256 `fdb9525a…`）→ 寫好補跑單 T0928（S5 / S6、R-1～R-4＋BUG-224 實機），等 exp.2 打包完成後派工。 23:41 run `45644734317` 全綠（4 build＋`tests`；BUG-223 佐證，發版 Test gate 綠後 CLOSED）→ 派出 T0928（yolo，隔離，`started: 2026-11-25T15:41:13.936Z`，base `50b7cb5c`）。 2026-11-26 00:25 T0928 收單 DONE（D361）：R-1～R-4 BAT 端 9 列 PASS / 0 FAIL / 0 未觸發；BUG-224 實機 7 / 7 PASS → BUG-224 CLOSED；驅動加 `menu` / `pick` / `other` / `fastesc`（`798760b8`）；使用者層雜湊不變、程序 0 殘留；隔離實例 claude 帳號週用量已 85%（後續實機回合留意）。`--close-worker T0928 … --worktree keep` exit 0；模式 ① `ct-merge/T0928` → `50477ac7`（parent1 `d68c6cf6`、parent2 `798760b8`）→ 斷點 E U-13；通知 CT 做 CT 端判定。 00:26 U-13 → A（D362）：整合分支再併 `main` 記帳 → `8e6a1325`，`main` ff 到 `8e6a1325`（④ PASS）；整合 worktree detach；T0928 worktree 移除（乾淨）；分支保留。等 CT 端判定後約同日發佈。 00:34 CT 補跑判定（CT T0570 / D899）：R-1～R-4 14 列全 PASS，CT 6.2.0 驗收全部通過、不需再補跑；5 點觀察皆非缺陷（觀察 2 正式版改表格列名）；CT 正式版發佈方式請 CT 使用者決定（CT U-5）→ BAT 發版授權 U-14。 00:40 U-14 → A（D363）：開始發 `0.8.0-pre.4`（從 `main`）；CT D900 決定 6.2.0 同日發佈、順序同上次（BAT 先上線，CT 再推公開站）。 00:41 push `main` `56ca6e66..be40bb8f`（去識別 0、金鑰 0）→ `pre-release.yml --ref main -f version=0.8.0-pre.4` run `45656560078`。 01:01 CI 全綠（typecheck、`tests / unit-tests`、3 server-bundle、3 build、release）；`v0.8.0-pre.4` 00:59:56、`server-bundle-v0.8.0-pre.4` 01:00:28；`gh release edit --notes-file` 更版重點（D364）。BUG-223 CLOSED（交付版 Test gate 綠）→ 熱區未結 BUG 0；PLAN-069 DONE；`CHANGELOG.md` / `release-note.md` / `README.md`（版本對照＋待辦分頁段）＋ `package.json` `0.8.0-pre.4` → push → Pages 確認。 01:05 push `be40bb8f..337d024f`；Pages run `45660551506` build / link-check / deploy 綠，首頁版號 `0.8.0-pre.4`；link-check 1642 個連結 1 個 404 = CT `ct-v6.2.0` Release（CT 尚未發佈，預期，CT 發佈後下次 Pages 自然消失）→ 發佈完成（D365）。已通知 CT 推公開站。 01:11 CT `ct-v6.2.0` Release 已建立（2026-11-25T17:06:53Z）。使用者要求回覆 GitHub #24 → 已留言（`issuecomment-7169130469`）：A 收件匣 / B 閱讀保護在 pre.3＋CT 6.1.0、追加功能在 pre.4＋CT 6.2.0、版本需求表、請回報者試用後確認；issue 維持 OPEN（關閉由使用者決定）。 01:12 CT 6.2.0 發佈完成（CT D903，Latest，公開站 / marketplace 已更新，CT PLAN-020 結案）；依 CT 請求以 `parseTowerConfigDefaults` 解析 v6.2.0 打包版與開發機已安裝版 `tower-config.md`：皆 37 列、`pending_reminder`（every / on-change，預設 every）正確 → 已回覆 CT。開發機使用者層 control-tower 已是 6.2.0（本塔台 session 載入的是 6.1.1，下次開工改依 6.2.0）。
+> 🛏 **第一百三十二 session 收工**（2026-11-26 01:13 (UTC+8)）。
 
-> 🛏 **第一百三十一 session 收工**（2026-11-25 18:58 (UTC+8)）。
+> 🟢 **第一百三十二 session 開工**（2026-11-25 20:19 (UTC+8)，CT v6.1.1，Fast Path；塔台 session `5af58859-9dbd-47ab-8770-3e8ad396b11e`）。逐筆時間線已搬到 [`_archive/state-snapshots/2026-Q4-c.md`](_archive/state-snapshots/2026-Q4-c.md)〈第一百三十一～一百三十二 session〉。
 
-> 🟢 **第一百三十一 session 開工**（2026-11-25 16:05 (UTC+8)，CT v6.1.1，Fast Path；塔台 session `43c82f3f-de60-4c70-b5fb-f190e8698511`；`main` = `origin/main` @ `7deb824c`、`v0.8.x` = `origin/v0.8.x` @ `4ce779ee`、工作區乾淨、無 stash；worktree 剩 `T0885` 與 `.ct-integration`；熱區 T:316 / BUG:86 / PLAN:33 / EXP:1）。frontmatter 升契約 v2（`bat_contract: 2`、`ct_version`）；`todo` 兩項搬家：PLAN-068 實機驗收 → `user_actions` A-1、PLAN-067 → `reminders`。開工核對（R-G003）：T0916／T0918 frontmatter 仍 `FIXED`（BUG-220／222 已於 D338 CLOSED）→ 塔台收尾改 `DONE`；BUG-216–219 仍 `FIXED`（已隨 pre.2／pre.3 交付）→ 結案方式交使用者（U-1）。 16:11 U-1 → A（D340）：BUG-218／219 CLOSED（pre.2 run `45460440287`／pre.3 run `45560094561` `tests / unit-tests` 綠）；BUG-216／217 維持 FIXED → `user_actions` A-2／A-3；`_bug-tracker.md` FIXED 2 / CLOSED 83，parser 測試 65 passed。 16:30 `A-3：完成`（經 BAT 待辦分頁）→ D341 BUG-217 CLOSED（安裝版 `0.8.0-pre.3`；本次日誌沒有 `[ct-overview]` 行，無反證，依回報結案）；tracker FIXED 1 / CLOSED 84。 17:08 外部測試者回報：從 GitHub main「Download ZIP」打包 macOS，結果是舊程式（main `package.json` `0.7.5-pre.2`，但 `CHANGELOG.md`／`release-note.md` 已寫 pre.3）。原因：D307 起產品程式只在 `v0.8.x`，main 只有塔台紀錄與發版文件（main 領先 174 個 commit 幾乎都是 `_ct-workorders/`，`v0.8.x` 領先 54；`merge-tree` 試合併有衝突）。已給使用者回覆稿（用 Release 的 dmg 或 `v0.8.0-pre.3` 的 Source code）；防範方式交使用者（U-2）。 18:42 U-2 → B（D342）：現在把 `v0.8.x` 併回 `main` → 開 T0921（合併工單模式 ②，整合 worktree，只有 `CHANGELOG.md` 衝突；不 push、ff 經斷點 E）。`base_main_sha` `5699a2aa`。18:43 派出 T0921（`--mode on`，非隔離，exit 0、`started: 2026-11-25T10:43:05Z`）。 18:46 T0921 收單 DONE（模式 ②）：merge `f9375c2c`（parent1 `5699a2aa` = base、parent2 `4ce779ee` = `v0.8.x`）；`CHANGELOG.md` 採 `main` 版（兩邊 `[0.8.0-pre.3]` 逐字相同，`main` 多 pre.2／pre.1 段）；樹比對對 `4ce779ee` 只差 `CHANGELOG.md`、`release-note.md`、`_ct-workorders/**`；typecheck 0 / 0、vite build、test:unit 第一次即綠 9001、verify:helpers、網站建置 exit 0（新頁 `site/tower-inbox.md`）；範圍外檔案無。session id 已在、session 快照已寫；`--close-worker T0921 --delay-ms 10000` exit 0。SHA 比對 ①–③ PASS；⑤ main 只多 `_ct-workorders/**` → 整合分支 `--no-ff` 併 main → `8c173c2c`（main 為祖先）。18:47 斷點 E（非 yolo）→ U-3。 18:53 U-3 → A（D343）：整合分支再併一次 `main` 的記帳 commit → `git merge --ff-only ct-merge/T0921` → **`main` = `f967f9db`**（④ PASS，`package.json` `0.8.0-pre.3`）；整合 worktree detach；PLAN-066 DONE。未 push（領先 67）→ U-5；之後的分支用法 → U-4。 18:54 U-4 → A（D344）：產品改動回到 `main`（取代 D307 分流），`v0.8.x` 保留不再使用，下一版從 `main` 發。 18:55 U-5 → A、A-1 / A-2 完成（D345）：去識別 0、金鑰樣式只有既有測試假字串 → push `main` `7deb824c..2cac17e5`（Pages run `45599547166`）；PLAN-068 DONE；BUG-216 CLOSED（熱區未結 BUG 0）；`user_actions` 清空。
-
-> 最後更新:2026-11-25 18:58 (UTC+8) — **第一百三十一 session 收工**：`v0.8.x` 經 T0921 併回 `main` 並 push（D342–D345），產品改動回到 `main`（D344）；PLAN-066、PLAN-068 DONE；BUG-216–219 CLOSED（熱區未結 BUG 0）；`_tower-state.md` 升契約 v2；第一百二十九、一百三十 session 紀錄搬到 `2026-Q4-c.md`。
+> 最後更新:2026-11-26 01:13 (UTC+8) — **第一百三十二 session 收工**：PLAN-069（待辦分頁推薦項＋放棄 / 略過 / 批次）與 CT 協作完成，`v0.8.0-pre.4` 發佈（D364 / D365），CT 6.2.0 同日；BUG-223 / 224 CLOSED（熱區未結 BUG 0）；GitHub #24 已回覆。
 >
-> **下次起手**:熱區無進行中工單、無未結 BUG、無待你決定 / 待你執行。下一版 `0.8.0-pre.4` 從 `main` 發（D344）。候選見 frontmatter `todo`；PLAN-067 週清查 2026-12-02 到期。
+> **下次起手**:熱區無進行中工單、無未結 BUG、無待你決定 / 待你執行。開發機 CT 已是 6.2.0（下次開工依 6.2.0：每次寫狀態檔加 `inbox_features`、暫停用原生選單）。候選見 frontmatter `todo`；PLAN-067 週清查 2026-12-02 到期。
 
 ---
 
-## 🛏 本 Session 收工快照 (第一百三十一 session, 2026-11-25 16:05 - 2026-11-25 18:58)
+## 🛏 本 Session 收工快照 (第一百三十二 session, 2026-11-25 20:19 - 2026-11-26 01:13)
 
-### 主軸：契約 v2 升級、開工核對、`v0.8.x` 併回 `main`
+### 主軸：PLAN-069 待辦分頁推薦項與放棄（BAT ↔ CT 協作），`v0.8.0-pre.4` 發佈
 
 #### 重點（時間取自系統 / git）
 
-1. 開工：`_tower-state.md` 升 BAT ↔ CT 契約 v2（`bat_contract: 2`、`ct_version: "6.1.1"`、`awaiting_user` / `user_actions` / `reminders`）；`--set-role tower --bat-contract 2` → `bat-contract: 2`、`hooks: ok`
-2. 開工核對（R-G003）：T0916 / T0918 `FIXED` → `DONE`；BUG-216–219 結案方式 U-1 → D340（218 / 219 CI 結案）；A-3 → D341（BUG-217）；A-2 → D345（BUG-216）
-3. 外部測試者從 `main`「Download ZIP」拿到舊程式 → U-2 → D342 開 T0921（合併工單模式 ②，只有 `CHANGELOG.md` 衝突，採 `main` 版）→ U-3 → D343 ff `main` `f967f9db`；PLAN-066 DONE
-4. D344：產品改動回到 `main`（取代 D307），`v0.8.x` 保留不再使用
-5. D345：去識別 / 金鑰掃描 PASS → push `main` `7deb824c..2cac17e5`；Pages `45599547166` 綠、link-check 1633 / 0；A-1 → PLAN-068 DONE
+1. 使用者問待辦分頁是否保留推薦項與自由輸入 → D346 開 PLAN-069；HANDOVER 給 CT 塔台協商契約（CT D885–D889 受理，契約維持 v2 ＋ `inbox_features`）；補充需求 R6（暫停時原生選單，CT D887 / D888 沿用 `interactive-prompts`）
+2. T0922 實作（推薦標記、放棄 / 略過 / 批次、`checkInboxAnswer` 多編號）→ D348 / D349 併入 `main`
+3. 驗收：T0923（CT 6.2.0-pre.1，M-1～M-15 BAT 端 0 FAIL）→ CT T0568 判定（1 FAIL 屬 CT 規範）→ CT 6.2.0-pre.2 → T0928 補跑（0 FAIL、BUG-224 實機 7 / 7）→ CT T0570 14 列全 PASS
+4. 發現並修正：BUG-223（CI asar 測試偶發全 NUL，T0924）、BUG-224（極快 Esc 後塔台卡在 `question`，T0926）；合併工單 T0925 / T0927（判準 1 不成立時依規則派單）
+5. `0.8.0-exp.1` / `exp.2` 只打包驗收版（D350 / D360）；`v0.8.0-pre.4` 發佈（Pre-Release `45656560078`，D364）、Pages / link-check 綠（D365）；CT 6.2.0 同日（CT D900 / D903）
+6. GitHub #24 已回覆（issue 維持 OPEN，等回報者確認）；確認 BAT 總覽頁可讀 CT 6.2.0 `tower-config.md`（37 列、含 `pending_reminder`）
 
 ### 本輪戰績
-- 工單 1（T0921）；決策 D340–D345；BUG 結案 4（BUG-216–219）；PLAN 結案 2（PLAN-066、PLAN-068）；發版 0
+- 工單 7（T0922–T0928）；決策 D346–D365；BUG 開 2 結 2（BUG-223 / 224）；PLAN 開 1 結 1（PLAN-069）；發版 1（`v0.8.0-pre.4`）
 
 ### 編號起始（下 session）
-- **T0922** / **BUG-223** / **PLAN-069** / **D346** / **U-6** / **A-4**
+- **T0929** / **BUG-225** / **PLAN-070** / **D366** / **U-15** / **A-4**
 
 ---
 
-## 🛏 前 Session 收工快照 (第一百三十 session, 2026-11-25 00:28 - 2026-11-25 15:25)
+## 🛏 前 Session 收工快照 (第一百三十一 session, 2026-11-25 16:05 - 2026-11-25 18:58)
 
-- PLAN-068（GitHub #24）W0–W9 實作、T0915 自動驗收、BUG-220–222 修正與 T0920 補驗；`v0.8.0-pre.2`（D324）、`v0.8.0-pre.3`（D339，CT 6.1.0 同日）發佈；BUG-218 / 219（測試穩定度）修正；PLAN-067 開單。完整逐條紀錄已搬到 [`_archive/state-snapshots/2026-Q4-c.md`](_archive/state-snapshots/2026-Q4-c.md)。
+- 契約 v2 升級、開工核對（BUG-216–219 結案）、`v0.8.x` 經 T0921 併回 `main` 並 push（D342–D345），產品改動回到 `main`（D344）；PLAN-066、PLAN-068 DONE。完整紀錄已搬到 [`_archive/state-snapshots/2026-Q4-c.md`](_archive/state-snapshots/2026-Q4-c.md)。
 
 ---
 
 ## 🌅 起手式（Quick Recovery）
 
-> 最後更新：2026-11-25 18:58 UTC+8（第一百三十一 session 收工）
+> 最後更新：2026-11-26 01:13 UTC+8（第一百三十二 session 收工）
 
 ### 近期完成
-- **`v0.8.x` 併回 `main`**（第一百三十一 session，T0921，D342–D345）：`main` 是 `0.8.0-pre.3`，產品改動回到 `main`（D344）
-- **PLAN-068 DONE**：待辦分頁 / 回合訊息卡 / 通知保護（`v0.8.0-pre.3`，CT 6.1.0）；**PLAN-066 DONE**（共用 conout Worker）
-- BUG-216–222 全部 CLOSED，熱區未結 BUG 0
+- **`v0.8.0-pre.4` 發佈**（第一百三十二 session，D364）：PLAN-069 待辦分頁推薦標記＋放棄 / 略過 / 批次放棄（CT 6.2.0 同日）、BUG-224（極快 Esc 後塔台卡住）、BUG-223（CI 測試偶發）
+- PLAN-069 DONE；BUG-223 / 224 CLOSED，熱區未結 BUG 0；GitHub #24 已回覆
+- 前一 session：`v0.8.x` 併回 `main`（D344，產品改動在 `main`）；PLAN-066 / 068 DONE
 
 ### 待辦（依優先序；完整內容見 frontmatter `todo`）
-1. 下一版 `0.8.0-pre.4` 從 `main` 發；發佈後驗收（linux / macos / docker、WSL smoke）視需要授權
+1. 下一版 `0.8.0-pre.5` 從 `main` 發；分支清理（`ct/T0922`–`T0928`、`ct-merge/T0921`–`T0928`）待使用者同意
 2. PLAN-065 per-machine UAC 互動升級手動驗收；PLAN-052 Docker Desktop 實機精靈；PLAN-058 手動確認；其他待實機項
-3. 候選（未開單）：PLAN-066 後續、決策日誌索引重建、D303 暫不安排的項目
+3. 候選（未開單）：💬 卡片摘要「```」、`readAsarFile` 讀不足判失敗、PLAN-066 後續、決策日誌索引重建
 4. PLAN-067 週清查 2026-12-02 到期（`reminders`）
 
 ### ⚠️ 鐵則
@@ -99,11 +98,11 @@ reminders:
 - 時間戳一律取系統時間（R-G001；第一百三十一 session 曾手打一次 `updated_at`，已更正）
 
 ### 快速連結
-- Bug Tracker → [_bug-tracker.md](_bug-tracker.md)（熱區：Open 0 / Fixing 0 / Fixed 0 / Closed 85 / WONTFIX 1）｜ Backlog → [_backlog.md](_backlog.md)（IN_PROGRESS 7 / DONE 21）
-- Decision Log → [_decision-log.md](_decision-log.md)（最大 D345；D001～D185 封存在 `_archive/decisions/`）｜ Learnings → [_learnings.md](_learnings.md)（最大 L185）
+- Bug Tracker → [_bug-tracker.md](_bug-tracker.md)（熱區：Open 0 / Fixing 0 / Fixed 0 / Closed 87 / WONTFIX 1）｜ Backlog → [_backlog.md](_backlog.md)（IN_PROGRESS 7 / DONE 22）
+- Decision Log → [_decision-log.md](_decision-log.md)（最大 D365；D001～D185 封存在 `_archive/decisions/`）｜ Learnings → [_learnings.md](_learnings.md)（最大 L185）
 - PLAN-068 網頁版使用說明 → https://claude.ai/artifact/8mepgGP16ghS3m9hsu2Wst（私人）
 - 網站 → https://gowerlin.github.io/better-agent-terminal/
-- 歷史 sessions → [_archive/state-snapshots/INDEX.md](_archive/state-snapshots/INDEX.md)（150 entries；最新 `2026-Q4-c.md`）
+- 歷史 sessions → [_archive/state-snapshots/INDEX.md](_archive/state-snapshots/INDEX.md)（152 entries；最新 `2026-Q4-c.md`）
 
 ### 編號起始
 - **T0929** / **BUG-225** / **PLAN-070** / **D366** / **U-15** / **A-4** / **EXP-WFMINE-002**（其他 TOPIC 從 001） / **L186** / **CT-T023**

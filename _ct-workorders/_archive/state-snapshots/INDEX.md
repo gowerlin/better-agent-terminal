@@ -1,9 +1,9 @@
 # State Snapshot INDEX
 
-> Last archived: 2026-11-25（Session 131 收工 — Session 129、130 開工 / 收工紀錄＋Session 129 收工快照 → 2026-Q4-c.md）
-> Hot path retains: session 131 紀錄＋收工快照、session 130 摘要 + Quick Recovery / 基本資訊 / 進度快照 / 環境快照 / YOLO 歷程
+> Last archived: 2026-11-26（Session 132 收工 — Session 131 開工 / 收工紀錄與收工快照、Session 132 時間線 → 2026-Q4-c.md）
+> Hot path retains: session 132 收工快照、session 131 摘要 + Quick Recovery / 基本資訊 / 進度快照 / 環境快照 / YOLO 歷程
 > Archive root: `_ct-workorders/_archive/state-snapshots/`
-> Total archived entries: 145 (27 in Q2-a / 31 in Q2-b / 5 in Q2-c / 2 in Q3 / 27 in Q4-a / 36 in Q4-b / 17 in Q4-c)
+> Total archived entries: 147 (27 in Q2-a / 31 in Q2-b / 5 in Q2-c / 2 in Q3 / 27 in Q4-a / 36 in Q4-b / 19 in Q4-c)
 
 | # | Session | Date | File | Summary |
 |---|---------|------|------|---------|
@@ -157,3 +157,5 @@
 | 148 | 第一百二十八 session | 2026-11-23 | 2026-Q4-c.md | 第一百二十八 session, 2026-11-23 20:33 開工, T0886-T0890, D308-D315, v0.8.0-pre.1 |
 | 149 | 第一百二十九 session | 2026-11-24 | 2026-Q4-c.md | 第一百二十九 session, 2026-11-24 03:37-03:50, NSIS PASS, BUG-215 CLOSED, D316 |
 | 150 | 第一百三十 session | 2026-11-25 | 2026-Q4-c.md | 第一百三十 session, 2026-11-25 00:28-15:25, T0891-T0920, D317-D339, 0.8.0-pre.2/pre.3 |
+| 151 | 第一百三十一 session | 2026-11-25 | 2026-Q4-c.md | 第一百三十一 session, 2026-11-25 16:05-18:58, T0921, D340-D345, v0.8.x 併回 main |
+| 152 | 第一百三十二 session | 2026-11-25 | 2026-Q4-c.md | 第一百三十二 session, 2026-11-25 20:19-2026-11-26 01:13, T0922-T0928, D346-D365, v0.8.0-pre.4 |
