@@ -10,6 +10,7 @@
 
 | ID | 日期 | 標題 | 相關工單 |
 |----|------|------|---------|
+| D341 | 2026-11-25 | A-3 完成 → BUG-217 CLOSED（`v0.8.0-pre.3` 安裝版使用者實機驗收） | BUG-217 |
 | D340 | 2026-11-25 | U-1 → A：BUG-218／219 以 pre.2／pre.3 CI `tests / unit-tests` 綠燈結案（CLOSED）；BUG-216／217 維持 FIXED，列待使用者實機驗收（A-2／A-3） | BUG-216–219 |
 | D339 | 2026-11-25 | 發佈 `0.8.0-pre.3`（從 `v0.8.x` `5e541975`：PLAN-068＋BUG-220–222），使用者核定；誤發的測試 artifact 使用者自行刪除（本 session 無法代為確認刪除） | PLAN-068 |
 | D338 | 2026-11-25 | T0920 補驗 PASS → BUG-220／221／222 CLOSED；縮圖 📨 `reading` 提示文字補上全螢幕往上捲規則（塔台直接改三語系字串，`v0.8.x` `5e541975`）；PLAN-068 驗收完成，待使用者確認發佈 `0.8.0-pre.3` | PLAN-068 / T0920 |
@@ -272,6 +273,12 @@
 - **最大風險**：`whisper-node-addon@1.0.2` 對 Electron 41（Node 24）的 NODE_MODULE_VERSION 相容性未知，允許 Worker 遇此決策點主動問塔台
 
 ---
+
+### D341 2026-11-25 16:31 — A-3 完成，BUG-217 結案
+
+- **使用者回答**：`A-3：完成`（16:30 經 BAT 待辦分頁送出，日誌 `[tower-inbox] answer … id=A-3 … → sent`）。
+- **塔台複查**：安裝版 `0.8.0-pre.3`（`resources/package.json`）；本次 BAT 程序的日誌（`debug-20261125-160350.log`，16:03 起）沒有 `[ct-overview]` 行，日誌裡看不到驗收過程，但也沒有和回報相反的跡象（舊程序的日誌 `debug-20261124-101607.log` 仍有多行原文摘錄，那是修正前的版本）→ 依回報結案，不另發 U-n。
+- **執行**：BUG-217 → CLOSED（`closed_reason` 寫交付版＋A-3）；`_bug-tracker.md` FIXED 1 / CLOSED 84，重複列 0、`src/types/__tests__` 65 passed（L179）；`user_actions` 移除 A-3。
 
 ### D340 2026-11-25 16:11 — BUG-216–219 結案方式（U-1）
 
