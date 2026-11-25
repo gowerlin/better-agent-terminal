@@ -1,17 +1,19 @@
 ---
 schema_kind: tower-state
 summary_version: 1
-updated_at: "2026-11-25T15:25:19+08:00"
-session: "2026-11-25 00:28 第一百三十 session（CT v6.0.0）"
+bat_contract: 2
+ct_version: "6.1.1"
+updated_at: "2026-11-25T16:05:37+0800"
+session: "2026-11-25 16:05 第一百三十一 session（CT v6.1.1）"
 next_ids:
   workorder: "T0921"
   decision: "D340"
   bug: "BUG-223"
   plan: "PLAN-069"
+  user: "U-2"
+  action: "A-2"
 todo:
-  - "PLAN-067 每週日誌清查：塔台開工時讀 PLAN-067 `last_review_at`，≥ 7 天就在面板提示（只提示、不自動派工；規則見 `_local-rules.md`〈每週日誌清查〉）。下次到期 2026-12-02"
   - "🚀 `v0.8.0-pre.3` 已發佈（D339，2026-11-25 14:44，從 `v0.8.x` `5e541975`：PLAN-068 待辦分頁＋BUG-220–222；CT 6.1.0 同日發佈）；pre.2 D324、pre.1 D315。D331：只有改到安裝路徑的版本才做 NSIS 重裝驗收。待做：`v0.8.x` 併回 main（使用者裁示等 0.8 線實際使用一段時間再併，併回後 PLAN-066 → DONE；main 的 `package.json` 仍是 `0.7.5-pre.2`，`v0.8.x` 是 `0.8.0-pre.3`）；發佈後驗收（linux / macos / docker acceptance、WSL smoke）視需要另取授權"
-  - "PLAN-068 剩使用者實機驗收：T0913〈待實機清單〉M-U1–U8、M-R1–R2（用已發佈的 `0.8.0-pre.3`）；做完更新 PLAN-068 狀態。網頁版使用說明 https://claude.ai/artifact/8mepgGP16ghS3m9hsu2Wst；驗收證據 zip 在 `%LOCALAPPDATA%/BAT-acceptance-evidence/`"
   - "PLAN-066 後續候選（未開單）：`pty:create` 只送 env 差異（`pty-manager.ts`＋Terminal Server 協定）可再降 C2①；direct 模式的 conin socket 殘留；F4（自然結束的 conhost 留到 server 結束）。分支：`ct/T0885`（Rust 評估，D307 保留不合併，worktree 保留）、`ct/T0886`（node-pty Worker 研究，未併入 `v0.8.x`，worktree 已移除）"
   - "PLAN-065 剩餘：per-machine 未提權互動升級（UAC）手動驗收（無法自動化）；降級到 `0.7.4-pre.9` 會結束所有終端且沒有說明（已寫在更版重點〈已知事項〉）"
   - "PLAN-052（IN_PROGRESS）：待 Docker Desktop（Windows / macOS）實機走精靈；後續候選（未開單）：fetch-fingerprint Docker 分支比對憑證指紋、`scripts/docker-acceptance.mjs` 純函式單元測試"
@@ -22,8 +24,32 @@ todo:
   - "觀察：語音可用性檢查 macOS 未實機（`unknown(timeout)` 出現可把逾時提到 30 s，T0802）；t0757 偶發失敗再發生才開 BUG（D218）；PLAN-060（IDEA）macOS Developer ID 簽章"
   - "版號線：D315 起 `0.8.0-pre.N`（從 `v0.8.x` 分支發），pre.2 已發佈（2026-11-25），`0.8.0-pre.3` 已發佈（2026-11-25 14:44，PLAN-068 待辦分頁＋BUG-220–222，D339；CT 6.1.0 同日發佈），下一版 `0.8.0-pre.4`（`-pre.N` 最多到 pre.9）；`0.7.5` 線最後是 pre.2"
   - "候選（未開單）：`_decision-log.md` 索引表只到 D129（D130–D315 沒有索引列，BAT 決策清單看不到），需重建索引（D316 記錄）"
+awaiting_user:
+  - id: "U-1"
+    workorder: ""
+    kind: "decision"
+    source: "tower-question"
+    summary: "BUG-216–219 仍是 FIXED（修正已隨 0.8.0-pre.2／pre.3 發佈），要怎麼結案"
+    options: ["A 218／219 以 CI 綠燈結案；216／217 列待你驗收", "B 四張都等你實機驗收後再結", "C 四張都以交付版結案"]
+    created_at: "2026-11-25T16:05:37+08:00"
+user_actions:
+  - id: "A-1"
+    title: "PLAN-068 待辦分頁實機驗收 M-U1–U8、M-R1–R2（用 0.8.0-pre.3；清單見 T0913 回報區〈待實機清單〉）"
+    ref: "PLAN-068"
+    kind: "verify"
+    created_at: "2026-11-25T16:05:37+08:00"
+reminders:
+  - id: "weekly-log-review"
+    title: "每週日誌清查（PLAN-067；到期時塔台開工會提示，只提示不派工）"
+    ref: "PLAN-067"
+    last_at: "2026-11-25"
+    due_at: "2026-12-02"
 ---
 # Tower State — better-agent-terminal
+
+> 🟢 **第一百三十一 session 開工**（2026-11-25 16:05 (UTC+8)，CT v6.1.1，Fast Path；塔台 session `43c82f3f-de60-4c70-b5fb-f190e8698511`；`main` = `origin/main` @ `7deb824c`、`v0.8.x` = `origin/v0.8.x` @ `4ce779ee`、工作區乾淨、無 stash；worktree 剩 `T0885` 與 `.ct-integration`；熱區 T:316 / BUG:86 / PLAN:33 / EXP:1）。frontmatter 升契約 v2（`bat_contract: 2`、`ct_version`）；`todo` 兩項搬家：PLAN-068 實機驗收 → `user_actions` A-1、PLAN-067 → `reminders`。開工核對（R-G003）：T0916／T0918 frontmatter 仍 `FIXED`（BUG-220／222 已於 D338 CLOSED）→ 塔台收尾改 `DONE`；BUG-216–219 仍 `FIXED`（已隨 pre.2／pre.3 交付）→ 結案方式交使用者（U-1）。
+>
+> 🛏 **第一百三十 session 收工**（2026-11-25 15:25 (UTC+8)）。
 
 > 🟢 **第一百三十 session 開工**（2026-11-25 00:28 (UTC+8)，CT v6.0.0，Fast Path（環境快照 2026-11-24，未逾 7 天）；塔台 session `93faa440-07bb-4923-8807-c9d1835ee287`；分頁 `3a9b5550…`；`--set-role tower --mode on` exit 0；`bat_whoami` 名稱 `better-agent-terminal · Tower`；BAT helper `0.8.0-pre.1`；`main` = `origin/main` @ `94147ecb`、`v0.8.x` = `origin/v0.8.x` @ `bcb4bbe0`、工作區乾淨、無 stash；worktree 只剩 `T0885` 與 `.ct-integration`；熱區 T:286 / BUG:79 / PLAN:31 / EXP:1；`bat_list_questions` pending 0）。
 > 00:31 D317：開 T0891（內嵌 claude-code 2.1.331 / agent-sdk 0.3.331 / codex 0.172.0 追版，`ct/T0891` 從 `v0.8.x` `bcb4bbe0`，隔離派工）與 T0892（`v0.8.0-pre.1` 日誌與記憶體唯讀檢查），並行派工。00:32 派出：T0891 `--mode yolo --no-interactive --isolation worktree` exit 0、`started: 2026-11-24T16:32:21Z`（worktree `.bat-worktrees/…/T0891`、branch `ct/T0891`、BAT 印 base `06c3b884` = 與 main 的共同祖先，預期）；T0892 exit 0、`started: 2026-11-24T16:32:23Z`。

@@ -4,14 +4,14 @@ schema_kind: workorder
 id: T0916
 title: "修 BUG-220：待辦分頁在 `_ct-workorders/` 之後才建立時自動讀到（不必按 ↻）"
 type: bugfix
-status: FIXED
+status: DONE
 repo: better-agent-terminal
 project: PLAN-068
 priority: P1
 sizing: M
 created_at: "2026-11-25T12:19:45+08:00"
 started_at: "2026-11-25T12:22:28+08:00"
-updated_at: "2026-11-25T12:32:42+08:00"
+updated_at: "2026-11-25T16:06:11+08:00"
 completed_at: "2026-11-25T12:32:42+08:00"
 session_ids:
   - "aef3af33-8ba1-4a10-aeb1-35895b2a55a0"
@@ -163,3 +163,7 @@ memory_overrides:
 - [12:22] 開工：落點檢查 PASS、merge-base 符合；worktree 沒有 `node_modules` → `npm ci`（exit 0）。
 - [12:26] Q-1: 修法需改 `electron/preload.ts`、`src/types/electron.d.ts`（不在 affects_files）→ A（塔台）: 「A：允許改 `electron/preload.ts` 與 `src/types/electron.d.ts`，請自己把這兩個檔加進本工單 frontmatter `affects_files`。條件：1. 只有 `acquireDirWatch` 帶 `{ recreate: true }`；其他呼叫者（檔案樹、`.git`、`_bmad-output`）送出的內容與行為完全不變。2. 遠端也要說明清楚：proxied `fs:watch` 與 headless 要收得到第二個參數，並且行為一致。舊的 bat-server 收到多出的參數要能忽略，退回修正前的行為（不出錯），在回報區寫明。3. 等待目錄出現時要用事件驅動，例如監看上層目錄。如果必須輪詢，照工單規定：間隔至少 2 秒、只 stat 那個目錄、出現後就停。目錄被刪除後要清掉 watcher，不得洩漏。」→ Action: 兩檔加進 `affects_files`；preload 只在有 options 時才多送參數；遠端行為寫在〈修法〉並以 headless 線路測試驗證；等待用上層目錄 watch（無輪詢）；刪除時關閉舊 watcher、`unwatch` 不留 watcher（測試驗證）。
 - [12:31] 驗證完成（`d81fdc4c`）；塔台補充檢查（驗證前、commit 前、回報前）皆無新段落。
+
+## 塔台收尾補記（2026-11-25T16:06:11+08:00）
+
+- Worker 依 BUG 單慣例寫 `FIXED`；工單本身以 `DONE` 結案（L177）。修正已由 T0919 合併進 `v0.8.x`、T0920 實機補驗 PASS，BUG-220 於 D338 CLOSED，隨 `v0.8.0-pre.3` 發佈。

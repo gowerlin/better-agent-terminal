@@ -4,13 +4,13 @@ schema_kind: workorder
 id: T0918
 title: "修 BUG-222：claude 排隊多個權限詢問時，回答第一個後 `blocked`（`permission`）不得提早清除"
 type: bugfix
-status: FIXED
+status: DONE
 repo: better-agent-terminal
 project: PLAN-068
 priority: P1
 sizing: M
 created_at: "2026-11-25T12:19:45+08:00"
-updated_at: "2026-11-25T12:44:55+08:00"
+updated_at: "2026-11-25T16:06:11+08:00"
 completed_at: "2026-11-25T12:44:55+08:00"
 started_at: "2026-11-25T12:22:47+08:00"
 target_version: "0.8.0-pre.3（與 CT 6.1.0 同日發佈）"
@@ -169,3 +169,7 @@ hook 送不出逐一對應的結束事件 → 採最保守做法，**不改 hook
 ### 互動紀錄
 
 - [12:22] 開工：yolo、`CT_INTERACTIVE=0`；未向塔台提問（修法依工單授權自行選擇）。
+
+## 塔台收尾補記（2026-11-25T16:06:11+08:00）
+
+- Worker 依 BUG 單慣例寫 `FIXED`；工單本身以 `DONE` 結案（L177）。修正已由 T0919 合併進 `v0.8.x`、T0920 實機補驗 PASS，BUG-222 於 D338 CLOSED，隨 `v0.8.0-pre.3` 發佈。
