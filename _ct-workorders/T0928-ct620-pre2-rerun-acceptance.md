@@ -5,7 +5,6 @@ id: T0928
 title: "PLAN-069 補跑驗收：以 zip 測試版 BAT `0.8.0-exp.2`（含 BUG-224 修正）＋ CT 6.2.0-pre.2，跑 CT `checklist-rerun.md` R-1～R-4（S5 / S6），並實機驗證 BUG-224"
 type: verification
 status: DONE
-waiting_user: "U-13"
 repo: better-agent-terminal
 project: PLAN-069
 priority: P1
