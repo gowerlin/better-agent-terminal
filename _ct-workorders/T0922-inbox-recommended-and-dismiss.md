@@ -4,14 +4,17 @@ schema_kind: workorder
 id: T0922
 title: "PLAN-069：待辦分頁推薦項（`awaiting_user[].recommended` 標記＋預設選取）與放棄 / 略過（單筆、勾選批次、全部；`inbox_features` 含 `dismiss` 才顯示），回答格式放寬到批次；對應 CT 6.2.0-pre.1"
 type: implementation
-status: IN_PROGRESS
+status: DONE
 repo: better-agent-terminal
 project: PLAN-069
 priority: P1
 sizing: M
 created_at: "2026-11-25T20:57:34+08:00"
 started_at: "2026-11-25T20:59:21+08:00"
-updated_at: "2026-11-25T20:59:21+08:00"
+updated_at: "2026-11-25T21:10:43+08:00"
+completed_at: "2026-11-25T21:10:43+08:00"
+session_ids:
+  - "6252e8a2-1333-4ea3-bb06-c3c8789b4f0a"
 target_version: "0.8.0-pre.4（與 CT 6.2.0 同日發佈）"
 depends_on: []
 related:
@@ -113,25 +116,105 @@ PLAN-068 把塔台的「待你決定 / 待你執行」放進右側欄「待辦�
 
 ### 完成狀態
 
+- **狀態**：DONE（範圍內驗收全部通過；需要真實塔台回合的項目列在〈待實機〉）
+- **落點檢查**：PASS。C-0 `repo` = `better-agent-terminal`，`basename "$CT_HOME"` = `better-agent-terminal`；C-1 工單在 `$CT_HOME/_ct-workorders/` 下；C-3 `affects_files` 皆存在（或其上層存在）；C-2 工單沒有 `branch` 欄位。`CT_HOME` 已設定、`CT_WORKTREE_BRANCH` = `ct/T0922`、`BAT_WORKSPACE_ID` 已設定（只記錄）。
+- **模式**：`CT_MODE=on`（通知不加 `--submit`）
+- **session_id**：6252e8a2-1333-4ea3-bb06-c3c8789b4f0a
+
 ### 產出摘要
+
+產品 commit `0675d9fdc1937d9209586f67f9200343cf7689b4`（`ct/T0922`）。
+
+1. **解析**（`src/lib/tower-inbox.ts`）
+   - `parseInboxFeatures`：字串陣列；不是陣列或不存在 = `[]`；只留 `recommended` / `dismiss`（`INBOX_FEATURES`），不認得的值（`future-value`）與非字串忽略、去重。結果在 `TowerInboxLists.features`，`useInboxModel` 帶出 `features`。
+   - `matchRecommended`：`awaiting_user[].recommended` 與同筆選項代號不分大小寫比對，命中記 CT 寫的代號原樣（`AwaitingItem.recommended`）；對不到 / 空選項 / 自由回答 / 非字串 → 沒有推薦，不報錯、不略過、不計入略過數。
+2. **推薦標記**（`InboxLists.tsx` `AwaitingRow`）：推薦選項旁「推薦」標記（三語系）；未選時預設選取（`choice ?? item.recommended`），點別的選項即改；順序照 CT、「（推薦）」原文保留。
+3. **放棄 / 略過**（`InboxPanel.tsx` 依 `features.includes('dismiss')` 傳 `dismiss`；沒有時一個控制項都不畫）：
+   - 單筆：`DismissControl`（頁內展開選填欄＋送出 / 取消，Enter 也送）→ `U-n：放棄[ 文字]` / `A-n：略過[ 文字]`。
+   - 批次：每筆勾選框（`DismissCheck`）＋每區工具列（`DismissToolbar`）「放棄勾選（N）」/「全部放棄」（略過同理），頁內確認列出編號＋共用選填文字；送出 `U-1、U-3、U-4：放棄 <文字>`。「全部」與勾選都在按下送出當下以畫面上列出的編號計算（確認列開著時檔案變動也跟著更新）；不送萬用字元 / 範圍；每區各一次 `tower-inbox:answer`。
+   - 字串唯一實作 `dismissAnswerText`（全形冒號、`、`、文字換行 / tab 改空白）。待驗收 BUG 沒有略過（不是 CT 項目）。
+4. **回答檢查放寬**（`checkInboxAnswer`，renderer 與 host 共用）：單編號路徑原樣（既有測試未改）；新增 `INBOX_BATCH_PREFIX`（≥ 2 個 `[UA]-\d+`，`、` `,` `，` 分隔、前後空白忽略）且冒號後第一個詞是放棄 / 略過（`isDismissAnswer`，照 CT :288–:290）才 `ok`；其他多編號行 → 新代碼 `bad-batch`；萬用字元 / 範圍 → `bad-prefix`；單行、≤ 1,000 字照舊。host 拒絕仍回 `invalid`。
+5. **日誌**：`inboxAnswerLogIds` —— 單編號 `id=U-3`（與 T0908 逐字相同），批次 `id=U-1 ids=3`；renderer（`src/lib/inbox-answer.ts`）與 host（`registerTowerInboxAnswerHandler`）共用。不記 summary / options / 回答 / 原因。
+6. **i18n**：`inbox.recommended`、`inbox.dismiss.*`（14 鍵）補進 `en` / `zh-TW` / `zh-CN`。CSS：`src/styles/inbox.css`。
+7. **文件**：`docs/agent-guide/tower-inbox.md` 新增〈推薦項與放棄（PLAN-069）〉（必守規則、唯一實作、`inbox_features` 讀法、推薦比對、出現條件、送出格式、「全部」展開、檢查放寬、相容表、R6、日誌、已知限制、驗證）；CLAUDE.md「待辦分頁的契約 v2 清單與回答」節加一點（小節標題未改，94,431 字元）；`site/tower-inbox.md` 新增〈推薦選項與放棄〉。
+8. **CT 範例**：`tower-state-v620.md` 複製為 `src/lib/__tests__/fixtures/ct-tower-state-v620.md`（換行改 LF，內容不變）；CT 檔案未修改。
+
+修改檔案：`CLAUDE.md`、`docs/agent-guide/tower-inbox.md`、`site/tower-inbox.md`、`electron/notify-hold.ts`、`electron/__tests__/tower-inbox-answer.test.ts`、`src/lib/tower-inbox.ts`、`src/lib/inbox-answer.ts`、`src/components/InboxPanel.tsx`、`src/components/inbox/InboxLists.tsx`、`src/components/inbox/useInboxModel.ts`、`src/locales/{en,zh-TW,zh-CN}.json`、`src/styles/inbox.css`；新增 `src/lib/__tests__/tower-inbox-plan069.test.ts`、`src/lib/__tests__/fixtures/ct-tower-state-v620.md`、`src/components/__tests__/inbox-plan069.test.tsx`。`src/lib/ct-tower-overview.ts`、`src/lib/inbox-model.ts`、`src/types/` 不需修改（`parseTowerStateInbox` 直接把 frontmatter 交給 `parseTowerInboxLists`）。
 
 ### 驗證
 
+| 關卡 | 結果 |
+|---|---|
+| `npm ci`（worktree） | exit 0 |
+| `npm run test:unit`（commit 前，工作樹） | exit 0：Test Files 497 passed / 3 skipped（500）；Tests 9032 passed / 47 skipped（9079） |
+| `npm run test:unit`（head `0675d9f`，第一次完整執行） | **exit 0：Test Files 497 passed / 3 skipped（500）；Tests 9037 passed / 42 skipped（9079）**（多出的 5 個是 build 後才跑的 dist 相關測試） |
+| `npm run test:legacy` | exit 0：files 33 passed / 0 failed；tests 472 passed / 0 failed |
+| `npx vite build` | exit 0 |
+| `npm run typecheck` | 0 錯誤（exit 0） |
+| `npm run typecheck:electron` | 0 錯誤（exit 0） |
+
+驗收對照：
+- [x] CT 範例狀態檔單元測試：`inbox_features` 解析（`future-value` 忽略、非陣列 / 缺少 = 空）、`recommended` 不分大小寫（`c1` → `C1`，flow / block `options`）、對不到 / 空選項 / 自由回答無推薦且不略過 —— `tower-inbox-plan069.test.ts`。
+- [x] 元件測試：推薦標記＋預設選取＋可改選；`inbox_features` 缺少 / 只有 `recommended` / 不是陣列 / 只有不認得的值 → 沒有任何放棄 / 略過 / 勾選 / 全部控制項（T0908 控制項仍在）；有 `dismiss` → 單筆有無文字、tab 改空白、取消不送、勾選批次＋確認、單筆勾選送單筆格式、「全部」在送出當下展開（確認中檔案變動 → 送 `U-3、U-7`）、兩區各一行 —— `inbox-plan069.test.tsx`。換行改空白：`<input type=text>` 本身會丟掉換行（jsdom 與瀏覽器相同），所以在 `dismissAnswerText` 單元測試斷言（`'改走\n另一條路'` → `改走 另一條路`、`x\r\ny`）。
+- [x] `checkInboxAnswer`：`tower-inbox.test.ts` 既有斷言未改且全過；多編號＋放棄 / 略過接受、多編號＋代號 / 自由文字 / 完成 / 失敗拒絕（`bad-batch`）、萬用字元 / 範圍拒絕、單行與 1,000 字照舊；host 測試〈PLAN-069〉涵蓋批次行送達、拒絕、權杖拒絕。
+- [x] 日誌不含 summary / options / 回答 / 原因：host（`not.toContain('放棄')`、SECRET）與 renderer（debug.log 不含 CT 測試標記「原文標記QZX」、summary、選項、title、原因）都有斷言。
+- [x] 文件三處已更新；CLAUDE.md 94,431 字元 < 100k。
+- [x] 〈待實機〉見下。
+
+e2e：本單沒有新增或執行 e2e（改動是待辦分頁的 renderer 畫面＋純函式＋既有 handler 的檢查，元件與 host 單元測試已涵蓋；沒有啟動任何 BAT 實例，沒有碰安裝版 BAT / userData / Terminal Server / `bat-pty-holder`，沒有開 claude / codex 回合）。
+
 ### 待實機
+
+對應 CT T0566〈給塔台〉第 3 點，全部需要真實塔台回合（CT 6.2.0-pre.1 塔台＋本分支 BAT），由塔台與 CT 安排雙方驗收。括號內是 BAT 端已由單元 / 元件測試涵蓋的部分。
+
+| 項目 | 內容 | BAT 端已涵蓋 |
+|---|---|---|
+| M-1 | 換 6.2.0-pre.1 後第一次寫狀態檔有 `inbox_features` | 解析（範例檔） |
+| M-2 | 斷點 A 有推薦項 → 新 BAT 顯示標記並預設選取 | 標記＋預設選取＋送出 `U-n：<推薦代號>` |
+| M-3 | 自由回答的 `tower-question` 不顯示標記 | 無推薦、不略過 |
+| M-4 | 單筆 `U-n：放棄`（無文字）→ CT 移除、`todo` 暫停說明 | 送出字串 |
+| M-5 | 單筆 `U-n：放棄 改做 X` → CT 重新對齊 | 送出字串（含文字） |
+| M-6 | `A-n：略過 <原因>` → 不開 BUG、記未驗 | 送出字串 |
+| M-7 | 批次含已結編號 → CT 確認行列出略過的編號 | 批次字串；BAT 只送畫面上列出的 |
+| M-8 | BAT「全部放棄」→ 明確編號、清單清空 | 送出當下展開、無萬用字元 |
+| M-9 | 不支援寫法（`U-*`、範圍、`U-1、U-3：A`）CT 回一行說明 | BAT 不會送；host 檢查拒絕 |
+| M-10 | 舊 BAT 0.8.0-pre.3 搭 6.2.0-pre.1 | —（舊 BAT，不在本單） |
+| M-11 | 新 BAT 搭 6.1.1 狀態檔 → 沒有標記與控制項 | 元件測試（缺 `inbox_features`、無 `recommended`） |
+| M-12（R6） | 先寫 `awaiting_user` 再開原生選單 | —（CT 端） |
+| M-13（R6） | 選單開著時 Worker 送 `完成`，BAT 保留通知 | T0788 / T0904 既有測試（本單未改） |
+| M-14（R6） | 選單開著時從待辦分頁送同一筆、再在選單選另一項 → CT 回「編號已結」 | 回答經 `enqueueAnswer`，`question` blocked 時保留（既有） |
+| M-15（R6） | 舊 BAT / Codex 塔台 / `interactive-prompts: off` 改用文字範本 | —（CT 端） |
+
+另：遠端視窗（WSL 等）連到舊 bat-server 時，批次行會被舊 host 檢查拒絕（`invalid`），升級 bat-server 後才可用（文件〈相容〉〈已知限制〉已寫明）。
 
 ### 互動紀錄
 
+- [20:59] 開工，`CT_MODE=on`，無塔台提問、無使用者介入。
+- [21:10] 塔台補充檢查（驗證前、產品 commit 前、填回報前）：工單沒有 `## 塔台補充（…）` 段落。
+
 ### Renew 歷程
+
+無。
 
 ### 遭遇問題
 
+- `<input type="text">` 會自行去掉換行（jsdom 與瀏覽器一樣），元件測試無法以換行驗證「換行改空白」；改由 `dismissAnswerText` 單元測試斷言換行，元件測試用 tab 走同一條 `oneLine` 路徑。
+- 一次 Bash 指令超過本機長度上限被 hook 擋下（R-G005），改用 Edit 工具分段修改，沒有影響內容。
+- CT 範例檔是 CRLF，複製到 BAT fixture 時改為 LF（專案規則維持 LF），內容不變。
+
 ### 建議後續
+
+- `site/compatibility`（版本對照頁）可在發版時補一列「推薦標記與放棄：BAT 0.8.0-pre.4＋CT 6.2.0」（不在本單 `affects_files`，發版時塔台另做）。
+- 多個塔台（目標選擇列）時，批次送出成功後勾選不會自動清除、確認列不收起（`sender.send` 在選目標前回 `false`）；項目被 CT 移除後自然消失，影響小，必要時另開小單。
 
 ### 隔離分支證據
 - branch：`ct/T0922`
-- base_sha：
-- validated_sha：
-- head_sha：
-- validated_sha ≠ head_sha 的說明：
+- base_sha：`a2c219abe23e1abf399ab8b2bf873321ac48b9ea`
+- validated_sha：`0675d9fdc1937d9209586f67f9200343cf7689b4`（head 上的 `npm run test:unit`；`test:legacy` / `vite build` / 兩個 typecheck 在 commit 前對同一份工作樹執行，commit 只加入這些檔案、沒有其他改動）
+- head_sha：`0675d9fdc1937d9209586f67f9200343cf7689b4`
+- validated_sha ≠ head_sha 的說明：相同，無需說明。
+- `git -C "$CT_WORKTREE" status --porcelain`：空
 
 ### 回報時間
+
+2026-11-25T21:10:43+08:00
