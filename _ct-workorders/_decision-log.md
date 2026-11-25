@@ -10,6 +10,7 @@
 
 | ID | 日期 | 標題 | 相關工單 |
 |----|------|------|---------|
+| D339 | 2026-11-25 | 發佈 `0.8.0-pre.3`（從 `v0.8.x` `5e541975`：PLAN-068＋BUG-220–222），使用者核定；誤發的測試 artifact 使用者自行刪除（本 session 無法代為確認刪除） | PLAN-068 |
 | D338 | 2026-11-25 | T0920 補驗 PASS → BUG-220／221／222 CLOSED；縮圖 📨 `reading` 提示文字補上全螢幕往上捲規則（塔台直接改三語系字串，`v0.8.x` `5e541975`）；PLAN-068 驗收完成，待使用者確認發佈 `0.8.0-pre.3` | PLAN-068 / T0920 |
 | D337 | 2026-11-25 | T0915 收單：BAT 端 3 項發現開 BUG-220（待辦分頁讀不到新建 `_ct-workorders/`）／BUG-221（全螢幕塔台閱讀保護只 10 s）／BUG-222（排隊權限詢問提早清 blocked），平行派 T0916／T0917／T0918 修正後補驗再發 pre.3；`ct/T0915` ff 進 `v0.8.x` | PLAN-068 / T0915–T0918 |
 | D336 | 2026-11-25 | PLAN-068 實機驗收 M-C1–M-C7 自動化：BAT 主導執行（T0915，Playwright 驅動 zip 測試版與 `0.8.0-pre.1` zip）、CT 負責 checklist／測試環境（CT T0561）／CT 端判定；測試塔台用獨立 `CLAUDE_CONFIG_DIR`，不切使用者層 | PLAN-068 / T0915 |
@@ -270,6 +271,12 @@
 - **最大風險**：`whisper-node-addon@1.0.2` 對 Electron 41（Node 24）的 NODE_MODULE_VERSION 相容性未知，允許 Worker 遇此決策點主動問塔台
 
 ---
+
+### D339 2026-11-25 14:23 — 發佈 `0.8.0-pre.3`
+
+- **使用者裁示**：「現在發佈」；誤發 artifact「刪除」。
+- **執行**：先通知 CT 開始時間 → `gh workflow run pre-release.yml --ref v0.8.x -f version=0.8.0-pre.3`（run `45560094561`，headSha `5e541975`）。本版沒動安裝路徑，依 D331 不跑 NSIS 重裝驗收。CI 完成後：更版重點、`v0.8.x` 版號 commit＋CHANGELOG、main 的 release-note.md／CHANGELOG.md 同步，通知 CT 上線時間，之後產生網頁版使用說明。
+- **artifact**：已讀確認是 R3 測試專案的 `_tower-state.md`（無權杖）；Artifact delete 需要使用者本人確認，本 session 無法代答 → 請使用者以 `/artifacts`（選取後按 d）或 claude.ai 該 artifact 選單刪除。
 
 ### D338 2026-11-25 14:10 — 補驗通過，BUG-220–222 結案，提示文字小修
 
