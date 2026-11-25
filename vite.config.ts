@@ -3,7 +3,21 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import electron from 'vite-plugin-electron'
 import renderer from 'vite-plugin-electron-renderer'
+import fs from 'fs'
 import path from 'path'
+
+// T0887 (PLAN-066): emits electron/terminal-server/shared-conout-worker.cjs as dist-electron/shared-conout-worker.cjs
+// (plain CommonJS run by worker_threads, so it is copied, not bundled; electron/terminal-server/shared-conout.ts).
+const SHARED_CONOUT_WORKER_SOURCE = path.resolve(__dirname, 'electron/terminal-server/shared-conout-worker.cjs')
+const sharedConoutWorkerAsset = () => ({
+  name: 'bat-shared-conout-worker',
+  buildStart(this: { addWatchFile: (id: string) => void }) {
+    this.addWatchFile(SHARED_CONOUT_WORKER_SOURCE)
+  },
+  generateBundle(this: { emitFile: (file: { type: 'asset'; fileName: string; source: string }) => string }) {
+    this.emitFile({ type: 'asset', fileName: 'shared-conout-worker.cjs', source: fs.readFileSync(SHARED_CONOUT_WORKER_SOURCE, 'utf8') })
+  },
+})
 
 // vitest mode: skip electron + renderer plugins (they shim Node built-ins
 // like `node:stream`/`node:crypto` for Electron renderer, which breaks
@@ -31,6 +45,9 @@ export default defineConfig({
     environment: 'jsdom',
     globals: true,
     setupFiles: ['./vitest.setup.ts'],
+    // T0898 / BUG-218: fetch the Electron binary once before the workers start (Electron 42+
+    // downloads it on the first require('electron'), synchronously, in every worker at once).
+    globalSetup: ['./electron/__tests__/helpers/electron-binary-global-setup.ts'],
     include: [
       'src/**/*.test.{ts,tsx}',
       'src/**/__tests__/**/*.{ts,tsx}',
@@ -94,6 +111,9 @@ export default defineConfig({
       {
         entry: 'electron/terminal-server.ts',
         vite: {
+          // T0887 (PLAN-066): the shared conout Worker script ships next to terminal-server.js (and is copied into
+          // the Windows PTY holder by scripts/pty-holder.cjs); build.asarUnpack keeps it outside app.asar
+          plugins: [sharedConoutWorkerAsset()],
           build: {
             outDir: 'dist-electron',
             rollupOptions: {

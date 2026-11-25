@@ -841,6 +841,8 @@ describe('query handlers: blocked (T0590)', () => {
       pendingQuestions: 0, // T0607
       claudeSessionName: null, // T0642
       claudeSessionId: null,
+      towerContract: null, // T0903
+      hooksStatus: { state: 'ok', origin: 'injected', set: 2 }, // T0910: a report arrived (no set sent → BAT's own)
     })
     // the worker itself, and its tower's metadata view
     expect(h.call('terminal:get-state', h.asHelper('wk'))).toMatchObject({ state: 'blocked' })
@@ -1298,7 +1300,7 @@ describe('scripts/bat-hook.mjs ↔ RemoteServer + capabilities', { timeout: 30_0
     const run = await runHook('session-start', JSON.stringify(input), hookEnv('hk-start'))
     expect(run).toMatchObject({ code: 0, stdout: '' })
     expect(run.ms).toBeLessThan(2_000)
-    expect(received.at(-1)).toEqual([{ event: 'session-start', at: AT }])
+    expect(received.at(-1)).toEqual([{ event: 'session-start', at: AT, origin: 'injected', set: 2 }])
     expect(JSON.stringify(received)).not.toMatch(/SECRET|startup|batcap/)
     const startedAt = manager.getAgentStartedAt('hk-start')
     expect(startedAt).toEqual(expect.any(Number))
@@ -1321,6 +1323,51 @@ describe('scripts/bat-hook.mjs ↔ RemoteServer + capabilities', { timeout: 30_0
     manager.kill('hk-start')
   })
 
+  it('T0910: the bat-hooks plugin launcher runs this BAT’s bat-hook.mjs with --hook-list → origin plugin + set on every event; exit 0, no output; injected first → plugin dropped', async () => {
+    const launcher = path.resolve(__dirname, '..', '..', 'plugins', 'bat-hooks', 'scripts', 'bat-hooks-launcher.mjs')
+    const runLauncher = (event: string, stdin: string, env: NodeJS.ProcessEnv): Promise<HookRun> => {
+      const base: NodeJS.ProcessEnv = Object.fromEntries(Object.entries(process.env).filter(([k]) => !k.toUpperCase().startsWith('BAT_')))
+      return new Promise(resolve => {
+        const started = Date.now()
+        const child = spawn(process.execPath, [launcher, event], { env: { ...base, ...env }, stdio: ['pipe', 'pipe', 'pipe'] })
+        let stdout = ''
+        let stderr = ''
+        child.stdout.on('data', d => { stdout += d })
+        child.stderr.on('data', d => { stderr += d })
+        child.on('exit', code => resolve({ code, stdout, stderr, ms: Date.now() - started }))
+        child.stdin.on('error', () => {})
+        child.stdin.end(stdin)
+      })
+    }
+    manager.create({ id: 'hk-plugin', ...TAB, workspaceId: 'ws' })
+    const env = { ...hookEnv('hk-plugin'), BAT_HELPER_DIR: path.dirname(HOOK) }
+    const prompt = await runLauncher('user-prompt-submit', JSON.stringify({ hook_event_name: 'UserPromptSubmit', prompt: 'SECRET-PROMPT' }), env)
+    expect(prompt).toMatchObject({ code: 0, stdout: '', stderr: '' })
+    expect(received.at(-1)).toEqual([{ event: 'user-prompt-submit', at: AT, origin: 'plugin', set: 2 }])
+    expect(manager.getHooksStatus('hk-plugin')).toEqual({ state: 'ok', origin: 'plugin', set: 2 })
+    expect(JSON.stringify(received)).not.toMatch(/SECRET/)
+    // an injected report arrives: it wins, later plugin reports are answered duplicate and change nothing
+    expect(await runHook('session-start', JSON.stringify({ hook_event_name: 'SessionStart' }), hookEnv('hk-plugin'))).toMatchObject({ code: 0, stdout: '' })
+    expect(received.at(-1)).toEqual([{ event: 'session-start', at: AT, origin: 'injected', set: 2 }])
+    expect(await runLauncher('ask-user-question', JSON.stringify({ hook_event_name: 'PreToolUse', tool_name: 'AskUserQuestion' }), env)).toMatchObject({ code: 0, stdout: '', stderr: '' })
+    expect(manager.getBlockedState('hk-plugin')).toBeNull()
+    expect(manager.getHooksStatus('hk-plugin')).toEqual({ state: 'ok', origin: 'injected', set: 2 })
+    // outside BAT / a wrong helper dir / an unknown event: exit 0 at once, nothing sent, no output
+    const before = received.length
+    for (const [event, e] of [
+      ['stop', { BAT_HELPER_DIR: path.dirname(HOOK) }],
+      ['stop', { ...env, BAT_HELPER_DIR: 'relative/scripts' }],
+      ['stop', { ...env, BAT_HELPER_DIR: dir }],
+      ['stop', { ...env, BAT_TERMINAL_ID: '' }],
+      ['not-an-event', env],
+    ] as Array<[string, NodeJS.ProcessEnv]>) {
+      const run = await runLauncher(event, JSON.stringify({ hook_event_name: 'Stop' }), e)
+      expect(run).toMatchObject({ code: 0, stdout: '', stderr: '' })
+      expect(run.ms).toBeLessThan(2_000)
+    }
+    expect(received.length).toBe(before)
+  })
+
   it('T0642: SessionStart sends its session_id (a UUID) — exit 0, stdout empty, the log has its first 8; `/clear` replaces it, agentStartedAt stays', async () => {
     const sid1 = '0f3c2a9e-6b1d-4c8e-9a7f-1d2e3f4a5b6c'
     const sid2 = 'a1b2c3d4-e5f6-4a1b-8c2d-3e4f5a6b7c8d'
@@ -1332,7 +1379,7 @@ describe('scripts/bat-hook.mjs ↔ RemoteServer + capabilities', { timeout: 30_0
     const run = await runHook('session-start', JSON.stringify(input(sid1, 'startup')), hookEnv('hk-sid'))
     expect(run).toMatchObject({ code: 0, stdout: '' })
     expect(run.ms).toBeLessThan(2_000)
-    expect(received.at(-1)).toEqual([{ event: 'session-start', sessionId: sid1, at: AT }])
+    expect(received.at(-1)).toEqual([{ event: 'session-start', sessionId: sid1, at: AT, origin: 'injected', set: 2 }])
     expect(manager.getClaudeSessionId('hk-sid')).toBe(sid1)
     const startedAt = manager.getAgentStartedAt('hk-sid')
     expect(await runHook('session-start', JSON.stringify(input(sid2, 'clear')), hookEnv('hk-sid'))).toMatchObject({ code: 0, stdout: '' })
@@ -1346,7 +1393,7 @@ describe('scripts/bat-hook.mjs ↔ RemoteServer + capabilities', { timeout: 30_0
     expect(log).not.toContain(sid2)
     // not a UUID: not sent; the id stays
     await runHook('session-start', JSON.stringify(input('not-a-uuid', 'resume')), hookEnv('hk-sid'))
-    expect(received.at(-1)).toEqual([{ event: 'session-start', at: AT }])
+    expect(received.at(-1)).toEqual([{ event: 'session-start', at: AT, origin: 'injected', set: 2 }])
     expect(manager.getClaudeSessionId('hk-sid')).toBe(sid2)
     // a BAT before T0642 ignores the field: exit 0, nothing on stdout, nothing recorded
     t0600Bat = true
@@ -1436,6 +1483,28 @@ describe('scripts/bat-hook.mjs ↔ RemoteServer + capabilities', { timeout: 30_0
     expect(await runHook('stop', JSON.stringify({ hook_event_name: 'Stop' }), hookEnv('hk-turn'))).toMatchObject({ code: 0, stdout: '' })
     expect(manager.isAgentTurnActive('hk-turn')).toBe(false)
     manager.kill('hk-turn')
+  })
+
+  // PLAN-068 W3 / T0905 (D328 R1′): kept last — `received` then holds the message, which the earlier
+  // tests check is never in what crosses the wire.
+  it('T0905: Stop sends last_assistant_message (cut to 16 KiB) + origin / set; exit 0, stdout empty, within the deadline; the log has its length only', async () => {
+    const message = `T0905-SECRET-TURN ${'塔'.repeat(6000)}` // > 16 KiB of UTF-8
+    const input = { session_id: 's', hook_event_name: 'Stop', stop_hook_active: false, transcript_path: '/SECRET/t.jsonl', last_assistant_message: message }
+    const run = await runHook('stop', JSON.stringify(input), hookEnv('hk-worker'))
+    expect(run).toMatchObject({ code: 0, stdout: '' })
+    expect(run.ms).toBeLessThan(2_000)
+    const [sent] = received.at(-1) as [Record<string, unknown>]
+    expect(Object.keys(sent).sort()).toEqual(['at', 'event', 'lastAssistantMessage', 'messageTruncated', 'origin', 'set'])
+    expect(sent).toMatchObject({ event: 'stop', at: AT, origin: 'injected', set: 2, messageTruncated: true })
+    const text = String(sent.lastAssistantMessage)
+    expect(text.startsWith('T0905-SECRET-TURN ')).toBe(true)
+    expect(Buffer.byteLength(text, 'utf8')).toBeLessThanOrEqual(16 * 1024)
+    expect(text).not.toContain('�')
+    expect(JSON.stringify(sent)).not.toMatch(/transcript|\/SECRET\//)
+    const log = fs.readFileSync(path.join(logDir, 'bat-scripts.log'), 'utf8')
+    expect(log.trim().split('\n').map(l => JSON.parse(l) as Record<string, unknown>).filter(e => e.script === 'bat-hook').at(-1))
+      .toMatchObject({ hook: 'stop', terminalId: 'hk-worker', messageBytes: Buffer.byteLength(text, 'utf8') })
+    expect(log).not.toContain('T0905-SECRET-TURN')
   })
 })
 

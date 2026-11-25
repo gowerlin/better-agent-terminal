@@ -185,6 +185,7 @@ const HEALTHY_PACKED = {
   'dist-electron/main-abc.js': 'const ws=require("ws"),fs=require("node:fs"),p=require("path");require("electron")',
   'dist-electron/preload.js': 'require("electron")',
   'dist-electron/terminal-server.js': 'require("@lydell/node-pty")',
+  'dist-electron/shared-conout-worker.cjs': 'require("node:worker_threads");require("node:net")', // T0887
   'node_modules/ws/package.json': '{"name":"ws"}',
 }
 

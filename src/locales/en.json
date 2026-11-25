@@ -407,6 +407,7 @@
     "snippets": "Snippets",
     "skills": "Skills",
     "agents": "Agents",
+    "inbox": "Inbox",
     "control-tower": "Tower",
     "maximizePanel": "Maximize Panel",
     "restoreLayout": "Restore Layout",
@@ -484,7 +485,8 @@
     "cancelUploadShort": "Cancel",
     "uploadCancelled": "Upload cancelled. Nothing was typed.",
     "uploadBusy": "An upload to the remote host is still running in this terminal. Wait for it or cancel it, then try again.",
-    "imageUploadFailed": "The clipboard image was not pasted: uploading it to the remote host failed ({{reason}})."
+    "imageUploadFailed": "The clipboard image was not pasted: uploading it to the remote host failed ({{reason}}).",
+    "clipboardReadFailed": "Nothing was pasted: the clipboard could not be read. Copy again and retry."
   },
   "dialogs": {
     "closeCodeAgent": "Close Code Agent?",
@@ -849,6 +851,7 @@
       "nextIds": "Next IDs",
       "todo": "To-do",
       "todoMore": "{{count}} more in the file",
+      "todoInInbox": "{{count}} items → see the Inbox tab",
       "fileMtime": "(file modified time)",
       "noSummary": "The tower state file has no machine-readable summary; open the file for to-dos and next IDs.",
       "openOrders": "Open work orders ({{count}})",
@@ -1746,6 +1749,141 @@
       "posixShell": "The install tab uses {{fallback}} because {{shell}} is not a POSIX shell."
     }
   },
+  "inbox": {
+    "tower": "Tower:",
+    "towerPicker": "Tower shown in the Inbox",
+    "noTower": "no declared Tower tab (judged by _tower-state.md)",
+    "contractOk": "contract v{{version}} ✓",
+    "refresh": "Reload",
+    "loading": "Loading…",
+    "noWorkspace": "Open a workspace to see its Inbox.",
+    "notDetected": "No Control Tower here: this workspace has no _ct-workorders/ folder and no declared Tower tab.",
+    "stateMissing": "_ct-workorders/_tower-state.md was not found.",
+    "stateError": "_tower-state.md could not be read: {{error}}",
+    "none": "(none)",
+    "open": "Open",
+    "bugPending": "{{id}} to accept ({{status}})",
+    "todoMore": "More",
+    "todoLess": "Less",
+    "readErrors": "Could not read: {{files}}",
+    "badgeMismatch": "The selected Tower does not match BAT ↔ CT contract v2 — open the Inbox for details",
+    "badgeCount": "{{count}} things need you",
+    "gate": {
+      "stateV1": "This workspace has no declared Tower tab, and its _tower-state.md is BAT ↔ CT contract v1 (no bat_contract: {{supported}}), so the Inbox is off. Update to BMad Control Tower 6.1.0 or later and open the Tower.",
+      "stateBehind": "The Tower tab declared contract v{{supported}}, but this workspace's _tower-state.md is still v1. CT 6.1.0 writes it first when it starts; if you keep seeing this line, check that this workspace's folder is the Tower's project, or run *sync in the Tower."
+    },
+    "section": {
+      "decide": "⏸ Needs your decision",
+      "act": "🙋 For you to do",
+      "remind": "⏰ Due reminders",
+      "workers": "👷 Workers waiting for you",
+      "messages": "💬 Tower messages",
+      "todo": "📋 Tower to-do"
+    },
+    "worker": {
+      "waiting": "⚠️ {{title}}: waits for you ({{reason}})",
+      "held": "📨 {{title}}: {{count}} notification(s) held",
+      "interrupted": "⏸ {{title}}: interrupted ({{agent}})",
+      "goTo": "Go to tab",
+      "resume": "Resume…",
+      "reason": {
+        "permission": "permission",
+        "question": "question",
+        "elicitation": "MCP input",
+        "input": "codex input"
+      }
+    },
+    "counts": {
+      "bugs": "Open BUGs {{count}}",
+      "plans": "PLANs in progress {{count}}",
+      "orders": "Work orders {{count}}"
+    },
+    "cards": {
+      "unread": "{{count}} unread",
+      "total": "{{count}} cards",
+      "markAllRead": "Mark all read",
+      "clear": "Clear",
+      "clearTooltip": "Clear the unpinned cards (pinned ones stay)",
+      "pin": "Pin",
+      "unpin": "Unpin",
+      "pinLimit": "At most {{limit}} cards can be pinned. Unpin another card first.",
+      "truncated": "(too long, cut)",
+      "showAll": "Show all",
+      "showLess": "Show less",
+      "unreadMark": "Unread",
+      "source": "From {{title}}",
+      "opFailed": "Failed: {{code}}",
+      "codexNote": "A codex Tower has no turn cards: BAT does not read codex conversations (D158). Decisions and actions for you are not affected.",
+      "claudeTooOld": "This Tower's claude sends no last message when a turn ends, so there are no turn cards: its claude is too old (needs {{version}} or later). Upgrade the system claude, or switch to the embedded claude in Settings › Claude Runtime."
+    },
+    "cardsBadgeTooltip": "{{count}} unread Tower messages (see the Inbox tab)",
+    "userInboxOff": "This project's Tower does not write the inbox (user_inbox: off): no CT items in Waiting for you / For you to do. BUGs to accept, Workers waiting and Tower messages are unaffected.",
+    "skipped": "{{count}} malformed item(s) skipped.",
+    "more": "{{count}} more (only the first 50 are shown).",
+    "paused": "⏸ {{orders}} paused",
+    "recentlyClosed": "Recently closed ({{count}})",
+    "awaitingBadge": "{{count}} decision(s) waiting for you (Tower inbox)",
+    "source": {
+      "breakpoint-A": "Breakpoint A",
+      "breakpoint-B-1": "Breakpoint B-1",
+      "breakpoint-B-2": "Breakpoint B-2",
+      "breakpoint-C": "Breakpoint C",
+      "breakpoint-E": "Breakpoint E",
+      "worker-question": "Worker question",
+      "tower-question": "Tower question"
+    },
+    "actionKind": {
+      "verify": "Verify",
+      "run": "Run",
+      "manual": "Manual"
+    },
+    "answer": {
+      "send": "Send",
+      "sending": "Sending…",
+      "sent": "Sent to the Tower.",
+      "held": "Queued for the Tower (📨): it waits for a dialog answer or you have text in its input box; it goes out once that is done.",
+      "draft": "The Claude panel has unsent text or attachments: send or clear them, then try again.",
+      "not-mounted": "That Claude panel is not open in this window: open its tab, then try again.",
+      "no-target": "No Tower in this workspace can take the answer (a Tower tab that declared contract v2, or a panel Tower). You can also type the line into the Tower yourself.",
+      "failed": "Not sent ({{reason}}).",
+      "chooseTarget": "Send to which Tower?",
+      "panelTarget": "{{title}} (Claude panel)",
+      "optionsInvalid": "The options are not \"<code> <text>\"; answer freely.",
+      "freePlaceholder": "Answer (one line)"
+    },
+    "action": {
+      "copy": "Copy command",
+      "copied": "Copied",
+      "commandNote": "BAT never runs this command; run it yourself where it belongs.",
+      "done": "Done",
+      "failed": "Failed…",
+      "failedPlaceholder": "What failed (one line, optional)"
+    },
+    "remind": {
+      "overdue": "{{count}} day(s) overdue",
+      "today": "due today",
+      "dueIn": "due in {{count}} day(s)",
+      "last": "(last {{at}})"
+    }
+  },
+  "towerContract": {
+    "ctOutdated": "This Tower's Control Tower did not declare BAT ↔ CT contract v{{supported}}, so notification protection (no scroll jump, not mixed into your draft, held while you read), turn message cards and the inbox list are off. Update to BMad Control Tower 6.1.0 or later, then reopen the Tower. Dialog protection (no notifications while it waits for your answer) is not affected.",
+    "batOutdated": "This Tower uses BAT ↔ CT contract v{{requested}}; this BAT supports only v{{supported}}. Update Better Agent Terminal. Until then, notification protection, turn message cards and the inbox list are off."
+  },
+  "hooksStatus": {
+    "prefix": "This Tower has no BAT hooks: turn cards and the dialog protection are unavailable. ",
+    "help": "How to fix",
+    "reason": {
+      "settings-off": "Reason: Settings › BAT MCP is turned off. Turn it on and reopen the Tower, or install the bat-hooks plugin.",
+      "user-settings-arg": "Reason: this agent's custom arguments already pass --settings. Remove it, or install the bat-hooks plugin.",
+      "claude-hooks-disabled": "Reason: a claude settings file (managed or the user's settings.json) sets disableAllHooks. This is your own setting; remove it to use the hooks.",
+      "managed-hooks-only": "Reason: your organization's managed settings allow managed hooks only. Ask your administrator.",
+      "no-report": "Reason: claude started but no hook reported; the project's .claude/settings*.json may turn hooks off.",
+      "not-launched-by-bat": "Reason: BAT did not start this claude (typed in a shell). Use \"Open Claude as Tower\", or install the bat-hooks plugin.",
+      "plugin-outdated": "The bat-hooks plugin has an older event list than this BAT. Run claude plugin update bat-hooks@better-agent-terminal (missing events are not reported).",
+      "helper": "BAT's helper is broken. Restart BAT; if it persists, reinstall BAT."
+    }
+  },
   "notifyHold": {
     "badge": "Held {{count}}",
     "badgeTooltip": "{{count}} held notification(s): this tab waits for your answer, so Worker notifications are held and sent once you answer. Click to review",
@@ -1756,7 +1894,16 @@
     "partsText": "text only",
     "partsEnter": "Enter only",
     "cancel": "Cancel",
-    "cancelAll": "Cancel all"
+    "cancelAll": "Cancel all",
+    "reasonDraft": "You are typing: the Tower's input box holds text you have not sent, so notifications wait. They go out 1 s after you send it (Enter) or clear it (Ctrl+C).",
+    "reasonReading": "You are reading: notifications wait until you stop for 10 s; after scrolling up in a full-screen app, until you type, click, switch tabs or scroll back (60 s at most).",
+    "reasonPrompt": "Waiting for your answer to a prompt: sent once you answer and 1 s passes quietly.",
+    "reasonQueued": "Queued behind the previous one.",
+    "answerSource": "Your answer",
+    "sendNow": "Send now",
+    "sendNowTooltip": "Stop waiting for your draft or your reading and send them in order now (with a draft, the notification is appended to your text and sent with it). A prompt still holds them.",
+    "reminderTitle": "{{count}} notification(s) for the Tower waited 5 minutes",
+    "reminderBody": "{{title}}: the Tower's input box holds text you have not sent, so Worker notifications wait. They go out once you send or clear it, or use “Send now” in “📨 Held”."
   },
   "interruptedAgents": {
     "title": "Agent tabs interrupted by the Terminal Server recovery",

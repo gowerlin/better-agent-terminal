@@ -13,6 +13,7 @@
 import yaml from 'js-yaml'
 import { extractFrontmatterBlock } from '../utils/ct-frontmatter'
 import type { WorkOrderStatus } from '../types/control-tower'
+import { parseTowerInboxLists, type TowerInboxLists } from './tower-inbox'
 
 // ─── Tower state summary ────────────────────────────────────────────────────
 
@@ -24,6 +25,12 @@ export interface TowerStateSummary {
   nextIds: Array<{ key: string; value: string }>
   /** `todo`, all items (the view shows the first `TOWER_STATE_TODO_LIMIT`). */
   todo: string[]
+  /**
+   * PLAN-068 W4 / T0906 (T0902 §3.3 / §6′): `bat_contract`, the BAT ↔ CT contract the CT writing this
+   * file speaks. Set only for a whole number ≥ 1; absent (missing, not an integer) = contract v1.
+   * Not tied to `summary_version` (that stays the overview's format).
+   */
+  batContract?: number
 }
 
 export const TOWER_STATE_TODO_LIMIT = 5
@@ -44,6 +51,37 @@ export function extractLastUpdatedLine(content: string): string | null {
     if (text) return text
   }
   return null
+}
+
+/** Longest reason text kept from an error that is not a js-yaml `YAMLException`. */
+const ERROR_REASON_MAX_CHARS = 120
+
+/**
+ * T0894 (BUG-217): one line for a YAML load error — js-yaml's `reason` plus the 1-based line and
+ * column of its `mark`. 🔴 Never the `message`'s snippet (it quotes the file's lines) or any other
+ * file content: the result goes to the debug log. `lineOffset` = lines of the file before the parsed
+ * text (1 for a frontmatter block: the opening `---`), so the line is the file's.
+ */
+export function describeYamlError(err: unknown, lineOffset = 0): string {
+  const e = err as { reason?: unknown; mark?: { line?: unknown; column?: unknown } } | null
+  if (e && typeof e === 'object' && typeof e.reason === 'string') {
+    const line = e.mark?.line
+    const column = e.mark?.column
+    const at = typeof line === 'number' && typeof column === 'number'
+      ? ` at line ${line + 1 + lineOffset}, column ${column + 1}`
+      : ''
+    return `YAML parse error: ${e.reason.split(/\r?\n/)[0].slice(0, ERROR_REASON_MAX_CHARS)}${at}`
+  }
+  const message = err instanceof Error ? err.message : String(err)
+  return `YAML parse error: ${message.split(/\r?\n/)[0].slice(0, ERROR_REASON_MAX_CHARS)}`
+}
+
+/** A frontmatter value named in a summary error: short scalars as JSON, anything else by type only. */
+function valueForError(value: unknown): string {
+  if (value === undefined) return 'undefined'
+  if (value === null || typeof value === 'number' || typeof value === 'boolean') return JSON.stringify(value)
+  if (typeof value === 'string' && value.length <= 40) return JSON.stringify(value)
+  return `a ${Array.isArray(value) ? 'list' : typeof value === 'object' ? 'map' : typeof value}`
 }
 
 function scalarText(value: unknown): string | null {
@@ -74,15 +112,15 @@ export function parseTowerState(content: string): TowerStateParse {
   try {
     data = yaml.load(raw, { schema: yaml.CORE_SCHEMA })
   } catch (err) {
-    return noSummary(`YAML parse error: ${err instanceof Error ? err.message : String(err)}`)
+    return noSummary(describeYamlError(err, 1))
   }
   if (data == null || typeof data !== 'object' || Array.isArray(data)) return noSummary('frontmatter is not a map')
 
   const fm = data as Record<string, unknown>
-  if (fm.schema_kind !== 'tower-state') return noSummary(`schema_kind is ${JSON.stringify(fm.schema_kind)}, not "tower-state"`)
+  if (fm.schema_kind !== 'tower-state') return noSummary(`schema_kind is ${valueForError(fm.schema_kind)}, not "tower-state"`)
   const version = fm.summary_version
   if (typeof version !== 'number' || !Number.isInteger(version) || version < 1) {
-    return noSummary(`summary_version ${JSON.stringify(version)} is not an integer ≥ 1`)
+    return noSummary(`summary_version ${valueForError(version)} is not an integer ≥ 1`)
   }
 
   const summary: TowerStateSummary = { summaryVersion: version, nextIds: [], todo: [] }
@@ -102,7 +140,91 @@ export function parseTowerState(content: string): TowerStateParse {
       if (shown != null && shown.trim() !== '') summary.todo.push(shown)
     }
   }
+  const batContract = fm.bat_contract
+  if (typeof batContract === 'number' && Number.isSafeInteger(batContract) && batContract >= 1) {
+    summary.batContract = batContract
+  }
   return { kind: 'summary', summary }
+}
+
+/**
+ * PLAN-068 W4 / T0906: the `bat_contract` a loaded `_tower-state.md` declares; null = contract v1
+ * (no usable summary, field missing or not a whole number ≥ 1).
+ */
+export function towerStateBatContract(parsed: TowerStateParse | null | undefined): number | null {
+  return parsed?.kind === 'summary' && typeof parsed.summary.batContract === 'number' ? parsed.summary.batContract : null
+}
+
+/**
+ * PLAN-068 W5 / T0908: the contract v2 lists of a `_tower-state.md` (`parseTowerInboxLists`,
+ * src/lib/tower-inbox.ts). Same acceptance as `parseTowerState` (a `tower-state` frontmatter with
+ * `summary_version` ≥ 1); anything else → null. Never throws.
+ */
+export function parseTowerStateInbox(content: string): TowerInboxLists | null {
+  const text = content.charCodeAt(0) === 0xfeff ? content.slice(1) : content
+  const { raw } = extractFrontmatterBlock(text)
+  if (raw == null) return null
+  let data: unknown
+  try {
+    data = yaml.load(raw, { schema: yaml.CORE_SCHEMA })
+  } catch {
+    return null
+  }
+  if (data == null || typeof data !== 'object' || Array.isArray(data)) return null
+  const fm = data as Record<string, unknown>
+  const version = fm.summary_version
+  if (fm.schema_kind !== 'tower-state' || typeof version !== 'number' || !Number.isInteger(version) || version < 1) return null
+  return parseTowerInboxLists(fm)
+}
+
+/**
+ * T0908: CT's `user_inbox` (T0902 §6′: `off` = CT writes neither `awaiting_user` nor `user_actions`).
+ * Values of the config layers (`parseTowerConfigYaml`), highest first; the first one set decides.
+ * `off` / `false` / `no` → off; anything else, or nothing set → on.
+ */
+export function effectiveUserInbox(...layers: Array<ReadonlyMap<string, string> | null | undefined>): 'on' | 'off' {
+  for (const layer of layers) {
+    const value = layer?.get('user_inbox')
+    if (value === undefined) continue
+    return /^(off|false|no)$/i.test(value.trim()) ? 'off' : 'on'
+  }
+  return 'on'
+}
+
+/** What was last logged about one workspace's `_tower-state.md` summary error (memory only). */
+export interface SummaryErrorLogState {
+  error: string
+  contentHash: string
+}
+
+/** FNV-1a 32-bit over UTF-16 code units, as 8 hex digits — only to notice a changed file. */
+export function contentHash(content: string): string {
+  let hash = 0x811c9dc5
+  for (let i = 0; i < content.length; i++) {
+    hash ^= content.charCodeAt(i)
+    hash = Math.imul(hash, 0x01000193)
+  }
+  return (hash >>> 0).toString(16).padStart(8, '0')
+}
+
+/**
+ * T0894 (BUG-217): whether a reload of `_tower-state.md` logs its summary error. The same error
+ * on the same content is logged once (the `_ct-workorders/` watcher reloads on every change in the
+ * directory); a changed error or changed content logs again, and the first reload without an
+ * error after a logged one logs that it cleared. Lines name the file only, never its content or path.
+ */
+export function towerStateSummaryLog(
+  prev: SummaryErrorLogState | null,
+  content: string,
+  parsed: TowerStateParse,
+): { next: SummaryErrorLogState | null; line: string | null } {
+  const error = parsed.kind === 'no-summary' ? parsed.summaryError : undefined
+  if (!error) {
+    return { next: null, line: prev ? '[ct-overview] _tower-state.md summary error cleared' : null }
+  }
+  const hash = contentHash(content)
+  if (prev && prev.error === error && prev.contentHash === hash) return { next: prev, line: null }
+  return { next: { error, contentHash: hash }, line: `[ct-overview] _tower-state.md summary ignored: ${error}` }
 }
 
 // ─── *config layers ─────────────────────────────────────────────────────────

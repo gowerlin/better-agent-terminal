@@ -22,7 +22,8 @@ import type { ClientPathPurpose, ResolvedClientPath } from '../src/lib/client-pa
 import type { TerminalRoleChangeInfo } from '../src/lib/tower-terminal-title'
 import type { UsageLimitContinueEvent, UsageLimitStatusEvent } from '../src/lib/usage-limit'
 import type { DetachedWaitingReport, TerminalAttentionEvent, TerminalAttentionSnapshotEntry } from '../src/lib/terminal-attention'
-import type { NotifyHoldChangedEvent } from '../src/types/notify-hold'
+import type { NotifyHoldChangedEvent, NotifyHoldReminderEvent, TowerInboxAnswerResult } from '../src/types/notify-hold'
+import type { TowerCardsChangedEvent, TowerCardsListResult, TowerCardsOpResult } from '../src/types/tower-cards'
 import type { RemoteUploadApi, RemoteUploadProgressEvent, RemoteUploadSourceDescriptor } from '../src/lib/remote-upload'
 import type {
   BatVolumeRole,
@@ -47,7 +48,8 @@ const electronAPI = {
     create: (options: CreatePtyOptions) => ipcRenderer.invoke('pty:create', options),
     getBuffer: (id: string) => ipcRenderer.invoke('pty:get-buffer', id),
     // T0566: `{ auto: true }` = BAT's own automatic write (usage-limit continue), not the user's input
-    write: (id: string, data: string, opts?: { auto?: boolean }) =>
+    // T0904: `{ submit: true }` = the Enter of an inbox answer (the user's input; closes the atomic window)
+    write: (id: string, data: string, opts?: { auto?: boolean; submit?: boolean }) =>
       opts ? ipcRenderer.invoke('pty:write', id, data, opts) : ipcRenderer.invoke('pty:write', id, data),
     resize: (id: string, cols: number, rows: number) => ipcRenderer.invoke('pty:resize', id, cols, rows),
     kill: (id: string) => ipcRenderer.invoke('pty:kill', id),
@@ -82,8 +84,8 @@ const electronAPI = {
       ipcRenderer.on('terminal:notified', handler)
       return () => ipcRenderer.removeListener('terminal:notified', handler)
     },
-    onTerminalKeypress: (callback: (info: { targetId: string; key: string; code?: string; keyCode?: number; source?: string; reason?: string; traceId?: string }) => void) => {
-      const handler = (_event: Electron.IpcRendererEvent, info: { targetId: string; key: string; code?: string; keyCode?: number; source?: string; reason?: string; traceId?: string }) => callback(info)
+    onTerminalKeypress: (callback: (info: { targetId: string; key: string; code?: string; keyCode?: number; source?: string; reason?: string; traceId?: string; userInput?: boolean }) => void) => {
+      const handler = (_event: Electron.IpcRendererEvent, info: { targetId: string; key: string; code?: string; keyCode?: number; source?: string; reason?: string; traceId?: string; userInput?: boolean }) => callback(info)
       ipcRenderer.on('terminal:keypress', handler)
       return () => ipcRenderer.removeListener('terminal:keypress', handler)
     },
@@ -98,6 +100,12 @@ const electronAPI = {
       const handler = (_event: Electron.IpcRendererEvent, info: TerminalRoleChangeInfo) => callback(info)
       ipcRenderer.on('terminal:role-changed', handler)
       return () => ipcRenderer.removeListener('terminal:role-changed', handler)
+    },
+    // PLAN-068 W9 / T0910: a contract-2 Tower's BAT hooks status changed (codes only)
+    onHooksStatus: (callback: (info: { id: string; hooksStatus: unknown }) => void) => {
+      const handler = (_event: Electron.IpcRendererEvent, info: { id: string; hooksStatus: unknown }) => callback(info)
+      ipcRenderer.on('terminal:hooks-status', handler)
+      return () => ipcRenderer.removeListener('terminal:hooks-status', handler)
     },
     // PLAN-044 / T0566: a tab's usage-limit state changed (hint / scheduled / cleared)
     onUsageLimitStatus: (callback: (info: UsageLimitStatusEvent) => void) => {
@@ -127,7 +135,20 @@ const electronAPI = {
       const handler = (_event: Electron.IpcRendererEvent, info: NotifyHoldChangedEvent) => callback(info)
       ipcRenderer.on('terminal:notify-hold-changed', handler)
       return () => ipcRenderer.removeListener('terminal:notify-hold-changed', handler)
-    }
+    },
+    // PLAN-068 W2 / T0904:「立即送出」(local IPC, like cancel); the draft reminder; the reading signal
+    notifyHoldSendNow: (terminalId: string, holdId?: string) =>
+      (holdId === undefined
+        ? ipcRenderer.invoke('terminal:notify-hold-send-now', terminalId)
+        : ipcRenderer.invoke('terminal:notify-hold-send-now', terminalId, holdId)) as Promise<number>,
+    onNotifyHoldReminder: (callback: (info: NotifyHoldReminderEvent) => void) => {
+      const handler = (_event: Electron.IpcRendererEvent, info: NotifyHoldReminderEvent) => callback(info)
+      ipcRenderer.on('terminal:notify-hold-reminder', handler)
+      return () => ipcRenderer.removeListener('terminal:notify-hold-reminder', handler)
+    },
+    // proxied: the host running the tab holds Worker notifications while the user reads it
+    setReadingState: (terminalId: string, reading: boolean) =>
+      ipcRenderer.invoke('terminal:reading-state', { terminalId, reading }) as Promise<{ ok: boolean; reason?: string }>,
   },
   workspace: {
     save: (data: string) => ipcRenderer.invoke('workspace:save', data),
@@ -247,6 +268,8 @@ const electronAPI = {
     saveImage: () => ipcRenderer.invoke('clipboard:saveImage'),
     // T0436: clipboard image as a data URL (null when the clipboard has no image).
     readImageDataUrl: () => ipcRenderer.invoke('clipboard:read-image-data-url') as Promise<string | null>,
+    // T0893 / BUG-216: whether the clipboard offers an image (MIME types only; the image is not read).
+    hasImage: () => ipcRenderer.invoke('clipboard:has-image') as Promise<boolean>,
     // T0522: paths of Finder-copied items (macOS); [] when none / other platforms.
     readFilePaths: () => ipcRenderer.invoke('clipboard:read-file-paths') as Promise<string[]>,
     writeImage: (filePath: string) => ipcRenderer.invoke('clipboard:writeImage', filePath),
@@ -589,7 +612,10 @@ const electronAPI = {
       const raw = (await ipcRenderer.invoke('fs:search', dirPath, query)) as RawFileEntry[]
       return withPathKeys(raw)
     },
-    watch: (dirPath: string) => ipcRenderer.invoke('fs:watch', dirPath) as Promise<boolean>,
+    // T0916: `options` ({ recreate: true }) only when given, so other callers send exactly what they did
+    watch: (dirPath: string, options?: { recreate?: boolean }) => (options === undefined
+      ? ipcRenderer.invoke('fs:watch', dirPath)
+      : ipcRenderer.invoke('fs:watch', dirPath, options)) as Promise<boolean>,
     unwatch: (dirPath: string) => ipcRenderer.invoke('fs:unwatch', dirPath) as Promise<boolean>,
     resetWatch: (dirPath: string) => ipcRenderer.invoke('fs:reset-watch', dirPath) as Promise<boolean>,
     onChanged: (callback: (dirPath: string) => void) => {
@@ -1215,6 +1241,33 @@ const electronAPI = {
   // a bat-server before T0701 rejects with `No handler for channel: ct:read-config-sources`.
   ctConfig: {
     readSources: () => ipcRenderer.invoke('ct:read-config-sources') as Promise<CtConfigSources>,
+  },
+  // PLAN-068 W3 / T0905 — the Tower turn cards of the window's tabs, kept by the host that runs them
+  // (proxied `tower-cards:*`; a bat-server before T0905 rejects with `No handler for channel`).
+  towerCards: {
+    list: (terminalIds?: string[]) =>
+      ipcRenderer.invoke('tower-cards:list', terminalIds ? { terminalIds } : {}) as Promise<TowerCardsListResult>,
+    markRead: (terminalId: string, cardIds?: string[]) =>
+      ipcRenderer.invoke('tower-cards:mark-read', cardIds ? { terminalId, cardIds } : { terminalId }) as Promise<TowerCardsOpResult>,
+    pin: (terminalId: string, cardId: string, pinned: boolean) =>
+      ipcRenderer.invoke('tower-cards:pin', { terminalId, cardId, pinned }) as Promise<TowerCardsOpResult>,
+    clear: (terminalId: string, opts?: { cardIds?: string[]; includePinned?: boolean }) =>
+      ipcRenderer.invoke('tower-cards:clear', { terminalId, ...(opts ?? {}) }) as Promise<TowerCardsOpResult>,
+    // PLAN-068 W6 / T0909: whether Claude panel `terminalId` is a panel Tower (the window decides)
+    setPanelTower: (terminalId: string, tower: boolean) =>
+      ipcRenderer.invoke('tower-cards:set-panel-tower', { terminalId, tower }) as Promise<TowerCardsOpResult>,
+    onChanged: (callback: (info: TowerCardsChangedEvent) => void) => {
+      const handler = (_event: Electron.IpcRendererEvent, info: TowerCardsChangedEvent) => callback(info)
+      ipcRenderer.on('tower-cards:changed', handler)
+      return () => ipcRenderer.removeListener('tower-cards:changed', handler)
+    },
+  },
+  // PLAN-068 W5 / T0908 — the Inbox answer line into a contract-2 Tower tab (`U-n：…` / `A-n：…`),
+  // queued by the host that runs the tab (proxied `tower-inbox:answer`; a bat-server before T0908
+  // rejects with `No handler for channel`).
+  towerInbox: {
+    answer: (terminalId: string, text: string) =>
+      ipcRenderer.invoke('tower-inbox:answer', { terminalId, text }) as Promise<TowerInboxAnswerResult>,
   },
   // T0710 — the CT prompt of the panel's one-click dispatch (`$ct-exec` / `$ct:ct-exec` for Codex),
   // decided and quoted by the host the window is bound to; a bat-server before T0710 rejects with

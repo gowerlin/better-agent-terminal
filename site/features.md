@@ -159,6 +159,7 @@ Claude Code 面板底部的狀態列：模型、Token、快取、費用一眼看
 BAT 提供工單看板、派工用的分頁與查詢介面；流程本身由 Control Tower 決定。每一步怎麼運作，見[與 Control Tower 協作](./control-tower)。 {.ct-lead}
 
 - **指揮塔面板**：側欄列出工單，有看板與 Sprint 總覽；工單狀態改變時會跳出通知。
+- **待辦分頁**：右側欄集中列出塔台要你決定、要你親手做的事與塔台每回合的訊息，可以直接回答塔台；需要 Control Tower 6.1.0，見[待辦分頁與塔台設定](./tower-inbox)。
 - **一鍵執行**：在工單上按「執行」或「補救收尾」，交給 Agent 處理；指令前綴依預設 Agent 自動選 `/` 或 `$`。
 - **塔台與 Worker 分頁**：派出的 Worker 分頁標題是「Claude CLI · Worker · T1024」這種格式，縮圖標出 ⚠️ 在等你、? 在等塔台答覆、✓ 已回報；塔台分頁的標題是「Claude CLI · Tower」。塔台收單後可以回收 Worker 分頁，你也可以按右鍵一次關掉所有已回報的 Worker 分頁。
 - **BAT MCP**：BAT 開的 Claude Code CLI 與 Codex CLI 分頁自動掛上唯讀的查詢工具（查身分、列分頁、查狀態、讀輸出、等待、查 worktree 狀態），能查的範圍依分頁的權限而定。不需要時到 **設定 > 進階 > BAT MCP** 關閉。

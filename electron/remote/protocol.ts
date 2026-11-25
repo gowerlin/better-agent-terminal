@@ -91,12 +91,26 @@ export const PROXIED_CHANNELS = new Set([
   // T0749 (BUG-182): the attention of the window's tabs on the host now (electron/terminal-attention.ts);
   // a remote window asks after reconnecting; an older bat-server has no handler
   'terminal:attention-snapshot',
+  // PLAN-068 W2 / T0904: a contract-2 Tower tab's window says whether the user reads it (a boolean);
+  // the host running the tab holds Worker notifications meanwhile (electron/handlers/pty.ts);
+  // never in HELPER_CHANNEL_ROLES; an older bat-server has no handler (the renderer ignores the error)
+  'terminal:reading-state',
   // T0437 (BUG-105): client paths → the window's host form; ALWAYS_LOCAL (answered by this
   // machine's main with the window's PathTranslator), listed here only for the IPC binding.
   'remote:resolve-client-paths',
   // PLAN-038 U1 / T0832: a client window stages a local file on the host it is bound to
   // (electron/handlers/uploads.ts); never in HELPER_CHANNEL_ROLES; an older bat-server has no handler
   'upload:begin', 'upload:chunk', 'upload:finish', 'upload:abort',
+  // PLAN-068 W3 / T0905: the Tower turn cards of the window's tabs on the host that runs them
+  // (electron/tower-cards.ts); never in HELPER_CHANNEL_ROLES; an older bat-server has no handler
+  'tower-cards:list', 'tower-cards:mark-read', 'tower-cards:pin', 'tower-cards:clear',
+  // PLAN-068 W6 / T0909: the window's "this Claude panel is a panel Tower" decision (same rules)
+  'tower-cards:set-panel-tower',
+  // PLAN-068 W5 / T0908: the Inbox answer into a contract-2 Tower tab, and the "📨 待送" list / cancel /
+  // 立即送出 of the window's tabs on the host that runs them (electron/notify-hold.ts); never in
+  // HELPER_CHANNEL_ROLES; an older bat-server has no handler (the window shows nothing / a refusal)
+  'tower-inbox:answer',
+  'terminal:notify-hold-list', 'terminal:notify-hold-cancel', 'terminal:notify-hold-send-now',
 ])
 
 /**
@@ -137,4 +151,13 @@ export const PROXIED_EVENTS = new Set([
   // T0609 (BUG-153): a remote tab waits for the user (claude hook) / for its Tower's answer — the
   // client windows mark its Worker badge (electron/terminal-attention.ts, src/App.tsx)
   'terminal:attention-changed',
+  // PLAN-068 W3 / T0905: a remote Tower tab's turn cards changed — the client windows refetch them
+  // with `tower-cards:list` (electron/tower-cards.ts; counts and a revision only, never a card's text)
+  'tower-cards:changed',
+  // PLAN-068 W5 / T0908: a remote tab's held notifications changed / waited 5 minutes for a draft
+  // (electron/notify-hold.ts; ids, counts, times and a reason enum, never a text)
+  'terminal:notify-hold-changed', 'terminal:notify-hold-reminder',
+  // PLAN-068 W9 / T0910: a remote contract-2 Tower's hooks status changed — the client windows show
+  // the 🪝✕ badge / the Inbox hint (electron/claude-hooks-status.ts; state / reason / origin / set only)
+  'terminal:hooks-status',
 ])

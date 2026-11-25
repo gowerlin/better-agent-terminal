@@ -13,7 +13,7 @@ import { settingsStore } from '../stores/settings-store'
 import { dispatchSyntheticEnterKeydown } from '../utils/terminal-keyboard-event'
 import { PtyOutputReplayer, registerPtyNoticeSink, registerPtyReplaySink, registerPtySizeSyncSink } from '../lib/pty-replay'
 import { buildTerminalDropInsertion, buildTerminalDropText, buildTerminalUploadInsertion, dataTransferHasFiles, droppedFiles, terminalShellFamily } from '../lib/terminal-drop'
-import { imagePasteKey, isMacCommandPaste, readTerminalClipboard, terminalImagePasteMode, uploadClipboardImage } from '../lib/terminal-paste'
+import { describePasteError, imagePasteKey, isMacCommandPaste, isTerminalClipboardReadError, readTerminalClipboard, terminalImagePasteMode, uploadClipboardImage } from '../lib/terminal-paste'
 import { attachmentDisplayNames, attachmentRefusalText, uploadFailureReason, type SendAttachment } from '../lib/client-paths'
 import { forcesTerminalSelection, isMouseTrackingDecset, isMouseTrackingOn, MouseReportSelectionKeeper, shouldCloseTerminalContextMenuOnKey, shouldShowTerminalContextMenu } from '../lib/terminal-context-menu'
 import { ALT_SCREEN_EXIT, MOUSE_TRACKING_RESET, MouseReportEchoDetector } from '../lib/mouse-tracking-reset'
@@ -23,6 +23,9 @@ import { canFitTerminalContainer } from '../lib/terminal-fit-guard'
 import { CtToast, useCtToast } from './CtToast'
 import { registerUsageLimitSender } from '../stores/usage-limit-store'
 import { USAGE_LIMIT_ENTER_DELAY_MS, USAGE_LIMIT_SCREEN_LINES, usageLimitRecheckFailure } from '../lib/usage-limit'
+import { getTowerContract, useTowerContract } from '../stores/tower-contract-store'
+import { submitEnterWithoutFocus, towerSubmitEnterPath } from '../lib/tower-submit-enter'
+import { TowerReadingTracker, isModifierOnlyKey, wheelRows } from '../lib/tower-reading-state'
 import '@xterm/xterm/css/xterm.css'
 
 const dlog = (...args: unknown[]) => window.electronAPI?.debug?.log(...args)
@@ -49,6 +52,8 @@ interface RemoteKeypressTrace {
    * the tab's ⚠️, nor cancels its usage-limit wait).
    */
   auto?: boolean
+  /** PLAN-068 W2 / T0904: the Enter of an inbox answer — the user's input, written `{ submit: true }`. */
+  submit?: boolean
 }
 
 /**
@@ -144,6 +149,10 @@ export const TerminalPanel = memo(function TerminalPanel({ terminalId, isActive 
   const resetMouseTrackingRef = useRef<((reason: string) => void) | null>(null)
   const exitAltScreenRef = useRef<(() => void) | null>(null)
   const remoteKeypressTraceRef = useRef<RemoteKeypressTrace | null>(null)
+  // PLAN-068 W2 / T0904: the「閱讀中」signal of a contract-2 Tower tab (T0902 §2.4 `reading`)
+  const readingTrackerRef = useRef<TowerReadingTracker | null>(null)
+  const towerContractEntry = useTowerContract(terminalId)
+  const isContractTower = towerContractEntry?.status === 'match'
   const { t } = useTranslation()
   const { messages: noticeToasts, addToast: addNoticeToast, dismissToast: dismissNoticeToast } = useCtToast()
 
@@ -361,6 +370,13 @@ export const TerminalPanel = memo(function TerminalPanel({ terminalId, isActive 
     }
   }
 
+  // T0893 / BUG-216: a failed paste is logged as `name: message` (a DOMException used to be logged as
+  // `{}`); when the clipboard could not be read at all, the tab says so instead of silently doing nothing.
+  const reportPasteFailure = (label: string, err: unknown) => {
+    dlog(label, describePasteError(err))
+    if (isTerminalClipboardReadError(err)) addNoticeToast(t('terminal.clipboardReadFailed'), 'warning', 8000)
+  }
+
   // Handle context menu actions
   const handleCopy = () => {
     if (contextMenu?.selectionText) {
@@ -374,7 +390,7 @@ export const TerminalPanel = memo(function TerminalPanel({ terminalId, isActive 
     try {
       await pasteClipboard('context-menu Paste')
     } catch (err) {
-      dlog('Failed to read clipboard for context-menu paste', err)
+      reportPasteFailure('Failed to read clipboard for context-menu paste', err)
     } finally {
       setContextMenu(null)
       // Restore focus after menu unmount so keyboard input keeps working.
@@ -626,7 +642,12 @@ export const TerminalPanel = memo(function TerminalPanel({ terminalId, isActive 
         return true
       },
     })
-    const selectionChangeDisposable = terminal.onSelectionChange(() => selectionKeeper.handleSelectionChange())
+    // T0904: the same subscription feeds the Tower reading signal (one listener, set below)
+    let noteReadingSelection = () => {}
+    const selectionChangeDisposable = terminal.onSelectionChange(() => {
+      selectionKeeper.handleSelectionChange()
+      noteReadingSelection()
+    })
     const trackingSetDisposable = terminal.parser.registerCsiHandler({ prefix: '?', final: 'h' }, (params) => {
       // Before xterm handles it; not when it turns tracking on from off.
       if (isMouseTrackingDecset(params) && isMouseTrackingOn(terminal.modes.mouseTrackingMode)) selectionKeeper.handleMouseTrackingSet()
@@ -658,6 +679,60 @@ export const TerminalPanel = memo(function TerminalPanel({ terminalId, isActive 
     document.addEventListener('mouseup', endSelectionDrag, { capture: true })
     document.addEventListener('mousemove', dropStaleSelectionDrag, { capture: true, passive: true })
 
+    // PLAN-068 W2 / T0904 (T0902 §2.4 `reading`): a contract-2 Tower tab tells its host whether the user
+    // reads it — scrolled up in the normal buffer, a selection, or a wheel / PageUp in the last 10 s —
+    // so a Worker notification waits instead of moving the screen (60 s at most, decided by the host).
+    // T0917 / BUG-221: in the alt buffer (claude / codex fullscreen) scrolling up keeps it reading until a
+    // key, a click, the tab hidden, scrolling back down as far, or a buffer switch (TowerReadingTracker).
+    // Only observed here: the wheel and keys still reach xterm / the PTY unchanged (T0698, T0672).
+    const readingTracker = new TowerReadingTracker({
+      report: (reading) => {
+        dlog(`[tower-reading] terminal=${terminalId} reading=${reading}`)
+        window.electronAPI.pty.setReadingState?.(terminalId, reading)?.catch(() => { /* an older host: no handler */ })
+      },
+      onAltScroll: ({ active, cause }) => {
+        dlog(`[tower-reading] terminal=${terminalId} alt scrolled-up=${active}${cause ? ` cause=${cause}` : ''}`)
+      },
+    })
+    readingTrackerRef.current = readingTracker
+    readingTracker.setAltBuffer(terminal.buffer.active.type === 'alternate')
+    readingTracker.setEnabled(getTowerContract(terminalId)?.status === 'match')
+    const updateReading = () => {
+      const buffer = terminal.buffer.active
+      readingTracker.setCondition((buffer.type === 'normal' && buffer.viewportY < buffer.baseY) || terminal.hasSelection())
+    }
+    const readingScrollDisposable = terminal.onScroll(updateReading)
+    noteReadingSelection = updateReading
+    /** Rendered row height in CSS px (xterm's own unit for pixel wheels); 0 = unknown → wheelRows' default. */
+    const readingRowHeight = () => {
+      const screen = terminal.element?.querySelector('.xterm-screen') as HTMLElement | null
+      return screen && terminal.rows > 0 ? screen.clientHeight / terminal.rows : 0
+    }
+    const noteReadingWheel = (e: WheelEvent) => {
+      readingTracker.noteActivity()
+      if (terminal.buffer.active.type === 'alternate') readingTracker.noteAltScroll(wheelRows(e, readingRowHeight(), terminal.rows))
+      setTimeout(updateReading, 0)
+    }
+    const noteReadingKey = (e: KeyboardEvent) => {
+      if (e.key === 'PageUp') {
+        readingTracker.noteActivity()
+        if (terminal.buffer.active.type === 'alternate') readingTracker.noteAltScroll(-terminal.rows)
+        setTimeout(updateReading, 0)
+        return
+      }
+      if (e.key === 'PageDown') {
+        if (terminal.buffer.active.type === 'alternate') readingTracker.noteAltScroll(terminal.rows)
+        return
+      }
+      // T0917: any other key typed into the tab (not a modifier alone) ends the alt "scrolled up" state
+      if (isModifierOnlyKey(e.key)) return
+      readingTracker.endAltScroll('key')
+    }
+    const noteReadingClick = () => { readingTracker.endAltScroll('click') }
+    containerRef.current.addEventListener('wheel', noteReadingWheel, { capture: true, passive: true })
+    containerRef.current.addEventListener('keydown', noteReadingKey, { capture: true })
+    containerRef.current.addEventListener('mousedown', noteReadingClick, { capture: true })
+
     // BUG-166 / T0672: a program that tracked the mouse ended without turning tracking off (codex
     // killed by a signal), so the shell types every report into its command line. Tracking is
     // turned off in this xterm only (never written to the PTY); the alternate screen is left alone.
@@ -680,6 +755,7 @@ export const TerminalPanel = memo(function TerminalPanel({ terminalId, isActive 
     const bufferChangeDisposable = terminal.buffer.onBufferChange((activeBuffer) => {
       const isAlt = activeBuffer === terminal.buffer.alternate
       selectionKeeper.forget('buffer switch')
+      readingTrackerRef.current?.setAltBuffer(isAlt)
       setAltBufferActive(isAlt)
       altBufferRef.current = isAlt
       workspaceStore.setTerminalAltBuffer(terminalId, isAlt)
@@ -698,15 +774,39 @@ export const TerminalPanel = memo(function TerminalPanel({ terminalId, isActive 
         dlog(`[terminal-submit] xterm onData terminal=${terminalId} trace=${trace.traceId} bytes=${data.length} controls=${trace.dataControls.at(-1)}`)
       }
       // T0566: the Enter of a usage-limit continue is BAT's automatic write, not the user's input.
+      // T0904: an inbox answer's Enter is the user's input, marked so the host's atomic window closes.
       if (trace?.auto) window.electronAPI.pty.write(terminalId, data, { auto: true })
+      else if (trace?.submit) window.electronAPI.pty.write(terminalId, data, { submit: true })
       else window.electronAPI.pty.write(terminalId, data)
     })
 
     // `bat-notify --submit` (terminal:keypress) and the usage-limit continue (T0566): Enter through
     // xterm, so the agent gets the bytes a real Enter key produces. False = no xterm textarea.
     // `restoreFocus` (T0566's background continue): give the focus back afterwards.
-    const dispatchEnter = (info: { traceId: string; source?: string; reason?: string; auto?: boolean; restoreFocus?: boolean }): boolean => {
+    // PLAN-068 W1 / T0904 (B0, R3′): `withoutFocus` (a contract-2 Tower only) = `terminal.input('\r', false)`:
+    // the same `\r`, but the viewport stays, the selection stays, the focus does not move.
+    const dispatchEnter = (info: { traceId: string; source?: string; reason?: string; auto?: boolean; submit?: boolean; restoreFocus?: boolean; withoutFocus?: boolean }): boolean => {
       const { traceId } = info
+      if (info.withoutFocus) {
+        const trace: RemoteKeypressTrace = {
+          traceId,
+          source: info.source,
+          reason: info.reason,
+          dataEvents: 0,
+          dataBytes: 0,
+          dataControls: [],
+          auto: info.auto,
+          submit: info.submit,
+        }
+        remoteKeypressTraceRef.current = trace
+        try {
+          submitEnterWithoutFocus(terminal)
+          dlog(`[terminal-submit] remote Enter input terminal=${terminalId} trace=${traceId} path=xterm-input dataEvents=${trace.dataEvents} dataBytes=${trace.dataBytes} controls=${trace.dataControls.join('|') || 'none'}`)
+        } finally {
+          remoteKeypressTraceRef.current = null
+        }
+        return true
+      }
       const textarea = containerRef.current?.querySelector('.xterm-helper-textarea') as HTMLTextAreaElement | null
       if (!textarea) {
         dlog(`[terminal-submit] remote Enter aborted terminal=${terminalId} trace=${traceId} reason=missing-xterm-helper-textarea`)
@@ -747,10 +847,14 @@ export const TerminalPanel = memo(function TerminalPanel({ terminalId, isActive 
       const isEnter = info.key === 'Enter' || info.code === 'Enter' || info.keyCode === 13
       if (!isEnter) return
       const traceId = info.traceId ?? `renderer-${Date.now().toString(36)}`
-      dlog(`[terminal-submit] remote Enter received terminal=${terminalId} trace=${traceId} source=${info.source ?? '?'} reason=${info.reason ?? '?'} path=dom-keydown`)
+      // PLAN-068 W1 / T0904 (R3′): a contract-2 Tower gets the Enter without the keydown (B0); every
+      // other tab keeps the synthetic keydown
+      const path = towerSubmitEnterPath(getTowerContract(terminalId)?.status)
+      const answer = info.userInput === true
+      dlog(`[terminal-submit] remote Enter received terminal=${terminalId} trace=${traceId} source=${info.source ?? '?'} reason=${info.reason ?? '?'} path=${path}${answer ? ' answer' : ''}`)
       // T0788 / BUG-196 (contract item 9): the helper's Enter is BAT's automatic write, not the user's
-      // input — focus behaviour unchanged (no `restoreFocus`)
-      dispatchEnter({ traceId, source: info.source, reason: info.reason, auto: true })
+      // input — focus behaviour unchanged (no `restoreFocus`). T0904: an answer's Enter is the user's.
+      dispatchEnter({ traceId, source: info.source, reason: info.reason, auto: !answer, submit: answer, withoutFocus: path === 'xterm-input' })
     })
 
     // PLAN-044 / T0566: the usage limit reset — re-check this screen, type the text (automatic
@@ -884,14 +988,14 @@ export const TerminalPanel = memo(function TerminalPanel({ terminalId, isActive 
       if (isMacCommandPaste(event, window.electronAPI.platform)) {
         event.preventDefault()
         suppressNativePasteUntil = performance.now() + 1000
-        pasteClipboard('Command+V').catch(err => dlog('[terminal-paste] Command+V paste failed', err))
+        pasteClipboard('Command+V').catch(err => reportPasteFailure('[terminal-paste] Command+V paste failed', err))
         return false
       }
       // Ctrl+V for paste (standard shortcut). An image on the clipboard sends the claude CLI's
       // image-paste key instead (T0524: Alt+V on Windows, Ctrl+V on macOS / Linux).
       if (event.ctrlKey && !event.shiftKey && event.key === 'v') {
         event.preventDefault()
-        pasteClipboard('Ctrl+V').catch(err => dlog('[terminal-paste] Ctrl+V paste failed', err))
+        pasteClipboard('Ctrl+V').catch(err => reportPasteFailure('[terminal-paste] Ctrl+V paste failed', err))
         return false
       }
       // Ctrl+C for copy when there's a selection
@@ -1202,6 +1306,14 @@ export const TerminalPanel = memo(function TerminalPanel({ terminalId, isActive 
       bufferChangeDisposable.dispose()
       selectionChangeDisposable.dispose()
       trackingSetDisposable.dispose()
+      readingScrollDisposable.dispose()
+      noteReadingSelection = () => {}
+      readingTracker.setEnabled(false) // reported `false` if it said `true`
+      readingTracker.dispose()
+      readingTrackerRef.current = null
+      containerRef.current?.removeEventListener('wheel', noteReadingWheel, { capture: true })
+      containerRef.current?.removeEventListener('keydown', noteReadingKey, { capture: true })
+      containerRef.current?.removeEventListener('mousedown', noteReadingClick, { capture: true })
       document.removeEventListener('mouseup', endSelectionDrag, { capture: true })
       document.removeEventListener('mousemove', dropStaleSelectionDrag, { capture: true })
       decorationManagerRef.current?.dispose()
@@ -1222,6 +1334,34 @@ export const TerminalPanel = memo(function TerminalPanel({ terminalId, isActive 
       terminal.dispose()
     }
   }, [terminalId])
+
+  // PLAN-068 W2 / T0904: the reading signal follows the tab's contract (on only for a contract-2 Tower)
+  useEffect(() => {
+    readingTrackerRef.current?.setEnabled(isContractTower)
+  }, [isContractTower])
+
+  // T0917 / BUG-221: a hidden tab is not being read — it ends the alt-buffer "scrolled up" state (focus
+  // moving to another window or panel does not: the tab is still on screen)
+  useEffect(() => {
+    if (!isActive) readingTrackerRef.current?.endAltScroll('inactive')
+  }, [isActive])
+
+  // PLAN-068 W2 / T0904: a Worker notification waited 5 min for the user's draft in this tab — this
+  // window holds the tab (TerminalPanel is mounted in one window only), so it shows the system
+  // notification once.
+  useEffect(() => {
+    const unsubscribe = window.electronAPI.pty.onNotifyHoldReminder?.((info) => {
+      if (info.terminalId !== terminalId) return
+      const tabTitle = workspaceStore.getState().terminals.find(tm => tm.id === terminalId)?.title ?? terminalId.slice(0, 8)
+      dlog(`[notify-hold] reminder shown terminal=${terminalId} count=${info.count}`)
+      try {
+        new Notification(t('notifyHold.reminderTitle', { count: info.count }), { body: t('notifyHold.reminderBody', { title: tabTitle }) })
+      } catch (e) {
+        dlog(`[notify-hold] reminder notification failed terminal=${terminalId}: ${e instanceof Error ? e.message : String(e)}`)
+      }
+    })
+    return () => { unsubscribe?.() }
+  }, [terminalId, t])
 
   return (
     <div ref={containerRef} className="terminal-panel" onDragOver={handleDragOver} onDrop={handleDrop}>

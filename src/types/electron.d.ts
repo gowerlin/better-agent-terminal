@@ -181,7 +181,7 @@ interface ElectronAPI {
     /** T0403: replay buffer; rejects with `No handler` on a remote server before T0403. */
     getBuffer: (id: string) => Promise<PtyReplayBuffer | null>
     /** T0566: `opts.auto` = BAT's own automatic write (not the user's input; a server before T0566 ignores it). */
-    write: (id: string, data: string, opts?: { auto?: boolean }) => Promise<void>
+    write: (id: string, data: string, opts?: { auto?: boolean; submit?: boolean }) => Promise<void>
     resize: (id: string, cols: number, rows: number) => Promise<void>
     kill: (id: string) => Promise<boolean>
     restart: (id: string, cwd: string, shell?: string) => Promise<boolean>
@@ -193,11 +193,14 @@ interface ElectronAPI {
     onExit: (callback: (id: string, exitCode: number) => void) => () => void
     onCreatedExternally: (callback: (info: { id: string; cwd: string; command?: string; agent?: string; agentName?: string; workspaceId?: string; towerTerminalId?: string; workorder?: string; ctWorktree?: CtWorktreeInfo; workspaceResolved?: boolean; remote?: boolean; dispatchedByHelper?: boolean }) => void) => () => void
     onTerminalNotified: (callback: (info: { targetId: string; message: string; source?: string; questionId?: string }) => void) => () => void
-    onTerminalKeypress: (callback: (info: { targetId: string; key: string; code?: string; keyCode?: number; source?: string; reason?: string; traceId?: string }) => void) => () => void
+    /** T0904: `userInput` = the Enter of an inbox answer (written `{ submit: true }`, the user's input). */
+    onTerminalKeypress: (callback: (info: { targetId: string; key: string; code?: string; keyCode?: number; source?: string; reason?: string; traceId?: string; userInput?: boolean }) => void) => () => void
     /** PLAN-041 / T0535: `terminal:close-requested` — main asks the window holding tab `id` to close it. */
     onCloseRequested: (callback: (info: { id: string }) => void) => () => void
     /** T0562: `terminal:role-changed` — tab `id` declared its role (`bat-terminal.mjs --set-role tower`). */
     onRoleChanged: (callback: (info: import('../lib/tower-terminal-title').TerminalRoleChangeInfo) => void) => () => void
+    /** PLAN-068 W9 / T0910: `terminal:hooks-status` — contract-2 Tower `id`'s BAT hooks status (`parseHooksStatus`). */
+    onHooksStatus?: (callback: (info: { id: string; hooksStatus: unknown }) => void) => () => void
     /** PLAN-044 / T0566: `terminal:usage-limit-status` — tab `id`'s usage-limit hint changed (null = cleared). */
     onUsageLimitStatus: (callback: (info: import('../lib/usage-limit').UsageLimitStatusEvent) => void) => () => void
     /** T0609 (BUG-153): `terminal:attention-changed` — tab `id` waits for the user / its Tower's answer (empty = no longer). */
@@ -210,6 +213,12 @@ interface ElectronAPI {
     notifyHoldCancel: (terminalId: string, holdId?: string) => Promise<number>
     /** T0788: `terminal:notify-hold-changed` — tab `terminalId`'s held notifications now (empty = none). */
     onNotifyHoldChanged: (callback: (info: import('./notify-hold').NotifyHoldChangedEvent) => void) => () => void
+    /** PLAN-068 W2 / T0904:「立即送出」— `draft` / `reading` stop holding tab `terminalId`'s items (up to `holdId`). */
+    notifyHoldSendNow?: (terminalId: string, holdId?: string) => Promise<number>
+    /** T0904: `terminal:notify-hold-reminder` — a notification waited 5 min for the user's draft. */
+    onNotifyHoldReminder?: (callback: (info: import('./notify-hold').NotifyHoldReminderEvent) => void) => () => void
+    /** T0904: proxied `terminal:reading-state` — the user reads tab `terminalId` (a contract-2 Tower). */
+    setReadingState?: (terminalId: string, reading: boolean) => Promise<{ ok: boolean; reason?: string }>
   }
   workspace: {
     save: (data: string) => Promise<boolean>
@@ -267,6 +276,8 @@ interface ElectronAPI {
     saveImage: () => Promise<string | null>
     /** T0436: clipboard image as a data URL; null when the clipboard holds no image. */
     readImageDataUrl: () => Promise<string | null>
+    /** T0893 / BUG-216: whether the clipboard offers an image (`image/png`), from its MIME types only — the image is not read. */
+    hasImage: () => Promise<boolean>
     /** T0522: absolute paths of file / folder items on the clipboard (macOS Finder copy); [] otherwise. */
     readFilePaths: () => Promise<string[]>
     writeImage: (filePath: string) => Promise<boolean>
@@ -944,7 +955,8 @@ interface ElectronAPI {
     readFile: (filePath: string) => Promise<{ content?: string; error?: string; size?: number }>
     stat: (filePath: string) => Promise<{ mtimeMs: number; size: number } | null>
     search: (dirPath: string, query: string) => Promise<import('./file').FileEntry[]>
-    watch: (dirPath: string) => Promise<boolean>
+    /** T0916: `{ recreate: true }` keeps watching a directory that does not exist yet or is deleted later (see electron/handlers/fs.ts `FsWatchOptions`) */
+    watch: (dirPath: string, options?: { recreate?: boolean }) => Promise<boolean>
     unwatch: (dirPath: string) => Promise<boolean>
     resetWatch: (dirPath: string) => Promise<boolean>
     onChanged: (callback: (dirPath: string) => void) => () => void
@@ -953,6 +965,14 @@ interface ElectronAPI {
   // (proxied `ct:read-config-sources`; rejects with `No handler for channel` on an older bat-server).
   ctConfig: {
     readSources: () => Promise<import('./ct-config-sources').CtConfigSources>
+  }
+  // PLAN-068 W3 / T0905 — the Tower turn cards of the window's tabs, kept by the host that runs them
+  // (proxied `tower-cards:*`; rejects with `No handler for channel` on an older bat-server).
+  towerCards: import('./tower-cards').TowerCardsApi
+  // PLAN-068 W5 / T0908 — the Inbox answer into a contract-2 Tower tab (proxied `tower-inbox:answer`;
+  // rejects with `No handler for channel` on a bat-server before T0908).
+  towerInbox: {
+    answer: (terminalId: string, text: string) => Promise<import('./notify-hold').TowerInboxAnswerResult>
   }
   // T0710 — the CT prompt of the panel's one-click dispatch, decided and quoted by the window's host
   // (proxied `terminal:control-tower-prompt`; rejects with `No handler for channel` on an older bat-server).

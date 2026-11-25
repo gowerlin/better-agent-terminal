@@ -9,7 +9,16 @@
  *   - claude CLI 2.1.300: `You've hit your <session|weekly|Opus|Sonnet|Fable|usage> limit · resets 3pm (Asia/Taipei)`
  *     (2.1.312+ calls the 5-hour window `5-hour limit` instead of `session limit`; both are read, T0717)
  *     (`· progress saved` may follow), non-timed `monthly spend limit` / `team's shared budget` /
- *     `out of usage credits` / `org is out of usage` / `seat type …`; the CLI's own auto-continue
+ *     `out of usage credits` / `org is out of usage` / `seat type …` (2.1.326+ says `team's pooled
+ *     group budget · resets …` instead of `team's shared budget`; both are read, T0891); T0897 (2.1.331
+ *     `ui()` / its prefix table `Pxi`, present since 2.1.316) adds the non-timed `channel's monthly
+ *     spend|usage limit` / `individual spend|usage limit` / `org's monthly spend|usage limit` /
+ *     `usage limit · contact your admin to increase it` (usage-allocation mode) / `Your seat type
+ *     doesn't include [extra ]usage` / `Your usage allocation has been disabled by your admin` /
+ *     `Your group's usage limit is set to $0` / `This service is disabled for your org` /
+ *     `You're out of extra usage`, and a timed limit may end in `· out of usage credits`
+ *     (not read: `Usage is paused for your organization` (daily pause, T0897 Q-2) and
+ *     `usage credit limit`, which only appears in warnings, never in a stop, T0897 Q-3); the CLI's own auto-continue
  *     (2.1.234+) prints `… continuing automatically at 3pm …`, `Automatic continue stopped|cancelled …`,
  *     `Usage limit available again · continuing now` / `Usage limit reset · continuing automatically`
  *     (2.1.316: `· Continuing automatically`; either case is read, T0717)
@@ -21,7 +30,8 @@
  *   - codex-cli 0.160.0 / 0.162.1: `You've hit your usage limit[ for <model>]. … Try again at 3:05 PM.`
  *     (`try again later.` without a time), non-timed `Your workspace is out of credits` /
  *     `You hit your spend cap` / `Usage limit reached. You've reached your usage limit` /
- *     `You're out of credits.`
+ *     `You're out of credits.`; codex-cli 0.172.0 adds the API spend limit error
+ *     `Your API <key|project|organization> has reached its spend limit.` (non-timed, T0891)
  *
  * Only a whole sentence at the start of a line counts (a TUI prefix such as `■ ` / `⎿ ` / `> ` is
  * allowed; a quote, backtick or any letter before it is not), and the bottom-most recognised line
@@ -125,11 +135,17 @@ const DOT = '[·•]'
 /** The reset text after `resets` (strict: what `parseClaudeResetTime` reads, plus a zone). */
 const CLAUDE_RESET_TEXT = '(?:[A-Za-z]{3,9}\\.? \\d{1,2},\\s*(?:\\d{4},\\s*)?)?\\d{1,2}(?::\\d{2})?\\s*[AaPp][Mm](?:\\s*\\([^)]+\\))?'
 const CLAUDE_LIMIT_RE = new RegExp(
-  `${PREFIX}You${APOS}ve (?:hit|reached) your (session limit|5-hour limit|weekly limit|Opus limit|Sonnet limit|Fable limit|usage limit|limit)(?=\\s*(?:${DOT}|\\.|$))(?:\\s*${DOT}\\s*resets\\s+(${CLAUDE_RESET_TEXT}))?(?:\\s*${DOT}\\s*progress saved)?\\s*\\.?\\s*$`,
+  `${PREFIX}You${APOS}ve (?:hit|reached) your (session limit|5-hour limit|weekly limit|Opus limit|Sonnet limit|Fable limit|usage limit|limit)(?=\\s*(?:${DOT}|\\.|$))(?:\\s*${DOT}\\s*resets\\s+(${CLAUDE_RESET_TEXT}))?(?:\\s*${DOT}\\s*progress saved)?(?:\\s*${DOT}\\s*out of usage credits)?\\s*\\.?\\s*$`,
   'u',
 )
+// T0897: the channel / individual / org caps, the usage-allocation mode's `usage limit · contact your
+// admin to increase it` (Q-1), and the rest of the CLI's own prefix table (`Pxi` / `hal` in 2.1.331).
 const CLAUDE_BLOCKED_RE = new RegExp(
-  `${PREFIX}(?:You${APOS}ve hit your (?:monthly spend limit|team${APOS}s shared budget)|You${APOS}re out of usage credits|Your org is out of usage|Your seat type doesn${APOS}t include usage credits)`,
+  `${PREFIX}(?:You${APOS}ve hit your (?:monthly spend limit|team${APOS}s shared budget|team${APOS}s pooled group budget)|You${APOS}re out of usage credits|Your org is out of usage|Your seat type doesn${APOS}t include usage credits`
+    + `|You${APOS}ve hit your (?:channel${APOS}s monthly (?:spend|usage) limit|individual (?:spend|usage) limit|org${APOS}s monthly (?:spend|usage) limit)`
+    + `|You${APOS}ve hit your usage limit\\s*${DOT}\\s*contact your admin to increase it`
+    + `|Your seat type doesn${APOS}t include (?:extra )?usage\\b|Your usage allocation has been disabled by your admin`
+    + `|Your group${APOS}s usage limit is set to \\$0|This service is disabled for your org|You${APOS}re out of extra usage)`,
   'u',
 )
 const CLAUDE_AUTO_RE = new RegExp(`${PREFIX}(?:Usage limit reached(?: again)?\\s*${DOT}\\s*)?continuing automatically(?: at (.+?))?(?:\\s*${DOT}.*)?$`, 'iu')
@@ -142,7 +158,7 @@ const CLAUDE_STALE_PRESS_RE = new RegExp(`${PREFIX}Press enter to continue\\b`, 
 
 const CODEX_LIMIT_RE = new RegExp(`${PREFIX}You${APOS}ve hit your usage limit(?: for (.+?))?\\.(?:\\s|$)`, 'u')
 const CODEX_BLOCKED_RE = new RegExp(
-  `${PREFIX}(?:Your workspace is out of credits|You hit your spend cap|Usage limit reached\\. You${APOS}ve reached your usage limit|You${APOS}re out of credits\\.)`,
+  `${PREFIX}(?:Your workspace is out of credits|You hit your spend cap|Usage limit reached\\. You${APOS}ve reached your usage limit|You${APOS}re out of credits\\.|Your API (?:key|project|organization) has reached its spend limit\\b)`,
   'u',
 )
 const CODEX_TRY_AT_RE = /\btry again at (.+?)\.(?:\s|$)/i

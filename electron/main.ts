@@ -32,11 +32,12 @@ import { registerWorktreeStatusHandler } from './worktree-status-handlers'
 import { registerReportHookHandler } from './terminal-blocked-state'
 import { registerTowerQuestionHandlers, type TowerQuestionHandlers } from './tower-questions'
 import { registerAttentionSnapshotHandler, TerminalAttentionNotifier } from './terminal-attention'
+import { registerTowerCardHandlers, TowerCardStore } from './tower-cards'
 import { mirrorToBatScripts } from './remote/remote-logger'
 import { rotateBatScriptsLog } from './bat-scripts-log-rotation'
 import { CtWorktreeService } from './ct-worktree'
 import { UsageLimitContinueScheduler } from './usage-limit-continue'
-import { NOTIFY_HOLD_CHANGED_CHANNEL, NotifyHoldController } from './notify-hold'
+import { NOTIFY_HOLD_CHANGED_CHANNEL, NOTIFY_HOLD_REMINDER_CHANNEL, NotifyHoldController, registerNotifyHoldHandlers, registerTowerInboxAnswerHandler } from './notify-hold'
 import { normalizeUsageLimitConfig } from '../src/lib/usage-limit'
 import { bringWindowToFront, planDeletedProfileWindows } from '../src/lib/profile-window-front'
 import { DETACHED_WAITING_MAX_ID, sanitizeDetachedWaitingReport } from '../src/lib/terminal-attention'
@@ -79,7 +80,7 @@ import { configureRuntimeRouter, getRuntimeSettingsSnapshot, resolveClaudeRuntim
 import { ClaudeAgentManager, createElectronClaudeEmit, createElectronNotifier, type ClaudeAgentManagerDeps } from './claude-agent-manager'
 import { CodexAgentManager } from './codex-agent-manager'
 import { checkForUpdates, parseUpdateSettings, StartupUpdateCheck, type UpdateCheckOutcome, type UpdateCheckResult, type UpdateSettings } from './update-checker'
-import { clipboardImageToDataUrl, readClipboardPng, readSelectedAttachments } from './image-attachments'
+import { CLIPBOARD_IMAGE_EARLY_REFUSE_BYTES, clipboardImageToDataUrl, hasClipboardImage, readClipboardPng, readSelectedAttachments, type ReadClipboardPngOptions } from './image-attachments'
 import { readClipboardFilePaths } from './clipboard-file-paths'
 import { snippetDb, CreateSnippetInput } from './snippet-db'
 import { ProfileManager, type ProfileEntry, type ProfileSnapshot } from './profile-manager'
@@ -791,6 +792,8 @@ let terminalQueryHandlers: TerminalQueryHandlers | null = null
 let towerQuestionHandlers: TowerQuestionHandlers | null = null
 // T0609 (BUG-153): `terminal:attention-changed` (a tab waits for the user / its Tower's answer)
 let terminalAttention: TerminalAttentionNotifier | null = null
+// PLAN-068 W3 / T0905: the Tower turn cards (registerProxiedHandlers builds it; memory only)
+let towerCards: TowerCardStore | null = null
 // PLAN-047 W1 / T0583: `--isolation worktree` dispatch + `--close-worker --worktree` cleanup (plain git).
 const ctWorktreeService = new CtWorktreeService()
 // PLAN-044 / T0566: usage-limit detection + automatic continue (registerProxiedHandlers builds it).
@@ -1354,6 +1357,7 @@ function createElectronPtyDeps(): PtyManagerDeps {
       interruptedAgents.remove(id, 'pty-ended') // T0766: closed / restarted / resumed tab
       claudeSessionPersistence.persist() // T0642: its claude session is no longer stored
       ptyUploadDisposer.onPtyExit(id) // T0835: its staged uploads (after the restart grace)
+      towerCards?.terminalEnded(id) // T0905: its turn cards (exit / kill, so ⏻ restart too)
     },
     // PLAN-055 B1 / T0766: the tabs the recovery interrupts — taken before it clears their session ids
     onAgentsInterrupted: (sources) => {
@@ -1374,6 +1378,7 @@ function createElectronPtyDeps(): PtyManagerDeps {
       towerQuestionHandlers?.serverRecovered()
       claudeSessionPersistence.persist()
       notifyHold?.onServerRecovery() // T0788: every held notification is dropped
+      towerCards?.serverRecovered() // T0905: every PTY tab's turn cards
     },
     // T0642: a SessionStart hook sent a (new) session id
     // T0766: a listed interrupted tab whose claude started again (resumed) leaves the list
@@ -1664,7 +1669,11 @@ function createWindow(windowId: string, bounds?: { x: number; y: number; width: 
   if (!ptyManager) {
     ptyManager = new PtyManager(createElectronPtyDeps())
   }
-  if (!claudeManager) claudeManager = new ClaudeAgentManager(createElectronClaudeDeps())
+  if (!claudeManager) {
+    claudeManager = new ClaudeAgentManager(createElectronClaudeDeps())
+    // PLAN-068 W3 / T0905: a panel Tower's turn → a card (the store keeps it only for a panel Tower)
+    claudeManager.setTurnResultListener((sessionId, text) => { towerCards?.offerPanelMessage(sessionId, text) })
+  }
   if (!codexManager) codexManager = new CodexAgentManager(getAllWindows)
 
   const urlParam = `?windowId=${encodeURIComponent(windowId)}`
@@ -2953,7 +2962,9 @@ const uploadClient = new UploadClient({
     if (!client) return Promise.reject(new UploadNotConnectedError(`profile ${profileId} has no live connection`))
     return client.invoke(channel, args, timeoutMs)
   },
-  readClipboardPng: () => readClipboardPng(clipboard),
+  // T0895: upload-client passes `refuseAboveBytes` (CLIPBOARD_UPLOAD_EARLY_REFUSE_BYTES) — a huge
+  // clipboard image is refused before it is copied out (→ TOO_LARGE).
+  readClipboardPng: options => readClipboardPng(clipboard, options),
   emitProgress: (senderId, event) => {
     const sender = uploadSenders.get(senderId)
     if (sender && !sender.isDestroyed()) sender.send(UPLOAD_CLIENT_PROGRESS_CHANNEL, event)
@@ -2991,19 +3002,25 @@ function registerProxiedHandlers() {
   const terminalEmit = createTerminalWindowEmit(() => BrowserWindow.getAllWindows(), (channel, payload) => broadcastHub.broadcast(channel, payload))
 
   // T0788 / BUG-196: a helper's text + Enter into a tab that waits for the user is held, then sent
-  // (the Enter as the same `terminal:keypress` event). "N held" goes to this BAT's own windows only
-  // (renderer IPC `terminal:notify-hold-list` / `-cancel`, local; a remote window's tabs: headless).
-  const localWindowEmit = createTerminalWindowEmit(() => BrowserWindow.getAllWindows(), () => {})
+  // (the Enter as the same `terminal:keypress` event). "N held" goes to every window + broadcastHub
+  // (PLAN-068 W5 / T0908: `terminal:notify-hold-*` are proxied; a remote window's tabs: its bat-server).
   notifyHold = new NotifyHoldController({
     getPtyManager: () => ptyManager,
     emitKeypress: (payload) => {
       terminalEmit('terminal:keypress', payload)
       return true
     },
-    emitChanged: (event) => { localWindowEmit(NOTIFY_HOLD_CHANGED_CHANNEL, event) },
+    emitChanged: (event) => { terminalEmit(NOTIFY_HOLD_CHANGED_CHANNEL, event) },
+    // PLAN-068 W2 / T0904: a notification waited 5 min for the user's draft — the window holding the
+    // tab shows a system notification (src/components/TerminalPanel.tsx)
+    emitReminder: (event) => { terminalEmit(NOTIFY_HOLD_REMINDER_CHANNEL, event) },
     logger,
     mirrorToBatScripts,
   })
+  // PLAN-068 W5 / T0908: the windows' "📨 待送" list / cancel /「立即送出」and the Inbox answers —
+  // same handlers as headless, proxied (a remote window's call goes to its bat-server). Never helper channels.
+  registerNotifyHoldHandlers({ registerHandler, getNotifyHold: () => notifyHold, logger })
+  registerTowerInboxAnswerHandler({ registerHandler, getNotifyHold: () => notifyHold, logger })
 
   // PTY + settings:get-shell-path — shared with headless bat-server (PLAN-036 T0390)
   registerPtyHandlers(registerHandler, {
@@ -3073,6 +3090,18 @@ function registerProxiedHandlers() {
     isAlive: id => ptyManager?.isAlive(id) ?? false,
     logger,
   })
+  // PLAN-068 W3 / T0905 (D328 R1′): the Tower turn cards — kept only for a contract-2 Tower tab,
+  // masked, memory only; `tower-cards:*` for the windows (never a helper channel). Same module as headless.
+  towerCards = new TowerCardStore({
+    getTerminalRole: id => ptyManager?.getTerminalRole(id),
+    getTowerContract: id => ptyManager?.getTowerContract(id),
+    isAlive: id => ptyManager?.isAlive(id) ?? false,
+    getSessionId: id => ptyManager?.getClaudeSessionId(id) ?? null,
+    knownSecrets: () => [remoteServer.currentToken],
+    emit: terminalEmit,
+    logger,
+  })
+  registerTowerCardHandlers({ registerHandler, getStore: () => towerCards, logger })
   // PLAN-047 M1 / T0582: read-only helper queries (same module as headless). The caller is its
   // capability (`localHelperCapabilities`); titles and the workspace of a PTY the Terminal Server
   // kept come from the saved tabs; the server token is masked out of read-output literally.
@@ -3119,6 +3148,7 @@ function registerProxiedHandlers() {
     getPtyManager: () => ptyManager,
     logger,
     mirrorToBatScripts,
+    onStop: (terminalId, report) => { towerCards?.offerHookStop(terminalId, report) }, // T0905
   })
 
   // PLAN-047 M1 / T0584: `agent:bat-mcp-launch-args` (proxied: a remote window asks its server)
@@ -3208,7 +3238,10 @@ function registerProxiedHandlers() {
     sessionKinds: sessionManagerMap,
     messageArchiveDir: MESSAGE_ARCHIVE_DIR,
     // T0832: a closed panel's staged uploads go with it
-    onSessionDisposed: sessionId => { void uploadStaging.disposeSession(sessionId) },
+    onSessionDisposed: sessionId => {
+      void uploadStaging.disposeSession(sessionId)
+      towerCards?.terminalEnded(sessionId, 'panel session disposed') // T0905: a panel Tower's cards
+    },
   })
 
   // upload:* — shared with headless bat-server (PLAN-038 U1 / T0832, electron/handlers/uploads.ts).
@@ -3597,8 +3630,8 @@ function registerLocalHandlers() {
   // T0784 (Electron 44+): main's clipboard is W3C-style (`read()` / `write()` + ClipboardItem,
   // Promise-based); readImage / writeImage are gone. Channel names, arguments and return
   // shapes are unchanged. Reading: readClipboardPng (electron/image-attachments.ts).
-  const readClipboardImage = async (): Promise<Electron.NativeImage> => {
-    const png = await readClipboardPng(clipboard)
+  const readClipboardImage = async (options?: ReadClipboardPngOptions): Promise<Electron.NativeImage> => {
+    const png = await readClipboardPng(clipboard, options)
     return png ? nativeImage.createFromBuffer(png) : nativeImage.createEmpty()
   }
   ipcMain.handle('clipboard:saveImage', async () => {
@@ -3612,7 +3645,12 @@ function registerLocalHandlers() {
   // T0436 / BUG-108: panel paste attachments take the image straight from this machine's
   // clipboard (no temp file, no proxied image:read-as-data-url). clipboard:saveImage stays
   // for PromptBox, which needs a file path for the terminal agent.
-  ipcMain.handle('clipboard:read-image-data-url', () => readClipboardImage().then(clipboardImageToDataUrl))
+  // T0893 / BUG-216: a clipboard PNG over 2 × the 10 MiB cap is refused before it is copied out,
+  // decoded and re-encoded (same `Image too large` error); smaller ones are unchanged.
+  ipcMain.handle('clipboard:read-image-data-url', () => readClipboardImage({ refuseAboveBytes: CLIPBOARD_IMAGE_EARLY_REFUSE_BYTES }).then(clipboardImageToDataUrl))
+  // T0893 / BUG-216: the terminal's Ctrl+V only needs to know whether there is an image — MIME types
+  // only, the image is never fetched. Local-only like the channels around it (not proxied, not a helper channel).
+  ipcMain.handle('clipboard:has-image', () => hasClipboardImage(clipboard))
   // T0522 / BUG-128: Finder-copied items as paths for Command+V in a terminal (macOS; [] elsewhere).
   ipcMain.handle('clipboard:read-file-paths', () => readClipboardFilePaths(clipboard, process.platform))
   ipcMain.handle('clipboard:writeImage', async (_event, filePath: string) => {
@@ -4764,7 +4802,7 @@ function registerLocalHandlers() {
     const parentWin = parentWindowId ? windowMap.get(parentWindowId) : undefined
     const sent = !!parentWin && !parentWin.isDestroyed()
     if (sent) parentWin.webContents.send('workspace:detached-waiting-changed', workspaceId, clean)
-    logger.log(`[detached-waiting] workspace=${workspaceId} waiting=${clean.tabs.length} missed=${clean.missed.length} → ${sent ? `parent ${parentWindowId}` : 'no parent window'}`)
+    logger.log(`[detached-waiting] workspace=${workspaceId} waiting=${clean.tabs.length} missed=${clean.missed.length}${clean.awaiting ? ` awaiting=${clean.awaiting}` : ''} → ${sent ? `parent ${parentWindowId}` : 'no parent window'}`)
   })
 
   // T0761: a click on that row — the detached window comes to the front (hidden / minimized too,
@@ -4884,13 +4922,9 @@ function registerLocalHandlers() {
     return ptyManager.getLastOutput(targetId, lines)
   })
 
-  // T0788 / BUG-196: the notifications held for this BAT's tabs — pull (a window mounted after the
-  // event) and cancel (one / all). 🔴 Renderer IPC only: never a RemoteServer / helper channel.
-  ipcMain.handle('terminal:notify-hold-list', () => notifyHold?.list() ?? [])
-  ipcMain.handle('terminal:notify-hold-cancel', (_event, terminalId: unknown, holdId?: unknown) => {
-    if (typeof terminalId !== 'string' || !notifyHold) return 0
-    return notifyHold.cancel(terminalId, typeof holdId === 'string' ? holdId : undefined)
-  })
+  // T0788 / BUG-196: the notifications held for this BAT's tabs — pull / cancel /「立即送出」(T0904).
+  // PLAN-068 W5 / T0908: registered with the shared handlers (`registerNotifyHoldHandlers`, below the
+  // controller) and proxied, so a remote window reaches its bat-server's queue. 🔴 Never a helper channel.
 
   // PLAN-055 B1 / T0766: the interrupted agent tabs — pull (a window mounted after the event),
   // dismiss (略過), and resume a helper-dispatched claude Worker. 🔴 Renderer IPC only: never a

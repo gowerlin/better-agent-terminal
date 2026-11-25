@@ -144,6 +144,8 @@ const getPathForFile = vi.fn<(file: File) => string>()
 const resolveClientPaths = vi.fn(async (paths: string[], _purpose: string) => identity(paths))
 const readFilePaths = vi.fn<() => Promise<string[]>>()
 const readImageDataUrl = vi.fn<() => Promise<string | null>>()
+// T0893: the terminal's image check is clipboard:has-image (MIME types only).
+const hasImage = vi.fn<() => Promise<boolean>>()
 const readText = vi.fn<() => Promise<string>>()
 const ptyWrite = vi.fn(async (_id: string, _data: string) => true)
 const getWindowProfile = vi.fn<() => Promise<string | null>>()
@@ -160,7 +162,7 @@ function bindWindow(kind: Window) {
 function setup(platform: 'win32' | 'linux' = 'win32') {
   ;(window as unknown as { electronAPI: unknown }).electronAPI = permissiveApi(platform, {
     shell: { getPathForFile },
-    clipboard: { readFilePaths, readImageDataUrl },
+    clipboard: { readFilePaths, readImageDataUrl, hasImage },
     remote: { resolveClientPaths },
     settings: { getShellPath: vi.fn(async () => '/bin/bash') },
     app: { getWindowProfile },
@@ -210,6 +212,8 @@ beforeEach(() => {
   readFilePaths.mockResolvedValue([])
   readImageDataUrl.mockReset()
   readImageDataUrl.mockResolvedValue(null)
+  hasImage.mockReset()
+  hasImage.mockResolvedValue(false)
   readText.mockReset()
   readText.mockResolvedValue('')
   getWindowProfile.mockReset()
@@ -341,7 +345,7 @@ describe('TerminalPanel drop in a remote window', () => {
 
 describe('TerminalPanel Ctrl+V image', () => {
   beforeEach(() => {
-    readImageDataUrl.mockResolvedValue('data:image/png;base64,AAAA')
+    hasImage.mockResolvedValue(true)
   })
 
   test.each(['ssh', 'docker'] as const)('%s window: clipboard image uploaded, host path typed, no paste key', async kind => {
@@ -384,7 +388,7 @@ describe('TerminalPanel Ctrl+V image', () => {
 
   test('SSH window: text paste unchanged (no upload)', async () => {
     bindWindow('ssh')
-    readImageDataUrl.mockResolvedValue(null)
+    hasImage.mockResolvedValue(false)
     readText.mockResolvedValue('echo hi')
     const { handler } = await renderTerminal('pty-ssh-text')
     ctrlV(handler)

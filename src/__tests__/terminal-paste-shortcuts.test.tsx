@@ -12,7 +12,7 @@ import { act, cleanup, render, waitFor } from '@testing-library/react'
 import i18n from '../i18n'
 import type { ResolvedClientPath } from '../lib/client-paths'
 import { buildTerminalDropText } from '../lib/terminal-drop'
-import { imagePasteKey, isMacCommandPaste, readTerminalClipboard } from '../lib/terminal-paste'
+import { TerminalClipboardReadError, describePasteError, imagePasteKey, isMacCommandPaste, isTerminalClipboardReadError, readTerminalClipboard } from '../lib/terminal-paste'
 
 type KeyHandler = (event: KeyboardEvent) => boolean
 
@@ -85,6 +85,8 @@ const identity = (paths: string[]): ResolvedClientPath[] => paths.map(input => (
 const readFilePaths = vi.fn<() => Promise<string[]>>()
 const readText = vi.fn<() => Promise<string>>()
 const readImageDataUrl = vi.fn<() => Promise<string | null>>()
+// T0893: the terminal asks main only whether there is an image (MIME types); readImageDataUrl must not be called.
+const hasImage = vi.fn<() => Promise<boolean>>()
 const clipboardRead = vi.fn<() => Promise<Array<{ types: string[] }>>>()
 const debugLog = vi.fn()
 const writeText = vi.fn(async (_text: string) => {})
@@ -99,7 +101,7 @@ function setNavigatorPlatform(value: string) {
 function setup(platform: 'darwin' | 'win32' | 'linux') {
   setNavigatorPlatform(platform === 'darwin' ? 'MacIntel' : platform === 'win32' ? 'Win32' : 'Linux x86_64')
   ;(window as unknown as { electronAPI: unknown }).electronAPI = permissiveApi(platform, {
-    clipboard: { readFilePaths, readImageDataUrl },
+    clipboard: { readFilePaths, readImageDataUrl, hasImage },
     remote: { resolveClientPaths },
     settings: { getShellPath },
     pty: { write: ptyWrite, create: vi.fn(async () => ({ ok: true, created: true })), getBuffer: vi.fn(async () => null) },
@@ -137,6 +139,8 @@ beforeEach(() => {
   readText.mockReset()
   readImageDataUrl.mockReset()
   readImageDataUrl.mockResolvedValue(null)
+  hasImage.mockReset()
+  hasImage.mockResolvedValue(false)
   clipboardRead.mockReset()
   resolveClientPaths.mockReset()
   resolveClientPaths.mockImplementation(async (paths: string[]) => identity(paths))
@@ -184,13 +188,13 @@ describe('readTerminalClipboard', () => {
     const log = vi.fn()
     const readers = { readFilePaths: vi.fn(async () => { throw new Error('ipc down') }), hasImage: vi.fn(async () => true), readText: vi.fn(async () => 'hello') }
     await expect(readTerminalClipboard(readers, log)).resolves.toEqual({ kind: 'image' })
-    expect(log).toHaveBeenCalledWith(expect.stringContaining('read-file-paths failed'), expect.any(Error))
+    expect(log).toHaveBeenCalledWith(expect.stringContaining('read-file-paths failed'), 'Error: ipc down')
   })
   test('image check failure is logged and degrades to text', async () => {
     const log = vi.fn()
     const readers = { readFilePaths: vi.fn(async () => []), hasImage: vi.fn(async () => { throw new Error('denied') }), readText: vi.fn(async () => 'hello') }
     await expect(readTerminalClipboard(readers, log)).resolves.toEqual({ kind: 'text', text: 'hello' })
-    expect(log).toHaveBeenCalledWith(expect.stringContaining('image check failed'), expect.any(Error))
+    expect(log).toHaveBeenCalledWith(expect.stringContaining('image check failed'), 'Error: denied')
   })
 })
 
@@ -286,7 +290,7 @@ describe('TerminalPanel paste shortcuts', () => {
 
   test('Windows Ctrl+V: image → Alt+V (\\x1bv), decided by main (Async Clipboard not used)', async () => {
     setup('win32')
-    readImageDataUrl.mockResolvedValue('data:image/png;base64,AAAA')
+    hasImage.mockResolvedValue(true)
     const { handler } = await renderTerminal('t0522-win-image')
 
     act(() => { handler(keydown({ key: 'v', ctrlKey: true })) })
@@ -365,7 +369,7 @@ describe('T0524 paste matrix', () => {
   }
 
   test.each(cases)('$platform $shortcut.name: image → CLI image-paste key, nothing pasted', async ({ platform, shortcut }) => {
-    readImageDataUrl.mockResolvedValue('data:image/png;base64,AAAA')
+    hasImage.mockResolvedValue(true)
     await press(platform, shortcut.init)
     await waitFor(() => expect(ptyWrite).toHaveBeenCalledWith(expect.any(String), KEY[platform]))
     expect(ptyWrite).toHaveBeenCalledTimes(1)
@@ -379,16 +383,16 @@ describe('T0524 paste matrix', () => {
     await press(platform, shortcut.init)
     await waitFor(() => expect(xtermPaste).toHaveBeenCalledWith("'/tmp/a b.txt'"))
     expect(ptyWrite).not.toHaveBeenCalled()
-    expect(readImageDataUrl).not.toHaveBeenCalled()
+    expect(hasImage).not.toHaveBeenCalled()
   })
 
   test.each(cases)('$platform $shortcut.name: copied image file (+ its icon as an image) → path, not the key', async ({ platform, shortcut }) => {
     readFilePaths.mockResolvedValue(['/tmp/pic.png'])
-    readImageDataUrl.mockResolvedValue('data:image/png;base64,ICON')
+    hasImage.mockResolvedValue(true)
     await press(platform, shortcut.init)
     await waitFor(() => expect(xtermPaste).toHaveBeenCalledWith('/tmp/pic.png'))
     expect(ptyWrite).not.toHaveBeenCalled()
-    expect(readImageDataUrl).not.toHaveBeenCalled()
+    expect(hasImage).not.toHaveBeenCalled()
   })
 
   test.each(cases)('$platform $shortcut.name: text → pasted once, no key', async ({ platform, shortcut }) => {
@@ -399,29 +403,29 @@ describe('T0524 paste matrix', () => {
     expect(ptyWrite).not.toHaveBeenCalled()
   })
 
-  test.each(cases)('$platform $shortcut.name: main image read fails → Async Clipboard fallback still finds the image (logged)', async ({ platform, shortcut }) => {
-    readImageDataUrl.mockRejectedValue(new Error('Image too large'))
+  test.each(cases)('$platform $shortcut.name: main image check fails → Async Clipboard fallback still finds the image (logged)', async ({ platform, shortcut }) => {
+    hasImage.mockRejectedValue(new Error('ipc down'))
     clipboardRead.mockResolvedValue([{ types: ['image/png'] }])
     await press(platform, shortcut.init)
     await waitFor(() => expect(ptyWrite).toHaveBeenCalledWith(expect.any(String), KEY[platform]))
-    expect(debugLog).toHaveBeenCalledWith(expect.stringContaining('read-image-data-url failed'), expect.any(Error))
+    expect(debugLog).toHaveBeenCalledWith(expect.stringContaining('clipboard:has-image failed'), 'Error: ipc down')
     expect(xtermPaste).not.toHaveBeenCalled()
   })
 
   test.each(cases)('$platform $shortcut.name: every image check fails → text paste, failure logged', async ({ platform, shortcut }) => {
-    readImageDataUrl.mockRejectedValue(new Error('ipc down'))
+    hasImage.mockRejectedValue(new Error('ipc down'))
     clipboardRead.mockRejectedValue(new Error('NotAllowedError'))
     readText.mockResolvedValue('fallback text')
     await press(platform, shortcut.init)
     await waitFor(() => expect(xtermPaste).toHaveBeenCalledWith('fallback text'))
-    expect(debugLog).toHaveBeenCalledWith(expect.stringContaining('image check failed'), expect.any(Error))
+    expect(debugLog).toHaveBeenCalledWith(expect.stringContaining('image check failed'), 'Error: NotAllowedError')
     expect(ptyWrite).not.toHaveBeenCalled()
   })
 
   test.each(cases)('$platform $shortcut.name: text read fails → nothing typed, failure logged', async ({ platform, shortcut }) => {
     readText.mockRejectedValue(new Error('Document is not focused'))
     await press(platform, shortcut.init)
-    await waitFor(() => expect(debugLog).toHaveBeenCalledWith(expect.stringContaining('paste failed'), expect.any(Error)))
+    await waitFor(() => expect(debugLog).toHaveBeenCalledWith(expect.stringContaining('paste failed'), 'TerminalClipboardReadError: clipboard text read failed (Error: Document is not focused)'))
     expect(xtermPaste).not.toHaveBeenCalled()
     expect(ptyWrite).not.toHaveBeenCalled()
   })
@@ -443,18 +447,18 @@ describe('T0524: copy and the other paste entry points', () => {
 
   test.each(['win32', 'darwin', 'linux'] as const)('%s Ctrl+Shift+V pastes text even with an image on the clipboard', async (platform) => {
     setup(platform)
-    readImageDataUrl.mockResolvedValue('data:image/png;base64,AAAA')
+    hasImage.mockResolvedValue(true)
     readText.mockResolvedValue('plain')
     const { handler } = await renderTerminal(`t0524-shift-v-${platform}`)
     act(() => { handler(keydown({ key: 'V', ctrlKey: true, shiftKey: true })) })
     await waitFor(() => expect(xtermPaste).toHaveBeenCalledWith('plain'))
     expect(ptyWrite).not.toHaveBeenCalled()
-    expect(readImageDataUrl).not.toHaveBeenCalled()
+    expect(hasImage).not.toHaveBeenCalled()
   })
 
   test.each([['win32', '\x1bv'], ['darwin', '\x16'], ['linux', '\x16']] as const)('%s context-menu Paste follows the same decision (image → key, text → text)', async (platform, key) => {
     setup(platform)
-    readImageDataUrl.mockResolvedValue('data:image/png;base64,AAAA')
+    hasImage.mockResolvedValue(true)
     const { container } = await renderTerminal(`t0524-menu-${platform}`)
     const panel = container.querySelector('.terminal-panel')!
     const openMenu = () => act(() => { panel.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: 5, clientY: 5 })) })
@@ -471,11 +475,94 @@ describe('T0524: copy and the other paste entry points', () => {
     await clickPaste()
     await waitFor(() => expect(ptyWrite).toHaveBeenCalledWith(expect.any(String), key))
 
-    readImageDataUrl.mockResolvedValue(null)
+    hasImage.mockResolvedValue(false)
     readText.mockResolvedValue('menu text')
     openMenu()
     await clickPaste()
     await waitFor(() => expect(xtermPaste).toHaveBeenCalledWith('menu text'))
     expect(ptyWrite).toHaveBeenCalledTimes(1)
+  })
+})
+
+// T0893 / BUG-216: large clipboard images, a paste that cannot read the clipboard, error logging.
+describe('T0893: large clipboard image, unreadable clipboard, error log', () => {
+  const notAllowed = () => new DOMException('Read permission denied.', 'NotAllowedError')
+
+  test('describePasteError: name and message only (a DOMException is no longer `{}`)', () => {
+    expect(describePasteError(notAllowed())).toBe('NotAllowedError: Read permission denied.')
+    expect(describePasteError(new Error('Image too large (48563050 > 10485760 bytes)'))).toBe('Error: Image too large (48563050 > 10485760 bytes)')
+    expect(describePasteError({ name: 'AbortError' })).toBe('AbortError')
+    expect(describePasteError({})).toBe('Error')
+    expect(describePasteError('boom')).toBe('boom')
+    expect(describePasteError(undefined)).toBe('undefined')
+    expect(JSON.stringify(notAllowed())).toBe('{}') // why the old log showed `{}`
+  })
+
+  test('readTerminalClipboard: text read failure → TerminalClipboardReadError carrying name / message', async () => {
+    const readers = { readFilePaths: vi.fn(async () => []), hasImage: vi.fn(async () => { throw notAllowed() }), readText: vi.fn(async () => { throw notAllowed() }) }
+    const log = vi.fn()
+    const err = await readTerminalClipboard(readers, log).catch((e: unknown) => e)
+    expect(err).toBeInstanceOf(TerminalClipboardReadError)
+    expect(isTerminalClipboardReadError(err)).toBe(true)
+    expect(isTerminalClipboardReadError(new Error('x'))).toBe(false)
+    expect((err as Error).message).toBe('clipboard text read failed (NotAllowedError: Read permission denied.)')
+    expect(log).toHaveBeenCalledWith(expect.stringContaining('image check failed'), 'NotAllowedError: Read permission denied.')
+  })
+
+  test.each(['win32', 'darwin', 'linux'] as const)('%s Ctrl+V with an image over the 10 MiB cap: main is only asked whether there is an image, the key is sent', async (platform) => {
+    setup(platform)
+    hasImage.mockResolvedValue(true)
+    // Would throw for a 50 MB image; the terminal must not call it at all any more.
+    readImageDataUrl.mockRejectedValue(new Error('Image too large (48563050 > 10485760 bytes)'))
+    const { handler } = await renderTerminal(`t0893-big-${platform}`)
+    act(() => { handler(keydown({ key: 'v', ctrlKey: true })) })
+    await waitFor(() => expect(ptyWrite).toHaveBeenCalledWith(`t0893-big-${platform}`, imagePasteKey(platform)))
+    expect(hasImage).toHaveBeenCalledTimes(1)
+    expect(readImageDataUrl).not.toHaveBeenCalled()
+    expect(clipboardRead).not.toHaveBeenCalled()
+    expect(readText).not.toHaveBeenCalled()
+  })
+
+  test.each(['win32', 'darwin', 'linux'] as const)('%s Ctrl+V: every read fails (DOMException) → notice shown, nothing typed, log has name / message', async (platform) => {
+    setup(platform)
+    hasImage.mockRejectedValue(new Error('ipc down'))
+    clipboardRead.mockRejectedValue(notAllowed())
+    readText.mockRejectedValue(notAllowed())
+    const { container, handler } = await renderTerminal(`t0893-fail-${platform}`)
+    act(() => { handler(keydown({ key: 'v', ctrlKey: true })) })
+    await waitFor(() => expect(container.textContent).toContain('Nothing was pasted: the clipboard could not be read.'))
+    expect(debugLog).toHaveBeenCalledWith(expect.stringContaining('image check failed'), 'NotAllowedError: Read permission denied.')
+    expect(debugLog).toHaveBeenCalledWith('[terminal-paste] Ctrl+V paste failed', 'TerminalClipboardReadError: clipboard text read failed (NotAllowedError: Read permission denied.)')
+    for (const call of debugLog.mock.calls) {
+      for (const arg of call) expect(typeof arg === 'object' && arg !== null, `object logged: ${String(call[0])}`).toBe(false)
+    }
+    expect(xtermPaste).not.toHaveBeenCalled()
+    expect(ptyWrite).not.toHaveBeenCalled()
+  })
+
+  test('context-menu Paste: unreadable clipboard → the same notice', async () => {
+    setup('win32')
+    readText.mockRejectedValue(notAllowed())
+    const { container } = await renderTerminal('t0893-menu')
+    const panel = container.querySelector('.terminal-panel')!
+    act(() => { panel.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: 5, clientY: 5 })) })
+    const item = await waitFor(() => {
+      const found = Array.from(document.querySelectorAll<HTMLButtonElement>('.context-menu .context-menu-item')).find(b => b.textContent?.includes('貼上'))
+      expect(found).toBeTruthy()
+      return found!
+    })
+    await act(async () => { item.click() })
+    await waitFor(() => expect(container.textContent).toContain('Nothing was pasted: the clipboard could not be read.'))
+    expect(debugLog).toHaveBeenCalledWith('Failed to read clipboard for context-menu paste', 'TerminalClipboardReadError: clipboard text read failed (NotAllowedError: Read permission denied.)')
+  })
+
+  test('a non-clipboard failure (e.g. the PTY write) is logged but shows no clipboard notice', async () => {
+    setup('win32')
+    hasImage.mockResolvedValue(true)
+    ptyWrite.mockImplementationOnce(() => { throw new Error('pty gone') })
+    const { container, handler } = await renderTerminal('t0893-other')
+    act(() => { handler(keydown({ key: 'v', ctrlKey: true })) })
+    await waitFor(() => expect(debugLog).toHaveBeenCalledWith('[terminal-paste] Ctrl+V paste failed', 'Error: pty gone'))
+    expect(container.textContent).not.toContain('Nothing was pasted')
   })
 })

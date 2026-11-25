@@ -70,6 +70,9 @@ const DYNAMIC_REQUIRE_SITES = {
   // T0866 / BUG-213: process.dlopen of the stdio-inheritance addon at <resources>/native/ (afterPack copy) or the
   // node-gyp build in development — no npm package (verify-packaged-native checks it as win-stdio-inherit)
   'electron/win-stdio-inherit.ts': [],
+  // T0887 (PLAN-066): requires windowsConoutConnection.js by absolute path inside @lydell/node-pty, which
+  // terminal-server.js already requires statically (a vite external) — no other package
+  'electron/terminal-server/shared-conout.ts': [],
 }
 
 const DYNAMIC_SITE_PATTERNS = [

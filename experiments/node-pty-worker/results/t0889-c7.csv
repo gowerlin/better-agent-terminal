@@ -1,0 +1,8 @@
+"Label","Scenario","Run","Step","Tabs","TsPid","TsPrivMB","TsWsMB","TsThreads","TsChildren","Value","Note","At"
+"B0","C7","","before-kill","10","40932","39.5","76","25","20 (conhostx10 pwshx10)","","fork","2026-11-23T23:41:02+08:00"
+"N","C7","","before-kill","10","30860","38.5","73.6","25","20 (conhostx10 pwshx10)","","fork","2026-11-23T23:50:58+08:00"
+"N","C7","","after-recovery","10","42948","42.3","105.9","25","20 (conhostx10 pwshx10)","","fork; old shells alive 0/10","2026-11-23T23:51:13+08:00"
+"B0","C7","","before-kill","10","40340","42.5","78.7","25","20 (conhostx10 pwshx10)","","fork","2026-11-23T23:51:41+08:00"
+"B0","C7","","after-recovery","10","39632","39.4","103.7","25","20 (conhostx10 pwshx10)","","fork; old shells alive 0/10","2026-11-23T23:51:55+08:00"
+"H","C7","","before-kill","10","38476","40.8","60.1","20","20 (conhostx10 pwshx10)","","holder","2026-11-24T00:14:28+08:00"
+"H","C7","","after-recovery","10","44372","41","60.1","20","20 (conhostx10 pwshx10)","","holder; old shells alive 0/10","2026-11-24T00:14:42+08:00"

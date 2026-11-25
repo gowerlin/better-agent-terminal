@@ -406,6 +406,7 @@
     "snippets": "程式碼片段",
     "skills": "Skills",
     "agents": "Agents",
+    "inbox": "待辦",
     "control-tower": "塔台",
     "maximizePanel": "最大化面板",
     "restoreLayout": "還原版面配置",
@@ -483,7 +484,8 @@
     "cancelUploadShort": "取消",
     "uploadCancelled": "已取消上傳，沒有輸入任何內容。",
     "uploadBusy": "這個終端還有一個上傳到遠端主機的工作在進行中，請等它完成或取消後再試。",
-    "imageUploadFailed": "剪貼簿的圖片沒有貼上：上傳到遠端主機失敗（{{reason}}）。"
+    "imageUploadFailed": "剪貼簿的圖片沒有貼上：上傳到遠端主機失敗（{{reason}}）。",
+    "clipboardReadFailed": "沒有貼上任何內容：讀不到剪貼簿。請重新複製後再試。"
   },
   "dialogs": {
     "closeCodeAgent": "關閉 Code Agent？",
@@ -848,6 +850,7 @@
       "nextIds": "下一個編號",
       "todo": "待辦",
       "todoMore": "還有 {{count}} 則，請開檔查看",
+      "todoInInbox": "{{count}} 則 → 在待辦分頁查看",
       "fileMtime": "（檔案修改時間）",
       "noSummary": "塔台狀態檔沒有機器可讀摘要，待辦與編號請開檔查看。",
       "openOrders": "進行中工單（{{count}}）",
@@ -1745,6 +1748,141 @@
       "posixShell": "{{shell}} 不是 POSIX shell，安裝分頁改用 {{fallback}}。"
     }
   },
+  "inbox": {
+    "tower": "塔台：",
+    "towerPicker": "待辦分頁顯示的塔台",
+    "noTower": "沒有已宣告的塔台分頁（以 _tower-state.md 判定）",
+    "contractOk": "契約 v{{version}} ✓",
+    "refresh": "重新讀取",
+    "loading": "讀取中…",
+    "noWorkspace": "開啟工作區後才有待辦。",
+    "notDetected": "這個工作區沒有 Control Tower：找不到 _ct-workorders/，也沒有已宣告的塔台分頁。",
+    "stateMissing": "找不到 _ct-workorders/_tower-state.md。",
+    "stateError": "_tower-state.md 無法讀取：{{error}}",
+    "none": "（無）",
+    "open": "開啟",
+    "bugPending": "{{id}} 待驗收（{{status}}）",
+    "todoMore": "展開",
+    "todoLess": "收合",
+    "readErrors": "無法讀取：{{files}}",
+    "badgeMismatch": "選中的塔台與 BAT ↔ CT 契約 v2 不符，請開啟待辦分頁查看說明",
+    "badgeCount": "{{count}} 件需要你處理",
+    "gate": {
+      "stateV1": "這個工作區沒有已宣告的塔台分頁，而 _tower-state.md 是 BAT ↔ CT 契約 v1（沒有 bat_contract: {{supported}}），所以待辦分頁停用。請升級到 BMad Control Tower 6.1.0 以上並開啟塔台。",
+      "stateBehind": "塔台分頁已宣告契約 v{{supported}}，但這個工作區的 _tower-state.md 還是 v1。CT 6.1.0 開工時會先寫入；如果一直看到這行，請確認這個工作區的資料夾就是塔台所在的專案，或在塔台執行 *sync。"
+    },
+    "section": {
+      "decide": "⏸ 待你決定",
+      "act": "🙋 待你執行",
+      "remind": "⏰ 到期提醒",
+      "workers": "👷 Worker 等你",
+      "messages": "💬 塔台訊息",
+      "todo": "📋 塔台待辦"
+    },
+    "worker": {
+      "waiting": "⚠️ {{title}}：等你回應（{{reason}}）",
+      "held": "📨 {{title}}：待送 {{count}} 則通知",
+      "interrupted": "⏸ {{title}}：被中斷（{{agent}}）",
+      "goTo": "切到分頁",
+      "resume": "恢復…",
+      "reason": {
+        "permission": "權限確認",
+        "question": "回答問題",
+        "elicitation": "MCP 輸入",
+        "input": "codex 等待輸入"
+      }
+    },
+    "counts": {
+      "bugs": "BUG 未結 {{count}}",
+      "plans": "PLAN 進行中 {{count}}",
+      "orders": "工單 {{count}}"
+    },
+    "cards": {
+      "unread": "{{count}} 未讀",
+      "total": "{{count}} 張",
+      "markAllRead": "全部已讀",
+      "clear": "清除",
+      "clearTooltip": "清除未釘選的卡片（釘選的保留）",
+      "pin": "釘選",
+      "unpin": "取消釘選",
+      "pinLimit": "最多只能釘選 {{limit}} 張，請先取消其他卡片的釘選。",
+      "truncated": "（內容過長，已截斷）",
+      "showAll": "顯示全部",
+      "showLess": "收合",
+      "unreadMark": "未讀",
+      "source": "來自 {{title}}",
+      "opFailed": "操作失敗：{{code}}",
+      "codexNote": "codex 塔台沒有回合訊息卡：BAT 不讀取 codex 的對話內容（D158）。待你決定與待你執行不受影響。",
+      "claudeTooOld": "這個塔台的 claude 回合結束時沒有送出最後訊息，所以沒有回合訊息卡：claude 版本太舊（需要 {{version}} 以上）。請升級 system claude，或在 Settings › Claude Runtime 改用內嵌的 claude。"
+    },
+    "cardsBadgeTooltip": "塔台訊息 {{count}} 則未讀（在待辦分頁查看）",
+    "userInboxOff": "這個專案的塔台已關閉待辦寫入（user_inbox: off）：待你決定與待你執行不會有 CT 寫的項目。待驗收 BUG、Worker 等你與塔台訊息照常。",
+    "skipped": "有 {{count}} 筆格式不符，已略過。",
+    "more": "另有 {{count}} 筆（只顯示前 50 筆）。",
+    "paused": "⏸ {{orders}} 暫停中",
+    "recentlyClosed": "最近已結（{{count}}）",
+    "awaitingBadge": "待你決定 {{count}} 件（塔台的待辦分頁）",
+    "source": {
+      "breakpoint-A": "斷點 A",
+      "breakpoint-B-1": "斷點 B-1",
+      "breakpoint-B-2": "斷點 B-2",
+      "breakpoint-C": "斷點 C",
+      "breakpoint-E": "斷點 E",
+      "worker-question": "Worker 提問",
+      "tower-question": "塔台提問"
+    },
+    "actionKind": {
+      "verify": "驗收",
+      "run": "執行",
+      "manual": "手動"
+    },
+    "answer": {
+      "send": "送出",
+      "sending": "送出中…",
+      "sent": "已送出到塔台。",
+      "held": "已排入塔台的待送佇列（📨）：塔台在等你回答對話框或輸入框有你的文字，處理後自動送出。",
+      "draft": "Claude 面板的輸入框有未送出的文字或附件：請先送出或清除，再按一次。",
+      "not-mounted": "找不到這個 Claude 面板：請先在這個視窗開啟該分頁，再按一次。",
+      "no-target": "這個工作區沒有可接收回答的塔台（需要已宣告契約 v2 的塔台分頁，或面板塔台）。也可以直接在塔台輸入這一行。",
+      "failed": "沒有送出（{{reason}}）。",
+      "chooseTarget": "送到哪個塔台？",
+      "panelTarget": "{{title}}（Claude 面板）",
+      "optionsInvalid": "選項格式不是「代號 說明」，請自由回答。",
+      "freePlaceholder": "回答（一行）"
+    },
+    "action": {
+      "copy": "複製指令",
+      "copied": "已複製",
+      "commandNote": "BAT 不會執行這個指令，請自己在適當的地方執行。",
+      "done": "完成",
+      "failed": "失敗…",
+      "failedPlaceholder": "失敗說明（一行，可留空）"
+    },
+    "remind": {
+      "overdue": "逾期 {{count}} 天",
+      "today": "今天到期",
+      "dueIn": "{{count}} 天後到期",
+      "last": "（上次 {{at}}）"
+    }
+  },
+  "towerContract": {
+    "ctOutdated": "這個塔台的 Control Tower 沒有宣告 BAT ↔ CT 契約 v{{supported}}，所以通知保護（不搶捲動、不混進草稿、閱讀時延後）、回合訊息卡與待辦清單都停用。請升級到 BMad Control Tower 6.1.0 以上，再重新開啟塔台。對話框保護（等你回答時不送通知）不受影響。",
+    "batOutdated": "這個塔台使用 BAT ↔ CT 契約 v{{requested}}，這版 BAT 只支援 v{{supported}}。請升級 Better Agent Terminal。在升級前，通知保護、回合訊息卡與待辦清單都停用。"
+  },
+  "hooksStatus": {
+    "prefix": "這個塔台沒有 BAT hooks：回合訊息卡與對話框保護不可用。",
+    "help": "怎麼修",
+    "reason": {
+      "settings-off": "原因：Settings › BAT MCP 已關閉。打開它並重開塔台，或安裝 bat-hooks plugin。",
+      "user-settings-arg": "原因：這個 agent 的自訂參數已有 --settings。拿掉它，或安裝 bat-hooks plugin。",
+      "claude-hooks-disabled": "原因：claude 的設定檔（managed 或使用者層的 settings.json）設了 disableAllHooks。這是你的設定；要使用請拿掉。",
+      "managed-hooks-only": "原因：組織的 managed 設定只允許 managed hooks。請洽管理者。",
+      "no-report": "原因：claude 啟動後沒有任何 hook 回報，可能是專案的 .claude/settings*.json 關了 hooks。",
+      "not-launched-by-bat": "原因：這個 claude 不是 BAT 開的（在 shell 手打）。改用「以塔台開啟 Claude」，或安裝 bat-hooks plugin。",
+      "plugin-outdated": "bat-hooks plugin 的事件清單比這版 BAT 舊，請執行 claude plugin update bat-hooks@better-agent-terminal（缺少的事件不會回報）。",
+      "helper": "BAT 的 helper 異常，請重開 BAT；仍然如此請重新安裝。"
+    }
+  },
   "notifyHold": {
     "badge": "待送 {{count}}",
     "badgeTooltip": "待送通知 {{count}}：這個分頁在等你回答，Worker 的通知先保留，答完後自動送出。按此查看",
@@ -1755,7 +1893,16 @@
     "partsText": "只有文字",
     "partsEnter": "只有 Enter",
     "cancel": "取消",
-    "cancelAll": "全部取消"
+    "cancelAll": "全部取消",
+    "reasonDraft": "你在輸入：塔台輸入框有你還沒送出的文字，通知先保留；你送出（Enter）或清除（Ctrl+C）後 1 秒自動送出。",
+    "reasonReading": "你在閱讀：通知先保留，停手 10 秒後送出；全螢幕畫面往上捲時，保留到你按鍵、點擊、切換分頁或捲回（最長 60 秒）。",
+    "reasonPrompt": "等你回答對話框：答完、安靜 1 秒後送出。",
+    "reasonQueued": "排在前一則後面。",
+    "answerSource": "你的回答",
+    "sendNow": "立即送出",
+    "sendNowTooltip": "不再等你送出草稿或停止閱讀，馬上依序送出（有草稿時通知會接在你的文字後面一起送出）。等你回答對話框時仍會保留。",
+    "reminderTitle": "塔台有 {{count}} 則通知等了 5 分鐘",
+    "reminderBody": "{{title}}：塔台輸入框有你還沒送出的文字，Worker 通知先保留。送出或清除後會自動送出，也可在「📨 待送」按「立即送出」。"
   },
   "interruptedAgents": {
     "title": "Terminal Server 重啟中斷的 agent 分頁",

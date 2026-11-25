@@ -25,7 +25,7 @@ import {
 const ONE_MIL = 1_000_000
 
 describe('estimateModelLimits', () => {
-  it.each(['claude-opus-5-5', 'claude-fable-5-1', 'claude-sonnet-5-5', 'claude-haiku-5-5'])('%s → 1M context / 128K output', (id) => {
+  it.each(['claude-opus-5-5', 'claude-fable-5-2', 'claude-fable-5-1', 'claude-sonnet-5-5', 'claude-haiku-5-5'])('%s → 1M context / 128K output', (id) => {
     expect(estimateModelLimits(id)).toEqual({ contextWindow: ONE_MIL, maxOutputTokens: 128_000 })
   })
 

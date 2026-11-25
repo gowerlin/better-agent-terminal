@@ -99,6 +99,7 @@ export default async () => {
           items: [
             { text: '把腦力留給判斷', link: '/why' },
             { text: '分工與流程', link: '/control-tower' },
+            { text: '待辦分頁與塔台設定', link: '/tower-inbox' },
             { text: 'Control Tower 功能導覽', link: '/control-tower-tour' },
             { text: 'Control Tower 站', link: CT_PORTAL_URL }
           ]
@@ -137,6 +138,7 @@ export default async () => {
           items: [
             { text: '把腦力留給判斷', link: '/why' },
             { text: '分工與流程', link: '/control-tower' },
+            { text: '待辦分頁與塔台設定', link: '/tower-inbox' },
             { text: 'Control Tower 功能導覽', link: '/control-tower-tour' },
             { text: '實戰案例', link: '/cases' },
             { text: 'Control Tower 站', link: CT_PORTAL_URL }

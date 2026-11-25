@@ -46,6 +46,16 @@
  * its own agent's, and `blocked` ends when none is left (more than `PERMISSION_AGENTS_MAX` agents →
  * any batch clears).
  *
+ * T0918 / BUG-222: one agent may have several permission prompts open at once — claude asks for each
+ * call of a parallel batch it may not run (claude 2.1.331: `PermissionRequest` hooks of every queued
+ * prompt run when it is queued, before the user answered the first; the screen then shows "2 of 3",
+ * "3 of 3" with no hook). The tracker keeps each prompt (its `at`) per agent; while 2 or more are open,
+ * the user's input and a mouse press do not clear (the user answered one of them, BAT cannot tell which
+ * or whether the answer ended the turn): `post-tool-batch` ends the prompts of its agent that happened
+ * before it (a later one belongs to the agent's next batch), and `stop` / `user-prompt-submit` / the PTY
+ * ending clear all. One open prompt (the usual case): cleared by input / a press exactly as before.
+ * Logged `[blocked] terminal=<id> kept: <cause> while <n> permission prompts are open …` (once per count).
+ *
  * `blockedDetection` (`hook` / `none`) is per terminal id and outlives the PTY (restart, recovery,
  * an exited record): set by the launch decision (`buildBatMcpLaunchArgs`, `none` when no hooks)
  * and by any accepted report (a tab that reports evidently runs the hooks). So a `none` tab never
@@ -105,6 +115,18 @@
  * `[turn] terminal=<id> kept: hook stop happened <n>ms before the current turn (reported late)`).
  * Without `at` on either side it ends the turn as before. The blocked state is judged by T0790's rule
  * on its own. codex's OSC (one ordered output stream) and the quiet fallback have no such disorder.
+ *
+ * PLAN-068 W3 / T0905 (T0902 §7.4, D328 R1′): a report may carry `origin` (`injected` = BAT's
+ * `--settings` hooks, the default when absent; `plugin` = W9's `bat-hooks` plugin) and `set` (the hook
+ * set version, `BAT_HOOK_SET`). Both may run for one claude: once PTY `id` reported from `injected`,
+ * its `plugin` reports are dropped (`acceptHookOrigin`, logged once per PTY; the handler answers
+ * `result: 'duplicate'`). Same lifetime as `agentStarted`. A `stop` may carry `lastAssistantMessage`
+ * (+ `messageTruncated`): the handler hands it to `onStop` (the Tower turn cards, electron/tower-cards.ts)
+ * and never logs, mirrors or answers it — the tracker never sees it.
+ *
+ * PLAN-068 W9 / T0910: `acceptHookOrigin` also keeps whether a `plugin` report was applied and the latest
+ * `set` per origin (a plugin's `set` is its `--hook-list`); `getHookOriginInfo` hands them to
+ * `hooksStatus` (electron/claude-hooks-status.ts). Same lifetime; the dedupe rule is unchanged.
  *
  * 🔴 No `electron` import here (PtyManager and headless use it).
  */
@@ -197,8 +219,25 @@ export const AGENT_ID_REPORT_EVENTS: readonly BlockedReportEvent[] = ['permissio
  * "any `post-tool-batch` clears" (logged once) until it leaves `permission`.
  */
 export const PERMISSION_AGENTS_MAX = 32
+/**
+ * T0918: open prompts one agent's list keeps; one more merges into its newest entry (still open, so a
+ * tab with that many is held anyway — the bound only keeps the memory of a misbehaving reporter small).
+ */
+export const PERMISSION_PROMPTS_PER_AGENT_MAX = 64
+/** T0918 / BUG-222: open permission prompts from which the user's input / a mouse press no longer clears. */
+export const QUEUED_PERMISSION_PROMPTS_MIN = 2
 /** T0657: the key of the main thread (a hook without `agent_id`). */
 const MAIN_AGENT = ''
+
+/**
+ * T0657 / T0918: the permission prompts open in one tab. `agents`: agent → the `at` of each of its open
+ * prompts (null = reported without one; T0790); `any` = more than `PERMISSION_AGENTS_MAX` agents (any
+ * `post-tool-batch` clears). `open`: how many are open (the sum over `agents`; counted on under `any`).
+ */
+interface PermissionPrompts {
+  agents: Map<string, Array<bigint | null>> | 'any'
+  open: number
+}
 
 /** T0642: a claude session id as accepted from a `session-start` report (scripts/bat-hook.mjs checks the same). */
 export const CLAUDE_SESSION_ID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
@@ -235,6 +274,28 @@ export const HOOK_AGENT_ID_PATTERN = HOOK_TOOL_NAME_PATTERN
 export const BLOCKED_DETECTION_MAX = 512
 /** An `unchanged` report is mirrored to bat-scripts.log at most this often per terminal. */
 export const REPORT_HOOK_UNCHANGED_LOG_INTERVAL_MS = 5_000
+
+/** T0905 (T0902 §7.4): where a hook report comes from. Absent = `injected`. */
+export type HookOrigin = 'injected' | 'plugin'
+export const HOOK_ORIGINS: readonly HookOrigin[] = ['injected', 'plugin']
+/** T0905: the largest hook set version accepted (`set`; anything else is ignored). */
+export const HOOK_SET_MAX = 1000
+/**
+ * T0905 (D328 R1′): the most of a `stop` report's `lastAssistantMessage` the handler passes on, in
+ * UTF-16 code units — a backstop only (the hook cuts it to 16 KiB UTF-8 bytes; the card store cuts it
+ * again by bytes). Longer → not passed on at all (a malformed report).
+ */
+export const REPORT_HOOK_MESSAGE_MAX_CHARS = 64 * 1024
+
+/** T0905: `origin` of a report → a known origin, or undefined (absent / unknown = `injected`). */
+export function parseHookOrigin(value: unknown): HookOrigin | undefined {
+  return typeof value === 'string' && (HOOK_ORIGINS as readonly string[]).includes(value) ? value as HookOrigin : undefined
+}
+
+/** T0905: `set` of a report → a whole number 1…`HOOK_SET_MAX`, or undefined. */
+export function parseHookSet(value: unknown): number | undefined {
+  return typeof value === 'number' && Number.isSafeInteger(value) && value >= 1 && value <= HOOK_SET_MAX ? value : undefined
+}
 
 // T0757: the mouse reports xterm writes while a program tracks the mouse (same shapes as
 // TERMINAL_AUTO_REPLY_SEQUENCES in electron/close-worker.ts): SGR `ESC [ < b ; x ; y M|m`,
@@ -330,9 +391,11 @@ export class TerminalBlockedTracker {
   /**
    * T0657: PTY id in `permission` → the agents whose prompt is open (`MAIN_AGENT` = the main
    * thread); `any` = more than `PERMISSION_AGENTS_MAX`, any `post-tool-batch` clears.
-   * T0790: each agent → the latest `at` of its prompt (null = reported without one).
+   * T0790: + the `at` of each prompt. T0918: every prompt of an agent, not only its latest.
    */
-  private readonly permissionAgents = new Map<string, Map<string, bigint | null> | 'any'>()
+  private readonly permissionPrompts = new Map<string, PermissionPrompts>()
+  /** T0918: PTY id → the open-prompt count of the last `kept: … while <n> permission prompts are open` line. */
+  private readonly queuedKeptLogged = new Map<string, number>()
   /** T0790: blocked PTY id → the latest `at` of the hook events that entered / kept its reason. */
   private readonly blockedAt = new Map<string, bigint>()
   /**
@@ -341,6 +404,11 @@ export class TerminalBlockedTracker {
    * (absent = none carried one).
    */
   private readonly turns = new Map<string, { since: number; timer: unknown; startedAt?: bigint }>()
+  /**
+   * T0905: running PTY id → whether an `injected` report arrived (from then on `plugin` reports are
+   * dropped), whether a dropped `plugin` report was logged, and the latest hook `set` reported.
+   */
+  private readonly hookOrigins = new Map<string, { injected: boolean; droppedLogged: boolean; set?: number; plugin?: boolean; injectedSet?: number; pluginSet?: number }>()
 
   constructor(
     private readonly logger?: BlockedTrackerLogger,
@@ -402,22 +470,22 @@ export class TerminalBlockedTracker {
     if (reason === null) {
       const only = HOOK_EVENT_CLEARS_ONLY[event]
       if (only && this.states.get(id)?.reason !== only) return { result: 'unchanged', state: this.get(id) }
+      if (event === 'post-tool-batch') {
+        // T0657: another agent's prompt may still be open; T0918: or a later prompt of the same agent
+        const prompts = this.permissionPrompts.get(id)
+        if (prompts && prompts.agents instanceof Map) return this.resolveBatch(id, prompts, prompts.agents, agent, agentLog, at)
+      }
       // T0790 / BUG-197: reported late — it happened before the blocked state it would clear
-      const enteredAt = this.enteredAtFor(id, event, agent)
+      const enteredAt = this.blockedAt.get(id)
       if (at !== undefined && enteredAt !== undefined && at < enteredAt && this.states.has(id)) {
         this.logger?.log(`[blocked] terminal=${id} kept: hook ${event}${agentLog} happened ${formatHookAtGap(enteredAt - at)} before the blocked state (reported late)`)
         return { result: 'unchanged', state: this.get(id) }
-      }
-      if (event === 'post-tool-batch') {
-        // T0657: another agent's prompt may still be open
-        const agents = this.permissionAgents.get(id)
-        if (agents instanceof Map && (!agents.delete(agent) || agents.size > 0)) return { result: 'unchanged', state: this.get(id) }
       }
       return { result: this.clear(id, `hook ${event}${agentLog}`) ? 'cleared' : 'unchanged', state: null }
     }
     const current = this.states.get(id)
     if (current && current.reason === reason) {
-      if (reason === 'permission') this.addPermissionAgent(id, agent, at)
+      if (reason === 'permission') this.addPermissionPrompt(id, agent, at)
       this.noteBlockedAt(id, at)
       return { result: 'unchanged', state: { ...current } }
     }
@@ -425,8 +493,9 @@ export class TerminalBlockedTracker {
     this.states.set(id, state)
     this.blockedAt.delete(id)
     this.noteBlockedAt(id, at)
-    if (reason === 'permission') this.permissionAgents.set(id, new Map([[agent, at ?? null]]))
-    else this.permissionAgents.delete(id)
+    this.permissionPrompts.delete(id)
+    this.queuedKeptLogged.delete(id) // T0918
+    if (reason === 'permission') this.addPermissionPrompt(id, agent, at)
     this.logger?.log(`[blocked] terminal=${id} → blocked reason=${reason} (hook ${event}${toolName ? ` tool=${toolName}` : ''}${reason === 'permission' ? agentLog : ''})`)
     this.changed(id)
     return { result: 'blocked', state: { ...state } }
@@ -440,30 +509,135 @@ export class TerminalBlockedTracker {
   }
 
   /**
-   * T0790: what a clearing `event` of PTY `id` is compared with — `post-tool-batch` of a known agent:
-   * that agent's prompt; anything else: the blocked state. undefined = not known (clears as before).
+   * T0657 / T0790 / T0918: a `post-tool-batch` of `agent` while PTY `id` is in `permission` (per agent).
+   * The batch ran once every call of it was resolved, so it ends each prompt of its agent that happened
+   * before it (or at the same time; a prompt without `at`, or a batch without one: all of them). A prompt
+   * that happened after it belongs to the agent's next batch (T0790: the batch was reported late). The
+   * state clears when no agent has a prompt left.
    */
-  private enteredAtFor(id: string, event: BlockedReportEvent, agent: string): bigint | undefined {
-    if (event === 'post-tool-batch') {
-      const agents = this.permissionAgents.get(id)
-      if (agents instanceof Map) return agents.get(agent) ?? undefined
+  private resolveBatch(
+    id: string,
+    prompts: PermissionPrompts,
+    agents: Map<string, Array<bigint | null>>,
+    agent: string,
+    agentLog: string,
+    at: bigint | undefined,
+  ): { result: HookReportResult; state: BlockedState | null } {
+    const own = agents.get(agent)
+    if (!own) return { result: 'unchanged', state: this.get(id) }
+    const later = at === undefined ? [] : own.filter((a): a is bigint => a !== null && a > at)
+    if (at !== undefined && later.length > 0) {
+      const latest = later.reduce((max, a) => (a > max ? a : max))
+      if (later.length === own.length) {
+        this.logger?.log(`[blocked] terminal=${id} kept: hook post-tool-batch${agentLog} happened ${formatHookAtGap(latest - at)} before the blocked state (reported late)`)
+        return { result: 'unchanged', state: this.get(id) }
+      }
     }
-    return this.blockedAt.get(id)
+    prompts.open = Math.max(0, prompts.open - (own.length - later.length))
+    if (later.length > 0) agents.set(agent, later)
+    else agents.delete(agent)
+    if (agents.size > 0) return { result: 'unchanged', state: this.get(id) } // not logged (as before T0918)
+    return { result: this.clear(id, `hook post-tool-batch${agentLog}`) ? 'cleared' : 'unchanged', state: null }
   }
 
-  /** T0657: one more agent with an open permission prompt in PTY `id` (already `permission`). T0790: + its `at`. */
-  private addPermissionAgent(id: string, agent: string, at?: bigint): void {
-    const agents = this.permissionAgents.get(id)
-    if (agents === 'any') return
-    if (!agents) {
-      this.permissionAgents.set(id, new Map([[agent, at ?? null]]))
+  /**
+   * T0657: one more open permission prompt of `agent` in PTY `id` (already `permission`). T0790: + its
+   * `at`. T0918: every prompt counts (`open`), not only one per agent.
+   */
+  private addPermissionPrompt(id: string, agent: string, at?: bigint): void {
+    let prompts = this.permissionPrompts.get(id)
+    if (!prompts) {
+      prompts = { agents: new Map(), open: 0 }
+      this.permissionPrompts.set(id, prompts)
+    }
+    const agents = prompts.agents
+    if (agents === 'any') {
+      prompts.open++
       return
     }
-    const known = agents.get(agent)
-    if (known === undefined || known === null || (at !== undefined && at > known)) agents.set(agent, at ?? known ?? null)
+    const own = agents.get(agent)
+    if (!own) agents.set(agent, [at ?? null])
+    else if (own.length < PERMISSION_PROMPTS_PER_AGENT_MAX) own.push(at ?? null)
+    else {
+      // the bound: merged into the newest entry (it stays open), `open` does not grow
+      const last = own[own.length - 1]
+      if (at !== undefined && (last === null || at > last)) own[own.length - 1] = at
+      return
+    }
+    prompts.open++
     if (agents.size <= PERMISSION_AGENTS_MAX) return
-    this.permissionAgents.set(id, 'any')
+    prompts.agents = 'any'
     this.logger?.log(`[blocked] terminal=${id} permission prompts of more than ${PERMISSION_AGENTS_MAX} agents → any post-tool-batch clears`)
+  }
+
+  /** T0918: how many permission prompts PTY `id` has open (0 = not in `permission`). */
+  getOpenPermissionPrompts(id: string): number {
+    if (this.states.get(id)?.reason !== 'permission') return 0
+    return this.permissionPrompts.get(id)?.open ?? 0
+  }
+
+  /**
+   * T0918 / BUG-222: whether the user's input / a mouse press (`cause`) leaves PTY `id` blocked — true
+   * while `QUEUED_PERMISSION_PROMPTS_MIN` or more permission prompts are open (logged once per count).
+   */
+  private keptForQueuedPrompts(id: string, cause: string): boolean {
+    const open = this.getOpenPermissionPrompts(id)
+    if (open < QUEUED_PERMISSION_PROMPTS_MIN) return false
+    if (this.queuedKeptLogged.get(id) !== open) {
+      this.queuedKeptLogged.set(id, open)
+      this.logger?.log(`[blocked] terminal=${id} kept: ${cause} while ${open} permission prompts are open (cleared by their tool batch, the turn's end or the next prompt)`)
+    }
+    return true
+  }
+
+  /**
+   * T0905 (T0902 §7.4): whether a report of running PTY `id` from `origin` (absent = `injected`) is
+   * applied. False = a `plugin` report after an `injected` one of the same PTY (both hook sets run for
+   * one claude; the injected one is kept). `set` (absent = unknown) is remembered as the PTY's latest.
+   */
+  acceptHookOrigin(id: string, origin?: HookOrigin, set?: number): boolean {
+    let entry = this.hookOrigins.get(id)
+    if (!entry) {
+      entry = { injected: false, droppedLogged: false }
+      this.hookOrigins.set(id, entry)
+    }
+    const fromPlugin = origin === 'plugin'
+    if (fromPlugin && entry.injected) {
+      if (!entry.droppedLogged) {
+        entry.droppedLogged = true
+        this.logger?.log(`[hooks] terminal=${id} plugin reports dropped (the injected hooks report for this PTY)`)
+      }
+      return false
+    }
+    if (!fromPlugin) entry.injected = true
+    else entry.plugin = true // T0910
+    if (set !== undefined) {
+      entry.set = set
+      // T0910: per origin — a plugin report's `set` is its `--hook-list` (the plugin's event list)
+      if (fromPlugin) entry.pluginSet = set
+      else entry.injectedSet = set
+    }
+    return true
+  }
+
+  /** T0905: the latest hook set version PTY `id` reported, or null. */
+  getHookSet(id: string): number | null {
+    return this.hookOrigins.get(id)?.set ?? null
+  }
+
+  /**
+   * PLAN-068 W9 / T0910: which origins of PTY `id` had a report applied and the latest `set` of each
+   * (`hooksStatus`, electron/claude-hooks-status.ts); null = none applied since the PTY started.
+   */
+  getHookOriginInfo(id: string): { injected: boolean; plugin: boolean; injectedSet?: number; pluginSet?: number } | null {
+    const entry = this.hookOrigins.get(id)
+    if (!entry || (!entry.injected && !entry.plugin)) return null
+    return {
+      injected: entry.injected,
+      plugin: entry.plugin === true,
+      ...(entry.injectedSet !== undefined ? { injectedSet: entry.injectedSet } : {}),
+      ...(entry.pluginSet !== undefined ? { pluginSet: entry.pluginSet } : {}),
+    }
   }
 
   /**
@@ -488,7 +662,8 @@ export class TerminalBlockedTracker {
     if (state !== 'blocked') return this.clear(id, `osc ${state}`) ? 'cleared' : 'unchanged'
     if (this.states.get(id)?.reason === 'input') return 'unchanged'
     this.states.set(id, { reason: 'input', since: this.now(), source: 'osc' })
-    this.permissionAgents.delete(id)
+    this.permissionPrompts.delete(id)
+    this.queuedKeptLogged.delete(id) // T0918
     this.blockedAt.delete(id) // T0790
     this.logger?.log(`[blocked] terminal=${id} → blocked reason=input (osc)`)
     this.changed(id)
@@ -497,27 +672,32 @@ export class TerminalBlockedTracker {
 
   /**
    * T0621: the user typed into PTY `id`: clears a hook reason (T0590), never codex's `input` (codex
-   * reports its own transitions). True when it was cleared.
+   * reports its own transitions). True when it was cleared. T0918 / BUG-222: not while 2 or more
+   * permission prompts are open (`keptForQueuedPrompts`).
    */
   clearForUserInput(id: string): boolean {
     if (this.states.get(id)?.reason === 'input') return false
+    if (this.keptForQueuedPrompts(id, 'user input')) return false
     return this.clear(id, 'user input')
   }
 
-    /**
+  /**
    * T0757 / BUG-188 (D209): the user pressed the left mouse button in PTY `id`
    * (`hasMouseButtonPress`): clears a hook reason like typed input does (an answer by mouse is an
    * answer), never codex's `input` (same rule as `clearForUserInput`). Only the `blocked` state:
    * it is not user input for `--close-worker` or the usage-limit wait (PtyManager does not record it).
+   * T0918 / BUG-222: not while 2 or more permission prompts are open (same rule as typed input).
    */
   clearForMousePress(id: string): boolean {
     if (this.states.get(id)?.reason === 'input') return false
+    if (this.keptForQueuedPrompts(id, 'mouse press')) return false
     return this.clear(id, 'mouse press')
   }
 
   /** Clears PTY `id`; true when it was blocked. */
   clear(id: string, cause: string): boolean {
-    this.permissionAgents.delete(id)
+    this.permissionPrompts.delete(id)
+    this.queuedKeptLogged.delete(id) // T0918
     this.blockedAt.delete(id) // T0790
     if (!this.states.delete(id)) return false
     this.logger?.log(`[blocked] terminal=${id} → cleared (${cause})`)
@@ -531,6 +711,7 @@ export class TerminalBlockedTracker {
     this.started.clear() // T0600
     this.codexStates.clear() // T0621
     this.sessionIds.clear() // T0642
+    this.hookOrigins.clear() // T0905
   }
 
   /** T0600: ms epoch of PTY `id`'s first `session-start`, or null. */
@@ -562,6 +743,7 @@ export class TerminalBlockedTracker {
     this.started.delete(id)
     this.codexStates.delete(id)
     this.sessionIds.delete(id)
+    this.hookOrigins.delete(id) // T0905
     this.endTurn(id, 'the PTY ended') // T0694
   }
 
@@ -678,11 +860,13 @@ export class TerminalBlockedTracker {
     for (const turn of this.turns.values()) this.clearTurnTimer(turn.timer) // T0694
     this.turns.clear()
     this.states.clear()
-    this.permissionAgents.clear()
+    this.permissionPrompts.clear()
+    this.queuedKeptLogged.clear() // T0918
     this.blockedAt.clear() // T0790
     this.started.clear()
     this.codexStates.clear()
     this.sessionIds.clear()
+    this.hookOrigins.clear() // T0905
   }
 }
 
@@ -749,6 +933,16 @@ export class LaunchSuspectWatcher {
 export interface ReportHookPtyManager {
   isAlive(id: string): boolean
   reportHookEvent(id: string, event: HookReportEvent, toolName?: string, sessionId?: string, agentId?: string, at?: bigint): { result: HookReportResult; state: BlockedState | null } | null
+  /** T0905: `PtyManager.acceptHookOrigin` (absent: every report is applied, as before T0905). */
+  acceptHookOrigin?(id: string, origin?: HookOrigin, set?: number): boolean
+}
+
+/** T0905 (D328 R1′): what `onStop` gets of an applied `stop` report — never logged by the handler. */
+export interface StopReport {
+  /** claude's last assistant message (`last_assistant_message`, cut by the hook); absent = none sent. */
+  message?: { text: string; truncated: boolean }
+  /** The hook set version the report carried (absent = unknown). */
+  set?: number
 }
 
 export interface ReportHookDeps {
@@ -756,6 +950,12 @@ export interface ReportHookDeps {
   getPtyManager(): ReportHookPtyManager | null
   logger: { log(...args: unknown[]): void }
   mirrorToBatScripts?(event: string, payload: Record<string, unknown>): void
+  /**
+   * T0905 (D328 R1′): an applied `stop` report of the caller's PTY (after the tracker). The Tower turn
+   * cards (`TowerCardStore.offerHookStop`, electron/tower-cards.ts) keep the message only for a
+   * contract-2 Tower. A throwing listener is logged; the answer is unchanged.
+   */
+  onStop?(terminalId: string, report: StopReport): void
   /** Tests. Default `Date.now`. */
   now?(): number
 }
@@ -778,6 +978,11 @@ export type ReportHookFailure = { ok: false; code: 'INVALID_ARGS' | 'NOT_FOUND';
  * (and answers `post-tool-batch` INVALID_ARGS; the hook still exits 0).
  * T0790: `at` (`HOOK_AT_PATTERN`) — when the hook's process started; malformed → ignored, no error. A BAT
  * before T0790 ignores the field like any unknown one. Never answered, mirrored or logged as a value.
+ * T0905: `origin` (`HOOK_ORIGINS`, else `injected`) / `set` (`parseHookSet`, else unknown) — a
+ * `plugin` report after an `injected` one of the same PTY answers `{ ok: true, terminalId, result:
+ * 'duplicate' }` and changes nothing. A `stop`'s `lastAssistantMessage` (a string ≤
+ * `REPORT_HOOK_MESSAGE_MAX_CHARS`; anything else is ignored, no error) and `messageTruncated` go to
+ * `onStop` only. A BAT before T0905 ignores all of them like any unknown field.
  * Every report is O(1); transitions are logged by the tracker, an `unchanged` report is mirrored to
  * bat-scripts.log at most once per `REPORT_HOOK_UNCHANGED_LOG_INTERVAL_MS` per terminal.
  */
@@ -836,10 +1041,32 @@ export function registerReportHookHandler(deps: ReportHookDeps): void {
     }
     // T0790: when the hook's process started; malformed → ignored, no error (as without it)
     const at = parseHookAt(opts.at)
+    // T0905: which hook set sent it; malformed → ignored, no error
+    const origin = parseHookOrigin(opts.origin)
+    const set = parseHookSet(opts.set)
     const pm = deps.getPtyManager()
-    const outcome = pm && pm.isAlive(caller) ? pm.reportHookEvent(caller, event as HookReportEvent, toolName, sessionId, agentId, at) : null
+    if (!pm || !pm.isAlive(caller)) return fail(caller, event, 'NOT_FOUND')
+    if (pm.acceptHookOrigin && !pm.acceptHookOrigin(caller, origin, set)) {
+      mirror(caller, event, 'duplicate')
+      return { ok: true, terminalId: caller, result: 'duplicate' }
+    }
+    const outcome = pm.reportHookEvent(caller, event as HookReportEvent, toolName, sessionId, agentId, at)
     if (!outcome) return fail(caller, event, 'NOT_FOUND')
     mirror(caller, event, outcome.result, sessionId, agentId)
+    if (event === 'stop' && deps.onStop) {
+      // T0905: the message goes on to the card store only (never logged / mirrored / answered here)
+      const text = typeof opts.lastAssistantMessage === 'string' && opts.lastAssistantMessage.length <= REPORT_HOOK_MESSAGE_MAX_CHARS
+        ? opts.lastAssistantMessage
+        : undefined
+      try {
+        deps.onStop(caller, {
+          ...(text !== undefined ? { message: { text, truncated: opts.messageTruncated === true } } : {}),
+          ...(set !== undefined ? { set } : {}),
+        })
+      } catch (e) {
+        deps.logger.log(`[tower-cards] onStop failed terminal=${caller}: ${e instanceof Error ? e.message : String(e)}`)
+      }
+    }
     return {
       ok: true,
       terminalId: caller,

@@ -406,6 +406,7 @@
     "snippets": "代码片段",
     "skills": "Skills",
     "agents": "Agents",
+    "inbox": "待办",
     "control-tower": "塔台",
     "maximizePanel": "最大化面板",
     "restoreLayout": "还原版面布局",
@@ -483,7 +484,8 @@
     "cancelUploadShort": "取消",
     "uploadCancelled": "已取消上传，没有输入任何内容。",
     "uploadBusy": "这个终端还有一个上传到远程主机的任务正在进行，请等它完成或取消后再试。",
-    "imageUploadFailed": "剪贴板中的图片没有粘贴：上传到远程主机失败（{{reason}}）。"
+    "imageUploadFailed": "剪贴板中的图片没有粘贴：上传到远程主机失败（{{reason}}）。",
+    "clipboardReadFailed": "没有粘贴任何内容：无法读取剪贴板。请重新复制后再试。"
   },
   "dialogs": {
     "closeCodeAgent": "关闭 Code Agent？",
@@ -848,6 +850,7 @@
       "nextIds": "下一个编号",
       "todo": "待办",
       "todoMore": "还有 {{count}} 条，请打开文件查看",
+      "todoInInbox": "{{count}} 条 → 在待办标签页查看",
       "fileMtime": "（文件修改时间）",
       "noSummary": "塔台状态文件没有机器可读摘要，待办与编号请打开文件查看。",
       "openOrders": "进行中工单（{{count}}）",
@@ -1745,6 +1748,141 @@
       "posixShell": "{{shell}} 不是 POSIX shell，安装标签页改用 {{fallback}}。"
     }
   },
+  "inbox": {
+    "tower": "塔台：",
+    "towerPicker": "待办标签页显示的塔台",
+    "noTower": "没有已声明的塔台标签页（以 _tower-state.md 判定）",
+    "contractOk": "契约 v{{version}} ✓",
+    "refresh": "重新读取",
+    "loading": "读取中…",
+    "noWorkspace": "打开工作区后才有待办。",
+    "notDetected": "这个工作区没有 Control Tower：找不到 _ct-workorders/，也没有已声明的塔台标签页。",
+    "stateMissing": "找不到 _ct-workorders/_tower-state.md。",
+    "stateError": "_tower-state.md 无法读取：{{error}}",
+    "none": "（无）",
+    "open": "打开",
+    "bugPending": "{{id}} 待验收（{{status}}）",
+    "todoMore": "展开",
+    "todoLess": "收起",
+    "readErrors": "无法读取：{{files}}",
+    "badgeMismatch": "选中的塔台与 BAT ↔ CT 契约 v2 不符，请打开待办标签页查看说明",
+    "badgeCount": "{{count}} 件需要你处理",
+    "gate": {
+      "stateV1": "这个工作区没有已声明的塔台标签页，而 _tower-state.md 是 BAT ↔ CT 契约 v1（没有 bat_contract: {{supported}}），所以待办标签页已停用。请升级到 BMad Control Tower 6.1.0 以上并打开塔台。",
+      "stateBehind": "塔台标签页已声明契约 v{{supported}}，但这个工作区的 _tower-state.md 还是 v1。CT 6.1.0 开工时会先写入；如果一直看到这行，请确认这个工作区的文件夹就是塔台所在的项目，或在塔台执行 *sync。"
+    },
+    "section": {
+      "decide": "⏸ 待你决定",
+      "act": "🙋 待你执行",
+      "remind": "⏰ 到期提醒",
+      "workers": "👷 Worker 等你",
+      "messages": "💬 塔台消息",
+      "todo": "📋 塔台待办"
+    },
+    "worker": {
+      "waiting": "⚠️ {{title}}：等你回应（{{reason}}）",
+      "held": "📨 {{title}}：待发送 {{count}} 条通知",
+      "interrupted": "⏸ {{title}}：被中断（{{agent}}）",
+      "goTo": "切到标签页",
+      "resume": "恢复…",
+      "reason": {
+        "permission": "权限确认",
+        "question": "回答问题",
+        "elicitation": "MCP 输入",
+        "input": "codex 等待输入"
+      }
+    },
+    "counts": {
+      "bugs": "BUG 未结 {{count}}",
+      "plans": "PLAN 进行中 {{count}}",
+      "orders": "工单 {{count}}"
+    },
+    "cards": {
+      "unread": "{{count}} 未读",
+      "total": "{{count}} 张",
+      "markAllRead": "全部已读",
+      "clear": "清除",
+      "clearTooltip": "清除未置顶的卡片（置顶的保留）",
+      "pin": "置顶",
+      "unpin": "取消置顶",
+      "pinLimit": "最多只能置顶 {{limit}} 张，请先取消其他卡片的置顶。",
+      "truncated": "（内容过长，已截断）",
+      "showAll": "显示全部",
+      "showLess": "收起",
+      "unreadMark": "未读",
+      "source": "来自 {{title}}",
+      "opFailed": "操作失败：{{code}}",
+      "codexNote": "codex 塔台没有回合消息卡：BAT 不读取 codex 的对话内容（D158）。待你决定与待你执行不受影响。",
+      "claudeTooOld": "这个塔台的 claude 在回合结束时没有发送最后消息，所以没有回合消息卡：claude 版本太旧（需要 {{version}} 以上）。请升级 system claude，或在 Settings › Claude Runtime 改用内嵌的 claude。"
+    },
+    "cardsBadgeTooltip": "塔台消息 {{count}} 条未读（在待办分页查看）",
+    "userInboxOff": "这个项目的塔台已关闭待办写入（user_inbox: off）：待你决定与待你执行不会有 CT 写的项目。待验收 BUG、Worker 等你与塔台消息照常。",
+    "skipped": "有 {{count}} 笔格式不符，已略过。",
+    "more": "另有 {{count}} 笔（只显示前 50 笔）。",
+    "paused": "⏸ {{orders}} 暂停中",
+    "recentlyClosed": "最近已结（{{count}}）",
+    "awaitingBadge": "待你决定 {{count}} 件（塔台的待办页签）",
+    "source": {
+      "breakpoint-A": "断点 A",
+      "breakpoint-B-1": "断点 B-1",
+      "breakpoint-B-2": "断点 B-2",
+      "breakpoint-C": "断点 C",
+      "breakpoint-E": "断点 E",
+      "worker-question": "Worker 提问",
+      "tower-question": "塔台提问"
+    },
+    "actionKind": {
+      "verify": "验收",
+      "run": "执行",
+      "manual": "手动"
+    },
+    "answer": {
+      "send": "发送",
+      "sending": "发送中…",
+      "sent": "已发送到塔台。",
+      "held": "已排入塔台的待送队列（📨）：塔台在等你回答对话框或输入框有你的文字，处理后自动发送。",
+      "draft": "Claude 面板的输入框有未发送的文字或附件：请先发送或清除，再按一次。",
+      "not-mounted": "找不到这个 Claude 面板：请先在这个窗口打开该页签，再按一次。",
+      "no-target": "这个工作区没有可接收回答的塔台（需要已声明契约 v2 的塔台页签，或面板塔台）。也可以直接在塔台输入这一行。",
+      "failed": "没有发送（{{reason}}）。",
+      "chooseTarget": "发送到哪个塔台？",
+      "panelTarget": "{{title}}（Claude 面板）",
+      "optionsInvalid": "选项格式不是「代号 说明」，请自由回答。",
+      "freePlaceholder": "回答（一行）"
+    },
+    "action": {
+      "copy": "复制命令",
+      "copied": "已复制",
+      "commandNote": "BAT 不会执行这个命令，请自己在适当的地方执行。",
+      "done": "完成",
+      "failed": "失败…",
+      "failedPlaceholder": "失败说明（一行，可留空）"
+    },
+    "remind": {
+      "overdue": "逾期 {{count}} 天",
+      "today": "今天到期",
+      "dueIn": "{{count}} 天后到期",
+      "last": "（上次 {{at}}）"
+    }
+  },
+  "towerContract": {
+    "ctOutdated": "这个塔台的 Control Tower 没有声明 BAT ↔ CT 契约 v{{supported}}，所以通知保护（不抢滚动、不混进草稿、阅读时延后）、回合消息卡与待办清单都已停用。请升级到 BMad Control Tower 6.1.0 以上，再重新打开塔台。对话框保护（等你回答时不发送通知）不受影响。",
+    "batOutdated": "这个塔台使用 BAT ↔ CT 契约 v{{requested}}，这版 BAT 只支持 v{{supported}}。请升级 Better Agent Terminal。在升级前，通知保护、回合消息卡与待办清单都已停用。"
+  },
+  "hooksStatus": {
+    "prefix": "这个塔台没有 BAT hooks：回合消息卡与对话框保护不可用。",
+    "help": "怎么修",
+    "reason": {
+      "settings-off": "原因：Settings › BAT MCP 已关闭。打开它并重开塔台，或安装 bat-hooks plugin。",
+      "user-settings-arg": "原因：这个 agent 的自定义参数已有 --settings。去掉它，或安装 bat-hooks plugin。",
+      "claude-hooks-disabled": "原因：claude 的配置文件（managed 或用户层的 settings.json）设了 disableAllHooks。这是你的设置；要使用请去掉。",
+      "managed-hooks-only": "原因：组织的 managed 设置只允许 managed hooks。请联系管理员。",
+      "no-report": "原因：claude 启动后没有任何 hook 回报，可能是项目的 .claude/settings*.json 关了 hooks。",
+      "not-launched-by-bat": "原因：这个 claude 不是 BAT 开的（在 shell 手动输入）。改用「以塔台开启 Claude」，或安装 bat-hooks plugin。",
+      "plugin-outdated": "bat-hooks plugin 的事件列表比这版 BAT 旧，请执行 claude plugin update bat-hooks@better-agent-terminal（缺少的事件不会回报）。",
+      "helper": "BAT 的 helper 异常，请重开 BAT；仍然如此请重新安装。"
+    }
+  },
   "notifyHold": {
     "badge": "待发 {{count}}",
     "badgeTooltip": "待发通知 {{count}}：这个标签页在等你回答，Worker 的通知先保留，答完后自动发送。点击查看",
@@ -1755,7 +1893,16 @@
     "partsText": "只有文字",
     "partsEnter": "只有 Enter",
     "cancel": "取消",
-    "cancelAll": "全部取消"
+    "cancelAll": "全部取消",
+    "reasonDraft": "你在输入：塔台输入框有你还没发送的文字，通知先保留；你发送（Enter）或清除（Ctrl+C）后 1 秒自动发送。",
+    "reasonReading": "你在阅读：通知先保留，停手 10 秒后发送；全屏画面向上滚动时，保留到你按键、点击、切换标签页或滚回（最长 60 秒）。",
+    "reasonPrompt": "等你回答对话框：答完、安静 1 秒后发送。",
+    "reasonQueued": "排在前一则后面。",
+    "answerSource": "你的回答",
+    "sendNow": "立即发送",
+    "sendNowTooltip": "不再等你发送草稿或停止阅读，马上依序发送（有草稿时通知会接在你的文字后面一起发送）。等你回答对话框时仍会保留。",
+    "reminderTitle": "塔台有 {{count}} 则通知等了 5 分钟",
+    "reminderBody": "{{title}}：塔台输入框有你还没发送的文字，Worker 通知先保留。发送或清除后会自动发送，也可在「📨 待发」按「立即发送」。"
   },
   "interruptedAgents": {
     "title": "Terminal Server 重启中断的 agent 标签页",

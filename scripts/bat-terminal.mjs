@@ -183,6 +183,16 @@ Give a tab a role (T0562):
                          --no-interactive, <command>).
   --mode <value>         With --set-role (T0565): the Tower's CT mode (yolo|ask|off|on, any case);
                          BAT records it for the tab. Without --mode the recorded mode is kept.
+  --bat-contract <n>     With --set-role (T0903): the BAT <-> CT contract the Tower speaks (a whole
+                         number >= 1). BAT records it for the tab and prints "  bat-contract: 2"
+                         (the highest it supports), or "  bat-contract: 2 (requested <n>:
+                         unsupported)" for a newer one. Without it the recorded contract is
+                         cleared (not declared) and no bat-contract line is printed. A helper
+                         that does not know it exits 1 with "Unknown option '--bat-contract'".
+                         T0910: then a line on BAT's claude hooks of the tab: "  hooks: ok
+                         (<injected|plugin>, set <n>[, plugin-outdated])", "  hooks: none
+                         (<code>)" or "  hooks: n/a (codex)" (BAT waits up to 2 s for the first
+                         hook report); a BAT without it prints no hooks line.
   --terminal-id <id>     The tab to set (default: $BAT_TERMINAL_ID, i.e. this tab)
   --agent <id>           With --set-role: only a hint for the agent name (claude / codex / an
                          agent id); the tab's own agent wins
@@ -243,6 +253,7 @@ Examples:
   node scripts/bat-terminal.mjs --close-worker T0001 --notify-id "$BAT_TERMINAL_ID" --worktree remove
   node scripts/bat-terminal.mjs --set-role tower --agent claude
   node scripts/bat-terminal.mjs --set-role tower --mode yolo
+  node scripts/bat-terminal.mjs --set-role tower --bat-contract 2 --mode yolo
   node scripts/bat-terminal.mjs --worktree-status T0001 --notify-id "$BAT_TERMINAL_ID"
   node scripts/bat-terminal.mjs --worktree-status
   node scripts/bat-terminal.mjs --answer q-0123abcd-0123456789abcdef --notify-id "$BAT_TERMINAL_ID" --choice 1 < answer.txt
@@ -258,7 +269,7 @@ Examples:
 //   - src/utils/control-tower-launch.ts  buildControlTowerWorkOrderCommand()
 const WORKORDER_ID_PATTERN = /^(?:[A-Z]{2,4}-)?T\d+$/
 
-const KNOWN_FLAGS = ['--cwd', '--notify-id', '--workspace', '--agent', '--prompt', '--skill', '--workorder', '--mode', '--interactive', '--no-interactive', '--close-worker', '--delay-ms', '--set-role', '--terminal-id', '--isolation', '--worktree', '--worktree-status', '--wait-started', '--answer', '--choice', '--help', '-h', '--version']
+const KNOWN_FLAGS = ['--cwd', '--notify-id', '--workspace', '--agent', '--prompt', '--skill', '--workorder', '--mode', '--interactive', '--no-interactive', '--close-worker', '--delay-ms', '--set-role', '--terminal-id', '--bat-contract', '--isolation', '--worktree', '--worktree-status', '--wait-started', '--answer', '--choice', '--help', '-h', '--version']
 
 // PLAN-041 / T0535: `--close-worker` exit codes (contract shared with CT, PLAN-041「介面契約」).
 const CLOSE_WORKER_EXIT = { NOT_FOUND: 3, NOT_OWNER: 4, AMBIGUOUS: 5, BUSY: 6 }
@@ -357,6 +368,9 @@ const createFlags = []
 let setRole = null
 let roleTerminalId = null
 let roleMode = null  // T0565
+// PLAN-068 W0 / T0903: `--bat-contract <n>` (raw text; checked with the other set-role options)
+let batContractRaw = null
+let roleContract = null
 let agentGiven = false
 // PLAN-047 W1 / T0583
 let isolation = null
@@ -528,6 +542,19 @@ while (i < rawArgs.length) {
       process.exit(1)
     }
     roleTerminalId = rawArgs[i + 1]
+    i += 2
+    continue
+  }
+
+  // PLAN-068 W0 / T0903 (R11): the BAT <-> CT contract a Tower declares with --set-role
+  if (arg === '--bat-contract') {
+    if (!rawArgs[i + 1]) {
+      printUsageError('--bat-contract requires a contract version argument (a whole number >= 1)')
+      console.error('set-role: USAGE')
+      logEvent('bat-terminal', 'exit', { code: 1, reason: 'bat-contract-without-value' })
+      process.exit(1)
+    }
+    batContractRaw = rawArgs[i + 1]
     i += 2
     continue
   }
@@ -724,13 +751,14 @@ if (worktreeStatus) {
 }
 
 // T0562: --set-role retitles an existing tab; it never creates one.
-if (setRole || roleTerminalId !== null) {
+if (setRole || roleTerminalId !== null || batContractRaw !== null) {
   const roleUsage = (msg, reason) => {
     printUsageError(msg)
     console.error('set-role: USAGE')
     logEvent('bat-terminal', 'exit', { code: 1, reason })
     process.exit(1)
   }
+  if (!setRole && batContractRaw !== null) roleUsage('--bat-contract is only valid with --set-role', 'bat-contract-without-set-role')
   if (!setRole) roleUsage('--terminal-id is only valid with --set-role', 'terminal-id-without-set-role')
   const conflicting = [
     // T0565: --mode is the Tower's own mode here
@@ -755,6 +783,15 @@ if (setRole || roleTerminalId !== null) {
       roleUsage(`Invalid --mode value: '${modeRaw ?? mode}' (expected one of: ${CT_MODES.join(', ')})`, 'set-role-invalid-mode')
     }
     roleMode = value
+  }
+  if (batContractRaw !== null) {
+    // T0903: a whole number >= 1 (digits only, surrounding blanks allowed); same rule as main's parseBatContract
+    const text = String(batContractRaw).trim()
+    const value = /^[0-9]+$/.test(text) ? Number(text) : NaN
+    if (!Number.isSafeInteger(value) || value < 1) {
+      roleUsage(`Invalid --bat-contract value: '${batContractRaw}' (expected a whole number >= 1)`, 'set-role-invalid-bat-contract')
+    }
+    roleContract = value
   }
 } else if (modeRaw !== null) {
   // `--set-role` was only another option's value: the --mode check of a new tab applies
@@ -1568,14 +1605,57 @@ async function runCloseWorker(ws) {
 }
 
 /**
+ * PLAN-068 W0 / T0903 (R11): `  bat-contract: <supported>`, or `  bat-contract: <supported> (requested
+ * <n>: unsupported)` when the Tower declared a newer contract than this BAT supports. null when the
+ * answer has no contract (a BAT whose main does not know `batContract`).
+ */
+function batContractLine(result) {
+  const supported = result.batContract
+  const recorded = result.towerContract
+  if (!Number.isSafeInteger(supported) || supported < 1 || !Number.isSafeInteger(recorded) || recorded < 1) return null
+  return recorded > supported
+    ? `  bat-contract: ${supported} (requested ${recorded}: unsupported)`
+    : `  bat-contract: ${supported}`
+}
+
+/** T0910: how long a `--set-role --bat-contract` call waits for BAT's answer (BAT itself waits ≤ 2 s). */
+const SET_ROLE_CONTRACT_TIMEOUT_MS = 8000
+
+const HOOKS_NONE_REASONS = ['settings-off', 'user-settings-arg', 'claude-hooks-disabled', 'managed-hooks-only', 'no-report', 'not-launched-by-bat', 'no-endpoint', 'script-missing', 'unrepresentable-path']
+
+/**
+ * PLAN-068 W9 / T0910: the `hooks:` line of a `hooksStatus` (contract §3.1′ / PLAN-068〈契約細節補充〉,
+ * CT 6.1.0 parses it — 🔴 do not change): `  hooks: ok (<injected|plugin>, set <n>[, plugin-outdated])` /
+ * `  hooks: none (<code>)` / `  hooks: n/a (codex)`; null = no (valid) status. Copy of
+ * `hooksStatusLine` (src/lib/hooks-status.ts; electron/__tests__/bat-terminal-set-role.test.ts runs both).
+ */
+function hooksLine(status) {
+  if (!status || typeof status !== 'object') return null
+  if (status.state === 'ok') {
+    if ((status.origin !== 'injected' && status.origin !== 'plugin') || !Number.isSafeInteger(status.set) || status.set < 1) return null
+    const outdated = status.origin === 'plugin' && status.reason === 'plugin-outdated'
+    return `  hooks: ok (${status.origin}, set ${status.set}${outdated ? ', plugin-outdated' : ''})`
+  }
+  if (status.state === 'none' && HOOKS_NONE_REASONS.includes(status.reason)) return `  hooks: none (${status.reason})`
+  if (status.state === 'n/a' && status.reason === 'codex') return '  hooks: n/a (codex)'
+  return null
+}
+
+/**
  * T0562 / D147: `terminal:set-role { terminalId, role, agent?, mode? }` (T0565: `mode`). Success is
  * decided by the exit code (CT treats any non-0 as "not supported / not set" and goes on);
  * `set-role: <CODE>` on stderr is diagnostic.
  */
 async function runSetRole(ws) {
-  const request = { terminalId: roleTerminalId, role: setRole, ...(agentGiven ? { agent } : {}), ...(roleMode ? { mode: roleMode } : {}) }
+  const request = {
+    terminalId: roleTerminalId,
+    role: setRole,
+    ...(agentGiven ? { agent } : {}),
+    ...(roleMode ? { mode: roleMode } : {}),
+    ...(roleContract !== null ? { batContract: roleContract } : {}), // T0903
+  }
   const finish = (exitCode, code, fields = {}) => {
-    logEvent('bat-terminal', 'set-role', { terminalId: roleTerminalId, role: setRole, agent: agentGiven ? agent : null, mode: roleMode, result: code, ...fields, ignoredFrames })
+    logEvent('bat-terminal', 'set-role', { terminalId: roleTerminalId, role: setRole, agent: agentGiven ? agent : null, mode: roleMode, ...(roleContract !== null ? { batContract: roleContract } : {}), result: code, ...fields, ignoredFrames })
     logEvent('bat-terminal', 'exit', { code: exitCode, reason: exitCode === 0 ? 'set-role-done' : `set-role-${code}` })
     ws.close()
     process.exit(exitCode)
@@ -1583,10 +1663,12 @@ async function runSetRole(ws) {
 
   const invokeId = makeId()
   ws.send(JSON.stringify({ type: 'invoke', id: invokeId, channel: 'terminal:set-role', args: [request] }))
-  logEvent('bat-terminal', 'await-invoke-response', { timeoutMs: 3000, channel: 'terminal:set-role' })
+  // T0910: a call with --bat-contract may wait up to 2 s in BAT for the Tower's first hook report
+  const setRoleTimeoutMs = roleContract !== null ? SET_ROLE_CONTRACT_TIMEOUT_MS : 3000
+  logEvent('bat-terminal', 'await-invoke-response', { timeoutMs: setRoleTimeoutMs, channel: 'terminal:set-role' })
   let resp
   try {
-    resp = await waitForMessage(ws, invokeId)
+    resp = await waitForMessage(ws, invokeId, setRoleTimeoutMs)
   } catch (err) {
     const msg = err?.message || String(err)
     console.error(`Error: Invoke response timeout: ${msg}`)
@@ -1610,7 +1692,19 @@ async function runSetRole(ws) {
     console.log(`✓ Tower role set: ${String(result.terminalId ?? roleTerminalId)}`)
     // T0565: the mode BAT now records for the tab
     if (typeof result.mode === 'string' && result.mode) console.log(`  mode: ${result.mode}`)
-    return finish(0, 'OK', typeof result.mode === 'string' && result.mode ? { recordedMode: result.mode } : {})
+    // T0903 (R11): only a call with --bat-contract gets this line; a BAT that did not record the
+    // contract (no batContract in the answer) prints none, so CT sees "no contract v2"
+    const line = roleContract !== null ? batContractLine(result) : null
+    if (line) console.log(line)
+    // PLAN-068 W9 / T0910 (§3.1′ / §7.2): after the bat-contract line, only for a call with
+    // --bat-contract that BAT answered with a hooksStatus (an older BAT answers none: no line)
+    const hooks = line ? hooksLine(result.hooksStatus) : null
+    if (hooks) console.log(hooks)
+    return finish(0, 'OK', {
+      ...(typeof result.mode === 'string' && result.mode ? { recordedMode: result.mode } : {}),
+      ...(line ? { recordedContract: result.towerContract, batContract: result.batContract } : {}),
+      ...(hooks ? { hooks: hooks.trim().slice('hooks: '.length) } : {}),
+    })
   }
   const code = result && typeof result === 'object' && typeof result.code === 'string' ? result.code : 'ERROR'
   const detail = {

@@ -317,11 +317,35 @@ export function ptyHolderLogLine(decision: PtyHolderDecision): string {
 }
 
 /**
+ * T0890 (BUG-214, D313): the Windows Terminal Server starts with a small V8 young generation. Opening and closing tabs
+ * grew its private bytes to a high-water mark (T0889: new-space committed 2 → 13.5 MB with 0.5 MB in use), which
+ * setting the flag at run time (`v8.setFlagsFromString`) does not change; only a start flag does.
+ * 🔴 Start arguments only (fork `execArgv`, holder spawn arguments): never `NODE_OPTIONS` or any env — the server's
+ * env is laid over every PTY's (buildServerPtyEnv). Windows only: macOS / Linux start exactly as before.
+ * The value is in MB (V8 `--max-semi-space-size`); see docs/agent-guide/terminal-server-recovery.md for the measurements.
+ */
+export const TERMINAL_SERVER_WIN32_MAX_SEMI_SPACE_MB = 1
+
+/** The V8 start flags of the Terminal Server on `platform` (win32: the semi-space cap; elsewhere none). */
+export function terminalServerV8Flags(platform: NodeJS.Platform): string[] {
+  return platform === 'win32' ? [`--max-semi-space-size=${TERMINAL_SERVER_WIN32_MAX_SEMI_SPACE_MB}`] : []
+}
+
+/**
  * 🔴 The fork options when no holder is used: exactly what forkTerminalServer passed before T0859 (no execPath, no
  * cwd, no execArgv; `env` as given). macOS / Linux / dev / zip / any failed check use this.
+ * T0890: on win32 only, `execArgv` = what fork would have used (`process.execArgv`) plus terminalServerV8Flags;
+ * every other platform keeps the T0859 object (no `execArgv` key).
  */
-export function terminalServerForkOptions(stdio: StdioOptions, env: NodeJS.ProcessEnv): ForkOptions {
-  return { detached: true, stdio, env }
+export function terminalServerForkOptions(
+  stdio: StdioOptions,
+  env: NodeJS.ProcessEnv,
+  platform: NodeJS.Platform = process.platform,
+  baseExecArgv: readonly string[] = process.execArgv,
+): ForkOptions {
+  const flags = terminalServerV8Flags(platform)
+  if (flags.length === 0) return { detached: true, stdio, env }
+  return { detached: true, stdio, env, execArgv: [...baseExecArgv, ...flags] }
 }
 
 /** How the Terminal Server is spawned from a holder (`child_process.spawn(command, args, options)`). */
@@ -335,12 +359,15 @@ export interface HolderSpawnSpec {
  * The holder start: `bat-pty-holder.exe <dir>\terminal-server.js`, cwd = holder directory, the same env without
  * `ELECTRON_RUN_AS_NODE`, the same stdio (it carries the `ipc` slot), detached and hidden like the fork.
  * node-pty is resolved from `<dir>\node_modules` (the script's directory), never from the install directory.
+ * T0890: the V8 flags (terminalServerV8Flags('win32'); a holder only exists on Windows) come before the script.
+ * They are not part of the holder key (the key is the holder's files) and a kept holder is reattached by pid / hello
+ * only (decideHolderReattach), so an older holder started without them is reattached as it runs.
  */
 export function holderSpawnSpec(holder: ValidPtyHolder, stdio: StdioOptions, env: NodeJS.ProcessEnv): HolderSpawnSpec {
   const { ELECTRON_RUN_AS_NODE: _runAsNode, ...holderEnv } = env
   return {
     command: holder.exePath,
-    args: [holder.entryPath],
+    args: [...terminalServerV8Flags('win32'), holder.entryPath],
     options: { detached: true, stdio, env: holderEnv, cwd: holder.dir, windowsHide: true },
   }
 }

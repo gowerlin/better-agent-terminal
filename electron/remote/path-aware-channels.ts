@@ -166,6 +166,18 @@ export const PATH_FREE_CHANNELS: ReadonlyMap<string, string> = new Map([
   ['ct:read-config-sources', 'T0701: no args (reads fixed files in the server home)'],
   ['terminal:control-tower-prompt', 'T0710: { agent, skill, workorder, customEnv? } (customEnv is the tab env, already host form like terminal:create-with-command); result is prompt text'],
   ['terminal:attention-snapshot', 'T0749: tab ids only; result is state fields (no path)'],
+  ['terminal:reading-state', 'T0904: { terminalId, reading } (terminal id + boolean only)'],
+  // PLAN-068 W3 / T0905 (electron/tower-cards.ts)
+  ['tower-cards:list', 'T0905: tab ids only; result is the cards (message text as the Tower wrote it, never translated)'],
+  ['tower-cards:mark-read', 'T0905: tab id + card ids'],
+  ['tower-cards:pin', 'T0905: tab id + card id + boolean'],
+  ['tower-cards:clear', 'T0905: tab id + card ids + boolean'],
+  ['tower-cards:set-panel-tower', 'T0909: panel tab id + boolean'],
+  // PLAN-068 W5 / T0908 (electron/notify-hold.ts)
+  ['tower-inbox:answer', 'T0908: { terminalId, text } (terminal id + one answer line `U-n：…` / `A-n：…`, typed as is; no path)'],
+  ['terminal:notify-hold-list', 'T0908: no args; result is ids / counts / times / reason enum (no path)'],
+  ['terminal:notify-hold-cancel', 'T0908: terminal id + hold id'],
+  ['terminal:notify-hold-send-now', 'T0908: terminal id + hold id'],
   ['remote:resolve-client-paths', 'ALWAYS_LOCAL (never proxied); client paths are the input, the handler applies the window translator itself'],
   // PLAN-038 U1 / T0832 (electron/handlers/uploads.ts)
   ['upload:begin', 'T0832: session key + file name (a basename, cleaned by the host) + size; no client path'],
@@ -354,10 +366,14 @@ export const PATH_FREE_EVENTS: ReadonlyMap<string, string> = new Map([
   ['terminal:notified', '{ targetId, message, source, questionId? } (terminal ids + message text; T0613: question id, never its text)'],
   ['terminal:keypress', '{ targetId, key, code, keyCode, source, reason, traceId } (terminal ids + key enum)'],
   ['terminal:close-requested', '{ id } (terminal id only; PLAN-041 / T0536)'],
-  ['terminal:role-changed', '{ id, role, ptyAgent?, ptyAgentName?, agent?, agentName? } (terminal id + role / agent ids and names; T0562)'],
+  ['terminal:role-changed', '{ id, role, mode?, towerContract, ptyAgent?, ptyAgentName?, agent?, agentName? } (terminal id + role / CT mode enum / contract number / agent ids and names; T0562, T0565, T0903)'],
   ['terminal:usage-limit-status', '{ id, status } (terminal id + limit state / reset time text; T0566)'],
   ['terminal:usage-limit-continue', '{ id, action, text?, agent, traceId } (terminal id + the Settings continue text; T0566)'],
   ['terminal:attention-changed', '{ id, blockedReason?, blockedSince?, pendingQuestions, questionsSince? } (terminal id + state enum / times / count, never question text; T0609)'],
+  ['tower-cards:changed', '{ terminalId, revision, unread, total } (terminal id + counts, never a card text; T0905)'],
+  ['terminal:notify-hold-changed', '{ terminalId, items, reason? } (terminal / hold ids, work order ids, times, flags; never a text; T0788 / T0904 / T0908)'],
+  ['terminal:notify-hold-reminder', '{ terminalId, count, heldSince, reason } (terminal id + counts / time; T0904 / T0908)'],
+  ['terminal:hooks-status', '{ id, hooksStatus: { state, reason?, origin?, set? } | null } (terminal id + state / reason code enums / set number, never a path or content; T0910)'],
 ])
 
 export function translateRemoteEventArgs(

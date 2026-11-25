@@ -37,6 +37,7 @@ import {
 } from '../lib/claude-login-guide'
 import { ClaudeLoginGuideCard } from './ClaudeLoginGuideCard'
 import { ModalOverlay } from './common/ModalOverlay'
+import { PANEL_TOWER_ANSWER_EVENT, type PanelTowerAnswerDetail } from '../lib/inbox-answer'
 
 interface SessionMeta {
   model?: string
@@ -1691,6 +1692,29 @@ export function ClaudeAgentPanel({ sessionId, cwd, isActive, workspaceId, isRemo
         }])
       })
   }, [isStreaming, isInterrupted, sessionId, attachedImages, attachedFiles, clearInput, setInputValue, t, addNoticeToast, isRemoteWindow])
+
+  // PLAN-068 W5 / T0908 (T0902 §4): an Inbox answer for this panel Tower goes through the panel's own
+  // send (a running turn queues it, T0815). The draft protection is the input box itself: while it
+  // has text or attachments the answer is refused (`draft`) and nothing is touched.
+  const handleSendRef = useRef(handleSend)
+  handleSendRef.current = handleSend
+  const hasDraftRef = useRef(false)
+  hasDraftRef.current = attachedImages.length > 0 || attachedFiles.length > 0
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const detail = (e as CustomEvent<PanelTowerAnswerDetail>).detail
+      if (!detail || detail.sessionId !== sessionId) return
+      if (inputValueRef.current.trim() !== '' || hasDraftRef.current || uploadAbortRef.current) {
+        detail.respond('draft')
+        return
+      }
+      setInputValue(detail.text)
+      detail.respond('sent')
+      void handleSendRef.current()
+    }
+    window.addEventListener(PANEL_TOWER_ANSWER_EVENT, handler)
+    return () => window.removeEventListener(PANEL_TOWER_ANSWER_EVENT, handler)
+  }, [sessionId, setInputValue])
 
   const disablePromptPathHint = useCallback(() => {
     settingsStore.setPromptClientPathHint(false)

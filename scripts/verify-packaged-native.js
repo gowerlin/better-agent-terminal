@@ -506,7 +506,9 @@ function scanExternalRequires(readFile, entries) {
   return { packages, files: [...visited].sort(), missing };
 }
 
-const DIST_ELECTRON_ENTRIES = ['dist-electron/main.js', 'dist-electron/preload.js', 'dist-electron/terminal-server.js'];
+// T0887: shared-conout-worker.cjs is started by terminal-server.js on Windows (worker_threads, electron/terminal-server/shared-conout.ts);
+// listed so a package without it fails here (runtime-require), the Windows PTY holder check requires it too (scripts/pty-holder.cjs)
+const DIST_ELECTRON_ENTRIES = ['dist-electron/main.js', 'dist-electron/preload.js', 'dist-electron/terminal-server.js', 'dist-electron/shared-conout-worker.cjs'];
 
 /**
  * C4: every runtime package (scanned + dynamic) is packaged, with the `dependencies` of

@@ -15,11 +15,20 @@ import { resolvePtyLocaleEnv } from './pty-locale-env'
 import { isTerminalAutoReply, normalizeWorkorderId, type CloseWorkerPtyManager } from './close-worker'
 import type { CtMode } from './ct-mode'
 import type { CtWorktreeRecord } from './ct-worktree'
-import { LaunchSuspectWatcher, TerminalBlockedTracker, type BlockedDetection, type BlockedState, type HookReportEvent, type HookReportResult } from './terminal-blocked-state'
+import { LaunchSuspectWatcher, TerminalBlockedTracker, type BlockedDetection, type BlockedState, type HookOrigin, type HookReportEvent, type HookReportResult } from './terminal-blocked-state'
 import { CodexStateScanner, lastCodexState, PROGRAM_STATUS_PROBE_REPLY } from '../src/lib/codex-terminal-state'
 import type { InterruptedAgentSource } from './interrupted-agents'
 import { describePtyFdGuardSkip, guardPtySpawnFds, type PtyFdGuardDeps, type PtyFdGuardOutcome } from './pty-spawn-fd-guard'
 import { holderKeyOfDir } from './pty-holder'
+import {
+  claudeHooksRecords,
+  computeHooksStatus,
+  HOOKS_STATUS_CHANNEL,
+  hooksStatusKey,
+  type ClaudeHooksRecords,
+  type HooksAgentKind,
+  type HooksStatus,
+} from './claude-hooks-status'
 
 // Try to import @lydell/node-pty, fall back to child_process if not available
 let pty: typeof import('@lydell/node-pty') | null = null
@@ -89,6 +98,13 @@ interface PtyInstance {
    */
   role?: 'tower'
   towerMode?: CtMode
+  /**
+   * PLAN-068 W0 / T0903: the BAT ↔ CT contract the Tower declared with that `--set-role`
+   * (`--bat-contract <n>`, src/lib/tower-contract.ts). Same life as `role`: kept by `restart` and the
+   * Terminal Server recovery, gone with the PTY; every `--set-role` overwrites it, one without
+   * `--bat-contract` clears it (undefined = not declared). Not saved.
+   */
+  towerContract?: number
 }
 
 /**
@@ -105,6 +121,8 @@ export interface PtyTerminalInfo {
   agentPreset?: string
   role?: 'tower'
   towerMode?: CtMode
+  /** PLAN-068 W0 / T0903: the contract a Tower declared (`--bat-contract`; absent = none). */
+  towerContract?: number
   yolo: boolean
 }
 
@@ -113,7 +131,7 @@ export interface PtyTerminalInfo {
  * `terminal:read-output` can still read its last output. At most `EXITED_PTY_RECORD_MAX`, for
  * `EXITED_PTY_RECORD_TTL_MS`; a running PTY with the same id (restart, re-create) wins.
  */
-export interface ExitedPtyRecord extends Omit<PtyTerminalInfo, 'yolo' | 'role' | 'towerMode'> {
+export interface ExitedPtyRecord extends Omit<PtyTerminalInfo, 'yolo' | 'role' | 'towerMode' | 'towerContract'> {
   exitedAt: number
   /** Unknown for a kill until the process's own exit arrives (it may never). */
   exitCode?: number
@@ -247,6 +265,11 @@ export interface PtyManagerDeps {
    * revokes the PTY's helper capability here (Electron too since T0575). Undefined = no hook.
    */
   onPtyExit?: (id: string) => void
+  /**
+   * PLAN-068 W9 / T0910: the hooks launch decisions `getHooksStatus` reads (electron/claude-hooks-status.ts).
+   * Undefined = this process's `claudeHooksRecords` (what `createBatMcpLaunchArgs` writes); tests pass their own.
+   */
+  hooksRecords?: ClaudeHooksRecords
   /**
    * PLAN-048 / T0607: the Terminal Server died and its PTYs are being rebuilt under the same ids
    * (no `onPtyExit` for them) — Electron cancels every pending tower question here. A throwing
@@ -424,6 +447,10 @@ export class PtyManager implements CloseWorkerPtyManager {
   private launchSuspect = new LaunchSuspectWatcher(logger)
   // T0621: codex's OSC 7501 in the live output (read only) → `blockedTracker.observeCodexState`
   private codexStates = new CodexStateScanner()
+  // PLAN-068 W9 / T0910: `--set-role --bat-contract` waiting for a PTY's first hook report, and the
+  // `hooksStatus` last sent per declared-contract Tower (`terminal:hooks-status` on a change only)
+  private hookReportWaiters: Map<string, Set<() => void>> = new Map()
+  private lastHooksStatusKey: Map<string, string> = new Map()
 
   // Terminal Server proxy (PLAN-008 Phase 2b / T0107)
   private serverProcess: ChildProcess | null = null
@@ -909,6 +936,9 @@ export class PtyManager implements CloseWorkerPtyManager {
     this.blockedTracker.clearStarted(id) // T0600
     this.launchSuspect.clear(id)
     this.codexStates.clear(id) // T0621
+    // T0910: the hook reports are gone with the process (a ⏻ restart's Tower sends its new status)
+    this.wakeHookReportWaiters(id)
+    this.refreshHooksStatus(id)
   }
 
   /** T0432: `deps.onPtyExit`; a throwing listener must not break exit / kill handling. */
@@ -1082,12 +1112,17 @@ export class PtyManager implements CloseWorkerPtyManager {
   /**
    * T0565 / D148: record the role PTY `id` declared (`terminal:set-role`). `mode` undefined keeps
    * the recorded mode (CT passes it every time, so there is no "clear"). false = no such PTY.
+   * PLAN-068 W0 / T0903: `towerContract` is the `--bat-contract` of this call — unlike `mode` it is
+   * always overwritten: undefined clears it (a `--set-role` without `--bat-contract` = not declared).
    */
-  setTerminalRole(id: string, role: 'tower', mode?: CtMode): boolean {
+  setTerminalRole(id: string, role: 'tower', mode?: CtMode, towerContract?: number): boolean {
     const instance = this.instances.get(id)
     if (!instance) return false
     instance.role = role
     if (mode) instance.towerMode = mode
+    if (towerContract !== undefined) instance.towerContract = towerContract
+    else delete instance.towerContract
+    this.refreshHooksStatus(id) // T0910
     return true
   }
 
@@ -1100,6 +1135,16 @@ export class PtyManager implements CloseWorkerPtyManager {
   getTowerMode(id: string): CtMode | undefined {
     const instance = this.instances.get(id)
     return instance?.role === 'tower' ? instance.towerMode : undefined
+  }
+
+  /**
+   * PLAN-068 W0 / T0903: the BAT ↔ CT contract a Tower PTY declared (`--set-role --bat-contract`);
+   * undefined = not a Tower, or it declared none. The one getter W1 / W2 / W3 ask
+   * (`towerContractStatus`, src/lib/tower-contract.ts, decides what the value means).
+   */
+  getTowerContract(id: string): number | undefined {
+    const instance = this.instances.get(id)
+    return instance?.role === 'tower' ? instance.towerContract : undefined
   }
 
   /**
@@ -1140,6 +1185,7 @@ export class PtyManager implements CloseWorkerPtyManager {
       ...(instance.agentPreset ? { agentPreset: instance.agentPreset } : {}),
       ...(instance.role ? { role: instance.role } : {}),
       ...(instance.role === 'tower' && instance.towerMode ? { towerMode: instance.towerMode } : {}),
+      ...(instance.role === 'tower' && instance.towerContract !== undefined ? { towerContract: instance.towerContract } : {}),
       yolo: this.isYoloTerminal(id),
     }
   }
@@ -1204,6 +1250,114 @@ export class PtyManager implements CloseWorkerPtyManager {
   reportHookEvent(id: string, event: HookReportEvent, toolName?: string, sessionId?: string, agentId?: string, at?: bigint): { result: HookReportResult; state: BlockedState | null } | null {
     if (!this.instances.has(id)) return null
     return this.blockedTracker.report(id, event, toolName, sessionId, agentId, at)
+  }
+
+  /**
+   * PLAN-068 W3 / T0905 (T0902 §7.4): whether a hook report of running PTY `id` from `origin` is applied
+   * (false = a `plugin` report after an `injected` one; `TerminalBlockedTracker.acceptHookOrigin`).
+   * A PTY that does not run here: false (the handler answers NOT_FOUND first).
+   */
+  acceptHookOrigin(id: string, origin?: HookOrigin, set?: number): boolean {
+    if (!this.instances.has(id)) return false
+    const accepted = this.blockedTracker.acceptHookOrigin(id, origin, set)
+    if (accepted) {
+      this.wakeHookReportWaiters(id) // T0910
+      this.refreshHooksStatus(id)
+    }
+    return accepted
+  }
+
+  /** T0905: the latest hook set version running PTY `id` reported, or null. */
+  getHookSet(id: string): number | null {
+    return this.instances.has(id) ? this.blockedTracker.getHookSet(id) : null
+  }
+
+  // ── PLAN-068 W9 / T0910: `hooksStatus` (electron/claude-hooks-status.ts) ──
+
+  private hooksRecordStore(): ClaudeHooksRecords {
+    return this.deps.hooksRecords ?? claudeHooksRecords
+  }
+
+  /**
+   * T0910 (T0902 §3.1′ / §7.2): whether running PTY `id`'s claude reports BAT's hooks (`ok` + origin /
+   * set), why not (`none` + code), `n/a` for codex; null = not running, or neither a declared Tower nor
+   * a tab BAT knows runs an agent. From the launch decision, the hook reports, the agent preset and the
+   * `--set-role --agent` hint.
+   */
+  getHooksStatus(id: string): HooksStatus | null {
+    const instance = this.instances.get(id)
+    if (!instance) return null
+    const records = this.hooksRecordStore()
+    const launch = records.getLaunch(id)
+    const hint = records.getHint(id)
+    return computeHooksStatus({
+      ...(launch ? { launch } : {}),
+      ...(instance.agentPreset ? { agentPreset: instance.agentPreset } : {}),
+      ...(hint ? { hint } : {}),
+      tower: instance.role === 'tower',
+      reports: this.blockedTracker.getHookOriginInfo(id),
+    })
+  }
+
+  /** T0910: the agent `--set-role --agent` named for PTY `id` (null = none / not claude or codex). */
+  noteTowerAgentHint(id: string, kind: HooksAgentKind | null): void {
+    this.hooksRecordStore().setHint(id, kind)
+  }
+
+  /**
+   * T0910 (§7.2): resolves true as soon as running PTY `id` has a hook report applied, false after
+   * `timeoutMs` or when the PTY ends. Already reported → true at once.
+   */
+  waitForHookReport(id: string, timeoutMs: number): Promise<boolean> {
+    if (!this.instances.has(id)) return Promise.resolve(false)
+    if (this.blockedTracker.getHookOriginInfo(id)) return Promise.resolve(true)
+    return new Promise(resolve => {
+      let waiters = this.hookReportWaiters.get(id)
+      if (!waiters) {
+        waiters = new Set()
+        this.hookReportWaiters.set(id, waiters)
+      }
+      const set = waiters
+      const done = () => {
+        clearTimeout(timer)
+        set.delete(done)
+        if (set.size === 0 && this.hookReportWaiters.get(id) === set) this.hookReportWaiters.delete(id)
+        resolve(this.instances.has(id) && this.blockedTracker.getHookOriginInfo(id) !== null)
+      }
+      const timer = setTimeout(done, Math.max(0, timeoutMs))
+      set.add(done)
+    })
+  }
+
+  private wakeHookReportWaiters(id: string): void {
+    const waiters = this.hookReportWaiters.get(id)
+    if (!waiters) return
+    for (const done of [...waiters]) done()
+  }
+
+  /**
+   * T0910: sends `terminal:hooks-status { id, hooksStatus }` when a Tower that declared a contract
+   * (`--bat-contract`) gets another `hooksStatus` than the last one sent. Metadata only. Other PTYs:
+   * nothing is sent (the last value is forgotten).
+   */
+  private refreshHooksStatus(id: string): void {
+    const instance = this.instances.get(id)
+    if (!instance || instance.role !== 'tower' || instance.towerContract === undefined) {
+      this.lastHooksStatusKey.delete(id)
+      return
+    }
+    let status: HooksStatus | null
+    try {
+      status = this.getHooksStatus(id)
+    } catch (e) {
+      logger.warn(`[hooks] status of ${id} failed:`, e)
+      return
+    }
+    const key = hooksStatusKey(status)
+    if (this.lastHooksStatusKey.get(id) === key) return
+    this.lastHooksStatusKey.set(id, key)
+    logger.log(`[hooks] terminal=${id} status=${key}`)
+    this.broadcast(HOOKS_STATUS_CHANNEL, { id, hooksStatus: status })
   }
 
   /** What running PTY `id` is blocked on, or null (not blocked / not running). */
@@ -1768,13 +1922,14 @@ export class PtyManager implements CloseWorkerPtyManager {
    * workspace / global env vars and a Worker's `BAT_TOWER_TERMINAL_ID` / `CT_MODE` / `CT_INTERACTIVE`.
    * T0535: + its `workorder`, so `--close-worker` still finds a restarted Worker.
    * T0565: + the declared role / Tower mode, so a restarted yolo Tower stays one.
+   * T0903: + the declared BAT ↔ CT contract (`towerContract`).
    */
   restart(id: string, cwd: string, shell?: string): boolean {
     const instance = this.instances.get(id)
     if (instance) {
       const type = instance.type
       const customEnv = instance.customEnv ? { ...instance.customEnv } : undefined
-      const { workspaceId, agentPreset, workorder, worktree, role, towerMode } = instance
+      const { workspaceId, agentPreset, workorder, worktree, role, towerMode, towerContract } = instance
       this.kill(id)
       const ok = this.create({
         id, cwd, type, shell,
@@ -1784,7 +1939,7 @@ export class PtyManager implements CloseWorkerPtyManager {
         ...(workorder ? { workorder } : {}),
         ...(worktree ? { worktree } : {}),
       })
-      if (ok && role) this.setTerminalRole(id, role, towerMode)
+      if (ok && role) this.setTerminalRole(id, role, towerMode, towerContract)
       return ok
     }
     return false
@@ -1953,6 +2108,11 @@ export class PtyManager implements CloseWorkerPtyManager {
       // T0590: the rebuilt shells run no claude yet (T0600: nor `agentStarted`; T0621: nor codex)
       this.blockedTracker.clearAll('Terminal Server recovery')
       this.codexStates.dispose()
+      // T0910: no hook report survives; a declared Tower's status changes (and nobody waits on a dead one)
+      for (const id of [...this.instances.keys()]) {
+        this.wakeHookReportWaiters(id)
+        this.refreshHooksStatus(id)
+      }
       // T0607: the rebuilt shells run none of the agents that asked
       try {
         this.deps.onServerRecovery?.()

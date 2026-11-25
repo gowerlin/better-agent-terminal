@@ -249,9 +249,9 @@ W5（T0861）依 `reason` 走 D5「結束並說明」；本單沒有新的 UI。
 
 ### 必守規則
 
-- 🔴 **只有** win32 ＋ 打包版（`app.isPackaged`）＋ NSIS 安裝（有 T0823 的標記 `resources\installer-quit-request.supported`，zip 版與 `build:dir` 沒有）＋ holder 驗證通過，才從 holder 啟動。其他情況（macOS / Linux、`npm run dev`、zip、holder 缺少或不符、任何檢查失敗）`forkTerminalServer` 的參數與行為和 T0859 前逐字相同：`fork(serverScript, [], { detached: true, stdio, env })`（`terminalServerForkOptions`），Linux 的 `runWithoutCrashpadClient` / `planTerminalServerFork`（T0816）不動。非 win32 與開發模式不讀任何 holder 檔案、不記日誌。
+- 🔴 **只有** win32 ＋ 打包版（`app.isPackaged`）＋ NSIS 安裝（有 T0823 的標記 `resources\installer-quit-request.supported`，zip 版與 `build:dir` 沒有）＋ holder 驗證通過，才從 holder 啟動。其他情況（macOS / Linux、`npm run dev`、zip、holder 缺少或不符、任何檢查失敗）`forkTerminalServer` 的參數與行為和 T0859 前逐字相同：`fork(serverScript, [], { detached: true, stdio, env })`（`terminalServerForkOptions`）；唯一例外是 Windows 多帶 V8 啟動旗標（T0890，`execArgv` = `process.execArgv` ＋ `--max-semi-space-size=1`，見〈Terminal Server 的 V8 新生代上限〉），macOS / Linux 逐字不變。Linux 的 `runWithoutCrashpadClient` / `planTerminalServerFork`（T0816）不動。非 win32 與開發模式不讀任何 holder 檔案、不記日誌。
 - 🔴 `forkTerminalServer`（`electron/main.ts`）仍是唯一啟動點（首次與 T0704 re-fork 共用）；它變成 async（holder 驗證要讀檔），兩個呼叫端 `await`。啟動時 `startTerminalServer` 在建立視窗之前，re-fork 本來就 await，所以等待期間不會有分頁 create 走 direct。
-- 🔴 從 holder 啟動：執行檔 = `<holder>\bat-pty-holder.exe`、腳本 = `<holder>\terminal-server.js`、`cwd` = holder 目錄（不得沿用主行程的 cwd，否則安裝目錄刪不掉）、env 與 fork 相同但**去掉** `ELECTRON_RUN_AS_NODE`、stdio 相同（含 `ipc`）、`detached`、`windowsHide`。node-pty 從 holder 的 `node_modules` 載入（腳本所在目錄），不從安裝目錄載入 `conpty.node`。
+- 🔴 從 holder 啟動：執行檔 = `<holder>\bat-pty-holder.exe`、參數 = V8 旗標（T0890，`--max-semi-space-size=1`）＋腳本 `<holder>\terminal-server.js`、`cwd` = holder 目錄（不得沿用主行程的 cwd，否則安裝目錄刪不掉）、env 與 fork 相同但**去掉** `ELECTRON_RUN_AS_NODE`、stdio 相同（含 `ipc`）、`detached`、`windowsHide`。node-pty 從 holder 的 `node_modules` 載入（腳本所在目錄），不從安裝目錄載入 `conpty.node`。
 - 🔴 用 `spawn`（stdio 帶 `ipc`）而不是 `fork`：Electron 的 `child_process.fork` 一律在子程序 env 加 `ELECTRON_RUN_AS_NODE=1`，指定別的 `execPath` 也一樣（T0859 以 Electron 45.2.1 實測）。`spawn` 帶 `ipc` 開的是同一條 IPC 通道（JSON 序列化），PtyManager 的 `setServerProcess`、quit Step A 的 IPC `server:shutdown` 照舊。
 - PTY env 照舊經 `buildServerPtyEnv` / `buildPtyEnv`（server 的 `TERMINAL_SERVER_OWN_ENV_KEYS` 與 BUG-038 的 `ELECTRON_RUN_AS_NODE` 移除不變）；`BAT_USER_DATA`、`BAT_TERMINAL_SERVER_BAT_VERSION`、idle / buffer 設定照樣帶，所以 holder 版的 server 寫同一個 `<userData>` 的 pid / port / token 檔。
 - 驗證失敗只記一行 `[pty-holder]` 並照舊 fork，不提示使用者、不擋啟動。
@@ -299,6 +299,145 @@ W5（T0861）依 `reason` 走 D5「結束並說明」；本單沒有新的 UI。
 - 單元 `electron/__tests__/pty-holder.test.ts`：根目錄、範圍順序、前綴陷阱（安裝目錄名稱加字尾）、`holderKeyOfDir`、`manifestProblems`；`resolvePtyHolder` 以記憶體檔案系統：非 win32 / 開發模式**沒有任何檔案存取**、zip（沒有標記）不看 holder、manifest 缺 / 壞 / key 不符 / arch 不符、根目錄衝突、沒有複本、manifest 複本不同 / 檔案被改（同大小）/ 多出 DLL / 少 LICENSE / 大小不同 → 退回，壞的 per-user 不擋好的 per-machine，檔案存取例外 → 退回；fork 參數：退回時 `toStrictEqual({ detached, stdio, env })` 且 env 是同一個物件，holder 時 execPath / 腳本 / cwd / 沒有 `ELECTRON_RUN_AS_NODE` / 同 stdio；source guard（`main.ts` 只在 win32 打包版查 holder、唯一的 `spawn`、兩個呼叫端 await；`terminal-server.ts` 不從 env 讀；`pty-manager.ts` 不記回報的路徑）。
 - 兩邊規則一致：`scripts/__tests__/pty-holder.test.mjs`「electron/pty-holder.ts and scripts/pty-holder.cjs give the same answers」。
 - e2e `e2e/t0859-pty-holder.spec.ts`（Windows、`BAT_E2E_EXECUTABLE=<release\win-unpacked\BetterAgentTerminal.exe>`，先 `npm run build:dir`；隔離 runtime，`LOCALAPPDATA` 指到暫存目錄，模擬安裝程式複製 holder 並建立標記）：server 的 `ExecutablePath` = holder 的 `bat-pty-holder.exe`、命令列跑 holder 的 `terminal-server.js`、`cmd.exe` 分頁執行命令、TCP hello 回 `runtime node` 與 `holderDir`、日誌有 `[pty-holder] Terminal Server from holder <key> (per-user)`；改一個 holder 檔後重開 → `not used (holder-invalid)`、server 回到 `BetterAgentTerminal.exe`、分頁照常。quit 時 holder 版 server 經 IPC `server:shutdown` 正常結束。
+
+## Windows：共用 conout Worker（PLAN-066 / T0887，D307 / D308）
+
+### 用途
+
+`@lydell/node-pty` 1.1.0 在 Windows 替每個 PTY 開一個 `worker_threads` Worker（`ConoutConnection`，`windowsConoutConnection.js`），
+專門把 ConPTY 的輸出管線轉送到主執行緒的 socket。每個 Worker 約 14 MB，Terminal Server 持有 10 個 PTY 約 170 MB（T0886 實測）。
+T0887 讓整個 Terminal Server 共用一個 Worker：第一個 PTY 建立時啟動、最後一個 PTY 的轉送關閉後結束。
+
+這個 Worker 存在的原因（防死結）不變：`ClosePseudoConsole` 會等輸出管線排空，所以讀輸出的不能是主執行緒
+（[microsoft/node-pty#375](https://github.com/microsoft/node-pty/issues/375)、[microsoft/terminal#1810](https://github.com/microsoft/terminal/issues/1810)）。
+共用之後讀輸出的仍是 Worker，只是一個 Worker 服務所有 PTY。
+
+### 必守規則
+
+- 🔴 只有 Terminal Server 安裝（`server.ts` `createPty` 第一次 spawn 前的 `ensureSharedConout()`，每個程序一次）。direct 模式（`pty-manager.ts`，Electron 主行程）不套用（D308 Q-B）。
+- 🔴 非 win32：`installSharedConout` 直接回 `skipped:not-win32`，不讀任何檔、不 require Worker 腳本、不記日誌。
+- 🔴 版本守門：node-pty 必須是 `1.1.0`（`package.json` 精確釘版 `"1.1.0"`）；`windowsPtyAgent.js` 仍以 `new windowsConoutConnection_1.ConoutConnection(` 從模組 exports 取類別；`ConoutConnection` 的 `onReady` getter、`dispose`、`connectSocket` 都在；Worker 腳本存在。任一不符 → `skipped:<原因>`，node-pty 逐字照舊（每個 PTY 一個 Worker）。
+- 🔴 不得改成主執行緒讀 conout（T0886 做法 (c)，舊版 Windows 會死結，另案）。
+- 🔴 批次轉送（T0889 / BUG-215）：Worker 轉送**原始位元組**（不在 Worker 解碼；主執行緒 node-pty 的 socket 照舊以 UTF-8 解碼，跨段的多位元組字元由它的 decoder 接起來），每個轉送距上次送出 ≥ `RELAY_BATCH_MS`（4 ms）就立刻送（打字回顯不延遲），否則累積到 4 ms 或 `RELAY_BATCH_MAX_BYTES`（256 KiB）才送。不得改回逐段轉送（ConPTY 每段只有約 10 字元，大量輸出時每段都變成一則 Terminal Server 訊息與一則 IPC，C4 慢 43%）。位元組與順序不變；主執行緒寫不進去時暫停讀 conout（與原本 `pipe()` 相同）；第一個 client 連上前不讀 conout；conout 結束時先送完再結束 client。
+- 🔴 conin socket 釋放（T0889 / BUG-214）：node-pty 1.1.0 從不 destroy Windows PTY 的 conin socket（`WindowsPtyAgent.inSocket`），每關一個分頁留一個 handle 直到 Terminal Server 結束（T0889 量到 C2 後 500 個，每個 PTY 一個 Worker 的舊版也一樣）。`handlePtyExit` 對「BAT 自己結束的 PTY」（kill / ⏻ 重啟 / shutdown：exit 時已不是該 id 的 entry）在 exit 回呼之後（`setImmediate`）呼叫 `releaseEndedPtyInput`；自然結束的 PTY 不動（關 conin 可能讓仍有其他主控台程序的 conhost 結束，見 F4）。非 win32 不呼叫。T0540 的「先結束程序樹再 `pty.kill()`」順序不變（釋放發生在 exit 之後）。
+- 🔴 不自動重建 Worker（本單決定）：Worker `error` / 非預期 `exit` 各記一行；受影響的 PTY 失去輸出，與 node-pty 自己的 Worker 當掉時相同（`_outSocket` 斷線，走 node-pty 原本的錯誤路徑）；下一個新建的 PTY 會啟動新 Worker。理由：重建接不回已斷的轉送（ConPTY 的輸出管線在 Worker 死時一起斷了，那段輸出已遺失），自動重建只會掩蓋問題；Worker 只做 socket 轉送、每個轉送的錯誤只影響自己，T0886 的吞吐 / kill 實測沒有當掉過。
+- 不改 node_modules、不 fork node-pty（D308）。
+
+### 唯一實作位置
+
+| 內容 | 位置 |
+|---|---|
+| 安裝與替換類別 | `installSharedConout` / `SharedConoutConnection`（`electron/terminal-server/shared-conout.ts`，不 import electron、import 期不做事） |
+| Worker | `electron/terminal-server/shared-conout-worker.cjs`（`open` / `close` 訊息，每個 PTY 一個轉送：連 conout 管線、在 `<pipe>-worker` 聽、把原始位元組批次轉給主執行緒的 socket（T0889：`flush` / `onData`、`RELAY_BATCH_MS` / `RELAY_BATCH_MAX_BYTES`）；`getWorkerPipeName` 直接寫成 `name + '-worker'`） |
+| conin socket 釋放 | `releaseEndedPtyInput`（`shared-conout.ts`，T0889），由 `server.ts` `handlePtyExit` 呼叫 |
+| 安裝點 | `ensureSharedConout`（`electron/terminal-server/server.ts`） |
+| 建置 | `vite.config.ts` terminal-server 項的 `sharedConoutWorkerAsset()`：原樣輸出 `dist-electron/shared-conout-worker.cjs`；`package.json` `build.asarUnpack` 有這個檔（Worker 讀真實檔案，`unpackedScriptPath` 優先用 `app.asar.unpacked`） |
+| PTY holder | `scripts/pty-holder.cjs`：`holderSourceFiles` 把 Worker 複製到 holder 根目錄（與 `terminal-server.js` 同層），`ptyHolderProblems` 要求 manifest 列出它；holder 內容因此改變，合併後要跑 W6（[pty-holder.md](pty-holder.md)） |
+| 打包檢查 | `scripts/verify-packaged-native.js` `DIST_ELECTRON_ENTRIES`（所有平台的 app.asar 都要有這個檔）＋ Windows `pty-holder` |
+
+### 生命週期
+
+1. 第一個 `new ConoutConnection(pipe)` → 啟動 Worker，送 `{ type: 'open', id, conoutPipeName }`；之後的 PTY 共用同一個 Worker。
+2. Worker 連上 conout 管線、`<pipe>-worker` 開始聽 → 回 `ready`；主執行緒照 node-pty 原本的流程 `connectSocket(_outSocket)`。
+3. `dispose()`（node-pty 在 `kill()` 時呼叫）→ 等 `FLUSH_DATA_INTERVAL`（1 s，與 node-pty 相同）讓輸出排空，再送 `close`。
+4. Worker 關掉該轉送、回 `closed`；沒有其他轉送 → 主執行緒 `terminate()` Worker；之後的新 PTY 再啟動新的。
+
+5. （T0889）BAT 結束的 PTY 的 exit 到達後，`releaseEndedPtyInput` destroy 它的 conin socket。
+
+node-pty 1.1.0 的 PTY 自然結束而沒有呼叫 `kill()` 時不會 `dispose`（[microsoft/node-pty#887](https://github.com/microsoft/node-pty/issues/887)）：
+現況是那個 PTY 的 Worker（約 14 MB）一直留著，共用版是那個轉送（幾個 socket）留在共用 Worker 裡，conhost 與 conin socket 也留到 Terminal Server 結束（T0888 F4）。Terminal Server 的 `handlePtyExit` 不呼叫 `kill()`、也不釋放自然結束的 PTY 的 conin，行為與 T0887 前相同（T0889 評估後不改：在 exit 時 `ClosePseudoConsole` 或關 conin 都會讓仍掛在該主控台上的程序失去主控台，而 node-pty 的 `kill()` 會在 5 s 後對已結束的 shell pid 呼叫 `process.kill`，有 pid 重用的風險）。
+
+### 日誌
+
+Terminal Server 的 stderr（與其他 `[terminal-server]` 行同一管道；目前 fork / holder 的 stdio 是 `ignore`，主行程看不到）：
+
+| 日誌 | 意義 |
+|---|---|
+| `[shared-conout] installed` | 已替換（win32，第一次 spawn 前） |
+| `[shared-conout] skipped:<原因>` | 沒替換，照舊：`version-<版號>`、`agent-shape`、`shape`、`worker-missing`、`load-failed` |
+| `[shared-conout] worker error (<code 或 name>); <N> PTY(s) lose their output` | Worker 發生錯誤 |
+| `[shared-conout] worker exited unexpectedly (code <n>); <N> PTY(s) lose their output, the next PTY starts a new worker` | Worker 非預期結束（本模組自己結束 Worker 時不記） |
+
+不記 PTY 輸出、管線名稱、env。
+
+### 量測（T0887）
+
+BAT 原始碼建置（`npx vite build`，Terminal Server = electron 當 node）、隔離 runtime / userData，N 個閒置 pwsh 分頁全部出現提示後等 10 s，
+讀 Terminal Server 自己的 Private Bytes；每格 3 次取中位數（Windows 11 build 28000，2026-11-23；原始列在
+`experiments/node-pty-worker/results/bat-memory.csv`，spec 在同目錄的 `bat-memory/`）：
+
+| 分頁 | base（v0.8.x）Terminal Server | 共用 Worker | base 執行緒 | 共用執行緒 | base 框架合計 | 共用框架合計 |
+|---|---|---|---|---|---|---|
+| 1 | 37.3 MB | 37.1 MB | 18 | 18 | 372.2 MB | 376.3 MB |
+| 5 | 96.1 MB | 38.1 MB | 26 | 22 | 510.7 MB | 462.1 MB |
+| 10 | 164.6 MB | 38.8 MB | 37 | 27 | 655.5 MB | 528.3 MB |
+
+10 分頁省 125.8 MB（Terminal Server −76%）；每多一個分頁約 +0.2 MB（base 約 +14 MB）。框架合計 = Electron 主行程樹中 shell 以外的程序。
+所有分頁出現提示的時間兩者相同（中位數 base 1052 / 1038 / 1232 ms、共用 986 / 1134 / 1147 ms）。
+
+T0886 探針（只持有 PTY，沒有 Terminal Server 的協定與 ring buffer）：10 PTY 持有者 node.exe 178.1 → 39.3 MB、electron 當 node 162.2 → 37.1 MB；吞吐（10 PTY 各 50 萬行）stock 2248 ms / CPU 2.3 s、共用 2199 ms / 1.9 s。原始資料在分支 `ct/T0886` 的 `experiments/node-pty-worker/`。
+
+### 量測（T0889：批次轉送、conin 釋放）
+
+T0888 spec `e2e/t0888-shared-conout-stress.spec.ts`（T0889 加了原始碼建置 `BAT_T0888_SOURCE=1`、結果檔前綴 `BAT_T0888_RESULT_PREFIX`、C4 的輸出事件數、C8 單一分頁回顯延遲），Windows 11 build 28000，2026-11-23～24，
+同機有使用者的 BAT 在跑。標籤：O = `v0.7.5-pre.2`（每個 PTY 一個 Worker）、B0 = 修改前（`fd466fb3` 的 `build:dir`）、N = 修改後原始碼建置、H = 修改後 `build:dir`＋holder。
+原始列在 `experiments/node-pty-worker/results/t0889-*.csv`。
+
+| 情境 | O | B0（修改前） | N（修改後） | H（修改後） |
+|---|---|---|---|---|
+| C4 10 分頁 × 20,000 行完成時間中位數（6 次，兩輪對調；H 3 次） | 4788 ms | 6850 ms（+43%） | **2390.5 ms（−50.1%）** | 2154 ms |
+| C4 峰值 Private Bytes | 345–354 MB | 263–266 MB | 51–55 MB | 71–72 MB |
+| C4 renderer 收到的輸出事件數（1 次） | — | 3529 | 約 1240 | — |
+| C8 單一分頁回顯（閒置）中位數 | 31.0–31.3 ms | 31.0–31.1 ms | 30.9–31.4 ms | 31.0–31.2 ms |
+| C8 回顯（另 9 分頁大量輸出時）中位數／p95／5 s 逾時 | 31.5–31.9 ms／1.6–4.3 s／6 | 31.3–32.3 ms／3.2–4.4 s／7 | 16.1 ms／17.1–17.6 ms／0 | 16.0 ms／16.7–17.2 ms／0 |
+| C1 10 分頁（中位數）／10 → 30 分頁每分頁 | — | 35.8 MB／+0.15 MB | 34.7 MB／+0.17 MB | 42.6 MB／+0.17 MB |
+| C5 5 個大量輸出中的分頁關閉（最長）／全關後 | — | 195 ms／108.3 MB | 187 ms／32.4 MB | 185 ms／81.8 MB |
+
+C3（20 分頁自然結束）、C7（recovery，舊 shell 0 存活、10 分頁 < 45 MB）三者都通過；C6（H，10 分頁每 5 s 一行、30 分鐘）+2.7 MB。C2 見〈已知限制〉。
+
+### Terminal Server 的 V8 新生代上限（T0890 / BUG-214，D313）
+
+- 🔴 Windows 上 Terminal Server 的兩條啟動路徑都帶 V8 啟動旗標 `--max-semi-space-size=1`（MB）：沒有 holder 的 `fork` 放在 `execArgv`（= 原本 fork 預設的 `process.execArgv` ＋旗標），holder 的 `spawn` 放在腳本之前（`bat-pty-holder.exe --max-semi-space-size=1 <holder>\terminal-server.js`）。T0704 的 re-fork 走同一個 `forkTerminalServer`，也帶（T0890 C7 實測 re-fork 出的 server 有旗標）。
+- 🔴 只放啟動參數，不得放進 `NODE_OPTIONS` 或任何 env：server 的 env 會疊進每個 PTY（`buildServerPtyEnv`），放 env 會傳給分頁裡的每個 node 程式。執行期 `v8.setFlagsFromString` 無效（T0889），一定要是啟動參數。
+- 🔴 macOS / Linux：`terminalServerForkOptions` 回傳的物件與 T0859 相同（沒有 `execArgv` 鍵），沒有量過，不得套用。
+- 唯一實作：常數 `TERMINAL_SERVER_WIN32_MAX_SEMI_SPACE_MB`、`terminalServerV8Flags(platform)`（`electron/pty-holder.ts`），由 `terminalServerForkOptions` 與 `holderSpawnSpec` 共用；`main.ts` 的呼叫不變。單元測試 `electron/__tests__/pty-holder.test.ts`（Windows 兩條路徑都帶、macOS / Linux 與修改前相同、旗標不在 env、只拼寫一次）。
+- holder：旗標不在 holder 的檔案裡，holder key 不變（T0890 修改前後的 `holder-manifest.json` 逐位元組相同，`24.22.2-7a21c053bf76`）。升級後接回（T0861 `decideHolderReattach`）只看 pid 與 hello，不看啟動參數：舊版沒有旗標的 holder 照樣被新版接回、不重啟（T0890 一次性跨版本實測：修改前的建置以 holder 開 cmd 分頁、送升級請求，修改後的建置以同一個 runtime 重開 → 不跳 Recovery 提示、同一個 holder 與 shell、輸入送得到；被接回的 holder 仍沒有旗標，到它結束為止）。
+- 值選 `1`：不經 app 直接驅動 holder 的 Terminal Server（`ts-churn.mjs --holder --env-only`，300 次，各 2 次）：預設 +44.4／+44.3 MB、`1` +12.8／+12.5 MB、`2` +14.8／+14.5 MB；`1` 的 C4／C8 沒有變慢（下表），沒有理由用較大的值。
+
+量測（T0888 spec，同一台機器，2026-11-24，同機有使用者的 BAT 在跑）。標籤：O = `v0.7.5-pre.2`、N0 / H0 = 修改前 `c552ff73` 的原始碼建置／`build:dir`＋holder、N1 / H1 = T0890。原始列在 `experiments/node-pty-worker/results/t0890-*.csv`。
+
+| 情境 | N0（修改前） | N1（T0890） | H0（修改前） | H1（T0890） |
+|---|---|---|---|---|
+| C2① 300 次（3 次中位數；範圍） | +17.2 MB（9.0–17.6） | **+9.5 MB**（8.3–10.4） | +45.6 MB（44.7–46.0） | **+14.9 MB**（14.7–15.5） |
+| C2② 20 輪全關再開（3 次中位數；範圍） | +11.5 MB（9.6–11.8） | +1.8 MB（1.2–2.3） | +12.5 MB（12.2–13.7） | +2.8 MB（2.5–3.2） |
+| C4 完成時間中位數（N 6 次兩輪對調、H 3 次；O 6 次 4560 ms） | 2124 ms | 2123.5 ms（相對 O −53.4%） | 2201 ms | 2131 ms（−53.3%） |
+| C4 峰值 Private Bytes | 50–54 MB | 47–51 MB | 71–72 MB | 52–53 MB |
+| C8 閒置回顯中位數／p95（3 次） | 30.8–31.2／32.2–33.6 ms | 30.8–31.1／32.2–33.8 ms | 30.8–31.2／32.1–32.5 ms | 30.9–31.3／32.3–33.7 ms |
+| C8 另 9 分頁大量輸出時中位數／p95 | 16／16.6–17.1 ms | 16／16.9–17.1 ms | 16／16.3–17.4 ms | 16–16.1／16.9–17.3 ms |
+
+T0890 的其他情境（各 1 次，條件同 T0888）：C1 10 分頁 N1 34.9 MB／H1 41.1 MB、10 → 30 分頁每分頁 +0.16／+0.08 MB；C3 N1 43 → 37.9 → 39.9 MB、H1 41 → 41.5 → 42.6 MB；C5 關閉最長 186／199 ms、全關後 32.4／40.5 MB（T0889 H 81.8 MB）；C7 舊 shell 0 存活、38.8 → 38.5／39.6 → 39.4 MB；C6（H1，30 分鐘）+1.9 MB。
+
+### 已知限制
+
+- **開關分頁的記憶體高水位（BUG-214）**：保持 10 個分頁、另一個分頁開關 300 次，Terminal Server Private Bytes 增加。T0890 起 Windows 以 `--max-semi-space-size=1` 啟動（見上一節），中位數由 +17.2 → +9.5 MB（原始碼建置）、+45.6 → +14.9 MB（holder），仍高於 T0888 的 ≤ 5 MB 條件；20 輪全關再開（C2②）降到 +1.8／+2.8 MB。剩下的增加在老生代與 V8／原生層保留的記憶體（T0889：holder 每 10 s 強制 GC 仍 +38.1 MB），新生代上限管不到；觸發因素之一是 app 每次 `pty:create` 帶完整 env（未改）。以下是 T0889 的判斷與證據（數字為未加旗標時）：
+  - 不是 BAT 的每連線狀態：修改後主執行緒的 socket 數全程 20 個（修改前每關一個分頁多一個，C2 後 500 個；已由 `releaseEndedPtyInput` 修掉），共用 Worker 的 heap 與 handle 數固定。
+  - Electron node（原始碼建置）：主執行緒每 10 s 強制 GC 時 C2① 只 +0.3～+0.8 MB；不 GC 時新生代提交量 2 → 13.5 MB（使用 0.5 MB），老生代 +3～6 MB，屬 V8 heap 高水位。
+  - 觸發的是 app 每次 `pty:create` 帶的完整 env（`experiments/node-pty-worker/churn-repro/ts-churn.mjs`：只帶 env +17.2 MB、只有 userData +5.0 MB、都不帶 +3.3 MB）；O 的 Terminal Server 在同一情境 +27.8 MB，是既有行為。T0888 在 app 中量到 O −10.3 MB，是每個 PTY 一個 Worker 的大幅波動蓋掉了它。
+  - holder（官方 Node）：同情境 +45.0 MB，每 10 s 強制 GC 仍 +38.1 MB（JS heap GC 後約 8 MB，增加在 V8／原生層保留的記憶體）；Terminal Server 以 `--max-semi-space-size=1` 啟動時 +12.7 MB（Electron node app-like 情境 +16.5 → +7.6 MB）。T0890 採用（C4／C8 沒有變慢）。
+  - 因此 C2① 的波動很大（同一份程式：+7.8 / +16.4 / +10.1 MB；C2② 也有 +0.7 ～ +14.2 MB，取樣落在兩次 GC 之間時偏高）。
+- 共用 Worker 當掉會讓所有分頁失去輸出（原本只影響一個）。不自動重建（理由見〈必守規則〉）；只有 stderr 一行，主行程目前看不到（要看得到需在協定加欄位，另案）。
+- 升 node-pty 時版本守門會自動停用替換：功能不壞，記憶體回到每個 PTY 一個 Worker。升版時重新驗證並更新 `SHARED_CONOUT_NODE_PTY_VERSION`。
+- 只在 Windows 11 build 28000 實測；防死結設計與 node-pty 相同，不依賴 Windows 版本。
+
+### 驗證
+
+- 單元（T0889）：`shared-conout.test.ts` 的〈T0889: the real Worker script batches raw bytes〉（300 段含被切開的 UTF-8 字元 → 位元組完全相同且段數 < 1/10、靜默後立即送、client 不讀時暫停 conout 且恢復後不漏、conout 結束在待送位元組之後傳到 client、close 後 conout 連線與 client 都關閉且 `<pipe>-worker` 不再聽）；`shared-conout-release.test.ts`（非 win32 不讀、只 destroy 一次、形狀不符不碰、kill / 重啟的 exit 釋放、自然結束不釋放、非 win32 exit 路徑不變；Windows 真 node-pty 5 個 PTY 開關後 conin socket 回到基準、自然結束的保留 1 個）。
+- 單元 `electron/__tests__/shared-conout.test.ts`：非 win32 不讀任何檔；版本 / 類別 / agent 形狀不符、Worker 缺、套件讀不到 → `skipped` 且 export 不變；重複安裝；假 Worker 的生命週期（3 個 PTY 1 個 Worker、`ready` 依 id、`<pipe>-worker`、1 s 排空、最後一個關閉後 `terminate`、下一個 PTY 新 Worker、錯誤與非預期結束各一行且不含管線名稱）；真 Worker 腳本轉送管線（所有平台）；Windows 子程序跑真 node-pty 1.1.0（`installed`、3 個 PTY 各 3000 行完整依序、全程 1 個 Worker、`exit 7`、大量輸出中 kill 不 hang、最後一個 PTY 後 Worker 結束、事件迴圈自己結束）；source guard（只有 `server.ts` 安裝、在 `pty.spawn(` 之前；`pty-manager.ts` 沒有）。
+- holder：`scripts/__tests__/pty-holder.test.mjs`（holder 帶 Worker、與打包的同一份、app 缺 Worker → 建置失敗、manifest 沒列 → 問題）。
+- e2e（Windows，`npx vite build` 後）：`t0572-new-pty-initial-size`、`t0578-recovery-no-direct-shell`、`t0704-heartbeat-recovery`；打包版（`npm run build:dir`）：`t0859-pty-holder`、`t0861-holder-reattach`。
+- 記憶體：`experiments/node-pty-worker/bat-memory/`（T0885 `bat-baseline.spec.ts` 的閒置部分，`T0887_LABEL=base|shared`）。
+- 壓力與吞吐（T0888 / T0889）：`e2e/t0888-shared-conout-stress.spec.ts`（C1–C8，見檔頭）；不經 app 的重現在 `experiments/node-pty-worker/churn-repro/`（`churn.ts` 共用 Worker＋node-pty、`throughput.ts` ELU、`ts-churn.mjs` 直接驅動建置好的 Terminal Server，可換 holder 與啟動旗標）。
+- 合併後：W6 `windows-upgrade-acceptance.yml`（holder 內容改變）。
 
 ## 日誌
 

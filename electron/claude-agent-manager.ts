@@ -31,6 +31,8 @@ import { broadcastHub } from './remote/broadcast-hub'
 // BAT built-in curated model list (always available, shown first)
 const BAT_BUILTIN_MODELS: Array<{ value: string; displayName: string; description: string }> = [
   { value: 'claude-opus-5-5',   displayName: 'Opus 5.5 (1M)',   description: 'claude-opus-5-5 · 1M context' },
+  // T0891: Fable 5.2 (CLI 2.1.321+, the CLI's `fable` alias); Fable 5.1 stays selectable.
+  { value: 'claude-fable-5-2',  displayName: 'Fable 5.2 (1M)',  description: 'claude-fable-5-2 · 1M context' },
   { value: 'claude-fable-5-1',  displayName: 'Fable 5.1 (1M)',  description: 'claude-fable-5-1 · 1M context' },
   { value: 'claude-sonnet-5-5', displayName: 'Sonnet 5.5 (1M)', description: 'claude-sonnet-5-5 · 1M context' },
   { value: 'claude-haiku-5-5',  displayName: 'Haiku 5.5 (1M)',  description: 'claude-haiku-5-5 · 1M context' },
@@ -47,8 +49,10 @@ const BAT_BUILTIN_MODELS: Array<{ value: string; displayName: string; descriptio
 // `modelUsage` reports the real values. Source: platform.claude.com/docs/en/models/overview
 // (read 2026-10-13) — Opus 5.5 / Fable 5.1 / Sonnet 5.5 / Haiku 5.5 are all 1M context, 128K max
 // output (synchronous Messages API). Models not listed there keep the pre-T0484 estimate.
+// T0891 (same page, read 2026-11-25): Fable 5.2 is 1M context, 128K max output too.
 const MODEL_LIMITS: Array<{ match: string; contextWindow: number; maxOutputTokens: number }> = [
   { match: 'opus-5-5',   contextWindow: 1_000_000, maxOutputTokens: 128_000 },
+  { match: 'fable-5-2',  contextWindow: 1_000_000, maxOutputTokens: 128_000 },
   { match: 'fable-5-1',  contextWindow: 1_000_000, maxOutputTokens: 128_000 },
   { match: 'sonnet-5-5', contextWindow: 1_000_000, maxOutputTokens: 128_000 },
   { match: 'haiku-5-5',  contextWindow: 1_000_000, maxOutputTokens: 128_000 },
@@ -627,6 +631,8 @@ export class ClaudeAgentManager {
   private sessions: Map<string, SessionInstance> = new Map()
   private deps: ClaudeAgentManagerDeps
   private healthCheckTimer: ReturnType<typeof setInterval> | null = null
+  /** PLAN-068 W3 / T0905: the Tower turn cards' panel source (`setTurnResultListener`). */
+  private turnResultListener: ((sessionId: string, text: string) => void) | null = null
 
   constructor(deps: ClaudeAgentManagerDeps) {
     this.deps = deps
@@ -659,6 +665,25 @@ export class ClaudeAgentManager {
 
   private send(channel: string, ...args: unknown[]) {
     this.deps.emit(channel, ...args)
+  }
+
+  /**
+   * PLAN-068 W3 / T0905 (T0902 §2.3 / §4): called with a panel session's last assistant message — the
+   * SDK `result` text of a `success` result — once per result (the Tower turn cards,
+   * `TowerCardStore.offerPanelMessage`, electron/tower-cards.ts, decide whether the panel is a Tower).
+   * null removes it. A throwing listener is logged (no text) and changes nothing else.
+   */
+  setTurnResultListener(listener: ((sessionId: string, text: string) => void) | null): void {
+    this.turnResultListener = listener
+  }
+
+  private notifyTurnResult(sessionId: string, subtype: string, text: unknown): void {
+    if (!this.turnResultListener || subtype !== 'success' || typeof text !== 'string' || text.trim() === '') return
+    try {
+      this.turnResultListener(sessionId, text)
+    } catch (e) {
+      logger.warn(`[tower-cards] panel turn result listener failed session=${sessionId.slice(0, 8)}: ${e instanceof Error ? e.message : String(e)}`)
+    }
   }
 
   /**
@@ -2146,6 +2171,7 @@ export class ClaudeAgentManager {
       })
 
       this.sendCompletionNotification(session, resultMsg.result)
+      this.notifyTurnResult(sessionId, resultMsg.subtype, resultMsg.result) // T0905
     }
   }
 

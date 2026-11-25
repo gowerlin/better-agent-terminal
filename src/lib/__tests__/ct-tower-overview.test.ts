@@ -1,5 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import {
+  contentHash,
+  describeYamlError,
   dualInstallNotices,
   extractLastUpdatedLine,
   formatConfigValue,
@@ -8,6 +10,7 @@ import {
   parseTowerConfigDefaults,
   parseTowerConfigYaml,
   parseTowerState,
+  towerStateSummaryLog,
   workOrderPhase,
 } from '../ct-tower-overview'
 import { parseWorkOrder, statusColor, statusLabel, type WorkOrderStatus } from '../../types/control-tower'
@@ -429,5 +432,69 @@ describe('dualInstallNotices', () => {
     expect(dualInstallNotices(undefined)).toEqual([])
     expect(dualInstallNotices('x')).toEqual([])
     expect(dualInstallNotices({ claude: 'x', codex: { manual: 1, plugin: {} } })).toEqual([])
+  })
+})
+
+// T0894 (BUG-217): the summary error goes to the debug log on one line, once per error and content.
+describe('describeYamlError / towerStateSummaryLog', () => {
+  // `\U` inside a double-quoted YAML string expects 8 hex digits
+  const backslashState = (note: string) =>
+    `---\nschema_kind: tower-state\nsummary_version: 1\nnote: "C:\\Users\\demo\\${note}"\n---\n最後更新：A\n`
+
+  it('one line: reason plus the file line and column, never the snippet or content', () => {
+    const parsed = parseTowerState(backslashState('x'))
+    expect(parsed.kind).toBe('no-summary')
+    const error = parsed.kind === 'no-summary' ? parsed.summaryError : undefined
+    expect(error).toBe('YAML parse error: expected hexadecimal character at line 4, column 12')
+    expect(error).not.toContain('\n')
+    expect(error).not.toContain('demo')
+  })
+
+  it('an error that is not a YAMLException keeps only its first line, capped', () => {
+    expect(describeYamlError(new Error('first\nsecond'))).toBe('YAML parse error: first')
+    expect(describeYamlError('x'.repeat(500))).toBe(`YAML parse error: ${'x'.repeat(120)}`)
+    expect(describeYamlError({ reason: 'bad', mark: { line: 0, column: 2 } }, 1)).toBe('YAML parse error: bad at line 2, column 3')
+    expect(describeYamlError({ reason: 'bad' })).toBe('YAML parse error: bad')
+  })
+
+  it('values named in a summary error: short scalars as written, anything else by type', () => {
+    const err = (fm: string) => {
+      const parsed = parseTowerState(`---\n${fm}\n---\n`)
+      return parsed.kind === 'no-summary' ? parsed.summaryError : undefined
+    }
+    expect(err('schema_kind: workorder')).toBe('schema_kind is "workorder", not "tower-state"')
+    expect(err('schema_kind:\n  a: secret-value')).toBe('schema_kind is a map, not "tower-state"')
+    expect(err(`schema_kind: ${'y'.repeat(41)}`)).toBe('schema_kind is a string, not "tower-state"')
+    expect(err('schema_kind: tower-state')).toBe('summary_version undefined is not an integer ≥ 1')
+    expect(err('schema_kind: tower-state\nsummary_version: [1, 2]')).toBe('summary_version a list is not an integer ≥ 1')
+  })
+
+  it('same error and content → logged once; changed content or error → again; cleared → one line', () => {
+    const a = backslashState('a')
+    const first = towerStateSummaryLog(null, a, parseTowerState(a))
+    expect(first.line).toBe('[ct-overview] _tower-state.md summary ignored: YAML parse error: expected hexadecimal character at line 4, column 12')
+    expect(first.next).toEqual({ error: expect.any(String), contentHash: contentHash(a) })
+
+    const again = towerStateSummaryLog(first.next, a, parseTowerState(a))
+    expect(again.line).toBeNull()
+    expect(again.next).toBe(first.next)
+
+    const b = backslashState('b') // same error, different content
+    const changed = towerStateSummaryLog(again.next, b, parseTowerState(b))
+    expect(changed.line).toBe(first.line)
+
+    const c = '---\nschema_kind: workorder\n---\n' // different error
+    const other = towerStateSummaryLog(changed.next, c, parseTowerState(c))
+    expect(other.line).toBe('[ct-overview] _tower-state.md summary ignored: schema_kind is "workorder", not "tower-state"')
+
+    const fixed = towerStateSummaryLog(other.next, SUMMARY_V1, parseTowerState(SUMMARY_V1))
+    expect(fixed).toEqual({ next: null, line: '[ct-overview] _tower-state.md summary error cleared' })
+    expect(towerStateSummaryLog(null, SUMMARY_V1, parseTowerState(SUMMARY_V1))).toEqual({ next: null, line: null })
+  })
+
+  it('contentHash is stable and tells contents apart', () => {
+    expect(contentHash('abc')).toBe(contentHash('abc'))
+    expect(contentHash('abc')).not.toBe(contentHash('abd'))
+    expect(contentHash('')).toMatch(/^[0-9a-f]{8}$/)
   })
 })

@@ -52,6 +52,12 @@ interface TowerOverviewProps {
   sprintReadError?: string | null
   ctDirPath: string | null
   onOpenFile: (filePath: string) => void
+  /**
+   * PLAN-068 W4 / T0906 (R6): the Inbox tab is on for this workspace (§6′ match) — `todo` shows only
+   * its count and a link there. False / absent: `todo` is listed here as before (T0701).
+   */
+  todoInInbox?: boolean
+  onOpenInbox?: () => void
 }
 
 const TOWER_STATE_FILE = '_tower-state.md'
@@ -80,7 +86,7 @@ export function TowerOverview(props: TowerOverviewProps) {
 
 // ─── R1 tower state ─────────────────────────────────────────────────────────
 
-function TowerStateSection({ towerState, workOrders, ctDirPath, onOpenFile }: TowerOverviewProps) {
+function TowerStateSection({ towerState, workOrders, ctDirPath, onOpenFile, todoInInbox, onOpenInbox }: TowerOverviewProps) {
   const { t } = useTranslation()
   const openState = () => { if (ctDirPath) onOpenFile(`${ctDirPath}/${TOWER_STATE_FILE}`) }
   const listed = workOrders.filter(o => isListedInOverview(o.status))
@@ -117,7 +123,15 @@ function TowerStateSection({ towerState, workOrders, ctDirPath, onOpenFile }: To
               </span>
             </div>
           )}
-          {towerState.parsed.summary.todo.length > 0 && (
+          {towerState.parsed.summary.todo.length > 0 && todoInInbox && (
+            <div className="ct-overview-row ct-overview-todo-link">
+              <span className="ct-overview-label">{t('controlTower.overview.todo')}</span>
+              <button className="ct-view-file-btn" onClick={() => onOpenInbox?.()}>
+                {t('controlTower.overview.todoInInbox', { count: towerState.parsed.summary.todo.length })}
+              </button>
+            </div>
+          )}
+          {towerState.parsed.summary.todo.length > 0 && !todoInInbox && (
             <div className="ct-overview-todo">
               <div className="ct-overview-label">{t('controlTower.overview.todo')}</div>
               <ul>

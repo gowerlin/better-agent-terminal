@@ -144,7 +144,7 @@ describe('setTerminalRole records the mode (T0565)', () => {
     m.create({ id: 'tw', ...TAB })
     const { deps, emitted } = roleDeps(m)
     expect(setTerminalRole({ terminalId: 'tw', role: 'tower' }, deps)).toEqual({ ok: true, terminalId: 'tw', role: 'tower' })
-    expect(emitted).toEqual([['terminal:role-changed', { id: 'tw', role: 'tower' }]])
+    expect(emitted).toEqual([['terminal:role-changed', { id: 'tw', role: 'tower', towerContract: null }]]) // T0903
     expect(m.getTerminalRole('tw')).toBe('tower')
     expect(m.getTowerMode('tw')).toBeUndefined()
     expect(m.isYoloTerminal('tw')).toBe(false)

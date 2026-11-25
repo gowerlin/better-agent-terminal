@@ -1,0 +1,19 @@
+{
+  "name": "better-agent-terminal",
+  "owner": {
+    "name": "gowerlin"
+  },
+  "metadata": {
+    "description": "Claude Code plugins for Better Agent Terminal (BAT).",
+    "version": "1.0.0"
+  },
+  "plugins": [
+    {
+      "name": "bat-hooks",
+      "source": "./plugins/bat-hooks",
+      "description": "BAT's claude hooks for a claude BAT did not start itself (typed in a shell, custom --settings, Settings › BAT MCP off). Runs the hook script of the BAT tab it is in; does nothing outside BAT.",
+      "version": "1.0.0",
+      "category": "productivity"
+    }
+  ]
+}

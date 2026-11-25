@@ -49,6 +49,11 @@
  * no check (`not-checked`: helper dispatch, which already has its `-c`). Independent of Settings
  * `batMcpEnabled` and of the elevated `CODEX_DISABLE_DAEMON_ARGS`.
  *
+ * PLAN-068 W9 / T0910 (T0902 §7.2): every named claude / codex launch also records its hooks decision
+ * with a reason code (`hooksLaunchRecordOf` → `claudeHooksRecords`, electron/claude-hooks-status.ts),
+ * read by `PtyManager.getHooksStatus` (`hooksStatus`, the `--set-role` `hooks:` line). What goes on the
+ * command line is unchanged; R13: Settings off still leaves the hooks out (`settings-off`).
+ *
  * One implementation for every launch path: the renderer (`agent:bat-mcp-launch-args`, proxied,
  * so a remote window gets the server's paths) and `terminal:create-agent-command`
  * (`createAgentPromptCommandBuilder`). Raw command mode is never touched.
@@ -66,6 +71,7 @@ import { resolveClaudeConfigDir } from './claude-config-dir'
 import type { ClaudeNameSupport } from './claude-version-check'
 import type { CodexNoDaemonSupport } from './codex-osc-version'
 import type { ClaudeSessionNameReason, ClaudeSessionNameRecord } from './claude-session-name-record'
+import { BAT_HOOK_SET, claudeHooksRecords, type ClaudeHooksRecords, type HooksLaunchRecord, type HooksLaunchReason } from './claude-hooks-status'
 
 export const BAT_MCP_SERVER_NAME = 'bat'
 export const BAT_MCP_SHIM = 'bat-mcp.mjs'
@@ -165,6 +171,17 @@ export const BAT_CLAUDE_HOOKS: ReadonlyArray<{ hookEvent: string; matcher?: stri
   // must not wait for it, and its stdout would go into the conversation (the script prints nothing)
   { hookEvent: 'SessionStart', event: 'session-start', async: true },
 ]
+
+/**
+ * PLAN-068 W3 / T0905 (T0902 §7.6): the version of the hook set above (declared in
+ * electron/claude-hooks-status.ts, re-exported here). `scripts/bat-hook.mjs` carries it (`set`, the
+ * script's own `BAT_HOOK_SET` — the two must be equal, `scripts/__tests__/bat-hook-last-message.test.mjs`
+ * guards it). 2 = the `Stop` hook sends claude's `last_assistant_message` (the Tower turn cards,
+ * electron/tower-cards.ts). Raise it with every change to the events or to what they send.
+ * W9 / T0910: the `bat-hooks` plugin's event list (`plugins/bat-hooks/hooks/hooks.json`, its
+ * `--hook-list <n>`) is compared with it → `plugin-outdated`; raise the plugin's list with it.
+ */
+export { BAT_HOOK_SET }
 
 /** T0600: a claude settings file that can turn BAT's hooks off; `managed` = the machine's policy file. */
 export interface ClaudeSettingsFile {
@@ -323,6 +340,11 @@ export interface BatMcpHost {
    * that gets no MCP args. Absent ⇒ `not-checked` (never injected).
    */
   codexNoDaemonSupport?(): Promise<CodexNoDaemonSupport>
+  /**
+   * PLAN-068 W9 / T0910: where a named terminal's hooks launch decision is recorded (`hooksLaunchRecordOf`).
+   * Absent ⇒ this process's `claudeHooksRecords` (Electron main and headless alike; tests pass their own).
+   */
+  hooksRecords?: ClaudeHooksRecords
   /** The platform the hook commands run on (tests). Default `process.platform`. */
   platform?: NodeJS.Platform
   fs?: BatMcpFs
@@ -381,6 +403,33 @@ export function needsClaudeNameSupport(request: Pick<BatMcpLaunchRequest, 'agent
   return batMcpAgentKind(request.agentId) === 'claude'
     && !userArgsSetClaudeName(request.extraArgs)
     && normalizeClaudeSessionName(request.sessionName) !== null
+}
+
+/**
+ * PLAN-068 W9 / T0910 (T0902 §7.1): a claude launch decision's `hooksReason` / `reason` /
+ * `hooksDisabled` text (made in `buildBatMcpLaunchArgs` below) → its reason code, or undefined = the
+ * hooks went in and claude's own settings do not turn them off.
+ */
+export function hooksLaunchReasonOf(result: BatMcpLaunchResult): HooksLaunchReason | undefined {
+  if (result.injected && result.hooks) {
+    if (!result.hooksDisabled) return undefined
+    return result.hooksDisabled.startsWith('allowManagedHooksOnly') ? 'managed-hooks-only' : 'claude-hooks-disabled'
+  }
+  const text = result.hooksReason ?? (result.injected ? '' : result.reason)
+  if (text === 'turned off in Settings') return 'settings-off'
+  if (text.startsWith('custom args already pass --settings')) return 'user-settings-arg'
+  if (text.startsWith('RemoteServer not listening')) return 'no-endpoint'
+  if (text.startsWith('the hook command cannot be written')) return 'unrepresentable-path'
+  // `bat-hook.mjs` not found, the settings file not written: the helper is broken either way
+  return 'script-missing'
+}
+
+/** T0910: the launch record of a claude / codex launch decision (null = neither). */
+export function hooksLaunchRecordOf(result: BatMcpLaunchResult, at: number): HooksLaunchRecord | null {
+  if (result.kind === 'codex') return { kind: 'codex', at }
+  if (result.kind !== 'claude') return null
+  const reason = hooksLaunchReasonOf(result)
+  return { kind: 'claude', ...(reason ? { reason } : {}), at }
 }
 
 /** T0590: the `blockedDetection` a launch decision gives the terminal. */
@@ -572,6 +621,15 @@ export function createBatMcpLaunchArgs(host: BatMcpHost, source: string): (reque
       }
     }
     if (request.terminalId) {
+      // T0910 (§7.2): the hooks launch decision (claude / codex); another agent forgets an older one
+      const records = host.hooksRecords ?? claudeHooksRecords
+      try {
+        const record = hooksLaunchRecordOf(result, Date.now())
+        if (record) records.setLaunch(request.terminalId, record)
+        else records.deleteLaunch(request.terminalId)
+      } catch (error) {
+        host.logger?.warn(`[bat-mcp] recording the hooks decision of ${request.terminalId} failed: ${error instanceof Error ? error.message : String(error)}`)
+      }
       const name = result.injected && result.name ? result.name : null
       try {
         host.recordClaudeSessionName?.(request.terminalId, { name, ...(name ? {} : { reason: result.nameReason ?? 'not-claude-cli' }), at: Date.now() })

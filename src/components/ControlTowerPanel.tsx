@@ -27,14 +27,19 @@ import { type BmadWorkflow, buildBmadWorkflow, PHASE_DEFINITIONS } from '../type
 import { type BmadEpic, parseEpicsFile, buildSprintStoryMap } from '../types/bmad-epic'
 import { BmadEpicsView } from './BmadEpicsView'
 import { TowerOverview, type TowerStateLoad, type ProjectConfigLoad, type ConfigSourcesLoad } from './TowerOverview'
-import { parseTowerState } from '../lib/ct-tower-overview'
+import { parseTowerState, towerStateBatContract, towerStateSummaryLog, type SummaryErrorLogState } from '../lib/ct-tower-overview'
 import { unsupportedRemoteChannel } from '../lib/remote-unsupported'
+import { acquireDirWatch } from '../stores/ct-dir-watch'
+import { OPEN_CONTROL_TOWER_TAB_EVENT, requestOpenInbox, takeControlTowerTabRequest, type ControlTowerTabRequest } from '../stores/inbox-store'
+import { useInboxVerdict } from './inbox/useInboxModel'
 
 type CtTab = 'sprint' | 'orders' | 'kanban' | 'workflow' | 'bugs' | 'backlog' | 'decisions'
 
 interface ControlTowerPanelProps {
   isVisible: boolean
   workspaceFolderPath: string | null
+  /** PLAN-068 W4 / T0906 (R6): the workspace shown, to know whether its Inbox tab is on. */
+  workspaceId?: string | null
   onExecWorkOrder?: (workOrderId: string) => void
   onDoneWorkOrder?: (workOrderId: string) => void
 }
@@ -151,7 +156,7 @@ function formatMtime(mtimeMs: number): string {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`
 }
 
-export function ControlTowerPanel({ isVisible, workspaceFolderPath, onExecWorkOrder, onDoneWorkOrder }: ControlTowerPanelProps) {
+export function ControlTowerPanel({ isVisible, workspaceFolderPath, workspaceId, onExecWorkOrder, onDoneWorkOrder }: ControlTowerPanelProps) {
   const { t } = useTranslation()
   const [workOrders, setWorkOrders] = useState<WorkOrder[]>([])
   const [loading, setLoading] = useState(false)
@@ -187,12 +192,19 @@ export function ControlTowerPanel({ isVisible, workspaceFolderPath, onExecWorkOr
   const [towerState, setTowerState] = useState<TowerStateLoad | null>(null)
   const [projectConfig, setProjectConfig] = useState<ProjectConfigLoad | null>(null)
   const [configSources, setConfigSources] = useState<ConfigSourcesLoad | null>(null)
+  // PLAN-068 W4 / T0906 (R6, Tower answer Q-2): the overview links its `todo` to the Inbox tab only while
+  // that tab is on for this workspace (§6′ match); otherwise the overview shows `todo` as before.
+  const stateContract = towerState?.status === 'loaded' ? towerStateBatContract(towerState.parsed) : null
+  const { verdict: inboxVerdict } = useInboxVerdict(workspaceId ?? null, stateContract)
+  const todoInInbox = !!workspaceId && towerState?.status === 'loaded' && inboxVerdict.kind === 'match'
   const ctDirRef = useRef<string | null>(null)
   const bmadOutputRef = useRef<string | null>(null)
   const orderBaselineRef = useRef<WorkOrderBaseline | null>(null)
   const orderLoadSeqRef = useRef(0)
   const appliedOrderLoadSeqRef = useRef(0)
   const sprintStatusRef = useRef<SprintStatus | null>(null)
+  // T0894 (BUG-217): last logged `_tower-state.md` summary error per `_ct-workorders/` dir (memory only)
+  const summaryErrorLogRef = useRef(new Map<string, SummaryErrorLogState>())
   const { messages: toastMessages, addToast, dismissToast } = useCtToast()
   const toastMessagesRef = useRef(toastMessages)
   toastMessagesRef.current = toastMessages
@@ -502,9 +514,11 @@ export function ControlTowerPanel({ isVisible, workspaceFolderPath, onExecWorkOr
     let nextState: TowerStateLoad
     if (stateResult.content != null) {
       const parsed = parseTowerState(stateResult.content)
-      if (parsed.kind === 'no-summary' && parsed.summaryError) {
-        window.electronAPI.debug.log(`[ct-overview] _tower-state.md summary ignored: ${parsed.summaryError}`)
-      }
+      const logged = summaryErrorLogRef.current
+      const { next, line } = towerStateSummaryLog(logged.get(ctDirPath) ?? null, stateResult.content, parsed)
+      if (next) logged.set(ctDirPath, next)
+      else logged.delete(ctDirPath)
+      if (line) window.electronAPI.debug.log(line)
       let mtime: string | null = null
       if (parsed.kind === 'no-summary' && !parsed.lastUpdated) {
         const stat = await window.electronAPI.fs.stat(statePath).catch(() => null)
@@ -708,7 +722,8 @@ export function ControlTowerPanel({ isVisible, workspaceFolderPath, onExecWorkOr
     if (!isVisible || !ctDirPath || !workspaceFolderPath) return
 
     ctDirRef.current = ctDirPath
-    window.electronAPI.fs.watch(ctDirPath)
+    // T0906: shared with the Inbox data source (one fs:watch per directory per window)
+    const releaseCtDir = acquireDirWatch(ctDirPath)
 
     // Also watch _bmad-output/ if present (for Workflow/Epics auto-refresh)
     if (bmadOutputPath) {
@@ -739,9 +754,7 @@ export function ControlTowerPanel({ isVisible, workspaceFolderPath, onExecWorkOr
 
     return () => {
       unsubscribe()
-      if (ctDirRef.current) {
-        window.electronAPI.fs.unwatch(ctDirRef.current)
-      }
+      releaseCtDir()
       if (bmadOutputRef.current) {
         window.electronAPI.fs.unwatch(bmadOutputRef.current)
         bmadOutputRef.current = null
@@ -751,6 +764,15 @@ export function ControlTowerPanel({ isVisible, workspaceFolderPath, onExecWorkOr
       }
     }
   }, [isVisible, ctDirPath, bmadOutputPath, workspaceFolderPath, reloadAll, loadBmadWorkflow, loadEpics])
+
+  // PLAN-068 W4 / T0906: the Inbox asked for a sub-tab (BUG to accept → Bugs, counts → Bugs / Backlog / Work orders)
+  useEffect(() => {
+    const show = (tab: ControlTowerTabRequest | null) => { if (tab) setActiveTab(tab) }
+    show(takeControlTowerTabRequest())
+    const onRequest = () => show(takeControlTowerTabRequest())
+    window.addEventListener(OPEN_CONTROL_TOWER_TAB_EVENT, onRequest)
+    return () => window.removeEventListener(OPEN_CONTROL_TOWER_TAB_EVENT, onRequest)
+  }, [])
 
   // Load/clear archived orders when toggle changes
   useEffect(() => {
@@ -920,6 +942,8 @@ export function ControlTowerPanel({ isVisible, workspaceFolderPath, onExecWorkOr
             sprintReadError={sprintReadError ? formatCtReadError(t, sprintReadError) : null}
             ctDirPath={ctDirPath}
             onOpenFile={openFileInFilesTab}
+            todoInInbox={todoInInbox}
+            onOpenInbox={requestOpenInbox}
           />
         )}
       </div>

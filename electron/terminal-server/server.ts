@@ -1,6 +1,7 @@
 import * as crypto from 'crypto'
 import * as fs from 'fs'
 import * as net from 'net'
+import * as path from 'path'
 import { RingBuffer } from './ring-buffer'
 import { writePortFile, removePortFile, removePidFile, writeTokenFile, removeTokenFile } from './pid-manager'
 import { addPtyEntry, removePtyEntry, clearRegistry, writeRegistry } from './pty-registry'
@@ -15,6 +16,7 @@ import {
   type ServerResponse,
 } from './protocol'
 import { guardPtySpawnFds, type PtyFdGuardDeps } from '../pty-spawn-fd-guard'
+import { installSharedConout, releaseEndedPtyInput, type SharedConoutResult } from './shared-conout'
 
 // Load @lydell/node-pty at runtime — same pattern as pty-manager.ts
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -27,6 +29,19 @@ try {
   }
 } catch {
   // node-pty not available in this environment
+}
+
+/**
+ * T0887 (PLAN-066, D308): on Windows every PTY of this server shares one conout Worker instead of node-pty's one
+ * Worker per PTY (electron/terminal-server/shared-conout.ts). Installed once, right before the first spawn; macOS /
+ * Linux return `skipped:not-win32` without reading anything. The one log line goes to the server's stderr like the
+ * other `[terminal-server]` lines.
+ */
+let sharedConoutResult: SharedConoutResult | null = null
+function ensureSharedConout(): void {
+  if (sharedConoutResult !== null) return
+  sharedConoutResult = installSharedConout(() => path.dirname(require.resolve('@lydell/node-pty/package.json')))
+  if (sharedConoutResult !== 'skipped:not-win32') process.stderr.write(`[shared-conout] ${sharedConoutResult}\n`)
 }
 
 interface PtyEntry {
@@ -455,6 +470,7 @@ export class TerminalServer {
     }
 
     try {
+      ensureSharedConout()
       const ptyEnv = buildServerPtyEnv(process.env, req.env)
 
       // BUG-205 / T0806: on Linux the shell starts through the fd guard (pid / argv / env unchanged);
@@ -516,6 +532,10 @@ export class TerminalServer {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private handlePtyExit(id: string, proc: any, exitCode: number): void {
     const current = this.ptys.get(id)
+    // T0889 (BUG-214): a PTY BAT ended itself (kill / restart / shutdown: no longer the entry for this id) releases
+    // its conin socket, which node-pty 1.1.0 never destroys. A PTY that exited by itself is left as before (F4).
+    // After this callback, so node-pty's own exit handling (`_close()`) has run first.
+    if (this.deps.platform === 'win32' && current?.pty !== proc) setImmediate(() => releaseEndedPtyInput(proc, this.deps.platform))
     if (current && current.pty !== proc) {
       process.stderr.write(`[terminal-server] stale exit ignored id=${id} (replaced by a newer PTY)\n`)
       return

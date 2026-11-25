@@ -10,7 +10,8 @@
  *   - pins the Node version and the SHA-256 of each `node.exe` (PTY_HOLDER_NODE); the build downloads it only
  *     from nodejs.org and fails on any mismatch — SHASUMS256.txt is NOT read at build time (supply chain rule);
  *   - assembles `<resources>/pty-holder/` in the electron-builder afterPack hook (scripts/version-manifest.cjs),
- *     Windows builds only: `bat-pty-holder.exe`, `terminal-server.js` (the packaged copy), the win32 runtime files
+ *     Windows builds only: `bat-pty-holder.exe`, `terminal-server.js` (the packaged copy) and its shared conout Worker
+ *     `shared-conout-worker.cjs` (T0887), the win32 runtime files
  *     of `@lydell/node-pty`, and `holder-manifest.json` (key, Node version, arch, size + SHA-256 of every file);
  *   - pins Node's `LICENSE` (PTY_HOLDER_NODE.license, same version tag as node.exe; T0859) and ships it as
  *     `node-LICENSE` in the holder;
@@ -64,6 +65,11 @@ const PTY_HOLDER_EXE_NAME = 'bat-pty-holder.exe';
 const PTY_HOLDER_RESOURCES_DIR = 'pty-holder';
 const PTY_HOLDER_MANIFEST_FILE = 'holder-manifest.json';
 const PTY_HOLDER_ENTRY = 'terminal-server.js';
+/**
+ * T0887 (PLAN-066): the shared conout Worker terminal-server.js starts on Windows (electron/terminal-server/shared-conout.ts
+ * looks for it next to itself). Required in the holder: without it the server would fall back to node-pty's Worker per PTY.
+ */
+const PTY_HOLDER_SHARED_CONOUT_WORKER = 'shared-conout-worker.cjs';
 const PTY_HOLDER_MANIFEST_SCHEMA = 1;
 /**
  * Holder root directory name (D2): per-user `%LOCALAPPDATA%\BAT-PtyHolder`, per-machine `%ProgramFiles%\BAT-PtyHolder`.
@@ -284,10 +290,14 @@ function holderSourceFiles(resourcesDir, arch, nodeExe, nodeLicense) {
   const unexpected = externals.filter((name) => !PTY_HOLDER_EXTERNAL_PACKAGES.includes(name));
   if (unexpected.length) throw new Error(`PTY holder (T0858): ${PTY_HOLDER_ENTRY} requires ${unexpected.join(', ')}, which the holder does not carry (add it to PTY_HOLDER_EXTERNAL_PACKAGES and holderSourceFiles)`);
 
+  const worker = path.join(unpacked, 'dist-electron', PTY_HOLDER_SHARED_CONOUT_WORKER);
+  if (!fs.existsSync(worker)) throw new Error(`PTY holder (T0887): ${worker} missing (build.asarUnpack must keep dist-electron/${PTY_HOLDER_SHARED_CONOUT_WORKER})`);
+
   const files = [
     { rel: PTY_HOLDER_EXE_NAME, src: nodeExe },
     { rel: PTY_HOLDER_NODE_LICENSE_FILE, src: nodeLicense },
     { rel: PTY_HOLDER_ENTRY, src: entry },
+    { rel: PTY_HOLDER_SHARED_CONOUT_WORKER, src: worker },
   ];
   const ptyDir = path.join(unpacked, 'node_modules', NODE_PTY_PACKAGE);
   if (!fs.existsSync(ptyDir)) throw new Error(`PTY holder (T0858): ${ptyDir} missing (build.asarUnpack must keep ${NODE_PTY_PACKAGE})`);
@@ -425,7 +435,7 @@ function ptyHolderProblems(holderDir, arch) {
   for (const rel of fs.existsSync(holderDir) ? walkRelative(holderDir) : []) {
     if (rel !== PTY_HOLDER_MANIFEST_FILE && !listed.has(rel)) problems.push(`not in the manifest: ${rel}`);
   }
-  for (const required of [PTY_HOLDER_EXE_NAME, PTY_HOLDER_NODE_LICENSE_FILE, PTY_HOLDER_ENTRY, `node_modules/${NODE_PTY_PACKAGE}/package.json`, ...NODE_PTY_NATIVE_FILES.map((f) => `node_modules/${NODE_PTY_PACKAGE}-win32-${arch}/${f}`)]) {
+  for (const required of [PTY_HOLDER_EXE_NAME, PTY_HOLDER_NODE_LICENSE_FILE, PTY_HOLDER_ENTRY, PTY_HOLDER_SHARED_CONOUT_WORKER, `node_modules/${NODE_PTY_PACKAGE}/package.json`, ...NODE_PTY_NATIVE_FILES.map((f) => `node_modules/${NODE_PTY_PACKAGE}-win32-${arch}/${f}`)]) {
     if (!listed.has(required)) problems.push(`manifest does not list ${required}`);
   }
   for (const file of files) {
@@ -505,6 +515,7 @@ module.exports = {
   PTY_HOLDER_RESOURCES_DIR,
   PTY_HOLDER_MANIFEST_FILE,
   PTY_HOLDER_ENTRY,
+  PTY_HOLDER_SHARED_CONOUT_WORKER,
   PTY_HOLDER_MANIFEST_SCHEMA,
   PTY_HOLDER_ROOT_DIR_NAME,
   PTY_HOLDER_KEY_RE,
