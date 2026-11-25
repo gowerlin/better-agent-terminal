@@ -87,7 +87,7 @@ CT yolo 多個 Worker 並行時，塔台每收到一份回報就寫總結，有�
 | 測試版（desktop-build）＋實機驗收（M-U / M-C / M-R） | D335 | 進行中 |
 | M-C1–M-C7 自動化實機驗收（BAT 執行、CT 判定） | T0915 | DONE（BAT 端；CT 端判定中；`4f7484bc` ff 進 `v0.8.x`） |
 | 修 BUG-220 待辦分頁讀不到新建 `_ct-workorders/` | T0916 | DONE（FIXED `d81fdc4c`，ff 進 `v0.8.x`） |
-| 修 BUG-221 全螢幕塔台閱讀保護 | T0917 | IN_PROGRESS（12:22 派工） |
+| 修 BUG-221 全螢幕塔台閱讀保護 | T0917 | DONE（FIXED `91c49360`，待合併工單） |
 | 修 BUG-222 排隊權限詢問提早清 blocked | T0918 | IN_PROGRESS（12:22 派工） |
 | 發佈 `0.8.0-pre.3`（與 CT 6.1.0 同日） | 實機驗收後 | — |
 
