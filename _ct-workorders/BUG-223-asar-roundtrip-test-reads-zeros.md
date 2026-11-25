@@ -41,5 +41,6 @@ links:
 
 ## 處置
 
+- 2026-11-25 23:41 佐證：含修正的 `main` `56ca6e66` desktop-build run `45644734317` 的 `tests` job 綠燈（單次綠燈只是佐證）；照 BUG-218 前例，等 `0.8.0-pre.4` 發版的 CI Test gate 也綠再 CLOSED。
 - 2026-11-25 21:52 T0924 FIXED（`1eb8f5ee`）：根因在測試——`@electron/asar` 3.4.1 `createPackageWithOptions` 回傳 `out.end()` 的串流、不等寫完（`disk.js` 第 60–66、85 行），最後打包的 `ws/package.json` 偶爾還沒寫入就被讀；測試改 `await finished(out)` 再讀，斷言不變，`verify-packaged-native.js` 未改。慢寫入對照：修正前 20/20 讀到 NUL、修正後 30/30 通過；整檔連跑 120/120。後續建議（未開單）：`readAsarFile` 檢查 `readSync` 位元組數，讀不足判失敗。
 - 2026-11-25 21:38 使用者裁示 U-8：A —— `0.8.0-pre.4` 發版前修，修正單 T0924（與 T0923 平行，D351）。
