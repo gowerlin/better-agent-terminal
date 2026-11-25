@@ -3,11 +3,11 @@ schema_version: 1
 schema_kind: bug
 id: BUG-223
 title: "CI 單元測試 `verify-packaged-native.test.mjs`〈reads an app.asar written by @electron/asar〉偶發讀到全 NUL（`node_modules/ws/package.json` 內容是 `\\u0000…`），測試失敗"
-status: OPEN
+status: FIXING
 severity: low
 reproducibility: "rare（ubuntu runner 第一次見：desktop-build run `45621864786` `tests` job，`main` `402c9648`；同檔自 T0887 起未改，pre.3 CI 綠）"
 created_at: "2026-11-25T21:36:50+08:00"
-updated_at: "2026-11-25T21:36:50+08:00"
+updated_at: "2026-11-25T21:38:19+08:00"
 impact:
   - tests
   - ci
@@ -21,7 +21,7 @@ links:
 |------|------|
 | 嚴重度 | 🟢 low（只影響測試；但 CI Test gate（T0686）失敗會擋 `pre-release.yml` 的 build / 發版） |
 | 可重現 | 少見：第一次出現 |
-| **狀態** | 📂 OPEN |
+| **狀態** | 🔧 FIXING（T0924，U-8 → A，D351） |
 | 回報者 | 塔台（desktop-build run `45621864786` 的 `tests` job） |
 | 影響版本 | `main` `402c9648`（測試檔與 `scripts/verify-packaged-native.js` 自 T0887 `a05a9c79` 起未改；`v0.8.0-pre.3` CI 同一測試通過） |
 
@@ -41,4 +41,4 @@ links:
 
 ## 處置
 
-- 待塔台 / 使用者決定是否在 `0.8.0-pre.4` 發版前修（發版的 Test gate 若再遇到會擋發版）。
+- 2026-11-25 21:38 使用者裁示 U-8：A —— `0.8.0-pre.4` 發版前修，修正單 T0924（與 T0923 平行，D351）。

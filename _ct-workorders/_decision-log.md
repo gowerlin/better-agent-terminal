@@ -10,6 +10,7 @@
 
 | ID | 日期 | 標題 | 相關工單 |
 |----|------|------|---------|
+| D351 | 2026-11-25 | U-8 → A：BUG-223（CI asar 往返測試偶發全 NUL）`0.8.0-pre.4` 前修 → FIXING，修正單 T0924（與 T0923 平行） | BUG-223 / T0924 |
 | D350 | 2026-11-25 | U-7 → A：push `main` `7f5c7ebc..402c9648`（去識別 / 金鑰 0）；`desktop-build.yml` `45621864786`（`0.8.0-exp.1`，只打包不發佈）供 PLAN-069 雙方實機驗收 | T0922 / PLAN-069 |
 | D349 | 2026-11-25 | U-6 → A：`main` ff 到 `728c3197`（T0922 併入）；T0922 worktree 移除、分支保留；驗收方式 → U-7 | T0922 / PLAN-069 |
 | D348 | 2026-11-25 | T0922 收單 DONE（`0675d9fd`，PLAN-069 BAT 端）；模式 ① 整合分支 `ct-merge/T0922` → `9bbd42fa`；斷點 E → U-6 | T0922 / PLAN-069 |
@@ -282,6 +283,13 @@
 - **最大風險**：`whisper-node-addon@1.0.2` 對 Electron 41（Node 24）的 NODE_MODULE_VERSION 相容性未知，允許 Worker 遇此決策點主動問塔台
 
 ---
+
+### D351 2026-11-25 21:38 — BUG-223 發版前修（U-8）
+
+- **背景**：desktop-build `45621864786`（`main` `402c9648`）四個 build 全綠，`tests` job 1 失敗：`scripts/__tests__/verify-packaged-native.test.mjs`〈reads an app.asar written by @electron/asar〉第 984 行讀到全 NUL；其餘 9059 通過；與 T0922 無關（該檔自 T0887 未改、pre.3 CI 綠）。開 BUG-223（low）。發版 Test gate 遇到會擋發版。
+- **使用者裁示**：U-8：A（原生選單與終端回覆皆為 A）。
+- **決定**：BUG-223 → FIXING；開 T0924（隔離 worktree，`affects_files` 只有該測試檔與 `scripts/verify-packaged-native.js`，與 T0923 的 `e2e/manual/`、`e2e/fixtures/` 無重疊），根因優先、不得放寬檢查或改弱斷言；per-dispatch yolo。
+- **相關**：BUG-223 / T0924 / T0923
 
 ### D350 2026-11-25 21:16 — 驗收用只打包的 BAT（U-7）
 
