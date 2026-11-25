@@ -4,6 +4,21 @@ All notable changes to Better Agent Terminal are documented in this file.
 
 ## [Unreleased]
 
+## [0.8.0-pre.4] — 2026-11-26
+
+### Added
+- 待辦分頁的推薦標記（PLAN-069）：`awaiting_user[].recommended` 與同筆選項代號不分大小寫比對，命中的選項標「推薦」並在未選時預設選取；對不到 / 空選項 / 自由回答時不標、不略過該筆；只看欄位本身（T0922）
+- 待辦分頁的放棄 / 略過（PLAN-069）：`_tower-state.md` 頂層 `inbox_features` 含 `dismiss` 時才顯示；「⏸ 待你決定」每筆「放棄」、「🙋 待你執行」每筆「略過」，可附原因或新方向；勾選批次與每區「全部放棄 / 全部略過」，送出前頁內確認；送一行 `U-1、U-3：放棄 <文字>` / `A-2：略過`，「全部」在送出當下展開成畫面上列出的明確編號、不送萬用字元（T0922）
+- `checkInboxAnswer` 接受多編號行（`、` `,` `，` 分隔），但冒號後第一個詞必須是「放棄」或「略過」；其他多編號行 → `bad-batch`，萬用字元 / 範圍 → `bad-prefix`；單編號格式不變（T0922）
+- 網站「待辦分頁與塔台設定」新增〈推薦選項與放棄〉；README 版本對照新增一列（BAT `>= 0.8.0-pre.4`、CT `>= v6.2.0`）
+
+### Fixed
+- AskUserQuestion 選單出現後極快按 Esc，晚到的 `PermissionRequest` hook 把已清除的 `blocked: question` 設回，塔台分頁卡住（⚠️、通知保護誤觸發）直到下次打字：同一提示晚到的另一個 hook 在使用者回答後 `ANSWERED_QUESTION_LATE_HOOK_MS` = 5 s 內（單調時鐘）不再設回；真正的新提示照常 `blocked`（T0926，BUG-224；測試版實機 T0928 7 / 7）
+- 單元測試 `verify-packaged-native.test.mjs`〈reads an app.asar written by @electron/asar〉偶發讀到全 NUL：`@electron/asar` 3.4.1 的 `createPackageWithOptions` 在資料寫完前 resolve，測試改等寫入串流 `finished` 再讀；斷言與打包檢查程式不變（T0924，BUG-223）
+
+### Changed
+- `e2e/manual/ct-accept-act.mjs`：CT 驗收驅動的逐步操作（工作區 seed、讀畫面、等回合 / 選單、選單選項 `pick`、「其他」輸入 `other`、快速 Esc `fastesc`）（T0923、T0928）
+
 ## [0.8.0-pre.3] — 2026-11-25
 
 ### Added
