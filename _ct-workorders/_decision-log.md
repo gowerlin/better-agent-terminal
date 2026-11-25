@@ -10,6 +10,7 @@
 
 | ID | 日期 | 標題 | 相關工單 |
 |----|------|------|---------|
+| D359 | 2026-11-25 | T0927 收單 DONE（merge `9843fa9e`，BUG-224 修正，無衝突、驗收全綠）；斷點 E → U-12（含 push＋打包 exp.2） | T0927 / T0926 / BUG-224 |
 | D358 | 2026-11-25 | T0926 收單 DONE（`2781c81e`）；BUG-224 → FIXED；合併判準 1 不成立 → 合併工單 T0927（模式 ②）；實機併入 `0.8.0-exp.2` 補跑 | T0926 / T0927 / BUG-224 |
 | D357 | 2026-11-25 | U-11 → A：`main` ff 到 `b21a5a61`（T0923 驗收腳本經 T0925 併入）；T0923 worktree 移除、分支保留 | T0925 / T0923 |
 | D356 | 2026-11-25 | T0925 收單 DONE（merge `16cf8451`，T0923 驗收腳本，無衝突、驗收全綠）；斷點 E → U-11 | T0925 / T0923 |
@@ -290,6 +291,13 @@
 - **最大風險**：`whisper-node-addon@1.0.2` 對 Electron 41（Node 24）的 NODE_MODULE_VERSION 相容性未知，允許 Worker 遇此決策點主動問塔台
 
 ---
+
+### D359 2026-11-25 23:22 — T0927 收單（U-12 待決）
+
+- **收單**：T0927 DONE（session `5f1c4f7c`，模式 ②，無衝突）。merge `9843fa9e`；SHA 比對 ① base `5d891249` ✓、② parent2 `2781c81e` = T0926 validated = `ct/T0926` ✓、③ parent1 = base ✓。樹比對 4 檔（與 T0926 相同），範圍外 0。驗收在 merge commit：test:unit 9052 passed / 498 files 第一次即綠、legacy 472 / 33、vite build、typecheck 0 / 0。`--close-worker T0927 --delay-ms 10000` exit 0。
+- **⑤**：`main` 自 base 起只多 `_ct-workorders/**` → ff 前整合分支再 `--no-ff` 併 `main`。
+- **斷點 E → U-12**：一併詢問 ff 後是否 push `main` 並以 `desktop-build.yml` 打包 `0.8.0-exp.2`（CT 6.2.0-pre.2 補跑用）。
+- **相關**：T0927 / T0926 / BUG-224
 
 ### D358 2026-11-25 23:15 — T0926 收單、BUG-224 FIXED、合併工單 T0927
 
