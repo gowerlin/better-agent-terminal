@@ -4,13 +4,14 @@ schema_kind: workorder
 id: T0916
 title: "修 BUG-220：待辦分頁在 `_ct-workorders/` 之後才建立時自動讀到（不必按 ↻）"
 type: bugfix
-status: TODO
+status: IN_PROGRESS
 repo: better-agent-terminal
 project: PLAN-068
 priority: P1
 sizing: M
 created_at: "2026-11-25T12:19:45+08:00"
-updated_at: "2026-11-25T12:19:45+08:00"
+started_at: "2026-11-25T12:22:28+08:00"
+updated_at: "2026-11-25T12:22:28+08:00"
 target_version: "0.8.0-pre.3（與 CT 6.1.0 同日發佈）"
 depends_on: [T0915]
 related:
@@ -25,6 +26,7 @@ affects_files:
   - docs/agent-guide/tower-inbox.md
   - CLAUDE.md
 renew_count: 0
+tower_question: open
 isolation: worktree
 workdir: "worktree ct/T0916（塔台已預先從 `v0.8.x` `4f7484bc` 建立分支 `ct/T0916`）"
 worker_question_timeout: 30
@@ -58,3 +60,17 @@ memory_overrides:
 ## 回報區
 
 > 以下由 sub-session 填寫，請勿在指揮塔 session 中編輯（唯一例外：`### 待塔台決策` 的 `塔台答覆 Q-n` 行由塔台新增）
+
+### 待塔台決策
+
+#### Q-1：修法需要動 `electron/preload.ts` 與 `src/types/electron.d.ts`（不在 affects_files），可以嗎？
+- **提問時間**：2026-11-25T12:26:08+0800
+- **背景**：根因已確認：`fs:watch`（`electron/handlers/fs.ts`）對不存在的目錄 `fsSync.watch` 丟例外 → 回 `false`、不留任何 watcher；`acquireDirWatch` 不重試。另實測（Windows、Node）：被遞迴監看的目錄被刪除時 watcher 不發 `error`，而是無限噴 `rename`（debounce 永遠不結束 → 不會送 `fs:changed`），重建後舊 watcher 也看不到新檔。
+- **我的修法**：`fs:watch` 加選用第二參數 `{ recreate: true }`：目錄不存在 → 改監看最近的已存在祖先（非遞迴、事件驅動、不輪詢），目錄出現就換成原本的遞迴 watcher 並送一次 `fs:changed`；目錄被刪除 / 被換掉（dev+ino 改變）→ 送一次 `fs:changed` 後回到等待。只有 `acquireDirWatch`（待辦分頁、指揮塔）帶這個選項；其他 `fs.watch` 呼叫者（檔案樹、Markdown 預覽、`.git`、`_bmad-output`）逐字不變。舊 bat-server 忽略第二參數 → 與修正前一致。
+- **選項**：
+  - A：允許改 `electron/preload.ts`（`fs.watch` 多一個選用參數，只在有給時才送）與 `src/types/electron.d.ts`（型別），共約 6 行。
+  - B：不動 preload，改成 `fs:watch` 對所有呼叫者預設 recreate（影響檔案樹、`.git`、`_bmad-output` 等不存在目錄時的回傳值與 watcher 數）。
+  - 其他
+- **建議**：A。理由：改動只是讓選項穿過 IPC 橋，不改任何既有呼叫的送出內容；B 會改變其他 consumer 的行為，回歸面較大。
+- **影響**：選 B 需改寫已完成的 fs.ts 選項判斷並重估其他 consumer。
+- **是否阻擋後續**：是（決定 IPC 介面後才寫測試與文件）。
