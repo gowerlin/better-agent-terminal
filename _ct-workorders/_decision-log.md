@@ -10,6 +10,7 @@
 
 | ID | 日期 | 標題 | 相關工單 |
 |----|------|------|---------|
+| D357 | 2026-11-25 | U-11 → A：`main` ff 到 `b21a5a61`（T0923 驗收腳本經 T0925 併入）；T0923 worktree 移除、分支保留 | T0925 / T0923 |
 | D356 | 2026-11-25 | T0925 收單 DONE（merge `16cf8451`，T0923 驗收腳本，無衝突、驗收全綠）；斷點 E → U-11 | T0925 / T0923 |
 | D355 | 2026-11-25 | U-10 → A：BUG-224（極快 Esc 後晚到的設定類 hook）`0.8.0-pre.4` 前修 → FIXING，修正單 T0926；同日發佈延到 T0926 合併後 | BUG-224 / T0926 |
 | D354 | 2026-11-25 | T0923 收單 DONE（M-1～M-15 BAT 端 0 FAIL、M-15c 未觸發）；開 BUG-224 → U-10；合併判準 1 不成立 → 合併工單 T0925（模式 ②）；通知 CT 做 CT 端判定 | T0923 / T0925 / BUG-224 / PLAN-069 |
@@ -288,6 +289,13 @@
 - **最大風險**：`whisper-node-addon@1.0.2` 對 Electron 41（Node 24）的 NODE_MODULE_VERSION 相容性未知，允許 Worker 遇此決策點主動問塔台
 
 ---
+
+### D357 2026-11-25 23:08 — `main` ff 到 `b21a5a61`（U-11）
+
+- **使用者裁示**：U-11：A（原生選單）。
+- **合併**：`ct-merge/T0925` 再 `--no-ff` 併入 `main` 的記帳 commit（`7d4652fe`）→ `b21a5a61`；`git merge --ff-only ct-merge/T0925` → `main` = `b21a5a61`（④ PASS）；整合 worktree `switch --detach`。
+- **清理**：`--close-worker T0923 --worktree remove` exit 3（分頁已關）→ 手動 `git worktree remove`（乾淨）。分支 `ct/T0923`、`ct-merge/T0925` 保留。
+- **相關**：T0925 / T0923
 
 ### D356 2026-11-25 23:07 — T0925 收單（U-11 待決）
 

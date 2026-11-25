@@ -5,7 +5,6 @@ id: T0925
 title: "合併 `ct/T0923`（CT 6.2.0 驗收驅動腳本 `e2e/manual/ct-accept-act.mjs`）→ `main`"
 type: chore
 status: DONE
-waiting_user: "U-11"
 repo: better-agent-terminal
 project: PLAN-069
 priority: P2
