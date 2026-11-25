@@ -3,17 +3,17 @@ schema_kind: tower-state
 summary_version: 1
 bat_contract: 2
 ct_version: "6.1.1"
-updated_at: "2026-11-25T20:49:21+0800"
+updated_at: "2026-11-25T20:57:34+0800"
 session: "2026-11-25 20:19 第一百三十二 session（CT v6.1.1）"
 next_ids:
-  workorder: "T0922"
+  workorder: "T0923"
   decision: "D348"
   bug: "BUG-223"
   plan: "PLAN-070"
   user: "U-6"
   action: "A-4"
 todo:
-  - "PLAN-069（PLANNED，D346）：待辦分頁推薦項＋放棄 / 批次放棄；CT 已受理（CT D886，CT T0566 寫 6.2.0-pre.1 規範；契約維持 2 ＋ `inbox_features`）→ 等 CT 傳規範位置與範例狀態檔後開 BAT 實作工單，`0.8.0-pre.4` 與 CT 6.2.0 同日發佈；BAT 塔台寫提問時推薦項排第一、說明加「（推薦）」（R1）"
+  - "PLAN-069（IN_PROGRESS，D346）：待辦分頁推薦項＋放棄 / 批次放棄；CT 6.2.0-pre.1 規範完成（CT D889）→ BAT 實作 T0922（隔離 worktree）；完成後通知 CT 安排雙方驗收（M-1–M-15），`0.8.0-pre.4` 與 CT 6.2.0 同日發佈；BAT 塔台寫提問時推薦項排第一、說明加「（推薦）」（R1）"
   - "🚀 `v0.8.0-pre.3` 已發佈（D339，2026-11-25 14:44）；`v0.8.x` 已經 T0921 併回 `main` 並 push（D343 / D345）。D331：只有改到安裝路徑的版本才做 NSIS 重裝驗收。發佈後驗收（linux / macos / docker acceptance、WSL smoke）視需要另取授權"
   - "PLAN-066（DONE）後續候選（未開單）：`pty:create` 只送 env 差異（`pty-manager.ts`＋Terminal Server 協定）可再降 C2①；direct 模式的 conin socket 殘留；F4（自然結束的 conhost 留到 server 結束）。分支：`ct/T0885`（Rust 評估，D307 保留不合併，worktree 保留）、`ct/T0886`（node-pty Worker 研究，未併入 `v0.8.x`，worktree 已移除）"
   - "PLAN-065 剩餘：per-machine 未提權互動升級（UAC）手動驗收（無法自動化）；降級到 `0.7.4-pre.9` 會結束所有終端且沒有說明（已寫在更版重點〈已知事項〉）"
@@ -34,7 +34,7 @@ reminders:
 ---
 # Tower State — better-agent-terminal
 
-> 🟢 **第一百三十二 session 開工**（2026-11-25 20:19 (UTC+8)，CT v6.1.1，Fast Path；塔台 session `5af58859-9dbd-47ab-8770-3e8ad396b11e`；`main` = `origin/main` @ `7f5c7ebc`（fetch 後 0 / 0）、工作區乾淨、無 stash；worktree 剩 `T0885` 與 `.ct-integration`；`--set-role tower --bat-contract 2 --mode on` exit 0 → `bat-contract: 2`、`hooks: ok (injected, set 2)`；BAT helper `0.8.0-pre.3`；熱區 T:317（非終態 0）/ BUG:86（CLOSED 85 / WONTFIX 1）/ PLAN:33（IN_PROGRESS 7）/ EXP:1，與索引一致；PLAN-067 週清查未到期（2026-12-02））。 20:28 使用者問待辦分頁是否保留推薦項與自由輸入（自由回答在、推薦項不在）→ 裁示推薦項慣例＋契約欄位都要，另加放棄 / 批次放棄（兩區、勾選＋全部、放棄後停下等新方向）→ D346 開 PLAN-069（PLANNED），HANDOVER 給 CT 塔台協商契約。 20:33 CT 回覆草案（CT D885，待 CT 使用者核定）：同意 C-1–C-4，C-5 改維持契約 2 ＋ `inbox_features`；BAT 已答 Q1（舊 BAT 忽略未知鍵）/ Q2（`0.8.0-pre.4`、同意），等 ACCEPTED。 20:36 CT 受理（CT D886、CT T0566）。 20:45 使用者問 `user_inbox: off` 與原生選單 → D347 補充需求 R6（暫停時可改用原生選單的 CT 設定鍵），通知 CT 併入 6.2.0。 20:47 CT R6 草案（CT D887 待核定）：沿用 `interactive-prompts` 擴及暫停，BAT 無異議。 20:49 CT 核定 R6（CT D888），併入 CT T0566（6.2.0-pre.1）；等 T0566 收單後的規範位置與範例狀態檔，再開 BAT T0922。
+> 🟢 **第一百三十二 session 開工**（2026-11-25 20:19 (UTC+8)，CT v6.1.1，Fast Path；塔台 session `5af58859-9dbd-47ab-8770-3e8ad396b11e`；`main` = `origin/main` @ `7f5c7ebc`（fetch 後 0 / 0）、工作區乾淨、無 stash；worktree 剩 `T0885` 與 `.ct-integration`；`--set-role tower --bat-contract 2 --mode on` exit 0 → `bat-contract: 2`、`hooks: ok (injected, set 2)`；BAT helper `0.8.0-pre.3`；熱區 T:317（非終態 0）/ BUG:86（CLOSED 85 / WONTFIX 1）/ PLAN:33（IN_PROGRESS 7）/ EXP:1，與索引一致；PLAN-067 週清查未到期（2026-12-02））。 20:28 使用者問待辦分頁是否保留推薦項與自由輸入（自由回答在、推薦項不在）→ 裁示推薦項慣例＋契約欄位都要，另加放棄 / 批次放棄（兩區、勾選＋全部、放棄後停下等新方向）→ D346 開 PLAN-069（PLANNED），HANDOVER 給 CT 塔台協商契約。 20:33 CT 回覆草案（CT D885，待 CT 使用者核定）：同意 C-1–C-4，C-5 改維持契約 2 ＋ `inbox_features`；BAT 已答 Q1（舊 BAT 忽略未知鍵）/ Q2（`0.8.0-pre.4`、同意），等 ACCEPTED。 20:36 CT 受理（CT D886、CT T0566）。 20:45 使用者問 `user_inbox: off` 與原生選單 → D347 補充需求 R6（暫停時可改用原生選單的 CT 設定鍵），通知 CT 併入 6.2.0。 20:47 CT R6 草案（CT D887 待核定）：沿用 `interactive-prompts` 擴及暫停，BAT 無異議。 20:49 CT 核定 R6（CT D888），併入 CT T0566（6.2.0-pre.1）；等 T0566 收單後的規範位置與範例狀態檔，再開 BAT T0922。 20:57 CT T0566 收單（CT D889，規範 CT `7ea750f`）→ 開 T0922（PLAN-069 → IN_PROGRESS），隔離派工。
 
 > 🛏 **第一百三十一 session 收工**（2026-11-25 18:58 (UTC+8)）。
 
@@ -104,7 +104,7 @@ reminders:
 - 歷史 sessions → [_archive/state-snapshots/INDEX.md](_archive/state-snapshots/INDEX.md)（150 entries；最新 `2026-Q4-c.md`）
 
 ### 編號起始
-- **T0922** / **BUG-223** / **PLAN-070** / **D348** / **U-6** / **A-4** / **EXP-WFMINE-002**（其他 TOPIC 從 001） / **L186** / **CT-T023**
+- **T0923** / **BUG-223** / **PLAN-070** / **D348** / **U-6** / **A-4** / **EXP-WFMINE-002**（其他 TOPIC 從 001） / **L186** / **CT-T023**
 
 ---
 

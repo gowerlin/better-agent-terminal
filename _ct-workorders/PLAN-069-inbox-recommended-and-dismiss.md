@@ -3,10 +3,10 @@ schema_version: 1
 schema_kind: plan
 id: PLAN-069
 title: "待辦分頁：待你決定標示推薦項；待你決定／待你執行可放棄（單筆、勾選批次、一鍵全部），放棄後塔台停下等新方向；BAT 與 CT 契約協作"
-status: PLANNED
+status: IN_PROGRESS
 priority: medium
 created_at: "2026-11-25T20:28:42+08:00"
-updated_at: "2026-11-25T20:28:42+08:00"
+updated_at: "2026-11-25T20:57:34+08:00"
 links:
   source: "使用者 2026-11-25 第一百三十二 session；D346"
   related: [PLAN-068, T0908, T0906, "_handover-2026-11-25-inbox-recommended-dismiss.md"]
@@ -17,7 +17,7 @@ links:
 ## 元資料
 
 - **標題**：待辦分頁標示推薦項；待你決定 / 待你執行可放棄（單筆、批次、全部）
-- **狀態**：PLANNED（等 CT 塔台同意契約草案後開實作工單）
+- **狀態**：IN_PROGRESS（實作 T0922，2026-11-25 20:57）
 - **優先級**：🟡 Medium
 - **類型**：功能（BAT ↔ CT 契約）
 - **建立時間**：2026-11-25 20:28 (UTC+8)
@@ -67,4 +67,5 @@ PLAN-068 把塔台的提問搬到側邊欄「待辦」分頁後，使用者發�
 - 2026-11-25 20:45 補充需求 R6（D347）：暫停時可改用原生選單的設定鍵（CT 端）；寫進交辦稿〈補充需求 R6〉並通知 CT 塔台。
 - 2026-11-25 20:47 CT 回覆 R6 草案（CT D887，待 CT 使用者核定 U-2）：不新增設定鍵，`interactive-prompts`（預設 on）範圍擴大到塔台暫停；on 時先寫 `U-n` 再開 `AskUserQuestion`，推薦項排第一標「（推薦）」、標籤開頭放代號，選項 ≤ 3 時加「放棄（停下等新方向）」，> 4 個改文字；codex 塔台或 BAT 契約不是 v2 → 文字；競態依「編號已結」處理。BAT 無異議、不需改。
 - 2026-11-25 20:49 CT 使用者核定 R6（CT D888，U-2：A），照草案；CT T0566 以〈塔台補充（執行中 #1）〉併入 R6（AC-8）→ 6.2.0-pre.1 一次包含推薦項、放棄 / 略過、`inbox_features`、R6。
+- 2026-11-25 20:57 CT 6.2.0-pre.1 規範完成（CT T0566 收單，CT D889，CT commit `7ea750f`）→ 開 BAT 實作單 T0922（隔離 worktree，base `main`），PLAN-069 → IN_PROGRESS。BAT 做好後通知 CT 安排雙方驗收（CT T0566〈給塔台〉第 3 點 M-1–M-15），通過後同日發佈 BAT `0.8.0-pre.4` 與 CT 6.2.0。
 - 下一步：CT 回覆 ACCEPTED（已完成）→ 定案契約 → 開 BAT 實作工單（解析 `recommended`、待辦分頁推薦標記與預設選取、單筆 / 勾選 / 全部放棄 UI、`checkInboxAnswer` 放寬、版本閘門、單元測試與 docs `tower-inbox.md`）。
