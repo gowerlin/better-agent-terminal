@@ -4,13 +4,14 @@ schema_kind: workorder
 id: T0920
 title: "補驗 BUG-220／221／222：用新測試版（`0.0.0-exp.21`，`v0.8.x` `6d7b4cd3`）與真 claude 塔台重跑 M-C1-2、M-C2-b、M-C5 排隊權限詢問"
 type: verification
-status: TODO
+status: IN_PROGRESS
 repo: better-agent-terminal
 project: PLAN-068
 priority: P1
 sizing: M
 created_at: "2026-11-25T13:02:50+08:00"
-updated_at: "2026-11-25T13:02:50+08:00"
+started_at: "2026-11-25T13:27:47+08:00"
+updated_at: "2026-11-25T13:27:47+08:00"
 target_version: "0.8.0-pre.3（與 CT 6.1.0 同日發佈）"
 depends_on: [T0915, T0919]
 related:
