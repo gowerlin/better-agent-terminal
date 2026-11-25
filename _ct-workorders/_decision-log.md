@@ -10,6 +10,7 @@
 
 | ID | 日期 | 標題 | 相關工單 |
 |----|------|------|---------|
+| D348 | 2026-11-25 | T0922 收單 DONE（`0675d9fd`，PLAN-069 BAT 端）；模式 ① 整合分支 `ct-merge/T0922` → `9bbd42fa`；斷點 E → U-6 | T0922 / PLAN-069 |
 | D347 | 2026-11-25 | PLAN-069 補充需求 R6：塔台暫停時可改用 Claude Code 原生選單（CT 新設定鍵，與 `user_inbox` 獨立），併入 CT 6.2.0；BAT 不需改 | PLAN-069 |
 | D346 | 2026-11-25 | 開 PLAN-069（PLANNED medium）：待辦分頁推薦項（撰寫慣例＋契約欄位）與放棄 / 批次放棄（兩區、勾選＋全部、放棄後停下等新方向）；HANDOVER 給 CT 塔台協商契約 | PLAN-069 / PLAN-068 |
 | D345 | 2026-11-25 | U-5 → A：push `main` `7deb824c..2cac17e5`（去識別 0、金鑰樣式只有既有測試假字串）；A-1 完成 → PLAN-068 DONE；A-2 完成 → BUG-216 CLOSED（熱區 BUG 未結 0） | PLAN-068 / BUG-216 / T0921 |
@@ -279,6 +280,14 @@
 - **最大風險**：`whisper-node-addon@1.0.2` 對 Electron 41（Node 24）的 NODE_MODULE_VERSION 相容性未知，允許 Worker 遇此決策點主動問塔台
 
 ---
+
+### D348 2026-11-25 21:13 — T0922 收單、模式 ① 合併到整合分支（U-6 待決）
+
+- **收單**：T0922 DONE（session `6252e8a2`）。產品 commit `0675d9fd`（`ct/T0922`，base `a2c219ab`）17 檔：推薦標記＋預設選取、`inbox_features` 含 `dismiss` 才有的單筆 / 勾選 / 全部放棄與略過、`checkInboxAnswer` 多編號只限放棄 / 略過（新代碼 `bad-batch`）、三語系、`docs/agent-guide/tower-inbox.md`〈推薦項與放棄（PLAN-069）〉、CLAUDE.md 一點（94,431 字元）、`site/tower-inbox.md`、CT 範例 fixture。驗證：test:unit head 第一次 9037 passed / 497 files、test:legacy 472 / 33、vite build、typecheck 0 / 0。範圍外檔案 0、`_ct-workorders/**` 未動。
+- **待實機**：M-1–M-15（CT T0566〈給塔台〉第 3 點），與 CT 安排雙方驗收。
+- **建議後續（未開單）**：① 發版時 `site/compatibility` 補一列；② 多塔台選目標時批次送出後勾選不清除（小）。
+- **合併**：模式 ① 判準 5 條 PASS → `ct-merge/T0922` `--no-ff` `9bbd42fa`（SHA 比對 ①–③ PASS、產品樹 = `validated_sha`）。非 yolo 斷點 E → U-6（A 現在 ff 到 main（推薦）/ B 暫不合併）。
+- **相關**：T0922 / PLAN-069
 
 ### D347 2026-11-25 20:45 — PLAN-069 補充需求 R6：暫停時可改用原生選單
 
