@@ -3,8 +3,8 @@ schema_kind: tower-state
 summary_version: 1
 bat_contract: 2
 ct_version: "6.1.1"
-updated_at: "2026-11-25T18:58:39+0800"
-session: "2026-11-25 16:05 第一百三十一 session（CT v6.1.1）"
+updated_at: "2026-11-25T20:19:58+0800"
+session: "2026-11-25 20:19 第一百三十二 session（CT v6.1.1）"
 next_ids:
   workorder: "T0922"
   decision: "D346"
@@ -32,6 +32,8 @@ reminders:
     due_at: "2026-12-02"
 ---
 # Tower State — better-agent-terminal
+
+> 🟢 **第一百三十二 session 開工**（2026-11-25 20:19 (UTC+8)，CT v6.1.1，Fast Path；塔台 session `5af58859-9dbd-47ab-8770-3e8ad396b11e`；`main` = `origin/main` @ `7f5c7ebc`（fetch 後 0 / 0）、工作區乾淨、無 stash；worktree 剩 `T0885` 與 `.ct-integration`；`--set-role tower --bat-contract 2 --mode on` exit 0 → `bat-contract: 2`、`hooks: ok (injected, set 2)`；BAT helper `0.8.0-pre.3`；熱區 T:317（非終態 0）/ BUG:86（CLOSED 85 / WONTFIX 1）/ PLAN:33（IN_PROGRESS 7）/ EXP:1，與索引一致；PLAN-067 週清查未到期（2026-12-02））。
 
 > 🛏 **第一百三十一 session 收工**（2026-11-25 18:58 (UTC+8)）。
 
