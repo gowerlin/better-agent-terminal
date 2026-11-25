@@ -10,6 +10,7 @@
 
 | ID | 日期 | 標題 | 相關工單 |
 |----|------|------|---------|
+| D346 | 2026-11-25 | 開 PLAN-069（PLANNED medium）：待辦分頁推薦項（撰寫慣例＋契約欄位）與放棄 / 批次放棄（兩區、勾選＋全部、放棄後停下等新方向）；HANDOVER 給 CT 塔台協商契約 | PLAN-069 / PLAN-068 |
 | D345 | 2026-11-25 | U-5 → A：push `main` `7deb824c..2cac17e5`（去識別 0、金鑰樣式只有既有測試假字串）；A-1 完成 → PLAN-068 DONE；A-2 完成 → BUG-216 CLOSED（熱區 BUG 未結 0） | PLAN-068 / BUG-216 / T0921 |
 | D344 | 2026-11-25 | U-4 → A：產品改動與發版回到 `main`（取代 D307 的 `v0.8.x` 分流）；`v0.8.x` 保留不再使用 | PLAN-066 |
 | D343 | 2026-11-25 | U-3 → A：T0921 ff `main` → `f967f9db`（`v0.8.x` 併回，`package.json` `0.8.0-pre.3`）；PLAN-066 DONE；push 與之後的分支用法另問（U-4 / U-5） | T0921 / PLAN-066 |
@@ -277,6 +278,13 @@
 - **最大風險**：`whisper-node-addon@1.0.2` 對 Electron 41（Node 24）的 NODE_MODULE_VERSION 相容性未知，允許 Worker 遇此決策點主動問塔台
 
 ---
+
+### D346 2026-11-25 20:28 — 開 PLAN-069：待辦分頁的推薦項與放棄
+
+- **背景**：使用者問「互動提問選單原本有推薦項與自由輸入項，移到側邊欄後是否還在」。查證：自由回答欄在（T0908，`docs/agent-guide/tower-inbox.md`）；推薦項不在（契約 v2 `awaiting_user[]` 沒有推薦欄位，CT `memory-protocol.md` § 契約 v2 欄位）。塔台建議 A（CT 撰寫慣例）＋ B（契約欄位）。
+- **使用者裁示**：A、B 都要；另外要能放棄——整批不做或原問題不合時宜、要改方向時。選項式對齊：放棄範圍 = 兩區（`U-n：放棄`、`A-n：略過`）；批次 = 勾選批次＋一鍵全部都要；放棄後 = 停下等新方向；推進 = 開 PLAN ＋通知 CT 塔台。
+- **決定**：開 PLAN-069（PLANNED medium）；交辦稿 `_handover-2026-11-25-inbox-recommended-dismiss.md`（契約草案 C-1–C-5）以跨 session 訊息送 `BMad-Guide · Tower`；CT 同意前不開實作工單。BAT 塔台自本決策起寫 `awaiting_user` 與終端提問時，推薦項排第一、說明加「（推薦）」（R1）。
+- **相關**：PLAN-069 / PLAN-068 / T0908
 
 ### D345 2026-11-25 18:55 — push `main`；PLAN-068、BUG-216 結案（U-5、A-1、A-2）
 
