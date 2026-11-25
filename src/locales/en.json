@@ -1896,7 +1896,7 @@
     "cancel": "Cancel",
     "cancelAll": "Cancel all",
     "reasonDraft": "You are typing: the Tower's input box holds text you have not sent, so notifications wait. They go out 1 s after you send it (Enter) or clear it (Ctrl+C).",
-    "reasonReading": "You are reading: notifications wait until you stop for 10 s (60 s at most).",
+    "reasonReading": "You are reading: notifications wait until you stop for 10 s; after scrolling up in a full-screen app, until you type, click, switch tabs or scroll back (60 s at most).",
     "reasonPrompt": "Waiting for your answer to a prompt: sent once you answer and 1 s passes quietly.",
     "reasonQueued": "Queued behind the previous one.",
     "answerSource": "Your answer",
