@@ -2,9 +2,10 @@
 schema_kind: tower-state
 summary_version: 1
 bat_contract: 2
-ct_version: "6.1.1"
-updated_at: "2026-11-26T01:13:48+0800"
-session: "2026-11-25 20:19 第一百三十二 session（CT v6.1.1）"
+ct_version: "6.2.0"
+inbox_features: ["recommended", "dismiss"]
+updated_at: "2026-11-26T01:17:04+0800"
+session: "2026-11-26 01:16 第一百三十三 session（CT v6.2.0）"
 next_ids:
   workorder: "T0929"
   decision: "D366"
@@ -35,6 +36,8 @@ reminders:
     due_at: "2026-12-02"
 ---
 # Tower State — better-agent-terminal
+
+> 🟢 **第一百三十三 session 開工**（2026-11-26 01:17 (UTC+8)，CT v6.2.0，Fast Path；塔台 session `3ece9e1a-7000-4891-8b1f-185ba7ab4930`；`--set-role tower --bat-contract 2 --mode on` exit 0，`bat-contract: 2`、`hooks: ok (injected, set 2)`；BAT helper `0.8.0-pre.4`）。
 
 > 🛏 **第一百三十二 session 收工**（2026-11-26 01:13 (UTC+8)）。
 
@@ -124,7 +127,7 @@ reminders:
 | **PLAN 最大編號** | **PLAN-068** DONE；IN_PROGRESS 7（038 / 043 / 052 / 058 / 064 / 065 / 067）；IDEA 3 |
 | **決策最大編號** | **D345**（push `main`、PLAN-068 / BUG-216 結案，第一百三十一 session） |
 | **EXP 最大編號** | **EXP-WFMINE-001**（📊 CONCLUDED 2026-10-20）；EXP-GPUWHIS-001（CONCLUDED，已歸檔） |
-| **塔台版本** | Control Tower **v6.1.1**（第一百三十一 session 起；BAT ↔ CT 契約 v2） |
+| **塔台版本** | Control Tower **v6.2.0**（第一百三十三 session 起；BAT ↔ CT 契約 v2 ＋ `inbox_features`） |
 | **unit test 基線** | `main`：**9001 passed / 495 files**（T0921 @ `f9375c2c`）；typecheck 0 / 0 |
 | **舊值** | 瘦身前的長版本見 [`_archive/state-snapshots/2026-Q4-b.md`](_archive/state-snapshots/2026-Q4-b.md)〈基本資訊舊值〉 |
 
