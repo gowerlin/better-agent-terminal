@@ -3,14 +3,14 @@ schema_kind: tower-state
 summary_version: 1
 bat_contract: 2
 ct_version: "6.1.1"
-updated_at: "2026-11-25T23:02:32+0800"
+updated_at: "2026-11-25T23:07:39+0800"
 session: "2026-11-25 20:19 第一百三十二 session（CT v6.1.1）"
 next_ids:
-  workorder: "T0926"
-  decision: "D355"
+  workorder: "T0927"
+  decision: "D357"
   bug: "BUG-225"
   plan: "PLAN-070"
-  user: "U-11"
+  user: "U-12"
   action: "A-4"
 todo:
   - "候選（未開單，T0924 建議）：`scripts/verify-packaged-native.js` `readAsarFile` 不檢查 `fs.readSync` 回傳位元組數，截斷的 app.asar 會被讀成 NUL 而不報錯；改成讀不足判失敗（檢查變嚴）"
@@ -27,14 +27,14 @@ todo:
   - "版號線：D315 起 `0.8.0-pre.N`（D344 起從 `main` 發；pre.1–pre.3 從 `v0.8.x` 發），pre.2 已發佈（2026-11-25），`0.8.0-pre.3` 已發佈（2026-11-25 14:44，PLAN-068 待辦分頁＋BUG-220–222，D339；CT 6.1.0 同日發佈），下一版 `0.8.0-pre.4`（`-pre.N` 最多到 pre.9）；`0.7.5` 線最後是 pre.2"
   - "候選（未開單）：`_decision-log.md` 索引表只到 D129（D130–D315 沒有索引列，BAT 決策清單看不到），需重建索引（D316 記錄）"
 awaiting_user:
-  - id: "U-10"
-    workorder: ""
+  - id: "U-11"
+    workorder: "T0925"
     kind: "decision"
-    source: "tower-question"
-    summary: "BUG-224（極快 Esc 後塔台卡在 blocked: question、通知保護誤觸發）要不要在 0.8.0-pre.4 發版前修"
-    options: ["A 發版前修，和合併單平行（推薦）", "B 先發 pre.4，下一版再修", "C 不修，記為已知限制"]
+    source: "breakpoint-E"
+    summary: "T0925 合併前確認：`ct-merge/T0925`（T0923 驗收腳本）SHA 比對 ①–③、⑤ PASS、驗收全綠，要不要 ff 到 `main`"
+    options: ["A 現在 ff 到 main（推薦）", "B 暫不合併，分支保留"]
     recommended: "A"
-    created_at: "2026-11-25T23:02:32+08:00"
+    created_at: "2026-11-25T23:07:39+08:00"
 reminders:
   - id: "weekly-log-review"
     title: "每週日誌清查（PLAN-067；到期時塔台開工會提示，只提示不派工）"
@@ -44,7 +44,7 @@ reminders:
 ---
 # Tower State — better-agent-terminal
 
-> 🟢 **第一百三十二 session 開工**（2026-11-25 20:19 (UTC+8)，CT v6.1.1，Fast Path；塔台 session `5af58859-9dbd-47ab-8770-3e8ad396b11e`；`main` = `origin/main` @ `7f5c7ebc`（fetch 後 0 / 0）、工作區乾淨、無 stash；worktree 剩 `T0885` 與 `.ct-integration`；`--set-role tower --bat-contract 2 --mode on` exit 0 → `bat-contract: 2`、`hooks: ok (injected, set 2)`；BAT helper `0.8.0-pre.3`；熱區 T:317（非終態 0）/ BUG:86（CLOSED 85 / WONTFIX 1）/ PLAN:33（IN_PROGRESS 7）/ EXP:1，與索引一致；PLAN-067 週清查未到期（2026-12-02））。 20:28 使用者問待辦分頁是否保留推薦項與自由輸入（自由回答在、推薦項不在）→ 裁示推薦項慣例＋契約欄位都要，另加放棄 / 批次放棄（兩區、勾選＋全部、放棄後停下等新方向）→ D346 開 PLAN-069（PLANNED），HANDOVER 給 CT 塔台協商契約。 20:33 CT 回覆草案（CT D885，待 CT 使用者核定）：同意 C-1–C-4，C-5 改維持契約 2 ＋ `inbox_features`；BAT 已答 Q1（舊 BAT 忽略未知鍵）/ Q2（`0.8.0-pre.4`、同意），等 ACCEPTED。 20:36 CT 受理（CT D886、CT T0566）。 20:45 使用者問 `user_inbox: off` 與原生選單 → D347 補充需求 R6（暫停時可改用原生選單的 CT 設定鍵），通知 CT 併入 6.2.0。 20:47 CT R6 草案（CT D887 待核定）：沿用 `interactive-prompts` 擴及暫停，BAT 無異議。 20:49 CT 核定 R6（CT D888），併入 CT T0566（6.2.0-pre.1）；等 T0566 收單後的規範位置與範例狀態檔，再開 BAT T0922。 20:57 CT T0566 收單（CT D889，規範 CT `7ea750f`）→ 開 T0922（PLAN-069 → IN_PROGRESS），隔離派工。 20:59 派出 T0922（`--mode on --isolation worktree`，exit 0、`started: 2026-11-25T12:59:16.685Z`；分頁 `35af16c3…`，worktree `.bat-worktrees/better-agent-terminal/T0922`、分支 `ct/T0922`、base `a2c219ab`）。 21:13 T0922 收單 DONE（D348）：產品 commit `0675d9fd`（17 檔，皆在 `affects_files` 內，`_ct-workorders/**` 未動）；test:unit 9037 passed / 497 files、test:legacy 472 / 33、vite build、typecheck 0 / 0；session id 已在；session 快照略過（本 session 未跑 `*insights sessions`）；`--close-worker T0922 --delay-ms 10000 --worktree keep` exit 0。模式 ① 判準 5 條 PASS（main 只多 `_ct-workorders/**`、validated = head、範圍外 0、`merge-tree` 無衝突、worktree 與主 checkout 乾淨）→ 整合分支 `ct-merge/T0922` `--no-ff` → `9bbd42fa`（parent1 `a4f7fcd6` = base、parent2 `0675d9fd`；產品樹 = head）。斷點 E（非 yolo）→ U-6。 21:14 U-6 → A（D349）：整合分支再併 `main` 記帳 commit（`728c3197`）→ `main` ff 到 `728c3197`（④ PASS）；整合 worktree detach；`--close-worker … --worktree remove` exit 3（分頁已關）→ 手動 `git worktree remove`（乾淨）；分支 `ct/T0922`、`ct-merge/T0922` 保留。驗收用哪個 BAT → U-7。 21:16 U-7 → A（D350）：去識別 9 條樣式 0、金鑰樣式 0 → push `main` `7f5c7ebc..402c9648`；`desktop-build.yml` run `45621864786`（ref `402c9648`、版號 `0.8.0-exp.1`，只打包不發佈）；Pages run `45621849988` 同時觸發（`site/tower-inbox.md` 新段先上線）。 21:17 CT 問 exp.1 是否覆蓋安裝版 → 答：用 zip＋`launchIsolated` 隔離 runtime，不碰安裝版 `0.8.0-pre.3`。 21:20 CT 決定 P2 比照 6.1.0（CT D890）：CT T0567 準備 `ct620-accept/`（claude-config、`ct-swap.py`、checklist M-1–M-15），情境 S1（exp.1×6.2.0-pre.1）/ S2（pre.3×6.2.0-pre.1）/ S3（exp.1×6.1.1）/ S4（M-15：pre.1 zip、`interactive-prompts: off`、Codex）；三個 BAT zip 由 BAT 負責。T0567 收單＋使用者在 claude-config 登入後，CT 通知 → 開 BAT 驗收單 T0923。 21:31 CT T0567 收單（CT D891，checklist SHA-256 `d7546b35…`）→ 寫好 T0923（隔離 worktree、per-dispatch yolo 照 T0915 前例），等 CT 通知使用者已登入測試 config ＋ desktop-build `45621864786` 完成後派工。 21:32 CT 通知使用者已登入（CT D892）→ T0923 補〈塔台補充（派工前）〉（帳號檔不得複製）。 21:36 desktop-build `45621864786` 完成：四個 build 全綠、`tests` job 1 失敗（`verify-packaged-native.test.mjs` asar 往返讀到全 NUL，與 T0922 無關）→ 開 BUG-223（OPEN low）→ U-8。21:36 派出 T0923（`--mode yolo --no-interactive --isolation worktree`，exit 0、`started: 2026-11-25T13:36:44.974Z`；分頁 `5be5d859…`，worktree `.bat-worktrees/better-agent-terminal/T0923`、base `7b23aa55`）。 21:38 U-8 → A（D351）：BUG-223 → FIXING，開 T0924（隔離，與 T0923 無檔案重疊），派工。 21:39 派出 T0924（yolo，`started: 2026-11-25T13:39:26.210Z`，base `beb44842`）。 21:52 T0924 收單（D352）：Worker 填 `FIXED` → 塔台改 `DONE`；`1eb8f5ee` 只改測試檔（等 `@electron/asar` 寫入串流 `finished`，斷言不變），120/120、test:unit 9037、legacy 472、build、typecheck 0 / 0；BUG-223 → FIXED；`--close-worker T0924 … --worktree keep` exit 0；模式 ① `ct-merge/T0924` → `6dcb62ca`（parent1 `16dafed2`、parent2 `1eb8f5ee`）→ 斷點 E U-9。 21:53 U-9 → A（D353）：整合分支再併 `main` 記帳 commit → `68faa1d3`，`main` ff 到 `68faa1d3`（④ PASS）；整合 worktree detach；T0924 worktree 手動移除（乾淨）；分支保留。T0923 驗收仍在跑。 23:02 T0923 收單 DONE（D354）：M-1～M-15 BAT 端 0 FAIL、M-15c 未觸發（無 Codex 環境）；M-10 清單步驟與舊 BAT UI 不符，改經 IPC 送 `U-2：放棄`（待 CT 確認）；新增 `e2e/manual/ct-accept-act.mjs`（`3d7ae5d2`）；使用者層 1,191 檔雜湊不變、程序 0 殘留。發現 → 開 BUG-224（OPEN medium）→ U-10。`--close-worker T0923 … --worktree keep` exit 0。合併：判準 1 不成立（`main` 多了 T0924 的測試檔）→ 依規則派合併工單 T0925（模式 ②）。
+> 🟢 **第一百三十二 session 開工**（2026-11-25 20:19 (UTC+8)，CT v6.1.1，Fast Path；塔台 session `5af58859-9dbd-47ab-8770-3e8ad396b11e`；`main` = `origin/main` @ `7f5c7ebc`（fetch 後 0 / 0）、工作區乾淨、無 stash；worktree 剩 `T0885` 與 `.ct-integration`；`--set-role tower --bat-contract 2 --mode on` exit 0 → `bat-contract: 2`、`hooks: ok (injected, set 2)`；BAT helper `0.8.0-pre.3`；熱區 T:317（非終態 0）/ BUG:86（CLOSED 85 / WONTFIX 1）/ PLAN:33（IN_PROGRESS 7）/ EXP:1，與索引一致；PLAN-067 週清查未到期（2026-12-02））。 20:28 使用者問待辦分頁是否保留推薦項與自由輸入（自由回答在、推薦項不在）→ 裁示推薦項慣例＋契約欄位都要，另加放棄 / 批次放棄（兩區、勾選＋全部、放棄後停下等新方向）→ D346 開 PLAN-069（PLANNED），HANDOVER 給 CT 塔台協商契約。 20:33 CT 回覆草案（CT D885，待 CT 使用者核定）：同意 C-1–C-4，C-5 改維持契約 2 ＋ `inbox_features`；BAT 已答 Q1（舊 BAT 忽略未知鍵）/ Q2（`0.8.0-pre.4`、同意），等 ACCEPTED。 20:36 CT 受理（CT D886、CT T0566）。 20:45 使用者問 `user_inbox: off` 與原生選單 → D347 補充需求 R6（暫停時可改用原生選單的 CT 設定鍵），通知 CT 併入 6.2.0。 20:47 CT R6 草案（CT D887 待核定）：沿用 `interactive-prompts` 擴及暫停，BAT 無異議。 20:49 CT 核定 R6（CT D888），併入 CT T0566（6.2.0-pre.1）；等 T0566 收單後的規範位置與範例狀態檔，再開 BAT T0922。 20:57 CT T0566 收單（CT D889，規範 CT `7ea750f`）→ 開 T0922（PLAN-069 → IN_PROGRESS），隔離派工。 20:59 派出 T0922（`--mode on --isolation worktree`，exit 0、`started: 2026-11-25T12:59:16.685Z`；分頁 `35af16c3…`，worktree `.bat-worktrees/better-agent-terminal/T0922`、分支 `ct/T0922`、base `a2c219ab`）。 21:13 T0922 收單 DONE（D348）：產品 commit `0675d9fd`（17 檔，皆在 `affects_files` 內，`_ct-workorders/**` 未動）；test:unit 9037 passed / 497 files、test:legacy 472 / 33、vite build、typecheck 0 / 0；session id 已在；session 快照略過（本 session 未跑 `*insights sessions`）；`--close-worker T0922 --delay-ms 10000 --worktree keep` exit 0。模式 ① 判準 5 條 PASS（main 只多 `_ct-workorders/**`、validated = head、範圍外 0、`merge-tree` 無衝突、worktree 與主 checkout 乾淨）→ 整合分支 `ct-merge/T0922` `--no-ff` → `9bbd42fa`（parent1 `a4f7fcd6` = base、parent2 `0675d9fd`；產品樹 = head）。斷點 E（非 yolo）→ U-6。 21:14 U-6 → A（D349）：整合分支再併 `main` 記帳 commit（`728c3197`）→ `main` ff 到 `728c3197`（④ PASS）；整合 worktree detach；`--close-worker … --worktree remove` exit 3（分頁已關）→ 手動 `git worktree remove`（乾淨）；分支 `ct/T0922`、`ct-merge/T0922` 保留。驗收用哪個 BAT → U-7。 21:16 U-7 → A（D350）：去識別 9 條樣式 0、金鑰樣式 0 → push `main` `7f5c7ebc..402c9648`；`desktop-build.yml` run `45621864786`（ref `402c9648`、版號 `0.8.0-exp.1`，只打包不發佈）；Pages run `45621849988` 同時觸發（`site/tower-inbox.md` 新段先上線）。 21:17 CT 問 exp.1 是否覆蓋安裝版 → 答：用 zip＋`launchIsolated` 隔離 runtime，不碰安裝版 `0.8.0-pre.3`。 21:20 CT 決定 P2 比照 6.1.0（CT D890）：CT T0567 準備 `ct620-accept/`（claude-config、`ct-swap.py`、checklist M-1–M-15），情境 S1（exp.1×6.2.0-pre.1）/ S2（pre.3×6.2.0-pre.1）/ S3（exp.1×6.1.1）/ S4（M-15：pre.1 zip、`interactive-prompts: off`、Codex）；三個 BAT zip 由 BAT 負責。T0567 收單＋使用者在 claude-config 登入後，CT 通知 → 開 BAT 驗收單 T0923。 21:31 CT T0567 收單（CT D891，checklist SHA-256 `d7546b35…`）→ 寫好 T0923（隔離 worktree、per-dispatch yolo 照 T0915 前例），等 CT 通知使用者已登入測試 config ＋ desktop-build `45621864786` 完成後派工。 21:32 CT 通知使用者已登入（CT D892）→ T0923 補〈塔台補充（派工前）〉（帳號檔不得複製）。 21:36 desktop-build `45621864786` 完成：四個 build 全綠、`tests` job 1 失敗（`verify-packaged-native.test.mjs` asar 往返讀到全 NUL，與 T0922 無關）→ 開 BUG-223（OPEN low）→ U-8。21:36 派出 T0923（`--mode yolo --no-interactive --isolation worktree`，exit 0、`started: 2026-11-25T13:36:44.974Z`；分頁 `5be5d859…`，worktree `.bat-worktrees/better-agent-terminal/T0923`、base `7b23aa55`）。 21:38 U-8 → A（D351）：BUG-223 → FIXING，開 T0924（隔離，與 T0923 無檔案重疊），派工。 21:39 派出 T0924（yolo，`started: 2026-11-25T13:39:26.210Z`，base `beb44842`）。 21:52 T0924 收單（D352）：Worker 填 `FIXED` → 塔台改 `DONE`；`1eb8f5ee` 只改測試檔（等 `@electron/asar` 寫入串流 `finished`，斷言不變），120/120、test:unit 9037、legacy 472、build、typecheck 0 / 0；BUG-223 → FIXED；`--close-worker T0924 … --worktree keep` exit 0；模式 ① `ct-merge/T0924` → `6dcb62ca`（parent1 `16dafed2`、parent2 `1eb8f5ee`）→ 斷點 E U-9。 21:53 U-9 → A（D353）：整合分支再併 `main` 記帳 commit → `68faa1d3`，`main` ff 到 `68faa1d3`（④ PASS）；整合 worktree detach；T0924 worktree 手動移除（乾淨）；分支保留。T0923 驗收仍在跑。 23:02 T0923 收單 DONE（D354）：M-1～M-15 BAT 端 0 FAIL、M-15c 未觸發（無 Codex 環境）；M-10 清單步驟與舊 BAT UI 不符，改經 IPC 送 `U-2：放棄`（待 CT 確認）；新增 `e2e/manual/ct-accept-act.mjs`（`3d7ae5d2`）；使用者層 1,191 檔雜湊不變、程序 0 殘留。發現 → 開 BUG-224（OPEN medium）→ U-10。`--close-worker T0923 … --worktree keep` exit 0。合併：判準 1 不成立（`main` 多了 T0924 的測試檔）→ 依規則派合併工單 T0925（模式 ②）。 23:03 派出 T0925（`--mode on`，非隔離，`started: 2026-11-25T15:03:49.890Z`）；通知 CT 做 CT 端判定（含 M-10 偏離與 4 點觀察）。 23:04 U-10 → A（D355）：BUG-224 → FIXING，開 T0926（隔離、yolo），pre.4 / CT 6.2.0 同日發佈延到 T0926 合併後。 23:05 派出 T0926（`started: 2026-11-25T15:05:36.149Z`，base `4e562519`）；CT T0568 做 CT 端判定（CT D895）。 23:07 T0925 收單 DONE（D356）：merge `16cf8451`（parent1 `230dade2` = base、parent2 `3d7ae5d2` = T0923 validated），無衝突、樹比對只有 `e2e/manual/` 2 檔、test:unit 9038、legacy 472、build、typecheck 0 / 0；`--close-worker T0925` exit 0 → 斷點 E U-11。
 
 > 🛏 **第一百三十一 session 收工**（2026-11-25 18:58 (UTC+8)）。
 
@@ -114,7 +114,7 @@ reminders:
 - 歷史 sessions → [_archive/state-snapshots/INDEX.md](_archive/state-snapshots/INDEX.md)（150 entries；最新 `2026-Q4-c.md`）
 
 ### 編號起始
-- **T0926** / **BUG-225** / **PLAN-070** / **D355** / **U-11** / **A-4** / **EXP-WFMINE-002**（其他 TOPIC 從 001） / **L186** / **CT-T023**
+- **T0927** / **BUG-225** / **PLAN-070** / **D357** / **U-12** / **A-4** / **EXP-WFMINE-002**（其他 TOPIC 從 001） / **L186** / **CT-T023**
 
 ---
 
