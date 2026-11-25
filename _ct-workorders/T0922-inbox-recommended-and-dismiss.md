@@ -4,13 +4,14 @@ schema_kind: workorder
 id: T0922
 title: "PLAN-069：待辦分頁推薦項（`awaiting_user[].recommended` 標記＋預設選取）與放棄 / 略過（單筆、勾選批次、全部；`inbox_features` 含 `dismiss` 才顯示），回答格式放寬到批次；對應 CT 6.2.0-pre.1"
 type: implementation
-status: PENDING
+status: IN_PROGRESS
 repo: better-agent-terminal
 project: PLAN-069
 priority: P1
 sizing: M
 created_at: "2026-11-25T20:57:34+08:00"
-updated_at: "2026-11-25T20:57:34+08:00"
+started_at: "2026-11-25T20:59:21+08:00"
+updated_at: "2026-11-25T20:59:21+08:00"
 target_version: "0.8.0-pre.4（與 CT 6.2.0 同日發佈）"
 depends_on: []
 related:
