@@ -56,6 +56,17 @@
  * ending clear all. One open prompt (the usual case): cleared by input / a press exactly as before.
  * Logged `[blocked] terminal=<id> kept: <cause> while <n> permission prompts are open …` (once per count).
  *
+ * T0926 / BUG-224: one AskUserQuestion prompt reports twice, `ask-user-question` (`PreToolUse`) and then
+ * `permission-request` tool=AskUserQuestion (its `PermissionRequest`, which runs while the dialog already
+ * shows). The user's input / a mouse press that clears `question` before the second one arrived (Esc
+ * about 0.1 s after the dialog appeared) is remembered (`answeredQuestions`); that second hook, arriving
+ * within `ANSWERED_QUESTION_LATE_HOOK_MS` (monotonic), changes nothing — before T0926 it set `question`
+ * back, and an Esc-interrupted turn sends no later hook, so the tab stayed blocked until the next key.
+ * The reverse order (`permission-request` applied, its `ask-user-question` late) needs `at` on both and
+ * an earlier `at`. A real next prompt still blocks (its `ask-user-question` comes first and drops the
+ * record). Logged `[blocked] terminal=<id> kept cleared: hook <event>[ tool=<name>] is of the question
+ * the user answered <n>ms ago (reported late)`. Permission prompts are not affected (T0918 counts them).
+ *
  * `blockedDetection` (`hook` / `none`) is per terminal id and outlives the PTY (restart, recovery,
  * an exited record): set by the launch decision (`buildBatMcpLaunchArgs`, `none` when no hooks)
  * and by any accepted report (a tab that reports evidently runs the hooks). So a `none` tab never
@@ -230,6 +241,35 @@ export const QUEUED_PERMISSION_PROMPTS_MIN = 2
 const MAIN_AGENT = ''
 
 /**
+ * T0926 / BUG-224: how long (monotonic ms) after the user's input / a mouse press cleared `question`
+ * the other hook of the same AskUserQuestion prompt, reported late, is still recognized as that
+ * prompt's (`answeredQuestions`). The hook script gives up after `HOOK_DEADLINE_MS` = 1.8 s plus its
+ * node start, so a hook that started before the user answered reports well within this; after it the
+ * report sets `question` as before T0926.
+ */
+export const ANSWERED_QUESTION_LATE_HOOK_MS = 5_000
+
+/**
+ * T0926 / BUG-224: one AskUserQuestion prompt reports twice — `ask-user-question` (`PreToolUse`) and
+ * then `permission-request` tool=AskUserQuestion (`PermissionRequest`, started once the dialog shows,
+ * T0597). Which of the two were applied while PTY `id` was in `question`.
+ */
+interface QuestionHooks {
+  preToolUse: boolean
+  permissionRequest: boolean
+}
+
+/**
+ * T0926 / BUG-224: a `question` the user's input / a mouse press cleared before both of its hooks had
+ * reported. `at`: the latest `at` of the hooks applied (T0790's `blockedAt`; absent = unknown);
+ * `clearedAt`: monotonic ms of the clear (`AgentTurnOptions.monotonicNow`).
+ */
+interface AnsweredQuestion extends QuestionHooks {
+  at?: bigint
+  clearedAt: number
+}
+
+/**
  * T0657 / T0918: the permission prompts open in one tab. `agents`: agent → the `at` of each of its open
  * prompts (null = reported without one; T0790); `any` = more than `PERMISSION_AGENTS_MAX` agents (any
  * `post-tool-batch` clears). `open`: how many are open (the sum over `agents`; counted on under `any`).
@@ -356,6 +396,11 @@ export interface AgentTurnOptions {
   /** Tests. Default `setTimeout` (unref'd) / `clearTimeout`. */
   setTimer?(fn: () => void, ms: number): unknown
   clearTimer?(handle: unknown): void
+  /**
+   * T0926 / BUG-224: the clock of `ANSWERED_QUESTION_LATE_HOOK_MS` (ms, monotonic; never the wall
+   * clock, BUG-171). Tests. Default `performance.now()`.
+   */
+  monotonicNow?(): number
 }
 
 /** T0621: what `observeCodexState` did. `ignored` = a `hook` tab (its sequences are not read). */
@@ -398,6 +443,15 @@ export class TerminalBlockedTracker {
   private readonly queuedKeptLogged = new Map<string, number>()
   /** T0790: blocked PTY id → the latest `at` of the hook events that entered / kept its reason. */
   private readonly blockedAt = new Map<string, bigint>()
+  /** T0926: PTY id in `question` → which of its prompt's two hooks were applied. */
+  private readonly questionHooks = new Map<string, QuestionHooks>()
+  /**
+   * T0926 / BUG-224: PTY id → the `question` the user answered (input / mouse press) before one of its
+   * two hooks reported; that hook, arriving within `ANSWERED_QUESTION_LATE_HOOK_MS`, does not set it back.
+   * Survives the clear (it is about what comes after it); dropped by the next setting report, the late
+   * hook itself, the PTY ending and the Terminal Server recovery.
+   */
+  private readonly answeredQuestions = new Map<string, AnsweredQuestion>()
   /**
    * T0694: running PTY id → its agent's turn (start time, the quiet fallback's timer).
    * T0791: + `startedAt` — the latest `at` of the `user-prompt-submit` reports that started / kept it
@@ -483,9 +537,13 @@ export class TerminalBlockedTracker {
       }
       return { result: this.clear(id, `hook ${event}${agentLog}`) ? 'cleared' : 'unchanged', state: null }
     }
+    // T0926 / BUG-224: the other hook of the question the user already answered (reported late)
+    if (reason === 'question' && this.lateHookOfAnsweredQuestion(id, event, toolName, at)) return { result: 'unchanged', state: null }
+    this.answeredQuestions.delete(id)
     const current = this.states.get(id)
     if (current && current.reason === reason) {
       if (reason === 'permission') this.addPermissionPrompt(id, agent, at)
+      if (reason === 'question') this.noteQuestionHook(id, event)
       this.noteBlockedAt(id, at)
       return { result: 'unchanged', state: { ...current } }
     }
@@ -495,7 +553,9 @@ export class TerminalBlockedTracker {
     this.noteBlockedAt(id, at)
     this.permissionPrompts.delete(id)
     this.queuedKeptLogged.delete(id) // T0918
+    this.questionHooks.delete(id) // T0926
     if (reason === 'permission') this.addPermissionPrompt(id, agent, at)
+    if (reason === 'question') this.noteQuestionHook(id, event)
     this.logger?.log(`[blocked] terminal=${id} → blocked reason=${reason} (hook ${event}${toolName ? ` tool=${toolName}` : ''}${reason === 'permission' ? agentLog : ''})`)
     this.changed(id)
     return { result: 'blocked', state: { ...state } }
@@ -506,6 +566,66 @@ export class TerminalBlockedTracker {
     if (at === undefined) return
     const known = this.blockedAt.get(id)
     if (known === undefined || at > known) this.blockedAt.set(id, at)
+  }
+
+  /** T0926: a hook of the AskUserQuestion prompt PTY `id` shows was applied (`question`). */
+  private noteQuestionHook(id: string, event: HookReportEvent): void {
+    let hooks = this.questionHooks.get(id)
+    if (!hooks) {
+      hooks = { preToolUse: false, permissionRequest: false }
+      this.questionHooks.set(id, hooks)
+    }
+    if (event === 'permission-request') hooks.permissionRequest = true
+    else hooks.preToolUse = true
+  }
+
+  private monotonicNow(): number {
+    return this.turnOptions.monotonicNow ? this.turnOptions.monotonicNow() : performance.now()
+  }
+
+  /**
+   * T0926 / BUG-224: the user's input / a mouse press is about to clear PTY `id`. When it is a
+   * `question` whose prompt has reported only one of its two hooks, remembers it (after the clear) so
+   * the other one, reported late, does not set it back. Returns what to remember, or undefined.
+   */
+  private questionAnsweredEarly(id: string): AnsweredQuestion | undefined {
+    if (this.states.get(id)?.reason !== 'question') return undefined
+    const hooks = this.questionHooks.get(id)
+    if (!hooks || hooks.preToolUse === hooks.permissionRequest) return undefined // both reported (or neither: no hook)
+    const at = this.blockedAt.get(id)
+    return { ...hooks, ...(at !== undefined ? { at } : {}), clearedAt: this.monotonicNow() }
+  }
+
+  /**
+   * T0926 / BUG-224: whether a `question` setting report of PTY `id` is the missing hook of the prompt
+   * the user already answered (`answeredQuestions`), reported late — then it changes nothing (logged).
+   * The record is looked at once, whatever the outcome.
+   *
+   *   answered prompt had reported   this report                     → late hook of that prompt when
+   *   `ask-user-question` only       `permission-request` (tool=AUQ) → always (its PermissionRequest
+   *                                                                    runs after its PreToolUse, while
+   *                                                                    the dialog shows)
+   *   `permission-request` only      `ask-user-question`             → `at` known on both sides and
+   *                                                                    earlier than the answered one
+   *
+   * A real next prompt is never taken for it: claude runs a prompt's `PreToolUse` (sync) before its
+   * `PermissionRequest`, so the next prompt reports `ask-user-question` first — not the missing hook in
+   * the first row (it drops the record and blocks), and in the second row it started after the answered
+   * prompt (`at` later; unknown `at` → blocks as before T0926). Past `ANSWERED_QUESTION_LATE_HOOK_MS`
+   * → blocks as before T0926.
+   */
+  private lateHookOfAnsweredQuestion(id: string, event: HookReportEvent, toolName: string | undefined, at: bigint | undefined): boolean {
+    const answered = this.answeredQuestions.get(id)
+    if (!answered) return false
+    this.answeredQuestions.delete(id)
+    const elapsed = this.monotonicNow() - answered.clearedAt
+    if (!(elapsed >= 0 && elapsed <= ANSWERED_QUESTION_LATE_HOOK_MS)) return false
+    let late: boolean
+    if (event === 'permission-request') late = answered.preToolUse && !answered.permissionRequest
+    else late = answered.permissionRequest && !answered.preToolUse && at !== undefined && answered.at !== undefined && at < answered.at
+    if (!late) return false
+    this.logger?.log(`[blocked] terminal=${id} kept cleared: hook ${event}${toolName ? ` tool=${toolName}` : ''} is of the question the user answered ${Math.round(elapsed)}ms ago (reported late)`)
+    return true
   }
 
   /**
@@ -665,6 +785,7 @@ export class TerminalBlockedTracker {
     this.permissionPrompts.delete(id)
     this.queuedKeptLogged.delete(id) // T0918
     this.blockedAt.delete(id) // T0790
+    this.questionHooks.delete(id) // T0926
     this.logger?.log(`[blocked] terminal=${id} → blocked reason=input (osc)`)
     this.changed(id)
     return 'blocked'
@@ -678,7 +799,7 @@ export class TerminalBlockedTracker {
   clearForUserInput(id: string): boolean {
     if (this.states.get(id)?.reason === 'input') return false
     if (this.keptForQueuedPrompts(id, 'user input')) return false
-    return this.clear(id, 'user input')
+    return this.clearAnswered(id, 'user input')
   }
 
   /**
@@ -691,7 +812,18 @@ export class TerminalBlockedTracker {
   clearForMousePress(id: string): boolean {
     if (this.states.get(id)?.reason === 'input') return false
     if (this.keptForQueuedPrompts(id, 'mouse press')) return false
-    return this.clear(id, 'mouse press')
+    return this.clearAnswered(id, 'mouse press')
+  }
+
+  /**
+   * T0926 / BUG-224: the user answered (input / mouse press, `cause`) — clears PTY `id` and, for a
+   * `question` whose prompt reported only one of its two hooks, remembers it (`answeredQuestions`).
+   */
+  private clearAnswered(id: string, cause: string): boolean {
+    const answered = this.questionAnsweredEarly(id)
+    const cleared = this.clear(id, cause)
+    if (cleared && answered) this.answeredQuestions.set(id, answered)
+    return cleared
   }
 
   /** Clears PTY `id`; true when it was blocked. */
@@ -699,6 +831,7 @@ export class TerminalBlockedTracker {
     this.permissionPrompts.delete(id)
     this.queuedKeptLogged.delete(id) // T0918
     this.blockedAt.delete(id) // T0790
+    this.questionHooks.delete(id) // T0926 (`answeredQuestions` outlives the clear on purpose)
     if (!this.states.delete(id)) return false
     this.logger?.log(`[blocked] terminal=${id} → cleared (${cause})`)
     this.changed(id)
@@ -712,6 +845,7 @@ export class TerminalBlockedTracker {
     this.codexStates.clear() // T0621
     this.sessionIds.clear() // T0642
     this.hookOrigins.clear() // T0905
+    this.answeredQuestions.clear() // T0926
   }
 
   /** T0600: ms epoch of PTY `id`'s first `session-start`, or null. */
@@ -744,6 +878,7 @@ export class TerminalBlockedTracker {
     this.codexStates.delete(id)
     this.sessionIds.delete(id)
     this.hookOrigins.delete(id) // T0905
+    this.answeredQuestions.delete(id) // T0926
     this.endTurn(id, 'the PTY ended') // T0694
   }
 
@@ -863,6 +998,8 @@ export class TerminalBlockedTracker {
     this.permissionPrompts.clear()
     this.queuedKeptLogged.clear() // T0918
     this.blockedAt.clear() // T0790
+    this.questionHooks.clear() // T0926
+    this.answeredQuestions.clear() // T0926
     this.started.clear()
     this.codexStates.clear()
     this.sessionIds.clear()
