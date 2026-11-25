@@ -4,14 +4,17 @@ schema_kind: workorder
 id: T0928
 title: "PLAN-069 補跑驗收：以 zip 測試版 BAT `0.8.0-exp.2`（含 BUG-224 修正）＋ CT 6.2.0-pre.2，跑 CT `checklist-rerun.md` R-1～R-4（S5 / S6），並實機驗證 BUG-224"
 type: verification
-status: IN_PROGRESS
+status: DONE
 repo: better-agent-terminal
 project: PLAN-069
 priority: P1
 sizing: M
 created_at: "2026-11-25T23:34:04+08:00"
 started_at: "2026-11-25T23:41:20+08:00"
-updated_at: "2026-11-25T23:41:20+08:00"
+updated_at: "2026-11-26T00:24:53+08:00"
+completed_at: "2026-11-26T00:24:53+08:00"
+session_ids:
+  - "e4be1e08-dbe1-4307-a292-43575c80f349"
 target_version: "0.8.0-pre.4（與 CT 6.2.0 同日發佈）"
 depends_on: [T0923, T0926]
 related:
@@ -62,30 +65,97 @@ CT 條文位置（以 `BMad-Control-Tower/BMad-Control-Tower-v6.2.0-pre.2/skills
 > 以下由 sub-session 填寫，請勿在指揮塔 session 中編輯（唯一例外：`### 待塔台決策` 的 `塔台答覆 Q-n` 行由塔台新增）
 
 ### 完成狀態
+- **狀態**：DONE（R-1～R-4 的 BAT 端全部執行並判定：BAT 端 9 列 PASS、0 FAIL、0 未觸發，其餘是 CT 項；BUG-224 實機 7 回全 PASS）
+- **開始／完成**：2026-11-25T23:41:20+08:00 ～ 2026-11-26T00:24:53+08:00
+- **session_id**：e4be1e08-dbe1-4307-a292-43575c80f349
+
+### 落點檢查
+- 結果：PASS
+- C-0：PASS（frontmatter `repo` = `better-agent-terminal`，`basename "$CT_HOME"` = `better-agent-terminal`）
+- C-1：PASS（工單在 `$CT_HOME/_ct-workorders/`）；C-3：PASS（`e2e/manual/` 存在）；C-2：工單沒有 `branch` 欄位，略過
+- 證據：`CT_HOME` 已設定、`CT_WORKTREE_BRANCH=ct/T0928`、`CT_MODE=yolo`；`BAT_WORKSPACE_ID` = `cc0afc4a-57e9-4f41-b2ed-a2d8bac9e36b`（只記錄不比對）；`BAT_REMOTE_TOKEN` 已設定
 
 ### 前置條件
+| # | 條件 | 結果 |
+|---|---|---|
+| ① | `ACC/checklist-rerun.md` SHA-256 開頭 `fdb9525a` | PASS（`fdb9525adcf0d3ef…`） |
+| ② | `claude-config/.credentials.json` 存在 | PASS（只檢查存在，沒有讀取、複製或記錄內容） |
+| ③ | 換版後 `status --target <ACC>/claude-config/skills` | PASS：換前 `結論：9 個 skill 都是 6.2.0-pre.1`；`install-622` exit 0，最後兩行與清單原文相符；換後 9 列都是 `與 6.2.0-pre.2 來源逐檔相同`、`結論：9 個 skill 都是 6.2.0-pre.2`（`status-before.txt` / `swap-622.txt` / `status-after.txt`） |
+| ④ | `0.8.0-exp.2` zip | PASS：`gh run download 45644734317 -R gowerlin/better-agent-terminal -n desktop-win` 到自己的空目錄；zip SHA-256 `fbdfba59…c956` 與 `SHA256SUMS.txt` 相符；`BUILD-INFO.txt` commit `56ca6e66…`、version `0.8.0-exp.2`；解壓到 `<使用者資料夾>/AppData/Local/BAT-TestBuilds/0.8.0-exp.2-win/`，exe 存在（只用 zip，沒有執行 .exe 安裝檔） |
 
 ### 總表（BAT 端判定；CT 端判定欄留空給 CT）
+回合數 = 塔台 claude 收到的使用者訊息數（含選單回答、Esc 中斷），不含開塔台與收尾。
+
+| 項目 | BAT 端判定 | 塔台回合數 | 情境／專案 |
+|---|---|---|---|
+| R-1-1 選單開著時待辦分頁已有該筆 | PASS | 2 | S5 `ACC/runs/S5`（`0.8.0-exp.2`、6.2.0-pre.2、runtime `e2e-s5-1795621976378`） |
+| R-1-2 選了放棄 → 該筆從待辦分頁消失 | PASS | | S5 |
+| R-2-1 Esc 當下：待辦分頁仍顯示 `U-e`、縮圖狀態正常回復 | PASS | 5 | S5 |
+| R-2-2 / R-2-3 | —（CT 項；R-2-3 BAT 觀察：選單照常開） | | S5 |
+| R-3-2 待辦分頁該筆是自由回答欄、沒有推薦標記 | PASS | 4 | S5 |
+| R-3-1 / R-3-3 | —（CT 項） | | S5 |
+| R-4-1 待辦分頁照常顯示 `U-f` | PASS | 9 | S6 `ACC/runs/S6`（`pending_reminder: on-change`，runtime `e2e-s6-1795623311382`） |
+| R-4-2 待辦分頁照常顯示 `U-f` | PASS | | S6 |
+| R-4-3 待辦分頁多了 `A-g` | PASS | | S6 |
+| R-4-0 / R-4-4 / R-4-5 | —（CT 項） | | S6 |
+
+每項的步驟、每則回覆的最後一行、證據在 `ACC/results-rerun/R-n.md` 與 `R-n/`；各情境日誌 `S5-logs/`、`S6-logs/`（debug log、bat-scripts.log、PTY 全文、`ct610-transcript.mjs` 轉出的對話紀錄）、最終 `_ct-workorders/` 複本 `S5-final/`、`S6-final/`、驅動紀錄 `driver-s5.log` / `driver-s6.log`。CT 端判定欄與〈CT 端判定說明〉都留空。
+
+**給 CT 的觀察（不是 BAT 判定）**：
+- R-1：選單 4 項＋內建（`A 一（推薦）`、`B 二`、`C 三`、`放棄（停下等新方向）`）；R-2 / R-3 / R-4 的 2 選項選單都是 3 項＋內建，最後一項都是「放棄（停下等新方向）」。
+- R-1 `state-after.md`：frontmatter 已無 `awaiting_user`，內文「待你決定」表格列仍是 `| 待你決定 | U-1 |`。
+- R-2 步驟 3、R-4 步驟 2 第 1 則的回覆開頭都有「選單剛才被你關掉了…仍然待決」的提醒。
+- R-4 步驟 2 第 2、3 則與步驟 4 最後一行沒有重列行；步驟 2 第 1 則、步驟 3、步驟 5 最後一行是重列行（步驟 3、5 兩半都有）。
+- BUG-224 的放棄回覆用了「剛才關掉的是 U-n 的選單，你已經在終端回答，所以這筆結案了」這類措辭（`BUG-224/rounds.log`，不屬清單項目）。
 
 ### BUG-224 實機
+- 結果檔 `ACC/results-rerun/BUG-224.md`：**PASS**（7 / 7 回沒有停在 `question`）。
+- S5 專門跑 6 回＋ S6 R-4 步驟 1 共 7 回快速 Esc（`ct-accept-act.mjs fastesc`：選單畫出後 0 ms，或偵測到 question 後立刻 17～81 ms）。其中 6 回打中「`PermissionRequest` 晚於 Esc」的時序，debug log 都是 `kept cleared: hook permission-request tool=AskUserQuestion is of the question the user answered <6～96>ms ago (reported late)`；兩份 debug log 中 `blocked reason=question (hook permission-request …)` 出現 0 次。第 1 回 hook 在 Esc 前就到（`unchanged`），沒打到競態。
+- 每回 Esc 後 0.5 s／5 s／回合結束：attention 都沒有 `blockedReason`、縮圖沒有 ⚠️；在這個狀態下從待辦分頁送出放棄，7 次都立即送出（`[notify-hold] sent … reason=none`，「📨 待送」為空）。Worker `bat-notify --submit` 沒有另外實測（本單不派 Worker），它和待辦分頁回答經同一個 `NotifyHoldController` 判斷。
+- 反例：每回的下一題照常 `blocked reason=question`；R-2 步驟 2 以一般速度（選單出現約 7 s 後）Esc → 只有 `cleared (user input)`，行為同修正前。
+- 建議：BUG-224 可依此實機結果結案（由塔台判斷）。
 
 ### 建議開 BUG
+- 無（BAT 端 0 FAIL）。
+- 其他記錄（不建議開單）：待辦分頁「💬 塔台訊息」第一張卡（開塔台那一回合）摘要只顯示「```」（推測那則訊息以程式碼區塊開頭，未查證；S5 `00b-inbox-startup.png`、`R-1/02-after.png`）；屬顯示細節，請塔台決定是否另記。
 
 ### 產品變更
+- 沒有改產品程式、沒有改 `e2e/fixtures/`。
+- `e2e/manual/ct-accept-act.mjs`（commit `798760b8`）：新增 `menu`（讀出選單的編號選項與反白項）、`pick <label|last>`（方向鍵移到指定選項、重讀畫面確認後 Enter）、`other <text>`（移到內建「Type something.」列逐鍵輸入後 Enter）、`fastesc [sec] [delayMs]`（BUG-224 用：偵測 `question` 後在選單畫出時或立刻以分頁自己的鍵盤輸入送 Esc，印出時間差）；檔頭說明更新。
+- `e2e/manual/README.md`：T0928 指令範例（範例路徑 `C:/Users/demo`）與說明；已知限制的 BUG-224 一條改為「`0.8.0-exp.2` 起已修」。
 
 ### 驗證
+| 關卡 | 結果 |
+|---|---|
+| 相依：worktree 沒有 `node_modules`，依專案慣例 `npm ci` | exit 0 |
+| `node --check e2e/manual/ct-accept-act.mjs`（`798760b8`） | exit 0 |
+| `npx vite build`（`798760b8`） | exit 0 |
+| `npm run typecheck`（`798760b8`） | exit 0（0 錯誤） |
+| `npm run typecheck:electron`（`798760b8`） | exit 0（0 錯誤） |
+| 新指令實際使用 | `pick last`（R-1）、`pick A`（R-2）、`other`（R-3）、`menu`、`fastesc` 兩種模式（BUG-224、R-4）都在本單實際執行並達到預期 |
 
 ### 環境與清理
+- 啟動：兩個情境都經 `launchIsolated`＋`BAT_E2E_EXECUTABLE`（runtime `e2e-s5-…`、`e2e-s6-…`），主行程 env 檢查 `CLAUDE_CONFIG_DIR` = 測試目錄、沒有 `CLAUDECODE` / `CLAUDE_CODE_*` / `CT_*`（`driver-s*.log`）。沒有碰使用者的安裝版 BAT、其 userData、Terminal Server 或 `bat-pty-holder`。
+- 工作區層級 `claude-cli` 參數 `--dangerously-skip-permissions`（只在隔離 runtime 的測試工作區）；沒有出現信任資料夾或權限詢問；AskUserQuestion 選單照常出現。
+- 程序清理（D308）：兩個驅動都以 `closeIsolated` 結束（Terminal Server `alive after teardown: false`、runtime userData 已刪）；之後查 `ExecutablePath` 含 `BAT-TestBuilds` 或命令列含 `runtime=e2e-s`／`ct620-accept` 的程序：0 個。
+- 使用者層：`~/.claude`（skills、settings.json、CLAUDE.md、hooks、installed_plugins.json）與 `~/.codex`（skills、config.toml、AGENTS.md）共 1,191 檔，開工前後 SHA-256 完全相同；`ct-swap.py status --target <使用者資料夾>/.claude/skills` → `結論：9 個 skill 都是 6.1.1`（`results-rerun/user-layer-status.txt`）。
+- `CFG/skills` 停在 6.2.0-pre.2（清單沒有要求換回）。`claude-config/` 裡的帳號檔沒有讀取、複製或摘錄；對話紀錄只轉出本單兩個情境的 `projects/<S5|S6>/*.jsonl`（同 T0923 做法）。
+- `ACC/runs/S5`、`S6` 保留；`S6/_ct-workorders/_tower-config.yaml` 沒有 commit。結果全部在 `ACC/results-rerun/`，沒有寫進 `ACC/results/`。結果檔掃描沒有 `batcap.` 權杖值。
 
 ### 遭遇問題
+- `ct-accept-act.mjs menu` 第一次執行 `SyntaxError`（新加的畫面讀取片段結尾少分號），當場修正後重跑；不影響任何判定。
+- BUG-224 第 1 回 `PermissionRequest` 在 Esc 之前就到，沒有打到競態；加了 `delayMs -1`（偵測到 question 立刻 Esc）後命中率 4 / 4，「等選單畫出」模式之後也命中 2 / 2。
+- 隔離實例的 claude 顯示帳號週用量已 85%（S6 開工時）；本單沒有受影響，但後續若再排實機回合要留意。
 
 ### 互動紀錄
+- 無（yolo；沒有向使用者或塔台提問）。
 
 ### 隔離分支證據
 - branch：`ct/T0928`
-- base_sha：
-- validated_sha：
-- head_sha：
-- validated_sha ≠ head_sha 的說明：
+- base_sha：`50b7cb5c0395694acdf82d76424594bb98c8c52a`
+- validated_sha：`798760b86f255443e7558ac78883ad3bca939787`
+- head_sha：`798760b86f255443e7558ac78883ad3bca939787`
+- validated_sha ≠ head_sha 的說明：兩者相同（產品 commit 之後才跑驗證）
 
 ### 回報時間
+- 2026-11-26T00:24:53+08:00
