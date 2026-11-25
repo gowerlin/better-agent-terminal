@@ -140,7 +140,27 @@ exit `0` = 指令成功、`1` = 指令失敗（印出錯誤）、`2` = 用法錯
 node e2e/manual/ct610-transcript.mjs <session.jsonl> <out.txt> [--grep <regex>]
 ```
 
+### ct-accept-act.mjs — 逐步操作（T0923）
+
+CT 6.2.0 驗收（T0923）把 T0915 只放在 scratchpad 的逐步操作整理成一支腳本，同樣經 `ct610-driver.ts` 的 loopback 協定（狀態檔、secret），只動隔離的 app。
+
+```powershell
+node e2e/manual/ct-accept-act.mjs seed s1 S1 C:/Users/demo/accept/runs/S1   # 工作區（defaultAgent claude-cli、參數 --dangerously-skip-permissions）＋reload
+node e2e/manual/ct-accept-act.mjs ids s1                                    # 分頁 id
+node e2e/manual/ct-accept-act.mjs send s1 <id> C:/Users/demo/tmp/prompt.txt # 一次輸入＋Enter（中文長提示詞寫檔）
+node e2e/manual/ct-accept-act.mjs type s1 <id> 'U-1、U-2：放棄 測試'        # 逐鍵手打＋Enter
+node e2e/manual/ct-accept-act.mjs wait s1 <id> turn 600                      # 等回合：選單 → 0、結束 → 6
+node e2e/manual/ct-accept-act.mjs key s1 <id> ArrowDown                      # 選單操作
+node e2e/manual/ct-accept-act.mjs screen s1 <id> C:/Users/demo/accept/results/M-1/screen.txt
+node e2e/manual/ct-accept-act.mjs inbox s1                                   # 待辦分頁 DOM 摘要
+```
+
+- `screen`：xterm 用 canvas renderer，DOM 沒有文字；腳本從 TerminalPanel 的 React fiber 取到該分頁的 xterm `Terminal`，讀 active buffer 可見的列（含 claude 的選單畫面）。
+- `wait`：讀 host 的 `pty.attentionSnapshot`（claude hook 的 `busy` / `blockedReason`），`question` = AskUserQuestion 選單開著；權限詢問 exit `3`、逾時 `5`。需要分頁的 BAT hooks 正常。
+- 指令與 exit code 見檔頭註解。
+
 ### 已知限制
 
+- AskUserQuestion 選單出現後立刻按 Esc（約 0.1 秒內）時，較晚到的 `PermissionRequest` hook 會在「使用者輸入清除」之後把分頁設回 `question`，直到下一次按鍵（T0923 回報區 BUG 建議）；驅動選單時先等幾秒再按 Esc。
 - claude 2.1.331 的塔台是全螢幕畫面（alt screen）：xterm 沒有 scrollback，捲動由 claude 自己處理；畫面文字只能從 PTY 擷取（TUI 重繪，閃爍的符號會洗掉尾端），判斷內容請以對話紀錄為準。
 - 權限詢問：以 BAT 縮圖 `.attention-badge.blocked[data-blocked-reason=permission]` 判斷；claude 一次排隊多個權限詢問時只有第一個有 hook 事件（T0915 回報區），需另看對話紀錄中沒有結果的工具呼叫。
