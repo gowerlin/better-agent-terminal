@@ -147,6 +147,45 @@ describe('T0908 tower-inbox:answer', () => {
   })
 })
 
+describe('PLAN-069 / T0922 tower-inbox:answer — 放棄 / 略過 batches', () => {
+  it('a batch 放棄 / 略過 line reaches the Tower PTY as one line', async () => {
+    const { pm, call } = setup()
+    expect(call('tower-inbox:answer', WINDOW, { terminalId: 'tower', text: 'U-1、U-3、U-4：放棄 改方向' })).toMatchObject({ ok: true, held: false })
+    await new Promise(r => setTimeout(r, 0))
+    // (this setup's timers never fire: the Enter and the next item are covered by notify-hold-contract-tower.test.ts)
+    expect(pm.writes).toEqual([['tower', 'U-1、U-3、U-4：放棄 改方向']])
+    expect(call('tower-inbox:answer', WINDOW, { terminalId: 'tower', text: 'A-2、A-3：略過' })).toMatchObject({ ok: true })
+  })
+
+  it('other multi-id lines, wildcards and ranges are refused like any bad line', () => {
+    const { pm, lines, call } = setup()
+    for (const text of ['U-1、U-3：A', 'U-1、U-3：先不要', 'A-2、A-3：完成', 'U-*：放棄', 'U-1～U-5：放棄', 'U-1、U-3：放棄\nU-4：放棄', `U-1、U-3：放棄 ${'a'.repeat(1000)}`]) {
+      expect(call('tower-inbox:answer', WINDOW, { terminalId: 'tower', text })).toEqual({ ok: false, reason: 'invalid' })
+    }
+    expect(pm.writes).toEqual([])
+    expect(lines.some(l => l.includes('check=bad-batch'))).toBe(true)
+  })
+
+  it('still refuses a helper capability for a batch line', () => {
+    const { pm, call } = setup()
+    expect(call('tower-inbox:answer', TOWER_HELPER, { terminalId: 'tower', text: 'U-1、U-3：放棄' })).toEqual({ ok: false, reason: 'FORBIDDEN' })
+    expect(pm.writes).toEqual([])
+  })
+
+  it('logs the first id and the id count, never the note', () => {
+    const { pm, lines, call } = setup()
+    pm.blocked.set('tower', { reason: 'question', since: 1 } as unknown as BlockedState)
+    call('tower-inbox:answer', WINDOW, { terminalId: 'tower', text: `U-1、U-3、U-4：放棄 ${SECRET}` })
+    call('tower-inbox:answer', WINDOW, { terminalId: 'tower', text: `U-1、U-3：A ${SECRET}` })
+    const all = lines.join('\n')
+    expect(all).toContain('[tower-inbox] answer terminal=tower id=U-1 ids=3 len=')
+    expect(all).toContain('check=bad-batch')
+    expect(all).not.toContain('secret-answer')
+    expect(all).not.toContain('回合卡片')
+    expect(all).not.toContain('放棄')
+  })
+})
+
 describe('T0908 terminal:notify-hold-* shared handlers', () => {
   it('list / cancel / send-now keep the T0788 answers; a helper capability gets [] / 0', () => {
     const { pm, call } = setup()

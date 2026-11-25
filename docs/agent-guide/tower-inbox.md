@@ -474,6 +474,119 @@ T0908 起（遠端 bat-server 也要是這一版以上）：`terminal:notify-hol
 - 單元：`src/lib/__tests__/tower-inbox.test.ts`（時間兩種時區、選項規則、型別表逐項錯誤隔離、提醒視窗、回答格式與 host 檢查、`waiting_user`、`parseTowerStateInbox`、`effectiveUserInbox`、T0909 面板塔台函式、目標選擇、最近已結、標題數字）；`electron/__tests__/tower-inbox-answer.test.ts`（權杖拒絕、參數 / 格式、契約 2 限定、prompt / draft 擋、reading 不擋、日誌不含文字、`notify-hold-*` 共用 handler、proxied 且不在 `HELPER_CHANNEL_ROLES`）；`src/components/__tests__/inbox-w5.test.tsx`（三區畫面與送出、複製不送出、兩個塔台選擇、面板塔台與草稿、`user_inbox: off`、不符時不顯示、`⏸N`、detached `awaiting`、三語系、面板 source guard）。
 - 待實機：真 claude / codex 塔台收到回答後 CT 6.1.0 的解析與移除（W8）；遠端（WSL）塔台的回答與「📨 待送」（T0902 T-7）。
 
+## 推薦項與放棄（PLAN-069）
+
+T0922（D346；CT 6.2.0-pre.1，CT D886 / D888 / D889）。規格唯一權威：CT `references/memory-protocol.md` § 契約 v2 欄位（`inbox_features`、`awaiting_user[].recommended`、〈放棄／略過〉、〈回答格式與解析〉）。本節只寫 BAT 端。整個分頁仍只在「工作區層」判定相符時運作（R9′，見「版本判定」節）；`bat_contract` / `towerContractStatus` / `--set-role` 都不變。
+
+### 必守規則
+
+- 🔴 `inbox_features` 沒有 `dismiss` 時，畫面與 PLAN-069 前完全相同：沒有勾選框、「放棄…」/「略過…」、工具列（`src/components/__tests__/inbox-plan069.test.tsx` 四種情況斷言）。
+- 🔴 推薦只看 `recommended` 欄位本身（不看 `inbox_features`）；照 CT 的順序顯示，不重排；選項說明裡 CT 保留的「（推薦）」照原文顯示。
+- 🔴 送出端只送明確編號：「全部放棄」/「全部略過」在**按下送出當下**展開成畫面上目前列出的編號；不送萬用字元或範圍。
+- 🔴 送出沿用既有回答路徑（`tower-inbox:answer` → `enqueueAnswer`，受 prompt / `draft` 保護；面板塔台走面板路徑），沒有新 channel；`tower-inbox:answer` 仍不在 `HELPER_CHANNEL_ROLES`、handler 照舊拒 `ctx.helper`。
+- 🔴 日誌只記 id、id 數量、長度、結果；不記 `summary` / `options` / 回答 / 原因文字。
+
+### 唯一實作位置
+
+| 項目 | 位置 |
+|---|---|
+| `inbox_features` 解析 | `parseInboxFeatures`（`src/lib/tower-inbox.ts`），結果在 `TowerInboxLists.features`；`useInboxModel` 的 `features` |
+| 推薦比對 | `matchRecommended`（同檔），結果在 `AwaitingItem.recommended`（CT 寫的代號原樣） |
+| 放棄 / 略過字串 | `dismissAnswerText(ids, 'awaiting' \| 'action', note?)`（同檔） |
+| 回答檢查（renderer 與 host 共用） | `checkInboxAnswer`、`INBOX_BATCH_PREFIX`、`isDismissAnswer`（同檔） |
+| 日誌片段 | `inboxAnswerLogIds`（同檔）；renderer `src/lib/inbox-answer.ts`、host `registerTowerInboxAnswerHandler`（`electron/notify-hold.ts`） |
+| 畫面 | `src/components/inbox/InboxLists.tsx`（`DismissControl` / `DismissCheck` / `DismissToolbar`、`AwaitingRow` 的推薦標記）；`InboxPanel.tsx` 依 `features.includes('dismiss')` 傳 `dismiss` |
+
+### `inbox_features` 讀法
+
+- `_tower-state.md` 頂層，字串陣列（CT 6.2.0 起每次寫 `["recommended", "dismiss"]`）。不是陣列或不存在 = 空陣列（= CT 6.1.x）。
+- 只留 BAT 認得的值（`INBOX_FEATURES` = `recommended`、`dismiss`），前後空白去掉、去重；不認得的值（例 `future-value`）與非字串忽略，不報錯。
+- `dismiss` → 顯示放棄 / 略過控制項。`recommended` 只是說明 CT 會寫 `recommended`，BAT 不依它決定顯示。
+
+### 推薦比對
+
+- `awaiting_user[].recommended`：字串，與同一筆 `options` 的代號**不分大小寫**比對，命中時記下該選項的代號原樣（例 `recommended: "c1"` 對 `C1`）。
+- 沒有這個鍵、不是字串、空字串、對不到、`options` 是空陣列或格式不對（自由回答欄）→ 沒有推薦。🔴 不報錯、不略過該筆、不計入「略過 N 筆」。
+- 畫面：推薦選項旁「推薦」標記（`inbox.recommended`，三語系）；使用者還沒選任何選項時預設選取它（「送出」可直接按，送 `U-n：<推薦代號>`）；點了別的選項就以使用者的選擇為準。
+
+### 控制項出現條件
+
+| 條件 | 待你決定 | 待你執行（CT `user_actions`） |
+|---|---|---|
+| `inbox_features` 沒有 `dismiss` | 與 T0908 相同 | 與 T0908 相同 |
+| 有 `dismiss`，每筆 | 勾選框＋「放棄…」 | 勾選框＋「略過…」 |
+| 有 `dismiss`，該區有項目 | 工具列「放棄勾選（N）」「全部放棄」 | 工具列「略過勾選（N）」「全部略過」 |
+
+- 待驗收 BUG（🙋 區下半）不是 CT 項目，沒有略過。
+- 「放棄…」/「略過…」展開頁內一欄選填的「原因 / 新方向」＋送出 / 取消（不用 `window.confirm`、不開 Dialog）；Enter 也會送出。
+- 工具列按下後展開頁內確認：列出這次要送的編號（以 `、` 分隔）＋一欄共用的選填文字＋送出 / 取消。「放棄勾選」在沒有勾選時停用。
+
+### 送出格式
+
+| 動作 | 送出的一行 |
+|---|---|
+| 單筆放棄 | `U-n：放棄`、`U-n：放棄 <文字>` |
+| 單筆略過 | `A-n：略過`、`A-n：略過 <文字>` |
+| 批次（每區一行） | `U-1、U-3、U-4：放棄 <文字>`、`A-2、A-3：略過` |
+
+- 全形冒號、編號以 `、` 分隔；文字的換行與 tab 改空白、前後空白去掉（`oneLine`）。批次只勾一筆時送單筆格式。
+- 兩區都要送時各自按自己的工具列，各送一行（各一次 `tower-inbox:answer`）。批次送出成功後清掉該區的勾選。
+- 處理完的項目由 CT 從清單移除；「最近已結」照舊以清單消失判定（BAT 不判斷 CT 是否接受）。
+
+### 「全部」展開規則
+
+- 確認列顯示的編號與送出的編號都在**當下**計算：檔案在確認列開著時變動（有項目消失或新增）→ 確認列跟著更新，送出的是按下送出那一刻畫面上列出的編號。
+- 「列出的」= 畫面上畫出的項目（上限 `INBOX_LIST_RENDER_MAX` = 50；CT 每區 ≤ 20 筆，實際上就是全部）。
+- 勾選後消失的項目不會送出（勾選只對目前列出的編號有效）。
+
+### 回答檢查放寬（`checkInboxAnswer`）
+
+- 單編號：`^[UA]-\d+[：:]` 開頭且後面有字 → `ok`，與 T0908 相同（既有測試不改；`U-3：放棄` 本來就接受）。
+- 多編號（`INBOX_BATCH_PREFIX`）：兩個以上 `[UA]-\d+`，以 `、`、`,`、`，` 分隔（前後空白忽略）再接冒號；冒號後第一個詞是「放棄」或「略過」才 `ok`。第一個詞的定義照 CT：去掉前導空白後以這兩字開頭，後面是行尾、半形 / 全形空白，或 `，` `,` `。` `；` `;`（`isDismissAnswer`；「放棄吧」不算）。
+- 其他多編號行（選項代號、自由文字、`完成` / `失敗`）→ `bad-batch`；萬用字元與範圍（`U-*`、`U-1～U-5`、`U-1-5`）→ `bad-prefix`。單行、≤ 1,000 字照舊。
+- host 的拒絕形式不變：不符 → `{ ok: false, reason: 'invalid' }`＋`answer rejected … check=<代碼> len=<n>`。
+
+### 相容
+
+| CT＼BAT | 舊 BAT（T0908） | 新 BAT（T0922） |
+|---|---|---|
+| CT 6.1.x（沒有 `inbox_features` / `recommended`） | 照舊 | 與舊 BAT 相同：沒有推薦標記、沒有放棄控制項 |
+| CT 6.2.0 | 忽略兩個新鍵（未知鍵）；選項文字裡的「（推薦）」仍看得到；沒有放棄控制項，使用者可在塔台自己打 `U-n：放棄` | 推薦標記＋預設選取；有放棄 / 略過 / 批次 |
+
+- 舊 BAT 的 host 檢查不接受批次行，但舊 BAT 的畫面也不會送；新 BAT 的畫面連到舊 bat-server（遠端視窗）送批次行會被拒（`invalid`）——升級 bat-server 即可。
+- 版本不符（P-1 / P-2 / P-3）時整個分頁不顯示清單，與 PLAN-069 無關。
+
+### R6：塔台暫停改用原生選單
+
+CT 6.2.0 起暫停時（`interactive-prompts: on`）先寫 `awaiting_user` 再開原生選單（`AskUserQuestion`），選項總數 ≤ 3 時最後多一項「放棄」。BAT 不用改：
+
+- 選單開著時塔台分頁是 `question` blocked，待辦分頁送出的回答（含放棄 / 批次）由通知保護（`enqueueAnswer`）保留到選單關閉後才送（「📨 待送」）。
+- 使用者已在選單或終端回答同一筆時，送到的那一行由 CT 回「編號已結」（不重複套用）；BAT 不比對、不攔截。
+
+### 日誌
+
+```
+[tower-inbox] answer terminal=<id> id=U-1 ids=3 len=<n> → held|sending|<reason>     ← host，批次多 ids=<數量>
+[tower-inbox] answer rejected terminal=<id> check=bad-batch len=<n>
+[tower-inbox] answer terminal|panel=<id> id=A-2 ids=2 len=<n> → sent|held|…          ← renderer
+```
+
+單編號行的日誌與 T0908 逐字相同（`id=U-3`）。
+
+### 已知限制
+
+- 送出後的接受與否只看清單有沒有消失；CT 回「編號已結」或「不支援」只出現在塔台分頁。
+- 多個塔台時（目標選擇列）批次送出後勾選不自動清除、確認列不自動收起；選了目標並送出後，項目消失即可。
+- 新 BAT 連舊 bat-server 時批次行被拒（見〈相容〉）；單筆放棄 / 略過照常。
+- 面板塔台：放棄的那一行一樣放進面板送出；面板輸入框有字時照舊回 `draft`。
+
+### 驗證
+
+- 單元：`src/lib/__tests__/tower-inbox-plan069.test.ts`（CT 範例狀態檔複本 `src/lib/__tests__/fixtures/ct-tower-state-v620.md`：`future-value` 忽略、flow / block `options`、大小寫不同的推薦代號、自由回答；`parseInboxFeatures`、`matchRecommended`、`dismissAnswerText`、`isDismissAnswer`、批次檢查、日誌片段）；`src/lib/__tests__/tower-inbox.test.ts`（T0908 既有檢查不改）。
+- host：`electron/__tests__/tower-inbox-answer.test.ts`〈PLAN-069〉（批次行送達、其他多編號 / 萬用字元 / 範圍 / 多行 / 超長拒絕、權杖拒絕、日誌 `ids=` 且不含文字）。
+- 元件：`src/components/__tests__/inbox-plan069.test.tsx`（推薦標記＋預設選取＋可改選、沒有 `dismiss` 的四種情況沒有控制項、單筆放棄 / 略過有無文字、勾選批次與確認、「全部」送出當下展開、兩區各一行、日誌不含內容、三語系）。
+- 待實機（真實塔台回合）：見 T0922 回報區〈待實機〉（CT T0566〈給塔台〉M-1–M-15 中需要真實回合的項目）。
+
 ## hook 註冊（W9 / T0910）
 
 > 規格：T0902〈第二版〉§3.1′（`hooks:` 行、`hooksStatus`）、§7（7.0–7.7）、R12 / R13；`hooks:` 行文法另見 PLAN-068〈契約細節補充〉（已告知 CT，CT 6.1.0 依此解析）。

@@ -1863,6 +1863,23 @@
       "today": "今天到期",
       "dueIn": "{{count}} 天后到期",
       "last": "（上次 {{at}}）"
+    },
+    "recommended": "推荐",
+    "dismiss": {
+      "dismiss": "放弃…",
+      "skip": "跳过…",
+      "dismissNote": "原因或新方向（一行，选填）",
+      "skipNote": "原因（一行，选填）",
+      "sendDismiss": "发送放弃",
+      "sendSkip": "发送跳过",
+      "check": "勾选 {{id}}",
+      "dismissChecked": "放弃勾选（{{count}}）",
+      "skipChecked": "跳过勾选（{{count}}）",
+      "dismissAll": "全部放弃",
+      "skipAll": "全部跳过",
+      "confirmDismiss": "放弃 {{ids}}？不套用任何选项；暂停中的工单保持暂停。",
+      "confirmSkip": "跳过 {{ids}}？会记为“未验（用户跳过）”，不是失败。",
+      "confirm": "发送"
     }
   },
   "towerContract": {

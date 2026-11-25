@@ -156,6 +156,8 @@ export function InboxPanel({ workspaceId, workspaceFolderPath }: Readonly<InboxP
   const inboxOff = model.userInbox === 'off'
   const awaiting = inboxOff ? [] : model.awaiting
   const actions = inboxOff ? [] : model.actions
+  // PLAN-069 / T0922: 放棄 / 略過 / batch controls only when the Tower's state file lists `dismiss`
+  const dismiss = model.features.includes('dismiss')
 
   // §3.3: malformed items are skipped and counted (shown even when nothing else is listed)
   const skippedLine = (count: number) => count > 0
@@ -181,12 +183,12 @@ export function InboxPanel({ workspaceId, workspaceFolderPath }: Readonly<InboxP
         {inboxOff && <div className="inbox-muted inbox-off" data-inbox-off="">{t('inbox.userInboxOff')}</div>}
 
         <InboxSection id="decide" title={t('inbox.section.decide')} count={awaiting.length} folded={folded.decide} onToggle={toggle}>
-          <AwaitingList items={awaiting} skipped={model.skipped.awaiting} targets={model.answerTargets} />
+          <AwaitingList items={awaiting} skipped={model.skipped.awaiting} targets={model.answerTargets} dismiss={dismiss} />
         </InboxSection>
         {!inboxOff && awaiting.length === 0 && skippedLine(model.skipped.awaiting)}
 
         <InboxSection id="act" title={t('inbox.section.act')} count={actions.length + model.pendingBugs.length} folded={folded.act} onToggle={toggle}>
-          {actions.length > 0 && <ActionList items={actions} skipped={model.skipped.actions} targets={model.answerTargets} />}
+          {actions.length > 0 && <ActionList items={actions} skipped={model.skipped.actions} targets={model.answerTargets} dismiss={dismiss} />}
           <ul className="inbox-list">
             {model.pendingBugs.map(bug => (
               <li key={bug.id} className="inbox-item" data-inbox-bug={bug.id}>

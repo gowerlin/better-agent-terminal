@@ -1863,6 +1863,23 @@
       "today": "今天到期",
       "dueIn": "{{count}} 天後到期",
       "last": "（上次 {{at}}）"
+    },
+    "recommended": "推薦",
+    "dismiss": {
+      "dismiss": "放棄…",
+      "skip": "略過…",
+      "dismissNote": "原因或新方向（一行，選填）",
+      "skipNote": "原因（一行，選填）",
+      "sendDismiss": "送出放棄",
+      "sendSkip": "送出略過",
+      "check": "勾選 {{id}}",
+      "dismissChecked": "放棄勾選（{{count}}）",
+      "skipChecked": "略過勾選（{{count}}）",
+      "dismissAll": "全部放棄",
+      "skipAll": "全部略過",
+      "confirmDismiss": "放棄 {{ids}}？不套用任何選項；暫停中的工單維持暫停。",
+      "confirmSkip": "略過 {{ids}}？會記為「未驗（使用者略過）」，不是失敗。",
+      "confirm": "送出"
     }
   },
   "towerContract": {
