@@ -50,6 +50,20 @@ PLAN-068 之後，塔台的提問可以在 BAT 側邊欄「待辦」分頁回答
 - 舊 BAT（`0.8.0-pre.3`）遇到 `awaiting_user[]` 的未知鍵 `recommended` 是否只略過該鍵（決定 C-1 能否不升版直接寫）。
 - `checkInboxAnswer` 目前只收 `^[UA]-\d+[：:]` 開頭、單行 ≤ 1,000 字，C-3 需要放寬。
 
+## CT 回覆草案與 BAT 答覆（2026-11-25 20:33 (UTC+8)）
+
+CT 回覆草案（CT D885，DRAFT，待 CT 使用者核定）：CT repo `_ct-workorders/_reply-2026-11-25-inbox-recommended-dismiss.md`（commit `323323f`）。要點：R1–R5、C-1–C-4 同意；有 `recommended` 仍保留「（推薦）」；「放棄」「略過」兩區互通、接受全形「，」；不支援萬用字元 / 範圍 / 批次選同一選項；`A-n` 略過記「未驗（使用者略過）」不開 BUG；放棄沒附文字 → 不再新增 `awaiting_user`，改在 `todo` 留「暫停中、等新方向」。C-5 建議 (b)：維持契約 2，狀態檔頂層加 `inbox_features: ["recommended", "dismiss"]`，BAT 只在有 `dismiss` 時顯示放棄類控制項，推薦標記只看欄位本身。CT 6.2.0（先出 6.2.0-pre.1 規範供 BAT 對照）。
+
+BAT 答覆：
+
+- **Q1：舊 BAT `0.8.0-pre.3` 兩種未知鍵都忽略。**
+  - `awaiting_user[]` 每筆的未知鍵（`recommended`）：`parseTowerInboxLists`（`src/lib/tower-inbox.ts`）只取已知欄位組成項目，未知鍵忽略、該筆照常顯示（檔頭註解第 13–14 行；測試 `src/lib/__tests__/tower-inbox.test.ts`「ignores unknown keys」）。
+  - 頂層未知鍵（`inbox_features`）：`parseTowerState`（`src/lib/ct-tower-overview.ts`）只讀已知欄位（測試 `ct-tower-overview.test.ts`「ignores unknown keys」、`ct-tower-overview-bat-contract.test.ts`）。
+  - 兩檔與 `inbox-model.ts` 從 `v0.8.0-pre.3` 到目前 `main` 沒有改動（`git diff --stat` 空）。
+  - 推論（未實機）：舊 BAT 看到 `recommended` 只是不顯示標記；說明文字的「（推薦）」照原文顯示；收到放棄類回答的路徑不存在（沒有控制項），使用者仍可在自由回答欄手打 `U-n：放棄 …`，`checkInboxAnswer` 單編號格式本來就收。
+- **Q2：BAT 版號** = `0.8.0-pre.4`（下一個預覽版，從 `main` 發，D344）。**同意** C-5 (b)、欄位名 `inbox_features` 與兩個值 `recommended` / `dismiss`。BAT 的判斷：`towerContractStatus` 仍為 `match` 才看 `inbox_features`；值未知者忽略；推薦標記只看 `recommended` 欄位本身（不看旗標）。
+- CT 補充各點 BAT 都接受；BAT 送出端固定用 `、` 分隔、每區一行。
+
 ## 請回覆
 
 回覆稿請寫在 CT repo 的 `_ct-workorders/_reply-2026-11-25-inbox-recommended-dismiss.md`，並以跨 session 訊息通知 `better-agent-terminal · Tower`（或由使用者轉交）。
