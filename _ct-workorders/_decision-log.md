@@ -10,6 +10,7 @@
 
 | ID | 日期 | 標題 | 相關工單 |
 |----|------|------|---------|
+| D342 | 2026-11-25 | U-2 → B：現在把 `v0.8.x` 併回 `main`（取代「等 0.8 線用一段時間再併」）；開合併工單 T0921（模式 ②，只有 `CHANGELOG.md` 衝突） | T0921 / PLAN-066 |
 | D341 | 2026-11-25 | A-3 完成 → BUG-217 CLOSED（`v0.8.0-pre.3` 安裝版使用者實機驗收） | BUG-217 |
 | D340 | 2026-11-25 | U-1 → A：BUG-218／219 以 pre.2／pre.3 CI `tests / unit-tests` 綠燈結案（CLOSED）；BUG-216／217 維持 FIXED，列待使用者實機驗收（A-2／A-3） | BUG-216–219 |
 | D339 | 2026-11-25 | 發佈 `0.8.0-pre.3`（從 `v0.8.x` `5e541975`：PLAN-068＋BUG-220–222），使用者核定；誤發的測試 artifact 使用者自行刪除（本 session 無法代為確認刪除） | PLAN-068 |
@@ -273,6 +274,13 @@
 - **最大風險**：`whisper-node-addon@1.0.2` 對 Electron 41（Node 24）的 NODE_MODULE_VERSION 相容性未知，允許 Worker 遇此決策點主動問塔台
 
 ---
+
+### D342 2026-11-25 18:42 — `v0.8.x` 併回 `main`（U-2）
+
+- **背景**：外部測試者從 GitHub `main` 的「Download ZIP」打包 macOS，拿到舊程式（`main` `package.json` `0.7.5-pre.2`，`CHANGELOG.md` 卻已寫 pre.3）。原因是 D307 起產品改動只在 `v0.8.x`。塔台發 U-2（A README 註明／B 併回 main／C 改預設分支／D 不改）。
+- **使用者裁示**：「U-2：B」，取代第一百二十九 session「等 0.8 線用一段時間再併回 main」的裁示。
+- **查證**：merge-base `06c3b884`；`main` 只改 `_ct-workorders/**`、`CHANGELOG.md`、`release-note.md`；`merge-tree` 試合併只有 `CHANGELOG.md` 衝突（兩邊都加了 `[0.8.0-pre.3]` 段）。
+- **執行**：開 T0921（模式 ②，整合 worktree，`ct-merge/T0921`）；主要證據是合併結果對 `4ce779ee` 的樹比對只差 `_ct-workorders/**`＋兩個發版文件。ff `main` 經斷點 E；push 另取授權。併回後 PLAN-066 → DONE；之後產品改動回到 `main` 還是續用 `v0.8.x`，收單時再問。
 
 ### D341 2026-11-25 16:31 — A-3 完成，BUG-217 結案
 
