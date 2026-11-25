@@ -4,12 +4,17 @@ schema_kind: workorder
 id: T0925
 title: "合併 `ct/T0923`（CT 6.2.0 驗收驅動腳本 `e2e/manual/ct-accept-act.mjs`）→ `main`"
 type: chore
-status: PENDING
+status: DONE
 repo: better-agent-terminal
 project: PLAN-069
 priority: P2
 sizing: S
 created_at: "2026-11-25T23:02:32+08:00"
+started_at: "2026-11-25T23:03:54+08:00"
+updated_at: "2026-11-25T23:06:22+08:00"
+completed_at: "2026-11-25T23:06:22+08:00"
+session_ids:
+  - "ae787061-a7bb-4432-bdb5-be30e2ec30a6"
 target_version: "0.8.0-pre.4"
 kind: merge
 merges:
@@ -65,14 +70,48 @@ T0923（PLAN-069 CT 6.2.0 實機驗收自動化）只新增 `e2e/manual/ct-accep
 
 ### 完成狀態
 
+- **狀態**：DONE（模式 ② `conflict`，實際無衝突）
+- **session_id**：ae787061-a7bb-4432-bdb5-be30e2ec30a6
+- **落點檢查**：PASS。C-0 `repo` = `better-agent-terminal`、`basename(REPO_ROOT)` = `better-agent-terminal`；C-1 工單在主 checkout 下；C-3 不適用（`affects_files` 只有本工單檔）；`CT_HOME` 未設定（非 worktree 派工）；`BAT_WORKSPACE_ID` = `cc0afc4a-57e9-4f41-b2ed-a2d8bac9e36b`（只記錄）；`CT_MODE` = `on`。
+- **commit**：主 checkout 只 commit 本工單檔；整合 worktree 的產物是 merge commit（未 ff `main`、未 push）。
+
 ### 合併結果
+
+- 開工檢查：整合 worktree 乾淨（原為 detached `68faa1d3`）；`ct/T0923` = `3d7ae5d29a3717e55bfec3cd790b1ab2143470b8` ✅；`main` = `d538c83d`，`git diff --name-only 230dade2 main` 只有 `_ct-workorders/T0925-merge-t0923-into-main.md` ✅；`ct-merge/T0925` 原本不存在 ✅。
+- 合併分支：`ct-merge/T0925`（自 `base_main_sha` `230dade2da2118c22819c8c8ddcfb132ad404550`）
+- **merge commit**：`16cf8451fa245b19650a806ddca0d883d12540cd`（`merge(ct): T0925 T0923 CT acceptance step helper`，ort strategy）
+- **parent1**：`230dade2da2118c22819c8c8ddcfb132ad404550`（`base_main_sha`）
+- **parent2**：`3d7ae5d29a3717e55bfec3cd790b1ab2143470b8`（`ct/T0923`）
+- **衝突**：無
+- **樹比對**：`git diff --name-only 230dade2 16cf8451` = `e2e/manual/README.md`、`e2e/manual/ct-accept-act.mjs`（2 檔，+236 行），與預期相同。
 
 ### 驗證
 
+**驗收 SHA**：`16cf8451fa245b19650a806ddca0d883d12540cd`（= merge commit；驗收後整合 worktree `status --porcelain` 為空）
+
+| 關卡 | 結果 |
+|---|---|
+| `npm ci` | exit 0（結尾 `electron-winstaller` install script 被擋的警告屬預期） |
+| `npm run typecheck` | exit 0（0 錯誤） |
+| `npm run typecheck:electron` | exit 0（0 錯誤） |
+| `npx vite build` | exit 0 |
+| `npm run test:unit`（第一次完整執行） | exit 0：Test Files 497 passed / 3 skipped（500）；Tests 9038 passed / 41 skipped（9079）；68.51 s |
+| `npm run test:legacy` | exit 0：files 33 passed / 0 failed；tests 472 passed / 0 failed |
+| `node --check e2e/manual/ct-accept-act.mjs` | exit 0 |
+| e2e | 依工單不跑 |
+
 ### 範圍外檔案
+
+無（2 檔皆在 T0923 `affects_files` 的 `e2e/manual/` 內）。
 
 ### 互動紀錄
 
+無（fire-and-forget，未向塔台提問）。
+
 ### 遭遇問題
 
+無。
+
 ### 回報時間
+
+2026-11-25T23:06:22+08:00
