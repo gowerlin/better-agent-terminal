@@ -4,13 +4,14 @@ schema_kind: workorder
 id: T0918
 title: "修 BUG-222：claude 排隊多個權限詢問時，回答第一個後 `blocked`（`permission`）不得提早清除"
 type: bugfix
-status: TODO
+status: IN_PROGRESS
 repo: better-agent-terminal
 project: PLAN-068
 priority: P1
 sizing: M
 created_at: "2026-11-25T12:19:45+08:00"
-updated_at: "2026-11-25T12:19:45+08:00"
+updated_at: "2026-11-25T12:22:47+08:00"
+started_at: "2026-11-25T12:22:47+08:00"
 target_version: "0.8.0-pre.3（與 CT 6.1.0 同日發佈）"
 depends_on: [T0915]
 related:
