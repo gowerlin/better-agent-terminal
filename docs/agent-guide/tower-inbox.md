@@ -121,12 +121,13 @@
 ### 遠端與 detached
 
 - 遠端工作區：`InboxDataSource` 用的 `fs:*` 都是既有 proxied channel，讀視窗綁定的 host；`fs:changed` 照既有路徑回來。沒有新增 channel。
+- 之後才建立的 `_ct-workorders/`（T0916 / BUG-220）：`acquireDirWatch` 以 `fs:watch(dir, { recreate: true })` 監看；目錄還不存在時主行程（或 bat-server）改以非遞迴方式監看最近的已存在、path guard 允許的上層目錄（事件驅動、不輪詢），目錄出現後換回原本的遞迴 watcher 並送一次 `fs:changed`，待辦分頁與指揮塔不必按 ↻ 就重讀；目錄被刪除或被換掉（dev+ino 改變）→ 送一次 `fs:changed`、關掉舊 watcher、回到等待。只有 `acquireDirWatch` 帶這個選項，其他 `fs.watch` 呼叫者（檔案樹、Markdown 預覽、`.git`、`_bmad-output`）與目錄本來就存在時的事件次數都不變。遠端：proxied `fs:watch` 照 `first-string` 只換第一個參數、選項原樣送到 bat-server，headless 共用同一個 `registerFsHandlers`；T0916 之前的 bat-server 忽略多出的參數，不存在的目錄照舊回 `false`、不監看（與修正前相同）。唯一實作 `electron/handlers/fs.ts`（`FsWatchOptions`、`armRecreate` / `armPending`）。
 - detached 視窗：自己掛一個 `InboxDataSource`（自己的工作區），分頁在 `WorkspaceView` 的分頁列。
 - 已宣告塔台、Worker 等你都來自 renderer 既有 store（每個視窗都有）；📨 待送在遠端視窗也看得到（見「契約 v2 清單與回答」節〈「📨 待送」在遠端視窗〉）。
 
 ### 已知限制
 
-- `_ct-workorders/` 在開啟後才建立時，不會自動開始監看（同指揮塔）；按 ↻ 重讀。
+- ~~`_ct-workorders/` 在開啟後才建立時，不會自動開始監看（同指揮塔）；按 ↻ 重讀。~~ T0916（BUG-220）起自動監看；連到 T0916 之前的 bat-server 時仍是舊行為。
 - 目錄監看的計數只在同一個視窗內；另一個視窗（detached）unwatch 同一路徑仍會關掉主行程的 watcher（T0906 之前就有）。
 - 已宣告塔台只在記憶體：renderer 重新載入後要等塔台再 `--set-role` 一次（W0 的限制）。
 - 待辦與指揮塔各讀一次工單檔（兩個資料來源），工單很多時讀檔次數加倍。
@@ -135,6 +136,7 @@
 
 - 單元測試：`src/lib/__tests__/inbox-model.test.ts`（§6′ 每一列、狀態檔判定、提示、選擇器、區塊順序與摺疊、BUG / 數量 / `todo` / Worker 等你、標題）；`src/lib/__tests__/ct-tower-overview-bat-contract.test.ts`（`bat_contract` 解析與錯誤隔離）。
 - 畫面：`src/components/__tests__/inbox-panel.test.tsx`（每一列的畫面與標題 `!` / 數字、選擇器、區塊、BUG 連到 Bugs、Worker 等你、`todo` 摺疊與記憶；R6 相符 / 不符 / 沒有 `workspaceId` 的總覽；三語系名稱、舊 docking 存檔、共用監看、資料來源讀檔與重讀）。
+- 之後才建立的目錄（T0916）：`electron/__tests__/fs-watch-recreate.test.ts`（不存在 → 建立、中間層級、存在時事件次數相同、刪除再建立、unwatch 不留 watcher、↻、path guard、headless 線路）；`src/stores/__tests__/ct-dir-watch.test.ts`。
 - 實機：W8 整合驗收（T0913，隔離實例）。
 
 ## 通知保護（W1＋W2 / T0904）

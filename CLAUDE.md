@@ -518,7 +518,7 @@
 
 - 用途：右側欄分頁「待辦」（`DockablePanel` `inbox`，預設右側、在指揮塔前）集中顯示需要使用者處理的事：⏸ 待你決定 → 🙋 待你執行 → ⏰ 到期提醒 → 👷 Worker 等你 → 💬 塔台訊息 → 📋 塔台待辦 → 📊 數量列。CT 清單與回答見下一節，💬 見「塔台回合訊息卡」節。
 - 🔴 全部綁版本（D328 R9′）：選中的塔台（分頁宣告 × `_tower-state.md` `bat_contract`）不相符時整個分頁只留塔台選擇器與 P-1 / P-2 / P-3，標題 `!`；沒有已宣告塔台時以狀態檔判定。🔴 R6：總覽的 `todo` 只在相符時改成「到待辦分頁查看」，不符時照舊列出。
-- 🔴 唯讀、不新增 channel：讀檔走指揮塔同一套 `fs:*`（`InboxDataSource`）；`_ct-workorders/` 的監看一律經 `acquireDirWatch`（`src/stores/ct-dir-watch.ts`，主行程 watcher 沒有計數，不要直接 `fs.watch` / `fs.unwatch` 這個目錄）。
+- 🔴 唯讀、不新增 channel：讀檔走指揮塔同一套 `fs:*`（`InboxDataSource`）；`_ct-workorders/` 的監看一律經 `acquireDirWatch`（`src/stores/ct-dir-watch.ts`，主行程 watcher 沒有計數，不要直接 `fs.watch` / `fs.unwatch` 這個目錄）；T0916 / BUG-220：它帶 `fs:watch(dir, { recreate: true })`（`electron/handlers/fs.ts` `FsWatchOptions`），目錄之後才建立或刪除再建立都會送 `fs:changed`，🔴 其他 `fs.watch` 呼叫者不帶這個選項（行為不變）。
 - 唯一實作：判定與資料整理 `src/lib/inbox-model.ts`（`inboxVerdict`、`stateFileContractStatus`）、`bat_contract` 解析 `parseTowerState` / `towerStateBatContract`、畫面 `src/components/InboxPanel.tsx`；舊 docking 存檔經 `normalizeDockingConfig` 補預設。
 - 完整判定表、區塊、跨分頁開啟、已知限制、驗證清單：[docs/agent-guide/tower-inbox.md](docs/agent-guide/tower-inbox.md)「版本判定」「右側欄「待辦」分頁」
 

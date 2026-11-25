@@ -443,7 +443,7 @@ describe('plumbing', () => {
     expect(loaded.hasCtDir).toBe(true)
     expect(loaded.state?.status).toBe('loaded')
     expect(loaded.orderStatuses.sort()).toEqual(['DONE', 'PENDING'])
-    expect(fs.watch).toHaveBeenCalledWith(CT)
+    expect(fs.watch).toHaveBeenCalledWith(CT, { recreate: true }) // T0916: also a _ct-workorders/ created later
     const reads = fs.readdir.mock.calls.length
     await act(async () => { changed?.(CT) })
     for (let i = 0; i < 8; i++) await act(async () => { await new Promise(r => setTimeout(r, 0)) })

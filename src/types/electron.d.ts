@@ -955,7 +955,8 @@ interface ElectronAPI {
     readFile: (filePath: string) => Promise<{ content?: string; error?: string; size?: number }>
     stat: (filePath: string) => Promise<{ mtimeMs: number; size: number } | null>
     search: (dirPath: string, query: string) => Promise<import('./file').FileEntry[]>
-    watch: (dirPath: string) => Promise<boolean>
+    /** T0916: `{ recreate: true }` keeps watching a directory that does not exist yet or is deleted later (see electron/handlers/fs.ts `FsWatchOptions`) */
+    watch: (dirPath: string, options?: { recreate?: boolean }) => Promise<boolean>
     unwatch: (dirPath: string) => Promise<boolean>
     resetWatch: (dirPath: string) => Promise<boolean>
     onChanged: (callback: (dirPath: string) => void) => () => void

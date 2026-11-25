@@ -612,7 +612,10 @@ const electronAPI = {
       const raw = (await ipcRenderer.invoke('fs:search', dirPath, query)) as RawFileEntry[]
       return withPathKeys(raw)
     },
-    watch: (dirPath: string) => ipcRenderer.invoke('fs:watch', dirPath) as Promise<boolean>,
+    // T0916: `options` ({ recreate: true }) only when given, so other callers send exactly what they did
+    watch: (dirPath: string, options?: { recreate?: boolean }) => (options === undefined
+      ? ipcRenderer.invoke('fs:watch', dirPath)
+      : ipcRenderer.invoke('fs:watch', dirPath, options)) as Promise<boolean>,
     unwatch: (dirPath: string) => ipcRenderer.invoke('fs:unwatch', dirPath) as Promise<boolean>,
     resetWatch: (dirPath: string) => ipcRenderer.invoke('fs:reset-watch', dirPath) as Promise<boolean>,
     onChanged: (callback: (dirPath: string) => void) => {

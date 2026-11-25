@@ -9,6 +9,11 @@
  *
  * Known limit: the count is per window; another window (a detached one) watching the same path
  * still shares main's watcher, as before T0906.
+ *
+ * T0916 / BUG-220: the watch asks for `{ recreate: true }`, so a `_ct-workorders/` created after the
+ * workspace was opened (a first Tower run), or deleted and created again, still gets `fs:changed`
+ * (electron/handlers/fs.ts `FsWatchOptions`). Only this module passes the option. A bat-server older
+ * than T0916 ignores it: a missing directory is then not watched, as before.
  */
 
 const users = new Map<string, number>()
@@ -17,7 +22,7 @@ const users = new Map<string, number>()
 export function acquireDirWatch(dirPath: string): () => void {
   const count = users.get(dirPath) ?? 0
   users.set(dirPath, count + 1)
-  if (count === 0) callFs('watch', dirPath)
+  if (count === 0) callFs('watch', dirPath, { recreate: true })
   let released = false
   return () => {
     if (released) return
@@ -32,9 +37,10 @@ export function acquireDirWatch(dirPath: string): () => void {
   }
 }
 
-function callFs(method: 'watch' | 'unwatch', dirPath: string): void {
+function callFs(method: 'watch' | 'unwatch', dirPath: string, options?: { recreate: true }): void {
   try {
-    const result = window.electronAPI?.fs?.[method]?.(dirPath)
+    const fsApi = window.electronAPI?.fs
+    const result = method === 'watch' ? fsApi?.watch?.(dirPath, options) : fsApi?.unwatch?.(dirPath)
     if (result && typeof result.catch === 'function') result.catch(() => false)
   } catch { /* no fs bridge (tests) */ }
 }
