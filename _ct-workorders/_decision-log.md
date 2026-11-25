@@ -10,6 +10,7 @@
 
 | ID | 日期 | 標題 | 相關工單 |
 |----|------|------|---------|
+| D355 | 2026-11-25 | U-10 → A：BUG-224（極快 Esc 後晚到的設定類 hook）`0.8.0-pre.4` 前修 → FIXING，修正單 T0926；同日發佈延到 T0926 合併後 | BUG-224 / T0926 |
 | D354 | 2026-11-25 | T0923 收單 DONE（M-1～M-15 BAT 端 0 FAIL、M-15c 未觸發）；開 BUG-224 → U-10；合併判準 1 不成立 → 合併工單 T0925（模式 ②）；通知 CT 做 CT 端判定 | T0923 / T0925 / BUG-224 / PLAN-069 |
 | D353 | 2026-11-25 | U-9 → A：`main` ff 到 `68faa1d3`（T0924 併入）；T0924 worktree 移除、分支保留 | T0924 / BUG-223 |
 | D352 | 2026-11-25 | T0924 收單 DONE（`1eb8f5ee`，測試等 `@electron/asar` 寫入完成）；BUG-223 → FIXED；模式 ① `ct-merge/T0924` → `6dcb62ca`；斷點 E → U-9 | T0924 / BUG-223 |
@@ -286,6 +287,13 @@
 - **最大風險**：`whisper-node-addon@1.0.2` 對 Electron 41（Node 24）的 NODE_MODULE_VERSION 相容性未知，允許 Worker 遇此決策點主動問塔台
 
 ---
+
+### D355 2026-11-25 23:04 — BUG-224 發版前修（U-10）
+
+- **使用者裁示**：U-10：A（原生選單）。
+- **決定**：BUG-224 → FIXING；開 T0926（隔離 worktree、per-dispatch yolo；`affects_files` `electron/terminal-blocked-state.ts`、`electron/pty-manager.ts`、`electron/__tests__/`、`docs/agent-guide/blocked-state.md`、`CLAUDE.md`，與 T0925 不重疊）。不改 `bat-hook.mjs`、不改用牆鐘、T0790 / T0791 / T0918 / T0757 規則與測試不變，真正的新提示仍要 `blocked`。
+- **影響**：BAT `0.8.0-pre.4` 與 CT 6.2.0 的同日發佈延到 T0926 合併（及 CT 端判定）之後；會通知 CT 塔台。
+- **相關**：BUG-224 / T0926 / PLAN-069
 
 ### D354 2026-11-25 23:02 — T0923 驗收收單、BUG-224、合併工單 T0925
 
