@@ -5,6 +5,7 @@ id: T0922
 title: "PLAN-069：待辦分頁推薦項（`awaiting_user[].recommended` 標記＋預設選取）與放棄 / 略過（單筆、勾選批次、全部；`inbox_features` 含 `dismiss` 才顯示），回答格式放寬到批次；對應 CT 6.2.0-pre.1"
 type: implementation
 status: DONE
+waiting_user: "U-6"
 repo: better-agent-terminal
 project: PLAN-069
 priority: P1
