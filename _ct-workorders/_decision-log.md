@@ -10,6 +10,7 @@
 
 | ID | 日期 | 標題 | 相關工單 |
 |----|------|------|---------|
+| D382 | 2026-11-26 | `v0.8.0-pre.6` 發佈（Pre-Release `45840792584`，`606e283f`）：T0934 💬 卡片參考檔案連結；分支 2 個刪除；待驗收 A-5 | T0934 |
 | D381 | 2026-11-26 | U-18：A → T0934 經 `ct-merge/T0934` ff 進 `main` | T0934 |
 | D380 | 2026-11-26 | T0934 收單（DONE，`15ded368`）、模式 ① 合併到 `ct-merge/T0934` `098ab6c8`；斷點 E → U-18 | T0934 |
 | D379 | 2026-11-26 | 開 T0934：💬 卡片參考檔案連結（沿用 T0930 唯一實作；收合摘要在按鈕內不加連結） | T0934 |
@@ -499,6 +500,18 @@
   4. PLAN-001 保持延後（🟢 Low，等 plugin 1.0 穩定）
 - **Success criteria**（EXP→CONCLUDED）：npm install 無錯 / 所有 native modules rebuild 成功 / dev+build:dir 可跑 / 手動 smoke test 8 項通過
 - **最大風險**：`whisper-node-addon@1.0.2` 對 Electron 41（Node 24）的 NODE_MODULE_VERSION 相容性未知，允許 Worker 遇此決策點主動問塔台
+
+---
+
+### D382 2026-11-26 23:00 — `v0.8.0-pre.6` 發佈
+
+- **使用者指示**：「發 pre.6 分支也一起清」。
+- **分支**：`ct/T0934`、`ct-merge/T0934` 皆在 `--merged main`、無遠端分支 → `git branch -d` exit 0。
+- **push 前檢查**（D176）：`.private/` 檢查樣式＋截圖相關字詞 0 筆；外送 diff 金鑰樣式 0、家目錄路徑 0。
+- **發版**：push `main` `606e283f` → `gh workflow run pre-release.yml -f version=0.8.0-pre.6`（run `45840792584`，全部 job success）→ Pre-Release `v0.8.0-pre.6`（2026-11-26T14:58:26Z）、`server-bundle-v0.8.0-pre.6`；安裝檔 4 個，大小與 pre.5 相同；`gh release edit --notes-file` 更版重點已核對。
+- **文件**：`CHANGELOG.md`、`release-note.md`、`README.md`（待辦分頁那行補卡片）、`site/tower-inbox.md`、`package.json` / lock 版號。NSIS 重裝驗收：本版不需要（未改安裝程式路徑）。
+- **待驗收**：A-5（T0934〈待實機〉）。
+- **相關**：T0934
 
 ---
 

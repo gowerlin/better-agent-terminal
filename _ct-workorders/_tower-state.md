@@ -4,18 +4,25 @@ summary_version: 1
 bat_contract: 2
 ct_version: "6.2.0"
 inbox_features: ["recommended", "dismiss"]
-updated_at: "2026-11-26T22:36:02+0800"
+updated_at: "2026-11-26T23:00:04+0800"
 session: "2026-11-26 21:18 第一百三十五 session（CT v6.2.0）"
 next_ids:
   workorder: "T0935"
-  decision: "D382"
+  decision: "D383"
   bug: "BUG-226"
   plan: "PLAN-070"
   user: "U-19"
-  action: "A-5"
+  action: "A-6"
+user_actions:
+  - id: "A-5"
+    title: "安裝 0.8.0-pre.6 驗收 💬 卡片參考檔案連結（T0934）"
+    ref: "T0934"
+    kind: "verify"
+    created_at: "2026-11-26T23:00:04+08:00"
 todo:
-  - "T0934 DONE，U-18：A → 經 `ct-merge/T0934` ff 進 `main`（D381）；〈待實機〉5 項併入 `0.8.0-pre.6` 待驗收；分支 `ct/T0934`、`ct-merge/T0934` 待使用者同意刪除"
-  - "🚀 `v0.8.0-pre.5` 已發佈並驗收（D377 / D378）：T0929 版面、T0930 參考檔案可點、BUG-225 CLOSED（A-4 完成）；下一版 `0.8.0-pre.6`"
+  - "🚀 `v0.8.0-pre.6` 已發佈（D382，2026-11-26 22:58，Pre-Release `45840792584`，`606e283f`）：T0934 💬 卡片參考檔案連結，待驗收 A-5；下一版 `0.8.0-pre.7`"
+  - "A-5 驗收細項（T0934〈待實機〉）：收合時點加亮行連結 → 切「檔案」頁籤並選取、卡片仍收合且 ● 未讀不變；展開後點內文連結 → 同上、卡片仍展開、📌 不變；不存在的檔與 URL 為一般文字；長卡片「顯示全部」後尾段路徑可點；收合摘要沒有連結"
+  - "`v0.8.0-pre.5` 已驗收（D378）：T0929 / T0930 / BUG-225 CLOSED"
   - "候選（未開單，T0930 建議）：💬 卡片沿用 `InboxRefText` 加連結；`useInboxFileRefs` 跟 `_ct-workorders/` 的 `fs:changed` 重查"
   - "候選（未開單，T0924 建議）：`scripts/verify-packaged-native.js` `readAsarFile` 不檢查 `fs.readSync` 回傳位元組數，截斷的 app.asar 會被讀成 NUL 而不報錯；改成讀不足判失敗（檢查變嚴）"
   - "PLAN-066（DONE）後續候選（未開單）：`pty:create` 只送 env 差異（`pty-manager.ts`＋Terminal Server 協定）可再降 C2①；direct 模式的 conin socket 殘留；F4（自然結束的 conhost 留到 server 結束）。分支：`ct/T0885`（Rust 評估，D307 保留不合併，worktree 保留）、`ct/T0886`（node-pty Worker 研究，未併入 `v0.8.x`，worktree 已移除）"
@@ -26,7 +33,7 @@ todo:
   - "候選（未開單，D303 暫不安排）：T0830 後續 SSH / Docker 精靈長呼叫接 operation id；PLAN-052 fetch-fingerprint Docker 分支、docker-acceptance 純函式測試；PLAN-058 卡片等待時可送出（2026-11-20 使用者：先記著、不開單。只涉 Claude Agent 面板（SDK），不影響 Claude CLI 分頁；要做時的建議：輸入框預設收合＋「補充說明」按鈕展開、輸入框有焦點時停用卡片快捷鍵（權限卡在 window 監聽 1/2/3、y/n、Enter、方向鍵）、送出走 T0815 排隊路徑；需實機操作確認）"
   - "MSRC 回報 microsoft/node-pty（使用者自行處理，D255）"
   - "觀察：語音可用性檢查 macOS 未實機（`unknown(timeout)` 出現可把逾時提到 30 s，T0802）；t0757 偶發失敗再發生才開 BUG（D218）；PLAN-060（IDEA）macOS Developer ID 簽章"
-  - "版號線：D315 起 `0.8.0-pre.N`（D344 起從 `main` 發），`0.8.0-pre.5` 已發佈（2026-11-26 20:58，D377），下一版 `0.8.0-pre.6`（`-pre.N` 最多到 pre.9）"
+  - "版號線：D315 起 `0.8.0-pre.N`（D344 起從 `main` 發），`0.8.0-pre.6` 已發佈（2026-11-26 22:58，D382），下一版 `0.8.0-pre.7`（`-pre.N` 最多到 pre.9）"
 reminders:
   - id: "weekly-log-review"
     title: "每週日誌清查（PLAN-067；到期時塔台開工會提示，只提示不派工）"
@@ -115,8 +122,8 @@ reminders:
 |------|------|
 | **專案** | better-agent-terminal |
 | **Fork 上游** | tony1223/better-agent-terminal（另有 `scandnavik` remote；⚠️ gh 預設解析到 upstream，見 L122） |
-| **目前版號** | `main` `package.json` **0.8.0-pre.5**；下一版 **`0.8.0-pre.6`**（從 `main` 發，D344） |
-| **最新 release** | `v0.8.0-pre.5`（2026-11-26 20:58 (UTC+8)，Pre-Release `45820932628`，`9350cb5c`，D377）；前一 tag `v0.8.0-pre.4`；更早見 `release-note.md` / `CHANGELOG.md` |
+| **目前版號** | `main` `package.json` **0.8.0-pre.6**；下一版 **`0.8.0-pre.7`**（從 `main` 發，D344） |
+| **最新 release** | `v0.8.0-pre.6`（2026-11-26 22:58 (UTC+8)，Pre-Release `45840792584`，`606e283f`，D382）；前一 tag `v0.8.0-pre.5`；更早見 `release-note.md` / `CHANGELOG.md` |
 | **目前主軸** | 無派工中工單；下一版 `0.8.0-pre.4` 從 `main` 發 |
 | **工單最大編號** | **T0921** DONE；熱區 317 張全 DONE |
 | **BUG 最大編號** | **BUG-222** CLOSED；熱區 Open 0 / Fixing 0 / Fixed 0 / Closed 85 / WONTFIX 1 |
