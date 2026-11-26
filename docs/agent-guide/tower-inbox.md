@@ -592,7 +592,7 @@ CT 6.2.0 起暫停時（`interactive-prompts: on`）先寫 `awaiting_user` 再�
 
 ## 參考檔案連結（T0930）
 
-- **用途**：「⏸ 待你決定」「🙋 待你執行」「⏰ 到期提醒」的項目中提到的檔案可以點：切到主畫面上方的「檔案」頁籤、在檔案樹展開並選取該檔。CT 契約 v2 沒有檔案欄位，所以從 `workorder` / `ref` 標籤與 `summary` / `title` 文字辨識。「💬 塔台訊息」卡片不在範圍內。
+- **用途**：「⏸ 待你決定」「🙋 待你執行」「⏰ 到期提醒」的項目中提到的檔案可以點：切到主畫面上方的「檔案」頁籤、在檔案樹展開並選取該檔。CT 契約 v2 沒有檔案欄位，所以從 `workorder` / `ref` 標籤與 `summary` / `title` 文字辨識。T0934 起「💬 塔台訊息」卡片也適用（見〈塔台訊息卡片（T0934）〉）。
 - **唯一實作**：辨識與路徑解析 `src/lib/inbox-file-refs.ts`（純函式：`parseCtId`、`splitFileRefs`、`resolveRefPath`、`refLookups`、`matchIdFile`）；存在檢查 `useInboxFileRefs`（`src/components/inbox/useInboxFileRefs.ts`）；顯示 `InboxRefText` / `InboxRefTag`（`src/components/inbox/InboxRefText.tsx`），由 `InboxLists.tsx` 的三個清單使用；工作區根目錄由 `InboxPanel` 以 `folder` 傳入（沒有 → 全部純文字、不檢查）。
 
 ### 必守規則
@@ -630,6 +630,15 @@ CT 6.2.0 起暫停時（`interactive-prompts: on`）先寫 `awaiting_user` 再�
 - 文字中的連結：`.inbox-file-link`，與指揮塔總覽的檔案連結 `.ct-overview-link` 相同（accent 色、滑過底線、`overflow-wrap: anywhere`）。
 - 標籤：沿用 `.inbox-item-source` 外框，加 `.inbox-file-tag`（accent 色、滑過底線）。
 - 兩者都是 `<button type="button">`：Tab 可聚焦、Enter / 空白鍵開啟（`:focus-visible` 外框）。
+
+### 塔台訊息卡片（T0934）
+
+- **範圍**：「💬 塔台訊息」卡片中**按鈕以外**的文字：收合時的加亮行（`towerCardHighlights`）、展開後的內文（`towerCardLines`：摺疊時是 `towerCardFold` 的 head，按「顯示全部」後是全文）。辨識、存在檢查、顯示、開檔都沿用上面的同一套（`splitFileRefs`、`useInboxFileRefs`、`InboxRefText`、`openFileInFilesTab`），規則（只連工作區內存在的檔、URL / `..` / UNC / `~` 一律不連、文字逐字不變）完全相同。
+- 🔴 **收合時的一行摘要（`.tower-card-preview`）沒有連結**：它在卡片的展開 / 收合按鈕 `.tower-card-toggle`（`<button>`）裡面，`<button>` 內不可再放 `<button>`，所以維持純文字；摘要取行（`towerCardPreview`，T0931）不變。
+- 🔴 點連結不切換卡片展開狀態、不改已讀 / 釘選（`RefLink` 的 `stopPropagation`，連結也不在 toggle 按鈕內）；卡片仍只用 React 文字節點與元素組成。
+- 存在檢查只查目前顯示的部分：收合的卡只查加亮行、展開的卡查顯示中的行（摺疊時不查被摺掉的部分），所有卡片合計去重後最多 `INBOX_FILE_REF_MAX` = 40 個（依卡片排列順序：釘選、較新的先）。展開 / 收合、「顯示全部」改變參照集合時才重新檢查。
+- 工作區根目錄由 `InboxPanel` 以 `folder={workspaceFolderPath}` 傳給 `TowerCardsSection`（與三個清單相同）；沒有 → 全部純文字、不檢查。連結在卡片行內保留 `pre-wrap`（`.tower-card-line .inbox-file-link`）。
+- 驗證：`src/components/__tests__/inbox-tower-card-file-refs-t0934.test.tsx`（收合卡的加亮行可連結、toggle 按鈕內沒有任何互動元素、展開卡內文的存在 / 不存在 / 工作區外 / URL、點擊送出兩個事件且卡片展開 / 已讀 / 釘選不變、摺疊卡只查 head、沒有根目錄時不檢查）。
 
 ### 遠端與 detached
 

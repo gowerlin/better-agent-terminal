@@ -10,11 +10,19 @@
  * - The unread count shows on the section title and the thumbnail `💬N`; 🔴 never in the tab title
  *   number (§1: informing, not nagging).
  * - codex Tower → one fixed line (§4, D158); G7 → "claude too old" line.
+ * - T0934: file references in the shown card text — a collapsed card's highlighted lines, an open
+ *   card's lines (the folded head, or the whole text after「顯示全部」) — are links that open in the
+ *   「檔案」tab, through T0930's single implementation (recognition `src/lib/inbox-file-refs.ts`,
+ *   existence check `useInboxFileRefs` over the shown parts only, display `InboxRefText`). 🔴 The
+ *   collapsed one-line preview sits inside the toggle `<button>`, so it stays plain text (no button in
+ *   a button); a link click does not toggle the card nor change read / pinned. Without `folder`: plain text.
  * Rendered only when the Inbox verdict matches (the whole tab is gated, §6′ / R9′).
  */
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { InboxSection } from './InboxSection'
+import { InboxRefText } from './InboxRefText'
+import { itemFileRefs, useInboxFileRefs } from './useInboxFileRefs'
 import { getTowerCards, useTowerCardsVersion } from '../../stores/tower-cards-store'
 import type { InboxSectionId } from '../../lib/inbox-model'
 import {
@@ -26,6 +34,7 @@ import {
   towerCardPreview,
   towerCardsForSection,
   towerCardTime,
+  type TowerCardLine,
   type TowerCardView,
 } from '../../lib/tower-card-view'
 import { TOWER_CARDS_PINNED_MAX, type TowerCardsOpResult } from '../../types/tower-cards'
@@ -42,9 +51,11 @@ export interface TowerCardsSectionProps {
   codex: boolean
   folded: boolean
   onToggle: (id: InboxSectionId) => void
+  /** T0934: the workspace root the file references resolve under; none → plain text. */
+  folder?: string | null
 }
 
-export function TowerCardsSection({ sources, codex, folded, onToggle }: Readonly<TowerCardsSectionProps>) {
+export function TowerCardsSection({ sources, codex, folded, onToggle, folder = null }: Readonly<TowerCardsSectionProps>) {
   const { t } = useTranslation()
   useTowerCardsVersion()
   const [open, setOpen] = useState<Set<string>>(() => new Set())
@@ -55,6 +66,19 @@ export function TowerCardsSection({ sources, codex, folded, onToggle }: Readonly
   const cards = towerCardsForSection(entries)
   const unread = cards.filter(card => !card.read).length
   const tooOld = !codex && cards.length === 0 && entries.some(source => showsClaudeTooOldHint(source.entry))
+
+  // T0934: what each card shows outside its toggle button — a collapsed card's highlighted lines, an
+  // open card's lines (the folded head or the whole text) — and only those references are checked.
+  const shown = new Map(cards.map(card => {
+    if (!open.has(card.id)) return [card.id, { highlights: towerCardHighlights(card.text), folded: false, lines: [] as TowerCardLine[] }] as const
+    const fold = towerCardFold(card.text)
+    const body = fold.folded && !full.has(card.id) ? fold.head : card.text
+    return [card.id, { highlights: [] as string[], folded: fold.folded, lines: towerCardLines(body) }] as const
+  }))
+  const links = useInboxFileRefs(
+    folder,
+    [...shown.values()].flatMap(part => itemFileRefs([], [...part.highlights, ...part.lines.map(line => line.text)])),
+  )
 
   const api = window.electronAPI?.towerCards
   const report = (result: TowerCardsOpResult | undefined) => {
@@ -128,8 +152,7 @@ export function TowerCardsSection({ sources, codex, folded, onToggle }: Readonly
         {cards.map(card => {
           const isOpen = open.has(card.id)
           const showFull = full.has(card.id)
-          const fold = towerCardFold(card.text)
-          const body = fold.folded && !showFull ? fold.head : card.text
+          const part = shown.get(card.id)!
           return (
             <li
               key={card.id}
@@ -156,21 +179,21 @@ export function TowerCardsSection({ sources, codex, folded, onToggle }: Readonly
                   📌
                 </button>
               </div>
-              {!isOpen && towerCardHighlights(card.text).map((line, i) => (
-                <div key={i} className="tower-card-line highlight" data-tower-card-highlight="true">{line}</div>
+              {!isOpen && part.highlights.map((line, i) => (
+                <div key={i} className="tower-card-line highlight" data-tower-card-highlight="true"><InboxRefText text={line} links={links} /></div>
               ))}
               {isOpen && (
                 <div className="tower-card-body">
-                  {towerCardLines(body).map((line, i) => (
+                  {part.lines.map((line, i) => (
                     <div
                       key={i}
                       className={`tower-card-line${line.highlight ? ' highlight' : ''}`}
                       data-tower-card-highlight={line.highlight ? 'true' : undefined}
                     >
-                      {line.text || ' '}
+                      {line.text ? <InboxRefText text={line.text} links={links} /> : ' '}
                     </div>
                   ))}
-                  {fold.folded && (
+                  {part.folded && (
                     <button
                       type="button"
                       className="inbox-link"

@@ -368,6 +368,11 @@
   padding: 0 12px 2px 30px;
 }
 
+/* T0934: a file reference inside a card line keeps the line's wrapping (`pre-wrap`) */
+.tower-card-line .inbox-file-link {
+  white-space: inherit;
+}
+
 .tower-card-line.highlight {
   background: rgba(229, 165, 10, 0.18);
   border-left: 2px solid #e5a50a;
