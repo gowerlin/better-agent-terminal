@@ -4,13 +4,14 @@ schema_kind: workorder
 id: T0930
 title: "待辦分頁提到的參考檔案可點，點了在主畫面「檔案」頁籤開啟並定位"
 type: feature
-status: TODO
+status: IN_PROGRESS
 repo: better-agent-terminal
 project: PLAN-069
 priority: P2
 sizing: M
 created_at: "2026-11-26T20:06:10+08:00"
-updated_at: "2026-11-26T20:06:10+08:00"
+started_at: "2026-11-26T20:15:03+08:00"
+updated_at: "2026-11-26T20:15:03+08:00"
 session_ids: []
 target_version: "0.8.0-pre.5"
 depends_on:
