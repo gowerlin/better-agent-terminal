@@ -18,7 +18,7 @@ awaiting_user:
     workorder: "T0935"
     kind: "decision"
     source: "tower-question"
-    summary: "【驗測範例】應連結：(_local-rules.md)、`package.json`、README.md、docs/agent-guide/tower-inbox.md；不應連結：0.8.0、github.com、nofile-sample.md"
+    summary: "【驗測範例】應連結：(_local-rules.md)、`package.json`、README.md、docs/agent-guide/README.md；不應連結：0.8.0、github.com、nofile-sample.md"
     options: ["A 驗測看完，移除範例（推薦）"]
     recommended: "A"
     created_at: "2026-11-27T00:20:33+08:00"
