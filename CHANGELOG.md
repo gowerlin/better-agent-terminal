@@ -4,6 +4,11 @@ All notable changes to Better Agent Terminal are documented in this file.
 
 ## [Unreleased]
 
+## [0.8.0-pre.6] — 2026-11-26
+
+### Added
+- 「💬 塔台訊息」卡片的參考檔案連結（T0934）：沿用 T0930 的唯一實作（`inbox-file-refs.ts`、`useInboxFileRefs`、`InboxRefText`、`openFileInFilesTab`）；收合時的加亮行與展開後的內文（摺疊的 head 或「顯示全部」後的全文）中存在且在工作區內的路徑 / 編號成連結，只查目前顯示的部分；收合摘要在 toggle 按鈕內維持純文字；點連結不改展開、已讀、釘選
+
 ## [0.8.0-pre.5] — 2026-11-26
 
 ### Added
