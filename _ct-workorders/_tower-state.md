@@ -4,15 +4,24 @@ summary_version: 1
 bat_contract: 2
 ct_version: "6.2.0"
 inbox_features: ["recommended", "dismiss"]
-updated_at: "2026-11-26T20:15:14+0800"
+updated_at: "2026-11-26T20:19:13+0800"
 session: "2026-11-26 20:01 第一百三十四 session（CT v6.2.0）"
 next_ids:
   workorder: "T0933"
-  decision: "D372"
+  decision: "D373"
   bug: "BUG-226"
   plan: "PLAN-070"
-  user: "U-16"
+  user: "U-17"
   action: "A-4"
+awaiting_user:
+  - id: "U-16"
+    workorder: "T0932"
+    kind: "decision"
+    source: "breakpoint-E"
+    summary: "T0931（BUG-225）已由 T0932 在 ct-merge/T0932 合併（f317755c，test:unit 9064 全綠），要現在 ff 到 main 嗎？"
+    options: ["A 現在 ff 到 main（推薦）", "B 暫不合併"]
+    recommended: "A"
+    created_at: "2026-11-26T20:19:13+08:00"
 todo:
   - "T0929 DONE，`main` `78f4ecf6`（D370）"
   - "T0930（派工中，20:14，`ct/T0930` base `78f4ecf6`）：待辦分頁參考檔案可點，經 `openFileInFilesTab` 在「檔案」頁籤開啟"

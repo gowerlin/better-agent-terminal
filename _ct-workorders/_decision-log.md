@@ -10,6 +10,7 @@
 
 | ID | 日期 | 標題 | 相關工單 |
 |----|------|------|---------|
+| D372 | 2026-11-26 | T0932 收單（合併 `f317755c`，test:unit 9064 全綠）；斷點 E → U-16 | T0931 / T0932 |
 | D371 | 2026-11-26 | T0931 收單（DONE，`bfc83d1b`）；判準 1 不成立（`main` 已含 T0929 產品檔）→ 合併工單 T0932（模式 ①）；T0930 派工 | T0930 / T0931 / T0932 |
 | D370 | 2026-11-26 | U-15：A → T0929 經 `ct-merge/T0929` ff 進 `main`；之後派 T0930 | T0929 / T0930 |
 | D369 | 2026-11-26 | T0929 收單（DONE，`36555622`）、模式 ① 合併到 `ct-merge/T0929` `50cfbff3`；斷點 E → U-15 | T0929 |
@@ -489,6 +490,14 @@
   4. PLAN-001 保持延後（🟢 Low，等 plugin 1.0 穩定）
 - **Success criteria**（EXP→CONCLUDED）：npm install 無錯 / 所有 native modules rebuild 成功 / dev+build:dir 可跑 / 手動 smoke test 8 項通過
 - **最大風險**：`whisper-node-addon@1.0.2` 對 Electron 41（Node 24）的 NODE_MODULE_VERSION 相容性未知，允許 Worker 遇此決策點主動問塔台
+
+---
+
+### D372 2026-11-26 20:19 — T0932 收單（U-16 待決）
+
+- **收單**：T0932 DONE（session `e9cbb875`），模式 ① 無衝突。`ct-merge/T0932` merge `f317755c`（parent1 `78f4ecf6` = `base_main_sha`、parent2 `bfc83d1b` = `ct/T0931`，SHA 比對 ①–③ PASS）；樹比對只有預期 3 檔，`tower-inbox.md` T0929 / T0931 兩條都在；在 merge commit 驗收：typecheck 0、vite build、test:unit 9064 passed / 499 files。`--close-worker T0932` exit 0；session 快照已寫。
+- **合併**：`main` 自 base 起只多 `_ct-workorders/**`（第 5 步：ff 前整合分支再併一次 `main`）。非 yolo 斷點 E → U-16。
+- **相關**：T0931 / T0932 / BUG-225
 
 ---
 
