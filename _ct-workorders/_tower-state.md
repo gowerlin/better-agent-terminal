@@ -4,16 +4,17 @@ summary_version: 1
 bat_contract: 2
 ct_version: "6.2.0"
 inbox_features: ["recommended", "dismiss"]
-updated_at: "2026-11-26T20:01:58+0800"
+updated_at: "2026-11-26T20:03:42+0800"
 session: "2026-11-26 20:01 第一百三十四 session（CT v6.2.0）"
 next_ids:
-  workorder: "T0929"
+  workorder: "T0930"
   decision: "D368"
   bug: "BUG-225"
   plan: "PLAN-070"
   user: "U-15"
   action: "A-4"
 todo:
+  - "T0929（派工中）：待辦分頁項目版面 —— 摘要換行全寬、每個選項一行、送出 / 放棄按鈕獨立一行（使用者 2026-11-26 截圖）；isolation worktree，收單後走合併"
   - "候選（未開單，T0928 觀察）：待辦分頁「💬 塔台訊息」卡片在訊息以程式碼區塊開頭時摘要只顯示「```」（`ct620-accept/results-rerun/` S5 `00b-inbox-startup.png`，未查證），屬顯示細節"
   - "候選（未開單，T0924 建議）：`scripts/verify-packaged-native.js` `readAsarFile` 不檢查 `fs.readSync` 回傳位元組數，截斷的 app.asar 會被讀成 NUL 而不報錯；改成讀不足判失敗（檢查變嚴）"
   - "🚀 `v0.8.0-pre.4` 已發佈（D364，2026-11-26 00:59，Pre-Release `45656560078`，`be40bb8f`）：PLAN-069 DONE、BUG-223 / 224 CLOSED；CT 6.2.0 同日（BAT 先上線、CT 再推公開站，CT T0572）。下一版 `0.8.0-pre.5`"
