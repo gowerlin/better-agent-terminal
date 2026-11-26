@@ -7,6 +7,8 @@
  * most `INBOX_FILE_REF_MAX` distinct ones per list, each folder listed once per check. It runs when
  * the folder or the set of references changes (and on mount); never on a timer. Nothing is logged.
  * A failed check means "not found": the reference stays plain text.
+ * T0935: a file name written without a `/` is a `kind: 'path'` reference like any other path (root,
+ * then `_ct-workorders/`), so it links only when found and counts toward the same cap.
  */
 import { useEffect, useMemo, useState } from 'react'
 import {
