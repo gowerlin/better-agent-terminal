@@ -4,17 +4,26 @@ summary_version: 1
 bat_contract: 2
 ct_version: "6.2.0"
 inbox_features: ["recommended", "dismiss"]
-updated_at: "2026-11-26T20:08:02+0800"
+updated_at: "2026-11-26T20:11:03+0800"
 session: "2026-11-26 20:01 第一百三十四 session（CT v6.2.0）"
 next_ids:
   workorder: "T0932"
-  decision: "D369"
+  decision: "D370"
   bug: "BUG-226"
   plan: "PLAN-070"
-  user: "U-15"
+  user: "U-16"
   action: "A-4"
+awaiting_user:
+  - id: "U-15"
+    workorder: "T0929"
+    kind: "decision"
+    source: "breakpoint-E"
+    summary: "T0929 已在整合分支 ct-merge/T0929 合併（50cfbff3，SHA 比對 1–3 PASS），要現在 ff 到 main 嗎？"
+    options: ["A 現在 ff 到 main，接著派 T0930（推薦）", "B 暫不合併"]
+    recommended: "A"
+    created_at: "2026-11-26T20:11:03+08:00"
 todo:
-  - "T0929（派工中）：待辦分頁項目版面 —— 摘要換行全寬、每個選項一行、送出 / 放棄按鈕獨立一行（使用者 2026-11-26 截圖）；isolation worktree，收單後走合併"
+  - "T0929 DONE（`36555622`），模式 ① 合併到 `ct-merge/T0929` `50cfbff3`，等 U-15 ff 到 `main`（D369）"
   - "T0930（TODO，depends_on T0929）：待辦分頁提到的參考檔案（編號標籤、摘要內路徑 / 編號）可點，經 `openFileInFilesTab` 在「檔案」頁籤開啟定位；T0929 合併回 `main` 後再派（同一元件，避免衝突）"
   - "T0931（派工中）：BUG-225 💬 卡片收合摘要只顯示「```」→ `towerCardPreview` 略過圍欄等結構行；與 T0929 平行（D368）"
   - "候選（未開單，T0924 建議）：`scripts/verify-packaged-native.js` `readAsarFile` 不檢查 `fs.readSync` 回傳位元組數，截斷的 app.asar 會被讀成 NUL 而不報錯；改成讀不足判失敗（檢查變嚴）"

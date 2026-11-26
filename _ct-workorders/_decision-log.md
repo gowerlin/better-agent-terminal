@@ -10,6 +10,7 @@
 
 | ID | 日期 | 標題 | 相關工單 |
 |----|------|------|---------|
+| D369 | 2026-11-26 | T0929 收單（DONE，`36555622`）、模式 ① 合併到 `ct-merge/T0929` `50cfbff3`；斷點 E → U-15 | T0929 |
 | D368 | 2026-11-26 | 待辦分頁三項改善一批開單：T0929 項目版面、T0930 參考檔案可點（`openFileInFilesTab`，等 T0929 合併後派）、BUG-225 💬 卡片摘要「```」→ T0931；目標 `0.8.0-pre.5` | T0929 / T0930 / T0931 |
 | D367 | 2026-11-26 | 分支清理：刪除已併入 `main` 的本機分支 11 個（`ct/T0922`–`T0928` 5 個、`ct-merge/T0921`–`T0928` 6 個）；`ct/T0885`（D307）、`ct/T0886` 保留 | T0921 / T0922 / T0923 / T0924 / T0925 / T0926 / T0927 / T0928 |
 | D366 | 2026-11-26 | 決策日誌索引表重建：補 188 筆缺漏列（131 → 320 列），既有列原文保留、整表倒序 | D316 |
@@ -486,6 +487,15 @@
   4. PLAN-001 保持延後（🟢 Low，等 plugin 1.0 穩定）
 - **Success criteria**（EXP→CONCLUDED）：npm install 無錯 / 所有 native modules rebuild 成功 / dev+build:dir 可跑 / 手動 smoke test 8 項通過
 - **最大風險**：`whisper-node-addon@1.0.2` 對 Electron 41（Node 24）的 NODE_MODULE_VERSION 相容性未知，允許 Worker 遇此決策點主動問塔台
+
+---
+
+### D369 2026-11-26 20:11 — T0929 收單、模式 ① 合併到整合分支（U-15 待決）
+
+- **收單**：T0929 DONE（session `91548731`）。產品 commit `36555622`（`ct/T0929`，base `17c25dd5`）4 檔：`InboxLists.tsx`（摘要移出標頭列、`.inbox-option-list` 每選項一行、按鈕列 `.inbox-entry-buttons` 在選項後；`DismissControl` → `useDismissControl` 回傳 `{ button, form }`，表單在按鈕列下方）、`inbox.css`、新結構測試 5 項、`tower-inbox.md` 一條。驗證：test:unit 9051 passed / 499 files、vite build、typecheck 0；隔離實例截圖 300 / 560 px（塔台已看 300 px，符合）。範圍外 0、`_ct-workorders/**` 未動。
+- **合併**：`--worktree-status` 判準 5 條 PASS（behind 5 只有 `_ct-workorders/**`、`validated_sha` = head、outOfScope 0、conflicts 0、dirty 0、主 checkout 乾淨）→ `ct-merge/T0929` `--no-ff` `50cfbff3`（parent1 `96b2f47d` = `main`、parent2 `36555622`；與 head 差異只有 `_ct-workorders/**`）。非 yolo 斷點 E → U-15。
+- **回收**：`--close-worker T0929 --worktree keep` exit 0；session 快照已寫。
+- **相關**：T0929 / D368
 
 ---
 
