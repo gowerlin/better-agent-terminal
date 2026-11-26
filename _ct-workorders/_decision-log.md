@@ -10,6 +10,7 @@
 
 | ID | 日期 | 標題 | 相關工單 |
 |----|------|------|---------|
+| D381 | 2026-11-26 | U-18：A → T0934 經 `ct-merge/T0934` ff 進 `main` | T0934 |
 | D380 | 2026-11-26 | T0934 收單（DONE，`15ded368`）、模式 ① 合併到 `ct-merge/T0934` `098ab6c8`；斷點 E → U-18 | T0934 |
 | D379 | 2026-11-26 | 開 T0934：💬 卡片參考檔案連結（沿用 T0930 唯一實作；收合摘要在按鈕內不加連結） | T0934 |
 | D378 | 2026-11-26 | A-4：完成 → `v0.8.0-pre.5` 使用者實機驗收通過（版面、參考檔案連結、BUG-225）；BUG-225 CLOSED，熱區未結 BUG 0 | T0929 / T0930 / T0931 / BUG-225 |
@@ -498,6 +499,14 @@
   4. PLAN-001 保持延後（🟢 Low，等 plugin 1.0 穩定）
 - **Success criteria**（EXP→CONCLUDED）：npm install 無錯 / 所有 native modules rebuild 成功 / dev+build:dir 可跑 / 手動 smoke test 8 項通過
 - **最大風險**：`whisper-node-addon@1.0.2` 對 Electron 41（Node 24）的 NODE_MODULE_VERSION 相容性未知，允許 Worker 遇此決策點主動問塔台
+
+---
+
+### D381 2026-11-26 22:36 — `main` ff 含 T0934（U-18）
+
+- **使用者裁示**：U-18：A（原生選單）。
+- **合併**：整合分支 `ct-merge/T0934` 再 `--no-ff` 併入 `main` 的記帳 commit（只有 `_ct-workorders/**`）後 `--ff-only`；整合 worktree `switch --detach`；`ct/T0934` worktree 移除（不加 `--force`）；分支 `ct/T0934`、`ct-merge/T0934` 保留到使用者同意刪除。
+- **相關**：T0934
 
 ---
 

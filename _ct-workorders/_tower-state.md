@@ -4,26 +4,17 @@ summary_version: 1
 bat_contract: 2
 ct_version: "6.2.0"
 inbox_features: ["recommended", "dismiss"]
-updated_at: "2026-11-26T22:01:11+0800"
+updated_at: "2026-11-26T22:36:02+0800"
 session: "2026-11-26 21:18 第一百三十五 session（CT v6.2.0）"
 next_ids:
   workorder: "T0935"
-  decision: "D381"
+  decision: "D382"
   bug: "BUG-226"
   plan: "PLAN-070"
   user: "U-19"
   action: "A-5"
-awaiting_user:
-  - id: "U-18"
-    workorder: "T0934"
-    kind: "decision"
-    source: "breakpoint-E"
-    summary: "T0934（💬 卡片參考檔案連結）已在整合分支 ct-merge/T0934 合併（098ab6c8，SHA 比對 1–3 PASS，test:unit 9091 全綠），要現在 ff 到 main 嗎？"
-    options: ["A 現在 ff 到 main（推薦）", "B 暫不合併"]
-    recommended: "A"
-    created_at: "2026-11-26T22:01:11+08:00"
 todo:
-  - "T0934 DONE（`15ded368`），模式 ① 合併到 `ct-merge/T0934` `098ab6c8`，等 U-18 ff 到 `main`；〈待實機〉5 項併入 `0.8.0-pre.6` 待驗收（D380）"
+  - "T0934 DONE，U-18：A → 經 `ct-merge/T0934` ff 進 `main`（D381）；〈待實機〉5 項併入 `0.8.0-pre.6` 待驗收；分支 `ct/T0934`、`ct-merge/T0934` 待使用者同意刪除"
   - "🚀 `v0.8.0-pre.5` 已發佈並驗收（D377 / D378）：T0929 版面、T0930 參考檔案可點、BUG-225 CLOSED（A-4 完成）；下一版 `0.8.0-pre.6`"
   - "候選（未開單，T0930 建議）：💬 卡片沿用 `InboxRefText` 加連結；`useInboxFileRefs` 跟 `_ct-workorders/` 的 `fs:changed` 重查"
   - "候選（未開單，T0924 建議）：`scripts/verify-packaged-native.js` `readAsarFile` 不檢查 `fs.readSync` 回傳位元組數，截斷的 app.asar 會被讀成 NUL 而不報錯；改成讀不足判失敗（檢查變嚴）"
