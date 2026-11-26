@@ -4,13 +4,14 @@ schema_kind: workorder
 id: T0931
 title: "BUG-225：💬 塔台訊息卡片收合摘要略過程式碼圍欄等 Markdown 結構行"
 type: bugfix
-status: TODO
+status: IN_PROGRESS
 repo: better-agent-terminal
 project: BUG-225
 priority: P3
 sizing: S
 created_at: "2026-11-26T20:08:02+08:00"
-updated_at: "2026-11-26T20:08:02+08:00"
+started_at: "2026-11-26T20:09:22+08:00"
+updated_at: "2026-11-26T20:09:22+08:00"
 session_ids: []
 target_version: "0.8.0-pre.5"
 depends_on: []
