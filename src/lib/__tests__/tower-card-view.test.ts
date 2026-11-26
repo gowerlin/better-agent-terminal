@@ -62,6 +62,53 @@ describe('preview and folding', () => {
     expect(towerCardPreview('')).toBe('')
   })
 
+  // BUG-225 / T0931: Markdown structure lines (code fences, thematic breaks, table separator rows) are skipped.
+  it('skips a leading code fence (with or without an info string, backticks or tildes)', () => {
+    expect(towerCardPreview('```\nnpm ci\n```\nInstalled the dependencies.')).toBe('Installed the dependencies.')
+    expect(towerCardPreview('```bash\nnpm run build\n```\n\nBuild passed.')).toBe('Build passed.')
+    expect(towerCardPreview('  ~~~ text\nlog line\n~~~\nSee the log above.')).toBe('See the log above.')
+    // a longer opening fence is closed only by a fence at least as long
+    expect(towerCardPreview('````md\n```\ninner\n```\n````\nAfter the block.')).toBe('After the block.')
+    // a fence of the other kind does not close the block
+    expect(towerCardPreview('~~~\n```\nstill code\n~~~\nOutside.')).toBe('Outside.')
+  })
+
+  it('a message that is only a code block → first non-empty line inside the block', () => {
+    expect(towerCardPreview('```bash\n\n  git status  \ngit log\n```')).toBe('git status')
+    expect(towerCardPreview('~~~\nunclosed block line\nmore')).toBe('unclosed block line')
+  })
+
+  it('skips thematic breaks and table separator rows', () => {
+    expect(towerCardPreview('---\nSummary line')).toBe('Summary line')
+    expect(towerCardPreview('***\n___\n- - -\nAfter the breaks')).toBe('After the breaks')
+    expect(towerCardPreview('|---|:---:|\n| a | b |')).toBe('| a | b |')
+    expect(towerCardPreview('---\n```\ncode\n```\n| --- | --- |\nFirst sentence.')).toBe('First sentence.')
+  })
+
+  it('drops the heading marker; keeps list / quote markers', () => {
+    expect(towerCardPreview('## T0931 結果\nbody')).toBe('T0931 結果')
+    expect(towerCardPreview('  ### Closing hashes ###')).toBe('Closing hashes')
+    expect(towerCardPreview('#\n#hashtag is not a heading')).toBe('#hashtag is not a heading')
+    expect(towerCardPreview('- first item\n- second')).toBe('- first item')
+    expect(towerCardPreview('> quoted')).toBe('> quoted')
+  })
+
+  it('an inline code span is not a fence', () => {
+    expect(towerCardPreview('```npm ci``` passed\nnext')).toBe('```npm ci``` passed')
+  })
+
+  it('only structure lines → the original first non-empty line (never empty)', () => {
+    expect(towerCardPreview('\n```\n```\n')).toBe('```')
+    expect(towerCardPreview('  ---  \n|---|')).toBe('---')
+    expect(towerCardPreview('```bash\n```')).toBe('```bash')
+    expect(towerCardPreview('#')).toBe('#')
+  })
+
+  it('the cut still applies after skipping structure lines', () => {
+    const long = 'é'.repeat(TOWER_CARD_PREVIEW_CHARS + 3)
+    expect(towerCardPreview(`\`\`\`\nx\n\`\`\`\n${long}`)).toBe(`${'é'.repeat(TOWER_CARD_PREVIEW_CHARS)}…`)
+  })
+
   it('folds by lines and by characters', () => {
     expect(towerCardFold('a\nb')).toEqual({ folded: false, head: 'a\nb' })
     const many = Array.from({ length: TOWER_CARD_FOLD_LINES + 1 }, (_, i) => `l${i}`).join('\n')
