@@ -1,5 +1,5 @@
 {
- "generated_at": "2026-11-26T20:27:38+08:00",
+ "generated_at": "2026-11-26T20:31:26+08:00",
  "generator": {
   "script": "ct-session-stats.py",
   "version": "0.2.0"
@@ -107,13 +107,13 @@
    "output": 45903
   },
   "2026-11-26": {
-   "api_requests": 83,
-   "cache_read": 18721393,
-   "cache_write": 251912,
-   "cache_write_1h": 251912,
+   "api_requests": 97,
+   "cache_read": 22875331,
+   "cache_write": 276636,
+   "cache_write_1h": 276636,
    "cache_write_5m": 0,
-   "input": 180,
-   "output": 50188
+   "input": 210,
+   "output": 65277
   }
  },
  "workorders": [
@@ -12242,6 +12242,81 @@
     "2.1.332"
    ],
    "workorder": "T0932"
+  },
+  {
+   "agents_invoked": {},
+   "attribution": {
+    "conflict": false,
+    "source": "frontmatter",
+    "sources": {
+     "frontmatter": 1
+    }
+   },
+   "by_mcp_server": {},
+   "by_tool": {
+    "Bash": 13,
+    "Edit": 1,
+    "Read": 1
+   },
+   "counts": {
+    "api_requests": 14,
+    "failures": 0,
+    "same_file_read_ge3": 0,
+    "subagent_files": 0,
+    "tool_calls": 15
+   },
+   "end": "2026-11-26T12:31:13Z",
+   "est_usd": 1.6321,
+   "failures_by_tool": {},
+   "renews": 0,
+   "sessions": 1,
+   "skills_invoked": {
+    "ct-exec": 1
+   },
+   "start": "2026-11-26T12:28:17Z",
+   "stuck": {
+    "max_consecutive_failures": 0,
+    "max_failures_in_10_calls": 0,
+    "near_repeat_fail_pairs_j50": 0,
+    "repeat_fail_groups_norm": 0
+   },
+   "stuck_signal": false,
+   "subagent_tokens": {
+    "cache_read": 0,
+    "cache_write": 0,
+    "cache_write_1h": 0,
+    "cache_write_5m": 0,
+    "input": 0,
+    "output": 0
+   },
+   "tokens": {
+    "cache_read": 2076000,
+    "cache_write": 132310,
+    "cache_write_1h": 132310,
+    "cache_write_5m": 0,
+    "input": 28,
+    "output": 7917
+   },
+   "top_tools": [
+    [
+     "Bash",
+     13
+    ],
+    [
+     "Edit",
+     1
+    ],
+    [
+     "Read",
+     1
+    ]
+   ],
+   "type": "chore",
+   "unpriced_tokens": 0,
+   "versions": [
+    "2.1.332"
+   ],
+   "workorder": "T0933"
   }
  ]
 }

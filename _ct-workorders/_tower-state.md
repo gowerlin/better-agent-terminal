@@ -4,15 +4,24 @@ summary_version: 1
 bat_contract: 2
 ct_version: "6.2.0"
 inbox_features: ["recommended", "dismiss"]
-updated_at: "2026-11-26T20:27:38+0800"
+updated_at: "2026-11-26T20:31:26+0800"
 session: "2026-11-26 20:01 第一百三十四 session（CT v6.2.0）"
 next_ids:
   workorder: "T0934"
-  decision: "D375"
+  decision: "D376"
   bug: "BUG-226"
   plan: "PLAN-070"
-  user: "U-17"
+  user: "U-18"
   action: "A-4"
+awaiting_user:
+  - id: "U-17"
+    workorder: "T0933"
+    kind: "decision"
+    source: "breakpoint-E"
+    summary: "T0930（參考檔案可點）已由 T0933 在 ct-merge/T0933 合併（83a74de2，test:unit 9091 全綠），要現在 ff 到 main 嗎？"
+    options: ["A 現在 ff 到 main（推薦）", "B 暫不合併"]
+    recommended: "A"
+    created_at: "2026-11-26T20:31:26+08:00"
 todo:
   - "T0929 DONE，`main` `78f4ecf6`（D370）"
   - "T0930 DONE（`a9254f55`，Q-1 → A 准許改 `InboxPanel.tsx`）→ 合併工單 T0933（模式 ①，判準 1 不成立：`main` 已含 T0931）派工中；〈待實機〉6 項發版後列入待驗收（D374）"
