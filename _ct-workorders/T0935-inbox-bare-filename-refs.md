@@ -4,13 +4,14 @@ schema_kind: workorder
 id: T0935
 title: "待辦分頁參考檔案連結：只寫檔名（沒有 `/`）的檔案也辨識，存在才連"
 type: feature
-status: TODO
+status: IN_PROGRESS
 repo: better-agent-terminal
 project: PLAN-069
 priority: P2
 sizing: S
 created_at: "2026-11-26T23:37:08+08:00"
-updated_at: "2026-11-26T23:37:08+08:00"
+started_at: "2026-11-26T23:38:33+08:00"
+updated_at: "2026-11-26T23:38:33+08:00"
 session_ids: []
 target_version: "0.8.0-pre.7"
 depends_on: []
