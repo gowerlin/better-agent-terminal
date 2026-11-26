@@ -4,7 +4,7 @@ summary_version: 1
 bat_contract: 2
 ct_version: "6.2.0"
 inbox_features: ["recommended", "dismiss"]
-updated_at: "2026-11-27T00:21:34+0800"
+updated_at: "2026-11-27T00:22:32+0800"
 session: "2026-11-27 00:19 第一百三十六 session（CT v6.2.0）"
 next_ids:
   workorder: "T0936"
@@ -36,60 +36,51 @@ reminders:
 ---
 # Tower State — better-agent-terminal
 
-> 🟢 **第一百三十六 session 開工**（2026-11-27 00:19 (UTC+8)，CT v6.2.0，Fast Path；塔台 session `db802f66-e1bd-4039-8c2a-94b5dacb2e69`；`--set-role tower --bat-contract 2 --mode on` exit 0，`bat-contract: 2`、`hooks: ok (injected, set 2)`；BAT helper **`0.8.0-pre.7`**（使用者已更版）；`main` = `origin/main` @ `acc74196`；熱區 T 331 全 DONE、BUG 89（CLOSED 88 / WONTFIX 1））。
+> 🛏 **第一百三十六 session 收工**（2026-11-27 00:22 (UTC+8)）。
 
-> 🛏 **第一百三十五 session 收工**（2026-11-27 00:15 (UTC+8)；23:15 首次收工後追加 T0935 與 `v0.8.0-pre.7`，再次收工）。
+> 🟢 **第一百三十六 session 開工**（2026-11-27 00:19 (UTC+8)，CT v6.2.0，Fast Path；塔台 session `db802f66-e1bd-4039-8c2a-94b5dacb2e69`；`--set-role tower --bat-contract 2 --mode on` exit 0，`bat-contract: 2`、`hooks: ok (injected, set 2)`；BAT helper **`0.8.0-pre.7`**（使用者已更版）；`main` = `origin/main` @ `acc74196`；熱區 T 331 全 DONE、BUG 89（CLOSED 88 / WONTFIX 1））。 第一百三十五 session 的紀錄已搬到 [`_archive/state-snapshots/2026-Q4-c.md`](_archive/state-snapshots/2026-Q4-c.md)。
 
-> 🔁 **第一百三十五 session 收工後追加**（2026-11-26 23:37 (UTC+8)）：使用者截圖另一專案待辦分頁，只寫檔名的回覆檔沒有連結（T0930 已知限制）→ 開並派 T0935（D383）。
-
-> 🟢 **第一百三十五 session 開工**（2026-11-26 21:18 (UTC+8)，CT v6.2.0，Fast Path；塔台 session `db802f66-e1bd-4039-8c2a-94b5dacb2e69`；`--set-role tower --bat-contract 2 --mode on` exit 0，`bat-contract: 2`、`hooks: ok (injected, set 2)`；BAT helper **`0.8.0-pre.5`**（使用者已更版）；`main` = `origin/main` @ `1d401a19`；熱區 T 329 全 DONE、BUG 89（FIXED 1 = BUG-225 / CLOSED 87 / WONTFIX 1））。 第一百三十四 session 的紀錄已搬到 [`_archive/state-snapshots/2026-Q4-c.md`](_archive/state-snapshots/2026-Q4-c.md)。
-
-> 最後更新:2026-11-27 00:15 (UTC+8) — **第一百三十五 session 收工**：`v0.8.0-pre.5` 驗收通過（A-4，BUG-225 CLOSED，D378）；T0934 💬 卡片連結 → `v0.8.0-pre.6`（D382）；T0935 只寫檔名的連結 → `v0.8.0-pre.7`（D387）；已合併分支已清。
+> 最後更新:2026-11-27 00:22 (UTC+8) — **第一百三十六 session 收工**：`v0.8.0-pre.7` 驗收通過（A-6，T0934 / T0935，D389）；驗測範例 U-20 / A-7 建立後已移除（D388）。
 >
-> **下次起手**:熱區無進行中工單、無未結 BUG。🙋 A-6 待使用者裝 `0.8.0-pre.7` 驗收（T0935 只寫檔名 ＋ pre.6 略過的 T0934 💬 卡片，細項見 frontmatter `todo`）。預覽版號只剩 pre.8 / pre.9。候選見 `todo`；PLAN-067 週清查 2026-12-02 到期。
+> **下次起手**:熱區無進行中工單、無未結 BUG、無待你決定 / 待你執行。候選見 frontmatter `todo`；預覽版號只剩 pre.8 / pre.9；PLAN-067 週清查 2026-12-02 到期。
 
 ---
 
-## 🛏 本 Session 收工快照 (第一百三十五 session, 2026-11-26 21:18 - 2026-11-27 00:15)
+## 🛏 本 Session 收工快照 (第一百三十六 session, 2026-11-27 00:19 - 2026-11-27 00:22)
 
-### 主軸：pre.5 驗收、💬 卡片與只寫檔名的參考檔案連結，`v0.8.0-pre.6` / `pre.7` 發佈
+### 主軸：`v0.8.0-pre.7` 驗收
 
 #### 重點（時間取自系統 / git）
 
-1. 使用者更版到 `0.8.0-pre.5` 後回 `A-4：完成` → BUG-225 CLOSED（熱區未結 BUG 0，D378）
-2. 使用者要求 💬 卡片也加參考檔案連結 → T0934（沿用 T0930 唯一實作；收合摘要在 toggle 按鈕內維持純文字，D379）
-3. T0934 DONE，模式 ① 塔台直接合併；斷點 E 原生選單 U-18 → A（D380 / D381）
-4. 發版：分支 2 個刪除；push 前去識別化 / 金鑰檢查 0；`v0.8.0-pre.6` 發佈（Pre-Release `45840792584`，`606e283f`）、文件同步、Pages / link-check 綠（D382）
-5. 首次收工（23:15）後：使用者截圖另一專案待辦分頁，只寫檔名的回覆檔沒連結（T0930 已知限制）→ T0935（D383）；Q-1（T0930 一行斷言衝突）塔台答 A；模式 ① 合併、U-19 → A（D384 / D385）
-6. A-5：略過（等 pre.7 一起驗，D386）；`v0.8.0-pre.7` 發佈（Pre-Release `45852929765`，`96915fe9`，本機 2026-11-27 00:11）、文件同步、Pages / link-check 綠、待驗收 A-6（D387）
+1. 使用者更版到 `0.8.0-pre.7`；要求驗測範例 → 暫時的 U-20 / A-7（應連 / 不應連的參考）＋塔台回覆當 💬 卡片範例（D388；U-20 摘要首次超過 120 字，`check-frontmatter.py` 抓到後縮短）
+2. `A-7：完成`、`A-6：完成`、`U-20：A` → pre.7 驗收通過（T0935 只寫檔名、T0934 💬 卡片連結），範例移除（D389）
 
 ### 本輪戰績
-- 工單 2（T0934 / T0935）；決策 D378–D387；BUG 結 1（BUG-225）；發版 2（`v0.8.0-pre.6` / `pre.7`）；YOLO 派發 2 張皆 `started:`、結構化提問 1 次（T0935 Q-1 `--answer`）、`worker_auto_close` 回收 2 次
+- 工單 0；決策 D388–D389；發版 0；驗收 1（`v0.8.0-pre.7`）
 
 ### 編號起始（下 session）
-- **T0936** / **BUG-226** / **PLAN-070** / **D388** / **U-20** / **A-7**
+- **T0936** / **BUG-226** / **PLAN-070** / **D390** / **U-21** / **A-8**
 
 ---
 
-## 🛏 前 Session 收工快照 (第一百三十四 session, 2026-11-26 20:01 - 2026-11-26 21:11)
+## 🛏 前 Session 收工快照 (第一百三十五 session, 2026-11-26 21:18 - 2026-11-27 00:15)
 
-- 待辦分頁三項改善（T0929 版面、T0930 參考檔案可點、T0931 BUG-225），合併工單 T0932 / T0933，`v0.8.0-pre.5` 發佈（D368–D377）。完整紀錄已搬到 [`_archive/state-snapshots/2026-Q4-c.md`](_archive/state-snapshots/2026-Q4-c.md)〈第一百三十四 session〉。
+- pre.5 驗收（BUG-225 CLOSED）、T0934 💬 卡片連結（`v0.8.0-pre.6`）、T0935 只寫檔名的連結（`v0.8.0-pre.7`），D378–D387。完整紀錄已搬到 [`_archive/state-snapshots/2026-Q4-c.md`](_archive/state-snapshots/2026-Q4-c.md)〈第一百三十五 session〉。
 
 ---
 
 ## 🌅 起手式（Quick Recovery）
 
-> 最後更新：2026-11-27 00:15 UTC+8（第一百三十五 session 收工）
+> 最後更新：2026-11-27 00:22 UTC+8（第一百三十六 session 收工）
 
 ### 近期完成
-- **`v0.8.0-pre.7` 發佈**（第一百三十五 session，D387）：只寫檔名的參考檔案也可點（T0935）
-- **`v0.8.0-pre.6` 發佈**（D382）：💬 塔台訊息卡片參考檔案連結（T0934，A-5 略過、併入 A-6）
+- **`v0.8.0-pre.7` 驗收通過**（第一百三十六 session，D389）：只寫檔名的參考檔案連結（T0935）、💬 卡片連結（T0934）
 - **`v0.8.0-pre.5` 驗收通過**（D378）：待辦版面、參考檔案連結、BUG-225 CLOSED；熱區未結 BUG 0
 
 ### 待辦（依優先序；完整內容見 frontmatter `todo`）
-1. 🙋 A-6：使用者裝 `0.8.0-pre.7` 驗收（T0935 ＋ T0934）；預覽版號只剩 pre.8 / pre.9
-2. PLAN-065 per-machine UAC 互動升級手動驗收；PLAN-052 Docker Desktop 實機精靈；PLAN-058 手動確認；其他待實機項
-3. 候選（未開單）：`readAsarFile` 讀不足判失敗、PLAN-066 後續、`useInboxFileRefs` 跟 `fs:changed` 重查
+1. PLAN-065 per-machine UAC 互動升級手動驗收；PLAN-052 Docker Desktop 實機精靈；PLAN-058 手動確認；其他待實機項
+2. 候選（未開單）：`readAsarFile` 讀不足判失敗、PLAN-066 後續、`useInboxFileRefs` 跟 `fs:changed` 重查
+3. 預覽版號只剩 `0.8.0-pre.8` / `pre.9`（再往後先與使用者確認改版號線）
 4. PLAN-067 週清查 2026-12-02 到期（`reminders`）
 
 ### ⚠️ 鐵則
@@ -103,13 +94,13 @@ reminders:
 
 ### 快速連結
 - Bug Tracker → [_bug-tracker.md](_bug-tracker.md)（熱區：Open 0 / Fixing 0 / Fixed 0 / Closed 88 / WONTFIX 1）｜ Backlog → [_backlog.md](_backlog.md)（IN_PROGRESS 7 / DONE 22）
-- Decision Log → [_decision-log.md](_decision-log.md)（最大 D387；D001～D185 封存在 `_archive/decisions/`）｜ Learnings → [_learnings.md](_learnings.md)（最大 L185）
+- Decision Log → [_decision-log.md](_decision-log.md)（最大 D389；D001～D185 封存在 `_archive/decisions/`）｜ Learnings → [_learnings.md](_learnings.md)（最大 L185）
 - PLAN-068 網頁版使用說明 → https://claude.ai/artifact/8mepgGP16ghS3m9hsu2Wst（私人）
 - 網站 → https://gowerlin.github.io/better-agent-terminal/
-- 歷史 sessions → [_archive/state-snapshots/INDEX.md](_archive/state-snapshots/INDEX.md)（154 entries；最新 `2026-Q4-c.md`）
+- 歷史 sessions → [_archive/state-snapshots/INDEX.md](_archive/state-snapshots/INDEX.md)（155 entries；最新 `2026-Q4-c.md`）
 
 ### 編號起始
-- **T0936** / **BUG-226** / **PLAN-070** / **D388** / **U-20** / **A-7** / **EXP-WFMINE-002**（其他 TOPIC 從 001） / **L186** / **CT-T023**
+- **T0936** / **BUG-226** / **PLAN-070** / **D390** / **U-21** / **A-8** / **EXP-WFMINE-002**（其他 TOPIC 從 001） / **L186** / **CT-T023**
 
 ---
 
