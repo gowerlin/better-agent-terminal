@@ -10,6 +10,7 @@
 
 | ID | 日期 | 標題 | 相關工單 |
 |----|------|------|---------|
+| D379 | 2026-11-26 | 開 T0934：💬 卡片參考檔案連結（沿用 T0930 唯一實作；收合摘要在按鈕內不加連結） | T0934 |
 | D378 | 2026-11-26 | A-4：完成 → `v0.8.0-pre.5` 使用者實機驗收通過（版面、參考檔案連結、BUG-225）；BUG-225 CLOSED，熱區未結 BUG 0 | T0929 / T0930 / T0931 / BUG-225 |
 | D377 | 2026-11-26 | `v0.8.0-pre.5` 發佈（Pre-Release `45820932628`，`9350cb5c`）：T0929 / T0930 / BUG-225；分支 6 個刪除；待驗收 A-4 | T0929 / T0930 / T0931 / BUG-225 |
 | D376 | 2026-11-26 | U-17：A → T0930 經 `ct-merge/T0933` ff 進 `main`；待辦分頁三項改善（T0929 / T0930 / T0931）全進 `main` | T0930 / T0933 |
@@ -496,6 +497,14 @@
   4. PLAN-001 保持延後（🟢 Low，等 plugin 1.0 穩定）
 - **Success criteria**（EXP→CONCLUDED）：npm install 無錯 / 所有 native modules rebuild 成功 / dev+build:dir 可跑 / 手動 smoke test 8 項通過
 - **最大風險**：`whisper-node-addon@1.0.2` 對 Electron 41（Node 24）的 NODE_MODULE_VERSION 相容性未知，允許 Worker 遇此決策點主動問塔台
+
+---
+
+### D379 2026-11-26 21:54 — 開 T0934（💬 卡片參考檔案連結）
+
+- **使用者指示**：「💬 卡片也加參考檔案連結，開單」（T0930 回報〈後續建議〉候選）。
+- **決定**：T0934（isolation worktree，目標 `0.8.0-pre.6`）沿用 T0930 唯一實作（`inbox-file-refs.ts`、`useInboxFileRefs`、`InboxRefText`、`openFileInFilesTab`），`InboxPanel` 以 `folder={workspaceFolderPath}` 傳入。收合摘要 `.tower-card-preview` 位於 toggle `<button>` 內，維持純文字（不得巢狀按鈕）；連結只加在加亮行與展開內文，點連結不改展開 / 已讀 / 釘選。卡片文字來自 agent 輸出，維持 T0930 的工作區內、存在才連的限制。
+- **相關**：T0934 / T0930 / T0909
 
 ---
 

@@ -4,16 +4,17 @@ summary_version: 1
 bat_contract: 2
 ct_version: "6.2.0"
 inbox_features: ["recommended", "dismiss"]
-updated_at: "2026-11-26T21:18:59+0800"
+updated_at: "2026-11-26T21:54:51+0800"
 session: "2026-11-26 21:18 第一百三十五 session（CT v6.2.0）"
 next_ids:
-  workorder: "T0934"
-  decision: "D379"
+  workorder: "T0935"
+  decision: "D380"
   bug: "BUG-226"
   plan: "PLAN-070"
   user: "U-18"
   action: "A-5"
 todo:
+  - "T0934（派工中）：💬 塔台訊息卡片的參考檔案連結（沿用 T0930；收合摘要在 toggle 按鈕內維持純文字），目標 `0.8.0-pre.6`（D379）"
   - "🚀 `v0.8.0-pre.5` 已發佈並驗收（D377 / D378）：T0929 版面、T0930 參考檔案可點、BUG-225 CLOSED（A-4 完成）；下一版 `0.8.0-pre.6`"
   - "候選（未開單，T0930 建議）：💬 卡片沿用 `InboxRefText` 加連結；`useInboxFileRefs` 跟 `_ct-workorders/` 的 `fs:changed` 重查"
   - "候選（未開單，T0924 建議）：`scripts/verify-packaged-native.js` `readAsarFile` 不檢查 `fs.readSync` 回傳位元組數，截斷的 app.asar 會被讀成 NUL 而不報錯；改成讀不足判失敗（檢查變嚴）"
