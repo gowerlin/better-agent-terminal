@@ -10,6 +10,8 @@
 
 | ID | 日期 | 標題 | 相關工單 |
 |----|------|------|---------|
+| D381 | 2026-11-26 | U-18：A → T0934 經 `ct-merge/T0934` ff 進 `main` | T0934 |
+| D380 | 2026-11-26 | T0934 收單（DONE，`15ded368`）、模式 ① 合併到 `ct-merge/T0934` `098ab6c8`；斷點 E → U-18 | T0934 |
 | D379 | 2026-11-26 | 開 T0934：💬 卡片參考檔案連結（沿用 T0930 唯一實作；收合摘要在按鈕內不加連結） | T0934 |
 | D378 | 2026-11-26 | A-4：完成 → `v0.8.0-pre.5` 使用者實機驗收通過（版面、參考檔案連結、BUG-225）；BUG-225 CLOSED，熱區未結 BUG 0 | T0929 / T0930 / T0931 / BUG-225 |
 | D377 | 2026-11-26 | `v0.8.0-pre.5` 發佈（Pre-Release `45820932628`，`9350cb5c`）：T0929 / T0930 / BUG-225；分支 6 個刪除；待驗收 A-4 | T0929 / T0930 / T0931 / BUG-225 |
@@ -497,6 +499,22 @@
   4. PLAN-001 保持延後（🟢 Low，等 plugin 1.0 穩定）
 - **Success criteria**（EXP→CONCLUDED）：npm install 無錯 / 所有 native modules rebuild 成功 / dev+build:dir 可跑 / 手動 smoke test 8 項通過
 - **最大風險**：`whisper-node-addon@1.0.2` 對 Electron 41（Node 24）的 NODE_MODULE_VERSION 相容性未知，允許 Worker 遇此決策點主動問塔台
+
+---
+
+### D381 2026-11-26 22:36 — `main` ff 含 T0934（U-18）
+
+- **使用者裁示**：U-18：A（原生選單）。
+- **合併**：整合分支 `ct-merge/T0934` 再 `--no-ff` 併入 `main` 的記帳 commit（只有 `_ct-workorders/**`）後 `--ff-only`；整合 worktree `switch --detach`；`ct/T0934` worktree 移除（不加 `--force`）；分支 `ct/T0934`、`ct-merge/T0934` 保留到使用者同意刪除。
+- **相關**：T0934
+
+---
+
+### D380 2026-11-26 22:01 — T0934 收單、模式 ① 合併到整合分支（U-18 待決）
+
+- **收單**：T0934 DONE（session `53983297`）。產品 commit `15ded368`（`ct/T0934`，base `5416f42e`）6 檔：`InboxPanel` 傳 `folder`、`TowerCardsSection` 對按鈕外顯示的部分（收合 → 加亮行；展開 → head 或全文）合併參照給一個 `useInboxFileRefs`、各行 `InboxRefText`；收合摘要維持純文字；`inbox.css` 一條；新元件測試 6 項；docs〈塔台訊息卡片（T0934）〉、CLAUDE.md 一句（95,231 字元）。T0930 唯一實作未改。驗證：test:unit 9091 passed / 502 files、typecheck 0、vite build；隔離實例未點 → 〈待實機〉5 項。
+- **合併**：判準 5 條 PASS（behind 1 只有本工單檔、`validated_sha` = head、outOfScope 0、conflicts 0、dirty 0、主 checkout 乾淨）→ `ct-merge/T0934` `--no-ff` `098ab6c8`（parent1 `4a22c266` = `main`、parent2 `15ded368`；與 head 差異只有 `_ct-workorders/**`）。`--close-worker --worktree keep` exit 0；session 快照已寫。非 yolo 斷點 E → U-18。
+- **相關**：T0934
 
 ---
 
