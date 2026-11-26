@@ -10,6 +10,7 @@
 
 | ID | 日期 | 標題 | 相關工單 |
 |----|------|------|---------|
+| D370 | 2026-11-26 | U-15：A → T0929 經 `ct-merge/T0929` ff 進 `main`；之後派 T0930 | T0929 / T0930 |
 | D369 | 2026-11-26 | T0929 收單（DONE，`36555622`）、模式 ① 合併到 `ct-merge/T0929` `50cfbff3`；斷點 E → U-15 | T0929 |
 | D368 | 2026-11-26 | 待辦分頁三項改善一批開單：T0929 項目版面、T0930 參考檔案可點（`openFileInFilesTab`，等 T0929 合併後派）、BUG-225 💬 卡片摘要「```」→ T0931；目標 `0.8.0-pre.5` | T0929 / T0930 / T0931 |
 | D367 | 2026-11-26 | 分支清理：刪除已併入 `main` 的本機分支 11 個（`ct/T0922`–`T0928` 5 個、`ct-merge/T0921`–`T0928` 6 個）；`ct/T0885`（D307）、`ct/T0886` 保留 | T0921 / T0922 / T0923 / T0924 / T0925 / T0926 / T0927 / T0928 |
@@ -487,6 +488,15 @@
   4. PLAN-001 保持延後（🟢 Low，等 plugin 1.0 穩定）
 - **Success criteria**（EXP→CONCLUDED）：npm install 無錯 / 所有 native modules rebuild 成功 / dev+build:dir 可跑 / 手動 smoke test 8 項通過
 - **最大風險**：`whisper-node-addon@1.0.2` 對 Electron 41（Node 24）的 NODE_MODULE_VERSION 相容性未知，允許 Worker 遇此決策點主動問塔台
+
+---
+
+### D370 2026-11-26 20:14 — `main` ff 含 T0929（U-15）
+
+- **使用者裁示**：U-15：A（原生選單）。
+- **合併**：`main` 在合併期間只多 `_ct-workorders/**` 記帳 commit（SHA 比對第 5 步）→ 整合分支再 `--no-ff` 併入 `main` 後 `--ff-only`；結果 SHA 記在 `_tower-state.md` 開工區。整合 worktree `switch --detach`；`ct/T0929` worktree 移除（不加 `--force`）；分支 `ct/T0929`、`ct-merge/T0929` 保留到使用者同意刪除。
+- **下一步**：派 T0930（`depends_on` T0929 已滿足）。
+- **相關**：T0929 / T0930
 
 ---
 
