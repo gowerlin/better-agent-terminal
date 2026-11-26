@@ -4,14 +4,16 @@ schema_kind: workorder
 id: T0929
 title: "待辦分頁項目版面：摘要換到下一行全寬、每個選項一行、功能按鈕獨立一行"
 type: feature
-status: TODO
+status: IN_PROGRESS
 repo: better-agent-terminal
 project: PLAN-069
 priority: P2
 sizing: S
 created_at: "2026-11-26T20:03:42+08:00"
-updated_at: "2026-11-26T20:03:42+08:00"
-session_ids: []
+started_at: "2026-11-26T20:04:27+08:00"
+updated_at: "2026-11-26T20:04:27+08:00"
+session_ids:
+  - "91548731-283a-4d11-9e06-a7eedc148490"
 target_version: "0.8.0-pre.5"
 depends_on: []
 related:
