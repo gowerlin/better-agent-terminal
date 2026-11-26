@@ -4,22 +4,37 @@ summary_version: 1
 bat_contract: 2
 ct_version: "6.2.0"
 inbox_features: ["recommended", "dismiss"]
-updated_at: "2026-11-27T00:19:47+0800"
+updated_at: "2026-11-27T00:20:33+0800"
 session: "2026-11-27 00:19 第一百三十六 session（CT v6.2.0）"
 next_ids:
   workorder: "T0936"
-  decision: "D388"
+  decision: "D389"
   bug: "BUG-226"
   plan: "PLAN-070"
-  user: "U-20"
-  action: "A-7"
+  user: "U-21"
+  action: "A-8"
+awaiting_user:
+  - id: "U-20"
+    workorder: "T0935"
+    kind: "decision"
+    source: "tower-question"
+    summary: "【驗測範例】應連結：(_local-rules.md)、`package.json`、README.md、docs/agent-guide/tower-inbox.md；不應連結：0.8.0、github.com、nofile-sample.md"
+    options: ["A 驗測看完，移除範例（推薦）"]
+    recommended: "A"
+    created_at: "2026-11-27T00:20:33+08:00"
 user_actions:
   - id: "A-6"
     title: "安裝 0.8.0-pre.7 驗收參考檔案連結：只寫檔名（T0935）與 💬 卡片（T0934）"
     ref: "T0935"
     kind: "verify"
     created_at: "2026-11-27T00:13:46+08:00"
+  - id: "A-7"
+    title: "【驗測範例】應連結：(_handover-2026-11-25-inbox-recommended-dismiss.md)、CHANGELOG.md、D387；不應連結：v1.2、../x.md、https://example.com"
+    ref: "T0934"
+    kind: "verify"
+    created_at: "2026-11-27T00:20:33+08:00"
 todo:
+  - "驗測範例（D388，暫時）：U-20 / A-7 是 A-6 用的驗測範例，使用者看完回 `U-20：A`、`A-7：完成`（或放棄 / 略過）後移除，不代表真的待辦"
   - "🚀 `v0.8.0-pre.7` 已發佈（D387，2026-11-27 00:11，Pre-Release `45852929765`，`96915fe9`）：T0935 只寫檔名的參考檔案連結；待驗收 A-6（含 pre.6 略過的 T0934）；下一版 `0.8.0-pre.8`"
   - "A-6 驗收細項：① 只寫檔名的檔（`_ct-workorders/` 的 `_reply-….md`、根目錄 `README.md`）成連結、點了開對位置；版號 / 不存在的檔名為一般文字（T0935）；② 💬 卡片收合時點加亮行連結 → 切「檔案」頁籤、卡片仍收合且 ● 不變；展開後點內文連結 → 卡片仍展開、📌 不變；「顯示全部」後尾段可點；收合摘要沒有連結（T0934）"
   - "`v0.8.0-pre.5` 已驗收（D378）：T0929 / T0930 / BUG-225 CLOSED"
