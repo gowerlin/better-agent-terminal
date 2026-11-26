@@ -4,8 +4,8 @@ summary_version: 1
 bat_contract: 2
 ct_version: "6.2.0"
 inbox_features: ["recommended", "dismiss"]
-updated_at: "2026-11-26T21:11:29+0800"
-session: "2026-11-26 20:01 第一百三十四 session（CT v6.2.0）"
+updated_at: "2026-11-26T21:18:00+0800"
+session: "2026-11-26 21:18 第一百三十五 session（CT v6.2.0）"
 next_ids:
   workorder: "T0934"
   decision: "D378"
@@ -41,6 +41,8 @@ reminders:
     due_at: "2026-12-02"
 ---
 # Tower State — better-agent-terminal
+
+> 🟢 **第一百三十五 session 開工**（2026-11-26 21:18 (UTC+8)，CT v6.2.0，Fast Path；塔台 session `db802f66-e1bd-4039-8c2a-94b5dacb2e69`；`--set-role tower --bat-contract 2 --mode on` exit 0，`bat-contract: 2`、`hooks: ok (injected, set 2)`；BAT helper **`0.8.0-pre.5`**（使用者已更版）；`main` = `origin/main` @ `1d401a19`；熱區 T 329 全 DONE、BUG 89（FIXED 1 = BUG-225 / CLOSED 87 / WONTFIX 1））。
 
 > 🛏 **第一百三十四 session 收工**（2026-11-26 21:11 (UTC+8)）。
 
