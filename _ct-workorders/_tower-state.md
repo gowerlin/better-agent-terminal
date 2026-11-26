@@ -4,22 +4,17 @@ summary_version: 1
 bat_contract: 2
 ct_version: "6.2.0"
 inbox_features: ["recommended", "dismiss"]
-updated_at: "2026-11-26T23:48:19+0800"
+updated_at: "2026-11-26T23:49:04+0800"
 session: "2026-11-26 21:18 第一百三十五 session（CT v6.2.0）"
 next_ids:
   workorder: "T0936"
-  decision: "D386"
+  decision: "D387"
   bug: "BUG-226"
   plan: "PLAN-070"
   user: "U-20"
   action: "A-6"
-user_actions:
-  - id: "A-5"
-    title: "安裝 0.8.0-pre.6 驗收 💬 卡片參考檔案連結（T0934）"
-    ref: "T0934"
-    kind: "verify"
-    created_at: "2026-11-26T23:00:04+08:00"
 todo:
+  - "A-5 使用者略過（D386）：T0934 💬 卡片連結未驗（使用者略過），併入 `0.8.0-pre.7` 發版時的待驗收（連同 T0935 只寫檔名的連結）"
   - "T0935 DONE，U-19：A → 經 `ct-merge/T0935` ff 進 `main`（D385）；〈待實機〉併入 `0.8.0-pre.7` 待驗收；分支 `ct/T0935`、`ct-merge/T0935` 待使用者同意刪除"
   - "🚀 `v0.8.0-pre.6` 已發佈（D382，2026-11-26 22:58，Pre-Release `45840792584`，`606e283f`）：T0934 💬 卡片參考檔案連結，待驗收 A-5；下一版 `0.8.0-pre.7`"
   - "A-5 驗收細項（T0934〈待實機〉）：收合時點加亮行連結 → 切「檔案」頁籤並選取、卡片仍收合且 ● 未讀不變；展開後點內文連結 → 同上、卡片仍展開、📌 不變；不存在的檔與 URL 為一般文字；長卡片「顯示全部」後尾段路徑可點；收合摘要沒有連結"
