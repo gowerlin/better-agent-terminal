@@ -4,7 +4,7 @@ summary_version: 1
 bat_contract: 2
 ct_version: "6.2.0"
 inbox_features: ["recommended", "dismiss"]
-updated_at: "2026-11-26T23:00:04+0800"
+updated_at: "2026-11-26T23:15:03+0800"
 session: "2026-11-26 21:18 第一百三十五 session（CT v6.2.0）"
 next_ids:
   workorder: "T0935"
@@ -43,55 +43,53 @@ reminders:
 ---
 # Tower State — better-agent-terminal
 
-> 🟢 **第一百三十五 session 開工**（2026-11-26 21:18 (UTC+8)，CT v6.2.0，Fast Path；塔台 session `db802f66-e1bd-4039-8c2a-94b5dacb2e69`；`--set-role tower --bat-contract 2 --mode on` exit 0，`bat-contract: 2`、`hooks: ok (injected, set 2)`；BAT helper **`0.8.0-pre.5`**（使用者已更版）；`main` = `origin/main` @ `1d401a19`；熱區 T 329 全 DONE、BUG 89（FIXED 1 = BUG-225 / CLOSED 87 / WONTFIX 1））。
+> 🛏 **第一百三十五 session 收工**（2026-11-26 23:15 (UTC+8)）。
 
-> 🛏 **第一百三十四 session 收工**（2026-11-26 21:11 (UTC+8)）。
+> 🟢 **第一百三十五 session 開工**（2026-11-26 21:18 (UTC+8)，CT v6.2.0，Fast Path；塔台 session `db802f66-e1bd-4039-8c2a-94b5dacb2e69`；`--set-role tower --bat-contract 2 --mode on` exit 0，`bat-contract: 2`、`hooks: ok (injected, set 2)`；BAT helper **`0.8.0-pre.5`**（使用者已更版）；`main` = `origin/main` @ `1d401a19`；熱區 T 329 全 DONE、BUG 89（FIXED 1 = BUG-225 / CLOSED 87 / WONTFIX 1））。 第一百三十四 session 的紀錄已搬到 [`_archive/state-snapshots/2026-Q4-c.md`](_archive/state-snapshots/2026-Q4-c.md)。
 
-> 🟢 **第一百三十四 session 開工**（2026-11-26 20:01 (UTC+8)，CT v6.2.0，Fast Path；塔台 session `db802f66-e1bd-4039-8c2a-94b5dacb2e69`；`--set-role tower --bat-contract 2 --mode on` exit 0，`bat-contract: 2`、`hooks: ok (injected, set 2)`；BAT helper `0.8.0-pre.4`）。第一百三十二～一百三十三 session 的紀錄已搬到 [`_archive/state-snapshots/2026-Q4-c.md`](_archive/state-snapshots/2026-Q4-c.md)。
-
-> 最後更新:2026-11-26 21:11 (UTC+8) — **第一百三十四 session 收工**：待辦分頁三項改善（T0929 版面、T0930 參考檔案可點、T0931 BUG-225 💬 摘要「```」）完成並合併，`v0.8.0-pre.5` 發佈（D377）；已合併分支已清。
+> 最後更新:2026-11-26 23:15 (UTC+8) — **第一百三十五 session 收工**：`v0.8.0-pre.5` 驗收通過（A-4，BUG-225 CLOSED，D378）；T0934 💬 卡片參考檔案連結完成並合併，`v0.8.0-pre.6` 發佈（D382）；已合併分支已清。
 >
-> **下次起手**:熱區無進行中工單。🙋 A-4 待使用者裝 `0.8.0-pre.5` 驗收（版面、參考檔案連結含遠端 / detached、BUG-225）；驗收通過 → BUG-225 CLOSED、A-4 移除。候選見 frontmatter `todo`；PLAN-067 週清查 2026-12-02 到期。
+> **下次起手**:熱區無進行中工單、無未結 BUG。🙋 A-5 待使用者裝 `0.8.0-pre.6` 驗收 💬 卡片連結（細項見 frontmatter `todo`）。候選見 `todo`；PLAN-067 週清查 2026-12-02 到期。
 
 ---
 
-## 🛏 本 Session 收工快照 (第一百三十四 session, 2026-11-26 20:01 - 2026-11-26 21:11)
+## 🛏 本 Session 收工快照 (第一百三十五 session, 2026-11-26 21:18 - 2026-11-26 23:15)
 
-### 主軸：待辦分頁三項改善（使用者截圖回饋），`v0.8.0-pre.5` 發佈
+### 主軸：pre.5 驗收、💬 卡片參考檔案連結，`v0.8.0-pre.6` 發佈
 
 #### 重點（時間取自系統 / git）
 
-1. 使用者截圖：「待你決定」摘要擠在標頭右側、短選項併行、按鈕位置不固定 → T0929（版面）；接著要求參考檔案可點、在「檔案」頁籤開啟 → T0930；候選「💬 卡片摘要 ```」→ BUG-225 / T0931（D368）
-2. T0929 / T0931 平行；T0930 等 T0929 合併後派（同一元件）；T0930 Q-1（改 `InboxPanel.tsx` 傳工作區根目錄）塔台以 BAT 通道答 A
-3. 合併：T0929 模式 ① 塔台直接合併；T0931、T0930 因 `main` 已含先合併的產品檔（判準 1 不成立）派合併工單 T0932、T0933；三次斷點 E 皆原生選單 U-15 / U-16 / U-17 → A（D369–D376）
-4. 發版：分支 6 個刪除；push 前去識別化檢查發現 T0929 回報區家目錄截圖路徑 → 改 `<使用者資料夾>`（歷史 commit 內仍有，未改寫）；`v0.8.0-pre.5` 發佈（Pre-Release `45820932628`，`9350cb5c`）、文件同步、Pages / link-check 綠（D377）
+1. 使用者更版到 `0.8.0-pre.5` 後回 `A-4：完成` → BUG-225 CLOSED（熱區未結 BUG 0，D378）
+2. 使用者要求 💬 卡片也加參考檔案連結 → T0934（沿用 T0930 唯一實作；收合摘要在 toggle 按鈕內維持純文字，D379）
+3. T0934 DONE，模式 ① 塔台直接合併；斷點 E 原生選單 U-18 → A（D380 / D381）
+4. 發版：分支 2 個刪除；push 前去識別化 / 金鑰檢查 0；`v0.8.0-pre.6` 發佈（Pre-Release `45840792584`，`606e283f`）、文件同步、Pages / link-check 綠（D382）
 
 ### 本輪戰績
-- 工單 5（T0929–T0933，其中合併 2）；決策 D368–D377；BUG 開 1（BUG-225 → FIXED，待驗收）；發版 1（`v0.8.0-pre.5`）；YOLO 派發 5 張皆 `started:`、結構化提問 1 次（T0930 Q-1 `--answer`）、`worker_auto_close` 回收 5 次
+- 工單 1（T0934）；決策 D378–D382；BUG 結 1（BUG-225）；發版 1（`v0.8.0-pre.6`）；YOLO 派發 1 張 `started:`、無提問、`worker_auto_close` 回收 1 次
 
 ### 編號起始（下 session）
-- **T0934** / **BUG-226** / **PLAN-070** / **D378** / **U-18** / **A-5**
+- **T0935** / **BUG-226** / **PLAN-070** / **D383** / **U-19** / **A-6**
 
 ---
 
-## 🛏 前 Session 收工快照 (第一百三十二 session, 2026-11-25 20:19 - 2026-11-26 01:13)
+## 🛏 前 Session 收工快照 (第一百三十四 session, 2026-11-26 20:01 - 2026-11-26 21:11)
 
-- PLAN-069（待辦分頁推薦項＋放棄 / 略過 / 批次）與 CT 協作完成，`v0.8.0-pre.4` 發佈（D364 / D365），CT 6.2.0 同日；BUG-223 / 224 CLOSED。完整紀錄已搬到 [`_archive/state-snapshots/2026-Q4-c.md`](_archive/state-snapshots/2026-Q4-c.md)〈第一百三十二～一百三十三 session〉。第一百三十三 session 只有開工、無工作。
+- 待辦分頁三項改善（T0929 版面、T0930 參考檔案可點、T0931 BUG-225），合併工單 T0932 / T0933，`v0.8.0-pre.5` 發佈（D368–D377）。完整紀錄已搬到 [`_archive/state-snapshots/2026-Q4-c.md`](_archive/state-snapshots/2026-Q4-c.md)〈第一百三十四 session〉。
 
 ---
 
 ## 🌅 起手式（Quick Recovery）
 
-> 最後更新：2026-11-26 21:11 UTC+8（第一百三十四 session 收工）
+> 最後更新：2026-11-26 23:15 UTC+8（第一百三十五 session 收工）
 
 ### 近期完成
-- **`v0.8.0-pre.5` 發佈**（第一百三十四 session，D377）：待辦分頁版面（T0929）、參考檔案可點（T0930）、BUG-225 💬 摘要（T0931）
-- **`v0.8.0-pre.4` 發佈**（第一百三十二 session，D364）：PLAN-069 推薦標記＋放棄 / 略過；BUG-223 / 224 CLOSED
+- **`v0.8.0-pre.6` 發佈**（第一百三十五 session，D382）：💬 塔台訊息卡片參考檔案連結（T0934）
+- **`v0.8.0-pre.5` 驗收通過**（D378）：待辦版面、參考檔案連結、BUG-225 CLOSED；熱區未結 BUG 0
 
 ### 待辦（依優先序；完整內容見 frontmatter `todo`）
-1. 🙋 A-4：使用者裝 `0.8.0-pre.5` 驗收（版面、參考檔案連結、BUG-225）→ 通過後 BUG-225 CLOSED
+1. 🙋 A-5：使用者裝 `0.8.0-pre.6` 驗收 💬 卡片連結
 2. PLAN-065 per-machine UAC 互動升級手動驗收；PLAN-052 Docker Desktop 實機精靈；PLAN-058 手動確認；其他待實機項
-3. 候選（未開單）：`readAsarFile` 讀不足判失敗、PLAN-066 後續、💬 卡片加參考檔案連結、`useInboxFileRefs` 跟 `fs:changed` 重查
+3. 候選（未開單）：`readAsarFile` 讀不足判失敗、PLAN-066 後續、`useInboxFileRefs` 跟 `fs:changed` 重查
 4. PLAN-067 週清查 2026-12-02 到期（`reminders`）
 
 ### ⚠️ 鐵則
@@ -111,7 +109,7 @@ reminders:
 - 歷史 sessions → [_archive/state-snapshots/INDEX.md](_archive/state-snapshots/INDEX.md)（152 entries；最新 `2026-Q4-c.md`）
 
 ### 編號起始
-- **T0934** / **BUG-226** / **PLAN-070** / **D378** / **U-18** / **A-5** / **EXP-WFMINE-002**（其他 TOPIC 從 001） / **L186** / **CT-T023**
+- **T0935** / **BUG-226** / **PLAN-070** / **D383** / **U-19** / **A-6** / **EXP-WFMINE-002**（其他 TOPIC 從 001） / **L186** / **CT-T023**
 
 ---
 
