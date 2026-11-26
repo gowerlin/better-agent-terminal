@@ -228,7 +228,7 @@ export function InboxPanel({ workspaceId, workspaceFolderPath }: Readonly<InboxP
           </ul>
         </InboxSection>
 
-        <TowerCardsSection sources={cardSources} codex={codexTower} folded={folded.messages} onToggle={toggle} />
+        <TowerCardsSection sources={cardSources} codex={codexTower} folded={folded.messages} onToggle={toggle} folder={workspaceFolderPath} />
 
         <InboxSection id="todo" title={t('inbox.section.todo')} count={model.todo.length} folded={folded.todo} onToggle={toggle}>
           <ol className="inbox-todo">
