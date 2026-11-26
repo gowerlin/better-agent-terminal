@@ -25,6 +25,10 @@
  * on a full-width line of its own, then one line per option (or the answer box), then 送出 / 放棄…
  * on a line of their own; the 放棄 note opens below that line. `.inbox-options` / `.inbox-free` stay
  * the outer answer block (e2e t0913 selects the send button through them).
+ *
+ * T0930: the `workorder` / `ref` tags and the summary / title text show their existing file references
+ * as links that open in the「檔案」tab (`InboxRefTag` / `InboxRefText`, existence check
+ * `useInboxFileRefs` per list, recognition src/lib/inbox-file-refs.ts). Without `folder`: plain text.
  */
 import { useState, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -41,6 +45,8 @@ import {
   type UserAction,
 } from '../../lib/tower-inbox'
 import { sendInboxAnswer, type InboxAnswerOutcome } from '../../lib/inbox-answer'
+import { InboxRefTag, InboxRefText } from './InboxRefText'
+import { itemFileRefs, useInboxFileRefs, type InboxRefLinks } from './useInboxFileRefs'
 import type { InboxAnswerTarget, RecentlyClosed } from '../../lib/inbox-model'
 
 type Targets = { targets: InboxAnswerTarget[]; auto: InboxAnswerTarget | null }
@@ -276,8 +282,10 @@ function SkippedLine({ count }: { count: number }) {
   return <div className="inbox-muted" data-inbox-skipped={count}>{t('inbox.skipped', { count })}</div>
 }
 
-function AwaitingRow({ item, onAnswer, status, chooser, dismiss, checked, onCheck }: {
+function AwaitingRow({ item, onAnswer, status, chooser, dismiss, checked, onCheck, links }: {
   item: AwaitingItem & { waitingOrders: string[] }
+  /** T0930: the found file references (links in the tag and the summary). */
+  links: InboxRefLinks
   onAnswer: (text: string) => Promise<boolean>
   status: Status | undefined
   chooser: ReactNode
@@ -313,12 +321,12 @@ function AwaitingRow({ item, onAnswer, status, chooser, dismiss, checked, onChec
       <div className="inbox-entry-head">
         {dismiss && <DismissCheck id={item.id} checked={checked} onCheck={onCheck} />}
         <span className="inbox-item-id">{item.id}</span>
-        {item.workorder && <span className="inbox-item-source">{item.workorder}</span>}
+        {item.workorder && <InboxRefTag value={item.workorder} links={links} />}
         {item.source && <span className="inbox-item-tag" title={item.source}>{sourceKey ? t(sourceKey) : item.source}</span>}
         {item.kind && <span className="inbox-item-tag">{item.kind}</span>}
       </div>
       {/* T0929: the summary is its own full-width block below the head line */}
-      <div className="inbox-entry-summary" data-inbox-summary={item.id}>{item.summary}</div>
+      <div className="inbox-entry-summary" data-inbox-summary={item.id}><InboxRefText text={item.summary} links={links} /></div>
       {item.options ? (
         <div className="inbox-answer-block inbox-options">
           <div className="inbox-option-list" role="radiogroup" aria-label={item.id} data-inbox-option-list={item.id}>
@@ -376,8 +384,10 @@ function AwaitingRow({ item, onAnswer, status, chooser, dismiss, checked, onChec
   )
 }
 
-function ActionRow({ item, onAnswer, status, chooser, dismiss, checked, onCheck }: {
+function ActionRow({ item, onAnswer, status, chooser, dismiss, checked, onCheck, links }: {
   item: UserAction
+  /** T0930: the found file references (links in the tag and the title). */
+  links: InboxRefLinks
   onAnswer: (text: string) => Promise<boolean>
   status: Status | undefined
   chooser: ReactNode
@@ -406,11 +416,11 @@ function ActionRow({ item, onAnswer, status, chooser, dismiss, checked, onCheck 
       <div className="inbox-entry-head">
         {dismiss && <DismissCheck id={item.id} checked={checked} onCheck={onCheck} />}
         <span className="inbox-item-id">{item.id}</span>
-        {item.ref && <span className="inbox-item-source">{item.ref}</span>}
+        {item.ref && <InboxRefTag value={item.ref} links={links} />}
         {item.kind && <span className="inbox-item-tag" title={item.kind}>{kindKey ? t(kindKey) : item.kind}</span>}
       </div>
       {/* T0929: the title is its own full-width block below the head line */}
-      <div className="inbox-entry-summary" data-inbox-summary={item.id}>{item.title}</div>
+      <div className="inbox-entry-summary" data-inbox-summary={item.id}><InboxRefText text={item.title} links={links} /></div>
       {item.command && (
         <div className="inbox-command">
           <code className="inbox-command-text" title={t('inbox.action.commandNote')}>{item.command}</code>
@@ -461,16 +471,19 @@ function ActionRow({ item, onAnswer, status, chooser, dismiss, checked, onCheck 
 }
 
 /** The `⏸ 待你決定` list. */
-export function AwaitingList({ items, skipped, targets, dismiss = false }: {
+export function AwaitingList({ items, skipped, targets, dismiss = false, folder = null }: {
   items: Array<AwaitingItem & { waitingOrders: string[] }>
   skipped: number
   targets: Targets
   /** PLAN-069: `inbox_features` lists `dismiss`. */
   dismiss?: boolean
+  /** T0930: the workspace root the file references resolve against; none → plain text. */
+  folder?: string | null
 }) {
   const sender = useAnswerSender(targets)
   const batch = useChecked()
   const listed = items.slice(0, INBOX_LIST_RENDER_MAX)
+  const links = useInboxFileRefs(folder, listed.flatMap(item => itemFileRefs([item.workorder], [item.summary])))
   const chooserFor = (key: string) => sender.pending?.itemId === key ? <TargetChooser targets={targets.targets} onChoose={sender.choose} /> : null
   return (
     <>
@@ -496,6 +509,7 @@ export function AwaitingList({ items, skipped, targets, dismiss = false }: {
             dismiss={dismiss}
             checked={batch.checked.has(item.id)}
             onCheck={batch.onCheck}
+            links={links}
           />
         ))}
       </ul>
@@ -506,16 +520,19 @@ export function AwaitingList({ items, skipped, targets, dismiss = false }: {
 }
 
 /** The `user_actions` part of `🙋 待你執行`. */
-export function ActionList({ items, skipped, targets, dismiss = false }: {
+export function ActionList({ items, skipped, targets, dismiss = false, folder = null }: {
   items: UserAction[]
   skipped: number
   targets: Targets
   /** PLAN-069: `inbox_features` lists `dismiss`. */
   dismiss?: boolean
+  /** T0930: the workspace root the file references resolve against; none → plain text. */
+  folder?: string | null
 }) {
   const sender = useAnswerSender(targets)
   const batch = useChecked()
   const listed = items.slice(0, INBOX_LIST_RENDER_MAX)
+  const links = useInboxFileRefs(folder, listed.flatMap(item => itemFileRefs([item.ref], [item.title])))
   const chooserFor = (key: string) => sender.pending?.itemId === key ? <TargetChooser targets={targets.targets} onChoose={sender.choose} /> : null
   return (
     <>
@@ -541,6 +558,7 @@ export function ActionList({ items, skipped, targets, dismiss = false }: {
             dismiss={dismiss}
             checked={batch.checked.has(item.id)}
             onCheck={batch.onCheck}
+            links={links}
           />
         ))}
       </ul>
@@ -551,20 +569,27 @@ export function ActionList({ items, skipped, targets, dismiss = false }: {
 }
 
 /** The `⏰ 到期提醒` list. */
-export function ReminderList({ items, skipped }: { items: DueReminder[]; skipped: number }) {
+export function ReminderList({ items, skipped, folder = null }: {
+  items: DueReminder[]
+  skipped: number
+  /** T0930: the workspace root the file references resolve against; none → plain text. */
+  folder?: string | null
+}) {
   const { t } = useTranslation()
+  const listed = items.slice(0, INBOX_LIST_RENDER_MAX)
+  const links = useInboxFileRefs(folder, listed.flatMap(item => itemFileRefs([item.ref], [item.title])))
   return (
     <>
       <ul className="inbox-list">
-        {items.slice(0, INBOX_LIST_RENDER_MAX).map(item => {
+        {listed.map(item => {
           const when = item.days > 0
             ? t('inbox.remind.overdue', { count: item.days })
             : item.days === 0 ? t('inbox.remind.today') : t('inbox.remind.dueIn', { count: -item.days })
           return (
             <li key={item.id} className="inbox-item" data-inbox-reminder={item.id}>
-              {item.ref && <span className="inbox-item-source">{item.ref}</span>}
+              {item.ref && <InboxRefTag value={item.ref} links={links} />}
               <span className="inbox-item-text" title={formatCtTime(item.dueAt)}>
-                {item.title} · {when}{item.lastAt ? ` ${t('inbox.remind.last', { at: formatCtTime(item.lastAt) })}` : ''}
+                <InboxRefText text={item.title} links={links} /> · {when}{item.lastAt ? ` ${t('inbox.remind.last', { at: formatCtTime(item.lastAt) })}` : ''}
               </span>
             </li>
           )
