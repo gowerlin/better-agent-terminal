@@ -20,6 +20,11 @@
  *     box per row, and per list「放棄勾選（N）」/「全部放棄」(「略過…」) with one note and an in-page
  *     confirmation listing the ids. 🔴「全部」is expanded when sent to the ids listed then; one line
  *     per list (`U-1、U-3：放棄 …`), never a wildcard or a range.
+ *
+ * T0929 (layout only): an entry is the head line (check box, id, work order, tags), then the summary
+ * on a full-width line of its own, then one line per option (or the answer box), then 送出 / 放棄…
+ * on a line of their own; the 放棄 note opens below that line. `.inbox-options` / `.inbox-free` stay
+ * the outer answer block (e2e t0913 selects the send button through them).
  */
 import { useState, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -109,13 +114,16 @@ const BATCH_KEY = '__batch__'
 /**
  * PLAN-069: a row's「放棄…」/「略過…」: opens an optional one-line note with send / cancel (in the
  * page, no `window.confirm`), sends `U-n：放棄[ 文字]` / `A-n：略過[ 文字]`.
+ *
+ * T0929: the button and the note form are returned separately, so the button sits in the row's
+ * button line and the form opens below that line (never inside it).
  */
-function DismissControl({ id, kind, busy, onAnswer }: {
+function useDismissControl({ id, kind, busy, onAnswer }: {
   id: string
   kind: DismissKind
   busy: boolean
   onAnswer: (text: string) => Promise<boolean>
-}) {
+}): { button: ReactNode; form: ReactNode } {
   const { t } = useTranslation()
   const [open, setOpen] = useState(false)
   const [note, setNote] = useState('')
@@ -127,12 +135,13 @@ function DismissControl({ id, kind, busy, onAnswer }: {
     }
   }
   const noteLabel = t(kind === 'awaiting' ? 'inbox.dismiss.dismissNote' : 'inbox.dismiss.skipNote')
-  return (
-    <>
+  return {
+    button: (
       <button className="inbox-btn inbox-dismiss-btn" disabled={busy} data-inbox-dismiss={id} aria-expanded={open} onClick={() => setOpen(v => !v)}>
         {t(kind === 'awaiting' ? 'inbox.dismiss.dismiss' : 'inbox.dismiss.skip')}
       </button>
-      {open && (
+    ),
+    form: open && (
         <div className="inbox-free inbox-dismiss-form" data-inbox-dismiss-form={id}>
           <input
             className="inbox-free-input"
@@ -152,9 +161,8 @@ function DismissControl({ id, kind, busy, onAnswer }: {
             {t('common.cancel')}
           </button>
         </div>
-      )}
-    </>
-  )
+    ),
+  }
 }
 
 /** PLAN-069: a row's check box for the batch toolbar. */
@@ -285,6 +293,7 @@ function AwaitingRow({ item, onAnswer, status, chooser, dismiss, checked, onChec
   const [free, setFree] = useState('')
   const sourceKey = awaitingSourceLabelKey(item.source)
   const busy = status?.status === 'sending'
+  const dismissControl = useDismissControl({ id: item.id, kind: 'awaiting', busy, onAnswer })
   const submit = async (answer: string) => {
     if (!answer.trim()) return
     if (await onAnswer(awaitingAnswerText(item.id, answer))) {
@@ -292,6 +301,13 @@ function AwaitingRow({ item, onAnswer, status, chooser, dismiss, checked, onChec
       setFree('')
     }
   }
+  // T0929: 送出 and 放棄… share one line of their own, after the options / the answer box
+  const buttons = (sendButton: ReactNode) => (
+    <div className="inbox-actions-row inbox-entry-buttons" data-inbox-entry-buttons={item.id}>
+      {sendButton}
+      {dismiss && dismissControl.button}
+    </div>
+  )
   return (
     <li className="inbox-item inbox-entry" data-inbox-awaiting={item.id}>
       <div className="inbox-entry-head">
@@ -300,30 +316,35 @@ function AwaitingRow({ item, onAnswer, status, chooser, dismiss, checked, onChec
         {item.workorder && <span className="inbox-item-source">{item.workorder}</span>}
         {item.source && <span className="inbox-item-tag" title={item.source}>{sourceKey ? t(sourceKey) : item.source}</span>}
         {item.kind && <span className="inbox-item-tag">{item.kind}</span>}
-        <span className="inbox-item-text inbox-entry-summary">{item.summary}</span>
       </div>
+      {/* T0929: the summary is its own full-width block below the head line */}
+      <div className="inbox-entry-summary" data-inbox-summary={item.id}>{item.summary}</div>
       {item.options ? (
-        <div className="inbox-options" role="radiogroup" aria-label={item.id}>
-          {item.options.map(option => (
-            <label key={option.code} className="inbox-option" data-inbox-option={option.code}>
-              <input
-                type="radio"
-                name={`inbox-${item.id}`}
-                checked={selected === option.code}
-                onChange={() => setChoice(option.code)}
-              />
-              <span className="inbox-option-code">{option.code}</span> {option.label}
-              {item.recommended === option.code && (
-                <span className="inbox-option-recommended" data-inbox-recommended={option.code}>{t('inbox.recommended')}</span>
-              )}
-            </label>
-          ))}
-          <button className="inbox-btn primary" disabled={!selected || busy} onClick={() => { if (selected) void submit(selected) }}>
-            {t('inbox.answer.send')}
-          </button>
+        <div className="inbox-answer-block inbox-options">
+          <div className="inbox-option-list" role="radiogroup" aria-label={item.id} data-inbox-option-list={item.id}>
+            {item.options.map(option => (
+              <label key={option.code} className="inbox-option" data-inbox-option={option.code}>
+                <input
+                  type="radio"
+                  name={`inbox-${item.id}`}
+                  checked={selected === option.code}
+                  onChange={() => setChoice(option.code)}
+                />
+                <span className="inbox-option-code">{option.code}</span> <span className="inbox-option-label">{option.label}</span>
+                {item.recommended === option.code && (
+                  <span className="inbox-option-recommended" data-inbox-recommended={option.code}>{t('inbox.recommended')}</span>
+                )}
+              </label>
+            ))}
+          </div>
+          {buttons(
+            <button className="inbox-btn primary" disabled={!selected || busy} onClick={() => { if (selected) void submit(selected) }}>
+              {t('inbox.answer.send')}
+            </button>,
+          )}
         </div>
       ) : (
-        <div className="inbox-free">
+        <div className="inbox-answer-block inbox-free">
           {item.optionsInvalid && <div className="inbox-muted">{t('inbox.answer.optionsInvalid')}</div>}
           <input
             className="inbox-free-input"
@@ -335,16 +356,14 @@ function AwaitingRow({ item, onAnswer, status, chooser, dismiss, checked, onChec
             onChange={e => setFree(e.target.value)}
             onKeyDown={e => { if (e.key === 'Enter' && !e.nativeEvent.isComposing) void submit(free) }}
           />
-          <button className="inbox-btn primary" disabled={!free.trim() || busy} onClick={() => void submit(free)}>
-            {t('inbox.answer.send')}
-          </button>
+          {buttons(
+            <button className="inbox-btn primary" disabled={!free.trim() || busy} onClick={() => void submit(free)}>
+              {t('inbox.answer.send')}
+            </button>,
+          )}
         </div>
       )}
-      {dismiss && (
-        <div className="inbox-actions-row">
-          <DismissControl id={item.id} kind="awaiting" busy={busy} onAnswer={onAnswer} />
-        </div>
-      )}
+      {dismiss && dismissControl.form}
       {item.waitingOrders.length > 0 && (
         <div className="inbox-paused" data-inbox-paused={item.waitingOrders.join(',')}>
           {t('inbox.paused', { orders: item.waitingOrders.join(', ') })}
@@ -373,6 +392,7 @@ function ActionRow({ item, onAnswer, status, chooser, dismiss, checked, onCheck 
   const [copied, setCopied] = useState(false)
   const kindKey = userActionKindLabelKey(item.kind)
   const busy = status?.status === 'sending'
+  const dismissControl = useDismissControl({ id: item.id, kind: 'action', busy, onAnswer })
   const copy = async () => {
     if (!item.command) return
     try {
@@ -388,8 +408,9 @@ function ActionRow({ item, onAnswer, status, chooser, dismiss, checked, onCheck 
         <span className="inbox-item-id">{item.id}</span>
         {item.ref && <span className="inbox-item-source">{item.ref}</span>}
         {item.kind && <span className="inbox-item-tag" title={item.kind}>{kindKey ? t(kindKey) : item.kind}</span>}
-        <span className="inbox-item-text inbox-entry-summary">{item.title}</span>
       </div>
+      {/* T0929: the title is its own full-width block below the head line */}
+      <div className="inbox-entry-summary" data-inbox-summary={item.id}>{item.title}</div>
       {item.command && (
         <div className="inbox-command">
           <code className="inbox-command-text" title={t('inbox.action.commandNote')}>{item.command}</code>
@@ -398,13 +419,14 @@ function ActionRow({ item, onAnswer, status, chooser, dismiss, checked, onCheck 
           </button>
         </div>
       )}
-      <div className="inbox-actions-row">
+      <div className="inbox-actions-row inbox-entry-buttons" data-inbox-entry-buttons={item.id}>
         <button className="inbox-btn primary" disabled={busy} data-inbox-done={item.id} onClick={() => void onAnswer(actionAnswerText(item.id, 'done'))}>
           {t('inbox.action.done')}
         </button>
         <button className="inbox-btn" disabled={busy} onClick={() => setFailing(v => !v)}>{t('inbox.action.failed')}</button>
-        {dismiss && <DismissControl id={item.id} kind="action" busy={busy} onAnswer={onAnswer} />}
+        {dismiss && dismissControl.button}
       </div>
+      {dismiss && dismissControl.form}
       {failing && (
         <div className="inbox-free">
           <input
