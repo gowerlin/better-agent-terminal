@@ -4,16 +4,17 @@ schema_kind: workorder
 id: T0935
 title: "待辦分頁參考檔案連結：只寫檔名（沒有 `/`）的檔案也辨識，存在才連"
 type: feature
-status: IN_PROGRESS
+status: DONE
 repo: better-agent-terminal
 project: PLAN-069
 priority: P2
 sizing: S
 created_at: "2026-11-26T23:37:08+08:00"
 started_at: "2026-11-26T23:38:33+08:00"
-updated_at: "2026-11-26T23:39:30+08:00"
-tower_question: open
-session_ids: []
+updated_at: "2026-11-26T23:46:38+08:00"
+completed_at: "2026-11-26T23:46:38+08:00"
+session_ids:
+  - "8e981cb7-3441-4c79-b7a5-d1707aef1236"
 target_version: "0.8.0-pre.7"
 depends_on: []
 related:
@@ -83,3 +84,80 @@ T0930（`v0.8.0-pre.5`）讓待辦分頁的參考檔案可點，但路徑必須�
 - **建議**：A。該斷言測的正是本單要移除的限制（T0930〈已知限制〉「只寫檔名不連結」），B / C 只是為了讓舊斷言通過而多一個預設值永遠不用的開關或第二種 part，徒增維護面。
 - **影響**：決定 `splitFileRefs` 的介面與測試寫法；不影響畫面行為（三案的產品行為相同）。
 - **是否阻擋後續**：阻擋實作與測試。
+- **通道**：BAT（`q-63a134d3-bfa4e9778ff28b6b`，answered choice 1）
+
+### 完成狀態
+
+- **狀態**：DONE
+- **session_id**：8e981cb7-3441-4c79-b7a5-d1707aef1236
+- **摘要**：待辦分頁三個清單與「💬 塔台訊息」卡片中，只寫檔名（不含 `/` `\`）的檔案現在也辨識；依序試工作區根目錄、`_ct-workorders/`，存在才成連結。版號（`0.8.0`、`v1.2`）不算；網域名稱只是候選、沒有同名檔就維持純文字。實作只動辨識規則（`src/lib/inbox-file-refs.ts`），存在檢查 / 顯示 / 開檔 / 上限全部沿用，未新增 IPC。
+
+### 落點檢查
+
+- 結果：PASS
+- C-0：`repo` = `better-agent-terminal`；`basename "$CT_HOME"` = `better-agent-terminal` → PASS
+- C-1：工單在 `$CT_HOME/_ct-workorders/` 下 → PASS
+- C-3：`src/lib/inbox-file-refs.ts` 等存在 → PASS（資訊性）
+- C-2：工單無 `branch` 欄位；worktree 分支 `ct/T0935`
+- `CT_HOME`：已設定（主 checkout）；`CT_WORKTREE_BRANCH` = `ct/T0935`；`BAT_WORKSPACE_ID` = `cc0afc4a-57e9-4f41-b2ed-a2d8bac9e36b`（只記錄）；`BAT_REMOTE_TOKEN`：已設定
+
+### Worktree SHA
+
+- **branch**：`ct/T0935`
+- **base_sha**：`116316d9345ad334e3cf764cf8a14bdb917bcf1c`
+- **validated_sha**：`fefbcb17c3dec5594196f1b428b8725bf6188daa`
+- **head_sha**：`fefbcb17c3dec5594196f1b428b8725bf6188daa`
+- 收單時 `git -C "$CT_WORKTREE" status --porcelain` 為空。
+
+### 變更檔案（worktree commit `fefbcb17`）
+
+- `src/lib/inbox-file-refs.ts`：新增 `NAME_EXTENSION`（1–8 英數字、至少一個英文字母）、`asName`（句中：`\w` 開頭、只含 ASCII 英數字與 `_ . -`；反引號內 loose：可含中文、不以 `. - ~` 開頭、不含空白與 `\ / : * ? " < > |`）；`wholeRef` 在 `asPath` 之後試 `asName`；`BARE` 加第四個選項 `NAME_SOURCE`（排在編號之後，所以 `T0275-x.md` 照 T0930 當編號；不得後接 `:` `@` `~`），句尾 `.` / `-` 截掉。檔名回成 `{ kind: 'path', path }`，`resolveRefPath` 原樣得到「根目錄 → `_ct-workorders/`」兩個候選。檔頭說明補 T0935。
+- `src/lib/__tests__/inbox-file-refs.test.ts`：**依 Q-1 A 只改一行 T0930 斷言**（第 89 行 `it('ignores pieces without a slash or an extension, and UNC paths')` 的字串拿掉 `與 sample.md`，加註解；`v0.8.0`、`npm run build`、`docs/folder` 仍斷言 `[]`）。新增 `describe('splitFileRefs: file names without a slash (T0935)')` 12 個案例：`sample.md` 為候選（自上一行移來）、括號內 `_reply-2026-11-26-topic.md` 與全形括號 `_tower-state.md`、反引號 `package.json`（含 part 結構）與 `說明.md`、句中 `README.md` 與句尾 `README.md.`、中文 / 全形標點相鄰、版號 `0.8.0` / `v1.2` / `v0.8.0-pre.7` / `1.2`（含反引號內）不算、網域 `github.com` / `example.org` 是候選且 URL 內不取、`.md` / `file.` / `.gitignore` 不算、email / `:12` / `@` / `~` / `a.md_b` / `x.md-y` 不算、副檔名 8 字可 9 字不可、`T0275-sample.md` 仍是編號、`refLookups` 依序根目錄 → `_ct-workorders/`。其他 T0930 斷言未動。
+- `src/components/__tests__/inbox-bare-filename-refs-t0935.test.tsx`（新）：4 個案例——⏸ 項目中存在的 `package.json` / `README.md` 成連結且根目錄優先（`README.md` 根目錄與 `_ct-workorders/` 都有）、版號未被 `stat`、網域與不存在的檔名有被查但不連結、文字逐字不變；🙋 `(_reply-2026-11-26-topic.md)` 只在 `_ct-workorders/` → 連到該處；⏰ 句尾 `CHANGELOG.md。`；點擊送出 `workspace-switch-tab` + `file-tree-reveal`（解析後路徑）；展開的 💬 卡片內文的檔名連結、不存在 / 網域為純文字。
+- `src/components/inbox/useInboxFileRefs.ts`：只補檔頭註解（檔名參照與路徑同一套、共用上限）；程式未改。
+- `docs/agent-guide/tower-inbox.md`「參考檔案連結（T0930）」：辨識規則表加「檔名（T0935）」列、界線說明一點、「含空白的路徑與檔名不辨識」、〈已知限制〉加檔名只試兩處與候選佔用上限、〈驗證〉補單元與元件測試（含 Q-1 改的那行）。小節標題未改。
+- `CLAUDE.md`「待辦分頁的契約 v2 清單與回答」節的「參考檔案連結（T0930）」那點補一句 T0935；小節標題未改。
+- `site/tower-inbox.md`：「只寫檔名、沒有 `/` 的不會變成連結」改為新規則（BAT `0.8.0-pre.7` 起）。
+
+### 驗證
+
+| 項目 | 結果 |
+|---|---|
+| `npm ci`（worktree） | exit 0（結尾 `install-scripts` 警告屬預期） |
+| `npm run test:unit`（head `fefbcb17`，第一次完整執行） | exit 0：Test Files 503 passed / 3 skipped（506）；Tests 9107 passed / 47 skipped（9154） |
+| T0930 / T0934 元件測試 | 全過，斷言未改（`inbox-file-refs-t0930.test.tsx`、`inbox-tower-card-file-refs-t0934.test.tsx`） |
+| `npx vite build` | exit 0 |
+| `npm run typecheck` | 0（第一次跑出測試檔 1 個 TS2345：`name()` 回傳型別未收窄，加 `as const` 後 0；此修正在 commit 前） |
+| 隔離實例點擊 | 未執行 → 見〈待實機〉 |
+
+### 待實機
+
+1. 開一個工作區，根目錄有 `README.md`、`_ct-workorders/` 有一個 `_reply-<日期>-<主題>.md`（只在 `_ct-workorders/`）。
+2. 在 `_tower-state.md`（契約 v2）的 `user_actions` 加一筆 title 結尾 `(_reply-<日期>-<主題>.md)`，`awaiting_user` 一筆 summary 含 `` `package.json` ``、`README.md`、`0.8.0`、`github.com`。
+3. 待辦分頁：`_reply-….md` 與 `README.md`、`package.json`（根目錄有時）是連結，點擊切到「檔案」頁籤並選取正確檔（`_reply` 在 `_ct-workorders/` 下）；`0.8.0`、`github.com` 是純文字；文字與原文逐字相同。
+4. 💬 卡片展開後內文同樣行為；收合時的一行摘要沒有連結。
+
+### 偏離與備註
+
+- **T0930 斷言改一行**：依塔台 Q-1 答覆 A，只改 `src/lib/__tests__/inbox-file-refs.test.ts` 第 89 行（拿掉 `與 sample.md`），理由：該斷言測的正是本單要移除的限制「只寫檔名不連結」；`sample.md` 移到新 describe 的第一個案例並斷言為候選 `{ kind: 'path', path: 'sample.md' }`。其他 T0930 / T0934 斷言未動。
+- **`INBOX_FILE_REF_MAX` 未調整**（仍 40）：帶點的一般字（`e.g`、`Node.js`、`fs.stat`）也會成為候選去 `stat`，與真正的參照共用上限；一般清單項目很短，未見需要調整，已寫進 docs〈已知限制〉。若之後 💬 長卡片出現後段參照不連結的情形，再請塔台決定是否調整上限或改成先查真正的路徑 / 編號。
+- **`README.md:12` 不連結**：照 memory_overrides 的界線規則（後面不得是 `:`），與 T0930 路徑會去掉 `:行` 不同；已寫進 docs。
+- **以編號開頭的檔名**（`T0275-sample.md`）維持 T0930 行為（連到該編號的檔，可找到封存區），沒有改成檔名參照。
+
+### 子代理與 Workflow 使用
+
+未使用。
+
+### 互動紀錄
+
+- [23:38] 開工；落點 PASS；`npm ci` 背景執行。
+- [23:39] Q-1：既有 T0930 斷言 `sample.md` 與新規則衝突 → A（塔台）：採 A，只改該行、`sample.md` 移到新測試，回報寫明改哪一行與理由 → Action：照辦（見〈偏離與備註〉）。經 BAT 通道（`--ask --submit`，`bat_wait_question` 第一次即 answered）。
+- [23:45] 驗證全綠；塔台補充檢查三個節點都沒有新段落。
+
+### 遭遇問題
+
+- typecheck 第一次因新測試的輔助函式型別未收窄失敗（TS2345），commit 前修正。
+
+### 後續建議
+
+- 無必要後續。若要讓其他子資料夾的檔只寫檔名也能連，需要檔名索引（目前刻意只試兩處、不遞迴），另開單評估。
