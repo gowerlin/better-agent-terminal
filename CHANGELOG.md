@@ -4,6 +4,17 @@ All notable changes to Better Agent Terminal are documented in this file.
 
 ## [Unreleased]
 
+## [0.8.0-pre.5] — 2026-11-26
+
+### Added
+- 待辦分頁的參考檔案連結（T0930）：「⏸ 待你決定」「🙋 待你執行」「⏰ 到期提醒」的 `workorder` / `ref` 標籤與 `summary` / `title` 文字中的工單 / BUG / PLAN / EXP / `D###` 編號，以及含 `/` 或 `\` 且有副檔名的路徑，存在且在工作區根目錄之下才成連結；點擊經 `openFileInFilesTab` 切到「檔案」頁籤並在檔案樹定位。相對路徑依序試工作區根目錄、`_ct-workorders/`；URL、UNC、`~`、`..`、工作區外不連結。存在檢查用既有唯讀 `fs:stat` / `fs:readdir`，只查顯示的項目、上限 40、不輪詢。唯一實作 `src/lib/inbox-file-refs.ts`、`InboxRefText` / `InboxRefTag`、`useInboxFileRefs`
+
+### Changed
+- 待辦分頁項目版面（T0929）：摘要從標頭列移到下一行全寬；選項每個一行（`.inbox-option-list`）；送出與放棄… 固定在選項之後同一行（`.inbox-entry-buttons`），放棄 / 略過說明欄在按鈕列下方；「🙋 待你執行」摘要同樣換行。回答格式、送出路徑、`data-inbox-*` 屬性不變
+
+### Fixed
+- 「💬 塔台訊息」卡片收合摘要在訊息以程式碼區塊開頭時只顯示「```」：`towerCardPreview` 追蹤程式碼區塊，略過圍欄、分隔線、表格分隔列，標題去 `#`；區塊外沒字才取區塊內第一行；全是結構行時回原第一行（T0931，BUG-225）
+
 ## [0.8.0-pre.4] — 2026-11-26
 
 ### Added
