@@ -11,6 +11,7 @@
 > | 通知保護 | W1＋W2 / T0904 | 「塔台等使用者回答時保留 Worker 通知（T0788 / BUG-196，D227）」 |
 > | 回合訊息卡：資料層、UI 與面板塔台 | W3 / T0905、W6 / T0909 | 「塔台回合訊息卡（PLAN-068 W3 / T0905）」（T0912 起 W3 與 W6 合為這一節） |
 > | 契約 v2 清單與回答 | W5 / T0908 | 「待辦分頁的契約 v2 清單與回答（PLAN-068 W5 / T0908）」 |
+> | 參考檔案連結 | T0930 | 「待辦分頁的契約 v2 清單與回答（PLAN-068 W5 / T0908）」 |
 > | hook 註冊 | W9 / T0910 | 「BAT hooks 狀態與 `bat-hooks` plugin（PLAN-068 W9 / T0910）」 |
 >
 > CLAUDE.md 只留用途、🔴 必守規則、唯一實作位置與一行連結（CLAUDE.md 撰寫規則，T0595）；細節以本檔為準。改這些功能時兩邊一起更新。
@@ -588,6 +589,64 @@ CT 6.2.0 起暫停時（`interactive-prompts: on`）先寫 `awaiting_user` 再�
 - host：`electron/__tests__/tower-inbox-answer.test.ts`〈PLAN-069〉（批次行送達、其他多編號 / 萬用字元 / 範圍 / 多行 / 超長拒絕、權杖拒絕、日誌 `ids=` 且不含文字）。
 - 元件：`src/components/__tests__/inbox-plan069.test.tsx`（推薦標記＋預設選取＋可改選、沒有 `dismiss` 的四種情況沒有控制項、單筆放棄 / 略過有無文字、勾選批次與確認、「全部」送出當下展開、兩區各一行、日誌不含內容、三語系）。
 - 待實機（真實塔台回合）：見 T0922 回報區〈待實機〉（CT T0566〈給塔台〉M-1–M-15 中需要真實回合的項目）。
+
+## 參考檔案連結（T0930）
+
+- **用途**：「⏸ 待你決定」「🙋 待你執行」「⏰ 到期提醒」的項目中提到的檔案可以點：切到主畫面上方的「檔案」頁籤、在檔案樹展開並選取該檔。CT 契約 v2 沒有檔案欄位，所以從 `workorder` / `ref` 標籤與 `summary` / `title` 文字辨識。「💬 塔台訊息」卡片不在範圍內。
+- **唯一實作**：辨識與路徑解析 `src/lib/inbox-file-refs.ts`（純函式：`parseCtId`、`splitFileRefs`、`resolveRefPath`、`refLookups`、`matchIdFile`）；存在檢查 `useInboxFileRefs`（`src/components/inbox/useInboxFileRefs.ts`）；顯示 `InboxRefText` / `InboxRefTag`（`src/components/inbox/InboxRefText.tsx`），由 `InboxLists.tsx` 的三個清單使用；工作區根目錄由 `InboxPanel` 以 `folder` 傳入（沒有 → 全部純文字、不檢查）。
+
+### 必守規則
+
+- 🔴 開啟一律經既有的 `openFileInFilesTab`（`src/state/openFileInFilesTab.ts`：`workspace-switch-tab` → `files`＋`file-tree-reveal`，BUG-048 / T0213）；不另寫事件、不新增 IPC channel、不 `shell.openExternal`、不開外部編輯器。
+- 🔴 只連結存在、而且在工作區根目錄之下的檔；其他一律純文字、不報錯。
+- 🔴 顯示只用 React 文字節點與元素（`<button>`），不以 HTML 解譯；畫面上的文字與原文逐字相同（反引號照舊顯示，只有裡面的路徑變成連結）。不改回答格式、送出路徑、`inbox_features` 判斷與 T0929 的版面；既有 `data-inbox-*` 屬性不變。
+- 🔴 不輪詢；不記日誌（沒有任何內容或路徑進日誌）。
+
+### 辨識規則
+
+| 片段 | 條件 | 對應的檔 |
+|---|---|---|
+| 工單 | `T` ＋ 4 位以上數字，可帶 2–4 個大寫字母的前綴（`LB-T0184`） | `_ct-workorders/` 中檔名 `<ID>-….md`（或 `<ID>.md`）的檔，找不到再看 `_ct-workorders/_archive/workorders/` |
+| BUG | `BUG-` ＋ 3 位以上數字 | 同上，封存在 `_archive/bugs/` |
+| PLAN | `PLAN-` ＋ 3 位以上數字 | 同上，封存在 `_archive/plans/` |
+| EXP | `EXP-<大寫英數>-` ＋ 3 位以上數字 | 同上，封存在 `_archive/workorders/`（本專案的實際位置） |
+| 決策 | `D` ＋ 3 位以上數字 | `_ct-workorders/_decision-log.md`（只開檔、不定位到該條；`_archive/decisions/` 不處理） |
+| 路徑 | 含 `/` 或 `\`、最後一段有副檔名（`.gitignore` 這種只有開頭一個點的不算）；反引號內整段，或句中一段 ASCII 路徑字元 | 相對路徑依序試「工作區根目錄」與「`_ct-workorders/`」；工作區內的絕對路徑也可以 |
+
+- 標籤（`workorder` / `ref`）只認上表的編號（整個值就是一個編號）；本地規則編號等其他值維持純文字。
+- 文字中：反引號內整段是一個編號或路徑才成連結（反引號留在文字裡）；其他位置找編號與路徑，前後必須不是英數、`_`、`.`、`-`、`/`、`\`、`:`、`@`、`~`（所以中文與中文標點旁邊可以、`XT0275` / `T0275x` / 路徑中的編號不會）。路徑後面句子自己的 `.` / `-` 不算在路徑內。`:行[:欄]` 後綴在解析時去掉、顯示照舊。
+- 一律不連結：URL（任何 `scheme:`，含 `file://`）與 URL 內的任何片段、UNC（`\\host\…`、`//host/…`）、`~` 開頭、含 `..` 的路徑、工作區外的絕對路徑、`C:foo` 這種磁碟相對路徑。Windows 磁碟路徑比對根目錄時不分大小寫，POSIX 分大小寫。
+- 含空白的路徑不辨識；中文檔名只在反引號內辨識（句中只認 ASCII 路徑字元）。
+
+### 存在檢查
+
+- 用既有的唯讀 `fs:stat`（路徑）與 `fs:readdir`（編號：列出資料夾找檔名），與 `InboxDataSource` 同一套；遠端工作區走 proxied channel、讀視窗綁定的 host。
+- 每個清單只檢查自己顯示的項目（`INBOX_LIST_RENDER_MAX` 之內），去重後最多 `INBOX_FILE_REF_MAX` = 40 個；一次檢查中每個資料夾只列一次；`stat` / `readdir` 失敗 = 找不到。
+- 時機：清單掛載時、工作區根目錄改變或顯示的參照集合改變時；不輪詢。`_ct-workorders/` 的變更讓清單重讀，但參照集合沒變就不重新檢查（見〈已知限制〉）。
+- 連結的 `title` 與 `data-inbox-file-ref` 是相對工作區根目錄的路徑；送給 `openFileInFilesTab` 的是 `<根目錄>/<相對路徑>`（根目錄保留原本寫法，同指揮塔「📄 檢視檔案」）。
+
+### 外觀
+
+- 文字中的連結：`.inbox-file-link`，與指揮塔總覽的檔案連結 `.ct-overview-link` 相同（accent 色、滑過底線、`overflow-wrap: anywhere`）。
+- 標籤：沿用 `.inbox-item-source` 外框，加 `.inbox-file-tag`（accent 色、滑過底線）。
+- 兩者都是 `<button type="button">`：Tab 可聚焦、Enter / 空白鍵開啟（`:focus-visible` 外框）。
+
+### 遠端與 detached
+
+- 遠端工作區：存在檢查走 proxied `fs:*`；`file-tree-reveal` 的路徑是 host 上的路徑，檔案樹本身也讀同一個 host，所以行為與本機相同（未實機，見〈已知限制〉）。
+- detached 視窗：自己的 `InboxPanel` 傳自己的工作區根目錄；`workspace-switch-tab` / `file-tree-reveal` 是該視窗內的事件，切的是 detached 視窗自己的「檔案」頁籤（未實機）。
+
+### 已知限制
+
+- 檢查結果在參照集合不變時沿用：之後才建立 / 刪除的檔，要等清單內容改變、切換工作區或重開分頁才會更新連結狀態（不輪詢的取捨）。
+- `D###` 只開 `_decision-log.md`，不捲到該條；封存在 `_archive/decisions/` 的決策不連結。
+- 同一編號在熱區與封存區都有檔時開熱區的；同一資料夾有多個 `<ID>-….md` 時開檔名排序第一個。
+- 遠端工作區與 detached 視窗的實際點擊未實機。
+
+### 驗證
+
+- 單元：`src/lib/__tests__/inbox-file-refs.test.ts`（反引號路徑、裸路徑、四種編號＋前綴工單、工作區外 / `..` / URL / UNC / `~`、反斜線與正斜線、中文標點相鄰、`:行` 後綴、`matchIdFile`、`refLookups`）。
+- 元件：`src/components/__tests__/inbox-file-refs-t0930.test.tsx`（存在的標籤 / 路徑 / 編號是按鈕、點擊送出兩個事件與解析後路徑、不存在 / 工作區外 / URL 是純文字且文字不變、只對工作區內路徑 `stat`、沒有根目錄時不檢查）；既有 inbox 元件測試不改斷言。
 
 ## hook 註冊（W9 / T0910）
 

@@ -171,6 +171,39 @@
   word-break: break-word;
 }
 
+/* T0930: a file reference in a summary / title — the Control Tower overview's file link (`.ct-overview-link`) */
+.inbox-file-link {
+  display: inline;
+  padding: 0;
+  background: none;
+  border: none;
+  color: var(--accent-color);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  overflow-wrap: anywhere;
+}
+
+.inbox-file-link:hover,
+.inbox-file-tag:hover {
+  text-decoration: underline;
+}
+
+/* T0930: a head line tag (`.inbox-item-source`) that opens its file: same tag, link color */
+.inbox-file-tag {
+  background: none;
+  font-family: inherit;
+  line-height: inherit;
+  color: var(--accent-color);
+  cursor: pointer;
+}
+
+.inbox-file-link:focus-visible,
+.inbox-file-tag:focus-visible {
+  outline: 1px solid var(--accent-color);
+  outline-offset: 1px;
+}
+
 .inbox-link {
   flex-shrink: 0;
   background: none;

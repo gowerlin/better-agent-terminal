@@ -183,12 +183,12 @@ export function InboxPanel({ workspaceId, workspaceFolderPath }: Readonly<InboxP
         {inboxOff && <div className="inbox-muted inbox-off" data-inbox-off="">{t('inbox.userInboxOff')}</div>}
 
         <InboxSection id="decide" title={t('inbox.section.decide')} count={awaiting.length} folded={folded.decide} onToggle={toggle}>
-          <AwaitingList items={awaiting} skipped={model.skipped.awaiting} targets={model.answerTargets} dismiss={dismiss} />
+          <AwaitingList items={awaiting} skipped={model.skipped.awaiting} targets={model.answerTargets} dismiss={dismiss} folder={workspaceFolderPath} />
         </InboxSection>
         {!inboxOff && awaiting.length === 0 && skippedLine(model.skipped.awaiting)}
 
         <InboxSection id="act" title={t('inbox.section.act')} count={actions.length + model.pendingBugs.length} folded={folded.act} onToggle={toggle}>
-          {actions.length > 0 && <ActionList items={actions} skipped={model.skipped.actions} targets={model.answerTargets} dismiss={dismiss} />}
+          {actions.length > 0 && <ActionList items={actions} skipped={model.skipped.actions} targets={model.answerTargets} dismiss={dismiss} folder={workspaceFolderPath} />}
           <ul className="inbox-list">
             {model.pendingBugs.map(bug => (
               <li key={bug.id} className="inbox-item" data-inbox-bug={bug.id}>
@@ -207,7 +207,7 @@ export function InboxPanel({ workspaceId, workspaceFolderPath }: Readonly<InboxP
         <RecentlyClosedList items={model.recentlyClosed} />
 
         <InboxSection id="remind" title={t('inbox.section.remind')} count={model.reminders.length} folded={folded.remind} onToggle={toggle}>
-          <ReminderList items={model.reminders} skipped={model.skipped.reminders} />
+          <ReminderList items={model.reminders} skipped={model.skipped.reminders} folder={workspaceFolderPath} />
         </InboxSection>
         {model.reminders.length === 0 && skippedLine(model.skipped.reminders)}
 
