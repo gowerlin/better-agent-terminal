@@ -49,9 +49,54 @@ export function towerCardHighlights(text: string): string[] {
   return towerCardLines(text).filter(line => line.highlight).map(line => line.text.trim())
 }
 
-/** A collapsed card's one line: the first non-empty line, cut to `TOWER_CARD_PREVIEW_CHARS`. */
+// BUG-225 / T0931: Markdown structure lines skipped by the collapsed preview.
+// A code fence: 3+ backticks (info string without backticks, else it is an inline code span) or 3+ tildes.
+const FENCE_OPEN = /^\s*(?:(`{3,})[^`]*|(~{3,}).*)$/
+const FENCE_CLOSE = /^\s*(`{3,}|~{3,})\s*$/
+// A thematic break (`---`, `***`, `___`, spaces allowed between the marks).
+const THEMATIC_BREAK = /^\s*([-*_])(?:\s*\1){2,}\s*$/
+// A table separator row (`|---|:---:|`): only pipes, dashes, colons and blanks, with a pipe and a dash.
+const TABLE_SEPARATOR = /^(?=[^|]*\|)(?=[^-]*-)[\s|:-]+$/
+// An ATX heading marker and its optional closing hashes (`## Title ##` → `Title`).
+const HEADING_MARK = /^#{1,6}(?:\s+|$)/
+const HEADING_CLOSE = /\s+#+$/
+
+/** The words of a line outside a code block, or '' for a structure line (thematic break, table separator, empty heading). */
+function previewWords(line: string): string {
+  const trimmed = line.trim()
+  if (trimmed === '' || THEMATIC_BREAK.test(trimmed) || TABLE_SEPARATOR.test(trimmed)) return ''
+  if (!HEADING_MARK.test(trimmed)) return trimmed
+  return trimmed.replace(HEADING_MARK, '').replace(HEADING_CLOSE, '').trim()
+}
+
+/**
+ * A collapsed card's one line, cut to `TOWER_CARD_PREVIEW_CHARS` (BUG-225):
+ * the first line with words outside code blocks (fence lines, thematic breaks and table separator rows
+ * skipped, a heading's `#` marks dropped; list / quote markers kept); else the first non-empty line inside
+ * a code block; else (only structure lines) the first non-empty line as it is.
+ */
 export function towerCardPreview(text: string): string {
-  const first = text.split(/\r?\n/).find(line => line.trim() !== '')?.trim() ?? ''
+  const lines = text.split(/\r?\n/)
+  let fence: { mark: string; length: number } | null = null
+  let firstInBlock = ''
+  let first = ''
+  for (const line of lines) {
+    if (fence) {
+      const close = FENCE_CLOSE.exec(line)
+      if (close && close[1][0] === fence.mark && close[1].length >= fence.length) fence = null
+      else if (!firstInBlock && line.trim() !== '') firstInBlock = line.trim()
+      continue
+    }
+    const open = FENCE_OPEN.exec(line)
+    if (open) {
+      const marks = open[1] ?? open[2]
+      fence = { mark: marks[0], length: marks.length }
+      continue
+    }
+    first = previewWords(line)
+    if (first) break
+  }
+  if (!first) first = firstInBlock || (lines.find(line => line.trim() !== '')?.trim() ?? '')
   const chars = [...first]
   return chars.length > TOWER_CARD_PREVIEW_CHARS ? `${chars.slice(0, TOWER_CARD_PREVIEW_CHARS).join('')}…` : first
 }
