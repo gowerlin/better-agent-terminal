@@ -4,18 +4,18 @@ summary_version: 1
 bat_contract: 2
 ct_version: "6.2.0"
 inbox_features: ["recommended", "dismiss"]
-updated_at: "2026-11-26T20:26:41+0800"
+updated_at: "2026-11-26T20:27:38+0800"
 session: "2026-11-26 20:01 第一百三十四 session（CT v6.2.0）"
 next_ids:
-  workorder: "T0933"
-  decision: "D374"
+  workorder: "T0934"
+  decision: "D375"
   bug: "BUG-226"
   plan: "PLAN-070"
   user: "U-17"
   action: "A-4"
 todo:
   - "T0929 DONE，`main` `78f4ecf6`（D370）"
-  - "T0930（派工中，20:14，`ct/T0930` base `78f4ecf6`）：待辦分頁參考檔案可點，經 `openFileInFilesTab` 在「檔案」頁籤開啟"
+  - "T0930 DONE（`a9254f55`，Q-1 → A 准許改 `InboxPanel.tsx`）→ 合併工單 T0933（模式 ①，判準 1 不成立：`main` 已含 T0931）派工中；〈待實機〉6 項發版後列入待驗收（D374）"
   - "T0931 / T0932 DONE，U-16：A → BUG-225 修正進 `main`（FIXED，待 `0.8.0-pre.5` 驗收，D373）"
   - "候選（未開單，T0924 建議）：`scripts/verify-packaged-native.js` `readAsarFile` 不檢查 `fs.readSync` 回傳位元組數，截斷的 app.asar 會被讀成 NUL 而不報錯；改成讀不足判失敗（檢查變嚴）"
   - "🚀 `v0.8.0-pre.4` 已發佈（D364，2026-11-26 00:59，Pre-Release `45656560078`，`be40bb8f`）：PLAN-069 DONE、BUG-223 / 224 CLOSED；CT 6.2.0 同日（BAT 先上線、CT 再推公開站，CT T0572）。下一版 `0.8.0-pre.5`"
