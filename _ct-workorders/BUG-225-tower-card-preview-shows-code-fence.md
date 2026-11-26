@@ -3,11 +3,13 @@ schema_version: 1
 schema_kind: bug
 id: BUG-225
 title: "待辦分頁「💬 塔台訊息」卡片收合時的摘要取第一個非空行，訊息以 Markdown 程式碼區塊開頭時只顯示「```」"
-status: FIXED
+status: CLOSED
+closed_at: "2026-11-26T21:18:59+08:00"
+closed_reason: "交付版 `v0.8.0-pre.5`（Pre-Release `45820932628`）使用者實機驗收 A-4 完成（D378）"
 severity: low
 reproducibility: "always（塔台回合最後一則訊息第一個非空行是程式碼圍欄時）"
 created_at: "2026-11-26T20:08:02+08:00"
-updated_at: "2026-11-26T20:26:41+08:00"
+updated_at: "2026-11-26T21:18:59+08:00"
 fixed_at: "2026-11-26T20:26:41+08:00"
 impact:
   - inbox
@@ -21,7 +23,7 @@ links:
 |------|------|
 | 嚴重度 | 🟢 low（只影響收合時的一行摘要；展開後全文正常） |
 | 可重現 | 必定：訊息第一個非空行是 ```` ``` ```` / ```` ```bash ```` 等圍欄 |
-| **狀態** | ✅ FIXED（T0931 `bfc83d1b`，合併 T0932；已隨 `v0.8.0-pre.5` 發佈，待驗收 A-4） |
+| **狀態** | 🚫 CLOSED（交付版 `v0.8.0-pre.5` 使用者實機驗收 A-4，D378；修正 T0931 `bfc83d1b`，合併 T0932） |
 | 回報者 | T0928 Worker 觀察；使用者 2026-11-26 指示開單修 |
 | 影響版本 | 自 T0909（PLAN-068 W6）起 |
 

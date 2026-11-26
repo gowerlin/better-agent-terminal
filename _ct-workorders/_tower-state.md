@@ -4,24 +4,17 @@ summary_version: 1
 bat_contract: 2
 ct_version: "6.2.0"
 inbox_features: ["recommended", "dismiss"]
-updated_at: "2026-11-26T21:18:00+0800"
+updated_at: "2026-11-26T21:18:59+0800"
 session: "2026-11-26 21:18 第一百三十五 session（CT v6.2.0）"
 next_ids:
   workorder: "T0934"
-  decision: "D378"
+  decision: "D379"
   bug: "BUG-226"
   plan: "PLAN-070"
   user: "U-18"
   action: "A-5"
-user_actions:
-  - id: "A-4"
-    title: "安裝 0.8.0-pre.5 驗收待辦分頁：版面、參考檔案連結、💬 摘要（BUG-225）"
-    ref: "T0930"
-    kind: "verify"
-    created_at: "2026-11-26T21:00:50+08:00"
 todo:
-  - "🚀 `v0.8.0-pre.5` 已發佈（D377，2026-11-26 20:58，Pre-Release `45820932628`，`9350cb5c`）：T0929 版面、T0930 參考檔案可點、BUG-225（FIXED，待驗收 A-4）；下一版 `0.8.0-pre.6`"
-  - "A-4 驗收細項：① 窄側欄下說明 / 選項 / 按鈕各自成行；② 待辦項目的工單編號與檔案路徑是連結，點了切到「檔案」頁籤並選取、Tab＋Enter 也可開，遠端工作區與 detached 視窗各點一次（T0930〈待實機〉6 項）；③ 塔台回一則以程式碼區塊開頭的訊息，💬 收合摘要顯示區塊外第一句（BUG-225）"
+  - "🚀 `v0.8.0-pre.5` 已發佈並驗收（D377 / D378）：T0929 版面、T0930 參考檔案可點、BUG-225 CLOSED（A-4 完成）；下一版 `0.8.0-pre.6`"
   - "候選（未開單，T0930 建議）：💬 卡片沿用 `InboxRefText` 加連結；`useInboxFileRefs` 跟 `_ct-workorders/` 的 `fs:changed` 重查"
   - "候選（未開單，T0924 建議）：`scripts/verify-packaged-native.js` `readAsarFile` 不檢查 `fs.readSync` 回傳位元組數，截斷的 app.asar 會被讀成 NUL 而不報錯；改成讀不足判失敗（檢查變嚴）"
   - "PLAN-066（DONE）後續候選（未開單）：`pty:create` 只送 env 差異（`pty-manager.ts`＋Terminal Server 協定）可再降 C2①；direct 模式的 conin socket 殘留；F4（自然結束的 conhost 留到 server 結束）。分支：`ct/T0885`（Rust 評估，D307 保留不合併，worktree 保留）、`ct/T0886`（node-pty Worker 研究，未併入 `v0.8.x`，worktree 已移除）"

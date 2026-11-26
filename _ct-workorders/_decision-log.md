@@ -10,6 +10,7 @@
 
 | ID | 日期 | 標題 | 相關工單 |
 |----|------|------|---------|
+| D378 | 2026-11-26 | A-4：完成 → `v0.8.0-pre.5` 使用者實機驗收通過（版面、參考檔案連結、BUG-225）；BUG-225 CLOSED，熱區未結 BUG 0 | T0929 / T0930 / T0931 / BUG-225 |
 | D377 | 2026-11-26 | `v0.8.0-pre.5` 發佈（Pre-Release `45820932628`，`9350cb5c`）：T0929 / T0930 / BUG-225；分支 6 個刪除；待驗收 A-4 | T0929 / T0930 / T0931 / BUG-225 |
 | D376 | 2026-11-26 | U-17：A → T0930 經 `ct-merge/T0933` ff 進 `main`；待辦分頁三項改善（T0929 / T0930 / T0931）全進 `main` | T0930 / T0933 |
 | D375 | 2026-11-26 | T0933 收單（合併 `83a74de2`，test:unit 9091 全綠）；斷點 E → U-17 | T0930 / T0933 |
@@ -495,6 +496,15 @@
   4. PLAN-001 保持延後（🟢 Low，等 plugin 1.0 穩定）
 - **Success criteria**（EXP→CONCLUDED）：npm install 無錯 / 所有 native modules rebuild 成功 / dev+build:dir 可跑 / 手動 smoke test 8 項通過
 - **最大風險**：`whisper-node-addon@1.0.2` 對 Electron 41（Node 24）的 NODE_MODULE_VERSION 相容性未知，允許 Worker 遇此決策點主動問塔台
+
+---
+
+### D378 2026-11-26 21:18 — `v0.8.0-pre.5` 驗收通過（A-4），BUG-225 CLOSED
+
+- **使用者回答**：`A-4：完成`（第一百三十五 session，BAT 已更版到 `0.8.0-pre.5`）。
+- **涵蓋**：T0929 待辦項目版面、T0930 參考檔案連結（〈待實機〉項目）、BUG-225 💬 收合摘要。
+- **處置**：BUG-225 → CLOSED（`closed_reason`：交付版 `v0.8.0-pre.5` 使用者實機驗收）；`user_actions` 移除 A-4；`_bug-tracker.md` 同步（熱區未結 BUG 0，解析測試照 L179 跑）。
+- **相關**：T0929 / T0930 / T0931 / BUG-225
 
 ---
 
