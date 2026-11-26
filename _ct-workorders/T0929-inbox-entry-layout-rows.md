@@ -4,14 +4,15 @@ schema_kind: workorder
 id: T0929
 title: "待辦分頁項目版面：摘要換到下一行全寬、每個選項一行、功能按鈕獨立一行"
 type: feature
-status: IN_PROGRESS
+status: DONE
 repo: better-agent-terminal
 project: PLAN-069
 priority: P2
 sizing: S
 created_at: "2026-11-26T20:03:42+08:00"
 started_at: "2026-11-26T20:04:27+08:00"
-updated_at: "2026-11-26T20:04:27+08:00"
+updated_at: "2026-11-26T20:10:18+08:00"
+completed_at: "2026-11-26T20:10:18+08:00"
 session_ids:
   - "91548731-283a-4d11-9e06-a7eedc148490"
 target_version: "0.8.0-pre.5"
@@ -79,4 +80,78 @@ memory_overrides:
 
 ## 回報區
 
-（Worker 填寫）
+### 完成狀態
+
+- **狀態**：DONE
+- **開始**：2026-11-26T20:04:27+08:00；**完成**：2026-11-26T20:10:18+08:00
+- **session_id**：91548731-283a-4d11-9e06-a7eedc148490
+- **branch**：`ct/T0929`
+- **base_sha**：`17c25dd55a6340c057700a27e6a32cc57edae386`
+- **validated_sha**：`365556221d79170afe39e5242a304cb17f424162`
+- **head_sha**：`365556221d79170afe39e5242a304cb17f424162`
+
+### 落點檢查
+
+- **結果**：PASS
+- C-0：`repo` = `better-agent-terminal`，`basename "$CT_HOME"` = `better-agent-terminal` → PASS
+- C-1：工單在 `$CT_HOME/_ct-workorders/` 下 → PASS；C-3：`InboxLists.tsx`、`inbox.css`、`__tests__/`、`tower-inbox.md` 皆存在 → PASS；C-2：工單無 `branch` 欄位（worktree 分支 `ct/T0929`）
+- 證據：`CT_HOME` 已設定、`CT_WORKTREE_BRANCH` = `ct/T0929`、`BAT_WORKSPACE_ID` = `cc0afc4a-57e9-4f41-b2ed-a2d8bac9e36b`、`CT_MODE` = `yolo`、`BAT_REMOTE_TOKEN` 已設定
+
+### 結果摘要
+
+只改版面（DOM 結構＋CSS），每筆項目由上而下：標頭列（勾選框、id、工單、標籤）→ 摘要自成一行全寬 → 每個選項一行 → 按鈕列（送出、放棄…）自成一行 → 放棄說明欄在按鈕列下方展開。
+
+- **⏸ 待你決定（選項）**：摘要移出 `.inbox-entry-head`，改為 `<div class="inbox-entry-summary" data-inbox-summary>`；選項放進 `.inbox-option-list`（`role="radiogroup"`，縱向 flex），每個 `label.inbox-option` 改為 `display: flex`（一個選項一行），選項文字包 `.inbox-option-label`（長字換行），「推薦」標記仍在該選項尾端（`flex-shrink: 0`）；送出＋放棄… 同在 `.inbox-actions-row.inbox-entry-buttons`（`data-inbox-entry-buttons`），位於選項清單之後，窄到放不下才換行。
+- **⏸ 自由回答**：選擇「輸入框一行、按鈕一行」：輸入框全寬一行，下一行是與有選項時相同的按鈕列（送出、放棄…）。理由：有 `dismiss` 時放棄… 要與送出同列，若把送出放在輸入框同列，放棄… 就得另起一行或擠進輸入框列，與選項題的按鈕位置不一致；300 px 截圖中輸入框全寬也比較好打字。Enter 送出不變。
+- **🙋 待你執行**：title 同樣換到標頭列下一行全寬；按鈕列（完成 / 失敗… / 略過…）原本就是獨立 `.inbox-actions-row`，加上 `inbox-entry-buttons` 標記；略過說明欄改到按鈕列下方（原本在按鈕列內）。
+- **放棄 / 略過表單**：`DismissControl` 元件改為 `useDismissControl` hook，回傳 `{ button, form }`，按鈕放按鈕列、表單放按鈕列之後；送出文字（`dismissAnswerText`）、`data-inbox-dismiss*` 屬性、行為不變。
+- **相容**：外層仍是 `.inbox-options` / `.inbox-free`（改為縱向的 `.inbox-answer-block`），e2e `t0913` 的 `.inbox-options .inbox-btn.primary`、`.inbox-free .inbox-btn.primary`、`.inbox-free-input` 仍選得到送出；所有既有 `data-inbox-*` 保留。`checkInboxAnswer` / `dismissAnswerText` / `actionAnswerText`、送出路徑、`inbox_features` 判斷、推薦預設選取、勾選批次、i18n 字串都沒改。
+- **⏰ 到期提醒等其他區塊**：未改；共用 CSS 只動 `.inbox-entry-summary`（只用在 ⏸ / 🙋）與 `.inbox-option`（只用在 ⏸），新增的選擇器都限定在新 class，截圖中到期提醒 / Worker 等你標題外觀不變。
+
+### 修改檔案
+
+- `src/components/inbox/InboxLists.tsx`：`AwaitingRow` / `ActionRow` 結構、`useDismissControl`、檔頭註解
+- `src/styles/inbox.css`：`.inbox-entry-summary`、`.inbox-answer-block`、`.inbox-option-list`、`.inbox-option`（flex 一行）、`.inbox-option-label`、推薦標記 `flex-shrink: 0`
+- `src/components/__tests__/inbox-layout-t0929.test.tsx`（新增，5 個結構測試）
+- `docs/agent-guide/tower-inbox.md`「契約 v2 清單與回答」〈畫面〉補一條版面規則（CLAUDE.md 未改）
+
+### 驗證
+
+| 項目 | 結果 |
+|---|---|
+| 依賴 | worktree `npm ci` exit 0 |
+| 結構測試＋既有 inbox 測試 | `npx vitest run src/components/__tests__/inbox-` → 5 檔 / 79 通過（既有 4 檔未改斷言） |
+| `npm run test:unit` | 第一次完整執行即全綠：Test Files 499 passed / 3 skipped (502)；Tests 9051 passed / 47 skipped (9098)；exit 0。註：此次執行開始時尚未 commit（HEAD 仍是 base），執行期間把同一份工作樹 commit 成 `36555622`，前後檔案內容沒有任何變動，所以結果即 head 的結果 |
+| `npx vite build` | exit 0 |
+| `npm run typecheck` | 0 錯誤（exit 0） |
+| 隔離實例截圖 | 以 `launchIsolated` 起隔離實例（runtime `e2e-t0929-*`，結束後 userData 已刪、Terminal Server 已結束），工作區只有 `_ct-workorders/_tower-state.md`（`bat_contract: 2`、`inbox_features: ["recommended", "dismiss"]`、自編的 U-3 / U-4 / U-5 / A-2），沒有開任何 claude 回合、沒碰安裝版 BAT。面板寬度以注入樣式固定成 300 px / 560 px（固定定位在視窗左上，避免被視窗右緣裁切）並展開 U-4 的放棄表單。截圖：`C:\Users\Gower\AppData\Local\Temp\claude\7d956a9a9905035f\91548731-283a-4d11-9e06-a7eedc148490\scratchpad\shots\t0929-inbox-narrow-300.png`、`…\shots\t0929-inbox-wide-560.png`（同目錄 `.json` 為各元素位置量測）。兩張皆確認：摘要在標頭列下一行全寬、每個選項一行、推薦標記在 A 選項尾端且預設選取、送出 / 放棄… 同一行在選項之後、放棄說明欄在按鈕列下方、自由回答輸入框全寬、🙋 title 換行且按鈕列不變。截圖用的臨時 spec（`e2e/zz-t0929-shot.spec.ts`）跑完已刪除、未提交 |
+
+### 驗收對照
+
+- [x] 窄（300 px）/ 寬（560 px）：摘要下一行全寬、每選項一行、送出 / 放棄… 同一行在選項之後
+- [x] 推薦標記在該選項尾端；預設選取推薦項不變
+- [x] 沒有 `dismiss` 時只有送出，位置規則相同（結構測試 `dismiss: false` 案例）
+- [x] 🙋 摘要換行；按鈕列不變
+- [x] 結構測試新增；既有 inbox 測試不改斷言全過
+- [x] `npm run test:unit` 全綠；`npx vite build` exit 0；`npm run typecheck` = 0
+- [x] 隔離實例截圖窄 / 寬各一張（路徑如上）
+- [x] `docs/agent-guide/tower-inbox.md` 補版面規則
+
+### Commit
+
+- worktree `ct/T0929`：`36555622` feat(inbox): T0929 entry layout — summary, options and buttons on their own lines
+- 主 checkout：`9b514a44`（開工）＋本次收單 commit
+- 未 push、未觸發 workflow、未建 tag；收單前 `git -C "$CT_WORKTREE" status --porcelain` 為空
+
+### 遭遇問題
+
+- 第一次截圖時面板被強制加寬後超出視窗右緣被裁切，改成固定定位到視窗左上重拍；不影響產品程式。
+- 小觀察（未改）：選項的 radio 以 baseline 對齊，視覺上比文字略高一點；長選項換行時 baseline 對齊讓 radio 對第一行，屬預期取捨。時間列 `.inbox-entry-time` 沿用 `.inbox-muted` 的 12 px 左內距（既有樣式，本單未動）。
+
+### 互動紀錄
+
+- 無（yolo，未向塔台提問）
+
+### 後續建議
+
+- 無必要後續；若塔台要實機確認，可在安裝新版後開契約 v2 塔台的待辦分頁看一筆有選項的「⏸ 待你決定」。
