@@ -365,9 +365,12 @@
   align-items: baseline;
   gap: 6px;
 }
+/* T0929: the summary is its own full-width line below the head line */
 .inbox-entry-summary {
+  min-width: 0;
   white-space: normal;
   overflow-wrap: anywhere;
+  line-height: 1.45;
 }
 .inbox-item-id {
   font-family: var(--font-mono, monospace);
@@ -390,15 +393,43 @@
   align-items: center;
   gap: 6px;
 }
-.inbox-option {
-  display: inline-flex;
-  align-items: center;
+/* T0929: each option on a line of its own; 送出 / 放棄… on their own line after the options */
+.inbox-entry .inbox-answer-block {
+  flex-direction: column;
+  flex-wrap: nowrap;
+  align-items: stretch;
+  gap: 4px;
+}
+.inbox-answer-block > .inbox-free-input {
+  flex: none;
+  width: 100%;
+  box-sizing: border-box;
+}
+.inbox-option-list {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
   gap: 3px;
+}
+.inbox-option {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  min-width: 0;
   cursor: pointer;
 }
+.inbox-option > input {
+  flex-shrink: 0;
+  margin: 0;
+}
 .inbox-option-code {
+  flex-shrink: 0;
   font-family: var(--font-mono, monospace);
   font-weight: 600;
+}
+.inbox-option-label {
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 .inbox-free-input {
   flex: 1 1 140px;
@@ -458,6 +489,7 @@
   border: 1px solid var(--accent-color, #4a9eff);
   color: var(--accent-color, #4a9eff);
   white-space: nowrap;
+  flex-shrink: 0;
 }
 .inbox-check {
   margin: 0;

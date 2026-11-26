@@ -425,6 +425,7 @@ host：`setReading(id, reporter, reading)`，`reporter` = `conn:<connectionId>` 
 
 - 這三區的筆數算進分頁標題數字（`inboxActionCount`，見「右側欄「待辦」分頁」節〈區塊〉）。
 - 每筆下方顯示送出結果：已送出 / 已排入待送佇列（📨）/ 面板有草稿 / 面板未開啟 / 沒有可送的塔台 / 沒送出（原因代碼）。
+- 版面（T0929，只改 DOM 結構與 CSS）：每筆由上而下是標頭列（勾選框、id、工單、標籤）→ 摘要（`summary` / `title`）自成一行、全寬（`[data-inbox-summary]`，不在 `.inbox-entry-head` 內）→ 每個選項一行（`.inbox-option-list` 內每個 `label` 一行，「推薦」標記在該選項尾端；自由回答則是全寬輸入框）→ 按鈕列（`.inbox-entry-buttons`：送出、放棄…；🙋 為完成、失敗…、略過…）自成一行，窄到放不下才換行 → 放棄 / 略過的說明欄在按鈕列下方展開。`.inbox-options` / `.inbox-free` 保留為外層回答區塊（e2e t0913 以 `.inbox-options .inbox-btn.primary` 找送出）。結構測試：`src/components/__tests__/inbox-layout-t0929.test.tsx`。
 
 ### 回答路徑
 
