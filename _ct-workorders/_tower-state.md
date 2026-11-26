@@ -4,28 +4,19 @@ summary_version: 1
 bat_contract: 2
 ct_version: "6.2.0"
 inbox_features: ["recommended", "dismiss"]
-updated_at: "2026-11-26T20:19:13+0800"
+updated_at: "2026-11-26T20:26:41+0800"
 session: "2026-11-26 20:01 第一百三十四 session（CT v6.2.0）"
 next_ids:
   workorder: "T0933"
-  decision: "D373"
+  decision: "D374"
   bug: "BUG-226"
   plan: "PLAN-070"
   user: "U-17"
   action: "A-4"
-awaiting_user:
-  - id: "U-16"
-    workorder: "T0932"
-    kind: "decision"
-    source: "breakpoint-E"
-    summary: "T0931（BUG-225）已由 T0932 在 ct-merge/T0932 合併（f317755c，test:unit 9064 全綠），要現在 ff 到 main 嗎？"
-    options: ["A 現在 ff 到 main（推薦）", "B 暫不合併"]
-    recommended: "A"
-    created_at: "2026-11-26T20:19:13+08:00"
 todo:
   - "T0929 DONE，`main` `78f4ecf6`（D370）"
   - "T0930（派工中，20:14，`ct/T0930` base `78f4ecf6`）：待辦分頁參考檔案可點，經 `openFileInFilesTab` 在「檔案」頁籤開啟"
-  - "T0931 DONE（`bfc83d1b`）→ 合併工單 T0932（模式 ①，判準 1 不成立：`main` 已含 T0929）派工中；合併後 BUG-225 → FIXED（D371）"
+  - "T0931 / T0932 DONE，U-16：A → BUG-225 修正進 `main`（FIXED，待 `0.8.0-pre.5` 驗收，D373）"
   - "候選（未開單，T0924 建議）：`scripts/verify-packaged-native.js` `readAsarFile` 不檢查 `fs.readSync` 回傳位元組數，截斷的 app.asar 會被讀成 NUL 而不報錯；改成讀不足判失敗（檢查變嚴）"
   - "🚀 `v0.8.0-pre.4` 已發佈（D364，2026-11-26 00:59，Pre-Release `45656560078`，`be40bb8f`）：PLAN-069 DONE、BUG-223 / 224 CLOSED；CT 6.2.0 同日（BAT 先上線、CT 再推公開站，CT T0572）。下一版 `0.8.0-pre.5`"
   - "PLAN-066（DONE）後續候選（未開單）：`pty:create` 只送 env 差異（`pty-manager.ts`＋Terminal Server 協定）可再降 C2①；direct 模式的 conin socket 殘留；F4（自然結束的 conhost 留到 server 結束）。分支：`ct/T0885`（Rust 評估，D307 保留不合併，worktree 保留）、`ct/T0886`（node-pty Worker 研究，未併入 `v0.8.x`，worktree 已移除）"
