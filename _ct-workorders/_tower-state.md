@@ -4,19 +4,19 @@ summary_version: 1
 bat_contract: 2
 ct_version: "6.2.0"
 inbox_features: ["recommended", "dismiss"]
-updated_at: "2026-11-26T20:14:28+0800"
+updated_at: "2026-11-26T20:26:41+0800"
 session: "2026-11-26 20:01 第一百三十四 session（CT v6.2.0）"
 next_ids:
-  workorder: "T0932"
-  decision: "D371"
+  workorder: "T0933"
+  decision: "D374"
   bug: "BUG-226"
   plan: "PLAN-070"
-  user: "U-16"
+  user: "U-17"
   action: "A-4"
 todo:
-  - "T0929 DONE，U-15：A → 經 `ct-merge/T0929` ff 進 `main`（D370）；T0930 接著派"
-  - "T0930（TODO，depends_on T0929）：待辦分頁提到的參考檔案（編號標籤、摘要內路徑 / 編號）可點，經 `openFileInFilesTab` 在「檔案」頁籤開啟定位；T0929 合併回 `main` 後再派（同一元件，避免衝突）"
-  - "T0931（派工中）：BUG-225 💬 卡片收合摘要只顯示「```」→ `towerCardPreview` 略過圍欄等結構行；與 T0929 平行（D368）"
+  - "T0929 DONE，`main` `78f4ecf6`（D370）"
+  - "T0930（派工中，20:14，`ct/T0930` base `78f4ecf6`）：待辦分頁參考檔案可點，經 `openFileInFilesTab` 在「檔案」頁籤開啟"
+  - "T0931 / T0932 DONE，U-16：A → BUG-225 修正進 `main`（FIXED，待 `0.8.0-pre.5` 驗收，D373）"
   - "候選（未開單，T0924 建議）：`scripts/verify-packaged-native.js` `readAsarFile` 不檢查 `fs.readSync` 回傳位元組數，截斷的 app.asar 會被讀成 NUL 而不報錯；改成讀不足判失敗（檢查變嚴）"
   - "🚀 `v0.8.0-pre.4` 已發佈（D364，2026-11-26 00:59，Pre-Release `45656560078`，`be40bb8f`）：PLAN-069 DONE、BUG-223 / 224 CLOSED；CT 6.2.0 同日（BAT 先上線、CT 再推公開站，CT T0572）。下一版 `0.8.0-pre.5`"
   - "PLAN-066（DONE）後續候選（未開單）：`pty:create` 只送 env 差異（`pty-manager.ts`＋Terminal Server 協定）可再降 C2①；direct 模式的 conin socket 殘留；F4（自然結束的 conhost 留到 server 結束）。分支：`ct/T0885`（Rust 評估，D307 保留不合併，worktree 保留）、`ct/T0886`（node-pty Worker 研究，未併入 `v0.8.x`，worktree 已移除）"

@@ -10,6 +10,9 @@
 
 | ID | 日期 | 標題 | 相關工單 |
 |----|------|------|---------|
+| D373 | 2026-11-26 | U-16：A → T0931（BUG-225）經 `ct-merge/T0932` ff 進 `main`；BUG-225 → FIXED | T0931 / T0932 / BUG-225 |
+| D372 | 2026-11-26 | T0932 收單（合併 `f317755c`，test:unit 9064 全綠）；斷點 E → U-16 | T0931 / T0932 |
+| D371 | 2026-11-26 | T0931 收單（DONE，`bfc83d1b`）；判準 1 不成立（`main` 已含 T0929 產品檔）→ 合併工單 T0932（模式 ①）；T0930 派工 | T0930 / T0931 / T0932 |
 | D370 | 2026-11-26 | U-15：A → T0929 經 `ct-merge/T0929` ff 進 `main`；之後派 T0930 | T0929 / T0930 |
 | D369 | 2026-11-26 | T0929 收單（DONE，`36555622`）、模式 ① 合併到 `ct-merge/T0929` `50cfbff3`；斷點 E → U-15 | T0929 |
 | D368 | 2026-11-26 | 待辦分頁三項改善一批開單：T0929 項目版面、T0930 參考檔案可點（`openFileInFilesTab`，等 T0929 合併後派）、BUG-225 💬 卡片摘要「```」→ T0931；目標 `0.8.0-pre.5` | T0929 / T0930 / T0931 |
@@ -488,6 +491,32 @@
   4. PLAN-001 保持延後（🟢 Low，等 plugin 1.0 穩定）
 - **Success criteria**（EXP→CONCLUDED）：npm install 無錯 / 所有 native modules rebuild 成功 / dev+build:dir 可跑 / 手動 smoke test 8 項通過
 - **最大風險**：`whisper-node-addon@1.0.2` 對 Electron 41（Node 24）的 NODE_MODULE_VERSION 相容性未知，允許 Worker 遇此決策點主動問塔台
+
+---
+
+### D373 2026-11-26 20:26 — `main` ff 含 T0931（U-16），BUG-225 FIXED
+
+- **使用者裁示**：U-16：A（原生選單）。
+- **合併**：整合分支 `ct-merge/T0932` 再 `--no-ff` 併入 `main` 的記帳 commit（只有 `_ct-workorders/**`）後 `--ff-only`；整合 worktree `switch --detach`；`ct/T0931` worktree 移除（不加 `--force`）；分支 `ct/T0931`、`ct-merge/T0932` 保留到使用者同意刪除。
+- **BUG-225** → FIXED（`bfc83d1b`，合併 T0932），隨 `0.8.0-pre.5` 列入待驗收（送一則以 ```` ```bash ```` 開頭的塔台訊息，看收合摘要）。
+- **相關**：T0931 / T0932 / BUG-225
+
+---
+
+### D372 2026-11-26 20:19 — T0932 收單（U-16 待決）
+
+- **收單**：T0932 DONE（session `e9cbb875`），模式 ① 無衝突。`ct-merge/T0932` merge `f317755c`（parent1 `78f4ecf6` = `base_main_sha`、parent2 `bfc83d1b` = `ct/T0931`，SHA 比對 ①–③ PASS）；樹比對只有預期 3 檔，`tower-inbox.md` T0929 / T0931 兩條都在；在 merge commit 驗收：typecheck 0、vite build、test:unit 9064 passed / 499 files。`--close-worker T0932` exit 0；session 快照已寫。
+- **合併**：`main` 自 base 起只多 `_ct-workorders/**`（第 5 步：ff 前整合分支再併一次 `main`）。非 yolo 斷點 E → U-16。
+- **相關**：T0931 / T0932 / BUG-225
+
+---
+
+### D371 2026-11-26 20:15 — T0931 收單、派合併工單 T0932；T0930 派工
+
+- **收單**：T0931 DONE（session `730ffa23`）。產品 commit `bfc83d1b`（`ct/T0931`，base `a26ceaac`）3 檔：`towerCardPreview` 追蹤程式碼區塊，略過圍欄、分隔線、表格分隔列，標題去 `#`、清單 / 引用記號保留；區塊外沒字才取區塊內第一行；全是結構行回原第一行。新測試 7 項（修正前 5 失敗）；test:unit 9053 passed / 498 files、typecheck 0、vite build。範圍外 0；已知小限制（`- |` 行、縮排式程式碼區塊）P3 不處理。`--close-worker --worktree keep` exit 0；session 快照已寫。
+- **合併**：`main` 自 base 起併入 T0929 產品檔（判準 1 不成立）；`--worktree-status` conflicts []、`git merge-tree` exit 0 → 派合併工單 T0932（模式 ① `mechanical`，base `78f4ecf6`），驗收在 merge commit 重跑。BUG-225 合併進 `main` 後改 FIXED。
+- **T0930**：T0929 已進 `main`，20:14 派工（`ct/T0930` base `78f4ecf6`，`started:` 20:14:59）。
+- **相關**：T0930 / T0931 / T0932 / BUG-225
 
 ---
 
