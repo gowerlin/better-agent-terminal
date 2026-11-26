@@ -4,15 +4,24 @@ summary_version: 1
 bat_contract: 2
 ct_version: "6.2.0"
 inbox_features: ["recommended", "dismiss"]
-updated_at: "2026-11-26T23:37:59+0800"
+updated_at: "2026-11-26T23:47:01+0800"
 session: "2026-11-26 21:18 第一百三十五 session（CT v6.2.0）"
 next_ids:
   workorder: "T0936"
-  decision: "D384"
+  decision: "D385"
   bug: "BUG-226"
   plan: "PLAN-070"
-  user: "U-19"
+  user: "U-20"
   action: "A-6"
+awaiting_user:
+  - id: "U-19"
+    workorder: "T0935"
+    kind: "decision"
+    source: "breakpoint-E"
+    summary: "T0935（只寫檔名的參考檔案也可點）已在整合分支 ct-merge/T0935 合併（963999be，SHA 比對 1–3 PASS，test:unit 9107 全綠），要現在 ff 到 main 嗎？"
+    options: ["A 現在 ff 到 main（推薦）", "B 暫不合併"]
+    recommended: "A"
+    created_at: "2026-11-26T23:47:01+08:00"
 user_actions:
   - id: "A-5"
     title: "安裝 0.8.0-pre.6 驗收 💬 卡片參考檔案連結（T0934）"
@@ -20,7 +29,7 @@ user_actions:
     kind: "verify"
     created_at: "2026-11-26T23:00:04+08:00"
 todo:
-  - "T0935（派工中，收工後追加）：待辦分頁參考檔案連結放寬到只寫檔名（有副檔名、根目錄或 `_ct-workorders/` 存在才連），目標 `0.8.0-pre.7`（D383）"
+  - "T0935 DONE（`fefbcb17`，Q-1 → A 只改 T0930 一行斷言），模式 ① 合併到 `ct-merge/T0935` `963999be`，等 U-19 ff 到 `main`；〈待實機〉併入 `0.8.0-pre.7` 待驗收（D384）"
   - "🚀 `v0.8.0-pre.6` 已發佈（D382，2026-11-26 22:58，Pre-Release `45840792584`，`606e283f`）：T0934 💬 卡片參考檔案連結，待驗收 A-5；下一版 `0.8.0-pre.7`"
   - "A-5 驗收細項（T0934〈待實機〉）：收合時點加亮行連結 → 切「檔案」頁籤並選取、卡片仍收合且 ● 未讀不變；展開後點內文連結 → 同上、卡片仍展開、📌 不變；不存在的檔與 URL 為一般文字；長卡片「顯示全部」後尾段路徑可點；收合摘要沒有連結"
   - "`v0.8.0-pre.5` 已驗收（D378）：T0929 / T0930 / BUG-225 CLOSED"

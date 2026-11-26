@@ -10,6 +10,7 @@
 
 | ID | 日期 | 標題 | 相關工單 |
 |----|------|------|---------|
+| D384 | 2026-11-26 | T0935 收單（DONE，`fefbcb17`；Q-1 塔台答 A）、模式 ① 合併到 `ct-merge/T0935` `963999be`；斷點 E → U-19 | T0935 |
 | D383 | 2026-11-26 | 開並派 T0935：參考檔案連結放寬到只寫檔名（有副檔名、根目錄或 `_ct-workorders/` 存在才連） | T0935 |
 | D382 | 2026-11-26 | `v0.8.0-pre.6` 發佈（Pre-Release `45840792584`，`606e283f`）：T0934 💬 卡片參考檔案連結；分支 2 個刪除；待驗收 A-5 | T0934 |
 | D381 | 2026-11-26 | U-18：A → T0934 經 `ct-merge/T0934` ff 進 `main` | T0934 |
@@ -501,6 +502,15 @@
   4. PLAN-001 保持延後（🟢 Low，等 plugin 1.0 穩定）
 - **Success criteria**（EXP→CONCLUDED）：npm install 無錯 / 所有 native modules rebuild 成功 / dev+build:dir 可跑 / 手動 smoke test 8 項通過
 - **最大風險**：`whisper-node-addon@1.0.2` 對 Electron 41（Node 24）的 NODE_MODULE_VERSION 相容性未知，允許 Worker 遇此決策點主動問塔台
+
+---
+
+### D384 2026-11-26 23:47 — T0935 收單、模式 ① 合併到整合分支（U-19 待決）
+
+- **Q-1**（23:39，BAT 通道）：T0930 一行斷言（`sample.md` 不算）與新規則衝突 → 塔台答 A：該斷言測的正是本單要移除的限制，只改這一行、`sample.md` 移到新測試；不採 B（永遠開的選項）、C（多一種 kind）。
+- **收單**：T0935 DONE（session `8e981cb7`）。產品 commit `fefbcb17`（base `116316d9`）7 檔：`inbox-file-refs.ts` 新增檔名辨識（副檔名 1–8 英數含字母；句中只 ASCII、反引號內可中文；排在編號之後，`T0275-x.md` 照舊當編號；後接 `:` `@` `~` 不算），解析沿用根目錄 → `_ct-workorders/`、存在才連；單元測試 12 個案例、元件測試 4 個；docs / CLAUDE.md / 網站各一處。驗證：test:unit 9107 passed / 503 files、typecheck 0、vite build；隔離實例未點 → 〈待實機〉。已知限制：`Node.js`、`e.g` 這類帶點的字也成候選、與真正參照共用上限 40；`README.md:12` 不連結。
+- **合併**：判準 5 條 PASS（behind 3 只有 `_ct-workorders/**`、`validated_sha` = head、outOfScope 0、conflicts 0、dirty 0）→ `ct-merge/T0935` `--no-ff` `963999be`（parent1 `3c00a352` = `main`、parent2 `fefbcb17`）。`--close-worker --worktree keep` exit 0；session 快照已寫。非 yolo 斷點 E → U-19。
+- **相關**：T0935
 
 ---
 
