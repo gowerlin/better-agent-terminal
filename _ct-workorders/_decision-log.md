@@ -10,6 +10,7 @@
 
 | ID | 日期 | 標題 | 相關工單 |
 |----|------|------|---------|
+| D377 | 2026-11-26 | `v0.8.0-pre.5` 發佈（Pre-Release `45820932628`，`9350cb5c`）：T0929 / T0930 / BUG-225；分支 6 個刪除；待驗收 A-4 | T0929 / T0930 / T0931 / BUG-225 |
 | D376 | 2026-11-26 | U-17：A → T0930 經 `ct-merge/T0933` ff 進 `main`；待辦分頁三項改善（T0929 / T0930 / T0931）全進 `main` | T0930 / T0933 |
 | D375 | 2026-11-26 | T0933 收單（合併 `83a74de2`，test:unit 9091 全綠）；斷點 E → U-17 | T0930 / T0933 |
 | D374 | 2026-11-26 | T0930 收單（DONE，`a9254f55`）；判準 1 不成立（`main` 已含 T0931）→ 合併工單 T0933（模式 ①） | T0930 / T0933 |
@@ -494,6 +495,18 @@
   4. PLAN-001 保持延後（🟢 Low，等 plugin 1.0 穩定）
 - **Success criteria**（EXP→CONCLUDED）：npm install 無錯 / 所有 native modules rebuild 成功 / dev+build:dir 可跑 / 手動 smoke test 8 項通過
 - **最大風險**：`whisper-node-addon@1.0.2` 對 Electron 41（Node 24）的 NODE_MODULE_VERSION 相容性未知，允許 Worker 遇此決策點主動問塔台
+
+---
+
+### D377 2026-11-26 21:00 — `v0.8.0-pre.5` 發佈
+
+- **使用者指示**：「發 pre.5 分支也一起清」。
+- **分支**：`ct/T0929`、`ct-merge/T0929`、`ct/T0930`、`ct/T0931`、`ct-merge/T0932`、`ct-merge/T0933` 皆在 `--merged main`、無遠端分支、無 worktree → `git branch -d` exit 0。
+- **push 前檢查**（D176）：`.private/` 檢查樣式＋本次截圖相關字詞 → 追蹤檔 1 筆（T0929 回報區的 scratchpad 截圖路徑含家目錄）已改成 `<使用者資料夾>`（`9350cb5c`）；該路徑仍在未 push 前的 T0929 收單 commit 歷史內（未改寫歷史，需使用者授權）。外送 diff 金鑰樣式 0。
+- **發版**：push `main` `9350cb5c` → `gh workflow run pre-release.yml -f version=0.8.0-pre.5`（run `45820932628`，全部 job success；typecheck、Test gate 綠）→ Pre-Release `v0.8.0-pre.5`（2026-11-26T12:58:45Z）、`server-bundle-v0.8.0-pre.5`；安裝檔 4 個，大小與 pre.4 相同。`gh release edit --notes-file` 更版重點已核對。
+- **文件**：`CHANGELOG.md`、`release-note.md`、`README.md`（待辦分頁一行）、`site/tower-inbox.md`（版面與連結兩行）、`package.json` / lock 版號同步。NSIS 重裝驗收：本版不需要（未改安裝程式路徑）。
+- **待驗收**：A-4（版面、T0930〈待實機〉6 項、BUG-225）。
+- **相關**：T0929 / T0930 / T0931 / BUG-225
 
 ---
 

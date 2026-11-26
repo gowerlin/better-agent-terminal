@@ -4,21 +4,26 @@ summary_version: 1
 bat_contract: 2
 ct_version: "6.2.0"
 inbox_features: ["recommended", "dismiss"]
-updated_at: "2026-11-26T20:31:55+0800"
+updated_at: "2026-11-26T21:00:50+0800"
 session: "2026-11-26 20:01 第一百三十四 session（CT v6.2.0）"
 next_ids:
   workorder: "T0934"
-  decision: "D377"
+  decision: "D378"
   bug: "BUG-226"
   plan: "PLAN-070"
   user: "U-18"
-  action: "A-4"
+  action: "A-5"
+user_actions:
+  - id: "A-4"
+    title: "安裝 0.8.0-pre.5 驗收待辦分頁：版面、參考檔案連結、💬 摘要（BUG-225）"
+    ref: "T0930"
+    kind: "verify"
+    created_at: "2026-11-26T21:00:50+08:00"
 todo:
-  - "待辦分頁三項改善全進 `main`（D376）：T0929 版面、T0930 參考檔案可點（〈待實機〉6 項）、T0931 BUG-225（FIXED）；可發 `0.8.0-pre.5`（發版需使用者授權 push / workflow）"
-  - "分支待使用者同意刪除：`ct/T0929`、`ct-merge/T0929`、`ct/T0930`、`ct/T0931`、`ct-merge/T0932`、`ct-merge/T0933`"
+  - "🚀 `v0.8.0-pre.5` 已發佈（D377，2026-11-26 20:58，Pre-Release `45820932628`，`9350cb5c`）：T0929 版面、T0930 參考檔案可點、BUG-225（FIXED，待驗收 A-4）；下一版 `0.8.0-pre.6`"
+  - "A-4 驗收細項：① 窄側欄下說明 / 選項 / 按鈕各自成行；② 待辦項目的工單編號與檔案路徑是連結，點了切到「檔案」頁籤並選取、Tab＋Enter 也可開，遠端工作區與 detached 視窗各點一次（T0930〈待實機〉6 項）；③ 塔台回一則以程式碼區塊開頭的訊息，💬 收合摘要顯示區塊外第一句（BUG-225）"
   - "候選（未開單，T0930 建議）：💬 卡片沿用 `InboxRefText` 加連結；`useInboxFileRefs` 跟 `_ct-workorders/` 的 `fs:changed` 重查"
   - "候選（未開單，T0924 建議）：`scripts/verify-packaged-native.js` `readAsarFile` 不檢查 `fs.readSync` 回傳位元組數，截斷的 app.asar 會被讀成 NUL 而不報錯；改成讀不足判失敗（檢查變嚴）"
-  - "🚀 `v0.8.0-pre.4` 已發佈（D364，2026-11-26 00:59，Pre-Release `45656560078`，`be40bb8f`）：PLAN-069 DONE、BUG-223 / 224 CLOSED；CT 6.2.0 同日（BAT 先上線、CT 再推公開站，CT T0572）。下一版 `0.8.0-pre.5`"
   - "PLAN-066（DONE）後續候選（未開單）：`pty:create` 只送 env 差異（`pty-manager.ts`＋Terminal Server 協定）可再降 C2①；direct 模式的 conin socket 殘留；F4（自然結束的 conhost 留到 server 結束）。分支：`ct/T0885`（Rust 評估，D307 保留不合併，worktree 保留）、`ct/T0886`（node-pty Worker 研究，未併入 `v0.8.x`，worktree 已移除）"
   - "PLAN-065 剩餘：per-machine 未提權互動升級（UAC）手動驗收（無法自動化）；降級到 `0.7.4-pre.9` 會結束所有終端且沒有說明（已寫在更版重點〈已知事項〉）"
   - "PLAN-052（IN_PROGRESS）：待 Docker Desktop（Windows / macOS）實機走精靈；後續候選（未開單）：fetch-fingerprint Docker 分支比對憑證指紋、`scripts/docker-acceptance.mjs` 純函式單元測試"
@@ -27,7 +32,7 @@ todo:
   - "候選（未開單，D303 暫不安排）：T0830 後續 SSH / Docker 精靈長呼叫接 operation id；PLAN-052 fetch-fingerprint Docker 分支、docker-acceptance 純函式測試；PLAN-058 卡片等待時可送出（2026-11-20 使用者：先記著、不開單。只涉 Claude Agent 面板（SDK），不影響 Claude CLI 分頁；要做時的建議：輸入框預設收合＋「補充說明」按鈕展開、輸入框有焦點時停用卡片快捷鍵（權限卡在 window 監聽 1/2/3、y/n、Enter、方向鍵）、送出走 T0815 排隊路徑；需實機操作確認）"
   - "MSRC 回報 microsoft/node-pty（使用者自行處理，D255）"
   - "觀察：語音可用性檢查 macOS 未實機（`unknown(timeout)` 出現可把逾時提到 30 s，T0802）；t0757 偶發失敗再發生才開 BUG（D218）；PLAN-060（IDEA）macOS Developer ID 簽章"
-  - "版號線：D315 起 `0.8.0-pre.N`（D344 起從 `main` 發），`0.8.0-pre.4` 已發佈（2026-11-26 00:59，PLAN-069＋BUG-223 / 224，D364；CT 6.2.0 同日），下一版 `0.8.0-pre.5`（`-pre.N` 最多到 pre.9）"
+  - "版號線：D315 起 `0.8.0-pre.N`（D344 起從 `main` 發），`0.8.0-pre.5` 已發佈（2026-11-26 20:58，D377），下一版 `0.8.0-pre.6`（`-pre.N` 最多到 pre.9）"
 reminders:
   - id: "weekly-log-review"
     title: "每週日誌清查（PLAN-067；到期時塔台開工會提示，只提示不派工）"
@@ -121,8 +126,8 @@ reminders:
 |------|------|
 | **專案** | better-agent-terminal |
 | **Fork 上游** | tony1223/better-agent-terminal（另有 `scandnavik` remote；⚠️ gh 預設解析到 upstream，見 L122） |
-| **目前版號** | `main` `package.json` **0.8.0-pre.3**（`v0.8.x` 已併回，D343）；下一版 **`0.8.0-pre.4`**（從 `main` 發，D344） |
-| **最新 release** | `v0.8.0-pre.3`（2026-11-25 14:44 (UTC+8)，Pre-Release `45560094561`，`5e541975`）；前一 tag `v0.8.0-pre.2`；更早見 `release-note.md` / `CHANGELOG.md` |
+| **目前版號** | `main` `package.json` **0.8.0-pre.5**；下一版 **`0.8.0-pre.6`**（從 `main` 發，D344） |
+| **最新 release** | `v0.8.0-pre.5`（2026-11-26 20:58 (UTC+8)，Pre-Release `45820932628`，`9350cb5c`，D377）；前一 tag `v0.8.0-pre.4`；更早見 `release-note.md` / `CHANGELOG.md` |
 | **目前主軸** | 無派工中工單；下一版 `0.8.0-pre.4` 從 `main` 發 |
 | **工單最大編號** | **T0921** DONE；熱區 317 張全 DONE |
 | **BUG 最大編號** | **BUG-222** CLOSED；熱區 Open 0 / Fixing 0 / Fixed 0 / Closed 85 / WONTFIX 1 |
