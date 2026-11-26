@@ -9,6 +9,11 @@
  *   - paths: a piece with `/` or `\` whose last segment has an extension, inside backticks or bare in
  *     the sentence; a `:line[:col]` suffix is ignored when resolving. Relative paths are tried against
  *     the workspace root, then `_ct-workorders/`; an absolute path only when it is under the root.
+ *   - file names (T0935): a piece without `/` or `\` ending in an extension of 1–8 letters / digits with
+ *     at least one letter (`_reply-2026-11-26-topic.md`, `package.json`; not `0.8.0`, `v1.2`), inside
+ *     backticks or bare in the sentence. Same `kind: 'path'` reference, so it is tried against the
+ *     workspace root, then `_ct-workorders/`, and links only when the file exists (a domain name such
+ *     as `example.org` therefore stays text unless a file of that name is there).
  *   - never: URLs (any `scheme:`), UNC (`\\host\…`, `//host/…`), `~`, any `..` segment, a path outside
  *     the workspace root.
  *
@@ -82,12 +87,26 @@ function asPath(raw: string): string | null {
   return path
 }
 
+/** T0935: a file name's extension — 1–8 letters / digits, at least one letter (`0.8.0`, `v1.2` have none). */
+const NAME_EXTENSION = /\.(?=[A-Za-z0-9]*[A-Za-z])[A-Za-z0-9]{1,8}$/
+
+/**
+ * T0935: a file name as written — no `/` or `\`, an extension (`NAME_EXTENSION`). Bare in a sentence
+ * only ASCII word characters, `.` and `-` (starting with a word character, `_` included); inside
+ * backticks (`loose`) any characters a file name may have, not starting with `.`, `-` or `~`.
+ */
+function asName(raw: string, loose = false): string | null {
+  if (!raw || /[\s\\/:*?"<>|]/.test(raw)) return null
+  if (!(loose ? /^[^.\-~]/ : /^\w[\w.\-]*$/).test(raw)) return null
+  return NAME_EXTENSION.test(raw) ? raw : null
+}
+
 /** A backtick span's content that is one reference as a whole. */
 function wholeRef(content: string): FileRef | null {
   const id = parseCtId(content)
   if (id) return { kind: 'id', ...id }
   if (URL_START.test(content.trim())) return null
-  const path = asPath(content.trim())
+  const path = asPath(content.trim()) ?? asName(content.trim(), true)
   return path ? { kind: 'path', path } : null
 }
 
@@ -95,9 +114,15 @@ const URL_START = /^[A-Za-z][A-Za-z0-9+.-]+:/
 const URL_SOURCE = String.raw`[A-Za-z][A-Za-z0-9+.\-]+:\/\/[^\s\`]*`
 const PATH_SOURCE = String.raw`(?:[A-Za-z]:)?[\w.\-@~]*(?:[\/\\][\w.\-@~]+)+`
 const ID_SOURCE = ID_SOURCES.map(([, source]) => source).join('|')
-/** Bare text: a URL (kept as text), a path, or an id; boundaries are ASCII word / path characters only. */
+/**
+ * T0935: a word with a dot, for a file name; tried after the id so `T0275-x.md` stays the id it was.
+ * Not followed by `:` `@` `~` either (`README.md:12` is not a name); `.` / `-` at its end are cut off
+ * as sentence punctuation in `splitBare`.
+ */
+const NAME_SOURCE = String.raw`\w[\w\-]*\.[\w.\-]*(?![:@~])`
+/** Bare text: a URL (kept as text), a path, an id or a file name; boundaries are ASCII word / path characters only. */
 const BARE = new RegExp(
-  String.raw`(?<![\w.\-\/\\:@~])(?:(${URL_SOURCE})|(${PATH_SOURCE})|(${ID_SOURCE}))(?![\w\/\\])`,
+  String.raw`(?<![\w.\-\/\\:@~])(?:(${URL_SOURCE})|(${PATH_SOURCE})|(${ID_SOURCE})|(${NAME_SOURCE}))(?![\w\/\\])`,
   'g',
 )
 
@@ -124,6 +149,10 @@ function splitBare(text: string, parts: TextPart[]): void {
     } else if (m[3] !== undefined) {
       const id = parseCtId(piece)
       if (id) ref = { kind: 'id', ...id }
+    } else if (m[4] !== undefined) {
+      piece = piece.replace(/[.\-]+$/, '')
+      const name = asName(piece)
+      if (name) ref = { kind: 'path', path: name }
     }
     if (!ref) continue
     pushText(parts, text.slice(at, start))
