@@ -124,7 +124,7 @@ memory_overrides:
 | `npm run test:unit` | 第一次完整執行即全綠：Test Files 499 passed / 3 skipped (502)；Tests 9051 passed / 47 skipped (9098)；exit 0。註：此次執行開始時尚未 commit（HEAD 仍是 base），執行期間把同一份工作樹 commit 成 `36555622`，前後檔案內容沒有任何變動，所以結果即 head 的結果 |
 | `npx vite build` | exit 0 |
 | `npm run typecheck` | 0 錯誤（exit 0） |
-| 隔離實例截圖 | 以 `launchIsolated` 起隔離實例（runtime `e2e-t0929-*`，結束後 userData 已刪、Terminal Server 已結束），工作區只有 `_ct-workorders/_tower-state.md`（`bat_contract: 2`、`inbox_features: ["recommended", "dismiss"]`、自編的 U-3 / U-4 / U-5 / A-2），沒有開任何 claude 回合、沒碰安裝版 BAT。面板寬度以注入樣式固定成 300 px / 560 px（固定定位在視窗左上，避免被視窗右緣裁切）並展開 U-4 的放棄表單。截圖：`C:\Users\Gower\AppData\Local\Temp\claude\7d956a9a9905035f\91548731-283a-4d11-9e06-a7eedc148490\scratchpad\shots\t0929-inbox-narrow-300.png`、`…\shots\t0929-inbox-wide-560.png`（同目錄 `.json` 為各元素位置量測）。兩張皆確認：摘要在標頭列下一行全寬、每個選項一行、推薦標記在 A 選項尾端且預設選取、送出 / 放棄… 同一行在選項之後、放棄說明欄在按鈕列下方、自由回答輸入框全寬、🙋 title 換行且按鈕列不變。截圖用的臨時 spec（`e2e/zz-t0929-shot.spec.ts`）跑完已刪除、未提交 |
+| 隔離實例截圖 | 以 `launchIsolated` 起隔離實例（runtime `e2e-t0929-*`，結束後 userData 已刪、Terminal Server 已結束），工作區只有 `_ct-workorders/_tower-state.md`（`bat_contract: 2`、`inbox_features: ["recommended", "dismiss"]`、自編的 U-3 / U-4 / U-5 / A-2），沒有開任何 claude 回合、沒碰安裝版 BAT。面板寬度以注入樣式固定成 300 px / 560 px（固定定位在視窗左上，避免被視窗右緣裁切）並展開 U-4 的放棄表單。截圖：`<使用者資料夾>\AppData\Local\Temp\claude\…\scratchpad\shots\t0929-inbox-narrow-300.png`（塔台去識別化，D176）、`…\shots\t0929-inbox-wide-560.png`（同目錄 `.json` 為各元素位置量測）。兩張皆確認：摘要在標頭列下一行全寬、每個選項一行、推薦標記在 A 選項尾端且預設選取、送出 / 放棄… 同一行在選項之後、放棄說明欄在按鈕列下方、自由回答輸入框全寬、🙋 title 換行且按鈕列不變。截圖用的臨時 spec（`e2e/zz-t0929-shot.spec.ts`）跑完已刪除、未提交 |
 
 ### 驗收對照
 
