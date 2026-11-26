@@ -4,11 +4,11 @@ summary_version: 1
 bat_contract: 2
 ct_version: "6.2.0"
 inbox_features: ["recommended", "dismiss"]
-updated_at: "2026-11-26T23:15:03+0800"
+updated_at: "2026-11-26T23:37:59+0800"
 session: "2026-11-26 21:18 第一百三十五 session（CT v6.2.0）"
 next_ids:
-  workorder: "T0935"
-  decision: "D383"
+  workorder: "T0936"
+  decision: "D384"
   bug: "BUG-226"
   plan: "PLAN-070"
   user: "U-19"
@@ -20,6 +20,7 @@ user_actions:
     kind: "verify"
     created_at: "2026-11-26T23:00:04+08:00"
 todo:
+  - "T0935（派工中，收工後追加）：待辦分頁參考檔案連結放寬到只寫檔名（有副檔名、根目錄或 `_ct-workorders/` 存在才連），目標 `0.8.0-pre.7`（D383）"
   - "🚀 `v0.8.0-pre.6` 已發佈（D382，2026-11-26 22:58，Pre-Release `45840792584`，`606e283f`）：T0934 💬 卡片參考檔案連結，待驗收 A-5；下一版 `0.8.0-pre.7`"
   - "A-5 驗收細項（T0934〈待實機〉）：收合時點加亮行連結 → 切「檔案」頁籤並選取、卡片仍收合且 ● 未讀不變；展開後點內文連結 → 同上、卡片仍展開、📌 不變；不存在的檔與 URL 為一般文字；長卡片「顯示全部」後尾段路徑可點；收合摘要沒有連結"
   - "`v0.8.0-pre.5` 已驗收（D378）：T0929 / T0930 / BUG-225 CLOSED"
@@ -42,6 +43,8 @@ reminders:
     due_at: "2026-12-02"
 ---
 # Tower State — better-agent-terminal
+
+> 🔁 **第一百三十五 session 收工後追加**（2026-11-26 23:37 (UTC+8)）：使用者截圖另一專案待辦分頁，只寫檔名的回覆檔沒有連結（T0930 已知限制）→ 開並派 T0935（D383）。
 
 > 🛏 **第一百三十五 session 收工**（2026-11-26 23:15 (UTC+8)）。
 
