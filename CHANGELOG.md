@@ -4,6 +4,11 @@ All notable changes to Better Agent Terminal are documented in this file.
 
 ## [Unreleased]
 
+## [0.8.0-pre.7] — 2026-11-27
+
+### Changed
+- 參考檔案連結辨識只寫檔名的檔案（T0935）：`src/lib/inbox-file-refs.ts` 新增檔名參照（不含 `/` `\`，副檔名 1–8 英數且含字母；句中只 ASCII、反引號內可含中文；排在編號之後，`T####-x.md` 照舊當編號；後接 `:` `@` `~` 不算），解析沿用工作區根目錄 → `_ct-workorders/`、存在才連；版號不算、網域名稱沒有同名檔即純文字。適用待辦三個清單與 💬 卡片（收合摘要仍不加）。T0930 一行斷言（`sample.md` 不算）依本單目的改為候選
+
 ## [0.8.0-pre.6] — 2026-11-26
 
 ### Added
