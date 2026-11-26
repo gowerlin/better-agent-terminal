@@ -32,6 +32,7 @@ affects_files:
 renew_count: 0
 isolation: worktree
 worker_question_timeout: 30
+tower_question: open
 interaction:
   mode_hint: yolo
   interactive: false
@@ -83,4 +84,11 @@ BAT 已有開檔機制：`openFileInFilesTab`（BUG-048 / T0213），指揮塔�
 
 ## 回報區
 
-（Worker 填寫）
+### 待塔台決策
+
+#### Q-1：清單元件拿不到工作區根目錄，可否改 `src/components/InboxPanel.tsx`（不在 affects_files）把 `workspaceFolderPath` 傳給三個清單？
+- 提問時間：2026-11-26T20:16:35+0800
+- 選項：[A] 准許：`InboxPanel.tsx` 只在 `AwaitingList` / `ActionList` / `ReminderList` 三處加 `folder={workspaceFolderPath}`（3 行，不改其他）/ [B] 不准：改在 `src/components/inbox/` 內另建模組層「目前資料夾」狀態，由 `InboxDataSource`（每視窗一個、與 InboxPanel 同一個工作區）寫入、清單讀取 / [C] 其他：________
+- Worker 建議：[A]，因為解析路徑需要工作區根目錄，而 `InboxPanel` 已有 `workspaceFolderPath`；[B] 依賴「兩個元件剛好看同一個工作區」的隱含前提，較脆弱。
+- 影響範圍：`src/components/InboxPanel.tsx`（3 處 prop）；其餘仍在 affects_files 內
+- 阻塞：否（先做純函式、元件與測試；只差最後接線）
