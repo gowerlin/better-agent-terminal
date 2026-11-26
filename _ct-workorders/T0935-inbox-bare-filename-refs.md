@@ -11,7 +11,8 @@ priority: P2
 sizing: S
 created_at: "2026-11-26T23:37:08+08:00"
 started_at: "2026-11-26T23:38:33+08:00"
-updated_at: "2026-11-26T23:38:33+08:00"
+updated_at: "2026-11-26T23:39:30+08:00"
+tower_question: open
 session_ids: []
 target_version: "0.8.0-pre.7"
 depends_on: []
@@ -69,4 +70,16 @@ T0930（`v0.8.0-pre.5`）讓待辦分頁的參考檔案可點，但路徑必須�
 
 ## 回報區
 
-（Worker 填寫）
+### 待塔台決策
+
+#### Q-1：既有 T0930 斷言 `refs('… 與 sample.md 與 …')` 為 `[]`，與新規則直接衝突，要怎麼處理？
+- **提問時間**：2026-11-26T23:39:30+08:00
+- **背景**：`src/lib/__tests__/inbox-file-refs.test.ts:89`（`it('ignores pieces without a slash or an extension, and UNC paths')`）斷言 `refs('版本 v0.8.0 與 \`npm run build\` 與 sample.md 與 docs/folder')` 為 `[]`。其中 `sample.md` 正是本單要辨識的「只寫檔名＋副檔名」。`splitFileRefs` 是純函式、不查存在，新規則下 `sample.md` 會回成 `kind: 'ref'` 的候選（存在與否由 `useInboxFileRefs` 決定），這一個斷言必然失敗。memory_overrides 同時寫「T0930 測試斷言全部不改」。
+- **選項**：
+  - A：只改這一行斷言——把 `sample.md` 從「不辨識」清單移到新測試（斷言它是候選 `{ kind: 'path', path: 'sample.md' }`）；同一行的 `v0.8.0`、`npm run build`、`docs/folder` 照舊斷言 `[]`；其他 T0930 / T0934 斷言一律不動。
+  - B：`splitFileRefs(text, { bareNames?: boolean })`，預設關（T0930 行為與斷言逐字不變），三個清單、💬 卡片與 `itemFileRefs` 一律帶 `true`。
+  - C：新增 `TextPart` 種類（例 `kind: 'name'`）專給檔名候選，`InboxRefText` / `itemFileRefs` 另外處理；舊測試的 `refs()` 只篩 `'ref'`，斷言自然維持。
+  - 其他。
+- **建議**：A。該斷言測的正是本單要移除的限制（T0930〈已知限制〉「只寫檔名不連結」），B / C 只是為了讓舊斷言通過而多一個預設值永遠不用的開關或第二種 part，徒增維護面。
+- **影響**：決定 `splitFileRefs` 的介面與測試寫法；不影響畫面行為（三案的產品行為相同）。
+- **是否阻擋後續**：阻擋實作與測試。
