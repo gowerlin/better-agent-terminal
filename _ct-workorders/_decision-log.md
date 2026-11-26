@@ -10,6 +10,7 @@
 
 | ID | 日期 | 標題 | 相關工單 |
 |----|------|------|---------|
+| D371 | 2026-11-26 | T0931 收單（DONE，`bfc83d1b`）；判準 1 不成立（`main` 已含 T0929 產品檔）→ 合併工單 T0932（模式 ①）；T0930 派工 | T0930 / T0931 / T0932 |
 | D370 | 2026-11-26 | U-15：A → T0929 經 `ct-merge/T0929` ff 進 `main`；之後派 T0930 | T0929 / T0930 |
 | D369 | 2026-11-26 | T0929 收單（DONE，`36555622`）、模式 ① 合併到 `ct-merge/T0929` `50cfbff3`；斷點 E → U-15 | T0929 |
 | D368 | 2026-11-26 | 待辦分頁三項改善一批開單：T0929 項目版面、T0930 參考檔案可點（`openFileInFilesTab`，等 T0929 合併後派）、BUG-225 💬 卡片摘要「```」→ T0931；目標 `0.8.0-pre.5` | T0929 / T0930 / T0931 |
@@ -488,6 +489,15 @@
   4. PLAN-001 保持延後（🟢 Low，等 plugin 1.0 穩定）
 - **Success criteria**（EXP→CONCLUDED）：npm install 無錯 / 所有 native modules rebuild 成功 / dev+build:dir 可跑 / 手動 smoke test 8 項通過
 - **最大風險**：`whisper-node-addon@1.0.2` 對 Electron 41（Node 24）的 NODE_MODULE_VERSION 相容性未知，允許 Worker 遇此決策點主動問塔台
+
+---
+
+### D371 2026-11-26 20:15 — T0931 收單、派合併工單 T0932；T0930 派工
+
+- **收單**：T0931 DONE（session `730ffa23`）。產品 commit `bfc83d1b`（`ct/T0931`，base `a26ceaac`）3 檔：`towerCardPreview` 追蹤程式碼區塊，略過圍欄、分隔線、表格分隔列，標題去 `#`、清單 / 引用記號保留；區塊外沒字才取區塊內第一行；全是結構行回原第一行。新測試 7 項（修正前 5 失敗）；test:unit 9053 passed / 498 files、typecheck 0、vite build。範圍外 0；已知小限制（`- |` 行、縮排式程式碼區塊）P3 不處理。`--close-worker --worktree keep` exit 0；session 快照已寫。
+- **合併**：`main` 自 base 起併入 T0929 產品檔（判準 1 不成立）；`--worktree-status` conflicts []、`git merge-tree` exit 0 → 派合併工單 T0932（模式 ① `mechanical`，base `78f4ecf6`），驗收在 merge commit 重跑。BUG-225 合併進 `main` 後改 FIXED。
+- **T0930**：T0929 已進 `main`，20:14 派工（`ct/T0930` base `78f4ecf6`，`started:` 20:14:59）。
+- **相關**：T0930 / T0931 / T0932 / BUG-225
 
 ---
 
