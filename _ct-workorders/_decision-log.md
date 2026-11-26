@@ -10,6 +10,9 @@
 
 | ID | 日期 | 標題 | 相關工單 |
 |----|------|------|---------|
+| D376 | 2026-11-26 | U-17：A → T0930 經 `ct-merge/T0933` ff 進 `main`；待辦分頁三項改善（T0929 / T0930 / T0931）全進 `main` | T0930 / T0933 |
+| D375 | 2026-11-26 | T0933 收單（合併 `83a74de2`，test:unit 9091 全綠）；斷點 E → U-17 | T0930 / T0933 |
+| D374 | 2026-11-26 | T0930 收單（DONE，`a9254f55`）；判準 1 不成立（`main` 已含 T0931）→ 合併工單 T0933（模式 ①） | T0930 / T0933 |
 | D373 | 2026-11-26 | U-16：A → T0931（BUG-225）經 `ct-merge/T0932` ff 進 `main`；BUG-225 → FIXED | T0931 / T0932 / BUG-225 |
 | D372 | 2026-11-26 | T0932 收單（合併 `f317755c`，test:unit 9064 全綠）；斷點 E → U-16 | T0931 / T0932 |
 | D371 | 2026-11-26 | T0931 收單（DONE，`bfc83d1b`）；判準 1 不成立（`main` 已含 T0929 產品檔）→ 合併工單 T0932（模式 ①）；T0930 派工 | T0930 / T0931 / T0932 |
@@ -491,6 +494,32 @@
   4. PLAN-001 保持延後（🟢 Low，等 plugin 1.0 穩定）
 - **Success criteria**（EXP→CONCLUDED）：npm install 無錯 / 所有 native modules rebuild 成功 / dev+build:dir 可跑 / 手動 smoke test 8 項通過
 - **最大風險**：`whisper-node-addon@1.0.2` 對 Electron 41（Node 24）的 NODE_MODULE_VERSION 相容性未知，允許 Worker 遇此決策點主動問塔台
+
+---
+
+### D376 2026-11-26 20:31 — `main` ff 含 T0930（U-17），三項改善到齊
+
+- **使用者裁示**：U-17：A（原生選單）。
+- **合併**：整合分支 `ct-merge/T0933` 再 `--no-ff` 併入 `main` 的記帳 commit（只有 `_ct-workorders/**`）後 `--ff-only`；整合 worktree `switch --detach`；`ct/T0930` worktree 移除（不加 `--force`）；分支 `ct/T0929`、`ct-merge/T0929`、`ct/T0930`、`ct/T0931`、`ct-merge/T0932`、`ct-merge/T0933` 保留到使用者同意刪除。
+- **狀態**：D368 一批三項（T0929 / T0930 / T0931）全進 `main`；下一步 `0.8.0-pre.5`（push、觸發 workflow 需使用者授權）。
+- **相關**：T0929 / T0930 / T0931 / T0933 / BUG-225
+
+---
+
+### D375 2026-11-26 20:31 — T0933 收單（U-17 待決）
+
+- **收單**：T0933 DONE（session `e8fad4eb`），模式 ① 無衝突。`ct-merge/T0933` merge `83a74de2`（parent1 `a267cb3c` = `base_main_sha`、parent2 `a9254f55` = `ct/T0930`，SHA 比對 ①–③ PASS）；樹比對 10 檔與預期一致、範圍外 0；`tower-inbox.md` T0929 / T0930 / T0931 三處都在；在 merge commit 驗收：typecheck 0、vite build、test:unit 9091 passed / 501 files。`--close-worker T0933` exit 0；session 快照已寫。
+- **合併**：`main` 自 base 起只多 `_ct-workorders/**`（第 5 步）。非 yolo 斷點 E → U-17。
+- **相關**：T0930 / T0933
+
+---
+
+### D374 2026-11-26 20:27 — T0930 收單、派合併工單 T0933
+
+- **收單**：T0930 DONE（session `19971aaa`）。產品 commit `a9254f55`（`ct/T0930`，base `78f4ecf6`）10 檔：唯一實作 `src/lib/inbox-file-refs.ts`（辨識工單 / BUG / PLAN / EXP / `D###` 編號與含 `/` `\` 且有副檔名的路徑；相對路徑試工作區根目錄、`_ct-workorders/`；URL、UNC、`~`、`..`、工作區外不連結）、`useInboxFileRefs`（唯讀 `fs:stat` / `fs:readdir`，上限 40、不輪詢）、`InboxRefText` / `InboxRefTag`（`<button>`，`openFileInFilesTab`）、`InboxPanel.tsx` 三處 prop（Q-1 塔台答 A，BAT 通道）、CSS、docs 新節、CLAUDE.md 一點（95,355 字元）。新測試 27 項；test:unit 9079 passed / 501 files、typecheck 0、vite build。隔離實例點擊未跑 → 〈待實機〉6 項（含遠端、detached），發版後列入待驗收。已知限制：存在檢查在參照集合不變時沿用、`D###` 不定位、單一檔名（無 `/`）不連結。`--close-worker --worktree keep` exit 0；session 快照已寫。
+- **合併**：`main` 自 base 起併入 T0931 產品檔（判準 1 不成立）；conflicts []、`git merge-tree` exit 0 → 派合併工單 T0933（模式 ①，base `a267cb3c`）。
+- **後續候選（未開單）**：💬 卡片沿用 `InboxRefText` 加連結；`useInboxFileRefs` 跟 `_ct-workorders/` 的 `fs:changed` 重查。
+- **相關**：T0930 / T0933
 
 ---
 
