@@ -31,12 +31,6 @@ user_actions:
     kind: "manual"
     command: "_ct-workorders/_reply-2026-11-27-nofile-sample.md"
     created_at: "2026-11-27T12:42:17+08:00"
-  - id: "A-11"
-    title: "【驗測範例 E6】真的指令含路徑：路徑可點，「複製指令」複製整行"
-    ref: "BUG-226"
-    kind: "run"
-    command: "pwsh -NoProfile -File e2e/manual/nsis-reinstall-acceptance.ps1 -DryRun"
-    created_at: "2026-11-27T12:42:17+08:00"
 todo:
   - "🧪 驗測範例（D400，驗完移除，不是真正待辦）：U-24 / U-25 / U-26、A-9 / A-10 / A-11；`inbox_features` 暫時加 `multi` 供 BAT 多選畫面測試（本塔台 CT 6.2.0，`U-n：A、C` 由塔台手動判讀），驗完移除"
   - "🚀 `v0.8.0-pre.8` 已發佈（Pre-Release `45937322938`，`6409632d`，D399）：T0936（BUG-226）/ T0937 / T0938；待驗收 A-8；多選待與 CT 6.3.0-pre.1 雙方實機驗收（CT 範例狀態檔見 T0938 收單補記）；預覽版號只剩 pre.9"
