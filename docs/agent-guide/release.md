@@ -20,6 +20,30 @@ gh workflow run pre-release.yml -R gowerlin/better-agent-terminal -f version=X.Y
 - 只 build、不發布（T0783 / D223）：`desktop-build.yml`（`workflow_dispatch` only，輸入 `ref` / `version`，預設 `0.0.0-exp.<run number>`）在任一分支 / commit 打三平台安裝檔，只上傳 workflow artifact（7 天）。🔴 **不是發版線**：不建 tag、GitHub Release、`server-bundle-v*`，不部署 Pages，不動 Homebrew / Chocolatey，`permissions: contents: read`；版號不得用 `X.Y.Z-pre.N`。試做分支用它，不要拿 `pre-release.yml` 試做。細節見 [packaging-release-checks.md](packaging-release-checks.md)「只 build、不發布的桌面 workflow」。
 - 🔴 **`-f version=` 不可留空**：留空會走自動遞增 —— `git tag -l 'v*' --sort=-v:refname | head -n1` → patch +1 → 找未使用的 `-pre.N`（`pre-release.yml:34-55`）。本 repo 有 **257 個 `v*` tag**，橫跨 `v0.x`（本 fork 主線）/ `v2.2.x` / `v4.0.x` 三條版本線，`-v:refname` 排序第一名是 **`v4.0.3-pre.1`**，留空即產出 `4.0.4-pre.1`，與主線完全脫節。判版方式：取**本 fork 主線（`v0.x`）**最新 tag 遞增，不要信排序第一名。
 
+# 正式版 workflow 與 pre-release 的差異、Apple secret 有無的行為（T0945）
+
+`release.yml` 的建置步驟與 `pre-release.yml` 相同，只有下列地方刻意不同；其餘一律照 `pre-release.yml`，由 `scripts/__tests__/release-workflow-alignment.test.mjs` 逐 step 比對守住（改其中一個 workflow 的 build / release 步驟時兩邊一起改，否則 `test:unit` 失敗）：
+
+| 項目 | `release.yml` | `pre-release.yml` |
+|---|---|---|
+| 觸發 | push `v*` tag | `workflow_dispatch`（`version` 輸入） |
+| 版號 | 從 `GITHUB_REF` 去掉 `refs/tags/`、`v`（`v0.8.0` → `0.8.0`）；`build-version.js` 的 `VERSION` 用 `needs.prepare.outputs.tag` | 輸入值或自動遞增；`VERSION` 用 `v${{ needs.prepare.outputs.version }}`（兩者值相同） |
+| GitHub Release step | `Create Release`：tag 是推上來的那個，名稱預設為 tag，`prerelease: contains(github.ref, '-pre')` | `Create Pre-Release`：由 step 以 `tag_name` / `target_commitish` 建 tag，名稱 `<tag> (Pre-Release)`，恆 `prerelease: true` |
+| Homebrew tap / Chocolatey | opt-in（見下節） | 沒有 |
+| macOS 簽章 | 見下表 | 沒有（ad-hoc 簽章、未公證） |
+
+macOS 簽章依 repo secret `APPLE_CERTIFICATE_P12` 是否存在（build job 的 `env.HAS_APPLE_CERT`，只記 `true` / `false`、不含值；step 的 `if:` 不能直接讀 `secrets`）：
+
+| | 沒有 `APPLE_CERTIFICATE_P12`（本 fork 目前） | 有 |
+|---|---|---|
+| `Import Code Signing Certificate`（keychain 匯入，另用 `APPLE_CERTIFICATE_PASSWORD`） | 略過 | 執行 |
+| `Verify Apple notarization credentials` | 略過 | 執行（`notarytool history`，失敗不擋） |
+| 打包 | `Package for macOS`：與 `pre-release.yml` 同一個 step，不帶任何 `APPLE_*` env → ad-hoc 簽章、electron-builder 跳過公證 | `Package for macOS (signed, notarized)`：帶 `APPLE_ID` / `APPLE_APP_SPECIFIC_PASSWORD` / `APPLE_TEAM_ID`，以 `package.json` `build.mac.identity` 簽章並公證（T0945 前的行為） |
+
+- T0945 前 keychain 匯入沒有條件：沒有 secret 時解碼出空檔、`security import` 失敗 → mac build 失敗 → `release` job 不跑（tag 已推、沒有 GitHub Release、沒有 `server-bundle-v<版號>`）。本 fork 在 `v0.8.0` 前從未跑過 `release.yml`。
+- T0945 同時補上 `pre-release.yml` 已有的 `Windows cleanup (avoid EPERM locks)` 與 `Verify required native modules present`，並把三個 upload step、`Display downloaded files` 的名稱對齊、移除 `release` job 內沒人用的 `Extract version from tag`（`choco` job 自己那份保留）。
+- 發正式版時看的 step：mac job 應顯示兩個簽章 step 與 `Package for macOS (signed, notarized)` 為 skipped、`Package for macOS` 執行；Windows job 有 `Windows cleanup` 與 `Verify required native modules present`；`release` job 的 `Create Release`（`prerelease` 為 false）與 `Create server bundle release` 都成功；`Update Homebrew tap` 與 `choco` job 為 skipped。
+
 # prerelease 標記與下游發佈
 
 | 行為 | `release.yml`（正式版線） | `pre-release.yml`（預覽版線） |

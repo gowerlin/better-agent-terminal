@@ -147,6 +147,12 @@ jobs:
   # wait for server-bundle-manifest; release does (it publishes server-bundle-v<version>).
   build:
     needs: [prepare, typecheck, tests]
+    # T0945: steps cannot read `secrets` in `if:`, so the job records whether the Apple
+    # signing certificate secret exists ('true' / 'false', never the value). Without it the
+    # macOS steps are exactly pre-release.yml's (no keychain import, no notarization check,
+    # no APPLE_* env: ad-hoc signed, not notarized); with it they sign and notarize as before.
+    env:
+      HAS_APPLE_CERT: ${{ secrets.APPLE_CERTIFICATE_P12 != '' }}
     strategy:
       matrix:
         include:
@@ -156,7 +162,6 @@ jobs:
             platform: mac
           - os: ubuntu-24.04
             platform: linux
-
     runs-on: ${{ matrix.os }}
 
     steps:
@@ -168,6 +173,13 @@ jobs:
         with:
           node-version: '24'
           cache: 'npm'
+
+      - name: Windows cleanup (avoid EPERM locks)
+        if: matrix.platform == 'win'
+        shell: pwsh
+        run: |
+          if (Test-Path node_modules) { Remove-Item node_modules -Recurse -Force }
+          npm cache verify
 
       - name: Install dependencies
         run: npm ci
@@ -181,6 +193,9 @@ jobs:
       - name: Build Windows stdio-inheritance addon (BUG-213)
         if: matrix.platform == 'win'
         run: npm run build:native-win
+
+      - name: Verify required native modules present
+        run: node scripts/verify-native-modules.js
 
       - name: Update version and build
         env:
@@ -200,7 +215,7 @@ jobs:
         run: node scripts/verify-packaged-native.js --platform win --out release --arch x64
 
       - name: Import Code Signing Certificate
-        if: matrix.platform == 'mac'
+        if: matrix.platform == 'mac' && env.HAS_APPLE_CERT == 'true'
         env:
           CERTIFICATE_P12: ${{ secrets.APPLE_CERTIFICATE_P12 }}
           CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
@@ -214,7 +229,7 @@ jobs:
           rm certificate.p12
 
       - name: Verify Apple notarization credentials
-        if: matrix.platform == 'mac'
+        if: matrix.platform == 'mac' && env.HAS_APPLE_CERT == 'true'
         env:
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
@@ -223,12 +238,17 @@ jobs:
           echo "Testing notarytool credentials..."
           xcrun notarytool history --apple-id "$APPLE_ID" --password "$APPLE_APP_SPECIFIC_PASSWORD" --team-id "$APPLE_TEAM_ID" 2>&1 || true
 
-      - name: Package for macOS
-        if: matrix.platform == 'mac'
+      - name: Package for macOS (signed, notarized)
+        if: matrix.platform == 'mac' && env.HAS_APPLE_CERT == 'true'
         env:
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: npx electron-builder --mac --publish never
+
+      # T0945: no signing secret: same step as pre-release.yml (ad-hoc signed, not notarized).
+      - name: Package for macOS
+        if: matrix.platform == 'mac' && env.HAS_APPLE_CERT != 'true'
         run: npx electron-builder --mac --publish never
 
       # BUG-116 / T0470 + BUG-117 / BUG-118 / T0475: verify-native-modules.js only sees
@@ -263,7 +283,7 @@ jobs:
         continue-on-error: true
         run: node scripts/report-artifact-sizes.mjs --out release
 
-      - name: Upload Windows artifact
+      - name: Upload Windows artifacts
         if: matrix.platform == 'win'
         uses: actions/upload-artifact@v7
         with:
@@ -272,14 +292,14 @@ jobs:
             release/*.zip
             release/*.exe
 
-      - name: Upload macOS artifact
+      - name: Upload macOS artifacts
         if: matrix.platform == 'mac'
         uses: actions/upload-artifact@v7
         with:
           name: release-mac
           path: release/*.dmg
 
-      - name: Upload Linux artifact
+      - name: Upload Linux artifacts
         if: matrix.platform == 'linux'
         uses: actions/upload-artifact@v7
         with:
@@ -298,12 +318,8 @@ jobs:
         with:
           path: artifacts
 
-      - name: Display structure of downloaded files
+      - name: Display downloaded files
         run: ls -R artifacts
-
-      - name: Extract version from tag
-        id: version
-        run: echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
 
       - name: Create Release
         uses: softprops/action-gh-release@v3
