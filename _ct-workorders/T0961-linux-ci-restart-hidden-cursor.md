@@ -4,12 +4,13 @@ schema_kind: workorder
 id: T0961
 title: "A-24 自動化：在 `linux-acceptance` 加 Linux spec 驗 BUG-233（⏻ 後游標），對 `0.8.1-pre.1`（預期 FAIL）與 `0.8.1-pre.2`（預期 PASS）各跑一次"
 type: verification
-status: PENDING
+status: IN_PROGRESS
 repo: better-agent-terminal
 priority: P3
 sizing: S
 created_at: "2026-11-27T23:48:46+08:00"
-updated_at: "2026-11-27T23:48:46+08:00"
+started_at: "2026-11-27T23:49:42+08:00"
+updated_at: "2026-11-27T23:49:42+08:00"
 target_version: "v0.8.1-pre.2（交付版驗收）；spec 之後隨 `main` 保留做回歸"
 depends_on: []
 related:
