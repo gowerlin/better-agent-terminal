@@ -10,6 +10,7 @@
 
 | ID | 日期 | 標題 | 相關工單 |
 |----|------|------|---------|
+| D435 | 2026-11-27 | U-39：A → BUG-230 FIXING；開並派 T0949（同一 PTY 接回時還原塔台宣告，worktree） | BUG-230 / T0949 |
 | D434 | 2026-11-27 | A-18 回報：BAT 重開接回後塔台宣告消失 → 開 BUG-230（medium，OPEN）、A-18 移除、發 U-39 | BUG-230 / T0944 |
 | D433 | 2026-11-27 | T0947 收單（DONE，`6e58f168`）；判準 1 不成立 → 派合併工單 T0948 | T0947 / T0948 / BUG-229 |
 | D432 | 2026-11-27 | U-38：A → T0946 ff 進 `main` `773fe35c`；BUG-228 FIXED（待發版實機驗收）；T0946 worktree 移除 | T0946 / BUG-228 |
@@ -552,6 +553,15 @@
   4. PLAN-001 保持延後（🟢 Low，等 plugin 1.0 穩定）
 - **Success criteria**（EXP→CONCLUDED）：npm install 無錯 / 所有 native modules rebuild 成功 / dev+build:dir 可跑 / 手動 smoke test 8 項通過
 - **最大風險**：`whisper-node-addon@1.0.2` 對 Electron 41（Node 24）的 NODE_MODULE_VERSION 相容性未知，允許 Worker 遇此決策點主動問塔台
+
+---
+
+### D435 2026-11-27 21:05 — U-39：A → BUG-230 FIXING、T0949
+
+- **使用者**：`U-39：A`（現在派，併進這一批一起發版）。U-39 移除。
+- **BUG-230**：OPEN → FIXING。
+- **T0949**：worktree、yolo。同一個 PTY 程序接回時，還原最後一次 `--set-role` 宣告（角色、模式、契約）並送 `role-changed`；⏻ / 新 PTY / 重新開始 / recovery / 關分頁照舊清除；宣告只來自 BAT 自己存的資料；`--set-role` 契約逐字不變；hooks 狀態不還原；headless 不變。存放位置由 Worker 查證後選。
+- **相關**：BUG-230 / T0949 / D434
 
 ---
 

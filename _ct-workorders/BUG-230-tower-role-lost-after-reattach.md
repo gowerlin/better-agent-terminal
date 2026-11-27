@@ -3,7 +3,7 @@ schema_version: 1
 schema_kind: bug
 id: BUG-230
 title: "BAT 重開、終端接回後，塔台分頁的 `--set-role` 宣告（角色、模式、契約 v2）消失，待辦分頁找不到塔台、回答送不出去，要使用者自己再執行 `/control-tower`"
-status: OPEN
+status: FIXING
 severity: medium
 reproducibility: "使用者實機一次（A-18，2026-11-27 21:03）；推測必定：BAT 重開後以保留的 Terminal Server／PTY holder 接回塔台分頁"
 created_at: "2026-11-27T21:04:06+08:00"
@@ -22,7 +22,7 @@ links:
 |------|------|
 | 嚴重度 | 🟡 medium（契約 v2 的待辦回答、通知保護、💬 卡片等依分頁宣告的功能在接回後全部停用，使用者看不出原因） |
 | 可重現 | 使用者實機一次；推測必定 |
-| **狀態** | 📂 OPEN（D434） |
+| **狀態** | ⏳ FIXING（T0949，D435） |
 | 回報者 | 使用者 A-18 實機驗收（截圖） |
 | 影響版本 | `v0.8.0`（宣告本來就不持久化；PLAN-065 讓 PTY 跨 BAT 重開存活後才變得明顯） |
 
@@ -48,3 +48,4 @@ links:
 ## 修正紀錄
 
 - 2026-11-27 21:04 開單（OPEN，D434）
+- 2026-11-27 21:05 → FIXING（T0949，U-39：A，D435）
