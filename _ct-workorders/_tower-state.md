@@ -3,7 +3,7 @@ schema_kind: tower-state
 summary_version: 1
 bat_contract: 2
 ct_version: "6.2.0"
-inbox_features: ["recommended", "dismiss", "multi"]
+inbox_features: ["recommended", "dismiss"]
 updated_at: "2026-11-27T12:42:17+0800"
 session: "2026-11-27 11:10 第一百三十七 session（CT v6.2.0）"
 next_ids:
@@ -19,14 +19,7 @@ user_actions:
     ref: "BUG-226"
     kind: "verify"
     created_at: "2026-11-27T12:24:02+08:00"
-  - id: "A-10"
-    title: "【驗測範例 E5】指令欄是不存在的檔案：應為一般文字＋「複製指令」"
-    ref: "BUG-226"
-    kind: "manual"
-    command: "_ct-workorders/_reply-2026-11-27-nofile-sample.md"
-    created_at: "2026-11-27T12:42:17+08:00"
 todo:
-  - "🧪 驗測範例（D400，驗完移除，不是真正待辦）：U-24 / U-25 / U-26、A-9 / A-10 / A-11；`inbox_features` 暫時加 `multi` 供 BAT 多選畫面測試（本塔台 CT 6.2.0，`U-n：A、C` 由塔台手動判讀），驗完移除"
   - "🚀 `v0.8.0-pre.8` 已發佈（Pre-Release `45937322938`，`6409632d`，D399）：T0936（BUG-226）/ T0937 / T0938；待驗收 A-8；多選待與 CT 6.3.0-pre.1 雙方實機驗收（CT 範例狀態檔見 T0938 收單補記）；預覽版號只剩 pre.9"
   - "🚀 `v0.8.0-pre.7` 已發佈並驗收（D387 / D389）：T0935 只寫檔名的參考檔案連結、T0934 💬 卡片連結（A-6 完成）；下一版 `0.8.0-pre.8`"
   - "`v0.8.0-pre.5` 已驗收（D378）：T0929 / T0930 / BUG-225 CLOSED"
