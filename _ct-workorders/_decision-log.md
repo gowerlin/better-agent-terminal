@@ -546,6 +546,7 @@
 - **發佈**：push `c421352d..91309713`；`pre-release.yml -f version=0.8.0-pre.9` run `45960516845` 全綠（tests / typecheck / 3 平台 build / server-bundle 3 + manifest / release），2026-11-27 08:06:35Z 發佈；4 個安裝檔大小與 pre.8 相當；`server-bundle-v0.8.0-pre.9` 已建。更版重點以 `gh release edit --notes-file` 寫入。
 - **文件**：CHANGELOG / release-note / README（「已送出」一行）＋ `package.json` 同步 `0.8.0-pre.9`。
 - **NSIS 重裝驗收**：本版不需要（T0940 改 `electron/main.ts` 接線與 notify-hold，未改安裝程式路徑）。
+- **網站**：文件 push `c5a142c7` → Pages run `45963459567` 全綠（build / deploy / link-check）；首頁版號 `0.8.0-pre.9`；link-check 1666 個連結、Errors 0。
 - **CT 6.3.0 正式版**（CT D923，`ct-v6.3.0` 16:00:31）：BAT README 對照表已是 `>= v6.3.0`，不用改。
 - **版號線**：`0.8.0-pre.N` 已到 pre.9（L：最多 pre.9），下一個預覽版要換版號線，先與使用者確認。
 - **待驗收**：A-12（T0942、BUG-227）。
