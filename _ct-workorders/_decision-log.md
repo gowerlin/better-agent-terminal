@@ -10,6 +10,8 @@
 
 | ID | 日期 | 標題 | 相關工單 |
 |----|------|------|---------|
+| D428 | 2026-11-27 | U-36：A → 開 BUG-228（medium，FIXING）；開並派 T0946（Git Bash 讓 `/control-tower` 原樣送到 claude，查證 helper 派工的 `/ct-exec`；不改 PTY env，worktree 隔離） | BUG-228 / T0946 / T0944 |
+| D427 | 2026-11-27 | A-17：完成（一般 Claude CLI 不帶指令）；A-15：完成，但塔台收到的第一則訊息是 `C:/Program Files/Git/control-tower`（Git Bash 改寫 `/control-tower`）→ 依 v6.1.1 規則移除 A-15、發 U-36 | T0944 |
 | D426 | 2026-11-27 | `v0.8.0` 驗收案例 A-15–A-18（T0944：以塔台開啟 Claude 自動帶入 `/control-tower`、⏻ 重啟、一般 Claude CLI 回歸、BAT 重開） | T0944 |
 | D425 | 2026-11-27 | `v0.8.0` 正式版發佈（`release.yml` 首次在本 fork 執行，全綠、Latest）；更版重點、CHANGELOG / release-note / README、package.json 0.8.0 | T0944 / T0945 |
 | D424 | 2026-11-27 | U-35：A → T0945 ff 進 main（`d294bae1`）、push、推 `v0.8.0` tag（`release.yml` 第一次在本 fork 執行） | T0945 / T0944 |
@@ -544,6 +546,26 @@
   4. PLAN-001 保持延後（🟢 Low，等 plugin 1.0 穩定）
 - **Success criteria**（EXP→CONCLUDED）：npm install 無錯 / 所有 native modules rebuild 成功 / dev+build:dir 可跑 / 手動 smoke test 8 項通過
 - **最大風險**：`whisper-node-addon@1.0.2` 對 Electron 41（Node 24）的 NODE_MODULE_VERSION 相容性未知，允許 Worker 遇此決策點主動問塔台
+
+---
+
+### D428 2026-11-27 20:42 — U-36：A → BUG-228、T0946
+
+- **使用者**：`U-36：A`（開 BUG 追查並修正，修好後再發一筆 A-n 重驗）。U-36 移除。
+- **BUG-228**：medium，直接 FIXING（不留 OPEN，R-G003 的「修好 → 部署驗證 → CLOSED」）。
+- **T0946**：worktree 隔離、yolo。先查證 MSYS 參數轉換再改；共用實作，只作用於該次 claude 啟動命令；🔴 不改 PTY env（全域 `MSYS_NO_PATHCONV` 會改變分頁裡所有指令）；pwsh / cmd / 非 Windows 逐字不變；一併查證 helper 派工 `/ct-exec` 是否同樣受影響。
+- **後續**：修好、發版後發新的 A-n 重驗 A-15；A-16 / A-18 照舊保留。
+- **相關**：BUG-228 / T0946 / T0944 / D427
+
+---
+
+### D427 2026-11-27 20:41 — A-15 / A-17 回報
+
+- **A-17：完成**：一般「Claude CLI」分頁不帶 `/control-tower`，回歸通過，移除。
+- **A-15：完成**，但塔台複查與回報不符：本 session（「以塔台開啟 Claude」開的分頁，`bat_whoami` `claudeSessionName` = `better-agent-terminal · Tower`）收到的第一則使用者訊息是 `C:/Program Files/Git/control-tower`，不是 `/control-tower`。`C:/Program Files/Git/` 是 Git Bash（MSYS）的根目錄，判斷是分頁 shell 為 Git Bash 時，MSYS 把以 `/` 開頭的參數當成 POSIX 路徑轉成 Windows 路徑後才交給 `claude.exe`（推測，待 Worker 確認）。claude 因此沒有執行 slash command，只是把它當一般文字；本次塔台能進入，是模型從路徑字尾猜出意圖、自己載入 skill。
+- **處置**：依 CT v6.1.1 規則（回報與實況不符）移除 A-15，發 U-36（`tower-question`：開 BUG 追查 / 只重驗 / 不處理）。A-16（⏻ 重啟）與 A-18 走同一段參數組裝，預期同樣受影響，保留待驗。
+- **未查**：helper 派工的 `/ct-exec`（同樣經 `quoteArgForShell`）在 Git Bash 分頁是否也被改寫；以前的 Worker 都正常，可能是派工落點的 shell 不同。
+- **相關**：T0944 / D421 / D426
 
 ---
 
