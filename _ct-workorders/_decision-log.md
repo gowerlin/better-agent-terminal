@@ -10,6 +10,7 @@
 
 | ID | 日期 | 標題 | 相關工單 |
 |----|------|------|---------|
+| D465 | 2026-11-27 | U-52：A → A-24 改以 Linux CI 自動化：開並派 T0961（授權 push `ct/T0961`、觸發 linux-acceptance 對 pre.1 / pre.2） | T0961 / BUG-233 |
 | D464 | 2026-11-27 | 開並派 T0960：`launch-command.test.ts` 過時的測試名稱改名（斷言不動） | T0960 / T0956 |
 | D463 | 2026-11-27 | U-50：A → BUG-232 CLOSED、BUG-233 維持 FIXED 發 A-24；U-51：A → T0959 驅動合併 `b9793204` | T0959 / BUG-232 / BUG-233 |
 | D462 | 2026-11-27 | T0959 收單（R0 / B233 / B232-login PASS，B232-install 未判定）；結案方式發 U-50、驅動合併發 U-51 | T0959 / BUG-232 / BUG-233 |
@@ -582,6 +583,15 @@
   4. PLAN-001 保持延後（🟢 Low，等 plugin 1.0 穩定）
 - **Success criteria**（EXP→CONCLUDED）：npm install 無錯 / 所有 native modules rebuild 成功 / dev+build:dir 可跑 / 手動 smoke test 8 項通過
 - **最大風險**：`whisper-node-addon@1.0.2` 對 Electron 41（Node 24）的 NODE_MODULE_VERSION 相容性未知，允許 Worker 遇此決策點主動問塔台
+
+---
+
+### D465 2026-11-27 23:48 — A-24 改以 Linux CI 自動化（T0961）
+
+- **使用者**：問 A-24 能否自動化 → 塔台說明 Windows 上 ConPTY 自己送 `?25h` 無法重現，提出 ① Linux CI（`linux-acceptance.yml` 加 `e2e/linux` spec）② 拋棄式 WSL distro ③ 維持手動 → `U-52：A`。
+- **T0961**（verification，worktree、yolo）：新增 `e2e/linux/t0961-restart-hidden-cursor.spec.ts`（shell 分頁 `?1049h ?25l` 後 ⏻，判 B1 游標可見 / B2 normal buffer / B3 `cursor shown` log / B4 對照），🔴 授權 push `ct/T0961`（只此分支）並對 `0.8.1-pre.1`（預期 B1 FAIL）與 `0.8.1-pre.2`（預期 PASS）各觸發 `linux-acceptance --ref ct/T0961`（每版合計最多 3 次），收單前刪遠端分支；不改產品 / workflow / 既有 spec。
+- **A-24**：移除，由 T0961 取代；BUG-233 依 T0961 結果結案。
+- **相關**：BUG-233 / T0957 / T0959 / D463
 
 ---
 
