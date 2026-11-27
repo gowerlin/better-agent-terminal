@@ -4,18 +4,27 @@ summary_version: 1
 bat_contract: 2
 ct_version: "6.2.0"
 inbox_features: ["recommended", "dismiss"]
-updated_at: "2026-11-27T14:40:38+0800"
+updated_at: "2026-11-27T14:48:16+0800"
 session: "2026-11-27 11:10 第一百三十七 session（CT v6.2.0）"
 next_ids:
   workorder: "T0942"
-  decision: "D410"
+  decision: "D411"
   bug: "BUG-228"
   plan: "PLAN-071"
-  user: "U-29"
+  user: "U-30"
   action: "A-12"
+awaiting_user:
+  - id: "U-29"
+    workorder: "T0941"
+    kind: "decision"
+    source: "tower-question"
+    summary: "14:35–14:36 你有沒有手動操作測試用 BAT 視窗（工作區 S5）？沒有的話要查「點側欄待辦時原生選單被送出」"
+    options: ["A 有，是我點的（推薦：時間與你回答 U-28 重疊）", "B 沒有，請開單查", "C 不確定，先記著"]
+    recommended: "A"
+    created_at: "2026-11-27T14:48:16+08:00"
 todo:
   - "✅ `v0.8.0-pre.8` 已驗收（A-8，D401）：BUG-226 CLOSED、T0937「其他」通過；熱區未結 BUG 0。PLAN-070 剩：多選勾選送出（`U-n：A、C`）與推薦預設勾選，待與 CT 6.3.0-pre.1 雙方實機驗收（CT 範例狀態檔見 T0938 收單補記）；預覽版號只剩 pre.9"
-  - "🔧 T0941 派工中（D407）：CT 6.3.0-pre.2 補跑（S5，BAT pre.8，1 個塔台 session），結果 `ct620-accept/results-rerun-630/`；收單後通知 CT 判定 → 全 PASS 則 CT 發 6.3.0 正式版（要給 CT 支援多選的 BAT 版號：`0.8.0-pre.8`），PLAN-070 可結案"
+  - "⏳ T0941 DONE（D410）：CT 6.3.0-pre.2 補跑 BAT 端 PASS；R-1-3（確認行在選單前）觀察仍 FAIL（CT 行為），已通知 CT 判定；PLAN-070 結案等 CT 判定。第一次執行被非驅動輸入打斷 → U-29 問使用者"
   - "✅ T0940 DONE、ff 進 `main`（U-28：A，D409；BUG-227 FIXED，待 `0.8.0-pre.9` 實機）；下一步：發 `0.8.0-pre.9`（此版號線最後一號，需使用者授權）"
   - "🚀 `v0.8.0-pre.7` 已發佈並驗收（D387 / D389）：T0935 只寫檔名的參考檔案連結、T0934 💬 卡片連結（A-6 完成）；下一版 `0.8.0-pre.8`"
   - "`v0.8.0-pre.5` 已驗收（D378）：T0929 / T0930 / BUG-225 CLOSED"

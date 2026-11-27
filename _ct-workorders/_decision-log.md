@@ -10,6 +10,7 @@
 
 | ID | 日期 | 標題 | 相關工單 |
 |----|------|------|---------|
+| D410 | 2026-11-27 | T0941 收單（DONE，無 commit、不需合併）：BAT 端 PASS；R-1-3 觀察仍 FAIL（CT 回覆在選單前沒有確認行）→ 通知 CT 判定；Q-1 塔台答 A；非驅動輸入打斷 → U-29 | T0941 / PLAN-070 |
 | D409 | 2026-11-27 | U-28：A → T0940 經 `ct-merge/T0940` ff 進 `main` | T0940 / BUG-227 |
 | D408 | 2026-11-27 | T0940 收單（DONE，`f00fb06e`；Q-1 答 B）、BUG-227 → FIXED；模式 ① 合併到 `ct-merge/T0940` `43272eb9`；斷點 E → U-28 | T0940 / BUG-227 |
 | D407 | 2026-11-27 | T0940 Q-1 塔台答 B（案 B 讀 PTY 輸出認調查列＋案 A 提示期間單鍵不改草稿，多字元 / 貼上仍記草稿；核准 3 檔）；CT 6.3.0-pre.2（CT D914）→ 開並派 T0941 補跑（S5） | T0940 / T0941 / PLAN-070 |
@@ -527,6 +528,15 @@
   4. PLAN-001 保持延後（🟢 Low，等 plugin 1.0 穩定）
 - **Success criteria**（EXP→CONCLUDED）：npm install 無錯 / 所有 native modules rebuild 成功 / dev+build:dir 可跑 / 手動 smoke test 8 項通過
 - **最大風險**：`whisper-node-addon@1.0.2` 對 Electron 41（Node 24）的 NODE_MODULE_VERSION 相容性未知，允許 Worker 遇此決策點主動問塔台
+
+---
+
+### D410 2026-11-27 14:48 — T0941 收單（CT 6.3.0-pre.2 補跑）
+
+- **Worker 回報**：前置條件全 PASS、`install-632` 成功、跑完不換回；BAT 端 R-1-1 / R-1-2 / R-1-6 / R-1-7 PASS。R-1-3 觀察 FAIL：步驟 4 的回覆在開 U-5 選單前沒有助理文字（只有 thinking summary），U-3 / U-4 逐筆確認行沒有出現——CT 行為，BAT 顯示正常。`ct/T0941` 沒有 commit，不需合併；Worker 分頁 `--close-worker --worktree keep` exit 0。
+- **Q-1**（14:35–14:36 非驅動輸入：U-2 原生選單被勾滿送出、待辦分頁送 `U-1：C、A、B`）：塔台答 A，同 session 重做步驟 1，前兩筆不列入判定；重做後未再發生。
+- **後續**：已通知 CT 判定（含 R-1-3 觀察）；U-29 問使用者當時是否手動操作測試視窗——若否，「點右側欄待辦按鈕時原生選單被送出」需另查。
+- **相關**：T0941 / PLAN-070
 
 ---
 

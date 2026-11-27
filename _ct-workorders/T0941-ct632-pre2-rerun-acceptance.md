@@ -155,3 +155,7 @@ CT 條文（`BMad-Control-Tower/BMad-Control-Tower-v6.3.0-pre.2/skills/control-t
 
 ### 回報時間
 - 2026-11-27T14:47:10+08:00
+
+### 塔台收單補記（2026-11-27 14:48）
+
+- `ct/T0941` 無 commit（head = base），不需合併；Worker 分頁 `--close-worker --worktree keep` exit 0（D410）。已通知 CT 判定（含 R-1-3 觀察）。第一次執行的非驅動輸入 → U-29 問使用者是否手動操作。
