@@ -10,6 +10,7 @@
 
 | ID | 日期 | 標題 | 相關工單 |
 |----|------|------|---------|
+| D394 | 2026-11-27 | CT 定稿多選契約（CT D906，6.3.0，M1–M5）→ 開 T0938 BAT 多選實作（依賴 T0937，合併後派工） | T0938 / PLAN-070 |
 | D393 | 2026-11-27 | 待你決定統一有「其他」（BAT T0937）、放棄附的文字只當原因（CT 改）、多選現在就做（契約 v2 新增 `multi`，提案給 CT）；開 PLAN-070 | T0937 / PLAN-070 |
 | D392 | 2026-11-27 | U-21：A → T0936 經 `ct-merge/T0936` ff 進 `main`（先併入 `main` 的塔台記帳 commit） | T0936 |
 | D391 | 2026-11-27 | T0936 收單（DONE，`31dd9768`；Worker 寫 FIXED 改 DONE）、BUG-226 → FIXED；模式 ① 合併到 `ct-merge/T0936` `1c0a4891`；斷點 E → U-21 | T0936 / BUG-226 |
@@ -511,6 +512,14 @@
   4. PLAN-001 保持延後（🟢 Low，等 plugin 1.0 穩定）
 - **Success criteria**（EXP→CONCLUDED）：npm install 無錯 / 所有 native modules rebuild 成功 / dev+build:dir 可跑 / 手動 smoke test 8 項通過
 - **最大風險**：`whisper-node-addon@1.0.2` 對 Electron 41（Node 24）的 NODE_MODULE_VERSION 相容性未知，允許 Worker 遇此決策點主動問塔台
+
+---
+
+### D394 2026-11-27 11:32 — CT 多選契約定稿，開 T0938
+
+- **CT 回覆**（跨 session，CT D906，CT 使用者 `U-6：A`）：放棄附的文字只當原因照改；多選核定，修改 M1（options ≥ 2）、M2（只用在 tower-question / worker-question）、M3（去重）、M4（多推薦只限多選題）、M5（原生選單其他＋勾選）；CT 6.3.0，先 6.3.0-pre.1；`bat_contract` 維持 2。
+- **處置**：開 T0938（BAT 多選，worktree，定稿表抄入工單）；與 T0937 同改 `InboxLists.tsx`，`depends_on: T0937`，T0937 合併後再派。BAT 端負責 M1 / M3 / M4，M2 / M5 為 CT 端行為。
+- **相關**：PLAN-070 / T0938 / T0937
 
 ---
 

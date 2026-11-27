@@ -7,15 +7,15 @@ inbox_features: ["recommended", "dismiss"]
 updated_at: "2026-11-27T11:25:19+0800"
 session: "2026-11-27 11:10 第一百三十七 session（CT v6.2.0）"
 next_ids:
-  workorder: "T0938"
-  decision: "D394"
+  workorder: "T0939"
+  decision: "D395"
   bug: "BUG-227"
   plan: "PLAN-071"
   user: "U-22"
   action: "A-8"
 todo:
   - "🔧 T0937 派工中（PLAN-070 子項 1：待你決定「其他」自由回答、放棄備註改「原因」，D393；worktree `ct/T0937`，目標 `0.8.0-pre.8`）"
-  - "⏳ CT 回覆草案（CT D905，BMad-Guide `140e9e5`）：放棄只記原因照改、多選核定附 M1–M5（options ≥ 2、只用在 tower-question / worker-question、去重、多推薦、選單其他＋勾選規則），CT 6.3.0（先 6.3.0-pre.1）；等 CT 使用者 U-6 定稿通知後開 BAT 多選實作單（PLAN-070 子項 4）。T0937 Q-1 塔台答 A（`--answer` exit 0）"
+  - "📝 T0938 已開（BAT 多選，CT 定稿 D906 / M1–M5，D394）：`depends_on: T0937`，T0937 合併後派工；CT 端 6.3.0-pre.1（CT T0573）收單後會通知對照檔位置與範例狀態檔，之後雙方實機驗收。T0937 Q-1 塔台答 A"
   - "✅ T0936 DONE、ff 進 `main`（U-21：A，D392；BUG-226 FIXED，待 `0.8.0-pre.8` 實機驗收）；下一步：發 `0.8.0-pre.8`（未 push）"
   - "🚀 `v0.8.0-pre.7` 已發佈並驗收（D387 / D389）：T0935 只寫檔名的參考檔案連結、T0934 💬 卡片連結（A-6 完成）；下一版 `0.8.0-pre.8`"
   - "`v0.8.0-pre.5` 已驗收（D378）：T0929 / T0930 / BUG-225 CLOSED"
