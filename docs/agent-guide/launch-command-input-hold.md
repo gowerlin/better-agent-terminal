@@ -1,4 +1,4 @@
-# 啟動命令寫入前的輸入：renderer 的 agent 分頁（T0951 / BUG-231）
+# 啟動命令寫入前的輸入：renderer 的 agent 分頁、登入導引分頁、遠端工具安裝（T0951 / BUG-231、T0956 / BUG-232）
 
 > CLAUDE.md「BAT MCP shim（PLAN-047 M1 / T0584）」節的派工那一點指到這裡。helper 派工的同類保護（BUG-151 / T0598）見 [bat-mcp-shim.md](bat-mcp-shim.md) 的 BUG-151 段，本單沒有改它。
 
@@ -19,7 +19,7 @@ T0951 前都在 `src/components/WorkspaceView.tsx`，形式一律是 `pty:create
 | 其他 agent 分頁的 ⏻（`handleRestart`） | `restartOrCreatePty` | 1 處 |
 | 恢復被中斷的 codex 分頁（`resumeCodexCliTab`） | `restartOrCreatePty` | 1 處 |
 
-不在範圍（照舊）：「未登入」導引開的登入分頁（`openClaudeLoginTerminal`，只打字不送出）、遠端工具安裝（`useRemoteToolInstall`）、ct-exec / ct-done 按鈕（`terminal:create-with-command`，主行程寫入，已有 BUG-151 的保護）、Claude Agent 面板（沒有 shell）、一般 shell 分頁（沒有啟動命令）。
+T0951 未納入、T0956 補上的兩條路徑見下節「登入導引分頁與遠端工具安裝」。不在範圍（照舊）：ct-exec / ct-done 按鈕（`terminal:create-with-command`，主行程寫入，已有 BUG-151 的保護）、Claude Agent 面板（沒有 shell）、一般 shell 分頁（沒有啟動命令）。
 
 ## 做法：沿用 BUG-151 的主行程保留
 
@@ -32,6 +32,22 @@ T0951 前都在 `src/components/WorkspaceView.tsx`，形式一律是 `pty:create
   - PTY 結束（`recordExit`，含 ⏻ 的 kill）：與 BUG-151 相同，保留的輸入沒有地方寫，丟掉，計時器清掉。
 - 結果：使用者的輸入不丟、順序不變、只移到命令之後（落在 agent 啟動後的輸入框或下一個提示字元）。
 - 日誌（只記筆數與位元組數，不記內容）：`[agent-command] id=<id> input before the launch command: <n> write(s), <bytes> bytes → sent after it`；逾時 / 上限另記 `[agent-command] id=<id> launch hold ended (<timeout|limit>) before the launch command` 與 `input held for the launch command (<reason>): …`。
+
+## 登入導引分頁與遠端工具安裝（T0956 / BUG-232）
+
+T0951 查證時發現另外兩條路徑也是「`pty:create` 之後約 500 ms 才寫命令、分頁已經有焦點」，同一時間窗打的字會接在命令前面：
+
+| 路徑 | 建立方式 | 寫入的內容 | T0956 前 | T0956 起 |
+|---|---|---|---|---|
+| Claude 面板「未登入」導引開的登入分頁（`openClaudeLoginTerminal`，`src/lib/claude-login-guide.ts`；WorkspaceView 接線） | `createPtyThenLaunch` → `pty:create`（遠端視窗 proxied 到遠端主機） | `<cli> auth login`，🔴 **不送 Enter** | `schedule`（500 ms）→ `pty:write` | 建立帶 `holdInputUntilLaunch: true`，命令經 `sendLaunchCommand` |
+| 遠端工具安裝（`runRemoteToolInstall`，`src/lib/remote-tools/install-runner.ts`；`useRemoteToolInstall` 接線） | `createPtyThenLaunch` → `pty:create`（只在遠端視窗執行，PTY 在遠端主機） | `wrapWithSentinel(命令, nonce) + '\r'` | `schedule`（500 ms）→ `pty:write` | 同上 |
+
+- 🔴 沿用 T0951 的機制，沒有另一套保留：兩個模組的 deps 多一個選填的 `sendLaunchCommand(id, data)`；有給時 `pty:create` 選項帶 `holdInputUntilLaunch: true`（登入分頁經 `createShell` 的第 4 個參數 `launchHold` 由 WorkspaceView 原樣展開），命令改由它送出；沒給時（既有單元測試）照舊 `schedule` + `write`、選項不帶旗標。
+- 不送 Enter：`PtyManager.writeLaunchCommand` 原樣寫出收到的字串，不加任何字元，所以登入命令照舊沒有 `\r`，之後依序寫出保留的輸入。共用實作沒有改。
+- 不需要 `releaseLaunchHold`：兩條路徑只在 `created: true` 時才打命令（`createPtyThenLaunch`），而主行程也只在 `created: true` 時開始保留，沒有「要了保留卻不打命令」的分支。
+- 遠端：兩者的 `pty:create` / `pty:launch-command` 都是 proxied，保留在 PTY 所在主機的 `PtyManager`；舊 bat-server（沒有 `pty:launch-command`）→ 不保留、命令照舊 `pty:write`，行為與 T0956 前相同。遠端工具安裝的 hook 把視窗自己的 `pty` API 傳給 `sendLaunchCommand`（與原本的 `write` 同一個）。
+- 不在範圍：遠端 `$HOME` 探測（`probeRemoteHome`）開的是沒有分頁、沒有焦點的隱藏 PTY，使用者打不到字，照舊。
+- 命令內容（登入命令的引號、安裝腳本與 sentinel）、Enter 與否、11 處 agent 啟動路徑、helper 派工都不變。
 
 ## `pty:launch-command`
 
@@ -51,10 +67,11 @@ T0951 前都在 `src/components/WorkspaceView.tsx`，形式一律是 `pty:create
 
 - 15 s 逾時後才到的命令仍會接在已寫出的輸入後面（與 T0951 前相同的結果，只在 renderer 異常時發生）。
 - 舊 bat-server 的遠端視窗沒有保護（見版本相容）。
-- 登入分頁與遠端工具安裝未納入（見上表）。
 
 ## 驗證
 
 - `electron/__tests__/launch-input-hold.test.ts`：Terminal Server 模式的真 `PtyManager` — 打字 → 命令完整、輸入在後；沒打字 → 只有命令；自動回應不擋；`null` 釋放；15 s 逾時與 64 KiB 上限照原樣寫出；kill 結束保留且不留計時器；helper 派工的保留不受影響。handler 端到端：`pty:create` / `pty:restart` 帶與不帶旗標、本機視窗的 `pty:write`、`pty:launch-command` 拒絕 helper 與錯誤參數、旗標不傳給 Terminal Server、沒有旗標時選項原物件傳給 `createWithResult`。
 - `src/lib/__tests__/launch-command.test.ts`：500 ms 後經 `pty:launch-command`、舊主機 fallback `pty:write`、`releaseLaunchHold` 不打字；`restartOrCreatePty` 有旗標才帶第 4 個參數；WorkspaceView source guard（11 處都經 `sendLaunchCommand`、6 個建立點都帶旗標、登入分頁與一般 shell 不帶）。
-- 待實機：見 T0951 回報區〈待實機〉。
+- `src/lib/__tests__/launch-hold-login-install.test.ts`（T0956）：真的 handler＋`PtyManager`，登入分頁與遠端工具安裝各測：命令前打字 → PTY 收到「命令（登入分頁沒有 Enter）＋輸入」；沒打字 → 只有命令；舊主機 → 與修正前相同（輸入在前）；沒給 `sendLaunchCommand` → 不帶旗標。
+- `src/lib/__tests__/launch-hold-login-install-wiring.test.tsx`（T0956）：`useRemoteToolInstall` 的 `pty:create` 帶旗標、安裝行經 `pty.launchCommand`、舊主機 fallback `pty.write`；WorkspaceView 登入分頁的接線（source guard）。
+- 待實機：見 T0951 回報區〈待實機〉、T0956 回報區〈待實機〉。

@@ -909,15 +909,17 @@ export function WorkspaceView({ workspace, terminals, focusedTerminalId, isActiv
         },
         getShell: getShellFromSettings,
         getCliPath: () => window.electronAPI.claude.getCliPath(),
-        createShell: (terminalId, shell, launch) => createPtyThenLaunch({
+        createShell: (terminalId, shell, launch, launchHold) => createPtyThenLaunch({
           id: terminalId,
           cwd: workspace.folderPath,
           type: 'terminal',
           shell,
           customEnv,
           workspaceId: workspace.id,  // T0176: BAT_WORKSPACE_ID env injection
+          ...launchHold,  // BUG-232 / T0956: the input waits for the typed command (claude-login-guide.ts)
         }, launch),
         write: (terminalId, data) => window.electronAPI.pty.write(terminalId, data),
+        sendLaunchCommand,
       }).then(({ terminalId, command }) => {
         window.electronAPI?.debug?.log(`[T0402] login terminal=${terminalId} typed: ${command}`)
       }).catch(err => {

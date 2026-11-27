@@ -7,7 +7,8 @@
  *   string handed in) → workspace (or "BAT Tools" at the remote $HOME) → plain terminal
  *   tab (no agentPreset: `claude-cli*` injects DISABLE_UPDATES, which blocks
  *   `claude install`) → createPtyThenLaunch → type `wrapWithSentinel(cmd, nonce) + '\r'`
- *   only into a freshly created shell → sentinel exit code → re-detect → notices.
+ *   only into a freshly created shell (BUG-232 / T0956: through the T0951 input hold,
+ *   `sendLaunchCommand`) → sentinel exit code → re-detect → notices.
  *
  * Notices are i18n keys + params, so this module stays free of react / i18next.
  */
@@ -160,7 +161,14 @@ export interface InstallRunnerDeps {
   notify(notice: InstallNotice): void
   customEnv?(workspaceId: string): Record<string, string>
   generateNonce?: () => string
-  /** Delay before typing so the prompt is up (default: setTimeout 500ms, as the claude-cli launch). */
+  /**
+   * BUG-232 / T0956: types the install line through the host's input hold (`sendLaunchCommand`,
+   * src/lib/launch-command.ts: 500 ms, then `pty:launch-command` — the line, then what the user typed
+   * meanwhile; a host before T0951 → the plain `pty:write`). Given → `pty:create` carries
+   * `holdInputUntilLaunch: true`. Not given → `schedule` + `write`, as before.
+   */
+  sendLaunchCommand?: (id: string, data: string) => void
+  /** Delay before typing so the prompt is up (default: setTimeout 500ms, as the claude-cli launch). Without `sendLaunchCommand` only. */
   schedule?: (fn: () => void) => void
   log?: (message: string) => void
 }
@@ -282,6 +290,7 @@ export async function runRemoteToolInstall(target: RemoteToolInstallTarget, deps
   const line = wrapWithSentinel(plan.command, nonce) + '\r'
   const matcher = createSentinelMatcher(nonce)
   const schedule = deps.schedule ?? ((fn: () => void) => { setTimeout(fn, 500) })
+  const sendLaunch = deps.sendLaunchCommand
 
   // Everything async is resolved above: tab + pty:create go out in one synchronous block, so
   // WorkspaceView's own init for the tab (default shell, after an await) cannot create it first.
@@ -313,8 +322,11 @@ export async function runRemoteToolInstall(target: RemoteToolInstallTarget, deps
     shell,
     customEnv: deps.customEnv?.(workspace.id) ?? {},
     workspaceId: workspace.id,  // T0176: BAT_WORKSPACE_ID env injection
+    // BUG-232 / T0956: the input that reaches the new shell first waits for the install line
+    ...(sendLaunch ? { holdInputUntilLaunch: true } : {}),
   }, () => {
-    schedule(() => deps.write(terminalId, line))
+    if (sendLaunch) sendLaunch(terminalId, line)
+    else schedule(() => deps.write(terminalId, line))
   })
   if (!created.ok || !created.created) {
     // created:false = an already-running shell under this id; never type into it.
