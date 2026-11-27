@@ -4,46 +4,34 @@ summary_version: 1
 bat_contract: 2
 ct_version: "6.3.0"
 inbox_features: ["recommended", "dismiss", "multi"]
-updated_at: "2026-11-27T22:09:36+0800"
+updated_at: "2026-11-27T22:35:41+0800"
 session: "2026-11-27 20:46 第一百三十九 session（CT v6.3.0）"
 next_ids:
   workorder: "T0956"
-  decision: "D451"
+  decision: "D452"
   bug: "BUG-232"
   plan: "PLAN-071"
-  user: "U-45"
+  user: "U-47"
   action: "A-24"
-user_actions:
-  - id: "A-19"
-    title: "安裝 0.8.1-pre.1 後，Git Bash 下「以塔台開啟 Claude」：claude 第一則訊息是 /control-tower 並直接進塔台（BUG-228）"
-    ref: "BUG-228"
-    kind: "verify"
-    created_at: "2026-11-27T22:03:23+08:00"
-  - id: "A-20"
-    title: "塔台分頁按 ⏻，期間滑鼠在分頁上移動、並立刻打幾個字：claude 正常啟動帶 /control-tower，命令列沒有 35;x;yM，打的字出現在 claude 輸入框（BUG-229 / BUG-231）"
-    ref: "BUG-229"
-    kind: "verify"
-    created_at: "2026-11-27T22:03:23+08:00"
-  - id: "A-21"
-    title: "先在塔台分頁跑過 /control-tower，再關 BAT 重開選「保留」：待辦分頁直接看得到塔台、回答送得出去，不必再跑 /control-tower（BUG-230）"
-    ref: "BUG-230"
-    kind: "verify"
-    created_at: "2026-11-27T22:03:23+08:00"
-  - id: "A-22"
-    title: "（可選）塔台分頁開著時關 BAT 重開選「重新開始」：塔台分頁重新啟動並帶 /control-tower 進塔台"
-    ref: "T0944"
-    kind: "manual"
-    created_at: "2026-11-27T22:03:23+08:00"
-  - id: "A-23"
-    title: "claude 或 codex 全螢幕畫面開著時按 ⏻：回到一般畫面、往上捲看得到之前的內容，游標看得到（T0950）"
-    ref: "T0950"
-    kind: "verify"
-    created_at: "2026-11-27T22:03:23+08:00"
+awaiting_user:
+  - id: "U-45"
+    workorder: "T0955"
+    kind: "decision"
+    source: "breakpoint-E"
+    summary: "T0955 的驗收驅動（e2e/manual 新增 3 檔＋README，五條判準成立）要合併進 main 嗎"
+    options: ["A 合併進 main，之後的交付版可重跑（推薦）", "B 不合併，只保留分支 ct/T0955"]
+    recommended: "A"
+    created_at: "2026-11-27T22:35:41+08:00"
+  - id: "U-46"
+    workorder: ""
+    kind: "decision"
+    source: "tower-question"
+    summary: "已合併的分支 ct/T0946–T0951、ct-merge/T0946 / T0948 / T0952 / T0953 / T0954 要刪嗎（git branch -d，只刪已合併的）"
+    options: ["A 刪除（推薦）", "B 先保留"]
+    recommended: "A"
+    created_at: "2026-11-27T22:35:41+08:00"
 todo:
-  - "✅ BUG-228 FIXED（T0946 合併進 `main` `773fe35c`，D432）：待 T0947 合併後一起發版，再發新的 A-n 重驗 A-15 / A-16（A-18 同樣受影響）。`ct/T0946` / `ct-merge/T0946` 分支保留到使用者同意刪除"
-  - "✅ BUG-229 FIXED（T0947 `6e58f168` 經 T0948 合併進 `main` `dc37842c`，D437），待發版實機驗收。T0947 兩項後續建議已開單（D438）：✅ T0950（⏻ 離開 alt screen）經 T0953 合併進 `main` `a86b2325`（D446）；✅ BUG-231 FIXED（T0951 `f975ef45` 經 T0954 合併進 `main` `14ae45a9`，D448）。✅ `v0.8.1-pre.1` 已發佈（D449，Pre-Release run `46009069879`，2026-11-27 22:01，target `da669499`）：含 BUG-228–231、T0950；待 A-19–A-23 實機驗收後 BUG 改 CLOSED。下一版：`0.8.1-pre.2`。候選（未開單，T0951 建議）：登入導引分頁與遠端工具安裝也在 create 後寫命令，可一併帶 `holdInputUntilLaunch`。候選（未開單，T0950 建議）：⏻ 後游標可能仍隱藏（`?1049l` 不還原 DECTCEM），待實機確認再決定是否補 `?25h`。分支 `ct/T0947` / `ct-merge/T0948` 保留到使用者同意刪除"
-  - "✅ BUG-230 FIXED（T0949 `073dbaa1` 經 T0952 合併進 `main` `2059de7e`，D442），待發版實機驗收。注意：從 `v0.8.0` 升上來的第一次接回沒有存檔，CT 仍要再宣告一次"
-  - "發版後重驗（新的 A-n）：A-15「以塔台開啟 Claude」、A-16 ⏻ 重啟、A-18 關 BAT 後「重新開始」與「保留」兩條路"
+  - "✅ `v0.8.1-pre.1`（D449）：BUG-228 / 229 / 230 / 231 CLOSED、T0950 PASS —— 交付版 zip 隔離實例＋假 claude 自動化驗收 T0955 全 PASS（D451），A-19–A-23 結案。下一版：`0.8.1-pre.2`。候選（未開單，T0951 建議）：登入導引分頁與遠端工具安裝也在 create 後寫命令，可一併帶 `holdInputUntilLaunch`。T0950 擔心的 ⏻ 後游標隱藏：T0955 實測 Windows 游標看得到（WSL / SSH / macOS / Linux 未測）"
   - "✅ `v0.8.0` 正式版已發佈（D425，Release run `45991410993`，2026-11-27 19:56，Latest）：更版重點與三文件已更新。🔴 T0944（塔台分頁自動帶入 `/control-tower`）待實機；下一版版號線：`0.8.1-pre.N`（發前確認）"
   - "✅ T0944 DONE 並合併進 main（D421 / D422，`a9144c1a`）：「以塔台開啟 Claude」啟動時自動帶入 `/control-tower`（新開 / ⏻ / 還原帶，resume 不帶，無開關）；worktree 隔離派工"
   - "✅ `v0.8.0-pre.9` 已發佈並驗收（D418 / D420，A-12）：T0942 已送出提示、BUG-227 CLOSED；熱區未結 BUG 0"
@@ -70,7 +58,7 @@ reminders:
 ---
 # Tower State — better-agent-terminal
 
-> 🟢 **第一百三十九 session 開工**（2026-11-27 20:46 (UTC+8)，CT v6.3.0，Fast Path；塔台 session `50ee1132-deeb-462b-b7a2-66cab13fa056`；新分頁 `c2f1a2e3…`（`better-agent-terminal · Tower`），`--set-role tower --bat-contract 2 --mode on` exit 0，`bat-contract: 2`、`hooks: ok (injected, set 2)`；第一則訊息仍是 `C:/Program Files/Git/control-tower`（BUG-228 重現，T0946 修復中）；前一塔台分頁 `82f1e7f0…`（session `a34eb9f4…`）現為 `role: shell`、idle、claude session 未回報，但仍是 T0946 Worker 的 `towerTerminalId`；`main` @ `6ccf707f`（領先 `origin/main` 3）；T0946 IN_PROGRESS、Worker working）。20:47 A-16：失敗（截圖：⏻ 後滑鼠回報黏在 claude 啟動命令前面，claude 沒啟動）→ 開 BUG-229、發 U-37（D429）；20:49 U-37：A → BUG-229 FIXING、T0947 派工（D430）；20:59 T0946 DONE（`75525d6a`，通知因舊塔台分頁已不在而失敗，使用者轉告）→ 模式 ① 合併到 `ct-merge/T0946` `8595cfd8`，斷點 E 等 U-38（D431）；21:00 U-38：A → ff，`main` @ `773fe35c`，BUG-228 FIXED，T0946 worktree 已移除（D432）；21:03 使用者回報 A-18（BAT 重開、終端接回，但塔台宣告消失，須自己再跑 `/control-tower`）＋「T0947 完成」→ 塔台重送 `--set-role` exit 0；T0947 收單、`--close-worker … --worktree keep` exit 0、派合併工單 T0948（D433）；A-18 移除、開 BUG-230、發 U-39（D434）；21:05 U-39：A → BUG-230 FIXING、T0949 派工（D435）；21:08 T0948 DONE（`9f5cc1ee`，驗收全綠）→ 斷點 E 等 U-40（D436）；21:09 U-40：A → ff，`main` @ `dc37842c`，BUG-229 FIXED，T0947 worktree 已移除（D437）；21:13 使用者：T0947 兩項建議開單 → T0950、BUG-231 / T0951，派工（D438）；21:20 T0949 DONE → 收單、派合併工單 T0952（D439）；21:22 T0950 DONE → 收單，合併排在 T0952 之後（D440）；21:24 T0952 DONE（`23d124dc`，驗收全綠）→ 斷點 E 等 U-41（D441）；21:26 U-41：A → ff，`main` @ `2059de7e`，BUG-230 FIXED，T0949 worktree 已移除；派 T0950 合併工單 T0953（D442）；21:27 T0951 提問 Q-1（改 T0944 source guard 斷言）→ 塔台 `--answer` A（exit 0）；21:28 T0953 派工 `started:`（D443）；21:30 T0951 DONE → 收單，合併排在 T0953 之後（D444）；21:31 T0953 DONE（`d0430668`，驗收全綠）→ 斷點 E 等 U-42（D445）；21:33 U-42：A → ff，`main` @ `a86b2325`，T0950 worktree 已移除；派 T0951 合併工單 T0954（D446）；21:37 T0954 DONE（`5661128d`，驗收全綠）→ 斷點 E 等 U-43、發版等 U-44（D447）；21:38 U-43：A → ff，`main` @ `14ae45a9`，BUG-231 FIXED，T0951 worktree 已移除；U-44：A → 去識別化 9 組 0、推送範圍新增行金鑰 0 → push、發 `0.8.1-pre.1`（D448）；22:01 `v0.8.1-pre.1` 發佈（run `46009069879` 12 job 全綠）→ 更版重點、三文件、`package.json` 版號，發 A-19–A-23（D449）；使用者更新到 `0.8.1-pre.1` 重開接回：待辦分頁「沒有可接收回答的塔台」= 升級後第一次接回、沒有存檔（BUG-230 已知限制，預期）→ 塔台重送 `--set-role` exit 0（helper `v0.8.1-pre.1`），`<userData>/tower-roles.json` 已有本分頁一筆（數字 pid、`tower` / `on` / 契約 2）；A-21 待下一次接回驗收。待辦「待你執行 (9)」= A-19–A-23 共 5 筆＋FIXED 待驗收的 BUG-228–231 共 4 筆。22:09 使用者「用自動化測試」→ 開並派 T0955（`v0.8.1-pre.1` zip 隔離實例＋假 claude 跑 A-19–A-23，D450）；A-n 保留，依 T0955 結果結案。
+> 🟢 **第一百三十九 session 開工**（2026-11-27 20:46 (UTC+8)，CT v6.3.0，Fast Path；塔台 session `50ee1132-deeb-462b-b7a2-66cab13fa056`；新分頁 `c2f1a2e3…`（`better-agent-terminal · Tower`），`--set-role tower --bat-contract 2 --mode on` exit 0，`bat-contract: 2`、`hooks: ok (injected, set 2)`；第一則訊息仍是 `C:/Program Files/Git/control-tower`（BUG-228 重現，T0946 修復中）；前一塔台分頁 `82f1e7f0…`（session `a34eb9f4…`）現為 `role: shell`、idle、claude session 未回報，但仍是 T0946 Worker 的 `towerTerminalId`；`main` @ `6ccf707f`（領先 `origin/main` 3）；T0946 IN_PROGRESS、Worker working）。20:47 A-16：失敗（截圖：⏻ 後滑鼠回報黏在 claude 啟動命令前面，claude 沒啟動）→ 開 BUG-229、發 U-37（D429）；20:49 U-37：A → BUG-229 FIXING、T0947 派工（D430）；20:59 T0946 DONE（`75525d6a`，通知因舊塔台分頁已不在而失敗，使用者轉告）→ 模式 ① 合併到 `ct-merge/T0946` `8595cfd8`，斷點 E 等 U-38（D431）；21:00 U-38：A → ff，`main` @ `773fe35c`，BUG-228 FIXED，T0946 worktree 已移除（D432）；21:03 使用者回報 A-18（BAT 重開、終端接回，但塔台宣告消失，須自己再跑 `/control-tower`）＋「T0947 完成」→ 塔台重送 `--set-role` exit 0；T0947 收單、`--close-worker … --worktree keep` exit 0、派合併工單 T0948（D433）；A-18 移除、開 BUG-230、發 U-39（D434）；21:05 U-39：A → BUG-230 FIXING、T0949 派工（D435）；21:08 T0948 DONE（`9f5cc1ee`，驗收全綠）→ 斷點 E 等 U-40（D436）；21:09 U-40：A → ff，`main` @ `dc37842c`，BUG-229 FIXED，T0947 worktree 已移除（D437）；21:13 使用者：T0947 兩項建議開單 → T0950、BUG-231 / T0951，派工（D438）；21:20 T0949 DONE → 收單、派合併工單 T0952（D439）；21:22 T0950 DONE → 收單，合併排在 T0952 之後（D440）；21:24 T0952 DONE（`23d124dc`，驗收全綠）→ 斷點 E 等 U-41（D441）；21:26 U-41：A → ff，`main` @ `2059de7e`，BUG-230 FIXED，T0949 worktree 已移除；派 T0950 合併工單 T0953（D442）；21:27 T0951 提問 Q-1（改 T0944 source guard 斷言）→ 塔台 `--answer` A（exit 0）；21:28 T0953 派工 `started:`（D443）；21:30 T0951 DONE → 收單，合併排在 T0953 之後（D444）；21:31 T0953 DONE（`d0430668`，驗收全綠）→ 斷點 E 等 U-42（D445）；21:33 U-42：A → ff，`main` @ `a86b2325`，T0950 worktree 已移除；派 T0951 合併工單 T0954（D446）；21:37 T0954 DONE（`5661128d`，驗收全綠）→ 斷點 E 等 U-43、發版等 U-44（D447）；21:38 U-43：A → ff，`main` @ `14ae45a9`，BUG-231 FIXED，T0951 worktree 已移除；U-44：A → 去識別化 9 組 0、推送範圍新增行金鑰 0 → push、發 `0.8.1-pre.1`（D448）；22:01 `v0.8.1-pre.1` 發佈（run `46009069879` 12 job 全綠）→ 更版重點、三文件、`package.json` 版號，發 A-19–A-23（D449）；使用者更新到 `0.8.1-pre.1` 重開接回：待辦分頁「沒有可接收回答的塔台」= 升級後第一次接回、沒有存檔（BUG-230 已知限制，預期）→ 塔台重送 `--set-role` exit 0（helper `v0.8.1-pre.1`），`<userData>/tower-roles.json` 已有本分頁一筆（數字 pid、`tower` / `on` / 契約 2）；A-21 待下一次接回驗收。待辦「待你執行 (9)」= A-19–A-23 共 5 筆＋FIXED 待驗收的 BUG-228–231 共 4 筆。22:09 使用者「用自動化測試」→ 開並派 T0955（`v0.8.1-pre.1` zip 隔離實例＋假 claude 跑 A-19–A-23，D450）；A-n 保留，依 T0955 結果結案；22:35 T0955 DONE（A-19–A-23 與兩個反例全 PASS、隔離 PASS）→ A-19–A-23 結案、BUG-228–231 CLOSED、熱區未結 BUG 0；T0955 驅動合併等 U-45、分支清理等 U-46（D451）。
 
 > 🟢 **第一百三十八 session 開工**（2026-11-27 20:40 (UTC+8)，CT v6.3.0，Fast Path；塔台 session `a34eb9f4-d1c0-45d7-9099-e288e5bcecb2`；本分頁由「以塔台開啟 Claude」開啟（A-15），`--set-role tower --bat-contract 2 --mode on` exit 0，`bat-contract: 2`、`hooks: ok (injected, set 2)`；舊塔台分頁（session `5d626d99…`）已結束；`main` @ `85c17c3a`（領先 `origin/main` 1）；熱區 T 341 全終態、BUG 91（CLOSED 90 / WONTFIX 1））。20:41 A-17：完成；A-15：完成但第一則訊息是 `C:/Program Files/Git/control-tower` → U-36（D427）；20:42 U-36：A → 開 BUG-228（FIXING）、T0946 派工（D428）。
 

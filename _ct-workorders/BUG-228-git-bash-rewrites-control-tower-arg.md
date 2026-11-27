@@ -3,11 +3,11 @@ schema_version: 1
 schema_kind: bug
 id: BUG-228
 title: "Windows 的 Git Bash 分頁：「以塔台開啟 Claude」帶入的 `/control-tower` 被 MSYS 改寫成 `C:/Program Files/Git/control-tower`，claude 沒有執行 slash command"
-status: FIXED
+status: CLOSED
 severity: medium
 reproducibility: "always（推測：Windows、塔台分頁的 shell 是 Git Bash 時）"
 created_at: "2026-11-27T20:42:33+08:00"
-updated_at: "2026-11-27T21:00:28+08:00"
+updated_at: "2026-11-27T22:35:04+08:00"
 impact:
   - tower-tab
   - claude-cli
@@ -21,7 +21,7 @@ links:
 |------|------|
 | 嚴重度 | 🟡 medium（T0944 的功能在 Git Bash 分頁實際上沒有作用；這次能進塔台是模型從字尾猜出來，不可靠） |
 | 可重現 | 推測必定：Windows、塔台分頁的 shell 是 Git Bash |
-| **狀態** | ✅ FIXED（T0946 `75525d6a`，合併進 `main` `773fe35c`，D432；待發版實機驗收） |
+| **狀態** | 🚫 CLOSED（交付版 `v0.8.1-pre.1` 隔離實例自動化驗收 T0955 A-19 PASS，D451） |
 | 回報者 | 塔台於 A-15 實機驗收時發現（使用者回報 A-15 完成，塔台複查不符，U-36 → A） |
 | 影響版本 | `v0.8.0`（T0944 起） |
 
@@ -44,3 +44,4 @@ links:
 
 - 2026-11-27 20:42 → FIXING（T0946，D428）
 - 2026-11-27 21:00 → FIXED：根因實測成立（Git Bash／MSYS 改寫以 `/` 開頭的參數，與引號無關）；Git Bash 塔台分頁的啟動命令前加只對該次命令生效的 `MSYS2_ARG_CONV_EXCL`（`isWindowsMsysShell` / `msysArgConvExclusionPrefix`，`src/utils/shell-quote.ts`）；helper 派工不受影響（一律帶 `MSYS_NO_PATHCONV=1`）。合併進 `main` `773fe35c`（D432）。待發版後重驗 A-15 / A-16。
+- 2026-11-27 22:35 → CLOSED：交付版 `v0.8.1-pre.1` win zip（release digest 比對相符）以隔離實例＋假 claude 自動化驗收，T0955 A-19 PASS（D451）。

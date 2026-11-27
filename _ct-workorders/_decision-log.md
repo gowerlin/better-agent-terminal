@@ -10,6 +10,7 @@
 
 | ID | 日期 | 標題 | 相關工單 |
 |----|------|------|---------|
+| D451 | 2026-11-27 | T0955 全 PASS → A-19–A-23 結案、BUG-228–231 CLOSED；驅動合併發 U-45、分支清理發 U-46 | T0955 / BUG-228–231 / T0950 |
 | D450 | 2026-11-27 | A-19–A-23 改用自動化測試：開並派 T0955（交付版 zip 隔離實例＋假 claude） | T0955 / BUG-228–231 / T0950 |
 | D449 | 2026-11-27 | `v0.8.1-pre.1` 已發佈（run `46009069879` 全綠）；更版重點、三文件、版號同步；發 A-19–A-23 | BUG-228–231 / T0950 |
 | D448 | 2026-11-27 | U-43：A → T0954 ff 進 `main` `14ae45a9`，BUG-231 FIXED；U-44：A → push 並發 `0.8.1-pre.1` | T0954 / BUG-228–231 / T0950 |
@@ -568,6 +569,15 @@
   4. PLAN-001 保持延後（🟢 Low，等 plugin 1.0 穩定）
 - **Success criteria**（EXP→CONCLUDED）：npm install 無錯 / 所有 native modules rebuild 成功 / dev+build:dir 可跑 / 手動 smoke test 8 項通過
 - **最大風險**：`whisper-node-addon@1.0.2` 對 Electron 41（Node 24）的 NODE_MODULE_VERSION 相容性未知，允許 Worker 遇此決策點主動問塔台
+
+---
+
+### D451 2026-11-27 22:35 — T0955 全 PASS → A-19–A-23 結案、BUG-228–231 CLOSED
+
+- **回報**：T0955 DONE（`ct/T0955` `7b8c9f0c`，只新增 `e2e/manual/t0955-v081-acceptance.ts`、`t0955-fake-claude.cs`、`t0955-fake-claude.mjs` 與 README 一節）。受測：`v0.8.1-pre.1` win zip（release digest `695a2003…` 相符、版號相符）；隔離實例＋Settings system runtime 指向編譯的假 `claude.exe`、Shell `git-bash`。正式執行 `run-20261127-223159`（另 2 次重跑同樣全 PASS）：A-19 PASS（argv 最後 `/control-tower`、`MSYS2_ARG_CONV_EXCL` 前置、`[T0946]` log）；A-20 PASS（alt＋`any` 追蹤下 ⏻ 期間移動滑鼠＋鍵入 `abc`：新 claude argv 完整、stdin = `abc`、無 `35;…M`，`reset: before-new-pty` 與 `input before the launch command … sent after it` log）；A-23 PASS（`alt screen left` log、normal buffer、標記行捲得到、游標看得到）；A-21 PASS（保留 Terminal Server 重開「保留」：同一假 claude pid、`[tower-role] restored`、`bat_whoami` role=tower / 契約 2）；A-22 PASS（「重新開始」新 claude 帶 `/control-tower`、`not restored` log）；反例兩項 PASS。隔離：安裝版 BAT 相關 pid 集合前後相同、`~/.claude` / `~/.codex` 1195 檔合併雜湊相同、自己的程序與 runtime userData 全清。
+- **處置**：A-19–A-23 移除（自動化驗收取代實機，使用者 D450 指示）；BUG-228 / 229 / 230 / 231 → CLOSED（交付版已驗，R-G003）；T0950 PASS；熱區未結 BUG 0。`--close-worker T0955 --worktree keep` exit 0。
+- **後續**：T0955 驅動判準五條成立（`main` 只多 `_ct-workorders/**`、validated = head、4 檔都在 `e2e/manual/`、無衝突、乾淨）→ 合併等 U-45（斷點 E）；已合併分支清理等 U-46。
+- **相關**：T0955 / D450 / BUG-228–231 / T0950
 
 ---
 

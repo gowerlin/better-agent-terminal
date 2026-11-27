@@ -3,11 +3,11 @@ schema_version: 1
 schema_kind: bug
 id: BUG-231
 title: "⏻ 重啟 claude / codex 分頁：新 shell 起來到啟動命令寫入前（約 500 ms）使用者打的字，會黏在啟動命令前面"
-status: FIXED
+status: CLOSED
 severity: low
 reproducibility: "推測必定：⏻ 後 500 ms 內在分頁打字（T0947 查證時發現，未實機重現）"
 created_at: "2026-11-27T21:13:26+08:00"
-updated_at: "2026-11-27T21:39:02+08:00"
+updated_at: "2026-11-27T22:35:04+08:00"
 impact:
   - claude-cli
   - terminal-restart
@@ -21,7 +21,7 @@ links:
 |------|------|
 | 嚴重度 | 🟢 low（要在 ⏻ 後很短的時間內打字才會發生；發生時 claude 不會啟動） |
 | 可重現 | 推測必定，未實機重現 |
-| **狀態** | ✅ FIXED（T0951 `f975ef45`，經 T0954 合併進 `main` `14ae45a9`，D448；待發版實機驗收） |
+| **狀態** | 🚫 CLOSED（交付版 `v0.8.1-pre.1` 隔離實例自動化驗收 T0955 A-20 PASS，D451） |
 | 回報者 | T0947 Worker 查證時發現；使用者裁示開單（2026-11-27 21:13） |
 | 影響版本 | `v0.8.0`（既有，T0947 前就如此） |
 
@@ -35,3 +35,4 @@ links:
 
 - 2026-11-27 21:13 開單 → FIXING（T0951，D438）
 - 2026-11-27 21:39 → FIXED：查證成立，範圍比預期大（renderer 11 處、6 條路徑都在 create 後 500 ms 寫啟動命令）。共用 BUG-151 的主行程保留（`PtyManager.holdInputForLaunch` / `writeLaunchCommand`），`pty:create` / `pty:restart` 帶 `holdInputUntilLaunch` 同一 tick 開始保留，renderer `sendLaunchCommand` 經新 proxied channel `pty:launch-command`；逾時 15 s、上限 64 KiB，到了照原樣寫出不丟。經 T0954 合併進 `main` `14ae45a9`（D448）。
+- 2026-11-27 22:35 → CLOSED：交付版 `v0.8.1-pre.1` win zip（release digest 比對相符）以隔離實例＋假 claude 自動化驗收，T0955 A-20 PASS（D451）。
