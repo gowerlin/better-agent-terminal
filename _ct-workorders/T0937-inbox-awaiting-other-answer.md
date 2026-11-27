@@ -164,6 +164,12 @@ BAT 待辦分頁的「⏸ 待你決定」在 `options` 非空時只有單選＋�
 - PLAN-070 子項 4（多選）等 CT 核定契約後另開單（工單已排除）。
 - 可考慮在 `options: []` 的自由回答欄也加同樣的放棄提示（見〈偏離與備註〉）。
 
+### 塔台收單補記（2026-11-27 11:34）
+
+- 核對：`ct/T0937` head = validated `73d35e81`；`--worktree-status` outOfScope [] / conflicts [] / dirty []；`main` 只在 `_ct-workorders/**` 前進 → 模式 ① 合併到 `ct-merge/T0937` `4d78e5f7`（D395）。
+- 偏離認可：t0929 第 127 行（Q-1 A）、放棄提示沿用 `isDismissAnswer`（與 CT 判斷一致）。
+- 後續建議「`options: []` 的自由回答欄也加放棄提示」：併入 T0938（同檔，塔台補充）。
+
 ### 互動紀錄
 - [11:27] 開工：Startup 讀完工單、`_local-rules.md`、CLAUDE.md；`CT_MODE=yolo`、`CT_INTERACTIVE=0`、worktree 模式。
 - [11:28] Q-1：「其他」要放進 radiogroup 並改 t0929 一行斷言（A），還是不改測試、用 CSS `order`（B）？→ A（塔台，BAT 通道 choice 1，`waitedMs` 12284）：放進 radiogroup 最後一項、只改 t0929 第 127 行，回報區寫明理由 → Action：照 A 實作，第 127 行改寫並加一行「最後是其他」的斷言。

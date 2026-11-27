@@ -10,6 +10,7 @@
 
 | ID | 日期 | 標題 | 相關工單 |
 |----|------|------|---------|
+| D395 | 2026-11-27 | T0937 收單（DONE，`73d35e81`；Q-1 塔台答 A）、模式 ① 合併到 `ct-merge/T0937` `4d78e5f7`；後續建議（空選項欄放棄提示）併入 T0938；斷點 E → U-22 | T0937 / T0938 |
 | D394 | 2026-11-27 | CT 定稿多選契約（CT D906，6.3.0，M1–M5）→ 開 T0938 BAT 多選實作（依賴 T0937，合併後派工） | T0938 / PLAN-070 |
 | D393 | 2026-11-27 | 待你決定統一有「其他」（BAT T0937）、放棄附的文字只當原因（CT 改）、多選現在就做（契約 v2 新增 `multi`，提案給 CT）；開 PLAN-070 | T0937 / PLAN-070 |
 | D392 | 2026-11-27 | U-21：A → T0936 經 `ct-merge/T0936` ff 進 `main`（先併入 `main` 的塔台記帳 commit） | T0936 |
@@ -512,6 +513,16 @@
   4. PLAN-001 保持延後（🟢 Low，等 plugin 1.0 穩定）
 - **Success criteria**（EXP→CONCLUDED）：npm install 無錯 / 所有 native modules rebuild 成功 / dev+build:dir 可跑 / 手動 smoke test 8 項通過
 - **最大風險**：`whisper-node-addon@1.0.2` 對 Electron 41（Node 24）的 NODE_MODULE_VERSION 相容性未知，允許 Worker 遇此決策點主動問塔台
+
+---
+
+### D395 2026-11-27 11:34 — T0937 收單與模式 ① 合併
+
+- **Worker 回報**：`73d35e81`，`test:unit` 9123 passed / 505 files、typecheck 0、vite build 0；Q-1（「其他」放進 radiogroup，改 t0929 一行斷言）塔台答 A；放棄提示沿用 `isDismissAnswer`。實際點擊列〈待實機〉。
+- **核對**：head = validated；`--worktree-status` outOfScope [] / conflicts [] / dirty []；`main` 只在 `_ct-workorders/**` 前進 → 模式 ① 合併 `ct-merge/T0937` `4d78e5f7`（parent1 `591da9c4`、parent2 `73d35e81`）。Worker 分頁 `--close-worker --worktree keep` exit 0。
+- **塔台裁決**（範圍內）：T0937〈後續建議〉「`options: []` 自由回答欄也加放棄提示」併入 T0938（同檔、同一個判斷）。
+- **斷點 E**：ff 進 `main` 前問使用者 → U-22。
+- **相關**：T0937 / T0938 / PLAN-070
 
 ---
 
