@@ -4,8 +4,8 @@ summary_version: 1
 bat_contract: 2
 ct_version: "6.3.0"
 inbox_features: ["recommended", "dismiss", "multi"]
-updated_at: "2026-11-27T20:42:33+0800"
-session: "2026-11-27 20:40 第一百三十八 session（CT v6.3.0）"
+updated_at: "2026-11-27T20:46:40+0800"
+session: "2026-11-27 20:46 第一百三十九 session（CT v6.3.0）"
 next_ids:
   workorder: "T0947"
   decision: "D429"
@@ -51,6 +51,8 @@ reminders:
     due_at: "2026-12-02"
 ---
 # Tower State — better-agent-terminal
+
+> 🟢 **第一百三十九 session 開工**（2026-11-27 20:46 (UTC+8)，CT v6.3.0，Fast Path；塔台 session `50ee1132-deeb-462b-b7a2-66cab13fa056`；新分頁 `c2f1a2e3…`（`better-agent-terminal · Tower`），`--set-role tower --bat-contract 2 --mode on` exit 0，`bat-contract: 2`、`hooks: ok (injected, set 2)`；第一則訊息仍是 `C:/Program Files/Git/control-tower`（BUG-228 重現，T0946 修復中）；前一塔台分頁 `82f1e7f0…`（session `a34eb9f4…`）現為 `role: shell`、idle、claude session 未回報，但仍是 T0946 Worker 的 `towerTerminalId`；`main` @ `6ccf707f`（領先 `origin/main` 3）；T0946 IN_PROGRESS、Worker working）。
 
 > 🟢 **第一百三十八 session 開工**（2026-11-27 20:40 (UTC+8)，CT v6.3.0，Fast Path；塔台 session `a34eb9f4-d1c0-45d7-9099-e288e5bcecb2`；本分頁由「以塔台開啟 Claude」開啟（A-15），`--set-role tower --bat-contract 2 --mode on` exit 0，`bat-contract: 2`、`hooks: ok (injected, set 2)`；舊塔台分頁（session `5d626d99…`）已結束；`main` @ `85c17c3a`（領先 `origin/main` 1）；熱區 T 341 全終態、BUG 91（CLOSED 90 / WONTFIX 1））。20:41 A-17：完成；A-15：完成但第一則訊息是 `C:/Program Files/Git/control-tower` → U-36（D427）；20:42 U-36：A → 開 BUG-228（FIXING）、T0946 派工（D428）。
 
