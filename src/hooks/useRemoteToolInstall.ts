@@ -14,6 +14,7 @@
 import { useCallback, useEffect, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { ToastMessage } from '../components/CtToast'
+import { sendLaunchCommand } from '../lib/launch-command'
 import { createPtyThenLaunch, normalizePtyCreateResult } from '../lib/pty-replay'
 import {
   parseRemoteToolInstallTarget,
@@ -127,6 +128,8 @@ export function useRemoteToolInstall({ addToast, takePending = false }: UseRemot
       },
       createPty: (options, launch) => createPtyThenLaunch(options, launch),
       write: (id, data) => { void pty.write(id, data) },
+      // BUG-232 / T0956: the install line goes ahead of what the user typed into the new tab meanwhile
+      sendLaunchCommand: (id, data) => sendLaunchCommand(id, data, pty),
       onOutput: (cb) => pty.onOutput(cb),
       onExit: (cb) => pty.onExit(cb),
       customEnv: (workspaceId) => {

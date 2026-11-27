@@ -33,30 +33,47 @@ export function buildClaudeLoginCommand(cliPath: string, shell: ShellFamily): st
   return `${exe} auth login`
 }
 
+/** BUG-232 / T0956: extra `pty:create` options of the login tab (the T0951 input hold, or none). */
+export interface LoginShellLaunchHold {
+  holdInputUntilLaunch?: true
+}
+
 export interface OpenClaudeLoginTerminalDeps {
   /** Adds the terminal tab to the workspace and returns its id. */
   addTerminal(): string
   getShell(): Promise<string | undefined>
   getCliPath(): Promise<string>
-  /** Spawns the shell; `launch` must run only once a fresh shell exists. */
-  createShell(terminalId: string, shell: string | undefined, launch: () => void): Promise<unknown>
+  /**
+   * Spawns the shell; `launch` must run only once a fresh shell exists. `launchHold` goes into the
+   * `pty:create` options as it is (`{ holdInputUntilLaunch: true }` when `sendLaunchCommand` is given).
+   */
+  createShell(terminalId: string, shell: string | undefined, launch: () => void, launchHold: LoginShellLaunchHold): Promise<unknown>
   write(terminalId: string, data: string): void
-  /** Delay before typing so the shell prompt is up (default: setTimeout 500ms). */
+  /**
+   * BUG-232 / T0956: types the command through the host's input hold (`sendLaunchCommand`,
+   * src/lib/launch-command.ts: 500 ms, then `pty:launch-command` — the command, then what the user
+   * typed meanwhile; a host before T0951 → the plain `pty:write`). Not given → `schedule` + `write`.
+   */
+  sendLaunchCommand?: (terminalId: string, data: string) => void
+  /** Delay before typing so the shell prompt is up (default: setTimeout 500ms). Without `sendLaunchCommand` only. */
   schedule?: (fn: () => void) => void
 }
 
 /**
  * Opens a terminal tab and types the login command into it. No trailing Enter: the user
- * reviews the command and submits it.
+ * reviews the command and submits it. With `sendLaunchCommand` (BUG-232 / T0956) the input that
+ * reaches the new shell before the command is held by the host and follows the command.
  */
 export async function openClaudeLoginTerminal(deps: OpenClaudeLoginTerminalDeps): Promise<{ terminalId: string; command: string }> {
   const terminalId = deps.addTerminal()
   const [shell, cliPath] = await Promise.all([deps.getShell(), deps.getCliPath()])
   const command = buildClaudeLoginCommand(cliPath, detectShellFamily(shell ?? ''))
+  const send = deps.sendLaunchCommand
   const schedule = deps.schedule ?? ((fn: () => void) => { setTimeout(fn, 500) })
   await deps.createShell(terminalId, shell, () => {
-    schedule(() => deps.write(terminalId, command))
-  })
+    if (send) send(terminalId, command) // 🔴 still no Enter: the command as it is, then the held input
+    else schedule(() => deps.write(terminalId, command))
+  }, send ? { holdInputUntilLaunch: true } : {})
   return { terminalId, command }
 }
 
