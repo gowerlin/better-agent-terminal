@@ -4,16 +4,17 @@ summary_version: 1
 bat_contract: 2
 ct_version: "6.2.0"
 inbox_features: ["recommended", "dismiss"]
-updated_at: "2026-11-27T11:10:20+0800"
+updated_at: "2026-11-27T11:11:38+0800"
 session: "2026-11-27 11:10 第一百三十七 session（CT v6.2.0）"
 next_ids:
-  workorder: "T0936"
-  decision: "D390"
-  bug: "BUG-226"
+  workorder: "T0937"
+  decision: "D391"
+  bug: "BUG-227"
   plan: "PLAN-070"
   user: "U-21"
   action: "A-8"
 todo:
+  - "🔧 T0936 派工中（BUG-226：待辦分頁 `command` 是檔案路徑時可點、整個是檔案時按鈕改「開啟」，D390；worktree `ct/T0936`，目標 `0.8.0-pre.8`）"
   - "🚀 `v0.8.0-pre.7` 已發佈並驗收（D387 / D389）：T0935 只寫檔名的參考檔案連結、T0934 💬 卡片連結（A-6 完成）；下一版 `0.8.0-pre.8`"
   - "`v0.8.0-pre.5` 已驗收（D378）：T0929 / T0930 / BUG-225 CLOSED"
   - "候選（未開單，T0930 建議）：`useInboxFileRefs` 跟 `_ct-workorders/` 的 `fs:changed` 重查（💬 卡片連結已由 T0934 完成）"
