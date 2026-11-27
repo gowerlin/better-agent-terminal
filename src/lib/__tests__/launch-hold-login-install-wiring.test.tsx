@@ -1,6 +1,6 @@
 /**
  * BUG-232 / T0956: the wiring of the T0951 hold into the two paths (what the PTY receives is
- * launch-hold-login-install.test.ts):
+ * electron/__tests__/launch-hold-login-install.test.ts):
  *
  *   - useRemoteToolInstall: `pty:create` carries `holdInputUntilLaunch: true`, the install line goes
  *     out by `pty.launchCommand` (the window's own PTY API); a host before T0951 → `pty.write`

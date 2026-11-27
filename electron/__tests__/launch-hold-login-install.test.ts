@@ -18,17 +18,17 @@ vi.mock('electron', () => {
   throw new Error('handlers/pty / pty-manager must not import electron')
 })
 
-import { PtyManager } from '../../../electron/pty-manager'
-import { logger } from '../../../electron/logger'
-import { registerPtyHandlers } from '../../../electron/handlers/pty'
-import type { HandlerContext, SharedHandler } from '../../../electron/handlers/types'
-import type { ServerRequest, ServerResponse } from '../../../electron/terminal-server/protocol'
-import type { CreatePtyOptions, PtyCreateResult } from '../../types'
-import { REMOTE_AUTH_ENV_VARS, REMOTE_TOOL_IDS, type RemoteToolsDetectResult, type RemoteToolsEnv } from '../../types/remote-tools'
-import { openClaudeLoginTerminal } from '../claude-login-guide'
-import { LAUNCH_COMMAND_DELAY_MS, sendLaunchCommand, type LaunchCommandApi } from '../launch-command'
-import { runRemoteToolInstall, type InstallRunnerDeps } from '../remote-tools/install-runner'
-import { wrapWithSentinel } from '../remote-tools/sentinel'
+import { PtyManager } from '../pty-manager'
+import { logger } from '../logger'
+import { registerPtyHandlers } from '../handlers/pty'
+import type { HandlerContext, SharedHandler } from '../handlers/types'
+import type { ServerRequest, ServerResponse } from '../terminal-server/protocol'
+import type { CreatePtyOptions, PtyCreateResult } from '../../src/types'
+import { REMOTE_AUTH_ENV_VARS, REMOTE_TOOL_IDS, type RemoteToolsDetectResult, type RemoteToolsEnv } from '../../src/types/remote-tools'
+import { openClaudeLoginTerminal } from '../../src/lib/claude-login-guide'
+import { LAUNCH_COMMAND_DELAY_MS, sendLaunchCommand, type LaunchCommandApi } from '../../src/lib/launch-command'
+import { runRemoteToolInstall, type InstallRunnerDeps } from '../../src/lib/remote-tools/install-runner'
+import { wrapWithSentinel } from '../../src/lib/remote-tools/sentinel'
 
 const ID = 'tab-1'
 const CWD = os.tmpdir()

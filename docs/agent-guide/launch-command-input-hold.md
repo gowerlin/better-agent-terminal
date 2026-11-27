@@ -72,6 +72,6 @@ T0951 查證時發現另外兩條路徑也是「`pty:create` 之後約 500 ms �
 
 - `electron/__tests__/launch-input-hold.test.ts`：Terminal Server 模式的真 `PtyManager` — 打字 → 命令完整、輸入在後；沒打字 → 只有命令；自動回應不擋；`null` 釋放；15 s 逾時與 64 KiB 上限照原樣寫出；kill 結束保留且不留計時器；helper 派工的保留不受影響。handler 端到端：`pty:create` / `pty:restart` 帶與不帶旗標、本機視窗的 `pty:write`、`pty:launch-command` 拒絕 helper 與錯誤參數、旗標不傳給 Terminal Server、沒有旗標時選項原物件傳給 `createWithResult`。
 - `src/lib/__tests__/launch-command.test.ts`：500 ms 後經 `pty:launch-command`、舊主機 fallback `pty:write`、`releaseLaunchHold` 不打字；`restartOrCreatePty` 有旗標才帶第 4 個參數；WorkspaceView source guard（11 處都經 `sendLaunchCommand`、6 個建立點都帶旗標、登入分頁與一般 shell 不帶）。
-- `src/lib/__tests__/launch-hold-login-install.test.ts`（T0956）：真的 handler＋`PtyManager`，登入分頁與遠端工具安裝各測：命令前打字 → PTY 收到「命令（登入分頁沒有 Enter）＋輸入」；沒打字 → 只有命令；舊主機 → 與修正前相同（輸入在前）；沒給 `sendLaunchCommand` → 不帶旗標。
+- `electron/__tests__/launch-hold-login-install.test.ts`（T0956）：真的 handler＋`PtyManager`，登入分頁與遠端工具安裝各測：命令前打字 → PTY 收到「命令（登入分頁沒有 Enter）＋輸入」；沒打字 → 只有命令；舊主機 → 與修正前相同（輸入在前）；沒給 `sendLaunchCommand` → 不帶旗標。
 - `src/lib/__tests__/launch-hold-login-install-wiring.test.tsx`（T0956）：`useRemoteToolInstall` 的 `pty:create` 帶旗標、安裝行經 `pty.launchCommand`、舊主機 fallback `pty.write`；WorkspaceView 登入分頁的接線（source guard）。
 - 待實機：見 T0951 回報區〈待實機〉、T0956 回報區〈待實機〉。
