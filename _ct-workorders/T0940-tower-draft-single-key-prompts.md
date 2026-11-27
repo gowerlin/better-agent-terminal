@@ -4,14 +4,16 @@ schema_kind: workorder
 id: T0940
 title: "BUG-227：契約 2 塔台在 claude 的單鍵介面（意見調查列等）按數字鍵後不再被判成有草稿；待辦分頁回答不再卡在「📨 待送」"
 type: bugfix
-status: TODO
+status: IN_PROGRESS
 repo: better-agent-terminal
 project: PLAN-068
 priority: P2
 sizing: S
 created_at: "2026-11-27T14:15:21+08:00"
-updated_at: "2026-11-27T14:15:21+08:00"
-session_ids: []
+started_at: "2026-11-27T14:16:50+08:00"
+updated_at: "2026-11-27T14:16:50+08:00"
+session_ids:
+  - "d4db5adb-584b-4094-a95f-a7b5358a32f4"
 target_version: "0.8.0-pre.9"
 depends_on: []
 related:
