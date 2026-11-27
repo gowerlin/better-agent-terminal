@@ -1854,6 +1854,8 @@
       "copy": "複製指令",
       "copied": "已複製",
       "commandNote": "BAT 不會執行這個指令，請自己在適當的地方執行。",
+      "open": "開啟",
+      "openNote": "在「檔案」頁籤開啟這個檔案。",
       "done": "完成",
       "failed": "失敗…",
       "failedPlaceholder": "失敗說明（一行，可留空）"

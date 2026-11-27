@@ -403,7 +403,7 @@ host：`setReading(id, reporter, reading)`，`reporter` = `conn:<connectionId>` 
 | `awaiting_user[].options[]` | 每項 `<代號> <說明>`，代號 `^[A-Za-z0-9]{1,3}$`，同筆不重複（不分大小寫：CT 以不分大小寫、唯一命中解析） | 該筆改自由回答（顯示一行說明），不略過 |
 | `awaiting_user[].workorder` / `kind` / `source` / `created_at` | 選填，照原字串顯示；`source` 已知全名顯示短標籤（`inbox.source.*`，三語系），未知照原字串 | 欄位忽略 |
 | `user_actions[].id` / `title` | `^A-\d+$`；非空、≤ 120 字 | 略過並計數 |
-| `user_actions[].command` | 選填，≤ 300 字，只有「複製」 | 超過 / 非字串 → 不顯示指令（該筆保留） |
+| `user_actions[].command` | 選填，≤ 300 字，「複製」；其中的檔案參照可點，整個指令是一個存在的檔時改成連結＋「開啟」（T0936，見〈參考檔案連結（T0930）〉的〈🙋 的指令欄（T0936）〉） | 超過 / 非字串 → 不顯示指令（該筆保留） |
 | `user_actions[].kind` | `verify` / `run` / `manual` 有標籤，其他照原字串 | — |
 | `reminders[].id` / `title` / `due_at` | `^[a-z0-9-]{1,40}$`；非空；可解析的日期或日期時間 | 略過並計數 |
 | `next_ids.user` / `next_ids.action` | `^U-\d+$` / `^A-\d+$` | 忽略 |
@@ -592,7 +592,7 @@ CT 6.2.0 起暫停時（`interactive-prompts: on`）先寫 `awaiting_user` 再�
 
 ## 參考檔案連結（T0930）
 
-- **用途**：「⏸ 待你決定」「🙋 待你執行」「⏰ 到期提醒」的項目中提到的檔案可以點：切到主畫面上方的「檔案」頁籤、在檔案樹展開並選取該檔。CT 契約 v2 沒有檔案欄位，所以從 `workorder` / `ref` 標籤與 `summary` / `title` 文字辨識。T0934 起「💬 塔台訊息」卡片也適用（見〈塔台訊息卡片（T0934）〉）。
+- **用途**：「⏸ 待你決定」「🙋 待你執行」「⏰ 到期提醒」的項目中提到的檔案可以點：切到主畫面上方的「檔案」頁籤、在檔案樹展開並選取該檔。CT 契約 v2 沒有檔案欄位，所以從 `workorder` / `ref` 標籤與 `summary` / `title` 文字辨識。T0934 起「💬 塔台訊息」卡片也適用（見〈塔台訊息卡片（T0934）〉）；T0936 起「🙋 待你執行」的 `command` 也適用（見〈🙋 的指令欄（T0936）〉）。
 - **唯一實作**：辨識與路徑解析 `src/lib/inbox-file-refs.ts`（純函式：`parseCtId`、`splitFileRefs`、`resolveRefPath`、`refLookups`、`matchIdFile`）；存在檢查 `useInboxFileRefs`（`src/components/inbox/useInboxFileRefs.ts`）；顯示 `InboxRefText` / `InboxRefTag`（`src/components/inbox/InboxRefText.tsx`），由 `InboxLists.tsx` 的三個清單使用；工作區根目錄由 `InboxPanel` 以 `folder` 傳入（沒有 → 全部純文字、不檢查）。
 
 ### 必守規則
@@ -641,6 +641,16 @@ CT 6.2.0 起暫停時（`interactive-prompts: on`）先寫 `awaiting_user` 再�
 - 存在檢查只查目前顯示的部分：收合的卡只查加亮行、展開的卡查顯示中的行（摺疊時不查被摺掉的部分），所有卡片合計去重後最多 `INBOX_FILE_REF_MAX` = 40 個（依卡片排列順序：釘選、較新的先）。展開 / 收合、「顯示全部」改變參照集合時才重新檢查。
 - 工作區根目錄由 `InboxPanel` 以 `folder={workspaceFolderPath}` 傳給 `TowerCardsSection`（與三個清單相同）；沒有 → 全部純文字、不檢查。連結在卡片行內保留 `pre-wrap`（`.tower-card-line .inbox-file-link`）。
 - 驗證：`src/components/__tests__/inbox-tower-card-file-refs-t0934.test.tsx`（收合卡的加亮行可連結、toggle 按鈕內沒有任何互動元素、展開卡內文的存在 / 不存在 / 工作區外 / URL、點擊送出兩個事件且卡片展開 / 已讀 / 釘選不變、摺疊卡只查 head、沒有根目錄時不檢查）。
+
+### 🙋 的指令欄（T0936）
+
+- **背景**（BUG-226）：塔台會把要使用者審閱的檔（例 `_ct-workorders/_reply-<日期>-<主題>.md`）寫在 `user_actions[].command`；修正前指令欄只有原文與「複製指令」，複製檔名沒有用處。
+- **行為 A**（指令中含參照）：`command` 仍以 `<code class="inbox-command-text">` 顯示，內容經 `InboxRefText`，存在的路徑 / 檔名 / 編號成連結，文字逐字不變；「複製指令」保留，複製的仍是原始 `command` 全文；`title` 照舊是「BAT 不會執行這個指令…」（`inbox.action.commandNote`）。
+- **行為 B**（整個 `command` 就是一個檔）：純函式 `soleFileRef`（`src/lib/inbox-file-refs.ts`）判斷——`command` trim 後，可去掉外層一對 `` ` `` / `"` / `'`（內容不含同一種引號、不跨行）；引號內整段可以是一個編號、路徑或檔名，也可以是含空白的路徑（`"docs/a b.md"`）；否則 `splitFileRefs` 必須只得到一個參照、其餘只有空白。結果存在（`useInboxFileRefs` 已解析到目標）→ 指令文字整段是連結（`data-inbox-command-file`），按鈕改成「開啟」（`data-inbox-open`，`inbox.action.open`），兩者都經 `openFileInFilesTab` 開解析後的檔；不顯示「複製指令」；`title` 改成 `inbox.action.openNote`。存在檢查尚未完成或找不到 → 照行為 A。
+- 不是單一參照的例子：`pwsh -File e2e/manual/x.ps1`（還有其他文字）、`npm run build`（沒有參照）、兩個路徑、空字串、URL。
+- 存在檢查：`ActionList` 收集 `commandFileRefs(item.command)`（`useInboxFileRefs.ts`：整個指令的參照在前，再加指令中的參照），與標籤、`title` 共用同一個 `INBOX_FILE_REF_MAX` = 40（未改）。
+- 🔴 不變：BAT 永遠不執行 `command`（不送進終端、不 shell open）；開檔只走 `openFileInFilesTab`，工作區外 / URL / `..` 一律不連（`resolveRefPath` 同 T0930）；「完成」「失敗…」「略過…」、回答格式、勾選批次、`checkInboxAnswer` 與其他清單不變。
+- 驗證：`src/lib/__tests__/inbox-file-refs.test.ts`〈soleFileRef (T0936)〉、`src/components/__tests__/inbox-command-file-t0936.test.tsx`（存在的檔：連結＋「開啟」、點擊送出兩個事件、沒有「複製指令」；不存在：純文字＋複製；真的指令：路徑可點、複製原文全文；含空白的引號路徑與工單編號）。
 
 ### 遠端與 detached
 

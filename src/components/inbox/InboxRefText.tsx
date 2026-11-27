@@ -10,7 +10,8 @@ import { openFileInFilesTab } from '../../state/openFileInFilesTab'
 import { fileRefKey, parseCtId, splitFileRefs, type ResolvedRef } from '../../lib/inbox-file-refs'
 import type { InboxRefLinks } from './useInboxFileRefs'
 
-function RefLink({ text, target, className }: { text: string; target: ResolvedRef; className: string }) {
+/** One found reference as a link (also the whole `command` of a `user_actions` item, T0936). */
+export function RefLink({ text, target, className }: { text: string; target: ResolvedRef; className: string }) {
   return (
     <button
       type="button"

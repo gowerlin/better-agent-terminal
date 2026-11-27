@@ -1855,6 +1855,8 @@
       "copy": "Copy command",
       "copied": "Copied",
       "commandNote": "BAT never runs this command; run it yourself where it belongs.",
+      "open": "Open",
+      "openNote": "Opens this file in the Files tab.",
       "done": "Done",
       "failed": "Failed…",
       "failedPlaceholder": "What failed (one line, optional)"

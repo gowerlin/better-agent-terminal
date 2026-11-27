@@ -19,6 +19,7 @@ import {
   splitFileRefs,
   joinRoot,
   parseCtId,
+  soleFileRef,
   type FileRef,
   type ResolvedRef,
 } from '../../lib/inbox-file-refs'
@@ -40,6 +41,16 @@ export function itemFileRefs(tags: ReadonlyArray<string | undefined>, texts: Rea
     for (const part of splitFileRefs(text)) if (part.kind === 'ref') refs.push(part.ref)
   }
   return refs
+}
+
+/**
+ * T0936: the references of a `user_actions` `command` — the whole command when it is one reference
+ * (`soleFileRef`, first, so it is never cut by the cap before its parts), then the ones in it.
+ */
+export function commandFileRefs(command: string | undefined): FileRef[] {
+  if (!command) return []
+  const sole = soleFileRef(command)
+  return sole ? [sole, ...itemFileRefs([], [command])] : itemFileRefs([], [command])
 }
 
 async function resolveAll(folder: string, refs: readonly FileRef[]): Promise<Map<string, ResolvedRef>> {
