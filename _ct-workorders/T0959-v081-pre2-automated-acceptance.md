@@ -4,12 +4,13 @@ schema_kind: workorder
 id: T0959
 title: "`v0.8.1-pre.2` 交付版自動化驗收：沿用 T0955 驅動，加測 BUG-232（登入導引分頁 / 遠端工具安裝的命令前輸入）與 BUG-233（⏻ 後游標）"
 type: verification
-status: PENDING
+status: IN_PROGRESS
 repo: better-agent-terminal
 priority: P3
 sizing: M
 created_at: "2026-11-27T22:56:24+08:00"
-updated_at: "2026-11-27T22:56:24+08:00"
+updated_at: "2026-11-27T23:25:51+08:00"
+started_at: "2026-11-27T23:25:51+08:00"
 target_version: "v0.8.1-pre.2（交付版驗收）"
 depends_on: []
 related:
