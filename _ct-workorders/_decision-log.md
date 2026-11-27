@@ -10,6 +10,8 @@
 
 | ID | 日期 | 標題 | 相關工單 |
 |----|------|------|---------|
+| D434 | 2026-11-27 | A-18 回報：BAT 重開接回後塔台宣告消失 → 開 BUG-230（medium，OPEN）、A-18 移除、發 U-39 | BUG-230 / T0944 |
+| D433 | 2026-11-27 | T0947 收單（DONE，`6e58f168`）；判準 1 不成立 → 派合併工單 T0948 | T0947 / T0948 / BUG-229 |
 | D432 | 2026-11-27 | U-38：A → T0946 ff 進 `main` `773fe35c`；BUG-228 FIXED（待發版實機驗收）；T0946 worktree 移除 | T0946 / BUG-228 |
 | D431 | 2026-11-27 | T0946 收單（DONE，`75525d6a`）；模式 ① 合併到 `ct-merge/T0946` `8595cfd8`；斷點 E 發 U-38 | T0946 / BUG-228 |
 | D430 | 2026-11-27 | U-37：A → BUG-229 FIXING；開並派 T0947（⏻ 重啟後殘留的滑鼠追蹤不再打進新 shell；只寫本機 xterm，worktree 隔離，與 T0946 並行、T0946 先合） | BUG-229 / T0947 / T0946 |
@@ -550,6 +552,25 @@
   4. PLAN-001 保持延後（🟢 Low，等 plugin 1.0 穩定）
 - **Success criteria**（EXP→CONCLUDED）：npm install 無錯 / 所有 native modules rebuild 成功 / dev+build:dir 可跑 / 手動 smoke test 8 項通過
 - **最大風險**：`whisper-node-addon@1.0.2` 對 Electron 41（Node 24）的 NODE_MODULE_VERSION 相容性未知，允許 Worker 遇此決策點主動問塔台
+
+---
+
+### D434 2026-11-27 21:04 — A-18 回報 → BUG-230、U-39
+
+- **使用者**：BAT 重開後終端分頁有接回，但待辦分頁顯示「沒有已宣告的塔台分頁」、回答送不出去，必須自己再執行 `/control-tower`（截圖）。
+- **判讀**：A-18 的「保留／接回時不重送任何東西」符合預期（claude 程序存活、對話不中斷）；「重新開始」那條路這次沒走到。新發現：`--set-role` 的宣告（角色、模式、契約 v2）不持久化，接回後消失 → 開 BUG-230（medium，OPEN）。塔台 21:03 重送 `--set-role tower --bat-contract 2 --mode on` exit 0，宣告恢復。
+- **處置**：A-18 移除；「重新開始」與「保留」兩條路併入發版後的重驗 A-n。發 U-39（BUG-230 要不要併進這一批）。
+- **相關**：BUG-230 / T0944 / T0562 / T0903 / PLAN-065
+
+---
+
+### D433 2026-11-27 21:03 — T0947 收單、派合併工單 T0948
+
+- **回報**：T0947 DONE，`ct/T0947` `6e58f168`（= validated_sha），base `48f4dc98`。三點根因皆查證：① ⏻ 不重新掛載 xterm、被強制結束的 claude 沒送 DECRST，追蹤殘留；② `createPtyThenLaunch` 在 `pty:create` 後 500 ms 才寫命令，期間的回報進了新 bash 的輸入列（ConPTY＋Git Bash 實測重現）；③ `MouseReportEchoDetector` 沒壞，是 shell 啟動中回顯晚於 500 ms 時間窗。做法：新 PTY 在同一 xterm 開始前後，追蹤還開著就只在本機 xterm 寫重設（`resetLeftoverMouseTracking`，`src/lib/mouse-tracking-reset.ts`），不寫 PTY、執行中的回報逐位元不變。`test:unit` 9293 passed / 42 skipped（517 files）、vite build 0、typecheck 0；未改 `electron/**`。
+- **後續建議（未開單）**：⏻ 時一併離開 claude 留下的 alt screen；⏻ 期間使用者自己打的字仍在命令前面（比照 BUG-151 `holdInputForDispatch`）。
+- **收單**：`--close-worker T0947 --delay-ms 10000 --worktree keep` exit 0。
+- **合併**：`main` 自 base 起併入 T0946 產品檔（`CLAUDE.md`、`WorkspaceView.tsx` 兩邊都改），判準 1 不成立 → 派合併工單 T0948（模式 ① 由 Worker 在整合 worktree 做、重跑完整驗收；塔台 `merge-tree` 試合併無衝突），base `e1c1476e`。
+- **相關**：T0947 / T0948 / BUG-229 / T0946
 
 ---
 
