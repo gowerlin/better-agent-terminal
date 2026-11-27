@@ -14,15 +14,6 @@ next_ids:
   user: "U-27"
   action: "A-12"
 awaiting_user:
-  - id: "U-25"
-    workorder: ""
-    kind: "decision"
-    source: "tower-question"
-    summary: "【驗測範例 E2】多選（BAT 端畫面）：A、C 應預設勾選並標推薦；改勾後送出看回覆格式"
-    options: ["A 甲（推薦）", "B 乙", "C 丙（推薦）", "D 丁"]
-    recommended: "A、C"
-    multi: true
-    created_at: "2026-11-27T12:42:17+08:00"
   - id: "U-26"
     workorder: ""
     kind: "decision"
