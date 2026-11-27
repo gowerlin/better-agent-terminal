@@ -10,6 +10,7 @@
 
 | ID | 日期 | 標題 | 相關工單 |
 |----|------|------|---------|
+| D453 | 2026-11-27 | 兩項後續建議開單並派工：BUG-232 / T0956（登入導引與遠端工具安裝的命令前輸入）、BUG-233 / T0957（⏻ 後還原隱藏的游標） | T0956 / T0957 / BUG-232 / BUG-233 |
 | D452 | 2026-11-27 | U-45：A → T0955 驅動直接合併 `dd0898c3`；U-46：A → 本批 12 個已合併分支 `-d` 刪除 | T0955 |
 | D451 | 2026-11-27 | T0955 全 PASS → A-19–A-23 結案、BUG-228–231 CLOSED；驅動合併發 U-45、分支清理發 U-46 | T0955 / BUG-228–231 / T0950 |
 | D450 | 2026-11-27 | A-19–A-23 改用自動化測試：開並派 T0955（交付版 zip 隔離實例＋假 claude） | T0955 / BUG-228–231 / T0950 |
@@ -570,6 +571,16 @@
   4. PLAN-001 保持延後（🟢 Low，等 plugin 1.0 穩定）
 - **Success criteria**（EXP→CONCLUDED）：npm install 無錯 / 所有 native modules rebuild 成功 / dev+build:dir 可跑 / 手動 smoke test 8 項通過
 - **最大風險**：`whisper-node-addon@1.0.2` 對 Electron 41（Node 24）的 NODE_MODULE_VERSION 相容性未知，允許 Worker 遇此決策點主動問塔台
+
+---
+
+### D453 2026-11-27 22:38 — 兩項後續建議開單：BUG-232 / T0956、BUG-233 / T0957
+
+- **使用者**：「兩件事開單」。
+- **BUG-232**（low，FIXING）／**T0956**：登入導引分頁（`openClaudeLoginTerminal`，只打字不送 Enter）與遠端工具安裝（`useRemoteToolInstall`）也在 create 後寫命令 → 沿用 T0951 的 `holdInputUntilLaunch` / `sendLaunchCommand`，不另寫一套；登入導引維持不送 Enter（必要時共用實作加最小參數）；舊 host fallback 不變。
+- **BUG-233**（low，FIXING）／**T0957**：`?1049l` 不還原 DECTCEM，非 Windows 的 shell 不送 `?25h` → 與 T0950 同時機（`new-pty-spawned`）游標隱藏時只在本機 xterm 寫 `?25h`；先真 xterm 重現、有 WSL 時實測。
+- **派工**：兩張 worktree、yolo 並行；檔案大致不重疊（T0956：`WorkspaceView.tsx` / 登入導引 / 遠端工具安裝 / `launch-command.ts`；T0957：`mouse-tracking-reset.ts` / `pty-replay.ts` / `TerminalPanel.tsx`），`CLAUDE.md` 可能都動 → 依完成順序合併。
+- **相關**：T0951 / T0950 / T0955 / BUG-231
 
 ---
 
