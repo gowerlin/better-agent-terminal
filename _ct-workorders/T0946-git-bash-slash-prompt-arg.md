@@ -12,7 +12,6 @@ created_at: "2026-11-27T20:42:33+08:00"
 updated_at: "2026-11-27T20:51:52+08:00"
 started_at: "2026-11-27T20:44:22+08:00"
 completed_at: "2026-11-27T20:51:52+08:00"
-waiting_user: "U-38"
 session_ids:
   - "ce2aaace-a557-4273-a3bf-5af0871e601b"
 target_version: "下一個預覽版（`0.8.1-pre.N`，發版前與使用者確認）"

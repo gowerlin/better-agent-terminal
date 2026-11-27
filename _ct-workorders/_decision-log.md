@@ -10,6 +10,7 @@
 
 | ID | 日期 | 標題 | 相關工單 |
 |----|------|------|---------|
+| D432 | 2026-11-27 | U-38：A → T0946 ff 進 `main` `773fe35c`；BUG-228 FIXED（待發版實機驗收）；T0946 worktree 移除 | T0946 / BUG-228 |
 | D431 | 2026-11-27 | T0946 收單（DONE，`75525d6a`）；模式 ① 合併到 `ct-merge/T0946` `8595cfd8`；斷點 E 發 U-38 | T0946 / BUG-228 |
 | D430 | 2026-11-27 | U-37：A → BUG-229 FIXING；開並派 T0947（⏻ 重啟後殘留的滑鼠追蹤不再打進新 shell；只寫本機 xterm，worktree 隔離，與 T0946 並行、T0946 先合） | BUG-229 / T0947 / T0946 |
 | D429 | 2026-11-27 | A-16 失敗：⏻ 重啟後滑鼠回報黏在 claude 啟動命令前面、claude 沒啟動 → 開 BUG-229（medium，OPEN）、發 U-37（何時派修正） | BUG-229 / T0944 / T0946 |
@@ -549,6 +550,16 @@
   4. PLAN-001 保持延後（🟢 Low，等 plugin 1.0 穩定）
 - **Success criteria**（EXP→CONCLUDED）：npm install 無錯 / 所有 native modules rebuild 成功 / dev+build:dir 可跑 / 手動 smoke test 8 項通過
 - **最大風險**：`whisper-node-addon@1.0.2` 對 Electron 41（Node 24）的 NODE_MODULE_VERSION 相容性未知，允許 Worker 遇此決策點主動問塔台
+
+---
+
+### D432 2026-11-27 21:00 — U-38：A → T0946 ff 進 `main`、BUG-228 FIXED
+
+- **使用者**：`U-38：A`。U-38 移除、T0946 `waiting_user` 清掉。
+- **SHA 比對**：第 5 步：ff 前 `main` 又前進一個塔台記帳 commit（`4afe27f6`，只有 `_ct-workorders/**`）→ 整合分支再 `--no-ff` 合併 `main` 一次後 ff；`main` = `ct-merge/T0946` = `773fe35c`（第 4 步）。整合 worktree 已 `switch --detach`。
+- **清理**：`git worktree remove` T0946（未加 `--force`，乾淨）成功；分支 `ct/T0946`、`ct-merge/T0946` 保留到使用者同意刪除。Worker 分頁 `fc4c1c73…` 由使用者手動關（`--close-worker` NOT_FOUND）。
+- **BUG-228**：FIXING → FIXED（合併進 `main`，待發版實機驗收，A-15 / A-16 重驗）。
+- **相關**：T0946 / BUG-228 / D431
 
 ---
 
