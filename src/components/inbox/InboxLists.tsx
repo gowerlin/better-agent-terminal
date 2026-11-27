@@ -43,6 +43,14 @@
  * T0930: the `workorder` / `ref` tags and the summary / title text show their existing file references
  * as links that open in the「檔案」tab (`InboxRefTag` / `InboxRefText`, existence check
  * `useInboxFileRefs` per list, recognition src/lib/inbox-file-refs.ts). Without `folder`: plain text.
+ *
+ * T0942 (D412, only a reminder — nothing is blocked): an answer that went out (`sent`, or `held` in
+ * the Tower tab's「📨 待送」) marks its row「✓ 已送出：<line>（HH:MM）」(「已排入待送」when held), and a
+ * batch line marks its toolbar and each of its rows. The row keeps what it was sent with (option,
+ * checks,「其他」text, answer box; never reset to the 推薦 default, which applies only to a row never
+ * sent) and its 送出 reads「重新送出」: another pick sends a new line, no confirmation. The records live
+ * in `inbox-sent-store` (memory only, per folder + item id), so a tab switch / remount keeps them; they
+ * are forgotten when the item leaves the list. Failed sends are shown as before, never marked.
  */
 import { useState, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -53,6 +61,7 @@ import {
   awaitingSourceLabelKey,
   dismissAnswerText,
   formatCtTime,
+  formatSentClock,
   isDismissAnswer,
   multiAnswerText,
   userActionKindLabelKey,
@@ -66,41 +75,66 @@ import { commandFileRefs, itemFileRefs, useInboxFileRefs, type InboxRefLinks } f
 import { fileRefKey, soleFileRef } from '../../lib/inbox-file-refs'
 import { openFileInFilesTab } from '../../state/openFileInFilesTab'
 import type { InboxAnswerTarget, RecentlyClosed } from '../../lib/inbox-model'
+import {
+  batchSentKey,
+  recordInboxSent,
+  useInboxSentMap,
+  type InboxAwaitingSelection,
+  type InboxSentRecord,
+} from '../../stores/inbox-sent-store'
 
 type Targets = { targets: InboxAnswerTarget[]; auto: InboxAnswerTarget | null }
 
 /** Per item: the last answer's outcome, shown under it. */
 type Status = InboxAnswerOutcome | { status: 'no-target' } | { status: 'sending' }
 
+/** T0942: how a line that goes out is recorded (`inbox-sent-store`). */
+interface SentInfo {
+  /** The store key: the item id, or `batchSentKey(kind)` for a batch line. */
+  key: string
+  /** The ids the line answers; a batch line also marks each of them. */
+  ids: readonly string[]
+  /** A ⏸ row's selection when sent (restored on remount). */
+  selection?: InboxAwaitingSelection
+}
+
 /**
  * Sends answer lines for one Inbox: to `auto` directly; with several targets the user picks one
- * first (`pending`); with none, nothing is sent.
+ * first (`pending`); with none, nothing is sent. T0942: a line that went out (`sent` / `held`) is
+ * recorded under `scope` (the workspace folder) for the「已送出」mark.
  */
-function useAnswerSender(targets: Targets) {
+function useAnswerSender(targets: Targets, scope: string) {
   const [statuses, setStatuses] = useState<Record<string, Status>>({})
-  const [pending, setPending] = useState<{ itemId: string; text: string } | null>(null)
+  const [pending, setPending] = useState<{ itemId: string; text: string; info: SentInfo } | null>(null)
 
-  const deliver = async (itemId: string, text: string, target: InboxAnswerTarget): Promise<boolean> => {
+  const deliver = async (itemId: string, text: string, info: SentInfo, target: InboxAnswerTarget): Promise<boolean> => {
     setStatuses(prev => ({ ...prev, [itemId]: { status: 'sending' } }))
     const outcome = await sendInboxAnswer(target, text)
     setStatuses(prev => ({ ...prev, [itemId]: outcome }))
-    return outcome.status === 'sent' || outcome.status === 'held'
+    if (outcome.status !== 'sent' && outcome.status !== 'held') return false
+    const at = Date.now()
+    recordInboxSent(scope, info.key, { text, at, status: outcome.status, ids: info.ids, selection: info.selection })
+    // a batch line marks each of its rows too (no selection: the row's own choice is not what went out)
+    if (info.ids.length > 1 || info.ids[0] !== info.key) {
+      for (const id of info.ids) recordInboxSent(scope, id, { text, at, status: outcome.status, ids: [id] })
+    }
+    return true
   }
 
-  const send = async (itemId: string, text: string): Promise<boolean> => {
-    if (targets.auto) return deliver(itemId, text, targets.auto)
+  const send = async (itemId: string, text: string, info: SentInfo): Promise<boolean> => {
+    if (targets.auto) return deliver(itemId, text, info, targets.auto)
     if (targets.targets.length === 0) {
       setStatuses(prev => ({ ...prev, [itemId]: { status: 'no-target' } }))
       return false
     }
-    setPending({ itemId, text })
+    setPending({ itemId, text, info })
     return false
   }
 
   const choose = async (target: InboxAnswerTarget | null) => {
     const current = pending
     setPending(null)
-    if (current && target) await deliver(current.itemId, current.text, target)
+    if (current && target) await deliver(current.itemId, current.text, current.info, target)
   }
 
   return { statuses, pending, send, choose }
@@ -113,6 +147,32 @@ function StatusLine({ status }: { status: Status | undefined }) {
     ? t('inbox.answer.failed', { reason: status.reason })
     : t(`inbox.answer.${status.status}`)
   return <div className={`inbox-answer-status inbox-answer-${status.status}`} data-inbox-answer-status={status.status}>{text}</div>
+}
+
+/**
+ * T0942: the live status and the「已送出」mark of a row / a batch toolbar. A `sent` / `held` outcome is
+ * shown by the mark (it carries `data-inbox-answer-status` then); sending / failures keep their status
+ * line, above an earlier mark. 🔴 The line is drawn as text only.
+ */
+function AnswerStatus({ status, sent, id }: { status: Status | undefined; sent: InboxSentRecord | undefined; id: string }) {
+  const { t } = useTranslation()
+  const live = status && status.status !== 'sent' && status.status !== 'held' ? status : undefined
+  if (!sent) return <StatusLine status={status} />
+  const values = { text: sent.text, time: formatSentClock(sent.at) }
+  return (
+    <>
+      <StatusLine status={live} />
+      <div
+        className={`inbox-sent-marker inbox-sent-${sent.status}`}
+        data-inbox-sent={id}
+        data-inbox-sent-status={sent.status}
+        {...(live ? {} : { 'data-inbox-answer-status': sent.status })}
+        title={t(sent.status === 'held' ? 'inbox.answer.held' : 'inbox.answer.sent')}
+      >
+        {t(sent.status === 'held' ? 'inbox.answer.heldMarker' : 'inbox.answer.sentMarker', values)}
+      </div>
+    </>
+  )
 }
 
 function TargetChooser({ targets, onChoose }: { targets: InboxAnswerTarget[]; onChoose: (target: InboxAnswerTarget | null) => void }) {
@@ -209,13 +269,16 @@ function DismissCheck({ id, checked, onCheck }: { id: string; checked: boolean; 
  * confirmation listing the ids, then one line for the list. 🔴 The ids are taken when sent: the checked
  * ones still listed, or (「全部」) every id listed then — never a wildcard or a range.
  */
-function DismissToolbar({ kind, listedIds, checked, busy, onSend, status, chooser }: {
+function DismissToolbar({ kind, listedIds, checked, busy, onSend, status, sent, chooser }: {
   kind: DismissKind
   listedIds: readonly string[]
   checked: ReadonlySet<string>
   busy: boolean
-  onSend: (text: string) => Promise<boolean>
+  /** T0942: `ids` = the ids the line answers (each row is marked「已送出」too). */
+  onSend: (text: string, ids: readonly string[]) => Promise<boolean>
   status: Status | undefined
+  /** T0942: the list's last batch line that went out. */
+  sent: InboxSentRecord | undefined
   chooser: ReactNode
 }) {
   const { t } = useTranslation()
@@ -226,9 +289,10 @@ function DismissToolbar({ kind, listedIds, checked, busy, onSend, status, choose
   const awaiting = kind === 'awaiting'
   const send = async () => {
     if (!mode) return
-    const text = dismissAnswerText(idsOf(mode), kind, note)
+    const ids = idsOf(mode)
+    const text = dismissAnswerText(ids, kind, note)
     if (!text) { setMode(null); return }
-    if (await onSend(text)) {
+    if (await onSend(text, ids)) {
       setMode(null)
       setNote('')
     }
@@ -269,7 +333,7 @@ function DismissToolbar({ kind, listedIds, checked, busy, onSend, status, choose
         </div>
       )}
       {chooser}
-      <StatusLine status={status} />
+      <AnswerStatus status={status} sent={sent} id={batchSentKey(kind)} />
     </div>
   )
 }
@@ -300,12 +364,15 @@ function SkippedLine({ count }: { count: number }) {
   return <div className="inbox-muted" data-inbox-skipped={count}>{t('inbox.skipped', { count })}</div>
 }
 
-function AwaitingRow({ item, onAnswer, status, chooser, dismiss, checked, onCheck, links }: {
+function AwaitingRow({ item, onAnswer, status, sent, chooser, dismiss, checked, onCheck, links }: {
   item: AwaitingItem & { waitingOrders: string[] }
   /** T0930: the found file references (links in the tag and the summary). */
   links: InboxRefLinks
-  onAnswer: (text: string) => Promise<boolean>
+  /** T0942: `selection` = what the row showed when sent (recorded with the「已送出」mark). */
+  onAnswer: (text: string, selection?: InboxAwaitingSelection) => Promise<boolean>
   status: Status | undefined
+  /** T0942: the item's「已送出」record (this run, memory only). */
+  sent: InboxSentRecord | undefined
   chooser: ReactNode
   /** PLAN-069: `inbox_features` lists `dismiss` → check box + 放棄…. */
   dismiss: boolean
@@ -313,28 +380,33 @@ function AwaitingRow({ item, onAnswer, status, chooser, dismiss, checked, onChec
   onCheck: (id: string, checked: boolean) => void
 }) {
   const { t } = useTranslation()
-  const [choice, setChoice] = useState<string | null>(null)
+  // T0942: a row mounted again starts from what it was sent with
+  const saved = sent?.selection
+  const [choice, setChoice] = useState<string | null>(() => saved?.choice ?? null)
   // T0937:「其他（自由回答）」picked (never the default, never marked 推薦)
-  const [other, setOther] = useState(false)
-  const [otherText, setOtherText] = useState('')
-  // PLAN-069: the recommended option is selected until the user picks one
-  const selected = other ? null : (choice ?? item.recommended ?? null)
+  const [other, setOther] = useState(() => saved?.other ?? false)
+  const [otherText, setOtherText] = useState(() => saved?.otherText ?? '')
+  // PLAN-069: the recommended option is selected until the user picks one;
+  // T0942: only while the row was never sent (a sent row shows what went out, or what the user picked since)
+  const selected = other ? null : (choice ?? (sent ? null : item.recommended ?? null))
   // T0938: a multiple-choice item (`awaitingIsMulti`); null = untouched → the recommended codes are checked
   const multi = item.multi === true && !!item.options
-  const [checks, setChecks] = useState<ReadonlySet<string> | null>(null)
-  const checkedCodes: ReadonlySet<string> = other ? new Set() : (checks ?? new Set(item.recommendedCodes ?? []))
-  const [free, setFree] = useState('')
+  const [checks, setChecks] = useState<ReadonlySet<string> | null>(() => (saved?.checks ? new Set(saved.checks) : null))
+  const checkedCodes: ReadonlySet<string> = other ? new Set() : (checks ?? new Set(sent ? [] : item.recommendedCodes ?? []))
+  const [free, setFree] = useState(() => saved?.free ?? '')
   const sourceKey = awaitingSourceLabelKey(item.source)
   const busy = status?.status === 'sending'
-  const dismissControl = useDismissControl({ id: item.id, kind: 'awaiting', busy, onAnswer })
+  const dismissControl = useDismissControl({ id: item.id, kind: 'awaiting', busy, onAnswer: text => onAnswer(text) })
+  // T0942: nothing is reset after sending; the shown default is pinned first, so it stays once the row is
+  // marked sent (the 推薦 default no longer applies then)
   const sendLine = async (line: string) => {
-    if (await onAnswer(line)) {
-      setChoice(null)
-      setChecks(null)
-      setFree('')
-      setOther(false)
-      setOtherText('')
+    const pinned = other ? choice : selected
+    const pinnedChecks = multi && !other ? [...checkedCodes] : null
+    if (!other) {
+      setChoice(pinned)
+      if (pinnedChecks) setChecks(new Set(pinnedChecks))
     }
+    await onAnswer(line, { choice: pinned, checks: pinnedChecks, other, otherText, free })
   }
   const submit = async (answer: string) => {
     if (!answer.trim()) return
@@ -361,6 +433,8 @@ function AwaitingRow({ item, onAnswer, status, chooser, dismiss, checked, onChec
       if (line) void sendLine(line)
     } else if (selected) void submit(selected)
   }
+  // T0942: a sent row's 送出 sends a new line (no confirmation)
+  const sendLabel = t(sent ? 'inbox.answer.resend' : 'inbox.answer.send')
   const recommendedMark = (code: string) => (
     <span className="inbox-option-recommended" data-inbox-recommended={code}>{t('inbox.recommended')}</span>
   )
@@ -434,7 +508,7 @@ function AwaitingRow({ item, onAnswer, status, chooser, dismiss, checked, onChec
           {other && otherBox}
           {buttons(
             <button className="inbox-btn primary" disabled={!canSend || busy} onClick={sendChoice}>
-              {t('inbox.answer.send')}
+              {sendLabel}
             </button>,
           )}
         </div>
@@ -467,7 +541,7 @@ function AwaitingRow({ item, onAnswer, status, chooser, dismiss, checked, onChec
           {other && otherBox}
           {buttons(
             <button className="inbox-btn primary" disabled={!canSend || busy} onClick={sendChoice}>
-              {t('inbox.answer.send')}
+              {sendLabel}
             </button>,
           )}
         </div>
@@ -490,7 +564,7 @@ function AwaitingRow({ item, onAnswer, status, chooser, dismiss, checked, onChec
           )}
           {buttons(
             <button className="inbox-btn primary" disabled={!free.trim() || busy} onClick={() => void submit(free)}>
-              {t('inbox.answer.send')}
+              {sendLabel}
             </button>,
           )}
         </div>
@@ -503,17 +577,19 @@ function AwaitingRow({ item, onAnswer, status, chooser, dismiss, checked, onChec
       )}
       {item.createdAt && <div className="inbox-muted inbox-entry-time">{formatCtTime(item.createdAt)}</div>}
       {chooser}
-      <StatusLine status={status} />
+      <AnswerStatus status={status} sent={sent} id={item.id} />
     </li>
   )
 }
 
-function ActionRow({ item, onAnswer, status, chooser, dismiss, checked, onCheck, links }: {
+function ActionRow({ item, onAnswer, status, sent, chooser, dismiss, checked, onCheck, links }: {
   item: UserAction
   /** T0930: the found file references (links in the tag and the title). */
   links: InboxRefLinks
   onAnswer: (text: string) => Promise<boolean>
   status: Status | undefined
+  /** T0942: the item's「已送出」record (this run, memory only). */
+  sent: InboxSentRecord | undefined
   chooser: ReactNode
   /** PLAN-069: `inbox_features` lists `dismiss` → check box + 略過…. */
   dismiss: boolean
@@ -597,13 +673,13 @@ function ActionRow({ item, onAnswer, status, chooser, dismiss, checked, onCheck,
               }
             }}
           >
-            {t('inbox.answer.send')}
+            {t(sent ? 'inbox.answer.resend' : 'inbox.answer.send')}
           </button>
         </div>
       )}
       {item.createdAt && <div className="inbox-muted inbox-entry-time">{formatCtTime(item.createdAt)}</div>}
       {chooser}
-      <StatusLine status={status} />
+      <AnswerStatus status={status} sent={sent} id={item.id} />
     </li>
   )
 }
@@ -618,7 +694,8 @@ export function AwaitingList({ items, skipped, targets, dismiss = false, folder 
   /** T0930: the workspace root the file references resolve against; none → plain text. */
   folder?: string | null
 }) {
-  const sender = useAnswerSender(targets)
+  const sender = useAnswerSender(targets, folder ?? '')
+  const sentMap = useInboxSentMap(folder ?? '')
   const batch = useChecked()
   const listed = items.slice(0, INBOX_LIST_RENDER_MAX)
   const links = useInboxFileRefs(folder, listed.flatMap(item => itemFileRefs([item.workorder], [item.summary])))
@@ -631,8 +708,9 @@ export function AwaitingList({ items, skipped, targets, dismiss = false, folder 
           listedIds={listed.map(item => item.id)}
           checked={batch.checked}
           busy={sender.statuses[BATCH_KEY]?.status === 'sending'}
-          onSend={async text => { const ok = await sender.send(BATCH_KEY, text); if (ok) batch.clear(); return ok }}
+          onSend={async (text, ids) => { const ok = await sender.send(BATCH_KEY, text, { key: batchSentKey('awaiting'), ids }); if (ok) batch.clear(); return ok }}
           status={sender.statuses[BATCH_KEY]}
+          sent={sentMap.get(batchSentKey('awaiting'))}
           chooser={chooserFor(BATCH_KEY)}
         />
       )}
@@ -642,7 +720,8 @@ export function AwaitingList({ items, skipped, targets, dismiss = false, folder 
             key={item.id}
             item={item}
             status={sender.statuses[item.id]}
-            onAnswer={text => sender.send(item.id, text)}
+            sent={sentMap.get(item.id)}
+            onAnswer={(text, selection) => sender.send(item.id, text, { key: item.id, ids: [item.id], selection })}
             chooser={chooserFor(item.id)}
             dismiss={dismiss}
             checked={batch.checked.has(item.id)}
@@ -667,7 +746,8 @@ export function ActionList({ items, skipped, targets, dismiss = false, folder = 
   /** T0930: the workspace root the file references resolve against; none → plain text. */
   folder?: string | null
 }) {
-  const sender = useAnswerSender(targets)
+  const sender = useAnswerSender(targets, folder ?? '')
+  const sentMap = useInboxSentMap(folder ?? '')
   const batch = useChecked()
   const listed = items.slice(0, INBOX_LIST_RENDER_MAX)
   // T0936: the command's references too (the whole command first when it is one file)
@@ -681,8 +761,9 @@ export function ActionList({ items, skipped, targets, dismiss = false, folder = 
           listedIds={listed.map(item => item.id)}
           checked={batch.checked}
           busy={sender.statuses[BATCH_KEY]?.status === 'sending'}
-          onSend={async text => { const ok = await sender.send(BATCH_KEY, text); if (ok) batch.clear(); return ok }}
+          onSend={async (text, ids) => { const ok = await sender.send(BATCH_KEY, text, { key: batchSentKey('action'), ids }); if (ok) batch.clear(); return ok }}
           status={sender.statuses[BATCH_KEY]}
+          sent={sentMap.get(batchSentKey('action'))}
           chooser={chooserFor(BATCH_KEY)}
         />
       )}
@@ -692,7 +773,8 @@ export function ActionList({ items, skipped, targets, dismiss = false, folder = 
             key={item.id}
             item={item}
             status={sender.statuses[item.id]}
-            onAnswer={text => sender.send(item.id, text)}
+            sent={sentMap.get(item.id)}
+            onAnswer={text => sender.send(item.id, text, { key: item.id, ids: [item.id] })}
             chooser={chooserFor(item.id)}
             dismiss={dismiss}
             checked={batch.checked.has(item.id)}

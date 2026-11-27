@@ -1851,7 +1851,10 @@
       "freePlaceholder": "回答（一行）",
       "other": "其他（自由回答）",
       "otherDismissHint": "以「放棄」或「略過」开头的回答，塔台会当成放弃。",
-      "multiHint": "可多选"
+      "multiHint": "可多选",
+      "resend": "重新发送",
+      "sentMarker": "✓ 已发送：{{text}}（{{time}}）",
+      "heldMarker": "✓ 已排入待送：{{text}}（{{time}}）"
     },
     "action": {
       "copy": "复制命令",

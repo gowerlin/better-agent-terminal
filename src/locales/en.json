@@ -1852,7 +1852,10 @@
       "freePlaceholder": "Answer (one line)",
       "other": "Other (free answer)",
       "otherDismissHint": "An answer starting with the word 放棄 or 略過 is read by the Tower as giving up.",
-      "multiHint": "Select one or more"
+      "multiHint": "Select one or more",
+      "resend": "Send again",
+      "sentMarker": "✓ Sent: {{text}} ({{time}})",
+      "heldMarker": "✓ Queued for the Tower: {{text}} ({{time}})"
     },
     "action": {
       "copy": "Copy command",
