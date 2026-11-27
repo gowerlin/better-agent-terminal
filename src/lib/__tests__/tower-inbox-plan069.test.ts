@@ -68,7 +68,7 @@ describe('CT 6.2.0 fixture (tower-state-v620.md)', () => {
 
 describe('parseInboxFeatures', () => {
   it('a string array; unknown values and non-strings ignored; no duplicates', () => {
-    expect(INBOX_FEATURES).toEqual(['recommended', 'dismiss'])
+    expect(INBOX_FEATURES).toEqual(['recommended', 'dismiss', 'multi'])
     expect(parseInboxFeatures(['dismiss', 'future-value', 'recommended', 'dismiss', 3, null])).toEqual(['dismiss', 'recommended'])
     expect(parseInboxFeatures([' dismiss '])).toEqual(['dismiss'])
     expect(parseInboxFeatures(['DISMISS'])).toEqual([])

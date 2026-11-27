@@ -420,7 +420,7 @@ host：`setReading(id, reporter, reading)`，`reporter` = `conn:<connectionId>` 
 
 | 區塊 | 內容 | 動作 |
 |---|---|---|
-| ⏸ 待你決定 | id、工單、`source` 短標籤、`kind`、`summary`、時間；工單 `waiting_user` 對應時「⏸ T#### 暫停中」（只看未結工單） | 選項 radio＋「送出」→ `U-n：<代號>`（代號照 CT 原樣）；選項最後一項「其他（自由回答）」（T0937）→ 清單下方一行輸入框 → `U-n：<文字>`；沒有選項時的自由回答欄（Enter 或「送出」）→ `U-n：<文字>`（換行改空白） |
+| ⏸ 待你決定 | id、工單、`source` 短標籤、`kind`、`summary`、時間；工單 `waiting_user` 對應時「⏸ T#### 暫停中」（只看未結工單） | 選項 radio＋「送出」→ `U-n：<代號>`（代號照 CT 原樣）；多選題（T0938）改複選框 → `U-n：A、C`（見〈多選（T0938）〉）；選項最後一項「其他（自由回答）」（T0937）→ 清單下方一行輸入框 → `U-n：<文字>`；沒有選項時的自由回答欄（Enter 或「送出」）→ `U-n：<文字>`（換行改空白） |
 | 🙋 待你執行 | CT `user_actions`（在前）＋待驗收 BUG（`_bug-tracker.md`） | 「複製指令」（`navigator.clipboard.writeText`，🔴 BAT 永遠不執行）、「完成」→ `A-n：完成`、「失敗…」＋說明 → `A-n：失敗 <說明>` |
 | ⏰ 到期提醒 | `due_at` 已到或 7 天內（`dueReminders`）；逾期 N 天 / 今天到期 / N 天後到期＋上次 `last_at` | — |
 | 最近已結 | 從檔案消失的 `U-n` / `A-n`（`nextRecentlyClosed`，記憶體、每資料夾 10 筆、只本次啟動）；摺疊 | — |
@@ -437,8 +437,30 @@ host：`setReading(id, reporter, reading)`，`reporter` = `conn:<connectionId>` 
 - 選了 → 清單下方、按鈕列之前出現一行輸入框（`.inbox-free-input`、`maxLength` 900、`[data-inbox-other-input]`）；Enter 或「送出」送出（IME 組字中的 Enter 不送），trim 後是空白不可送。改選其他選項時輸入框收起，文字留在元件狀態；送出成功後整筆回到預設。
 - 🔴 送出路徑不變：同一個 `submit` → `awaitingAnswerText` → `sendInboxAnswer` → `tower-inbox:answer`；不新增 IPC、不改 `checkInboxAnswer` / `enqueueAnswer`（單編號行本來就接受任意文字）。
 - 文字的第一個詞是「放棄」/「略過」（CT 的規則，判斷沿用 `isDismissAnswer`：後面接行尾、空白或 `，,。；;`；「放棄了…」不算）→ 輸入框下方一行提示「以「放棄」或「略過」開頭的回答，塔台會當成放棄。」（`[data-inbox-other-hint]`），🔴 只提示、不擋送出（CT 規格的已知取捨）。
-- 不做多選（PLAN-070 子項 4，等 CT 核定契約後另開單）。
+- 多選見下一小節〈多選（T0938）〉。
+- T0938（T0937 後續）：沒有選項的自由回答欄（`options: []`、`optionsInvalid`）也顯示同一行提示（同一個 `isDismissAnswer`、同一個 i18n 鍵 `inbox.answer.otherDismissHint`，元素 `[data-inbox-free-hint]`），🔴 一樣不擋送出。
 - 測試：`src/components/__tests__/inbox-other-t0937.test.tsx`；t0929 版面測試的選項清單斷言改成只比對帶 `data-inbox-option` 的子元素仍是 A / B / C，另斷言最後一個子元素是「其他」（塔台 T0937 Q-1 核可）。
+
+### 多選（T0938）
+
+PLAN-070 子項 4（D394；CT D906，CT 6.3.0，先 6.3.0-pre.1）。契約以 T0938 工單〈契約定稿〉為準，BAT 不得單方更改；`bat_contract` 維持 2。
+
+| 項目 | 規則 |
+|---|---|
+| 能力旗標 | `inbox_features` 含 `multi`（CT 6.3.0 起寫 `["recommended", "dismiss", "multi"]`）= 寫這份狀態檔的塔台看得懂多選回答。沒有這個值 → 沒有任何多選畫面 |
+| 欄位（M1） | `awaiting_user[].multi`：🔴 只接受 YAML 布林 `true`（`"true"`、`1` 等一律當 `false`），且 `options` 可用、≥ 2 項；其他情況忽略，不報錯、不略過該筆 |
+| 推薦（M4） | 多選題的 `recommended` 可放多個代號（以 `、` 連接；BAT 也接受 `,` / `，`），每個不分大小寫對 `options`；🔴 有一個對不到就整個不推薦（同 CT 寫入規則）；單選題的 `recommended` 仍只認一個代號（T0922 行為，`"A、C"` 在單選題 = 沒有推薦） |
+| 送出（M3） | 勾 ≥ 1 項 → `U-n：<代號>[、<代號>…]`，🔴 依 `options` 順序（不是勾選順序）、去重、代號照 `options` 寫法、以 `、` 連接；「其他」→ `U-n：<文字>` |
+| CT 端（M2、M5） | 哪些 `source` 用多選（只 `tower-question` / `worker-question`，yolo 斷點一律單選）、原生選單 `multiSelect: true`、確認行 `U-3 已收到：A、C → …`、代號解析順序（放棄／略過 → 代號 → 自由文字）都是 CT 的行為；🔴 BAT 不判斷 `source` |
+
+- 判定唯一實作 `awaitingIsMulti(raw, options, features)`（`src/lib/tower-inbox.ts`），由 `parseTowerInboxLists` 呼叫：成立時 `AwaitingItem.multi = true`，推薦放 `AwaitingItem.recommendedCodes`（`matchRecommendedCodes`，依 `options` 順序），🔴 多選題不設 `recommended`、單選題不設 `recommendedCodes`；不成立時該筆與 T0938 前逐欄相同。回答文字 `multiAnswerText(id, codes, options)`（同檔，對不到的代號丟掉，都對不到回 null）。🔴 元件不內聯這些規則；`InboxPanel.tsx` 不必改（旗標在解析時就併進該筆）。
+- 畫面（`AwaitingRow`，`src/components/inbox/InboxLists.tsx`）：選項清單改成 `role="group"`（`[data-inbox-option-list]` 另帶 `data-inbox-multi`）、每項 `type="checkbox"`（仍是 `data-inbox-option="<代號>"`）；清單上方一行「可複選」（`inbox.answer.multiHint`，`[data-inbox-multi-hint]`，三語系）；每個推薦項都標「推薦」、預設勾選（使用者動過就以使用者的勾選為準）。沒勾任何一項時「送出」停用。
+- 「其他（自由回答）」照 T0937 留在清單最後（同一個 `[data-inbox-option-other]` / `[data-inbox-other-input]` / 放棄提示，改成 checkbox）。🔴 與勾選互斥：選「其他」清掉所有勾選並開輸入框；勾任何選項取消「其他」並收起輸入框（文字留在元件狀態）；再取消「其他」不會恢復推薦的預設勾選。BAT 不送混合回答。送出成功後整筆回到預設（推薦項勾選）。
+- 🔴 不變：送出一律經既有 `sendLine` / `submit` → `tower-inbox:answer`（`checkInboxAnswer` 單編號行接受任意文字，不改）；放棄 / 略過 / 批次、`⏸N`、🙋 / ⏰ / 💬 / 📋、參考檔案連結；不新增 IPC / channel；日誌不記選項與回答內容。多選題照樣可「放棄…」（`U-n：放棄`），批次仍只用在放棄／略過（`U-1、U-3：A` 不支援）。
+- 相容：CT 6.2.x 沒有 `multi` 旗標 → 畫面維持單選（即使某筆寫了 `multi: true`）；舊 BAT 不認得 `multi`（未知旗標、未知鍵）→ 照單選畫，送出單一代號 CT 照樣接受。
+- 已知限制：多選題的推薦有一個代號對不到時整題沒有推薦（不顯示部分推薦，同 CT 寫入規則）。
+- 測試：`src/lib/__tests__/tower-inbox-multi-t0938.test.ts`（旗標、`awaitingIsMulti` 各種值、推薦清單、`multiAnswerText`、從 `_tower-state.md` 解析）；`src/components/__tests__/inbox-multi-t0938.test.tsx`（複選框與「可複選」、預設勾推薦項、`U-3：A、C` / `U-4：A`、順序、全部取消不可送、「其他」互斥、放棄仍在、沒有旗標 / `multi: "true"` / 1 個選項時單選、自由回答欄的放棄提示、三語系）；既有 `tower-inbox-plan069.test.ts` 的 `INBOX_FEATURES` 快照多一個 `multi`（塔台 T0938 Q-1 核可）。
+- 待實機：CT 6.3.0-pre.1 之後雙方實機驗收（真塔台寫 `multi: true` 題目、從待辦分頁送 `U-n：A、C`、CT 確認行），見 T0938 回報區〈待實機〉。
 
 ### 回答路徑
 
@@ -514,7 +536,7 @@ T0922（D346；CT 6.2.0-pre.1，CT D886 / D888 / D889）。規格唯一權威：
 ### `inbox_features` 讀法
 
 - `_tower-state.md` 頂層，字串陣列（CT 6.2.0 起每次寫 `["recommended", "dismiss"]`）。不是陣列或不存在 = 空陣列（= CT 6.1.x）。
-- 只留 BAT 認得的值（`INBOX_FEATURES` = `recommended`、`dismiss`），前後空白去掉、去重；不認得的值（例 `future-value`）與非字串忽略，不報錯。
+- 只留 BAT 認得的值（`INBOX_FEATURES` = `recommended`、`dismiss`；T0938 起加 `multi`，見「契約 v2 清單與回答」節〈多選（T0938）〉），前後空白去掉、去重；不認得的值（例 `future-value`）與非字串忽略，不報錯。
 - `dismiss` → 顯示放棄 / 略過控制項。`recommended` 只是說明 CT 會寫 `recommended`，BAT 不依它決定顯示。
 
 ### 推薦比對
