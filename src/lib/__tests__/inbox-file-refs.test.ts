@@ -10,6 +10,7 @@ import {
   parseCtId,
   refLookups,
   resolveRefPath,
+  soleFileRef,
   splitFileRefs,
   type TextPart,
 } from '../inbox-file-refs'
@@ -234,5 +235,41 @@ describe('refLookups / matchIdFile', () => {
     expect(matchIdFile('T0275', ['T0275.md'])).toBe('T0275.md')
     expect(matchIdFile('CP-T0275', names)).toBe('CP-T0275-x.md')
     expect(matchIdFile('T0276', names)).toBeNull()
+  })
+})
+
+describe('soleFileRef (T0936)', () => {
+  it('a command that is one reference as a whole', () => {
+    expect(soleFileRef('_ct-workorders/_reply-2026-11-27-topic.md')).toEqual({ kind: 'path', path: '_ct-workorders/_reply-2026-11-27-topic.md' })
+    expect(soleFileRef('  _reply-2026-11-27-topic.md  ')).toEqual({ kind: 'path', path: '_reply-2026-11-27-topic.md' })
+    expect(soleFileRef('`README.md`')).toEqual({ kind: 'path', path: 'README.md' })
+    expect(soleFileRef('"docs/a b.md"')).toEqual({ kind: 'path', path: 'docs/a b.md' })
+    expect(soleFileRef("'docs/notes.md'")).toEqual({ kind: 'path', path: 'docs/notes.md' })
+    expect(soleFileRef(`docs${BS}guide${BS}x.md`)).toEqual({ kind: 'path', path: 'docs/guide/x.md' })
+    expect(soleFileRef('T0936')).toEqual({ kind: 'id', id: 'T0936', idKind: 'workorder' })
+    expect(soleFileRef('`BUG-226`')).toEqual({ kind: 'id', id: 'BUG-226', idKind: 'bug' })
+  })
+
+  it('real commands, two references, empty and URLs are not', () => {
+    expect(soleFileRef('pwsh -File e2e/manual/x.ps1')).toBeNull()
+    expect(soleFileRef('npm run build')).toBeNull()
+    expect(soleFileRef('')).toBeNull()
+    expect(soleFileRef('   ')).toBeNull()
+    expect(soleFileRef(undefined)).toBeNull()
+    expect(soleFileRef('docs/a.md docs/b.md')).toBeNull()
+    expect(soleFileRef('"docs/a.md" "docs/b.md"')).toBeNull()
+    expect(soleFileRef('`T0001` and `T0002`')).toBeNull()
+    expect(soleFileRef('docs/a.md.')).toBeNull() // trailing text is not whitespace
+    expect(soleFileRef('https://example.org/a.md')).toBeNull()
+    expect(soleFileRef('"https://example.org/a b.md"')).toBeNull()
+    expect(soleFileRef(`"docs/a${String.fromCharCode(10)}b.md"`)).toBeNull() // a line break inside quotes
+    expect(soleFileRef('"npm run build"')).toBeNull()
+    expect(soleFileRef('`docs/a.md` --check')).toBeNull()
+  })
+
+  it('a quoted path with spaces keeps the T0930 rules when resolved', () => {
+    const ref = soleFileRef('"docs/a b.md"')!
+    expect(refLookups('/ws', ref).map(l => l.kind === 'stat' ? l.rel : '')).toEqual(['docs/a b.md', '_ct-workorders/docs/a b.md'])
+    expect(refLookups('/ws', soleFileRef('"../outside/a b.md"') ?? { kind: 'path', path: '../outside/a b.md' })).toEqual([])
   })
 })

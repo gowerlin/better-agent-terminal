@@ -4,6 +4,8 @@
  *   ⏸ 待你決定   `awaiting_user` — option buttons (`<代號> <說明>`) + 送出, or a free answer box;
  *                 ⏸ + 「暫停中」for the open work orders whose `waiting_user` names it
  *   🙋 待你執行   `user_actions` — `command` has only「複製」(🔴 BAT never runs it);「完成」/「失敗…」
+ *                 T0936: references in `command` link; a `command` that is one existing file as a whole
+ *                 (`soleFileRef`) shows as a link with「開啟」instead of「複製」(opens in the「檔案」tab)
  *   ⏰ 到期提醒   `reminders` due or due within 7 days
  *   最近已結      the last 10 items that left the two lists (memory only)
  *
@@ -45,8 +47,10 @@ import {
   type UserAction,
 } from '../../lib/tower-inbox'
 import { sendInboxAnswer, type InboxAnswerOutcome } from '../../lib/inbox-answer'
-import { InboxRefTag, InboxRefText } from './InboxRefText'
-import { itemFileRefs, useInboxFileRefs, type InboxRefLinks } from './useInboxFileRefs'
+import { InboxRefTag, InboxRefText, RefLink } from './InboxRefText'
+import { commandFileRefs, itemFileRefs, useInboxFileRefs, type InboxRefLinks } from './useInboxFileRefs'
+import { fileRefKey, soleFileRef } from '../../lib/inbox-file-refs'
+import { openFileInFilesTab } from '../../state/openFileInFilesTab'
 import type { InboxAnswerTarget, RecentlyClosed } from '../../lib/inbox-model'
 
 type Targets = { targets: InboxAnswerTarget[]; auto: InboxAnswerTarget | null }
@@ -403,6 +407,8 @@ function ActionRow({ item, onAnswer, status, chooser, dismiss, checked, onCheck,
   const kindKey = userActionKindLabelKey(item.kind)
   const busy = status?.status === 'sending'
   const dismissControl = useDismissControl({ id: item.id, kind: 'action', busy, onAnswer })
+  const sole = soleFileRef(item.command)
+  const commandFile = sole ? links.get(fileRefKey(sole)) : undefined
   const copy = async () => {
     if (!item.command) return
     try {
@@ -421,14 +427,26 @@ function ActionRow({ item, onAnswer, status, chooser, dismiss, checked, onCheck,
       </div>
       {/* T0929: the title is its own full-width block below the head line */}
       <div className="inbox-entry-summary" data-inbox-summary={item.id}><InboxRefText text={item.title} links={links} /></div>
-      {item.command && (
-        <div className="inbox-command">
-          <code className="inbox-command-text" title={t('inbox.action.commandNote')}>{item.command}</code>
-          <button className="inbox-btn" data-inbox-copy={item.id} onClick={() => void copy()}>
-            {copied ? t('inbox.action.copied') : t('inbox.action.copy')}
-          </button>
-        </div>
-      )}
+      {item.command && (commandFile
+        ? (
+          // T0936: the command is one existing file → a link and「開啟」(never「複製指令」, never run)
+          <div className="inbox-command" data-inbox-command-file={item.id}>
+            <code className="inbox-command-text" title={t('inbox.action.openNote')}>
+              <RefLink text={item.command} target={commandFile} className="inbox-file-link" />
+            </code>
+            <button className="inbox-btn" data-inbox-open={item.id} title={commandFile.rel} onClick={() => openFileInFilesTab(commandFile.abs)}>
+              {t('inbox.action.open')}
+            </button>
+          </div>
+        )
+        : (
+          <div className="inbox-command">
+            <code className="inbox-command-text" title={t('inbox.action.commandNote')}><InboxRefText text={item.command} links={links} /></code>
+            <button className="inbox-btn" data-inbox-copy={item.id} onClick={() => void copy()}>
+              {copied ? t('inbox.action.copied') : t('inbox.action.copy')}
+            </button>
+          </div>
+        ))}
       <div className="inbox-actions-row inbox-entry-buttons" data-inbox-entry-buttons={item.id}>
         <button className="inbox-btn primary" disabled={busy} data-inbox-done={item.id} onClick={() => void onAnswer(actionAnswerText(item.id, 'done'))}>
           {t('inbox.action.done')}
@@ -532,7 +550,8 @@ export function ActionList({ items, skipped, targets, dismiss = false, folder = 
   const sender = useAnswerSender(targets)
   const batch = useChecked()
   const listed = items.slice(0, INBOX_LIST_RENDER_MAX)
-  const links = useInboxFileRefs(folder, listed.flatMap(item => itemFileRefs([item.ref], [item.title])))
+  // T0936: the command's references too (the whole command first when it is one file)
+  const links = useInboxFileRefs(folder, listed.flatMap(item => [...itemFileRefs([item.ref], [item.title]), ...commandFileRefs(item.command)]))
   const chooserFor = (key: string) => sender.pending?.itemId === key ? <TargetChooser targets={targets.targets} onChoose={sender.choose} /> : null
   return (
     <>

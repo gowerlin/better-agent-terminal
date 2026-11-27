@@ -16,6 +16,8 @@
  *     as `example.org` therefore stays text unless a file of that name is there).
  *   - never: URLs (any `scheme:`), UNC (`\\host\…`, `//host/…`), `~`, any `..` segment, a path outside
  *     the workspace root.
+ *   - T0936: a `user_actions` `command` that is one reference as a whole (`soleFileRef`) — the
+ *     command line then becomes a link with「開啟」instead of「複製指令」when the file exists.
  *
  * Whether a candidate exists is decided by the caller (`src/components/inbox/useInboxFileRefs.ts`,
  * read-only `fs:stat` / `fs:readdir`); an unresolved reference stays plain text.
@@ -76,9 +78,13 @@ export function parseCtId(value: string): { id: string; idKind: CtIdKind } | nul
 const LINE_SUFFIX = /:\d+(?::\d+)?$/
 const EXTENSION = /\.[A-Za-z0-9]{1,10}$/
 
-/** A path as written: `/` or `\` in it and an extension on its last segment (after a `:line` suffix). */
-function asPath(raw: string): string | null {
-  if (!raw || /\s/.test(raw)) return null
+/**
+ * A path as written: `/` or `\` in it and an extension on its last segment (after a `:line` suffix).
+ * `spaces` (T0936, only for a quoted command as a whole): inner spaces allowed, no line breaks / tabs.
+ */
+function asPath(raw: string, spaces = false): string | null {
+  if (!raw) return null
+  if (spaces ? /[\r\n\t\f\v]/.test(raw) || raw.trim() !== raw : /\s/.test(raw)) return null
   if (!/[\\/]/.test(raw)) return null
   const path = raw.replace(/\\/g, '/').replace(LINE_SUFFIX, '')
   const last = path.split('/').pop() ?? ''
@@ -183,6 +189,45 @@ export function splitFileRefs(text: string): TextPart[] {
   }
   splitBare(text.slice(at), parts)
   return parts
+}
+
+/**
+ * T0936: the one file reference a `user_actions` `command` is as a whole, or null when it is a real
+ * command (`pwsh -File x.ps1`, `npm run build`), has two references, or is empty.
+ *
+ * `text` trimmed; one outer pair of `` ` ``, `"` or `'` (not used inside) may wrap it, and then the
+ * wrapped content may also be a path with inner spaces (`"docs/a b.md"`). Otherwise `splitFileRefs`
+ * must give exactly one reference and only whitespace besides. Whether the file exists is decided by
+ * the caller, like every other reference.
+ */
+export function soleFileRef(text: string | null | undefined): FileRef | null {
+  if (!text) return null
+  let value = text.trim()
+  const quote = value.length > 2 ? value[0] : ''
+  if ((quote === '`' || quote === '"' || quote === "'") && value.endsWith(quote)) {
+    const inner = value.slice(1, -1).trim()
+    if (inner && !inner.includes(quote) && !/[\r\n]/.test(inner)) {
+      const whole = wholeRef(inner)
+      if (whole) return whole
+      if (!URL_START.test(inner)) {
+        const spaced = asPath(inner, true)
+        if (spaced) return { kind: 'path', path: spaced }
+      }
+      value = inner
+    }
+  }
+  const parts = splitFileRefs(value)
+  let sole: FileRef | null = null
+  for (const part of parts) {
+    if (part.kind === 'text') {
+      if (part.text.trim()) return null
+    } else if (sole) {
+      return null
+    } else {
+      sole = part.ref
+    }
+  }
+  return sole
 }
 
 /** A stable key per reference (for caching and deduplication). */

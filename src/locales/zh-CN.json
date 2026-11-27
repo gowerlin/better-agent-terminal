@@ -1854,6 +1854,8 @@
       "copy": "复制命令",
       "copied": "已复制",
       "commandNote": "BAT 不会执行这个命令，请自己在适当的地方执行。",
+      "open": "打开",
+      "openNote": "在“文件”标签页打开这个文件。",
       "done": "完成",
       "failed": "失败…",
       "failedPlaceholder": "失败说明（一行，可留空）"

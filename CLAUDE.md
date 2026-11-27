@@ -527,7 +527,7 @@
 ## 待辦分頁的契約 v2 清單與回答（PLAN-068 W5 / T0908）
 
 - 用途：顯示 CT 6.1.0 寫的 `awaiting_user` / `user_actions` / `reminders`（＋工單 `waiting_user`），從待辦分頁回答一行 `U-n：<代號或自由文字>` / `A-n：完成` / `A-n：失敗 <說明>`；塔台縮圖與工作區列表 `⏸N`。
-- 🔴 只在 §6′ 相符時運作（`inboxVerdict`）；解析錯誤只略過該筆並計數；`command` 只有「複製」，BAT 永遠不執行；日誌只記 id / 長度 / 筆數，不記 `summary` / `options` / 回答。
+- 🔴 只在 §6′ 相符時運作（`inboxVerdict`）；解析錯誤只略過該筆並計數；`command` 照原文顯示＋「複製」，BAT 永遠不執行；其中存在的參照可點，整個 `command` 是一個存在的檔時改成連結＋「開啟」、不顯示「複製」（T0936，判斷唯一實作 `soleFileRef`，`src/lib/inbox-file-refs.ts`）；日誌只記 id / 長度 / 筆數，不記 `summary` / `options` / 回答。
 - 🔴 回答 IPC `tower-inbox:answer { terminalId, text }`（proxied，`registerTowerInboxAnswerHandler`，`electron/notify-hold.ts`）不得加進 `HELPER_CHANNEL_ROLES`、handler 另拒 `ctx.helper`；只收單行 ≤ 1,000 字、`^[UA]-\d+[：:]` 開頭（`checkInboxAnswer`），交 `enqueueAnswer`（受 prompt / `draft` 擋、不受 `reading` 擋）。目標：已宣告契約 2 的塔台分頁；沒有時才送面板塔台（面板輸入框有字時拒絕）。
 - 唯一實作：解析 / 時間 / 回答格式 `src/lib/tower-inbox.ts`、`parseTowerStateInbox`（`ct-tower-overview.ts`）、目標 `inboxAnswerTargets`（`inbox-model.ts`）、送出 `src/lib/inbox-answer.ts`、畫面 `src/components/inbox/InboxLists.tsx` / `InboxAwaitingBadge.tsx`。
 - 推薦項與放棄（PLAN-069 / T0922，CT 6.2.0）：`awaiting_user[].recommended`（不分大小寫對選項代號）→「推薦」標記＋預設選取；`inbox_features` 含 `dismiss` 才有單筆「放棄…」/「略過…」與勾選批次（`U-1、U-3：放棄 <文字>`、`A-2、A-3：略過`，每區一行）。🔴 沒有 `dismiss` 時畫面與 T0908 相同；「全部」在送出當下展開成目前列出的編號，不送萬用字元 / 範圍；`checkInboxAnswer` 的多編號只接受冒號後第一個詞是放棄 / 略過，單編號行為不變。唯一實作 `parseInboxFeatures` / `matchRecommended` / `dismissAnswerText`（`src/lib/tower-inbox.ts`）、畫面 `InboxLists.tsx`；見 docs「推薦項與放棄（PLAN-069）」。
