@@ -430,6 +430,9 @@ export class PtyManager implements CloseWorkerPtyManager {
   private lastUserInputAt: Map<string, number> = new Map()
   // BUG-151 / T0598: input that reached a dispatched PTY before its launch command (in order)
   private dispatchInputHolds: Map<string, string[]> = new Map()
+  // BUG-231 / T0951: the holds above that a renderer's launch command ends (`holdInputForLaunch`) —
+  // their safety timer and held bytes (the input itself is in `dispatchInputHolds`)
+  private launchInputHolds: Map<string, { timer: ReturnType<typeof setTimeout>; bytes: number }> = new Map()
   // T0582: recently ended PTYs (insertion order = oldest first), for the helper query channels
   private exitedPtys: Map<string, ExitedPtyRecord> = new Map()
   // PLAN-047 M1b-1 / T0590: `blocked` (claude hooks) and each terminal's `blockedDetection`
@@ -492,6 +495,15 @@ export class PtyManager implements CloseWorkerPtyManager {
   private createHold: { waiters: Array<() => void>; heldIds: string[]; releaseTimer: ReturnType<typeof setTimeout> | null } | null = null
   /** How long a recover waits for the Terminal Server's PTY list before releasing anyway. */
   static readonly CREATE_HOLD_LIST_TIMEOUT_MS = 5_000
+  /**
+   * BUG-231 / T0951: a renderer launch hold (`holdInputForLaunch`) ends with the launch command,
+   * else — the renderer never sends it (reload, a failure between create and the write) — after
+   * this long, or once the held input grows past `LAUNCH_INPUT_HOLD_MAX_BYTES`: then the input is
+   * written as it is (never dropped). The renderer's own path is create → build the command (an
+   * IPC, up to a 5 s version check) → 500 ms, so 15 s leaves room.
+   */
+  static readonly LAUNCH_INPUT_HOLD_TIMEOUT_MS = 15_000
+  static readonly LAUNCH_INPUT_HOLD_MAX_BYTES = 64 * 1024
 
   constructor(deps: PtyManagerDeps) {
     this.deps = deps
@@ -885,6 +897,7 @@ export class PtyManager implements CloseWorkerPtyManager {
    */
   private recordExit(id: string, exitCode?: number): void {
     this.dispatchInputHolds.delete(id) // T0598: nothing left to write after
+    this.endLaunchHold(id) // T0951: same rule as T0598 — held input of an ended PTY has nowhere to go
     const instance = this.instances.get(id)
     const now = Date.now()
     this.pruneExitedPtys(now)
@@ -1791,10 +1804,65 @@ export class PtyManager implements CloseWorkerPtyManager {
     this.dispatchInputHolds.delete(id)
     this.write(id, command)
     if (this.instances.has(id)) this.launchSuspect.watch(id) // T0600 option B: a "command not found" right after it
+    this.writeHeldInput(id, held, 'input before the dispatch command')
+  }
+
+  /** BUG-151 / T0598 + BUG-231 / T0951: held input, in order, after whatever ended its hold. */
+  private writeHeldInput(id: string, held: readonly string[], what: string): void {
     if (held.length === 0) return
     const bytes = held.reduce((n, data) => n + Buffer.byteLength(data), 0)
-    logger.log(`[agent-command] id=${id} input before the dispatch command: ${held.length} write(s), ${bytes} bytes → sent after it`)
+    logger.log(`[agent-command] id=${id} ${what}: ${held.length} write(s), ${bytes} bytes → sent after it`)
     for (const data of held) this.write(id, data)
+  }
+
+  /**
+   * BUG-231 / T0951: the renderer types an agent's launch command into a new shell ~500 ms after
+   * `pty:create` / `pty:restart` (⏻, a new / restored agent tab, a resumed claude / codex tab), and
+   * the tab already has the keyboard focus — the BUG-151 situation without a helper. The same hold
+   * as `holdInputForDispatch` (same map, `writeWithResult` decides), started by the `pty:create` /
+   * `pty:restart` handler in the tick that spawned the shell; ended by `writeLaunchCommand` (the
+   * command, then the input) or `releaseLaunchHold` (no command: the input as it is), else by
+   * `LAUNCH_INPUT_HOLD_TIMEOUT_MS` / `LAUNCH_INPUT_HOLD_MAX_BYTES` (the input as it is: never dropped)
+   * or the PTY ending (dropped, as T0598). Not watched by `launchSuspect` (helper dispatch only, T0600).
+   */
+  holdInputForLaunch(id: string): void {
+    if (!this.instances.has(id)) return
+    if (!this.dispatchInputHolds.has(id)) this.dispatchInputHolds.set(id, [])
+    const previous = this.launchInputHolds.get(id)
+    if (previous) clearTimeout(previous.timer)
+    const timer = setTimeout(() => this.releaseLaunchHold(id, 'timeout'), PtyManager.LAUNCH_INPUT_HOLD_TIMEOUT_MS)
+    timer.unref?.()
+    this.launchInputHolds.set(id, { timer, bytes: previous?.bytes ?? 0 })
+  }
+
+  /** BUG-231 / T0951: the renderer's launch command, then the input held since `holdInputForLaunch`. */
+  writeLaunchCommand(id: string, command: string): void {
+    const held = this.endLaunchHold(id) ? this.dispatchInputHolds.get(id) ?? [] : []
+    if (held.length > 0) this.dispatchInputHolds.delete(id)
+    this.write(id, command)
+    this.writeHeldInput(id, held, 'input before the launch command')
+  }
+
+  /**
+   * BUG-231 / T0951: a launch hold ends without a command (`no-command`: the renderer decided not
+   * to type one; `timeout` / `limit`, see `LAUNCH_INPUT_HOLD_*`) — the held input is written as it is.
+   * Not a launch hold (a helper dispatch's, or none): nothing happens.
+   */
+  releaseLaunchHold(id: string, reason: 'no-command' | 'timeout' | 'limit'): void {
+    if (!this.endLaunchHold(id)) return
+    const held = this.dispatchInputHolds.get(id) ?? []
+    this.dispatchInputHolds.delete(id)
+    if (reason !== 'no-command') logger.log(`[agent-command] id=${id} launch hold ended (${reason}) before the launch command`)
+    this.writeHeldInput(id, held, `input held for the launch command (${reason})`)
+  }
+
+  /** T0951: drops the launch hold's timer and record; true when `id` had one. */
+  private endLaunchHold(id: string): boolean {
+    const hold = this.launchInputHolds.get(id)
+    if (!hold) return false
+    clearTimeout(hold.timer)
+    this.launchInputHolds.delete(id)
+    return true
   }
 
   /**
@@ -1815,6 +1883,12 @@ export class PtyManager implements CloseWorkerPtyManager {
     const held = this.dispatchInputHolds.get(id)
     if (held && !isTerminalAutoReply(data)) {
       held.push(data)
+      // BUG-231 / T0951: a launch hold has a cap — past it the input is written as it is (in order)
+      const launchHold = this.launchInputHolds.get(id)
+      if (launchHold) {
+        launchHold.bytes += Buffer.byteLength(data)
+        if (launchHold.bytes > PtyManager.LAUNCH_INPUT_HOLD_MAX_BYTES) this.releaseLaunchHold(id, 'limit')
+      }
       return { ok: true, reason: 'held-until-dispatch' }
     }
 
@@ -2246,6 +2320,7 @@ export class PtyManager implements CloseWorkerPtyManager {
 
   dispose(): void {
     this.stopHeartbeat()  // T0112: stop heartbeat before cleanup
+    for (const id of [...this.launchInputHolds.keys()]) this.endLaunchHold(id) // T0951: no timer outlives the manager
     if (this.useServer) {
       // Don't kill server PTYs — Terminal Server survives BAT restarts (T0108 reconnection).
       // Only clean up any direct (non-proxy) fallback instances that have a live process.

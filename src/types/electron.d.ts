@@ -184,7 +184,10 @@ interface ElectronAPI {
     write: (id: string, data: string, opts?: { auto?: boolean; submit?: boolean }) => Promise<void>
     resize: (id: string, cols: number, rows: number) => Promise<void>
     kill: (id: string) => Promise<boolean>
-    restart: (id: string, cwd: string, shell?: string) => Promise<boolean>
+    /** BUG-231 / T0951: `opts.holdInputUntilLaunch` — input waits for `launchCommand` (a server before T0951 ignores it). */
+    restart: (id: string, cwd: string, shell?: string, opts?: { holdInputUntilLaunch?: boolean }) => Promise<boolean>
+    /** BUG-231 / T0951: `pty:launch-command` — the launch command (`null`: none), then the held input; rejects (`No handler`) on a server before T0951. */
+    launchCommand: (id: string, command: string | null) => Promise<{ ok: boolean; reason?: string }>
     getCwd: (id: string) => Promise<string | null>
     /** T0749 (BUG-182): `terminal:attention-snapshot` — the host's attention of these tabs now; an older bat-server rejects (no handler). */
     attentionSnapshot: (ids: string[]) => Promise<import('../lib/terminal-attention').TerminalAttentionSnapshotEntry[]>

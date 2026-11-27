@@ -91,14 +91,25 @@ export function registerPtyHandlers(register: HandlerRegistrar, deps: PtyHandler
   // T0424: over the PTY cap (PtyLimitError) → `{ ok: false, created: false, code, limit }`.
   // A thrown error crosses the remote WebSocket and Electron IPC as its message string only,
   // so the renderer could not tell "limit reached" apart without English string matching.
+  // BUG-231 / T0951: `holdInputUntilLaunch` (a renderer that types an agent's launch command next)
+  // → the input for a shell spawned here waits for `pty:launch-command` (PtyManager.holdInputForLaunch),
+  // started in this tick, before any later `pty:write`. The flag is not passed on to PtyManager.
   register('pty:create', (_ctx, options: unknown): PtyCreateResult | Promise<PtyCreateResult> => {
-    const opts = options as CreatePtyOptions
-    if (rejectShell('pty:create', opts?.shell)) return { ok: false, created: false }
+    const raw = options as CreatePtyOptions
+    if (rejectShell('pty:create', raw?.shell)) return { ok: false, created: false }
     const manager = deps.getPtyManager()
     if (!manager) return { ok: false, created: false }
+    const holdInputUntilLaunch = !!raw && typeof raw === 'object' && raw.holdInputUntilLaunch === true
+    let opts = raw
+    if (raw && typeof raw === 'object' && 'holdInputUntilLaunch' in raw) {
+      const { holdInputUntilLaunch: _flag, ...rest } = raw
+      opts = rest
+    }
     const create = (): PtyCreateResult => {
       try {
-        return manager.createWithResult(opts)
+        const result = manager.createWithResult(opts)
+        if (holdInputUntilLaunch && result.ok && result.created) manager.holdInputForLaunch(opts.id)
+        return result
       } catch (err) {
         if (err instanceof PtyLimitError) return { ok: false, created: false, code: err.code, limit: err.limit }
         throw err
@@ -166,14 +177,36 @@ export function registerPtyHandlers(register: HandlerRegistrar, deps: PtyHandler
     return deps.getPtyManager()?.resize(id, cols, rows)
   })
   register('pty:kill', (_ctx, id: string) => deps.getPtyManager()?.kill(id))
-  register('pty:restart', (_ctx, id: string, cwd: string, shellPath?: string) => {
+  // BUG-231 / T0951: 4th argument `{ holdInputUntilLaunch: true }` — as `pty:create` (an older client
+  // sends three arguments; an older server ignores the fourth)
+  register('pty:restart', (_ctx, id: string, cwd: string, shellPath?: string, restartOpts?: unknown) => {
     // Validate before restart() kills the running shell.
     if (rejectShell('pty:restart', shellPath)) return false
     const manager = deps.getPtyManager()
+    const holdInput = !!restartOpts && typeof restartOpts === 'object'
+      && (restartOpts as { holdInputUntilLaunch?: unknown }).holdInputUntilLaunch === true
+    const restart = (): boolean | undefined => {
+      const restarted = manager?.restart(id, cwd, shellPath)
+      if (holdInput && restarted === true) manager?.holdInputForLaunch(id)
+      return restarted
+    }
     // BUG-146 / T0580: restart creates the new shell too — wait for the Recovery answer like
     // `pty:create` (after a recover the surviving id is registered, so it restarts on the server)
-    if (manager?.isCreateHeld?.()) return manager.whenCreatesReleased(id, { channel: 'pty:restart' }).then(() => manager.restart(id, cwd, shellPath))
-    return manager?.restart(id, cwd, shellPath)
+    if (manager?.isCreateHeld?.()) return manager.whenCreatesReleased(id, { channel: 'pty:restart' }).then(restart)
+    return restart()
+  })
+  // BUG-231 / T0951: the launch command the renderer typed into a shell `pty:create` / `pty:restart`
+  // held the input of — `command` (a string, with its `\r`) is written, then the held input; `null`
+  // = no command after all, the held input is written as it is. Without a hold: a plain write.
+  // Renderer only: not a helper channel (not in HELPER_CHANNEL_ROLES), and refused to a helper here.
+  register('pty:launch-command', (ctx, id: unknown, command: unknown) => {
+    if (ctx.helper) return { ok: false, reason: 'forbidden' }
+    if (typeof id !== 'string' || !id || (command !== null && typeof command !== 'string')) return { ok: false, reason: 'invalid-args' }
+    const manager = deps.getPtyManager()
+    if (!manager) return { ok: false, reason: 'manager-not-ready' }
+    if (command === null) manager.releaseLaunchHold(id, 'no-command')
+    else manager.writeLaunchCommand(id, command)
+    return { ok: true }
   })
   register('pty:get-cwd', (_ctx, id: string) => deps.getPtyManager()?.getCwd(id))
   // T0403: replay buffer, answered to the caller only (an invoke result, never a broadcast).

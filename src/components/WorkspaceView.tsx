@@ -19,6 +19,7 @@ import { resolveControlTowerAgentRuntime, resolveControlTowerWorkOrderCommand } 
 import { detectShellFamily, quoteCommandPath } from '../utils/shell-quote'
 import { createPtyThenLaunch, createPtyWithReplay, restartOrCreatePty, showPtyNotice } from '../lib/pty-replay'
 import { resetLeftoverMouseTracking } from '../lib/mouse-tracking-reset'
+import { releaseLaunchHold, sendLaunchCommand } from '../lib/launch-command'
 import { claudeResumeArgs, type ClaudeResumeArgsDecision } from '../lib/claude-resume-args'
 import { registerTabResumeHandler, type ResumeInterruptedAgentResult } from '../stores/interrupted-agents-store'
 import { codexResumeCommand } from '../lib/codex-resume-args'
@@ -511,7 +512,8 @@ export function WorkspaceView({ workspace, terminals, focusedTerminalId, isActiv
             continue
           }
           // Auto-run agent command for non-Claude terminal-driven agents
-          createPtyThenLaunch(createOpts, () => {
+          // BUG-231 / T0951: input typed before the launch command waits for it (`holdInputUntilLaunch`)
+          createPtyThenLaunch({ ...createOpts, holdInputUntilLaunch: true }, () => {
             const extraArgs = workspaceStore.getEffectiveAgentArgs(workspace.id, agentPreset)
             const appendArgs = (base: string) => extraArgs ? `${base} ${extraArgs}` : base
             window.electronAPI.agent?.buildLaunchCommand(agentPreset, undefined, extraArgs).then((cmd: string | null) =>
@@ -519,28 +521,24 @@ export function WorkspaceView({ workspace, terminals, focusedTerminalId, isActiv
             ).then((cmd: string | null) => {
               if (cmd) {
                 noticeCodexDaemonRef.current(cmd)
-                setTimeout(() => {
-                  window.electronAPI.pty.write(terminal.id, appendArgs(cmd) + '\r')
-                }, 500)
+                sendLaunchCommand(terminal.id, appendArgs(cmd) + '\r')
               } else if (settings.agentAutoCommand) {
                 const preset = getAgentPreset(agentPreset)
                 if (preset?.command) {
                   const cmd = preset.command
-                  setTimeout(() => {
-                    window.electronAPI.pty.write(terminal.id, appendArgs(cmd) + '\r')
-                  }, 500)
-                }
-              }
+                  sendLaunchCommand(terminal.id, appendArgs(cmd) + '\r')
+                } else releaseLaunchHold(terminal.id)
+              } else releaseLaunchHold(terminal.id)
             }).catch(() => {
               if (settings.agentAutoCommand) {
                 const preset = getAgentPreset(agentPreset)
                 if (preset?.command) {
                   const cmd = preset.command
-                  setTimeout(() => {
-                    window.electronAPI.pty.write(terminal.id, appendArgs(cmd) + '\r')
-                  }, 500)
+                  sendLaunchCommand(terminal.id, appendArgs(cmd) + '\r')
+                  return
                 }
               }
+              releaseLaunchHold(terminal.id)
             })
           }, restorePtyApi).then((result) => {
             if (!result.created) dlog(`[T0403] restore ${agentPreset} terminal=${terminal.id}: PTY already running, launch command skipped`)
@@ -566,7 +564,9 @@ export function WorkspaceView({ workspace, terminals, focusedTerminalId, isActiv
               agentPreset: defaultAgent as AgentPresetId,
               shell,
               customEnv,
-              workspaceId: workspace.id  // T0176: BAT_WORKSPACE_ID env injection
+              workspaceId: workspace.id,  // T0176: BAT_WORKSPACE_ID env injection
+              // BUG-231 / T0951: a launch command follows — input typed before it waits for it
+              ...(settings.agentAutoCommand ? { holdInputUntilLaunch: true } : {}),
             })
             if (settings.agentAutoCommand) {
               const defExtraArgs = workspaceStore.getEffectiveAgentArgs(workspace.id, defaultAgent)
@@ -576,26 +576,20 @@ export function WorkspaceView({ workspace, terminals, focusedTerminalId, isActiv
               ).then((cmd: string | null) => {
                 if (cmd) {
                   noticeCodexDaemonRef.current(cmd)
-                  setTimeout(() => {
-                    window.electronAPI.pty.write(agentTerminal.id, defAppendArgs(cmd) + '\r')
-                  }, 500)
+                  sendLaunchCommand(agentTerminal.id, defAppendArgs(cmd) + '\r')
                 } else {
                   const preset = getAgentPreset(defaultAgent)
                   if (preset?.command) {
                     const cmd = preset.command
-                    setTimeout(() => {
-                      window.electronAPI.pty.write(agentTerminal.id, defAppendArgs(cmd) + '\r')
-                    }, 500)
-                  }
+                    sendLaunchCommand(agentTerminal.id, defAppendArgs(cmd) + '\r')
+                  } else releaseLaunchHold(agentTerminal.id)
                 }
               }).catch(() => {
                 const preset = getAgentPreset(defaultAgent)
                 if (preset?.command) {
                   const cmd = preset.command
-                  setTimeout(() => {
-                    window.electronAPI.pty.write(agentTerminal.id, defAppendArgs(cmd) + '\r')
-                  }, 500)
-                }
+                  sendLaunchCommand(agentTerminal.id, defAppendArgs(cmd) + '\r')
+                } else releaseLaunchHold(agentTerminal.id)
               })
             }
           }
@@ -801,11 +795,10 @@ export function WorkspaceView({ workspace, terminals, focusedTerminalId, isActiv
         ...customEnv,
         CLAUDE_CODE_NO_FLICKER: '1',
       },
-      workspaceId: workspace.id  // T0176: BAT_WORKSPACE_ID env injection
+      workspaceId: workspace.id,  // T0176: BAT_WORKSPACE_ID env injection
+      holdInputUntilLaunch: true, // BUG-231 / T0951: input typed before the launch command follows it
     }, () => {
-      setTimeout(() => {
-        window.electronAPI.pty.write(terminalId, cmd + '\r')
-      }, 500)
+      sendLaunchCommand(terminalId, cmd + '\r')
     })
     if (!result.created) {
       window.electronAPI?.debug?.log(`[T0403] claude-cli terminal=${terminalId}: PTY already running, launch command skipped`)
@@ -827,19 +820,28 @@ export function WorkspaceView({ workspace, terminals, focusedTerminalId, isActiv
       shell,
       customEnv: mergeEnvVars(settingsStore.getSettings().globalEnvVars, workspace.envVars),
       workspaceId: workspace.id,
+      holdInputUntilLaunch: true, // BUG-231 / T0951: input typed before the launch command follows it
     })
     if (!outcome.ok) return { ok: false, code: 'PTY_RESTART_FAILED', message: outcome.reason }
     rememberTerminalShell(terminalId, shell)
     if (!outcome.spawned) return { ok: false, code: 'PTY_NOT_SPAWNED' }
-    const extraArgs = workspaceStore.getEffectiveAgentArgs(workspace.id, 'codex-cli')
-    const launchCmd = await window.electronAPI.agent.buildLaunchCommand('codex-cli', undefined, extraArgs)
-    if (!launchCmd) return { ok: false, code: 'BUILD_FAILED' }
-    const launchWithBatArgs = await withBatMcpLaunchArgs(launchCmd, 'codex-cli', shell, extraArgs, terminalId) // T0584 / T0590 / T0651
-    const { command, decision } = codexResumeCommand(launchWithBatArgs, extraArgs)
+    let resumed: ReturnType<typeof codexResumeCommand>
+    try {
+      const extraArgs = workspaceStore.getEffectiveAgentArgs(workspace.id, 'codex-cli')
+      const launchCmd = await window.electronAPI.agent.buildLaunchCommand('codex-cli', undefined, extraArgs)
+      if (!launchCmd) {
+        releaseLaunchHold(terminalId) // T0951: no command after all — the held input as it is
+        return { ok: false, code: 'BUILD_FAILED' }
+      }
+      const launchWithBatArgs = await withBatMcpLaunchArgs(launchCmd, 'codex-cli', shell, extraArgs, terminalId) // T0584 / T0590 / T0651
+      resumed = codexResumeCommand(launchWithBatArgs, extraArgs)
+    } catch (err) {
+      releaseLaunchHold(terminalId) // T0951
+      throw err
+    }
+    const { command, decision } = resumed
     noticeCodexDaemonRef.current(command)
-    setTimeout(() => {
-      window.electronAPI.pty.write(terminalId, command + '\r')
-    }, 500)
+    sendLaunchCommand(terminalId, command + '\r')
     void window.electronAPI.terminalServer.dismissInterruptedAgent(terminalId).catch(() => false)
     return { ok: true, mode: decision.mode, ...(decision.reason ? { reason: decision.reason } : {}) }
   }, [workspace.id, workspace.envVars])
@@ -966,7 +968,8 @@ export function WorkspaceView({ workspace, terminals, focusedTerminalId, isActiv
       agentPreset: preset,
       shell,
       customEnv,
-      workspaceId: workspace.id  // T0176: BAT_WORKSPACE_ID env injection
+      workspaceId: workspace.id,  // T0176: BAT_WORKSPACE_ID env injection
+      holdInputUntilLaunch: true, // BUG-231 / T0951: input typed before the launch command follows it
     })
 
     // Auto-run agent command
@@ -977,9 +980,7 @@ export function WorkspaceView({ workspace, terminals, focusedTerminalId, isActiv
         .then(cmd => cmd ? withBatMcpLaunchArgs(cmd, definitionId, shell, addExtraArgs, terminal.id) : cmd) // T0584 / T0590
       if (launchCmd) {
         noticeCodexDaemonRef.current(launchCmd)
-        setTimeout(() => {
-          window.electronAPI.pty.write(terminal.id, addAppendArgs(launchCmd) + '\r')
-        }, 500)
+        sendLaunchCommand(terminal.id, addAppendArgs(launchCmd) + '\r')
         return
       }
     } catch { /* fallback below */ }
@@ -989,11 +990,11 @@ export function WorkspaceView({ workspace, terminals, focusedTerminalId, isActiv
       const agentPreset = getAgentPreset(definitionId)
       if (agentPreset?.command) {
         const cmd = agentPreset.command
-        setTimeout(() => {
-          window.electronAPI.pty.write(terminal.id, addAppendArgs(cmd) + '\r')
-        }, 500)
+        sendLaunchCommand(terminal.id, addAppendArgs(cmd) + '\r')
+        return
       }
     }
+    releaseLaunchHold(terminal.id) // T0951: no command after all — the held input as it is
   }, [workspace.id, workspace.folderPath, workspace.envVars, startClaudeCliPty, agentDefinitions])
 
   const isDebugMode = window.electronAPI?.debug?.isDebugMode
@@ -1074,6 +1075,8 @@ export function WorkspaceView({ workspace, terminals, focusedTerminalId, isActiv
       } else {
         const cwd = await window.electronAPI.pty.getCwd(id) || terminal.cwd
         const shell = await getShellFromSettings()
+        // BUG-231 / T0951: a terminal-driven agent's launch command follows — input typed before it waits for it
+        const launchesAgent = !!terminal.agentPreset && terminal.agentPreset !== 'none'
         // T0539 (BUG-137): a tab whose process is gone gets a new PTY with the same id, built
         // like a new tab (workspace env / workspaceId / agentPreset).
         const outcome = await restartOrCreatePty({
@@ -1084,6 +1087,7 @@ export function WorkspaceView({ workspace, terminals, focusedTerminalId, isActiv
           shell,
           customEnv: mergeEnvVars(settingsStore.getSettings().globalEnvVars, workspace.envVars),
           workspaceId: workspace.id,
+          ...(launchesAgent ? { holdInputUntilLaunch: true } : {}),
         })
         window.electronAPI.debug.log(`[BUG-137] restart terminal=${id} via=${outcome.via} ok=${outcome.ok}${outcome.ok ? ` spawned=${outcome.spawned}` : ` reason=${outcome.reason}`}`)
         if (!outcome.ok) {
@@ -1102,11 +1106,11 @@ export function WorkspaceView({ workspace, terminals, focusedTerminalId, isActiv
               .then(cmd => cmd ? withBatMcpLaunchArgs(cmd, terminal.agentPreset, shell, restartExtraArgs, id) : cmd) // T0584 / T0590
             if (launchCmd) {
               noticeCodexDaemonRef.current(launchCmd)
-              setTimeout(() => {
-                window.electronAPI.pty.write(id, restartAppendArgs(launchCmd) + '\r')
-              }, 500)
+              sendLaunchCommand(id, restartAppendArgs(launchCmd) + '\r')
+              return
             }
           } catch { /* ignore */ }
+          releaseLaunchHold(id) // T0951: no command after all — the held input as it is
         }
       }
     }

@@ -185,7 +185,7 @@ export type PtyRestartOutcome =
   | { ok: false; via: 'restart' | 'create'; reason: string; limited: boolean }
 
 type PtyRestartApi = PtyCreateApi & {
-  restart: (id: string, cwd: string, shell?: string) => Promise<boolean>
+  restart: (id: string, cwd: string, shell?: string, opts?: { holdInputUntilLaunch?: boolean }) => Promise<boolean>
 }
 
 export async function restartOrCreatePty(
@@ -196,7 +196,10 @@ export async function restartOrCreatePty(
   await resetLeftoverMouseTracking(options.id, 'before-new-pty')
   let restarted: unknown
   try {
-    restarted = await api.restart(options.id, options.cwd, options.shell)
+    // BUG-231 / T0951: the launch hold of `options` goes with the restart too (4th argument only when asked)
+    restarted = options.holdInputUntilLaunch
+      ? await api.restart(options.id, options.cwd, options.shell, { holdInputUntilLaunch: true })
+      : await api.restart(options.id, options.cwd, options.shell)
   } catch (err) {
     return { ok: false, via: 'restart', reason: err instanceof Error ? err.message : String(err), limited: false }
   }
