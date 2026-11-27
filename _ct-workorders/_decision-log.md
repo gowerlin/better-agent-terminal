@@ -10,6 +10,7 @@
 
 | ID | 日期 | 標題 | 相關工單 |
 |----|------|------|---------|
+| D404 | 2026-11-27 | U-27：A → T0939 經 `ct-merge/T0939` ff 進 `main`；CT 判定單 T0575 已派（CT D912），PLAN-070 結案等 CT 判定 | T0939 / PLAN-070 |
 | D403 | 2026-11-27 | T0939 收單（DONE，BAT 端 21 PASS / 0 FAIL / 1 未觸發）、合併 `ct-merge/T0939` `67dfbd20`（只改 `e2e/manual/`）；通知 CT 判定；`draft` 被意見調查列鍵觸發列候選；斷點 E → U-27 | T0939 / PLAN-070 |
 | D402 | 2026-11-27 | CT 6.3.0-pre.1 雙方驗收（CT U-7：A / D910、T0574 收單 D911）→ 開並派 T0939（BAT pre.8 / pre.4 zip × `checklist-630.md` M-1～M-17，BAT 跑、CT 判定） | T0939 / PLAN-070 |
 | D401 | 2026-11-27 | A-8：完成 → `v0.8.0-pre.8` 使用者實機驗收通過（BUG-226 CLOSED、T0937「其他」）；驗測範例全數移除、`multi` 旗標拿掉；多選勾選送出留待 CT 6.3.0-pre.1 雙方驗收 | T0936 / T0937 / T0938 / BUG-226 |
@@ -521,6 +522,15 @@
   4. PLAN-001 保持延後（🟢 Low，等 plugin 1.0 穩定）
 - **Success criteria**（EXP→CONCLUDED）：npm install 無錯 / 所有 native modules rebuild 成功 / dev+build:dir 可跑 / 手動 smoke test 8 項通過
 - **最大風險**：`whisper-node-addon@1.0.2` 對 Electron 41（Node 24）的 NODE_MODULE_VERSION 相容性未知，允許 Worker 遇此決策點主動問塔台
+
+---
+
+### D404 2026-11-27 13:59 — U-27：A，T0939 ff 進 `main`
+
+- **使用者回答**：U-27 選 A（原生選單）。
+- **做法**：整合分支併入 `main` 的塔台記帳 commit 後 `--ff-only`；產品樹與 `0484e102` 相同（只改 `e2e/manual/`）；整合 worktree detach；U-27 移除。
+- **CT**：判定單 T0575 13:58 派出（CT D912），逐項填 `results-630/` 的 CT 端判定並分析 6 點觀察；收單後通知 BAT，再決定 PLAN-070 是否結案。
+- **相關**：T0939 / PLAN-070
 
 ---
 
