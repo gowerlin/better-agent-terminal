@@ -31,6 +31,7 @@ affects_files:
 renew_count: 0
 isolation: worktree
 worker_question_timeout: 30
+tower_question: open
 interaction:
   mode_hint: yolo
   interactive: false
@@ -72,4 +73,44 @@ BUG-227（T0939 S1 M-3 發現）：契約 2 塔台分頁出現 claude 的意見�
 
 ## 回報區
 
-（Worker 填寫）
+### 待塔台決策
+
+#### Q-1：修法要讀塔台分頁的 PTY 輸出（唯讀），可以做嗎？範圍要不要含權限 / 提問提示？
+- **提問時間**：2026-11-27T14:22:29+08:00
+- **問題**：查證結果（見〈查證〉）：claude 的調查列讓按鍵**先進主輸入框**，400 ms 後才由調查列取走並清空輸入框。只看使用者送進 PTY 的位元組，分不出「調查列上按 `0`」與「在空輸入框打了 `0`」；要修 BUG-227 一定要看 claude 的畫面輸出（工單規定：要讀 PTY 輸出先問塔台）。另外盤點到權限提示 / AskUserQuestion 期間按的鍵也會被記成草稿（同一類問題，修法不需讀輸出，但要動 `electron/handlers/pty.ts`）。
+- **選項**：
+  - A：只做〈設計〉案 B（讀輸出，只涵蓋調查類單鍵介面）。
+  - B：案 B ＋ 案 A（hook / osc 提示期間的按鍵不改變草稿狀態）。
+  - C：只做案 A（不讀輸出；BUG-227 本身修不到，改寫〈已知限制〉）。
+  - 其他。
+- **建議**：B。理由：兩者都是「按鍵沒進輸入框卻被記成草稿」，案 A 很小、不讀輸出；案 B 沿用 `onPtyOutput` 既有接點（用量限制自動繼續 T0566 也是這樣讀 claude 輸出）、只讀不改寫，判不出時照舊保留。
+- **影響**：案 B 要在 `affects_files` 以外改兩行接線：`electron/main.ts`（`onPtyOutput` 多呼叫 `notifyHold?.onPtyOutput`）、`electron/remote/headless-entry.ts`（同）。案 A 要改 `electron/handlers/pty.ts`（在 `manager.noteUserInput` 清掉 hook `blocked` 之前記下「這次輸入時有沒有提示」，交給 `onUserInput`）。請一併核准這三個檔加進範圍。
+- **是否阻擋後續**：是（實作方向取決於答覆）。
+
+### 查證
+
+- 實錄（只讀，`<使用者資料夾>/AppData/Local/ct620-accept/results-630/`）：`M-3.md` 步驟 5～7；`S1-logs/debug-20261127-130907.log` 第 863 行 `[notify-hold] held … source=answer reason=draft part=text len=50 queued=1`（05:23:01Z），第 880–881 行使用者 Enter 後送出（05:23:47Z）。
+- `S1-logs/tower-pty.txt.raw`：調查列 `How is Claude doing this session? (optional)` 與圖例 `1: Bad  2: Fine  3: Good  0: Dismiss`（空白多半以 `CSI 1 C` 表示），之後游標移到輸入列、緊接著輸出一個 `0`（= claude 把按鍵放進輸入框的回顯），之後整個畫面重繪、調查列消失；送出的回答是 `U-5：放棄 …`，前面沒有 `0`：輸入框最後確實是空的。
+- claude 實作（內嵌 `@anthropic-ai/claude-code` 2.1.331 二進位內的 JS，壓縮後名稱）：調查元件以共用 hook（`qm({ inputValue, isValidDigit, onDigit, mountDelayMs })`）讀**主輸入框**的值：輸入框剛好是一個有效按鍵時，`Tye` = 400 ms 後（或使用者按 Enter 時立即）呼叫 `onDigit`、`setInputValue("")` 清空輸入框；調查出現後 `jp` = 600 ms 內按的鍵不算（留在輸入框）；輸入框不是剛好一個有效鍵（例 `12`、`5`）就照一般文字。⇒ 根因確認：BAT 的 `trackDraft` 看到 `0`（可列印字元）→ `draft`；claude 400 ms 後把輸入框清空，但沒有任何位元組讓 BAT 知道。
+
+### 盤點（claude 2.1.331「按一個鍵就作答、按鍵不留在輸入框」的介面）
+
+| 介面 | 機制 | 有效鍵 | 現行草稿判斷 |
+|---|---|---|---|
+| 意見調查列（標題可變：`How is Claude doing this session?`、`How well did Claude use its memory?`、`How was Claude's recollection?`、長對話 `How well is Claude following the instructions …`、compact 後、組織問卷），圖例 `1: Bad 2: Fine 3: Good [4: Unsure] 0: Dismiss` | 共用 hook，按鍵先進主輸入框 | `0`–`3`（有 `4: Unsure` 時含 `4`） | ❌ 誤記草稿（BUG-227） |
+| 逐字稿分享 `Can Anthropic look at your session transcript …`，圖例 `y: Yes n: No d: Don't ask again` | 同一 hook | `y` / `n` / `d`（不分大小寫） | ❌ 誤記草稿 |
+| bypass 原因調查 `Why bypass permissions instead of auto mode?`，圖例 `1: … 5: Other 0: Not now` | 同一 hook（另有 Enter / 其他鍵 → skipped） | `0`–`5` | ❌ 誤記草稿 |
+| 權限提示（hook `permission`）、AskUserQuestion（`question`）、MCP elicitation（`elicitation`）、codex 審批（osc `input`） | 對話框取代輸入框，按鍵給對話框 | 數字 / 方向鍵 / `y`·`n` 等 | ❌ 作答鍵記成草稿；Enter 作答又會清掉提示前就有的草稿（反向誤判） |
+| 調查後的追問（`What went wrong?` 等） | 自己的文字欄（不是主輸入框），Enter 送出 | 文字＋Enter | ✅ Enter 清除，結果正確 |
+
+### 設計（比較）
+
+- **案 A：提示期間的按鍵不改變草稿**（不讀輸出）。`pty:write` 的使用者輸入在 `manager.noteUserInput`（會清 hook `blocked`）**之前**記下該分頁當時是否處於 `NOTIFY_HOLD_REASONS` 提示；是 → 這次輸入不改變草稿狀態（不設、也不清）。涵蓋盤點第 4 列；修不到 BUG-227（調查列沒有 hook 信號）。`blockedDetection: none` 的分頁照舊。
+- **案 B：認得 claude 的單鍵調查列**（讀 PTY 輸出，唯讀）。`NotifyHoldController.onPtyOutput(id, data)`（經 PtyManager 既有的 `onPtyOutput` deps）以純函式掃描輸出：去掉 ANSI（`CSI n C` 換成空白）後找到上表三種**圖例**之一 → 記下「單鍵介面出現、有效鍵集合、出現時間」。使用者輸入時，只有全部成立才不記草稿：① 目前沒有草稿、不在括號貼上中；② 這次輸入剛好是一個有效鍵；③ 介面出現已 ≥ 1 s（claude 的 600 ms 不收鍵＋餘裕）、≤ 30 min；④ 介面之後沒有其他寫入（任何使用者輸入、helper / 回答 / 自動寫入都把記錄清掉）。其他情況照現行 `trackDraft`。比對以圖例而不是標題（標題可變、使用者文件也可能含標題），判不出 → 照舊保留。CLI 改字串時要同步更新（比照 `src/lib/usage-limit.ts`）。
+- **案 C：介面消失 / 輸入框重繪成空提示時清除草稿**（讀輸出）。要從 ConPTY 的部分重繪判斷輸入框是否為空，太脆弱，不建議。
+- **建議**：案 B（修 BUG-227）＋ 案 A（同類、成本低）。等 Q-1 答覆後實作。
+
+### 互動紀錄
+
+- [14:16] 開工：落點檢查 PASS（C-0 `repo` = `better-agent-terminal` = `basename "$CT_HOME"`），`CT_MODE=yolo`、`CT_INTERACTIVE=0`。
+- [14:22] Q-1 → 塔台（讀 PTY 輸出與範圍）。
