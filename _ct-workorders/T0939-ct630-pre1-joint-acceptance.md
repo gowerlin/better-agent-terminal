@@ -189,3 +189,9 @@ CT 條文位置（以 `BMad-Control-Tower/BMad-Control-Tower-v6.3.0-pre.1/skills
 
 ### 回報時間
 - 2026-11-27T13:56:55+08:00
+
+### 塔台收單補記（2026-11-27 13:57）
+
+- 核對：`ct/T0939` head = validated `0484e102`；`--worktree-status` 只改 `e2e/manual/`（README、`ct-accept-act.mjs`），outOfScope [] / conflicts [] / dirty [] → 模式 ① 合併到 `ct-merge/T0939` `67dfbd20`（D403）。
+- 結果：BAT 端 21 PASS / 0 FAIL / 1 未觸發（M-15c，工單指定）；已通知 CT 依 § 7 判定。
+- 〈建議開 BUG〉的記錄（數字鍵 `0` 關 claude 意見調查列後，T0904 `draft` 判成有字，待辦分頁回答排進「📨 待送」直到空輸入框按 Enter）：回答未遺失、有提示，塔台不開 BUG，列為候選（`todo`）。

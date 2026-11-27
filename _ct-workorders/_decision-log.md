@@ -10,6 +10,7 @@
 
 | ID | 日期 | 標題 | 相關工單 |
 |----|------|------|---------|
+| D403 | 2026-11-27 | T0939 收單（DONE，BAT 端 21 PASS / 0 FAIL / 1 未觸發）、合併 `ct-merge/T0939` `67dfbd20`（只改 `e2e/manual/`）；通知 CT 判定；`draft` 被意見調查列鍵觸發列候選；斷點 E → U-27 | T0939 / PLAN-070 |
 | D402 | 2026-11-27 | CT 6.3.0-pre.1 雙方驗收（CT U-7：A / D910、T0574 收單 D911）→ 開並派 T0939（BAT pre.8 / pre.4 zip × `checklist-630.md` M-1～M-17，BAT 跑、CT 判定） | T0939 / PLAN-070 |
 | D401 | 2026-11-27 | A-8：完成 → `v0.8.0-pre.8` 使用者實機驗收通過（BUG-226 CLOSED、T0937「其他」）；驗測範例全數移除、`multi` 旗標拿掉；多選勾選送出留待 CT 6.3.0-pre.1 雙方驗收 | T0936 / T0937 / T0938 / BUG-226 |
 | D400 | 2026-11-27 | A-8 驗測範例：暫時的 U-24–U-26（單選＋其他、多選、自由回答提示）、A-9–A-11（指令欄：存在檔、不存在檔、真指令）；`inbox_features` 暫加 `multi`；驗完移除 | T0936 / T0937 / T0938 |
@@ -520,6 +521,16 @@
   4. PLAN-001 保持延後（🟢 Low，等 plugin 1.0 穩定）
 - **Success criteria**（EXP→CONCLUDED）：npm install 無錯 / 所有 native modules rebuild 成功 / dev+build:dir 可跑 / 手動 smoke test 8 項通過
 - **最大風險**：`whisper-node-addon@1.0.2` 對 Electron 41（Node 24）的 NODE_MODULE_VERSION 相容性未知，允許 Worker 遇此決策點主動問塔台
+
+---
+
+### D403 2026-11-27 13:57 — T0939 收單（CT 6.3.0-pre.1 雙方驗收，BAT 端）
+
+- **Worker 回報**：S1 → S3 → S2 → S4 全跑完（13:05–13:56），隔離帳號未碰用量上限；BAT 端 21 PASS / 0 FAIL / 1 未觸發（M-15c 無 Codex 環境）。PLAN-070 子項 4 未驗項目全部 PASS：多選複選框＋「可複選」、推薦 `A、C` 預設勾選、送出依 options 順序（`U-1：C、B`）、「其他」與勾選互斥、`options` < 2 的 `multi` 降級、舊 BAT pre.4 與舊 CT 6.2.0 的單選降級。大小寫不同的推薦代號實機未觸發（單元測試涵蓋）。
+- **給 CT 的觀察**：M-13 / M-14 實際觸發（claude 2.1.331 多選選單可勾選＋填其他）；M-2 確認行順序 `B、C`；M-16 一句英文回覆；M-17 6.2.0 塔台用 claude 多選選單但不寫 `multi`。
+- **塔台裁決**：Worker 記錄的 `draft` 現象（數字鍵 `0` 關 claude 意見調查列後，T0904 草稿判斷視為有字，回答排進「📨 待送」至空輸入框 Enter）——回答未遺失、有提示，不開 BUG，列候選。
+- **合併**：只改 `e2e/manual/`，`ct-merge/T0939` `67dfbd20`；斷點 E → U-27。Worker 分頁 `--close-worker --worktree keep` exit 0。
+- **相關**：T0939 / PLAN-070 / T0904
 
 ---
 
