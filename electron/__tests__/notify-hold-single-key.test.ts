@@ -263,7 +263,7 @@ describe('案 A: one key while a hook / osc prompt is shown', () => {
 
   it('`tower` (a Worker waiting for its Tower) is not a prompt: the key is a draft', () => {
     const s = setup()
-    s.pm.blocked.set('tower', { reason: 'tower' } as BlockedState)
+    s.pm.blocked.set('tower', { reason: 'tower' } as unknown as BlockedState)
     s.userTypes('1')
     expect(s.controller.hasDraft('tower')).toBe(true)
   })
