@@ -12,6 +12,7 @@
  */
 import { PTY_LIMIT_REACHED, type CreatePtyOptions, type PtyCreateResult, type PtyReplayBuffer } from '../types'
 import { rememberTerminalShell } from './terminal-drop'
+import { resetLeftoverMouseTracking } from './mouse-tracking-reset'
 
 export function normalizePtyCreateResult(raw: unknown): PtyCreateResult {
   if (raw && typeof raw === 'object' && typeof (raw as { created?: unknown }).created === 'boolean') {
@@ -162,7 +163,11 @@ export async function createPtyWithReplay(
     result = { ok: false, created: true }
   }
   if (result.ok && !result.created) requestPtyReplay(options.id)
-  if (result.ok && result.created) requestPtySizeSync(options.id)
+  if (result.ok && result.created) {
+    requestPtySizeSync(options.id)
+    // BUG-229 / T0947: a new shell in a mounted view — tracking still on is the old program's
+    void resetLeftoverMouseTracking(options.id, 'new-pty-spawned')
+  }
   if (isPtyLimitResult(result)) emitPtyCreateRefused(options, result)
   return result
 }
@@ -187,6 +192,8 @@ export async function restartOrCreatePty(
   options: CreatePtyOptions,
   api: PtyRestartApi = window.electronAPI.pty,
 ): Promise<PtyRestartOutcome> {
+  // BUG-229 / T0947: no mouse report of the old program's tracking may reach the new shell
+  await resetLeftoverMouseTracking(options.id, 'before-new-pty')
   let restarted: unknown
   try {
     restarted = await api.restart(options.id, options.cwd, options.shell)
@@ -195,6 +202,7 @@ export async function restartOrCreatePty(
   }
   if (restarted === true) {
     requestPtySizeSync(options.id)
+    void resetLeftoverMouseTracking(options.id, 'new-pty-spawned')
     return { ok: true, via: 'restart', spawned: true }
   }
   const result = await createPtyWithReplay(options, api)

@@ -16,7 +16,7 @@ import { buildTerminalDropInsertion, buildTerminalDropText, buildTerminalUploadI
 import { describePasteError, imagePasteKey, isMacCommandPaste, isTerminalClipboardReadError, readTerminalClipboard, terminalImagePasteMode, uploadClipboardImage } from '../lib/terminal-paste'
 import { attachmentDisplayNames, attachmentRefusalText, uploadFailureReason, type SendAttachment } from '../lib/client-paths'
 import { forcesTerminalSelection, isMouseTrackingDecset, isMouseTrackingOn, MouseReportSelectionKeeper, shouldCloseTerminalContextMenuOnKey, shouldShowTerminalContextMenu } from '../lib/terminal-context-menu'
-import { ALT_SCREEN_EXIT, MOUSE_TRACKING_RESET, MouseReportEchoDetector } from '../lib/mouse-tracking-reset'
+import { ALT_SCREEN_EXIT, MOUSE_TRACKING_RESET, MouseReportEchoDetector, registerLeftoverMouseTrackingView } from '../lib/mouse-tracking-reset'
 import { mouseReportEncoding, planWheelReports, shouldSendWheelReports, WheelLineAccumulator } from '../lib/terminal-wheel-reports'
 import { createLinkHoverTooltip, createOsc8LinkHandler, findFileLinks } from '../lib/terminal-file-links'
 import { canFitTerminalContainer } from '../lib/terminal-fit-guard'
@@ -737,15 +737,21 @@ export const TerminalPanel = memo(function TerminalPanel({ terminalId, isActive 
     // killed by a signal), so the shell types every report into its command line. Tracking is
     // turned off in this xterm only (never written to the PTY); the alternate screen is left alone.
     const echoDetector = new MouseReportEchoDetector()
-    const resetMouseTracking = (reason: string) => {
+    const resetMouseTracking = (reason: string, onParsed?: () => void) => {
       const mode = terminal.modes.mouseTrackingMode
-      terminal.write(MOUSE_TRACKING_RESET)
+      if (onParsed) terminal.write(MOUSE_TRACKING_RESET, onParsed)
+      else terminal.write(MOUSE_TRACKING_RESET)
       echoDetector.clear()
       selectionDrag = null
       selectionKeeper.forget('mouse tracking reset')
       dlog(`[mouse-tracking] reset: ${reason} terminal=${terminalId} mode=${mode}`)
     }
     resetMouseTrackingRef.current = resetMouseTracking
+    // BUG-229 / T0947: ⏻ / resume start a new PTY in this xterm — the decision is resetLeftoverMouseTracking's
+    const unregisterLeftoverMouseTracking = registerLeftoverMouseTrackingView(terminalId, {
+      mouseTrackingMode: () => terminal.modes.mouseTrackingMode,
+      reset: (reason, done) => resetMouseTracking(reason, done),
+    })
     exitAltScreenRef.current = () => {
       terminal.write(ALT_SCREEN_EXIT)
       dlog(`[mouse-tracking] alt screen left: manual terminal=${terminalId}`)
@@ -1329,6 +1335,7 @@ export const TerminalPanel = memo(function TerminalPanel({ terminalId, isActive 
       containerRef.current?.removeEventListener('paste', handleNativePaste, { capture: true })
       doResizeRef.current = null
       resetMouseTrackingRef.current = null
+      unregisterLeftoverMouseTracking()
       exitAltScreenRef.current = null
       linkHover.dispose()
       terminal.dispose()
