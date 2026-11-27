@@ -10,6 +10,7 @@
 
 | ID | 日期 | 標題 | 相關工單 |
 |----|------|------|---------|
+| D418 | 2026-11-27 | `v0.8.0-pre.9` 發佈（Pre-Release `45960516845`，`91309713`）：T0940（BUG-227）/ T0942；待驗收 A-12；`0.8.0-pre.N` 用完，下一預覽版換版號線需先確認 | T0940 / T0942 / BUG-227 |
 | D417 | 2026-11-27 | CT 判定 PASS（CT D920，T0579：R-2 全 PASS）→ PLAN-070 DONE；CT 6.3.0 正式版寫「BAT ≥ 0.8.0-pre.8」，發布時間待 CT U-9 | PLAN-070 / T0943 |
 | D416 | 2026-11-27 | T0943 收單（DONE，無 commit、不需合併）：CT 6.3.0-pre.3 補驗 BAT 端 PASS，做法 A 確認行在題目開頭、86 字換 2 行不截斷；通知 CT 判定 | T0943 / PLAN-070 |
 | D415 | 2026-11-27 | U-30：A → T0942 經 `ct-merge/T0942` ff 進 `main`；`0.8.0-pre.9` 內容齊（T0940 / T0942） | T0942 |
@@ -535,6 +536,20 @@
   4. PLAN-001 保持延後（🟢 Low，等 plugin 1.0 穩定）
 - **Success criteria**（EXP→CONCLUDED）：npm install 無錯 / 所有 native modules rebuild 成功 / dev+build:dir 可跑 / 手動 smoke test 8 項通過
 - **最大風險**：`whisper-node-addon@1.0.2` 對 Electron 41（Node 24）的 NODE_MODULE_VERSION 相容性未知，允許 Worker 遇此決策點主動問塔台
+
+---
+
+### D418 2026-11-27 16:08 — `v0.8.0-pre.9` 發佈
+
+- **使用者指示**：「發 pre.9」。
+- **push 前檢查**：`.private/` 去識別化樣式與金鑰樣式掃 `origin/main..main` 變更的 35 檔、commit 訊息，0 筆。
+- **發佈**：push `c421352d..91309713`；`pre-release.yml -f version=0.8.0-pre.9` run `45960516845` 全綠（tests / typecheck / 3 平台 build / server-bundle 3 + manifest / release），2026-11-27 08:06:35Z 發佈；4 個安裝檔大小與 pre.8 相當；`server-bundle-v0.8.0-pre.9` 已建。更版重點以 `gh release edit --notes-file` 寫入。
+- **文件**：CHANGELOG / release-note / README（「已送出」一行）＋ `package.json` 同步 `0.8.0-pre.9`。
+- **NSIS 重裝驗收**：本版不需要（T0940 改 `electron/main.ts` 接線與 notify-hold，未改安裝程式路徑）。
+- **CT 6.3.0 正式版**（CT D923，`ct-v6.3.0` 16:00:31）：BAT README 對照表已是 `>= v6.3.0`，不用改。
+- **版號線**：`0.8.0-pre.N` 已到 pre.9（L：最多 pre.9），下一個預覽版要換版號線，先與使用者確認。
+- **待驗收**：A-12（T0942、BUG-227）。
+- **相關**：T0940 / T0942 / BUG-227 / PLAN-070
 
 ---
 
