@@ -11,8 +11,7 @@ priority: P2
 sizing: M
 created_at: "2026-11-27T11:32:11+08:00"
 started_at: "2026-11-27T11:36:03+08:00"
-updated_at: "2026-11-27T11:41:00+08:00"
-tower_question: open
+updated_at: "2026-11-27T11:41:45+08:00"
 session_ids: []
 target_version: "0.8.0-pre.8"
 depends_on: ["T0937"]
@@ -114,3 +113,8 @@ memory_overrides:
 - **建議**：A。理由：這是常數清單的快照斷言，加值本身就是本單範圍；行為斷言不改。
 - **影響**：只影響驗證關卡（`npm run test:unit` 全綠）與收單；實作已完成。
 - **是否阻擋後續步驟**：阻擋驗證與收單；文件可先寫。
+- **通道**：BAT（`q-d23cf7f4-…`，answered choice 1）
+
+### 互動紀錄
+
+- [11:41] Q-1: 既有斷言 `INBOX_FEATURES` 與加 `multi` 衝突，可否只改第 71 行 → A（塔台）: 只改第 71 行期望值為 `['recommended', 'dismiss', 'multi']`，其他斷言不動，〈偏離與備註〉寫明 → Action: 已改該行
