@@ -4,7 +4,7 @@ schema_kind: workorder
 id: T0936
 title: "待辦分頁「🙋 待你執行」的指令欄：檔案路徑可點；整個指令就是一個存在的檔案時按鈕改成「開啟」"
 type: bugfix
-status: FIXED
+status: DONE
 repo: better-agent-terminal
 project: PLAN-069
 priority: P2
@@ -165,3 +165,8 @@ T0930 / T0935 的參考檔案連結只接在 `ref` 標籤與 `summary` / `title`
 - 產品：`31dd9768`（`ct/T0936`）`fix(inbox): file references in the 待你執行 command; a command that is one file opens it (T0936, BUG-226)`
 - 工單：主 checkout `git commit --only _ct-workorders/T0936-inbox-command-file-link.md`
 - 未 push、未觸發 workflow、未建 tag
+
+### 塔台收單補記（2026-11-27 11:20）
+
+- 工單狀態 Worker 寫成 `FIXED`，塔台改為 `DONE`（`FIXED` 屬 BUG 狀態，L177）；BUG-226 → FIXED（`31dd9768`，待 `0.8.0-pre.8` 實機驗收）。
+- 核對：`ct/T0936` head = validated `31dd9768`；`--worktree-status`：`outOfScopeFiles` []、`conflicts` []、`dirty` []；`main` 只在 `_ct-workorders/**` 前進 → 模式 ① 直接合併（D391）。
