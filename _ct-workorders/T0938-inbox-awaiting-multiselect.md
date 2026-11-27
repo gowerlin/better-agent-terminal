@@ -11,7 +11,8 @@ priority: P2
 sizing: M
 created_at: "2026-11-27T11:32:11+08:00"
 started_at: "2026-11-27T11:36:03+08:00"
-updated_at: "2026-11-27T11:36:03+08:00"
+updated_at: "2026-11-27T11:41:00+08:00"
+tower_question: open
 session_ids: []
 target_version: "0.8.0-pre.8"
 depends_on: ["T0937"]
@@ -101,4 +102,15 @@ memory_overrides:
 
 ## 回報區
 
-（Worker 填寫）
+### 待塔台決策
+
+#### Q-1：既有測試 `tower-inbox-plan069.test.ts:71` 斷言 `INBOX_FEATURES` 等於 `['recommended', 'dismiss']`，與本單「`INBOX_FEATURES` 加 `"multi"`」必然衝突，可否只把這一行改成 `['recommended', 'dismiss', 'multi']`？
+- **提問時間**：2026-11-27T11:41:00+08:00
+- **背景**：T0922 的測試把已知旗標整個清單釘死；本單〈唯一實作〉要求 `INBOX_FEATURES` 加 `"multi"`，兩者無法同時成立。同檔其他斷言（`parseInboxFeatures([...])` 對 `dismiss` / `recommended` / `future-value` 的行為）不受影響、全過。
+- **選項**：
+  - A：只改第 71 行的期望值為 `['recommended', 'dismiss', 'multi']`，其他斷言不動（本單新測試另外驗證 `multi`）
+  - B：第 71 行不改，改成不把 `multi` 放進 `INBOX_FEATURES`（另寫一個常數）——與本單〈唯一實作〉不符
+  - 其他
+- **建議**：A。理由：這是常數清單的快照斷言，加值本身就是本單範圍；行為斷言不改。
+- **影響**：只影響驗證關卡（`npm run test:unit` 全綠）與收單；實作已完成。
+- **是否阻擋後續步驟**：阻擋驗證與收單；文件可先寫。
