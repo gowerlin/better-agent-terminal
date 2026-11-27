@@ -4,6 +4,8 @@
 // outside the repo. BAT's system-claude detection only accepts a real `claude.exe` (spawn() refuses .cmd shims),
 // so this small exe stands in for claude. It never talks to a model.
 //   - `--version` (BAT's health probe and `--name` version check): prints `2.1.331 (Claude Code)` and exits 0.
+//   - `auth status` with control.json `"authStatus": "loggedOut"` (T0959, opt-in): prints a logged-out status
+//     JSON and exits 1, like claude when nobody is logged in.
 //   - stdin not a console (any other non-interactive call): records argv and exits 0, so nothing hangs.
 //   - otherwise (started in a BAT tab), like claude's TUI:
 //       1. records the raw command line and argv to <dataDir>/run-<stamp>-<pid>.argv.txt;
@@ -95,6 +97,20 @@ class FakeClaude
         sb.Append("cmdline=").Append(Environment.CommandLine).Append('\n');
         sb.Append("argc=").Append(args.Length).Append('\n');
         for (int i = 0; i < args.Length; i++) sb.Append("argv[").Append(i).Append("]=").Append(args[i]).Append('\n');
+        // T0959 (opt-in): control.json `"authStatus": "loggedOut"` → `auth status` answers like a logged-out claude
+        // (JSON with loggedIn false on stdout, exit 1), so the Claude Agent panel shows its "not logged in" guide.
+        // Without that key this branch does nothing and the T0955 behavior below is unchanged.
+        if (args.Length == 2 && args[0] == "auth" && args[1] == "status")
+        {
+            string ctl = "";
+            try { ctl = File.ReadAllText(Path.Combine(dataDir, "control.json")); } catch (Exception) { }
+            if (ctl.Replace(" ", "").IndexOf("\"authStatus\":\"loggedOut\"") >= 0)
+            {
+                File.WriteAllText(runBase + ".auth-status.txt", sb.ToString(), new UTF8Encoding(false));
+                Console.Write("{\"loggedIn\": false, \"authMethod\": \"none\", \"apiProvider\": \"firstParty\"}");
+                return 1;
+            }
+        }
         if (Console.IsInputRedirected)
         {
             sb.Append("noninteractive=1\n");
