@@ -10,6 +10,7 @@
 
 | ID | 日期 | 標題 | 相關工單 |
 |----|------|------|---------|
+| D470 | 2026-11-28 | U-54：A → T0962 ff 進 `main` `7ee0b8d2`（T0961 Linux spec）；worktree 與分支清掉 | T0962 / T0961 |
 | D469 | 2026-11-28 | T0962 收單（`69f4e1cc`，驗收全綠）；斷點 E 發 U-54 | T0962 / T0961 |
 | D468 | 2026-11-28 | T0961 收單（Linux CI：pre.1 重現、pre.2 PASS）→ BUG-233 CLOSED；判準 1 不成立 → 派合併工單 T0962 | T0961 / T0962 / BUG-233 |
 | D467 | 2026-11-27 | U-53：A → T0960 ff 進 `main` `178862f1`；worktree 與分支清掉 | T0960 |
@@ -587,6 +588,14 @@
   4. PLAN-001 保持延後（🟢 Low，等 plugin 1.0 穩定）
 - **Success criteria**（EXP→CONCLUDED）：npm install 無錯 / 所有 native modules rebuild 成功 / dev+build:dir 可跑 / 手動 smoke test 8 項通過
 - **最大風險**：`whisper-node-addon@1.0.2` 對 Electron 41（Node 24）的 NODE_MODULE_VERSION 相容性未知，允許 Worker 遇此決策點主動問塔台
+
+---
+
+### D470 2026-11-28 00:13 — U-54：A → T0962 ff
+
+- **使用者**：`U-54：A`。U-54 移除。
+- **合併**：第 5 步 `main` 只多 `_ct-workorders/**` → 整合分支再合併後 ff；`main` = `7ee0b8d2`；整合 worktree detach；T0961 worktree 移除；`ct/T0961`、`ct-merge/T0962` `-d` 刪除。
+- **相關**：T0962 / T0961 / D469
 
 ---
 
