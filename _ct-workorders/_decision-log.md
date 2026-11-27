@@ -10,6 +10,10 @@
 
 | ID | 日期 | 標題 | 相關工單 |
 |----|------|------|---------|
+| D445 | 2026-11-27 | T0953 收單（`d0430668`，驗收全綠、無範圍外檔案）；斷點 E 發 U-42 | T0953 / T0950 |
+| D444 | 2026-11-27 | T0951 收單（DONE，`f975ef45`，renderer 啟動命令前的輸入共用 BUG-151 保留）；合併排在 T0953 之後 | T0951 / BUG-231 |
+| D443 | 2026-11-27 | T0951 Q-1：A（T0944 source guard 改數 `sendLaunchCommand(`、意圖不變）；T0953 派工 | T0951 / BUG-231 / T0944 / T0953 |
+| D442 | 2026-11-27 | U-41：A → T0952 ff 進 `main` `2059de7e`；BUG-230 FIXED；派 T0950 合併工單 T0953 | T0952 / T0949 / BUG-230 / T0953 |
 | D441 | 2026-11-27 | T0952 收單（`23d124dc`，驗收全綠、無範圍外檔案）；斷點 E 發 U-41 | T0952 / T0949 / BUG-230 |
 | D440 | 2026-11-27 | T0950 收單（DONE，`cbc3175c`，⏻ 後離開殘留 alt screen）；整合 worktree 由 T0952 使用中，合併排在 T0952 ff 之後 | T0950 / T0952 |
 | D439 | 2026-11-27 | T0949 收單（DONE，`073dbaa1`，接回同一 PTY 時以存檔 pid 還原塔台宣告）；判準 1 不成立 → 派合併工單 T0952 | T0949 / T0952 / BUG-230 |
@@ -559,6 +563,46 @@
   4. PLAN-001 保持延後（🟢 Low，等 plugin 1.0 穩定）
 - **Success criteria**（EXP→CONCLUDED）：npm install 無錯 / 所有 native modules rebuild 成功 / dev+build:dir 可跑 / 手動 smoke test 8 項通過
 - **最大風險**：`whisper-node-addon@1.0.2` 對 Electron 41（Node 24）的 NODE_MODULE_VERSION 相容性未知，允許 Worker 遇此決策點主動問塔台
+
+---
+
+### D445 2026-11-27 21:31 — T0953 收單、斷點 E（U-42）
+
+- **回報**：T0953 DONE。`ct-merge/T0953` merge commit `d0430668`（parent1 `2059de7e` = base、parent2 `cbc3175c` = `ct/T0950`），無衝突；樹比對正好 T0950 的 7 檔、範圍外無。驗收在 merge commit：typecheck 0 / 0、vite build 0、`test:unit` 9368 passed / 41 skipped（520 files）。
+- **SHA 比對**：第 1–3 步成立；第 5 步：`main` 自 base 起只多 `_ct-workorders/**`。
+- **預檢**：`merge-tree ct-merge/T0953 ct/T0951` 無衝突（兩邊都改 `pty-replay.ts`）。
+- **收單**：`--close-worker T0953 --delay-ms 10000` exit 0。非 yolo → 斷點 E，發 U-42。
+- **相關**：T0953 / T0950 / T0951
+
+---
+
+### D444 2026-11-27 21:30 — T0951 收單、合併排在 T0953 之後
+
+- **回報**：T0951 DONE，`ct/T0951` `f975ef45`（= validated_sha），base `18d0a229`。查證：renderer 有 11 處「create 後 500 ms 寫啟動命令」，6 條路徑（claude-cli 新開 / ⏻ / 還原 / 恢復、codex 等還原、預設 agent、「+」新增、其他 agent ⏻、codex 恢復）。做法：共用 BUG-151 的主行程保留（`PtyManager.holdInputForLaunch` / `writeLaunchCommand` / `releaseLaunchHold`，同一個 `dispatchInputHolds`）；`pty:create` / `pty:restart` 帶 `holdInputUntilLaunch` 在同一 tick 開始保留；renderer `sendLaunchCommand`（`src/lib/launch-command.ts`）經新 proxied channel `pty:launch-command`（不進 `HELPER_CHANNEL_ROLES`、拒 `ctx.helper`；舊 bat-server fallback `pty:write`）；逾時 15 s、上限 64 KiB，到了照原樣依序寫出不丟。`test:unit` 9357 passed / 47 skipped（520 files）、vite build 0、typecheck 0 / 0。
+- **塔台判讀**：`affects_files` 外的 `electron/remote/protocol.ts`、`path-aware-channels.ts`、兩個型別檔是新 channel 的必要登記與宣告、無邏輯，工單已預期可能新增 IPC → 接受。第一次完整 `test:unit` 在 `50528bf9` 有 2 個 source guard 失敗，修正後最終 head 第一次全綠，據實記錄。
+- **後續建議（未開單）**：登入導引分頁（`openClaudeLoginTerminal`）與遠端工具安裝（`useRemoteToolInstall`）同一時間窗。
+- **收單**：`--close-worker T0951 --delay-ms 10000 --worktree keep` exit 0。
+- **合併**：整合 worktree 正由 T0953 使用 → 等 T0953 ff 後派合併工單（與 T0950 都改 `pty-replay.ts`，屆時先試合併）。對目前 `main`（含 T0949 的 `pty-manager.ts`）`merge-tree` 無衝突。
+- **相關**：T0951 / BUG-231 / BUG-151 / T0953
+
+---
+
+### D443 2026-11-27 21:28 — T0951 Q-1：A（改 T0944 source guard 的兩個斷言）
+
+- **提問**（結構化通道，`q-efd3628e…`，blocking）：T0951 把 11 處 renderer 啟動命令寫入改經共用的 `sendLaunchCommand`，與 T0944 的 source guard（`tower-launch-prompt.test.ts`「one launch write only」，數 `pty.write(` = 1、比對字面值）必然衝突；完整 `test:unit` 只剩這 1 個失敗。
+- **塔台答**：A —— 計數改成 `sendLaunchCommand(` = 1、字面值改成 `sendLaunchCommand(terminalId, cmd + '\r')`；第三個斷言（prompt 不另外打字）不動。理由：guard 的意圖是「啟動命令只寫一次、`/control-tower` 不分開打」，換寫入函式不改意圖，屬範圍內；B 只為保留字面值而多一個 fallback 參數。`bat-terminal.mjs --answer --choice 1` exit 0；回報區寫明改了這個測試與理由。
+- **相關**：T0951 / BUG-231 / T0944 / T0953（同時派工）
+
+---
+
+### D442 2026-11-27 21:26 — U-41：A → T0952 ff、BUG-230 FIXED；派 T0953
+
+- **使用者**：`U-41：A`。U-41 移除。
+- **SHA 比對**：第 5 步：`main` 自 base 起只多 `_ct-workorders/**` → 整合分支再合併 `main` 後 ff；`main` = `2059de7e`（第 4 步）；整合 worktree 已 detach。
+- **清理**：`git worktree remove` T0949 成功（未加 `--force`）；分支 `ct/T0949`、`ct-merge/T0952` 保留到使用者同意刪除。
+- **BUG-230**：FIXING → FIXED（待發版實機驗收）。
+- **T0953**：T0950 合併工單（判準 1 不成立：`main` 多了 T0949 的 `CLAUDE.md` 等；`merge-tree` 無衝突），base `2059de7e`。
+- **相關**：T0952 / T0949 / BUG-230 / T0950 / T0953 / D441
 
 ---
 
