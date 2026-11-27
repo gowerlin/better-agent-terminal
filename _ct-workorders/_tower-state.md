@@ -4,19 +4,28 @@ summary_version: 1
 bat_contract: 2
 ct_version: "6.2.0"
 inbox_features: ["recommended", "dismiss"]
-updated_at: "2026-11-27T15:11:57+0800"
+updated_at: "2026-11-27T15:19:23+0800"
 session: "2026-11-27 11:10 第一百三十七 session（CT v6.2.0）"
 next_ids:
   workorder: "T0944"
-  decision: "D414"
+  decision: "D415"
   bug: "BUG-228"
   plan: "PLAN-071"
-  user: "U-30"
+  user: "U-31"
   action: "A-12"
+awaiting_user:
+  - id: "U-30"
+    workorder: "T0942"
+    kind: "decision"
+    source: "breakpoint-E"
+    summary: "T0942（待辦回答送出後顯示已送出、保留選擇、可重新送出）已合併到 ct-merge/T0942 08e4334d，要 ff 進 main 嗎"
+    options: ["A ff 進 main（推薦）", "B 暫不合併"]
+    recommended: "A"
+    created_at: "2026-11-27T15:19:23+08:00"
 todo:
   - "✅ `v0.8.0-pre.8` 已驗收（A-8，D401）：BUG-226 CLOSED、T0937「其他」通過；熱區未結 BUG 0。PLAN-070 剩：多選勾選送出（`U-n：A、C`）與推薦預設勾選，待與 CT 6.3.0-pre.1 雙方實機驗收（CT 範例狀態檔見 T0938 收單補記）；預覽版號只剩 pre.9"
   - "⏳ CT 判定 T0577（CT D916）：R-1 PASS 5 / FAIL 2（R-1-3、R-1-5 確認行沒出現，模型在開選單前不輸出文字）；CT 使用者選做法 A（CT D917：確認行寫進選單第一題題目開頭，> 4 筆或需說明時不開選單），BAT 不用改。CT 6.3.0-pre.3（CT D918）→ 🔧 T0943 補驗派工中（S6，R-2-1～R-2-7，D413），收單後通知 CT 判定。PLAN-070 結案等最後判定"
-  - "✅ T0940 DONE、ff 進 `main`（U-28：A，D409；BUG-227 FIXED，待 `0.8.0-pre.9` 實機）；🔧 T0942 派工中（待辦回答「已送出」提示＋保留選擇，D412）；兩張都進 `0.8.0-pre.9`（此版號線最後一號，T0942 合併後再發，需使用者授權）"
+  - "✅ T0940 DONE、ff 進 `main`（U-28：A，D409；BUG-227 FIXED，待 `0.8.0-pre.9` 實機）；🔀 T0942 DONE（`49096cd7`，D414）：已合併 `ct-merge/T0942` `08e4334d`，待 U-30 ff 進 `main`；兩張都進 `0.8.0-pre.9`（此版號線最後一號，需使用者授權）"
   - "🚀 `v0.8.0-pre.7` 已發佈並驗收（D387 / D389）：T0935 只寫檔名的參考檔案連結、T0934 💬 卡片連結（A-6 完成）；下一版 `0.8.0-pre.8`"
   - "`v0.8.0-pre.5` 已驗收（D378）：T0929 / T0930 / BUG-225 CLOSED"
   - "候選（未開單，T0930 建議）：`useInboxFileRefs` 跟 `_ct-workorders/` 的 `fs:changed` 重查（💬 卡片連結已由 T0934 完成）"

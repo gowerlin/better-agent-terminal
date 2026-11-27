@@ -10,6 +10,7 @@
 
 | ID | 日期 | 標題 | 相關工單 |
 |----|------|------|---------|
+| D414 | 2026-11-27 | T0942 收單（DONE，`49096cd7`；Q-1 答 A）、模式 ① 合併到 `ct-merge/T0942` `08e4334d`；斷點 E → U-30 | T0942 |
 | D413 | 2026-11-27 | CT 6.3.0-pre.3（CT D918，做法 A：確認行寫進選單題目）→ 開並派 T0943 補驗（S6，R-2-1～R-2-7，BAT pre.8） | T0943 / PLAN-070 |
 | D412 | 2026-11-27 | 使用者：待辦回答送出後 UI 重設、看不出送過 → 開並派 T0942：送出後顯示「已送出：<內容>（時間）」、保留選擇、鈕改「重新送出」（只提醒不阻擋），目標 `0.8.0-pre.9` | T0942 |
 | D411 | 2026-11-27 | U-29：A → T0941 第一次執行的非驅動輸入是使用者手動點了測試視窗，屬干擾，不開 BUG | T0941 |
@@ -531,6 +532,15 @@
   4. PLAN-001 保持延後（🟢 Low，等 plugin 1.0 穩定）
 - **Success criteria**（EXP→CONCLUDED）：npm install 無錯 / 所有 native modules rebuild 成功 / dev+build:dir 可跑 / 手動 smoke test 8 項通過
 - **最大風險**：`whisper-node-addon@1.0.2` 對 Electron 41（Node 24）的 NODE_MODULE_VERSION 相容性未知，允許 Worker 遇此決策點主動問塔台
+
+---
+
+### D414 2026-11-27 15:19 — T0942 收單與模式 ① 合併
+
+- **Worker 回報**：`dd4969ee` / `49096cd7`，`test:unit` 9243 passed / 511 files、typecheck 0、vite build 0；新測試 17 項。紀錄 store `src/stores/inbox-sent-store.ts`（工作區資料夾＋項目 id，只在記憶體），清單讀到時 prune；所有待辦回答顯示「✓ 已送出 / 已排入待送：<整行>（HH:MM）」、保留選擇、鈕「重新送出」；失敗不標。Q-1（5 處既有送出後斷言）塔台答 A。
+- **核對**：head = validated；`--worktree-status` outOfScope [] / conflicts [] / dirty []；`main` 只在 `_ct-workorders/**` 前進 → 合併 `ct-merge/T0942` `08e4334d`。Worker 分頁 `--close-worker --worktree keep` exit 0。
+- **斷點 E**：ff 進 `main` 前問使用者 → U-30。
+- **相關**：T0942 / PLAN-070
 
 ---
 

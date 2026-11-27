@@ -173,6 +173,10 @@ memory_overrides:
 
 - 無（既有測試衝突已經 Q-1 由塔台裁示）。
 
+### 塔台收單補記（2026-11-27 15:19）
+
+- 核對：`ct/T0942` head = validated `49096cd7`；`--worktree-status` outOfScope [] / conflicts [] / dirty []；`main` 只在 `_ct-workorders/**` 前進 → 模式 ① 合併到 `ct-merge/T0942` `08e4334d`（D414）。Q-1 答 A（5 處送出後斷言照規格改，送出內容斷言不動）。其他判斷（備註表單送出後收起、批次勾選清掉、「完成」鈕文字不變）認可。
+
 ### 互動紀錄
 
 - [15:08] 開工；落點 PASS；`npm ci` 背景執行。
