@@ -4,6 +4,12 @@ All notable changes to Better Agent Terminal are documented in this file.
 
 ## [Unreleased]
 
+## [0.8.1-pre.2] — 2026-11-27
+
+### Fixed
+- ⏻ 重啟後舊程式隱藏的游標在非 Windows 的新 shell 仍看不見（BUG-233，T0957）：`?1049l` 不還原 DECTCEM、WSL bash 實測不送 `?25h`；新 PTY 開始時（`new-pty-spawned`，接在 `leaveLeftoverAltScreen` 之後）游標仍隱藏就只在本機 xterm 寫 `?25h`。唯一實作 `showLeftoverHiddenCursor`（`src/lib/mouse-tracking-reset.ts`，讀 xterm 內部 `_core.coreService.isCursorHidden`，讀不到不動）
+- 登入導引分頁與遠端工具安裝在命令寫入前打的字黏在命令前面（BUG-232，T0956）：`openClaudeLoginTerminal`（`src/lib/claude-login-guide.ts`）與 `runRemoteToolInstall`（`src/lib/remote-tools/install-runner.ts`）的 deps 多選填 `sendLaunchCommand`，建立時帶 `holdInputUntilLaunch`、命令經 `pty:launch-command`；登入命令照舊不送 Enter；T0951 共用實作未改；舊 bat-server fallback 不變
+
 ## [0.8.1-pre.1] — 2026-11-27
 
 ### Fixed

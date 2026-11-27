@@ -2,6 +2,28 @@
 
 本 fork 各版的更版重點（內容取自 GitHub Releases，最新在上）。上游 tony1223/better-agent-terminal 的 v2.1.x 紀錄保留在檔案最下方。
 
+## v0.8.1-pre.2（2026-11-27）
+
+版號 0.8.1-pre.2，接續 `v0.8.1-pre.1`。
+
+本版重點：補完 `0.8.1-pre.1` 的兩個後續問題：⏻ 重啟後游標看不見（WSL / SSH / macOS / Linux），以及登入導引分頁與遠端工具安裝在命令寫入前打的字會跑到命令前面。
+
+### 修正
+
+- **⏻ 重啟後游標看不見**（BUG-233）：被 ⏻ 結束的全螢幕程式（claude、codex、vim 等）若把游標藏起來，WSL、SSH、macOS、Linux 的新 shell 不會自己把游標顯示回來。現在新終端開始時，游標仍是隱藏的就在畫面上把它顯示出來。Windows 原本就正常，不受影響。
+- **登入導引分頁與遠端工具安裝：命令寫入前打的字跑到命令前面**（BUG-232）：`0.8.1-pre.1` 已修好 agent 分頁（BUG-231），這兩條路徑當時沒有涵蓋。現在同樣先保留你打的字，等命令寫完再依原順序送出，不會遺失；登入導引分頁照舊只打字、不自動按 Enter。
+
+### 已知事項
+
+- 遠端視窗（WSL / SSH / Docker）的 bat-server 要更新到本版，遠端工具安裝的輸入保留才會生效；舊版 bat-server 照舊運作。
+- 從 `0.8.0` 升上來後第一次接回，塔台仍要重新宣告一次（`0.8.1-pre.1` 的已知事項，之後的接回會自動還原）。
+- 待辦分頁需要 Control Tower 6.1.0 以上；多選、放棄附文字只當原因需要 6.3.0。
+- macOS 版沒有 Apple 公證，與先前版本相同。
+
+macOS 仍只提供 Apple Silicon（arm64）版。
+
+**Full Changelog**: https://github.com/gowerlin/better-agent-terminal/compare/v0.8.1-pre.1...v0.8.1-pre.2
+
 ## v0.8.1-pre.1（2026-11-27）
 
 版號 0.8.1-pre.1，接續 `v0.8.0`。
