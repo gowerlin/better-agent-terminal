@@ -14,14 +14,6 @@ next_ids:
   user: "U-27"
   action: "A-12"
 awaiting_user:
-  - id: "U-24"
-    workorder: ""
-    kind: "decision"
-    source: "tower-question"
-    summary: "【驗測範例 E1】單選＋「其他」：選「其他」輸入任意文字送出；再試以「放棄 」開頭看提示"
-    options: ["A 選項甲（推薦）", "B 選項乙", "C 選項丙"]
-    recommended: "A"
-    created_at: "2026-11-27T12:42:17+08:00"
   - id: "U-25"
     workorder: ""
     kind: "decision"
