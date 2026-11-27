@@ -10,6 +10,7 @@
 
 | ID | 日期 | 標題 | 相關工單 |
 |----|------|------|---------|
+| D443 | 2026-11-27 | T0951 Q-1：A（T0944 source guard 改數 `sendLaunchCommand(`、意圖不變）；T0953 派工 | T0951 / BUG-231 / T0944 / T0953 |
 | D442 | 2026-11-27 | U-41：A → T0952 ff 進 `main` `2059de7e`；BUG-230 FIXED；派 T0950 合併工單 T0953 | T0952 / T0949 / BUG-230 / T0953 |
 | D441 | 2026-11-27 | T0952 收單（`23d124dc`，驗收全綠、無範圍外檔案）；斷點 E 發 U-41 | T0952 / T0949 / BUG-230 |
 | D440 | 2026-11-27 | T0950 收單（DONE，`cbc3175c`，⏻ 後離開殘留 alt screen）；整合 worktree 由 T0952 使用中，合併排在 T0952 ff 之後 | T0950 / T0952 |
@@ -560,6 +561,14 @@
   4. PLAN-001 保持延後（🟢 Low，等 plugin 1.0 穩定）
 - **Success criteria**（EXP→CONCLUDED）：npm install 無錯 / 所有 native modules rebuild 成功 / dev+build:dir 可跑 / 手動 smoke test 8 項通過
 - **最大風險**：`whisper-node-addon@1.0.2` 對 Electron 41（Node 24）的 NODE_MODULE_VERSION 相容性未知，允許 Worker 遇此決策點主動問塔台
+
+---
+
+### D443 2026-11-27 21:28 — T0951 Q-1：A（改 T0944 source guard 的兩個斷言）
+
+- **提問**（結構化通道，`q-efd3628e…`，blocking）：T0951 把 11 處 renderer 啟動命令寫入改經共用的 `sendLaunchCommand`，與 T0944 的 source guard（`tower-launch-prompt.test.ts`「one launch write only」，數 `pty.write(` = 1、比對字面值）必然衝突；完整 `test:unit` 只剩這 1 個失敗。
+- **塔台答**：A —— 計數改成 `sendLaunchCommand(` = 1、字面值改成 `sendLaunchCommand(terminalId, cmd + '\r')`；第三個斷言（prompt 不另外打字）不動。理由：guard 的意圖是「啟動命令只寫一次、`/control-tower` 不分開打」，換寫入函式不改意圖，屬範圍內；B 只為保留字面值而多一個 fallback 參數。`bat-terminal.mjs --answer --choice 1` exit 0；回報區寫明改了這個測試與理由。
+- **相關**：T0951 / BUG-231 / T0944 / T0953（同時派工）
 
 ---
 
