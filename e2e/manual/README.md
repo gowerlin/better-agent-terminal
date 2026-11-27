@@ -172,8 +172,23 @@ node e2e/manual/ct-accept-act.mjs fastesc s5 <id> 300          # 等選單：偵
 - `pick` / `other` 從畫面讀選單（`❯ 1. …` 的編號列），移動後重讀畫面確認反白項才按 Enter；找不到選項 exit `1`。
 - `fastesc`：每 20 ms 讀一次 attention，`question` 出現後每 10 ms 讀畫面，看到選單底部提示就以該分頁自己的鍵盤輸入（`terminal.input('\x1b', true)`，與按 Esc 走同一條 `onData` 路徑）送 Esc；輸出 `menuDrawnAfterQuestionMs` / `escAfterMenuMs` 等時間差。用來重現 BUG-224 的時序（選單出現後 < 0.2 s 按 Esc）。
 
+T0939（CT 6.3.0-pre.1 驗收）在 `inbox` 的每一筆待決多印出：清單種類（`radiogroup` / `group+multi` / `free`）、「可複選」一行、各選項代號與輸入類型、所有「推薦」標記、目前勾選的代號、「其他」開或關、自由回答欄的放棄提示。待辦分頁的操作直接用驅動的 `click` / `fill`（`fill` 的參數是 `value`）：
+
+```powershell
+node e2e/manual/ct-accept-act.mjs ctl s1 '{"op":"click","selector":"[data-inbox-awaiting=\"U-1\"] [data-inbox-option-other] input"}'   # 「其他」
+node e2e/manual/ct-accept-act.mjs ctl s1 '{"op":"click","selector":"[data-inbox-awaiting=\"U-1\"] [data-inbox-option=B] input"}'       # 勾 B
+node e2e/manual/ct-accept-act.mjs ctl s1 '{"op":"click","selector":"[data-inbox-entry-buttons=\"U-1\"] button.primary"}'               # 送出
+node e2e/manual/ct-accept-act.mjs ctl s1 '{"op":"click","selector":"[data-inbox-dismiss=\"U-5\"]"}'                                     # 放棄…
+node e2e/manual/ct-accept-act.mjs ctl s1 '{"op":"fill","selector":"[data-inbox-dismiss-note=\"U-5\"]","value":"原因"}'
+node e2e/manual/ct-accept-act.mjs ctl s1 '{"op":"click","selector":"[data-inbox-dismiss-send=\"U-5\"]"}'
+```
+
+- claude 2.1.331 的多選選單（`multiSelect`）：每個選項前是 `[ ]`，Enter 切換勾選；「Type something」也是有勾選框的一列，移到那裡直接逐鍵輸入就會勾上，可以和其他勾選並存；`Next` / `Submit` 是選項下方的一列，最後有「Review your answers」確認頁（`Submit answers`）。`menu` / `pick` 的解析把 `[ ]` / `[✔]` 當成選項文字的一部分。
+- 多行訊息一次送出：以 xterm 的 `paste()`（bracketed paste）貼上再 Enter，claude 顯示 `[Pasted text #1 +N lines]`；`send` 的 `insert` 會把換行當 Enter。
+
 ### 已知限制
 
 - AskUserQuestion 選單出現後立刻按 Esc（約 0.1 秒內）時，較晚到的 `PermissionRequest` hook 會在「使用者輸入清除」之後把分頁設回 `question`，直到下一次按鍵（T0923 回報區 BUG 建議，BUG-224）。`0.8.0-exp.2` 起已修（T0926）；測更早的版本時，驅動選單先等幾秒再按 Esc。
 - claude 2.1.331 的塔台是全螢幕畫面（alt screen）：xterm 沒有 scrollback，捲動由 claude 自己處理；畫面文字只能從 PTY 擷取（TUI 重繪，閃爍的符號會洗掉尾端），判斷內容請以對話紀錄為準。
 - 權限詢問：以 BAT 縮圖 `.attention-badge.blocked[data-blocked-reason=permission]` 判斷；claude 一次排隊多個權限詢問時只有第一個有 hook 事件（T0915 回報區），需另看對話紀錄中沒有結果的工具呼叫。
+- 塔台分頁的輸入框草稿判斷（T0904 `draft`）看不到 claude 畫面內部：用數字鍵關掉 claude 的意見調查列（「How is Claude doing this session? … 0: Dismiss」）後，BAT 仍把那一鍵當成輸入框有字，之後從待辦分頁送出的回答以 `reason=draft` 排進「📨 待送」，直到下一次 Enter（T0939）。驅動在送出前要先確認沒有待送，或在空的輸入框按一次 Enter。
