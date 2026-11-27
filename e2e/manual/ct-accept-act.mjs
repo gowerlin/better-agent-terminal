@@ -20,7 +20,9 @@
 //                                        menu  — `blockedReason: question` (AskUserQuestion open) → 0
 //                                        turn  — wait for a turn to start, then its menu → 0 or its end → 6
 //                                      permission prompt → 3, time limit → 5
-//   inbox <name>                       summary of the 待辦 tab DOM (awaiting / actions / recent / holds / ⏸N)
+//   inbox <name>                       summary of the 待辦 tab DOM (awaiting / actions / recent / holds / ⏸N);
+//                                      (T0939) per awaiting row: radiogroup / group+multi / free, 可複選 hint,
+//                                      option codes + input type, every 推薦 mark, checked codes, 其他 on/off
 //   ctl <name> '<json op>'             any driver op
 //   menu <name> <id>                   the open AskUserQuestion menu as JSON: numbered options, highlighted one
 //   pick <name> <id> <label|last>      (T0928) move the menu highlight to the option whose text starts with <label>
@@ -170,7 +172,16 @@ async function wait(id, mode, limitSec) {
 const INBOX_JS = `const q = s => [...document.querySelectorAll(s)];
 const checked = id => q('[data-inbox-awaiting="' + id + '"] [data-inbox-option]').filter(l => l.querySelector('input').checked).map(l => l.dataset.inboxOption).join(',') || '-';
 return {
-  awaiting: q('[data-inbox-awaiting]').map(e => [e.dataset.inboxAwaiting, 'rec=' + (e.querySelector('[data-inbox-recommended]')?.dataset.inboxRecommended ?? '-'), 'checked=' + checked(e.dataset.inboxAwaiting), 'dismiss=' + !!e.querySelector('[data-inbox-dismiss]'), 'free=' + !!e.querySelector('.inbox-free-input'), e.querySelector('.inbox-entry-summary')?.innerText ?? ''].join(' | ')),
+  awaiting: q('[data-inbox-awaiting]').map(e => [e.dataset.inboxAwaiting,
+    'kind=' + (e.querySelector('[data-inbox-option-list]')?.getAttribute('role') ?? 'free') + (e.querySelector('[data-inbox-multi]') ? '+multi' : ''),
+    'hint=' + (e.querySelector('[data-inbox-multi-hint]')?.innerText ?? '-'),
+    'options=' + (q('[data-inbox-awaiting="' + e.dataset.inboxAwaiting + '"] [data-inbox-option]').map(l => l.dataset.inboxOption + ':' + (l.querySelector('input')?.type ?? '?')).join(',') || '-'),
+    'rec=' + (q('[data-inbox-awaiting="' + e.dataset.inboxAwaiting + '"] [data-inbox-recommended]').map(r => r.dataset.inboxRecommended).join(',') || '-'),
+    'checked=' + checked(e.dataset.inboxAwaiting),
+    'other=' + (e.querySelector('[data-inbox-option-other]') ? (e.querySelector('[data-inbox-option-other] input')?.checked ? 'on' : 'off') : '-'),
+    'dismiss=' + !!e.querySelector('[data-inbox-dismiss]'), 'free=' + !!e.querySelector('.inbox-free-input'),
+    'freeHint=' + !!e.querySelector('[data-inbox-free-hint],[data-inbox-other-hint]'),
+    e.querySelector('.inbox-entry-summary')?.innerText ?? ''].join(' | ')),
   actions: q('[data-inbox-action]').map(e => [e.dataset.inboxAction, 'skip=' + !!e.querySelector('[data-inbox-dismiss]'), e.querySelector('.inbox-entry-summary')?.innerText ?? ''].join(' | ')),
   recent: q('.inbox-recent-item').map(e => e.innerText.split('\\n').join(' ')),
   toolbars: q('[data-inbox-dismiss-toolbar]').map(e => e.dataset.inboxDismissToolbar),
