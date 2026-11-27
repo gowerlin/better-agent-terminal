@@ -4,18 +4,19 @@ summary_version: 1
 bat_contract: 2
 ct_version: "6.2.0"
 inbox_features: ["recommended", "dismiss"]
-updated_at: "2026-11-27T13:04:27+0800"
+updated_at: "2026-11-27T13:59:30+0800"
 session: "2026-11-27 11:10 第一百三十七 session（CT v6.2.0）"
 next_ids:
   workorder: "T0940"
-  decision: "D403"
+  decision: "D405"
   bug: "BUG-227"
   plan: "PLAN-071"
-  user: "U-27"
+  user: "U-28"
   action: "A-12"
 todo:
   - "✅ `v0.8.0-pre.8` 已驗收（A-8，D401）：BUG-226 CLOSED、T0937「其他」通過；熱區未結 BUG 0。PLAN-070 剩：多選勾選送出（`U-n：A、C`）與推薦預設勾選，待與 CT 6.3.0-pre.1 雙方實機驗收（CT 範例狀態檔見 T0938 收單補記）；預覽版號只剩 pre.9"
-  - "🔧 T0939 派工中（D402）：CT 6.3.0-pre.1 雙方驗收（CT D910 / D911），BAT pre.8 / pre.4 zip × `checklist-630.md` M-1～M-17（S1→S3→S2→S4），結果 `ct620-accept/results-630/`；收單後通知 CT 判定"
+  - "⏳ T0939 DONE、ff 進 `main`（U-27：A，D404）：CT 6.3.0-pre.1 雙方驗收 BAT 端 21 PASS / 0 FAIL / 1 未觸發；CT 判定單 T0575（13:58 派出，CT D912）收單後通知結果，再決定 PLAN-070 是否結案"
+  - "候選（未開單，T0939 記錄）：數字鍵 `0` 關 claude 意見調查列後，T0904 `draft` 判斷視為有字，待辦分頁回答排進「📨 待送」直到空輸入框按 Enter（回答不遺失、有提示）"
   - "🚀 `v0.8.0-pre.7` 已發佈並驗收（D387 / D389）：T0935 只寫檔名的參考檔案連結、T0934 💬 卡片連結（A-6 完成）；下一版 `0.8.0-pre.8`"
   - "`v0.8.0-pre.5` 已驗收（D378）：T0929 / T0930 / BUG-225 CLOSED"
   - "候選（未開單，T0930 建議）：`useInboxFileRefs` 跟 `_ct-workorders/` 的 `fs:changed` 重查（💬 卡片連結已由 T0934 完成）"
