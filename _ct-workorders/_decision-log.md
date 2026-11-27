@@ -10,6 +10,7 @@
 
 | ID | 日期 | 標題 | 相關工單 |
 |----|------|------|---------|
+| D437 | 2026-11-27 | U-40：A → T0948 ff 進 `main` `dc37842c`；BUG-229 FIXED（待發版實機驗收）；T0947 worktree 移除 | T0948 / T0947 / BUG-229 |
 | D436 | 2026-11-27 | T0948 收單（`9f5cc1ee`，驗收全綠、無範圍外檔案）；斷點 E 發 U-40 | T0948 / T0947 / BUG-229 |
 | D435 | 2026-11-27 | U-39：A → BUG-230 FIXING；開並派 T0949（同一 PTY 接回時還原塔台宣告，worktree） | BUG-230 / T0949 |
 | D434 | 2026-11-27 | A-18 回報：BAT 重開接回後塔台宣告消失 → 開 BUG-230（medium，OPEN）、A-18 移除、發 U-39 | BUG-230 / T0944 |
@@ -554,6 +555,16 @@
   4. PLAN-001 保持延後（🟢 Low，等 plugin 1.0 穩定）
 - **Success criteria**（EXP→CONCLUDED）：npm install 無錯 / 所有 native modules rebuild 成功 / dev+build:dir 可跑 / 手動 smoke test 8 項通過
 - **最大風險**：`whisper-node-addon@1.0.2` 對 Electron 41（Node 24）的 NODE_MODULE_VERSION 相容性未知，允許 Worker 遇此決策點主動問塔台
+
+---
+
+### D437 2026-11-27 21:09 — U-40：A → T0948 ff 進 `main`、BUG-229 FIXED
+
+- **使用者**：`U-40：A`。U-40 移除。
+- **SHA 比對**：第 5 步：`main` 自 base 起只多 `_ct-workorders/**` → 整合分支再 `--no-ff` 合併 `main` 後 ff；`main` = `ct-merge/T0948` = `dc37842c`（第 4 步）；整合 worktree 已 `switch --detach`。
+- **清理**：`git worktree remove` T0947 成功（乾淨、未加 `--force`）；分支 `ct/T0947`、`ct-merge/T0948` 保留到使用者同意刪除。
+- **BUG-229**：FIXING → FIXED（待發版實機驗收）。
+- **相關**：T0948 / T0947 / BUG-229 / D436
 
 ---
 
