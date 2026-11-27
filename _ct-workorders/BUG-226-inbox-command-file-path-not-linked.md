@@ -3,11 +3,13 @@ schema_version: 1
 schema_kind: bug
 id: BUG-226
 title: "待辦分頁「🙋 待你執行」的指令欄寫的是檔案路徑時不能點開，只有「複製指令」，複製了也不知道貼哪裡"
-status: FIXED
+status: CLOSED
+closed_at: "2026-11-27T12:46:29+08:00"
+closed_reason: "交付版 `v0.8.0-pre.8`（Pre-Release `45937322938`）使用者實機驗收 A-8 完成（驗測範例 A-9 / A-10 / A-11，D401）"
 severity: low
 reproducibility: "always（`user_actions[].command` 是檔案路徑時）"
 created_at: "2026-11-27T11:11:38+08:00"
-updated_at: "2026-11-27T11:20:23+08:00"
+updated_at: "2026-11-27T12:46:29+08:00"
 fixed_at: "2026-11-27T11:19:00+08:00"
 impact:
   - inbox
@@ -21,7 +23,7 @@ links:
 |------|------|
 | 嚴重度 | 🟢 low（檔案仍可從「檔案」頁籤手動找；不影響回答） |
 | 可重現 | 必定：`user_actions` 的 `command` 是檔案路徑（例 `_ct-workorders/_reply-<日期>-<主題>.md`） |
-| **狀態** | ✅ FIXED（T0936 `31dd9768`，合併 `ct-merge/T0936` `1c0a4891`，D391；待 `0.8.0-pre.8` 實機驗收） |
+| **狀態** | 🚫 CLOSED（交付版 `v0.8.0-pre.8` 使用者實機驗收 A-8，D401；修正 T0936 `31dd9768`，合併 `ct-merge/T0936`，D391） |
 | 回報者 | 使用者 2026-11-27 |
 | 影響版本 | 自 T0908（契約 v2 清單）起；T0930 / T0935 的參考檔案連結沒有涵蓋 `command` |
 
