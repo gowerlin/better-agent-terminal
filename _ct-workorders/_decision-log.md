@@ -10,6 +10,7 @@
 
 | ID | 日期 | 標題 | 相關工單 |
 |----|------|------|---------|
+| D463 | 2026-11-27 | U-50：A → BUG-232 CLOSED、BUG-233 維持 FIXED 發 A-24；U-51：A → T0959 驅動合併 `b9793204` | T0959 / BUG-232 / BUG-233 |
 | D462 | 2026-11-27 | T0959 收單（R0 / B233 / B232-login PASS，B232-install 未判定）；結案方式發 U-50、驅動合併發 U-51 | T0959 / BUG-232 / BUG-233 |
 | D461 | 2026-11-27 | `v0.8.1-pre.2` 已發佈（run `46020314119` 全綠）；更版重點、CHANGELOG / release-note、版號同步；派自動化驗收 T0959 | BUG-232 / BUG-233 / T0959 |
 | D460 | 2026-11-27 | U-48：A → T0958 ff 進 `main` `8ed38794`，BUG-232 FIXED；U-49：A → 發 `0.8.1-pre.2` 並自動化驗收 | T0958 / BUG-232 / BUG-233 |
@@ -580,6 +581,16 @@
   4. PLAN-001 保持延後（🟢 Low，等 plugin 1.0 穩定）
 - **Success criteria**（EXP→CONCLUDED）：npm install 無錯 / 所有 native modules rebuild 成功 / dev+build:dir 可跑 / 手動 smoke test 8 項通過
 - **最大風險**：`whisper-node-addon@1.0.2` 對 Electron 41（Node 24）的 NODE_MODULE_VERSION 相容性未知，允許 Worker 遇此決策點主動問塔台
+
+---
+
+### D463 2026-11-27 23:43 — U-50：A → BUG-232 CLOSED、BUG-233 發 A-24；U-51：A → T0959 驅動合併
+
+- **使用者**：`U-50：A`、`U-51：A`。兩筆移除。
+- **BUG-232**：FIXED → CLOSED（交付版登入導引 PASS＋pre.1 對照 FAIL；遠端工具安裝同一機制，依 T0956 真 `PtyManager` 端到端單元測試）。
+- **BUG-233**：維持 FIXED；發 A-24（下次用 WSL / SSH 遠端 profile 視窗時，bat-server ≥ `0.8.1-pre.2`，全螢幕程式開著時 ⏻，新 shell 看得到游標）。
+- **合併（模式 ①）**：整合 worktree `ct-merge/T0959` 自 `006b8dd8` `--no-ff`（parent2 `405da25a`），產品樹與 validated head 相同 → `main` ff 到 `b9793204`；整合 worktree detach；T0959 worktree 移除；`ct/T0959`、`ct-merge/T0959` `-d` 刪除。
+- **相關**：T0959 / BUG-232 / BUG-233 / D462
 
 ---
 

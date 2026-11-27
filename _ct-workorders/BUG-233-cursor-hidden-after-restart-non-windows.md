@@ -7,7 +7,7 @@ status: FIXED
 severity: low
 reproducibility: "推測：非 Windows 主機的 shell（Windows ConPTY 新 shell 通常會送 `?25h`，T0955 實測 Windows 看得到）"
 created_at: "2026-11-27T22:38:19+08:00"
-updated_at: "2026-11-27T22:48:05+08:00"
+updated_at: "2026-11-27T23:43:14+08:00"
 impact:
   - terminal-restart
 links:
@@ -33,3 +33,4 @@ links:
 
 - 2026-11-27 22:38 開單 → FIXING（T0957，D453）
 - 2026-11-27 22:48 → FIXED：真 xterm 重現、WSL Ubuntu-24.04 實測 bash 不送 `?25h`（推測成立）。新 PTY 開始時（`new-pty-spawned`，接在 `leaveLeftoverAltScreen` 之後）游標仍隱藏就只在本機 xterm 寫 `?25h`；唯一實作 `showLeftoverHiddenCursor`（`src/lib/mouse-tracking-reset.ts`）。合併進 `main` `0f818244`（D457）。
+- 2026-11-27 23:43 交付版 `v0.8.1-pre.2` 自動化驗收 T0959 B233：WSL 分頁 ⏻ 後 `cursor shown` log、游標看得到、不回歸；但 Windows 上 WSL 分頁仍經 ConPTY，新 ConPTY 自己送 `?25h`（pre.1 也看得到），沒有重現原 bug → 維持 FIXED，A-24 到遠端視窗（WSL / SSH bat-server）實機確認後 CLOSED（U-50：A，D463）。
