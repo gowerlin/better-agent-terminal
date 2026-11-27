@@ -5,7 +5,8 @@
  * - save → load keeps it (BAT reopen relaunches with `<ws> · Tower`); old data / other values stay without it
  * - detached adoption keeps it
  * - WorkspaceView (source guard): the session name follows `launchRole`, read from the store in
- *   startClaudeCliPty (new tab, restore, ⏻ restart); the entry only names — no set-role, nothing typed
+ *   startClaudeCliPty (new tab, restore, ⏻ restart); the entry itself: no set-role, nothing typed
+ *   (T0944: `/control-tower` is a launch argument added in startClaudeCliPty — src/lib/__tests__/tower-launch-prompt.test.ts)
  */
 import * as fs from 'fs'
 import * as path from 'path'
@@ -106,7 +107,9 @@ describe('WorkspaceView "Open Claude as Tower" (T0644, source guard)', () => {
     expect(handler).toContain('await startClaudeCliPty(terminal.id, workspace.folderPath, false)')
   })
 
-  it('only names the session: no role, nothing typed, no user rename', () => {
+  // T0944 / D421: the tower tab now starts claude with `/control-tower`, but as a launch argument of
+  // startClaudeCliPty (towerLaunchPrompt), never typed by this handler — the assertion stays as it was
+  it('no role, nothing typed after the launch (T0944: /control-tower is a launch argument), no user rename', () => {
     expect(handler).not.toMatch(/setRole|set-role|applyTerminalRole|pty\.write|renameTerminal/)
   })
 
