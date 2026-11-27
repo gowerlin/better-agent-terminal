@@ -10,6 +10,7 @@
 
 | ID | 日期 | 標題 | 相關工單 |
 |----|------|------|---------|
+| D413 | 2026-11-27 | CT 6.3.0-pre.3（CT D918，做法 A：確認行寫進選單題目）→ 開並派 T0943 補驗（S6，R-2-1～R-2-7，BAT pre.8） | T0943 / PLAN-070 |
 | D412 | 2026-11-27 | 使用者：待辦回答送出後 UI 重設、看不出送過 → 開並派 T0942：送出後顯示「已送出：<內容>（時間）」、保留選擇、鈕改「重新送出」（只提醒不阻擋），目標 `0.8.0-pre.9` | T0942 |
 | D411 | 2026-11-27 | U-29：A → T0941 第一次執行的非驅動輸入是使用者手動點了測試視窗，屬干擾，不開 BUG | T0941 |
 | D410 | 2026-11-27 | T0941 收單（DONE，無 commit、不需合併）：BAT 端 PASS；R-1-3 觀察仍 FAIL（CT 回覆在選單前沒有確認行）→ 通知 CT 判定；Q-1 塔台答 A；非驅動輸入打斷 → U-29 | T0941 / PLAN-070 |
@@ -530,6 +531,14 @@
   4. PLAN-001 保持延後（🟢 Low，等 plugin 1.0 穩定）
 - **Success criteria**（EXP→CONCLUDED）：npm install 無錯 / 所有 native modules rebuild 成功 / dev+build:dir 可跑 / 手動 smoke test 8 項通過
 - **最大風險**：`whisper-node-addon@1.0.2` 對 Electron 41（Node 24）的 NODE_MODULE_VERSION 相容性未知，允許 Worker 遇此決策點主動問塔台
+
+---
+
+### D413 2026-11-27 15:11 — 開並派 T0943：CT 6.3.0-pre.3 補驗
+
+- **來源**：CT 跨 session（CT D918，T0578 收單）。清單 `checklist-rerun-630.md` 修訂版（SHA-256 `07315f82…`，§ 5 pre.3 補驗）、`ct-swap-630.py`（`878ad296…`），塔台已核對；結果 `results-rerun2-630/`、副本 `runs-rerun2-630/S6/`；`install-633` 後不換回。
+- **工單**：T0943（worktree，只寫工單檔，不動 `e2e/manual/`，避開 T0942）；BAT pre.8；1 個塔台 session；transcript 附 `AskUserQuestion` 輸入全文；題目截斷要記錄。
+- **相關**：T0943 / PLAN-070 / T0941
 
 ---
 
