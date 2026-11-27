@@ -4,12 +4,13 @@ schema_kind: workorder
 id: T0948
 title: "合併 `ct/T0947`（⏻ 重啟前關掉殘留的滑鼠追蹤，BUG-229）→ `main`"
 type: chore
-status: PENDING
+status: IN_PROGRESS
 repo: better-agent-terminal
 priority: P2
 sizing: S
 created_at: "2026-11-27T21:04:06+08:00"
-updated_at: "2026-11-27T21:04:06+08:00"
+updated_at: "2026-11-27T21:05:43+08:00"
+started_at: "2026-11-27T21:05:43+08:00"
 target_version: "下一個預覽版（`0.8.1-pre.N`，發版前與使用者確認）"
 kind: merge
 merges:
