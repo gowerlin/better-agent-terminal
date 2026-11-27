@@ -4,14 +4,17 @@ schema_kind: workorder
 id: T0936
 title: "待辦分頁「🙋 待你執行」的指令欄：檔案路徑可點；整個指令就是一個存在的檔案時按鈕改成「開啟」"
 type: bugfix
-status: TODO
+status: FIXED
 repo: better-agent-terminal
 project: PLAN-069
 priority: P2
 sizing: S
 created_at: "2026-11-27T11:11:38+08:00"
-updated_at: "2026-11-27T11:11:38+08:00"
-session_ids: []
+started_at: "2026-11-27T11:13:15+08:00"
+updated_at: "2026-11-27T11:19:00+08:00"
+completed_at: "2026-11-27T11:19:00+08:00"
+session_ids:
+  - "93924d66-22f9-4eb1-9565-d132fe7b7734"
 target_version: "0.8.0-pre.8"
 depends_on: []
 related:
@@ -78,4 +81,87 @@ T0930 / T0935 的參考檔案連結只接在 `ref` 標籤與 `summary` / `title`
 
 ## 回報區
 
-（Worker 填寫）
+### 完成狀態
+
+- **狀態**：FIXED（實作與自動化驗證完成；實際點擊待實機，見〈待實機〉）
+- **completed_at**：2026-11-27T11:19:00+08:00
+- **session_id**：93924d66-22f9-4eb1-9565-d132fe7b7734
+
+### 落點檢查
+
+- 結果：PASS
+- C-0：`repo` = `better-agent-terminal`，`basename "$CT_HOME"` = `better-agent-terminal` → PASS
+- C-1：工單在 `$CT_HOME/_ct-workorders/` 之下 → PASS
+- C-3：`affects_files` 前 5 項（排除 `_ct-workorders/`）在 worktree 都存在 → PASS（C-0 已 PASS，僅記錄）
+- C-2：工單無 `branch` 欄位；目前分支 `ct/T0936`
+- 證據：`CT_HOME` = 主 checkout（`…/better-agent-terminal/better-agent-terminal`）、`CT_WORKTREE_BRANCH` = `ct/T0936`、`BAT_WORKSPACE_ID` 已設定（只作記錄）、`CT_MODE` = `yolo`
+
+### Worktree SHA
+
+- **branch**：`ct/T0936`
+- **base_sha**：`7f02b0b7aeb5deef667101a1f79cd85b695d66a4`
+- **validated_sha**：`31dd9768d97b7fc443eb6e8763398071077a155e`
+- **head_sha**：`31dd9768d97b7fc443eb6e8763398071077a155e`（= validated_sha）
+
+### 結果摘要
+
+- **行為 A**：`command` 仍以 `<code class="inbox-command-text">` 顯示，內容改經 `InboxRefText`（存在的路徑 / 檔名 / 編號成連結，文字逐字不變）；「複製指令」保留、複製原始全文；`title` 照舊 `inbox.action.commandNote`。
+- **行為 B**：新純函式 `soleFileRef(text)`（`src/lib/inbox-file-refs.ts`）：trim 後可去掉外層一對 `` ` `` / `"` / `'`（內容不含同種引號、不跨行），引號內整段可為編號、路徑、檔名或含空白的路徑；否則 `splitFileRefs` 必須只有一個 ref、其餘只有空白。解析到存在的檔 → 指令文字整段為連結（`data-inbox-command-file`）＋「開啟」按鈕（`data-inbox-open`，i18n `inbox.action.open`：en `Open` / zh-TW `開啟` / zh-CN `打开`），兩者經 `openFileInFilesTab` 開解析後的路徑；不顯示「複製指令」；`title` = 新鍵 `inbox.action.openNote`。尚未檢查完或找不到 → 行為 A。
+- 存在檢查：`ActionList` 的 `useInboxFileRefs` 收集加上 `commandFileRefs(item.command)`（`useInboxFileRefs.ts` 新增；整個指令的參照在前，再加指令中的參照）。`INBOX_FILE_REF_MAX` 未改。
+- `RefLink`（`InboxRefText.tsx`）改為 export，供行為 B 重用；未另寫辨識、未新增 IPC / 事件、不輪詢。
+- 為支援 `"docs/a b.md"`，內部 `asPath` 加選用參數 `spaces`（只在 `soleFileRef` 的引號內整段使用）；`splitFileRefs` 行為不變（含空白的路徑在句中照舊不辨識）。
+
+### 修改檔案
+
+- `src/lib/inbox-file-refs.ts`：`soleFileRef`、`asPath(raw, spaces)`、檔頭說明
+- `src/components/inbox/useInboxFileRefs.ts`：`commandFileRefs`
+- `src/components/inbox/InboxRefText.tsx`：export `RefLink`
+- `src/components/inbox/InboxLists.tsx`：`ActionRow` 指令欄 A / B、`ActionList` 收集、檔頭說明
+- `src/locales/en.json` / `zh-TW.json` / `zh-CN.json`：`inbox.action.open` / `openNote`
+- `src/lib/__tests__/inbox-file-refs.test.ts`：〈soleFileRef (T0936)〉3 項
+- `src/components/__tests__/inbox-command-file-t0936.test.tsx`（新增，4 項）
+- `docs/agent-guide/tower-inbox.md`：〈契約 v2 清單與回答〉欄位表 `command` 列、〈參考檔案連結（T0930）〉用途句、新小節〈🙋 的指令欄（T0936）〉
+- `CLAUDE.md`：「待辦分頁的契約 v2 清單與回答」節 `command` 那句改寫（標題未改）
+- `site/tower-inbox.md`：區塊表 🙋 列、〈怎麼回答〉的「指令」（`0.8.0-pre.8` 起）
+- `src/styles/`：未改（沿用 `.inbox-file-link` / `.inbox-command-text`）
+
+### 驗證
+
+- `npm ci`（worktree）：exit 0
+- `npm run test:unit`（head `31dd9768` 第一次完整執行）：exit 0，Test Files 504 passed | 3 skipped (507)，Tests 9114 passed | 47 skipped (9161)
+- `npm run typecheck`：exit 0（= 0 錯誤）
+- `npx vite build`：exit 0
+- 既有 T0908（`inbox-w5`）/ T0922（`inbox-plan069`）/ T0929 / T0930 / T0934 / T0935 測試未改斷言、全過
+- 純函式測試涵蓋：`_ct-workorders/_reply-2026-11-27-topic.md`、`` `README.md` ``、`"docs/a b.md"`、`'docs/notes.md'`、反斜線路徑、`T0936`、`` `BUG-226` `` 為單一參照；`pwsh -File e2e/manual/x.ps1`、`npm run build`、空字串 / 空白 / undefined、兩個路徑、兩個引號字串、兩個編號、句尾帶 `.`、URL、引號內跨行、`"npm run build"`、`` `docs/a.md` --check `` 不是；`"../outside/a b.md"` 解析後不連結
+- 元件測試涵蓋：存在的檔 → 連結＋「開啟」、`title` = openNote、沒有「複製指令」、按鈕與連結各送出 `workspace-switch-tab` + `file-tree-reveal`（解析後路徑）、不送回答 / 不複製；不存在 → 純文字＋「複製指令」複製原文；真的指令含存在路徑 → 路徑連結可開、「複製指令」複製全文；含空白的引號路徑與工單編號 → 「開啟」開對應檔
+
+### 待實機
+
+隔離實例點擊未做（不碰安裝版 BAT）。驗收步驟：
+1. 以隔離實例（或 `0.8.0-pre.8` 預覽版）開一個契約 v2 工作區，在 `_tower-state.md` 的 `user_actions` 加三筆：`command: "_ct-workorders/_reply-<日期>-sample.md"`（先建立此檔）、`command: "_ct-workorders/_reply-<日期>-none.md"`（不建立）、`command: "pwsh -File e2e/manual/<存在的>.ps1"`。
+2. 待辦分頁「🙋 待你執行」：第一筆指令為連結、按鈕是「開啟」、沒有「複製指令」；點連結與「開啟」都切到「檔案」頁籤並在檔案樹選取該檔。
+3. 第二筆：純文字＋「複製指令」（與修正前相同）。
+4. 第三筆：`.ps1` 路徑可點；「複製指令」貼出的是整行原文；BAT 沒有執行任何指令。
+
+### 相關通過案例判定
+
+工單無〈相關通過案例〉節，不適用。
+
+### 遭遇問題
+
+- 無。工單 `status` 原為 `TODO`（非 `PENDING`），直接改為 `IN_PROGRESS`。
+
+### 互動紀錄
+
+- [11:13] 開工；落點檢查 PASS；`npm ci` 背景執行
+- 無塔台提問、無使用者指示變更；三個補充檢查節點都沒有新段落
+
+### 後續建議
+
+- 無必要的後續工單。若之後要讓句中（非整個指令）含空白的路徑也可點，需另訂規則（目前只在整個指令被引號包住時辨識）。
+
+### Commit
+
+- 產品：`31dd9768`（`ct/T0936`）`fix(inbox): file references in the 待你執行 command; a command that is one file opens it (T0936, BUG-226)`
+- 工單：主 checkout `git commit --only _ct-workorders/T0936-inbox-command-file-link.md`
+- 未 push、未觸發 workflow、未建 tag
