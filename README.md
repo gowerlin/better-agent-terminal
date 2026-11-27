@@ -231,7 +231,8 @@ BAT 開的 Claude CLI 分頁（縮圖列「+」選單的 Claude CLI、「以塔�
 | Worker 問塔台（`--ask` / `--answer`、`bat_list_questions` / `bat_wait_question`、`blocked` / `tower`） | `>= 0.7.0-pre.7` | `>= v5.7.0`（舊 CT 照舊在工單裡往返） |
 | 一批多題只叫醒塔台一次（前幾題 `--ask --no-pty-write`、最後一題 `--submit`） | 行為自 `>= 0.7.0-pre.7`；列為正式契約、守門測試：`>= 0.7.2-pre.4` | `>= v5.15.0`（舊 CT 照舊每題叫醒一次） |
 | Claude 分頁的 session 名稱、`claudeSessionName` / `claudeSessionId`、`scope: towers`、以塔台開啟 Claude | `>= 0.7.1-pre.1` | 名稱不需要 CT 配合；依這些欄位找塔台：`>= v5.9.0`（舊 CT 照舊） |
-| 「以塔台開啟 Claude」啟動時自動帶入 `/control-tower`（新開、⏻ 重啟、重新啟動；resume 不帶） | `>= 0.8.0` | 需已安裝 CT 的 `control-tower` skill（zip 或 plugin 皆可）；沒裝時 claude 顯示找不到指令 |
+| 「以塔台開啟 Claude」啟動時自動帶入 `/control-tower`（新開、⏻ 重啟、重新啟動；resume 不帶） | `>= 0.8.0`（Windows 分頁 shell 是 Git Bash 時：`>= 0.8.1-pre.1`） | 需已安裝 CT 的 `control-tower` skill（zip 或 plugin 皆可）；沒裝時 claude 顯示找不到指令 |
+| BAT 重開、終端接回同一個程序時，還原塔台分頁的 `--set-role` 宣告（角色、模式、契約 v2） | `>= 0.8.1-pre.1`（從更早版本升上來的第一次接回仍需重新宣告） | 不需要（`--set-role` 參數、輸出、exit code 不變；舊 BAT 接回後在塔台分頁再執行一次 `/control-tower`） |
 | Worker 縮圖 ⚠️ / `?` / `✓` / `↻` | `>= 0.7.0-pre.7`（提問答覆後恢復「執行中」：`>= 0.7.0-pre.8`；Codex 分頁 ⚠️：`>= 0.7.0-pre.9`；回報後又在執行 `↻`：`>= 0.7.1-pre.6`） | 不需要 |
 | 「等待你回應」⚠️ 擴及所有 agent 分頁（含塔台），並顯示在工作區列表、「工作區」頁籤標題與收合側欄；錯過的提示改灰色保留到看過 | `>= 0.7.2-pre.8`（遠端 bat-server 重啟後依伺服器現況更正：`>= 0.7.3-pre.1`，遠端 server 也要升級；用滑鼠回答也清除、已分離視窗的工作區與 Claude Agent 面板也提示：`>= 0.7.3-pre.4`；點別的分頁讓 BAT 回到前景時保留原分頁的灰色提示：`>= 0.7.3-pre.5`） | 不需要（只用既有的 hook / OSC 等待狀態） |
 | Terminal Server 意外重啟後列出被中斷的 agent 分頁（含塔台派工的 Worker），claude 分頁一鍵 `--resume`、codex 分頁開 `codex resume` 選單 | `>= 0.7.3-pre.4` | 不需要（恢復後 Worker 不會自動繼續；塔台可用 `bat_get_state` 的 `agentStarted` 判斷） |

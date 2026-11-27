@@ -2,6 +2,40 @@
 
 本 fork 各版的更版重點（內容取自 GitHub Releases，最新在上）。上游 tony1223/better-agent-terminal 的 v2.1.x 紀錄保留在檔案最下方。
 
+## v0.8.1-pre.1（2026-11-27）
+
+版號 0.8.1-pre.1，接續 `v0.8.0`。
+
+本版重點：修正 `v0.8.0` 實機驗收時發現的四個問題。Windows 用 Git Bash 時，「以塔台開啟 Claude」現在能正確進入塔台；⏻ 重啟 claude / codex 分頁更可靠；BAT 重開、終端接回後，塔台分頁不必重新宣告。
+
+### 修正
+
+- **Git Bash 分頁的 `/control-tower` 被改成路徑**（BUG-228）：Windows 的分頁 shell 是 Git Bash 時，「以塔台開啟 Claude」帶入的 `/control-tower` 會被 Git Bash 改寫成 `C:/Program Files/Git/control-tower`，claude 不會進入塔台。現在只對這一次啟動命令關閉該轉換，分頁裡你自己執行的指令不受影響；PowerShell、cmd、macOS / Linux 不變。Worker 派工本來就不受影響。
+- **⏻ 重啟後 claude 沒有啟動、shell 出現一串 `35;77;25M`**（BUG-229）：舊 claude 被 ⏻ 結束時來不及關掉滑鼠追蹤，滑鼠移動的回報被打進新 shell、黏在啟動命令前面。現在開新終端前會先在畫面上關掉殘留的滑鼠追蹤。
+- **BAT 重開、終端接回後，塔台分頁不再是塔台**（BUG-230）：待辦分頁顯示「沒有已宣告的塔台分頁」、回答送不出去，要在塔台分頁再執行一次 `/control-tower`。現在接回的是同一個程序時，BAT 會還原塔台的宣告（角色、模式、契約 v2）；⏻ 重啟或選「重新開始」照舊由新的 claude 自己宣告。另外 View → Reload 後也拿得回塔台。
+- **⏻ 後立刻打字會讓 agent 起不來**（BUG-231）：新終端起來到啟動命令寫入前約半秒內打的字，會跑到啟動命令前面。現在這段時間打的字會先保留，等命令寫完再依原順序送出，不會遺失。適用 claude / codex 等 agent 分頁的新開、⏻、還原與恢復；一般 shell 分頁不延後。
+
+### 更新
+
+- **⏻ 重啟時離開舊程式的全螢幕畫面**：claude、codex 等全螢幕程式被 ⏻ 結束後，新 shell 不再畫在殘留的全螢幕畫面上，回到一般畫面，往上捲得到之前的內容。程式執行中的行為與右鍵選單的「離開替代畫面」不變。
+
+### 已知事項
+
+- 塔台宣告的還原從本版開始記錄：從 `0.8.0` 升上來後第一次接回，塔台仍要重新宣告一次（執行 `/control-tower`），之後的接回就會自動還原。
+- ⏻ 後若舊程式把游標隱藏了，新 shell 的游標可能仍看不到（Windows 通常沒有這個問題）；遇到請回報。
+- 登入導引分頁與遠端工具安裝不在本版的輸入保留範圍內。
+- 遠端視窗（WSL / SSH / Docker）的 bat-server 要更新到本版，⏻ 期間打字的保留才會生效；舊版 bat-server 照舊運作。
+- 待辦分頁需要 Control Tower 6.1.0 以上；多選、放棄附文字只當原因需要 6.3.0。
+- macOS 版沒有 Apple 公證，與先前版本相同。
+
+### 歡迎協助測試
+
+本版改了 codex 等 agent 分頁的啟動命令寫入方式（BUG-231）。如果你用 Codex CLI，歡迎幫忙試一次：開一個 Codex CLI 分頁按 ⏻ 後立刻打幾個字，確認 codex 正常啟動、字出現在輸入框；呼叫 MCP tool `bat_whoami` 看 `role` / `agent`；由塔台派一張小工單給 Codex Worker，確認完成通知回到塔台、分頁被回收。結果請到 GitHub issue 回報，附上 BAT 版本與 `codex --version`。
+
+macOS 仍只提供 Apple Silicon（arm64）版。
+
+**Full Changelog**: https://github.com/gowerlin/better-agent-terminal/compare/v0.8.0...v0.8.1-pre.1
+
 ## v0.8.0（2026-11-27）
 
 版號 0.8.0，接續 `v0.8.0-pre.9`。這是 `0.8.0` 預覽版線（`pre.1`–`pre.9`）的正式版。

@@ -4,6 +4,17 @@ All notable changes to Better Agent Terminal are documented in this file.
 
 ## [Unreleased]
 
+## [0.8.1-pre.1] — 2026-11-27
+
+### Fixed
+- Windows Git Bash 塔台分頁的 `/control-tower` 被 MSYS 改寫成 `C:/Program Files/Git/control-tower`（BUG-228，T0946）：分頁 shell 是 Windows 的 MSYS shell 時，啟動命令前加只對該次命令生效的 `MSYS2_ARG_CONV_EXCL="/control-tower${MSYS2_ARG_CONV_EXCL:+;…}"`，不改 PTY env；pwsh / cmd / 非 Windows 逐字不變；helper 派工本來就帶 `MSYS_NO_PATHCONV=1`、不受影響。唯一實作 `isWindowsMsysShell` / `msysArgConvExclusionPrefix`（`src/utils/shell-quote.ts`）、`towerLaunchCommandPrefix`（`src/lib/tower-launch-prompt.ts`）
+- ⏻ 重啟時殘留的滑鼠追蹤把回報打進新 shell、黏在 claude 啟動命令前面（BUG-229，T0947）：新 PTY 在同一個 xterm 開始前後，追蹤還開著就只在本機 xterm 重設（不寫 PTY）；唯一實作 `resetLeftoverMouseTracking`（`src/lib/mouse-tracking-reset.ts`），呼叫點 `restartOrCreatePty` / `createPtyWithReplay`、WorkspaceView claude-cli 的 `pty:kill` 前
+- BAT 重開、終端接回後塔台分頁的 `--set-role` 宣告消失（BUG-230，T0949）：主行程存檔 `<userData>/tower-roles.json`（宣告時 pid，不含權杖），接回時 Terminal Server 清單 pid 相同且本行程未再宣告才還原並送 `terminal:role-changed`，視窗載入後補送；⏻ / 「重新開始」/ recovery / 新 PTY 不還原；`--set-role` 契約不變。唯一實作 `decideTowerRoleRestore` / `TowerRolePersistence`（`electron/terminal-role.ts`）
+- renderer 寫 agent 啟動命令前（create 後約 500 ms）使用者打的字黏在命令前面（BUG-231，T0951）：共用 BUG-151 的主行程保留（`PtyManager.holdInputForLaunch` / `writeLaunchCommand` / `releaseLaunchHold`），`pty:create` / `pty:restart` 帶 `holdInputUntilLaunch`，renderer 經新 proxied channel `pty:launch-command`（`sendLaunchCommand`，`src/lib/launch-command.ts`；不進 `HELPER_CHANNEL_ROLES`）；逾時 15 s、上限 64 KiB，到了照原樣依序寫出；舊 bat-server fallback `pty:write`
+
+### Changed
+- ⏻ / 恢復時新 PTY spawn 後，xterm 仍在 alt buffer 就在本機 xterm 離開（T0950）：唯一實作 `leaveLeftoverAltScreen`（`src/lib/mouse-tracking-reset.ts`）；T0672「不自動離開 alt screen」在 ⏻ 時例外（舊程式已結束）；程式執行中與右鍵「離開替代畫面」不變
+
 ## [0.8.0] — 2026-11-27
 
 `0.8.0` 預覽版線（`0.8.0-pre.1`–`pre.9`）的正式版；各項變更見下方各預覽版段落。
