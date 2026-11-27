@@ -10,6 +10,8 @@
  *     and the host's check of them (`tower-inbox:answer`)
  *   - PLAN-069 / T0922 (CT 6.2.0): `inbox_features` (`parseInboxFeatures`), `awaiting_user[].recommended`
  *     (`matchRecommended`), the 放棄 / 略過 lines incl. batches (`dismissAnswerText`, `checkInboxAnswer`)
+ *   - T0938 (CT 6.3.0): `inbox_features: multi` + `awaiting_user[].multi` (`awaitingIsMulti`), several
+ *     recommended codes (`matchRecommendedCodes`), the answer `U-n：A、C` (`multiAnswerText`)
  *
  * Error isolation (§3.3): a list that is not a list is ignored; one bad item (a required field
  * missing / malformed, a duplicate id) is skipped and counted, the others stay; an optional field
@@ -143,6 +145,18 @@ export interface AwaitingItem {
    * no option, or there are no usable options (free answer). 🔴 Never an error, never skips the item.
    */
   recommended?: string
+  /**
+   * T0938 (CT 6.3.0): a multiple-choice item — set only when `inbox_features` lists `multi`, the item's
+   * `multi` is the boolean `true` and there are ≥ 2 usable options (`awaitingIsMulti`). Absent otherwise:
+   * the item is drawn and answered exactly as before. 🔴 Never an error, never skips the item.
+   */
+  multi?: true
+  /**
+   * T0938: the recommended codes of a `multi` item (CT `recommended: "A、C"`), in `options` order, as
+   * written in `options`; absent when any code matches no option (CT's own write rule). A `multi` item
+   * never has `recommended`; a single-choice item never has this.
+   */
+  recommendedCodes?: string[]
   createdAt?: string
 }
 
@@ -194,9 +208,11 @@ export const EMPTY_TOWER_INBOX_LISTS: TowerInboxLists = Object.freeze({
 /**
  * `inbox_features` values BAT knows. `dismiss` = the Tower reads 放棄 / 略過 and the batch lines →
  * BAT shows the dismiss / skip / batch controls; `recommended` = the Tower writes
- * `awaiting_user[].recommended` (informational: the mark follows that field itself).
+ * `awaiting_user[].recommended` (informational: the mark follows that field itself); `multi` (T0938,
+ * CT 6.3.0) = the Tower reads a multiple-choice answer `U-n：A、C` → BAT draws `multi: true` items
+ * as check boxes (`awaitingIsMulti`).
  */
-export const INBOX_FEATURES = ['recommended', 'dismiss'] as const
+export const INBOX_FEATURES = ['recommended', 'dismiss', 'multi'] as const
 export type InboxFeature = typeof INBOX_FEATURES[number]
 
 /**
@@ -223,6 +239,39 @@ export function matchRecommended(raw: unknown, options: readonly AwaitingOption[
   const key = raw.trim().toLowerCase()
   if (key === '') return undefined
   return options.find(option => option.code.toLowerCase() === key)?.code
+}
+
+/** T0938: the separators between codes in a multiple-choice `recommended` / answer (CT writes `、`). */
+const CODE_LIST_SEPARATOR = /[、,，]/
+
+/**
+ * T0938 (CT 6.3.0, contract M1): whether an `awaiting_user` item is drawn as multiple choice — only when
+ * `inbox_features` lists `multi`, the item's `multi` is the boolean `true` (a string `"true"`, `1`, … are
+ * not) and it has ≥ 2 usable options. Anything else → false (single choice, as before; never an error).
+ */
+export function awaitingIsMulti(raw: unknown, options: readonly AwaitingOption[] | null, features: readonly InboxFeature[]): boolean {
+  return features.includes('multi') && raw === true && !!options && options.length >= 2
+}
+
+/**
+ * T0938 (contract M4): `awaiting_user[].recommended` as a list of codes.
+ *   - single choice (`multi` false): `[matchRecommended(...)]` — exactly one code, the T0922 behaviour
+ *     (`"A、C"` matches no code → undefined)
+ *   - multiple choice: the value split at `、` (also `,` / `，`), each code matched case-insensitively;
+ *     🔴 one code matching no option → undefined (CT writes nothing then); duplicates dropped; returned in
+ *     `options` order, written as in `options`
+ */
+export function matchRecommendedCodes(raw: unknown, options: readonly AwaitingOption[] | null, multi: boolean): string[] | undefined {
+  if (!multi) {
+    const code = matchRecommended(raw, options)
+    return code ? [code] : undefined
+  }
+  if (typeof raw !== 'string' || !options || options.length === 0) return undefined
+  const keys = raw.split(CODE_LIST_SEPARATOR).map(part => part.trim().toLowerCase())
+  if (keys.some(key => key === '')) return undefined
+  if (keys.some(key => !options.some(option => option.code.toLowerCase() === key))) return undefined
+  const wanted = new Set(keys)
+  return options.filter(option => wanted.has(option.code.toLowerCase())).map(option => option.code)
 }
 
 function text(value: unknown): string | undefined {
@@ -287,6 +336,7 @@ export function parseTowerInboxLists(frontmatter: unknown): TowerInboxLists {
     reminders: Object.prototype.hasOwnProperty.call(fm, 'reminders'),
   }
 
+  const features = parseInboxFeatures(fm.inbox_features)
   const awaiting: AwaitingItem[] = []
   if (Array.isArray(fm.awaiting_user)) {
     const ids = new Set<string>()
@@ -298,8 +348,15 @@ export function parseTowerInboxLists(frontmatter: unknown): TowerInboxLists {
       ids.add(id)
       const { options, invalid } = parseAwaitingOptions(item.options)
       const entry: AwaitingItem = { id, summary, options, optionsInvalid: invalid }
-      const recommended = matchRecommended(item.recommended, options)
-      if (recommended) entry.recommended = recommended
+      if (awaitingIsMulti(item.multi, options, features)) {
+        // T0938: multiple choice (CT 6.3.0); a single-choice item stays exactly as before
+        entry.multi = true
+        const codes = matchRecommendedCodes(item.recommended, options, true)
+        if (codes) entry.recommendedCodes = codes
+      } else {
+        const recommended = matchRecommended(item.recommended, options)
+        if (recommended) entry.recommended = recommended
+      }
       const workorder = text(item.workorder)
       if (workorder) entry.workorder = workorder
       const kind = text(item.kind)
@@ -362,7 +419,7 @@ export function parseTowerInboxLists(frontmatter: unknown): TowerInboxLists {
     reminders: stableSort(reminders, item => item.due),
     skipped,
     present,
-    features: parseInboxFeatures(fm.inbox_features),
+    features,
   }
   const nextIds = asRecord(fm.next_ids)
   if (nextIds) {
@@ -471,6 +528,18 @@ function oneLine(value: string): string {
 /** `U-n：<代號或自由文字>` (full-width colon, as CT documents). */
 export function awaitingAnswerText(id: string, answer: string): string {
   return `${id}：${oneLine(answer)}`
+}
+
+/**
+ * T0938 (contract M3): a multiple-choice answer `U-n：A、C` — the picked codes that are options of the
+ * item, 🔴 in `options` order (not the order picked), each once (case-insensitive), written as in
+ * `options`, joined with `、`. Codes matching no option are dropped; none left → null.
+ */
+export function multiAnswerText(id: string, codes: Iterable<string>, options: readonly AwaitingOption[]): string | null {
+  const wanted = new Set<string>()
+  for (const code of codes) wanted.add(code.trim().toLowerCase())
+  const picked = options.filter(option => wanted.has(option.code.toLowerCase())).map(option => option.code)
+  return picked.length === 0 ? null : `${id}：${picked.join('、')}`
 }
 
 /** `A-n：完成` / `A-n：失敗 <說明>` (the words are the contract's, not translated). */

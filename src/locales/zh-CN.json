@@ -1850,7 +1850,8 @@
       "optionsInvalid": "选项格式不是「代号 说明」，请自由回答。",
       "freePlaceholder": "回答（一行）",
       "other": "其他（自由回答）",
-      "otherDismissHint": "以「放棄」或「略過」开头的回答，塔台会当成放弃。"
+      "otherDismissHint": "以「放棄」或「略過」开头的回答，塔台会当成放弃。",
+      "multiHint": "可多选"
     },
     "action": {
       "copy": "复制命令",

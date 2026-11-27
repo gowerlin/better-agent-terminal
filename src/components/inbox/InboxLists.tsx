@@ -32,6 +32,13 @@
  * never 推薦; `options: []` / invalid options keep the plain answer box). Picking it opens a one-line box
  * below the list; 送出 sends `U-n：<文字>` through the same path. Text starting with the word 放棄 / 略過
  * shows a hint (CT reads it as giving up) but still sends. The 放棄 note is a reason only.
+ * T0938: the plain answer box (`options: []` / invalid options) shows the same hint.
+ *
+ * T0938 (CT 6.3.0): an item with `multi` (`awaitingIsMulti`: `inbox_features: multi` + `multi: true` +
+ * ≥ 2 options) is drawn as check boxes (`role="group"`, a「可複選」line above): every recommended code
+ * (`recommendedCodes`) marked and checked by default;「其他」stays last and is exclusive with the checks
+ * (picking it clears them, checking one clears it). 送出 sends `U-n：A、C` in `options` order
+ * (`multiAnswerText`) or `U-n：<文字>`. Without `multi` the item is drawn exactly as before.
  *
  * T0930: the `workorder` / `ref` tags and the summary / title text show their existing file references
  * as links that open in the「檔案」tab (`InboxRefTag` / `InboxRefText`, existence check
@@ -47,6 +54,7 @@ import {
   dismissAnswerText,
   formatCtTime,
   isDismissAnswer,
+  multiAnswerText,
   userActionKindLabelKey,
   type AwaitingItem,
   type DueReminder,
@@ -311,25 +319,72 @@ function AwaitingRow({ item, onAnswer, status, chooser, dismiss, checked, onChec
   const [otherText, setOtherText] = useState('')
   // PLAN-069: the recommended option is selected until the user picks one
   const selected = other ? null : (choice ?? item.recommended ?? null)
+  // T0938: a multiple-choice item (`awaitingIsMulti`); null = untouched → the recommended codes are checked
+  const multi = item.multi === true && !!item.options
+  const [checks, setChecks] = useState<ReadonlySet<string> | null>(null)
+  const checkedCodes: ReadonlySet<string> = other ? new Set() : (checks ?? new Set(item.recommendedCodes ?? []))
   const [free, setFree] = useState('')
   const sourceKey = awaitingSourceLabelKey(item.source)
   const busy = status?.status === 'sending'
   const dismissControl = useDismissControl({ id: item.id, kind: 'awaiting', busy, onAnswer })
-  const submit = async (answer: string) => {
-    if (!answer.trim()) return
-    if (await onAnswer(awaitingAnswerText(item.id, answer))) {
+  const sendLine = async (line: string) => {
+    if (await onAnswer(line)) {
       setChoice(null)
+      setChecks(null)
       setFree('')
       setOther(false)
       setOtherText('')
     }
   }
+  const submit = async (answer: string) => {
+    if (!answer.trim()) return
+    await sendLine(awaitingAnswerText(item.id, answer))
+  }
   const pick = (code: string) => { setOther(false); setChoice(code) }
-  const canSend = other ? !!otherText.trim() : !!selected
+  // T0938: checking an option clears「其他」; picking「其他」clears every check (never a mixed answer)
+  const toggle = (code: string, on: boolean) => {
+    const next = new Set(checkedCodes)
+    if (on) next.add(code)
+    else next.delete(code)
+    setOther(false)
+    setChecks(next)
+  }
+  const pickOther = (on: boolean) => {
+    if (on) setChecks(new Set())
+    setOther(on)
+  }
+  const canSend = other ? !!otherText.trim() : multi ? checkedCodes.size > 0 : !!selected
   const sendChoice = () => {
     if (other) void submit(otherText)
-    else if (selected) void submit(selected)
+    else if (multi) {
+      const line = item.options ? multiAnswerText(item.id, checkedCodes, item.options) : null
+      if (line) void sendLine(line)
+    } else if (selected) void submit(selected)
   }
+  const recommendedMark = (code: string) => (
+    <span className="inbox-option-recommended" data-inbox-recommended={code}>{t('inbox.recommended')}</span>
+  )
+  // T0937: the「其他」box below the option list (single and, T0938, multiple choice share it)
+  const otherBox = (
+    <>
+      <input
+        className="inbox-free-input"
+        type="text"
+        maxLength={900}
+        value={otherText}
+        placeholder={t('inbox.answer.freePlaceholder')}
+        aria-label={t('inbox.answer.other')}
+        data-inbox-other-input={item.id}
+        autoFocus
+        onChange={e => setOtherText(e.target.value)}
+        onKeyDown={e => { if (e.key === 'Enter' && !e.nativeEvent.isComposing) void submit(otherText) }}
+      />
+      {/* CT reads an answer starting with the word 放棄 / 略過 as giving up (its rule, `isDismissAnswer`); a hint, never a block */}
+      {isDismissAnswer(otherText) && (
+        <div className="inbox-muted inbox-other-hint" data-inbox-other-hint={item.id}>{t('inbox.answer.otherDismissHint')}</div>
+      )}
+    </>
+  )
   // T0929: 送出 and 放棄… share one line of their own, after the options / the answer box
   const buttons = (sendButton: ReactNode) => (
     <div className="inbox-actions-row inbox-entry-buttons" data-inbox-entry-buttons={item.id}>
@@ -348,7 +403,42 @@ function AwaitingRow({ item, onAnswer, status, chooser, dismiss, checked, onChec
       </div>
       {/* T0929: the summary is its own full-width block below the head line */}
       <div className="inbox-entry-summary" data-inbox-summary={item.id}><InboxRefText text={item.summary} links={links} /></div>
-      {item.options ? (
+      {item.options && multi ? (
+        // T0938: multiple choice — check boxes (`role="group"`), every recommended code checked by default
+        <div className="inbox-answer-block inbox-options">
+          <div className="inbox-muted inbox-multi-hint" data-inbox-multi-hint={item.id}>{t('inbox.answer.multiHint')}</div>
+          <div className="inbox-option-list" role="group" aria-label={item.id} data-inbox-option-list={item.id} data-inbox-multi={item.id}>
+            {item.options.map(option => (
+              <label key={option.code} className="inbox-option" data-inbox-option={option.code}>
+                <input
+                  type="checkbox"
+                  name={`inbox-${item.id}`}
+                  checked={checkedCodes.has(option.code)}
+                  onChange={e => toggle(option.code, e.target.checked)}
+                />
+                <span className="inbox-option-code">{option.code}</span> <span className="inbox-option-label">{option.label}</span>
+                {item.recommendedCodes?.includes(option.code) && recommendedMark(option.code)}
+              </label>
+            ))}
+            {/* T0937 / T0938: the last option is a free answer, exclusive with the checks */}
+            <label className="inbox-option inbox-option-other" data-inbox-option-other={item.id}>
+              <input
+                type="checkbox"
+                name={`inbox-${item.id}`}
+                checked={other}
+                onChange={e => pickOther(e.target.checked)}
+              />
+              <span className="inbox-option-label">{t('inbox.answer.other')}</span>
+            </label>
+          </div>
+          {other && otherBox}
+          {buttons(
+            <button className="inbox-btn primary" disabled={!canSend || busy} onClick={sendChoice}>
+              {t('inbox.answer.send')}
+            </button>,
+          )}
+        </div>
+      ) : item.options ? (
         <div className="inbox-answer-block inbox-options">
           <div className="inbox-option-list" role="radiogroup" aria-label={item.id} data-inbox-option-list={item.id}>
             {item.options.map(option => (
@@ -360,9 +450,7 @@ function AwaitingRow({ item, onAnswer, status, chooser, dismiss, checked, onChec
                   onChange={() => pick(option.code)}
                 />
                 <span className="inbox-option-code">{option.code}</span> <span className="inbox-option-label">{option.label}</span>
-                {item.recommended === option.code && (
-                  <span className="inbox-option-recommended" data-inbox-recommended={option.code}>{t('inbox.recommended')}</span>
-                )}
+                {item.recommended === option.code && recommendedMark(option.code)}
               </label>
             ))}
             {/* T0937: the last option is a free answer (`U-n：<文字>`); no `data-inbox-option` (not a CT code) */}
@@ -376,26 +464,7 @@ function AwaitingRow({ item, onAnswer, status, chooser, dismiss, checked, onChec
               <span className="inbox-option-label">{t('inbox.answer.other')}</span>
             </label>
           </div>
-          {other && (
-            <>
-              <input
-                className="inbox-free-input"
-                type="text"
-                maxLength={900}
-                value={otherText}
-                placeholder={t('inbox.answer.freePlaceholder')}
-                aria-label={t('inbox.answer.other')}
-                data-inbox-other-input={item.id}
-                autoFocus
-                onChange={e => setOtherText(e.target.value)}
-                onKeyDown={e => { if (e.key === 'Enter' && !e.nativeEvent.isComposing) void submit(otherText) }}
-              />
-              {/* CT reads an answer starting with the word 放棄 / 略過 as giving up (its rule, `isDismissAnswer`); a hint, never a block */}
-              {isDismissAnswer(otherText) && (
-                <div className="inbox-muted inbox-other-hint" data-inbox-other-hint={item.id}>{t('inbox.answer.otherDismissHint')}</div>
-              )}
-            </>
-          )}
+          {other && otherBox}
           {buttons(
             <button className="inbox-btn primary" disabled={!canSend || busy} onClick={sendChoice}>
               {t('inbox.answer.send')}
@@ -415,6 +484,10 @@ function AwaitingRow({ item, onAnswer, status, chooser, dismiss, checked, onChec
             onChange={e => setFree(e.target.value)}
             onKeyDown={e => { if (e.key === 'Enter' && !e.nativeEvent.isComposing) void submit(free) }}
           />
+          {/* T0938 (T0937 follow-up): the same 放棄 / 略過 hint as the「其他」box; never a block */}
+          {isDismissAnswer(free) && (
+            <div className="inbox-muted inbox-other-hint" data-inbox-free-hint={item.id}>{t('inbox.answer.otherDismissHint')}</div>
+          )}
           {buttons(
             <button className="inbox-btn primary" disabled={!free.trim() || busy} onClick={() => void submit(free)}>
               {t('inbox.answer.send')}
