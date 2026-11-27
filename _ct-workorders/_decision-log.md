@@ -10,6 +10,7 @@
 
 | ID | 日期 | 標題 | 相關工單 |
 |----|------|------|---------|
+| D399 | 2026-11-27 | `v0.8.0-pre.8` 發佈（Pre-Release `45937322938`，`6409632d`）：T0936（BUG-226）/ T0937 / T0938；待驗收 A-8；多選待與 CT 6.3.0-pre.1 實機驗收 | T0936 / T0937 / T0938 / BUG-226 |
 | D398 | 2026-11-27 | U-23：A → T0938 經 `ct-merge/T0938` ff 進 `main`；pre.8 內容齊（T0936 / T0937 / T0938） | T0938 |
 | D397 | 2026-11-27 | T0938 收單（DONE，`7dbecd0d`；Q-1 塔台答 A）、模式 ① 合併到 `ct-merge/T0938` `706a906f`；CT 6.3.0-pre.1 規格補充 3 項與實作相符；斷點 E → U-23 | T0938 / PLAN-070 |
 | D396 | 2026-11-27 | U-22：A → T0937 經 `ct-merge/T0937` ff 進 `main`，接著派 T0938 | T0937 / T0938 |
@@ -516,6 +517,18 @@
   4. PLAN-001 保持延後（🟢 Low，等 plugin 1.0 穩定）
 - **Success criteria**（EXP→CONCLUDED）：npm install 無錯 / 所有 native modules rebuild 成功 / dev+build:dir 可跑 / 手動 smoke test 8 項通過
 - **最大風險**：`whisper-node-addon@1.0.2` 對 Electron 41（Node 24）的 NODE_MODULE_VERSION 相容性未知，允許 Worker 遇此決策點主動問塔台
+
+---
+
+### D399 2026-11-27 12:24 — `v0.8.0-pre.8` 發佈
+
+- **使用者指示**：「發 pre.8」。
+- **push 前檢查**：`.private/` 去識別化樣式與金鑰樣式掃 `origin/main..main` 變更的 30 檔，0 筆（金鑰樣式 2 行是 `_decision-log.md` 既有的樣式名稱文字）；commit 訊息 0 筆。
+- **發佈**：push `54c7bebc..6409632d`；`pre-release.yml -f version=0.8.0-pre.8` run `45937322938` 全綠（tests / typecheck / 3 平台 build / server-bundle 3 + manifest / release），2026-11-27 04:21:49Z 發佈；4 個安裝檔大小與 pre.7 相當；`server-bundle-v0.8.0-pre.8` 已建。更版重點以 `gh release edit --notes-file` 寫入。
+- **文件**：CHANGELOG / release-note / README（待你執行「開啟」、放棄文字依 CT 版本、指令欄連結）＋ `package.json` 同步 `0.8.0-pre.8`。
+- **NSIS 重裝驗收**：本版不需要（未改安裝程式路徑）。
+- **待驗收**：A-8（BUG-226、「其他」）；多選與 CT 6.3.0-pre.1 雙方實機驗收。
+- **相關**：T0936 / T0937 / T0938 / BUG-226 / PLAN-070
 
 ---
 
