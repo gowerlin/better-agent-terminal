@@ -4,12 +4,13 @@ schema_kind: workorder
 id: T0951
 title: "BUG-231：⏻ 重啟 agent 分頁時，啟動命令寫入前使用者打的字移到命令之後（比照 BUG-151 的派工保護）"
 type: bugfix
-status: PENDING
+status: IN_PROGRESS
 repo: better-agent-terminal
 priority: P3
 sizing: S
 created_at: "2026-11-27T21:13:26+08:00"
-updated_at: "2026-11-27T21:13:26+08:00"
+started_at: "2026-11-27T21:14:59+08:00"
+updated_at: "2026-11-27T21:14:59+08:00"
 target_version: "下一個預覽版（`0.8.1-pre.N`，發版前與使用者確認），與 BUG-228 / 229 / 230 同一批"
 depends_on: []
 related:
