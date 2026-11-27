@@ -12,7 +12,7 @@
  */
 import { PTY_LIMIT_REACHED, type CreatePtyOptions, type PtyCreateResult, type PtyReplayBuffer } from '../types'
 import { rememberTerminalShell } from './terminal-drop'
-import { leaveLeftoverAltScreen, resetLeftoverMouseTracking } from './mouse-tracking-reset'
+import { leaveLeftoverAltScreen, resetLeftoverMouseTracking, showLeftoverHiddenCursor } from './mouse-tracking-reset'
 
 export function normalizePtyCreateResult(raw: unknown): PtyCreateResult {
   if (raw && typeof raw === 'object' && typeof (raw as { created?: unknown }).created === 'boolean') {
@@ -168,6 +168,7 @@ export async function createPtyWithReplay(
     // BUG-229 / T0947: a new shell in a mounted view — tracking still on is the old program's
     void resetLeftoverMouseTracking(options.id, 'new-pty-spawned')
     void leaveLeftoverAltScreen(options.id) // T0950: so is the alternate screen
+    void showLeftoverHiddenCursor(options.id) // BUG-233 / T0957: and a cursor it hid
   }
   if (isPtyLimitResult(result)) emitPtyCreateRefused(options, result)
   return result
@@ -208,6 +209,7 @@ export async function restartOrCreatePty(
     requestPtySizeSync(options.id)
     void resetLeftoverMouseTracking(options.id, 'new-pty-spawned')
     void leaveLeftoverAltScreen(options.id) // T0950
+    void showLeftoverHiddenCursor(options.id) // BUG-233 / T0957
     return { ok: true, via: 'restart', spawned: true }
   }
   const result = await createPtyWithReplay(options, api)
