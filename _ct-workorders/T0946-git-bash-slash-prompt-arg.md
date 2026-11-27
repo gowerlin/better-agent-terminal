@@ -171,6 +171,7 @@ memory_overrides:
 ### 遭遇問題
 
 - 以 heredoc 寫測試資料時反斜線被收掉（R-G005 已知），改以 Edit 工具修正後通過；不影響產品程式。
+- 收單通知失敗：`bat-notify.mjs --source T0946 --target "$BAT_TOWER_TERMINAL_ID" --submit "T0946 完成"` → `Error: PTY write failed: pty-not-found`，exit 1（派工時的塔台分頁已不在）。沒有自動送出；手動訊息：`T0946 完成`。
 
 ### 互動紀錄
 
