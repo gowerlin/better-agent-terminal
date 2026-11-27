@@ -10,6 +10,7 @@
 
 | ID | 日期 | 標題 | 相關工單 |
 |----|------|------|---------|
+| D396 | 2026-11-27 | U-22：A → T0937 經 `ct-merge/T0937` ff 進 `main`，接著派 T0938 | T0937 / T0938 |
 | D395 | 2026-11-27 | T0937 收單（DONE，`73d35e81`；Q-1 塔台答 A）、模式 ① 合併到 `ct-merge/T0937` `4d78e5f7`；後續建議（空選項欄放棄提示）併入 T0938；斷點 E → U-22 | T0937 / T0938 |
 | D394 | 2026-11-27 | CT 定稿多選契約（CT D906，6.3.0，M1–M5）→ 開 T0938 BAT 多選實作（依賴 T0937，合併後派工） | T0938 / PLAN-070 |
 | D393 | 2026-11-27 | 待你決定統一有「其他」（BAT T0937）、放棄附的文字只當原因（CT 改）、多選現在就做（契約 v2 新增 `multi`，提案給 CT）；開 PLAN-070 | T0937 / PLAN-070 |
@@ -513,6 +514,15 @@
   4. PLAN-001 保持延後（🟢 Low，等 plugin 1.0 穩定）
 - **Success criteria**（EXP→CONCLUDED）：npm install 無錯 / 所有 native modules rebuild 成功 / dev+build:dir 可跑 / 手動 smoke test 8 項通過
 - **最大風險**：`whisper-node-addon@1.0.2` 對 Electron 41（Node 24）的 NODE_MODULE_VERSION 相容性未知，允許 Worker 遇此決策點主動問塔台
+
+---
+
+### D396 2026-11-27 11:35 — U-22：A，T0937 ff 進 `main`、派 T0938
+
+- **使用者回答**：U-22 選 A（原生選單）。
+- **做法**：整合分支 `--no-ff` 併入 `main` 的塔台記帳 commit（只有 `_ct-workorders/**`）後 `--ff-only`，產品樹與 `73d35e81` 相同；整合 worktree detach；U-22 移除。接著派 T0938（base = ff 後的 `main`）。
+- **未做**：push、發版。
+- **相關**：T0937 / T0938
 
 ---
 
