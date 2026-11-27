@@ -10,6 +10,7 @@
 
 | ID | 日期 | 標題 | 相關工單 |
 |----|------|------|---------|
+| D454 | 2026-11-27 | 刪除更早的已合併分支 `ct/T0940`–`T0945`、`ct-merge/T0940` / `T0942` / `T0944` / `T0945`（6 個 worktree 先移除） | — |
 | D453 | 2026-11-27 | 兩項後續建議開單並派工：BUG-232 / T0956（登入導引與遠端工具安裝的命令前輸入）、BUG-233 / T0957（⏻ 後還原隱藏的游標） | T0956 / T0957 / BUG-232 / BUG-233 |
 | D452 | 2026-11-27 | U-45：A → T0955 驅動直接合併 `dd0898c3`；U-46：A → 本批 12 個已合併分支 `-d` 刪除 | T0955 |
 | D451 | 2026-11-27 | T0955 全 PASS → A-19–A-23 結案、BUG-228–231 CLOSED；驅動合併發 U-45、分支清理發 U-46 | T0955 / BUG-228–231 / T0950 |
@@ -571,6 +572,16 @@
   4. PLAN-001 保持延後（🟢 Low，等 plugin 1.0 穩定）
 - **Success criteria**（EXP→CONCLUDED）：npm install 無錯 / 所有 native modules rebuild 成功 / dev+build:dir 可跑 / 手動 smoke test 8 項通過
 - **最大風險**：`whisper-node-addon@1.0.2` 對 Electron 41（Node 24）的 NODE_MODULE_VERSION 相容性未知，允許 Worker 遇此決策點主動問塔台
+
+---
+
+### D454 2026-11-27 22:40 — 刪除更早的 `ct/T0940`–`T0945` 與 `ct-merge/*`
+
+- **使用者**：「更早的 ct/T0940～T0945 和幾個 ct-merge/* 刪除」。
+- **檢查**：10 個分支皆為 `main` 的祖先（已合併）；`ct/T0940`–`T0945` 各掛一個 worktree，`status --porcelain` 皆空 → `git worktree remove`（未加 `--force`）6 個成功。
+- **刪除**：`git branch -d` `ct/T0940`–`T0945`、`ct-merge/T0940` / `T0942` / `T0944` / `T0945`，全部成功。
+- **仍保留**：`ct/T0936`–`T0939`＋`ct-merge/T0936`–`T0939`（已合併，未在本次指示範圍，worktree 仍掛著）、`ct/T0885`（D307 保留）、`ct/T0886`（未合併）。
+- **相關**：D452
 
 ---
 
