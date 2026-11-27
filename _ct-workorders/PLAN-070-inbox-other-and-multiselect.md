@@ -3,10 +3,11 @@ schema_version: 1
 schema_kind: plan
 id: PLAN-070
 title: "待辦分頁「待你決定」：統一有「其他」自由回答、放棄附的文字只當原因、支援多選（契約 v2 新增 `multi`）；BAT 與 CT 契約協作"
-status: IN_PROGRESS
+status: DONE
 priority: medium
 created_at: "2026-11-27T11:25:19+08:00"
-updated_at: "2026-11-27T12:46:29+08:00"
+updated_at: "2026-11-27T15:30:09+08:00"
+completed_at: "2026-11-27T15:30:09+08:00"
 links:
   source: "使用者 2026-11-27 第一百三十七 session；D393"
   related: [PLAN-069, T0908, T0922, T0937, "_reply-2026-11-27-ct-inbox-other-multiselect.md"]
@@ -17,7 +18,7 @@ links:
 ## 元資料
 
 - **標題**：待你決定統一有「其他」；放棄附的文字只當原因；多選
-- **狀態**：IN_PROGRESS
+- **狀態**：DONE（2026-11-27 15:30；BAT `v0.8.0-pre.8` 使用者驗收 A-8＋雙方驗收 T0939 / T0941 / T0943，CT 判定 PASS（CT D920）；D417）
 - **優先級**：🟡 Medium
 - **類型**：功能（BAT ↔ CT 契約）
 - **建立時間**：2026-11-27 11:25 (UTC+8)
@@ -45,7 +46,8 @@ links:
 | 1 | BAT 待辦分頁「其他（自由回答）」＋放棄備註改「原因」 | BAT T0937 | DONE，`v0.8.0-pre.8` 使用者實機驗收通過（A-8，D401） |
 | 2 | 放棄附的文字只當原因（規格） | CT | CT 核定照改（CT D906，6.3.0） |
 | 3 | 多選契約（`multi`） | CT 核定 | 核定附 M1–M5（CT D906，CT PLAN-021 / T0573 → 6.3.0-pre.1） |
-| 4 | BAT 多選實作（依 CT 核定的版本） | BAT T0938（依賴 T0937） | DONE，隨 `v0.8.0-pre.8` 發佈；多選題的「其他」已驗（A-8）；勾選送出與推薦預設勾選待與 CT 6.3.0-pre.1 雙方實機驗收 |
+| 4 | BAT 多選實作（依 CT 核定的版本） | BAT T0938（依賴 T0937） | DONE，隨 `v0.8.0-pre.8` 發佈；雙方驗收 T0939（BAT 21 PASS）、補跑 T0941 / T0943，CT 判定 PASS（CT D913 / D916 / D920） |
+| 5 | 雙方驗收中 CT 的確認行時機（做法 A：確認行寫進選單題目） | CT 6.3.0-pre.2 / pre.3 | CT 判定 PASS（CT D920）；BAT 不用改 |
 
 ## 完成條件
 

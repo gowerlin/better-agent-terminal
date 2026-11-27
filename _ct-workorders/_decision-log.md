@@ -10,6 +10,7 @@
 
 | ID | 日期 | 標題 | 相關工單 |
 |----|------|------|---------|
+| D417 | 2026-11-27 | CT 判定 PASS（CT D920，T0579：R-2 全 PASS）→ PLAN-070 DONE；CT 6.3.0 正式版寫「BAT ≥ 0.8.0-pre.8」，發布時間待 CT U-9 | PLAN-070 / T0943 |
 | D416 | 2026-11-27 | T0943 收單（DONE，無 commit、不需合併）：CT 6.3.0-pre.3 補驗 BAT 端 PASS，做法 A 確認行在題目開頭、86 字換 2 行不截斷；通知 CT 判定 | T0943 / PLAN-070 |
 | D415 | 2026-11-27 | U-30：A → T0942 經 `ct-merge/T0942` ff 進 `main`；`0.8.0-pre.9` 內容齊（T0940 / T0942） | T0942 |
 | D414 | 2026-11-27 | T0942 收單（DONE，`49096cd7`；Q-1 答 A）、模式 ① 合併到 `ct-merge/T0942` `08e4334d`；斷點 E → U-30 | T0942 |
@@ -534,6 +535,14 @@
   4. PLAN-001 保持延後（🟢 Low，等 plugin 1.0 穩定）
 - **Success criteria**（EXP→CONCLUDED）：npm install 無錯 / 所有 native modules rebuild 成功 / dev+build:dir 可跑 / 手動 smoke test 8 項通過
 - **最大風險**：`whisper-node-addon@1.0.2` 對 Electron 41（Node 24）的 NODE_MODULE_VERSION 相容性未知，允許 Worker 遇此決策點主動問塔台
+
+---
+
+### D417 2026-11-27 15:30 — CT 6.3.0 判定 PASS，PLAN-070 結案
+
+- **CT 判定**（跨 session，CT D920 / T0579）：R-2-1～R-2-7 全 PASS；R-1-3 / R-1-5 由 R-2-2 / R-2-4 補上，代號順序與回歸項無退步。做法 A 有效。差異：D001〈背景〉引用使用者原文 `U-1：A、C`，規格管塔台自己列的代號，判 PASS，正式版補「引用原文照原文寫」。正式版前小項（門檻維持 4 筆、Portal 改 6.3.0 說法、ct-help / Guide 寫「BAT 0.8.0-pre.8 or later」）BAT 不用改。
+- **處置**：PLAN-070 → DONE（子項 1–5 完成）。CT 6.3.0 正式版發布方式待 CT U-9，決定後通知 BAT，再看是否與 BAT 版本對齊。
+- **相關**：PLAN-070 / T0937 / T0938 / T0939 / T0941 / T0943
 
 ---
 
