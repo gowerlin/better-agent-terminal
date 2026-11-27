@@ -18,6 +18,7 @@ import type { AgentDefinition } from '../types/agent-runtime'
 import { resolveControlTowerAgentRuntime, resolveControlTowerWorkOrderCommand } from '../utils/control-tower-launch'
 import { detectShellFamily, quoteCommandPath } from '../utils/shell-quote'
 import { createPtyThenLaunch, createPtyWithReplay, restartOrCreatePty, showPtyNotice } from '../lib/pty-replay'
+import { resetLeftoverMouseTracking } from '../lib/mouse-tracking-reset'
 import { claudeResumeArgs, type ClaudeResumeArgsDecision } from '../lib/claude-resume-args'
 import { registerTabResumeHandler, type ResumeInterruptedAgentResult } from '../stores/interrupted-agents-store'
 import { codexResumeCommand } from '../lib/codex-resume-args'
@@ -853,6 +854,7 @@ export function WorkspaceView({ workspace, terminals, focusedTerminalId, isActiv
     const terminal = workspaceStore.getState().terminals.find(tm => tm.id === agent.terminalId)
     if (terminal?.agentPreset === 'codex-cli') return resumeCodexCliTab(terminal.id, agent.cwd || terminal.cwd || workspace.folderPath)
     if (!terminal || !terminal.agentPreset || !isClaudeCli(terminal.agentPreset)) return { ok: false, code: 'NOT_RESUMABLE_TAB' }
+    await resetLeftoverMouseTracking(terminal.id, 'before-new-pty') // BUG-229 / T0947
     await window.electronAPI.pty.kill(terminal.id)
     const decision = await startClaudeCliPty(
       terminal.id,
@@ -1066,6 +1068,7 @@ export function WorkspaceView({ workspace, terminals, focusedTerminalId, isActiv
         })
       } else if (terminal.agentPreset && isClaudeCli(terminal.agentPreset)) {
         // Restart claude-cli PTY with bundled CLI
+        await resetLeftoverMouseTracking(id, 'before-new-pty') // BUG-229 / T0947
         await window.electronAPI.pty.kill(id)
         await startClaudeCliPty(id, terminal.cwd || workspace.folderPath, isWorktreeAgent(terminal.agentPreset))
       } else {

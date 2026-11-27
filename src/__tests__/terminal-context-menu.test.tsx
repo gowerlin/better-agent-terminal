@@ -1013,3 +1013,42 @@ describe('TerminalPanel: mouse tracking left on (BUG-166 / T0672)', () => {
     expect(ptyWrite).not.toHaveBeenCalled()
   })
 })
+
+/**
+ * BUG-229 / T0947: ⏻ / the interrupted-agent resume start a new PTY in this xterm; the tab registers
+ * its xterm with `resetLeftoverMouseTracking` (src/lib/mouse-tracking-reset.ts), which turns the
+ * tracking the old program left on off in xterm only. Behaviour with a real xterm:
+ * src/lib/__tests__/mouse-tracking-restart.test.ts.
+ */
+describe('TerminalPanel: tracking left on when a new PTY starts (BUG-229 / T0947)', () => {
+  const RESET_SEQUENCE = '\x1b[?1000l\x1b[?1002l\x1b[?1003l\x1b[?1006l\x1b[?1015l\x1b[?1016l'
+  const resets = () => xterm.writes.filter(w => w === RESET_SEQUENCE)
+  const mouseLogs = () => debugLog.mock.calls.map(c => String(c[0])).filter(l => l.startsWith('[mouse-tracking]'))
+
+  test('tracking on: the reset is written to xterm only and logged with its reason', async () => {
+    const { resetLeftoverMouseTracking } = await import('../lib/mouse-tracking-reset')
+    xterm.mouseTrackingMode = 'any'
+    await renderTerminal('t0947-on')
+    expect(await resetLeftoverMouseTracking('t0947-on', 'before-new-pty')).toBe(true)
+    expect(resets()).toHaveLength(1)
+    expect(mouseLogs()).toEqual(['[mouse-tracking] reset: before-new-pty terminal=t0947-on mode=any'])
+    expect(ptyWrite).not.toHaveBeenCalled()
+  })
+
+  test('tracking off (a plain shell): nothing written, nothing logged', async () => {
+    const { resetLeftoverMouseTracking } = await import('../lib/mouse-tracking-reset')
+    await renderTerminal('t0947-off')
+    expect(await resetLeftoverMouseTracking('t0947-off', 'new-pty-spawned')).toBe(false)
+    expect(xterm.writes).toEqual([])
+    expect(mouseLogs()).toEqual([])
+  })
+
+  test('after the tab unmounts it is no longer reachable', async () => {
+    const { resetLeftoverMouseTracking } = await import('../lib/mouse-tracking-reset')
+    xterm.mouseTrackingMode = 'any'
+    const view = await renderTerminal('t0947-gone')
+    view.unmount()
+    expect(await resetLeftoverMouseTracking('t0947-gone', 'before-new-pty')).toBe(false)
+    expect(resets()).toHaveLength(0)
+  })
+})

@@ -23,4 +23,21 @@
 - **F2 手動**：追蹤中（只能 Shift + 右鍵叫出選單）選單多「重設滑鼠模式」（`terminal.resetMouseMode`），動作同 F1，日誌 `[mouse-tracking] reset: manual …`。alt screen 時另有「離開替代畫面（alt screen）」（`terminal.exitAltScreen`）：本機 `terminal.write('\x1b[?1049l')`，日誌 `[mouse-tracking] alt screen left: manual …`。做成獨立選項的理由：codex 被訊號結束時 alt screen 也殘留，回到的 shell 畫在 alt buffer 上、沒有 scrollback，離開後才看得到 codex 之前的畫面；但它會讓目前畫在 alt buffer 上的提示列消失（按 Enter 重畫），對仍在執行的 TUI（vim、claude fullscreen）則會打亂畫面，所以不併入「重設滑鼠模式」、也不自動執行。兩個選項都在「貼上」之後、以分隔線隔開；追蹤關閉且不在 alt screen 時不出現。
 - 與 T0571 / T0573 的互動：`registerCsiHandler` 只攔 `h`，本機送 `l` 不會觸發 keeper；追蹤關閉後不按 Shift 的右鍵恢復開 BAT 選單（正確行為）。
 - **已知限制**：命中前的第一筆（幾筆）殘骸仍會進命令列（e2e 實測 3 筆），使用者要 Ctrl+U 清一次；alt screen 不自動離開；DECSET 1004（focus 回報）與 2004 也可能殘留，本單不處理；Windows 原生 ConPTY 分頁（pwsh 裡跑 codex.exe / claude.exe）本來就不會出現殘骸（conhost 把回報轉成 console mouse event），WSL / SSH / Docker / macOS / Linux 分頁才會。
+- **時間窗的邊界（T0947 實測）**：shell 還沒在讀輸入時（剛啟動、正在執行命令）收到的回報，要等它讀輸入時才回顯。Windows Git Bash（UCRT64，ConPTY，node-pty 實測 `bash --login -i`）約 430 ms 才起來，而且 readline 對每個不認得的序列先閃一次畫面（`ESC[?5h` … `ESC[?5l`，約 100 ms）再回顯其餘字元，一筆接一筆：spawn 後 66 ms 送出的兩筆回報在 545 / 654 ms 才回顯（第二筆超過 500 ms）；閒置提示列送出的回報 139 ms 回顯。所以先打進去的回報多半不會命中，下一次在閒置提示列移動滑鼠才會。不放寬時間窗（會增加執行中 TUI 的誤判）；⏻ 重啟改由下一節在新 PTY 開始前處理。
 - 驗證：`src/lib/__tests__/mouse-tracking-reset.test.ts`（命中 / 未命中 / 控制字元穿插 / 跨 chunk / 超過時間窗 / 非追蹤 / agent 執行中）、`src/__tests__/terminal-context-menu.test.tsx`「mouse tracking left on (BUG-166 / T0672)」；e2e `e2e/t0672-mouse-tracking-reset.spec.ts`（隔離實例，shell 分頁內 node 腳本開 1003 + 1006 並以 bash readline 的方式回顯 stdin：移動 → 第一批回報後不再收到回報、不按 Shift 的右鍵開 BAT 選單、日誌有 `reset: reports echoed as text`；腳本改為不回顯並重開追蹤 → 回報持續送達、Shift + 右鍵 →「重設滑鼠模式」→ 不再收到回報；macOS skip；需先 `npx vite build`）。Windows pwsh 本身不會重現，所以 F1 e2e 以腳本模擬 shell 的回顯。
+
+## ⏻ 重啟與殘留的滑鼠追蹤（T0947 / BUG-229）
+
+- **現象**（`v0.8.0` 實機，Windows、Git Bash 分頁）：「以塔台開啟 Claude」的分頁按 ⏻，新 shell 的第一行是 `35;77;25M35;78;25M…` 後面接 claude 啟動命令，bash 以 `;` 切開逐段 `command not found`，claude 沒有啟動。
+- **原因**（三點查證）：
+  1. claude-cli 分頁的 ⏻ 是 `pty:kill`（Windows `taskkill /F /T`）→ `startClaudeCliPty` → `pty:create`，同一個 xterm 實例（TerminalPanel 以 terminal id 掛載，⏻ 不重新掛載）；被強制結束的 claude 沒機會送 DECRST，xterm 停在 `mouseTrackingMode=any`，滑鼠在分頁上移動就送 `ESC[<35;x;yM`。⏻ 路徑原本沒有任何地方重設 xterm 的滑鼠模式。
+  2. `pty:create` 之後 renderer 等 500 ms 才寫啟動命令（`createPtyThenLaunch` 的 launch），這段時間的回報先進了新 shell 的輸入，readline 吃掉 `ESC [ <`、其餘留在輸入列，啟動命令接在後面（T0947 以 node-pty 起 Git Bash 實測：spawn 後送出的回報在提示列出現後才回顯，之後寫入的文字接在它們後面）。
+  3. `MouseReportEchoDetector` 沒觸發：回報是 shell 啟動前與執行命令時先打進去的，回顯比送出晚超過 500 ms（見上節「時間窗的邊界」），不是比對的缺陷。
+- **修正**：新 PTY 要在同一個 xterm 開始時，若 xterm 還在追蹤，就在本機 xterm 寫 `MOUSE_TRACKING_RESET`（🔴 只寫 xterm、不寫 PTY，同 T0672 F1），等 xterm 解析完（`terminal.write` 的 callback，最多 `LEFTOVER_MOUSE_RESET_WAIT_MS` = 200 ms）才繼續。唯一實作 `resetLeftoverMouseTracking`（`src/lib/mouse-tracking-reset.ts`），TerminalPanel 以 `registerLeftoverMouseTrackingView` 登記自己的 xterm（重設沿用 T0672 的 `resetMouseTracking`：清偵測器、忘記保留的選取、日誌 `[mouse-tracking] reset: <before-new-pty|new-pty-spawned> terminal=<id> mode=<原模式>`）。呼叫點：
+  - `before-new-pty`：`restartOrCreatePty` 呼叫 `pty:restart` 之前（一般 / codex 分頁 ⏻、codex 被中斷分頁的恢復）；WorkspaceView claude-cli 分頁的 ⏻ 與被中斷分頁的恢復在 `pty:kill` 之前。
+  - `new-pty-spawned`（補一次，舊程式結束前最後的輸出又開了追蹤時）：`restartOrCreatePty` 的 restart 成功後、`createPtyWithReplay` 回 `created: true` 時。`created: false`（PTY 還在跑、程式還在）不動。
+- **為什麼不改寫入路徑**：追蹤關掉後滑鼠不再產生回報，啟動命令前就沒有東西；使用者在 ⏻ 期間自己打的字照舊（與修正前相同），不在本單範圍。
+- **不變**：xterm 沒在追蹤時（一般 shell 分頁 ⏻）什麼都不寫、不記日誌；程式執行中的滑鼠回報逐位元不變（只在新 PTY 開始前後處理）；alt screen（1049）不自動離開；Shift + 右鍵、右鍵選單、「重設滑鼠模式」不變；不改 PTY env、xterm 版本、啟動命令組裝（T0944 / T0946）。
+- **Terminal Server recovery 不處理**：recovery 在主行程以同一 id 重建 shell，renderer 收不到「這個分頁的新 PTY 已建立」的訊號，也不寫啟動命令；殘留的回報只會進閒置提示列，由 T0672 的偵測器處理（閒置提示列回顯在時間窗內）。之後從「被中斷的 agent 分頁」恢復時走上面的 `before-new-pty`。
+- **已知限制**：重設後新程式要自己再開追蹤（claude 啟動時會開）。舊程式在被結束前最後送出的輸出若又開了追蹤、而且晚於 `before-new-pty` 才到 renderer，到 `new-pty-spawned` 那次重設之前移動滑鼠的回報仍會進新 shell（時間很短；測試以「舊程式在結束途中又開追蹤」覆蓋第二次重設）。
+- 驗證：`src/lib/__tests__/mouse-tracking-restart.test.ts`（真 xterm 5.5.0：開追蹤 → ⏻ → 新 PTY → 移動滑鼠沒有回報、啟動命令前沒有輸入、新程式再開追蹤後回報逐位元不變；一般 shell 不寫 xterm；`created: false` 不動；Git Bash 回顯時間的實測資料；WorkspaceView 呼叫順序 source guard）、`src/__tests__/terminal-context-menu.test.tsx`「tracking left on when a new PTY starts (BUG-229 / T0947)」。
