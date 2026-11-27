@@ -527,6 +527,7 @@
 - **發佈**：push `54c7bebc..6409632d`；`pre-release.yml -f version=0.8.0-pre.8` run `45937322938` 全綠（tests / typecheck / 3 平台 build / server-bundle 3 + manifest / release），2026-11-27 04:21:49Z 發佈；4 個安裝檔大小與 pre.7 相當；`server-bundle-v0.8.0-pre.8` 已建。更版重點以 `gh release edit --notes-file` 寫入。
 - **文件**：CHANGELOG / release-note / README（待你執行「開啟」、放棄文字依 CT 版本、指令欄連結）＋ `package.json` 同步 `0.8.0-pre.8`。
 - **NSIS 重裝驗收**：本版不需要（未改安裝程式路徑）。
+- **網站**：文件 push `33e11593` → Pages run `45939750112` 全綠（build / link-check / deploy）；首頁版號 `0.8.0-pre.8`；link-check 1661 個連結、Errors 0。
 - **待驗收**：A-8（BUG-226、「其他」）；多選與 CT 6.3.0-pre.1 雙方實機驗收。
 - **相關**：T0936 / T0937 / T0938 / BUG-226 / PLAN-070
 
