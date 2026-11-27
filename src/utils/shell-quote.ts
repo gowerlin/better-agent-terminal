@@ -64,6 +64,48 @@ export function quoteArgForShell(arg: string, shell: ShellFamily): string {
   }
 }
 
+/** Shells that run on the MSYS / Cygwin runtime when they are a Windows executable (Git Bash). */
+const MSYS_SHELL_BASENAMES = new Set(['bash', 'sh', 'git-bash', 'zsh', 'dash', 'ash'])
+
+/**
+ * T0946 / BUG-228: whether `shellPath` is a POSIX shell running on Windows through the MSYS
+ * runtime (Git Bash, MSYS2, Cygwin). Decided from the path alone, so a remote window (whose
+ * shell is a server path such as `/bin/bash`) and a local window answer the same way:
+ *
+ *   - a Windows path (`C:\…`, `C:/…`, `\\server\…`) whose basename is a POSIX shell → true
+ *   - WSL launchers (`…\Windows\System32\bash.exe`, `Sysnative`, `WindowsApps`, `wsl.exe`) → false
+ *   - pwsh / powershell / cmd, any POSIX path (macOS / Linux / remote), a bare name → false
+ */
+export function isWindowsMsysShell(shellPath: string | null | undefined): boolean {
+  if (!shellPath) return false
+  const normalized = shellPath.trim().replace(/^["']|["']$/g, '').replace(/\\/g, '/')
+  if (!/^(?:[A-Za-z]:\/|\/\/)/.test(normalized)) return false
+  if (/\/windows\/(?:system32|sysnative)\//i.test(normalized) || /\/windowsapps\//i.test(normalized)) return false
+  return MSYS_SHELL_BASENAMES.has(shellBasename(shellPath).replace(/\.exe$/i, ''))
+}
+
+/**
+ * T0946 / BUG-228: Git Bash (MSYS) rewrites an argument that starts with `/` into a Windows path
+ * when it runs a native program (`/control-tower` → `C:/Program Files/Git/control-tower`), quoted
+ * or not. Returns the assignment that goes in front of that one command so this argument reaches
+ * the program unchanged, or null when nothing is needed (not an MSYS shell — see
+ * `isWindowsMsysShell` — or the argument does not start with `/`).
+ *
+ *   MSYS2_ARG_CONV_EXCL="/control-tower${MSYS2_ARG_CONV_EXCL:+;$MSYS2_ARG_CONV_EXCL}"
+ *
+ * - only for that command (a prefix assignment), never the tab's env (the PTY env and every other
+ *   command the user runs are unchanged)
+ * - excludes only arguments starting with `arg` (MSYS2_ARG_CONV_EXCL is a `;` list of prefixes,
+ *   honoured by Git for Windows and MSYS2): the program's other arguments are converted as before
+ * - keeps a value the shell already has (appended after `;`)
+ */
+export function msysArgConvExclusionPrefix(arg: string, shellPath: string | null | undefined): string | null {
+  if (!arg.startsWith('/') || !isWindowsMsysShell(shellPath)) return null
+  // `;` separates the list; a prefix up to it still matches the whole argument
+  const entry = arg.split(';')[0].replace(/[\\"$`]/g, '\\$&')
+  return `MSYS2_ARG_CONV_EXCL="${entry}\${MSYS2_ARG_CONV_EXCL:+;$MSYS2_ARG_CONV_EXCL}"`
+}
+
 /**
  * Wrap `arg` in double quotes using the `CommandLineToArgvW` escaping rules
  * (the "Everyone quotes command line arguments the wrong way" algorithm):
