@@ -4,13 +4,16 @@ schema_kind: workorder
 id: T0951
 title: "BUG-231：⏻ 重啟 agent 分頁時，啟動命令寫入前使用者打的字移到命令之後（比照 BUG-151 的派工保護）"
 type: bugfix
-status: IN_PROGRESS
+status: DONE
 repo: better-agent-terminal
 priority: P3
 sizing: S
 created_at: "2026-11-27T21:13:26+08:00"
 started_at: "2026-11-27T21:14:59+08:00"
-updated_at: "2026-11-27T21:14:59+08:00"
+updated_at: "2026-11-27T21:29:42+08:00"
+completed_at: "2026-11-27T21:29:42+08:00"
+session_ids:
+  - "90f671f5-522d-4956-8f8b-2c6e466d372e"
 target_version: "下一個預覽版（`0.8.1-pre.N`，發版前與使用者確認），與 BUG-228 / 229 / 230 同一批"
 depends_on: []
 related:
@@ -30,7 +33,6 @@ affects_files:
 renew_count: 0
 isolation: worktree
 worker_question_timeout: 30
-tower_question: open
 interaction:
   mode_hint: yolo
   interactive: false
@@ -89,9 +91,9 @@ T0947（BUG-229）查證時發現：⏻ 後新 shell 起來到啟動命令寫入
 - **落點檢查**：PASS — C-0 `repo` = `better-agent-terminal`，`basename "$CT_HOME"` = `better-agent-terminal`（PASS）；C-1 工單在 `$CT_HOME/_ct-workorders/` 下（PASS）；C-3 `affects_files` 前 5 項可測者皆存在（PASS）；C-2 無 `branch` 欄位。`CT_HOME` = 主 checkout、`CT_WORKTREE_BRANCH` = `ct/T0951`、`BAT_WORKSPACE_ID` = `cc0afc4a-57e9-4f41-b2ed-a2d8bac9e36b`（只記錄）。
 - **branch**：`ct/T0951`
 - **base_sha**：`18d0a229ab342007a3aae709ac171e3543ea9c81`
-- **validated_sha**：`50528bf9a2ebaf001c8603e0730acf9e5933809d`
-- **head_sha**：`50528bf9a2ebaf001c8603e0730acf9e5933809d`
-- **產品 commit**：`50528bf9`（`fix(T0951): BUG-231 hold input typed before a renderer agent launch command`）
+- **validated_sha**：`f975ef45e6b46a572381b67e2549c9f3cf87aa81`
+- **head_sha**：`f975ef45e6b46a572381b67e2549c9f3cf87aa81`（= validated_sha）
+- **產品 commit**：`50528bf9`（`fix(T0951): BUG-231 hold input typed before a renderer agent launch command`）、`040a6833`（`resumeCodexCliTab` 排版配合 `bat-mcp-launch` guard）、`f975ef45`（T0944 guard 兩個斷言，塔台 Q-1 [A]）
 - **session_id**：90f671f5-522d-4956-8f8b-2c6e466d372e
 
 ### 查證（推測成立）
@@ -126,12 +128,25 @@ T0947（BUG-229）查證時發現：⏻ 後新 shell 起來到啟動命令寫入
 - `electron/remote/protocol.ts`、`electron/remote/path-aware-channels.ts`（proxied 登記）。
 - `src/lib/launch-command.ts`（新）、`src/lib/pty-replay.ts`（`restartOrCreatePty` 帶第 4 個參數，只在有旗標時）、`src/components/WorkspaceView.tsx`（11 處改經 `sendLaunchCommand`、6 個建立點帶旗標、不打命令的分支 `releaseLaunchHold`）。
 - 測試：`electron/__tests__/launch-input-hold.test.ts`（新，18）、`src/lib/__tests__/launch-command.test.ts`（新，12）。
+- 既有測試（塔台 Q-1 裁示 [A]）：`src/lib/__tests__/tower-launch-prompt.test.ts`「one launch write only」的兩個斷言 —— `pty.write(` 次數 1 → `sendLaunchCommand(` 次數 1、字面值 `window.electronAPI.pty.write(terminalId, cmd + '\r')` → `sendLaunchCommand(terminalId, cmd + '\r')`；第三個斷言（`/control-tower` 不另外打字）不動。理由：T0944 guard 的意圖是「啟動命令只寫一次、prompt 不分開打」，本單只換寫入函式（經 `pty:launch-command` 才能讓保留的輸入排在命令之後），意圖不變。`electron/__tests__/bat-mcp-launch.test.ts` 的 guard 未改（改程式排版讓 `resumeCodexCliTab` 符合原 regex）；BUG-151 的 `dispatch-input-before-command.test.ts` 未改。
 - 文件：`docs/agent-guide/launch-command-input-hold.md`（新）、`docs/agent-guide/README.md`（索引一列）、`docs/agent-guide/bat-mcp-shim.md`（BUG-151 段後一句）、`CLAUDE.md`「BAT MCP shim」節派工那一點補一句（標題未改）。
 - 偏離 `affects_files`：`electron/remote/protocol.ts`、`electron/remote/path-aware-channels.ts`、`src/types/index.ts`、`src/types/electron.d.ts` 不在清單內。工單已預期可能新增 IPC channel（「proxied 與否依查證寫明」），而 channel 不登記在 `PROXIED_CHANNELS` 本機也呼叫不到（BUG-095、`proxied-channels-binding.test.ts`），型別檔是新增欄位 / 方法的必要宣告；都是登記與型別，沒有邏輯。
 
 ### 測試與驗證
 
-（驗證結果見下）
+全部在 worktree（`npm ci` exit 0）、head `f975ef45` 執行：
+
+| 關卡 | 結果 |
+|---|---|
+| `npm run test:unit` | exit 0：**517 檔通過 / 3 skipped（520）；9357 測試通過 / 47 skipped（9404）**，0 失敗 |
+| `npx vite build` | exit 0 |
+| `npm run typecheck` | 0 |
+| `npm run typecheck:electron` | 0 |
+
+- 據實說明：第一次完整 `test:unit` 是在 `50528bf9` 跑的，2 檔失敗（兩個 source guard，見〈互動紀錄〉與〈變更檔案〉）；修正後在最終 head `f975ef45` 的第一次完整執行即全綠（上表）。
+- 新測試：`electron/__tests__/launch-input-hold.test.ts` 18 個、`src/lib/__tests__/launch-command.test.ts` 12 個（含 `restartOrCreatePty` 參數與 WorkspaceView source guard），全過。
+- 驗收對照：⏻ 後命令寫入前打字 → PTY 收到「命令＋輸入」且命令完整（`typed before the command …`、handler 端到端 `⏻ / new agent tab …`）；沒有打字 → 只有命令；一般 shell 分頁輸入不延後；BUG-151 `dispatch-input-before-command.test.ts` 未改且通過。
+- 實機：未執行（工單規定），見〈待實機〉。
 
 ### 不變（測試斷言）
 
@@ -153,7 +168,9 @@ T0947（BUG-229）查證時發現：⏻ 後新 shell 起來到啟動命令寫入
 ### 互動紀錄
 
 - [21:15] 開工；落點檢查 PASS；未讀到 `## 塔台補充（…）` 段落。
-- 無向塔台提問。
+- [21:26] 第一次完整 `npm run test:unit`：2 檔失敗，都是 source guard。`electron/__tests__/bat-mcp-launch.test.ts`（codex 恢復那段的行距）→ 改程式排版通過、不動測試；`src/lib/__tests__/tower-launch-prompt.test.ts`（T0944「one launch write only」字面斷言 `pty.write`）→ 必然衝突，依工單問塔台。
+- [21:27] Q-1（BAT 通道 `--ask --submit`，`q-efd3628e-bd7a6f543b4e4990`）：T0944 guard 可否改 → A（塔台）：[A]，改兩個斷言（計數改數 `sendLaunchCommand(` = 1、字面值改 `sendLaunchCommand(terminalId, cmd + '\r')`），第三個斷言不動，回報區寫明 → Action：照改（commit `f975ef45`），重跑全部關卡。
+- [21:28] 驗證前／commit 前／填報告前三個節點的塔台補充檢查：無新段落。
 
 ### 遭遇問題
 
