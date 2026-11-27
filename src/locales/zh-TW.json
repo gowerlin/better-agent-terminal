@@ -1850,7 +1850,8 @@
       "optionsInvalid": "選項格式不是「代號 說明」，請自由回答。",
       "freePlaceholder": "回答（一行）",
       "other": "其他（自由回答）",
-      "otherDismissHint": "以「放棄」或「略過」開頭的回答，塔台會當成放棄。"
+      "otherDismissHint": "以「放棄」或「略過」開頭的回答，塔台會當成放棄。",
+      "multiHint": "可複選"
     },
     "action": {
       "copy": "複製指令",

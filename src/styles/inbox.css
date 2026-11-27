@@ -474,6 +474,10 @@
   font-size: 11px;
   color: var(--warning-color, #d29922);
 }
+/* T0938: the「可複選」line above a multiple-choice item's check boxes */
+.inbox-multi-hint {
+  font-size: 11px;
+}
 .inbox-free-input {
   flex: 1 1 140px;
   min-width: 0;
