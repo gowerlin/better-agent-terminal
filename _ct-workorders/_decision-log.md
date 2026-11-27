@@ -10,6 +10,7 @@
 
 | ID | 日期 | 標題 | 相關工單 |
 |----|------|------|---------|
+| D416 | 2026-11-27 | T0943 收單（DONE，無 commit、不需合併）：CT 6.3.0-pre.3 補驗 BAT 端 PASS，做法 A 確認行在題目開頭、86 字換 2 行不截斷；通知 CT 判定 | T0943 / PLAN-070 |
 | D415 | 2026-11-27 | U-30：A → T0942 經 `ct-merge/T0942` ff 進 `main`；`0.8.0-pre.9` 內容齊（T0940 / T0942） | T0942 |
 | D414 | 2026-11-27 | T0942 收單（DONE，`49096cd7`；Q-1 答 A）、模式 ① 合併到 `ct-merge/T0942` `08e4334d`；斷點 E → U-30 | T0942 |
 | D413 | 2026-11-27 | CT 6.3.0-pre.3（CT D918，做法 A：確認行寫進選單題目）→ 開並派 T0943 補驗（S6，R-2-1～R-2-7，BAT pre.8） | T0943 / PLAN-070 |
@@ -533,6 +534,14 @@
   4. PLAN-001 保持延後（🟢 Low，等 plugin 1.0 穩定）
 - **Success criteria**（EXP→CONCLUDED）：npm install 無錯 / 所有 native modules rebuild 成功 / dev+build:dir 可跑 / 手動 smoke test 8 項通過
 - **最大風險**：`whisper-node-addon@1.0.2` 對 Electron 41（Node 24）的 NODE_MODULE_VERSION 相容性未知，允許 Worker 遇此決策點主動問塔台
+
+---
+
+### D416 2026-11-27 15:24 — T0943 收單（CT 6.3.0-pre.3 補驗）
+
+- **Worker 回報**：前置條件全 PASS、`install-633` 成功、留在 6.3.0-pre.3；§ 5 一次跑完、無干擾無重試、4 回合。BAT 端 R-2-2 / R-2-5 / R-2-6 / R-2-7 PASS（R-2-1 / R-2-3 / R-2-4 無 BAT 項）。`AskUserQuestion` 第一題開頭「剛才的回答：U-1 已收到：C、A → …；U-2 已收到，當成自由回答 → …」；D001 `C、A`、D002 自由回答讀成 C、A；題目 86 字在 106 欄換 2 行完整顯示（Esc 後 `Declined…` 亦同）。
+- **處置**：`ct/T0943` 無 commit；Worker 分頁回收；通知 CT 判定。判定 PASS → PLAN-070 結案。
+- **相關**：T0943 / PLAN-070
 
 ---
 

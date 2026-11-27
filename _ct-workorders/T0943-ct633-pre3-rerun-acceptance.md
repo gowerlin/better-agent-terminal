@@ -136,3 +136,7 @@ CT 條文（`BMad-Control-Tower/BMad-Control-Tower-v6.3.0-pre.3/skills/control-t
 
 ### 回報時間
 - 2026-11-27T15:24:36+08:00
+
+### 塔台收單補記（2026-11-27 15:24）
+
+- `ct/T0943` 無 commit（head = base），不需合併；Worker 分頁 `--close-worker --worktree keep` exit 0（D416）。BAT 端 R-2-2 / R-2-5 / R-2-6 / R-2-7 PASS，做法 A 的題目開頭確認行已出現；已通知 CT 判定。
