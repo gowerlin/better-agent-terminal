@@ -10,6 +10,7 @@
 
 | ID | 日期 | 標題 | 相關工單 |
 |----|------|------|---------|
+| D464 | 2026-11-27 | 開並派 T0960：`launch-command.test.ts` 過時的測試名稱改名（斷言不動） | T0960 / T0956 |
 | D463 | 2026-11-27 | U-50：A → BUG-232 CLOSED、BUG-233 維持 FIXED 發 A-24；U-51：A → T0959 驅動合併 `b9793204` | T0959 / BUG-232 / BUG-233 |
 | D462 | 2026-11-27 | T0959 收單（R0 / B233 / B232-login PASS，B232-install 未判定）；結案方式發 U-50、驅動合併發 U-51 | T0959 / BUG-232 / BUG-233 |
 | D461 | 2026-11-27 | `v0.8.1-pre.2` 已發佈（run `46020314119` 全綠）；更版重點、CHANGELOG / release-note、版號同步；派自動化驗收 T0959 | BUG-232 / BUG-233 / T0959 |
@@ -581,6 +582,14 @@
   4. PLAN-001 保持延後（🟢 Low，等 plugin 1.0 穩定）
 - **Success criteria**（EXP→CONCLUDED）：npm install 無錯 / 所有 native modules rebuild 成功 / dev+build:dir 可跑 / 手動 smoke test 8 項通過
 - **最大風險**：`whisper-node-addon@1.0.2` 對 Electron 41（Node 24）的 NODE_MODULE_VERSION 相容性未知，允許 Worker 遇此決策點主動問塔台
+
+---
+
+### D464 2026-11-27 23:46 — 過時測試名稱改名：T0960
+
+- **使用者**：「測試名稱改名開單」。
+- **T0960**（chore，XS，worktree、yolo）：`src/lib/__tests__/launch-command.test.ts` 的 `it('the login terminal (typed, not submitted) and plain shell tabs do not ask for the hold')` 在 T0956 後名稱過時（登入導引分頁會要求保留，旗標由 `claude-login-guide.ts` 決定），斷言仍成立 → 只改名稱（與同一 `it` 內註解），斷言與其他一字不改。
+- **相關**：T0956 / BUG-232
 
 ---
 
