@@ -14,6 +14,7 @@ import { claudeUpdateGuardEnv } from './claude-resolver'
 import { resolvePtyLocaleEnv } from './pty-locale-env'
 import { isTerminalAutoReply, normalizeWorkorderId, type CloseWorkerPtyManager } from './close-worker'
 import type { CtMode } from './ct-mode'
+import type { TowerDeclaration } from './terminal-role'
 import type { CtWorktreeRecord } from './ct-worktree'
 import { LaunchSuspectWatcher, TerminalBlockedTracker, type BlockedDetection, type BlockedState, type HookOrigin, type HookReportEvent, type HookReportResult } from './terminal-blocked-state'
 import { CodexStateScanner, lastCodexState, PROGRAM_STATUS_PROBE_REPLY } from '../src/lib/codex-terminal-state'
@@ -105,6 +106,19 @@ interface PtyInstance {
    * `--bat-contract` clears it (undefined = not declared). Not saved.
    */
   towerContract?: number
+  /**
+   * T0949 / BUG-230: the PTY process's pid — Terminal Server `pty:created` / `pty:list`, or the
+   * direct process's. Undefined until known (a rebuild awaits its `pty:created`).
+   */
+  pid?: number
+  /**
+   * T0949: the pid of the process that made the last `--set-role` (`noteTowerDeclaration`), and that
+   * call's `--agent` hint. Main saves a Tower's declaration only while this pid still runs here
+   * (`getTowerDeclaration`) and puts it back after BAT reopens only onto that same process
+   * (electron/terminal-role.ts `TowerRolePersistence`); a ⏻ restart / recovery rebuild runs another pid.
+   */
+  towerDeclaredPid?: number
+  towerAgent?: string
 }
 
 /**
@@ -308,6 +322,13 @@ export interface PtyManagerDeps {
    * logged and ignored. Undefined = no hook.
    */
   onSurvivingPtys?: (ids: string[]) => void
+  /**
+   * T0949 / BUG-230: a Tower PTY's declaration or pid changed (`setTerminalRole`,
+   * `noteTowerDeclaration`, `restoreTowerDeclaration`, a new `pty:created` pid). Electron persists
+   * the declarations here (electron/terminal-role.ts `TowerRolePersistence`). A throwing listener is
+   * logged and ignored. Undefined = no hook (headless).
+   */
+  onTowerRoleChange?: (id: string) => void
   /**
    * PLAN-050 / T0642: a `session-start` report changed running PTY `id`'s claude session id
    * (`getClaudeSessionId`). Not called when the PTY ends (`onPtyExit`) or for the Terminal Server
@@ -781,10 +802,11 @@ export class PtyManager implements CloseWorkerPtyManager {
    */
   private handleReplayList(ptys: Array<{ id: string; pid: number; cwd: string }>): void {
     logger.log(`[PtyManager] replay: ${ptys.length} active PTY(s) found on reconnect`)
-    for (const { id, cwd } of ptys) {
+    for (const { id, pid, cwd } of ptys) {
       // Register the instance so write/resize/kill work after reconnect
+      // T0949: + its pid (a Tower's saved declaration goes back only onto the process that made it)
       if (!this.instances.has(id)) {
-        this.instances.set(id, { process: null, type: 'terminal', cwd, usePty: true })
+        this.instances.set(id, { process: null, type: 'terminal', cwd, usePty: true, ...(isValidPid(pid) ? { pid } : {}) })
       }
       // Request the ring buffer for this PTY
       this.sendToServer({ type: 'pty:getBuffer', id })
@@ -836,6 +858,11 @@ export class PtyManager implements CloseWorkerPtyManager {
   private handlePtyCreated(id: string, pid: number, fdGuard?: PtyFdGuardOutcome): void {
     const instance = this.instances.get(id)
     if (instance) instance.awaitingCreated = false
+    // T0949: the pid a Tower declaration is tied to (a rebuilt / restarted Tower's changes here)
+    if (instance && isValidPid(pid) && instance.pid !== pid) {
+      instance.pid = pid
+      if (instance.role) this.notifyTowerRoleChange(id)
+    }
     // T0806 / BUG-205: only a Linux server reports `fdGuard`; other platforms log what they logged before
     logger.log(`[PtyManager] server spawned PTY ${id} (pid ${pid})${fdGuard ? ` fd-guard=${fdGuard}` : ''}`)
     if (fdGuard === 'no-bash') logger.log(describePtyFdGuardSkip('the shell', `Terminal Server PTY ${id}`))
@@ -1123,7 +1150,78 @@ export class PtyManager implements CloseWorkerPtyManager {
     if (towerContract !== undefined) instance.towerContract = towerContract
     else delete instance.towerContract
     this.refreshHooksStatus(id) // T0910
+    this.notifyTowerRoleChange(id) // T0949
     return true
+  }
+
+  /**
+   * T0949 / BUG-230: the `--set-role` just recorded was made by the process now running in PTY `id`
+   * (its pid ties the declaration to it) with this `--agent` hint (undefined = none; every call
+   * overwrites). Called by `terminal:set-role` only — a ⏻ restart re-applies the role without it.
+   */
+  noteTowerDeclaration(id: string, agent?: string): void {
+    const instance = this.instances.get(id)
+    if (!instance || instance.role !== 'tower') return
+    if (instance.pid !== undefined) instance.towerDeclaredPid = instance.pid
+    else delete instance.towerDeclaredPid
+    if (agent) instance.towerAgent = agent
+    else delete instance.towerAgent
+    this.notifyTowerRoleChange(id)
+  }
+
+  /**
+   * T0949: the declaration of Tower PTY `id` while the process that made it still runs there (its
+   * pid = the PTY's now); null otherwise (not a Tower, pid unknown, ⏻ restarted, rebuilt).
+   */
+  getTowerDeclaration(id: string): TowerDeclaration | null {
+    const instance = this.instances.get(id)
+    if (!instance || instance.role !== 'tower') return null
+    if (instance.towerDeclaredPid === undefined || instance.pid !== instance.towerDeclaredPid) return null
+    return {
+      pid: instance.towerDeclaredPid,
+      role: instance.role,
+      ...(instance.towerMode ? { mode: instance.towerMode } : {}),
+      ...(instance.towerContract !== undefined ? { towerContract: instance.towerContract } : {}),
+      ...(instance.agentPreset ? { ptyAgent: instance.agentPreset } : {}),
+      ...(instance.towerAgent ? { agent: instance.towerAgent } : {}),
+    }
+  }
+
+  /**
+   * T0949: puts a saved declaration back onto running PTY `id` (electron/terminal-role.ts
+   * `TowerRolePersistence.settle` decides, `decideTowerRoleRestore`). The same recorder as a
+   * `--set-role` (`setTerminalRole`), so `isYoloTerminal` and the hooks status follow. false = no PTY.
+   */
+  restoreTowerDeclaration(id: string, declaration: TowerDeclaration): boolean {
+    const instance = this.instances.get(id)
+    if (!instance) return false
+    this.setTerminalRole(id, declaration.role, declaration.mode, declaration.towerContract)
+    instance.towerDeclaredPid = declaration.pid
+    if (declaration.agent) instance.towerAgent = declaration.agent
+    else delete instance.towerAgent
+    this.notifyTowerRoleChange(id)
+    return true
+  }
+
+  /** T0949: the pid of running PTY `id` (undefined = not known). */
+  getPid(id: string): number | undefined {
+    return this.instances.get(id)?.pid
+  }
+
+  /** T0949: the `--agent` hint of Tower PTY `id`'s declaration (undefined = none). */
+  getTowerAgent(id: string): string | undefined {
+    const instance = this.instances.get(id)
+    return instance?.role === 'tower' ? instance.towerAgent : undefined
+  }
+
+  /** T0949: `deps.onTowerRoleChange`; a throwing listener must not break the caller. */
+  private notifyTowerRoleChange(id: string): void {
+    if (!this.deps.onTowerRoleChange) return
+    try {
+      this.deps.onTowerRoleChange(id)
+    } catch (e) {
+      logger.warn('[PtyManager] onTowerRoleChange listener failed:', e)
+    }
   }
 
   /** T0565: the role PTY `id` declared (undefined = none). */
@@ -1678,7 +1776,7 @@ export class PtyManager implements CloseWorkerPtyManager {
           this.handleDirectExit(id, ptyProcess, exitCode)
         })
 
-        this.instances.set(id, { process: ptyProcess, type, cwd, usePty: true, customEnv, workspaceId, agentPreset, workorder, worktree })
+        this.instances.set(id, { process: ptyProcess, type, cwd, usePty: true, customEnv, workspaceId, agentPreset, workorder, worktree, ...(isValidPid(ptyProcess.pid) ? { pid: ptyProcess.pid } : {}) })
         usedPty = true
         logger.log('Created terminal using node-pty')
       } catch (e) {
@@ -1737,7 +1835,7 @@ export class PtyManager implements CloseWorkerPtyManager {
         // Send initial message
         this.broadcast('pty:output', id, `[Terminal - child_process mode]\r\n`)
 
-        this.instances.set(id, { process: childProcess, type, cwd, usePty: false, customEnv, workspaceId, agentPreset, workorder, worktree })
+        this.instances.set(id, { process: childProcess, type, cwd, usePty: false, customEnv, workspaceId, agentPreset, workorder, worktree, ...(isValidPid(childProcess.pid) ? { pid: childProcess.pid } : {}) })
         logger.log('Created terminal using child_process fallback')
       } catch (error) {
         logger.error('Failed to create terminal:', error)
@@ -1929,7 +2027,7 @@ export class PtyManager implements CloseWorkerPtyManager {
     if (instance) {
       const type = instance.type
       const customEnv = instance.customEnv ? { ...instance.customEnv } : undefined
-      const { workspaceId, agentPreset, workorder, worktree, role, towerMode, towerContract } = instance
+      const { workspaceId, agentPreset, workorder, worktree, role, towerMode, towerContract, towerAgent } = instance
       this.kill(id)
       const ok = this.create({
         id, cwd, type, shell,
@@ -1939,7 +2037,12 @@ export class PtyManager implements CloseWorkerPtyManager {
         ...(workorder ? { workorder } : {}),
         ...(worktree ? { worktree } : {}),
       })
-      if (ok && role) this.setTerminalRole(id, role, towerMode, towerContract)
+      if (ok && role) {
+        this.setTerminalRole(id, role, towerMode, towerContract)
+        // T0949: the display hint stays with the role; the new process made no declaration (not saved)
+        const restarted = this.instances.get(id)
+        if (restarted && towerAgent) restarted.towerAgent = towerAgent
+      }
       return ok
     }
     return false
@@ -2180,7 +2283,9 @@ export class PtyManager implements CloseWorkerPtyManager {
           rows: 30,
           env,
         })
-        this.instances.set(id, { ...inst, process: null })
+        // T0949: the rebuilt shell is another process — its pid comes with its `pty:created`
+        this.instances.set(id, { ...inst, process: null, pid: undefined })
+        if (inst.role) this.notifyTowerRoleChange(id)
       }
 
       // Notify renderer: recovery complete

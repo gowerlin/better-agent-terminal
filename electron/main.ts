@@ -20,6 +20,7 @@ import { createCodexNoDaemonSupportCheck, createCodexOscVersionCheck } from './c
 import { createCodexSkillNameResolver } from './ct-install-detect'
 import { createClaudeNameSupportCheck } from './claude-version-check'
 import { CLAUDE_SESSION_STORE_FILE, ClaudeSessionPersistence, claudeSessionNameRecords, readClaudeSessionStore } from './claude-session-name-record'
+import { ROLE_CHANGED_CHANNEL, TOWER_ROLE_STORE_FILE, TowerRolePersistence } from './terminal-role'
 import { InterruptedAgentsStore, buildInterruptedAgentSnapshot, resumeInterruptedDispatchAgent } from './interrupted-agents'
 import { LAST_RUN_VERSION_FILE, UpgradeInterruptionCheck, decideHolderReattach, shouldReplaceIdleServer } from './upgrade-interruption'
 import { INSTALLER_QUIT_RECORD_FILE, InstallerQuitController, defaultEndAgentProcessesDeps, endInstallDirAgentProcesses, isInstallerQuitRequest, isKeptHolderHello, isUninstallQuitRequest, ptyRootsOf, queryKeptHolder, runInstallerQuitWithoutApp, takeInstallerQuitRecord, writeInstallerQuitRecord, type InstallerQuitHolderRecord, type PtyRoot } from './installer-quit-request'
@@ -710,6 +711,7 @@ async function startTerminalServer(): Promise<void> {
   // T0576: no Terminal Server survived (or the user chose a fresh start) — no earlier PTY runs
   settleRestoredHelperCapabilities(() => false, 'no surviving Terminal Server')
   claudeSessionPersistence.settle(() => false, 'no surviving Terminal Server') // T0642
+  towerRolePersistence.settle(() => false, 'no surviving Terminal Server') // T0949
 
   const serverScript = path.join(__dirname, 'terminal-server.js')
 
@@ -906,6 +908,15 @@ const claudeSessionPersistence = new ClaudeSessionPersistence({
   getInterrupted: () => interruptedAgents.interruptedSessions(), // T0766
 })
 
+// T0949 / BUG-230: each running Tower's last `--set-role` (role / mode / contract, + the pid of the
+// process that made it) in `<userData>/tower-roles.json` (no token), put back onto that same process when
+// BAT reopens and the Terminal Server kept it — loaded and settled next to the T0642 claude sessions.
+const towerRolePersistence = new TowerRolePersistence({
+  getPtyManager: () => ptyManager,
+  emit: createTerminalWindowEmit(() => BrowserWindow.getAllWindows(), (channel, payload) => broadcastHub.broadcast(channel, payload)),
+  log: logger,
+})
+
 // T0766: every change of the list → claude-sessions.json + this BAT's windows (each window keeps the
 // ids of its own tabs; not broadcastHub: the recovery is of this machine's Terminal Server)
 interruptedAgents.onChange((reason) => {
@@ -947,6 +958,11 @@ async function finishUpgradeInterruptionCheck(): Promise<void> {
 /** T0642: loads the previous BAT process's claude sessions as pending (whenReady, before any PTY). */
 function loadClaudeSessions(): void {
   claudeSessionPersistence.load(path.join(app.getPath('userData'), CLAUDE_SESSION_STORE_FILE))
+}
+
+/** T0949: loads the previous BAT process's Tower declarations as pending (whenReady, before any PTY). */
+function loadTowerRoles(): void {
+  towerRolePersistence.load(path.join(app.getPath('userData'), TOWER_ROLE_STORE_FILE))
 }
 
 /**
@@ -1350,6 +1366,8 @@ function createElectronPtyDeps(): PtyManagerDeps {
       const alive = new Set(ids)
       settleRestoredHelperCapabilities(id => alive.has(id), 'Terminal Server PTY list')
       claudeSessionPersistence.settle(id => alive.has(id), 'Terminal Server PTY list') // T0642
+      // T0949: a Tower's declaration goes back onto the same process (pid on the list) + role-changed
+      towerRolePersistence.settle(id => alive.has(id), 'Terminal Server PTY list')
     },
     // T0575: the PTY's capability goes with it (kill / exit / failed spawn; may come twice)
     onPtyExit: (id) => {
@@ -1359,6 +1377,7 @@ function createElectronPtyDeps(): PtyManagerDeps {
       towerQuestionHandlers?.terminalEnded(id) // T0607: questions it asked / was asked → cancelled
       interruptedAgents.remove(id, 'pty-ended') // T0766: closed / restarted / resumed tab
       claudeSessionPersistence.persist() // T0642: its claude session is no longer stored
+      towerRolePersistence.persist() // T0949: nor its Tower declaration
       ptyUploadDisposer.onPtyExit(id) // T0835: its staged uploads (after the restart grace)
       towerCards?.terminalEnded(id) // T0905: its turn cards (exit / kill, so ⏻ restart too)
     },
@@ -1380,11 +1399,14 @@ function createElectronPtyDeps(): PtyManagerDeps {
     onServerRecovery: () => {
       towerQuestionHandlers?.serverRecovered()
       claudeSessionPersistence.persist()
+      towerRolePersistence.persist() // T0949: the rebuilt shells are other processes
       notifyHold?.onServerRecovery() // T0788: every held notification is dropped
       towerCards?.serverRecovered() // T0905: every PTY tab's turn cards
     },
     // T0642: a SessionStart hook sent a (new) session id
     // T0766: a listed interrupted tab whose claude started again (resumed) leaves the list
+    // T0949 / BUG-230: a Tower's declaration / pid changed → tower-roles.json
+    onTowerRoleChange: () => towerRolePersistence.persist(),
     onClaudeSessionChange: (id) => {
       interruptedAgents.remove(id, 'session-start')
       claudeSessionPersistence.persist()
@@ -2204,6 +2226,23 @@ app.whenReady().then(async () => {
   // T0576: the previous process's capability records, before any PTY / Terminal Server reconnect
   loadLocalHelperCapabilities()
   loadClaudeSessions() // T0642: same moment, same reason
+  loadTowerRoles() // T0949: same moment, same reason
+
+  // T0949 / BUG-230: a window that finished loading (startup, View→Reload) gets `terminal:role-changed`
+  // of every Tower main knows — a reattach can restore them before any window exists (PTY holder
+  // reattach at startup), and the renderer keeps Towers in memory only
+  app.on('browser-window-created', (_event, win) => {
+    win.webContents.on('did-finish-load', () => {
+      const changes = towerRolePersistence.roleChanges()
+      if (changes.length === 0) return
+      for (const change of changes) {
+        try {
+          win.webContents.send(ROLE_CHANGED_CHANNEL, change)
+        } catch { /* window closing */ }
+      }
+      logger.log(`[tower-role] window loaded: sent ${changes.length} Tower declaration(s)`)
+    })
+  })
 
   // Initialize PtyManager before starting Terminal Server so TCP reconnect can use it (T0108)
   if (!ptyManager) {
