@@ -10,6 +10,7 @@
 
 | ID | 日期 | 標題 | 相關工單 |
 |----|------|------|---------|
+| D422 | 2026-11-27 | U-34：A → T0944 以 `ct-merge/T0944` ff 進 main（`a9144c1a`）；塔台分頁自動帶入 `/control-tower`，待下一版實機驗收 | T0944 |
 | D421 | 2026-11-27 | 「以塔台開啟 Claude」啟動時自動帶入 `/control-tower`：新開 / ⏻ 重啟 / 還原帶，resume 不帶，不加 Settings 開關（改寫 T0644 的「不輸入指令」）→ T0944 | T0944 / T0644 / T0766 |
 | D420 | 2026-11-27 | A-12：完成 → `v0.8.0-pre.9` 使用者實機驗收通過（T0942、BUG-227 CLOSED）；驗測範例 U-31–U-33、A-13 / A-14 移除；塔台換 CT 6.3.0（`multi` 為正式值） | T0940 / T0942 / BUG-227 |
 | D419 | 2026-11-27 | A-12 驗測範例：暫時的 U-31–U-33（單選 / 多選 / 自由回答）、A-13 / A-14（完成 / 失敗 / 批次略過）；塔台收到回答只記錄不移除，A-12 驗完一併移除；`inbox_features` 暫加 `multi` | T0942 / BUG-227 |
@@ -539,6 +540,15 @@
   4. PLAN-001 保持延後（🟢 Low，等 plugin 1.0 穩定）
 - **Success criteria**（EXP→CONCLUDED）：npm install 無錯 / 所有 native modules rebuild 成功 / dev+build:dir 可跑 / 手動 smoke test 8 項通過
 - **最大風險**：`whisper-node-addon@1.0.2` 對 Electron 41（Node 24）的 NODE_MODULE_VERSION 相容性未知，允許 Worker 遇此決策點主動問塔台
+
+---
+
+### D422 2026-11-27 19:22 — T0944 合併（U-34）
+
+- **使用者回答**：`U-34：A`（ff 進 main）。
+- **處置**：整合 worktree `ct-merge/T0944` = `main` + `--no-ff` 合併 `ct/T0944`（`a9144c1a`，無衝突）→ `main` `--ff-only`；整合 worktree 回到 detached。Worker 驗證在 `81afe164`（unit 9260 passed / 47 skipped、typecheck 0、vite build exit 0），之後 main 只多工單檔。
+- **待實機**：T0944 回報區〈待實機〉7 項，下一個預覽版驗收（版號線待確認）。分支 `ct/T0944`、`ct-merge/T0944` 與 worktree 保留。
+- **相關**：T0944 / D421
 
 ---
 
