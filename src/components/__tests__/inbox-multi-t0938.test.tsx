@@ -123,6 +123,8 @@ const q = (selector: string) => document.querySelector(selector) as HTMLElement 
 const row = (id: string) => q(`[data-inbox-awaiting="${id}"]`)!
 const flush = () => act(async () => { await new Promise(r => setTimeout(r, 0)) })
 const sendButton = (el: HTMLElement) => Array.from(el.querySelectorAll('button')).find(b => b.textContent === en.inbox.answer.send) as HTMLButtonElement
+// T0942: once sent, the same button reads「重新送出」
+const resendButton = (el: HTMLElement) => Array.from(el.querySelectorAll('button')).find(b => b.textContent === en.inbox.answer.resend) as HTMLButtonElement
 const option = (el: HTMLElement, code: string) => el.querySelector(`[data-inbox-option="${code}"] input`) as HTMLInputElement
 const other = (el: HTMLElement) => el.querySelector('[data-inbox-option-other] input') as HTMLInputElement
 const otherInput = (el: HTMLElement) => el.querySelector('[data-inbox-other-input]') as HTMLInputElement | null
@@ -171,10 +173,10 @@ describe('multiple choice', () => {
     fireEvent.click(sendButton(entry))
     await flush()
     expect(answer).toHaveBeenLastCalledWith(t1.id, 'U-4：A、C')
-    // sent → reset to the default (nothing checked here)
-    expect(['A', 'B', 'C'].map(code => option(entry, code).checked)).toEqual([false, false, false])
-    fireEvent.click(option(entry, 'A'))
-    fireEvent.click(sendButton(entry))
+    // T0942: sent → the checks are kept (no reset) and 送出 reads「重新送出」; unchecking C sends a new line
+    expect(['A', 'B', 'C'].map(code => option(entry, code).checked)).toEqual([true, false, true])
+    fireEvent.click(option(entry, 'C'))
+    fireEvent.click(resendButton(entry))
     await flush()
     expect(answer).toHaveBeenLastCalledWith(t1.id, 'U-4：A')
   })
@@ -215,8 +217,10 @@ describe('multiple choice', () => {
     fireEvent.click(sendButton(entry))
     await flush()
     expect(answer).toHaveBeenLastCalledWith(t1.id, 'U-3：both, but later')
-    // sent → the default checks are back
-    expect([option(entry, 'A').checked, option(entry, 'C').checked]).toEqual([true, true])
+    // T0942: sent →「其他」and its text are kept (the 推薦 default checks do not come back)
+    expect(other(entry).checked).toBe(true)
+    expect(otherInput(entry)!.value).toBe('both, but later')
+    expect([option(entry, 'A').checked, option(entry, 'C').checked]).toEqual([false, false])
   })
 
   it('unchecking 其他 leaves nothing checked (not the default)', () => {

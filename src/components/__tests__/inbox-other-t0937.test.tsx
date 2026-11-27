@@ -170,9 +170,10 @@ describe('「其他（自由回答）」', () => {
     await flush()
     expect(answer).toHaveBeenLastCalledWith(t1.id, 'U-3：a third way please')
     expect(entry.querySelector('[data-inbox-answer-status]')!.getAttribute('data-inbox-answer-status')).toBe('sent')
-    // sent → back to the default selection, the box closed
-    expect(otherInput(entry)).toBeNull()
-    expect((entry.querySelector('[data-inbox-option="A"] input') as HTMLInputElement).checked).toBe(true)
+    // T0942: sent →「其他」, its box and text are kept (no reset to the 推薦 default)
+    expect(otherRadio(entry).checked).toBe(true)
+    expect(otherInput(entry)!.value).toBe('a third way\tplease')
+    expect((entry.querySelector('[data-inbox-option="A"] input') as HTMLInputElement).checked).toBe(false)
   })
 
   it('Enter sends; Enter while an IME is composing does not', async () => {
@@ -224,7 +225,7 @@ describe('「其他（自由回答）」', () => {
     await flush()
     expect(answer).toHaveBeenLastCalledWith(t1.id, 'U-4：B')
     fireEvent.click(otherRadio(entry))
-    expect(otherInput(entry)!.value).toBe('')  // a sent answer resets the row
+    expect(otherInput(entry)!.value).toBe('kept text')  // T0942: a sent answer no longer resets the row
     fireEvent.change(otherInput(entry)!, { target: { value: 'kept text' } })
     fireEvent.click(entry.querySelector('[data-inbox-option="A"] input')!)
     fireEvent.click(otherRadio(entry))
