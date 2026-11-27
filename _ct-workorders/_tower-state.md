@@ -4,16 +4,17 @@ summary_version: 1
 bat_contract: 2
 ct_version: "6.3.0"
 inbox_features: ["recommended", "dismiss", "multi"]
-updated_at: "2026-11-27T19:22:54+0800"
+updated_at: "2026-11-27T19:26:03+0800"
 session: "2026-11-27 11:10 第一百三十七 session（CT v6.3.0，16:18 起）"
 next_ids:
-  workorder: "T0945"
-  decision: "D423"
+  workorder: "T0946"
+  decision: "D424"
   bug: "BUG-228"
   plan: "PLAN-071"
   user: "U-35"
   action: "A-15"
 todo:
+  - "🔄 下一版 `0.8.0` 正式版（D423）：T0945 IN_PROGRESS 對齊 `release.yml`（mac 簽章步驟缺 secret 必失敗）；合併後推 `v0.8.0` tag → 更版重點 → 三文件 → Pages"
   - "✅ T0944 DONE 並合併進 main（D421 / D422，`a9144c1a`，未 push）：「以塔台開啟 Claude」啟動時自動帶入 `/control-tower`（新開 / ⏻ / 還原帶，resume 不帶，無開關）；worktree 隔離派工"
   - "✅ `v0.8.0-pre.9` 已發佈並驗收（D418 / D420，A-12）：T0942 已送出提示、BUG-227 CLOSED；熱區未結 BUG 0。🔴 `0.8.0-pre.N` 已用到 pre.9（最後一號），下一個預覽版要換版號線，先與使用者確認（例 `0.8.0` 正式版或 `0.8.1-pre.1`）"
   - "✅ PLAN-070 DONE（D417）：CT 6.3.0 正式版已發布（CT D923，`ct-v6.3.0`，2026-11-27 16:00）；BAT README 對照表已寫 `>= v6.3.0`，與 Portal 一致"

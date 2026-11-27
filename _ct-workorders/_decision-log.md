@@ -10,6 +10,7 @@
 
 | ID | 日期 | 標題 | 相關工單 |
 |----|------|------|---------|
+| D423 | 2026-11-27 | 下一版定為 `0.8.0` 正式版；`release.yml` 從未在本 fork 跑過、mac 簽章步驟缺 secret 必失敗 → 先 T0945 對齊再推 tag | T0945 / T0944 |
 | D422 | 2026-11-27 | U-34：A → T0944 以 `ct-merge/T0944` ff 進 main（`a9144c1a`）；塔台分頁自動帶入 `/control-tower`，待下一版實機驗收 | T0944 |
 | D421 | 2026-11-27 | 「以塔台開啟 Claude」啟動時自動帶入 `/control-tower`：新開 / ⏻ 重啟 / 還原帶，resume 不帶，不加 Settings 開關（改寫 T0644 的「不輸入指令」）→ T0944 | T0944 / T0644 / T0766 |
 | D420 | 2026-11-27 | A-12：完成 → `v0.8.0-pre.9` 使用者實機驗收通過（T0942、BUG-227 CLOSED）；驗測範例 U-31–U-33、A-13 / A-14 移除；塔台換 CT 6.3.0（`multi` 為正式值） | T0940 / T0942 / BUG-227 |
@@ -540,6 +541,15 @@
   4. PLAN-001 保持延後（🟢 Low，等 plugin 1.0 穩定）
 - **Success criteria**（EXP→CONCLUDED）：npm install 無錯 / 所有 native modules rebuild 成功 / dev+build:dir 可跑 / 手動 smoke test 8 項通過
 - **最大風險**：`whisper-node-addon@1.0.2` 對 Electron 41（Node 24）的 NODE_MODULE_VERSION 相容性未知，允許 Worker 遇此決策點主動問塔台
+
+---
+
+### D423 2026-11-27 19:26 — 發 `0.8.0` 正式版，先修 `release.yml`
+
+- **使用者**：「0.8.0 正式版」（回答塔台「`0.8.0-pre.N` 已用完，下一版用哪個版號」）。
+- **查證**：正式版走 `release.yml`（push `v*` tag）。本 fork `gh run list --workflow release.yml` 為空（從未跑過），repo 沒有任何 Actions secret，最後一個正式版 tag 是 `v0.5.8`。release 的 mac job 有「Import Code Signing Certificate」（空 secret → `security import` 必失敗）與 notarization 驗證；另缺 pre-release 已有的 Windows cleanup、verify-native-modules。照現況推 tag → mac build 失敗、不產生 release。
+- **決定**（塔台代決，屬發版必要前置）：開 T0945 對齊 `release.yml`（沒有 secret 時與 pre-release 相同、有 secret 時照舊），合併後再推 `v0.8.0` tag。內嵌 claude CLI `2.1.331`（npm 最新 `2.1.332`）落後一個 patch，不追。
+- **相關**：T0945 / T0944
 
 ---
 
