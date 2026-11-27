@@ -4,13 +4,14 @@ schema_kind: workorder
 id: T0938
 title: "待辦分頁「⏸ 待你決定」多選：`inbox_features` 含 `multi` 且 `awaiting_user[].multi: true` 時畫成複選，送出 `U-n：A、C`（CT 6.3.0 契約）"
 type: feature
-status: TODO
+status: IN_PROGRESS
 repo: better-agent-terminal
 project: PLAN-070
 priority: P2
 sizing: M
 created_at: "2026-11-27T11:32:11+08:00"
-updated_at: "2026-11-27T11:32:11+08:00"
+started_at: "2026-11-27T11:36:03+08:00"
+updated_at: "2026-11-27T11:36:03+08:00"
 session_ids: []
 target_version: "0.8.0-pre.8"
 depends_on: ["T0937"]
