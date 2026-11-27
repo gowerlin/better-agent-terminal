@@ -4,13 +4,14 @@ schema_kind: workorder
 id: T0937
 title: "待辦分頁「⏸ 待你決定」有選項的題目加「其他（自由回答）」；放棄備註改成只寫原因"
 type: feature
-status: TODO
+status: IN_PROGRESS
 repo: better-agent-terminal
 project: PLAN-070
 priority: P2
 sizing: S
 created_at: "2026-11-27T11:25:19+08:00"
-updated_at: "2026-11-27T11:25:19+08:00"
+started_at: "2026-11-27T11:27:08+08:00"
+updated_at: "2026-11-27T11:27:08+08:00"
 session_ids: []
 target_version: "0.8.0-pre.8"
 depends_on: []
@@ -32,6 +33,7 @@ affects_files:
 renew_count: 0
 isolation: worktree
 worker_question_timeout: 30
+tower_question: open
 interaction:
   mode_hint: yolo
   interactive: false
@@ -79,4 +81,15 @@ BAT 待辦分頁的「⏸ 待你決定」在 `options` 非空時只有單選＋�
 
 ## 回報區
 
-（Worker 填寫）
+### 待塔台決策
+
+#### Q-1：「其他」要放在選項清單（radiogroup）裡面，並改 t0929 的一行斷言嗎？
+- **提問時間**：2026-11-27T11:28:45+08:00
+- **衝突**：`src/components/__tests__/inbox-layout-t0929.test.tsx` 第 126–127 行斷言 `[data-inbox-option-list="U-3"]` 的**子元素**正好是 A / B / C（每個都是 `<label>`），第 136 行斷言清單的下一個兄弟元素就是送出列。工單要「單選清單最後多一項」，照字面放進清單就會讓第 127 行變成 `['A','B','C',null]`。（`inbox-plan069.test.tsx` 第 140 行用 `[data-inbox-option]` 查，「其他」不帶這個屬性即可不衝突。）
+- **選項**：
+  - A. 「其他」放進 radiogroup 的最後一項（`<label data-inbox-option-other>`，不帶 `data-inbox-option`），選了才在清單下方、送出列之前出現輸入框；t0929 第 127 行改成只比對帶 `data-inbox-option` 的子元素仍是 A / B / C，並另斷言最後一個子元素是「其他」。其餘斷言（含第 136 行，因為預設不選「其他」時輸入框不出現）不改。
+  - B. 不改任何測試：「其他」與輸入框放在送出列**之後**的 DOM 位置，用 CSS `order` 讓畫面上排在送出列之前。缺點：「其他」不在 `role="radiogroup"` 內（螢幕閱讀器看到 3 選項的群組加一個落單的 radio），Tab 順序是 送出 → 放棄… → 輸入框，和畫面順序相反。
+  - 其他。
+- **建議**：A。結構與無障礙正確，只改一行斷言且保留原意（每個選項是清單內獨立的 `<label>`、A / B / C 順序不變）。
+- **影響**：決定 `InboxLists.tsx` 的 DOM 結構與是否動 t0929 測試。
+- **是否阻擋後續步驟**：是（元件實作與測試）。
