@@ -4,6 +4,18 @@ All notable changes to Better Agent Terminal are documented in this file.
 
 ## [Unreleased]
 
+## [0.8.0-pre.8] — 2026-11-27
+
+### Added
+- 「⏸ 待你決定」的「其他（自由回答）」（T0937，PLAN-070）：有可用選項的題目在 radiogroup 最後多一項「其他」（`data-inbox-option-other`，不是預設、不標推薦），選了才出現輸入框，送出 `U-n：<文字>`（沿用 `tower-inbox:answer`，不新增 IPC）；文字以「放棄 / 略過」開頭時顯示提示（沿用 `isDismissAnswer`，不擋送出），自由回答欄同樣提示（T0938）。放棄備註 placeholder 改為「原因（一行，選填）」
+- 多選（T0938，PLAN-070，CT 6.3.0 契約 `inbox_features: multi`＋`awaiting_user[].multi`）：旗標＋`multi: true`（只認布林）＋≥ 2 選項才畫複選框（`role="group"`、「可複選」）；多個推薦項（`recommended: "A、C"`）都標推薦並預設勾選，有一個對不到或非多選題即不推薦；送出依 `options` 順序、去重、以 `、` 連接（`multiAnswerText`）；「其他」與勾選互斥。唯一實作 `awaitingIsMulti` / `matchRecommendedCodes` / `multiAnswerText`（`src/lib/tower-inbox.ts`）
+
+### Fixed
+- 「🙋 待你執行」的指令欄是檔案時不能點（BUG-226，T0936）：`command` 經 T0930 同一套辨識與存在檢查；整段就是一個存在的檔案（`soleFileRef`）時顯示連結、按鈕改「開啟」（`openFileInFilesTab`），不顯示「複製指令」；指令中含路徑時路徑可點、「複製指令」照舊複製全文
+
+### Changed
+- README「與 BMad Control Tower 協作」：待辦分頁說明與版本對照表加「其他」（BAT 0.8.0-pre.8 / CT 6.1.0）、放棄只記原因與多選（BAT 0.8.0-pre.8 / CT 6.3.0）
+
 ## [0.8.0-pre.7] — 2026-11-27
 
 ### Changed
