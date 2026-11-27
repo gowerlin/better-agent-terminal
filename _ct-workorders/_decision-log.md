@@ -10,6 +10,7 @@
 
 | ID | 日期 | 標題 | 相關工單 |
 |----|------|------|---------|
+| D426 | 2026-11-27 | `v0.8.0` 驗收案例 A-15–A-18（T0944：以塔台開啟 Claude 自動帶入 `/control-tower`、⏻ 重啟、一般 Claude CLI 回歸、BAT 重開） | T0944 |
 | D425 | 2026-11-27 | `v0.8.0` 正式版發佈（`release.yml` 首次在本 fork 執行，全綠、Latest）；更版重點、CHANGELOG / release-note / README、package.json 0.8.0 | T0944 / T0945 |
 | D424 | 2026-11-27 | U-35：A → T0945 ff 進 main（`d294bae1`）、push、推 `v0.8.0` tag（`release.yml` 第一次在本 fork 執行） | T0945 / T0944 |
 | D423 | 2026-11-27 | 下一版定為 `0.8.0` 正式版；`release.yml` 從未在本 fork 跑過、mac 簽章步驟缺 secret 必失敗 → 先 T0945 對齊再推 tag | T0945 / T0944 |
@@ -543,6 +544,15 @@
   4. PLAN-001 保持延後（🟢 Low，等 plugin 1.0 穩定）
 - **Success criteria**（EXP→CONCLUDED）：npm install 無錯 / 所有 native modules rebuild 成功 / dev+build:dir 可跑 / 手動 smoke test 8 項通過
 - **最大風險**：`whisper-node-addon@1.0.2` 對 Electron 41（Node 24）的 NODE_MODULE_VERSION 相容性未知，允許 Worker 遇此決策點主動問塔台
+
+---
+
+### D426 2026-11-27 20:39 — `v0.8.0` 驗收案例
+
+- **使用者**：「已更版，產生驗收案例」（BAT `0.8.0`）。
+- **案例**（`user_actions`，ref T0944，取自 T0944〈待實機〉）：A-15 新開塔台分頁自動進入塔台；A-16 ⏻ 重啟同樣帶入；A-17 一般 Claude CLI 不帶（回歸）；A-18（可選）BAT 重開「重新開始」帶入、「保留」不重送。
+- **注意**：A-15 會在該工作區啟動一個真的塔台（宣告角色、寫 `_tower-state.md`），請用測試用工作區，不要在本專案開第二個塔台。resume 不帶（T0944〈待實機〉4）需要 Terminal Server recovery，無法刻意重現，不列案例。
+- **相關**：T0944 / D425
 
 ---
 
