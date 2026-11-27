@@ -10,6 +10,7 @@
 
 | ID | 日期 | 標題 | 相關工單 |
 |----|------|------|---------|
+| D450 | 2026-11-27 | A-19–A-23 改用自動化測試：開並派 T0955（交付版 zip 隔離實例＋假 claude） | T0955 / BUG-228–231 / T0950 |
 | D449 | 2026-11-27 | `v0.8.1-pre.1` 已發佈（run `46009069879` 全綠）；更版重點、三文件、版號同步；發 A-19–A-23 | BUG-228–231 / T0950 |
 | D448 | 2026-11-27 | U-43：A → T0954 ff 進 `main` `14ae45a9`，BUG-231 FIXED；U-44：A → push 並發 `0.8.1-pre.1` | T0954 / BUG-228–231 / T0950 |
 | D447 | 2026-11-27 | T0954 收單（`5661128d`，驗收全綠）；斷點 E 發 U-43；發版發 U-44 | T0954 / T0951 / BUG-231 |
@@ -567,6 +568,15 @@
   4. PLAN-001 保持延後（🟢 Low，等 plugin 1.0 穩定）
 - **Success criteria**（EXP→CONCLUDED）：npm install 無錯 / 所有 native modules rebuild 成功 / dev+build:dir 可跑 / 手動 smoke test 8 項通過
 - **最大風險**：`whisper-node-addon@1.0.2` 對 Electron 41（Node 24）的 NODE_MODULE_VERSION 相容性未知，允許 Worker 遇此決策點主動問塔台
+
+---
+
+### D450 2026-11-27 22:09 — A-19–A-23 改用自動化測試（T0955）
+
+- **使用者**：「用自動化測試」。
+- **T0955**（verification，worktree、yolo）：下載 `v0.8.1-pre.1` win zip（以 release asset digest 比對）、`launchIsolated` 隔離實例（獨立 runtime / userData / Terminal Server）、Shell 設 Git Bash，以「假 claude」（記 argv / stdin、模擬全螢幕＋滑鼠追蹤、經 helper 宣告塔台）驗 A-19（BUG-228）、A-20（BUG-229 / 231）、A-23（T0950）、A-21（BUG-230 接回還原）、A-22（可選，重新開始）與反例。🔴 不碰安裝版 BAT 與它的 Terminal Server / holder / userData、只結束自己記下 pid 的程序（D308）、不開真的 claude 回合、不改產品；zip 版做不到「保留終端」時 A-21 記未判定。
+- **A-n**：保留在 `user_actions`，依 T0955 結果結案或改請使用者實機。
+- **相關**：T0955 / D449 / BUG-228–231 / T0950
 
 ---
 
