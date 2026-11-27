@@ -191,4 +191,4 @@ node e2e/manual/ct-accept-act.mjs ctl s1 '{"op":"click","selector":"[data-inbox-
 - AskUserQuestion 選單出現後立刻按 Esc（約 0.1 秒內）時，較晚到的 `PermissionRequest` hook 會在「使用者輸入清除」之後把分頁設回 `question`，直到下一次按鍵（T0923 回報區 BUG 建議，BUG-224）。`0.8.0-exp.2` 起已修（T0926）；測更早的版本時，驅動選單先等幾秒再按 Esc。
 - claude 2.1.331 的塔台是全螢幕畫面（alt screen）：xterm 沒有 scrollback，捲動由 claude 自己處理；畫面文字只能從 PTY 擷取（TUI 重繪，閃爍的符號會洗掉尾端），判斷內容請以對話紀錄為準。
 - 權限詢問：以 BAT 縮圖 `.attention-badge.blocked[data-blocked-reason=permission]` 判斷；claude 一次排隊多個權限詢問時只有第一個有 hook 事件（T0915 回報區），需另看對話紀錄中沒有結果的工具呼叫。
-- 塔台分頁的輸入框草稿判斷（T0904 `draft`）看不到 claude 畫面內部：用數字鍵關掉 claude 的意見調查列（「How is Claude doing this session? … 0: Dismiss」）後，BAT 仍把那一鍵當成輸入框有字，之後從待辦分頁送出的回答以 `reason=draft` 排進「📨 待送」，直到下一次 Enter（T0939）。驅動在送出前要先確認沒有待送，或在空的輸入框按一次 Enter。
+- 塔台分頁的輸入框草稿判斷（T0904 `draft`）看不到 claude 畫面內部。T0939 時用數字鍵關掉 claude 的意見調查列後，那一鍵被當成輸入框有字、待辦分頁的回答排進「📨 待送」；T0940（BUG-227）起 BAT 從輸出認得調查列（圖例），調查列出現 ≥ 1 s 後剛好按一個有效鍵就不算草稿。仍會保留的情況：調查列出現後 1 s 內按鍵、按鍵前先點了分頁、按了調查列不收的鍵、比 T0940 舊的 BAT（規則見 `docs/agent-guide/tower-inbox.md`「不進輸入框的按鍵」）。驅動在送出前仍應確認沒有待送，有就在空的輸入框按一次 Enter。

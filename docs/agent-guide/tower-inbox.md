@@ -177,6 +177,23 @@
 
 已知誤判：游標移動後刪光、`/` 選單選完、Tab 補完到空字串都還算有草稿 → 「📨 待送」顯示「你在輸入」＋「立即送出」，5 分鐘提醒一次。所有分頁都追蹤（便宜、不改行為），只有契約 2 塔台用來保留。
 
+#### 不進輸入框的按鍵（T0940 / BUG-227，D406）
+
+兩種情況的按鍵不留在 claude 的輸入框，不再記成草稿；判不出來一律照上表（寧可多保留，不把通知混進使用者打到一半的字）。
+
+- **案 A：提示期間的單一按鍵**。使用者輸入到達時分頁處於 hook / osc 提示（`NOTIFY_HOLD_REASONS`：`permission` / `question` / `elicitation` / `input`），而且這次輸入是**一個按鍵**（`isSingleKeyInput`：一個字元、或一個完整的跳脫序列，例 `1`、`y`、↓、Enter、Esc）→ 草稿狀態**不變**（不設、也不清；所以 Enter 作答不會清掉提示前就有的草稿）。括號貼上、一次多個字元（IME 送字、連打）照上表（提示狀態可能已過時）。提示狀態由 `electron/handlers/pty.ts` 在 `manager.noteUserInput`（會清 hook reason）**之前**以 `NotifyHoldController.isPromptShown` 取得，傳給 `onUserInput(id, data, { duringPrompt })`；唯一實作 `trackDraftDuringPrompt`。`blockedDetection: none` 的分頁沒有提示狀態，照上表。`tower` 不是提示。
+- **案 B：claude 的單鍵調查列**。claude 2.1.331 的意見調查（`How is Claude doing this session?`、記憶 / 長對話 / compact 後 / 組織問卷）、逐字稿分享（`Can Anthropic look at your session transcript …`）、bypass 原因調查，按鍵**先進主輸入框**，400 ms 後由調查列取走並清空（按 Enter 則立即取走）；調查出現 600 ms 內按的鍵留在輸入框。host 經 PtyManager 既有的 `onPtyOutput`（`electron/main.ts`、`electron/remote/headless-entry.ts` 接線）把契約 2 塔台的輸出交給 `NotifyHoldController.onPtyOutput`（🔴 只讀、不改寫），`SingleKeyPromptScanner` 去掉 ANSI（`CSI n C` / 游標定位換成空白）後比對**圖例**（不比標題：標題會變、文件也可能引用標題）：
+
+  | 圖例（`SINGLE_KEY_PROMPT_LEGENDS`） | 有效鍵 |
+  |---|---|
+  | `1: Bad 2: Fine 3: Good [4: Unsure] 0: Dismiss` | `0`–`3`（有 `4: Unsure` 時含 `4`） |
+  | `y: Yes n: No d: Don't ask again` | `y` / `n` / `d`（大小寫） |
+  | `1: Auto mode blocks safe work … 5: Other 0: Not now` | `0`–`5` |
+
+  使用者輸入時以下全部成立才不記草稿（`answersSingleKeyPrompt`）：① 之前沒有草稿、不在括號貼上中；② 這次輸入剛好是一個有效鍵；③ 圖例出現已 ≥ `SINGLE_KEY_PROMPT_SETTLE_MS` = 1 s、≤ `SINGLE_KEY_PROMPT_MAX_AGE_MS` = 30 min；④ 出現之後沒有其他寫入——任何使用者輸入（`take`）、helper 寫入（`interceptWrite`）、回答 / 通知送出（`send`）、BAT 的 `{ auto }` / `{ submit }` 寫入、滑鼠按下（`onMousePress`）、PTY 結束 / recovery 都先忘掉紀錄。使用者按鍵後 `SINGLE_KEY_PROMPT_REARM_MS` = 2 s 內輸出的同一圖例（claude 回顯按鍵的那一幀）不再記錄。同一圖例重繪保留第一次出現的時間。版本不符或非塔台的分頁不掃描。🔴 圖例字串只在 `src/lib/tower-input-draft.ts` 一處（取自 claude 2.1.331 二進位）；claude 改字串時同步改它與 `src/lib/__tests__/tower-input-draft-single-key.test.ts`，對不上只會退回上表（多保留）。
+- 日誌：`[notify-hold] single-key prompt shown terminal=<塔台> legend=rating|transcript|bypass-reason`、`[notify-hold] single-key prompt answered terminal=<塔台> legend=<…> (no draft)`（不記按鍵）。
+- 殘留誤判（保守方向）：調查列出現後先在分頁裡點一下（滑鼠按下會忘掉紀錄）再按數字、或 1 s 內就按、或使用者自訂按鍵對應（claude 認得 AZERTY 數字列，BAT 只認 ASCII 鍵），仍記成草稿 → 「📨 待送」，空輸入框按 Enter 或「立即送出」即可。反方向（把通知混進字裡）的殘留：調查列被 claude 自己收掉而沒有任何寫入、之後 30 min 內使用者在空輸入框第一個鍵剛好是有效鍵，那一鍵之後到下一鍵之前送達的通知會接在該鍵後面；BAT 看不到調查列消失，以 30 min 上限與「任何寫入都忘掉」縮小。
+
 #### 閱讀信號（`src/lib/tower-reading-state.ts` `TowerReadingTracker`）
 
 renderer 只對契約 2 塔台分頁啟用（`TerminalPanel.tsx`）：normal buffer `viewportY < baseY`、有選取（`onScroll` / `onSelectionChange`）、或滾輪 / PageUp / Shift+PageUp（container capture listener）→ 閱讀中；最後一個信號結束後再維持 `TOWER_READING_LINGER_MS` = 10 s。只在值改變時呼叫 `pty.setReadingState(terminalId, reading)`；停用（契約改變、分頁卸載）時若回報過 `true` 先送一次 `false`。
@@ -229,6 +246,7 @@ host：`setReading(id, reporter, reading)`，`reporter` = `conn:<connectionId>` 
 [notify-hold] reminder terminal=<塔台> reason=draft count=<N>
 [notify-hold] send-now terminal=<塔台> count=<N> [(still held: <prompt reason>)]
 [notify-hold] answer terminal=<塔台> source=answer len=<n> (sending)
+[notify-hold] single-key prompt shown|answered terminal=<塔台> legend=<id> [(no draft)]   ← T0940
 [tower-reading] terminal=<塔台> reading=true|false            ← renderer
 [terminal-submit] remote Enter input terminal=<塔台> trace=<id> path=xterm-input …   ← renderer（B0）
 ```
@@ -239,13 +257,13 @@ host：`setReading(id, reporter, reading)`，`reporter` = `conn:<connectionId>` 
 
 - 遠端 profile 視窗：保留與 `draft` / `reading` 在 bat-server 上照樣生效（`terminal:reading-state` 是 proxied channel）；「📨 待送」清單、原因、「立即送出」、5 分鐘提醒也在遠端視窗（見「契約 v2 清單與回答」節〈「📨 待送」在遠端視窗〉），bat-server 比 T0908 舊時看不到。
 - fullscreen claude：BAT 看不到 claude 內部捲動，只看滾輪 / PageUp 事件。T0917（BUG-221）起 alt buffer 往上捲後維持閱讀中，到按鍵 / 點擊 / 分頁切走 / 捲回（近似）/ 60 s 上限；「捲回」以滾輪量累計判斷，claude 實際捲多少 BAT 不知道（見〈閱讀信號〉）。
-- S1 是推估（見上表）；codex 的 Ctrl+C / Enter / Shift+Enter 行為待實機（T0902 T-5）。
+- S1 是推估（見上表）；codex 的 Ctrl+C / Enter / Shift+Enter 行為待實機（T0902 T-5）。T0940 的單鍵規則與殘留誤判見〈不進輸入框的按鍵〉。
 - `reading` 60 s 是從「閱讀開始擋住這個佇列」起算，到時再加安靜 1 s。
 - 原子窗口暫存最多 1 s：helper 的 Enter 晚於 1 s 抵達（極慢的遠端連線）時，使用者輸入先補寫，退回今天的行為。
 
 ### 驗證
 
-- 單元：`src/lib/__tests__/tower-input-draft.test.ts`、`tower-reading-state.test.ts`、`tower-submit-enter.test.ts`（真 xterm＋TerminalPanel source guard）；`electron/__tests__/notify-hold-contract-tower.test.ts`（版本閘門、draft、reading、原子送出、回答、立即送出、提醒、日誌）、`notify-hold-contract-handlers.test.ts`（共用 handler＋真 PtyManager）；`src/components/__tests__/notify-hold-reason-menu.test.tsx`（原因、立即送出、三語系）。T0788 既有 `notify-hold.test.ts` / `notify-hold-ask-held-full.test.ts` 不改、全綠。
+- 單元：`src/lib/__tests__/tower-input-draft.test.ts`、`tower-reading-state.test.ts`、`tower-submit-enter.test.ts`（真 xterm＋TerminalPanel source guard）；`electron/__tests__/notify-hold-contract-tower.test.ts`（版本閘門、draft、reading、原子送出、回答、立即送出、提醒、日誌）、`notify-hold-contract-handlers.test.ts`（共用 handler＋真 PtyManager）；`src/components/__tests__/notify-hold-reason-menu.test.tsx`（原因、立即送出、三語系）。T0788 既有 `notify-hold.test.ts` / `notify-hold-ask-held-full.test.ts` 不改、全綠。T0940：`src/lib/__tests__/tower-input-draft-single-key.test.ts`（單鍵判斷、案 A、圖例比對與 T0939 實錄改寫的最小樣本、scanner、回答條件）、`electron/__tests__/notify-hold-single-key.test.ts`（經 `pty:write` handler：調查列按鍵後回答立即送出、< 1 s / 無效鍵 / 有草稿 / 其他寫入後 / 版本不符照舊保留、提示期間單鍵不設草稿、Enter 不清既有草稿、貼上與多字元仍設草稿）。
 - e2e（隔離實例，假 TUI，不需登入）：`e2e/t0904-tower-notify-protection.spec.ts`（`e2e/fixtures/fake-line-editor.mjs`、`notify-job-runner.mjs`）：① 未宣告塔台 #23 重現、② 契約 2 草稿分開送出、③ 窗口內打字 / Enter、④ 閱讀 60 s 上限＋viewport 不動（B0）、⑤ 停手 10 s 放行、⑥ 全螢幕（alt screen＋滑鼠追蹤）往上捲停 15 s 仍保留、按鍵後送出，⑥b 捲回後 10 s 放行（T0917）。需先 `npx vite build`。
 - 待實機（T0902）：T-1 / T-2（真 claude 塔台的 #23 與捲動）、T-3（fullscreen＋Auto-scroll）、T-5（codex 輸入框）、T-7（WSL 塔台的 `draft` / `reading`）、T-8（舊 CT＋新 BAT 保護停用）。
 

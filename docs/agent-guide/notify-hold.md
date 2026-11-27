@@ -43,6 +43,8 @@ CT 已回覆（BMad-Guide `_reply-2026-11-02-bat-notify-hold-contract.md`，CT D
 
 宣告 BAT ↔ CT 契約 2 的塔台分頁（`towerContractStatus` `match`）另有三種保留：`draft`（輸入框有使用者還沒送出的文字，不設上限、5 分鐘提醒一次、「立即送出」）、`reading`（使用者在閱讀，最長 60 s，不擋回答）、原子送出（helper 文字到它的 Enter 之間，使用者輸入由 host 暫存後補寫），且 submit Enter 改走 `terminal.input('\r', false)`（B0）。上表 10 點對所有分頁照舊；版本不符或非塔台的分頁行為與 T0904 前相同。完整規則見 [tower-inbox.md](tower-inbox.md)。
 
+T0940（BUG-227，D406）：`draft` 不再把「不進輸入框的按鍵」記成草稿——hook / osc 提示期間的單一按鍵不改變草稿狀態（不設、不清；貼上與多字元照舊），以及契約 2 塔台輸出中出現 claude 單鍵調查列（圖例比對，經 `onPtyOutput` 只讀）後剛好按一個有效鍵；判不出來照舊保留。規則、條件、殘留誤判見 [tower-inbox.md](tower-inbox.md)「不進輸入框的按鍵」。T0788 的保留（上表 10 點）不受影響。
+
 常數（同檔）：`NOTIFY_HOLD_READING_MAX_MS` 60 s、`NOTIFY_HOLD_DRAFT_REMIND_MS` 5 分鐘、`NOTIFY_HOLD_ATOMIC_MAX_MS` 1 s、`NOTIFY_HOLD_ANSWER_MAX_CHARS` 1,000。
 
 ## 實作位置

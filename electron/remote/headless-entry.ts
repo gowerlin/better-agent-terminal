@@ -411,7 +411,10 @@ export function createHeadlessPtyModule(opts: {
         if (capabilities && capabilities.revokeTerminal(id) > 0) defaultLogger.log(`[headless] helper capability revoked: terminal=${id}`)
         opts.onPtyExit?.(id) // T0607
       },
-      onPtyOutput: (id, data) => usageLimit.onOutput(id, data),
+      onPtyOutput: (id, data) => {
+        usageLimit.onOutput(id, data)
+        notifyHold.onPtyOutput(id, data) // T0940: claude's single-key survey (read only)
+      },
       onBlockedChange: id => {
         opts.onBlockedChange?.(id) // T0609
         notifyHold.onBlockedChange(id) // T0788

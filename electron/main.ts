@@ -1341,7 +1341,10 @@ function createElectronPtyDeps(): PtyManagerDeps {
     dataDir: app.getPath('userData'),
     helperDir: localHelperDir(),
     // PLAN-044 / T0566: the usage-limit scheduler reads each tab's screen from the live output.
-    onPtyOutput: (id, data) => usageLimitScheduler?.onOutput(id, data),
+    onPtyOutput: (id, data) => {
+      usageLimitScheduler?.onOutput(id, data)
+      notifyHold?.onPtyOutput(id, data) // T0940: claude's single-key survey (read only)
+    },
     // T0576: the T0108 replay list (or [] when the server died) settles the restored capabilities
     onSurvivingPtys: (ids) => {
       const alive = new Set(ids)
