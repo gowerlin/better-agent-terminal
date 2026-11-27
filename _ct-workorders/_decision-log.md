@@ -10,6 +10,7 @@
 
 | ID | 日期 | 標題 | 相關工單 |
 |----|------|------|---------|
+| D405 | 2026-11-27 | 使用者「開 BUG」→ 開 BUG-227（OPEN，low）：數字鍵關 claude 意見調查列後被判成有草稿，待辦分頁回答排進「📨 待送」（T0939 發現；取代 D403 的「列候選」） | BUG-227 / T0939 |
 | D404 | 2026-11-27 | U-27：A → T0939 經 `ct-merge/T0939` ff 進 `main`；CT 判定單 T0575 已派（CT D912），PLAN-070 結案等 CT 判定 | T0939 / PLAN-070 |
 | D403 | 2026-11-27 | T0939 收單（DONE，BAT 端 21 PASS / 0 FAIL / 1 未觸發）、合併 `ct-merge/T0939` `67dfbd20`（只改 `e2e/manual/`）；通知 CT 判定；`draft` 被意見調查列鍵觸發列候選；斷點 E → U-27 | T0939 / PLAN-070 |
 | D402 | 2026-11-27 | CT 6.3.0-pre.1 雙方驗收（CT U-7：A / D910、T0574 收單 D911）→ 開並派 T0939（BAT pre.8 / pre.4 zip × `checklist-630.md` M-1～M-17，BAT 跑、CT 判定） | T0939 / PLAN-070 |
@@ -522,6 +523,15 @@
   4. PLAN-001 保持延後（🟢 Low，等 plugin 1.0 穩定）
 - **Success criteria**（EXP→CONCLUDED）：npm install 無錯 / 所有 native modules rebuild 成功 / dev+build:dir 可跑 / 手動 smoke test 8 項通過
 - **最大風險**：`whisper-node-addon@1.0.2` 對 Electron 41（Node 24）的 NODE_MODULE_VERSION 相容性未知，允許 Worker 遇此決策點主動問塔台
+
+---
+
+### D405 2026-11-27 14:09 — 開 BUG-227
+
+- **使用者指示**：「一個小現象，開 BUG」（取代 D403 塔台「不開 BUG、列候選」的裁決）。
+- **內容**：T0939 S1 M-3：數字鍵 `0` 關掉 claude 意見調查列後，`trackDraft`（T0904）仍記成輸入框有字，下一則待辦分頁回答 `reason=draft` 排進「📨 待送」直到空輸入框 Enter。low：回答不遺失、有提示。
+- **處置**：BUG-227 OPEN；修正工單待使用者決定何時開。
+- **相關**：BUG-227 / T0939 / T0904
 
 ---
 
