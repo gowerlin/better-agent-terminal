@@ -4,12 +4,13 @@ schema_kind: workorder
 id: T0957
 title: "BUG-233：⏻ 重啟後若舊程式留下隱藏的游標，新 PTY 開始時在本機 xterm 顯示游標（沿用 T0950 的時機）"
 type: bugfix
-status: PENDING
+status: IN_PROGRESS
 repo: better-agent-terminal
 priority: P3
 sizing: S
 created_at: "2026-11-27T22:38:19+08:00"
-updated_at: "2026-11-27T22:38:19+08:00"
+updated_at: "2026-11-27T22:40:01+08:00"
+started_at: "2026-11-27T22:40:01+08:00"
 target_version: "下一個預覽版（`0.8.1-pre.2`，發版前與使用者確認）"
 depends_on: []
 related:
