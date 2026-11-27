@@ -120,6 +120,8 @@ function renderPanel(state: string) {
 const q = (selector: string) => document.querySelector(selector) as HTMLElement | null
 const flush = () => act(async () => { await new Promise(r => setTimeout(r, 0)) })
 const sendButton = (row: HTMLElement) => Array.from(row.querySelectorAll('button')).find(b => b.textContent === en.inbox.answer.send) as HTMLButtonElement
+// T0942: once sent, the same button reads「重新送出」
+const resendButton = (row: HTMLElement) => Array.from(row.querySelectorAll('button')).find(b => b.textContent === en.inbox.answer.resend) as HTMLButtonElement
 
 const DISMISS_SELECTORS = [
   '[data-inbox-dismiss]',
@@ -147,7 +149,8 @@ describe('推薦 mark and default selection', () => {
 
     fireEvent.click(row.querySelector('[data-inbox-option="C"] input')!)
     expect((row.querySelector('[data-inbox-option="A"] input') as HTMLInputElement).checked).toBe(false)
-    fireEvent.click(sendButton(row))
+    // T0942: a sent row's 送出 reads「重新送出」
+    fireEvent.click(resendButton(row))
     await flush()
     expect(answer).toHaveBeenLastCalledWith(t1.id, 'U-3：C')
   })

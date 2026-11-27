@@ -528,6 +528,22 @@
 .inbox-answer-draft {
   color: var(--warning-color, #d29922);
 }
+/* T0942: the「✓ 已送出：<line>（HH:MM）」mark — more visible than the status line, a reminder only */
+.inbox-sent-marker {
+  font-size: 12px;
+  font-weight: 600;
+  padding: 3px 6px;
+  border-radius: 3px;
+  border-left: 3px solid var(--success-color, #3fb950);
+  background: var(--hover-bg);
+  color: var(--success-color, #3fb950);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.inbox-sent-held {
+  border-left-color: var(--accent-color, #4a9eff);
+  color: var(--accent-color, #4a9eff);
+}
 /* PLAN-069 / T0922: 推薦 mark, 放棄 / 略過 controls (only with inbox_features `dismiss`) */
 .inbox-option-recommended {
   font-size: 11px;

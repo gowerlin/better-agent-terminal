@@ -17,6 +17,7 @@ import type { WorkOrderStatus } from '../types/control-tower'
 import type { TowerStateParse } from '../lib/ct-tower-overview'
 import type { TowerInboxLists } from '../lib/tower-inbox'
 import { nextRecentlyClosed, type RecentlyClosed } from '../lib/inbox-model'
+import { pruneInboxSent, resetInboxSentStore } from './inbox-sent-store'
 
 /** `_tower-state.md` as the loader read it. */
 export type InboxStateLoad =
@@ -86,6 +87,8 @@ export function setInboxFiles(folder: string, next: InboxFiles): void {
     if (closed !== recentlyClosed.get(folder)) recentlyClosed.set(folder, closed)
   }
   files.set(folder, next)
+  // T0942: an item gone from the lists (read this time) takes its「已送出」record with it
+  if (next.lists) pruneInboxSent(folder, new Set([...next.lists.awaiting.map(item => item.id), ...next.lists.actions.map(item => item.id)]))
   notify()
 }
 
@@ -189,5 +192,6 @@ export function resetInboxStore(): void {
   stateOnly.clear()
   selectedTowers.clear()
   pendingControlTowerTab = null
+  resetInboxSentStore()
   notify()
 }

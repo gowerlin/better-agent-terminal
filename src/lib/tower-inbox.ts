@@ -80,6 +80,12 @@ export function formatCtTime(value: string): string {
   return isCtDateOnly(value) ? date : `${date} ${pad(d.getHours())}:${pad(d.getMinutes())}`
 }
 
+/** T0942: the local `HH:MM` an answer went out at (the「已送出」mark). */
+export function formatSentClock(at: number): string {
+  const d = new Date(at)
+  return `${pad(d.getHours())}:${pad(d.getMinutes())}`
+}
+
 // ─── Sources ────────────────────────────────────────────────────────────────
 
 /** `awaiting_user[].source` full names CT 6.1.0 writes (PLAN-068〈契約細節補充〉). */

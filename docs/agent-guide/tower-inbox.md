@@ -452,7 +452,7 @@ host：`setReading(id, reporter, reading)`，`reporter` = `conn:<connectionId>` 
 - 用途：`options` 非空時原本只能單選，選項都不合適時使用者只能借「放棄…」備註欄填字（CT 會把那段文字當新方向）。現在每題選項清單最後多一項「其他（自由回答）」，送出的仍是 CT 6.1.0 起就接受的 `U-n：<自由文字>`（D393，PLAN-070 子項 1）。
 - 🔴 只在 `options` 可用時出現：`options: []` / 沒有 `options` 的題目維持原本的自由回答欄，`optionsInvalid` 也一樣（不重複加「其他」）；與 `inbox_features` 有沒有 `dismiss` 無關。
 - 🔴 「其他」在 `role="radiogroup"`（`[data-inbox-option-list]`）內的最後一個 `<label>`，`data-inbox-option-other="<id>"`、🔴 不帶 `data-inbox-option`（它不是 CT 的代號）。永遠不是預設選取、不標推薦；有 `recommended` 時預設仍選推薦項（T0922）。
-- 選了 → 清單下方、按鈕列之前出現一行輸入框（`.inbox-free-input`、`maxLength` 900、`[data-inbox-other-input]`）；Enter 或「送出」送出（IME 組字中的 Enter 不送），trim 後是空白不可送。改選其他選項時輸入框收起，文字留在元件狀態；送出成功後整筆回到預設。
+- 選了 → 清單下方、按鈕列之前出現一行輸入框（`.inbox-free-input`、`maxLength` 900、`[data-inbox-other-input]`）；Enter 或「送出」送出（IME 組字中的 Enter 不送），trim 後是空白不可送。改選其他選項時輸入框收起，文字留在元件狀態；送出成功後不重設（T0942 起，見〈已送出（T0942）〉；T0942 前回到預設）。
 - 🔴 送出路徑不變：同一個 `submit` → `awaitingAnswerText` → `sendInboxAnswer` → `tower-inbox:answer`；不新增 IPC、不改 `checkInboxAnswer` / `enqueueAnswer`（單編號行本來就接受任意文字）。
 - 文字的第一個詞是「放棄」/「略過」（CT 的規則，判斷沿用 `isDismissAnswer`：後面接行尾、空白或 `，,。；;`；「放棄了…」不算）→ 輸入框下方一行提示「以「放棄」或「略過」開頭的回答，塔台會當成放棄。」（`[data-inbox-other-hint]`），🔴 只提示、不擋送出（CT 規格的已知取捨）。
 - 多選見下一小節〈多選（T0938）〉。
@@ -473,12 +473,26 @@ PLAN-070 子項 4（D394；CT D906，CT 6.3.0，先 6.3.0-pre.1）。契約以 T
 
 - 判定唯一實作 `awaitingIsMulti(raw, options, features)`（`src/lib/tower-inbox.ts`），由 `parseTowerInboxLists` 呼叫：成立時 `AwaitingItem.multi = true`，推薦放 `AwaitingItem.recommendedCodes`（`matchRecommendedCodes`，依 `options` 順序），🔴 多選題不設 `recommended`、單選題不設 `recommendedCodes`；不成立時該筆與 T0938 前逐欄相同。回答文字 `multiAnswerText(id, codes, options)`（同檔，對不到的代號丟掉，都對不到回 null）。🔴 元件不內聯這些規則；`InboxPanel.tsx` 不必改（旗標在解析時就併進該筆）。
 - 畫面（`AwaitingRow`，`src/components/inbox/InboxLists.tsx`）：選項清單改成 `role="group"`（`[data-inbox-option-list]` 另帶 `data-inbox-multi`）、每項 `type="checkbox"`（仍是 `data-inbox-option="<代號>"`）；清單上方一行「可複選」（`inbox.answer.multiHint`，`[data-inbox-multi-hint]`，三語系）；每個推薦項都標「推薦」、預設勾選（使用者動過就以使用者的勾選為準）。沒勾任何一項時「送出」停用。
-- 「其他（自由回答）」照 T0937 留在清單最後（同一個 `[data-inbox-option-other]` / `[data-inbox-other-input]` / 放棄提示，改成 checkbox）。🔴 與勾選互斥：選「其他」清掉所有勾選並開輸入框；勾任何選項取消「其他」並收起輸入框（文字留在元件狀態）；再取消「其他」不會恢復推薦的預設勾選。BAT 不送混合回答。送出成功後整筆回到預設（推薦項勾選）。
+- 「其他（自由回答）」照 T0937 留在清單最後（同一個 `[data-inbox-option-other]` / `[data-inbox-other-input]` / 放棄提示，改成 checkbox）。🔴 與勾選互斥：選「其他」清掉所有勾選並開輸入框；勾任何選項取消「其他」並收起輸入框（文字留在元件狀態）；再取消「其他」不會恢復推薦的預設勾選。BAT 不送混合回答。送出成功後保留送出時的勾選 /「其他」文字（T0942 起，見〈已送出（T0942）〉；T0942 前回到推薦預設）。
 - 🔴 不變：送出一律經既有 `sendLine` / `submit` → `tower-inbox:answer`（`checkInboxAnswer` 單編號行接受任意文字，不改）；放棄 / 略過 / 批次、`⏸N`、🙋 / ⏰ / 💬 / 📋、參考檔案連結；不新增 IPC / channel；日誌不記選項與回答內容。多選題照樣可「放棄…」（`U-n：放棄`），批次仍只用在放棄／略過（`U-1、U-3：A` 不支援）。
 - 相容：CT 6.2.x 沒有 `multi` 旗標 → 畫面維持單選（即使某筆寫了 `multi: true`）；舊 BAT 不認得 `multi`（未知旗標、未知鍵）→ 照單選畫，送出單一代號 CT 照樣接受。
 - 已知限制：多選題的推薦有一個代號對不到時整題沒有推薦（不顯示部分推薦，同 CT 寫入規則）。
 - 測試：`src/lib/__tests__/tower-inbox-multi-t0938.test.ts`（旗標、`awaitingIsMulti` 各種值、推薦清單、`multiAnswerText`、從 `_tower-state.md` 解析）；`src/components/__tests__/inbox-multi-t0938.test.tsx`（複選框與「可複選」、預設勾推薦項、`U-3：A、C` / `U-4：A`、順序、全部取消不可送、「其他」互斥、放棄仍在、沒有旗標 / `multi: "true"` / 1 個選項時單選、自由回答欄的放棄提示、三語系）；既有 `tower-inbox-plan069.test.ts` 的 `INBOX_FEATURES` 快照多一個 `multi`（塔台 T0938 Q-1 核可）。
 - 待實機：CT 6.3.0-pre.1 之後雙方實機驗收（真塔台寫 `multi: true` 題目、從待辦分頁送 `U-n：A、C`、CT 確認行），見 T0938 回報區〈待實機〉。
+
+### 已送出（T0942）
+
+PLAN-070，D412（使用者 2026-11-27：送出後被重設成未選取，看不出送過，容易重複送；但也可能選錯要重選）。🔴 只提醒、不阻擋。
+
+- 送出成功（`sent`，或 `held` 排進塔台分頁的「📨 待送」）→ 該筆顯示「✓ 已送出：<送出的整行>（HH:MM）」（`held` 寫「✓ 已排入待送：…」），元素 `.inbox-sent-marker` / `[data-inbox-sent=<id>]` / `[data-inbox-sent-status=sent|held]`，比狀態行醒目；三語系鍵 `inbox.answer.sentMarker` / `heldMarker`（`{{text}}` / `{{time}}`，`formatSentClock` 取本機 `HH:MM`）。這個元素同時帶 `data-inbox-answer-status`（取代原本「已送出到塔台。」那一行）；送出中 / 失敗時原本的狀態行照舊在上面，先前的已送出標記留在下面、不帶 `data-inbox-answer-status`。
+- 🔴 不重設：⏸ 的選項、多選的勾選、「其他」與其文字、自由回答欄維持送出時的內容；送出鈕仍可按，文字改「重新送出」（`inbox.answer.resend`；🙋「失敗…」表單的送出鈕同樣），改選後再送就是送新的一行，不攔、不跳確認。推薦預設（單選 `recommended`、多選 `recommendedCodes`）只在該筆**從未送出**時套用；送出時先把畫面上的預設固定成實際選擇。單筆「放棄…」/「略過…」與「失敗…」的備註表單照 T0922 / T0908 送出後收起（它們不是選擇），標記寫送出的那一行。
+- 批次放棄 / 略過與「全部」：工具列顯示同樣的已送出標記（`[data-inbox-sent="__batch__:awaiting|action"]`），那一行的每一筆也各自標已送出（批次勾選照 T0922 送出後清掉）。
+- 失敗（`failed` / `no-target` / 面板的 `draft` / `not-mounted`）照現行顯示，不標已送出、不記錄。
+- 保存：唯一實作 `src/stores/inbox-sent-store.ts`（`recordInboxSent` / `useInboxSentMap` / `pruneInboxSent` / `batchSentKey`），key = 工作區資料夾（`_tower-state.md` 所在）＋項目 id；⏸ 的紀錄另存送出時的選擇（`InboxAwaitingSelection`），元件重新掛載（切分頁、切工作區再切回）時從它開始。🔴 只在記憶體：不持久化、不寫任何 CT 檔、不記日誌（日誌照舊只記 id / 長度）。`setInboxFiles` 讀到清單時以 `pruneInboxSent` 忘掉所有 id 都已不在清單的紀錄（塔台處理完；批次紀錄要它的 id 全部不在才忘）；讀不到清單（`lists` 為 null）不動。`resetInboxStore` 一併清空（測試）。
+- 🔴 不變：送出路徑（`useAnswerSender` → `sendInboxAnswer` → `tower-inbox:answer`）、`checkInboxAnswer` / `enqueueAnswer`、回答格式；BAT 不自己把項目移出清單；不新增 IPC。
+- 已知限制：紀錄跟著 renderer（每個視窗一份，detached / 重開 BAT 後沒有）；時間是 renderer 的本機時鐘，只顯示時分。
+- 測試：`src/components/__tests__/inbox-sent-t0942.test.tsx`（單選保留與「重新送出」、改選重送新行、`held`、重新掛載、項目移除後清掉、失敗不標、`no-target`、多選 / 其他 / 自由回答保留並跨重新掛載、🙋 完成 / 失敗、單筆放棄 / 略過、批次工具列與每筆、三語系）；`src/stores/__tests__/inbox-sent-store.test.ts`（per folder、prune、批次 key、`formatSentClock`）。既有 `inbox-plan069` / `inbox-multi-t0938` / `inbox-other-t0937` 的 5 處「送出後重設」斷言依塔台 T0942 Q-1 答覆 A 改成斷言保留（送出內容的斷言不動）。
+- 待實機：見 T0942 回報區〈待實機〉。
 
 ### 回答路徑
 
