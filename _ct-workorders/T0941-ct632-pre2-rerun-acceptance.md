@@ -4,13 +4,14 @@ schema_kind: workorder
 id: T0941
 title: "PLAN-070 補跑驗收：BAT `v0.8.0-pre.8` × CT 6.3.0-pre.2，跑 CT `checklist-rerun-630.md`（S5，1 個塔台 session）"
 type: verification
-status: TODO
+status: IN_PROGRESS
 repo: better-agent-terminal
 project: PLAN-070
 priority: P1
 sizing: S
 created_at: "2026-11-27T14:30:52+08:00"
-updated_at: "2026-11-27T14:30:52+08:00"
+updated_at: "2026-11-27T14:31:46+08:00"
+started_at: "2026-11-27T14:31:46+08:00"
 session_ids: []
 target_version: "0.8.0-pre.8（已發佈）＋ CT 6.3.0"
 depends_on: [T0939]
