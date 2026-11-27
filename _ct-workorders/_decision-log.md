@@ -10,6 +10,7 @@
 
 | ID | 日期 | 標題 | 相關工單 |
 |----|------|------|---------|
+| D407 | 2026-11-27 | T0940 Q-1 塔台答 B（案 B 讀 PTY 輸出認調查列＋案 A 提示期間單鍵不改草稿，多字元 / 貼上仍記草稿；核准 3 檔）；CT 6.3.0-pre.2（CT D914）→ 開並派 T0941 補跑（S5） | T0940 / T0941 / PLAN-070 |
 | D406 | 2026-11-27 | CT 判定回來（CT D913：BAT 0 項要改，CT M-5-1 FAIL 由 CT 6.3.0-pre.2 修＋補跑）→ 依使用者「判定回來再一起修」開並派 T0940（BUG-227 → FIXING） | T0940 / BUG-227 / PLAN-070 |
 | D405 | 2026-11-27 | 使用者「開 BUG」→ 開 BUG-227（OPEN，low）：數字鍵關 claude 意見調查列後被判成有草稿，待辦分頁回答排進「📨 待送」（T0939 發現；取代 D403 的「列候選」） | BUG-227 / T0939 |
 | D404 | 2026-11-27 | U-27：A → T0939 經 `ct-merge/T0939` ff 進 `main`；CT 判定單 T0575 已派（CT D912），PLAN-070 結案等 CT 判定 | T0939 / PLAN-070 |
@@ -524,6 +525,15 @@
   4. PLAN-001 保持延後（🟢 Low，等 plugin 1.0 穩定）
 - **Success criteria**（EXP→CONCLUDED）：npm install 無錯 / 所有 native modules rebuild 成功 / dev+build:dir 可跑 / 手動 smoke test 8 項通過
 - **最大風險**：`whisper-node-addon@1.0.2` 對 Electron 41（Node 24）的 NODE_MODULE_VERSION 相容性未知，允許 Worker 遇此決策點主動問塔台
+
+---
+
+### D407 2026-11-27 14:30 — T0940 Q-1 答覆；開並派 T0941（CT 6.3.0-pre.2 補跑）
+
+- **T0940 Q-1**（Worker 查證：claude 2.1.331 調查列讓按鍵先進主輸入框、400 ms 後清空，只看按鍵分不出；權限 / 提問對話框期間的按鍵同樣誤記，Enter 作答還會清掉既有草稿）：塔台答 B——案 B（唯讀 PTY 輸出認調查類單鍵介面圖例，四條件成立才不記草稿）＋案 A（`NOTIFY_HOLD_REASONS` 提示期間單一按鍵不改草稿），另加保守限制：提示期間貼上或多字元輸入照舊記草稿。核准 `electron/main.ts`、`electron/remote/headless-entry.ts`、`electron/handlers/pty.ts` 加進範圍。案 C 不做。
+- **CT 6.3.0-pre.2**（CT D914，T0576 收單）：確認行同回覆逐筆、開選單前輸出、多代號依 options 順序；資料格式與契約不變。補跑清單 `checklist-rerun-630.md`（SHA-256 `d8c79dd1…`、`ct-swap-630.py` `9da20489…`，塔台已核對）。
+- **T0941**：worktree、只寫工單檔（不動 `e2e/manual/`，避開 T0940）；BAT pre.8（T0939 已解壓）；`install-632` 後不換回；1 個塔台 session。
+- **相關**：T0940 / T0941 / PLAN-070 / BUG-227
 
 ---
 
