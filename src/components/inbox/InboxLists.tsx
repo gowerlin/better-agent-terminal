@@ -28,6 +28,11 @@
  * on a line of their own; the 放棄 note opens below that line. `.inbox-options` / `.inbox-free` stay
  * the outer answer block (e2e t0913 selects the send button through them).
  *
+ * T0937: an awaiting item with options ends its radio group with「其他（自由回答）」(never the default,
+ * never 推薦; `options: []` / invalid options keep the plain answer box). Picking it opens a one-line box
+ * below the list; 送出 sends `U-n：<文字>` through the same path. Text starting with the word 放棄 / 略過
+ * shows a hint (CT reads it as giving up) but still sends. The 放棄 note is a reason only.
+ *
  * T0930: the `workorder` / `ref` tags and the summary / title text show their existing file references
  * as links that open in the「檔案」tab (`InboxRefTag` / `InboxRefText`, existence check
  * `useInboxFileRefs` per list, recognition src/lib/inbox-file-refs.ts). Without `folder`: plain text.
@@ -41,6 +46,7 @@ import {
   awaitingSourceLabelKey,
   dismissAnswerText,
   formatCtTime,
+  isDismissAnswer,
   userActionKindLabelKey,
   type AwaitingItem,
   type DueReminder,
@@ -300,8 +306,11 @@ function AwaitingRow({ item, onAnswer, status, chooser, dismiss, checked, onChec
 }) {
   const { t } = useTranslation()
   const [choice, setChoice] = useState<string | null>(null)
+  // T0937:「其他（自由回答）」picked (never the default, never marked 推薦)
+  const [other, setOther] = useState(false)
+  const [otherText, setOtherText] = useState('')
   // PLAN-069: the recommended option is selected until the user picks one
-  const selected = choice ?? item.recommended ?? null
+  const selected = other ? null : (choice ?? item.recommended ?? null)
   const [free, setFree] = useState('')
   const sourceKey = awaitingSourceLabelKey(item.source)
   const busy = status?.status === 'sending'
@@ -311,7 +320,15 @@ function AwaitingRow({ item, onAnswer, status, chooser, dismiss, checked, onChec
     if (await onAnswer(awaitingAnswerText(item.id, answer))) {
       setChoice(null)
       setFree('')
+      setOther(false)
+      setOtherText('')
     }
+  }
+  const pick = (code: string) => { setOther(false); setChoice(code) }
+  const canSend = other ? !!otherText.trim() : !!selected
+  const sendChoice = () => {
+    if (other) void submit(otherText)
+    else if (selected) void submit(selected)
   }
   // T0929: 送出 and 放棄… share one line of their own, after the options / the answer box
   const buttons = (sendButton: ReactNode) => (
@@ -340,7 +357,7 @@ function AwaitingRow({ item, onAnswer, status, chooser, dismiss, checked, onChec
                   type="radio"
                   name={`inbox-${item.id}`}
                   checked={selected === option.code}
-                  onChange={() => setChoice(option.code)}
+                  onChange={() => pick(option.code)}
                 />
                 <span className="inbox-option-code">{option.code}</span> <span className="inbox-option-label">{option.label}</span>
                 {item.recommended === option.code && (
@@ -348,9 +365,39 @@ function AwaitingRow({ item, onAnswer, status, chooser, dismiss, checked, onChec
                 )}
               </label>
             ))}
+            {/* T0937: the last option is a free answer (`U-n：<文字>`); no `data-inbox-option` (not a CT code) */}
+            <label className="inbox-option inbox-option-other" data-inbox-option-other={item.id}>
+              <input
+                type="radio"
+                name={`inbox-${item.id}`}
+                checked={other}
+                onChange={() => setOther(true)}
+              />
+              <span className="inbox-option-label">{t('inbox.answer.other')}</span>
+            </label>
           </div>
+          {other && (
+            <>
+              <input
+                className="inbox-free-input"
+                type="text"
+                maxLength={900}
+                value={otherText}
+                placeholder={t('inbox.answer.freePlaceholder')}
+                aria-label={t('inbox.answer.other')}
+                data-inbox-other-input={item.id}
+                autoFocus
+                onChange={e => setOtherText(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter' && !e.nativeEvent.isComposing) void submit(otherText) }}
+              />
+              {/* CT reads an answer starting with the word 放棄 / 略過 as giving up (its rule, `isDismissAnswer`); a hint, never a block */}
+              {isDismissAnswer(otherText) && (
+                <div className="inbox-muted inbox-other-hint" data-inbox-other-hint={item.id}>{t('inbox.answer.otherDismissHint')}</div>
+              )}
+            </>
+          )}
           {buttons(
-            <button className="inbox-btn primary" disabled={!selected || busy} onClick={() => { if (selected) void submit(selected) }}>
+            <button className="inbox-btn primary" disabled={!canSend || busy} onClick={sendChoice}>
               {t('inbox.answer.send')}
             </button>,
           )}

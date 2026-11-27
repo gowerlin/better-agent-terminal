@@ -124,7 +124,9 @@ describe('⏸ 待你決定 with options', () => {
       const list = entry.querySelector('[data-inbox-option-list="U-3"]')!
       expect(list.getAttribute('role')).toBe('radiogroup')
       const options = Array.from(list.children)
-      expect(options.map(o => o.getAttribute('data-inbox-option'))).toEqual(['A', 'B', 'C'])
+      // T0937 (Q-1 A, Tower-approved): the list ends with「其他」, which carries no `data-inbox-option`
+      expect(options.filter(o => o.hasAttribute('data-inbox-option')).map(o => o.getAttribute('data-inbox-option'))).toEqual(['A', 'B', 'C'])
+      expect(options[options.length - 1].getAttribute('data-inbox-option-other')).toBe('U-3')
       for (const option of options) expect(option.tagName).toBe('LABEL')
       expect(list.querySelector('button')).toBeNull()
       // the 推薦 mark stays inside its option, and the recommended option is still selected

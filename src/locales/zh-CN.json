@@ -1848,7 +1848,9 @@
       "chooseTarget": "发送到哪个塔台？",
       "panelTarget": "{{title}}（Claude 面板）",
       "optionsInvalid": "选项格式不是「代号 说明」，请自由回答。",
-      "freePlaceholder": "回答（一行）"
+      "freePlaceholder": "回答（一行）",
+      "other": "其他（自由回答）",
+      "otherDismissHint": "以「放棄」或「略過」开头的回答，塔台会当成放弃。"
     },
     "action": {
       "copy": "复制命令",
@@ -1870,7 +1872,7 @@
     "dismiss": {
       "dismiss": "放弃…",
       "skip": "跳过…",
-      "dismissNote": "原因或新方向（一行，选填）",
+      "dismissNote": "原因（一行，选填）",
       "skipNote": "原因（一行，选填）",
       "sendDismiss": "发送放弃",
       "sendSkip": "发送跳过",
