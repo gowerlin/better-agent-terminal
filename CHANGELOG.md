@@ -4,6 +4,14 @@ All notable changes to Better Agent Terminal are documented in this file.
 
 ## [Unreleased]
 
+## [0.8.0-pre.9] — 2026-11-27
+
+### Changed
+- 待辦分頁回答送出後的「已送出」提示（T0942）：送出成功（`sent` / `held`）後該筆顯示「✓ 已送出 / 已排入待送：<整行>（HH:MM）」，不重設選擇（選項、勾選、「其他」文字、自由回答），送出鈕改「重新送出」；紀錄在 renderer store `src/stores/inbox-sent-store.ts`（工作區資料夾＋項目 id，只在記憶體），清單讀到時 prune；失敗不標。送出路徑與回答格式不變
+
+### Fixed
+- 契約 2 塔台在 claude 單鍵介面按鍵後被判成有草稿（BUG-227，T0940）：唯讀掃描塔台 PTY 輸出辨識 claude 2.1.331 的單鍵介面圖例（意見調查列、逐字稿分享、bypass 原因調查），出現 ≥ 1 s 後單一有效鍵不記草稿（`SingleKeyPromptScanner` / `answersSingleKeyPrompt`，`src/lib/tower-input-draft.ts`）；hook / osc 提示期間的單一按鍵不改草稿狀態（`trackDraftDuringPrompt`），貼上 / 多字元照 `trackDraft`；接線 `NotifyHoldController.onPtyOutput`（`electron/main.ts`、`electron/remote/headless-entry.ts`）與 `pty:write` 的 `duringPrompt`（`electron/handlers/pty.ts`）
+
 ## [0.8.0-pre.8] — 2026-11-27
 
 ### Added
