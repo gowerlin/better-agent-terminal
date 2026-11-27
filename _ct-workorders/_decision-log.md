@@ -10,6 +10,7 @@
 
 | ID | 日期 | 標題 | 相關工單 |
 |----|------|------|---------|
+| D441 | 2026-11-27 | T0952 收單（`23d124dc`，驗收全綠、無範圍外檔案）；斷點 E 發 U-41 | T0952 / T0949 / BUG-230 |
 | D440 | 2026-11-27 | T0950 收單（DONE，`cbc3175c`，⏻ 後離開殘留 alt screen）；整合 worktree 由 T0952 使用中，合併排在 T0952 ff 之後 | T0950 / T0952 |
 | D439 | 2026-11-27 | T0949 收單（DONE，`073dbaa1`，接回同一 PTY 時以存檔 pid 還原塔台宣告）；判準 1 不成立 → 派合併工單 T0952 | T0949 / T0952 / BUG-230 |
 | D438 | 2026-11-27 | T0947 兩項後續建議開單並派工：T0950（⏻ 離開殘留 alt screen）、BUG-231 / T0951（⏻ 期間打的字移到啟動命令之後） | T0950 / T0951 / BUG-231 |
@@ -558,6 +559,15 @@
   4. PLAN-001 保持延後（🟢 Low，等 plugin 1.0 穩定）
 - **Success criteria**（EXP→CONCLUDED）：npm install 無錯 / 所有 native modules rebuild 成功 / dev+build:dir 可跑 / 手動 smoke test 8 項通過
 - **最大風險**：`whisper-node-addon@1.0.2` 對 Electron 41（Node 24）的 NODE_MODULE_VERSION 相容性未知，允許 Worker 遇此決策點主動問塔台
+
+---
+
+### D441 2026-11-27 21:24 — T0952 收單、斷點 E（U-41）
+
+- **回報**：T0952 DONE。`ct-merge/T0952` merge commit `23d124dc`（parent1 `5e2e58b6` = base、parent2 `073dbaa1` = `ct/T0949`），`CLAUDE.md` 自動合併無衝突、T0946 / T0947 / T0949 三處都在；樹比對正好 T0949 的 6 檔、範圍外無。驗收在 merge commit：typecheck 0 / 0、vite build 0、`test:unit` 9350 passed / 41 skipped（519 files）。
+- **SHA 比對**：第 1–3 步成立；第 5 步：`main` 自 base 起只多 `_ct-workorders/**`。
+- **收單**：`--close-worker T0952 --delay-ms 10000` exit 0。非 yolo → 斷點 E，發 U-41。
+- **相關**：T0952 / T0949 / BUG-230
 
 ---
 
