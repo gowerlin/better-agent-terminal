@@ -111,7 +111,7 @@ describe('WorkspaceView wiring (source guard)', () => {
     expect(source.match(/holdInputUntilLaunch: true/g)?.length).toBe(6)
   })
 
-  it('the login terminal (typed, not submitted) and plain shell tabs do not ask for the hold', () => {
+  it('WorkspaceView does not inline the hold flag for the login terminal (claude-login-guide decides it) and plain shell tabs do not ask for the hold', () => {
     const login = source.slice(source.indexOf('handleOpenLoginTerminal = '), source.indexOf('CLAUDE_OPEN_LOGIN_TERMINAL_EVENT, handleOpenLoginTerminal)'))
     expect(login).not.toContain('holdInputUntilLaunch')
     const plain = source.slice(source.indexOf("if (!agentPreset || agentPreset === 'none') {"), source.indexOf('// Auto-run agent command for non-Claude'))
