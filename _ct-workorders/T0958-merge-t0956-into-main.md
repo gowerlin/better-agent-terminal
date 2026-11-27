@@ -4,12 +4,16 @@ schema_kind: workorder
 id: T0958
 title: "合併 `ct/T0956`（登入導引分頁與遠端工具安裝的命令前輸入保留，BUG-232）→ `main`"
 type: chore
-status: PENDING
+status: DONE
 repo: better-agent-terminal
 priority: P3
 sizing: S
 created_at: "2026-11-27T22:50:25+08:00"
-updated_at: "2026-11-27T22:50:25+08:00"
+updated_at: "2026-11-27T22:54:02+08:00"
+started_at: "2026-11-27T22:51:22+08:00"
+completed_at: "2026-11-27T22:54:02+08:00"
+session_ids:
+  - "1bd38a0d-6301-464f-9ddf-0cb080df2604"
 target_version: "下一個預覽版（`0.8.1-pre.2`，發版前與使用者確認）"
 kind: merge
 merges:
@@ -59,4 +63,65 @@ T0956（BUG-232）改 8 檔（`src/lib/claude-login-guide.ts`、`src/components/
 
 ## 回報區
 
-（Worker 填寫）
+### 完成狀態
+
+- **狀態**：DONE（模式 ① `mechanical`，無衝突）
+- **開工**：2026-11-27T22:51:22+08:00；**完成**：2026-11-27T22:54:02+08:00
+- **session_id**：1bd38a0d-6301-464f-9ddf-0cb080df2604
+
+### 落點檢查
+
+- 結果：PASS
+- C-0：`repo` = `better-agent-terminal`，`basename(REPO_ROOT)` = `better-agent-terminal` → PASS
+- C-1：工單在主 checkout `_ct-workorders/` 下 → PASS
+- C-3：`affects_files` 只有 `_ct-workorders/**` → not applicable
+- C-2：工單無 `branch` 欄位；主 checkout 在 `main`
+- `CT_HOME` 未設定（非隔離派工）；`BAT_WORKSPACE_ID` = `cc0afc4a-57e9-4f41-b2ed-a2d8bac9e36b`；`CT_MODE` = `yolo`、`CT_INTERACTIVE` = `0`
+
+### 開工前檢查（任務指令 1）
+
+- 整合 worktree `<主 checkout 上層>/.ct-integration/better-agent-terminal`：`status --porcelain` 為空，原本 detached 在 `0f818244`
+- `ct/T0956` = `137e7b6e677c5ff2c995b499350ee87a9554930c` ✅
+- `main` = `e32dc771`；`git diff --name-only aef9678b main` 只有 `_ct-workorders/T0958-merge-t0956-into-main.md`、`_ct-workorders/_decision-log.md`、`_ct-workorders/_tower-state.md` ✅（只在 `_ct-workorders/**` 前進）
+- `ct-merge/T0958` 事先不存在 ✅
+
+### 合併結果
+
+- 分支：`ct-merge/T0958`（從 `base_main_sha` `aef9678bda71facd04e6da6d55352b6cbc3fd8cb` 開出）
+- merge commit：`011899a13f76be201394c55ff50f650a1edad8db`
+  - parent1：`aef9678bda71facd04e6da6d55352b6cbc3fd8cb`（= `base_main_sha`）
+  - parent2：`137e7b6e677c5ff2c995b499350ee87a9554930c`（= `ct/T0956`）
+- `git merge --no-ff`（ort）：`Auto-merging CLAUDE.md`，無衝突，8 檔 433+ / 15-
+- 驗收全部跑在 `011899a1`（= merge commit）
+
+### 驗收
+
+| 項目 | 結果 |
+|---|---|
+| 樹比對 `git diff --name-only aef9678b 011899a1` vs `git diff --name-only 39557f4a ct/T0956` | 完全相同（`diff` 無輸出），8 檔：`CLAUDE.md`、`docs/agent-guide/launch-command-input-hold.md`、`electron/__tests__/launch-hold-login-install.test.ts`、`src/components/WorkspaceView.tsx`、`src/hooks/useRemoteToolInstall.ts`、`src/lib/__tests__/launch-hold-login-install-wiring.test.tsx`、`src/lib/claude-login-guide.ts`、`src/lib/remote-tools/install-runner.ts`。範圍外檔案：無 |
+| `CLAUDE.md` 兩處 | T0957：「終端分頁右鍵選單與滑鼠追蹤」節（第 135 行）含 `showLeftoverHiddenCursor` ✅；T0956：「BAT MCP shim」節（第 381 行起）派工 shell 那一點含「T0956 / BUG-232 起含登入導引分頁（不送 Enter）與遠端工具安裝」✅ |
+| `npm ci` | exit 0（749 packages；`electron-winstaller` install script 被擋屬預期） |
+| `npm run typecheck` | exit 0（0 錯誤） |
+| `npm run typecheck:electron` | exit 0（0 錯誤） |
+| `npx vite build` | exit 0 |
+| `npm run test:unit`（第一次完整執行） | exit 0：Test Files 522 passed / 3 skipped（525）；Tests 9432 passed / 41 skipped（9473）；67.97 s |
+| e2e | 不跑（依工單） |
+
+- 驗收後整合 worktree `status --porcelain` 為空，停在 `ct-merge/T0958`（留給塔台 `--ff-only`）
+
+### 未做的事（依工單護欄）
+
+- 未 ff `main`、未 push、未建 tag、未觸發 workflow、未刪分支；未用 stash / reset / rebase / restore
+- 主 checkout 只寫本工單檔
+
+### 互動紀錄
+
+- 無（yolo，沒有向塔台提問）
+
+### 遭遇問題
+
+- 無
+
+### 後續建議
+
+- 塔台做收單 SHA 比對五步：parent1 = `base_main_sha`；ff 前 `main` 已前進到 `e32dc771`（只有 `_ct-workorders/**`），依第 5 步需在整合分支再 `merge --no-ff main` 一次後 ff（產品樹相同，不重跑驗收）
