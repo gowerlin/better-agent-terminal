@@ -4,12 +4,13 @@ schema_kind: workorder
 id: T0955
 title: "`v0.8.1-pre.1` 交付版自動化驗收：以隔離實例跑 A-19～A-23（BUG-228 / 229 / 230 / 231、T0950）"
 type: verification
-status: PENDING
+status: IN_PROGRESS
 repo: better-agent-terminal
 priority: P2
 sizing: M
 created_at: "2026-11-27T22:09:36+08:00"
-updated_at: "2026-11-27T22:09:36+08:00"
+started_at: "2026-11-27T22:10:43+08:00"
+updated_at: "2026-11-27T22:10:43+08:00"
 target_version: "v0.8.1-pre.1（交付版驗收）"
 depends_on: []
 related:
