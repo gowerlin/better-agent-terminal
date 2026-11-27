@@ -4,12 +4,13 @@ schema_kind: workorder
 id: T0960
 title: "`launch-command.test.ts` 一個測試名稱「登入分頁不要求保留」與 BUG-232 修正後的行為不符 → 只改名，斷言不動"
 type: chore
-status: PENDING
+status: IN_PROGRESS
 repo: better-agent-terminal
 priority: P4
 sizing: XS
 created_at: "2026-11-27T23:46:23+08:00"
-updated_at: "2026-11-27T23:46:23+08:00"
+started_at: "2026-11-27T23:46:59+08:00"
+updated_at: "2026-11-27T23:46:59+08:00"
 target_version: "下一個預覽版（`0.8.1-pre.3`）"
 depends_on: []
 related:
