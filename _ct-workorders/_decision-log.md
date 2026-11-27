@@ -10,6 +10,7 @@
 
 | ID | 日期 | 標題 | 相關工單 |
 |----|------|------|---------|
+| D424 | 2026-11-27 | U-35：A → T0945 ff 進 main（`d294bae1`）、push、推 `v0.8.0` tag（`release.yml` 第一次在本 fork 執行） | T0945 / T0944 |
 | D423 | 2026-11-27 | 下一版定為 `0.8.0` 正式版；`release.yml` 從未在本 fork 跑過、mac 簽章步驟缺 secret 必失敗 → 先 T0945 對齊再推 tag | T0945 / T0944 |
 | D422 | 2026-11-27 | U-34：A → T0944 以 `ct-merge/T0944` ff 進 main（`a9144c1a`）；塔台分頁自動帶入 `/control-tower`，待下一版實機驗收 | T0944 |
 | D421 | 2026-11-27 | 「以塔台開啟 Claude」啟動時自動帶入 `/control-tower`：新開 / ⏻ 重啟 / 還原帶，resume 不帶，不加 Settings 開關（改寫 T0644 的「不輸入指令」）→ T0944 | T0944 / T0644 / T0766 |
@@ -541,6 +542,15 @@
   4. PLAN-001 保持延後（🟢 Low，等 plugin 1.0 穩定）
 - **Success criteria**（EXP→CONCLUDED）：npm install 無錯 / 所有 native modules rebuild 成功 / dev+build:dir 可跑 / 手動 smoke test 8 項通過
 - **最大風險**：`whisper-node-addon@1.0.2` 對 Electron 41（Node 24）的 NODE_MODULE_VERSION 相容性未知，允許 Worker 遇此決策點主動問塔台
+
+---
+
+### D424 2026-11-27 19:33 — T0945 合併、發 `v0.8.0`（U-35）
+
+- **使用者回答**：`U-35：A`（合併並發版）。
+- **處置**：整合 worktree `ct-merge/T0945`（`d294bae1`，無衝突）→ `main` `--ff-only`；整合 worktree 回 detached。去識別化 9 組樣式＋金鑰樣式掃 `origin/main..main` 異動檔：新增內容 0 命中（只命中決策日誌早已公開的舊敘述）。push `main`，於 `main` 頂端打 `v0.8.0` tag 並 push，觸發 `release.yml`。
+- **驗證依據**：T0945 在 `ceb486cc`（actionlint 0、unit 9268 passed）；T0944 在 `81afe164`（unit 9260、typecheck 0、vite build）。發版時要看的 step 見 T0945 回報區。
+- **相關**：T0945 / T0944 / D423
 
 ---
 
