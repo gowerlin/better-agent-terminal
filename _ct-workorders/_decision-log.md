@@ -10,6 +10,7 @@
 
 | ID | 日期 | 標題 | 相關工單 |
 |----|------|------|---------|
+| D466 | 2026-11-27 | T0960 收單（1 行測試改名）；模式 ① 合併到 `ct-merge/T0960` `f2608c48`；斷點 E 發 U-53 | T0960 |
 | D465 | 2026-11-27 | U-52：A → A-24 改以 Linux CI 自動化：開並派 T0961（授權 push `ct/T0961`、觸發 linux-acceptance 對 pre.1 / pre.2） | T0961 / BUG-233 |
 | D464 | 2026-11-27 | 開並派 T0960：`launch-command.test.ts` 過時的測試名稱改名（斷言不動） | T0960 / T0956 |
 | D463 | 2026-11-27 | U-50：A → BUG-232 CLOSED、BUG-233 維持 FIXED 發 A-24；U-51：A → T0959 驅動合併 `b9793204` | T0959 / BUG-232 / BUG-233 |
@@ -583,6 +584,15 @@
   4. PLAN-001 保持延後（🟢 Low，等 plugin 1.0 穩定）
 - **Success criteria**（EXP→CONCLUDED）：npm install 無錯 / 所有 native modules rebuild 成功 / dev+build:dir 可跑 / 手動 smoke test 8 項通過
 - **最大風險**：`whisper-node-addon@1.0.2` 對 Electron 41（Node 24）的 NODE_MODULE_VERSION 相容性未知，允許 Worker 遇此決策點主動問塔台
+
+---
+
+### D466 2026-11-27 23:49 — T0960 收單、模式 ① 合併、斷點 E（U-53）
+
+- **回報**：T0960 DONE，`ct/T0960` `ff8cd791`（= validated_sha），base `043a50ad`。`launch-command.test.ts` 只改 1 行 `it` 名稱 →「WorkspaceView does not inline the hold flag for the login terminal (claude-login-guide decides it) and plain shell tabs do not ask for the hold」；斷言、regex、其他測試未改。該檔 12 / 12、`test:unit` 9426 passed / 47 skipped（525 files）、typecheck 0。
+- **收單**：`--close-worker T0960 --delay-ms 10000 --worktree keep` exit 0。
+- **合併**：五條判準成立 → `ct-merge/T0960` `--no-ff` → `f2608c48`（parent1 `acb4f4cf` = 當下 `main`、parent2 `ff8cd791`），產品樹與 validated head 相同。非 yolo → 斷點 E，發 U-53。
+- **相關**：T0960 / T0956 / D464
 
 ---
 
