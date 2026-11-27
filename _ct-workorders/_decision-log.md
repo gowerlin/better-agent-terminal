@@ -10,6 +10,7 @@
 
 | ID | 日期 | 標題 | 相關工單 |
 |----|------|------|---------|
+| D459 | 2026-11-27 | T0958 收單（`011899a1`，驗收全綠）；斷點 E 發 U-48；發版發 U-49 | T0958 / T0956 / BUG-232 |
 | D458 | 2026-11-27 | T0956 收單（DONE，`137e7b6e`）；判準 1 不成立 → 派合併工單 T0958 | T0956 / T0958 / BUG-232 |
 | D457 | 2026-11-27 | U-47：A → T0957 ff 進 `main` `0f818244`；BUG-233 FIXED；分支刪除 | T0957 / BUG-233 |
 | D456 | 2026-11-27 | T0957 收單（DONE，`165057fc`，⏻ 後還原隱藏的游標）；模式 ① 合併到 `ct-merge/T0957` `36d5e658`；斷點 E 發 U-47 | T0957 / BUG-233 |
@@ -576,6 +577,15 @@
   4. PLAN-001 保持延後（🟢 Low，等 plugin 1.0 穩定）
 - **Success criteria**（EXP→CONCLUDED）：npm install 無錯 / 所有 native modules rebuild 成功 / dev+build:dir 可跑 / 手動 smoke test 8 項通過
 - **最大風險**：`whisper-node-addon@1.0.2` 對 Electron 41（Node 24）的 NODE_MODULE_VERSION 相容性未知，允許 Worker 遇此決策點主動問塔台
+
+---
+
+### D459 2026-11-27 22:54 — T0958 收單、斷點 E（U-48）、發版（U-49）
+
+- **回報**：T0958 DONE。`ct-merge/T0958` merge commit `011899a1`（parent1 `aef9678b` = base、parent2 `137e7b6e` = `ct/T0956`），`CLAUDE.md` 自動合併、T0956 / T0957 兩處都在；樹比對 8 檔與 T0956 相同、範圍外無。驗收在 merge commit：typecheck 0 / 0、vite build 0、`test:unit` 9432 passed / 41 skipped（525 files）。
+- **SHA 比對**：第 1–3 步成立；第 5 步：`main` 自 base 起只多 `_ct-workorders/**`。
+- **收單**：`--close-worker T0958 --delay-ms 10000` exit 0。非 yolo → 斷點 E，發 U-48；BUG-232 / 233 都合併後 → 發 U-49（push 並發 `0.8.1-pre.2`，以 T0955 驅動驗收）。NSIS 重裝驗收：本批未改安裝程式路徑，不需要。
+- **相關**：T0958 / T0956 / BUG-232 / BUG-233
 
 ---
 
