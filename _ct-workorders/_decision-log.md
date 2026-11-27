@@ -10,6 +10,7 @@
 
 | ID | 日期 | 標題 | 相關工單 |
 |----|------|------|---------|
+| D469 | 2026-11-28 | T0962 收單（`69f4e1cc`，驗收全綠）；斷點 E 發 U-54 | T0962 / T0961 |
 | D468 | 2026-11-28 | T0961 收單（Linux CI：pre.1 重現、pre.2 PASS）→ BUG-233 CLOSED；判準 1 不成立 → 派合併工單 T0962 | T0961 / T0962 / BUG-233 |
 | D467 | 2026-11-27 | U-53：A → T0960 ff 進 `main` `178862f1`；worktree 與分支清掉 | T0960 |
 | D466 | 2026-11-27 | T0960 收單（1 行測試改名）；模式 ① 合併到 `ct-merge/T0960` `f2608c48`；斷點 E 發 U-53 | T0960 |
@@ -586,6 +587,15 @@
   4. PLAN-001 保持延後（🟢 Low，等 plugin 1.0 穩定）
 - **Success criteria**（EXP→CONCLUDED）：npm install 無錯 / 所有 native modules rebuild 成功 / dev+build:dir 可跑 / 手動 smoke test 8 項通過
 - **最大風險**：`whisper-node-addon@1.0.2` 對 Electron 41（Node 24）的 NODE_MODULE_VERSION 相容性未知，允許 Worker 遇此決策點主動問塔台
+
+---
+
+### D469 2026-11-28 00:12 — T0962 收單、斷點 E（U-54）
+
+- **回報**：T0962 DONE。`ct-merge/T0962` merge commit `69f4e1cc`（parent1 `c411a668` = base、parent2 `e05999d3` = `ct/T0961`），無衝突；樹比對只有 `e2e/linux/t0961-restart-hidden-cursor.spec.ts`、範圍外無。驗收在 merge commit：typecheck 0、vite build 0、`test:unit` 9432 passed / 41 skipped（525 files，Linux spec 未被 vitest 收到）、新 spec tsc exit 0。
+- **SHA 比對**：第 1–3 步成立；第 5 步：`main` 自 base 起只多 `_ct-workorders/**`。
+- **收單**：`--close-worker T0962 --delay-ms 10000` exit 0。非 yolo → 斷點 E，發 U-54。
+- **相關**：T0962 / T0961 / BUG-233
 
 ---
 
