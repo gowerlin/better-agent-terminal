@@ -4,13 +4,14 @@ schema_kind: workorder
 id: T0942
 title: "待辦分頁：送出回答後明確顯示「已送出」（內容與時間）並保留送出時的選擇，可改選後重新送出"
 type: feature
-status: TODO
+status: IN_PROGRESS
 repo: better-agent-terminal
 project: PLAN-070
 priority: P2
 sizing: S
 created_at: "2026-11-27T15:07:17+08:00"
-updated_at: "2026-11-27T15:07:17+08:00"
+started_at: "2026-11-27T15:08:14+08:00"
+updated_at: "2026-11-27T15:08:14+08:00"
 session_ids: []
 target_version: "0.8.0-pre.9"
 depends_on: []
