@@ -4,12 +4,13 @@ schema_kind: workorder
 id: T0949
 title: "BUG-230：BAT 重開、同一個 PTY 接回後，還原塔台分頁的 `--set-role` 宣告（角色、模式、契約 v2）"
 type: bugfix
-status: PENDING
+status: IN_PROGRESS
 repo: better-agent-terminal
 priority: P2
 sizing: M
 created_at: "2026-11-27T21:05:49+08:00"
-updated_at: "2026-11-27T21:05:49+08:00"
+started_at: "2026-11-27T21:07:06+08:00"
+updated_at: "2026-11-27T21:07:06+08:00"
 target_version: "下一個預覽版（`0.8.1-pre.N`，發版前與使用者確認），與 T0946 / T0947 同一版"
 depends_on: []
 related:
