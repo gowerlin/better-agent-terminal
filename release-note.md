@@ -2,6 +2,53 @@
 
 本 fork 各版的更版重點（內容取自 GitHub Releases，最新在上）。上游 tony1223/better-agent-terminal 的 v2.1.x 紀錄保留在檔案最下方。
 
+## v0.8.0（2026-11-27）
+
+版號 0.8.0，接續 `v0.8.0-pre.9`。這是 `0.8.0` 預覽版線（`pre.1`–`pre.9`）的正式版。
+
+本版重點：右側欄新的「待辦」分頁把塔台要你決定、要你執行的事集中在一處，可直接點選回答；Windows 的 Terminal Server 記憶體大幅下降；「以塔台開啟 Claude」開的分頁會自動進入塔台。
+
+### 本版新增（`pre.9` 之後）
+
+- **以塔台開啟 Claude 自動進入塔台**：「+」選單的「以塔台開啟 Claude」開的分頁，claude 啟動時直接帶 `/control-tower`，不必再自己輸入。新開分頁、⏻ 重啟、BAT 重開後重新啟動都會帶；接續被中斷的 session（resume）、自訂參數已有 `--continue` / `--resume` 時不帶；一般 Claude CLI 分頁不變。沒有安裝 Control Tower 時 claude 會顯示找不到這個指令，改用一般 Claude CLI 即可。
+
+### 0.8.0 版本線重點（`pre.1`–`pre.9`）
+
+#### 新增
+
+- **右側欄「待辦」分頁**（PLAN-068，GitHub #24）：依序列出 ⏸ 待你決定、🙋 待你執行、⏰ 到期提醒、👷 Worker 等你、💬 塔台訊息、📋 塔台待辦與數量；按鈕直接回答塔台（送出的內容與手打相同），塔台縮圖與工作區列表顯示 `⏸N`。需要 Control Tower 6.1.0 以上。
+- **回答方式**：推薦選項標記與預設選取、放棄 / 略過（可附原因，批次處理）、「其他（自由回答）」、多選（需要 Control Tower 6.3.0）；送出後顯示「✓ 已送出」並保留你的選擇，可改選後重新送出。
+- **可點的參考檔案**：待辦分頁與塔台訊息卡片中的工單 / BUG / PLAN 編號、路徑與檔名，存在就能點開到「檔案」頁籤；🙋 待你執行的指令本身是檔案時顯示「開啟」。
+- **塔台回合訊息卡**：每回合最後一則塔台訊息一張卡片，可釘選、標已讀；縮圖 `💬N`。
+- **BAT ↔ Control Tower 契約 v2**：版本不相符時縮圖顯示需要升級哪一邊；BAT hooks 狀態可查，選用的 Claude Code plugin `bat-hooks` 可在手打 `claude` 時補上 hooks。
+- **Claude Fable 5.2** 模型。
+
+#### 修正
+
+- Worker 的通知不再混進你在塔台輸入框打到一半的字（GitHub #23），改排進「📨 待送」；你往上捲動或選取時通知延後送出，畫面不再跳動。
+- 塔台分頁在 claude 意見調查列、權限對話框按鍵後，待辦分頁的回答不再卡在「📨 待送」（BUG-227）。
+- AskUserQuestion 選單極快按 Esc 後塔台分頁卡在等待狀態（BUG-224）；排隊的多個權限詢問回答第一個就失去保護（BUG-222）。
+- 剪貼簿有大圖時終端 Ctrl+V 讓 BAT 卡住 1–3 秒（BUG-216）。
+- Terminal Server 每關一個分頁殘留一個 handle（BUG-214）。
+
+#### 更新
+
+- **Windows Terminal Server 記憶體**：所有分頁共用一個輸出 Worker，10 個分頁約 159 MB → 35–42 MB；大量輸出的完成時間減半（PLAN-066、BUG-215）。
+- 內嵌 claude CLI 2.1.331、Claude Agent SDK 0.3.331、codex 0.172.0。
+
+### 已知事項
+
+- 「以塔台開啟 Claude」自動帶入 `/control-tower` 是本版新增，尚未在預覽版實機驗收，有問題請回報。
+- 自訂參數最後是會接多個值的參數（例 `--allowedTools a b`）時，`/control-tower` 會被當成那個參數的值；Worker 派工的 `/ct-exec` 一樣。
+- 從 `0.7.x` 升級後接回的舊 Terminal Server 沿用舊行為，BAT 完全關閉重開後才改用共用 Worker；反覆開關分頁後 Terminal Server 會多保留約 10–15 MB 後持平。
+- `Usage is paused for your organization`（組織每日上限暫停）不顯示限額提示。
+- 待辦分頁需要 Control Tower 6.1.0 以上；多選、放棄附文字只當原因需要 6.3.0。
+- macOS 版沒有 Apple 公證，與預覽版相同。
+
+macOS 仍只提供 Apple Silicon（arm64）版。
+
+**Full Changelog**: https://github.com/gowerlin/better-agent-terminal/compare/v0.8.0-pre.9...v0.8.0
+
 ## v0.8.0-pre.9（2026-11-27）
 
 版號 0.8.0-pre.9，接續 `v0.8.0-pre.8`。

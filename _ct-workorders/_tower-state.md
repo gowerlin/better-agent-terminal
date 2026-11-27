@@ -4,19 +4,19 @@ summary_version: 1
 bat_contract: 2
 ct_version: "6.3.0"
 inbox_features: ["recommended", "dismiss", "multi"]
-updated_at: "2026-11-27T19:33:04+0800"
+updated_at: "2026-11-27T19:57:53+0800"
 session: "2026-11-27 11:10 第一百三十七 session（CT v6.3.0，16:18 起）"
 next_ids:
   workorder: "T0946"
-  decision: "D425"
+  decision: "D426"
   bug: "BUG-228"
   plan: "PLAN-071"
   user: "U-36"
   action: "A-15"
 todo:
-  - "🔄 `v0.8.0` 正式版發佈中（D423 / D424）：T0945 已合併（`d294bae1`），tag `v0.8.0` 已推、`release.yml` 第一次在本 fork 執行；CI 綠 → 更版重點 → 三文件 → Pages。T0944 待實機"
+  - "✅ `v0.8.0` 正式版已發佈（D425，Release run `45991410993`，2026-11-27 19:56，Latest）：更版重點與三文件已更新。🔴 T0944（塔台分頁自動帶入 `/control-tower`）待實機；下一版版號線：`0.8.1-pre.N`（發前確認）"
   - "✅ T0944 DONE 並合併進 main（D421 / D422，`a9144c1a`）：「以塔台開啟 Claude」啟動時自動帶入 `/control-tower`（新開 / ⏻ / 還原帶，resume 不帶，無開關）；worktree 隔離派工"
-  - "✅ `v0.8.0-pre.9` 已發佈並驗收（D418 / D420，A-12）：T0942 已送出提示、BUG-227 CLOSED；熱區未結 BUG 0。🔴 `0.8.0-pre.N` 已用到 pre.9（最後一號），下一個預覽版要換版號線，先與使用者確認（例 `0.8.0` 正式版或 `0.8.1-pre.1`）"
+  - "✅ `v0.8.0-pre.9` 已發佈並驗收（D418 / D420，A-12）：T0942 已送出提示、BUG-227 CLOSED；熱區未結 BUG 0"
   - "✅ PLAN-070 DONE（D417）：CT 6.3.0 正式版已發布（CT D923，`ct-v6.3.0`，2026-11-27 16:00）；BAT README 對照表已寫 `>= v6.3.0`，與 Portal 一致"
   - "✅ `v0.8.0-pre.8` 已驗收（A-8，D401）：BUG-226 CLOSED、T0937「其他」通過"
   - "`v0.8.0-pre.5` 已驗收（D378）：T0929 / T0930 / BUG-225 CLOSED"

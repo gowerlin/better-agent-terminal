@@ -10,6 +10,7 @@
 
 | ID | 日期 | 標題 | 相關工單 |
 |----|------|------|---------|
+| D425 | 2026-11-27 | `v0.8.0` 正式版發佈（`release.yml` 首次在本 fork 執行，全綠、Latest）；更版重點、CHANGELOG / release-note / README、package.json 0.8.0 | T0944 / T0945 |
 | D424 | 2026-11-27 | U-35：A → T0945 ff 進 main（`d294bae1`）、push、推 `v0.8.0` tag（`release.yml` 第一次在本 fork 執行） | T0945 / T0944 |
 | D423 | 2026-11-27 | 下一版定為 `0.8.0` 正式版；`release.yml` 從未在本 fork 跑過、mac 簽章步驟缺 secret 必失敗 → 先 T0945 對齊再推 tag | T0945 / T0944 |
 | D422 | 2026-11-27 | U-34：A → T0944 以 `ct-merge/T0944` ff 進 main（`a9144c1a`）；塔台分頁自動帶入 `/control-tower`，待下一版實機驗收 | T0944 |
@@ -542,6 +543,17 @@
   4. PLAN-001 保持延後（🟢 Low，等 plugin 1.0 穩定）
 - **Success criteria**（EXP→CONCLUDED）：npm install 無錯 / 所有 native modules rebuild 成功 / dev+build:dir 可跑 / 手動 smoke test 8 項通過
 - **最大風險**：`whisper-node-addon@1.0.2` 對 Electron 41（Node 24）的 NODE_MODULE_VERSION 相容性未知，允許 Worker 遇此決策點主動問塔台
+
+---
+
+### D425 2026-11-27 19:57 — `v0.8.0` 正式版已發佈
+
+- **CI**：Release run `45991410993` 全綠（typecheck、tests、server-bundle ×3、三平台 build、release；choco skipped）。T0945 要看的 step：mac 的 `Import Code Signing Certificate` / `Verify Apple notarization credentials` / `Package for macOS (signed, notarized)` skipped、`Package for macOS` success；Windows cleanup、verify-native-modules 執行成功；`Update Homebrew tap` skipped。
+- **Release**：`v0.8.0` 非 prerelease、GitHub Latest（2026-11-27T11:56:04Z），4 個安裝檔（大小與 pre.9 相當）；`server-bundle-v0.8.0`（prerelease，7 個檔）。
+- **更版重點**：`gh release edit --notes-file`（本版新增 T0944＋0.8.0 線重點＋已知事項）；CHANGELOG `[0.8.0]`、release-note、README（session 名稱列與版本對照表新增一列）、`npm version 0.8.0`。
+- **NSIS 重裝驗收**：本版不需要（`pre.9` 之後未改安裝程式路徑），直接以 .exe 安裝。
+- **待實機**：T0944〈待實機〉7 項。下一個預覽版走 `0.8.1-pre.N`（發前確認）。
+- **相關**：T0944 / T0945 / D424
 
 ---
 

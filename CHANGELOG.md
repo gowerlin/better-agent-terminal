@@ -4,6 +4,16 @@ All notable changes to Better Agent Terminal are documented in this file.
 
 ## [Unreleased]
 
+## [0.8.0] — 2026-11-27
+
+`0.8.0` 預覽版線（`0.8.0-pre.1`–`pre.9`）的正式版；各項變更見下方各預覽版段落。
+
+### Added
+- 「以塔台開啟 Claude」的分頁啟動 claude 時以啟動參數帶 `/control-tower`（位置與引號同 helper 派工）：新開、⏻ 重啟、BAT 重開後重新啟動都帶；resume、自訂參數含 resume 類旗標、非塔台分頁不帶；判斷唯一實作 `towerLaunchPrompt`（`src/lib/tower-launch-prompt.ts`），選單提示文字同步（T0944，D421）
+
+### Changed
+- 正式版 workflow `release.yml` 對齊 `pre-release.yml`：沒有 Apple 簽章 secret 時略過憑證匯入、notarization 驗證，macOS 以與預覽版相同的方式打包；補 Windows cleanup 與 `verify-native-modules.js`；新增 `scripts/__tests__/release-workflow-alignment.test.mjs` 守住兩個 workflow 的一致（T0945，D423）
+
 ## [0.8.0-pre.9] — 2026-11-27
 
 ### Changed
