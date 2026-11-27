@@ -2,10 +2,10 @@
 schema_kind: tower-state
 summary_version: 1
 bat_contract: 2
-ct_version: "6.2.0"
+ct_version: "6.3.0"
 inbox_features: ["recommended", "dismiss", "multi"]
-updated_at: "2026-11-27T16:17:08+0800"
-session: "2026-11-27 11:10 第一百三十七 session（CT v6.2.0）"
+updated_at: "2026-11-27T16:18:24+0800"
+session: "2026-11-27 11:10 第一百三十七 session（CT v6.3.0，16:18 起）"
 next_ids:
   workorder: "T0944"
   decision: "D420"
@@ -55,7 +55,7 @@ user_actions:
     kind: "manual"
     created_at: "2026-11-27T16:17:08+08:00"
 todo:
-  - "🧪 驗測範例（D419，A-12 驗完才移除，不是真正待辦）：U-31 / U-32 / U-33、A-13 / A-14；🔴 這段期間塔台收到這些編號的回答只記錄、不移除項目（要讓使用者看已送出標記與重新送出）；`inbox_features` 暫加 `multi` 供 U-32，驗完移除"
+  - "🧪 驗測範例（D419，A-12 驗完才移除，不是真正待辦）：U-31 / U-32 / U-33、A-13 / A-14；🔴 這段期間塔台收到這些編號的回答只記錄、不移除項目（要讓使用者看已送出標記與重新送出）；`inbox_features` 的 `multi` 自 16:18 塔台換 CT 6.3.0 起為正式值，不再移除"
   - "🚀 `v0.8.0-pre.9` 已發佈（Pre-Release `45960516845`，`91309713`，D418）：T0940（BUG-227）/ T0942；待驗收 A-12。🔴 `0.8.0-pre.N` 已用到 pre.9（最後一號），下一個預覽版要換版號線，先與使用者確認（例 `0.8.0` 正式版或 `0.8.1-pre.1`）"
   - "✅ PLAN-070 DONE（D417）：CT 6.3.0 正式版已發布（CT D923，`ct-v6.3.0`，2026-11-27 16:00）；BAT README 對照表已寫 `>= v6.3.0`，與 Portal 一致"
   - "✅ `v0.8.0-pre.8` 已驗收（A-8，D401）：BUG-226 CLOSED、T0937「其他」通過"
@@ -79,6 +79,8 @@ reminders:
     due_at: "2026-12-02"
 ---
 # Tower State — better-agent-terminal
+
+> 🔄 **第一百三十七 session 塔台換版**（2026-11-27 16:18 (UTC+8)，CT v6.2.0 → **v6.3.0**，同一 session `5d626d99-96ab-4455-997a-012d3f9e423b`；`--set-role tower --bat-contract 2 --mode on` exit 0，`bat-contract: 2`、`hooks: ok (injected, set 2)`；BAT helper `0.8.0-pre.9`）。`ct_version` 改 6.3.0，`inbox_features` 正式含 `multi`。
 
 > 🟢 **第一百三十七 session 開工**（2026-11-27 11:10 (UTC+8)，CT v6.2.0，Fast Path；塔台 session `5d626d99-96ab-4455-997a-012d3f9e423b`；`--set-role tower --bat-contract 2 --mode on` exit 0，`bat-contract: 2`、`hooks: ok (injected, set 2)`；BAT helper `0.8.0-pre.7`；`main` = `origin/main` @ `54c7bebc`；熱區 T 331 全 DONE、BUG 89（CLOSED 88 / WONTFIX 1））。
 
