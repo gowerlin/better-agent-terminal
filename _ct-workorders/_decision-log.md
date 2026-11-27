@@ -10,6 +10,7 @@
 
 | ID | 日期 | 標題 | 相關工單 |
 |----|------|------|---------|
+| D430 | 2026-11-27 | U-37：A → BUG-229 FIXING；開並派 T0947（⏻ 重啟後殘留的滑鼠追蹤不再打進新 shell；只寫本機 xterm，worktree 隔離，與 T0946 並行、T0946 先合） | BUG-229 / T0947 / T0946 |
 | D429 | 2026-11-27 | A-16 失敗：⏻ 重啟後滑鼠回報黏在 claude 啟動命令前面、claude 沒啟動 → 開 BUG-229（medium，OPEN）、發 U-37（何時派修正） | BUG-229 / T0944 / T0946 |
 | D428 | 2026-11-27 | U-36：A → 開 BUG-228（medium，FIXING）；開並派 T0946（Git Bash 讓 `/control-tower` 原樣送到 claude，查證 helper 派工的 `/ct-exec`；不改 PTY env，worktree 隔離） | BUG-228 / T0946 / T0944 |
 | D427 | 2026-11-27 | A-17：完成（一般 Claude CLI 不帶指令）；A-15：完成，但塔台收到的第一則訊息是 `C:/Program Files/Git/control-tower`（Git Bash 改寫 `/control-tower`）→ 依 v6.1.1 規則移除 A-15、發 U-36 | T0944 |
@@ -547,6 +548,17 @@
   4. PLAN-001 保持延後（🟢 Low，等 plugin 1.0 穩定）
 - **Success criteria**（EXP→CONCLUDED）：npm install 無錯 / 所有 native modules rebuild 成功 / dev+build:dir 可跑 / 手動 smoke test 8 項通過
 - **最大風險**：`whisper-node-addon@1.0.2` 對 Electron 41（Node 24）的 NODE_MODULE_VERSION 相容性未知，允許 Worker 遇此決策點主動問塔台
+
+---
+
+### D430 2026-11-27 20:49 — U-37：A → BUG-229 FIXING、T0947
+
+- **使用者**：`U-37：A`（現在派，worktree 隔離，與 T0946 並行，T0946 先合）。U-37 移除。
+- **BUG-229**：OPEN → FIXING。
+- **T0947**：worktree、yolo。先查證三點（xterm 滑鼠模式在 ⏻ 後殘留、回報進入啟動命令前的輸入列、T0672 `MouseReportEchoDetector` 沒觸發）再改；🔴 不寫 PTY 關追蹤（只寫本機 xterm，同 T0672）、程式執行中的滑鼠回報逐位元不變、不改 T0944 / T0946 負責的命令組裝；共用實作在 `src/lib/mouse-tracking-reset.ts`。
+- **affects_files 重疊**：與 T0946 同列 `src/components/WorkspaceView.tsx`、`CLAUDE.md`、`electron/__tests__/`（目錄）；以 worktree 隔離、合併時 T0946 先合處理，工單已要求盡量不動 `startClaudeCliPty` 的命令組裝。
+- **後續**：T0946 / T0947 都合併、發版後，發新的 A-n 重驗 A-15 / A-16。
+- **相關**：BUG-229 / T0947 / T0946 / D429
 
 ---
 
