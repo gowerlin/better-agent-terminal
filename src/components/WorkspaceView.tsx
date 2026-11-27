@@ -829,10 +829,7 @@ export function WorkspaceView({ workspace, terminals, focusedTerminalId, isActiv
     try {
       const extraArgs = workspaceStore.getEffectiveAgentArgs(workspace.id, 'codex-cli')
       const launchCmd = await window.electronAPI.agent.buildLaunchCommand('codex-cli', undefined, extraArgs)
-      if (!launchCmd) {
-        releaseLaunchHold(terminalId) // T0951: no command after all — the held input as it is
-        return { ok: false, code: 'BUILD_FAILED' }
-      }
+      if (!launchCmd) { releaseLaunchHold(terminalId); return { ok: false, code: 'BUILD_FAILED' } } // T0951: no command — the held input as it is
       const launchWithBatArgs = await withBatMcpLaunchArgs(launchCmd, 'codex-cli', shell, extraArgs, terminalId) // T0584 / T0590 / T0651
       resumed = codexResumeCommand(launchWithBatArgs, extraArgs)
     } catch (err) {
