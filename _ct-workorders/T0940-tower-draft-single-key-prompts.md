@@ -178,6 +178,11 @@ claude 的調查列由服務端隨機觸發，隔離實例無法穩定叫出，�
 - 案 B 依賴 claude 的圖例字串：claude 升版時與 `src/lib/usage-limit.ts` 一起核對（docs 已註明）。
 - 殘留誤判（調查列先點再按、1 s 內按鍵）屬保守方向；若實機常見，可另評估以輸出確認輸入列重繪來放寬。
 
+### 塔台收單補記（2026-11-27 14:35）
+
+- 核對：`ct/T0940` head = validated `f00fb06e`；`--worktree-status` outOfScope []（三檔已依 Q-1 補進 `affects_files`）/ conflicts [] / dirty [] → 模式 ① 合併到 `ct-merge/T0940` `43272eb9`（D408）。BUG-227 → FIXED，待 `0.8.0-pre.9` 實機（〈待實機〉5 步；調查列由服務端隨機觸發，日常使用時驗）。
+- 備註：主 checkout `node_modules` 內嵌 claude 2.1.316 落後 lock（2.1.331）——主 checkout 本機測試 / build 前照環境快照所記先 `npm ci`。
+
 ### 互動紀錄
 
 - [14:16] 開工：落點檢查 PASS（C-0 `repo` = `better-agent-terminal` = `basename "$CT_HOME"`），`CT_MODE=yolo`、`CT_INTERACTIVE=0`。

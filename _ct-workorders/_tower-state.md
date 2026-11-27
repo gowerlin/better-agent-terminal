@@ -4,19 +4,28 @@ summary_version: 1
 bat_contract: 2
 ct_version: "6.2.0"
 inbox_features: ["recommended", "dismiss"]
-updated_at: "2026-11-27T14:30:52+0800"
+updated_at: "2026-11-27T14:35:07+0800"
 session: "2026-11-27 11:10 第一百三十七 session（CT v6.2.0）"
 next_ids:
   workorder: "T0942"
-  decision: "D408"
+  decision: "D409"
   bug: "BUG-228"
   plan: "PLAN-071"
-  user: "U-28"
+  user: "U-29"
   action: "A-12"
+awaiting_user:
+  - id: "U-28"
+    workorder: "T0940"
+    kind: "decision"
+    source: "breakpoint-E"
+    summary: "T0940（BUG-227：單鍵介面的作答鍵不算草稿）已合併到 ct-merge/T0940 43272eb9，要 ff 進 main 嗎"
+    options: ["A ff 進 main（推薦）", "B 暫不合併"]
+    recommended: "A"
+    created_at: "2026-11-27T14:35:07+08:00"
 todo:
   - "✅ `v0.8.0-pre.8` 已驗收（A-8，D401）：BUG-226 CLOSED、T0937「其他」通過；熱區未結 BUG 0。PLAN-070 剩：多選勾選送出（`U-n：A、C`）與推薦預設勾選，待與 CT 6.3.0-pre.1 雙方實機驗收（CT 範例狀態檔見 T0938 收單補記）；預覽版號只剩 pre.9"
   - "🔧 T0941 派工中（D407）：CT 6.3.0-pre.2 補跑（S5，BAT pre.8，1 個塔台 session），結果 `ct620-accept/results-rerun-630/`；收單後通知 CT 判定 → 全 PASS 則 CT 發 6.3.0 正式版（要給 CT 支援多選的 BAT 版號：`0.8.0-pre.8`），PLAN-070 可結案"
-  - "🔧 T0940 派工中（BUG-227 FIXING，D406；Q-1 答 B，D407）：單鍵介面（意見調查列等）的作答鍵不算草稿；目標 `0.8.0-pre.9`（此版號線最後一號）"
+  - "🔀 T0940 DONE（`f00fb06e`，BUG-227 FIXED，D408）：已合併 `ct-merge/T0940` `43272eb9`，待 U-28 ff 進 `main`；之後發 `0.8.0-pre.9`（此版號線最後一號）"
   - "🚀 `v0.8.0-pre.7` 已發佈並驗收（D387 / D389）：T0935 只寫檔名的參考檔案連結、T0934 💬 卡片連結（A-6 完成）；下一版 `0.8.0-pre.8`"
   - "`v0.8.0-pre.5` 已驗收（D378）：T0929 / T0930 / BUG-225 CLOSED"
   - "候選（未開單，T0930 建議）：`useInboxFileRefs` 跟 `_ct-workorders/` 的 `fs:changed` 重查（💬 卡片連結已由 T0934 完成）"
