@@ -10,6 +10,8 @@
 
 | ID | 日期 | 標題 | 相關工單 |
 |----|------|------|---------|
+| D456 | 2026-11-27 | T0957 收單（DONE，`165057fc`，⏻ 後還原隱藏的游標）；模式 ① 合併到 `ct-merge/T0957` `36d5e658`；斷點 E 發 U-47 | T0957 / BUG-233 |
+| D455 | 2026-11-27 | T0956 Q-1：A（端到端測試移到 `electron/__tests__/`） | T0956 / BUG-232 |
 | D454 | 2026-11-27 | 刪除更早的已合併分支 `ct/T0940`–`T0945`、`ct-merge/T0940` / `T0942` / `T0944` / `T0945`（6 個 worktree 先移除） | — |
 | D453 | 2026-11-27 | 兩項後續建議開單並派工：BUG-232 / T0956（登入導引與遠端工具安裝的命令前輸入）、BUG-233 / T0957（⏻ 後還原隱藏的游標） | T0956 / T0957 / BUG-232 / BUG-233 |
 | D452 | 2026-11-27 | U-45：A → T0955 驅動直接合併 `dd0898c3`；U-46：A → 本批 12 個已合併分支 `-d` 刪除 | T0955 |
@@ -572,6 +574,23 @@
   4. PLAN-001 保持延後（🟢 Low，等 plugin 1.0 穩定）
 - **Success criteria**（EXP→CONCLUDED）：npm install 無錯 / 所有 native modules rebuild 成功 / dev+build:dir 可跑 / 手動 smoke test 8 項通過
 - **最大風險**：`whisper-node-addon@1.0.2` 對 Electron 41（Node 24）的 NODE_MODULE_VERSION 相容性未知，允許 Worker 遇此決策點主動問塔台
+
+---
+
+### D456 2026-11-27 22:47 — T0957 收單、模式 ① 合併、斷點 E（U-47）
+
+- **回報**：T0957 DONE，`ct/T0957` `165057fc`（= validated_sha），base `39557f4a`。推測成立：真 xterm 5.5.0 重現；WSL Ubuntu-24.04 實測 `bash -i` / `-l -i` × 兩種 TERM 都不送 `?25h`。做法：`showLeftoverHiddenCursor`（`src/lib/mouse-tracking-reset.ts`，讀內部 `_core.coreService.isCursorHidden`，讀不到不動並記一行）接在 `pty-replay.ts` 兩處 `leaveLeftoverAltScreen` 之後，只寫本機 xterm `?25h`；與 T0950 分開（兩種殘留獨立）。`test:unit` 9414 passed / 47 skipped（523 files）、typecheck 0、vite build 0。
+- **收單**：`--close-worker T0957 --delay-ms 10000 --worktree keep` exit 0。
+- **合併**：五條判準成立（`main` 自 base 只多 `_ct-workorders/**`、validated = head、7 檔都在 `affects_files`、`merge-tree` 無衝突、皆乾淨）→ 整合 worktree `ct-merge/T0957` `--no-ff` → `36d5e658`（parent1 `3195925f` = 當下 `main`、parent2 `165057fc`），產品樹與 validated head 相同。非 yolo → 斷點 E，發 U-47。
+- **相關**：T0957 / BUG-233 / T0950
+
+---
+
+### D455 2026-11-27 22:47 — T0956 Q-1：A（端到端測試放 `electron/__tests__/`）
+
+- **提問**（結構化通道，`q-5b432d62…`，blocking）：T0956 兩條路徑已改好（`ct/T0956` `0bfbb6bb`），用真 `PtyManager`＋handlers 的端到端測試放在 `src/lib/__tests__/` 會讓 `npm run typecheck` 報 TS6305（`src` 不得 import `electron/**`）；`electron/__tests__/` 不在 `affects_files`。
+- **塔台答**：A —— 移到 `electron/__tests__/launch-hold-login-install.test.ts`（內容不變，`typecheck:electron` 涵蓋，與 T0951 同類測試同位置），視為 `affects_files` 的延伸、只新增測試檔，回報區寫明；最終 head 跑兩個 typecheck = 0、`test:unit` 全綠。`--answer --choice 1` exit 0。
+- **相關**：T0956 / BUG-232 / T0951
 
 ---
 
