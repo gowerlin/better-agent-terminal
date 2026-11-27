@@ -4,12 +4,13 @@ schema_kind: workorder
 id: T0952
 title: "合併 `ct/T0949`（同一 PTY 接回時還原塔台宣告，BUG-230）→ `main`"
 type: chore
-status: PENDING
+status: IN_PROGRESS
 repo: better-agent-terminal
 priority: P2
 sizing: S
 created_at: "2026-11-27T21:20:30+08:00"
-updated_at: "2026-11-27T21:20:30+08:00"
+updated_at: "2026-11-27T21:21:32+08:00"
+started_at: "2026-11-27T21:21:32+08:00"
 target_version: "下一個預覽版（`0.8.1-pre.N`，發版前與使用者確認）"
 kind: merge
 merges:
