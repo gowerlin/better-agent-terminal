@@ -4,12 +4,16 @@ schema_kind: workorder
 id: T0945
 title: "正式版 workflow `release.yml` 對齊 `pre-release.yml`：沒有 Apple 簽章 secret 時略過簽章步驟、補 Windows cleanup 與 native module 檢查（發 `v0.8.0` 前）"
 type: fix
-status: PENDING
+status: DONE
 repo: better-agent-terminal
 priority: P1
 sizing: S
 created_at: "2026-11-27T19:26:03+08:00"
-updated_at: "2026-11-27T19:26:03+08:00"
+updated_at: "2026-11-27T19:30:54+08:00"
+started_at: "2026-11-27T19:26:59+08:00"
+completed_at: "2026-11-27T19:30:54+08:00"
+session_ids:
+  - "bbc695e2-ef02-48d6-aa54-1a0778065840"
 target_version: "0.8.0"
 depends_on: []
 related:
@@ -66,4 +70,81 @@ interaction:
 
 ## 回報區
 
-（Worker 填寫）
+### 完成狀態
+
+- **狀態**：DONE
+- **完成時間**：2026-11-27T19:30:54+08:00
+- **session_id**：bbc695e2-ef02-48d6-aa54-1a0778065840
+- **branch**：`ct/T0945`
+- **base_sha**：`33aec436603e70ed04c9caebecf67ef8a1a345a9`
+- **validated_sha**：`ceb486cc47281f89356be8b5b96552f3d331c374`
+- **head_sha**：`ceb486cc47281f89356be8b5b96552f3d331c374`（= validated_sha）
+- **產品 commit**：`ceb486cc` `ci: align release.yml with pre-release.yml, Apple signing only with secret (T0945)`
+
+### 落點檢查
+
+- 結果：PASS
+- C-0：工單 `repo` = `better-agent-terminal`，`basename "$CT_HOME"` = `better-agent-terminal` → PASS
+- C-1：工單位於 `$CT_HOME/_ct-workorders/` → PASS
+- C-3：`.github/workflows/release.yml`、`docs/agent-guide/*.md`、`scripts/__tests__/` 皆存在 → PASS
+- C-2：工單無 `branch` 欄位；目前分支 `ct/T0945`
+- `CT_HOME` 已設定（主 checkout）、`CT_WORKTREE_BRANCH` = `ct/T0945`、`BAT_WORKSPACE_ID` = `cc0afc4a-57e9-4f41-b2ed-a2d8bac9e36b`（僅記錄）；`BAT_REMOTE_TOKEN` 已設定
+
+### 改了什麼
+
+| 檔案 | 變更 |
+|---|---|
+| `.github/workflows/release.yml` | build job 加 `env.HAS_APPLE_CERT: ${{ secrets.APPLE_CERTIFICATE_P12 != '' }}`（只有 `true` / `false`）；`Import Code Signing Certificate`、`Verify Apple notarization credentials` 加 `&& env.HAS_APPLE_CERT == 'true'`；原 `Package for macOS` 改名 `Package for macOS (signed, notarized)`（同條件、APPLE_* env 不變），另加與 pre-release 相同的 `Package for macOS`（`env.HAS_APPLE_CERT != 'true'`、不帶 env）；補 `Windows cleanup (avoid EPERM locks)`（`npm ci` 前）與 `Verify required native modules present`（`build:native-win` 後、`build-version.js` 前），內容與 pre-release 逐字相同；step 名稱對齊；移除 `release` job 內未被引用的 `Extract version from tag` |
+| `scripts/__tests__/release-workflow-alignment.test.mjs`（新） | source guard，8 個 test：兩個 workflow 都能解析、觸發方式；typecheck / tests / server-bundle / server-bundle-manifest job 完全相同；build job needs / matrix / runner 相同；**去掉只在有 secret 時執行的 step 後 build steps 與 pre-release 逐 step 深度相等**（唯一例外 `Update version and build` 的 `VERSION` 來源，兩者斷言各自的值）；cleanup / verify-native-modules 位置；mac 簽章 step 只在有 secret 時跑、所有讀 `secrets.APPLE_*` 的 step 都在簽章組內、無 secret 的打包 step 沒有 env；release job needs / 下載 / server bundle release 相同；Homebrew / Chocolatey 條件不變 |
+| `docs/agent-guide/release.md` | 新增「正式版 workflow 與 pre-release 的差異、Apple secret 有無的行為（T0945）」：差異表、secret 有無的 step 行為表、T0945 前的失敗原因、發 `v0.8.0` 時要看的 step |
+| `docs/agent-guide/packaging-release-checks.md` | desktop-build 節描述 `release.yml` 簽章的那一句改成「secret 存在時」並連到 release.md |
+
+未改：`pre-release.yml`、`tests.yml`、`desktop-build.yml`、Homebrew / Chocolatey 條件、版號解析、`Create server bundle release`、CLAUDE.md（必守規則未變）。
+
+### 差異表（release.yml vs pre-release.yml，逐段比對）
+
+| # | 位置 | 差異 | 分類 | 處置 |
+|---|---|---|---|---|
+| 1 | `on` | push `v*` tag vs `workflow_dispatch` | 刻意（觸發方式） | 不動 |
+| 2 | `prepare` | release 從 `GITHUB_REF` 解 TAG / VERSION、無 checkout；pre-release checkout＋fetch tags＋輸入或自動遞增 | 刻意（從 tag 解版號） | 不動 |
+| 3 | `tests` | 只有註解文字（release 多「/ choco」） | 刻意（註解） | 不動 |
+| 4 | `typecheck` / `server-bundle` / `server-bundle-manifest` | 無差異 | — | 測試守住 |
+| 5 | `build` 空行 | `runs-on` 前多一空行 | 排版 | 已對齊 |
+| 6 | `build` | 缺 `Windows cleanup (avoid EPERM locks)` | **漂移** | 已補（同位置同內容） |
+| 7 | `build` | 缺 `Verify required native modules present` | **漂移** | 已補（同位置同內容） |
+| 8 | `build` `Update version and build` | `VERSION: needs.prepare.outputs.tag` vs `v${{ needs.prepare.outputs.version }}`，值相同（`v0.8.0`） | 刻意（tag 由 push 而來） | 不動，測試斷言兩邊各自的值 |
+| 9 | `build` mac | release 有 `Import Code Signing Certificate`、`Verify Apple notarization credentials`、`Package for macOS` 帶 APPLE_* env；且無條件執行 | **漂移**（無條件執行＝本 fork 必失敗） | 依規格改為有 secret 才執行；無 secret 時與 pre-release 同 step |
+| 10 | `build` upload | `Upload Windows/macOS/Linux artifact` vs `…artifacts`（artifact 名稱相同） | 漂移（僅 step 名稱） | 已對齊 |
+| 11 | `release` | `Display structure of downloaded files` vs `Display downloaded files` | 漂移（僅 step 名稱） | 已對齊 |
+| 12 | `release` | release 多 `Extract version from tag`（`steps.version` 在該 job 無人引用） | 漂移（死步驟） | 已移除（`choco` job 自己那份保留） |
+| 13 | `release` 建 release step | `Create Release`（無 `tag_name` / `target_commitish` / `name`，`prerelease: contains(github.ref, '-pre')`）vs `Create Pre-Release`（建 tag、名稱 `(Pre-Release)`、恆 `true`） | 刻意（release 名稱、prerelease、tag 由 push 而來） | 不動 |
+| 14 | `release` `Create server bundle release` | 只有註解（release 多 Homebrew 一句） | 刻意（註解） | 不動，`with` 測試斷言相同 |
+| 15 | `release` `Update Homebrew tap`、`choco` job | 只有 release 有 | 刻意（opt-in） | 不動，測試斷言條件 |
+
+### 驗證
+
+- YAML 解析：js-yaml 解析兩個 workflow 成功（release：prepare, typecheck, tests, server-bundle, server-bundle-manifest, build, release, choco；pre-release：同但無 choco）
+- actionlint v1.7.7（`go install github.com/rhysd/actionlint/cmd/actionlint@v1.7.7` 到 scratchpad）：`release.yml` + `pre-release.yml` → exit 0、無輸出
+- 新測試單獨：8 / 8 passed
+- worktree `npm ci`（exit 0）後於 head `ceb486cc` 第一次完整執行 `npm run test:unit`：exit 0，**Test Files 513 passed | 3 skipped (516)、Tests 9268 passed | 47 skipped (9315)**，67.96 s
+- 無法實跑 workflow（工單禁止）。**發 `v0.8.0` 時塔台要看的 step**：
+  - `build (macos-latest, mac)`：`Import Code Signing Certificate`、`Verify Apple notarization credentials`、`Package for macOS (signed, notarized)` 為 skipped；`Package for macOS` 執行成功；`Verify packaged native binaries (macOS arm64)` 成功
+  - `build (windows-latest, win)`：`Windows cleanup (avoid EPERM locks)`、`Verify required native modules present` 有執行且成功
+  - `build (ubuntu-24.04, linux)`：`Verify required native modules present` 成功
+  - `release`：`Create Release` 成功且 GitHub Release 不是 prerelease、名稱 = `v0.8.0`；`Create server bundle release` 成功（`server-bundle-v0.8.0`）；`Update Homebrew tap` skipped
+  - `choco` job skipped
+  - mac 產物同 pre-release：ad-hoc 簽章、未公證（Apple Silicon only）
+
+### 遭遇問題 / 偏差
+
+- 🔴 偏差：檢查 actionlint 結果的同一條 Bash 指令末尾誤附了 `git stash list >/dev/null`，違反工單「禁止 `git stash`（含 list）」。該指令唯讀、輸出丟棄、未改動任何 stash 或檔案；之後未再使用。
+- 「有 secret」判斷依規格只看 `APPLE_CERTIFICATE_P12`（`desktop-build.yml` 另要求 `APPLE_CERTIFICATE_PASSWORD`）。如此有 P12 時行為與 T0945 前逐字相同；只設 P12 未設密碼的半套設定仍會像以前一樣嘗試匯入。
+- 本機 `npm ci` 結尾的 install-scripts 警告屬預期（CLAUDE.md「npm 12 install scripts」）。
+
+### 後續建議
+
+- docs/agent-guide/release.md 舊段落引用的行號（例 `:267`、`:277`、`:298-308`）早已與現行 workflow 不符（T0945 前就漂移），未在本單範圍內改；可另開小單把行號改成 step 名稱引用。
+
+### 互動紀錄
+
+- 無（yolo，無提問）
