@@ -10,6 +10,7 @@
 
 | ID | 日期 | 標題 | 相關工單 |
 |----|------|------|---------|
+| D467 | 2026-11-27 | U-53：A → T0960 ff 進 `main` `178862f1`；worktree 與分支清掉 | T0960 |
 | D466 | 2026-11-27 | T0960 收單（1 行測試改名）；模式 ① 合併到 `ct-merge/T0960` `f2608c48`；斷點 E 發 U-53 | T0960 |
 | D465 | 2026-11-27 | U-52：A → A-24 改以 Linux CI 自動化：開並派 T0961（授權 push `ct/T0961`、觸發 linux-acceptance 對 pre.1 / pre.2） | T0961 / BUG-233 |
 | D464 | 2026-11-27 | 開並派 T0960：`launch-command.test.ts` 過時的測試名稱改名（斷言不動） | T0960 / T0956 |
@@ -584,6 +585,14 @@
   4. PLAN-001 保持延後（🟢 Low，等 plugin 1.0 穩定）
 - **Success criteria**（EXP→CONCLUDED）：npm install 無錯 / 所有 native modules rebuild 成功 / dev+build:dir 可跑 / 手動 smoke test 8 項通過
 - **最大風險**：`whisper-node-addon@1.0.2` 對 Electron 41（Node 24）的 NODE_MODULE_VERSION 相容性未知，允許 Worker 遇此決策點主動問塔台
+
+---
+
+### D467 2026-11-27 23:50 — U-53：A → T0960 ff
+
+- **使用者**：`U-53：A`。U-53 移除。
+- **合併**：第 5 步 `main` 只多 `_ct-workorders/**` → 整合分支再合併後 ff；`main` = `178862f1`；整合 worktree detach；T0960 worktree 移除；`ct/T0960`、`ct-merge/T0960` `-d` 刪除。
+- **相關**：T0960 / D466
 
 ---
 
