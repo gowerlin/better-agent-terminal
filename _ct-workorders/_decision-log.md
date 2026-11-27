@@ -10,6 +10,7 @@
 
 | ID | 日期 | 標題 | 相關工單 |
 |----|------|------|---------|
+| D402 | 2026-11-27 | CT 6.3.0-pre.1 雙方驗收（CT U-7：A / D910、T0574 收單 D911）→ 開並派 T0939（BAT pre.8 / pre.4 zip × `checklist-630.md` M-1～M-17，BAT 跑、CT 判定） | T0939 / PLAN-070 |
 | D401 | 2026-11-27 | A-8：完成 → `v0.8.0-pre.8` 使用者實機驗收通過（BUG-226 CLOSED、T0937「其他」）；驗測範例全數移除、`multi` 旗標拿掉；多選勾選送出留待 CT 6.3.0-pre.1 雙方驗收 | T0936 / T0937 / T0938 / BUG-226 |
 | D400 | 2026-11-27 | A-8 驗測範例：暫時的 U-24–U-26（單選＋其他、多選、自由回答提示）、A-9–A-11（指令欄：存在檔、不存在檔、真指令）；`inbox_features` 暫加 `multi`；驗完移除 | T0936 / T0937 / T0938 |
 | D399 | 2026-11-27 | `v0.8.0-pre.8` 發佈（Pre-Release `45937322938`，`6409632d`）：T0936（BUG-226）/ T0937 / T0938；待驗收 A-8；多選待與 CT 6.3.0-pre.1 實機驗收 | T0936 / T0937 / T0938 / BUG-226 |
@@ -519,6 +520,15 @@
   4. PLAN-001 保持延後（🟢 Low，等 plugin 1.0 穩定）
 - **Success criteria**（EXP→CONCLUDED）：npm install 無錯 / 所有 native modules rebuild 成功 / dev+build:dir 可跑 / 手動 smoke test 8 項通過
 - **最大風險**：`whisper-node-addon@1.0.2` 對 Electron 41（Node 24）的 NODE_MODULE_VERSION 相容性未知，允許 Worker 遇此決策點主動問塔台
+
+---
+
+### D402 2026-11-27 13:04 — 開並派 T0939：CT 6.3.0-pre.1 雙方驗收
+
+- **來源**：CT 塔台跨 session（CT D910：CT 使用者 U-7 選 A，比照 6.2.0；CT D911：準備單 T0574 收單）。清單 `ct620-accept/checklist-630.md`（370 行，SHA-256 `a6b82937…`，塔台已核對）、換版 `ct-swap-630.py`、結果 `results-630/`。
+- **BAT 端**：舊 BAT pre.4 本機沒有可用 zip → Worker 從 GitHub Release 下載 `v0.8.0-pre.4` / `v0.8.0-pre.8` 的 win zip，以 Release asset digest 核對（塔台已取得兩個 SHA-256 寫入工單）後解到 `BAT-TestBuilds/`。
+- **工單**：T0939（worktree，比照 T0928）：S1 → S3 → S2 → S4；用量上限即停、回 PARTIAL；CT 端判定欄留空。
+- **相關**：T0939 / PLAN-070 / T0928
 
 ---
 
