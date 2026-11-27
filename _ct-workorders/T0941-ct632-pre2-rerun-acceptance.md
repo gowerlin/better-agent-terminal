@@ -10,7 +10,8 @@ project: PLAN-070
 priority: P1
 sizing: S
 created_at: "2026-11-27T14:30:52+08:00"
-updated_at: "2026-11-27T14:31:46+08:00"
+updated_at: "2026-11-27T14:37:25+08:00"
+tower_question: open
 started_at: "2026-11-27T14:31:46+08:00"
 session_ids: []
 target_version: "0.8.0-pre.8（已發佈）＋ CT 6.3.0"
@@ -57,4 +58,18 @@ CT 條文（`BMad-Control-Tower/BMad-Control-Tower-v6.3.0-pre.2/skills/control-t
 
 ## 回報區
 
-（Worker 填寫）
+### 待塔台決策
+
+#### Q-1：隔離 BAT 視窗疑似被人手動操作，S5 步驟 1～3 被打亂；要怎麼繼續？
+- **提問時間**：2026-11-27T14:37:25+08:00
+- **現況**：步驟 1 正常（塔台寫 U-1 補驗甲、U-2 補驗乙，`multi: true`、`recommended: "C"`、`options` C／A／B，開了多選選單；證據已存 `R-1/01-menu-*.png`、`02-inbox.png`、`state-during-menu-1.md`）。之後兩個回答**不是驅動送的**（`driver-s5.log` 同時段只有讀取類 op）：
+  1. 14:35:35 原生選單的 U-2 被勾滿 C、A、B 並送出（對話紀錄 RESULT `…補驗乙…="C 格式（推薦）, A 拼字, B 連結"`），時間落在驅動點右側欄「待辦」按鈕前後；
+  2. 14:36:30 待辦分頁送出 `U-1：C、A、B`（debug log `[tower-inbox] answer … id=U-1 len=9 → sent`，A、B 是驅動沒勾的），塔台已移除 U-1／U-2、決策 D001／D002。
+  步驟 3（Esc 不回答）因此做不到。證據 `ACC/results-rerun-630/R-1/incident-1/`。
+- **選項**：
+  - A：同一個塔台 session 重做步驟 1（同一句提示詞，編號會是 U-3／U-4），之後照清單跑完；結果檔寫明第一次被打斷與證據。請使用者在補跑期間不要操作測試用 BAT 視窗（標題列是 BAT、工作區 S5）。
+  - B：關掉這個實例，另建新副本（例：`runs-rerun-630/S5b/`，清單沒寫這個目錄名）重開塔台再跑。
+  - 其他。
+- **建議**：A。清單只看步驟 4 那一則回覆的時序與代號順序，前面多兩筆已結案的決策不影響判定；B 要偏離清單的目錄名、多一個塔台 session 的用量。
+- **影響**：若確實有人在操作視窗，不先告知使用者，步驟 4 的選單也可能再被搶答。
+- **阻擋後續步驟**：是（步驟 1 起都要等答覆）。

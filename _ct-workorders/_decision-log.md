@@ -10,6 +10,8 @@
 
 | ID | 日期 | 標題 | 相關工單 |
 |----|------|------|---------|
+| D409 | 2026-11-27 | U-28：A → T0940 經 `ct-merge/T0940` ff 進 `main` | T0940 / BUG-227 |
+| D408 | 2026-11-27 | T0940 收單（DONE，`f00fb06e`；Q-1 答 B）、BUG-227 → FIXED；模式 ① 合併到 `ct-merge/T0940` `43272eb9`；斷點 E → U-28 | T0940 / BUG-227 |
 | D407 | 2026-11-27 | T0940 Q-1 塔台答 B（案 B 讀 PTY 輸出認調查列＋案 A 提示期間單鍵不改草稿，多字元 / 貼上仍記草稿；核准 3 檔）；CT 6.3.0-pre.2（CT D914）→ 開並派 T0941 補跑（S5） | T0940 / T0941 / PLAN-070 |
 | D406 | 2026-11-27 | CT 判定回來（CT D913：BAT 0 項要改，CT M-5-1 FAIL 由 CT 6.3.0-pre.2 修＋補跑）→ 依使用者「判定回來再一起修」開並派 T0940（BUG-227 → FIXING） | T0940 / BUG-227 / PLAN-070 |
 | D405 | 2026-11-27 | 使用者「開 BUG」→ 開 BUG-227（OPEN，low）：數字鍵關 claude 意見調查列後被判成有草稿，待辦分頁回答排進「📨 待送」（T0939 發現；取代 D403 的「列候選」） | BUG-227 / T0939 |
@@ -525,6 +527,25 @@
   4. PLAN-001 保持延後（🟢 Low，等 plugin 1.0 穩定）
 - **Success criteria**（EXP→CONCLUDED）：npm install 無錯 / 所有 native modules rebuild 成功 / dev+build:dir 可跑 / 手動 smoke test 8 項通過
 - **最大風險**：`whisper-node-addon@1.0.2` 對 Electron 41（Node 24）的 NODE_MODULE_VERSION 相容性未知，允許 Worker 遇此決策點主動問塔台
+
+---
+
+### D409 2026-11-27 14:40 — U-28：A，T0940 ff 進 `main`
+
+- **使用者回答**：U-28 選 A（原生選單）。
+- **做法**：整合分支併入 `main` 的塔台記帳 commit 後 `--ff-only`，產品樹與 `f00fb06e` 相同；整合 worktree detach；U-28 移除。
+- **未做**：push、發版（待使用者授權；`0.8.0-pre.9` 是此版號線最後一號）。
+- **相關**：T0940 / BUG-227
+
+---
+
+### D408 2026-11-27 14:35 — T0940 收單與模式 ① 合併
+
+- **Worker 回報**：`8312ee6f` / `f00fb06e`，`test:unit` 9231 passed / 509 files、typecheck 0 / 0、vite build 0；塔台指定五項測試全涵蓋；既有 notify-hold / tower-input-draft 斷言未改。依據 claude 2.1.331；圖例字串集中 `src/lib/tower-input-draft.ts`。實機改〈待實機〉（調查列由服務端隨機觸發）。
+- **核對**：head = validated；`--worktree-status` outOfScope []（Q-1 核准的 3 檔已補進 `affects_files`）/ conflicts [] / dirty []；`main` 只在 `_ct-workorders/**` 前進 → 合併 `ct-merge/T0940` `43272eb9`。Worker 分頁 `--close-worker --worktree keep` exit 0。
+- **BUG-227** → FIXED（待 `0.8.0-pre.9` 實機）。
+- **斷點 E**：ff 進 `main` 前問使用者 → U-28。
+- **相關**：T0940 / BUG-227
 
 ---
 
