@@ -198,3 +198,9 @@ BAT 端多選（PLAN-070 子項 4，CT 6.3.0 契約 M1 / M3 / M4）完成，另�
 ### 後續建議
 
 - 無新的後續工單建議；雙方實機驗收依〈待實機〉在 CT 6.3.0-pre.1 後另做。
+
+### 塔台收單補記（2026-11-27 11:54）
+
+- 核對：`ct/T0938` head = validated `7dbecd0d`；`--worktree-status` outOfScope [] / conflicts [] / dirty []；`main` 只在 `_ct-workorders/**` 前進 → 模式 ① 合併到 `ct-merge/T0938` `706a906f`（D397）。偏離認可：plan069 第 71 行（Q-1 A）、`multi` 在 `parseTowerInboxLists` 讀。
+- CT 6.3.0-pre.1 規格補充（CT D907，跨 session，收單後才到）與本單實作對照（依回報區描述）：① 多代號 `recommended` 有一個對不到、或該筆不是 `multi: true` → 沒有推薦：符合（單選題走 `matchRecommended` 只認單一代號；多選題一個對不到整個不推薦）；② `interactive-prompts: off` 的文字範本：CT 端，BAT 無關；③ `multi: false` 合法、沒有鍵 = false：符合（只認布林 `true`）。
+- CT 範例狀態檔（BMad-Guide `c109f10`，未 push）供雙方實機驗收使用：`BMad-Control-Tower/BMad-Control-Tower-v6.3.0-pre.1/skills/control-tower/scripts/tests/fixtures/frontmatter/good/tower-state-v630.md`、`…/tower-state-v630-multi-ignored.md`；驗收情境 M-1～M-17 在 CT 工單 T0573 回報區〈給塔台〉3。
