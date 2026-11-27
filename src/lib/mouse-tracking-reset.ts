@@ -22,6 +22,9 @@
  * itself, in the tab's own xterm, before the new PTY is spawned (`resetLeftoverMouseTracking`) and
  * again once it runs (late output of the old program). Only while tracking is on; never the PTY.
  *
+ * T0950: the alternate screen the killed program left is left the same way once the new shell is
+ * spawned (`leaveLeftoverAltScreen`), so the new shell has its scrollback again.
+ *
  * No DOM / electron.
  */
 import { isMouseTrackingOn } from './terminal-context-menu'
@@ -120,6 +123,10 @@ export interface LeftoverMouseTrackingView {
   mouseTrackingMode(): unknown
   /** Turns tracking off in this xterm (`MOUSE_TRACKING_RESET`); `done` once xterm has parsed it. */
   reset(reason: LeftoverMouseTrackingReason, done: () => void): void
+  /** T0950: whether this xterm is on the alternate buffer now. A view without it is never left. */
+  altScreenActive?(): boolean
+  /** T0950: leaves the alternate screen in this xterm (`ALT_SCREEN_EXIT`); `done` once xterm has parsed it. */
+  leaveAltScreen?(done: () => void): void
 }
 
 /** Longest wait for xterm to parse the reset (a view disposed meanwhile never calls `done`). */
@@ -149,6 +156,34 @@ export function resetLeftoverMouseTracking(id: string, reason: LeftoverMouseTrac
   return new Promise<boolean>(resolve => {
     const timer = setTimeout(() => resolve(true), LEFTOVER_MOUSE_RESET_WAIT_MS)
     view.reset(reason, () => {
+      clearTimeout(timer)
+      resolve(true)
+    })
+  })
+}
+
+/**
+ * T0950: a new shell has just been spawned in terminal `id`'s xterm (⏻, the interrupted-agent resume)
+ * and xterm is still on the alternate screen (DECSET 1049) — the old program's, killed before it could
+ * leave it (the claude CLI on `taskkill /F`, codex on a signal). Left in this xterm only (never the
+ * PTY), so the new shell draws on the normal screen, under the scrollback from before the program.
+ * T0672 leaves a leftover alternate screen alone because the program may still run; here it cannot:
+ * the PTY it ran in is gone. Called only where a new PTY was spawned (`created: true` / restart ok),
+ * before its first output reaches xterm (the host answers the create before it flushes any output),
+ * so nothing the new shell drew is lost. Nothing when no view is mounted, the view cannot tell, or
+ * xterm is on the normal screen. Resolves true once xterm parsed it (or after
+ * `LEFTOVER_MOUSE_RESET_WAIT_MS`), false when nothing was done.
+ * Callers: `restartOrCreatePty` (restart ok) / `createPtyWithReplay` (created) in pty-replay, next to
+ * the `new-pty-spawned` tracking reset. Never at `before-new-pty`: the old program still draws then,
+ * and its frames would land on the normal screen.
+ */
+export function leaveLeftoverAltScreen(id: string): Promise<boolean> {
+  const view = leftoverViews.get(id)
+  if (!view?.altScreenActive?.() || !view.leaveAltScreen) return Promise.resolve(false)
+  const leave = view.leaveAltScreen.bind(view)
+  return new Promise<boolean>(resolve => {
+    const timer = setTimeout(() => resolve(true), LEFTOVER_MOUSE_RESET_WAIT_MS)
+    leave(() => {
       clearTimeout(timer)
       resolve(true)
     })

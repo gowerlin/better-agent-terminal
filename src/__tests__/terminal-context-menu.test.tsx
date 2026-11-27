@@ -1052,3 +1052,36 @@ describe('TerminalPanel: tracking left on when a new PTY starts (BUG-229 / T0947
     expect(resets()).toHaveLength(0)
   })
 })
+
+/**
+ * T0950: the alternate screen the old program left goes once the new PTY is spawned; the tab tells
+ * `leaveLeftoverAltScreen` (src/lib/mouse-tracking-reset.ts) its buffer from `onBufferChange` and
+ * writes DECRST 1049 to xterm only. Behaviour with a real xterm: src/lib/__tests__/alt-screen-restart.test.ts.
+ */
+describe('TerminalPanel: alternate screen left when a new PTY starts (T0950)', () => {
+  const mouseLogs = () => debugLog.mock.calls.map(c => String(c[0])).filter(l => l.startsWith('[mouse-tracking]'))
+
+  test('on the alternate screen: DECRST 1049 written to xterm only and logged', async () => {
+    const { leaveLeftoverAltScreen } = await import('../lib/mouse-tracking-reset')
+    await renderTerminal('t0950-alt')
+    await waitFor(() => expect(xterm.onBufferChange).not.toBeNull())
+    act(() => { xterm.onBufferChange!(xterm.alternate) })
+    // the stub's write never calls back: resolved after the wait cap
+    expect(await leaveLeftoverAltScreen('t0950-alt')).toBe(true)
+    expect(xterm.writes).toEqual(['\x1b[?1049l'])
+    expect(mouseLogs()).toEqual(['[mouse-tracking] alt screen left: new-pty-spawned terminal=t0950-alt'])
+    expect(ptyWrite).not.toHaveBeenCalled()
+  })
+
+  test('on the normal screen (also after leaving the alternate one): nothing written, nothing logged', async () => {
+    const { leaveLeftoverAltScreen } = await import('../lib/mouse-tracking-reset')
+    await renderTerminal('t0950-normal')
+    expect(await leaveLeftoverAltScreen('t0950-normal')).toBe(false)
+    await waitFor(() => expect(xterm.onBufferChange).not.toBeNull())
+    act(() => { xterm.onBufferChange!(xterm.alternate) })
+    act(() => { xterm.onBufferChange!({}) })
+    expect(await leaveLeftoverAltScreen('t0950-normal')).toBe(false)
+    expect(xterm.writes).toEqual([])
+    expect(mouseLogs()).toEqual([])
+  })
+})
