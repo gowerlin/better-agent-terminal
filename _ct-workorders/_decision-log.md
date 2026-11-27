@@ -10,6 +10,7 @@
 
 | ID | 日期 | 標題 | 相關工單 |
 |----|------|------|---------|
+| D393 | 2026-11-27 | 待你決定統一有「其他」（BAT T0937）、放棄附的文字只當原因（CT 改）、多選現在就做（契約 v2 新增 `multi`，提案給 CT）；開 PLAN-070 | T0937 / PLAN-070 |
 | D392 | 2026-11-27 | U-21：A → T0936 經 `ct-merge/T0936` ff 進 `main`（先併入 `main` 的塔台記帳 commit） | T0936 |
 | D391 | 2026-11-27 | T0936 收單（DONE，`31dd9768`；Worker 寫 FIXED 改 DONE）、BUG-226 → FIXED；模式 ① 合併到 `ct-merge/T0936` `1c0a4891`；斷點 E → U-21 | T0936 / BUG-226 |
 | D390 | 2026-11-27 | 開 BUG-226（low，待辦分頁 `command` 是檔案路徑時不能點）→ FIXING，開並派 T0936：`command` 經 T0930 辨識；整個是存在的檔案時連結＋「開啟」 | T0936 / BUG-226 |
@@ -510,6 +511,16 @@
   4. PLAN-001 保持延後（🟢 Low，等 plugin 1.0 穩定）
 - **Success criteria**（EXP→CONCLUDED）：npm install 無錯 / 所有 native modules rebuild 成功 / dev+build:dir 可跑 / 手動 smoke test 8 項通過
 - **最大風險**：`whisper-node-addon@1.0.2` 對 Electron 41（Node 24）的 NODE_MODULE_VERSION 相容性未知，允許 Worker 遇此決策點主動問塔台
+
+---
+
+### D393 2026-11-27 11:25 — 待你決定：「其他」、放棄只記原因、多選（PLAN-070）
+
+- **使用者提問**：「互動選項支援多選嗎？如果選項都不在清單內，用放棄填原因，會被當新選項還是會真的放棄只記原因，如果是，應該統一要有其他選項可填」。
+- **查證**（CT 6.2.0、BAT pre.7）：不支援多選；放棄附的文字 CT 會照文字重新對齊（不只記原因）；BAT 待辦分頁有選項時沒有自由輸入（原生選單與終端都有）。
+- **使用者裁示**（原生選單）：放棄語意「A 收窄：只記原因」、多選「B 現在就做」；「其他」照使用者原話統一要有。
+- **處置**：BAT 開 T0937（「其他」＋放棄備註改「原因」，worktree）並派工；給 CT 的提案 `_reply-2026-11-27-ct-inbox-other-multiselect.md`（放棄只記原因、多選契約草案 `inbox_features: multi`＋`awaiting_user[].multi`＋`U-n：A、C`），跨 session 通知 `BMad-Guide · Tower`；BAT 多選實作等 CT 核定後開單。開 PLAN-070。
+- **相關**：PLAN-070 / T0937 / PLAN-069
 
 ---
 
