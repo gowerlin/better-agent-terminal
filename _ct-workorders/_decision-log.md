@@ -10,6 +10,7 @@
 
 | ID | 日期 | 標題 | 相關工單 |
 |----|------|------|---------|
+| D397 | 2026-11-27 | T0938 收單（DONE，`7dbecd0d`；Q-1 塔台答 A）、模式 ① 合併到 `ct-merge/T0938` `706a906f`；CT 6.3.0-pre.1 規格補充 3 項與實作相符；斷點 E → U-23 | T0938 / PLAN-070 |
 | D396 | 2026-11-27 | U-22：A → T0937 經 `ct-merge/T0937` ff 進 `main`，接著派 T0938 | T0937 / T0938 |
 | D395 | 2026-11-27 | T0937 收單（DONE，`73d35e81`；Q-1 塔台答 A）、模式 ① 合併到 `ct-merge/T0937` `4d78e5f7`；後續建議（空選項欄放棄提示）併入 T0938；斷點 E → U-22 | T0937 / T0938 |
 | D394 | 2026-11-27 | CT 定稿多選契約（CT D906，6.3.0，M1–M5）→ 開 T0938 BAT 多選實作（依賴 T0937，合併後派工） | T0938 / PLAN-070 |
@@ -514,6 +515,16 @@
   4. PLAN-001 保持延後（🟢 Low，等 plugin 1.0 穩定）
 - **Success criteria**（EXP→CONCLUDED）：npm install 無錯 / 所有 native modules rebuild 成功 / dev+build:dir 可跑 / 手動 smoke test 8 項通過
 - **最大風險**：`whisper-node-addon@1.0.2` 對 Electron 41（Node 24）的 NODE_MODULE_VERSION 相容性未知，允許 Worker 遇此決策點主動問塔台
+
+---
+
+### D397 2026-11-27 11:54 — T0938 收單與模式 ① 合併
+
+- **Worker 回報**：`375ed93c` / `7dbecd0d`，`test:unit` 9148 passed / 507 files、typecheck 0、vite build 0；Q-1（`INBOX_FEATURES` 快照斷言加 `multi`）塔台答 A；另併入 T0937 後續（自由回答欄放棄提示）、README 協作章節版本對照。
+- **核對**：head = validated；`--worktree-status` outOfScope [] / conflicts [] / dirty []；`main` 只在 `_ct-workorders/**` 前進 → 合併 `ct-merge/T0938` `706a906f`（parent1 `a31c830b`、parent2 `7dbecd0d`）。Worker 分頁 `--close-worker --worktree keep` exit 0。
+- **CT 規格補充**（CT D907，CT 6.3.0-pre.1 `c109f10`）：多代號推薦對不到或非多選 → 無推薦、`multi: false` 合法、文字範本「可複選」（CT 端）——與 T0938 實作相符（依回報區描述）；範例狀態檔與驗收情境 M-1～M-17 記入 T0938 收單補記，供雙方實機驗收。
+- **斷點 E**：ff 進 `main` 前問使用者 → U-23。
+- **相關**：T0938 / PLAN-070
 
 ---
 
