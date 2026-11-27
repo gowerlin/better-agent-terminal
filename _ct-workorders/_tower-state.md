@@ -15,6 +15,7 @@ next_ids:
   action: "A-12"
 todo:
   - "✅ `v0.8.0-pre.8` 已驗收（A-8，D401）：BUG-226 CLOSED、T0937「其他」通過；熱區未結 BUG 0。PLAN-070 剩：多選勾選送出（`U-n：A、C`）與推薦預設勾選，待與 CT 6.3.0-pre.1 雙方實機驗收（CT 範例狀態檔見 T0938 收單補記）；預覽版號只剩 pre.9"
+  - "⏳ CT 6.3.0-pre.1 雙方驗收（CT U-7：A，CT D910，比照 6.2.0 / T0928）：CT 準備單 T0574（12:52 派出，沿用 `ct620-accept/`，`checklist-630.md` M-1～M-17、`ct-swap-630.py`、`runs-630/` / `results-630/`；情境 S1 新 BAT pre.8×6.3.0 M-1～14、S2 M-15 文字範本、S3 舊 BAT pre.4 M-16、S4 新 BAT×CT 6.2.0 M-17）；T0574 收單後 CT 傳 checklist 路徑與換版指令 → BAT 開驗收單，BAT 跑、CT 判定"
   - "🚀 `v0.8.0-pre.7` 已發佈並驗收（D387 / D389）：T0935 只寫檔名的參考檔案連結、T0934 💬 卡片連結（A-6 完成）；下一版 `0.8.0-pre.8`"
   - "`v0.8.0-pre.5` 已驗收（D378）：T0929 / T0930 / BUG-225 CLOSED"
   - "候選（未開單，T0930 建議）：`useInboxFileRefs` 跟 `_ct-workorders/` 的 `fs:changed` 重查（💬 卡片連結已由 T0934 完成）"
