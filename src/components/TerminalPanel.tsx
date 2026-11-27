@@ -751,6 +751,12 @@ export const TerminalPanel = memo(function TerminalPanel({ terminalId, isActive 
     const unregisterLeftoverMouseTracking = registerLeftoverMouseTrackingView(terminalId, {
       mouseTrackingMode: () => terminal.modes.mouseTrackingMode,
       reset: (reason, done) => resetMouseTracking(reason, done),
+      // T0950: the alternate screen the old program left, once the new PTY is spawned (leaveLeftoverAltScreen)
+      altScreenActive: () => altBufferRef.current,
+      leaveAltScreen: (done) => {
+        terminal.write(ALT_SCREEN_EXIT, done)
+        dlog(`[mouse-tracking] alt screen left: new-pty-spawned terminal=${terminalId}`)
+      },
     })
     exitAltScreenRef.current = () => {
       terminal.write(ALT_SCREEN_EXIT)
