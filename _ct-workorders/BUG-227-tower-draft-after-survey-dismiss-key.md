@@ -3,11 +3,13 @@ schema_version: 1
 schema_kind: bug
 id: BUG-227
 title: "契約 2 塔台：用數字鍵關掉 claude 意見調查列後，BAT 把那一鍵當成輸入框有字（`draft`），待辦分頁的回答排進「📨 待送」直到下一次 Enter"
-status: FIXED
+status: CLOSED
+closed_at: "2026-11-27T16:19:01+08:00"
+closed_reason: "交付版 `v0.8.0-pre.9`（Pre-Release `45960516845`）使用者實機驗收 A-12 完成（D420）"
 severity: low
 reproducibility: "always（契約 2 塔台分頁出現 claude 意見調查列時，以數字鍵作答或關閉）"
 created_at: "2026-11-27T14:09:27+08:00"
-updated_at: "2026-11-27T14:35:07+08:00"
+updated_at: "2026-11-27T16:19:01+08:00"
 fixed_at: "2026-11-27T14:34:00+08:00"
 impact:
   - inbox
@@ -22,7 +24,7 @@ links:
 |------|------|
 | 嚴重度 | 🟢 low（回答不遺失，有「📨 待送」提示；但使用者不知道要在空輸入框按 Enter） |
 | 可重現 | 必定：契約 2 塔台分頁出現 claude 的意見調查列（「How is Claude doing this session? … 0: Dismiss」）時按數字鍵 |
-| **狀態** | ✅ FIXED（T0940 `8312ee6f` / `f00fb06e`，合併 `ct-merge/T0940` `43272eb9`，D408；待 `0.8.0-pre.9` 實機驗收） |
+| **狀態** | 🚫 CLOSED（交付版 `v0.8.0-pre.9` 使用者實機驗收 A-12，D420；修正 T0940 `f00fb06e`，D408） |
 | 回報者 | T0939 Worker 記錄；使用者 2026-11-27 指示開單 |
 | 影響版本 | 自 T0904（PLAN-068 W1＋W2，契約 2 塔台的 `draft` 保留）起 |
 
