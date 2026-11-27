@@ -4,12 +4,16 @@ schema_kind: workorder
 id: T0944
 title: "「以塔台開啟 Claude」啟動時自動帶入 `/control-tower`（新開分頁、⏻ 重啟、還原；resume 不帶）"
 type: feature
-status: PENDING
+status: DONE
 repo: better-agent-terminal
 priority: P2
 sizing: S
 created_at: "2026-11-27T19:15:29+08:00"
-updated_at: "2026-11-27T19:15:29+08:00"
+started_at: "2026-11-27T19:16:42+08:00"
+updated_at: "2026-11-27T19:21:08+08:00"
+completed_at: "2026-11-27T19:21:08+08:00"
+session_ids:
+  - "5b8491f6-f878-4689-9d32-bbd77be6f6a4"
 target_version: "未定（`0.8.0-pre.9` 之後；版號線待使用者確認）"
 depends_on: []
 related:
@@ -76,4 +80,96 @@ memory_overrides:
 
 ## 回報區
 
-（Worker 填寫）
+### 完成狀態
+
+- **狀態**：DONE
+- **完成時間**：2026-11-27T19:21:08+08:00
+- **session_id**：5b8491f6-f878-4689-9d32-bbd77be6f6a4
+- **branch**：`ct/T0944`
+- **base_sha**：`53c912cefc73076d5ec4eedf5d4a35b187b0a8be`
+- **validated_sha**：`81afe164031973e3466b8a667b027439bf706c17`
+- **head_sha**：`81afe164031973e3466b8a667b027439bf706c17`（與 validated_sha 相同：先提交產品變更，再在 head 上跑三個驗證關卡）
+
+### 落點檢查
+
+- **結果**：PASS
+- C-0：工單 `repo` = `better-agent-terminal`；`basename "$CT_HOME"` = `better-agent-terminal` → PASS
+- C-1：工單在 `$CT_HOME/_ct-workorders/` 之下 → PASS
+- C-3：資訊性（C-0 已 PASS）；`src/components/WorkspaceView.tsx`、`src/locales/*.json`、`CLAUDE.md` 等皆存在
+- C-2：工單無 `branch` 欄位，略過
+- 證據：`CT_HOME` 已設定、`CT_WORKTREE_BRANCH` = `ct/T0944`、`BAT_WORKSPACE_ID` = `cc0afc4a-57e9-4f41-b2ed-a2d8bac9e36b`、`CT_MODE` = `yolo`、`CT_INTERACTIVE` = `0`、`BAT_REMOTE_TOKEN` 已設定
+
+### 結果摘要
+
+「以塔台開啟 Claude」的分頁（`launchRole: 'tower'`）每次啟動新的 claude session 時，把 `/control-tower` 當成 claude 的啟動參數（位置參數 prompt）放在命令最後。仍只寫一次 PTY（啟動指令），沒有啟動後打字。
+
+| 情況 | 結果 | 依據 |
+|---|---|---|
+| ① 新開「以塔台開啟 Claude」 | 帶 | `handleAddClaudeCliAsTower` → `startClaudeCliPty`（無 `resume`） |
+| ② ⏻ 重啟塔台分頁 | 帶 | `handleRestart` → `startClaudeCliPty`（無 `resume`） |
+| ③ BAT 重開還原、PTY 已不在 | 帶 | 還原 effect → `startClaudeCliPty` → `createPtyThenLaunch` 新建 PTY 才送 |
+| ④ 中斷後一鍵 resume | 不帶（`resume`） | `startClaudeCliPty(…, { sessionId })` |
+| ⑤ 還原時 PTY 仍在跑 | 不送任何啟動指令（T0403，原行為） | `createPtyThenLaunch` 的 `created: false` |
+| ⑥ 自訂參數含 resume 類旗標 | 不帶（`user-args`） | 沿用 `userArgsSetClaudeResume`（`claudeResumeArgs` 用的同一個偵測） |
+| ⑦ 非塔台分頁 | 不帶（`not-tower`），命令逐字不變 | `launchRole !== 'tower'` |
+
+**參數位置與引號的結論**：helper 派工（`createAgentPromptCommandBuilder`，`electron/terminal-command-handlers.ts:1229`）把 prompt 放在 `commandWithArgs`（BAT 參數 → `--resume` → 自訂參數）**之後**、以 `quoteArgForShell(prompt, shellFamily)` 加引號；對自訂參數中的 variadic 旗標**沒有另外處理**。依工單「沒有就照它的位置（不另發明規則）」，這裡照同一位置與引號函式：自訂參數之後的最後一個參數。`/control-tower` 符合 `quoteArgForShell` 的免引號字元集，pwsh / cmd / posix 輸出都是原字串。已知限制（與 Worker 派工的 `/ct-exec T####` 相同）：自訂參數以會吃後續值的旗標結尾（例 `--allowedTools a b`）時，claude 會把 `/control-tower` 當該旗標的值；已寫進 docs。
+
+唯一實作：`towerLaunchPrompt({ launchRole, resume, customArgs, shellFamily })`（`src/lib/tower-launch-prompt.ts`，純函式，回傳 `{ arg, reason }`）；`startClaudeCliPty` 只在 `cmdParts.push(customArgs)` 之後、`join` 之前 push，並對塔台分頁記一行 debug log `[T0944] tower tab terminal=<id>: launch prompt added|skipped (<reason>)`。`--name=`、`withBatMcpLaunchArgs`、`--resume=`、`setAutoTitle` 都沒動；BAT 仍不呼叫 `terminal:set-role`。沒有 Settings 開關。
+
+### 修改檔案
+
+- `src/lib/tower-launch-prompt.ts`（新增）：`TOWER_LAUNCH_PROMPT`、`towerLaunchPrompt`
+- `src/components/WorkspaceView.tsx`：`startClaudeCliPty` 接線＋ import；`handleAddClaudeCliAsTower` 上方註解改寫（handler 程式碼未變）
+- `src/lib/__tests__/tower-launch-prompt.test.ts`（新增）：純函式（帶 / resume / user-args / not-tower、三種 shell）、命令組裝（塔台含 `/control-tower`、一般 Claude CLI 逐字不變、塔台 resume 只有 `--resume`）、三語系提示含 `/control-tower`、`startClaudeCliPty` 接線 source guard（位置在自訂參數之後、整段只有一次 `pty.write`）
+- `src/stores/__tests__/workspace-store.launchRole.test.ts`：只改「不輸入任何東西」那一處的測試名稱與註解（加 T0944 說明：`/control-tower` 是啟動參數、handler 仍不打字），斷言本身不變；其他斷言未動
+- `src/locales/en.json` / `zh-TW.json` / `zh-CN.json`：`terminal.openClaudeAsTowerHint` 原寫「只負責命名」，改為「啟動時自動帶入 /control-tower；接續中斷的 session 時不帶」
+- `CLAUDE.md`「Claude 分頁的 session 名稱」節 T0644 那一點改寫（小節標題未改）
+- `docs/agent-guide/claude-session-name.md`「以塔台開啟 Claude」節：帶 / 不帶情況、位置與引號、variadic 限制、沒裝 CT 時 claude 會顯示找不到 skill（預期，要不帶改開一般 Claude CLI）、唯一實作與日誌、驗證清單
+- `site/features.md`：AI Agent 整合清單補「以塔台開啟 Claude」一項（下一版起自動進入塔台；為避免 VitePress 把 `<工作區>` 當 HTML 標籤，寫成「工作區名稱 · Tower」）
+
+### 驗證
+
+worktree 先 `npm ci`（exit 0；結尾列出 `electron-winstaller` 的 install-scripts 警告，屬 CLAUDE.md 所述預期）。以下三項都在 `validated_sha` `81afe164` 上、第一次完整執行：
+
+| 關卡 | 結果 |
+|---|---|
+| `npm run test:unit` | PASS — Test Files 512 passed / 3 skipped（515）；Tests 9260 passed / 47 skipped（9307）；exit 0 |
+| `npm run typecheck` | PASS — 0 錯誤，exit 0 |
+| `npx vite build` | PASS — exit 0 |
+
+收單前 `git -C "$CT_WORKTREE" status --porcelain` 為空。
+
+### 待實機
+
+（未碰安裝版 BAT、未開 claude 回合）
+1. 「+」選單 →「以塔台開啟 Claude」：分頁內的啟動命令最後是 `/control-tower`，claude 啟動後直接進入塔台（不需要再手打）；滑過選單項目的提示文字是新版。
+2. 對塔台分頁按 ⏻：新的 claude 同樣以 `/control-tower` 啟動。
+3. 關掉 BAT、選「重新開始」（或 Terminal Server 不在）再開：塔台分頁重新啟動並帶 `/control-tower`；選「保留」（PTY 仍在）時不重送任何東西。
+4. Terminal Server recovery 中斷後，在「被中斷的 agent 分頁」對塔台分頁按恢復：命令只有 `--resume=<id>`，沒有 `/control-tower`。
+5. 一般「Claude CLI」分頁：命令與先前相同、不帶 `/control-tower`。
+6. 工作區 claude-cli 自訂參數設 `--continue`：塔台分頁不帶 `/control-tower`。
+7. debug log 有 `[T0944] tower tab terminal=… launch prompt added (tower)` / `skipped (resume|user-args)`。
+
+### 遭遇問題
+
+無。
+
+### 偏離
+
+無。i18n 提示文字原本寫「只負責命名」，與新行為矛盾，依工單「選單文字若有說明 / tooltip 需要改才改 i18n」一併更新。
+
+### 後續建議
+
+無。
+
+### 互動紀錄
+
+- [19:16] 開工；CT_MODE=yolo、worktree 隔離；無需向塔台提問。
+- [19:18] helper 派工 prompt 位置查證：放在自訂參數之後、`quoteArgForShell`，對 variadic 旗標無特別處理 → 照同一位置實作。
+- [19:20] 先提交產品變更（`81afe164`），再於 head 跑驗證，三關全綠。
+
+### Commit
+
+- 產品（worktree `ct/T0944`）：`81afe164031973e3466b8a667b027439bf706c17` feat: tower tab starts claude with /control-tower (T0944)
+- 工單（主 checkout）：本檔，`git -C "$CT_HOME" commit --only`
