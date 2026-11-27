@@ -10,6 +10,7 @@
 
 | ID | 日期 | 標題 | 相關工單 |
 |----|------|------|---------|
+| D400 | 2026-11-27 | A-8 驗測範例：暫時的 U-24–U-26（單選＋其他、多選、自由回答提示）、A-9–A-11（指令欄：存在檔、不存在檔、真指令）；`inbox_features` 暫加 `multi`；驗完移除 | T0936 / T0937 / T0938 |
 | D399 | 2026-11-27 | `v0.8.0-pre.8` 發佈（Pre-Release `45937322938`，`6409632d`）：T0936（BUG-226）/ T0937 / T0938；待驗收 A-8；多選待與 CT 6.3.0-pre.1 實機驗收 | T0936 / T0937 / T0938 / BUG-226 |
 | D398 | 2026-11-27 | U-23：A → T0938 經 `ct-merge/T0938` ff 進 `main`；pre.8 內容齊（T0936 / T0937 / T0938） | T0938 |
 | D397 | 2026-11-27 | T0938 收單（DONE，`7dbecd0d`；Q-1 塔台答 A）、模式 ① 合併到 `ct-merge/T0938` `706a906f`；CT 6.3.0-pre.1 規格補充 3 項與實作相符；斷點 E → U-23 | T0938 / PLAN-070 |
@@ -517,6 +518,15 @@
   4. PLAN-001 保持延後（🟢 Low，等 plugin 1.0 穩定）
 - **Success criteria**（EXP→CONCLUDED）：npm install 無錯 / 所有 native modules rebuild 成功 / dev+build:dir 可跑 / 手動 smoke test 8 項通過
 - **最大風險**：`whisper-node-addon@1.0.2` 對 Electron 41（Node 24）的 NODE_MODULE_VERSION 相容性未知，允許 Worker 遇此決策點主動問塔台
+
+---
+
+### D400 2026-11-27 12:42 — A-8 驗測範例
+
+- **使用者指示**：「已更版，請產生驗收案例」。
+- **做法**（同 D388，不改產品）：`_tower-state.md` 暫加 U-24（單選＋推薦，測「其他」與放棄提示）、U-25（`multi: true`、`recommended: "A、C"`，測 BAT 多選畫面）、U-26（`options: []`，測自由回答欄的放棄提示）、A-9（`command` = 存在的 `_reply-2026-11-27-ct-inbox-other-multiselect.md`）、A-10（`command` = 不存在的檔）、A-11（真指令含 `e2e/manual/nsis-reinstall-acceptance.ps1`）；`inbox_features` 暫加 `multi`（本塔台是 CT 6.2.0，`U-n：A、C` 由塔台手動判讀，只測 BAT 端）。
+- **收尾**：使用者回答（或放棄 / 略過）後移除範例與 `multi` 旗標，不計入真正待辦。
+- **相關**：T0936 / T0937 / T0938 / A-8
 
 ---
 
