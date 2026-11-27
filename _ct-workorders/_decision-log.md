@@ -10,6 +10,7 @@
 
 | ID | 日期 | 標題 | 相關工單 |
 |----|------|------|---------|
+| D429 | 2026-11-27 | A-16 失敗：⏻ 重啟後滑鼠回報黏在 claude 啟動命令前面、claude 沒啟動 → 開 BUG-229（medium，OPEN）、發 U-37（何時派修正） | BUG-229 / T0944 / T0946 |
 | D428 | 2026-11-27 | U-36：A → 開 BUG-228（medium，FIXING）；開並派 T0946（Git Bash 讓 `/control-tower` 原樣送到 claude，查證 helper 派工的 `/ct-exec`；不改 PTY env，worktree 隔離） | BUG-228 / T0946 / T0944 |
 | D427 | 2026-11-27 | A-17：完成（一般 Claude CLI 不帶指令）；A-15：完成，但塔台收到的第一則訊息是 `C:/Program Files/Git/control-tower`（Git Bash 改寫 `/control-tower`）→ 依 v6.1.1 規則移除 A-15、發 U-36 | T0944 |
 | D426 | 2026-11-27 | `v0.8.0` 驗收案例 A-15–A-18（T0944：以塔台開啟 Claude 自動帶入 `/control-tower`、⏻ 重啟、一般 Claude CLI 回歸、BAT 重開） | T0944 |
@@ -546,6 +547,16 @@
   4. PLAN-001 保持延後（🟢 Low，等 plugin 1.0 穩定）
 - **Success criteria**（EXP→CONCLUDED）：npm install 無錯 / 所有 native modules rebuild 成功 / dev+build:dir 可跑 / 手動 smoke test 8 項通過
 - **最大風險**：`whisper-node-addon@1.0.2` 對 Electron 41（Node 24）的 NODE_MODULE_VERSION 相容性未知，允許 Worker 遇此決策點主動問塔台
+
+---
+
+### D429 2026-11-27 20:47 — A-16 失敗 → BUG-229、U-37
+
+- **使用者**：`A-16 失敗`，附截圖。A-16 移除。
+- **截圖**（塔台分頁 `82f1e7f0…`，Git Bash／UCRT64）：⏻ 後新 shell 的第一行是 `35;77;25M…;22M` 接著 claude 啟動命令（命令本身含 `/control-tower`），bash 以 `;` 切開逐段 `command not found`，最後 `22MC:\…\claude.exe: No such file or directory`，claude 沒有啟動；之後提示列仍持續出現 `35;x;yM`。判斷為 SGR 滑鼠移動回報：舊 claude 的滑鼠追蹤在 ⏻ 後沒關，回報在命令寫入前進了 bash 輸入列（推測，待 Worker 確認）。這是 BUG-228 之外的另一個問題：就算 BUG-228 修好，這次 claude 也沒啟動。
+- **處置**：開 BUG-229（medium，OPEN）；發 U-37（何時派修正單）。A-18 保留（BAT 重開後是新的 xterm，預期不受 BUG-229 影響，仍受 BUG-228 影響）。
+- **附帶**：T0946 Worker 的塔台仍是 `82f1e7f0…`（現為 bash），完成通知會打進那個 bash；本 session（`c2f1a2e3…`）請使用者轉告完成。
+- **相關**：BUG-229 / BUG-228 / T0944 / T0946 / BUG-166（T0672 `MouseReportEchoDetector`）/ BUG-151（`holdInputForDispatch`）
 
 ---
 

@@ -4,28 +4,33 @@ summary_version: 1
 bat_contract: 2
 ct_version: "6.3.0"
 inbox_features: ["recommended", "dismiss", "multi"]
-updated_at: "2026-11-27T20:46:40+0800"
+updated_at: "2026-11-27T20:47:56+0800"
 session: "2026-11-27 20:46 第一百三十九 session（CT v6.3.0）"
 next_ids:
   workorder: "T0947"
-  decision: "D429"
-  bug: "BUG-229"
+  decision: "D430"
+  bug: "BUG-230"
   plan: "PLAN-071"
-  user: "U-37"
+  user: "U-38"
   action: "A-19"
+awaiting_user:
+  - id: "U-37"
+    workorder: ""
+    kind: "decision"
+    source: "tower-question"
+    summary: "BUG-229（⏻ 重啟後滑鼠回報黏在 claude 啟動命令前面）何時派修正單"
+    options: ["A 現在派 T0947，worktree 隔離，與 T0946 並行，T0946 先合（推薦）", "B 等 T0946 合併後再派", "C 只記錄，暫不修"]
+    recommended: "A"
+    created_at: "2026-11-27T20:47:56+08:00"
 user_actions:
-  - id: "A-16"
-    title: "對 A-15 的塔台分頁按 ⏻ 重啟：新的 claude 同樣自動帶 /control-tower 進入塔台"
-    ref: "T0944"
-    kind: "verify"
-    created_at: "2026-11-27T20:39:56+08:00"
   - id: "A-18"
     title: "（可選）A-15 的塔台分頁開著時關掉 BAT、回答「重新開始」再開：塔台分頁重新啟動並帶 /control-tower；選「保留」時不重送任何東西"
     ref: "T0944"
     kind: "manual"
     created_at: "2026-11-27T20:39:56+08:00"
 todo:
-  - "🔧 BUG-228（Git Bash 把 `/control-tower` 改寫成路徑）→ T0946 派工中（D428）；修好後發新的 A-n 重驗 A-15，A-16 / A-18 預期同樣受影響"
+  - "🔧 BUG-228（Git Bash 把 `/control-tower` 改寫成路徑）→ T0946 派工中（D428）；修好後發新的 A-n 重驗 A-15 / A-16（A-18 預期同樣受影響）。⚠️ T0946 Worker 的塔台是舊分頁 `82f1e7f0…`（現為 bash），完成通知不會到本塔台，請使用者轉告"
+  - "📂 BUG-229（⏻ 重啟後滑鼠回報黏在 claude 啟動命令前面，A-16 失敗，D429）→ 等 U-37"
   - "✅ `v0.8.0` 正式版已發佈（D425，Release run `45991410993`，2026-11-27 19:56，Latest）：更版重點與三文件已更新。🔴 T0944（塔台分頁自動帶入 `/control-tower`）待實機；下一版版號線：`0.8.1-pre.N`（發前確認）"
   - "✅ T0944 DONE 並合併進 main（D421 / D422，`a9144c1a`）：「以塔台開啟 Claude」啟動時自動帶入 `/control-tower`（新開 / ⏻ / 還原帶，resume 不帶，無開關）；worktree 隔離派工"
   - "✅ `v0.8.0-pre.9` 已發佈並驗收（D418 / D420，A-12）：T0942 已送出提示、BUG-227 CLOSED；熱區未結 BUG 0"
@@ -52,7 +57,7 @@ reminders:
 ---
 # Tower State — better-agent-terminal
 
-> 🟢 **第一百三十九 session 開工**（2026-11-27 20:46 (UTC+8)，CT v6.3.0，Fast Path；塔台 session `50ee1132-deeb-462b-b7a2-66cab13fa056`；新分頁 `c2f1a2e3…`（`better-agent-terminal · Tower`），`--set-role tower --bat-contract 2 --mode on` exit 0，`bat-contract: 2`、`hooks: ok (injected, set 2)`；第一則訊息仍是 `C:/Program Files/Git/control-tower`（BUG-228 重現，T0946 修復中）；前一塔台分頁 `82f1e7f0…`（session `a34eb9f4…`）現為 `role: shell`、idle、claude session 未回報，但仍是 T0946 Worker 的 `towerTerminalId`；`main` @ `6ccf707f`（領先 `origin/main` 3）；T0946 IN_PROGRESS、Worker working）。
+> 🟢 **第一百三十九 session 開工**（2026-11-27 20:46 (UTC+8)，CT v6.3.0，Fast Path；塔台 session `50ee1132-deeb-462b-b7a2-66cab13fa056`；新分頁 `c2f1a2e3…`（`better-agent-terminal · Tower`），`--set-role tower --bat-contract 2 --mode on` exit 0，`bat-contract: 2`、`hooks: ok (injected, set 2)`；第一則訊息仍是 `C:/Program Files/Git/control-tower`（BUG-228 重現，T0946 修復中）；前一塔台分頁 `82f1e7f0…`（session `a34eb9f4…`）現為 `role: shell`、idle、claude session 未回報，但仍是 T0946 Worker 的 `towerTerminalId`；`main` @ `6ccf707f`（領先 `origin/main` 3）；T0946 IN_PROGRESS、Worker working）。20:47 A-16：失敗（截圖：⏻ 後滑鼠回報黏在 claude 啟動命令前面，claude 沒啟動）→ 開 BUG-229、發 U-37（D429）。
 
 > 🟢 **第一百三十八 session 開工**（2026-11-27 20:40 (UTC+8)，CT v6.3.0，Fast Path；塔台 session `a34eb9f4-d1c0-45d7-9099-e288e5bcecb2`；本分頁由「以塔台開啟 Claude」開啟（A-15），`--set-role tower --bat-contract 2 --mode on` exit 0，`bat-contract: 2`、`hooks: ok (injected, set 2)`；舊塔台分頁（session `5d626d99…`）已結束；`main` @ `85c17c3a`（領先 `origin/main` 1）；熱區 T 341 全終態、BUG 91（CLOSED 90 / WONTFIX 1））。20:41 A-17：完成；A-15：完成但第一則訊息是 `C:/Program Files/Git/control-tower` → U-36（D427）；20:42 U-36：A → 開 BUG-228（FIXING）、T0946 派工（D428）。
 
