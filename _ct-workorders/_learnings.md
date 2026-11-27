@@ -3865,3 +3865,23 @@ Codex 那張是外部測試者回報才發現；Claude 那張是使用者隨口�
 **How to apply**：
 - 驗收 / 查證工單若會開 agent 分頁：寫明「不得在 agent TUI 送任何按鍵，除非先確認已登入」；WSL 的瀏覽器授權會落到 Windows 已登入的瀏覽器，等同自動同意
 - 工單要 Worker 以 Playwright 驅動 BAT 時，寫明「關閉一律用 `closeIsolated`（`e2e/fixtures/electron-isolation.ts`），或關閉確認回答離開＋結束 Terminal Server」；要保留 server 時先等主行程 `exit` 再收 server（順序反了 watchdog 會重新 fork）
+
+## L186
+
+**來源**：第一百三十九 session（2026-11-27），D461 的塔台記帳 commit
+
+**現象**：塔台把 `check-frontmatter.py` 與 `git commit` 用 `;` 串在同一個指令，檢查回 FAIL（`_tower-state.md` 一個 `todo` 字串多了一個未跳脫的 `"`，是 Edit 取代時把字串結尾的引號留在中間）仍照樣 commit；事後補一個修正 commit 才 push。
+
+**How to apply**：
+- 檢查與 commit 串接一律寫成 `check … | tail -1 | grep -q PASS && git commit …`，FAIL 就不 commit
+- 用 Edit 改 frontmatter 的 `todo` 字串時，`old_string` / `new_string` 要包含整行（含開頭的 `- "` 與結尾的 `"`），避免只換中段而留下多餘引號
+
+## L187
+
+**來源**：第一百三十九 session（2026-11-27），BUG-233 / T0959 / T0961
+
+**現象**：⏻ 後游標仍隱藏的 bug 在 Windows 上驗不到：WSL 分頁也經 ConPTY，新 ConPTY 一開始自己會送 `?9001h … ?25l … ?25h`，修正前（pre.1）游標也看得到。改在 `linux-acceptance`（GitHub Ubuntu runner，PTY 不經 ConPTY）加 spec，pre.1 B1 FAIL、pre.2 PASS，才同時證明原 bug 與修正。
+
+**How to apply**：
+- 終端模式 / 控制序列類的 bug（游標、滑鼠模式、bracketed paste、alt screen）在 Windows 驗收時，先確認 ConPTY 會不會自己補送那個序列；會的話改用 Linux CI（`linux-acceptance.yml --ref ct/T#### -f version=<版號>`，對修正前後兩版各跑一次）
+- 交付版驗收一律附「修正前版本」對照組，證明驗收工具分得出修正前後（T0959 / T0961 的做法）
