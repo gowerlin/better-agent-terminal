@@ -10,6 +10,7 @@
 
 | ID | 日期 | 標題 | 相關工單 |
 |----|------|------|---------|
+| D460 | 2026-11-27 | U-48：A → T0958 ff 進 `main` `8ed38794`，BUG-232 FIXED；U-49：A → 發 `0.8.1-pre.2` 並自動化驗收 | T0958 / BUG-232 / BUG-233 |
 | D459 | 2026-11-27 | T0958 收單（`011899a1`，驗收全綠）；斷點 E 發 U-48；發版發 U-49 | T0958 / T0956 / BUG-232 |
 | D458 | 2026-11-27 | T0956 收單（DONE，`137e7b6e`）；判準 1 不成立 → 派合併工單 T0958 | T0956 / T0958 / BUG-232 |
 | D457 | 2026-11-27 | U-47：A → T0957 ff 進 `main` `0f818244`；BUG-233 FIXED；分支刪除 | T0957 / BUG-233 |
@@ -577,6 +578,16 @@
   4. PLAN-001 保持延後（🟢 Low，等 plugin 1.0 穩定）
 - **Success criteria**（EXP→CONCLUDED）：npm install 無錯 / 所有 native modules rebuild 成功 / dev+build:dir 可跑 / 手動 smoke test 8 項通過
 - **最大風險**：`whisper-node-addon@1.0.2` 對 Electron 41（Node 24）的 NODE_MODULE_VERSION 相容性未知，允許 Worker 遇此決策點主動問塔台
+
+---
+
+### D460 2026-11-27 22:55 — U-48：A → T0958 ff、BUG-232 FIXED；U-49：A → 發 `0.8.1-pre.2`
+
+- **使用者**：`U-48：A`、`U-49：A`。兩筆移除。
+- **合併**：第 5 步 `main` 只多 `_ct-workorders/**` → 整合分支再合併後 ff；`main` = `8ed38794`；整合 worktree detach；T0956 worktree 移除；`ct/T0956`、`ct-merge/T0958` `-d` 刪除。
+- **BUG-232**：FIXING → FIXED。
+- **發版**：`0.8.1-pre.2`（顯式指定）；內容 BUG-232（T0956）、BUG-233（T0957）。發佈後以 T0955 驅動（`e2e/manual/t0955-v081-acceptance.ts`）自動化驗收，視需要擴充情境。
+- **相關**：T0958 / T0956 / T0957 / BUG-232 / BUG-233 / D459
 
 ---
 
