@@ -10,6 +10,7 @@
 
 | ID | 日期 | 標題 | 相關工單 |
 |----|------|------|---------|
+| D461 | 2026-11-27 | `v0.8.1-pre.2` 已發佈（run `46020314119` 全綠）；更版重點、CHANGELOG / release-note、版號同步；派自動化驗收 T0959 | BUG-232 / BUG-233 / T0959 |
 | D460 | 2026-11-27 | U-48：A → T0958 ff 進 `main` `8ed38794`，BUG-232 FIXED；U-49：A → 發 `0.8.1-pre.2` 並自動化驗收 | T0958 / BUG-232 / BUG-233 |
 | D459 | 2026-11-27 | T0958 收單（`011899a1`，驗收全綠）；斷點 E 發 U-48；發版發 U-49 | T0958 / T0956 / BUG-232 |
 | D458 | 2026-11-27 | T0956 收單（DONE，`137e7b6e`）；判準 1 不成立 → 派合併工單 T0958 | T0956 / T0958 / BUG-232 |
@@ -578,6 +579,16 @@
   4. PLAN-001 保持延後（🟢 Low，等 plugin 1.0 穩定）
 - **Success criteria**（EXP→CONCLUDED）：npm install 無錯 / 所有 native modules rebuild 成功 / dev+build:dir 可跑 / 手動 smoke test 8 項通過
 - **最大風險**：`whisper-node-addon@1.0.2` 對 Electron 41（Node 24）的 NODE_MODULE_VERSION 相容性未知，允許 Worker 遇此決策點主動問塔台
+
+---
+
+### D461 2026-11-27 23:24 — `v0.8.1-pre.2` 已發佈、派自動化驗收 T0959
+
+- **CI**：`pre-release.yml -f version=0.8.1-pre.2` run `46020314119`，12 個 job 全綠。Release `v0.8.1-pre.2`（prerelease，2026-11-27 15:22:35Z，target `450174a5`）：exe 369 / zip 548 / AppImage 365 / dmg 394 MiB；`server-bundle-v0.8.1-pre.2` 7 assets。
+- **更版重點**：`gh release edit --notes-file` 寫入並比對（只差結尾空行）；本版沒有 codex 相關變更，省略〈歡迎協助測試〉。
+- **文件**：`CHANGELOG.md`（`[0.8.1-pre.2]`）、`release-note.md`；`README.md` 無需更新（整合點與版本對照表不變）；`package.json` / lock 版號同步。NSIS 重裝驗收：不需要。
+- **驗收**：派 T0959（沿用 T0955 驅動；R0 回歸、B233 WSL、B232-login、B232-install 可行時）。BUG-232 / 233 依結果結案。
+- **相關**：D460 / BUG-232 / BUG-233 / T0959
 
 ---
 
