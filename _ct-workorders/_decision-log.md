@@ -10,6 +10,7 @@
 
 | ID | 日期 | 標題 | 相關工單 |
 |----|------|------|---------|
+| D398 | 2026-11-27 | U-23：A → T0938 經 `ct-merge/T0938` ff 進 `main`；pre.8 內容齊（T0936 / T0937 / T0938） | T0938 |
 | D397 | 2026-11-27 | T0938 收單（DONE，`7dbecd0d`；Q-1 塔台答 A）、模式 ① 合併到 `ct-merge/T0938` `706a906f`；CT 6.3.0-pre.1 規格補充 3 項與實作相符；斷點 E → U-23 | T0938 / PLAN-070 |
 | D396 | 2026-11-27 | U-22：A → T0937 經 `ct-merge/T0937` ff 進 `main`，接著派 T0938 | T0937 / T0938 |
 | D395 | 2026-11-27 | T0937 收單（DONE，`73d35e81`；Q-1 塔台答 A）、模式 ① 合併到 `ct-merge/T0937` `4d78e5f7`；後續建議（空選項欄放棄提示）併入 T0938；斷點 E → U-22 | T0937 / T0938 |
@@ -515,6 +516,15 @@
   4. PLAN-001 保持延後（🟢 Low，等 plugin 1.0 穩定）
 - **Success criteria**（EXP→CONCLUDED）：npm install 無錯 / 所有 native modules rebuild 成功 / dev+build:dir 可跑 / 手動 smoke test 8 項通過
 - **最大風險**：`whisper-node-addon@1.0.2` 對 Electron 41（Node 24）的 NODE_MODULE_VERSION 相容性未知，允許 Worker 遇此決策點主動問塔台
+
+---
+
+### D398 2026-11-27 11:55 — U-23：A，T0938 ff 進 `main`
+
+- **使用者回答**：U-23 選 A（原生選單）。
+- **做法**：整合分支併入 `main` 的塔台記帳 commit 後 `--ff-only`，產品樹與 `7dbecd0d` 相同；整合 worktree detach；U-23 移除。
+- **未做**：push、發版（待使用者授權）。分支 `ct/T0936`–`T0938`、`ct-merge/T0936`–`T0938` 與 worktree 保留到使用者同意刪除。
+- **相關**：T0936 / T0937 / T0938 / PLAN-070
 
 ---
 
