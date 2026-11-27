@@ -4,12 +4,13 @@ schema_kind: workorder
 id: T0946
 title: "BUG-228：Windows Git Bash 分頁把 claude 的 `/control-tower`（與派工的 `/ct-exec`）改寫成路徑 → 讓以 `/` 開頭的 prompt 參數原樣送到 claude"
 type: bugfix
-status: TODO
+status: IN_PROGRESS
 repo: better-agent-terminal
 priority: P2
 sizing: S
 created_at: "2026-11-27T20:42:33+08:00"
-updated_at: "2026-11-27T20:42:33+08:00"
+updated_at: "2026-11-27T20:44:22+08:00"
+started_at: "2026-11-27T20:44:22+08:00"
 target_version: "下一個預覽版（`0.8.1-pre.N`，發版前與使用者確認）"
 depends_on: []
 related:
