@@ -13,14 +13,6 @@ next_ids:
   plan: "PLAN-071"
   user: "U-27"
   action: "A-12"
-awaiting_user:
-  - id: "U-26"
-    workorder: ""
-    kind: "decision"
-    source: "tower-question"
-    summary: "【驗測範例 E3】自由回答欄：輸入「略過 測試」應出現放棄提示，仍可送出"
-    options: []
-    created_at: "2026-11-27T12:42:17+08:00"
 user_actions:
   - id: "A-8"
     title: "裝 0.8.0-pre.8 後驗收：待你執行的指令欄檔案可點並有「開啟」（BUG-226）、待你決定的「其他（自由回答）」"
