@@ -4,26 +4,17 @@ summary_version: 1
 bat_contract: 2
 ct_version: "6.2.0"
 inbox_features: ["recommended", "dismiss"]
-updated_at: "2026-11-27T11:20:23+0800"
+updated_at: "2026-11-27T11:21:13+0800"
 session: "2026-11-27 11:10 第一百三十七 session（CT v6.2.0）"
 next_ids:
   workorder: "T0937"
-  decision: "D392"
+  decision: "D393"
   bug: "BUG-227"
   plan: "PLAN-070"
   user: "U-22"
   action: "A-8"
-awaiting_user:
-  - id: "U-21"
-    workorder: "T0936"
-    kind: "decision"
-    source: "breakpoint-E"
-    summary: "T0936（BUG-226 指令欄檔案可點）已合併到 ct-merge/T0936 1c0a4891，要 ff 進 main 嗎"
-    options: ["A ff 進 main（推薦）", "B 暫不合併"]
-    recommended: "A"
-    created_at: "2026-11-27T11:20:23+08:00"
 todo:
-  - "🔀 T0936 DONE（`31dd9768`，BUG-226 FIXED，D391）：已合併 `ct-merge/T0936` `1c0a4891`，待 U-21 ff 進 `main`；之後發 `0.8.0-pre.8`"
+  - "✅ T0936 DONE、ff 進 `main`（U-21：A，D392；BUG-226 FIXED，待 `0.8.0-pre.8` 實機驗收）；下一步：發 `0.8.0-pre.8`（未 push）"
   - "🚀 `v0.8.0-pre.7` 已發佈並驗收（D387 / D389）：T0935 只寫檔名的參考檔案連結、T0934 💬 卡片連結（A-6 完成）；下一版 `0.8.0-pre.8`"
   - "`v0.8.0-pre.5` 已驗收（D378）：T0929 / T0930 / BUG-225 CLOSED"
   - "候選（未開單，T0930 建議）：`useInboxFileRefs` 跟 `_ct-workorders/` 的 `fs:changed` 重查（💬 卡片連結已由 T0934 完成）"

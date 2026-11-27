@@ -10,6 +10,7 @@
 
 | ID | 日期 | 標題 | 相關工單 |
 |----|------|------|---------|
+| D392 | 2026-11-27 | U-21：A → T0936 經 `ct-merge/T0936` ff 進 `main`（先併入 `main` 的塔台記帳 commit） | T0936 |
 | D391 | 2026-11-27 | T0936 收單（DONE，`31dd9768`；Worker 寫 FIXED 改 DONE）、BUG-226 → FIXED；模式 ① 合併到 `ct-merge/T0936` `1c0a4891`；斷點 E → U-21 | T0936 / BUG-226 |
 | D390 | 2026-11-27 | 開 BUG-226（low，待辦分頁 `command` 是檔案路徑時不能點）→ FIXING，開並派 T0936：`command` 經 T0930 辨識；整個是存在的檔案時連結＋「開啟」 | T0936 / BUG-226 |
 | D389 | 2026-11-27 | A-6：完成 → `v0.8.0-pre.7` 使用者實機驗收通過（T0935 只寫檔名、T0934 💬 卡片連結）；驗測範例 A-7 / U-20 移除 | T0934 / T0935 |
@@ -509,6 +510,15 @@
   4. PLAN-001 保持延後（🟢 Low，等 plugin 1.0 穩定）
 - **Success criteria**（EXP→CONCLUDED）：npm install 無錯 / 所有 native modules rebuild 成功 / dev+build:dir 可跑 / 手動 smoke test 8 項通過
 - **最大風險**：`whisper-node-addon@1.0.2` 對 Electron 41（Node 24）的 NODE_MODULE_VERSION 相容性未知，允許 Worker 遇此決策點主動問塔台
+
+---
+
+### D392 2026-11-27 11:21 — U-21：A，T0936 ff 進 `main`
+
+- **使用者回答**：U-21 選 A（原生選單）。
+- **做法**：`main` 在合併後又多了塔台記帳 commit（只有 `_ct-workorders/**`）→ 收單 SHA 比對第 ⑤ 步：整合分支 `--no-ff` 併入 `main` 一次後 `--ff-only`（產品樹相同，不重跑驗收）；整合 worktree detach。U-21 移除。
+- **未做**：push、發版（待使用者指示）。分支 `ct/T0936`、`ct-merge/T0936` 與 worktree 保留到使用者同意刪除。
+- **相關**：T0936 / BUG-226
 
 ---
 
