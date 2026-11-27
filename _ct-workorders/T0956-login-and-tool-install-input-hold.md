@@ -4,12 +4,13 @@ schema_kind: workorder
 id: T0956
 title: "BUG-232：登入導引分頁與遠端工具安裝也在命令寫入前保留使用者輸入（沿用 T0951 的 `sendLaunchCommand` / `holdInputUntilLaunch`）"
 type: bugfix
-status: PENDING
+status: IN_PROGRESS
 repo: better-agent-terminal
 priority: P3
 sizing: S
 created_at: "2026-11-27T22:38:19+08:00"
-updated_at: "2026-11-27T22:38:19+08:00"
+started_at: "2026-11-27T22:39:59+08:00"
+updated_at: "2026-11-27T22:39:59+08:00"
 target_version: "下一個預覽版（`0.8.1-pre.2`，發版前與使用者確認）"
 depends_on: []
 related:
@@ -29,6 +30,7 @@ affects_files:
   - docs/agent-guide/launch-command-input-hold.md
   - CLAUDE.md
 renew_count: 0
+tower_question: open
 isolation: worktree
 worker_question_timeout: 30
 interaction:
@@ -73,4 +75,15 @@ T0951（BUG-231）讓 11 處 agent 啟動命令在寫入前保留使用者輸入
 
 ## 回報區
 
-（Worker 填寫）
+### 待塔台決策
+
+#### Q-1：端到端測試（真 `PtyManager`＋handlers）可以放 `electron/__tests__/` 嗎？
+- **提問時間**：2026-11-27T22:46:33+08:00
+- **背景**：兩條路徑已改好並 commit（`ct/T0956` `0bfbb6bb`）。我寫的端到端測試 `src/lib/__tests__/launch-hold-login-install.test.ts` 用真的 `registerPtyHandlers`＋`PtyManager`（同 T0951 `electron/__tests__/launch-input-hold.test.ts` 的 FakeServer 寫法）驗證「命令前打字 → PTY 收到命令（登入分頁沒有 Enter）＋輸入」，vitest 8/8 通過；但 `npm run typecheck`（`src` 專案）不允許 import `electron/**`（TS6305，`src/` 目前沒有任何檔這樣 import），所以放在 `src/lib/__tests__/` 會讓 typecheck ≠ 0。`electron/__tests__/` 不在 `affects_files`。
+- **選項**：
+  - A. 把這個檔移到 `electron/__tests__/launch-hold-login-install.test.ts`（內容不變；`typecheck:electron` 涵蓋它，electron 測試 import `src/` 是既有慣例）。只新增一個測試檔，不動 `electron/` 產品碼。
+  - B. 留在 `src/lib/__tests__/`，改用假的 host（自己模擬「保留到 `launchCommand` 再寫命令＋輸入」），不用真 `PtyManager`。證據較弱（保留邏輯是測試自己寫的），範圍內。
+  - 其他。
+- **建議**：A。理由：位置與 T0951 的同類測試一致；驗的是真實的主行程保留，B 只能驗到 renderer 端接線（另一個檔 `src/lib/__tests__/launch-hold-login-install-wiring.test.tsx` 已經驗了接線）。
+- **影響**：只影響測試檔的位置與 typecheck；產品碼不變。
+- **是否阻擋後續**：是（typecheck = 0 是驗收條件，收單前要定案）。
