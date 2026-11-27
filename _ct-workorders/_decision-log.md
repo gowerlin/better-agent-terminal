@@ -10,6 +10,9 @@
 
 | ID | 日期 | 標題 | 相關工單 |
 |----|------|------|---------|
+| D441 | 2026-11-27 | T0952 收單（`23d124dc`，驗收全綠、無範圍外檔案）；斷點 E 發 U-41 | T0952 / T0949 / BUG-230 |
+| D440 | 2026-11-27 | T0950 收單（DONE，`cbc3175c`，⏻ 後離開殘留 alt screen）；整合 worktree 由 T0952 使用中，合併排在 T0952 ff 之後 | T0950 / T0952 |
+| D439 | 2026-11-27 | T0949 收單（DONE，`073dbaa1`，接回同一 PTY 時以存檔 pid 還原塔台宣告）；判準 1 不成立 → 派合併工單 T0952 | T0949 / T0952 / BUG-230 |
 | D438 | 2026-11-27 | T0947 兩項後續建議開單並派工：T0950（⏻ 離開殘留 alt screen）、BUG-231 / T0951（⏻ 期間打的字移到啟動命令之後） | T0950 / T0951 / BUG-231 |
 | D437 | 2026-11-27 | U-40：A → T0948 ff 進 `main` `dc37842c`；BUG-229 FIXED（待發版實機驗收）；T0947 worktree 移除 | T0948 / T0947 / BUG-229 |
 | D436 | 2026-11-27 | T0948 收單（`9f5cc1ee`，驗收全綠、無範圍外檔案）；斷點 E 發 U-40 | T0948 / T0947 / BUG-229 |
@@ -556,6 +559,35 @@
   4. PLAN-001 保持延後（🟢 Low，等 plugin 1.0 穩定）
 - **Success criteria**（EXP→CONCLUDED）：npm install 無錯 / 所有 native modules rebuild 成功 / dev+build:dir 可跑 / 手動 smoke test 8 項通過
 - **最大風險**：`whisper-node-addon@1.0.2` 對 Electron 41（Node 24）的 NODE_MODULE_VERSION 相容性未知，允許 Worker 遇此決策點主動問塔台
+
+---
+
+### D441 2026-11-27 21:24 — T0952 收單、斷點 E（U-41）
+
+- **回報**：T0952 DONE。`ct-merge/T0952` merge commit `23d124dc`（parent1 `5e2e58b6` = base、parent2 `073dbaa1` = `ct/T0949`），`CLAUDE.md` 自動合併無衝突、T0946 / T0947 / T0949 三處都在；樹比對正好 T0949 的 6 檔、範圍外無。驗收在 merge commit：typecheck 0 / 0、vite build 0、`test:unit` 9350 passed / 41 skipped（519 files）。
+- **SHA 比對**：第 1–3 步成立；第 5 步：`main` 自 base 起只多 `_ct-workorders/**`。
+- **收單**：`--close-worker T0952 --delay-ms 10000` exit 0。非 yolo → 斷點 E，發 U-41。
+- **相關**：T0952 / T0949 / BUG-230
+
+---
+
+### D440 2026-11-27 21:22 — T0950 收單、合併排在 T0952 之後
+
+- **回報**：T0950 DONE，`ct/T0950` `cbc3175c`（= validated_sha），base `18d0a229`（已含 T0947）。⏻ / 恢復時新 PTY spawn 後（`new-pty-spawned`，不在 `before-new-pty`：那時舊程式還在畫）若 xterm 仍在 alt buffer，就在本機 xterm 寫 `?1049l`；唯一實作 `leaveLeftoverAltScreen`（`src/lib/mouse-tracking-reset.ts`），接在 `pty-replay.ts` 兩處；CLAUDE.md T0672「不自動離開 alt screen」補例外。`test:unit` 9346 passed / 47 skipped（519 files）、vite build 0、typecheck 0；未改 `electron/**`。
+- **後續建議（未開單）**：`?1049l` 不還原 DECTCEM，⏻ 後游標可能仍隱藏（WSL / SSH / macOS / Linux 較可能），待實機確認再決定；bracketed paste / focus 回報 / DECCKM 殘留影響小，不處理。
+- **收單**：`--close-worker T0950 --delay-ms 10000 --worktree keep` exit 0。
+- **合併**：此刻判準 1 成立（base 之後 `main` 只多 `_ct-workorders/**`），但整合 worktree 正由 T0952 使用（`ct-merge/T0952`），不能同時做 → 等 T0952 ff 後再判斷（屆時 `main` 多了 T0949 的 `CLAUDE.md` 等，判準 1 不成立 → 合併工單）。
+- **相關**：T0950 / T0952 / T0947 / D438
+
+---
+
+### D439 2026-11-27 21:20 — T0949 收單、派合併工單 T0952
+
+- **回報**：T0949 DONE，`ct/T0949` `073dbaa1`（= validated_sha），base `451bbba9`。根因成立（宣告只在 `PtyInstance`，接回時 `handleReplayList` 建的 instance 沒有宣告欄位；「保留」與 holder 自動接回同一路徑）。做法：主行程存檔 `<userData>/tower-roles.json`（比照 `claude-sessions.json`，不含權杖），存宣告時的 pid；接回時 Terminal Server 清單的 pid 等於存檔 pid 且本行程未再宣告才還原，並送 `role-changed`；視窗 `did-finish-load` 時補送（附帶：View→Reload 後也拿得回塔台）。唯一實作 `decideTowerRoleRestore` / `TowerRolePersistence`（`electron/terminal-role.ts`）。`--set-role` 契約不變、hooks 不還原、headless 不存檔。`test:unit` 9325 passed / 46 skipped（518 files）、vite build 0、typecheck 0 / 0。
+- **塔台判讀**：Worker 指出工單寫「⏻ / recovery 一律照舊清除」與既有行為（同一行程內 ⏻ / recovery 保留宣告，T0565 / T0903）不同，依「照舊」沒改既有行為、只確保這些不在 BAT 重開時還原 —— 判定正確，不另開單。已知限制：從 `v0.8.0` 升上來的第一次接回沒有存檔。
+- **收單**：`--close-worker T0949 --delay-ms 10000 --worktree keep` exit 0。
+- **合併**：`main` 自 base 起併入 T0947 產品檔（`CLAUDE.md` 兩邊都改），判準 1 不成立 → 派合併工單 T0952（base `5e2e58b6`；`merge-tree` 試合併無衝突）。
+- **相關**：T0949 / T0952 / BUG-230
 
 ---
 
