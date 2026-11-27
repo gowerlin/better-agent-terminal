@@ -10,6 +10,7 @@
 
 | ID | 日期 | 標題 | 相關工單 |
 |----|------|------|---------|
+| D462 | 2026-11-27 | T0959 收單（R0 / B233 / B232-login PASS，B232-install 未判定）；結案方式發 U-50、驅動合併發 U-51 | T0959 / BUG-232 / BUG-233 |
 | D461 | 2026-11-27 | `v0.8.1-pre.2` 已發佈（run `46020314119` 全綠）；更版重點、CHANGELOG / release-note、版號同步；派自動化驗收 T0959 | BUG-232 / BUG-233 / T0959 |
 | D460 | 2026-11-27 | U-48：A → T0958 ff 進 `main` `8ed38794`，BUG-232 FIXED；U-49：A → 發 `0.8.1-pre.2` 並自動化驗收 | T0958 / BUG-232 / BUG-233 |
 | D459 | 2026-11-27 | T0958 收單（`011899a1`，驗收全綠）；斷點 E 發 U-48；發版發 U-49 | T0958 / T0956 / BUG-232 |
@@ -579,6 +580,16 @@
   4. PLAN-001 保持延後（🟢 Low，等 plugin 1.0 穩定）
 - **Success criteria**（EXP→CONCLUDED）：npm install 無錯 / 所有 native modules rebuild 成功 / dev+build:dir 可跑 / 手動 smoke test 8 項通過
 - **最大風險**：`whisper-node-addon@1.0.2` 對 Electron 41（Node 24）的 NODE_MODULE_VERSION 相容性未知，允許 Worker 遇此決策點主動問塔台
+
+---
+
+### D462 2026-11-27 23:42 — T0959 收單；BUG-232 / 233 結案方式（U-50）、驅動合併（U-51）
+
+- **回報**：T0959 DONE（`ct/T0959` `405da25a`，新增 `e2e/manual/t0959-v081-pre2-acceptance.ts`、假 claude 加選用的「未登入」`auth status`、README）。受測 `v0.8.1-pre.2` win zip（digest `b11fafc0…` 相符）。R0（T0955 全套 8 項）PASS；B233（Shell = `wsl.exe`，`?1049h ?25l` 後 ⏻）PASS：`cursor shown: new-pty-spawned` log、`isCursorHidden=false`，對照組不回歸；B232-login PASS：「未登入」導引開的分頁，命令前鍵入 `abc` → 輸入列 `… auth loginabc`、沒送出、有保留 log；B232-install **未判定**（需要遠端 profile，會改動使用者 WSL / systemd / bat-server）。對照組 pre.1：B232-login FAIL（`abc` 在命令前）→ 驅動分得出修正前後。
+- **限制**：Windows 上 WSL 分頁仍經 ConPTY，新 ConPTY 自己送 `?25h`，pre.1 游標也看得到 → B233 只證明修正路徑有執行、沒回歸，沒有重現原 bug（原 bug 在 PTY 位於非 Windows 主機：遠端 WSL / SSH bat-server、Linux / macOS）。
+- **隔離**：安裝版 BAT 核心 pid 前後相同、使用者層 1195 檔雜湊相同、WSL 未被安裝或寫入、自己的程序全清。`--close-worker T0959 --worktree keep` exit 0。
+- **待決**：U-50（BUG-232 / 233 怎麼結；塔台推薦 BUG-232 結案〔登入路徑交付版 PASS＋對照，安裝路徑同一機制、有真 `PtyManager` 端到端單元測試〕、BUG-233 維持 FIXED 發 A-24 到遠端視窗實機）；U-51（驅動合併，五條判準成立）。
+- **相關**：T0959 / BUG-232 / BUG-233 / D461
 
 ---
 
