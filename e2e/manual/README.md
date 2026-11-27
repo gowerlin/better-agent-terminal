@@ -212,3 +212,24 @@ node node_modules/tsx/dist/cli.mjs e2e/manual/t0955-v081-acceptance.ts
 - 選填：`T0955_GIT_BASH`（預設 `C:\Program Files\Git\bin\bash.exe`，不存在 → exit `2`）、`T0955_CSC`（預設 `%WINDIR%\Microsoft.NET\Framework64\v4.0.30319\csc.exe`）。
 - exit `0` = 全部 PASS、`1` = 有 FAIL / 未判定、`2` = 用法或環境錯誤。結果：`<T0955_RESULTS>/report-<時間>.json`，每次執行的 `run-<時間>/`（`driver.log`、假 claude 的 argv / stdin / meta、分頁輸出、遮罩過的 BAT 日誌、`tower-roles.json`、截圖）。結果目錄含本機路徑與使用者名稱，不要放進 repo。
 - 已知限制：假 claude 不跑 BAT hooks，塔台縮圖會顯示 `🪝✕`（hooks `none (no-report)`），與本驗收項目無關；待辦分頁在預設版面沒有渲染時，A-21 以 helper 查詢與日誌判定。
+- `auth status`（T0959 起，選用）：`control.json` 有 `"authStatus": "loggedOut"` 時，假 claude 對 `auth status` 印出 `{"loggedIn": false, …}` 並 exit `1`（同 claude 未登入時），讓 Claude Agent 面板顯示「未登入」導引；沒有這個鍵時行為與 T0955 相同。
+
+## t0959-v081-pre2-acceptance.ts — ⏻ 後游標（BUG-233）與登入導引分頁的命令前輸入（BUG-232）自動驗收（T0959）
+
+沿用 T0955 的隔離方式與假 claude，以發佈的 zip 開兩個隔離 BAT（各自 `--runtime=e2e-t0959-<階段>-<時間>`），輸出 PASS / FAIL / 未判定與證據。R0（T0955 全套）另以 `t0955-v081-acceptance.ts` 對同一個 exe 執行。不會被 `npm run test:*` 執行，只支援 Windows。
+
+- **wsl 階段**（Settings → Shell = 自訂 `wsl.exe`，只開使用者預設 distro 的 shell，不安裝、不設定、不寫入 distro；沒有 `wsl.exe` → B233 未判定）：先對閒置 shell 按 ⏻（對照：沒有 `cursor shown` / `cursor state unknown` 日誌），再打 `printf '\033[?1049h\033[?25l'; sleep 6007`（游標隱藏且程式仍在跑）後按 ⏻ → 新 shell 的 xterm `isCursorHidden=false`、normal buffer、log `[mouse-tracking] cursor shown: new-pty-spawned`，並記錄新 shell 自己的輸出是否含 `ESC[?25h`。
+- **git 階段**（Shell = Git Bash，假 claude 的 `auth status` 回未登入）：同樣的隱藏游標 ⏻（不回歸：游標看得到）與閒置 ⏻；B232-login：「+」→ Claude Agent → 面板顯示「未登入」導引 → 按開啟終端 → 新 PTY 一出現就鍵入 `abc` → 輸入列是 `<cli> auth login` 在前、`abc` 在後，假 claude 沒有被執行（沒有 Enter），log 有 `[agent-command] … input before the launch command … sent after it`；對照：再開一次不打字 → 只有命令、沒有保留紀錄。
+- **B232-install** 需要遠端 profile 視窗；本機能取得的方式（WSL 精靈、手動在 distro 跑 bat-server）與安裝動作本身都會改動使用者的 WSL，所以固定記「未判定」。
+- **隔離**：同 T0955，另把安裝版 BAT 的程序分成核心（`BetterAgentTerminal.exe` / `bat-pty-holder.exe`，pid 前後必須相同）與 agent 端子程序（使用者分頁裡的 claude / node / hooks，會隨使用者操作增減，只記錄）；收尾只結束自己的殘留（假 claude、Git Bash `sleep 6008`，以及 WSL 內 `sleep 6007`，皆以 pid），並記在 `driver.log` 的 `ended leftover`。
+- **已知限制**：Windows 上 WSL 分頁仍經 ConPTY，⏻ 後新的 ConPTY 自己會送 `ESC[?25l` … `ESC[?25h`，所以即使沒有 T0957 的修正游標也看得到；本驗收能確認修正路徑有執行且不回歸，原 bug（PTY 在非 Windows 主機）要在遠端 profile 視窗驗證。
+
+```powershell
+# repo 根目錄，先 npm ci（驅動用 tsx 執行）
+$env:BAT_E2E_EXECUTABLE='C:/Users/demo/AppData/Local/BAT-TestBuilds/0.8.1-pre.2-win/BetterAgentTerminal.exe'
+$env:T0959_RESULTS='C:/Users/demo/AppData/Local/BAT-TestBuilds/T0959-results'
+node node_modules/tsx/dist/cli.mjs e2e/manual/t0959-v081-pre2-acceptance.ts
+```
+
+- 選填：`T0959_WSL`（預設 `%WINDIR%\System32\wsl.exe`）、`T0959_GIT_BASH`（預設 `C:\Program Files\Git\bin\bash.exe`）、`T0959_CSC`。
+- exit `0` = 可判定的項目全部 PASS（B232-install 固定未判定、不影響 exit）、`1` = 有 FAIL 或其他未判定、`2` = 用法或環境錯誤。結果：`<T0959_RESULTS>/report-<時間>.json` 與 `run-<時間>/`（`driver.log`、兩個階段遮罩過的 BAT 日誌 `logs-wsl/` / `logs-git/`、分頁輸出、截圖）。結果目錄含本機路徑，不要放進 repo。
