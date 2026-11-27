@@ -420,7 +420,7 @@ host：`setReading(id, reporter, reading)`，`reporter` = `conn:<connectionId>` 
 
 | 區塊 | 內容 | 動作 |
 |---|---|---|
-| ⏸ 待你決定 | id、工單、`source` 短標籤、`kind`、`summary`、時間；工單 `waiting_user` 對應時「⏸ T#### 暫停中」（只看未結工單） | 選項 radio＋「送出」→ `U-n：<代號>`（代號照 CT 原樣）；自由回答欄（Enter 或「送出」）→ `U-n：<文字>`（換行改空白） |
+| ⏸ 待你決定 | id、工單、`source` 短標籤、`kind`、`summary`、時間；工單 `waiting_user` 對應時「⏸ T#### 暫停中」（只看未結工單） | 選項 radio＋「送出」→ `U-n：<代號>`（代號照 CT 原樣）；選項最後一項「其他（自由回答）」（T0937）→ 清單下方一行輸入框 → `U-n：<文字>`；沒有選項時的自由回答欄（Enter 或「送出」）→ `U-n：<文字>`（換行改空白） |
 | 🙋 待你執行 | CT `user_actions`（在前）＋待驗收 BUG（`_bug-tracker.md`） | 「複製指令」（`navigator.clipboard.writeText`，🔴 BAT 永遠不執行）、「完成」→ `A-n：完成`、「失敗…」＋說明 → `A-n：失敗 <說明>` |
 | ⏰ 到期提醒 | `due_at` 已到或 7 天內（`dueReminders`）；逾期 N 天 / 今天到期 / N 天後到期＋上次 `last_at` | — |
 | 最近已結 | 從檔案消失的 `U-n` / `A-n`（`nextRecentlyClosed`，記憶體、每資料夾 10 筆、只本次啟動）；摺疊 | — |
@@ -428,6 +428,17 @@ host：`setReading(id, reporter, reading)`，`reporter` = `conn:<connectionId>` 
 - 這三區的筆數算進分頁標題數字（`inboxActionCount`，見「右側欄「待辦」分頁」節〈區塊〉）。
 - 每筆下方顯示送出結果：已送出 / 已排入待送佇列（📨）/ 面板有草稿 / 面板未開啟 / 沒有可送的塔台 / 沒送出（原因代碼）。
 - 版面（T0929，只改 DOM 結構與 CSS）：每筆由上而下是標頭列（勾選框、id、工單、標籤）→ 摘要（`summary` / `title`）自成一行、全寬（`[data-inbox-summary]`，不在 `.inbox-entry-head` 內）→ 每個選項一行（`.inbox-option-list` 內每個 `label` 一行，「推薦」標記在該選項尾端；自由回答則是全寬輸入框）→ 按鈕列（`.inbox-entry-buttons`：送出、放棄…；🙋 為完成、失敗…、略過…）自成一行，窄到放不下才換行 → 放棄 / 略過的說明欄在按鈕列下方展開。`.inbox-options` / `.inbox-free` 保留為外層回答區塊（e2e t0913 以 `.inbox-options .inbox-btn.primary` 找送出）。結構測試：`src/components/__tests__/inbox-layout-t0929.test.tsx`。
+
+### 「其他（自由回答）」（T0937）
+
+- 用途：`options` 非空時原本只能單選，選項都不合適時使用者只能借「放棄…」備註欄填字（CT 會把那段文字當新方向）。現在每題選項清單最後多一項「其他（自由回答）」，送出的仍是 CT 6.1.0 起就接受的 `U-n：<自由文字>`（D393，PLAN-070 子項 1）。
+- 🔴 只在 `options` 可用時出現：`options: []` / 沒有 `options` 的題目維持原本的自由回答欄，`optionsInvalid` 也一樣（不重複加「其他」）；與 `inbox_features` 有沒有 `dismiss` 無關。
+- 🔴 「其他」在 `role="radiogroup"`（`[data-inbox-option-list]`）內的最後一個 `<label>`，`data-inbox-option-other="<id>"`、🔴 不帶 `data-inbox-option`（它不是 CT 的代號）。永遠不是預設選取、不標推薦；有 `recommended` 時預設仍選推薦項（T0922）。
+- 選了 → 清單下方、按鈕列之前出現一行輸入框（`.inbox-free-input`、`maxLength` 900、`[data-inbox-other-input]`）；Enter 或「送出」送出（IME 組字中的 Enter 不送），trim 後是空白不可送。改選其他選項時輸入框收起，文字留在元件狀態；送出成功後整筆回到預設。
+- 🔴 送出路徑不變：同一個 `submit` → `awaitingAnswerText` → `sendInboxAnswer` → `tower-inbox:answer`；不新增 IPC、不改 `checkInboxAnswer` / `enqueueAnswer`（單編號行本來就接受任意文字）。
+- 文字的第一個詞是「放棄」/「略過」（CT 的規則，判斷沿用 `isDismissAnswer`：後面接行尾、空白或 `，,。；;`；「放棄了…」不算）→ 輸入框下方一行提示「以「放棄」或「略過」開頭的回答，塔台會當成放棄。」（`[data-inbox-other-hint]`），🔴 只提示、不擋送出（CT 規格的已知取捨）。
+- 不做多選（PLAN-070 子項 4，等 CT 核定契約後另開單）。
+- 測試：`src/components/__tests__/inbox-other-t0937.test.tsx`；t0929 版面測試的選項清單斷言改成只比對帶 `data-inbox-option` 的子元素仍是 A / B / C，另斷言最後一個子元素是「其他」（塔台 T0937 Q-1 核可）。
 
 ### 回答路徑
 
@@ -521,7 +532,7 @@ T0922（D346；CT 6.2.0-pre.1，CT D886 / D888 / D889）。規格唯一權威：
 | 有 `dismiss`，該區有項目 | 工具列「放棄勾選（N）」「全部放棄」 | 工具列「略過勾選（N）」「全部略過」 |
 
 - 待驗收 BUG（🙋 區下半）不是 CT 項目，沒有略過。
-- 「放棄…」/「略過…」展開頁內一欄選填的「原因 / 新方向」＋送出 / 取消（不用 `window.confirm`、不開 Dialog）；Enter 也會送出。
+- 「放棄…」/「略過…」展開頁內一欄選填的「原因」（T0937 前是「原因或新方向」；要給新方向改用「其他（自由回答）」）＋送出 / 取消（不用 `window.confirm`、不開 Dialog）；Enter 也會送出。
 - 工具列按下後展開頁內確認：列出這次要送的編號（以 `、` 分隔）＋一欄共用的選填文字＋送出 / 取消。「放棄勾選」在沒有勾選時停用。
 
 ### 送出格式

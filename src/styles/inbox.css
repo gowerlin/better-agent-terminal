@@ -469,6 +469,11 @@
   min-width: 0;
   overflow-wrap: anywhere;
 }
+/* T0937: under the「其他」box when the text starts with 放棄 / 略過 (a hint, never a block) */
+.inbox-other-hint {
+  font-size: 11px;
+  color: var(--warning-color, #d29922);
+}
 .inbox-free-input {
   flex: 1 1 140px;
   min-width: 0;
