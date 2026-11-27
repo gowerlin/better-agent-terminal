@@ -44,7 +44,7 @@ export interface PtyHandlerDeps {
    * the user's input restarts its quiet wait. Absent: written at once (before T0788).
    */
   notifyHold?: Pick<NotifyHoldController, 'interceptWrite' | 'onUserInput'>
-    & Partial<Pick<NotifyHoldController, 'holdUserWrite' | 'afterSubmitWrite' | 'setReading'>>
+    & Partial<Pick<NotifyHoldController, 'holdUserWrite' | 'afterSubmitWrite' | 'setReading' | 'isPromptShown' | 'onMousePress'>>
 }
 
 /**
@@ -132,13 +132,17 @@ export function registerPtyHandlers(register: HandlerRegistrar, deps: PtyHandler
     if (held) return held
     const fromUser = !auto && (deps.isUserInput ? deps.isUserInput(ctx) : !ctx.connectionId)
     if (fromUser && !isTerminalAutoReply(data)) {
+      // T0940 (BUG-227) 案 A: was a hook / osc prompt shown when this key came? Asked before
+      // `noteUserInput`, which clears the hook reason.
+      const duringPrompt = deps.notifyHold?.isPromptShown?.(id) ?? false
       manager.noteUserInput(id)
       deps.onUserInput?.(id)
-      deps.notifyHold?.onUserInput(id, data)
+      deps.notifyHold?.onUserInput(id, data, { duringPrompt })
     } else if (fromUser && hasMouseButtonPress(data)) {
       // T0757 / BUG-188 (D209): a click answers a prompt like a key does — clears the hook `blocked`
       // only; still not user input for `--close-worker` / the usage-limit wait (T0551 unchanged)
       manager.noteMousePress(id)
+      deps.notifyHold?.onMousePress?.(id) // T0940: a click may have answered claude's survey
     }
     // T0904: between a notification's text and its Enter the user's input waits (written after it)
     if (!ctx.helper && deps.notifyHold?.holdUserWrite?.(id, data, { submit: auto || submit })) return { ok: true }

@@ -55,6 +55,15 @@
  *     their Enter is the user's input (`userInput` on the keypress → the window writes `{ submit }`).
  *   - the T0788 reasons hold every tab, as before; 8 items per tab and no expiry still apply.
  *
+ * T0940 / BUG-227 (D406) — keys that never stay in the input box do not make a `draft`:
+ *   - 案 A: one key that came while a hook / osc prompt was shown (`onUserInput` `duringPrompt`,
+ *     taken by electron/handlers/pty.ts before `noteUserInput` clears the hook reason) leaves the
+ *     draft as it was (`trackDraftDuringPrompt`); a paste / several characters as before.
+ *   - 案 B: claude's single-key survey seen in a contract-2 Tower's output (`onPtyOutput`, read only,
+ *     `SingleKeyPromptScanner`) and answered by exactly one of its keys (`answersSingleKeyPrompt`).
+ *     Every other write to the tab (the user's, a helper's, an answer, BAT's own, a mouse press)
+ *     forgets the survey first.
+ *
  * PLAN-068 W5 / T0908: the windows' channels are registered here for both hosts and proxied
  * (`registerNotifyHoldHandlers`: `terminal:notify-hold-list` / `-cancel` / `-send-now`;
  * `registerTowerInboxAnswerHandler`: `tower-inbox:answer`), so a remote window sees and drives its
@@ -74,7 +83,14 @@ import type {
 } from '../src/types/notify-hold'
 import { towerContractStatus } from '../src/lib/tower-contract'
 import { checkInboxAnswer, inboxAnswerLogIds } from '../src/lib/tower-inbox'
-import { NO_DRAFT, trackDraft, type DraftState } from '../src/lib/tower-input-draft'
+import {
+  NO_DRAFT,
+  SingleKeyPromptScanner,
+  answersSingleKeyPrompt,
+  trackDraft,
+  trackDraftDuringPrompt,
+  type DraftState,
+} from '../src/lib/tower-input-draft'
 import type { BlockedDetection, BlockedState } from './terminal-blocked-state'
 import type { HandlerContext } from './remote/handler-registry'
 
@@ -222,6 +238,8 @@ export class NotifyHoldController {
   private readonly readers = new Map<string, Set<string>>()
   /** T0904: per tab, the open atomic window. */
   private readonly atomics = new Map<string, AtomicWindow>()
+  /** T0940 案 B: per contract-2 Tower, claude's single-key survey seen in its output. */
+  private readonly singleKey = new SingleKeyPromptScanner()
   private seq = 0
   private disposed = false
   private readonly now: () => number
@@ -239,6 +257,7 @@ export class NotifyHoldController {
    */
   interceptWrite(ctx: HandlerContext, targetId: string, data: string): NotifyHoldDecision | NotifyHoldWriteResult | null {
     if (!ctx.helper || typeof targetId !== 'string' || typeof data !== 'string') return null
+    this.singleKey.drop(targetId) // T0940: a helper write ends the single-key survey record
     const hold = this.holdReason(ctx, targetId, 'pty:write', 'notify')
     if (!hold) {
       const pm = this.deps.getPtyManager()
@@ -359,11 +378,24 @@ export class NotifyHoldController {
 
   /**
    * The user typed into tab `id`: the quiet wait starts again. T0904: `data` feeds the S1 draft state
-   * (only user input that is not a terminal reply comes here, electron/handlers/pty.ts).
+   * (only user input that is not a terminal reply comes here, electron/handlers/pty.ts). T0940:
+   * `duringPrompt` = a hook / osc prompt was shown when it came (案 A); a single-key survey seen in
+   * the output is answered by it or forgotten (案 B).
    */
-  onUserInput(id: string, data?: string): void {
+  onUserInput(id: string, data?: string, opts: { duringPrompt?: boolean } = {}): void {
     if (typeof data === 'string' && data.length > 0) {
-      const next = trackDraft(this.drafts.get(id) ?? NO_DRAFT, data)
+      const prev = this.drafts.get(id) ?? NO_DRAFT
+      const now = this.now()
+      const survey = this.singleKey.take(id, now)
+      let next: DraftState
+      if (opts.duringPrompt) {
+        next = trackDraftDuringPrompt(prev, data)
+      } else if (survey && answersSingleKeyPrompt(survey, prev, data, now)) {
+        next = prev
+        this.deps.logger.log(`[notify-hold] single-key prompt answered terminal=${id} legend=${survey.legend} (no draft)`)
+      } else {
+        next = trackDraft(prev, data)
+      }
       if (next.draft || next.inPaste) this.drafts.set(id, next)
       else this.drafts.delete(id)
     }
@@ -382,6 +414,7 @@ export class NotifyHoldController {
    * window's `{ auto: true }` / `{ submit: true }` write: its `\r` is the notification's Enter.
    */
   holdUserWrite(id: string, data: string, opts: { submit?: boolean } = {}): boolean {
+    if (opts.submit) this.singleKey.drop(id) // T0940: BAT's own write ends the survey record
     const atomic = this.atomics.get(id)
     if (!atomic || typeof data !== 'string') return false
     if (opts.submit && data.includes('\r')) return false
@@ -391,7 +424,32 @@ export class NotifyHoldController {
 
   /** T0904: a `{ auto: true }` / `{ submit: true }` write reached PTY `id`; its `\r` closes the atomic window. */
   afterSubmitWrite(id: string, data: string): void {
+    this.singleKey.drop(id) // T0940
     if (typeof data === 'string' && data.includes('\r') && this.atomics.has(id)) this.closeAtomic(id, 'enter')
+  }
+
+  /**
+   * T0940 案 B: output of PTY `id` (PtyManager `onPtyOutput`; read only, nothing is changed). Only a
+   * contract-2 Tower is scanned for claude's single-key survey.
+   */
+  onPtyOutput(id: string, data: string): void {
+    if (this.disposed || typeof id !== 'string' || typeof data !== 'string' || data.length === 0) return
+    if (!this.isContractTower(id)) {
+      if (this.singleKey.has(id)) this.singleKey.forget(id)
+      return
+    }
+    const record = this.singleKey.scan(id, data, this.now())
+    if (record) this.deps.logger.log(`[notify-hold] single-key prompt shown terminal=${id} legend=${record.legend}`)
+  }
+
+  /** T0940: the user pressed a mouse button in tab `id` (it may have answered the survey): forget it. */
+  onMousePress(id: string): void {
+    this.singleKey.drop(id)
+  }
+
+  /** T0940 案 A: tab `id` shows a hook / osc prompt now (asked before `noteUserInput` clears it). */
+  isPromptShown(id: string): boolean {
+    return this.promptReason(id) !== null
   }
 
   /**
@@ -428,6 +486,7 @@ export class NotifyHoldController {
   onServerRecovery(): void {
     for (const id of [...this.queues.keys()]) this.dropAll(id, 'server-recovery')
     for (const id of new Set([...this.drafts.keys(), ...this.readers.keys(), ...this.atomics.keys()])) this.forgetTab(id)
+    this.singleKey.clear()
   }
 
   // ── the windows (renderer IPC) ──
@@ -494,6 +553,7 @@ export class NotifyHoldController {
     this.atomics.clear()
     this.drafts.clear()
     this.readers.clear()
+    this.singleKey.clear()
   }
 
   // ── internals ──
@@ -744,6 +804,7 @@ export class NotifyHoldController {
         const item = queue.items[0]
         if (item.text !== undefined) {
           const text = item.text
+          this.singleKey.drop(id) // T0940
           const result = pm.writeWithResult(id, text)
           delete item.text
           if (!result.ok) {
@@ -832,6 +893,7 @@ export class NotifyHoldController {
   private forgetTab(id: string): void {
     this.drafts.delete(id)
     this.readers.delete(id)
+    this.singleKey.forget(id)
     const atomic = this.atomics.get(id)
     if (atomic) {
       this.atomics.delete(id)
