@@ -24,6 +24,9 @@ affects_files:
   - src/lib/__tests__/
   - electron/notify-hold.ts
   - electron/__tests__/
+  - electron/main.ts
+  - electron/remote/headless-entry.ts
+  - electron/handlers/pty.ts
   - docs/agent-guide/tower-inbox.md
   - docs/agent-guide/notify-hold.md
   - CLAUDE.md
@@ -31,7 +34,6 @@ affects_files:
 renew_count: 0
 isolation: worktree
 worker_question_timeout: 30
-tower_question: open
 interaction:
   mode_hint: yolo
   interactive: false
@@ -114,3 +116,4 @@ BUG-227（T0939 S1 M-3 發現）：契約 2 塔台分頁出現 claude 的意見�
 
 - [14:16] 開工：落點檢查 PASS（C-0 `repo` = `better-agent-terminal` = `basename "$CT_HOME"`），`CT_MODE=yolo`、`CT_INTERACTIVE=0`。
 - [14:22] Q-1 → 塔台（讀 PTY 輸出與範圍）。
+- [14:24] Q-1: 讀 PTY 輸出與範圍 → A（塔台，BAT 通道 `answered`，choice 2）: B（案 B ＋ 案 A），核准 `electron/main.ts`、`electron/remote/headless-entry.ts`、`electron/handlers/pty.ts` 加進範圍；案 A 限制：提示期間只有「單一按鍵」不改變草稿（不設不清），括號貼上或一次多個可列印字元照現行記草稿；案 B 照四個條件、圖例字串集中一處、回報列 claude 版本；案 C 不做；指定測試五項 → Action: frontmatter `affects_files` 補三檔、刪 `tower_question`，開始實作。
