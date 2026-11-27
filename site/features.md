@@ -27,6 +27,7 @@ description: 不用 Control Tower，Better Agent Terminal 本身能做什麼：�
 
 - **Claude Code 面板**：以 Claude Agent SDK 驅動，工具呼叫以結構化事件顯示，權限確認在面板裡回答，也能續接之前的對話。
 - **Claude Code CLI**：在終端機分頁裡使用完整的 CLI。
+- **以塔台開啟 Claude**：開一個 Claude CLI 分頁當 Control Tower 塔台，session 名稱是「工作區名稱 · Tower」。下一版起啟動時自動帶入 `/control-tower`，分頁開好就直接進入塔台（⏻ 重啟也一樣；接續中斷的對話時不帶）。
 - **Codex CLI**：支援沙箱與 YOLO 模式。
 - **Gemini CLI**：支援沙箱模式。
 - **GitHub Copilot CLI**。

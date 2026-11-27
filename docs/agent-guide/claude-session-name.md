@@ -109,7 +109,13 @@
 
 - 入口：分頁縮圖列「+」選單，緊接在「Claude CLI」下方的「以塔台開啟 Claude」（en `Open Claude as Tower`、zh-CN `以塔台打开 Claude`；i18n key `terminal.openClaudeAsTower` / `terminal.openClaudeAsTowerHint`）。Claude CLI 在該視窗不可用時，以同一個原因停用；選單沒有 Claude CLI 時排在 agent 清單最後。實作：`ThumbnailBar` 的 prop `onAddClaudeCliAsTower`、`WorkspaceView.handleAddClaudeCliAsTower`。
 - 行為：一律開 claude-cli 分頁（不看工作區預設 agent），套用工作區生效的 claude-cli 啟動參數（`getEffectiveAgentArgs`），session 名稱為 `<ws> · Tower`（`claudeSessionName({ role: 'tower' })`）。標題預設 `Claude CLI · Tower`（`setAutoTitle`，與 T0562 一致；使用者改名優先）。
-- 🔴 只負責命名：不呼叫 `terminal:set-role`、不設定塔台角色、不自動輸入任何指令；塔台角色仍由 CT 啟動時以 `--set-role tower` 宣告。CT 宣告後標題的結果為 `unchanged`。
+- 🔴 不呼叫 `terminal:set-role`、不設定塔台角色；塔台角色仍由 CT 啟動時以 `--set-role tower` 宣告。CT 宣告後標題的結果為 `unchanged`。
+- 啟動時帶入 `/control-tower`（T0944 / D421，取代 T0644「不自動輸入任何指令」）：塔台分頁每次啟動**新的** claude session，把 `/control-tower` 當成 claude 的啟動參數（位置參數 prompt），claude 一啟動就進入塔台。🔴 是啟動參數，不是啟動後打字：仍只寫一次 PTY（啟動指令），不另送字。
+  - 帶：① 「以塔台開啟 Claude」新開分頁；② ⏻ 重啟塔台分頁；③ BAT 重開後還原、PTY 已不在而重新啟動 claude 的塔台分頁（三者都經 `startClaudeCliPty` 且沒有 `resume`）。
+  - 不帶：④ 中斷後一鍵 resume（T0766：resume 不附 prompt，命令只有 `--resume=`）；⑤ 還原時 PTY 仍在跑（T0403，本來就不送啟動指令）；⑥ 生效的自訂參數已含 resume 類旗標（`--continue` / `-c` / `--resume` / `-r` / `--session-id` / `--from-pr` / `--teleport`、含 `r` / `c` 的短旗標群組；與 `claudeResumeArgs` 共用 `userArgsSetClaudeResume`）；⑦ 非塔台分頁（一般 Claude CLI、worktree、Worker 派工、Claude Agent 面板、codex）命令逐字不變。不加 Settings 開關（D421）。
+  - 位置與引號照 helper 派工（`createAgentPromptCommandBuilder`）：最後一個參數，在自訂參數之後，經 `quoteArgForShell`（`/control-tower` 在 pwsh / cmd / posix 都不需要引號，輸出就是原字串）。helper 派工對自訂參數裡會吃後續值的 variadic 旗標（例 `--allowedTools a b`）沒有另外處理，這裡同樣不處理：自訂參數以這類旗標結尾時，claude 會把 `/control-tower` 當成該旗標的值（與 Worker 派工的 `/ct-exec T####` 相同限制）。
+  - 字串固定 `/control-tower`（Claude 端的 skill 名稱，CT 以 plugin 安裝時也是同一字串，T0710）。沒裝 CT 的機器上 claude 會顯示找不到這個 skill，這是預期；不想帶就改開一般「Claude CLI」。
+  - 唯一實作 `towerLaunchPrompt`（`src/lib/tower-launch-prompt.ts`，純函式）；`startClaudeCliPty` 只接線，`--name=`、BAT MCP / hooks 參數、`--resume=` 規則、標題都不變。日誌：塔台分頁每次啟動記一行 `[T0944] tower tab terminal=<id>: launch prompt added|skipped (<原因>)`（原因 `tower` / `resume` / `user-args`）。
 - `launchRole`：`TerminalInstance.launchRole?: 'tower'`，隨分頁一起存檔（`workspaceStore.save()`）。還原時只接受 `'tower'`；detached 視窗收回時保留。`startClaudeCliPty` 每次從 store 讀這個欄位決定名稱，所以新建、⏻ 重啟、BAT 重開還原都是同一個名稱。沒有 `launchRole` 的分頁照 T0641 規則（`<ws> · <短 ID>`）。
 - 不注入名稱的情況與 T0641 相同（上節「降級」）：自訂參數已含 `--name` / `-n` 時不注入；system claude `< 2.1.76` 或讀不到版本時不注入。
 - 已知限制：
@@ -117,7 +123,7 @@
   - 只支援 claude-cli；claude-cli-worktree、Claude Agent（SDK）、codex 等沒有這個入口。
   - 同一個工作區開多個「以塔台開啟」分頁時名稱相同（都是 `<ws> · Tower`），ListAgents 上分不出來。
   - 使用者手動改分頁名稱不影響 session 名稱（名稱看 `launchRole`，不看標題）。
-- 驗證清單：`src/stores/__tests__/workspace-store.launchRole.test.ts`、`src/components/__tests__/open-claude-as-tower-menu.test.tsx`、`electron/__tests__/claude-session-name-launch.test.ts`（tower 分支 guard）；e2e `e2e/t0644-open-claude-as-tower.spec.ts`（新入口 / 既有入口 / ⏻ 重啟 / reload；截圖存 `e2e-results/t0644/`）。
+- 驗證清單：`src/stores/__tests__/workspace-store.launchRole.test.ts`、`src/lib/__tests__/tower-launch-prompt.test.ts`（T0944：帶 / 不帶的情況、三種 shell 的引號、命令組裝與接線 source guard）、`src/components/__tests__/open-claude-as-tower-menu.test.tsx`、`electron/__tests__/claude-session-name-launch.test.ts`（tower 分支 guard）；e2e `e2e/t0644-open-claude-as-tower.spec.ts`（新入口 / 既有入口 / ⏻ 重啟 / reload；截圖存 `e2e-results/t0644/`）。
 
 ## 列出所有塔台：`terminal:list { scope: 'towers' }`（T0643，PLAN-050 C，契約 C-6）
 

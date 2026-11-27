@@ -23,6 +23,7 @@ import { registerTabResumeHandler, type ResumeInterruptedAgentResult } from '../
 import { codexResumeCommand } from '../lib/codex-resume-args'
 import { withBatMcpLaunchArgs } from '../lib/bat-mcp-launch'
 import { claudeSessionName } from '../lib/claude-session-name'
+import { towerLaunchPrompt } from '../lib/tower-launch-prompt'
 import { towerTerminalTitle } from '../lib/tower-terminal-title'
 import { getShellFromSettings, rememberTerminalShell } from '../lib/terminal-drop'
 import { retryOnceWhenRemoteConnected } from '../lib/remote-not-connected'
@@ -773,6 +774,13 @@ export function WorkspaceView({ workspace, terminals, focusedTerminalId, isActiv
     if (customArgs) {
       cmdParts.push(customArgs)
     }
+    // T0944 / D421: a tower tab's new claude session starts with `/control-tower` as its prompt — the
+    // last argument, after the custom args (as the helper dispatch places its prompt); none on resume
+    const towerPrompt = towerLaunchPrompt({ launchRole, resume: Boolean(resume), customArgs, shellFamily: detectShellFamily(shell ?? '') })
+    if (towerPrompt.arg) cmdParts.push(towerPrompt.arg)
+    if (launchRole === 'tower') {
+      window.electronAPI?.debug?.log(`[T0944] tower tab terminal=${terminalId}: launch prompt ${towerPrompt.arg ? 'added' : 'skipped'} (${towerPrompt.reason})`)
+    }
     const cmd = cmdParts.join(' ')
 
     // T0403: a restored tab whose PTY survived (reload / remote reconnect) still runs claude;
@@ -859,8 +867,9 @@ export function WorkspaceView({ workspace, terminals, focusedTerminalId, isActiv
     await startClaudeCliPty(terminal.id, workspace.folderPath, false)
   }, [workspace.id, workspace.folderPath, startClaudeCliPty])
 
-  // PLAN-050 / T0644: "Open Claude as Tower" — always claude-cli, named `<ws> · Tower`. Naming only:
-  // no `terminal:set-role`, nothing typed after the launch command (CT declares the role itself).
+  // PLAN-050 / T0644: "Open Claude as Tower" — always claude-cli, named `<ws> · Tower`. No
+  // `terminal:set-role` (CT declares the role itself), nothing typed after the launch command.
+  // T0944: the launch command itself carries `/control-tower` (`towerLaunchPrompt` in startClaudeCliPty).
   const handleAddClaudeCliAsTower = useCallback(async () => {
     const terminal = workspaceStore.addTerminal(workspace.id, 'claude-cli' as AgentPresetId, { launchRole: 'tower' })
     // T0562: a BAT title (the one `--set-role tower` would give), so the user's rename still wins
