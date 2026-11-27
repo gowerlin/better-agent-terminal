@@ -10,6 +10,8 @@
 
 | ID | 日期 | 標題 | 相關工單 |
 |----|------|------|---------|
+| D447 | 2026-11-27 | T0954 收單（`5661128d`，驗收全綠）；斷點 E 發 U-43；發版發 U-44 | T0954 / T0951 / BUG-231 |
+| D446 | 2026-11-27 | U-42：A → T0953 ff 進 `main` `a86b2325`（T0950）；派 T0951 合併工單 T0954 | T0953 / T0950 / T0951 / T0954 |
 | D445 | 2026-11-27 | T0953 收單（`d0430668`，驗收全綠、無範圍外檔案）；斷點 E 發 U-42 | T0953 / T0950 |
 | D444 | 2026-11-27 | T0951 收單（DONE，`f975ef45`，renderer 啟動命令前的輸入共用 BUG-151 保留）；合併排在 T0953 之後 | T0951 / BUG-231 |
 | D443 | 2026-11-27 | T0951 Q-1：A（T0944 source guard 改數 `sendLaunchCommand(`、意圖不變）；T0953 派工 | T0951 / BUG-231 / T0944 / T0953 |
@@ -563,6 +565,25 @@
   4. PLAN-001 保持延後（🟢 Low，等 plugin 1.0 穩定）
 - **Success criteria**（EXP→CONCLUDED）：npm install 無錯 / 所有 native modules rebuild 成功 / dev+build:dir 可跑 / 手動 smoke test 8 項通過
 - **最大風險**：`whisper-node-addon@1.0.2` 對 Electron 41（Node 24）的 NODE_MODULE_VERSION 相容性未知，允許 Worker 遇此決策點主動問塔台
+
+---
+
+### D447 2026-11-27 21:37 — T0954 收單、斷點 E（U-43）、發版（U-44）
+
+- **回報**：T0954 DONE。`ct-merge/T0954` merge commit `5661128d`（parent1 `a86b2325` = base、parent2 `f975ef45` = `ct/T0951`）；`CLAUDE.md`、`electron/pty-manager.ts`、`src/lib/pty-replay.ts` 自動合併無衝突、各方改動都在；樹比對 17 檔與 T0951 逐行相同、範圍外無。驗收在 merge commit：typecheck 0 / 0、vite build 0、`test:unit` 9397 passed / 41 skipped（522 files）。
+- **SHA 比對**：第 1–3 步成立；第 5 步：`main` 自 base 起只多 `_ct-workorders/**`。
+- **收單**：`--close-worker T0954 --delay-ms 10000` exit 0。非 yolo → 斷點 E，發 U-43；本批合併完 → 發 U-44（push `main` 並發 `0.8.1-pre.1`）。NSIS 重裝驗收判斷：本批未改安裝程式 / holder / quit 路徑，不需要。
+- **相關**：T0954 / T0951 / BUG-231
+
+---
+
+### D446 2026-11-27 21:33 — U-42：A → T0953 ff；派 T0954
+
+- **使用者**：`U-42：A`。U-42 移除。
+- **SHA 比對**：第 5 步：`main` 自 base 起只多 `_ct-workorders/**` → 整合分支再合併 `main` 後 ff；`main` = `a86b2325`（第 4 步）；整合 worktree 已 detach。
+- **清理**：`git worktree remove` T0950 成功；分支 `ct/T0950`、`ct-merge/T0953` 保留到使用者同意刪除。T0950 是 feature（無 BUG），待發版實機驗收。
+- **T0954**：T0951 合併工單（判準 1 不成立：`main` 多了 T0949 / T0950，`pty-manager.ts`、`pty-replay.ts`、`CLAUDE.md` 兩邊都改；`merge-tree` 無衝突），base `a86b2325`。本批最後一張合併。
+- **相關**：T0953 / T0950 / T0951 / T0954 / D445
 
 ---
 
