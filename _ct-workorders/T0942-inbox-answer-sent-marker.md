@@ -11,7 +11,8 @@ priority: P2
 sizing: S
 created_at: "2026-11-27T15:07:17+08:00"
 started_at: "2026-11-27T15:08:14+08:00"
-updated_at: "2026-11-27T15:08:14+08:00"
+updated_at: "2026-11-27T15:15:01+08:00"
+tower_question: open
 session_ids: []
 target_version: "0.8.0-pre.9"
 depends_on: []
@@ -76,4 +77,17 @@ memory_overrides:
 
 ## 回報區
 
-（Worker 填寫）
+### 待塔台決策
+
+#### Q-1：既有 inbox 測試有 5 處與 T0942 規格衝突（斷言送出後重設、或送出後仍以「Send」文字找按鈕），要怎麼處理？
+- 提問時間：2026-11-27T15:15:01+0800
+- 衝突清單（產品已實作並 commit `dd4969ee`，新測試 17 項全過；只有下列既有斷言失敗）：
+  1. `src/components/__tests__/inbox-plan069.test.tsx:148-152`：第一次送出後以 `en.inbox.answer.send`（"Send"）文字找按鈕再送；T0942 送出後按鈕改「重新送出」（"Send again"），找不到按鈕。
+  2. `src/components/__tests__/inbox-multi-t0938.test.tsx:174-177`：註解「sent → reset to the default」斷言送出後全部未勾選，再以 "Send" 文字找按鈕。
+  3. `src/components/__tests__/inbox-multi-t0938.test.tsx:218-219`：「sent → the default checks are back」斷言送出「其他」後推薦預設 A、C 恢復勾選。
+  4. `src/components/__tests__/inbox-other-t0937.test.tsx:173-175`：「sent → back to the default selection, the box closed」斷言送出「其他」後輸入框關閉、推薦 A 被選。
+  5. `src/components/__tests__/inbox-other-t0937.test.tsx:227`：「a sent answer resets the row」斷言送出 B 後再選「其他」，輸入框是空的（T0942 保留原文字）。
+- 選項：[A] 照 T0942 規格改這 5 處斷言（改成斷言保留選擇／「其他」文字、按鈕改用 `en.inbox.answer.resend` 或 `.inbox-entry-buttons .inbox-btn.primary` 定位；測試意圖（送出的行格式、互斥、預設）其餘不動，每處加 T0942 註解）/ [B] 不改測試，改產品行為讓這些斷言成立（等於撤回規格 ②③）/ [C] 其他：________
+- Worker 建議：[A]，因為這 5 處斷言的就是 T0942 要改掉的舊行為（D412 使用者裁示保留選擇、按鈕改「重新送出」），只改「送出後」那幾行，送出內容的斷言（`U-3：A、C` 順序、`U-n：<文字>`、互斥）全部保留。
+- 影響範圍：上列 3 個測試檔，只改送出後的斷言與按鈕定位；不動產品程式。
+- 阻塞：是（收單前要等答覆；其餘步驟（文件、驗證）先做）
