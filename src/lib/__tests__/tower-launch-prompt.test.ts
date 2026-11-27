@@ -110,8 +110,9 @@ describe('startClaudeCliPty wiring (T0944, source guard)', () => {
   })
 
   it('one launch write only: the prompt is never typed separately', () => {
-    expect(code.match(/pty\.write\(/g)).toHaveLength(1)
-    expect(code).toContain("window.electronAPI.pty.write(terminalId, cmd + '\\r')")
+    // T0951 (BUG-231, Q-1 tower answer A): the one write goes through sendLaunchCommand (pty:launch-command)
+    expect(code.match(/sendLaunchCommand\(/g)).toHaveLength(1)
+    expect(code).toContain("sendLaunchCommand(terminalId, cmd + '\\r')")
     expect(code).not.toMatch(/pty\.write\([^)]*control-tower/)
   })
 })
