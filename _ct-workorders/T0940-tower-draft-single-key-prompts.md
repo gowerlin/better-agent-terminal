@@ -4,14 +4,15 @@ schema_kind: workorder
 id: T0940
 title: "BUG-227：契約 2 塔台在 claude 的單鍵介面（意見調查列等）按數字鍵後不再被判成有草稿；待辦分頁回答不再卡在「📨 待送」"
 type: bugfix
-status: IN_PROGRESS
+status: DONE
 repo: better-agent-terminal
 project: PLAN-068
 priority: P2
 sizing: S
 created_at: "2026-11-27T14:15:21+08:00"
 started_at: "2026-11-27T14:16:50+08:00"
-updated_at: "2026-11-27T14:16:50+08:00"
+updated_at: "2026-11-27T14:34:12+08:00"
+completed_at: "2026-11-27T14:34:12+08:00"
 session_ids:
   - "d4db5adb-584b-4094-a95f-a7b5358a32f4"
 target_version: "0.8.0-pre.9"
@@ -64,12 +65,12 @@ BUG-227（T0939 S1 M-3 發現）：契約 2 塔台分頁出現 claude 的意見�
 
 ## 驗收
 
-- [ ] 回報區〈查證〉〈盤點〉〈設計〉
-- [ ] 意見調查列按數字鍵後，待辦分頁回答立即送出；一般打字照舊保留
-- [ ] 既有 notify-hold / tower-input-draft 測試斷言不改、全過；新增測試
-- [ ] `npm run test:unit` head 第一次全綠；`npx vite build` exit 0；兩個 typecheck = 0
-- [ ] 隔離實例重現修正前後，或〈待實機〉步驟
-- [ ] 文件
+- [x] 回報區〈查證〉〈盤點〉〈設計〉
+- [x] 意見調查列按數字鍵後，待辦分頁回答立即送出；一般打字照舊保留（單元測試；實機見〈待實機〉）
+- [x] 既有 notify-hold / tower-input-draft 測試斷言不改、全過；新增測試
+- [x] `npm run test:unit` head 第一次全綠；`npx vite build` exit 0；兩個 typecheck = 0
+- [x] 隔離實例重現修正前後，或〈待實機〉步驟
+- [x] 文件
 
 ---
 
@@ -112,8 +113,74 @@ BUG-227（T0939 S1 M-3 發現）：契約 2 塔台分頁出現 claude 的意見�
 - **案 C：介面消失 / 輸入框重繪成空提示時清除草稿**（讀輸出）。要從 ConPTY 的部分重繪判斷輸入框是否為空，太脆弱，不建議。
 - **建議**：案 B（修 BUG-227）＋ 案 A（同類、成本低）。等 Q-1 答覆後實作。
 
+### 完成狀態
+
+- **狀態**：DONE（Worker 步驟全部完成；實機重現改寫〈待實機〉）
+- **branch**：`ct/T0940`
+- **base_sha**：`d400fc3f788596e32f2d7b6930ca536e72c152e5`
+- **validated_sha**：`f00fb06e4944553d2e39ec4c80a6b90e85851a58`
+- **head_sha**：`f00fb06e4944553d2e39ec4c80a6b90e85851a58`（= validated_sha）
+- **commits**：`8312ee6f` fix(notify-hold)…（產品＋測試＋文件）、`f00fb06e` test: typecheck:electron 的型別轉換（`8312ee6f` 上 `typecheck:electron` = 1 個錯誤，修正後在 `f00fb06e` 重跑全部關卡）
+- **session_id**：d4db5adb-584b-4094-a95f-a7b5358a32f4
+
+### 落點檢查
+
+- PASS。C-0：`repo` = `better-agent-terminal`，`basename "$CT_HOME"` = `better-agent-terminal`。C-1：工單在 `$CT_HOME/_ct-workorders/` 下。C-3：`src/lib/tower-input-draft.ts`、`electron/notify-hold.ts` 等存在。C-2：工單無 `branch` 欄位。
+- `CT_HOME` = 主 checkout；`CT_WORKTREE_BRANCH` = `ct/T0940`；`BAT_WORKSPACE_ID` 已設定（只作證據）；`BAT_REMOTE_TOKEN` 已設定。
+
+### 實作
+
+- **案 A**（`src/lib/tower-input-draft.ts` `isSingleKeyInput` / `trackDraftDuringPrompt`；`electron/handlers/pty.ts`）：`pty:write` 的使用者輸入在 `manager.noteUserInput` 之前以 `notifyHold.isPromptShown(id)` 取「當下是否有 hook / osc 提示」，傳給 `onUserInput(id, data, { duringPrompt })`；提示期間的單一按鍵不設也不清草稿，貼上 / 多字元照 `trackDraft`。滑鼠按下另呼叫 `notifyHold.onMousePress`。
+- **案 B**（`SINGLE_KEY_PROMPT_LEGENDS` / `normalizeScreenText` / `findSingleKeyPrompt` / `SingleKeyPromptScanner` / `answersSingleKeyPrompt`；`NotifyHoldController.onPtyOutput`；`electron/main.ts`、`electron/remote/headless-entry.ts` 的 `onPtyOutput` 各多一行）：只掃描契約 2 塔台的輸出（只讀），比對圖例；四個條件見〈設計〉與 docs。紀錄在任何使用者輸入、helper 寫入（`interceptWrite`）、送出（`send`）、`{ auto }` / `{ submit }` 寫入（`holdUserWrite` / `afterSubmitWrite`）、滑鼠按下、PTY 結束 / recovery 時忘掉；使用者按鍵後 2 s 內同一圖例（claude 回顯那一幀）不重新記錄。
+- 依據的 claude 版本：內嵌 `@anthropic-ai/claude-code` **2.1.331**（worktree `npm ci` 後 `node_modules/@anthropic-ai/claude-code-win32-x64/package.json`）。圖例字串只在 `src/lib/tower-input-draft.ts`。
+- T0904 / T0917 / T0788 / T0566：既有程式路徑只在 `onUserInput` 多分兩支（`duringPrompt`、調查列命中），其餘不變；`notify-hold*.test.ts`、`tower-input-draft.test.ts` 等既有斷言未改。
+
+### 變更檔案
+
+- `src/lib/tower-input-draft.ts`、`electron/notify-hold.ts`、`electron/handlers/pty.ts`、`electron/main.ts`、`electron/remote/headless-entry.ts`
+- 新測試：`src/lib/__tests__/tower-input-draft-single-key.test.ts`（47 項）、`electron/__tests__/notify-hold-single-key.test.ts`（經真 `pty:write` handler）
+- 文件：`docs/agent-guide/tower-inbox.md`（新〈不進輸入框的按鍵〉小節、日誌、已知限制、驗證）、`docs/agent-guide/notify-hold.md`、`CLAUDE.md`「塔台等使用者回答時保留 Worker 通知」節補一句（標題未改）、`e2e/manual/README.md`〈已知限制〉改寫
+
+### 驗證
+
+| 關卡 | 結果 |
+|---|---|
+| worktree `npm ci` | exit 0（`electron-winstaller` install script 未放行屬預期） |
+| `npm run test:unit`（head `f00fb06e` 第一次完整執行） | ✅ 509 files passed / 3 skipped；9231 tests passed / 42 skipped |
+| （參考）`8312ee6f` 上的完整執行 | ✅ 9226 passed / 47 skipped（當時還沒有 `dist-electron`，5 項依 build 產物的測試跳過） |
+| `npm run typecheck` | 0 |
+| `npm run typecheck:electron` | 0（`f00fb06e`；`8312ee6f` 為 1，見 commits） |
+| `npx vite build` | exit 0 |
+| 新測試涵蓋（塔台指定五項） | 提示期間單鍵不設草稿 ✅、提示期間 Enter 不清既有草稿 ✅、提示期間貼上仍設草稿 ✅、調查列有效鍵不設草稿（回答立即送出）✅、調查列 < 1 s 或非有效鍵照舊設草稿 ✅；另含一般打字照舊、其他寫入後忘掉、回顯幀、版本不符不掃描、PTY 結束、日誌不含按鍵 |
+| worktree `git status --porcelain` | 空 |
+
+### 待實機
+
+claude 的調查列由服務端隨機觸發，隔離實例無法穩定叫出，本單未開 claude 回合、未實機重現。步驟（下次 S1 類驗收或日常使用時）：
+
+1. 契約 2 塔台分頁（`--set-role tower --bat-contract 2`）出現 `How is Claude doing this session? … 0: Dismiss` 時，等 ≥ 1 s，用鍵盤按 `0`（不要先點分頁）。
+2. debug log 應有 `[notify-hold] single-key prompt shown terminal=<塔台> legend=rating` 與 `… answered … (no draft)`。
+3. 從待辦分頁送出一則回答 → 應立即送進塔台（`[notify-hold] answer … (sending)`），縮圖沒有「📨 待送」。
+4. 對照：調查列出現後先點分頁再按 `0` → 照舊 `reason=draft`（保守方向，文件已記）。
+5. 權限提示用數字鍵作答後（hook 分頁），待辦分頁回答應立即送出。
+
+### 相關通過案例判定
+
+工單沒有〈相關通過案例〉段；不適用。
+
+### 遭遇問題
+
+- `8312ee6f` 上 `typecheck:electron` 有 1 個錯誤（新測試的型別轉換），以 `f00fb06e` 修正後全部關卡重跑。
+- 主 checkout 的 `node_modules` 內嵌 claude 是 2.1.316（落後 lock 的 2.1.331）；盤點以 worktree `npm ci` 後的 2.1.331 為準，T0939 實測的 BAT `0.8.0-pre.8` 版本未另查。
+
+### 後續建議
+
+- 案 B 依賴 claude 的圖例字串：claude 升版時與 `src/lib/usage-limit.ts` 一起核對（docs 已註明）。
+- 殘留誤判（調查列先點再按、1 s 內按鍵）屬保守方向；若實機常見，可另評估以輸出確認輸入列重繪來放寬。
+
 ### 互動紀錄
 
 - [14:16] 開工：落點檢查 PASS（C-0 `repo` = `better-agent-terminal` = `basename "$CT_HOME"`），`CT_MODE=yolo`、`CT_INTERACTIVE=0`。
 - [14:22] Q-1 → 塔台（讀 PTY 輸出與範圍）。
 - [14:24] Q-1: 讀 PTY 輸出與範圍 → A（塔台，BAT 通道 `answered`，choice 2）: B（案 B ＋ 案 A），核准 `electron/main.ts`、`electron/remote/headless-entry.ts`、`electron/handlers/pty.ts` 加進範圍；案 A 限制：提示期間只有「單一按鍵」不改變草稿（不設不清），括號貼上或一次多個可列印字元照現行記草稿；案 B 照四個條件、圖例字串集中一處、回報列 claude 版本；案 C 不做；指定測試五項 → Action: frontmatter `affects_files` 補三檔、刪 `tower_question`，開始實作。
+- [14:34] 實作與文件完成，`f00fb06e` 上全部關卡通過；三個塔台補充檢查節點都沒有新段落。收單。
