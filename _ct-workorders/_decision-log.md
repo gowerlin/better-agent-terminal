@@ -10,6 +10,7 @@
 
 | ID | 日期 | 標題 | 相關工單 |
 |----|------|------|---------|
+| D406 | 2026-11-27 | CT 判定回來（CT D913：BAT 0 項要改，CT M-5-1 FAIL 由 CT 6.3.0-pre.2 修＋補跑）→ 依使用者「判定回來再一起修」開並派 T0940（BUG-227 → FIXING） | T0940 / BUG-227 / PLAN-070 |
 | D405 | 2026-11-27 | 使用者「開 BUG」→ 開 BUG-227（OPEN，low）：數字鍵關 claude 意見調查列後被判成有草稿，待辦分頁回答排進「📨 待送」（T0939 發現；取代 D403 的「列候選」） | BUG-227 / T0939 |
 | D404 | 2026-11-27 | U-27：A → T0939 經 `ct-merge/T0939` ff 進 `main`；CT 判定單 T0575 已派（CT D912），PLAN-070 結案等 CT 判定 | T0939 / PLAN-070 |
 | D403 | 2026-11-27 | T0939 收單（DONE，BAT 端 21 PASS / 0 FAIL / 1 未觸發）、合併 `ct-merge/T0939` `67dfbd20`（只改 `e2e/manual/`）；通知 CT 判定；`draft` 被意見調查列鍵觸發列候選；斷點 E → U-27 | T0939 / PLAN-070 |
@@ -523,6 +524,15 @@
   4. PLAN-001 保持延後（🟢 Low，等 plugin 1.0 穩定）
 - **Success criteria**（EXP→CONCLUDED）：npm install 無錯 / 所有 native modules rebuild 成功 / dev+build:dir 可跑 / 手動 smoke test 8 項通過
 - **最大風險**：`whisper-node-addon@1.0.2` 對 Electron 41（Node 24）的 NODE_MODULE_VERSION 相容性未知，允許 Worker 遇此決策點主動問塔台
+
+---
+
+### D406 2026-11-27 14:15 — CT 判定回來；開並派 T0940（BUG-227）
+
+- **CT 判定**（跨 session，CT D913 / 判定單 T0575）：CT 端 PASS 34 / FAIL 1 / 未觸發 1（M-15c）；BAT 端 21 PASS 一致；**BAT 0 項要改**。唯一 FAIL M-5-1：五行回答解析正確，但逐筆確認行延到下一則回覆（規格沒寫「確認行要在開選單之前輸出」）。6 點觀察：M-13/14 PASS；代號順序 BAT `C、B` 正確，CT 6.3.0-pre.2 明訂依 options 順序；英文句補語言規則；6.2.x 相容說明補 `multi`；「照你的建議」維持。CT 認為 `draft` 保留不必當 BUG。
+- **CT 後續**：修正單 T0576（6.3.0-pre.2）＋補跑清單 `checklist-rerun-630.md`（BAT pre.8、1 個塔台 session 約 4 回合、無 Worker）；收單後傳清單 → BAT 開補跑單。PLAN-070 結案等補跑判定。
+- **BAT 處置**：依使用者 D405 後的指示（「等 CT 判定回來再一起修」），判定沒有其他 BAT 修正項 → 開 T0940 修 BUG-227（worktree，目標 `0.8.0-pre.9`），BUG-227 → FIXING。
+- **相關**：T0940 / BUG-227 / PLAN-070 / T0939
 
 ---
 
