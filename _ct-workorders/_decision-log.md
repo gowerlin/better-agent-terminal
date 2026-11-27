@@ -10,6 +10,7 @@
 
 | ID | 日期 | 標題 | 相關工單 |
 |----|------|------|---------|
+| D431 | 2026-11-27 | T0946 收單（DONE，`75525d6a`）；模式 ① 合併到 `ct-merge/T0946` `8595cfd8`；斷點 E 發 U-38 | T0946 / BUG-228 |
 | D430 | 2026-11-27 | U-37：A → BUG-229 FIXING；開並派 T0947（⏻ 重啟後殘留的滑鼠追蹤不再打進新 shell；只寫本機 xterm，worktree 隔離，與 T0946 並行、T0946 先合） | BUG-229 / T0947 / T0946 |
 | D429 | 2026-11-27 | A-16 失敗：⏻ 重啟後滑鼠回報黏在 claude 啟動命令前面、claude 沒啟動 → 開 BUG-229（medium，OPEN）、發 U-37（何時派修正） | BUG-229 / T0944 / T0946 |
 | D428 | 2026-11-27 | U-36：A → 開 BUG-228（medium，FIXING）；開並派 T0946（Git Bash 讓 `/control-tower` 原樣送到 claude，查證 helper 派工的 `/ct-exec`；不改 PTY env，worktree 隔離） | BUG-228 / T0946 / T0944 |
@@ -548,6 +549,15 @@
   4. PLAN-001 保持延後（🟢 Low，等 plugin 1.0 穩定）
 - **Success criteria**（EXP→CONCLUDED）：npm install 無錯 / 所有 native modules rebuild 成功 / dev+build:dir 可跑 / 手動 smoke test 8 項通過
 - **最大風險**：`whisper-node-addon@1.0.2` 對 Electron 41（Node 24）的 NODE_MODULE_VERSION 相容性未知，允許 Worker 遇此決策點主動問塔台
+
+---
+
+### D431 2026-11-27 20:59 — T0946 收單、模式 ① 合併、斷點 E（U-38）
+
+- **回報**：T0946 DONE，`ct/T0946` `75525d6a`（= validated_sha），base `ef1cb828`。根因實測成立（Git Bash／MSYS 把以 `/` 開頭的參數改寫成 Windows 路徑，與引號無關）；做法：Git Bash 塔台分頁的啟動命令前加只對該次命令生效的 `MSYS2_ARG_CONV_EXCL="/control-tower${MSYS2_ARG_CONV_EXCL:+;…}"`（`isWindowsMsysShell` / `msysArgConvExclusionPrefix` / `towerLaunchCommandPrefix`），不改 PTY env；helper 派工不受影響（`bat-terminal.mjs` 一律在 `customEnv` 帶 `MSYS_NO_PATHCONV=1`，BUG-075 / T0341），所以過去 Worker 正常。`test:unit` 9308 passed / 47 skipped（517 files）、vite build 0、typecheck 0 / 0。
+- **通知**：Worker `bat-notify` → `pty-not-found`（派工時的塔台分頁 `82f1e7f0…` 已不在），使用者轉告「T0946 完成」。`--close-worker T0946` exit 3 NOT_FOUND（擁有者塔台已不在）→ Worker 分頁請使用者手動關。
+- **合併**：五條判準成立（`main` 只在 `_ct-workorders/**` 前進、validated = head、7 個變更檔都在 `affects_files`、`merge-tree` 無衝突、worktree 與主 checkout 乾淨）→ 模式 ①：整合 worktree `ct-merge/T0946` `--no-ff` → `8595cfd8`（parent1 `aa26f154` = 當下 `main`、parent2 `75525d6a`），產品樹與 validated head 相同。非 yolo → 斷點 E，發 U-38。
+- **相關**：T0946 / BUG-228 / D428
 
 ---
 
