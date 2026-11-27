@@ -92,6 +92,7 @@ export const PATH_FREE_CHANNELS: ReadonlyMap<string, string> = new Map([
   ['pty:kill', 'id only'],
   ['pty:get-cwd', 'id only (result is path-returning)'],
   ['pty:get-buffer', 'id only'],
+  ['pty:launch-command', 'id + the agent launch command text (or null), T0951'],
   ['claude:send-message', 'sessionId + prompt text + images as data: URLs'],
   ['claude:stop-session', 'sessionId only'],
   ['claude:dispose-session', 'sessionId only (T0814)'],

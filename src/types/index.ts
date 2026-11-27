@@ -146,6 +146,12 @@ export interface CreatePtyOptions {
   shell?: string;
   customEnv?: Record<string, string>;  // 自定義環境變數
   workspaceId?: string;          // T0176: for BAT_WORKSPACE_ID env injection
+  /**
+   * BUG-231 / T0951: the caller types an agent's launch command into the new shell next — input
+   * that reaches it first waits for `pty:launch-command` (`sendLaunchCommand`, src/lib/launch-command.ts).
+   * Not passed on to the PTY; a server before T0951 ignores it.
+   */
+  holdInputUntilLaunch?: boolean;
 }
 
 /**

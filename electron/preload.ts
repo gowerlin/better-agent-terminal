@@ -53,7 +53,11 @@ const electronAPI = {
       opts ? ipcRenderer.invoke('pty:write', id, data, opts) : ipcRenderer.invoke('pty:write', id, data),
     resize: (id: string, cols: number, rows: number) => ipcRenderer.invoke('pty:resize', id, cols, rows),
     kill: (id: string) => ipcRenderer.invoke('pty:kill', id),
-    restart: (id: string, cwd: string, shell?: string) => ipcRenderer.invoke('pty:restart', id, cwd, shell),
+    // BUG-231 / T0951: `opts.holdInputUntilLaunch` — the input waits for `launchCommand` (sent only when set)
+    restart: (id: string, cwd: string, shell?: string, opts?: { holdInputUntilLaunch?: boolean }) =>
+      opts ? ipcRenderer.invoke('pty:restart', id, cwd, shell, opts) : ipcRenderer.invoke('pty:restart', id, cwd, shell),
+    // BUG-231 / T0951: the launch command (or `null`: none) of a shell created / restarted with `holdInputUntilLaunch`
+    launchCommand: (id: string, command: string | null) => ipcRenderer.invoke('pty:launch-command', id, command),
     getCwd: (id: string) => ipcRenderer.invoke('pty:get-cwd', id),
     // T0749 (BUG-182): the host's attention of these tabs now (+ whether each PTY still runs there)
     attentionSnapshot: (ids: string[]) => ipcRenderer.invoke('terminal:attention-snapshot', ids) as Promise<TerminalAttentionSnapshotEntry[]>,
