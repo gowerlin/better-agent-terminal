@@ -23,7 +23,7 @@ import { registerTabResumeHandler, type ResumeInterruptedAgentResult } from '../
 import { codexResumeCommand } from '../lib/codex-resume-args'
 import { withBatMcpLaunchArgs } from '../lib/bat-mcp-launch'
 import { claudeSessionName } from '../lib/claude-session-name'
-import { towerLaunchPrompt } from '../lib/tower-launch-prompt'
+import { towerLaunchCommandPrefix, towerLaunchPrompt } from '../lib/tower-launch-prompt'
 import { towerTerminalTitle } from '../lib/tower-terminal-title'
 import { getShellFromSettings, rememberTerminalShell } from '../lib/terminal-drop'
 import { retryOnceWhenRemoteConnected } from '../lib/remote-not-connected'
@@ -778,8 +778,13 @@ export function WorkspaceView({ workspace, terminals, focusedTerminalId, isActiv
     // last argument, after the custom args (as the helper dispatch places its prompt); none on resume
     const towerPrompt = towerLaunchPrompt({ launchRole, resume: Boolean(resume), customArgs, shellFamily: detectShellFamily(shell ?? '') })
     if (towerPrompt.arg) cmdParts.push(towerPrompt.arg)
+    // T0946 / BUG-228: Git Bash (MSYS) would turn `/control-tower` into a Windows path — exclude that
+    // one argument from conversion with an assignment in front of this command only (other shells: none)
+    const towerCommandPrefix = towerLaunchCommandPrefix(towerPrompt, shell)
+    if (towerCommandPrefix) cmdParts.unshift(towerCommandPrefix)
     if (launchRole === 'tower') {
       window.electronAPI?.debug?.log(`[T0944] tower tab terminal=${terminalId}: launch prompt ${towerPrompt.arg ? 'added' : 'skipped'} (${towerPrompt.reason})`)
+      if (towerCommandPrefix) window.electronAPI?.debug?.log(`[T0946] tower tab terminal=${terminalId}: Git Bash (MSYS) argument conversion excluded for the launch prompt`)
     }
     const cmd = cmdParts.join(' ')
 

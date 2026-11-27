@@ -116,6 +116,13 @@
   - 位置與引號照 helper 派工（`createAgentPromptCommandBuilder`）：最後一個參數，在自訂參數之後，經 `quoteArgForShell`（`/control-tower` 在 pwsh / cmd / posix 都不需要引號，輸出就是原字串）。helper 派工對自訂參數裡會吃後續值的 variadic 旗標（例 `--allowedTools a b`）沒有另外處理，這裡同樣不處理：自訂參數以這類旗標結尾時，claude 會把 `/control-tower` 當成該旗標的值（與 Worker 派工的 `/ct-exec T####` 相同限制）。
   - 字串固定 `/control-tower`（Claude 端的 skill 名稱，CT 以 plugin 安裝時也是同一字串，T0710）。沒裝 CT 的機器上 claude 會顯示找不到這個 skill，這是預期；不想帶就改開一般「Claude CLI」。
   - 唯一實作 `towerLaunchPrompt`（`src/lib/tower-launch-prompt.ts`，純函式）；`startClaudeCliPty` 只接線，`--name=`、BAT MCP / hooks 參數、`--resume=` 規則、標題都不變。日誌：塔台分頁每次啟動記一行 `[T0944] tower tab terminal=<id>: launch prompt added|skipped (<原因>)`（原因 `tower` / `resume` / `user-args`）。
+  - Windows Git Bash（T0946 / BUG-228）：Git Bash（MSYS）執行原生程式（`claude.exe`）時，把以 `/` 開頭的參數當成 POSIX 路徑改寫成 Windows 路徑（`/control-tower` → `C:/Program Files/Git/control-tower`；加不加引號都一樣），claude 收到的不是 slash command。分頁的 shell 是 Windows 上的 MSYS shell 時，啟動指令前面多一段只對這一次命令生效的前置變數 `MSYS2_ARG_CONV_EXCL="/control-tower${MSYS2_ARG_CONV_EXCL:+;$MSYS2_ARG_CONV_EXCL}"`：只有以 `/control-tower` 開頭的參數不轉換，自訂參數等其他參數照舊轉換；shell 原本有這個變數時接在 `;` 之後保留（Git for Windows 與 MSYS2 都認得）。
+    - 判斷只看分頁 spawn 用的 shell 路徑（`isWindowsMsysShell`，`src/utils/shell-quote.ts`）：Windows 路徑（`C:\…`、`\\server\…`）且檔名是 `bash` / `sh` / `zsh` / `dash` / `ash` / `git-bash`（Git Bash、MSYS2、Cygwin）才算；WSL（`…\Windows\System32ash.exe`、`Sysnative`、`WindowsApps`、`wsl.exe`）、pwsh / powershell / cmd、POSIX 路徑（macOS / Linux、遠端視窗的 server shell）、沒有目錄的名稱（`bash.exe`）都不加，命令與 T0944 逐字相同。
+    - 🔴 不改 PTY env（不在 `buildPtyEnv` / `customEnv` 加 `MSYS_NO_PATHCONV` 之類）：使用者在分頁裡執行的其他指令不受影響。只對沒有 prompt 的啟動（resume、自訂參數含 resume 類旗標、非塔台分頁）不加。
+    - 不用 `//control-tower`（MSYS 會轉回 `/control-tower`）：shell 已設 `MSYS_NO_PATHCONV=1`（例：從帶這個變數的環境啟動 BAT）時 claude 會收到 `//control-tower`；前置變數在那種環境與非 MSYS shell 都無害。
+    - helper 派工的 `/ct-exec T####` / `/ct-done T####` 不受影響：`bat-terminal.mjs` 以 `--skill` / prompt 派工時一律在 `customEnv` 帶 `MSYS_NO_PATHCONV: '1'`（BUG-075 / T0341，`tests/bat-terminal-msys.test.mjs`），Worker 分頁整個 PTY 不做轉換；`createAgentPromptCommandBuilder` 的命令不變。raw command 模式（`bat-terminal.mjs claude "/ct-exec …"`）的命令由呼叫者自己寫，BAT 不改。
+    - 唯一實作 `msysArgConvExclusionPrefix`（`src/utils/shell-quote.ts`）；塔台分頁經 `towerLaunchCommandPrefix`（`src/lib/tower-launch-prompt.ts`），`startClaudeCliPty` 在組命令時放到最前面，並記一行 `[T0946] tower tab terminal=<id>: Git Bash (MSYS) argument conversion excluded for the launch prompt`。
+    - 已知限制：claude 與它的子程序（claude 的 Bash 工具）會繼承這個變數（MSYS 傳給原生程式時改寫成 Windows 路徑，例 `C:/Program Files/Git/control-tower`；有原值時為 `/control-tower;<原值>`），效果只是以該字串開頭的參數不轉換。設定裡的 shell 是沒有目錄的 `bash` / `bash.exe`（自訂路徑）時判斷不出來，照舊會被改寫。
 - `launchRole`：`TerminalInstance.launchRole?: 'tower'`，隨分頁一起存檔（`workspaceStore.save()`）。還原時只接受 `'tower'`；detached 視窗收回時保留。`startClaudeCliPty` 每次從 store 讀這個欄位決定名稱，所以新建、⏻ 重啟、BAT 重開還原都是同一個名稱。沒有 `launchRole` 的分頁照 T0641 規則（`<ws> · <短 ID>`）。
 - 不注入名稱的情況與 T0641 相同（上節「降級」）：自訂參數已含 `--name` / `-n` 時不注入；system claude `< 2.1.76` 或讀不到版本時不注入。
 - 已知限制：
@@ -123,7 +130,7 @@
   - 只支援 claude-cli；claude-cli-worktree、Claude Agent（SDK）、codex 等沒有這個入口。
   - 同一個工作區開多個「以塔台開啟」分頁時名稱相同（都是 `<ws> · Tower`），ListAgents 上分不出來。
   - 使用者手動改分頁名稱不影響 session 名稱（名稱看 `launchRole`，不看標題）。
-- 驗證清單：`src/stores/__tests__/workspace-store.launchRole.test.ts`、`src/lib/__tests__/tower-launch-prompt.test.ts`（T0944：帶 / 不帶的情況、三種 shell 的引號、命令組裝與接線 source guard）、`src/components/__tests__/open-claude-as-tower-menu.test.tsx`、`electron/__tests__/claude-session-name-launch.test.ts`（tower 分支 guard）；e2e `e2e/t0644-open-claude-as-tower.spec.ts`（新入口 / 既有入口 / ⏻ 重啟 / reload；截圖存 `e2e-results/t0644/`）。
+- 驗證清單：`src/stores/__tests__/workspace-store.launchRole.test.ts`、`src/lib/__tests__/tower-launch-prompt.test.ts`（T0944：帶 / 不帶的情況、三種 shell 的引號、命令組裝與接線 source guard；T0946：Git Bash 的前置變數、其他 shell 逐字不變）、`src/utils/__tests__/shell-quote-msys.test.ts`（T0946：判斷、前置變數形狀；Windows 有 Git Bash 時以真的 Git Bash 執行 node 印 argv，比對加 / 不加前置變數的結果）、`src/components/__tests__/open-claude-as-tower-menu.test.tsx`、`electron/__tests__/claude-session-name-launch.test.ts`（tower 分支 guard）；e2e `e2e/t0644-open-claude-as-tower.spec.ts`（新入口 / 既有入口 / ⏻ 重啟 / reload；截圖存 `e2e-results/t0644/`）。
 
 ## 列出所有塔台：`terminal:list { scope: 'towers' }`（T0643，PLAN-050 C，契約 C-6）
 

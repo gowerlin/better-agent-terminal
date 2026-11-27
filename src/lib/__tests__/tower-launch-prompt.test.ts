@@ -9,9 +9,9 @@
 import { describe, it, expect } from 'vitest'
 import fs from 'fs'
 import path from 'path'
-import { TOWER_LAUNCH_PROMPT, towerLaunchPrompt } from '../tower-launch-prompt'
+import { TOWER_LAUNCH_PROMPT, towerLaunchCommandPrefix, towerLaunchPrompt } from '../tower-launch-prompt'
 import { claudeResumeArgs } from '../claude-resume-args'
-import type { ShellFamily } from '../../utils/shell-quote'
+import { detectShellFamily, type ShellFamily } from '../../utils/shell-quote'
 
 const FAMILIES: ShellFamily[] = ['pwsh', 'cmd', 'posix']
 
@@ -113,5 +113,69 @@ describe('startClaudeCliPty wiring (T0944, source guard)', () => {
     expect(code.match(/pty\.write\(/g)).toHaveLength(1)
     expect(code).toContain("window.electronAPI.pty.write(terminalId, cmd + '\\r')")
     expect(code).not.toMatch(/pty\.write\([^)]*control-tower/)
+  })
+})
+
+describe('Git Bash (MSYS) on Windows (T0946 / BUG-228)', () => {
+  const GIT_BASH = 'C:\\Program Files\\Git\\bin\\bash.exe'
+  const PREFIX = 'MSYS2_ARG_CONV_EXCL="/control-tower${MSYS2_ARG_CONV_EXCL:+;$MSYS2_ARG_CONV_EXCL}"'
+  const POSIX_BASE = '\'C:\\Users\\demo\\claude.exe\' --mcp-config=C:/demo/bat-mcp.json --name=\'proj · Tower\''
+
+  /** As startClaudeCliPty: the tower prompt pushed last, then the prefix in front of the whole command. */
+  function assembleWithShell(base: string, opts: { launchRole?: 'tower'; resume?: { sessionId: string | null }; customArgs: string; shell: string | undefined }): string {
+    const parts = [base]
+    const resumeDecision = opts.resume ? claudeResumeArgs(opts.resume.sessionId, opts.customArgs) : null
+    if (resumeDecision?.arg) parts.push(resumeDecision.arg)
+    if (opts.customArgs) parts.push(opts.customArgs)
+    const tower = towerLaunchPrompt({ launchRole: opts.launchRole, resume: Boolean(opts.resume), customArgs: opts.customArgs, shellFamily: detectShellFamily(opts.shell ?? '') })
+    if (tower.arg) parts.push(tower.arg)
+    const prefix = towerLaunchCommandPrefix(tower, opts.shell)
+    if (prefix) parts.unshift(prefix)
+    return parts.join(' ')
+  }
+
+  it('a tower tab in Git Bash: the assignment goes in front of the command, the prompt stays last', () => {
+    expect(assembleWithShell(POSIX_BASE, { launchRole: 'tower', customArgs: '', shell: GIT_BASH })).toBe(`${PREFIX} ${POSIX_BASE} /control-tower`)
+    expect(assembleWithShell(POSIX_BASE, { launchRole: 'tower', customArgs: '--add-dir /c/demo', shell: GIT_BASH })).toBe(`${PREFIX} ${POSIX_BASE} --add-dir /c/demo /control-tower`)
+  })
+
+  it('Git Bash, no prompt (resume / custom args that resume / non-tower tab): no prefix, command unchanged', () => {
+    expect(assembleWithShell(POSIX_BASE, { launchRole: 'tower', customArgs: '', resume: { sessionId: null }, shell: GIT_BASH })).toBe(`${POSIX_BASE} --resume`)
+    expect(assembleWithShell(POSIX_BASE, { launchRole: 'tower', customArgs: '--continue', shell: GIT_BASH })).toBe(`${POSIX_BASE} --continue`)
+    expect(assembleWithShell(POSIX_BASE, { customArgs: '', shell: GIT_BASH })).toBe(POSIX_BASE)
+    for (const launchRole of [undefined, 'tower'] as const) {
+      expect(towerLaunchCommandPrefix(towerLaunchPrompt({ launchRole, resume: true, customArgs: '', shellFamily: 'posix' }), GIT_BASH)).toBeNull()
+    }
+  })
+
+  it('pwsh / cmd / macOS / Linux / WSL / unknown shell: the T0944 command byte-for-byte', () => {
+    const shells: Array<[string | undefined, string]> = [
+      ['C:\\Program Files\\PowerShell\\7\\pwsh.exe', BASE],
+      ['powershell.exe', BASE],
+      ['cmd.exe', BASE],
+      ['/bin/zsh', POSIX_BASE],
+      ['/bin/bash', POSIX_BASE],
+      ['/usr/local/bin/bash', POSIX_BASE],
+      ['C:\\Windows\\System32\\wsl.exe', POSIX_BASE],
+      ['C:\\Windows\\System32\\bash.exe', POSIX_BASE],
+      [undefined, POSIX_BASE],
+    ]
+    for (const [shell, base] of shells) {
+      expect(assembleWithShell(base, { launchRole: 'tower', customArgs: '', shell })).toBe(`${base} /control-tower`)
+      expect(assembleWithShell(base, { launchRole: 'tower', customArgs: '--model opus', shell })).toBe(`${base} --model opus /control-tower`)
+      expect(towerLaunchCommandPrefix(towerLaunchPrompt({ launchRole: 'tower', resume: false, customArgs: '', shellFamily: detectShellFamily(shell ?? '') }), shell)).toBeNull()
+    }
+  })
+
+  it('startClaudeCliPty (source guard): prefix from towerLaunchCommandPrefix with the spawn shell, added after the prompt and before the join', () => {
+    const view = fs.readFileSync(path.resolve(__dirname, '../../components/WorkspaceView.tsx'), 'utf8')
+    const start = view.slice(view.indexOf('const startClaudeCliPty = useCallback('), view.indexOf('const resumeCodexCliTab = useCallback('))
+    const code = start.split('\n').filter(l => !/^\s*(\/\/|\*|\/\*\*)/.test(l)).join('\n')
+    expect(code).toContain('const towerCommandPrefix = towerLaunchCommandPrefix(towerPrompt, shell)')
+    const unshift = code.indexOf('if (towerCommandPrefix) cmdParts.unshift(towerCommandPrefix)')
+    expect(unshift).toBeGreaterThan(code.indexOf('if (towerPrompt.arg) cmdParts.push(towerPrompt.arg)'))
+    expect(unshift).toBeLessThan(code.indexOf("const cmd = cmdParts.join(' ')"))
+    expect(code).not.toMatch(/MSYS2_ARG_CONV_EXCL|MSYS_NO_PATHCONV/) // no inline handling, no tab env
+    expect(code).toMatch(/shell,\n\s*customEnv: \{\n\s*\.\.\.customEnv,\n\s*CLAUDE_CODE_NO_FLICKER: '1',\n\s*\},/) // the PTY env as before
   })
 })
