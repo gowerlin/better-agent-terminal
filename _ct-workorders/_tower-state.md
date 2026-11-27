@@ -4,7 +4,7 @@ summary_version: 1
 bat_contract: 2
 ct_version: "6.2.0"
 inbox_features: ["recommended", "dismiss"]
-updated_at: "2026-11-27T15:30:09+0800"
+updated_at: "2026-11-27T15:31:55+0800"
 session: "2026-11-27 11:10 第一百三十七 session（CT v6.2.0）"
 next_ids:
   workorder: "T0944"
@@ -15,7 +15,7 @@ next_ids:
   action: "A-12"
 todo:
   - "✅ `v0.8.0-pre.8` 已驗收（A-8，D401）：BUG-226 CLOSED、T0937「其他」通過；熱區未結 BUG 0。PLAN-070 剩：多選勾選送出（`U-n：A、C`）與推薦預設勾選，待與 CT 6.3.0-pre.1 雙方實機驗收（CT 範例狀態檔見 T0938 收單補記）；預覽版號只剩 pre.9"
-  - "⏳ CT 判定 T0577（CT D916）：R-1 PASS 5 / FAIL 2（R-1-3、R-1-5 確認行沒出現，模型在開選單前不輸出文字）；CT 使用者選做法 A（CT D917：確認行寫進選單第一題題目開頭，> 4 筆或需說明時不開選單），BAT 不用改。CT 6.3.0-pre.3（CT D918）→ T0943 補驗 DONE（D416）→ CT 判定 PASS（CT D920）→ ✅ PLAN-070 DONE（D417）。CT 6.3.0 正式版發布時間待 CT U-9，決定後通知 BAT（看是否與 BAT 版本對齊）"
+  - "⏳ CT 判定 T0577（CT D916）：R-1 PASS 5 / FAIL 2（R-1-3、R-1-5 確認行沒出現，模型在開選單前不輸出文字）；CT 使用者選做法 A（CT D917：確認行寫進選單第一題題目開頭，> 4 筆或需說明時不開選單），BAT 不用改。CT 6.3.0-pre.3（CT D918）→ T0943 補驗 DONE（D416）→ CT 判定 PASS（CT D920）→ ✅ PLAN-070 DONE（D417）。CT 6.3.0 正式版：CT U-9：A（CT D921），T0580（定稿、zip、安裝）→ T0581（Portal、Release `ct-v6.3.0`、marketplace），預計今天上線；CT 傳 Release 連結與時間後，BAT README 協作章節對照表確認寫「CT 6.3.0」（目前已寫 `>= v6.3.0`），隨下次文件 commit"
   - "✅ T0940 DONE、ff 進 `main`（U-28：A，D409；BUG-227 FIXED，待 `0.8.0-pre.9` 實機）；✅ T0942 DONE、ff 進 `main`（U-30：A，D415）；`0.8.0-pre.9` 內容齊（T0940 / T0942），此版號線最後一號，發版需使用者授權"
   - "🚀 `v0.8.0-pre.7` 已發佈並驗收（D387 / D389）：T0935 只寫檔名的參考檔案連結、T0934 💬 卡片連結（A-6 完成）；下一版 `0.8.0-pre.8`"
   - "`v0.8.0-pre.5` 已驗收（D378）：T0929 / T0930 / BUG-225 CLOSED"
