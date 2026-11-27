@@ -10,6 +10,7 @@
 
 | ID | 日期 | 標題 | 相關工單 |
 |----|------|------|---------|
+| D458 | 2026-11-27 | T0956 收單（DONE，`137e7b6e`）；判準 1 不成立 → 派合併工單 T0958 | T0956 / T0958 / BUG-232 |
 | D457 | 2026-11-27 | U-47：A → T0957 ff 進 `main` `0f818244`；BUG-233 FIXED；分支刪除 | T0957 / BUG-233 |
 | D456 | 2026-11-27 | T0957 收單（DONE，`165057fc`，⏻ 後還原隱藏的游標）；模式 ① 合併到 `ct-merge/T0957` `36d5e658`；斷點 E 發 U-47 | T0957 / BUG-233 |
 | D455 | 2026-11-27 | T0956 Q-1：A（端到端測試移到 `electron/__tests__/`） | T0956 / BUG-232 |
@@ -575,6 +576,16 @@
   4. PLAN-001 保持延後（🟢 Low，等 plugin 1.0 穩定）
 - **Success criteria**（EXP→CONCLUDED）：npm install 無錯 / 所有 native modules rebuild 成功 / dev+build:dir 可跑 / 手動 smoke test 8 項通過
 - **最大風險**：`whisper-node-addon@1.0.2` 對 Electron 41（Node 24）的 NODE_MODULE_VERSION 相容性未知，允許 Worker 遇此決策點主動問塔台
+
+---
+
+### D458 2026-11-27 22:50 — T0956 收單、派合併工單 T0958
+
+- **回報**：T0956 DONE，`ct/T0956` `137e7b6e`（= validated_sha），base `39557f4a`。查證成立：登入導引分頁（`openClaudeLoginTerminal`，不送 Enter）與遠端工具安裝（`runRemoteToolInstall`）都在 `pty:create` 後 500 ms 寫命令。做法：兩個模組的 deps 多選填 `sendLaunchCommand`，有給時建立帶 `holdInputUntilLaunch`、命令經它送；`writeLaunchCommand` 原樣寫出、不加字元，登入命令照舊沒有 Enter，T0951 共用實作與 `electron/**` 產品碼都沒改；舊 bat-server fallback 不變。端到端測試依 Q-1（D455）放 `electron/__tests__/`。`test:unit` 9408 passed / 42 skipped（524 files）、typecheck 0 / 0、vite build 0。
+- **後續建議（未開單）**：`launch-command.test.ts` 一個 `it` 名稱「登入分頁不要求保留」與現況不符（斷言仍成立：旗標在 `claude-login-guide.ts`，WorkspaceView 只展開），可改名。
+- **收單**：`--close-worker T0956 --delay-ms 10000 --worktree keep` exit 0。
+- **合併**：`main` 自 base 起併入 T0957 產品檔（`CLAUDE.md` 兩邊都改、不同節），判準 1 不成立 → 派合併工單 T0958（base `aef9678b`；`merge-tree` 無衝突）。
+- **相關**：T0956 / T0958 / BUG-232 / D455
 
 ---
 
