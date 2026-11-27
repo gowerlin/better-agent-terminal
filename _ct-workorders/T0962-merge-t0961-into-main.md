@@ -4,12 +4,13 @@ schema_kind: workorder
 id: T0962
 title: "合併 `ct/T0961`（Linux spec：⏻ 後游標，BUG-233）→ `main`"
 type: chore
-status: PENDING
+status: IN_PROGRESS
 repo: better-agent-terminal
 priority: P3
 sizing: XS
 created_at: "2026-11-28T00:08:39+08:00"
-updated_at: "2026-11-28T00:08:39+08:00"
+updated_at: "2026-11-28T00:09:47+08:00"
+started_at: "2026-11-28T00:09:47+08:00"
 target_version: "下一個預覽版（`0.8.1-pre.3`）"
 kind: merge
 merges:
