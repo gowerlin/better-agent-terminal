@@ -80,8 +80,14 @@ memory_overrides:
 - 畫面與送出：複選框、「其他」互斥、`U-n：A、C`。
 - 文件四處（docs、CLAUDE.md、網站、README 協作章節）。
 
+## 塔台補充（派工前，2026-11-27 11:34）
+
+- T0937 已合併（「其他」＝`[data-inbox-option-other]`、輸入框 `[data-inbox-other-input]`、放棄提示 `[data-inbox-other-hint]` / `inbox.answer.otherDismissHint`，判斷沿用 `isDismissAnswer`）。多選模式的「其他」沿用這套元件，不另寫。
+- 併入本單：`options: []`（與 `optionsInvalid`）的自由回答欄也顯示同一行放棄提示（同一個判斷、同一個 i18n 鍵、不擋送出）；元件測試補一項。這是 T0937〈後續建議〉。
+
 ## 驗收
 
+- [ ] `options: []` 的自由回答欄以「放棄 / 略過」開頭時顯示放棄提示（T0937 後續）
 - [ ] 旗標＋`multi: true`＋≥ 2 選項 → 複選；推薦項（可多個）預設勾選並標推薦；送出依 options 順序、`、` 連接
 - [ ] 「其他」與勾選互斥；放棄 / 略過 / 批次不變
 - [ ] 沒有旗標、`multi` 不是 `true`、選項 < 2 → 與現在完全相同
