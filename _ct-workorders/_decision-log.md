@@ -10,6 +10,7 @@
 
 | ID | 日期 | 標題 | 相關工單 |
 |----|------|------|---------|
+| D439 | 2026-11-27 | T0949 收單（DONE，`073dbaa1`，接回同一 PTY 時以存檔 pid 還原塔台宣告）；判準 1 不成立 → 派合併工單 T0952 | T0949 / T0952 / BUG-230 |
 | D438 | 2026-11-27 | T0947 兩項後續建議開單並派工：T0950（⏻ 離開殘留 alt screen）、BUG-231 / T0951（⏻ 期間打的字移到啟動命令之後） | T0950 / T0951 / BUG-231 |
 | D437 | 2026-11-27 | U-40：A → T0948 ff 進 `main` `dc37842c`；BUG-229 FIXED（待發版實機驗收）；T0947 worktree 移除 | T0948 / T0947 / BUG-229 |
 | D436 | 2026-11-27 | T0948 收單（`9f5cc1ee`，驗收全綠、無範圍外檔案）；斷點 E 發 U-40 | T0948 / T0947 / BUG-229 |
@@ -556,6 +557,16 @@
   4. PLAN-001 保持延後（🟢 Low，等 plugin 1.0 穩定）
 - **Success criteria**（EXP→CONCLUDED）：npm install 無錯 / 所有 native modules rebuild 成功 / dev+build:dir 可跑 / 手動 smoke test 8 項通過
 - **最大風險**：`whisper-node-addon@1.0.2` 對 Electron 41（Node 24）的 NODE_MODULE_VERSION 相容性未知，允許 Worker 遇此決策點主動問塔台
+
+---
+
+### D439 2026-11-27 21:20 — T0949 收單、派合併工單 T0952
+
+- **回報**：T0949 DONE，`ct/T0949` `073dbaa1`（= validated_sha），base `451bbba9`。根因成立（宣告只在 `PtyInstance`，接回時 `handleReplayList` 建的 instance 沒有宣告欄位；「保留」與 holder 自動接回同一路徑）。做法：主行程存檔 `<userData>/tower-roles.json`（比照 `claude-sessions.json`，不含權杖），存宣告時的 pid；接回時 Terminal Server 清單的 pid 等於存檔 pid 且本行程未再宣告才還原，並送 `role-changed`；視窗 `did-finish-load` 時補送（附帶：View→Reload 後也拿得回塔台）。唯一實作 `decideTowerRoleRestore` / `TowerRolePersistence`（`electron/terminal-role.ts`）。`--set-role` 契約不變、hooks 不還原、headless 不存檔。`test:unit` 9325 passed / 46 skipped（518 files）、vite build 0、typecheck 0 / 0。
+- **塔台判讀**：Worker 指出工單寫「⏻ / recovery 一律照舊清除」與既有行為（同一行程內 ⏻ / recovery 保留宣告，T0565 / T0903）不同，依「照舊」沒改既有行為、只確保這些不在 BAT 重開時還原 —— 判定正確，不另開單。已知限制：從 `v0.8.0` 升上來的第一次接回沒有存檔。
+- **收單**：`--close-worker T0949 --delay-ms 10000 --worktree keep` exit 0。
+- **合併**：`main` 自 base 起併入 T0947 產品檔（`CLAUDE.md` 兩邊都改），判準 1 不成立 → 派合併工單 T0952（base `5e2e58b6`；`merge-tree` 試合併無衝突）。
+- **相關**：T0949 / T0952 / BUG-230
 
 ---
 
