@@ -4,15 +4,24 @@ summary_version: 1
 bat_contract: 2
 ct_version: "6.3.0"
 inbox_features: ["recommended", "dismiss", "multi"]
-updated_at: "2026-11-27T23:46:23+0800"
+updated_at: "2026-11-27T23:48:10+0800"
 session: "2026-11-27 20:46 第一百三十九 session（CT v6.3.0）"
 next_ids:
   workorder: "T0961"
   decision: "D465"
   bug: "BUG-234"
   plan: "PLAN-071"
-  user: "U-52"
+  user: "U-53"
   action: "A-25"
+awaiting_user:
+  - id: "U-52"
+    workorder: ""
+    kind: "decision"
+    source: "tower-question"
+    summary: "A-24（BUG-233 遠端 ⏻ 後游標）改用哪種自動化：Linux CI 加 spec（需 push ct/T0961 並觸發 linux-acceptance）或拋棄式 WSL distro"
+    options: ["A Linux CI：加 e2e/linux spec，授權 push ct/T0961 並對 pre.1 / pre.2 各觸發一次 linux-acceptance（推薦）", "B 拋棄式 WSL distro＋隔離 BAT 遠端 profile（也測遠端工具安裝，較重、會裝 distro）", "C 維持 A-24 手動"]
+    recommended: "A"
+    created_at: "2026-11-27T23:48:10+08:00"
 user_actions:
   - id: "A-24"
     title: "（下次用遠端視窗時）WSL / SSH 遠端 profile 視窗，bat-server 0.8.1-pre.2 以上：vim 或 claude 開著時按 ⏻，新 shell 看得到游標（BUG-233）"
