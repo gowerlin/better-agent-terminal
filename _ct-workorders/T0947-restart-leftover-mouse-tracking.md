@@ -4,12 +4,13 @@ schema_kind: workorder
 id: T0947
 title: "BUG-229：⏻ 重啟 claude 分頁時舊程式留下的滑鼠追蹤沒關，滑鼠回報黏在 claude 啟動命令前面 → 重啟後不再讓殘留的滑鼠回報打進新 shell"
 type: bugfix
-status: PENDING
+status: IN_PROGRESS
 repo: better-agent-terminal
 priority: P2
 sizing: S
 created_at: "2026-11-27T20:49:15+08:00"
-updated_at: "2026-11-27T20:49:15+08:00"
+started_at: "2026-11-27T20:50:37+08:00"
+updated_at: "2026-11-27T20:50:37+08:00"
 target_version: "下一個預覽版（`0.8.1-pre.N`，發版前與使用者確認），與 T0946 同一版"
 depends_on: []
 related:
