@@ -25,6 +25,10 @@
  * T0950: the alternate screen the killed program left is left the same way once the new shell is
  * spawned (`leaveLeftoverAltScreen`), so the new shell has its scrollback again.
  *
+ * BUG-233 / T0957: a cursor the killed program hid (DECRST 25) is shown again at the same moment
+ * (`showLeftoverHiddenCursor`): DECRST 1049 does not restore it, and bash / zsh on Linux, macOS, WSL
+ * and SSH never send DECSET 25 at startup (Windows' ConPTY repaint does).
+ *
  * No DOM / electron.
  */
 import { isMouseTrackingOn } from './terminal-context-menu'
@@ -34,6 +38,20 @@ export const MOUSE_TRACKING_RESET = '\x1b[?1000l\x1b[?1002l\x1b[?1003l\x1b[?1006
 
 /** Leaves the alternate screen (DECRST 1049); the menu offers it apart from the mouse reset. */
 export const ALT_SCREEN_EXIT = '\x1b[?1049l'
+
+/** Shows the cursor (DECSET 25, DECTCEM). */
+export const CURSOR_SHOW = '\x1b[?25h'
+
+/**
+ * BUG-233 / T0957: whether xterm's cursor is hidden (DECRST 25) now. The public API has no field for
+ * it (`terminal.modes` has no DECTCEM), so this reads xterm 5.5.0's `_core.coreService.isCursorHidden`;
+ * anything else (another xterm layout) is `undefined`, and the cursor is then left as it is.
+ */
+export function xtermCursorHidden(terminal: unknown): boolean | undefined {
+  const hidden = (terminal as { _core?: { coreService?: { isCursorHidden?: unknown } } } | null)
+    ?._core?.coreService?.isCursorHidden
+  return typeof hidden === 'boolean' ? hidden : undefined
+}
 
 /** A report counts as echoed when its text appears in the output within this long after it was sent. */
 export const MOUSE_REPORT_ECHO_WINDOW_MS = 500
@@ -127,6 +145,13 @@ export interface LeftoverMouseTrackingView {
   altScreenActive?(): boolean
   /** T0950: leaves the alternate screen in this xterm (`ALT_SCREEN_EXIT`); `done` once xterm has parsed it. */
   leaveAltScreen?(done: () => void): void
+  /**
+   * T0957: whether this xterm's cursor is hidden now; `undefined` = cannot tell (the view logs it).
+   * A view without it is never changed.
+   */
+  cursorHidden?(): boolean | undefined
+  /** T0957: shows the cursor in this xterm (`CURSOR_SHOW`); `done` once xterm has parsed it. */
+  showCursor?(done: () => void): void
 }
 
 /** Longest wait for xterm to parse the reset (a view disposed meanwhile never calls `done`). */
@@ -184,6 +209,33 @@ export function leaveLeftoverAltScreen(id: string): Promise<boolean> {
   return new Promise<boolean>(resolve => {
     const timer = setTimeout(() => resolve(true), LEFTOVER_MOUSE_RESET_WAIT_MS)
     leave(() => {
+      clearTimeout(timer)
+      resolve(true)
+    })
+  })
+}
+
+/**
+ * BUG-233 / T0957: a new shell has just been spawned in terminal `id`'s xterm (⏻, the interrupted-agent
+ * resume) and xterm's cursor is still hidden — by the old program (a TUI sends DECRST 25), killed before
+ * it showed it again. DECRST 1049 (`leaveLeftoverAltScreen`) does not restore it, and a new bash / zsh
+ * on Linux, macOS, WSL or SSH does not send DECSET 25 (T0957 measured WSL bash: only `?2004h`, the title
+ * and the prompt), so the prompt had no cursor. Shown in this xterm only (never the PTY). Same moment
+ * and callers as `leaveLeftoverAltScreen`, called right after it, so xterm parses the DECRST 1049 first
+ * and DECSET 25 next, both before the new shell's first output (a program the new shell starts that
+ * hides the cursor again is parsed after). Never at `before-new-pty`: the old program still draws then.
+ * Nothing when no view is mounted, the view cannot tell (`undefined`), or the cursor is visible.
+ * Resolves true once xterm parsed it (or after `LEFTOVER_MOUSE_RESET_WAIT_MS`), false when nothing was done.
+ * Kept apart from `leaveLeftoverAltScreen`: either can be left behind without the other (a TUI on the
+ * normal screen that hid the cursor; a TUI that showed it again before it was killed).
+ */
+export function showLeftoverHiddenCursor(id: string): Promise<boolean> {
+  const view = leftoverViews.get(id)
+  if (!view?.showCursor || view.cursorHidden?.() !== true) return Promise.resolve(false)
+  const show = view.showCursor.bind(view)
+  return new Promise<boolean>(resolve => {
+    const timer = setTimeout(() => resolve(true), LEFTOVER_MOUSE_RESET_WAIT_MS)
+    show(() => {
       clearTimeout(timer)
       resolve(true)
     })

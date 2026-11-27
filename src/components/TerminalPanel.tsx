@@ -16,7 +16,7 @@ import { buildTerminalDropInsertion, buildTerminalDropText, buildTerminalUploadI
 import { describePasteError, imagePasteKey, isMacCommandPaste, isTerminalClipboardReadError, readTerminalClipboard, terminalImagePasteMode, uploadClipboardImage } from '../lib/terminal-paste'
 import { attachmentDisplayNames, attachmentRefusalText, uploadFailureReason, type SendAttachment } from '../lib/client-paths'
 import { forcesTerminalSelection, isMouseTrackingDecset, isMouseTrackingOn, MouseReportSelectionKeeper, shouldCloseTerminalContextMenuOnKey, shouldShowTerminalContextMenu } from '../lib/terminal-context-menu'
-import { ALT_SCREEN_EXIT, MOUSE_TRACKING_RESET, MouseReportEchoDetector, registerLeftoverMouseTrackingView } from '../lib/mouse-tracking-reset'
+import { ALT_SCREEN_EXIT, CURSOR_SHOW, MOUSE_TRACKING_RESET, MouseReportEchoDetector, registerLeftoverMouseTrackingView, xtermCursorHidden } from '../lib/mouse-tracking-reset'
 import { mouseReportEncoding, planWheelReports, shouldSendWheelReports, WheelLineAccumulator } from '../lib/terminal-wheel-reports'
 import { createLinkHoverTooltip, createOsc8LinkHandler, findFileLinks } from '../lib/terminal-file-links'
 import { canFitTerminalContainer } from '../lib/terminal-fit-guard'
@@ -756,6 +756,16 @@ export const TerminalPanel = memo(function TerminalPanel({ terminalId, isActive 
       leaveAltScreen: (done) => {
         terminal.write(ALT_SCREEN_EXIT, done)
         dlog(`[mouse-tracking] alt screen left: new-pty-spawned terminal=${terminalId}`)
+      },
+      // BUG-233 / T0957: a cursor the old program hid, once the new PTY is spawned (showLeftoverHiddenCursor)
+      cursorHidden: () => {
+        const hidden = xtermCursorHidden(terminal)
+        if (hidden === undefined) dlog(`[mouse-tracking] cursor state unknown: new-pty-spawned terminal=${terminalId}`)
+        return hidden
+      },
+      showCursor: (done) => {
+        terminal.write(CURSOR_SHOW, done)
+        dlog(`[mouse-tracking] cursor shown: new-pty-spawned terminal=${terminalId}`)
       },
     })
     exitAltScreenRef.current = () => {

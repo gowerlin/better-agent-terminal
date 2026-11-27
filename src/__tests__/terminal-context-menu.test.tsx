@@ -65,6 +65,8 @@ const { deepStub, xterm } = vi.hoisted(() => {
       // BUG-166 / T0672: what the tab writes to its own xterm, and the alternate buffer object
       writes: [] as string[],
       alternate: {} as object,
+      // BUG-233 / T0957: xterm 5.5.0 `_core.coreService.isCursorHidden` (`undefined` = another xterm layout)
+      cursorHidden: false as boolean | undefined,
     },
   }
 })
@@ -84,6 +86,7 @@ vi.mock('@xterm/xterm', () => ({
           if (prop === 'cols') return 80
           if (prop === 'element') return xterm.element
           if (prop === 'write') return (data: string) => { xterm.writes.push(data) }
+          if (prop === '_core') return { coreService: { get isCursorHidden() { return xterm.cursorHidden } } }
           if (prop === 'parser') return {
             registerCsiHandler: (id: { prefix?: string; final: string }, fn: (params: Array<number | number[]>) => boolean) => {
               if (id.prefix === '?' && id.final === 'h') xterm.decsetHandlers.push(fn)
@@ -250,6 +253,7 @@ beforeEach(() => {
   xterm.onBufferChange = null
   xterm.element = document.createElement('div')
   xterm.writes = []
+  xterm.cursorHidden = false
   ptyOutput = null
   xterm.element.appendChild(document.createElement('div')).className = 'xterm-screen'
   clipboardWrites.mockClear()
@@ -1083,5 +1087,51 @@ describe('TerminalPanel: alternate screen left when a new PTY starts (T0950)', (
     expect(await leaveLeftoverAltScreen('t0950-normal')).toBe(false)
     expect(xterm.writes).toEqual([])
     expect(mouseLogs()).toEqual([])
+  })
+})
+
+/**
+ * BUG-233 / T0957: a cursor the old program hid is shown once the new PTY is spawned; the tab tells
+ * `showLeftoverHiddenCursor` (src/lib/mouse-tracking-reset.ts) xterm's `isCursorHidden` and writes
+ * DECSET 25 to xterm only. Behaviour with a real xterm: src/lib/__tests__/cursor-restart.test.ts.
+ */
+describe('TerminalPanel: hidden cursor shown when a new PTY starts (T0957)', () => {
+  const mouseLogs = () => debugLog.mock.calls.map(c => String(c[0])).filter(l => l.startsWith('[mouse-tracking]'))
+
+  test('cursor hidden: DECSET 25 written to xterm only and logged', async () => {
+    const { showLeftoverHiddenCursor } = await import('../lib/mouse-tracking-reset')
+    await renderTerminal('t0957-hidden')
+    xterm.cursorHidden = true
+    // the stub's write never calls back: resolved after the wait cap
+    expect(await showLeftoverHiddenCursor('t0957-hidden')).toBe(true)
+    expect(xterm.writes).toEqual(['\x1b[?25h'])
+    expect(mouseLogs()).toEqual(['[mouse-tracking] cursor shown: new-pty-spawned terminal=t0957-hidden'])
+    expect(ptyWrite).not.toHaveBeenCalled()
+  })
+
+  test('cursor visible: nothing written, nothing logged', async () => {
+    const { showLeftoverHiddenCursor } = await import('../lib/mouse-tracking-reset')
+    await renderTerminal('t0957-visible')
+    expect(await showLeftoverHiddenCursor('t0957-visible')).toBe(false)
+    expect(xterm.writes).toEqual([])
+    expect(mouseLogs()).toEqual([])
+  })
+
+  test('cursor state unreadable (another xterm layout): nothing written, one line logged', async () => {
+    const { showLeftoverHiddenCursor } = await import('../lib/mouse-tracking-reset')
+    await renderTerminal('t0957-unknown')
+    xterm.cursorHidden = undefined
+    expect(await showLeftoverHiddenCursor('t0957-unknown')).toBe(false)
+    expect(xterm.writes).toEqual([])
+    expect(mouseLogs()).toEqual(['[mouse-tracking] cursor state unknown: new-pty-spawned terminal=t0957-unknown'])
+  })
+
+  test('after the tab unmounts it is no longer reachable', async () => {
+    const { showLeftoverHiddenCursor } = await import('../lib/mouse-tracking-reset')
+    const view = await renderTerminal('t0957-gone')
+    view.unmount()
+    xterm.cursorHidden = true
+    expect(await showLeftoverHiddenCursor('t0957-gone')).toBe(false)
+    expect(xterm.writes).toEqual([])
   })
 })
