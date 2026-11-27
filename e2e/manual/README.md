@@ -192,3 +192,23 @@ node e2e/manual/ct-accept-act.mjs ctl s1 '{"op":"click","selector":"[data-inbox-
 - claude 2.1.331 的塔台是全螢幕畫面（alt screen）：xterm 沒有 scrollback，捲動由 claude 自己處理；畫面文字只能從 PTY 擷取（TUI 重繪，閃爍的符號會洗掉尾端），判斷內容請以對話紀錄為準。
 - 權限詢問：以 BAT 縮圖 `.attention-badge.blocked[data-blocked-reason=permission]` 判斷；claude 一次排隊多個權限詢問時只有第一個有 hook 事件（T0915 回報區），需另看對話紀錄中沒有結果的工具呼叫。
 - 塔台分頁的輸入框草稿判斷（T0904 `draft`）看不到 claude 畫面內部。T0939 時用數字鍵關掉 claude 的意見調查列後，那一鍵被當成輸入框有字、待辦分頁的回答排進「📨 待送」；T0940（BUG-227）起 BAT 從輸出認得調查列（圖例），調查列出現 ≥ 1 s 後剛好按一個有效鍵就不算草稿。仍會保留的情況：調查列出現後 1 s 內按鍵、按鍵前先點了分頁、按了調查列不收的鍵、比 T0940 舊的 BAT（規則見 `docs/agent-guide/tower-inbox.md`「不進輸入框的按鍵」）。驅動在送出前仍應確認沒有待送，有就在空的輸入框按一次 Enter。
+
+## t0955-v081-acceptance.ts / t0955-fake-claude.cs / t0955-fake-claude.mjs — 交付版 ⏻ / 塔台接回自動驗收（T0955）
+
+以發佈的 zip 開一個隔離 BAT，用**假 claude**（不連模型、不花額度）一次跑完 A-19～A-23（BUG-228 / 229 / 230 / 231、T0950）與兩個反例，輸出 PASS / FAIL / 未判定與證據。不會被 `npm run test:*` 執行，只支援 Windows。
+
+- **隔離**：`--runtime=e2e-t0955-<時間>`（獨立 userData、Terminal Server、remote port），子程序 env 去掉 `BAT_*` / `CT_*` 與 Claude Code session 的變數，`CLAUDE_CONFIG_DIR` 指向結果目錄。只結束自己啟動的程序（以 pid），不碰安裝版 BAT 與它的 userData；最後比對使用者層 `~/.claude` / `~/.codex` 設定檔雜湊（settings、CLAUDE.md、skills / agents / commands、plugins 清單、codex config / skills；session 紀錄由執行中的 Claude Code 寫入，不列入）與安裝版 BAT 的程序 pid 前後相同。
+- **設定**：啟動前寫 runtime 的 `settings.json`：Shell = Git Bash、Claude Runtime = system、`customPath` = 假 `claude.exe`、`fallbackToEmbedded: false`（內嵌 claude 絕不啟動）、啟動更新檢查關閉。
+- **假 claude**：BAT 的 system claude 偵測只收真的 `.exe`，所以腳本用 .NET Framework 的 `csc.exe` 把 `t0955-fake-claude.cs` 編到結果目錄。`--version` 回 `2.1.331 (Claude Code)`；在分頁內啟動時記錄 argv，主控台設成 VT 輸入 / 輸出（ConPTY 只在這個模式轉送滑鼠模式與 SGR 滑鼠回報），印 5 行標記＋60 行填充，參數有 `/control-tower` 就以分頁自己的 helper env 執行 `bat-terminal.mjs --set-role tower --bat-contract 2 --mode on`，再依 `control.json` 進全螢幕（`ESC[?1049h ESC[?1003h ESC[?1006h ESC[?25l`）或留在 normal buffer，stdin 每段以 base64 記錄。`t0955-fake-claude.mjs` 只做 meta / set-role / 回應驅動的 `bat_whoami`（stdio 都導向，不碰主控台）。
+- **情境**：A-19 塔台分頁 argv 最後是 `/control-tower`、命令列有 `MSYS2_ARG_CONV_EXCL=`、log `[T0946]`；A-20 全螢幕＋滑鼠追蹤下按 ⏻，期間持續移動滑鼠、新 PTY 一出現就鍵入 `abc`，檢查新 claude 的 argv、stdin、沒有 `35;…M`、log `[mouse-tracking] reset: before-new-pty` 與保留輸入的 `[agent-command] … sent after it`；A-23 ⏻ 後 normal buffer、滾輪可捲回標記行、記錄游標；反例：一般 Claude CLI 分頁 ⏻ 不帶 `/control-tower`、一般 shell 分頁 ⏻ 後打字立即出現；A-21 保留 Terminal Server 結束 → 同 runtime 與同 port 重開 → Recovery「保留」→ log `[tower-role] restored:`、同一個假 claude 程序仍在、從該分頁查 `bat_whoami` 是 `role: tower` / 契約 2；A-22 同上選「重新開始」→ 塔台分頁重新帶 `/control-tower`、log `not restored`。
+
+```powershell
+# repo 根目錄，先 npm ci（驅動用 tsx 執行）
+$env:BAT_E2E_EXECUTABLE='C:/Users/demo/AppData/Local/BAT-TestBuilds/0.8.1-pre.1-win/BetterAgentTerminal.exe'
+$env:T0955_RESULTS='C:/Users/demo/AppData/Local/BAT-TestBuilds/T0955-results'
+node node_modules/tsx/dist/cli.mjs e2e/manual/t0955-v081-acceptance.ts
+```
+
+- 選填：`T0955_GIT_BASH`（預設 `C:\Program Files\Git\bin\bash.exe`，不存在 → exit `2`）、`T0955_CSC`（預設 `%WINDIR%\Microsoft.NET\Framework64\v4.0.30319\csc.exe`）。
+- exit `0` = 全部 PASS、`1` = 有 FAIL / 未判定、`2` = 用法或環境錯誤。結果：`<T0955_RESULTS>/report-<時間>.json`，每次執行的 `run-<時間>/`（`driver.log`、假 claude 的 argv / stdin / meta、分頁輸出、遮罩過的 BAT 日誌、`tower-roles.json`、截圖）。結果目錄含本機路徑與使用者名稱，不要放進 repo。
+- 已知限制：假 claude 不跑 BAT hooks，塔台縮圖會顯示 `🪝✕`（hooks `none (no-report)`），與本驗收項目無關；待辦分頁在預設版面沒有渲染時，A-21 以 helper 查詢與日誌判定。
