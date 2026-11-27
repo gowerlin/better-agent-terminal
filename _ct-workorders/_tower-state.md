@@ -3,23 +3,59 @@ schema_kind: tower-state
 summary_version: 1
 bat_contract: 2
 ct_version: "6.2.0"
-inbox_features: ["recommended", "dismiss"]
-updated_at: "2026-11-27T16:08:29+0800"
+inbox_features: ["recommended", "dismiss", "multi"]
+updated_at: "2026-11-27T16:17:08+0800"
 session: "2026-11-27 11:10 第一百三十七 session（CT v6.2.0）"
 next_ids:
   workorder: "T0944"
-  decision: "D419"
+  decision: "D420"
   bug: "BUG-228"
   plan: "PLAN-071"
-  user: "U-31"
-  action: "A-13"
+  user: "U-34"
+  action: "A-15"
+awaiting_user:
+  - id: "U-31"
+    workorder: ""
+    kind: "decision"
+    source: "tower-question"
+    summary: "【驗測範例 F1】單選：送出 A 後看已送出與保留；改選 B 按重新送出；切分頁再回來"
+    options: ["A 選項甲（推薦）", "B 選項乙", "C 選項丙"]
+    recommended: "A"
+    created_at: "2026-11-27T16:17:08+08:00"
+  - id: "U-32"
+    workorder: ""
+    kind: "decision"
+    source: "tower-question"
+    summary: "【驗測範例 F2】多選：勾選送出後勾選保留；再用「其他」打字重新送出，看標記換成新內容"
+    options: ["A 甲（推薦）", "B 乙", "C 丙（推薦）"]
+    recommended: "A、C"
+    multi: true
+    created_at: "2026-11-27T16:17:08+08:00"
+  - id: "U-33"
+    workorder: ""
+    kind: "decision"
+    source: "tower-question"
+    summary: "【驗測範例 F3】自由回答：送出後文字保留；再按「放棄…」填原因送出，看標記"
+    options: []
+    created_at: "2026-11-27T16:17:08+08:00"
 user_actions:
   - id: "A-12"
     title: "裝 0.8.0-pre.9 後驗收：待辦回答送出後顯示已送出並保留選擇（T0942）；意見調查列按鍵後回答不卡待送（BUG-227）"
     ref: "BUG-227"
     kind: "verify"
     created_at: "2026-11-27T16:08:29+08:00"
+  - id: "A-13"
+    title: "【驗測範例 F4】按「失敗…」填說明送出，看已送出標記；再按「完成」，標記換成完成那一行"
+    ref: "T0942"
+    kind: "manual"
+    created_at: "2026-11-27T16:17:08+08:00"
+  - id: "A-14"
+    title: "【驗測範例 F5】勾選 A-13 與本筆，用批次「略過勾選」送出，看工具列與每筆的已送出標記"
+    ref: "T0942"
+    kind: "manual"
+    created_at: "2026-11-27T16:17:08+08:00"
 todo:
+  - "🧪 驗測範例（D419，A-12 驗完才移除，不是真正待辦）：U-31 / U-32 / U-33、A-13 / A-14；🔴 這段期間塔台收到這些編號的回答只記錄、不移除項目（要讓使用者看已送出標記與重新送出）；`inbox_features` 暫加 `multi` 供 U-32，驗完移除"
   - "🚀 `v0.8.0-pre.9` 已發佈（Pre-Release `45960516845`，`91309713`，D418）：T0940（BUG-227）/ T0942；待驗收 A-12。🔴 `0.8.0-pre.N` 已用到 pre.9（最後一號），下一個預覽版要換版號線，先與使用者確認（例 `0.8.0` 正式版或 `0.8.1-pre.1`）"
   - "✅ PLAN-070 DONE（D417）：CT 6.3.0 正式版已發布（CT D923，`ct-v6.3.0`，2026-11-27 16:00）；BAT README 對照表已寫 `>= v6.3.0`，與 Portal 一致"
   - "✅ `v0.8.0-pre.8` 已驗收（A-8，D401）：BUG-226 CLOSED、T0937「其他」通過"
