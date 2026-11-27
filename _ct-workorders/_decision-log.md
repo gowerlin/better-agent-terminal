@@ -10,6 +10,7 @@
 
 | ID | 日期 | 標題 | 相關工單 |
 |----|------|------|---------|
+| D438 | 2026-11-27 | T0947 兩項後續建議開單並派工：T0950（⏻ 離開殘留 alt screen）、BUG-231 / T0951（⏻ 期間打的字移到啟動命令之後） | T0950 / T0951 / BUG-231 |
 | D437 | 2026-11-27 | U-40：A → T0948 ff 進 `main` `dc37842c`；BUG-229 FIXED（待發版實機驗收）；T0947 worktree 移除 | T0948 / T0947 / BUG-229 |
 | D436 | 2026-11-27 | T0948 收單（`9f5cc1ee`，驗收全綠、無範圍外檔案）；斷點 E 發 U-40 | T0948 / T0947 / BUG-229 |
 | D435 | 2026-11-27 | U-39：A → BUG-230 FIXING；開並派 T0949（同一 PTY 接回時還原塔台宣告，worktree） | BUG-230 / T0949 |
@@ -555,6 +556,16 @@
   4. PLAN-001 保持延後（🟢 Low，等 plugin 1.0 穩定）
 - **Success criteria**（EXP→CONCLUDED）：npm install 無錯 / 所有 native modules rebuild 成功 / dev+build:dir 可跑 / 手動 smoke test 8 項通過
 - **最大風險**：`whisper-node-addon@1.0.2` 對 Electron 41（Node 24）的 NODE_MODULE_VERSION 相容性未知，允許 Worker 遇此決策點主動問塔台
+
+---
+
+### D438 2026-11-27 21:13 — T0947 兩項後續建議開單：T0950、BUG-231 / T0951
+
+- **使用者**：「建議了兩件事開單」。
+- **T0950**（feature，P3）：⏻ / 恢復時，新 PTY 開始前若 xterm 仍在 alt buffer 就在本機 xterm 離開（只寫 xterm、不寫 PTY）；T0672「不自動離開 alt screen」的規則在 ⏻ 時加例外（舊程式已結束，理由不成立），CLAUDE.md 同步。
+- **BUG-231**（low，直接 FIXING）／**T0951**：⏻ 後啟動命令寫入前（約 500 ms）使用者打的字移到命令之後，語意比照 BUG-151 `holdInputForDispatch`，盡量共用既有實作；輸入不得遺失、順序不變。
+- **派工**：兩張都 worktree、yolo，與 T0949 並行；`affects_files` 重疊（`pty-replay.ts`、`WorkspaceView.tsx`、`CLAUDE.md`；T0951 與 T0949 可能都動 `electron/pty-manager.ts`）→ 依完成順序逐張合併，後到的走合併工單。
+- **相關**：T0947 / T0950 / T0951 / BUG-231 / BUG-229 / BUG-151 / T0672
 
 ---
 

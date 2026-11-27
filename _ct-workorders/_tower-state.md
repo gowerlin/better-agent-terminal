@@ -4,18 +4,18 @@ summary_version: 1
 bat_contract: 2
 ct_version: "6.3.0"
 inbox_features: ["recommended", "dismiss", "multi"]
-updated_at: "2026-11-27T21:09:24+0800"
+updated_at: "2026-11-27T21:13:26+0800"
 session: "2026-11-27 20:46 第一百三十九 session（CT v6.3.0）"
 next_ids:
-  workorder: "T0950"
-  decision: "D438"
-  bug: "BUG-231"
+  workorder: "T0952"
+  decision: "D439"
+  bug: "BUG-232"
   plan: "PLAN-071"
   user: "U-41"
   action: "A-19"
 todo:
   - "✅ BUG-228 FIXED（T0946 合併進 `main` `773fe35c`，D432）：待 T0947 合併後一起發版，再發新的 A-n 重驗 A-15 / A-16（A-18 同樣受影響）。`ct/T0946` / `ct-merge/T0946` 分支保留到使用者同意刪除"
-  - "✅ BUG-229 FIXED（T0947 `6e58f168` 經 T0948 合併進 `main` `dc37842c`，D437），待發版實機驗收。T0947 後續建議（未開單）：⏻ 時一併離開 claude 留下的 alt screen；⏻ 期間使用者自己打的字仍在命令前面（比照 BUG-151）。分支 `ct/T0947` / `ct-merge/T0948` 保留到使用者同意刪除"
+  - "✅ BUG-229 FIXED（T0947 `6e58f168` 經 T0948 合併進 `main` `dc37842c`，D437），待發版實機驗收。T0947 兩項後續建議已開單（D438）：T0950（⏻ 離開 alt screen）、T0951（BUG-231，⏻ 期間打的字移到命令之後），皆派工中。分支 `ct/T0947` / `ct-merge/T0948` 保留到使用者同意刪除"
   - "🔧 BUG-230（BAT 重開接回後塔台宣告消失，A-18 發現，D434）→ T0949 派工中（U-39：A，D435；worktree）"
   - "發版後重驗（新的 A-n）：A-15「以塔台開啟 Claude」、A-16 ⏻ 重啟、A-18 關 BAT 後「重新開始」與「保留」兩條路"
   - "✅ `v0.8.0` 正式版已發佈（D425，Release run `45991410993`，2026-11-27 19:56，Latest）：更版重點與三文件已更新。🔴 T0944（塔台分頁自動帶入 `/control-tower`）待實機；下一版版號線：`0.8.1-pre.N`（發前確認）"
@@ -44,7 +44,7 @@ reminders:
 ---
 # Tower State — better-agent-terminal
 
-> 🟢 **第一百三十九 session 開工**（2026-11-27 20:46 (UTC+8)，CT v6.3.0，Fast Path；塔台 session `50ee1132-deeb-462b-b7a2-66cab13fa056`；新分頁 `c2f1a2e3…`（`better-agent-terminal · Tower`），`--set-role tower --bat-contract 2 --mode on` exit 0，`bat-contract: 2`、`hooks: ok (injected, set 2)`；第一則訊息仍是 `C:/Program Files/Git/control-tower`（BUG-228 重現，T0946 修復中）；前一塔台分頁 `82f1e7f0…`（session `a34eb9f4…`）現為 `role: shell`、idle、claude session 未回報，但仍是 T0946 Worker 的 `towerTerminalId`；`main` @ `6ccf707f`（領先 `origin/main` 3）；T0946 IN_PROGRESS、Worker working）。20:47 A-16：失敗（截圖：⏻ 後滑鼠回報黏在 claude 啟動命令前面，claude 沒啟動）→ 開 BUG-229、發 U-37（D429）；20:49 U-37：A → BUG-229 FIXING、T0947 派工（D430）；20:59 T0946 DONE（`75525d6a`，通知因舊塔台分頁已不在而失敗，使用者轉告）→ 模式 ① 合併到 `ct-merge/T0946` `8595cfd8`，斷點 E 等 U-38（D431）；21:00 U-38：A → ff，`main` @ `773fe35c`，BUG-228 FIXED，T0946 worktree 已移除（D432）；21:03 使用者回報 A-18（BAT 重開、終端接回，但塔台宣告消失，須自己再跑 `/control-tower`）＋「T0947 完成」→ 塔台重送 `--set-role` exit 0；T0947 收單、`--close-worker … --worktree keep` exit 0、派合併工單 T0948（D433）；A-18 移除、開 BUG-230、發 U-39（D434）；21:05 U-39：A → BUG-230 FIXING、T0949 派工（D435）；21:08 T0948 DONE（`9f5cc1ee`，驗收全綠）→ 斷點 E 等 U-40（D436）；21:09 U-40：A → ff，`main` @ `dc37842c`，BUG-229 FIXED，T0947 worktree 已移除（D437）。
+> 🟢 **第一百三十九 session 開工**（2026-11-27 20:46 (UTC+8)，CT v6.3.0，Fast Path；塔台 session `50ee1132-deeb-462b-b7a2-66cab13fa056`；新分頁 `c2f1a2e3…`（`better-agent-terminal · Tower`），`--set-role tower --bat-contract 2 --mode on` exit 0，`bat-contract: 2`、`hooks: ok (injected, set 2)`；第一則訊息仍是 `C:/Program Files/Git/control-tower`（BUG-228 重現，T0946 修復中）；前一塔台分頁 `82f1e7f0…`（session `a34eb9f4…`）現為 `role: shell`、idle、claude session 未回報，但仍是 T0946 Worker 的 `towerTerminalId`；`main` @ `6ccf707f`（領先 `origin/main` 3）；T0946 IN_PROGRESS、Worker working）。20:47 A-16：失敗（截圖：⏻ 後滑鼠回報黏在 claude 啟動命令前面，claude 沒啟動）→ 開 BUG-229、發 U-37（D429）；20:49 U-37：A → BUG-229 FIXING、T0947 派工（D430）；20:59 T0946 DONE（`75525d6a`，通知因舊塔台分頁已不在而失敗，使用者轉告）→ 模式 ① 合併到 `ct-merge/T0946` `8595cfd8`，斷點 E 等 U-38（D431）；21:00 U-38：A → ff，`main` @ `773fe35c`，BUG-228 FIXED，T0946 worktree 已移除（D432）；21:03 使用者回報 A-18（BAT 重開、終端接回，但塔台宣告消失，須自己再跑 `/control-tower`）＋「T0947 完成」→ 塔台重送 `--set-role` exit 0；T0947 收單、`--close-worker … --worktree keep` exit 0、派合併工單 T0948（D433）；A-18 移除、開 BUG-230、發 U-39（D434）；21:05 U-39：A → BUG-230 FIXING、T0949 派工（D435）；21:08 T0948 DONE（`9f5cc1ee`，驗收全綠）→ 斷點 E 等 U-40（D436）；21:09 U-40：A → ff，`main` @ `dc37842c`，BUG-229 FIXED，T0947 worktree 已移除（D437）；21:13 使用者：T0947 兩項建議開單 → T0950、BUG-231 / T0951，派工（D438）。
 
 > 🟢 **第一百三十八 session 開工**（2026-11-27 20:40 (UTC+8)，CT v6.3.0，Fast Path；塔台 session `a34eb9f4-d1c0-45d7-9099-e288e5bcecb2`；本分頁由「以塔台開啟 Claude」開啟（A-15），`--set-role tower --bat-contract 2 --mode on` exit 0，`bat-contract: 2`、`hooks: ok (injected, set 2)`；舊塔台分頁（session `5d626d99…`）已結束；`main` @ `85c17c3a`（領先 `origin/main` 1）；熱區 T 341 全終態、BUG 91（CLOSED 90 / WONTFIX 1））。20:41 A-17：完成；A-15：完成但第一則訊息是 `C:/Program Files/Git/control-tower` → U-36（D427）；20:42 U-36：A → 開 BUG-228（FIXING）、T0946 派工（D428）。
 
