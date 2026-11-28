@@ -1,0 +1,6 @@
+{"step":"start","count":20,"serverPid":38284,"privMB":21.8,"handles":199,"threads":14,"conhosts":0,"conhostPrivMB":0,"conhostWsMB":0,"at":"2026-11-28T10:16:20.212Z"}
+{"step":"open","count":20,"serverPid":38284,"privMB":38.9,"handles":594,"threads":35,"conhosts":20,"conhostPrivMB":31.8,"conhostWsMB":163,"at":"2026-11-28T10:16:29.950Z"}
+{"step":"natural-exit+10s","count":20,"serverPid":38284,"privMB":38.3,"handles":454,"threads":18,"conhosts":20,"conhostPrivMB":31.9,"conhostWsMB":163.3,"at":"2026-11-28T10:16:41.436Z"}
+{"step":"kill-after-exit","count":20,"serverPid":38284,"privMB":38.3,"handles":454,"threads":18,"conhosts":20,"conhostPrivMB":31.9,"conhostWsMB":163.3,"at":"2026-11-28T10:16:44.805Z"}
+{"step":"open-2","count":20,"serverPid":38284,"privMB":34.9,"handles":834,"threads":36,"conhosts":40,"conhostPrivMB":62.9,"conhostWsMB":325.9,"at":"2026-11-28T10:16:54.734Z"}
+{"step":"bat-kill+12s","count":20,"serverPid":38284,"privMB":37.4,"handles":481,"threads":17,"conhosts":20,"conhostPrivMB":30.6,"conhostWsMB":162.6,"at":"2026-11-28T10:17:07.114Z"}
