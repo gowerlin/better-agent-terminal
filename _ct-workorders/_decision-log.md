@@ -10,6 +10,7 @@
 
 | ID | 日期 | 標題 | 相關工單 |
 |----|------|------|---------|
+| D471 | 2026-11-28 | BUG-234（pre.2 自動恢復後鍵盤無法輸入）開單 FIXING，派 T0963 查證＋修正 | T0963 / BUG-234 |
 | D470 | 2026-11-28 | U-54：A → T0962 ff 進 `main` `7ee0b8d2`（T0961 Linux spec）；worktree 與分支清掉 | T0962 / T0961 |
 | D469 | 2026-11-28 | T0962 收單（`69f4e1cc`，驗收全綠）；斷點 E 發 U-54 | T0962 / T0961 |
 | D468 | 2026-11-28 | T0961 收單（Linux CI：pre.1 重現、pre.2 PASS）→ BUG-233 CLOSED；判準 1 不成立 → 派合併工單 T0962 | T0961 / T0962 / BUG-233 |
@@ -588,6 +589,14 @@
   4. PLAN-001 保持延後（🟢 Low，等 plugin 1.0 穩定）
 - **Success criteria**（EXP→CONCLUDED）：npm install 無錯 / 所有 native modules rebuild 成功 / dev+build:dir 可跑 / 手動 smoke test 8 項通過
 - **最大風險**：`whisper-node-addon@1.0.2` 對 Electron 41（Node 24）的 NODE_MODULE_VERSION 相容性未知，允許 Worker 遇此決策點主動問塔台
+
+---
+
+### D471 2026-11-28 11:09 — BUG-234 開單、派 T0963
+
+- **使用者回報**：「0.8.1-pre.2 塔台自動恢復後，鍵盤似乎無法輸入（滑鼠可剪貼簿貼上，但鍵盤 Enter 一樣無反應）；開一個新的 Codex CLI，狀況一樣；目前這則訊息是我退回 -pre.1 才能用」。
+- **判斷**：pre.1 → pre.2 的產品改動只有 T0956（BUG-232）與 T0957（BUG-233），屬回歸 → BUG-234 high、FIXING；T0963（worktree 隔離、yolo）先讀本機日誌與差異、以隔離實例 pre.1 / pre.2 對照重現，再修正並保留 BUG-232 / 233 的修正；重現不了或需拿掉 T0956 / T0957 功能時問塔台。
+- **相關**：T0963 / BUG-234 / T0956 / T0957
 
 ---
 

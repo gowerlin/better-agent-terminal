@@ -7,13 +7,14 @@ inbox_features: ["recommended", "dismiss", "multi"]
 updated_at: "2026-11-28T11:06:52+0800"
 session: "2026-11-28 11:06 第一百四十 session 塔台重新開工（CT v6.3.0）"
 next_ids:
-  workorder: "T0963"
-  decision: "D471"
-  bug: "BUG-234"
+  workorder: "T0964"
+  decision: "D472"
+  bug: "BUG-235"
   plan: "PLAN-071"
   user: "U-55"
   action: "A-25"
 todo:
+  - "🔴 BUG-234（high，D471）：`0.8.1-pre.2` 自動恢復後鍵盤無法輸入（使用者已退回 pre.1）→ T0963 查證＋修正中；修好後發 `0.8.1-pre.3`"
   - "🗄 `_decision-log.md` 407 KB 超過 400 KB 預算：開工後封存舊決策（D186 起，照 `_archive/decisions/` 既有做法）"
   - "✅ `v0.8.1-pre.2`（D461）／`v0.8.1-pre.1`（D449）：BUG-228–233 全部 CLOSED（交付版自動化驗收 T0955 / T0959、Linux CI T0961）；T0950 PASS。下一版 `0.8.1-pre.3`（目前只多測試：T0960 改名、T0961 Linux spec）"
   - "✅ `v0.8.0` 正式版（D425）：T0944 塔台分頁自動帶入 `/control-tower`（Git Bash 下的問題已由 BUG-228 修正）"
