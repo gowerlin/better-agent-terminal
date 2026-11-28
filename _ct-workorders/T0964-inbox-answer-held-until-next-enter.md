@@ -9,7 +9,7 @@ repo: better-agent-terminal
 priority: P1
 sizing: M
 created_at: "2026-11-28T12:02:15+0800"
-updated_at: "2026-11-28T12:04:05+0800"
+updated_at: "2026-11-28T12:12:28+0800"
 started_at: "2026-11-28T12:04:05+0800"
 target_version: "下一個預覽版（`0.8.1-pre.4`，發版前與使用者確認）"
 depends_on: []
@@ -32,6 +32,7 @@ affects_files:
 renew_count: 0
 isolation: worktree
 worker_question_timeout: 30
+tower_question: open
 interaction:
   mode_hint: yolo
   interactive: false
@@ -80,4 +81,19 @@ memory_overrides:
 
 ## 回報區
 
-（Worker 填寫）
+### 待塔台決策
+
+#### Q-1：重現不了「draft」的觸發來源，要怎麼處理 BUG-235 的修正部分？
+- **提問時間**：2026-11-28T12:12:28+0800
+- **已查證**：
+  - 本機日誌（`debug-20261128-115756.log`）：塔台 `f32bfa46` 在 03:59:15Z（12:00 前約 1 分鐘）被關掉重開（新 PTY，`draft` 隨 `onPtyExit` 清空）；03:59:16Z claude 以 `/control-tower` 啟動參數開回合、03:59:37Z `--set-role` 契約 2 `match`、04:00:14Z `stop`；04:00:17Z 回答 `held … reason=draft`。這段期間沒有任何貼上 / 拖放 / 語音 / 右鍵選單 / reading 紀錄；04:01:08Z 使用者送出訊息（`\r` 清掉 draft）後兩筆依序送出。
+  - claude transcript（只看形狀、不看內容）：03:59:17Z 之後到 04:01:08Z 沒有任何使用者訊息或排隊訊息，`permission-mode` 一直沒變（排除 Shift+Tab）。
+  - 實驗：以 node-pty（ConPTY）擷取內嵌 claude 的啟動輸出，加上 fullscreen 的模式（1049 / 1000 / 1002 / 1003 / 1006 / 2004 / 1004 / 2031）餵給真的 xterm 5.5：焦點、DA1 / DA2、DSR、CPR、DECRQM、OSC 10 / 11、DECRQSS、滾輪 / 移動 / 點擊回報全部被 `isTerminalAutoReply` 濾掉，不會進 `trackDraft`。工單列的候選（焦點回報、滑鼠 / 滾輪回報、launch 保留、`/control-tower` 啟動參數）都排除。
+  - 剩下會讓 `trackDraft` 判成 draft、又不會在日誌留下痕跡的只有使用者真的按的鍵：↑ / ↓（claude 叫出歷史，T0904 設計上算 draft）、Tab、Alt + 鍵、F5–F12（`CSI 15~` 以上）、輸入法在失焦時送出組字、或任何字元。日誌無法分辨是哪一個。
+- **選項**：
+  - A（推薦）：不改 `trackDraft` 規則；在 `NotifyHoldController.onUserInput` 於 draft 由無變有時記一行診斷日誌（只記類別，例 `printable` / `csi:A` / `ss3:B` / `alt-key` / `csi~:15` / `paste` / `tab` 與位元組數，不記內容），去重照做，BUG-235 留在 OPEN（或 FIXED 待實機）等下次發生時以日誌定位；本單狀態依規則會是 `PARTIAL`（「修正＋回歸測試」未達成）。
+  - B：A ＋ claude 塔台收到 `user-prompt-submit` hook 時清掉 draft（輸入框剛被送出，清掉是正確的）。只涵蓋「draft 在送出前就設了」的情況，本次若是回合中按的鍵就修不到。
+  - C：把 ↑ / ↓ 改成不影響 draft（不再保留）。會放寬「叫出歷史後回答被併進去」的保護，沒證據前不建議。
+  - 其他：塔台請使用者回想 12:00 前在塔台分頁按過哪些鍵，再決定。
+- **影響**：決定修正部分怎麼做與本單結案狀態；去重、「Worker 等你」判斷、文件不受影響（先做）。
+- **是否擋住後續步驟**：擋住修正與回歸測試；其他步驟先做。
