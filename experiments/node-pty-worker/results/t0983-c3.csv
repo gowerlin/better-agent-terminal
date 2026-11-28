@@ -1,0 +1,4 @@
+"Label","Scenario","Run","Step","Tabs","TsPid","TsPrivMB","TsWsMB","TsThreads","TsChildren","Value","Note","At"
+"T0983","C3","","before-exit-20tabs","20","34896","43","77.1","35","40 (conhostx20 pwshx20)","","","2026-11-28T19:32:09+08:00"
+"T0983","C3","","after-exit-0tabs","0","34896","38.6","74.6","17","20 (conhostx20)","-4.4","delta MB vs 20 tabs; children 20","2026-11-28T19:32:46+08:00"
+"T0983","C3","","reopen-10tabs","10","34896","40.2","76.3","24","40 (conhostx30 pwshx10)","","","2026-11-28T19:33:00+08:00"
