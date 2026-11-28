@@ -19,7 +19,7 @@
 
 import { execFileSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
-import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, truncateSync, writeFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import os from 'node:os'
 import path from 'node:path'
@@ -990,6 +990,61 @@ describe('verifyPackagedWin (T0546)', () => {
     expect(String(readAsarFile(archive, 'dist-electron/main.js'))).toBe('require("ws")')
     expect(String(readAsarFile(archive, 'native/addon.node'))).toBe('binary')
     expect(readAsarFile(archive, 'missing.js')).toBeNull()
+  })
+
+  // T0977: a short fs.readSync is an error, not NUL "content" (BUG-223 / T0924 saw 13 NULs)
+  describe('truncated app.asar (T0977)', () => {
+    const truncatedArchive = (cutBytes) => {
+      const dir = makeOutDir()
+      writeAsar(dir, { 'a.txt': 'hello', 'b.js': 'require("ws")' })
+      const asarPath = path.join(dir, 'app.asar')
+      truncateSync(asarPath, statSync(asarPath).size - cutBytes)
+      return asarPath
+    }
+
+    it('packed data cut off → readAsarFile fails naming the file, expected and actual bytes', () => {
+      const archive = readAsar(truncatedArchive(7))
+      expect(String(readAsarFile(archive, 'a.txt'))).toBe('hello')
+      expect(() => readAsarFile(archive, 'b.js')).toThrow(/^app\.asar b\.js: short read at offset \d+: expected 13 bytes, got 6 /)
+    })
+
+    it('a packed file entirely past the end → fails with 0 bytes read', () => {
+      const archive = readAsar(truncatedArchive(13))
+      expect(() => readAsarFile(archive, 'b.js')).toThrow('expected 13 bytes, got 0')
+    })
+
+    it('header cut off → readAsar fails', () => {
+      const asarPath = truncatedArchive(0)
+      truncateSync(asarPath, 12)
+      expect(() => readAsar(asarPath)).toThrow(/^app\.asar header: short read at offset 8: expected \d+ bytes, got 4 /)
+      truncateSync(asarPath, 3)
+      expect(() => readAsar(asarPath)).toThrow(/^app\.asar header size: short read at offset 0: expected 8 bytes, got 3 /)
+    })
+
+    it('a runtime package.json cut off → runtime-require "cannot read app.asar" (exit 1)', () => {
+      const out = makeOutDir()
+      const asarPath = path.join(makeWin(out), 'app.asar')
+      truncateSync(asarPath, statSync(asarPath).size - 1) // the last packed file: node_modules/ws/package.json
+      expect(ids(out)).toEqual(['runtime-require'])
+      const [problem] = verifyPackagedWin(out).archs[0].problems
+      expect(problem.message).toBe('cannot read app.asar')
+      expect(problem.details).toEqual([expect.stringContaining('app.asar node_modules/ws/package.json: short read at offset')])
+      expect(problem.details[0]).toContain('expected 13 bytes, got 12')
+      const cli = runCli(['--platform', 'win', '--out', out, '--skip-load-check'])
+      expect(cli.code).toBe(1)
+      expect(cli.stderr).toContain('expected 13 bytes, got 12')
+    })
+
+    it('the app package.json cut off → runtime-require; resources/package.json is then checked on its own', () => {
+      const out = makeOutDir()
+      const { 'package.json': appManifest, ...rest } = HEALTHY_PACKED
+      const asarPath = path.join(makeWin(out, { packed: { ...rest, 'package.json': appManifest } }), 'app.asar')
+      truncateSync(asarPath, statSync(asarPath).size - 1)
+      const problems = verifyPackagedWin(out).archs[0].problems
+      expect(problems.map((p) => p.id)).toEqual(['runtime-require'])
+      expect(problems[0].details[0]).toContain(`app.asar package.json: short read at offset`)
+      expect(problems[0].details[0]).toContain(`expected ${Buffer.byteLength(appManifest)} bytes, got ${Buffer.byteLength(appManifest) - 1}`)
+    })
   })
 })
 
