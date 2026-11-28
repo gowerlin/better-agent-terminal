@@ -59,6 +59,7 @@ reminders:
 - 11:54 `v0.8.1-pre.3` 發佈（Pre-Release `46103078102` success，`ba010838`，2026-11-28 11:52；資產 4 個同 pre.2）；更版重點已改寫；CHANGELOG / release-note / package 版號 commit＋push；A-25 待你實機（D474）
 - 11:59 塔台重新開工：塔台 session `c3c72160-0d57-4614-8800-6e952c8e484d`（分頁 `f32bfa46…`，`better-agent-terminal · Tower`）；BAT 已是 `0.8.1-pre.3`（`bat-terminal.mjs --version`）；`--set-role tower --bat-contract 2 --mode on` exit 0（`bat-contract: 2`、`hooks: ok (injected, set 2)`）；`main` = `origin/main` @ `c8fdac6c`、工作樹乾淨；熱區 T:359 / BUG:98 / PLAN:35；無進行中工單；`_decision-log.md` 412,091 bytes（> 400 KB 預算）
 - 12:02 使用者：「鍵盤可輸入了」＋ A-25：完成 → BUG-234 CLOSED（D475）；同時回報待辦分頁按「完成」後卡在「已排入待送」、要等自己送出下一則才送到（送了兩次）、「無法送出」→ BUG-235 medium FIXING、T0964（D476）
+- 12:04 T0964 派工 `--mode yolo --no-interactive --isolation worktree --wait-started 30000` exit 0，`started: 2026-11-28T04:03:58Z`，分頁 `6991ade8…`，worktree `ct/T0964` base `4d003c6a`
 
 ---
 
