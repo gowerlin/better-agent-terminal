@@ -10,6 +10,7 @@
 
 | ID | 日期 | 標題 | 相關工單 |
 |----|------|------|---------|
+| D522 | 2026-11-28 | U-76：D（F4 關閉 / 重啟分頁時收 conhost）、U-77：A（BUG-238 併入 F4 實作）、U-78：A（量測腳本併進 `main`）→ 合併工單 T0982、實作單 T0983 | T0982 / T0983 / BUG-238 |
 | D521 | 2026-11-28 | T0979 研究收單：① env 差異延後（約 3 MB 有上限高水位，換協定＋W6 不划算）；② direct conin 併入 F4 實作單；③ F4 推薦 D；U-76 / U-77 / U-78 待使用者 | T0979 / PLAN-066 |
 | D520 | 2026-11-28 | T0980 收單（`887d49c8`）；U-75：A → 模式 ① ff 進 `main` `12dce91b` | T0980 |
 | D519 | 2026-11-28 | T0981 收單；U-74：A → `main` ff 到 `84f96834`（含 T0978）；派 T0980 | T0981 / T0978 / T0980 |
@@ -640,6 +641,15 @@
   4. PLAN-001 保持延後（🟢 Low，等 plugin 1.0 穩定）
 - **Success criteria**（EXP→CONCLUDED）：npm install 無錯 / 所有 native modules rebuild 成功 / dev+build:dir 可跑 / 手動 smoke test 8 項通過
 - **最大風險**：`whisper-node-addon@1.0.2` 對 Electron 41（Node 24）的 NODE_MODULE_VERSION 相容性未知，允許 Worker 遇此決策點主動問塔台
+
+---
+
+### D522 2026-11-28 19:04 — U-76：D、U-77：A、U-78：A
+
+- **使用者**：`U-76：D`（F4：分頁開著時保留，✕ / ⏻ / 同 id 重建時收掉 conhost；附著同一主控台的背景程序屆時一起結束）、`U-77：A`（node-pty `kill()` 舊 pid 風險開 BUG-238、併入 F4 實作單）、`U-78：A`（`ct/T0979` 量測腳本併進 `main`）。
+- **處置**：開 BUG-238（low）→ FIXING；合併工單 T0982（`ct/T0979`，`mechanical`，base `d2c9e980`，只有 `experiments/`）；實作單 T0983（F4 選項 D＋BUG-238＋direct 模式 conin，`isolation: worktree`，`depends_on: [T0982]`，派工時 base 含量測腳本）。
+- **發版影響**：T0983 改 `terminal-server.js`（holder key 改變）→ `0.8.1-pre.6` 發版前要跑 W6 `windows-upgrade-acceptance.yml`（GitHub Windows runner）；①「只送 env 差異」延後（D521）。
+- **相關**：D521 / T0979 / PLAN-066
 
 ---
 
