@@ -4,7 +4,7 @@ summary_version: 1
 bat_contract: 2
 ct_version: "6.3.0"
 inbox_features: ["recommended", "dismiss", "multi"]
-updated_at: "2026-11-28T15:12:23+0800"
+updated_at: "2026-11-28T15:13:12+0800"
 session: "2026-11-28 11:59 第一百四十 session 塔台重新開工（CT v6.3.0，BAT 0.8.1-pre.3）"
 next_ids:
   workorder: "T0970"
@@ -128,6 +128,7 @@ reminders:
 - 15:07 CT 塔台：判定單 CT T0584（唯讀研究，CT D931）開跑：§ 7 逐項判定、cf-all 4 份 exit 1 歸因、6 點觀察分析；觀察 ①（menu_open 與 awaiting_user 分次寫入）會比較 CT 端做法與 BAT 端「ids 不在 awaiting_user 當 stale」，要 BAT 配合會寫成可直接開單的形式；收單後傳判定與 6.4.0 正式版前修正建議
 - 15:09 U-65：A → T0969 ff，`main` = `59e4fbeb`（產品樹 = `6d171c6e`，未 push）；整合 worktree detach、worktree 移除；U-66：A → BUG-237 修正等 CT T0584 後合成一張工單（D497）
 - 15:12 塔台重新開工（同 session `c3c72160-0d57-4614-8800-6e952c8e484d`，分頁 `f32bfa46…`）：BAT 已是 `0.8.1-pre.4`；`--set-role tower --bat-contract 2 --mode on` exit 0（`bat-contract: 2`、`hooks: ok (injected, set 2)`）；`main` `4666c2c3`（比 `origin/main` 多 T0969 等，未 push）、工作樹乾淨；熱區 T:365 / BUG:101 / PLAN:35，無進行中工單；`_decision-log.md` 438,381 bytes（> 400 KB 預算）
+- 15:13 `*sync`：工單 365 張全 DONE；BUG 檔 101 與 `_bug-tracker.md` 101 列逐筆一致（OPEN 1 / FIXED 1 / CLOSED 98 / WONTFIX 1）；PLAN 35 與 `_backlog.md` 一致（IDEA 3 / IN_PROGRESS 7 / DONE 23 / DROPPED 2）；索引不需重建；基本資訊表與編號起始更新；`auto_archive_prompt: off`（不提示歸檔候選）
 
 ---
 
@@ -184,14 +185,14 @@ reminders:
 - 時間戳一律取系統時間（R-G001）；frontmatter 檢查與 commit 串接時以 `PASS` 判斷再 commit（L186）
 
 ### 快速連結
-- Bug Tracker → [_bug-tracker.md](_bug-tracker.md)（熱區：Open 0 / Fixing 0 / Fixed 0 / Closed 96 / WONTFIX 1）｜ Backlog → [_backlog.md](_backlog.md)（IN_PROGRESS 7 / DONE 22）
-- Decision Log → [_decision-log.md](_decision-log.md)（最大 D470；D001～D185 封存在 `_archive/decisions/`）｜ Learnings → [_learnings.md](_learnings.md)（最大 L187）
+- Bug Tracker → [_bug-tracker.md](_bug-tracker.md)（熱區：Open 1 / Fixing 0 / Fixed 1 / Closed 98 / WONTFIX 1）｜ Backlog → [_backlog.md](_backlog.md)（IN_PROGRESS 7 / DONE 23）
+- Decision Log → [_decision-log.md](_decision-log.md)（最大 D497；D001～D185 封存在 `_archive/decisions/`；438 KB 超過 400 KB 預算）｜ Learnings → [_learnings.md](_learnings.md)（最大 L187）
 - PLAN-068 網頁版使用說明 → https://claude.ai/artifact/8mepgGP16ghS3m9hsu2Wst（私人）
 - 網站 → https://gowerlin.github.io/better-agent-terminal/
 - 歷史 sessions → [_archive/state-snapshots/INDEX.md](_archive/state-snapshots/INDEX.md)（159 entries；最新 `2026-Q4-d.md`）
 
 ### 編號起始
-- **T0963** / **BUG-234** / **PLAN-071** / **D471** / **U-55** / **A-25** / **EXP-WFMINE-002**（其他 TOPIC 從 001） / **L188** / **CT-T023**
+- **T0970** / **BUG-238** / **PLAN-071** / **D498** / **U-67** / **A-27** / **EXP-WFMINE-002**（其他 TOPIC 從 001） / **L188** / **CT-T023**
 
 ---
 
@@ -202,16 +203,16 @@ reminders:
 |------|------|
 | **專案** | better-agent-terminal |
 | **Fork 上游** | tony1223/better-agent-terminal（另有 `scandnavik` remote；⚠️ gh 預設解析到 upstream，見 L122） |
-| **目前版號** | `main` `package.json` **0.8.1-pre.3**；下一版 **`0.8.1-pre.4`**（從 `main` 發，D344） |
-| **最新 release** | `v0.8.1-pre.3`（2026-11-28 11:52 (UTC+8)，Pre-Release `46103078102`，`ba010838`，D474；BUG-234）；前一 tag `v0.8.1-pre.2`；最新正式版 `v0.8.0`（D425）；更早見 `release-note.md` / `CHANGELOG.md` |
-| **目前主軸** | 無派工中工單；`v0.8.1-pre.3` 待 A-25 實機確認 |
-| **工單最大編號** | **T0962** DONE；熱區全部終態 |
-| **BUG 最大編號** | **BUG-233** CLOSED；熱區 Open 0 / Fixing 0 / Fixed 0 / Closed 96 / WONTFIX 1 |
+| **目前版號** | `main` `package.json` **0.8.1-pre.4**；下一版 **`0.8.1-pre.5`**（從 `main` 發，D344） |
+| **最新 release** | `v0.8.1-pre.4`（2026-11-28 14:00 (UTC+8)，Pre-Release `46112814137`，`b2edf438`，D494；BUG-235 / 236、T0966、T0968）；前一 tag `v0.8.1-pre.3`；最新正式版 `v0.8.0`（D425） |
+| **目前主軸** | 無派工中工單；等 CT T0584 判定（BUG-237 與 BAT 配合項合成一張工單，進 `0.8.1-pre.5`）；A-26 待實機 |
+| **工單最大編號** | **T0969** DONE；熱區 365 張全部終態 |
+| **BUG 最大編號** | **BUG-237** OPEN；熱區 Open 1 / Fixing 0 / Fixed 1 / Closed 98 / WONTFIX 1 |
 | **PLAN 最大編號** | **PLAN-068** DONE；IN_PROGRESS 7（038 / 043 / 052 / 058 / 064 / 065 / 067）；IDEA 3 |
-| **決策最大編號** | **D470**（T0962 合併，第一百三十九 session） |
+| **決策最大編號** | **D497**（U-65 / U-66，第一百四十 session） |
 | **EXP 最大編號** | **EXP-WFMINE-001**（📊 CONCLUDED 2026-10-20）；EXP-GPUWHIS-001（CONCLUDED，已歸檔） |
 | **塔台版本** | Control Tower **v6.3.0**（第一百三十七 session 起；BAT ↔ CT 契約 v2 ＋ `inbox_features` 含 `multi`） |
-| **unit test 基線** | `main`：**9432 passed / 525 files**（T0962 merge commit `69f4e1cc`）；typecheck 0 / 0 |
+| **unit test 基線** | `main`：**9567 passed / 529 files**（T0968 `4dea180c`）；typecheck 0 / 0 |
 | **舊值** | 瘦身前的長版本見 [`_archive/state-snapshots/2026-Q4-b.md`](_archive/state-snapshots/2026-Q4-b.md)〈基本資訊舊值〉 |
 
 ---
