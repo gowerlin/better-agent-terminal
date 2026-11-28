@@ -10,6 +10,7 @@
 
 | ID | 日期 | 標題 | 相關工單 |
 |----|------|------|---------|
+| D496 | 2026-11-28 | T0969 收單（BAT 端 20 PASS / 0 FAIL）；BUG-236 CLOSED；開 BUG-237；U-65（ff）、U-66（BUG-237）；通知 CT 判定 | T0969 / BUG-236 / BUG-237 |
 | D495 | 2026-11-28 | CT T0583 收單 → 開 T0969：CT 6.4.0-pre.1 × BAT pre.4 / pre.3 雙方驗收（H-1～H-14） | T0969 / BUG-236 |
 | D494 | 2026-11-28 | U-63：A、U-64：A → T0968 ff `b2edf438`；`v0.8.1-pre.4` 發佈；A-26 實機確認 | T0968 / BUG-235 / BUG-236 |
 | D493 | 2026-11-28 | T0968 收單（`4dea180c`）；模式 ① `8b3e9ec9`；斷點 E 發 U-63、發 `0.8.1-pre.4` 發 U-64 | T0968 / BUG-236 |
@@ -613,6 +614,18 @@
   4. PLAN-001 保持延後（🟢 Low，等 plugin 1.0 穩定）
 - **Success criteria**（EXP→CONCLUDED）：npm install 無錯 / 所有 native modules rebuild 成功 / dev+build:dir 可跑 / 手動 smoke test 8 項通過
 - **最大風險**：`whisper-node-addon@1.0.2` 對 Electron 41（Node 24）的 NODE_MODULE_VERSION 相容性未知，允許 Worker 遇此決策點主動問塔台
+
+---
+
+### D496 2026-11-28 15:05 — T0969 收單；BUG-236 CLOSED；BUG-237
+
+- **回報**：DONE（14:20–15:04），S1 → S3 → S4 → S2 全跑完；BAT 端 20 PASS、0 FAIL、2 未觸發（H-11-2 permission / elicitation、H-14c Codex，清單事先指定）、1 不適用（H-10-1）；CT 項判定欄留空。前置條件四項 PASS；使用者層 1,199 檔前後雜湊相同；安裝版 BAT 未碰；隔離 skills 結束時 6.4.0-pre.1。只新增 / 擴充 `e2e/manual/`（`ct-accept-watch.mjs`、`ct-accept-act.mjs`、README），`6d171c6e`，build / 兩個 typecheck / `node --check` 皆 0。
+- **BAT 端重點**：選單開著時從待辦分頁回答 → 一次 Esc → 約 1 s 後送出，Esc 後 claude 輸入框為空；選單開著時只短暫 `waits (output)` ~0.9 s；不在選單的回答（`stale`）保留到選單關閉；提示行正確出現 / 消失；Worker 通知在選單開著時保留；舊 BAT pre.3 / 舊 CT 6.3.0 降級正確（pre.3 也沒出現 BUG-235）。
+- **BUG-236** → CLOSED（交付版隔離實例雙方驗收，比照 D451）。**BUG-235** 維持 FIXED（觸發來源未確定，A-26 縮為只驗 BUG-235）。
+- **BUG-237**（low，OPEN）：提示行不看 `opened_at`，殘留 `menu_open` 遇別的選單時文字與行為不一致 → **U-66**。
+- **合併**：五條全成立 → 模式 ①：`ct-merge/T0969` `4867b219`（parent1 `68884995`、parent2 `6d171c6e`）→ **U-65**。
+- **CT**：通知 CT 塔台開判定單，附回報區〈給 CT 的觀察〉6 項（`menu_open` 與 `awaiting_user` 未同一次寫入 4 份快照 `CF` exit 1 等）。
+- **相關**：T0969 / BUG-236 / BUG-237 / D495
 
 ---
 

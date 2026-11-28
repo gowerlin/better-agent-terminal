@@ -196,3 +196,7 @@ CT 條文位置（`BMad-Control-Tower/BMad-Control-Tower-v6.4.0-pre.1/skills/con
 
 ### 回報時間
 - 2026-11-28T15:04:35+0800
+
+## 塔台收單補記
+
+- 2026-11-28 15:05 (UTC+8) 收單：DONE 確認（BAT 端 20 PASS / 0 FAIL / 2 未觸發（指定）/ 1 不適用；`validated_sha` = `head` = `6d171c6e`）。`--close-worker --delay-ms 10000 --worktree keep` exit 0；五條全成立 → 模式 ①：`ct-merge/T0969` = `4867b219`（parent1 `68884995`、parent2 `6d171c6e`，只有 `e2e/manual/` 3 檔）。BUG-236 → CLOSED（交付版雙方驗收）；提示行不看 `opened_at` → BUG-237（low）；斷點 E → U-65、BUG-237 處理 → U-66；通知 CT 塔台開判定單（D496）。
