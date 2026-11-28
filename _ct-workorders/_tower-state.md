@@ -4,7 +4,7 @@ summary_version: 1
 bat_contract: 2
 ct_version: "6.3.0"
 inbox_features: ["recommended", "dismiss", "multi"]
-updated_at: "2026-11-28T17:11:17+0800"
+updated_at: "2026-11-28T17:12:12+0800"
 session: "2026-11-28 17:10 第一百四十 session 收工（CT v6.3.0，BAT 0.8.1-pre.5）"
 next_ids:
   workorder: "T0977"
@@ -15,7 +15,6 @@ next_ids:
   action: "A-28"
 todo:
   - "✅ 第一百四十 session：BUG-234 / 235 / 236 / 237 全部 CLOSED；`v0.8.1-pre.3` / `pre.4` / `pre.5` 發佈；CT 6.4.0 正式版上線、README 對照表已更新；決策日誌收斂（D515）"
-  - "`.bat-worktrees/better-agent-terminal/T0971` 目錄殘留待手動刪（分支已於 17:11 依使用者指示刪除）"
   - "候選（未開單，T0965 建議）：只剩選單紀錄（`question` 已被清除）時 Worker 通知仍照舊直接寫入，可能打進開著的選單；待 CT `menu_open`（D484）工單一起評估"
   - "候選（未開單，T0930 建議）：`useInboxFileRefs` 跟 `_ct-workorders/` 的 `fs:changed` 重查（💬 卡片連結已由 T0934 完成）"
   - "候選（未開單，T0924 建議）：`scripts/verify-packaged-native.js` `readAsarFile` 不檢查 `fs.readSync` 回傳位元組數，截斷的 app.asar 會被讀成 NUL 而不報錯；改成讀不足判失敗（檢查變嚴）"
@@ -42,7 +41,7 @@ reminders:
 
 > 最後更新:2026-11-28 17:10 (UTC+8) — **第一百四十 session 收工**：BUG-234（pre.3）、BUG-235 / 236 / 237（pre.4 / pre.5）全部 CLOSED；與 CT 塔台協調選單交接（CT 6.4.0 正式版已上線）；決策日誌收斂；`main` = `origin/main`。
 >
-> **下次起手**:熱區無進行中工單、無未結 BUG、無待你決定 / 待你執行。本機已裝 CT 6.4.0：下次開塔台會以 6.4.0 啟動（`ct_version`、`inbox_features` 加 `menu`）。PLAN-067 週清查 2026-12-02 到期。本 session 的 `ct/*`、`ct-merge/*` 分支已刪（只留 `ct/T0885`、`ct/T0886`）；`.bat-worktrees/…/T0971` 目錄殘留待手動刪。
+> **下次起手**:熱區無進行中工單、無未結 BUG、無待你決定 / 待你執行。本機已裝 CT 6.4.0：下次開塔台會以 6.4.0 啟動（`ct_version`、`inbox_features` 加 `menu`）。PLAN-067 週清查 2026-12-02 到期。本 session 的 `ct/*`、`ct-merge/*` 分支已刪（只留 `ct/T0885`、`ct/T0886`）；T0971 殘留目錄已清除。
 
 ---
 
@@ -62,6 +61,7 @@ reminders:
 6. 15:31 待辦分頁 P-3：塔台腳本切錯範圍造成 `_tower-state.md` 重複 `user_actions` 鍵（js-yaml 整份無效）→ 修正、通知 CT（CT BUG-006，6.4.0 自檢已擋），寫檔後加 js-yaml 驗證（D500，記憶 `tower-state-yaml-duplicate-keys`）
 7. 發 `v0.8.1-pre.5`（U-71：B，等 CT 判定 PASS 後發）；A-27 實機 → BUG-235 / 237 CLOSED；決策日誌收斂 D186～D425（D515）；CT 6.4.0 正式版上線 → README 對照表 `>= v6.4.0`
 8. 17:11 使用者「刪除分支」→ `git branch -d` 刪除 `ct/T0963`–`T0976`、`ct-merge/T0963`–`T0974` 共 20 條（全部成功）；只留 `ct/T0885`、`ct/T0886`
+9. 17:12 使用者「已刪除 T0971 資料夾」：塔台查證目錄仍在（`_ct-workorders/`、`node_modules/`、`package*.json`、`PLAN.md`）→ 依使用者意圖以 `rm -rf` 刪除，確認已不存在
 
 ### 本輪戰績
 - 工單 14（T0963–T0976）；BUG 4（234–237，全 CLOSED）；決策 D471–D515；發版 3（`v0.8.1-pre.3`、`pre.4`、`pre.5`）；結構化提問 8（T0964 Q-1 / Q-2、T0966 Q-1、T0968 Q-1～Q-3、T0972 Q-1 / Q-2，皆塔台答）；跨塔台 HANDOVER 1、雙方驗收 2（T0969、T0974）
@@ -105,7 +105,7 @@ reminders:
 
 ### 待辦（依優先序；完整內容見 frontmatter `todo`）
 1. PLAN-067 週清查 2026-12-02 到期
-2. `.bat-worktrees/…/T0971` 殘留目錄待手動刪（本 session 分支已刪）
+2. （已完成）本 session 分支與 T0971 殘留目錄已清除
 3. PLAN-065 per-machine UAC 互動升級手動驗收；PLAN-052 Docker Desktop 實機精靈；PLAN-058 手動確認；其他待實機項
 4. 候選（未開單）：信任對話框 Enter 後 2 s 內按鍵（T0972 Q-2）、`readAsarFile` 讀不足判失敗、PLAN-066 後續、`useInboxFileRefs` 跟 `fs:changed` 重查
 
