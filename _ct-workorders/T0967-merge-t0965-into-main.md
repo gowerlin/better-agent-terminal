@@ -130,3 +130,4 @@ T0965（BUG-236）改 9 檔（`electron/notify-hold.ts`、`electron/terminal-blo
 ## 塔台收單補記
 
 - 2026-11-28 12:52 (UTC+8) 收單：SHA 比對 ①–③ 成立（`base_main_sha` `ee76629f`；parent1 `ee76629f`、parent2 `e5a0ad16` = `ct/T0965` = T0965 `validated_sha`）；`main` 之後只多 `_ct-workorders/**`。`--close-worker --delay-ms 10000` exit 0。斷點 E → U-61；發版 → U-62（D488）。
+- 2026-11-28 12:53 (UTC+8) U-61：A → 第 5 步整合分支再合併 `main` 後 ff：`main` = `ct-merge/T0965` = `8a1c1318`，產品樹 = `84f8c900`；整合 worktree detach；T0965 worktree 移除（乾淨）；分支 `ct/T0965`、`ct-merge/T0965` 保留（D489）。
