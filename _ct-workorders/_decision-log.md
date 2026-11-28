@@ -10,6 +10,7 @@
 
 | ID | 日期 | 標題 | 相關工單 |
 |----|------|------|---------|
+| D508 | 2026-11-28 | U-69：A → T0972 ff `7d2e571d`；BUG-235 FIXED | T0972 / T0975 / BUG-235 |
 | D507 | 2026-11-28 | T0975 收單（`b04ed2e9`）；斷點 E 發 U-69 | T0975 / T0972 / BUG-235 |
 | D506 | 2026-11-28 | T0972 收單（方案 ①）；Q-2 不放寬 2 s Enter 窗；判準 1、2 不成立 → 合併工單 T0975 | T0972 / T0975 / BUG-235 |
 | D505 | 2026-11-28 | U-68：A → T0970 驅動 ff `8de1e2d1`；CT 6.4.0-pre.2 定稿 → 開 T0974（HR-1 補跑＋ CT fixture） | T0973 / T0974 |
@@ -625,6 +626,15 @@
   4. PLAN-001 保持延後（🟢 Low，等 plugin 1.0 穩定）
 - **Success criteria**（EXP→CONCLUDED）：npm install 無錯 / 所有 native modules rebuild 成功 / dev+build:dir 可跑 / 手動 smoke test 8 項通過
 - **最大風險**：`whisper-node-addon@1.0.2` 對 Electron 41（Node 24）的 NODE_MODULE_VERSION 相容性未知，允許 Worker 遇此決策點主動問塔台
+
+---
+
+### D508 2026-11-28 16:06 — U-69：A → T0972 ff
+
+- **使用者**：`U-69：A`（原生選單）。U-69 移除。
+- **合併**：`main` 自 parent1 `e54da6ff` 起只多 `_ct-workorders/**` → 整合分支再合併 `main` 後 ff；`main` = `ct-merge/T0972` = `7d2e571d`，產品樹 = `b04ed2e9`；整合 worktree detach；T0972 worktree 移除；分支保留。未 push。
+- **BUG-235** → FIXED（發 `0.8.1-pre.5` 後以已信任工作區重跑 R2 / A-26 確認後 CLOSED）。
+- **相關**：T0972 / T0975 / BUG-235 / D507
 
 ---
 

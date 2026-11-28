@@ -132,3 +132,4 @@ T0972（BUG-235 重修）改 5 檔（`electron/notify-hold.ts`、`electron/__tes
 ## 塔台收單補記
 
 - 2026-11-28 16:05 (UTC+8) 收單：SHA 比對 ①–③ 成立（`base_main_sha` `e54da6ff`；merge `b04ed2e9` parent1 `e54da6ff`、parent2 `c1abe148` = `ct/T0972` head；本單在 merge commit 重跑完整驗收，涵蓋 T0972 validated 之後的文件 commit）；`main` 之後只多 `_ct-workorders/**`。`--close-worker --delay-ms 10000` exit 0。斷點 E → U-69（D507）。
+- 2026-11-28 16:06 (UTC+8) U-69：A → 整合分支再合併 `main` 後 ff：`main` = `7d2e571d`，產品樹 = `b04ed2e9`；整合 worktree detach；T0972 worktree 移除；分支 `ct/T0972`、`ct-merge/T0972` 保留（D508）。
