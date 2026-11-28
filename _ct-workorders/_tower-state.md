@@ -2,10 +2,10 @@
 schema_kind: tower-state
 summary_version: 1
 bat_contract: 2
-ct_version: "6.3.0"
-inbox_features: ["recommended", "dismiss", "multi"]
-updated_at: "2026-11-28T17:12:12+0800"
-session: "2026-11-28 17:10 第一百四十 session 收工（CT v6.3.0，BAT 0.8.1-pre.5）"
+ct_version: "6.4.0"
+inbox_features: ["recommended", "dismiss", "multi", "menu"]
+updated_at: "2026-11-28T17:13:32+0800"
+session: "2026-11-28 17:13 第一百四十一 session 開工（CT v6.4.0，BAT 0.8.1-pre.5）"
 next_ids:
   workorder: "T0977"
   decision: "D516"
@@ -36,6 +36,8 @@ reminders:
     due_at: "2026-12-02"
 ---
 # Tower State — better-agent-terminal
+
+> 🌅 **第一百四十一 session 開工**（2026-11-28 17:13 (UTC+8)，CT v6.4.0，Fast Path；塔台 session `67eb2a67-e716-48a5-b7c9-eae3d465406a`）：`--set-role tower --bat-contract 2 --mode on` exit 0（`bat-contract: 2`、`hooks: ok (injected, set 2)`）；BAT helper `v0.8.1-pre.5`；`main` = `origin/main`、工作區乾淨；熱區無進行中工單。
 
 > 🛏 **第一百四十 session 收工**（2026-11-28 17:10 (UTC+8)，CT v6.3.0；塔台 session `c3c72160-0d57-4614-8800-6e952c8e484d`）。第一百四十 session 的開工／過程紀錄已搬到 [`_archive/state-snapshots/2026-Q4-d.md`](_archive/state-snapshots/2026-Q4-d.md)。
 
