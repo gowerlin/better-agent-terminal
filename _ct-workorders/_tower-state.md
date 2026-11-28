@@ -71,6 +71,7 @@ reminders:
 - 12:31 U-57：A（終端文字）→ `ct-merge/T0964` 再合併 `main`（只多 `_ct-workorders/**`）後 ff，`main` = `ee5d364f`（產品樹 = `511b547e`，未 push）；整合 worktree detach；T0964 worktree 手動移除（`--close-worker --worktree remove` exit 3）；BUG-235 FIXED（D480）
 - 12:32 U-58：A、U-59：A → BUG-236 FIXING；開 T0965（BUG-236：選單開著時 Esc 關選單再送文字）、T0966（「Worker 等你」不算回答），兩張只在 `docs/agent-guide/tower-inbox.md` 重疊（不同段落，接受並行）（D481）
 - 12:34 T0965 / T0966 派工 `--mode yolo --no-interactive --isolation worktree --wait-started 30000` 皆 exit 0：T0965 `started: 04:33:55Z` 分頁 `2c447e92…`；T0966 `started: 04:33:58Z` 分頁 `3459f98b…`；base `b389f16c`
+- 12:38 [提問] T0966 Q-1（保留原因要知道哪一筆回答仍在佇列，需改 `src/lib/inbox-answer.ts`、`src/stores/inbox-sent-store.ts`）→ 塔台答 A（`--answer --choice 1` exit 0）：只加選用欄位、IPC 與主行程不變；兩檔補進 T0966 affects_files（與 T0965 不重疊）
 
 ---
 
