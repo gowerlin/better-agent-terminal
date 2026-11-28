@@ -10,6 +10,8 @@
 
 | ID | 日期 | 標題 | 相關工單 |
 |----|------|------|---------|
+| D484 | 2026-11-28 | CT 塔台受理選單 HANDOVER（DRAFT 待 CT U-10）：`menu_open`、不重開、`inbox_features: menu`，CT 6.4.0 | T0965 / BUG-236 |
+| D483 | 2026-11-28 | T0966 收單（`737a378c`）；模式 ① `d76ec16e`；斷點 E 發 U-60；T0965 補充 #1 | T0966 / T0965 |
 | D482 | 2026-11-28 | 協調 CT 塔台：HANDOVER 選單與待辦分頁作答的 CT 配合點（C-1–C-4）；T0965 不改範圍 | T0965 / BUG-236 |
 | D481 | 2026-11-28 | U-58：A → T0966（Worker 等你不算回答）；U-59：A → BUG-236 FIXING、T0965（選單開著時 Esc 關選單再送文字）；兩張並行 | T0965 / T0966 / BUG-236 |
 | D480 | 2026-11-28 | U-57：A → T0964 ff 進 `main` `ee5d364f`；BUG-235 FIXED | T0964 / BUG-235 |
@@ -600,6 +602,25 @@
   4. PLAN-001 保持延後（🟢 Low，等 plugin 1.0 穩定）
 - **Success criteria**（EXP→CONCLUDED）：npm install 無錯 / 所有 native modules rebuild 成功 / dev+build:dir 可跑 / 手動 smoke test 8 項通過
 - **最大風險**：`whisper-node-addon@1.0.2` 對 Electron 41（Node 24）的 NODE_MODULE_VERSION 相容性未知，允許 Worker 遇此決策點主動問塔台
+
+---
+
+### D484 2026-11-28 12:45 — CT 塔台回覆選單 HANDOVER
+
+- **來源**：跨 session 訊息（`BMad-Guide · Tower`）；回覆稿 `BMad-Guide/_ct-workorders/_reply-2026-11-28-inbox-menu-handoff.md`（CT `cc5a8dd`、CT D925），DRAFT，待 CT 使用者核定（CT U-10），核定後改 ACCEPTED 再通知。
+- **內容**：C-1 採用：頂層 `menu_open: { ids: [...], opened_at: "<+08:00>" }`，只在選單含 ≥ 1 筆 U-n 時、與 `awaiting_user` 同一次寫入；需求對齊選單不寫。C-2 採用、定為**不重開**：被關掉的選單裡沒答的題留在 `awaiting_user`，使用者說「重問 U-n」才重開。C-3：`inbox_features` 加 `menu`。C-4 放寬：`menu_open` 只出現在開選單前那一次寫入，之後任何寫入（含開工）都不寫。建議 BAT 以 `opened_at` 對 `question` blocked 開始時間比對防殘留。前提無誤；CT 改自己的〈競態〉說明。CT 6.4.0（先 6.4.0-pre.1），不升 `bat_contract`。
+- **BAT 端**：本機 HANDOVER 維持 DRAFT 到 CT 通知 ACCEPTED；T0965 照原設計。ACCEPTED 後開 BAT 工單：`inbox_features` 含 `menu` 時，Esc 流程加條件「回答的 U-n 在 `menu_open.ids` 且 `opened_at` 與 blocked 開始時間相符」，否則保留；待辦分頁可提示「在這裡回答會關掉選單」。
+- **相關**：D482 / BUG-236 / T0965
+
+---
+
+### D483 2026-11-28 12:43 — T0966 收單；斷點 E（U-60）
+
+- **回報**：DONE，`validated_sha` = `head` = `737a378c`；test:unit 9471 passed / 525 files、vite build、兩個 typecheck 皆 0；新增測試 15 項；既有斷言未改。回答不再列進「👷 Worker 等你」、不計入標題數字（`heldWorkerNotifications`），用語改「待送 N 則 Worker 通知」，「已排入待送」旁顯示保留原因（Q-1：A）。
+- **合併**：`--worktree-status` 五條全成立 → 模式 ①：`ct-merge/T0966` `d76ec16e`（parent1 `6031a363`、parent2 `737a378c`，產品樹 = head）；`--close-worker --worktree keep` exit 0。斷點 E → **U-60**。
+- **T0965**：加〈塔台補充（執行中 #1）〉：若新增保留原因值，允許補 `notifyHoldReasonKey`（`TerminalThumbnail.tsx`、locales），已補進 `affects_files`；跨 session 提示 Worker 重讀。T0966 ff 後 `main` 會有產品改動，T0965 收單時依 `--worktree-status` 判斷，多半派合併工單。
+- **提問方式**：BUG-236 修好前，斷點 E 仍不開原生選單（D479 的一次性例外延續到 T0965 合併）。
+- **相關**：T0966 / T0965 / BUG-236 / D481
 
 ---
 

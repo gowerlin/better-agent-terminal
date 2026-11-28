@@ -177,3 +177,8 @@ T0964 回報：使用者自己從待辦分頁送出、被保留的回答，會�
 - [12:34] 開工；落點 PASS；worktree `npm ci` exit 0
 - [12:38] Q-1：保留原因需改不在 `affects_files` 的 `src/lib/inbox-answer.ts`、`src/stores/inbox-sent-store.ts` → A（塔台）：選 A，只加選用欄位、IPC 與主行程不變，兩檔已補進 `affects_files`，已送出紀錄仍只在記憶體 → Action：保留已實作的 A，刪除 `tower_question`
 - [12:40] 產品 commit `737a378c`；為讓 `validated_sha` = `head_sha`，在 head 重跑 `test:unit`、兩個 typecheck、build，全部通過
+
+## 塔台收單補記
+
+- 2026-11-28 12:43 (UTC+8) 收單：DONE 確認（`validated_sha` = `head` = `737a378c`；`--worktree-status` 五條全成立：`main` 自 base 只多 `_ct-workorders/**`、`outOfScopeFiles` 空（含 Q-1 補的兩檔）、`conflicts` 空、`dirty` 空）。`--close-worker --delay-ms 10000 --worktree keep` exit 0。
+- 模式 ①：整合 worktree `ct-merge/T0966` = `d76ec16e`（parent1 `6031a363` = 當下 `main`、parent2 `737a378c`；產品樹與 `737a378c` 相同）。斷點 E → U-60（D483）。後續建議「T0965 新原因值補 `notifyHoldReasonKey`」已寫進 T0965〈塔台補充（執行中 #1）〉；CLAUDE.md 補一句留到發版前一併處理。
