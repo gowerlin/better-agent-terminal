@@ -4,11 +4,11 @@ summary_version: 1
 bat_contract: 2
 ct_version: "6.3.0"
 inbox_features: ["recommended", "dismiss", "multi"]
-updated_at: "2026-11-28T16:50:57+0800"
+updated_at: "2026-11-28T16:52:25+0800"
 session: "2026-11-28 11:59 第一百四十 session 塔台重新開工（CT v6.3.0，BAT 0.8.1-pre.3）"
 next_ids:
   workorder: "T0977"
-  decision: "D515"
+  decision: "D516"
   bug: "BUG-238"
   plan: "PLAN-071"
   user: "U-72"
@@ -22,7 +22,7 @@ todo:
   - "✅ T0966（U-58：A）合併進 `main` `64b39176`（D485）：Worker 等你不再算回答；T0965 收單時 `main` 已有 T0966 產品改動 → 依 `--worktree-status` 判斷，多半派合併工單"
   - "✅ `v0.8.1-pre.4` 發佈（D494）：BUG-235 / 236、T0966、T0968；下一版 `0.8.1-pre.5`"
   - "✅ BUG-234 CLOSED（`v0.8.1-pre.3` 實機，A-25，D475）"
-  - "🗄 `_decision-log.md` 407 KB 超過 400 KB 預算：開工後封存舊決策（D186 起，照 `_archive/decisions/` 既有做法）"
+  - "✅ `_decision-log.md` 收斂：D186～D425 搬到 `_archive/decisions/_decision-log-D186-D425.md`，熱檔 204,070 bytes（D515）"
   - "✅ `v0.8.1-pre.2`（D461）／`v0.8.1-pre.1`（D449）：BUG-228–233 全部 CLOSED（交付版自動化驗收 T0955 / T0959、Linux CI T0961）；T0950 PASS。下一版 `0.8.1-pre.3`（目前只多測試：T0960 改名、T0961 Linux spec）"
   - "✅ `v0.8.0` 正式版（D425）：T0944 塔台分頁自動帶入 `/control-tower`（Git Bash 下的問題已由 BUG-228 修正）"
   - "候選（未開單，T0930 建議）：`useInboxFileRefs` 跟 `_ct-workorders/` 的 `fs:changed` 重查（💬 卡片連結已由 T0934 完成）"
@@ -132,6 +132,7 @@ reminders:
 - 16:45 `v0.8.1-pre.5` 發佈（Pre-Release `46125573705` success，`458a903c`，2026-11-28 08:43:29Z；資產 4 個＋`server-bundle-v0.8.1-pre.5`）；`gh release edit --notes-file` 改寫更版重點；CHANGELOG / release-note / README / package 版號更新；A-27 待你實機（D513）
 - 16:46 三文件 commit＋記帳 push（`87c90e8a`，去識別 0 命中）；Pages run `46127330197` build / link-check / deploy 全 success（link-check 1700 / 0 errors），網站首頁版號 `0.8.1-pre.5`
 - 16:50 使用者：A-27：完成 → BUG-235 / BUG-237 CLOSED；熱區未結 BUG 0（D514）
+- 16:52 使用者「封存舊決策」→ 依 CT § 收斂：D186～D425 原文搬到 `_archive/decisions/_decision-log-D186-D425.md`（235 筆），🔴 5 筆留熱檔，索引 469 列不動；熱檔 457,966 → 204,070 bytes（D515）
 
 ---
 
@@ -189,7 +190,7 @@ reminders:
 
 ### 快速連結
 - Bug Tracker → [_bug-tracker.md](_bug-tracker.md)（熱區：Open 1 / Fixing 0 / Fixed 1 / Closed 98 / WONTFIX 1）｜ Backlog → [_backlog.md](_backlog.md)（IN_PROGRESS 7 / DONE 23）
-- Decision Log → [_decision-log.md](_decision-log.md)（最大 D497；D001～D185 封存在 `_archive/decisions/`；438 KB 超過 400 KB 預算）｜ Learnings → [_learnings.md](_learnings.md)（最大 L187）
+- Decision Log → [_decision-log.md](_decision-log.md)（最大 D515；D001～D185、D186～D425 封存在 `_archive/decisions/`）｜ Learnings → [_learnings.md](_learnings.md)（最大 L187）
 - PLAN-068 網頁版使用說明 → https://claude.ai/artifact/8mepgGP16ghS3m9hsu2Wst（私人）
 - 網站 → https://gowerlin.github.io/better-agent-terminal/
 - 歷史 sessions → [_archive/state-snapshots/INDEX.md](_archive/state-snapshots/INDEX.md)（159 entries；最新 `2026-Q4-d.md`）
@@ -212,7 +213,7 @@ reminders:
 | **工單最大編號** | **T0969** DONE；熱區 365 張全部終態 |
 | **BUG 最大編號** | **BUG-237** OPEN；熱區 Open 1 / Fixing 0 / Fixed 1 / Closed 98 / WONTFIX 1 |
 | **PLAN 最大編號** | **PLAN-068** DONE；IN_PROGRESS 7（038 / 043 / 052 / 058 / 064 / 065 / 067）；IDEA 3 |
-| **決策最大編號** | **D497**（U-65 / U-66，第一百四十 session） |
+| **決策最大編號** | **D515**（決策日誌收斂，第一百四十 session） |
 | **EXP 最大編號** | **EXP-WFMINE-001**（📊 CONCLUDED 2026-10-20）；EXP-GPUWHIS-001（CONCLUDED，已歸檔） |
 | **塔台版本** | Control Tower **v6.3.0**（第一百三十七 session 起；BAT ↔ CT 契約 v2 ＋ `inbox_features` 含 `multi`） |
 | **unit test 基線** | `main`：**9567 passed / 529 files**（T0968 `4dea180c`）；typecheck 0 / 0 |
