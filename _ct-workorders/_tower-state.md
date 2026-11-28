@@ -4,7 +4,7 @@ summary_version: 1
 bat_contract: 2
 ct_version: "6.3.0"
 inbox_features: ["recommended", "dismiss", "multi"]
-updated_at: "2026-11-28T15:55:39+0800"
+updated_at: "2026-11-28T15:57:25+0800"
 session: "2026-11-28 11:59 第一百四十 session 塔台重新開工（CT v6.3.0，BAT 0.8.1-pre.3）"
 next_ids:
   workorder: "T0975"
@@ -33,6 +33,7 @@ todo:
   - "✅ `v0.8.0` 正式版（D425）：T0944 塔台分頁自動帶入 `/control-tower`（Git Bash 下的問題已由 BUG-228 修正）"
   - "候選（未開單，T0930 建議）：`useInboxFileRefs` 跟 `_ct-workorders/` 的 `fs:changed` 重查（💬 卡片連結已由 T0934 完成）"
   - "候選（未開單，T0924 建議）：`scripts/verify-packaged-native.js` `readAsarFile` 不檢查 `fs.readSync` 回傳位元組數，截斷的 app.asar 會被讀成 NUL 而不報錯；改成讀不足判失敗（檢查變嚴）"
+  - "候選（未開單，T0972 Q-2）：claude 信任對話框的 Enter 後 2 s 內按的鍵，啟動參數回合送出後仍被 2 s Enter 保護窗留成草稿（已信任工作區不受影響）"
   - "PLAN-066（DONE）後續候選（未開單）：`pty:create` 只送 env 差異（`pty-manager.ts`＋Terminal Server 協定）可再降 C2①；direct 模式的 conin socket 殘留；F4（自然結束的 conhost 留到 server 結束）。分支：`ct/T0885`（Rust 評估，D307 保留不合併，worktree 保留）、`ct/T0886`（node-pty Worker 研究，未併入 `v0.8.x`，worktree 已移除）"
   - "PLAN-065 剩餘：per-machine 未提權互動升級（UAC）手動驗收（無法自動化）；降級到 `0.7.4-pre.9` 會結束所有終端且沒有說明（已寫在更版重點〈已知事項〉）"
   - "PLAN-052（IN_PROGRESS）：待 Docker Desktop（Windows / macOS）實機走精靈；後續候選（未開單）：fetch-fingerprint Docker 分支比對憑證指紋、`scripts/docker-acceptance.mjs` 純函式單元測試"
@@ -122,6 +123,7 @@ reminders:
 - 15:55 U-68：A（原生選單）→ `ct-merge/T0970` 再合併 `main`（只多 `_ct-workorders/**`）後 ff，`main` = `8de1e2d1`（產品樹 = `b933cdd1`，未 push）；整合 worktree detach、T0970 worktree 移除（D505）
 - 15:55 CT 塔台：CT T0585 收單（CT D934），6.4.0-pre.2 定稿、重複鍵 CT BUG-006 FIXED；傳 `checklist-rerun-640.md`（`416662a4…`）、`ct-swap-640.py`（`d4d92ead…`，`install-642`）、HR-1-3 判法更正、v642 範例與 5 份重複鍵樣本、條文位置；塔台核對兩檔雜湊相符 → 開 T0974（D505）
 - 15:56 T0974 派工 `--mode yolo --no-interactive --isolation worktree --wait-started 30000` exit 0，`started: 07:56:44Z`，分頁 `21e36fd0…`，base `c56a595d`（與 T0972 只在 `src/lib/__tests__/` 目錄重疊，各自新增檔，接受並行）
+- 15:57 [提問] T0972 Q-2（T0970 B3 實錄 hook 前 517 ms 有信任對話框 Enter，① 修正後仍被 2 s Enter 保護窗留下）→ 塔台答 A（不放寬；BUG-235 原始情境是已信任工作區，① 已涵蓋；加「刻意保留」測試、R2 重跑改用已信任工作區；信任 Enter 後立刻按鍵另記候選）（`--answer --choice 1` exit 0）
 
 ---
 
