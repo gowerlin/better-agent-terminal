@@ -4,15 +4,24 @@ summary_version: 1
 bat_contract: 2
 ct_version: "6.3.0"
 inbox_features: ["recommended", "dismiss", "multi"]
-updated_at: "2026-11-28T15:31:42+0800"
+updated_at: "2026-11-28T15:34:27+0800"
 session: "2026-11-28 11:59 第一百四十 session 塔台重新開工（CT v6.3.0，BAT 0.8.1-pre.3）"
 next_ids:
   workorder: "T0972"
-  decision: "D501"
+  decision: "D502"
   bug: "BUG-238"
   plan: "PLAN-071"
-  user: "U-67"
+  user: "U-68"
   action: "A-27"
+awaiting_user:
+  - id: "U-67"
+    workorder: "T0971"
+    kind: "decision"
+    source: "breakpoint-E"
+    summary: "T0971（BUG-237 提示行＋CT B-1 / B-2）合併：`ct-merge/T0971` `4e07b9d2` 要 ff 進 `main` 嗎"
+    options: ["A 現在 ff 進 main（推薦）", "B 暫不合併"]
+    recommended: "A"
+    created_at: "2026-11-28T15:34:27+08:00"
 user_actions:
   - id: "A-26"
     title: "裝 `v0.8.1-pre.4`：塔台閒置時從待辦分頁回答會立即送出，不再卡在「待送」（BUG-235）"
@@ -111,7 +120,8 @@ reminders:
 - 15:22 CT 塔台：CT T0584 判定完成（CT D932），請 BAT 做 B-1（`menu_open` 移到 `awaiting_user` 正後方時解析不受影響＋fixture）、B-2（分次寫入時 ids 不在 awaiting_user → 當作沒有 `menu_open`，文件＋保留）；CT T0585（6.4.0-pre.2）15:21 派工 → BUG-237＋B-1＋B-2 合成 T0971（D499）
 - 15:23 T0971 派工 `--mode yolo --no-interactive --isolation worktree --wait-started 30000` exit 0，`started: 07:23:14Z`，分頁 `f1770e07…`，worktree `ct/T0971` base `94ef73bb`（與 T0970 不重疊）
 - 15:31 使用者截圖：待辦分頁顯示 P-3（狀態檔像 v1）。原因：15:10 `4666c2c3` 塔台以腳本刪 `awaiting_user` 時切錯範圍，frontmatter 出現兩個 `user_actions` 鍵（且已答的 U-65 / U-66 殘留），BAT 的 js-yaml 報 duplicated mapping key → 當成沒有摘要；CT `check-frontmatter.py` 不檢查重複鍵所以 PASS、`*sync` 也沒抓到。已刪除重複區塊與殘留 U-65 / U-66，以 js-yaml CORE_SCHEMA 驗證 OK（`bat_contract=2`）（D500）
-- 15:35 CT 塔台：重現 check-frontmatter.py 重複鍵缺口（CT D933、CT BUG-006），併入 CT T0585（6.4.0-pre.2，R6：同層重複鍵列 FAIL、補測試與文件）；6.4.0 正式版裝好前 BAT 塔台維持寫檔後 js-yaml 驗證
+- 15:34 CT 塔台：重現 check-frontmatter.py 重複鍵缺口（CT D933、CT BUG-006），併入 CT T0585（6.4.0-pre.2，R6：同層重複鍵列 FAIL、補測試與文件）；6.4.0 正式版裝好前 BAT 塔台維持寫檔後 js-yaml 驗證
+- 15:34 T0971 DONE（`e7804e1d`，test:unit 9613 passed；BUG-237 提示行改由主行程判斷、Q-2 限制一併解除、B-1 / B-2）；收單 `--close-worker --worktree keep` exit 0；接線 4 檔補進 affects_files 後五條全成立 → 模式 ① `ct-merge/T0971` `4e07b9d2`；斷點 E → U-67（D501）
 
 ---
 

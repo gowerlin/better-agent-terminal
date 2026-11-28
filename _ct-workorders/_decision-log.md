@@ -10,6 +10,7 @@
 
 | ID | 日期 | 標題 | 相關工單 |
 |----|------|------|---------|
+| D501 | 2026-11-28 | T0971 收單（`e7804e1d`，BUG-237 提示行改由主行程判斷、Q-2 限制一併解除、B-1 / B-2）；模式 ① `4e07b9d2`；斷點 E 發 U-67 | T0971 / BUG-237 |
 | D500 | 2026-11-28 | 待辦分頁 P-3：`_tower-state.md` frontmatter 重複 `user_actions` 鍵（塔台腳本切錯範圍）→ 修正；寫檔後加 js-yaml 驗證；通知 CT 自檢不抓重複鍵 | — |
 | D499 | 2026-11-28 | CT T0584 判定（CT D932）→ BUG-237＋ CT B-1 / B-2 合成 T0971（pre.5）；等 CT T0585 補跑清單 | T0971 / BUG-237 |
 | D498 | 2026-11-28 | 使用者要求自動驗收 pre.4 → 開 T0970（A-26：BUG-235、T0966，pre.3 對照） | T0970 / BUG-235 |
@@ -618,6 +619,16 @@
   4. PLAN-001 保持延後（🟢 Low，等 plugin 1.0 穩定）
 - **Success criteria**（EXP→CONCLUDED）：npm install 無錯 / 所有 native modules rebuild 成功 / dev+build:dir 可跑 / 手動 smoke test 8 項通過
 - **最大風險**：`whisper-node-addon@1.0.2` 對 Electron 41（Node 24）的 NODE_MODULE_VERSION 相容性未知，允許 Worker 遇此決策點主動問塔台
+
+---
+
+### D501 2026-11-28 15:34 — T0971 收單；U-67
+
+- **回報**：DONE，`validated_sha` = `head` = `e7804e1d`；test:unit 9613 passed / 532 files、vite build、兩個 typecheck 皆 0；新測試 51 項；既有斷言未改。
+- **BUG-237**：提示行改由主行程 `menuEscPreview`（`menuEscDecision` 同一套、去掉等待條件、不改狀態）判斷，經新 proxied 唯讀 channel `tower-inbox:menu-hint`（不進 `HELPER_CHANNEL_ROLES`、拒 `ctx.helper`）；舊 host / 舊 preload → T0968 規則。T0968 Q-2 限制（只剩選單紀錄時不顯示）一併解除：只靠選單紀錄顯示期間每 2 s 再問一次。沒有改 attention。
+- **B-1**：解析本來就不受鍵位置影響，加 BAT 自製 fixture `ct-tower-state-v642/`。**B-2**：文件＋測試鎖住「部分 ids 無效 → 整個無效」、CT 6.3.x 相容說明。
+- **範圍**：Worker 為註冊 channel 改了 `electron/main.ts`、`remote/headless-entry.ts`、`remote/protocol.ts`、`remote/path-aware-channels.ts`（與 T0908 同位置的接線），塔台確認屬範圍內並補進 `affects_files`；`--worktree-status` 五條全成立 → 模式 ①：`ct-merge/T0971` `4e07b9d2`（parent1 `8deb2b25`、parent2 `e7804e1d`）。`--close-worker --worktree keep` exit 0。斷點 E → **U-67**。BUG-237 合併後 → FIXED。
+- **相關**：BUG-237 / T0968 / D499
 
 ---
 
