@@ -4,11 +4,11 @@ summary_version: 1
 bat_contract: 2
 ct_version: "6.3.0"
 inbox_features: ["recommended", "dismiss", "multi"]
-updated_at: "2026-11-28T15:35:32+0800"
+updated_at: "2026-11-28T15:42:36+0800"
 session: "2026-11-28 11:59 第一百四十 session 塔台重新開工（CT v6.3.0，BAT 0.8.1-pre.3）"
 next_ids:
-  workorder: "T0972"
-  decision: "D503"
+  workorder: "T0974"
+  decision: "D504"
   bug: "BUG-238"
   plan: "PLAN-071"
   user: "U-68"
@@ -21,7 +21,8 @@ user_actions:
     created_at: "2026-11-28T14:01:43+08:00"
 todo:
   - "CT 判定 CT T0584 完成（CT D932：CT 端 PASS 29 / FAIL 1（CT 條文）/ 未觸發 1）；CT T0585（6.4.0-pre.2）進行中，收單後傳補跑清單 `checklist-rerun-640.md`、`install-642` 與 6.4.0-pre.2 範例檔 → BAT 開補跑單（新 BAT pre.4，約 1 個塔台 session）（D499）"
-  - "🟡 BUG-235（medium，FIXED）：隨 `v0.8.1-pre.4` 發佈（D494），A-26 實機確認後 CLOSED（再發生時看 `[notify-hold] draft set … cause=`）"
+  - "🟡 BUG-235（medium，FIXING，D503）：T0970 交付版驗收 R2 FAIL（啟動參數回合送出前的草稿不清：清除條件要求已宣告契約 2，宣告晚約 1 分鐘）→ 重修 T0972；A-26 待 T0972 合併、發 pre.5 後再驗；R1 / R3 / R4 / R5、T0966 已確認有效"
+  - "T0973：合併 `ct/T0970`（e2e/manual 驅動 2 檔，判準 1 因 T0971 不成立）"
   - "✅ BUG-236 CLOSED（D496）；🟢 BUG-237 FIXED（T0971 合併進 `main` `6a7b90e8`，D502），隨 `0.8.1-pre.5` 實機確認；T0971 worktree 目錄殘留（`Invalid argument`）待手動刪"
   - "候選（未開單，T0965 建議）：只剩選單紀錄（`question` 已被清除）時 Worker 通知仍照舊直接寫入，可能打進開著的選單；待 CT `menu_open`（D484）工單一起評估"
   - "✅ T0966（U-58：A）合併進 `main` `64b39176`（D485）：Worker 等你不再算回答；T0965 收單時 `main` 已有 T0966 產品改動 → 依 `--worktree-status` 判斷，多半派合併工單"
@@ -114,6 +115,7 @@ reminders:
 - 15:34 CT 塔台：重現 check-frontmatter.py 重複鍵缺口（CT D933、CT BUG-006），併入 CT T0585（6.4.0-pre.2，R6：同層重複鍵列 FAIL、補測試與文件）；6.4.0 正式版裝好前 BAT 塔台維持寫檔後 js-yaml 驗證
 - 15:34 T0971 DONE（`e7804e1d`，test:unit 9613 passed；BUG-237 提示行改由主行程判斷、Q-2 限制一併解除、B-1 / B-2）；收單 `--close-worker --worktree keep` exit 0；接線 4 檔補進 affects_files 後五條全成立 → 模式 ① `ct-merge/T0971` `4e07b9d2`；斷點 E → U-67（D501）
 - 15:35 U-67：A（原生選單）→ `ct-merge/T0971` 再合併 `main`（只多 `_ct-workorders/**`）後 ff，`main` = `6a7b90e8`（產品樹 = `e7804e1d`，未 push）；整合 worktree detach；worktree 解除註冊、目錄刪除失敗（殘留）；BUG-237 FIXED（D502）
+- 15:42 T0970 DONE（pre.4：R1 / R3 / R4 / R5 PASS、**R2 FAIL**；pre.3 R2 對照重現；R4 對照確認 T0966 有效）；收單 `--close-worker --worktree keep` exit 0；BUG-235 退回 FIXING → 重修 T0972（塔台裁示修法 ① 不以契約為前提清草稿，若 draft 有非契約讀者改 ② 宣告時補清）；T0970 合併因 T0971 判準 1 不成立 → 合併工單 T0973（D503）
 
 ---
 

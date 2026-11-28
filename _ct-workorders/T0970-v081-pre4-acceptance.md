@@ -168,3 +168,7 @@ memory_overrides:
 
 ### 回報時間
 - 2026-11-28T15:40:24+0800
+
+## 塔台收單補記
+
+- 2026-11-28 15:42 (UTC+8) 收單：DONE 確認（pre.4：R1 / R3 / R4 / R5 PASS、R2 FAIL；pre.3 R2 對照重現）。依〈驗收失敗處理〉「原問題未解」：BUG-235 退回 FIXING，派重修 T0972；A-26 維持未完成。`--close-worker --delay-ms 10000 --worktree keep` exit 0；`main` 自 base 起已併入 T0971 產品改動 → 判準 1 不成立 → 合併工單 T0973（`merge-tree` 無衝突）（D503）。
