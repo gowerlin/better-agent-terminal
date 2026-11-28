@@ -10,6 +10,7 @@
 
 | ID | 日期 | 標題 | 相關工單 |
 |----|------|------|---------|
+| D506 | 2026-11-28 | T0972 收單（方案 ①）；Q-2 不放寬 2 s Enter 窗；判準 1、2 不成立 → 合併工單 T0975 | T0972 / T0975 / BUG-235 |
 | D505 | 2026-11-28 | U-68：A → T0970 驅動 ff `8de1e2d1`；CT 6.4.0-pre.2 定稿 → 開 T0974（HR-1 補跑＋ CT fixture） | T0973 / T0974 |
 | D504 | 2026-11-28 | T0973 收單（`b933cdd1`）；斷點 E 發 U-68；T0972 Q-1 答 A（採 ①） | T0973 / T0970 / T0972 |
 | D503 | 2026-11-28 | T0970 收單：R2 FAIL → BUG-235 退回 FIXING、重修 T0972；T0970 合併派 T0973 | T0970 / T0972 / T0973 / BUG-235 |
@@ -623,6 +624,15 @@
   4. PLAN-001 保持延後（🟢 Low，等 plugin 1.0 穩定）
 - **Success criteria**（EXP→CONCLUDED）：npm install 無錯 / 所有 native modules rebuild 成功 / dev+build:dir 可跑 / 手動 smoke test 8 項通過
 - **最大風險**：`whisper-node-addon@1.0.2` 對 Electron 41（Node 24）的 NODE_MODULE_VERSION 相容性未知，允許 Worker 遇此決策點主動問塔台
+
+---
+
+### D506 2026-11-28 16:00 — T0972 收單；派 T0975
+
+- **Q-2**（15:57）：T0970 B3 實錄在 hook 前 517 ms 有 claude 信任對話框的 Enter，① 修正後仍被 2 s Enter 保護窗保留。塔台答 A：不放寬（Enter 之後、hook 之前打的鍵是否已被 claude 取走無法確定）；BUG-235 原始情境是已信任工作區，① 已涵蓋；加刻意保留測試；「信任 Enter 後立刻按鍵」記候選。
+- **回報**：DONE，方案 ①（`draft` 讀者核對：會改變行為的讀者都先判契約 2，非契約 2 分頁清草稿無可見影響）；`onPromptSubmitted` 不再以契約為前提，只對契約 2 塔台重新排程；非契約 2 的日誌註明 `not a contract-2 Tower yet`。測試 5 條修正前失敗；test:unit 9624 passed / 532 files、兩個 typecheck 0、build 0。`validated_sha` `abcff41d`，head `c1abe148`（多一筆 `tower-inbox.md` 純文件）。隔離實例重跑 R2 未做（列待實機，做法寫在回報區）。
+- **合併**：`--worktree-status` 無範圍外、無衝突、不髒，但判準 1（`main` 已有 T0970 `e2e/manual/`）與 2（validated ≠ head）不成立 → 合併工單 **T0975**（mechanical，在合併結果重跑完整驗收）。BUG-235 合併後 → FIXED，發 pre.5 後以已信任工作區重跑 R2（A-26）再 CLOSED。
+- **相關**：BUG-235 / T0964 / T0970 / T0972 / D503 / D504
 
 ---
 
