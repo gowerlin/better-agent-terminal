@@ -4,12 +4,13 @@ schema_kind: workorder
 id: T0972
 title: "BUG-235 重修：啟動參數回合（`/control-tower`）送出前的草稿沒被清掉——`user-prompt-submit` 早於塔台 `--set-role --bat-contract 2`，T0964 的清除條件 `isContractTower` 不成立"
 type: bugfix
-status: PENDING
+status: IN_PROGRESS
 repo: better-agent-terminal
 priority: P1
 sizing: S
 created_at: "2026-11-28T15:42:36+0800"
-updated_at: "2026-11-28T15:42:36+0800"
+started_at: "2026-11-28T15:44:24+0800"
+updated_at: "2026-11-28T15:45:27+0800"
 target_version: "下一個預覽版（`0.8.1-pre.5`，發版前與使用者確認）"
 depends_on: []
 related:
@@ -27,6 +28,7 @@ affects_files:
   - docs/agent-guide/notify-hold.md
   - CLAUDE.md
 renew_count: 0
+tower_question: open
 isolation: worktree
 worker_question_timeout: 30
 interaction:
@@ -72,5 +74,18 @@ T0970 以交付版 `v0.8.1-pre.4` 驗收 A-26：R1（閒置時回答）、R3 / R
 ---
 
 ## 回報區
+
+### 待塔台決策
+
+#### Q-1：方案 ① 會改到既有斷言 `notify-hold-prompt-submit.test.ts:149-159`（「v1 塔台／非塔台：submit 後 `hasDraft` 仍為 true」），可以改嗎？
+- **提問時間**：2026-11-28T15:45:27+0800
+- **背景**：`draft` 的讀者逐一核對完，會改變行為的三處（`holdReason` L787–792、`headHold` L811/817、`considerMenuEsc` L1008/1025）都先判 `isContractTower`；`onUserInput` 讀前一個狀態只影響下一個狀態與 `draft set` 日誌（清掉後與契約 2 塔台清掉時完全相同）；renderer 沒有讀者；`hasDraft` 公開方法只有測試在用。⇒ ① 成立。但 T0964 的 `it.each(['a v1 Tower', 'not a Tower'])` 斷言非契約 2 分頁 submit 後 `hasDraft('tower') === true`——這是讀者行為以外的純實作細節，正是工單說「先問塔台」的情況。
+- **選項**：
+  - A. 採 ①，把該 `it.each` 改成「v1 塔台／非塔台：草稿同樣被清（之後宣告契約 2 也不會被它擋），且不記任何保留、不排程佇列」；其餘既有斷言不動。
+  - B. 改採 ②（submit 時記下「可清」，宣告契約 2 時若之後沒有新輸入才清），既有斷言不動；但要在 `--set-role` 路徑加一個 hook（`terminal-role.ts` / PtyManager → NotifyHold），程式較多、多一個時序狀態。
+  - 其他。
+- **建議**：A。理由：① 是工單指定的第一順位且已核對成立；被改的斷言只記錄內部狀態，沒有任何使用者看得到的行為依賴它；② 多一條跨模組接線與狀態，風險較高。
+- **影響**：只影響 `electron/__tests__/notify-hold-prompt-submit.test.ts` 那一個 `it.each` 的斷言內容。
+- **是否阻擋後續步驟**：是（決定採 ① 或 ②）。
 
 （Worker 填寫）
