@@ -10,6 +10,7 @@
 
 | ID | 日期 | 標題 | 相關工單 |
 |----|------|------|---------|
+| D472 | 2026-11-28 | T0963 收單（`45a9427c`，BUG-234 原因在 T0951，pre.1 起）；模式 ① `da4f8067`；斷點 E 發 U-55、發版 U-56 | T0963 / BUG-234 |
 | D471 | 2026-11-28 | BUG-234（pre.2 自動恢復後鍵盤無法輸入）開單 FIXING，派 T0963 查證＋修正 | T0963 / BUG-234 |
 | D470 | 2026-11-28 | U-54：A → T0962 ff 進 `main` `7ee0b8d2`（T0961 Linux spec）；worktree 與分支清掉 | T0962 / T0961 |
 | D469 | 2026-11-28 | T0962 收單（`69f4e1cc`，驗收全綠）；斷點 E 發 U-54 | T0962 / T0961 |
@@ -589,6 +590,16 @@
   4. PLAN-001 保持延後（🟢 Low，等 plugin 1.0 穩定）
 - **Success criteria**（EXP→CONCLUDED）：npm install 無錯 / 所有 native modules rebuild 成功 / dev+build:dir 可跑 / 手動 smoke test 8 項通過
 - **最大風險**：`whisper-node-addon@1.0.2` 對 Electron 41（Node 24）的 NODE_MODULE_VERSION 相容性未知，允許 Worker 遇此決策點主動問塔台
+
+---
+
+### D472 2026-11-28 11:26 — T0963 收單、模式 ① 合併、斷點 E（U-55）、發版（U-56）
+
+- **回報**：T0963 DONE（`validated_sha` = `head` = `45a9427c`）。原因：T0951 的 `PtyManager.writeLaunchCommand` 在啟動命令前沒打字時，空的保留清單沒從 `dispatchInputHolds` 刪掉 → 新開 agent 分頁之後的按鍵、Enter、貼上全被保留。pre.1 與 pre.2 隔離實例都重現（工單「pre.1 不重現」前提不成立，Worker 依證據處理）；使用者退回 pre.1 能用是因為分頁都是接回（`created: false`，不保留）。修正只改 `writeLaunchCommand`（T0956 / T0957 未動）；回歸測試修正前 FAIL；本分支打包隔離實例 T0963 4/4、T0955 全 PASS、T0959 可判定項全 PASS；`test:unit` 9428 passed / 522 files、typecheck 0 / 0、build:dir exit 0；〈相關通過案例〉沒有預期改變。
+- **合併**：`--worktree-status` 五條全成立（`main` 只多 `_ct-workorders/**`、`outOfScopeFiles` / `conflicts` / `dirty` 皆空）→ 模式 ①：`ct-merge/T0963` `da4f8067`（parent1 `f8429161`、parent2 `45a9427c`，產品樹 = head）。收單 `--close-worker T0963 --delay-ms 10000 --worktree keep` exit 0。斷點 E → U-55；BUG-234 影響已發佈的 pre.1 / pre.2，問是否立刻發 `0.8.1-pre.3` → U-56。
+- **BUG-234**：影響版本改為 `0.8.1-pre.1` / `pre.2`（`v0.8.0` 不受影響）；ff 後改 FIXED，發版驗收後 CLOSED。
+- **後續（Worker 建議）**：交付版驗收補「命令後打字」（T0963 重現工具）；pre.1 / pre.2 更版重點補已知問題。
+- **相關**：T0963 / BUG-234 / T0951 / D471
 
 ---
 
