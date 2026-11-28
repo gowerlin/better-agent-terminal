@@ -228,3 +228,8 @@ T0965 讓 BAT 在塔台開著選單時，替待辦分頁的回答代按 Esc 再�
 
 - CT 6.4.0-pre.1 發佈時，README 的 BAT ↔ CT 版本對照補上「`menu` 需 BAT 本版、CT ≥ 6.4.0-pre.1」（工單排除，由塔台處理）。
 - 若之後也想在「只剩選單紀錄」時顯示提示行，需要在 attention 加欄位並增加推送時機（Q-2 的 B 案），另開工單。
+
+## 塔台收單補記
+
+- 2026-11-28 13:33 (UTC+8) 收單：DONE 確認（`validated_sha` = `head` = `4dea180c`；`--worktree-status` 五條全成立：`main` 自 base 只多 `_ct-workorders/**`、`outOfScopeFiles` 空（含 Q-1 補的 preload）、`conflicts` 空、`dirty` 空）。`--close-worker --delay-ms 10000 --worktree keep` exit 0。
+- 模式 ①：`ct-merge/T0968` = `8b3e9ec9`（parent1 `1372e23d`、parent2 `4dea180c`，產品樹 = head）。斷點 E → U-63；發 `0.8.1-pre.4` → U-64（D493）。README 版本對照於發版時處理。
