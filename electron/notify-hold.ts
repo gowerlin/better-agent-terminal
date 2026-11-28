@@ -64,6 +64,17 @@
  *     Every other write to the tab (the user's, a helper's, an answer, BAT's own, a mouse press)
  *     forgets the survey first.
  *
+ * T0965 / BUG-236 (U-59：A) — an inbox answer never goes into claude's AskUserQuestion menu: a contract-2
+ * Tower's answer is held while the tab is `question` or its menu may still be open (`hasOpenQuestionMenu`:
+ * the user's input / a mouse press cleared `question`, the menu stayed — the reported case). Then, with
+ * no draft, no user input / mouse press for `NOTIFY_HOLD_MENU_INPUT_QUIET_MS` and no PTY output for
+ * `NOTIFY_HOLD_MENU_OUTPUT_QUIET_MS`, BAT writes one Esc (not user input) to close the menu; the PTY
+ * output that follows says claude closed it (`closeQuestionMenu`), and after `NOTIFY_HOLD_QUIET_MS` the
+ * answer goes as before. No output within `NOTIFY_HOLD_MENU_ESC_MAX_MS` → the answer stays held (never a
+ * second Esc for it), logged. 🔴 Answers only: Worker notifications, `permission` / `elicitation` / codex
+ * `input` and every other tab hold exactly as before. 「立即送出」releases a held answer only when the tab is
+ * not `question` (the menu record alone may be stale). Logs `[notify-hold] menu esc …` (ids only).
+ *
  * PLAN-068 W5 / T0908: the windows' channels are registered here for both hosts and proxied
  * (`registerNotifyHoldHandlers`: `terminal:notify-hold-list` / `-cancel` / `-send-now`;
  * `registerTowerInboxAnswerHandler`: `tower-inbox:answer`), so a remote window sees and drives its
@@ -119,6 +130,17 @@ export const NOTIFY_HOLD_ANSWER_MAX_CHARS = 1_000
 export const NOTIFY_HOLD_SUBMIT_QUIET_MS = 300
 /** T0964: …nor an Enter of the user's this long before it (that Enter itself submitted; what follows is new). */
 export const NOTIFY_HOLD_SUBMIT_ENTER_GUARD_MS = 2_000
+/**
+ * T0965 / BUG-236: after BAT's Esc to an AskUserQuestion menu, the PTY must answer (claude redraws) within
+ * this long; otherwise the answer stays held (the menu may still be open — its text never goes into it).
+ */
+export const NOTIFY_HOLD_MENU_ESC_MAX_MS = 3_000
+/** T0965: no Esc while the user typed / clicked in the tab this recently (they may be answering in the menu). */
+export const NOTIFY_HOLD_MENU_INPUT_QUIET_MS = 2_000
+/** T0965: no Esc while the PTY wrote output this recently (an open menu is quiet; a working claude is not). */
+export const NOTIFY_HOLD_MENU_OUTPUT_QUIET_MS = 1_000
+/** T0965: what BAT writes to close the menu. */
+const MENU_ESC = '\x1b'
 
 /** The `blocked` reasons that hold (a prompt in the tab waits for a key). */
 export const NOTIFY_HOLD_REASONS: readonly string[] = ['permission', 'question', 'elicitation', 'input']
@@ -153,6 +175,15 @@ export interface NotifyHoldPtyManager {
   /** T0904: the declared role / BAT ↔ CT contract (W0, T0903); absent = never a contract-2 Tower. */
   getTerminalRole?(id: string): string | undefined
   getTowerContract?(id: string): number | undefined
+  /**
+   * T0965 / BUG-236: the AskUserQuestion menu of tab `id` may still be open (also after `question` was
+   * cleared by the user's input / a mouse press). Absent = never (no Esc, nothing more held).
+   */
+  hasOpenQuestionMenu?(id: string): boolean
+  /** T0965: BAT's Esc closed the menu (the tracker drops it and a `question` still set). Absent = no Esc is sent. */
+  closeQuestionMenu?(id: string, cause: string): boolean
+  /** T0965: ms epoch of tab `id`'s last output (`now`'s clock), or null. Absent = unknown (quiet). */
+  getLastOutputAt?(id: string): number | null
 }
 
 export interface NotifyHoldDeps {
@@ -207,6 +238,20 @@ interface TargetQueue {
   reminded: boolean
   /** T0904: the reason last told to the windows. */
   lastReason: NotifyHoldReason | null
+  /** T0965: the Esc BAT wrote for the head answer (one per answer), or null. */
+  menuEsc: MenuEsc | null
+  /** T0965: waits for the input / output quiet before the Esc. */
+  menuTimer: unknown
+  /** T0965: the answer whose wait before the Esc was logged (once per answer). */
+  menuWaitLogged: string | null
+}
+
+/** T0965 / BUG-236: BAT's Esc to the AskUserQuestion menu, for answer `holdId`. */
+interface MenuEsc {
+  holdId: string
+  /** `sent` = waiting for the PTY to answer; `closed` = it did; `failed` = it did not / the write failed. */
+  state: 'sent' | 'closed' | 'failed'
+  timer: unknown
 }
 
 /** T0904: from a notification's text until its Enter reached the PTY, the user's input waits here. */
@@ -254,6 +299,8 @@ export class NotifyHoldController {
   /** T0964: per tab, when the user last sent anything / an Enter (`monotonicNow`). */
   private readonly lastInputAt = new Map<string, number>()
   private readonly lastEnterAt = new Map<string, number>()
+  /** T0965: per tab, when the user last typed or pressed a mouse button in it (`monotonicNow`). */
+  private readonly lastTouchAt = new Map<string, number>()
   private seq = 0
   private disposed = false
   private readonly now: () => number
@@ -427,6 +474,7 @@ export class NotifyHoldController {
       }
       const at = this.monotonicNow()
       this.lastInputAt.set(id, at)
+      this.lastTouchAt.set(id, at) // T0965
       if (!prev.inPaste && data.includes('\r')) this.lastEnterAt.set(id, at)
     }
     const queue = this.queues.get(id)
@@ -489,6 +537,9 @@ export class NotifyHoldController {
    */
   onPtyOutput(id: string, data: string): void {
     if (this.disposed || typeof id !== 'string' || typeof data !== 'string' || data.length === 0) return
+    // T0965: the PTY answered BAT's Esc — claude closed the AskUserQuestion menu
+    const queue = this.queues.get(id)
+    if (queue?.menuEsc?.state === 'sent') this.menuEscAnswered(id, queue, queue.menuEsc)
     if (!this.isContractTower(id)) {
       if (this.singleKey.has(id)) this.singleKey.forget(id)
       return
@@ -500,11 +551,16 @@ export class NotifyHoldController {
   /** T0940: the user pressed a mouse button in tab `id` (it may have answered the survey): forget it. */
   onMousePress(id: string): void {
     this.singleKey.drop(id)
+    this.lastTouchAt.set(id, this.monotonicNow()) // T0965: no Esc to a menu the user just clicked
   }
 
-  /** T0940 案 A: tab `id` shows a hook / osc prompt now (asked before `noteUserInput` clears it). */
+  /**
+   * T0940 案 A: tab `id` shows a hook / osc prompt now (asked before `noteUserInput` clears it).
+   * T0965: + a contract-2 Tower's AskUserQuestion menu that may still be open (an arrow key after the first
+   * key cleared `question` is a menu key, not a draft).
+   */
   isPromptShown(id: string): boolean {
-    return this.promptReason(id) !== null
+    return this.promptReason(id) !== null || (this.questionMenuOpen(id) && this.isContractTower(id))
   }
 
   /**
@@ -609,6 +665,7 @@ export class NotifyHoldController {
     this.drafts.clear()
     this.lastInputAt.clear() // T0964
     this.lastEnterAt.clear()
+    this.lastTouchAt.clear() // T0965
     this.readers.clear()
     this.singleKey.clear()
   }
@@ -628,6 +685,11 @@ export class NotifyHoldController {
     return state && NOTIFY_HOLD_REASONS.includes(state.reason) ? state.reason as NotifyHoldReason : null
   }
 
+  /** T0965: tab `id`'s AskUserQuestion menu may still be open (PtyManager; absent = never). */
+  private questionMenuOpen(id: string): boolean {
+    return this.deps.getPtyManager()?.hasOpenQuestionMenu?.(id) === true
+  }
+
   private readingActive(id: string): boolean {
     return (this.readers.get(id)?.size ?? 0) > 0
   }
@@ -643,6 +705,8 @@ export class NotifyHoldController {
     if (prompt) return prompt
     if (this.isContractTower(targetId)) {
       if (this.atomics.has(targetId)) return 'queued'
+      // T0965 / BUG-236: the menu may still be open though `question` was cleared — never typed into it
+      if (kind === 'answer' && this.questionMenuOpen(targetId)) return 'question'
       if (this.hasDraft(targetId)) return 'draft'
       if (kind === 'notify' && this.readingActive(targetId)) return 'reading'
     }
@@ -664,6 +728,8 @@ export class NotifyHoldController {
     const head = queue?.items[0]
     if (!queue || !head || head.textSent || !this.isContractTower(id)) return null
     if (this.atomics.has(id)) return 'queued'
+    // T0965 / BUG-236: an answer waits for the menu to close (「立即送出」releases it: the record may be stale)
+    if (head.kind === 'answer' && !head.forced && this.questionMenuOpen(id)) return 'question'
     if (head.forced) return null
     if (this.hasDraft(id)) return 'draft'
     if (head.kind !== 'answer' && this.readingActive(id) && !this.readingCapped(queue)) return 'reading'
@@ -686,6 +752,9 @@ export class NotifyHoldController {
         remindTimer: null,
         reminded: false,
         lastReason: null,
+        menuEsc: null,
+        menuTimer: null,
+        menuWaitLogged: null,
       }
       this.queues.set(id, queue)
     }
@@ -704,6 +773,8 @@ export class NotifyHoldController {
     queue.quietTimer = null
     queue.readingCapTimer = null
     queue.remindTimer = null
+    this.clearMenuTimer(queue) // T0965
+    this.endMenuEsc(queue)
   }
 
   private newItem(ctx: HandlerContext, targetId: string, reason: string, now: number): HeldItem {
@@ -800,8 +871,11 @@ export class NotifyHoldController {
         this.clearTimer(queue.quietTimer)
         queue.quietTimer = null
       }
+      if (reason === 'question') this.considerMenuEsc(id, queue) // T0965
+      else this.clearMenuTimer(queue)
       return
     }
+    this.clearMenuTimer(queue) // T0965
     if (queue.sending || queue.quietTimer !== null) return
     queue.quietTimer = this.setTimer(() => {
       if (this.queues.get(id) !== queue) return
@@ -836,6 +910,83 @@ export class NotifyHoldController {
         }
       }, Math.max(0, heldSince + NOTIFY_HOLD_DRAFT_REMIND_MS - this.now()))
     }
+  }
+
+  // ── T0965 / BUG-236: BAT's Esc to the AskUserQuestion menu (answers only) ──
+
+  /**
+   * Tab `id`'s head is an answer held by `question` (the prompt, or the menu record alone): writes one Esc
+   * once the user left the tab alone and its output is quiet. One Esc per answer, whatever came of it.
+   */
+  private considerMenuEsc(id: string, queue: TargetQueue): void {
+    const head = queue.items[0]
+    const pm = this.deps.getPtyManager()
+    if (!head || head.kind !== 'answer' || head.textSent || !pm?.closeQuestionMenu || !this.isContractTower(id)) return
+    const prompt = this.promptReason(id)
+    if (prompt !== 'question' && (prompt !== null || head.forced || !this.questionMenuOpen(id))) return
+    if (queue.menuEsc?.holdId === head.holdId) return
+    let wait: 'draft' | 'input' | 'output' | null = null
+    let waitMs = 0
+    if (this.hasDraft(id)) {
+      wait = 'draft' // the user types into the menu's text field; the next input / change looks again
+    } else {
+      const touched = this.lastTouchAt.get(id)
+      const inputLeft = touched === undefined ? 0 : touched + NOTIFY_HOLD_MENU_INPUT_QUIET_MS - this.monotonicNow()
+      const lastOutput = pm.getLastOutputAt?.(id) ?? null
+      const outputLeft = lastOutput === null ? 0 : lastOutput + NOTIFY_HOLD_MENU_OUTPUT_QUIET_MS - this.now()
+      if (inputLeft > 0) wait = 'input'
+      else if (outputLeft > 0) wait = 'output'
+      waitMs = Math.max(inputLeft, outputLeft)
+    }
+    if (wait) {
+      if (queue.menuWaitLogged !== head.holdId) {
+        queue.menuWaitLogged = head.holdId
+        this.deps.logger.log(`[notify-hold] menu esc waits terminal=${id} holdId=${head.holdId} (${wait})`)
+      }
+      if (wait !== 'draft' && queue.menuTimer === null) {
+        queue.menuTimer = this.setTimer(() => {
+          queue.menuTimer = null
+          if (this.queues.get(id) === queue) this.schedule(id)
+        }, Math.ceil(waitMs))
+      }
+      return
+    }
+    this.clearMenuTimer(queue)
+    this.singleKey.drop(id) // T0940: BAT's own write
+    const result = pm.writeWithResult(id, MENU_ESC)
+    const esc: MenuEsc = { holdId: head.holdId, state: result.ok ? 'sent' : 'failed', timer: null }
+    queue.menuEsc = esc
+    if (!result.ok) {
+      this.deps.logger.log(`[notify-hold] menu esc failed terminal=${id} holdId=${head.holdId} (${result.reason ?? 'unknown'}; the answer stays held)`)
+      return
+    }
+    this.deps.logger.log(`[notify-hold] menu esc terminal=${id} holdId=${head.holdId} (${prompt === 'question' ? 'question' : 'menu still open'})`)
+    esc.timer = this.setTimer(() => {
+      esc.timer = null
+      if (queue.menuEsc !== esc || esc.state !== 'sent') return
+      esc.state = 'failed'
+      this.deps.logger.log(`[notify-hold] menu esc no effect terminal=${id} holdId=${esc.holdId} after=${NOTIFY_HOLD_MENU_ESC_MAX_MS}ms (the answer stays held)`)
+    }, NOTIFY_HOLD_MENU_ESC_MAX_MS)
+  }
+
+  /** The PTY wrote output after BAT's Esc: claude closed the menu; the answer goes after the quiet wait. */
+  private menuEscAnswered(id: string, queue: TargetQueue, esc: MenuEsc): void {
+    esc.state = 'closed'
+    if (esc.timer !== null) this.clearTimer(esc.timer)
+    esc.timer = null
+    this.deps.logger.log(`[notify-hold] menu esc answered terminal=${id} holdId=${esc.holdId} (the menu closed)`)
+    this.deps.getPtyManager()?.closeQuestionMenu?.(id, 'BAT Esc')
+    if (this.queues.get(id) === queue) this.schedule(id)
+  }
+
+  private clearMenuTimer(queue: TargetQueue): void {
+    if (queue.menuTimer !== null) this.clearTimer(queue.menuTimer)
+    queue.menuTimer = null
+  }
+
+  private endMenuEsc(queue: TargetQueue): void {
+    if (queue.menuEsc?.timer !== null && queue.menuEsc?.timer !== undefined) this.clearTimer(queue.menuEsc.timer)
+    queue.menuEsc = null
   }
 
   /** Sends the held items of `id` in order; stops (keeps the rest) when something holds the tab again. */
@@ -951,6 +1102,7 @@ export class NotifyHoldController {
     this.drafts.delete(id)
     this.lastInputAt.delete(id) // T0964
     this.lastEnterAt.delete(id)
+    this.lastTouchAt.delete(id) // T0965
     this.readers.delete(id)
     this.singleKey.forget(id)
     const atomic = this.atomics.get(id)
@@ -980,6 +1132,8 @@ export class NotifyHoldController {
     const index = queue.items.indexOf(item)
     if (index < 0) return
     queue.items.splice(index, 1)
+    if (queue.menuEsc?.holdId === item.holdId) this.endMenuEsc(queue) // T0965
+    if (queue.menuWaitLogged === item.holdId) queue.menuWaitLogged = null
     if (!action) return
     const parts = len !== undefined ? 'text' : partsOf(item)
     const length = len ?? item.text?.length ?? 0

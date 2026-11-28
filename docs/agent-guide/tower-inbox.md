@@ -528,6 +528,22 @@ PLAN-070，D412（使用者 2026-11-27：送出後被重設成未選取，看不
 - 🔴 `tower-inbox:answer` 不在 `HELPER_CHANNEL_ROLES`，handler 另拒 `ctx.helper`（`FORBIDDEN`）：塔台與 Worker 的 PTY 權杖都不能冒充使用者作答。
 - 回傳 `TowerInboxAnswerResult`（`src/types/notify-hold.ts`）：`{ ok: true, held, holdId }` / `{ ok: false, reason: 'invalid' | 'pty-not-found' | 'not-contract-tower' | 'held-full' | 'FORBIDDEN' | 'INVALID_ARGS' | 'unavailable' }`；舊 bat-server 沒有 handler → renderer 顯示 `unsupported`。
 
+### 選單開著時的回答（T0965 / BUG-236，U-59：A）
+
+- **現象**（`0.8.1-pre.3`）：契約 2 的 Claude CLI 塔台以 AskUserQuestion 開了兩題選單，同時列在待辦分頁。使用者在待辦分頁送出 `U-57：A`，顯示「✓ 已送出」（`sent`）；選單把文字與 Enter 當按鍵收下，最後兩題都是「放棄」。
+- **原因**（使用者日誌）：`ask-user-question` 與 `permission-request` tool=AskUserQuestion 都到了（`blocked reason=question`）；4 s 後分頁內一次滑鼠左鍵按下（`→ cleared (mouse press)`，T0757）清掉 `question`，選單仍開著；再 5 s 後回答到達，`reason=none`，直接寫進選單。
+- **新行為**：契約 2 塔台的回答（`enqueueAnswer`，只限回答）在分頁 `question`、或 tracker 記得選單可能還開著（`hasOpenQuestionMenu`，見 [blocked-state.md](blocked-state.md)「AskUserQuestion 選單紀錄」）時保留，回 `held`（畫面「已排入待送」，保留原因 `question`）。接著：
+  1. 沒有 `draft`、使用者最近 `NOTIFY_HOLD_MENU_INPUT_QUIET_MS` = 2 s 內沒有輸入或滑鼠按下、PTY 最近 `NOTIFY_HOLD_MENU_OUTPUT_QUIET_MS` = 1 s 內沒有輸出（開著的選單是安靜的；工作中的 claude 每秒重畫）→ BAT 寫一個 Esc（`writeWithResult`，不算使用者輸入：不更新 `lastUserInputAt`、不清 ⚠️、不取消 `--close-worker` / 用量限制等待）。有 `draft` 時不送 Esc（使用者可能正在選單的「Type something」打字）。
+  2. Esc 之後 PTY 有輸出（claude 關掉選單、中斷回合重畫）→ `closeQuestionMenu`（清除 `question` 與選單紀錄）→ 照既有路徑等 `NOTIFY_HOLD_QUIET_MS` 安靜，送 `U-n：…` 文字與 Enter。
+  3. `NOTIFY_HOLD_MENU_ESC_MAX_MS` = 3 s 內沒有輸出 → 不送文字、留在待送、記 `menu esc no effect`；同一筆回答不會再送第二個 Esc（兩次 Esc 會開 claude 的回溯選單）。之後使用者在終端作答（hook 關閉選單）就照常送出。
+- 多題選單：Esc 取消整個 AskUserQuestion，送出的那一題由塔台以文字收下，其他題留在待辦分頁（CT 端不用改）。
+- 🔴 不變：Worker 通知（helper `pty:write` / `terminal:keypress`）照舊保留、不觸發 Esc；只有選單紀錄、`question` 已被清除時，Worker 通知照舊直接送（T0965 前的行為）；`permission` / `elicitation` / codex `input` 照舊保留、不送 Esc（Esc 在權限框等於拒絕工具）；非契約 2 或非塔台分頁逐字不變；面板塔台不經這條路徑；`draft` / T0964 規則不變。「立即送出」：分頁仍是 `question` 時照舊不放行；只剩選單紀錄（可能已過期）時放行。
+- 鍵盤：選單紀錄還在時，契約 2 塔台的單一按鍵也比照 T0940 案 A（`isPromptShown`），方向鍵不會變成草稿。
+- 唯一實作：`considerMenuEsc` / `menuEscAnswered`（`electron/notify-hold.ts`），選單紀錄在 `TerminalBlockedTracker`；PtyManager 經 `NotifyHoldPtyManager` 的選用方法 `hasOpenQuestionMenu` / `closeQuestionMenu` / `getLastOutputAt` 提供（沒有這些方法的 host 照舊保留、不送 Esc）。
+- 日誌（只記 id）：`[notify-hold] menu esc terminal=<id> holdId=<h> (question|menu still open)`、`menu esc waits … (draft|input|output)`（每筆一次）、`menu esc answered … (the menu closed)`、`menu esc no effect … after=3000ms (the answer stays held)`、`menu esc failed …`；tracker `[blocked] terminal=<id> question menu closed (BAT Esc|user Esc|user Ctrl+C)`。
+- 已知限制：「Esc 之後有輸出 = 選單關了」是推論（真 claude 未實測，見 T0965〈待實機〉）；選單若會自己定時重畫，就永遠等不到輸出安靜，回答會一直保留到使用者在終端作答；Esc 中斷的回合若把上一則提示放回輸入框，回答會接在後面（待實機確認）。
+- 測試：`electron/__tests__/notify-hold-question-menu.test.ts`（含真 PtyManager 的 BUG-236 時序重現，修正前失敗）。
+
 ### 「📨 待送」在遠端視窗（T0904 建議後續 1）
 
 T0908 起（遠端 bat-server 也要是這一版以上）：`terminal:notify-hold-list` / `-cancel` / `-send-now` 改由共用的 `registerNotifyHoldHandlers`（`electron/notify-hold.ts`）在 Electron main 與 headless 都註冊，加進 `PROXIED_CHANNELS`；事件 `terminal:notify-hold-changed` / `-reminder` 加進 `PROXIED_EVENTS`（headless 的 controller 以 `host.emit` 送出；main 改送所有視窗＋broadcastHub）。回應形狀與 T0788 相同（陣列 / 數字）；helper 權杖呼叫回 `[]` / `0`。renderer `notify-hold-store` 不必改：遠端視窗的呼叫自動路由到它的 bat-server。
