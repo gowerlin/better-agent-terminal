@@ -70,7 +70,7 @@ reminders:
 - 12:27 使用者截圖：待辦分頁 12:24 已送 `U-57：A`（`sent`，選單開著時被打進選單）→ 選單結果「放棄」不可靠：D478 作廢、U-57 / U-58 重問；開 BUG-236（medium，OPEN）；修法方向 U-59（「兩邊都能答」）；本次不開原生選單，改文字＋待辦分頁（D479）
 - 12:31 U-57：A（終端文字）→ `ct-merge/T0964` 再合併 `main`（只多 `_ct-workorders/**`）後 ff，`main` = `ee5d364f`（產品樹 = `511b547e`，未 push）；整合 worktree detach；T0964 worktree 手動移除（`--close-worker --worktree remove` exit 3）；BUG-235 FIXED（D480）
 - 12:32 U-58：A、U-59：A → BUG-236 FIXING；開 T0965（BUG-236：選單開著時 Esc 關選單再送文字）、T0966（「Worker 等你」不算回答），兩張只在 `docs/agent-guide/tower-inbox.md` 重疊（不同段落，接受並行）（D481）
-- 12:34 T0965 / T0966 派工  皆 exit 0：T0965  分頁 ；T0966  分頁 ；base 
+- 12:34 T0965 / T0966 派工 `--mode yolo --no-interactive --isolation worktree --wait-started 30000` 皆 exit 0：T0965 `started: 04:33:55Z` 分頁 `2c447e92…`；T0966 `started: 04:33:58Z` 分頁 `3459f98b…`；base `b389f16c`
 
 ---
 
