@@ -4,13 +4,15 @@ schema_kind: workorder
 id: T0977
 title: "`verify-packaged-native.js` 讀 app.asar 時檢查 `fs.readSync` 回傳的位元組數：讀不足判失敗，不再把缺的部分當成 NUL 內容"
 type: bugfix
-status: PENDING
+status: IN_PROGRESS
 repo: better-agent-terminal
 priority: P3
 sizing: S
 created_at: "2026-11-28T18:01:29+08:00"
-updated_at: "2026-11-28T18:01:29+08:00"
-session_ids: []
+started_at: "2026-11-28T18:04:05+08:00"
+updated_at: "2026-11-28T18:04:05+08:00"
+session_ids:
+  - "d425e529-442e-47de-be15-de60677580d3"
 target_version: "下一個預覽版（`0.8.1-pre.6`，發版前與使用者確認）"
 depends_on: []
 related:
