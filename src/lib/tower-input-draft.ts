@@ -59,14 +59,24 @@ function csiEffect(p: string, f: string): Effect {
 }
 
 /**
- * The draft state after the user sent `data`. Pure; `prev` is not changed.
+ * T0964 / BUG-235: what kind of input made a tab's draft (log only, never the text): `printable` / `tab` /
+ * `newline` / `paste` / `alt-key` / `ss3:A` / `ss3:B` / `csi:<final>` / `csi~:<first param>` / `csi-cut`.
+ * The final byte is 0x40–0x7e and the param only digits, so nothing the user typed is in it.
  */
-export function trackDraft(prev: DraftState, data: string): DraftState {
+export type DraftCause = string
+
+/** The scan `trackDraft` and `draftCause` share; `cause` = the input of the last no-draft → draft step. */
+function scanDraft(prev: DraftState, data: string): DraftState & { cause: DraftCause | null } {
   let { draft, inPaste } = prev
+  let cause: DraftCause | null = null
   let i = 0
-  const apply = (effect: Effect) => {
-    if (effect === 'draft') draft = true
-    else if (effect === 'clear') draft = false
+  const apply = (effect: Effect, kind: () => DraftCause) => {
+    if (effect === 'draft') {
+      if (!draft) cause = kind()
+      draft = true
+    } else if (effect === 'clear') {
+      draft = false
+    }
   }
   while (i < data.length) {
     if (data.startsWith(PASTE_START, i)) {
@@ -82,12 +92,12 @@ export function trackDraft(prev: DraftState, data: string): DraftState {
     const ch = data[i]
     if (inPaste) {
       // the pasted text, its `\r` included, is part of the draft
-      draft = true
+      apply('draft', () => 'paste')
       i += 1
       continue
     }
     if (ch === '\r' || ch === '\x03') {
-      apply('clear')
+      apply('clear', () => '')
       i += 1
       continue
     }
@@ -108,36 +118,56 @@ export function trackDraft(prev: DraftState, data: string): DraftState {
         while (j < data.length && data.charCodeAt(j) >= 0x20 && data.charCodeAt(j) <= 0x3f) j += 1 // params / intermediates
         if (j >= data.length) {
           // a cut-off sequence: count it as a key
-          apply('draft')
+          apply('draft', () => 'csi-cut')
           i = j
           continue
         }
-        apply(csiEffect(data.slice(i + 2, j), data[j]))
+        const params = data.slice(i + 2, j)
+        const final = data[j]
+        apply(csiEffect(params, final), () => final === '~' ? `csi~:${/^\d{1,3}/.exec(params)?.[0] ?? '?'}` : `csi:${final}`)
         i = j + 1
         continue
       }
       if (next === 'O') {
         // SS3: F1–F4 / application cursor keys (A / B = ↑ / ↓)
         const f = data[i + 2]
-        apply(f === 'A' || f === 'B' ? 'draft' : 'none')
+        apply(f === 'A' || f === 'B' ? 'draft' : 'none', () => `ss3:${f}`)
         i += f === undefined ? 2 : 3
         continue
       }
       // Alt + key (Alt+Enter is a new line in claude's input)
-      apply('draft')
+      apply('draft', () => 'alt-key')
       i += 2
       continue
     }
     const code = ch.charCodeAt(0)
     if (ch === '\t' || ch === '\n' || code >= 0x20) {
-      if (code !== 0x7f) apply('draft')
+      if (code !== 0x7f) apply('draft', () => (ch === '\t' ? 'tab' : ch === '\n' ? 'newline' : 'printable'))
       i += 1
       continue
     }
     // other C0 controls (Ctrl+L, Ctrl+D, Backspace 0x08 …): leave it
     i += 1
   }
+  return { draft, inPaste, cause }
+}
+
+/**
+ * The draft state after the user sent `data`. Pure; `prev` is not changed.
+ */
+export function trackDraft(prev: DraftState, data: string): DraftState {
+  const { draft, inPaste } = scanDraft(prev, data)
   return { draft, inPaste }
+}
+
+/**
+ * T0964 / BUG-235 (diagnostics): when `trackDraft(prev, data)` turns "no draft" into "draft", the kind of
+ * input that did it (`DraftCause`); otherwise null. Pure; for the log line only.
+ */
+export function draftCause(prev: DraftState, data: string): DraftCause | null {
+  if (prev.draft || typeof data !== 'string' || data.length === 0) return null
+  const scanned = scanDraft(prev, data)
+  return scanned.draft ? scanned.cause : null
 }
 
 // ── T0940 / BUG-227 案 A: keys that answer a hook / osc prompt ──

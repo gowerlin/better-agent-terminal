@@ -87,6 +87,7 @@ import {
   NO_DRAFT,
   SingleKeyPromptScanner,
   answersSingleKeyPrompt,
+  draftCause,
   trackDraft,
   trackDraftDuringPrompt,
   type DraftState,
@@ -110,6 +111,14 @@ export const NOTIFY_HOLD_DRAFT_REMIND_MS = 5 * 60_000
 export const NOTIFY_HOLD_ATOMIC_MAX_MS = 1_000
 /** T0904: an inbox answer (W5) is one line of at most this many characters. */
 export const NOTIFY_HOLD_ANSWER_MAX_CHARS = 1_000
+/**
+ * T0964 / BUG-235: claude's `user-prompt-submit` clears a contract-2 Tower's draft only when the user sent
+ * nothing to the tab this long before the hook arrived (the hook comes 100–150 ms after claude took the
+ * input box; what the user typed after that must stay a draft).
+ */
+export const NOTIFY_HOLD_SUBMIT_QUIET_MS = 300
+/** T0964: …nor an Enter of the user's this long before it (that Enter itself submitted; what follows is new). */
+export const NOTIFY_HOLD_SUBMIT_ENTER_GUARD_MS = 2_000
 
 /** The `blocked` reasons that hold (a prompt in the tab waits for a key). */
 export const NOTIFY_HOLD_REASONS: readonly string[] = ['permission', 'question', 'elicitation', 'input']
@@ -158,6 +167,8 @@ export interface NotifyHoldDeps {
   mirrorToBatScripts?(event: string, payload: Record<string, unknown>): void
   /** Tests. Default `Date.now`. */
   now?(): number
+  /** T0964: the clock of the submit windows. Default `now` when given (tests), else `performance.now()`. */
+  monotonicNow?(): number
   /** Tests. Default `setTimeout` (unref'd) / `clearTimeout`. */
   setTimer?(fn: () => void, ms: number): unknown
   clearTimer?(handle: unknown): void
@@ -240,12 +251,17 @@ export class NotifyHoldController {
   private readonly atomics = new Map<string, AtomicWindow>()
   /** T0940 案 B: per contract-2 Tower, claude's single-key survey seen in its output. */
   private readonly singleKey = new SingleKeyPromptScanner()
+  /** T0964: per tab, when the user last sent anything / an Enter (`monotonicNow`). */
+  private readonly lastInputAt = new Map<string, number>()
+  private readonly lastEnterAt = new Map<string, number>()
   private seq = 0
   private disposed = false
   private readonly now: () => number
+  private readonly monotonicNow: () => number
 
   constructor(private readonly deps: NotifyHoldDeps) {
     this.now = deps.now ?? (() => Date.now())
+    this.monotonicNow = deps.monotonicNow ?? deps.now ?? (() => performance.now())
   }
 
   // ── intake (electron/handlers/pty.ts, electron/handlers/terminal.ts) ──
@@ -338,6 +354,13 @@ export class NotifyHoldController {
     const pm = this.deps.getPtyManager()
     if (this.disposed || !pm || !pm.isAlive(targetId)) return { ok: false, reason: 'pty-not-found' }
     if (!this.isContractTower(targetId)) return { ok: false, reason: 'not-contract-tower' }
+    // T0964 / BUG-235: the same line already waits in this tab's queue (its text not sent yet) → not
+    // queued twice; answered as held, the item already there (a resend after it went out is not caught)
+    const waiting = this.queues.get(targetId)?.items.find(item => item.kind === 'answer' && !item.textSent && item.text === text)
+    if (waiting) {
+      this.deps.logger.log(`[notify-hold] answer duplicate ${describe(waiting)} holdId=${waiting.holdId} len=${text.length} (already held)`)
+      return { ok: true, held: true, holdId: waiting.holdId }
+    }
     const hold = this.holdReason(null, targetId, 'answer', 'answer')
     const queue = this.queueOf(targetId)
     if (queue.items.length >= NOTIFY_HOLD_MAX_PER_TARGET) {
@@ -398,6 +421,13 @@ export class NotifyHoldController {
       }
       if (next.draft || next.inPaste) this.drafts.set(id, next)
       else this.drafts.delete(id)
+      // T0964 / BUG-235 (diagnostics): what made the draft — a kind and a length, never the text
+      if (!prev.draft && next.draft) {
+        this.deps.logger.log(`[notify-hold] draft set terminal=${id} cause=${draftCause(prev, data) ?? 'unknown'} bytes=${data.length}${opts.duringPrompt ? ' (during prompt)' : ''}`)
+      }
+      const at = this.monotonicNow()
+      this.lastInputAt.set(id, at)
+      if (!prev.inPaste && data.includes('\r')) this.lastEnterAt.set(id, at)
     }
     const queue = this.queues.get(id)
     if (!queue) return
@@ -406,6 +436,31 @@ export class NotifyHoldController {
       queue.quietTimer = null
     }
     this.schedule(id)
+  }
+
+  /**
+   * T0964 / BUG-235: claude took the input box of tab `id` (an applied `user-prompt-submit` hook,
+   * PtyManager `onUserPromptSubmit`). A contract-2 Tower's draft typed before that is gone from the input
+   * box, so it no longer holds anything — unless the user sent anything in the last
+   * `NOTIFY_HOLD_SUBMIT_QUIET_MS`, or an Enter in the last `NOTIFY_HOLD_SUBMIT_ENTER_GUARD_MS` (the hook
+   * may come after what the user typed next; BAT cannot order the two, so then the draft is kept). Other
+   * tabs, a paste still open, no draft: nothing changes.
+   */
+  onPromptSubmitted(id: string): void {
+    if (this.disposed || typeof id !== 'string') return
+    const state = this.drafts.get(id)
+    if (!state?.draft || state.inPaste || !this.isContractTower(id)) return
+    const now = this.monotonicNow()
+    const sinceInput = now - (this.lastInputAt.get(id) ?? -Infinity)
+    const lastEnter = this.lastEnterAt.get(id)
+    const sinceEnter = lastEnter === undefined ? Infinity : now - lastEnter
+    if (sinceInput < NOTIFY_HOLD_SUBMIT_QUIET_MS || sinceEnter < NOTIFY_HOLD_SUBMIT_ENTER_GUARD_MS) {
+      this.deps.logger.log(`[notify-hold] draft kept terminal=${id} (user-prompt-submit; input ${Math.round(sinceInput)} ms / Enter ${Number.isFinite(sinceEnter) ? Math.round(sinceEnter) : 'none'} ms before)`)
+      return
+    }
+    this.drafts.delete(id)
+    this.deps.logger.log(`[notify-hold] draft cleared terminal=${id} (user-prompt-submit)`)
+    if (this.queues.has(id)) this.schedule(id)
   }
 
   /**
@@ -552,6 +607,8 @@ export class NotifyHoldController {
     }
     this.atomics.clear()
     this.drafts.clear()
+    this.lastInputAt.clear() // T0964
+    this.lastEnterAt.clear()
     this.readers.clear()
     this.singleKey.clear()
   }
@@ -892,6 +949,8 @@ export class NotifyHoldController {
   /** The PTY is gone: its draft, readers and atomic window too (nothing kept is written). */
   private forgetTab(id: string): void {
     this.drafts.delete(id)
+    this.lastInputAt.delete(id) // T0964
+    this.lastEnterAt.delete(id)
     this.readers.delete(id)
     this.singleKey.forget(id)
     const atomic = this.atomics.get(id)

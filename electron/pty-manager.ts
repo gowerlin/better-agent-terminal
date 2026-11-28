@@ -315,6 +315,11 @@ export interface PtyManagerDeps {
    */
   onPtyOutput?: (id: string, data: string) => void
   /**
+   * T0964 / BUG-235: an applied claude `user-prompt-submit` hook report of running PTY `id` (claude took
+   * its input box) — NotifyHoldController `onPromptSubmitted`. A throwing listener is logged and ignored.
+   */
+  onUserPromptSubmit?: (id: string) => void
+  /**
    * PLAN-047 / T0576: the PTYs that survived on the Terminal Server — called with the T0108
    * replay list (`pty:list` after a reconnect; ids registered from it are running) and with `[]`
    * when the Terminal Server died (T0112 recovery: no earlier PTY survives; the rebuilt ones are
@@ -1360,7 +1365,15 @@ export class PtyManager implements CloseWorkerPtyManager {
    */
   reportHookEvent(id: string, event: HookReportEvent, toolName?: string, sessionId?: string, agentId?: string, at?: bigint): { result: HookReportResult; state: BlockedState | null } | null {
     if (!this.instances.has(id)) return null
-    return this.blockedTracker.report(id, event, toolName, sessionId, agentId, at)
+    const outcome = this.blockedTracker.report(id, event, toolName, sessionId, agentId, at)
+    if (event === 'user-prompt-submit' && this.deps.onUserPromptSubmit) {
+      try {
+        this.deps.onUserPromptSubmit(id) // T0964
+      } catch (e) {
+        logger.warn(`[PtyManager] onUserPromptSubmit listener failed id=${id}:`, e)
+      }
+    }
+    return outcome
   }
 
   /**

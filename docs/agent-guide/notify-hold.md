@@ -45,7 +45,9 @@ CT 已回覆（BMad-Guide `_reply-2026-11-02-bat-notify-hold-contract.md`，CT D
 
 T0940（BUG-227，D406）：`draft` 不再把「不進輸入框的按鍵」記成草稿——hook / osc 提示期間的單一按鍵不改變草稿狀態（不設、不清；貼上與多字元照舊），以及契約 2 塔台輸出中出現 claude 單鍵調查列（圖例比對，經 `onPtyOutput` 只讀）後剛好按一個有效鍵；判不出來照舊保留。規則、條件、殘留誤判見 [tower-inbox.md](tower-inbox.md)「不進輸入框的按鍵」。T0788 的保留（上表 10 點）不受影響。
 
-常數（同檔）：`NOTIFY_HOLD_READING_MAX_MS` 60 s、`NOTIFY_HOLD_DRAFT_REMIND_MS` 5 分鐘、`NOTIFY_HOLD_ATOMIC_MAX_MS` 1 s、`NOTIFY_HOLD_ANSWER_MAX_CHARS` 1,000。
+常數（同檔）：`NOTIFY_HOLD_READING_MAX_MS` 60 s、`NOTIFY_HOLD_DRAFT_REMIND_MS` 5 分鐘、`NOTIFY_HOLD_ATOMIC_MAX_MS` 1 s、`NOTIFY_HOLD_ANSWER_MAX_CHARS` 1,000、`NOTIFY_HOLD_SUBMIT_QUIET_MS` 300 ms、`NOTIFY_HOLD_SUBMIT_ENTER_GUARD_MS` 2 s（T0964）。
+
+T0964（BUG-235）：閒置塔台的回答被 `draft` 擋住、要等使用者下一次送出才送達。原因查證、修正（claude `user-prompt-submit` 時清掉送出前的草稿，送出後打的字不清）、診斷日誌與相同回答去重，見 [tower-inbox.md](tower-inbox.md)「claude 取走輸入框時清掉草稿」。
 
 ## 實作位置
 
@@ -67,6 +69,10 @@ T0940（BUG-227，D406）：`draft` 不再把「不進輸入框的按鍵」記�
 [notify-hold] dropped terminal=<塔台> source=<…> reason=held-full (<r>) len=<n> max=8
 [notify-hold] skipped (detection none) terminal=<塔台> source=<…> channel=pty:write|terminal:keypress
 [remote][terminal] ipc-result channel=terminal:keypress result=held target=<塔台> trace=<id>
+[notify-hold] draft set terminal=<分頁> cause=<類別> bytes=<n>[ (during prompt)]      ← T0964，不記內容
+[notify-hold] draft cleared terminal=<塔台> (user-prompt-submit)                     ← T0964
+[notify-hold] draft kept terminal=<塔台> (user-prompt-submit; input <ms> ms / Enter <ms|none> ms before)
+[notify-hold] answer duplicate terminal=<塔台> source=answer holdId=<id> len=<n> (already held)
 ```
 
 `dropped` 的原因：`pty-ended`、`server-recovery`、`write-failed:<reason>`、`no-receiver`（headless 沒有 client）、`held-full`。
