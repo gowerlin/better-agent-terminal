@@ -4,11 +4,11 @@ summary_version: 1
 bat_contract: 2
 ct_version: "6.3.0"
 inbox_features: ["recommended", "dismiss", "multi"]
-updated_at: "2026-11-28T16:06:36+0800"
+updated_at: "2026-11-28T16:11:43+0800"
 session: "2026-11-28 11:59 第一百四十 session 塔台重新開工（CT v6.3.0，BAT 0.8.1-pre.3）"
 next_ids:
-  workorder: "T0976"
-  decision: "D509"
+  workorder: "T0977"
+  decision: "D510"
   bug: "BUG-238"
   plan: "PLAN-071"
   user: "U-70"
@@ -20,7 +20,7 @@ user_actions:
     kind: "verify"
     created_at: "2026-11-28T14:01:43+08:00"
 todo:
-  - "CT 6.4.0-pre.2 定稿（CT T0585，CT D934；CT BUG-006 重複鍵 FIXED）→ BAT T0974（HR-1 補跑＋ CT v642 範例 / 重複鍵 fixture）派工中；收單後通知 CT 開判定單（D505）"
+  - "CT 6.4.0-pre.2：BAT T0974 DONE（HR-1 BAT 端 PASS、22 份快照合法；fixture＋測試）→ 已通知 CT 開判定單；合併工單 T0976 派工中（D509）"
   - "🟡 BUG-235（medium，FIXED，D508）：T0972 經 T0975 合併進 `main` `7d2e571d`；發 `0.8.1-pre.5` 後以已信任工作區重跑 R2（A-26）確認後 CLOSED"
   - "✅ T0973（T0970 e2e 驅動）合併進 `main` `8de1e2d1`（D505）"
   - "✅ BUG-236 CLOSED（D496）；🟢 BUG-237 FIXED（T0971 合併進 `main` `6a7b90e8`，D502），隨 `0.8.1-pre.5` 實機確認；T0971 worktree 目錄殘留（`Invalid argument`）待手動刪"
@@ -128,6 +128,7 @@ reminders:
 - 16:01 T0975 派工（整合 worktree，`--mode yolo --no-interactive --wait-started 30000`）exit 0，`started: 08:01:39Z`，分頁 `af6b874c…`
 - 16:05 T0975 DONE（模式 ①，merge `b04ed2e9`，parent1 `e54da6ff`、parent2 `c1abe148`；只有 T0972 的 5 檔；test:unit 9625 passed / 532 files、typecheck 0 / 0、build 0；T0972 段落 29 / 29）；收單 `--close-worker` exit 0；斷點 E → U-69（D507）
 - 16:06 U-69：A（原生選單）→ `ct-merge/T0972` 再合併 `main`（只多 `_ct-workorders/**`）後 ff，`main` = `7d2e571d`（產品樹 = `b04ed2e9`，未 push）；整合 worktree detach、T0972 worktree 移除；BUG-235 FIXED（D508）
+- 16:11 T0974 DONE（A：S5 / HR-1 BAT 端 HR-1-1／-2／-4 PASS、HR-1-3 22／22 份 CF exit 0、js-yaml 0 失敗，塔台一個 Edit 同時寫 `awaiting_user` 與 `menu_open`；B：CT v642 範例＋5 份重複鍵樣本 `cmp` 相同進 fixture，9 個測試；test:unit 9622 passed）；收單 `--close-worker --worktree keep` exit 0；判準 1（T0972）不成立 → 合併工單 T0976（D509）
 
 ---
 
