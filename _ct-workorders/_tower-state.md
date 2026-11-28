@@ -4,17 +4,17 @@ summary_version: 1
 bat_contract: 2
 ct_version: "6.3.0"
 inbox_features: ["recommended", "dismiss", "multi"]
-updated_at: "2026-11-28T12:55:19+0800"
+updated_at: "2026-11-28T13:14:05+0800"
 session: "2026-11-28 11:59 第一百四十 session 塔台重新開工（CT v6.3.0，BAT 0.8.1-pre.3）"
 next_ids:
-  workorder: "T0968"
-  decision: "D492"
+  workorder: "T0969"
+  decision: "D493"
   bug: "BUG-237"
   plan: "PLAN-071"
   user: "U-63"
   action: "A-26"
 todo:
-  - "CT 協調（D482 / D484 / D487）：CT 已核定（ACCEPTED，CT D926）：`menu_open: { ids, opened_at }` 只在開選單前那次寫入、被 Esc 關掉的選單不重開、`inbox_features` 加 `menu`；CT T0582（6.4.0-pre.1）派工中，收單後傳規範「檔:行」與範例狀態檔 → BAT 開 `menu_open` 讀取工單（加嚴條件＋以 `opened_at` 對 blocked 開始時間防殘留；一併評估只剩選單紀錄時的 Worker 通知）"
+  - "CT 協調（D482–D492）：CT T0582 DONE（CT 6.4.0-pre.1 定稿、只打包；CT D927），規範位置與 fixture 已收 → BAT T0968（讀 `menu_open`、Worker 通知在選單紀錄開著時保留、待辦分頁提示）派工中"
   - "🟡 BUG-235（medium，D476–D480）：T0964 合併進 `main` `ee5d364f`（未 push），FIXED；發 `0.8.1-pre.4` 後實機＋診斷日誌確認才 CLOSED"
   - "🟡 BUG-236（medium，FIXED，D479–D489）：T0965 經 T0967 合併進 `main` `8a1c1318`（未 push）；發 `0.8.1-pre.4` 後實機（T0965〈待實機〉）確認才 CLOSED"
   - "候選（未開單，T0965 建議）：只剩選單紀錄（`question` 已被清除）時 Worker 通知仍照舊直接寫入，可能打進開著的選單；待 CT `menu_open`（D484）工單一起評估"
@@ -85,6 +85,7 @@ reminders:
 - 12:53 U-61：A → `ct-merge/T0965` 再合併 `main`（只多 `_ct-workorders/**`）後 ff，`main` = `8a1c1318`（產品樹 = `84f8c900`，未 push）；整合 worktree detach；T0965 worktree 移除；BUG-236 FIXED（D489）
 - 12:53 U-62 收到提問「本版會配合 CT 修改嗎?」→ 不會（`main` 未含 `menu_open` 讀取）；U-62 改問發版時機（A 等 CT 與 BAT 讀取單一起發，推薦 / B 現在先發）（D490）
 - 12:55 使用者：「等配合CT修改的版本完成再一起發版」= U-62：A → 等 CT T0582 回傳規範位置後開 BAT `menu_open` 讀取單，完成後再問發 `0.8.1-pre.4`（D491）
+- 13:14 CT 塔台：T0582 DONE（CT D927），傳 `menu_open` 規範位置（CT `7fee085`）、4 個範例狀態檔、CT 補定三點 → 開 T0968（D492）
 
 ---
 

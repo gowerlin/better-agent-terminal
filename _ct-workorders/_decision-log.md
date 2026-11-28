@@ -10,6 +10,7 @@
 
 | ID | 日期 | 標題 | 相關工單 |
 |----|------|------|---------|
+| D492 | 2026-11-28 | CT T0582 DONE（6.4.0-pre.1）→ 開 T0968 讀 `menu_open`（含選單紀錄開著時保留 Worker 通知） | T0968 / BUG-236 |
 | D491 | 2026-11-28 | U-62：A → `0.8.1-pre.4` 等 CT 6.4.0-pre.1 與 BAT `menu_open` 讀取單完成後一起發 | BUG-235 / BUG-236 |
 | D490 | 2026-11-28 | U-62 回覆為提問（本版是否配合 CT）→ 改問發版時機 | BUG-236 |
 | D489 | 2026-11-28 | U-61：A → T0965 ff 進 `main` `8a1c1318`；BUG-236 FIXED | T0967 / T0965 / BUG-236 |
@@ -609,6 +610,15 @@
   4. PLAN-001 保持延後（🟢 Low，等 plugin 1.0 穩定）
 - **Success criteria**（EXP→CONCLUDED）：npm install 無錯 / 所有 native modules rebuild 成功 / dev+build:dir 可跑 / 手動 smoke test 8 項通過
 - **最大風險**：`whisper-node-addon@1.0.2` 對 Electron 41（Node 24）的 NODE_MODULE_VERSION 相容性未知，允許 Worker 遇此決策點主動問塔台
+
+---
+
+### D492 2026-11-28 13:14 — CT 6.4.0-pre.1 定稿，開 T0968
+
+- **來源**：跨 session 訊息（`BMad-Guide · Tower`）：CT T0582 DONE（CT D927），CT 6.4.0-pre.1 只打包不安裝；傳 `memory-protocol.md` / `check-frontmatter.py` 各項行號（CT `7fee085`）、4 個範例狀態檔、CT 補定三點（新選單第一題開頭寫「選單已關閉，仍待決」；`ids` 只列開進選單的題；下一個選單前的寫入只寫新選單 `ids`）、H-1～H-14 驗收建議。
+- **T0968**：renderer 解析 `menu_open`（`inbox_features` 含 `menu` 才用）並以選用參數帶給 `tower-inbox:answer`；主行程只對「在 `ids` 且 `opened_at` 對得上選單紀錄」的 U-n 走 T0965 Esc 流程，其他保留到選單關閉；舊 renderer / 舊 CT = T0965。同單處理 T0965 建議：選單紀錄開著時 Worker 通知也保留（殘留風險評估，需逾時就問塔台）。待辦分頁該題旁加提示行。CT fixture 複製進 BAT 測試 fixture。
+- **發版**：T0968 合併後依 D491 問發 `0.8.1-pre.4`；README 的 BAT ↔ CT 版本對照發版時處理。
+- **相關**：D484 / D487 / D491 / BUG-236 / T0965
 
 ---
 
