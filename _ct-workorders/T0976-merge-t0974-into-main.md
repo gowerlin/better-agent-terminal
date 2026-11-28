@@ -4,12 +4,14 @@ schema_kind: workorder
 id: T0976
 title: "合併 `ct/T0974`（CT 6.4.0-pre.2 範例與重複鍵 fixture＋解析測試）→ `main`"
 type: chore
-status: PENDING
+status: DONE
 repo: better-agent-terminal
 priority: P3
 sizing: S
 created_at: "2026-11-28T16:11:43+0800"
-updated_at: "2026-11-28T16:11:43+0800"
+started_at: "2026-11-28T16:12:55+0800"
+updated_at: "2026-11-28T16:15:56+0800"
+completed_at: "2026-11-28T16:15:56+0800"
 target_version: "下一個預覽版（`0.8.1-pre.5`）"
 kind: merge
 merges:
@@ -24,6 +26,8 @@ related:
 affects_files:
   - _ct-workorders/T0976-merge-t0974-into-main.md
 renew_count: 0
+session_ids:
+  - "e22750e8-b197-4cd2-b995-213e383e1847"
 worker_question_timeout: 30
 interaction:
   mode_hint: yolo
@@ -58,4 +62,69 @@ T0974（CT 6.4.0-pre.2 補跑＋fixture）只新增 9 檔：`src/lib/__tests__/t
 
 ## 回報區
 
-（Worker 填寫）
+### 完成狀態
+
+- **狀態**：DONE（模式 ① `mechanical`，無衝突）
+- **完成時間**：2026-11-28T16:15:56+0800
+- **session_id**：e22750e8-b197-4cd2-b995-213e383e1847
+
+### 落點檢查
+
+- **結果**：PASS
+- C-0：`repo` = `better-agent-terminal`，`basename(REPO_ROOT)` = `better-agent-terminal` → PASS
+- C-1：工單在主 checkout `_ct-workorders/` 下 → PASS
+- C-3：`affects_files` 只有本工單（`_ct-workorders/` 排除）→ 不適用
+- C-2：工單無 `branch` 欄位；主 checkout 在 `main`
+- `CT_HOME` 未設（非隔離派工）；`BAT_WORKSPACE_ID` = `cc0afc4a-57e9-4f41-b2ed-a2d8bac9e36b`；`CT_MODE` = `yolo`
+
+### 合併結果
+
+| 項目 | 值 |
+|---|---|
+| 整合 worktree | `integration_worktree`（`.ct-integration/better-agent-terminal`），開工時乾淨、detached 於 `7d2e571d` |
+| 合併分支 | `ct-merge/T0974`（新建，自 `base_main_sha`） |
+| `base_main_sha` | `804b04c0f68def6aeeb0c225fc1334c40a442d2c` |
+| `ct/T0974` | `5410c5979cd1696310a098e75f217cf8b7bed7f8`（= 工單指定值） |
+| merge commit | `7cadec9dc9fb067dfea5ddab855a4d1b5c86353c` |
+| parent1 | `804b04c0f68def6aeeb0c225fc1334c40a442d2c`（= `base_main_sha`） |
+| parent2 | `5410c5979cd1696310a098e75f217cf8b7bed7f8`（= `ct/T0974`） |
+| 衝突 | 無（`ort` 策略直接完成） |
+| 驗收時 HEAD | `7cadec9dc9fb067dfea5ddab855a4d1b5c86353c`（= merge commit） |
+| 驗收後整合 worktree | `status --porcelain` 為空 |
+
+- 開工時 `main` = `d26e13fc`，回報時 `main` = `84b28ea0`；`git diff --name-only 804b04c0 main` 只有 `_ct-workorders/**`（`T0974-…`、`T0976-…`、`_decision-log.md`、`_tower-state.md`），符合步驟 1 條件。ff 前請塔台依〈收單 SHA 比對五步〉第 5 步處理（parent1 ≠ 目前 `main`，但差異只在 `_ct-workorders/**`）。
+
+### 驗收
+
+- [x] 樹比對：`git diff --name-only 804b04c0 7cadec9d` = 9 檔，與 `git diff --name-only c56a595d ct/T0974` 完全相同；**範圍外檔案：無**。
+  - 附註：背景寫「只新增 9 檔」，實際 `src/types/__tests__/fixtures/ct-tower-state-v642/README.md` 是**修改**（+10 −11，該檔在 base 已存在），其餘 8 檔是新增；仍全屬 T0974 的變更。
+- [x] `npm ci` exit 0（結尾 `electron-winstaller` install script 被擋的警告屬預期，見 CLAUDE.md「本機開發：npm 12 install scripts」）。
+- [x] `npm run typecheck` exit 0（0 錯誤）。
+- [x] `npm run typecheck:electron` exit 0（0 錯誤）。
+- [x] `npx vite build` exit 0。
+- [x] `npm run test:unit` 第一次完整執行即綠：Test Files **533 passed | 3 skipped (536)**，Tests **9634 passed | 41 skipped (9675)**，Duration 69.70 s。
+- [x] `tower-state-ct642-fixtures-t0974.test.ts`：在 `test.include`（`src/**/*.test.{ts,tsx}`）內，完整執行時一併收錄；預設 reporter 不列通過檔名，另以 `npx vitest run <該檔> --reporter=verbose` 確認 **9 / 9 passed**（只為確認檔名，不是失敗後重跑）。
+- [x] e2e 不跑（依工單）。
+
+### 變更檔案
+
+- 主 checkout：只有本工單檔。
+- 整合 worktree：分支 `ct-merge/T0974` 多一個 merge commit `7cadec9d`；沒有其他 commit。
+
+### Commit
+
+- 產品：merge commit `7cadec9d`（在整合 worktree 的 `ct-merge/T0974`）。
+- 工單：`git -C <主 checkout> commit --only _ct-workorders/T0976-merge-t0974-into-main.md`（本回報）。
+- 未 ff `main`、未 push、未建 tag、未刪分支；整合 worktree 停在 `ct-merge/T0974`（留給塔台 ff）。
+
+### 遭遇問題
+
+- 無。
+
+### 互動紀錄
+
+- 無（yolo，未提問）。
+
+### 後續建議
+
+- 塔台：〈收單 SHA 比對五步〉→ 第 5 步（`main` 自 `804b04c0` 起只多 `_ct-workorders/**`，在整合分支再 `merge --no-ff main` 一次後 ff，產品樹不變、不必重跑驗收）→ 斷點 E → `--ff-only` → 整合 worktree `switch --detach`。
