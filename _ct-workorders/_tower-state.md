@@ -130,6 +130,7 @@ reminders:
 - 16:06 U-69：A（原生選單）→ `ct-merge/T0972` 再合併 `main`（只多 `_ct-workorders/**`）後 ff，`main` = `7d2e571d`（產品樹 = `b04ed2e9`，未 push）；整合 worktree detach、T0972 worktree 移除；BUG-235 FIXED（D508）
 - 16:11 T0974 DONE（A：S5 / HR-1 BAT 端 HR-1-1／-2／-4 PASS、HR-1-3 22／22 份 CF exit 0、js-yaml 0 失敗，塔台一個 Edit 同時寫 `awaiting_user` 與 `menu_open`；B：CT v642 範例＋5 份重複鍵樣本 `cmp` 相同進 fixture，9 個測試；test:unit 9622 passed）；收單 `--close-worker --worktree keep` exit 0；判準 1（T0972）不成立 → 合併工單 T0976（D509）
 - 16:12 T0976 派工（整合 worktree，`--mode yolo --no-interactive --wait-started 30000`）exit 0，`started: 08:12:31Z`，分頁 `db954a9c…`；已通知 CT 塔台開 HR-1 判定單
+- 16:13 CT 塔台：收到 T0974 結果（CT D935），HR-1 判定單 CT T0586（唯讀）16:13 派工：§ 4 判定、V642 CF 重跑 S5-writes、3 點觀察分析、6.4.0 正式版前結論；收單後通知判定與正式版時程
 
 ---
 
