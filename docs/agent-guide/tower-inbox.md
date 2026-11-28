@@ -193,7 +193,8 @@
 
 - 契約 2 塔台的 claude 回報 `user-prompt-submit` hook（輸入框剛被 claude 取走，PtyManager deps `onUserPromptSubmit` → `NotifyHoldController.onPromptSubmitted`；`electron/main.ts` / `electron/remote/headless-entry.ts` 與 `onPtyOutput` 同處接線）→ 清掉在那之前的草稿，被草稿擋住的通知 / 回答照常（安靜 1 s 後）送出。
 - 🔴 送出之後才打的字不得清：hook 比 claude 取走輸入框晚到（實測 100–150 ms），BAT 不拿主行程時間與 hook 的 `at` 比（T0926 規則），改以主行程單調時鐘判斷——hook 到達前 `NOTIFY_HOLD_SUBMIT_QUIET_MS` = 300 ms 內有任何使用者輸入、或 `NOTIFY_HOLD_SUBMIT_ENTER_GUARD_MS` = 2 s 內有使用者的 Enter（那個 Enter 自己就是這次送出，之後打的字是新的）→ 草稿保留，記 `[notify-hold] draft kept …`。取捨：hook 晚到超過 2 s 且使用者在 Enter 後 300 ms 以外才打字時會誤清（把通知接到那些字後面）；量不到發生率。
-- 不清的情況：非契約 2 塔台、括號貼上還沒結束、本來就沒有草稿（不記日誌）。codex 沒有 `user-prompt-submit` hook，行為不變。
+- 不清的情況：括號貼上還沒結束、本來就沒有草稿（不記日誌）。codex 沒有 `user-prompt-submit` hook，行為不變。
+- 宣告契約前送出的回合（T0972 / D503 ①）：T0964 原本只清契約 2 塔台的草稿，但「以塔台開啟 Claude」的啟動參數回合（`/control-tower`）的 `user-prompt-submit` 一定比同一回合的 `--set-role tower --bat-contract 2` 早（實測約 64 s），當下分頁還不是契約 2 塔台 → 草稿留著 → 回合結束後第一筆回答 `held … reason=draft`（T0970 交付版 `0.8.1-pre.4` R2 FAIL，B3 時序：草稿 F12 → 357 ms → submit → 宣告契約 2 → 回答被擋）。T0972 起**所有分頁**都清（上面的 300 ms / 2 s 條件與括號貼上規則不變），日誌在非契約 2 分頁多註 `(user-prompt-submit; not a contract-2 Tower yet)`；只有契約 2 塔台重新排程佇列。不影響其他分頁：`draft` 只有契約 2 塔台讀（`holdReason`、`headHold`、`considerMenuEsc` 都先判 `isContractTower`；`onUserInput` 讀前一個狀態只決定下一個狀態與 `draft set` 日誌；renderer 沒有讀者）。送出後才打的字照舊保留到宣告之後。
 - 只涵蓋「草稿在送出之前就設了」：回合進行中按的鍵（且之後沒有 Enter / 送出）照舊保留，靠「立即送出」或下一次送出。
 - 診斷：草稿由無變有時記 `[notify-hold] draft set terminal=<id> cause=<類別> bytes=<n>[ (during prompt)]`，類別（`draftCause`，`src/lib/tower-input-draft.ts`）：`printable` / `tab` / `newline` / `paste` / `alt-key` / `ss3:A|B` / `csi:<final>` / `csi~:<第一個參數>` / `csi-cut`；🔴 不記內容。下次再發生時以這行定位來源。
 - 去重：同一塔台的待送佇列已有**完全相同**、文字還沒送出的回答行 → 不再排入，回 `{ ok: true, held: true, holdId: <既有那筆> }`（畫面照舊「已排入待送」），記 `[notify-hold] answer duplicate … holdId=<id> len=<n> (already held)`；已送出之後的「重新送出」照 T0942 / D412 不攔。

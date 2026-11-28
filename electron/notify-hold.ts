@@ -136,7 +136,7 @@ export const NOTIFY_HOLD_ATOMIC_MAX_MS = 1_000
 /** T0904: an inbox answer (W5) is one line of at most this many characters. */
 export const NOTIFY_HOLD_ANSWER_MAX_CHARS = 1_000
 /**
- * T0964 / BUG-235: claude's `user-prompt-submit` clears a contract-2 Tower's draft only when the user sent
+ * T0964 / BUG-235: claude's `user-prompt-submit` clears a tab's draft (T0972: any tab) only when the user sent
  * nothing to the tab this long before the hook arrived (the hook comes 100–150 ms after claude took the
  * input box; what the user typed after that must stay a draft).
  */
@@ -544,16 +544,21 @@ export class NotifyHoldController {
 
   /**
    * T0964 / BUG-235: claude took the input box of tab `id` (an applied `user-prompt-submit` hook,
-   * PtyManager `onUserPromptSubmit`). A contract-2 Tower's draft typed before that is gone from the input
-   * box, so it no longer holds anything — unless the user sent anything in the last
-   * `NOTIFY_HOLD_SUBMIT_QUIET_MS`, or an Enter in the last `NOTIFY_HOLD_SUBMIT_ENTER_GUARD_MS` (the hook
-   * may come after what the user typed next; BAT cannot order the two, so then the draft is kept). Other
-   * tabs, a paste still open, no draft: nothing changes.
+   * PtyManager `onUserPromptSubmit`). The draft typed before that is gone from the input box, so it no
+   * longer holds anything — unless the user sent anything in the last `NOTIFY_HOLD_SUBMIT_QUIET_MS`, or an
+   * Enter in the last `NOTIFY_HOLD_SUBMIT_ENTER_GUARD_MS` (the hook may come after what the user typed next;
+   * BAT cannot order the two, so then the draft is kept). A paste still open, no draft: nothing changes.
+   *
+   * T0972 (D503 ①): every tab, not only a contract-2 Tower — the launch-prompt turn (`/control-tower`) submits
+   * about a minute before the Tower declares `--set-role tower --bat-contract 2`, and the draft typed before
+   * it used to stay and hold the first inbox answer. Only a contract-2 Tower reads the draft (`holdReason`,
+   * `headHold`, `considerMenuEsc` all check `isContractTower` first), so clearing it in any other tab changes
+   * nothing there; the queue is rescheduled for a contract-2 Tower only (as before).
    */
   onPromptSubmitted(id: string): void {
     if (this.disposed || typeof id !== 'string') return
     const state = this.drafts.get(id)
-    if (!state?.draft || state.inPaste || !this.isContractTower(id)) return
+    if (!state?.draft || state.inPaste) return
     const now = this.monotonicNow()
     const sinceInput = now - (this.lastInputAt.get(id) ?? -Infinity)
     const lastEnter = this.lastEnterAt.get(id)
@@ -563,8 +568,9 @@ export class NotifyHoldController {
       return
     }
     this.drafts.delete(id)
-    this.deps.logger.log(`[notify-hold] draft cleared terminal=${id} (user-prompt-submit)`)
-    if (this.queues.has(id)) this.schedule(id)
+    const tower = this.isContractTower(id)
+    this.deps.logger.log(`[notify-hold] draft cleared terminal=${id} (user-prompt-submit${tower ? '' : '; not a contract-2 Tower yet'})`)
+    if (tower && this.queues.has(id)) this.schedule(id)
   }
 
   /**

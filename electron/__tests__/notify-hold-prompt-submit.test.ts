@@ -7,7 +7,9 @@
  *     contract-2 Tower's draft typed before it — the input box was just taken — and a held answer goes
  *   - never what the user typed after the submit: no input in the `NOTIFY_HOLD_SUBMIT_QUIET_MS` before the
  *     hook and no Enter in the `NOTIFY_HOLD_SUBMIT_ENTER_GUARD_MS` before it, else the draft is kept
- *   - other tabs, an open paste: unchanged
+ *   - an open paste: unchanged
+ *   - T0972 (D503 ①): any tab, not only a contract-2 Tower — the launch-prompt turn submits before the
+ *     Tower declares contract 2 (T0970 B3); only a contract-2 Tower reads the draft
  *   - the same answer line already waiting is not queued twice (answered `held`, the same item)
  *   - `[notify-hold] draft set … cause=<kind> bytes=<n>`: a kind and a length, never the text
  */
@@ -146,16 +148,27 @@ describe('BUG-235: user-prompt-submit clears a draft typed before it', () => {
     expect(controller.hasDraft('tower')).toBe(true)
   })
 
+  // T0972 (塔台裁示 D503 / Q-1): before T0972 the draft of these tabs was left as it was (`hasDraft` stayed
+  // true). Only a contract-2 Tower reads the draft, so it is now cleared in them too: nothing kept, no queue
+  // scheduled, and declaring contract 2 later does not find it.
   it.each([
     ['a v1 Tower', (pm: FakeManager) => { pm.contract.set('tower', 1) }],
     ['not a Tower', (pm: FakeManager) => { pm.role.delete('tower') }],
-  ])('%s: the draft state is left as it was', (_name, arrange) => {
-    const { controller, pm, userTypes } = setup()
+  ])('%s: the draft is cleared too (T0972, D503 / Q-1); nothing kept or scheduled; a later contract-2 declaration does not find it', (_name, arrange) => {
+    const { controller, pm, userTypes, lines } = setup()
     arrange(pm)
     userTypes('typed')
     vi.advanceTimersByTime(NOTIFY_HOLD_SUBMIT_ENTER_GUARD_MS)
     controller.onPromptSubmitted('tower')
-    expect(controller.hasDraft('tower')).toBe(true)
+    expect(controller.hasDraft('tower')).toBe(false)
+    expect(lines).toContain('[notify-hold] draft cleared terminal=tower (user-prompt-submit; not a contract-2 Tower yet)')
+    expect(lines.some(l => l.startsWith('[notify-hold] draft kept'))).toBe(false)
+    expect(controller.count('tower')).toBe(0)
+    expect(vi.getTimerCount()).toBe(0)
+    pm.role.set('tower', 'tower')
+    pm.contract.set('tower', 2)
+    expect(controller.enqueueAnswer('tower', 'A-3：完成')).toMatchObject({ ok: true, held: false })
+    expect(pm.writes).toContainEqual(['tower', 'A-3：完成'])
   })
 
   it('no draft / unknown tab: nothing happens, nothing logged', () => {
@@ -163,6 +176,80 @@ describe('BUG-235: user-prompt-submit clears a draft typed before it', () => {
     controller.onPromptSubmitted('tower')
     controller.onPromptSubmitted('nope')
     expect(lines.filter(l => l.includes('user-prompt-submit'))).toEqual([])
+  })
+})
+
+describe('T0972 / BUG-235: the launch-prompt turn submits before the Tower declares contract 2', () => {
+  /** The tab before `--set-role tower --bat-contract 2` (T0970 B3: the hook ~64 s before the declaration). */
+  const undeclared = (pm: FakeManager) => { pm.role.delete('tower'); pm.contract.delete('tower') }
+  const declare = (pm: FakeManager) => { pm.role.set('tower', 'tower'); pm.contract.set('tower', 2) }
+
+  it('T0970 B3: draft (F12) → 357 ms → submit (not declared yet) → declare 2 → the inbox answer goes at once (held before the fix)', () => {
+    const { controller, pm, userTypes } = setup()
+    undeclared(pm)
+    userTypes('\x1b[24~') // F12 (`csi~:24`), the draft of the T0970 run
+    expect(controller.hasDraft('tower')).toBe(true)
+    vi.advanceTimersByTime(357)
+    controller.onPromptSubmitted('tower')
+    vi.advanceTimersByTime(64_000)
+    declare(pm)
+    expect(controller.hasDraft('tower')).toBe(false)
+    const result = controller.enqueueAnswer('tower', 'U-1：A')
+    expect(result).toEqual({ ok: true, held: false, holdId: expect.any(String) })
+    expect(pm.writes).toContainEqual(['tower', 'U-1：A'])
+  })
+
+  it('typed after that submit (before the declaration): still a draft, the answer is held after declaring', () => {
+    const { controller, pm, userTypes } = setup()
+    undeclared(pm)
+    userTypes('\x1b[24~')
+    vi.advanceTimersByTime(357)
+    controller.onPromptSubmitted('tower')
+    vi.advanceTimersByTime(5_000)
+    userTypes('next')
+    vi.advanceTimersByTime(60_000)
+    declare(pm)
+    expect(controller.hasDraft('tower')).toBe(true)
+    expect(controller.enqueueAnswer('tower', 'U-1：A')).toMatchObject({ ok: true, held: true })
+    expect(pm.writes).not.toContainEqual(['tower', 'U-1：A'])
+  })
+
+  it('the quiet / Enter windows apply before the declaration too: the draft is kept', () => {
+    const { controller, pm, userTypes, lines } = setup()
+    undeclared(pm)
+    userTypes('abc')
+    vi.advanceTimersByTime(NOTIFY_HOLD_SUBMIT_QUIET_MS - 1)
+    controller.onPromptSubmitted('tower')
+    expect(controller.hasDraft('tower')).toBe(true)
+    userTypes('x\ry')
+    vi.advanceTimersByTime(NOTIFY_HOLD_SUBMIT_ENTER_GUARD_MS - 1)
+    controller.onPromptSubmitted('tower')
+    expect(controller.hasDraft('tower')).toBe(true)
+    expect(lines.filter(l => l.startsWith('[notify-hold] draft kept terminal=tower (user-prompt-submit;'))).toHaveLength(2)
+    declare(pm)
+    expect(controller.enqueueAnswer('tower', 'U-2：B')).toMatchObject({ ok: true, held: true })
+  })
+
+  it('a paste still open at that submit is not cleared; the answer is held after declaring', () => {
+    const { controller, pm, userTypes } = setup()
+    undeclared(pm)
+    userTypes('\x1b[200~pasted')
+    vi.advanceTimersByTime(NOTIFY_HOLD_SUBMIT_ENTER_GUARD_MS)
+    controller.onPromptSubmitted('tower')
+    expect(controller.hasDraft('tower')).toBe(true)
+    declare(pm)
+    expect(controller.enqueueAnswer('tower', 'U-3：C')).toMatchObject({ ok: true, held: true })
+  })
+
+  it('the log names no text and says the tab was not a contract-2 Tower yet', () => {
+    const { controller, pm, userTypes, lines } = setup()
+    undeclared(pm)
+    userTypes('secret words')
+    vi.advanceTimersByTime(NOTIFY_HOLD_SUBMIT_ENTER_GUARD_MS)
+    controller.onPromptSubmitted('tower')
+    const cleared = lines.filter(l => l.includes('user-prompt-submit'))
+    expect(cleared).toEqual(['[notify-hold] draft cleared terminal=tower (user-prompt-submit; not a contract-2 Tower yet)'])
+    expect(lines.join('\n')).not.toContain('secret')
   })
 })
 
