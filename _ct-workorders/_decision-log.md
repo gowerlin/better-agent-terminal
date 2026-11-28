@@ -10,6 +10,7 @@
 
 | ID | 日期 | 標題 | 相關工單 |
 |----|------|------|---------|
+| D514 | 2026-11-28 | A-27：完成 → BUG-235 / BUG-237 CLOSED；熱區未結 BUG 0 | BUG-235 / BUG-237 |
 | D513 | 2026-11-28 | `v0.8.1-pre.5` 發佈（BUG-235 重修、BUG-237、CT 6.4.0 配合）；A-27 實機確認 | T0971 / T0972 / T0974 |
 | D512 | 2026-11-28 | A-26：略過（併入 pre.5 驗收）；push `main` 觸發 `0.8.1-pre.5` | BUG-235 / BUG-237 |
 | D511 | 2026-11-28 | U-70：A → T0974 ff `9c4ca30e`；U-71：B（等 CT 判定）→ CT T0586 全 PASS、BAT 不需改 → 發 `0.8.1-pre.5` | T0974 / T0976 |
@@ -631,6 +632,14 @@
   4. PLAN-001 保持延後（🟢 Low，等 plugin 1.0 穩定）
 - **Success criteria**（EXP→CONCLUDED）：npm install 無錯 / 所有 native modules rebuild 成功 / dev+build:dir 可跑 / 手動 smoke test 8 項通過
 - **最大風險**：`whisper-node-addon@1.0.2` 對 Electron 41（Node 24）的 NODE_MODULE_VERSION 相容性未知，允許 Worker 遇此決策點主動問塔台
+
+---
+
+### D514 2026-11-28 16:50 — A-27：完成
+
+- **使用者**：`A-27：完成`（`v0.8.1-pre.5` 實機：剛開的塔台在開工回合前按鍵後回答立即送出、選單開著時從待辦分頁回答會先關選單且提示正確）。A-27 移除。
+- **處置**：BUG-235、BUG-237 → CLOSED（交付版使用者實機）。熱區未結 BUG 0（CLOSED 100 / WONTFIX 1）。
+- **相關**：D513 / T0964 / T0971 / T0972
 
 ---
 

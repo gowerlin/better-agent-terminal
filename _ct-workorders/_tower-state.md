@@ -4,24 +4,18 @@ summary_version: 1
 bat_contract: 2
 ct_version: "6.3.0"
 inbox_features: ["recommended", "dismiss", "multi"]
-updated_at: "2026-11-28T16:45:21+0800"
+updated_at: "2026-11-28T16:50:57+0800"
 session: "2026-11-28 11:59 第一百四十 session 塔台重新開工（CT v6.3.0，BAT 0.8.1-pre.3）"
 next_ids:
   workorder: "T0977"
-  decision: "D514"
+  decision: "D515"
   bug: "BUG-238"
   plan: "PLAN-071"
   user: "U-72"
   action: "A-28"
-user_actions:
-  - id: "A-27"
-    title: "裝 `v0.8.1-pre.5`：剛開的塔台、閒置與選單開著時從待辦分頁回答都不卡待送（BUG-235 / 237）"
-    ref: "T0972"
-    kind: "verify"
-    created_at: "2026-11-28T16:45:21+08:00"
 todo:
   - "✅ CT 6.4.0：HR-1 判定 CT 端全部 PASS（CT T0586、CT D936），BAT 不需再改；CT 正式版發布方式待 CT U-12，定了會通知（更新 BAT README 對照表）（D511）"
-  - "🟡 BUG-235 / 🟢 BUG-237（FIXED）：隨 `v0.8.1-pre.5` 發佈（D513），A-27 實機確認後 CLOSED（BUG-235 可用已信任工作區重跑 T0970 R2）"
+  - "✅ BUG-235 / BUG-237 CLOSED（`v0.8.1-pre.5` 實機 A-27，D514）；熱區未結 BUG 0"
   - "✅ T0973（T0970 e2e 驅動）合併進 `main` `8de1e2d1`（D505）"
   - "✅ BUG-236 CLOSED（D496）"
   - "候選（未開單，T0965 建議）：只剩選單紀錄（`question` 已被清除）時 Worker 通知仍照舊直接寫入，可能打進開著的選單；待 CT `menu_open`（D484）工單一起評估"
@@ -137,6 +131,7 @@ reminders:
 - 16:23 push `main` `458a903c`（去識別＋金鑰 63 commits 0 命中）→ `pre-release.yml -f version=0.8.1-pre.5` run `46125573705`；使用者「A-26：略過 等 0.8.1-pre.5 一起驗」→ A-26 略過（不算失敗），pre.5 發佈後另開驗收項（D512）；CT 塔台：CT 6.4.0 正式版發布中（CT U-12：A、CT T0587 → T0588），上線後通知時間與連結
 - 16:45 `v0.8.1-pre.5` 發佈（Pre-Release `46125573705` success，`458a903c`，2026-11-28 08:43:29Z；資產 4 個＋`server-bundle-v0.8.1-pre.5`）；`gh release edit --notes-file` 改寫更版重點；CHANGELOG / release-note / README / package 版號更新；A-27 待你實機（D513）
 - 16:46 三文件 commit＋記帳 push（`87c90e8a`，去識別 0 命中）；Pages run `46127330197` build / link-check / deploy 全 success（link-check 1700 / 0 errors），網站首頁版號 `0.8.1-pre.5`
+- 16:50 使用者：A-27：完成 → BUG-235 / BUG-237 CLOSED；熱區未結 BUG 0（D514）
 
 ---
 
