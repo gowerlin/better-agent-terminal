@@ -10,6 +10,7 @@
 
 | ID | 日期 | 標題 | 相關工單 |
 |----|------|------|---------|
+| D519 | 2026-11-28 | T0981 收單；U-74：A → `main` ff 到 `84f96834`（含 T0978）；派 T0980 | T0981 / T0978 / T0980 |
 | D518 | 2026-11-28 | T0978 收單（`f9738360`）；判準 1 因 T0977 不成立 → 合併工單 T0981；A-28 實機（下一個預覽版） | T0978 / T0981 |
 | D517 | 2026-11-28 | T0977 收單（`8c728d16`）；U-73：A → 模式 ① ff 進 `main` `1ae19702` | T0977 |
 | D516 | 2026-11-28 | U-72：A、B、C、D → 四個未開單候選全部開單：T0977（asar 讀不足判失敗）、T0978（啟動參數回合不套 2 s Enter 窗，推翻 T0972 Q-2 的不放寬）、T0979（研究：PLAN-066 三項後續）、T0980（檔案連結跟 `fs:changed` 重查） | T0977 / T0978 / T0979 / T0980 |
@@ -637,6 +638,16 @@
   4. PLAN-001 保持延後（🟢 Low，等 plugin 1.0 穩定）
 - **Success criteria**（EXP→CONCLUDED）：npm install 無錯 / 所有 native modules rebuild 成功 / dev+build:dir 可跑 / 手動 smoke test 8 項通過
 - **最大風險**：`whisper-node-addon@1.0.2` 對 Electron 41（Node 24）的 NODE_MODULE_VERSION 相容性未知，允許 Worker 遇此決策點主動問塔台
+
+---
+
+### D519 2026-11-28 18:20 — T0981 收單；U-74：A → ff 進 `main`；派 T0980
+
+- **收單**：T0981 DONE（模式 ①，無衝突）。merge commit `d1c3c32e`：parent1 `f679dfde` = `base_main_sha`、parent2 `f9738360` = T0978 `validated_sha`；樹比對正好 T0978 的 8 檔、無範圍外檔案；在 merge commit 上 test:unit 9662 passed、兩個 typecheck = 0、vite build 通過。
+- **SHA 第 5 步**：`main` 在合併期間前進到 `2e4dc33b`，`git diff --name-only f679dfde..main` 只有 `_ct-workorders/**` → 整合分支再 `--no-ff` 併 `main` 一次（`84f96834`，產品樹不變、不重跑驗收）。
+- **合併**：斷點 E → 使用者 `U-74：A` → `--ff-only`，`main` = `84f96834`；整合 worktree detach、T0978 worktree 移除；分支 `ct/T0978`、`ct-merge/T0978` 保留。T0981 分頁 `--close-worker` exit 0；session 快照已寫。
+- **下一步**：派 T0980（等 T0978 合併的理由已解除）。
+- **相關**：D518
 
 ---
 
