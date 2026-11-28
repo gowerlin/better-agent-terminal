@@ -10,6 +10,7 @@
 
 | ID | 日期 | 標題 | 相關工單 |
 |----|------|------|---------|
+| D490 | 2026-11-28 | U-62 回覆為提問（本版是否配合 CT）→ 改問發版時機 | BUG-236 |
 | D489 | 2026-11-28 | U-61：A → T0965 ff 進 `main` `8a1c1318`；BUG-236 FIXED | T0967 / T0965 / BUG-236 |
 | D488 | 2026-11-28 | T0967 收單（`84f8c900`）；斷點 E 發 U-61、發 `0.8.1-pre.4` 發 U-62 | T0967 / T0965 / BUG-236 |
 | D487 | 2026-11-28 | CT 核定選單 HANDOVER（ACCEPTED，CT D926）；CT T0582 派工；等 CT 傳規範位置後開 BAT `menu_open` 讀取單 | BUG-236 |
@@ -607,6 +608,15 @@
   4. PLAN-001 保持延後（🟢 Low，等 plugin 1.0 穩定）
 - **Success criteria**（EXP→CONCLUDED）：npm install 無錯 / 所有 native modules rebuild 成功 / dev+build:dir 可跑 / 手動 smoke test 8 項通過
 - **最大風險**：`whisper-node-addon@1.0.2` 對 Electron 41（Node 24）的 NODE_MODULE_VERSION 相容性未知，允許 Worker 遇此決策點主動問塔台
+
+---
+
+### D490 2026-11-28 12:53 — U-62 改問發版時機
+
+- **使用者**：「U-62：本版會配合 CT 修改嗎?」（自由回答，當成提問）。
+- **答覆**：不會。`main` `8a1c1318` 的 T0965 不依賴 CT（舊 CT 與 6.4.0 都能用，`menu_open` 是 CT 新增欄位，BAT 現在不讀也不受影響）；讀 `menu_open` 的 BAT 工單要等 CT T0582（6.4.0-pre.1）收單、傳規範位置後才開。
+- **U-62 改問**：A 等 CT 6.4.0-pre.1 與 BAT `menu_open` 讀取單完成後一起發 pre.4（推薦，照「一批修正一次發版」）／B 現在先發 pre.4，`menu_open` 留到 pre.5。
+- **相關**：D484 / D487 / D489
 
 ---
 

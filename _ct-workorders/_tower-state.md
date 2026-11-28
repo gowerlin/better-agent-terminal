@@ -4,7 +4,7 @@ summary_version: 1
 bat_contract: 2
 ct_version: "6.3.0"
 inbox_features: ["recommended", "dismiss", "multi"]
-updated_at: "2026-11-28T12:53:05+0800"
+updated_at: "2026-11-28T12:53:49+0800"
 session: "2026-11-28 11:59 第一百四十 session 塔台重新開工（CT v6.3.0，BAT 0.8.1-pre.3）"
 next_ids:
   workorder: "T0968"
@@ -18,10 +18,10 @@ awaiting_user:
     workorder: ""
     kind: "decision"
     source: "tower-question"
-    summary: "ff 後要發 `0.8.1-pre.4` 嗎（含 BUG-235 / T0964、BUG-236 / T0965、T0966；需 push `main` 並觸發 pre-release）"
-    options: ["A ff 後 push 並發 0.8.1-pre.4（推薦）", "B 先不發版"]
+    summary: "（改問）`0.8.1-pre.4` 何時發：現在的 `main` 不含 CT 6.4.0 `menu_open` 的讀取（CT T0582 進行中、BAT 讀取單尚未開）"
+    options: ["A 等 CT 6.4.0-pre.1 與 BAT menu_open 讀取單完成後一起發 pre.4（推薦：一批修正一次發版）", "B 現在先發 pre.4（BUG-235 / 236、T0966），menu_open 留到 pre.5"]
     recommended: "A"
-    created_at: "2026-11-28T12:52:13+08:00"
+    created_at: "2026-11-28T12:53:49+08:00"
 todo:
   - "CT 協調（D482 / D484 / D487）：CT 已核定（ACCEPTED，CT D926）：`menu_open: { ids, opened_at }` 只在開選單前那次寫入、被 Esc 關掉的選單不重開、`inbox_features` 加 `menu`；CT T0582（6.4.0-pre.1）派工中，收單後傳規範「檔:行」與範例狀態檔 → BAT 開 `menu_open` 讀取工單（加嚴條件＋以 `opened_at` 對 blocked 開始時間防殘留；一併評估只剩選單紀錄時的 Worker 通知）"
   - "🟡 BUG-235（medium，D476–D480）：T0964 合併進 `main` `ee5d364f`（未 push），FIXED；發 `0.8.1-pre.4` 後實機＋診斷日誌確認才 CLOSED"
@@ -92,6 +92,7 @@ reminders:
 - 12:49 CT 塔台：HANDOVER 已核定（CT U-10：A、CT D926，內容同草案）；CT PLAN-022 / T0582（6.4.0-pre.1）已派工，收單後傳規範「檔:行」與範例狀態檔；本機 HANDOVER → ACKNOWLEDGED（D487）
 - 12:52 T0967 DONE（模式 ①，merge `84f8c900`，parent1 `ee76629f`、parent2 `e5a0ad16`；test:unit 9500 passed / 526 files、typecheck 0 / 0、build 0）；收單 `--close-worker --delay-ms 10000` exit 0；斷點 E → U-61、發版 → U-62（D488）
 - 12:53 U-61：A → `ct-merge/T0965` 再合併 `main`（只多 `_ct-workorders/**`）後 ff，`main` = `8a1c1318`（產品樹 = `84f8c900`，未 push）；整合 worktree detach；T0965 worktree 移除；BUG-236 FIXED（D489）
+- 12:53 U-62 收到提問「本版會配合 CT 修改嗎?」→ 不會（`main` 未含 `menu_open` 讀取）；U-62 改問發版時機（A 等 CT 與 BAT 讀取單一起發，推薦 / B 現在先發）（D490）
 
 ---
 
