@@ -4,8 +4,8 @@ summary_version: 1
 bat_contract: 2
 ct_version: "6.3.0"
 inbox_features: ["recommended", "dismiss", "multi"]
-updated_at: "2026-11-28T00:17:57+0800"
-session: "2026-11-28 00:17 第一百三十九 session 收工（CT v6.3.0）"
+updated_at: "2026-11-28T11:04:08+0800"
+session: "2026-11-28 11:04 第一百四十 session 開工（CT v6.3.0）"
 next_ids:
   workorder: "T0963"
   decision: "D471"
@@ -42,6 +42,14 @@ reminders:
 > 最後更新:2026-11-28 00:17 (UTC+8) — **第一百三十九 session 收工**：`v0.8.0` 實機驗收發現 BUG-228–231 → 修正、發 `v0.8.1-pre.1`；後續 BUG-232 / 233＋T0950 → 發 `v0.8.1-pre.2`；交付版以隔離實例＋假 claude（T0955 / T0959）與 Linux CI（T0961）自動化驗收，BUG-228–233 全部 CLOSED；`main` = `origin/main` @ `975c0ca6`。
 >
 > **下次起手**:熱區無進行中工單、無未結 BUG、無待你決定 / 待你執行。`_decision-log.md` 407 KB 已超過 400 KB 預算 → 建議開工後先封存 D186 起的舊決策；`_tower-state.md` 約 30 KB。PLAN-067 週清查 2026-12-02 到期。
+
+---
+
+## ▶ 第一百四十 session 開工（2026-11-28 11:04 (UTC+8)）
+
+- 塔台 session `2d6e85cc-593c-4c77-a90e-cdc0514eabba`；CT v6.3.0；BAT `0.8.1-pre.2`，`--set-role tower --bat-contract 2 --mode on` exit 0（`bat-contract: 2`、`hooks: ok (injected, set 2)`）
+- Fast Path；`main` = `origin/main` @ `ce625352`；熱區 T:358 / BUG:97 / PLAN:35 / EXP:1；無進行中工單、無待你決定 / 待你執行
+- 大小：`_decision-log.md` 407,309（> 400 KB 預算）、`_learnings.md` 225,837、`_tower-state.md` 約 25 KB
 
 ---
 
