@@ -186,6 +186,18 @@ node e2e/manual/ct-accept-act.mjs ctl s1 '{"op":"click","selector":"[data-inbox-
 - claude 2.1.331 的多選選單（`multiSelect`）：每個選項前是 `[ ]`，Enter 切換勾選；「Type something」也是有勾選框的一列，移到那裡直接逐鍵輸入就會勾上，可以和其他勾選並存；`Next` / `Submit` 是選項下方的一列，最後有「Review your answers」確認頁（`Submit answers`）。`menu` / `pick` 的解析把 `[ ]` / `[✔]` 當成選項文字的一部分。
 - 多行訊息一次送出：以 xterm 的 `paste()`（bracketed paste）貼上再 Enter，claude 顯示 `[Pasted text #1 +N lines]`；`send` 的 `insert` 會把換行當 Enter。
 
+T0969（CT 6.4.0-pre.1 驗收）加了狀態檔逐次擷取，`inbox` 每筆待決多印 `menuHint`（T0968 的選單提示行 `[data-inbox-menu-hint]` 有沒有出現）與 `sent`（已送出標記 `data-inbox-sent-status`：`sent` / `held`）。
+
+```powershell
+# 另開一個 shell，整個情境期間執行（Ctrl+C 結束）；每次寫入存一份 <seq>-<HHMMSS>.md，有 menu_open 的那行會標出
+node e2e/manual/ct-accept-watch.mjs C:/Users/demo/accept/runs/S1/_ct-workorders/_tower-state.md C:/Users/demo/accept/results/S1-writes 100
+```
+
+- `ct-accept-watch.mjs`：每 100 ms 讀一次檔（不用 `fs.watch`：Windows 上快速連續的寫入可能漏或合併），內容變了而且 40 ms 後再讀相同才存，所以不會存到寫一半的檔；檔案不存在不算寫入；只讀不寫原檔。CT 6.4.0 的 `menu_open` 只出現在開選單前的那幾次寫入，靠這支才看得到每一次（包括塔台分幾次 Edit 寫的中間狀態）。
+- 選單開著時要擷取「開選單前那一次寫入」：`wait … menu`（或 `turn` 回 0）成立後立刻複製狀態檔；選單開著時塔台不寫檔。
+- 選單開著時模擬 Worker 通知：在 renderer 以 `window.electronAPI.pty.create({ id, cwd, type: 'terminal', workspaceId, customEnv: { BAT_TOWER_TERMINAL_ID: <塔台分頁 id> } })` 開一個不掛進分頁列的 PTY（主行程發 worker 權杖，日誌 `[helper-cap] issued: terminal=<id> role=worker tower=<塔台>`），再以 `pty.write` 在裡面執行 `node "$env:BAT_HELPER_DIR/bat-notify.mjs" --source T9999 --target $env:BAT_TOWER_TERMINAL_ID --submit "T9999 完成"`。含引號的 `eval` 寫成 JSON 檔，用 `ct610-ctl.mjs <name> @<檔>` 送。
+- 右側欄收合時「待辦」是 `.right-sidebar-collapsed-btn[title="待辦"]`（`.right-sidebar-tab` 在收合時不可見）。
+
 ### 已知限制
 
 - AskUserQuestion 選單出現後立刻按 Esc（約 0.1 秒內）時，較晚到的 `PermissionRequest` hook 會在「使用者輸入清除」之後把分頁設回 `question`，直到下一次按鍵（T0923 回報區 BUG 建議，BUG-224）。`0.8.0-exp.2` 起已修（T0926）；測更早的版本時，驅動選單先等幾秒再按 Esc。
