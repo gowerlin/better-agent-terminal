@@ -4,12 +4,13 @@ schema_kind: workorder
 id: T0974
 title: "CT 6.4.0-pre.2 補跑 HR-1（BAT `v0.8.1-pre.4` × CT 6.4.0-pre.2，`checklist-rerun-640.md`）＋ 補入 CT 的 6.4.0-pre.2 範例檔與重複鍵樣本做 BAT 解析測試"
 type: verification
-status: PENDING
+status: IN_PROGRESS
 repo: better-agent-terminal
 priority: P2
 sizing: M
 created_at: "2026-11-28T15:55:39+0800"
-updated_at: "2026-11-28T15:55:39+0800"
+updated_at: "2026-11-28T15:57:13+0800"
+started_at: "2026-11-28T15:57:13+0800"
 target_version: "0.8.1-pre.4（已發佈）＋ CT 6.4.0-pre.2；測試檔隨 `0.8.1-pre.5`"
 depends_on: []
 related:
