@@ -10,6 +10,7 @@
 
 | ID | 日期 | 標題 | 相關工單 |
 |----|------|------|---------|
+| D493 | 2026-11-28 | T0968 收單（`4dea180c`）；模式 ① `8b3e9ec9`；斷點 E 發 U-63、發 `0.8.1-pre.4` 發 U-64 | T0968 / BUG-236 |
 | D492 | 2026-11-28 | CT T0582 DONE（6.4.0-pre.1）→ 開 T0968 讀 `menu_open`（含選單紀錄開著時保留 Worker 通知） | T0968 / BUG-236 |
 | D491 | 2026-11-28 | U-62：A → `0.8.1-pre.4` 等 CT 6.4.0-pre.1 與 BAT `menu_open` 讀取單完成後一起發 | BUG-235 / BUG-236 |
 | D490 | 2026-11-28 | U-62 回覆為提問（本版是否配合 CT）→ 改問發版時機 | BUG-236 |
@@ -610,6 +611,15 @@
   4. PLAN-001 保持延後（🟢 Low，等 plugin 1.0 穩定）
 - **Success criteria**（EXP→CONCLUDED）：npm install 無錯 / 所有 native modules rebuild 成功 / dev+build:dir 可跑 / 手動 smoke test 8 項通過
 - **最大風險**：`whisper-node-addon@1.0.2` 對 Electron 41（Node 24）的 NODE_MODULE_VERSION 相容性未知，允許 Worker 遇此決策點主動問塔台
+
+---
+
+### D493 2026-11-28 13:33 — T0968 收單；U-63（ff）、U-64（發版）
+
+- **回報**：DONE，`validated_sha` = `head` = `4dea180c`；test:unit 9567 passed / 529 files、vite build、兩個 typecheck 皆 0；新測試 62 項；唯一改的既有斷言是 Q-3 核准的 `notify-hold-question-menu.test.ts:228`。
+- **內容**：renderer 解析 `menu_open`（`inbox_features` 含 `menu` 才用，格式規則比照 CT `check_menu_open`），經 preload 相加參數帶給 `tower-inbox:answer`；主行程只在回答的 U-n 在 `ids` 且 `opened_at` 落在選單紀錄開始 −5 分鐘～+5 s 時走 T0965 Esc，其他（`no-menu-open` / `not-in-menu` 含 A-n / `stale` / `not-this-menu` / `no-record`）保留到選單關閉；沒有 `menu` 資訊 = T0965。契約 2 塔台只剩選單紀錄時 Worker 通知也保留（最壞到該回合結束，風險低、不加逾時；「立即送出」可放行）。提示行只看 `question`（Q-2）。CT fixture 逐位元組複製（`cmp` 相同）。H-1～H-14 對照表在回報區。
+- **合併**：五條全成立 → 模式 ①：`ct-merge/T0968` `8b3e9ec9`（parent1 `1372e23d`、parent2 `4dea180c`）。斷點 E → **U-63**；發版 → **U-64**（依 D491：BUG-235 / 236、T0966、T0968 一起發 `0.8.1-pre.4`；README 補 BAT ↔ CT 版本對照：`menu` 需本版＋ CT ≥ 6.4.0-pre.1）。
+- **相關**：T0968 / BUG-236 / D491 / D492
 
 ---
 

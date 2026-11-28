@@ -4,17 +4,34 @@ summary_version: 1
 bat_contract: 2
 ct_version: "6.3.0"
 inbox_features: ["recommended", "dismiss", "multi"]
-updated_at: "2026-11-28T13:21:30+0800"
+updated_at: "2026-11-28T13:33:18+0800"
 session: "2026-11-28 11:59 第一百四十 session 塔台重新開工（CT v6.3.0，BAT 0.8.1-pre.3）"
 next_ids:
   workorder: "T0969"
-  decision: "D493"
+  decision: "D494"
   bug: "BUG-237"
   plan: "PLAN-071"
-  user: "U-63"
+  user: "U-65"
   action: "A-26"
+awaiting_user:
+  - id: "U-63"
+    workorder: "T0968"
+    kind: "decision"
+    source: "breakpoint-E"
+    summary: "T0968（讀 CT 6.4.0 `menu_open`）合併：`ct-merge/T0968` `8b3e9ec9` 要 ff 進 `main` 嗎"
+    options: ["A 現在 ff 進 main（推薦）", "B 暫不合併"]
+    recommended: "A"
+    created_at: "2026-11-28T13:33:18+08:00"
+  - id: "U-64"
+    workorder: ""
+    kind: "decision"
+    source: "tower-question"
+    summary: "ff 後發 `0.8.1-pre.4` 嗎（BUG-235、BUG-236、T0966、T0968；push `main`、pre-release、更版重點與三份文件）"
+    options: ["A ff 後 push 並發 0.8.1-pre.4（推薦）", "B 先不發版"]
+    recommended: "A"
+    created_at: "2026-11-28T13:33:18+08:00"
 todo:
-  - "CT 協調（D482–D492）：CT T0582 DONE（CT 6.4.0-pre.1 定稿、只打包；CT D927），規範位置與 fixture 已收 → BAT T0968（讀 `menu_open`、Worker 通知在選單紀錄開著時保留、待辦分頁提示）派工中"
+  - "CT 協調（D482–D493）：BAT T0968 DONE（`4dea180c`，讀 `menu_open`、選單紀錄開著時保留 Worker 通知、提示行），`ct-merge/T0968` `8b3e9ec9` 待 U-63；發版待 U-64；發版後通知 CT 塔台版號"
   - "🟡 BUG-235（medium，D476–D480）：T0964 合併進 `main` `ee5d364f`（未 push），FIXED；發 `0.8.1-pre.4` 後實機＋診斷日誌確認才 CLOSED"
   - "🟡 BUG-236（medium，FIXED，D479–D489）：T0965 經 T0967 合併進 `main` `8a1c1318`（未 push）；發 `0.8.1-pre.4` 後實機（T0965〈待實機〉）確認才 CLOSED"
   - "候選（未開單，T0965 建議）：只剩選單紀錄（`question` 已被清除）時 Worker 通知仍照舊直接寫入，可能打進開著的選單；待 CT `menu_open`（D484）工單一起評估"
@@ -89,6 +106,7 @@ reminders:
 - 13:15 T0968 派工 `--mode yolo --no-interactive --isolation worktree --wait-started 30000` exit 0，`started: 05:15:09Z`，分頁 `2faa9bd8…`，worktree `ct/T0968` base `dada34d9`
 - 13:19 [提問] T0968 Q-1（`tower-inbox:answer` 相加參數需改 `electron/preload.ts`）→ 塔台答 A（允許，只改那一行、補進 affects_files）；Q-2（提示行的「只剩選單紀錄」renderer 拿不到）→ 塔台答 A（只看 attention 的 `question`，只剩紀錄時不提示、寫已知限制）；兩題 `--answer --choice 1` exit 0
 - 13:21 [提問] T0968 Q-3（T0965 測試 `notify-hold-question-menu.test.ts:228` 斷言「只剩選單紀錄時 Worker 通知直接送出」與本單要求相反）→ 塔台答 A（只改這一條、註明 T0968 依 D492 改變行為，其他斷言不動）（`--answer --choice 1` exit 0）
+- 13:33 T0968 DONE（`4dea180c`，test:unit 9567 passed / 529 files、typecheck 0 / 0、build 0；H-1～H-14 對照、Worker 通知殘留風險評估：最壞保留到該回合結束，不加逾時）；收單 `--close-worker --delay-ms 10000 --worktree keep` exit 0；五條全成立 → 模式 ①：`ct-merge/T0968` `8b3e9ec9`（parent1 `1372e23d`、parent2 `4dea180c`）；斷點 E → U-63、發版 → U-64（D493）
 
 ---
 
