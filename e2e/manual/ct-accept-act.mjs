@@ -30,6 +30,9 @@
 //                                      (`last` = last option before the built-in free-text row), check, Enter
 //   other <name> <id> <text>           (T0928) move to the built-in free-text row ("Type something." / Other),
 //                                      type <text> key by key, Enter
+//   input <name> <id> <json string>    (T0970) send a raw key sequence as the tab's own keyboard input
+//                                      (`terminal.input(data, true)`, the same `onData` path as a key press),
+//                                      e.g. '"\u001b[24~"' = F12; prints the wall-clock time it was sent
 //   fastesc <name> <id> [sec] [delayMs] (T0928, BUG-224) poll the attention every 20 ms (default limit 540 s);
 //                                      on `question`, poll the screen every 10 ms until the menu is drawn, then
 //                                      after <delayMs> (default 0) send Esc as the tab's own keyboard input
@@ -294,6 +297,16 @@ async function main() {
       await sleep(1000)
       await ctl({ op: 'press', key: 'Enter' })
       console.log(`[${now()}] other ${row.n}. typed len=${text.length}`)
+      break
+    }
+    case 'input': {
+      const [id, seq] = args
+      if (!id || seq === undefined) throw new Error('input <name> <id> <json string>')
+      const data = JSON.parse(seq)
+      if (typeof data !== 'string' || data.length === 0) throw new Error('input: the argument must be a non-empty JSON string')
+      const r = await ctl({ op: 'eval', js: `${FIND} const t = found[${JSON.stringify(id)}]; if (!t) return 'none'; t.input(${JSON.stringify(data)}, true); return new Date().toISOString()` })
+      if (r === 'none') throw new Error(`terminal ${id} not found`)
+      console.log(`[${now()}] input sent bytes=${data.length} at=${r}`)
       break
     }
     case 'fastesc': {
