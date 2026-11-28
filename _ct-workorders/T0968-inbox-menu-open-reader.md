@@ -31,6 +31,7 @@ affects_files:
   - electron/terminal-blocked-state.ts
   - electron/pty-manager.ts
   - electron/handlers/
+  - electron/preload.ts
   - electron/__tests__/
   - docs/agent-guide/tower-inbox.md
   - docs/agent-guide/notify-hold.md
@@ -106,3 +107,11 @@ T0965 讓 BAT 在塔台開著選單時，替待辦分頁的回答代按 Esc 再�
 - **建議**：A。理由：「只剩選單紀錄」通常是使用者剛點過或按過選單，他看得到選單；B 要動 attention 推送的時機，所有看 attention 的地方（縮圖 ⚠️、工作區列表、淡化）都要再核對，風險比提示行的價值大。實際送出路徑不受影響（主行程照樣看選單紀錄決定要不要按 Esc）。
 - **影響**：只影響提示行什麼時候出現，不影響 Esc、保留與送出。
 - **是否阻擋後續步驟**：只擋提示行；其他可以先做。
+
+#### Q-3：T0965 的既有測試斷言「只剩選單紀錄時 Worker 通知直接送出」，與本單要的「選單紀錄開著時 Worker 通知保留」相反；可以改這一條斷言嗎？
+- **提問時間**：2026-11-28T13:21:30+0800
+- **說明**：`electron/__tests__/notify-hold-question-menu.test.ts:228` `a Worker notification with only the menu record (no \`question\`): passes through as before, no Esc` 斷言 `interceptWrite` 回 `{ ok: true }` 且直接寫進 PTY。工單 memory_overrides 要求這種情況保留，同時也寫「既有測試不改斷言（只能新增）」，兩條互相衝突。
+- **選項**：A 只改這一條：改成「保留（`{ ok: true, held: true }`）、不送 Esc，選單紀錄關閉後送出」，測試名稱註明 T0968 改變行為；其他斷言一律不動；B 不改，Worker 通知照 T0965 直接送出（本單不做 Worker 通知那一項）；其他
+- **建議**：A。理由：這條斷言記錄的正是工單要改掉的舊行為（T0965 回報的後續建議），不改就做不了；其他 T0965 斷言（`question` 時保留、非契約 2 不變等）都不受影響。
+- **影響**：選 B 的話驗收項「選單紀錄開著時 Worker 通知保留」不做。
+- **是否阻擋後續步驟**：只擋 Worker 通知那一項。
