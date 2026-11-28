@@ -150,3 +150,7 @@ CT 條文位置（`BMad-Control-Tower-v6.4.0-pre.2/skills/control-tower/`）：R
 
 ### 回報時間
 - 2026-11-28T16:10:36+0800
+
+## 塔台收單補記
+
+- 2026-11-28 16:11 (UTC+8) 收單：DONE 確認（A：HR-1 BAT 端 4 項 PASS、22 份快照 CT 自檢 exit 0、js-yaml 0 失敗；B：CT v642 範例＋5 份重複鍵樣本進 fixture、9 個測試；`validated_sha` = `head` = `5410c597`）。`--close-worker --delay-ms 10000 --worktree keep` exit 0；`main` 自 base 起已併入 T0972 → 判準 1 不成立 → 合併工單 T0976（`merge-tree` 無衝突）。通知 CT 塔台開判定單（D509）。

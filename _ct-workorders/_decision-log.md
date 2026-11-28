@@ -10,6 +10,8 @@
 
 | ID | 日期 | 標題 | 相關工單 |
 |----|------|------|---------|
+| D510 | 2026-11-28 | T0976 收單（`7cadec9d`）；U-70（ff）、U-71（發 `0.8.1-pre.5`） | T0976 / T0974 |
+| D509 | 2026-11-28 | T0974 收單（HR-1 BAT 端 PASS、CT fixture 進測試）；通知 CT 判定；合併工單 T0976 | T0974 / T0976 |
 | D508 | 2026-11-28 | U-69：A → T0972 ff `7d2e571d`；BUG-235 FIXED | T0972 / T0975 / BUG-235 |
 | D507 | 2026-11-28 | T0975 收單（`b04ed2e9`）；斷點 E 發 U-69 | T0975 / T0972 / BUG-235 |
 | D506 | 2026-11-28 | T0972 收單（方案 ①）；Q-2 不放寬 2 s Enter 窗；判準 1、2 不成立 → 合併工單 T0975 | T0972 / T0975 / BUG-235 |
@@ -626,6 +628,24 @@
   4. PLAN-001 保持延後（🟢 Low，等 plugin 1.0 穩定）
 - **Success criteria**（EXP→CONCLUDED）：npm install 無錯 / 所有 native modules rebuild 成功 / dev+build:dir 可跑 / 手動 smoke test 8 項通過
 - **最大風險**：`whisper-node-addon@1.0.2` 對 Electron 41（Node 24）的 NODE_MODULE_VERSION 相容性未知，允許 Worker 遇此決策點主動問塔台
+
+---
+
+### D510 2026-11-28 16:16 — T0976 收單；U-70、U-71
+
+- **回報**：DONE，模式 ① 無衝突；merge `7cadec9d`（parent1 `804b04c0` = `base_main_sha`、parent2 `5410c597` = T0974 `validated_sha`）；樹比對只有 T0974 的 9 檔；test:unit 9634 passed / 533 files（T0974 測試 9 / 9）、兩個 typecheck 0、build 0。SHA 比對 ①–③ 成立 → 斷點 E **U-70**。
+- **發版**：`main` 已有 T0969 / T0970 驅動、T0971（BUG-237＋B-1 / B-2）、T0972（BUG-235 重修），加上 T0974 fixture 即為 `0.8.1-pre.5` 的完整內容 → **U-71**（推薦 A：BAT 端已齊，CT T0586 判定只涉 CT 條文；若 CT 再要 BAT 配合就進 pre.6）。本版未改安裝程式路徑 → 不需 NSIS 重裝驗收。
+- **相關**：T0974 / T0976 / D509 / D491
+
+---
+
+### D509 2026-11-28 16:11 — T0974 收單；派 T0976
+
+- **A. HR-1 補跑**（S5，BAT `v0.8.1-pre.4` × CT 6.4.0-pre.2，`install-642` exit 0）：HR-1-1 Esc 後 U-1 留在待辦分頁 PASS；HR-1-2 選單第一題依序含 U-1 提醒、U-2（文字範本）、U-3 PASS；HR-1-3 22 份快照 CT 6.4.0-pre.2 自檢全部 exit 0、js-yaml 0 失敗，`menu_open` 都是 `awaiting_user` 的下一個頂層鍵，塔台用一個 Edit 同時寫 → PASS（依 CT 判法）；HR-1-4 回答後 U-4 消失、之後寫入沒有 `menu_open` PASS。CT 判定欄留空。給 CT 的觀察 3 點（Esc 後未寫檔所以 `menu_open` 留著、③ 回覆提到「清掉開選單時寫的欄位」、③ 第一個寫入同時移除 U-4 與 `menu_open`）。
+- **B. fixture**：CT `71b8406` 的 `tower-state-v642.md` 與 5 份 `dup-key-*.md` 逐位元組複製（`cmp` 相同、無真名與家目錄路徑）；9 個測試：v642 解析成功（`menu_open.ids` = `["U-61"]`）、4 份 tower-state 重複鍵 → `no-summary`、工單樣本 → `invalid_frontmatter` 警告不丟例外。test:unit 9622 passed / 533 files、兩個 typecheck 0、build 0。隔離環境、使用者層、安裝版 BAT 未被碰。
+- **合併**：T0974 只新增測試與 fixture，但 `main` 自 base 起已併入 T0972 → 判準 1 不成立 → 合併工單 **T0976**（mechanical，`merge-tree` 無衝突）。
+- **CT**：通知 CT 塔台開判定單。
+- **相關**：T0974 / T0976 / D505 / D500
 
 ---
 
