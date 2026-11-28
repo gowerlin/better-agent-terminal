@@ -10,6 +10,7 @@
 
 | ID | 日期 | 標題 | 相關工單 |
 |----|------|------|---------|
+| D505 | 2026-11-28 | U-68：A → T0970 驅動 ff `8de1e2d1`；CT 6.4.0-pre.2 定稿 → 開 T0974（HR-1 補跑＋ CT fixture） | T0973 / T0974 |
 | D504 | 2026-11-28 | T0973 收單（`b933cdd1`）；斷點 E 發 U-68；T0972 Q-1 答 A（採 ①） | T0973 / T0970 / T0972 |
 | D503 | 2026-11-28 | T0970 收單：R2 FAIL → BUG-235 退回 FIXING、重修 T0972；T0970 合併派 T0973 | T0970 / T0972 / T0973 / BUG-235 |
 | D502 | 2026-11-28 | U-67：A → T0971 ff `6a7b90e8`；BUG-237 FIXED | T0971 / BUG-237 |
@@ -622,6 +623,15 @@
   4. PLAN-001 保持延後（🟢 Low，等 plugin 1.0 穩定）
 - **Success criteria**（EXP→CONCLUDED）：npm install 無錯 / 所有 native modules rebuild 成功 / dev+build:dir 可跑 / 手動 smoke test 8 項通過
 - **最大風險**：`whisper-node-addon@1.0.2` 對 Electron 41（Node 24）的 NODE_MODULE_VERSION 相容性未知，允許 Worker 遇此決策點主動問塔台
+
+---
+
+### D505 2026-11-28 15:55 — U-68：A；開 T0974
+
+- **U-68：A**（原生選單）：`main` 自 parent1 `8a0ae680` 起只多 `_ct-workorders/**` → 整合分支再合併 `main` 後 ff；`main` = `ct-merge/T0970` = `8de1e2d1`，產品樹 = `b933cdd1`；整合 worktree detach；T0970 worktree 移除；分支保留。未 push。
+- **CT 6.4.0-pre.2**（跨 session 訊息，CT T0585 收單，CT D934）：R1 `menu_open` 移到 `awaiting_user` 正後方、R2 選單題與文字範本混用、R4 回覆不提 `menu_open`、R6 `check-frontmatter.py` 抓重複鍵（CT BUG-006 FIXED `05b63a0`）。補跑清單 `checklist-rerun-640.md`（`416662a4…`）、`ct-swap-640.py`（`d4d92ead…`，新增 `install-642`），塔台核對雜湊相符。HR-1-3 判法更正：每份快照 CT 自檢 exit 0 即 PASS，位置不緊接只記錄。另提供 v642 正式範例（CT `71b8406`）與 5 份重複鍵樣本。
+- **T0974**：A 補跑 HR-1（S5，BAT pre.4，每次寫入擷取快照，另以 js-yaml 解析）；B 把 CT v642 範例與重複鍵樣本複製進 BAT fixture，測試「解析成功」與「重複鍵 → 整份無效」。不改產品程式。收單後通知 CT 開判定單。
+- **相關**：T0969 / T0971 / T0973 / D500 / D504
 
 ---
 

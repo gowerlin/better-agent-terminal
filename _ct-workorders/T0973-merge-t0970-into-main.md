@@ -127,3 +127,4 @@ T0970（`v0.8.1-pre.4` 交付版驗收）只改 `e2e/manual/ct-accept-act.mjs`�
 ## 塔台收單補記
 
 - 2026-11-28 15:47 (UTC+8) 收單：SHA 比對 ①–③ 成立（`base_main_sha` `8a0ae680`；merge `b933cdd1` parent1 `8a0ae680`、parent2 `30e3c240` = `ct/T0970` = T0970 `validated_sha`）；`main` 之後只多 `_ct-workorders/**`。`--close-worker --delay-ms 10000` exit 0。斷點 E → U-68（D504）。
+- 2026-11-28 15:55 (UTC+8) U-68：A → 整合分支再合併 `main` 後 ff：`main` = `8de1e2d1`，產品樹 = `b933cdd1`；整合 worktree detach；T0970 worktree 移除；分支 `ct/T0970`、`ct-merge/T0970` 保留（D505）。

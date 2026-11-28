@@ -4,24 +4,15 @@ summary_version: 1
 bat_contract: 2
 ct_version: "6.3.0"
 inbox_features: ["recommended", "dismiss", "multi"]
-updated_at: "2026-11-28T15:47:23+0800"
+updated_at: "2026-11-28T15:55:39+0800"
 session: "2026-11-28 11:59 第一百四十 session 塔台重新開工（CT v6.3.0，BAT 0.8.1-pre.3）"
 next_ids:
-  workorder: "T0974"
-  decision: "D505"
+  workorder: "T0975"
+  decision: "D506"
   bug: "BUG-238"
   plan: "PLAN-071"
   user: "U-69"
   action: "A-27"
-awaiting_user:
-  - id: "U-68"
-    workorder: "T0973"
-    kind: "decision"
-    source: "breakpoint-E"
-    summary: "T0970 的 e2e 驅動經 T0973 合併：`ct-merge/T0970` `b933cdd1` 要 ff 進 `main` 嗎"
-    options: ["A 現在 ff 進 main（推薦）", "B 暫不合併"]
-    recommended: "A"
-    created_at: "2026-11-28T15:47:23+08:00"
 user_actions:
   - id: "A-26"
     title: "裝 `v0.8.1-pre.4`：塔台閒置時從待辦分頁回答會立即送出，不再卡在「待送」（BUG-235）"
@@ -29,9 +20,9 @@ user_actions:
     kind: "verify"
     created_at: "2026-11-28T14:01:43+08:00"
 todo:
-  - "CT 判定 CT T0584 完成（CT D932：CT 端 PASS 29 / FAIL 1（CT 條文）/ 未觸發 1）；CT T0585（6.4.0-pre.2）進行中，收單後傳補跑清單 `checklist-rerun-640.md`、`install-642` 與 6.4.0-pre.2 範例檔 → BAT 開補跑單（新 BAT pre.4，約 1 個塔台 session）（D499）"
+  - "CT 6.4.0-pre.2 定稿（CT T0585，CT D934；CT BUG-006 重複鍵 FIXED）→ BAT T0974（HR-1 補跑＋ CT v642 範例 / 重複鍵 fixture）派工中；收單後通知 CT 開判定單（D505）"
   - "🟡 BUG-235（medium，FIXING，D503）：T0970 交付版驗收 R2 FAIL（啟動參數回合送出前的草稿不清：清除條件要求已宣告契約 2，宣告晚約 1 分鐘）→ 重修 T0972；A-26 待 T0972 合併、發 pre.5 後再驗；R1 / R3 / R4 / R5、T0966 已確認有效"
-  - "T0973 DONE：`ct-merge/T0970` `b933cdd1`（test:unit 9619 passed）待 U-68 ff（D504）"
+  - "✅ T0973（T0970 e2e 驅動）合併進 `main` `8de1e2d1`（D505）"
   - "✅ BUG-236 CLOSED（D496）；🟢 BUG-237 FIXED（T0971 合併進 `main` `6a7b90e8`，D502），隨 `0.8.1-pre.5` 實機確認；T0971 worktree 目錄殘留（`Invalid argument`）待手動刪"
   - "候選（未開單，T0965 建議）：只剩選單紀錄（`question` 已被清除）時 Worker 通知仍照舊直接寫入，可能打進開著的選單；待 CT `menu_open`（D484）工單一起評估"
   - "✅ T0966（U-58：A）合併進 `main` `64b39176`（D485）：Worker 等你不再算回答；T0965 收單時 `main` 已有 T0966 產品改動 → 依 `--worktree-status` 判斷，多半派合併工單"
@@ -128,6 +119,8 @@ reminders:
 - 15:44 T0972 派工（`--isolation worktree`，`started: 07:44:07Z`，分頁 `5bda26b1…`，base `07afa77b`）、T0973 派工（整合 worktree，`started: 07:44:09Z`，分頁 `d98a8bca…`），皆 `--mode yolo --no-interactive --wait-started 30000` exit 0；兩單不重疊
 - 15:46 [提問] T0972 Q-1（方案 ① 要改 T0964 斷言 `notify-hold-prompt-submit.test.ts:149-159`：非契約 2 分頁 submit 後草稿仍在）→ 塔台答 A（採 ①、只改這一條並註明，draft 讀者核對成立）（`--answer --choice 1` exit 0）
 - 15:47 T0973 DONE（模式 ①，merge `b933cdd1`，parent1 `8a0ae680`、parent2 `30e3c240`；只有 `e2e/manual/` 2 檔；test:unit 9619 passed / 532 files、typecheck 0 / 0、build 0、`node --check` 0）；收單 `--close-worker` exit 0；斷點 E → U-68（D504）
+- 15:55 U-68：A（原生選單）→ `ct-merge/T0970` 再合併 `main`（只多 `_ct-workorders/**`）後 ff，`main` = `8de1e2d1`（產品樹 = `b933cdd1`，未 push）；整合 worktree detach、T0970 worktree 移除（D505）
+- 15:55 CT 塔台：CT T0585 收單（CT D934），6.4.0-pre.2 定稿、重複鍵 CT BUG-006 FIXED；傳 `checklist-rerun-640.md`（`416662a4…`）、`ct-swap-640.py`（`d4d92ead…`，`install-642`）、HR-1-3 判法更正、v642 範例與 5 份重複鍵樣本、條文位置；塔台核對兩檔雜湊相符 → 開 T0974（D505）
 
 ---
 
