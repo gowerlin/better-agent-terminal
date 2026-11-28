@@ -10,6 +10,7 @@
 
 | ID | 日期 | 標題 | 相關工單 |
 |----|------|------|---------|
+| D491 | 2026-11-28 | U-62：A → `0.8.1-pre.4` 等 CT 6.4.0-pre.1 與 BAT `menu_open` 讀取單完成後一起發 | BUG-235 / BUG-236 |
 | D490 | 2026-11-28 | U-62 回覆為提問（本版是否配合 CT）→ 改問發版時機 | BUG-236 |
 | D489 | 2026-11-28 | U-61：A → T0965 ff 進 `main` `8a1c1318`；BUG-236 FIXED | T0967 / T0965 / BUG-236 |
 | D488 | 2026-11-28 | T0967 收單（`84f8c900`）；斷點 E 發 U-61、發 `0.8.1-pre.4` 發 U-62 | T0967 / T0965 / BUG-236 |
@@ -608,6 +609,14 @@
   4. PLAN-001 保持延後（🟢 Low，等 plugin 1.0 穩定）
 - **Success criteria**（EXP→CONCLUDED）：npm install 無錯 / 所有 native modules rebuild 成功 / dev+build:dir 可跑 / 手動 smoke test 8 項通過
 - **最大風險**：`whisper-node-addon@1.0.2` 對 Electron 41（Node 24）的 NODE_MODULE_VERSION 相容性未知，允許 Worker 遇此決策點主動問塔台
+
+---
+
+### D491 2026-11-28 12:55 — U-62：A，等 CT 一起發版
+
+- **使用者**：「等配合CT修改的版本完成再一起發版」（視為 U-62：A）。U-62 移除。
+- **後續**：CT T0582（6.4.0-pre.1）收單後 CT 塔台傳規範「檔:行」與範例狀態檔 → 開 BAT `menu_open` 讀取單（一併評估只剩選單紀錄時的 Worker 通知）→ 合併後再問發 `0.8.1-pre.4`（含 BUG-235 / 236、T0966）。`main` 目前未 push。
+- **相關**：D487 / D490
 
 ---
 

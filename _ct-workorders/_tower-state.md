@@ -4,31 +4,22 @@ summary_version: 1
 bat_contract: 2
 ct_version: "6.3.0"
 inbox_features: ["recommended", "dismiss", "multi"]
-updated_at: "2026-11-28T12:53:49+0800"
+updated_at: "2026-11-28T12:55:19+0800"
 session: "2026-11-28 11:59 第一百四十 session 塔台重新開工（CT v6.3.0，BAT 0.8.1-pre.3）"
 next_ids:
   workorder: "T0968"
-  decision: "D490"
+  decision: "D492"
   bug: "BUG-237"
   plan: "PLAN-071"
   user: "U-63"
   action: "A-26"
-awaiting_user:
-  - id: "U-62"
-    workorder: ""
-    kind: "decision"
-    source: "tower-question"
-    summary: "（改問）`0.8.1-pre.4` 何時發：現在的 `main` 不含 CT 6.4.0 `menu_open` 的讀取（CT T0582 進行中、BAT 讀取單尚未開）"
-    options: ["A 等 CT 6.4.0-pre.1 與 BAT menu_open 讀取單完成後一起發 pre.4（推薦：一批修正一次發版）", "B 現在先發 pre.4（BUG-235 / 236、T0966），menu_open 留到 pre.5"]
-    recommended: "A"
-    created_at: "2026-11-28T12:53:49+08:00"
 todo:
   - "CT 協調（D482 / D484 / D487）：CT 已核定（ACCEPTED，CT D926）：`menu_open: { ids, opened_at }` 只在開選單前那次寫入、被 Esc 關掉的選單不重開、`inbox_features` 加 `menu`；CT T0582（6.4.0-pre.1）派工中，收單後傳規範「檔:行」與範例狀態檔 → BAT 開 `menu_open` 讀取工單（加嚴條件＋以 `opened_at` 對 blocked 開始時間防殘留；一併評估只剩選單紀錄時的 Worker 通知）"
   - "🟡 BUG-235（medium，D476–D480）：T0964 合併進 `main` `ee5d364f`（未 push），FIXED；發 `0.8.1-pre.4` 後實機＋診斷日誌確認才 CLOSED"
   - "🟡 BUG-236（medium，FIXED，D479–D489）：T0965 經 T0967 合併進 `main` `8a1c1318`（未 push）；發 `0.8.1-pre.4` 後實機（T0965〈待實機〉）確認才 CLOSED"
   - "候選（未開單，T0965 建議）：只剩選單紀錄（`question` 已被清除）時 Worker 通知仍照舊直接寫入，可能打進開著的選單；待 CT `menu_open`（D484）工單一起評估"
   - "✅ T0966（U-58：A）合併進 `main` `64b39176`（D485）：Worker 等你不再算回答；T0965 收單時 `main` 已有 T0966 產品改動 → 依 `--worktree-status` 判斷，多半派合併工單"
-  - "發版：T0965 / T0966 收單合併後發 `0.8.1-pre.4`（含 T0964 / BUG-235），發版前問使用者"
+  - "發版（U-62：A，D491）：`0.8.1-pre.4` 等 CT 6.4.0-pre.1（CT T0582）與 BAT `menu_open` 讀取單完成後一起發（含 BUG-235 / T0964、BUG-236 / T0965、T0966）；`main` `8a1c1318` 起未 push"
   - "✅ BUG-234 CLOSED（`v0.8.1-pre.3` 實機，A-25，D475）"
   - "🗄 `_decision-log.md` 407 KB 超過 400 KB 預算：開工後封存舊決策（D186 起，照 `_archive/decisions/` 既有做法）"
   - "✅ `v0.8.1-pre.2`（D461）／`v0.8.1-pre.1`（D449）：BUG-228–233 全部 CLOSED（交付版自動化驗收 T0955 / T0959、Linux CI T0961）；T0950 PASS。下一版 `0.8.1-pre.3`（目前只多測試：T0960 改名、T0961 Linux spec）"
@@ -93,6 +84,7 @@ reminders:
 - 12:52 T0967 DONE（模式 ①，merge `84f8c900`，parent1 `ee76629f`、parent2 `e5a0ad16`；test:unit 9500 passed / 526 files、typecheck 0 / 0、build 0）；收單 `--close-worker --delay-ms 10000` exit 0；斷點 E → U-61、發版 → U-62（D488）
 - 12:53 U-61：A → `ct-merge/T0965` 再合併 `main`（只多 `_ct-workorders/**`）後 ff，`main` = `8a1c1318`（產品樹 = `84f8c900`，未 push）；整合 worktree detach；T0965 worktree 移除；BUG-236 FIXED（D489）
 - 12:53 U-62 收到提問「本版會配合 CT 修改嗎?」→ 不會（`main` 未含 `menu_open` 讀取）；U-62 改問發版時機（A 等 CT 與 BAT 讀取單一起發，推薦 / B 現在先發）（D490）
+- 12:55 使用者：「等配合CT修改的版本完成再一起發版」= U-62：A → 等 CT T0582 回傳規範位置後開 BAT `menu_open` 讀取單，完成後再問發 `0.8.1-pre.4`（D491）
 
 ---
 
