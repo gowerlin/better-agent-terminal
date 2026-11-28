@@ -4,11 +4,11 @@ summary_version: 1
 bat_contract: 2
 ct_version: "6.4.0"
 inbox_features: ["recommended", "dismiss", "multi", "menu"]
-updated_at: "2026-11-28T20:33:28+08:00"
+updated_at: "2026-11-28T20:39:48+08:00"
 session: "2026-11-28 17:13 第一百四十一 session 開工（CT v6.4.0，BAT 0.8.1-pre.5）"
 next_ids:
-  workorder: "T0984"
-  decision: "D527"
+  workorder: "T0985"
+  decision: "D528"
   bug: "BUG-239"
   plan: "PLAN-071"
   user: "U-83"
@@ -21,7 +21,7 @@ user_actions:
     created_at: "2026-11-28T18:15:16+08:00"
 todo:
   - "🔄 第一百四十一 session（D516，U-72：A、B、C、D）：✅ T0977 DONE、ff 進 `main` `1ae19702`（D517）；✅ T0978 DONE（`f9738360`，D518）→ 合併工單 T0981 DONE、ff 進 `main` `84f96834`（D519）；✅ T0980 DONE、ff 進 `main` `12dce91b`（D520）；✅ T0979 研究 DONE（D521）：① env 差異延後（塔台）；U-76：D、U-77：A、U-78：A（D522）→ 合併工單 T0982 DONE、ff 進 `main` `11d33816`（D523）；✅ T0983 DONE、ff 進 `main` `f53c938c`（D524，BUG-238 FIXED）；T0983 改 `terminal-server.js`（holder key 變）→ `0.8.1-pre.6` 發版前要跑 W6"
-  - "✅ `v0.8.1-pre.6` 發佈（D526）：W6 `46142714419` 九情境 PASS（A = pre.5 舊 holder key → B 新 key 接回）→ pre-release `46143214386`；更版重點、CHANGELOG / release-note / README、`package.json` 已同步；BUG-238 CLOSED。待使用者 A-28（pre.6 實機）"
+  - "✅ `v0.8.1-pre.6` 發佈（D526）：W6 `46142714419` 九情境 PASS（A = pre.5 舊 holder key → B 新 key 接回）→ pre-release `46143214386`；更版重點、CHANGELOG / release-note / README、`package.json` 已同步；BUG-238 CLOSED。A-28 改由自動化驗收 T0984（使用者 2026-11-28 20:39「派單自動驗收 A-28」，D527）"
   - "PLAN-066 後續延後（D521）：`pty:create` 只送 env 差異（省約 3 MB 有上限高水位；之後有其他工單要改協定 / holder 時一起做）"
   - "✅ 第一百四十 session：BUG-234 / 235 / 236 / 237 全部 CLOSED；`v0.8.1-pre.3` / `pre.4` / `pre.5` 發佈；CT 6.4.0 正式版上線、README 對照表已更新；決策日誌收斂（D515）"
   - "候選（未開單，T0965 建議）：只剩選單紀錄（`question` 已被清除）時 Worker 通知仍照舊直接寫入，可能打進開著的選單；待 CT `menu_open`（D484）工單一起評估"

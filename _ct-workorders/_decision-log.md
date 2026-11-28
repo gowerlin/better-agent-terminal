@@ -10,6 +10,7 @@
 
 | ID | 日期 | 標題 | 相關工單 |
 |----|------|------|---------|
+| D527 | 2026-11-28 | 使用者已裝 `v0.8.1-pre.6`、「派單自動驗收 A-28」→ T0984（zip 隔離實例＋ACC claude，S1 未信任資料夾 B3 以 pre.5 對照） | T0984 / T0978 |
 | D526 | 2026-11-28 | `v0.8.1-pre.6` 發佈（W6 九情境 PASS 後）；BUG-238 CLOSED；A-28 待使用者 | T0977–T0983 / BUG-238 |
 | D525 | 2026-11-28 | U-81：A（push → desktop-build ×2 → W6 → 全 PASS 才發 `0.8.1-pre.6`）、U-82：A（刪本 session 分支）；已 push `main`、觸發 desktop-build A / B | — |
 | D524 | 2026-11-28 | T0983 收單（`89327c0a`）；U-80：A → 模式 ① ff 進 `main` `f53c938c`；BUG-238 FIXED；holder key 改變 → 發版前 W6；U-81（push / W6 / 發版）、U-82（刪分支） | T0983 / BUG-238 |
@@ -645,6 +646,14 @@
   4. PLAN-001 保持延後（🟢 Low，等 plugin 1.0 穩定）
 - **Success criteria**（EXP→CONCLUDED）：npm install 無錯 / 所有 native modules rebuild 成功 / dev+build:dir 可跑 / 手動 smoke test 8 項通過
 - **最大風險**：`whisper-node-addon@1.0.2` 對 Electron 41（Node 24）的 NODE_MODULE_VERSION 相容性未知，允許 Worker 遇此決策點主動問塔台
+
+---
+
+### D527 2026-11-28 20:39 — A-28 改派自動化驗收 T0984
+
+- **使用者**：「已更版 v0.8.1-pre.6，派單自動驗收 A-28」。
+- **決定**：開 T0984（verification，比照 T0970）：zip 隔離實例（pre.6 / pre.5，Release SHA-256 核對）＋ACC 隔離 claude；S1 每輪新路徑的未信任資料夾重現 T0970 B3（信任 Enter 後約 150 ms 按 F12，距 hook ≥ 300 ms），pre.6 預期立即送出、pre.5 預期 `held … reason=draft`；S2 已信任資料夾（T0972 不回歸）、S3 真草稿仍保留、S4 日誌不含內容；S5 選用 F4 交付版煙霧測試（不影響 A-28 判定）。不碰安裝版 BAT（塔台所在）。A-28 留在 `user_actions` 到 T0984 收單判定。
+- **相關**：D526 / T0978 / T0970
 
 ---
 
