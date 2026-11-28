@@ -97,6 +97,7 @@ reminders:
 - 13:21 [提問] T0968 Q-3（T0965 測試 `notify-hold-question-menu.test.ts:228` 斷言「只剩選單紀錄時 Worker 通知直接送出」與本單要求相反）→ 塔台答 A（只改這一條、註明 T0968 依 D492 改變行為，其他斷言不動）（`--answer --choice 1` exit 0）
 - 13:33 T0968 DONE（`4dea180c`，test:unit 9567 passed / 529 files、typecheck 0 / 0、build 0；H-1～H-14 對照、Worker 通知殘留風險評估：最壞保留到該回合結束，不加逾時）；收單 `--close-worker --delay-ms 10000 --worktree keep` exit 0；五條全成立 → 模式 ①：`ct-merge/T0968` `8b3e9ec9`（parent1 `1372e23d`、parent2 `4dea180c`）；斷點 E → U-63、發版 → U-64（D493）
 - 13:35 U-63：A、U-64：A → T0968 ff，`main` = `b2edf438`；去識別＋金鑰掃描（推送範圍 56 commits）0 命中 → push `main` → `pre-release.yml -f version=0.8.1-pre.4` run `46112814137` success；14:00 `v0.8.1-pre.4` 發佈（資產 4 個＋`server-bundle-v0.8.1-pre.4`），更版重點已改寫；A-26 待你實機（D494）
+- 14:05 三文件 commit `f8e06829`＋記帳 `f09fdb0a` push；Pages run `46114762760` build / link-check / deploy 全 success（link-check 1695 / 0 errors），網站首頁版號 `0.8.1-pre.4`；已通知 CT 塔台版號
 
 ---
 
