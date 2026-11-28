@@ -209,3 +209,8 @@ memory_overrides:
 ### Commit
 
 - 產品：`e5a0ad16`（`ct/T0965`）。工單：在主 checkout 以 `git commit --only` 提交本檔。
+
+## 塔台收單補記
+
+- 2026-11-28 12:48 (UTC+8) 收單：DONE 確認（`validated_sha` = `head` = `e5a0ad16`；`outOfScopeFiles` 空、`conflicts` 空、`dirty` 空）。`--close-worker --delay-ms 10000 --worktree keep` exit 0。`main` 自 base 起已併入 T0966 產品改動 → 判準 1 不成立 → 派合併工單 T0967（模式 ①，`git merge-tree` 試合併無衝突）（D486）。
+- 後續建議兩項記入塔台待辦：只剩選單紀錄時 Worker 通知仍可能打進選單；面板塔台不受影響（只記錄）。

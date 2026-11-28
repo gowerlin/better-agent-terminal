@@ -10,6 +10,9 @@
 
 | ID | 日期 | 標題 | 相關工單 |
 |----|------|------|---------|
+| D488 | 2026-11-28 | T0967 收單（`84f8c900`）；斷點 E 發 U-61、發 `0.8.1-pre.4` 發 U-62 | T0967 / T0965 / BUG-236 |
+| D487 | 2026-11-28 | CT 核定選單 HANDOVER（ACCEPTED，CT D926）；CT T0582 派工；等 CT 傳規範位置後開 BAT `menu_open` 讀取單 | BUG-236 |
+| D486 | 2026-11-28 | T0965 收單（`e5a0ad16`，BUG-236 原因：滑鼠按下清掉 `question` 但選單仍開著）；判準 1 不成立 → 合併工單 T0967 | T0965 / T0967 / BUG-236 |
 | D485 | 2026-11-28 | U-60：A → T0966 ff 進 `main` `64b39176` | T0966 |
 | D484 | 2026-11-28 | CT 塔台受理選單 HANDOVER（DRAFT 待 CT U-10）：`menu_open`、不重開、`inbox_features: menu`，CT 6.4.0 | T0965 / BUG-236 |
 | D483 | 2026-11-28 | T0966 收單（`737a378c`）；模式 ① `d76ec16e`；斷點 E 發 U-60；T0965 補充 #1 | T0966 / T0965 |
@@ -603,6 +606,35 @@
   4. PLAN-001 保持延後（🟢 Low，等 plugin 1.0 穩定）
 - **Success criteria**（EXP→CONCLUDED）：npm install 無錯 / 所有 native modules rebuild 成功 / dev+build:dir 可跑 / 手動 smoke test 8 項通過
 - **最大風險**：`whisper-node-addon@1.0.2` 對 Electron 41（Node 24）的 NODE_MODULE_VERSION 相容性未知，允許 Worker 遇此決策點主動問塔台
+
+---
+
+### D488 2026-11-28 12:52 — T0967 收單；U-61（ff）、U-62（發版）
+
+- **回報**：DONE，模式 ① 無衝突（只有 `docs/agent-guide/tower-inbox.md` auto-merge，T0966 / T0965 兩節都在）；merge `84f8c900`（parent1 `ee76629f` = `base_main_sha`、parent2 `e5a0ad16` = T0965 `validated_sha`）；樹比對只有 T0965 的 9 檔；在 merge commit 上 test:unit 9500 passed / 526 files（含 T0965 28 項、T0966 15 項）、typecheck 0 / 0、build 0。
+- **SHA 比對**：①–③ 成立；`main` 之後只多 `_ct-workorders/**` → ff 前依第 5 步再合併 `main` 一次。
+- **斷點 E**：U-61。**發版**：U-62（`0.8.1-pre.4`：BUG-235 / T0964、BUG-236 / T0965、T0966；本版未改安裝程式路徑）。
+- **相關**：T0967 / T0965 / BUG-236 / D486
+
+---
+
+### D487 2026-11-28 12:49 — CT 核定選單 HANDOVER
+
+- **來源**：跨 session 訊息（`BMad-Guide · Tower`）：CT 使用者 12:47 核定 U-10：A（CT D926），回覆稿定案、內容與草案相同（CT `b96f235`，〈回覆紀錄〉補記 BAT D484 的讀取條件）。CT 開 PLAN-022（CT 6.4.0）、T0582（6.4.0-pre.1：規範、`check-frontmatter.py`、Guide、zip，只打包不安裝）12:48 派工。
+- **BAT 端**：`_handover-2026-11-28-inbox-menu-handoff.md` → ACKNOWLEDGED（`local_workorder` 記 CT T0582）。CT T0582 收單後會傳規範「檔:行」與 6.4.0 範例狀態檔路徑 → BAT 開 `menu_open` 讀取工單（`inbox_features` 含 `menu` 才用；回答的 U-n 在 `menu_open.ids` 且 `opened_at` 對得上 `question` 開始時間才送 Esc；一併評估 T0965 建議的「只剩選單紀錄時 Worker 通知」）。
+- **相關**：D482 / D484 / BUG-236 / T0965
+
+---
+
+### D486 2026-11-28 12:48 — T0965 收單；派合併工單 T0967
+
+- **回報**：DONE，`validated_sha` = `head` = `e5a0ad16`；test:unit 9479 passed / 524 files、vite build、兩個 typecheck 皆 0；新測試 28 項修正前 17 失敗；既有斷言未改。
+- **原因**：日誌顯示 hook 準時（04:24:16 `question`），04:24:20 分頁內一次滑鼠按下依 T0757 清掉 `question`，選單仍開著；BAT 沒有「選單還開著」的紀錄，04:24:25 回答 `reason=none` 直接寫入選單。
+- **修正**：tracker 另記 AskUserQuestion 選單紀錄（與 `blocked`、⚠️、查詢回傳分開；由 done / stop / submit / post-tool-batch / 使用者 Esc 或 Ctrl+C / BAT 的 Esc / PTY 結束 / recovery 關閉）；契約 2 塔台的回答在 `question` 或只剩選單紀錄時保留，沒有 draft、2 s 內無輸入或點擊、1 s 內無輸出時 BAT 送 Esc，Esc 後有輸出才送文字，3 s 無效果則留在待送；Worker 通知、`permission` / `elicitation` / `input`、非契約 2 不變。沒有新增保留原因值。
+- **合併**：`--worktree-status` `outOfScopeFiles` / `conflicts` / `dirty` 空，但 `main` 自 base 起已併入 T0966 產品改動 → 判準 1 不成立 → 合併工單 **T0967**（模式 ① mechanical；塔台 `git merge-tree` 無衝突，只有 `docs/agent-guide/tower-inbox.md` 兩邊改不同段落）。
+- **待實機**：T0965〈待實機〉5 項（Esc 後 claude 輸入框是否為空、選單開著時有無定時輸出最關鍵）。
+- **後續候選**：只剩選單紀錄時 Worker 通知仍可能打進選單 → 與 CT `menu_open`（D484）工單一起評估；面板塔台不受影響。
+- **相關**：T0965 / T0967 / BUG-236 / D481 / D485
 
 ---
 
