@@ -1,0 +1,45 @@
+---
+schema_version: 1
+schema_kind: bug
+id: BUG-236
+title: "塔台開著原生選單（AskUserQuestion）時，待辦分頁的回答被直接送進選單（顯示「已送出」而不是「已排入待送」），選單收到的答案與使用者在待辦分頁選的不同"
+status: OPEN
+severity: medium
+reproducibility: "使用者實機一次（`0.8.1-pre.3`，2026-11-28 12:24）；未查證"
+created_at: "2026-11-28T12:27:02+0800"
+updated_at: "2026-11-28T12:27:02+0800"
+impact:
+  - tower-inbox
+  - notify-hold
+links:
+  discovered_in: "使用者實機（U-57 / U-58，2026-11-28 第一百四十 session）"
+  related: [BUG-235, BUG-196, T0964, T0788, T0908, T0926]
+---
+# BUG-236 — 待辦分頁的回答被打進開著的選單
+
+| 欄位 | 內容 |
+|------|------|
+| 嚴重度 | 🟡 medium（答案可能被選錯：本次使用者在待辦分頁選 U-57：A，塔台收到的選單結果是兩題都「放棄」） |
+| 可重現 | 使用者實機一次，待查證 |
+| **狀態** | 📂 OPEN（修法方向等 U-59） |
+| 回報者 | 使用者（2026-11-28 12:26） |
+| 影響版本 | `v0.8.1-pre.3`（更早的版本未確認） |
+
+## 現象（預期 vs 實際）
+
+- 情境：塔台（Claude CLI · Tower，契約 v2）12:23 開了兩題的原生選單（U-57 合併、U-58 後續），同時寫進待辦分頁。
+- 預期（T0788 / T0908 設計）：塔台開著選單時是 `question` blocked，待辦分頁送出的回答要保留在「📨 待送」，選單關閉後才送。
+- 實際：
+  - 待辦分頁 U-57 顯示「✓ 已送出：U-57：A（12:24）」（`sent`，不是 `held`）。
+  - 截圖中終端選單的 U-57 已打勾、游標停在 U-58；之後塔台收到的選單結果是 U-57、U-58 **都是「放棄」**，與使用者在待辦分頁選的 A 不同。
+  - 使用者原話：「兩邊都呈現選單時，似乎只能由終端輸入，能否能任由哪邊輸入都可」。
+- 推論（未查證）：`U-57：A`＋Enter 以按鍵送進選單，被選單當成數字 / 方向鍵 / 選取處理；可能原因是 `question` blocked 還沒設上（hook 晚到）、或 AskUserQuestion 的提示沒有被判成 prompt reason。
+
+## 線索（塔台整理，未查證）
+
+- 日誌：`%APPDATA%\BetterAgentTerminal\Logs` 同日最新 `debug-*.log`，塔台分頁 `f32bfa46…` 在 04:23–04:26Z 的 `ask-user-question` / `permission-request` hook、`[notify-hold]`、`[tower-inbox] answer … → sent`。
+- 相關：BUG-196（Worker 通知替塔台作答，T0788 保留）、BUG-224 / T0926（AskUserQuestion 晚到的 hook）、BUG-235 / T0964（回答被 draft 擋）。
+
+## 修正紀錄
+
+- 2026-11-28 12:27 開單 OPEN；修法方向（待辦分頁能否在選單開著時作答）交使用者 U-59（D479）
