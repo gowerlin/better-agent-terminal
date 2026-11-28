@@ -4,6 +4,18 @@ All notable changes to Better Agent Terminal are documented in this file.
 
 ## [Unreleased]
 
+## [0.8.1-pre.4] — 2026-11-28
+
+### Added
+- 讀 CT 6.4.0 的 `menu_open`（T0968，D492）：`inbox_features` 含 `menu` 時，待辦分頁的回答只在該 U-n 在 `menu_open.ids` 且 `opened_at` 對得上選單紀錄時才代按 Esc，其他保留到選單關閉；該題旁顯示「在這裡回答會先關掉選單」提示（`question` 時）。renderer 經 preload 以選用參數帶給 `tower-inbox:answer`（`checkInboxAnswer` 與回傳形狀不變）；沒有 `menu` 資訊 = 下一項的行為。唯一實作 `parseMenuOpen` / `inboxMenuInfo`（`src/lib/tower-inbox.ts`）、`menuEscDecision`（`electron/notify-hold.ts`）
+
+### Fixed
+- 塔台開著原生選單（AskUserQuestion）時，待辦分頁的回答被當按鍵打進選單（BUG-236，T0965 / T0967）：分頁內滑鼠按下（T0757）清掉 `question` 後選單仍開著，回答直接寫入。tracker 另記 AskUserQuestion 選單紀錄（與 `blocked` 分開）；契約 2 塔台的回答在 `question` 或只剩選單紀錄時保留，沒有草稿、近 2 s 無輸入或點擊、近 1 s 無輸出時 BAT 送 Esc，確認選單關閉後才送文字，3 s 無效果則留在待送；`permission` / `elicitation` / codex `input` 照舊保留。契約 2 塔台只剩選單紀錄時 Worker 通知也保留（T0968）
+- 待辦分頁的回答在塔台閒置時被判成「輸入框有草稿」而卡在「📨 待送」，要等使用者自己送出下一則才送達（BUG-235，T0964）：契約 2 claude 塔台收到 `user-prompt-submit` 時清掉送出前的草稿（hook 前 300 ms 有輸入或 2 s 內有 Enter 則保留）；草稿出現時記 `[notify-hold] draft set … cause=<類別>` 診斷日誌（不記內容）；待送佇列中完全相同的回答不重複排入。觸發來源尚未確定
+
+### Changed
+- 待辦分頁「👷 Worker 等你」只算 Worker 通知，用語改為「待送 N 則 Worker 通知」；排在待送的回答不列在此區、不計入分頁標題數字，改在該筆「✓ 已排入待送」旁顯示保留原因（T0966，U-58）
+
 ## [0.8.1-pre.3] — 2026-11-28
 
 ### Fixed
