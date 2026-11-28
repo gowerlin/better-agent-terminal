@@ -10,6 +10,7 @@
 
 | ID | 日期 | 標題 | 相關工單 |
 |----|------|------|---------|
+| D488 | 2026-11-28 | T0967 收單（`84f8c900`）；斷點 E 發 U-61、發 `0.8.1-pre.4` 發 U-62 | T0967 / T0965 / BUG-236 |
 | D487 | 2026-11-28 | CT 核定選單 HANDOVER（ACCEPTED，CT D926）；CT T0582 派工；等 CT 傳規範位置後開 BAT `menu_open` 讀取單 | BUG-236 |
 | D486 | 2026-11-28 | T0965 收單（`e5a0ad16`，BUG-236 原因：滑鼠按下清掉 `question` 但選單仍開著）；判準 1 不成立 → 合併工單 T0967 | T0965 / T0967 / BUG-236 |
 | D485 | 2026-11-28 | U-60：A → T0966 ff 進 `main` `64b39176` | T0966 |
@@ -605,6 +606,15 @@
   4. PLAN-001 保持延後（🟢 Low，等 plugin 1.0 穩定）
 - **Success criteria**（EXP→CONCLUDED）：npm install 無錯 / 所有 native modules rebuild 成功 / dev+build:dir 可跑 / 手動 smoke test 8 項通過
 - **最大風險**：`whisper-node-addon@1.0.2` 對 Electron 41（Node 24）的 NODE_MODULE_VERSION 相容性未知，允許 Worker 遇此決策點主動問塔台
+
+---
+
+### D488 2026-11-28 12:52 — T0967 收單；U-61（ff）、U-62（發版）
+
+- **回報**：DONE，模式 ① 無衝突（只有 `docs/agent-guide/tower-inbox.md` auto-merge，T0966 / T0965 兩節都在）；merge `84f8c900`（parent1 `ee76629f` = `base_main_sha`、parent2 `e5a0ad16` = T0965 `validated_sha`）；樹比對只有 T0965 的 9 檔；在 merge commit 上 test:unit 9500 passed / 526 files（含 T0965 28 項、T0966 15 項）、typecheck 0 / 0、build 0。
+- **SHA 比對**：①–③ 成立；`main` 之後只多 `_ct-workorders/**` → ff 前依第 5 步再合併 `main` 一次。
+- **斷點 E**：U-61。**發版**：U-62（`0.8.1-pre.4`：BUG-235 / T0964、BUG-236 / T0965、T0966；本版未改安裝程式路徑）。
+- **相關**：T0967 / T0965 / BUG-236 / D486
 
 ---
 

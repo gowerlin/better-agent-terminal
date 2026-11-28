@@ -4,19 +4,36 @@ summary_version: 1
 bat_contract: 2
 ct_version: "6.3.0"
 inbox_features: ["recommended", "dismiss", "multi"]
-updated_at: "2026-11-28T12:48:59+0800"
+updated_at: "2026-11-28T12:52:13+0800"
 session: "2026-11-28 11:59 第一百四十 session 塔台重新開工（CT v6.3.0，BAT 0.8.1-pre.3）"
 next_ids:
   workorder: "T0968"
-  decision: "D488"
+  decision: "D489"
   bug: "BUG-237"
   plan: "PLAN-071"
-  user: "U-61"
+  user: "U-63"
   action: "A-26"
+awaiting_user:
+  - id: "U-61"
+    workorder: "T0967"
+    kind: "decision"
+    source: "breakpoint-E"
+    summary: "T0965（BUG-236 選單開著時待辦分頁也能作答）經 T0967 合併：`ct-merge/T0965` `84f8c900` 要 ff 進 `main` 嗎"
+    options: ["A 現在 ff 進 main（推薦）", "B 暫不合併"]
+    recommended: "A"
+    created_at: "2026-11-28T12:52:13+08:00"
+  - id: "U-62"
+    workorder: ""
+    kind: "decision"
+    source: "tower-question"
+    summary: "ff 後要發 `0.8.1-pre.4` 嗎（含 BUG-235 / T0964、BUG-236 / T0965、T0966；需 push `main` 並觸發 pre-release）"
+    options: ["A ff 後 push 並發 0.8.1-pre.4（推薦）", "B 先不發版"]
+    recommended: "A"
+    created_at: "2026-11-28T12:52:13+08:00"
 todo:
   - "CT 協調（D482 / D484 / D487）：CT 已核定（ACCEPTED，CT D926）：`menu_open: { ids, opened_at }` 只在開選單前那次寫入、被 Esc 關掉的選單不重開、`inbox_features` 加 `menu`；CT T0582（6.4.0-pre.1）派工中，收單後傳規範「檔:行」與範例狀態檔 → BAT 開 `menu_open` 讀取工單（加嚴條件＋以 `opened_at` 對 blocked 開始時間防殘留；一併評估只剩選單紀錄時的 Worker 通知）"
   - "🟡 BUG-235（medium，D476–D480）：T0964 合併進 `main` `ee5d364f`（未 push），FIXED；發 `0.8.1-pre.4` 後實機＋診斷日誌確認才 CLOSED"
-  - "🟡 BUG-236（medium，FIXING，D479–D486）：T0965 DONE（`e5a0ad16`；原因：滑鼠按下清掉 `question` 但選單仍開著）→ 合併工單 T0967 派工中"
+  - "🟡 BUG-236（medium，FIXING，D479–D488）：T0965 經 T0967 合併成 `ct-merge/T0965` `84f8c900`（test:unit 9500 passed）→ 待 U-61 ff；發版待 U-62"
   - "候選（未開單，T0965 建議）：只剩選單紀錄（`question` 已被清除）時 Worker 通知仍照舊直接寫入，可能打進開著的選單；待 CT `menu_open`（D484）工單一起評估"
   - "✅ T0966（U-58：A）合併進 `main` `64b39176`（D485）：Worker 等你不再算回答；T0965 收單時 `main` 已有 T0966 產品改動 → 依 `--worktree-status` 判斷，多半派合併工單"
   - "發版：T0965 / T0966 收單合併後發 `0.8.1-pre.4`（含 T0964 / BUG-235），發版前問使用者"
@@ -81,6 +98,7 @@ reminders:
 - 12:48 T0965 DONE（`e5a0ad16`，test:unit 9479 passed；原因：滑鼠按下清掉 `question`、選單仍開著）；收單 `--close-worker --delay-ms 10000 --worktree keep` exit 0；`main` 已有 T0966 產品改動 → 判準 1 不成立 → 合併工單 T0967（模式 ①，`merge-tree` 無衝突）（D486）
 - 12:49 T0967 派工 `--mode yolo --no-interactive --wait-started 30000`（不隔離，整合 worktree）exit 0，`started: 04:48:51Z`，分頁 `e33c774f…`
 - 12:49 CT 塔台：HANDOVER 已核定（CT U-10：A、CT D926，內容同草案）；CT PLAN-022 / T0582（6.4.0-pre.1）已派工，收單後傳規範「檔:行」與範例狀態檔；本機 HANDOVER → ACKNOWLEDGED（D487）
+- 12:52 T0967 DONE（模式 ①，merge `84f8c900`，parent1 `ee76629f`、parent2 `e5a0ad16`；test:unit 9500 passed / 526 files、typecheck 0 / 0、build 0）；收單 `--close-worker --delay-ms 10000` exit 0；斷點 E → U-61、發版 → U-62（D488）
 
 ---
 
