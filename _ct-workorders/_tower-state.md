@@ -86,6 +86,7 @@ reminders:
 - 12:53 U-62 收到提問「本版會配合 CT 修改嗎?」→ 不會（`main` 未含 `menu_open` 讀取）；U-62 改問發版時機（A 等 CT 與 BAT 讀取單一起發，推薦 / B 現在先發）（D490）
 - 12:55 使用者：「等配合CT修改的版本完成再一起發版」= U-62：A → 等 CT T0582 回傳規範位置後開 BAT `menu_open` 讀取單，完成後再問發 `0.8.1-pre.4`（D491）
 - 13:14 CT 塔台：T0582 DONE（CT D927），傳 `menu_open` 規範位置（CT `7fee085`）、4 個範例狀態檔、CT 補定三點 → 開 T0968（D492）
+- 13:15 T0968 派工 `--mode yolo --no-interactive --isolation worktree --wait-started 30000` exit 0，`started: 05:15:09Z`，分頁 `2faa9bd8…`，worktree `ct/T0968` base `dada34d9`
 
 ---
 
