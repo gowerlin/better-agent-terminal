@@ -4,19 +4,28 @@ summary_version: 1
 bat_contract: 2
 ct_version: "6.3.0"
 inbox_features: ["recommended", "dismiss", "multi"]
-updated_at: "2026-11-28T12:31:57+0800"
+updated_at: "2026-11-28T12:43:03+0800"
 session: "2026-11-28 11:59 第一百四十 session 塔台重新開工（CT v6.3.0，BAT 0.8.1-pre.3）"
 next_ids:
   workorder: "T0967"
-  decision: "D482"
+  decision: "D484"
   bug: "BUG-237"
   plan: "PLAN-071"
-  user: "U-60"
+  user: "U-61"
   action: "A-26"
+awaiting_user:
+  - id: "U-60"
+    workorder: "T0966"
+    kind: "decision"
+    source: "breakpoint-E"
+    summary: "T0966（Worker 等你不再算你的回答）合併：`ct-merge/T0966` `d76ec16e` 要 ff 進 `main` 嗎"
+    options: ["A 現在 ff 進 main（推薦）", "B 暫不合併"]
+    recommended: "A"
+    created_at: "2026-11-28T12:43:03+08:00"
 todo:
   - "🟡 BUG-235（medium，D476–D480）：T0964 合併進 `main` `ee5d364f`（未 push），FIXED；發 `0.8.1-pre.4` 後實機＋診斷日誌確認才 CLOSED"
   - "🟡 BUG-236（medium，FIXING，D479 / D481）：選單開著時待辦分頁的回答被打進選單 → U-59：A（兩邊都能答：BAT 先按 Esc 關選單再送文字）→ T0965 派工"
-  - "U-58：A → T0966 派工：「👷 Worker 等你」不再把回答算成「待送 N 則通知」、回答不計入標題數字（D481）"
+  - "U-58：A → T0966 DONE（`737a378c`），`ct-merge/T0966` `d76ec16e` 待 U-60 ff；T0965 之後合併時 `main` 已有 T0966 產品改動 → 依 `--worktree-status` 判斷，多半要派合併工單（D483）"
   - "發版：T0965 / T0966 收單合併後發 `0.8.1-pre.4`（含 T0964 / BUG-235），發版前問使用者"
   - "✅ BUG-234 CLOSED（`v0.8.1-pre.3` 實機，A-25，D475）"
   - "🗄 `_decision-log.md` 407 KB 超過 400 KB 預算：開工後封存舊決策（D186 起，照 `_archive/decisions/` 既有做法）"
@@ -73,6 +82,7 @@ reminders:
 - 12:34 T0965 / T0966 派工 `--mode yolo --no-interactive --isolation worktree --wait-started 30000` 皆 exit 0：T0965 `started: 04:33:55Z` 分頁 `2c447e92…`；T0966 `started: 04:33:58Z` 分頁 `3459f98b…`；base `b389f16c`
 - 12:38 [提問] T0966 Q-1（保留原因要知道哪一筆回答仍在佇列，需改 `src/lib/inbox-answer.ts`、`src/stores/inbox-sent-store.ts`）→ 塔台答 A（`--answer --choice 1` exit 0）：只加選用欄位、IPC 與主行程不變；兩檔補進 T0966 affects_files（與 T0965 不重疊）
 - 12:42 使用者：「如果 CT 配合修改，可以更好控制，可協調 CT 塔台配合」→ 寫 `_handover-2026-11-28-inbox-menu-handoff.md`（`7cec7ce6`，C-1 選單含哪些 U-n 的 frontmatter 欄位、C-2 中斷後剩下的題、C-3 `inbox_features` 宣告、C-4 開工清殘留），SendMessage 給 `BMad-Guide · Tower`（ListAgents 第 1 步命中）已送達收件匣；T0965 範圍不變（舊 CT 也能用），CT 回覆後另開工單讀欄位（D482）
+- 12:43 T0966 DONE（`737a378c`，test:unit 9471 passed）；收單 `--close-worker --delay-ms 10000 --worktree keep` exit 0；五條全成立 → 模式 ①：`ct-merge/T0966` `d76ec16e`（parent1 `6031a363`、parent2 `737a378c`）；T0965 加〈塔台補充（執行中 #1）〉（新原因值可補 `notifyHoldReasonKey`）並 SendMessage 提示重讀；斷點 E → U-60（D483）
 
 ---
 

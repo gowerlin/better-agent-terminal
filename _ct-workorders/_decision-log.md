@@ -10,6 +10,7 @@
 
 | ID | 日期 | 標題 | 相關工單 |
 |----|------|------|---------|
+| D483 | 2026-11-28 | T0966 收單（`737a378c`）；模式 ① `d76ec16e`；斷點 E 發 U-60；T0965 補充 #1 | T0966 / T0965 |
 | D482 | 2026-11-28 | 協調 CT 塔台：HANDOVER 選單與待辦分頁作答的 CT 配合點（C-1–C-4）；T0965 不改範圍 | T0965 / BUG-236 |
 | D481 | 2026-11-28 | U-58：A → T0966（Worker 等你不算回答）；U-59：A → BUG-236 FIXING、T0965（選單開著時 Esc 關選單再送文字）；兩張並行 | T0965 / T0966 / BUG-236 |
 | D480 | 2026-11-28 | U-57：A → T0964 ff 進 `main` `ee5d364f`；BUG-235 FIXED | T0964 / BUG-235 |
@@ -600,6 +601,16 @@
   4. PLAN-001 保持延後（🟢 Low，等 plugin 1.0 穩定）
 - **Success criteria**（EXP→CONCLUDED）：npm install 無錯 / 所有 native modules rebuild 成功 / dev+build:dir 可跑 / 手動 smoke test 8 項通過
 - **最大風險**：`whisper-node-addon@1.0.2` 對 Electron 41（Node 24）的 NODE_MODULE_VERSION 相容性未知，允許 Worker 遇此決策點主動問塔台
+
+---
+
+### D483 2026-11-28 12:43 — T0966 收單；斷點 E（U-60）
+
+- **回報**：DONE，`validated_sha` = `head` = `737a378c`；test:unit 9471 passed / 525 files、vite build、兩個 typecheck 皆 0；新增測試 15 項；既有斷言未改。回答不再列進「👷 Worker 等你」、不計入標題數字（`heldWorkerNotifications`），用語改「待送 N 則 Worker 通知」，「已排入待送」旁顯示保留原因（Q-1：A）。
+- **合併**：`--worktree-status` 五條全成立 → 模式 ①：`ct-merge/T0966` `d76ec16e`（parent1 `6031a363`、parent2 `737a378c`，產品樹 = head）；`--close-worker --worktree keep` exit 0。斷點 E → **U-60**。
+- **T0965**：加〈塔台補充（執行中 #1）〉：若新增保留原因值，允許補 `notifyHoldReasonKey`（`TerminalThumbnail.tsx`、locales），已補進 `affects_files`；跨 session 提示 Worker 重讀。T0966 ff 後 `main` 會有產品改動，T0965 收單時依 `--worktree-status` 判斷，多半派合併工單。
+- **提問方式**：BUG-236 修好前，斷點 E 仍不開原生選單（D479 的一次性例外延續到 T0965 合併）。
+- **相關**：T0966 / T0965 / BUG-236 / D481
 
 ---
 
