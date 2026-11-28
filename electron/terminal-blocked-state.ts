@@ -67,6 +67,16 @@
  * record). Logged `[blocked] terminal=<id> kept cleared: hook <event>[ tool=<name>] is of the question
  * the user answered <n>ms ago (reported late)`. Permission prompts are not affected (T0918 counts them).
  *
+ * T0965 / BUG-236: the AskUserQuestion menu itself (`hasOpenQuestionMenu`) — apart from `blocked`, which the
+ * user's input / a mouse press clears (T0590 / T0757: the user may have answered) while the menu often stays
+ * open (an arrow key, the first of several questions, a click that focused the window). Opened by a hook
+ * that sets or keeps `question`; closed only by what says the menu is gone: `ask-user-question-done`, `stop`,
+ * `user-prompt-submit`, a main-thread `post-tool-batch` (each unless its `at` is earlier, T0790), the user's
+ * lone Esc or a Ctrl+C (`clearForUserInput` `data`), BAT's own Esc (`closeQuestionMenu`), the PTY ending, the
+ * Terminal Server recovery. Read only by NotifyHoldController (an inbox answer is not typed into the menu);
+ * 🔴 `blocked` and every query answer are unchanged. Logged `[blocked] terminal=<id> question menu closed (<cause>)`
+ * for the user's / BAT's keys only.
+ *
  * `blockedDetection` (`hook` / `none`) is per terminal id and outlives the PTY (restart, recovery,
  * an exited record): set by the launch decision (`buildBatMcpLaunchArgs`, `none` when no hooks)
  * and by any accepted report (a tab that reports evidently runs the hooks). So a `none` tab never
@@ -453,6 +463,11 @@ export class TerminalBlockedTracker {
    */
   private readonly answeredQuestions = new Map<string, AnsweredQuestion>()
   /**
+   * T0965 / BUG-236: PTY id → its AskUserQuestion menu may still be open (outlives a clear by the user's
+   * input / a mouse press); `at` = the latest `at` of the hooks that opened / kept it (absent = unknown).
+   */
+  private readonly questionMenus = new Map<string, { at?: bigint }>()
+  /**
    * T0694: running PTY id → its agent's turn (start time, the quiet fallback's timer).
    * T0791: + `startedAt` — the latest `at` of the `user-prompt-submit` reports that started / kept it
    * (absent = none carried one).
@@ -522,6 +537,7 @@ export class TerminalBlockedTracker {
     const agent = agentId ?? MAIN_AGENT
     const agentLog = agentId ? ` agent=${agentId}` : ''
     if (reason === null) {
+      this.noteQuestionMenuEnd(id, event, agentId, at) // T0965: before the early returns below
       const only = HOOK_EVENT_CLEARS_ONLY[event]
       if (only && this.states.get(id)?.reason !== only) return { result: 'unchanged', state: this.get(id) }
       if (event === 'post-tool-batch') {
@@ -540,6 +556,7 @@ export class TerminalBlockedTracker {
     // T0926 / BUG-224: the other hook of the question the user already answered (reported late)
     if (reason === 'question' && this.lateHookOfAnsweredQuestion(id, event, toolName, at)) return { result: 'unchanged', state: null }
     this.answeredQuestions.delete(id)
+    if (reason === 'question') this.noteQuestionMenuOpen(id, at) // T0965
     const current = this.states.get(id)
     if (current && current.reason === reason) {
       if (reason === 'permission') this.addPermissionPrompt(id, agent, at)
@@ -566,6 +583,48 @@ export class TerminalBlockedTracker {
     if (at === undefined) return
     const known = this.blockedAt.get(id)
     if (known === undefined || at > known) this.blockedAt.set(id, at)
+  }
+
+  /** T0965 / BUG-236: a hook that sets / keeps `question` — PTY `id`'s AskUserQuestion menu is open. */
+  private noteQuestionMenuOpen(id: string, at: bigint | undefined): void {
+    const menu = this.questionMenus.get(id) ?? {}
+    if (at !== undefined && (menu.at === undefined || at > menu.at)) menu.at = at
+    this.questionMenus.set(id, menu)
+  }
+
+  /**
+   * T0965 / BUG-236: the hooks that say PTY `id`'s AskUserQuestion menu is gone — the tool finished
+   * (`ask-user-question-done`, the main thread's `post-tool-batch`) or the turn moved on (`stop`,
+   * `user-prompt-submit`). One whose `at` is earlier than the menu's happened before it (T0790): kept.
+   */
+  private noteQuestionMenuEnd(id: string, event: HookReportEvent, agentId: string | undefined, at: bigint | undefined): void {
+    const menu = this.questionMenus.get(id)
+    if (!menu) return
+    const ends = event === 'ask-user-question-done' || event === 'stop' || event === 'user-prompt-submit'
+      || (event === 'post-tool-batch' && agentId === undefined)
+    if (!ends) return
+    if (at !== undefined && menu.at !== undefined && at < menu.at) return
+    this.questionMenus.delete(id)
+  }
+
+  /**
+   * T0965 / BUG-236: whether PTY `id`'s AskUserQuestion menu may still be open — also after the user's
+   * input / a mouse press cleared `question` (file header). Never changes `blocked`.
+   */
+  hasOpenQuestionMenu(id: string): boolean {
+    return this.questionMenus.has(id)
+  }
+
+  /**
+   * T0965 / BUG-236: BAT's own Esc closed PTY `id`'s AskUserQuestion menu (NotifyHoldController saw the
+   * PTY answer it): the menu record goes and a `question` still set clears (cause `cause`), remembered like
+   * an answer (T0926: its late second hook does not set it back). True when anything changed.
+   */
+  closeQuestionMenu(id: string, cause: string): boolean {
+    const hadMenu = this.questionMenus.delete(id)
+    const cleared = this.states.get(id)?.reason === 'question' ? this.clearAnswered(id, cause) : false
+    if (hadMenu) this.logger?.log(`[blocked] terminal=${id} question menu closed (${cause})`)
+    return hadMenu || cleared
   }
 
   /** T0926: a hook of the AskUserQuestion prompt PTY `id` shows was applied (`question`). */
@@ -795,8 +854,13 @@ export class TerminalBlockedTracker {
    * T0621: the user typed into PTY `id`: clears a hook reason (T0590), never codex's `input` (codex
    * reports its own transitions). True when it was cleared. T0918 / BUG-222: not while 2 or more
    * permission prompts are open (`keptForQueuedPrompts`).
+   * T0965 / BUG-236: `data` (the write, absent = unknown) — a lone Esc or a Ctrl+C closes the
+   * AskUserQuestion menu (`hasOpenQuestionMenu`); any other key leaves it open.
    */
-  clearForUserInput(id: string): boolean {
+  clearForUserInput(id: string, data?: string): boolean {
+    if (typeof data === 'string' && (data === '\x1b' || data.includes('\x03')) && this.questionMenus.delete(id)) {
+      this.logger?.log(`[blocked] terminal=${id} question menu closed (user ${data === '\x1b' ? 'Esc' : 'Ctrl+C'})`)
+    }
     if (this.states.get(id)?.reason === 'input') return false
     if (this.keptForQueuedPrompts(id, 'user input')) return false
     return this.clearAnswered(id, 'user input')
@@ -846,6 +910,7 @@ export class TerminalBlockedTracker {
     this.sessionIds.clear() // T0642
     this.hookOrigins.clear() // T0905
     this.answeredQuestions.clear() // T0926
+    this.questionMenus.clear() // T0965
   }
 
   /** T0600: ms epoch of PTY `id`'s first `session-start`, or null. */
@@ -879,6 +944,7 @@ export class TerminalBlockedTracker {
     this.sessionIds.delete(id)
     this.hookOrigins.delete(id) // T0905
     this.answeredQuestions.delete(id) // T0926
+    this.questionMenus.delete(id) // T0965
     this.endTurn(id, 'the PTY ended') // T0694
   }
 
@@ -1000,6 +1066,7 @@ export class TerminalBlockedTracker {
     this.blockedAt.clear() // T0790
     this.questionHooks.clear() // T0926
     this.answeredQuestions.clear() // T0926
+    this.questionMenus.clear() // T0965
     this.started.clear()
     this.codexStates.clear()
     this.sessionIds.clear()

@@ -146,7 +146,7 @@ export function registerPtyHandlers(register: HandlerRegistrar, deps: PtyHandler
       // T0940 (BUG-227) 案 A: was a hook / osc prompt shown when this key came? Asked before
       // `noteUserInput`, which clears the hook reason.
       const duringPrompt = deps.notifyHold?.isPromptShown?.(id) ?? false
-      manager.noteUserInput(id)
+      manager.noteUserInput(id, data) // T0965: a lone Esc / Ctrl+C closes the AskUserQuestion menu record
       deps.onUserInput?.(id)
       deps.notifyHold?.onUserInput(id, data, { duringPrompt })
     } else if (fromUser && hasMouseButtonPress(data)) {

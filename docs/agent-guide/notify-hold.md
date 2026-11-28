@@ -47,6 +47,8 @@ T0940（BUG-227，D406）：`draft` 不再把「不進輸入框的按鍵」記�
 
 常數（同檔）：`NOTIFY_HOLD_READING_MAX_MS` 60 s、`NOTIFY_HOLD_DRAFT_REMIND_MS` 5 分鐘、`NOTIFY_HOLD_ATOMIC_MAX_MS` 1 s、`NOTIFY_HOLD_ANSWER_MAX_CHARS` 1,000、`NOTIFY_HOLD_SUBMIT_QUIET_MS` 300 ms、`NOTIFY_HOLD_SUBMIT_ENTER_GUARD_MS` 2 s（T0964）。
 
+T0965（BUG-236，U-59：A）：契約 2 塔台的 AskUserQuestion 選單開著時（`question`，或使用者輸入 / 滑鼠按下清掉 `question` 後選單仍開著），待辦分頁的回答不再打進選單：保留，等使用者沒在操作、輸出安靜後由 BAT 送一個 Esc（不算使用者輸入）關掉選單，PTY 有回應後才照既有路徑送文字；3 s 沒回應就留在待送、不送第二個 Esc。常數 `NOTIFY_HOLD_MENU_ESC_MAX_MS` 3 s、`NOTIFY_HOLD_MENU_INPUT_QUIET_MS` 2 s、`NOTIFY_HOLD_MENU_OUTPUT_QUIET_MS` 1 s（同檔）。🔴 只限回答：Worker 通知、`permission` / `elicitation` / `input`、其他分頁與上表 10 點不變。見 [tower-inbox.md](tower-inbox.md)「選單開著時的回答（T0965）」。
+
 T0964（BUG-235）：閒置塔台的回答被 `draft` 擋住、要等使用者下一次送出才送達。原因查證、修正（claude `user-prompt-submit` 時清掉送出前的草稿，送出後打的字不清）、診斷日誌與相同回答去重，見 [tower-inbox.md](tower-inbox.md)「claude 取走輸入框時清掉草稿」。
 
 ## 實作位置

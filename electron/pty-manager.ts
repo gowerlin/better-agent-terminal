@@ -1337,11 +1337,25 @@ export class PtyManager implements CloseWorkerPtyManager {
    * T0535: the user typed into PTY `id` (`pty:write` from a local window, or a headless client).
    * Helper writes (RemoteServer) and, since T0551, writes made only of the terminal's own
    * replies (`isTerminalAutoReply`, electron/close-worker.ts) are not passed here.
+   * T0965 / BUG-236: `data` (the write) lets a lone Esc / a Ctrl+C close the AskUserQuestion menu record.
    */
-  noteUserInput(id: string): void {
+  noteUserInput(id: string, data?: string): void {
     if (!this.instances.has(id)) return
     this.lastUserInputAt.set(id, Date.now())
-    this.blockedTracker.clearForUserInput(id) // T0590; T0621: not codex's `input`
+    this.blockedTracker.clearForUserInput(id, data) // T0590; T0621: not codex's `input`
+  }
+
+  /**
+   * T0965 / BUG-236: whether running PTY `id`'s AskUserQuestion menu may still be open (also after the
+   * user's input / a mouse press cleared `question`; electron/terminal-blocked-state.ts).
+   */
+  hasOpenQuestionMenu(id: string): boolean {
+    return this.instances.has(id) && this.blockedTracker.hasOpenQuestionMenu(id)
+  }
+
+  /** T0965 / BUG-236: BAT's own Esc closed PTY `id`'s AskUserQuestion menu (NotifyHoldController). */
+  closeQuestionMenu(id: string, cause: string): boolean {
+    return this.instances.has(id) && this.blockedTracker.closeQuestionMenu(id, cause)
   }
 
   /**
