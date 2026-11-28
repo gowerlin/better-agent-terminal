@@ -10,6 +10,7 @@
 
 | ID | 日期 | 標題 | 相關工單 |
 |----|------|------|---------|
+| D518 | 2026-11-28 | T0978 收單（`f9738360`）；判準 1 因 T0977 不成立 → 合併工單 T0981；A-28 實機（下一個預覽版） | T0978 / T0981 |
 | D517 | 2026-11-28 | T0977 收單（`8c728d16`）；U-73：A → 模式 ① ff 進 `main` `1ae19702` | T0977 |
 | D516 | 2026-11-28 | U-72：A、B、C、D → 四個未開單候選全部開單：T0977（asar 讀不足判失敗）、T0978（啟動參數回合不套 2 s Enter 窗，推翻 T0972 Q-2 的不放寬）、T0979（研究：PLAN-066 三項後續）、T0980（檔案連結跟 `fs:changed` 重查） | T0977 / T0978 / T0979 / T0980 |
 | D515 | 2026-11-28 | 決策日誌收斂：D186～D425 搬到 `_archive/decisions/_decision-log-D186-D425.md`（🔴 / 危害相關 5 筆留在熱檔） | — |
@@ -636,6 +637,17 @@
   4. PLAN-001 保持延後（🟢 Low，等 plugin 1.0 穩定）
 - **Success criteria**（EXP→CONCLUDED）：npm install 無錯 / 所有 native modules rebuild 成功 / dev+build:dir 可跑 / 手動 smoke test 8 項通過
 - **最大風險**：`whisper-node-addon@1.0.2` 對 Electron 41（Node 24）的 NODE_MODULE_VERSION 相容性未知，允許 Worker 遇此決策點主動問塔台
+
+---
+
+### D518 2026-11-28 18:15 — T0978 收單；派合併工單 T0981
+
+- **收單**：T0978 DONE（`validated_sha` = `head` = `f9738360`）。主行程在 `writeLaunchCommand` 以 `launchCommandEndsWithPrompt` 辨識啟動命令以 `/control-tower` 結尾 → 該 PTY 第一個 `user-prompt-submit` 不套 2 s Enter 窗（300 ms 輸入窗、括號貼上、第二個以後的 submit 不變）；不新增 / 不改 IPC。⏻ 重啟、Recovery 重建、BAT 重開接回各自清除或不記。test:unit 9651 passed、兩個 typecheck = 0、vite build 通過；修正前 8 個新案例失敗；T0964 / T0972 既有斷言未改（Q-2 刻意保留案例依 D516 改寫）。
+- **範圍判斷**：helper 派工（`writeDispatchCommand`）不納入——要加主行程旗標得改 `terminal:create-with-command` payload，且 Worker 分頁不是契約 2 塔台、草稿沒有讀者。塔台接受（之後有派工產生的契約 2 塔台再評估，Worker〈後續建議〉）。殘留風險（啟動命令沒啟動 claude、使用者自己打 `claude` 送出）已寫進 docs 已知限制。
+- **合併**：`--worktree-status` `outOfScopeFiles: []`、`conflicts: []`、`dirty: []`，但 `main` 自 base 起併入 T0977 的產品檔（不重疊）→ 判準 1 不成立 → 合併工單 T0981（`merge_mode: mechanical`，base `f679dfde`）；塔台 `merge-tree` 試合併無衝突。
+- **待使用者**：A-28（下一個預覽版，未信任資料夾的 B3 實機）。
+- **其他**：session id 已由 Worker 寫入；session 快照已寫；`--close-worker --worktree keep` exit 0。
+- **相關**：D516 / T0972 Q-2
 
 ---
 

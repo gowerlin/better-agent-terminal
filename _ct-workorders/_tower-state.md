@@ -4,17 +4,23 @@ summary_version: 1
 bat_contract: 2
 ct_version: "6.4.0"
 inbox_features: ["recommended", "dismiss", "multi", "menu"]
-updated_at: "2026-11-28T18:10:46+08:00"
+updated_at: "2026-11-28T18:15:16+08:00"
 session: "2026-11-28 17:13 第一百四十一 session 開工（CT v6.4.0，BAT 0.8.1-pre.5）"
 next_ids:
-  workorder: "T0981"
-  decision: "D518"
+  workorder: "T0982"
+  decision: "D519"
   bug: "BUG-238"
   plan: "PLAN-071"
   user: "U-74"
-  action: "A-28"
+  action: "A-29"
+user_actions:
+  - id: "A-28"
+    title: "下一個預覽版實機：未信任的資料夾「以塔台開啟 Claude」，信任對話框按 Enter 後立刻按鍵，開工回合結束後從待辦分頁回答 → 應立即送出、不進待送"
+    ref: "T0978"
+    kind: "verify"
+    created_at: "2026-11-28T18:15:16+08:00"
 todo:
-  - "🔄 第一百四十一 session（D516，U-72：A、B、C、D）：✅ T0977 DONE、ff 進 `main` `1ae19702`（D517）；T0978（啟動參數回合不套 2 s Enter 窗）、T0979（研究：PLAN-066 三項後續）執行中；T0980（檔案連結跟 `fs:changed` 重查）等 T0978 合併後派（同改 `tower-inbox.md`）"
+  - "🔄 第一百四十一 session（D516，U-72：A、B、C、D）：✅ T0977 DONE、ff 進 `main` `1ae19702`（D517）；✅ T0978 DONE（`f9738360`，D518）→ 合併工單 T0981（判準 1 因 T0977 不成立）；T0979（研究：PLAN-066 三項後續）執行中；T0980（檔案連結跟 `fs:changed` 重查）等 T0981 ff 後派（同改 `tower-inbox.md`）"
   - "✅ 第一百四十 session：BUG-234 / 235 / 236 / 237 全部 CLOSED；`v0.8.1-pre.3` / `pre.4` / `pre.5` 發佈；CT 6.4.0 正式版上線、README 對照表已更新；決策日誌收斂（D515）"
   - "候選（未開單，T0965 建議）：只剩選單紀錄（`question` 已被清除）時 Worker 通知仍照舊直接寫入，可能打進開著的選單；待 CT `menu_open`（D484）工單一起評估"
   - "PLAN-066（DONE）後續已開研究單 T0979（D516）。分支：`ct/T0885`（Rust 評估，D307 保留不合併，worktree 保留）、`ct/T0886`（node-pty Worker 研究，未併入 `v0.8.x`，worktree 已移除）"
