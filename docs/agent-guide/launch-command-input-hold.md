@@ -33,6 +33,13 @@ T0951 未納入、T0956 補上的兩條路徑見下節「登入導引分頁與�
 - 結果：使用者的輸入不丟、順序不變、只移到命令之後（落在 agent 啟動後的輸入框或下一個提示字元）。
 - 日誌（只記筆數與位元組數，不記內容）：`[agent-command] id=<id> input before the launch command: <n> write(s), <bytes> bytes → sent after it`；逾時 / 上限另記 `[agent-command] id=<id> launch hold ended (<timeout|limit>) before the launch command` 與 `input held for the launch command (<reason>): …`。
 
+## 沒打字時保留沒有結束（T0963 / BUG-234）
+
+- 現象：`0.8.1-pre.1`、`0.8.1-pre.2` 新開（或 ⏻、還原時 PTY 已不在）的 Claude CLI / Codex CLI 等 agent 分頁，啟動命令寫入後鍵盤、Enter、貼上全部進不了 PTY；一般 shell 分頁（pwsh、Git Bash）正常；只有終端自動回應（滑鼠回報、焦點事件，`isTerminalAutoReply`）進得去。使用者退回 pre.1 後能用，是因為退版後的分頁都是接回既有 PTY（`created: false`，不保留），不是 pre.1 沒有這個問題。
+- 原因：`writeLaunchCommand` 在保留期間**沒人打字**（保留的清單是空陣列）時只結束計時器（`launchInputHolds`），沒有刪掉 `dispatchInputHolds` 裡的空陣列；`writeWithResult` 看到清單仍在就繼續保留，而計時器已經清掉，之後再也沒有東西結束它。保留期間有打字時清單會被刪掉，所以 T0951 / T0955 的「命令前打字」驗收都通過。
+- 修正：`writeLaunchCommand` 只要結束了 launch 保留（`endLaunchHold` 為真）就一律刪掉清單（不論是否為空）；不是 launch 保留（helper 派工、或沒有保留）時照舊不動。保留的開始、逾時、上限、PTY 結束、日誌字串、renderer 端都不變。
+- 驗證：`launch-input-hold.test.ts` 的 BUG-234 兩項（沒打字 → 命令之後的按鍵 / Enter / 貼上直接寫入；⏻ 再保留一次仍由下一個命令結束），修正前第一項失敗；交付版重現工具 `e2e/manual/t0963-keyboard-repro.ts`（假 claude 全螢幕分頁的 stdin 紀錄，見 e2e/manual/README.md）。
+
 ## 登入導引分頁與遠端工具安裝（T0956 / BUG-232）
 
 T0951 查證時發現另外兩條路徑也是「`pty:create` 之後約 500 ms 才寫命令、分頁已經有焦點」，同一時間窗打的字會接在命令前面：
@@ -70,7 +77,7 @@ T0951 查證時發現另外兩條路徑也是「`pty:create` 之後約 500 ms �
 
 ## 驗證
 
-- `electron/__tests__/launch-input-hold.test.ts`：Terminal Server 模式的真 `PtyManager` — 打字 → 命令完整、輸入在後；沒打字 → 只有命令；自動回應不擋；`null` 釋放；15 s 逾時與 64 KiB 上限照原樣寫出；kill 結束保留且不留計時器；helper 派工的保留不受影響。handler 端到端：`pty:create` / `pty:restart` 帶與不帶旗標、本機視窗的 `pty:write`、`pty:launch-command` 拒絕 helper 與錯誤參數、旗標不傳給 Terminal Server、沒有旗標時選項原物件傳給 `createWithResult`。
+- `electron/__tests__/launch-input-hold.test.ts`：Terminal Server 模式的真 `PtyManager` — 打字 → 命令完整、輸入在後；沒打字 → 只有命令，之後的輸入直接寫入（T0963 / BUG-234）；自動回應不擋；`null` 釋放；15 s 逾時與 64 KiB 上限照原樣寫出；kill 結束保留且不留計時器；helper 派工的保留不受影響。handler 端到端：`pty:create` / `pty:restart` 帶與不帶旗標、本機視窗的 `pty:write`、`pty:launch-command` 拒絕 helper 與錯誤參數、旗標不傳給 Terminal Server、沒有旗標時選項原物件傳給 `createWithResult`。
 - `src/lib/__tests__/launch-command.test.ts`：500 ms 後經 `pty:launch-command`、舊主機 fallback `pty:write`、`releaseLaunchHold` 不打字；`restartOrCreatePty` 有旗標才帶第 4 個參數；WorkspaceView source guard（11 處都經 `sendLaunchCommand`、6 個建立點都帶旗標、登入分頁與一般 shell 不帶）。
 - `electron/__tests__/launch-hold-login-install.test.ts`（T0956）：真的 handler＋`PtyManager`，登入分頁與遠端工具安裝各測：命令前打字 → PTY 收到「命令（登入分頁沒有 Enter）＋輸入」；沒打字 → 只有命令；舊主機 → 與修正前相同（輸入在前）；沒給 `sendLaunchCommand` → 不帶旗標。
 - `src/lib/__tests__/launch-hold-login-install-wiring.test.tsx`（T0956）：`useRemoteToolInstall` 的 `pty:create` 帶旗標、安裝行經 `pty.launchCommand`、舊主機 fallback `pty.write`；WorkspaceView 登入分頁的接線（source guard）。

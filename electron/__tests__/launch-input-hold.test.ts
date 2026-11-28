@@ -91,6 +91,26 @@ describe('PtyManager: input held until the renderer launch command', () => {
     expect(logs.some(l => l.includes('launch command'))).toBe(false)
   })
 
+  it('BUG-234 / T0963: nothing typed before the command → the keys typed after it go straight through', () => {
+    manager.holdInputForLaunch(ID)
+    manager.writeLaunchCommand(ID, COMMAND)
+    // before the fix the empty hold stayed in place: every later key was held, with no timer left to end it
+    expect(manager.writeWithResult(ID, 'abc')).toEqual({ ok: true, reason: 'queued' })
+    expect(manager.writeWithResult(ID, '\r')).toEqual({ ok: true, reason: 'queued' })
+    expect(manager.writeWithResult(ID, '\x1b[200~PASTE\x1b[201~')).toEqual({ ok: true, reason: 'queued' })
+    expect(writes()).toEqual([COMMAND, 'abc', '\r', '\x1b[200~PASTE\x1b[201~'])
+  })
+
+  it('BUG-234 / T0963: ⏻ again after a command with nothing typed → a new hold, ended by the next command', () => {
+    manager.holdInputForLaunch(ID)
+    manager.writeLaunchCommand(ID, COMMAND)
+    manager.holdInputForLaunch(ID)
+    expect(manager.writeWithResult(ID, 'k')).toEqual({ ok: true, reason: 'held-until-dispatch' })
+    manager.writeLaunchCommand(ID, COMMAND)
+    expect(manager.writeWithResult(ID, 'z')).toEqual({ ok: true, reason: 'queued' })
+    expect(writes()).toEqual([COMMAND, COMMAND, 'k', 'z'])
+  })
+
   it('the terminal\'s own replies are not held (as BUG-151)', () => {
     manager.holdInputForLaunch(ID)
     manager.writeWithResult(ID, '\x1b[I')

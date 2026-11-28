@@ -233,3 +233,23 @@ node node_modules/tsx/dist/cli.mjs e2e/manual/t0959-v081-pre2-acceptance.ts
 
 - 選填：`T0959_WSL`（預設 `%WINDIR%\System32\wsl.exe`）、`T0959_GIT_BASH`（預設 `C:\Program Files\Git\bin\bash.exe`）、`T0959_CSC`。
 - exit `0` = 可判定的項目全部 PASS（B232-install 固定未判定、不影響 exit）、`1` = 有 FAIL 或其他未判定、`2` = 用法或環境錯誤。結果：`<T0959_RESULTS>/report-<時間>.json` 與 `run-<時間>/`（`driver.log`、兩個階段遮罩過的 BAT 日誌 `logs-wsl/` / `logs-git/`、分頁輸出、截圖）。結果目錄含本機路徑，不要放進 repo。
+
+## t0963-keyboard-repro.ts — 新開 agent 分頁的鍵盤輸入（BUG-234，T0963）
+
+沿用 T0955 的隔離方式與假 claude（全螢幕：alt screen＋滑鼠追蹤＋隱藏游標，每段 stdin 記到 `<run>.stdin.log`），以一個隔離 BAT（`--runtime=e2e-t0963-<時間>`、Shell = Git Bash）檢查鍵盤打的字有沒有進到 PTY。不會被 `npm run test:*` 執行，只支援 Windows。
+
+- `shell`：預先放好的 Git Bash 分頁，鍵入 `echo <token>` ＋ Enter、再貼上一行 → shell 都有執行（對照組）。
+- `claude`：「+」→ Claude CLI（假 claude），鍵入 `abc` ＋ Enter、再以 xterm 貼上 → 假 claude 的 stdin 紀錄都有；同時記下焦點與 xterm 輸入狀態、該分頁的 `[agent-command]` 保留日誌。
+- `claude-⏻`：同一分頁按 ⏻（新的 PTY、啟動命令再打一次）後同樣檢查。
+- `shell-2`：之後再開一個 Git Bash 分頁，同 `shell`。
+- 修正前（`0.8.1-pre.1`、`0.8.1-pre.2`）：`shell` / `shell-2` PASS，`claude` / `claude-⏻` FAIL（stdin 只收到滑鼠回報）。
+
+```powershell
+# repo 根目錄，先 npm ci（驅動用 tsx 執行）
+$env:BAT_E2E_EXECUTABLE='C:/Users/demo/AppData/Local/BAT-TestBuilds/0.8.1-pre.2-win/BetterAgentTerminal.exe'
+$env:T0963_RESULTS='C:/Users/demo/AppData/Local/BAT-TestBuilds/T0963-results'
+node node_modules/tsx/dist/cli.mjs e2e/manual/t0963-keyboard-repro.ts
+```
+
+- 選填：`T0963_GIT_BASH`（預設 `C:\Program Files\Git\bin\bash.exe`）、`T0963_CSC`。
+- exit `0` = 全部 PASS、`1` = 有 FAIL 或未判定、`2` = 用法或環境錯誤。結果：`<T0963_RESULTS>/report-<時間>.json` 與 `run-<時間>/`（`driver.log`、遮罩過的 BAT 日誌）。結果目錄含本機路徑，不要放進 repo。
