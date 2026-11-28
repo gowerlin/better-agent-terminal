@@ -125,6 +125,7 @@ reminders:
 - 15:56 T0974 派工 `--mode yolo --no-interactive --isolation worktree --wait-started 30000` exit 0，`started: 07:56:44Z`，分頁 `21e36fd0…`，base `c56a595d`（與 T0972 只在 `src/lib/__tests__/` 目錄重疊，各自新增檔，接受並行）
 - 15:57 [提問] T0972 Q-2（T0970 B3 實錄 hook 前 517 ms 有信任對話框 Enter，① 修正後仍被 2 s Enter 保護窗留下）→ 塔台答 A（不放寬；BUG-235 原始情境是已信任工作區，① 已涵蓋；加「刻意保留」測試、R2 重跑改用已信任工作區；信任 Enter 後立刻按鍵另記候選）（`--answer --choice 1` exit 0）
 - 16:00 T0972 DONE（方案 ①，`validated_sha` `abcff41d`、head `c1abe148`（多一筆純文件）；test:unit 9624 passed；B3 時序測試修正前失敗、修正後通過；Q-1 改寫一條內部狀態斷言、Q-2 刻意保留測試）；收單 `--close-worker --worktree keep` exit 0；判準 1、2 不成立 → 合併工單 T0975（`merge-tree` 無衝突）（D506）
+- 16:01 T0975 派工（整合 worktree，`--mode yolo --no-interactive --wait-started 30000`）exit 0，`started: 08:01:39Z`，分頁 `af6b874c…`
 
 ---
 
