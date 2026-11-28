@@ -10,6 +10,7 @@
 
 | ID | 日期 | 標題 | 相關工單 |
 |----|------|------|---------|
+| D511 | 2026-11-28 | U-70：A → T0974 ff `9c4ca30e`；U-71：B（等 CT 判定）→ CT T0586 全 PASS、BAT 不需改 → 發 `0.8.1-pre.5` | T0974 / T0976 |
 | D510 | 2026-11-28 | T0976 收單（`7cadec9d`）；U-70（ff）、U-71（發 `0.8.1-pre.5`） | T0976 / T0974 |
 | D509 | 2026-11-28 | T0974 收單（HR-1 BAT 端 PASS、CT fixture 進測試）；通知 CT 判定；合併工單 T0976 | T0974 / T0976 |
 | D508 | 2026-11-28 | U-69：A → T0972 ff `7d2e571d`；BUG-235 FIXED | T0972 / T0975 / BUG-235 |
@@ -628,6 +629,16 @@
   4. PLAN-001 保持延後（🟢 Low，等 plugin 1.0 穩定）
 - **Success criteria**（EXP→CONCLUDED）：npm install 無錯 / 所有 native modules rebuild 成功 / dev+build:dir 可跑 / 手動 smoke test 8 項通過
 - **最大風險**：`whisper-node-addon@1.0.2` 對 Electron 41（Node 24）的 NODE_MODULE_VERSION 相容性未知，允許 Worker 遇此決策點主動問塔台
+
+---
+
+### D511 2026-11-28 16:22 — U-70：A；U-71：B → CT 判定 PASS 後發 pre.5
+
+- **使用者**：U-70：A、U-71：B「等 CT 判定再發」（原生選單）。U-70、U-71 移除。
+- **合併**：`main` 自 parent1 `804b04c0` 起只多 `_ct-workorders/**` → 整合分支再合併 `main` 後 ff；`main` = `ct-merge/T0974` = `9c4ca30e`，產品樹 = `7cadec9d`；整合 worktree detach；T0974 worktree 移除；分支保留。
+- **CT 判定**（跨 session，CT T0586 / CT D936）：HR-1-1～-4 CT 端全部 PASS；22 份快照 = 15 次寫入＋7 份相同複本；3 點觀察都符合條文、CT 不改；正式版前規範小項無，CT PLAN-022 P2 完成；**BAT 不需改任何東西**；CT 正式版發布方式待 CT U-12。
+- **發版**：U-71：B 的條件（CT 判定回來、確定不用再改 BAT）已成立 → 發 `0.8.1-pre.5`（BUG-235 重修、BUG-237、CT 6.4.0-pre.2 配合、e2e 驅動與測試；未改安裝程式路徑，不需 NSIS 重裝驗收）。
+- **相關**：T0974 / T0976 / D510 / D484
 
 ---
 
