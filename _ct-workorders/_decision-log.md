@@ -10,6 +10,7 @@
 
 | ID | 日期 | 標題 | 相關工單 |
 |----|------|------|---------|
+| D473 | 2026-11-28 | U-55：A → T0963 ff 進 `main` `6fd50e00`；U-56：A → 發 `0.8.1-pre.3` | T0963 / BUG-234 |
 | D472 | 2026-11-28 | T0963 收單（`45a9427c`，BUG-234 原因在 T0951，pre.1 起）；模式 ① `da4f8067`；斷點 E 發 U-55、發版 U-56 | T0963 / BUG-234 |
 | D471 | 2026-11-28 | BUG-234（pre.2 自動恢復後鍵盤無法輸入）開單 FIXING，派 T0963 查證＋修正 | T0963 / BUG-234 |
 | D470 | 2026-11-28 | U-54：A → T0962 ff 進 `main` `7ee0b8d2`（T0961 Linux spec）；worktree 與分支清掉 | T0962 / T0961 |
@@ -590,6 +591,16 @@
   4. PLAN-001 保持延後（🟢 Low，等 plugin 1.0 穩定）
 - **Success criteria**（EXP→CONCLUDED）：npm install 無錯 / 所有 native modules rebuild 成功 / dev+build:dir 可跑 / 手動 smoke test 8 項通過
 - **最大風險**：`whisper-node-addon@1.0.2` 對 Electron 41（Node 24）的 NODE_MODULE_VERSION 相容性未知，允許 Worker 遇此決策點主動問塔台
+
+---
+
+### D473 2026-11-28 11:28 — U-55：A → T0963 ff；U-56：A → 發 `0.8.1-pre.3`
+
+- **使用者**：`U-55：A`、`U-56：A`（原生選單）。U-55、U-56 移除，T0963 `waiting_user` 清掉。
+- **合併**：第 5 步 `main` 自 parent1 `f8429161` 起只多 `_ct-workorders/**` → 整合分支再合併 `main` 後 ff；`main` = `ct-merge/T0963` = `6fd50e00`，產品樹 = `validated_sha` `45a9427c`；整合 worktree detach；T0963 worktree 手動 `worktree remove`（`--close-worker --worktree remove` exit 3 NOT_FOUND：分頁已關）；`ct/T0963`、`ct-merge/T0963` 保留到使用者同意刪除。
+- **BUG-234** → FIXED。
+- **發版**：push 前去識別檢查（`.private/` 樣式＋金鑰樣式）0 命中 → push `main` → `pre-release.yml -f version=0.8.1-pre.3`。NSIS 重裝驗收：本版不需要（只改 `electron/pty-manager.ts`，未動安裝程式路徑）。
+- **相關**：T0963 / BUG-234 / D472
 
 ---
 
