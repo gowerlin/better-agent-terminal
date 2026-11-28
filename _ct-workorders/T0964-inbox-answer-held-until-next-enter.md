@@ -4,12 +4,13 @@ schema_kind: workorder
 id: T0964
 title: "BUG-235：查出待辦分頁的回答在塔台閒置時仍被排進「待送」、要等使用者自己送出下一則訊息才送達的原因並修正"
 type: bugfix
-status: PENDING
+status: IN_PROGRESS
 repo: better-agent-terminal
 priority: P1
 sizing: M
 created_at: "2026-11-28T12:02:15+0800"
-updated_at: "2026-11-28T12:02:15+0800"
+updated_at: "2026-11-28T12:04:05+0800"
+started_at: "2026-11-28T12:04:05+0800"
 target_version: "下一個預覽版（`0.8.1-pre.4`，發版前與使用者確認）"
 depends_on: []
 related:
