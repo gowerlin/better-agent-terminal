@@ -10,6 +10,7 @@
 
 | ID | 日期 | 標題 | 相關工單 |
 |----|------|------|---------|
+| D525 | 2026-11-28 | U-81：A（push → desktop-build ×2 → W6 → 全 PASS 才發 `0.8.1-pre.6`）、U-82：A（刪本 session 分支）；已 push `main`、觸發 desktop-build A / B | — |
 | D524 | 2026-11-28 | T0983 收單（`89327c0a`）；U-80：A → 模式 ① ff 進 `main` `f53c938c`；BUG-238 FIXED；holder key 改變 → 發版前 W6；U-81（push / W6 / 發版）、U-82（刪分支） | T0983 / BUG-238 |
 | D523 | 2026-11-28 | T0982 收單；U-79：A → `main` ff 到 `11d33816`（含 T0979 量測腳本）；派 T0983 | T0982 / T0979 / T0983 |
 | D522 | 2026-11-28 | U-76：D（F4 關閉 / 重啟分頁時收 conhost）、U-77：A（BUG-238 併入 F4 實作）、U-78：A（量測腳本併進 `main`）→ 合併工單 T0982、實作單 T0983 | T0982 / T0983 / BUG-238 |
@@ -643,6 +644,17 @@
   4. PLAN-001 保持延後（🟢 Low，等 plugin 1.0 穩定）
 - **Success criteria**（EXP→CONCLUDED）：npm install 無錯 / 所有 native modules rebuild 成功 / dev+build:dir 可跑 / 手動 smoke test 8 項通過
 - **最大風險**：`whisper-node-addon@1.0.2` 對 Electron 41（Node 24）的 NODE_MODULE_VERSION 相容性未知，允許 Worker 遇此決策點主動問塔台
+
+---
+
+### D525 2026-11-28 19:45 — U-81：A、U-82：A → push、desktop-build ×2、W6 後發 `0.8.1-pre.6`
+
+- **使用者**：`U-81：A`（授權整串：去識別化檢查後 push `main` → desktop-build ×2 → W6 全情境；全 PASS 才發 `0.8.1-pre.6`，含更版重點與三文件）；`U-82：A`（刪本 session 已併入的分支）。
+- **分支**：`git branch -d` 刪除 `ct/T0977`、`T0978`、`T0979`、`T0980`、`T0983` 與 `ct-merge/T0977`、`T0978`、`T0979`、`T0980`、`T0983`（全部成功）；只留 `ct/T0885`、`ct/T0886`。
+- **去識別化**：`.private/` 對照表的檢查樣式＋金鑰樣式掃 `origin/main..main` 新增行與 commit 訊息（4,209 行）：客戶 / 測試者 / 家目錄 / 帳號名 / 公司 / claude-mem 0 筆；金鑰樣式 2 筆都在 T0982 工單裡列出的「檢查樣式名稱」（不是金鑰）→ 0 筆真實命中。
+- **push**：`main` `48894be4..346c0116`（`origin/main` 0 / 0）。
+- **W6 準備**：desktop-build A `46141343330`（`-f ref=v0.8.1-pre.5 -f checks=false`，舊 holder key = 使用者從 pre.5 升級的實際路徑）、B `46141357941`（`-f ref=main -f checks=false`，T0983 新 key）。docs 範例是兩次都 `ref=main`；改用 pre.5 當 A 是為了涵蓋 key 改變的升級（spec 情境 1 本來就記錄兩個 key）。兩個 build 完成後跑 `windows-upgrade-acceptance.yml -f build_run_a=46141343330 -f build_run_b=46141357941`。
+- **相關**：D524 / T0983
 
 ---
 
