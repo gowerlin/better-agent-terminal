@@ -10,6 +10,7 @@
 
 | ID | 日期 | 標題 | 相關工單 |
 |----|------|------|---------|
+| D521 | 2026-11-28 | T0979 研究收單：① env 差異延後（約 3 MB 有上限高水位，換協定＋W6 不划算）；② direct conin 併入 F4 實作單；③ F4 推薦 D；U-76 / U-77 / U-78 待使用者 | T0979 / PLAN-066 |
 | D520 | 2026-11-28 | T0980 收單（`887d49c8`）；U-75：A → 模式 ① ff 進 `main` `12dce91b` | T0980 |
 | D519 | 2026-11-28 | T0981 收單；U-74：A → `main` ff 到 `84f96834`（含 T0978）；派 T0980 | T0981 / T0978 / T0980 |
 | D518 | 2026-11-28 | T0978 收單（`f9738360`）；判準 1 因 T0977 不成立 → 合併工單 T0981；A-28 實機（下一個預覽版） | T0978 / T0981 |
@@ -639,6 +640,20 @@
   4. PLAN-001 保持延後（🟢 Low，等 plugin 1.0 穩定）
 - **Success criteria**（EXP→CONCLUDED）：npm install 無錯 / 所有 native modules rebuild 成功 / dev+build:dir 可跑 / 手動 smoke test 8 項通過
 - **最大風險**：`whisper-node-addon@1.0.2` 對 Electron 41（Node 24）的 NODE_MODULE_VERSION 相容性未知，允許 Worker 遇此決策點主動問塔台
+
+---
+
+### D521 2026-11-28 19:02 — T0979 研究收單
+
+- **收單**：T0979 DONE（研究，產品未改；`ct/T0979` `e882e120` 只新增 `experiments/node-pty-worker/t0979/` 3 支腳本＋執行器與 `results/t0979-*` 3 個結果檔）。量測只驅動自己 fork 的 Terminal Server 與自己載入的 node-pty，未碰使用者的 BAT / holder、未跑 W6；收尾殘留檢查乾淨。
+- **結論與塔台處置**：
+  - ① `pty:create` 只送 env 差異：300 次開關高水位 Electron node full +6.7 MB → diff +3.4 MB（省約 3.3 MB，有上限、不累積）；修法要協定相加＋改 `terminal-server.js`（holder key 變）＋W6，規模 M。**塔台決定延後**（Worker 建議；之後有其他工單要改協定 / holder 時一起做）。
+  - ② direct 模式 conin 殘留：每關一分頁 +1 socket / 約 2 handle、記憶體可忽略；使用者近 11 份日誌 direct 建立 0 次。修法 XS（`handleDirectExit` 沿用 `releaseEndedPtyInput`）。**併入 F4 實作單**；F4 不做則延後。
+  - ③ F4：Terminal Server 模式每個自然結束的分頁留 1 個 conhost（約 1.6 MB private）＋約 13 handle 到 server 結束，Recovery「保留」或 holder 保留 24 h 時跨 BAT 重開累積；之後關分頁也不釋放（host 已刪 instance、不送 `pty:kill`）。推薦選項 D（✕ / ⏻ / 同 id 重建時以 ClosePseudoConsole＋釋放 conin＋停轉送收掉，不呼叫 node-pty `kill()`），規模 S–M，改 `terminal-server.js` → 發版前要跑 W6。產品選擇交使用者（U-76）。
+  - 其他發現：node-pty `WindowsPtyAgent.kill()` 在 shell 已結束時主控台清單查詢失敗、5 s 逾時後對舊 pid `process.kill`，`endPty`（T0540）與 direct 模式都會走到 → pid 被重用時可能結束無關程序（依原始碼＋查詢失敗實測推論，未實測到重用）。處置交使用者（U-77）。
+- **合併**：`--worktree-status` `outOfScopeFiles: []`、`conflicts: []`、`dirty: []`，但 `main` 自 base 起有 T0977 / T0978 / T0980 產品檔 → 判準 1 不成立；要不要併進 `main` 交使用者（U-78）。
+- **其他**：session id 由 Worker 寫入；session 快照已寫；`--close-worker --worktree keep` exit 0。
+- **相關**：D516 / PLAN-066 / T0888 / T0889
 
 ---
 
