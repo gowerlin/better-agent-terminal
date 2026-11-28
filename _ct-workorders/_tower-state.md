@@ -4,8 +4,8 @@ summary_version: 1
 bat_contract: 2
 ct_version: "6.3.0"
 inbox_features: ["recommended", "dismiss", "multi"]
-updated_at: "2026-11-28T11:04:08+0800"
-session: "2026-11-28 11:04 第一百四十 session 開工（CT v6.3.0）"
+updated_at: "2026-11-28T11:06:52+0800"
+session: "2026-11-28 11:06 第一百四十 session 塔台重新開工（CT v6.3.0）"
 next_ids:
   workorder: "T0963"
   decision: "D471"
@@ -50,6 +50,7 @@ reminders:
 - 塔台 session `2d6e85cc-593c-4c77-a90e-cdc0514eabba`；CT v6.3.0；BAT `0.8.1-pre.2`，`--set-role tower --bat-contract 2 --mode on` exit 0（`bat-contract: 2`、`hooks: ok (injected, set 2)`）
 - Fast Path；`main` = `origin/main` @ `ce625352`；熱區 T:358 / BUG:97 / PLAN:35 / EXP:1；無進行中工單、無待你決定 / 待你執行
 - 大小：`_decision-log.md` 407,309（> 400 KB 預算）、`_learnings.md` 225,837、`_tower-state.md` 約 25 KB
+- 11:06 塔台重新開工：新塔台 session `53bde29b-785a-4c1c-b5e8-68748009fcb2`（分頁 `c2f1a2e3…`，原 role `shell`），`--set-role tower --bat-contract 2 --mode on` exit 0（`bat-contract: 2`、`hooks: ok (injected, set 2)`）；`main` @ `8efe9ae3`、工作樹乾淨；PLAN-067 上次清查 2026-11-25（3 天，未到期）
 
 ---
 
