@@ -382,14 +382,33 @@ function foreignPlatformEntries(files, platform, arch) {
 // A file node is { size, offset, unpacked? }; unpacked files live in app.asar.unpacked/.
 // ---------------------------------------------------------------------------
 
+/**
+ * T0977: fill `buf` with `length` bytes of `fd` from `position`, or throw. `fs.readSync`
+ * returns fewer bytes at end of file and leaves the rest of the Buffer.alloc NULs, which a
+ * truncated app.asar turned into "content" (BUG-223 / T0924). Reads again only while bytes
+ * keep coming (a short read before EOF); end of file before `length` bytes is an error naming
+ * `what`, the expected and the actual byte count.
+ */
+function readExactSync(fd, buf, length, position, what) {
+  let total = 0;
+  while (total < length) {
+    const n = fs.readSync(fd, buf, total, length - total, position + total);
+    if (n === 0) break;
+    total += n;
+  }
+  if (total < length) {
+    throw new Error(`${what}: short read at offset ${position}: expected ${length} bytes, got ${total} (truncated app.asar?)`);
+  }
+}
+
 function readAsar(asarPath) {
   const fd = fs.openSync(asarPath, 'r');
   try {
     const sizeBuf = Buffer.alloc(8);
-    fs.readSync(fd, sizeBuf, 0, 8, 0);
+    readExactSync(fd, sizeBuf, 8, 0, 'app.asar header size');
     const headerSize = sizeBuf.readUInt32LE(4);
     const headerBuf = Buffer.alloc(headerSize);
-    fs.readSync(fd, headerBuf, 0, headerSize, 8);
+    readExactSync(fd, headerBuf, headerSize, 8, 'app.asar header');
     const jsonLength = headerBuf.readInt32LE(4);
     const header = JSON.parse(headerBuf.subarray(8, 8 + jsonLength).toString('utf8'));
     return { asarPath, unpackedDir: `${asarPath}.unpacked`, header, dataOffset: 8 + headerSize };
@@ -422,7 +441,10 @@ function asarFiles(asar) {
   return files;
 }
 
-/** Contents of a file in the archive (reading app.asar.unpacked for unpacked ones), or null. */
+/**
+ * Contents of a file in the archive (reading app.asar.unpacked for unpacked ones), or null.
+ * Throws when a packed file's data is cut off (T0977, readExactSync).
+ */
 function readAsarFile(asar, relPath) {
   const node = asarNode(asar, relPath);
   if (!node || node.files || typeof node.size !== 'number') return null;
@@ -436,7 +458,7 @@ function readAsarFile(asar, relPath) {
   const buf = Buffer.alloc(node.size);
   const fd = fs.openSync(asar.asarPath, 'r');
   try {
-    fs.readSync(fd, buf, 0, node.size, asar.dataOffset + Number(node.offset));
+    readExactSync(fd, buf, node.size, asar.dataOffset + Number(node.offset), `app.asar ${relPath}`);
   } finally {
     fs.closeSync(fd);
   }
@@ -642,10 +664,11 @@ function verifyPackagedLayout(resourcesPath, platform, arch, { helperScripts, ex
   const asarPath = path.join(resourcesPath, 'app.asar');
   const unpackedDir = path.join(resourcesPath, 'app.asar.unpacked');
   let asar = null;
+  const asarReadProblem = (err) => ({ id: 'runtime-require', message: 'cannot read app.asar', details: [`${asarPath}: ${err.message}`] });
   try {
     asar = readAsar(asarPath);
   } catch (err) {
-    problems.push({ id: 'runtime-require', message: 'cannot read app.asar', details: [`${asarPath}: ${err.message}`] });
+    problems.push(asarReadProblem(err));
   }
   const files = [...new Set([...(asar ? asarFiles(asar) : []), ...relativeFiles(unpackedDir)])].sort();
 
@@ -705,8 +728,14 @@ function verifyPackagedLayout(resourcesPath, platform, arch, { helperScripts, ex
   // C4
   let runtime = null;
   if (asar) {
-    runtime = verifyRuntimePackages(asar, platform, arch);
-    problems.push(...runtime.problems);
+    try {
+      runtime = verifyRuntimePackages(asar, platform, arch);
+      problems.push(...runtime.problems);
+    } catch (err) {
+      // T0977: a packed file cut off (readAsarFile short read) fails C4 instead of being scanned as NULs
+      runtime = null;
+      problems.push(asarReadProblem(err));
+    }
   }
 
   // T0689: resources/scripts = the runtime helpers, nothing else
@@ -719,7 +748,16 @@ function verifyPackagedLayout(resourcesPath, platform, arch, { helperScripts, ex
   problems.push(...helpers.problems);
 
   // T0691: resources/package.json = the helpers' version, equal to the packaged app's
-  const helperVersion = verifyHelperVersion(resourcesPath, expectedVersion ?? asarAppVersion(asar));
+  let appVersion = null;
+  if (expectedVersion == null) {
+    try {
+      appVersion = asarAppVersion(asar);
+    } catch (err) {
+      // T0977: app.asar package.json cut off → reported, the helper version is then checked on its own
+      problems.push(asarReadProblem(err));
+    }
+  }
+  const helperVersion = verifyHelperVersion(resourcesPath, expectedVersion ?? appVersion);
   problems.push(...helperVersion.problems);
 
   // T0858: the PTY holder is Windows only (verifyPtyHolder checks it there)
