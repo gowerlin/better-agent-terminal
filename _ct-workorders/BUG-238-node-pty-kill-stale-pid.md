@@ -3,11 +3,11 @@ schema_version: 1
 schema_kind: bug
 id: BUG-238
 title: "Windows：關閉分頁時 node-pty `kill()` 在 shell 已結束後約 5 s 對舊 shell pid 呼叫 `process.kill`，pid 被重用時可能結束無關的程序"
-status: FIXING
+status: FIXED
 severity: low
 reproducibility: "依 node-pty 1.1.0 原始碼（`windowsPtyAgent.js` 118–131）＋T0979 實測「以已結束的 shell pid 查主控台清單 → `AttachConsole failed`」推論；未實測到 pid 重用（機率低）"
 created_at: "2026-11-28T19:04:38+08:00"
-updated_at: "2026-11-28T19:04:38+08:00"
+updated_at: "2026-11-28T19:42:32+08:00"
 impact:
   - terminal-server
   - pty-manager
@@ -21,7 +21,7 @@ links:
 |------|------|
 | 嚴重度 | 🟢 low（需要 5 s 內 pid 被重用才會誤殺；未實測到） |
 | 可重現 | 原始碼推論＋主控台清單查詢失敗實測（T0979） |
-| **狀態** | ⏳ FIXING（T0983，併入 F4 實作，U-77：A，D522） |
+| **狀態** | ✅ FIXED（T0983 `89327c0a` 合併進 `main` `f53c938c`，D524；待發版：發版前跑 W6） |
 | 回報者 | T0979 Worker（2026-11-28 19:01） |
 | 影響版本 | 共用 conout Worker 前就存在（node-pty 1.1.0 行為；T0540 起的 `endPty` 順序會走到） |
 
@@ -37,3 +37,4 @@ links:
 ## 修正紀錄
 
 - 2026-11-28 19:04 開單，U-77：A → 併入 F4 實作單 T0983 → FIXING（D522）
+- 2026-11-28 19:42 → FIXED：T0983（Windows `endPty` 與 direct 模式在 taskkill 後以 `releaseExitedPty` 收 PTY、不經 node-pty `kill()`；Windows 真 node-pty 測試攔截 `fork` 確認不再起 `conpty_console_list_agent`；BAT 關閉後 1 s 的 conhost 修正前 14 個、修正後 0 個）合併進 `main` `f53c938c`（U-80：A，D524）。形狀不符時退回 `pty.kill()`（釘版 node-pty 1.1.0 下不會發生）。待發版後 CLOSED

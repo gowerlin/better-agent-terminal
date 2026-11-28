@@ -4,15 +4,40 @@ summary_version: 1
 bat_contract: 2
 ct_version: "6.4.0"
 inbox_features: ["recommended", "dismiss", "multi", "menu"]
-updated_at: "2026-11-28T19:10:27+08:00"
+updated_at: "2026-11-28T19:42:32+08:00"
 session: "2026-11-28 17:13 第一百四十一 session 開工（CT v6.4.0，BAT 0.8.1-pre.5）"
 next_ids:
   workorder: "T0984"
-  decision: "D524"
+  decision: "D525"
   bug: "BUG-239"
   plan: "PLAN-071"
-  user: "U-80"
+  user: "U-83"
   action: "A-29"
+awaiting_user:
+  - id: "U-81"
+    workorder: ""
+    kind: "decision"
+    source: "tower-question"
+    summary: "本批（T0977–T0983）已全部進 main（本地多 36 commit）。下一步：push 與發 0.8.1-pre.6？T0983 改了 holder，發版前要跑 W6"
+    options:
+      - "A 授權整串：去識別化檢查後 push main → desktop-build ×2（A = v0.8.1-pre.5、B = main）→ W6 全情境；全 PASS 才發 0.8.1-pre.6（含更版重點與三文件）（推薦）"
+      - "B 只 push＋跑 W6，結果出來再決定發不發"
+      - "C 先不 push，留在本機"
+    recommended: "A"
+    created_at: "2026-11-28T19:42:32+08:00"
+  - id: "U-82"
+    workorder: ""
+    kind: "decision"
+    source: "tower-question"
+    summary: "本 session 的分支 ct/T0977–T0980、ct/T0983、ct/T0978、ct/T0979 與 ct-merge/* 都已併入 main，要刪除嗎？（git branch -d）"
+    options:
+      - "A 刪除（只用 -d，未併入的不會被刪）（推薦）"
+      - "B 先保留"
+    recommended: "A"
+    created_at: "2026-11-28T19:42:32+08:00"
+menu_open:
+  ids: ["U-81", "U-82"]
+  opened_at: "2026-11-28T19:42:32+08:00"
 user_actions:
   - id: "A-28"
     title: "下一個預覽版實機：未信任的資料夾「以塔台開啟 Claude」，信任對話框按 Enter 後立刻按鍵，開工回合結束後從待辦分頁回答 → 應立即送出、不進待送"
@@ -20,7 +45,7 @@ user_actions:
     kind: "verify"
     created_at: "2026-11-28T18:15:16+08:00"
 todo:
-  - "🔄 第一百四十一 session（D516，U-72：A、B、C、D）：✅ T0977 DONE、ff 進 `main` `1ae19702`（D517）；✅ T0978 DONE（`f9738360`，D518）→ 合併工單 T0981 DONE、ff 進 `main` `84f96834`（D519）；✅ T0980 DONE、ff 進 `main` `12dce91b`（D520）；✅ T0979 研究 DONE（D521）：① env 差異延後（塔台）；U-76：D、U-77：A、U-78：A（D522）→ 合併工單 T0982 DONE、ff 進 `main` `11d33816`（D523）；F4＋BUG-238＋direct conin 實作單 T0983 已派工；T0983 改 `terminal-server.js` → `0.8.1-pre.6` 發版前要跑 W6"
+  - "🔄 第一百四十一 session（D516，U-72：A、B、C、D）：✅ T0977 DONE、ff 進 `main` `1ae19702`（D517）；✅ T0978 DONE（`f9738360`，D518）→ 合併工單 T0981 DONE、ff 進 `main` `84f96834`（D519）；✅ T0980 DONE、ff 進 `main` `12dce91b`（D520）；✅ T0979 研究 DONE（D521）：① env 差異延後（塔台）；U-76：D、U-77：A、U-78：A（D522）→ 合併工單 T0982 DONE、ff 進 `main` `11d33816`（D523）；✅ T0983 DONE、ff 進 `main` `f53c938c`（D524，BUG-238 FIXED）；T0983 改 `terminal-server.js`（holder key 變）→ `0.8.1-pre.6` 發版前要跑 W6（U-81）"
   - "PLAN-066 後續延後（D521）：`pty:create` 只送 env 差異（省約 3 MB 有上限高水位；之後有其他工單要改協定 / holder 時一起做）"
   - "✅ 第一百四十 session：BUG-234 / 235 / 236 / 237 全部 CLOSED；`v0.8.1-pre.3` / `pre.4` / `pre.5` 發佈；CT 6.4.0 正式版上線、README 對照表已更新；決策日誌收斂（D515）"
   - "候選（未開單，T0965 建議）：只剩選單紀錄（`question` 已被清除）時 Worker 通知仍照舊直接寫入，可能打進開著的選單；待 CT `menu_open`（D484）工單一起評估"

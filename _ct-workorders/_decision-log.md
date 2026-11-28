@@ -10,6 +10,7 @@
 
 | ID | 日期 | 標題 | 相關工單 |
 |----|------|------|---------|
+| D524 | 2026-11-28 | T0983 收單（`89327c0a`）；U-80：A → 模式 ① ff 進 `main` `f53c938c`；BUG-238 FIXED；holder key 改變 → 發版前 W6；U-81（push / W6 / 發版）、U-82（刪分支） | T0983 / BUG-238 |
 | D523 | 2026-11-28 | T0982 收單；U-79：A → `main` ff 到 `11d33816`（含 T0979 量測腳本）；派 T0983 | T0982 / T0979 / T0983 |
 | D522 | 2026-11-28 | U-76：D（F4 關閉 / 重啟分頁時收 conhost）、U-77：A（BUG-238 併入 F4 實作）、U-78：A（量測腳本併進 `main`）→ 合併工單 T0982、實作單 T0983 | T0982 / T0983 / BUG-238 |
 | D521 | 2026-11-28 | T0979 研究收單：① env 差異延後（約 3 MB 有上限高水位，換協定＋W6 不划算）；② direct conin 併入 F4 實作單；③ F4 推薦 D；U-76 / U-77 / U-78 待使用者 | T0979 / PLAN-066 |
@@ -642,6 +643,19 @@
   4. PLAN-001 保持延後（🟢 Low，等 plugin 1.0 穩定）
 - **Success criteria**（EXP→CONCLUDED）：npm install 無錯 / 所有 native modules rebuild 成功 / dev+build:dir 可跑 / 手動 smoke test 8 項通過
 - **最大風險**：`whisper-node-addon@1.0.2` 對 Electron 41（Node 24）的 NODE_MODULE_VERSION 相容性未知，允許 Worker 遇此決策點主動問塔台
+
+---
+
+### D524 2026-11-28 19:42 — T0983 收單；U-80：A → ff 進 `main`；BUG-238 FIXED
+
+- **收單**：T0983 DONE（`validated_sha` = `head` = `89327c0a`）。`releaseExitedPty`（`electron/terminal-server/process-tree.ts`，win32＋node-pty 1.1.0 形狀檢查；`_close` → ClosePseudoConsole → destroy conin → dispose conout，每物件一次）；server `exitedPtys`（自然結束保留，`pty:kill` / 同 id `createPty` / `shutdown` 釋放）；Windows `endPty` 在 `killProcessTree` 後釋放、不呼叫 `pty.kill()`（BUG-238）；主行程 Windows 對自然結束的 id 照樣送 `pty:kill`（`serverExitedIds`），direct 模式同等處理（解決 T0979 ②）。macOS / Linux 不變；協定不新增訊息。
+- **偏離（塔台接受）**：① 函式放 `process-tree.ts` 而非 `shared-conout.ts`（守住既有「`pty-manager.ts` 不出現 `shared-conout`」source guard，不改斷言）；② 形狀不符時退回 `pty.kill()` 並記一行（避免形狀變了每個 ✕ 都殘留 conhost；釘版下不發生）；③ 主行程只對本行程看過自然結束的 id 送 `pty:kill`。
+- **量測**：Terminal Server 20 個自然結束後 ✕ → conhost 20 → 0（修正前 20）；BAT 關閉 1 s 後 conhost 修正前 14（等 node-pty 5 s 逾時）、修正後 0；direct 100 次 kill `PipeWrap` 102 → 2。T0888 e2e C2 / C3 / C5 / C7（原始碼建置）4 passed。test:unit 9689 passed、test:legacy 472 passed、兩個 typecheck = 0、vite build 通過；既有斷言未改。
+- **holder key**：`terminal-server.js` sha256 改變（`shared-conout-worker.cjs` 未改）→ 發版前跑 W6。
+- **合併**：五條判準全通過 → 模式 ①：`ct-merge/T0983` `--no-ff` → `f53c938c`（parent1 `b869f0ef` = `main`、parent2 `89327c0a`）；斷點 E → 使用者 `U-80：A` → `--ff-only`，`main` = `f53c938c`；整合 worktree detach、T0983 worktree 移除。BUG-238 → FIXED（待發版）。session id 由 Worker 寫入；session 快照已寫；`--close-worker --worktree keep` exit 0。
+- **已知殘留**（非本單）：由 BAT 關閉的分頁仍約 1 handle／分頁（node-pty 原生層，未查明）。
+- **下一步**：U-81（push → desktop-build ×2 → W6 → `0.8.1-pre.6`）、U-82（刪本 session 分支）。`main` 比 `origin/main` 多 36 commit。
+- **相關**：D522 / T0979 / BUG-238 / PLAN-066
 
 ---
 
