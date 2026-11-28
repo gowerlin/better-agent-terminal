@@ -4,13 +4,16 @@ schema_kind: workorder
 id: T0964
 title: "BUG-235：查出待辦分頁的回答在塔台閒置時仍被排進「待送」、要等使用者自己送出下一則訊息才送達的原因並修正"
 type: bugfix
-status: IN_PROGRESS
+status: DONE
 repo: better-agent-terminal
 priority: P1
 sizing: M
 created_at: "2026-11-28T12:02:15+0800"
-updated_at: "2026-11-28T12:12:28+0800"
+updated_at: "2026-11-28T12:22:53+0800"
 started_at: "2026-11-28T12:04:05+0800"
+completed_at: "2026-11-28T12:22:53+0800"
+session_ids:
+  - "177e6351-4a57-414e-a635-cbaabf1c58e4"
 target_version: "下一個預覽版（`0.8.1-pre.4`，發版前與使用者確認）"
 depends_on: []
 related:
@@ -20,6 +23,8 @@ affects_files:
   - electron/notify-hold.ts
   - electron/handlers/
   - electron/pty-manager.ts
+  - electron/main.ts
+  - electron/remote/headless-entry.ts
   - electron/__tests__/
   - src/lib/
   - src/components/inbox/
@@ -32,7 +37,6 @@ affects_files:
 renew_count: 0
 isolation: worktree
 worker_question_timeout: 30
-tower_question: open
 interaction:
   mode_hint: yolo
   interactive: false
@@ -108,3 +112,82 @@ memory_overrides:
   - 其他
 - **影響**：修正能否在本機與 headless 生效。
 - **是否擋住後續步驟**：擋住接線；其他（單元測試、去重、文件）先做。
+- **塔台答覆 Q-2**：（BAT 通道 `q-f8c5ac62-8333526dbf0089ee`，12:17 收到）選 A，允許兩檔各加接線；塔台已把兩檔補進 `affects_files`。
+
+### 完成狀態
+- **狀態**：DONE（塔台裁示：B 修正＋回歸測試即算達成；BUG-235 由塔台判 FIXED，等實機與診斷日誌確認）
+- **session_id**：177e6351-4a57-414e-a635-cbaabf1c58e4
+- 🔴 **本次實際觸發來源仍未確定**（見〈原因查證〉）；修正只涵蓋「草稿在 claude 送出前就設了」的情況，並加診斷日誌供下次定位。
+
+### 落點檢查
+- **結果**：PASS。C-0：`repo` = `better-agent-terminal`，`basename "$CT_HOME"` = `better-agent-terminal` → PASS；C-1：工單在 `$CT_HOME/_ct-workorders/` 下 → PASS；C-3：`affects_files` 抽查皆存在 → PASS；C-2：工單無 `branch` 欄位。
+- `CT_HOME` 已設定（主 checkout）；`CT_WORKTREE_BRANCH` = `ct/T0964`；`BAT_WORKSPACE_ID` 已設定（只記錄，不比對）。
+
+### 原因查證（日誌摘要，只摘要、不含權杖與家目錄）
+- 日誌 `debug-20261128-115756.log`，塔台分頁 `f32bfa46…`（UTC）：
+  - 03:58:57 以「以塔台開啟 Claude」建立；03:59:15 PTY 被結束後以同 id 重建（`pty:create`，`onPtyExit` → 草稿已清空）。
+  - 03:59:16.9 `user-prompt-submit`（`/control-tower` 啟動參數）→ 回合開始；03:59:37 `--set-role tower --bat-contract 2` → `match`；04:00:14 `stop`。
+  - 04:00:17.598 `[notify-hold] held … source=answer reason=draft part=text len=7 queued=1`；04:00:25.913 第二次按（`reason=queued`，`queued=2`）。
+  - 04:01:07 使用者在塔台分頁 Ctrl+V 貼圖、04:01:08 送出（`\r` 清掉草稿）→ 04:01:09–10 兩筆 `sent … reason=draft` / `reason=queued` 依序送出。
+  - 03:59:15–04:00:17 沒有任何貼上 / 拖放 / 語音 / 右鍵選單 / `reading` 紀錄；草稿何時被設，舊版沒有日誌可查。
+- claude transcript（session `c3c72160`，只看事件形狀、不讀內容）：03:59:17 之後到 04:01:08 沒有任何使用者訊息或排隊訊息；`permission-mode` 全程 `bypassPermissions`（排除 Shift+Tab）。
+- 實驗（scratchpad，未進 repo）：以 node-pty（ConPTY）擷取內嵌 claude 的啟動輸出（暫存的空設定目錄，不碰使用者資料），再加上 claude fullscreen（使用者 `tui: fullscreen`）的模式 1049 / 1000 / 1002 / 1003 / 1006 / 2004 / 1004 / 2031，餵給真 xterm 5.5：焦點 `ESC[I`/`ESC[O`、DA1 / DA2、DSR、CPR、DECRQM、OSC 10 / 11、DECRQSS、滾輪 / 移動 / 點擊 SGR 回報全部 `isTerminalAutoReply` = true，不進 `trackDraft`。工單候選（焦點回報、滑鼠 / 滾輪、括號貼上、launch 保留、`/control-tower` 啟動參數）都排除。
+- 結論：剩下只有使用者真的按的鍵會讓 `trackDraft` 判成草稿而不留紀錄（↑ / ↓ 叫出歷史、Tab、Alt＋鍵、F5 以後功能鍵、輸入法組字），無法從現有日誌分辨 → 依工單問塔台（Q-1）。
+
+### 修正內容（塔台 Q-1 = B、Q-2 = A）
+- `electron/notify-hold.ts`：
+  - `onPromptSubmitted(id)`：契約 2 塔台、有草稿、不在括號貼上中時，清掉草稿並重新排程被擋的佇列；hook 到達前 `NOTIFY_HOLD_SUBMIT_QUIET_MS` = 300 ms 內有任何使用者輸入、或 `NOTIFY_HOLD_SUBMIT_ENTER_GUARD_MS` = 2 s 內有使用者 Enter → 保留並記 `draft kept`。時鐘：新 dep `monotonicNow`（預設 `performance.now()`），不拿主行程時間與 hook `at` 比（T0926 規則）。
+  - 診斷：`onUserInput` 草稿由無變有時記 `[notify-hold] draft set terminal=<id> cause=<類別> bytes=<n>`（不記內容）。
+  - 去重：`enqueueAnswer` 遇到同一佇列裡完全相同、文字未送出的回答行 → 回 `{ ok: true, held: true, holdId: <既有> }`，記 `answer duplicate … len=<n>`；送出後的重送不攔（T0942 / D412）。
+- `src/lib/tower-input-draft.ts`：`trackDraft` 的掃描抽成共用 `scanDraft`（規則、回傳值不變），新增純函式 `draftCause`。
+- `electron/pty-manager.ts`：deps `onUserPromptSubmit`，`reportHookEvent` 收到 `user-prompt-submit` 時呼叫（例外記 warn、不影響回報）。
+- `electron/main.ts`、`electron/remote/headless-entry.ts`：各一行接線到 `notifyHold.onPromptSubmitted`（與 `onPtyOutput` 同位置；`app-paths-bootstrap` 第一個 import 與 import 期不取 userData 規則不受影響）。
+- 取捨（回報區要求寫明）：hook 從 claude 取走輸入框到 host 收到實測 100–150 ms（舊日誌 3 次：回答 Enter → `user-prompt-submit`：100 / 128 / 143 ms）。若 hook 晚到超過 2 s、且使用者在 Enter 之後 300 ms 以外才打字，那些字會被誤清（通知可能接在後面）；量不到發生率。回合進行中才按的鍵（之後沒有送出）照舊保留，靠「立即送出」或下一次送出。
+
+### 變更檔案
+- `electron/notify-hold.ts`、`electron/pty-manager.ts`、`electron/main.ts`、`electron/remote/headless-entry.ts`、`src/lib/tower-input-draft.ts`
+- 新增 `electron/__tests__/notify-hold-prompt-submit.test.ts`（23 項）
+- `docs/agent-guide/tower-inbox.md`（新節「claude 取走輸入框時清掉草稿」）、`docs/agent-guide/notify-hold.md`（常數、日誌、連結）、`CLAUDE.md`（「塔台等使用者回答時保留 Worker 通知」節的契約 2 項補一句，標題不改）
+
+### 驗證
+- 回歸測試：`notify-hold-prompt-submit.test.ts` 以 base 版產品檔（暫時換回、跑完以備份還原，未用 stash / checkout）執行 → 22 / 23 失敗（含「送出前的草稿在 user-prompt-submit 後清掉、回答立即送出」「相同回答不重複排入」）；修正後 23 / 23 通過。涵蓋：送出後才打的字保留、300 ms 內有輸入保留、2 s Enter 防護、括號貼上保留、v1 / 非塔台不變、去重與重送、診斷日誌不含內容、PtyManager 只對 `user-prompt-submit` 呼叫且例外不影響回報。
+- `npm ci`：exit 0（worktree）。
+- `npm run test:unit`（head `511b547e`，第一次完整執行）：exit 0，Test Files 523 passed / 3 skipped（526），Tests 9452 passed / 46 skipped（9498）。
+- `npx vite build`：exit 0。
+- `npm run typecheck`：exit 0；`npm run typecheck:electron`：exit 0。
+- 既有測試未改任何斷言（只新增檔案）。
+
+### 相關通過案例判定（R-G003）
+| 案例 | 改動後 | 判定 |
+|---|---|---|
+| T0904 draft 保留（打字未送出時通知 / 回答被擋，Enter / Ctrl+C 後 1 s 送出） | 規則不變；只多了「claude 取走輸入框時」清草稿，且 300 ms / 2 s 防護保留送出後打的字 | 成立（`notify-hold-contract-tower.test.ts` 全過） |
+| T0904 reading 不擋回答、立即送出 | 未動 `headHold` / `sendNow` | 成立 |
+| T0908 `tower-inbox:answer` 契約、`checkInboxAnswer` | 未動；去重只在相同行已在佇列時回 `held`（原本也是 `held`） | 成立（`tower-inbox-answer.test.ts` 全過） |
+| T0940 案 A / 案 B（提示期間單鍵、單鍵調查列） | `trackDraftDuringPrompt` / `answersSingleKeyPrompt` 未動，`trackDraft` 結果不變 | 成立（`tower-input-draft*.test.ts`、`notify-hold-single-key.test.ts` 全過） |
+| T0942 已送出標記與「重新送出」 | 送出後同一行再送照常送出（測試覆蓋） | 成立 |
+
+### 「👷 Worker 等你」列出塔台分頁：判斷與建議（本單不改）
+- 判斷：**設計如此**。`workerWaitItems`（`src/lib/inbox-model.ts`）逐一列工作區分頁的 ⚠️ / 📨 / ⏸，📨 待送來自 `notify-hold-store`；保留佇列本來就掛在目標＝塔台分頁上，所以一定顯示塔台的標題（`docs/agent-guide/tower-inbox.md` 區塊表已寫明）。
+- 但有兩個誤導：① 文字「待送 N 則通知」把使用者自己的回答（`NotifyHoldItem.kind: 'answer'`）也算成「通知」，本次 2 筆其實都是回答；② 區名是「Worker 等你」，回答不是 Worker 在等，而且這些筆數也算進分頁標題數字（`inboxActionCount` 的 `workerItems`）。
+- 建議（另開工單）：回答與 Worker 通知分開計數與措辭（例「📨 Claude CLI · Tower：待送 2 則回答」，或回答只在原筆的「已排入待送」標記旁顯示、不列進「Worker 等你」），並決定回答是否計入標題數字。
+
+### 待實機
+1. 裝新版後開「以塔台開啟 Claude」（契約 2），回合進行中不要碰塔台分頁；回合結束後在待辦分頁回答一筆 → 預期立即送出（日誌 `answer … (sending)`，沒有 `held … reason=draft`）。
+2. 若仍被 `draft` 擋住：在日誌找該塔台的 `[notify-hold] draft set terminal=<id> cause=<類別> bytes=<n>`，把類別與時間回報塔台（定位 BUG-235 真正來源）。
+3. 在塔台輸入框打一半的字（不送出）時回答 → 預期仍「已排入待送」；按 Enter 送出後回答依序送達。
+4. 同一筆在「已排入待送」狀態再按一次 → 待送數字不增加，日誌 `answer duplicate`。
+
+### 遭遇問題
+- 一次以 heredoc 執行的 python 修改把 `'\\r'` 寫成實際 CR（R-G005 第 1 / 3 點），已以位元組讀寫修正並確認全部改動檔 0 個 CR；之後改用 Write／Edit。
+
+### 互動紀錄
+- [12:12] Q-1: 重現不了 draft 來源，修正怎麼做？ → A（塔台）: 選 B（A 的診斷日誌＋去重，加上 claude 塔台收到 user-prompt-submit 時清掉 draft）；補充：① 只清送出那一刻之前的輸入，用既有順序依據或 hook 前一段短時間（例 ≤ 300 ms）沒有使用者輸入才清，回報區寫取捨；② 只套用契約 2 塔台的 claude 分頁；③ 回歸測試涵蓋清掉與保留兩面；④ 診斷日誌只記類別與位元組數；⑤ 修正＋回歸測試即算達成，本單可 DONE，BUG-235 塔台判 FIXED，回報區寫明實際觸發來源未確定 → Action: 實作 300 ms 輸入窗＋2 s Enter 防護（主行程單調時鐘），其餘照辦。
+- [12:17] Q-2: 接線需動 `electron/main.ts` / `electron/remote/headless-entry.ts` → A（塔台）: 選 A，允許各加接線，已補進 `affects_files` → Action: 兩處各加一行。
+
+### Commit
+- `branch`：ct/T0964
+- `base_sha`：4d003c6a762a72f3aefc258049feb8f88a1b4f1f
+- `validated_sha`：511b547e71a9b39497bf214c0372fae2ff96d575
+- `head_sha`：511b547e71a9b39497bf214c0372fae2ff96d575
+- 產品 commit：`511b547e` fix(notify-hold): clear a contract-2 Tower's draft on user-prompt-submit, dedupe answers (T0964, BUG-235)
+- 未 push、未觸發 workflow、未建 tag。
