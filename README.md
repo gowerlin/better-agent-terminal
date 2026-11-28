@@ -246,7 +246,7 @@ BAT 開的 Claude CLI 分頁（縮圖列「+」選單的 Claude CLI、「以塔�
 | 待辦分頁「⏸ 待你決定」選項最後的「其他（自由回答）」（送 `U-n：<文字>`） | `>= 0.8.0-pre.8` | `>= v6.1.0`（自由文字回答本來就接受） |
 | 放棄備註只當原因（新方向改用「其他」）與多選題（`inbox_features` 含 `multi`、`awaiting_user[].multi: true`；送 `U-n：A、C`） | `>= 0.8.0-pre.8` | `>= v6.3.0`（契約仍是 v2；舊 CT 沒有 `multi` 旗標，BAT 照單選畫；舊 BAT 搭 CT 6.3.0 照單選畫，送單一代號照樣接受） |
 | 塔台開著原生選單時從待辦分頁回答（BAT 代按 Esc 關選單再送出）；選單紀錄開著時 Worker 通知也先保留 | `>= 0.8.1-pre.4` | 不需要（任何契約 v2 的 CT 都可） |
-| 只在回答的題目確實在開著的選單裡時才代按 Esc、題目旁的「會先關掉選單」提示（`inbox_features` 含 `menu`、`menu_open`） | `>= 0.8.1-pre.4` | `>= v6.4.0-pre.1`（契約仍是 v2；舊 CT 沒有 `menu_open`，BAT 照上一列處理；舊 BAT 搭 CT 6.4 不讀 `menu_open`，照常運作） |
+| 只在回答的題目確實在開著的選單裡時才代按 Esc、題目旁的「會先關掉選單」提示（`inbox_features` 含 `menu`、`menu_open`） | `>= 0.8.1-pre.4` | `>= v6.4.0`（契約仍是 v2；舊 CT 沒有 `menu_open`，BAT 照上一列處理；舊 BAT 搭 CT 6.4 不讀 `menu_open`，照常運作） |
 | `bat-hooks` plugin（選用；手打 `claude`、自訂 `--settings`、關掉 BAT MCP 時才需要）與 `--set-role` 的 `hooks:` 行 | `>= 0.8.0-pre.3`；plugin `1.0.0` | `hooks:` 行：CT `>= v6.1.0` 解析（舊 CT 不帶 `--bat-contract`，不會出現這行） |
 
 <!-- #endregion compatibility -->
