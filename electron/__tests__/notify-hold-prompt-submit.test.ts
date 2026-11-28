@@ -10,6 +10,9 @@
  *   - an open paste: unchanged
  *   - T0972 (D503 ①): any tab, not only a contract-2 Tower — the launch-prompt turn submits before the
  *     Tower declares contract 2 (T0970 B3); only a contract-2 Tower reads the draft
+ *   - T0978 (D516 / U-72: B): the launch-prompt turn (PtyManager `isLaunchPromptTurn`: the first submit after
+ *     a launch command ending with `/control-tower`) skips the Enter guard; quiet window / paste / later
+ *     submits / tabs without that launch command unchanged
  *   - the same answer line already waiting is not queued twice (answered `held`, the same item)
  *   - `[notify-hold] draft set … cause=<kind> bytes=<n>`: a kind and a length, never the text
  */
@@ -46,7 +49,10 @@ class FakeManager implements NotifyHoldPtyManager {
   blocked = new Map<string, BlockedState>()
   role = new Map<string, string>([['tower', 'tower']])
   contract = new Map<string, number>([['tower', 2]])
+  /** T0978: tabs whose reported submit is the launch-prompt turn (PtyManager `isLaunchPromptTurn`). */
+  launchTurn = new Set<string>()
   writes: Array<[string, string]> = []
+  isLaunchPromptTurn(id: string): boolean { return this.launchTurn.has(id) }
   isAlive(id: string): boolean { return this.alive.has(id) }
   getBlockedState(id: string): BlockedState | null { return this.blocked.get(id) ?? null }
   getBlockedDetection(): BlockedDetection { return 'hook' }
@@ -230,20 +236,84 @@ describe('T0972 / BUG-235: the launch-prompt turn submits before the Tower decla
     expect(controller.enqueueAnswer('tower', 'U-2：B')).toMatchObject({ ok: true, held: true })
   })
 
-  it('T0972 Q-2 (intended): T0970 B3 as recorded — trust-dialog Enter 517 ms before the hook, F12 after it → kept by the unchanged 2 s Enter guard', () => {
-    const { controller, pm, userTypes, lines } = setup()
-    undeclared(pm)
+  /** T0970 B3 as recorded: ↓ / Enter in claude's trust dialog, F12 159 ms later, the hook 358 ms after that. */
+  const b3Timeline = (userTypes: (data: string) => void) => {
     userTypes('\x1b[B') // ↓ in claude's trust dialog (07:37:17.127)
     vi.advanceTimersByTime(1_418)
     userTypes('\r') // its Enter (07:37:18.545)
     vi.advanceTimersByTime(159)
     userTypes('\x1b[24~') // F12 (07:37:18.704)
     vi.advanceTimersByTime(358) // user-prompt-submit 07:37:19.062: 517 ms after the Enter
+  }
+
+  // T0978 / D516 (U-72: B) rewrote the T0972 Q-2 (intended) case: before T0978 this draft was kept by the
+  // 2 s Enter guard and the first inbox answer was held (`reason=draft`).
+  it('T0978 / D516: T0970 B3 as recorded, launch-prompt turn — trust-dialog Enter 517 ms before the hook, F12 after it → cleared (kept before T0978)', () => {
+    const { controller, pm, userTypes, lines } = setup()
+    undeclared(pm)
+    pm.launchTurn.add('tower')
+    b3Timeline(userTypes)
+    controller.onPromptSubmitted('tower')
+    expect(controller.hasDraft('tower')).toBe(false)
+    expect(lines).toContain('[notify-hold] draft cleared terminal=tower (user-prompt-submit; not a contract-2 Tower yet; launch-prompt turn, Enter 517 ms before not guarded)')
+    expect(lines.some(l => l.startsWith('[notify-hold] draft kept'))).toBe(false)
+    declare(pm)
+    const result = controller.enqueueAnswer('tower', 'U-1：A')
+    expect(result).toEqual({ ok: true, held: false, holdId: expect.any(String) })
+    expect(pm.writes).toContainEqual(['tower', 'U-1：A'])
+  })
+
+  it('T0978: the same timeline in a tab without a launch-prompt turn (no launch prompt) → still kept by the 2 s Enter guard', () => {
+    const { controller, pm, userTypes, lines } = setup()
+    undeclared(pm)
+    b3Timeline(userTypes)
     controller.onPromptSubmitted('tower')
     expect(controller.hasDraft('tower')).toBe(true)
     expect(lines.some(l => l.startsWith('[notify-hold] draft kept terminal=tower (user-prompt-submit; input 358 ms / Enter 517 ms before)'))).toBe(true)
     declare(pm)
     expect(controller.enqueueAnswer('tower', 'U-1：A')).toMatchObject({ ok: true, held: true })
+  })
+
+  it('T0978: a launch-prompt turn with input within the 300 ms quiet window → still kept', () => {
+    const { controller, pm, userTypes, lines } = setup()
+    undeclared(pm)
+    pm.launchTurn.add('tower')
+    userTypes('\r')
+    vi.advanceTimersByTime(159)
+    userTypes('\x1b[24~')
+    vi.advanceTimersByTime(NOTIFY_HOLD_SUBMIT_QUIET_MS - 1)
+    controller.onPromptSubmitted('tower')
+    expect(controller.hasDraft('tower')).toBe(true)
+    expect(lines.some(l => l.startsWith(`[notify-hold] draft kept terminal=tower (user-prompt-submit; launch-prompt turn; input ${NOTIFY_HOLD_SUBMIT_QUIET_MS - 1} ms`))).toBe(true)
+  })
+
+  it('T0978: a launch-prompt turn with a paste still open → still kept', () => {
+    const { controller, pm, userTypes } = setup()
+    undeclared(pm)
+    pm.launchTurn.add('tower')
+    userTypes('\r')
+    vi.advanceTimersByTime(159)
+    userTypes('\x1b[200~pasted')
+    vi.advanceTimersByTime(NOTIFY_HOLD_SUBMIT_QUIET_MS + 50)
+    controller.onPromptSubmitted('tower')
+    expect(controller.hasDraft('tower')).toBe(true)
+  })
+
+  it('T0978: the next submit (not the launch-prompt turn) with an Enter within 2 s → still kept', () => {
+    const { controller, pm, userTypes } = setup()
+    undeclared(pm)
+    pm.launchTurn.add('tower')
+    b3Timeline(userTypes)
+    controller.onPromptSubmitted('tower')
+    expect(controller.hasDraft('tower')).toBe(false)
+    pm.launchTurn.delete('tower') // PtyManager: the second submit is no launch-prompt turn
+    vi.advanceTimersByTime(30_000)
+    userTypes('second message\r')
+    vi.advanceTimersByTime(NOTIFY_HOLD_SUBMIT_QUIET_MS + 50)
+    userTypes('n')
+    vi.advanceTimersByTime(NOTIFY_HOLD_SUBMIT_QUIET_MS + 50)
+    controller.onPromptSubmitted('tower')
+    expect(controller.hasDraft('tower')).toBe(true)
   })
 
   it('a paste still open at that submit is not cleared; the answer is held after declaring', () => {
@@ -386,6 +456,143 @@ describe('PtyManager onUserPromptSubmit', () => {
       manager.dispose()
       fs.rmSync(dataDir, { recursive: true, force: true })
       vi.restoreAllMocks()
+    }
+  })
+})
+
+// T0978 / D516: the real PtyManager decides the launch-prompt turn; the controller reads it while the hook
+// is reported (the wiring of electron/main.ts / headless-entry.ts: `onUserPromptSubmit` → `onPromptSubmitted`).
+describe('T0978: PtyManager isLaunchPromptTurn → onPromptSubmitted', () => {
+  const TOWER_COMMAND = "& 'C:/x/claude.exe' --mcp-config=c --name=ws --x /control-tower\r"
+  const PLAIN_COMMAND = "& 'C:/x/claude.exe' --mcp-config=c --name=ws --x\r"
+
+  function realSetup() {
+    vi.useRealTimers()
+    const logLines: string[] = []
+    vi.spyOn(logger, 'log').mockImplementation((...args: unknown[]) => { logLines.push(args.map(String).join(' ')) })
+    vi.spyOn(logger, 'warn').mockImplementation(() => {})
+    const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 't0978-pty-'))
+    let clock = 1_000_000
+    const lines: string[] = []
+    let controller: NotifyHoldController
+    const manager = new PtyManager({
+      emit: vi.fn(),
+      dataDir,
+      helperEnv: () => ({}),
+      onUserPromptSubmit: (id) => { controller.onPromptSubmitted(id) },
+    })
+    controller = new NotifyHoldController({
+      getPtyManager: () => manager,
+      emitKeypress: () => true,
+      logger: { log: (m) => { lines.push(m) } },
+      now: () => clock,
+      monotonicNow: () => clock,
+    })
+    const advance = (ms: number) => { clock += ms }
+    /** pty.ts for a user write: tracked, then written. */
+    const userTypes = (data: string) => {
+      controller.onUserInput('t1', data)
+      manager.writeWithResult('t1', data)
+    }
+    const b3 = () => {
+      userTypes('\x1b[B'); advance(1_418)
+      userTypes('\r'); advance(159)
+      userTypes('\x1b[24~'); advance(358)
+      manager.reportHookEvent('t1', 'user-prompt-submit')
+    }
+    const create = () => expect(manager.create({ id: 't1', cwd: os.tmpdir(), type: 'terminal', shell: '/bin/sh' })).toBe(true)
+    const cleanup = () => {
+      controller.dispose()
+      manager.dispose()
+      fs.rmSync(dataDir, { recursive: true, force: true })
+      vi.restoreAllMocks()
+    }
+    return { manager, controller, lines, logLines, advance, userTypes, b3, create, cleanup }
+  }
+
+  it('a launch command ending with /control-tower: the first submit clears the B3 draft; the second keeps the Enter guard', () => {
+    const s = realSetup()
+    try {
+      s.create()
+      s.manager.writeLaunchCommand('t1', TOWER_COMMAND)
+      expect(s.logLines.some(l => l.includes('[agent-command] id=t1 launch command ends with the launch prompt'))).toBe(true)
+      expect(s.manager.isLaunchPromptTurn('t1')).toBe(false) // pending until its submit
+      s.b3()
+      expect(s.controller.hasDraft('t1')).toBe(false)
+      expect(s.lines.some(l => l.includes('launch-prompt turn, Enter 517 ms before not guarded'))).toBe(true)
+      // the second submit: the user's Enter, then a key typed after it, then its late hook
+      s.advance(30_000)
+      s.userTypes('next\r'); s.advance(NOTIFY_HOLD_SUBMIT_QUIET_MS + 50)
+      s.userTypes('n'); s.advance(NOTIFY_HOLD_SUBMIT_QUIET_MS + 50)
+      s.manager.reportHookEvent('t1', 'user-prompt-submit')
+      expect(s.manager.isLaunchPromptTurn('t1')).toBe(false)
+      expect(s.controller.hasDraft('t1')).toBe(true)
+    } finally {
+      s.cleanup()
+    }
+  })
+
+  it('no launch prompt (a plain claude launch) / no launch command at all (a reattached PTY): the B3 draft is kept', () => {
+    const s = realSetup()
+    try {
+      s.create()
+      s.manager.writeLaunchCommand('t1', PLAIN_COMMAND)
+      s.b3()
+      expect(s.manager.isLaunchPromptTurn('t1')).toBe(false)
+      expect(s.controller.hasDraft('t1')).toBe(true)
+      s.manager.kill('t1')
+      s.controller.onPtyExit('t1')
+      s.create() // as a PTY registered without a launch command
+      s.b3()
+      expect(s.controller.hasDraft('t1')).toBe(true)
+    } finally {
+      s.cleanup()
+    }
+  })
+
+  it('launch-prompt turn with input within the quiet window → kept', () => {
+    const s = realSetup()
+    try {
+      s.create()
+      s.manager.writeLaunchCommand('t1', TOWER_COMMAND)
+      s.userTypes('\r'); s.advance(159)
+      s.userTypes('x'); s.advance(NOTIFY_HOLD_SUBMIT_QUIET_MS - 1)
+      s.manager.reportHookEvent('t1', 'user-prompt-submit')
+      expect(s.manager.isLaunchPromptTurn('t1')).toBe(true)
+      expect(s.controller.hasDraft('t1')).toBe(true)
+    } finally {
+      s.cleanup()
+    }
+  })
+
+  it('⏻ restart: the new PTY counts from its own launch command (none → the Enter guard; with the prompt → cleared)', () => {
+    const s = realSetup()
+    try {
+      s.create()
+      s.manager.writeLaunchCommand('t1', TOWER_COMMAND) // pending, never submitted
+      expect(s.manager.restart('t1', os.tmpdir(), '/bin/sh')).toBe(true)
+      s.b3() // the old pending launch prompt is not carried over
+      expect(s.manager.isLaunchPromptTurn('t1')).toBe(false)
+      expect(s.controller.hasDraft('t1')).toBe(true)
+      expect(s.manager.restart('t1', os.tmpdir(), '/bin/sh')).toBe(true)
+      s.manager.writeLaunchCommand('t1', TOWER_COMMAND) // ⏻ of a tower tab types its launch command again
+      s.advance(10_000)
+      s.b3()
+      expect(s.manager.isLaunchPromptTurn('t1')).toBe(true)
+      expect(s.controller.hasDraft('t1')).toBe(false)
+    } finally {
+      s.cleanup()
+    }
+  })
+
+  it('a PTY that is not running: false', () => {
+    const s = realSetup()
+    try {
+      s.manager.writeLaunchCommand('nope', TOWER_COMMAND)
+      expect(s.manager.isLaunchPromptTurn('nope')).toBe(false)
+      expect(s.manager.reportHookEvent('nope', 'user-prompt-submit')).toBeNull()
+    } finally {
+      s.cleanup()
     }
   })
 })

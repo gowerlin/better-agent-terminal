@@ -18,6 +18,8 @@ import type { TowerDeclaration } from './terminal-role'
 import type { CtWorktreeRecord } from './ct-worktree'
 import { LaunchSuspectWatcher, TerminalBlockedTracker, type BlockedDetection, type BlockedState, type HookOrigin, type HookReportEvent, type HookReportResult } from './terminal-blocked-state'
 import { CodexStateScanner, lastCodexState, PROGRAM_STATUS_PROBE_REPLY } from '../src/lib/codex-terminal-state'
+import { launchCommandEndsWithPrompt } from '../src/lib/launch-command'
+import { TOWER_LAUNCH_PROMPT } from '../src/lib/tower-launch-prompt'
 import type { InterruptedAgentSource } from './interrupted-agents'
 import { describePtyFdGuardSkip, guardPtySpawnFds, type PtyFdGuardDeps, type PtyFdGuardOutcome } from './pty-spawn-fd-guard'
 import { holderKeyOfDir } from './pty-holder'
@@ -459,6 +461,11 @@ export class PtyManager implements CloseWorkerPtyManager {
   // BUG-231 / T0951: the holds above that a renderer's launch command ends (`holdInputForLaunch`) —
   // their safety timer and held bytes (the input itself is in `dispatchInputHolds`)
   private launchInputHolds: Map<string, { timer: ReturnType<typeof setTimeout>; bytes: number }> = new Map()
+  // T0978 / D516: the launch-prompt turn of each PTY (`isLaunchPromptTurn`). `pending` = the launch command
+  // written into this process ended with a prompt argument and no `user-prompt-submit` came yet;
+  // `current` = the latest `user-prompt-submit` was that first one. Ends with the process (`recordExit`),
+  // a Terminal Server recovery rebuild (a new shell, no launch command) or the second submit.
+  private launchPromptTurns: Map<string, 'pending' | 'current'> = new Map()
   // T0582: recently ended PTYs (insertion order = oldest first), for the helper query channels
   private exitedPtys: Map<string, ExitedPtyRecord> = new Map()
   // PLAN-047 M1b-1 / T0590: `blocked` (claude hooks) and each terminal's `blockedDetection`
@@ -930,6 +937,7 @@ export class PtyManager implements CloseWorkerPtyManager {
   private recordExit(id: string, exitCode?: number): void {
     this.dispatchInputHolds.delete(id) // T0598: nothing left to write after
     this.endLaunchHold(id) // T0951: same rule as T0598 — held input of an ended PTY has nowhere to go
+    this.launchPromptTurns.delete(id) // T0978: the next process of this id counts again from its own launch command
     const instance = this.instances.get(id)
     const now = Date.now()
     this.pruneExitedPtys(now)
@@ -1385,6 +1393,11 @@ export class PtyManager implements CloseWorkerPtyManager {
   reportHookEvent(id: string, event: HookReportEvent, toolName?: string, sessionId?: string, agentId?: string, at?: bigint): { result: HookReportResult; state: BlockedState | null } | null {
     if (!this.instances.has(id)) return null
     const outcome = this.blockedTracker.report(id, event, toolName, sessionId, agentId, at)
+    if (event === 'user-prompt-submit') {
+      // T0978: the first submit after a launch command with a prompt is that prompt's turn; any later one is not
+      if (this.launchPromptTurns.get(id) === 'pending') this.launchPromptTurns.set(id, 'current')
+      else this.launchPromptTurns.delete(id)
+    }
     if (event === 'user-prompt-submit' && this.deps.onUserPromptSubmit) {
       try {
         this.deps.onUserPromptSubmit(id) // T0964
@@ -1393,6 +1406,18 @@ export class PtyManager implements CloseWorkerPtyManager {
       }
     }
     return outcome
+  }
+
+  /**
+   * T0978 / D516: the latest `user-prompt-submit` of running PTY `id` was its launch-prompt turn — the
+   * first one after `writeLaunchCommand` wrote a command ending with the tower tab's prompt
+   * (`launchCommandEndsWithPrompt`, `TOWER_LAUNCH_PROMPT`). Read by NotifyHoldController
+   * `onPromptSubmitted` while that hook is reported. Not a running PTY, no such launch command (a plain
+   * `claude`, a resume, a helper dispatch, a PTY reattached after BAT reopened, a recovery rebuild) or a
+   * later submit: false.
+   */
+  isLaunchPromptTurn(id: string): boolean {
+    return this.instances.has(id) && this.launchPromptTurns.get(id) === 'current'
   }
 
   /**
@@ -1976,6 +2001,13 @@ export class PtyManager implements CloseWorkerPtyManager {
       held = this.dispatchInputHolds.get(id) ?? []
       this.dispatchInputHolds.delete(id)
     }
+    // T0978 / D516: a command ending with the tower tab's prompt starts a launch-prompt turn (`isLaunchPromptTurn`)
+    if (this.instances.has(id) && launchCommandEndsWithPrompt(command, TOWER_LAUNCH_PROMPT)) {
+      this.launchPromptTurns.set(id, 'pending')
+      logger.log(`[agent-command] id=${id} launch command ends with the launch prompt (launch-prompt turn pending)`)
+    } else {
+      this.launchPromptTurns.delete(id)
+    }
     this.write(id, command)
     this.writeHeldInput(id, held, 'input before the launch command')
   }
@@ -2398,6 +2430,7 @@ export class PtyManager implements CloseWorkerPtyManager {
         })
         // T0949: the rebuilt shell is another process — its pid comes with its `pty:created`
         this.instances.set(id, { ...inst, process: null, pid: undefined })
+        this.launchPromptTurns.delete(id) // T0978: a new shell with no launch command — no launch-prompt turn
         if (inst.role) this.notifyTowerRoleChange(id)
       }
 
