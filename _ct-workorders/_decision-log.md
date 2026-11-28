@@ -10,6 +10,7 @@
 
 | ID | 日期 | 標題 | 相關工單 |
 |----|------|------|---------|
+| D494 | 2026-11-28 | U-63：A、U-64：A → T0968 ff `b2edf438`；`v0.8.1-pre.4` 發佈；A-26 實機確認 | T0968 / BUG-235 / BUG-236 |
 | D493 | 2026-11-28 | T0968 收單（`4dea180c`）；模式 ① `8b3e9ec9`；斷點 E 發 U-63、發 `0.8.1-pre.4` 發 U-64 | T0968 / BUG-236 |
 | D492 | 2026-11-28 | CT T0582 DONE（6.4.0-pre.1）→ 開 T0968 讀 `menu_open`（含選單紀錄開著時保留 Worker 通知） | T0968 / BUG-236 |
 | D491 | 2026-11-28 | U-62：A → `0.8.1-pre.4` 等 CT 6.4.0-pre.1 與 BAT `menu_open` 讀取單完成後一起發 | BUG-235 / BUG-236 |
@@ -611,6 +612,16 @@
   4. PLAN-001 保持延後（🟢 Low，等 plugin 1.0 穩定）
 - **Success criteria**（EXP→CONCLUDED）：npm install 無錯 / 所有 native modules rebuild 成功 / dev+build:dir 可跑 / 手動 smoke test 8 項通過
 - **最大風險**：`whisper-node-addon@1.0.2` 對 Electron 41（Node 24）的 NODE_MODULE_VERSION 相容性未知，允許 Worker 遇此決策點主動問塔台
+
+---
+
+### D494 2026-11-28 14:01 — U-63：A、U-64：A → `v0.8.1-pre.4` 發佈
+
+- **使用者**：`U-63：A、U-64：A`（終端文字）。U-63、U-64 移除。
+- **合併**：第 5 步 `main` 自 parent1 `1372e23d` 起只多 `_ct-workorders/**` → 整合分支再合併 `main` 後 ff；`main` = `ct-merge/T0968` = `b2edf438`，產品樹 = `4dea180c`；整合 worktree detach；T0968 worktree 移除；`ct/T0968`、`ct-merge/T0968` 保留。
+- **發版**：推送範圍 56 commits 去識別（`.private/` 9 組）＋金鑰樣式 0 命中 → push `main` → `pre-release.yml -f version=0.8.1-pre.4` run `46112814137` success（`b2edf438`）；GitHub Release `v0.8.1-pre.4`（prerelease，2026-11-28 06:00:40Z）資產 4 個，`server-bundle-v0.8.1-pre.4` 已發；`gh release edit --notes-file` 改寫更版重點。CHANGELOG（`[0.8.1-pre.4] — 2026-11-28`）、release-note.md、README（待辦分頁說明一條＋版本對照兩列：選單作答 BAT `0.8.1-pre.4`；`menu_open` 需 CT ≥ 6.4.0-pre.1）、package.json / lock 版號。NSIS 重裝驗收：本版不需要（未改安裝程式路徑），直接以 .exe 安裝。
+- **待你執行**：A-26（BUG-235 / 236 實機；T0964 / T0965 / T0968〈待實機〉）。通知 CT 塔台版號。
+- **相關**：T0964 / T0965 / T0966 / T0968 / BUG-235 / BUG-236 / D491 / D493
 
 ---
 

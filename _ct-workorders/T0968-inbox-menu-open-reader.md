@@ -233,3 +233,4 @@ T0965 讓 BAT 在塔台開著選單時，替待辦分頁的回答代按 Esc 再�
 
 - 2026-11-28 13:33 (UTC+8) 收單：DONE 確認（`validated_sha` = `head` = `4dea180c`；`--worktree-status` 五條全成立：`main` 自 base 只多 `_ct-workorders/**`、`outOfScopeFiles` 空（含 Q-1 補的 preload）、`conflicts` 空、`dirty` 空）。`--close-worker --delay-ms 10000 --worktree keep` exit 0。
 - 模式 ①：`ct-merge/T0968` = `8b3e9ec9`（parent1 `1372e23d`、parent2 `4dea180c`，產品樹 = head）。斷點 E → U-63；發 `0.8.1-pre.4` → U-64（D493）。README 版本對照於發版時處理。
+- 2026-11-28 13:35 (UTC+8) U-63：A → 整合分支再合併 `main` 後 ff：`main` = `b2edf438`，產品樹 = `4dea180c`；整合 worktree detach；worktree 移除；分支 `ct/T0968`、`ct-merge/T0968` 保留。U-64：A → `v0.8.1-pre.4` 發佈（D494）。

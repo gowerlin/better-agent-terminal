@@ -7,7 +7,7 @@ status: FIXED
 severity: medium
 reproducibility: "使用者實機一次（`0.8.1-pre.3`，2026-11-28 12:24）；未查證"
 created_at: "2026-11-28T12:27:02+0800"
-updated_at: "2026-11-28T12:53:05+0800"
+updated_at: "2026-11-28T14:01:43+0800"
 impact:
   - tower-inbox
   - notify-hold
@@ -46,3 +46,4 @@ links:
 - 2026-11-28 12:32 U-59：A（兩邊都能答：選單開著時 BAT 先按 Esc 關選單、等回到輸入框再送文字）→ FIXING（T0965，D481）
 - 2026-11-28 12:48 T0965 DONE（`e5a0ad16`）：原因是分頁內一次滑鼠按下（T0757 規則）清掉 `question`，選單仍開著，BAT 沒有「選單還開著」的紀錄，回答 `holdReason` 為 null 而直接寫入。修正：tracker 另記 AskUserQuestion 選單紀錄（與 `blocked` 分開）；契約 2 塔台的回答在 `question` 或只剩選單紀錄時保留，條件齊備時 BAT 送 Esc、確認選單關閉後再送文字。合併工單 T0967（D486）
 - 2026-11-28 12:53 → FIXED：U-61：A，T0965 經 T0967 合併進 `main` `8a1c1318`（產品樹 = `84f8c900`），D489；T0965〈待實機〉確認後 CLOSED
+- 2026-11-28 14:01 隨 `v0.8.1-pre.4` 發佈（D494）；A-26 實機確認後 CLOSED

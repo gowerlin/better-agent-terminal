@@ -4,39 +4,28 @@ summary_version: 1
 bat_contract: 2
 ct_version: "6.3.0"
 inbox_features: ["recommended", "dismiss", "multi"]
-updated_at: "2026-11-28T13:33:18+0800"
+updated_at: "2026-11-28T14:01:43+0800"
 session: "2026-11-28 11:59 第一百四十 session 塔台重新開工（CT v6.3.0，BAT 0.8.1-pre.3）"
 next_ids:
   workorder: "T0969"
-  decision: "D494"
+  decision: "D495"
   bug: "BUG-237"
   plan: "PLAN-071"
   user: "U-65"
-  action: "A-26"
-awaiting_user:
-  - id: "U-63"
-    workorder: "T0968"
-    kind: "decision"
-    source: "breakpoint-E"
-    summary: "T0968（讀 CT 6.4.0 `menu_open`）合併：`ct-merge/T0968` `8b3e9ec9` 要 ff 進 `main` 嗎"
-    options: ["A 現在 ff 進 main（推薦）", "B 暫不合併"]
-    recommended: "A"
-    created_at: "2026-11-28T13:33:18+08:00"
-  - id: "U-64"
-    workorder: ""
-    kind: "decision"
-    source: "tower-question"
-    summary: "ff 後發 `0.8.1-pre.4` 嗎（BUG-235、BUG-236、T0966、T0968；push `main`、pre-release、更版重點與三份文件）"
-    options: ["A ff 後 push 並發 0.8.1-pre.4（推薦）", "B 先不發版"]
-    recommended: "A"
-    created_at: "2026-11-28T13:33:18+08:00"
+  action: "A-27"
+user_actions:
+  - id: "A-26"
+    title: "裝 `v0.8.1-pre.4`：塔台閒置時從待辦分頁回答立即送出；塔台開選單時從待辦分頁回答會先關選單再送（BUG-235 / 236）"
+    ref: "T0965"
+    kind: "verify"
+    created_at: "2026-11-28T14:01:43+08:00"
 todo:
-  - "CT 協調（D482–D493）：BAT T0968 DONE（`4dea180c`，讀 `menu_open`、選單紀錄開著時保留 Worker 通知、提示行），`ct-merge/T0968` `8b3e9ec9` 待 U-63；發版待 U-64；發版後通知 CT 塔台版號"
-  - "🟡 BUG-235（medium，D476–D480）：T0964 合併進 `main` `ee5d364f`（未 push），FIXED；發 `0.8.1-pre.4` 後實機＋診斷日誌確認才 CLOSED"
-  - "🟡 BUG-236（medium，FIXED，D479–D489）：T0965 經 T0967 合併進 `main` `8a1c1318`（未 push）；發 `0.8.1-pre.4` 後實機（T0965〈待實機〉）確認才 CLOSED"
+  - "✅ CT 協調（D482–D494）：BAT `0.8.1-pre.4` 讀 CT 6.4.0-pre.1 的 `menu_open`；已通知 CT 塔台版號"
+  - "🟡 BUG-235（medium，FIXED）：隨 `v0.8.1-pre.4` 發佈（D494），A-26 實機確認後 CLOSED（再發生時看 `[notify-hold] draft set … cause=`）"
+  - "🟡 BUG-236（medium，FIXED）：T0965 / T0968 隨 `v0.8.1-pre.4` 發佈（D494），A-26 實機確認後 CLOSED（T0965 / T0968〈待實機〉）"
   - "候選（未開單，T0965 建議）：只剩選單紀錄（`question` 已被清除）時 Worker 通知仍照舊直接寫入，可能打進開著的選單；待 CT `menu_open`（D484）工單一起評估"
   - "✅ T0966（U-58：A）合併進 `main` `64b39176`（D485）：Worker 等你不再算回答；T0965 收單時 `main` 已有 T0966 產品改動 → 依 `--worktree-status` 判斷，多半派合併工單"
-  - "發版（U-62：A，D491）：`0.8.1-pre.4` 等 CT 6.4.0-pre.1（CT T0582）與 BAT `menu_open` 讀取單完成後一起發（含 BUG-235 / T0964、BUG-236 / T0965、T0966）；`main` `8a1c1318` 起未 push"
+  - "✅ `v0.8.1-pre.4` 發佈（D494）：BUG-235 / 236、T0966、T0968；下一版 `0.8.1-pre.5`"
   - "✅ BUG-234 CLOSED（`v0.8.1-pre.3` 實機，A-25，D475）"
   - "🗄 `_decision-log.md` 407 KB 超過 400 KB 預算：開工後封存舊決策（D186 起，照 `_archive/decisions/` 既有做法）"
   - "✅ `v0.8.1-pre.2`（D461）／`v0.8.1-pre.1`（D449）：BUG-228–233 全部 CLOSED（交付版自動化驗收 T0955 / T0959、Linux CI T0961）；T0950 PASS。下一版 `0.8.1-pre.3`（目前只多測試：T0960 改名、T0961 Linux spec）"
@@ -107,6 +96,7 @@ reminders:
 - 13:19 [提問] T0968 Q-1（`tower-inbox:answer` 相加參數需改 `electron/preload.ts`）→ 塔台答 A（允許，只改那一行、補進 affects_files）；Q-2（提示行的「只剩選單紀錄」renderer 拿不到）→ 塔台答 A（只看 attention 的 `question`，只剩紀錄時不提示、寫已知限制）；兩題 `--answer --choice 1` exit 0
 - 13:21 [提問] T0968 Q-3（T0965 測試 `notify-hold-question-menu.test.ts:228` 斷言「只剩選單紀錄時 Worker 通知直接送出」與本單要求相反）→ 塔台答 A（只改這一條、註明 T0968 依 D492 改變行為，其他斷言不動）（`--answer --choice 1` exit 0）
 - 13:33 T0968 DONE（`4dea180c`，test:unit 9567 passed / 529 files、typecheck 0 / 0、build 0；H-1～H-14 對照、Worker 通知殘留風險評估：最壞保留到該回合結束，不加逾時）；收單 `--close-worker --delay-ms 10000 --worktree keep` exit 0；五條全成立 → 模式 ①：`ct-merge/T0968` `8b3e9ec9`（parent1 `1372e23d`、parent2 `4dea180c`）；斷點 E → U-63、發版 → U-64（D493）
+- 13:35 U-63：A、U-64：A → T0968 ff，`main` = `b2edf438`；去識別＋金鑰掃描（推送範圍 56 commits）0 命中 → push `main` → `pre-release.yml -f version=0.8.1-pre.4` run `46112814137` success；14:00 `v0.8.1-pre.4` 發佈（資產 4 個＋`server-bundle-v0.8.1-pre.4`），更版重點已改寫；A-26 待你實機（D494）
 
 ---
 

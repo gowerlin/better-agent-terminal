@@ -7,7 +7,7 @@ status: FIXED
 severity: medium
 reproducibility: "使用者實機一次（`0.8.1-pre.3`，2026-11-28 12:00）；未查證是否穩定"
 created_at: "2026-11-28T12:02:15+0800"
-updated_at: "2026-11-28T12:31:01+0800"
+updated_at: "2026-11-28T14:01:43+0800"
 impact:
   - tower-inbox
   - notify-hold
@@ -45,3 +45,4 @@ links:
 - 2026-11-28 12:02 開單 → FIXING（T0964，D476）
 - 2026-11-28 12:23 T0964 DONE（`511b547e`）：觸發來源未確定（日誌與實驗排除焦點 / 滑鼠 / 滾輪回報、launch 保留、啟動參數，剩使用者實際按鍵）；修正：契約 2 claude 塔台 `user-prompt-submit` 時清掉送出前的草稿（300 ms 輸入窗＋2 s Enter 防護）、`draft set … cause=<類別>` 診斷日誌、待送佇列相同回答去重。整合分支 `ct-merge/T0964` `3837c663` 待斷點 E（U-57，D477）
 - 2026-11-28 12:31 → FIXED：U-57：A，T0964 合併進 `main` `ee5d364f`（產品樹 = `511b547e`），D480；實機（T0964〈待實機〉）與 `draft set … cause=` 診斷日誌確認後 CLOSED
+- 2026-11-28 14:01 隨 `v0.8.1-pre.4` 發佈（D494）；A-26 實機確認後 CLOSED
