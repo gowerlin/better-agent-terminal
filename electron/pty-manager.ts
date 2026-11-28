@@ -1933,10 +1933,17 @@ export class PtyManager implements CloseWorkerPtyManager {
     this.launchInputHolds.set(id, { timer, bytes: previous?.bytes ?? 0 })
   }
 
-  /** BUG-231 / T0951: the renderer's launch command, then the input held since `holdInputForLaunch`. */
+  /**
+   * BUG-231 / T0951: the renderer's launch command, then the input held since `holdInputForLaunch`.
+   * BUG-234 / T0963: the hold ends here even when nothing was typed meanwhile (an empty list) — left
+   * in `dispatchInputHolds`, every later key of the tab was held with no timer to end it.
+   */
   writeLaunchCommand(id: string, command: string): void {
-    const held = this.endLaunchHold(id) ? this.dispatchInputHolds.get(id) ?? [] : []
-    if (held.length > 0) this.dispatchInputHolds.delete(id)
+    let held: string[] = []
+    if (this.endLaunchHold(id)) {
+      held = this.dispatchInputHolds.get(id) ?? []
+      this.dispatchInputHolds.delete(id)
+    }
     this.write(id, command)
     this.writeHeldInput(id, held, 'input before the launch command')
   }
