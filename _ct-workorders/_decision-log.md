@@ -10,6 +10,7 @@
 
 | ID | 日期 | 標題 | 相關工單 |
 |----|------|------|---------|
+| D528 | 2026-11-28 | T0984 收單：A-28 判完成（交付版 `v0.8.1-pre.6` 自動化驗收 S1–S5 PASS，pre.5 對照重現）；驅動合併 U-83 | T0984 / T0978 |
 | D527 | 2026-11-28 | 使用者已裝 `v0.8.1-pre.6`、「派單自動驗收 A-28」→ T0984（zip 隔離實例＋ACC claude，S1 未信任資料夾 B3 以 pre.5 對照） | T0984 / T0978 |
 | D526 | 2026-11-28 | `v0.8.1-pre.6` 發佈（W6 九情境 PASS 後）；BUG-238 CLOSED；A-28 待使用者 | T0977–T0983 / BUG-238 |
 | D525 | 2026-11-28 | U-81：A（push → desktop-build ×2 → W6 → 全 PASS 才發 `0.8.1-pre.6`）、U-82：A（刪本 session 分支）；已 push `main`、觸發 desktop-build A / B | — |
@@ -646,6 +647,16 @@
   4. PLAN-001 保持延後（🟢 Low，等 plugin 1.0 穩定）
 - **Success criteria**（EXP→CONCLUDED）：npm install 無錯 / 所有 native modules rebuild 成功 / dev+build:dir 可跑 / 手動 smoke test 8 項通過
 - **最大風險**：`whisper-node-addon@1.0.2` 對 Electron 41（Node 24）的 NODE_MODULE_VERSION 相容性未知，允許 Worker 遇此決策點主動問塔台
+
+---
+
+### D528 2026-11-28 21:03 — T0984 收單；A-28 判完成
+
+- **收單**：T0984 DONE（`5e955fa3`，只改 `e2e/manual/ct-accept-act.mjs`（新增 `trustkey`、`launchkey`）與 `e2e/manual/README.md`；產品未改）。交付版 zip 隔離實例（pre.6 / pre.5，SHA-256 與 Release 相符）＋ACC claude（skills CT 6.4.0-pre.2）。
+- **結果**：S1（A-28）pre.6 PASS——信任 Enter→F12 154 ms、Enter→hook 742 ms、F12→hook 588 ms，日誌 `launch-prompt turn pending` → `draft cleared … launch-prompt turn, Enter 742 ms before not guarded` → 回答 `sent … reason=none`，塔台收到 `U-1：A` 一次；pre.5 對照（492 / 341 ms）重現 `draft kept` → `held … reason=draft`。S2（已信任，T0972）PASS、S3（真草稿保留）PASS、S4（日誌無內容 / 權杖）PASS、S5（選用：F4 交付版 ✕ 後 conhost ≤ 4.3 s 結束）PASS。安裝版 BAT pid 前後相同、使用者層 1,202 檔雜湊相同、隔離程序與 runtime 清除。
+- **處置**：A-28 由自動化驗收判完成（使用者 D527 授權改派自動驗收），從 `user_actions` 移除。驅動合併：五條判準全通過 → 模式 ① `ct-merge/T0984` → `b4e6a1f9`（parent1 `af65465c` = `main`、parent2 `5e955fa3`），斷點 E 交使用者（U-83）。session id 由 Worker 寫入；session 快照已寫；`--close-worker --worktree keep` exit 0。
+- **合併**：使用者 `U-83：A` → `--ff-only`，`main` = `b4e6a1f9`；整合 worktree detach、T0984 worktree 移除；`ct/T0984`、`ct-merge/T0984` 以 `-d` 刪除（依 U-82 對本 session 分支的授權）。未 push。
+- **相關**：D527 / T0978 / T0983
 
 ---
 

@@ -4,24 +4,18 @@ summary_version: 1
 bat_contract: 2
 ct_version: "6.4.0"
 inbox_features: ["recommended", "dismiss", "multi", "menu"]
-updated_at: "2026-11-28T20:39:48+08:00"
+updated_at: "2026-11-28T21:04:19+08:00"
 session: "2026-11-28 17:13 第一百四十一 session 開工（CT v6.4.0，BAT 0.8.1-pre.5）"
 next_ids:
   workorder: "T0985"
-  decision: "D528"
+  decision: "D529"
   bug: "BUG-239"
   plan: "PLAN-071"
-  user: "U-83"
+  user: "U-84"
   action: "A-29"
-user_actions:
-  - id: "A-28"
-    title: "`v0.8.1-pre.6` 實機：未信任的資料夾「以塔台開啟 Claude」，信任對話框按 Enter 後立刻按鍵，開工回合結束後從待辦分頁回答 → 應立即送出、不進待送"
-    ref: "T0978"
-    kind: "verify"
-    created_at: "2026-11-28T18:15:16+08:00"
 todo:
   - "🔄 第一百四十一 session（D516，U-72：A、B、C、D）：✅ T0977 DONE、ff 進 `main` `1ae19702`（D517）；✅ T0978 DONE（`f9738360`，D518）→ 合併工單 T0981 DONE、ff 進 `main` `84f96834`（D519）；✅ T0980 DONE、ff 進 `main` `12dce91b`（D520）；✅ T0979 研究 DONE（D521）：① env 差異延後（塔台）；U-76：D、U-77：A、U-78：A（D522）→ 合併工單 T0982 DONE、ff 進 `main` `11d33816`（D523）；✅ T0983 DONE、ff 進 `main` `f53c938c`（D524，BUG-238 FIXED）；T0983 改 `terminal-server.js`（holder key 變）→ `0.8.1-pre.6` 發版前要跑 W6"
-  - "✅ `v0.8.1-pre.6` 發佈（D526）：W6 `46142714419` 九情境 PASS（A = pre.5 舊 holder key → B 新 key 接回）→ pre-release `46143214386`；更版重點、CHANGELOG / release-note / README、`package.json` 已同步；BUG-238 CLOSED。A-28 改由自動化驗收 T0984（使用者 2026-11-28 20:39「派單自動驗收 A-28」，D527）"
+  - "✅ `v0.8.1-pre.6` 發佈（D526）：W6 `46142714419` 九情境 PASS（A = pre.5 舊 holder key → B 新 key 接回）→ pre-release `46143214386`；更版重點、CHANGELOG / release-note / README、`package.json` 已同步；BUG-238 CLOSED。A-28 由自動化驗收 T0984 判完成（S1 pre.6 PASS / pre.5 對照重現、S2–S5 PASS，D528）；T0984 驅動 ff 進 `main` `b4e6a1f9`（U-83：A），分支已刪；`main` 比 `origin/main` 多記帳 commit 與 T0984 驅動，未 push"
   - "PLAN-066 後續延後（D521）：`pty:create` 只送 env 差異（省約 3 MB 有上限高水位；之後有其他工單要改協定 / holder 時一起做）"
   - "✅ 第一百四十 session：BUG-234 / 235 / 236 / 237 全部 CLOSED；`v0.8.1-pre.3` / `pre.4` / `pre.5` 發佈；CT 6.4.0 正式版上線、README 對照表已更新；決策日誌收斂（D515）"
   - "候選（未開單，T0965 建議）：只剩選單紀錄（`question` 已被清除）時 Worker 通知仍照舊直接寫入，可能打進開著的選單；待 CT `menu_open`（D484）工單一起評估"
