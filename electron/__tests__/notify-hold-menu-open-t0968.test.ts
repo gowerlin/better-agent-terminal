@@ -161,7 +161,7 @@ describe('T0968: the answer and CT\'s menu_open', () => {
   ] as const)('%s: no Esc, held until the menu closes, then sent', async (_name, line, menu, why) => {
     const s = setup()
     s.menu()
-    expect(s.controller.enqueueAnswer('tower', line, { menu })).toMatchObject({ ok: true, held: true })
+    expect(s.controller.enqueueAnswer('tower', line, { menu: menu as InboxMenuInfo })).toMatchObject({ ok: true, held: true })
     await vi.advanceTimersByTimeAsync(10_000)
     s.controller.onBlockedChange('tower') // more changes: still no Esc, logged once
     await vi.advanceTimersByTimeAsync(10_000)
