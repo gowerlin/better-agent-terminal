@@ -26,8 +26,11 @@ export interface PanelTowerAnswerDetail {
 
 export type InboxAnswerOutcome =
   | { status: 'sent' }
-  /** Waits in the Tower tab's queue (why: the tab's "📨 待送" reason). */
-  | { status: 'held' }
+  /**
+   * Waits in the Tower tab's queue (why: the tab's "📨 待送" reason). T0966: `holdId` = its queue item
+   * (absent for an older host), so the row's mark can tell whether it still waits and why.
+   */
+  | { status: 'held'; holdId?: string }
   /** The panel's input box has text: the user sends or clears it first. */
   | { status: 'draft' }
   /** No panel with that id is mounted in this window. */
@@ -63,7 +66,7 @@ export async function sendInboxAnswer(target: InboxAnswerTarget, text: string): 
   try {
     const result = await api.answer(target.id, text)
     const outcome: InboxAnswerOutcome = result?.ok
-      ? (result.held ? { status: 'held' } : { status: 'sent' })
+      ? (result.held ? { status: 'held', ...(typeof result.holdId === 'string' ? { holdId: result.holdId } : {}) } : { status: 'sent' })
       : { status: 'failed', reason: result?.reason ?? 'unknown' }
     log(`[tower-inbox] answer terminal=${target.id} ${answerId(text)} len=${text.length} → ${outcome.status}${outcome.status === 'failed' ? ` (${outcome.reason})` : ''}`)
     return outcome

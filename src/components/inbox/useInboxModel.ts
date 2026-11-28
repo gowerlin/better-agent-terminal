@@ -17,6 +17,7 @@ import {
   panelTowerTerminalIds,
   type InboxAnswerTarget,
   type RecentlyClosed,
+  heldWorkerNotifications,
   inboxActionCount,
   inboxApplies,
   inboxCounts,
@@ -109,10 +110,8 @@ export function useInboxModel(workspaceId: string | null | undefined, folder: st
   const terminals = workspaceId ? state.terminals.filter(t => t.workspaceId === workspaceId) : []
   const workerItems = workerWaitItems(terminals, {
     getAttention: getTerminalAttention,
-    getHeld: (id) => {
-      const items = getNotifyHold(id)
-      return { count: items.length, since: items.length > 0 ? Math.min(...items.map(item => item.heldAt)) : null }
-    },
+    // T0966: Worker notifications only — the user's held answers show at their row's mark (T0942)
+    getHeld: (id) => heldWorkerNotifications(getNotifyHold(id)),
     getInterrupted: (id) => {
       const agent = getInterruptedAgent(id)
       return agent ? { agent: agent.agent, at: agent.at } : null

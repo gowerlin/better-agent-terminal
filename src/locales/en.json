@@ -1782,7 +1782,7 @@
     },
     "worker": {
       "waiting": "⚠️ {{title}}: waits for you ({{reason}})",
-      "held": "📨 {{title}}: {{count}} notification(s) held",
+      "held": "📨 {{title}}: {{count}} Worker notification(s) held",
       "interrupted": "⏸ {{title}}: interrupted ({{agent}})",
       "goTo": "Go to tab",
       "resume": "Resume…",
@@ -1855,7 +1855,8 @@
       "multiHint": "Select one or more",
       "resend": "Send again",
       "sentMarker": "✓ Sent: {{text}} ({{time}})",
-      "heldMarker": "✓ Queued for the Tower: {{text}} ({{time}})"
+      "heldMarker": "✓ Queued for the Tower: {{text}} ({{time}})",
+      "heldReason": "Why it waits: {{reason}}"
     },
     "action": {
       "copy": "Copy command",

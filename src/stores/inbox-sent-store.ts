@@ -37,6 +37,11 @@ export interface InboxSentRecord {
   /** The item ids the line answers (one, or a batch's ids); the record lives while any is listed. */
   ids: readonly string[]
   selection?: InboxAwaitingSelection
+  /**
+   * T0966: a `held` line's queue item — the Tower tab it waits in and its `holdId` — so the mark can show
+   * why it still waits (the tab's notify-hold reason). Absent: a panel Tower, `sent`, or an older host.
+   */
+  hold?: { terminalId: string; holdId: string }
 }
 
 export type InboxSentMap = ReadonlyMap<string, InboxSentRecord>

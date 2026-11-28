@@ -1781,7 +1781,7 @@
     },
     "worker": {
       "waiting": "⚠️ {{title}}：等你回应（{{reason}}）",
-      "held": "📨 {{title}}：待发送 {{count}} 条通知",
+      "held": "📨 {{title}}：待发送 {{count}} 条 Worker 通知",
       "interrupted": "⏸ {{title}}：被中断（{{agent}}）",
       "goTo": "切到标签页",
       "resume": "恢复…",
@@ -1854,7 +1854,8 @@
       "multiHint": "可多选",
       "resend": "重新发送",
       "sentMarker": "✓ 已发送：{{text}}（{{time}}）",
-      "heldMarker": "✓ 已排入待送：{{text}}（{{time}}）"
+      "heldMarker": "✓ 已排入待送：{{text}}（{{time}}）",
+      "heldReason": "保留原因：{{reason}}"
     },
     "action": {
       "copy": "复制命令",
