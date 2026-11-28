@@ -4,12 +4,13 @@ schema_kind: workorder
 id: T0973
 title: "合併 `ct/T0970`（pre.4 交付版驗收的 e2e/manual 驅動）→ `main`"
 type: chore
-status: PENDING
+status: IN_PROGRESS
 repo: better-agent-terminal
 priority: P3
 sizing: S
 created_at: "2026-11-28T15:42:36+0800"
-updated_at: "2026-11-28T15:42:36+0800"
+updated_at: "2026-11-28T15:44:35+0800"
+started_at: "2026-11-28T15:44:35+0800"
 target_version: "下一個預覽版（`0.8.1-pre.5`）"
 kind: merge
 merges:
