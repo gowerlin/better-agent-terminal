@@ -10,6 +10,7 @@
 
 | ID | 日期 | 標題 | 相關工單 |
 |----|------|------|---------|
+| D499 | 2026-11-28 | CT T0584 判定（CT D932）→ BUG-237＋ CT B-1 / B-2 合成 T0971（pre.5）；等 CT T0585 補跑清單 | T0971 / BUG-237 |
 | D498 | 2026-11-28 | 使用者要求自動驗收 pre.4 → 開 T0970（A-26：BUG-235、T0966，pre.3 對照） | T0970 / BUG-235 |
 | D497 | 2026-11-28 | U-65：A → T0969 ff `59e4fbeb`；U-66：A → BUG-237 等 CT T0584 後合成一張工單進 pre.5 | T0969 / BUG-237 |
 | D496 | 2026-11-28 | T0969 收單（BAT 端 20 PASS / 0 FAIL）；BUG-236 CLOSED；開 BUG-237；U-65（ff）、U-66（BUG-237）；通知 CT 判定 | T0969 / BUG-236 / BUG-237 |
@@ -616,6 +617,15 @@
   4. PLAN-001 保持延後（🟢 Low，等 plugin 1.0 穩定）
 - **Success criteria**（EXP→CONCLUDED）：npm install 無錯 / 所有 native modules rebuild 成功 / dev+build:dir 可跑 / 手動 smoke test 8 項通過
 - **最大風險**：`whisper-node-addon@1.0.2` 對 Electron 41（Node 24）的 NODE_MODULE_VERSION 相容性未知，允許 Worker 遇此決策點主動問塔台
+
+---
+
+### D499 2026-11-28 15:22 — CT 判定回來；開 T0971
+
+- **來源**：跨 session 訊息（`BMad-Guide · Tower`）：CT T0584 判定完成（CT D932）：CT 端 PASS 29、FAIL 1（H-14b-1：同一則回覆的文字範本題沒出現，CT 條文缺漏，BAT 不用改）、未觸發 1（H-14c）；BAT 端判定欄未動。4 份 `CF` exit 1 歸因觀察 ①（範例把 `menu_open` 放在 `updated_at` 後，模型拆成兩個 Edit），實際風險 0（BAT 讀到中間狀態當作沒有 `menu_open`）。CT T0585（6.4.0-pre.2）：R1 `menu_open` 移到 `awaiting_user` 正後方、最後寫最先清；R2 文字範本題寫進第一題；ct-help / Guide 寫 BAT ≥ 0.8.1-pre.4；產出補跑清單與 `install-642`。
+- **BAT 配合**：B-1（鍵位置不影響解析＋fixture）、B-2（文件：分次寫入時 ids 不在 `awaiting_user` → 當作沒有 `menu_open`，保留、不改成部分有效）。依 D497 與 BUG-237 合成 **T0971**（BUG-237 → FIXING；提示行改由主行程以 `menuEscDecision` 同一套判斷；要改 attention 推送就問塔台），進 `0.8.1-pre.5`。
+- **之後**：CT T0585 收單會傳補跑清單、換版指令、SHA-256 與 6.4.0-pre.2 範例檔 → BAT 開補跑單（新 BAT pre.4，約 1 個塔台 session）；範例檔可補進 T0971 的 fixture。
+- **相關**：BUG-237 / D496 / D497 / T0969 / T0968
 
 ---
 

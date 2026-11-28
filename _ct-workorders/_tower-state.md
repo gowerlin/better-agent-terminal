@@ -4,11 +4,11 @@ summary_version: 1
 bat_contract: 2
 ct_version: "6.3.0"
 inbox_features: ["recommended", "dismiss", "multi"]
-updated_at: "2026-11-28T15:14:41+0800"
+updated_at: "2026-11-28T15:22:07+0800"
 session: "2026-11-28 11:59 第一百四十 session 塔台重新開工（CT v6.3.0，BAT 0.8.1-pre.3）"
 next_ids:
-  workorder: "T0971"
-  decision: "D499"
+  workorder: "T0972"
+  decision: "D500"
   bug: "BUG-238"
   plan: "PLAN-071"
   user: "U-67"
@@ -43,9 +43,9 @@ awaiting_user:
     recommended: "A"
     created_at: "2026-11-28T15:05:12+08:00"
 todo:
-  - "CT 6.4.0-pre.1 × BAT `0.8.1-pre.4` 雙方驗收 T0969 DONE、合併進 `main` `59e4fbeb`（未 push）；CT 判定單 CT T0584 進行中，收單後傳判定與修正建議（D496 / D497）"
+  - "CT 判定 CT T0584 完成（CT D932：CT 端 PASS 29 / FAIL 1（CT 條文）/ 未觸發 1）；CT T0585（6.4.0-pre.2）進行中，收單後傳補跑清單 `checklist-rerun-640.md`、`install-642` 與 6.4.0-pre.2 範例檔 → BAT 開補跑單（新 BAT pre.4，約 1 個塔台 session）（D499）"
   - "🟡 BUG-235（medium，FIXED）：隨 `v0.8.1-pre.4` 發佈（D494），A-26 實機確認後 CLOSED（再發生時看 `[notify-hold] draft set … cause=`）"
-  - "✅ BUG-236 CLOSED（D496）；🟢 BUG-237（low，OPEN）U-66：A → 等 CT T0584 判定後與 BAT 配合項合成一張工單，進 `0.8.1-pre.5`（D497）"
+  - "✅ BUG-236 CLOSED（D496）；🟢 BUG-237（low，FIXING）＋ CT B-1 / B-2 → T0971 派工，進 `0.8.1-pre.5`（D499）"
   - "候選（未開單，T0965 建議）：只剩選單紀錄（`question` 已被清除）時 Worker 通知仍照舊直接寫入，可能打進開著的選單；待 CT `menu_open`（D484）工單一起評估"
   - "✅ T0966（U-58：A）合併進 `main` `64b39176`（D485）：Worker 等你不再算回答；T0965 收單時 `main` 已有 T0966 產品改動 → 依 `--worktree-status` 判斷，多半派合併工單"
   - "✅ `v0.8.1-pre.4` 發佈（D494）：BUG-235 / 236、T0966、T0968；下一版 `0.8.1-pre.5`"
@@ -131,6 +131,7 @@ reminders:
 - 15:13 `*sync`：工單 365 張全 DONE；BUG 檔 101 與 `_bug-tracker.md` 101 列逐筆一致（OPEN 1 / FIXED 1 / CLOSED 98 / WONTFIX 1）；PLAN 35 與 `_backlog.md` 一致（IDEA 3 / IN_PROGRESS 7 / DONE 23 / DROPPED 2）；索引不需重建；基本資訊表與編號起始更新；`auto_archive_prompt: off`（不提示歸檔候選）
 - 15:14 使用者：「已更版 v0.8.1-pre.4 請派單自動驗收」→ 開 T0970（交付版 zip 隔離實例＋ ACC 真 claude，R1–R5：BUG-235 閒置時立即送出、送出前按鍵的草稿被清除（pre.3 對照）、真草稿保留＋去重、Worker 等你不算回答、日誌不含內容），結果決定 A-26（D498）
 - 15:15 T0970 派工 `--mode yolo --no-interactive --isolation worktree --wait-started 30000` exit 0，`started: 07:15:35Z`，分頁 `18f53f67…`，worktree `ct/T0970` base `e09b3da8`
+- 15:22 CT 塔台：CT T0584 判定完成（CT D932），請 BAT 做 B-1（`menu_open` 移到 `awaiting_user` 正後方時解析不受影響＋fixture）、B-2（分次寫入時 ids 不在 awaiting_user → 當作沒有 `menu_open`，文件＋保留）；CT T0585（6.4.0-pre.2）15:21 派工 → BUG-237＋B-1＋B-2 合成 T0971（D499）
 
 ---
 
