@@ -77,6 +77,14 @@ memory_overrides:
 - 推論（未查證，供參考）：新開 agent 分頁走 `holdInputUntilLaunch` → `PtyManager.holdInputForLaunch` → `sendLaunchCommand` / `pty:launch-command` → `writeLaunchCommand` 的路徑（T0951 / T0956），若 launch 命令的放行沒有送到，輸入會一直被保留；滑鼠貼上能進去這點與此推論不完全吻合，請一併比對貼上與鍵盤的路徑差異。
 - 驗收第 4 項改為：本分支打包的隔離實例「全新啟動後新開 Claude CLI / Codex CLI 分頁」與「自動接回後」鍵盤都可用。範圍與其他規則不變。
 
+## 塔台補充（執行中 #2）
+
+> 2026-11-28 11:18 (UTC+8)，使用者補充。
+
+- **新事實**：使用者原話「但是 pwsh 終端沒問題」。⇒ 一般 pwsh shell 分頁在 pre.2 可以用鍵盤輸入；打不了字的是 **agent 分頁**（Claude CLI、Codex CLI，含接回的塔台 claude 分頁）。
+- 這讓「agent 分頁的啟動命令前保留輸入（`holdInputUntilLaunch` / `holdInputForLaunch` → `sendLaunchCommand` / `pty:launch-command` / `writeLaunchCommand`）沒有放行」或「只套用在 agent 分頁的按鍵處理」更可疑；查證時把 pwsh 分頁當對照組（同一個 pre.2 實例，pwsh 可打字、agent 分頁不行）。仍需以證據確認，不要只憑推論修。
+- 驗收加一項：修正後 pwsh 分頁照常可用（不回歸）。範圍與其他規則不變。
+
 ---
 
 ## 回報區
