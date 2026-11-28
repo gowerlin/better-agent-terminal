@@ -38,6 +38,7 @@ affects_files:
 renew_count: 0
 isolation: worktree
 worker_question_timeout: 30
+tower_question: open
 interaction:
   mode_hint: yolo
   interactive: false
@@ -88,4 +89,20 @@ T0965 讓 BAT 在塔台開著選單時，替待辦分頁的回答代按 Esc 再�
 
 ## 回報區
 
-（Worker 填寫）
+### 待塔台決策
+
+#### Q-1：`electron/preload.ts` 不在 `affects_files`，但 `tower-inbox:answer` 的相加參數要經它才送得出去；可以改嗎？
+- **提問時間**：2026-11-28T13:18:20+0800
+- **說明**：preload 的 `towerInbox.answer(terminalId, text)` 把參數組成 `{ terminalId, text }` 才 invoke，不改它 renderer 帶不出 `menu` 資訊（工單要求「以選用、相加的參數帶給 `tower-inbox:answer`」）。
+- **選項**：A 把 `electron/preload.ts` 加進範圍，只改一行：`answer(terminalId, text, menu?)`，`menu` 有值才放進 invoke 的物件，沒有值時送出的物件跟現在一樣；B 不改 preload，本單只做主行程、解析、測試（renderer 帶不出參數 = 實際行為還是 T0965）；其他
+- **建議**：A。理由：工單要的行為一定要經過 preload；改動純相加，舊主行程、舊 bat-server 收到多的鍵會忽略。
+- **影響**：選 B 的話，驗收項「Esc 條件」只在主行程測試裡成立，實機看不到。
+- **是否阻擋後續步驟**：只擋 preload 這一行；解析、主行程、測試可以先做。
+
+#### Q-2：提示行的「選單紀錄開著」條件，renderer 拿不到；要怎麼做？
+- **提問時間**：2026-11-28T13:18:20+0800
+- **說明**：renderer 從 terminal attention 看得到塔台分頁是不是 `blockedReason: question`，但「`question` 已被滑鼠或輸入清掉、選單紀錄還開著」只在主行程的 tracker 裡，沒有任何事件送到 renderer。要送的話得改 `electron/terminal-attention.ts`、`src/lib/terminal-attention.ts`、`src/stores/terminal-attention-store.ts`（都不在 `affects_files`），而且選單紀錄關閉時 tracker 現在不會觸發 attention 推送，要加觸發點。
+- **選項**：A 提示行只看 `question`（attention 已有的欄位，不加 channel、不動 attention），「只剩選單紀錄」的情況不顯示提示，寫進 docs 的已知限制；B 把 attention 事件相加一個 `questionMenuOpen` 欄位，並在選單紀錄開關時推送（範圍加上述 3 個檔，attention 的推送時機會變多）；其他
+- **建議**：A。理由：「只剩選單紀錄」通常是使用者剛點過或按過選單，他看得到選單；B 要動 attention 推送的時機，所有看 attention 的地方（縮圖 ⚠️、工作區列表、淡化）都要再核對，風險比提示行的價值大。實際送出路徑不受影響（主行程照樣看選單紀錄決定要不要按 Esc）。
+- **影響**：只影響提示行什麼時候出現，不影響 Esc、保留與送出。
+- **是否阻擋後續步驟**：只擋提示行；其他可以先做。
