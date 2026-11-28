@@ -10,6 +10,7 @@
 
 | ID | 日期 | 標題 | 相關工單 |
 |----|------|------|---------|
+| D487 | 2026-11-28 | CT 核定選單 HANDOVER（ACCEPTED，CT D926）；CT T0582 派工；等 CT 傳規範位置後開 BAT `menu_open` 讀取單 | BUG-236 |
 | D486 | 2026-11-28 | T0965 收單（`e5a0ad16`，BUG-236 原因：滑鼠按下清掉 `question` 但選單仍開著）；判準 1 不成立 → 合併工單 T0967 | T0965 / T0967 / BUG-236 |
 | D485 | 2026-11-28 | U-60：A → T0966 ff 進 `main` `64b39176` | T0966 |
 | D484 | 2026-11-28 | CT 塔台受理選單 HANDOVER（DRAFT 待 CT U-10）：`menu_open`、不重開、`inbox_features: menu`，CT 6.4.0 | T0965 / BUG-236 |
@@ -604,6 +605,14 @@
   4. PLAN-001 保持延後（🟢 Low，等 plugin 1.0 穩定）
 - **Success criteria**（EXP→CONCLUDED）：npm install 無錯 / 所有 native modules rebuild 成功 / dev+build:dir 可跑 / 手動 smoke test 8 項通過
 - **最大風險**：`whisper-node-addon@1.0.2` 對 Electron 41（Node 24）的 NODE_MODULE_VERSION 相容性未知，允許 Worker 遇此決策點主動問塔台
+
+---
+
+### D487 2026-11-28 12:49 — CT 核定選單 HANDOVER
+
+- **來源**：跨 session 訊息（`BMad-Guide · Tower`）：CT 使用者 12:47 核定 U-10：A（CT D926），回覆稿定案、內容與草案相同（CT `b96f235`，〈回覆紀錄〉補記 BAT D484 的讀取條件）。CT 開 PLAN-022（CT 6.4.0）、T0582（6.4.0-pre.1：規範、`check-frontmatter.py`、Guide、zip，只打包不安裝）12:48 派工。
+- **BAT 端**：`_handover-2026-11-28-inbox-menu-handoff.md` → ACKNOWLEDGED（`local_workorder` 記 CT T0582）。CT T0582 收單後會傳規範「檔:行」與 6.4.0 範例狀態檔路徑 → BAT 開 `menu_open` 讀取工單（`inbox_features` 含 `menu` 才用；回答的 U-n 在 `menu_open.ids` 且 `opened_at` 對得上 `question` 開始時間才送 Esc；一併評估 T0965 建議的「只剩選單紀錄時 Worker 通知」）。
+- **相關**：D482 / D484 / BUG-236 / T0965
 
 ---
 

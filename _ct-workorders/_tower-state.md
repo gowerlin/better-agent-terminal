@@ -4,17 +4,17 @@ summary_version: 1
 bat_contract: 2
 ct_version: "6.3.0"
 inbox_features: ["recommended", "dismiss", "multi"]
-updated_at: "2026-11-28T12:48:00+0800"
+updated_at: "2026-11-28T12:48:59+0800"
 session: "2026-11-28 11:59 第一百四十 session 塔台重新開工（CT v6.3.0，BAT 0.8.1-pre.3）"
 next_ids:
   workorder: "T0968"
-  decision: "D487"
+  decision: "D488"
   bug: "BUG-237"
   plan: "PLAN-071"
   user: "U-61"
   action: "A-26"
 todo:
-  - "CT 協調（D482 / D484）：CT 塔台受理 HANDOVER，回覆稿 DRAFT 待 CT 使用者核定（CT U-10）：`menu_open: { ids, opened_at }` 只在開選單前那次寫入、被 Esc 關掉的選單不重開、`inbox_features` 加 `menu`，CT 6.4.0-pre.1；ACCEPTED 後開 BAT 工單讀 `menu_open`（加嚴條件＋以 `opened_at` 對 `question` blocked 開始時間防殘留）"
+  - "CT 協調（D482 / D484 / D487）：CT 已核定（ACCEPTED，CT D926）：`menu_open: { ids, opened_at }` 只在開選單前那次寫入、被 Esc 關掉的選單不重開、`inbox_features` 加 `menu`；CT T0582（6.4.0-pre.1）派工中，收單後傳規範「檔:行」與範例狀態檔 → BAT 開 `menu_open` 讀取工單（加嚴條件＋以 `opened_at` 對 blocked 開始時間防殘留；一併評估只剩選單紀錄時的 Worker 通知）"
   - "🟡 BUG-235（medium，D476–D480）：T0964 合併進 `main` `ee5d364f`（未 push），FIXED；發 `0.8.1-pre.4` 後實機＋診斷日誌確認才 CLOSED"
   - "🟡 BUG-236（medium，FIXING，D479–D486）：T0965 DONE（`e5a0ad16`；原因：滑鼠按下清掉 `question` 但選單仍開著）→ 合併工單 T0967 派工中"
   - "候選（未開單，T0965 建議）：只剩選單紀錄（`question` 已被清除）時 Worker 通知仍照舊直接寫入，可能打進開著的選單；待 CT `menu_open`（D484）工單一起評估"
@@ -79,6 +79,8 @@ reminders:
 - 12:45 CT 塔台（`BMad-Guide · Tower`）回覆：受理，回覆稿 `BMad-Guide/_ct-workorders/_reply-2026-11-28-inbox-menu-handoff.md`（CT `cc5a8dd`、D925）DRAFT 待 CT U-10；C-1–C-4 全採（C-2 定為不重開、C-4 放寬為只在開選單前寫一次），CT 6.4.0（先 pre.1），不升 `bat_contract`；T0965 不必等（D484）
 - 12:46 U-60：A → `ct-merge/T0966` 再合併 `main`（只多 `_ct-workorders/**`）後 ff，`main` = `64b39176`（產品樹 = `737a378c`，未 push）；整合 worktree detach；T0966 worktree 手動移除（`--close-worker --worktree remove` exit 3）（D485）
 - 12:48 T0965 DONE（`e5a0ad16`，test:unit 9479 passed；原因：滑鼠按下清掉 `question`、選單仍開著）；收單 `--close-worker --delay-ms 10000 --worktree keep` exit 0；`main` 已有 T0966 產品改動 → 判準 1 不成立 → 合併工單 T0967（模式 ①，`merge-tree` 無衝突）（D486）
+- 12:49 T0967 派工 `--mode yolo --no-interactive --wait-started 30000`（不隔離，整合 worktree）exit 0，`started: 04:48:51Z`，分頁 `e33c774f…`
+- 12:49 CT 塔台：HANDOVER 已核定（CT U-10：A、CT D926，內容同草案）；CT PLAN-022 / T0582（6.4.0-pre.1）已派工，收單後傳規範「檔:行」與範例狀態檔；本機 HANDOVER → ACKNOWLEDGED（D487）
 
 ---
 

@@ -3,8 +3,8 @@ schema_version: 1
 schema_kind: cross-tower-handover
 from: better-agent-terminal
 to: BMad-Guide
-status: DRAFT
-local_workorder: ""
+status: ACKNOWLEDGED
+local_workorder: "T0582（BMad-Guide repo，PLAN-022 / CT 6.4.0-pre.1）"
 created_at: "2026-11-28T12:41:54+0800"
 ---
 # HANDOVER — 塔台開著原生選單時，待辦分頁也能作答（BAT ↔ CT 契約 v2 補強提案）
@@ -44,3 +44,8 @@ BAT T0965（使用者裁示 U-59：A）：
 
 - BAT：BUG-236、T0965（進行中）、T0966（待辦分頁「Worker 等你」不再把回答算成通知）、BUG-235 / T0964（回答被誤判草稿擋住）、D479 / D481。
 - CT：`memory-protocol.md` § 契約 v2 欄位〈暫停的提問方式〉、`inbox_features`。
+
+## 6. 回覆紀錄
+
+- 2026-11-28 12:45 CT 塔台回覆草案（`BMad-Guide/_ct-workorders/_reply-2026-11-28-inbox-menu-handoff.md`，CT `cc5a8dd`、CT D925）：C-1–C-4 全採；C-2 定為不重開；C-4 放寬為 `menu_open` 只在開選單前那次寫入；CT 6.4.0，不升 `bat_contract`（BAT D484）。
+- 2026-11-28 12:48 CT 使用者核定 U-10：A（CT D926），內容與草案相同 → ACKNOWLEDGED；CT PLAN-022、T0582（6.4.0-pre.1）已派工。CT T0582 收單後會傳規範「檔:行」與 6.4.0 範例狀態檔路徑，BAT 據此開 `menu_open` 讀取工單（BAT D487）。
