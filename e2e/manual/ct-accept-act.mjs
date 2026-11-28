@@ -38,6 +38,17 @@
 //                                      after <delayMs> (default 0) send Esc as the tab's own keyboard input
 //                                      (`terminal.input('\x1b', true)`); delayMs -1 = send Esc as soon as
 //                                      `question` is seen, without waiting for the menu; prints the timings as JSON
+//   trustkey <name> <id> <json string> [delayMs] [sec]
+//                                      (T0984, A-28) wait (default 60 s) for claude's "trust this folder" dialog,
+//                                      move the highlight to "Yes, I trust this folder" (ArrowDown, checked on the
+//                                      screen), then in ONE renderer eval: `terminal.input('\r', true)`, wait
+//                                      <delayMs> (default 150), send the key sequence the same way; prints both
+//                                      wall-clock times and the measured gap as JSON
+//   launchkey <name> <id> <json string> [delayMs] [sec]
+//                                      (T0984) wait (default 30 s) until the tab's screen shows the launch command
+//                                      (`/control-tower`), wait <delayMs> (default 0), send the key sequence as the
+//                                      tab's own keyboard input — a key pressed before the launch-prompt turn of an
+//                                      already-trusted folder; prints the wall-clock time as JSON
 //
 // Notes: `turn` / `idle` read the claude hook state, so the tab needs BAT hooks (`hooksStatus` ok). Before
 // BAT 0.8.0-exp.2 (BUG-224, T0926), an AskUserQuestion closed with Esc very quickly could stay `question`
@@ -337,6 +348,54 @@ async function main() {
       console.log(JSON.stringify(r))
       if (r?.permission) process.exit(3)
       if (r?.timeout || r?.error) process.exit(5)
+      break
+    }
+    case 'trustkey': {
+      const [id, seq, delay = '150', sec = '60'] = args
+      if (!id || seq === undefined) throw new Error('trustkey <name> <id> <json string> [delayMs] [sec]')
+      const data = JSON.parse(seq)
+      if (typeof data !== 'string' || data.length === 0) throw new Error('trustkey: the argument must be a non-empty JSON string')
+      const YES = /Yes, I trust this folder/
+      const limit = Date.now() + Number(sec) * 1000
+      let text = ''
+      while (Date.now() < limit && !YES.test(text = await screenText(id))) await sleep(200)
+      if (!YES.test(text)) { console.log(`[${now()}] timeout: no trust dialog`); process.exit(5) }
+      const yesHighlighted = t => t.split('\n').some(l => YES.test(l) && /^\s*(❯|>)/.test(l))
+      for (let tries = 0; tries < 3 && !yesHighlighted(text); tries++) {
+        await focus(id)
+        await ctl({ op: 'press', key: 'ArrowDown' })
+        await sleep(400)
+        text = await screenText(id)
+      }
+      if (!yesHighlighted(text)) throw new Error('could not highlight "Yes, I trust this folder"')
+      await sleep(300)
+      const r = await ctl({ op: 'eval', js: `${FIND} const t = found[${JSON.stringify(id)}]; if (!t) return null
+        const t0 = performance.now(); t.input('\\r', true); const enterAt = new Date().toISOString()
+        await new Promise(r => setTimeout(r, ${Number(delay)}))
+        const t1 = performance.now(); t.input(${JSON.stringify(data)}, true); const keyAt = new Date().toISOString()
+        return { enterAt, keyAt, gapMs: Math.round(t1 - t0), keyBytes: ${data.length} }` })
+      if (!r) throw new Error(`terminal ${id} not found`)
+      console.log(JSON.stringify(r))
+      break
+    }
+    case 'launchkey': {
+      const [id, seq, delay = '0', sec = '30'] = args
+      if (!id || seq === undefined) throw new Error('launchkey <name> <id> <json string> [delayMs] [sec]')
+      const data = JSON.parse(seq)
+      if (typeof data !== 'string' || data.length === 0) throw new Error('launchkey: the argument must be a non-empty JSON string')
+      const r = await ctl({ op: 'eval', js: `${FIND} ${SCREEN} const t = found[${JSON.stringify(id)}]; if (!t) return null
+        const t0 = performance.now(); let seenAt = null
+        while (performance.now() - t0 < ${Number(sec) * 1000}) {
+          if (/control-tower/.test(screenOf(t))) { seenAt = new Date().toISOString(); break }
+          await new Promise(r => setTimeout(r, 20))
+        }
+        if (!seenAt) return { timeout: true }
+        await new Promise(r => setTimeout(r, ${Number(delay)}))
+        t.input(${JSON.stringify(data)}, true)
+        return { commandSeenAt: seenAt, keyAt: new Date().toISOString(), keyBytes: ${data.length} }` })
+      if (!r) throw new Error(`terminal ${id} not found`)
+      console.log(JSON.stringify(r))
+      if (r.timeout) process.exit(5)
       break
     }
     default:

@@ -208,6 +208,18 @@ node e2e/manual/ct-accept-act.mjs input s1 <id> '"\u001b[24~"'   # F12：會被 
 - 待辦分頁回答的 submit Enter（`pty:write` 的 `{ submit: true }`）算使用者輸入，送出時本身就會清掉草稿；所以回答（含「立即送出」）送出之後，下一筆回答不會再被同一個草稿擋住，pre.3 也一樣。
 - 測試視窗出現在桌面上，驗收期間有人在視窗裡按鍵會混進日誌（T0970 B2：驅動送鍵之前就有一筆 `draft set … cause=csi:B`、信任對話框已被通過）；看到驅動沒送的輸入就作廢該次、另開新副本重跑。
 
+T0984（交付版 `v0.8.1-pre.6` A-28 驗收，T0978）把上面的時序做法做成兩個指令：
+
+```powershell
+node e2e/manual/ct-accept-act.mjs trustkey s1 <id> '"\u001b[24~"' 150   # 未信任資料夾：信任對話框 Enter，150 ms 後 F12
+node e2e/manual/ct-accept-act.mjs launchkey s2 <id> '"\u001b[24~"' 0    # 已信任資料夾：畫面出現啟動命令就按 F12
+```
+
+- `trustkey`：等畫面出現 `Yes, I trust this folder`（預設 60 s），以 ↓ 把反白移到它（每次從畫面確認，最多 3 次），再在**同一次** `eval` 裡依序 `terminal.input('\r', true)`、等 `delayMs`、`terminal.input(<按鍵>, true)`（兩次寫入，日誌各有一行）。輸出 `enterAt` / `keyAt`（ISO）與 `gapMs`。判讀時拿這兩個時間和日誌的 `user-prompt-submit` 比：T0978 要的條件是 Enter 距 hook < 2 s、按鍵距 hook ≥ 300 ms；沒落在條件內就作廢重跑。
+- `launchkey`：每 20 ms 讀分頁畫面，看到 `control-tower`（shell 回顯的啟動命令）後等 `delayMs` 再送按鍵。已信任的資料夾沒有對話框，claude 一掛載就送出啟動參數，逐支呼叫腳本來不及。
+- 要「已信任」的資料夾：同一個隔離實例先開一般「Claude CLI」分頁、在信任對話框 ↓＋Enter，不送任何訊息（不花模型回合、不產生對話紀錄），再「以塔台開啟 Claude」。
+- 每輪用新路徑的專案副本，claude 沒見過那個路徑才會跳信任對話框。
+
 ### 已知限制
 
 - AskUserQuestion 選單出現後立刻按 Esc（約 0.1 秒內）時，較晚到的 `PermissionRequest` hook 會在「使用者輸入清除」之後把分頁設回 `question`，直到下一次按鍵（T0923 回報區 BUG 建議，BUG-224）。`0.8.0-exp.2` 起已修（T0926）；測更早的版本時，驅動選單先等幾秒再按 Esc。
