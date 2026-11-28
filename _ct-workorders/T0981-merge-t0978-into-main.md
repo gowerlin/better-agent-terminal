@@ -4,12 +4,14 @@ schema_kind: workorder
 id: T0981
 title: "合併 `ct/T0978`（啟動參數回合不套 2 s Enter 保護窗）→ `main`"
 type: chore
-status: PENDING
+status: DONE
 repo: better-agent-terminal
 priority: P3
 sizing: S
 created_at: "2026-11-28T18:15:16+08:00"
-updated_at: "2026-11-28T18:15:16+08:00"
+updated_at: "2026-11-28T18:18:47+08:00"
+started_at: "2026-11-28T18:16:25+08:00"
+completed_at: "2026-11-28T18:18:47+08:00"
 target_version: "下一個預覽版（`0.8.1-pre.6`）"
 kind: merge
 merges:
@@ -24,7 +26,8 @@ related:
 affects_files:
   - _ct-workorders/T0981-merge-t0978-into-main.md
 renew_count: 0
-session_ids: []
+session_ids:
+  - "f3632b9f-181a-407a-9535-36e4d60542e4"
 worker_question_timeout: 30
 interaction:
   mode_hint: yolo
@@ -59,4 +62,62 @@ T0978（啟動參數回合不套 2 s Enter 保護窗）改 8 檔，`f9738360`，
 
 ## 回報區
 
-（Worker 填寫）
+### 完成狀態
+
+- **狀態**：DONE（模式 ① 機械合併，無衝突，驗收全綠，無範圍外檔案）
+- **session_id**：f3632b9f-181a-407a-9535-36e4d60542e4
+- **完成時間**：2026-11-28T18:18:47+08:00
+
+### 落點檢查
+
+- 結果：PASS
+- C-0：frontmatter `repo` = `better-agent-terminal`，`basename(REPO_ROOT)` = `better-agent-terminal` → PASS
+- C-1：工單在主 checkout `_ct-workorders/` 下 → PASS
+- C-3：`affects_files` 只有本工單（`_ct-workorders/**` 排除）→ 不適用
+- C-2：工單無 `branch` 欄位；主 checkout 在 `main`
+- `CT_HOME` 未設定（非 worktree 派工）；`BAT_WORKSPACE_ID` = `cc0afc4a-57e9-4f41-b2ed-a2d8bac9e36b`（僅記錄）；`CT_MODE=yolo`、`CT_INTERACTIVE=0`
+
+### 開工檢查（步驟 1）
+
+- 整合 worktree `status --porcelain` 為空，detached HEAD（原在 `1ae19702`）
+- `ct/T0978` = `f97383606dc7140d844ad524f46ee14ad0c1af9f` ✅
+- `main` = `dad3c5b3`；`git diff --name-only <base_main_sha> main` 只有 `_ct-workorders/**`（本工單、`_decision-log.md`、`_insights/session-stats/2026-11.json`、`_tower-state.md`）✅
+- `ct-merge/T0978` 開工前不存在 ✅
+
+### 合併結果
+
+- 合併分支：`ct-merge/T0978`（整合 worktree）
+- merge commit：`d1c3c32e4c957252898d7b2ced335651bb74fcd4`
+- parent1：`f679dfded9ae4346e77e30abefab6337cd4ef13d`（= `base_main_sha`）
+- parent2：`f97383606dc7140d844ad524f46ee14ad0c1af9f`（= `ct/T0978`）
+- 衝突：無（ort，8 files changed, 346 insertions(+), 10 deletions(-)）
+- 驗收時的 SHA：`d1c3c32e4c957252898d7b2ced335651bb74fcd4`（= merge commit）；驗收後整合 worktree `status --porcelain` 仍為空
+
+### 驗收
+
+- [x] 樹比對：`git diff --name-only f679dfde d1c3c32e` 正好是 T0978 的 8 檔：`CLAUDE.md`、`docs/agent-guide/notify-hold.md`、`docs/agent-guide/tower-inbox.md`、`electron/__tests__/notify-hold-prompt-submit.test.ts`、`electron/notify-hold.ts`、`electron/pty-manager.ts`、`src/lib/__tests__/launch-command-prompt.test.ts`、`src/lib/launch-command.ts`。**範圍外檔案：無**
+- [x] `npm ci` exit 0（結尾 `electron-winstaller` install script 被擋，CLAUDE.md 註明屬預期）
+- [x] `npm run typecheck` exit 0，`error TS` 0 個
+- [x] `npm run typecheck:electron` exit 0，`error TS` 0 個
+- [x] `npx vite build` exit 0
+- [x] `npm run test:unit` 第一次完整執行即綠：Test Files 534 passed | 3 skipped (537)；Tests 9662 passed | 41 skipped (9703)；Duration 70.44 s；exit 0
+- [x] 三個指定測試檔：`vitest list --filesOnly` 確認三檔都在完整執行的收集範圍內（完整執行 0 失敗）；另單獨以 verbose 跑三檔：Test Files 3 passed、Tests 155 passed
+- [x] e2e 未跑（依工單）
+
+### 遵守的護欄
+
+- 只在整合 worktree 合併；未 ff `main`、未 push、未建 tag、未觸發 workflow、未刪分支；未用 `--force` / `reset --hard` / rebase / stash / `checkout --` / `restore`
+- 主 checkout 只寫本工單檔
+- git 指令皆帶 `-c core.longpaths=true`（`rev-parse` 等唯讀查詢除外）
+
+### 給塔台
+
+- 可依 § 收單 SHA 比對五步核對後 `git -C <主 checkout> merge --ff-only ct-merge/T0978`（主 checkout 目前在 `main`，`main` 自 base 起只多 `_ct-workorders/**`，與合併檔不重疊）
+
+### 互動紀錄
+
+- 無（yolo，未向塔台提問）
+
+### 遭遇問題
+
+- 開工時一度把 `started_at` 寫成未經取時的值，隨即改為系統時間 `2026-11-28T18:16:25+08:00`（尚未 commit 前已修正）
