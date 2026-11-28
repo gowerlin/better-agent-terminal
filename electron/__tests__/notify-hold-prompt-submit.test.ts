@@ -230,6 +230,22 @@ describe('T0972 / BUG-235: the launch-prompt turn submits before the Tower decla
     expect(controller.enqueueAnswer('tower', 'U-2：B')).toMatchObject({ ok: true, held: true })
   })
 
+  it('T0972 Q-2 (intended): T0970 B3 as recorded — trust-dialog Enter 517 ms before the hook, F12 after it → kept by the unchanged 2 s Enter guard', () => {
+    const { controller, pm, userTypes, lines } = setup()
+    undeclared(pm)
+    userTypes('\x1b[B') // ↓ in claude's trust dialog (07:37:17.127)
+    vi.advanceTimersByTime(1_418)
+    userTypes('\r') // its Enter (07:37:18.545)
+    vi.advanceTimersByTime(159)
+    userTypes('\x1b[24~') // F12 (07:37:18.704)
+    vi.advanceTimersByTime(358) // user-prompt-submit 07:37:19.062: 517 ms after the Enter
+    controller.onPromptSubmitted('tower')
+    expect(controller.hasDraft('tower')).toBe(true)
+    expect(lines.some(l => l.startsWith('[notify-hold] draft kept terminal=tower (user-prompt-submit; input 358 ms / Enter 517 ms before)'))).toBe(true)
+    declare(pm)
+    expect(controller.enqueueAnswer('tower', 'U-1：A')).toMatchObject({ ok: true, held: true })
+  })
+
   it('a paste still open at that submit is not cleared; the answer is held after declaring', () => {
     const { controller, pm, userTypes } = setup()
     undeclared(pm)
