@@ -128,3 +128,7 @@ T0974（CT 6.4.0-pre.2 補跑＋fixture）只新增 9 檔：`src/lib/__tests__/t
 ### 後續建議
 
 - 塔台：〈收單 SHA 比對五步〉→ 第 5 步（`main` 自 `804b04c0` 起只多 `_ct-workorders/**`，在整合分支再 `merge --no-ff main` 一次後 ff，產品樹不變、不必重跑驗收）→ 斷點 E → `--ff-only` → 整合 worktree `switch --detach`。
+
+## 塔台收單補記
+
+- 2026-11-28 16:16 (UTC+8) 收單：SHA 比對 ①–③ 成立（`base_main_sha` `804b04c0`；merge `7cadec9d` parent1 `804b04c0`、parent2 `5410c597` = T0974 `validated_sha`）；`main` 之後只多 `_ct-workorders/**`。`--close-worker --delay-ms 10000` exit 0。斷點 E → U-70；發 `0.8.1-pre.5` → U-71（D510）。

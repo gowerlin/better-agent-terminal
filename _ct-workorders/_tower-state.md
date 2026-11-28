@@ -4,15 +4,32 @@ summary_version: 1
 bat_contract: 2
 ct_version: "6.3.0"
 inbox_features: ["recommended", "dismiss", "multi"]
-updated_at: "2026-11-28T16:11:43+0800"
+updated_at: "2026-11-28T16:16:14+0800"
 session: "2026-11-28 11:59 第一百四十 session 塔台重新開工（CT v6.3.0，BAT 0.8.1-pre.3）"
 next_ids:
   workorder: "T0977"
-  decision: "D510"
+  decision: "D511"
   bug: "BUG-238"
   plan: "PLAN-071"
-  user: "U-70"
+  user: "U-72"
   action: "A-27"
+awaiting_user:
+  - id: "U-70"
+    workorder: "T0976"
+    kind: "decision"
+    source: "breakpoint-E"
+    summary: "T0974 的 CT 6.4.0-pre.2 fixture 與測試經 T0976 合併：`ct-merge/T0974` `7cadec9d` 要 ff 進 `main` 嗎"
+    options: ["A 現在 ff 進 main（推薦）", "B 暫不合併"]
+    recommended: "A"
+    created_at: "2026-11-28T16:16:14+08:00"
+  - id: "U-71"
+    workorder: ""
+    kind: "decision"
+    source: "tower-question"
+    summary: "ff 後發 `0.8.1-pre.5` 嗎（BUG-235 重修、BUG-237、CT 6.4.0-pre.2 配合；CT T0586 判定仍在跑）"
+    options: ["A ff 後 push 並發 0.8.1-pre.5（推薦）", "B 等 CT T0586 判定回來再發"]
+    recommended: "A"
+    created_at: "2026-11-28T16:16:14+08:00"
 user_actions:
   - id: "A-26"
     title: "裝 `v0.8.1-pre.4`：塔台閒置時從待辦分頁回答會立即送出，不再卡在「待送」（BUG-235）"
@@ -20,7 +37,7 @@ user_actions:
     kind: "verify"
     created_at: "2026-11-28T14:01:43+08:00"
 todo:
-  - "CT 6.4.0-pre.2：BAT T0974 DONE（HR-1 BAT 端 PASS、22 份快照合法；fixture＋測試）→ 已通知 CT 開判定單；合併工單 T0976 派工中（D509）"
+  - "CT 6.4.0-pre.2：BAT T0974 DONE、T0976 合併分支 `7cadec9d` 待 U-70；CT 判定單 CT T0586 進行中（D509 / D510）"
   - "🟡 BUG-235（medium，FIXED，D508）：T0972 經 T0975 合併進 `main` `7d2e571d`；發 `0.8.1-pre.5` 後以已信任工作區重跑 R2（A-26）確認後 CLOSED"
   - "✅ T0973（T0970 e2e 驅動）合併進 `main` `8de1e2d1`（D505）"
   - "✅ BUG-236 CLOSED（D496）；🟢 BUG-237 FIXED（T0971 合併進 `main` `6a7b90e8`，D502），隨 `0.8.1-pre.5` 實機確認；T0971 worktree 目錄殘留（`Invalid argument`）待手動刪"
@@ -131,6 +148,7 @@ reminders:
 - 16:11 T0974 DONE（A：S5 / HR-1 BAT 端 HR-1-1／-2／-4 PASS、HR-1-3 22／22 份 CF exit 0、js-yaml 0 失敗，塔台一個 Edit 同時寫 `awaiting_user` 與 `menu_open`；B：CT v642 範例＋5 份重複鍵樣本 `cmp` 相同進 fixture，9 個測試；test:unit 9622 passed）；收單 `--close-worker --worktree keep` exit 0；判準 1（T0972）不成立 → 合併工單 T0976（D509）
 - 16:12 T0976 派工（整合 worktree，`--mode yolo --no-interactive --wait-started 30000`）exit 0，`started: 08:12:31Z`，分頁 `db954a9c…`；已通知 CT 塔台開 HR-1 判定單
 - 16:13 CT 塔台：收到 T0974 結果（CT D935），HR-1 判定單 CT T0586（唯讀）16:13 派工：§ 4 判定、V642 CF 重跑 S5-writes、3 點觀察分析、6.4.0 正式版前結論；收單後通知判定與正式版時程
+- 16:16 T0976 DONE（模式 ①，merge `7cadec9d`，parent1 `804b04c0`、parent2 `5410c597`；只有 T0974 的 9 檔；test:unit 9634 passed / 533 files、typecheck 0 / 0、build 0）；收單 `--close-worker` exit 0；斷點 E → U-70、發 pre.5 → U-71（D510）
 
 ---
 
