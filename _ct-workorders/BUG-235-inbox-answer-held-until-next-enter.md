@@ -3,11 +3,11 @@ schema_version: 1
 schema_kind: bug
 id: BUG-235
 title: "待辦分頁按「完成」送出的回答被排進「待送」、沒有送到塔台，直到使用者自己在塔台分頁送出下一則訊息才一起送達（重按會送出重複的回答）"
-status: FIXED
+status: FIXING
 severity: medium
 reproducibility: "使用者實機一次（`0.8.1-pre.3`，2026-11-28 12:00）；未查證是否穩定"
 created_at: "2026-11-28T12:02:15+0800"
-updated_at: "2026-11-28T14:01:43+0800"
+updated_at: "2026-11-28T15:42:36+0800"
 impact:
   - tower-inbox
   - notify-hold
@@ -21,7 +21,7 @@ links:
 |------|------|
 | 嚴重度 | 🟡 medium（契約 v2 的主要回答路徑送不出去；只能自己在塔台分頁打字，或用縮圖選單「立即送出」） |
 | 可重現 | 使用者實機一次，待查證 |
-| **狀態** | ✅ FIXED（T0964 `511b547e` 合併進 `main` `ee5d364f`，D480；待發版後實機與診斷日誌確認） |
+| **狀態** | 🔧 FIXING（T0964 修正不完整：交付版驗收 T0970 R2 FAIL → 重修 T0972，D503） |
 | 回報者 | 使用者（2026-11-28 12:00） |
 | 影響版本 | `v0.8.1-pre.3`（更早的版本未確認） |
 
@@ -46,3 +46,4 @@ links:
 - 2026-11-28 12:23 T0964 DONE（`511b547e`）：觸發來源未確定（日誌與實驗排除焦點 / 滑鼠 / 滾輪回報、launch 保留、啟動參數，剩使用者實際按鍵）；修正：契約 2 claude 塔台 `user-prompt-submit` 時清掉送出前的草稿（300 ms 輸入窗＋2 s Enter 防護）、`draft set … cause=<類別>` 診斷日誌、待送佇列相同回答去重。整合分支 `ct-merge/T0964` `3837c663` 待斷點 E（U-57，D477）
 - 2026-11-28 12:31 → FIXED：U-57：A，T0964 合併進 `main` `ee5d364f`（產品樹 = `511b547e`），D480；實機（T0964〈待實機〉）與 `draft set … cause=` 診斷日誌確認後 CLOSED
 - 2026-11-28 14:01 隨 `v0.8.1-pre.4` 發佈（D494）；A-26 實機確認後 CLOSED
+- 2026-11-28 15:42 → FIXING（退回）：交付版 `v0.8.1-pre.4` 驗收 T0970：閒置時回答（R1）PASS，但「以塔台開啟 Claude」後、啟動參數回合送出前按過鍵 → 回合結束後第一筆回答仍 `held … reason=draft`（R2 FAIL，pre.3 相同）。原因：T0964 的清除以 `isContractTower` 為前提，而啟動參數回合的 `user-prompt-submit` 早於塔台 `--set-role --bat-contract 2` 約 1 分鐘；這正是 BUG-235 原始時段。重修 T0972（D503）
