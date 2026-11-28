@@ -4,12 +4,13 @@ schema_kind: workorder
 id: T0980
 title: "待辦分頁參考檔案連結：`useInboxFileRefs` 在 `_ct-workorders/` 收到 `fs:changed` 時重查存在與否（檔案事後出現、被歸檔或刪除時連結跟著更新；仍不輪詢）"
 type: feature
-status: PENDING
+status: IN_PROGRESS
 repo: better-agent-terminal
 priority: P3
 sizing: S
 created_at: "2026-11-28T18:01:29+08:00"
-updated_at: "2026-11-28T18:01:29+08:00"
+started_at: "2026-11-28T18:22:10+08:00"
+updated_at: "2026-11-28T18:22:10+08:00"
 session_ids: []
 target_version: "下一個預覽版（`0.8.1-pre.6`，發版前與使用者確認）"
 depends_on: []
