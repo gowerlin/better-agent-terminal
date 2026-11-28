@@ -191,3 +191,8 @@ memory_overrides:
 - `head_sha`：511b547e71a9b39497bf214c0372fae2ff96d575
 - 產品 commit：`511b547e` fix(notify-hold): clear a contract-2 Tower's draft on user-prompt-submit, dedupe answers (T0964, BUG-235)
 - 未 push、未觸發 workflow、未建 tag。
+
+## 塔台收單補記
+
+- 2026-11-28 12:23 (UTC+8) 收單：DONE 確認（`validated_sha` = `head` = `511b547e`；`--worktree-status` 五條全成立：`main` 自 base 只多 `_ct-workorders/**`、`outOfScopeFiles` 空、`conflicts` 空、`dirty` 空）。`--close-worker --delay-ms 10000 --worktree keep` exit 0。
+- 模式 ①：整合 worktree `ct-merge/T0964` = `3837c663`（parent1 `77b7567e` = 當下 `main`、parent2 `511b547e`；產品樹與 `511b547e` 相同）。斷點 E → U-57；「Worker 等你」措辭建議 → U-58（D477）。

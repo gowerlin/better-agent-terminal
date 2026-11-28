@@ -10,6 +10,7 @@
 
 | ID | 日期 | 標題 | 相關工單 |
 |----|------|------|---------|
+| D477 | 2026-11-28 | T0964 收單（`511b547e`，觸發來源未確定、送出時清草稿＋診斷日誌＋去重）；模式 ① `3837c663`；斷點 E 發 U-57、「Worker 等你」措辭後續發 U-58 | T0964 / BUG-235 |
 | D476 | 2026-11-28 | BUG-235（待辦分頁回答卡在待送）開單 FIXING，派 T0964 查證＋修正＋同回答去重 | T0964 / BUG-235 |
 | D475 | 2026-11-28 | A-25：完成 → BUG-234 CLOSED（`v0.8.1-pre.3` 實機鍵盤可輸入） | T0963 / BUG-234 |
 | D474 | 2026-11-28 | `v0.8.1-pre.3` 發佈（BUG-234）；A-25 實機確認 | T0963 / BUG-234 |
@@ -594,6 +595,16 @@
   4. PLAN-001 保持延後（🟢 Low，等 plugin 1.0 穩定）
 - **Success criteria**（EXP→CONCLUDED）：npm install 無錯 / 所有 native modules rebuild 成功 / dev+build:dir 可跑 / 手動 smoke test 8 項通過
 - **最大風險**：`whisper-node-addon@1.0.2` 對 Electron 41（Node 24）的 NODE_MODULE_VERSION 相容性未知，允許 Worker 遇此決策點主動問塔台
+
+---
+
+### D477 2026-11-28 12:23 — T0964 收單；斷點 E（U-57）、後續單（U-58）
+
+- **回報**：DONE，`validated_sha` = `head` = `511b547e`；test:unit 9452 passed / 523 files、vite build、兩個 typecheck 皆 0；回歸測試 23 項修正前 22 失敗。觸發來源**未確定**（日誌與實驗排除焦點 / 滑鼠 / 滾輪回報、launch 保留、`/control-tower` 啟動參數，剩使用者實際按鍵如 ↑↓ / Tab / Alt / 功能鍵 / 輸入法）。修正依 Q-1 = B、Q-2 = A：契約 2 claude 塔台收到 `user-prompt-submit` 時清掉送出前的草稿（hook 前 300 ms 有輸入或 2 s 內有 Enter 則保留）、`draft set … cause=<類別>` 診斷日誌、待送佇列相同回答去重（送出後重送照 D412 不攔）。
+- **合併**：`--worktree-status` 五條全成立 → 模式 ①：`ct-merge/T0964` `3837c663`（parent1 `77b7567e`、parent2 `511b547e`，產品樹 = head）；`--close-worker --worktree keep` exit 0。斷點 E → **U-57**。
+- **後續建議**：「👷 Worker 等你」把使用者自己的回答算成「待送 N 則通知」、也算進標題數字（設計如此但誤導）→ **U-58**（要不要開單、同批進 `0.8.1-pre.4`）。
+- **BUG-235**：維持 FIXING，ff 進 `main` 後 → FIXED；實機（T0964〈待實機〉）與診斷日誌確認後 CLOSED。
+- **相關**：T0964 / BUG-235 / D476 / D412
 
 ---
 
