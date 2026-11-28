@@ -1,9 +1,9 @@
 # State Snapshot INDEX
 
-> Last archived: 2026-11-28（Session 139 收工 — Session 136–139 開工 / 過程紀錄與 Session 136 收工快照 → 2026-Q4-d.md）
+> Last archived: 2026-11-28（Session 140 收工 — Session 140 開工 / 過程紀錄 → 2026-Q4-d.md）
 > Hot path retains: session 132 收工快照、session 131 摘要 + Quick Recovery / 基本資訊 / 進度快照 / 環境快照 / YOLO 歷程
 > Archive root: `_ct-workorders/_archive/state-snapshots/`
-> Total archived entries: 151 (27 in Q2-a / 31 in Q2-b / 5 in Q2-c / 2 in Q3 / 27 in Q4-a / 36 in Q4-b / 19 in Q4-c / 4 in Q4-d)
+> Total archived entries: 152 (27 in Q2-a / 31 in Q2-b / 5 in Q2-c / 2 in Q3 / 27 in Q4-a / 36 in Q4-b / 19 in Q4-c / 5 in Q4-d)
 
 | # | Session | Date | File | Summary |
 |---|---------|------|------|---------|
@@ -166,3 +166,4 @@
 | 157 | 第一百三十七 session | 2026-11-27 | 2026-Q4-d.md | 第一百三十七 session, 2026-11-27 11:10 開工（無收工快照）, T0936-T0945, CT 6.3.0, v0.8.0-pre.8/pre.9/v0.8.0 |
 | 158 | 第一百三十八 session | 2026-11-27 | 2026-Q4-d.md | 第一百三十八 session, 2026-11-27 20:40 開工（無收工快照）, A-15/A-17, BUG-228, T0946 派工 |
 | 159 | 第一百三十九 session | 2026-11-27 | 2026-Q4-d.md | 第一百三十九 session, 2026-11-27 20:46-11-28 00:17, T0946-T0962, BUG-228-233, D427-D470, v0.8.1-pre.1/pre.2 |
+| 160 | 第一百四十 session | 2026-11-28 | 2026-Q4-d.md | 第一百四十 session, 11-28 11:04-17:10, T0963-T0976, BUG-234-237, D471-D515, v0.8.1-pre.3/pre.4/pre.5, CT 6.4.0 |
