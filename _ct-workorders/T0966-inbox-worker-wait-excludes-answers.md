@@ -11,6 +11,7 @@ sizing: S
 created_at: "2026-11-28T12:31:57+0800"
 updated_at: "2026-11-28T12:34:05+0800"
 started_at: "2026-11-28T12:34:05+0800"
+tower_question: open
 target_version: "下一個預覽版（`0.8.1-pre.4`，發版前與使用者確認）"
 depends_on: []
 related:
@@ -71,5 +72,18 @@ T0964 回報：使用者自己從待辦分頁送出、被保留的回答，會�
 ---
 
 ## 回報區
+
+### 待塔台決策
+
+#### Q-1：保留原因要知道「哪一筆回答還在佇列」，需改兩個不在 `affects_files` 的 renderer 檔，可以嗎？
+- **提問時間**：2026-11-28T12:38:11+0800
+- **背景**：要做 ②（「已排入待送」標記旁顯示保留原因、項目離開佇列就不顯示），標記必須知道這筆回答在塔台分頁佇列中的 `holdId`。主行程 `tower-inbox:answer` 本來就回傳 `holdId`（IPC 形狀不變），但 renderer 的 `sendInboxAnswer`（`src/lib/inbox-answer.ts`）把它丟掉，已送出紀錄（`src/stores/inbox-sent-store.ts`）也沒有欄位存它。這兩個檔不在 `affects_files`。
+- **選項**：
+  - A：允許改這兩個檔 —— `InboxAnswerOutcome` 的 `held` 多一個選用 `holdId`、`InboxSentRecord` 多一個選用 `hold: { terminalId, holdId }`（只相加，既有呼叫與測試不變；已實作、相關測試全綠）。
+  - B：不改這兩個檔 —— 只記塔台分頁 id（放在 `src/components/inbox/` 內），塔台佇列裡**有任何**回答就顯示原因；同一塔台有兩筆以上回答時，已送出的那筆也可能顯示原因（不精確）。
+  - 其他。
+- **建議**：A。理由：只多選用欄位、不改 IPC 與主行程；B 在多筆回答時會顯示錯誤的「仍在保留」。
+- **影響**：A → `affects_files` 多 2 檔；B → ② 的顯示在多筆回答時不精確。
+- **是否阻擋後續步驟**：只阻擋收單（驗證可先跑）。
 
 （Worker 填寫）
