@@ -10,6 +10,7 @@
 
 | ID | 日期 | 標題 | 相關工單 |
 |----|------|------|---------|
+| D504 | 2026-11-28 | T0973 收單（`b933cdd1`）；斷點 E 發 U-68；T0972 Q-1 答 A（採 ①） | T0973 / T0970 / T0972 |
 | D503 | 2026-11-28 | T0970 收單：R2 FAIL → BUG-235 退回 FIXING、重修 T0972；T0970 合併派 T0973 | T0970 / T0972 / T0973 / BUG-235 |
 | D502 | 2026-11-28 | U-67：A → T0971 ff `6a7b90e8`；BUG-237 FIXED | T0971 / BUG-237 |
 | D501 | 2026-11-28 | T0971 收單（`e7804e1d`，BUG-237 提示行改由主行程判斷、Q-2 限制一併解除、B-1 / B-2）；模式 ① `4e07b9d2`；斷點 E 發 U-67 | T0971 / BUG-237 |
@@ -621,6 +622,14 @@
   4. PLAN-001 保持延後（🟢 Low，等 plugin 1.0 穩定）
 - **Success criteria**（EXP→CONCLUDED）：npm install 無錯 / 所有 native modules rebuild 成功 / dev+build:dir 可跑 / 手動 smoke test 8 項通過
 - **最大風險**：`whisper-node-addon@1.0.2` 對 Electron 41（Node 24）的 NODE_MODULE_VERSION 相容性未知，允許 Worker 遇此決策點主動問塔台
+
+---
+
+### D504 2026-11-28 15:47 — T0973 收單；U-68；T0972 Q-1
+
+- **T0972 Q-1**（15:46）：方案 ① 要改 T0964 斷言 `notify-hold-prompt-submit.test.ts:149-159`（非契約 2 分頁 submit 後草稿仍在）。Worker 核對 `draft` 讀者：會改變行為的 `holdReason` / `headHold` / `considerMenuEsc` 都先判 `isContractTower`，`onUserInput` 只影響下一狀態與日誌，renderer 無讀者，`hasDraft` 只有測試用 → ① 成立。塔台答 A：採 ①、只改這一條並註明，其餘斷言不動。
+- **T0973**：DONE，模式 ① 無衝突；merge `b933cdd1`（parent1 `8a0ae680` = `base_main_sha`、parent2 `30e3c240` = T0970 `validated_sha`）；樹比對只有 `e2e/manual/` 2 檔；test:unit 9619 passed / 532 files、兩個 typecheck 0、build 0、`node --check` 0。SHA 比對 ①–③ 成立 → 斷點 E **U-68**。
+- **相關**：T0970 / T0972 / T0973 / D503
 
 ---
 

@@ -123,3 +123,7 @@ T0970（`v0.8.1-pre.4` 交付版驗收）只改 `e2e/manual/ct-accept-act.mjs`�
 ### 後續建議
 
 - 塔台照 `merge-workorder.md` § 收單 SHA 比對五步確認後，`git -C <主 checkout> merge --ff-only ct-merge/T0970`；`main` 目前在 `base_main_sha` 之後多了 `_ct-workorders/**` commit，ff 前需先把它們併進合併分支（或依塔台既有做法處理）
+
+## 塔台收單補記
+
+- 2026-11-28 15:47 (UTC+8) 收單：SHA 比對 ①–③ 成立（`base_main_sha` `8a0ae680`；merge `b933cdd1` parent1 `8a0ae680`、parent2 `30e3c240` = `ct/T0970` = T0970 `validated_sha`）；`main` 之後只多 `_ct-workorders/**`。`--close-worker --delay-ms 10000` exit 0。斷點 E → U-68（D504）。
