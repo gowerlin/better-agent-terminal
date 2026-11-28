@@ -4,12 +4,13 @@ schema_kind: workorder
 id: T0975
 title: "合併 `ct/T0972`（BUG-235 重修：宣告契約前送出的草稿也清除）→ `main`"
 type: chore
-status: PENDING
+status: IN_PROGRESS
 repo: better-agent-terminal
 priority: P2
 sizing: S
 created_at: "2026-11-28T16:00:47+0800"
-updated_at: "2026-11-28T16:00:47+0800"
+started_at: "2026-11-28T16:02:05+0800"
+updated_at: "2026-11-28T16:02:05+0800"
 target_version: "下一個預覽版（`0.8.1-pre.5`）"
 kind: merge
 merges:
