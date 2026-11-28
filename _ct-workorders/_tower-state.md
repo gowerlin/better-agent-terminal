@@ -4,25 +4,42 @@ summary_version: 1
 bat_contract: 2
 ct_version: "6.3.0"
 inbox_features: ["recommended", "dismiss", "multi"]
-updated_at: "2026-11-28T14:19:41+0800"
+updated_at: "2026-11-28T15:07:53+0800"
 session: "2026-11-28 11:59 第一百四十 session 塔台重新開工（CT v6.3.0，BAT 0.8.1-pre.3）"
 next_ids:
   workorder: "T0970"
-  decision: "D496"
-  bug: "BUG-237"
+  decision: "D497"
+  bug: "BUG-238"
   plan: "PLAN-071"
-  user: "U-65"
+  user: "U-67"
   action: "A-27"
 user_actions:
   - id: "A-26"
-    title: "裝 `v0.8.1-pre.4`：塔台閒置時從待辦分頁回答立即送出；塔台開選單時從待辦分頁回答會先關選單再送（BUG-235 / 236）"
-    ref: "T0965"
+    title: "裝 `v0.8.1-pre.4`：塔台閒置時從待辦分頁回答會立即送出，不再卡在「待送」（BUG-235）"
+    ref: "T0964"
     kind: "verify"
     created_at: "2026-11-28T14:01:43+08:00"
+awaiting_user:
+  - id: "U-65"
+    workorder: "T0969"
+    kind: "decision"
+    source: "breakpoint-E"
+    summary: "T0969（CT 6.4.0 雙方驗收的 e2e/manual 驅動 3 檔）合併：`ct-merge/T0969` `4867b219` 要 ff 進 `main` 嗎"
+    options: ["A 現在 ff 進 main（推薦）", "B 暫不合併"]
+    recommended: "A"
+    created_at: "2026-11-28T15:05:12+08:00"
+  - id: "U-66"
+    workorder: ""
+    kind: "decision"
+    source: "tower-question"
+    summary: "BUG-237（low，選單提示行不看 `opened_at`）要怎麼處理"
+    options: ["A 開單修，放進下一版 0.8.1-pre.5（推薦）", "B 只記候選，等更多實機回報"]
+    recommended: "A"
+    created_at: "2026-11-28T15:05:12+08:00"
 todo:
-  - "CT 6.4.0-pre.1 × BAT `0.8.1-pre.4` 雙方驗收 T0969（CT `checklist-640.md` H-1～H-14，S1→S3→S4→S2）派工中；收單後通知 CT 塔台開判定單（D495）"
+  - "CT 6.4.0-pre.1 × BAT `0.8.1-pre.4` 雙方驗收 T0969 DONE（BAT 端 20 PASS / 0 FAIL）→ 已通知 CT 塔台開判定單；`ct-merge/T0969` 待 U-65（D496）"
   - "🟡 BUG-235（medium，FIXED）：隨 `v0.8.1-pre.4` 發佈（D494），A-26 實機確認後 CLOSED（再發生時看 `[notify-hold] draft set … cause=`）"
-  - "🟡 BUG-236（medium，FIXED）：T0965 / T0968 隨 `v0.8.1-pre.4` 發佈（D494），A-26 實機確認後 CLOSED（T0965 / T0968〈待實機〉）"
+  - "✅ BUG-236 CLOSED（交付版 `v0.8.1-pre.4` 雙方驗收 T0969，D496）；🟢 BUG-237（low，OPEN）提示行不看 `opened_at` → U-66"
   - "候選（未開單，T0965 建議）：只剩選單紀錄（`question` 已被清除）時 Worker 通知仍照舊直接寫入，可能打進開著的選單；待 CT `menu_open`（D484）工單一起評估"
   - "✅ T0966（U-58：A）合併進 `main` `64b39176`（D485）：Worker 等你不再算回答；T0965 收單時 `main` 已有 T0966 產品改動 → 依 `--worktree-status` 判斷，多半派合併工單"
   - "✅ `v0.8.1-pre.4` 發佈（D494）：BUG-235 / 236、T0966、T0968；下一版 `0.8.1-pre.5`"
@@ -101,6 +118,8 @@ reminders:
 - 14:06 CT 塔台：CT 使用者核定 PLAN-022 P2 照 6.3.0 做法驗收（CT U-11：A、D929），準備單 CT T0583 派工（`ct620-accept/` 換 6.4.0-pre.1、`ct-swap-640.py`、`checklist-640.md` H-1～H-14 分 S1–S4）；BAT 最低版號 `0.8.1-pre.4` 已記入 CT PLAN-022；收單後傳資料，BAT 照 T0939 格式開驗收單
 - 14:19 CT 塔台：CT T0583 DONE（CT D930），傳 `checklist-640.md`（SHA-256 `9c7dd279…`）、分組 S1–S4、`ct-swap-640.py`（`d2d7798d…`）指令、注意事項；塔台核對兩檔雜湊相符、取 pre.4 / pre.3 / 0.8.0-pre.8 win.zip 的 Release digest → 開 T0969（D495）
 - 14:20 T0969 派工 `--mode yolo --no-interactive --isolation worktree --wait-started 30000` exit 0，`started: 06:20:46Z`，分頁 `5d8eb104…`，worktree `ct/T0969` base `4f7effa7`
+- 15:05 T0969 DONE（BAT 端 20 PASS / 0 FAIL / 2 未觸發（指定）/ 1 不適用；Esc 後輸入框為空、選單開著時無持續輸出、舊 BAT / 舊 CT 降級 PASS；給 CT 的觀察 6 項）；收單 `--close-worker --worktree keep` exit 0；模式 ① `ct-merge/T0969` `4867b219`；BUG-236 CLOSED、BUG-237 開單（low）；A-26 縮為 BUG-235；U-65（ff）、U-66（BUG-237）；通知 CT（D496）
+- 15:07 CT 塔台：判定單 CT T0584（唯讀研究，CT D931）開跑：§ 7 逐項判定、cf-all 4 份 exit 1 歸因、6 點觀察分析；觀察 ①（menu_open 與 awaiting_user 分次寫入）會比較 CT 端做法與 BAT 端「ids 不在 awaiting_user 當 stale」，要 BAT 配合會寫成可直接開單的形式；收單後傳判定與 6.4.0 正式版前修正建議
 
 ---
 
