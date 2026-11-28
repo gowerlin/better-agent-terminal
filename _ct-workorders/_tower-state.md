@@ -4,11 +4,11 @@ summary_version: 1
 bat_contract: 2
 ct_version: "6.3.0"
 inbox_features: ["recommended", "dismiss", "multi"]
-updated_at: "2026-11-28T15:13:12+0800"
+updated_at: "2026-11-28T15:14:41+0800"
 session: "2026-11-28 11:59 第一百四十 session 塔台重新開工（CT v6.3.0，BAT 0.8.1-pre.3）"
 next_ids:
-  workorder: "T0970"
-  decision: "D498"
+  workorder: "T0971"
+  decision: "D499"
   bug: "BUG-238"
   plan: "PLAN-071"
   user: "U-67"
@@ -129,6 +129,7 @@ reminders:
 - 15:09 U-65：A → T0969 ff，`main` = `59e4fbeb`（產品樹 = `6d171c6e`，未 push）；整合 worktree detach、worktree 移除；U-66：A → BUG-237 修正等 CT T0584 後合成一張工單（D497）
 - 15:12 塔台重新開工（同 session `c3c72160-0d57-4614-8800-6e952c8e484d`，分頁 `f32bfa46…`）：BAT 已是 `0.8.1-pre.4`；`--set-role tower --bat-contract 2 --mode on` exit 0（`bat-contract: 2`、`hooks: ok (injected, set 2)`）；`main` `4666c2c3`（比 `origin/main` 多 T0969 等，未 push）、工作樹乾淨；熱區 T:365 / BUG:101 / PLAN:35，無進行中工單；`_decision-log.md` 438,381 bytes（> 400 KB 預算）
 - 15:13 `*sync`：工單 365 張全 DONE；BUG 檔 101 與 `_bug-tracker.md` 101 列逐筆一致（OPEN 1 / FIXED 1 / CLOSED 98 / WONTFIX 1）；PLAN 35 與 `_backlog.md` 一致（IDEA 3 / IN_PROGRESS 7 / DONE 23 / DROPPED 2）；索引不需重建；基本資訊表與編號起始更新；`auto_archive_prompt: off`（不提示歸檔候選）
+- 15:14 使用者：「已更版 v0.8.1-pre.4 請派單自動驗收」→ 開 T0970（交付版 zip 隔離實例＋ ACC 真 claude，R1–R5：BUG-235 閒置時立即送出、送出前按鍵的草稿被清除（pre.3 對照）、真草稿保留＋去重、Worker 等你不算回答、日誌不含內容），結果決定 A-26（D498）
 
 ---
 

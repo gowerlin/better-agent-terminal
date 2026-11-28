@@ -10,6 +10,7 @@
 
 | ID | 日期 | 標題 | 相關工單 |
 |----|------|------|---------|
+| D498 | 2026-11-28 | 使用者要求自動驗收 pre.4 → 開 T0970（A-26：BUG-235、T0966，pre.3 對照） | T0970 / BUG-235 |
 | D497 | 2026-11-28 | U-65：A → T0969 ff `59e4fbeb`；U-66：A → BUG-237 等 CT T0584 後合成一張工單進 pre.5 | T0969 / BUG-237 |
 | D496 | 2026-11-28 | T0969 收單（BAT 端 20 PASS / 0 FAIL）；BUG-236 CLOSED；開 BUG-237；U-65（ff）、U-66（BUG-237）；通知 CT 判定 | T0969 / BUG-236 / BUG-237 |
 | D495 | 2026-11-28 | CT T0583 收單 → 開 T0969：CT 6.4.0-pre.1 × BAT pre.4 / pre.3 雙方驗收（H-1～H-14） | T0969 / BUG-236 |
@@ -615,6 +616,14 @@
   4. PLAN-001 保持延後（🟢 Low，等 plugin 1.0 穩定）
 - **Success criteria**（EXP→CONCLUDED）：npm install 無錯 / 所有 native modules rebuild 成功 / dev+build:dir 可跑 / 手動 smoke test 8 項通過
 - **最大風險**：`whisper-node-addon@1.0.2` 對 Electron 41（Node 24）的 NODE_MODULE_VERSION 相容性未知，允許 Worker 遇此決策點主動問塔台
+
+---
+
+### D498 2026-11-28 15:14 — 開 T0970（pre.4 自動化驗收）
+
+- **使用者**：「已更版 v0.8.1-pre.4 請派單自動驗收」。
+- **T0970**：比照 T0955 / T0959 以交付版 zip 隔離實例驗收，claude 用 T0969 的 ACC 隔離設定（BUG-235 的修正靠真 claude 的 `user-prompt-submit` hook）。R1 閒置時回答立即送出；R2 啟動參數回合送出前按鍵 → 草稿被清除（pre.3 對照）；R3 真草稿保留＋相同回答去重；R4 Worker 等你不算回答；R5 診斷日誌不含內容。BUG-236 已由 T0969 CLOSED，不重驗。不碰使用者剛裝的安裝版。結果決定 A-26 與 BUG-235 是否 CLOSED。
+- **相關**：A-26 / BUG-235 / T0964 / T0966 / T0969
 
 ---
 
