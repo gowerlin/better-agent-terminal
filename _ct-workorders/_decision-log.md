@@ -10,6 +10,8 @@
 
 | ID | 日期 | 標題 | 相關工單 |
 |----|------|------|---------|
+| D513 | 2026-11-28 | `v0.8.1-pre.5` 發佈（BUG-235 重修、BUG-237、CT 6.4.0 配合）；A-27 實機確認 | T0971 / T0972 / T0974 |
+| D512 | 2026-11-28 | A-26：略過（併入 pre.5 驗收）；push `main` 觸發 `0.8.1-pre.5` | BUG-235 / BUG-237 |
 | D511 | 2026-11-28 | U-70：A → T0974 ff `9c4ca30e`；U-71：B（等 CT 判定）→ CT T0586 全 PASS、BAT 不需改 → 發 `0.8.1-pre.5` | T0974 / T0976 |
 | D510 | 2026-11-28 | T0976 收單（`7cadec9d`）；U-70（ff）、U-71（發 `0.8.1-pre.5`） | T0976 / T0974 |
 | D509 | 2026-11-28 | T0974 收單（HR-1 BAT 端 PASS、CT fixture 進測試）；通知 CT 判定；合併工單 T0976 | T0974 / T0976 |
@@ -629,6 +631,25 @@
   4. PLAN-001 保持延後（🟢 Low，等 plugin 1.0 穩定）
 - **Success criteria**（EXP→CONCLUDED）：npm install 無錯 / 所有 native modules rebuild 成功 / dev+build:dir 可跑 / 手動 smoke test 8 項通過
 - **最大風險**：`whisper-node-addon@1.0.2` 對 Electron 41（Node 24）的 NODE_MODULE_VERSION 相容性未知，允許 Worker 遇此決策點主動問塔台
+
+---
+
+### D513 2026-11-28 16:45 — `v0.8.1-pre.5` 發佈
+
+- **CI**：`pre-release.yml -f version=0.8.1-pre.5` run `46125573705` success（`458a903c`）；GitHub Release `v0.8.1-pre.5`（prerelease，2026-11-28 08:43:29Z）資產 4 個（dmg / win.zip / AppImage / Setup.exe）；`server-bundle-v0.8.1-pre.5` 已發。
+- **更版重點**：`gh release edit --notes-file` 改寫（修正 BUG-235 重修、BUG-237；更新配合 CT 6.4.0；已知事項：未信任資料夾的信任 Enter 後 2 s 內按鍵仍保留、CT ≥ 6.4.0 才有精確代按、遠端 bat-server 要更新），確認已不是自動內容。
+- **文件**：CHANGELOG（`[0.8.1-pre.5] — 2026-11-28`）、release-note.md、README（待辦分頁說明補一句提示只在 BAT 確定會關選單時顯示）、package.json / lock 版號。NSIS 重裝驗收：本版不需要（未改安裝程式路徑）。
+- **待你執行**：A-27（BUG-235 / BUG-237 實機）。通知 CT 塔台版號。
+- **相關**：T0971 / T0972 / T0974 / BUG-235 / BUG-237 / D511 / D512
+
+---
+
+### D512 2026-11-28 16:23 — A-26 略過；觸發 pre.5
+
+- **使用者**：「A-26：略過 等 0.8.1-pre.5 一起驗」→ A-26 移除（略過不算驗收失敗）；pre.5 發佈後另開驗收項（BUG-235 R2 以已信任工作區、BUG-237 提示行）。
+- **發版**：推送範圍 63 commits 去識別（`.private/` 9 組）＋金鑰樣式 0 命中 → push `main` `458a903c` → `pre-release.yml -f version=0.8.1-pre.5` run `46125573705`。
+- **CT**：CT 6.4.0 正式版發布中（CT U-12：A、CT D937，T0587 → T0588），版本對照會寫選單交接需要 BAT ≥ 0.8.1-pre.4；上線後通知，屆時更新 BAT README 對照表。
+- **相關**：D511 / BUG-235 / BUG-237
 
 ---
 

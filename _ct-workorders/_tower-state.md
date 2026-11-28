@@ -4,26 +4,26 @@ summary_version: 1
 bat_contract: 2
 ct_version: "6.3.0"
 inbox_features: ["recommended", "dismiss", "multi"]
-updated_at: "2026-11-28T16:22:41+0800"
+updated_at: "2026-11-28T16:45:21+0800"
 session: "2026-11-28 11:59 第一百四十 session 塔台重新開工（CT v6.3.0，BAT 0.8.1-pre.3）"
 next_ids:
   workorder: "T0977"
-  decision: "D512"
+  decision: "D514"
   bug: "BUG-238"
   plan: "PLAN-071"
   user: "U-72"
-  action: "A-27"
+  action: "A-28"
 user_actions:
-  - id: "A-26"
-    title: "裝 `v0.8.1-pre.4`：塔台閒置時從待辦分頁回答會立即送出，不再卡在「待送」（BUG-235）"
-    ref: "T0964"
+  - id: "A-27"
+    title: "裝 `v0.8.1-pre.5`：剛開的塔台、閒置與選單開著時從待辦分頁回答都不卡待送（BUG-235 / 237）"
+    ref: "T0972"
     kind: "verify"
-    created_at: "2026-11-28T14:01:43+08:00"
+    created_at: "2026-11-28T16:45:21+08:00"
 todo:
   - "✅ CT 6.4.0：HR-1 判定 CT 端全部 PASS（CT T0586、CT D936），BAT 不需再改；CT 正式版發布方式待 CT U-12，定了會通知（更新 BAT README 對照表）（D511）"
-  - "🟡 BUG-235（medium，FIXED，D508）：T0972 經 T0975 合併進 `main` `7d2e571d`；發 `0.8.1-pre.5` 後以已信任工作區重跑 R2（A-26）確認後 CLOSED"
+  - "🟡 BUG-235 / 🟢 BUG-237（FIXED）：隨 `v0.8.1-pre.5` 發佈（D513），A-27 實機確認後 CLOSED（BUG-235 可用已信任工作區重跑 T0970 R2）"
   - "✅ T0973（T0970 e2e 驅動）合併進 `main` `8de1e2d1`（D505）"
-  - "✅ BUG-236 CLOSED（D496）；🟢 BUG-237 FIXED（T0971 合併進 `main` `6a7b90e8`，D502），隨 `0.8.1-pre.5` 實機確認；T0971 worktree 目錄殘留（`Invalid argument`）待手動刪"
+  - "✅ BUG-236 CLOSED（D496）"
   - "候選（未開單，T0965 建議）：只剩選單紀錄（`question` 已被清除）時 Worker 通知仍照舊直接寫入，可能打進開著的選單；待 CT `menu_open`（D484）工單一起評估"
   - "✅ T0966（U-58：A）合併進 `main` `64b39176`（D485）：Worker 等你不再算回答；T0965 收單時 `main` 已有 T0966 產品改動 → 依 `--worktree-status` 判斷，多半派合併工單"
   - "✅ `v0.8.1-pre.4` 發佈（D494）：BUG-235 / 236、T0966、T0968；下一版 `0.8.1-pre.5`"
@@ -134,6 +134,8 @@ reminders:
 - 16:16 T0976 DONE（模式 ①，merge `7cadec9d`，parent1 `804b04c0`、parent2 `5410c597`；只有 T0974 的 9 檔；test:unit 9634 passed / 533 files、typecheck 0 / 0、build 0）；收單 `--close-worker` exit 0；斷點 E → U-70、發 pre.5 → U-71（D510）
 - 16:22 U-70：A、U-71：B（原生選單：等 CT 判定再發）→ T0974 ff，`main` = `9c4ca30e`（產品樹 = `7cadec9d`），整合 worktree detach、T0974 worktree 移除
 - 16:22 CT 塔台：CT T0586 判定 HR-1 全部 PASS（CT D936），3 點觀察 CT 不改、BAT 不需再改，CT PLAN-022 P2 完成 → U-71 的條件成立，開始發 `0.8.1-pre.5`（D511）
+- 16:23 push `main` `458a903c`（去識別＋金鑰 63 commits 0 命中）→ `pre-release.yml -f version=0.8.1-pre.5` run `46125573705`；使用者「A-26：略過 等 0.8.1-pre.5 一起驗」→ A-26 略過（不算失敗），pre.5 發佈後另開驗收項（D512）；CT 塔台：CT 6.4.0 正式版發布中（CT U-12：A、CT T0587 → T0588），上線後通知時間與連結
+- 16:45 `v0.8.1-pre.5` 發佈（Pre-Release `46125573705` success，`458a903c`，2026-11-28 08:43:29Z；資產 4 個＋`server-bundle-v0.8.1-pre.5`）；`gh release edit --notes-file` 改寫更版重點；CHANGELOG / release-note / README / package 版號更新；A-27 待你實機（D513）
 
 ---
 
