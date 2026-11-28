@@ -4,12 +4,13 @@ schema_kind: workorder
 id: T0963
 title: "BUG-234：查出 `0.8.1-pre.2` 自動恢復後鍵盤無法輸入（滑鼠貼上可用、新開 Codex CLI 也一樣）的原因並修正"
 type: bugfix
-status: PENDING
+status: IN_PROGRESS
 repo: better-agent-terminal
 priority: P1
 sizing: M
 created_at: "2026-11-28T11:09:41+0800"
-updated_at: "2026-11-28T11:09:41+0800"
+started_at: "2026-11-28T11:11:45+0800"
+updated_at: "2026-11-28T11:11:45+0800"
 target_version: "下一個預覽版（`0.8.1-pre.3`，發版前與使用者確認）"
 depends_on: []
 related:
