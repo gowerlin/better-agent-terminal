@@ -4,6 +4,16 @@ All notable changes to Better Agent Terminal are documented in this file.
 
 ## [Unreleased]
 
+## [0.8.1-pre.5] — 2026-11-28
+
+### Fixed
+- 「以塔台開啟 Claude」開工回合送出前按過的鍵，讓回合結束後第一筆待辦分頁回答仍卡在「待送」（BUG-235 重修，T0972 / T0975）：T0964 的 `onPromptSubmitted` 只對已宣告契約 2 的塔台清草稿，而啟動參數回合的 `user-prompt-submit` 比 `--set-role --bat-contract 2` 早約 1 分鐘；改為不以契約為前提清除（hook 前 300 ms 無輸入、2 s 內無 Enter、不在括號貼上的條件不變），只對契約 2 塔台重新排程；`draft` 的所有讀者都先判契約 2，非契約 2 分頁沒有可見差異。交付版驗收 T0970 R2 的時序為回歸測試
+- 待辦分頁「在這裡回答會先關掉選單」提示與實際代按 Esc 不一致（BUG-237，T0971）：提示改由主行程 `menuEscPreview`（與 `menuEscDecision` 同一套判斷）經新的 proxied 唯讀 channel `tower-inbox:menu-hint` 決定（不進 `HELPER_CHANNEL_ROLES`）；只剩選單紀錄時也顯示（每 2 s 再問一次）；舊 host 照 T0968 規則
+
+### Changed
+- 配合 CT 6.4.0-pre.2（T0971 B-1 / B-2、T0974）：`menu_open` 移到 `awaiting_user` 正後方照常解析；CT 分次寫入時 `menu_open.ids` 不在 `awaiting_user` → 整個 `menu_open` 無效、不代按 Esc（測試鎖住，不改成部分有效）；CT 6.4.0-pre.2 正式範例與 5 份重複鍵樣本進 fixture（重複鍵 → 整份摘要無效）
+- 測試：交付版驗收驅動 `e2e/manual/ct-accept-watch.mjs`（狀態檔寫入監看）、`ct-accept-act.mjs` 的 `inbox` 欄位與 `input` 指令（T0969 / T0970）
+
 ## [0.8.1-pre.4] — 2026-11-28
 
 ### Added
