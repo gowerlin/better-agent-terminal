@@ -4,24 +4,24 @@ summary_version: 1
 bat_contract: 2
 ct_version: "6.4.0"
 inbox_features: ["recommended", "dismiss", "multi", "menu"]
-updated_at: "2026-11-28T19:45:30+08:00"
+updated_at: "2026-11-28T20:33:28+08:00"
 session: "2026-11-28 17:13 第一百四十一 session 開工（CT v6.4.0，BAT 0.8.1-pre.5）"
 next_ids:
   workorder: "T0984"
-  decision: "D526"
+  decision: "D527"
   bug: "BUG-239"
   plan: "PLAN-071"
   user: "U-83"
   action: "A-29"
 user_actions:
   - id: "A-28"
-    title: "下一個預覽版實機：未信任的資料夾「以塔台開啟 Claude」，信任對話框按 Enter 後立刻按鍵，開工回合結束後從待辦分頁回答 → 應立即送出、不進待送"
+    title: "`v0.8.1-pre.6` 實機：未信任的資料夾「以塔台開啟 Claude」，信任對話框按 Enter 後立刻按鍵，開工回合結束後從待辦分頁回答 → 應立即送出、不進待送"
     ref: "T0978"
     kind: "verify"
     created_at: "2026-11-28T18:15:16+08:00"
 todo:
   - "🔄 第一百四十一 session（D516，U-72：A、B、C、D）：✅ T0977 DONE、ff 進 `main` `1ae19702`（D517）；✅ T0978 DONE（`f9738360`，D518）→ 合併工單 T0981 DONE、ff 進 `main` `84f96834`（D519）；✅ T0980 DONE、ff 進 `main` `12dce91b`（D520）；✅ T0979 研究 DONE（D521）：① env 差異延後（塔台）；U-76：D、U-77：A、U-78：A（D522）→ 合併工單 T0982 DONE、ff 進 `main` `11d33816`（D523）；✅ T0983 DONE、ff 進 `main` `f53c938c`（D524，BUG-238 FIXED）；T0983 改 `terminal-server.js`（holder key 變）→ `0.8.1-pre.6` 發版前要跑 W6"
-  - "🔄 發版流程（U-81：A，D525）：去識別化檢查 0 筆真實命中 → push `main` `48894be4..346c0116` → desktop-build A `46141343330`（ref `v0.8.1-pre.5`）、B `46141357941`（ref `main`）執行中 → W6 全情境 → 全 PASS 才發 `0.8.1-pre.6`（更版重點＋三文件＋Pages）；U-82：A 分支已刪（只留 `ct/T0885`、`ct/T0886`）"
+  - "✅ `v0.8.1-pre.6` 發佈（D526）：W6 `46142714419` 九情境 PASS（A = pre.5 舊 holder key → B 新 key 接回）→ pre-release `46143214386`；更版重點、CHANGELOG / release-note / README、`package.json` 已同步；BUG-238 CLOSED。待使用者 A-28（pre.6 實機）"
   - "PLAN-066 後續延後（D521）：`pty:create` 只送 env 差異（省約 3 MB 有上限高水位；之後有其他工單要改協定 / holder 時一起做）"
   - "✅ 第一百四十 session：BUG-234 / 235 / 236 / 237 全部 CLOSED；`v0.8.1-pre.3` / `pre.4` / `pre.5` 發佈；CT 6.4.0 正式版上線、README 對照表已更新；決策日誌收斂（D515）"
   - "候選（未開單，T0965 建議）：只剩選單紀錄（`question` 已被清除）時 Worker 通知仍照舊直接寫入，可能打進開著的選單；待 CT `menu_open`（D484）工單一起評估"
@@ -33,7 +33,7 @@ todo:
   - "候選（未開單，D303 暫不安排）：T0830 後續 SSH / Docker 精靈長呼叫接 operation id；PLAN-052 fetch-fingerprint Docker 分支、docker-acceptance 純函式測試；PLAN-058 卡片等待時可送出（2026-11-20 使用者：先記著、不開單。只涉 Claude Agent 面板（SDK），不影響 Claude CLI 分頁；要做時的建議：輸入框預設收合＋「補充說明」按鈕展開、輸入框有焦點時停用卡片快捷鍵（權限卡在 window 監聽 1/2/3、y/n、Enter、方向鍵）、送出走 T0815 排隊路徑；需實機操作確認）"
   - "MSRC 回報 microsoft/node-pty（使用者自行處理，D255）"
   - "觀察：語音可用性檢查 macOS 未實機（`unknown(timeout)` 出現可把逾時提到 30 s，T0802）；t0757 偶發失敗再發生才開 BUG（D218）；PLAN-060（IDEA）macOS Developer ID 簽章"
-  - "版號線：D425 後 `0.8.1-pre.N`（從 `main` 發），`0.8.1-pre.5` 已發佈（2026-11-28 16:43，D513），下一版 `0.8.1-pre.6`（`-pre.N` 最多到 pre.9；需要第十個預覽版時先與使用者確認改版號線）"
+  - "版號線：D425 後 `0.8.1-pre.N`（從 `main` 發），`0.8.1-pre.6` 已發佈（2026-11-28 20:31，D526），下一版 `0.8.1-pre.7`（`-pre.N` 最多到 pre.9；需要第十個預覽版時先與使用者確認改版號線）"
 reminders:
   - id: "weekly-log-review"
     title: "每週日誌清查（PLAN-067；到期時塔台開工會提示，只提示不派工）"

@@ -4,6 +4,18 @@ All notable changes to Better Agent Terminal are documented in this file.
 
 ## [Unreleased]
 
+## [0.8.1-pre.6] — 2026-11-28
+
+### Fixed
+- Windows：shell 自己結束的分頁，conhost 留到 Terminal Server 結束、之後關分頁也不釋放（PLAN-066 F4，選項 D，T0983）：Terminal Server 以 `exitedPtys` 保留自然結束的 PTY，`pty:kill`（✕）、同 id `createPty`（⏻ / 恢復）、`shutdown` 時以 `releaseExitedPty`（`electron/terminal-server/process-tree.ts`：ClosePseudoConsole → 釋放 conin → 停轉送）收掉；主行程對自然結束的 id 照樣送 `pty:kill`；direct 模式同等處理，conin socket 不再累積（T0979 ②）。協定不新增訊息，新舊 host / server 相容。holder key 改變（W6 `46142714419` 九個情境 PASS）
+- Windows：關閉分頁時 node-pty `kill()` 在 shell 已結束約 5 s 後對舊 pid 呼叫 `process.kill`（BUG-238，T0983）：`endPty` 與 direct 模式在 `killProcessTree` / `taskkill` 之後以 `releaseExitedPty` 收 PTY，不經 node-pty `kill()`（形狀不符時退回）；T0540 順序不變
+- 「以塔台開啟 Claude」在未信任資料夾的信任對話框 Enter 後 2 s 內按的鍵，讓第一筆待辦分頁回答進待送（T0978）：主行程在 `writeLaunchCommand` 辨識以 `/control-tower` 結尾的啟動命令，該 PTY 第一個 `user-prompt-submit` 不套 2 s Enter 窗；300 ms 輸入窗、括號貼上、之後的回合不變
+- `scripts/verify-packaged-native.js` 讀 app.asar 讀不足時把缺的部分當 NUL（T0977）：`readExactSync` 讀不足即判 `runtime-require` 失敗，訊息含期望 / 實際位元組數
+
+### Changed
+- 待辦分頁的檔案連結在 `_ct-workorders/` 的 `fs:changed` 時重查（T0980）：沿用 `acquireDirWatch` 的共用監看，300 ms 合併後重查，不輪詢、不新增 IPC
+- 研究：PLAN-066 三項後續的量測腳本與結果（T0979，`experiments/node-pty-worker/t0979/`）；「`pty:create` 只送 env 差異」延後
+
 ## [0.8.1-pre.5] — 2026-11-28
 
 ### Fixed

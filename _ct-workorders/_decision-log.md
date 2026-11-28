@@ -10,6 +10,7 @@
 
 | ID | 日期 | 標題 | 相關工單 |
 |----|------|------|---------|
+| D526 | 2026-11-28 | `v0.8.1-pre.6` 發佈（W6 九情境 PASS 後）；BUG-238 CLOSED；A-28 待使用者 | T0977–T0983 / BUG-238 |
 | D525 | 2026-11-28 | U-81：A（push → desktop-build ×2 → W6 → 全 PASS 才發 `0.8.1-pre.6`）、U-82：A（刪本 session 分支）；已 push `main`、觸發 desktop-build A / B | — |
 | D524 | 2026-11-28 | T0983 收單（`89327c0a`）；U-80：A → 模式 ① ff 進 `main` `f53c938c`；BUG-238 FIXED；holder key 改變 → 發版前 W6；U-81（push / W6 / 發版）、U-82（刪分支） | T0983 / BUG-238 |
 | D523 | 2026-11-28 | T0982 收單；U-79：A → `main` ff 到 `11d33816`（含 T0979 量測腳本）；派 T0983 | T0982 / T0979 / T0983 |
@@ -644,6 +645,18 @@
   4. PLAN-001 保持延後（🟢 Low，等 plugin 1.0 穩定）
 - **Success criteria**（EXP→CONCLUDED）：npm install 無錯 / 所有 native modules rebuild 成功 / dev+build:dir 可跑 / 手動 smoke test 8 項通過
 - **最大風險**：`whisper-node-addon@1.0.2` 對 Electron 41（Node 24）的 NODE_MODULE_VERSION 相容性未知，允許 Worker 遇此決策點主動問塔台
+
+---
+
+### D526 2026-11-28 20:33 — `v0.8.1-pre.6` 發佈
+
+- **W6**：desktop-build A `46141343330`（`v0.8.1-pre.5`，`0.0.0-exp.24`）、B `46141357941`（`main`，`0.0.0-exp.25`）皆 success → `windows-upgrade-acceptance.yml` `46142714419`：prepare＋情境 1–9 全 success。情境 1 報告：A 的 holder key `24.22.2-7a21c053bf76`、B 的 `24.22.2-4d3d0986a50c`（不同，customInstall 把新 key 複製到執行中的旁邊）；重開 `app.upgradeReattached`（v0.0.0-exp.24 → v0.0.0-exp.25），1 個終端接回。
+- **發版**：`pre-release.yml -f version=0.8.1-pre.6` run `46143214386` success（`46fc3c74`）；GitHub Release `v0.8.1-pre.6`（prerelease，2026-11-28 12:31:09Z）資產 4 個（dmg / win.zip / AppImage / Setup.exe）；`server-bundle-v0.8.1-pre.6` 已發。`gh release edit --notes-file` 換上更版重點（修正：F4、BUG-238、T0978、T0977；更新：T0980；已知事項：從 pre.5 升級接回舊 holder 時該 server 的分頁照舊殘留到它結束、每個關閉分頁仍約 1 handle）。
+- **repo 文件**：`CHANGELOG.md` `[0.8.1-pre.6]`、`release-note.md` 最上方、`README.md` 待辦分頁檔案連結一句（T0980）；`package.json` / lock 同步 `0.8.1-pre.6`。
+- **BUG-238** → CLOSED（交付版＋W6）。熱區未結 BUG 0。
+- **NSIS 重裝驗收**：本版改了 PTY holder（`terminal-server.js`，holder key 變）→ 屬需要提醒的範圍（D331）；W6 已在 GitHub runner 以真的安裝程式驗過升級 / 降級 / 解除安裝，本機手動 `nsis-reinstall-acceptance.ps1` 由使用者決定是否跑。
+- **待使用者**：A-28（pre.6 實機：未信任資料夾的 B3）。
+- **相關**：D525 / D522 / T0983 / T0978
 
 ---
 
