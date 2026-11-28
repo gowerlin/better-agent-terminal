@@ -10,6 +10,7 @@
 
 | ID | 日期 | 標題 | 相關工單 |
 |----|------|------|---------|
+| D482 | 2026-11-28 | 協調 CT 塔台：HANDOVER 選單與待辦分頁作答的 CT 配合點（C-1–C-4）；T0965 不改範圍 | T0965 / BUG-236 |
 | D481 | 2026-11-28 | U-58：A → T0966（Worker 等你不算回答）；U-59：A → BUG-236 FIXING、T0965（選單開著時 Esc 關選單再送文字）；兩張並行 | T0965 / T0966 / BUG-236 |
 | D480 | 2026-11-28 | U-57：A → T0964 ff 進 `main` `ee5d364f`；BUG-235 FIXED | T0964 / BUG-235 |
 | D479 | 2026-11-28 | D478 作廢：選單結果被待辦分頁的回答干擾，U-57 / U-58 重問；開 BUG-236；U-59 問「選單開著時兩邊都能答」的做法 | T0964 / BUG-236 |
@@ -599,6 +600,15 @@
   4. PLAN-001 保持延後（🟢 Low，等 plugin 1.0 穩定）
 - **Success criteria**（EXP→CONCLUDED）：npm install 無錯 / 所有 native modules rebuild 成功 / dev+build:dir 可跑 / 手動 smoke test 8 項通過
 - **最大風險**：`whisper-node-addon@1.0.2` 對 Electron 41（Node 24）的 NODE_MODULE_VERSION 相容性未知，允許 Worker 遇此決策點主動問塔台
+
+---
+
+### D482 2026-11-28 12:42 — 協調 CT 塔台：選單與待辦分頁作答
+
+- **使用者**：「如果 CT 配合修改，可以更好控制，可協調 CT 塔台配合」。
+- **做法**：HANDOVER `_handover-2026-11-28-inbox-menu-handoff.md`（修法由 CT 決定）：C-1 開選單前在 frontmatter 寫「此選單含哪些 U-n」、選單回來時移除（BAT 只在回答的 U-n 在其中且 `question` blocked 時按 Esc）；C-2 選單被中斷＋文字回答後剩下的題怎麼處理（避免每答一題就重開選單的循環）；C-3 `inbox_features` 宣告；C-4 開工清殘留。收件人 ListAgents `BMad-Guide · Tower`，SendMessage 已送達。
+- **T0965 不改範圍**：維持不靠 CT 的預設（`question` blocked → Esc → 送文字），舊 CT 也能用；CT 回覆後另開 BAT 工單讀 C-1 欄位（加嚴條件，不改預設）。
+- **相關**：BUG-236 / T0965 / D479 / D481
 
 ---
 

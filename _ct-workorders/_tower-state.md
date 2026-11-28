@@ -72,6 +72,7 @@ reminders:
 - 12:32 U-58：A、U-59：A → BUG-236 FIXING；開 T0965（BUG-236：選單開著時 Esc 關選單再送文字）、T0966（「Worker 等你」不算回答），兩張只在 `docs/agent-guide/tower-inbox.md` 重疊（不同段落，接受並行）（D481）
 - 12:34 T0965 / T0966 派工 `--mode yolo --no-interactive --isolation worktree --wait-started 30000` 皆 exit 0：T0965 `started: 04:33:55Z` 分頁 `2c447e92…`；T0966 `started: 04:33:58Z` 分頁 `3459f98b…`；base `b389f16c`
 - 12:38 [提問] T0966 Q-1（保留原因要知道哪一筆回答仍在佇列，需改 `src/lib/inbox-answer.ts`、`src/stores/inbox-sent-store.ts`）→ 塔台答 A（`--answer --choice 1` exit 0）：只加選用欄位、IPC 與主行程不變；兩檔補進 T0966 affects_files（與 T0965 不重疊）
+- 12:42 使用者：「如果 CT 配合修改，可以更好控制，可協調 CT 塔台配合」→ 寫 `_handover-2026-11-28-inbox-menu-handoff.md`（`7cec7ce6`，C-1 選單含哪些 U-n 的 frontmatter 欄位、C-2 中斷後剩下的題、C-3 `inbox_features` 宣告、C-4 開工清殘留），SendMessage 給 `BMad-Guide · Tower`（ListAgents 第 1 步命中）已送達收件匣；T0965 範圍不變（舊 CT 也能用），CT 回覆後另開工單讀欄位（D482）
 
 ---
 
