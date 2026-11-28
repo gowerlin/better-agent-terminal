@@ -22,7 +22,8 @@
 //                                      permission prompt → 3, time limit → 5
 //   inbox <name>                       summary of the 待辦 tab DOM (awaiting / actions / recent / holds / ⏸N);
 //                                      (T0939) per awaiting row: radiogroup / group+multi / free, 可複選 hint,
-//                                      option codes + input type, every 推薦 mark, checked codes, 其他 on/off
+//                                      option codes + input type, every 推薦 mark, checked codes, 其他 on/off;
+//                                      (T0969) menuHint = the row has the T0968 選單提示行, sent = 已送出 status
 //   ctl <name> '<json op>'             any driver op
 //   menu <name> <id>                   the open AskUserQuestion menu as JSON: numbered options, highlighted one
 //   pick <name> <id> <label|last>      (T0928) move the menu highlight to the option whose text starts with <label>
@@ -181,6 +182,8 @@ return {
     'other=' + (e.querySelector('[data-inbox-option-other]') ? (e.querySelector('[data-inbox-option-other] input')?.checked ? 'on' : 'off') : '-'),
     'dismiss=' + !!e.querySelector('[data-inbox-dismiss]'), 'free=' + !!e.querySelector('.inbox-free-input'),
     'freeHint=' + !!e.querySelector('[data-inbox-free-hint],[data-inbox-other-hint]'),
+    'menuHint=' + !!document.querySelector('[data-inbox-menu-hint="' + e.dataset.inboxAwaiting + '"]'),
+    'sent=' + (document.querySelector('[data-inbox-sent="' + e.dataset.inboxAwaiting + '"]')?.dataset.inboxSentStatus ?? '-'),
     e.querySelector('.inbox-entry-summary')?.innerText ?? ''].join(' | ')),
   actions: q('[data-inbox-action]').map(e => [e.dataset.inboxAction, 'skip=' + !!e.querySelector('[data-inbox-dismiss]'), e.querySelector('.inbox-entry-summary')?.innerText ?? ''].join(' | ')),
   recent: q('.inbox-recent-item').map(e => e.innerText.split('\\n').join(' ')),
