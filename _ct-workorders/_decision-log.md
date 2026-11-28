@@ -10,6 +10,7 @@
 
 | ID | 日期 | 標題 | 相關工單 |
 |----|------|------|---------|
+| D481 | 2026-11-28 | U-58：A → T0966（Worker 等你不算回答）；U-59：A → BUG-236 FIXING、T0965（選單開著時 Esc 關選單再送文字）；兩張並行 | T0965 / T0966 / BUG-236 |
 | D480 | 2026-11-28 | U-57：A → T0964 ff 進 `main` `ee5d364f`；BUG-235 FIXED | T0964 / BUG-235 |
 | D479 | 2026-11-28 | D478 作廢：選單結果被待辦分頁的回答干擾，U-57 / U-58 重問；開 BUG-236；U-59 問「選單開著時兩邊都能答」的做法 | T0964 / BUG-236 |
 | D478 | 2026-11-28 | U-57：放棄（T0964 不 ff，暫停等新方向）；U-58：放棄（「Worker 等你」措辭不開單） | T0964 / BUG-235 |
@@ -598,6 +599,17 @@
   4. PLAN-001 保持延後（🟢 Low，等 plugin 1.0 穩定）
 - **Success criteria**（EXP→CONCLUDED）：npm install 無錯 / 所有 native modules rebuild 成功 / dev+build:dir 可跑 / 手動 smoke test 8 項通過
 - **最大風險**：`whisper-node-addon@1.0.2` 對 Electron 41（Node 24）的 NODE_MODULE_VERSION 相容性未知，允許 Worker 遇此決策點主動問塔台
+
+---
+
+### D481 2026-11-28 12:32 — U-58：A、U-59：A → T0965 / T0966
+
+- **使用者**：`U-58：A`、`U-59：A`（終端文字）。U-58、U-59 移除。
+- **T0965**（BUG-236 → FIXING）：先查證這次回答為何沒被保留；新行為只限契約 2 塔台＋`question` reason＋待辦分頁的回答：BAT 送 Esc（`auto`）關選單 → 等 `question` 清除＋安靜 → 送 `U-n：…`；Esc 後仍開著就不送文字。`permission` / `elicitation` / codex `input`、Worker 通知、有 draft、非契約 2 一律照舊保留。CT 不改（Esc 後本來就接受文字回答）。
+- **T0966**：renderer 只改分類、計數與三語系用語：回答不列進「👷 Worker 等你」、不計入標題數字，保留原因顯示在原筆「已排入待送」標記旁；主行程與 IPC 不動。
+- **並行**：`affects_files` 只在 `docs/agent-guide/tower-inbox.md` 重疊（不同段落）→ 接受並行，合併時若衝突改派模式 ②。
+- **發版**：兩張合併後發 `0.8.1-pre.4`（含 T0964），發版前問使用者。
+- **相關**：BUG-236 / BUG-235 / T0964 / D479 / D480
 
 ---
 
