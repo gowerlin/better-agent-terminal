@@ -10,6 +10,7 @@
 
 | ID | 日期 | 標題 | 相關工單 |
 |----|------|------|---------|
+| D523 | 2026-11-28 | T0982 收單；U-79：A → `main` ff 到 `11d33816`（含 T0979 量測腳本）；派 T0983 | T0982 / T0979 / T0983 |
 | D522 | 2026-11-28 | U-76：D（F4 關閉 / 重啟分頁時收 conhost）、U-77：A（BUG-238 併入 F4 實作）、U-78：A（量測腳本併進 `main`）→ 合併工單 T0982、實作單 T0983 | T0982 / T0983 / BUG-238 |
 | D521 | 2026-11-28 | T0979 研究收單：① env 差異延後（約 3 MB 有上限高水位，換協定＋W6 不划算）；② direct conin 併入 F4 實作單；③ F4 推薦 D；U-76 / U-77 / U-78 待使用者 | T0979 / PLAN-066 |
 | D520 | 2026-11-28 | T0980 收單（`887d49c8`）；U-75：A → 模式 ① ff 進 `main` `12dce91b` | T0980 |
@@ -641,6 +642,16 @@
   4. PLAN-001 保持延後（🟢 Low，等 plugin 1.0 穩定）
 - **Success criteria**（EXP→CONCLUDED）：npm install 無錯 / 所有 native modules rebuild 成功 / dev+build:dir 可跑 / 手動 smoke test 8 項通過
 - **最大風險**：`whisper-node-addon@1.0.2` 對 Electron 41（Node 24）的 NODE_MODULE_VERSION 相容性未知，允許 Worker 遇此決策點主動問塔台
+
+---
+
+### D523 2026-11-28 19:10 — T0982 收單；U-79：A → ff 進 `main`；派 T0983
+
+- **收單**：T0982 DONE（模式 ①，無衝突）。merge commit `b5a12b63`：parent1 `d2c9e980` = `base_main_sha`、parent2 `e882e120` = `ct/T0979`；樹比對 7 檔全在 `experiments/node-pty-worker/`；結果檔無 env 內容與權杖樣式（唯一命中是腳本以 `randomBytes` 產生的假 `batcap.` 樣板）；test:unit 9668 passed，`experiments/` 未被收集。
+- **SHA 第 5 步**：`main` 合併期間只多 `_ct-workorders/**` → 整合分支再 `--no-ff` 併 `main`（`11d33816`）。
+- **合併**：斷點 E → 使用者 `U-79：A` → `--ff-only`，`main` = `11d33816`；整合 worktree detach、T0979 worktree 移除；分支 `ct/T0979`、`ct-merge/T0979` 保留。T0982 分頁 `--close-worker` exit 0；session 快照已寫。
+- **下一步**：派 T0983（base 含量測腳本）。
+- **相關**：D522
 
 ---
 

@@ -4,14 +4,14 @@ summary_version: 1
 bat_contract: 2
 ct_version: "6.4.0"
 inbox_features: ["recommended", "dismiss", "multi", "menu"]
-updated_at: "2026-11-28T19:04:38+08:00"
+updated_at: "2026-11-28T19:10:27+08:00"
 session: "2026-11-28 17:13 第一百四十一 session 開工（CT v6.4.0，BAT 0.8.1-pre.5）"
 next_ids:
   workorder: "T0984"
-  decision: "D523"
+  decision: "D524"
   bug: "BUG-239"
   plan: "PLAN-071"
-  user: "U-79"
+  user: "U-80"
   action: "A-29"
 user_actions:
   - id: "A-28"
@@ -20,7 +20,7 @@ user_actions:
     kind: "verify"
     created_at: "2026-11-28T18:15:16+08:00"
 todo:
-  - "🔄 第一百四十一 session（D516，U-72：A、B、C、D）：✅ T0977 DONE、ff 進 `main` `1ae19702`（D517）；✅ T0978 DONE（`f9738360`，D518）→ 合併工單 T0981 DONE、ff 進 `main` `84f96834`（D519）；✅ T0980 DONE、ff 進 `main` `12dce91b`（D520）；✅ T0979 研究 DONE（D521）：① env 差異延後（塔台）；U-76：D、U-77：A、U-78：A（D522）→ 合併工單 T0982（量測腳本）已派、F4＋BUG-238＋direct conin 實作單 T0983 等 T0982 ff 後派；T0983 改 `terminal-server.js` → `0.8.1-pre.6` 發版前要跑 W6"
+  - "🔄 第一百四十一 session（D516，U-72：A、B、C、D）：✅ T0977 DONE、ff 進 `main` `1ae19702`（D517）；✅ T0978 DONE（`f9738360`，D518）→ 合併工單 T0981 DONE、ff 進 `main` `84f96834`（D519）；✅ T0980 DONE、ff 進 `main` `12dce91b`（D520）；✅ T0979 研究 DONE（D521）：① env 差異延後（塔台）；U-76：D、U-77：A、U-78：A（D522）→ 合併工單 T0982 DONE、ff 進 `main` `11d33816`（D523）；F4＋BUG-238＋direct conin 實作單 T0983 已派工；T0983 改 `terminal-server.js` → `0.8.1-pre.6` 發版前要跑 W6"
   - "PLAN-066 後續延後（D521）：`pty:create` 只送 env 差異（省約 3 MB 有上限高水位；之後有其他工單要改協定 / holder 時一起做）"
   - "✅ 第一百四十 session：BUG-234 / 235 / 236 / 237 全部 CLOSED；`v0.8.1-pre.3` / `pre.4` / `pre.5` 發佈；CT 6.4.0 正式版上線、README 對照表已更新；決策日誌收斂（D515）"
   - "候選（未開單，T0965 建議）：只剩選單紀錄（`question` 已被清除）時 Worker 通知仍照舊直接寫入，可能打進開著的選單；待 CT `menu_open`（D484）工單一起評估"
