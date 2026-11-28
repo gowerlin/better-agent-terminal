@@ -206,3 +206,7 @@ T0970 以交付版 `v0.8.1-pre.4` 驗收 A-26：R1（閒置時回答）、R3 / R
 
 - [15:45] Q-1: 方案 ① 會改到 `notify-hold-prompt-submit.test.ts:149-159` 的斷言，可以改嗎？ → A（塔台）: 選 A，採 ①，改該 `it.each` 並註明 T0972 / D503 / Q-1 → Action: 實作 ①、改寫該案例、回報列前後差異與讀者核對。
 - [15:49] Q-2: T0970 實錄 B3 有信任 Enter（hook 前 517 ms），照範圍收單還是擴大？ → A（塔台）: 選 A，不放寬，加刻意保留測試、寫 R2 重跑做法、能重跑就做 → Action: 加測試 `T0972 Q-2 (intended)`、文件補已知限制、隔離實例重跑列〈待實機〉。
+
+## 塔台收單補記
+
+- 2026-11-28 16:00 (UTC+8) 收單：DONE 確認（方案 ①；`validated_sha` `abcff41d`，head `c1abe148` 只多一筆 `tower-inbox.md` 純文件 commit）。`--close-worker --delay-ms 10000 --worktree keep` exit 0；`--worktree-status` `outOfScopeFiles` / `conflicts` / `dirty` 空，但判準 1（`main` 已併入 T0970 `e2e/manual/`）、2（validated ≠ head）不成立 → 合併工單 T0975（mechanical，在合併結果重跑完整驗收）。隔離實例重跑 R2 未做 → 列 BUG-235 收尾的待實機（D506）。

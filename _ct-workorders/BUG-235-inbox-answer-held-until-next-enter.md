@@ -7,7 +7,7 @@ status: FIXING
 severity: medium
 reproducibility: "使用者實機一次（`0.8.1-pre.3`，2026-11-28 12:00）；未查證是否穩定"
 created_at: "2026-11-28T12:02:15+0800"
-updated_at: "2026-11-28T15:42:36+0800"
+updated_at: "2026-11-28T16:00:47+0800"
 impact:
   - tower-inbox
   - notify-hold
@@ -47,3 +47,4 @@ links:
 - 2026-11-28 12:31 → FIXED：U-57：A，T0964 合併進 `main` `ee5d364f`（產品樹 = `511b547e`），D480；實機（T0964〈待實機〉）與 `draft set … cause=` 診斷日誌確認後 CLOSED
 - 2026-11-28 14:01 隨 `v0.8.1-pre.4` 發佈（D494）；A-26 實機確認後 CLOSED
 - 2026-11-28 15:42 → FIXING（退回）：交付版 `v0.8.1-pre.4` 驗收 T0970：閒置時回答（R1）PASS，但「以塔台開啟 Claude」後、啟動參數回合送出前按過鍵 → 回合結束後第一筆回答仍 `held … reason=draft`（R2 FAIL，pre.3 相同）。原因：T0964 的清除以 `isContractTower` 為前提，而啟動參數回合的 `user-prompt-submit` 早於塔台 `--set-role --bat-contract 2` 約 1 分鐘；這正是 BUG-235 原始時段。重修 T0972（D503）
+- 2026-11-28 16:00 T0972 DONE（`c1abe148`）：`onPromptSubmitted` 不再以契約 2 為前提清草稿（300 ms / 2 s / 括號貼上條件不變），B3 時序測試修正前失敗、修正後通過；信任對話框 Enter 後 2 s 內的按鍵刻意保留（Q-2，另記候選）。合併工單 T0975；合併後 FIXED，以已信任工作區重跑 R2 後 CLOSED（D506）
