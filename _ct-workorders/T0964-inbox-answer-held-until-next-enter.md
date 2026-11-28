@@ -97,3 +97,14 @@ memory_overrides:
   - 其他：塔台請使用者回想 12:00 前在塔台分頁按過哪些鍵，再決定。
 - **影響**：決定修正部分怎麼做與本單結案狀態；去重、「Worker 等你」判斷、文件不受影響（先做）。
 - **是否擋住後續步驟**：擋住修正與回歸測試；其他步驟先做。
+- **塔台答覆 Q-1**：（BAT 通道 `q-f8c5ac62-dc1c9ed0ff79aabc`，12:13 收到）選 B，附 5 點補充（見〈互動紀錄〉）。
+
+#### Q-2：B 的接線要動 `electron/main.ts` 與 `electron/remote/headless-entry.ts`（不在 `affects_files`），可以嗎？
+- **提問時間**：2026-11-28T12:16:48+0800
+- **說明**：`user-prompt-submit` 由 `PtyManager.reportHookEvent` 處理；我在 `PtyManager` 加了選用 dep `onUserPromptSubmit`（`electron/pty-manager.ts`，範圍內），要把它接到 `notifyHold.onPromptSubmitted`，只能在建立 `PtyManager` 的兩處各加一行（與既有 `onPtyOutput` → `notifyHold.onPtyOutput` 同位置、同寫法）。不加的話 headless / 本機都不會生效。
+- **選項**：
+  - A（推薦）：允許這兩檔各加一行接線，其他不動。
+  - B：不允許 → 改在 `electron/handlers/pty.ts` 以 setter 掛上（`PtyManager` 多一個 `setUserPromptSubmitListener`），較繞、不建議。
+  - 其他
+- **影響**：修正能否在本機與 headless 生效。
+- **是否擋住後續步驟**：擋住接線；其他（單元測試、去重、文件）先做。
