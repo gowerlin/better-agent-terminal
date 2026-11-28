@@ -2,6 +2,38 @@
 
 本 fork 各版的更版重點（內容取自 GitHub Releases，最新在上）。上游 tony1223/better-agent-terminal 的 v2.1.x 紀錄保留在檔案最下方。
 
+## v0.8.1-pre.3（2026-11-28）
+
+版號 0.8.1-pre.3，接續 `v0.8.1-pre.2`。
+
+本版重點：修正 `0.8.1-pre.1` / `pre.2` 新開的 Claude CLI、Codex CLI 分頁鍵盤打不了字的問題。建議使用 `0.8.1-pre.1` 或 `pre.2` 的使用者盡快更新。
+
+### 修正
+
+- **新開的 agent 分頁鍵盤無法輸入、Enter 沒反應**（BUG-234）：`0.8.1-pre.1` 起，新開的 Claude CLI、Codex CLI 分頁（含「以塔台開啟 Claude」、⏻ 重啟後的分頁）若在啟動命令寫入前沒有打字，之後打的字、Enter 與貼上都送不進去。BAT 重開後接回的分頁與一般 shell（pwsh、Git Bash 等）分頁不受影響。現在啟動命令寫入後就恢復正常輸入；命令寫入前打的字照舊排在命令後面送出（BUG-231 的修正不變）。
+
+### 已知事項
+
+- `0.8.1-pre.1` / `pre.2` 有上述問題，`0.8.0` 正式版不受影響。
+- 遠端視窗（WSL / SSH / Docker）的 bat-server 也要更新到本版，遠端的 agent 分頁才會修正。
+- 從 `0.8.0` 升上來後第一次接回，塔台仍要重新宣告一次（`0.8.1-pre.1` 的已知事項，之後的接回會自動還原）。
+- 待辦分頁需要 Control Tower 6.1.0 以上；多選、放棄附文字只當原因需要 6.3.0。
+- macOS 版沒有 Apple 公證，與先前版本相同。
+
+### 歡迎協助測試
+
+本版修正也影響 Codex CLI 分頁。如果你使用 Codex CLI，歡迎幫忙試一次：
+
+1. 在 BAT 開一個新的 Codex CLI 分頁，等 codex 畫面出來後先不要打字，再輸入一句話按 Enter，確認送得出去。
+2. 呼叫 MCP tool `bat_whoami`，確認 `agent` 是 codex。
+3. 由塔台派一張小工單給 Codex Worker，確認 Worker 完成後通知回到塔台、分頁被回收。
+
+結果請到 GitHub issue 回報，附上 BAT 版本（`0.8.1-pre.3`）與 `codex --version`。
+
+macOS 仍只提供 Apple Silicon（arm64）版。
+
+**Full Changelog**: https://github.com/gowerlin/better-agent-terminal/compare/v0.8.1-pre.2...v0.8.1-pre.3
+
 ## v0.8.1-pre.2（2026-11-27）
 
 版號 0.8.1-pre.2，接續 `v0.8.1-pre.1`。

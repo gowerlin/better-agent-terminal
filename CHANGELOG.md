@@ -4,6 +4,14 @@ All notable changes to Better Agent Terminal are documented in this file.
 
 ## [Unreleased]
 
+## [0.8.1-pre.3] — 2026-11-28
+
+### Fixed
+- 新開的 agent 分頁（Claude CLI / Codex CLI）鍵盤無法輸入、Enter 沒反應（BUG-234，T0963；`0.8.1-pre.1` 起，T0951）：`PtyManager.writeLaunchCommand` 在啟動命令前沒打字時，空的保留清單沒從 `dispatchInputHolds` 刪掉，之後所有按鍵、Enter、貼上都被保留且沒有計時器結束；現在確實是 launch 保留時一律刪清單（`electron/pty-manager.ts`）。接回的分頁（`created: false`）與 shell 分頁本來就不保留；BUG-231 的「命令前打字排在命令後」不變；回歸測試 `electron/__tests__/launch-input-hold.test.ts`、交付版重現工具 `e2e/manual/t0963-keyboard-repro.ts`
+
+### Changed
+- 測試：T0960 改名過時的登入分頁保留測試（斷言不變）；T0961 新增 Linux e2e `e2e/linux/t0961-restart-hidden-cursor.spec.ts`（BUG-233）
+
 ## [0.8.1-pre.2] — 2026-11-27
 
 ### Fixed
