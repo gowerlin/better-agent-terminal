@@ -196,3 +196,4 @@ memory_overrides:
 
 - 2026-11-28 12:23 (UTC+8) 收單：DONE 確認（`validated_sha` = `head` = `511b547e`；`--worktree-status` 五條全成立：`main` 自 base 只多 `_ct-workorders/**`、`outOfScopeFiles` 空、`conflicts` 空、`dirty` 空）。`--close-worker --delay-ms 10000 --worktree keep` exit 0。
 - 模式 ①：整合 worktree `ct-merge/T0964` = `3837c663`（parent1 `77b7567e` = 當下 `main`、parent2 `511b547e`；產品樹與 `511b547e` 相同）。斷點 E → U-57；「Worker 等你」措辭建議 → U-58（D477）。
+- 2026-11-28 12:31 (UTC+8) U-57：A → `ct-merge/T0964` 再合併 `main`（`main` 自 parent1 只多 `_ct-workorders/**`）後 ff：`main` = `ct-merge/T0964` = `ee5d364f`，產品樹 = `511b547e`；整合 worktree detach；`--close-worker --worktree remove` exit 3（分頁已關）→ 手動 `worktree remove`；分支 `ct/T0964`、`ct-merge/T0964` 保留（D480）。

@@ -10,6 +10,7 @@
 
 | ID | 日期 | 標題 | 相關工單 |
 |----|------|------|---------|
+| D480 | 2026-11-28 | U-57：A → T0964 ff 進 `main` `ee5d364f`；BUG-235 FIXED | T0964 / BUG-235 |
 | D479 | 2026-11-28 | D478 作廢：選單結果被待辦分頁的回答干擾，U-57 / U-58 重問；開 BUG-236；U-59 問「選單開著時兩邊都能答」的做法 | T0964 / BUG-236 |
 | D478 | 2026-11-28 | U-57：放棄（T0964 不 ff，暫停等新方向）；U-58：放棄（「Worker 等你」措辭不開單） | T0964 / BUG-235 |
 | D477 | 2026-11-28 | T0964 收單（`511b547e`，觸發來源未確定、送出時清草稿＋診斷日誌＋去重）；模式 ① `3837c663`；斷點 E 發 U-57、「Worker 等你」措辭後續發 U-58 | T0964 / BUG-235 |
@@ -597,6 +598,16 @@
   4. PLAN-001 保持延後（🟢 Low，等 plugin 1.0 穩定）
 - **Success criteria**（EXP→CONCLUDED）：npm install 無錯 / 所有 native modules rebuild 成功 / dev+build:dir 可跑 / 手動 smoke test 8 項通過
 - **最大風險**：`whisper-node-addon@1.0.2` 對 Electron 41（Node 24）的 NODE_MODULE_VERSION 相容性未知，允許 Worker 遇此決策點主動問塔台
+
+---
+
+### D480 2026-11-28 12:31 — U-57：A → T0964 ff
+
+- **使用者**：`U-57：A`（在終端以文字回答）。U-57 移除。
+- **合併**：第 5 步 `main` 自 parent1 `77b7567e` 起只多 `_ct-workorders/**` → 整合分支 `ct-merge/T0964` 再 `--no-ff` 合併 `main` 後 ff；`main` = `ct-merge/T0964` = `ee5d364f`，產品樹 = `validated_sha` `511b547e`；整合 worktree detach；`--close-worker --worktree remove` exit 3（分頁已關）→ 手動 `worktree remove`（乾淨）；`ct/T0964`、`ct-merge/T0964` 保留到使用者同意刪除。未 push。
+- **BUG-235** → FIXED（發 `0.8.1-pre.4` 後實機與診斷日誌確認才 CLOSED）。
+- **仍待**：U-58、U-59。
+- **相關**：T0964 / BUG-235 / D477 / D479
 
 ---
 

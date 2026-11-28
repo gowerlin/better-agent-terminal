@@ -4,24 +4,16 @@ summary_version: 1
 bat_contract: 2
 ct_version: "6.3.0"
 inbox_features: ["recommended", "dismiss", "multi"]
-updated_at: "2026-11-28T12:27:02+0800"
+updated_at: "2026-11-28T12:31:01+0800"
 session: "2026-11-28 11:59 第一百四十 session 塔台重新開工（CT v6.3.0，BAT 0.8.1-pre.3）"
 next_ids:
   workorder: "T0965"
-  decision: "D480"
+  decision: "D481"
   bug: "BUG-237"
   plan: "PLAN-071"
   user: "U-60"
   action: "A-26"
 awaiting_user:
-  - id: "U-57"
-    workorder: "T0964"
-    kind: "decision"
-    source: "breakpoint-E"
-    summary: "（重問：12:25 選單收到的「放棄」不可靠，BUG-236）T0964 合併：`ct-merge/T0964` `3837c663` 要 ff 進 `main` 嗎"
-    options: ["A 現在 ff 進 main（推薦）", "B 暫不合併"]
-    recommended: "A"
-    created_at: "2026-11-28T12:27:02+08:00"
   - id: "U-58"
     workorder: "T0964"
     kind: "decision"
@@ -39,7 +31,7 @@ awaiting_user:
     recommended: "A"
     created_at: "2026-11-28T12:27:02+08:00"
 todo:
-  - "🟡 BUG-235（medium，D476–D479）：T0964 DONE（`511b547e`），`ct-merge/T0964` `3837c663` 待 U-57 ff；維持 FIXING"
+  - "🟡 BUG-235（medium，D476–D480）：T0964 合併進 `main` `ee5d364f`（未 push），FIXED；發 `0.8.1-pre.4` 後實機＋診斷日誌確認才 CLOSED"
   - "🟡 BUG-236（medium，OPEN，D479）：選單開著時待辦分頁的回答被打進選單（`sent`），選單結果與待辦分頁選的不同 → 修法方向待 U-59，之後開單"
   - "✅ BUG-234 CLOSED（`v0.8.1-pre.3` 實機，A-25，D475）"
   - "🗄 `_decision-log.md` 407 KB 超過 400 KB 預算：開工後封存舊決策（D186 起，照 `_archive/decisions/` 既有做法）"
@@ -91,6 +83,7 @@ reminders:
 - 12:23 T0964 DONE（`511b547e`，test:unit 9452 passed）；收單 `--close-worker --delay-ms 10000 --worktree keep` exit 0；`--worktree-status` 五條全成立 → 模式 ①：`ct-merge/T0964` `3837c663`（parent1 `77b7567e`、parent2 `511b547e`）；斷點 E → U-57、「Worker 等你」措辭後續 → U-58（D477）
 - 12:25 U-57：放棄、U-58：放棄（原生選單，未附原因）→ 不 ff、不開單，兩項暫停等新方向（D478）
 - 12:27 使用者截圖：待辦分頁 12:24 已送 `U-57：A`（`sent`，選單開著時被打進選單）→ 選單結果「放棄」不可靠：D478 作廢、U-57 / U-58 重問；開 BUG-236（medium，OPEN）；修法方向 U-59（「兩邊都能答」）；本次不開原生選單，改文字＋待辦分頁（D479）
+- 12:31 U-57：A（終端文字）→ `ct-merge/T0964` 再合併 `main`（只多 `_ct-workorders/**`）後 ff，`main` = `ee5d364f`（產品樹 = `511b547e`，未 push）；整合 worktree detach；T0964 worktree 手動移除（`--close-worker --worktree remove` exit 3）；BUG-235 FIXED（D480）
 
 ---
 
