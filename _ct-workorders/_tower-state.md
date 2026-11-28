@@ -4,7 +4,7 @@ summary_version: 1
 bat_contract: 2
 ct_version: "6.3.0"
 inbox_features: ["recommended", "dismiss", "multi"]
-updated_at: "2026-11-28T12:13:39+0800"
+updated_at: "2026-11-28T12:17:22+0800"
 session: "2026-11-28 11:59 第一百四十 session 塔台重新開工（CT v6.3.0，BAT 0.8.1-pre.3）"
 next_ids:
   workorder: "T0965"
@@ -61,6 +61,7 @@ reminders:
 - 12:02 使用者：「鍵盤可輸入了」＋ A-25：完成 → BUG-234 CLOSED（D475）；同時回報待辦分頁按「完成」後卡在「已排入待送」、要等自己送出下一則才送到（送了兩次）、「無法送出」→ BUG-235 medium FIXING、T0964（D476）
 - 12:04 T0964 派工 `--mode yolo --no-interactive --isolation worktree --wait-started 30000` exit 0，`started: 2026-11-28T04:03:58Z`，分頁 `6991ade8…`，worktree `ct/T0964` base `4d003c6a`
 - 12:13 [提問] T0964 Q-1（draft 觸發來源重現不了：日誌與實驗排除焦點 / 滑鼠 / 滾輪回報、launch 保留、啟動參數，只剩使用者真的按的鍵）→ 塔台答 B（`--answer --choice 2` exit 0）：診斷日誌（只記類別）＋去重＋契約 2 claude 塔台 `user-prompt-submit` 時清掉送出前的 draft（不得清掉送出後新打的字）；本單可回 DONE，BUG-235 收單時判 FIXED 待實機
+- 12:17 [提問] T0964 Q-2（B 的接線要動 `electron/main.ts`、`electron/remote/headless-entry.ts`，不在 affects_files）→ 塔台答 A（`--answer --choice 1` exit 0）：各加一行接線、其他不動；兩檔補進工單 affects_files
 
 ---
 
