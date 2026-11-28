@@ -4,17 +4,23 @@ summary_version: 1
 bat_contract: 2
 ct_version: "6.3.0"
 inbox_features: ["recommended", "dismiss", "multi"]
-updated_at: "2026-11-28T11:28:25+0800"
+updated_at: "2026-11-28T11:54:11+0800"
 session: "2026-11-28 11:06 第一百四十 session 塔台重新開工（CT v6.3.0）"
 next_ids:
   workorder: "T0964"
-  decision: "D474"
+  decision: "D475"
   bug: "BUG-235"
   plan: "PLAN-071"
   user: "U-57"
-  action: "A-25"
+  action: "A-26"
+user_actions:
+  - id: "A-25"
+    title: "裝 `v0.8.1-pre.3`：新開 Claude CLI / Codex CLI 分頁先不打字再輸入＋Enter；⏻ 後馬上打字；pwsh 照常（BUG-234）"
+    ref: "T0963"
+    kind: "verify"
+    created_at: "2026-11-28T11:54:11+08:00"
 todo:
-  - "🔴 BUG-234（high，D471 / D472）：新開的 agent 分頁鍵盤無法輸入（T0951 起，影響 `0.8.1-pre.1` / `pre.2`）→ T0963 合併進 `main` `6fd50e00`（D473），FIXED；發 `0.8.1-pre.3` 中，發版後驗收再 CLOSED"
+  - "🔴 BUG-234（high，D471–D474）：新開的 agent 分頁鍵盤無法輸入（T0951 起，影響 `0.8.1-pre.1` / `pre.2`）→ T0963 修正、`v0.8.1-pre.3` 已發佈（D474），FIXED；A-25 實機確認後 CLOSED"
   - "🗄 `_decision-log.md` 407 KB 超過 400 KB 預算：開工後封存舊決策（D186 起，照 `_archive/decisions/` 既有做法）"
   - "✅ `v0.8.1-pre.2`（D461）／`v0.8.1-pre.1`（D449）：BUG-228–233 全部 CLOSED（交付版自動化驗收 T0955 / T0959、Linux CI T0961）；T0950 PASS。下一版 `0.8.1-pre.3`（目前只多測試：T0960 改名、T0961 Linux spec）"
   - "✅ `v0.8.0` 正式版（D425）：T0944 塔台分頁自動帶入 `/control-tower`（Git Bash 下的問題已由 BUG-228 修正）"
@@ -28,7 +34,7 @@ todo:
   - "候選（未開單，D303 暫不安排）：T0830 後續 SSH / Docker 精靈長呼叫接 operation id；PLAN-052 fetch-fingerprint Docker 分支、docker-acceptance 純函式測試；PLAN-058 卡片等待時可送出（2026-11-20 使用者：先記著、不開單。只涉 Claude Agent 面板（SDK），不影響 Claude CLI 分頁；要做時的建議：輸入框預設收合＋「補充說明」按鈕展開、輸入框有焦點時停用卡片快捷鍵（權限卡在 window 監聽 1/2/3、y/n、Enter、方向鍵）、送出走 T0815 排隊路徑；需實機操作確認）"
   - "MSRC 回報 microsoft/node-pty（使用者自行處理，D255）"
   - "觀察：語音可用性檢查 macOS 未實機（`unknown(timeout)` 出現可把逾時提到 30 s，T0802）；t0757 偶發失敗再發生才開 BUG（D218）；PLAN-060（IDEA）macOS Developer ID 簽章"
-  - "版號線：D425 後 `0.8.1-pre.N`（從 `main` 發），`0.8.1-pre.2` 已發佈（2026-11-27 23:22，D461），下一版 `0.8.1-pre.3`（`-pre.N` 最多到 pre.9；需要第十個預覽版時先與使用者確認改版號線）"
+  - "版號線：D425 後 `0.8.1-pre.N`（從 `main` 發），`0.8.1-pre.3` 已發佈（2026-11-28 11:52，D474），下一版 `0.8.1-pre.4`（`-pre.N` 最多到 pre.9；需要第十個預覽版時先與使用者確認改版號線）"
 reminders:
   - id: "weekly-log-review"
     title: "每週日誌清查（PLAN-067；到期時塔台開工會提示，只提示不派工）"
@@ -55,6 +61,7 @@ reminders:
 - 11:09 使用者回報 pre.2 自動恢復後鍵盤無法輸入（已退回 pre.1）→ BUG-234 high FIXING、T0963（D471）；11:11 派工 `--mode yolo --no-interactive --isolation worktree --wait-started 30000` exit 0，`started: 2026-11-28T03:11:19Z`，分頁 `edae5fb0…`，worktree `ct/T0963` base `763ca8c2`
 - 11:25 T0963 DONE（`45a9427c`）：原因是 T0951 的 `writeLaunchCommand` 在「命令前沒打字」時沒刪空的保留清單，之後所有按鍵被保留；pre.1 也有（退回 pre.1 能用是因為分頁都是接回）。收單 `--close-worker --delay-ms 10000 --worktree keep` exit 0；`--worktree-status` 五條全成立 → 模式 ①：`ct-merge/T0963` `da4f8067`（parent1 `f8429161`、parent2 `45a9427c`，產品樹 = head）；斷點 E → U-55、發版 → U-56（D472）
 - 11:28 U-55：A、U-56：A → `main` 只多 `_ct-workorders/**` → 整合分支再合併 `main` 後 ff，`main` = `6fd50e00`；T0963 worktree 移除（分支 `ct/T0963`、`ct-merge/T0963` 保留）；BUG-234 FIXED；發 `0.8.1-pre.3`（D473）
+- 11:54 `v0.8.1-pre.3` 發佈（Pre-Release `46103078102` success，`ba010838`，2026-11-28 11:52；資產 4 個同 pre.2）；更版重點已改寫；CHANGELOG / release-note / package 版號 commit＋push；A-25 待你實機（D474）
 
 ---
 
@@ -99,7 +106,7 @@ reminders:
 1. `_decision-log.md` 超過 400 KB 預算 → 封存舊決策
 2. PLAN-065 per-machine UAC 互動升級手動驗收；PLAN-052 Docker Desktop 實機精靈；PLAN-058 手動確認；其他待實機項
 3. 候選（未開單）：`readAsarFile` 讀不足判失敗、PLAN-066 後續、`useInboxFileRefs` 跟 `fs:changed` 重查
-4. 下一版 `0.8.1-pre.3`（目前只多測試與 T0960 改名，不急）；PLAN-067 週清查 2026-12-02 到期
+4. `v0.8.1-pre.3` 已發佈（BUG-234，D474），A-25 實機確認後 BUG-234 CLOSED；PLAN-067 週清查 2026-12-02 到期
 
 ### ⚠️ 鐵則
 - **所有 `gh` 指令必須帶 `-R gowerlin/better-agent-terminal`**（L122）
@@ -129,9 +136,9 @@ reminders:
 |------|------|
 | **專案** | better-agent-terminal |
 | **Fork 上游** | tony1223/better-agent-terminal（另有 `scandnavik` remote；⚠️ gh 預設解析到 upstream，見 L122） |
-| **目前版號** | `main` `package.json` **0.8.1-pre.2**；下一版 **`0.8.1-pre.3`**（從 `main` 發，D344） |
-| **最新 release** | `v0.8.1-pre.2`（2026-11-27 23:22 (UTC+8)，Pre-Release `46020314119`，`450174a5`，D461）；前一 tag `v0.8.1-pre.1`；最新正式版 `v0.8.0`（D425）；更早見 `release-note.md` / `CHANGELOG.md` |
-| **目前主軸** | 無派工中工單；下一版 `0.8.1-pre.3` 從 `main` 發 |
+| **目前版號** | `main` `package.json` **0.8.1-pre.3**；下一版 **`0.8.1-pre.4`**（從 `main` 發，D344） |
+| **最新 release** | `v0.8.1-pre.3`（2026-11-28 11:52 (UTC+8)，Pre-Release `46103078102`，`ba010838`，D474；BUG-234）；前一 tag `v0.8.1-pre.2`；最新正式版 `v0.8.0`（D425）；更早見 `release-note.md` / `CHANGELOG.md` |
+| **目前主軸** | 無派工中工單；`v0.8.1-pre.3` 待 A-25 實機確認 |
 | **工單最大編號** | **T0962** DONE；熱區全部終態 |
 | **BUG 最大編號** | **BUG-233** CLOSED；熱區 Open 0 / Fixing 0 / Fixed 0 / Closed 96 / WONTFIX 1 |
 | **PLAN 最大編號** | **PLAN-068** DONE；IN_PROGRESS 7（038 / 043 / 052 / 058 / 064 / 065 / 067）；IDEA 3 |

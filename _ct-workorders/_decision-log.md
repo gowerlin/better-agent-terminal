@@ -10,6 +10,7 @@
 
 | ID | 日期 | 標題 | 相關工單 |
 |----|------|------|---------|
+| D474 | 2026-11-28 | `v0.8.1-pre.3` 發佈（BUG-234）；A-25 實機確認 | T0963 / BUG-234 |
 | D473 | 2026-11-28 | U-55：A → T0963 ff 進 `main` `6fd50e00`；U-56：A → 發 `0.8.1-pre.3` | T0963 / BUG-234 |
 | D472 | 2026-11-28 | T0963 收單（`45a9427c`，BUG-234 原因在 T0951，pre.1 起）；模式 ① `da4f8067`；斷點 E 發 U-55、發版 U-56 | T0963 / BUG-234 |
 | D471 | 2026-11-28 | BUG-234（pre.2 自動恢復後鍵盤無法輸入）開單 FIXING，派 T0963 查證＋修正 | T0963 / BUG-234 |
@@ -591,6 +592,17 @@
   4. PLAN-001 保持延後（🟢 Low，等 plugin 1.0 穩定）
 - **Success criteria**（EXP→CONCLUDED）：npm install 無錯 / 所有 native modules rebuild 成功 / dev+build:dir 可跑 / 手動 smoke test 8 項通過
 - **最大風險**：`whisper-node-addon@1.0.2` 對 Electron 41（Node 24）的 NODE_MODULE_VERSION 相容性未知，允許 Worker 遇此決策點主動問塔台
+
+---
+
+### D474 2026-11-28 11:54 — `v0.8.1-pre.3` 發佈
+
+- **CI**：`pre-release.yml -f version=0.8.1-pre.3` run `46103078102` success（`ba010838`）；GitHub Release `v0.8.1-pre.3`（prerelease，2026-11-28 03:52:34Z）資產 4 個（dmg / win.zip / AppImage / Setup.exe，大小與 pre.2 相近）；`server-bundle-v0.8.1-pre.3` 已發。
+- **更版重點**：`gh release edit --notes-file` 改寫（修正 BUG-234、已知事項、歡迎協助測試（Codex CLI 分頁受影響）），`gh release view --json body` 確認已不是自動內容。
+- **文件**：CHANGELOG（`[0.8.1-pre.3] — 2026-11-28`）、release-note.md、package.json / lock 版號；README 無需更新（功能、安裝、平台、BAT ↔ CT 契約都沒變）。
+- **NSIS 重裝驗收**：本版不需要（只改 `electron/pty-manager.ts`，未改安裝程式路徑），直接以 .exe 安裝。
+- **待你執行**：A-25（T0963〈待實機〉）。
+- **相關**：T0963 / BUG-234 / D473
 
 ---
 
