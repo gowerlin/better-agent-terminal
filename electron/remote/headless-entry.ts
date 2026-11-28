@@ -415,6 +415,8 @@ export function createHeadlessPtyModule(opts: {
         usageLimit.onOutput(id, data)
         notifyHold.onPtyOutput(id, data) // T0940: claude's single-key survey (read only)
       },
+      onUserPromptSubmit: id => { notifyHold.onPromptSubmitted(id) }, // T0964 / BUG-235
+
       onBlockedChange: id => {
         opts.onBlockedChange?.(id) // T0609
         notifyHold.onBlockedChange(id) // T0788

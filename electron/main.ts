@@ -1361,6 +1361,7 @@ function createElectronPtyDeps(): PtyManagerDeps {
       usageLimitScheduler?.onOutput(id, data)
       notifyHold?.onPtyOutput(id, data) // T0940: claude's single-key survey (read only)
     },
+    onUserPromptSubmit: (id) => { notifyHold?.onPromptSubmitted(id) }, // T0964 / BUG-235: claude took the input box
     // T0576: the T0108 replay list (or [] when the server died) settles the restored capabilities
     onSurvivingPtys: (ids) => {
       const alive = new Set(ids)

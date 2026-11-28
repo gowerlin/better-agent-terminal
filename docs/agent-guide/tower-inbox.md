@@ -177,6 +177,20 @@
 
 已知誤判：游標移動後刪光、`/` 選單選完、Tab 補完到空字串都還算有草稿 → 「📨 待送」顯示「你在輸入」＋「立即送出」，5 分鐘提醒一次。所有分頁都追蹤（便宜、不改行為），只有契約 2 塔台用來保留。
 
+#### claude 取走輸入框時清掉草稿（T0964 / BUG-235）
+
+現象（`0.8.1-pre.3`）：塔台閒置、沒有對話框，從待辦分頁回答卻排進「📨 待送」（`[notify-hold] held … source=answer reason=draft`），直到使用者在塔台分頁自己送出下一則訊息（`\r` 清掉草稿）才送到。查證：當時的日誌與 claude transcript 都沒有貼上 / 拖放 / 語音 / 排隊訊息 / 權限模式切換；以真 xterm 5.5 跑 claude fullscreen 的模式，焦點、DA / DSR / CPR / DECRQM / OSC 10 / 11 / DECRQSS 回覆、滾輪 / 移動 / 點擊回報都被 `isTerminalAutoReply` 濾掉，不進 `trackDraft`。剩下只有使用者真的按的鍵（↑ / ↓ 叫出歷史、Tab、Alt＋鍵、F5 以後的功能鍵、輸入法組字等），**實際觸發來源未確定**。
+
+修正（塔台 Q-1 = B）：
+
+- 契約 2 塔台的 claude 回報 `user-prompt-submit` hook（輸入框剛被 claude 取走，PtyManager deps `onUserPromptSubmit` → `NotifyHoldController.onPromptSubmitted`；`electron/main.ts` / `electron/remote/headless-entry.ts` 與 `onPtyOutput` 同處接線）→ 清掉在那之前的草稿，被草稿擋住的通知 / 回答照常（安靜 1 s 後）送出。
+- 🔴 送出之後才打的字不得清：hook 比 claude 取走輸入框晚到（實測 100–150 ms），BAT 不拿主行程時間與 hook 的 `at` 比（T0926 規則），改以主行程單調時鐘判斷——hook 到達前 `NOTIFY_HOLD_SUBMIT_QUIET_MS` = 300 ms 內有任何使用者輸入、或 `NOTIFY_HOLD_SUBMIT_ENTER_GUARD_MS` = 2 s 內有使用者的 Enter（那個 Enter 自己就是這次送出，之後打的字是新的）→ 草稿保留，記 `[notify-hold] draft kept …`。取捨：hook 晚到超過 2 s 且使用者在 Enter 後 300 ms 以外才打字時會誤清（把通知接到那些字後面）；量不到發生率。
+- 不清的情況：非契約 2 塔台、括號貼上還沒結束、本來就沒有草稿（不記日誌）。codex 沒有 `user-prompt-submit` hook，行為不變。
+- 只涵蓋「草稿在送出之前就設了」：回合進行中按的鍵（且之後沒有 Enter / 送出）照舊保留，靠「立即送出」或下一次送出。
+- 診斷：草稿由無變有時記 `[notify-hold] draft set terminal=<id> cause=<類別> bytes=<n>[ (during prompt)]`，類別（`draftCause`，`src/lib/tower-input-draft.ts`）：`printable` / `tab` / `newline` / `paste` / `alt-key` / `ss3:A|B` / `csi:<final>` / `csi~:<第一個參數>` / `csi-cut`；🔴 不記內容。下次再發生時以這行定位來源。
+- 去重：同一塔台的待送佇列已有**完全相同**、文字還沒送出的回答行 → 不再排入，回 `{ ok: true, held: true, holdId: <既有那筆> }`（畫面照舊「已排入待送」），記 `[notify-hold] answer duplicate … holdId=<id> len=<n> (already held)`；已送出之後的「重新送出」照 T0942 / D412 不攔。
+- 測試：`electron/__tests__/notify-hold-prompt-submit.test.ts`。
+
 #### 不進輸入框的按鍵（T0940 / BUG-227，D406）
 
 兩種情況的按鍵不留在 claude 的輸入框，不再記成草稿；判不出來一律照上表（寧可多保留，不把通知混進使用者打到一半的字）。
