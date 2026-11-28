@@ -2,12 +2,12 @@
 schema_version: 1
 schema_kind: bug
 id: BUG-234
-title: "`0.8.1-pre.2`：BAT 自動恢復（接回終端）後鍵盤無法輸入，Enter 也沒反應；滑鼠右鍵貼上可用；新開的 Codex CLI 分頁一樣；退回 `0.8.1-pre.1` 正常"
+title: "`0.8.1-pre.2`：終端分頁鍵盤無法輸入（自動恢復後與全新啟動後新開的 Claude CLI / Codex CLI 都一樣），Enter 也沒反應；滑鼠右鍵貼上可用；新開的 Codex CLI 分頁一樣；退回 `0.8.1-pre.1` 正常"
 status: FIXING
 severity: high
 reproducibility: "使用者實機（Windows 11，`0.8.1-pre.2` 安裝版）；確切條件待 T0963 查證"
 created_at: "2026-11-28T11:09:41+0800"
-updated_at: "2026-11-28T11:09:41+0800"
+updated_at: "2026-11-28T11:15:15+0800"
 impact:
   - terminal-input
   - regression
@@ -30,6 +30,7 @@ links:
 - 預期：BAT 重開、自動恢復（接回終端）後，分頁照常可用鍵盤輸入。
 - 實際（使用者原話）：「塔台 自動恢復後，鍵盤似乎無法輸入（滑鼠可剪貼簿貼上，但鍵盤 Enter 一樣無反應）；開一個新的 Codex CLI，狀況一樣；目前這則訊息是我退回 -pre.1 才能用」。
 - 也就是：塔台分頁（接回的 claude）與新開的 Codex CLI 分頁都打不了字、Enter 沒反應；滑鼠貼上進得去。
+- 補充（11:15）：全新啟動 BAT、新開 Claude CLI 分頁也一樣（不限於自動恢復）。
 
 ## 線索（塔台整理，未查證）
 
@@ -39,3 +40,4 @@ links:
 ## 修正紀錄
 
 - 2026-11-28 11:09 開單 → FIXING（T0963）
+- 2026-11-28 11:15 使用者補充：「全新啟動 BAT 時，開一個全新 Claude CLI 狀況一樣」⇒ 不限於自動恢復；已寫入 T0963〈塔台補充（執行中 #1）〉

@@ -69,6 +69,14 @@ memory_overrides:
 - [ ] `npm run test:unit` head 第一次全綠；`npx vite build` exit 0；兩個 typecheck = 0
 - [ ] 〈待實機〉步驟；docs 更新
 
+## 塔台補充（執行中 #1）
+
+> 2026-11-28 11:15 (UTC+8)，使用者補充。
+
+- **新事實**：使用者原話「全新啟動 BAT 時，開一個全新 Claude CLI 狀況一樣」。⇒ 不限於自動恢復 / 接回：**全新啟動的 BAT 裡新開的 Claude CLI 分頁也打不了字**。重現與查證請以「全新啟動 → 新開 Claude CLI（以及 Codex CLI）分頁 → 鍵盤輸入與 Enter」為主路徑，自動接回改為次要情境。
+- 推論（未查證，供參考）：新開 agent 分頁走 `holdInputUntilLaunch` → `PtyManager.holdInputForLaunch` → `sendLaunchCommand` / `pty:launch-command` → `writeLaunchCommand` 的路徑（T0951 / T0956），若 launch 命令的放行沒有送到，輸入會一直被保留；滑鼠貼上能進去這點與此推論不完全吻合，請一併比對貼上與鍵盤的路徑差異。
+- 驗收第 4 項改為：本分支打包的隔離實例「全新啟動後新開 Claude CLI / Codex CLI 分頁」與「自動接回後」鍵盤都可用。範圍與其他規則不變。
+
 ---
 
 ## 回報區
