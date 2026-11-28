@@ -4,12 +4,13 @@ schema_kind: workorder
 id: T0984
 title: "交付版 `v0.8.1-pre.6` 自動化驗收（A-28）：未信任資料夾「以塔台開啟 Claude」，信任對話框 Enter 後立刻按鍵，開工回合結束後待辦分頁回答立即送出；以 pre.5 對照"
 type: verification
-status: PENDING
+status: IN_PROGRESS
 repo: better-agent-terminal
 priority: P1
 sizing: M
 created_at: "2026-11-28T20:39:48+08:00"
-updated_at: "2026-11-28T20:39:48+08:00"
+updated_at: "2026-11-28T20:41:05+08:00"
+started_at: "2026-11-28T20:41:05+08:00"
 session_ids: []
 target_version: "0.8.1-pre.6（已發佈）"
 depends_on: []
