@@ -4,7 +4,7 @@ summary_version: 1
 bat_contract: 2
 ct_version: "6.3.0"
 inbox_features: ["recommended", "dismiss", "multi"]
-updated_at: "2026-11-28T15:42:36+0800"
+updated_at: "2026-11-28T15:46:20+0800"
 session: "2026-11-28 11:59 第一百四十 session 塔台重新開工（CT v6.3.0，BAT 0.8.1-pre.3）"
 next_ids:
   workorder: "T0974"
@@ -117,6 +117,7 @@ reminders:
 - 15:35 U-67：A（原生選單）→ `ct-merge/T0971` 再合併 `main`（只多 `_ct-workorders/**`）後 ff，`main` = `6a7b90e8`（產品樹 = `e7804e1d`，未 push）；整合 worktree detach；worktree 解除註冊、目錄刪除失敗（殘留）；BUG-237 FIXED（D502）
 - 15:42 T0970 DONE（pre.4：R1 / R3 / R4 / R5 PASS、**R2 FAIL**；pre.3 R2 對照重現；R4 對照確認 T0966 有效）；收單 `--close-worker --worktree keep` exit 0；BUG-235 退回 FIXING → 重修 T0972（塔台裁示修法 ① 不以契約為前提清草稿，若 draft 有非契約讀者改 ② 宣告時補清）；T0970 合併因 T0971 判準 1 不成立 → 合併工單 T0973（D503）
 - 15:44 T0972 派工（`--isolation worktree`，`started: 07:44:07Z`，分頁 `5bda26b1…`，base `07afa77b`）、T0973 派工（整合 worktree，`started: 07:44:09Z`，分頁 `d98a8bca…`），皆 `--mode yolo --no-interactive --wait-started 30000` exit 0；兩單不重疊
+- 15:46 [提問] T0972 Q-1（方案 ① 要改 T0964 斷言 `notify-hold-prompt-submit.test.ts:149-159`：非契約 2 分頁 submit 後草稿仍在）→ 塔台答 A（採 ①、只改這一條並註明，draft 讀者核對成立）（`--answer --choice 1` exit 0）
 
 ---
 
