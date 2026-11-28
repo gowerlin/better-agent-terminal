@@ -4,52 +4,15 @@ summary_version: 1
 bat_contract: 2
 ct_version: "6.4.0"
 inbox_features: ["recommended", "dismiss", "multi", "menu"]
-updated_at: "2026-11-28T19:02:51+08:00"
+updated_at: "2026-11-28T19:04:38+08:00"
 session: "2026-11-28 17:13 第一百四十一 session 開工（CT v6.4.0，BAT 0.8.1-pre.5）"
 next_ids:
-  workorder: "T0982"
-  decision: "D522"
-  bug: "BUG-238"
+  workorder: "T0984"
+  decision: "D523"
+  bug: "BUG-239"
   plan: "PLAN-071"
   user: "U-79"
   action: "A-29"
-awaiting_user:
-  - id: "U-76"
-    workorder: "T0979"
-    kind: "decision"
-    source: "tower-question"
-    summary: "F4：shell 自己結束後，分頁的 conhost 何時收掉？收掉時仍掛在同一主控台的背景程序會一起結束"
-    options:
-      - "D 關閉（✕）或重啟（⏻）分頁時才收，分頁開著時保留（S–M，要跑 W6）（推薦）"
-      - "A 維持現狀，留到 Terminal Server 結束（每次約 1.6 MB＋13 handle）"
-      - "B 沒有程序掛著才自動收（M，要偵測已結束 shell 的子孫）"
-      - "C shell 結束就立即收（S，背景程序立刻被結束）"
-    recommended: "D"
-    created_at: "2026-11-28T19:02:51+08:00"
-  - id: "U-77"
-    workorder: "T0979"
-    kind: "decision"
-    source: "tower-question"
-    summary: "node-pty kill() 在 shell 已結束後 5 s 對舊 pid 呼叫 process.kill（pid 被重用時可能結束無關程序），怎麼處理？"
-    options:
-      - "A 開 BUG-238，併入 F4 實作單（endPty 改成不經 pty.kill()，同一次 W6）（推薦）"
-      - "B 只開 BUG-238，之後另排"
-      - "C 不處理（機率低，記為已知限制）"
-    recommended: "A"
-    created_at: "2026-11-28T19:02:51+08:00"
-  - id: "U-78"
-    workorder: "T0979"
-    kind: "decision"
-    source: "tower-question"
-    summary: "ct/T0979 的量測腳本與結果（只在 experiments/，7 檔）要併進 main 嗎？main 已前進，需派合併工單"
-    options:
-      - "A 派合併工單併進 main，供實作單驗收重用（推薦）"
-      - "B 不合併，分支 ct/T0979 保留參考"
-    recommended: "A"
-    created_at: "2026-11-28T19:02:51+08:00"
-menu_open:
-  ids: ["U-76", "U-77", "U-78"]
-  opened_at: "2026-11-28T19:02:51+08:00"
 user_actions:
   - id: "A-28"
     title: "下一個預覽版實機：未信任的資料夾「以塔台開啟 Claude」，信任對話框按 Enter 後立刻按鍵，開工回合結束後從待辦分頁回答 → 應立即送出、不進待送"
@@ -57,7 +20,8 @@ user_actions:
     kind: "verify"
     created_at: "2026-11-28T18:15:16+08:00"
 todo:
-  - "🔄 第一百四十一 session（D516，U-72：A、B、C、D）：✅ T0977 DONE、ff 進 `main` `1ae19702`（D517）；✅ T0978 DONE（`f9738360`，D518）→ 合併工單 T0981 DONE、ff 進 `main` `84f96834`（D519）；✅ T0980 DONE、ff 進 `main` `12dce91b`（D520）；✅ T0979 研究 DONE（D521）：① env 差異延後（塔台）、② 併入 F4 實作單、③ F4 待 U-76；pid 重用風險 U-77；量測腳本合併 U-78"
+  - "🔄 第一百四十一 session（D516，U-72：A、B、C、D）：✅ T0977 DONE、ff 進 `main` `1ae19702`（D517）；✅ T0978 DONE（`f9738360`，D518）→ 合併工單 T0981 DONE、ff 進 `main` `84f96834`（D519）；✅ T0980 DONE、ff 進 `main` `12dce91b`（D520）；✅ T0979 研究 DONE（D521）：① env 差異延後（塔台）；U-76：D、U-77：A、U-78：A（D522）→ 合併工單 T0982（量測腳本）已派、F4＋BUG-238＋direct conin 實作單 T0983 等 T0982 ff 後派；T0983 改 `terminal-server.js` → `0.8.1-pre.6` 發版前要跑 W6"
+  - "PLAN-066 後續延後（D521）：`pty:create` 只送 env 差異（省約 3 MB 有上限高水位；之後有其他工單要改協定 / holder 時一起做）"
   - "✅ 第一百四十 session：BUG-234 / 235 / 236 / 237 全部 CLOSED；`v0.8.1-pre.3` / `pre.4` / `pre.5` 發佈；CT 6.4.0 正式版上線、README 對照表已更新；決策日誌收斂（D515）"
   - "候選（未開單，T0965 建議）：只剩選單紀錄（`question` 已被清除）時 Worker 通知仍照舊直接寫入，可能打進開著的選單；待 CT `menu_open`（D484）工單一起評估"
   - "PLAN-066（DONE）後續已開研究單 T0979（D516）。分支：`ct/T0885`（Rust 評估，D307 保留不合併，worktree 保留）、`ct/T0886`（node-pty Worker 研究，未併入 `v0.8.x`，worktree 已移除）"
