@@ -4,12 +4,13 @@ schema_kind: workorder
 id: T0982
 title: "合併 `ct/T0979`（PLAN-066 後續研究的量測腳本與結果，只在 `experiments/`）→ `main`"
 type: chore
-status: PENDING
+status: IN_PROGRESS
 repo: better-agent-terminal
 priority: P3
 sizing: S
 created_at: "2026-11-28T19:04:38+08:00"
-updated_at: "2026-11-28T19:04:38+08:00"
+started_at: "2026-11-28T19:06:52+08:00"
+updated_at: "2026-11-28T19:06:52+08:00"
 target_version: "—（只有 experiments/）"
 kind: merge
 merges:
