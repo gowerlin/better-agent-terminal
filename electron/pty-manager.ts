@@ -8,7 +8,7 @@ import { logger } from './logger'
 import { openHelloConnection, type HelloFailure, type HelloOk, type ServerRequest, type ServerResponse } from './terminal-server/protocol'
 import { readPidFile } from './terminal-server/pid-manager'
 import { readRegistry, clearRegistry } from './terminal-server/pty-registry'
-import { isValidPid, killProcessTree, type KillTreeResult } from './terminal-server/process-tree'
+import { isValidPid, killProcessTree, releaseExitedPty, type KillTreeResult } from './terminal-server/process-tree'
 import { getRuntimeSettingsSnapshot } from './claude-runtime-router'
 import { claudeUpdateGuardEnv } from './claude-resolver'
 import { resolvePtyLocaleEnv } from './pty-locale-env'
@@ -438,6 +438,15 @@ function claudeCliUpdateGuardEnv(agentPreset?: string): Record<string, string> {
 export class PtyManager implements CloseWorkerPtyManager {
   private instances: Map<string, PtyInstance> = new Map()
   private readonly deps: PtyManagerDeps
+  /**
+   * T0983 (PLAN-066 F4 option D, D522), Windows hosts only: ids whose Terminal Server PTY exited by itself. The server
+   * keeps that PTY's conhost until the tab is closed; `kill(id)` then still sends `pty:kill` (a server before T0983
+   * ignores a kill for an id it no longer has, without replying). Cleared by that kill, a new `pty:create` of the id
+   * (the server releases it there) and a recovery (the old server and its conhosts are gone).
+   */
+  private readonly serverExitedIds = new Set<string>()
+  /** T0983: the same for direct mode, with the node-pty object itself (released here, `releaseExitedPty`). */
+  private readonly exitedDirectPtys = new Map<string, unknown>()
 
   // PTY output batching: accumulate data over 16ms windows to reduce IPC overhead
   private outputBuffers: Map<string, string> = new Map()
@@ -903,6 +912,8 @@ export class PtyManager implements CloseWorkerPtyManager {
       logger.log(`[PtyManager] stale exit ignored id=${id} (server has not confirmed the new PTY yet)`)
       return
     }
+    // T0983: exited while still ours (not after a kill) → the server keeps its conhost until the tab closes
+    if (this.instances.has(id) && this.isWindowsPtyHost()) this.serverExitedIds.add(id)
     this.recordExit(id, exitCode)
     this.instances.delete(id)
     this.replayBuffers.delete(id)
@@ -922,6 +933,8 @@ export class PtyManager implements CloseWorkerPtyManager {
       logger.log(`[PtyManager] stale exit ignored id=${id} (replaced by a newer process)`)
       return
     }
+    // T0983 (F4 option D): a node-pty shell that exited by itself keeps its pseudo console until the tab closes
+    if (current && current.process === proc && current.usePty && this.isWindowsPtyHost()) this.exitedDirectPtys.set(id, proc)
     this.recordExit(id, exitCode)
     this.instances.delete(id)
     this.replayBuffers.delete(id)
@@ -1784,6 +1797,8 @@ export class PtyManager implements CloseWorkerPtyManager {
         if (existing && !existing.worktree && worktree) existing.worktree = worktree
         return true
       }
+      // T0983: a server that kept this id's self-exited PTY releases it before the spawn
+      this.serverExitedIds.delete(id)
       this.sendToServer({
         type: 'pty:create',
         id,
@@ -1812,6 +1827,9 @@ export class PtyManager implements CloseWorkerPtyManager {
     // BUG-146: `pty:create`, `pty:restart` and the helper dispatch (T0580) wait for the hold; a
     // caller that does not would still spawn directly, as before T0578
     if (this.createHold) logger.warn(`[BUG-146] pty:create id=${id} spawns directly while creates are held (synchronous caller)`)
+
+    // T0983 (F4 option D): ⏻ / restore of a tab whose shell exited by itself → release that pseudo console first
+    this.releaseExitedDirect(id, 'create')
 
     // Fallback: direct PTY spawn (node-pty or child_process)
     let usedPty = false
@@ -2123,10 +2141,15 @@ export class PtyManager implements CloseWorkerPtyManager {
     }
     if (instance) {
       const pid: number | undefined = instance.process.pid
-      if (instance.usePty) {
-        instance.process.kill()
-      } else {
-        (instance.process as ChildProcess).kill()
+      // T0983 (BUG-238): a Windows node-pty PTY ends tree first (T0540 order), then its pseudo console is released
+      // without node-pty's kill() (which called process.kill on the shell pid 5 s after taskkill ended it).
+      const releaseAfterTree = instance.usePty && this.isWindowsPtyHost()
+      if (!releaseAfterTree) {
+        if (instance.usePty) {
+          instance.process.kill()
+        } else {
+          (instance.process as ChildProcess).kill()
+        }
       }
       // On Windows, kill() only terminates the direct shell process.
       // Use taskkill /T to forcefully terminate the entire process tree.
@@ -2136,6 +2159,7 @@ export class PtyManager implements CloseWorkerPtyManager {
           execFileSync('taskkill', ['/F', '/T', '/PID', String(pid)], { stdio: 'ignore', timeout: 3000, windowsHide: true })
         } catch { /* process may already be gone */ }
       }
+      if (releaseAfterTree) this.releaseDirectPty(id, instance.process, 'kill')
       this.recordExit(id)
       this.instances.delete(id)
       this.replayBuffers.delete(id)
@@ -2143,7 +2167,39 @@ export class PtyManager implements CloseWorkerPtyManager {
       this.notifyPtyExit(id)
       return true
     }
+    // T0983 (F4 option D): ✕ on a tab whose shell exited by itself — nothing is running, so still `false`
+    if (this.useServer && this.serverExitedIds.delete(id)) {
+      this.sendToServer({ type: 'pty:kill', id })
+      logger.log(`[PtyManager] pty:kill id=${id} (exited by itself) → Terminal Server releases its console`)
+    }
+    this.releaseExitedDirect(id, 'kill')
     return false
+  }
+
+  /** T0983: the host of this manager's PTYs is Windows (ConPTY), `deps.hostPlatform` in tests. */
+  private isWindowsPtyHost(): boolean {
+    return (this.deps.hostPlatform ?? process.platform) === 'win32'
+  }
+
+  /** T0983: release the self-exited direct-mode PTY of `id`, if there is one. */
+  private releaseExitedDirect(id: string, cause: 'kill' | 'create'): void {
+    const proc = this.exitedDirectPtys.get(id)
+    if (proc === undefined) return
+    this.exitedDirectPtys.delete(id)
+    this.releaseDirectPty(id, proc, `exited-${cause}`)
+  }
+
+  /**
+   * T0983: `releaseExitedPty` for a direct-mode node-pty object (ClosePseudoConsole, conin — T0979 ② —, its own conout
+   * Worker). Not node-pty 1.1.0's shape → node-pty's `kill()`, the pre-T0983 behaviour, logged.
+   */
+  private releaseDirectPty(id: string, proc: unknown, cause: string): void {
+    const result = releaseExitedPty(proc, 'win32')
+    if (result === 'released') return
+    logger.log(`[PtyManager] release direct PTY id=${id} cause=${cause}: ${result}`)
+    if (result === 'skipped:shape' && cause === 'kill') {
+      try { (proc as { kill?: () => void })?.kill?.() } catch { /* already dead */ }
+    }
   }
 
   /** T0404: kill every PTY this manager runs; returns how many were killed. */
@@ -2331,6 +2387,8 @@ export class PtyManager implements CloseWorkerPtyManager {
       this.stopHeartbeat()
       // T0704: from here on nothing the old server sends is handled
       this.serverGeneration++
+      // T0983: the self-exited PTYs the old server kept end with it
+      this.serverExitedIds.clear()
 
       // Notify renderer: server is recovering
       this.broadcast('terminal-server:status', 'recovering')

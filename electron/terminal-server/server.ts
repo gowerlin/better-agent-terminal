@@ -5,7 +5,7 @@ import * as path from 'path'
 import { RingBuffer } from './ring-buffer'
 import { writePortFile, removePortFile, removePidFile, writeTokenFile, removeTokenFile } from './pid-manager'
 import { addPtyEntry, removePtyEntry, clearRegistry, writeRegistry } from './pty-registry'
-import { defaultKillTreeDeps, killProcessTree, type KillTreeDeps } from './process-tree'
+import { defaultKillTreeDeps, killProcessTree, releaseExitedPty, type KillTreeDeps } from './process-tree'
 import {
   MAX_IDLE_EXTENSION_MS,
   TERMINAL_SERVER_PROTOCOL_MAX,
@@ -140,6 +140,13 @@ interface TcpConnectionState {
  */
 export class TerminalServer {
   private readonly ptys: Map<string, PtyEntry> = new Map()
+  /**
+   * T0983 (PLAN-066 F4 option D, D522): Windows PTYs whose shell exited by itself, by id. Their conhost stays while the
+   * tab still shows `[Process exited …]`; `pty:kill` (✕), a `pty:create` with the same id (⏻, BAT reopening / holder
+   * reattach restoring the tab) and `shutdown` release it (`releaseExitedPty`). Empty on other platforms.
+   */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private readonly exitedPtys: Map<string, any> = new Map()
   private idleTimer: ReturnType<typeof setTimeout> | null = null
   private readonly idleTimeoutMs: number
   private readonly bufferLines: number
@@ -469,6 +476,9 @@ export class TerminalServer {
       return
     }
 
+    // T0983 (F4 option D): the same id restarted / restored after its shell exited by itself → release that one first
+    this.releaseExited(req.id, 'create')
+
     try {
       ensureSharedConout()
       const ptyEnv = buildServerPtyEnv(process.env, req.env)
@@ -541,10 +551,21 @@ export class TerminalServer {
       return
     }
     this.ptys.delete(id)
+    // T0983 (F4 option D): exited by itself → keep its pseudo console until the tab is closed / restarted / rebuilt
+    if (this.deps.platform === 'win32' && current?.pty === proc) this.exitedPtys.set(id, proc)
     // T0113: Remove from registry
     if (this._userDataPath) removePtyEntry(id, this._userDataPath)
     // Broadcast PTY exit to all connected clients
     this.broadcastToAll({ type: 'pty:exit', id, exitCode })
+  }
+
+  /** T0983: release the self-exited PTY of `id`, if there is one (Windows only; one log line, id and result only). */
+  private releaseExited(id: string, cause: 'kill' | 'create' | 'shutdown'): void {
+    const proc = this.exitedPtys.get(id)
+    if (proc === undefined) return
+    this.exitedPtys.delete(id)
+    const result = releaseExitedPty(proc, this.deps.platform)
+    process.stderr.write(`[terminal-server] release exited PTY id=${id} cause=${cause}: ${result}\n`)
   }
 
   private writePty(req: Extract<ServerRequest, { type: 'pty:write' }>): void {
@@ -571,26 +592,38 @@ export class TerminalServer {
       this.ptys.delete(req.id)
       // T0113: Remove from registry
       if (this._userDataPath) removePtyEntry(req.id, this._userDataPath)
+    } else {
+      // T0983 (F4 option D): ✕ on a tab whose shell exited by itself. Unknown ids: nothing, as before (no reply either)
+      this.releaseExited(req.id, 'kill')
     }
   }
 
   /**
    * T0540 (PLAN-042): end a PTY like direct mode (`PtyManager.kill`). On Windows
-   * `taskkill /F /T` ends the whole tree first — `pty.kill()` alone leaves children the
-   * agent started without a console (detached) running — then `pty.kill()` releases the
-   * pseudo console. Elsewhere `pty.kill()` (SIGHUP to the shell) runs right away, as before.
+   * `taskkill /F /T` ends the whole tree first — closing the pseudo console alone leaves children
+   * the agent started without a console (detached) running — then the pseudo console is released.
+   * Elsewhere `pty.kill()` (SIGHUP to the shell) runs right away, as before.
+   * T0983 (BUG-238): on Windows the release is `releaseExitedPty` (ClosePseudoConsole + conin +
+   * conout relay), not node-pty's `kill()`: with the shell already ended by taskkill, `kill()` waited
+   * 5 s for a console list that cannot come and then called `process.kill` on the old shell pid.
+   * Only a PTY object of another shape (not node-pty 1.1.0) still goes through `kill()`, logged.
    */
   private endPty(id: string, entry: PtyEntry): Promise<void> {
-    const killPty = () => { try { entry.pty.kill() } catch { /* already dead */ } }
     if (this.deps.platform !== 'win32') {
-      killPty()
+      try { entry.pty.kill() } catch { /* already dead */ }
       return Promise.resolve()
     }
     return killProcessTree(entry.pid, this.deps).then((result) => {
       if (result !== 'killed') {
         process.stderr.write(`[terminal-server] taskkill tree id=${id} pid=${entry.pid}: ${result}\n`)
       }
-      killPty()
+      const released = releaseExitedPty(entry.pty, this.deps.platform)
+      if (released === 'skipped:shape') {
+        process.stderr.write(`[terminal-server] release PTY id=${id}: skipped:shape — node-pty kill() instead\n`)
+        fallbackNodePtyKill(entry.pty)
+      } else if (released !== 'released') {
+        process.stderr.write(`[terminal-server] release PTY id=${id}: ${released}\n`)
+      }
     })
   }
 
@@ -651,6 +684,8 @@ export class TerminalServer {
 
     const ended = Promise.all([...this.ptys].map(([id, entry]) => this.endPty(id, entry)))
     this.ptys.clear()
+    // T0983: self-exited PTYs whose tab was never closed (their conhost would also end with this process)
+    for (const id of [...this.exitedPtys.keys()]) this.releaseExited(id, 'shutdown')
 
     // Close all TCP connections (clients and not yet authenticated ones) and the TCP server
     for (const [conn, state] of this.tcpStates) {
@@ -679,6 +714,15 @@ export class TerminalServer {
       this.deps.exit(0)
     })
   }
+}
+
+/**
+ * T0983: `endPty`'s last resort on Windows, only for a PTY object `releaseExitedPty` does not recognise (not node-pty
+ * 1.1.0's shape): node-pty's own `kill()`, the pre-T0983 behaviour (BUG-238 applies to this path only).
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function fallbackNodePtyKill(proc: any): void {
+  try { proc.kill() } catch { /* already dead */ }
 }
 
 function isRequestObject(msg: unknown): msg is { type?: unknown; [key: string]: unknown } {

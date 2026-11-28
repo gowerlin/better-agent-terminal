@@ -3,6 +3,12 @@
 // conhost children it keeps. Then N more PTYs are opened and closed with pty:kill (BAT's own close) for comparison.
 //
 //   node experiments/node-pty-worker/t0979/ts-exit-residue.mjs [--count 20] [--flags "--max-semi-space-size=1"] [--out <jsonl>]
+//        [--server <dir with terminal-server.js + shared-conout-worker.cjs>] [--label <text>]
+//
+// T0983: `--server` measures another build of the server (default dist-electron/; a copy elsewhere still resolves
+// @lydell/node-pty through NODE_PATH = this repo's node_modules). Each row also counts the server's
+// conpty_console_list_agent children (node-pty `kill()` forks one per closed tab and waits up to 5 s, BUG-238), and
+// `bat-kill+1s` samples them 1 s after the BAT-side closes.
 //
 // No BAT_USER_DATA (no pid / port / token / registry file). BAT_* / CT_* removed from the server env. Ends with
 // `server:shutdown`. Output: numbers and process names only.
@@ -18,9 +24,11 @@ const arg = (name, def) => { const i = args.indexOf(`--${name}`); return i >= 0 
 const COUNT = Number(arg('count', '20'))
 const FLAGS = arg('flags', '--max-semi-space-size=1').split(' ').filter(Boolean)
 const OUT = arg('out', '')
-const env = { ...process.env, ELECTRON_RUN_AS_NODE: '1' }
+const SERVER_DIR = path.resolve(arg('server', path.join(ROOT, 'dist-electron')))
+const LABEL = arg('label', path.basename(SERVER_DIR))
+const env = { ...process.env, ELECTRON_RUN_AS_NODE: '1', NODE_PATH: path.join(ROOT, 'node_modules') }
 for (const k of Object.keys(env)) if (k.startsWith('BAT_') || k.startsWith('CT_')) delete env[k]
-const ts = fork(path.join(ROOT, 'dist-electron', 'terminal-server.js'), [], {
+const ts = fork(path.join(SERVER_DIR, 'terminal-server.js'), [], {
   execPath: path.join(ROOT, 'node_modules', 'electron', 'dist', 'electron.exe'), execArgv: FLAGS, env, stdio: ['ignore', 'ignore', 'ignore', 'ipc'],
 })
 const sleep = (ms) => new Promise(r => setTimeout(r, ms))
@@ -48,13 +56,14 @@ function sample() {
   const out = execFileSync('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command',
     `$p = Get-Process -Id ${ts.pid}; $c = @(Get-CimInstance Win32_Process -Filter "ParentProcessId=${ts.pid}"); ` +
     `$h = @($c | Where-Object Name -eq 'conhost.exe'); $ws = 0; foreach ($x in $h) { $ws += $x.WorkingSetSize }; ` +
-    `'{0}|{1}|{2}|{3}|{4}|{5}' -f [math]::Round($p.PrivateMemorySize64/1MB,1), $p.HandleCount, $p.Threads.Count, $h.Count, [math]::Round((($h | Measure-Object PrivatePageCount -Sum).Sum)/1MB,1), [math]::Round($ws/1MB,1)`],
+    `$a = @($c | Where-Object { $_.CommandLine -like '*conpty_console_list_agent*' }); ` +
+    `'{0}|{1}|{2}|{3}|{4}|{5}|{6}' -f [math]::Round($p.PrivateMemorySize64/1MB,1), $p.HandleCount, $p.Threads.Count, $h.Count, [math]::Round((($h | Measure-Object PrivatePageCount -Sum).Sum)/1MB,1), [math]::Round($ws/1MB,1), $a.Count`],
   { encoding: 'utf8', timeout: 60_000, windowsHide: true }).trim().split('|').map(Number)
-  const [privMB, handles, threads, conhosts, conhostPrivMB, conhostWsMB] = out
-  return { privMB, handles, threads, conhosts, conhostPrivMB, conhostWsMB }
+  const [privMB, handles, threads, conhosts, conhostPrivMB, conhostWsMB, consoleListAgents] = out
+  return { privMB, handles, threads, conhosts, conhostPrivMB, conhostWsMB, consoleListAgents }
 }
 const rows = []
-const row = (step) => { const r = { step, count: COUNT, serverPid: ts.pid, ...sample(), at: new Date().toISOString() }; rows.push(r); console.log(JSON.stringify(r)) }
+const row = (step) => { const r = { label: LABEL, step, count: COUNT, serverPid: ts.pid, ...sample(), at: new Date().toISOString() }; rows.push(r); console.log(JSON.stringify(r)) }
 try {
   await sleep(2000)
   row('start')
@@ -65,14 +74,16 @@ try {
   await until(() => [...Array(COUNT)].every((_, i) => exits.has(`e${i + 1}`)))
   await sleep(10_000)
   row('natural-exit+10s')
-  for (let i = 1; i <= COUNT; i++) ts.send({ type: 'pty:kill', id: `e${i}` }) // what BAT sends when the exited tab is closed: nothing happens
+  for (let i = 1; i <= COUNT; i++) ts.send({ type: 'pty:kill', id: `e${i}` }) // ✕ on the exited tabs (T0983: the host sends it; before T0983 it sent nothing and the server did nothing)
   await sleep(3000)
   row('kill-after-exit')
   for (let i = 1; i <= COUNT; i++) await open(`k${i}`)
   await sleep(3000)
   row('open-2')
   for (let i = 1; i <= COUNT; i++) ts.send({ type: 'pty:kill', id: `k${i}` })
-  await sleep(12_000)
+  await sleep(1000)
+  row('bat-kill+1s')
+  await sleep(11_000)
   row('bat-kill+12s')
 } finally {
   ts.send({ type: 'server:shutdown' })
