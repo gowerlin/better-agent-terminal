@@ -4,7 +4,7 @@ summary_version: 1
 bat_contract: 2
 ct_version: "6.3.0"
 inbox_features: ["recommended", "dismiss", "multi"]
-updated_at: "2026-11-28T16:52:25+0800"
+updated_at: "2026-11-28T17:03:22+0800"
 session: "2026-11-28 11:59 第一百四十 session 塔台重新開工（CT v6.3.0，BAT 0.8.1-pre.3）"
 next_ids:
   workorder: "T0977"
@@ -14,7 +14,7 @@ next_ids:
   user: "U-72"
   action: "A-28"
 todo:
-  - "✅ CT 6.4.0：HR-1 判定 CT 端全部 PASS（CT T0586、CT D936），BAT 不需再改；CT 正式版發布方式待 CT U-12，定了會通知（更新 BAT README 對照表）（D511）"
+  - "✅ CT 6.4.0 正式版上線（CT D939），BAT README 對照表已改 `>= v6.4.0`"
   - "✅ BUG-235 / BUG-237 CLOSED（`v0.8.1-pre.5` 實機 A-27，D514）；熱區未結 BUG 0"
   - "✅ T0973（T0970 e2e 驅動）合併進 `main` `8de1e2d1`（D505）"
   - "✅ BUG-236 CLOSED（D496）"
@@ -133,6 +133,7 @@ reminders:
 - 16:46 三文件 commit＋記帳 push（`87c90e8a`，去識別 0 命中）；Pages run `46127330197` build / link-check / deploy 全 success（link-check 1700 / 0 errors），網站首頁版號 `0.8.1-pre.5`
 - 16:50 使用者：A-27：完成 → BUG-235 / BUG-237 CLOSED；熱區未結 BUG 0（D514）
 - 16:52 使用者「封存舊決策」→ 依 CT § 收斂：D186～D425 原文搬到 `_archive/decisions/_decision-log-D186-D425.md`（235 筆），🔴 5 筆留熱檔，索引 469 列不動；熱檔 457,966 → 204,070 bytes（D515）
+- 17:03 CT 塔台：CT 6.4.0 正式版上線（CT T0588 / CT D939，Release `ct-v6.4.0` 16:57:36 +08:00，Latest；Portal / marketplace 6.4.0；CT BUG-006 結案、CT PLAN-022 結案）→ BAT README 版本對照 `>= v6.4.0-pre.1` 改 `>= v6.4.0`（選單交接需要 BAT ≥ 0.8.1-pre.4，其他門檻不變）
 
 ---
 
