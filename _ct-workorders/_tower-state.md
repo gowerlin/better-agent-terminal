@@ -4,7 +4,7 @@ summary_version: 1
 bat_contract: 2
 ct_version: "6.3.0"
 inbox_features: ["recommended", "dismiss", "multi"]
-updated_at: "2026-11-28T13:19:32+0800"
+updated_at: "2026-11-28T13:21:30+0800"
 session: "2026-11-28 11:59 第一百四十 session 塔台重新開工（CT v6.3.0，BAT 0.8.1-pre.3）"
 next_ids:
   workorder: "T0969"
@@ -88,6 +88,7 @@ reminders:
 - 13:14 CT 塔台：T0582 DONE（CT D927），傳 `menu_open` 規範位置（CT `7fee085`）、4 個範例狀態檔、CT 補定三點 → 開 T0968（D492）
 - 13:15 T0968 派工 `--mode yolo --no-interactive --isolation worktree --wait-started 30000` exit 0，`started: 05:15:09Z`，分頁 `2faa9bd8…`，worktree `ct/T0968` base `dada34d9`
 - 13:19 [提問] T0968 Q-1（`tower-inbox:answer` 相加參數需改 `electron/preload.ts`）→ 塔台答 A（允許，只改那一行、補進 affects_files）；Q-2（提示行的「只剩選單紀錄」renderer 拿不到）→ 塔台答 A（只看 attention 的 `question`，只剩紀錄時不提示、寫已知限制）；兩題 `--answer --choice 1` exit 0
+- 13:21 [提問] T0968 Q-3（T0965 測試 `notify-hold-question-menu.test.ts:228` 斷言「只剩選單紀錄時 Worker 通知直接送出」與本單要求相反）→ 塔台答 A（只改這一條、註明 T0968 依 D492 改變行為，其他斷言不動）（`--answer --choice 1` exit 0）
 
 ---
 
