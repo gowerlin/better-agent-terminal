@@ -136,6 +136,7 @@ reminders:
 - 16:22 CT 塔台：CT T0586 判定 HR-1 全部 PASS（CT D936），3 點觀察 CT 不改、BAT 不需再改，CT PLAN-022 P2 完成 → U-71 的條件成立，開始發 `0.8.1-pre.5`（D511）
 - 16:23 push `main` `458a903c`（去識別＋金鑰 63 commits 0 命中）→ `pre-release.yml -f version=0.8.1-pre.5` run `46125573705`；使用者「A-26：略過 等 0.8.1-pre.5 一起驗」→ A-26 略過（不算失敗），pre.5 發佈後另開驗收項（D512）；CT 塔台：CT 6.4.0 正式版發布中（CT U-12：A、CT T0587 → T0588），上線後通知時間與連結
 - 16:45 `v0.8.1-pre.5` 發佈（Pre-Release `46125573705` success，`458a903c`，2026-11-28 08:43:29Z；資產 4 個＋`server-bundle-v0.8.1-pre.5`）；`gh release edit --notes-file` 改寫更版重點；CHANGELOG / release-note / README / package 版號更新；A-27 待你實機（D513）
+- 16:47 三文件 commit＋記帳 push（`87c90e8a`，去識別 0 命中）；Pages run `46127330197` build / link-check / deploy 全 success（link-check 1700 / 0 errors），網站首頁版號 `0.8.1-pre.5`
 
 ---
 
