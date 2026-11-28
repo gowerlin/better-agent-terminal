@@ -4,22 +4,20 @@ summary_version: 1
 bat_contract: 2
 ct_version: "6.4.0"
 inbox_features: ["recommended", "dismiss", "multi", "menu"]
-updated_at: "2026-11-28T17:13:32+0800"
+updated_at: "2026-11-28T18:01:29+08:00"
 session: "2026-11-28 17:13 第一百四十一 session 開工（CT v6.4.0，BAT 0.8.1-pre.5）"
 next_ids:
-  workorder: "T0977"
-  decision: "D516"
+  workorder: "T0981"
+  decision: "D517"
   bug: "BUG-238"
   plan: "PLAN-071"
-  user: "U-72"
+  user: "U-73"
   action: "A-28"
 todo:
+  - "🔄 第一百四十一 session（D516，U-72：A、B、C、D）：T0977（asar 讀不足判失敗）、T0978（啟動參數回合不套 2 s Enter 窗）、T0979（研究：PLAN-066 三項後續）並行派工；T0980（檔案連結跟 `fs:changed` 重查）等 T0978 合併後派（同改 `tower-inbox.md`）"
   - "✅ 第一百四十 session：BUG-234 / 235 / 236 / 237 全部 CLOSED；`v0.8.1-pre.3` / `pre.4` / `pre.5` 發佈；CT 6.4.0 正式版上線、README 對照表已更新；決策日誌收斂（D515）"
   - "候選（未開單，T0965 建議）：只剩選單紀錄（`question` 已被清除）時 Worker 通知仍照舊直接寫入，可能打進開著的選單；待 CT `menu_open`（D484）工單一起評估"
-  - "候選（未開單，T0930 建議）：`useInboxFileRefs` 跟 `_ct-workorders/` 的 `fs:changed` 重查（💬 卡片連結已由 T0934 完成）"
-  - "候選（未開單，T0924 建議）：`scripts/verify-packaged-native.js` `readAsarFile` 不檢查 `fs.readSync` 回傳位元組數，截斷的 app.asar 會被讀成 NUL 而不報錯；改成讀不足判失敗（檢查變嚴）"
-  - "候選（未開單，T0972 Q-2）：claude 信任對話框的 Enter 後 2 s 內按的鍵，啟動參數回合送出後仍被 2 s Enter 保護窗留成草稿（已信任工作區不受影響）"
-  - "PLAN-066（DONE）後續候選（未開單）：`pty:create` 只送 env 差異（`pty-manager.ts`＋Terminal Server 協定）可再降 C2①；direct 模式的 conin socket 殘留；F4（自然結束的 conhost 留到 server 結束）。分支：`ct/T0885`（Rust 評估，D307 保留不合併，worktree 保留）、`ct/T0886`（node-pty Worker 研究，未併入 `v0.8.x`，worktree 已移除）"
+  - "PLAN-066（DONE）後續已開研究單 T0979（D516）。分支：`ct/T0885`（Rust 評估，D307 保留不合併，worktree 保留）、`ct/T0886`（node-pty Worker 研究，未併入 `v0.8.x`，worktree 已移除）"
   - "PLAN-065 剩餘：per-machine 未提權互動升級（UAC）手動驗收（無法自動化）；降級到 `0.7.4-pre.9` 會結束所有終端且沒有說明（已寫在更版重點〈已知事項〉）"
   - "PLAN-052（IN_PROGRESS）：待 Docker Desktop（Windows / macOS）實機走精靈；後續候選（未開單）：fetch-fingerprint Docker 分支比對憑證指紋、`scripts/docker-acceptance.mjs` 純函式單元測試"
   - "PLAN-058：T0819 安裝版 pre.5 假 API e2e PASS，待使用者手動確認（清單在 T0819 回報區）；可選後續：卡片等待時讓輸入框可送出（T0815〈遭遇問題〉1，未開單）"
