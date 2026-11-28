@@ -198,6 +198,16 @@ node e2e/manual/ct-accept-watch.mjs C:/Users/demo/accept/runs/S1/_ct-workorders/
 - 選單開著時模擬 Worker 通知：在 renderer 以 `window.electronAPI.pty.create({ id, cwd, type: 'terminal', workspaceId, customEnv: { BAT_TOWER_TERMINAL_ID: <塔台分頁 id> } })` 開一個不掛進分頁列的 PTY（主行程發 worker 權杖，日誌 `[helper-cap] issued: terminal=<id> role=worker tower=<塔台>`），再以 `pty.write` 在裡面執行 `node "$env:BAT_HELPER_DIR/bat-notify.mjs" --source T9999 --target $env:BAT_TOWER_TERMINAL_ID --submit "T9999 完成"`。含引號的 `eval` 寫成 JSON 檔，用 `ct610-ctl.mjs <name> @<檔>` 送。
 - 右側欄收合時「待辦」是 `.right-sidebar-collapsed-btn[title="待辦"]`（`.right-sidebar-tab` 在收合時不可見）。
 
+T0970（交付版 `v0.8.1-pre.4` A-26 驗收，BUG-235）加了 `input`：以分頁自己的鍵盤路徑（`terminal.input(data, true)`，與按鍵同一條 `onData` → `pty:write`）送一段原始按鍵序列，參數是 JSON 字串。
+
+```powershell
+node e2e/manual/ct-accept-act.mjs input s1 <id> '"\u001b[24~"'   # F12：會被 BAT 判成草稿（`draft set … cause=csi~:24`），claude 不收
+```
+
+- 「在啟動參數的回合送出前按一個鍵」：新資料夾的 claude 會先問要不要信任資料夾，按 Enter 後約 0.4～0.9 s 就送出 `/control-tower`（`user-prompt-submit`），逐支呼叫腳本來不及。做法：等畫面出現 `Yes, I trust this folder`，`key … ArrowDown` 移到「Yes」，再用一次 `eval` 依序 `terminal.input('\r', true)`、等 150 ms、`terminal.input('\x1b[24~', true)`（兩次寫入；同一次寫入 `"\r\x1b[24~"` 時草稿狀態正確，但日誌的 `draft set` 只有前一個 ↓ 那一行）。
+- 待辦分頁回答的 submit Enter（`pty:write` 的 `{ submit: true }`）算使用者輸入，送出時本身就會清掉草稿；所以回答（含「立即送出」）送出之後，下一筆回答不會再被同一個草稿擋住，pre.3 也一樣。
+- 測試視窗出現在桌面上，驗收期間有人在視窗裡按鍵會混進日誌（T0970 B2：驅動送鍵之前就有一筆 `draft set … cause=csi:B`、信任對話框已被通過）；看到驅動沒送的輸入就作廢該次、另開新副本重跑。
+
 ### 已知限制
 
 - AskUserQuestion 選單出現後立刻按 Esc（約 0.1 秒內）時，較晚到的 `PermissionRequest` hook 會在「使用者輸入清除」之後把分頁設回 `question`，直到下一次按鍵（T0923 回報區 BUG 建議，BUG-224）。`0.8.0-exp.2` 起已修（T0926）；測更早的版本時，驅動選單先等幾秒再按 Esc。
