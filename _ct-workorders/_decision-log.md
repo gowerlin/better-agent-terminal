@@ -10,6 +10,7 @@
 
 | ID | 日期 | 標題 | 相關工單 |
 |----|------|------|---------|
+| D495 | 2026-11-28 | CT T0583 收單 → 開 T0969：CT 6.4.0-pre.1 × BAT pre.4 / pre.3 雙方驗收（H-1～H-14） | T0969 / BUG-236 |
 | D494 | 2026-11-28 | U-63：A、U-64：A → T0968 ff `b2edf438`；`v0.8.1-pre.4` 發佈；A-26 實機確認 | T0968 / BUG-235 / BUG-236 |
 | D493 | 2026-11-28 | T0968 收單（`4dea180c`）；模式 ① `8b3e9ec9`；斷點 E 發 U-63、發 `0.8.1-pre.4` 發 U-64 | T0968 / BUG-236 |
 | D492 | 2026-11-28 | CT T0582 DONE（6.4.0-pre.1）→ 開 T0968 讀 `menu_open`（含選單紀錄開著時保留 Worker 通知） | T0968 / BUG-236 |
@@ -612,6 +613,14 @@
   4. PLAN-001 保持延後（🟢 Low，等 plugin 1.0 穩定）
 - **Success criteria**（EXP→CONCLUDED）：npm install 無錯 / 所有 native modules rebuild 成功 / dev+build:dir 可跑 / 手動 smoke test 8 項通過
 - **最大風險**：`whisper-node-addon@1.0.2` 對 Electron 41（Node 24）的 NODE_MODULE_VERSION 相容性未知，允許 Worker 遇此決策點主動問塔台
+
+---
+
+### D495 2026-11-28 14:19 — 開 T0969（CT 6.4.0-pre.1 雙方驗收）
+
+- **來源**：跨 session 訊息（`BMad-Guide · Tower`）：CT T0583 收單（CT D930），驗收環境與清單備妥：`ACC/checklist-640.md`（50592 bytes，SHA-256 `9c7dd279…`）、`ct-swap-640.py`（`d2d7798d…`）、CFG manifest、分組 S1–S4、注意事項（menu 開著時擷取狀態檔、不點塔台終端、Esc 一次、pre.3 的 BUG-235 卡 60 s 按立即送出）。塔台核對兩檔雜湊相符；Release digest：pre.4 `a475808e…`、pre.3 `992e9c78…`、0.8.0-pre.8 `b0cbfd13…`。
+- **T0969**：照 T0939 格式；順序 S1 → S3 → S4 → S2；BAT 端另列 T0965 / T0968〈待實機〉對照（Esc 後輸入框、選單開著時的輸出、不在 ids 的保留、提示行、降級）。CT 判定欄留空，收單後通知 CT 塔台開判定單。
+- **相關**：D494 / BUG-236 / T0965 / T0968 / T0939
 
 ---
 

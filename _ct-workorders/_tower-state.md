@@ -4,11 +4,11 @@ summary_version: 1
 bat_contract: 2
 ct_version: "6.3.0"
 inbox_features: ["recommended", "dismiss", "multi"]
-updated_at: "2026-11-28T14:06:36+0800"
+updated_at: "2026-11-28T14:19:41+0800"
 session: "2026-11-28 11:59 第一百四十 session 塔台重新開工（CT v6.3.0，BAT 0.8.1-pre.3）"
 next_ids:
-  workorder: "T0969"
-  decision: "D495"
+  workorder: "T0970"
+  decision: "D496"
   bug: "BUG-237"
   plan: "PLAN-071"
   user: "U-65"
@@ -20,7 +20,7 @@ user_actions:
     kind: "verify"
     created_at: "2026-11-28T14:01:43+08:00"
 todo:
-  - "CT 協調（D482–D494）：BAT `0.8.1-pre.4` 讀 CT 6.4.0-pre.1 `menu_open`；CT PLAN-022 P2 聯合驗收（CT U-11：A、CT D929）準備單 CT T0583 派工中 → 收單後 CT 塔台傳 checklist-640.md 路徑、分組 S1–S4、`ct-swap-640.py` 指令與 SHA-256 → BAT 照 T0939 格式開聯合驗收單"
+  - "CT 6.4.0-pre.1 × BAT `0.8.1-pre.4` 雙方驗收 T0969（CT `checklist-640.md` H-1～H-14，S1→S3→S4→S2）派工中；收單後通知 CT 塔台開判定單（D495）"
   - "🟡 BUG-235（medium，FIXED）：隨 `v0.8.1-pre.4` 發佈（D494），A-26 實機確認後 CLOSED（再發生時看 `[notify-hold] draft set … cause=`）"
   - "🟡 BUG-236（medium，FIXED）：T0965 / T0968 隨 `v0.8.1-pre.4` 發佈（D494），A-26 實機確認後 CLOSED（T0965 / T0968〈待實機〉）"
   - "候選（未開單，T0965 建議）：只剩選單紀錄（`question` 已被清除）時 Worker 通知仍照舊直接寫入，可能打進開著的選單；待 CT `menu_open`（D484）工單一起評估"
@@ -99,6 +99,7 @@ reminders:
 - 13:35 U-63：A、U-64：A → T0968 ff，`main` = `b2edf438`；去識別＋金鑰掃描（推送範圍 56 commits）0 命中 → push `main` → `pre-release.yml -f version=0.8.1-pre.4` run `46112814137` success；14:00 `v0.8.1-pre.4` 發佈（資產 4 個＋`server-bundle-v0.8.1-pre.4`），更版重點已改寫；A-26 待你實機（D494）
 - 14:05 三文件 commit `f8e06829`＋記帳 `f09fdb0a` push；Pages run `46114762760` build / link-check / deploy 全 success（link-check 1695 / 0 errors），網站首頁版號 `0.8.1-pre.4`；已通知 CT 塔台版號
 - 14:06 CT 塔台：CT 使用者核定 PLAN-022 P2 照 6.3.0 做法驗收（CT U-11：A、D929），準備單 CT T0583 派工（`ct620-accept/` 換 6.4.0-pre.1、`ct-swap-640.py`、`checklist-640.md` H-1～H-14 分 S1–S4）；BAT 最低版號 `0.8.1-pre.4` 已記入 CT PLAN-022；收單後傳資料，BAT 照 T0939 格式開驗收單
+- 14:19 CT 塔台：CT T0583 DONE（CT D930），傳 `checklist-640.md`（SHA-256 `9c7dd279…`）、分組 S1–S4、`ct-swap-640.py`（`d2d7798d…`）指令、注意事項；塔台核對兩檔雜湊相符、取 pre.4 / pre.3 / 0.8.0-pre.8 win.zip 的 Release digest → 開 T0969（D495）
 
 ---
 
