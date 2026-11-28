@@ -182,3 +182,4 @@ T0964 回報：使用者自己從待辦分頁送出、被保留的回答，會�
 
 - 2026-11-28 12:43 (UTC+8) 收單：DONE 確認（`validated_sha` = `head` = `737a378c`；`--worktree-status` 五條全成立：`main` 自 base 只多 `_ct-workorders/**`、`outOfScopeFiles` 空（含 Q-1 補的兩檔）、`conflicts` 空、`dirty` 空）。`--close-worker --delay-ms 10000 --worktree keep` exit 0。
 - 模式 ①：整合 worktree `ct-merge/T0966` = `d76ec16e`（parent1 `6031a363` = 當下 `main`、parent2 `737a378c`；產品樹與 `737a378c` 相同）。斷點 E → U-60（D483）。後續建議「T0965 新原因值補 `notifyHoldReasonKey`」已寫進 T0965〈塔台補充（執行中 #1）〉；CLAUDE.md 補一句留到發版前一併處理。
+- 2026-11-28 12:46 (UTC+8) U-60：A → `ct-merge/T0966` 再合併 `main` 後 ff：`main` = `64b39176`，產品樹 = `737a378c`；整合 worktree detach；worktree 手動移除；分支 `ct/T0966`、`ct-merge/T0966` 保留（D485）。

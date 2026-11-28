@@ -10,6 +10,7 @@
 
 | ID | 日期 | 標題 | 相關工單 |
 |----|------|------|---------|
+| D485 | 2026-11-28 | U-60：A → T0966 ff 進 `main` `64b39176` | T0966 |
 | D484 | 2026-11-28 | CT 塔台受理選單 HANDOVER（DRAFT 待 CT U-10）：`menu_open`、不重開、`inbox_features: menu`，CT 6.4.0 | T0965 / BUG-236 |
 | D483 | 2026-11-28 | T0966 收單（`737a378c`）；模式 ① `d76ec16e`；斷點 E 發 U-60；T0965 補充 #1 | T0966 / T0965 |
 | D482 | 2026-11-28 | 協調 CT 塔台：HANDOVER 選單與待辦分頁作答的 CT 配合點（C-1–C-4）；T0965 不改範圍 | T0965 / BUG-236 |
@@ -602,6 +603,15 @@
   4. PLAN-001 保持延後（🟢 Low，等 plugin 1.0 穩定）
 - **Success criteria**（EXP→CONCLUDED）：npm install 無錯 / 所有 native modules rebuild 成功 / dev+build:dir 可跑 / 手動 smoke test 8 項通過
 - **最大風險**：`whisper-node-addon@1.0.2` 對 Electron 41（Node 24）的 NODE_MODULE_VERSION 相容性未知，允許 Worker 遇此決策點主動問塔台
+
+---
+
+### D485 2026-11-28 12:46 — U-60：A → T0966 ff
+
+- **使用者**：`U-60：A`（終端文字）。U-60 移除。
+- **合併**：`main` 自 parent1 `6031a363` 起只多 `_ct-workorders/**` → 整合分支再 `--no-ff` 合併 `main` 後 ff；`main` = `ct-merge/T0966` = `64b39176`，產品樹 = `validated_sha` `737a378c`；整合 worktree detach；`--close-worker --worktree remove` exit 3（分頁已關）→ 手動 `worktree remove`（乾淨）；`ct/T0966`、`ct-merge/T0966` 保留。未 push。
+- **後續**：T0965 進行中；收單時 `main` 已有 T0966 的產品改動，依 `--worktree-status` 第 1 條判斷，多半派合併工單（模式 ②）。
+- **相關**：T0966 / D483
 
 ---
 
