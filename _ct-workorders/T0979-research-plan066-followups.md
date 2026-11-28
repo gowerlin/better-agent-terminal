@@ -4,13 +4,15 @@ schema_kind: workorder
 id: T0979
 title: "研究：PLAN-066 三項後續（`pty:create` 只送 env 差異、direct 模式 conin socket 殘留、F4 自然結束的 conhost 殘留）——量測現況、評估修法與風險，提出可派的實作工單"
 type: research
-status: PENDING
+status: IN_PROGRESS
 repo: better-agent-terminal
 priority: P3
 sizing: M
 created_at: "2026-11-28T18:01:29+08:00"
-updated_at: "2026-11-28T18:01:29+08:00"
-session_ids: []
+updated_at: "2026-11-28T18:04:30+08:00"
+started_at: "2026-11-28T18:04:30+08:00"
+session_ids:
+  - "c9478b00-e96d-4c53-8ea6-ba3e031db080"
 target_version: "—（研究，不改產品）"
 depends_on: []
 related:
