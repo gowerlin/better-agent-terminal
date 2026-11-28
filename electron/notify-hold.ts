@@ -103,9 +103,10 @@ import type {
   NotifyHoldReason,
   NotifyHoldReminderEvent,
   TowerInboxAnswerResult,
+  TowerInboxMenuHintResult,
 } from '../src/types/notify-hold'
 import { towerContractStatus } from '../src/lib/tower-contract'
-import { checkInboxAnswer, checkInboxMenuInfo, inboxAnswerIds, inboxAnswerLogIds, parseCtTime, type InboxMenuInfo } from '../src/lib/tower-inbox'
+import { checkInboxAnswer, checkInboxMenuInfo, inboxAnswerIds, inboxAnswerLogIds, parseCtTime, type InboxMenuInfo, type MenuOpen } from '../src/lib/tower-inbox'
 import {
   NO_DRAFT,
   SingleKeyPromptScanner,
@@ -616,6 +617,31 @@ export class NotifyHoldController {
    */
   isPromptShown(id: string): boolean {
     return this.promptReason(id) !== null || (this.questionMenuOpen(id) && this.isContractTower(id))
+  }
+
+  /**
+   * T0971 / BUG-237: the inbox hint line (proxied `tower-inbox:menu-hint`, read only) — which `U-n` of `menu`
+   * BAT would close tab `id`'s menu for, were the answer held now: `considerMenuEsc`'s conditions without its
+   * waits (draft, input / output quiet) — a contract-2 Tower that shows `question` (`via: 'question'`) or whose
+   * menu record alone is open (`via: 'menu'`), and `menuEscDecision` = `esc` for that id. `via: null` = no
+   * menu BAT could close (then `ids` is empty). Changes nothing.
+   */
+  menuEscPreview(id: string, menu: MenuOpen): { ids: string[]; via: 'question' | 'menu' | null; decision: MenuEscDecision | 'no-menu' } {
+    const pm = this.deps.getPtyManager()
+    if (this.disposed || !pm || !pm.isAlive(id) || !pm.closeQuestionMenu || !this.isContractTower(id)) return { ids: [], via: null, decision: 'no-menu' }
+    const prompt = this.promptReason(id)
+    const via = prompt === 'question' ? 'question' : prompt === null && this.questionMenuOpen(id) ? 'menu' : null
+    if (!via) return { ids: [], via: null, decision: 'no-menu' }
+    const recordOpenedAt = pm.getQuestionMenuOpenedAt?.(id) ?? null
+    let decision: MenuEscDecision | 'no-menu' = 'no-menu'
+    const ids: string[] = []
+    for (const answerId of menu.ids) {
+      // the same decision an answer `U-n：…` gets in considerMenuEsc (one id per call)
+      const one = menuEscDecision(menu, `${answerId}：-`, recordOpenedAt)
+      if (decision === 'no-menu' || one === 'esc') decision = one
+      if (one === 'esc') ids.push(answerId)
+    }
+    return { ids, via, decision }
   }
 
   /**
@@ -1280,6 +1306,39 @@ export function registerTowerInboxAnswerHandler(opts: {
     // PLAN-069 / T0922: a batch line logs its first id and the id count (`id=U-1 ids=3`); one id as before
     opts.logger.log(`[tower-inbox] answer terminal=${terminalId} ${inboxAnswerLogIds(text)} len=${text.length} → ${result.ok ? (result.held ? 'held' : 'sending') : result.reason}`)
     return result
+  })
+}
+
+export const TOWER_INBOX_MENU_HINT_CHANNEL = 'tower-inbox:menu-hint'
+
+/**
+ * T0971 / BUG-237: `tower-inbox:menu-hint { terminalId, menu }` — read only, for the Inbox hint line
+ * 「塔台正以選單詢問此題：在這裡回答會先關掉選單」: which `U-n` of the Tower's `menu_open` (`menu`, the object
+ * `inboxMenuInfo` builds) BAT would close the menu for (`menuEscPreview`, i.e. `menuEscDecision` — the one
+ * implementation; the window never compares the times itself). Proxied like `tower-inbox:answer`; a bat-server
+ * before T0971 rejects with `No handler for channel` (the window falls back to T0968's `question` rule).
+ * 🔴 Not in `HELPER_CHANNEL_ROLES`, and a helper capability is refused here too (`FORBIDDEN`). Called again on
+ * every change the window sees, so nothing is logged for an answered call.
+ */
+export function registerTowerInboxMenuHintHandler(opts: {
+  registerHandler: RegisterHandler
+  getNotifyHold: () => Pick<NotifyHoldController, 'menuEscPreview'> | null
+  logger: { log(message: string): void }
+}): void {
+  // literal channel name: the IPC binding guard scans for it (proxied-channels-binding.test.ts)
+  opts.registerHandler('tower-inbox:menu-hint', (ctx: HandlerContext, raw?: unknown): TowerInboxMenuHintResult => {
+    if (ctx?.helper) {
+      opts.logger.log(`[tower-inbox] menu-hint refused: helper capability terminal=${ctx.helper.terminalId}`)
+      return { ok: false, reason: 'FORBIDDEN' }
+    }
+    const args = raw && typeof raw === 'object' && !Array.isArray(raw) ? raw as Record<string, unknown> : null
+    const terminalId = args?.terminalId
+    if (!args || typeof terminalId !== 'string' || !terminalId || terminalId.length > 256) return { ok: false, reason: 'INVALID_ARGS' }
+    const menu = checkInboxMenuInfo(args.menu)
+    if (!menu || menu === 'invalid') return { ok: false, reason: 'INVALID_ARGS' }
+    const controller = opts.getNotifyHold()
+    if (!controller) return { ok: false, reason: 'unavailable' }
+    return { ok: true, ...controller.menuEscPreview(terminalId, menu) }
   })
 }
 

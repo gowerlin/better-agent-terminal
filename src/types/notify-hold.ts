@@ -66,3 +66,15 @@ export interface NotifyHoldReminderEvent {
 export type TowerInboxAnswerResult =
   | { ok: true; held: boolean; holdId: string }
   | { ok: false; reason: 'invalid' | 'pty-not-found' | 'not-contract-tower' | 'held-full' | 'FORBIDDEN' | 'INVALID_ARGS' | 'unavailable' }
+
+/**
+ * T0971 / BUG-237: what `tower-inbox:menu-hint { terminalId, menu }` answers (electron/notify-hold.ts
+ * `registerTowerInboxMenuHintHandler`, read only). `ids` = the `U-n` of `menu` whose answer BAT would close the
+ * Tower's open menu for (`NotifyHoldController.menuEscPreview` → `menuEscDecision`); `via` = what says the menu
+ * is open (`question`, or the menu record alone: `menu`; null = no menu BAT could close); `decision` = why
+ * (diagnostics only). `FORBIDDEN` = a helper capability; `INVALID_ARGS` = not `{ terminalId, menu }` with a
+ * well-formed menu object; `unavailable` = this host has no controller.
+ */
+export type TowerInboxMenuHintResult =
+  | { ok: true; ids: string[]; via: 'question' | 'menu' | null; decision: string }
+  | { ok: false; reason: 'FORBIDDEN' | 'INVALID_ARGS' | 'unavailable' }

@@ -111,6 +111,8 @@ export const PROXIED_CHANNELS = new Set([
   // 立即送出 of the window's tabs on the host that runs them (electron/notify-hold.ts); never in
   // HELPER_CHANNEL_ROLES; an older bat-server has no handler (the window shows nothing / a refusal)
   'tower-inbox:answer',
+  // T0971 / BUG-237: read only — whether an answer would close the Tower's menu (the Inbox hint line)
+  'tower-inbox:menu-hint',
   'terminal:notify-hold-list', 'terminal:notify-hold-cancel', 'terminal:notify-hold-send-now',
 ])
 

@@ -11,10 +11,10 @@ import { getNotifyHold, useNotifyHoldVersion } from '../../stores/notify-hold-st
 import { getInterruptedAgent, useInterruptedAgentsVersion } from '../../stores/interrupted-agents-store'
 import { getInboxStateLists, useInboxFiles, useInboxStoreVersion, useRecentlyClosed, useSelectedInboxTower, type InboxFiles } from '../../stores/inbox-store'
 import { towerStateBatContract } from '../../lib/ct-tower-overview'
+import { useInboxMenuHint } from './useInboxMenuHint'
 import { dueReminders, inboxMenuInfo, type AwaitingItem, type DueReminder, type InboxFeature, type InboxMenuInfo, type UserAction } from '../../lib/tower-inbox'
 import {
   inboxAnswerTargets,
-  inboxMenuHintIds,
   panelTowerTerminalIds,
   type InboxAnswerTarget,
   type RecentlyClosed,
@@ -92,7 +92,10 @@ export interface InboxModel extends InboxVerdictModel {
    * the Tower does not declare `menu` → the host does what T0965 did).
    */
   menu: InboxMenuInfo | undefined
-  /** T0968: the `U-n` to show「塔台正以選單詢問此題」beside (`inboxMenuHintIds`). */
+  /**
+   * T0968: the `U-n` to show「塔台正以選單詢問此題」beside. T0971 / BUG-237: as the host that runs the Tower tab
+   * decides (`useInboxMenuHint` → `menuEscDecision`); an older host / preload → T0968's `inboxMenuHintIds`.
+   */
   menuHintIds: readonly string[]
   /** T0908: CT `user_inbox` (off = CT writes neither list). */
   userInbox: 'on' | 'off'
@@ -106,13 +109,18 @@ export interface InboxModel extends InboxVerdictModel {
   badge: string | null
 }
 
-export function useInboxModel(workspaceId: string | null | undefined, folder: string | null | undefined): InboxModel {
+export function useInboxModel(
+  workspaceId: string | null | undefined,
+  folder: string | null | undefined,
+  /** T0971: `menuHint: false` = this caller does not show the hint (nothing is asked from the host). */
+  opts: { menuHint?: boolean } = {},
+): InboxModel {
   const files = useInboxFiles(folder)
   const stateContract = files.state?.status === 'loaded' ? towerStateBatContract(files.state.parsed) : null
   const verdictModel = useInboxVerdict(workspaceId, stateContract)
   const state = useWorkspaceState()
-  useTerminalAttentionVersion()
-  useNotifyHoldVersion()
+  const attentionVersion = useTerminalAttentionVersion()
+  const notifyHoldVersion = useNotifyHoldVersion()
   useInterruptedAgentsVersion()
 
   const terminals = workspaceId ? state.terminals.filter(t => t.workspaceId === workspaceId) : []
@@ -145,9 +153,12 @@ export function useInboxModel(workspaceId: string | null | undefined, folder: st
   const panelIds = new Set(panelTowerTerminalIds(terminals, stateContract, verdictModel.towers.length))
   const panels = terminals.filter(t => panelIds.has(t.id)).map(t => ({ id: t.id, title: t.title }))
   const answerTargets = inboxAnswerTargets(verdictModel.towers, panels, stateContract)
-  // T0968: the menu `menu_open` names, while a Tower tab shows `question` (its attention)
+  // T0968: the menu `menu_open` names; T0971 / BUG-237: shown where the Tower's host would close the menu
   const menu = inboxMenuInfo(lists)
-  const menuHintIds = inboxMenuHintIds(menu, answerTargets.targets, id => getTerminalAttention(id)?.blockedReason)
+  const menuHintIds = useInboxMenuHint(
+    menu, answerTargets.targets, id => getTerminalAttention(id)?.blockedReason,
+    `${attentionVersion}:${notifyHoldVersion}`, opts.menuHint !== false,
+  )
   const actionCount = inboxActionCount({
     workerItems: workerItems.length,
     pendingBugs: pendingBugs.length,

@@ -52,6 +52,7 @@ T0965（BUG-236，U-59：A）：契約 2 塔台的 AskUserQuestion 選單開著�
 T0968（CT 6.4.0-pre.1 `menu_open`，D492）：
 - 回答帶了 CT 的 `menu_open`（`tower-inbox:answer` 的選用參數 `menu`，只在 `inbox_features` 有 `menu` 時）→ 只有回答的 `U-n` 在選單裡、`opened_at` 對得上選單紀錄的開始時間（`menuEscDecision`；常數 `NOTIFY_HOLD_MENU_OPENED_BEFORE_MS` 5 分鐘、`NOTIFY_HOLD_MENU_OPENED_AFTER_MS` 5 s）才走上一段的 Esc；其他（`A-n`、不在選單的 `U-n`、沒有 `menu_open`、殘留的 `menu_open`）不送 Esc、保留到選單關閉，日誌 `[notify-hold] menu esc skipped … (<原因>; held until the menu closes)`。沒帶 = T0965。
 - 契約 2 塔台的 **Worker 通知**也看選單紀錄：`question` 已被清掉、選單紀錄還開著時保留（原因 `question`，🔴 不送 Esc），紀錄關閉後依第 4 點送出；「立即送出」可放行。不論 CT 版本；非契約 2 不變。
+- T0971 / BUG-237：待辦分頁的提示行「塔台正以選單詢問此題」問 host 的唯讀 `tower-inbox:menu-hint`（`NotifyHoldController.menuEscPreview`：上兩點的 Esc 條件去掉等待，同一個 `menuEscDecision`），只在回答會代按 Esc 時顯示；不改任何保留 / 送出 / Esc 規則與常數。
 - 細節、原因表、已知限制：[tower-inbox.md](tower-inbox.md)「選單交接：讀 CT 6.4.0 的 `menu_open`（T0968）」。
 
 T0964（BUG-235）：閒置塔台的回答被 `draft` 擋住、要等使用者下一次送出才送達。原因查證、修正（claude `user-prompt-submit` 時清掉送出前的草稿，送出後打的字不清）、診斷日誌與相同回答去重，見 [tower-inbox.md](tower-inbox.md)「claude 取走輸入框時清掉草稿」。

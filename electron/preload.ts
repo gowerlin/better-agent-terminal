@@ -22,8 +22,8 @@ import type { ClientPathPurpose, ResolvedClientPath } from '../src/lib/client-pa
 import type { TerminalRoleChangeInfo } from '../src/lib/tower-terminal-title'
 import type { UsageLimitContinueEvent, UsageLimitStatusEvent } from '../src/lib/usage-limit'
 import type { DetachedWaitingReport, TerminalAttentionEvent, TerminalAttentionSnapshotEntry } from '../src/lib/terminal-attention'
-import type { NotifyHoldChangedEvent, NotifyHoldReminderEvent, TowerInboxAnswerResult } from '../src/types/notify-hold'
-import type { InboxMenuInfo } from '../src/lib/tower-inbox'
+import type { NotifyHoldChangedEvent, NotifyHoldReminderEvent, TowerInboxAnswerResult, TowerInboxMenuHintResult } from '../src/types/notify-hold'
+import type { InboxMenuInfo, MenuOpen } from '../src/lib/tower-inbox'
 import type { TowerCardsChangedEvent, TowerCardsListResult, TowerCardsOpResult } from '../src/types/tower-cards'
 import type { RemoteUploadApi, RemoteUploadProgressEvent, RemoteUploadSourceDescriptor } from '../src/lib/remote-upload'
 import type {
@@ -1275,6 +1275,10 @@ const electronAPI = {
     // object sent is otherwise exactly `{ terminalId, text }`; an older host ignores the extra key
     answer: (terminalId: string, text: string, menu?: InboxMenuInfo) =>
       ipcRenderer.invoke('tower-inbox:answer', menu === undefined ? { terminalId, text } : { terminalId, text, menu }) as Promise<TowerInboxAnswerResult>,
+    // T0971 / BUG-237: read only — which `U-n` of `menu` an answer would close the Tower's open menu for (the
+    // host's `menuEscDecision`); a bat-server before T0971 rejects with `No handler for channel`
+    menuHint: (terminalId: string, menu: MenuOpen) =>
+      ipcRenderer.invoke('tower-inbox:menu-hint', { terminalId, menu }) as Promise<TowerInboxMenuHintResult>,
   },
   // T0710 — the CT prompt of the panel's one-click dispatch (`$ct-exec` / `$ct:ct-exec` for Codex),
   // decided and quoted by the host the window is bound to; a bat-server before T0710 rejects with

@@ -24,7 +24,7 @@ import { registerReportHookHandler } from '../terminal-blocked-state'
 import { WorkerCloseScheduler } from '../close-worker'
 import { CtWorktreeService } from '../ct-worktree'
 import { UsageLimitContinueScheduler } from '../usage-limit-continue'
-import { NOTIFY_HOLD_CHANGED_CHANNEL, NOTIFY_HOLD_REMINDER_CHANNEL, NotifyHoldController, registerNotifyHoldHandlers, registerTowerInboxAnswerHandler } from '../notify-hold'
+import { NOTIFY_HOLD_CHANGED_CHANNEL, NOTIFY_HOLD_REMINDER_CHANNEL, NotifyHoldController, registerNotifyHoldHandlers, registerTowerInboxAnswerHandler, registerTowerInboxMenuHintHandler } from '../notify-hold'
 import { registerTerminalQueryHandlers } from '../terminal-query-handlers'
 import { registerTowerQuestionHandlers } from '../tower-questions'
 import { registerAttentionSnapshotHandler, TerminalAttentionNotifier } from '../terminal-attention'
@@ -433,6 +433,7 @@ export function createHeadlessPtyModule(opts: {
     // PLAN-068 W5 / T0908: list / cancel /「立即送出」and the Inbox answers of the client windows
     registerNotifyHoldHandlers({ registerHandler: register, getNotifyHold: () => notifyHold, logger: defaultLogger })
     registerTowerInboxAnswerHandler({ registerHandler: register, getNotifyHold: () => notifyHold, logger: defaultLogger })
+    registerTowerInboxMenuHintHandler({ registerHandler: register, getNotifyHold: () => notifyHold, logger: defaultLogger }) // T0971
     opts.onManager?.(ptys)
     opts.onNotifyHold?.(notifyHold)
     return () => {
