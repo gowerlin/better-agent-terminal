@@ -121,6 +121,7 @@ reminders:
 - 15:47 T0973 DONE（模式 ①，merge `b933cdd1`，parent1 `8a0ae680`、parent2 `30e3c240`；只有 `e2e/manual/` 2 檔；test:unit 9619 passed / 532 files、typecheck 0 / 0、build 0、`node --check` 0）；收單 `--close-worker` exit 0；斷點 E → U-68（D504）
 - 15:55 U-68：A（原生選單）→ `ct-merge/T0970` 再合併 `main`（只多 `_ct-workorders/**`）後 ff，`main` = `8de1e2d1`（產品樹 = `b933cdd1`，未 push）；整合 worktree detach、T0970 worktree 移除（D505）
 - 15:55 CT 塔台：CT T0585 收單（CT D934），6.4.0-pre.2 定稿、重複鍵 CT BUG-006 FIXED；傳 `checklist-rerun-640.md`（`416662a4…`）、`ct-swap-640.py`（`d4d92ead…`，`install-642`）、HR-1-3 判法更正、v642 範例與 5 份重複鍵樣本、條文位置；塔台核對兩檔雜湊相符 → 開 T0974（D505）
+- 15:56 T0974 派工 `--mode yolo --no-interactive --isolation worktree --wait-started 30000` exit 0，`started: 07:56:44Z`，分頁 `21e36fd0…`，base `c56a595d`（與 T0972 只在 `src/lib/__tests__/` 目錄重疊，各自新增檔，接受並行）
 
 ---
 
