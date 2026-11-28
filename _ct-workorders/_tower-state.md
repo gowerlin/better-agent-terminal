@@ -4,7 +4,7 @@ summary_version: 1
 bat_contract: 2
 ct_version: "6.3.0"
 inbox_features: ["recommended", "dismiss", "multi"]
-updated_at: "2026-11-28T15:09:41+0800"
+updated_at: "2026-11-28T15:12:23+0800"
 session: "2026-11-28 11:59 第一百四十 session 塔台重新開工（CT v6.3.0，BAT 0.8.1-pre.3）"
 next_ids:
   workorder: "T0970"
@@ -127,6 +127,7 @@ reminders:
 - 15:05 T0969 DONE（BAT 端 20 PASS / 0 FAIL / 2 未觸發（指定）/ 1 不適用；Esc 後輸入框為空、選單開著時無持續輸出、舊 BAT / 舊 CT 降級 PASS；給 CT 的觀察 6 項）；收單 `--close-worker --worktree keep` exit 0；模式 ① `ct-merge/T0969` `4867b219`；BUG-236 CLOSED、BUG-237 開單（low）；A-26 縮為 BUG-235；U-65（ff）、U-66（BUG-237）；通知 CT（D496）
 - 15:07 CT 塔台：判定單 CT T0584（唯讀研究，CT D931）開跑：§ 7 逐項判定、cf-all 4 份 exit 1 歸因、6 點觀察分析；觀察 ①（menu_open 與 awaiting_user 分次寫入）會比較 CT 端做法與 BAT 端「ids 不在 awaiting_user 當 stale」，要 BAT 配合會寫成可直接開單的形式；收單後傳判定與 6.4.0 正式版前修正建議
 - 15:09 U-65：A → T0969 ff，`main` = `59e4fbeb`（產品樹 = `6d171c6e`，未 push）；整合 worktree detach、worktree 移除；U-66：A → BUG-237 修正等 CT T0584 後合成一張工單（D497）
+- 15:12 塔台重新開工（同 session `c3c72160-0d57-4614-8800-6e952c8e484d`，分頁 `f32bfa46…`）：BAT 已是 `0.8.1-pre.4`；`--set-role tower --bat-contract 2 --mode on` exit 0（`bat-contract: 2`、`hooks: ok (injected, set 2)`）；`main` `4666c2c3`（比 `origin/main` 多 T0969 等，未 push）、工作樹乾淨；熱區 T:365 / BUG:101 / PLAN:35，無進行中工單；`_decision-log.md` 438,381 bytes（> 400 KB 預算）
 
 ---
 
