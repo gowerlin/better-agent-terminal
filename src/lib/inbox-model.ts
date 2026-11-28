@@ -20,6 +20,7 @@ import { compareWaitingTabs, waitingForUser, type AttentionHookReason, type Term
 import type { BugEntry } from '../types/bug-tracker'
 import type { BacklogEntry } from '../types/backlog'
 import type { WorkOrderStatus } from '../types/control-tower'
+import type { NotifyHoldItem } from '../types/notify-hold'
 
 // ─── Version gate (§6′) ────────────────────────────────────────────────────
 
@@ -225,6 +226,24 @@ export interface WorkerWaitDeps {
   getInterrupted: (id: string) => { agent: string; at: number } | null
 }
 
+/**
+ * T0966 (U-58: A): a tab's 📨 for「Worker 等你」= its held **Worker notifications** only. The user's own
+ * inbox answers (`kind: 'answer'`, T0908) wait in the same queue of the Tower tab, but they are not
+ * something a Worker waits on: they are shown by the row's「已排入待送」mark (T0942) and never listed
+ * or counted here. 🔴 Renderer classification only: main's queue, its rules and the thumbnail's
+ *「📨 待送 N」(every item) are unchanged.
+ */
+export function heldWorkerNotifications(items: readonly Pick<NotifyHoldItem, 'heldAt' | 'kind'>[]): { count: number; since: number | null } {
+  let count = 0
+  let since: number | null = null
+  for (const item of items) {
+    if (item.kind === 'answer') continue
+    count++
+    if (since === null || item.heldAt < since) since = item.heldAt
+  }
+  return { count, since }
+}
+
 /** ⚠️ first (longest waiting first), then 📨, then ⏸; tab order within each kind. */
 export function workerWaitItems(terminals: readonly { id: string; title: string }[], deps: WorkerWaitDeps): WorkerWaitItem[] {
   const waiting: Extract<WorkerWaitItem, { kind: 'waiting' }>[] = []
@@ -245,6 +264,8 @@ export function workerWaitItems(terminals: readonly { id: string; title: string 
 /**
  * The number on the tab title: things that need your hands. W4 counts Worker waits and BUGs to
  * accept; W5 (T0908) adds the CT lists (待你決定 / 待你執行 / 到期提醒). Turn cards never count (§1).
+ * T0966: the user's own held answers are not Worker waits (`heldWorkerNotifications`), so they never
+ * count either — the answered item itself still counts in its list until the Tower handles it.
  */
 export function inboxActionCount(parts: { workerItems: number; pendingBugs: number; awaiting?: number; actions?: number; reminders?: number }): number {
   return parts.workerItems + parts.pendingBugs + (parts.awaiting ?? 0) + (parts.actions ?? 0) + (parts.reminders ?? 0)

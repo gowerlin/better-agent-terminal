@@ -74,6 +74,8 @@ import { InboxRefTag, InboxRefText, RefLink } from './InboxRefText'
 import { commandFileRefs, itemFileRefs, useInboxFileRefs, type InboxRefLinks } from './useInboxFileRefs'
 import { fileRefKey, soleFileRef } from '../../lib/inbox-file-refs'
 import { openFileInFilesTab } from '../../state/openFileInFilesTab'
+import { useNotifyHold, useNotifyHoldReason } from '../../stores/notify-hold-store'
+import { notifyHoldReasonKey } from '../TerminalThumbnail'
 import type { InboxAnswerTarget, RecentlyClosed } from '../../lib/inbox-model'
 import {
   batchSentKey,
@@ -113,10 +115,14 @@ function useAnswerSender(targets: Targets, scope: string) {
     setStatuses(prev => ({ ...prev, [itemId]: outcome }))
     if (outcome.status !== 'sent' && outcome.status !== 'held') return false
     const at = Date.now()
-    recordInboxSent(scope, info.key, { text, at, status: outcome.status, ids: info.ids, selection: info.selection })
+    // T0966: a held line remembers its queue item, so the mark can say why it still waits
+    const hold = outcome.status === 'held' && outcome.holdId && target.kind === 'tab'
+      ? { hold: { terminalId: target.id, holdId: outcome.holdId } }
+      : {}
+    recordInboxSent(scope, info.key, { text, at, status: outcome.status, ids: info.ids, selection: info.selection, ...hold })
     // a batch line marks each of its rows too (no selection: the row's own choice is not what went out)
     if (info.ids.length > 1 || info.ids[0] !== info.key) {
-      for (const id of info.ids) recordInboxSent(scope, id, { text, at, status: outcome.status, ids: [id] })
+      for (const id of info.ids) recordInboxSent(scope, id, { text, at, status: outcome.status, ids: [id], ...hold })
     }
     return true
   }
@@ -171,7 +177,31 @@ function AnswerStatus({ status, sent, id }: { status: Status | undefined; sent: 
       >
         {t(sent.status === 'held' ? 'inbox.answer.heldMarker' : 'inbox.answer.sentMarker', values)}
       </div>
+      {sent.status === 'held' && sent.hold && <HeldAnswerReason hold={sent.hold} id={id} />}
     </>
+  )
+}
+
+/**
+ * T0966 (U-58: A): under a「已排入待送」mark, why the answer still waits — the same text as the Tower
+ * thumbnail's 📨 menu (`notifyHoldReasonKey`: 你在輸入 / 你在閱讀 / 等你回答對話框 / 排隊). Shown only while
+ * the answer's queue item is still in the tab's queue and the tab reports a reason (contract-2 Tower);
+ * otherwise nothing — the mark stays as before. 🔴 Reads the renderer's notify-hold store only.
+ */
+function HeldAnswerReason({ hold, id }: { hold: { terminalId: string; holdId: string }; id: string }) {
+  const { t } = useTranslation()
+  const items = useNotifyHold(hold.terminalId)
+  const reason = useNotifyHoldReason(hold.terminalId)
+  if (!reason || !items.some(item => item.holdId === hold.holdId)) return null
+  return (
+    <div
+      className="inbox-sent-hold-reason"
+      data-inbox-sent-hold-reason={id}
+      data-reason={reason}
+      style={{ fontSize: 12, padding: '2px 6px 0 9px', color: 'var(--text-secondary)', whiteSpace: 'normal' }}
+    >
+      {t('inbox.answer.heldReason', { reason: t(notifyHoldReasonKey(reason)) })}
+    </div>
   )
 }
 

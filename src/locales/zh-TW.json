@@ -1781,7 +1781,7 @@
     },
     "worker": {
       "waiting": "⚠️ {{title}}：等你回應（{{reason}}）",
-      "held": "📨 {{title}}：待送 {{count}} 則通知",
+      "held": "📨 {{title}}：待送 {{count}} 則 Worker 通知",
       "interrupted": "⏸ {{title}}：被中斷（{{agent}}）",
       "goTo": "切到分頁",
       "resume": "恢復…",
@@ -1854,7 +1854,8 @@
       "multiHint": "可複選",
       "resend": "重新送出",
       "sentMarker": "✓ 已送出：{{text}}（{{time}}）",
-      "heldMarker": "✓ 已排入待送：{{text}}（{{time}}）"
+      "heldMarker": "✓ 已排入待送：{{text}}（{{time}}）",
+      "heldReason": "保留原因：{{reason}}"
     },
     "action": {
       "copy": "複製指令",

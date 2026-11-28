@@ -105,14 +105,22 @@
 | ⏸ 待你決定 | CT `awaiting_user` | 「契約 v2 清單與回答」節 |
 | 🙋 待你執行 | CT `user_actions`（在前）＋`_bug-tracker.md` 的 `FIXED` / `VERIFY`（不含封存；「開啟」→ 指揮塔 Bugs 頁） | 「契約 v2 清單與回答」節 |
 | ⏰ 到期提醒 | CT `reminders`（已到或 7 天內） | 「契約 v2 清單與回答」節 |
-| 👷 Worker 等你 | 這個工作區的分頁：⚠️ 等使用者（`waitingForUser`，最久的在前）、📨 待送（T0788 `notify-hold-store`，原因見「通知保護」節的〈「📨 待送」與「立即送出」〉）、⏸ 被中斷（T0766）；`?` / `✓` / `↻` 不列。⚠️ / 📨 →「切到分頁」，⏸ →「恢復…」（開被中斷對話框） | — |
+| 👷 Worker 等你 | 這個工作區的分頁：⚠️ 等使用者（`waitingForUser`，最久的在前）、📨 待送 N 則 **Worker 通知**（T0788 `notify-hold-store`，原因見「通知保護」節的〈「📨 待送」與「立即送出」〉；T0966 起不含使用者自己從待辦分頁送出、被保留的回答，見下方〈Worker 等你不含你的回答〉）、⏸ 被中斷（T0766）；`?` / `✓` / `↻` 不列。⚠️ / 📨 →「切到分頁」，⏸ →「恢復…」（開被中斷對話框） | — |
 | 💬 塔台訊息 | 回合訊息卡 | 「回合訊息卡：UI 與面板塔台」節 |
 | 📋 塔台待辦 | CT `todo` 全部；超過 160 字或多行的項目摺疊成第一行，可展開；預設摺疊 | — |
 | 📊 數量列 | BUG 未結（`OPEN` / `FIXING`）· PLAN 進行中（`IN_PROGRESS`）· 工單（`workOrderPhase` = open），各自連到指揮塔的 Bugs / Backlog / 工單頁 | — |
 
 - 有內容的區塊可摺疊，摺疊狀態存在 localStorage `bat-inbox-folded-sections`（try/catch，只是個人偏好）；空的區塊只留一行標題。
-- 分頁標題的數字 = `inboxActionCount`（Worker 等你＋待驗收 BUG＋待你決定＋待你執行＋到期提醒；💬 未讀不算）；0 不顯示；不符時 `!`。標題只在側欄（左 / 右）顯示，主區分頁列不顯示。
+- 分頁標題的數字 = `inboxActionCount`（Worker 等你＋待驗收 BUG＋待你決定＋待你執行＋到期提醒；💬 未讀不算；T0966 起被保留的回答也不算，回答的那一筆在原清單照常計數到塔台處理掉）；0 不顯示；不符時 `!`。標題只在側欄（左 / 右）顯示，主區分頁列不顯示。工作區列表的 `⏸N` 只算 `awaiting_user`（`useInboxAwaitingCount`），本來就不含待送項目。
 - 👷 Worker 等你的 📨 待送跟著 `notify-hold-store` 的 `useNotifyHoldVersion`（任何分頁的保留清單改變就重畫）。
+
+#### Worker 等你不含你的回答（T0966，U-58：A）
+
+- 現象（T0964 回報）：回答排進塔台分頁的「📨 待送」佇列時，「👷 Worker 等你」顯示「Claude CLI · Tower：待送 N 則通知」並算進標題數字，看起來像 Worker 在等你。
+- 規則：📨 列只算該分頁保留佇列中 `kind` 不是 `'answer'` 的項目（Worker 通知）；只有回答的分頁不列在這一區、不計入標題數字。項目沒有 `kind`（T0904 之前的 main、helper 的通知）照舊算 Worker 通知。用語改成「待送 N 則 Worker 通知」（三語系 `inbox.worker.held`）。唯一實作 `heldWorkerNotifications`（`src/lib/inbox-model.ts`），由 `useInboxModel` 的 `getHeld` 呼叫。
+- 被保留的回答只在原筆的「✓ 已排入待送」標記（T0942）呈現：送出結果 `held` 帶回 `holdId`（`tower-inbox:answer` 既有回傳欄位），已送出紀錄記下 `hold: { terminalId, holdId }`；該項目仍在塔台分頁的佇列、且主行程回報了原因（契約 2 塔台）時，標記下方多一行「保留原因：<原因>」（`inbox.answer.heldReason`，原因文字沿用縮圖選單的 `notifyHoldReasonKey`：你在輸入 / 你在閱讀 / 等你回答對話框 / 排在前一則後面；原因是整個佇列第一筆的原因，與縮圖相同）。項目離開佇列、沒有原因、舊 host 沒有 `holdId`、面板塔台 → 只有標記，與 T0942 相同。元素 `.inbox-sent-hold-reason` / `[data-inbox-sent-hold-reason=<id>]` / `[data-reason]`，在標記元素之外（標記文字不變）。
+- 🔴 不變：主行程保留 / 送出規則、`NotifyHoldController`、`tower-inbox:answer` 與 `terminal:notify-hold-*` 的形狀；縮圖「📨 待送 N」（算佇列所有項目，含回答）與「立即送出 / 取消」。
+- 測試：`src/lib/__tests__/inbox-model-t0966.test.ts`、`src/components/__tests__/inbox-worker-wait-t0966.test.tsx`。
 
 ### 跨分頁開啟
 
