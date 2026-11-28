@@ -4,17 +4,43 @@ summary_version: 1
 bat_contract: 2
 ct_version: "6.3.0"
 inbox_features: ["recommended", "dismiss", "multi"]
-updated_at: "2026-11-28T12:17:22+0800"
+updated_at: "2026-11-28T12:27:02+0800"
 session: "2026-11-28 11:59 第一百四十 session 塔台重新開工（CT v6.3.0，BAT 0.8.1-pre.3）"
 next_ids:
   workorder: "T0965"
-  decision: "D477"
-  bug: "BUG-236"
+  decision: "D480"
+  bug: "BUG-237"
   plan: "PLAN-071"
-  user: "U-57"
+  user: "U-60"
   action: "A-26"
+awaiting_user:
+  - id: "U-57"
+    workorder: "T0964"
+    kind: "decision"
+    source: "breakpoint-E"
+    summary: "（重問：12:25 選單收到的「放棄」不可靠，BUG-236）T0964 合併：`ct-merge/T0964` `3837c663` 要 ff 進 `main` 嗎"
+    options: ["A 現在 ff 進 main（推薦）", "B 暫不合併"]
+    recommended: "A"
+    created_at: "2026-11-28T12:27:02+08:00"
+  - id: "U-58"
+    workorder: "T0964"
+    kind: "decision"
+    source: "tower-question"
+    summary: "（重問）「👷 Worker 等你」把你自己的回答算成「待送 N 則通知」並計入標題數字：要開後續工單改嗎"
+    options: ["A 開單，回答與 Worker 通知分開計數與措辭，同批進 0.8.1-pre.4（推薦）", "B 只記候選，不開單"]
+    recommended: "A"
+    created_at: "2026-11-28T12:27:02+08:00"
+  - id: "U-59"
+    workorder: ""
+    kind: "decision"
+    source: "tower-question"
+    summary: "BUG-236：塔台開著選單時，待辦分頁的回答要怎麼處理"
+    options: ["A 兩邊都能答：BAT 先替你按 Esc 關掉選單、等塔台回到輸入框，再把 U-n：… 當文字送出；同一選單的其他題留在待辦分頁（推薦）", "B 照現行設計保留到選單關閉後才送，只修成確實保留，並在待辦分頁提示「塔台正開著選單，請在終端回答或按 Esc」", "C 契約 v2 下塔台不開原生選單，只用待辦分頁與文字回答（改 CT，需通知 CT 塔台）"]
+    recommended: "A"
+    created_at: "2026-11-28T12:27:02+08:00"
 todo:
-  - "🟡 BUG-235（medium，D476）：待辦分頁的回答在塔台閒置時卡在「待送」，要等使用者送出下一則訊息才送達 → T0964 派工中（查證＋修正＋同回答去重）"
+  - "🟡 BUG-235（medium，D476–D479）：T0964 DONE（`511b547e`），`ct-merge/T0964` `3837c663` 待 U-57 ff；維持 FIXING"
+  - "🟡 BUG-236（medium，OPEN，D479）：選單開著時待辦分頁的回答被打進選單（`sent`），選單結果與待辦分頁選的不同 → 修法方向待 U-59，之後開單"
   - "✅ BUG-234 CLOSED（`v0.8.1-pre.3` 實機，A-25，D475）"
   - "🗄 `_decision-log.md` 407 KB 超過 400 KB 預算：開工後封存舊決策（D186 起，照 `_archive/decisions/` 既有做法）"
   - "✅ `v0.8.1-pre.2`（D461）／`v0.8.1-pre.1`（D449）：BUG-228–233 全部 CLOSED（交付版自動化驗收 T0955 / T0959、Linux CI T0961）；T0950 PASS。下一版 `0.8.1-pre.3`（目前只多測試：T0960 改名、T0961 Linux spec）"
@@ -62,6 +88,9 @@ reminders:
 - 12:04 T0964 派工 `--mode yolo --no-interactive --isolation worktree --wait-started 30000` exit 0，`started: 2026-11-28T04:03:58Z`，分頁 `6991ade8…`，worktree `ct/T0964` base `4d003c6a`
 - 12:13 [提問] T0964 Q-1（draft 觸發來源重現不了：日誌與實驗排除焦點 / 滑鼠 / 滾輪回報、launch 保留、啟動參數，只剩使用者真的按的鍵）→ 塔台答 B（`--answer --choice 2` exit 0）：診斷日誌（只記類別）＋去重＋契約 2 claude 塔台 `user-prompt-submit` 時清掉送出前的 draft（不得清掉送出後新打的字）；本單可回 DONE，BUG-235 收單時判 FIXED 待實機
 - 12:17 [提問] T0964 Q-2（B 的接線要動 `electron/main.ts`、`electron/remote/headless-entry.ts`，不在 affects_files）→ 塔台答 A（`--answer --choice 1` exit 0）：各加一行接線、其他不動；兩檔補進工單 affects_files
+- 12:23 T0964 DONE（`511b547e`，test:unit 9452 passed）；收單 `--close-worker --delay-ms 10000 --worktree keep` exit 0；`--worktree-status` 五條全成立 → 模式 ①：`ct-merge/T0964` `3837c663`（parent1 `77b7567e`、parent2 `511b547e`）；斷點 E → U-57、「Worker 等你」措辭後續 → U-58（D477）
+- 12:25 U-57：放棄、U-58：放棄（原生選單，未附原因）→ 不 ff、不開單，兩項暫停等新方向（D478）
+- 12:27 使用者截圖：待辦分頁 12:24 已送 `U-57：A`（`sent`，選單開著時被打進選單）→ 選單結果「放棄」不可靠：D478 作廢、U-57 / U-58 重問；開 BUG-236（medium，OPEN）；修法方向 U-59（「兩邊都能答」）；本次不開原生選單，改文字＋待辦分頁（D479）
 
 ---
 
