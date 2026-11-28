@@ -773,7 +773,8 @@ CT 6.2.0 起暫停時（`interactive-prompts: on`）先寫 `awaiting_user` 再�
 
 - 用既有的唯讀 `fs:stat`（路徑）與 `fs:readdir`（編號：列出資料夾找檔名），與 `InboxDataSource` 同一套；遠端工作區走 proxied channel、讀視窗綁定的 host。
 - 每個清單只檢查自己顯示的項目（`INBOX_LIST_RENDER_MAX` 之內），去重後最多 `INBOX_FILE_REF_MAX` = 40 個；一次檢查中每個資料夾只列一次；`stat` / `readdir` 失敗 = 找不到。
-- 時機：清單掛載時、工作區根目錄改變或顯示的參照集合改變時；不輪詢。`_ct-workorders/` 的變更讓清單重讀，但參照集合沒變就不重新檢查（見〈已知限制〉）。
+- 時機：清單掛載時、工作區根目錄改變或顯示的參照集合改變時；T0980 起另在 `<根目錄>/_ct-workorders` 收到 `fs:changed` 時重查（檔案事後建立、被歸檔或刪除，連結跟著變）。不輪詢。
+- 重查（T0980）：有參照要檢查時，`useInboxFileRefs` 以 `acquireDirWatch` 對 `<根目錄>/_ct-workorders` 加入視窗共用的監看（路徑字串與 `InboxDataSource` 相同，計數共用、主行程仍只有一個 watcher，🔴 不直接 `fs.watch` / `fs.unwatch`），並訂閱既有的 `fs:changed`；連續事件合併成最後一個事件之後 `INBOX_FILE_REF_RECHECK_DEBOUNCE_MS` = 300 ms 的一次重查（`setTimeout` 只在收到事件後排、不是輪詢）。重查沿用上限 40、每資料夾列一次；其他目錄的事件忽略。沒有參照時不加入監看；卸載時取消待做的重查、退訂、釋放計數。🔴 不新增 IPC / 事件 channel、不記日誌。重查期間畫面保留上一次的結果（不閃爍）。
 - 連結的 `title` 與 `data-inbox-file-ref` 是相對工作區根目錄的路徑；送給 `openFileInFilesTab` 的是 `<根目錄>/<相對路徑>`（根目錄保留原本寫法，同指揮塔「📄 檢視檔案」）。
 
 ### 外觀
@@ -808,7 +809,7 @@ CT 6.2.0 起暫停時（`interactive-prompts: on`）先寫 `awaiting_user` 再�
 
 ### 已知限制
 
-- 檢查結果在參照集合不變時沿用：之後才建立 / 刪除的檔，要等清單內容改變、切換工作區或重開分頁才會更新連結狀態（不輪詢的取捨）。
+- T0980 起 `_ct-workorders/` 的變更（主行程的 watcher 是遞迴的，含 `_archive/`）會觸發重查；`_ct-workorders/` 以外的檔（工作區根目錄、`docs/` 等）不另外監看：之後才建立 / 刪除的這類檔，要等參照集合改變、`_ct-workorders/` 有任何變更、切換工作區或重開分頁才會更新連結狀態（不輪詢的取捨）。舊 bat-server（T0916 前）不監看事後才建立的 `_ct-workorders/`，那時也不會重查。
 - `D###` 只開 `_decision-log.md`，不捲到該條；封存在 `_archive/decisions/` 的決策不連結。
 - 同一編號在熱區與封存區都有檔時開熱區的；同一資料夾有多個 `<ID>-….md` 時開檔名排序第一個。
 - 遠端工作區與 detached 視窗的實際點擊未實機。
@@ -818,6 +819,7 @@ CT 6.2.0 起暫停時（`interactive-prompts: on`）先寫 `awaiting_user` 再�
 
 - 單元：`src/lib/__tests__/inbox-file-refs.test.ts`（反引號路徑、裸路徑、四種編號＋前綴工單、工作區外 / `..` / URL / UNC / `~`、反斜線與正斜線、中文標點相鄰、`:行` 後綴、`matchIdFile`、`refLookups`；T0935 檔名：括號 / 反引號 / 句中、版號不算、網域只是候選、不完整的 `.md` / `file.`、界線、副檔名長度、以編號開頭的檔名）。T0935 依塔台 Q-1 只改了 T0930 一行斷言（`sample.md` 移到檔名測試，改為候選），其餘不變。
 - 元件（T0935）：`src/components/__tests__/inbox-bare-filename-refs-t0935.test.tsx`（三個清單與展開的 💬 卡片：根目錄 / `_ct-workorders/` 存在的檔名成連結、根目錄優先、點擊開解析後路徑、不存在 / 版號 / 網域為純文字且文字不變）。
+- 重查（T0980）：`src/components/__tests__/inbox-file-refs-recheck-t0980.test.tsx`（事後建立的工單在事件後成連結、移走 / 刪除的檔在事件後不再是連結、連續事件與其他目錄的事件只重查一次、沒有事件不重查、卸載後不重查且計數釋放、沒有參照不加入監看）。
 - 元件：`src/components/__tests__/inbox-file-refs-t0930.test.tsx`（存在的標籤 / 路徑 / 編號是按鈕、點擊送出兩個事件與解析後路徑、不存在 / 工作區外 / URL 是純文字且文字不變、只對工作區內路徑 `stat`、沒有根目錄時不檢查）；既有 inbox 元件測試不改斷言。
 
 ## hook 註冊（W9 / T0910）
