@@ -55,7 +55,7 @@ T0968（CT 6.4.0-pre.1 `menu_open`，D492）：
 - T0971 / BUG-237：待辦分頁的提示行「塔台正以選單詢問此題」問 host 的唯讀 `tower-inbox:menu-hint`（`NotifyHoldController.menuEscPreview`：上兩點的 Esc 條件去掉等待，同一個 `menuEscDecision`），只在回答會代按 Esc 時顯示；不改任何保留 / 送出 / Esc 規則與常數。
 - 細節、原因表、已知限制：[tower-inbox.md](tower-inbox.md)「選單交接：讀 CT 6.4.0 的 `menu_open`（T0968）」。
 
-T0964（BUG-235）：閒置塔台的回答被 `draft` 擋住、要等使用者下一次送出才送達。原因查證、修正（claude `user-prompt-submit` 時清掉送出前的草稿，送出後打的字不清）、診斷日誌與相同回答去重，見 [tower-inbox.md](tower-inbox.md)「claude 取走輸入框時清掉草稿」。
+T0964（BUG-235）：閒置塔台的回答被 `draft` 擋住、要等使用者下一次送出才送達。原因查證、修正（claude `user-prompt-submit` 時清掉送出前的草稿，送出後打的字不清）、診斷日誌與相同回答去重，見 [tower-inbox.md](tower-inbox.md)「claude 取走輸入框時清掉草稿」。T0972（D503 ①）：啟動參數回合（`/control-tower`）的 `user-prompt-submit` 早於塔台宣告契約 2，清除改為所有分頁都做（條件不變；只有契約 2 塔台讀草稿、重新排程佇列），同一節「宣告契約前送出的回合」。
 
 ## 實作位置
 
@@ -79,7 +79,8 @@ T0964（BUG-235）：閒置塔台的回答被 `draft` 擋住、要等使用者�
 [remote][terminal] ipc-result channel=terminal:keypress result=held target=<塔台> trace=<id>
 [notify-hold] draft set terminal=<分頁> cause=<類別> bytes=<n>[ (during prompt)]      ← T0964，不記內容
 [notify-hold] draft cleared terminal=<塔台> (user-prompt-submit)                     ← T0964
-[notify-hold] draft kept terminal=<塔台> (user-prompt-submit; input <ms> ms / Enter <ms|none> ms before)
+[notify-hold] draft cleared terminal=<分頁> (user-prompt-submit; not a contract-2 Tower yet)   ← T0972
+[notify-hold] draft kept terminal=<分頁> (user-prompt-submit; input <ms> ms / Enter <ms|none> ms before)
 [notify-hold] answer duplicate terminal=<塔台> source=answer holdId=<id> len=<n> (already held)
 ```
 
