@@ -10,6 +10,7 @@
 
 | ID | 日期 | 標題 | 相關工單 |
 |----|------|------|---------|
+| D497 | 2026-11-28 | U-65：A → T0969 ff `59e4fbeb`；U-66：A → BUG-237 等 CT T0584 後合成一張工單進 pre.5 | T0969 / BUG-237 |
 | D496 | 2026-11-28 | T0969 收單（BAT 端 20 PASS / 0 FAIL）；BUG-236 CLOSED；開 BUG-237；U-65（ff）、U-66（BUG-237）；通知 CT 判定 | T0969 / BUG-236 / BUG-237 |
 | D495 | 2026-11-28 | CT T0583 收單 → 開 T0969：CT 6.4.0-pre.1 × BAT pre.4 / pre.3 雙方驗收（H-1～H-14） | T0969 / BUG-236 |
 | D494 | 2026-11-28 | U-63：A、U-64：A → T0968 ff `b2edf438`；`v0.8.1-pre.4` 發佈；A-26 實機確認 | T0968 / BUG-235 / BUG-236 |
@@ -614,6 +615,15 @@
   4. PLAN-001 保持延後（🟢 Low，等 plugin 1.0 穩定）
 - **Success criteria**（EXP→CONCLUDED）：npm install 無錯 / 所有 native modules rebuild 成功 / dev+build:dir 可跑 / 手動 smoke test 8 項通過
 - **最大風險**：`whisper-node-addon@1.0.2` 對 Electron 41（Node 24）的 NODE_MODULE_VERSION 相容性未知，允許 Worker 遇此決策點主動問塔台
+
+---
+
+### D497 2026-11-28 15:09 — U-65：A、U-66：A
+
+- **使用者**：`U-65：A`、`U-66：A`（終端文字）。U-65、U-66 移除。
+- **合併**：`main` 自 parent1 `68884995` 起只多 `_ct-workorders/**` → 整合分支再合併 `main` 後 ff；`main` = `ct-merge/T0969` = `59e4fbeb`，產品樹 = `6d171c6e`（只有 `e2e/manual/` 3 檔）；整合 worktree detach；T0969 worktree 移除；分支保留。未 push（下次發版一起）。
+- **BUG-237**：開單修、放進 `0.8.1-pre.5`；CT T0584 的觀察 ① 可能要 BAT 把「`menu_open.ids` 不在 `awaiting_user`」也當 stale，兩者都是改 `menu_open` 的有效性判斷 → 等 CT 判定回來合成一張工單。
+- **相關**：T0969 / BUG-237 / D496
 
 ---
 

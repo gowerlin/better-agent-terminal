@@ -7,7 +7,7 @@ status: OPEN
 severity: low
 reproducibility: "T0969 H-7 實測（人為殘留 `menu_open`＋不含 U-n 的需求對齊選單）；CT 6.4.0 正常流程只有「使用者 Esc 後、塔台下一次寫入前就開了不含 U-n 的選單」才會遇到"
 created_at: "2026-11-28T15:05:12+0800"
-updated_at: "2026-11-28T15:05:12+0800"
+updated_at: "2026-11-28T15:09:41+0800"
 impact:
   - tower-inbox
 links:
@@ -37,3 +37,4 @@ links:
 ## 修正紀錄
 
 - 2026-11-28 15:05 開單 OPEN（T0969 建議，D496）
+- 2026-11-28 15:09 U-66：A → 開單修、放進 `0.8.1-pre.5`；等 CT T0584 判定（觀察 ① 可能要 BAT 把「ids 不在 awaiting_user」當 stale）後合成一張工單（D497）
