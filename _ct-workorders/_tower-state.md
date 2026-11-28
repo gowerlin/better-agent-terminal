@@ -100,6 +100,7 @@ reminders:
 - 14:05 三文件 commit `f8e06829`＋記帳 `f09fdb0a` push；Pages run `46114762760` build / link-check / deploy 全 success（link-check 1695 / 0 errors），網站首頁版號 `0.8.1-pre.4`；已通知 CT 塔台版號
 - 14:06 CT 塔台：CT 使用者核定 PLAN-022 P2 照 6.3.0 做法驗收（CT U-11：A、D929），準備單 CT T0583 派工（`ct620-accept/` 換 6.4.0-pre.1、`ct-swap-640.py`、`checklist-640.md` H-1～H-14 分 S1–S4）；BAT 最低版號 `0.8.1-pre.4` 已記入 CT PLAN-022；收單後傳資料，BAT 照 T0939 格式開驗收單
 - 14:19 CT 塔台：CT T0583 DONE（CT D930），傳 `checklist-640.md`（SHA-256 `9c7dd279…`）、分組 S1–S4、`ct-swap-640.py`（`d2d7798d…`）指令、注意事項；塔台核對兩檔雜湊相符、取 pre.4 / pre.3 / 0.8.0-pre.8 win.zip 的 Release digest → 開 T0969（D495）
+- 14:20 T0969 派工 `--mode yolo --no-interactive --isolation worktree --wait-started 30000` exit 0，`started: 06:20:46Z`，分頁 `5d8eb104…`，worktree `ct/T0969` base `4f7effa7`
 
 ---
 
