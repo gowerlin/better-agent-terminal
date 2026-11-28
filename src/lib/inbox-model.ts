@@ -297,6 +297,22 @@ export function inboxAnswerTargets(
   return { targets, auto: targets.length === 1 ? targets[0] : null }
 }
 
+/**
+ * T0968 (CT 6.4.0 `menu_open`): the `U-n` beside which the inbox says「塔台正以選單詢問此題：在這裡回答會先
+ * 關掉選單」— the ids of `menu` (`inboxMenuInfo`) while one of the Tower tabs among `targets` shows
+ * `question` (its attention `blockedReason`). 🔴 Only `question` (Tower answer T0968 Q-2): the menu record
+ * alone (the user's input / a click cleared `question`) is not seen here; a panel Tower never shows it.
+ * No `menu` / no `menu_open` → [] (the hint is not shown).
+ */
+export function inboxMenuHintIds(
+  menu: { ids: readonly string[] } | null | undefined,
+  targets: readonly InboxAnswerTarget[],
+  blockedReasonOf: (id: string) => string | undefined,
+): readonly string[] {
+  if (!menu || menu.ids.length === 0) return []
+  return targets.some(target => target.kind === 'tab' && blockedReasonOf(target.id) === 'question') ? menu.ids : []
+}
+
 /** One item that left `awaiting_user` / `user_actions` (§2.1「最近已結」; memory only). */
 export interface RecentlyClosed {
   id: string

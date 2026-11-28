@@ -12,6 +12,9 @@
  *     (`matchRecommended`), the 放棄 / 略過 lines incl. batches (`dismissAnswerText`, `checkInboxAnswer`)
  *   - T0938 (CT 6.3.0): `inbox_features: multi` + `awaiting_user[].multi` (`awaitingIsMulti`), several
  *     recommended codes (`matchRecommendedCodes`), the answer `U-n：A、C` (`multiAnswerText`)
+ *   - T0968 (CT 6.4.0-pre.1): `inbox_features: menu` + top-level `menu_open` (`parseMenuOpen`; ignored
+ *     without `menu`, malformed → absent and flagged), what an answer tells the host (`inboxMenuInfo`,
+ *     checked there by `checkInboxMenuInfo`)
  *
  * Error isolation (§3.3): a list that is not a list is ignored; one bad item (a required field
  * missing / malformed, a duplicate id) is skipped and counted, the others stay; an optional field
@@ -196,6 +199,15 @@ export interface TowerInboxLists {
   present: { awaiting: boolean; actions: boolean; reminders: boolean }
   /** PLAN-069 / T0922: the known `inbox_features` values (`parseInboxFeatures`). */
   features: InboxFeature[]
+  /**
+   * T0968 (CT 6.4.0-pre.1): `inbox_features` lists `menu` — the Tower writes `menu_open` before every
+   * native menu that holds a `U-n`, so no `menu_open` means no such menu. Set only when listed.
+   */
+  menuFeature?: true
+  /** T0968: the Tower's open native menu (`menu_open`), only with `menuFeature` and when well formed. */
+  menuOpen?: MenuOpen
+  /** T0968: `menu_open` was there (with `menuFeature`) but malformed — treated as absent. */
+  menuOpenInvalid?: true
   nextUser?: string
   nextAction?: string
 }
@@ -234,6 +246,77 @@ export function parseInboxFeatures(raw: unknown): InboxFeature[] {
     if (known && !features.includes(known)) features.push(known)
   }
   return features
+}
+
+// ─── The Tower's open native menu (T0968, CT 6.4.0-pre.1 `menu_open`) ────────
+
+/** T0968: the `inbox_features` value of CT 6.4.0 (kept apart from `INBOX_FEATURES`, whose list is fixed). */
+export const INBOX_MENU_FEATURE = 'menu'
+/** T0968: an AskUserQuestion menu has at most this many questions (CT `menu_open.ids` 1～4). */
+export const MENU_OPEN_IDS_MAX = 4
+
+/** T0968: `menu_open` — the `U-n` in the Tower's open AskUserQuestion menu, in menu order, and when CT wrote it. */
+export interface MenuOpen {
+  ids: string[]
+  /** As CT wrote it (`2026-11-28T12:23:00+08:00`); the host compares it with its menu record. */
+  openedAt: string
+}
+
+/**
+ * T0968: what an inbox answer tells the host about the menu (`tower-inbox:answer`'s optional `menu`).
+ * `null` = the Tower declares `menu` and wrote no (usable) `menu_open`: no open menu holds a `U-n`.
+ * Not sent at all (undefined) = BAT knows nothing (CT before 6.4.0, an older window) → T0965 as before.
+ */
+export type InboxMenuInfo = MenuOpen | null
+
+/** T0968: `inbox_features` lists `menu` (same reading rules as `parseInboxFeatures`). */
+export function hasInboxMenuFeature(raw: unknown): boolean {
+  return Array.isArray(raw) && raw.some(value => typeof value === 'string' && value.trim() === INBOX_MENU_FEATURE)
+}
+
+/**
+ * T0968: `menu_open` (CT 6.4.0 memory-protocol.md): an object `{ ids, opened_at }`; `ids` 1～4 distinct
+ * `"U-n"` strings, each also in `awaiting_user` (`awaitingIds`); `opened_at` a CT date-time (not a bare
+ * date). Anything else → null (the caller treats it as absent). Flow (`{ ids: [...] }`) and block lists
+ * are the same value once YAML is parsed.
+ */
+export function parseMenuOpen(raw: unknown, awaitingIds: ReadonlySet<string>): MenuOpen | null {
+  const record = raw && typeof raw === 'object' && !Array.isArray(raw) ? raw as Record<string, unknown> : null
+  if (!record || !Array.isArray(record.ids)) return null
+  const ids: string[] = []
+  for (const value of record.ids) {
+    if (typeof value !== 'string' || !AWAITING_ID.test(value) || ids.includes(value) || !awaitingIds.has(value)) return null
+    ids.push(value)
+  }
+  if (ids.length < 1 || ids.length > MENU_OPEN_IDS_MAX) return null
+  const openedAt = record.opened_at
+  if (typeof openedAt !== 'string' || isCtDateOnly(openedAt.trim()) || parseCtTime(openedAt) === null) return null
+  return { ids, openedAt: openedAt.trim() }
+}
+
+/** T0968: the `menu` an inbox answer carries for `lists` (undefined = the Tower does not declare `menu`). */
+export function inboxMenuInfo(lists: Pick<TowerInboxLists, 'menuFeature' | 'menuOpen'> | null | undefined): InboxMenuInfo | undefined {
+  if (!lists?.menuFeature) return undefined
+  return lists.menuOpen ? { ids: [...lists.menuOpen.ids], openedAt: lists.menuOpen.openedAt } : null
+}
+
+/**
+ * T0968: the host's check of `tower-inbox:answer`'s `menu` — the same shape `inboxMenuInfo` builds.
+ * undefined (absent) → undefined; `null` → null; a well-formed object → a copy; anything else → 'invalid'.
+ */
+export function checkInboxMenuInfo(raw: unknown): InboxMenuInfo | undefined | 'invalid' {
+  if (raw === undefined) return undefined
+  if (raw === null) return null
+  const record = raw && typeof raw === 'object' && !Array.isArray(raw) ? raw as Record<string, unknown> : null
+  if (!record || !Array.isArray(record.ids) || record.ids.length < 1 || record.ids.length > MENU_OPEN_IDS_MAX) return 'invalid'
+  const ids: string[] = []
+  for (const value of record.ids) {
+    if (typeof value !== 'string' || !AWAITING_ID.test(value) || ids.includes(value)) return 'invalid'
+    ids.push(value)
+  }
+  const openedAt = record.openedAt
+  if (typeof openedAt !== 'string' || openedAt.length > 64 || isCtDateOnly(openedAt.trim()) || parseCtTime(openedAt) === null) return 'invalid'
+  return { ids, openedAt: openedAt.trim() }
 }
 
 /**
@@ -426,6 +509,15 @@ export function parseTowerInboxLists(frontmatter: unknown): TowerInboxLists {
     skipped,
     present,
     features,
+  }
+  // T0968 (CT 6.4.0): `menu_open` counts only with `inbox_features: menu` (CT's `v2-menu-open-ignored`)
+  if (hasInboxMenuFeature(fm.inbox_features)) {
+    lists.menuFeature = true
+    if (Object.prototype.hasOwnProperty.call(fm, 'menu_open')) {
+      const menuOpen = parseMenuOpen(fm.menu_open, new Set(awaiting.map(item => item.id)))
+      if (menuOpen) lists.menuOpen = menuOpen
+      else lists.menuOpenInvalid = true
+    }
   }
   const nextIds = asRecord(fm.next_ids)
   if (nextIds) {

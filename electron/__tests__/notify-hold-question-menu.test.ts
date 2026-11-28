@@ -225,11 +225,19 @@ describe('BUG-236: an answer to an open AskUserQuestion menu', () => {
     expect(s.pm.writes).toEqual([])
   })
 
-  it('a Worker notification with only the menu record (no `question`): passes through as before, no Esc', () => {
+  // T0968 changed this case by the Tower's ruling (Q-3, D492): before, it passed through (`{ ok: true }`,
+  // written at once); now a contract-2 Tower's Worker notification is held by the menu record alone too
+  it('a Worker notification with only the menu record (no `question`): held (T0968, Tower ruling D492), no Esc, sent once the record closes', async () => {
     const s = setup()
     s.pm.menus.add('tower')
-    expect(s.controller.interceptWrite(WORKER, 'tower', 'T0001 完成')).toEqual({ ok: true })
+    expect(s.controller.interceptWrite(WORKER, 'tower', 'T0001 完成')).toEqual({ ok: true, held: true })
+    await vi.advanceTimersByTimeAsync(10_000)
+    expect(s.pm.writes).toEqual([])
+    s.pm.menus.delete('tower')
+    s.controller.onBlockedChange('tower')
+    await vi.advanceTimersByTimeAsync(NOTIFY_HOLD_QUIET_MS + 10)
     expect(s.pm.writes).toEqual([['tower', 'T0001 完成']])
+    expect(s.escs()).toBe(0)
   })
 
   it('not a contract-2 Tower: no answer is taken, a Worker notification is held as before, no Esc', async () => {

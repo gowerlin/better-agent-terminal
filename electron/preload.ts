@@ -23,6 +23,7 @@ import type { TerminalRoleChangeInfo } from '../src/lib/tower-terminal-title'
 import type { UsageLimitContinueEvent, UsageLimitStatusEvent } from '../src/lib/usage-limit'
 import type { DetachedWaitingReport, TerminalAttentionEvent, TerminalAttentionSnapshotEntry } from '../src/lib/terminal-attention'
 import type { NotifyHoldChangedEvent, NotifyHoldReminderEvent, TowerInboxAnswerResult } from '../src/types/notify-hold'
+import type { InboxMenuInfo } from '../src/lib/tower-inbox'
 import type { TowerCardsChangedEvent, TowerCardsListResult, TowerCardsOpResult } from '../src/types/tower-cards'
 import type { RemoteUploadApi, RemoteUploadProgressEvent, RemoteUploadSourceDescriptor } from '../src/lib/remote-upload'
 import type {
@@ -1270,8 +1271,10 @@ const electronAPI = {
   // queued by the host that runs the tab (proxied `tower-inbox:answer`; a bat-server before T0908
   // rejects with `No handler for channel`).
   towerInbox: {
-    answer: (terminalId: string, text: string) =>
-      ipcRenderer.invoke('tower-inbox:answer', { terminalId, text }) as Promise<TowerInboxAnswerResult>,
+    // T0968: `menu` (CT 6.4.0 `menu_open`, src/lib/tower-inbox.ts `inboxMenuInfo`) only when given — the
+    // object sent is otherwise exactly `{ terminalId, text }`; an older host ignores the extra key
+    answer: (terminalId: string, text: string, menu?: InboxMenuInfo) =>
+      ipcRenderer.invoke('tower-inbox:answer', menu === undefined ? { terminalId, text } : { terminalId, text, menu }) as Promise<TowerInboxAnswerResult>,
   },
   // T0710 — the CT prompt of the panel's one-click dispatch (`$ct-exec` / `$ct:ct-exec` for Codex),
   // decided and quoted by the host the window is bound to; a bat-server before T0710 rejects with

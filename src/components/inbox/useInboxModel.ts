@@ -11,9 +11,10 @@ import { getNotifyHold, useNotifyHoldVersion } from '../../stores/notify-hold-st
 import { getInterruptedAgent, useInterruptedAgentsVersion } from '../../stores/interrupted-agents-store'
 import { getInboxStateLists, useInboxFiles, useInboxStoreVersion, useRecentlyClosed, useSelectedInboxTower, type InboxFiles } from '../../stores/inbox-store'
 import { towerStateBatContract } from '../../lib/ct-tower-overview'
-import { dueReminders, type AwaitingItem, type DueReminder, type InboxFeature, type UserAction } from '../../lib/tower-inbox'
+import { dueReminders, inboxMenuInfo, type AwaitingItem, type DueReminder, type InboxFeature, type InboxMenuInfo, type UserAction } from '../../lib/tower-inbox'
 import {
   inboxAnswerTargets,
+  inboxMenuHintIds,
   panelTowerTerminalIds,
   type InboxAnswerTarget,
   type RecentlyClosed,
@@ -86,6 +87,13 @@ export interface InboxModel extends InboxVerdictModel {
   skipped: { awaiting: number; actions: number; reminders: number }
   /** PLAN-069 / T0922: the known CT `inbox_features` (`dismiss` → the 放棄 / 略過 controls). */
   features: InboxFeature[]
+  /**
+   * T0968 (CT 6.4.0): what an answer tells the host about the Tower's menu (`inboxMenuInfo`; undefined =
+   * the Tower does not declare `menu` → the host does what T0965 did).
+   */
+  menu: InboxMenuInfo | undefined
+  /** T0968: the `U-n` to show「塔台正以選單詢問此題」beside (`inboxMenuHintIds`). */
+  menuHintIds: readonly string[]
   /** T0908: CT `user_inbox` (off = CT writes neither list). */
   userInbox: 'on' | 'off'
   /** T0908: items that left the lists this run (newest first, ≤ 10). */
@@ -137,6 +145,9 @@ export function useInboxModel(workspaceId: string | null | undefined, folder: st
   const panelIds = new Set(panelTowerTerminalIds(terminals, stateContract, verdictModel.towers.length))
   const panels = terminals.filter(t => panelIds.has(t.id)).map(t => ({ id: t.id, title: t.title }))
   const answerTargets = inboxAnswerTargets(verdictModel.towers, panels, stateContract)
+  // T0968: the menu `menu_open` names, while a Tower tab shows `question` (its attention)
+  const menu = inboxMenuInfo(lists)
+  const menuHintIds = inboxMenuHintIds(menu, answerTargets.targets, id => getTerminalAttention(id)?.blockedReason)
   const actionCount = inboxActionCount({
     workerItems: workerItems.length,
     pendingBugs: pendingBugs.length,
@@ -147,7 +158,7 @@ export function useInboxModel(workspaceId: string | null | undefined, folder: st
   const badge = !loading && applies ? inboxTabBadge(verdictModel.verdict, actionCount) : null
   return {
     ...verdictModel, files, loading, applies, workerItems, pendingBugs, counts, todo,
-    awaiting, actions, reminders, skipped, features, userInbox, recentlyClosed, answerTargets, actionCount, badge,
+    awaiting, actions, reminders, skipped, features, menu, menuHintIds, userInbox, recentlyClosed, answerTargets, actionCount, badge,
   }
 }
 

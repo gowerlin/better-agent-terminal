@@ -9,9 +9,13 @@
  *                                  refused while the panel's input box has text (`draft`, the panel
  *                                  knows it — no guessing)
  *
+ * T0968 (CT 6.4.0): `menu` = the Tower's `menu_open` as `inboxMenuInfo` built it — passed to the tab's host
+ * only when given (undefined: the call is exactly T0908's), so it can tell whether the line answers the open
+ * menu (Esc, then the line) or must wait for the menu to close. A panel Tower ignores it.
+ *
  * 🔴 Logs ids, lengths and results only, never the line.
  */
-import { checkInboxAnswer, inboxAnswerLogIds } from './tower-inbox'
+import { checkInboxAnswer, inboxAnswerLogIds, type InboxMenuInfo } from './tower-inbox'
 import type { InboxAnswerTarget } from './inbox-model'
 
 /** Window event a Claude Agent panel (its `sessionId` = the tab id) answers synchronously. */
@@ -57,14 +61,14 @@ export function sendPanelTowerAnswer(sessionId: string, text: string): InboxAnsw
 }
 
 /** Sends one answer line to `target`. Never throws. */
-export async function sendInboxAnswer(target: InboxAnswerTarget, text: string): Promise<InboxAnswerOutcome> {
+export async function sendInboxAnswer(target: InboxAnswerTarget, text: string, menu?: InboxMenuInfo): Promise<InboxAnswerOutcome> {
   const check = checkInboxAnswer(text)
   if (check !== 'ok') return { status: 'failed', reason: check }
   if (target.kind === 'panel') return sendPanelTowerAnswer(target.id, text)
   const api = window.electronAPI?.towerInbox
   if (!api?.answer) return { status: 'failed', reason: 'unsupported' }
   try {
-    const result = await api.answer(target.id, text)
+    const result = menu === undefined ? await api.answer(target.id, text) : await api.answer(target.id, text, menu)
     const outcome: InboxAnswerOutcome = result?.ok
       ? (result.held ? { status: 'held', ...(typeof result.holdId === 'string' ? { holdId: result.holdId } : {}) } : { status: 'sent' })
       : { status: 'failed', reason: result?.reason ?? 'unknown' }

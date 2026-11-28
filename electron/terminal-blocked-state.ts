@@ -465,8 +465,11 @@ export class TerminalBlockedTracker {
   /**
    * T0965 / BUG-236: PTY id → its AskUserQuestion menu may still be open (outlives a clear by the user's
    * input / a mouse press); `at` = the latest `at` of the hooks that opened / kept it (absent = unknown).
+   * T0968: `openedAt` = ms epoch (this tracker's `now`, the wall clock) the record began — set when it is
+   * made and again by each `ask-user-question` hook (the PreToolUse of a new AskUserQuestion call), so the
+   * host can tell whether CT's `menu_open.opened_at` belongs to this menu.
    */
-  private readonly questionMenus = new Map<string, { at?: bigint }>()
+  private readonly questionMenus = new Map<string, { at?: bigint; openedAt: number }>()
   /**
    * T0694: running PTY id → its agent's turn (start time, the quiet fallback's timer).
    * T0791: + `startedAt` — the latest `at` of the `user-prompt-submit` reports that started / kept it
@@ -556,7 +559,7 @@ export class TerminalBlockedTracker {
     // T0926 / BUG-224: the other hook of the question the user already answered (reported late)
     if (reason === 'question' && this.lateHookOfAnsweredQuestion(id, event, toolName, at)) return { result: 'unchanged', state: null }
     this.answeredQuestions.delete(id)
-    if (reason === 'question') this.noteQuestionMenuOpen(id, at) // T0965
+    if (reason === 'question') this.noteQuestionMenuOpen(id, at, event) // T0965
     const current = this.states.get(id)
     if (current && current.reason === reason) {
       if (reason === 'permission') this.addPermissionPrompt(id, agent, at)
@@ -586,8 +589,11 @@ export class TerminalBlockedTracker {
   }
 
   /** T0965 / BUG-236: a hook that sets / keeps `question` — PTY `id`'s AskUserQuestion menu is open. */
-  private noteQuestionMenuOpen(id: string, at: bigint | undefined): void {
-    const menu = this.questionMenus.get(id) ?? {}
+  private noteQuestionMenuOpen(id: string, at: bigint | undefined, event: HookReportEvent): void {
+    const known = this.questionMenus.get(id)
+    const menu = known ?? { openedAt: this.now() }
+    // T0968: a new AskUserQuestion call (its PreToolUse) starts the menu again; its second hook does not
+    if (known && event === 'ask-user-question') menu.openedAt = this.now()
     if (at !== undefined && (menu.at === undefined || at > menu.at)) menu.at = at
     this.questionMenus.set(id, menu)
   }
@@ -613,6 +619,14 @@ export class TerminalBlockedTracker {
    */
   hasOpenQuestionMenu(id: string): boolean {
     return this.questionMenus.has(id)
+  }
+
+  /**
+   * T0968: ms epoch (this tracker's clock) PTY `id`'s menu record began (`noteQuestionMenuOpen`), or null
+   * when there is none. Read only by NotifyHoldController; never changes `blocked`.
+   */
+  questionMenuOpenedAt(id: string): number | null {
+    return this.questionMenus.get(id)?.openedAt ?? null
   }
 
   /**
