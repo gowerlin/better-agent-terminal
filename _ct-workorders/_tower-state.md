@@ -4,8 +4,8 @@ summary_version: 1
 bat_contract: 2
 ct_version: "6.3.0"
 inbox_features: ["recommended", "dismiss", "multi"]
-updated_at: "2026-11-28T11:54:11+0800"
-session: "2026-11-28 11:06 第一百四十 session 塔台重新開工（CT v6.3.0）"
+updated_at: "2026-11-28T11:59:51+0800"
+session: "2026-11-28 11:59 第一百四十 session 塔台重新開工（CT v6.3.0，BAT 0.8.1-pre.3）"
 next_ids:
   workorder: "T0964"
   decision: "D475"
@@ -62,6 +62,7 @@ reminders:
 - 11:25 T0963 DONE（`45a9427c`）：原因是 T0951 的 `writeLaunchCommand` 在「命令前沒打字」時沒刪空的保留清單，之後所有按鍵被保留；pre.1 也有（退回 pre.1 能用是因為分頁都是接回）。收單 `--close-worker --delay-ms 10000 --worktree keep` exit 0；`--worktree-status` 五條全成立 → 模式 ①：`ct-merge/T0963` `da4f8067`（parent1 `f8429161`、parent2 `45a9427c`，產品樹 = head）；斷點 E → U-55、發版 → U-56（D472）
 - 11:28 U-55：A、U-56：A → `main` 只多 `_ct-workorders/**` → 整合分支再合併 `main` 後 ff，`main` = `6fd50e00`；T0963 worktree 移除（分支 `ct/T0963`、`ct-merge/T0963` 保留）；BUG-234 FIXED；發 `0.8.1-pre.3`（D473）
 - 11:54 `v0.8.1-pre.3` 發佈（Pre-Release `46103078102` success，`ba010838`，2026-11-28 11:52；資產 4 個同 pre.2）；更版重點已改寫；CHANGELOG / release-note / package 版號 commit＋push；A-25 待你實機（D474）
+- 11:59 塔台重新開工：塔台 session `c3c72160-0d57-4614-8800-6e952c8e484d`（分頁 `f32bfa46…`，`better-agent-terminal · Tower`）；BAT 已是 `0.8.1-pre.3`（`bat-terminal.mjs --version`）；`--set-role tower --bat-contract 2 --mode on` exit 0（`bat-contract: 2`、`hooks: ok (injected, set 2)`）；`main` = `origin/main` @ `c8fdac6c`、工作樹乾淨；熱區 T:359 / BUG:98 / PLAN:35；無進行中工單；`_decision-log.md` 412,091 bytes（> 400 KB 預算）
 
 ---
 
