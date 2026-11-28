@@ -4,12 +4,13 @@ schema_kind: workorder
 id: T0966
 title: "待辦分頁「👷 Worker 等你」不再把使用者自己的回答算成「待送 N 則通知」：回答與 Worker 通知分開計數與措辭，回答不計入分頁標題數字（U-58：A）"
 type: feature
-status: PENDING
+status: IN_PROGRESS
 repo: better-agent-terminal
 priority: P2
 sizing: S
 created_at: "2026-11-28T12:31:57+0800"
-updated_at: "2026-11-28T12:31:57+0800"
+updated_at: "2026-11-28T12:34:05+0800"
+started_at: "2026-11-28T12:34:05+0800"
 target_version: "下一個預覽版（`0.8.1-pre.4`，發版前與使用者確認）"
 depends_on: []
 related:
