@@ -130,6 +130,7 @@ reminders:
 - 15:12 塔台重新開工（同 session `c3c72160-0d57-4614-8800-6e952c8e484d`，分頁 `f32bfa46…`）：BAT 已是 `0.8.1-pre.4`；`--set-role tower --bat-contract 2 --mode on` exit 0（`bat-contract: 2`、`hooks: ok (injected, set 2)`）；`main` `4666c2c3`（比 `origin/main` 多 T0969 等，未 push）、工作樹乾淨；熱區 T:365 / BUG:101 / PLAN:35，無進行中工單；`_decision-log.md` 438,381 bytes（> 400 KB 預算）
 - 15:13 `*sync`：工單 365 張全 DONE；BUG 檔 101 與 `_bug-tracker.md` 101 列逐筆一致（OPEN 1 / FIXED 1 / CLOSED 98 / WONTFIX 1）；PLAN 35 與 `_backlog.md` 一致（IDEA 3 / IN_PROGRESS 7 / DONE 23 / DROPPED 2）；索引不需重建；基本資訊表與編號起始更新；`auto_archive_prompt: off`（不提示歸檔候選）
 - 15:14 使用者：「已更版 v0.8.1-pre.4 請派單自動驗收」→ 開 T0970（交付版 zip 隔離實例＋ ACC 真 claude，R1–R5：BUG-235 閒置時立即送出、送出前按鍵的草稿被清除（pre.3 對照）、真草稿保留＋去重、Worker 等你不算回答、日誌不含內容），結果決定 A-26（D498）
+- 15:15 T0970 派工 `--mode yolo --no-interactive --isolation worktree --wait-started 30000` exit 0，`started: 07:15:35Z`，分頁 `18f53f67…`，worktree `ct/T0970` base `e09b3da8`
 
 ---
 
