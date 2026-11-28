@@ -4,13 +4,15 @@ schema_kind: workorder
 id: T0983
 title: "PLAN-066 F4（選項 D）＋BUG-238＋direct 模式 conin：自然結束的分頁在 ✕ / ⏻ / 同 id 重建時收掉 conhost；關分頁不再經 node-pty `kill()` 對已結束的 pid 呼叫 `process.kill`"
 type: bugfix
-status: PENDING
+status: IN_PROGRESS
 repo: better-agent-terminal
 priority: P2
 sizing: M
 created_at: "2026-11-28T19:04:38+08:00"
-updated_at: "2026-11-28T19:04:38+08:00"
-session_ids: []
+started_at: "2026-11-28T19:11:08+08:00"
+updated_at: "2026-11-28T19:11:08+08:00"
+session_ids:
+  - "02c7441e-4ddf-4963-970a-7f6795aedb3f"
 target_version: "下一個預覽版（`0.8.1-pre.6`；改 `terminal-server.js` → holder key 改變，發版前要跑 W6，發版前與使用者確認）"
 depends_on: [T0982]
 related:
