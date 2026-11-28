@@ -9,8 +9,15 @@
  * A failed check means "not found": the reference stays plain text.
  * T0935: a file name written without a `/` is a `kind: 'path'` reference like any other path (root,
  * then `_ct-workorders/`), so it links only when found and counts toward the same cap.
+ * T0980: also re-checked when `<folder>/_ct-workorders` gets `fs:changed` (a referenced file created,
+ * archived or deleted after the list was shown). The watch is the window's shared one, joined through
+ * `acquireDirWatch` (same path string as `InboxDataSource`, so no second watcher in main); a burst of
+ * events is merged into one re-check `INBOX_FILE_REF_RECHECK_DEBOUNCE_MS` after the last one. Still no
+ * polling, no new channel, nothing logged; same cap and one listing per folder per check. A change
+ * outside `_ct-workorders/` is not watched: those references are re-checked only when the set changes.
  */
 import { useEffect, useMemo, useState } from 'react'
+import { acquireDirWatch } from '../../stores/ct-dir-watch'
 import {
   INBOX_FILE_REF_MAX,
   fileRefKey,
@@ -28,6 +35,9 @@ import {
 export type InboxRefLinks = ReadonlyMap<string, ResolvedRef>
 
 const EMPTY: InboxRefLinks = new Map()
+
+/** T0980: how long after the last `_ct-workorders/` change the references are checked again. */
+export const INBOX_FILE_REF_RECHECK_DEBOUNCE_MS = 300
 
 /** The references of one item: its tag values (only CT ids) and its texts. */
 export function itemFileRefs(tags: ReadonlyArray<string | undefined>, texts: ReadonlyArray<string | undefined>): FileRef[] {
@@ -108,6 +118,8 @@ export function useInboxFileRefs(folder: string | null | undefined, refs: readon
   }, [refs])
   const signature = [...unique.keys()].join('\n')
   const [links, setLinks] = useState<{ folder: string; signature: string; found: InboxRefLinks } | null>(null)
+  const [recheck, setRecheck] = useState(0)
+  const hasRefs = unique.size > 0
 
   useEffect(() => {
     if (!folder || unique.size === 0) return
@@ -116,9 +128,32 @@ export function useInboxFileRefs(folder: string | null | undefined, refs: readon
       if (!disposed) setLinks({ folder, signature, found })
     })
     return () => { disposed = true }
-    // `unique` follows `signature`: re-check only when the set of references (or the folder) changes
+    // `unique` follows `signature`: re-check only when the set of references (or the folder) changes,
+    // or after a `_ct-workorders/` change (`recheck`, T0980)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [folder, signature])
+  }, [folder, signature, recheck])
+
+  // T0980: join the window's `_ct-workorders/` watch while there is something to check.
+  useEffect(() => {
+    const fs = window.electronAPI?.fs
+    if (!folder || !hasRefs || !fs?.onChanged) return
+    const ctDir = `${folder}/_ct-workorders`
+    let timer: ReturnType<typeof setTimeout> | null = null
+    const release = acquireDirWatch(ctDir)
+    const unsubscribe = fs.onChanged((changed: string) => {
+      if (changed !== ctDir) return
+      if (timer) clearTimeout(timer)
+      timer = setTimeout(() => {
+        timer = null
+        setRecheck(n => n + 1)
+      }, INBOX_FILE_REF_RECHECK_DEBOUNCE_MS)
+    })
+    return () => {
+      if (timer) clearTimeout(timer)
+      unsubscribe?.()
+      release()
+    }
+  }, [folder, hasRefs])
 
   if (!folder || !links || links.folder !== folder) return EMPTY
   return links.found
