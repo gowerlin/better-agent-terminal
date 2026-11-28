@@ -116,6 +116,7 @@ reminders:
 - 15:34 T0971 DONE（`e7804e1d`，test:unit 9613 passed；BUG-237 提示行改由主行程判斷、Q-2 限制一併解除、B-1 / B-2）；收單 `--close-worker --worktree keep` exit 0；接線 4 檔補進 affects_files 後五條全成立 → 模式 ① `ct-merge/T0971` `4e07b9d2`；斷點 E → U-67（D501）
 - 15:35 U-67：A（原生選單）→ `ct-merge/T0971` 再合併 `main`（只多 `_ct-workorders/**`）後 ff，`main` = `6a7b90e8`（產品樹 = `e7804e1d`，未 push）；整合 worktree detach；worktree 解除註冊、目錄刪除失敗（殘留）；BUG-237 FIXED（D502）
 - 15:42 T0970 DONE（pre.4：R1 / R3 / R4 / R5 PASS、**R2 FAIL**；pre.3 R2 對照重現；R4 對照確認 T0966 有效）；收單 `--close-worker --worktree keep` exit 0；BUG-235 退回 FIXING → 重修 T0972（塔台裁示修法 ① 不以契約為前提清草稿，若 draft 有非契約讀者改 ② 宣告時補清）；T0970 合併因 T0971 判準 1 不成立 → 合併工單 T0973（D503）
+- 15:44 T0972 派工（`--isolation worktree`，`started: 07:44:07Z`，分頁 `5bda26b1…`，base `07afa77b`）、T0973 派工（整合 worktree，`started: 07:44:09Z`，分頁 `d98a8bca…`），皆 `--mode yolo --no-interactive --wait-started 30000` exit 0；兩單不重疊
 
 ---
 
