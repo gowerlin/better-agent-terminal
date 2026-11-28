@@ -75,6 +75,18 @@
  * `input` and every other tab hold exactly as before. 「立即送出」releases a held answer only when the tab is
  * not `question` (the menu record alone may be stale). Logs `[notify-hold] menu esc …` (ids only).
  *
+ * T0968 (CT 6.4.0-pre.1 `menu_open`, D492) — which answer may close the menu:
+ *   - the window sends the Tower's `menu_open` with the answer (`tower-inbox:answer`'s optional `menu`,
+ *     only when CT declares `inbox_features: menu`; `null` = CT declares it and no menu holds a `U-n`).
+ *   - with that information, BAT writes the Esc only when one of the answer's `U-n` is in `menu.ids` and
+ *     `opened_at` belongs to the menu record now open (`menuEscDecision`: from
+ *     `NOTIFY_HOLD_MENU_OPENED_BEFORE_MS` before the record began to `NOTIFY_HOLD_MENU_OPENED_AFTER_MS` after
+ *     it). Otherwise (an `A-n`, a `U-n` not in the menu, no `menu_open`, a `menu_open` left from an earlier
+ *     menu) no Esc: the answer is held until the menu closes, logged `menu esc skipped … (<why>)` once.
+ *   - without it (CT before 6.4.0, an older window, a malformed `menu`): exactly T0965.
+ *   - a contract-2 Tower's Worker notifications are held by the menu record too (not only by `question`;
+ *     never an Esc), whatever the CT version; sent by the T0788 rules once the record closes.
+ *
  * PLAN-068 W5 / T0908: the windows' channels are registered here for both hosts and proxied
  * (`registerNotifyHoldHandlers`: `terminal:notify-hold-list` / `-cancel` / `-send-now`;
  * `registerTowerInboxAnswerHandler`: `tower-inbox:answer`), so a remote window sees and drives its
@@ -93,7 +105,7 @@ import type {
   TowerInboxAnswerResult,
 } from '../src/types/notify-hold'
 import { towerContractStatus } from '../src/lib/tower-contract'
-import { checkInboxAnswer, inboxAnswerLogIds } from '../src/lib/tower-inbox'
+import { checkInboxAnswer, checkInboxMenuInfo, inboxAnswerIds, inboxAnswerLogIds, parseCtTime, type InboxMenuInfo } from '../src/lib/tower-inbox'
 import {
   NO_DRAFT,
   SingleKeyPromptScanner,
@@ -141,6 +153,41 @@ export const NOTIFY_HOLD_MENU_INPUT_QUIET_MS = 2_000
 export const NOTIFY_HOLD_MENU_OUTPUT_QUIET_MS = 1_000
 /** T0965: what BAT writes to close the menu. */
 const MENU_ESC = '\x1b'
+/**
+ * T0968: CT's `menu_open.opened_at` still belongs to the menu record that began this long after it. CT takes
+ * the time, writes `_tower-state.md`, then the model writes the AskUserQuestion call and its PreToolUse hook
+ * reaches BAT: seconds, up to about a minute for a long question (or a permission prompt for the write in a
+ * non-yolo Tower). Older → a `menu_open` left from an earlier menu (CT stopped before its next write) — no Esc.
+ * Erring this way only keeps the answer until the user closes the menu; erring the other way would close a
+ * menu the answer is not for.
+ */
+export const NOTIFY_HOLD_MENU_OPENED_BEFORE_MS = 5 * 60_000
+/**
+ * T0968: …and at most this long before it (`opened_at` has whole seconds and comes from the same host's
+ * clock; a later one was written after this menu opened, so it is not this menu's).
+ */
+export const NOTIFY_HOLD_MENU_OPENED_AFTER_MS = 5_000
+
+/** T0968: why an answer may (`esc`) or may not close the open menu (`menuEscDecision`). */
+export type MenuEscDecision = 'esc' | 'no-menu-open' | 'not-in-menu' | 'no-record' | 'stale' | 'not-this-menu'
+
+/**
+ * T0968: whether BAT may write the Esc for answer `text`. `menu` undefined = no information (T0965: `esc`);
+ * `null` = CT declares `menu` and wrote no `menu_open`; else the answer's `U-n` (one of a batch line's is
+ * enough) must be in `menu.ids` and `menu.openedAt` within [record − BEFORE, record + AFTER] of the record's
+ * start `recordOpenedAt` (ms epoch, same clock as CT's time on this host; null = no record).
+ */
+export function menuEscDecision(menu: InboxMenuInfo | undefined, text: string, recordOpenedAt: number | null): MenuEscDecision {
+  if (menu === undefined) return 'esc'
+  if (menu === null) return 'no-menu-open'
+  const ids = inboxAnswerIds(text).filter(id => id.startsWith('U-'))
+  if (!ids.some(id => menu.ids.includes(id))) return 'not-in-menu'
+  if (recordOpenedAt === null) return 'no-record'
+  const openedAt = parseCtTime(menu.openedAt)
+  if (openedAt === null || openedAt < recordOpenedAt - NOTIFY_HOLD_MENU_OPENED_BEFORE_MS) return 'stale'
+  if (openedAt > recordOpenedAt + NOTIFY_HOLD_MENU_OPENED_AFTER_MS) return 'not-this-menu'
+  return 'esc'
+}
 
 /** The `blocked` reasons that hold (a prompt in the tab waits for a key). */
 export const NOTIFY_HOLD_REASONS: readonly string[] = ['permission', 'question', 'elicitation', 'input']
@@ -182,6 +229,8 @@ export interface NotifyHoldPtyManager {
   hasOpenQuestionMenu?(id: string): boolean
   /** T0965: BAT's Esc closed the menu (the tracker drops it and a `question` still set). Absent = no Esc is sent. */
   closeQuestionMenu?(id: string, cause: string): boolean
+  /** T0968: ms epoch (the wall clock) the menu record of tab `id` began, or null. Absent = unknown (`no-record`). */
+  getQuestionMenuOpenedAt?(id: string): number | null
   /** T0965: ms epoch of tab `id`'s last output (`now`'s clock), or null. Absent = unknown (quiet). */
   getLastOutputAt?(id: string): number | null
 }
@@ -224,6 +273,8 @@ interface HeldItem {
   textSent?: boolean
   /** T0904:「立即送出」— `draft` / `reading` no longer hold it. */
   forced?: boolean
+  /** T0968: an answer's `menu` from the window (`menuEscDecision`); undefined = none sent (T0965). */
+  menu?: InboxMenuInfo
 }
 
 interface TargetQueue {
@@ -244,6 +295,8 @@ interface TargetQueue {
   menuTimer: unknown
   /** T0965: the answer whose wait before the Esc was logged (once per answer). */
   menuWaitLogged: string | null
+  /** T0968: the answer whose skipped Esc was logged, and why (once per answer and reason). */
+  menuSkipLogged: string | null
 }
 
 /** T0965 / BUG-236: BAT's Esc to the AskUserQuestion menu, for answer `holdId`. */
@@ -393,7 +446,7 @@ export class NotifyHoldController {
    * tab and submitted. Held by a prompt and by `draft` (never by `reading`), queued behind held
    * notifications; otherwise sent at once. Its Enter is the user's input. Contract-2 Towers only.
    */
-  enqueueAnswer(targetId: string, text: string, opts: { connectionId?: string | null } = {}): NotifyHoldAnswerResult {
+  enqueueAnswer(targetId: string, text: string, opts: { connectionId?: string | null; menu?: InboxMenuInfo } = {}): NotifyHoldAnswerResult {
     if (typeof targetId !== 'string' || typeof text !== 'string' || text.length === 0
       || text.length > NOTIFY_HOLD_ANSWER_MAX_CHARS || /[\r\n]/.test(text)) {
       return { ok: false, reason: 'invalid' }
@@ -405,6 +458,7 @@ export class NotifyHoldController {
     // queued twice; answered as held, the item already there (a resend after it went out is not caught)
     const waiting = this.queues.get(targetId)?.items.find(item => item.kind === 'answer' && !item.textSent && item.text === text)
     if (waiting) {
+      if (opts.menu !== undefined) waiting.menu = opts.menu // T0968: the window's newer reading of the menu
       this.deps.logger.log(`[notify-hold] answer duplicate ${describe(waiting)} holdId=${waiting.holdId} len=${text.length} (already held)`)
       return { ok: true, held: true, holdId: waiting.holdId }
     }
@@ -426,6 +480,7 @@ export class NotifyHoldController {
       text,
       textAt: now,
       enter: { targetId, key: 'Enter', code: 'Enter', keyCode: 13, source: 'answer', reason: 'answer', userInput: true },
+      ...(opts.menu !== undefined ? { menu: opts.menu } : {}),
     }
     queue.items.push(item)
     if (hold) {
@@ -706,7 +761,8 @@ export class NotifyHoldController {
     if (this.isContractTower(targetId)) {
       if (this.atomics.has(targetId)) return 'queued'
       // T0965 / BUG-236: the menu may still be open though `question` was cleared — never typed into it
-      if (kind === 'answer' && this.questionMenuOpen(targetId)) return 'question'
+      // T0968: Worker notifications too (their Enter would pick an option); never an Esc for them
+      if (this.questionMenuOpen(targetId)) return 'question'
       if (this.hasDraft(targetId)) return 'draft'
       if (kind === 'notify' && this.readingActive(targetId)) return 'reading'
     }
@@ -729,7 +785,8 @@ export class NotifyHoldController {
     if (!queue || !head || head.textSent || !this.isContractTower(id)) return null
     if (this.atomics.has(id)) return 'queued'
     // T0965 / BUG-236: an answer waits for the menu to close (「立即送出」releases it: the record may be stale)
-    if (head.kind === 'answer' && !head.forced && this.questionMenuOpen(id)) return 'question'
+    // T0968: a Worker notification too
+    if (!head.forced && this.questionMenuOpen(id)) return 'question'
     if (head.forced) return null
     if (this.hasDraft(id)) return 'draft'
     if (head.kind !== 'answer' && this.readingActive(id) && !this.readingCapped(queue)) return 'reading'
@@ -755,6 +812,7 @@ export class NotifyHoldController {
         menuEsc: null,
         menuTimer: null,
         menuWaitLogged: null,
+        menuSkipLogged: null,
       }
       this.queues.set(id, queue)
     }
@@ -925,6 +983,17 @@ export class NotifyHoldController {
     const prompt = this.promptReason(id)
     if (prompt !== 'question' && (prompt !== null || head.forced || !this.questionMenuOpen(id))) return
     if (queue.menuEsc?.holdId === head.holdId) return
+    // T0968: with CT's `menu_open`, only an answer to this very menu closes it; any other waits for it to close
+    const decision = menuEscDecision(head.menu, head.text ?? '', pm.getQuestionMenuOpenedAt?.(id) ?? null)
+    if (decision !== 'esc') {
+      this.clearMenuTimer(queue)
+      const logged = `${head.holdId}:${decision}`
+      if (queue.menuSkipLogged !== logged) {
+        queue.menuSkipLogged = logged
+        this.deps.logger.log(`[notify-hold] menu esc skipped terminal=${id} holdId=${head.holdId} (${decision}; held until the menu closes)`)
+      }
+      return
+    }
     let wait: 'draft' | 'input' | 'output' | null = null
     let waitMs = 0
     if (this.hasDraft(id)) {
@@ -1134,6 +1203,7 @@ export class NotifyHoldController {
     queue.items.splice(index, 1)
     if (queue.menuEsc?.holdId === item.holdId) this.endMenuEsc(queue) // T0965
     if (queue.menuWaitLogged === item.holdId) queue.menuWaitLogged = null
+    if (queue.menuSkipLogged?.startsWith(`${item.holdId}:`)) queue.menuSkipLogged = null // T0968
     if (!action) return
     const parts = len !== undefined ? 'text' : partsOf(item)
     const length = len ?? item.text?.length ?? 0
@@ -1176,6 +1246,8 @@ export const TOWER_INBOX_ANSWER_CHANNEL = 'tower-inbox:answer'
  * the bat-server running the tab. 🔴 Not in `HELPER_CHANNEL_ROLES`, and a helper capability is refused
  * here too (`FORBIDDEN`): no agent can answer for the user. The text must pass `checkInboxAnswer`
  * (one line, ≤ 1,000 chars, `^[UA]-\d+[：:]` + text). Logs ids and lengths only, never the text.
+ * T0968: an optional `menu` (CT 6.4.0 `menu_open`, `checkInboxMenuInfo`) goes with the answer
+ * (`menuEscDecision`); absent or malformed → none (T0965), a malformed one logged.
  */
 export function registerTowerInboxAnswerHandler(opts: {
   registerHandler: RegisterHandler
@@ -1199,7 +1271,12 @@ export function registerTowerInboxAnswerHandler(opts: {
     const text = args.text as string
     const controller = opts.getNotifyHold()
     if (!controller) return { ok: false, reason: 'unavailable' }
-    const result = controller.enqueueAnswer(terminalId, text, { connectionId: ctx?.connectionId ?? null })
+    // T0968: only an object given by the window counts (an older window sends no `menu` key)
+    const menuCheck = checkInboxMenuInfo(args.menu)
+    const menu = menuCheck === 'invalid' ? undefined : menuCheck
+    if (menuCheck === 'invalid') opts.logger.log(`[tower-inbox] answer menu ignored terminal=${terminalId} (malformed)`)
+    else if (menu !== undefined) opts.logger.log(`[tower-inbox] answer menu terminal=${terminalId} ${menu === null ? 'menu_open=none' : `menu_open=${menu.ids.join(',')}`}`)
+    const result = controller.enqueueAnswer(terminalId, text, { connectionId: ctx?.connectionId ?? null, ...(menu !== undefined ? { menu } : {}) })
     // PLAN-069 / T0922: a batch line logs its first id and the id count (`id=U-1 ids=3`); one id as before
     opts.logger.log(`[tower-inbox] answer terminal=${terminalId} ${inboxAnswerLogIds(text)} len=${text.length} → ${result.ok ? (result.held ? 'held' : 'sending') : result.reason}`)
     return result

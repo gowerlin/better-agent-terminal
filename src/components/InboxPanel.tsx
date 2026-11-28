@@ -183,12 +183,12 @@ export function InboxPanel({ workspaceId, workspaceFolderPath }: Readonly<InboxP
         {inboxOff && <div className="inbox-muted inbox-off" data-inbox-off="">{t('inbox.userInboxOff')}</div>}
 
         <InboxSection id="decide" title={t('inbox.section.decide')} count={awaiting.length} folded={folded.decide} onToggle={toggle}>
-          <AwaitingList items={awaiting} skipped={model.skipped.awaiting} targets={model.answerTargets} dismiss={dismiss} folder={workspaceFolderPath} />
+          <AwaitingList items={awaiting} skipped={model.skipped.awaiting} targets={model.answerTargets} dismiss={dismiss} folder={workspaceFolderPath} menu={model.menu} menuHintIds={model.menuHintIds} />
         </InboxSection>
         {!inboxOff && awaiting.length === 0 && skippedLine(model.skipped.awaiting)}
 
         <InboxSection id="act" title={t('inbox.section.act')} count={actions.length + model.pendingBugs.length} folded={folded.act} onToggle={toggle}>
-          {actions.length > 0 && <ActionList items={actions} skipped={model.skipped.actions} targets={model.answerTargets} dismiss={dismiss} folder={workspaceFolderPath} />}
+          {actions.length > 0 && <ActionList items={actions} skipped={model.skipped.actions} targets={model.answerTargets} dismiss={dismiss} folder={workspaceFolderPath} menu={model.menu} />}
           <ul className="inbox-list">
             {model.pendingBugs.map(bug => (
               <li key={bug.id} className="inbox-item" data-inbox-bug={bug.id}>

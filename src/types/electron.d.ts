@@ -975,7 +975,8 @@ interface ElectronAPI {
   // PLAN-068 W5 / T0908 — the Inbox answer into a contract-2 Tower tab (proxied `tower-inbox:answer`;
   // rejects with `No handler for channel` on a bat-server before T0908).
   towerInbox: {
-    answer: (terminalId: string, text: string) => Promise<import('./notify-hold').TowerInboxAnswerResult>
+    /** T0968: `menu` (optional, additive) = the Tower's `menu_open` as `inboxMenuInfo` builds it. */
+    answer: (terminalId: string, text: string, menu?: import('../lib/tower-inbox').InboxMenuInfo) => Promise<import('./notify-hold').TowerInboxAnswerResult>
   }
   // T0710 — the CT prompt of the panel's one-click dispatch, decided and quoted by the window's host
   // (proxied `terminal:control-tower-prompt`; rejects with `No handler for channel` on an older bat-server).

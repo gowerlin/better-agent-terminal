@@ -1353,6 +1353,11 @@ export class PtyManager implements CloseWorkerPtyManager {
     return this.instances.has(id) && this.blockedTracker.hasOpenQuestionMenu(id)
   }
 
+  /** T0968: ms epoch PTY `id`'s AskUserQuestion menu record began (`TerminalBlockedTracker`), or null. */
+  getQuestionMenuOpenedAt(id: string): number | null {
+    return this.instances.has(id) ? this.blockedTracker.questionMenuOpenedAt(id) : null
+  }
+
   /** T0965 / BUG-236: BAT's own Esc closed PTY `id`'s AskUserQuestion menu (NotifyHoldController). */
   closeQuestionMenu(id: string, cause: string): boolean {
     return this.instances.has(id) && this.blockedTracker.closeQuestionMenu(id, cause)

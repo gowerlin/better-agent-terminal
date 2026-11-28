@@ -537,12 +537,44 @@ PLAN-070，D412（使用者 2026-11-27：送出後被重設成未選取，看不
   2. Esc 之後 PTY 有輸出（claude 關掉選單、中斷回合重畫）→ `closeQuestionMenu`（清除 `question` 與選單紀錄）→ 照既有路徑等 `NOTIFY_HOLD_QUIET_MS` 安靜，送 `U-n：…` 文字與 Enter。
   3. `NOTIFY_HOLD_MENU_ESC_MAX_MS` = 3 s 內沒有輸出 → 不送文字、留在待送、記 `menu esc no effect`；同一筆回答不會再送第二個 Esc（兩次 Esc 會開 claude 的回溯選單）。之後使用者在終端作答（hook 關閉選單）就照常送出。
 - 多題選單：Esc 取消整個 AskUserQuestion，送出的那一題由塔台以文字收下，其他題留在待辦分頁（CT 端不用改）。
-- 🔴 不變：Worker 通知（helper `pty:write` / `terminal:keypress`）照舊保留、不觸發 Esc；只有選單紀錄、`question` 已被清除時，Worker 通知照舊直接送（T0965 前的行為）；`permission` / `elicitation` / codex `input` 照舊保留、不送 Esc（Esc 在權限框等於拒絕工具）；非契約 2 或非塔台分頁逐字不變；面板塔台不經這條路徑；`draft` / T0964 規則不變。「立即送出」：分頁仍是 `question` 時照舊不放行；只剩選單紀錄（可能已過期）時放行。
+- 🔴 不變：Worker 通知（helper `pty:write` / `terminal:keypress`）照舊保留、不觸發 Esc；~~只有選單紀錄、`question` 已被清除時，Worker 通知照舊直接送（T0965 前的行為）~~（T0968 起契約 2 塔台的 Worker 通知在只剩選單紀錄時也保留，見下一節）；`permission` / `elicitation` / codex `input` 照舊保留、不送 Esc（Esc 在權限框等於拒絕工具）；非契約 2 或非塔台分頁逐字不變；面板塔台不經這條路徑；`draft` / T0964 規則不變。「立即送出」：分頁仍是 `question` 時照舊不放行；只剩選單紀錄（可能已過期）時放行。
 - 鍵盤：選單紀錄還在時，契約 2 塔台的單一按鍵也比照 T0940 案 A（`isPromptShown`），方向鍵不會變成草稿。
 - 唯一實作：`considerMenuEsc` / `menuEscAnswered`（`electron/notify-hold.ts`），選單紀錄在 `TerminalBlockedTracker`；PtyManager 經 `NotifyHoldPtyManager` 的選用方法 `hasOpenQuestionMenu` / `closeQuestionMenu` / `getLastOutputAt` 提供（沒有這些方法的 host 照舊保留、不送 Esc）。
 - 日誌（只記 id）：`[notify-hold] menu esc terminal=<id> holdId=<h> (question|menu still open)`、`menu esc waits … (draft|input|output)`（每筆一次）、`menu esc answered … (the menu closed)`、`menu esc no effect … after=3000ms (the answer stays held)`、`menu esc failed …`；tracker `[blocked] terminal=<id> question menu closed (BAT Esc|user Esc|user Ctrl+C)`。
 - 已知限制：「Esc 之後有輸出 = 選單關了」是推論（真 claude 未實測，見 T0965〈待實機〉）；選單若會自己定時重畫，就永遠等不到輸出安靜，回答會一直保留到使用者在終端作答；Esc 中斷的回合若把上一則提示放回輸入框，回答會接在後面（待實機確認）。
 - 測試：`electron/__tests__/notify-hold-question-menu.test.ts`（含真 PtyManager 的 BUG-236 時序重現，修正前失敗）。
+
+### 選單交接：讀 CT 6.4.0 的 `menu_open`（T0968，D492）
+
+T0965 只知道「有選單」，不知道選單裡是哪幾題，所以任何回答都會代按 Esc。CT 6.4.0-pre.1 起塔台在開原生選單（AskUserQuestion）前，把選單裡的 `U-n` 寫成頂層 `menu_open`，並在 `inbox_features` 加 `menu`（CT `memory-protocol.md` § 契約 v2 欄位〈`menu_open` 的鍵〉〈誰寫、誰清〉的 `menu_open`）。BAT 依此只在回答確實是那個選單的題時才代按 Esc。
+
+| CT 版本 | `inbox_features` | BAT 的行為 |
+|---|---|---|
+| ≤ 6.3.x | 沒有 `menu` | 不理會 `menu_open`（有也不讀，= CT 的 `v2-menu-open-ignored`）；回答照 T0965 |
+| ≥ 6.4.0-pre.1 | 有 `menu` | 讀 `menu_open`；沒有這個鍵 = 沒有開著含 `U-n` 的選單 |
+
+- **解析**（renderer，唯一實作 `parseMenuOpen` / `hasInboxMenuFeature`，由 `parseTowerInboxLists` 呼叫，`src/lib/tower-inbox.ts`）：只在 `inbox_features` 有 `menu` 時讀；`ids` 是 1～4 筆不重複的 `"U-n"`、每筆都在 `awaiting_user`，`opened_at` 是 CT 的日期時間（`+08:00` / `+0800` 都收，只有日期不收）；`{ ids: [...] }` 單行與區塊清單寫法相同。格式錯 → 當作不存在、`menuOpenInvalid`，其他清單不受影響。`INBOX_FEATURES`（`recommended` / `dismiss` / `multi`）不變，`menu` 另外判斷。
+- **送出**：回答時 renderer 把 `inboxMenuInfo(lists)` 以選用、相加的第三個參數帶給 `tower-inbox:answer`（preload `towerInbox.answer(terminalId, text, menu?)`）：`{ ids, openedAt }`，或 `null`（有 `menu`、沒有可用的 `menu_open`）；CT 沒有 `menu` 時不帶（invoke 的物件逐字是 `{ terminalId, text }`）。🔴 `checkInboxAnswer`、回傳形狀、`HELPER_CHANNEL_ROLES` 不變。host 以 `checkInboxMenuInfo` 檢查，格式錯 → 當作沒帶（T0965）並記一行。舊 host / 舊 bat-server 的 handler 只讀 `terminalId` / `text`，多的鍵被忽略（= T0965 或更早的行為）。
+- **Esc 判斷**（主行程，唯一實作 `menuEscDecision`，`considerMenuEsc` 呼叫，`electron/notify-hold.ts`）：有 `menu` 資訊時，回答的 `U-n`（批次行只要其中一個）在 `ids` 裡、而且 `opened_at` 落在選單紀錄開始時間（`questionMenuOpenedAt`，tracker 的牆鐘，紀錄建立時與每個 `ask-user-question` hook 時記下）之前 `NOTIFY_HOLD_MENU_OPENED_BEFORE_MS` = 5 分鐘到之後 `NOTIFY_HOLD_MENU_OPENED_AFTER_MS` = 5 s 之間 → 走 T0965 的 Esc 流程（常數與日誌不變）。其他情況不送 Esc、保留到選單關閉（使用者在選單作答、按 Esc、回合結束……），記一次 `[notify-hold] menu esc skipped terminal=<id> holdId=<h> (<原因>; held until the menu closes)`：
+
+  | 原因 | 情況 |
+  |---|---|
+  | `no-menu-open` | CT 有 `menu` 但沒寫 `menu_open`（需求對齊等不含 `U-n` 的選單，H-7） |
+  | `not-in-menu` | 回答的 `U-n` 不在 `ids`，或是 `A-n` |
+  | `stale` | `opened_at` 比選單紀錄早 5 分鐘以上（上一個選單留下、塔台還沒再寫檔，H-8） |
+  | `not-this-menu` | `opened_at` 比選單紀錄晚 5 s 以上（不是這個選單的） |
+  | `no-record` | 沒有選單紀錄的開始時間（`question` 但沒有紀錄；舊 PtyManager） |
+
+  容差的理由：CT 先取時間、寫檔，模型再寫 AskUserQuestion 的呼叫，hook 才到 BAT；通常幾秒，長題目或非 yolo 塔台的寫檔權限詢問可到一分鐘以上。猜錯的代價不對稱：太嚴只是回答等到使用者自己關選單；太寬會關掉不是這題的選單。`opened_at` 只有到秒、與 hook 在同一台主機（遠端視窗的比對在 bat-server 上做），所以之後的容差只留 5 s。
+- **沒有 `menu` 資訊**（CT ≤ 6.3.x、舊視窗、格式錯）：逐字是 T0965（`A-n` 也會代按 Esc）。
+- **Worker 通知**（不論 CT 版本）：契約 2 塔台只剩選單紀錄（`question` 已被滑鼠或輸入清掉）時，helper 的 `pty:write` / `terminal:keypress` 也保留（原因 `question`），🔴 不送 Esc；選單紀錄關閉後照 T0788 規則（安靜 1 s）送出。「立即送出」可放行（紀錄可能已過期）。非契約 2 塔台不變。見 [notify-hold.md](notify-hold.md)。
+- **提示行**：該題在生效的 `menu_open.ids` 裡、且塔台分頁的 attention 是 `blockedReason: question` 時，題目摘要下方顯示一行「塔台正以選單詢問此題：在這裡回答會先關掉選單」（`inbox.answer.menuOpenHint`，三語系；`[data-inbox-menu-hint]`）。判斷唯一實作 `inboxMenuHintIds`（`src/lib/inbox-model.ts`），按鈕與送出路徑不變。
+- **已知限制**：
+  - 提示行只看 `question`（塔台裁示 T0968 Q-2）：只剩選單紀錄（使用者剛點過或按過選單）時不顯示；Esc 判斷不受影響（主行程照樣看選單紀錄）。
+  - 佇列第一筆是 Worker 通知、後面排著回答時，Esc 只看第一筆，回答等到選單關閉（T0965 起就是如此）。
+  - 選單紀錄若因 hook 遺失而沒關（PostToolUse、`stop` 都沒到），Worker 通知與回答會保留到下一個 `user-prompt-submit` / 使用者 Esc / PTY 結束；可按「立即送出」。評估見 T0968 回報區。
+  - 回答送出後 CT 才寫了新的 `menu_open`（例：重問 U-n）時，已在佇列裡的回答仍用送出當下的資訊；同一行再送一次會更新。
+- **測試**：`src/lib/__tests__/tower-inbox-menu-open-t0968.test.ts`（CT 的四個範例 `src/types/__tests__/fixtures/ct-tower-state-v640/`，CT commit `7fee085` 的複本）、`electron/__tests__/notify-hold-menu-open-t0968.test.ts`、`src/components/__tests__/inbox-menu-open-t0968.test.tsx`。
 
 ### 「📨 待送」在遠端視窗（T0904 建議後續 1）
 

@@ -51,6 +51,10 @@
  * sent) and its 送出 reads「重新送出」: another pick sends a new line, no confirmation. The records live
  * in `inbox-sent-store` (memory only, per folder + item id), so a tab switch / remount keeps them; they
  * are forgotten when the item leaves the list. Failed sends are shown as before, never marked.
+ *
+ * T0968 (CT 6.4.0 `menu_open`): every answer carries the Tower's menu (`menu`, only when CT declares
+ * `inbox_features: menu`) so the host closes the menu only for an item in it; an item the Tower asks in its
+ * open menu now (`menuHintIds`) shows one line「塔台正以選單詢問此題：在這裡回答會先關掉選單」. Buttons unchanged.
  */
 import { useState, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -66,6 +70,7 @@ import {
   multiAnswerText,
   userActionKindLabelKey,
   type AwaitingItem,
+  type InboxMenuInfo,
   type DueReminder,
   type UserAction,
 } from '../../lib/tower-inbox'
@@ -105,13 +110,13 @@ interface SentInfo {
  * first (`pending`); with none, nothing is sent. T0942: a line that went out (`sent` / `held`) is
  * recorded under `scope` (the workspace folder) for the「已送出」mark.
  */
-function useAnswerSender(targets: Targets, scope: string) {
+function useAnswerSender(targets: Targets, scope: string, menu?: InboxMenuInfo) {
   const [statuses, setStatuses] = useState<Record<string, Status>>({})
   const [pending, setPending] = useState<{ itemId: string; text: string; info: SentInfo } | null>(null)
 
   const deliver = async (itemId: string, text: string, info: SentInfo, target: InboxAnswerTarget): Promise<boolean> => {
     setStatuses(prev => ({ ...prev, [itemId]: { status: 'sending' } }))
-    const outcome = await sendInboxAnswer(target, text)
+    const outcome = await sendInboxAnswer(target, text, menu) // T0968: `menu` only when CT declares it
     setStatuses(prev => ({ ...prev, [itemId]: outcome }))
     if (outcome.status !== 'sent' && outcome.status !== 'held') return false
     const at = Date.now()
@@ -394,8 +399,10 @@ function SkippedLine({ count }: { count: number }) {
   return <div className="inbox-muted" data-inbox-skipped={count}>{t('inbox.skipped', { count })}</div>
 }
 
-function AwaitingRow({ item, onAnswer, status, sent, chooser, dismiss, checked, onCheck, links }: {
+function AwaitingRow({ item, onAnswer, status, sent, chooser, dismiss, checked, onCheck, links, menuHint = false }: {
   item: AwaitingItem & { waitingOrders: string[] }
+  /** T0968: the Tower asks this item in its open menu now (`inboxMenuHintIds`) → one hint line. */
+  menuHint?: boolean
   /** T0930: the found file references (links in the tag and the summary). */
   links: InboxRefLinks
   /** T0942: `selection` = what the row showed when sent (recorded with the「已送出」mark). */
@@ -507,6 +514,8 @@ function AwaitingRow({ item, onAnswer, status, sent, chooser, dismiss, checked, 
       </div>
       {/* T0929: the summary is its own full-width block below the head line */}
       <div className="inbox-entry-summary" data-inbox-summary={item.id}><InboxRefText text={item.summary} links={links} /></div>
+      {/* T0968: a hint only — the buttons and the send path are unchanged */}
+      {menuHint && <div className="inbox-muted inbox-menu-hint" data-inbox-menu-hint={item.id}>{t('inbox.answer.menuOpenHint')}</div>}
       {item.options && multi ? (
         // T0938: multiple choice — check boxes (`role="group"`), every recommended code checked by default
         <div className="inbox-answer-block inbox-options">
@@ -715,16 +724,20 @@ function ActionRow({ item, onAnswer, status, sent, chooser, dismiss, checked, on
 }
 
 /** The `⏸ 待你決定` list. */
-export function AwaitingList({ items, skipped, targets, dismiss = false, folder = null }: {
+export function AwaitingList({ items, skipped, targets, dismiss = false, folder = null, menu, menuHintIds = [] }: {
   items: Array<AwaitingItem & { waitingOrders: string[] }>
   skipped: number
   targets: Targets
+  /** T0968: the Tower's `menu_open` for the host (`inboxMenuInfo`; undefined = CT does not declare `menu`). */
+  menu?: InboxMenuInfo
+  /** T0968: the ids the Tower asks in its open menu now (`inboxMenuHintIds`). */
+  menuHintIds?: readonly string[]
   /** PLAN-069: `inbox_features` lists `dismiss`. */
   dismiss?: boolean
   /** T0930: the workspace root the file references resolve against; none → plain text. */
   folder?: string | null
 }) {
-  const sender = useAnswerSender(targets, folder ?? '')
+  const sender = useAnswerSender(targets, folder ?? '', menu)
   const sentMap = useInboxSentMap(folder ?? '')
   const batch = useChecked()
   const listed = items.slice(0, INBOX_LIST_RENDER_MAX)
@@ -757,6 +770,7 @@ export function AwaitingList({ items, skipped, targets, dismiss = false, folder 
             checked={batch.checked.has(item.id)}
             onCheck={batch.onCheck}
             links={links}
+            menuHint={menuHintIds.includes(item.id)}
           />
         ))}
       </ul>
@@ -767,16 +781,18 @@ export function AwaitingList({ items, skipped, targets, dismiss = false, folder 
 }
 
 /** The `user_actions` part of `🙋 待你執行`. */
-export function ActionList({ items, skipped, targets, dismiss = false, folder = null }: {
+export function ActionList({ items, skipped, targets, dismiss = false, folder = null, menu }: {
   items: UserAction[]
   skipped: number
   targets: Targets
+  /** T0968: as `AwaitingList` (an `A-n` line never closes the menu; the host holds it while the menu is open). */
+  menu?: InboxMenuInfo
   /** PLAN-069: `inbox_features` lists `dismiss`. */
   dismiss?: boolean
   /** T0930: the workspace root the file references resolve against; none → plain text. */
   folder?: string | null
 }) {
-  const sender = useAnswerSender(targets, folder ?? '')
+  const sender = useAnswerSender(targets, folder ?? '', menu)
   const sentMap = useInboxSentMap(folder ?? '')
   const batch = useChecked()
   const listed = items.slice(0, INBOX_LIST_RENDER_MAX)
