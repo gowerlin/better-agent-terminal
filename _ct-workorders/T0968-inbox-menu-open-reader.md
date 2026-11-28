@@ -4,12 +4,13 @@ schema_kind: workorder
 id: T0968
 title: "讀 CT 6.4.0 的 `menu_open`：待辦分頁的回答只在該題確實在開著的選單裡時才代按 Esc；其他情況保留到選單關閉；選單紀錄開著時 Worker 通知也保留"
 type: feature
-status: PENDING
+status: IN_PROGRESS
 repo: better-agent-terminal
 priority: P1
 sizing: M
 created_at: "2026-11-28T13:14:05+0800"
-updated_at: "2026-11-28T13:14:05+0800"
+started_at: "2026-11-28T13:15:16+0800"
+updated_at: "2026-11-28T13:15:16+0800"
 target_version: "下一個預覽版（`0.8.1-pre.4`，與 BUG-235 / 236、T0966 一起發，D491）"
 depends_on: []
 related:
