@@ -3,11 +3,11 @@ schema_version: 1
 schema_kind: bug
 id: BUG-237
 title: "待辦分頁「塔台正以選單詢問此題：在這裡回答會先關掉選單」提示不看 `opened_at`：殘留的 `menu_open` 遇到別的選單時仍顯示，但 BAT 實際判 `stale`、不會關選單"
-status: FIXING
+status: FIXED
 severity: low
 reproducibility: "T0969 H-7 實測（人為殘留 `menu_open`＋不含 U-n 的需求對齊選單）；CT 6.4.0 正常流程只有「使用者 Esc 後、塔台下一次寫入前就開了不含 U-n 的選單」才會遇到"
 created_at: "2026-11-28T15:05:12+0800"
-updated_at: "2026-11-28T15:22:07+0800"
+updated_at: "2026-11-28T15:35:32+0800"
 impact:
   - tower-inbox
 links:
@@ -20,7 +20,7 @@ links:
 |------|------|
 | 嚴重度 | 🟢 low（只有提示文字與實際行為不一致；回答照樣保留到選單關閉，不會送錯） |
 | 可重現 | T0969 H-7（人為殘留） |
-| **狀態** | 🔧 FIXING（T0971） |
+| **狀態** | ✅ FIXED（T0971 `e7804e1d` 合併進 `main` `6a7b90e8`，D502；待 `0.8.1-pre.5` 實機） |
 | 回報者 | T0969 Worker（2026-11-28 15:04） |
 | 影響版本 | `v0.8.1-pre.4` |
 
@@ -39,3 +39,4 @@ links:
 - 2026-11-28 15:05 開單 OPEN（T0969 建議，D496）
 - 2026-11-28 15:09 U-66：A → 開單修、放進 `0.8.1-pre.5`；等 CT T0584 判定（觀察 ① 可能要 BAT 把「ids 不在 awaiting_user」當 stale）後合成一張工單（D497）
 - 2026-11-28 15:22 CT T0584 判定（CT D932）回來，CT 要 BAT B-1（`menu_open` 鍵位置）/ B-2（分次寫入的安全退路文件）→ 與 BUG-237 合成 T0971 → FIXING（D499）
+- 2026-11-28 15:35 → FIXED：U-67：A，T0971 合併進 `main` `6a7b90e8`（產品樹 = `e7804e1d`），D502；T0971〈待實機〉確認後 CLOSED

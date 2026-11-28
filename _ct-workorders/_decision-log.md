@@ -10,6 +10,7 @@
 
 | ID | 日期 | 標題 | 相關工單 |
 |----|------|------|---------|
+| D502 | 2026-11-28 | U-67：A → T0971 ff `6a7b90e8`；BUG-237 FIXED | T0971 / BUG-237 |
 | D501 | 2026-11-28 | T0971 收單（`e7804e1d`，BUG-237 提示行改由主行程判斷、Q-2 限制一併解除、B-1 / B-2）；模式 ① `4e07b9d2`；斷點 E 發 U-67 | T0971 / BUG-237 |
 | D500 | 2026-11-28 | 待辦分頁 P-3：`_tower-state.md` frontmatter 重複 `user_actions` 鍵（塔台腳本切錯範圍）→ 修正；寫檔後加 js-yaml 驗證；通知 CT 自檢不抓重複鍵 | — |
 | D499 | 2026-11-28 | CT T0584 判定（CT D932）→ BUG-237＋ CT B-1 / B-2 合成 T0971（pre.5）；等 CT T0585 補跑清單 | T0971 / BUG-237 |
@@ -619,6 +620,15 @@
   4. PLAN-001 保持延後（🟢 Low，等 plugin 1.0 穩定）
 - **Success criteria**（EXP→CONCLUDED）：npm install 無錯 / 所有 native modules rebuild 成功 / dev+build:dir 可跑 / 手動 smoke test 8 項通過
 - **最大風險**：`whisper-node-addon@1.0.2` 對 Electron 41（Node 24）的 NODE_MODULE_VERSION 相容性未知，允許 Worker 遇此決策點主動問塔台
+
+---
+
+### D502 2026-11-28 15:35 — U-67：A → T0971 ff
+
+- **使用者**：`U-67：A`（原生選單）。U-67 移除。
+- **合併**：`main` 自 parent1 `8deb2b25` 起只多 `_ct-workorders/**` → 整合分支再合併 `main` 後 ff；`main` = `ct-merge/T0971` = `6a7b90e8`，產品樹 = `e7804e1d`；整合 worktree detach。`git worktree remove` 已解除註冊，但目錄刪除回 `Invalid argument`（殘留 `node_modules/` 等，疑似仍有程序持有），塔台沙箱不允許遞迴刪除 → 待使用者或之後手動刪。分支保留。未 push。
+- **BUG-237** → FIXED（隨 `0.8.1-pre.5` 實機確認）。
+- **相關**：T0971 / BUG-237 / D501
 
 ---
 

@@ -193,4 +193,4 @@ T0969 H-7 發現提示行與實際行為不一致（BUG-237，U-66：A 進 pre.5
 
 ## 塔台收單補記
 
-- 2026-11-28 15:34 (UTC+8) 收單：DONE 確認（`validated_sha` = `head` = `e7804e1d`）。Worker 列的 4 個接線檔（`electron/main.ts`、`remote/headless-entry.ts`、`remote/protocol.ts`、`remote/path-aware-channels.ts`）塔台確認屬範圍內，已補進 frontmatter `affects_files`；`--worktree-status` 五條全成立 → 模式 ①：`ct-merge/T0971` = `4e07b9d2`（parent1 `8deb2b25`、parent2 `e7804e1d`）。`--close-worker --delay-ms 10000 --worktree keep` exit 0。斷點 E → U-67（D501）。
+- 2026-11-28 15:34 (UTC+8) 收單：DONE 確認（`validated_sha` = `head` = `e7804e1d`）。Worker 列的 4 個接線檔（`electron/main.ts`、`remote/headless-entry.ts`、`remote/protocol.ts`、`remote/path-aware-channels.ts`）塔台確認屬範圍內，已補進 frontmatter `affects_files`；`--worktree-status` 五條全成立 → 模式 ①：`ct-merge/T0971` = `4e07b9d2`（parent1 `8deb2b25`、parent2 `e7804e1d`）。`--close-worker --delay-ms 10000 --worktree keep` exit 0。斷點 E → U-67（D501）。- 2026-11-28 15:35 (UTC+8) U-67：A → 整合分支再合併 `main` 後 ff：`main` = `6a7b90e8`，產品樹 = `e7804e1d`；整合 worktree detach；`git worktree remove` 解除註冊但目錄刪除失敗（`Invalid argument`，殘留 `node_modules/` 等，待程序釋放後手動刪）；分支 `ct/T0971`、`ct-merge/T0971` 保留（D502）。
