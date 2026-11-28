@@ -10,6 +10,7 @@
 
 | ID | 日期 | 標題 | 相關工單 |
 |----|------|------|---------|
+| D520 | 2026-11-28 | T0980 收單（`887d49c8`）；U-75：A → 模式 ① ff 進 `main` `12dce91b` | T0980 |
 | D519 | 2026-11-28 | T0981 收單；U-74：A → `main` ff 到 `84f96834`（含 T0978）；派 T0980 | T0981 / T0978 / T0980 |
 | D518 | 2026-11-28 | T0978 收單（`f9738360`）；判準 1 因 T0977 不成立 → 合併工單 T0981；A-28 實機（下一個預覽版） | T0978 / T0981 |
 | D517 | 2026-11-28 | T0977 收單（`8c728d16`）；U-73：A → 模式 ① ff 進 `main` `1ae19702` | T0977 |
@@ -638,6 +639,14 @@
   4. PLAN-001 保持延後（🟢 Low，等 plugin 1.0 穩定）
 - **Success criteria**（EXP→CONCLUDED）：npm install 無錯 / 所有 native modules rebuild 成功 / dev+build:dir 可跑 / 手動 smoke test 8 項通過
 - **最大風險**：`whisper-node-addon@1.0.2` 對 Electron 41（Node 24）的 NODE_MODULE_VERSION 相容性未知，允許 Worker 遇此決策點主動問塔台
+
+---
+
+### D520 2026-11-28 18:27 — T0980 收單；U-75：A → ff 進 `main`
+
+- **收單**：T0980 DONE（`validated_sha` = `head` = `887d49c8`）。`useInboxFileRefs` 有參照時經 `acquireDirWatch` 加入 `_ct-workorders/` 的共用監看（計數共用，主行程仍一個 watcher、帶 `recreate`），只認該目錄的 `fs:changed`，以 `INBOX_FILE_REF_RECHECK_DEBOUNCE_MS` = 300 ms 合併後重查；重查期間保留上次結果；卸載釋放；不輪詢、不新增 IPC、不記日誌。test:unit 9662 passed、兩個 typecheck = 0、vite build 通過；新增 6 測試，既有斷言未改。已知限制：`_ct-workorders/` 以外的檔不另外監看；實機未操作（只有單元測試）。
+- **合併**：五條判準全通過（`main` 自 base 起只多本工單檔）→ 模式 ①：`ct-merge/T0980` `--no-ff` → `12dce91b`（parent1 `9ec430cc` = `main`、parent2 `887d49c8`）；斷點 E → 使用者 `U-75：A` → `--ff-only`，`main` = `12dce91b`；整合 worktree detach、T0980 worktree 移除；分支 `ct/T0980`、`ct-merge/T0980` 保留。session id 由 Worker 寫入；session 快照已寫；`--close-worker --worktree keep` exit 0。
+- **相關**：D516
 
 ---
 
