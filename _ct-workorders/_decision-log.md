@@ -10,6 +10,7 @@
 
 | ID | 日期 | 標題 | 相關工單 |
 |----|------|------|---------|
+| D517 | 2026-11-28 | T0977 收單（`8c728d16`）；U-73：A → 模式 ① ff 進 `main` `1ae19702` | T0977 |
 | D516 | 2026-11-28 | U-72：A、B、C、D → 四個未開單候選全部開單：T0977（asar 讀不足判失敗）、T0978（啟動參數回合不套 2 s Enter 窗，推翻 T0972 Q-2 的不放寬）、T0979（研究：PLAN-066 三項後續）、T0980（檔案連結跟 `fs:changed` 重查） | T0977 / T0978 / T0979 / T0980 |
 | D515 | 2026-11-28 | 決策日誌收斂：D186～D425 搬到 `_archive/decisions/_decision-log-D186-D425.md`（🔴 / 危害相關 5 筆留在熱檔） | — |
 | D514 | 2026-11-28 | A-27：完成 → BUG-235 / BUG-237 CLOSED；熱區未結 BUG 0 | BUG-235 / BUG-237 |
@@ -635,6 +636,15 @@
   4. PLAN-001 保持延後（🟢 Low，等 plugin 1.0 穩定）
 - **Success criteria**（EXP→CONCLUDED）：npm install 無錯 / 所有 native modules rebuild 成功 / dev+build:dir 可跑 / 手動 smoke test 8 項通過
 - **最大風險**：`whisper-node-addon@1.0.2` 對 Electron 41（Node 24）的 NODE_MODULE_VERSION 相容性未知，允許 Worker 遇此決策點主動問塔台
+
+---
+
+### D517 2026-11-28 18:10 — T0977 收單；U-73：A → ff 進 `main`
+
+- **收單**：T0977 DONE（`validated_sha` = `head` = `8c728d16`）。`readExactSync` 讓 `readAsar` / `readAsarFile` 讀不足時拋出含期望 / 實際位元組數的錯誤；`verifyPackagedLayout` 另以 `asarReadProblem` 接住 C4 掃描與 app 版本讀取的錯誤（原本會讓 CLI 以未捕捉例外結束，現在其他檢查照跑、exit 1，屬檢查變嚴）。test:unit 9638 passed、test:legacy 472 passed、兩個 typecheck = 0、vite build 通過；既有斷言未改；舊打包產物修正前後輸出相同。
+- **合併**：`--worktree-status` 五條判準全通過（`main` 只在 `_ct-workorders/**` 前進、`outOfScopeFiles: []`、`conflicts: []`、`dirty: []`）→ 模式 ①：整合分支 `ct-merge/T0977` `--no-ff` → `1ae19702`（parent1 `e460f42d` = `main`、parent2 `8c728d16`）；斷點 E → 使用者 `U-73：A` → `--ff-only`，`main` = `1ae19702`；整合 worktree detach、T0977 worktree 移除；分支 `ct/T0977`、`ct-merge/T0977` 保留。
+- **其他**：session id 已由 Worker 寫入；session 快照已寫；Worker 分頁 `--close-worker --worktree keep` exit 0。
+- **相關**：D516
 
 ---
 
