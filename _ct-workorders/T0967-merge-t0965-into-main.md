@@ -4,12 +4,13 @@ schema_kind: workorder
 id: T0967
 title: "合併 `ct/T0965`（選單開著時待辦分頁也能作答，BUG-236）→ `main`"
 type: chore
-status: PENDING
+status: IN_PROGRESS
 repo: better-agent-terminal
 priority: P2
 sizing: S
 created_at: "2026-11-28T12:48:00+0800"
-updated_at: "2026-11-28T12:48:00+0800"
+started_at: "2026-11-28T12:49:15+0800"
+updated_at: "2026-11-28T12:49:15+0800"
 target_version: "下一個預覽版（`0.8.1-pre.4`，發版前與使用者確認）"
 kind: merge
 merges:
