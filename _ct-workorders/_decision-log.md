@@ -10,6 +10,7 @@
 
 | ID | 日期 | 標題 | 相關工單 |
 |----|------|------|---------|
+| D500 | 2026-11-28 | 待辦分頁 P-3：`_tower-state.md` frontmatter 重複 `user_actions` 鍵（塔台腳本切錯範圍）→ 修正；寫檔後加 js-yaml 驗證；通知 CT 自檢不抓重複鍵 | — |
 | D499 | 2026-11-28 | CT T0584 判定（CT D932）→ BUG-237＋ CT B-1 / B-2 合成 T0971（pre.5）；等 CT T0585 補跑清單 | T0971 / BUG-237 |
 | D498 | 2026-11-28 | 使用者要求自動驗收 pre.4 → 開 T0970（A-26：BUG-235、T0966，pre.3 對照） | T0970 / BUG-235 |
 | D497 | 2026-11-28 | U-65：A → T0969 ff `59e4fbeb`；U-66：A → BUG-237 等 CT T0584 後合成一張工單進 pre.5 | T0969 / BUG-237 |
@@ -617,6 +618,16 @@
   4. PLAN-001 保持延後（🟢 Low，等 plugin 1.0 穩定）
 - **Success criteria**（EXP→CONCLUDED）：npm install 無錯 / 所有 native modules rebuild 成功 / dev+build:dir 可跑 / 手動 smoke test 8 項通過
 - **最大風險**：`whisper-node-addon@1.0.2` 對 Electron 41（Node 24）的 NODE_MODULE_VERSION 相容性未知，允許 Worker 遇此決策點主動問塔台
+
+---
+
+### D500 2026-11-28 15:31 — 待辦分頁 P-3：狀態檔重複鍵
+
+- **現象**（使用者截圖）：待辦分頁只顯示 P-3「塔台分頁已宣告契約 v2，但這個工作區的 _tower-state.md 還是 v1」；`*sync` 後仍是。
+- **原因**：15:10 `4666c2c3` 塔台用腳本移除 `awaiting_user` 時，以 `index('awaiting_user:')` 到 `index('user_actions:')` 切片，但當時 `user_actions` 在 `awaiting_user` 之前，切片反而把 `user_actions` 區塊重複了一份、已答的 U-65 / U-66 也留著。BAT 以 js-yaml（CORE_SCHEMA）解析 → `duplicated mapping key` → 沒有摘要 → `bat_contract` 視為缺 → P-3。CT `check-frontmatter.py` 不檢查重複鍵（PASS），`*sync` 只比對單據與索引，也沒抓到。15:10–15:31 期間待辦分頁不可用。
+- **處置**：刪除重複的 `user_actions` 與殘留的 `awaiting_user`（U-65 / U-66 已於 D497 處理）；以 BAT 同款 js-yaml CORE_SCHEMA 解析驗證 OK（`bat_contract = 2`）。本 session 之後每次寫狀態檔除了 `check-frontmatter.py`，也跑 js-yaml 驗證；改 frontmatter 區塊不再用 `index()` 切片，改用 Edit。
+- **CT**：通知 CT 塔台 `check-frontmatter.py` 對重複頂層鍵不報錯（建議列 FAIL）。
+- **相關**：D497 / BUG-235 / A-26
 
 ---
 

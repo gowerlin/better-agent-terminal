@@ -4,11 +4,11 @@ summary_version: 1
 bat_contract: 2
 ct_version: "6.3.0"
 inbox_features: ["recommended", "dismiss", "multi"]
-updated_at: "2026-11-28T15:22:07+0800"
+updated_at: "2026-11-28T15:31:42+0800"
 session: "2026-11-28 11:59 第一百四十 session 塔台重新開工（CT v6.3.0，BAT 0.8.1-pre.3）"
 next_ids:
   workorder: "T0972"
-  decision: "D500"
+  decision: "D501"
   bug: "BUG-238"
   plan: "PLAN-071"
   user: "U-67"
@@ -19,29 +19,6 @@ user_actions:
     ref: "T0964"
     kind: "verify"
     created_at: "2026-11-28T14:01:43+08:00"
-user_actions:
-  - id: "A-26"
-    title: "裝 `v0.8.1-pre.4`：塔台閒置時從待辦分頁回答會立即送出，不再卡在「待送」（BUG-235）"
-    ref: "T0964"
-    kind: "verify"
-    created_at: "2026-11-28T14:01:43+08:00"
-awaiting_user:
-  - id: "U-65"
-    workorder: "T0969"
-    kind: "decision"
-    source: "breakpoint-E"
-    summary: "T0969（CT 6.4.0 雙方驗收的 e2e/manual 驅動 3 檔）合併：`ct-merge/T0969` `4867b219` 要 ff 進 `main` 嗎"
-    options: ["A 現在 ff 進 main（推薦）", "B 暫不合併"]
-    recommended: "A"
-    created_at: "2026-11-28T15:05:12+08:00"
-  - id: "U-66"
-    workorder: ""
-    kind: "decision"
-    source: "tower-question"
-    summary: "BUG-237（low，選單提示行不看 `opened_at`）要怎麼處理"
-    options: ["A 開單修，放進下一版 0.8.1-pre.5（推薦）", "B 只記候選，等更多實機回報"]
-    recommended: "A"
-    created_at: "2026-11-28T15:05:12+08:00"
 todo:
   - "CT 判定 CT T0584 完成（CT D932：CT 端 PASS 29 / FAIL 1（CT 條文）/ 未觸發 1）；CT T0585（6.4.0-pre.2）進行中，收單後傳補跑清單 `checklist-rerun-640.md`、`install-642` 與 6.4.0-pre.2 範例檔 → BAT 開補跑單（新 BAT pre.4，約 1 個塔台 session）（D499）"
   - "🟡 BUG-235（medium，FIXED）：隨 `v0.8.1-pre.4` 發佈（D494），A-26 實機確認後 CLOSED（再發生時看 `[notify-hold] draft set … cause=`）"
@@ -133,6 +110,7 @@ reminders:
 - 15:15 T0970 派工 `--mode yolo --no-interactive --isolation worktree --wait-started 30000` exit 0，`started: 07:15:35Z`，分頁 `18f53f67…`，worktree `ct/T0970` base `e09b3da8`
 - 15:22 CT 塔台：CT T0584 判定完成（CT D932），請 BAT 做 B-1（`menu_open` 移到 `awaiting_user` 正後方時解析不受影響＋fixture）、B-2（分次寫入時 ids 不在 awaiting_user → 當作沒有 `menu_open`，文件＋保留）；CT T0585（6.4.0-pre.2）15:21 派工 → BUG-237＋B-1＋B-2 合成 T0971（D499）
 - 15:23 T0971 派工 `--mode yolo --no-interactive --isolation worktree --wait-started 30000` exit 0，`started: 07:23:14Z`，分頁 `f1770e07…`，worktree `ct/T0971` base `94ef73bb`（與 T0970 不重疊）
+- 15:31 使用者截圖：待辦分頁顯示 P-3（狀態檔像 v1）。原因：15:10 `4666c2c3` 塔台以腳本刪 `awaiting_user` 時切錯範圍，frontmatter 出現兩個 `user_actions` 鍵（且已答的 U-65 / U-66 殘留），BAT 的 js-yaml 報 duplicated mapping key → 當成沒有摘要；CT `check-frontmatter.py` 不檢查重複鍵所以 PASS、`*sync` 也沒抓到。已刪除重複區塊與殘留 U-65 / U-66，以 js-yaml CORE_SCHEMA 驗證 OK（`bat_contract=2`）（D500）
 
 ---
 
