@@ -52,6 +52,7 @@ reminders:
 - Fast Path；`main` = `origin/main` @ `ce625352`；熱區 T:358 / BUG:97 / PLAN:35 / EXP:1；無進行中工單、無待你決定 / 待你執行
 - 大小：`_decision-log.md` 407,309（> 400 KB 預算）、`_learnings.md` 225,837、`_tower-state.md` 約 25 KB
 - 11:06 塔台重新開工：新塔台 session `53bde29b-785a-4c1c-b5e8-68748009fcb2`（分頁 `c2f1a2e3…`，原 role `shell`），`--set-role tower --bat-contract 2 --mode on` exit 0（`bat-contract: 2`、`hooks: ok (injected, set 2)`）；`main` @ `8efe9ae3`、工作樹乾淨；PLAN-067 上次清查 2026-11-25（3 天，未到期）
+- 11:09 使用者回報 pre.2 自動恢復後鍵盤無法輸入（已退回 pre.1）→ BUG-234 high FIXING、T0963（D471）；11:11 派工 `--mode yolo --no-interactive --isolation worktree --wait-started 30000` exit 0，`started: 2026-11-28T03:11:19Z`，分頁 `edae5fb0…`，worktree `ct/T0963` base `763ca8c2`
 
 ---
 
