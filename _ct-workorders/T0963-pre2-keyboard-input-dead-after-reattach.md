@@ -5,6 +5,7 @@ id: T0963
 title: "BUG-234：查出 `0.8.1-pre.2` 自動恢復後鍵盤無法輸入（滑鼠貼上可用、新開 Codex CLI 也一樣）的原因並修正"
 type: bugfix
 status: DONE
+waiting_user: "U-55"
 repo: better-agent-terminal
 priority: P1
 sizing: M

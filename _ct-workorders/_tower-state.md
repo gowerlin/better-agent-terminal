@@ -4,17 +4,34 @@ summary_version: 1
 bat_contract: 2
 ct_version: "6.3.0"
 inbox_features: ["recommended", "dismiss", "multi"]
-updated_at: "2026-11-28T11:06:52+0800"
+updated_at: "2026-11-28T11:26:26+0800"
 session: "2026-11-28 11:06 第一百四十 session 塔台重新開工（CT v6.3.0）"
 next_ids:
   workorder: "T0964"
-  decision: "D472"
+  decision: "D473"
   bug: "BUG-235"
   plan: "PLAN-071"
-  user: "U-55"
+  user: "U-57"
   action: "A-25"
+awaiting_user:
+  - id: "U-55"
+    workorder: "T0963"
+    kind: "decision"
+    source: "breakpoint-E"
+    summary: "T0963（BUG-234 修正）合併前確認：`ct-merge/T0963` `da4f8067` ff 進 `main`？"
+    options: ["A 合併（ff 進 main）（推薦）", "B 暫不合併"]
+    recommended: "A"
+    created_at: "2026-11-28T11:26:26+08:00"
+  - id: "U-56"
+    workorder: "T0963"
+    kind: "decision"
+    source: "tower-question"
+    summary: "合併後立刻發 `0.8.1-pre.3`（BUG-234 修正；pre.1 / pre.2 新開的 agent 分頁都打不了字）？"
+    options: ["A 合併後立刻發 0.8.1-pre.3（推薦）", "B 先不發，等累積更多修正"]
+    recommended: "A"
+    created_at: "2026-11-28T11:26:26+08:00"
 todo:
-  - "🔴 BUG-234（high，D471）：`0.8.1-pre.2` 自動恢復後鍵盤無法輸入（使用者已退回 pre.1）→ T0963 查證＋修正中；修好後發 `0.8.1-pre.3`"
+  - "🔴 BUG-234（high，D471 / D472）：新開的 agent 分頁鍵盤無法輸入（T0951 起，影響 `0.8.1-pre.1` / `pre.2`）→ T0963 DONE（`45a9427c`），等 U-55 合併、U-56 發版"
   - "🗄 `_decision-log.md` 407 KB 超過 400 KB 預算：開工後封存舊決策（D186 起，照 `_archive/decisions/` 既有做法）"
   - "✅ `v0.8.1-pre.2`（D461）／`v0.8.1-pre.1`（D449）：BUG-228–233 全部 CLOSED（交付版自動化驗收 T0955 / T0959、Linux CI T0961）；T0950 PASS。下一版 `0.8.1-pre.3`（目前只多測試：T0960 改名、T0961 Linux spec）"
   - "✅ `v0.8.0` 正式版（D425）：T0944 塔台分頁自動帶入 `/control-tower`（Git Bash 下的問題已由 BUG-228 修正）"
@@ -53,6 +70,7 @@ reminders:
 - 大小：`_decision-log.md` 407,309（> 400 KB 預算）、`_learnings.md` 225,837、`_tower-state.md` 約 25 KB
 - 11:06 塔台重新開工：新塔台 session `53bde29b-785a-4c1c-b5e8-68748009fcb2`（分頁 `c2f1a2e3…`，原 role `shell`），`--set-role tower --bat-contract 2 --mode on` exit 0（`bat-contract: 2`、`hooks: ok (injected, set 2)`）；`main` @ `8efe9ae3`、工作樹乾淨；PLAN-067 上次清查 2026-11-25（3 天，未到期）
 - 11:09 使用者回報 pre.2 自動恢復後鍵盤無法輸入（已退回 pre.1）→ BUG-234 high FIXING、T0963（D471）；11:11 派工 `--mode yolo --no-interactive --isolation worktree --wait-started 30000` exit 0，`started: 2026-11-28T03:11:19Z`，分頁 `edae5fb0…`，worktree `ct/T0963` base `763ca8c2`
+- 11:25 T0963 DONE（`45a9427c`）：原因是 T0951 的 `writeLaunchCommand` 在「命令前沒打字」時沒刪空的保留清單，之後所有按鍵被保留；pre.1 也有（退回 pre.1 能用是因為分頁都是接回）。收單 `--close-worker --delay-ms 10000 --worktree keep` exit 0；`--worktree-status` 五條全成立 → 模式 ①：`ct-merge/T0963` `da4f8067`（parent1 `f8429161`、parent2 `45a9427c`，產品樹 = head）；斷點 E → U-55、發版 → U-56（D472）
 
 ---
 
