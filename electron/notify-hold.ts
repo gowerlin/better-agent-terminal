@@ -234,6 +234,12 @@ export interface NotifyHoldPtyManager {
   getQuestionMenuOpenedAt?(id: string): number | null
   /** T0965: ms epoch of tab `id`'s last output (`now`'s clock), or null. Absent = unknown (quiet). */
   getLastOutputAt?(id: string): number | null
+  /**
+   * T0978 / D516: the `user-prompt-submit` being reported for tab `id` is its launch-prompt turn (the first
+   * one after a launch command ending with the tower tab's prompt, PtyManager). Absent = never (the 2 s
+   * Enter guard applies as before).
+   */
+  isLaunchPromptTurn?(id: string): boolean
 }
 
 export interface NotifyHoldDeps {
@@ -554,6 +560,12 @@ export class NotifyHoldController {
    * it used to stay and hold the first inbox answer. Only a contract-2 Tower reads the draft (`holdReason`,
    * `headHold`, `considerMenuEsc` all check `isContractTower` first), so clearing it in any other tab changes
    * nothing there; the queue is rescheduled for a contract-2 Tower only (as before).
+   *
+   * T0978 (D516 / U-72: B): the launch-prompt turn (PtyManager `isLaunchPromptTurn`: the PTY's first
+   * submit after a launch command ending with `/control-tower`) skips the Enter guard — no Enter before
+   * it can be a submit of the user's whose hook comes late, because this hook is the PTY's first (T0970
+   * B3: the trust dialog's Enter 517 ms before it). The quiet window and an open paste apply as before;
+   * every later submit, and every tab without such a launch command, keeps the Enter guard.
    */
   onPromptSubmitted(id: string): void {
     if (this.disposed || typeof id !== 'string') return
@@ -563,13 +575,16 @@ export class NotifyHoldController {
     const sinceInput = now - (this.lastInputAt.get(id) ?? -Infinity)
     const lastEnter = this.lastEnterAt.get(id)
     const sinceEnter = lastEnter === undefined ? Infinity : now - lastEnter
-    if (sinceInput < NOTIFY_HOLD_SUBMIT_QUIET_MS || sinceEnter < NOTIFY_HOLD_SUBMIT_ENTER_GUARD_MS) {
-      this.deps.logger.log(`[notify-hold] draft kept terminal=${id} (user-prompt-submit; input ${Math.round(sinceInput)} ms / Enter ${Number.isFinite(sinceEnter) ? Math.round(sinceEnter) : 'none'} ms before)`)
+    const launchTurn = this.deps.getPtyManager()?.isLaunchPromptTurn?.(id) === true
+    const enterGuarded = !launchTurn && sinceEnter < NOTIFY_HOLD_SUBMIT_ENTER_GUARD_MS
+    if (sinceInput < NOTIFY_HOLD_SUBMIT_QUIET_MS || enterGuarded) {
+      this.deps.logger.log(`[notify-hold] draft kept terminal=${id} (user-prompt-submit${launchTurn ? '; launch-prompt turn' : ''}; input ${Math.round(sinceInput)} ms / Enter ${Number.isFinite(sinceEnter) ? Math.round(sinceEnter) : 'none'} ms before)`)
       return
     }
     this.drafts.delete(id)
     const tower = this.isContractTower(id)
-    this.deps.logger.log(`[notify-hold] draft cleared terminal=${id} (user-prompt-submit${tower ? '' : '; not a contract-2 Tower yet'})`)
+    const enterNote = launchTurn && sinceEnter < NOTIFY_HOLD_SUBMIT_ENTER_GUARD_MS ? `; launch-prompt turn, Enter ${Math.round(sinceEnter)} ms before not guarded` : ''
+    this.deps.logger.log(`[notify-hold] draft cleared terminal=${id} (user-prompt-submit${tower ? '' : '; not a contract-2 Tower yet'}${enterNote})`)
     if (tower && this.queues.has(id)) this.schedule(id)
   }
 

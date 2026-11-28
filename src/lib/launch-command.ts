@@ -18,6 +18,26 @@
 /** The wait between a new shell and its launch command (unchanged since before T0951). */
 export const LAUNCH_COMMAND_DELAY_MS = 500
 
+/**
+ * T0978 / D516: whether launch command `command` (as `pty:launch-command` carries it, with its `\r`)
+ * starts claude with a prompt argument — the tower tab's `/control-tower` (`TOWER_LAUNCH_PROMPT`,
+ * placed last by `startClaudeCliPty`; `quoteArgForShell` leaves it unquoted, a quoted form is accepted
+ * too). Read by the host (`PtyManager.writeLaunchCommand`): the first `user-prompt-submit` of such a
+ * PTY is that prompt's own turn, so no Enter of the user before it can be a submit whose hook came late.
+ * Anything else (a plain `claude`, a resume, another prompt) → false: the host keeps its old rule.
+ * The string is passed in so this module stays without imports (it runs in the renderer and the host).
+ */
+export function launchCommandEndsWithPrompt(command: string, prompt: string): boolean {
+  if (typeof command !== 'string' || typeof prompt !== 'string' || prompt.length === 0) return false
+  const line = command.replace(/[\r\n]+$/, '')
+  for (const arg of [prompt, `'${prompt}'`, `"${prompt}"`]) {
+    // the last argument of a longer command line (the command itself comes before it)
+    const at = line.length - arg.length
+    if (at > 0 && line.endsWith(arg) && /\s/.test(line.charAt(at - 1)) && line.slice(0, at).trim().length > 0) return true
+  }
+  return false
+}
+
 export interface LaunchCommandApi {
   write: (id: string, data: string) => Promise<unknown>
   launchCommand?: (id: string, command: string | null) => Promise<unknown>
