@@ -11,6 +11,9 @@
 //            conout Worker — the candidate fix (no console process list, no process.kill).
 // attached : ③ the product question — the shell starts `ping -n 40` attached to the same console (Start-Process
 //            -NoNewWindow), then exits. Is ping still running after the exit, and after the release?
+// T0983: --fix product uses the shipped `releaseExitedPty` (electron/terminal-server/process-tree.ts; run with
+//            `--import tsx`): kill = taskkill /F /T first, then the release (PtyManager.kill on Windows, no node-pty
+//            kill()); exit / attached = the release when the exited tab is closed (✕).
 //
 // Only processes this script spawned are touched (their pids are printed). The env of every shell is this process's
 // env without BAT_* / CT_*. Output: numbers, pids and process names only.
@@ -29,6 +32,10 @@ const FIX = arg('fix', 'none')
 const COUNT = Number(arg('count', SCENARIO === 'kill' ? '100' : SCENARIO === 'exit' ? '20' : '1'))
 const LABEL = arg('label', `${process.versions.electron ? 'electron' : 'node'} ${SCENARIO} ${FIX}`)
 const OUT = arg('out', '')
+const productRelease = FIX === 'product'
+  ? require(path.join(ROOT, 'electron', 'terminal-server', 'process-tree.ts')).releaseExitedPty
+  : null
+const release = (p) => { const r = productRelease(p, 'win32'); if (r !== 'released') console.log(JSON.stringify({ release: r })) }
 
 const env = { ...process.env }
 for (const k of Object.keys(env)) if (k.startsWith('BAT_') || k.startsWith('CT_') || k === 'ELECTRON_RUN_AS_NODE') delete env[k]
@@ -104,8 +111,9 @@ async function main() {
       await t.until(/PS [^\r\n]*>/)
       if (FIX === 'release') t.p.onExit(() => setImmediate(() => releaseConin(t.p)))
       const pid = t.p.pid
-      t.p.kill()
+      if (FIX !== 'product') t.p.kill()
       try { execFileSync('taskkill', ['/F', '/T', '/PID', String(pid)], { stdio: 'ignore', timeout: 3000, windowsHide: true }) } catch { /* gone */ }
+      if (FIX === 'product') release(t.p)
       await Promise.race([t.exited, sleep(10_000)])
       if (i % 25 === 0) row('cycle', { cycle: i })
     }
@@ -117,6 +125,7 @@ async function main() {
     row('open')
     for (const t of tabs) {
       if (FIX === 'release') t.p.onExit(() => setImmediate(() => { closePseudoConsole(t.p); releaseConin(t.p); disposeConout(t.p) }))
+      if (FIX === 'product') t.p.onExit(() => setImmediate(() => release(t.p)))
       t.p.write('exit\r')
     }
     await Promise.all(tabs.map(t => t.exited))
@@ -135,8 +144,9 @@ async function main() {
     const listByShell = await consoleProcessList(shellPid)
     const listByPing = pingPids.length ? await consoleProcessList(pingPids[0]) : 'no ping'
     row('exited', { shellPid, pingPids, pingAlive: pingPids.map(alive), consoleListByDeadShell: listByShell, consoleListByPing: listByPing })
-    if (FIX === 'release') {
-      closePseudoConsole(t.p); releaseConin(t.p); disposeConout(t.p)
+    if (FIX === 'release' || FIX === 'product') {
+      if (FIX === 'product') release(t.p)
+      else { closePseudoConsole(t.p); releaseConin(t.p); disposeConout(t.p) }
       await sleep(3000)
       row('released', { pingAlive: pingPids.map(alive) })
     }

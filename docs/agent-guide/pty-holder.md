@@ -87,6 +87,7 @@ N = 第一個有 holder 的版本，N+1 = 下一版。完整步驟與日誌見 [
 - 降級到沒有 holder 的版本：終端結束（與升級前的 T0820 行為相同）；holder 是否留下、是否被舊版的孤兒清理結束，以 W6 情境 5 的實測為準（T0862 回報區）。
 - holder 驗證每次啟動重算約 90 MiB 雜湊（T0859 實測約 0.1 s）；驗證與 `spawn` 之間有 TOCTOU。
 - 升級時被接回的舊 holder 維持它啟動時的參數：T0890 前啟動的 holder 沒有 `--max-semi-space-size`，開關分頁的記憶體增加照舊（約 +45 MB / 300 次），要等它結束（解除安裝、idle 逾時或重新開始）後新版才以旗標啟動。
+- holder key 變動（T0983，PLAN-066 F4 選項 D / BUG-238）：`terminal-server.js` 改了（`server.ts` / `process-tree.ts` 打包進去；`shared-conout-worker.cjs` 與 node-pty 不變）→ holder key 改變 → 新版用新的 holder 目錄，發版前要跑 W6 `windows-upgrade-acceptance.yml`。升級時被接回的舊 holder（T0983 前的 server）照舊：自然結束的分頁的 conhost 留到它結束、BAT 關閉分頁仍經 node-pty `kill()`；新版主行程對它多送的 `pty:kill`（已結束的 id）被忽略、不回應（相容，見 [terminal-server-recovery.md](terminal-server-recovery.md)「自然結束的分頁：關閉或重啟時收掉」）。
 - 升級 quit 的 idle 延長只一次：使用者在升級前又開 BAT 會清掉延長。
 - macOS / Linux 沒有 holder（升級方式不同，未研究）；zip 版、`build:dir`、開發模式不用 holder。
 - stdio 繼承（BUG-213）：只處理 BAT 從呼叫端繼承來的標準 handle 與 CRT fd 表；BAT 主行程自己開、而且設成可繼承的其他 handle 不在範圍（目前沒有）。addon 只建 win32-x64（Windows 只出 x64）；開發模式沒跑 `npm run build:native-win` → fail open（照 T0866 前的行為）。T0866 前發佈的版本照舊有這個問題。
