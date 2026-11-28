@@ -132,6 +132,7 @@ reminders:
 - 15:14 使用者：「已更版 v0.8.1-pre.4 請派單自動驗收」→ 開 T0970（交付版 zip 隔離實例＋ ACC 真 claude，R1–R5：BUG-235 閒置時立即送出、送出前按鍵的草稿被清除（pre.3 對照）、真草稿保留＋去重、Worker 等你不算回答、日誌不含內容），結果決定 A-26（D498）
 - 15:15 T0970 派工 `--mode yolo --no-interactive --isolation worktree --wait-started 30000` exit 0，`started: 07:15:35Z`，分頁 `18f53f67…`，worktree `ct/T0970` base `e09b3da8`
 - 15:22 CT 塔台：CT T0584 判定完成（CT D932），請 BAT 做 B-1（`menu_open` 移到 `awaiting_user` 正後方時解析不受影響＋fixture）、B-2（分次寫入時 ids 不在 awaiting_user → 當作沒有 `menu_open`，文件＋保留）；CT T0585（6.4.0-pre.2）15:21 派工 → BUG-237＋B-1＋B-2 合成 T0971（D499）
+- 15:23 T0971 派工 `--mode yolo --no-interactive --isolation worktree --wait-started 30000` exit 0，`started: 07:23:14Z`，分頁 `f1770e07…`，worktree `ct/T0971` base `94ef73bb`（與 T0970 不重疊）
 
 ---
 
