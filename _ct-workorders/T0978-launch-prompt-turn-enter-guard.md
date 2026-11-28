@@ -4,13 +4,15 @@ schema_kind: workorder
 id: T0978
 title: "啟動參數回合（`/control-tower` 等）的 `user-prompt-submit`：信任對話框 Enter 後 2 s 內按的鍵不再被 Enter 保護窗留成草稿（T0972 Q-2 候選）"
 type: bugfix
-status: PENDING
+status: IN_PROGRESS
 repo: better-agent-terminal
 priority: P3
 sizing: S
 created_at: "2026-11-28T18:01:29+08:00"
-updated_at: "2026-11-28T18:01:29+08:00"
-session_ids: []
+updated_at: "2026-11-28T18:04:08+08:00"
+started_at: "2026-11-28T18:04:08+08:00"
+session_ids:
+  - "f72bacfd-eb9a-4aab-8be9-8d062498ba85"
 target_version: "下一個預覽版（`0.8.1-pre.6`，發版前與使用者確認）"
 depends_on: []
 related:
