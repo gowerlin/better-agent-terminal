@@ -38,7 +38,7 @@ import { mirrorToBatScripts } from './remote/remote-logger'
 import { rotateBatScriptsLog } from './bat-scripts-log-rotation'
 import { CtWorktreeService } from './ct-worktree'
 import { UsageLimitContinueScheduler } from './usage-limit-continue'
-import { NOTIFY_HOLD_CHANGED_CHANNEL, NOTIFY_HOLD_REMINDER_CHANNEL, NotifyHoldController, registerNotifyHoldHandlers, registerTowerInboxAnswerHandler } from './notify-hold'
+import { NOTIFY_HOLD_CHANGED_CHANNEL, NOTIFY_HOLD_REMINDER_CHANNEL, NotifyHoldController, registerNotifyHoldHandlers, registerTowerInboxAnswerHandler, registerTowerInboxMenuHintHandler } from './notify-hold'
 import { normalizeUsageLimitConfig } from '../src/lib/usage-limit'
 import { bringWindowToFront, planDeletedProfileWindows } from '../src/lib/profile-window-front'
 import { DETACHED_WAITING_MAX_ID, sanitizeDetachedWaitingReport } from '../src/lib/terminal-attention'
@@ -3064,6 +3064,8 @@ function registerProxiedHandlers() {
   // same handlers as headless, proxied (a remote window's call goes to its bat-server). Never helper channels.
   registerNotifyHoldHandlers({ registerHandler, getNotifyHold: () => notifyHold, logger })
   registerTowerInboxAnswerHandler({ registerHandler, getNotifyHold: () => notifyHold, logger })
+  // T0971 / BUG-237: the Inbox hint line asks the host whether an answer would close the menu (read only)
+  registerTowerInboxMenuHintHandler({ registerHandler, getNotifyHold: () => notifyHold, logger })
 
   // PTY + settings:get-shell-path — shared with headless bat-server (PLAN-036 T0390)
   registerPtyHandlers(registerHandler, {

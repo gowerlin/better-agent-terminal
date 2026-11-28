@@ -176,6 +176,7 @@ export const PATH_FREE_CHANNELS: ReadonlyMap<string, string> = new Map([
   ['tower-cards:set-panel-tower', 'T0909: panel tab id + boolean'],
   // PLAN-068 W5 / T0908 (electron/notify-hold.ts)
   ['tower-inbox:answer', 'T0908: { terminalId, text } (terminal id + one answer line `U-n：…` / `A-n：…`, typed as is; no path)'],
+  ['tower-inbox:menu-hint', 'T0971: { terminalId, menu } (terminal id + `U-n` ids + a CT time); result is ids / an enum (no path)'],
   ['terminal:notify-hold-list', 'T0908: no args; result is ids / counts / times / reason enum (no path)'],
   ['terminal:notify-hold-cancel', 'T0908: terminal id + hold id'],
   ['terminal:notify-hold-send-now', 'T0908: terminal id + hold id'],

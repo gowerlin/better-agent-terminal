@@ -277,7 +277,7 @@ export function InboxPanel({ workspaceId, workspaceFolderPath }: Readonly<InboxP
 /** The text after the tab name: `!` (version mismatch) or the count; nothing when there is nothing. */
 export function InboxTabBadge({ workspaceId, workspaceFolderPath }: Readonly<InboxPanelProps>) {
   const { t } = useTranslation()
-  const { badge, verdict } = useInboxModel(workspaceId, workspaceFolderPath)
+  const { badge, verdict } = useInboxModel(workspaceId, workspaceFolderPath, { menuHint: false })
   if (!badge) return null
   const mismatch = verdict.kind !== 'match'
   return (

@@ -313,6 +313,37 @@ export function inboxMenuHintIds(
   return targets.some(target => target.kind === 'tab' && blockedReasonOf(target.id) === 'question') ? menu.ids : []
 }
 
+/**
+ * T0971 / BUG-237: one Tower tab's host answer to `tower-inbox:menu-hint` — the `U-n` an answer would close the
+ * menu for (the host's `menuEscDecision`) and what says the menu is open (`via`), or `unsupported` (an older
+ * host / preload without the channel: T0968's rule for that tab).
+ */
+export type InboxMenuHintAnswer = { ids: readonly string[]; via: 'question' | 'menu' | null } | 'unsupported'
+
+/**
+ * T0971 / BUG-237: the hint ids from the host's answers (`answerOf`; undefined = not answered yet → nothing,
+ * so a stale `menu_open` never flashes the hint). Per Tower tab among `targets`: an answer → its ids (only those
+ * in `menu`); `unsupported` → `inboxMenuHintIds` for that tab (T0968: `question` only). Panel Towers never.
+ * 🔴 The time comparison is the host's (`menuEscDecision`); nothing here compares `opened_at`.
+ */
+export function inboxMenuHintIdsFromHost(
+  menu: { ids: readonly string[] } | null | undefined,
+  targets: readonly InboxAnswerTarget[],
+  answerOf: (id: string) => InboxMenuHintAnswer | undefined,
+  blockedReasonOf: (id: string) => string | undefined,
+): readonly string[] {
+  if (!menu || menu.ids.length === 0) return []
+  const shown = new Set<string>()
+  for (const target of targets) {
+    if (target.kind !== 'tab') continue
+    const answer = answerOf(target.id)
+    if (answer === undefined) continue
+    const ids = answer === 'unsupported' ? inboxMenuHintIds(menu, [target], blockedReasonOf) : answer.ids
+    for (const id of ids) shown.add(id)
+  }
+  return menu.ids.filter(id => shown.has(id))
+}
+
 /** One item that left `awaiting_user` / `user_actions` (§2.1「最近已結」; memory only). */
 export interface RecentlyClosed {
   id: string

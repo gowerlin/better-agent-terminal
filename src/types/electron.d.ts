@@ -977,6 +977,8 @@ interface ElectronAPI {
   towerInbox: {
     /** T0968: `menu` (optional, additive) = the Tower's `menu_open` as `inboxMenuInfo` builds it. */
     answer: (terminalId: string, text: string, menu?: import('../lib/tower-inbox').InboxMenuInfo) => Promise<import('./notify-hold').TowerInboxAnswerResult>
+    /** T0971 / BUG-237: read only — the `U-n` of `menu` an answer would close the menu for (absent on an older preload). */
+    menuHint?: (terminalId: string, menu: import('../lib/tower-inbox').MenuOpen) => Promise<import('./notify-hold').TowerInboxMenuHintResult>
   }
   // T0710 — the CT prompt of the panel's one-click dispatch, decided and quoted by the window's host
   // (proxied `terminal:control-tower-prompt`; rejects with `No handler for channel` on an older bat-server).
