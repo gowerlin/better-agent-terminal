@@ -4,12 +4,16 @@ schema_kind: workorder
 id: T0971
 title: "BUG-237：選單提示行改成與代按 Esc 的判斷一致（含 `opened_at`）；CT 6.4.0-pre.2 配合：`menu_open` 鍵位置不影響解析（B-1）、分次寫入時 ids 不在 awaiting_user 的安全退路寫進文件（B-2）"
 type: bugfix
-status: PENDING
+status: DONE
 repo: better-agent-terminal
 priority: P2
 sizing: M
 created_at: "2026-11-28T15:22:07+0800"
-updated_at: "2026-11-28T15:22:07+0800"
+updated_at: "2026-11-28T15:33:12+0800"
+started_at: "2026-11-28T15:23:22+0800"
+completed_at: "2026-11-28T15:33:12+0800"
+session_ids:
+  - "c23fc5bc-4b8b-4ede-9195-689784e31093"
 target_version: "下一個預覽版（`0.8.1-pre.5`，發版前與使用者確認）"
 depends_on: []
 related:
@@ -82,4 +86,103 @@ T0969 H-7 發現提示行與實際行為不一致（BUG-237，U-66：A 進 pre.5
 
 ## 回報區
 
-（Worker 填寫）
+### 完成狀態
+
+- **狀態**：DONE
+- **完成時間**：2026-11-28T15:33:12+0800
+- **session_id**：c23fc5bc-4b8b-4ede-9195-689784e31093
+- **branch**：`ct/T0971`
+- **base_sha**：`94ef73bbf4cfa6f3f55c52d71d51f4fe6100c7c0`
+- **validated_sha**：`e7804e1d3352820b3856688e5e935ced2d784a50`
+- **head_sha**：`e7804e1d3352820b3856688e5e935ced2d784a50`（與 validated_sha 相同）
+
+### 落點檢查
+
+- **PASS**。C-0：`repo` = `better-agent-terminal`，`basename "$CT_HOME"` = `better-agent-terminal`。C-1：工單在 `$CT_HOME/_ct-workorders/` 之下。C-3：`affects_files` 抽查的路徑都存在（informational）。C-2：工單沒有 `branch` 欄位。
+- `CT_HOME` = 主 checkout；`CT_WORKTREE_BRANCH` = `ct/T0971`；`BAT_WORKSPACE_ID` = `cc0afc4a-57e9-4f41-b2ed-a2d8bac9e36b`（只記錄）；`CT_MODE=yolo`、`CT_INTERACTIVE=0`。
+
+### 結果摘要
+
+1. **BUG-237（提示行）**：提示行改由主行程判斷，條件跟代按 Esc 同一套。
+   - 主行程：新增唯讀的 `NotifyHoldController.menuEscPreview(id, menu)`（`electron/notify-hold.ts`）。條件取 `considerMenuEsc` 的判斷、去掉等待（草稿、輸入 / 輸出安靜）：契約 2 塔台、分頁是 `question`（`via: 'question'`）或只剩選單紀錄（`via: 'menu'`）、而且 `menuEscDecision` 對該 `U-n` 回 `esc`。不改任何狀態、不寫日誌。
+   - channel：新增唯讀、proxied 的 `tower-inbox:menu-hint { terminalId, menu }`（`registerTowerInboxMenuHintHandler`，Electron main 與 headless 都註冊；加進 `PROXIED_CHANNELS` 與 path-aware 分類）。🔴 不進 `HELPER_CHANNEL_ROLES`，handler 另拒 `ctx.helper`（`FORBIDDEN`）。`menu` 不是格式正確的物件 → `INVALID_ARGS`；沒有 controller → `unavailable`。preload `towerInbox.menuHint`、型別 `TowerInboxMenuHintResult`（相加）。
+   - renderer：`useInboxMenuHint`（`src/components/inbox/useInboxMenuHint.ts`）在 `menu_open`、塔台分頁、attention、「📨 待送」任一變動時問 host；合併結果唯一實作 `inboxMenuHintIdsFromHost`（`src/lib/inbox-model.ts`）。host 回答前不顯示（殘留的 `menu_open` 不會閃一下）。舊 host（`No handler for channel`）或舊 preload → T0968 的 `inboxMenuHintIds`（只看 `question`）。待辦分頁標題的數字（`InboxTabBadge`）不問 host（`useInboxModel(..., { menuHint: false })`）。🔴 renderer 不比對 `opened_at`。
+   - **T0968 Q-2 的已知限制：已一併解決。** 只剩選單紀錄（使用者點過或按過選單）時，只要主行程會代按 Esc 就顯示提示行。選單紀錄可能在 attention 沒變動的情況下關閉（例：使用者在塔台分頁按 Esc），所以只靠選單紀錄顯示的期間，renderer 每 `INBOX_MENU_HINT_REFRESH_MS` = 2 s 再問一次，提示行不再顯示就停。沒有改 attention 的推送時機或欄位（T0968 Q-2 的 B 案未採用，不用問塔台）。
+2. **B-1**：`parseMenuOpen` / `parseTowerStateInbox` 先把 frontmatter 以 YAML 解析成物件才讀，頂層鍵的順序不影響結果，**現在就能正確解析，程式不用改**。新增 BAT 自製 fixture `src/types/__tests__/fixtures/ct-tower-state-v642/tower-state-v642-menu-after-awaiting.md`（`menu_open` 在 `awaiting_user` 與 `user_actions` 之間，後面還有 `reminders`）與 README（註明是 BAT 自製、對應 CT 6.4.0-pre.2 R1、不是 CT 範例）。測試另把 `menu_open` 放在 4 種位置，結果都相同。
+3. **B-2**：`docs/agent-guide/tower-inbox.md` 的選單交接一節補了兩點：① CT 分次寫檔時可能短暫出現 `menu_open.ids` 不在 `awaiting_user` 的狀態，BAT 當作沒有 `menu_open`（`menuOpenInvalid` → `no-menu-open`），不代按 Esc，這是預期的安全退路，🔴 不得改成「部分 ids 有效就採用」；② 新 BAT 搭 CT 6.3.x 時，被關掉的題可能被塔台重開，每題會多一次代按 Esc，這是預期行為。新增測試鎖住：部分 ids 無效（3 種）→ 整個 `menu_open` 無效。
+4. **文件**：`tower-inbox.md`（提示行規則改寫、查詢 / 何時再問 / 舊 host、B-1 / B-2、測試清單）、`notify-hold.md`（一行）、`CLAUDE.md`（「塔台等使用者回答時保留 Worker 通知」節多一句，標題不改；全檔 99,920 字元，≤ 100k）。
+
+### 修改檔案
+
+- `electron/notify-hold.ts`（`menuEscPreview`、`registerTowerInboxMenuHintHandler`、`TOWER_INBOX_MENU_HINT_CHANNEL`）
+- `electron/preload.ts`、`src/types/electron.d.ts`、`src/types/notify-hold.ts`
+- `electron/main.ts`、`electron/remote/headless-entry.ts`（註冊）、`electron/remote/protocol.ts`（`PROXIED_CHANNELS`）、`electron/remote/path-aware-channels.ts`（分類）
+- `src/lib/inbox-model.ts`（`InboxMenuHintAnswer`、`inboxMenuHintIdsFromHost`）
+- `src/components/inbox/useInboxMenuHint.ts`（新）、`src/components/inbox/useInboxModel.ts`、`src/components/InboxPanel.tsx`
+- 測試（新）：`electron/__tests__/notify-hold-menu-hint-t0971.test.ts`（27）、`src/lib/__tests__/tower-inbox-menu-open-t0971.test.ts`（14）、`src/components/__tests__/inbox-menu-hint-t0971.test.tsx`（10）
+- fixture（新）：`src/types/__tests__/fixtures/ct-tower-state-v642/`（README＋1 檔）
+- 文件：`docs/agent-guide/tower-inbox.md`、`docs/agent-guide/notify-hold.md`、`CLAUDE.md`
+
+### 驗證
+
+| 項目 | 結果 |
+|---|---|
+| `npm ci`（worktree） | exit 0（結尾的 install-scripts 警告是預期，見 CLAUDE.md） |
+| `npm run test:unit`（head `e7804e1d`，第一次完整執行） | **全綠**：Test Files 532 passed / 3 skipped（535）；Tests 9613 passed / 47 skipped（9660）；68.6 s |
+| `npx vite build` | exit 0 |
+| `npm run typecheck` | 0 |
+| `npm run typecheck:electron` | 0 |
+| 既有測試斷言 | 沒有改（只新增測試檔） |
+
+新增測試涵蓋的驗收項目：
+- 殘留 `menu_open`＋別的選單（host 判 `stale`）→ 不顯示：host（`menuEscPreview` 回 `stale` / `not-this-menu`）與元件測試都有
+- 同一選單、時間對得上 → 顯示：host 與元件都有
+- 舊 host（`No handler for channel`）、舊 preload → T0968 行為：元件測試
+- `menuEscPreview` 跟實際的 Esc 逐案一致（5 種情境：`enqueueAnswer` 之後有沒有送 Esc）
+- channel 是 proxied、不是 helper channel、兩個 host 都註冊、preload 是相加的：host 測試
+
+### 相關通過案例判定（R-G003）
+
+`considerMenuEsc`、`menuEscDecision` 與常數、保留 / 送出 / Esc 流程、`tower-inbox:answer` 的呼叫與回傳形狀都沒改，Worker 通知的保留規則也沒改。改的只有提示行要不要顯示。
+
+| 案例 | 原結果 | 改後判定 |
+|---|---|---|
+| T0969 H-2-1 單題 `menu_open` → 提示行 | PASS | 成立：`question`＋同一選單 → host 判 `esc` → 顯示（H-2-3 實際有代按 Esc，可見時間對得上） |
+| H-2-3 / H-3-2 / H-5-3 Esc 與送出 | PASS | 成立（Esc 路徑未改） |
+| H-3-1 兩題都有提示行 | PASS | 成立：`ids` 兩題都在 `menu_open`，host 兩題都回 `esc` |
+| H-5-1 新選單只有 `U-6` 有提示行 | PASS | 成立：`U-5` 不在新的 `menu_open.ids`，不會問到 |
+| H-6-1 重問 → `U-8` 有提示行 | PASS | 成立：新的選單紀錄，`opened_at` 對得上 → `esc` |
+| H-9-1 使用者 Esc → 沒有提示行 | PASS | 成立：選單紀錄關閉，`question` 清掉引起 attention 變動 → 重問 → `via: null` |
+| H-14b-1 只有 `U-11` 有提示行 | PASS | 成立 |
+| H-11-1 Worker 通知保留、不送 Esc | PASS | 成立（保留路徑未改） |
+| H-8b-1 人為殘留、不是 `question` → 沒有提示行 | PASS | 成立：殘留的 `opened_at` 早 1 小時 → 就算有選單紀錄也是 `stale` → 不顯示 |
+| H-7-1 / H-8b-2 不送 Esc、選單關後才送 | PASS | 成立（Esc 判斷未改） |
+| H-7 備註 1（BUG-237 本身） | 提示行顯示（錯） | **改成不顯示**（本單目的） |
+| T0964 草稿清除、T0965 Esc 流程、T0966 計數 | PASS | 成立：沒改到這些程式；`notify-hold*.test.ts` 與 `inbox-*` 既有測試全部通過、斷言沒改 |
+| T0968 元件測試「沒有 `question`（只剩紀錄）時不顯示」 | PASS | 成立：測試的 mock 沒有 `menuHint`（= 舊 preload），走 T0968 規則；新 host 在只剩紀錄時會顯示，這是本單解除的 Q-2 限制，不是回歸 |
+
+### 待實機
+
+用 BAT 安裝版（`0.8.1-pre.5` 發版後）＋ CT 6.4.0-pre.x 的契約 2 塔台：
+1. 重現 T0969 H-7：讓 `_tower-state.md` 留著舊的 `menu_open`（`ids` 含 U-n、`opened_at` 早 1 小時），塔台開一個不含那題的選單 → 待辦分頁該題**沒有**提示行；從待辦分頁回答 → 保留、不送 Esc（`menu esc skipped … (stale…)`）。
+2. 正常流程：塔台以選單問 U-n → 提示行出現 → 在塔台分頁按一次方向鍵（`question` 清掉、選單還開著）→ 提示行**仍在**（Q-2 已解除）→ 在塔台分頁按 Esc 關掉選單 → 約 2 s 內提示行消失。
+3. 遠端視窗（bat-server 也是新版）同 1、2；遠端 bat-server 是舊版時，提示行照 T0968（只看 `question`），debug log 沒有錯誤。
+
+### 偏離 / 遭遇問題
+
+- **超出 `affects_files` 的檔案**：`electron/main.ts`、`electron/remote/headless-entry.ts`、`electron/remote/protocol.ts`、`electron/remote/path-aware-channels.ts`。工單建議的做法是「proxied 的唯讀查詢 channel」，這些是讓 channel 在兩個 host 註冊並列為 proxied 一定要改的接線處（與 T0908 `tower-inbox:answer` 改的位置相同），每處只多一到兩行，所以判定屬範圍內、沒有問塔台。請塔台收單時確認。
+- 一開始在 commit 前就跑了 `npm run test:unit`，發現後中途停掉，commit 之後在 head 重跑（上表的數字是 head 上第一次完整執行）。
+- 其他沒有。
+
+### 建議後續
+
+- CT 發佈 6.4.0-pre.2 的正式範例檔後，照 `ct-tower-state-v640/` 的方式另開目錄複製進來（BAT 自製的 `ct-tower-state-v642/` 可留可刪，README 已註明）。
+
+### 互動紀錄
+
+- 無（yolo，沒有提問；過程中沒有塔台補充段落）。
+
+### Commit
+
+- 產品：`e7804e1d`（`ct/T0971`，worktree）
+- 工單：主 checkout `--only` 本檔
