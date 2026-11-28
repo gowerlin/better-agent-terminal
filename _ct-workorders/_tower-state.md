@@ -4,23 +4,18 @@ summary_version: 1
 bat_contract: 2
 ct_version: "6.3.0"
 inbox_features: ["recommended", "dismiss", "multi"]
-updated_at: "2026-11-28T11:59:51+0800"
+updated_at: "2026-11-28T12:02:15+0800"
 session: "2026-11-28 11:59 第一百四十 session 塔台重新開工（CT v6.3.0，BAT 0.8.1-pre.3）"
 next_ids:
-  workorder: "T0964"
-  decision: "D475"
-  bug: "BUG-235"
+  workorder: "T0965"
+  decision: "D477"
+  bug: "BUG-236"
   plan: "PLAN-071"
   user: "U-57"
   action: "A-26"
-user_actions:
-  - id: "A-25"
-    title: "裝 `v0.8.1-pre.3`：新開 Claude CLI / Codex CLI 分頁先不打字再輸入＋Enter；⏻ 後馬上打字；pwsh 照常（BUG-234）"
-    ref: "T0963"
-    kind: "verify"
-    created_at: "2026-11-28T11:54:11+08:00"
 todo:
-  - "🔴 BUG-234（high，D471–D474）：新開的 agent 分頁鍵盤無法輸入（T0951 起，影響 `0.8.1-pre.1` / `pre.2`）→ T0963 修正、`v0.8.1-pre.3` 已發佈（D474），FIXED；A-25 實機確認後 CLOSED"
+  - "🟡 BUG-235（medium，D476）：待辦分頁的回答在塔台閒置時卡在「待送」，要等使用者送出下一則訊息才送達 → T0964 派工中（查證＋修正＋同回答去重）"
+  - "✅ BUG-234 CLOSED（`v0.8.1-pre.3` 實機，A-25，D475）"
   - "🗄 `_decision-log.md` 407 KB 超過 400 KB 預算：開工後封存舊決策（D186 起，照 `_archive/decisions/` 既有做法）"
   - "✅ `v0.8.1-pre.2`（D461）／`v0.8.1-pre.1`（D449）：BUG-228–233 全部 CLOSED（交付版自動化驗收 T0955 / T0959、Linux CI T0961）；T0950 PASS。下一版 `0.8.1-pre.3`（目前只多測試：T0960 改名、T0961 Linux spec）"
   - "✅ `v0.8.0` 正式版（D425）：T0944 塔台分頁自動帶入 `/control-tower`（Git Bash 下的問題已由 BUG-228 修正）"
@@ -63,6 +58,7 @@ reminders:
 - 11:28 U-55：A、U-56：A → `main` 只多 `_ct-workorders/**` → 整合分支再合併 `main` 後 ff，`main` = `6fd50e00`；T0963 worktree 移除（分支 `ct/T0963`、`ct-merge/T0963` 保留）；BUG-234 FIXED；發 `0.8.1-pre.3`（D473）
 - 11:54 `v0.8.1-pre.3` 發佈（Pre-Release `46103078102` success，`ba010838`，2026-11-28 11:52；資產 4 個同 pre.2）；更版重點已改寫；CHANGELOG / release-note / package 版號 commit＋push；A-25 待你實機（D474）
 - 11:59 塔台重新開工：塔台 session `c3c72160-0d57-4614-8800-6e952c8e484d`（分頁 `f32bfa46…`，`better-agent-terminal · Tower`）；BAT 已是 `0.8.1-pre.3`（`bat-terminal.mjs --version`）；`--set-role tower --bat-contract 2 --mode on` exit 0（`bat-contract: 2`、`hooks: ok (injected, set 2)`）；`main` = `origin/main` @ `c8fdac6c`、工作樹乾淨；熱區 T:359 / BUG:98 / PLAN:35；無進行中工單；`_decision-log.md` 412,091 bytes（> 400 KB 預算）
+- 12:02 使用者：「鍵盤可輸入了」＋ A-25：完成 → BUG-234 CLOSED（D475）；同時回報待辦分頁按「完成」後卡在「已排入待送」、要等自己送出下一則才送到（送了兩次）、「無法送出」→ BUG-235 medium FIXING、T0964（D476）
 
 ---
 
