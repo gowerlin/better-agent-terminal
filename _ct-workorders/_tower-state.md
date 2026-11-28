@@ -4,15 +4,24 @@ summary_version: 1
 bat_contract: 2
 ct_version: "6.3.0"
 inbox_features: ["recommended", "dismiss", "multi"]
-updated_at: "2026-11-28T16:00:47+0800"
+updated_at: "2026-11-28T16:05:00+0800"
 session: "2026-11-28 11:59 第一百四十 session 塔台重新開工（CT v6.3.0，BAT 0.8.1-pre.3）"
 next_ids:
   workorder: "T0976"
-  decision: "D507"
+  decision: "D508"
   bug: "BUG-238"
   plan: "PLAN-071"
-  user: "U-69"
+  user: "U-70"
   action: "A-27"
+awaiting_user:
+  - id: "U-69"
+    workorder: "T0975"
+    kind: "decision"
+    source: "breakpoint-E"
+    summary: "T0972（BUG-235 重修）經 T0975 合併：`ct-merge/T0972` `b04ed2e9` 要 ff 進 `main` 嗎"
+    options: ["A 現在 ff 進 main（推薦）", "B 暫不合併"]
+    recommended: "A"
+    created_at: "2026-11-28T16:05:00+08:00"
 user_actions:
   - id: "A-26"
     title: "裝 `v0.8.1-pre.4`：塔台閒置時從待辦分頁回答會立即送出，不再卡在「待送」（BUG-235）"
@@ -21,7 +30,7 @@ user_actions:
     created_at: "2026-11-28T14:01:43+08:00"
 todo:
   - "CT 6.4.0-pre.2 定稿（CT T0585，CT D934；CT BUG-006 重複鍵 FIXED）→ BAT T0974（HR-1 補跑＋ CT v642 範例 / 重複鍵 fixture）派工中；收單後通知 CT 開判定單（D505）"
-  - "🟡 BUG-235（medium，FIXING，D503 / D506）：T0972 DONE（`c1abe148`，宣告契約前送出的草稿也清除）→ 合併工單 T0975 派工中；合併後 FIXED，發 pre.5 後以已信任工作區重跑 R2（A-26）再 CLOSED"
+  - "🟡 BUG-235（medium，FIXING，D503–D507）：T0972 經 T0975 合併成 `ct-merge/T0972` `b04ed2e9`（test:unit 9625 passed）→ 待 U-69 ff；之後 FIXED，發 pre.5 後以已信任工作區重跑 R2（A-26）再 CLOSED"
   - "✅ T0973（T0970 e2e 驅動）合併進 `main` `8de1e2d1`（D505）"
   - "✅ BUG-236 CLOSED（D496）；🟢 BUG-237 FIXED（T0971 合併進 `main` `6a7b90e8`，D502），隨 `0.8.1-pre.5` 實機確認；T0971 worktree 目錄殘留（`Invalid argument`）待手動刪"
   - "候選（未開單，T0965 建議）：只剩選單紀錄（`question` 已被清除）時 Worker 通知仍照舊直接寫入，可能打進開著的選單；待 CT `menu_open`（D484）工單一起評估"
@@ -126,6 +135,7 @@ reminders:
 - 15:57 [提問] T0972 Q-2（T0970 B3 實錄 hook 前 517 ms 有信任對話框 Enter，① 修正後仍被 2 s Enter 保護窗留下）→ 塔台答 A（不放寬；BUG-235 原始情境是已信任工作區，① 已涵蓋；加「刻意保留」測試、R2 重跑改用已信任工作區；信任 Enter 後立刻按鍵另記候選）（`--answer --choice 1` exit 0）
 - 16:00 T0972 DONE（方案 ①，`validated_sha` `abcff41d`、head `c1abe148`（多一筆純文件）；test:unit 9624 passed；B3 時序測試修正前失敗、修正後通過；Q-1 改寫一條內部狀態斷言、Q-2 刻意保留測試）；收單 `--close-worker --worktree keep` exit 0；判準 1、2 不成立 → 合併工單 T0975（`merge-tree` 無衝突）（D506）
 - 16:01 T0975 派工（整合 worktree，`--mode yolo --no-interactive --wait-started 30000`）exit 0，`started: 08:01:39Z`，分頁 `af6b874c…`
+- 16:05 T0975 DONE（模式 ①，merge `b04ed2e9`，parent1 `e54da6ff`、parent2 `c1abe148`；只有 T0972 的 5 檔；test:unit 9625 passed / 532 files、typecheck 0 / 0、build 0；T0972 段落 29 / 29）；收單 `--close-worker` exit 0；斷點 E → U-69（D507）
 
 ---
 

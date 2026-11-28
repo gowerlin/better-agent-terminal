@@ -10,6 +10,7 @@
 
 | ID | 日期 | 標題 | 相關工單 |
 |----|------|------|---------|
+| D507 | 2026-11-28 | T0975 收單（`b04ed2e9`）；斷點 E 發 U-69 | T0975 / T0972 / BUG-235 |
 | D506 | 2026-11-28 | T0972 收單（方案 ①）；Q-2 不放寬 2 s Enter 窗；判準 1、2 不成立 → 合併工單 T0975 | T0972 / T0975 / BUG-235 |
 | D505 | 2026-11-28 | U-68：A → T0970 驅動 ff `8de1e2d1`；CT 6.4.0-pre.2 定稿 → 開 T0974（HR-1 補跑＋ CT fixture） | T0973 / T0974 |
 | D504 | 2026-11-28 | T0973 收單（`b933cdd1`）；斷點 E 發 U-68；T0972 Q-1 答 A（採 ①） | T0973 / T0970 / T0972 |
@@ -624,6 +625,14 @@
   4. PLAN-001 保持延後（🟢 Low，等 plugin 1.0 穩定）
 - **Success criteria**（EXP→CONCLUDED）：npm install 無錯 / 所有 native modules rebuild 成功 / dev+build:dir 可跑 / 手動 smoke test 8 項通過
 - **最大風險**：`whisper-node-addon@1.0.2` 對 Electron 41（Node 24）的 NODE_MODULE_VERSION 相容性未知，允許 Worker 遇此決策點主動問塔台
+
+---
+
+### D507 2026-11-28 16:05 — T0975 收單；U-69
+
+- **回報**：DONE，模式 ① 無衝突；merge `b04ed2e9`（parent1 `e54da6ff` = `base_main_sha`、parent2 `c1abe148` = `ct/T0972` head）；樹比對只有 T0972 的 5 檔；在 merge commit 上 test:unit 9625 passed / 532 files、兩個 typecheck 0、build 0；`notify-hold-prompt-submit.test.ts` 29 / 29（含 T0972 全部段落）。這次驗收涵蓋了 T0972 validated 之後的純文件 commit（判準 2 已補）。
+- **SHA 比對**：①–③ 成立 → 斷點 E **U-69**。
+- **相關**：T0972 / T0975 / BUG-235 / D506
 
 ---
 
